@@ -12,11 +12,11 @@ A Library of Unified Incremental Potential Contact.
 
 - Run the following command at the root of the project:
     ```shell
-    doxide build; doxide build
+    doxide build; mkdocs build
     ```
     
 - Turn on the local server:
     ```shell
-    doxide serve
+    mkdocs serve
     ```
 

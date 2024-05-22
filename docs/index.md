@@ -9,3 +9,6 @@ generator: doxide
 
 
 
+:material-package: [uipc](uipc/index.md)
+:   
+

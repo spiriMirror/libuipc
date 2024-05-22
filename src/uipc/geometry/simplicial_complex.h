@@ -10,6 +10,9 @@
 
 namespace uipc::geometry
 {
+/**
+ * @brief A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.
+ */
 template <typename SimplexSlot>
     requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
 class SimplicialComplexAttributes
@@ -25,10 +28,24 @@ class SimplicialComplexAttributes
     void  clear();
     SizeT size() const;
 
+    /**
+     * @brief Get a non-const view of the topology.
+     * 
+     * @warning This function may make a data clone if the topology is shared. if you want to avoid data clone, use `std::as_const(this_instance).topo_view()` instead.
+     */
     auto topo_view() { return m_topology->view(); }
+    /**
+     * @brief Get a const view of the topology, this function guarantees no data clone.
+     */
     auto topo_view() const { return std::as_const(m_topology)->view(); }
+    /**
+     * @brief Query if the topology is owned by current simplicial complex.
+     */
     bool topo_is_owned() const;
 
+    /**
+     * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
+     */
     template <typename T>
     auto find(std::string_view name)
     {
@@ -43,7 +60,26 @@ class SimplicialComplexAttributes
     SimplicialComplexAttributes(SimplexSlot& topology, AttributeCollection& attributes);
 };
 
-
+/**
+ * @brief A simplicial complex is a collection of simplices, for example, vertices, edges, triangles, and tetrahedra.
+ * 
+ * $K = (V, E, F, T)$, where $V$ is the set of vertices, $E$ is the set of edges,
+ * $F$ is the set of triangles, and $T$ is the set of tetrahedra.
+ * 
+ * A simple example:
+ * ```cpp
+ *  auto mesh = geometry::tetmesh(Vs, Ts);
+ *  auto VA  = mesh.vertices();
+ *  auto TA  = mesh.tetrahedra();
+ *  auto pos = VA.find<Vector3>("position");
+ *  auto const_view = std::as_const(pos)->view();
+ *  auto non_const_view = pos->view();
+ * ```
+ * 
+ * @warning An non-const view of the attribute may cause data clone if the attribute is shared.
+ * To avoid data clone, use `std::as_const(this_instance).attribute_view()` instead.
+ * 
+ */
 class SimplicialComplex : public IGeometry
 {
   public:
@@ -59,7 +95,13 @@ class SimplicialComplex : public IGeometry
     SimplicialComplex& operator=(const SimplicialComplex& o) = default;
     SimplicialComplex& operator=(SimplicialComplex&& o)      = default;
 
-    AttributeSlot<Vector3>&       positions();
+    /**
+     * @brief A short cut to get the positions of the vertices
+     */
+    AttributeSlot<Vector3>& positions();
+    /**
+     * @brief A short cut to get the positions of the vertices
+     */
     const AttributeSlot<Vector3>& positions() const;
 
     VertexAttributes      vertices();

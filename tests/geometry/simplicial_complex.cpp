@@ -1,6 +1,7 @@
 #include <catch2/catch_all.hpp>
 #include <uipc/geometry/factory.h>
 #include <spdlog/spdlog.h>
+#include <numeric>
 
 TEST_CASE("tetmesh", "[create]")
 {
@@ -50,6 +51,9 @@ TEST_CASE("tetmesh", "[create]")
     pos_view[5]   = Vector3{1.0, 0.0, 1.0};
     pos_view[6]   = Vector3{0.0, 1.0, 1.0};
     pos_view[7]   = Vector3{1.0, 1.0, 1.0};
+
+    Vector3 center =
+        std::accumulate(pos_view.begin(), pos_view.end(), Vector3{0, 0, 0}) / pos->size();
 
     // a clone is made here
     TA.resize(2);

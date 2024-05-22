@@ -6,9 +6,6 @@
 
 namespace uipc::geometry
 {
-/**
- * \brief Interface for simplices
- */
 class ISimplices
 {
   public:
