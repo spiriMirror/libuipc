@@ -1,0 +1,6 @@
+add_executable(hello_uipc)
+
+target_sources(hello_uipc PRIVATE "main.cpp")
+target_link_libraries(hello_uipc PRIVATE uipc)
+
+set_property(TARGET hello_uipc PROPERTY FOLDER "examples")
