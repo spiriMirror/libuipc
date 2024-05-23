@@ -20,7 +20,7 @@ class IAttributeSlot
     IAttributeSlot& operator=(IAttributeSlot&&) noexcept = default;
 
     std::string_view name() const;
-    bool             is_owned() const;
+    bool             is_shared() const;
     SizeT            size() const;
 
   protected:

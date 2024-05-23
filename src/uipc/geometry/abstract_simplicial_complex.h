@@ -11,7 +11,7 @@ class ISimplexSlot
     ISimplexSlot()          = default;
     virtual ~ISimplexSlot() = default;
 
-    bool  is_owned() const;
+    bool  is_shared() const;
     SizeT size() const;
 
     // delete copy

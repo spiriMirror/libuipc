@@ -4,7 +4,7 @@ namespace uipc::geometry
 {
 void ISimplexSlot::make_owned()
 {
-    if(is_owned())
+    if(!is_shared())
         return;
     do_make_owned();
 }
@@ -173,9 +173,9 @@ const TetrahedronSlot& AbstractSimplicialComplex::tetrahedra() const
     return m_tetrahedra;
 }
 
-bool ISimplexSlot::is_owned() const
+bool ISimplexSlot::is_shared() const
 {
-    return use_count() == 1;
+    return use_count() != 1;
 }
 SizeT ISimplexSlot::size() const
 {

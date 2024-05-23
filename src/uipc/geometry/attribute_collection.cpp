@@ -7,10 +7,9 @@ std::string_view IAttributeSlot::name() const
     return m_name;
 }
 
-bool IAttributeSlot::is_owned() const
+bool IAttributeSlot::is_shared() const
 {
-    // if I find that no other object is using this attribute, then I can own it
-    return use_count() == 1;
+    return use_count() != 1;
 }
 
 IAttributeSlot::IAttributeSlot(std::string_view m_name)
@@ -25,7 +24,7 @@ SizeT IAttributeSlot::size() const
 
 void IAttributeSlot::make_owned()
 {
-    if(is_owned())
+    if(!is_shared())
         return;
     do_make_owned();
 }

@@ -17,30 +17,31 @@ TEST_CASE("tetmesh", "[create]")
     auto mesh = tetmesh(Vs, Ts);
 
     auto shared_mesh = mesh;
-    REQUIRE(!shared_mesh.positions().is_owned());
+    REQUIRE(shared_mesh.positions().is_shared());
 
     // a const view just references the data
     auto const_view = std::as_const(shared_mesh).positions().view();
 
-    REQUIRE(!shared_mesh.positions().is_owned());
+    REQUIRE(shared_mesh.positions().is_shared());
 
     // a non-const view creates a clone of the data if it is not owned
     auto non_const_view = shared_mesh.positions().view();
 
     // after that, the data is owned
-    REQUIRE(shared_mesh.positions().is_owned());
+    REQUIRE(!shared_mesh.positions().is_shared());
 
 
     auto VA  = shared_mesh.vertices();
     auto pos = VA.find<Vector3>("position");
-    auto TA  = shared_mesh.tetrahedra();
-
-    // These query don't modify the data, so the data is not cloned
     REQUIRE(pos->size() == Vs.size());
+    REQUIRE(!pos->is_shared());
+
+    auto TA = shared_mesh.tetrahedra();
+    // These query don't modify the data, so the data is not cloned
     REQUIRE(VA.size() == Vs.size());
     REQUIRE(TA.size() == Ts.size());
-    REQUIRE(!VA.topo_is_owned());
-    REQUIRE(!TA.topo_is_owned());
+    REQUIRE(VA.topo_is_shared());
+    REQUIRE(TA.topo_is_shared());
 
 
     // when resize:
@@ -66,8 +67,8 @@ TEST_CASE("tetmesh", "[create]")
     REQUIRE(TA.size() == 2);
 
     // after changing the topo, the topo is owned
-    REQUIRE(VA.topo_is_owned());
-    REQUIRE(TA.topo_is_owned());
+    REQUIRE(!VA.topo_is_shared());
+    REQUIRE(!TA.topo_is_shared());
 
     // shallow copy, the data is not cloned
     auto shared_topo_mesh = shared_mesh;
@@ -77,8 +78,8 @@ TEST_CASE("tetmesh", "[create]")
         // make a non const view, the data is automatically cloned
         auto view = shared_topo_mesh.positions().view();
         // so the positions are owned
-        REQUIRE(shared_topo_mesh.positions().is_owned());
+        REQUIRE(!shared_topo_mesh.positions().is_shared());
         // but the topo are shared
-        REQUIRE(!shared_topo_mesh.vertices().topo_is_owned());
+        REQUIRE(shared_topo_mesh.vertices().topo_is_shared());
     }
 }

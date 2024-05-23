@@ -25,4 +25,24 @@ SimplicialComplex trimesh(std::span<const Vector3> Vs, std::span<const Vector3i>
 
     return SimplicialComplex{asc, Vs};
 }
+
+SimplicialComplex linemesh(std::span<const Vector3> Vs, std::span<const Vector2i> Es)
+{
+    AbstractSimplicialComplex asc;
+    asc.vertices()->resize(Vs.size());
+    asc.edges()->resize(Es.size());
+
+    auto dst_Ts = asc.edges()->view();
+    std::copy(Es.begin(), Es.end(), dst_Ts.begin());
+
+    return SimplicialComplex{asc, Vs};
+}
+
+SimplicialComplex pointcloud(std::span<const Vector3> Vs)
+{
+    AbstractSimplicialComplex asc;
+    asc.vertices()->resize(Vs.size());
+
+    return SimplicialComplex{asc, Vs};
+}
 }  // namespace uipc::geometry

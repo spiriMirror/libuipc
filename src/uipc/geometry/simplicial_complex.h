@@ -41,7 +41,7 @@ class SimplicialComplexAttributes
     /**
      * @brief Query if the topology is owned by current simplicial complex.
      */
-    bool topo_is_owned() const;
+    bool topo_is_shared() const;
 
     /**
      * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.

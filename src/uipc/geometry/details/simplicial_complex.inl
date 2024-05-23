@@ -32,9 +32,9 @@ SizeT SimplicialComplexAttributes<SimplexSlot>::size() const
 
 template <typename SimplexSlot>
     requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
-bool SimplicialComplexAttributes<SimplexSlot>::topo_is_owned() const
+bool SimplicialComplexAttributes<SimplexSlot>::topo_is_shared() const
 {
-    return m_topology.is_owned();
+    return m_topology.is_shared();
 }
 
 template <typename SimplexSlot>

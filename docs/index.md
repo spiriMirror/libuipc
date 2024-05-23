@@ -26,4 +26,3 @@ The libuipc is easy to use, high-performance, robust, and highly extensible.
     - The libuipc is highly modular, which allows users to easily extend the libuipc with new features.
     - It allows users to add their own custom collision detection algorithms, custom constraints, custom integrators, custom solvers, custom energy functions, and so on.
     - Embedded Python scripting is supported (maybe based on [Numba](https://numba.pydata.org/)), which allows users to easily add custom behaviors to the simulation.
-

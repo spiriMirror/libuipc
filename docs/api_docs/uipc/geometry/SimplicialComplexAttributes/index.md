@@ -23,7 +23,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
 | ---- | ----------- |
 | [topo_view](#topo_view) | Get a non-const view of the topology. |
 | [topo_view](#topo_view) | Get a const view of the topology, this function guarantees no data clone.  |
-| [topo_is_owned](#topo_is_owned) | Query if the topology is owned by current simplicial complex.  |
+| [topo_is_shared](#topo_is_shared) | Query if the topology is owned by current simplicial complex.  |
 | [find](#find) | Find an attribute by type and name, if the attribute does not exist, return nullptr.  |
 
 ## Function Details
@@ -39,8 +39,8 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
     
 
-### topo_is_owned<a name="topo_is_owned"></a>
-!!! function "bool topo_is_owned() const"
+### topo_is_shared<a name="topo_is_shared"></a>
+!!! function "bool topo_is_shared() const"
 
     
     
