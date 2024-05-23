@@ -5,8 +5,7 @@ namespace uipc::geometry
 {
 SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
                                      std::span<const Vector3>         positions)
-    : IGeometry{"SimplicialComplex"}
-    , m_asc{asc}
+    : m_asc{asc}
 {
     UIPC_ASSERT(positions.size() == m_asc.vertices()->size(),
                 "Number of vertices in the simplicial complex ({}) does not match the number of positions ({}).",
@@ -62,5 +61,10 @@ IndexT SimplicialComplex::dim() const
     if(m_asc.m_edges.size() > 0)
         return 1;
     return 0;
+}
+
+std::string_view SimplicialComplex::get_type() const
+{
+    return "SimplicialComplex";
 }
 }  // namespace uipc::geometry

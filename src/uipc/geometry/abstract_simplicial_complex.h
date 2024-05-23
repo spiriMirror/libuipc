@@ -11,8 +11,8 @@ class ISimplexSlot
     ISimplexSlot()          = default;
     virtual ~ISimplexSlot() = default;
 
-    bool  is_shared() const;
-    SizeT size() const;
+    [[nodiscard]] bool  is_shared() const;
+    [[nodiscard]] SizeT size() const;
 
     // delete copy
     ISimplexSlot(const ISimplexSlot&)            = delete;

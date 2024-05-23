@@ -1,4 +1,3 @@
-#include "abstract_simplicial_complex.h"
 namespace uipc::geometry
 {
 template <IndexT N>

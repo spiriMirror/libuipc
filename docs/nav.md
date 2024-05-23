@@ -1,5 +1,6 @@
 * [Home](index.md)
 * [Tutorial](tutorial/index.md)
     * [Geometry](tutorial/geometry.md)
+* [Specification](specification/index.md)
 * [API Documentation](api_docs/)
 * [Development](development/index.md)

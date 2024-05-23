@@ -1,13 +1,14 @@
-#include <catch2/catch_all.hpp>
+#include <catch.hpp>
 #include <uipc/geometry/factory.h>
 #include <spdlog/spdlog.h>
 #include <numeric>
 
-TEST_CASE("tetmesh", "[create]")
-{
-    using namespace uipc;
-    using namespace uipc::geometry;
+using namespace uipc;
+using namespace uipc::geometry;
 
+
+TEST_CASE("shared_test", "[geometry]")
+{
     std::vector           Vs = {Vector3{0.0, 0.0, 0.0},
                                 Vector3{1.0, 0.0, 0.0},
                                 Vector3{0.0, 1.0, 0.0},
@@ -18,6 +19,8 @@ TEST_CASE("tetmesh", "[create]")
 
     auto shared_mesh = mesh;
     REQUIRE(shared_mesh.positions().is_shared());
+
+    Ts.size();
 
     // a const view just references the data
     auto const_view = std::as_const(shared_mesh).positions().view();
@@ -82,4 +85,30 @@ TEST_CASE("tetmesh", "[create]")
         // but the topo are shared
         REQUIRE(shared_topo_mesh.vertices().topo_is_shared());
     }
+}
+
+
+SimplicialComplex create_tetrahedron()
+{
+    std::vector           Vs = {Vector3{0.0, 0.0, 0.0},
+                                Vector3{1.0, 0.0, 0.0},
+                                Vector3{0.0, 1.0, 0.0},
+                                Vector3{0.0, 0.0, 1.0}};
+    std::vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
+
+    return tetmesh(Vs, Ts);
+}
+
+
+TEST_CASE("create_attribute", "[geometry]")
+{
+    auto mesh = create_tetrahedron();
+
+    auto VA = mesh.vertices();
+
+    auto& vel = VA.create<Vector3>("velocity");
+    REQUIRE(vel.size() == VA.size());
+
+
+    REQUIRE_THROWS_AS(VA.create<Vector3>("velocity"), AttributeAlreadyExist);
 }

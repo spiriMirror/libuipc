@@ -7,20 +7,15 @@
 
 namespace uipc::geometry
 {
+/**
+ * @brief An abstract class to represent a geometry attribute.
+ */
 class IAttribute
 {
   public:
     IAttribute() = default;
 
-    SizeT size() const;
-
-    template <typename Derived>
-        requires std::is_base_of_v<IAttribute, Derived>
-    Derived& cast();
-
-    template <typename Derived>
-        requires std::is_base_of_v<IAttribute, Derived>
-    const Derived& cast() const;
+    [[nodiscard]] SizeT size() const;
 
   private:
     friend class AttributeCollection;
@@ -51,8 +46,8 @@ class Attribute : public IAttribute
     Attribute<T>& operator=(const Attribute<T>&) = default;
     Attribute<T>& operator=(Attribute<T>&&)      = default;
 
-    std::span<T>       view();
-    std::span<const T> view() const;
+    [[nodiscard]] std::span<T>       view();
+    [[nodiscard]] std::span<const T> view() const;
 
   protected:
     SizeT         get_size() const override;

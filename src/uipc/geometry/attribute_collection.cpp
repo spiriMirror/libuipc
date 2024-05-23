@@ -49,22 +49,12 @@ const IAttribute& IAttributeSlot::attribute() const
     return get_attribute();
 }
 
-const char* AttributeAlreadyExist::what() const noexcept
-{
-    return m_msg.c_str();
-}
-
-AttributeAlreadyExist::AttributeAlreadyExist(std::string_view name)
-{
-    m_msg = "Attribute with name " + std::string(name) + " already exist";
-}
-
 IAttributeSlot& AttributeCollection::share(std::string_view name, const IAttributeSlot& slot)
 {
     auto n  = std::string{name};
     auto it = m_attributes.find(n);
     if(it != m_attributes.end())
-        throw AttributeAlreadyExist{name};
+        throw AttributeAlreadyExist{std::format("Attribute with name [{}] already exist!", name)};
     return *(m_attributes[n] = slot.clone());
 }
 
@@ -140,6 +130,7 @@ AttributeCollection& AttributeCollection::operator=(const AttributeCollection& o
         m_attributes[name] = attr->clone();
     }
     m_size = o.m_size;
+    return *this;
 }
 AttributeCollection::AttributeCollection(AttributeCollection&& o) noexcept
     : m_attributes(std::move(o.m_attributes))

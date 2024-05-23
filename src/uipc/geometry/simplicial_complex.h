@@ -23,33 +23,42 @@ class SimplicialComplexAttributes
     SimplicialComplexAttributes& operator=(const SimplicialComplexAttributes& o) = default;
     SimplicialComplexAttributes& operator=(SimplicialComplexAttributes&& o) = default;
 
-    void  resize(size_t size);
-    void  reserve(size_t size);
-    void  clear();
-    SizeT size() const;
+    void                resize(size_t size);
+    void                reserve(size_t size);
+    void                clear();
+    [[nodiscard]] SizeT size() const;
 
     /**
      * @brief Get a non-const view of the topology.
      * 
      * @warning This function may cause a data clone if the topology is shared.
      */
-    auto topo_view() { return m_topology->view(); }
+    [[nodiscard]] auto topo_view() { return m_topology->view(); }
     /**
      * @brief Get a const view of the topology, this function guarantees no data clone.
      */
-    auto topo_view() const { return std::as_const(m_topology)->view(); }
+    [[nodiscard]] auto topo_view() const
+    {
+        return std::as_const(m_topology)->view();
+    }
     /**
      * @brief Query if the topology is owned by current simplicial complex.
      */
-    bool topo_is_shared() const;
+    [[nodiscard]] bool topo_is_shared() const;
 
     /**
      * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
      */
     template <typename T>
-    auto find(std::string_view name)
+    [[nodiscard]] auto find(std::string_view name)
     {
-        return m_attributes.find<T>(name);
+        return m_attributes.template find<T>(name);
+    }
+
+    template <typename T>
+    decltype(auto) create(std::string_view name)
+    {
+        return m_attributes.template create<T>(name);
     }
 
   private:
@@ -98,36 +107,39 @@ class SimplicialComplex : public IGeometry
     /**
      * @brief A short cut to get the positions of the vertices
      */
-    AttributeSlot<Vector3>& positions();
+    [[nodiscard]] AttributeSlot<Vector3>& positions();
     /**
      * @brief A short cut to get the positions of the vertices
      */
-    const AttributeSlot<Vector3>& positions() const;
+    [[nodiscard]] const AttributeSlot<Vector3>& positions() const;
 
     /**
      * @return A wrapper of the vertices and its attributes of the simplicial complex.
      */
-    VertexAttributes vertices();
+    [[nodiscard]] VertexAttributes vertices();
     /**
      * @return A wrapper of the edges and its attributes of the simplicial complex.
      * 
      * @sa EdgeAttributes
      */
-    EdgeAttributes edges();
+    [[nodiscard]] EdgeAttributes edges();
     /**
      * @return A wrapper of the triangles and its attributes of the simplicial complex.
      * 
      */
-    TriangleAttributes triangles();
+    [[nodiscard]] TriangleAttributes triangles();
     /**
     * @return A wrapper of the tetrahedra and its attributes of the simplicial complex.
     */
-    TetrahedronAttributes tetrahedra();
+    [[nodiscard]] TetrahedronAttributes tetrahedra();
 
     /**
     * @brief Get the dimension of the simplicial complex.
     */
-    IndexT dim() const;
+    [[nodiscard]] IndexT dim() const;
+
+  protected:
+    virtual std::string_view get_type() const override;
 
   private:
     AbstractSimplicialComplex m_asc;

@@ -1,22 +1,7 @@
-#include "simplices.h"
 namespace uipc::geometry
 {
-template <typename Derived>
-    requires std::is_base_of_v<ISimplices, Derived>
-Derived& ISimplices::cast()
-{
-    return dynamic_cast<Derived&>(*this);
-}
-
-template <typename Derived>
-    requires std::is_base_of_v<ISimplices, Derived>
-const Derived& ISimplices::cast() const
-{
-    return dynamic_cast<const Derived&>(*this);
-}
-
 template <IndexT N>
-IndexT Simplices<N>::dim() const
+IndexT Simplices<N>::get_dim() const
 {
     return N;
 }
@@ -58,7 +43,7 @@ void Simplices<N>::do_reserve(SizeT N)
 }
 
 template <IndexT N>
-S<ISimplices> Simplices<N>::do_clone() const
+S<ITopoElements> Simplices<N>::do_clone() const
 {
     return std::make_shared<Simplices<N>>(*this);
 }

@@ -1,4 +1,5 @@
-#include "attribute_collection.h"
+#include <format>
+
 namespace uipc::geometry
 {
 template <typename T>
@@ -15,7 +16,8 @@ AttributeSlot<T>& AttributeCollection::create(std::string_view name)
     auto it = m_attributes.find(n);
     if(it != m_attributes.end())
     {
-        throw AttributeAlreadyExist{name};
+        throw AttributeAlreadyExist{
+            std::format("Attribute with name [{}] already exist!", name)};
     }
     auto S = std::make_shared<Attribute<T>>();
     S->resize(m_size);

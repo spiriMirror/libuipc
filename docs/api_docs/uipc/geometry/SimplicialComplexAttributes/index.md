@@ -29,7 +29,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
 ## Function Details
 
 ### find<a name="find"></a>
-!!! function "template &lt;typename T&gt; auto find(std::string_view name)"
+!!! function "template &lt;typename T&gt; [[nodiscard]] auto find(std::string_view name)"
 
     
     
@@ -40,7 +40,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
 
 ### topo_is_shared<a name="topo_is_shared"></a>
-!!! function "bool topo_is_shared() const"
+!!! function "[[nodiscard]] bool topo_is_shared() const"
 
     
     
@@ -51,7 +51,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
 
 ### topo_view<a name="topo_view"></a>
-!!! function "auto topo_view()"
+!!! function "[[nodiscard]] auto topo_view()"
 
     
     
@@ -62,7 +62,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
         
     
 
-!!! function "auto topo_view() const"
+!!! function "[[nodiscard]] auto topo_view() const"
 
     
     

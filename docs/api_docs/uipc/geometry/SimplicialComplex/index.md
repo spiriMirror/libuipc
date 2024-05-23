@@ -48,7 +48,7 @@ auto non_const_view = pos->view();
 ## Function Details
 
 ### dim<a name="dim"></a>
-!!! function "IndexT dim() const"
+!!! function "[[nodiscard]] IndexT dim() const"
 
     
     
@@ -59,7 +59,7 @@ auto non_const_view = pos->view();
     
 
 ### edges<a name="edges"></a>
-!!! function "EdgeAttributes edges()"
+!!! function "[[nodiscard]] EdgeAttributes edges()"
 
     
     
@@ -72,7 +72,7 @@ auto non_const_view = pos->view();
     
 
 ### positions<a name="positions"></a>
-!!! function "AttributeSlot&lt;Vector3&gt;&amp; positions()"
+!!! function "[[nodiscard]] AttributeSlot&lt;Vector3&gt;&amp; positions()"
 
     
     
@@ -82,7 +82,7 @@ auto non_const_view = pos->view();
     
     
 
-!!! function "const AttributeSlot&lt;Vector3&gt;&amp; positions() const"
+!!! function "[[nodiscard]] const AttributeSlot&lt;Vector3&gt;&amp; positions() const"
 
     
     
@@ -93,7 +93,7 @@ auto non_const_view = pos->view();
     
 
 ### tetrahedra<a name="tetrahedra"></a>
-!!! function "TetrahedronAttributes tetrahedra()"
+!!! function "[[nodiscard]] TetrahedronAttributes tetrahedra()"
 
     
     
@@ -103,7 +103,7 @@ auto non_const_view = pos->view();
     
 
 ### triangles<a name="triangles"></a>
-!!! function "TriangleAttributes triangles()"
+!!! function "[[nodiscard]] TriangleAttributes triangles()"
 
     
     
@@ -114,7 +114,7 @@ auto non_const_view = pos->view();
     
 
 ### vertices<a name="vertices"></a>
-!!! function "VertexAttributes vertices()"
+!!! function "[[nodiscard]] VertexAttributes vertices()"
 
     
     

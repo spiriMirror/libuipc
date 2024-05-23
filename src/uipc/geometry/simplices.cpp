@@ -3,30 +3,31 @@
 
 namespace uipc::geometry
 {
-SizeT ISimplices::size() const
+IndexT ISimplices::dim() const
 {
-    return get_size();
+    return get_dim();
 }
-void ISimplices::resize(SizeT N)
-{
-    do_resize(N);
-}
-void ISimplices::clear()
-{
-    do_clear();
-}
-S<ISimplices> ISimplices::clone() const
-{
-    return do_clone();
-}
-void ISimplices::reserve(SizeT N)
-{
-    do_reserve(N);
-}
-IndexT Vertices::dim() const
+
+IndexT Vertices::get_dim() const
 {
     return 0;
 }
+
+S<ISimplices> ISimplices::clone() const
+{
+    return std::static_pointer_cast<ISimplices>(do_clone());
+}
+
+SizeT ISimplices::get_tuple_size() const
+{
+    return dim() + 1ull;
+}
+
+SizeT ISimplices::get_tuple_size(IndexT i) const
+{
+    return get_tuple_size();
+}
+
 std::span<const IndexT> Vertices::view() const
 {
     if(m_size != m_simplices.size())
@@ -36,6 +37,7 @@ std::span<const IndexT> Vertices::view() const
     }
     return m_simplices;
 }
+
 std::span<IndexT> Vertices::view()
 {
     if(m_size != m_simplices.size())
@@ -45,22 +47,27 @@ std::span<IndexT> Vertices::view()
     }
     return m_simplices;
 }
+
 SizeT Vertices::get_size() const
 {
     return m_size;
 }
+
 void Vertices::do_resize(SizeT N)
 {
     m_size = N;
 }
+
 void Vertices::do_clear()
 {
     m_size = 0;
 }
-S<ISimplices> Vertices::do_clone() const
+
+S<ITopoElements> Vertices::do_clone() const
 {
     return std::make_shared<Vertices>(*this);
 }
+
 void Vertices::do_reserve(SizeT N)
 {
     // Do nothing

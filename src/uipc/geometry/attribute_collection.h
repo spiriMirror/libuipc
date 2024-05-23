@@ -2,6 +2,7 @@
 #include <uipc/common/smart_pointer.h>
 #include <uipc/geometry/attribute.h>
 #include <map>
+#include <uipc/common/exception.h>
 
 namespace uipc::geometry
 {
@@ -19,9 +20,9 @@ class IAttributeSlot
     IAttributeSlot(IAttributeSlot&&) noexcept            = default;
     IAttributeSlot& operator=(IAttributeSlot&&) noexcept = default;
 
-    std::string_view name() const;
-    bool             is_shared() const;
-    SizeT            size() const;
+    [[nodiscard]] std::string_view name() const;
+    [[nodiscard]] bool             is_shared() const;
+    [[nodiscard]] SizeT            size() const;
 
   protected:
     friend class AttributeCollection;
@@ -29,16 +30,16 @@ class IAttributeSlot
     void         make_owned();
     virtual void do_make_owned() = 0;
 
-    SizeT         use_count() const;
-    virtual SizeT get_use_count() const = 0;
+    [[nodiscard]] SizeT         use_count() const;
+    [[nodiscard]] virtual SizeT get_use_count() const = 0;
 
-    virtual U<IAttributeSlot> clone() const;
-    virtual U<IAttributeSlot> do_clone() const = 0;
+    [[nodiscard]] virtual U<IAttributeSlot> clone() const;
+    [[nodiscard]] virtual U<IAttributeSlot> do_clone() const = 0;
 
-    virtual IAttribute&       attribute();
-    virtual IAttribute&       get_attribute() = 0;
-    virtual const IAttribute& attribute() const;
-    virtual const IAttribute& get_attribute() const = 0;
+    [[nodiscard]] virtual IAttribute&       attribute();
+    [[nodiscard]] virtual IAttribute&       get_attribute() = 0;
+    [[nodiscard]] virtual const IAttribute& attribute() const;
+    [[nodiscard]] virtual const IAttribute& get_attribute() const = 0;
 
   private:
     std::string m_name;
@@ -52,19 +53,19 @@ class AttributeSlot final : public IAttributeSlot
 
     AttributeSlot(std::string_view m_name, S<Attribute<T>> attribute);
 
-    std::span<T>       view();
-    std::span<const T> view() const;
+    [[nodiscard]] std::span<T>       view();
+    [[nodiscard]] std::span<const T> view() const;
 
   protected:
     friend class AttributeCollection;
 
-    void                      do_make_owned() override;
-    virtual U<IAttributeSlot> do_clone() const override;
+    void                                    do_make_owned() override;
+    [[nodiscard]] virtual U<IAttributeSlot> do_clone() const override;
 
-    virtual IAttribute&       get_attribute() override;
-    virtual const IAttribute& get_attribute() const override;
+    [[nodiscard]] virtual IAttribute&       get_attribute() override;
+    [[nodiscard]] virtual const IAttribute& get_attribute() const override;
 
-    virtual SizeT get_use_count() const override;
+    [[nodiscard]] virtual SizeT get_use_count() const override;
 
   private:
     S<Attribute<T>> m_attribute;
@@ -91,34 +92,29 @@ class AttributeCollection
 
     void destroy(std::string_view name);
 
-    IAttributeSlot*       find(std::string_view name);
-    const IAttributeSlot* find(std::string_view name) const;
+    [[nodiscard]] IAttributeSlot*       find(std::string_view name);
+    [[nodiscard]] const IAttributeSlot* find(std::string_view name) const;
 
     template <typename T>
-    AttributeSlot<T>* find(std::string_view name);
+    [[nodiscard]] AttributeSlot<T>* find(std::string_view name);
 
     template <typename T>
-    const AttributeSlot<T>* find(std::string_view name) const;
+    [[nodiscard]] const AttributeSlot<T>* find(std::string_view name) const;
 
-    void   resize(size_t N);
-    size_t size() const;
-    void   clear();
-    void   reserve(size_t N);
+    void                 resize(size_t N);
+    [[nodiscard]] size_t size() const;
+    void                 clear();
+    void                 reserve(size_t N);
 
   private:
     size_t                                   m_size = 0;
     std::map<std::string, U<IAttributeSlot>> m_attributes;
 };
 
-class AttributeAlreadyExist : public std::exception
+class AttributeAlreadyExist : public Exception
 {
   public:
-    AttributeAlreadyExist(std::string_view msg);
-
-    const char* what() const noexcept override;
-
-  private:
-    std::string m_msg;
+    using Exception::Exception;
 };
 }  // namespace uipc::geometry
 

@@ -1,5 +1,6 @@
 find_package(Eigen3 REQUIRED)
 find_package(spdlog REQUIRED)
+find_package(libigl REQUIRED)
 
 add_library(uipc STATIC)
 target_compile_features(uipc PUBLIC cxx_std_20)
@@ -11,7 +12,7 @@ file(GLOB UIPC_SOURCE_FILES "*.h" "*.cpp")
 target_sources(uipc PRIVATE ${UIPC_SOURCE_FILES})
 
 target_include_directories(uipc PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
-target_link_libraries(uipc PUBLIC Eigen3::Eigen spdlog::spdlog)
+target_link_libraries(uipc PUBLIC Eigen3::Eigen spdlog::spdlog igl::igl_core hipony::enumerate)
 
 
 # Group files in IDE

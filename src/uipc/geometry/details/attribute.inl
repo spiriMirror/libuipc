@@ -1,20 +1,5 @@
-#include "attribute.h"
 namespace uipc::geometry
 {
-template <typename Derived>
-    requires std::is_base_of_v<IAttribute, Derived>
-Derived& IAttribute::cast()
-{
-    return dynamic_cast<Derived&>(*this);
-}
-
-template <typename Derived>
-    requires std::is_base_of_v<IAttribute, Derived>
-const Derived& IAttribute::cast() const
-{
-    return dynamic_cast<const Derived&>(*this);
-}
-
 template <typename T>
 std::span<T> Attribute<T>::view()
 {
