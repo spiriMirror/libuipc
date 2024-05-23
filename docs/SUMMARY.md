@@ -1,5 +1,0 @@
-* [Home](index.md)
-* [Tutorial](tutorial/index.md)
-  * [Quick Start](tutorial/quick_start.md)
-* [API Documentation](api_docs/)
-* [Development](development/index.md)
