@@ -58,7 +58,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     Get a non-const view of the topology.
     
     !!! warning
-         This function may make a data clone if the topology is shared. if you want to avoid data clone, use `std::as_const(this_instance).topo_view()` instead.
+         This function may cause a data clone if the topology is shared.
         
     
 

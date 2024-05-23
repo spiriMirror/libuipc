@@ -1,4 +1,4 @@
-site_name: libuipc
+site_name: Libuipc Documentation
 site_description:  
 theme:
   name: material
@@ -35,10 +35,13 @@ markdown_extensions:
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
 plugins:
   - search
+  - literate-nav:
+      nav_file: SUMMARY.md
 extra_css:
   - stylesheets/doxide.css
 extra_javascript:
   - javascripts/mathjax.js
   - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
 

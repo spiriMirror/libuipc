@@ -13,4 +13,16 @@ SimplicialComplex tetmesh(std::span<const Vector3> Vs, std::span<const Vector4i>
 
     return SimplicialComplex{asc, Vs};
 }
+
+SimplicialComplex trimesh(std::span<const Vector3> Vs, std::span<const Vector3i> Fs)
+{
+    AbstractSimplicialComplex asc;
+    asc.vertices()->resize(Vs.size());
+    asc.triangles()->resize(Fs.size());
+
+    auto dst_Ts = asc.triangles()->view();
+    std::copy(Fs.begin(), Fs.end(), dst_Ts.begin());
+
+    return SimplicialComplex{asc, Vs};
+}
 }  // namespace uipc::geometry

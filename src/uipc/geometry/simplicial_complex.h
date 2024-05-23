@@ -31,7 +31,7 @@ class SimplicialComplexAttributes
     /**
      * @brief Get a non-const view of the topology.
      * 
-     * @warning This function may make a data clone if the topology is shared. if you want to avoid data clone, use `std::as_const(this_instance).topo_view()` instead.
+     * @warning This function may cause a data clone if the topology is shared.
      */
     auto topo_view() { return m_topology->view(); }
     /**
@@ -104,11 +104,30 @@ class SimplicialComplex : public IGeometry
      */
     const AttributeSlot<Vector3>& positions() const;
 
-    VertexAttributes      vertices();
-    EdgeAttributes        edges();
-    TriangleAttributes    triangles();
+    /**
+     * @return A wrapper of the vertices and its attributes of the simplicial complex.
+     */
+    VertexAttributes vertices();
+    /**
+     * @return A wrapper of the edges and its attributes of the simplicial complex.
+     * 
+     * @sa EdgeAttributes
+     */
+    EdgeAttributes edges();
+    /**
+     * @return A wrapper of the triangles and its attributes of the simplicial complex.
+     * 
+     */
+    TriangleAttributes triangles();
+    /**
+    * @return A wrapper of the tetrahedra and its attributes of the simplicial complex.
+    */
     TetrahedronAttributes tetrahedra();
 
+    /**
+    * @brief Get the dimension of the simplicial complex.
+    */
+    IndexT dim() const;
 
   private:
     AbstractSimplicialComplex m_asc;

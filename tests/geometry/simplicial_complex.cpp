@@ -7,6 +7,7 @@ TEST_CASE("tetmesh", "[create]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
+
     std::vector           Vs = {Vector3{0.0, 0.0, 0.0},
                                 Vector3{1.0, 0.0, 0.0},
                                 Vector3{0.0, 1.0, 0.0},

@@ -1,5 +1,5 @@
-title: libuipc
-description: 
+title: The libuipc API Documentation
+description: The libuipc API Documentation
 files:
-  - "src/**/**.h"
-
+  - "src/uipc/**/**.h"
+output: docs/api_docs

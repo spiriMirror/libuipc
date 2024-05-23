@@ -32,20 +32,35 @@ const AttributeSlot<Vector3>& SimplicialComplex::positions() const
 {
     return *m_vertex_attributes.find<Vector3>("position");
 }
+
 auto SimplicialComplex::vertices() -> VertexAttributes
 {
     return VertexAttributes(m_asc.m_vertices, m_vertex_attributes);
 }
+
 auto SimplicialComplex::edges() -> EdgeAttributes
 {
     return EdgeAttributes(m_asc.m_edges, m_edge_attributes);
 }
+
 auto SimplicialComplex::triangles() -> TriangleAttributes
 {
     return TriangleAttributes(m_asc.m_triangles, m_triangle_attributes);
 }
+
 auto SimplicialComplex::tetrahedra() -> TetrahedronAttributes
 {
     return TetrahedronAttributes(m_asc.m_tetrahedra, m_tetrahedron_attributes);
+}
+
+IndexT SimplicialComplex::dim() const
+{
+    if(m_asc.m_tetrahedra.size() > 0)
+        return 3;
+    if(m_asc.m_triangles.size() > 0)
+        return 2;
+    if(m_asc.m_edges.size() > 0)
+        return 1;
+    return 0;
 }
 }  // namespace uipc::geometry
