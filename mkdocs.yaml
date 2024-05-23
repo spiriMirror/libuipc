@@ -36,7 +36,7 @@ markdown_extensions:
 plugins:
   - search
   - literate-nav:
-      nav_file: SUMMARY.md
+      nav_file: summary.md
 extra_css:
   - stylesheets/doxide.css
 extra_javascript:
