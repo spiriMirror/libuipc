@@ -2,8 +2,8 @@
 #include <uipc/geometry/topo_elements.h>
 #include <uipc/common/type_define.h>
 #include <uipc/common/smart_pointer.h>
-#include <vector>
-#include <span>
+#include <uipc/common/vector.h>
+#include <uipc/common/span.h>
 
 namespace uipc::geometry
 {
@@ -24,9 +24,9 @@ class ISimplices : public ITopoElements
     [[nodiscard]] IndexT dim() const;
 
   protected:
-    S<ISimplices> clone() const;
-    virtual SizeT get_tuple_size() const override;
-    virtual SizeT get_tuple_size(IndexT i) const override;
+    S<ISimplices>  clone() const;
+    virtual SizeT  get_tuple_size() const override;
+    virtual SizeT  get_tuple_size(IndexT i) const override;
     virtual IndexT get_dim() const = 0;
 };
 
@@ -43,15 +43,15 @@ class Vertices final : public ISimplices
     /**
      * @brief Get the const view of the vertices, this method generates no data clone.
      * 
-     * @return std::span<const IndexT> 
+     * @return span<const IndexT> 
      */
-    [[nodiscard]] std::span<const IndexT> view() const;
+    [[nodiscard]] span<const IndexT> view() const;
     /**
      * @brief Get the non-const view of the vertices, this method may potentially generate data clone.
      *  
-     * @return std::span<IndexT> 
+     * @return span<IndexT> 
      */
-    [[nodiscard]] std::span<IndexT>       view();
+    [[nodiscard]] span<IndexT> view();
 
   protected:
     virtual IndexT           get_dim() const override;
@@ -62,8 +62,8 @@ class Vertices final : public ISimplices
     virtual void             do_reserve(SizeT N) override;
 
   private:
-    size_t                      m_size = 0;
-    mutable std::vector<IndexT> m_simplices;
+    size_t                 m_size = 0;
+    mutable vector<IndexT> m_simplices;
 };
 
 /**
@@ -79,18 +79,18 @@ class Simplices final : public ISimplices
     /**
      * @brief Get the const view of the simplices, this method generates no data clone.
      * 
-     * @return std::span<const Vector<IndexT, N + 1>> 
+     * @return span<const Vector<IndexT, N + 1>> 
      */
-    [[nodiscard]] std::span<const Vector<IndexT, N + 1>> view() const;
+    [[nodiscard]] span<const Vector<IndexT, N + 1>> view() const;
     /**
      * @brief Get the non-const view of the simplices, this method may potentially generate data clone.
      * 
-     * @return std::span<Vector<IndexT, N + 1>> 
+     * @return span<Vector<IndexT, N + 1>> 
      */
-    [[nodiscard]] std::span<Vector<IndexT, N + 1>>       view();
+    [[nodiscard]] span<Vector<IndexT, N + 1>> view();
 
   private:
-    std::vector<Vector<IndexT, N + 1>> m_simplices;
+    vector<Vector<IndexT, N + 1>> m_simplices;
 
   protected:
     virtual IndexT           get_dim() const override;
@@ -104,11 +104,11 @@ class Simplices final : public ISimplices
 /**
  * @brief A collection of edges, $E=\{(i,j) \mid i,j\in V, i\neq j\}$, where $V$ is the set of vertices.
  */
-using Edges      = Simplices<1>;
+using Edges = Simplices<1>;
 /**
  * @brief A collection of triangles, $F=\{(i,j,k) \mid i,j,k\in V, i\neq j\neq k\}$, where $V$ is the set of vertices.
  */
-using Triangles  = Simplices<2>;
+using Triangles = Simplices<2>;
 /**
  * @brief A collection of tetrahedra, $T=\{(i,j,k,l) \mid i,j,k,l\in V, i\neq j\neq k\neq l\}$, where $V$ is the set of vertices.
  */

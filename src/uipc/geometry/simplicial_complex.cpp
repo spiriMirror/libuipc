@@ -4,7 +4,7 @@
 namespace uipc::geometry
 {
 SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
-                                     std::span<const Vector3>         positions)
+                                     span<const Vector3>         positions)
     : m_asc{asc}
 {
     UIPC_ASSERT(positions.size() == m_asc.vertices()->size(),

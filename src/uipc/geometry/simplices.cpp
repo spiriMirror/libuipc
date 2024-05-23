@@ -28,7 +28,7 @@ SizeT ISimplices::get_tuple_size(IndexT i) const
     return get_tuple_size();
 }
 
-std::span<const IndexT> Vertices::view() const
+span<const IndexT> Vertices::view() const
 {
     if(m_size != m_simplices.size())
     {
@@ -38,7 +38,7 @@ std::span<const IndexT> Vertices::view() const
     return m_simplices;
 }
 
-std::span<IndexT> Vertices::view()
+span<IndexT> Vertices::view()
 {
     if(m_size != m_simplices.size())
     {

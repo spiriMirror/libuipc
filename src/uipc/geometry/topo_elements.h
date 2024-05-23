@@ -1,8 +1,7 @@
 #pragma once
 #include <uipc/common/type_define.h>
 #include <uipc/common/smart_pointer.h>
-#include <vector>
-#include <span>
+#include <uipc/common/span.h>
 
 namespace uipc::geometry
 {
@@ -13,12 +12,25 @@ class ITopoElements
 {
   public:
     /**
-     * .
+     * @brief Get the number of indices in a tuple.
      * 
-     * \return the number of indices in a tuple
+     * If return ~0ull, it means the number of indices in a tuple is not fixed. user should call tuple_size(IndexT i) to get the number of indices in a tuple.
+     * 
+     * \return The number of indices in a tuple
      */
     [[nodiscard]] SizeT            tuple_size() const;
+    /**
+     * @brief Get the number of indices in the i-th tuple.
+     * 
+     * @param IndexT i
+     * @return The number of indices in the i-th tuple
+     */
     [[nodiscard]] SizeT            tuple_size(IndexT i) const;
+    /**
+     * @brief Get the number of tuples.
+     * 
+     * @return The number of tuples
+     */
     [[nodiscard]] SizeT            size() const;
     void                           resize(SizeT N);
     void                           clear();

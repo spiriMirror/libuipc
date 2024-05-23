@@ -7,7 +7,7 @@ generator: doxide
 
 # Triangles
 
-**using Triangles  = Simplices&lt;2&gt;**
+**using Triangles = Simplices&lt;2&gt;**
 
 
 

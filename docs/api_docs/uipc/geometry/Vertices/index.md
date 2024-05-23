@@ -28,25 +28,25 @@ Normally, we don't store the vertice indices, because the indices is just iota $
 ## Function Details
 
 ### view<a name="view"></a>
-!!! function "[[nodiscard]] std::span&lt;const IndexT&gt; view() const"
+!!! function "[[nodiscard]] span&lt;const IndexT&gt; view() const"
 
     
     
     Get the const view of the vertices, this method generates no data clone.
     
     :material-keyboard-return: **Return**
-    :    std::span<const IndexT>
+    :    span<const IndexT>
     
     
 
-!!! function "[[nodiscard]] std::span&lt;IndexT&gt;       view()"
+!!! function "[[nodiscard]] span&lt;IndexT&gt; view()"
 
     
     
     Get the non-const view of the vertices, this method may potentially generate data clone.
     
     :material-keyboard-return: **Return**
-    :    std::span<IndexT>
+    :    span<IndexT>
     
     
 

@@ -7,13 +7,13 @@ IndexT Simplices<N>::get_dim() const
 }
 
 template <IndexT N>
-std::span<const Vector<IndexT, N + 1>> Simplices<N>::view() const
+span<const Vector<IndexT, N + 1>> Simplices<N>::view() const
 {
     return m_simplices;
 }
 
 template <IndexT N>
-std::span<Vector<IndexT, N + 1>> Simplices<N>::view()
+span<Vector<IndexT, N + 1>> Simplices<N>::view()
 {
     return m_simplices;
 }

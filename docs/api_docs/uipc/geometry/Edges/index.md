@@ -7,7 +7,7 @@ generator: doxide
 
 # Edges
 
-**using Edges      = Simplices&lt;1&gt;**
+**using Edges = Simplices&lt;1&gt;**
 
 
 

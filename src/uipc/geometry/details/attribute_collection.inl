@@ -48,14 +48,14 @@ const AttributeSlot<T>* AttributeCollection::find(std::string_view name) const
 }
 
 template <typename T>
-std::span<T> AttributeSlot<T>::view()
+span<T> AttributeSlot<T>::view()
 {
     make_owned();
     return m_attribute->view();
 }
 
 template <typename T>
-std::span<const T> AttributeSlot<T>::view() const
+span<const T> AttributeSlot<T>::view() const
 {
     return m_attribute->view();
 }

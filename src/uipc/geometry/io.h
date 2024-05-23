@@ -5,6 +5,12 @@
 
 namespace uipc::geometry
 {
+/**
+ * @brief Read a tetmesh from a .msh file.
+ * 
+ * @param file_name The file to read
+ * @return SimplicialComplex 
+ */
 [[nodiscard]] SimplicialComplex read_msh(std::string_view file_name);
 }
 

@@ -1,26 +1,40 @@
 #pragma once
-#include <span>
+#include <uipc/common/span.h>
 #include <uipc/geometry/simplicial_complex.h>
 
 namespace uipc::geometry
 {
 /**
  * @brief Create a simplicial complex from a tetrahedral mesh.
+ * 
+ * @param Vs The vertex positions of the tetrahedral mesh
+ * @param Ts The tetrahedra of the tetrahedral mesh
  */
-[[nodiscard]] SimplicialComplex tetmesh(std::span<const Vector3>  Vs,
-                                        std::span<const Vector4i> Ts);
+[[nodiscard]] SimplicialComplex tetmesh(span<const Vector3>  Vs,
+                                        span<const Vector4i> Ts);
 /**
- * @brief Create a simplicial complex from a triangular mesh.
+ * @brief Create a simplicial complex from a triangle mesh.
+ * 
+ * @param Vs The vertex positions of the triangle mesh
+ * @param Fs The triangles of the triangle mesh
+ * @return SimplicialComplex 
  */
-[[nodiscard]] SimplicialComplex trimesh(std::span<const Vector3>  Vs,
-                                        std::span<const Vector3i> Fs);
+[[nodiscard]] SimplicialComplex trimesh(span<const Vector3>  Vs,
+                                        span<const Vector3i> Fs);
 /**
  * @brief Create a simplicial complex from a line mesh.
+ * 
+ * @param Vs The vertex positions of the line mesh
+ * @param Es The edges of the line mesh
+ * @return SimplicialComplex 
  */
-[[nodiscard]] SimplicialComplex linemesh(std::span<const Vector3>  Vs,
-                                         std::span<const Vector2i> Es);
+[[nodiscard]] SimplicialComplex linemesh(span<const Vector3>  Vs,
+                                         span<const Vector2i> Es);
 /**
  * @brief Create a simplicial complex from a point cloud.
+ * 
+ * @param Vs The vertex positions of the point cloud
+ * @return SimplicialComplex 
  */
-[[nodiscard]] SimplicialComplex pointcloud(std::span<const Vector3> Vs);
+[[nodiscard]] SimplicialComplex pointcloud(span<const Vector3> Vs);
 }  // namespace uipc::geometry

@@ -7,7 +7,10 @@
 namespace uipc::geometry
 {
 class AttributeCollection;
-
+/**
+ * @brief An abstract class to represent a geometry attribute slot in a geometry attribute collection.
+ * 
+ */
 class IAttributeSlot
 {
   public:
@@ -21,6 +24,12 @@ class IAttributeSlot
     IAttributeSlot& operator=(IAttributeSlot&&) noexcept = default;
 
     [[nodiscard]] std::string_view name() const;
+    /**
+     * @brief Check if the underlying attribute is shared.
+     * 
+     * @return true, if the underlying attribute is shared, more than one geometry reference to the underlying attribute.
+     * @return false, if the underlying attribute is owned, only this geometry reference to the underlying attribute. 
+     */
     [[nodiscard]] bool             is_shared() const;
     [[nodiscard]] SizeT            size() const;
 
@@ -45,6 +54,11 @@ class IAttributeSlot
     std::string m_name;
 };
 
+/**
+ * @brief Template class to represent a geometry attribute slot of type T in a geometry attribute collection.
+ * 
+ * @tparam T The type of the attribute values.
+ */
 template <typename T>
 class AttributeSlot final : public IAttributeSlot
 {
@@ -53,8 +67,19 @@ class AttributeSlot final : public IAttributeSlot
 
     AttributeSlot(std::string_view m_name, S<Attribute<T>> attribute);
 
-    [[nodiscard]] std::span<T>       view();
-    [[nodiscard]] std::span<const T> view() const;
+    /**
+     * @brief A shortcut to get the non-const attribute values.
+     * 
+     * @return `span<T>`
+     * @sa [Attribute](../Attribute/index.md#Attribute)
+     */
+    [[nodiscard]] span<T>       view();
+    /**
+     * @brief A shortcut to get the const attribute values.
+     * 
+     * @return `span<const T>`
+     */
+    [[nodiscard]] span<const T> view() const;
 
   protected:
     friend class AttributeCollection;

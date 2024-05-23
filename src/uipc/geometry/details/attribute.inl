@@ -1,13 +1,13 @@
 namespace uipc::geometry
 {
 template <typename T>
-std::span<T> Attribute<T>::view()
+span<T> Attribute<T>::view()
 {
     return m_values;
 }
 
 template <typename T>
-std::span<const T> Attribute<T>::view() const
+span<const T> Attribute<T>::view() const
 {
     return m_values;
 }

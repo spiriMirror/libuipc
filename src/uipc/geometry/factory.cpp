@@ -2,7 +2,7 @@
 
 namespace uipc::geometry
 {
-SimplicialComplex tetmesh(std::span<const Vector3> Vs, std::span<const Vector4i> Ts)
+SimplicialComplex tetmesh(span<const Vector3> Vs, span<const Vector4i> Ts)
 {
     AbstractSimplicialComplex asc;
     asc.vertices()->resize(Vs.size());
@@ -14,7 +14,7 @@ SimplicialComplex tetmesh(std::span<const Vector3> Vs, std::span<const Vector4i>
     return SimplicialComplex{asc, Vs};
 }
 
-SimplicialComplex trimesh(std::span<const Vector3> Vs, std::span<const Vector3i> Fs)
+SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
 {
     AbstractSimplicialComplex asc;
     asc.vertices()->resize(Vs.size());
@@ -26,7 +26,7 @@ SimplicialComplex trimesh(std::span<const Vector3> Vs, std::span<const Vector3i>
     return SimplicialComplex{asc, Vs};
 }
 
-SimplicialComplex linemesh(std::span<const Vector3> Vs, std::span<const Vector2i> Es)
+SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
 {
     AbstractSimplicialComplex asc;
     asc.vertices()->resize(Vs.size());
@@ -38,7 +38,7 @@ SimplicialComplex linemesh(std::span<const Vector3> Vs, std::span<const Vector2i
     return SimplicialComplex{asc, Vs};
 }
 
-SimplicialComplex pointcloud(std::span<const Vector3> Vs)
+SimplicialComplex pointcloud(span<const Vector3> Vs)
 {
     AbstractSimplicialComplex asc;
     asc.vertices()->resize(Vs.size());

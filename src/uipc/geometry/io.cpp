@@ -4,6 +4,7 @@
 #include <format>
 #include <uipc/common/enumerate.h>
 #include <filesystem>
+
 namespace uipc::geometry
 {
 template <typename T>
@@ -27,11 +28,11 @@ SimplicialComplex read_msh(std::string_view file_name)
     {
         throw GeometryIOError{std::format("Failed to load .msh file: {}", file_name)};
     }
-    std::vector<Vector3> Vs;
+    vector<Vector3> Vs;
     Vs.resize(X.rows());
     for(auto&& [i, v] : enumerate(Vs))
         v = X.row(i);
-    std::vector<Vector4i> Ts;
+    vector<Vector4i> Ts;
     Ts.resize(T.rows());
     for(auto&& [i, t] : enumerate(Ts))
         t = T.row(i);

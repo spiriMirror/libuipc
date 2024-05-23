@@ -1,7 +1,7 @@
 #pragma once
 #include <string_view>
-#include <vector>
-#include <span>
+#include <uipc/common/vector.h>
+#include <uipc/common/span.h>
 #include <uipc/common/type_define.h>
 #include <uipc/common/smart_pointer.h>
 
@@ -33,6 +33,12 @@ class IAttribute
     virtual S<IAttribute> do_clone() const    = 0;
 };
 
+
+/**
+ * @brief Template class to represent a geometry attribute of type T.
+ * 
+ * @tparam T The type of the attribute values.
+ */
 template <typename T>
 class Attribute : public IAttribute
 {
@@ -46,8 +52,20 @@ class Attribute : public IAttribute
     Attribute<T>& operator=(const Attribute<T>&) = default;
     Attribute<T>& operator=(Attribute<T>&&)      = default;
 
-    [[nodiscard]] std::span<T>       view();
-    [[nodiscard]] std::span<const T> view() const;
+    /**
+     * @brief Get a non-const view of the attribute values. This method may potentially clone the attribute data.
+     * 
+     * !!!Note
+     *    Always consider using the const version of this method if the attribute data is not going to be modified.
+     * @return span<T> 
+     */
+    [[nodiscard]] span<T>       view();
+    /**
+     * @brief Get a const view of the attribute values. This method gerantees no data cloning.
+     * 
+     * @return span<const T> 
+     */
+    [[nodiscard]] span<const T> view() const;
 
   protected:
     SizeT         get_size() const override;
@@ -57,7 +75,7 @@ class Attribute : public IAttribute
     S<IAttribute> do_clone() const override;
 
   private:
-    std::vector<T> m_values;
+    vector<T> m_values;
 };
 }  // namespace uipc::geometry
 

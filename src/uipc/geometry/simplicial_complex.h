@@ -1,5 +1,5 @@
 #pragma once
-#include <span>
+#include <uipc/common/span.h>
 #include <uipc/common/type_define.h>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/geometry/simplices.h>
@@ -70,24 +70,60 @@ class SimplicialComplexAttributes
 };
 
 /**
- * @brief A simplicial complex is a collection of simplices, for example, vertices, edges, triangles, and tetrahedra.
+ * @brief A simplicial complex is a collection of simplices.
  * 
- * $K = (V, E, F, T)$, where $V$ is the set of vertices, $E$ is the set of edges,
+ * In $\mathbb{R}^3$, a simplicial complex is a collection of vertices, edges, triangles, and tetrahedra, such that
+ * $$
+ * K = (V, E, F, T),
+ * $$
+ * where $V$ is the set of vertices, $E$ is the set of edges,
  * $F$ is the set of triangles, and $T$ is the set of tetrahedra.
  * 
- * A simple example:
+ * In addition to the topology, a simplicial complex have at least one attribute called "position", 
+ * representing the positions of the vertices. 
+ * 
+ * Because "position" is so common, we provide a short cut to get the positions of the vertices, as shown below:
+ *
  * ```cpp
- *  auto mesh = geometry::tetmesh(Vs, Ts);
- *  auto VA  = mesh.vertices();
- *  auto TA  = mesh.tetrahedra();
- *  auto pos = VA.find<Vector3>("position");
- *  auto const_view = std::as_const(pos)->view();
- *  auto non_const_view = pos->view();
+ * auto mesh = geometry::tetmesh(Vs, Ts);
+ * auto& attr_pos = mesh.positions();
  * ```
+ * @note To use `geometry::tetmesh`, you need to `#include <uipc/geometry/factory.h>`.
+ * @sa [geometry::tetmesh()](../index.md#tetmesh)
  * 
- * @warning An non-const view of the attribute may cause data clone if the attribute is shared.
- * To avoid data clone, use `std::as_const(this_instance).attribute_view()` instead.
- * 
+ *
+ * We can also use the generic API to get the positions(or any other attributes) of the vertices, as shown below:
+ * ```cpp
+ * auto VA = mesh.vertices();
+ * auto pos = VA.find<Vector3>("position");
+ * ```
+ *
+ * To the underlying attributes of the simplicial complex, we need to create a view of the attributes, as shown below:
+ * ```cpp
+ * // const view
+ * std::as_const(pos)->view();
+ * // non-const view
+ * pos->view();
+ * ```
+ * @tip A non-const view of the attribute may cause data clone if the attribute is shared.
+ * If you don't tend to modify the attribute, always use the const version of the view. 
+ * @danger Never store a view of any attribute, because the view may become invalid after the attribute is modified. 
+ * Always create a new view when you need it. Don't mind, the view is lightweight. :white_check_mark:
+ *
+ * To get the tetrahedra of the simplicial complex, we can use the following code:
+ * ```cpp
+ *  auto TA  = mesh.tetrahedra();
+ * ```
+ * You may want to add new attributes to the tetrahedra, for example, 
+ * in [Continuum Mechanics](https://en.wikipedia.org/wiki/Continuum_mechanics), 
+ * the deformation gradient $\mathbf{F} \in \mathbb{R}^{3\times 3}$ is an important attribute of the tetrahedra.
+ * We can add the attribute to the tetrahedra as shown below:
+ * ```cpp
+ * auto& F = TA.create<Matrix3x3>("F");
+ * auto F_view = F.view();
+ * std::fill(F_view.begin(), F_view.end(), Matrix3x3::Identity());
+ * ```
+ * @sa [Tutorial/Geometry](../../../../tutorial/geometry.md)
  */
 class SimplicialComplex : public IGeometry
 {
@@ -97,7 +133,7 @@ class SimplicialComplex : public IGeometry
     using TriangleAttributes    = SimplicialComplexAttributes<TriangleSlot>;
     using TetrahedronAttributes = SimplicialComplexAttributes<TetrahedronSlot>;
 
-    SimplicialComplex(const AbstractSimplicialComplex& asc, std::span<const Vector3> positions);
+    SimplicialComplex(const AbstractSimplicialComplex& asc, span<const Vector3> positions);
 
     SimplicialComplex(const SimplicialComplex& o)            = default;
     SimplicialComplex(SimplicialComplex&& o)                 = default;
@@ -105,37 +141,52 @@ class SimplicialComplex : public IGeometry
     SimplicialComplex& operator=(SimplicialComplex&& o)      = default;
 
     /**
-     * @brief A short cut to get the positions of the vertices
+     * @brief Get the positions of the vertices
+     * 
+     * @return AttributeSlot<Vector3>& 
      */
     [[nodiscard]] AttributeSlot<Vector3>& positions();
+
     /**
      * @brief A short cut to get the positions of the vertices
+     * 
+     * @return const AttributeSlot<Vector3>& 
      */
     [[nodiscard]] const AttributeSlot<Vector3>& positions() const;
 
     /**
-     * @return A wrapper of the vertices and its attributes of the simplicial complex.
+     * @brief A wrapper of the vertices and its attributes of the simplicial complex.
+     * 
+     * @return VertexAttributes 
      */
     [[nodiscard]] VertexAttributes vertices();
+
     /**
-     * @return A wrapper of the edges and its attributes of the simplicial complex.
+     * @brief A wrapper of the edges and its attributes of the simplicial complex.
      * 
-     * @sa EdgeAttributes
+     * @return EdgeAttributes 
      */
     [[nodiscard]] EdgeAttributes edges();
     /**
-     * @return A wrapper of the triangles and its attributes of the simplicial complex.
+     * @brief  A wrapper of the triangles and its attributes of the simplicial complex.
      * 
+     * @return TriangleAttributes 
      */
     [[nodiscard]] TriangleAttributes triangles();
     /**
-    * @return A wrapper of the tetrahedra and its attributes of the simplicial complex.
-    */
+     * @brief A wrapper of the tetrahedra and its attributes of the simplicial complex.
+     * 
+     * @return TetrahedronAttributes 
+     */
     [[nodiscard]] TetrahedronAttributes tetrahedra();
 
     /**
-    * @brief Get the dimension of the simplicial complex.
-    */
+     * @brief Get the dimension of the simplicial complex.
+     *
+     * Return the maximum dimension of the simplices in the simplicial complex.
+     * 
+     * @return IndexT 
+     */
     [[nodiscard]] IndexT dim() const;
 
   protected:
