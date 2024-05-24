@@ -9,12 +9,6 @@ Attribute<T>::Attribute(const T& default_value) noexcept
 }
 
 template <typename T>
-span<T> Attribute<T>::view()
-{
-    return m_values;
-}
-
-template <typename T>
 span<const T> Attribute<T>::view() const
 {
     return m_values;

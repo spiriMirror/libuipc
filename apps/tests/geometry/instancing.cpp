@@ -19,12 +19,9 @@ TEST_CASE("instancing", "[geometry]")
     Is.resize(5);
 
     auto trans      = Is.find<Matrix4x4>("transform");
-    auto trans_view = std::as_const(trans)->view();
+    auto trans_view = trans->view();
     for(auto&& t : trans_view)
     {
         REQUIRE(t == Matrix4x4::Identity());
     }
-
-    Matrix4x4              f;
-    OptionalRef<Matrix4x4> a;
 }

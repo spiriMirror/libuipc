@@ -2,6 +2,12 @@
 #include <uipc/common/log.h>
 namespace uipc::geometry
 {
+IAttributeSlot::IAttributeSlot(std::string_view m_name, bool allow_destroy)
+    : m_name(m_name)
+    , m_allow_destroy(allow_destroy)
+{
+}
+
 std::string_view IAttributeSlot::name() const
 {
     return m_name;
@@ -10,11 +16,6 @@ std::string_view IAttributeSlot::name() const
 bool IAttributeSlot::is_shared() const
 {
     return use_count() != 1;
-}
-
-IAttributeSlot::IAttributeSlot(std::string_view m_name)
-    : m_name(m_name)
-{
 }
 
 SizeT IAttributeSlot::size() const
@@ -34,7 +35,7 @@ SizeT IAttributeSlot::use_count() const
     return get_use_count();
 }
 
-U<IAttributeSlot> IAttributeSlot::clone() const
+S<IAttributeSlot> IAttributeSlot::clone() const
 {
     return do_clone();
 }
@@ -67,28 +68,25 @@ void AttributeCollection::destroy(std::string_view name)
         UIPC_WARN_WITH_LOCATION("Destroying non-existing attribute [{}]", name);
         return;
     }
+    
+    if(!it->second->m_allow_destroy)
+        throw AttributeDontAllowDestroy{
+            std::format("Attribute [{}] don't allow destroy!", name)};
+
     m_attributes.erase(it);
 }
 
-OptionalRef<IAttributeSlot> AttributeCollection::find(std::string_view name)
+P<IAttributeSlot> AttributeCollection::find(std::string_view name)
 {
     auto it = m_attributes.find(std::string{name});
-
-    if(it != m_attributes.end())
-        return *it->second.get();
-
-    return EmptyRef{};
+    return it != m_attributes.end() ? it->second : nullptr;
 }
 
 
-OptionalRef<const IAttributeSlot> AttributeCollection::find(std::string_view name) const
+P<const IAttributeSlot> AttributeCollection::find(std::string_view name) const
 {
     auto it = m_attributes.find(std::string{name});
-
-    if(it != m_attributes.end())
-        return *it->second.get();
-
-    return EmptyRef{};
+    return it != m_attributes.end() ? it->second : nullptr;
 }
 
 void AttributeCollection::resize(size_t N)
@@ -101,7 +99,7 @@ void AttributeCollection::resize(size_t N)
     m_size = N;
 }
 
-size_t AttributeCollection::size() const
+SizeT AttributeCollection::size() const
 {
     return m_size;
 }
@@ -114,6 +112,7 @@ void AttributeCollection::clear()
         slot->attribute().clear();
     }
 }
+
 void AttributeCollection::reserve(size_t N)
 {
     for(auto& [name, slot] : m_attributes)
@@ -121,6 +120,7 @@ void AttributeCollection::reserve(size_t N)
         slot->attribute().reserve(N);
     }
 }
+
 AttributeCollection::AttributeCollection(const AttributeCollection& o)
 {
     for(auto& [name, attr] : o.m_attributes)
@@ -129,6 +129,7 @@ AttributeCollection::AttributeCollection(const AttributeCollection& o)
     }
     m_size = o.m_size;
 }
+
 AttributeCollection& AttributeCollection::operator=(const AttributeCollection& o)
 {
     if(std::addressof(o) == this)
@@ -140,12 +141,14 @@ AttributeCollection& AttributeCollection::operator=(const AttributeCollection& o
     m_size = o.m_size;
     return *this;
 }
+
 AttributeCollection::AttributeCollection(AttributeCollection&& o) noexcept
     : m_attributes(std::move(o.m_attributes))
     , m_size(o.m_size)
 {
     o.m_size = 0;
 }
+
 AttributeCollection& AttributeCollection::operator=(AttributeCollection&& o) noexcept
 {
     if(std::addressof(o) == this)

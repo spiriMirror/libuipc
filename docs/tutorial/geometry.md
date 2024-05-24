@@ -124,19 +124,17 @@ auto pos = VA.find<Vector3>("position");
 Note that, till now, we just get a handle of the attribute "position". To access the data, we need to create a view of the attribute.
 
 ```cpp
-span<Vector3> view = pos->view();
+span<const Vector3> view = pos->view();
 ```
 
-The view of the position is a `span<Vector3>` (we explicitly define it here, but you can use `auto`), which is a non-const view of the position data. You can modify the position data through the view.
+The view of the position is a `span<const Vector3>` (we explicitly define it here, but you can use `auto`), which is a const view of the position data. You can not modify the data through the view.
 
-But if you only want to read the position data, you'd better create a const view of the attribute. Because the non-const view assumes that you may modify the data, which may trigger a clone of the geometry according to `libuipc`'s [Clone on Write](#clone-on-write) strategy.
+If you want to modify the position data, you can create a non-const view of the attribute.
 
 ```cpp
-span<const Vector3> cview = std::as_const(pos)->view();
+span<Vector3> non_const_view = geometry::view(*pos);
 ```
-
-!!!tip
-    Always use `std::as_const(...)` to create a const view of the attribute, unless you are sure that you will modify the data.
+You find that, it need more effort to create a non-const view of the attribute (calling the global function `geometry::view`) than creating a const view(calling the member function `view` of the attribute). This is because we want to make sure that the user is aware of the potential clone of the geometry when they modify the data. The non-const view assumes that you may modify the data, which may trigger a clone of the geometry according to `libuipc`'s [Clone on Write](#clone-on-write) strategy.
 
 Now, you can print the positions of the cube.
 
@@ -148,15 +146,18 @@ You may want to access the tetrahedra topology of the cube, which is similar to 
 
 ```cpp
 auto TA = cube.tetrahedra();
-span<Vector4i> tet_view = TA.topo().view();
-span<const Vector4i> ctet_view = std::as_const(TA).topo().view();
+span<Vector4i> tet_view = geometry::view(TA.topo());
+span<const Vector4i> ctet_view = TA.topo().view();
 ```
+
 But because the topology is already there, we don't need to `find` anything. Also, if you just want to read the topology, it's better to use the const view.
 
 To create a new attribute, you can call the `create` function, with the attribute name and the default value.
+
 ```cpp
-auto& vel = VA.create<Vector3>("velocity", Vector3::Zero());
+auto vel = VA.create<Vector3>("velocity", Vector3::Zero());
 ```
+
 Then we will have a new attribute named "velocity" with the default value `Vector3::Zero()`, the size of the attribute is the same as the number of vertices.
 
 To remove an attribute, you can call the `destroy` function with the attribute name.
@@ -166,7 +167,17 @@ VA.destroy("velocity");
 ```
 
 !!!danger 
-    Accessing the removed attribute slot will cause undefined behavior. It's user's responsibility to ensure that the removed attribute slot is not accessed.
+    Accessing the removed attribute slot will cause the program to crash.
+
+If you are not sure whether the attribute slot is valid, you should check it by:
+    
+```cpp
+if(vel)
+{
+    // do something
+}
+```
+The `vel` is a kind of weak pointer, which will be `nullptr` if the attribute slot is invalid.
 
 Ok, now you have a basic idea of how to access the geometry information. Let's move on to the next section. I think it's high time to show the so called `Clone on Write` strategy.
 
@@ -200,7 +211,7 @@ Here, `TA.topo().is_shared()` will return `true`, because we don't modify the to
 Such a design minimizes the geometry memory usage.
 
 !!!Warning
-    Be careful when you create a view of the geometry. Always consider using `std::as_const(...)` to make sure that you call the const version of the function. A mistake of calling the non-const version will potentially trigger a clone of the geometry. Although the behavior is safe, it may cause a performance issue.
+    Be careful when you create a view of the geometry. Always use a const view if you don't want to modify the data to gain higher performance.
 
 !!!Danger
     Never store a view of any attribute, because the view may become invalid after the attribute is modified. Always create a new view when you need it.
@@ -228,12 +239,41 @@ Is.size(); // 5
 
 Now, you have 5 instances of the cube.
 
-You may ask for the transformation of the instances.
+You may ask for the transformation of the instances, the answer is the same as the positions and the tetrahedra.
 
 ```cpp
 auto trans = Is.find<Matrix4x4>("transform");
-auto ctrans_view = std::as_const(trans)->view();
-for(auto&& t : ctrans_view) std::cout << t << std::endl;
+auto trans_view = trans->view();
+for(auto&& t : trans_view) std::cout << t << std::endl;
+```
+
+There are some short-cut you can take to access some common attributes of the geometry, such as the positions, the transforms, etc.
+
+```cpp
+auto& short_cut_trans = Is.transforms();
+auto& short_cut_pos = cube.positions();
+```
+
+The naming convention of the short-cut is the plural form of the attribute name, which is more readable and more intuitive.
+
+Destroying the short-cut is not allowed, if you do so, `libuipc` will throw an exception.
+
+```cpp
+Is.destroy("transform"); // throw AttributeDontAllowDestroy
+```
+
+To get the meta information of the geometry, you can call the `meta()` function of the geometry.
+
+```cpp
+auto& meta = cube.meta();
+```
+
+The way to access the meta information is the same as all the other attributes.
+The only difference is that the meta information is a "demension 1" attribute, which means, the meta information always has a size of 1, you can create attributes, but you can not resize it. The the meta describes the root information of the geometry.
+For example, you can create a meta attribute to store the name of the geometry.
+
+```cpp
+auto name = meta.create<std::string>("name", "some cubes");
 ```
 
 

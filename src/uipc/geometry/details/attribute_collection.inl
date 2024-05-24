@@ -3,14 +3,14 @@
 namespace uipc::geometry
 {
 template <typename T>
-AttributeSlot<T>::AttributeSlot(std::string_view m_name, S<Attribute<T>> attribute)
-    : IAttributeSlot(m_name)
+AttributeSlot<T>::AttributeSlot(std::string_view m_name, S<Attribute<T>> attribute, bool allow_destroy)
+    : IAttributeSlot(m_name, allow_destroy)
     , m_attribute(std::move(attribute))
 {
 }
 
-template <typename T>
-AttributeSlot<T>& AttributeCollection::create(std::string_view name, const T& default_value)
+template <typename T, bool AllowDestroy>
+P<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& default_value)
 {
     auto n  = std::string{name};
     auto it = m_attributes.find(n);
@@ -21,10 +21,9 @@ AttributeSlot<T>& AttributeCollection::create(std::string_view name, const T& de
     }
     auto S = std::make_shared<Attribute<T>>(default_value);
     S->resize(m_size);
-    auto U          = std::make_unique<AttributeSlot<T>>(name, S);
-    auto P          = U.get();
-    m_attributes[n] = std::move(U);
-    return *P;
+    auto U          = std::make_shared<AttributeSlot<T>>(name, S, AllowDestroy);
+    m_attributes[n] = U;
+    return U;
 }
 
 template <typename T>
@@ -36,32 +35,17 @@ AttributeSlot<T>& AttributeCollection::share(std::string_view        name,
 }
 
 template <typename T>
-OptionalRef<AttributeSlot<T>> AttributeCollection::find(std::string_view name)
+P<AttributeSlot<T>> AttributeCollection::find(std::string_view name)
 {
     auto slot = this->find(name);
-    auto ptr = dynamic_cast<AttributeSlot<T>*>(slot.get_ptr());
-    if(ptr)
-        return *ptr;
-
-    return EmptyRef{};
+    return std::dynamic_pointer_cast<AttributeSlot<T>>(slot.lock());
 }
 
 template <typename T>
-OptionalRef<const AttributeSlot<T>> AttributeCollection::find(std::string_view name) const
+P<const AttributeSlot<T>> AttributeCollection::find(std::string_view name) const
 {
     auto slot = this->find(name);
-    auto ptr = dynamic_cast<const AttributeSlot<T>*>(slot.get_ptr());
-    if(ptr)
-        return *ptr;
-
-    return EmptyRef{};
-}
-
-template <typename T>
-span<T> AttributeSlot<T>::view()
-{
-    make_owned();
-    return m_attribute->view();
+    return std::dynamic_pointer_cast<const AttributeSlot<T>>(slot.lock());
 }
 
 template <typename T>
@@ -79,10 +63,10 @@ void AttributeSlot<T>::do_make_owned()
 }
 
 template <typename T>
-U<IAttributeSlot> AttributeSlot<T>::do_clone() const
+S<IAttributeSlot> AttributeSlot<T>::do_clone() const
 {
-    return std::make_unique<AttributeSlot<T>>(
-        name(), std::static_pointer_cast<Attribute<T>>(m_attribute));
+    return std::make_shared<AttributeSlot<T>>(
+        name(), std::static_pointer_cast<Attribute<T>>(m_attribute), m_allow_destroy);
 }
 
 template <typename T>
@@ -100,5 +84,12 @@ template <typename T>
 SizeT uipc::geometry::AttributeSlot<T>::get_use_count() const
 {
     return m_attribute.use_count();
+}
+
+template <typename U>
+[[nodiscard]] span<U> view(AttributeSlot<U>& slot)
+{
+    slot.make_owned();
+    return view(*slot.m_attribute);
 }
 }  // namespace uipc::geometry

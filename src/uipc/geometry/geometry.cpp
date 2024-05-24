@@ -47,12 +47,12 @@ Geometry::Geometry()
 {
     m_intances.resize(1);  // default only one instance
     Matrix4x4 I = Eigen::Transform<Float, 3, Eigen::Affine>::Identity().matrix();
-    auto& trans = m_intances.create("transform", I);
+    auto trans = m_intances.create<Matrix4x4, false>("transform", I);
 }
 
 AttributeSlot<Matrix4x4>& Geometry::transforms()
 {
-    return m_intances.template find<Matrix4x4>("transform").value();
+    return *m_intances.template find<Matrix4x4>("transform");
 }
 
 const AttributeSlot<Matrix4x4>& Geometry::transforms() const
@@ -64,6 +64,7 @@ auto Geometry::meta() -> MetaAttributes
 {
     return MetaAttributes{m_meta};
 }
+
 auto Geometry::instances() -> InstanceAttributes
 {
     return InstanceAttributes{m_intances};

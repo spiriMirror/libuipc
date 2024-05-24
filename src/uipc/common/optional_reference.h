@@ -44,6 +44,9 @@ class OptionalRef : private boost::optional<std::add_lvalue_reference_t<T>>
 
   public:
     using Base::Base;
+    using Base::operator bool;
+    using Base::operator==;
+    using Base::operator!;
     
     // delete copy constructor
     OptionalRef(const OptionalRef&) = delete;

@@ -26,7 +26,7 @@ TEST_CASE("shared_test", "[geometry]")
     REQUIRE(shared_mesh.positions().is_shared());
 
     // a non-const view creates a clone of the data if it is not owned
-    auto non_const_view = shared_mesh.positions().view();
+    auto non_const_view = view(shared_mesh.positions());
 
     // after that, the data is owned
     REQUIRE(!shared_mesh.positions().is_shared());
@@ -49,7 +49,7 @@ TEST_CASE("shared_test", "[geometry]")
     //  - the vertex topo is owned
     //  - because the 'position' attribute is already owned, it is not cloned
     VA.resize(8);
-    auto pos_view = pos->view();
+    auto pos_view = view(*pos);
     pos_view[4]   = Vector3{1.0, 1.0, 0.0};
     pos_view[5]   = Vector3{1.0, 0.0, 1.0};
     pos_view[6]   = Vector3{0.0, 1.0, 1.0};
@@ -77,7 +77,7 @@ TEST_CASE("shared_test", "[geometry]")
     // Here we want share the topo, but own the attributes.
     {
         // make a non const view, the data is automatically cloned
-        auto view = shared_topo_mesh.positions().view();
+        auto view = geometry::view(shared_topo_mesh.positions());
         // so the positions are owned
         REQUIRE(!shared_topo_mesh.positions().is_shared());
         // but the topo are shared
@@ -98,18 +98,24 @@ SimplicialComplex create_tetrahedron()
 }
 
 
-TEST_CASE("create_attribute", "[geometry]")
+TEST_CASE("create_delete_attribute", "[geometry]")
 {
     auto mesh = create_tetrahedron();
 
     auto VA = mesh.vertices();
 
-    auto& vel = VA.create<Vector3>("velocity", Vector3::Zero());
-    REQUIRE(vel.size() == VA.size());
+    auto vel = VA.create<Vector3>("velocity", Vector3::Zero());
+    REQUIRE(vel->size() == VA.size());
 
 
     REQUIRE_THROWS_AS(VA.create<Vector3>("velocity"), AttributeAlreadyExist);
 
     VA.destroy("velocity");
     VA.destroy("velocity");
+
+    auto find_vel = VA.find<Vector3>("velocity");
+    REQUIRE(!find_vel);
+    REQUIRE(find_vel.use_count() == 0);
+
+    REQUIRE_THROWS_AS(VA.destroy("position"), AttributeDontAllowDestroy);
 }

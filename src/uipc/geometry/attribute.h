@@ -35,7 +35,6 @@ class IAttribute
     virtual S<IAttribute> do_clone() const    = 0;
 };
 
-
 /**
  * @brief Template class to represent a geometry attribute of type T.
  * 
@@ -58,10 +57,11 @@ class Attribute : public IAttribute
      * @brief Get a non-const view of the attribute values. This method may potentially clone the attribute data.
      * 
      * !!!Note
-     *    Always consider using the const version of this method if the attribute data is not going to be modified.
+     *    Always consider using the const member method if the attribute data is not going to be modified.
      * @return span<T> 
      */
-    [[nodiscard]] span<T> view();
+    [[nodiscard]] friend span<T> view(Attribute<T>& a) { return a.m_values; }
+
     /**
      * @brief Get a const view of the attribute values. This method gerantees no data cloning.
      * 

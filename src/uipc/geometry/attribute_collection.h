@@ -16,7 +16,7 @@ class IAttributeSlot
 {
   public:
     virtual ~IAttributeSlot() = default;
-    IAttributeSlot(std::string_view m_name);
+    IAttributeSlot(std::string_view m_name, bool allow_destroy = true);
     // delete copy
     IAttributeSlot(const IAttributeSlot&)            = delete;
     IAttributeSlot& operator=(const IAttributeSlot&) = delete;
@@ -33,7 +33,6 @@ class IAttributeSlot
      */
     [[nodiscard]] bool  is_shared() const;
     [[nodiscard]] SizeT size() const;
-
   protected:
     friend class AttributeCollection;
 
@@ -43,8 +42,8 @@ class IAttributeSlot
     [[nodiscard]] SizeT         use_count() const;
     [[nodiscard]] virtual SizeT get_use_count() const = 0;
 
-    [[nodiscard]] virtual U<IAttributeSlot> clone() const;
-    [[nodiscard]] virtual U<IAttributeSlot> do_clone() const = 0;
+    [[nodiscard]] virtual S<IAttributeSlot> clone() const;
+    [[nodiscard]] virtual S<IAttributeSlot> do_clone() const = 0;
 
     [[nodiscard]] virtual IAttribute&       attribute();
     [[nodiscard]] virtual IAttribute&       get_attribute() = 0;
@@ -53,6 +52,9 @@ class IAttributeSlot
 
   private:
     std::string m_name;
+
+  protected:
+    bool        m_allow_destroy;
 };
 
 /**
@@ -66,7 +68,7 @@ class AttributeSlot final : public IAttributeSlot
   public:
     using value_type = T;
 
-    AttributeSlot(std::string_view m_name, S<Attribute<T>> attribute);
+    AttributeSlot(std::string_view m_name, S<Attribute<T>> attribute, bool allow_destroy);
 
     /**
      * @brief Get the non-const attribute values.
@@ -74,7 +76,8 @@ class AttributeSlot final : public IAttributeSlot
      * @return `span<T>`
      * @sa [Attribute](../Attribute/index.md#Attribute)
      */
-    [[nodiscard]] span<T> view();
+    template <typename U>
+    friend span<U> view(AttributeSlot<U>& slot);
     /**
      * @brief Get the const attribute values.
      * 
@@ -86,7 +89,7 @@ class AttributeSlot final : public IAttributeSlot
     friend class AttributeCollection;
 
     void                                    do_make_owned() override;
-    [[nodiscard]] virtual U<IAttributeSlot> do_clone() const override;
+    [[nodiscard]] virtual S<IAttributeSlot> do_clone() const override;
 
     [[nodiscard]] virtual IAttribute&       get_attribute() override;
     [[nodiscard]] virtual const IAttribute& get_attribute() const override;
@@ -120,8 +123,8 @@ class AttributeCollection
      * @param name The name of the attribute slot.
      * @return The created attribute slot.
      */
-    template <typename T>
-    AttributeSlot<T>& create(std::string_view name, const T& default_value = {});
+    template <typename T, bool AllowDestroy = true>
+    P<AttributeSlot<T>> create(std::string_view name, const T& default_value = {});
 
     /**
      * @brief Share the underlying attribute of the given slot with a new name.
@@ -157,25 +160,25 @@ class AttributeCollection
      * 
      * @param name The name of the attribute slot.
      * @return The attribute slot with the given name.
-     * @return EmptyRef if the attribute slot with the given name does not exist.
+     * @return nullptr if the attribute slot with the given name does not exist.
      */
-    [[nodiscard]] OptionalRef<IAttributeSlot> find(std::string_view name);
+    [[nodiscard]] P<IAttributeSlot> find(std::string_view name);
     /**
      * @brief const version of find.
      */
-    [[nodiscard]] OptionalRef<const IAttributeSlot> find(std::string_view name) const;
+    [[nodiscard]] P<const IAttributeSlot> find(std::string_view name) const;
 
     /**
      * @brief Template version of find.
      */
     template <typename T>
-    [[nodiscard]] OptionalRef<AttributeSlot<T>> find(std::string_view name);
+    [[nodiscard]] P<AttributeSlot<T>> find(std::string_view name);
 
     /**
      * @brief  Template const version of find.
      */
     template <typename T>
-    [[nodiscard]] OptionalRef<const AttributeSlot<T>> find(std::string_view name) const;
+    [[nodiscard]] P<const AttributeSlot<T>> find(std::string_view name) const;
 
     /**
      * @brief Resize all attribute slots to the given size.
@@ -202,10 +205,16 @@ class AttributeCollection
 
   private:
     size_t                                   m_size = 0;
-    std::map<std::string, U<IAttributeSlot>> m_attributes;
+    std::map<std::string, S<IAttributeSlot>> m_attributes;
 };
 
 class AttributeAlreadyExist : public Exception
+{
+  public:
+    using Exception::Exception;
+};
+
+class AttributeDontAllowDestroy : public Exception
 {
   public:
     using Exception::Exception;
