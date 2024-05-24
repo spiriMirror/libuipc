@@ -30,8 +30,8 @@ class IAttributeSlot
      * @return true, if the underlying attribute is shared, more than one geometry reference to the underlying attribute.
      * @return false, if the underlying attribute is owned, only this geometry reference to the underlying attribute. 
      */
-    [[nodiscard]] bool             is_shared() const;
-    [[nodiscard]] SizeT            size() const;
+    [[nodiscard]] bool  is_shared() const;
+    [[nodiscard]] SizeT size() const;
 
   protected:
     friend class AttributeCollection;
@@ -73,7 +73,7 @@ class AttributeSlot final : public IAttributeSlot
      * @return `span<T>`
      * @sa [Attribute](../Attribute/index.md#Attribute)
      */
-    [[nodiscard]] span<T>       view();
+    [[nodiscard]] span<T> view();
     /**
      * @brief A shortcut to get the const attribute values.
      * 
@@ -96,6 +96,11 @@ class AttributeSlot final : public IAttributeSlot
     S<Attribute<T>> m_attribute;
 };
 
+/**
+ * @brief A collection of geometry attributes.
+ *
+ * All geometry attributes in the collection always have the same size.
+ */
 class AttributeCollection
 {
   public:
@@ -107,29 +112,92 @@ class AttributeCollection
     AttributeCollection(AttributeCollection&&) noexcept;
     AttributeCollection& operator=(AttributeCollection&&) noexcept;
 
+    /**
+     * @brief Create a new attribute slot of type T with a given name.
+     * 
+     * @tparam T The type of the attribute values.
+     * @param name The name of the attribute slot.
+     * @return The created attribute slot.
+     */
     template <typename T>
-    AttributeSlot<T>& create(std::string_view name);
+    AttributeSlot<T>& create(std::string_view name, const T& default_value = {});
 
+    /**
+     * @brief Share the underlying attribute of the given slot with a new name.
+     * 
+     * The slot may be from another geometry attribute collection or just current geometry attribute collection.
+     * @param name The name of the attribute slot.
+     * @param slot The slot brings the underlying attribute.
+     * @return The new created attribute slot.
+     *
+     * @throw AttributeAlreadyExist if the attribute with the given name already exists.
+     */
     IAttributeSlot& share(std::string_view name, const IAttributeSlot& slot);
 
+    /**
+     * @brief Template version of share.
+     */
     template <typename T>
     AttributeSlot<T>& share(std::string_view name, const AttributeSlot<T>& slot);
 
+    /**
+     * @brief Remove the attribute slot with the given name.
+     *
+     * The underlying attribute will not be destroyed if it is shared by other attribute slots.
+     * 
+     * @danger Accessing the removed attribute slot will cause undefined behavior. 
+     * It's user's responsibility to ensure that the removed attribute slot is not accessed.
+     * @param name 
+     */
     void destroy(std::string_view name);
 
-    [[nodiscard]] IAttributeSlot*       find(std::string_view name);
+    /**
+     * @brief Find the attribute slot with the given name.
+     * 
+     * @param name The name of the attribute slot.
+     * @return The attribute slot with the given name.
+     * @return nullptr if the attribute slot with the given name does not exist.
+     */
+    [[nodiscard]] IAttributeSlot* find(std::string_view name);
+    /**
+     * @brief const version of find.
+     */
     [[nodiscard]] const IAttributeSlot* find(std::string_view name) const;
 
+    /**
+     * @brief Template version of find.
+     */
     template <typename T>
     [[nodiscard]] AttributeSlot<T>* find(std::string_view name);
 
+    /**
+     * @brief  Template const version of find.
+     */
     template <typename T>
     [[nodiscard]] const AttributeSlot<T>* find(std::string_view name) const;
 
-    void                 resize(size_t N);
+    /**
+     * @brief Resize all attribute slots to the given size.
+     * 
+     * @note This method may generate data clones.
+     */
+    void resize(size_t N);
+    /**
+     * @brief Get the size of the attribute slots.
+     */
     [[nodiscard]] size_t size() const;
-    void                 clear();
-    void                 reserve(size_t N);
+    /**
+     * @brief clear the underlying attribute values of all attribute slots, the attribute slots will not be destroyed.
+     * 
+     * @note This method may generate data clones.
+     */
+    void clear();
+    /**
+     * @brief Reserve memory for all attribute slots.
+     *
+     * @note This method generates no data clone. But the memory of the underlying attribute values may be reallocated.
+     */
+    void reserve(size_t N);
 
   private:
     size_t                                   m_size = 0;

@@ -1,6 +1,6 @@
 ---
 title: Triangles
-description: A collection of triangles, $F=\{(i,j,k) \mid i,j,k\in V, i\neq j\neq k\}$, where $V$ is the set of vertices. 
+description: A collection of triangles.
 generator: doxide
 ---
 
@@ -11,9 +11,9 @@ generator: doxide
 
 
 
-A collection of triangles, $F=\{(i,j,k) \mid i,j,k\in V, i\neq j\neq k\}$, where $V$ is the set of vertices.
- 
+A collection of triangles.
 
+$F=\{(i,j,k) \mid i,j,k\in V, i\neq j\neq k\}$, where $V$ is the set of vertices.
 
 
 

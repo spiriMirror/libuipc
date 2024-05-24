@@ -1,6 +1,6 @@
 ---
 title: Tetrahedra
-description: A collection of tetrahedra, $T=\{(i,j,k,l) \mid i,j,k,l\in V, i\neq j\neq k\neq l\}$, where $V$ is the set of vertices. 
+description: A collection of tetrahedra.
 generator: doxide
 ---
 
@@ -11,9 +11,9 @@ generator: doxide
 
 
 
-A collection of tetrahedra, $T=\{(i,j,k,l) \mid i,j,k,l\in V, i\neq j\neq k\neq l\}$, where $V$ is the set of vertices.
- 
+A collection of tetrahedra.
 
+$T=\{(i,j,k,l) \mid i,j,k,l\in V, i\neq j\neq k\neq l\}$, where $V$ is the set of vertices.
 
 
 

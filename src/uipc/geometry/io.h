@@ -12,6 +12,13 @@ namespace uipc::geometry
  * @return SimplicialComplex 
  */
 [[nodiscard]] SimplicialComplex read_msh(std::string_view file_name);
+
+/**
+ * @brief Read a trimesh from a .obj file.
+ * 
+ * @param file_name The file to read
+ */
+[[nodiscard]] SimplicialComplex read_obj(std::string_view file_name);
 }
 
 namespace uipc::geometry

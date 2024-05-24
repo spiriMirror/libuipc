@@ -28,7 +28,7 @@ Template class to represent a geometry attribute of type T.
 ## Function Details
 
 ### view<a name="view"></a>
-!!! function "[[nodiscard]] span&lt;T&gt;       view()"
+!!! function "[[nodiscard]] span&lt;T&gt; view()"
 
     
     

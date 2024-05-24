@@ -1,6 +1,6 @@
 ---
 title: Edges
-description: A collection of edges, $E=\{(i,j) \mid i,j\in V, i\neq j\}$, where $V$ is the set of vertices. 
+description: A collection of edges.
 generator: doxide
 ---
 
@@ -11,9 +11,9 @@ generator: doxide
 
 
 
-A collection of edges, $E=\{(i,j) \mid i,j\in V, i\neq j\}$, where $V$ is the set of vertices.
- 
+A collection of edges.
 
+$E=\{(i,j) \mid i,j\in V, i\neq j\}$, where $V$ is the set of vertices.
 
 
 

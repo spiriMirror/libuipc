@@ -6,7 +6,7 @@ Geometries in `libuipc` are implemented with the `Clone on Write` strategy. Any 
 
 A simple example is shown below:
 ```cpp
-auto foo = uipc::geometry::tetmesh(Vs,Ts);
+auto foo = geometry::tetmesh(Vs,Ts);
 auto bar = foo;
 ```
 Here, `bar` is just a shallow copy of the `foo`.
@@ -32,18 +32,20 @@ Such a design minimizes the geometry memory usage.
 !!!Warning
     Be careful when you create a view of the geometry. Always consider using `std::as_const(...)` to make sure that you call the const version of the function. A mistake of calling the non-const version will potentially trigger a clone of the geometry. Although the behavior is safe, it may cause a performance issue.
 
-## Simplical Complex
+!!!Danger
+    Never store a view of any attribute, because the view may become invalid after the attribute is modified. Always create a new view when you need it.
+## Simplicial Complex
 
-Simplical complex is a general representation of an explicit mesh. In $\mathbb{R}^3$, a simplical complex can be a tetrahedral mesh, a triangle mesh, a line mesh, or a point cloud, which have a dimension of 3, 2, 1, or 0, respectively.
+Simplicial complex is a general representation of an explicit mesh. In $\mathbb{R}^3$, a simplicial complex can be a tetrahedral mesh, a triangle mesh, a line mesh, or a point cloud, which have a dimension of 3, 2, 1, or 0, respectively.
 
 ```cpp
-auto tetmesh = uipc::geometry::tetmesh(Vs,Ts);
+auto tetmesh = geometry::tetmesh(Vs,Ts);
 tetmesh.dim(); // 3
-auto trimesh = uipc::geometry::trimesh(Vs,Fs);
+auto trimesh = geometry::trimesh(Vs,Fs);
 trimesh.dim(); // 2
-auto linemesh = uipc::geometry::linemesh(Vs,Es);
+auto linemesh = geometry::linemesh(Vs,Es);
 linemesh.dim(); // 1
-auto pointcloud = uipc::geometry::pointcloud(Vs);
+auto pointcloud = geometry::pointcloud(Vs);
 pointcloud.dim(); // 0
 ```
 

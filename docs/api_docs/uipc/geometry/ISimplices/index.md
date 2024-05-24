@@ -31,10 +31,15 @@ An abstract class for simplices, special type of topological elements.
     
     Get the dimension of the simplices.
     
-    E.g. 0 for vertices, 1 for edges, 2 for triangles, 3 for tetrahedra.
+    | Dimension | Type of simplices |
+    |-----------|-------------------|
+    |    0      | Vertices          |
+    |    1      | Edges             |
+    |    2      | Triangles         |
+    |    3      | Tetrahedra        |
     
     :material-keyboard-return: **Return**
-    :    IndexT the dimension of the simplices
+    :    the dimension of the simplices
     
     
 

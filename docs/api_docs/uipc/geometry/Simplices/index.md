@@ -35,7 +35,7 @@ General class to represent simplices, typically used for edges, triangles, tetra
     Get the const view of the simplices, this method generates no data clone.
     
     :material-keyboard-return: **Return**
-    :    span<const Vector<IndexT, N + 1>>
+    :    A span of simplices
     
     
 
@@ -46,7 +46,7 @@ General class to represent simplices, typically used for edges, triangles, tetra
     Get the non-const view of the simplices, this method may potentially generate data clone.
     
     :material-keyboard-return: **Return**
-    :    span<Vector<IndexT, N + 1>>
+    :    A span of simplices
     
     
 

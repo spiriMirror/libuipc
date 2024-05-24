@@ -1,4 +1,5 @@
 #include <format>
+#include "attribute_collection.h"
 
 namespace uipc::geometry
 {
@@ -10,7 +11,7 @@ AttributeSlot<T>::AttributeSlot(std::string_view m_name, S<Attribute<T>> attribu
 }
 
 template <typename T>
-AttributeSlot<T>& AttributeCollection::create(std::string_view name)
+AttributeSlot<T>& AttributeCollection::create(std::string_view name, const T& default_value)
 {
     auto n  = std::string{name};
     auto it = m_attributes.find(n);
@@ -19,7 +20,7 @@ AttributeSlot<T>& AttributeCollection::create(std::string_view name)
         throw AttributeAlreadyExist{
             std::format("Attribute with name [{}] already exist!", name)};
     }
-    auto S = std::make_shared<Attribute<T>>();
+    auto S = std::make_shared<Attribute<T>>(default_value);
     S->resize(m_size);
     auto U          = std::make_unique<AttributeSlot<T>>(name, S);
     auto P          = U.get();

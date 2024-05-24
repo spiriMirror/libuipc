@@ -22,11 +22,26 @@ class SimplicialComplexAttributes
     SimplicialComplexAttributes(SimplicialComplexAttributes&& o)      = default;
     SimplicialComplexAttributes& operator=(const SimplicialComplexAttributes& o) = default;
     SimplicialComplexAttributes& operator=(SimplicialComplexAttributes&& o) = default;
-
+    /**
+     * @sa [AttributeCollection::resize()](../AttributeCollection/#resize)
+     */
     void                resize(size_t size);
+    /**
+     * @sa [AttributeCollection::reserve()](../AttributeCollection/#reserve)
+     */
     void                reserve(size_t size);
+    /**
+     * @sa [AttributeCollection::clear()](../AttributeCollection/#clear)
+     */
     void                clear();
+    /**
+     * @sa [AttributeCollection::size()](../AttributeCollection/#size)
+     */
     [[nodiscard]] SizeT size() const;
+    /**
+     * @sa [AttributeCollection::destroy()](../AttributeCollection/#destroy) 
+     */
+    void destroy(std::string_view name);
 
     /**
      * @brief Get a non-const view of the topology.
@@ -107,6 +122,7 @@ class SimplicialComplexAttributes
  * ```
  * @tip A non-const view of the attribute may cause data clone if the attribute is shared.
  * If you don't tend to modify the attribute, always use the const version of the view. 
+ * 
  * @danger Never store a view of any attribute, because the view may become invalid after the attribute is modified. 
  * Always create a new view when you need it. Don't mind, the view is lightweight. :white_check_mark:
  *
@@ -125,16 +141,35 @@ class SimplicialComplexAttributes
  * ```
  * @sa [Tutorial/Geometry](../../../../tutorial/geometry.md)
  */
-class SimplicialComplex : public IGeometry
+class SimplicialComplex : public Geometry
 {
   public:
+    /**
+     * @brief Alias for the vertex attributes
+     * 
+     * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
+     */
     using VertexAttributes      = SimplicialComplexAttributes<VertexSlot>;
+    /**
+     * @brief Alias for the edge attributes
+     * 
+     * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
+     */
     using EdgeAttributes        = SimplicialComplexAttributes<EdgeSlot>;
+    /**
+     * @brief Alias for the triangle attributes
+     * 
+     * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
+     */
     using TriangleAttributes    = SimplicialComplexAttributes<TriangleSlot>;
+    /**
+     * @brief Alias for the tetrahedron attributes
+     *
+     * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
+     */
     using TetrahedronAttributes = SimplicialComplexAttributes<TetrahedronSlot>;
 
     SimplicialComplex(const AbstractSimplicialComplex& asc, span<const Vector3> positions);
-
     SimplicialComplex(const SimplicialComplex& o)            = default;
     SimplicialComplex(SimplicialComplex&& o)                 = default;
     SimplicialComplex& operator=(const SimplicialComplex& o) = default;

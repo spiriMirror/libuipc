@@ -14,7 +14,9 @@ class IAttribute
 {
   public:
     IAttribute() = default;
-
+    /**
+     * @brief Get the size of the attribute.
+     */
     [[nodiscard]] SizeT size() const;
 
   private:
@@ -45,7 +47,7 @@ class Attribute : public IAttribute
   public:
     using value_type = T;
 
-    Attribute() = default;
+    Attribute(const T& default_value = {}) noexcept;
 
     Attribute(const Attribute<T>&)               = default;
     Attribute(Attribute<T>&&)                    = default;
@@ -59,7 +61,7 @@ class Attribute : public IAttribute
      *    Always consider using the const version of this method if the attribute data is not going to be modified.
      * @return span<T> 
      */
-    [[nodiscard]] span<T>       view();
+    [[nodiscard]] span<T> view();
     /**
      * @brief Get a const view of the attribute values. This method gerantees no data cloning.
      * 
@@ -76,6 +78,7 @@ class Attribute : public IAttribute
 
   private:
     vector<T> m_values;
+    T         m_default_value;
 };
 }  // namespace uipc::geometry
 

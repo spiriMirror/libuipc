@@ -21,12 +21,37 @@ A collection of attributes for a specific type of simplices. The main API for ac
 
 | Name | Description |
 | ---- | ----------- |
+| [resize](#resize) |  :material-eye-outline: **See** :    [AttributeCollection::resize()](../AttributeCollection/#resize)  |
+| [reserve](#reserve) |  :material-eye-outline: **See** :    [AttributeCollection::reserve()](../AttributeCollection/#reserve)  |
+| [clear](#clear) |  :material-eye-outline: **See** :    [AttributeCollection::clear()](../AttributeCollection/#clear)  |
+| [size](#size) |  :material-eye-outline: **See** :    [AttributeCollection::size()](../AttributeCollection/#size)  |
+| [destroy](#destroy) |  :material-eye-outline: **See** :    [AttributeCollection::destroy()](../AttributeCollection/#destroy)  |
 | [topo_view](#topo_view) | Get a non-const view of the topology. |
 | [topo_view](#topo_view) | Get a const view of the topology, this function guarantees no data clone.  |
 | [topo_is_shared](#topo_is_shared) | Query if the topology is owned by current simplicial complex.  |
 | [find](#find) | Find an attribute by type and name, if the attribute does not exist, return nullptr.  |
 
 ## Function Details
+
+### clear<a name="clear"></a>
+!!! function "void                clear()"
+
+    
+    
+    :material-eye-outline: **See**
+    :    [AttributeCollection::clear()](../AttributeCollection/#clear)
+    
+    
+
+### destroy<a name="destroy"></a>
+!!! function "void destroy(std::string_view name)"
+
+    
+    
+    :material-eye-outline: **See**
+    :    [AttributeCollection::destroy()](../AttributeCollection/#destroy)
+    
+    
 
 ### find<a name="find"></a>
 !!! function "template &lt;typename T&gt; [[nodiscard]] auto find(std::string_view name)"
@@ -36,6 +61,36 @@ A collection of attributes for a specific type of simplices. The main API for ac
     Find an attribute by type and name, if the attribute does not exist, return nullptr.
          
     
+    
+    
+
+### reserve<a name="reserve"></a>
+!!! function "void                reserve(size_t size)"
+
+    
+    
+    :material-eye-outline: **See**
+    :    [AttributeCollection::reserve()](../AttributeCollection/#reserve)
+    
+    
+
+### resize<a name="resize"></a>
+!!! function "void                resize(size_t size)"
+
+    
+    
+    :material-eye-outline: **See**
+    :    [AttributeCollection::resize()](../AttributeCollection/#resize)
+    
+    
+
+### size<a name="size"></a>
+!!! function "[[nodiscard]] SizeT size() const"
+
+    
+    
+    :material-eye-outline: **See**
+    :    [AttributeCollection::size()](../AttributeCollection/#size)
     
     
 

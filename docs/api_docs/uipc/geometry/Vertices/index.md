@@ -1,6 +1,6 @@
 ---
 title: Vertices
-description: A collection of vertices, $V=\{0,1,2,...,N-1\}$
+description: A collection of vertices.
 generator: doxide
 ---
 
@@ -11,10 +11,10 @@ generator: doxide
 
 
 
-A collection of vertices, $V=\{0,1,2,...,N-1\}$
+A collection of vertices.
 
+$V=\{0,1,2,...,N-1\}$, where $N$ is the number of vertices.
 Normally, we don't store the vertice indices, because the indices is just iota $[0, N)$.
-
 
 
 
@@ -22,8 +22,8 @@ Normally, we don't store the vertice indices, because the indices is just iota $
 
 | Name | Description |
 | ---- | ----------- |
-| [view](#view) | Get the const view of the vertices, this method generates no data clone. |
-| [view](#view) | Get the non-const view of the vertices, this method may potentially generate data clone. |
+| [view](#view) | Get the const view of the vertices, this method generates no data clone.  |
+| [view](#view) | Get the non-const view of the vertices, this method may potentially generate data clone.  |
 
 ## Function Details
 
@@ -33,9 +33,8 @@ Normally, we don't store the vertice indices, because the indices is just iota $
     
     
     Get the const view of the vertices, this method generates no data clone.
+         
     
-    :material-keyboard-return: **Return**
-    :    span<const IndexT>
     
     
 
@@ -44,9 +43,8 @@ Normally, we don't store the vertice indices, because the indices is just iota $
     
     
     Get the non-const view of the vertices, this method may potentially generate data clone.
+         
     
-    :material-keyboard-return: **Return**
-    :    span<IndexT>
     
     
 

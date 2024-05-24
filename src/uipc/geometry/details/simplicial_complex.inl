@@ -1,3 +1,4 @@
+#include "simplicial_complex.h"
 namespace uipc::geometry
 {
 template <typename SimplexSlot>
@@ -28,6 +29,13 @@ template <typename SimplexSlot>
 SizeT SimplicialComplexAttributes<SimplexSlot>::size() const
 {
     return m_attributes.size();
+}
+
+template <typename SimplexSlot>
+    requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
+void SimplicialComplexAttributes<SimplexSlot>::destroy(std::string_view name)
+{
+    m_attributes.destroy(name);
 }
 
 template <typename SimplexSlot>

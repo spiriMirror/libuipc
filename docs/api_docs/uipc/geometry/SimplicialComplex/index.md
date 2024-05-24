@@ -7,7 +7,7 @@ generator: doxide
 
 # SimplicialComplex
 
-**class SimplicialComplex : public IGeometry**
+**class SimplicialComplex : public Geometry**
 
 
 
@@ -77,6 +77,15 @@ std::fill(F_view.begin(), F_view.end(), Matrix3x3::Identity());
 :    [Tutorial/Geometry](../../../../tutorial/geometry.md)
 
 
+
+## Types
+
+| Name | Description |
+| ---- | ----------- |
+| [VertexAttributes](VertexAttributes/index.md) | Alias for the vertex attributes |
+| [EdgeAttributes](EdgeAttributes/index.md) | Alias for the edge attributes |
+| [TriangleAttributes](TriangleAttributes/index.md) | Alias for the triangle attributes |
+| [TetrahedronAttributes](TetrahedronAttributes/index.md) | Alias for the tetrahedron attributes |
 
 ## Functions
 

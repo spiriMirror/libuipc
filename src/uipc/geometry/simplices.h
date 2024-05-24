@@ -17,9 +17,14 @@ class ISimplices : public ITopoElements
     /**
      * @brief Get the dimension of the simplices.
      *
-     * E.g. 0 for vertices, 1 for edges, 2 for triangles, 3 for tetrahedra.
-     * 
-     * @return IndexT the dimension of the simplices
+     * | Dimension | Type of simplices |
+     * |-----------|-------------------|
+     * |    0      | Vertices          |
+     * |    1      | Edges             |
+     * |    2      | Triangles         |
+     * |    3      | Tetrahedra        |
+     *
+     * @return the dimension of the simplices
      */
     [[nodiscard]] IndexT dim() const;
 
@@ -31,10 +36,10 @@ class ISimplices : public ITopoElements
 };
 
 /**
- * @brief A collection of vertices, $V=\{0,1,2,...,N-1\}$
+ * @brief A collection of vertices.
  *
+ * $V=\{0,1,2,...,N-1\}$, where $N$ is the number of vertices.
  * Normally, we don't store the vertice indices, because the indices is just iota $[0, N)$.
- *
  */
 class Vertices final : public ISimplices
 {
@@ -42,14 +47,10 @@ class Vertices final : public ISimplices
     Vertices() = default;
     /**
      * @brief Get the const view of the vertices, this method generates no data clone.
-     * 
-     * @return span<const IndexT> 
      */
     [[nodiscard]] span<const IndexT> view() const;
     /**
      * @brief Get the non-const view of the vertices, this method may potentially generate data clone.
-     *  
-     * @return span<IndexT> 
      */
     [[nodiscard]] span<IndexT> view();
 
@@ -78,14 +79,14 @@ class Simplices final : public ISimplices
     Simplices() = default;
     /**
      * @brief Get the const view of the simplices, this method generates no data clone.
-     * 
-     * @return span<const Vector<IndexT, N + 1>> 
+     *
+     * @return A span of simplices
      */
     [[nodiscard]] span<const Vector<IndexT, N + 1>> view() const;
     /**
      * @brief Get the non-const view of the simplices, this method may potentially generate data clone.
-     * 
-     * @return span<Vector<IndexT, N + 1>> 
+     *
+     * @return A span of simplices
      */
     [[nodiscard]] span<Vector<IndexT, N + 1>> view();
 
@@ -102,15 +103,21 @@ class Simplices final : public ISimplices
 };
 
 /**
- * @brief A collection of edges, $E=\{(i,j) \mid i,j\in V, i\neq j\}$, where $V$ is the set of vertices.
+ * @brief A collection of edges.
+ * 
+ * $E=\{(i,j) \mid i,j\in V, i\neq j\}$, where $V$ is the set of vertices.
  */
 using Edges = Simplices<1>;
 /**
- * @brief A collection of triangles, $F=\{(i,j,k) \mid i,j,k\in V, i\neq j\neq k\}$, where $V$ is the set of vertices.
+ * @brief A collection of triangles. 
+ * 
+ * $F=\{(i,j,k) \mid i,j,k\in V, i\neq j\neq k\}$, where $V$ is the set of vertices.
  */
 using Triangles = Simplices<2>;
 /**
- * @brief A collection of tetrahedra, $T=\{(i,j,k,l) \mid i,j,k,l\in V, i\neq j\neq k\neq l\}$, where $V$ is the set of vertices.
+ * @brief A collection of tetrahedra.
+ * 
+ * $T=\{(i,j,k,l) \mid i,j,k,l\in V, i\neq j\neq k\neq l\}$, where $V$ is the set of vertices.
  */
 using Tetrahedra = Simplices<3>;
 }  // namespace uipc::geometry

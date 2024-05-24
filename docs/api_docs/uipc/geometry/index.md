@@ -13,20 +13,25 @@ generator: doxide
 
 | Name | Description |
 | ---- | ----------- |
+| [AbstractSimplicialComplex](AbstractSimplicialComplex/index.md) | Represents an abstract simplicial complex, containing vertices, edges, triangles, and tetrahedra. |
 | [Attribute](Attribute/index.md) | Template class to represent a geometry attribute of type T. |
+| [AttributeCollection](AttributeCollection/index.md) | A collection of geometry attributes. |
 | [AttributeSlot](AttributeSlot/index.md) | Template class to represent a geometry attribute slot of type T in a geometry attribute collection. |
-| [Edges](Edges/index.md) | A collection of edges, $E=\{(i,j) \mid i,j\in V, i\neq j\}$, where $V$ is the set of vertices.  |
+| [Edges](Edges/index.md) | A collection of edges. |
+| [Geometry](Geometry/index.md) | A base geometry class that contains the instance attributes and the meta attributes.  |
 | [IAttribute](IAttribute/index.md) | An abstract class to represent a geometry attribute.  |
 | [IAttributeSlot](IAttributeSlot/index.md) | An abstract class to represent a geometry attribute slot in a geometry attribute collection. |
 | [IGeometry](IGeometry/index.md) | An abstract class for geometry  |
+| [ISimplexSlot](ISimplexSlot/index.md) | An abstract class representing a simplex slot in an abstract simplicial complex. |
 | [ISimplices](ISimplices/index.md) | An abstract class for simplices, special type of topological elements. |
 | [ITopoElements](ITopoElements/index.md) | An abstract class for storing topological elements. They may be vertices, edges, triangles, tetrahedra, quads or any other elements.  |
 | [Simplices](Simplices/index.md) | General class to represent simplices, typically used for edges, triangles, tetrahedra. |
 | [SimplicialComplex](SimplicialComplex/index.md) | A simplicial complex is a collection of simplices. |
 | [SimplicialComplexAttributes](SimplicialComplexAttributes/index.md) | A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.  |
-| [Tetrahedra](Tetrahedra/index.md) | A collection of tetrahedra, $T=\{(i,j,k,l) \mid i,j,k,l\in V, i\neq j\neq k\neq l\}$, where $V$ is the set of vertices.  |
-| [Triangles](Triangles/index.md) | A collection of triangles, $F=\{(i,j,k) \mid i,j,k\in V, i\neq j\neq k\}$, where $V$ is the set of vertices.  |
-| [Vertices](Vertices/index.md) | A collection of vertices, $V=\{0,1,2,...,N-1\}$ |
+| [Tetrahedra](Tetrahedra/index.md) | A collection of tetrahedra. |
+| [Triangles](Triangles/index.md) | A collection of triangles. |
+| [VertexSlot](VertexSlot/index.md) | A slot for vertices in an abstract simplicial complex.  |
+| [Vertices](Vertices/index.md) | A collection of vertices. |
 
 ## Functions
 
@@ -35,6 +40,7 @@ generator: doxide
 | [linemesh](#linemesh) | Create a simplicial complex from a line mesh. |
 | [pointcloud](#pointcloud) | Create a simplicial complex from a point cloud. |
 | [read_msh](#read_msh) | Read a tetmesh from a .msh file. |
+| [read_obj](#read_obj) | Read a trimesh from a .obj file. |
 | [tetmesh](#tetmesh) | Create a simplicial complex from a tetrahedral mesh. |
 | [trimesh](#trimesh) | Create a simplicial complex from a triangle mesh. |
 
@@ -86,6 +92,18 @@ generator: doxide
     :material-keyboard-return: **Return**
     :    SimplicialComplex
     
+    
+
+### read_obj<a name="read_obj"></a>
+!!! function "[[nodiscard]] SimplicialComplex read_obj(std::string_view file_name)"
+
+    
+    
+    Read a trimesh from a .obj file.
+    
+    :material-location-enter: **Parameter** `file_name`
+    :    The file to read
+        
     
 
 ### tetmesh<a name="tetmesh"></a>

@@ -5,13 +5,28 @@
 namespace uipc::geometry
 {
 class AbstractSimplicialComplex;
+/**
+ * @brief An abstract class representing a simplex slot in an abstract simplicial complex.
+ * 
+ */
 class ISimplexSlot
 {
   public:
     ISimplexSlot()          = default;
     virtual ~ISimplexSlot() = default;
 
+    /**
+     * @brief Check if the underlying simplices is shared.
+     * 
+     * @return true, if the simplices is shared
+     * @return false, if the simplices is owned
+     */
     [[nodiscard]] bool  is_shared() const;
+    /**
+     * @brief Get the size of the simplices.
+     * 
+     * @return the size of the simplices
+     */
     [[nodiscard]] SizeT size() const;
 
     // delete copy
@@ -42,6 +57,9 @@ class ISimplexSlot
     const ISimplices* operator->() const;
 };
 
+/**
+ * @brief A slot for vertices in an abstract simplicial complex.
+ */
 class VertexSlot : public ISimplexSlot
 {
     friend class AbstractSimplicialComplex;
@@ -49,9 +67,21 @@ class VertexSlot : public ISimplexSlot
   public:
     VertexSlot(S<Vertices> vertices);
 
+    /**
+     * @brief Get the non-const underlying vertices, this method may potentially generate data clone.
+     * 
+     * @return non-const underlying vertices 
+     */
     Vertices*       operator->();
+
+    /**
+     * @brief  Get the const underlying vertices, this method generates no data clone.
+     * 
+     * @return const underlying vertices 
+     */
     const Vertices* operator->() const;
 
+  protected:
     U<VertexSlot> clone() const;
 
     SizeT             get_use_count() const override;
@@ -72,7 +102,17 @@ class SimplexSlot : public ISimplexSlot
   public:
     SimplexSlot(S<Simplices<N>> simplices);
 
+    /**
+     * @brief Get the non-const underlying simplices, this method may potentially generate data clone.
+     * 
+     * @return non-const underlying simplices 
+     */
     Simplices<N>*       operator->();
+    /**
+     * @brief Get the underlying const simplices, this method generates no data clone.
+     * 
+     * @return const underlying simplices 
+     */
     const Simplices<N>* operator->() const;
 
   protected:
@@ -91,6 +131,11 @@ using EdgeSlot        = SimplexSlot<1>;
 using TriangleSlot    = SimplexSlot<2>;
 using TetrahedronSlot = SimplexSlot<3>;
 
+/**
+ * @brief Represents an abstract simplicial complex, containing vertices, edges, triangles, and tetrahedra.
+ * 
+ * @note Abstract simplicial complex does not contain any geometric information, such as coordinates of vertices.
+ */
 class AbstractSimplicialComplex
 {
     friend class SimplicialComplex;
@@ -103,16 +148,53 @@ class AbstractSimplicialComplex
     AbstractSimplicialComplex(AbstractSimplicialComplex&&) noexcept;
     AbstractSimplicialComplex& operator=(AbstractSimplicialComplex&&) noexcept;
 
+    /**
+     * @brief Get the non-const slot for vertices.
+     * 
+     * @return a non-const slot for vertices
+     */
     VertexSlot&       vertices();
+    /**
+     * @brief Get the const slot for vertices.
+     * 
+     * @return a const slot for vertices
+     */
     const VertexSlot& vertices() const;
-
+    /**
+     * @brief Get the non-const slot for edges.
+     * 
+     * @return a non-const slot for edges
+     */
     EdgeSlot&       edges();
+    /**
+     * @brief Get the const slot for edges.
+     * 
+     * @return a const slot for edges
+     */
     const EdgeSlot& edges() const;
-
+    /**
+     * @brief Get the non-const slot for triangles.
+     * 
+     * @return a non-const slot for triangles
+     */
     TriangleSlot&       triangles();
+    /**
+     * @brief Get the const slot for triangles.
+     * 
+     * @return a const slot for triangles
+     */
     const TriangleSlot& triangles() const;
-
+    /**
+     * @brief Get the non-const slot for tetrahedra.
+     * 
+     * @return a non-const slot for tetrahedra
+     */
     TetrahedronSlot&       tetrahedra();
+    /**
+     * @brief Get the const slot for tetrahedra.
+     * 
+     * @return a const slot for tetrahedra
+     */
     const TetrahedronSlot& tetrahedra() const;
 
   private:

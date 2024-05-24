@@ -25,7 +25,7 @@ An abstract class to represent a geometry attribute slot in a geometry attribute
 ## Function Details
 
 ### is_shared<a name="is_shared"></a>
-!!! function "[[nodiscard]] bool             is_shared() const"
+!!! function "[[nodiscard]] bool  is_shared() const"
 
     
     

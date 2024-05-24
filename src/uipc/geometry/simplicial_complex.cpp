@@ -4,7 +4,7 @@
 namespace uipc::geometry
 {
 SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
-                                     span<const Vector3>         positions)
+                                     span<const Vector3>              positions)
     : m_asc{asc}
 {
     UIPC_ASSERT(positions.size() == m_asc.vertices()->size(),
@@ -17,8 +17,8 @@ SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
     m_triangle_attributes.resize(m_asc.triangles()->size());
     m_tetrahedron_attributes.resize(m_asc.tetrahedra()->size());
 
-    auto& pos  = m_vertex_attributes.create<Vector3>("position");
-    auto  view = pos.view();
+    auto& pos = m_vertex_attributes.create("position", Vector3::Zero().eval());
+    auto view = pos.view();
     std::copy(positions.begin(), positions.end(), view.begin());
 }
 

@@ -1,5 +1,13 @@
+#include "attribute.h"
 namespace uipc::geometry
 {
+template <typename T>
+Attribute<T>::Attribute(const T& default_value) noexcept
+    : m_values{}
+    , m_default_value{default_value}
+{
+}
+
 template <typename T>
 span<T> Attribute<T>::view()
 {
@@ -21,7 +29,7 @@ SizeT Attribute<T>::get_size() const
 template <typename T>
 void Attribute<T>::do_resize(SizeT N)
 {
-    m_values.resize(N);
+    m_values.resize(N, this->m_default_value);
 }
 
 template <typename T>
