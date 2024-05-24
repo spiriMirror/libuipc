@@ -1,5 +1,4 @@
 #include <format>
-#include "attribute_collection.h"
 
 namespace uipc::geometry
 {
@@ -37,15 +36,25 @@ AttributeSlot<T>& AttributeCollection::share(std::string_view        name,
 }
 
 template <typename T>
-AttributeSlot<T>* AttributeCollection::find(std::string_view name)
+OptionalRef<AttributeSlot<T>> AttributeCollection::find(std::string_view name)
 {
-    return dynamic_cast<AttributeSlot<T>*>(this->find(name));
+    auto slot = this->find(name);
+    auto ptr = dynamic_cast<AttributeSlot<T>*>(slot.get_ptr());
+    if(ptr)
+        return *ptr;
+
+    return EmptyRef{};
 }
 
 template <typename T>
-const AttributeSlot<T>* AttributeCollection::find(std::string_view name) const
+OptionalRef<const AttributeSlot<T>> AttributeCollection::find(std::string_view name) const
 {
-    return dynamic_cast<const AttributeSlot<T>*>(this->find(name));
+    auto slot = this->find(name);
+    auto ptr = dynamic_cast<const AttributeSlot<T>*>(slot.get_ptr());
+    if(ptr)
+        return *ptr;
+
+    return EmptyRef{};
 }
 
 template <typename T>

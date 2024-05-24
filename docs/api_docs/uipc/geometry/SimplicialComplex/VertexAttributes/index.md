@@ -7,7 +7,7 @@ generator: doxide
 
 # VertexAttributes
 
-**using VertexAttributes      = SimplicialComplexAttributes&lt;VertexSlot&gt;**
+**using VertexAttributes = SimplicialComplexAttributes&lt;VertexSlot&gt;**
 
 
 

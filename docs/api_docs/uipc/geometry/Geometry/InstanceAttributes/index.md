@@ -26,7 +26,8 @@ A wrapper class for the instance attributes of a geometry.
 | [clear](#clear) |  :material-eye-outline: **See** :    [AttributeCollection::clear()](../../AttributeCollection/#clear)  |
 | [size](#size) |  :material-eye-outline: **See** :    [AttributeCollection::size()](../../AttributeCollection/#size)  |
 | [destroy](#destroy) |  :material-eye-outline: **See** :    [AttributeCollection::destroy()](../../AttributeCollection/#destroy)  |
-| [find](#find) | Find an attribute by type and name, if the attribute does not exist, return nullptr.  |
+| [find](#find) | Find an attribute by type and name, if the attribute does not exist, return empty OptionalRef.  |
+| [find](#find) | Find an attribute by type and name, if the attribute does not exist, return empty OptionalRef.  |
 | [create](#create) | Create an attribute with the given name.  |
 
 ## Function Details
@@ -67,7 +68,17 @@ A wrapper class for the instance attributes of a geometry.
 
     
     
-    Find an attribute by type and name, if the attribute does not exist, return nullptr.
+    Find an attribute by type and name, if the attribute does not exist, return empty OptionalRef.
+             
+    
+    
+    
+
+!!! function "template &lt;typename T&gt; [[nodiscard]] auto find(std::string_view name) const"
+
+    
+    
+    Find an attribute by type and name, if the attribute does not exist, return empty OptionalRef.
              
     
     

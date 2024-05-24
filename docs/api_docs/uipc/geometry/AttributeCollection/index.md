@@ -85,7 +85,7 @@ All geometry attributes in the collection always have the same size.
     
 
 ### find<a name="find"></a>
-!!! function "[[nodiscard]] IAttributeSlot&#42; find(std::string_view name)"
+!!! function "[[nodiscard]] OptionalRef&lt;IAttributeSlot&gt; find(std::string_view name)"
 
     
     
@@ -98,11 +98,11 @@ All geometry attributes in the collection always have the same size.
     :    The attribute slot with the given name.
     
     :material-keyboard-return: **Return**
-    :    nullptr if the attribute slot with the given name does not exist.
+    :    EmptyRef if the attribute slot with the given name does not exist.
     
     
 
-!!! function "[[nodiscard]] const IAttributeSlot&#42; find(std::string_view name) const"
+!!! function "[[nodiscard]] OptionalRef&lt;const IAttributeSlot&gt; find(std::string_view name) const"
 
     
     
@@ -112,7 +112,7 @@ All geometry attributes in the collection always have the same size.
     
     
 
-!!! function "template &lt;typename T&gt; [[nodiscard]] AttributeSlot&lt;T&gt;&#42; find(std::string_view name)"
+!!! function "template &lt;typename T&gt; [[nodiscard]] OptionalRef&lt;AttributeSlot&lt;T&gt;&gt; find(std::string_view name)"
 
     
     
@@ -122,7 +122,7 @@ All geometry attributes in the collection always have the same size.
     
     
 
-!!! function "template &lt;typename T&gt; [[nodiscard]] const AttributeSlot&lt;T&gt;&#42; find(std::string_view name) const"
+!!! function "template &lt;typename T&gt; [[nodiscard]] OptionalRef&lt;const AttributeSlot&lt;T&gt;&gt; find(std::string_view name) const"
 
     
     

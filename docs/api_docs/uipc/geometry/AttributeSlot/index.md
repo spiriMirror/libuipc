@@ -22,8 +22,8 @@ Template class to represent a geometry attribute slot of type T in a geometry at
 
 | Name | Description |
 | ---- | ----------- |
-| [view](#view) | A shortcut to get the non-const attribute values. |
-| [view](#view) | A shortcut to get the const attribute values. |
+| [view](#view) | Get the non-const attribute values. |
+| [view](#view) | Get the const attribute values. |
 
 ## Function Details
 
@@ -32,7 +32,7 @@ Template class to represent a geometry attribute slot of type T in a geometry at
 
     
     
-    A shortcut to get the non-const attribute values.
+    Get the non-const attribute values.
     
     :material-keyboard-return: **Return**
     :    `span<T>`
@@ -46,7 +46,7 @@ Template class to represent a geometry attribute slot of type T in a geometry at
 
     
     
-    A shortcut to get the const attribute values.
+    Get the const attribute values.
     
     :material-keyboard-return: **Return**
     :    `span<const T>`

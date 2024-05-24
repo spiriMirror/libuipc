@@ -13,7 +13,26 @@ using RowMajorMatrix =
     Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 using Eigen::VectorXi;
 
-SimplicialComplex read_msh(std::string_view file_name)
+namespace fs = std::filesystem;
+
+SimplicialComplex SimplicialComplexIO::read(std::string_view file_name)
+{
+    fs::path path{file_name};
+    if(path.extension() == ".msh")
+    {
+        return read_msh(file_name);
+    }
+    else if(path.extension() == ".obj")
+    {
+        return read_obj(file_name);
+    }
+    else
+    {
+        throw GeometryIOError{std::format("Unsupported file format: {}", file_name)};
+    }
+}
+
+SimplicialComplex SimplicialComplexIO::read_msh(std::string_view file_name)
 {
     if(!std::filesystem::exists(file_name))
     {
@@ -39,7 +58,7 @@ SimplicialComplex read_msh(std::string_view file_name)
     return tetmesh(Vs, Ts);
 }
 
-SimplicialComplex read_obj(std::string_view file_name)
+SimplicialComplex SimplicialComplexIO::read_obj(std::string_view file_name)
 {
     if(!std::filesystem::exists(file_name))
     {

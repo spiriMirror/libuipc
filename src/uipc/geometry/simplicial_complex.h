@@ -18,22 +18,62 @@ template <typename SimplexSlot>
 class SimplicialComplexAttributes
 {
   public:
+    /**
+     * @brief A wrapper of the topology of the simplicial complex.
+     */
+    class Topo
+    {
+        friend class SimplicialComplexAttributes;
+
+      public:
+        /**
+         * @brief Get a non-const view of the topology.
+         * 
+         * @warning This function may cause a data clone if the topology is shared.
+         */
+        [[nodiscard]] auto view() { return m_topology->view(); }
+        /**
+         * @brief Get a const view of the topology, this function guarantees no data clone.
+         */
+        [[nodiscard]] auto view() const
+        {
+            return std::as_const(m_topology)->view();
+        }
+        /**
+         * @brief Query if the topology is owned by current simplicial complex.
+         */
+        [[nodiscard]] bool is_shared() const;
+
+      private:
+        Topo(SimplexSlot& topo);
+        SimplexSlot& m_topology;
+    };
+
+
     SimplicialComplexAttributes(const SimplicialComplexAttributes& o) = default;
     SimplicialComplexAttributes(SimplicialComplexAttributes&& o)      = default;
     SimplicialComplexAttributes& operator=(const SimplicialComplexAttributes& o) = default;
     SimplicialComplexAttributes& operator=(SimplicialComplexAttributes&& o) = default;
+
+
+    /**
+	 * @brief Get the topology of the simplicial complex.
+	 * 
+	 * @return Topo 
+	 */
+    [[nodiscard]] Topo topo();
     /**
      * @sa [AttributeCollection::resize()](../AttributeCollection/#resize)
      */
-    void                resize(size_t size);
+    void resize(SizeT size);
     /**
      * @sa [AttributeCollection::reserve()](../AttributeCollection/#reserve)
      */
-    void                reserve(size_t size);
+    void reserve(SizeT size);
     /**
      * @sa [AttributeCollection::clear()](../AttributeCollection/#clear)
      */
-    void                clear();
+    void clear();
     /**
      * @sa [AttributeCollection::size()](../AttributeCollection/#size)
      */
@@ -44,24 +84,6 @@ class SimplicialComplexAttributes
     void destroy(std::string_view name);
 
     /**
-     * @brief Get a non-const view of the topology.
-     * 
-     * @warning This function may cause a data clone if the topology is shared.
-     */
-    [[nodiscard]] auto topo_view() { return m_topology->view(); }
-    /**
-     * @brief Get a const view of the topology, this function guarantees no data clone.
-     */
-    [[nodiscard]] auto topo_view() const
-    {
-        return std::as_const(m_topology)->view();
-    }
-    /**
-     * @brief Query if the topology is owned by current simplicial complex.
-     */
-    [[nodiscard]] bool topo_is_shared() const;
-
-    /**
      * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
      */
     template <typename T>
@@ -70,15 +92,24 @@ class SimplicialComplexAttributes
         return m_attributes.template find<T>(name);
     }
 
+    /**
+    * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
+    */
     template <typename T>
-    decltype(auto) create(std::string_view name)
+    [[nodiscard]] auto find(std::string_view name) const
     {
-        return m_attributes.template create<T>(name);
+        return std::as_const(m_attributes).template find<T>(name);
+    }
+
+    template <typename T>
+    decltype(auto) create(std::string_view name, const T& default_value = {})
+    {
+        return m_attributes.template create<T>(name, default_value);
     }
 
   private:
     friend class SimplicialComplex;
-    SimplexSlot&         m_topology;
+    Topo                 m_topology;
     AttributeCollection& m_attributes;
 
     SimplicialComplexAttributes(SimplexSlot& topology, AttributeCollection& attributes);
@@ -149,19 +180,19 @@ class SimplicialComplex : public Geometry
      * 
      * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
      */
-    using VertexAttributes      = SimplicialComplexAttributes<VertexSlot>;
+    using VertexAttributes = SimplicialComplexAttributes<VertexSlot>;
     /**
      * @brief Alias for the edge attributes
      * 
      * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
      */
-    using EdgeAttributes        = SimplicialComplexAttributes<EdgeSlot>;
+    using EdgeAttributes = SimplicialComplexAttributes<EdgeSlot>;
     /**
      * @brief Alias for the triangle attributes
      * 
      * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
      */
-    using TriangleAttributes    = SimplicialComplexAttributes<TriangleSlot>;
+    using TriangleAttributes = SimplicialComplexAttributes<TriangleSlot>;
     /**
      * @brief Alias for the tetrahedron attributes
      *

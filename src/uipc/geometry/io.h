@@ -6,20 +6,39 @@
 namespace uipc::geometry
 {
 /**
- * @brief Read a tetmesh from a .msh file.
- * 
- * @param file_name The file to read
- * @return SimplicialComplex 
+ * @brief A class for reading and writing simplicial complex.
  */
-[[nodiscard]] SimplicialComplex read_msh(std::string_view file_name);
+class SimplicialComplexIO
+{
+  public:
 
-/**
- * @brief Read a trimesh from a .obj file.
- * 
- * @param file_name The file to read
- */
-[[nodiscard]] SimplicialComplex read_obj(std::string_view file_name);
-}
+    /**
+     * @brief A unified interface for reading a simplicial complex from a file, the file type is determined by the file extension.
+     * 
+     * \param file_name The file to read
+     * \return SimplicialComplex
+     */
+    [[nodiscard]] SimplicialComplex read(std::string_view file_name);
+
+    /**
+     * @brief Read a tetmesh from a .msh file.
+     * 
+     * @param file_name The file to read
+     * 
+     * @return SimplicialComplex 
+     */
+    [[nodiscard]] SimplicialComplex read_msh(std::string_view file_name);
+
+    /**
+	 * @brief Read a trimesh, linemesh or particles from a .obj file.
+	 * 
+	 * @param file_name The file to read
+	 * 
+	 * @return  SimplicialComplex
+	 */
+	[[nodiscard]] SimplicialComplex read_obj(std::string_view file_name);
+};
+}  // namespace uipc::geometry
 
 namespace uipc::geometry
 {

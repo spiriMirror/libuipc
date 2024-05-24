@@ -54,7 +54,8 @@ IAttributeSlot& AttributeCollection::share(std::string_view name, const IAttribu
     auto n  = std::string{name};
     auto it = m_attributes.find(n);
     if(it != m_attributes.end())
-        throw AttributeAlreadyExist{std::format("Attribute with name [{}] already exist!", name)};
+        throw AttributeAlreadyExist{
+            std::format("Attribute with name [{}] already exist!", name)};
     return *(m_attributes[n] = slot.clone());
 }
 
@@ -62,25 +63,32 @@ void AttributeCollection::destroy(std::string_view name)
 {
     auto it = m_attributes.find(std::string{name});
     if(it == m_attributes.end())
+    {
+        UIPC_WARN_WITH_LOCATION("Destroying non-existing attribute [{}]", name);
         return;
+    }
     m_attributes.erase(it);
 }
 
-IAttributeSlot* AttributeCollection::find(std::string_view name)
+OptionalRef<IAttributeSlot> AttributeCollection::find(std::string_view name)
 {
     auto it = m_attributes.find(std::string{name});
-    if(it == m_attributes.end())
-        return nullptr;
-    return it->second.get();
+
+    if(it != m_attributes.end())
+        return *it->second.get();
+
+    return EmptyRef{};
 }
 
 
-const IAttributeSlot* AttributeCollection::find(std::string_view name) const
+OptionalRef<const IAttributeSlot> AttributeCollection::find(std::string_view name) const
 {
     auto it = m_attributes.find(std::string{name});
-    if(it == m_attributes.end())
-        return nullptr;
-    return it->second.get();
+
+    if(it != m_attributes.end())
+        return *it->second.get();
+
+    return EmptyRef{};
 }
 
 void AttributeCollection::resize(size_t N)

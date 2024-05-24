@@ -96,12 +96,21 @@ class Geometry : public IGeometry
         void destroy(std::string_view name);
 
         /**
-         * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
+         * @brief Find an attribute by type and name, if the attribute does not exist, return empty OptionalRef.
          */
         template <typename T>
         [[nodiscard]] auto find(std::string_view name)
         {
             return m_attributes.template find<T>(name);
+        }
+
+        /**
+         * @brief Find an attribute by type and name, if the attribute does not exist, return empty OptionalRef.
+         */
+        template <typename T>
+        [[nodiscard]] auto find(std::string_view name) const
+        {
+            return std::as_const(m_attributes).template find<T>(name);
         }
 
         /**

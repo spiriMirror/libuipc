@@ -52,7 +52,7 @@ Geometry::Geometry()
 
 AttributeSlot<Matrix4x4>& Geometry::transforms()
 {
-    return *m_intances.template find<Matrix4x4>("transform");
+    return m_intances.template find<Matrix4x4>("transform").value();
 }
 
 const AttributeSlot<Matrix4x4>& Geometry::transforms() const

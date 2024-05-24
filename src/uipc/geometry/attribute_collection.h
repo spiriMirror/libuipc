@@ -3,6 +3,7 @@
 #include <uipc/geometry/attribute.h>
 #include <map>
 #include <uipc/common/exception.h>
+#include <uipc/common/optional_reference.h>
 
 namespace uipc::geometry
 {
@@ -68,14 +69,14 @@ class AttributeSlot final : public IAttributeSlot
     AttributeSlot(std::string_view m_name, S<Attribute<T>> attribute);
 
     /**
-     * @brief A shortcut to get the non-const attribute values.
+     * @brief Get the non-const attribute values.
      * 
      * @return `span<T>`
      * @sa [Attribute](../Attribute/index.md#Attribute)
      */
     [[nodiscard]] span<T> view();
     /**
-     * @brief A shortcut to get the const attribute values.
+     * @brief Get the const attribute values.
      * 
      * @return `span<const T>`
      */
@@ -156,25 +157,25 @@ class AttributeCollection
      * 
      * @param name The name of the attribute slot.
      * @return The attribute slot with the given name.
-     * @return nullptr if the attribute slot with the given name does not exist.
+     * @return EmptyRef if the attribute slot with the given name does not exist.
      */
-    [[nodiscard]] IAttributeSlot* find(std::string_view name);
+    [[nodiscard]] OptionalRef<IAttributeSlot> find(std::string_view name);
     /**
      * @brief const version of find.
      */
-    [[nodiscard]] const IAttributeSlot* find(std::string_view name) const;
+    [[nodiscard]] OptionalRef<const IAttributeSlot> find(std::string_view name) const;
 
     /**
      * @brief Template version of find.
      */
     template <typename T>
-    [[nodiscard]] AttributeSlot<T>* find(std::string_view name);
+    [[nodiscard]] OptionalRef<AttributeSlot<T>> find(std::string_view name);
 
     /**
      * @brief  Template const version of find.
      */
     template <typename T>
-    [[nodiscard]] const AttributeSlot<T>* find(std::string_view name) const;
+    [[nodiscard]] OptionalRef<const AttributeSlot<T>> find(std::string_view name) const;
 
     /**
      * @brief Resize all attribute slots to the given size.

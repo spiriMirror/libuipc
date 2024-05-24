@@ -10,7 +10,7 @@ A Library of Unified Incremental Potential Contact.
 | eigen3                                 | 3.4.0   | matrix calculation                                  | package        |
 | catch2                                 | 3.4.0   | unit tests                                          | package        |
 | libigl                                 | 2.5.0   | mesh processing                                     | package        |
-
+| boost-optional                         | 1.84.0  | optional reference implement                        | package        |
 ## Build
 
 ### Linux

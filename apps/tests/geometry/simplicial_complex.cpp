@@ -20,8 +20,6 @@ TEST_CASE("shared_test", "[geometry]")
     auto shared_mesh = mesh;
     REQUIRE(shared_mesh.positions().is_shared());
 
-    Ts.size();
-
     // a const view just references the data
     auto const_view = std::as_const(shared_mesh).positions().view();
 
@@ -43,8 +41,8 @@ TEST_CASE("shared_test", "[geometry]")
     // These query don't modify the data, so the data is not cloned
     REQUIRE(VA.size() == Vs.size());
     REQUIRE(TA.size() == Ts.size());
-    REQUIRE(VA.topo_is_shared());
-    REQUIRE(TA.topo_is_shared());
+    REQUIRE(VA.topo().is_shared());
+    REQUIRE(TA.topo().is_shared());
 
 
     // when resize:
@@ -62,7 +60,7 @@ TEST_CASE("shared_test", "[geometry]")
 
     // a clone is made here
     TA.resize(2);
-    auto tet_view = TA.topo_view();
+    auto tet_view = TA.topo().view();
     tet_view[1]   = Vector4i{0, 1, 3, 5};
 
     REQUIRE(pos->size() == 8);
@@ -70,8 +68,8 @@ TEST_CASE("shared_test", "[geometry]")
     REQUIRE(TA.size() == 2);
 
     // after changing the topo, the topo is owned
-    REQUIRE(!VA.topo_is_shared());
-    REQUIRE(!TA.topo_is_shared());
+    REQUIRE(!VA.topo().is_shared());
+    REQUIRE(!TA.topo().is_shared());
 
     // shallow copy, the data is not cloned
     auto shared_topo_mesh = shared_mesh;
@@ -83,7 +81,7 @@ TEST_CASE("shared_test", "[geometry]")
         // so the positions are owned
         REQUIRE(!shared_topo_mesh.positions().is_shared());
         // but the topo are shared
-        REQUIRE(shared_topo_mesh.vertices().topo_is_shared());
+        REQUIRE(shared_topo_mesh.vertices().topo().is_shared());
     }
 }
 
@@ -106,9 +104,12 @@ TEST_CASE("create_attribute", "[geometry]")
 
     auto VA = mesh.vertices();
 
-    auto& vel = VA.create<Vector3>("velocity");
+    auto& vel = VA.create<Vector3>("velocity", Vector3::Zero());
     REQUIRE(vel.size() == VA.size());
 
 
     REQUIRE_THROWS_AS(VA.create<Vector3>("velocity"), AttributeAlreadyExist);
+
+    VA.destroy("velocity");
+    VA.destroy("velocity");
 }

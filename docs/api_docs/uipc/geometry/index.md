@@ -28,6 +28,7 @@ generator: doxide
 | [Simplices](Simplices/index.md) | General class to represent simplices, typically used for edges, triangles, tetrahedra. |
 | [SimplicialComplex](SimplicialComplex/index.md) | A simplicial complex is a collection of simplices. |
 | [SimplicialComplexAttributes](SimplicialComplexAttributes/index.md) | A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.  |
+| [SimplicialComplexIO](SimplicialComplexIO/index.md) | A class for reading and writing simplicial complex.  |
 | [Tetrahedra](Tetrahedra/index.md) | A collection of tetrahedra. |
 | [Triangles](Triangles/index.md) | A collection of triangles. |
 | [VertexSlot](VertexSlot/index.md) | A slot for vertices in an abstract simplicial complex.  |
@@ -39,8 +40,6 @@ generator: doxide
 | ---- | ----------- |
 | [linemesh](#linemesh) | Create a simplicial complex from a line mesh. |
 | [pointcloud](#pointcloud) | Create a simplicial complex from a point cloud. |
-| [read_msh](#read_msh) | Read a tetmesh from a .msh file. |
-| [read_obj](#read_obj) | Read a trimesh from a .obj file. |
 | [tetmesh](#tetmesh) | Create a simplicial complex from a tetrahedral mesh. |
 | [trimesh](#trimesh) | Create a simplicial complex from a triangle mesh. |
 
@@ -77,33 +76,6 @@ generator: doxide
     :material-keyboard-return: **Return**
     :    SimplicialComplex
     
-    
-
-### read_msh<a name="read_msh"></a>
-!!! function "[[nodiscard]] SimplicialComplex read_msh(std::string_view file_name)"
-
-    
-    
-    Read a tetmesh from a .msh file.
-    
-    :material-location-enter: **Parameter** `file_name`
-    :    The file to read
-    
-    :material-keyboard-return: **Return**
-    :    SimplicialComplex
-    
-    
-
-### read_obj<a name="read_obj"></a>
-!!! function "[[nodiscard]] SimplicialComplex read_obj(std::string_view file_name)"
-
-    
-    
-    Read a trimesh from a .obj file.
-    
-    :material-location-enter: **Parameter** `file_name`
-    :    The file to read
-        
     
 
 ### tetmesh<a name="tetmesh"></a>

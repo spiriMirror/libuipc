@@ -7,7 +7,7 @@ generator: doxide
 
 # EdgeAttributes
 
-**using EdgeAttributes        = SimplicialComplexAttributes&lt;EdgeSlot&gt;**
+**using EdgeAttributes = SimplicialComplexAttributes&lt;EdgeSlot&gt;**
 
 
 
