@@ -21,7 +21,7 @@ TEST_CASE("shared_test", "[geometry]")
     REQUIRE(shared_mesh.positions().is_shared());
 
     // a const view just references the data
-    auto const_view = std::as_const(shared_mesh).positions().view();
+    auto const_view = shared_mesh.positions().view();
 
     REQUIRE(shared_mesh.positions().is_shared());
 

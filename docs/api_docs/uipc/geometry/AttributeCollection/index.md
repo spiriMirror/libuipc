@@ -49,7 +49,7 @@ All geometry attributes in the collection always have the same size.
     
 
 ### create<a name="create"></a>
-!!! function "template &lt;typename T&gt; AttributeSlot&lt;T&gt;&amp; create(std::string_view name, const T&amp; default_value = {})"
+!!! function "template &lt;typename T, bool AllowDestroy = true&gt; P&lt;AttributeSlot&lt;T&gt;&gt; create(std::string_view name, const T&amp; default_value = {})"
 
     
     
@@ -85,7 +85,7 @@ All geometry attributes in the collection always have the same size.
     
 
 ### find<a name="find"></a>
-!!! function "[[nodiscard]] OptionalRef&lt;IAttributeSlot&gt; find(std::string_view name)"
+!!! function "[[nodiscard]] P&lt;IAttributeSlot&gt; find(std::string_view name)"
 
     
     
@@ -98,11 +98,11 @@ All geometry attributes in the collection always have the same size.
     :    The attribute slot with the given name.
     
     :material-keyboard-return: **Return**
-    :    EmptyRef if the attribute slot with the given name does not exist.
+    :    nullptr if the attribute slot with the given name does not exist.
     
     
 
-!!! function "[[nodiscard]] OptionalRef&lt;const IAttributeSlot&gt; find(std::string_view name) const"
+!!! function "[[nodiscard]] P&lt;const IAttributeSlot&gt; find(std::string_view name) const"
 
     
     
@@ -112,7 +112,7 @@ All geometry attributes in the collection always have the same size.
     
     
 
-!!! function "template &lt;typename T&gt; [[nodiscard]] OptionalRef&lt;AttributeSlot&lt;T&gt;&gt; find(std::string_view name)"
+!!! function "template &lt;typename T&gt; [[nodiscard]] P&lt;AttributeSlot&lt;T&gt;&gt; find(std::string_view name)"
 
     
     
@@ -122,7 +122,7 @@ All geometry attributes in the collection always have the same size.
     
     
 
-!!! function "template &lt;typename T&gt; [[nodiscard]] OptionalRef&lt;const AttributeSlot&lt;T&gt;&gt; find(std::string_view name) const"
+!!! function "template &lt;typename T&gt; [[nodiscard]] P&lt;const AttributeSlot&lt;T&gt;&gt; find(std::string_view name) const"
 
     
     

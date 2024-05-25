@@ -22,8 +22,8 @@ Normally, we don't store the vertice indices, because the indices is just iota $
 
 | Name | Description |
 | ---- | ----------- |
-| [view](#view) | Get the const view of the vertices, this method generates no data clone.  |
-| [view](#view) | Get the non-const view of the vertices, this method may potentially generate data clone.  |
+| [view](#view) | Get the const view of the vertices  |
+| [view](#view) | Get the non-const view of the vertices  |
 
 ## Function Details
 
@@ -32,17 +32,17 @@ Normally, we don't store the vertice indices, because the indices is just iota $
 
     
     
-    Get the const view of the vertices, this method generates no data clone.
+    Get the const view of the vertices
          
     
     
     
 
-!!! function "[[nodiscard]] span&lt;IndexT&gt; view()"
+!!! function "[[nodiscard]] span&lt;IndexT&gt; view(Vertices&amp; vertices)"
 
     
     
-    Get the non-const view of the vertices, this method may potentially generate data clone.
+    Get the non-const view of the vertices
          
     
     

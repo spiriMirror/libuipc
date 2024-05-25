@@ -7,7 +7,7 @@ generator: doxide
 
 # SimplicialComplexAttributes
 
-**template &lt;typename SimplexSlot&gt; requires std::is_base_of_v&lt;ISimplexSlot, SimplexSlot&gt; class SimplicialComplexAttributes**
+**template &lt;typename SimplexSlotT&gt; requires std::is_base_of_v&lt;ISimplexSlot, SimplexSlotT&gt; class SimplicialComplexAttributes**
 
 
 
@@ -16,12 +16,6 @@ A collection of attributes for a specific type of simplices. The main API for ac
 
 
 
-
-## Types
-
-| Name | Description |
-| ---- | ----------- |
-| [Topo](Topo/index.md) | A wrapper of the topology of the simplicial complex.  |
 
 ## Functions
 

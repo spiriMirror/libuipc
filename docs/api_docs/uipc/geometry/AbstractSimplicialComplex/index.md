@@ -34,7 +34,7 @@ Represents an abstract simplicial complex, containing vertices, edges, triangles
 ## Function Details
 
 ### edges<a name="edges"></a>
-!!! function "EdgeSlot&amp;       edges()"
+!!! function "EdgeSlot&amp; edges()"
 
     
     
@@ -57,7 +57,7 @@ Represents an abstract simplicial complex, containing vertices, edges, triangles
     
 
 ### tetrahedra<a name="tetrahedra"></a>
-!!! function "TetrahedronSlot&amp;       tetrahedra()"
+!!! function "TetrahedronSlot&amp; tetrahedra()"
 
     
     
@@ -80,7 +80,7 @@ Represents an abstract simplicial complex, containing vertices, edges, triangles
     
 
 ### triangles<a name="triangles"></a>
-!!! function "TriangleSlot&amp;       triangles()"
+!!! function "TriangleSlot&amp; triangles()"
 
     
     
@@ -103,7 +103,7 @@ Represents an abstract simplicial complex, containing vertices, edges, triangles
     
 
 ### vertices<a name="vertices"></a>
-!!! function "VertexSlot&amp;       vertices()"
+!!! function "VertexSlot&amp; vertices()"
 
     
     

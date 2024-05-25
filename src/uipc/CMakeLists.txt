@@ -2,7 +2,6 @@ find_package(Eigen3 REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(libigl REQUIRED)
 find_package(nlohmann_json REQUIRED)
-find_package(Boost REQUIRED)
 
 add_library(uipc STATIC)
 target_compile_features(uipc PUBLIC cxx_std_20)
@@ -14,7 +13,6 @@ target_link_libraries(uipc PUBLIC
     igl::igl_core 
     hipony::enumerate
     nlohmann_json::nlohmann_json
-    Boost::boost
 )
 
 # add the files in the subdirectories to the target uipc

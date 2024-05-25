@@ -28,7 +28,7 @@ Template class to represent a geometry attribute slot of type T in a geometry at
 ## Function Details
 
 ### view<a name="view"></a>
-!!! function "[[nodiscard]] span&lt;T&gt; view()"
+!!! function "span&lt;U&gt; view(AttributeSlot&lt;U&gt;&amp; slot)"
 
     
     

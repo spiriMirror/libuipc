@@ -3,7 +3,6 @@
 #include <uipc/geometry/attribute.h>
 #include <map>
 #include <uipc/common/exception.h>
-#include <uipc/common/optional_reference.h>
 
 namespace uipc::geometry
 {

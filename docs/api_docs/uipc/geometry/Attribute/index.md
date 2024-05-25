@@ -28,17 +28,17 @@ Template class to represent a geometry attribute of type T.
 ## Function Details
 
 ### view<a name="view"></a>
-!!! function "[[nodiscard]] span&lt;T&gt; view()"
+!!! function "[[nodiscard]]  span&lt;T&gt; view(Attribute&lt;T&gt;&amp; a)"
 
     
     
     Get a non-const view of the attribute values. This method may potentially clone the attribute data.
     
     !!!Note
-    Always consider using the const version of this method if the attribute data is not going to be modified.
+    Always consider using the const member method if the attribute data is not going to be modified.
     
     :material-keyboard-return: **Return**
-    :    span<T>
+    :    `span<T>`
     
     
 
@@ -49,7 +49,7 @@ Template class to represent a geometry attribute of type T.
     Get a const view of the attribute values. This method gerantees no data cloning.
     
     :material-keyboard-return: **Return**
-    :    span<const T>
+    :    `span<const T>`
     
     
 

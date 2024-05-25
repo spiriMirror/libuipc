@@ -46,9 +46,9 @@ auto pos = VA.find<Vector3>("position");
 To the underlying attributes of the simplicial complex, we need to create a view of the attributes, as shown below:
 ```cpp
 // const view
-std::as_const(pos)->view();
-// non-const view
 pos->view();
+// non-const view
+geometry::view(*pos);
 ```
 
 !!! tip

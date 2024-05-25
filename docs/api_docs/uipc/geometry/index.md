@@ -29,6 +29,7 @@ generator: doxide
 | [SimplicialComplex](SimplicialComplex/index.md) | A simplicial complex is a collection of simplices. |
 | [SimplicialComplexAttributes](SimplicialComplexAttributes/index.md) | A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.  |
 | [SimplicialComplexIO](SimplicialComplexIO/index.md) | A class for reading and writing simplicial complex.  |
+| [SimplicialComplexTopo](SimplicialComplexTopo/index.md) | A wrapper of the topology of the simplicial complex.  |
 | [Tetrahedra](Tetrahedra/index.md) | A collection of tetrahedra. |
 | [Triangles](Triangles/index.md) | A collection of triangles. |
 | [VertexSlot](VertexSlot/index.md) | A slot for vertices in an abstract simplicial complex.  |

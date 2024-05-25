@@ -2,7 +2,7 @@
 #include <app/asset_dir.h>
 #include <uipc/geometry.h>
 #include <format>
-#include <uipc/common/optional_reference.h>
+
 using namespace uipc;
 using namespace uipc::geometry;
 

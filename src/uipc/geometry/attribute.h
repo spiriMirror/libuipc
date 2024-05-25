@@ -58,14 +58,14 @@ class Attribute : public IAttribute
      * 
      * !!!Note
      *    Always consider using the const member method if the attribute data is not going to be modified.
-     * @return span<T> 
+     * @return `span<T>` 
      */
-    [[nodiscard]] friend span<T> view(Attribute<T>& a) { return a.m_values; }
+    friend [[nodiscard]]  span<T> view(Attribute<T>& a) { return a.m_values; }
 
     /**
      * @brief Get a const view of the attribute values. This method gerantees no data cloning.
      * 
-     * @return span<const T> 
+     * @return `span<const T>` 
      */
     [[nodiscard]] span<const T> view() const;
 

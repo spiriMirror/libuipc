@@ -26,7 +26,7 @@ An abstract class representing a simplex slot in an abstract simplicial complex.
 ## Function Details
 
 ### is_shared<a name="is_shared"></a>
-!!! function "[[nodiscard]] bool  is_shared() const"
+!!! function "[[nodiscard]] bool is_shared() const"
 
     
     
