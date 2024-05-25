@@ -5,10 +5,10 @@ namespace uipc::geometry
 SimplicialComplex tetmesh(span<const Vector3> Vs, span<const Vector4i> Ts)
 {
     AbstractSimplicialComplex asc;
-    asc.vertices()->resize(Vs.size());
-    asc.tetrahedra()->resize(Ts.size());
+    asc.vertices().resize(Vs.size());
+    asc.tetrahedra().resize(Ts.size());
 
-    auto dst_Ts = asc.tetrahedra()->view();
+    auto dst_Ts = geometry::view(asc.tetrahedra());
     std::copy(Ts.begin(), Ts.end(), dst_Ts.begin());
 
     return SimplicialComplex{asc, Vs};
@@ -17,10 +17,10 @@ SimplicialComplex tetmesh(span<const Vector3> Vs, span<const Vector4i> Ts)
 SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
 {
     AbstractSimplicialComplex asc;
-    asc.vertices()->resize(Vs.size());
-    asc.triangles()->resize(Fs.size());
+    asc.vertices().resize(Vs.size());
+    asc.triangles().resize(Fs.size());
 
-    auto dst_Ts = asc.triangles()->view();
+    auto dst_Ts = view(asc.triangles());
     std::copy(Fs.begin(), Fs.end(), dst_Ts.begin());
 
     return SimplicialComplex{asc, Vs};
@@ -29,10 +29,10 @@ SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
 SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
 {
     AbstractSimplicialComplex asc;
-    asc.vertices()->resize(Vs.size());
-    asc.edges()->resize(Es.size());
+    asc.vertices().resize(Vs.size());
+    asc.edges().resize(Es.size());
 
-    auto dst_Ts = asc.edges()->view();
+    auto dst_Ts = view(asc.edges());
     std::copy(Es.begin(), Es.end(), dst_Ts.begin());
 
     return SimplicialComplex{asc, Vs};
@@ -41,7 +41,7 @@ SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
 SimplicialComplex pointcloud(span<const Vector3> Vs)
 {
     AbstractSimplicialComplex asc;
-    asc.vertices()->resize(Vs.size());
+    asc.vertices().resize(Vs.size());
 
     return SimplicialComplex{asc, Vs};
 }

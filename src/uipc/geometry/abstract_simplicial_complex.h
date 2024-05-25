@@ -15,13 +15,20 @@ class ISimplexSlot
     ISimplexSlot()          = default;
     virtual ~ISimplexSlot() = default;
 
+    // delete copy
+    ISimplexSlot(const ISimplexSlot&)            = delete;
+    ISimplexSlot& operator=(const ISimplexSlot&) = delete;
+    // enable move
+    ISimplexSlot(ISimplexSlot&&) noexcept            = default;
+    ISimplexSlot& operator=(ISimplexSlot&&) noexcept = default;
+
     /**
      * @brief Check if the underlying simplices is shared.
      * 
      * @return true, if the simplices is shared
      * @return false, if the simplices is owned
      */
-    [[nodiscard]] bool  is_shared() const;
+    [[nodiscard]] bool is_shared() const;
     /**
      * @brief Get the size of the simplices.
      * 
@@ -29,12 +36,9 @@ class ISimplexSlot
      */
     [[nodiscard]] SizeT size() const;
 
-    // delete copy
-    ISimplexSlot(const ISimplexSlot&)            = delete;
-    ISimplexSlot& operator=(const ISimplexSlot&) = delete;
-    // enable move
-    ISimplexSlot(ISimplexSlot&&) noexcept            = default;
-    ISimplexSlot& operator=(ISimplexSlot&&) noexcept = default;
+    void resize(SizeT size);
+    void reserve(SizeT capacity);
+    void clear();
 
   protected:
     friend class AbstractSimplicialComplex;
@@ -53,8 +57,9 @@ class ISimplexSlot
     virtual const ISimplices& simplices() const;
     virtual const ISimplices& get_simplices() const = 0;
 
-    ISimplices*       operator->();
-    const ISimplices* operator->() const;
+    virtual void do_resize(SizeT size)      = 0;
+    virtual void do_reserve(SizeT capacity) = 0;
+    virtual void do_clear()                 = 0;
 };
 
 /**
@@ -65,21 +70,14 @@ class VertexSlot : public ISimplexSlot
     friend class AbstractSimplicialComplex;
 
   public:
+    static constexpr IndexT Dimension = 0;
+    using ValueT                      = IndexT;
+
     VertexSlot(S<Vertices> vertices);
 
-    /**
-     * @brief Get the non-const underlying vertices, this method may potentially generate data clone.
-     * 
-     * @return non-const underlying vertices 
-     */
-    Vertices*       operator->();
+    friend span<IndexT> view(VertexSlot& slot);
 
-    /**
-     * @brief  Get the const underlying vertices, this method generates no data clone.
-     * 
-     * @return const underlying vertices 
-     */
-    const Vertices* operator->() const;
+    span<const IndexT> view() const;
 
   protected:
     U<VertexSlot> clone() const;
@@ -89,6 +87,10 @@ class VertexSlot : public ISimplexSlot
     void              do_make_owned() override;
     ISimplices&       get_simplices() override;
     const ISimplices& get_simplices() const override;
+
+    virtual void do_resize(SizeT size) override;
+    virtual void do_reserve(SizeT capacity) override;
+    virtual void do_clear() override;
 
   private:
     S<Vertices> m_simplices;
@@ -100,20 +102,15 @@ class SimplexSlot : public ISimplexSlot
     friend class AbstractSimplicialComplex;
 
   public:
+    static constexpr IndexT Dimension = N;
+    using ValueT                      = Vector<IndexT, N + 1>;
+
     SimplexSlot(S<Simplices<N>> simplices);
 
-    /**
-     * @brief Get the non-const underlying simplices, this method may potentially generate data clone.
-     * 
-     * @return non-const underlying simplices 
-     */
-    Simplices<N>*       operator->();
-    /**
-     * @brief Get the underlying const simplices, this method generates no data clone.
-     * 
-     * @return const underlying simplices 
-     */
-    const Simplices<N>* operator->() const;
+    template <IndexT M>
+    friend span<typename SimplexSlot<M>::ValueT> view(SimplexSlot<M>& slot);
+
+    span<const ValueT> view() const;
 
   protected:
     U<SimplexSlot<N>> clone() const;
@@ -122,6 +119,10 @@ class SimplexSlot : public ISimplexSlot
     void              do_make_owned() override;
     ISimplices&       get_simplices() override;
     const ISimplices& get_simplices() const override;
+
+    virtual void do_resize(SizeT size) override;
+    virtual void do_reserve(SizeT capacity) override;
+    virtual void do_clear() override;
 
   private:
     S<Simplices<N>> m_simplices;
@@ -153,7 +154,7 @@ class AbstractSimplicialComplex
      * 
      * @return a non-const slot for vertices
      */
-    VertexSlot&       vertices();
+    VertexSlot& vertices();
     /**
      * @brief Get the const slot for vertices.
      * 
@@ -165,7 +166,7 @@ class AbstractSimplicialComplex
      * 
      * @return a non-const slot for edges
      */
-    EdgeSlot&       edges();
+    EdgeSlot& edges();
     /**
      * @brief Get the const slot for edges.
      * 
@@ -177,7 +178,7 @@ class AbstractSimplicialComplex
      * 
      * @return a non-const slot for triangles
      */
-    TriangleSlot&       triangles();
+    TriangleSlot& triangles();
     /**
      * @brief Get the const slot for triangles.
      * 
@@ -189,7 +190,7 @@ class AbstractSimplicialComplex
      * 
      * @return a non-const slot for tetrahedra
      */
-    TetrahedronSlot&       tetrahedra();
+    TetrahedronSlot& tetrahedra();
     /**
      * @brief Get the const slot for tetrahedra.
      * 

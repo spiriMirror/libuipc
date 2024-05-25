@@ -46,13 +46,17 @@ class Vertices final : public ISimplices
   public:
     Vertices() = default;
     /**
-     * @brief Get the const view of the vertices, this method generates no data clone.
+     * @brief Get the const view of the vertices
      */
     [[nodiscard]] span<const IndexT> view() const;
+
     /**
-     * @brief Get the non-const view of the vertices, this method may potentially generate data clone.
+     * @brief Get the non-const view of the vertices
      */
-    [[nodiscard]] span<IndexT> view();
+    friend [[nodiscard]] span<IndexT> view(Vertices& vertices)
+    {
+        return vertices.view();
+    }
 
   protected:
     virtual IndexT           get_dim() const override;
@@ -63,8 +67,9 @@ class Vertices final : public ISimplices
     virtual void             do_reserve(SizeT N) override;
 
   private:
-    size_t                 m_size = 0;
-    mutable vector<IndexT> m_simplices;
+    size_t                     m_size = 0;
+    mutable vector<IndexT>     m_simplices;
+    [[nodiscard]] span<IndexT> view();
 };
 
 /**
@@ -88,9 +93,14 @@ class Simplices final : public ISimplices
      *
      * @return A span of simplices
      */
-    [[nodiscard]] span<Vector<IndexT, N + 1>> view();
+    friend [[nodiscard]] span<Vector<IndexT, N + 1>> view(Simplices& simplices)
+    {
+        return simplices.view();
+    }
 
   private:
+    [[nodiscard]] span<Vector<IndexT, N + 1>> view();
+
     vector<Vector<IndexT, N + 1>> m_simplices;
 
   protected:

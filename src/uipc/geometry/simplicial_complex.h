@@ -8,48 +8,89 @@
 #include <uipc/geometry/abstract_simplicial_complex.h>
 #include <uipc/common/log.h>
 
+namespace uipc::geometry::details
+{
+}
+
 namespace uipc::geometry
 {
+template <typename SimplexSlotT>
+    requires std::is_base_of_v<ISimplexSlot, SimplexSlotT>
+class SimplicialComplexAttributes;
+
+template <typename SimplexSlotT>
+    requires std::is_base_of_v<ISimplexSlot, SimplexSlotT>
+class SimplicialComplexTopo;
+
+/**
+* @brief A wrapper of the topology of the simplicial complex.
+*/
+template <typename SimplexSlotT>
+    requires std::is_base_of_v<ISimplexSlot, SimplexSlotT>
+class SimplicialComplexTopo
+{
+    friend class SimplicialComplexAttributes<SimplexSlotT>;
+
+  public:
+    static constexpr IndexT Dimension = SimplexSlotT::Dimension;
+
+    using ValueT = typename SimplexSlotT::ValueT;
+
+    template <IndexT N>
+    friend span<typename SimplexSlot<N>::ValueT> view(SimplicialComplexTopo<SimplexSlot<N>>&& v);
+
+    /**
+     * @brief Get a const view of the topology, this function guarantees no data clone.
+     */
+    [[nodiscard]] auto view() && { return m_topology.view(); }
+    /**
+     * @brief Query if the topology is owned by current simplicial complex.
+     */
+    [[nodiscard]] bool is_shared() && { return m_topology.is_shared(); }
+
+  private:
+    SimplicialComplexTopo(SimplexSlotT& topo);
+    SimplexSlotT& m_topology;
+};
+
+template <>
+class SimplicialComplexTopo<VertexSlot>
+{
+    friend class SimplicialComplexAttributes<VertexSlot>;
+    using ThisT = SimplicialComplexTopo<VertexSlot>;
+
+  public:
+    static constexpr IndexT Dimension = VertexSlot::Dimension;
+
+    using ValueT = typename VertexSlot::ValueT;
+
+
+    friend span<IndexT> view(ThisT&&);
+
+    /**
+     * @brief Get a const view of the topology, this function guarantees no data clone.
+     */
+    [[nodiscard]] auto view() && { return m_topology.view(); }
+    /**
+     * @brief Query if the topology is owned by current simplicial complex.
+     */
+    [[nodiscard]] bool is_shared() && { return m_topology.is_shared(); }
+
+  private:
+    SimplicialComplexTopo(VertexSlot& topo);
+    VertexSlot& m_topology;
+};
+
 /**
  * @brief A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.
  */
-template <typename SimplexSlot>
-    requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
+template <typename SimplexSlotT>
+    requires std::is_base_of_v<ISimplexSlot, SimplexSlotT>
 class SimplicialComplexAttributes
 {
+    using Topo = SimplicialComplexTopo<SimplexSlotT>;
+
   public:
-    /**
-     * @brief A wrapper of the topology of the simplicial complex.
-     */
-    class Topo
-    {
-        friend class SimplicialComplexAttributes;
-
-      public:
-        /**
-         * @brief Get a non-const view of the topology.
-         * 
-         * @warning This function may cause a data clone if the topology is shared.
-         */
-        [[nodiscard]] auto view() { return m_topology->view(); }
-        /**
-         * @brief Get a const view of the topology, this function guarantees no data clone.
-         */
-        [[nodiscard]] auto view() const
-        {
-            return std::as_const(m_topology)->view();
-        }
-        /**
-         * @brief Query if the topology is owned by current simplicial complex.
-         */
-        [[nodiscard]] bool is_shared() const;
-
-      private:
-        Topo(SimplexSlot& topo);
-        SimplexSlot& m_topology;
-    };
-
-
     SimplicialComplexAttributes(const SimplicialComplexAttributes& o) = default;
     SimplicialComplexAttributes(SimplicialComplexAttributes&& o)      = default;
     SimplicialComplexAttributes& operator=(const SimplicialComplexAttributes& o) = default;
@@ -112,7 +153,7 @@ class SimplicialComplexAttributes
     Topo                 m_topology;
     AttributeCollection& m_attributes;
 
-    SimplicialComplexAttributes(SimplexSlot& topology, AttributeCollection& attributes);
+    SimplicialComplexAttributes(SimplexSlotT& topology, AttributeCollection& attributes);
 };
 
 /**
@@ -147,9 +188,9 @@ class SimplicialComplexAttributes
  * To the underlying attributes of the simplicial complex, we need to create a view of the attributes, as shown below:
  * ```cpp
  * // const view
- * std::as_const(pos)->view();
- * // non-const view
  * pos->view();
+ * // non-const view
+ * geometry::view(*pos);
  * ```
  * @tip A non-const view of the attribute may cause data clone if the attribute is shared.
  * If you don't tend to modify the attribute, always use the const version of the view. 

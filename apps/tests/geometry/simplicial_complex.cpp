@@ -60,8 +60,14 @@ TEST_CASE("shared_test", "[geometry]")
 
     // a clone is made here
     TA.resize(2);
-    auto tet_view = TA.topo().view();
+    auto tet_view = view(TA.topo());
     tet_view[1]   = Vector4i{0, 1, 3, 5};
+
+    auto             vert_view = view(VA.topo());
+    std::vector<int> vert_iota(vert_view.size());
+    std::iota(vert_iota.begin(), vert_iota.end(), 0);
+
+    REQUIRE(std::equal(vert_view.begin(), vert_view.end(), vert_iota.begin()));
 
     REQUIRE(pos->size() == 8);
     REQUIRE(VA.size() == 8);

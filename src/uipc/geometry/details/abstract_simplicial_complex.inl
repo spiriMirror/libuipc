@@ -1,3 +1,4 @@
+#include "abstract_simplicial_complex.h"
 namespace uipc::geometry
 {
 template <IndexT N>
@@ -5,16 +6,20 @@ SimplexSlot<N>::SimplexSlot(S<Simplices<N>> simplices)
     : m_simplices(std::move(simplices))
 {
 }
+
 template <IndexT N>
-Simplices<N>* SimplexSlot<N>::operator->()
+auto SimplexSlot<N>::view() const -> span<const ValueT>
 {
-    return static_cast<Simplices<N>*>(ISimplexSlot::operator->());
+    return std::as_const(*m_simplices).view();
 }
+
 template <IndexT N>
-const Simplices<N>* SimplexSlot<N>::operator->() const
+auto view(SimplexSlot<N>& slot) -> span<typename SimplexSlot<N>::ValueT>
 {
-    return static_cast<const Simplices<N>*>(ISimplexSlot::operator->());
+    slot.do_make_owned();
+    return view(*slot.m_simplices);
 }
+
 template <IndexT N>
 U<SimplexSlot<N>> SimplexSlot<N>::clone() const
 {
@@ -44,5 +49,23 @@ template <IndexT N>
 const ISimplices& SimplexSlot<N>::get_simplices() const
 {
     return *m_simplices;
+}
+template <IndexT N>
+void SimplexSlot<N>::do_resize(SizeT size)
+{
+    do_make_owned();
+    m_simplices->resize(size);
+}
+template <IndexT N>
+void SimplexSlot<N>::do_reserve(SizeT capacity)
+{
+    do_make_owned();
+    m_simplices->reserve(capacity);
+}
+template <IndexT N>
+void SimplexSlot<N>::do_clear()
+{
+    do_make_owned();
+    m_simplices->clear();
 }
 }  // namespace uipc::geometry

@@ -3,19 +3,29 @@
 
 namespace uipc::geometry
 {
+span<IndexT> view(SimplicialComplexTopo<VertexSlot>&& v)
+{
+    return view(v.m_topology);
+}
+
+SimplicialComplexTopo<VertexSlot>::SimplicialComplexTopo(VertexSlot& v)
+    : m_topology{v}
+{
+}
+
 SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
                                      span<const Vector3>              positions)
     : m_asc{asc}
 {
-    UIPC_ASSERT(positions.size() == m_asc.vertices()->size(),
+    UIPC_ASSERT(positions.size() == m_asc.vertices().size(),
                 "Number of vertices in the simplicial complex ({}) does not match the number of positions ({}).",
-                m_asc.vertices()->size(),
+                m_asc.vertices().size(),
                 positions.size());
 
-    m_vertex_attributes.resize(m_asc.vertices()->size());
-    m_edge_attributes.resize(m_asc.edges()->size());
-    m_triangle_attributes.resize(m_asc.triangles()->size());
-    m_tetrahedron_attributes.resize(m_asc.tetrahedra()->size());
+    m_vertex_attributes.resize(m_asc.vertices().size());
+    m_edge_attributes.resize(m_asc.edges().size());
+    m_triangle_attributes.resize(m_asc.triangles().size());
+    m_tetrahedron_attributes.resize(m_asc.tetrahedra().size());
 
     auto pos = m_vertex_attributes.create<Vector3, false>("position", Vector3::Zero());
     auto view_ = view(*pos);

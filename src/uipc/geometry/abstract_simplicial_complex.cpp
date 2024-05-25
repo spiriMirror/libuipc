@@ -2,6 +2,32 @@
 
 namespace uipc::geometry
 {
+bool ISimplexSlot::is_shared() const
+{
+    return use_count() != 1;
+}
+SizeT ISimplexSlot::size() const
+{
+    return simplices().size();
+}
+
+void ISimplexSlot::resize(SizeT size)
+{
+    make_owned();
+    do_resize(size);
+}
+
+void ISimplexSlot::reserve(SizeT capacity)
+{
+    do_reserve(capacity);
+}
+
+void ISimplexSlot::clear()
+{
+    make_owned();
+    do_clear();
+}
+
 void ISimplexSlot::make_owned()
 {
     if(!is_shared())
@@ -29,30 +55,20 @@ const ISimplices& ISimplexSlot::simplices() const
     return get_simplices();
 }
 
-ISimplices* ISimplexSlot::operator->()
-{
-    make_owned();
-    return &simplices();
-}
-
-const ISimplices* ISimplexSlot::operator->() const
-{
-    return &simplices();
-}
-
 VertexSlot::VertexSlot(S<Vertices> vertices)
     : m_simplices(vertices)
 {
 }
 
-Vertices* VertexSlot::operator->()
+span<const IndexT> VertexSlot::view() const
 {
-    return static_cast<Vertices*>(ISimplexSlot::operator->());
+    return std::as_const(*m_simplices).view();
 }
 
-const Vertices* VertexSlot::operator->() const
+span<IndexT> view(VertexSlot& slot)
 {
-    return static_cast<const Vertices*>(ISimplexSlot::operator->());
+    slot.do_make_owned();
+    return view(*slot.m_simplices);
 }
 
 U<VertexSlot> VertexSlot::clone() const
@@ -83,6 +99,21 @@ ISimplices& VertexSlot::get_simplices()
 const ISimplices& VertexSlot::get_simplices() const
 {
     return *m_simplices;
+}
+
+void VertexSlot::do_resize(SizeT size)
+{
+    m_simplices->resize(size);
+}
+
+void VertexSlot::do_reserve(SizeT capacity)
+{
+    m_simplices->reserve(capacity);
+}
+
+void VertexSlot::do_clear()
+{
+    m_simplices->clear();
 }
 
 AbstractSimplicialComplex::AbstractSimplicialComplex()
@@ -171,14 +202,5 @@ TetrahedronSlot& AbstractSimplicialComplex::tetrahedra()
 const TetrahedronSlot& AbstractSimplicialComplex::tetrahedra() const
 {
     return m_tetrahedra;
-}
-
-bool ISimplexSlot::is_shared() const
-{
-    return use_count() != 1;
-}
-SizeT ISimplexSlot::size() const
-{
-    return simplices().size();
 }
 }  // namespace uipc::geometry

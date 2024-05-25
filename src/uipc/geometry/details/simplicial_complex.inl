@@ -1,6 +1,11 @@
-#include "simplicial_complex.h"
 namespace uipc::geometry
 {
+template <IndexT N>
+span<typename SimplexSlot<N>::ValueT> view(SimplicialComplexTopo<SimplexSlot<N>>&& v)
+{
+    return view(v.m_topology);
+}
+
 template <typename SimplexSlot>
     requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
 auto SimplicialComplexAttributes<SimplexSlot>::topo() -> Topo
@@ -12,7 +17,7 @@ template <typename SimplexSlot>
     requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
 void SimplicialComplexAttributes<SimplexSlot>::resize(SizeT size)
 {
-    m_topology.m_topology->resize(size);
+    m_topology.m_topology.resize(size);
     m_attributes.resize(size);
 }
 
@@ -20,7 +25,7 @@ template <typename SimplexSlot>
     requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
 void SimplicialComplexAttributes<SimplexSlot>::reserve(SizeT size)
 {
-    m_topology.m_topology->reserve(size);
+    m_topology.m_topology.reserve(size);
     m_attributes.reserve(size);
 }
 
@@ -28,7 +33,7 @@ template <typename SimplexSlot>
     requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
 void SimplicialComplexAttributes<SimplexSlot>::clear()
 {
-    m_topology->clear();
+    m_topology.m_topology.clear();
     m_attributes.clear();
 }
 
@@ -48,16 +53,9 @@ void SimplicialComplexAttributes<SimplexSlot>::destroy(std::string_view name)
 
 template <typename SimplexSlot>
     requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
-SimplicialComplexAttributes<SimplexSlot>::Topo::Topo(SimplexSlot& topo)
+SimplicialComplexTopo<SimplexSlot>::SimplicialComplexTopo(SimplexSlot& topo)
     : m_topology(topo)
 {
-}
-
-template <typename SimplexSlot>
-    requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
-bool SimplicialComplexAttributes<SimplexSlot>::Topo::is_shared() const
-{
-    return m_topology.is_shared();
 }
 
 template <typename SimplexSlot>
