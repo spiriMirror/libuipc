@@ -50,14 +50,22 @@ const IAttribute& IAttributeSlot::attribute() const
     return get_attribute();
 }
 
-IAttributeSlot& AttributeCollection::share(std::string_view name, const IAttributeSlot& slot)
+P<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttributeSlot& slot)
 {
     auto n  = std::string{name};
     auto it = m_attributes.find(n);
+
+    if(size() != slot.size())
+        throw AttributeSizeMismatch{
+            std::format("Attribute size mismatch, "
+                        "Attribute Collision size is {}, input slot size is {}.",
+                        size(),
+                        slot.size())};
+
     if(it != m_attributes.end())
         throw AttributeAlreadyExist{
             std::format("Attribute with name [{}] already exist!", name)};
-    return *(m_attributes[n] = slot.clone());
+    return m_attributes[n] = slot.clone();
 }
 
 void AttributeCollection::destroy(std::string_view name)
@@ -68,7 +76,7 @@ void AttributeCollection::destroy(std::string_view name)
         UIPC_WARN_WITH_LOCATION("Destroying non-existing attribute [{}]", name);
         return;
     }
-    
+
     if(!it->second->m_allow_destroy)
         throw AttributeDontAllowDestroy{
             std::format("Attribute [{}] don't allow destroy!", name)};

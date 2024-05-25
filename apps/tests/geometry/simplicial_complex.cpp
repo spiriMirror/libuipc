@@ -103,10 +103,21 @@ SimplicialComplex create_tetrahedron()
     return tetmesh(Vs, Ts);
 }
 
+SimplicialComplex create_point_cloud()
+{
+    std::vector Vs = {Vector3{0.0, 0.0, 0.0}};
 
-TEST_CASE("create_delete_attribute", "[geometry]")
+    return pointcloud(Vs);
+}
+
+
+TEST_CASE("create_delete_share_attribute", "[geometry]")
 {
     auto mesh = create_tetrahedron();
+
+    auto point_cloud = create_point_cloud();
+
+    auto& pos = mesh.positions();
 
     auto VA = mesh.vertices();
 
@@ -124,4 +135,9 @@ TEST_CASE("create_delete_attribute", "[geometry]")
     REQUIRE(find_vel.use_count() == 0);
 
     REQUIRE_THROWS_AS(VA.destroy("position"), AttributeDontAllowDestroy);
+
+    VA.share("velocity", pos);
+    REQUIRE(VA.find<Vector3>("velocity")->is_shared());
+
+    REQUIRE_THROWS_AS(VA.share("velocity", point_cloud.positions()), AttributeSizeMismatch);
 }

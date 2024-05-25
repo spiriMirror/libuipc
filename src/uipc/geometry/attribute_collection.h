@@ -32,6 +32,7 @@ class IAttributeSlot
      */
     [[nodiscard]] bool  is_shared() const;
     [[nodiscard]] SizeT size() const;
+
   protected:
     friend class AttributeCollection;
 
@@ -53,7 +54,7 @@ class IAttributeSlot
     std::string m_name;
 
   protected:
-    bool        m_allow_destroy;
+    bool m_allow_destroy;
 };
 
 /**
@@ -135,13 +136,13 @@ class AttributeCollection
      *
      * @throw AttributeAlreadyExist if the attribute with the given name already exists.
      */
-    IAttributeSlot& share(std::string_view name, const IAttributeSlot& slot);
+    P<IAttributeSlot> share(std::string_view name, const IAttributeSlot& slot);
 
     /**
      * @brief Template version of share.
      */
     template <typename T>
-    AttributeSlot<T>& share(std::string_view name, const AttributeSlot<T>& slot);
+    P<AttributeSlot<T>> share(std::string_view name, const AttributeSlot<T>& slot);
 
     /**
      * @brief Remove the attribute slot with the given name.
@@ -214,6 +215,12 @@ class AttributeAlreadyExist : public Exception
 };
 
 class AttributeDontAllowDestroy : public Exception
+{
+  public:
+    using Exception::Exception;
+};
+
+class AttributeSizeMismatch : public Exception
 {
   public:
     using Exception::Exception;

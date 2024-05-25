@@ -27,12 +27,13 @@ P<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& 
 }
 
 template <typename T>
-AttributeSlot<T>& AttributeCollection::share(std::string_view        name,
-                                             const AttributeSlot<T>& slot)
+P<AttributeSlot<T>> AttributeCollection::share(std::string_view        name,
+                                               const AttributeSlot<T>& slot)
 {
-    return static_cast<AttributeSlot<T>&>(
-        this->share(name, static_cast<const IAttributeSlot&>(slot)));
+    return std::static_pointer_cast<AttributeSlot<T>>(
+        this->share(name, static_cast<const IAttributeSlot&>(slot)).lock());
 }
+
 
 template <typename T>
 P<AttributeSlot<T>> AttributeCollection::find(std::string_view name)
