@@ -2,15 +2,14 @@
 #include <uipc/common/log.h>
 namespace uipc::geometry
 {
-IAttributeSlot::IAttributeSlot(std::string_view m_name, bool allow_destroy)
-    : m_name(m_name)
-    , m_allow_destroy(allow_destroy)
-{
-}
-
 std::string_view IAttributeSlot::name() const
 {
-    return m_name;
+    return get_name();
+}
+
+bool IAttributeSlot::allow_destroy() const
+{
+    return get_allow_destroy();
 }
 
 bool IAttributeSlot::is_shared() const
@@ -77,7 +76,7 @@ void AttributeCollection::destroy(std::string_view name)
         return;
     }
 
-    if(!it->second->m_allow_destroy)
+    if(!it->second->allow_destroy())
         throw AttributeDontAllowDestroy{
             std::format("Attribute [{}] don't allow destroy!", name)};
 

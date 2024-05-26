@@ -1,11 +1,13 @@
 #include <format>
+#include "attribute_collection.h"
 
 namespace uipc::geometry
 {
 template <typename T>
 AttributeSlot<T>::AttributeSlot(std::string_view m_name, S<Attribute<T>> attribute, bool allow_destroy)
-    : IAttributeSlot(m_name, allow_destroy)
+    : m_name(m_name)
     , m_attribute(std::move(attribute))
+    , m_allow_destroy(allow_destroy)
 {
 }
 
@@ -53,6 +55,18 @@ template <typename T>
 span<const T> AttributeSlot<T>::view() const
 {
     return m_attribute->view();
+}
+
+template <typename T>
+std::string_view AttributeSlot<T>::get_name() const
+{
+    return m_name;
+}
+
+template <typename T>
+bool AttributeSlot<T>::get_allow_destroy() const
+{
+    return m_allow_destroy;
 }
 
 template <typename T>

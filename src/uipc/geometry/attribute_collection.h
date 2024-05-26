@@ -14,8 +14,8 @@ class AttributeCollection;
 class IAttributeSlot
 {
   public:
+    IAttributeSlot()          = default;
     virtual ~IAttributeSlot() = default;
-    IAttributeSlot(std::string_view m_name, bool allow_destroy = true);
     // delete copy
     IAttributeSlot(const IAttributeSlot&)            = delete;
     IAttributeSlot& operator=(const IAttributeSlot&) = delete;
@@ -23,7 +23,14 @@ class IAttributeSlot
     IAttributeSlot(IAttributeSlot&&) noexcept            = default;
     IAttributeSlot& operator=(IAttributeSlot&&) noexcept = default;
 
+    /**
+     * @brief Get the name of the attribute slot.
+     */
     [[nodiscard]] std::string_view name() const;
+    /**
+     * @brief Check if the underlying attribute is allowed to be destroyed.
+     */
+    [[nodiscard]] bool             allow_destroy() const;
     /**
      * @brief Check if the underlying attribute is shared.
      * 
@@ -35,6 +42,8 @@ class IAttributeSlot
 
   protected:
     friend class AttributeCollection;
+    [[nodiscard]] virtual std::string_view get_name() const          = 0;
+    [[nodiscard]] virtual bool             get_allow_destroy() const = 0;
 
     void         make_owned();
     virtual void do_make_owned() = 0;
@@ -49,12 +58,6 @@ class IAttributeSlot
     [[nodiscard]] virtual IAttribute&       get_attribute() = 0;
     [[nodiscard]] virtual const IAttribute& attribute() const;
     [[nodiscard]] virtual const IAttribute& get_attribute() const = 0;
-
-  private:
-    std::string m_name;
-
-  protected:
-    bool m_allow_destroy;
 };
 
 /**
@@ -88,6 +91,9 @@ class AttributeSlot final : public IAttributeSlot
   protected:
     friend class AttributeCollection;
 
+    [[nodiscard]] virtual std::string_view get_name() const override;
+    [[nodiscard]] virtual bool             get_allow_destroy() const override;
+
     void                                    do_make_owned() override;
     [[nodiscard]] virtual S<IAttributeSlot> do_clone() const override;
 
@@ -97,7 +103,9 @@ class AttributeSlot final : public IAttributeSlot
     [[nodiscard]] virtual SizeT get_use_count() const override;
 
   private:
+    std::string     m_name;
     S<Attribute<T>> m_attribute;
+    bool            m_allow_destroy;
 };
 
 /**
