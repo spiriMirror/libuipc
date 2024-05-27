@@ -19,6 +19,7 @@ target_link_libraries(uipc PUBLIC
 # so ensure that the uipc target is created before adding the subdirectories
 add_subdirectory(geometry)
 add_subdirectory(common)
+add_subdirectory(world)
 
 # add the source files in the current directory to the target uipc
 file(GLOB SOURCE "*.h" "*.cpp")

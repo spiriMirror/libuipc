@@ -11,3 +11,4 @@ function(uipc_add_test name)
 endfunction()
 
 add_subdirectory(geometry)
+add_subdirectory(world)

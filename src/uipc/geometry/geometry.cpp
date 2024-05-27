@@ -45,6 +45,7 @@ void Geometry::InstanceAttributes::destroy(std::string_view name)
 
 Geometry::Geometry()
 {
+    m_meta.resize(1);      // only one meta for one geometry
     m_intances.resize(1);  // default only one instance
     Matrix4x4 I = Eigen::Transform<Float, 3, Eigen::Affine>::Identity().matrix();
     auto trans = m_intances.create<Matrix4x4, false>("transform", I);

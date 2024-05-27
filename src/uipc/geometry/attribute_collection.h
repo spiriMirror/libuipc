@@ -1,5 +1,5 @@
 #pragma once
-#include <map>
+#include <uipc/common/unordered_map.h>
 #include <uipc/common/exception.h>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/geometry/attribute.h>
@@ -111,8 +111,8 @@ class AttributeCollection
     void reserve(size_t N);
 
   private:
-    size_t                                   m_size = 0;
-    std::map<std::string, S<IAttributeSlot>> m_attributes;
+    size_t                                        m_size = 0;
+    unordered_map<std::string, S<IAttributeSlot>> m_attributes;
 };
 
 class AttributeAlreadyExist : public Exception
