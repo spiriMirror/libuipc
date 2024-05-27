@@ -17,12 +17,13 @@ generator: doxide
 | [Attribute](Attribute/index.md) | Template class to represent a geometry attribute of type T. |
 | [AttributeCollection](AttributeCollection/index.md) | A collection of geometry attributes. |
 | [AttributeSlot](AttributeSlot/index.md) | Template class to represent a geometry attribute slot of type T in a geometry attribute collection. |
+| [EdgeSlot](EdgeSlot/index.md) | Alias for a slot for edges in an abstract simplicial complex.  |
 | [Edges](Edges/index.md) | A collection of edges. |
 | [Geometry](Geometry/index.md) | A base geometry class that contains the instance attributes and the meta attributes.  |
 | [IAttribute](IAttribute/index.md) | An abstract class to represent a geometry attribute.  |
 | [IAttributeSlot](IAttributeSlot/index.md) | An abstract class to represent a geometry attribute slot in a geometry attribute collection. |
 | [IGeometry](IGeometry/index.md) | An abstract class for geometry  |
-| [ISimplexSlot](ISimplexSlot/index.md) | An abstract class representing a simplex slot in an abstract simplicial complex. |
+| [ISimplexSlot](ISimplexSlot/index.md) | An abstract class representing a simplex slot in an abstract simplicial complex.  |
 | [ISimplices](ISimplices/index.md) | An abstract class for simplices, special type of topological elements. |
 | [ITopoElements](ITopoElements/index.md) | An abstract class for storing topological elements. They may be vertices, edges, triangles, tetrahedra, quads or any other elements.  |
 | [Simplices](Simplices/index.md) | General class to represent simplices, typically used for edges, triangles, tetrahedra. |
@@ -31,6 +32,8 @@ generator: doxide
 | [SimplicialComplexIO](SimplicialComplexIO/index.md) | A class for reading and writing simplicial complex.  |
 | [SimplicialComplexTopo](SimplicialComplexTopo/index.md) | A wrapper of the topology of the simplicial complex.  |
 | [Tetrahedra](Tetrahedra/index.md) | A collection of tetrahedra. |
+| [TetrahedronSlot](TetrahedronSlot/index.md) | Alias for a slot for tetrahedra in an abstract simplicial complex.  |
+| [TriangleSlot](TriangleSlot/index.md) | Alias for a slot for triangles in an abstract simplicial complex.  |
 | [Triangles](Triangles/index.md) | A collection of triangles. |
 | [VertexSlot](VertexSlot/index.md) | A slot for vertices in an abstract simplicial complex.  |
 | [Vertices](Vertices/index.md) | A collection of vertices. |
@@ -43,6 +46,7 @@ generator: doxide
 | [pointcloud](#pointcloud) | Create a simplicial complex from a point cloud. |
 | [tetmesh](#tetmesh) | Create a simplicial complex from a tetrahedral mesh. |
 | [trimesh](#trimesh) | Create a simplicial complex from a triangle mesh. |
+| [view](#view) | An interface to create a non-const view  |
 
 ## Function Details
 
@@ -109,6 +113,17 @@ generator: doxide
     
     :material-keyboard-return: **Return**
     :    SimplicialComplex
+    
+    
+
+### view<a name="view"></a>
+!!! function "template &lt;typename T, typename U&gt; span&lt;T&gt; view(U&amp;)"
+
+    
+    
+    An interface to create a non-const view
+     
+    
     
     
 

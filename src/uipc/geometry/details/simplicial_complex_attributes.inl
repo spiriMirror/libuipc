@@ -1,3 +1,5 @@
+#include <uipc/common/log.h>
+
 namespace uipc::geometry
 {
 template <IndexT N>

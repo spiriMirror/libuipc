@@ -20,9 +20,22 @@ An abstract class to represent a geometry attribute slot in a geometry attribute
 
 | Name | Description |
 | ---- | ----------- |
+| [name](#name) | Get the name of the attribute slot.  |
+| [allow_destroy](#allow_destroy) | Check if the underlying attribute is allowed to be destroyed.  |
 | [is_shared](#is_shared) | Check if the underlying attribute is shared. |
 
 ## Function Details
+
+### allow_destroy<a name="allow_destroy"></a>
+!!! function "[[nodiscard]] bool allow_destroy() const"
+
+    
+    
+    Check if the underlying attribute is allowed to be destroyed.
+         
+    
+    
+    
 
 ### is_shared<a name="is_shared"></a>
 !!! function "[[nodiscard]] bool  is_shared() const"
@@ -36,6 +49,17 @@ An abstract class to represent a geometry attribute slot in a geometry attribute
     
     :material-keyboard-return: **Return**
     :    false, if the underlying attribute is owned, only this geometry reference to the underlying attribute.
+    
+    
+
+### name<a name="name"></a>
+!!! function "[[nodiscard]] std::string_view name() const"
+
+    
+    
+    Get the name of the attribute slot.
+         
+    
     
     
 

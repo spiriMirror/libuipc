@@ -1,4 +1,3 @@
-#include "abstract_simplicial_complex.h"
 namespace uipc::geometry
 {
 template <IndexT N>
@@ -30,38 +29,45 @@ SizeT SimplexSlot<N>::get_use_count() const
 {
     return m_simplices.use_count();
 }
+
 template <IndexT N>
 U<ISimplexSlot> SimplexSlot<N>::do_clone() const
 {
     return clone();
 }
+
 template <IndexT N>
 void SimplexSlot<N>::do_make_owned()
 {
     m_simplices = std::make_shared<Simplices<N>>(*m_simplices);
 }
+
 template <IndexT N>
 ISimplices& SimplexSlot<N>::get_simplices()
 {
     return *m_simplices;
 }
+
 template <IndexT N>
 const ISimplices& SimplexSlot<N>::get_simplices() const
 {
     return *m_simplices;
 }
+
 template <IndexT N>
 void SimplexSlot<N>::do_resize(SizeT size)
 {
     do_make_owned();
     m_simplices->resize(size);
 }
+
 template <IndexT N>
 void SimplexSlot<N>::do_reserve(SizeT capacity)
 {
     do_make_owned();
     m_simplices->reserve(capacity);
 }
+
 template <IndexT N>
 void SimplexSlot<N>::do_clear()
 {

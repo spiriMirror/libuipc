@@ -61,6 +61,7 @@ TEST_CASE("shared_test", "[geometry]")
     // a clone is made here
     TA.resize(2);
     auto tet_view = view(TA.topo());
+
     tet_view[1]   = Vector4i{0, 1, 3, 5};
 
     auto             vert_view = view(VA.topo());

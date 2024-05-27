@@ -56,7 +56,7 @@ class Attribute : public IAttribute
     /**
      * @brief Get a non-const view of the attribute values. This method may potentially clone the attribute data.
      * 
-     * !!!Note
+     * @note
      *    Always consider using the const member method if the attribute data is not going to be modified.
      * @return `span<T>` 
      */

@@ -32,9 +32,27 @@ class ITopoElements
      * @return The number of tuples
      */
     [[nodiscard]] SizeT            size() const;
+    /**
+     * @brief Resize the number of tuples.
+     * 
+     * @param SizeT N
+     */
     void                           resize(SizeT N);
+    /**
+     * @brief Clear the topology.
+     */
     void                           clear();
+    /**
+     * @brief Reserve the memory for the topology.
+     * 
+     * @param SizeT N
+     */
     void                           reserve(SizeT N);
+    /**
+     * @brief Clone the topology.
+     * 
+     * @return A shared pointer to the cloned topology
+     */
     [[nodiscard]] S<ITopoElements> clone() const;
 
   protected:

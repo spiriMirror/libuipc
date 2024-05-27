@@ -53,7 +53,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
 
 ### find<a name="find"></a>
-!!! function "template &lt;typename T&gt; [[nodiscard]] auto find(std::string_view name)"
+!!! function "template &lt;typename T&gt; [[nodiscard]] decltype(auto) find(std::string_view name)"
 
     
     
@@ -63,7 +63,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
     
 
-!!! function "template &lt;typename T&gt; [[nodiscard]] auto find(std::string_view name) const"
+!!! function "template &lt;typename T&gt; [[nodiscard]] decltype(auto) find(std::string_view name) const"
 
     
     

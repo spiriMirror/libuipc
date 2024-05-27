@@ -1,6 +1,6 @@
 ---
 title: ISimplexSlot
-description: An abstract class representing a simplex slot in an abstract simplicial complex.
+description: An abstract class representing a simplex slot in an abstract simplicial complex. 
 generator: doxide
 ---
 
@@ -12,6 +12,7 @@ generator: doxide
 
 
 An abstract class representing a simplex slot in an abstract simplicial complex.
+ 
 
 
 

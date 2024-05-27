@@ -34,8 +34,9 @@ Template class to represent a geometry attribute of type T.
     
     Get a non-const view of the attribute values. This method may potentially clone the attribute data.
     
-    !!!Note
-    Always consider using the const member method if the attribute data is not going to be modified.
+    !!! note
+        
+        Always consider using the const member method if the attribute data is not going to be modified.
     
     :material-keyboard-return: **Return**
     :    `span<T>`

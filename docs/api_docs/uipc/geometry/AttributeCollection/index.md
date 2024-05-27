@@ -157,7 +157,7 @@ All geometry attributes in the collection always have the same size.
     
 
 ### share<a name="share"></a>
-!!! function "IAttributeSlot&amp; share(std::string_view name, const IAttributeSlot&amp; slot)"
+!!! function "P&lt;IAttributeSlot&gt; share(std::string_view name, const IAttributeSlot&amp; slot)"
 
     
     
@@ -179,7 +179,7 @@ All geometry attributes in the collection always have the same size.
     
     
 
-!!! function "template &lt;typename T&gt; AttributeSlot&lt;T&gt;&amp; share(std::string_view name, const AttributeSlot&lt;T&gt;&amp; slot)"
+!!! function "template &lt;typename T&gt; P&lt;AttributeSlot&lt;T&gt;&gt; share(std::string_view name, const AttributeSlot&lt;T&gt;&amp; slot)"
 
     
     
