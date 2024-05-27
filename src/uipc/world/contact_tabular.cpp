@@ -31,12 +31,25 @@ void ContactTabular::insert(const ContactElement& L,
     auto     model_id = m_models.size();
     Vector2i ids      = {L.id(), R.id()};
 
+    // check if the contact element id is valid.
     UIPC_ASSERT(L.id() < m_current_id && L.id() >= 0 && R.id() < m_current_id && R.id() >= 0,
                 "Invalid contact element id, id should be in [{},{}), your L={}, R={}.",
                 0,
                 m_current_id,
                 L.id(),
                 R.id());
+
+    // check if the name is matched.
+    UIPC_ASSERT(m_elements[L.id()].name() == L.name()
+                    && m_elements[R.id()].name() == R.name(),
+                "Contact element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
+                "It seems the contact element and contact model don't come from the same ContactTabular.",
+                L.id(),
+                L.name(),
+                m_elements[L.id()].name(),
+                R.id(),
+                R.name(),
+                m_elements[R.id()].name());
 
     // ensure ids.x() < ids.y(), because the contact model is symmetric.
     if(ids.x() > ids.y())
@@ -87,6 +100,11 @@ void ContactTabular::insert(const ContactElement& L,
 void ContactTabular::default_model(Float friction_rate, Float resistance, const Json& config) noexcept
 {
     m_models.front() = ContactModel{Vector2i::Zero(), friction_rate, resistance, config};
+}
+
+ContactElement ContactTabular::default_element() noexcept
+{
+    return m_elements.front();
 }
 
 const ContactModel& ContactTabular::default_model() const noexcept

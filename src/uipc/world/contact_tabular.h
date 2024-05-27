@@ -22,6 +22,8 @@ class ContactTabular
                 const Json&           config = {});
 
     void default_model(Float friction_rate, Float resistance, const Json& config = {}) noexcept;
+    ContactElement      default_element() noexcept;
+
     const ContactModel& default_model() const noexcept;
 
     std::span<const ContactModel> contact_models() const noexcept;

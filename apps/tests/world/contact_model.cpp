@@ -12,18 +12,20 @@ using namespace uipc::world;
 TEST_CASE("contact_model", "[world]")
 {
     Scene scene;
-    auto& ct             = scene.contact_tabular();
-    auto  wood_contact   = ct.create();
-    auto  rubber_contact = ct.create();
+    auto& contact_tabular = scene.contact_tabular();
 
-    ct.default_model(0.5, 1e8);
-    ct.insert(wood_contact, wood_contact, 0.5, 1e8);
-    ct.insert(rubber_contact, rubber_contact, 0.5, 1e8);
-    ct.insert(wood_contact, rubber_contact, 0.5, 1e8);
+    auto  default_element = contact_tabular.default_element();
+    auto  wood_contact    = contact_tabular.create();
+    auto  rubber_contact  = contact_tabular.create();
+
+    contact_tabular.default_model(0.5, 1e8);
+    contact_tabular.insert(wood_contact, wood_contact, 0.5, 1e8);
+    contact_tabular.insert(rubber_contact, rubber_contact, 0.6, 1e8);
+    contact_tabular.insert(wood_contact, rubber_contact, 0.3, 1e8);
 
     vector<Vector2i> gt = {{0, 0}, {1, 1}, {1, 2}, {2, 2}};
 
-    auto contact_models = ct.contact_models();
+    auto contact_models = contact_tabular.contact_models();
 
     REQUIRE(std::equal(gt.begin(),
                        gt.end(),
@@ -32,14 +34,23 @@ TEST_CASE("contact_model", "[world]")
                        { return a == b.ids(); }));
 
     geometry::SimplicialComplexIO io;
-    auto mesh = io.read_msh(std::format("{}cube.msh", AssetDir::tetmesh_path()));
+    auto mesh0 = io.read_msh(std::format("{}cube.msh", AssetDir::tetmesh_path()));
 
-    apply(wood_contact, mesh);
+    apply(wood_contact, mesh0);
 
-    auto contact_element = mesh.meta().find<IndexT>("contact_element_id");
+    auto contact_element = mesh0.meta().find<IndexT>("contact_element_id");
     REQUIRE(contact_element);
     REQUIRE(contact_element->view().front() == wood_contact.id());
 
-    //Json j = ct;
+    auto mesh1 = mesh0;
+    apply(rubber_contact, mesh1);
+    REQUIRE(mesh1.meta().find<IndexT>("contact_element_id")->view().front() == rubber_contact.id());
+
+    auto mesh2 = mesh0;
+    apply(default_element, mesh2);
+    REQUIRE(default_element.name() == "default");
+    REQUIRE(mesh2.meta().find<IndexT>("contact_element_id")->view().front() == 0);
+    
+    //Json j = contact_tabular;
     //std::cout << j.dump(4) << std::endl;
 }

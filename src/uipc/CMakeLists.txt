@@ -28,3 +28,10 @@ target_sources(uipc PRIVATE ${SOURCE})
 # Group files in IDE
 file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
+
+# if debug build or release build with debug info, enable uipc runtime check
+target_compile_definitions(uipc PUBLIC 
+    $<$<CONFIG:Debug>:UIPC_RUNTIME_CHECK=1>
+    $<$<CONFIG:RelWithDebInfo>:UIPC_RUNTIME_CHECK=1>)
+target_compile_definitions(uipc PUBLIC 
+    $<$<CONFIG:Release>:UIPC_RUNTIME_CHECK=0>)
