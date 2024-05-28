@@ -3,6 +3,7 @@
 #include <uipc/geometry/attribute.h>
 #include <map>
 #include <uipc/common/exception.h>
+#include <uipc/backend/buffer_view.h>
 
 namespace uipc::geometry
 {
@@ -26,24 +27,26 @@ class IAttributeSlot
     /**
      * @brief Get the name of the attribute slot.
      */
-    [[nodiscard]] std::string_view name() const;
+    [[nodiscard]] std::string_view name() const noexcept;
     /**
      * @brief Check if the underlying attribute is allowed to be destroyed.
      */
-    [[nodiscard]] bool allow_destroy() const;
+    [[nodiscard]] bool allow_destroy() const noexcept;
     /**
      * @brief Check if the underlying attribute is shared.
      * 
      * @return true, if the underlying attribute is shared, more than one geometry reference to the underlying attribute.
      * @return false, if the underlying attribute is owned, only this geometry reference to the underlying attribute. 
      */
-    [[nodiscard]] bool  is_shared() const;
-    [[nodiscard]] SizeT size() const;
+    [[nodiscard]] bool  is_shared() const noexcept;
+    [[nodiscard]] SizeT size() const noexcept;
+
+    friend backend::BufferView backend_view(const IAttributeSlot&) noexcept;
 
   protected:
     friend class AttributeCollection;
-    [[nodiscard]] virtual std::string_view get_name() const          = 0;
-    [[nodiscard]] virtual bool             get_allow_destroy() const = 0;
+    [[nodiscard]] virtual std::string_view get_name() const noexcept = 0;
+    [[nodiscard]] virtual bool get_allow_destroy() const noexcept    = 0;
 
     void         make_owned();
     virtual void do_make_owned() = 0;
@@ -54,10 +57,10 @@ class IAttributeSlot
     [[nodiscard]] virtual S<IAttributeSlot> clone() const;
     [[nodiscard]] virtual S<IAttributeSlot> do_clone() const = 0;
 
-    [[nodiscard]] virtual IAttribute&       attribute();
-    [[nodiscard]] virtual IAttribute&       get_attribute() = 0;
-    [[nodiscard]] virtual const IAttribute& attribute() const;
-    [[nodiscard]] virtual const IAttribute& get_attribute() const = 0;
+    [[nodiscard]] virtual IAttribute&       attribute() noexcept;
+    [[nodiscard]] virtual IAttribute&       get_attribute() noexcept = 0;
+    [[nodiscard]] virtual const IAttribute& attribute() const noexcept;
+    [[nodiscard]] virtual const IAttribute& get_attribute() const noexcept = 0;
 };
 
 /**
@@ -86,21 +89,21 @@ class AttributeSlot final : public IAttributeSlot
      * 
      * @return `span<const T>`
      */
-    [[nodiscard]] span<const T> view() const;
+    [[nodiscard]] span<const T> view() const noexcept;
 
   protected:
     friend class AttributeCollection;
 
-    [[nodiscard]] virtual std::string_view get_name() const override;
-    [[nodiscard]] virtual bool             get_allow_destroy() const override;
+    [[nodiscard]] virtual std::string_view get_name() const noexcept override;
+    [[nodiscard]] virtual bool get_allow_destroy() const noexcept override;
+
+    [[nodiscard]] virtual IAttribute& get_attribute() noexcept override;
+    [[nodiscard]] virtual const IAttribute& get_attribute() const noexcept override;
+    [[nodiscard]] virtual SizeT get_use_count() const noexcept override;
+
 
     void                                    do_make_owned() override;
     [[nodiscard]] virtual S<IAttributeSlot> do_clone() const override;
-
-    [[nodiscard]] virtual IAttribute&       get_attribute() override;
-    [[nodiscard]] virtual const IAttribute& get_attribute() const override;
-
-    [[nodiscard]] virtual SizeT get_use_count() const override;
 
   private:
     std::string     m_name;

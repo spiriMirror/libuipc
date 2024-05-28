@@ -35,6 +35,8 @@ class ISimplexSlot
      */
     [[nodiscard]] SizeT size() const;
 
+    friend backend::BufferView backend_view(const ISimplexSlot&) noexcept;
+
     void resize(SizeT size);
     void reserve(SizeT capacity);
     void clear();
@@ -45,16 +47,17 @@ class ISimplexSlot
     void         make_owned();
     virtual void do_make_owned() = 0;
 
-    SizeT         use_count() const;
-    virtual SizeT get_use_count() const = 0;
+    SizeT         use_count() const noexcept;
+    virtual SizeT get_use_count() const noexcept = 0;
 
     U<ISimplexSlot>         clone() const;
     virtual U<ISimplexSlot> do_clone() const = 0;
 
-    virtual ISimplices&       simplices();
-    virtual ISimplices&       get_simplices() = 0;
-    virtual const ISimplices& simplices() const;
-    virtual const ISimplices& get_simplices() const = 0;
+    virtual ISimplices& simplices() noexcept;
+    virtual ISimplices& get_simplices() noexcept = 0;
+
+    virtual const ISimplices& simplices() const noexcept;
+    virtual const ISimplices& get_simplices() const noexcept = 0;
 
     virtual void do_resize(SizeT size)      = 0;
     virtual void do_reserve(SizeT capacity) = 0;
@@ -72,7 +75,7 @@ class VertexSlot : public ISimplexSlot
     static constexpr IndexT Dimension = 0;
     using ValueT                      = IndexT;
 
-    VertexSlot(S<Vertices> vertices);
+    VertexSlot(S<Vertices> vertices) noexcept;
 
     /**
      * @brief Get a non-const view of the vertices.
@@ -92,11 +95,13 @@ class VertexSlot : public ISimplexSlot
   protected:
     U<VertexSlot> clone() const;
 
-    SizeT             get_use_count() const override;
-    U<ISimplexSlot>   do_clone() const override;
-    void              do_make_owned() override;
-    ISimplices&       get_simplices() override;
-    const ISimplices& get_simplices() const override;
+    virtual SizeT             get_use_count() const noexcept override;
+    virtual ISimplices&       get_simplices() noexcept override;
+    virtual const ISimplices& get_simplices() const noexcept override;
+
+    virtual U<ISimplexSlot> do_clone() const override;
+    virtual void            do_make_owned() override;
+
 
     virtual void do_resize(SizeT size) override;
     virtual void do_reserve(SizeT capacity) override;
@@ -105,6 +110,8 @@ class VertexSlot : public ISimplexSlot
   private:
     S<Vertices> m_simplices;
 };
+
+span<IndexT> view(VertexSlot& slot);
 
 template <IndexT N>
 class SimplexSlot : public ISimplexSlot
@@ -115,7 +122,7 @@ class SimplexSlot : public ISimplexSlot
     static constexpr IndexT Dimension = N;
     using ValueT                      = Vector<IndexT, N + 1>;
 
-    SimplexSlot(S<Simplices<N>> simplices);
+    SimplexSlot(S<Simplices<N>> simplices) noexcept;
 
     /**
      * @brief Get a non-const view of the simplices.
@@ -127,20 +134,23 @@ class SimplexSlot : public ISimplexSlot
     template <IndexT M>
     friend span<typename SimplexSlot<M>::ValueT> view(SimplexSlot<M>& slot);
 
+
     /**
      * @brief Get a const view of the simplices.
      * 
      * @return A const view of the simplices
      */
-    span<const ValueT> view() const;
+    span<const ValueT> view() const noexcept;
 
   protected:
-    U<SimplexSlot<N>> clone() const;
-    SizeT             get_use_count() const override;
-    U<ISimplexSlot>   do_clone() const override;
-    void              do_make_owned() override;
-    ISimplices&       get_simplices() override;
-    const ISimplices& get_simplices() const override;
+    U<SimplexSlot<N>>         clone() const;
+    virtual SizeT             get_use_count() const noexcept override;
+    virtual ISimplices&       get_simplices() noexcept override;
+    virtual const ISimplices& get_simplices() const noexcept override;
+
+    virtual U<ISimplexSlot> do_clone() const override;
+    virtual void            do_make_owned() override;
+
 
     virtual void do_resize(SizeT size) override;
     virtual void do_reserve(SizeT capacity) override;
@@ -153,12 +163,12 @@ class SimplexSlot : public ISimplexSlot
 /**
  * @brief Alias for a slot for edges in an abstract simplicial complex.
  */
-using EdgeSlot        = SimplexSlot<1>;
+using EdgeSlot = SimplexSlot<1>;
 
 /**
  * @brief Alias for a slot for triangles in an abstract simplicial complex.
  */
-using TriangleSlot    = SimplexSlot<2>;
+using TriangleSlot = SimplexSlot<2>;
 
 /**
  * @brief Alias for a slot for tetrahedra in an abstract simplicial complex.

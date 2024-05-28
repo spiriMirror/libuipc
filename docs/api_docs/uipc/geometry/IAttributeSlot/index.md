@@ -27,7 +27,7 @@ An abstract class to represent a geometry attribute slot in a geometry attribute
 ## Function Details
 
 ### allow_destroy<a name="allow_destroy"></a>
-!!! function "[[nodiscard]] bool allow_destroy() const"
+!!! function "[[nodiscard]] bool allow_destroy() const noexcept"
 
     
     
@@ -38,7 +38,7 @@ An abstract class to represent a geometry attribute slot in a geometry attribute
     
 
 ### is_shared<a name="is_shared"></a>
-!!! function "[[nodiscard]] bool  is_shared() const"
+!!! function "[[nodiscard]] bool  is_shared() const noexcept"
 
     
     
@@ -53,7 +53,7 @@ An abstract class to represent a geometry attribute slot in a geometry attribute
     
 
 ### name<a name="name"></a>
-!!! function "[[nodiscard]] std::string_view name() const"
+!!! function "[[nodiscard]] std::string_view name() const noexcept"
 
     
     

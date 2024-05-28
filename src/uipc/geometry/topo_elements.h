@@ -2,6 +2,7 @@
 #include <uipc/common/type_define.h>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/common/span.h>
+#include <uipc/backend/buffer_view.h>
 
 namespace uipc::geometry
 {
@@ -18,36 +19,36 @@ class ITopoElements
      * 
      * \return The number of indices in a tuple
      */
-    [[nodiscard]] SizeT            tuple_size() const;
+    [[nodiscard]] SizeT tuple_size() const noexcept;
     /**
      * @brief Get the number of indices in the i-th tuple.
      * 
      * @param IndexT i
      * @return The number of indices in the i-th tuple
      */
-    [[nodiscard]] SizeT            tuple_size(IndexT i) const;
+    [[nodiscard]] SizeT tuple_size(IndexT i) const noexcept;
     /**
      * @brief Get the number of tuples.
      * 
      * @return The number of tuples
      */
-    [[nodiscard]] SizeT            size() const;
+    [[nodiscard]] SizeT size() const noexcept;
     /**
      * @brief Resize the number of tuples.
      * 
      * @param SizeT N
      */
-    void                           resize(SizeT N);
+    void resize(SizeT N);
     /**
      * @brief Clear the topology.
      */
-    void                           clear();
+    void clear();
     /**
      * @brief Reserve the memory for the topology.
      * 
      * @param SizeT N
      */
-    void                           reserve(SizeT N);
+    void reserve(SizeT N);
     /**
      * @brief Clone the topology.
      * 
@@ -55,13 +56,19 @@ class ITopoElements
      */
     [[nodiscard]] S<ITopoElements> clone() const;
 
+    friend backend::BufferView backend_view(const ITopoElements& simplices) noexcept;
+
   protected:
-    virtual SizeT            get_tuple_size() const         = 0;
-    virtual SizeT            get_tuple_size(IndexT i) const = 0;
-    virtual SizeT            get_size() const               = 0;
-    virtual void             do_resize(SizeT N)             = 0;
-    virtual void             do_clear()                     = 0;
-    virtual S<ITopoElements> do_clone() const               = 0;
-    virtual void             do_reserve(SizeT N)            = 0;
+    virtual backend::BufferView get_backend_view() const noexcept       = 0;
+    virtual SizeT               get_tuple_size() const noexcept         = 0;
+    virtual SizeT               get_tuple_size(IndexT i) const noexcept = 0;
+    virtual SizeT               get_size() const noexcept               = 0;
+    virtual void                do_resize(SizeT N)                      = 0;
+    virtual void                do_clear()                              = 0;
+    virtual S<ITopoElements>    do_clone() const                        = 0;
+    virtual void                do_reserve(SizeT N)                     = 0;
+
+  private:
+    backend::BufferView backend_view() const noexcept;
 };
 }  // namespace uipc::geometry

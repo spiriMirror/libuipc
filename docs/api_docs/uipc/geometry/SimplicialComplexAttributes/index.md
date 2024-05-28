@@ -94,7 +94,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
 
 ### size<a name="size"></a>
-!!! function "[[nodiscard]] SizeT size() const"
+!!! function "[[nodiscard]] SizeT size() const noexcept"
 
     
     
@@ -104,7 +104,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
 
 ### topo<a name="topo"></a>
-!!! function "[[nodiscard]] Topo topo()"
+!!! function "[[nodiscard]] Topo topo() noexcept"
 
     
     

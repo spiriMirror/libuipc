@@ -4,6 +4,7 @@
 #include <uipc/common/smart_pointer.h>
 #include <uipc/common/vector.h>
 #include <uipc/common/span.h>
+#include <uipc/backend/buffer_view.h>
 
 namespace uipc::geometry
 {
@@ -30,8 +31,8 @@ class ISimplices : public ITopoElements
 
   protected:
     S<ISimplices>  clone() const;
-    virtual SizeT  get_tuple_size() const override;
-    virtual SizeT  get_tuple_size(IndexT i) const override;
+    virtual SizeT  get_tuple_size() const noexcept override;
+    virtual SizeT  get_tuple_size(IndexT i) const noexcept override;
     virtual IndexT get_dim() const = 0;
 };
 
@@ -53,23 +54,22 @@ class Vertices final : public ISimplices
     /**
      * @brief Get the non-const view of the vertices
      */
-    friend [[nodiscard]] span<IndexT> view(Vertices& vertices)
-    {
-        return vertices.view();
-    }
+    friend span<IndexT> view(Vertices& vertices) noexcept;
 
   protected:
-    virtual IndexT           get_dim() const override;
-    virtual SizeT            get_size() const override;
-    virtual void             do_resize(SizeT N) override;
-    virtual void             do_clear() override;
-    virtual S<ITopoElements> do_clone() const override;
-    virtual void             do_reserve(SizeT N) override;
+    virtual backend::BufferView get_backend_view() const noexcept override;
+    virtual IndexT              get_dim() const override;
+    virtual SizeT               get_size() const noexcept override;
+    virtual void                do_resize(SizeT N) override;
+    virtual void                do_clear() override;
+    virtual S<ITopoElements>    do_clone() const override;
+    virtual void                do_reserve(SizeT N) override;
 
   private:
     size_t                     m_size = 0;
     mutable vector<IndexT>     m_simplices;
     [[nodiscard]] span<IndexT> view();
+    backend::BufferView        m_backend_view;
 };
 
 /**
@@ -87,29 +87,31 @@ class Simplices final : public ISimplices
      *
      * @return A span of simplices
      */
-    [[nodiscard]] span<const Vector<IndexT, N + 1>> view() const;
+    [[nodiscard]] span<const Vector<IndexT, N + 1>> view() const noexcept;
     /**
      * @brief Get the non-const view of the simplices, this method may potentially generate data clone.
      *
      * @return A span of simplices
      */
-    friend [[nodiscard]] span<Vector<IndexT, N + 1>> view(Simplices& simplices)
+    friend span<Vector<IndexT, N + 1>> view(Simplices& simplices) noexcept
     {
         return simplices.view();
     }
 
   private:
-    [[nodiscard]] span<Vector<IndexT, N + 1>> view();
-
+    [[nodiscard]] span<Vector<IndexT, N + 1>> view() noexcept;
     vector<Vector<IndexT, N + 1>> m_simplices;
+    backend::BufferView           m_backend_view;
 
   protected:
-    virtual IndexT           get_dim() const override;
-    virtual SizeT            get_size() const override;
-    virtual void             do_resize(SizeT N) override;
-    virtual void             do_clear() override;
-    virtual S<ITopoElements> do_clone() const override;
-    virtual void             do_reserve(SizeT N) override;
+    virtual backend::BufferView get_backend_view() const noexcept override;
+    virtual IndexT              get_dim() const noexcept override;
+    virtual SizeT               get_size() const noexcept override;
+
+    virtual void                do_resize(SizeT N) override;
+    virtual void                do_clear() override;
+    virtual S<ITopoElements>    do_clone() const override;
+    virtual void                do_reserve(SizeT N) override;
 };
 
 /**

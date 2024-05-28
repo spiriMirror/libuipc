@@ -4,6 +4,7 @@
 #include <uipc/common/span.h>
 #include <uipc/common/type_define.h>
 #include <uipc/common/smart_pointer.h>
+#include <uipc/backend/buffer_view.h>
 
 namespace uipc::geometry
 {
@@ -27,8 +28,13 @@ class IAttribute
     S<IAttribute> clone() const;
     void          clear();
 
+    friend backend::BufferView backend_view(const IAttribute& a) noexcept;
+
   protected:
-    virtual SizeT         get_size() const    = 0;
+    backend::BufferView         backend_view() const noexcept;
+    virtual SizeT               get_size() const                  = 0;
+    virtual backend::BufferView get_backend_view() const noexcept = 0;
+
     virtual void          do_resize(SizeT N)  = 0;
     virtual void          do_clear()          = 0;
     virtual void          do_reserve(SizeT N) = 0;
@@ -60,25 +66,31 @@ class Attribute : public IAttribute
      *    Always consider using the const member method if the attribute data is not going to be modified.
      * @return `span<T>` 
      */
-    friend [[nodiscard]]  span<T> view(Attribute<T>& a) { return a.m_values; }
+    friend [[nodiscard]] span<T> view(Attribute<T>& a) noexcept
+    {
+        return a.m_values;
+    }
 
     /**
      * @brief Get a const view of the attribute values. This method gerantees no data cloning.
      * 
      * @return `span<const T>` 
      */
-    [[nodiscard]] span<const T> view() const;
+    [[nodiscard]] span<const T> view() const noexcept;
 
   protected:
-    SizeT         get_size() const override;
-    void          do_resize(SizeT N) override;
-    void          do_clear() override;
-    void          do_reserve(SizeT N) override;
-    S<IAttribute> do_clone() const override;
+    SizeT               get_size() const override;
+    backend::BufferView get_backend_view() const noexcept override;
+
+    void                do_resize(SizeT N) override;
+    void                do_clear() override;
+    void                do_reserve(SizeT N) override;
+    S<IAttribute>       do_clone() const override;
 
   private:
-    vector<T> m_values;
-    T         m_default_value;
+    backend::BufferView m_backend_view;
+    vector<T>           m_values;
+    T                   m_default_value;
 };
 }  // namespace uipc::geometry
 

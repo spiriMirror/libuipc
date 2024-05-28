@@ -42,7 +42,7 @@ Template class to represent a geometry attribute slot of type T in a geometry at
     
     
 
-!!! function "[[nodiscard]] span&lt;const T&gt; view() const"
+!!! function "[[nodiscard]] span&lt;const T&gt; view() const noexcept"
 
     
     

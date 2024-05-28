@@ -25,49 +25,49 @@ class AbstractSimplicialComplex
      * 
      * @return a non-const slot for vertices
      */
-    VertexSlot& vertices();
+    VertexSlot& vertices() noexcept;
     /**
      * @brief Get the const slot for vertices.
      * 
      * @return a const slot for vertices
      */
-    const VertexSlot& vertices() const;
+    const VertexSlot& vertices() const noexcept;
     /**
      * @brief Get the non-const slot for edges.
      * 
      * @return a non-const slot for edges
      */
-    EdgeSlot& edges();
+    EdgeSlot& edges() noexcept;
     /**
      * @brief Get the const slot for edges.
      * 
      * @return a const slot for edges
      */
-    const EdgeSlot& edges() const;
+    const EdgeSlot& edges() const noexcept;
     /**
      * @brief Get the non-const slot for triangles.
      * 
      * @return a non-const slot for triangles
      */
-    TriangleSlot& triangles();
+    TriangleSlot& triangles() noexcept;
     /**
      * @brief Get the const slot for triangles.
      * 
      * @return a const slot for triangles
      */
-    const TriangleSlot& triangles() const;
+    const TriangleSlot& triangles() const noexcept;
     /**
      * @brief Get the non-const slot for tetrahedra.
      * 
      * @return a non-const slot for tetrahedra
      */
-    TetrahedronSlot& tetrahedra();
+    TetrahedronSlot& tetrahedra() noexcept;
     /**
      * @brief Get the const slot for tetrahedra.
      * 
      * @return a const slot for tetrahedra
      */
-    const TetrahedronSlot& tetrahedra() const;
+    const TetrahedronSlot& tetrahedra() const noexcept;
 
   private:
     VertexSlot      m_vertices;

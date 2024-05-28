@@ -7,7 +7,7 @@ generator: doxide
 
 # EdgeSlot
 
-**using EdgeSlot        = SimplexSlot&lt;1&gt;**
+**using EdgeSlot = SimplexSlot&lt;1&gt;**
 
 
 

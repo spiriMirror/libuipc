@@ -1,4 +1,3 @@
-#include "attribute.h"
 namespace uipc::geometry
 {
 template <typename T>
@@ -9,7 +8,7 @@ Attribute<T>::Attribute(const T& default_value) noexcept
 }
 
 template <typename T>
-span<const T> Attribute<T>::view() const
+span<const T> Attribute<T>::view() const noexcept
 {
     return m_values;
 }
@@ -18,6 +17,12 @@ template <typename T>
 SizeT Attribute<T>::get_size() const
 {
     return m_values.size();
+}
+
+template <typename T>
+backend::BufferView Attribute<T>::get_backend_view() const noexcept
+{
+    return m_backend_view;
 }
 
 template <typename T>

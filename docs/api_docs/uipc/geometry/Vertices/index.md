@@ -38,7 +38,7 @@ Normally, we don't store the vertice indices, because the indices is just iota $
     
     
 
-!!! function "[[nodiscard]] span&lt;IndexT&gt; view(Vertices&amp; vertices)"
+!!! function "span&lt;IndexT&gt; view(Vertices&amp; vertices) noexcept"
 
     
     

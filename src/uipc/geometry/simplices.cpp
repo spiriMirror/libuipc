@@ -8,6 +8,11 @@ IndexT ISimplices::dim() const
     return get_dim();
 }
 
+backend::BufferView Vertices::get_backend_view() const noexcept
+{
+    return m_backend_view;
+}
+
 IndexT Vertices::get_dim() const
 {
     return 0;
@@ -18,12 +23,12 @@ S<ISimplices> ISimplices::clone() const
     return std::static_pointer_cast<ISimplices>(do_clone());
 }
 
-SizeT ISimplices::get_tuple_size() const
+SizeT ISimplices::get_tuple_size() const noexcept
 {
     return dim() + 1ull;
 }
 
-SizeT ISimplices::get_tuple_size(IndexT i) const
+SizeT ISimplices::get_tuple_size(IndexT i) const noexcept
 {
     return get_tuple_size();
 }
@@ -48,7 +53,7 @@ span<IndexT> Vertices::view()
     return m_simplices;
 }
 
-SizeT Vertices::get_size() const
+SizeT Vertices::get_size() const noexcept
 {
     return m_size;
 }
@@ -71,5 +76,10 @@ S<ITopoElements> Vertices::do_clone() const
 void Vertices::do_reserve(SizeT N)
 {
     // Do nothing
+}
+
+span<IndexT> view(Vertices& vertices) noexcept
+{
+    return vertices.view();
 }
 }  // namespace uipc::geometry

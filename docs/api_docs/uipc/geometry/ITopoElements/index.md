@@ -32,7 +32,7 @@ An abstract class for storing topological elements. They may be vertices, edges,
 ## Function Details
 
 ### clear<a name="clear"></a>
-!!! function "void                           clear()"
+!!! function "void clear()"
 
     
     
@@ -55,7 +55,7 @@ An abstract class for storing topological elements. They may be vertices, edges,
     
 
 ### reserve<a name="reserve"></a>
-!!! function "void                           reserve(SizeT N)"
+!!! function "void reserve(SizeT N)"
 
     
     
@@ -67,7 +67,7 @@ An abstract class for storing topological elements. They may be vertices, edges,
     
 
 ### resize<a name="resize"></a>
-!!! function "void                           resize(SizeT N)"
+!!! function "void resize(SizeT N)"
 
     
     
@@ -79,7 +79,7 @@ An abstract class for storing topological elements. They may be vertices, edges,
     
 
 ### size<a name="size"></a>
-!!! function "[[nodiscard]] SizeT            size() const"
+!!! function "[[nodiscard]] SizeT size() const noexcept"
 
     
     
@@ -91,7 +91,7 @@ An abstract class for storing topological elements. They may be vertices, edges,
     
 
 ### tuple_size<a name="tuple_size"></a>
-!!! function "[[nodiscard]] SizeT            tuple_size() const"
+!!! function "[[nodiscard]] SizeT tuple_size() const noexcept"
 
     
     
@@ -104,7 +104,7 @@ An abstract class for storing topological elements. They may be vertices, edges,
     
     
 
-!!! function "[[nodiscard]] SizeT            tuple_size(IndexT i) const"
+!!! function "[[nodiscard]] SizeT tuple_size(IndexT i) const noexcept"
 
     
     

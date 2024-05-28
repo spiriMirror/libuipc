@@ -1,5 +1,5 @@
 #include <catch.hpp>
-#include <uipc/geometry/factory.h>
+#include <uipc/geometry.h>
 #include <spdlog/spdlog.h>
 #include <numeric>
 
@@ -33,7 +33,7 @@ TEST_CASE("shared_test", "[geometry]")
 
 
     auto VA  = shared_mesh.vertices();
-    auto pos = VA.find<Vector3>("position");
+    auto pos = VA.find<Vector3>(builtin::position);
     REQUIRE(pos->size() == Vs.size());
     REQUIRE(!pos->is_shared());
 
@@ -62,7 +62,7 @@ TEST_CASE("shared_test", "[geometry]")
     TA.resize(2);
     auto tet_view = view(TA.topo());
 
-    tet_view[1]   = Vector4i{0, 1, 3, 5};
+    tet_view[1] = Vector4i{0, 1, 3, 5};
 
     auto             vert_view = view(VA.topo());
     std::vector<int> vert_iota(vert_view.size());
@@ -135,7 +135,7 @@ TEST_CASE("create_delete_share_attribute", "[geometry]")
     REQUIRE(!find_vel);
     REQUIRE(find_vel.use_count() == 0);
 
-    REQUIRE_THROWS_AS(VA.destroy("position"), AttributeDontAllowDestroy);
+    REQUIRE_THROWS_AS(VA.destroy(builtin::position), AttributeDontAllowDestroy);
 
     VA.share("velocity", pos);
     REQUIRE(VA.find<Vector3>("velocity")->is_shared());

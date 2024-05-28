@@ -24,4 +24,14 @@ void IAttribute::clear()
 {
     do_clear();
 }
+
+backend::BufferView IAttribute::backend_view() const noexcept
+{
+    return get_backend_view();
+}
+
+backend::BufferView backend_view(const IAttribute& a) noexcept
+{
+    return a.backend_view();
+}
 }  // namespace uipc::geometry

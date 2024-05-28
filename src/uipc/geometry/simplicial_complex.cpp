@@ -1,11 +1,22 @@
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/common/log.h>
+#include <uipc/builtin/attribute_name.h>
 
 namespace uipc::geometry
 {
+backend::BufferView backend_view(const SimplicialComplexTopo<VertexSlot>&& v) noexcept
+{
+    return backend_view(v.m_topology);
+}
+
 span<IndexT> view(SimplicialComplexTopo<VertexSlot>&& v)
 {
     return view(v.m_topology);
+}
+
+bool SimplicialComplexTopo<VertexSlot>::is_shared() && noexcept
+{
+    return m_topology.is_shared();
 }
 
 SimplicialComplexTopo<VertexSlot>::SimplicialComplexTopo(VertexSlot& v)
@@ -27,19 +38,20 @@ SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
     m_triangle_attributes.resize(m_asc.triangles().size());
     m_tetrahedron_attributes.resize(m_asc.tetrahedra().size());
 
-    auto pos = m_vertex_attributes.create<Vector3, false>("position", Vector3::Zero());
+    auto pos   = m_vertex_attributes.create<Vector3, false>(builtin::position,
+                                                          Vector3::Zero());
     auto view_ = view(*pos);
     std::copy(positions.begin(), positions.end(), view_.begin());
 }
 
 AttributeSlot<Vector3>& SimplicialComplex::positions()
 {
-    return *m_vertex_attributes.find<Vector3>("position");
+    return *m_vertex_attributes.find<Vector3>(builtin::position);
 }
 
 const AttributeSlot<Vector3>& SimplicialComplex::positions() const
 {
-    return *m_vertex_attributes.find<Vector3>("position");
+    return *m_vertex_attributes.find<Vector3>(builtin::position);
 }
 
 auto SimplicialComplex::vertices() -> VertexAttributes

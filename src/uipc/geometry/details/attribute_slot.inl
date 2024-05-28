@@ -10,19 +10,19 @@ AttributeSlot<T>::AttributeSlot(std::string_view m_name, S<Attribute<T>> attribu
 {
 }
 template <typename T>
-span<const T> AttributeSlot<T>::view() const
+span<const T> AttributeSlot<T>::view() const noexcept
 {
     return m_attribute->view();
 }
 
 template <typename T>
-std::string_view AttributeSlot<T>::get_name() const
+std::string_view AttributeSlot<T>::get_name() const noexcept
 {
     return m_name;
 }
 
 template <typename T>
-bool AttributeSlot<T>::get_allow_destroy() const
+bool AttributeSlot<T>::get_allow_destroy() const noexcept
 {
     return m_allow_destroy;
 }
@@ -43,18 +43,18 @@ S<IAttributeSlot> AttributeSlot<T>::do_clone() const
 }
 
 template <typename T>
-IAttribute& AttributeSlot<T>::get_attribute()
+IAttribute& AttributeSlot<T>::get_attribute() noexcept
 {
     return *m_attribute;
 }
 
 template <typename T>
-const IAttribute& AttributeSlot<T>::get_attribute() const
+const IAttribute& AttributeSlot<T>::get_attribute() const noexcept
 {
     return *m_attribute;
 }
 template <typename T>
-SizeT uipc::geometry::AttributeSlot<T>::get_use_count() const
+SizeT uipc::geometry::AttributeSlot<T>::get_use_count() const noexcept
 {
     return m_attribute.use_count();
 }

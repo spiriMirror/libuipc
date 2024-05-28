@@ -1,25 +1,30 @@
 namespace uipc::geometry
 {
 template <IndexT N>
-IndexT Simplices<N>::get_dim() const
+backend::BufferView Simplices<N>::get_backend_view() const noexcept
+{
+    return m_backend_view;
+}
+template <IndexT N>
+IndexT Simplices<N>::get_dim() const noexcept
 {
     return N;
 }
 
 template <IndexT N>
-span<const Vector<IndexT, N + 1>> Simplices<N>::view() const
+span<const Vector<IndexT, N + 1>> Simplices<N>::view() const noexcept
 {
     return m_simplices;
 }
 
 template <IndexT N>
-span<Vector<IndexT, N + 1>> Simplices<N>::view()
+span<Vector<IndexT, N + 1>> Simplices<N>::view() noexcept
 {
     return m_simplices;
 }
 
 template <IndexT N>
-SizeT Simplices<N>::get_size() const
+SizeT Simplices<N>::get_size() const noexcept
 {
     return m_simplices.size();
 }

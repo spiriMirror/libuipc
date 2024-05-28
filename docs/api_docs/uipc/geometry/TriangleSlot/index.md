@@ -7,7 +7,7 @@ generator: doxide
 
 # TriangleSlot
 
-**using TriangleSlot    = SimplexSlot&lt;2&gt;**
+**using TriangleSlot = SimplexSlot&lt;2&gt;**
 
 
 

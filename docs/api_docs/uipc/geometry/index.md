@@ -42,6 +42,7 @@ generator: doxide
 
 | Name | Description |
 | ---- | ----------- |
+| [backend_view](#backend_view) | An interface to get the backend buffer view  |
 | [linemesh](#linemesh) | Create a simplicial complex from a line mesh. |
 | [pointcloud](#pointcloud) | Create a simplicial complex from a point cloud. |
 | [tetmesh](#tetmesh) | Create a simplicial complex from a tetrahedral mesh. |
@@ -49,6 +50,17 @@ generator: doxide
 | [view](#view) | An interface to create a non-const view  |
 
 ## Function Details
+
+### backend_view<a name="backend_view"></a>
+!!! function "template &lt;typename T, typename U&gt; backend::BufferView backend_view(U&amp;)"
+
+    
+    
+    An interface to get the backend buffer view
+     
+    
+    
+    
 
 ### linemesh<a name="linemesh"></a>
 !!! function "[[nodiscard]] SimplicialComplex linemesh(span&lt;const Vector3&gt;  Vs, span&lt;const Vector2i&gt; Es)"

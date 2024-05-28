@@ -22,17 +22,26 @@ class SimplicialComplexTopo
     friend class SimplicialComplexAttributes<SimplexSlotT>;
 
   public:
+    /**
+     * @brief Get a non-const view of the topology, this function may clone the data.
+     */
     template <IndexT N>
     friend span<typename SimplexSlot<N>::ValueT> view(SimplicialComplexTopo<SimplexSlot<N>>&& v);
 
     /**
+     * @brief Get the backend view of the topology, this function guarantees no data clone.
+     */
+    template <IndexT N>
+    friend backend::BufferView backend_view(const SimplicialComplexTopo<SimplexSlot<N>>&& v) noexcept;
+
+    /**
      * @brief Get a const view of the topology, this function guarantees no data clone.
      */
-    [[nodiscard]] auto view() && { return m_topology.view(); }
+    [[nodiscard]] auto view() && noexcept { return m_topology.view(); }
     /**
      * @brief Query if the topology is owned by current simplicial complex.
      */
-    [[nodiscard]] bool is_shared() && { return m_topology.is_shared(); }
+    [[nodiscard]] bool is_shared() && noexcept;
 
   private:
     SimplicialComplexTopo(SimplexSlotT& topo);
@@ -43,24 +52,30 @@ template <>
 class SimplicialComplexTopo<VertexSlot>
 {
     friend class SimplicialComplexAttributes<VertexSlot>;
-    using ThisT = SimplicialComplexTopo<VertexSlot>;
 
   public:
     static constexpr IndexT Dimension = VertexSlot::Dimension;
 
     using ValueT = typename VertexSlot::ValueT;
 
+    /**
+     * @brief Get a non-const view of the topology, this function may clone the data.
+     */
+    friend span<IndexT> view(SimplicialComplexTopo<VertexSlot>&& v);
 
-    friend span<IndexT> view(ThisT&&);
+    /**
+     * @brief Get the backend view of the topology, this function guarantees no data clone.
+     */
+    friend backend::BufferView backend_view(const SimplicialComplexTopo<VertexSlot>&& v) noexcept;
 
     /**
      * @brief Get a const view of the topology, this function guarantees no data clone.
      */
-    [[nodiscard]] auto view() && { return m_topology.view(); }
+    [[nodiscard]] auto view() && noexcept { return m_topology.view(); }
     /**
      * @brief Query if the topology is owned by current simplicial complex.
      */
-    [[nodiscard]] bool is_shared() && { return m_topology.is_shared(); }
+    [[nodiscard]] bool is_shared() && noexcept;
 
   private:
     SimplicialComplexTopo(VertexSlot& topo);
@@ -88,7 +103,7 @@ class SimplicialComplexAttributes
 	 * 
 	 * @return Topo 
 	 */
-    [[nodiscard]] Topo topo();
+    [[nodiscard]] Topo topo() noexcept;
     /**
      * @sa [AttributeCollection::resize()](../AttributeCollection/#resize)
      */
@@ -104,7 +119,7 @@ class SimplicialComplexAttributes
     /**
      * @sa [AttributeCollection::size()](../AttributeCollection/#size)
      */
-    [[nodiscard]] SizeT size() const;
+    [[nodiscard]] SizeT size() const noexcept;
     /**
      * @sa [AttributeCollection::destroy()](../AttributeCollection/#destroy) 
      */
@@ -145,8 +160,8 @@ class SimplicialComplexAttributes
     Topo                 m_topology;
     AttributeCollection& m_attributes;
 
-    SimplicialComplexAttributes(SimplexSlotT& topology, AttributeCollection& attributes);
+    SimplicialComplexAttributes(SimplexSlotT& topology, AttributeCollection& attributes) noexcept;
 };
-}// namespace uipc::geometry
+}  // namespace uipc::geometry
 
 #include "details/simplicial_complex_attributes.inl"

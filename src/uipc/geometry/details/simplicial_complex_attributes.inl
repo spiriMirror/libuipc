@@ -8,9 +8,15 @@ span<typename SimplexSlot<N>::ValueT> view(SimplicialComplexTopo<SimplexSlot<N>>
     return view(v.m_topology);
 }
 
+template <IndexT N>
+backend::BufferView backend_view(const SimplicialComplexTopo<SimplexSlot<N>>&& v) noexcept
+{
+    return backend_view(v.m_topology);
+}
+
 template <typename SimplexSlot>
     requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
-auto SimplicialComplexAttributes<SimplexSlot>::topo() -> Topo
+auto SimplicialComplexAttributes<SimplexSlot>::topo() noexcept -> Topo
 {
     return m_topology;
 }
@@ -41,7 +47,7 @@ void SimplicialComplexAttributes<SimplexSlot>::clear()
 
 template <typename SimplexSlot>
     requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
-SizeT SimplicialComplexAttributes<SimplexSlot>::size() const
+SizeT SimplicialComplexAttributes<SimplexSlot>::size() const noexcept
 {
     return m_attributes.size();
 }
@@ -62,8 +68,15 @@ SimplicialComplexTopo<SimplexSlot>::SimplicialComplexTopo(SimplexSlot& topo)
 
 template <typename SimplexSlot>
     requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
+bool SimplicialComplexTopo<SimplexSlot>::is_shared() && noexcept
+{
+    return m_topology.is_shared();
+}
+
+template <typename SimplexSlot>
+    requires std::is_base_of_v<ISimplexSlot, SimplexSlot>
 SimplicialComplexAttributes<SimplexSlot>::SimplicialComplexAttributes(SimplexSlot& topology,
-                                                                      AttributeCollection& attributes)
+                                                                      AttributeCollection& attributes) noexcept
     : m_topology(topology)
     , m_attributes(attributes)
 {

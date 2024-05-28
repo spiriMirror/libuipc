@@ -1,13 +1,13 @@
 namespace uipc::geometry
 {
 template <IndexT N>
-SimplexSlot<N>::SimplexSlot(S<Simplices<N>> simplices)
+SimplexSlot<N>::SimplexSlot(S<Simplices<N>> simplices) noexcept
     : m_simplices(std::move(simplices))
 {
 }
 
 template <IndexT N>
-auto SimplexSlot<N>::view() const -> span<const ValueT>
+auto SimplexSlot<N>::view() const noexcept -> span<const ValueT>
 {
     return std::as_const(*m_simplices).view();
 }
@@ -25,7 +25,7 @@ U<SimplexSlot<N>> SimplexSlot<N>::clone() const
     return std::make_unique<SimplexSlot<N>>(m_simplices);
 }
 template <IndexT N>
-SizeT SimplexSlot<N>::get_use_count() const
+SizeT SimplexSlot<N>::get_use_count() const noexcept
 {
     return m_simplices.use_count();
 }
@@ -43,13 +43,13 @@ void SimplexSlot<N>::do_make_owned()
 }
 
 template <IndexT N>
-ISimplices& SimplexSlot<N>::get_simplices()
+ISimplices& SimplexSlot<N>::get_simplices() noexcept
 {
     return *m_simplices;
 }
 
 template <IndexT N>
-const ISimplices& SimplexSlot<N>::get_simplices() const
+const ISimplices& SimplexSlot<N>::get_simplices() const noexcept
 {
     return *m_simplices;
 }

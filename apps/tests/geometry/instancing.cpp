@@ -18,7 +18,7 @@ TEST_CASE("instancing", "[geometry]")
 
     Is.resize(5);
 
-    auto trans      = Is.find<Matrix4x4>("transform");
+    auto trans      = Is.find<Matrix4x4>(builtin::transform);
     auto trans_view = trans->view();
     for(auto&& t : trans_view)
     {

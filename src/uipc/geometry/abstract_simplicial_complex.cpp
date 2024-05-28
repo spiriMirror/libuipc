@@ -35,7 +35,7 @@ void ISimplexSlot::make_owned()
     do_make_owned();
 }
 
-SizeT ISimplexSlot::use_count() const
+SizeT ISimplexSlot::use_count() const noexcept
 {
     return get_use_count();
 }
@@ -45,17 +45,17 @@ U<ISimplexSlot> ISimplexSlot::clone() const
     return do_clone();
 }
 
-ISimplices& ISimplexSlot::simplices()
+ISimplices& ISimplexSlot::simplices() noexcept
 {
     return get_simplices();
 }
 
-const ISimplices& ISimplexSlot::simplices() const
+const ISimplices& ISimplexSlot::simplices() const noexcept
 {
     return get_simplices();
 }
 
-VertexSlot::VertexSlot(S<Vertices> vertices)
+VertexSlot::VertexSlot(S<Vertices> vertices) noexcept
     : m_simplices(vertices)
 {
 }
@@ -63,6 +63,11 @@ VertexSlot::VertexSlot(S<Vertices> vertices)
 span<const IndexT> VertexSlot::view() const
 {
     return std::as_const(*m_simplices).view();
+}
+
+backend::BufferView backend_view(const ISimplexSlot& s) noexcept
+{
+    return backend_view(s.simplices());
 }
 
 span<IndexT> view(VertexSlot& slot)
@@ -76,7 +81,7 @@ U<VertexSlot> VertexSlot::clone() const
     return std::make_unique<VertexSlot>(m_simplices);
 }
 
-SizeT VertexSlot::get_use_count() const
+SizeT VertexSlot::get_use_count() const noexcept
 {
     return m_simplices.use_count();
 }
@@ -91,12 +96,12 @@ void VertexSlot::do_make_owned()
     m_simplices = std::make_shared<Vertices>(*m_simplices);
 }
 
-ISimplices& VertexSlot::get_simplices()
+ISimplices& VertexSlot::get_simplices() noexcept
 {
     return *m_simplices;
 }
 
-const ISimplices& VertexSlot::get_simplices() const
+const ISimplices& VertexSlot::get_simplices() const noexcept
 {
     return *m_simplices;
 }
@@ -164,42 +169,42 @@ AbstractSimplicialComplex& AbstractSimplicialComplex::operator=(AbstractSimplici
     return *this;
 }
 
-VertexSlot& AbstractSimplicialComplex::vertices()
+VertexSlot& AbstractSimplicialComplex::vertices() noexcept
 {
     return m_vertices;
 }
 
-const VertexSlot& AbstractSimplicialComplex::vertices() const
+const VertexSlot& AbstractSimplicialComplex::vertices() const noexcept
 {
     return m_vertices;
 }
 
-EdgeSlot& AbstractSimplicialComplex::edges()
+EdgeSlot& AbstractSimplicialComplex::edges() noexcept
 {
     return m_edges;
 }
 
-const EdgeSlot& AbstractSimplicialComplex::edges() const
+const EdgeSlot& AbstractSimplicialComplex::edges() const noexcept
 {
     return m_edges;
 }
 
-TriangleSlot& AbstractSimplicialComplex::triangles()
+TriangleSlot& AbstractSimplicialComplex::triangles() noexcept
 {
     return m_triangles;
 }
 
-const TriangleSlot& AbstractSimplicialComplex::triangles() const
+const TriangleSlot& AbstractSimplicialComplex::triangles() const noexcept
 {
     return m_triangles;
 }
 
-TetrahedronSlot& AbstractSimplicialComplex::tetrahedra()
+TetrahedronSlot& AbstractSimplicialComplex::tetrahedra() noexcept
 {
     return m_tetrahedra;
 }
 
-const TetrahedronSlot& AbstractSimplicialComplex::tetrahedra() const
+const TetrahedronSlot& AbstractSimplicialComplex::tetrahedra() const noexcept
 {
     return m_tetrahedra;
 }

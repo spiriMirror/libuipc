@@ -5,6 +5,7 @@
 #include <uipc/geometry.h>
 #include <uipc/world/apply_contact_element.h>
 #include <iostream>
+#include <uipc/builtin/attribute_name.h>
 
 using namespace uipc;
 using namespace uipc::world;
@@ -14,9 +15,9 @@ TEST_CASE("contact_model", "[world]")
     Scene scene;
     auto& contact_tabular = scene.contact_tabular();
 
-    auto  default_element = contact_tabular.default_element();
-    auto  wood_contact    = contact_tabular.create();
-    auto  rubber_contact  = contact_tabular.create();
+    auto default_element = contact_tabular.default_element();
+    auto wood_contact    = contact_tabular.create();
+    auto rubber_contact  = contact_tabular.create();
 
     contact_tabular.default_model(0.5, 1e8);
     contact_tabular.insert(wood_contact, wood_contact, 0.5, 1e8);
@@ -38,19 +39,20 @@ TEST_CASE("contact_model", "[world]")
 
     apply(wood_contact, mesh0);
 
-    auto contact_element = mesh0.meta().find<IndexT>("contact_element_id");
+    auto contact_element = mesh0.meta().find<IndexT>(builtin::contact_element_id);
     REQUIRE(contact_element);
     REQUIRE(contact_element->view().front() == wood_contact.id());
 
     auto mesh1 = mesh0;
     apply(rubber_contact, mesh1);
-    REQUIRE(mesh1.meta().find<IndexT>("contact_element_id")->view().front() == rubber_contact.id());
+    REQUIRE(mesh1.meta().find<IndexT>(builtin::contact_element_id)->view().front()
+            == rubber_contact.id());
 
     auto mesh2 = mesh0;
     apply(default_element, mesh2);
     REQUIRE(default_element.name() == "default");
-    REQUIRE(mesh2.meta().find<IndexT>("contact_element_id")->view().front() == 0);
-    
+    REQUIRE(mesh2.meta().find<IndexT>(builtin::contact_element_id)->view().front() == 0);
+
     //Json j = contact_tabular;
     //std::cout << j.dump(4) << std::endl;
 }

@@ -28,7 +28,7 @@ General class to represent simplices, typically used for edges, triangles, tetra
 ## Function Details
 
 ### view<a name="view"></a>
-!!! function "[[nodiscard]] span&lt;const Vector&lt;IndexT, N + 1&gt;&gt; view() const"
+!!! function "[[nodiscard]] span&lt;const Vector&lt;IndexT, N + 1&gt;&gt; view() const noexcept"
 
     
     
@@ -39,7 +39,7 @@ General class to represent simplices, typically used for edges, triangles, tetra
     
     
 
-!!! function "[[nodiscard]] span&lt;Vector&lt;IndexT, N + 1&gt;&gt; view(Simplices&amp; simplices)"
+!!! function "span&lt;Vector&lt;IndexT, N + 1&gt;&gt; view(Simplices&amp; simplices) noexcept"
 
     
     
