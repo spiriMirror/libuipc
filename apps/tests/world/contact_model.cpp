@@ -3,7 +3,6 @@
 #include <uipc/common/enumerate.h>
 #include <app/asset_dir.h>
 #include <uipc/geometry.h>
-#include <uipc/world/apply_contact_element.h>
 #include <iostream>
 #include <uipc/builtin/attribute_name.h>
 
@@ -37,19 +36,19 @@ TEST_CASE("contact_model", "[world]")
     geometry::SimplicialComplexIO io;
     auto mesh0 = io.read_msh(std::format("{}cube.msh", AssetDir::tetmesh_path()));
 
-    apply(wood_contact, mesh0);
+    wood_contact.apply_to(mesh0);
 
     auto contact_element = mesh0.meta().find<IndexT>(builtin::contact_element_id);
     REQUIRE(contact_element);
     REQUIRE(contact_element->view().front() == wood_contact.id());
 
     auto mesh1 = mesh0;
-    apply(rubber_contact, mesh1);
+    rubber_contact.apply_to(mesh1);
     REQUIRE(mesh1.meta().find<IndexT>(builtin::contact_element_id)->view().front()
             == rubber_contact.id());
 
     auto mesh2 = mesh0;
-    apply(default_element, mesh2);
+    default_element.apply_to(mesh2);
     REQUIRE(default_element.name() == "default");
     REQUIRE(mesh2.meta().find<IndexT>(builtin::contact_element_id)->view().front() == 0);
 

@@ -6,8 +6,10 @@ namespace uipc
 using Float  = double;
 using IndexT = int;
 using SizeT  = std::size_t;
-using I32 = int32_t;
-using I64 = int64_t;
+using I32    = int32_t;
+using I64    = int64_t;
+using U32    = uint32_t;
+using U64    = uint64_t;
 
 using Eigen::Matrix;
 using Eigen::Vector;

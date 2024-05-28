@@ -13,11 +13,38 @@ generator: doxide
 
 | Name | Description |
 | ---- | ----------- |
-| [contact_element_id](#contact_element_id) | `contact_element_id`  |
-| [position](#position) | `position`  |
-| [transform](#transform) | `transform`  |
+| [constitution](#constitution) | `constitution` attribute on geometry.meta()  |
+| [constitution_uid](#constitution_uid) | `constitution_uid` attribute on geometry.meta(), uid is a unique identifier for a constitution * which is defined in the libuipc specification.  |
+| [contact_element_id](#contact_element_id) | `contact_element_id` attribute on geometry.meta()  |
+| [position](#position) | `position` attribute on geometry.vertices();  |
+| [transform](#transform) | `transform` attribute on geometry.instances()  |
 
 ## Variable Details
+
+### constitution<a name="constitution"></a>
+
+!!! variable "constexpr std::string_view constitution"
+
+    
+    
+    `constitution` attribute on geometry.meta()
+     
+    
+    
+    
+
+### constitution_uid<a name="constitution_uid"></a>
+
+!!! variable "constexpr std::string_view constitution_uid"
+
+    
+    
+    `constitution_uid` attribute on geometry.meta(), uid is a unique identifier for a constitution
+     * which is defined in the libuipc specification.
+     
+    
+    
+    
 
 ### contact_element_id<a name="contact_element_id"></a>
 
@@ -25,7 +52,7 @@ generator: doxide
 
     
     
-    `contact_element_id`
+    `contact_element_id` attribute on geometry.meta()
      
     
     
@@ -37,7 +64,7 @@ generator: doxide
 
     
     
-    `position`
+    `position` attribute on geometry.vertices();
      
     
     
@@ -49,7 +76,7 @@ generator: doxide
 
     
     
-    `transform`
+    `transform` attribute on geometry.instances()
      
     
     

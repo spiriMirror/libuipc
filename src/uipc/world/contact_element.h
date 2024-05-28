@@ -1,6 +1,7 @@
 #pragma once
 #include <uipc/common/type_define.h>
 #include <uipc/common/json.h>
+#include <uipc/geometry/geometry.h>
 namespace uipc::world
 {
 class ContactElement
@@ -12,6 +13,7 @@ class ContactElement
     friend void to_json(Json& j, const ContactElement& element);
     friend void from_json(const Json& j, ContactElement& element);
 
+    void apply_to(geometry::Geometry& geo);
   private:
     friend class ContactTabular;
     ContactElement(IndexT id, std::string_view name) noexcept;

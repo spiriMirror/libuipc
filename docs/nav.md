@@ -3,5 +3,7 @@
     * [Geometry](tutorial/geometry.md)
     * [Object](tutorial/object.md)
 * [Specification](specification/index.md)
+    * [Constitution UID](specification/constitution_uid.md)
+    * [Constitutions](specification/constitutions/)
 * [API Documentation](api_docs/)
 * [Development](development/index.md)

@@ -1,4 +1,5 @@
 #include <uipc/world/contact_element.h>
+#include <uipc/builtin/attribute_name.h>
 
 namespace uipc::world
 {
@@ -17,6 +18,21 @@ std::string_view ContactElement::name() const noexcept
 {
     return m_name;
 }
+
+void ContactElement::apply_to(geometry::Geometry& geo)
+{
+    auto slot = geo.meta().find<IndexT>(builtin::contact_element_id);
+    if(!slot)
+    {
+        slot = geo.meta().create<IndexT>(builtin::contact_element_id, id());
+    }
+    else
+    {
+        auto view    = geometry::view(*slot);
+        view.front() = id();
+    }
+}
+
 void to_json(Json& j, const ContactElement& element)
 {
     j["id"]   = element.id();
