@@ -1,5 +1,6 @@
 #include <uipc/world/contact_tabular.h>
 #include <uipc/common/log.h>
+#include <algorithm>
 
 namespace uipc::world
 {

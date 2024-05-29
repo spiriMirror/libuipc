@@ -32,6 +32,9 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     if(!P)
         P = sc.instances().create<Float>("abd::kappa", kappa);
     else
-        geometry::view(*P).front() = kappa;
+    {
+        auto v = geometry::view(*P);
+        std::ranges::fill(v, kappa);
+    }
 }
 }  // namespace uipc::constitution

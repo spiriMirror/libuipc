@@ -1,16 +1,17 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/geometry.h>
-#include <format>
+#include <uipc/common/format.h>
 
 using namespace uipc;
 using namespace uipc::geometry;
+
 
 TEST_CASE("instancing", "[geometry]")
 {
     SimplicialComplexIO io;
 
-    auto mesh = io.read(std::format("{}cube.msh", AssetDir::tetmesh_path()));
+    auto mesh = io.read(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
 
     auto Is = mesh.instances();
 

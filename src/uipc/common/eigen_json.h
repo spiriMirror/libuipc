@@ -2,7 +2,6 @@
 #include <nlohmann/adl_serializer.hpp>
 #include <Eigen/Core>
 #include <uipc/common/exception.h>
-#include <format>
 
 namespace uipc
 {

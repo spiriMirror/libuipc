@@ -10,7 +10,8 @@ A Library of Unified Incremental Potential Contact.
 | eigen3                                 | 3.4.0   | matrix calculation                                  | package        |
 | catch2                                 | 3.4.0   | unit tests                                          | package        |
 | libigl                                 | 2.5.0   | mesh processing                                     | package        |
-| boost-optional                         | 1.84.0  | optional reference implement                        | package        |
+| rapidcsv                               | 8.80    | csv file IO                                         | package        |
+| fmt                                    | 10.1.1  | fast string formatting                              | package        |
 ## Build
 
 ### Linux

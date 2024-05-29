@@ -13,6 +13,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # submodule dependencies
 add_subdirectory(external/enumerate)
+add_subdirectory(external/rapidcsv)
 
 # uipc
 add_subdirectory(src/uipc)

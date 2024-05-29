@@ -5,6 +5,7 @@
 #include <uipc/geometry.h>
 #include <iostream>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/common/format.h>
 
 using namespace uipc;
 using namespace uipc::world;
@@ -27,14 +28,13 @@ TEST_CASE("contact_model", "[world]")
 
     auto contact_models = contact_tabular.contact_models();
 
-    REQUIRE(std::equal(gt.begin(),
-                       gt.end(),
-                       contact_models.begin(),
-                       [](const Vector2i& a, const ContactModel& b)
-                       { return a == b.ids(); }));
+    REQUIRE(std::ranges::equal(gt,
+                               contact_models,
+                               [](const Vector2i& a, const ContactModel& b)
+                               { return a == b.ids(); }));
 
     geometry::SimplicialComplexIO io;
-    auto mesh0 = io.read_msh(std::format("{}cube.msh", AssetDir::tetmesh_path()));
+    auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
 
     wood_contact.apply_to(mesh0);
 

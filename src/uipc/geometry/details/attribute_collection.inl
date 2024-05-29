@@ -1,4 +1,4 @@
-#include <format>
+#include <uipc/common/format.h>
 
 namespace uipc::geometry
 {
@@ -10,7 +10,7 @@ P<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& 
     if(it != m_attributes.end())
     {
         throw AttributeAlreadyExist{
-            std::format("Attribute with name [{}] already exist!", name)};
+            fmt::format("Attribute with name [{}] already exist!", name)};
     }
     auto S = std::make_shared<Attribute<T>>(default_value);
     S->resize(m_size);

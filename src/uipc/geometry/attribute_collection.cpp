@@ -10,14 +10,14 @@ P<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttri
 
     if(size() != slot.size())
         throw AttributeSizeMismatch{
-            std::format("Attribute size mismatch, "
+            fmt::format("Attribute size mismatch, "
                         "Attribute Collision size is {}, input slot size is {}.",
                         size(),
                         slot.size())};
 
     if(it != m_attributes.end())
         throw AttributeAlreadyExist{
-            std::format("Attribute with name [{}] already exist!", name)};
+            fmt::format("Attribute with name [{}] already exist!", name)};
     return m_attributes[n] = slot.clone();
 }
 
@@ -32,7 +32,7 @@ void AttributeCollection::destroy(std::string_view name)
 
     if(!it->second->allow_destroy())
         throw AttributeDontAllowDestroy{
-            std::format("Attribute [{}] don't allow destroy!", name)};
+            fmt::format("Attribute [{}] don't allow destroy!", name)};
 
     m_attributes.erase(it);
 }

@@ -1,3 +1,5 @@
+#include <uipc/common/format.h>
+
 namespace nlohmann
 {
 template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
@@ -27,7 +29,7 @@ void adl_serializer<Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>
         if(j.size() != Rows)
         {
             throw uipc::JsonIOError(
-                std::format("Unexpected row size: {} != {}", j.size(), Rows));
+                fmt::format("Unexpected row size: {} != {}", j.size(), Rows));
         }
     }
 
@@ -46,7 +48,7 @@ void adl_serializer<Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>
 
         if(m.cols() != json_row.size())
         {
-            throw uipc::JsonIOError(std::format(
+            throw uipc::JsonIOError(fmt::format(
                 "Unexpected column size: {} != {}, in row {}.", json_row.size(), m.cols(), i));
         }
 

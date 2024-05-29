@@ -20,7 +20,7 @@ namespace details
     {
       public:
         static constexpr U64 OfficialBuiltinUIDStart = 0;
-        static constexpr U64 UserDefinedUIDStart     = 1 << 32;
+        static constexpr U64 UserDefinedUIDStart     = 1ull << 32;
 
         const ConstitutionUIDInfo& find(U64 uid) const;
         bool                       exists(U64 uid) const;
