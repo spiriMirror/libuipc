@@ -48,4 +48,4 @@ S<IAttribute> Attribute<T>::do_clone() const
 {
     return std::make_shared<Attribute<T>>(*this);
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

@@ -74,4 +74,4 @@ void SimplexSlot<N>::do_clear()
     do_make_owned();
     m_simplices->clear();
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

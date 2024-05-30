@@ -52,4 +52,4 @@ S<ITopoElements> Simplices<N>::do_clone() const
 {
     return std::make_shared<Simplices<N>>(*this);
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

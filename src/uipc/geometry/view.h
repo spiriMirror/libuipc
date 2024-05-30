@@ -18,4 +18,4 @@ backend::BufferView backend_view(U&)
 {
     static_assert("Not implemented");
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

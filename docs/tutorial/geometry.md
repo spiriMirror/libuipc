@@ -26,7 +26,7 @@ Topologies describe how a geometry is connected, and attributes who have the sam
 
 For example, to represent a 2D surface in a triangle mesh (like famous `.obj` format), we store the positions of the vertices and the triangles that connect the vertices, as shown below:
 
-$$ 
+$$
 V = \{ 0,1,...,N-1 \},
 $$
 
@@ -63,13 +63,13 @@ With the same basic idea, we use a more general and well-defined way to represen
 ## Simplicial Complex
 In `libuipc`, a `Simplicial Complex` is a general representation of an explicit mesh. In $\mathbb{R}^3$, a simplicial complex can be a tetrahedral mesh, a triangle mesh, a line mesh, or a point cloud, which have a dimension of 3, 2, 1, or 0, respectively.
 
-The tetrahedral mesh can be used to describe solid objects, like a buuny, a dragon, or a cube. 
+The tetrahedral mesh can be used to describe solid objects, like a bus, boxes ...
 
-[TODO: add some soft body figure here]
+[TODO: add some solid object figure]
 
 The triangle mesh can be used to describe some 2D-codimensional objects, like a cloth with a thin thickness.
 
-[TODO: add some cloth figure here]
+[TODO: add some cloth figure]
 
 The line mesh can be used to describe some 1D-codimensional objects, like a rope, a curve, or a wire.
 

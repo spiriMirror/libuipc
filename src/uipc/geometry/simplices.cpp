@@ -82,4 +82,4 @@ span<IndexT> view(Vertices& vertices) noexcept
 {
     return vertices.view();
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

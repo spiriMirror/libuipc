@@ -208,4 +208,4 @@ const TetrahedronSlot& AbstractSimplicialComplex::tetrahedra() const noexcept
 {
     return m_tetrahedra;
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

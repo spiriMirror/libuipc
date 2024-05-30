@@ -3,7 +3,7 @@
 
 namespace uipc::world
 {
-ContactElement::ContactElement(I32 id, std::string_view name) noexcept
+ContactElement::ContactElement(IndexT id, std::string_view name) noexcept
     : m_id{id}
     , m_name{name}
 {
@@ -19,7 +19,7 @@ std::string_view ContactElement::name() const noexcept
     return m_name;
 }
 
-void ContactElement::apply_to(geometry::Geometry& geo)
+void ContactElement::apply_to(geometry::Geometry& geo) const
 {
     auto slot = geo.meta().find<IndexT>(builtin::contact_element_id);
     if(!slot)

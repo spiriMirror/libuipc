@@ -65,4 +65,4 @@ template <typename U>
     slot.make_owned();
     return view(*slot.m_attribute);
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

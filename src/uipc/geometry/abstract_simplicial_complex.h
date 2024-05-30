@@ -75,4 +75,4 @@ class AbstractSimplicialComplex
     TriangleSlot    m_triangles;
     TetrahedronSlot m_tetrahedra;
 };
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

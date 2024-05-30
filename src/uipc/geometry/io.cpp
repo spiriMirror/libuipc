@@ -81,4 +81,4 @@ SimplicialComplex SimplicialComplexIO::read_obj(std::string_view file_name)
         f = F.row(i);
     return trimesh(Vs, Fs);
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

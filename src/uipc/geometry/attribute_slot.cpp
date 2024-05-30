@@ -54,4 +54,4 @@ backend::BufferView backend_view(const IAttributeSlot& a) noexcept
 {
     return backend_view(a.attribute());
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

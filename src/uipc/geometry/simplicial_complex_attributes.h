@@ -4,23 +4,21 @@
 
 namespace uipc::geometry
 {
-template <typename SimplexSlotT>
-    requires std::is_base_of_v<ISimplexSlot, SimplexSlotT>
+template <std::derived_from<ISimplexSlot> SimplexSlotT>
 class SimplicialComplexAttributes;
 
-template <typename SimplexSlotT>
-    requires std::is_base_of_v<ISimplexSlot, SimplexSlotT>
+template <std::derived_from<ISimplexSlot> SimplexSlotT>
 class SimplicialComplexTopo;
 
 /**
 * @brief A wrapper of the topology of the simplicial complex.
 */
-template <typename SimplexSlotT>
-    requires std::is_base_of_v<ISimplexSlot, SimplexSlotT>
+template <std::derived_from<ISimplexSlot> SimplexSlotT>
 class SimplicialComplexTopo
 {
     friend class SimplicialComplexAttributes<SimplexSlotT>;
 
+    // Note: SimplexSlotT can be const or non-const
   public:
     /**
      * @brief Get a non-const view of the topology, this function may clone the data.
@@ -32,7 +30,10 @@ class SimplicialComplexTopo
      * @brief Get the backend view of the topology, this function guarantees no data clone.
      */
     template <IndexT N>
-    friend backend::BufferView backend_view(const SimplicialComplexTopo<SimplexSlot<N>>&& v) noexcept;
+    friend backend::BufferView backend_view(SimplicialComplexTopo<SimplexSlot<N>>&& v) noexcept;
+
+    template <IndexT N>
+    friend backend::BufferView backend_view(SimplicialComplexTopo<const SimplexSlot<N>>&& v) noexcept;
 
     /**
      * @brief Get a const view of the topology, this function guarantees no data clone.
@@ -54,19 +55,15 @@ class SimplicialComplexTopo<VertexSlot>
     friend class SimplicialComplexAttributes<VertexSlot>;
 
   public:
-    static constexpr IndexT Dimension = VertexSlot::Dimension;
-
-    using ValueT = typename VertexSlot::ValueT;
-
     /**
      * @brief Get a non-const view of the topology, this function may clone the data.
      */
-    friend span<IndexT> view(SimplicialComplexTopo<VertexSlot>&& v);
+    friend span<typename VertexSlot::ValueT> view(SimplicialComplexTopo<VertexSlot>&& v);
 
     /**
      * @brief Get the backend view of the topology, this function guarantees no data clone.
      */
-    friend backend::BufferView backend_view(const SimplicialComplexTopo<VertexSlot>&& v) noexcept;
+    friend backend::BufferView backend_view(SimplicialComplexTopo<VertexSlot>&& v) noexcept;
 
     /**
      * @brief Get a const view of the topology, this function guarantees no data clone.
@@ -82,14 +79,41 @@ class SimplicialComplexTopo<VertexSlot>
     VertexSlot& m_topology;
 };
 
+template <>
+class SimplicialComplexTopo<const VertexSlot>
+{
+    friend class SimplicialComplexAttributes<const VertexSlot>;
+
+  public:
+    /**
+     * @brief Get the backend view of the topology, this function guarantees no data clone.
+     */
+    friend backend::BufferView backend_view(SimplicialComplexTopo<const VertexSlot>&& v) noexcept;
+
+    /**
+     * @brief Get a const view of the topology, this function guarantees no data clone.
+     */
+    [[nodiscard]] auto view() && noexcept { return m_topology.view(); }
+
+    /**
+     * @brief Query if the topology is owned by current simplicial complex.
+     */
+    [[nodiscard]] bool is_shared() && noexcept;
+
+  private:
+    SimplicialComplexTopo(const VertexSlot& topo);
+    const VertexSlot& m_topology;
+};
+
 /**
  * @brief A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.
  */
-template <typename SimplexSlotT>
-    requires std::is_base_of_v<ISimplexSlot, SimplexSlotT>
+template <std::derived_from<ISimplexSlot> SimplexSlotT>
 class SimplicialComplexAttributes
 {
     using Topo = SimplicialComplexTopo<SimplexSlotT>;
+    using AutoAttributeCollection =
+        std::conditional_t<std::is_const_v<SimplexSlotT>, const AttributeCollection, AttributeCollection>;
 
   public:
     SimplicialComplexAttributes(const SimplicialComplexAttributes& o) = default;
@@ -104,18 +128,24 @@ class SimplicialComplexAttributes
 	 * @return Topo 
 	 */
     [[nodiscard]] Topo topo() noexcept;
+
+    [[nodiscard]] Topo topo() const noexcept;
+
     /**
      * @sa [AttributeCollection::resize()](../AttributeCollection/#resize)
      */
-    void resize(SizeT size);
+    void resize(SizeT size)
+        requires(!std::is_const_v<SimplexSlotT>);
     /**
      * @sa [AttributeCollection::reserve()](../AttributeCollection/#reserve)
      */
-    void reserve(SizeT size);
+    void reserve(SizeT size)
+        requires(!std::is_const_v<SimplexSlotT>);
     /**
      * @sa [AttributeCollection::clear()](../AttributeCollection/#clear)
      */
-    void clear();
+    void clear()
+        requires(!std::is_const_v<SimplexSlotT>);
     /**
      * @sa [AttributeCollection::size()](../AttributeCollection/#size)
      */
@@ -123,7 +153,8 @@ class SimplicialComplexAttributes
     /**
      * @sa [AttributeCollection::destroy()](../AttributeCollection/#destroy) 
      */
-    void destroy(std::string_view name);
+    void destroy(std::string_view name)
+        requires(!std::is_const_v<SimplexSlotT>);
 
     /**
      * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
@@ -157,10 +188,11 @@ class SimplicialComplexAttributes
 
   private:
     friend class SimplicialComplex;
-    Topo                 m_topology;
-    AttributeCollection& m_attributes;
+    SimplexSlotT&            m_topology;
+    AutoAttributeCollection& m_attributes;
 
-    SimplicialComplexAttributes(SimplexSlotT& topology, AttributeCollection& attributes) noexcept;
+    SimplicialComplexAttributes(SimplexSlotT&            topology,
+                                AutoAttributeCollection& attributes) noexcept;
 };
 }  // namespace uipc::geometry
 

@@ -120,4 +120,4 @@ AttributeCollection& AttributeCollection::operator=(AttributeCollection&& o) noe
     return *this;
 }
 
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

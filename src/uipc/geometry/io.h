@@ -38,7 +38,7 @@ class SimplicialComplexIO
 	 */
 	[[nodiscard]] SimplicialComplex read_obj(std::string_view file_name);
 };
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries
 
 namespace uipc::geometry
 {
@@ -47,4 +47,4 @@ class GeometryIOError : public Exception
   public:
     using Exception::Exception;
 };
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

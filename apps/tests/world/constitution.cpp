@@ -6,18 +6,28 @@
 #include <iostream>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/constitutions/affine_body.h>
-#include <rapidcsv.h>
 #include <uipc/common/format.h>
+#include <uipc/world/object.h>
 
 using namespace uipc;
 using namespace uipc::world;
 using namespace uipc::constitution;
 
-TEST_CASE("constitution", "[world]")
+TEST_CASE("abd", "[constitution]")
 {
-    AffineBodyConstitution        constitution;
+    Scene scene;
+    auto& constitution_tabular = scene.constitution_tabular();
+    auto& abd = constitution_tabular.create<AffineBodyConstitution>();
+
     geometry::SimplicialComplexIO io;
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
-    auto wood_abd = constitution.create_material(1e8);
-    wood_abd.apply_to(mesh0);
+    auto wood_abd = abd.create_material(1e8);
+
+    auto kappa = wood_abd.apply_to(mesh0);
+    mesh0.instances().resize(5);
+    REQUIRE(kappa->size() == mesh0.instances().size());
+    REQUIRE(std::ranges::all_of(kappa->view(), [](auto v) { return v == 1e8; }));
+
+    // this name is important for the AffineBodyConstitution
+    REQUIRE(kappa->name() == "abd::kappa");
 }

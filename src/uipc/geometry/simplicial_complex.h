@@ -14,7 +14,7 @@ namespace uipc::geometry
  * $$
  * where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of triangles, and $T$ is the set of tetrahedra.
  * 
- * @sa [Tutorial/Geometry](../../../../tutorial/geometry.md)
+ * @sa [Tutorial/Geometry](../../../../tutorial/geometries.md)
  */
 class SimplicialComplex : public Geometry
 {
@@ -24,26 +24,31 @@ class SimplicialComplex : public Geometry
      * 
      * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
      */
-    using VertexAttributes = SimplicialComplexAttributes<VertexSlot>;
+    using VertexAttributes  = SimplicialComplexAttributes<VertexSlot>;
+    using CVertexAttributes = SimplicialComplexAttributes<const VertexSlot>;
     /**
      * @brief Alias for the edge attributes
      * 
      * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
      */
-    using EdgeAttributes = SimplicialComplexAttributes<EdgeSlot>;
+    using EdgeAttributes  = SimplicialComplexAttributes<EdgeSlot>;
+    using CEdgeAttributes = SimplicialComplexAttributes<const EdgeSlot>;
     /**
      * @brief Alias for the triangle attributes
      * 
      * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
      */
-    using TriangleAttributes = SimplicialComplexAttributes<TriangleSlot>;
+    using TriangleAttributes  = SimplicialComplexAttributes<TriangleSlot>;
+    using CTriangleAttributes = SimplicialComplexAttributes<const TriangleSlot>;
     /**
      * @brief Alias for the tetrahedron attributes
      *
      * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
      */
     using TetrahedronAttributes = SimplicialComplexAttributes<TetrahedronSlot>;
+    using CTetrahedronAttributes = SimplicialComplexAttributes<const TetrahedronSlot>;
 
+    SimplicialComplex() = default;
     SimplicialComplex(const AbstractSimplicialComplex& asc, span<const Vector3> positions);
     SimplicialComplex(const SimplicialComplex& o)            = default;
     SimplicialComplex(SimplicialComplex&& o)                 = default;
@@ -69,26 +74,32 @@ class SimplicialComplex : public Geometry
      * 
      * @return VertexAttributes 
      */
-    [[nodiscard]] VertexAttributes vertices();
+    [[nodiscard]] VertexAttributes  vertices();
+    [[nodiscard]] CVertexAttributes vertices() const;
 
     /**
      * @brief A wrapper of the edges and its attributes of the simplicial complex.
      * 
      * @return EdgeAttributes 
      */
-    [[nodiscard]] EdgeAttributes edges();
+    [[nodiscard]] EdgeAttributes  edges();
+    [[nodiscard]] CEdgeAttributes edges() const;
+
+
     /**
      * @brief  A wrapper of the triangles and its attributes of the simplicial complex.
      * 
      * @return TriangleAttributes 
      */
-    [[nodiscard]] TriangleAttributes triangles();
+    [[nodiscard]] TriangleAttributes  triangles();
+    [[nodiscard]] CTriangleAttributes triangles() const;
     /**
      * @brief A wrapper of the tetrahedra and its attributes of the simplicial complex.
      * 
      * @return TetrahedronAttributes 
      */
-    [[nodiscard]] TetrahedronAttributes tetrahedra();
+    [[nodiscard]] TetrahedronAttributes  tetrahedra();
+    [[nodiscard]] CTetrahedronAttributes tetrahedra() const;
 
     /**
      * @brief Get the dimension of the simplicial complex.

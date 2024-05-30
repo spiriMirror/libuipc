@@ -7,17 +7,18 @@ namespace uipc::world
 class ContactElement
 {
   public:
+    ContactElement() = default;
+    ContactElement(IndexT id, std::string_view name) noexcept;
     IndexT           id() const noexcept;
     std::string_view name() const noexcept;
 
     friend void to_json(Json& j, const ContactElement& element);
     friend void from_json(const Json& j, ContactElement& element);
 
-    void apply_to(geometry::Geometry& geo);
+    void apply_to(geometry::Geometry& geo) const;
+
   private:
-    friend class ContactTabular;
-    ContactElement(IndexT id, std::string_view name) noexcept;
-    IndexT      m_id;
+    IndexT      m_id = -1;
     std::string m_name;
 };
 

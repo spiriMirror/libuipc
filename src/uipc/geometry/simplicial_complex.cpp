@@ -1,29 +1,10 @@
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/common/log.h>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/builtin/geometry_type.h>
 
 namespace uipc::geometry
 {
-backend::BufferView backend_view(const SimplicialComplexTopo<VertexSlot>&& v) noexcept
-{
-    return backend_view(v.m_topology);
-}
-
-span<IndexT> view(SimplicialComplexTopo<VertexSlot>&& v)
-{
-    return view(v.m_topology);
-}
-
-bool SimplicialComplexTopo<VertexSlot>::is_shared() && noexcept
-{
-    return m_topology.is_shared();
-}
-
-SimplicialComplexTopo<VertexSlot>::SimplicialComplexTopo(VertexSlot& v)
-    : m_topology{v}
-{
-}
-
 SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
                                      span<const Vector3>              positions)
     : m_asc{asc}
@@ -59,9 +40,19 @@ auto SimplicialComplex::vertices() -> VertexAttributes
     return VertexAttributes(m_asc.m_vertices, m_vertex_attributes);
 }
 
+auto SimplicialComplex::vertices() const -> CVertexAttributes
+{
+    return CVertexAttributes(m_asc.m_vertices, m_vertex_attributes);
+}
+
 auto SimplicialComplex::edges() -> EdgeAttributes
 {
     return EdgeAttributes(m_asc.m_edges, m_edge_attributes);
+}
+
+auto SimplicialComplex::edges() const -> CEdgeAttributes
+{
+    return CEdgeAttributes(m_asc.m_edges, m_edge_attributes);
 }
 
 auto SimplicialComplex::triangles() -> TriangleAttributes
@@ -69,9 +60,19 @@ auto SimplicialComplex::triangles() -> TriangleAttributes
     return TriangleAttributes(m_asc.m_triangles, m_triangle_attributes);
 }
 
+auto SimplicialComplex::triangles() const -> CTriangleAttributes
+{
+    return CTriangleAttributes(m_asc.m_triangles, m_triangle_attributes);
+}
+
 auto SimplicialComplex::tetrahedra() -> TetrahedronAttributes
 {
     return TetrahedronAttributes(m_asc.m_tetrahedra, m_tetrahedron_attributes);
+}
+
+auto SimplicialComplex::tetrahedra() const -> CTetrahedronAttributes
+{
+    return CTetrahedronAttributes(m_asc.m_tetrahedra, m_tetrahedron_attributes);
 }
 
 IndexT SimplicialComplex::dim() const
@@ -87,6 +88,6 @@ IndexT SimplicialComplex::dim() const
 
 std::string_view SimplicialComplex::get_type() const
 {
-    return "SimplicialComplex";
+    return builtin::SimplicialComplex;
 }
 }  // namespace uipc::geometry

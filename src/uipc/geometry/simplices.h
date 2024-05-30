@@ -132,6 +132,6 @@ using Triangles = Simplices<2>;
  * $T=\{(i,j,k,l) \mid i,j,k,l\in V, i\neq j\neq k\neq l\}$, where $V$ is the set of vertices.
  */
 using Tetrahedra = Simplices<3>;
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries
 
 #include "details/simplices.inl"

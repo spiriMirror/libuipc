@@ -174,6 +174,6 @@ using TriangleSlot = SimplexSlot<2>;
  * @brief Alias for a slot for tetrahedra in an abstract simplicial complex.
  */
 using TetrahedronSlot = SimplexSlot<3>;
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries
 
 #include "details/simplex_slot.inl"

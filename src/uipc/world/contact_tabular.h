@@ -13,7 +13,7 @@ class ContactTabular
   public:
     ContactTabular() noexcept;
 
-    ContactElement create(std::string_view name = "") noexcept;
+    ContactElement& create(std::string_view name = "") noexcept;
 
     void insert(const ContactElement& L,
                 const ContactElement& R,
@@ -22,7 +22,7 @@ class ContactTabular
                 const Json&           config = {});
 
     void default_model(Float friction_rate, Float resistance, const Json& config = {}) noexcept;
-    ContactElement      default_element() noexcept;
+    ContactElement& default_element() noexcept;
 
     const ContactModel& default_model() const noexcept;
 
@@ -33,6 +33,6 @@ class ContactTabular
   private:
     IndexT                       m_current_id;
     mutable vector<ContactModel> m_models;
-    vector<ContactElement>       m_elements;
+    vector<U<ContactElement>>    m_elements;
 };
 }  // namespace uipc::world

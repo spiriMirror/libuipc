@@ -34,4 +34,4 @@ backend::BufferView backend_view(const IAttribute& a) noexcept
 {
     return a.backend_view();
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

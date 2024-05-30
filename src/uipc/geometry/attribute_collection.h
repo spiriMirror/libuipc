@@ -8,9 +8,9 @@
 namespace uipc::geometry
 {
 /**
- * @brief A collection of geometry attributes.
+ * @brief A collection of geometries attributes.
  *
- * All geometry attributes in the collection always have the same size.
+ * All geometries attributes in the collection always have the same size.
  */
 class AttributeCollection
 {
@@ -36,7 +36,7 @@ class AttributeCollection
     /**
      * @brief Share the underlying attribute of the given slot with a new name.
      * 
-     * The slot may be from another geometry attribute collection or just current geometry attribute collection.
+     * The slot may be from another geometries attribute collection or just current geometries attribute collection.
      * @param name The name of the attribute slot.
      * @param slot The slot brings the underlying attribute.
      * @return The new created attribute slot.
@@ -132,6 +132,6 @@ class AttributeSizeMismatch : public Exception
   public:
     using Exception::Exception;
 };
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries
 
 #include "details/attribute_collection.inl"

@@ -8,18 +8,14 @@ class AffineBodyConstitution;
 class AffineBodyMaterial
 {
   public:
-    void apply_to(geometry::SimplicialComplex& sc) const;
-
-    AffineBodyMaterial(const AffineBodyMaterial&)            = default;
-    AffineBodyMaterial(AffineBodyMaterial&&)                 = default;
-    AffineBodyMaterial& operator=(const AffineBodyMaterial&) = default;
-    AffineBodyMaterial& operator=(AffineBodyMaterial&&)      = default;
+    P<geometry::AttributeSlot<Float>> apply_to(geometry::SimplicialComplex& sc) const;
 
   private:
     friend class AffineBodyConstitution;
-    Float m_kappa;
     AffineBodyMaterial(const AffineBodyConstitution&, Float kappa) noexcept;
+
     const AffineBodyConstitution& m_constitution;
+    Float                         m_kappa;
 };
 
 class AffineBodyConstitution : public world::IConstitution
@@ -28,11 +24,13 @@ class AffineBodyConstitution : public world::IConstitution
 
   public:
     AffineBodyConstitution() noexcept;
-    AffineBodyMaterial create_material(Float kappa) const;
+    AffineBodyMaterial create_material(Float kappa) const noexcept;
 
-  public:
-    virtual U64 get_uid() const override;
+    P<geometry::AttributeSlot<Float>> apply_to(geometry::SimplicialComplex& sc,
+                                               Float kappa) const;
 
-    void apply_to(geometry::SimplicialComplex& sc, Float kappa) const;
+  protected:
+    virtual U64 get_uid() const noexcept override;
+    virtual std::string_view get_name() const noexcept override;
 };
 }  // namespace uipc::constitution

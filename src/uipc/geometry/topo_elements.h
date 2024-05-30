@@ -71,4 +71,4 @@ class ITopoElements
   private:
     backend::BufferView backend_view() const noexcept;
 };
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

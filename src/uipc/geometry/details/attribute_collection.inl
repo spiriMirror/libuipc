@@ -41,4 +41,4 @@ P<const AttributeSlot<T>> AttributeCollection::find(std::string_view name) const
     auto slot = this->find(name);
     return std::dynamic_pointer_cast<const AttributeSlot<T>>(slot.lock());
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

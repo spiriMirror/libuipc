@@ -9,7 +9,7 @@
 namespace uipc::geometry
 {
 /**
- * @brief An abstract class to represent a geometry attribute.
+ * @brief An abstract class to represent a geometries attribute.
  */
 class IAttribute
 {
@@ -42,7 +42,7 @@ class IAttribute
 };
 
 /**
- * @brief Template class to represent a geometry attribute of type T.
+ * @brief Template class to represent a geometries attribute of type T.
  * 
  * @tparam T The type of the attribute values.
  */
@@ -92,6 +92,6 @@ class Attribute : public IAttribute
     vector<T>           m_values;
     T                   m_default_value;
 };
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries
 
 #include "details/attribute.inl"

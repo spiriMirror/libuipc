@@ -46,7 +46,7 @@ void Geometry::InstanceAttributes::destroy(std::string_view name)
 
 Geometry::Geometry()
 {
-    m_meta.resize(1);      // only one meta for one geometry
+    m_meta.resize(1);      // only one meta for one geometries
     m_intances.resize(1);  // default only one instance
     Matrix4x4 I = Eigen::Transform<Float, 3, Eigen::Affine>::Identity().matrix();
     auto trans = m_intances.create<Matrix4x4, false>(builtin::transform, I);
@@ -71,4 +71,4 @@ auto Geometry::instances() -> InstanceAttributes
 {
     return InstanceAttributes{m_intances};
 }
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

@@ -7,7 +7,7 @@ using namespace uipc;
 using namespace uipc::geometry;
 
 
-TEST_CASE("shared_test", "[geometry]")
+TEST_CASE("shared_attribute", "[simplicial_complex]")
 {
     std::vector           Vs = {Vector3{0.0, 0.0, 0.0},
                                 Vector3{1.0, 0.0, 0.0},
@@ -112,7 +112,7 @@ SimplicialComplex create_point_cloud()
 }
 
 
-TEST_CASE("create_delete_share_attribute", "[geometry]")
+TEST_CASE("create_delete_share_attribute", "[simplicial_complex]")
 {
     auto mesh = create_tetrahedron();
 
@@ -141,4 +141,27 @@ TEST_CASE("create_delete_share_attribute", "[geometry]")
     REQUIRE(VA.find<Vector3>("velocity")->is_shared());
 
     REQUIRE_THROWS_AS(VA.share("velocity", point_cloud.positions()), AttributeSizeMismatch);
+}
+
+TEST_CASE("const_attribute", "[simplicial_complex]")
+{
+    auto mesh = create_tetrahedron();
+
+    const auto& const_mesh = mesh;
+
+    auto VA  = mesh.vertices();
+    auto CVA = const_mesh.vertices();
+
+    REQUIRE(CVA.size() == VA.size());
+    REQUIRE(CVA.find<Vector3>(builtin::position));
+    REQUIRE(std::ranges::equal(VA.topo().view(), CVA.topo().view()));
+
+    auto TA  = mesh.tetrahedra();
+    auto CTA = const_mesh.tetrahedra();
+
+    REQUIRE(TA.size() == CTA.size());
+    REQUIRE(!CTA.find<U64>("FAKE"));
+    REQUIRE(!CTA.topo().is_shared());
+
+    REQUIRE(std::ranges::equal(TA.topo().view(), CTA.topo().view()));
 }

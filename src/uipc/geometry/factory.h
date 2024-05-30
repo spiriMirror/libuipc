@@ -37,4 +37,4 @@ namespace uipc::geometry
  * @return SimplicialComplex 
  */
 [[nodiscard]] SimplicialComplex pointcloud(span<const Vector3> Vs);
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

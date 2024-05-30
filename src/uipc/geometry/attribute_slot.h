@@ -9,7 +9,7 @@ namespace uipc::geometry
 {
 class AttributeCollection;
 /**
- * @brief An abstract class to represent a geometry attribute slot in a geometry attribute collection.
+ * @brief An abstract class to represent a geometries attribute slot in a geometries attribute collection.
  * 
  */
 class IAttributeSlot
@@ -35,8 +35,8 @@ class IAttributeSlot
     /**
      * @brief Check if the underlying attribute is shared.
      * 
-     * @return true, if the underlying attribute is shared, more than one geometry reference to the underlying attribute.
-     * @return false, if the underlying attribute is owned, only this geometry reference to the underlying attribute. 
+     * @return true, if the underlying attribute is shared, more than one geometries reference to the underlying attribute.
+     * @return false, if the underlying attribute is owned, only this geometries reference to the underlying attribute. 
      */
     [[nodiscard]] bool  is_shared() const noexcept;
     [[nodiscard]] SizeT size() const noexcept;
@@ -64,7 +64,7 @@ class IAttributeSlot
 };
 
 /**
- * @brief Template class to represent a geometry attribute slot of type T in a geometry attribute collection.
+ * @brief Template class to represent a geometries attribute slot of type T in a geometries attribute collection.
  * 
  * @tparam T The type of the attribute values.
  */
@@ -110,6 +110,6 @@ class AttributeSlot final : public IAttributeSlot
     S<Attribute<T>> m_attribute;
     bool            m_allow_destroy;
 };
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries
 
 #include "details/attribute_slot.inl"

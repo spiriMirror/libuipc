@@ -27,28 +27,25 @@ Though a component share the same constitution and contact model, the **coeffici
 To create an object, you can do the following:
 
 ```cpp
-uipc::world::Scene scene;
-auto& neo_hookean = scene.create<Constitution>("neo_hookean");
+world::Scene scene;
+auto& constitution_tabular = scene.constitution_tabular();
+auto& contact_tabular = scene.contact_tabular();
 
-auto& wood_contact = scene.create<ContactModel>("wood"); // contact model id = 0;
-auto& rubber_contact = scene.create<ContactModel>("rubber"); // contact model id = 1;
-auto& tabular = scene.contact_tabular();
+// create a constitution
+auto& abd = constitution_tabular.create<AffineBodyConstitution>();
 
+// create a contact model
+auto& wood_contact = contact_tabular.create("wood");
 // self contact
-tabular.insert(contact_model1, resitution, friction);
-// contact with other object
-tabular.insert(contact_model1, contact_model2, resitution, friction);
+contact_tabular.insert(wood_contact, wood_contact, 0.5, 1e8);
 
 SimplicialComplexIO io;
 auto cube = io.read("cube.msh");
 
 wood_contact.apply_to(cube);
-neo_hookean.apply_to(cube);
+abd.apply_to(cube);
 
-auto& object = scene.create<Object>();
-{
-    object.push_back(cube);
-}
+
 ```
 
 ## Constitution

@@ -5,15 +5,15 @@
 namespace uipc::geometry
 {
 /**
- * @brief An abstract class for geometry
+ * @brief An abstract class for geometries
  */
 class IGeometry
 {
   public:
     /**
-     * @brief Get the type of the geometry, check the type to downcast the geometry to a specific type
+     * @brief Get the type of the geometries, check the type to downcast the geometries to a specific type
      * 
-     * @return a string_view of the type of the geometry
+     * @return a string_view of the type of the geometries
      */
     [[nodiscard]] std::string_view type() const;
     virtual ~IGeometry() = default;
@@ -23,13 +23,13 @@ class IGeometry
 };
 
 /**
- * @brief A base geometry class that contains the instance attributes and the meta attributes.
+ * @brief A base geometries class that contains the instance attributes and the meta attributes.
  */
 class Geometry : public IGeometry
 {
   public:
     /**
-     * @brief A wrapper class for the meta attributes of a geometry.
+     * @brief A wrapper class for the meta attributes of a geometries.
      */
     class MetaAttributes
     {
@@ -63,7 +63,7 @@ class Geometry : public IGeometry
     };
 
     /**
-     * @brief A wrapper class for the instance attributes of a geometry.
+     * @brief A wrapper class for the instance attributes of a geometries.
      */
     class InstanceAttributes
     {
@@ -142,15 +142,15 @@ class Geometry : public IGeometry
     [[nodiscard]] const AttributeSlot<Matrix4x4>& transforms() const;
 
     /**
-     * @brief Get the meta attributes of the geometry.
+     * @brief Get the meta attributes of the geometries.
      * 
-     * @return The meta attributes of the geometry. 
+     * @return The meta attributes of the geometries. 
      */
     [[nodiscard]] MetaAttributes meta();
     /**
-     * @brief Get the instance attributes of the geometry.
+     * @brief Get the instance attributes of the geometries.
      * 
-     * @return  The instance attributes of the geometry.
+     * @return  The instance attributes of the geometries.
      */
     [[nodiscard]] InstanceAttributes instances();
 
@@ -158,4 +158,4 @@ class Geometry : public IGeometry
     AttributeCollection m_intances;
     AttributeCollection m_meta;
 };
-}  // namespace uipc::geometry
+}  // namespace uipc::geometries

@@ -14,13 +14,13 @@ ContactTabular::ContactTabular() noexcept
     insert(default_element, default_element, 0.5, 1e8, {});
 }
 
-ContactElement ContactTabular::create(std::string_view name) noexcept
+ContactElement& ContactTabular::create(std::string_view name) noexcept
 {
     std::string name_str{name};
     if(name_str.empty())
         name_str = fmt::format("_{}", m_current_id);
-    m_elements.push_back({m_current_id++, name_str});
-    return m_elements.back();
+    m_elements.push_back(std::make_unique<ContactElement>(m_current_id++, name_str));
+    return *m_elements.back();
 }
 
 void ContactTabular::insert(const ContactElement& L,
@@ -41,16 +41,16 @@ void ContactTabular::insert(const ContactElement& L,
                 R.id());
 
     // check if the name is matched.
-    UIPC_ASSERT(m_elements[L.id()].name() == L.name()
-                    && m_elements[R.id()].name() == R.name(),
+    UIPC_ASSERT(m_elements[L.id()]->name() == L.name()
+                    && m_elements[R.id()]->name() == R.name(),
                 "Contact element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
                 "It seems the contact element and contact model don't come from the same ContactTabular.",
                 L.id(),
                 L.name(),
-                m_elements[L.id()].name(),
+                m_elements[L.id()]->name(),
                 R.id(),
                 R.name(),
-                m_elements[R.id()].name());
+                m_elements[R.id()]->name());
 
     // ensure ids.x() < ids.y(), because the contact model is symmetric.
     if(ids.x() > ids.y())
@@ -66,9 +66,9 @@ void ContactTabular::insert(const ContactElement& L,
 
     UIPC_ASSERT(insert_place == m_models.end() || insert_place->ids() != ids,
                 "Contact model between {}[{}] and {}[{}] already exists.",
-                m_elements[L.id()].name(),
+                m_elements[L.id()]->name(),
                 L.id(),
-                m_elements[R.id()].name(),
+                m_elements[R.id()]->name(),
                 R.id());
 
     if(insert_place == m_models.end() || insert_place == m_models.begin())
@@ -85,9 +85,9 @@ void ContactTabular::insert(const ContactElement& L,
             UIPC_WARN_WITH_LOCATION(
                 "Contact model between {}[{}] and {}[{}] already exists, "
                 "replace the old one.",
-                m_elements[L.id()].name(),
+                m_elements[L.id()]->name(),
                 L.id(),
-                m_elements[R.id()].name(),
+                m_elements[R.id()]->name(),
                 R.id());
         }
         else
@@ -103,9 +103,9 @@ void ContactTabular::default_model(Float friction_rate, Float resistance, const 
     m_models.front() = ContactModel{Vector2i::Zero(), friction_rate, resistance, config};
 }
 
-ContactElement ContactTabular::default_element() noexcept
+ContactElement& ContactTabular::default_element() noexcept
 {
-    return m_elements.front();
+    return *m_elements.front();
 }
 
 const ContactModel& ContactTabular::default_model() const noexcept
@@ -120,7 +120,13 @@ std::span<const ContactModel> ContactTabular::contact_models() const noexcept
 
 void to_json(Json& j, const ContactTabular& ct)
 {
-    j["elements"] = ct.m_elements;
+    std::vector<ContactElement> elements(ct.m_elements.size());
+    std::transform(ct.m_elements.begin(),
+                   ct.m_elements.end(),
+                   elements.begin(),
+                   [](const auto& e) { return *e; });
+
+    j["elements"] = elements;
     j["models"]   = ct.m_models;
 }
 }  // namespace uipc::world

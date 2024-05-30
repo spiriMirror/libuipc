@@ -3,9 +3,14 @@
 
 namespace uipc::world
 {
-U64 IConstitution::uid() const
+U64 IConstitution::uid() const noexcept
 {
     return get_uid();
+}
+
+std::string_view IConstitution::name() const noexcept
+{
+    return get_name();
 }
 
 void IConstitution::apply_to(geometry::Geometry& geo) const
