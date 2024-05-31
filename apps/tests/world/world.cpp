@@ -45,13 +45,23 @@ TEST_CASE("simple_world", "[world]")
     SimplicialComplexIO io;
     auto mesh = io.read(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
 
+    // create 5 instances of the mesh, share the underlying mesh
+    mesh.instances().resize(5);
+
+    // apply the constitution to the geometry
+    // all the instances will have the same constitution
     abd.apply_to(mesh, 1e8);
 
-    object->geometries().create(mesh);
+    // copy the mesh to the object
+    // to create the geometry and the rest geometry for simulation
+    auto [geo, rest_geo] = object->geometries().create(mesh);
 
+    // initialize the world using the scene
     world.init(scene);
 
     std::size_t total_frames = 10;
+
+    // main loop
     while(total_frames--)
     {
         world.advance();
