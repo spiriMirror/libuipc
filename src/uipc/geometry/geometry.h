@@ -128,10 +128,11 @@ class Geometry : public IGeometry
 
     Geometry();
 
+    // allow copy and move on construction, because the geometry truely empty
     Geometry(const Geometry& o) = default;
     Geometry(Geometry&& o)      = default;
 
-    // don't allow copying
+    // no copy or move assignment, because the geometry is no longer empty
     Geometry& operator=(const Geometry& o) = delete;
     Geometry& operator=(Geometry&& o)      = delete;
 

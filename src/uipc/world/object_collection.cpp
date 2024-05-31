@@ -46,10 +46,10 @@ P<const ObjectSlot> ObjectCollection::find(IndexT id) const noexcept
 void ObjectCollection::destroy(IndexT id) noexcept
 {
     auto it = m_objects.find(id);
-    if(it == m_objects.end())
+    if(it != m_objects.end())
+        m_objects.erase(it);
+    else
         UIPC_WARN_WITH_LOCATION("Try to destroy object({}) that does not exist, ignored.", id);
-
-    m_objects.erase(it);
 }
 
 void ObjectCollection::pending_destroy(IndexT id) noexcept

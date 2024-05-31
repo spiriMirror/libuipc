@@ -25,8 +25,11 @@ TEST_CASE("scene", "[world]")
     auto [const_geo, const_rest_geo] =
         const_obj.geometries().find<SimplicialComplex>(0);
 
+    REQUIRE(const_geo);
+    REQUIRE(const_rest_geo);
+
     auto ID = object->id();
-    scene.objects().destroy(object->id());
+    scene.objects().destroy(ID);
 
     REQUIRE_ONCE_WARN(scene.objects().destroy(ID));
 }

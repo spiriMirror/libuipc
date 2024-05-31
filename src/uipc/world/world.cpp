@@ -14,9 +14,18 @@ void World::init(Scene& s)
     m_engine->init(backend::WorldVisitor{*this});
 }
 
-void World::advance() {}
+void World::advance()
+{
+    m_engine->advance();
+}
 
-void World::sync() {}
+void World::sync()
+{
+    m_engine->sync();
+}
 
-void World::retrieve() {}
+void World::retrieve()
+{
+    m_engine->retrieve();
+}
 }  // namespace uipc::world

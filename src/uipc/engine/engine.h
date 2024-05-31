@@ -22,6 +22,5 @@ class IEngine
     virtual void          do_advance()                     = 0;
     virtual void          do_sync()                        = 0;
     virtual void          do_retrieve()                    = 0;
-    virtual world::World& get_world() noexcept             = 0;
 };
 }  // namespace uipc::engine

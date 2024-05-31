@@ -50,6 +50,8 @@ class SimplicialComplex : public Geometry
 
     SimplicialComplex() = default;
     SimplicialComplex(const AbstractSimplicialComplex& asc, span<const Vector3> positions);
+
+    
     SimplicialComplex(const SimplicialComplex& o)            = default;
     SimplicialComplex(SimplicialComplex&& o)                 = default;
 
