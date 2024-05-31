@@ -15,11 +15,11 @@ class IGeometry
      * 
      * @return a string_view of the type of the geometries
      */
-    [[nodiscard]] std::string_view type() const;
+    [[nodiscard]] std::string_view type() const noexcept;
     virtual ~IGeometry() = default;
 
   protected:
-    [[nodiscard]] virtual std::string_view get_type() const = 0;
+    [[nodiscard]] virtual std::string_view get_type() const noexcept = 0;
 };
 
 /**
@@ -128,6 +128,13 @@ class Geometry : public IGeometry
 
     Geometry();
 
+    Geometry(const Geometry& o) = default;
+    Geometry(Geometry&& o)      = default;
+
+    // don't allow copying
+    Geometry& operator=(const Geometry& o) = delete;
+    Geometry& operator=(Geometry&& o)      = delete;
+
     /**
      * @brief A short-cut to get the non-const transforms attribute slot.
      * 
@@ -158,4 +165,4 @@ class Geometry : public IGeometry
     AttributeCollection m_intances;
     AttributeCollection m_meta;
 };
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry

@@ -1,6 +1,5 @@
-#include <catch.hpp>
+#include <app/test_common.h>
 #include <uipc/geometry.h>
-#include <spdlog/spdlog.h>
 #include <numeric>
 
 using namespace uipc;
@@ -129,7 +128,7 @@ TEST_CASE("create_delete_share_attribute", "[simplicial_complex]")
     REQUIRE_THROWS_AS(VA.create<Vector3>("velocity"), AttributeAlreadyExist);
 
     VA.destroy("velocity");
-    VA.destroy("velocity");
+    REQUIRE_ONCE_WARN(VA.destroy("velocity"));
 
     auto find_vel = VA.find<Vector3>("velocity");
     REQUIRE(!find_vel);

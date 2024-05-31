@@ -1,6 +1,8 @@
 #pragma once
 #include <uipc/geometry/geometry.h>
-namespace uipc::world
+#include <uipc/geometry/geometry_slot.h>
+
+namespace uipc::geometry
 {
 class IGeometryCollection
 {
@@ -8,35 +10,40 @@ class IGeometryCollection
     virtual ~IGeometryCollection() = default;
     [[nodiscard]] SizeT size() const noexcept;
     void                clear() noexcept;
-    void                resize(SizeT size) noexcept;
     void                reserve(SizeT size) noexcept;
 
   protected:
     virtual SizeT get_size() const noexcept       = 0;
     virtual void  do_clear() noexcept             = 0;
-    virtual void  do_resize(SizeT size) noexcept  = 0;
     virtual void  do_reserve(SizeT size) noexcept = 0;
 };
 
-template <std::derived_from<geometry::Geometry> GeometryT>
-    requires(!std::is_const_v<GeometryT>)
 class GeometryCollection : public IGeometryCollection
 {
   public:
     GeometryCollection() = default;
-    void                                push_back(const GeometryT& geometry);
-    void                                push_back(const GeometryT&& geometry);
-    span<GeometryT>                     view() noexcept;
-    [[nodiscard]] span<const GeometryT> view() const noexcept;
+
+    template <std::derived_from<geometry::Geometry> GeometryT>
+        requires(!std::is_abstract_v<GeometryT>)
+    P<geometry::GeometrySlot<GeometryT>> emplace(const GeometryT& geometry);
+
+    template <std::derived_from<geometry::Geometry> GeometryT>
+        requires(!std::is_abstract_v<GeometryT>)
+    P<geometry::GeometrySlot<GeometryT>> find(IndexT id) noexcept;
+
+    template <std::derived_from<geometry::Geometry> GeometryT>
+        requires(!std::is_abstract_v<GeometryT>)
+    P<const geometry::GeometrySlot<GeometryT>> find(IndexT id) const noexcept;
+
+    void destroy(IndexT id) noexcept;
 
   protected:
-    virtual void  do_resize(SizeT size) noexcept override;
     virtual void  do_reserve(SizeT size) noexcept override;
     virtual void  do_clear() noexcept override;
     virtual SizeT get_size() const noexcept override;
 
   private:
-    vector<GeometryT> m_geometries;
+    unordered_map<IndexT, S<geometry::IGeometrySlot>> m_geometries;
 };
 }  // namespace uipc::world
 

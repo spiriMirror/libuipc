@@ -61,7 +61,7 @@ void ContactTabular::insert(const ContactElement& L,
         return L.ids().x() > R.x() || (L.ids().x() == R.x() && L.ids().y() > R.y());
     };
 
-    // find the place to insert the new contact model.
+    // find the place to create the new contact model.
     auto insert_place = std::upper_bound(m_models.begin(), m_models.end(), ids, pred);
 
     UIPC_ASSERT(insert_place == m_models.end() || insert_place->ids() != ids,
@@ -73,7 +73,7 @@ void ContactTabular::insert(const ContactElement& L,
 
     if(insert_place == m_models.end() || insert_place == m_models.begin())
     {
-        // insert the new contact model.
+        // create the new contact model.
         m_models.emplace(insert_place, ids, friction_rate, resistance, config);
     }
     else
@@ -92,7 +92,7 @@ void ContactTabular::insert(const ContactElement& L,
         }
         else
         {
-            // insert the new contact model.
+            // create the new contact model.
             m_models.emplace(insert_place, ids, friction_rate, resistance, config);
         }
     }

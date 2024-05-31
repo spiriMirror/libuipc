@@ -25,57 +25,57 @@ SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
     std::copy(positions.begin(), positions.end(), view_.begin());
 }
 
-AttributeSlot<Vector3>& SimplicialComplex::positions()
+AttributeSlot<Vector3>& SimplicialComplex::positions() noexcept
 {
     return *m_vertex_attributes.find<Vector3>(builtin::position);
 }
 
-const AttributeSlot<Vector3>& SimplicialComplex::positions() const
+const AttributeSlot<Vector3>& SimplicialComplex::positions() const noexcept
 {
     return *m_vertex_attributes.find<Vector3>(builtin::position);
 }
 
-auto SimplicialComplex::vertices() -> VertexAttributes
+auto SimplicialComplex::vertices() noexcept -> VertexAttributes
 {
     return VertexAttributes(m_asc.m_vertices, m_vertex_attributes);
 }
 
-auto SimplicialComplex::vertices() const -> CVertexAttributes
+auto SimplicialComplex::vertices() const noexcept -> CVertexAttributes
 {
     return CVertexAttributes(m_asc.m_vertices, m_vertex_attributes);
 }
 
-auto SimplicialComplex::edges() -> EdgeAttributes
+auto SimplicialComplex::edges() noexcept -> EdgeAttributes
 {
     return EdgeAttributes(m_asc.m_edges, m_edge_attributes);
 }
 
-auto SimplicialComplex::edges() const -> CEdgeAttributes
+auto SimplicialComplex::edges() const noexcept -> CEdgeAttributes
 {
     return CEdgeAttributes(m_asc.m_edges, m_edge_attributes);
 }
 
-auto SimplicialComplex::triangles() -> TriangleAttributes
+auto SimplicialComplex::triangles() noexcept -> TriangleAttributes
 {
     return TriangleAttributes(m_asc.m_triangles, m_triangle_attributes);
 }
 
-auto SimplicialComplex::triangles() const -> CTriangleAttributes
+auto SimplicialComplex::triangles() const noexcept -> CTriangleAttributes
 {
     return CTriangleAttributes(m_asc.m_triangles, m_triangle_attributes);
 }
 
-auto SimplicialComplex::tetrahedra() -> TetrahedronAttributes
+auto SimplicialComplex::tetrahedra() noexcept -> TetrahedronAttributes
 {
     return TetrahedronAttributes(m_asc.m_tetrahedra, m_tetrahedron_attributes);
 }
 
-auto SimplicialComplex::tetrahedra() const -> CTetrahedronAttributes
+auto SimplicialComplex::tetrahedra() const noexcept -> CTetrahedronAttributes
 {
     return CTetrahedronAttributes(m_asc.m_tetrahedra, m_tetrahedron_attributes);
 }
 
-IndexT SimplicialComplex::dim() const
+IndexT SimplicialComplex::dim() const noexcept
 {
     if(m_asc.m_tetrahedra.size() > 0)
         return 3;
@@ -86,7 +86,7 @@ IndexT SimplicialComplex::dim() const
     return 0;
 }
 
-std::string_view SimplicialComplex::get_type() const
+std::string_view SimplicialComplex::get_type() const noexcept
 {
     return builtin::SimplicialComplex;
 }

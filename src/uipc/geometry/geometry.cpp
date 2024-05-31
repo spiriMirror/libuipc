@@ -4,7 +4,7 @@
 
 namespace uipc::geometry
 {
-std::string_view IGeometry::type() const
+std::string_view IGeometry::type() const noexcept
 {
     return get_type();
 }

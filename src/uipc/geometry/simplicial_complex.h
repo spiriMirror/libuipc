@@ -52,38 +52,39 @@ class SimplicialComplex : public Geometry
     SimplicialComplex(const AbstractSimplicialComplex& asc, span<const Vector3> positions);
     SimplicialComplex(const SimplicialComplex& o)            = default;
     SimplicialComplex(SimplicialComplex&& o)                 = default;
-    SimplicialComplex& operator=(const SimplicialComplex& o) = default;
-    SimplicialComplex& operator=(SimplicialComplex&& o)      = default;
+
+    SimplicialComplex& operator=(const SimplicialComplex& o) = delete;
+    SimplicialComplex& operator=(SimplicialComplex&& o)      = delete;
 
     /**
      * @brief Get the positions of the vertices
      * 
      * @return AttributeSlot<Vector3>& 
      */
-    [[nodiscard]] AttributeSlot<Vector3>& positions();
+    [[nodiscard]] AttributeSlot<Vector3>& positions() noexcept;
 
     /**
      * @brief A short cut to get the positions of the vertices
      * 
      * @return const AttributeSlot<Vector3>& 
      */
-    [[nodiscard]] const AttributeSlot<Vector3>& positions() const;
+    [[nodiscard]] const AttributeSlot<Vector3>& positions() const noexcept;
 
     /**
      * @brief A wrapper of the vertices and its attributes of the simplicial complex.
      * 
      * @return VertexAttributes 
      */
-    [[nodiscard]] VertexAttributes  vertices();
-    [[nodiscard]] CVertexAttributes vertices() const;
+    [[nodiscard]] VertexAttributes  vertices() noexcept;
+    [[nodiscard]] CVertexAttributes vertices() const noexcept;
 
     /**
      * @brief A wrapper of the edges and its attributes of the simplicial complex.
      * 
      * @return EdgeAttributes 
      */
-    [[nodiscard]] EdgeAttributes  edges();
-    [[nodiscard]] CEdgeAttributes edges() const;
+    [[nodiscard]] EdgeAttributes  edges() noexcept;
+    [[nodiscard]] CEdgeAttributes edges() const noexcept;
 
 
     /**
@@ -91,15 +92,15 @@ class SimplicialComplex : public Geometry
      * 
      * @return TriangleAttributes 
      */
-    [[nodiscard]] TriangleAttributes  triangles();
-    [[nodiscard]] CTriangleAttributes triangles() const;
+    [[nodiscard]] TriangleAttributes  triangles() noexcept;
+    [[nodiscard]] CTriangleAttributes triangles() const noexcept;
     /**
      * @brief A wrapper of the tetrahedra and its attributes of the simplicial complex.
      * 
      * @return TetrahedronAttributes 
      */
-    [[nodiscard]] TetrahedronAttributes  tetrahedra();
-    [[nodiscard]] CTetrahedronAttributes tetrahedra() const;
+    [[nodiscard]] TetrahedronAttributes  tetrahedra() noexcept;
+    [[nodiscard]] CTetrahedronAttributes tetrahedra() const noexcept;
 
     /**
      * @brief Get the dimension of the simplicial complex.
@@ -108,10 +109,10 @@ class SimplicialComplex : public Geometry
      * 
      * @return IndexT 
      */
-    [[nodiscard]] IndexT dim() const;
+    [[nodiscard]] IndexT dim() const noexcept;
 
   protected:
-    virtual std::string_view get_type() const override;
+    virtual std::string_view get_type() const noexcept override;
 
   private:
     AbstractSimplicialComplex m_asc;

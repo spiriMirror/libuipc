@@ -2,6 +2,18 @@
 namespace uipc
 {
 template <typename T>
+T* P<T>::operator->()
+{
+    return std::as_const(*this).operator->();
+}
+
+template <typename T>
+T& P<T>::operator*()
+{
+    return *std::as_const(*this);
+}
+
+template <typename T>
 T* P<T>::operator->() const
 {
     auto ptr = Base::lock().get();

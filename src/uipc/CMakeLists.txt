@@ -26,6 +26,7 @@ add_subdirectory(world)
 add_subdirectory(backend)
 add_subdirectory(builtin)
 add_subdirectory(constitutions)
+add_subdirectory(engine)
 
 # add the source files in the current directory to the target uipc
 file(GLOB SOURCE "*.h" "*.cpp")

@@ -24,6 +24,8 @@ class P : public std::weak_ptr<T>
     using Base::Base;
     using Base::operator=;
 
+    T* operator->();
+    T& operator*();
     T* operator->() const;
     T& operator*() const;
     operator bool() const;
