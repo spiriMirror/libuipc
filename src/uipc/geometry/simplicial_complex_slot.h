@@ -84,6 +84,8 @@ class GeometrySlot<SimplicialComplex> : public IGeometrySlot
 
   protected:
     virtual IndexT get_id() const noexcept override;
+    virtual Geometry& get_geometry() noexcept override;
+    virtual const Geometry& get_geometry() const noexcept override;
 
   private:
     IndexT            m_id;

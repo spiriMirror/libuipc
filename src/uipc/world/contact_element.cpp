@@ -19,7 +19,7 @@ std::string_view ContactElement::name() const noexcept
     return m_name;
 }
 
-void ContactElement::apply_to(geometry::Geometry& geo) const
+P<geometry::AttributeSlot<IndexT>> ContactElement::apply_to(geometry::Geometry& geo) const
 {
     auto slot = geo.meta().find<IndexT>(builtin::contact_element_id);
     if(!slot)
@@ -31,6 +31,7 @@ void ContactElement::apply_to(geometry::Geometry& geo) const
         auto view    = geometry::view(*slot);
         view.front() = id();
     }
+    return slot;
 }
 
 void to_json(Json& j, const ContactElement& element)

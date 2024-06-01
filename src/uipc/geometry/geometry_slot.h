@@ -8,10 +8,14 @@ class IGeometrySlot
 {
   public:
     virtual ~IGeometrySlot() = default;
-    IndexT id() const noexcept;
+    IndexT          id() const noexcept;
+    Geometry&       geometry() noexcept;
+    const Geometry& geometry() const noexcept;
 
   protected:
-    virtual IndexT get_id() const noexcept = 0;
+    virtual IndexT          get_id() const noexcept       = 0;
+    virtual Geometry&       get_geometry() noexcept       = 0;
+    virtual const Geometry& get_geometry() const noexcept = 0;
 };
 
 template <std::derived_from<Geometry> GeometryT>

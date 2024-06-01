@@ -31,18 +31,21 @@ std::string_view AffineBodyConstitution::get_name() const noexcept
     return builtin::ConstitutionUIDRegister::instance().find(get_uid()).name;
 }
 
-P<geometry::AttributeSlot<Float>> AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
-                                                                   Float kappa) const
+P<geometry::AttributeSlot<Float>> AffineBodyConstitution::create_or_get(geometry::SimplicialComplex& sc) const
 {
     Base::apply_to(sc);
     auto P = sc.instances().find<Float>("abd::kappa");
     if(!P)
-        P = sc.instances().create<Float>("abd::kappa", kappa);
-    else
-    {
-        auto v = geometry::view(*P);
-        std::ranges::fill(v, kappa);
-    }
+        P = sc.instances().create<Float>("abd::kappa");
+    return P;
+}
+
+P<geometry::AttributeSlot<Float>> AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
+                                                                   Float kappa) const
+{
+    auto P = create_or_get(sc);
+    auto v = geometry::view(*P);
+    std::ranges::fill(v, kappa);
     return P;
 }
 }  // namespace uipc::constitution

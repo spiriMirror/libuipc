@@ -2,7 +2,6 @@
 #include <uipc/world/contact_tabular.h>
 #include <uipc/world/constitution_tabular.h>
 #include <uipc/world/object.h>
-#include <uipc/world/object_slot.h>
 #include <uipc/world/object_collection.h>
 
 namespace uipc::backend
@@ -16,6 +15,7 @@ class Scene
 {
     friend class backend::SceneVisitor;
     friend class World;
+    friend class Object;
 
   public:
     class Objects
@@ -23,10 +23,9 @@ class Scene
         friend class Scene;
 
       public:
-        P<ObjectSlot> create(std::string_view name = "") &&;
-        P<ObjectSlot> create(Object&& object) &&;
-        P<ObjectSlot> find(IndexT id) && noexcept;
-        void          destroy(IndexT id) &&;
+        P<Object> create(std::string_view name = "") &&;
+        P<Object> find(IndexT id) && noexcept;
+        void      destroy(IndexT id) &&;
 
       private:
         Objects(Scene& scene) noexcept;
@@ -38,7 +37,7 @@ class Scene
         friend class Scene;
 
       public:
-        P<const ObjectSlot> find(IndexT id) && noexcept;
+        P<const Object> find(IndexT id) && noexcept;
 
       private:
         CObjects(const Scene& scene) noexcept;
@@ -56,12 +55,15 @@ class Scene
     Objects objects();
 
   private:
-    ContactTabular                              m_contact_tabular;
-    ConstitutionTabular                         m_constitution_tabular;
-    ObjectCollection                            m_objects;
-    bool                                        m_is_running = false;
-    const set<IndexT>&                          pending_destroy() noexcept;
-    const unordered_map<IndexT, S<ObjectSlot>>& pending_create() noexcept;
-    void                                        solve_pending() noexcept;
+    ContactTabular      m_contact_tabular;
+    ConstitutionTabular m_constitution_tabular;
+    ObjectCollection    m_objects;
+
+    geometry::GeometryCollection m_geometries;
+    geometry::GeometryCollection m_rest_geometries;
+
+    bool m_started = false;
+    void solve_pending() noexcept;
 };
 }  // namespace uipc::world
+#include "details/scene.inl"

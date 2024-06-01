@@ -8,16 +8,6 @@ SceneVisitor::SceneVisitor(world::Scene& scene) noexcept
 {
 }
 
-const set<IndexT>& SceneVisitor::pending_destroy() noexcept
-{
-    return m_scene.pending_destroy();
-}
-
-const unordered_map<IndexT, S<world::ObjectSlot>>& SceneVisitor::pending_create() noexcept
-{
-    return m_scene.pending_create();
-}
-
 void SceneVisitor::solve_pending() noexcept
 {
     m_scene.solve_pending();

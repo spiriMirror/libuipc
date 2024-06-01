@@ -15,7 +15,7 @@ class ContactElement
     friend void to_json(Json& j, const ContactElement& element);
     friend void from_json(const Json& j, ContactElement& element);
 
-    void apply_to(geometry::Geometry& geo) const;
+    P<geometry::AttributeSlot<IndexT>> apply_to(geometry::Geometry& geo) const;
 
   private:
     IndexT      m_id = -1;

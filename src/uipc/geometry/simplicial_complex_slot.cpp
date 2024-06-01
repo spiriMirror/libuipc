@@ -77,4 +77,12 @@ IndexT GeometrySlot<SimplicialComplex>::get_id() const noexcept
 {
     return m_id;
 }
+Geometry& GeometrySlot<SimplicialComplex>::get_geometry() noexcept
+{
+    return m_simplicial_complex;
+}
+const Geometry& GeometrySlot<SimplicialComplex>::get_geometry() const noexcept
+{
+    return m_simplicial_complex;
+}
 }  // namespace uipc::geometry

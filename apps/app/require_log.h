@@ -51,6 +51,25 @@ class RequireLog
 
 }  // namespace uipc::test
 
+#define REQUIRE_ONCE_INFO(...)                                                 \
+    REQUIRE(::uipc::test::RequireLog<::spdlog::level::info>(                   \
+                [&]() { __VA_ARGS__; },                                        \
+                ::uipc::test::RequireLog<::spdlog::level::info>::Type::Once)   \
+                .success)
+
+#define REQUIRE_ALL_INFO(...)                                                  \
+    REQUIRE(::uipc::test::RequireLog<::spdlog::level::info>(                   \
+                [&]() { __VA_ARGS__; },                                        \
+                ::uipc::test::RequireLog<::spdlog::level::info>::Type::All)    \
+                .success)
+
+#define REQUIRE_HAS_INFO(...)                                                  \
+    REQUIRE(::uipc::test::RequireLog<::spdlog::level::info>(                   \
+                [&]() { __VA_ARGS__; },                                        \
+                ::uipc::test::RequireLog<::spdlog::level::info>::Type::Any)    \
+                .success)
+
+
 #define REQUIRE_ONCE_WARN(...)                                                 \
     REQUIRE(::uipc::test::RequireLog<::spdlog::level::warn>(                   \
                 [&]() { __VA_ARGS__; },                                        \

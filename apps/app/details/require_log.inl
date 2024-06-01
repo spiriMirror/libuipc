@@ -53,6 +53,8 @@ RequireLog<Level>::RequireLog(::std::function<void()> check, Type type)
         fmt::print(fg(fmt::terminal_color::green), "RequireLog Passes. Captured messages:\n");
         print_captured();
     }
+
+    sinks->m_msg.clear();
 };
 
 }  // namespace uipc::test

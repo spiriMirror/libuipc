@@ -21,10 +21,11 @@ TEST_CASE("abd", "[constitution]")
 
     geometry::SimplicialComplexIO io;
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
-    auto wood_abd = abd.create_material(1e8);
-
-    auto kappa = wood_abd.apply_to(mesh0);
     mesh0.instances().resize(5);
+
+    auto wood_abd = abd.create_material(1e8);
+    auto kappa = wood_abd.apply_to(mesh0);
+    
     REQUIRE(kappa->size() == mesh0.instances().size());
     REQUIRE(std::ranges::all_of(kappa->view(), [](auto v) { return v == 1e8; }));
 

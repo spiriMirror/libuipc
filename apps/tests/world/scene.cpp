@@ -22,14 +22,21 @@ TEST_CASE("scene", "[world]")
 
     const auto& const_obj = *object;
 
-    auto [const_geo, const_rest_geo] =
-        const_obj.geometries().find<SimplicialComplex>(0);
-
-    REQUIRE(const_geo);
-    REQUIRE(const_rest_geo);
-
     auto ID = object->id();
     scene.objects().destroy(ID);
 
     REQUIRE_ONCE_WARN(scene.objects().destroy(ID));
+
+    REQUIRE(geo.expired());
+    REQUIRE(rest_geo.expired());
+
+    object = scene.objects().create("cube1");
+
+    // create two geometries
+    object->geometries().create(mesh);
+    object->geometries().create(mesh);
+
+    REQUIRE(object->geometries().ids().size() == 2);
+    REQUIRE(object->geometries().ids()[0] == 1);
+    REQUIRE(object->geometries().ids()[1] == 2);
 }

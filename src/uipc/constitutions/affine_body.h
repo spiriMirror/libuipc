@@ -1,6 +1,8 @@
 #pragma once
 #include <uipc/world/constitution.h>
 #include <uipc/geometry/simplicial_complex.h>
+#include <random>
+
 namespace uipc::constitution
 {
 class AffineBodyConstitution;
@@ -30,7 +32,8 @@ class AffineBodyConstitution : public world::IConstitution
                                                Float kappa) const;
 
   protected:
-    virtual U64 get_uid() const noexcept override;
+    virtual U64              get_uid() const noexcept override;
     virtual std::string_view get_name() const noexcept override;
+    P<geometry::AttributeSlot<Float>> create_or_get(geometry::SimplicialComplex& sc) const;
 };
 }  // namespace uipc::constitution

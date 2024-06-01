@@ -27,9 +27,8 @@ TEST_CASE("obj", "[world]")
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
     auto wood_abd = abd.create_material(1e8);
 
-    Object obj;
-    auto [geo0, rest_geo0] = obj.geometries().create(mesh0);
-    auto [geo, rest_geo] = obj.geometries().find<geometry::SimplicialComplex>(0);
+    auto obj             = scene.objects().create("cube");
+    auto [geo, rest_geo] = obj->geometries().create(mesh0);
 
 
     auto V      = geo->positions().view();
@@ -52,19 +51,16 @@ TEST_CASE("const_obj", "[world]")
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
     auto wood_abd = abd.create_material(1e8);
 
-    Object obj;
-    obj.geometries().create(mesh0);
+    auto obj = scene.objects().create("cube");
 
-    const auto& const_obj = obj;
-    auto [const_geo, const_rest_geo] =
-        const_obj.geometries().find<geometry::SimplicialComplex>(0);
-    auto const_V      = const_geo->positions().view();
-    auto const_V_rest = const_rest_geo->positions().view();
+    auto [geo, rest_geo] = obj->geometries().create(mesh0);
 
+    auto V      = geo->positions().view();
+    auto V_rest = rest_geo->positions().view();
 
-    UNUSED const_geo->positions();
-    UNUSED const_geo->vertices();
-    UNUSED const_geo->edges();
-    UNUSED const_geo->triangles();
-    UNUSED const_geo->tetrahedra();
+    UNUSED geo->positions();
+    UNUSED geo->vertices();
+    UNUSED geo->edges();
+    UNUSED geo->triangles();
+    UNUSED geo->tetrahedra();
 }

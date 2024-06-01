@@ -12,6 +12,7 @@ void World::init(Scene& s)
 {
     m_scene = &s;
     m_engine->init(backend::WorldVisitor{*this});
+    m_scene->m_started = true;
 }
 
 void World::advance()

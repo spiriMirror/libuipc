@@ -11,6 +11,7 @@ using namespace uipc;
 using namespace uipc::world;
 using namespace uipc::geometry;
 using namespace uipc::engine;
+using namespace uipc::constitution;
 
 class NullEngine : public IEngine
 {
@@ -21,7 +22,7 @@ class NullEngine : public IEngine
     void do_advance() override
     {
         m_frame++;
-        fmt::print("[NullEngine] frame: {}\n", m_frame);
+        spdlog::info("[NullEngine] frame: {}", m_frame);
     }
     void do_sync() override {}
     void do_retrieve() override {}
@@ -33,20 +34,23 @@ TEST_CASE("simple_world", "[world]")
     World      world{engine};
 
     Scene scene;
-    auto& contact_tabular = scene.contact_tabular();
-    auto  default_contact = contact_tabular.default_element();
 
     auto& constitution_tabular = scene.constitution_tabular();
-    auto& abd = constitution_tabular.create<constitution::AffineBodyConstitution>();
+    auto& abd = constitution_tabular.create<AffineBodyConstitution>();
+
+    auto& contact_tabular = scene.contact_tabular();
+    auto  default_contact = contact_tabular.default_element();
 
 
     auto object = scene.objects().create("cube");
 
     SimplicialComplexIO io;
     auto mesh = io.read(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
-
     // create 5 instances of the mesh, share the underlying mesh
     mesh.instances().resize(5);
+
+    // apply the default contact information to the geometry
+    default_contact.apply_to(mesh);
 
     // apply the constitution to the geometry
     // all the instances will have the same constitution
@@ -61,11 +65,18 @@ TEST_CASE("simple_world", "[world]")
 
     std::size_t total_frames = 10;
 
-    // main loop
-    while(total_frames--)
-    {
-        world.advance();
-        world.sync();
-        world.retrieve();
-    }
+    REQUIRE_ALL_INFO(
+        // main loop
+        while(total_frames--) {
+            world.advance();
+            world.sync();
+            world.retrieve();
+        });
+
+    auto new_object = scene.objects().create("cube2");
+    new_object->geometries().create(mesh);
+
+    backend::WorldVisitor visitor{world};
+
+    visitor.scene().solve_pending();
 }

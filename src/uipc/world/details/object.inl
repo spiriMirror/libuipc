@@ -2,34 +2,33 @@ namespace uipc::world
 {
 template <std::derived_from<geometry::Geometry> GeometryT>
     requires(!std::is_abstract_v<GeometryT>)
-ObjectGeometrySlots<GeometryT> Object::Geometries::find(IndexT id) &&
+ObjectGeometrySlots<GeometryT> Object::Geometries::create(const GeometryT& geometry,
+                                                          const GeometryT& rest_geometry) &&
 {
-    return {m_object.m_geometries.find<GeometryT>(id),
-            m_object.m_rest_geometries.find<GeometryT>(id)};
-}
+    m_object.m_geometry_ids.push_back(m_object.geometry_collection().next_id());
 
-template <std::derived_from<geometry::Geometry> GeometryT>
-    requires(!std::is_abstract_v<GeometryT>)
-ObjectGeometrySlots<const GeometryT> Object::CGeometries::find(IndexT id) &&
-{
-    return {m_object.m_geometries.find<GeometryT>(id),
-            m_object.m_rest_geometries.find<GeometryT>(id)};
+    UIPC_ASSERT(m_object.geometry_collection().next_id()
+                    == m_object.rest_geometry_collection().next_id(),
+                "Geometry collection element count ({}) is not equal to rest geometry collection element count ({}), why?",
+                m_object.geometry_collection().size(),
+                m_object.rest_geometry_collection().size());
+
+    if(!m_object.scene_started())
+    {
+        return {m_object.geometry_collection().emplace(geometry),
+                m_object.rest_geometry_collection().emplace(rest_geometry)};
+    }
+    else
+    {
+        return {m_object.geometry_collection().pending_emplace(geometry),
+                m_object.rest_geometry_collection().pending_emplace(rest_geometry)};
+    }
 }
 
 template <std::derived_from<geometry::Geometry> GeometryT>
     requires(!std::is_abstract_v<GeometryT>)
 ObjectGeometrySlots<GeometryT> Object::Geometries::create(const GeometryT& geometry) &&
 {
-    return {m_object.m_geometries.emplace(geometry),
-            m_object.m_rest_geometries.emplace(geometry)};
-}
-
-template <std::derived_from<geometry::Geometry> GeometryT>
-    requires(!std::is_abstract_v<GeometryT>)
-ObjectGeometrySlots<GeometryT> Object::Geometries::create(const GeometryT& geometry,
-                                                   const GeometryT& rest_geometry) &&
-{
-    return {m_object.m_geometries.emplace(geometry),
-            m_object.m_rest_geometries.emplace(rest_geometry)};
+    return std::move(*this).template create<GeometryT>(geometry, geometry);
 }
 }  // namespace uipc::world
