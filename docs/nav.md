@@ -1,7 +1,7 @@
 * [Home](index.md)
 * [Tutorial](tutorial/index.md)
     * [Geometry](tutorial/geometry.md)
-    * [Object](tutorial/object.md)
+    * [Scene](tutorial/scene.md)
 * [Specification](specification/index.md)
     * [Constitution UID](specification/constitution_uid.md)
     * [Constitutions](specification/constitutions/)
