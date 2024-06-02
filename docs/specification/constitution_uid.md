@@ -10,6 +10,4 @@ The official constitution UID is defined in the `uipc/builtin/constitution_uid.h
 
 The related documentation of the constitution will be added to the [Constutitions/](./constitutions/index.md) directory.
 
-
-
 When applying a constitution to a geometry, the `constitution_uid` attribute of the `meta` attribute of the geometry will be set to the constitution UID. The backend will use this UID to determine the constitution of the geometry.

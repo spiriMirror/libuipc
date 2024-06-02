@@ -3,6 +3,9 @@
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/geometry/simplicial_complex_slot.h>
 
+#include <uipc/geometry/implicit_geometry.h>
+#include <uipc/geometry/implicit_geometry_slot.h>
+
 #include <uipc/geometry/factory.h>
 #include <uipc/geometry/io.h>
 #include <uipc/builtin/attribute_name.h>

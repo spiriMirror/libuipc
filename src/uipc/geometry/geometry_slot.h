@@ -23,6 +23,11 @@ class GeometrySlot
     const Geometry&   geometry() const noexcept;
     GeometrySlotState state() const noexcept;
 
+    GeometrySlot(const GeometrySlot&)            = delete;
+    GeometrySlot(GeometrySlot&&)                 = delete;
+    GeometrySlot& operator=(const GeometrySlot&) = delete;
+    GeometrySlot& operator=(GeometrySlot&&)      = delete;
+
   protected:
     virtual Geometry&       get_geometry() noexcept       = 0;
     virtual const Geometry& get_geometry() const noexcept = 0;

@@ -3,6 +3,8 @@
     * [Geometry](tutorial/geometry.md)
     * [Scene](tutorial/scene.md)
 * [Specification](specification/index.md)
+    * [Implicit Geometry UID](specification/implicit_geometry_uid.md)
+    * [Implicit Geometries](specification/implicit_geometries/)
     * [Constitution UID](specification/constitution_uid.md)
     * [Constitutions](specification/constitutions/)
 * [API Documentation](api_docs/)

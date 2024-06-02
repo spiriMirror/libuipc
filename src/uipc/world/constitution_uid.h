@@ -4,12 +4,12 @@
 
 namespace uipc::world
 {
-class ConstitutionUID
-{
-  public:
-    ConstitutionUID(U64 uid = 0) noexcept;
-    operator U64() const;
-  private:
-    U64 m_uid;
-};
+//class ConstitutionUID
+//{
+//  public:
+//    ConstitutionUID(U64 uid = 0) noexcept;
+//    operator U64() const;
+//  private:
+//    U64 m_uid;
+//};
 }  // namespace uipc::world

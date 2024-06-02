@@ -1,6 +1,7 @@
 #pragma once
 #include <uipc/common/span.h>
 #include <uipc/geometry/simplicial_complex.h>
+#include <uipc/geometry/implicit_geometry.h>
 
 namespace uipc::geometry
 {
@@ -37,4 +38,12 @@ namespace uipc::geometry
  * @return SimplicialComplex 
  */
 [[nodiscard]] SimplicialComplex pointcloud(span<const Vector3> Vs);
+
+/**
+ * @brief Create a gound plane.
+ * 
+ * @pram height The height of the ground plane
+ */
+[[nodiscard]] ImplicitGeometry ground(Float height = 0.0);
+
 }  // namespace uipc::geometries

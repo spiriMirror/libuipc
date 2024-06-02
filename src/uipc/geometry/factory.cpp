@@ -1,4 +1,5 @@
 #include <uipc/geometry/factory.h>
+#include <uipc/builtin/attribute_name.h>
 
 namespace uipc::geometry
 {
@@ -45,4 +46,18 @@ SimplicialComplex pointcloud(span<const Vector3> Vs)
 
     return SimplicialComplex{asc, Vs};
 }
-}  // namespace uipc::geometries
+
+ImplicitGeometry ground(Float height)
+{
+    ImplicitGeometry ig;
+    auto             uid = ig.meta().find<U64>(builtin::implicit_geometry_uid);
+
+    constexpr auto HalfPlaneUID = 1ull;  // By libuipc specification
+    view(*uid)[0]               = HalfPlaneUID;
+
+    ig.instances().create<Vector3>("N", Vector3{0.0, 1.0, 0.0});
+    ig.instances().create<Vector3>("P", Vector3{0.0, height, 0.0});
+
+    return ig;
+}
+}  // namespace uipc::geometry

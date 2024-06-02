@@ -24,4 +24,10 @@ constexpr std::string_view constitution = "constitution";
  * which is defined in the libuipc specification.
  */
 constexpr std::string_view constitution_uid = "constitution_uid";
+
+/**
+ * @brief `implicit_geometry_uid` attribute on geometries.meta(), uid is a unique identifier for an implicit geometry
+ * which is defined in the libuipc specification.
+ */
+constexpr std::string_view implicit_geometry_uid = "implicit_geometry_uid";
 }  // namespace uipc::builtin
