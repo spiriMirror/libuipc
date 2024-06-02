@@ -17,7 +17,7 @@ using namespace uipc;
 using namespace uipc::world;
 using namespace uipc::constitution;
 
-TEST_CASE("obj", "[world]")
+TEST_CASE("object", "[object]")
 {
     Scene scene;
     auto& constitution_tabular = scene.constitution_tabular();
@@ -41,7 +41,7 @@ TEST_CASE("obj", "[world]")
     REQUIRE(std::ranges::equal(V, V_rest));
 }
 
-TEST_CASE("const_obj", "[world]")
+TEST_CASE("const_object", "[object]")
 {
     Scene scene;
     auto& constitution_tabular = scene.constitution_tabular();

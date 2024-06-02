@@ -10,7 +10,7 @@
 using namespace uipc;
 using namespace uipc::world;
 
-TEST_CASE("contact_model", "[world]")
+TEST_CASE("contact_model", "[contact_model]")
 {
     Scene scene;
     auto& contact_tabular = scene.contact_tabular();

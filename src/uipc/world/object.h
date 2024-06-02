@@ -29,11 +29,27 @@ class ObjectGeometrySlots
 {
     using NonConstGeometryT = std::remove_const_t<GeometryT>;
     using AutoGeometrySlot =
-        typename propagate_const<GeometryT, geometry::GeometrySlot<NonConstGeometryT>>::type;
+        typename propagate_const<GeometryT, geometry::GeometrySlotT<NonConstGeometryT>>::type;
 
   public:
     P<AutoGeometrySlot> geometry;
     P<AutoGeometrySlot> rest_geometry;
+};
+
+template <>
+class ObjectGeometrySlots<geometry::Geometry>
+{
+  public:
+    P<geometry::GeometrySlot> geometry;
+    P<geometry::GeometrySlot> rest_geometry;
+};
+
+template <>
+class ObjectGeometrySlots<const geometry::Geometry>
+{
+  public:
+    P<const geometry::GeometrySlot> geometry;
+    P<const geometry::GeometrySlot> rest_geometry;
 };
 
 class Object : public IObject

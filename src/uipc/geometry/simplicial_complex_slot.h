@@ -4,7 +4,7 @@
 namespace uipc::geometry
 {
 template <>
-class GeometrySlot<SimplicialComplex> : public IGeometrySlot
+class GeometrySlotT<SimplicialComplex> : public GeometrySlot
 {
   private:
     using VertexAttributes    = typename SimplicialComplex::VertexAttributes;
@@ -17,12 +17,12 @@ class GeometrySlot<SimplicialComplex> : public IGeometrySlot
     using CTetrahedronAttributes = typename SimplicialComplex::CTetrahedronAttributes;
 
   public:
-    GeometrySlot(IndexT id, const SimplicialComplex& simplicial_complex) noexcept;
+    GeometrySlotT(IndexT id, const SimplicialComplex& simplicial_complex) noexcept;
 
-    GeometrySlot(const GeometrySlot&)            = delete;
-    GeometrySlot(GeometrySlot&&)                 = delete;
-    GeometrySlot& operator=(const GeometrySlot&) = delete;
-    GeometrySlot& operator=(GeometrySlot&&)      = delete;
+    GeometrySlotT(const GeometrySlotT&)            = delete;
+    GeometrySlotT(GeometrySlotT&&)                 = delete;
+    GeometrySlotT& operator=(const GeometrySlotT&) = delete;
+    GeometrySlotT& operator=(GeometrySlotT&&)      = delete;
 
     /**
      * @brief Get the positions of the vertices
@@ -83,14 +83,12 @@ class GeometrySlot<SimplicialComplex> : public IGeometrySlot
     const SimplicialComplex& geometry() const noexcept;
 
   protected:
-    virtual IndexT get_id() const noexcept override;
     virtual Geometry& get_geometry() noexcept override;
     virtual const Geometry& get_geometry() const noexcept override;
 
   private:
-    IndexT            m_id;
     SimplicialComplex m_simplicial_complex;
 };
 
-using SimplicialComplexSlot = GeometrySlot<SimplicialComplex>;
+using SimplicialComplexSlot = GeometrySlotT<SimplicialComplex>;
 }  // namespace uipc::geometry

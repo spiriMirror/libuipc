@@ -23,8 +23,9 @@ class ObjectCollection : public IObjectCollection
 
     void destroy(IndexT id) noexcept;
 
-    void  reserve(SizeT size) noexcept;
-    SizeT size() const noexcept;
+    void   reserve(SizeT size) noexcept;
+    SizeT  size() const noexcept;
+    IndexT next_id() const noexcept;
 
   private:
     IndexT                           m_next_id = 0;

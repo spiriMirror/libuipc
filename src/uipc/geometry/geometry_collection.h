@@ -28,24 +28,29 @@ class GeometryCollection : public IGeometryCollection
 
     template <std::derived_from<geometry::Geometry> GeometryT>
         requires(!std::is_abstract_v<GeometryT>)
-    P<geometry::GeometrySlot<GeometryT>> emplace(const GeometryT& geometry);
+    P<geometry::GeometrySlotT<GeometryT>> emplace(const GeometryT& geometry);
 
     template <std::derived_from<geometry::Geometry> GeometryT>
         requires(!std::is_abstract_v<GeometryT>)
-    P<geometry::GeometrySlot<GeometryT>> pending_emplace(const GeometryT& geometry);
+    P<geometry::GeometrySlotT<GeometryT>> pending_emplace(const GeometryT& geometry);
 
     template <std::derived_from<geometry::Geometry> GeometryT>
-        requires(!std::is_abstract_v<GeometryT>)
-    P<geometry::GeometrySlot<GeometryT>> find(IndexT id) noexcept;
+    P<geometry::GeometrySlotT<GeometryT>> find(IndexT id) noexcept;
+    P<geometry::GeometrySlot>             find(IndexT id) noexcept;
 
     template <std::derived_from<geometry::Geometry> GeometryT>
-        requires(!std::is_abstract_v<GeometryT>)
-    P<const geometry::GeometrySlot<GeometryT>> find(IndexT id) const noexcept;
+    P<const geometry::GeometrySlotT<GeometryT>> find(IndexT id) const noexcept;
+    P<const geometry::GeometrySlot>             find(IndexT id) const noexcept;
 
     void destroy(IndexT id) noexcept;
     void pending_destroy(IndexT id) noexcept;
 
+
     void solve_pending() noexcept;
+
+    span<P<geometry::GeometrySlot>> geometry_slots() const noexcept;
+    span<P<geometry::GeometrySlot>> pending_create_slots() const noexcept;
+    span<IndexT>                    pending_destroy_ids() const noexcept;
 
   protected:
     virtual void   do_reserve(SizeT size) noexcept override;
@@ -54,11 +59,19 @@ class GeometryCollection : public IGeometryCollection
     virtual IndexT get_next_id() const noexcept override;
 
   private:
-    unordered_map<IndexT, S<geometry::IGeometrySlot>> m_geometries;
-    unordered_map<IndexT, S<geometry::IGeometrySlot>> m_pending_create;
-    set<IndexT>                                       m_pending_destroy;
+    unordered_map<IndexT, S<geometry::GeometrySlot>> m_geometries;
+    unordered_map<IndexT, S<geometry::GeometrySlot>> m_pending_create;
+    set<IndexT>                                      m_pending_destroy;
 
     IndexT m_next_id = 0;
+
+    mutable bool m_dirty = true;
+
+    mutable vector<P<geometry::GeometrySlot>> m_geometry_slots;
+    mutable vector<P<geometry::GeometrySlot>> m_pending_create_slots;
+    mutable vector<IndexT>                    m_pending_destroy_ids;
+
+    void flush() const;
 };
 }  // namespace uipc::geometry
 

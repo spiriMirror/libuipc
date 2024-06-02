@@ -47,4 +47,8 @@ SizeT ObjectCollection::size() const noexcept
 {
     return m_objects.size();
 }
+IndexT ObjectCollection::next_id() const noexcept
+{
+    return m_next_id;
+}
 }  // namespace uipc::world

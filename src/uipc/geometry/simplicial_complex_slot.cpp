@@ -2,86 +2,83 @@
 
 namespace uipc::geometry
 {
-GeometrySlot<SimplicialComplex>::GeometrySlot(IndexT id, const SimplicialComplex& simplicial_complex) noexcept
-    : m_id(id)
-    , m_simplicial_complex(simplicial_complex)
+GeometrySlotT<SimplicialComplex>::GeometrySlotT(IndexT id, const SimplicialComplex& simplicial_complex) noexcept
+    : GeometrySlot{id}
+    , m_simplicial_complex{simplicial_complex}
 {
 }
 
-AttributeSlot<Vector3>& GeometrySlot<SimplicialComplex>::positions() noexcept
-{
-    return m_simplicial_complex.positions();
-}
-
-const AttributeSlot<Vector3>& GeometrySlot<SimplicialComplex>::positions() const noexcept
+AttributeSlot<Vector3>& GeometrySlotT<SimplicialComplex>::positions() noexcept
 {
     return m_simplicial_complex.positions();
 }
 
-auto GeometrySlot<SimplicialComplex>::vertices() noexcept -> VertexAttributes
+const AttributeSlot<Vector3>& GeometrySlotT<SimplicialComplex>::positions() const noexcept
+{
+    return m_simplicial_complex.positions();
+}
+
+auto GeometrySlotT<SimplicialComplex>::vertices() noexcept -> VertexAttributes
 {
     return m_simplicial_complex.vertices();
 }
 
-auto GeometrySlot<SimplicialComplex>::vertices() const noexcept -> CVertexAttributes
+auto GeometrySlotT<SimplicialComplex>::vertices() const noexcept -> CVertexAttributes
 {
     return m_simplicial_complex.vertices();
 }
 
-auto GeometrySlot<SimplicialComplex>::edges() noexcept -> EdgeAttributes
+auto GeometrySlotT<SimplicialComplex>::edges() noexcept -> EdgeAttributes
 {
     return m_simplicial_complex.edges();
 }
 
-auto GeometrySlot<SimplicialComplex>::edges() const noexcept -> CEdgeAttributes
+auto GeometrySlotT<SimplicialComplex>::edges() const noexcept -> CEdgeAttributes
 {
     return m_simplicial_complex.edges();
 }
 
-auto GeometrySlot<SimplicialComplex>::triangles() noexcept -> TriangleAttributes
+auto GeometrySlotT<SimplicialComplex>::triangles() noexcept -> TriangleAttributes
 {
     return m_simplicial_complex.triangles();
 }
 
-auto GeometrySlot<SimplicialComplex>::triangles() const noexcept -> CTriangleAttributes
+auto GeometrySlotT<SimplicialComplex>::triangles() const noexcept -> CTriangleAttributes
 {
     return m_simplicial_complex.triangles();
 }
 
-auto GeometrySlot<SimplicialComplex>::tetrahedra() noexcept -> TetrahedronAttributes
+auto GeometrySlotT<SimplicialComplex>::tetrahedra() noexcept -> TetrahedronAttributes
 {
     return m_simplicial_complex.tetrahedra();
 }
 
-auto GeometrySlot<SimplicialComplex>::tetrahedra() const noexcept -> CTetrahedronAttributes
+auto GeometrySlotT<SimplicialComplex>::tetrahedra() const noexcept -> CTetrahedronAttributes
 {
     return m_simplicial_complex.tetrahedra();
 }
 
-IndexT GeometrySlot<SimplicialComplex>::dim() const noexcept
+IndexT GeometrySlotT<SimplicialComplex>::dim() const noexcept
 {
     return m_simplicial_complex.dim();
 }
 
-SimplicialComplex& GeometrySlot<SimplicialComplex>::geometry() noexcept
+SimplicialComplex& GeometrySlotT<SimplicialComplex>::geometry() noexcept
 {
     return m_simplicial_complex;
 }
 
-const SimplicialComplex& GeometrySlot<SimplicialComplex>::geometry() const noexcept
+const SimplicialComplex& GeometrySlotT<SimplicialComplex>::geometry() const noexcept
 {
     return m_simplicial_complex;
 }
 
-IndexT GeometrySlot<SimplicialComplex>::get_id() const noexcept
-{
-    return m_id;
-}
-Geometry& GeometrySlot<SimplicialComplex>::get_geometry() noexcept
+Geometry& GeometrySlotT<SimplicialComplex>::get_geometry() noexcept
 {
     return m_simplicial_complex;
 }
-const Geometry& GeometrySlot<SimplicialComplex>::get_geometry() const noexcept
+
+const Geometry& GeometrySlotT<SimplicialComplex>::get_geometry() const noexcept
 {
     return m_simplicial_complex;
 }

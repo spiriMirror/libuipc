@@ -2,6 +2,9 @@
 
 namespace uipc::world
 {
+// ----------------------------------------------------------------------------
+// Scene
+// ----------------------------------------------------------------------------
 ContactTabular& Scene::contact_tabular() noexcept
 {
     return m_contact_tabular;
@@ -21,9 +24,24 @@ const ConstitutionTabular& Scene::constitution_tabular() const noexcept
     return m_constitution_tabular;
 }
 
-auto Scene::objects() -> Objects
+auto Scene::objects() noexcept -> Objects
 {
     return Objects{*this};
+}
+
+auto Scene::objects() const noexcept -> CObjects
+{
+    return CObjects{*this};
+}
+
+auto Scene::geometries() noexcept -> Geometries
+{
+    return Geometries{*this};
+}
+
+auto Scene::geometries() const noexcept -> CGeometries
+{
+    return CGeometries{*this};
 }
 
 void Scene::solve_pending() noexcept
@@ -32,6 +50,9 @@ void Scene::solve_pending() noexcept
     m_rest_geometries.solve_pending();
 }
 
+// ----------------------------------------------------------------------------
+// Objects
+// ----------------------------------------------------------------------------
 P<Object> Scene::Objects::create(std::string_view name) &&
 {
     auto id = m_scene.m_objects.m_next_id;
@@ -70,9 +91,19 @@ void Scene::Objects::destroy(IndexT id) &&
     m_scene.m_objects.destroy(id);
 }
 
+SizeT Scene::Objects::size() const noexcept
+{
+    return m_scene.m_objects.size();
+}
+
 P<const Object> Scene::CObjects::find(IndexT id) && noexcept
 {
     return m_scene.m_objects.find(id);
+}
+
+SizeT Scene::CObjects::size() const noexcept
+{
+    return m_scene.m_objects.size();
 }
 
 Scene::Objects::Objects(Scene& scene) noexcept
@@ -81,6 +112,19 @@ Scene::Objects::Objects(Scene& scene) noexcept
 }
 
 Scene::CObjects::CObjects(const Scene& scene) noexcept
+    : m_scene{scene}
+{
+}
+
+// ----------------------------------------------------------------------------
+// Geometries
+// ----------------------------------------------------------------------------
+Scene::Geometries::Geometries(Scene& scene) noexcept
+    : m_scene{scene}
+{
+}
+
+Scene::CGeometries::CGeometries(const Scene& scene) noexcept
     : m_scene{scene}
 {
 }

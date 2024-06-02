@@ -26,6 +26,7 @@ class Scene
         P<Object> create(std::string_view name = "") &&;
         P<Object> find(IndexT id) && noexcept;
         void      destroy(IndexT id) &&;
+        SizeT     size() const noexcept;
 
       private:
         Objects(Scene& scene) noexcept;
@@ -38,9 +39,38 @@ class Scene
 
       public:
         P<const Object> find(IndexT id) && noexcept;
+        SizeT           size() const noexcept;
 
       private:
         CObjects(const Scene& scene) noexcept;
+        const Scene& m_scene;
+    };
+
+    class Geometries
+    {
+        friend class Scene;
+
+      public:
+        template <std::derived_from<geometry::Geometry> GeometryT>
+        ObjectGeometrySlots<GeometryT> find(IndexT id) && noexcept;
+
+
+      private:
+        Geometries(Scene& scene) noexcept;
+        Scene& m_scene;
+    };
+
+    class CGeometries
+    {
+        friend class Scene;
+
+      public:
+        template <std::derived_from<geometry::Geometry> GeometryT>
+        ObjectGeometrySlots<const GeometryT> find(IndexT id) && noexcept;
+
+
+      private:
+        CGeometries(const Scene& scene) noexcept;
         const Scene& m_scene;
     };
 
@@ -52,7 +82,11 @@ class Scene
     ConstitutionTabular&       constitution_tabular() noexcept;
     const ConstitutionTabular& constitution_tabular() const noexcept;
 
-    Objects objects();
+    Objects  objects() noexcept;
+    CObjects objects() const noexcept;
+
+    Geometries  geometries() noexcept;
+    CGeometries geometries() const noexcept;
 
   private:
     ContactTabular      m_contact_tabular;

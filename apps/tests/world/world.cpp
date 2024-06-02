@@ -72,11 +72,4 @@ TEST_CASE("simple_world", "[world]")
             world.sync();
             world.retrieve();
         });
-
-    auto new_object = scene.objects().create("cube2");
-    new_object->geometries().create(mesh);
-
-    backend::WorldVisitor visitor{world};
-
-    visitor.scene().solve_pending();
 }
