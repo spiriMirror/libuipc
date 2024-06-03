@@ -91,3 +91,22 @@ std::string_view SimplicialComplex::get_type() const noexcept
     return builtin::SimplicialComplex;
 }
 }  // namespace uipc::geometry
+
+namespace fmt
+{
+appender fmt::formatter<uipc::geometry::SimplicialComplex>::format(
+    const uipc::geometry::SimplicialComplex& c, format_context& ctx) const
+{
+    return fmt::format_to(ctx.out(),
+                          R"({}
+vertices:{};
+edges:{};
+triangles:{}; 
+tetrahedra:{};)",
+                          static_cast<const uipc::geometry::Geometry&>(c),
+                          c.vertices(),
+                          c.edges(),
+                          c.triangles(),
+                          c.tetrahedra());
+}
+}  // namespace fmt

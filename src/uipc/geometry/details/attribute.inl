@@ -48,4 +48,11 @@ S<IAttribute> Attribute<T>::do_clone() const
 {
     return std::make_shared<Attribute<T>>(*this);
 }
-}  // namespace uipc::geometries
+template <typename T>
+void uipc::geometry::Attribute<T>::do_reorder(span<const SizeT> O) noexcept
+{
+    auto old_values = m_values;
+    for(SizeT i = 0; i < O.size(); ++i)
+        m_values[i] = old_values[O[i]];
+}
+}  // namespace uipc::geometry

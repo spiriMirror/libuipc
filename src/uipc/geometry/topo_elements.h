@@ -33,6 +33,9 @@ class ITopoElements
      * @return The number of tuples
      */
     [[nodiscard]] SizeT size() const noexcept;
+
+    void reorder(span<const SizeT> new_order);
+
     /**
      * @brief Resize the number of tuples.
      * 
@@ -67,8 +70,9 @@ class ITopoElements
     virtual void                do_clear()                              = 0;
     virtual S<ITopoElements>    do_clone() const                        = 0;
     virtual void                do_reserve(SizeT N)                     = 0;
+    virtual void                do_reorder(span<const SizeT> O)         = 0;
 
   private:
     backend::BufferView backend_view() const noexcept;
 };
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry

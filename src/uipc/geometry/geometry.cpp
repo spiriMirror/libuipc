@@ -9,41 +9,6 @@ std::string_view IGeometry::type() const noexcept
     return get_type();
 }
 
-Geometry::MetaAttributes::MetaAttributes(AttributeCollection& attributes)
-    : m_attributes(attributes)
-{
-}
-
-Geometry::InstanceAttributes::InstanceAttributes(AttributeCollection& attributes)
-    : m_attributes(attributes)
-{
-}
-
-void Geometry::InstanceAttributes::resize(size_t size)
-{
-    m_attributes.resize(size);
-}
-
-void Geometry::InstanceAttributes::reserve(size_t size)
-{
-    m_attributes.reserve(size);
-}
-
-void Geometry::InstanceAttributes::clear()
-{
-    m_attributes.clear();
-}
-
-SizeT Geometry::InstanceAttributes::size() const
-{
-    return m_attributes.size();
-}
-
-void Geometry::InstanceAttributes::destroy(std::string_view name)
-{
-    m_attributes.destroy(name);
-}
-
 Geometry::Geometry()
 {
     m_meta.resize(1);      // only one meta for one geometries
@@ -67,8 +32,17 @@ auto Geometry::meta() -> MetaAttributes
     return MetaAttributes{m_meta};
 }
 
+auto Geometry::meta() const -> CMetaAttributes
+{
+    return CMetaAttributes{m_meta};
+}
+
 auto Geometry::instances() -> InstanceAttributes
 {
     return InstanceAttributes{m_intances};
 }
-}  // namespace uipc::geometries
+auto Geometry::instances() const -> CInstanceAttributes
+{
+    return CInstanceAttributes{m_intances};
+}
+}  // namespace uipc::geometry

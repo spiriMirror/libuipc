@@ -1,4 +1,5 @@
 #include <uipc/common/log.h>
+#include "simplicial_complex_attributes.h"
 
 namespace uipc::geometry
 {
@@ -73,6 +74,17 @@ template <std::derived_from<ISimplexSlot> SimplexSlotT>
 SimplicialComplexTopo<SimplexSlotT>::SimplicialComplexTopo(SimplexSlotT& topo)
     : m_topology(topo)
 {
+}
+
+template <std::derived_from<ISimplexSlot> SimplexSlotT>
+void SimplicialComplexTopo<SimplexSlotT>::share(SimplicialComplexTopo<ConstSimplexSlotT>&& topo) && noexcept
+{
+    UIPC_ASSERT(m_topology.size() == topo.m_topology.size(),
+                "Incompatible simplicial complex sizes, input ({}), yours ({}), resize before share",
+                topo.m_topology.size(),
+                m_topology.size());
+
+    m_topology.share(topo.m_topology);
 }
 
 template <std::derived_from<ISimplexSlot> SimplexSlot>

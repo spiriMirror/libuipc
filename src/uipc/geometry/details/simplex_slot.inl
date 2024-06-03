@@ -20,9 +20,9 @@ auto view(SimplexSlot<N>& slot) -> span<typename SimplexSlot<N>::ValueT>
 }
 
 template <IndexT N>
-U<SimplexSlot<N>> SimplexSlot<N>::clone() const
+S<SimplexSlot<N>> SimplexSlot<N>::clone() const
 {
-    return std::make_unique<SimplexSlot<N>>(m_simplices);
+    return std::make_shared<SimplexSlot<N>>(m_simplices);
 }
 template <IndexT N>
 SizeT SimplexSlot<N>::get_use_count() const noexcept
@@ -31,7 +31,7 @@ SizeT SimplexSlot<N>::get_use_count() const noexcept
 }
 
 template <IndexT N>
-U<ISimplexSlot> SimplexSlot<N>::do_clone() const
+S<ISimplexSlot> SimplexSlot<N>::do_clone() const
 {
     return clone();
 }
@@ -55,6 +55,12 @@ const ISimplices& SimplexSlot<N>::get_simplices() const noexcept
 }
 
 template <IndexT N>
+void SimplexSlot<N>::do_reorder(span<const SizeT> O) noexcept
+{
+    m_simplices->reorder(O);
+}
+
+template <IndexT N>
 void SimplexSlot<N>::do_resize(SizeT size)
 {
     do_make_owned();
@@ -74,4 +80,10 @@ void SimplexSlot<N>::do_clear()
     do_make_owned();
     m_simplices->clear();
 }
-}  // namespace uipc::geometries
+template <IndexT N>
+void SimplexSlot<N>::do_share(const ISimplexSlot& other)
+{
+    const auto& other_slot = static_cast<const SimplexSlot<N>&>(other);
+    m_simplices = other_slot.m_simplices;
+}
+}  // namespace uipc::geometry

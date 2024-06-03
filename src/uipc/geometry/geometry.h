@@ -31,20 +31,30 @@ class Geometry : public IGeometry
     /**
      * @brief A wrapper class for the meta attributes of a geometries.
      */
-    class MetaAttributes
+    template <bool IsConst>
+    class MetaAttributesT
     {
+        friend struct fmt::formatter<MetaAttributesT<IsConst>>;
+
+        using AutoAttributeCollection =
+            std::conditional_t<IsConst, const AttributeCollection, AttributeCollection>;
+
       public:
-        MetaAttributes(AttributeCollection& attributes);
-        MetaAttributes(const MetaAttributes& o)            = default;
-        MetaAttributes(MetaAttributes&& o)                 = default;
-        MetaAttributes& operator=(const MetaAttributes& o) = default;
-        MetaAttributes& operator=(MetaAttributes&& o)      = default;
+        MetaAttributesT(AutoAttributeCollection& attributes)
+            : m_attributes(attributes)
+        {
+        }
+
+        MetaAttributesT(const MetaAttributesT& o)            = default;
+        MetaAttributesT(MetaAttributesT&& o)                 = default;
+        MetaAttributesT& operator=(const MetaAttributesT& o) = default;
+        MetaAttributesT& operator=(MetaAttributesT&& o)      = default;
 
         /**
          * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
          */
         template <typename T>
-        [[nodiscard]] auto find(std::string_view name)
+        [[nodiscard]] auto find(std::string_view name) &&
         {
             return m_attributes.template find<T>(name);
         }
@@ -53,78 +63,89 @@ class Geometry : public IGeometry
          * @brief Create an attribute with the given name.
          */
         template <typename T>
-        decltype(auto) create(std::string_view name, const T& init_value = {})
+        decltype(auto) create(std::string_view name, const T& init_value = {}) &&
         {
             return m_attributes.template create<T>(name, init_value);
         }
 
       private:
-        AttributeCollection& m_attributes;
+        AutoAttributeCollection& m_attributes;
     };
+
+    using MetaAttributes  = MetaAttributesT<false>;
+    using CMetaAttributes = MetaAttributesT<true>;
 
     /**
      * @brief A wrapper class for the instance attributes of a geometries.
      */
-    class InstanceAttributes
+    template <bool IsConst>
+    class InstanceAttributesT
     {
+        friend struct fmt::formatter<InstanceAttributesT<IsConst>>;
+
+        using AutoAttributeCollection =
+            std::conditional_t<IsConst, const AttributeCollection, AttributeCollection>;
+
       public:
-        InstanceAttributes(AttributeCollection& attributes);
-        InstanceAttributes(const InstanceAttributes& o)            = default;
-        InstanceAttributes(InstanceAttributes&& o)                 = default;
-        InstanceAttributes& operator=(const InstanceAttributes& o) = default;
-        InstanceAttributes& operator=(InstanceAttributes&& o)      = default;
+        InstanceAttributesT(AutoAttributeCollection& attributes)
+            : m_attributes(attributes)
+        {
+        }
+        InstanceAttributesT(const InstanceAttributesT& o)            = default;
+        InstanceAttributesT(InstanceAttributesT&& o)                 = default;
+        InstanceAttributesT& operator=(const InstanceAttributesT& o) = default;
+        InstanceAttributesT& operator=(InstanceAttributesT&& o)      = default;
 
         /**
          * @sa [AttributeCollection::resize()](../../AttributeCollection/#resize)
          */
-        void resize(size_t size);
+        void resize(size_t size) &&
+            requires(!IsConst);
         /**
          * @sa [AttributeCollection::reserve()](../../AttributeCollection/#reserve)
          */
-        void reserve(size_t size);
+        void reserve(size_t size) &&
+            requires(!IsConst);
         /**
          * @sa [AttributeCollection::clear()](../../AttributeCollection/#clear)
          */
-        void clear();
+        void clear() &&
+            requires(!IsConst);
         /**
          * @sa [AttributeCollection::size()](../../AttributeCollection/#size)
          */
-        [[nodiscard]] SizeT size() const;
+        [[nodiscard]] SizeT size() &&;
+
         /**
          * @sa [AttributeCollection::destroy()](../../AttributeCollection/#destroy) 
          */
-        void destroy(std::string_view name);
+        void destroy(std::string_view name) &&
+            requires(!IsConst);
 
         /**
          * @brief Find an attribute by type and name, if the attribute does not exist, return empty OptionalRef.
          */
         template <typename T>
-        [[nodiscard]] auto find(std::string_view name)
+        [[nodiscard]] auto find(std::string_view name) &&
         {
             return m_attributes.template find<T>(name);
-        }
-
-        /**
-         * @brief Find an attribute by type and name, if the attribute does not exist, return empty OptionalRef.
-         */
-        template <typename T>
-        [[nodiscard]] auto find(std::string_view name) const
-        {
-            return std::as_const(m_attributes).template find<T>(name);
         }
 
         /**
          * @brief Create an attribute with the given name.
          */
         template <typename T>
-        decltype(auto) create(std::string_view name, const T& init_value = {})
+        decltype(auto) create(std::string_view name, const T& init_value = {}) &&
         {
             return m_attributes.template create<T>(name, init_value);
         }
 
       private:
-        AttributeCollection& m_attributes;
+        AutoAttributeCollection& m_attributes;
     };
+
+    using InstanceAttributes  = InstanceAttributesT<false>;
+    using CInstanceAttributes = InstanceAttributesT<true>;
 
     Geometry();
 
@@ -155,6 +176,10 @@ class Geometry : public IGeometry
      * @return The meta attributes of the geometries. 
      */
     [[nodiscard]] MetaAttributes meta();
+
+    [[nodiscard]] CMetaAttributes meta() const;
+
+
     /**
      * @brief Get the instance attributes of the geometries.
      * 
@@ -162,8 +187,52 @@ class Geometry : public IGeometry
      */
     [[nodiscard]] InstanceAttributes instances();
 
-  private:
+    [[nodiscard]] CInstanceAttributes instances() const;
+
+  protected:
     AttributeCollection m_intances;
     AttributeCollection m_meta;
 };
 }  // namespace uipc::geometry
+
+
+namespace fmt
+{
+template <bool IsConst>
+struct formatter<uipc::geometry::Geometry::MetaAttributesT<IsConst>>
+    : public formatter<string_view>
+{
+    auto format(const uipc::geometry::Geometry::MetaAttributesT<IsConst>& attr,
+                format_context&                                           ctx)
+    {
+        return fmt::format_to(ctx.out(), "{}", attr.m_attributes);
+    }
+};
+
+template <bool IsConst>
+struct formatter<uipc::geometry::Geometry::InstanceAttributesT<IsConst>>
+    : public formatter<string_view>
+{
+    auto format(const uipc::geometry::Geometry::InstanceAttributesT<IsConst>& attr,
+                format_context& ctx)
+    {
+        return fmt::format_to(ctx.out(), "{}", attr.m_attributes);
+    }
+};
+
+template <>
+struct formatter<uipc::geometry::Geometry> : public formatter<string_view>
+{
+    auto format(const uipc::geometry::Geometry& geo, format_context& ctx)
+    {
+        return fmt::format_to(ctx.out(),
+                              R"(type:<{}>;
+meta:{};
+instances:{};)",
+                              geo.type(),
+                              geo.meta(),
+                              geo.instances());
+    }
+};
+}  // namespace fmt
+#include "details/geometry.inl"

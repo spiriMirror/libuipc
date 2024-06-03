@@ -13,3 +13,16 @@ class ImplicitGeometry : public Geometry
     std::string_view get_type() const noexcept override;
 };
 }  // namespace uipc::geometry
+
+namespace fmt
+{
+template <>
+struct formatter<uipc::geometry::ImplicitGeometry> : public formatter<std::string_view>
+{
+    auto format(const uipc::geometry::ImplicitGeometry& geometry, format_context& ctx)
+    {
+        return fmt::format_to(
+            ctx.out(), "{}", static_cast<const uipc::geometry::Geometry&>(geometry));
+    }
+};
+}  // namespace fmt

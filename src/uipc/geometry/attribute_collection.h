@@ -14,6 +14,8 @@ namespace uipc::geometry
  */
 class AttributeCollection
 {
+    friend struct fmt::formatter<AttributeCollection>;
+
   public:
     AttributeCollection() = default;
 
@@ -92,11 +94,21 @@ class AttributeCollection
      * 
      * @note This method may generate data clones.
      */
-    void resize(size_t N);
+    void resize(SizeT N);
+
+    /**
+	 * @brief Reorder the underlying attribute values of all attribute slots.
+	 * 
+	 * @param O A New2Old mapping. O[i] = j means the i-th element in the new order has the value of the j-th element in the old order.
+	 * 
+	 * @note This method may generate data clones.
+	 */
+    void reorder(span<const SizeT> O);
+
     /**
      * @brief Get the size of the attribute slots.
      */
-    [[nodiscard]] size_t size() const;
+    [[nodiscard]] SizeT size() const;
     /**
      * @brief clear the underlying attribute values of all attribute slots, the attribute slots will not be destroyed.
      * 
@@ -108,10 +120,10 @@ class AttributeCollection
      *
      * @note This method generates no data clone. But the memory of the underlying attribute values may be reallocated.
      */
-    void reserve(size_t N);
+    void reserve(SizeT N);
 
   private:
-    size_t                                        m_size = 0;
+    SizeT                                         m_size = 0;
     unordered_map<std::string, S<IAttributeSlot>> m_attributes;
 };
 
@@ -132,6 +144,18 @@ class AttributeSizeMismatch : public Exception
   public:
     using Exception::Exception;
 };
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry
+
+
+namespace fmt
+{
+template <>
+struct formatter<uipc::geometry::AttributeCollection> : formatter<std::string_view>
+{
+    appender format(const uipc::geometry::AttributeCollection& collection,
+                    format_context&                            ctx);
+};
+}  // namespace fmt
+
 
 #include "details/attribute_collection.inl"

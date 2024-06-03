@@ -27,6 +27,7 @@ class IAttribute
     void          reserve(SizeT N);
     S<IAttribute> clone() const;
     void          clear();
+    void          reorder(span<const SizeT> O) noexcept;
 
     friend backend::BufferView backend_view(const IAttribute& a) noexcept;
 
@@ -35,10 +36,11 @@ class IAttribute
     virtual SizeT               get_size() const                  = 0;
     virtual backend::BufferView get_backend_view() const noexcept = 0;
 
-    virtual void          do_resize(SizeT N)  = 0;
-    virtual void          do_clear()          = 0;
-    virtual void          do_reserve(SizeT N) = 0;
-    virtual S<IAttribute> do_clone() const    = 0;
+    virtual void          do_resize(SizeT N)                       = 0;
+    virtual void          do_clear()                               = 0;
+    virtual void          do_reserve(SizeT N)                      = 0;
+    virtual S<IAttribute> do_clone() const                         = 0;
+    virtual void          do_reorder(span<const SizeT> O) noexcept = 0;
 };
 
 /**
@@ -82,16 +84,17 @@ class Attribute : public IAttribute
     SizeT               get_size() const override;
     backend::BufferView get_backend_view() const noexcept override;
 
-    void                do_resize(SizeT N) override;
-    void                do_clear() override;
-    void                do_reserve(SizeT N) override;
-    S<IAttribute>       do_clone() const override;
+    void          do_resize(SizeT N) override;
+    void          do_clear() override;
+    void          do_reserve(SizeT N) override;
+    S<IAttribute> do_clone() const override;
+    void          do_reorder(span<const SizeT> O) noexcept override;
 
   private:
     backend::BufferView m_backend_view;
     vector<T>           m_values;
     T                   m_default_value;
 };
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry
 
 #include "details/attribute.inl"

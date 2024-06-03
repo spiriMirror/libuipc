@@ -25,6 +25,11 @@ void IAttribute::clear()
     do_clear();
 }
 
+void IAttribute::reorder(span<const SizeT> O) noexcept 
+{
+    do_reorder(O);
+}
+
 backend::BufferView IAttribute::backend_view() const noexcept
 {
     return get_backend_view();

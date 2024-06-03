@@ -3,6 +3,7 @@ find_package(spdlog REQUIRED)
 find_package(libigl REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(fmt CONFIG REQUIRED)
+find_package(cppitertools CONFIG REQUIRED)
 
 add_library(uipc STATIC)
 target_compile_features(uipc PUBLIC cxx_std_20)
@@ -16,6 +17,7 @@ target_link_libraries(uipc PUBLIC
     nlohmann_json::nlohmann_json
     rapidcsv
     fmt::fmt
+    cppitertools::cppitertools
 )
 
 # add the files in the subdirectories to the target uipc

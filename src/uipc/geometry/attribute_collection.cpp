@@ -50,7 +50,7 @@ P<const IAttributeSlot> AttributeCollection::find(std::string_view name) const
     return it != m_attributes.end() ? it->second : nullptr;
 }
 
-void AttributeCollection::resize(size_t N)
+void AttributeCollection::resize(SizeT N)
 {
     for(auto& [name, slot] : m_attributes)
     {
@@ -58,6 +58,15 @@ void AttributeCollection::resize(size_t N)
         slot->attribute().resize(N);
     }
     m_size = N;
+}
+
+void AttributeCollection::reorder(span<const SizeT> O)
+{
+    for(auto& [name, slot] : m_attributes)
+    {
+        slot->make_owned();
+        slot->attribute().reorder(O);
+    }
 }
 
 SizeT AttributeCollection::size() const
@@ -74,7 +83,7 @@ void AttributeCollection::clear()
     }
 }
 
-void AttributeCollection::reserve(size_t N)
+void AttributeCollection::reserve(SizeT N)
 {
     for(auto& [name, slot] : m_attributes)
     {
@@ -120,4 +129,25 @@ AttributeCollection& AttributeCollection::operator=(AttributeCollection&& o) noe
     return *this;
 }
 
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry
+
+namespace fmt
+{
+appender formatter<uipc::geometry::AttributeCollection>::format(
+    const uipc::geometry::AttributeCollection& collection, format_context& ctx)
+{
+    auto size = collection.size();
+
+    fmt::format_to(ctx.out(), "[", size);
+
+    for(const auto& [name, slot] : collection.m_attributes)
+    {
+        char star = slot->allow_destroy() ? ' ' : '*';
+        fmt::format_to(ctx.out(), "{}'{}' ", star, name);
+    }
+
+    fmt::format_to(ctx.out(), "]");
+
+    return ctx.out();
+}
+}  // namespace fmt

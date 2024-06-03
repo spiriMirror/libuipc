@@ -35,8 +35,11 @@ class ISimplexSlot
      */
     [[nodiscard]] SizeT size() const;
 
+    void share(const ISimplexSlot& other);
+
     friend backend::BufferView backend_view(const ISimplexSlot&) noexcept;
 
+    void reorder(span<const SizeT> O);
     void resize(SizeT size);
     void reserve(SizeT capacity);
     void clear();
@@ -50,8 +53,8 @@ class ISimplexSlot
     SizeT         use_count() const noexcept;
     virtual SizeT get_use_count() const noexcept = 0;
 
-    U<ISimplexSlot>         clone() const;
-    virtual U<ISimplexSlot> do_clone() const = 0;
+    S<ISimplexSlot>         clone() const;
+    virtual S<ISimplexSlot> do_clone() const = 0;
 
     virtual ISimplices& simplices() noexcept;
     virtual ISimplices& get_simplices() noexcept = 0;
@@ -59,9 +62,11 @@ class ISimplexSlot
     virtual const ISimplices& simplices() const noexcept;
     virtual const ISimplices& get_simplices() const noexcept = 0;
 
-    virtual void do_resize(SizeT size)      = 0;
-    virtual void do_reserve(SizeT capacity) = 0;
-    virtual void do_clear()                 = 0;
+    virtual void do_reorder(span<const SizeT> O) noexcept = 0;
+    virtual void do_resize(SizeT size)                    = 0;
+    virtual void do_reserve(SizeT capacity)               = 0;
+    virtual void do_clear()                               = 0;
+    virtual void do_share(const ISimplexSlot& other)      = 0;
 };
 
 /**
@@ -93,19 +98,20 @@ class VertexSlot : public ISimplexSlot
     span<const IndexT> view() const;
 
   protected:
-    U<VertexSlot> clone() const;
+    S<VertexSlot> clone() const;
 
     virtual SizeT             get_use_count() const noexcept override;
     virtual ISimplices&       get_simplices() noexcept override;
     virtual const ISimplices& get_simplices() const noexcept override;
 
-    virtual U<ISimplexSlot> do_clone() const override;
+    virtual S<ISimplexSlot> do_clone() const override;
     virtual void            do_make_owned() override;
 
-
+    virtual void do_reorder(span<const SizeT> O) noexcept override;
     virtual void do_resize(SizeT size) override;
     virtual void do_reserve(SizeT capacity) override;
     virtual void do_clear() override;
+    virtual void do_share(const ISimplexSlot& other) override;
 
   private:
     S<Vertices> m_simplices;
@@ -143,18 +149,19 @@ class SimplexSlot : public ISimplexSlot
     span<const ValueT> view() const noexcept;
 
   protected:
-    U<SimplexSlot<N>>         clone() const;
+    S<SimplexSlot<N>>         clone() const;
     virtual SizeT             get_use_count() const noexcept override;
     virtual ISimplices&       get_simplices() noexcept override;
     virtual const ISimplices& get_simplices() const noexcept override;
 
-    virtual U<ISimplexSlot> do_clone() const override;
+    virtual S<ISimplexSlot> do_clone() const override;
     virtual void            do_make_owned() override;
 
-
+    virtual void do_reorder(span<const SizeT> O) noexcept override;
     virtual void do_resize(SizeT size) override;
     virtual void do_reserve(SizeT capacity) override;
     virtual void do_clear() override;
+    virtual void do_share(const ISimplexSlot& other) override;
 
   private:
     S<Simplices<N>> m_simplices;
@@ -174,6 +181,6 @@ using TriangleSlot = SimplexSlot<2>;
  * @brief Alias for a slot for tetrahedra in an abstract simplicial complex.
  */
 using TetrahedronSlot = SimplexSlot<3>;
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry
 
 #include "details/simplex_slot.inl"

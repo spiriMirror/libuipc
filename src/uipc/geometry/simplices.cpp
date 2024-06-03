@@ -78,6 +78,11 @@ void Vertices::do_reserve(SizeT N)
     // Do nothing
 }
 
+void Vertices::do_reorder(span<const SizeT> O) 
+{
+    UIPC_WARN_WITH_LOCATION("Reordering verticies is not allowed, ignored.");
+}
+
 span<IndexT> view(Vertices& vertices) noexcept
 {
     return vertices.view();

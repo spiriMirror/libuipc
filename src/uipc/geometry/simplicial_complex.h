@@ -18,6 +18,8 @@ namespace uipc::geometry
  */
 class SimplicialComplex : public Geometry
 {
+    friend struct fmt::formatter<SimplicialComplex>;
+
   public:
     /**
      * @brief Alias for the vertex attributes
@@ -51,9 +53,9 @@ class SimplicialComplex : public Geometry
     SimplicialComplex() = default;
     SimplicialComplex(const AbstractSimplicialComplex& asc, span<const Vector3> positions);
 
-    
-    SimplicialComplex(const SimplicialComplex& o)            = default;
-    SimplicialComplex(SimplicialComplex&& o)                 = default;
+
+    SimplicialComplex(const SimplicialComplex& o) = default;
+    SimplicialComplex(SimplicialComplex&& o)      = default;
 
     SimplicialComplex& operator=(const SimplicialComplex& o) = delete;
     SimplicialComplex& operator=(SimplicialComplex&& o)      = delete;
@@ -124,3 +126,14 @@ class SimplicialComplex : public Geometry
     AttributeCollection       m_tetrahedron_attributes;
 };
 }  // namespace uipc::geometry
+
+//formatter
+
+namespace fmt
+{
+template<>
+struct formatter<uipc::geometry::SimplicialComplex> : formatter<string_view>
+{
+    appender format(const uipc::geometry::SimplicialComplex& c, format_context& ctx) const;
+};
+}  // namespace fmt

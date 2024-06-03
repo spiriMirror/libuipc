@@ -45,6 +45,8 @@ namespace uipc
 {
 bool Timer::m_global_on = true;
 
+std::function<void()> Timer::m_sync;
+
 Timer::Timer(std::string_view blockName, bool force_on)
     : m_force_on(force_on)
 {

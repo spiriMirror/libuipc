@@ -15,11 +15,10 @@ std::string_view IConstitution::name() const noexcept
 
 void IConstitution::apply_to(geometry::Geometry& geo) const
 {
-    auto meta = geo.meta();
-    auto P    = meta.find<U64>(builtin::constitution);
+    auto P = geo.meta().find<U64>(builtin::constitution);
 
     if(!P)
-        P = meta.create<U64>(builtin::constitution_uid, uid());
+        P = geo.meta().create<U64>(builtin::constitution_uid, uid());
     else
         geometry::view(*P).front() = uid();
 }

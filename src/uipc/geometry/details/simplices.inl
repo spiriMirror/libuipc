@@ -1,3 +1,4 @@
+#include "simplices.h"
 namespace uipc::geometry
 {
 template <IndexT N>
@@ -48,8 +49,18 @@ void Simplices<N>::do_reserve(SizeT N)
 }
 
 template <IndexT N>
+void Simplices<N>::do_reorder(span<const SizeT> O)
+{
+    auto old_simplices = m_simplices;
+    for(SizeT i = 0; i < O.size(); ++i)
+    {
+        m_simplices[i] = old_simplices[O[i]];
+    }
+}
+
+template <IndexT N>
 S<ITopoElements> Simplices<N>::do_clone() const
 {
     return std::make_shared<Simplices<N>>(*this);
 }
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry

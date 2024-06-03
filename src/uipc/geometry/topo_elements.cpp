@@ -17,6 +17,11 @@ SizeT ITopoElements::size() const noexcept
     return get_size();
 }
 
+void ITopoElements::reorder(span<const SizeT> O)
+{
+    do_reorder(O);
+}
+
 void ITopoElements::resize(SizeT N)
 {
     do_resize(N);
@@ -46,4 +51,4 @@ backend::BufferView backend_view(const ITopoElements& e) noexcept
 {
     return e.backend_view();
 }
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry
