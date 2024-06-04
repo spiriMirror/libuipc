@@ -13,13 +13,11 @@ TEST_CASE("instancing", "[geometry]")
 
     auto mesh = io.read(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
 
-    auto Is = mesh.instances();
+    REQUIRE(mesh.instances().size() == 1);  // the initial mesh is an instance of itself
 
-    REQUIRE(Is.size() == 1);  // the initial mesh is an instance of itself
+    mesh.instances().resize(5);
 
-    Is.resize(5);
-
-    auto trans      = Is.find<Matrix4x4>(builtin::transform);
+    auto trans      = mesh.instances().find<Matrix4x4>(builtin::transform);
     auto trans_view = trans->view();
     for(auto&& t : trans_view)
     {

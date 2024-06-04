@@ -12,6 +12,9 @@ A Library of Unified Incremental Potential Contact.
 | libigl                                 | 2.5.0   | mesh processing                                     | package        |
 | rapidcsv                               | 8.80    | csv file IO                                         | package        |
 | fmt                                    | 10.1.1  | fast string formatting                              | package        |
+| cppitertools                           | 2.1#3   | python-like iteration tools                         | package        |
+| bgfx                                   | 1.127#1 | cross-platform RHI                                  | package        |
+
 ## Build
 
 ### Linux
@@ -29,7 +32,7 @@ We use [vcpkg](https://github.com/microsoft/vcpkg) to manage the libraries we ne
 
 ```shell
 git submodule update --init
-vcpkg install eigen3
+vcpkg install eigen3 catch2 libigl fmt cppitertools bgfx
 ```
 
 ## Build Document

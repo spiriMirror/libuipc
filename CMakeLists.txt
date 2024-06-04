@@ -6,6 +6,7 @@ project(uipc)
 option(UIPC_CORE_ONLY "Build only the core library" OFF)
 option(UIPC_BUILD_TESTS "Build tests" ON)
 option(UIPC_BUILD_EXAMPLES "Build examples" ON)
+option(UIPC_BUILD_GUI "Build GUI, turn it off if you're server only" ON)
 # =========================================================================
 
 
@@ -23,5 +24,11 @@ if (UIPC_CORE_ONLY)
     return()
 endif()
 
+if(UIPC_BUILD_GUI)
+    # gui
+    add_subdirectory(src/uipc_gui)
+endif()
+
 # applications
 add_subdirectory(apps)
+

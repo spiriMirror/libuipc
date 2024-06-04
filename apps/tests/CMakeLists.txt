@@ -10,5 +10,17 @@ function(uipc_add_test name)
     set_property(TARGET ${name} PROPERTY FOLDER "apps/tests")
 endfunction()
 
+function(uipc_add_gui_test name)
+    add_executable(${name} ${ARGN})
+    target_sources(${name} PRIVATE ${test_main_cpp})
+    target_link_libraries(${name} PRIVATE uipc_gui app Catch2::Catch2 Catch2::Catch2WithMain)
+    set_property(TARGET ${name} PROPERTY FOLDER "apps/tests")
+endfunction()
+
 add_subdirectory(geometry)
 add_subdirectory(world)
+add_subdirectory(common)
+
+if(UIPC_BUILD_GUI)
+    add_subdirectory(gui)
+endif()

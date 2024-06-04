@@ -164,3 +164,32 @@ TEST_CASE("const_attribute", "[simplicial_complex]")
 
     REQUIRE(std::ranges::equal(TA.topo().view(), CTA.topo().view()));
 }
+
+TEST_CASE("print", "[simplicial_complex]")
+{
+    auto mesh = create_tetrahedron();
+
+    fmt::println("print simplicial complex:");
+    fmt::println(R"({{
+{}
+}})",
+                 mesh);
+
+    fmt::println("");
+
+    fmt::println("print topo:");
+    fmt::println("vertices topo: {}", mesh.vertices().topo());
+    fmt::println("edges topo: {}", mesh.edges().topo());
+    fmt::println("triangles topo: {}", mesh.triangles().topo());
+    fmt::println("tetrahedra topo: {}", mesh.tetrahedra().topo());
+    fmt::println("");
+
+    fmt::println("print attributes:");
+    fmt::println("meta: {}", mesh.meta());
+    fmt::println("instances:{}", mesh.instances());
+    fmt::println("vertices:{}", mesh.vertices());
+    fmt::println("edges:{}", mesh.edges());
+    fmt::println("triangles:{}", mesh.triangles());
+    fmt::println("tetrahedra:{}", mesh.tetrahedra());
+    fmt::println("");
+}

@@ -25,6 +25,7 @@ int main()
         // create constitution and contact model
         auto& abd =
             scene.constitution_tabular().create<constitution::AffineBodyConstitution>();
+
         auto default_contact = scene.contact_tabular().default_element();
 
         // create geometry
@@ -47,11 +48,12 @@ int main()
         }
 
         // create a ground geometry
-        auto half_plane = geometry::ground(-1.0);
+        geometry::ImplicitGeometry half_plane = geometry::ground(-1.0);
 
         auto ground = scene.objects().create("ground");
         {
             ground->geometries().create(half_plane);
+            fmt::println("ground: {}", half_plane);
         }
     }
 
@@ -99,7 +101,8 @@ void NullEngine::do_init(uipc::backend::WorldVisitor v)
             if(ig)
             {
                 auto uid = ig->meta().find<uipc::U64>(uipc::builtin::implicit_geometry_uid);
-                auto info = builtin::ImplicitGeometryUIDRegister::instance().find(uid->view()[0]);
+                auto info = builtin::ImplicitGeometryUIDRegister::instance().find(
+                    uid->view()[0]);
                 spdlog::info("[NullEngine] Implicit Geometry: {} ({}) ", info.name, info.uid);
 
                 auto N = ig->instances().find<uipc::Vector3>("N")->view()[0];
