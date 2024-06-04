@@ -5,18 +5,30 @@
 
 TEST_CASE("hello_bgfx", "[bgfx]")
 {
+    std::vector<bgfx::RendererType::Enum> supportedRenderers(8);
+    auto n_renderer = bgfx::getSupportedRenderers(supportedRenderers.size(),
+                                                  supportedRenderers.data());
+
+    fmt::println("Supported renderers:");
+    for(int i = 0; i < n_renderer; ++i)
+    {
+        auto renderer = supportedRenderers[i];
+        auto name     = bgfx::getRendererName(renderer);
+        fmt::println("({}) {}", i + 1, name);
+    }
+
     glfwInit();
 
     uint32_t width  = 800;
     uint32_t height = 600;
 
-    auto        debug  = BGFX_DEBUG_TEXT;
-    auto        reset  = BGFX_RESET_VSYNC;
+    auto debug = BGFX_DEBUG_TEXT;
+    auto reset = BGFX_RESET_VSYNC;
     GLFWwindow* window = glfwCreateWindow(width, height, "Hello, bgfx!", NULL, NULL);
 
     bgfx::PlatformData pd;
     bgfx::Init         init;
-    init.type              = bgfx::RendererType::OpenGL;
+    init.type              = bgfx::RendererType::Count;
     init.vendorId          = BGFX_PCI_ID_NONE;
     init.platformData.nwh  = uipc::gui::glfw_native_window_handle(window);
     init.platformData.ndt  = uipc::gui::native_display_handle();
@@ -25,6 +37,7 @@ TEST_CASE("hello_bgfx", "[bgfx]")
     init.resolution.height = height;
     init.resolution.reset  = reset;
     bgfx::init(init);
+
 
     // Enable debug text.
     bgfx::setDebug(debug);
