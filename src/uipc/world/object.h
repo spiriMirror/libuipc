@@ -3,8 +3,8 @@
 #include <uipc/common/vector.h>
 #include <uipc/geometry/geometry.h>
 #include <uipc/common/unordered_map.h>
-#include <uipc/geometry/geometry_collection.h>
 #include <uipc/common/type_traits.h>
+#include <uipc/geometry/geometry_collection.h>
 
 namespace uipc::world
 {

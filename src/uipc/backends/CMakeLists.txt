@@ -1,12 +1,33 @@
 include(uipc_utils)
 set(MODULE_FUNCTION_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/module.h")
 
+
+# ---------------------------------------------------------------------------
+# A dummy target to group all backends
+# ---------------------------------------------------------------------------
+add_library(uipc_backends INTERFACE)
+add_library(uipc::backends ALIAS uipc_backends)
+
+
+# ---------------------------------------------------------------------------
+# function to set some common properties for backends
+# ---------------------------------------------------------------------------
 function(uipc_add_backend name)
-    add_library(${name} MODULE ${ARGN})
-    target_link_libraries(${name} PRIVATE uipc::uipc)
-    target_compile_definitions(${name} PRIVATE UIPC_BACKEND_EXPORT_DLL=1)
+    message(STATUS "[libuipc]: adding backend: ${name}")
+
+    if(UIPC_BUILD_TESTS) # for tests, we need to link against the shared library
+        message(STATUS "[libuipc]: `UIPC_BUILD_TESTS=1` so we build the backend [${name}] as shared library")
+        add_library(${name} SHARED)
+    else() # else, we just dynamically load the backend
+        add_library(${name} MODULE)
+    endif()
+
     # alias the target
     add_library(uipc::backend::${name} ALIAS ${name})
+
+    target_link_libraries(${name} PRIVATE uipc::uipc)
+    target_compile_definitions(${name} PRIVATE UIPC_BACKEND_EXPORT_DLL=1)
+
     set_target_properties(${name} PROPERTIES
         PREFIX ""
         OUTPUT_NAME "uipc_backend_${name}"
@@ -16,11 +37,20 @@ function(uipc_add_backend name)
     target_sources(${name} PRIVATE ${MODULE_FUNCTION_HEADER})
 
     uipc_set_output_directory(${name})
+    add_dependencies(uipc_backends ${name})
 endfunction()
 
-add_subdirectory(none)
 
+# ---------------------------------------------------------------------------
+# Add backends
+# ---------------------------------------------------------------------------
+add_subdirectory(none)
+add_subdirectory(cuda)
+
+
+# ---------------------------------------------------------------------------
 # Group files in IDE
+# ---------------------------------------------------------------------------
 file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCE_GROUP_FILES})
 

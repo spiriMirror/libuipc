@@ -14,9 +14,10 @@ using namespace uipc::geometry;
 using namespace uipc::engine;
 using namespace uipc::constitution;
 
-TEST_CASE("simple_world", "[world]")
+
+void test_engine(std::string_view name)
 {
-    UIPCEngine engine{"none"};
+    UIPCEngine engine{name};
     World      world{engine};
 
     Scene scene;
@@ -58,4 +59,11 @@ TEST_CASE("simple_world", "[world]")
         world.sync();
         world.retrieve();
     }
+}
+
+
+TEST_CASE("engine", "[world]") 
+{
+    test_engine("none");
+    test_engine("cuda");
 }

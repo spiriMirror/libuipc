@@ -1,9 +1,7 @@
 #pragma once
 #include <uipc/common/macro.h>
-#include <uipc/common/smart_pointer.h>
-#include <string>
 #include <uipc/backend/visitors/world_visitor.h>
-#include <uipc/common/exception.h>
+
 namespace uipc::world
 {
 class World;
