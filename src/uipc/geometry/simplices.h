@@ -12,7 +12,7 @@ namespace uipc::geometry
  * @brief An abstract class for simplices, special type of topological elements.
  * 
  */
-class ISimplices : public ITopoElements
+class UIPC_CORE_API ISimplices : public ITopoElements
 {
   public:
     /**
@@ -42,7 +42,7 @@ class ISimplices : public ITopoElements
  * $V=\{0,1,2,...,N-1\}$, where $N$ is the number of vertices.
  * Normally, we don't store the vertice indices, because the indices is just iota $[0, N)$.
  */
-class Vertices final : public ISimplices
+class UIPC_CORE_API Vertices final : public ISimplices
 {
   public:
     Vertices() = default;
@@ -101,19 +101,19 @@ class Simplices final : public ISimplices
 
   private:
     [[nodiscard]] span<Vector<IndexT, N + 1>> view() noexcept;
-    vector<Vector<IndexT, N + 1>> m_simplices;
-    backend::BufferView           m_backend_view;
+    vector<Vector<IndexT, N + 1>>             m_simplices;
+    backend::BufferView                       m_backend_view;
 
   protected:
     virtual backend::BufferView get_backend_view() const noexcept override;
     virtual IndexT              get_dim() const noexcept override;
     virtual SizeT               get_size() const noexcept override;
 
-    virtual void                do_resize(SizeT N) override;
-    virtual void                do_clear() override;
-    virtual S<ITopoElements>    do_clone() const override;
-    virtual void                do_reserve(SizeT N) override;
-    virtual void                do_reorder(span<const SizeT> O) override;
+    virtual void             do_resize(SizeT N) override;
+    virtual void             do_clear() override;
+    virtual S<ITopoElements> do_clone() const override;
+    virtual void             do_reserve(SizeT N) override;
+    virtual void             do_reorder(span<const SizeT> O) override;
 };
 
 /**
@@ -134,6 +134,6 @@ using Triangles = Simplices<2>;
  * $T=\{(i,j,k,l) \mid i,j,k,l\in V, i\neq j\neq k\neq l\}$, where $V$ is the set of vertices.
  */
 using Tetrahedra = Simplices<3>;
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry
 
 #include "details/simplices.inl"

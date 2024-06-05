@@ -7,7 +7,7 @@ namespace uipc::geometry
 /**
  * @brief An abstract class for geometries
  */
-class IGeometry
+class UIPC_CORE_API IGeometry
 {
   public:
     /**
@@ -25,7 +25,7 @@ class IGeometry
 /**
  * @brief A base geometries class that contains the instance attributes and the meta attributes.
  */
-class Geometry : public IGeometry
+class UIPC_CORE_API Geometry : public IGeometry
 {
   public:
     /**

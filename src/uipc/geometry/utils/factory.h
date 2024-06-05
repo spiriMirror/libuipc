@@ -11,7 +11,7 @@ namespace uipc::geometry
  * @param Vs The vertex positions of the tetrahedral mesh
  * @param Ts The tetrahedra of the tetrahedral mesh
  */
-[[nodiscard]] SimplicialComplex tetmesh(span<const Vector3>  Vs,
+UIPC_CORE_API [[nodiscard]] SimplicialComplex tetmesh(span<const Vector3>  Vs,
                                         span<const Vector4i> Ts);
 /**
  * @brief Create a simplicial complex from a triangle mesh.
@@ -20,7 +20,7 @@ namespace uipc::geometry
  * @param Fs The triangles of the triangle mesh
  * @return SimplicialComplex 
  */
-[[nodiscard]] SimplicialComplex trimesh(span<const Vector3>  Vs,
+UIPC_CORE_API [[nodiscard]] SimplicialComplex trimesh(span<const Vector3>  Vs,
                                         span<const Vector3i> Fs);
 /**
  * @brief Create a simplicial complex from a line mesh.
@@ -29,7 +29,7 @@ namespace uipc::geometry
  * @param Es The edges of the line mesh
  * @return SimplicialComplex 
  */
-[[nodiscard]] SimplicialComplex linemesh(span<const Vector3>  Vs,
+UIPC_CORE_API [[nodiscard]] SimplicialComplex linemesh(span<const Vector3>  Vs,
                                          span<const Vector2i> Es);
 /**
  * @brief Create a simplicial complex from a point cloud.
@@ -37,13 +37,12 @@ namespace uipc::geometry
  * @param Vs The vertex positions of the point cloud
  * @return SimplicialComplex 
  */
-[[nodiscard]] SimplicialComplex pointcloud(span<const Vector3> Vs);
+UIPC_CORE_API [[nodiscard]] SimplicialComplex pointcloud(span<const Vector3> Vs);
 
 /**
  * @brief Create a gound plane.
  * 
  * @pram height The height of the ground plane
  */
-[[nodiscard]] ImplicitGeometry ground(Float height = 0.0);
-
+UIPC_CORE_API [[nodiscard]] ImplicitGeometry ground(Float height = 0.0);
 }  // namespace uipc::geometries

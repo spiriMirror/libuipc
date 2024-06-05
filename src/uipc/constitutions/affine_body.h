@@ -7,7 +7,7 @@ namespace uipc::constitution
 {
 class AffineBodyConstitution;
 
-class AffineBodyMaterial
+class UIPC_CORE_API AffineBodyMaterial
 {
   public:
     P<geometry::AttributeSlot<Float>> apply_to(geometry::SimplicialComplex& sc) const;
@@ -20,7 +20,7 @@ class AffineBodyMaterial
     Float                         m_kappa;
 };
 
-class AffineBodyConstitution : public world::IConstitution
+class UIPC_CORE_API AffineBodyConstitution : public world::IConstitution
 {
     using Base = world::IConstitution;
 

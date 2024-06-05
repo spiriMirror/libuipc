@@ -11,7 +11,7 @@ enum class GeometrySlotState
     PendingDestroy
 };
 
-class GeometrySlot
+class UIPC_CORE_API GeometrySlot
 {
     friend class GeometryCollection;
 

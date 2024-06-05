@@ -4,7 +4,7 @@
 #include <uipc/geometry/geometry.h>
 namespace uipc::world
 {
-class ContactElement
+class UIPC_CORE_API ContactElement
 {
   public:
     ContactElement() = default;

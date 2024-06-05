@@ -1,10 +1,11 @@
 #pragma once
+#include <uipc/common/macro.h>
 #include <uipc/common/type_define.h>
 #include <string>
 
 namespace uipc::builtin
 {
-struct UIDInfo
+struct UIPC_CORE_API UIDInfo
 {
     static constexpr U64 OfficialBuiltinUIDStart = 0;
     static constexpr U64 UserDefinedUIDStart     = 1ull << 32;

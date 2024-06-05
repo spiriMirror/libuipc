@@ -4,7 +4,7 @@
 
 namespace uipc::builtin
 {
-class ConstitutionUIDRegister : public details::UIDRegister
+class UIPC_CORE_API ConstitutionUIDRegister : public details::UIDRegister
 {
   public:
     static const ConstitutionUIDRegister& instance() noexcept;

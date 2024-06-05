@@ -1,11 +1,12 @@
 #pragma once
 #include <uipc/common/type_define.h>
+#include <uipc/common/macro.h>
 #include <string>
 #include <exception>
 #include <source_location>
 namespace uipc
 {
-class Exception : public std::exception
+class UIPC_CORE_API Exception : public std::exception
 {
   public:
     Exception(const std::string&   msg,

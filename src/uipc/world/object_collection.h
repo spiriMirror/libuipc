@@ -4,13 +4,13 @@
 #include <uipc/common/set.h>
 namespace uipc::world
 {
-class IObjectCollection
+class UIPC_CORE_API IObjectCollection
 {
   public:
     virtual ~IObjectCollection() = default;
 };
 
-class ObjectCollection : public IObjectCollection
+class UIPC_CORE_API ObjectCollection : public IObjectCollection
 {
     friend class Scene;
 

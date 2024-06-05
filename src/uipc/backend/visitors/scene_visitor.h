@@ -12,7 +12,7 @@ class Scene;
 
 namespace uipc::backend
 {
-class SceneVisitor
+class UIPC_CORE_API SceneVisitor
 {
   public:
     SceneVisitor(world::Scene& scene) noexcept;

@@ -16,7 +16,7 @@ namespace uipc::geometry
  * 
  * @sa [Tutorial/Geometries](../../../../tutorial/geometries.md)
  */
-class SimplicialComplex : public Geometry
+class UIPC_CORE_API SimplicialComplex : public Geometry
 {
     friend struct fmt::formatter<SimplicialComplex>;
 
@@ -132,7 +132,7 @@ class SimplicialComplex : public Geometry
 namespace fmt
 {
 template<>
-struct formatter<uipc::geometry::SimplicialComplex> : formatter<string_view>
+struct UIPC_CORE_API formatter<uipc::geometry::SimplicialComplex> : formatter<string_view>
 {
     appender format(const uipc::geometry::SimplicialComplex& c, format_context& ctx) const;
 };

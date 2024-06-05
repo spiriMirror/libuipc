@@ -8,7 +8,7 @@ class AbstractSimplicialComplex;
 /**
  * @brief An abstract class representing a simplex slot in an abstract simplicial complex.
  */
-class ISimplexSlot
+class UIPC_CORE_API ISimplexSlot
 {
   public:
     ISimplexSlot()          = default;
@@ -37,7 +37,7 @@ class ISimplexSlot
 
     void share(const ISimplexSlot& other);
 
-    friend backend::BufferView backend_view(const ISimplexSlot&) noexcept;
+    friend UIPC_CORE_API backend::BufferView backend_view(const ISimplexSlot&) noexcept;
 
     void reorder(span<const SizeT> O);
     void resize(SizeT size);
@@ -72,7 +72,7 @@ class ISimplexSlot
 /**
  * @brief A slot for vertices in an abstract simplicial complex.
  */
-class VertexSlot : public ISimplexSlot
+class UIPC_CORE_API VertexSlot : public ISimplexSlot
 {
     friend class AbstractSimplicialComplex;
 
@@ -88,7 +88,7 @@ class VertexSlot : public ISimplexSlot
      * @param slot the slot for vertices
      * @return A non-const view of the vertices
      */
-    friend span<IndexT> view(VertexSlot& slot);
+    UIPC_CORE_API friend span<IndexT> view(VertexSlot& slot);
 
     /**
      * @brief Get a const view of the vertices.
@@ -117,7 +117,7 @@ class VertexSlot : public ISimplexSlot
     S<Vertices> m_simplices;
 };
 
-span<IndexT> view(VertexSlot& slot);
+UIPC_CORE_API span<IndexT> view(VertexSlot& slot);
 
 template <IndexT N>
 class SimplexSlot : public ISimplexSlot

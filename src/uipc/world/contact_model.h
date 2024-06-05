@@ -1,9 +1,10 @@
 #pragma once
+#include <uipc/common/macro.h>
 #include <uipc/common/type_define.h>
 #include <uipc/common/json.h>
 namespace uipc::world
 {
-class ContactModel
+class UIPC_CORE_API ContactModel
 {
   public:
     ContactModel(const Vector2i& ids, Float friction_rate, Float resistance, const Json& config = {});

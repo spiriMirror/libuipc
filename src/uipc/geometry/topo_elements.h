@@ -9,7 +9,7 @@ namespace uipc::geometry
 /**
  * @brief An abstract class for storing topological elements. They may be vertices, edges, triangles, tetrahedra, quads or any other elements.
  */
-class ITopoElements
+class UIPC_CORE_API ITopoElements
 {
   public:
     /**

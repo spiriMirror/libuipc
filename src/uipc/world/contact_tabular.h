@@ -8,7 +8,7 @@
 
 namespace uipc::world
 {
-class ContactTabular
+class UIPC_CORE_API ContactTabular
 {
   public:
     ContactTabular() noexcept;
@@ -30,6 +30,9 @@ class ContactTabular
 
     friend void to_json(Json& j, const ContactTabular& ct);
 
+    // delete copy
+    ContactTabular(const ContactTabular&)            = delete;
+    ContactTabular& operator=(const ContactTabular&) = delete;
   private:
     IndexT                       m_current_id;
     mutable vector<ContactModel> m_models;

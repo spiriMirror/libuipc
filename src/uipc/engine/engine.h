@@ -1,6 +1,9 @@
 #pragma once
+#include <uipc/common/macro.h>
+#include <uipc/common/smart_pointer.h>
+#include <string>
 #include <uipc/backend/visitors/world_visitor.h>
-
+#include <uipc/common/exception.h>
 namespace uipc::world
 {
 class World;
@@ -8,7 +11,7 @@ class World;
 
 namespace uipc::engine
 {
-class IEngine
+class UIPC_CORE_API IEngine
 {
   public:
     virtual ~IEngine() = default;
@@ -18,9 +21,9 @@ class IEngine
     void retrieve();
 
   protected:
-    virtual void          do_init(backend::WorldVisitor v) = 0;
-    virtual void          do_advance()                     = 0;
-    virtual void          do_sync()                        = 0;
-    virtual void          do_retrieve()                    = 0;
+    virtual void do_init(backend::WorldVisitor v) = 0;
+    virtual void do_advance()                     = 0;
+    virtual void do_sync()                        = 0;
+    virtual void do_retrieve()                    = 0;
 };
 }  // namespace uipc::engine

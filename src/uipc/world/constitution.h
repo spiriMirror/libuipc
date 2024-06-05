@@ -5,7 +5,7 @@
 #include <uipc/builtin/constitution_uid_register.h>
 namespace uipc::world
 {
-class IConstitution
+class UIPC_CORE_API IConstitution
 {
   public:
     virtual ~IConstitution() = default;

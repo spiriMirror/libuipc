@@ -1,4 +1,5 @@
 #include <uipc/engine/engine.h>
+#include <dylib.hpp>
 
 namespace uipc::engine
 {
