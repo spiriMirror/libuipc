@@ -16,3 +16,5 @@ The Partial Differential Equation (PDE) of the simulation problem is already an 
 # Reporter-Manager-Receiver Model
 
 The model is a conceptual design pattern that organizes the data flow between different components of the framework in a safe, cache-friendly and flexible way.
+
+![Reporter-Manager-Receiver Model](./img/RMR.drawio.svg)

@@ -16,32 +16,32 @@ class NullEngine : public uipc::engine::IEngine
 int main()
 {
     using namespace uipc;
+    using namespace uipc::geometry;
+    using namespace uipc::world;
+    using namespace uipc::constitution;
 
-    NullEngine   engine;
-    world::World world{engine};
-
-    world::Scene scene;
+    NullEngine engine;
+    World      world{engine};
+    Scene      scene;
     {
         // create constitution and contact model
-        auto& abd =
-            scene.constitution_tabular().create<constitution::AffineBodyConstitution>();
-
+        auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
         auto default_contact = scene.contact_tabular().default_element();
 
         // create geometry
-        std::vector Vs  = {Vector3{0.0, 0.0, 0.0},
-                           Vector3{1.0, 0.0, 0.0},
-                           Vector3{0.0, 1.0, 0.0},
-                           Vector3{0.0, 0.0, 1.0}};
-        std::vector Ts  = {Vector4i{0, 1, 2, 3}};
-        auto        tet = geometry::tetmesh(Vs, Ts);
+        std::vector       Vs  = {Vector3{0.0, 0.0, 0.0},
+                                 Vector3{1.0, 0.0, 0.0},
+                                 Vector3{0.0, 1.0, 0.0},
+                                 Vector3{0.0, 0.0, 1.0}};
+        std::vector       Ts  = {Vector4i{0, 1, 2, 3}};
+        SimplicialComplex tet = geometry::tetmesh(Vs, Ts);
 
         // apply constitution and contact model to the geometry
         abd.apply_to(tet, 1e8);
         default_contact.apply_to(tet);
 
         // create object
-        auto object = scene.objects().create("tet");
+        P<Object> object = scene.objects().create("tet");
         {
             object->geometries().create(tet);
             object->geometries().create(tet);
@@ -50,16 +50,12 @@ int main()
         // create a ground geometry
         geometry::ImplicitGeometry half_plane = geometry::ground(-1.0);
 
-        auto ground = scene.objects().create("ground");
+        P<Object> ground = scene.objects().create("ground");
         {
             ground->geometries().create(half_plane);
-            fmt::println("ground: {}", half_plane);
         }
     }
-
-
     world.init(scene);
-
     for(int i = 0; i < 10; i++)
     {
         world.advance();
