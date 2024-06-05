@@ -12,7 +12,7 @@ class AttributeCollection;
  * @brief An abstract class to represent a geometries attribute slot in a geometries attribute collection.
  * 
  */
-class IAttributeSlot
+class UIPC_CORE_API IAttributeSlot
 {
   public:
     IAttributeSlot()          = default;

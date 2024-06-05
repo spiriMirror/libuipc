@@ -83,7 +83,7 @@ backend::BufferView backend_view(const ISimplexSlot& s) noexcept
     return backend_view(s.simplices());
 }
 
-span<IndexT> view(VertexSlot& slot)
+UIPC_CORE_API span<IndexT> view(VertexSlot& slot)
 {
     slot.do_make_owned();
     return view(*slot.m_simplices);

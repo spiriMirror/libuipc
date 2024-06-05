@@ -9,11 +9,12 @@ option(UIPC_BUILD_EXAMPLES "Build examples" ON)
 option(UIPC_BUILD_GUI "Build GUI, turn it off if you're server only" ON)
 # =========================================================================
 
+# set cmake include path
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # submodule dependencies
-add_subdirectory(external/enumerate)
 add_subdirectory(external/rapidcsv)
 
 # uipc

@@ -8,10 +8,9 @@ namespace uipc::geometry
 /**
  * @brief A class for reading and writing simplicial complex.
  */
-class SimplicialComplexIO
+class UIPC_CORE_API SimplicialComplexIO
 {
   public:
-
     /**
      * @brief A unified interface for reading a simplicial complex from a file, the file type is determined by the file extension.
      * 
@@ -36,9 +35,9 @@ class SimplicialComplexIO
 	 * 
 	 * @return  SimplicialComplex
 	 */
-	[[nodiscard]] SimplicialComplex read_obj(std::string_view file_name);
+    [[nodiscard]] SimplicialComplex read_obj(std::string_view file_name);
 };
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry
 
 namespace uipc::geometry
 {
@@ -47,4 +46,4 @@ class GeometryIOError : public Exception
   public:
     using Exception::Exception;
 };
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry

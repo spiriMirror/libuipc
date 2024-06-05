@@ -3,6 +3,7 @@
 #include <uipc/common/vector.h>
 #include <uipc/common/span.h>
 #include <uipc/common/type_define.h>
+#include <uipc/common/macro.h>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/backend/buffer_view.h>
 
@@ -11,7 +12,7 @@ namespace uipc::geometry
 /**
  * @brief An abstract class to represent a geometries attribute.
  */
-class IAttribute
+class UIPC_CORE_API IAttribute
 {
   public:
     IAttribute() = default;

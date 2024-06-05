@@ -8,6 +8,7 @@
 #include <stack>
 #include <string>
 #include <uipc/common/json.h>
+#include <uipc/common/macro.h>
 #include <unordered_map>
 #include <functional>
 
@@ -19,7 +20,7 @@ class Timer;
 
 namespace uipc::details
 {
-class ScopedTimer
+class UIPC_CORE_API ScopedTimer
 {
   public:
     using TimePoint = std::chrono::time_point<std::chrono::high_resolution_clock>;
@@ -56,7 +57,7 @@ class ScopedTimer
 
 namespace uipc
 {
-class Timer
+class UIPC_CORE_API Timer
 {
   public:
     Timer(std::string_view blockName, bool force_on = false);
@@ -75,7 +76,7 @@ class Timer
     static std::function<void()> m_sync;
 };
 
-class GlobalTimer
+class UIPC_CORE_API GlobalTimer
 {
     using STimer = details::ScopedTimer;
     template <typename T>
@@ -91,8 +92,8 @@ class GlobalTimer
     STimer& push_timer(std::string_view);
     STimer& pop_timer();
 
-    thread_local static GlobalTimer default_instance;
-    static GlobalTimer*             m_current;
+    static GlobalTimer  default_instance;
+    static GlobalTimer* m_current;
 
     void _print_timings(std::ostream& o, const STimer* timer, int depth);
 
@@ -125,6 +126,11 @@ class GlobalTimer
 
   public:
     GlobalTimer(std::string_view name = "GlobalTimer");
+
+    // delete copy
+    GlobalTimer(const GlobalTimer&)            = delete;
+    GlobalTimer& operator=(const GlobalTimer&) = delete;
+
     ~GlobalTimer();
 
     void                set_as_current();

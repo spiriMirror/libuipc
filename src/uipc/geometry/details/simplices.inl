@@ -1,4 +1,3 @@
-#include "simplices.h"
 namespace uipc::geometry
 {
 template <IndexT N>

@@ -73,7 +73,8 @@ class SimplicialComplexTopo<const VertexSlot>
     /**
      * @brief Get the backend view of the topology, this function guarantees no data clone.
      */
-    friend backend::BufferView backend_view(SimplicialComplexTopo<const VertexSlot>&& v) noexcept;
+    UIPC_CORE_API friend backend::BufferView backend_view(
+        SimplicialComplexTopo<const VertexSlot>&& v) noexcept;
 
     /**
      * @brief Get a const view of the topology, this function guarantees no data clone.
@@ -100,12 +101,12 @@ class SimplicialComplexTopo<VertexSlot>
     /**
      * @brief Get a non-const view of the topology, this function may clone the data.
      */
-    friend span<typename VertexSlot::ValueT> view(SimplicialComplexTopo<VertexSlot>&& v);
+    UIPC_CORE_API friend span<typename VertexSlot::ValueT> view(SimplicialComplexTopo<VertexSlot>&& v);
 
     /**
      * @brief Get the backend view of the topology, this function guarantees no data clone.
      */
-    friend backend::BufferView backend_view(SimplicialComplexTopo<VertexSlot>&& v) noexcept;
+    UIPC_CORE_API friend backend::BufferView backend_view(SimplicialComplexTopo<VertexSlot>&& v) noexcept;
 
     /**
      * @brief Get a const view of the topology, this function guarantees no data clone.
@@ -128,6 +129,9 @@ class SimplicialComplexTopo<VertexSlot>
     VertexSlot& m_topology;
 };
 
+
+extern template class UIPC_CORE_API SimplicialComplexTopo<VertexSlot>;
+extern template class UIPC_CORE_API SimplicialComplexTopo<const VertexSlot>;
 
 /**
  * @brief A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.

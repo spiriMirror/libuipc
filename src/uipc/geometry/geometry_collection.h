@@ -5,7 +5,7 @@
 
 namespace uipc::geometry
 {
-class IGeometryCollection
+class UIPC_CORE_API IGeometryCollection
 {
   public:
     virtual ~IGeometryCollection() = default;
@@ -21,7 +21,7 @@ class IGeometryCollection
     virtual IndexT get_next_id() const noexcept    = 0;
 };
 
-class GeometryCollection : public IGeometryCollection
+class UIPC_CORE_API GeometryCollection : public IGeometryCollection
 {
   public:
     GeometryCollection() = default;

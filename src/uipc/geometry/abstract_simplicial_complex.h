@@ -8,7 +8,7 @@ namespace uipc::geometry
  * 
  * @note Abstract simplicial complex does not contain any geometric information, such as coordinates of vertices.
  */
-class AbstractSimplicialComplex
+class UIPC_CORE_API AbstractSimplicialComplex
 {
     friend class SimplicialComplex;
 

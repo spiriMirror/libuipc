@@ -5,10 +5,14 @@
 
 namespace uipc::world
 {
-class ConstitutionTabular
+class UIPC_CORE_API ConstitutionTabular
 {
   public:
     ConstitutionTabular() = default;
+
+    // delete copy
+    ConstitutionTabular(const ConstitutionTabular&)            = delete;
+    ConstitutionTabular& operator=(const ConstitutionTabular&) = delete;
 
     template <std::derived_from<IConstitution> T, typename... Args>
     [[nodiscard]] T& create(Args&&...);

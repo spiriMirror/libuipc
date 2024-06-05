@@ -5,7 +5,7 @@
 namespace uipc::geometry
 {
 template <>
-class GeometrySlotT<ImplicitGeometry> : public GeometrySlot
+class UIPC_CORE_API GeometrySlotT<ImplicitGeometry> : public GeometrySlot
 {
   public:
     GeometrySlotT(IndexT id, const ImplicitGeometry& geometry);

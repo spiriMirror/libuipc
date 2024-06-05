@@ -11,14 +11,14 @@ class SceneVisitor;
 
 namespace uipc::world
 {
-class Scene
+class UIPC_CORE_API Scene
 {
     friend class backend::SceneVisitor;
     friend class World;
     friend class Object;
 
   public:
-    class Objects
+    class UIPC_CORE_API Objects
     {
         friend class Scene;
 
@@ -33,7 +33,7 @@ class Scene
         Scene& m_scene;
     };
 
-    class CObjects
+    class UIPC_CORE_API CObjects
     {
         friend class Scene;
 
@@ -46,7 +46,7 @@ class Scene
         const Scene& m_scene;
     };
 
-    class Geometries
+    class UIPC_CORE_API Geometries
     {
         friend class Scene;
 
@@ -60,7 +60,7 @@ class Scene
         Scene& m_scene;
     };
 
-    class CGeometries
+    class UIPC_CORE_API CGeometries
     {
         friend class Scene;
 

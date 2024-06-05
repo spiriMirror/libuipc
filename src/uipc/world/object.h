@@ -10,7 +10,7 @@ namespace uipc::world
 {
 class Scene;
 
-class IObject
+class UIPC_CORE_API IObject
 {
   public:
     virtual ~IObject() = default;
@@ -44,6 +44,8 @@ class ObjectGeometrySlots<geometry::Geometry>
     P<geometry::GeometrySlot> rest_geometry;
 };
 
+extern template class UIPC_CORE_API ObjectGeometrySlots<geometry::Geometry>;
+
 template <>
 class ObjectGeometrySlots<const geometry::Geometry>
 {
@@ -52,12 +54,14 @@ class ObjectGeometrySlots<const geometry::Geometry>
     P<const geometry::GeometrySlot> rest_geometry;
 };
 
-class Object : public IObject
+extern template class UIPC_CORE_API ObjectGeometrySlots<const geometry::Geometry>;
+
+class UIPC_CORE_API Object : public IObject
 {
     friend class Scene;
 
   public:
-    class Geometries
+    class UIPC_CORE_API Geometries
     {
         friend class Object;
 
@@ -78,7 +82,7 @@ class Object : public IObject
         Object& m_object;
     };
 
-    class CGeometries
+    class UIPC_CORE_API CGeometries
     {
         friend class Object;
 

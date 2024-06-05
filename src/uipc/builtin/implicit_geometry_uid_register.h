@@ -4,7 +4,7 @@
 
 namespace uipc::builtin
 {
-class ImplicitGeometryUIDRegister : public details::UIDRegister
+class UIPC_CORE_API ImplicitGeometryUIDRegister : public details::UIDRegister
 {
   public:
     static const ImplicitGeometryUIDRegister& instance() noexcept;

@@ -8,7 +8,7 @@ class WorldVisitor;
 
 namespace uipc::world
 {
-class World
+class UIPC_CORE_API World
 {
     friend class backend::WorldVisitor;
 

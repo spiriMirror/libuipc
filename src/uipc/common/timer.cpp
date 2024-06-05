@@ -89,7 +89,7 @@ Timer::~Timer()
     t.tock();
 }
 
-thread_local GlobalTimer GlobalTimer::default_instance;
+GlobalTimer GlobalTimer::default_instance;
 
 GlobalTimer* GlobalTimer::m_current = nullptr;
 

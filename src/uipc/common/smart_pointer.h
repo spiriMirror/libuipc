@@ -3,13 +3,13 @@
 
 namespace uipc
 {
-template <typename T>
-using U = std::unique_ptr<T>;
+template <typename T, typename Dx = std::default_delete<T>>
+using U = std::unique_ptr<T, Dx>;
 
-template <typename T>
+template <typename T, typename Dx = std::default_delete<T>>
 using S = std::shared_ptr<T>;
 
-template <typename T>
+template <typename T, typename Dx = std::default_delete<T>>
 using W = std::weak_ptr<T>;
 
 /**

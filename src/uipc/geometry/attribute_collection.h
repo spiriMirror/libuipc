@@ -12,7 +12,7 @@ namespace uipc::geometry
  *
  * All geometries attributes in the collection always have the same size.
  */
-class AttributeCollection
+class UIPC_CORE_API AttributeCollection
 {
     friend struct fmt::formatter<AttributeCollection>;
 
@@ -127,19 +127,19 @@ class AttributeCollection
     unordered_map<std::string, S<IAttributeSlot>> m_attributes;
 };
 
-class AttributeAlreadyExist : public Exception
+class UIPC_CORE_API AttributeAlreadyExist : public Exception
 {
   public:
     using Exception::Exception;
 };
 
-class AttributeDontAllowDestroy : public Exception
+class UIPC_CORE_API AttributeDontAllowDestroy : public Exception
 {
   public:
     using Exception::Exception;
 };
 
-class AttributeSizeMismatch : public Exception
+class UIPC_CORE_API AttributeSizeMismatch : public Exception
 {
   public:
     using Exception::Exception;
@@ -155,6 +155,8 @@ struct formatter<uipc::geometry::AttributeCollection> : formatter<std::string_vi
     appender format(const uipc::geometry::AttributeCollection& collection,
                     format_context&                            ctx);
 };
+
+extern template struct UIPC_CORE_API formatter<uipc::geometry::AttributeCollection>;
 }  // namespace fmt
 
 

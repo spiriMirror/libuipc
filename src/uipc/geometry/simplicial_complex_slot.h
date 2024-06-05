@@ -83,12 +83,15 @@ class GeometrySlotT<SimplicialComplex> : public GeometrySlot
     const SimplicialComplex& geometry() const noexcept;
 
   protected:
-    virtual Geometry& get_geometry() noexcept override;
+    virtual Geometry&       get_geometry() noexcept override;
     virtual const Geometry& get_geometry() const noexcept override;
 
   private:
     SimplicialComplex m_simplicial_complex;
 };
+
+
+extern template class UIPC_CORE_API GeometrySlotT<SimplicialComplex>;
 
 using SimplicialComplexSlot = GeometrySlotT<SimplicialComplex>;
 }  // namespace uipc::geometry

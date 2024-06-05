@@ -1,9 +1,10 @@
 #pragma once
+#include <uipc/common/macro.h>
 #include <uipc/backend/type_define.h>
 #include <uipc/common/type_define.h>
 namespace uipc::backend
 {
-class BufferView
+class UIPC_CORE_API BufferView
 {
   private:
     static constexpr SizeT INVALID = ~0;
@@ -29,9 +30,9 @@ class BufferView
     BufferView subview(SizeT offset, SizeT element_count) const noexcept;
 
   private:
-    HandleT          m_handle         = 0;
-    SizeT            m_offset         = INVALID;
-    SizeT            m_size           = INVALID;
+    HandleT m_handle = 0;
+    SizeT   m_offset = INVALID;
+    SizeT   m_size   = INVALID;
 
     SizeT            m_element_size   = INVALID;
     SizeT            m_element_stride = INVALID;

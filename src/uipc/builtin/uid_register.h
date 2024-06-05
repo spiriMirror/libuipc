@@ -1,11 +1,11 @@
 #pragma once
-
+#include <uipc/common/macro.h>
 #include <uipc/builtin/uid_info.h>
 #include <uipc/common/unordered_map.h>
 
 namespace uipc::builtin::details
 {
-class UIDRegister
+class UIPC_CORE_API UIDRegister
 {
   public:
     const UIDInfo& find(U64 uid) const;

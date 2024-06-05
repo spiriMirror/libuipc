@@ -3,7 +3,7 @@
 
 namespace uipc::geometry
 {
-class ImplicitGeometry : public Geometry
+class UIPC_CORE_API ImplicitGeometry : public Geometry
 {
   public:
     ImplicitGeometry();
@@ -17,7 +17,8 @@ class ImplicitGeometry : public Geometry
 namespace fmt
 {
 template <>
-struct formatter<uipc::geometry::ImplicitGeometry> : public formatter<std::string_view>
+struct UIPC_CORE_API formatter<uipc::geometry::ImplicitGeometry>
+    : public formatter<std::string_view>
 {
     auto format(const uipc::geometry::ImplicitGeometry& geometry, format_context& ctx)
     {

@@ -11,5 +11,5 @@ namespace uipc::geometry
  * 
  * @return SimplicialComplex The closure of the input simplicial complex.
  */
-SimplicialComplex closure(const SimplicialComplex& complex);
-}
+UIPC_CORE_API [[nodiscard]] SimplicialComplex closure(const SimplicialComplex& complex);
+}  // namespace uipc::geometry

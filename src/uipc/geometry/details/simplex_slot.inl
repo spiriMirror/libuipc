@@ -13,7 +13,7 @@ auto SimplexSlot<N>::view() const noexcept -> span<const ValueT>
 }
 
 template <IndexT N>
-auto view(SimplexSlot<N>& slot) -> span<typename SimplexSlot<N>::ValueT>
+auto view(SimplexSlot<N>& slot)->span<typename SimplexSlot<N>::ValueT>
 {
     slot.do_make_owned();
     return view(*slot.m_simplices);

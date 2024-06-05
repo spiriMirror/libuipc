@@ -2,7 +2,7 @@
 
 namespace uipc::geometry
 {
-backend::BufferView backend_view(SimplicialComplexTopo<VertexSlot>&& v) noexcept
+UIPC_CORE_API backend::BufferView backend_view(SimplicialComplexTopo<VertexSlot>&& v) noexcept
 {
     return backend_view(v.m_topology);
 }
@@ -23,7 +23,7 @@ SimplicialComplexTopo<VertexSlot>::SimplicialComplexTopo(VertexSlot& v)
 }
 
 
-backend::BufferView backend_view(SimplicialComplexTopo<const VertexSlot>&& v) noexcept
+UIPC_CORE_API backend::BufferView backend_view(SimplicialComplexTopo<const VertexSlot>&& v) noexcept
 {
     return backend_view(v.m_topology);
 }

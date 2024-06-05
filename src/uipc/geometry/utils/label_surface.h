@@ -4,5 +4,5 @@
 
 namespace uipc::geometry
 {
-P<AttributeSlot<IndexT>> label_surface_vertices(SimplicialComplex& sc);
+UIPC_CORE_API P<AttributeSlot<IndexT>> label_surface_vertices(SimplicialComplex& sc);
 }
