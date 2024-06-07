@@ -13,7 +13,7 @@ void say_hello_from_muda()
 
     Launch()
         .apply([] __device__()
-               { cout << "Hello from CudaEngine CUDA Kernel!\n"; })
+               { cout << "Hello from CudaEngine CUDA Kernel! \n "; })
         .wait();
 }
 
@@ -24,28 +24,28 @@ CudaEngine::CudaEngine()
 
     using namespace muda;
 
-    Debug::set_sync_callback(
-        [this]
-        {
-            m_string_stream.str("");
-            m_device_common->logger->retrieve(m_string_stream);
-            if(m_string_stream.str().empty())
-                return;
-
-            std::string str = m_string_stream.str();
-            if(str.back() == '\n')
-                str.pop_back();
-            spdlog::info(R"([CudaEngine Kernel Console]:
--------------------------------------------------------------------------------
-{}
--------------------------------------------------------------------------------)",
-                         str);
-        });
-
     if(!cout)
     {
         auto viewer_ptr         = device_logger_viewer_ptr();
         m_device_common->logger = std::make_unique<muda::Logger>(viewer_ptr);
+
+        Debug::set_sync_callback(
+            [this]
+            {
+                m_string_stream.str("");
+                m_device_common->logger->retrieve(m_string_stream);
+                if(m_string_stream.str().empty())
+                    return;
+
+                std::string str = m_string_stream.str();
+                if(str.back() == '\n')
+                    str.pop_back();
+                spdlog::info(R"([CudaEngine Kernel Console]:
+-------------------------------------------------------------------------------
+{}
+-------------------------------------------------------------------------------)",
+                             str);
+            });
     }
 
     say_hello_from_muda();
@@ -64,6 +64,6 @@ CudaEngine::~CudaEngine()
     muda::Debug::set_sync_callback(nullptr);
     cout = {};
 
-    spdlog::info("[CudaEngine] Cuda Backend Shutdown Success."); 
+    spdlog::info("[CudaEngine] Cuda Backend Shutdown Success.");
 }
 }  // namespace uipc::backend

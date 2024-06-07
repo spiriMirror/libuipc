@@ -16,9 +16,18 @@ function(uipc_set_output_directory target_name)
 endfunction()
 
 # -----------------------------------------------------------------------------------------
+# print message info with uipc prefix
+# -----------------------------------------------------------------------------------------
+function(uipc_info content)
+    message(STATUS "[libuipc]: ${content}")
+endfunction()
+
+# -----------------------------------------------------------------------------------------
 # Add a dependency to the backends, so that the backends will be built before this target
 # -----------------------------------------------------------------------------------------
 function(uipc_add_backend_dependency target_name)
-    message(STATUS "Adding backend dependency to target [${target_name}]")
     add_dependencies(${target_name} uipc::backends)
 endfunction()
+
+
+

@@ -13,10 +13,10 @@ add_library(uipc::backends ALIAS uipc_backends)
 # function to set some common properties for backends
 # ---------------------------------------------------------------------------
 function(uipc_add_backend name)
-    message(STATUS "[libuipc]: adding backend: ${name}")
+    uipc_info("Adding backend: [${name}]")
 
     if(UIPC_BUILD_TESTS) # for tests, we need to link against the shared library
-        message(STATUS "[libuipc]: `UIPC_BUILD_TESTS=1` so we build the backend [${name}] as shared library")
+        uipc_info("`UIPC_BUILD_TESTS=1` so we build the backend [${name}] as shared library")
         add_library(${name} SHARED)
     else() # else, we just dynamically load the backend
         add_library(${name} MODULE)
@@ -28,10 +28,8 @@ function(uipc_add_backend name)
     target_link_libraries(${name} PRIVATE uipc::uipc)
     target_compile_definitions(${name} PRIVATE UIPC_BACKEND_EXPORT_DLL=1)
 
-    set_target_properties(${name} PROPERTIES
-        PREFIX ""
-        OUTPUT_NAME "uipc_backend_${name}"
-    )
+    set_target_properties(${name} PROPERTIES OUTPUT_NAME "uipc_backend_${name}")
+    
     # folder for IDE
     set_target_properties(${name} PROPERTIES FOLDER "uipc-backends")
     target_sources(${name} PRIVATE ${MODULE_FUNCTION_HEADER})
