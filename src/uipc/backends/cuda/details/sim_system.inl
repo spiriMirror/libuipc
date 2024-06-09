@@ -1,4 +1,4 @@
-#include <uipc/backends/cuda/sim_system_collection.h>
+#include <sim_system_collection.h>
 
 namespace uipc::backend::cuda
 {

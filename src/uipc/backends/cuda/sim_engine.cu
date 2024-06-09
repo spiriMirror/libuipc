@@ -1,11 +1,11 @@
-#include <uipc/backends/cuda/sim_engine.h>
+#include <sim_engine.h>
 #include <uipc/backends/module.h>
 #include <uipc/common/log.h>
 #include <muda/muda.h>
-#include <uipc/backends/cuda/kernel_cout.h>
-#include <uipc/backends/cuda/sim_engine_device_common.h>
-#include <uipc/backends/cuda/log_pattern_guard.h>
-#include <uipc/backends/cuda/sim_system_collection.h>
+#include <kernel_cout.h>
+#include <sim_engine_device_common.h>
+#include <log_pattern_guard.h>
+#include <sim_system_collection.h>
 
 namespace uipc::backend::cuda
 {

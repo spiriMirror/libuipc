@@ -7,6 +7,8 @@ target_sources(cuda PRIVATE ${SOURCES})
 
 target_link_libraries(cuda PUBLIC muda)
 
+target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+
 set_target_properties(cuda PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON

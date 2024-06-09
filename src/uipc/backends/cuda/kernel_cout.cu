@@ -1,5 +1,5 @@
 #include <muda/logger.h>
-#include <uipc/backends/cuda/kernel_cout.h>
+#include <kernel_cout.h>
 
 namespace uipc::backend::cuda
 {

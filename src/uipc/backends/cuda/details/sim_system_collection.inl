@@ -1,5 +1,5 @@
 #include <uipc/common/log.h>
-#include <uipc/backends/cuda/sim_system.h>
+#include <sim_system.h>
 namespace uipc::backend::cuda
 {
 template <std::derived_from<SimSystem> T>

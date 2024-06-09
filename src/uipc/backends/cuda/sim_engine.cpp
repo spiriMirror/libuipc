@@ -1,9 +1,9 @@
-#include <uipc/backends/cuda/sim_engine.h>
+#include <sim_engine.h>
 #include <uipc/backends/module.h>
 #include <uipc/common/log.h>
-#include <uipc/backends/cuda/sim_system_auto_register.h>
-#include <uipc/backends/cuda/log_pattern_guard.h>
-#include <uipc/backends/cuda/sim_system_auto_register.h>
+#include <sim_system_auto_register.h>
+#include <log_pattern_guard.h>
+#include <sim_system_auto_register.h>
 
 namespace uipc::backend::cuda
 {

@@ -3,7 +3,7 @@
 #include <uipc/backend/macro.h>
 #include <uipc/engine/engine.h>
 #include <sstream>
-#include <uipc/backends/cuda/sim_system_collection.h>
+#include <sim_system_collection.h>
 
 namespace uipc::backend::cuda
 {

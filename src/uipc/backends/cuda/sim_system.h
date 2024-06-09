@@ -1,6 +1,6 @@
 #pragma once
 #include <string_view>
-#include <uipc/backends/cuda/sim_system_auto_register.h>
+#include <sim_system_auto_register.h>
 
 namespace uipc::backend::cuda
 {
