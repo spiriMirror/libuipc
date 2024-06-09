@@ -127,23 +127,11 @@ class UIPC_CORE_API AttributeCollection
     unordered_map<std::string, S<IAttributeSlot>> m_attributes;
 };
 
-//class UIPC_CORE_API AttributeAlreadyExist : public Exception
-//{
-//  public:
-//    using Exception::Exception;
-//};
-//
-//class UIPC_CORE_API AttributeDontAllowDestroy : public Exception
-//{
-//  public:
-//    using Exception::Exception;
-//};
-//
-//class UIPC_CORE_API AttributeSizeMismatch : public Exception
-//{
-//  public:
-//    using Exception::Exception;
-//};
+class UIPC_CORE_API GeometryAttributeError : public Exception
+{
+  public:
+    using Exception::Exception;
+};
 }  // namespace uipc::geometry
 
 

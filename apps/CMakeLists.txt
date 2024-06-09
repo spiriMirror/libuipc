@@ -1,7 +1,7 @@
-
+# common header for applications
 add_subdirectory(app)
 
-# applications
+# examples
 if(UIPC_BUILD_EXAMPLES)
     add_subdirectory(examples)
 endif()
@@ -9,4 +9,9 @@ endif()
 # tests
 if(UIPC_BUILD_TESTS)
     add_subdirectory(tests)
+endif()
+
+# benchmarks
+if(UIPC_BUILD_BENCHMARKS)
+    add_subdirectory(benchmarks)
 endif()

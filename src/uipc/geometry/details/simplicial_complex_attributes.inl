@@ -1,5 +1,4 @@
 #include <uipc/common/log.h>
-#include "simplicial_complex_attributes.h"
 
 namespace uipc::geometry
 {

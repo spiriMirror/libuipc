@@ -8,16 +8,16 @@ P<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttri
     auto n  = std::string{name};
     auto it = m_attributes.find(n);
 
-    //if(size() != slot.size())
-    //    throw AttributeSizeMismatch{
-    //        fmt::format("Attribute size mismatch, "
-    //                    "Attribute Collision size is {}, input slot size is {}.",
-    //                    size(),
-    //                    slot.size())};
+    if(size() != slot.size())
+        throw GeometryAttributeError{
+            fmt::format("Attribute size mismatch, "
+                        "Attribute Collision size is {}, input slot size is {}.",
+                        size(),
+                        slot.size())};
 
-    //if(it != m_attributes.end())
-    //    throw AttributeAlreadyExist{
-    //        fmt::format("Attribute with name [{}] already exist!", name)};
+    if(it != m_attributes.end())
+        throw GeometryAttributeError{
+            fmt::format("Attribute with name [{}] already exist!", name)};
     return m_attributes[n] = slot.clone();
 }
 
@@ -30,9 +30,9 @@ void AttributeCollection::destroy(std::string_view name)
         return;
     }
 
-    //if(!it->second->allow_destroy())
-    //    throw AttributeDontAllowDestroy{
-    //        fmt::format("Attribute [{}] don't allow destroy!", name)};
+    if(!it->second->allow_destroy())
+        throw GeometryAttributeError{
+            fmt::format("Attribute [{}] don't allow destroy!", name)};
 
     m_attributes.erase(it);
 }

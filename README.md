@@ -1,5 +1,5 @@
 # libuipc
-A Library of Unified Incremental Potential Contact.
+A Modern C++20 Library of Unified Incremental Potential Contact.
 
 ## Dependencies
 
@@ -15,6 +15,7 @@ A Library of Unified Incremental Potential Contact.
 | cppitertools                           | 2.1#3   | python-like iteration tools                         | package        |
 | bgfx                                   | 1.127#1 | cross-platform RHI                                  | package        |
 | dylib                                  | 2.2.1   | cross-platform dynamic library loader               | package        |
+| benchmark                              | 1.8.3#3 | microbenchmark support library                      | package        |
 
 ## Build
 

@@ -39,7 +39,7 @@ target_link_libraries(uipc PUBLIC
     spdlog::spdlog 
     igl::igl_core
     nlohmann_json::nlohmann_json
-    rapidcsv
+    # rapidcsv
     fmt::fmt
     cppitertools::cppitertools
 )

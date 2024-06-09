@@ -5,6 +5,7 @@
 #include <uipc/common/enumerate.h>
 #include <filesystem>
 #include <igl/read_triangle_mesh.h>
+#include <igl/writeOBJ.h>
 
 namespace uipc::geometry
 {
@@ -81,4 +82,32 @@ SimplicialComplex SimplicialComplexIO::read_obj(std::string_view file_name)
         f = F.row(i);
     return trimesh(Vs, Fs);
 }
-}  // namespace uipc::geometries
+
+void SimplicialComplexIO::write_obj(std::string_view file_name, const SimplicialComplex& sc)
+{
+    if(sc.dim() > 2)
+    {
+        throw GeometryIOError{fmt::format("Cannot write simplicial complex of dimension {} to .obj file",
+                                          sc.dim())};
+    }
+
+    auto E_size = sc.edges().size();
+
+    auto Ps = sc.positions().view();
+    auto Fs = sc.triangles().topo().view();
+
+
+    RowMajorMatrix<Float>  X{Ps.size(), 3};
+    RowMajorMatrix<IndexT> F{Fs.size(), 3};
+
+    for(auto&& [i, p] : enumerate(Ps))
+        X.row(i) = p;
+    for(auto&& [i, f] : enumerate(Fs))
+        F.row(i) = f;
+
+    if(!igl::writeOBJ(std::string{file_name}, X, F))
+    {
+        throw GeometryIOError{fmt::format("Failed to write .obj file: {}", file_name)};
+    }
+}
+}  // namespace uipc::geometry

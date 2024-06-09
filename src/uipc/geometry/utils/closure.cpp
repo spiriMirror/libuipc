@@ -4,8 +4,13 @@
 
 namespace uipc::geometry
 {
-static void closure_dim_2(SimplicialComplex& R)
+static void pure_closure_dim_2(SimplicialComplex& R)
 {
+    UIPC_ASSERT(R.edges().size() == 0,
+                "Edges should be empty, when generate edges from triangles, yours {}.",
+                R.edges().size());
+    // TODO: later we may allow Edges to be non-empty.
+
     /*
     * generate the edges from the triangles
     */
@@ -50,8 +55,14 @@ static void closure_dim_2(SimplicialComplex& R)
     std::ranges::copy(sep_edges, edge_view.begin());
 }
 
-static void closure_dim_3(SimplicialComplex& R)
+static void pure_closure_dim_3(SimplicialComplex& R)
 {
+    UIPC_ASSERT(R.triangles().size() == 0,
+                "Triangles should be empty, when generate faces from tetrahedra, yours {}.",
+                R.triangles().size());
+    // TODO: later we may allow Triangles to be non-empty.
+
+
     // try to find the unique faces from the tetrahedra
     auto T = R.tetrahedra().topo().view();
 
@@ -68,7 +79,7 @@ static void closure_dim_3(SimplicialComplex& R)
     // set the faces
     for(auto [i, t] : enumerate(T))
     {
-        sep_faces[i * 4]     = sort_face({t[0], t[1], t[2]});
+        sep_faces[i * 4 + 0] = sort_face({t[0], t[1], t[2]});
         sep_faces[i * 4 + 1] = sort_face({t[0], t[1], t[3]});
         sep_faces[i * 4 + 2] = sort_face({t[0], t[2], t[3]});
         sep_faces[i * 4 + 3] = sort_face({t[1], t[2], t[3]});
@@ -95,11 +106,11 @@ static void closure_dim_3(SimplicialComplex& R)
     std::ranges::copy(sep_faces, face_view.begin());
 
     // then we use the triangles to generate the edges
-    closure_dim_2(R);
+    pure_closure_dim_2(R);
 }
 
 
-SimplicialComplex closure(const SimplicialComplex& O)
+SimplicialComplex pure_closure(const SimplicialComplex& O)
 {
     SimplicialComplex R;
 
@@ -111,14 +122,14 @@ SimplicialComplex closure(const SimplicialComplex& O)
     switch(O.dim())
     {
         case 0: {
-            // nothing to do, vertices are closure of vertices
+            // nothing to do, vertices are pure_closure of vertices
         }
         break;
         case 1: {
             // share edges
             R.edges().resize(O.edges().size());
             R.edges().topo().share(O.edges().topo());
-            // no need to do anything, edges and vertices are closure of edges
+            // no need to do anything, edges and vertices are pure_closure of edges
             break;
         }
         case 2: {
@@ -126,7 +137,7 @@ SimplicialComplex closure(const SimplicialComplex& O)
             R.triangles().resize(O.triangles().size());
             R.triangles().topo().share(O.triangles().topo());
             // generate the edges from the triangles
-            closure_dim_2(R);
+            pure_closure_dim_2(R);
         }
         break;
         case 3: {
@@ -134,9 +145,7 @@ SimplicialComplex closure(const SimplicialComplex& O)
             R.tetrahedra().resize(O.tetrahedra().size());
             R.tetrahedra().topo().share(O.tetrahedra().topo());
             // generate the faces from the tetrahedra
-            closure_dim_3(R);
-            // generate the edges from the faces
-            closure_dim_2(R);
+            pure_closure_dim_3(R);
         }
         break;
         default:

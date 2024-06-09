@@ -11,8 +11,6 @@ TEST_CASE("read_msh", "[geometry]")
 
     auto mesh = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
     REQUIRE(mesh.vertices().size() == 8);
-    REQUIRE(mesh.edges().size() == 0);
-    REQUIRE(mesh.triangles().size() == 0);
     REQUIRE(mesh.tetrahedra().size() == 5);
     REQUIRE(mesh.dim() == 3);
 
@@ -25,7 +23,6 @@ TEST_CASE("read_obj", "[geometry]")
     SimplicialComplexIO io;
     auto mesh = io.read_obj(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
     REQUIRE(mesh.vertices().size() == 8);
-    REQUIRE(mesh.edges().size() == 0);
     REQUIRE(mesh.triangles().size() == 12);
     REQUIRE(mesh.tetrahedra().size() == 0);
     REQUIRE(mesh.dim() == 2);

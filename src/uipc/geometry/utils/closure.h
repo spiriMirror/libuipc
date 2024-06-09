@@ -4,12 +4,12 @@
 namespace uipc::geometry
 {
 /**
- * @brief Compute the closure of a simplicial complex.
+ * @brief Generate the closure of a simplicial complex, who only have the top dimension simplices.
  * 
- * This operation takes the `position` attribute of the vertices and the top dimension topology of the simplicial complex as input,
- * returns a new simplicial complex with the same vertices and the closure of the input simplicial complex (with the lower dimension simplices).
- * 
- * @return SimplicialComplex The closure of the input simplicial complex.
+ * E.g. 
+ * 1) the input 3D simplicial complex can only have tetrahedrons (no triangles, edges).
+ * 2) the input 2D simplicial complex can only have triangles (no edges).
+ * 3) the input 1D simplicial complex can only have edges.
  */
-UIPC_CORE_API [[nodiscard]] SimplicialComplex closure(const SimplicialComplex& complex);
+UIPC_CORE_API [[nodiscard]] SimplicialComplex pure_closure(const SimplicialComplex& complex);
 }  // namespace uipc::geometry

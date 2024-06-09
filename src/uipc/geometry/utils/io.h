@@ -36,6 +36,9 @@ class UIPC_CORE_API SimplicialComplexIO
 	 * @return  SimplicialComplex
 	 */
     [[nodiscard]] SimplicialComplex read_obj(std::string_view file_name);
+
+
+    [[nodiscard]] void write_obj(std::string_view file_name, const SimplicialComplex& sc);
 };
 }  // namespace uipc::geometry
 

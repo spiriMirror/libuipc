@@ -16,11 +16,6 @@ TEST_CASE("closure", "[closure]")
 
     auto mesh = tetmesh(Vs, Ts);
 
-    auto c = closure(mesh);
-
-    REQUIRE(c.positions().size() == mesh.positions().size());
-    REQUIRE(c.tetrahedra().size() == mesh.tetrahedra().size());
-
-    REQUIRE(c.triangles().size() == 4);
-    REQUIRE(c.edges().size() == 6);
+    REQUIRE(mesh.triangles().size() == 4);
+    REQUIRE(mesh.edges().size() == 6);
 }

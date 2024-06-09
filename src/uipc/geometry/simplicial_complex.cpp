@@ -5,6 +5,12 @@
 
 namespace uipc::geometry
 {
+SimplicialComplex::SimplicialComplex()
+{
+    // 1. AbstractSimplicialComplex is default-constructed, so no need to do anything.
+    // 2. Don't create positions attribute: some algorithms just **share** the positions attribute.
+}
+
 SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
                                      span<const Vector3>              positions)
     : m_asc{asc}

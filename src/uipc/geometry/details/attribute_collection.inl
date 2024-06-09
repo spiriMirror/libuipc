@@ -9,8 +9,8 @@ P<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& 
     auto it = m_attributes.find(n);
     if(it != m_attributes.end())
     {
-        //throw AttributeAlreadyExist{
-        //    fmt::format("Attribute with name [{}] already exist!", name)};
+        throw GeometryAttributeError{
+            fmt::format("Attribute with name [{}] already exist!", name)};
     }
     auto S = std::make_shared<Attribute<T>>(default_value);
     S->resize(m_size);
@@ -41,4 +41,4 @@ P<const AttributeSlot<T>> AttributeCollection::find(std::string_view name) const
     auto slot = this->find(name);
     return std::dynamic_pointer_cast<const AttributeSlot<T>>(slot.lock());
 }
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry

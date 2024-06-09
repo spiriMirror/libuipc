@@ -30,4 +30,10 @@ constexpr std::string_view constitution_uid = "constitution_uid";
  * which is defined in the libuipc specification.
  */
 constexpr std::string_view implicit_geometry_uid = "implicit_geometry_uid";
+
+
+/**
+ * @brief `is_surf` attribute on vertices/edges/triangles/tetrahedra... to indicate if the element is a surface element.
+ */
+constexpr std::string_view is_surf = "is_surf";
 }  // namespace uipc::builtin

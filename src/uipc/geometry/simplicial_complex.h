@@ -50,7 +50,7 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
     using TetrahedronAttributes = SimplicialComplexAttributes<TetrahedronSlot>;
     using CTetrahedronAttributes = SimplicialComplexAttributes<const TetrahedronSlot>;
 
-    SimplicialComplex() = default;
+    SimplicialComplex();
     SimplicialComplex(const AbstractSimplicialComplex& asc, span<const Vector3> positions);
 
 

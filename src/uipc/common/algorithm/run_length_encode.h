@@ -14,7 +14,7 @@ namespace uipc
  * 
  * @return std::size_t The number of unique values
  */
-template <typename InputIt, typename OutputIt, typename OutputCountIt>
+template <typename InputIt, typename OutputIt, typename OutputCountIt, typename Pred = std::equal_to<>>
     requires requires(InputIt in_first, InputIt in_last, OutputIt out_unique, OutputCountIt out_counts) {
         // able to assign value from input to output
         *out_unique = *in_first;
@@ -23,9 +23,13 @@ template <typename InputIt, typename OutputIt, typename OutputCountIt>
         // able to assign value to out_counts
         *out_counts = 0;
     }
-std::size_t run_length_encode(InputIt in_first, InputIt in_last, OutputIt out_unique, OutputCountIt out_counts)
+std::size_t run_length_encode(InputIt       in_first,
+                              InputIt       in_last,
+                              OutputIt      out_unique,
+                              OutputCountIt out_counts,
+                              Pred&&        pred)
 {
-    if(in_first == in_last) // empty input
+    if(in_first == in_last)  // empty input
     {
         return 0;
     }
@@ -40,7 +44,7 @@ std::size_t run_length_encode(InputIt in_first, InputIt in_last, OutputIt out_un
 
     for(++in_current; in_current != in_last; ++in_current)
     {
-        if(*in_current == current_value)
+        if(pred(*in_current, current_value))
         {
             ++current_count;
         }
@@ -62,5 +66,11 @@ std::size_t run_length_encode(InputIt in_first, InputIt in_last, OutputIt out_un
     *out_count_current = current_count;
 
     return unique_count;
+}
+
+template <typename InputIt, typename OutputIt, typename OutputCountIt>
+auto run_length_encode(InputIt in_first, InputIt in_last, OutputIt out_unique, OutputCountIt out_counts)
+{
+    return run_length_encode(in_first, in_last, out_unique, out_counts, std::equal_to<>{});
 }
 }  // namespace uipc
