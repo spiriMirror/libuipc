@@ -1,11 +1,13 @@
-#include <uipc/backends/cuda/cuda_engine.h>
+#include <uipc/backends/cuda/sim_engine.h>
 #include <uipc/backends/module.h>
 #include <uipc/common/log.h>
 #include <muda/muda.h>
 #include <uipc/backends/cuda/kernel_cout.h>
-#include <uipc/backends/cuda/cuda_engine_device_common.h>
+#include <uipc/backends/cuda/sim_engine_device_common.h>
+#include <uipc/backends/cuda/log_pattern_guard.h>
+#include <uipc/backends/cuda/sim_system_collection.h>
 
-namespace uipc::backend
+namespace uipc::backend::cuda
 {
 void say_hello_from_muda()
 {
@@ -13,14 +15,17 @@ void say_hello_from_muda()
 
     Launch()
         .apply([] __device__()
-               { cout << "Hello from CudaEngine CUDA Kernel! \n "; })
+               { cout << "Hello from CudaEngine CUDA Kernel!\n"; })
         .wait();
 }
 
-CudaEngine::CudaEngine()
+SimEngine::SimEngine()
     : m_device_common(std::make_unique<DeviceCommon>())
 {
-    spdlog::info("[CudaEngine] Cuda Backend Init Success.");
+
+    LogGuard guard;
+
+    spdlog::info("Cuda Backend Init Success.");
 
     using namespace muda;
 
@@ -38,9 +43,7 @@ CudaEngine::CudaEngine()
                     return;
 
                 std::string str = m_string_stream.str();
-                if(str.back() == '\n')
-                    str.pop_back();
-                spdlog::info(R"([CudaEngine Kernel Console]:
+                spdlog::info(R"([Kernel Console] 
 -------------------------------------------------------------------------------
 {}
 -------------------------------------------------------------------------------)",
@@ -51,19 +54,27 @@ CudaEngine::CudaEngine()
     say_hello_from_muda();
 }
 
-auto CudaEngine::device_common() noexcept -> DeviceCommon&
+auto SimEngine::device_common() noexcept -> DeviceCommon&
 {
     return *m_device_common;
 }
 
-CudaEngine::~CudaEngine()
+WorldVisitor& SimEngine::world() noexcept
 {
+    UIPC_ASSERT(m_world_visitor, "WorldVisitor is not initialized.");
+    return *m_world_visitor;
+}
+
+SimEngine::~SimEngine()
+{
+    LogGuard guard;
+
     muda::wait_device();
 
     // remove the sync callback
     muda::Debug::set_sync_callback(nullptr);
     cout = {};
 
-    spdlog::info("[CudaEngine] Cuda Backend Shutdown Success.");
+    spdlog::info("Cuda Backend Shutdown Success.");
 }
-}  // namespace uipc::backend
+}  // namespace uipc::backend::cuda

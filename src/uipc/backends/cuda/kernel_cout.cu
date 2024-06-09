@@ -1,11 +1,11 @@
 #include <muda/logger.h>
 #include <uipc/backends/cuda/kernel_cout.h>
 
-namespace uipc::backend
+namespace uipc::backend::cuda
 {
 __device__ muda::LoggerViewer cout;
 
-muda::LoggerViewer*           device_logger_viewer_ptr() noexcept
+muda::LoggerViewer* device_logger_viewer_ptr() noexcept
 {
     muda::LoggerViewer* ptr = nullptr;
     // In IDE this will show an error, but it's fine
@@ -14,4 +14,4 @@ muda::LoggerViewer*           device_logger_viewer_ptr() noexcept
     checkCudaErrors(cudaGetSymbolAddress((void**)&ptr, cout));
     return ptr;
 }
-}  // namespace uipc::backend
+}  // namespace uipc::backend::cuda
