@@ -7,7 +7,7 @@ generator: doxide
 
 # Vertices
 
-**class Vertices final : public ISimplices**
+**class  Vertices final : public ISimplices**
 
 
 

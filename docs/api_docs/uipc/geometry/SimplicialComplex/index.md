@@ -7,7 +7,7 @@ generator: doxide
 
 # SimplicialComplex
 
-**class SimplicialComplex : public Geometry**
+**class  SimplicialComplex : public Geometry**
 
 
 
@@ -20,7 +20,7 @@ $$
 where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of triangles, and $T$ is the set of tetrahedra.
 
 :material-eye-outline: **See**
-:    [Tutorial/Geometry](../../../../tutorial/geometry.md)
+:    [Tutorial/Geometries](../../../../tutorial/geometries.md)
 
 
 
@@ -48,7 +48,7 @@ where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of tri
 ## Function Details
 
 ### dim<a name="dim"></a>
-!!! function "[[nodiscard]] IndexT dim() const"
+!!! function "[[nodiscard]] IndexT dim() const noexcept"
 
     
     
@@ -62,7 +62,7 @@ where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of tri
     
 
 ### edges<a name="edges"></a>
-!!! function "[[nodiscard]] EdgeAttributes edges()"
+!!! function "[[nodiscard]] EdgeAttributes  edges() noexcept"
 
     
     
@@ -74,7 +74,7 @@ where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of tri
     
 
 ### positions<a name="positions"></a>
-!!! function "[[nodiscard]] AttributeSlot&lt;Vector3&gt;&amp; positions()"
+!!! function "[[nodiscard]] AttributeSlot&lt;Vector3&gt;&amp; positions() noexcept"
 
     
     
@@ -85,7 +85,7 @@ where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of tri
     
     
 
-!!! function "[[nodiscard]] const AttributeSlot&lt;Vector3&gt;&amp; positions() const"
+!!! function "[[nodiscard]] const AttributeSlot&lt;Vector3&gt;&amp; positions() const noexcept"
 
     
     
@@ -97,7 +97,7 @@ where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of tri
     
 
 ### tetrahedra<a name="tetrahedra"></a>
-!!! function "[[nodiscard]] TetrahedronAttributes tetrahedra()"
+!!! function "[[nodiscard]] TetrahedronAttributes  tetrahedra() noexcept"
 
     
     
@@ -109,7 +109,7 @@ where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of tri
     
 
 ### triangles<a name="triangles"></a>
-!!! function "[[nodiscard]] TriangleAttributes triangles()"
+!!! function "[[nodiscard]] TriangleAttributes  triangles() noexcept"
 
     
     
@@ -121,7 +121,7 @@ where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of tri
     
 
 ### vertices<a name="vertices"></a>
-!!! function "[[nodiscard]] VertexAttributes vertices()"
+!!! function "[[nodiscard]] VertexAttributes  vertices() noexcept"
 
     
     

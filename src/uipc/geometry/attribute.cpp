@@ -35,9 +35,9 @@ void IAttribute::reorder(span<const SizeT> O) noexcept
     do_reorder(O);
 }
 
-void IAttribute::copy_from(span<const SizeT> O, const IAttribute& other) noexcept
+void IAttribute::copy_from(const IAttribute& other, span<const SizeT> O) noexcept
 {
-    do_copy_from(O, other);
+    do_copy_from(other, O);
 }
 
 backend::BufferView IAttribute::backend_view() const noexcept

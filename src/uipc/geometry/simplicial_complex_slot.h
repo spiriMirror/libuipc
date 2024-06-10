@@ -91,7 +91,7 @@ class GeometrySlotT<SimplicialComplex> : public GeometrySlot
 };
 
 
-extern template class UIPC_CORE_API GeometrySlotT<SimplicialComplex>;
+UIPC_EXTERN_TEMPLATE_CLASS GeometrySlotT<SimplicialComplex>;
 
 using SimplicialComplexSlot = GeometrySlotT<SimplicialComplex>;
 }  // namespace uipc::geometry

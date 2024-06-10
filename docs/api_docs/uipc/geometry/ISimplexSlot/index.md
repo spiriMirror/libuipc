@@ -7,7 +7,7 @@ generator: doxide
 
 # ISimplexSlot
 
-**class ISimplexSlot**
+**class  ISimplexSlot**
 
 
 

@@ -1,5 +1,7 @@
 #include <uipc/geometry/attribute_collection.h>
 #include <uipc/common/log.h>
+#include <uipc/common/set.h>
+#include <uipc/common/list.h>
 
 namespace uipc::geometry
 {
@@ -68,24 +70,78 @@ void AttributeCollection::reorder(span<const SizeT> O)
     }
 }
 
-void AttributeCollection::copy_from(span<const SizeT> O, const AttributeCollection& other)
+void AttributeCollection::copy_from(const AttributeCollection& other,
+                                    span<const SizeT>          O,
+                                    span<const std::string>    include_names,
+                                    span<const std::string>    exclude_names)
 {
     UIPC_ASSERT(O.size() == size(),
                 "Size mismatch, attribute size ({}), your New2Old mapping ({}). Resize the topology before copy.",
                 O.size(),
                 size());
 
-    for(auto& [name, slot] : other.m_attributes)
+    // quick path
+    // default copy all attributes
+    // if some attribtues exist in this collection, just skip it
+    if(include_names.empty() && exclude_names.empty()) [[likely]]
     {
-        // if the name is not found in the current collection, create a new slot
-        if(m_attributes.find(name) == m_attributes.end())
+        for(auto& [name, slot] : other.m_attributes)
         {
-            auto c             = slot->do_clone_empty();
-            m_attributes[name] = c;
-            UIPC_ASSERT(c->is_shared() == false, "The attribute is shared, why can it happen?");
-            c->attribute().resize(size());
-            c->attribute().copy_from(O, slot->attribute());
+            // if the name is not found in the current collection, create a new slot
+            if(m_attributes.find(name) == m_attributes.end())
+            {
+                auto c             = slot->do_clone_empty();
+                m_attributes[name] = c;
+                UIPC_ASSERT(c->is_shared() == false,
+                            "The attribute is shared, why can it happen?");
+                c->attribute().resize(size());
+                c->attribute().copy_from(slot->attribute(), O);
+            }
         }
+
+        return;
+    }
+
+    // at least one of the include_names or exclude_names is not empty
+
+    vector<std::string> filtered_include_names;
+    do
+    {
+        auto names =
+            include_names.empty() ?
+                other.names() :
+                vector<std::string>{include_names.begin(), include_names.end()};
+
+        if(exclude_names.empty()) [[likely]]
+        {
+            filtered_include_names = std::move(names);
+            break;
+        }
+
+        vector<std::string> sorted_exclude_names{exclude_names.begin(),
+                                                 exclude_names.end()};
+
+        filtered_include_names.reserve(names.size());
+        std::ranges::sort(names);
+        std::ranges::sort(sorted_exclude_names);
+        std::ranges::set_difference(names,
+                                    sorted_exclude_names,
+                                    std::back_inserter(filtered_include_names));
+    } while(0);
+
+    for(const auto& name : filtered_include_names)
+    {
+        auto it = other.m_attributes.find(name);
+        UIPC_ASSERT(it != other.m_attributes.end(),
+                    "Attribute [{}] not found in the source collection.",
+                    name);
+
+        auto& slot         = it->second;
+        auto  c            = slot->do_clone_empty();
+        m_attributes[name] = c;
+        UIPC_ASSERT(c->is_shared() == false, "The attribute is shared, why can it happen?");
+        c->attribute().resize(size());
+        c->attribute().copy_from(slot->attribute(), O);
     }
 }
 
@@ -109,6 +165,22 @@ void AttributeCollection::reserve(SizeT N)
     {
         slot->attribute().reserve(N);
     }
+}
+
+vector<std::string> AttributeCollection::names() const
+{
+    vector<std::string> names;
+    names.reserve(m_attributes.size());
+    for(auto& [name, slot] : m_attributes)
+    {
+        names.push_back(name);
+    }
+    return names;
+}
+
+SizeT AttributeCollection::attribute_count() const
+{
+    return m_attributes.size();
 }
 
 AttributeCollection::AttributeCollection(const AttributeCollection& o)

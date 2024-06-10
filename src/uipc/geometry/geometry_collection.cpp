@@ -149,9 +149,7 @@ void GeometryCollection::flush() const
             m_pending_create_slots[I] = geo.second;
         }
 
-        std::copy(m_pending_destroy.begin(),
-                  m_pending_destroy.end(),
-                  m_pending_destroy_ids.begin());
+        std::ranges::copy(m_pending_destroy, m_pending_destroy_ids.begin());
 
         m_dirty = false;
     }

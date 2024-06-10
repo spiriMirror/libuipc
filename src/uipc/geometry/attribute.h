@@ -30,7 +30,7 @@ class UIPC_CORE_API IAttribute
     S<IAttribute> clone_empty() const;
     void          clear();
     void          reorder(span<const SizeT> O) noexcept;
-    void copy_from(span<const SizeT> O, const IAttribute& other) noexcept;
+    void copy_from(const IAttribute& other, span<const SizeT> O) noexcept;
 
     friend backend::BufferView backend_view(const IAttribute& a) noexcept;
 
@@ -45,7 +45,7 @@ class UIPC_CORE_API IAttribute
     virtual S<IAttribute> do_clone() const                         = 0;
     virtual S<IAttribute> do_clone_empty() const                   = 0;
     virtual void          do_reorder(span<const SizeT> O) noexcept = 0;
-    virtual void do_copy_from(span<const SizeT> O, const IAttribute& other) noexcept = 0;
+    virtual void do_copy_from(const IAttribute& other, span<const SizeT> O) noexcept = 0;
 };
 
 template <typename T>
@@ -88,7 +88,7 @@ class Attribute : public IAttribute
     S<IAttribute> do_clone() const override;
     S<IAttribute> do_clone_empty() const override;
     void          do_reorder(span<const SizeT> O) noexcept override;
-    void do_copy_from(span<const SizeT> O, const IAttribute& other) noexcept override;
+    void do_copy_from(const IAttribute& other, span<const SizeT> O) noexcept override;
 
   private:
     backend::BufferView m_backend_view;

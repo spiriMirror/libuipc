@@ -19,7 +19,7 @@ static void facet_closure_dim_2(SimplicialComplex& R)
     // make sure the edge is sorted
     auto sort_edge = [](Vector2i e)
     {
-        std::sort(e.begin(), e.end());
+        std::ranges::sort(e);
         return e;
     };
 
@@ -33,14 +33,13 @@ static void facet_closure_dim_2(SimplicialComplex& R)
     }
 
     // sort the edges
-    std::sort(sep_edges.begin(),
-              sep_edges.end(),
-              [](Vector2i a, Vector2i b)
-              { return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1]); });
+    std::ranges::sort(sep_edges,
+                      [](Vector2i a, Vector2i b)
+                      { return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1]); });
 
     // make unique and erase the duplicate edges
-    auto iter = std::unique(sep_edges.begin(), sep_edges.end());
-    sep_edges.erase(iter, sep_edges.end());
+    auto [first, last] = std::ranges::unique(sep_edges);
+    sep_edges.erase(first, last);
 
     // now we have the unique edges
     R.edges().resize(sep_edges.size());
@@ -61,7 +60,7 @@ static void facet_closure_dim_3(SimplicialComplex& R)
     // make sure the face is sorted
     auto sort_face = [](Vector3i f)
     {
-        std::sort(f.begin(), f.end());
+        std::ranges::sort(f);
         return f;
     };
 
@@ -75,17 +74,16 @@ static void facet_closure_dim_3(SimplicialComplex& R)
     }
 
     // sort the faces
-    std::sort(sep_faces.begin(),
-              sep_faces.end(),
-              [](Vector3i a, Vector3i b)
-              {
-                  return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
-                         || (a[0] == b[0] && a[1] == b[1] && a[2] < b[2]);
-              });
+    std::ranges::sort(sep_faces,
+                      [](Vector3i a, Vector3i b)
+                      {
+                          return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
+                                 || (a[0] == b[0] && a[1] == b[1] && a[2] < b[2]);
+                      });
 
     // make unique and erase the duplicate faces
-    auto iter = std::unique(sep_faces.begin(), sep_faces.end());
-    sep_faces.erase(iter, sep_faces.end());
+    auto [first, last] = std::ranges::unique(sep_faces);
+    sep_faces.erase(first, last);
 
     // now we have the unique faces
     R.triangles().resize(sep_faces.size());

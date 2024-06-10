@@ -7,7 +7,7 @@ generator: doxide
 
 # AbstractSimplicialComplex
 
-**class AbstractSimplicialComplex**
+**class  AbstractSimplicialComplex**
 
 
 

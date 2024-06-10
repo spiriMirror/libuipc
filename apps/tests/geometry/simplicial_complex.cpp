@@ -57,7 +57,7 @@ TEST_CASE("shared_attribute", "[simplicial_complex]")
 
     Vector3 center =
         std::accumulate(pos_view.begin(), pos_view.end(), Vector3{0, 0, 0}) / pos->size();
-
+    
     // a clone is made here
     TA.resize(2);
     auto tet_view = view(TA.topo());
@@ -68,7 +68,7 @@ TEST_CASE("shared_attribute", "[simplicial_complex]")
     std::vector<int> vert_iota(vert_view.size());
     std::iota(vert_iota.begin(), vert_iota.end(), 0);
 
-    REQUIRE(std::equal(vert_view.begin(), vert_view.end(), vert_iota.begin()));
+    REQUIRE(std::ranges::equal(vert_view, vert_iota));
 
     REQUIRE(pos->size() == 8);
     REQUIRE(VA.size() == 8);

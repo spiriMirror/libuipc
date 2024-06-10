@@ -12,8 +12,8 @@ bool SimplexUtils::is_same_edge(const Vector2i& A, const Vector2i& B) noexcept
     if(A == B)  // quick check
         return true;
     auto SA = A, SB = B;
-    std::sort(SA.begin(), SA.end());
-    std::sort(SB.begin(), SB.end());
+    std::ranges::sort(SA);
+    std::ranges::sort(SB);
     return SA == SB;
 }
 
@@ -27,8 +27,8 @@ bool SimplexUtils::is_same_tri(const Vector3i& A, const Vector3i& B) noexcept
     if(A == B)  // quick check
         return true;
     auto SA = A, SB = B;
-    std::sort(SA.begin(), SA.end());
-    std::sort(SB.begin(), SB.end());
+    std::ranges::sort(SA);
+    std::ranges::sort(SB);
     return SA == SB;
 }
 
@@ -38,10 +38,10 @@ bool SimplexUtils::is_same_oriented_tri(const Vector3i& A, const Vector3i& B) no
         return true;
 
     auto RA = A;
-    std::rotate_copy(A.begin(), A.begin() + 1, A.end(), RA.begin());
+    std::ranges::rotate_copy(A, A.begin() + 1, RA.begin());
     if(RA == B)
         return true;
-    std::rotate(RA.begin(), RA.begin() + 1, RA.end());
+    std::ranges::rotate(RA, RA.begin() + 1);
     if(RA == B)
         return true;
     return false;
@@ -52,8 +52,8 @@ bool SimplexUtils::is_same_tet(const Vector4i& A, const Vector4i& B) noexcept
     if(A == B)  // quick check
         return true;
     auto SA = A, SB = B;
-    std::sort(SA.begin(), SA.end());
-    std::sort(SB.begin(), SB.end());
+    std::ranges::sort(SA);
+    std::ranges::sort(SB);
     return SA == SB;
 }
 
@@ -63,13 +63,13 @@ bool SimplexUtils::is_same_oriented_tet(const Vector4i& A, const Vector4i& B) no
         return true;
 
     auto RA = A;
-    std::rotate_copy(A.begin(), A.begin() + 1, A.end(), RA.begin());
+    std::ranges::rotate_copy(A, A.begin() + 1, RA.begin());
     if(RA == B)
         return true;
-    std::rotate(RA.begin(), RA.begin() + 1, RA.end());
+    std::ranges::rotate(RA, RA.begin() + 1);
     if(RA == B)
         return true;
-    std::rotate(RA.begin(), RA.begin() + 1, RA.end());
+    std::ranges::rotate(RA, RA.begin() + 1);
     if(RA == B)
         return true;
     return false;
@@ -78,16 +78,16 @@ bool SimplexUtils::is_same_oriented_tet(const Vector4i& A, const Vector4i& B) no
 bool SimplexUtils::compare_edge(const Vector2i& A, const Vector2i& B) noexcept
 {
     auto SA = A, SB = B;
-    std::sort(SA.begin(), SA.end());
-    std::sort(SB.begin(), SB.end());
+    std::ranges::sort(SA);
+    std::ranges::sort(SB);
     return SA(0) < SB(0) || (SA(0) == SB(0) && SA(1) < SB(1));
 }
 
 bool SimplexUtils::compare_tri(const Vector3i& A, const Vector3i& B) noexcept
 {
     auto SA = A, SB = B;
-    std::sort(SA.begin(), SA.end());
-    std::sort(SB.begin(), SB.end());
+    std::ranges::sort(SA);
+    std::ranges::sort(SB);
     return SA(0) < SB(0)
            || (SA(0) == SB(0) && (SA(1) < SB(1) || (SA(1) == SB(1) && SA(2) < SB(2))));
 }
@@ -95,8 +95,8 @@ bool SimplexUtils::compare_tri(const Vector3i& A, const Vector3i& B) noexcept
 bool SimplexUtils::compare_tet(const Vector4i& A, const Vector4i& B) noexcept
 {
     auto SA = A, SB = B;
-    std::sort(SA.begin(), SA.end());
-    std::sort(SB.begin(), SB.end());
+    std::ranges::sort(SA);
+    std::ranges::sort(SB);
     return SA(0) < SB(0) || (SA(0) == SB(0) && SA(1) < SB(1))
            || (SA(0) == SB(0) && SA(1) == SB(1) && SA(2) < SB(2));
 }

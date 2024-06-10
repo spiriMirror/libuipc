@@ -38,3 +38,7 @@
 #define UIPC_CORE_API
 #define UIPC_BACKEND_API
 #endif
+
+// Template specialization export
+#define UIPC_EXTERN_TEMPLATE_CLASS extern template class UIPC_CORE_API
+#define UIPC_EXTERN_TEMPLATE_STRUCT extern template struct UIPC_CORE_API

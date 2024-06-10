@@ -7,7 +7,7 @@ generator: doxide
 
 # TriangleAttributes
 
-**using TriangleAttributes = SimplicialComplexAttributes&lt;TriangleSlot&gt;**
+**using TriangleAttributes  = SimplicialComplexAttributes&lt;TriangleSlot&gt;**
 
 
 

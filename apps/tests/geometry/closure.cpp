@@ -20,7 +20,7 @@ TEST_CASE("closure", "[closure]")
     asc.tetrahedra().resize(Ts.size());
 
     auto dst_Ts = geometry::view(asc.tetrahedra());
-    std::copy(Ts.begin(), Ts.end(), dst_Ts.begin());
+    std::ranges::copy(Ts, dst_Ts.begin());
 
     auto mesh = facet_closure(SimplicialComplex{asc, Vs});
 

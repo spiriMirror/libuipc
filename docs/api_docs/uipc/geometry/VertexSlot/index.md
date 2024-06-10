@@ -7,7 +7,7 @@ generator: doxide
 
 # VertexSlot
 
-**class VertexSlot : public ISimplexSlot**
+**class  VertexSlot : public ISimplexSlot**
 
 
 

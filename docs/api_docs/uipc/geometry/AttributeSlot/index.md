@@ -1,6 +1,6 @@
 ---
 title: AttributeSlot
-description: Template class to represent a geometry attribute slot of type T in a geometry attribute collection.
+description: Template class to represent a geometries attribute slot of type T in a geometries attribute collection.
 generator: doxide
 ---
 
@@ -11,7 +11,7 @@ generator: doxide
 
 
 
-Template class to represent a geometry attribute slot of type T in a geometry attribute collection.
+Template class to represent a geometries attribute slot of type T in a geometries attribute collection.
 
 :material-code-tags: **Template parameter** `T`
 :    The type of the attribute values.

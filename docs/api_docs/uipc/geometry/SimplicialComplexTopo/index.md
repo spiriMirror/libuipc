@@ -7,7 +7,7 @@ generator: doxide
 
 # SimplicialComplexTopo
 
-**template &lt;typename SimplexSlotT&gt; requires std::is_base_of_v&lt;ISimplexSlot, SimplexSlotT&gt; class SimplicialComplexTopo**
+**template &lt;std::derived_from&lt;ISimplexSlot&gt; SimplexSlotT&gt; class SimplicialComplexTopo**
 
 
 
@@ -29,7 +29,7 @@ A wrapper of the topology of the simplicial complex.
 ## Function Details
 
 ### backend_view<a name="backend_view"></a>
-!!! function "backend::BufferView backend_view(const SimplicialComplexTopo&lt;SimplexSlot&lt;N&gt;&gt;&amp;&amp; v) noexcept"
+!!! function "backend::BufferView backend_view(SimplicialComplexTopo&lt;SimplexSlot&lt;N&gt;&gt;&amp;&amp; v) noexcept"
 
     
     

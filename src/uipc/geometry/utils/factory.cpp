@@ -10,7 +10,7 @@ SimplicialComplex tetmesh(span<const Vector3> Vs, span<const Vector4i> Ts)
     asc.tetrahedra().resize(Ts.size());
 
     auto dst_Ts = geometry::view(asc.tetrahedra());
-    std::copy(Ts.begin(), Ts.end(), dst_Ts.begin());
+    std::ranges::copy(Ts, dst_Ts.begin());
 
     return facet_closure(SimplicialComplex{asc, Vs});
 }
@@ -22,7 +22,7 @@ SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
     asc.triangles().resize(Fs.size());
 
     auto dst_Ts = view(asc.triangles());
-    std::copy(Fs.begin(), Fs.end(), dst_Ts.begin());
+    std::ranges::copy(Fs, dst_Ts.begin());
 
     return facet_closure(SimplicialComplex{asc, Vs});
 }
@@ -34,7 +34,7 @@ SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
     asc.edges().resize(Es.size());
 
     auto dst_Ts = view(asc.edges());
-    std::copy(Es.begin(), Es.end(), dst_Ts.begin());
+    std::ranges::copy(Es, dst_Ts.begin());
 
     return facet_closure(SimplicialComplex{asc, Vs});
 }

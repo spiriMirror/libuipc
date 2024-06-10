@@ -1,17 +1,17 @@
 ---
 title: IGeometry
-description: An abstract class for geometry 
+description: An abstract class for geometries 
 generator: doxide
 ---
 
 
 # IGeometry
 
-**class IGeometry**
+**class  IGeometry**
 
 
 
-An abstract class for geometry
+An abstract class for geometries
  
 
 
@@ -21,19 +21,19 @@ An abstract class for geometry
 
 | Name | Description |
 | ---- | ----------- |
-| [type](#type) | Get the type of the geometry, check the type to downcast the geometry to a specific type |
+| [type](#type) | Get the type of the geometries, check the type to downcast the geometries to a specific type |
 
 ## Function Details
 
 ### type<a name="type"></a>
-!!! function "[[nodiscard]] std::string_view type() const"
+!!! function "[[nodiscard]] std::string_view type() const noexcept"
 
     
     
-    Get the type of the geometry, check the type to downcast the geometry to a specific type
+    Get the type of the geometries, check the type to downcast the geometries to a specific type
     
     :material-keyboard-return: **Return**
-    :    a string_view of the type of the geometry
+    :    a string_view of the type of the geometries
     
     
 

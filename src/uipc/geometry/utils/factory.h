@@ -42,7 +42,7 @@ UIPC_CORE_API [[nodiscard]] SimplicialComplex pointcloud(span<const Vector3> Vs)
 /**
  * @brief Create a gound plane.
  * 
- * @pram height The height of the ground plane
+ * @param height The height of the ground plane
  */
 UIPC_CORE_API [[nodiscard]] ImplicitGeometry ground(Float height = 0.0);
 }  // namespace uipc::geometries

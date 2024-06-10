@@ -7,7 +7,7 @@ generator: doxide
 
 # SimplicialComplexIO
 
-**class SimplicialComplexIO**
+**class  SimplicialComplexIO**
 
 
 

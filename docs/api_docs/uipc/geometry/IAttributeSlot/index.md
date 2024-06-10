@@ -1,17 +1,17 @@
 ---
 title: IAttributeSlot
-description: An abstract class to represent a geometry attribute slot in a geometry attribute collection.
+description: An abstract class to represent a geometries attribute slot in a geometries attribute collection.
 generator: doxide
 ---
 
 
 # IAttributeSlot
 
-**class IAttributeSlot**
+**class  IAttributeSlot**
 
 
 
-An abstract class to represent a geometry attribute slot in a geometry attribute collection.
+An abstract class to represent a geometries attribute slot in a geometries attribute collection.
 
 
 
@@ -21,6 +21,7 @@ An abstract class to represent a geometry attribute slot in a geometry attribute
 | Name | Description |
 | ---- | ----------- |
 | [name](#name) | Get the name of the attribute slot.  |
+| [type_name](#type_name) | Get the type name of data stored in the attribute slot.  |
 | [allow_destroy](#allow_destroy) | Check if the underlying attribute is allowed to be destroyed.  |
 | [is_shared](#is_shared) | Check if the underlying attribute is shared. |
 
@@ -45,10 +46,10 @@ An abstract class to represent a geometry attribute slot in a geometry attribute
     Check if the underlying attribute is shared.
     
     :material-keyboard-return: **Return**
-    :    true, if the underlying attribute is shared, more than one geometry reference to the underlying attribute.
+    :    true, if the underlying attribute is shared, more than one geometries reference to the underlying attribute.
     
     :material-keyboard-return: **Return**
-    :    false, if the underlying attribute is owned, only this geometry reference to the underlying attribute.
+    :    false, if the underlying attribute is owned, only this geometries reference to the underlying attribute.
     
     
 
@@ -58,6 +59,17 @@ An abstract class to represent a geometry attribute slot in a geometry attribute
     
     
     Get the name of the attribute slot.
+         
+    
+    
+    
+
+### type_name<a name="type_name"></a>
+!!! function "[[nodiscard]] std::string_view type_name() const noexcept"
+
+    
+    
+    Get the type name of data stored in the attribute slot.
          
     
     

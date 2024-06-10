@@ -11,20 +11,27 @@ using namespace uipc::geometry;
 TEST_CASE("extract_surface", "[surface]")
 {
     {
-        std::vector           Vs = {Vector3{0.0, 0.0, 0.0},
-                                    Vector3{1.0, 0.0, 0.0},
-                                    Vector3{0.0, 1.0, 0.0},
-                                    Vector3{0.0, 0.0, 1.0}};
-        std::vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
+        vector<Vector3>  Vs = {Vector3{0.0, 0.0, 0.0},
+                               Vector3{1.0, 0.0, 0.0},
+                               Vector3{0.0, 1.0, 0.0},
+                               Vector3{0.0, 0.0, 1.0}};
+        vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
 
         auto mesh    = tetmesh(Vs, Ts);
         auto labeled = label_surface(mesh);
+        // parent_id should be present in the labeled mesh
+        REQUIRE(labeled.triangles().find<IndexT>(builtin::parent_id));
         auto surface = extract_surface(labeled);
 
         REQUIRE(surface.vertices().size() == 4);
+        auto pos_view = surface.positions().view();
+        REQUIRE(std::ranges::equal(Vs, pos_view));
+
         REQUIRE(surface.edges().size() == 6);
         REQUIRE(surface.triangles().size() == 4);
         REQUIRE(surface.tetrahedra().size() == 0);
+        // parent_id should not be present in the surface mesh, we remove it in the extract_surface function
+        REQUIRE(!surface.triangles().find<IndexT>(builtin::parent_id));
     }
 
     {

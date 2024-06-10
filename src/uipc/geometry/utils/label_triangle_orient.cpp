@@ -41,12 +41,13 @@ SimplicialComplex label_triangle_orient(const SimplicialComplex& sc)
         // sort the vertices of the triangle and tetrahedron
         Vector3i SF = F;
         Vector4i ST = T;
-        std::sort(SF.begin(), SF.end());
-        std::sort(ST.begin(), ST.end());
+        std::ranges::sort(SF);
+        std::ranges::sort(ST);
 
         // to find the opposite vertex of the triangle
         // we just find the first mismatch element
         auto [_, It] = std::mismatch(SF.begin(), SF.end(), ST.begin());
+
         // so, `It` is the first element that is not in SF, which means R is the opposite vertex of the triangle
         Vector3 V = pos_view[*It];
 

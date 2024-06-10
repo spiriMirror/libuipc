@@ -139,8 +139,8 @@ class SimplicialComplexTopo<VertexSlot>
 };
 
 
-extern template class UIPC_CORE_API SimplicialComplexTopo<VertexSlot>;
-extern template class UIPC_CORE_API SimplicialComplexTopo<const VertexSlot>;
+UIPC_EXTERN_TEMPLATE_CLASS SimplicialComplexTopo<VertexSlot>;
+UIPC_EXTERN_TEMPLATE_CLASS SimplicialComplexTopo<const VertexSlot>;
 
 /**
  * @brief A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.
@@ -237,10 +237,13 @@ class SimplicialComplexAttributes
         return m_attributes.template share<T>(name, slot);
     }
 
-    void copy_from(span<const SizeT> O, ConstSimplicialComplexAttributesT other)
+    void copy_from(ConstSimplicialComplexAttributesT other,
+                   span<const SizeT>                 O,
+                   span<const std::string>           include_names = {},
+                   span<const std::string>           exclude_names = {})
         requires(!IsConst)
     {
-        m_attributes.copy_from(O, other.m_attributes);
+        m_attributes.copy_from(other.m_attributes, O, include_names, exclude_names);
     }
 
     operator SimplicialComplexAttributes<ConstSimplexSlotT>() const noexcept

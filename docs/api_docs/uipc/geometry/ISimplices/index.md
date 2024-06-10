@@ -7,7 +7,7 @@ generator: doxide
 
 # ISimplices
 
-**class ISimplices : public ITopoElements**
+**class  ISimplices : public ITopoElements**
 
 
 

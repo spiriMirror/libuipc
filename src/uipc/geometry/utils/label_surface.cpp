@@ -3,6 +3,8 @@
 #include <uipc/common/enumerate.h>
 #include <uipc/common/algorithm/run_length_encode.h>
 #include <uipc/builtin/attribute_name.h>
+#include <algorithm>
+#include <numeric>
 
 namespace uipc::geometry
 {
@@ -84,7 +86,7 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
     auto sort_triangle = [](const Vector4i& T)
     {
         Vector3i t = T.segment<3>(0);
-        std::sort(t.begin(), t.end());
+        std::ranges::sort(t);
         return Vector4i{t[0], t[1], t[2], T[3]};  // the last component is the Tetrahedron index
     };
 
@@ -100,13 +102,12 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
     }
 
     // 2) run length encoding the triangles
-    std::sort(separated_triangles.begin(),
-              separated_triangles.end(),
-              [](const Vector4i& a, const Vector4i& b)
-              {
-                  return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
-                         || (a[0] == b[0] && a[1] == b[1] && a[2] < b[2]);
-              });
+    std::ranges::sort(separated_triangles,
+                      [](const Vector4i& a, const Vector4i& b)
+                      {
+                          return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
+                                 || (a[0] == b[0] && a[1] == b[1] && a[2] < b[2]);
+                      });
 
     vector<Vector4i> unique_triangles;
     vector<IndexT>   counts;
@@ -189,22 +190,21 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
     }
 
     // sort by the 3 components
-    std::sort(edges_with_flag.begin(),
-              edges_with_flag.end(),
-              [](const Vector3i& a, const Vector3i& b)
-              {
-                  return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
-                         || (a[0] == b[0] && a[1] == b[1] && a[2] < b[2]);
-                  // note that, the last component is the 'count' flag, 1 means the triangle is surface and 2 means the triangle is internal
-                  // so if we sort the edges_with_flag by the 3 components, the edges_with_flag have the same vertices [i,j] will be grouped together,
-                  // and the smaller count will be in the front.
-              });
+    std::ranges::sort(edges_with_flag,
+                      [](const Vector3i& a, const Vector3i& b)
+                      {
+                          return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1])
+                                 || (a[0] == b[0] && a[1] == b[1] && a[2] < b[2]);
+                          // note that, the last component is the 'count' flag, 1 means the triangle is surface and 2 means the triangle is internal
+                          // so if we sort the edges_with_flag by the 3 components, the edges_with_flag have the same vertices [i,j] will be grouped together,
+                          // and the smaller count will be in the front.
+                      });
     // after sort, we may get:
     // E.g.  ...[a,b,1],[a,b,2],[a,b,2],...,[c,d,1],[c,d,1],...
 
     // unique on the 3 components: (v0, v1, count)
-    auto it = std::unique(edges_with_flag.begin(), edges_with_flag.end());
-    edges_with_flag.erase(it, edges_with_flag.end());
+    auto [first, last] = std::ranges::unique(edges_with_flag);
+    edges_with_flag.erase(first, last);
     // after unique, we may get:
     // E.g. ...[a,b,1],[a,b,2],...,[c,d,1],...
     // the edges are still not unique, because the count is different

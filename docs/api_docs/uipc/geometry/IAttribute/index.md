@@ -1,17 +1,17 @@
 ---
 title: IAttribute
-description: An abstract class to represent a geometry attribute. 
+description: An abstract class to represent a geometries attribute. 
 generator: doxide
 ---
 
 
 # IAttribute
 
-**class IAttribute**
+**class  IAttribute**
 
 
 
-An abstract class to represent a geometry attribute.
+An abstract class to represent a geometries attribute.
  
 
 

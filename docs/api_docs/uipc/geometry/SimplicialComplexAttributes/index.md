@@ -7,7 +7,7 @@ generator: doxide
 
 # SimplicialComplexAttributes
 
-**template &lt;typename SimplexSlotT&gt; requires std::is_base_of_v&lt;ISimplexSlot, SimplexSlotT&gt; class SimplicialComplexAttributes**
+**template &lt;std::derived_from&lt;ISimplexSlot&gt; SimplexSlotT&gt; class SimplicialComplexAttributes**
 
 
 
@@ -33,7 +33,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
 ## Function Details
 
 ### clear<a name="clear"></a>
-!!! function "void clear()"
+!!! function "void clear() requires(!IsConst)"
 
     
     
@@ -43,7 +43,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
 
 ### destroy<a name="destroy"></a>
-!!! function "void destroy(std::string_view name)"
+!!! function "void destroy(std::string_view name) requires(!IsConst)"
 
     
     
@@ -53,7 +53,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
 
 ### find<a name="find"></a>
-!!! function "template &lt;typename T&gt; [[nodiscard]] decltype(auto) find(std::string_view name)"
+!!! function "template &lt;typename T&gt; [[nodiscard]] decltype(auto) find(std::string_view name) requires(!IsConst)"
 
     
     
@@ -74,7 +74,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
 
 ### reserve<a name="reserve"></a>
-!!! function "void reserve(SizeT size)"
+!!! function "void reserve(SizeT size) requires(!IsConst)"
 
     
     
@@ -84,7 +84,7 @@ A collection of attributes for a specific type of simplices. The main API for ac
     
 
 ### resize<a name="resize"></a>
-!!! function "void resize(SizeT size)"
+!!! function "void resize(SizeT size) requires(!IsConst)"
 
     
     

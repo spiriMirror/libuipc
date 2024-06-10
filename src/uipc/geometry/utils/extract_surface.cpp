@@ -43,25 +43,6 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
     // resize the destination vertices
     R.vertices().resize(surf_v_count);
 
-    auto P = R.vertices().find<Vector3>(builtin::position);
-
-    if(!P)  // check if the position attribute exists
-    {
-        P = R.vertices().create<Vector3>(builtin::position);
-    }
-
-    auto new_P_view = view(*P);
-    auto old_P_view = src.positions().view();
-
-    // copy the positions
-    for(auto&& [i, new_v_id] : enumerate(old_v_to_new_v))
-    {
-        if(new_v_id != -1)
-        {
-            new_P_view[new_v_id] = old_P_view[i];
-        }
-    }
-
     // setup new2old mapping
     std::vector<SizeT> v_new2old(surf_v_count, -1);
     for(auto&& [i, new_v_id] : enumerate(old_v_to_new_v))
@@ -72,8 +53,8 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
         }
     }
 
-    // copy other vertex attributes
-    R.vertices().copy_from(v_new2old, src.vertices());
+    // copy vertex attributes
+    R.vertices().copy_from(src.vertices(), v_new2old);
 
     // ---------------------------------------------------------------------
     // process the edges
@@ -123,7 +104,7 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
     }
 
     // copy other edge attributes
-    R.edges().copy_from(e_new2old, src.edges());
+    R.edges().copy_from(src.edges(), e_new2old);
 
     // ---------------------------------------------------------------------
     // process the triangles
@@ -172,7 +153,12 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
     }
 
     // copy other triangle attributes
-    R.triangles().copy_from(t_new2old, src.triangles());
+
+    std::array exclude_attrs = {
+        std::string{builtin::parent_id}  // exclude parent_id
+    };
+
+    R.triangles().copy_from(src.triangles(), t_new2old, {}, exclude_attrs);
 
     return R;
 }

@@ -1,17 +1,17 @@
 ---
 title: Geometry
-description: A base geometry class that contains the instance attributes and the meta attributes. 
+description: A base geometries class that contains the instance attributes and the meta attributes. 
 generator: doxide
 ---
 
 
 # Geometry
 
-**class Geometry : public IGeometry**
+**class  Geometry : public IGeometry**
 
 
 
-A base geometry class that contains the instance attributes and the meta attributes.
+A base geometries class that contains the instance attributes and the meta attributes.
  
 
 
@@ -21,8 +21,8 @@ A base geometry class that contains the instance attributes and the meta attribu
 
 | Name | Description |
 | ---- | ----------- |
-| [MetaAttributes](MetaAttributes/index.md) | A wrapper class for the meta attributes of a geometry.  |
-| [InstanceAttributes](InstanceAttributes/index.md) | A wrapper class for the instance attributes of a geometry.  |
+| [MetaAttributesT](MetaAttributesT/index.md) | A wrapper class for the meta attributes of a geometries.  |
+| [InstanceAttributesT](InstanceAttributesT/index.md) | A wrapper class for the instance attributes of a geometries.  |
 
 ## Functions
 
@@ -30,8 +30,8 @@ A base geometry class that contains the instance attributes and the meta attribu
 | ---- | ----------- |
 | [transforms](#transforms) | A short-cut to get the non-const transforms attribute slot. |
 | [transforms](#transforms) | A short-cut to get the const transforms attribute slot. |
-| [meta](#meta) | Get the meta attributes of the geometry. |
-| [instances](#instances) | Get the instance attributes of the geometry. |
+| [meta](#meta) | Get the meta attributes of the geometries. |
+| [instances](#instances) | Get the instance attributes of the geometries. |
 
 ## Function Details
 
@@ -40,10 +40,10 @@ A base geometry class that contains the instance attributes and the meta attribu
 
     
     
-    Get the instance attributes of the geometry.
+    Get the instance attributes of the geometries.
     
     :material-keyboard-return: **Return**
-    :     The instance attributes of the geometry.
+    :     The instance attributes of the geometries.
     
     
 
@@ -52,10 +52,10 @@ A base geometry class that contains the instance attributes and the meta attribu
 
     
     
-    Get the meta attributes of the geometry.
+    Get the meta attributes of the geometries.
     
     :material-keyboard-return: **Return**
-    :    The meta attributes of the geometry.
+    :    The meta attributes of the geometries.
     
     
 

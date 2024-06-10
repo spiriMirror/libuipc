@@ -1,19 +1,19 @@
 ---
 title: AttributeCollection
-description: A collection of geometry attributes.
+description: A collection of geometries attributes.
 generator: doxide
 ---
 
 
 # AttributeCollection
 
-**class AttributeCollection**
+**class  AttributeCollection**
 
 
 
-A collection of geometry attributes.
+A collection of geometries attributes.
 
-All geometry attributes in the collection always have the same size.
+All geometries attributes in the collection always have the same size.
 
 
 
@@ -30,11 +30,26 @@ All geometry attributes in the collection always have the same size.
 | [find](#find) | Template version of find.  |
 | [find](#find) | Template const version of find.  |
 | [resize](#resize) | Resize all attribute slots to the given size. |
+| [reorder](#reorder) | Reorder the underlying attribute values of all attribute slots. |
+| [copy_from](#copy_from) | copy_from the underlying attribute values of all attribute slots. |
 | [size](#size) | Get the size of the attribute slots.  |
 | [clear](#clear) | clear the underlying attribute values of all attribute slots, the attribute slots will not be destroyed. |
 | [reserve](#reserve) | Reserve memory for all attribute slots. |
+| [names](#names) | Get the names of all attribute slots.  |
+| [attribute_count](#attribute_count) | Get the number of attribute slots.  |
 
 ## Function Details
+
+### attribute_count<a name="attribute_count"></a>
+!!! function "SizeT attribute_count() const"
+
+    
+    
+    Get the number of attribute slots.
+    	 
+    
+    
+    
 
 ### clear<a name="clear"></a>
 !!! function "void clear()"
@@ -45,6 +60,24 @@ All geometry attributes in the collection always have the same size.
     
     !!! note
          This method may generate data clones.
+        
+    
+
+### copy_from<a name="copy_from"></a>
+!!! function "void copy_from(const AttributeCollection&amp; other, span&lt;const SizeT&gt;          O, span&lt;const std::string&gt;    include_names = {}, span&lt;const std::string&gt;    exclude_names = {})"
+
+    
+    
+    copy_from the underlying attribute values of all attribute slots.
+    
+    :material-location-enter: **Parameter** `O`
+    :    A New2Old mapping. O[i] = j means the i-th element in the new order has the value of the j-th element in the old order.
+    
+    :material-location-enter: **Parameter** `include_names`
+    :    The names of the attribute slots to be copied. If it is empty, all attribute slots will be copied.
+    
+    :material-location-enter: **Parameter** `exclude_names`
+    :    The names of the attribute slots not to be copied, the exclude_names has higher priority than include_names.
         
     
 
@@ -132,8 +165,34 @@ All geometry attributes in the collection always have the same size.
     
     
 
+### names<a name="names"></a>
+!!! function "vector&lt;std::string&gt; names() const"
+
+    
+    
+    Get the names of all attribute slots.
+         
+    
+    
+    
+
+### reorder<a name="reorder"></a>
+!!! function "void reorder(span&lt;const SizeT&gt; O)"
+
+    
+    
+    Reorder the underlying attribute values of all attribute slots.
+    
+    :material-location-enter: **Parameter** `O`
+    :    A New2Old mapping. O[i] = j means the i-th element in the new order has the value of the j-th element in the old order.
+    
+    !!! note
+         This method may generate data clones.
+        
+    
+
 ### reserve<a name="reserve"></a>
-!!! function "void reserve(size_t N)"
+!!! function "void reserve(SizeT N)"
 
     
     
@@ -145,7 +204,7 @@ All geometry attributes in the collection always have the same size.
     
 
 ### resize<a name="resize"></a>
-!!! function "void resize(size_t N)"
+!!! function "void resize(SizeT N)"
 
     
     
@@ -163,7 +222,7 @@ All geometry attributes in the collection always have the same size.
     
     Share the underlying attribute of the given slot with a new name.
     
-    The slot may be from another geometry attribute collection or just current geometry attribute collection.
+    The slot may be from another geometries attribute collection or just current geometries attribute collection.
     
     :material-location-enter: **Parameter** `name`
     :    The name of the attribute slot.
@@ -190,7 +249,7 @@ All geometry attributes in the collection always have the same size.
     
 
 ### size<a name="size"></a>
-!!! function "[[nodiscard]] size_t size() const"
+!!! function "[[nodiscard]] SizeT size() const"
 
     
     

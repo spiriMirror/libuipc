@@ -1,17 +1,17 @@
 ---
-title: MetaAttributes
-description: A wrapper class for the meta attributes of a geometry. 
+title: MetaAttributesT
+description: A wrapper class for the meta attributes of a geometries. 
 generator: doxide
 ---
 
 
-# MetaAttributes
+# MetaAttributesT
 
-**class MetaAttributes**
+**template &lt;bool IsConst&gt; class MetaAttributesT**
 
 
 
-A wrapper class for the meta attributes of a geometry.
+A wrapper class for the meta attributes of a geometries.
      
 
 
@@ -27,7 +27,7 @@ A wrapper class for the meta attributes of a geometry.
 ## Function Details
 
 ### create<a name="create"></a>
-!!! function "template &lt;typename T&gt; decltype(auto) create(std::string_view name, const T&amp; init_value = {})"
+!!! function "template &lt;typename T&gt; decltype(auto) create(std::string_view name, const T&amp; init_value = {}) &amp;&amp;"
 
     
     
@@ -38,7 +38,7 @@ A wrapper class for the meta attributes of a geometry.
     
 
 ### find<a name="find"></a>
-!!! function "template &lt;typename T&gt; [[nodiscard]] auto find(std::string_view name)"
+!!! function "template &lt;typename T&gt; [[nodiscard]] auto find(std::string_view name) &amp;&amp;"
 
     
     

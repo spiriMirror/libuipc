@@ -109,8 +109,13 @@ class UIPC_CORE_API AttributeCollection
      * @brief copy_from the underlying attribute values of all attribute slots.
      * 
      * @param O A New2Old mapping. O[i] = j means the i-th element in the new order has the value of the j-th element in the old order.
+     * @param include_names The names of the attribute slots to be copied. If it is empty, all attribute slots will be copied.
+     * @param exclude_names The names of the attribute slots not to be copied, the exclude_names has higher priority than include_names.
      */
-    void copy_from(span<const SizeT> O, const AttributeCollection& other);
+    void copy_from(const AttributeCollection& other,
+                   span<const SizeT>          O,
+                   span<const std::string>    include_names = {},
+                   span<const std::string>    exclude_names = {});
 
     /**
      * @brief Get the size of the attribute slots.
@@ -128,6 +133,16 @@ class UIPC_CORE_API AttributeCollection
      * @note This method generates no data clone. But the memory of the underlying attribute values may be reallocated.
      */
     void reserve(SizeT N);
+
+    /**
+     * @brief Get the names of all attribute slots.
+     */
+    vector<std::string> names() const;
+
+    /**
+     * @brief Get the number of attribute slots.
+	 */
+    SizeT attribute_count() const;
 
   private:
     SizeT                                         m_size = 0;
@@ -151,7 +166,7 @@ struct formatter<uipc::geometry::AttributeCollection> : formatter<std::string_vi
                     format_context&                            ctx);
 };
 
-extern template struct UIPC_CORE_API formatter<uipc::geometry::AttributeCollection>;
+UIPC_EXTERN_TEMPLATE_CLASS formatter<uipc::geometry::AttributeCollection>;
 }  // namespace fmt
 
 

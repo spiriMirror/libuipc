@@ -28,7 +28,7 @@ SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
     auto pos   = m_vertex_attributes.create<Vector3, false>(builtin::position,
                                                           Vector3::Zero());
     auto view_ = view(*pos);
-    std::copy(positions.begin(), positions.end(), view_.begin());
+    std::ranges::copy(positions, view_.begin());
 }
 
 AttributeSlot<Vector3>& SimplicialComplex::positions() noexcept

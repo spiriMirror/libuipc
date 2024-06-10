@@ -23,13 +23,17 @@ class SimSystemAutoRegister
 };
 }  // namespace uipc::backend::cuda
 
-
+/**
+ * @brief Register a SimSystem, which will be automatically created by the SimEngine.
+ */
 #define REGISTER_SIM_SYSTEM(SimSystem)                                             \
     static ::uipc::backend::cuda::SimSystemAutoRegister AutoRegister##__COUNTER__( \
         [](::uipc::backend::cuda::SimEngine& engine)                               \
         { return std::make_unique<SimSystem>(engine); });
 
 /**
+ * @brief Register a SimSystem with advanced creation logic.
+ *  
  * ```cpp
  * REGISTER_SIM_SYSTEM_ADVANCED(
  *  [](uipc::backend::cuda::SimEngine& engine)
