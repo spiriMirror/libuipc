@@ -3,5 +3,5 @@
 
 namespace uipc::geometry
 {
-UIPC_CORE_API SimplicialComplex label_triangle_orient(const SimplicialComplex& sc);
+UIPC_CORE_API [[nodiscard]] SimplicialComplex label_triangle_orient(const SimplicialComplex& sc);
 }

@@ -27,14 +27,14 @@ auto SimplicialComplexAttributes<SimplexSlot>::topo() noexcept -> Topo
 }
 
 template <std::derived_from<ISimplexSlot> SimplexSlot>
-auto SimplicialComplexAttributes<SimplexSlot>::topo() const noexcept -> Topo
+auto SimplicialComplexAttributes<SimplexSlot>::topo() const noexcept -> ConstTopo
 {
-    return Topo{m_topology};
+    return ConstTopo{m_topology};
 }
 
 template <std::derived_from<ISimplexSlot> SimplexSlotT>
 void SimplicialComplexAttributes<SimplexSlotT>::resize(SizeT size)
-    requires(!std::is_const_v<SimplexSlotT>)
+    requires(!IsConst)
 {
     m_topology.resize(size);
     m_attributes.resize(size);
@@ -42,7 +42,7 @@ void SimplicialComplexAttributes<SimplexSlotT>::resize(SizeT size)
 
 template <std::derived_from<ISimplexSlot> SimplexSlotT>
 void SimplicialComplexAttributes<SimplexSlotT>::reserve(SizeT size)
-    requires(!std::is_const_v<SimplexSlotT>)
+    requires(!IsConst)
 {
     m_topology.reserve(size);
     m_attributes.reserve(size);
@@ -50,7 +50,7 @@ void SimplicialComplexAttributes<SimplexSlotT>::reserve(SizeT size)
 
 template <std::derived_from<ISimplexSlot> SimplexSlotT>
 void SimplicialComplexAttributes<SimplexSlotT>::clear()
-    requires(!std::is_const_v<SimplexSlotT>)
+    requires(!IsConst)
 {
     m_topology.clear();
     m_attributes.clear();
@@ -64,7 +64,7 @@ SizeT SimplicialComplexAttributes<SimplexSlotT>::size() const noexcept
 
 template <std::derived_from<ISimplexSlot> SimplexSlotT>
 void SimplicialComplexAttributes<SimplexSlotT>::destroy(std::string_view name)
-    requires(!std::is_const_v<SimplexSlotT>)
+    requires(!IsConst)
 {
     m_attributes.destroy(name);
 }
@@ -94,7 +94,7 @@ bool SimplicialComplexTopo<SimplexSlot>::is_shared() && noexcept
 
 template <std::derived_from<ISimplexSlot> SimplexSlot>
 SimplicialComplexAttributes<SimplexSlot>::SimplicialComplexAttributes(
-    SimplexSlot& topology, AutoAttributeCollection& attributes) noexcept
+    SimplexSlot& topology, AttributeCollectionT& attributes) noexcept
     : m_topology(topology)
     , m_attributes(attributes)
 {

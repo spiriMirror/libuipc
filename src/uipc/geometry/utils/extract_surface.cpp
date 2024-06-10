@@ -7,18 +7,23 @@ namespace uipc::geometry
 constexpr std::string_view hint =
     "Hint: You may need to call `label_surface()` before calling `extract_surface_to()`";
 
-static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& dst)
+SimplicialComplex extract_surface(const SimplicialComplex& src)
 {
-    auto is_surf = src.vertices().find<IndexT>(builtin::is_surf);
-    UIPC_ASSERT(is_surf, "`is_surf` attribute not found in the mesh vertices. {}", hint);
+    UIPC_ASSERT(src.dim() == 3,
+                "The input mesh must be a tetrahedral mesh. Your dim={}.",
+                src.dim());
 
+    SimplicialComplex R;
 
-    UIPC_ASSERT(is_surf->size() == src.vertices().size(),
-                "Mismatch in size of is_surf({}) and vertices({})",
-                is_surf->size(),
-                src.vertices().size());
+    auto v_is_surf = src.vertices().find<IndexT>(builtin::is_surf);
+    auto e_is_surf = src.edges().find<IndexT>(builtin::is_surf);
+    auto f_is_surf = src.triangles().find<IndexT>(builtin::is_surf);
 
-    auto is_surf_view = is_surf->view();
+    UIPC_ASSERT(v_is_surf, "`is_surf` attribute not found in the mesh vertices. {}", hint);
+    UIPC_ASSERT(e_is_surf, "`is_surf` attribute not found in the mesh edges. {}", hint);
+    UIPC_ASSERT(f_is_surf, "`is_surf` attribute not found in the mesh triangles. {}", hint);
+
+    auto v_is_surf_view = v_is_surf->view();
 
     // ---------------------------------------------------------------------
     // process the vertices
@@ -26,7 +31,7 @@ static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& 
 
     std::vector<IndexT> old_v_to_new_v(src.vertices().size(), -1);
     IndexT              surf_v_count = 0;
-    for(auto&& [i, surf] : enumerate(is_surf_view))
+    for(auto&& [i, surf] : enumerate(v_is_surf_view))
     {
         if(surf)
         {
@@ -36,19 +41,19 @@ static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& 
     }
 
     // resize the destination vertices
-    dst.vertices().resize(surf_v_count);
+    R.vertices().resize(surf_v_count);
 
-    auto P = dst.vertices().find<Vector3>(builtin::position);
+    auto P = R.vertices().find<Vector3>(builtin::position);
 
     if(!P)  // check if the position attribute exists
     {
-        P = dst.vertices().create<Vector3>(builtin::position);
+        P = R.vertices().create<Vector3>(builtin::position);
     }
 
     auto new_P_view = view(*P);
     auto old_P_view = src.positions().view();
 
-    // copy_from the vertices
+    // copy the positions
     for(auto&& [i, new_v_id] : enumerate(old_v_to_new_v))
     {
         if(new_v_id != -1)
@@ -57,14 +62,22 @@ static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& 
         }
     }
 
+    // setup new2old mapping
+    std::vector<SizeT> v_new2old(surf_v_count, -1);
+    for(auto&& [i, new_v_id] : enumerate(old_v_to_new_v))
+    {
+        if(new_v_id != -1)
+        {
+            v_new2old[new_v_id] = static_cast<SizeT>(i);
+        }
+    }
+
+    // copy other vertex attributes
+    R.vertices().copy_from(v_new2old, src.vertices());
+
     // ---------------------------------------------------------------------
     // process the edges
     // ---------------------------------------------------------------------
-
-    auto e_is_surf = src.edges().find<IndexT>(builtin::is_surf);
-
-    UIPC_ASSERT(e_is_surf, "`is_surf` attribute not found in the mesh edges. {}", hint);
-
     auto           e_is_surf_view = e_is_surf->view();
     IndexT         surf_edges     = 0;
     auto           old_edge_view  = src.edges().topo().view();
@@ -80,9 +93,10 @@ static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& 
     }
 
     // resize the destination edges
-    dst.edges().resize(surf_e_count);
+    R.edges().resize(surf_e_count);
 
-    auto new_edge_view = view(dst.edges().topo());
+
+    auto new_edge_view = view(R.edges().topo());
 
     // copy_from the edges
     for(auto&& [i, new_e_id] : enumerate(old_e_to_new_e))
@@ -98,14 +112,23 @@ static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& 
         }
     }
 
+    // setup new2old mapping
+    std::vector<SizeT> e_new2old(surf_e_count, -1);
+    for(auto&& [i, new_e_id] : enumerate(old_e_to_new_e))
+    {
+        if(new_e_id != -1)
+        {
+            e_new2old[new_e_id] = static_cast<SizeT>(i);
+        }
+    }
+
+    // copy other edge attributes
+    R.edges().copy_from(e_new2old, src.edges());
+
     // ---------------------------------------------------------------------
     // process the triangles
     // ---------------------------------------------------------------------
-    auto t_is_surf = src.triangles().find<IndexT>(builtin::is_surf);
-
-    UIPC_ASSERT(t_is_surf, "`is_surf` attribute not found in the mesh triangles. {}", hint);
-
-    auto           t_is_surf_view = t_is_surf->view();
+    auto           t_is_surf_view = f_is_surf->view();
     auto           old_tri_view   = src.triangles().topo().view();
     vector<IndexT> old_t_to_new_t(src.triangles().size(), -1);
     IndexT         surf_t_count = 0;
@@ -119,8 +142,8 @@ static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& 
     }
 
     // resize the destination triangles
-    dst.triangles().resize(surf_t_count);
-    auto new_tri_view = view(dst.triangles().topo());
+    R.triangles().resize(surf_t_count);
+    auto new_tri_view = view(R.triangles().topo());
 
     // copy_from the triangles
     for(auto&& [i, new_t_id] : enumerate(old_t_to_new_t))
@@ -137,24 +160,20 @@ static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& 
             new_tri_view[new_t_id] = {new_v0, new_v1, new_v2};
         }
     }
-}
 
-SimplicialComplex extract_surface(const SimplicialComplex& src)
-{
-    SimplicialComplex dst;
-    auto              v_is_surf = src.vertices().find<IndexT>(builtin::is_surf);
-    auto              e_is_surf = src.edges().find<IndexT>(builtin::is_surf);
-    auto              f_is_surf = src.triangles().find<IndexT>(builtin::is_surf);
+    // setup new2old mapping
+    std::vector<SizeT> t_new2old(surf_t_count, -1);
+    for(auto&& [i, new_t_id] : enumerate(old_t_to_new_t))
+    {
+        if(new_t_id != -1)
+        {
+            t_new2old[new_t_id] = static_cast<SizeT>(i);
+        }
+    }
 
-    if(!v_is_surf || !e_is_surf || !f_is_surf)
-    {
-        auto L = label_surface(src);
-        extract_surface_to(L, dst);
-    }
-    else
-    {
-        extract_surface_to(src, dst);
-    }
-    return dst;
+    // copy other triangle attributes
+    R.triangles().copy_from(t_new2old, src.triangles());
+
+    return R;
 }
 }  // namespace uipc::geometry

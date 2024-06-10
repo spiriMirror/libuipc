@@ -58,6 +58,9 @@ class SimplicialComplexTopo
     }
 
   private:
+    template <std::derived_from<ISimplexSlot> SlotT>
+    friend class SimplicialComplexAttributes;
+
     SimplicialComplexTopo(SimplexSlotT& topo);
     SimplexSlotT& m_topology;
 };
@@ -87,6 +90,9 @@ class SimplicialComplexTopo<const VertexSlot>
     [[nodiscard]] bool is_shared() && noexcept;
 
   private:
+    template <std::derived_from<ISimplexSlot> SlotT>
+    friend class SimplicialComplexAttributes;
+
     SimplicialComplexTopo(const VertexSlot& topo);
     const VertexSlot& m_topology;
 };
@@ -125,6 +131,9 @@ class SimplicialComplexTopo<VertexSlot>
     }
 
   private:
+    template <std::derived_from<ISimplexSlot> SlotT>
+    friend class SimplicialComplexAttributes;
+
     SimplicialComplexTopo(VertexSlot& topo);
     VertexSlot& m_topology;
 };
@@ -141,9 +150,18 @@ class SimplicialComplexAttributes
 {
     friend struct fmt::formatter<SimplicialComplexAttributes<SimplexSlotT>>;
 
+    constexpr static bool IsConst = std::is_const_v<SimplexSlotT>;
+
+    using ConstSimplexSlotT = std::add_const_t<SimplexSlotT>;
+
     using Topo = SimplicialComplexTopo<SimplexSlotT>;
-    using AutoAttributeCollection =
-        std::conditional_t<std::is_const_v<SimplexSlotT>, const AttributeCollection, AttributeCollection>;
+
+    using ConstTopo = SimplicialComplexTopo<ConstSimplexSlotT>;
+
+    using AttributeCollectionT =
+        std::conditional_t<IsConst, const AttributeCollection, AttributeCollection>;
+
+    using ConstSimplicialComplexAttributesT = SimplicialComplexAttributes<ConstSimplexSlotT>;
 
   public:
     SimplicialComplexAttributes(const SimplicialComplexAttributes& o) = default;
@@ -159,23 +177,23 @@ class SimplicialComplexAttributes
 	 */
     [[nodiscard]] Topo topo() noexcept;
 
-    [[nodiscard]] Topo topo() const noexcept;
+    [[nodiscard]] ConstTopo topo() const noexcept;
 
     /**
      * @sa [AttributeCollection::resize()](../AttributeCollection/#resize)
      */
     void resize(SizeT size)
-        requires(!std::is_const_v<SimplexSlotT>);
+        requires(!IsConst);
     /**
      * @sa [AttributeCollection::reserve()](../AttributeCollection/#reserve)
      */
     void reserve(SizeT size)
-        requires(!std::is_const_v<SimplexSlotT>);
+        requires(!IsConst);
     /**
      * @sa [AttributeCollection::clear()](../AttributeCollection/#clear)
      */
     void clear()
-        requires(!std::is_const_v<SimplexSlotT>);
+        requires(!IsConst);
     /**
      * @sa [AttributeCollection::size()](../AttributeCollection/#size)
      */
@@ -184,13 +202,14 @@ class SimplicialComplexAttributes
      * @sa [AttributeCollection::destroy()](../AttributeCollection/#destroy) 
      */
     void destroy(std::string_view name)
-        requires(!std::is_const_v<SimplexSlotT>);
+        requires(!IsConst);
 
     /**
      * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
      */
     template <typename T>
     [[nodiscard]] decltype(auto) find(std::string_view name)
+        requires(!IsConst)
     {
         return m_attributes.template find<T>(name);
     }
@@ -206,23 +225,38 @@ class SimplicialComplexAttributes
 
     template <typename T>
     decltype(auto) create(std::string_view name, const T& default_value = {})
+        requires(!IsConst)
     {
         return m_attributes.template create<T>(name, default_value);
     }
 
     template <typename T>
     decltype(auto) share(std::string_view name, const AttributeSlot<T>& slot)
+        requires(!IsConst)
     {
         return m_attributes.template share<T>(name, slot);
     }
 
-  private:
-    friend class SimplicialComplex;
-    SimplexSlotT&            m_topology;
-    AutoAttributeCollection& m_attributes;
+    void copy_from(span<const SizeT> O, ConstSimplicialComplexAttributesT other)
+        requires(!IsConst)
+    {
+        m_attributes.copy_from(O, other.m_attributes);
+    }
 
-    SimplicialComplexAttributes(SimplexSlotT&            topology,
-                                AutoAttributeCollection& attributes) noexcept;
+    operator SimplicialComplexAttributes<ConstSimplexSlotT>() const noexcept
+    {
+        return SimplicialComplexAttributes<ConstSimplexSlotT>(m_topology, m_attributes);
+    }
+
+  private:
+    template <std::derived_from<ISimplexSlot> SlotT>
+    friend class SimplicialComplexAttributes;
+
+    friend class SimplicialComplex;
+    SimplexSlotT&         m_topology;
+    AttributeCollectionT& m_attributes;
+
+    SimplicialComplexAttributes(SimplexSlotT& topology, AttributeCollectionT& attributes) noexcept;
 };
 }  // namespace uipc::geometry
 

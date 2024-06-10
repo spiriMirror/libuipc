@@ -70,6 +70,11 @@ void AttributeCollection::reorder(span<const SizeT> O)
 
 void AttributeCollection::copy_from(span<const SizeT> O, const AttributeCollection& other)
 {
+    UIPC_ASSERT(O.size() == size(),
+                "Size mismatch, attribute size ({}), your New2Old mapping ({}). Resize the topology before copy.",
+                O.size(),
+                size());
+
     for(auto& [name, slot] : other.m_attributes)
     {
         // if the name is not found in the current collection, create a new slot

@@ -4,13 +4,8 @@
 
 namespace uipc::geometry
 {
-static void pure_closure_dim_2(SimplicialComplex& R)
+static void facet_closure_dim_2(SimplicialComplex& R)
 {
-    UIPC_ASSERT(R.edges().size() == 0,
-                "Edges should be empty, when generate edges from triangles, yours {}.",
-                R.edges().size());
-    // TODO: later we may allow Edges to be non-empty.
-
     /*
     * generate the edges from the triangles
     */
@@ -55,14 +50,8 @@ static void pure_closure_dim_2(SimplicialComplex& R)
     std::ranges::copy(sep_edges, edge_view.begin());
 }
 
-static void pure_closure_dim_3(SimplicialComplex& R)
+static void facet_closure_dim_3(SimplicialComplex& R)
 {
-    UIPC_ASSERT(R.triangles().size() == 0,
-                "Triangles should be empty, when generate faces from tetrahedra, yours {}.",
-                R.triangles().size());
-    // TODO: later we may allow Triangles to be non-empty.
-
-
     // try to find the unique faces from the tetrahedra
     auto T = R.tetrahedra().topo().view();
 
@@ -106,12 +95,39 @@ static void pure_closure_dim_3(SimplicialComplex& R)
     std::ranges::copy(sep_faces, face_view.begin());
 
     // then we use the triangles to generate the edges
-    pure_closure_dim_2(R);
+    facet_closure_dim_2(R);
 }
 
-
-SimplicialComplex pure_closure(const SimplicialComplex& O)
+static void check_facet_closure_input(const SimplicialComplex& O)
 {
+    UIPC_ASSERT(O.dim() >= 0 && O.dim() <= 3,
+                "When calling `facet_closure()`, your simplicial complex should be in dimension [0, 3], your dimension ({}).",
+                O.dim());
+
+    switch(O.dim())
+    {
+        case 2: {
+            UIPC_ASSERT(O.edges().size() == 0,
+                        "When calling `facet_closure()`, your lower dimensional simplicial should be empty, your edge count ({}).",
+                        O.edges().size());
+        }
+        break;
+        case 3: {
+            UIPC_ASSERT(O.triangles().size() == 0 && O.edges().size() == 0,
+                        "When calling `facet_closure()`, your lower dimensional simplicial should be empty, your face count ({}), yout edge count ({}).",
+                        O.triangles().size(),
+                        O.edges().size());
+        }
+        break;
+        default:
+            break;
+    }
+}
+
+SimplicialComplex facet_closure(const SimplicialComplex& O)
+{
+    check_facet_closure_input(O);
+
     SimplicialComplex R;
 
     // share vertices
@@ -122,34 +138,33 @@ SimplicialComplex pure_closure(const SimplicialComplex& O)
     switch(O.dim())
     {
         case 0: {
-            // nothing to do, vertices are pure_closure of vertices
+            // nothing to do, vertices are closure of vertices
         }
         break;
         case 1: {
             // share edges
             R.edges().resize(O.edges().size());
             R.edges().topo().share(O.edges().topo());
-            // no need to do anything, edges and vertices are pure_closure of edges
-            break;
+            // no need to do anything, edges and vertices are closure of edges
         }
+        break;
         case 2: {
             // share triangles
             R.triangles().resize(O.triangles().size());
             R.triangles().topo().share(O.triangles().topo());
             // generate the edges from the triangles
-            pure_closure_dim_2(R);
+            facet_closure_dim_2(R);
         }
         break;
         case 3: {
             // share tetrahedra
             R.tetrahedra().resize(O.tetrahedra().size());
             R.tetrahedra().topo().share(O.tetrahedra().topo());
-            // generate the faces from the tetrahedra
-            pure_closure_dim_3(R);
+            // generate the faces from the tetrahedrad
+            facet_closure_dim_3(R);
         }
         break;
         default:
-            UIPC_ASSERT(false, "Unsupported dimension {}", O.dim());
             break;
     }
 

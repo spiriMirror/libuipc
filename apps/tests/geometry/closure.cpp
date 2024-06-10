@@ -22,7 +22,7 @@ TEST_CASE("closure", "[closure]")
     auto dst_Ts = geometry::view(asc.tetrahedra());
     std::copy(Ts.begin(), Ts.end(), dst_Ts.begin());
 
-    auto mesh = pure_closure(SimplicialComplex{asc, Vs});
+    auto mesh = facet_closure(SimplicialComplex{asc, Vs});
 
     REQUIRE(mesh.triangles().size() == 4);
     REQUIRE(mesh.edges().size() == 6);

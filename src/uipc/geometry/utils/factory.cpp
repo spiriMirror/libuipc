@@ -12,7 +12,7 @@ SimplicialComplex tetmesh(span<const Vector3> Vs, span<const Vector4i> Ts)
     auto dst_Ts = geometry::view(asc.tetrahedra());
     std::copy(Ts.begin(), Ts.end(), dst_Ts.begin());
 
-    return pure_closure(SimplicialComplex{asc, Vs});
+    return facet_closure(SimplicialComplex{asc, Vs});
 }
 
 SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
@@ -24,7 +24,7 @@ SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
     auto dst_Ts = view(asc.triangles());
     std::copy(Fs.begin(), Fs.end(), dst_Ts.begin());
 
-    return pure_closure(SimplicialComplex{asc, Vs});
+    return facet_closure(SimplicialComplex{asc, Vs});
 }
 
 SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
@@ -36,7 +36,7 @@ SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
     auto dst_Ts = view(asc.edges());
     std::copy(Es.begin(), Es.end(), dst_Ts.begin());
 
-    return pure_closure(SimplicialComplex{asc, Vs});
+    return facet_closure(SimplicialComplex{asc, Vs});
 }
 
 SimplicialComplex pointcloud(span<const Vector3> Vs)
@@ -44,7 +44,7 @@ SimplicialComplex pointcloud(span<const Vector3> Vs)
     AbstractSimplicialComplex asc;
     asc.vertices().resize(Vs.size());
 
-    return pure_closure(SimplicialComplex{asc, Vs});
+    return facet_closure(SimplicialComplex{asc, Vs});
 }
 
 ImplicitGeometry ground(Float height)
