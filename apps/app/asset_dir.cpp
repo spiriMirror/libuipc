@@ -28,6 +28,6 @@ std::string_view AssetDir::trimesh_path()
 }
 std::string_view AssetDir::output_path()
 {
-    return UIPC_ASSET_PATH "output/";
+    return UIPC_OUTPUT_PATH;
 }
 }  // namespace uipc

@@ -1,5 +1,6 @@
 #include <app/test_common.h>
 #include <uipc/geometry.h>
+#include <uipc/geometry/utils/simplex_utils.h>
 #include <numeric>
 
 using namespace uipc;
@@ -77,7 +78,7 @@ TEST_CASE("shared_attribute", "[simplicial_complex]")
     REQUIRE(!VA.topo().is_shared());
     REQUIRE(!TA.topo().is_shared());
 
-    // shallow copy, the data is not cloned
+    // shallow copy_from, the data is not cloned
     auto shared_topo_mesh = shared_mesh;
 
     // Here we want share the topo, but own the attributes.
@@ -192,4 +193,11 @@ TEST_CASE("print", "[simplicial_complex]")
     fmt::println("triangles:{}", mesh.triangles());
     fmt::println("tetrahedra:{}", mesh.tetrahedra());
     fmt::println("");
+}
+
+TEST_CASE("utils", "[simplicial_complex]")
+{
+    using SU = SimplexUtils;
+    REQUIRE(SU::is_same_edge(Vector2i{0, 10}, Vector2i{0, 11}) == false);
+    REQUIRE(SU::is_same_edge(Vector2i{0, 10}, Vector2i{10, 0}) == true);
 }

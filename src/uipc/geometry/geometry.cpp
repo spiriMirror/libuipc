@@ -46,3 +46,19 @@ auto Geometry::instances() const -> CInstanceAttributes
     return CInstanceAttributes{m_intances};
 }
 }  // namespace uipc::geometry
+
+namespace fmt
+{
+appender formatter<uipc::geometry::Geometry>::format(const uipc::geometry::Geometry& geo,
+                                                     format_context& ctx)
+{
+    return fmt::format_to(ctx.out(),
+                          R"(type:<{}>;
+meta:{};
+instances({}):{};)",
+                          geo.type(),
+                          geo.meta(),
+                          geo.instances().size(),
+                          geo.instances());
+}
+}  // namespace fmt

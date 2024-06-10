@@ -8,6 +8,11 @@ std::string_view IAttributeSlot::name() const noexcept
     return get_name();
 }
 
+std::string_view IAttributeSlot::type_name() const noexcept
+{
+    return get_type_name();
+}
+
 bool IAttributeSlot::allow_destroy() const noexcept
 {
     return get_allow_destroy();
@@ -40,6 +45,11 @@ S<IAttributeSlot> IAttributeSlot::clone() const
     return do_clone();
 }
 
+S<IAttributeSlot> IAttributeSlot::clone_empty() const
+{
+    return do_clone_empty();
+}
+
 IAttribute& IAttributeSlot::attribute() noexcept
 {
     return get_attribute();
@@ -54,4 +64,4 @@ backend::BufferView backend_view(const IAttributeSlot& a) noexcept
 {
     return backend_view(a.attribute());
 }
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry

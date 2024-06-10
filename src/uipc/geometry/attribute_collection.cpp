@@ -31,8 +31,7 @@ void AttributeCollection::destroy(std::string_view name)
     }
 
     if(!it->second->allow_destroy())
-        throw GeometryAttributeError{
-            fmt::format("Attribute [{}] don't allow destroy!", name)};
+        throw GeometryAttributeError{fmt::format("Attribute [{}] don't allow destroy!", name)};
 
     m_attributes.erase(it);
 }
@@ -66,6 +65,22 @@ void AttributeCollection::reorder(span<const SizeT> O)
     {
         slot->make_owned();
         slot->attribute().reorder(O);
+    }
+}
+
+void AttributeCollection::copy_from(span<const SizeT> O, const AttributeCollection& other)
+{
+    for(auto& [name, slot] : other.m_attributes)
+    {
+        // if the name is not found in the current collection, create a new slot
+        if(m_attributes.find(name) == m_attributes.end())
+        {
+            auto c             = slot->do_clone_empty();
+            m_attributes[name] = c;
+            UIPC_ASSERT(c->is_shared() == false, "The attribute is shared, why can it happen?");
+            c->attribute().resize(size());
+            c->attribute().copy_from(O, slot->attribute());
+        }
     }
 }
 
@@ -138,12 +153,12 @@ appender formatter<uipc::geometry::AttributeCollection>::format(
 {
     auto size = collection.size();
 
-    fmt::format_to(ctx.out(), "[", size);
+    fmt::format_to(ctx.out(), "[");
 
     for(const auto& [name, slot] : collection.m_attributes)
     {
-        char star = slot->allow_destroy() ? ' ' : '*';
-        fmt::format_to(ctx.out(), "{}'{}' ", star, name);
+        std::string_view star = slot->allow_destroy() ? "" : "*";
+        fmt::format_to(ctx.out(), "{}'{}':<{}> ", star, name, slot->type_name());
     }
 
     fmt::format_to(ctx.out(), "]");

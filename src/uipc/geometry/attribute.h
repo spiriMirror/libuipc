@@ -27,8 +27,10 @@ class UIPC_CORE_API IAttribute
     void          resize(SizeT N);
     void          reserve(SizeT N);
     S<IAttribute> clone() const;
+    S<IAttribute> clone_empty() const;
     void          clear();
     void          reorder(span<const SizeT> O) noexcept;
+    void copy_from(span<const SizeT> O, const IAttribute& other) noexcept;
 
     friend backend::BufferView backend_view(const IAttribute& a) noexcept;
 
@@ -41,10 +43,15 @@ class UIPC_CORE_API IAttribute
     virtual void          do_clear()                               = 0;
     virtual void          do_reserve(SizeT N)                      = 0;
     virtual S<IAttribute> do_clone() const                         = 0;
+    virtual S<IAttribute> do_clone_empty() const                   = 0;
     virtual void          do_reorder(span<const SizeT> O) noexcept = 0;
+    virtual void do_copy_from(span<const SizeT> O, const IAttribute& other) noexcept = 0;
 };
 
-/**
+template <typename T>
+class AttributeSlot;
+
+/** 
  * @brief Template class to represent a geometries attribute of type T.
  * 
  * @tparam T The type of the attribute values.
@@ -52,6 +59,8 @@ class UIPC_CORE_API IAttribute
 template <typename T>
 class Attribute : public IAttribute
 {
+    friend class AttributeSlot<T>;
+
   public:
     using value_type = T;
 
@@ -62,23 +71,11 @@ class Attribute : public IAttribute
     Attribute<T>& operator=(const Attribute<T>&) = default;
     Attribute<T>& operator=(Attribute<T>&&)      = default;
 
-    /**
-     * @brief Get a non-const view of the attribute values. This method may potentially clone the attribute data.
-     * 
-     * @note
-     *    Always consider using the const member method if the attribute data is not going to be modified.
-     * @return `span<T>` 
-     */
     friend [[nodiscard]] span<T> view(Attribute<T>& a) noexcept
     {
         return a.m_values;
     }
 
-    /**
-     * @brief Get a const view of the attribute values. This method gerantees no data cloning.
-     * 
-     * @return `span<const T>` 
-     */
     [[nodiscard]] span<const T> view() const noexcept;
 
   protected:
@@ -89,7 +86,9 @@ class Attribute : public IAttribute
     void          do_clear() override;
     void          do_reserve(SizeT N) override;
     S<IAttribute> do_clone() const override;
+    S<IAttribute> do_clone_empty() const override;
     void          do_reorder(span<const SizeT> O) noexcept override;
+    void do_copy_from(span<const SizeT> O, const IAttribute& other) noexcept override;
 
   private:
     backend::BufferView m_backend_view;

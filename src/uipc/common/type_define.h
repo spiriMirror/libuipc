@@ -1,6 +1,5 @@
 #pragma once
 #include <Eigen/Core>
-#include <string_view>
 namespace uipc
 {
 using Float  = double;

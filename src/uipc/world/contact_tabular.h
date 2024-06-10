@@ -30,7 +30,7 @@ class UIPC_CORE_API ContactTabular
 
     friend void to_json(Json& j, const ContactTabular& ct);
 
-    // delete copy
+    // delete copy_from
     ContactTabular(const ContactTabular&)            = delete;
     ContactTabular& operator=(const ContactTabular&) = delete;
   private:

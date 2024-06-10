@@ -105,14 +105,18 @@ appender fmt::formatter<uipc::geometry::SimplicialComplex>::format(
 {
     return fmt::format_to(ctx.out(),
                           R"({}
-vertices:{};
-edges:{};
-triangles:{}; 
-tetrahedra:{};)",
+vertices({}):{};
+edges({}):{};
+triangles({}):{}; 
+tetrahedra({}):{};)",
                           static_cast<const uipc::geometry::Geometry&>(c),
+                          c.vertices().size(),
                           c.vertices(),
+                          c.edges().size(),
                           c.edges(),
+                          c.triangles().size(),
                           c.triangles(),
+                          c.tetrahedra().size(),
                           c.tetrahedra());
 }
 }  // namespace fmt

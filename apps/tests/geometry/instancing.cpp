@@ -7,7 +7,7 @@ using namespace uipc;
 using namespace uipc::geometry;
 
 
-TEST_CASE("instancing", "[geometry]")
+TEST_CASE("instancing", "[instance]")
 {
     SimplicialComplexIO io;
 

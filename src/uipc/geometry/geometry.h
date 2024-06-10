@@ -149,11 +149,11 @@ class UIPC_CORE_API Geometry : public IGeometry
 
     Geometry();
 
-    // allow copy and move on construction, because the geometry truely empty
+    // allow copy_from and move on construction, because the geometry truely empty
     Geometry(const Geometry& o) = default;
     Geometry(Geometry&& o)      = default;
 
-    // no copy or move assignment, because the geometry is no longer empty
+    // no copy_from or move assignment, because the geometry is no longer empty
     Geometry& operator=(const Geometry& o) = delete;
     Geometry& operator=(Geometry&& o)      = delete;
 
@@ -221,18 +221,9 @@ struct formatter<uipc::geometry::Geometry::InstanceAttributesT<IsConst>>
 };
 
 template <>
-struct formatter<uipc::geometry::Geometry> : public formatter<string_view>
+struct UIPC_CORE_API formatter<uipc::geometry::Geometry> : public formatter<string_view>
 {
-    auto format(const uipc::geometry::Geometry& geo, format_context& ctx)
-    {
-        return fmt::format_to(ctx.out(),
-                              R"(type:<{}>;
-meta:{};
-instances:{};)",
-                              geo.type(),
-                              geo.meta(),
-                              geo.instances());
-    }
+    appender format(const uipc::geometry::Geometry& geo, format_context& ctx);
 };
 }  // namespace fmt
 #include "details/geometry.inl"

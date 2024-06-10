@@ -50,7 +50,7 @@ static void pure_closure_dim_2(SimplicialComplex& R)
     // now we have the unique edges
     R.edges().resize(sep_edges.size());
 
-    // copy the edges to the new complex
+    // copy_from the edges to the new complex
     auto edge_view = view(R.edges().topo());
     std::ranges::copy(sep_edges, edge_view.begin());
 }
@@ -101,7 +101,7 @@ static void pure_closure_dim_3(SimplicialComplex& R)
     // now we have the unique faces
     R.triangles().resize(sep_faces.size());
 
-    // copy the faces to the new complex
+    // copy_from the faces to the new complex
     auto face_view = view(R.triangles().topo());
     std::ranges::copy(sep_faces, face_view.begin());
 

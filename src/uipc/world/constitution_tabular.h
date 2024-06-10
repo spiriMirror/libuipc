@@ -10,7 +10,7 @@ class UIPC_CORE_API ConstitutionTabular
   public:
     ConstitutionTabular() = default;
 
-    // delete copy
+    // delete copy_from
     ConstitutionTabular(const ConstitutionTabular&)            = delete;
     ConstitutionTabular& operator=(const ConstitutionTabular&) = delete;
 

@@ -48,7 +48,7 @@ static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& 
     auto new_P_view = view(*P);
     auto old_P_view = src.positions().view();
 
-    // copy the vertices
+    // copy_from the vertices
     for(auto&& [i, new_v_id] : enumerate(old_v_to_new_v))
     {
         if(new_v_id != -1)
@@ -84,7 +84,7 @@ static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& 
 
     auto new_edge_view = view(dst.edges().topo());
 
-    // copy the edges
+    // copy_from the edges
     for(auto&& [i, new_e_id] : enumerate(old_e_to_new_e))
     {
         if(new_e_id != -1)
@@ -122,7 +122,7 @@ static void extract_surface_to(const SimplicialComplex& src, SimplicialComplex& 
     dst.triangles().resize(surf_t_count);
     auto new_tri_view = view(dst.triangles().topo());
 
-    // copy the triangles
+    // copy_from the triangles
     for(auto&& [i, new_t_id] : enumerate(old_t_to_new_t))
     {
         if(new_t_id != -1)

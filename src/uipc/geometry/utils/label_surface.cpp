@@ -18,12 +18,10 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
         v_is_surf = R.vertices().create<IndexT>(builtin::is_surf, 0);
     }
 
-    auto v_is_surf_view = geometry::view(*v_is_surf);
-
     // if the mesh is a point cloud, all vertices are on the surface
     if(R.dim() == 0)
     {
-        std::ranges::fill(v_is_surf_view, 1);
+        std::ranges::fill(view(*v_is_surf), 1);
         return R;
     }
 
@@ -34,7 +32,6 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
     {
         e_is_surf = R.edges().create<IndexT>(builtin::is_surf, 0);
     }
-    auto e_is_surf_view = geometry::view(*e_is_surf);
 
     // if the mesh is a line mesh:
     // 1. all vertices are on the surface
@@ -42,8 +39,8 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
 
     if(R.dim() == 1)
     {
-        std::ranges::fill(v_is_surf_view, 1);
-        std::ranges::fill(e_is_surf_view, 1);
+        std::ranges::fill(view(*v_is_surf), 1);
+        std::ranges::fill(view(*e_is_surf), 1);
         return R;
     }
 
@@ -54,7 +51,7 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
     {
         f_is_surf = R.triangles().create<IndexT>(builtin::is_surf, 0);
     }
-    auto f_is_surf_view = geometry::view(*f_is_surf);
+
 
     // if the mesh is 2D:
     // 1. all vertices are on the surface
@@ -63,9 +60,9 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
 
     if(R.dim() == 2)
     {
-        std::ranges::fill(v_is_surf_view, 1);
-        std::ranges::fill(e_is_surf_view, 1);
-        std::ranges::fill(f_is_surf_view, 1);
+        std::ranges::fill(view(*v_is_surf), 1);
+        std::ranges::fill(view(*e_is_surf), 1);
+        std::ranges::fill(view(*f_is_surf), 1);
         return R;
     }
 
@@ -76,6 +73,12 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
     // 1) setup separated triangles
     auto Ts = R.tetrahedra().topo().view();
 
+    auto f_parent_id = R.triangles().find<IndexT>(builtin::parent_id);
+    if(!f_parent_id)
+    {
+        f_parent_id = R.triangles().create<IndexT>(builtin::parent_id, -1);
+    }
+
     vector<Vector4i> separated_triangles(Ts.size() * 4);
 
     auto sort_triangle = [](const Vector4i& T)
@@ -84,6 +87,7 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
         std::sort(t.begin(), t.end());
         return Vector4i{t[0], t[1], t[2], T[3]};  // the last component is the Tetrahedron index
     };
+
 
     for(auto&& [i, T] : enumerate(Ts))
     {
@@ -138,32 +142,38 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
         }
     }
 
-    // 3) label the surface triangles
+    // 4) label the surface triangles
     auto Fs = R.triangles().topo().view();
-    UIPC_ASSERT(f_is_surf_view.size() == unique_triangles.size(),
+    UIPC_ASSERT(f_is_surf->view().size() == unique_triangles.size(),
                 "The input mesh should be a closure, why can't we find the same number of triangles? yours {}, ours {}.",
-                f_is_surf_view.size(),
+                f_is_surf->view().size(),
                 unique_triangles.size());
 
-    // now we assume the triangles are sorted
-    for(auto&& [i, UF] : enumerate(unique_triangles))
     {
-        auto& F      = Fs[i];
-        auto  sorted = (F == UF.segment<3>(0));
-
-        // TODO:
-        // if the triangles are not sorted, we need find a mapping from the sorted to the unsorted
-        // and then we can label the surface vertices
-        UIPC_ASSERT(sorted, "The triangles are not sorted, now we don't support this case, TODO: need to implement it.");
-
-
-        if(is_surface_triangle(i))
+        auto f_is_surf_view   = view(*f_is_surf);
+        auto f_parent_id_view = view(*f_parent_id);
+        // now we assume the triangles are sorted
+        for(auto&& [i, UF] : enumerate(unique_triangles))
         {
-            f_is_surf_view[i] = 1;
+            auto& F      = Fs[i];
+            auto  sorted = (F == UF.segment<3>(0));
+
+            // TODO:
+            // if the triangles are not sorted, we need find a mapping from the sorted to the unsorted
+            // and then we can label the surface vertices
+            UIPC_ASSERT(sorted, "The triangles are not sorted, now we don't support this case, TODO: need to implement it.");
+
+            if(is_surface_triangle(i))
+            {
+                f_is_surf_view[i] = 1;
+            }
+
+            f_parent_id_view[i] = UF[3];
         }
     }
 
-    // 4) label the surface edges_with_flag:
+
+    // 5) label the surface edges_with_flag:
     // Principle: if an edge belongs to at least one surface triangle, it is a surface edge.
     auto             Es = R.edges().topo().view();
     vector<Vector3i> edges_with_flag(unique_triangles.size() * 3);
@@ -220,7 +230,7 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
     std::exclusive_scan(counts_edges.begin(), counts_edges.end(), offsets_edges.begin(), 0);
 
     //To find the surface edges_with_flag, we only need to check if the edge belongs to a surface triangle
-    for(auto&& [i, UE] : enumerate(unique_edges))
+    for(auto e_is_surf_view = view(*e_is_surf); auto&& [i, UE] : enumerate(unique_edges))
     {
         auto& E      = Es[i];
         auto  sorted = (E == UE.segment<2>(0));
@@ -238,8 +248,8 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
         }
     }
 
-    // 5) label the surface vertices
-    for(auto&& [i, F] : enumerate(unique_triangles))
+    // 6) label the surface vertices
+    for(auto v_is_surf_view = view(*v_is_surf); auto&& [i, F] : enumerate(unique_triangles))
     {
         // vertex is a surface vertex if it is in a surface triangle
         if(is_surface_triangle(i))

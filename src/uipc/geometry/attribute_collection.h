@@ -97,13 +97,20 @@ class UIPC_CORE_API AttributeCollection
     void resize(SizeT N);
 
     /**
-	 * @brief Reorder the underlying attribute values of all attribute slots.
-	 * 
-	 * @param O A New2Old mapping. O[i] = j means the i-th element in the new order has the value of the j-th element in the old order.
-	 * 
-	 * @note This method may generate data clones.
-	 */
+     * @brief Reorder the underlying attribute values of all attribute slots.
+     * 
+     * @param O A New2Old mapping. O[i] = j means the i-th element in the new order has the value of the j-th element in the old order.
+     * 
+     * @note This method may generate data clones.
+     */
     void reorder(span<const SizeT> O);
+
+    /**
+     * @brief copy_from the underlying attribute values of all attribute slots.
+     * 
+     * @param O A New2Old mapping. O[i] = j means the i-th element in the new order has the value of the j-th element in the old order.
+     */
+    void copy_from(span<const SizeT> O, const AttributeCollection& other);
 
     /**
      * @brief Get the size of the attribute slots.

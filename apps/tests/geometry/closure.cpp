@@ -14,7 +14,15 @@ TEST_CASE("closure", "[closure]")
                                 Vector3{0.0, 0.0, 1.0}};
     std::vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
 
-    auto mesh = tetmesh(Vs, Ts);
+
+    AbstractSimplicialComplex asc;
+    asc.vertices().resize(Vs.size());
+    asc.tetrahedra().resize(Ts.size());
+
+    auto dst_Ts = geometry::view(asc.tetrahedra());
+    std::copy(Ts.begin(), Ts.end(), dst_Ts.begin());
+
+    auto mesh = pure_closure(SimplicialComplex{asc, Vs});
 
     REQUIRE(mesh.triangles().size() == 4);
     REQUIRE(mesh.edges().size() == 6);

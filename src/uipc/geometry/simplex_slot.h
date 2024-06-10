@@ -14,7 +14,7 @@ class UIPC_CORE_API ISimplexSlot
     ISimplexSlot()          = default;
     virtual ~ISimplexSlot() = default;
 
-    // delete copy
+    // delete copy_from
     ISimplexSlot(const ISimplexSlot&)            = delete;
     ISimplexSlot& operator=(const ISimplexSlot&) = delete;
     // enable move

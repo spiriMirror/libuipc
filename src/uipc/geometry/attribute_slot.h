@@ -17,7 +17,7 @@ class UIPC_CORE_API IAttributeSlot
   public:
     IAttributeSlot()          = default;
     virtual ~IAttributeSlot() = default;
-    // delete copy
+    // delete copy_from
     IAttributeSlot(const IAttributeSlot&)            = delete;
     IAttributeSlot& operator=(const IAttributeSlot&) = delete;
     // enable move
@@ -28,6 +28,10 @@ class UIPC_CORE_API IAttributeSlot
      * @brief Get the name of the attribute slot.
      */
     [[nodiscard]] std::string_view name() const noexcept;
+    /**
+     * @brief Get the type name of data stored in the attribute slot.
+     */
+    [[nodiscard]] std::string_view type_name() const noexcept;
     /**
      * @brief Check if the underlying attribute is allowed to be destroyed.
      */
@@ -54,8 +58,11 @@ class UIPC_CORE_API IAttributeSlot
     [[nodiscard]] SizeT         use_count() const;
     [[nodiscard]] virtual SizeT get_use_count() const = 0;
 
+    [[nodiscard]] virtual std::string_view  get_type_name() const noexcept = 0;
     [[nodiscard]] virtual S<IAttributeSlot> clone() const;
     [[nodiscard]] virtual S<IAttributeSlot> do_clone() const = 0;
+    [[nodiscard]] virtual S<IAttributeSlot> clone_empty() const;
+    [[nodiscard]] virtual S<IAttributeSlot> do_clone_empty() const = 0;
 
     [[nodiscard]] virtual IAttribute&       attribute() noexcept;
     [[nodiscard]] virtual IAttribute&       get_attribute() noexcept = 0;
@@ -94,6 +101,7 @@ class AttributeSlot final : public IAttributeSlot
   protected:
     friend class AttributeCollection;
 
+    [[nodiscard]] virtual std::string_view get_type_name() const noexcept override;
     [[nodiscard]] virtual std::string_view get_name() const noexcept override;
     [[nodiscard]] virtual bool get_allow_destroy() const noexcept override;
 
@@ -104,12 +112,13 @@ class AttributeSlot final : public IAttributeSlot
 
     void                                    do_make_owned() override;
     [[nodiscard]] virtual S<IAttributeSlot> do_clone() const override;
+    [[nodiscard]] virtual S<IAttributeSlot> do_clone_empty() const override;
 
   private:
     std::string     m_name;
     S<Attribute<T>> m_attribute;
     bool            m_allow_destroy;
 };
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry
 
 #include "details/attribute_slot.inl"

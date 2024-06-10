@@ -127,7 +127,7 @@ class UIPC_CORE_API GlobalTimer
   public:
     GlobalTimer(std::string_view name = "GlobalTimer");
 
-    // delete copy
+    // delete copy_from
     GlobalTimer(const GlobalTimer&)            = delete;
     GlobalTimer& operator=(const GlobalTimer&) = delete;
 

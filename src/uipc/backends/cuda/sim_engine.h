@@ -19,7 +19,7 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     SimEngine();
     ~SimEngine();
 
-    // delete copy
+    // delete copy_from
     SimEngine(const SimEngine&)            = delete;
     SimEngine& operator=(const SimEngine&) = delete;
 

@@ -1,4 +1,5 @@
 #include <uipc/common/format.h>
+#include <uipc/common/readable_type_name.h>
 
 namespace uipc::geometry
 {
@@ -16,6 +17,12 @@ span<const T> AttributeSlot<T>::view() const noexcept
 }
 
 template <typename T>
+std::string_view AttributeSlot<T>::get_type_name() const noexcept
+{
+    return readable_type_name<T>();
+}
+
+template <typename T>
 std::string_view AttributeSlot<T>::get_name() const noexcept
 {
     return m_name;
@@ -30,7 +37,7 @@ bool AttributeSlot<T>::get_allow_destroy() const noexcept
 template <typename T>
 void AttributeSlot<T>::do_make_owned()
 {
-    // if I am not the only one who is using the attribute, then I need to make a copy
+    // if I am not the only one who is using the attribute, then I need to make a copy_from
     if(m_attribute.use_count() > 1)
         m_attribute = std::make_shared<Attribute<T>>(*m_attribute);
 }
@@ -40,6 +47,13 @@ S<IAttributeSlot> AttributeSlot<T>::do_clone() const
 {
     return std::make_shared<AttributeSlot<T>>(
         name(), std::static_pointer_cast<Attribute<T>>(m_attribute), m_allow_destroy);
+}
+
+template <typename T>
+S<IAttributeSlot> AttributeSlot<T>::do_clone_empty() const
+{
+    return std::make_shared<AttributeSlot<T>>(
+        name(), std::make_shared<Attribute<T>>(m_attribute->m_default_value), m_allow_destroy);
 }
 
 template <typename T>
@@ -65,4 +79,4 @@ template <typename U>
     slot.make_owned();
     return view(*slot.m_attribute);
 }
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry

@@ -56,7 +56,7 @@ TEST_CASE("simple_world", "[world]")
     // all the instances will have the same constitution
     abd.apply_to(mesh, 1e8);
 
-    // copy the mesh to the object
+    // copy_from the mesh to the object
     // to create the geometry and the rest geometry for simulation
     auto [geo, rest_geo] = object->geometries().create(mesh);
 

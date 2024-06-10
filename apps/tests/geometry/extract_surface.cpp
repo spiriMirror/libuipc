@@ -7,7 +7,7 @@
 using namespace uipc;
 using namespace uipc::geometry;
 
-TEST_CASE("extract_surface", "[extract_surface]")
+TEST_CASE("extract_surface", "[surface]")
 {
     {
         std::vector           Vs = {Vector3{0.0, 0.0, 0.0},
@@ -23,6 +23,9 @@ TEST_CASE("extract_surface", "[extract_surface]")
         REQUIRE(surface.edges().size() == 6);
         REQUIRE(surface.triangles().size() == 4);
         REQUIRE(surface.tetrahedra().size() == 0);
+
+        SimplicialComplexIO io;
+        io.write_obj(fmt::format("{}tet_surf.obj", AssetDir::output_path()), surface);
     }
 
     {
@@ -34,5 +37,7 @@ TEST_CASE("extract_surface", "[extract_surface]")
         REQUIRE(surface.edges().size() == 18);    // cube surf mesh has 18 edges
         REQUIRE(surface.triangles().size() == 12);  // cube surf mesh has 12 triangles, 6 faces * 2 triangles per face
         REQUIRE(surface.tetrahedra().size() == 0);  // cube surf mesh has no tetrahedra
+
+        io.write_obj(fmt::format("{}cube_surf.obj", AssetDir::output_path()), surface);
     }
 }
