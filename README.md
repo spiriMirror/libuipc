@@ -47,6 +47,21 @@ cmake . -S ../libuipc -DUIPC_BUILD_GUI=0
 cmake --build .
 ```
 Note: A compile problem of bgfx(1.127#1) is found. So now we just turn off the GUI support on linux. [TODO] Maybe we can fix it in the future.
+
+Install the project
+```shell
+cmake --install . --config <Debug/Release/RelWithDebInfo>
+```
+Run the program.
+Note, you need to setup the `LD_LIBRARY_PATH`, or the shared uipc library and the dependent backends will not be found.
+```shell
+cd <Debug/Release/RelWithDebInfo>/bin
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./
+./hello_uipc
+./uipc_test_world
+...
+```
+
 ## Build Document
 
 Install [mkdocs](https://www.mkdocs.org/)
