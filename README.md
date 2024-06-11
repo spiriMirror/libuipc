@@ -19,22 +19,13 @@ A Modern C++20 Library of Unified Incremental Potential Contact.
 
 ## Build
 
-### Linux
-
-We use CMake to build the project.
-
-```bash
-git submodule update --init
-sudo apt install libeigen3-dev
-```
-
-
-### Windows
 We use [vcpkg](https://github.com/microsoft/vcpkg) to manage the libraries we need and use CMake to build the project. The simplest way to let CMake detect vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
+
+### Windows & Linux
 
 ```shell
 git submodule update --init
-vcpkg install eigen3 catch2 libigl fmt cppitertools bgfx dylib
+vcpkg install eigen3 catch2 spdlog libigl fmt cppitertools bgfx dylib rapidcsv benchmark
 ```
 
 ## Build Document
