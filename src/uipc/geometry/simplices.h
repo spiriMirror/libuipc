@@ -109,10 +109,10 @@ class Simplices final : public ISimplices
     virtual IndexT              get_dim() const noexcept override;
     virtual SizeT               get_size() const noexcept override;
 
-    virtual void             do_resize(SizeT N) override;
+    virtual void             do_resize(SizeT n) override;
     virtual void             do_clear() override;
     virtual S<ITopoElements> do_clone() const override;
-    virtual void             do_reserve(SizeT N) override;
+    virtual void             do_reserve(SizeT n) override;
     virtual void             do_reorder(span<const SizeT> O) override;
 };
 

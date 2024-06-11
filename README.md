@@ -19,36 +19,50 @@ A Modern C++20 Library of Unified Incremental Potential Contact.
 | nlohmann_json                          | 3.11.2  | json file IO                                        | package        |
 
 ## Build
+We use [vcpkg](https://github.com/microsoft/vcpkg) to manage the libraries we need and use [CMake](https://cmake.org/) to build the project. The simplest way to let CMake detect vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
-We use [vcpkg](https://github.com/microsoft/vcpkg) to manage the libraries we need and use CMake to build the project. The simplest way to let CMake detect vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
+CMake minimum version: 3.27
 
-### Windows & Linux
+Vcpkg supports both windows and linux. We recommend using vcpkg to manage the dependencies to keep the consistency of the development environment.
 
+### Install Dependencies on Windows & Linux
 ```shell
 git submodule update --init
 vcpkg install eigen3 catch2 spdlog libigl fmt cppitertools dylib rapidcsv benchmark nlohmann-json
 ```
-GUI support.
+GUI support. (Optional) On linux it may fail to build bgfx.
 ```shell
 vcpkg install bgfx
 ```
+### Build Project
 
+#### Windows
+On windows, you can use the `CMake-GUI` to configure the project and generate the visual studio solution file. Almost no effort is needed.
+
+#### Linux
+On linux, you can use the following commands to build the project.
+```shell
+cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
+cmake . -S ../libuipc -DUIPC_BUILD_GUI=0
+cmake --build .
+```
+Note: A compile problem of bgfx(1.127#1) is found. So now we just turn off the GUI support on linux. [TODO] Maybe we can fix it in the future.
 ## Build Document
 
-- Install [mkdocs](https://www.mkdocs.org/)
-    ```shell
-    pip install mkdocs mkdocs-material mkdocs-literate-nav
-    ```
+Install [mkdocs](https://www.mkdocs.org/)
+```shell
+pip install mkdocs mkdocs-material mkdocs-literate-nav
+```
     
-- Download [doxide](https://www.doxide.org/installation/), and add the `doxide` binary folder to the system path.
+Download [doxide](https://www.doxide.org/installation/), and add the `doxide` binary folder to the system path.
 
-- Run the following command at the root of the project:
-    ```shell
-    doxide build
-    ```
+Run the following command at the root of the project:
+```shell
+doxide build
+```
     
-- Turn on the local server:
-    ```shell
-    mkdocs serve
-    ```
+Turn on the local server:
+```shell
+mkdocs serve
+```
 

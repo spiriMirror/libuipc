@@ -1,4 +1,4 @@
-#include <uipc./geometry/geometry_slot.h>
+#include <uipc/geometry/geometry_slot.h>
 
 namespace uipc::geometry
 {

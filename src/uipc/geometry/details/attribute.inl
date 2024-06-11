@@ -1,4 +1,3 @@
-#include "attribute.h"
 namespace uipc::geometry
 {
 template <typename T>

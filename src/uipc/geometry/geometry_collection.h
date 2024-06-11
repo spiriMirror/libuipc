@@ -1,4 +1,5 @@
 #pragma once
+#include <concepts>
 #include <uipc/geometry/geometry.h>
 #include <uipc/geometry/geometry_slot.h>
 #include <uipc/common/set.h>

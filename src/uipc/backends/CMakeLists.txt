@@ -27,6 +27,7 @@ function(uipc_add_backend name)
 
     target_link_libraries(${name} PRIVATE uipc::uipc)
     target_compile_definitions(${name} PRIVATE UIPC_BACKEND_EXPORT_DLL=1)
+    target_compile_features(${name} PRIVATE cxx_std_20)
 
     set_target_properties(${name} PROPERTIES OUTPUT_NAME "uipc_backend_${name}")
     

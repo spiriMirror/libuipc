@@ -1,5 +1,6 @@
 #pragma once
 #include <memory>
+#include <memory_resource>
 
 namespace uipc
 {

@@ -7,6 +7,9 @@ target_sources(cuda PRIVATE ${SOURCES})
 
 target_link_libraries(cuda PUBLIC muda)
 
+target_compile_features(cuda PUBLIC cxx_std_20)
+# target_compile_options(cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-std=c++20>)
+
 target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set_target_properties(cuda PROPERTIES

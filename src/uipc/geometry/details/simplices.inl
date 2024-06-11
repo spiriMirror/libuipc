@@ -30,9 +30,9 @@ SizeT Simplices<N>::get_size() const noexcept
 }
 
 template <IndexT N>
-void Simplices<N>::do_resize(SizeT N)
+void Simplices<N>::do_resize(SizeT n)
 {
-    m_simplices.resize(N);
+    m_simplices.resize(n);
 }
 
 template <IndexT N>
@@ -42,9 +42,9 @@ void Simplices<N>::do_clear()
 }
 
 template <IndexT N>
-void Simplices<N>::do_reserve(SizeT N)
+void Simplices<N>::do_reserve(SizeT n)
 {
-    m_simplices.reserve(N);
+    m_simplices.reserve(n);
 }
 
 template <IndexT N>

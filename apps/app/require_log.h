@@ -1,6 +1,7 @@
 #pragma once
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/base_sink.h>
+#include <uipc/common/list.h>
 #include <mutex>
 
 namespace uipc::test
@@ -25,7 +26,7 @@ class CaptureSink : public spdlog::sinks::base_sink<std::mutex>
     static std::shared_ptr<CaptureSink> instance();
     // a test logger that uses the CaptureSink
     static std::shared_ptr<spdlog::logger> test_logger();
-    std::list<LogMsg>                      m_msg;
+    list<LogMsg>                      m_msg;
 };
 
 
