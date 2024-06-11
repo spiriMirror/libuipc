@@ -3,7 +3,8 @@
 #include <uipc/geometry.h>
 #include <uipc/geometry/utils/label_surface.h>
 #include <uipc/geometry/utils/extract_surface.h>
-#include <uipc/geometry/utils/closure.h>
+#include <uipc/geometry/utils/flip_inward_triangles.h>
+#include <uipc/geometry/utils/label_triangle_orient.h>
 
 using namespace uipc;
 using namespace uipc::geometry;
@@ -44,5 +45,13 @@ TEST_CASE("extract_surface", "[surface]")
         REQUIRE(surface.edges().size() == 18);    // cube surf mesh has 18 edges
         REQUIRE(surface.triangles().size() == 12);  // cube surf mesh has 12 triangles, 6 faces * 2 triangles per face
         REQUIRE(surface.tetrahedra().size() == 0);  // cube surf mesh has no tetrahedra
+
+        io.write_obj(fmt::format("{}cube_unflipped_surf.obj", AssetDir::output_path()), surface);
+
+        auto oriented        = label_triangle_orient(labeled);
+        auto flipped         = flip_inward_triangles(oriented);
+        auto surface_flipped = extract_surface(flipped);
+        io.write_obj(fmt::format("{}cube_flipped_surf.obj", AssetDir::output_path()),
+                     surface_flipped);
     }
 }

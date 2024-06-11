@@ -1,7 +1,7 @@
+#include <muda/ext/eigen/eigen_core_cxx20.h> // to use Eigen in CUDA
+
 #include <app/test_common.h>
-#include <muda/ext/eigen/eigen_cxx20.h>
-#include <muda/muda.h>
-#include <Eigen/Core>
+#include <muda/buffer/device_buffer.h>
 
 void hello_muda()
 {

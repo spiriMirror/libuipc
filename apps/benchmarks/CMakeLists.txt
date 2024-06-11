@@ -1,6 +1,6 @@
-find_package(benchmark CONFIG REQUIRED)
+find_package(Catch2 CONFIG REQUIRED)
 
-get_filename_component(benchmark_main_cpp "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp" ABSOLUTE)
+# get_filename_component(benchmark_main_cpp "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp" ABSOLUTE)
 
 function(uipc_add_benchmark name)
     add_executable(${name} ${ARGN})
@@ -8,7 +8,9 @@ function(uipc_add_benchmark name)
     target_link_libraries(${name} PRIVATE 
         uipc::uipc
         app
-        benchmark::benchmark benchmark::benchmark_main)
+        Catch2::Catch2
+        Catch2::Catch2WithMain)
+
     set_property(TARGET ${name} PROPERTY FOLDER "apps/benchmarks")
     set_target_properties(${name} PROPERTIES OUTPUT_NAME "uipc_benchmark_${name}")
 

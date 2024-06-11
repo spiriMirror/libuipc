@@ -3,6 +3,25 @@
 namespace uipc
 {
 /**
+ * @brief Second literal operator
+ * * 
+ * * ```cpp
+ * * auto time = 1.0_s;
+ * * ```
+ */
+constexpr long double operator""_s(long double value)
+{
+    return value;
+}
+
+/**
+ * @brief Second literal operator (ms)
+ */
+constexpr long double operator""_ms(long double value)
+{
+    return value * 1e-3;
+}
+/**
  * @brief Meter literal operator
  * 
  * ```cpp
