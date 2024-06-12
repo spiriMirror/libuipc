@@ -1,0 +1,19 @@
+name: vcpkg-dependency-check
+run-name: ${{ github.actor }} is checking vcpkg dependencies 🚀
+on: [push]
+jobs:
+  Check-vcpkg-dependencies:
+    # run on windows and ubuntu
+    runs-on: [windows-latest, ubuntu-latest]
+    steps:
+        - uses: lukka/get-cmake@v3.27
+        - name: Setup anew (or from cache) vcpkg (and does not build any package)
+          uses: lukka/run-vcpkg@v11 # Always specify the specific _version_ of the
+                                  # action you need, `v11` in this case to stay up
+                                  # to date with fixes on the v11 branch.
+        - name: Check vcpkg dependencies
+          run: |
+            vcpkg install
+
+
+
