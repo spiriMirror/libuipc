@@ -1,6 +1,8 @@
 #include <uipc/geometry/utils/label_triangle_orient.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/enumerate.h>
+#include <Eigen/Geometry>
+
 namespace uipc::geometry
 {
 SimplicialComplex label_triangle_orient(const SimplicialComplex& sc)

@@ -10,6 +10,10 @@
 #include <uipc/common/enumerate.h>
 #include <muda/atomic.h>
 #include <muda/cub/device/device_scan.h>
+#include <cuda/atomic>
+#include <muda/ext/eigen/atomic.h>
+#include <cub/util_ptx.cuh>
+#include <cuda/atomic>
 
 namespace uipc::test::backend::cuda
 {
@@ -66,8 +70,7 @@ namespace detail
 
         MUDA_GENERIC LBVHMortonIndex() noexcept = default;
 
-        uint64_t morton = ~0ull;
-        // uint32_t idx;
+        uint64_t morton = 0;
     };
 
     MUDA_GENERIC bool operator==(const LBVHMortonIndex& lhs, const LBVHMortonIndex& rhs) noexcept
@@ -189,11 +192,13 @@ class LBVHViewerT : muda::ViewerBase<IsConst>
     friend class LBVH;
     using Node = detail::LBVHNode;
 
+
   public:
     using ConstViewer    = LBVHViewerT<true>;
     using NonConstViewer = LBVHViewerT<false>;
     using ThisViewer     = LBVHViewerT<IsConst>;
     using AABB           = Eigen::AlignedBox<Float, 3>;
+
 
     struct DefaultQueryCallback
     {
@@ -206,23 +211,16 @@ class LBVHViewerT : muda::ViewerBase<IsConst>
                              auto_const_t<AABB>* aabbs)
         : m_num_nodes(num_nodes)
         , m_num_objects(num_objects)
-        , m_nodes(nodes)
-        , m_aabbs(aabbs)
+        , m_nodes(nodes, num_nodes)
+        , m_aabbs(aabbs, num_nodes)
     {
-        MUDA_KERNEL_ASSERT(m_nodes && m_aabbs,
-                           "BVHViewerBase[%s:%s]: nullptr is passed,"
-                           "nodes=%p,"
-                           "aabbs=%p,"
-                           "objects=%p\n",
-                           this->name(),
-                           this->kernel_name(),
-                           m_nodes,
-                           m_aabbs);
+        m_aabbs.copy_name(*this);
+        m_nodes.copy_name(*this);
     }
 
     MUDA_GENERIC auto as_const() const noexcept
     {
-        return ConstViewer{m_num_nodes, m_num_objects, m_nodes, m_aabbs};
+        return ConstViewer{m_num_nodes, m_num_objects, m_nodes.data(), m_aabbs.data()};
     }
 
     MUDA_GENERIC operator ConstViewer() const noexcept { return as_const(); }
@@ -296,8 +294,8 @@ class LBVHViewerT : muda::ViewerBase<IsConst>
     uint32_t m_num_nodes;    // (# of internal node) + (# of leaves), 2N+1
     uint32_t m_num_objects;  // (# of leaves), the same as the number of objects
 
-    auto_const_t<Node>* m_nodes;
-    auto_const_t<AABB>* m_aabbs;
+    muda::Dense1DBase<IsConst, AABB> m_aabbs;
+    muda::Dense1DBase<IsConst, Node> m_nodes;
 
     MUDA_INLINE MUDA_GENERIC void check_index(const uint32_t idx) const noexcept
     {
@@ -337,9 +335,9 @@ class LBVHViewerT : muda::ViewerBase<IsConst>
 
         if(m_num_objects == 1)
         {
-            if(Intersect(m_aabbs[0], Q))
+            if(Intersect(m_aabbs(0), Q))
             {
-                Callback(0);
+                Callback(m_nodes(0).object_idx);
                 return 1;
             }
         }
@@ -348,12 +346,12 @@ class LBVHViewerT : muda::ViewerBase<IsConst>
         do
         {
             const uint32_t node  = *--stack_ptr;
-            const uint32_t L_idx = m_nodes[node].left_idx;
-            const uint32_t R_idx = m_nodes[node].right_idx;
+            const uint32_t L_idx = m_nodes(node).left_idx;
+            const uint32_t R_idx = m_nodes(node).right_idx;
 
-            if(Intersect(m_aabbs[L_idx], Q))
+            if(Intersect(m_aabbs(L_idx), Q))
             {
-                const auto obj_idx = m_nodes[L_idx].object_idx;
+                const auto obj_idx = m_nodes(L_idx).object_idx;
                 if(obj_idx != 0xFFFFFFFF)
                 {
                     Callback(obj_idx);
@@ -364,9 +362,9 @@ class LBVHViewerT : muda::ViewerBase<IsConst>
                     *stack_ptr++ = L_idx;
                 }
             }
-            if(Intersect(m_aabbs[R_idx], Q))
+            if(Intersect(m_aabbs(R_idx), Q))
             {
-                const auto obj_idx = m_nodes[R_idx].object_idx;
+                const auto obj_idx = m_nodes(R_idx).object_idx;
                 if(obj_idx != 0xFFFFFFFF)
                 {
                     Callback(obj_idx);
@@ -428,22 +426,25 @@ class LBVH
         m_nodes.resize(num_nodes, default_node);
         resize(s, m_nodes, num_nodes);
 
-        resize(s, m_flags, num_objects);
+        resize(s, m_flags, num_internal_nodes);
         BufferLaunch(s).fill(m_flags.view(), 0);
 
-        // 1) setup aabbs
-        //BufferLaunch(s).copy(aabbs, aabbs);
-
-        // 2) get max aabb
+        // 1) get max aabb
         DeviceReduce(s).Reduce(
             aabbs.data(),
             m_max_aabb.data(),
             aabbs.size(),
-            [] CUB_RUNTIME_FUNCTION(const AABB& a, const AABB& b)
+            [] CUB_RUNTIME_FUNCTION(const AABB& a, const AABB& b) -> AABB
             { return a.merged(b); },
             default_aabb);
 
-        // 3) calculate morton code
+        //AABB max_aabb;
+        //max_aabb = m_max_aabb;
+
+        //std::cout << "max_aabb=" << max_aabb.min().transpose() << ", "
+        //          << max_aabb.max().transpose() << std::endl;
+
+        // 2) calculate morton code
         on(s)
             .next<ParallelFor>()
             .kernel_name("LBVH::MortonCode")
@@ -458,7 +459,7 @@ class LBVH
                        mortons(i) = detail::morton_code(p);
                    });
 
-        // 4) sort morton code
+        // 3) sort morton code
         on(s)
             .next<ParallelFor>()
             .kernel_name("LBVH::Iota")
@@ -466,14 +467,14 @@ class LBVH
                    [indices = m_indices.viewer()] __device__(int i) mutable
                    { indices(i) = i; });
 
-        // 5) sort morton code
+        // 4) sort morton code
         DeviceRadixSort(s).SortPairs(m_mortons.data(),
                                      m_sorted_mortons.data(),
                                      m_indices.data(),
                                      m_new_to_old.data(),
                                      num_objects);
 
-        // 6) expand morton code to 64bit, the last 32bit is the index
+        // 5) expand morton code to 64bit, the last 32bit is the index
         on(s)
             .next<ParallelFor>()
             .kernel_name("LBVH::ExpandMorton")
@@ -486,7 +487,7 @@ class LBVH
                        morton64s(i) = morton;
                    });
 
-        // 7) setup leaf nodes
+        // 6) setup leaf nodes
         auto leaf_aabbs = m_aabbs.view(leaf_start);  // offset = leaf_start
         auto leaf_nodes = m_nodes.view(leaf_start);  // offset = leaf_start
         on(s)
@@ -507,21 +508,21 @@ class LBVH
                        sorted_aabbs(i) = aabbs(node.object_idx);
                    });
 
-        // 8) construct internal nodes
+        // 7) construct internal nodes
         on(s)
             .next<ParallelFor>()
             .kernel_name("LBVH::ConstructInternalNodes")
             .apply(num_internal_nodes,
-                   [nodes     = m_nodes.viewer().name("nodes"),
-                    morton64s = m_morton_idx.viewer().name("morton64s"),
+                   [nodes      = m_nodes.viewer().name("nodes"),
+                    morton_idx = m_morton_idx.viewer().name("morton_idx"),
                     num_objects] __device__(int idx) mutable
                    {
                        nodes(idx).object_idx = 0xFFFFFFFF;  //  internal nodes
 
                        const uint2 ij =
-                           detail::determine_range(morton64s, num_objects, idx);
+                           detail::determine_range(morton_idx, num_objects, idx);
                        const int gamma =
-                           detail::find_split(morton64s, num_objects, ij.x, ij.y);
+                           detail::find_split(morton_idx, num_objects, ij.x, ij.y);
 
                        nodes(idx).left_idx  = gamma;
                        nodes(idx).right_idx = gamma + 1;
@@ -537,7 +538,7 @@ class LBVH
                        nodes(nodes(idx).right_idx).parent_idx = idx;
                    });
 
-        // 9) calculate the AABB of internal nodes
+        // 8) calculate the AABB of internal nodes
         auto internal_aabbs = m_aabbs.view(0, num_internal_nodes);
         on(s)
             .next<ParallelFor>()
@@ -551,9 +552,10 @@ class LBVH
                        auto leaf_idx = I + leaf_start;
                        auto parent   = nodes(leaf_idx).parent_idx;
 
+
                        while(parent != 0xFFFFFFFF)  // means idx == 0
                        {
-                           const int old = muda::atomic_cas(&flags(parent), 0, 1);
+                           const int old = muda::atomic_add(&flags(parent), 1);
                            if(old == 0)
                            {
                                // this is the first thread entered here.
@@ -561,14 +563,40 @@ class LBVH
                                return;
                            }
                            MUDA_KERNEL_ASSERT(old == 1, "old=%d", old);
-                           // here, the flag has already been 1. it means that this
-                           // thread is the 2nd thread. merge AABB of both childlen.
+                           //here, the flag has already been 1. it means that this
+                           //thread is the 2nd thread. merge AABB of both childlen.
+
+                           // the memory fence is necessary to disable reordering of the memory access.
+                           // we need to ensure that this thread can get the updated value of AABB.
+                           ::cuda::atomic_thread_fence(::cuda::memory_order_acquire,
+                                                       ::cuda::thread_scope_system);
 
                            const auto lidx = nodes(parent).left_idx;
                            const auto ridx = nodes(parent).right_idx;
-                           const auto lbox = aabbs(lidx);
-                           const auto rbox = aabbs(ridx);
-                           aabbs(parent)   = lbox.merged(rbox);
+                           auto&      lbox = aabbs(lidx);
+                           auto&      rbox = aabbs(ridx);
+
+                           // to avoid cache coherency problem, we must use atomic operation.
+                           auto atomic_fetch = [](AABB& aabb) -> AABB
+                           {
+                               Vector3 zero  = Vector3::Zero();
+                               AABB    aabb_ = aabb;
+
+                               // without atomic_thread_fence, this loop may be infinite.
+                               while(aabb_.isEmpty())
+                               {
+                                   Vector3 min_ = eigen::atomic_add(aabb.min(), zero);
+                                   Vector3 max_ = eigen::atomic_add(aabb.max(), zero);
+                                   aabb_ = AABB{min_, max_};
+                               };
+
+                               return aabb_;
+                           };
+
+                           auto L = atomic_fetch(lbox);
+                           auto R = atomic_fetch(rbox);
+
+                           aabbs(parent) = L.merged(R);
 
                            // look the next parent...
                            parent = nodes(parent).parent_idx;
@@ -620,10 +648,115 @@ using namespace uipc::geometry;
 using namespace muda;
 
 
+void tree_consistency_test(const DeviceBuffer<detail::LBVHNode>& d_a,
+                           const DeviceBuffer<detail::LBVHNode>& d_b,
+                           const DeviceBuffer<LBVH::AABB>&       d_a_AABB,
+                           const DeviceBuffer<LBVH::AABB>&       d_b_AABB)
+{
+    std::vector<detail::LBVHNode> a;
+    d_a.copy_to(a);
+
+    std::vector<detail::LBVHNode> b;
+    d_b.copy_to(b);
+
+    std::vector<LBVH::AABB> a_AABB;
+    d_a_AABB.copy_to(a_AABB);
+
+    std::vector<LBVH::AABB> b_AABB;
+    d_b_AABB.copy_to(b_AABB);
+
+    {
+        auto it = std::mismatch(a.begin(),
+                                a.end(),
+                                b.begin(),
+                                b.end(),
+                                [](const auto& lhs, const auto& rhs)
+                                {
+                                    return lhs.parent_idx == rhs.parent_idx
+                                           && lhs.left_idx == rhs.left_idx
+                                           && lhs.right_idx == rhs.right_idx
+                                           && lhs.object_idx == rhs.object_idx;
+                                });
+
+        REQUIRE(it.first == a.end());
+        REQUIRE(it.second == b.end());
+
+        if(it.first != a.end() || it.second != b.end())
+        {
+            std::cout << "tree inconsistency detected:" << std::endl;
+
+            for(int i = 0; i < a.size(); ++i)
+            {
+                auto f_node = a[i];
+                auto s_node = b[i];
+
+                std::cout
+                    << "node=" << i << "parent=(" << f_node.parent_idx << ", "
+                    << s_node.parent_idx << ")"
+                    << "left=(" << f_node.left_idx << ", " << s_node.left_idx << ")"
+                    << "right=(" << f_node.right_idx << ", " << s_node.right_idx << ")"
+                    << "obj=(" << f_node.object_idx << ", " << s_node.object_idx
+                    << ")" << std::endl;
+            }
+        }
+    }
+
+    {
+        auto it = std::mismatch(a_AABB.begin(),
+                                a_AABB.end(),
+                                b_AABB.begin(),
+                                b_AABB.end(),
+                                [](const auto& lhs, const auto& rhs) {
+                                    return lhs.min() == rhs.min()
+                                           && lhs.max() == rhs.max();
+                                });
+
+        CHECK(it.first == a_AABB.end());
+        CHECK(it.second == b_AABB.end());
+
+        while(it.first != a_AABB.end() || it.second != b_AABB.end())
+        {
+            std::cout << "AABB inconsistency detected: id="
+                      << std::distance(a_AABB.begin(), it.first) << std::endl;
+
+            auto f_aabb = *it.first;
+            auto s_aabb = *it.second;
+
+            std::cout << "aabb=(" << f_aabb.min().transpose() << ", "
+                      << f_aabb.max().transpose() << ")\n"
+                      << "aabb=(" << s_aabb.min().transpose() << ", "
+                      << s_aabb.max().transpose() << ")" << std::endl;
+
+            it = std::mismatch(++it.first,
+                               a_AABB.end(),
+                               ++it.second,
+                               b_AABB.end(),
+                               [](const auto& lhs, const auto& rhs) {
+                                   return lhs.min() == rhs.min()
+                                          && lhs.max() == rhs.max();
+                               });
+        }
+    }
+}
+
+
 std::vector<Vector2i> lbvh_cp(span<const LBVH::AABB> aabbs)
 {
     DeviceBuffer<LBVH::AABB> d_aabbs(aabbs.size());
     d_aabbs.view().copy_from(aabbs.data());
+
+    // enlarge the aabbs by a 0.1 * diagonal length
+    ParallelFor()
+        .kernel_name("LBVHTest::Enlarge")
+        .apply(aabbs.size(),
+               [aabbs = d_aabbs.viewer().name("aabbs")] __device__(int i) mutable
+               {
+                   auto aabb = aabbs(i);
+                   auto diag = aabb.sizes().norm();
+                   //aabb.min().array() -= 0.1 * diag;
+                   //aabb.max().array() += 0.1 * diag;
+               });
+
 
     LBVH lbvh;
     lbvh.build(d_aabbs);
@@ -631,12 +764,12 @@ std::vector<Vector2i> lbvh_cp(span<const LBVH::AABB> aabbs)
     DeviceBuffer<IndexT> counts(aabbs.size() + 1ull);
     DeviceBuffer<IndexT> offsets(aabbs.size() + 1ull);
 
-    for(int i = 0; i < aabbs.size(); ++i)
-    {
-        auto aabb = aabbs[i];
-        std::cout << "[" << aabb.min().transpose() << "],"
-                  << "[" << aabb.max().transpose() << "]" << std::endl;
-    }
+    //for(int i = 0; i < aabbs.size(); ++i)
+    //{
+    //    auto aabb = aabbs[i];
+    //    std::cout << "[" << aabb.min().transpose() << "],"
+    //              << "[" << aabb.max().transpose() << "]" << std::endl;
+    //}
 
     ParallelFor()
         .kernel_name("LBVHTest::Query")
@@ -693,7 +826,25 @@ std::vector<Vector2i> lbvh_cp(span<const LBVH::AABB> aabbs)
                                   if(id > i)
                                       pair(j++) = Vector2i(i, id);
                               });
+                   MUDA_ASSERT(j == count, "j = %d, count=%d", j, count);
                });
+
+    DeviceBuffer<detail::LBVHNode> nodes_1 = lbvh.m_nodes;
+    DeviceBuffer<LBVH::AABB>       aabbs_1 = lbvh.m_aabbs;
+
+    lbvh.build(d_aabbs);  // build again, the internal nodes should be the same.
+    DeviceBuffer<detail::LBVHNode> nodes_2 = lbvh.m_nodes;
+    DeviceBuffer<LBVH::AABB>       aabbs_2 = lbvh.m_aabbs;
+
+    tree_consistency_test(nodes_1, nodes_2, aabbs_1, aabbs_2);
+
+    LBVH lbvh2;
+    lbvh2.build(d_aabbs);
+
+    DeviceBuffer<detail::LBVHNode> nodes_3 = lbvh2.m_nodes;
+    DeviceBuffer<LBVH::AABB>       aabbs_3 = lbvh2.m_aabbs;
+
+    //tree_consistency_test(nodes_1, nodes_3, aabbs_1, aabbs_3);
 
     std::vector<Vector2i> pairs_host;
     pairs.copy_to(pairs_host);
@@ -776,6 +927,9 @@ SimplicialComplex tet()
 
 void lbvh_test(const SimplicialComplex& mesh)
 {
+    std::cout << "num_aabb=" << mesh.triangles().size() << std::endl;
+
+
     auto pos_view = mesh.positions().view();
     auto tri_view = mesh.triangles().topo().view();
 
@@ -788,8 +942,6 @@ void lbvh_test(const SimplicialComplex& mesh)
         auto p1 = pos_view[tri[1]];
         auto p2 = pos_view[tri[2]];
         aabbs[i].extend(p0).extend(p1).extend(p2);
-        aabbs[i].max() += Vector3{0.1, 0.1, 0.1};
-        aabbs[i].min() -= Vector3{0.1, 0.1, 0.1};
     }
 
 
@@ -822,26 +974,26 @@ void lbvh_test(const SimplicialComplex& mesh)
 
     CHECK(check_unique(lbvh_pairs.begin(), lbvh_pairs.end()));
 
-    bool same = lbvh_pairs == bf_pairs;
-    CHECK(same);
 
-    if(!same)
+    std::list<Vector2i> diff;
+
+    std::set_difference(bf_pairs.begin(),
+                        bf_pairs.end(),
+                        lbvh_pairs.begin(),
+                        lbvh_pairs.end(),
+                        std::back_inserter(diff),
+                        compare);
+
+    CHECK(diff.empty());
+
+    if (!diff.empty())
     {
-        std::list<Vector2i> diff;
-
-        std::set_difference(lbvh_pairs.begin(),
-                            lbvh_pairs.end(),
-                            bf_pairs.begin(),
-                            bf_pairs.end(),
-                            std::back_inserter(diff),
-                            compare);
-
         std::cout << "lbvh_pairs.size()=" << lbvh_pairs.size() << std::endl;
         std::cout << "bf_pairs.size()=" << bf_pairs.size() << std::endl;
         std::cout << "diff:" << std::endl;
-        for(auto&& [i, p] : enumerate(diff))
+        for(auto&& d : diff)
         {
-            std::cout << "i=" << i << ", p=[" << p[0] << ", " << p[1] << "]" << std::endl;
+            std::cout << d.transpose() << std::endl;
         }
     }
 }
@@ -849,7 +1001,6 @@ void lbvh_test(const SimplicialComplex& mesh)
 
 TEST_CASE("lbvh", "[muda]")
 {
-
     SECTION("tet")
     {
         lbvh_test(tet());
@@ -858,14 +1009,43 @@ TEST_CASE("lbvh", "[muda]")
     SECTION("cube.obj")
     {
         SimplicialComplexIO io;
-        auto mesh = io.read_obj(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
+        auto mesh = io.read(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
         lbvh_test(mesh);
     }
 
     SECTION("cube.msh")
     {
         SimplicialComplexIO io;
-        auto mesh = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
+        auto mesh = io.read(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
+        lbvh_test(mesh);
+    }
+
+    SECTION("cylinder_hole.msh")
+    {
+        SimplicialComplexIO io;
+        auto                mesh =
+            io.read(fmt::format("{}cylinder_hole.msh", AssetDir::tetmesh_path()));
+        lbvh_test(mesh);
+    }
+
+    SECTION("simple_axle.msh")
+    {
+        SimplicialComplexIO io;
+        auto mesh = io.read(fmt::format("{}simple_axle.msh", AssetDir::tetmesh_path()));
+        lbvh_test(mesh);
+    }
+
+    SECTION("wheel_axle.msh")
+    {
+        SimplicialComplexIO io;
+        auto mesh = io.read(fmt::format("{}wheel_axle.msh", AssetDir::tetmesh_path()));
+        lbvh_test(mesh);
+    }
+
+    SECTION("bunny0.msh")
+    {
+        SimplicialComplexIO io;
+        auto mesh = io.read(fmt::format("{}bunny0.msh", AssetDir::tetmesh_path()));
         lbvh_test(mesh);
     }
 }
