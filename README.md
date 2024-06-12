@@ -32,11 +32,11 @@ The following dependencies are 3rd-party libraries that we use in the project. D
 | glfw3                                  | 3.3.8#2 | window management                                   | package        |
 
 ## Build
-We use [vcpkg](https://github.com/microsoft/vcpkg) to manage the libraries we need and use [CMake](https://cmake.org/) to build the project. 
+We use Vcpkgto manage the libraries we need and use CMake to build the project. 
 
-The simplest way to let CMake detect vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
+The simplest way to let CMake detect Vcpkgis to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
-Vcpkg supports both windows and linux. We recommend using vcpkg to manage the dependencies to keep the consistency of the development environment.
+Vcpkgsupports both Windows and Linux. We recommend using Vcpkgto manage the dependencies to keep the consistency of the development environment.
 
 ### Submodules
 
@@ -60,10 +60,10 @@ You can also try install the dependencies [manually](#manaully-dependency-instal
 
 On windows, you can use the `CMake-GUI` to configure the project and generate the Visual Studio solution file with only a few clicks.
 
-Or you can also use the same commands as linux to build the project.
+Or you can also use the same commands as Linux to build the project.
 #### Linux
 
-On linux, you can use the following commands to build the project.
+On Linux, you can use the following commands to build the project.
 
 ```shell
 cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
@@ -71,8 +71,7 @@ cmake -S ../libuipc -DUIPC_BUILD_GUI=0
 cmake --build .
 ```
 
-To enable GUI support, use `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install).
-See [Linux GUI Support](#linux-gui-support).
+To enable GUI support, use `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install). See [Linux GUI Support](#Linux-gui-support).
 
 ### Run Project
 
@@ -82,13 +81,13 @@ Just run the executable files in `<Debug/Release/RelWithDebInfo>/bin` folder.
 
 #### Linux
 
-Install the project:
+Install the project.
 
 ```shell
 cmake --install . --config <Debug/Release/RelWithDebInfo>
 ```
 
-To run the programs, you need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared uipc library and the dependent backends will not be found.
+To run the programs, you need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared **libuipc** library and the dependent backends will not be found.
 
 ```shell
 cd <Debug/Release/RelWithDebInfo>/bin
@@ -128,12 +127,12 @@ cd libuipc
 rm -r ./vcpkg_installed
 rm ./vcpkg.json
 ```
-Thus the vcpkg manifest mode is disabled.
+Thus the Vcpkgmanifest mode is disabled.
 
 Then, install the dependencies manually.
 ```shell
 git submodule update --init
-vcpkg install eigen3 catch2 spdlog libigl fmt cppitertools dylib rapidcsv benchmark nlohmann-json imgui glfw3 bgfx
+Vcpkginstall eigen3 catch2 spdlog libigl fmt cppitertools dylib rapidcsv benchmark nlohmann-json imgui glfw3 bgfx
 ```
 
 ### Linux GUI Support

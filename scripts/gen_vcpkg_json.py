@@ -63,7 +63,7 @@ def gen_vcpkg_json(args):
         })
         deps.append({
             "name": "freeglut",
-            "version>=": "3.4.0#2"
+            "version>=": "3.4.0"
         })
 
 

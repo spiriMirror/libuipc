@@ -9,8 +9,9 @@
 #include <uipc/geometry.h>
 #include <uipc/common/enumerate.h>
 #include <muda/atomic.h>
+#include <muda/cub/device/device_scan.h>
 
-namespace uipc::backend::cuda
+namespace uipc::test::backend::cuda
 {
 namespace detail
 {
@@ -56,13 +57,23 @@ namespace detail
 
     struct LBVHMortonIndex
     {
-        uint32_t morton;
-        uint32_t idx;
+        MUDA_GENERIC LBVHMortonIndex(uint32_t m, uint32_t idx) noexcept
+        {
+            morton = m;
+            morton <<= 32;
+            morton |= idx;
+        }
+
+        MUDA_GENERIC LBVHMortonIndex() noexcept = default;
+
+        uint64_t morton = ~0ull;
+        // uint32_t idx;
     };
 
     MUDA_GENERIC bool operator==(const LBVHMortonIndex& lhs, const LBVHMortonIndex& rhs) noexcept
     {
-        return lhs.morton == rhs.morton && lhs.idx == rhs.idx;
+        return lhs.morton == rhs.morton;
+        //&&lhs.idx == rhs.idx;
     }
 
     MUDA_DEVICE uint2 determine_range(muda::Dense1D<LBVHMortonIndex> node_code,
@@ -340,8 +351,6 @@ class LBVHViewerT : muda::ViewerBase<IsConst>
             const uint32_t L_idx = m_nodes[node].left_idx;
             const uint32_t R_idx = m_nodes[node].right_idx;
 
-            printf("node=%u, L=%u, R=%u\n", node, L_idx, R_idx);
-
             if(Intersect(m_aabbs[L_idx], Q))
             {
                 const auto obj_idx = m_nodes[L_idx].object_idx;
@@ -403,29 +412,33 @@ class LBVH
         const uint32_t num_nodes          = num_objects * 2 - 1;
 
         AABB default_aabb;
-        m_aabbs.resize(num_nodes);
-        m_aabbs.fill(default_aabb);
-        m_mortons.resize(num_objects);
-        m_sorted_mortons.resize(num_objects);
+        resize(s, m_aabbs, num_nodes);
+        BufferLaunch(s).fill(m_aabbs.view(), default_aabb);
 
-        m_indices.resize(num_objects);
-        m_new_to_old.resize(num_objects);
-        m_morton64s.resize(num_objects);
+        resize(s, m_sorted_mortons, num_objects);
+        resize(s, m_sorted_mortons, num_objects);
+
+        resize(s, m_indices, num_objects);
+        resize(s, m_new_to_old, num_objects);
+
+        resize(s, m_mortons, num_objects);
+        resize(s, m_morton_idx, num_objects);
+
         Node default_node;
         m_nodes.resize(num_nodes, default_node);
+        resize(s, m_nodes, num_nodes);
 
-        m_flags.resize(num_objects);
-        m_flags.fill(0);
+        resize(s, m_flags, num_objects);
+        BufferLaunch(s).fill(m_flags.view(), 0);
 
         // 1) setup aabbs
-        auto filled_aabbs = m_aabbs.view(num_internal_nodes);
-        filled_aabbs.copy_from(aabbs);
+        //BufferLaunch(s).copy(aabbs, aabbs);
 
         // 2) get max aabb
         DeviceReduce(s).Reduce(
-            filled_aabbs.data(),
+            aabbs.data(),
             m_max_aabb.data(),
-            filled_aabbs.size(),
+            aabbs.size(),
             [] CUB_RUNTIME_FUNCTION(const AABB& a, const AABB& b)
             { return a.merged(b); },
             default_aabb);
@@ -434,12 +447,12 @@ class LBVH
         on(s)
             .next<ParallelFor>()
             .kernel_name("LBVH::MortonCode")
-            .apply(filled_aabbs.size(),
-                   [max_aabb     = m_max_aabb.viewer().name("max_aabb"),
-                    filled_aabbs = filled_aabbs.viewer().name("filled_aabbs"),
-                    mortons      = m_mortons.viewer()] __device__(int i) mutable
+            .apply(num_objects,
+                   [max_aabb = m_max_aabb.viewer().name("max_aabb"),
+                    aabbs    = aabbs.viewer().name("filled_aabbs"),
+                    mortons = m_mortons.viewer().name("mortons")] __device__(int i) mutable
                    {
-                       Vector3 p = filled_aabbs(i).center();
+                       Vector3 p = aabbs(i).center();
                        p -= max_aabb->min();
                        p.array() /= max_aabb->sizes().array();
                        mortons(i) = detail::morton_code(p);
@@ -465,7 +478,7 @@ class LBVH
             .next<ParallelFor>()
             .kernel_name("LBVH::ExpandMorton")
             .apply(m_mortons.size(),
-                   [morton64s = m_morton64s.viewer().name("morton64s"),
+                   [morton64s = m_morton_idx.viewer().name("morton64s"),
                     mortons   = m_sorted_mortons.viewer().name("mortons"),
                     indices = m_new_to_old.viewer().name("indices")] __device__(int i) mutable
                    {
@@ -474,13 +487,16 @@ class LBVH
                    });
 
         // 7) setup leaf nodes
-        auto leaf_nodes = m_nodes.view(leaf_start);
+        auto leaf_aabbs = m_aabbs.view(leaf_start);  // offset = leaf_start
+        auto leaf_nodes = m_nodes.view(leaf_start);  // offset = leaf_start
         on(s)
             .next<ParallelFor>()
             .kernel_name("LBVH::SetupLeafNodes")
             .apply(num_objects,
                    [leaf_nodes = leaf_nodes.viewer().name("leaf_nodes"),
-                    indices = m_new_to_old.viewer().name("indices")] __device__(int i) mutable
+                    indices    = m_new_to_old.viewer().name("indices"),
+                    aabbs      = aabbs.viewer().name("aabbs"),
+                    sorted_aabbs = leaf_aabbs.viewer().name("sorted_aabbs")] __device__(int i) mutable
                    {
                        Node node;
                        node.parent_idx = 0xFFFFFFFF;
@@ -488,6 +504,7 @@ class LBVH
                        node.right_idx  = 0xFFFFFFFF;
                        node.object_idx = indices(i);
                        leaf_nodes(i)   = node;
+                       sorted_aabbs(i) = aabbs(node.object_idx);
                    });
 
         // 8) construct internal nodes
@@ -496,7 +513,7 @@ class LBVH
             .kernel_name("LBVH::ConstructInternalNodes")
             .apply(num_internal_nodes,
                    [nodes     = m_nodes.viewer().name("nodes"),
-                    morton64s = m_morton64s.viewer().name("morton64s"),
+                    morton64s = m_morton_idx.viewer().name("morton64s"),
                     num_objects] __device__(int idx) mutable
                    {
                        nodes(idx).object_idx = 0xFFFFFFFF;  //  internal nodes
@@ -553,26 +570,6 @@ class LBVH
                            const auto rbox = aabbs(ridx);
                            aabbs(parent)   = lbox.merged(rbox);
 
-                           printf("lbox=[%f,%f,%f; %f,%f,%f] rbox=[%f,%f,%f; %f,%f,%f]; merged=[%f,%f,%f; %f,%f,%f]\n",
-                                  lbox.min().x(),
-                                  lbox.min().y(),
-                                  lbox.min().z(),
-                                  lbox.max().x(),
-                                  lbox.max().y(),
-                                  lbox.max().z(),
-                                  rbox.min().x(),
-                                  rbox.min().y(),
-                                  rbox.min().z(),
-                                  rbox.max().x(),
-                                  rbox.max().y(),
-                                  rbox.max().z(),
-                                  aabbs(parent).min().x(),
-                                  aabbs(parent).min().y(),
-                                  aabbs(parent).min().z(),
-                                  aabbs(parent).max().x(),
-                                  aabbs(parent).max().y(),
-                                  aabbs(parent).max().z());
-
                            // look the next parent...
                            parent = nodes(parent).parent_idx;
                        }
@@ -594,12 +591,12 @@ class LBVH
                            m_nodes.data(),
                            m_aabbs.data()};
     }
-
-    void resize(auto V, size_t size)
+    template <typename T>
+    void resize(muda::Stream& s, muda::DeviceBuffer<T>& V, size_t size)
     {
         if(size > V.capacity())
-            V.reserve(size * m_resize_factor);
-        V.resize(size);
+            muda::BufferLaunch(s).reserve(V, size * m_resize_factor);
+        muda::BufferLaunch(s).resize(V, size);
     }
 
     muda::DeviceBuffer<AABB>        m_aabbs;
@@ -607,85 +604,268 @@ class LBVH
     muda::DeviceBuffer<uint32_t>    m_sorted_mortons;
     muda::DeviceBuffer<uint32_t>    m_indices;
     muda::DeviceBuffer<uint32_t>    m_new_to_old;
-    muda::DeviceBuffer<MortonIndex> m_morton64s;
+    muda::DeviceBuffer<MortonIndex> m_morton_idx;
     muda::DeviceBuffer<int>         m_flags;
     muda::DeviceBuffer<Node>        m_nodes;
     muda::DeviceVar<AABB>           m_max_aabb;
 
     Float m_resize_factor = 1.5;
 };
-}  // namespace uipc::backend::cuda
+}  // namespace uipc::test::backend::cuda
 
 
-void lbvh_test()
+using namespace uipc;
+using namespace uipc::test::backend::cuda;
+using namespace uipc::geometry;
+using namespace muda;
+
+
+std::vector<Vector2i> lbvh_cp(span<const LBVH::AABB> aabbs)
 {
-    using namespace uipc;
-    using namespace uipc::backend::cuda;
-    using namespace uipc::geometry;
-    using namespace muda;
+    DeviceBuffer<LBVH::AABB> d_aabbs(aabbs.size());
+    d_aabbs.view().copy_from(aabbs.data());
 
+    LBVH lbvh;
+    lbvh.build(d_aabbs);
+
+    DeviceBuffer<IndexT> counts(aabbs.size() + 1ull);
+    DeviceBuffer<IndexT> offsets(aabbs.size() + 1ull);
+
+    for(int i = 0; i < aabbs.size(); ++i)
+    {
+        auto aabb = aabbs[i];
+        std::cout << "[" << aabb.min().transpose() << "],"
+                  << "[" << aabb.max().transpose() << "]" << std::endl;
+    }
+
+    ParallelFor()
+        .kernel_name("LBVHTest::Query")
+        .apply(aabbs.size(),
+               [lbvh  = lbvh.viewer().name("lbvh"),
+                aabbs = d_aabbs.viewer().name("aabbs"),
+                counts = counts.viewer().name("counts")] __device__(int i) mutable
+               {
+                   auto N = aabbs.total_size();
+
+                   auto aabb  = aabbs(i);
+                   auto count = 0;
+                   lbvh.query(aabb,
+                              [&](uint32_t id)
+                              {
+                                  if(id > i)
+                                      count++;
+                              });
+                   counts(i) = count;
+
+                   if(i == 0)
+                   {
+                       counts(N) = 0;
+                   }
+               });
+
+    DeviceScan().ExclusiveSum(counts.data(), offsets.data(), counts.size());
+    IndexT total;
+    offsets.view(aabbs.size()).copy_to(&total);
+
+    DeviceBuffer<Vector2i> pairs(total);
+
+
+    ParallelFor()
+        .kernel_name("LBVHTest::Query")
+        .apply(aabbs.size(),
+               [lbvh    = lbvh.viewer().name("lbvh"),
+                aabbs   = d_aabbs.viewer().name("aabbs"),
+                counts  = counts.viewer().name("counts"),
+                offsets = offsets.viewer().name("offsets"),
+                pairs = pairs.viewer().name("pairs")] __device__(int i) mutable
+               {
+                   auto N = aabbs.total_size();
+
+                   auto aabb   = aabbs(i);
+                   auto count  = counts(i);
+                   auto offset = offsets(i);
+
+                   auto pair = pairs.subview(offset, count);
+                   int  j    = 0;
+                   lbvh.query(aabb,
+                              [&](uint32_t id)
+                              {
+                                  if(id > i)
+                                      pair(j++) = Vector2i(i, id);
+                              });
+               });
+
+    std::vector<Vector2i> pairs_host;
+    pairs.copy_to(pairs_host);
+
+    //std::vector<LBVH::AABB> aabbs_host;
+    //lbvh.m_aabbs.copy_to(aabbs_host);
+    //for(auto&& [i, aabb] : enumerate(aabbs_host))
+    //{
+    //    std::cout << "[" << aabb.min().transpose() << "],"
+    //              << "[" << aabb.max().transpose() << "]" << std::endl;
+    //}
+
+    //std::vector<detail::LBVHNode> nodes_host;
+    //lbvh.m_nodes.copy_to(nodes_host);
+    //for(auto&& [i, node] : enumerate(nodes_host))
+    //{
+    //    std::cout << "node=" << i << "[" << aabbs_host[i].min().transpose() << "],"
+    //              << "[" << aabbs_host[i].max().transpose() << "]"
+    //              << ", parent=" << node.parent_idx
+    //              << ", left=" << node.left_idx << ", right=" << node.right_idx
+    //              << ", obj=" << node.object_idx << std::endl;
+    //}
+
+    return pairs_host;
+}
+
+std::vector<Vector2i> brute_froce_cp(span<const LBVH::AABB> aabbs)
+{
+    std::vector<Vector2i> pairs;
+    for(auto&& [i, aabb0] : enumerate(aabbs))
+    {
+        for(int j = i + 1; j < aabbs.size(); ++j)
+        {
+            auto aabb1 = aabbs[j];
+            if(aabb1.intersects(aabb0))
+            {
+                pairs.push_back(Vector2i(i, j));
+            }
+        }
+    }
+    return pairs;
+}
+
+
+void brute_froce_gpu(span<const LBVH::AABB> aabbs)
+{
+    DeviceBuffer<LBVH::AABB> d_aabbs(aabbs.size());
+    d_aabbs.view().copy_from(aabbs.data());
+
+    ParallelFor()
+        .kernel_name("BruteForce::Query")
+        .apply(aabbs.size(),
+               [aabbs = d_aabbs.viewer().name("aabbs")] __device__(int i) mutable
+               {
+                   auto N = aabbs.total_size();
+
+                   auto aabb0 = aabbs(i);
+                   for(int j = i + 1; j < N; ++j)
+                   {
+                       auto aabb1 = aabbs(j);
+                       if(aabb1.intersects(aabb0))
+                       {
+                           printf("i=%d, j=%d\n", i, j);
+                       }
+                   }
+               });
+}
+
+SimplicialComplex tet()
+{
     std::vector           Vs = {Vector3{0.0, 0.0, 0.0},
                                 Vector3{1.0, 0.0, 0.0},
                                 Vector3{0.0, 1.0, 0.0},
                                 Vector3{0.0, 0.0, 1.0}};
     std::vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
 
-    auto mesh = tetmesh(Vs, Ts);
+    return tetmesh(Vs, Ts);
+}
 
+
+void lbvh_test(const SimplicialComplex& mesh)
+{
     auto pos_view = mesh.positions().view();
     auto tri_view = mesh.triangles().topo().view();
 
-    vector<LBVH::AABB> aabbs(tri_view.size());
+    //tri_view = tri_view.subspan(0, 5);
+
+    std::vector<LBVH::AABB> aabbs(tri_view.size());
     for(auto&& [i, tri] : enumerate(tri_view))
     {
         auto p0 = pos_view[tri[0]];
         auto p1 = pos_view[tri[1]];
         auto p2 = pos_view[tri[2]];
         aabbs[i].extend(p0).extend(p1).extend(p2);
+        aabbs[i].max() += Vector3{0.1, 0.1, 0.1};
+        aabbs[i].min() -= Vector3{0.1, 0.1, 0.1};
     }
 
-    //vector<LBVH::AABB> aabbs(1);
-    //aabbs[0].extend(Vector3(0, 0, 0)).extend(Vector3(1, 1, 1));
 
-    muda::DeviceBuffer<LBVH::AABB> d_aabbs(aabbs.size());
-    d_aabbs.view().copy_from(aabbs.data());
+    auto lbvh_pairs = lbvh_cp(aabbs);
 
-    LBVH lbvh;
-    lbvh.build(d_aabbs);
-    muda::wait_device();
 
-    ParallelFor()
-        .kernel_name("LBVHTest::Query")
-        .apply(aabbs.size(),
-               [lbvh = lbvh.viewer().name("lbvh"),
-                aabbs = d_aabbs.viewer().name("aabbs")] __device__(int i) mutable
-               {
-                   auto aabb = aabbs(i);
-                   lbvh.query(aabb,
-                              [&] __device__(uint32_t id)
-                              { printf("(%u,%u)\n", i, id); });
-               })
-        .wait();
+    auto bf_pairs = brute_froce_cp(aabbs);
 
-    std::vector<LBVH::AABB> aabbs_host;
-    lbvh.m_aabbs.copy_to(aabbs_host);
-    for(auto&& [i, aabb] : enumerate(aabbs_host))
+    // brute_froce_gpu(aabbs);
+
+
+    auto compare = [](const Vector2i& lhs, const Vector2i& rhs)
+    { return lhs[0] < rhs[0] || (lhs[0] == rhs[0] && lhs[1] < rhs[1]); };
+
+    std::ranges::sort(lbvh_pairs, compare);
+    std::ranges::sort(bf_pairs, compare);
+
+
+    auto check_unique = [](auto begin, auto end)
     {
-        std::cout << "[" << aabb.min().transpose() << "],"
-                  << "[" << aabb.max().transpose() << "]" << std::endl;
-    }
+        for(auto it = begin; it != end; ++it)
+        {
+            if(it + 1 != end && *it == *(it + 1))
+            {
+                return false;
+            }
+        }
+        return true;
+    };
 
-    std::vector<detail::LBVHNode> nodes_host;
-    lbvh.m_nodes.copy_to(nodes_host);
-    for(auto&& [i, node] : enumerate(nodes_host))
+    CHECK(check_unique(lbvh_pairs.begin(), lbvh_pairs.end()));
+
+    bool same = lbvh_pairs == bf_pairs;
+    CHECK(same);
+
+    if(!same)
     {
-        std::cout << "node=" << i << ", parent=" << node.parent_idx
-                  << ", left=" << node.left_idx << ", right=" << node.right_idx
-                  << ", obj=" << node.object_idx << std::endl;
+        std::list<Vector2i> diff;
+
+        std::set_difference(lbvh_pairs.begin(),
+                            lbvh_pairs.end(),
+                            bf_pairs.begin(),
+                            bf_pairs.end(),
+                            std::back_inserter(diff),
+                            compare);
+
+        std::cout << "lbvh_pairs.size()=" << lbvh_pairs.size() << std::endl;
+        std::cout << "bf_pairs.size()=" << bf_pairs.size() << std::endl;
+        std::cout << "diff:" << std::endl;
+        for(auto&& [i, p] : enumerate(diff))
+        {
+            std::cout << "i=" << i << ", p=[" << p[0] << ", " << p[1] << "]" << std::endl;
+        }
     }
 }
 
+
 TEST_CASE("lbvh", "[muda]")
 {
-    lbvh_test();
+
+    SECTION("tet")
+    {
+        lbvh_test(tet());
+    }
+
+    SECTION("cube.obj")
+    {
+        SimplicialComplexIO io;
+        auto mesh = io.read_obj(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
+        lbvh_test(mesh);
+    }
+
+    SECTION("cube.msh")
+    {
+        SimplicialComplexIO io;
+        auto mesh = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
+        lbvh_test(mesh);
+    }
 }
