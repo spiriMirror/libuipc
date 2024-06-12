@@ -48,11 +48,11 @@ git submodule update --init
 
 ### Automatic Dependency Installation
 
-We use `vcpkg.json` to manage the dependencies. Normally, when you build with CMake, the dependencies will be automatically installed by vcpkg.
+The rest dependencies are all managed by vcpkg, they will be automatically installed in the CMake Configuration step.
 
-If the automatic installation fails, please raise an issue with the CMake error message given by the above command.
+If the automatic installation fails, please raise an issue with the CMake error message.
 
-You can also try install the dependencies [manually](#manaully-dependency-installation).
+You can also try install the dependencies [manually](#manaully-dependency-installation) as a temporary workaround.
 
 ### Build Project
 
@@ -60,6 +60,7 @@ You can also try install the dependencies [manually](#manaully-dependency-instal
 
 On windows, you can use the `CMake-GUI` to configure the project and generate the Visual Studio solution file with only a few clicks.
 
+Or you can also use the same commands as linux to build the project.
 #### Linux
 
 On linux, you can use the following commands to build the project.
@@ -70,8 +71,16 @@ cmake -S ../libuipc -DUIPC_BUILD_GUI=0
 cmake --build .
 ```
 
-To enable GUI support, use `-DUIPC_BUILD_GUI=1`, and some system dependencies are needed. 
-See [Linux GUI Support](#linux-gui-support) for more information, if you encounter any problem.
+To enable GUI support, use `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install).
+See [Linux GUI Support](#linux-gui-support).
+
+### Run Project
+
+#### Windows
+
+Just run the executable files in `<Debug/Release/RelWithDebInfo>/bin` folder.
+
+#### Linux
 
 Install the project:
 
@@ -79,7 +88,7 @@ Install the project:
 cmake --install . --config <Debug/Release/RelWithDebInfo>
 ```
 
-To run the programs, you need to setup the `LD_LIBRARY_PATH`, otherwise the shared uipc library and the dependent backends will not be found.
+To run the programs, you need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared uipc library and the dependent backends will not be found.
 
 ```shell
 cd <Debug/Release/RelWithDebInfo>/bin
