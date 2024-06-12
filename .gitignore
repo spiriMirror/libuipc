@@ -12,3 +12,4 @@ _deps
 site/
 build/
 output/
+vcpkg_installed/
