@@ -3,6 +3,16 @@ A Modern C++20 Library of Unified Incremental Potential Contact.
 
 ## Dependencies
 
+The following dependencies are required to build the project.
+
+| Name                                          | Version      | Usage           | Import         |
+| --------------------------------------------- | ------------ | --------------- | -------------- |
+| [CMake](https://cmake.org/download/)          | >=3.27       | build system    | system install |
+| [Python](https://www.python.org/downloads/)   | >=3.10       | build system    | system install |
+| [Vcpkg](https://github.com/microsoft/vcpkg)   | >=2024.04.26 | package manager | git clone      |
+
+The following dependencies are 3rd-party libraries that we use in the project. Don't worry, most of them will be automatically installed by vcpkg.
+
 | Name                                   | Version | Usage                                               | Import         |
 | -------------------------------------- | ------- | --------------------------------------------------- | -------------- |
 | [muda](https://github.com/MuGdxy/muda) | -       | improve safety and readability of CUDA programming. | submodule      |
@@ -22,52 +32,61 @@ A Modern C++20 Library of Unified Incremental Potential Contact.
 | glfw3                                  | 3.3.8#2 | window management                                   | package        |
 
 ## Build
-We use [vcpkg](https://github.com/microsoft/vcpkg) to manage the libraries we need and use [CMake](https://cmake.org/) to build the project. The simplest way to let CMake detect vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
+We use [vcpkg](https://github.com/microsoft/vcpkg) to manage the libraries we need and use [CMake](https://cmake.org/) to build the project. 
 
-CMake minimum version: 3.27
+The simplest way to let CMake detect vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
 Vcpkg supports both windows and linux. We recommend using vcpkg to manage the dependencies to keep the consistency of the development environment.
+
+### Submodules
+
+Some dependencies are managed by git submodules. You can clone the project with the following command:
+
+```shell
+git submodule update --init
+```
 
 ### Automatic Dependency Installation
 
 We use `vcpkg.json` to manage the dependencies. Normally, when you build with CMake, the dependencies will be automatically installed by vcpkg.
 
-If any problem occurs, run the following command:
-```shell
-vcpkg install
-```
-under the project root directory to see if the dependencies are installed correctly. 
-
-If the automatic installation fails, please raise an issue with the error message given by the above command.
+If the automatic installation fails, please raise an issue with the CMake error message given by the above command.
 
 You can also try install the dependencies [manually](#manaully-dependency-installation).
 
 ### Build Project
 
 #### Windows
-On windows, you can use the `CMake-GUI` to configure the project and generate the Visual Studio solution file. Almost no effort is needed.
+
+On windows, you can use the `CMake-GUI` to configure the project and generate the Visual Studio solution file with only a few clicks.
 
 #### Linux
+
 On linux, you can use the following commands to build the project.
+
 ```shell
 cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
 cmake -S ../libuipc -DUIPC_BUILD_GUI=0
 cmake --build .
 ```
-Note: A compile problem of bgfx(1.127#1) is found. So now we just turn off the GUI support on linux. [TODO] Maybe we can fix it in the future.
 
-Install the project
+To enable GUI support, use `-DUIPC_BUILD_GUI=1`, and some system dependencies are needed. 
+See [Linux GUI Support](#linux-gui-support) for more information, if you encounter any problem.
+
+Install the project:
+
 ```shell
 cmake --install . --config <Debug/Release/RelWithDebInfo>
 ```
-Run the program.
-Note, you need to setup the `LD_LIBRARY_PATH`, or the shared uipc library and the dependent backends will not be found.
+
+To run the programs, you need to setup the `LD_LIBRARY_PATH`, otherwise the shared uipc library and the dependent backends will not be found.
+
 ```shell
 cd <Debug/Release/RelWithDebInfo>/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./
 ./hello_uipc
 ./uipc_test_world
-...
+[...]
 ```
 
 ### Build Document
@@ -105,10 +124,13 @@ Thus the vcpkg manifest mode is disabled.
 Then, install the dependencies manually.
 ```shell
 git submodule update --init
-vcpkg install eigen3 catch2 spdlog libigl fmt cppitertools dylib rapidcsv benchmark nlohmann-json imgui glfw3
+vcpkg install eigen3 catch2 spdlog libigl fmt cppitertools dylib rapidcsv benchmark nlohmann-json imgui glfw3 bgfx
 ```
 
-GUI support. (Optional) On linux it may fail to build bgfx.
+### Linux GUI Support
+
+If your system haven't installed the GUI application dependencies before, you may need to install the following packages to enable GUI support.
+
 ```shell
-vcpkg install bgfx
+sudo apt-get install libxi-dev libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev libxrandr-dev libxxf86vm-dev libxinerama-dev libxcursor-dev
 ```

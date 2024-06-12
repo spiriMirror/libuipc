@@ -1,4 +1,7 @@
-{
+import json
+import argparse
+
+vcpkg_json = {
     "name": "libuipc",
     "version": "0.0.1",
     "description": "A Modern C++20 Library of Unified Incremental Potential Contact.",
@@ -39,14 +42,42 @@
         {
             "name": "nlohmann-json",
             "version>=": "3.11.2"
-        },
-        {
-            "name": "imgui",
-            "version>=": "1.90.7"
-        },
-        {
-            "name": "glfw3",
-            "version>=": "3.3.8#2"
         }
     ]
 }
+    
+def gen_vcpkg_json(args):
+    deps = vcpkg_json["dependencies"]
+    if args.build_gui:
+        deps.append({
+            "name": "imgui",
+            "version>=": "1.90.7"
+        })
+        deps.append({
+            "name": "glfw3",
+            "version>=": "3.3.8#2"
+        })
+        deps.append({
+            "name": "opengl",
+            "version>=": "2022-12-04#3"
+        })
+        deps.append({
+            "name": "freeglut",
+            "version>=": "3.4.0#2"
+        })
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate vcpkg.json for libuipc.")
+    parser.add_argument("output_dir", type=str, help="Output file path.")
+    parser.add_argument("--build_gui", type=bool, default=False, help="Build GUI dependencies.")
+    
+    args = parser.parse_args()
+    json_path = f'{args.output_dir}/vcpkg.json'
+    
+    gen_vcpkg_json(args)
+    
+    print(f"[libuipc] Generating libuipc dependencies to {json_path}")
+    
+    with open(json_path, "w") as f:
+        json.dump(vcpkg_json, f, indent=4)

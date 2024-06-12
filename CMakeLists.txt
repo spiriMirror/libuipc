@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.27)
 
-project(uipc)
-
 # =========================================================================
 option(UIPC_CORE_ONLY "Build only the core library" OFF)
 option(UIPC_BUILD_GUI "Build GUI, turn it off if you're server only" ON)
@@ -12,6 +10,12 @@ option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
 
 option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ON)
 # =========================================================================
+
+include(cmake/uipc_utils.cmake)
+# generate the dependency manifest according to the options
+uipc_generate_vcpkg_manifest()
+
+project(uipc)
 
 # set cmake include path
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")

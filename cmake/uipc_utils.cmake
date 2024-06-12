@@ -1,4 +1,24 @@
 # -----------------------------------------------------------------------------------------
+# generate the vcpkg manifest file
+# -----------------------------------------------------------------------------------------
+function(uipc_generate_vcpkg_manifest)
+    find_package(Python REQUIRED)
+
+    # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
+    execute_process(
+        COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
+        ${CMAKE_BINARY_DIR} # pass the CMAKE_BINARY_DIR as argument
+        "--build_gui=${UIPC_BUILD_GUI}" # pass the UIPC_BUILD_GUI as argument
+    )
+
+    set(VCPKG_MANIFEST_DIR "${CMAKE_BINARY_DIR}" PARENT_SCOPE)
+endfunction()
+
+
+
+
+
+# -----------------------------------------------------------------------------------------
 # Set the output directory for the target
 # -----------------------------------------------------------------------------------------
 function(uipc_install target_name)
