@@ -73,7 +73,6 @@ SimEngine::~SimEngine()
 
     // remove the sync callback
     muda::Debug::set_sync_callback(nullptr);
-    cout = {};
 
     spdlog::info("Cuda Backend Shutdown Success.");
 }

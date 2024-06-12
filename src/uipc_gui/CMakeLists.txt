@@ -1,6 +1,6 @@
 find_package(bgfx CONFIG REQUIRED)
 find_package(imgui CONFIG REQUIRED)
-find_package(GLFW3 CONFIG REQUIRED)
+find_package(glfw3 CONFIG REQUIRED)
 
 add_library(uipc_gui STATIC)
 add_library(uipc::gui ALIAS uipc_gui)

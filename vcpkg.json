@@ -43,11 +43,13 @@
         },
         {
             "name":"imgui",
-            "version>=":"1.90.7"
+            "version>=":"1.90.7",
+            "platform":"windows"
         },
         {
             "name":"glfw3",
-            "version>=":"3.3.8#2"
+            "version>=":"3.3.8#2",
+            "platform":"windows"
         }
     ]
 }

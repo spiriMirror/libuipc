@@ -6,7 +6,8 @@ namespace uipc::backend::cuda
 {
 void SimSystemCollection::create(U<SimSystem> system)
 {
-    U64  tid = typeid(*system).hash_code();
+    auto& s = *system;
+    U64  tid = typeid(s).hash_code();
     auto it  = m_sim_systems.find(tid);
     UIPC_ASSERT(it == m_sim_systems.end(), "SimSystem already exists, why can it happen?");
 

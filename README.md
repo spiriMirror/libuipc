@@ -51,7 +51,7 @@ On windows, you can use the `CMake-GUI` to configure the project and generate th
 On linux, you can use the following commands to build the project.
 ```shell
 cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
-cmake . -S ../libuipc -DUIPC_BUILD_GUI=0
+cmake -S ../libuipc -DUIPC_BUILD_GUI=0
 cmake --build .
 ```
 Note: A compile problem of bgfx(1.127#1) is found. So now we just turn off the GUI support on linux. [TODO] Maybe we can fix it in the future.
