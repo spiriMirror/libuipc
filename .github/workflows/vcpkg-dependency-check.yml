@@ -4,7 +4,7 @@ on: [push]
 jobs:
   Check-vcpkg-dependencies:
     # run on windows and ubuntu
-    runs-on: [windows-latest, ubuntu-latest]
+    runs-on: [windows-latest, ubuntu-latest, self-hosted]
     steps:
         - uses: lukka/get-cmake@v3.27
         - name: Setup anew (or from cache) vcpkg (and does not build any package)
