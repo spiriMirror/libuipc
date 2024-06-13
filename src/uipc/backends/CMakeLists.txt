@@ -16,7 +16,7 @@ function(uipc_add_backend name)
     uipc_info("Adding backend: [${name}]")
 
     if(UIPC_BUILD_TESTS) # for tests, we need to link against the shared library
-        uipc_info("`UIPC_BUILD_TESTS=1` so we build the backend [${name}] as shared library")
+        # uipc_info("UIPC_BUILD_TESTS=${UIPC_BUILD_TESTS}, so we build the backend [${name}] as shared library")
         add_library(${name} SHARED)
     else() # else, we just dynamically load the backend
         add_library(${name} MODULE)

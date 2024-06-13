@@ -1,5 +1,33 @@
 # -----------------------------------------------------------------------------------------
-# generate the vcpkg manifest file
+# Print message info with uipc prefix
+# -----------------------------------------------------------------------------------------
+function(uipc_info content)
+    message(STATUS "[libuipc] ${content}")
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Print message warning with uipc prefix
+# -----------------------------------------------------------------------------------------
+function(uipc_warning content)
+    message(WARNING "[libuipc] ${content}")
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Print message error with uipc prefix
+# -----------------------------------------------------------------------------------------
+function(uipc_error content)
+    message(FATAL_ERROR "[libuipc] ${content}")
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Print message fatal error with uipc prefix
+# -----------------------------------------------------------------------------------------
+function(uipc_fatal_error content)
+    message(FATAL_ERROR "[libuipc] ${content}")
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Generate the vcpkg manifest file, called only once, at the every beginning of the build
 # -----------------------------------------------------------------------------------------
 function(uipc_generate_vcpkg_manifest)
     find_package(Python REQUIRED)
@@ -14,15 +42,13 @@ function(uipc_generate_vcpkg_manifest)
     set(VCPKG_MANIFEST_DIR "${CMAKE_BINARY_DIR}" PARENT_SCOPE)
 endfunction()
 
-
-
-
-
 # -----------------------------------------------------------------------------------------
-# Set the output directory for the target
+# Install the target to the correct directory
 # -----------------------------------------------------------------------------------------
 function(uipc_install target_name)
-    # put Debug/Release/RelWithDebInfo into different directories
+    # This function is mainly for linux system to install the target to the correct directory
+    # On windows, the `uipc_set_output_directory()` is enough to set the output directory
+    # Put Debug/Release/RelWithDebInfo into different directories
     install(TARGETS ${target_name}
         CONFIGURATIONS Debug
         RUNTIME DESTINATION "Debug/bin"
@@ -43,6 +69,9 @@ function(uipc_install target_name)
     )
 endfunction()
 
+# -----------------------------------------------------------------------------------------
+# Set the output directory for the target
+# -----------------------------------------------------------------------------------------
 function(uipc_set_output_directory target_name)
     set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
     set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
@@ -60,14 +89,8 @@ function(uipc_set_output_directory target_name)
 endfunction()
 
 # -----------------------------------------------------------------------------------------
-# print message info with uipc prefix
-# -----------------------------------------------------------------------------------------
-function(uipc_info content)
-    message(STATUS "[libuipc]: ${content}")
-endfunction()
-
-# -----------------------------------------------------------------------------------------
 # Add a dependency to the backends, so that the backends will be built before this target
+# to make sure the backends are always up-to-date when developing the target
 # -----------------------------------------------------------------------------------------
 function(uipc_add_backend_dependency target_name)
     add_dependencies(${target_name} uipc::backends)

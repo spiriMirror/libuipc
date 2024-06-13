@@ -16,6 +16,14 @@ include(cmake/uipc_utils.cmake)
 uipc_generate_vcpkg_manifest()
 
 project(uipc)
+message(STATUS "-----------------------------------------------------------------------------------")
+uipc_info("Options:")
+message(STATUS "    * UIPC_CORE_ONLY: ${UIPC_CORE_ONLY}")
+message(STATUS "    * UIPC_BUILD_GUI: ${UIPC_BUILD_GUI}")
+message(STATUS "    * UIPC_BUILD_EXAMPLES: ${UIPC_BUILD_EXAMPLES}")
+message(STATUS "    * UIPC_BUILD_TESTS: ${UIPC_BUILD_TESTS}")
+message(STATUS "    * UIPC_BUILD_BENCHMARKS: ${UIPC_BUILD_BENCHMARKS}")
+message(STATUS "    * UIPC_WITH_CUDA_BACKEND: ${UIPC_WITH_CUDA_BACKEND}")
 
 # set cmake include path
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -48,3 +56,4 @@ endif()
 # applications
 add_subdirectory(apps)
 
+message(STATUS "-----------------------------------------------------------------------------------")
