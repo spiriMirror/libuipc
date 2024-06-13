@@ -208,7 +208,7 @@ std::vector<Vector2i> LinearBVH_cp(span<const LinearBVHAABB> aabbs)
     DeviceBuffer<LinearBVHNode> nodes_3 = LinearBVHVisitor(lbvh2).nodes();
     DeviceBuffer<LinearBVHAABB> aabbs_3 = LinearBVHVisitor(lbvh2).aabbs();
 
-    //tree_consistency_test(nodes_1, nodes_3, aabbs_1, aabbs_3);
+    tree_consistency_test(nodes_1, nodes_3, aabbs_1, aabbs_3);
 
     std::vector<Vector2i> pairs_host;
     pairs.copy_to(pairs_host);

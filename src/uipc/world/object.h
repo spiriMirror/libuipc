@@ -44,7 +44,7 @@ class ObjectGeometrySlots<geometry::Geometry>
     P<geometry::GeometrySlot> rest_geometry;
 };
 
-UIPC_EXTERN_TEMPLATE_CLASS ObjectGeometrySlots<geometry::Geometry>;
+UIPC_CORE_EXPORT_TEMPLATE_CLASS ObjectGeometrySlots<geometry::Geometry>;
 
 template <>
 class ObjectGeometrySlots<const geometry::Geometry>
@@ -54,7 +54,7 @@ class ObjectGeometrySlots<const geometry::Geometry>
     P<const geometry::GeometrySlot> rest_geometry;
 };
 
-UIPC_EXTERN_TEMPLATE_CLASS ObjectGeometrySlots<const geometry::Geometry>;
+UIPC_CORE_EXPORT_TEMPLATE_CLASS ObjectGeometrySlots<const geometry::Geometry>;
 
 class UIPC_CORE_API Object : public IObject
 {

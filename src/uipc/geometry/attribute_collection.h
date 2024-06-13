@@ -166,7 +166,7 @@ struct formatter<uipc::geometry::AttributeCollection> : formatter<std::string_vi
                     format_context&                            ctx);
 };
 
-UIPC_EXTERN_TEMPLATE_CLASS formatter<uipc::geometry::AttributeCollection>;
+UIPC_CORE_EXPORT_TEMPLATE_CLASS formatter<uipc::geometry::AttributeCollection>;
 }  // namespace fmt
 
 

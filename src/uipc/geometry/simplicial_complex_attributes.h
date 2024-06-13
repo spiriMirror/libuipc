@@ -51,12 +51,6 @@ class SimplicialComplexTopo
     [[nodiscard]] bool is_shared() && noexcept;
 
     void share(SimplicialComplexTopo<ConstSimplexSlotT>&& topo) && noexcept;
-
-    operator SimplicialComplexTopo<ConstSimplexSlotT>() && noexcept
-    {
-        return SimplicialComplexTopo<ConstSimplexSlotT>(m_topology);
-    }
-
   private:
     template <std::derived_from<ISimplexSlot> SlotT>
     friend class SimplicialComplexAttributes;
@@ -139,8 +133,8 @@ class SimplicialComplexTopo<VertexSlot>
 };
 
 
-UIPC_EXTERN_TEMPLATE_CLASS SimplicialComplexTopo<VertexSlot>;
-UIPC_EXTERN_TEMPLATE_CLASS SimplicialComplexTopo<const VertexSlot>;
+UIPC_CORE_EXPORT_TEMPLATE_CLASS SimplicialComplexTopo<VertexSlot>;
+UIPC_CORE_EXPORT_TEMPLATE_CLASS SimplicialComplexTopo<const VertexSlot>;
 
 /**
  * @brief A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.
@@ -168,6 +162,13 @@ class SimplicialComplexAttributes
     SimplicialComplexAttributes(SimplicialComplexAttributes&& o)      = default;
     SimplicialComplexAttributes& operator=(const SimplicialComplexAttributes& o) = default;
     SimplicialComplexAttributes& operator=(SimplicialComplexAttributes&& o) = default;
+
+    template <std::derived_from<ISimplexSlot> OtherSimplexSlotT>
+    SimplicialComplexAttributes(const SimplicialComplexAttributes<OtherSimplexSlotT>& o) noexcept
+        : m_topology(o.m_topology)
+        , m_attributes(o.m_attributes)
+    {
+    }
 
 
     /**
@@ -244,11 +245,6 @@ class SimplicialComplexAttributes
         requires(!IsConst)
     {
         m_attributes.copy_from(other.m_attributes, O, include_names, exclude_names);
-    }
-
-    operator SimplicialComplexAttributes<ConstSimplexSlotT>() const noexcept
-    {
-        return SimplicialComplexAttributes<ConstSimplexSlotT>(m_topology, m_attributes);
     }
 
   private:

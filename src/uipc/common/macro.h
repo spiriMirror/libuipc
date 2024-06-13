@@ -40,5 +40,15 @@
 #endif
 
 // Template specialization export
-#define UIPC_EXTERN_TEMPLATE_CLASS extern template class UIPC_CORE_API
-#define UIPC_EXTERN_TEMPLATE_STRUCT extern template struct UIPC_CORE_API
+#ifdef UIPC_CORE_EXPORT_DLL
+#define UIPC_CORE_EXPORT_TEMPLATE_CLASS template class UIPC_CORE_API
+#else
+#define UIPC_CORE_EXPORT_TEMPLATE_CLASS extern template class UIPC_CORE_API
+#endif
+
+#ifdef UIPC_BACKEND_EXPORT_DLL
+#define UIPC_BACKEND_EXPORT_TEMPLATE_CLASS template class UIPC_BACKEND_API
+#else
+#define UIPC_BACKEND_EXPORT_TEMPLATE_CLASS                                     \
+    extern template class UIPC_BACKEND_API
+#endif

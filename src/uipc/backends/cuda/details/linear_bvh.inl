@@ -8,11 +8,11 @@ namespace uipc::backend::cuda
 {
 template <bool IsConst>
 template <typename QueryType, typename IntersectF, typename CallbackF>
-uint32_t LinearBVHViewerT<IsConst>::query(const QueryType& Q,
-                                          IntersectF       Intersect,
-                                          uint32_t*        stack,
-                                          uint32_t         stack_num,
-                                          CallbackF Callback) const noexcept
+MUDA_DEVICE uint32_t LinearBVHViewerT<IsConst>::query(const QueryType& Q,
+                                                      IntersectF Intersect,
+                                                      uint32_t*  stack,
+                                                      uint32_t   stack_num,
+                                                      CallbackF Callback) const noexcept
 {
     uint32_t* stack_ptr = stack;
     uint32_t* stack_end = stack + stack_num;
@@ -130,13 +130,13 @@ void LinearBVH::resize(muda::Stream& s, muda::DeviceBuffer<T>& V, size_t size)
 }
 
 template <bool IsConst>
-bool LinearBVHViewerT<IsConst>::stack_overflow() const noexcept
+MUDA_DEVICE bool LinearBVHViewerT<IsConst>::stack_overflow() const noexcept
 {
     return m_stack_overflow;
 }
 
 template <bool IsConst>
-void LinearBVHViewerT<IsConst>::check_index(const uint32_t idx) const noexcept
+MUDA_DEVICE void LinearBVHViewerT<IsConst>::check_index(const uint32_t idx) const noexcept
 {
     MUDA_KERNEL_ASSERT(idx < m_num_objects,
                        "BVHViewer[%s:%s]: index out of range, idx=%u, num_objects=%u",
@@ -147,7 +147,8 @@ void LinearBVHViewerT<IsConst>::check_index(const uint32_t idx) const noexcept
 }
 
 template <bool IsConst>
-void LinearBVHViewerT<IsConst>::stack_overflow(uint32_t num_found, uint32_t stack_num) const noexcept
+MUDA_DEVICE void LinearBVHViewerT<IsConst>::stack_overflow(uint32_t num_found,
+                                                          uint32_t stack_num) const noexcept
 {
     if constexpr(muda::RUNTIME_CHECK_ON)
     {
