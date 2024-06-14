@@ -107,8 +107,6 @@ LinearBVHViewerT<IsConst>::LinearBVHViewerT(const uint32_t       num_nodes,
     , m_nodes(nodes, num_nodes)
     , m_aabbs(aabbs, num_nodes)
 {
-    m_aabbs.copy_name(*this);
-    m_nodes.copy_name(*this);
 }
 
 template <bool IsConst>
