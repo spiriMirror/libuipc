@@ -39,6 +39,7 @@ MUDA_DEVICE uint32_t LinearBVHViewerT<IsConst>::query(const QueryType& Q,
             const auto obj_idx = m_nodes(L_idx).object_idx;
             if(obj_idx != 0xFFFFFFFF)
             {
+                check_index(obj_idx);
                 Callback(obj_idx);
                 ++num_found;
             }
@@ -52,6 +53,7 @@ MUDA_DEVICE uint32_t LinearBVHViewerT<IsConst>::query(const QueryType& Q,
             const auto obj_idx = m_nodes(R_idx).object_idx;
             if(obj_idx != 0xFFFFFFFF)
             {
+                check_index(obj_idx);
                 Callback(obj_idx);
                 ++num_found;
             }
@@ -146,7 +148,7 @@ MUDA_DEVICE void LinearBVHViewerT<IsConst>::check_index(const uint32_t idx) cons
 
 template <bool IsConst>
 MUDA_DEVICE void LinearBVHViewerT<IsConst>::stack_overflow(uint32_t num_found,
-                                                          uint32_t stack_num) const noexcept
+                                                           uint32_t stack_num) const noexcept
 {
     if constexpr(muda::RUNTIME_CHECK_ON)
     {
