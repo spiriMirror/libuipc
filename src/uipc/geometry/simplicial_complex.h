@@ -14,7 +14,7 @@ namespace uipc::geometry
  * $$
  * where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of triangles, and $T$ is the set of tetrahedra.
  * 
- * @sa [Tutorial/Geometries](../../../../tutorial/geometries.md)
+ * @sa @ref [Tutorial/Geometry](../../tutorial/geometry)
  */
 class UIPC_CORE_API SimplicialComplex : public Geometry
 {
@@ -24,28 +24,28 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
     /**
      * @brief Alias for the vertex attributes
      * 
-     * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
+     * @sa SimplicialComplexAttributes
      */
     using VertexAttributes  = SimplicialComplexAttributes<VertexSlot>;
     using CVertexAttributes = SimplicialComplexAttributes<const VertexSlot>;
     /**
      * @brief Alias for the edge attributes
      * 
-     * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
+     * @sa SimplicialComplexAttributes
      */
     using EdgeAttributes  = SimplicialComplexAttributes<EdgeSlot>;
     using CEdgeAttributes = SimplicialComplexAttributes<const EdgeSlot>;
     /**
      * @brief Alias for the triangle attributes
      * 
-     * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
+     * @sa SimplicialComplexAttributes
      */
     using TriangleAttributes  = SimplicialComplexAttributes<TriangleSlot>;
     using CTriangleAttributes = SimplicialComplexAttributes<const TriangleSlot>;
     /**
      * @brief Alias for the tetrahedron attributes
      *
-     * @sa [SimplicialComplexAttributes](../../SimplicialComplexAttributes/)
+     * @sa SimplicialComplexAttributes
      */
     using TetrahedronAttributes = SimplicialComplexAttributes<TetrahedronSlot>;
     using CTetrahedronAttributes = SimplicialComplexAttributes<const TetrahedronSlot>;

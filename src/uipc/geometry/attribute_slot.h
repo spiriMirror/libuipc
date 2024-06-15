@@ -87,7 +87,6 @@ class AttributeSlot final : public IAttributeSlot
      * @brief Get the non-const attribute values.
      * 
      * @return `span<T>`
-     * @sa [Attribute](../Attribute/index.md#Attribute)
      */
     template <typename U>
     friend span<U> view(AttributeSlot<U>& slot);

@@ -181,26 +181,26 @@ class SimplicialComplexAttributes
     [[nodiscard]] ConstTopo topo() const noexcept;
 
     /**
-     * @sa [AttributeCollection::resize()](../AttributeCollection/#resize)
+     * @sa AttributeCollection::resize
      */
     void resize(SizeT size)
         requires(!IsConst);
     /**
-     * @sa [AttributeCollection::reserve()](../AttributeCollection/#reserve)
+     * @sa AttributeCollection::reserve
      */
     void reserve(SizeT size)
         requires(!IsConst);
     /**
-     * @sa [AttributeCollection::clear()](../AttributeCollection/#clear)
+     * @sa AttributeCollection::clear
      */
     void clear()
         requires(!IsConst);
     /**
-     * @sa [AttributeCollection::size()](../AttributeCollection/#size)
+     * @sa AttributeCollection::size
      */
     [[nodiscard]] SizeT size() const noexcept;
     /**
-     * @sa [AttributeCollection::destroy()](../AttributeCollection/#destroy) 
+     * @sa AttributeCollection::destroy
      */
     void destroy(std::string_view name)
         requires(!IsConst);

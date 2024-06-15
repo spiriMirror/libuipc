@@ -97,27 +97,27 @@ class UIPC_CORE_API Geometry : public IGeometry
         InstanceAttributesT& operator=(InstanceAttributesT&& o)      = default;
 
         /**
-         * @sa [AttributeCollection::resize()](../../AttributeCollection/#resize)
+         * @sa AttributeCollection::resize
          */
         void resize(size_t size) &&
             requires(!IsConst);
         /**
-         * @sa [AttributeCollection::reserve()](../../AttributeCollection/#reserve)
+         * @sa AttributeCollection::reserve
          */
         void reserve(size_t size) &&
             requires(!IsConst);
         /**
-         * @sa [AttributeCollection::clear()](../../AttributeCollection/#clear)
+         * @sa AttributeCollection::clear
          */
         void clear() &&
             requires(!IsConst);
         /**
-         * @sa [AttributeCollection::size()](../../AttributeCollection/#size)
+         * @sa AttributeCollection::size
          */
         [[nodiscard]] SizeT size() &&;
 
         /**
-         * @sa [AttributeCollection::destroy()](../../AttributeCollection/#destroy) 
+         * @sa AttributeCollection::destroy
          */
         void destroy(std::string_view name) &&
             requires(!IsConst);
