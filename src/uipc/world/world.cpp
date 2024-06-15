@@ -1,7 +1,7 @@
 #include <uipc/world/world.h>
 #include <uipc/backend/visitors/world_visitor.h>
 
-namespace uipc ::world
+namespace uipc::world
 {
 World::World(engine::IEngine& e) noexcept
     : m_engine(&e)

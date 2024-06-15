@@ -6,12 +6,14 @@
 #include <muda/cub/device/device_scan.h>
 #include <uipc/common/enumerate.h>
 #include <muda/viewer/viewer_base.h>
+#include <uipc/common/timer.h>
 
 using namespace muda;
 using namespace uipc;
 using namespace uipc::geometry;
 using namespace uipc::backend::cuda;
 
+// check if two trees are the same
 void tree_consistency_test(const DeviceBuffer<LinearBVHNode>& d_a,
                            const DeviceBuffer<LinearBVHNode>& d_b,
                            const DeviceBuffer<LinearBVHAABB>& d_a_AABB,
@@ -103,82 +105,192 @@ void tree_consistency_test(const DeviceBuffer<LinearBVHNode>& d_a,
     }
 }
 
+// check if the test result is conservative (i.e., no false negative)
+bool check_cp_conservative(span<Vector2i> test, span<Vector2i> gd)
+{
+    auto compare = [](const Vector2i& lhs, const Vector2i& rhs)
+    { return lhs[0] < rhs[0] || (lhs[0] == rhs[0] && lhs[1] < rhs[1]); };
 
-std::vector<Vector2i> lbvh_cp(span<const LinearBVHAABB> aabbs)
+    std::ranges::sort(test, compare);
+    std::ranges::sort(gd, compare);
+
+    std::list<Vector2i> diff;
+    std::set_difference(
+        test.begin(), test.end(), gd.begin(), gd.end(), std::back_inserter(diff), compare);
+
+    CHECK(diff.empty());
+
+    if(!diff.empty())
+    {
+        fmt::println("test.size()={}", test.size());
+        fmt::println("ground_truth.size()={}", gd.size());
+        fmt::println("diff:");
+        for(auto&& d : diff)
+        {
+            fmt::println("{} {}", d[0], d[1]);
+        }
+    }
+}
+
+
+std::vector<Vector2i> two_step_lbvh_cp(span<const LinearBVHAABB> aabbs)
 {
     DeviceBuffer<LinearBVHAABB> d_aabbs(aabbs.size());
     d_aabbs.view().copy_from(aabbs.data());
 
-    LinearBVH lbvh;
-    lbvh.build(d_aabbs, muda::Stream::Default());
+    LinearBVH              lbvh;
+    DeviceBuffer<Vector2i> pairs;
 
-    DeviceBuffer<IndexT> counts(aabbs.size() + 1ull);
-    DeviceBuffer<IndexT> offsets(aabbs.size() + 1ull);
+    {
+        Timer timer{"2_step_lbvh"};
 
-    //for(int i = 0; i < aabbs.size(); ++i)
-    //{
-    //    auto aabb = aabbs[i];
-    //    std::cout << "[" << aabb.min().transpose() << "],"
-    //              << "[" << aabb.max().transpose() << "]" << std::endl;
-    //}
+        {
+            Timer timer{"build_tree"};
+            lbvh.build(d_aabbs);
+        }
+        {
+            Timer timer{"rebuild_tree"};
+            lbvh.build(d_aabbs);
+        }
+        {
+            Timer timer{"update_aabbs"};
+            lbvh.update(d_aabbs);
+        }
+        DeviceBuffer<IndexT> counts(aabbs.size() + 1ull);
+        DeviceBuffer<IndexT> offsets(aabbs.size() + 1ull);
 
-    ParallelFor()
-        .kernel_name("LinearBVHTest::Query")
-        .apply(aabbs.size(),
-               [LinearBVH = lbvh.viewer().name("LinearBVH"),
-                aabbs     = d_aabbs.viewer().name("aabbs"),
-                counts = counts.viewer().name("counts")] __device__(int i) mutable
-               {
-                   auto N = aabbs.total_size();
-
-                   auto aabb  = aabbs(i);
-                   auto count = 0;
-                   LinearBVH.query(aabb,
-                                   [&](uint32_t id)
-                                   {
-                                       if(id > i)
-                                           count++;
-                                   });
-                   counts(i) = count;
-
-                   if(i == 0)
-                   {
-                       counts(N) = 0;
-                   }
-               });
-
-    DeviceScan().ExclusiveSum(counts.data(), offsets.data(), counts.size());
-    IndexT total;
-    offsets.view(aabbs.size()).copy_to(&total);
-
-    DeviceBuffer<Vector2i> pairs(total);
+        //for(int i = 0; i < aabbs.size(); ++i)
+        //{
+        //    auto aabb = aabbs[i];
+        //    std::cout << "[" << aabb.min().transpose() << "],"
+        //              << "[" << aabb.max().transpose() << "]" << std::endl;
+        //}
 
 
-    ParallelFor()
-        .kernel_name("LinearBVHTest::Query")
-        .apply(aabbs.size(),
-               [LinearBVH = lbvh.viewer().name("LinearBVH"),
-                aabbs     = d_aabbs.viewer().name("aabbs"),
-                counts    = counts.viewer().name("counts"),
-                offsets   = offsets.viewer().name("offsets"),
-                pairs = pairs.viewer().name("pairs")] __device__(int i) mutable
-               {
-                   auto N = aabbs.total_size();
+        {
+            Timer timer{"unlucky_build_cp"};
 
-                   auto aabb   = aabbs(i);
-                   auto count  = counts(i);
-                   auto offset = offsets(i);
+            ParallelFor()
+                .kernel_name("LinearBVHTest::Query")
+                .apply(aabbs.size(),
+                       [LinearBVH = lbvh.viewer().name("LinearBVH"),
+                        aabbs     = d_aabbs.viewer().name("aabbs"),
+                        counts = counts.viewer().name("counts")] __device__(int i) mutable
+                       {
+                           auto N = aabbs.total_size();
 
-                   auto pair = pairs.subview(offset, count);
-                   int  j    = 0;
-                   LinearBVH.query(aabb,
-                                   [&](uint32_t id)
-                                   {
-                                       if(id > i)
-                                           pair(j++) = Vector2i(i, id);
-                                   });
-                   MUDA_ASSERT(j == count, "j = %d, count=%d", j, count);
-               });
+                           auto aabb  = aabbs(i);
+                           auto count = 0;
+                           LinearBVH.query(aabb,
+                                           [&](uint32_t id)
+                                           {
+                                               if(id > i)
+                                                   count++;
+                                           });
+                           counts(i) = count;
+
+                           if(i == 0)
+                           {
+                               counts(N) = 0;
+                           }
+                       });
+
+            DeviceScan().ExclusiveSum(counts.data(), offsets.data(), counts.size());
+            IndexT total;
+            offsets.view(aabbs.size()).copy_to(&total);
+
+            pairs.resize(total);
+
+
+            ParallelFor()
+                .kernel_name("LinearBVHTest::Query")
+                .apply(aabbs.size(),
+                       [LinearBVH = lbvh.viewer().name("LinearBVH"),
+                        aabbs     = d_aabbs.viewer().name("aabbs"),
+                        counts    = counts.viewer().name("counts"),
+                        offsets   = offsets.viewer().name("offsets"),
+                        pairs = pairs.viewer().name("pairs")] __device__(int i) mutable
+                       {
+                           auto N = aabbs.total_size();
+
+                           auto aabb   = aabbs(i);
+                           auto count  = counts(i);
+                           auto offset = offsets(i);
+
+                           auto pair = pairs.subview(offset, count);
+                           int  j    = 0;
+                           LinearBVH.query(aabb,
+                                           [&](uint32_t id)
+                                           {
+                                               if(id > i)
+                                                   pair(j++) = Vector2i(i, id);
+                                           });
+                           MUDA_ASSERT(j == count, "j = %d, count=%d", j, count);
+                       });
+        }
+
+        {
+            Timer timer{"lucky_build_cp"};
+
+            ParallelFor()
+                .kernel_name("LinearBVHTest::Query")
+                .apply(aabbs.size(),
+                       [LinearBVH = lbvh.viewer().name("LinearBVH"),
+                        aabbs     = d_aabbs.viewer().name("aabbs"),
+                        counts = counts.viewer().name("counts")] __device__(int i) mutable
+                       {
+                           auto N = aabbs.total_size();
+
+                           auto aabb  = aabbs(i);
+                           auto count = 0;
+                           LinearBVH.query(aabb,
+                                           [&](uint32_t id)
+                                           {
+                                               if(id > i)
+                                                   count++;
+                                           });
+                           counts(i) = count;
+
+                           if(i == 0)
+                           {
+                               counts(N) = 0;
+                           }
+                       });
+
+            DeviceScan().ExclusiveSum(counts.data(), offsets.data(), counts.size());
+            IndexT total;
+            offsets.view(aabbs.size()).copy_to(&total);
+
+            pairs.resize(total);
+
+
+            ParallelFor()
+                .kernel_name("LinearBVHTest::Query")
+                .apply(aabbs.size(),
+                       [LinearBVH = lbvh.viewer().name("LinearBVH"),
+                        aabbs     = d_aabbs.viewer().name("aabbs"),
+                        counts    = counts.viewer().name("counts"),
+                        offsets   = offsets.viewer().name("offsets"),
+                        pairs = pairs.viewer().name("pairs")] __device__(int i) mutable
+                       {
+                           auto N = aabbs.total_size();
+
+                           auto aabb   = aabbs(i);
+                           auto count  = counts(i);
+                           auto offset = offsets(i);
+
+                           auto pair = pairs.subview(offset, count);
+                           int  j    = 0;
+                           LinearBVH.query(aabb,
+                                           [&](uint32_t id)
+                                           {
+                                               if(id > i)
+                                                   pair(j++) = Vector2i(i, id);
+                                           });
+                           MUDA_ASSERT(j == count, "j = %d, count=%d", j, count);
+                       });
+        }
+    }
 
     DeviceBuffer<LinearBVHNode> nodes_1 = LinearBVHVisitor(lbvh).nodes();
     DeviceBuffer<LinearBVHAABB> aabbs_1 = LinearBVHVisitor(lbvh).aabbs();
@@ -332,15 +444,12 @@ std::vector<Vector2i> brute_froce_query_point(span<const LinearBVHAABB> aabbs)
     return pairs;
 }
 
-std::vector<Vector2i> adaptive_lbvh(span<const LinearBVHAABB> aabbs)
+std::vector<Vector2i> adaptive_lbvh_cp(span<const LinearBVHAABB> aabbs)
 {
-
-
     DeviceBuffer<LinearBVHAABB> d_aabbs(aabbs.size());
     d_aabbs.view().copy_from(aabbs.data());
 
     LinearBVH lbvh;
-    lbvh.build(d_aabbs);
 
     DeviceVar<int>         cp_num = 0;
     DeviceBuffer<Vector2i> pairs;
@@ -348,49 +457,86 @@ std::vector<Vector2i> adaptive_lbvh(span<const LinearBVHAABB> aabbs)
     pairs.resize(aabbs.size());
     fmt::println("adaptive_lbvh, prepared_size={}", pairs.size());
 
-    auto do_query = [&]
-    {
-        cp_num = 0;
-        ParallelFor()
-            .kernel_name("LinearBVHTest::Query")
-            .apply(aabbs.size(),
-                   [lbvh   = lbvh.viewer().name("LinearBVH"),
-                    aabbs  = d_aabbs.viewer().name("aabbs"),
-                    cp_num = cp_num.viewer().name("cp_num"),
-                    pairs = pairs.viewer().name("pairs")] __device__(int i) mutable
-                   {
-                       auto N = aabbs.total_size();
 
-                       auto aabb  = aabbs(i);
-                       auto count = 0;
-                       lbvh.query(aabb,
-                                  [&](uint32_t id)
-                                  {
-                                      if(id > i)
+    {
+        Timer timer{"adaptive_lbvh"};
+        {
+            Timer timer{"build_tree"};
+            lbvh.build(d_aabbs);
+        }
+        {
+            Timer timer{"rebuild_tree"};
+            lbvh.build(d_aabbs);
+        }
+        {
+            Timer timer{"update_aabbs"};
+            lbvh.update(d_aabbs);
+        }
+
+
+        auto do_query = [&]
+        {
+            cp_num = 0;
+            ParallelFor()
+                .kernel_name("LinearBVHTest::Query")
+                .apply(aabbs.size(),
+                       [lbvh   = lbvh.viewer().name("LinearBVH"),
+                        aabbs  = d_aabbs.viewer().name("aabbs"),
+                        cp_num = cp_num.viewer().name("cp_num"),
+                        pairs = pairs.viewer().name("pairs")] __device__(int i) mutable
+                       {
+                           auto N = aabbs.total_size();
+
+                           auto aabb  = aabbs(i);
+                           auto count = 0;
+                           lbvh.query(aabb,
+                                      [&](uint32_t id)
                                       {
-                                          auto last = muda::atomic_add(cp_num.data(), 1);
-                                          if(last < pairs.total_size())
+                                          if(id > i)
                                           {
-                                              pairs(last) = Vector2i(i, id);
+                                              auto last =
+                                                  muda::atomic_add(cp_num.data(), 1);
+                                              if(last < pairs.total_size())
+                                              {
+                                                  pairs(last) = Vector2i(i, id);
+                                              }
                                           }
-                                      }
-                                  });
-                   });
-    };
+                                      });
+                       });
+        };
 
-    // try to query with prepared size
-    do_query();
-    int h_cp_num = cp_num;
-    if(h_cp_num > pairs.size())  // if failed, resize and retry
-    {
-        fmt::println("try query with prepared_size={} (but too small), we resize it to the detected cp_num={}",
-                     pairs.size(),
-                     h_cp_num);
+        {
+            Timer timer{"unlucky_build_cp"};
 
-        pairs.resize(h_cp_num);
-        do_query();
-        h_cp_num = cp_num;
-        CHECK(h_cp_num == pairs.size());
+            {
+                Timer timer{"try_build_cp"};
+                // try to query with prepared size
+                do_query();
+            }
+
+            {
+                Timer timer{"rebuild_cp"};
+
+                int h_cp_num = cp_num;
+                if(h_cp_num > pairs.size())  // if failed, resize and retry
+                {
+                    fmt::println("try query with prepared_size={} (but too small), we resize it to the detected cp_num={}",
+                                 pairs.size(),
+                                 h_cp_num);
+
+                    pairs.resize(h_cp_num);
+                    do_query();
+                    h_cp_num = cp_num;
+                    CHECK(h_cp_num == pairs.size());
+                }
+            }
+        }
+
+
+        {
+            Timer timer{"lucky_build_cp"};
+            do_query();
+        }
     }
 
     std::vector<Vector2i> pairs_host;
@@ -399,35 +545,11 @@ std::vector<Vector2i> adaptive_lbvh(span<const LinearBVHAABB> aabbs)
     return pairs_host;
 }
 
-bool check_cp_conservative(span<Vector2i> test, span<Vector2i> gd)
-{
-    auto compare = [](const Vector2i& lhs, const Vector2i& rhs)
-    { return lhs[0] < rhs[0] || (lhs[0] == rhs[0] && lhs[1] < rhs[1]); };
-
-    std::ranges::sort(test, compare);
-    std::ranges::sort(gd, compare);
-
-    std::list<Vector2i> diff;
-    std::set_difference(
-        test.begin(), test.end(), gd.begin(), gd.end(), std::back_inserter(diff), compare);
-
-    CHECK(diff.empty());
-
-    if(!diff.empty())
-    {
-        fmt::println("test.size()={}", test.size());
-        fmt::println("ground_truth.size()={}", gd.size());
-        fmt::println("diff:");
-        for(auto&& d : diff)
-        {
-            fmt::println("{} {}", d[0], d[1]);
-        }
-    }
-}
-
 
 void lbvh_test(const SimplicialComplex& mesh)
 {
+    Timer::set_sync_func([]() { muda::wait_device(); });
+
     std::cout << "num_aabb=" << mesh.triangles().size() << std::endl;
 
     auto pos_view = mesh.positions().view();
@@ -442,7 +564,7 @@ void lbvh_test(const SimplicialComplex& mesh)
         aabbs[i].extend(p0).extend(p1).extend(p2);
     }
 
-    auto lbvh_pairs = lbvh_cp(aabbs);
+    auto lbvh_pairs = two_step_lbvh_cp(aabbs);
     auto bf_pairs   = brute_froce_cp(aabbs);
 
     check_cp_conservative(lbvh_pairs, bf_pairs);
@@ -451,10 +573,14 @@ void lbvh_test(const SimplicialComplex& mesh)
     auto bf_qp   = brute_froce_query_point(aabbs);
     check_cp_conservative(lbvh_qp, bf_qp);
 
-    auto adaptive = adaptive_lbvh(aabbs);
+    auto adaptive = adaptive_lbvh_cp(aabbs);
     check_cp_conservative(adaptive, bf_pairs);
-}
 
+    Timer::set_sync_func(nullptr);
+
+    GlobalTimer::current()->print_timings();
+    GlobalTimer::current()->clear();
+}
 
 SimplicialComplex tet()
 {
@@ -466,6 +592,7 @@ SimplicialComplex tet()
 
     return tetmesh(Vs, Ts);
 }
+
 
 TEST_CASE("lbvh", "[collision detection]")
 {

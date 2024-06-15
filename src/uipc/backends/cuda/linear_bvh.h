@@ -208,6 +208,19 @@ class UIPC_BACKEND_API LinearBVH
                muda::Stream&                    s = muda::Stream::Default());
 
     /**
+     * @brief Keep the constructed LinearBVH Tree and update the AABBs.
+     * 
+     * The `update()` performs better than `build()` because it reuses the constructed LinearBVH Tree. 
+     * However, if the AABBs are significantly changed (bad time coherence), you may get a Tree with bad query performance.
+     * So, if the AABBs are significantly changed, you should call `build()` instead of `update()` to reconstruct the LinearBVH Tree.
+     * 
+     * @param aabbs The array of AABBs
+     * @param s The stream to execute the update
+     */
+    void update(muda::CBufferView<LinearBVHAABB> aabbs,
+                muda::Stream&                    s = muda::Stream::Default());
+
+    /**
      * @brief Get a query handler for the constructed LinearBVH tree.
      */
     LinearBVHViewer viewer() noexcept;
@@ -231,6 +244,8 @@ class UIPC_BACKEND_API LinearBVH
     muda::DeviceVar<LinearBVHAABB>    m_max_aabb;
 
     LinearBVHConfig m_config;
+
+    void build_internal_aabbs(muda::Stream& s);
 };
 
 /**

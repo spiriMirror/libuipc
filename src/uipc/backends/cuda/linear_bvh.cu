@@ -10,6 +10,8 @@
 #include <muda/ext/eigen/atomic.h>
 #include <thrust/detail/minmax.h>
 
+#include <uipc/common/log.h>
+
 /*****************************************************************************************
  * Core Implementation
  *****************************************************************************************/
@@ -134,6 +136,85 @@ MUDA_DEVICE uint32_t find_split(muda::Dense1D<LinearBVHMortonIndex> node_code,
 
     return split;
 }
+
+
+void build_internal_aabbs(size_t                           num_objects,
+                          muda::CBufferView<LinearBVHNode> nodes,
+                          muda::BufferView<LinearBVHAABB>  sorted_aabbs,
+                          muda::BufferView<int>            flags,
+                          muda::Stream&                    s)
+{
+    using namespace muda;
+
+    auto num_internal_nodes = num_objects - 1;
+    auto leaf_start         = num_internal_nodes;
+
+    auto internal_aabbs = sorted_aabbs.subview(0, num_internal_nodes);
+    on(s)
+        .next<ParallelFor>()
+        .kernel_name("LBVH::CalculateInternalAABB")
+        .apply(num_objects,
+               [nodes = nodes.cviewer().name("nodes"),
+                aabbs = sorted_aabbs.viewer().name("aabbs"),
+                flags = flags.viewer().name("flags"),
+                leaf_start] __device__(int I) mutable
+               {
+                   auto leaf_idx = I + leaf_start;
+                   auto parent   = nodes(leaf_idx).parent_idx;
+
+                   while(parent != 0xFFFFFFFF)  // means idx == 0
+                   {
+                       const int old = muda::atomic_add(&flags(parent), 1);
+
+                       // the memory fence is necessary to disable reordering of the memory access.
+                       // we need to ensure that this thread can get the updated value of AABB.
+                       ::cuda::atomic_thread_fence(::cuda::memory_order_acquire,
+                                                   ::cuda::thread_scope_system);
+
+                       if(old == 0)
+                       {
+                           // this is the first thread entered here.
+                           // wait the other thread from the other child node.
+                           return;
+                       }
+                       MUDA_KERNEL_ASSERT(old == 1, "old=%d", old);
+                       //here, the flag has already been 1. it means that this
+                       //thread is the 2nd thread. merge AABB of both childlen.
+
+                       const auto lidx = nodes(parent).left_idx;
+                       const auto ridx = nodes(parent).right_idx;
+                       auto&      lbox = aabbs(lidx);
+                       auto&      rbox = aabbs(ridx);
+
+                       // to avoid cache coherency problem, we must use atomic operation.
+                       auto atomic_fetch = [](LinearBVHAABB& aabb) -> LinearBVHAABB
+                       {
+                           Vector3       zero  = Vector3::Zero();
+                           LinearBVHAABB aabb_ = aabb;
+
+                           // without atomic_thread_fence, this loop may be infinite.
+                           while(aabb_.isEmpty())
+                           {
+                               Vector3 min_ = eigen::atomic_add(aabb.min(), zero);
+                               Vector3 max_ = eigen::atomic_add(aabb.max(), zero);
+                               aabb_ = LinearBVHAABB{min_, max_};
+                           };
+
+                           return aabb_;
+                       };
+
+                       auto L = atomic_fetch(lbox);
+                       auto R = atomic_fetch(rbox);
+
+                       aabbs(parent) = L.merged(R);
+
+                       // look the next parent...
+                       parent = nodes(parent).parent_idx;
+                   }
+               });
+}
+
+
 }  // namespace uipc::backend::cuda::detail
 
 namespace uipc::backend::cuda
@@ -166,9 +247,6 @@ void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::Stream& s)
     LinearBVHNode default_node;
     m_nodes.resize(num_nodes, default_node);
     resize(s, m_nodes, num_nodes);
-
-    resize(s, m_flags, num_internal_nodes);
-    BufferLaunch(s).fill(m_flags.view(), 0);
 
     // 1) get max aabb
     DeviceReduce(s).Reduce(
@@ -273,70 +351,38 @@ void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::Stream& s)
                });
 
     // 8) calculate the AABB of internal nodes
-    auto internal_aabbs = m_aabbs.view(0, num_internal_nodes);
-    on(s)
-        .next<ParallelFor>()
-        .kernel_name("LBVH::CalculateInternalAABB")
-        .apply(num_objects,
-               [nodes = m_nodes.cviewer().name("nodes"),
-                aabbs = m_aabbs.viewer().name("aabbs"),
-                flags = m_flags.viewer().name("flags"),
-                leaf_start] __device__(int I) mutable
-               {
-                   auto leaf_idx = I + leaf_start;
-                   auto parent   = nodes(leaf_idx).parent_idx;
+    build_internal_aabbs(s);
+}
+void LinearBVH::update(muda::CBufferView<LinearBVHAABB> aabbs, muda::Stream& s)
+{
+    using namespace muda;
 
-                   while(parent != 0xFFFFFFFF)  // means idx == 0
-                   {
-                       const int old = muda::atomic_add(&flags(parent), 1);
+    UIPC_ASSERT(aabbs.size() == m_indices.size(),
+                "To update the tree, the number of input AABBs({}) must be the same as the original number of objects ({}) in the BVH.",
+                aabbs.size(),
+                m_indices.size());
 
-                       // the memory fence is necessary to disable reordering of the memory access.
-                       // we need to ensure that this thread can get the updated value of AABB.
-                       ::cuda::atomic_thread_fence(::cuda::memory_order_acquire,
-                                                   ::cuda::thread_scope_system);
+    // 1) update leaf aabbs
+    auto leaf_aabbs = m_aabbs.view(m_nodes.size() - aabbs.size());
+    on().next<ParallelFor>()
+        .kernel_name("LBVH::UpdateLeafNodes")
+        .apply(aabbs.size(),
+               [indices = m_new_to_old.viewer().name("indices"),
+                aabbs   = aabbs.viewer().name("aabbs"),
+                leaf_aabbs = leaf_aabbs.viewer().name("sorted_aabbs")] __device__(int i) mutable
+               { leaf_aabbs(i) = aabbs(indices(i)); });
 
-                       if(old == 0)
-                       {
-                           // this is the first thread entered here.
-                           // wait the other thread from the other child node.
-                           return;
-                       }
-                       MUDA_KERNEL_ASSERT(old == 1, "old=%d", old);
-                       //here, the flag has already been 1. it means that this
-                       //thread is the 2nd thread. merge AABB of both childlen.
+    // 2) update internal aabbs
+    build_internal_aabbs(s);
+}
 
-                       const auto lidx = nodes(parent).left_idx;
-                       const auto ridx = nodes(parent).right_idx;
-                       auto&      lbox = aabbs(lidx);
-                       auto&      rbox = aabbs(ridx);
-
-                       // to avoid cache coherency problem, we must use atomic operation.
-                       auto atomic_fetch = [](LinearBVHAABB& aabb) -> LinearBVHAABB
-                       {
-                           Vector3       zero  = Vector3::Zero();
-                           LinearBVHAABB aabb_ = aabb;
-
-                           // without atomic_thread_fence, this loop may be infinite.
-                           while(aabb_.isEmpty())
-                           {
-                               Vector3 min_ = eigen::atomic_add(aabb.min(), zero);
-                               Vector3 max_ = eigen::atomic_add(aabb.max(), zero);
-                               aabb_ = LinearBVHAABB{min_, max_};
-                           };
-
-                           return aabb_;
-                       };
-
-                       auto L = atomic_fetch(lbox);
-                       auto R = atomic_fetch(rbox);
-
-                       aabbs(parent) = L.merged(R);
-
-                       // look the next parent...
-                       parent = nodes(parent).parent_idx;
-                   }
-               })
-        .wait();
+void LinearBVH::build_internal_aabbs(muda::Stream& s)
+{
+    using namespace muda;
+    auto num_internal_nodes = m_nodes.size() - m_indices.size();
+    resize(s, m_flags, num_internal_nodes);
+    BufferLaunch(s).fill(m_flags.view(), 0);
+    detail::build_internal_aabbs(m_indices.size(), m_nodes, m_aabbs, m_flags, s);
 }
 }  // namespace uipc::backend::cuda
 

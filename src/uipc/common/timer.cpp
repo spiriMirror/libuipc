@@ -205,6 +205,22 @@ void GlobalTimer::print_merged_timings(std::ostream& o)
 
 void GlobalTimer::clear()
 {
+    auto timer_names = [&]
+    {
+        std::vector<std::string> names;
+        std::stack<STimer*>      stack = m_timer_stack;
+        while(stack.size() > 1)
+        {
+            names.push_back(fmt::format("* {}", stack.top()->name));
+            stack.pop();
+        }
+        return names;
+    };
+
+    UIPC_ASSERT(m_timer_stack.size() == 1,
+                "Are you calling clear() in the Timer Scope? Current stack:\n{}",
+                fmt::join(timer_names(), "\n"));
+
     std::string name = m_timers.front()->name;
     m_timers.clear();
     auto& u  = m_timers.emplace_back(new STimer{name});

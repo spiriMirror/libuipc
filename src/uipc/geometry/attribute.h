@@ -71,7 +71,7 @@ class Attribute : public IAttribute
     Attribute<T>& operator=(const Attribute<T>&) = default;
     Attribute<T>& operator=(Attribute<T>&&)      = default;
 
-    [[nodiscard]] friend span<T> view(Attribute<T>& a) noexcept
+    friend span<T> view(Attribute<T>& a) noexcept
     {
         return a.m_values;
     }

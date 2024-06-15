@@ -11,7 +11,7 @@ The following dependencies are required to build the project.
 | [Python](https://www.python.org/downloads/)   | >=3.10       | build system    | system install |
 | [Vcpkg](https://github.com/microsoft/vcpkg)   | >=2024.04.26 | package manager | git clone      |
 
-The following dependencies are 3rd-party libraries that we use in the project. Don't worry, most of them will be automatically installed by vcpkg.
+The following dependencies are 3rd-party libraries that we use in the project. Don't worry, most of them will be automatically installed by Vcpkg.
 
 | Name                                   | Version | Usage                                               | Import         |
 | -------------------------------------- | ------- | --------------------------------------------------- | -------------- |
@@ -32,11 +32,11 @@ The following dependencies are 3rd-party libraries that we use in the project. D
 | glfw3                                  | 3.3.8#2 | window management                                   | package        |
 
 ## Build
-We use Vcpkgto manage the libraries we need and use CMake to build the project. 
+We use Vcpkg to manage the libraries we need and use CMake to build the project. 
 
-The simplest way to let CMake detect Vcpkgis to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
+The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
-Vcpkgsupports both Windows and Linux. We recommend using Vcpkgto manage the dependencies to keep the consistency of the development environment.
+Vcpkg supports both Windows and Linux. We recommend using Vcpkg to manage the dependencies to keep the consistency of the development environment.
 
 ### Submodules
 
@@ -48,19 +48,20 @@ git submodule update --init
 
 ### Automatic Dependency Installation
 
-The rest dependencies are all managed by vcpkg, they will be automatically installed in the CMake Configuration step.
+The rest dependencies are all managed by Vcpkg, they will be automatically installed in the CMake Configuration step.
 
 If the automatic installation fails, please raise an issue with the CMake error message.
 
-You can also try install the dependencies [manually](#manaully-dependency-installation) as a temporary workaround.
+You can also try to install the dependencies [manually](#manaully-dependency-installation) as a temporary workaround.
 
 ### Build Project
 
 #### Windows
 
-On windows, you can use the `CMake-GUI` to configure the project and generate the Visual Studio solution file with only a few clicks.
+On Windows, you can use the `CMake-GUI` to configure the project and generate the Visual Studio solution file with only a few clicks.
 
-Or you can also use the same commands as Linux to build the project.
+You can also use the same commands as Linux to build the project.
+
 #### Linux
 
 On Linux, you can use the following commands to build the project.
@@ -99,22 +100,17 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./
 
 ### Build Document
 
-Install [mkdocs](https://www.mkdocs.org/)
+Install [mkdocs](https://www.mkdocs.org/) and its plugins:
 ```shell
-pip install mkdocs mkdocs-material mkdocs-literate-nav
-```
-
-Download [doxide](https://www.doxide.org/installation/), and add the `doxide` binary folder to the system path.
-
-Run the following command at the root of the project:
-```shell
-doxide build
+pip install mkdocs mkdocs-material mkdocs-literate-nav mkdoxy
 ```
 
 Turn on the local server:
 ```shell
 mkdocs serve
 ```
+
+Open the browser and visit the [localhost:8000](http://127.0.0.1:8000/)
 
 ## Troubleshooting
 
@@ -127,17 +123,17 @@ cd libuipc
 rm -r ./vcpkg_installed
 rm ./vcpkg.json
 ```
-Thus the Vcpkgmanifest mode is disabled.
+Thus the Vcpkg manifest mode is disabled.
 
 Then, install the dependencies manually.
 ```shell
 git submodule update --init
-Vcpkginstall eigen3 catch2 spdlog libigl fmt cppitertools dylib rapidcsv benchmark nlohmann-json imgui glfw3 bgfx
+vcpkg install eigen3 catch2 spdlog libigl fmt cppitertools dylib rapidcsv benchmark nlohmann-json imgui glfw3 bgfx
 ```
 
 ### Linux GUI Support
 
-If your system haven't installed the GUI application dependencies before, you may need to install the following packages to enable GUI support.
+If your system hasn't installed the GUI application dependencies before, you may need to install the following packages to enable GUI support.
 
 ```shell
 sudo apt-get install libxi-dev libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev libxrandr-dev libxxf86vm-dev libxinerama-dev libxcursor-dev
