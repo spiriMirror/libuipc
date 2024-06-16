@@ -14,7 +14,7 @@ namespace uipc::geometry
  * $$
  * where $V$ is the set of vertices, $E$ is the set of edges, $F$ is the set of triangles, and $T$ is the set of tetrahedra.
  * 
- * @sa @ref [Tutorial/Geometry](../../tutorial/geometry)
+ * @sa @ref [Tutorial/Geometry](../tutorial/geometry.md)
  */
 class UIPC_CORE_API SimplicialComplex : public Geometry
 {

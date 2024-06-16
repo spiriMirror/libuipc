@@ -51,7 +51,7 @@ UIPC_BUILTIN_ATTRIBUTE(is_surf);
 UIPC_BUILTIN_ATTRIBUTE(orient);
 
 /**
- * .@brief `parent_id` attribute, indicates the parent simplex id 
+ * @brief `parent_id` attribute, indicates the parent simplex id 
  */
 UIPC_BUILTIN_ATTRIBUTE(parent_id);
 }  // namespace uipc::builtin
