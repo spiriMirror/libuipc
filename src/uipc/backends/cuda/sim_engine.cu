@@ -54,17 +54,6 @@ SimEngine::SimEngine()
     say_hello_from_muda();
 }
 
-auto SimEngine::device_common() noexcept -> DeviceCommon&
-{
-    return *m_device_common;
-}
-
-WorldVisitor& SimEngine::world() noexcept
-{
-    UIPC_ASSERT(m_world_visitor, "WorldVisitor is not initialized.");
-    return *m_world_visitor;
-}
-
 SimEngine::~SimEngine()
 {
     LogGuard guard;

@@ -29,26 +29,17 @@ void SimEngine::do_init(backend::WorldVisitor v)
     }
 }
 
-void SimEngine::do_advance()
+auto SimEngine::device_common() noexcept -> DeviceCommon&
 {
-    LogGuard guard;
-
-    spdlog::info("do_advance() called.");
+    return *m_device_common;
 }
 
-void SimEngine::do_sync()
+WorldVisitor& SimEngine::world() noexcept
 {
-    LogGuard guard;
-
-    spdlog::info("do_sync() called.");
+    UIPC_ASSERT(m_world_visitor, "WorldVisitor is not initialized.");
+    return *m_world_visitor;
 }
 
-void SimEngine::do_retrieve()
-{
-    LogGuard guard;
-
-    spdlog::info("do_retrieve() called.");
-}
 }  // namespace uipc::backend::cuda
 
 

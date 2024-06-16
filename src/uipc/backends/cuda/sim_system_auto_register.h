@@ -2,6 +2,8 @@
 #include <functional>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/common/list.h>
+#include <type_traits>
+
 namespace uipc::backend::cuda
 {
 class SimEngine;
@@ -11,6 +13,37 @@ class SimSystemAutoRegisterInternalData
   public:
     std::list<std::function<U<SimSystem>(SimEngine&)>> m_entries;
 };
+
+
+namespace detail
+{
+    template <typename SimSystemT>
+    concept SimSystemHasAdvancedCreator = requires(SimEngine& engine) {
+        {
+            // 1) is derived from SimSystem
+            std::is_base_of_v<SimSystem, SimSystemT>&&
+            // 2) has a static `advanced_creator` method
+            SimSystemT::advanced_creator(engine)
+        } -> std::convertible_to<U<SimSystem>>;
+    };
+
+    template <std::derived_from<SimSystem> SimSystemT>
+    std::function<U<SimSystem>(SimEngine&)> register_system_creator()
+    {
+        if constexpr(SimSystemHasAdvancedCreator<SimSystemT>)
+        {
+            return [](SimEngine& engine)
+            { return SimSystemT::advanced_creator(engine); };
+        }
+        else
+        {
+            return [](SimEngine& engine)
+            { return std::make_unique<SimSystemT>(engine); };
+        }
+    }
+}  // namespace detail
+
+
 class SimSystemAutoRegister
 {
     friend class SimEngine;
@@ -26,25 +59,7 @@ class SimSystemAutoRegister
 /**
  * @brief Register a SimSystem, which will be automatically created by the SimEngine.
  */
+
 #define REGISTER_SIM_SYSTEM(SimSystem)                                             \
     static ::uipc::backend::cuda::SimSystemAutoRegister AutoRegister##__COUNTER__( \
-        [](::uipc::backend::cuda::SimEngine& engine)                               \
-        { return std::make_unique<SimSystem>(engine); });
-
-/**
- * @brief Register a SimSystem with advanced creation logic.
- *  
- * ```cpp
- * REGISTER_SIM_SYSTEM_ADVANCED(
- *  [](uipc::backend::cuda::SimEngine& engine)
- *  {
- *      if(need_to_create)
- *          return std::make_unique<SimSystem>(engine);
- *      else
- *          return nullptr;
- *  }
- * );
- * ```
- */
-#define REGISTER_SIM_SYSTEM_ADVANCED                                           \
-    static ::uipc::backend::cuda::SimSystemAutoRegister AutoRegister##__COUNTER__
+        ::uipc::backend::cuda::detail::register_system_creator<SimSystem>());
