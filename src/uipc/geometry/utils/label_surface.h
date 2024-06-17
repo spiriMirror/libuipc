@@ -8,6 +8,8 @@ namespace uipc::geometry
  * 
  * 1) label 'is_surf':<IndexT> on vertices/edges/triangles/tetrahedra
  * 2) set  'parent_id':<IndexT> on triangles, indicating the parent tetrahedron
+ * 
+ * @param R the simplicial complex to be labeled.
  */
-UIPC_CORE_API [[nodiscard]] SimplicialComplex label_surface(const SimplicialComplex& sc);
+UIPC_CORE_API void label_surface(SimplicialComplex& R);
 }  // namespace uipc::geometry

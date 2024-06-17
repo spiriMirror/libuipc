@@ -31,4 +31,7 @@ using Matrix4x4   = Matrix<Float, 4, 4>;
 using Matrix6x6   = Matrix<Float, 6, 6>;
 using Matrix9x9   = Matrix<Float, 9, 9>;
 using Matrix12x12 = Matrix<Float, 12, 12>;
+
+using Transform = Eigen::Transform<Float, 3, Eigen::Affine>;
+using Translation = Eigen::Translation<Float, 3>;
 }  // namespace uipc

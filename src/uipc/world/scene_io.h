@@ -4,13 +4,13 @@
 
 namespace uipc::world
 {
-class SceneIO
+class UIPC_CORE_API SceneIO
 {
   public:
     SceneIO(Scene& scene);
 
     void write_surface(std::string_view filename);
-    void write_surface_as_obj(std::string_view filename);
+    void write_surface_obj(std::string_view filename);
 
   private:
     Scene& m_scene;

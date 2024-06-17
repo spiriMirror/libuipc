@@ -78,13 +78,20 @@ void Vertices::do_reserve(SizeT N)
     // Do nothing
 }
 
-void Vertices::do_reorder(span<const SizeT> O) 
+void Vertices::do_reorder(span<const SizeT> O)
 {
     UIPC_WARN_WITH_LOCATION("Reordering verticies is not allowed, ignored.");
+}
+
+Json Vertices::do_to_json(SizeT i) const
+{
+    Json j;
+    j = i;
+    return j;
 }
 
 span<IndexT> view(Vertices& vertices) noexcept
 {
     return vertices.view();
 }
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry

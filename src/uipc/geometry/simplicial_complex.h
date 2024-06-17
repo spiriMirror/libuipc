@@ -115,8 +115,10 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
      */
     [[nodiscard]] IndexT dim() const noexcept;
 
+
   protected:
-    virtual std::string_view get_type() const noexcept override;
+    virtual std::string_view   get_type() const noexcept override;
+    [[nodiscard]] virtual Json do_to_json() const override;
 
   private:
     AbstractSimplicialComplex m_asc;
@@ -131,7 +133,7 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
 
 namespace fmt
 {
-template<>
+template <>
 struct UIPC_CORE_API formatter<uipc::geometry::SimplicialComplex> : formatter<string_view>
 {
     appender format(const uipc::geometry::SimplicialComplex& c, format_context& ctx) const;

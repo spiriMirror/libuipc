@@ -2,10 +2,14 @@
 #include <uipc/geometry/utils/label_surface.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/geometry/utils/apply_instances.h>
+#include <uipc/geometry/utils/merge.h>
+#include <numeric>
+
 namespace uipc::geometry
 {
 constexpr std::string_view hint =
-    "Hint: You may need to call `label_surface()` before calling `extract_surface_to()`";
+    "Hint: You may need to call `label_surface()` before calling `extract_surface()`";
 
 SimplicialComplex extract_surface(const SimplicialComplex& src)
 {
@@ -23,11 +27,20 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
     UIPC_ASSERT(e_is_surf, "`is_surf` attribute not found in the mesh edges. {}", hint);
     UIPC_ASSERT(f_is_surf, "`is_surf` attribute not found in the mesh triangles. {}", hint);
 
-    auto v_is_surf_view = v_is_surf->view();
+    // ---------------------------------------------------------------------
+    // copy the meta and instances
+    // ---------------------------------------------------------------------
+
+    R.meta().copy_from(src.meta());
+    R.instances().resize(src.instances().size());
+    R.instances().copy_from(src.instances());
+
 
     // ---------------------------------------------------------------------
     // process the vertices
     // ---------------------------------------------------------------------
+
+    auto v_is_surf_view = v_is_surf->view();
 
     std::vector<IndexT> old_v_to_new_v(src.vertices().size(), -1);
     IndexT              surf_v_count = 0;
@@ -54,7 +67,7 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
     }
 
     // copy vertex attributes
-    R.vertices().copy_from(src.vertices(), v_new2old);
+    R.vertices().copy_from(src.vertices(), AttributeCopy::pull(v_new2old));
 
     // ---------------------------------------------------------------------
     // process the edges
@@ -104,7 +117,7 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
     }
 
     // copy other edge attributes
-    R.edges().copy_from(src.edges(), e_new2old);
+    R.edges().copy_from(src.edges(), AttributeCopy::pull(e_new2old));
 
     // ---------------------------------------------------------------------
     // process the triangles
@@ -158,8 +171,60 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
         std::string{builtin::parent_id}  // exclude parent_id
     };
 
-    R.triangles().copy_from(src.triangles(), t_new2old, {}, exclude_attrs);
+    R.triangles().copy_from(src.triangles(), AttributeCopy::pull(t_new2old), {}, exclude_attrs);
 
     return R;
+}
+
+static void extract_surface_check_input(span<const SimplicialComplex*> sc)
+{
+    for(auto [I, complex] : enumerate(sc))
+    {
+        UIPC_ASSERT(complex != nullptr, "Input[{}] is nullptr", I);
+    }
+}
+
+SimplicialComplex extract_surface(span<const SimplicialComplex*> sc)
+{
+    if(sc.empty())
+        return SimplicialComplex{};
+
+    extract_surface_check_input(sc);
+
+    // 1) extract the surface from each simplicial complex
+    vector<SimplicialComplex> surfaces;
+    surfaces.reserve(sc.size());
+
+    std::transform(sc.begin(),
+                   sc.end(),
+                   std::back_inserter(surfaces),
+                   [](const SimplicialComplex* simplicial_complex)
+                   { return extract_surface(*simplicial_complex); });
+
+    // 2) find out all the surface instances, apply the transformation
+    SizeT total_surface_instances =
+        std::accumulate(sc.begin(),
+                        sc.end(),
+                        0,
+                        [](SizeT acc, const SimplicialComplex* simplicial_complex)
+                        { return acc + simplicial_complex->instances().size(); });
+
+    vector<SimplicialComplex> all_surfaces;
+    all_surfaces.reserve(total_surface_instances);
+
+    for(auto& surface : surfaces)
+    {
+        vector<SimplicialComplex> instances = apply_transform(surface);
+        std::move(instances.begin(), instances.end(), std::back_inserter(all_surfaces));
+    }
+
+    vector<const SimplicialComplex*> surfaces_ptr(total_surface_instances);
+
+    std::transform(all_surfaces.begin(),
+                   all_surfaces.end(),
+                   surfaces_ptr.begin(),
+                   [](SimplicialComplex& surface) { return &surface; });
+
+    return merge(surfaces_ptr);
 }
 }  // namespace uipc::geometry

@@ -2,7 +2,8 @@
 #include <uipc/common/log.h>
 #include <uipc/common/set.h>
 #include <uipc/common/list.h>
-
+#include <uipc/common/range.h>
+#include <iostream>
 namespace uipc::geometry
 {
 P<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttributeSlot& slot)
@@ -20,6 +21,7 @@ P<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttri
     if(it != m_attributes.end())
         throw GeometryAttributeError{
             fmt::format("Attribute with name [{}] already exist!", name)};
+
     return m_attributes[n] = slot.clone();
 }
 
@@ -71,77 +73,70 @@ void AttributeCollection::reorder(span<const SizeT> O)
 }
 
 void AttributeCollection::copy_from(const AttributeCollection& other,
-                                    span<const SizeT>          O,
-                                    span<const std::string>    include_names,
-                                    span<const std::string>    exclude_names)
+                                    const AttributeCopy&       copy,
+                                    span<const std::string>    _include_names,
+                                    span<const std::string>    _exclude_names)
 {
-    UIPC_ASSERT(O.size() == size(),
-                "Size mismatch, attribute size ({}), your New2Old mapping ({}). Resize the topology before copy.",
-                O.size(),
-                size());
+    vector<std::string> include_names;
+    vector<std::string> exclude_names(_exclude_names.begin(), _exclude_names.end());
+    vector<std::string> filtered_names;
 
-    // quick path
-    // default copy all attributes
-    // if some attribtues exist in this collection, just skip it
-    if(include_names.empty() && exclude_names.empty()) [[likely]]
+    if(_include_names.empty())
+        include_names = other.names();
+
+    filtered_names.reserve(include_names.size());
+
+    std::ranges::sort(include_names);
+    if(!exclude_names.empty())
     {
-        for(auto& [name, slot] : other.m_attributes)
-        {
-            // if the name is not found in the current collection, create a new slot
-            if(m_attributes.find(name) == m_attributes.end())
-            {
-                auto c             = slot->do_clone_empty();
-                m_attributes[name] = c;
-                UIPC_ASSERT(c->is_shared() == false,
-                            "The attribute is shared, why can it happen?");
-                c->attribute().resize(size());
-                c->attribute().copy_from(slot->attribute(), O);
-            }
-        }
-
-        return;
+        std::ranges::sort(exclude_names);
+        std::ranges::set_difference(include_names, exclude_names, std::back_inserter(filtered_names));
+    }
+    else
+    {
+        filtered_names = std::move(include_names);
     }
 
-    // at least one of the include_names or exclude_names is not empty
 
-    vector<std::string> filtered_include_names;
-    do
-    {
-        auto names =
-            include_names.empty() ?
-                other.names() :
-                vector<std::string>{include_names.begin(), include_names.end()};
-
-        if(exclude_names.empty()) [[likely]]
-        {
-            filtered_include_names = std::move(names);
-            break;
-        }
-
-        vector<std::string> sorted_exclude_names{exclude_names.begin(),
-                                                 exclude_names.end()};
-
-        filtered_include_names.reserve(names.size());
-        std::ranges::sort(names);
-        std::ranges::sort(sorted_exclude_names);
-        std::ranges::set_difference(names,
-                                    sorted_exclude_names,
-                                    std::back_inserter(filtered_include_names));
-    } while(0);
-
-    for(const auto& name : filtered_include_names)
+    for(auto& name : filtered_names)
     {
         auto it = other.m_attributes.find(name);
-        UIPC_ASSERT(it != other.m_attributes.end(),
-                    "Attribute [{}] not found in the source collection.",
-                    name);
+        if(it == other.m_attributes.end())
+            throw GeometryAttributeError{
+                fmt::format("Attribute [{}] not found in the source collection.", name)};
 
-        auto& slot         = it->second;
-        auto  c            = slot->do_clone_empty();
-        m_attributes[name] = c;
-        UIPC_ASSERT(c->is_shared() == false, "The attribute is shared, why can it happen?");
-        c->attribute().resize(size());
-        c->attribute().copy_from(slot->attribute(), O);
+        auto other_slot = it->second;
+
+        // optimize for the case that the attribute size is the same
+        if(copy.type() == AttributeCopy::CopyType::SameDim)
+        {
+            // just share
+            UIPC_ASSERT(this->size() == other.size(),
+                        "Attribute size mismatch, "
+                        "dst size is {}, src size is {}, Did you forget to resize the dst attribute collection?",
+                        this->size(),
+                        other.size());
+
+            m_attributes[name] = other_slot->clone();
+
+            continue;
+        }
+
+        // if the name is not found in the current collection, create a new slot
+        if(auto this_it = m_attributes.find(name); this_it == m_attributes.end())
+        {
+            auto c             = other_slot->do_clone_empty();
+            m_attributes[name] = c;
+            UIPC_ASSERT(c->is_shared() == false, "The attribute is shared, why can it happen?");
+            c->attribute().resize(size());
+            c->attribute().copy_from(other_slot->attribute(), copy);
+        }
+        else  // the name is found in the current collection
+        {
+
+            this_it->second->make_owned();
+            this_it->second->attribute().copy_from(other_slot->attribute(), copy);
+        }
     }
 }
 
@@ -181,6 +176,16 @@ vector<std::string> AttributeCollection::names() const
 SizeT AttributeCollection::attribute_count() const
 {
     return m_attributes.size();
+}
+
+Json AttributeCollection::to_json() const
+{
+    Json j = Json::array();
+    for(auto& [name, slot] : m_attributes)
+    {
+        j.push_back(slot->to_json());
+    }
+    return j;
 }
 
 AttributeCollection::AttributeCollection(const AttributeCollection& o)

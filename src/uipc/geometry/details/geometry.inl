@@ -1,6 +1,12 @@
 namespace uipc::geometry
 {
 template <bool IsConst>
+Json uipc::geometry::Geometry::MetaAttributesT<IsConst>::to_json() const
+{
+    return m_attributes.to_json();
+}
+
+template <bool IsConst>
 void Geometry::InstanceAttributesT<IsConst>::resize(size_t size) &&
     requires(!IsConst)
 {
@@ -32,5 +38,10 @@ void Geometry::InstanceAttributesT<IsConst>::destroy(std::string_view name) &&
     requires(!IsConst)
 {
     m_attributes.destroy(name);
+}
+template <bool IsConst>
+Json uipc::geometry::Geometry::InstanceAttributesT<IsConst>::to_json() const
+{
+    return m_attributes.to_json();
 }
 }  // namespace uipc::geometry

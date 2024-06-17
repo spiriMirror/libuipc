@@ -3,6 +3,7 @@
 #include <uipc/common/smart_pointer.h>
 #include <uipc/common/span.h>
 #include <uipc/backend/buffer_view.h>
+#include <uipc/common/json.h>
 
 namespace uipc::geometry
 {
@@ -61,6 +62,11 @@ class UIPC_CORE_API ITopoElements
 
     friend backend::BufferView backend_view(const ITopoElements& simplices) noexcept;
 
+    [[nodiscard]] Json to_json(SizeT i) const;
+
+    [[nodiscard]] Json to_json() const;
+
+
   protected:
     virtual backend::BufferView get_backend_view() const noexcept       = 0;
     virtual SizeT               get_tuple_size() const noexcept         = 0;
@@ -71,6 +77,7 @@ class UIPC_CORE_API ITopoElements
     virtual S<ITopoElements>    do_clone() const                        = 0;
     virtual void                do_reserve(SizeT N)                     = 0;
     virtual void                do_reorder(span<const SizeT> O)         = 0;
+    virtual Json                do_to_json(SizeT i) const               = 0;
 
   private:
     backend::BufferView backend_view() const noexcept;

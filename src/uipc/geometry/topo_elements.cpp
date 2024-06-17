@@ -1,4 +1,5 @@
 #include <uipc/geometry/topo_elements.h>
+#include <uipc/common/range.h>
 
 namespace uipc::geometry
 {
@@ -50,5 +51,17 @@ backend::BufferView ITopoElements::backend_view() const noexcept
 backend::BufferView backend_view(const ITopoElements& e) noexcept
 {
     return e.backend_view();
+}
+Json ITopoElements::to_json(SizeT i) const
+{
+    return do_to_json(i);
+}
+
+Json ITopoElements::to_json() const
+{
+    Json j;
+    for(auto i : range(size()))
+        j.push_back(to_json(i));
+    return j;
 }
 }  // namespace uipc::geometry

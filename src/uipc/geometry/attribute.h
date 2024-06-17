@@ -1,11 +1,13 @@
 #pragma once
 #include <string_view>
-#include <uipc/common/vector.h>
-#include <uipc/common/span.h>
-#include <uipc/common/type_define.h>
+#include <uipc/backend/buffer_view.h>
+#include <uipc/common/json.h>
 #include <uipc/common/macro.h>
 #include <uipc/common/smart_pointer.h>
-#include <uipc/backend/buffer_view.h>
+#include <uipc/common/span.h>
+#include <uipc/common/type_define.h>
+#include <uipc/common/vector.h>
+#include <uipc/geometry/attribute_copy.h>
 
 namespace uipc::geometry
 {
@@ -19,7 +21,11 @@ class UIPC_CORE_API IAttribute
     /**
      * @brief Get the size of the attribute.
      */
-    [[nodiscard]] SizeT size() const;
+    [[nodiscard]] SizeT size() const noexcept;
+
+    [[nodiscard]] Json to_json(SizeT i) const noexcept;
+
+    [[nodiscard]] Json to_json() const noexcept;
 
   private:
     friend class AttributeCollection;
@@ -30,7 +36,7 @@ class UIPC_CORE_API IAttribute
     S<IAttribute> clone_empty() const;
     void          clear();
     void          reorder(span<const SizeT> O) noexcept;
-    void copy_from(const IAttribute& other, span<const SizeT> O) noexcept;
+    void copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept;
 
     friend backend::BufferView backend_view(const IAttribute& a) noexcept;
 
@@ -45,7 +51,10 @@ class UIPC_CORE_API IAttribute
     virtual S<IAttribute> do_clone() const                         = 0;
     virtual S<IAttribute> do_clone_empty() const                   = 0;
     virtual void          do_reorder(span<const SizeT> O) noexcept = 0;
-    virtual void do_copy_from(const IAttribute& other, span<const SizeT> O) noexcept = 0;
+
+    virtual void do_copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept = 0;
+
+    virtual Json do_to_json(SizeT i) const noexcept = 0;
 };
 
 template <typename T>
@@ -71,24 +80,22 @@ class Attribute : public IAttribute
     Attribute<T>& operator=(const Attribute<T>&) = default;
     Attribute<T>& operator=(Attribute<T>&&)      = default;
 
-    friend span<T> view(Attribute<T>& a) noexcept
-    {
-        return a.m_values;
-    }
+    friend span<T> view(Attribute<T>& a) noexcept { return a.m_values; }
 
     [[nodiscard]] span<const T> view() const noexcept;
 
   protected:
-    SizeT               get_size() const override;
-    backend::BufferView get_backend_view() const noexcept override;
+    virtual SizeT               get_size() const override;
+    virtual backend::BufferView get_backend_view() const noexcept override;
 
-    void          do_resize(SizeT N) override;
-    void          do_clear() override;
-    void          do_reserve(SizeT N) override;
-    S<IAttribute> do_clone() const override;
-    S<IAttribute> do_clone_empty() const override;
-    void          do_reorder(span<const SizeT> O) noexcept override;
-    void do_copy_from(const IAttribute& other, span<const SizeT> O) noexcept override;
+    virtual void          do_resize(SizeT N) override;
+    virtual void          do_clear() override;
+    virtual void          do_reserve(SizeT N) override;
+    virtual S<IAttribute> do_clone() const override;
+    virtual S<IAttribute> do_clone_empty() const override;
+    virtual void          do_reorder(span<const SizeT> O) noexcept override;
+    virtual void do_copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept override;
+    virtual Json do_to_json(SizeT i) const noexcept override;
 
   private:
     backend::BufferView m_backend_view;

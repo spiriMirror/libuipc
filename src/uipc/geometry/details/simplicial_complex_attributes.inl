@@ -70,6 +70,14 @@ void SimplicialComplexAttributes<SimplexSlotT>::destroy(std::string_view name)
 }
 
 template <std::derived_from<ISimplexSlot> SimplexSlotT>
+Json SimplicialComplexAttributes<SimplexSlotT>::to_json() const
+{
+    Json json = m_attributes.to_json();
+    json.push_back(m_topology.to_json());
+    return json;
+}
+
+template <std::derived_from<ISimplexSlot> SimplexSlotT>
 SimplicialComplexTopo<SimplexSlotT>::SimplicialComplexTopo(SimplexSlotT& topo)
     : m_topology(topo)
 {

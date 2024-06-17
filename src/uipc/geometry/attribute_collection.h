@@ -4,6 +4,7 @@
 #include <uipc/common/smart_pointer.h>
 #include <uipc/geometry/attribute.h>
 #include <uipc/geometry/attribute_slot.h>
+#include <uipc/geometry/attribute_copy.h>
 
 namespace uipc::geometry
 {
@@ -113,7 +114,7 @@ class UIPC_CORE_API AttributeCollection
      * @param exclude_names The names of the attribute slots not to be copied, the exclude_names has higher priority than include_names.
      */
     void copy_from(const AttributeCollection& other,
-                   span<const SizeT>          O,
+                   const AttributeCopy&       copy,
                    span<const std::string>    include_names = {},
                    span<const std::string>    exclude_names = {});
 
@@ -141,8 +142,13 @@ class UIPC_CORE_API AttributeCollection
 
     /**
      * @brief Get the number of attribute slots.
-	 */
+    */
     SizeT attribute_count() const;
+
+    /**
+    * @brief Get the json representation of the attribute collection.
+    */
+    Json to_json() const;
 
   private:
     SizeT                                         m_size = 0;

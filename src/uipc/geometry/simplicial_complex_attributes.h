@@ -1,6 +1,7 @@
 #pragma once
 #include <uipc/geometry/simplex_slot.h>
 #include <uipc/geometry/attribute_collection.h>
+#include <uipc/common/json.h>
 
 namespace uipc::geometry
 {
@@ -51,6 +52,7 @@ class SimplicialComplexTopo
     [[nodiscard]] bool is_shared() && noexcept;
 
     void share(SimplicialComplexTopo<ConstSimplexSlotT>&& topo) && noexcept;
+
   private:
     template <std::derived_from<ISimplexSlot> SlotT>
     friend class SimplicialComplexAttributes;
@@ -239,13 +241,15 @@ class SimplicialComplexAttributes
     }
 
     void copy_from(ConstSimplicialComplexAttributesT other,
-                   span<const SizeT>                 O,
+                   const AttributeCopy&              copy          = {},
                    span<const std::string>           include_names = {},
                    span<const std::string>           exclude_names = {})
         requires(!IsConst)
     {
-        m_attributes.copy_from(other.m_attributes, O, include_names, exclude_names);
+        m_attributes.copy_from(other.m_attributes, copy, include_names, exclude_names);
     }
+
+    Json to_json() const;
 
   private:
     template <std::derived_from<ISimplexSlot> SlotT>

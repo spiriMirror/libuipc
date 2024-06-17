@@ -8,11 +8,10 @@
 
 namespace uipc::geometry
 {
-SimplicialComplex label_surface(const SimplicialComplex& sc)
+
+void label_surface(SimplicialComplex& R)
 {
     Timer timer{__FUNCTION__};
-
-    auto R = sc;  // share the input mesh
 
     auto v_is_surf = R.vertices().find<IndexT>(builtin::is_surf);
     if(!v_is_surf)
@@ -24,7 +23,7 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
     if(R.dim() == 0)
     {
         std::ranges::fill(view(*v_is_surf), 1);
-        return R;
+        return;
     }
 
     // ----------------------------------------------------------------------------
@@ -43,7 +42,7 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
     {
         std::ranges::fill(view(*v_is_surf), 1);
         std::ranges::fill(view(*e_is_surf), 1);
-        return R;
+        return;
     }
 
     // ----------------------------------------------------------------------------
@@ -65,7 +64,7 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
         std::ranges::fill(view(*v_is_surf), 1);
         std::ranges::fill(view(*e_is_surf), 1);
         std::ranges::fill(view(*f_is_surf), 1);
-        return R;
+        return;
     }
 
     // ----------------------------------------------------------------------------
@@ -259,7 +258,12 @@ SimplicialComplex label_surface(const SimplicialComplex& sc)
             v_is_surf_view[F[2]] = 1;
         }
     }
-
-    return R;
 }
+
+//SimplicialComplex label_surface(const SimplicialComplex& sc)
+//{
+//    SimplicialComplex R = sc;
+//    label_surface(R);
+//    return R;
+//}
 }  // namespace uipc::geometry

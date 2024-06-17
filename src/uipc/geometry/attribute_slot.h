@@ -42,8 +42,13 @@ class UIPC_CORE_API IAttributeSlot
      * @return true, if the underlying attribute is shared, more than one geometries reference to the underlying attribute.
      * @return false, if the underlying attribute is owned, only this geometries reference to the underlying attribute. 
      */
-    [[nodiscard]] bool  is_shared() const noexcept;
+    [[nodiscard]] bool is_shared() const noexcept;
+
     [[nodiscard]] SizeT size() const noexcept;
+
+    [[nodiscard]] Json to_json(SizeT i) const;
+
+    [[nodiscard]] Json to_json() const;
 
     friend backend::BufferView backend_view(const IAttributeSlot&) noexcept;
 
@@ -68,6 +73,7 @@ class UIPC_CORE_API IAttributeSlot
     [[nodiscard]] virtual IAttribute&       get_attribute() noexcept = 0;
     [[nodiscard]] virtual const IAttribute& attribute() const noexcept;
     [[nodiscard]] virtual const IAttribute& get_attribute() const noexcept = 0;
+    [[nodiscard]] virtual Json              do_to_json(SizeT i) const      = 0;
 };
 
 /**
@@ -112,6 +118,8 @@ class AttributeSlot final : public IAttributeSlot
     void                                    do_make_owned() override;
     [[nodiscard]] virtual S<IAttributeSlot> do_clone() const override;
     [[nodiscard]] virtual S<IAttributeSlot> do_clone_empty() const override;
+
+    [[nodiscard]] virtual Json do_to_json(SizeT i) const override;
 
   private:
     std::string     m_name;

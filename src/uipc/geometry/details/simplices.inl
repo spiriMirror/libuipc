@@ -1,3 +1,4 @@
+#include <uipc/common/json_eigen.h>
 namespace uipc::geometry
 {
 template <IndexT N>
@@ -55,6 +56,14 @@ void Simplices<N>::do_reorder(span<const SizeT> O)
     {
         m_simplices[i] = old_simplices[O[i]];
     }
+}
+
+template <IndexT N>
+Json Simplices<N>::do_to_json(SizeT i) const
+{
+    Json j;
+    j = m_simplices[i];
+    return j;
 }
 
 template <IndexT N>

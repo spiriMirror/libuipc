@@ -1,5 +1,6 @@
 #include <uipc/geometry/attribute_collection.h>
 #include <uipc/common/log.h>
+#include "attribute_slot.h"
 
 namespace uipc::geometry
 {
@@ -26,6 +27,19 @@ bool IAttributeSlot::is_shared() const noexcept
 SizeT IAttributeSlot::size() const noexcept
 {
     return attribute().size();
+}
+
+Json IAttributeSlot::to_json(SizeT i) const
+{
+    return do_to_json(i);
+}
+
+Json IAttributeSlot::to_json() const
+{
+    Json j;
+    j["name"]   = name();
+    j["values"] = attribute().to_json();
+    return j;
 }
 
 void IAttributeSlot::make_owned()

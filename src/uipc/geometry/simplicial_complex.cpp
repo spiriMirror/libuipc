@@ -81,6 +81,16 @@ auto SimplicialComplex::tetrahedra() const noexcept -> CTetrahedronAttributes
     return CTetrahedronAttributes(m_asc.m_tetrahedra, m_tetrahedron_attributes);
 }
 
+Json SimplicialComplex::do_to_json() const
+{
+    auto base          = Geometry::do_to_json();
+    base["vertices"]   = vertices().to_json();
+    base["edges"]      = edges().to_json();
+    base["triangles"]  = triangles().to_json();
+    base["tetrahedra"] = tetrahedra().to_json();
+    return base;
+}
+
 IndexT SimplicialComplex::dim() const noexcept
 {
     if(m_asc.m_tetrahedra.size() > 0)

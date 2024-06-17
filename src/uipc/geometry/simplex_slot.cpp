@@ -1,5 +1,5 @@
 #include <uipc/geometry/simplex_slot.h>
-
+#include <uipc/common/range.h>
 namespace uipc::geometry
 {
 bool ISimplexSlot::is_shared() const
@@ -39,6 +39,19 @@ void ISimplexSlot::clear()
 {
     make_owned();
     do_clear();
+}
+
+Json ISimplexSlot::to_json(SizeT i) const noexcept
+{
+    return simplices().to_json(i);
+}
+
+Json ISimplexSlot::to_json() const noexcept
+{
+    Json j;
+    j["name"]   = "topo";
+    j["values"] = simplices().to_json();
+    return j;
 }
 
 void ISimplexSlot::make_owned()
@@ -141,7 +154,7 @@ void VertexSlot::do_clear()
 
 void VertexSlot::do_share(const ISimplexSlot& other)
 {
-    auto& o = static_cast<const VertexSlot&>(other);
+    auto& o     = static_cast<const VertexSlot&>(other);
     m_simplices = o.m_simplices;
 }
 }  // namespace uipc::geometry

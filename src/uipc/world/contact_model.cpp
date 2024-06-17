@@ -1,5 +1,5 @@
 #include <uipc/world/contact_model.h>
-#include <uipc/common/eigen_json.h>
+#include <uipc/common/json_eigen.h>
 
 namespace uipc::world
 {

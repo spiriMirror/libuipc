@@ -1,11 +1,26 @@
 #include <uipc/geometry/attribute.h>
 #include <iostream>
+#include <uipc/common/range.h>
 namespace uipc::geometry
 {
-SizeT IAttribute::size() const
+SizeT IAttribute::size() const noexcept
 {
     return get_size();
 }
+
+Json IAttribute::to_json(SizeT i) const noexcept
+{
+    return do_to_json(i);
+}
+
+Json IAttribute::to_json() const noexcept
+{
+    Json j;
+    for(auto i : range(size()))
+        j.push_back(to_json(i));
+    return j;
+}
+
 void IAttribute::resize(SizeT N)
 {
     do_resize(N);
@@ -35,9 +50,9 @@ void IAttribute::reorder(span<const SizeT> O) noexcept
     do_reorder(O);
 }
 
-void IAttribute::copy_from(const IAttribute& other, span<const SizeT> O) noexcept
+void IAttribute::copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept
 {
-    do_copy_from(other, O);
+    do_copy_from(other, copy);
 }
 
 backend::BufferView IAttribute::backend_view() const noexcept

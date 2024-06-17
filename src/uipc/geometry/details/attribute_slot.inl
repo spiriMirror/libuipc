@@ -57,6 +57,12 @@ S<IAttributeSlot> AttributeSlot<T>::do_clone_empty() const
 }
 
 template <typename T>
+Json AttributeSlot<T>::do_to_json(SizeT i) const
+{
+    return m_attribute->do_to_json(i);
+}
+
+template <typename T>
 IAttribute& AttributeSlot<T>::get_attribute() noexcept
 {
     return *m_attribute;

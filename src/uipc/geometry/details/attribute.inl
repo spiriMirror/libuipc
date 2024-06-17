@@ -1,3 +1,5 @@
+#include <uipc/common/json_eigen.h>
+
 namespace uipc::geometry
 {
 template <typename T>
@@ -60,11 +62,34 @@ void Attribute<T>::do_reorder(span<const SizeT> O) noexcept
     for(SizeT i = 0; i < O.size(); ++i)
         m_values[i] = old_values[O[i]];
 }
+
 template <typename T>
-void Attribute<T>::do_copy_from(const IAttribute& other, span<const SizeT> O) noexcept
+void Attribute<T>::do_copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept
 {
     auto& other_attr = static_cast<const Attribute<T>&>(other);
-    for(SizeT i = 0; i < O.size(); ++i)
-        m_values[i] = other_attr.m_values[O[i]];
+    copy.template copy<T>(m_values, other_attr.m_values);
+}
+
+template <typename T>
+Json Attribute<T>::do_to_json(SizeT i) const noexcept
+{
+    Json j;
+    if constexpr(requires(T t) { Json{t}; })
+    {
+        j = m_values[i];
+    }
+    else if constexpr(requires(T t) { t.to_json(); })
+    {
+        j = m_values[i].to_json();
+    }
+    else if constexpr(requires(T t) { fmt::format("{}", t); })
+    {
+        j = fmt::format("{}", m_values[i]);
+    }
+    else
+    {
+        j = fmt::format("<{}>", typeid(T).name());
+    }
+    return j;
 }
 }  // namespace uipc::geometry

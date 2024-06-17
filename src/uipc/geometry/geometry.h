@@ -17,9 +17,11 @@ class UIPC_CORE_API IGeometry
      */
     [[nodiscard]] std::string_view type() const noexcept;
     virtual ~IGeometry() = default;
+    [[nodiscard]] Json to_json() const;
 
   protected:
     [[nodiscard]] virtual std::string_view get_type() const noexcept = 0;
+    virtual Json                           do_to_json() const        = 0;
 };
 
 /**
@@ -38,6 +40,9 @@ class UIPC_CORE_API Geometry : public IGeometry
 
         using AutoAttributeCollection =
             std::conditional_t<IsConst, const AttributeCollection, AttributeCollection>;
+
+        template <bool _IsConst>
+        friend class MetaAttributesT;
 
       public:
         MetaAttributesT(AutoAttributeCollection& attributes)
@@ -68,6 +73,18 @@ class UIPC_CORE_API Geometry : public IGeometry
             return m_attributes.template create<T>(name, init_value);
         }
 
+
+        void copy_from(MetaAttributesT<true>   other,
+                       const AttributeCopy&    copy          = {},
+                       span<const std::string> include_names = {},
+                       span<const std::string> exclude_names = {}) &&
+            requires(!IsConst)
+        {
+            m_attributes.copy_from(other.m_attributes, copy, include_names, exclude_names);
+        }
+
+        Json to_json() const;
+
       private:
         AutoAttributeCollection& m_attributes;
     };
@@ -82,6 +99,9 @@ class UIPC_CORE_API Geometry : public IGeometry
     class InstanceAttributesT
     {
         friend struct fmt::formatter<InstanceAttributesT<IsConst>>;
+
+        template <bool _IsConst>
+        friend class InstanceAttributesT;
 
         using AutoAttributeCollection =
             std::conditional_t<IsConst, const AttributeCollection, AttributeCollection>;
@@ -140,6 +160,17 @@ class UIPC_CORE_API Geometry : public IGeometry
             return m_attributes.template create<T>(name, init_value);
         }
 
+        void copy_from(InstanceAttributesT<true> other,
+                       const AttributeCopy&      copy          = {},
+                       span<const std::string>   include_names = {},
+                       span<const std::string>   exclude_names = {}) &&
+            requires(!IsConst)
+        {
+            m_attributes.copy_from(other.m_attributes, copy, include_names, exclude_names);
+        }
+
+        Json to_json() const;
+
       private:
         AutoAttributeCollection& m_attributes;
     };
@@ -190,6 +221,8 @@ class UIPC_CORE_API Geometry : public IGeometry
     [[nodiscard]] CInstanceAttributes instances() const;
 
   protected:
+    virtual Json        do_to_json() const override;
+
     AttributeCollection m_intances;
     AttributeCollection m_meta;
 };
@@ -226,4 +259,5 @@ struct UIPC_CORE_API formatter<uipc::geometry::Geometry> : public formatter<stri
     appender format(const uipc::geometry::Geometry& geo, format_context& ctx);
 };
 }  // namespace fmt
+
 #include "details/geometry.inl"

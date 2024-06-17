@@ -44,6 +44,8 @@ class UIPC_CORE_API ISimplices : public ITopoElements
  */
 class UIPC_CORE_API Vertices final : public ISimplices
 {
+    friend class VertexSlot;
+
   public:
     Vertices() = default;
     /**
@@ -65,6 +67,7 @@ class UIPC_CORE_API Vertices final : public ISimplices
     virtual S<ITopoElements>    do_clone() const override;
     virtual void                do_reserve(SizeT N) override;
     virtual void                do_reorder(span<const SizeT> O) override;
+    virtual Json                do_to_json(SizeT i) const override;
 
   private:
     size_t                     m_size = 0;
@@ -72,6 +75,9 @@ class UIPC_CORE_API Vertices final : public ISimplices
     [[nodiscard]] span<IndexT> view();
     backend::BufferView        m_backend_view;
 };
+
+template <IndexT N>
+class SimplexSlot;
 
 /**
  * @brief General class to represent simplices, typically used for edges, triangles, tetrahedra.
@@ -81,6 +87,8 @@ class UIPC_CORE_API Vertices final : public ISimplices
 template <IndexT N>
 class Simplices final : public ISimplices
 {
+    friend class SimplexSlot<N>;
+
   public:
     Simplices() = default;
     /**
@@ -114,6 +122,7 @@ class Simplices final : public ISimplices
     virtual S<ITopoElements> do_clone() const override;
     virtual void             do_reserve(SizeT n) override;
     virtual void             do_reorder(span<const SizeT> O) override;
+    virtual Json             do_to_json(SizeT i) const override;
 };
 
 /**

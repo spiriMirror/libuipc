@@ -5,11 +5,9 @@
 
 namespace uipc::geometry
 {
-SimplicialComplex label_triangle_orient(const SimplicialComplex& sc)
+P<AttributeSlot<IndexT>> label_triangle_orient(SimplicialComplex& R)
 {
-    UIPC_ASSERT(sc.dim() == 3, "Only tetmesh is allowed. Yours dim = {}.", sc.dim());
-
-    SimplicialComplex R = sc;
+    UIPC_ASSERT(R.dim() == 3, "Only tetmesh is allowed. Yours dim = {}.", R.dim());
 
     auto f_is_surf   = R.triangles().find<IndexT>(builtin::is_surf);
     auto f_parent_id = R.triangles().find<IndexT>(builtin::parent_id);
@@ -76,6 +74,6 @@ SimplicialComplex label_triangle_orient(const SimplicialComplex& sc)
         }
     }
 
-    return R;
+    return f_orient;
 }
 }  // namespace uipc::geometry

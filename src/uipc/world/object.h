@@ -68,12 +68,12 @@ class UIPC_CORE_API Object : public IObject
       public:
         template <std::derived_from<geometry::Geometry> GeometryT>
             requires(!std::is_abstract_v<GeometryT>)
-        [[nodiscard]] ObjectGeometrySlots<GeometryT> create(const GeometryT& geometry) &&;
+        ObjectGeometrySlots<GeometryT> create(const GeometryT& geometry) &&;
 
         template <std::derived_from<geometry::Geometry> GeometryT>
             requires(!std::is_abstract_v<GeometryT>)
-        [[nodiscard]] ObjectGeometrySlots<GeometryT> create(const GeometryT& geometry,
-                                                            const GeometryT& rest_geometry) &&;
+        ObjectGeometrySlots<GeometryT> create(const GeometryT& geometry,
+                                              const GeometryT& rest_geometry) &&;
 
         span<const IndexT> ids() && noexcept;
 

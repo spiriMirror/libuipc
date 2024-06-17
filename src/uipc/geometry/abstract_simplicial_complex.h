@@ -68,7 +68,6 @@ class UIPC_CORE_API AbstractSimplicialComplex
      * @return a const slot for tetrahedra
      */
     const TetrahedronSlot& tetrahedra() const noexcept;
-
   private:
     VertexSlot      m_vertices;
     EdgeSlot        m_edges;

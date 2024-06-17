@@ -106,7 +106,7 @@ void tree_consistency_test(const DeviceBuffer<LinearBVHNode>& d_a,
 }
 
 // check if the test result is conservative (i.e., no false negative)
-bool check_cp_conservative(span<Vector2i> test, span<Vector2i> gd)
+void check_cp_conservative(span<Vector2i> test, span<Vector2i> gd)
 {
     auto compare = [](const Vector2i& lhs, const Vector2i& rhs)
     { return lhs[0] < rhs[0] || (lhs[0] == rhs[0] && lhs[1] < rhs[1]); };

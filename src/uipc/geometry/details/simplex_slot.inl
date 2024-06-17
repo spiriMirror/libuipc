@@ -1,3 +1,5 @@
+#include <uipc/common/fmt_eigen.h>
+
 namespace uipc::geometry
 {
 template <IndexT N>
@@ -13,7 +15,7 @@ auto SimplexSlot<N>::view() const noexcept -> span<const ValueT>
 }
 
 template <IndexT N>
-auto view(SimplexSlot<N>& slot)->span<typename SimplexSlot<N>::ValueT>
+auto view(SimplexSlot<N>& slot) -> span<typename SimplexSlot<N>::ValueT>
 {
     slot.do_make_owned();
     return view(*slot.m_simplices);
@@ -84,6 +86,6 @@ template <IndexT N>
 void SimplexSlot<N>::do_share(const ISimplexSlot& other)
 {
     const auto& other_slot = static_cast<const SimplexSlot<N>&>(other);
-    m_simplices = other_slot.m_simplices;
+    m_simplices            = other_slot.m_simplices;
 }
 }  // namespace uipc::geometry

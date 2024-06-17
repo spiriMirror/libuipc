@@ -9,6 +9,11 @@ std::string_view IGeometry::type() const noexcept
     return get_type();
 }
 
+Json IGeometry::to_json() const
+{
+    return do_to_json();
+}
+
 Geometry::Geometry()
 {
     m_meta.resize(1);      // only one meta for one geometries
@@ -44,6 +49,13 @@ auto Geometry::instances() -> InstanceAttributes
 auto Geometry::instances() const -> CInstanceAttributes
 {
     return CInstanceAttributes{m_intances};
+}
+Json Geometry::do_to_json() const
+{
+    Json j;
+    j["meta"]      = m_meta.to_json();
+    j["instances"] = m_intances.to_json();
+    return j;
 }
 }  // namespace uipc::geometry
 

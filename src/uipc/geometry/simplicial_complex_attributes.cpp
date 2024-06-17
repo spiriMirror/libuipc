@@ -1,4 +1,5 @@
 #include <uipc/geometry/simplicial_complex_attributes.h>
+#include <uipc/geometry/simplicial_complex_attributes.h>
 
 namespace uipc::geometry
 {

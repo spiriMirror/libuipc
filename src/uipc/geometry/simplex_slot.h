@@ -1,6 +1,7 @@
 #pragma once
 #include <uipc/common/smart_pointer.h>
 #include <uipc/geometry/simplices.h>
+#include <uipc/common/json.h>
 
 namespace uipc::geometry
 {
@@ -43,6 +44,9 @@ class UIPC_CORE_API ISimplexSlot
     void resize(SizeT size);
     void reserve(SizeT capacity);
     void clear();
+
+    Json to_json(SizeT i) const noexcept;
+    Json to_json() const noexcept;
 
   protected:
     friend class AbstractSimplicialComplex;
