@@ -39,6 +39,8 @@ TEST_CASE("spreadsheet", "[io]")
 
     // dump the surface to csv
     sio.write_csv("spreadsheet_surf", mesh_surface);
+    // dump the surface to json
+    sio.write_json("spreadsheet_surf", mesh_surface);
 
     // write the surface to obj
     io.write_obj(fmt::format("{}cylinder_hole.obj", AssetDir::output_path()), mesh_surface);
