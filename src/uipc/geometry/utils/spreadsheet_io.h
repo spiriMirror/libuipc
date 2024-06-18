@@ -2,6 +2,19 @@
 #include <uipc/geometry/simplicial_complex.h>
 namespace uipc::geometry
 {
+/**
+ * @brief A class for writing geometry spreadsheet.
+ * 
+ * @code
+ *  SimplicialComplexIO io;
+ *  auto mesh = io.read("cube.msh");
+ *  SpreadSheetIO sio;
+ *  // dump to csv
+ *  sio.write_csv("spreadsheet", mesh);
+ *  // dump to json
+ *  sio.write_json("spreadsheet", mesh);
+ * @endcode
+ */
 class UIPC_CORE_API SpreadSheetIO
 {
   public:

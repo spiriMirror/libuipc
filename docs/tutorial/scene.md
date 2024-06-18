@@ -25,8 +25,8 @@ We need to create a constitution for the object. Here we use the `AffineBodyCons
 auto& constitution_tabular = scene.constitution_tabular();
 // create a constitution
 auto& abd = constitution_tabular.create<AffineBodyConstitution>();
-// create a material with affine body stiffness 1e8 Pa
-auto abd_material = abd.create_material(1e8 /*Pa*/);
+// create a material with affine body stiffness 100 MPa
+auto abd_material = abd.create_material(100.0_MPa);
 ```
 To simulate the contact behavior of the object, we need to create a contact model. Note that the contact model has a pairwised relationship. For example, a contact tabular among wood, steel, and rubber can be defined as follows (imaginary values, just for demonstration):
 
@@ -41,8 +41,8 @@ auto& contact_tabular = scene.contact_tabular();
 // create a contact element
 auto& wood_contact = contact_tabular.create("wood");
 // create self-contact model
-// friction coefficient is 0.5, restitution coefficient is 1e8
-contact_tabular.insert(wood_contact, wood_contact, 0.5, 1e8);
+// friction coefficient is 0.5, restitution coefficient is 100 MPa
+contact_tabular.insert(wood_contact, wood_contact, 0.5, 100.0_MPa);
 ```
 
 Now we can create a wooden cube object in the scene.
@@ -69,7 +69,7 @@ A short summary of creating a scene:
 3. apply constitutions and contact elements to the geometries
 4. create objects
 
-# Object
+## Object
 
 Object in `libuipc` is a representation of the concrete entity in real world. It is something that touchable, visible, and can be interacted with. An object can be composed of one or more geometries, and each geometry can have its own constitution and contact model. 
 

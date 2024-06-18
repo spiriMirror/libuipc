@@ -1,5 +1,5 @@
-#include <uipc/geometry/io.h>
-#include <uipc/geometry/factory.h>
+#include <uipc/geometry/utils/io.h>
+#include <uipc/geometry/utils/factory.h>
 #include <igl/readMSH.h>
 #include <uipc/common/format.h>
 #include <uipc/common/enumerate.h>
@@ -7,15 +7,32 @@
 #include <igl/read_triangle_mesh.h>
 #include <igl/writeOBJ.h>
 #include <uipc/builtin/attribute_name.h>
+#include <Eigen/Geometry>
 
 namespace uipc::geometry
 {
+SimplicialComplexIO::SimplicialComplexIO(const Matrix4x4& pre_transform) noexcept
+    : m_pre_transform{pre_transform}
+{
+}
+
+SimplicialComplexIO::SimplicialComplexIO(const Transform& pre_transform) noexcept
+    : m_pre_transform{pre_transform.matrix()}
+{
+}
+
 template <typename T>
 using RowMajorMatrix =
     Eigen::Matrix<T, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 using Eigen::VectorXi;
 
 namespace fs = std::filesystem;
+
+
+void SimplicialComplexIO::apply_pre_transform(Vector3& v) const noexcept
+{
+    v = (m_pre_transform * v.homogeneous()).head<3>();
+}
 
 SimplicialComplex SimplicialComplexIO::read(std::string_view file_name)
 {
@@ -52,7 +69,10 @@ SimplicialComplex SimplicialComplexIO::read_msh(std::string_view file_name)
     vector<Vector3> Vs;
     Vs.resize(X.rows());
     for(auto&& [i, v] : enumerate(Vs))
+    {
         v = X.row(i);
+        apply_pre_transform(v);
+    }
     vector<Vector4i> Ts;
     Ts.resize(T.rows());
     for(auto&& [i, t] : enumerate(Ts))
@@ -76,7 +96,10 @@ SimplicialComplex SimplicialComplexIO::read_obj(std::string_view file_name)
     vector<Vector3> Vs;
     Vs.resize(X.rows());
     for(auto&& [i, v] : enumerate(Vs))
+    {
         v = X.row(i);
+        apply_pre_transform(v);
+    }
     vector<Vector3i> Fs;
     Fs.resize(F.rows());
     for(auto&& [i, f] : enumerate(Fs))

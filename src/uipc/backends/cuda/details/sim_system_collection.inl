@@ -2,7 +2,7 @@
 #include <sim_system.h>
 namespace uipc::backend::cuda
 {
-template <std::derived_from<SimSystem> T>
+template <std::derived_from<ISimSystem> T>
 T* SimSystemCollection::find()
 {
     auto tid = typeid(T).hash_code();

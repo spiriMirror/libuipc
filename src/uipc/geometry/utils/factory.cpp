@@ -1,4 +1,4 @@
-#include <uipc/geometry/factory.h>
+#include <uipc/geometry/utils/factory.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/utils/closure.h>
 namespace uipc::geometry

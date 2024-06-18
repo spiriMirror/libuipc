@@ -3,18 +3,25 @@
 
 namespace uipc::engine
 {
+static std::string to_lower(std::string_view s)
+{
+    std::string result{s};
+    std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+    return result;
+}
+
 class UIPCEngine::Impl
 {
-    std::string m_backend_name;
-    dylib       m_module;
-    using Deleter      = void (*)(IEngine*);
-    IEngine* m_engine  = nullptr;
-    Deleter  m_deleter = nullptr;
+    std::string          m_backend_name;
+    dylib                m_module;
+    using Deleter                  = void (*)(IEngine*);
+    IEngine*             m_engine  = nullptr;
+    Deleter              m_deleter = nullptr;
 
   public:
     Impl(std::string_view backend_name)
         : m_backend_name(backend_name)
-        , m_module{fmt::format("uipc_backend_{}", backend_name)}
+        , m_module{fmt::format("uipc_backend_{}", to_lower(backend_name))}
     {
         auto creator = m_module.get_function<IEngine*()>("uipc_create_engine");
         if(!creator)

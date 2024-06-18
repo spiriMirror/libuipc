@@ -64,6 +64,7 @@ void SceneIO::write_surface_obj(std::string_view filename)
     if(simplicial_complex_has_surf.empty())
     {
         UIPC_WARN_WITH_LOCATION("No simplicial complex with surface found.");
+        return;
     }
 
     // 2) merge all the surfaces

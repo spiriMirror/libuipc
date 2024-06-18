@@ -1,15 +1,14 @@
 #pragma once
-#include <muda/ext/eigen/eigen_cxx20.h>
+#include <type_define.h>
 #include <uipc/backend/macro.h>
 #include <uipc/engine/engine.h>
 #include <sstream>
 #include <sim_system_collection.h>
+#include <sim_action.h>
+#include <sim_engine_state.h>
 
 namespace uipc::backend::cuda
 {
-class SimSystem;
-class SimSystemCollection;
-
 class UIPC_BACKEND_API SimEngine : public engine::IEngine
 {
     class DeviceCommon;
@@ -23,11 +22,7 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     SimEngine(const SimEngine&)            = delete;
     SimEngine& operator=(const SimEngine&) = delete;
 
-    DeviceCommon& device_common() noexcept;
     WorldVisitor& world() noexcept;
-
-    template <std::derived_from<SimSystem> T>
-    T* find();
 
   protected:
     void do_init(backend::WorldVisitor v) override;
@@ -36,10 +31,19 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     void do_retrieve() override;
 
   private:
+    DeviceCommon&       device_common() noexcept;
     U<DeviceCommon>     m_device_common;
     std::stringstream   m_string_stream;
     U<WorldVisitor>     m_world_visitor;
     SimSystemCollection m_system_collection;
+    list<SimAction>     m_on_init_scene;
+    SimEngineState      m_state = SimEngineState::None;
+
+    // Events
+    void event_init_scene();
+
+    template <std::derived_from<ISimSystem> T>
+    T* find();
 };
 }  // namespace uipc::backend::cuda
 

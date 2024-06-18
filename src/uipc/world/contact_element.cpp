@@ -31,6 +31,7 @@ P<geometry::AttributeSlot<IndexT>> ContactElement::apply_to(geometry::Geometry& 
         auto view    = geometry::view(*slot);
         view.front() = id();
     }
+    
     return slot;
 }
 

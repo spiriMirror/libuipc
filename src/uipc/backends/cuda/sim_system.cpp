@@ -1,6 +1,7 @@
 #include <sim_system.h>
 #include <typeinfo>
 #include <sim_engine.h>
+#include <magic_enum.hpp>
 
 namespace uipc::backend::cuda
 {
@@ -9,27 +10,22 @@ SimSystem::SimSystem(SimEngine& sim_engine) noexcept
 {
 }
 
-std::string_view SimSystem::name() const noexcept
+void SimSystem::on_init_scene(std::function<void()>&& action)
 {
-    return get_name();
+    UIPC_ASSERT(m_sim_engine.m_state == SimEngineState::BuildSystems,
+                "`on_init_scene()` can only be called in `build()`({}), but current state ({}).",
+                magic_enum::enum_name(m_sim_engine.m_state),
+                magic_enum::enum_name(m_sim_engine.m_state));
+    m_sim_engine.m_on_init_scene.emplace_back(*this, std::move(action));
 }
 
-SimEngine& uipc::backend::cuda::SimSystem::engine() noexcept
-{
-    return m_sim_engine;
-}
-
-const SimEngine& SimSystem::engine() const noexcept
-{
-    return m_sim_engine;
-}
-
-std::string_view SimSystem::get_name() const noexcept
-{
-    return typeid(*this).name();
-}
 SimSystemCollection& SimSystem::collection()
 {
     return m_sim_engine.m_system_collection;
+}
+
+WorldVisitor& SimSystem::world()
+{
+    return m_sim_engine.world();
 }
 }  // namespace uipc::backend::cuda

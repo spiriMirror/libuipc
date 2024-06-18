@@ -4,11 +4,11 @@
 
 namespace uipc::backend::cuda
 {
-void SimSystemCollection::create(U<SimSystem> system)
+void SimSystemCollection::create(U<ISimSystem> system)
 {
-    auto& s = *system;
-    U64  tid = typeid(s).hash_code();
-    auto it  = m_sim_systems.find(tid);
+    auto& s   = *system;
+    U64   tid = typeid(s).hash_code();
+    auto  it  = m_sim_systems.find(tid);
     UIPC_ASSERT(it == m_sim_systems.end(), "SimSystem already exists, why can it happen?");
 
     m_sim_systems.insert({tid, std::move(system)});

@@ -1,6 +1,5 @@
 #pragma once
 #include <sim_system.h>
-#include <sim_engine.h>
 
 namespace uipc::backend::cuda
 {
@@ -9,6 +8,8 @@ class AffineBodyGeometry : public SimSystem
   public:
     using SimSystem::SimSystem;
 
-    virtual void build() noexcept override;
+    virtual void build() override;
+
+    void init_affine_body_geometry();
 };
 }  // namespace uipc::backend::cuda

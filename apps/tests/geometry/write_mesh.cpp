@@ -1,6 +1,6 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
-#include <uipc/geometry/io.h>
+#include <uipc/geometry/utils/io.h>
 #include <uipc/common/format.h>
 
 using namespace uipc;

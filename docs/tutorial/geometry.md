@@ -276,8 +276,33 @@ For example, you can create a meta attribute to store the name of the geometry.
 auto name = meta.create<std::string>("name", "some cubes");
 ```
 
+### Spreadsheets
 
+`Libuipc` provides a handy way to visualize the geometry information, which is called `spreadsheets` (the same idea as the `Geometry Spreadsheet` in the `Houdini` software).
 
+All the attributes of the geometry can be described as serveral tables, which are called `spreadsheets`. To use the `spreadsheets`, you need to include the header file `#include <uipc/geometry/utils/spreadsheet_io.h>`.
+
+```cpp
+SimplicialComplexIO io;
+auto mesh = io.read("cube.msh");
+SpreadSheetIO sio;
+// dump to csv
+sio.write_csv("spreadsheet", mesh);
+// dump to json
+sio.write_json("spreadsheet", mesh);
+```
+See also the [SimplicialComplexIO](../../Libuipc/classuipc_1_1geometry_1_1_spread_sheet_i_o/).
+
+After writing the spreadsheets to the disk, you can open them with any spreadsheet or json viewer you like.
+
+The following figures using the VSCode extensions:
+
+| CSV                                      | Json                                      |
+| ---------------------------------------- | ----------------------------------------- |
+| ![](geometry.assets/spreadsheet_csv.png) | ![](geometry.assets/spreadsheet_json.png) |
+| [Excel Viewer](https://marketplace.visualstudio.com/items?itemName=GrapeCity.gc-excelviewer) | [Json Grid](https://marketplace.visualstudio.com/items?itemName=DutchIgor.json-viewer) |
+
+It's a very convenient way to check the geometry information. If you are interested in some geometry operations, you can write the results to the spreadsheets and check them with the viewer.
 
 ## Quad Mesh
 [TODO]

@@ -30,6 +30,7 @@ The following dependencies are 3rd-party libraries that we use in the project. D
 | nlohmann_json                          | 3.11.2  | json file IO                                        | package        |
 | imgui                                  | 1.90.7  | GUI                                                 | package        |
 | glfw3                                  | 3.3.8#2 | window management                                   | package        |
+| magic_enum                             | 0.9.3   | enum to string                                      | package        |
 
 ## Build
 We use Vcpkg to manage the libraries we need and use CMake to build the project. 

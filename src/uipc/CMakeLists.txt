@@ -5,10 +5,12 @@ find_package(nlohmann_json REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(cppitertools CONFIG REQUIRED)
 find_path(DYLIB_INCLUDE_DIRS "dylib.hpp")
+find_package(magic_enum CONFIG REQUIRED)
 
 add_library(uipc SHARED)
 add_library(uipc::uipc ALIAS uipc)
 target_compile_features(uipc PUBLIC cxx_std_20)
+
 
 # ------------------------------------------------------------------------------
 # set the compile definitions
@@ -31,6 +33,7 @@ target_include_directories(uipc PRIVATE "${DYLIB_INCLUDE_DIRS}")
 file(GLOB SOURCE "*.h" "*.cpp")
 target_sources(uipc PRIVATE ${SOURCE})
 
+
 # ------------------------------------------------------------------------------
 # set the target link libraries
 # ------------------------------------------------------------------------------
@@ -42,6 +45,7 @@ target_link_libraries(uipc PUBLIC
     # rapidcsv
     fmt::fmt
     cppitertools::cppitertools
+    magic_enum::magic_enum
 )
 
 

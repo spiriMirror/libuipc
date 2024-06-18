@@ -3,15 +3,16 @@
 #include <uipc/common/smart_pointer.h>
 #include <uipc/common/list.h>
 #include <type_traits>
+#include <i_sim_system.h>
 
 namespace uipc::backend::cuda
 {
 class SimEngine;
-class SimSystem;
+
 class SimSystemAutoRegisterInternalData
 {
   public:
-    std::list<std::function<U<SimSystem>(SimEngine&)>> m_entries;
+    list<std::function<U<ISimSystem>(SimEngine&)>> m_entries;
 };
 
 
@@ -21,14 +22,14 @@ namespace detail
     concept SimSystemHasAdvancedCreator = requires(SimEngine& engine) {
         {
             // 1) is derived from SimSystem
-            std::is_base_of_v<SimSystem, SimSystemT>&&
+            std::is_base_of_v<ISimSystem, SimSystemT>&&
             // 2) has a static `advanced_creator` method
             SimSystemT::advanced_creator(engine)
-        } -> std::convertible_to<U<SimSystem>>;
+        } -> std::convertible_to<U<ISimSystem>>;
     };
 
-    template <std::derived_from<SimSystem> SimSystemT>
-    std::function<U<SimSystem>(SimEngine&)> register_system_creator()
+    template <std::derived_from<ISimSystem> SimSystemT>
+    std::function<U<ISimSystem>(SimEngine&)> register_system_creator()
     {
         if constexpr(SimSystemHasAdvancedCreator<SimSystemT>)
         {
@@ -49,7 +50,7 @@ class SimSystemAutoRegister
     friend class SimEngine;
 
   public:
-    SimSystemAutoRegister(std::function<U<SimSystem>(SimEngine&)>&& reg);
+    SimSystemAutoRegister(std::function<U<ISimSystem>(SimEngine&)>&& reg);
 
   private:
     static SimSystemAutoRegisterInternalData& internal_data();

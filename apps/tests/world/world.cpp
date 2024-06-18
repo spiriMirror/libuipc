@@ -6,6 +6,7 @@
 #include <uipc/engine/engine.h>
 #include <uipc/geometry.h>
 #include <uipc/constitutions/affine_body.h>
+#include <uipc/common/unit.h>
 
 using namespace uipc;
 using namespace uipc::world;
@@ -54,7 +55,7 @@ TEST_CASE("simple_world", "[world]")
 
     // apply the constitution to the geometry
     // all the instances will have the same constitution
-    abd.apply_to(mesh, 1e8);
+    abd.apply_to(mesh, 100.0_MPa);
 
     // copy_from the mesh to the object
     // to create the geometry and the rest geometry for simulation

@@ -1,6 +1,6 @@
 #include <uipc/constitutions/affine_body.h>
 #include <uipc/builtin/constitution_uid_register.h>
-
+#include <uipc/builtin/attribute_name.h>
 namespace uipc::constitution
 {
 P<geometry::AttributeSlot<Float>> AffineBodyMaterial::apply_to(geometry::SimplicialComplex& sc) const
@@ -33,7 +33,6 @@ std::string_view AffineBodyConstitution::get_name() const noexcept
 
 P<geometry::AttributeSlot<Float>> AffineBodyConstitution::create_or_get(geometry::SimplicialComplex& sc) const
 {
-    Base::apply_to(sc);
     auto P = sc.instances().find<Float>("abd::kappa");
     if(!P)
         P = sc.instances().create<Float>("abd::kappa");
@@ -43,6 +42,12 @@ P<geometry::AttributeSlot<Float>> AffineBodyConstitution::create_or_get(geometry
 P<geometry::AttributeSlot<Float>> AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
                                                                    Float kappa) const
 {
+    Base::apply_to(sc);
+
+    auto is_fixed = sc.instances().find<IndexT>(builtin::is_fixed);
+    if(!is_fixed)
+        is_fixed = sc.instances().create<IndexT>(builtin::is_fixed, 0);
+
     auto P = create_or_get(sc);
     auto v = geometry::view(*P);
     std::ranges::fill(v, kappa);

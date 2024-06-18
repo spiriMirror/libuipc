@@ -54,6 +54,11 @@ UIPC_BUILTIN_ATTRIBUTE(orient);
  * @brief `parent_id` attribute, indicates the parent simplex id 
  */
 UIPC_BUILTIN_ATTRIBUTE(parent_id);
+
+/**
+ * @brief `is_fixed` attribute, indicates if the instance or vertex is fixed.
+ */
+UIPC_BUILTIN_ATTRIBUTE(is_fixed);
 }  // namespace uipc::builtin
 
 #undef UIPC_BUILTIN_ATTRIBUTE

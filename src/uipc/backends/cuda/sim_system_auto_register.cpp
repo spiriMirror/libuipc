@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-SimSystemAutoRegister::SimSystemAutoRegister(std::function<U<SimSystem>(SimEngine&)>&& reg)
+SimSystemAutoRegister::SimSystemAutoRegister(std::function<U<ISimSystem>(SimEngine&)>&& reg)
 {
     internal_data().m_entries.push_back(std::move(reg));
 }
