@@ -11,7 +11,7 @@ namespace uipc::backend::cuda
 {
 class UIPC_BACKEND_API SimEngine : public engine::IEngine
 {
-    class DeviceCommon;
+    class DeviceImpl;
     friend class SimSystem;
 
   public:
@@ -22,7 +22,8 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     SimEngine(const SimEngine&)            = delete;
     SimEngine& operator=(const SimEngine&) = delete;
 
-    WorldVisitor& world() noexcept;
+    WorldVisitor&  world() noexcept;
+    SimEngineState state() const noexcept;
 
   protected:
     void do_init(backend::WorldVisitor v) override;
@@ -31,19 +32,25 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     void do_retrieve() override;
 
   private:
-    DeviceCommon&       device_common() noexcept;
-    U<DeviceCommon>     m_device_common;
+    DeviceImpl&         device_impl() noexcept;
+    U<DeviceImpl>       m_device_impl;
     std::stringstream   m_string_stream;
     U<WorldVisitor>     m_world_visitor;
     SimSystemCollection m_system_collection;
-    list<SimAction>     m_on_init_scene;
     SimEngineState      m_state = SimEngineState::None;
 
     // Events
-    void event_init_scene();
+    list<SimAction> m_on_init_scene;
+    void            event_init_scene();
+    list<SimAction> m_on_rebuild_scene;
+    void            event_rebuild_scene();
+    list<SimAction> m_on_write_scene;
+    void            event_write_scene();
 
     template <std::derived_from<ISimSystem> T>
     T* find();
+
+    void register_all_systems();  // called in do_init() only.
 };
 }  // namespace uipc::backend::cuda
 

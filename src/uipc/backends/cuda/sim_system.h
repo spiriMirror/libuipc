@@ -3,8 +3,9 @@
 
 #include <i_sim_system.h>
 #include <sim_action.h>
-#include <sim_system_auto_register.h>
 #include <string_view>
+#include <sim_engine_state.h>
+#include <sim_system_auto_register.h>
 #include <uipc/backend/visitors/world_visitor.h>
 
 namespace uipc::backend::cuda
@@ -30,12 +31,29 @@ class SimSystem : public ISimSystem
      * 
      * This function can only be called in build() function
      */
-    void          on_init_scene(std::function<void()>&& action);
+    void on_init_scene(std::function<void()>&& action) noexcept;
 
-    WorldVisitor& world();
+    /**
+     * @brief register an action to be executed when the scene is rebuilt
+     * 
+     * This function can only be called in build() function
+     */
+    void on_rebuild_scene(std::function<void()>&& action) noexcept;
+
+    /**
+     * @brief register an action to be executed when the scene is written
+     * 
+     * This function can only be called in build() function
+     */
+    void on_write_scene(std::function<void()>&& action) noexcept;
+
+    WorldVisitor& world() noexcept;
+
+    void check_state(SimEngineState state, std::string_view function_name) noexcept;
+
   private:
     SimEngine&           m_sim_engine;
-    SimSystemCollection& collection();
+    SimSystemCollection& collection() noexcept;
 };
 }  // namespace uipc::backend::cuda
 

@@ -5,6 +5,13 @@ namespace uipc::world
 // ----------------------------------------------------------------------------
 // Scene
 // ----------------------------------------------------------------------------
+
+Scene::Scene()
+{
+    m_info["dt"]      = 0.01;
+    m_info["gravity"] = Vector3{0.0, -9.8, 0.0};
+}
+
 ContactTabular& Scene::contact_tabular() noexcept
 {
     return m_contact_tabular;
@@ -42,6 +49,11 @@ auto Scene::geometries() noexcept -> Geometries
 auto Scene::geometries() const noexcept -> CGeometries
 {
     return CGeometries{*this};
+}
+
+const Json& Scene::info() const noexcept
+{
+    return m_info;
 }
 
 void Scene::solve_pending() noexcept

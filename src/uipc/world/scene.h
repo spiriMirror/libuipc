@@ -74,7 +74,7 @@ class UIPC_CORE_API Scene
         const Scene& m_scene;
     };
 
-    Scene() = default;
+    Scene();
 
     ContactTabular&       contact_tabular() noexcept;
     const ContactTabular& contact_tabular() const noexcept;
@@ -88,7 +88,10 @@ class UIPC_CORE_API Scene
     Geometries  geometries() noexcept;
     CGeometries geometries() const noexcept;
 
+    const Json& info() const noexcept;
+
   private:
+    Json                m_info;
     ContactTabular      m_contact_tabular;
     ConstitutionTabular m_constitution_tabular;
     ObjectCollection    m_objects;

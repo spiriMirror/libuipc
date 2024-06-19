@@ -20,36 +20,32 @@ void say_hello_from_muda()
 }
 
 SimEngine::SimEngine()
-    : m_device_common(std::make_unique<DeviceCommon>())
+    : m_device_impl(std::make_unique<DeviceImpl>())
 {
-
     LogGuard guard;
 
     spdlog::info("Cuda Backend Init Success.");
 
     using namespace muda;
 
-    if(!cout)
-    {
-        auto viewer_ptr         = device_logger_viewer_ptr();
-        m_device_common->logger = std::make_unique<muda::Logger>(viewer_ptr);
+    auto viewer_ptr       = device_logger_viewer_ptr();
+    m_device_impl->logger = std::make_unique<muda::Logger>(viewer_ptr);
 
-        Debug::set_sync_callback(
-            [this]
-            {
-                m_string_stream.str("");
-                m_device_common->logger->retrieve(m_string_stream);
-                if(m_string_stream.str().empty())
-                    return;
+    Debug::set_sync_callback(
+        [this]
+        {
+            m_string_stream.str("");
+            m_device_impl->logger->retrieve(m_string_stream);
+            if(m_string_stream.str().empty())
+                return;
 
-                std::string str = m_string_stream.str();
-                spdlog::info(R"([Kernel Console] 
+            std::string str = m_string_stream.str();
+            spdlog::info(R"([Kernel Console] 
 -------------------------------------------------------------------------------
 {}
 -------------------------------------------------------------------------------)",
-                             str);
-            });
-    }
+                         str);
+        });
 
     say_hello_from_muda();
 }
@@ -64,5 +60,10 @@ SimEngine::~SimEngine()
     muda::Debug::set_sync_callback(nullptr);
 
     spdlog::info("Cuda Backend Shutdown Success.");
+}
+
+auto SimEngine::device_impl() noexcept -> DeviceImpl&
+{
+    return *m_device_impl;
 }
 }  // namespace uipc::backend::cuda

@@ -69,7 +69,7 @@ void SceneIO::write_surface_obj(std::string_view filename)
 
     // 2) merge all the surfaces
     SimplicialComplex merged_surface = extract_surface(simplicial_complex_has_surf);
-    spdlog::info("Merged Scene Surface:\n{}", merged_surface);
+    // spdlog::info("Merged Scene Surface:\n{}", merged_surface);
 
 
     // 3) write the merged surface to file

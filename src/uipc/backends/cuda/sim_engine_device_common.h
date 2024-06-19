@@ -5,7 +5,7 @@
 
 namespace uipc::backend::cuda
 {
-class SimEngine::DeviceCommon
+class UIPC_BACKEND_API SimEngine::DeviceImpl
 {
   public:
     U<muda::Logger> logger;

@@ -10,28 +10,23 @@ void SimEngine::do_init(backend::WorldVisitor v)
 {
     LogGuard guard;
 
-    spdlog::info("do_init() called.");
-
     m_world_visitor = std::make_unique<backend::WorldVisitor>(v);
 
     // 1) Register all systems
-    auto& funcs = SimSystemAutoRegister::internal_data().m_entries;
-    for(auto& f : funcs)
-    {
-        auto uptr = f(*this);
-        if(uptr)
-            m_system_collection.create(std::move(uptr));
-    }
-
-    spdlog::info("Registered Systems:\n{}", m_system_collection);
+    m_state = SimEngineState::RegisterSystems;
+    register_all_systems();
 
     // 2) Build the relationships between systems
     m_state = SimEngineState::BuildSystems;
     for(auto&& [k, s] : m_system_collection.m_sim_systems)
         s->build();
 
-    // 3) trigger the init_scene event, systems register their actions will be called here
+    // 3) Trigger the init_scene event, systems register their actions will be called here
     m_state = SimEngineState::InitScene;
     event_init_scene();
+
+    // 4) Any creation and deletion of objects after this point will be pending
+    auto scene_visitor = m_world_visitor->scene();
+    scene_visitor.begin_pending();
 }
 }  // namespace uipc::backend::cuda

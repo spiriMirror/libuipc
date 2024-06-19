@@ -6,7 +6,6 @@ namespace uipc::backend::cuda
 void SimEngine::do_retrieve()
 {
     LogGuard guard;
-
-    spdlog::info("do_retrieve() called.");
+    event_write_scene();
 }
 }  // namespace uipc::backend::cuda

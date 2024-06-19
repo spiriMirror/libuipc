@@ -4,8 +4,10 @@ namespace uipc::backend::cuda
 {
 enum class SimEngineState
 {
-    None         = 0,
-    BuildSystems = 1,
-    InitScene    = 2,
+    None = 0,
+    RegisterSystems,
+    BuildSystems,
+    InitScene,
+    RebuildScene
 };
 }
