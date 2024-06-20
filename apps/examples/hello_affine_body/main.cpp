@@ -27,11 +27,24 @@ int main()
         auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
         auto default_contact = scene.contact_tabular().default_element();
 
-        // create geometry
+
         Transform pre_transform = Transform::Identity();
         pre_transform.scale(0.2);
         SimplicialComplexIO io{pre_transform};
 
+        {
+            // just for test, add a useless object which won't be simulated
+            auto useless_mesh = io.read(fmt::format("{}tet.msh", tetmesh_dir));
+            label_surface(useless_mesh);
+            label_triangle_orient(useless_mesh);
+
+            auto useless_object = scene.objects().create("useless");
+            {
+                useless_object->geometries().create(useless_mesh);
+            }
+        }
+
+        // create geometry
         auto mesh = io.read(fmt::format("{}cube.msh", tetmesh_dir));
 
         label_surface(mesh);

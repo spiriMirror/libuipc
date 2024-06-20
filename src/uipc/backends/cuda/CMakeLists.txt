@@ -1,17 +1,9 @@
-# An empty backend, for testing purposes
 uipc_add_backend(cuda)
 
-file(GLOB SOURCES "*.cpp" "*.h" "*.cu" "details/*.inl")
-
-target_sources(cuda PRIVATE ${SOURCES})
-
+# basic setup
 target_link_libraries(cuda PUBLIC muda)
-
 target_compile_features(cuda PUBLIC cxx_std_20)
-# target_compile_options(cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-std=c++20>)
-
 target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
-
 set_target_properties(cuda PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
@@ -19,10 +11,17 @@ set_target_properties(cuda PROPERTIES
     CUDA_INCLUDE_WHAT_YOU_USE ON
 )
 
+# add subdirectories
+add_subdirectory(collision_detection)
+add_subdirectory(affine_body)
+
+# source files in this directory
+file(GLOB SOURCES "*.cpp" "*.h" "*.cu" "details/*.inl")
+target_sources(cuda PRIVATE ${SOURCES})
+
 # Group files in IDE
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCES})
-
-
+file(GLOB_RECURSE ALL_SOURCES "*.cpp" "*.h" "*.cu" "*.inl")
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${ALL_SOURCES})
 
 if(MSVC)
     # Disable some warnings 

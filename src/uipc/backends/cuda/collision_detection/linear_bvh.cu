@@ -1,4 +1,4 @@
-#include <linear_bvh.h>
+#include <collision_detection/linear_bvh.h>
 
 #include <muda/cub/device/device_scan.h>
 #include <muda/cub/device/device_reduce.h>

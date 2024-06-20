@@ -1,5 +1,11 @@
 namespace uipc::geometry
 {
+template <std::derived_from<Geometry> T>
+T* Geometry::as()
+{
+    return dynamic_cast<T*>(this);
+}
+
 template <bool IsConst>
 Json uipc::geometry::Geometry::MetaAttributesT<IsConst>::to_json() const
 {

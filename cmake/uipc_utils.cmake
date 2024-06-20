@@ -1,4 +1,20 @@
 # -----------------------------------------------------------------------------------------
+# Libuipc Logo
+# -----------------------------------------------------------------------------------------
+function(uipc_show_logo version)
+message(STATUS "
+-----------------------------------------------------------------------------------
+                                   v.${version}
+                ██      ██ ██████  ██    ██ ██ ██████   ██████
+                ██      ██ ██   ██ ██    ██ ██ ██   ██ ██     
+                ██      ██ ██████  ██    ██ ██ ██████  ██     
+                ██      ██ ██   ██ ██    ██ ██ ██      ██     
+                ███████ ██ ██████   ██████  ██ ██       ██████
+        LIBUIPC: A C++20 Unified Incremental Potentional Contact Library
+-----------------------------------------------------------------------------------")
+endfunction()
+
+# -----------------------------------------------------------------------------------------
 # Print message info with uipc prefix
 # -----------------------------------------------------------------------------------------
 function(uipc_info content)
@@ -24,6 +40,19 @@ endfunction()
 # -----------------------------------------------------------------------------------------
 function(uipc_fatal_error content)
     message(FATAL_ERROR "[libuipc] ${content}")
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Print the options of the project
+# -----------------------------------------------------------------------------------------
+function(uipc_show_options)
+    uipc_info("Options:")
+    message(STATUS "    * UIPC_CORE_ONLY: ${UIPC_CORE_ONLY}")
+    message(STATUS "    * UIPC_BUILD_GUI: ${UIPC_BUILD_GUI}")
+    message(STATUS "    * UIPC_BUILD_EXAMPLES: ${UIPC_BUILD_EXAMPLES}")
+    message(STATUS "    * UIPC_BUILD_TESTS: ${UIPC_BUILD_TESTS}")
+    message(STATUS "    * UIPC_BUILD_BENCHMARKS: ${UIPC_BUILD_BENCHMARKS}")
+    message(STATUS "    * UIPC_WITH_CUDA_BACKEND: ${UIPC_WITH_CUDA_BACKEND}")
 endfunction()
 
 # -----------------------------------------------------------------------------------------

@@ -72,7 +72,6 @@ def gen_vcpkg_json(args):
 
 
 if __name__ == "__main__":
-    print("-----------------------------------------------------------------------------------")
     parser = argparse.ArgumentParser(description="Generate vcpkg.json for libuipc.")
     parser.add_argument("output_dir", type=str, help="Output file path.")
     parser.add_argument("--build_gui", type=bool, default=False, help="Build GUI dependencies.")
@@ -97,5 +96,4 @@ if __name__ == "__main__":
     with open(json_path, "w") as f:
         json.dump(vcpkg_json, f, indent=4)
     
-    print(f"[libuipc] Generated vcpkg.json at:\n    {json_path}")
-    print("-----------------------------------------------------------------------------------")
+    print(f"[libuipc] Generated vcpkg.json at:\n    {json_path}", end="")

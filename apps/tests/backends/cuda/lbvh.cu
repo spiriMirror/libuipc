@@ -1,7 +1,7 @@
-#include <muda/ext/eigen/eigen_core_cxx20.h>  // to use Eigen in CUDA
+#include <type_define.h>  // to use Eigen in CUDA
 #include <app/test_common.h>
 #include <app/asset_dir.h>
-#include <linear_bvh.h>
+#include <collision_detection/linear_bvh.h>
 #include <uipc/geometry.h>
 #include <muda/cub/device/device_scan.h>
 #include <uipc/common/enumerate.h>

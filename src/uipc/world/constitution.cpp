@@ -13,9 +13,14 @@ std::string_view IConstitution::name() const noexcept
     return get_name();
 }
 
+ConstitutionTypes IConstitution::type() const noexcept
+{
+    return get_type();
+}
+
 void IConstitution::apply_to(geometry::Geometry& geo) const
 {
-    auto P = geo.meta().find<U64>(builtin::constitution);
+    auto P = geo.meta().find<U64>(builtin::constitution_uid);
 
     if(!P)
         P = geo.meta().create<U64>(builtin::constitution_uid, uid());

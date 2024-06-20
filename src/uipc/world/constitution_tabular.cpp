@@ -9,6 +9,11 @@ span<U64> ConstitutionTabular::uids() const noexcept
     return m_uids;
 }
 
+const set<ConstitutionTypes>& ConstitutionTabular::types() const noexcept
+{
+    return m_types;
+}
+
 void ConstitutionTabular::sort_if_needed() const noexcept
 {
     if(m_is_sorted)

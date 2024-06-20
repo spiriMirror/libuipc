@@ -11,27 +11,18 @@ option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
 option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ON)
 # =========================================================================
 
-include(cmake/uipc_utils.cmake)
-# generate the dependency manifest according to the options
-uipc_generate_vcpkg_manifest()
-
-project(uipc)
-message(STATUS "-----------------------------------------------------------------------------------")
-uipc_info("Options:")
-message(STATUS "    * UIPC_CORE_ONLY: ${UIPC_CORE_ONLY}")
-message(STATUS "    * UIPC_BUILD_GUI: ${UIPC_BUILD_GUI}")
-message(STATUS "    * UIPC_BUILD_EXAMPLES: ${UIPC_BUILD_EXAMPLES}")
-message(STATUS "    * UIPC_BUILD_TESTS: ${UIPC_BUILD_TESTS}")
-message(STATUS "    * UIPC_BUILD_BENCHMARKS: ${UIPC_BUILD_BENCHMARKS}")
-message(STATUS "    * UIPC_WITH_CUDA_BACKEND: ${UIPC_WITH_CUDA_BACKEND}")
-
 # set cmake include path
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+include(cmake/uipc_utils.cmake)
+
+uipc_show_logo("0.0.1")
+uipc_show_options()
+uipc_generate_vcpkg_manifest()
+uipc_info("Checking dependencies...")
+
+project(uipc)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-# submodule dependencies
-# add_subdirectory(external/rapidcsv)
 
 if(UIPC_WITH_CUDA_BACKEND)
     enable_language(CUDA)

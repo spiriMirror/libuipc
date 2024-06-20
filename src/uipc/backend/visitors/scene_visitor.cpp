@@ -42,4 +42,16 @@ span<IndexT> SceneVisitor::pending_destroy_ids() const noexcept
 {
     return m_scene.m_geometries.pending_destroy_ids();
 }
+const Json& SceneVisitor::info() const noexcept
+{
+    return m_scene.info();
+}
+const world::ConstitutionTabular& SceneVisitor::constitution_tabular() const noexcept
+{
+    return m_scene.constitution_tabular();
+}
+const world::ContactTabular& SceneVisitor::contact_tabular() const noexcept
+{
+    return m_scene.contact_tabular();
+}
 }  // namespace uipc::backend

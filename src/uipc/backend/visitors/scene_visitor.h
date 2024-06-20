@@ -4,7 +4,8 @@
 #include <uipc/common/set.h>
 #include <uipc/common/unordered_map.h>
 #include <uipc/geometry/geometry_collection.h>
-
+#include <uipc/world/constitution_tabular.h>
+#include <uipc/world/contact_tabular.h>
 namespace uipc::world
 {
 class Scene;
@@ -27,6 +28,10 @@ class UIPC_CORE_API SceneVisitor
     span<P<geometry::GeometrySlot>> pending_rest_geometries() const noexcept;
 
     span<IndexT> pending_destroy_ids() const noexcept;
+    const Json&  info() const noexcept;
+
+    const world::ConstitutionTabular& constitution_tabular() const noexcept;
+    const world::ContactTabular&      contact_tabular() const noexcept;
 
   private:
     world::Scene& m_scene;

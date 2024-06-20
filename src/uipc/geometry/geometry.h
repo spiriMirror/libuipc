@@ -220,8 +220,11 @@ class UIPC_CORE_API Geometry : public IGeometry
 
     [[nodiscard]] CInstanceAttributes instances() const;
 
+    template <std::derived_from<Geometry> T>
+    [[nodiscard]] T* as();
+
   protected:
-    virtual Json        do_to_json() const override;
+    virtual Json do_to_json() const override;
 
     AttributeCollection m_intances;
     AttributeCollection m_meta;

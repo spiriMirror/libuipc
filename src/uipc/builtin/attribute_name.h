@@ -9,19 +9,17 @@ namespace uipc::builtin
  * @brief `position` attribute on geometries.vertices();
  */
 UIPC_BUILTIN_ATTRIBUTE(position);
+
 /**
  * @brief `transform` attribute on geometries.instances()
  */
 UIPC_BUILTIN_ATTRIBUTE(transform);
+
 /**
  * @brief `contact_element_id` attribute on geometries.meta()
  */
 
 UIPC_BUILTIN_ATTRIBUTE(contact_element_id);
-/**
- * @brief `constitution` attribute on geometries.meta()
- */
-UIPC_BUILTIN_ATTRIBUTE(constitution);
 
 /**
  * @brief `constitution_uid` attribute on geometries.meta(), uid is a unique identifier for a constitution
@@ -59,6 +57,16 @@ UIPC_BUILTIN_ATTRIBUTE(parent_id);
  * @brief `is_fixed` attribute, indicates if the instance or vertex is fixed.
  */
 UIPC_BUILTIN_ATTRIBUTE(is_fixed);
+
+/**
+ * @brief `mass_density` attribute
+ */
+UIPC_BUILTIN_ATTRIBUTE(mass_density);
+
+/**
+ * @brief `mass` attribute on vertices/edges/triangles/tetrahedra... to indicate the mass of the element.
+ */
+UIPC_BUILTIN_ATTRIBUTE(mass);
 }  // namespace uipc::builtin
 
 #undef UIPC_BUILTIN_ATTRIBUTE
