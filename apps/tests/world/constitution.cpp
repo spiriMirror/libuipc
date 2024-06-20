@@ -24,11 +24,13 @@ TEST_CASE("abd", "[constitution]")
     mesh0.instances().resize(5);
 
     auto wood_abd = abd.create_material(1e8);
-    auto kappa = wood_abd.apply_to(mesh0);
-    
+    wood_abd.apply_to(mesh0);
+
+    auto kappa = mesh0.instances().find<Float>("kappa");
+
     REQUIRE(kappa->size() == mesh0.instances().size());
     REQUIRE(std::ranges::all_of(kappa->view(), [](auto v) { return v == 1e8; }));
 
     // this name is important for the AffineBodyConstitution
-    REQUIRE(kappa->name() == "abd::kappa");
+    REQUIRE(kappa->name() == "kappa");
 }
