@@ -1,9 +1,12 @@
 #pragma once
 #include <sim_system.h>
-#include <global_vertex_manager.h>
 #include <muda/buffer/device_buffer.h>
 #include <affine_body/abd_jacobi_matrix.h>
 #include <uipc/geometry/simplicial_complex.h>
+#include <global_vertex_manager.h>
+#include <sim_engine.h>
+#include <line_searcher.h>
+#include <dof_predictor.h>
 
 namespace uipc::backend::cuda
 {
@@ -11,6 +14,9 @@ class AffineBodyDynamics : public SimSystem
 {
     template <typename T>
     using DeviceBuffer = muda::DeviceBuffer<T>;
+
+    template <typename T>
+    using DeviceVar = muda::DeviceVar<T>;
 
   public:
     static U<AffineBodyDynamics> advanced_creator(SimEngine& engine);
@@ -59,34 +65,41 @@ class AffineBodyDynamics : public SimSystem
     {
       public:
         void init_affine_body_geometry(WorldVisitor& world);
-        void _find_affine_bodies(WorldVisitor& world);
+        void _build_affine_body_infos(WorldVisitor& world);
         void _build_geometry_on_host(WorldVisitor& world);
         void _build_geometry_on_device(WorldVisitor& world);
 
-        void report_vertex_count(VertexCountInfo& vertex_count_info);
-        void receive_global_vertex_info(const GlobalVertexInfo& global_vertex_info);
+        void report_vertex_count(GlobalVertexManager::VertexCountInfo& vertex_count_info);
+        void receive_global_vertex_info(const GlobalVertexManager::VertexAttributes& global_vertex_info);
 
 
         void write_scene(WorldVisitor& world);
         void _download_geometry_to_host();
 
+        void compute_q_tilde(const DoFPredictor::PredictInfo& info);
+        void compute_q_v(const DoFPredictor::PredictInfo& info);
+        void copy_q_to_q_temp();
+        void step_forward(const LineSearcher::StepInfo& info);
+        Float compute_abd_kinetic_energy(const LineSearcher::ComputeEnergyInfo& info);
+
         // util functions
         geometry::SimplicialComplex& geometry(span<P<geometry::GeometrySlot>> geo_slots,
                                               const BodyInfo body_info);
 
+        SizeT body_count() const noexcept { return h_body_infos.size(); }
+
       public:
-        GlobalVertexManager* global_vertex_manager = nullptr;
+        //GlobalVertexManager* global_vertex_manager = nullptr;
 
         vector<Filter> filters;
-        SizeT          abd_global_vertex_offset = 0;
-        SizeT          abd_global_vertex_count  = 0;
+        SizeT          abd_report_vertex_offset = 0;
+        SizeT          abd_report_vertex_count  = 0;
         SizeT          abd_geo_count            = 0;
+        SizeT          abd_vertex_count         = 0;
 
         vector<BodyInfo> h_body_infos;
-        vector<SizeT>    abd_geo_body_offsets;
-        vector<SizeT>    abd_geo_body_counts;
-
-        vector<geometry::AttributeSlot<Matrix4x4>*> transforms;
+        vector<SizeT>    h_abd_geo_body_offsets;
+        vector<SizeT>    h_abd_geo_body_counts;
 
         vector<ABDJacobi>           h_vertex_id_to_J;
         vector<IndexT>              h_vertex_id_to_body_id;
@@ -96,6 +109,7 @@ class AffineBodyDynamics : public SimSystem
         vector<Matrix12x12>         h_body_id_to_abd_mass_inv;
         vector<Float>               h_body_id_to_volume;
         vector<Vector12>            h_body_id_to_abd_gravity;
+        vector<IndexT>              h_body_id_to_is_fixed;
 
         /******************************************************************************
         *                        abd vertex attributes
@@ -187,6 +201,12 @@ class AffineBodyDynamics : public SimSystem
         // \mathbf{M}_i^{-1}\left( \sum_{j \in \mathcal{B}_i} \sum_{k \in \mathcal{T}_j} \mathbf{J}_k^T m_k g_k\right)
         //$$
         DeviceBuffer<Vector12> body_id_to_abd_gravity;
+
+        DeviceBuffer<IndexT> body_id_to_is_fixed;
+
+        DeviceBuffer<Float> body_id_to_kinetic_energy;
+
+        DeviceVar<Float> abd_kinetic_energy;
     };
 
   private:

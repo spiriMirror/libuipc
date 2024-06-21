@@ -17,14 +17,14 @@
     }
 
 #define UIPC_ASSERT(condition, ...)                                            \
-    if constexpr(uipc::RUNTIME_CHECK)                                          \
+    if constexpr(::uipc::RUNTIME_CHECK)                                        \
     {                                                                          \
         if(!(condition))                                                       \
         {                                                                      \
-            std::string msg = fmt::format(__VA_ARGS__);                        \
-            std::string assert_meg =                                           \
-                fmt::format("Assertion " #condition " failed. {}", msg);       \
+            ::std::string msg = ::fmt::format(__VA_ARGS__);                    \
+            ::std::string assert_meg =                                         \
+                ::fmt::format("Assertion " #condition " failed. {}", msg);     \
             SPDLOG_ERROR(assert_meg);                                          \
-            std::abort();                                                      \
+            ::std::abort();                                                    \
         }                                                                      \
     }

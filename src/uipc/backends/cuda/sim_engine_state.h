@@ -8,6 +8,11 @@ enum class SimEngineState
     RegisterSystems,
     BuildSystems,
     InitScene,
-    RebuildScene
+    RebuildScene,
+    PredictMotion,
+    ComputeGradientHassian,
+    SolveGlobalLinearSystem,
+    LineSearch,
+    UpdateVelocity,
 };
 }

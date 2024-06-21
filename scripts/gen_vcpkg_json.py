@@ -96,4 +96,4 @@ if __name__ == "__main__":
     with open(json_path, "w") as f:
         json.dump(vcpkg_json, f, indent=4)
     
-    print(f"[libuipc] Generated vcpkg.json at:\n    {json_path}", end="")
+    print(f"[libuipc] Generated vcpkg.json at:\n    {json_path}")

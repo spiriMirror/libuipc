@@ -6,33 +6,10 @@
 #include <uipc/common/algorithm/run_length_encode.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/common/zip.h>
-#include <sim_engine.h>
+#include <muda/cub/device/device_reduce.h>
 
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(AffineBodyDynamics);
-
-template <typename ViewGetterF, typename ForEachF>
-void for_each_body(AffineBodyDynamics::Impl&       impl,
-                   span<P<geometry::GeometrySlot>> geo_slots,
-                   ViewGetterF&&                   getter,
-                   ForEachF&&                      for_each)
-{
-    SizeT body_id = 0;
-    for(auto&& [body_offset, body_count] : zip(impl.abd_geo_body_offsets, impl.abd_geo_body_counts))
-    {
-        auto& info = impl.h_body_infos[body_offset];
-        auto& sc   = impl.geometry(geo_slots, info);
-
-        auto attr_view = getter(sc);
-
-        for(auto&& value : attr_view)
-        {
-            for_each(body_id++, value);
-        }
-    }
-}
-
 U<AffineBodyDynamics> AffineBodyDynamics::advanced_creator(SimEngine& engine)
 {
     // if no AffineBody constitution, just return nullptr.
@@ -44,30 +21,84 @@ U<AffineBodyDynamics> AffineBodyDynamics::advanced_creator(SimEngine& engine)
     return std::make_unique<AffineBodyDynamics>(engine);
 }
 
-void AffineBodyDynamics::on_filter(Filter&& filter)
-{
-    m_impl.filters.push_back(std::move(filter));
-}
+REGISTER_SIM_SYSTEM(AffineBodyDynamics);
 
 void AffineBodyDynamics::build()
 {
     // find dependent systems
-    m_impl.global_vertex_manager = find<GlobalVertexManager>();
+    auto global_vertex_manager = find<GlobalVertexManager>();
+    auto dof_predictor         = find<DoFPredictor>();
+    auto line_searcher         = find<LineSearcher>();
 
     // Register the action to initialize the affine body geometry
     on_init_scene([this] { m_impl.init_affine_body_geometry(world()); });
 
     // Register the action to build the vertex info
-    m_impl.global_vertex_manager->on_update(
-        [this](VertexCountInfo& info) { m_impl.report_vertex_count(info); },
-        [this](const GlobalVertexInfo& info)
-        { m_impl.receive_global_vertex_info(info); });
+    global_vertex_manager->on_update(
+        [this](GlobalVertexManager::VertexCountInfo& info)
+        { m_impl.report_vertex_count(info); },
+        [this](const GlobalVertexManager::VertexAttributes& info)
+        { m_impl.receive_global_vertex_info(info); },
+        [this](const GlobalVertexManager::VertexDisplacement& info)
+        {
+            // TODO
+            // when we solve the system, we can fill out the displacement
+        });
+
+    // Register the action to predict the affine body dof
+    dof_predictor->on_predict([this](const DoFPredictor::PredictInfo& info)
+                              { m_impl.compute_q_tilde(info); });
+
+
+    line_searcher->on_record_current_state([this] { m_impl.copy_q_to_q_temp(); });
+    line_searcher->on_step_forward([this](const LineSearcher::StepInfo& info)
+                                   { m_impl.step_forward(info); });
+    line_searcher->on_compute_energy("abd_kinetic_energy",
+                                     [this](const LineSearcher::ComputeEnergyInfo& info) {
+                                         return m_impl.compute_abd_kinetic_energy(info);
+                                     });
+
+
+    // Register the action to compute the velocity of the affine body dof
+    dof_predictor->on_compute_velocity([this](const DoFPredictor::PredictInfo& info)
+                                       { m_impl.compute_q_v(info); });
 
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });
 }
+}  // namespace uipc::backend::cuda
 
-void AffineBodyDynamics::Impl::_find_affine_bodies(WorldVisitor& world)
+
+namespace uipc::backend::cuda
+{
+template <typename ViewGetterF, typename ForEachF>
+void for_each_body(AffineBodyDynamics::Impl&       m_impl,
+                   span<P<geometry::GeometrySlot>> geo_slots,
+                   ViewGetterF&&                   getter,
+                   ForEachF&&                      for_each)
+{
+    SizeT body_id = 0;
+    for(auto&& [body_offset, body_count] :
+        zip(m_impl.h_abd_geo_body_offsets, m_impl.h_abd_geo_body_counts))
+    {
+        auto& info = m_impl.h_body_infos[body_offset];
+        auto& sc   = m_impl.geometry(geo_slots, info);
+
+        auto attr_view = getter(sc);
+
+        for(auto&& value : attr_view)
+        {
+            for_each(body_id++, value);
+        }
+    }
+}
+
+void AffineBodyDynamics::on_filter(Filter&& filter)
+{
+    m_impl.filters.push_back(std::move(filter));
+}
+
+void AffineBodyDynamics::Impl::_build_affine_body_infos(WorldVisitor& world)
 {
     // 1) sort the filters by uid
     std::sort(filters.begin(),
@@ -83,10 +114,10 @@ void AffineBodyDynamics::Impl::_find_affine_bodies(WorldVisitor& world)
     list<BodyInfo> body_infos;
     auto           scene = world.scene();
 
-    auto  geos              = scene.geometries();
-    auto  N                 = geos.size();
+    auto  geo_slots         = scene.geometries();
+    auto  N                 = geo_slots.size();
     SizeT affine_body_count = 0;
-    for(auto&& [i, geo_slot] : enumerate(geos))
+    for(auto&& [i, geo_slot] : enumerate(geo_slots))
     {
         auto& geo  = geo_slot->geometry();
         auto  cuid = geo.meta().find<U64>(builtin::constitution_uid);
@@ -94,7 +125,6 @@ void AffineBodyDynamics::Impl::_find_affine_bodies(WorldVisitor& world)
         {
             auto uid            = cuid->view()[0];
             auto instance_count = geo.instances().size();
-
             if(std::binary_search(filter_uids.begin(), filter_uids.end(), uid))
             {
                 for(auto&& j : range(instance_count))
@@ -106,6 +136,9 @@ void AffineBodyDynamics::Impl::_find_affine_bodies(WorldVisitor& world)
                     info.global_geometry_index   = i;
                     info.geometry_instance_index = j;
                     info.affine_body_id          = affine_body_count++;
+
+                    auto& sc          = geometry(geo_slots, info);
+                    info.vertex_count = sc.positions().size();
 
                     body_infos.push_back(std::move(info));
                 }
@@ -130,24 +163,43 @@ void AffineBodyDynamics::Impl::_find_affine_bodies(WorldVisitor& world)
                                              && a.geometry_instance_index < b.geometry_instance_index;
                            });
 
-    // 4) setup abd_geo_body_offsets and abd_geo_body_counts
-    abd_geo_body_offsets.reserve(h_body_infos.size());
-    abd_geo_body_counts.reserve(h_body_infos.size());
+    // 4) setup h_abd_geo_body_offsets and h_abd_geo_body_counts
+    h_abd_geo_body_offsets.reserve(h_body_infos.size());
+    h_abd_geo_body_counts.reserve(h_body_infos.size());
 
     encode_offset_count(h_body_infos.begin(),
                         h_body_infos.end(),
-                        std::back_inserter(abd_geo_body_offsets),
-                        std::back_inserter(abd_geo_body_counts),
+                        std::back_inserter(h_abd_geo_body_offsets),
+                        std::back_inserter(h_abd_geo_body_counts),
                         [](const BodyInfo& a, const BodyInfo& b) {
                             return a.global_geometry_index == b.global_geometry_index;
                         });
 
     UIPC_ASSERT(abd_geo_count
-                    == abd_geo_body_offsets.back() + abd_geo_body_counts.back(),
+                    == h_abd_geo_body_offsets.back() + h_abd_geo_body_counts.back(),
                 "abd_geo_count({}) != geo_body_offsets.back()({}) + geo_body_counts.back()({}). Why can it happen?",
                 abd_geo_count,
-                abd_geo_body_offsets.back(),
-                abd_geo_body_counts.back());
+                h_abd_geo_body_offsets.back(),
+                h_abd_geo_body_counts.back());
+
+    // 5) setup the vertex offset, count
+    vector<SizeT> vertex_count(h_body_infos.size());
+    vector<SizeT> vertex_offset(h_body_infos.size());
+    std::ranges::transform(h_body_infos,
+                           vertex_count.begin(),
+                           [&](const BodyInfo& info) -> SizeT
+                           {
+                               auto& sc = this->geometry(geo_slots, info);
+                               return sc.positions().size();
+                           });
+
+    std::exclusive_scan(vertex_count.begin(), vertex_count.end(), vertex_offset.begin(), 0);
+    abd_vertex_count = vertex_offset.back() + vertex_count.back();
+    for(auto&& [info, count, offset] : zip(h_body_infos, vertex_count, vertex_offset))
+    {
+        info.vertex_count  = count;
+        info.vertex_offset = offset;
+    }
 }
 
 void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
@@ -179,25 +231,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
 
     // 2) setup `J` and `mass` for every vertex
-    // a. count the number and offset of the vertices
-    vector<SizeT> vertex_count(h_body_infos.size());
-    vector<SizeT> vertex_offset(h_body_infos.size());
-
-    std::ranges::transform(h_body_infos,
-                           vertex_count.begin(),
-                           [&](const BodyInfo& info) -> SizeT
-                           {
-                               auto& sc = this->geometry(geo_slots, info);
-                               return sc.positions().size();
-                           });
-
-    std::exclusive_scan(vertex_count.begin(), vertex_count.end(), vertex_offset.begin(), 0);
-
-    auto total = vertex_offset.back() + vertex_count.back();
-
-    // b. setup the J and mass
-    h_vertex_id_to_J.resize(total);
-    h_vertex_id_to_mass.resize(total);
+    h_vertex_id_to_J.resize(abd_vertex_count);
+    h_vertex_id_to_mass.resize(abd_vertex_count);
     span Js          = h_vertex_id_to_J;
     span vertex_mass = h_vertex_id_to_mass;
     std::ranges::for_each(h_body_infos,
@@ -205,12 +240,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                           {
                               auto& sc = geometry(geo_slots, info);
 
-                              auto offset = vertex_offset[info.affine_body_id];
-                              auto count  = vertex_count[info.affine_body_id];
-
-                              // setup the vertex info
-                              info.vertex_offset = offset;
-                              info.vertex_count  = count;
+                              auto offset = info.vertex_offset;
+                              auto count  = info.vertex_count;
 
                               // copy init the J from position
                               auto pos_view = sc.positions().view();
@@ -227,13 +258,13 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
 
     // 3) setup `vertex_id_to_body_id`
-    h_vertex_id_to_body_id.resize(total);
+    h_vertex_id_to_body_id.resize(abd_vertex_count);
     auto v2b = span{h_vertex_id_to_body_id};
     std::ranges::for_each(h_body_infos,
                           [&](const BodyInfo& info)
                           {
-                              auto offset = vertex_offset[info.affine_body_id];
-                              auto count  = vertex_count[info.affine_body_id];
+                              auto offset = info.vertex_offset;
+                              auto count  = info.vertex_count;
                               std::ranges::fill(v2b.subspan(offset, count), info.affine_body_id);
                           });
 
@@ -253,8 +284,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
         {
             auto& sc = geometry(geo_slots, info);
 
-            auto offset = vertex_offset[info.affine_body_id];
-            auto count  = vertex_count[info.affine_body_id];
+            auto offset = info.vertex_offset;
+            auto count  = info.vertex_count;
 
             // compute the mass of the geometry
             // sub_Js for this body
@@ -304,35 +335,43 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     {
         vector<Vector12> geo_gravities(abd_geo_count, Vector12::Zero());
 
-        std::ranges::transform(
-            h_body_infos,
-            h_body_id_to_abd_gravity.begin(),
-            [&](const BodyInfo& info) -> Vector12
-            {
-                auto& g = geo_gravities[info.abd_geometry_index];
+        std::ranges::transform(h_body_infos,
+                               h_body_id_to_abd_gravity.begin(),
+                               [&](const BodyInfo& info) -> Vector12
+                               {
+                                   auto& g = geo_gravities[info.abd_geometry_index];
 
-                if(g.isZero())  // if not computed yet
-                {
-                    auto offset = vertex_offset[info.affine_body_id];
-                    auto count  = vertex_count[info.affine_body_id];
+                                   if(g.isZero())  // if not computed yet
+                                   {
+                                       auto offset = info.vertex_offset;
+                                       auto count  = info.vertex_count;
 
-                    // sub_Js for this body
-                    auto sub_Js   = Js.subspan(offset, count);
-                    auto sub_mass = vertex_mass.subspan(offset, count);
+                                       // sub_Js for this body
+                                       auto sub_Js = Js.subspan(offset, count);
+                                       auto sub_mass = vertex_mass.subspan(offset, count);
 
-                    Vector12 G = Vector12::Zero();
+                                       Vector12 G = Vector12::Zero();
 
-                    for(auto&& [m, J] : zip(sub_mass, sub_Js))
-                        G += m * (J.T() * gravity);
+                                       for(auto&& [m, J] : zip(sub_mass, sub_Js))
+                                           G += m * (J.T() * gravity);
 
-                    const Matrix12x12& M_inv =
-                        h_body_id_to_abd_mass_inv[info.affine_body_id];
-                    g = M_inv * G;
-                }
+                                       const Matrix12x12& M_inv =
+                                           h_body_id_to_abd_mass_inv[info.affine_body_id];
+                                       g = M_inv * G;
+                                   }
 
-                return g;
-            });
+                                   return g;
+                               });
     }
+
+    // 7) setup the boundary type
+    h_body_id_to_is_fixed.resize(h_body_infos.size(), 0);
+    for_each_body(
+        *this,
+        geo_slots,
+        [](geometry::SimplicialComplex& sc)
+        { return sc.instances().find<IndexT>(builtin::is_fixed)->view(); },
+        [&](SizeT i, IndexT fixed) { h_body_id_to_is_fixed[i] = fixed; });
 }
 
 void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
@@ -350,9 +389,10 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_copy(span{h_body_id_to_volume}, body_id_to_volume);
     async_copy(span{h_body_id_to_abd_mass_inv}, body_id_to_abd_mass_inv);
     async_copy(span{h_body_id_to_abd_gravity}, body_id_to_abd_gravity);
+    async_copy(span{h_body_id_to_is_fixed}, body_id_to_is_fixed);
 
-    auto async_transfer =
-        []<typename T>(muda::DeviceBuffer<T>& src, muda::DeviceBuffer<T> dst)
+    auto async_transfer = []<typename T>(const muda::DeviceBuffer<T>& src,
+                                         muda::DeviceBuffer<T>&       dst)
     {
         muda::BufferLaunch().resize<T>(dst, src.size());
         muda::BufferLaunch().copy<T>(dst.view(), src.view());
@@ -378,35 +418,46 @@ void AffineBodyDynamics::Impl::init_affine_body_geometry(WorldVisitor& world)
 {
     spdlog::info("Initializing Affine Body Geometry");
 
-    _find_affine_bodies(world);
+    _build_affine_body_infos(world);
     _build_geometry_on_host(world);
     _build_geometry_on_device(world);
 }
 
-void AffineBodyDynamics::Impl::report_vertex_count(VertexCountInfo& vertex_count_info)
+void AffineBodyDynamics::Impl::report_vertex_count(GlobalVertexManager::VertexCountInfo& vertex_count_info)
 {
     // TODO: now we just report all the affine body vertices
     // later we may extract the surface vertices and report them
     vertex_count_info.count(h_vertex_id_to_J.size());
 }
 
-void AffineBodyDynamics::Impl::receive_global_vertex_info(const GlobalVertexInfo& global_vertex_info)
+void AffineBodyDynamics::Impl::receive_global_vertex_info(const GlobalVertexManager::VertexAttributes& vertex_attributes)
 {
     using namespace muda;
     // fill the coindex for later use
-    auto N = global_vertex_info.coindex().size();
+    auto N = vertex_attributes.coindex().size();
     // TODO: now we just use `iota` the coindex
     // later we may extract the surface vertices as the reported vertices
     // then the coindex will be a mapping from the surface vertices to the affine body vertices
     ParallelFor()
         .kernel_name(__FUNCTION__)
         .apply(N,
-               [coindex = global_vertex_info.coindex().viewer().name(
-                    "coindex")] __device__(int i) mutable { coindex(i) = i; });
+               [coindex = vertex_attributes.coindex().viewer().name("coindex"),
+
+                dst_pos = vertex_attributes.positions().viewer().name("dst_pos"),
+                v2b = vertex_id_to_body_id.cviewer().name("v2b"),
+                qs  = body_id_to_q.cviewer().name("qs"),
+                src_pos = vertex_id_to_J.cviewer().name("src_pos")] __device__(int i) mutable
+               {
+                   coindex(i) = i;
+
+                   auto        body_id = v2b(i);
+                   const auto& q       = qs(body_id);
+                   dst_pos(i)          = src_pos(i).point_x(q);
+               });
 
     // record the global vertex info
-    abd_global_vertex_offset = global_vertex_info.offset();
-    abd_global_vertex_count  = global_vertex_info.count();
+    abd_report_vertex_offset = vertex_attributes.coindex().offset();
+    abd_report_vertex_count  = vertex_attributes.coindex().size();
 }
 
 void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
@@ -469,6 +520,117 @@ geometry::SimplicialComplex& AffineBodyDynamics::Impl::geometry(
                 "The geometry is not a simplicial complex (it's {}). Why can it happen?",
                 geo.type());
     return *sc;
+}
+
+void AffineBodyDynamics::Impl::compute_q_tilde(const DoFPredictor::PredictInfo& info)
+{
+    using namespace muda;
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(body_count(),
+               [is_fixed = body_id_to_is_fixed.cviewer().name("btype"),
+                q_prevs  = body_id_to_q_prev.cviewer().name("q_prev"),
+                q_vs     = body_id_to_q_v.cviewer().name("q_velocities"),
+                q_tildes = body_id_to_q_tilde.viewer().name("q_tilde"),
+                affine_gravity = body_id_to_abd_gravity.cviewer().name("affine_gravity"),
+                dt = info.dt] __device__(int i) mutable
+               {
+                   auto& q_prev = q_prevs(i);
+                   auto& q_v    = q_vs(i);
+                   auto& g      = affine_gravity(i);
+                   // TODO: this time, we only consider gravity
+                   if(is_fixed(i))
+                   {
+                       q_tildes(i) = q_prev;
+                   }
+                   else
+                   {
+                       q_tildes(i) = q_prev + q_v * dt + g * (dt * dt);
+                   }
+               });
+}
+
+void AffineBodyDynamics::Impl::compute_q_v(const DoFPredictor::PredictInfo& info)
+{
+    using namespace muda;
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(body_count(),
+               [is_fixed = body_id_to_is_fixed.cviewer().name("btype"),
+                qs       = body_id_to_q.cviewer().name("qs"),
+                q_vs     = body_id_to_q_v.viewer().name("q_vs"),
+                q_prevs  = body_id_to_q_prev.viewer().name("q_prevs"),
+                dt       = info.dt] __device__(int i) mutable
+               {
+                   auto& q_v    = q_vs(i);
+                   auto& q_prev = q_prevs(i);
+
+                   const auto& q = qs(i);
+
+                   if(is_fixed(i))
+                       q_v = Vector12::Zero();
+                   else
+                       q_v = (q - q_prev) * (1.0 / dt);
+                   q_prev = q;
+               });
+}
+
+void AffineBodyDynamics::Impl::copy_q_to_q_temp()
+{
+    body_id_to_q_temp = body_id_to_q;
+}
+
+void AffineBodyDynamics::Impl::step_forward(const LineSearcher::StepInfo& info)
+{
+    using namespace muda;
+    ParallelFor(256)
+        .kernel_name(__FUNCTION__ "-affine_body")
+        .apply(body_count(),
+               [is_fixed = body_id_to_is_fixed.cviewer().name("is_fixed"),
+                q_temps  = body_id_to_q_temp.cviewer().name("q_temps"),
+                qs       = body_id_to_q.viewer().name("qs"),
+                dqs      = body_id_to_dq.cviewer().name("dqs"),
+                alpha    = info.alpha] __device__(int i) mutable
+               {
+                   if(is_fixed(i))
+                       return;
+                   qs(i) = q_temps(i) - alpha * dqs(i);
+               });
+}
+
+Float AffineBodyDynamics::Impl::compute_abd_kinetic_energy(const LineSearcher::ComputeEnergyInfo& info)
+{
+    using namespace muda;
+
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(body_count(),
+               [is_fixed = body_id_to_is_fixed.cviewer().name("is_fixed"),
+                qs       = body_id_to_q.cviewer().name("qs"),
+                q_tildes = body_id_to_q_tilde.viewer().name("q_tildes"),
+                masses   = body_id_to_abd_mass.cviewer().name("masses"),
+                Ks = body_id_to_kinetic_energy.viewer().name("kinetic_energy")] __device__(int i) mutable
+               {
+                   auto& K = Ks(i);
+                   if(is_fixed(i))
+                   {
+                       K = 0.0;
+                   }
+                   else
+                   {
+                       const auto& q       = qs(i);
+                       const auto& q_tilde = q_tildes(i);
+                       const auto& M       = masses(i);
+                       Vector12    dq      = q - q_tilde;
+                       K                   = 0.5 * dq.dot(M * dq);
+                   }
+               });
+
+    DeviceReduce().Sum(body_id_to_kinetic_energy.data(),
+                       abd_kinetic_energy.data(),
+                       body_id_to_kinetic_energy.size());
+
+    return abd_kinetic_energy;
 }
 
 AffineBodyDynamics::Filter::Filter(U64 constitution_uid,

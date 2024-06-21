@@ -6,6 +6,7 @@
 #include <muda/buffer/device_buffer.h>
 #include <muda/buffer/device_var.h>
 #include <Eigen/Geometry>
+#include <collision_detection/aabb.h>
 
 namespace uipc::backend::cuda
 {
@@ -42,7 +43,7 @@ class LinearBVHNode
     MUDA_GENERIC bool is_top() const noexcept;
 };
 
-using LinearBVHAABB = Eigen::AlignedBox<Float, 3>;
+using LinearBVHAABB = AABB;
 
 class LinearBVH;
 

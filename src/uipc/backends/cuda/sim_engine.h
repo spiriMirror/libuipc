@@ -9,6 +9,11 @@
 
 namespace uipc::backend::cuda
 {
+class GlobalVertexManager;
+class DoFPredictor;
+class LineSearcher;
+class GradientHessianComputer;
+
 class UIPC_BACKEND_API SimEngine : public engine::IEngine
 {
     class DeviceImpl;
@@ -18,7 +23,6 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     SimEngine();
     ~SimEngine();
 
-    // delete copy_from
     SimEngine(const SimEngine&)            = delete;
     SimEngine& operator=(const SimEngine&) = delete;
 
@@ -32,6 +36,10 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     void do_retrieve() override;
 
   private:
+    void build();
+    void init_scene();
+    void register_all_systems();  // called in do_init() only.
+
     DeviceImpl&         device_impl() noexcept;
     U<DeviceImpl>       m_device_impl;
     std::stringstream   m_string_stream;
@@ -47,10 +55,19 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     list<SimAction> m_on_write_scene;
     void            event_write_scene();
 
+    // Utilities
     template <std::derived_from<ISimSystem> T>
     T* find();
 
-    void register_all_systems();  // called in do_init() only.
+  private:
+    // Aware Top Systems
+    GlobalVertexManager*     m_global_vertex_manager     = nullptr;
+    DoFPredictor*            m_dof_predictor             = nullptr;
+    LineSearcher*            m_line_searcher             = nullptr;
+    GradientHessianComputer* m_gradient_hessian_computer = nullptr;
+
+    Float m_newton_tol      = 1e-2;
+    SizeT m_newton_max_iter = 1000;
 };
 }  // namespace uipc::backend::cuda
 
