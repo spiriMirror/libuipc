@@ -13,13 +13,23 @@ class ABDOrthoPotential : public SimSystem
 
     virtual void build() override;
 
-  private:
+  public:
     class Impl
     {
       public:
+        void on_filter(const AffineBodyDynamics::FilteredInfo& info, WorldVisitor& world);
+        void on_compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& info);
+        void _build_on_device();
+
         AffineBodyDynamics* affine_body_geometry;
 
-        void on_filter(const AffineBodyDynamics::FilteredInfo& info);
-    } m_impl;
+        vector<AffineBodyDynamics::BodyInfo> h_body_infos;
+        vector<Float>                        h_kappas;
+
+        muda::DeviceBuffer<Float> kappas;
+    };
+
+  private:
+    Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

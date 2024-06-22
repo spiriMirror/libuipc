@@ -84,9 +84,9 @@ class LinearBVHViewerT : public muda::ViewerBase<true>
     MUDA_GENERIC auto num_objects() const noexcept { return m_num_objects; }
 
     /**
-     * @brief query AABBs that intersect with the given point q.
+     * @brief query AABBs that intersect with the given point m_q.
      * 
-     * @param q query point
+     * @param m_q query point
      * @param callback callback function that is called when an AABBs is found (may be called multiple times)
      * 
      * @return the number of found AABBs
@@ -115,9 +115,9 @@ class LinearBVHViewerT : public muda::ViewerBase<true>
     }
 
     /**
-     * @brief query AABBs that intersect with the given AABBs q.
+     * @brief query AABBs that intersect with the given AABBs m_q.
      * 
-     * @param q query AABBs
+     * @param m_q query AABBs
      * @param callback callback function that is called when an AABBs is found (may be called multiple times)
      * 
      * @return the number of found AABBs
