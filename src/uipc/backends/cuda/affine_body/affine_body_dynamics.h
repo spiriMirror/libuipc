@@ -7,6 +7,7 @@
 #include <sim_engine.h>
 #include <line_searcher.h>
 #include <dof_predictor.h>
+#include <gradient_hessian_computer.h>
 
 namespace uipc::backend::cuda
 {
@@ -35,6 +36,8 @@ class AffineBodyDynamics : public SimSystem
         IndexT vertex_count            = -1;
     };
 
+    class Impl;
+
     class FilteredInfo
     {
       public:
@@ -42,20 +45,40 @@ class AffineBodyDynamics : public SimSystem
         span<const BodyInfo> m_body_infos;
     };
 
-    class Filter
+    class ComputeEnergyInfo
     {
       public:
-        Filter(U64 constitution_uid, std::function<void(const FilteredInfo&)>&& action) noexcept;
-
-        U64  uid() const noexcept { return m_constitution_uid; }
-        void operator()(const FilteredInfo& info) const { m_action(info); }
-
-      private:
-        U64                                      m_constitution_uid;
-        std::function<void(const FilteredInfo&)> m_action;
+        muda::VarView<Float> shape_energy;
     };
 
-    void on_filter(Filter&& filter);
+    class ComputeGradientHessianInfo
+    {
+      public:
+        muda::BufferView<Matrix12x12> shape_hessian;
+        muda::BufferView<Vector12>    shape_gradient;
+    };
+    void on_update(U64                                        constitution_uid,
+                   std::function<void(const FilteredInfo&)>&& filter,
+                   std::function<void(const ComputeEnergyInfo&)>&& compute_shape_energy,
+                   std::function<void(const ComputeGradientHessianInfo&)>&& compute_shape_gradient_hessian);
+
+  private:
+    class ConstitutionRegister
+    {
+      public:
+        ConstitutionRegister(U64 constitution_uid,
+                             std::function<void(const FilteredInfo&)>&& filter,
+                             std::function<void(const ComputeEnergyInfo&)>&& compute_shape_energy,
+                             std::function<void(const ComputeGradientHessianInfo&)>&& compute_shape_gradient_hessian) noexcept;
+
+      private:
+        friend class AffineBodyDynamics;
+        friend class Impl;
+        U64                                           m_constitution_uid;
+        std::function<void(const FilteredInfo&)>      m_filter;
+        std::function<void(const ComputeEnergyInfo&)> m_compute_shape_energy;
+        std::function<void(const ComputeGradientHessianInfo&)> m_compute_shape_gradient_hessian;
+    };
 
   protected:
     virtual void build() override;
@@ -81,6 +104,10 @@ class AffineBodyDynamics : public SimSystem
         void copy_q_to_q_temp();
         void step_forward(const LineSearcher::StepInfo& info);
         Float compute_abd_kinetic_energy(const LineSearcher::ComputeEnergyInfo& info);
+        Float compute_abd_shape_energy(const LineSearcher::ComputeEnergyInfo& info);
+
+        void compute_gradient_hessian(const GradientHessianComputer::ComputeInfo& info);
+
 
         // util functions
         geometry::SimplicialComplex& geometry(span<P<geometry::GeometrySlot>> geo_slots,
@@ -91,15 +118,17 @@ class AffineBodyDynamics : public SimSystem
       public:
         //GlobalVertexManager* global_vertex_manager = nullptr;
 
-        vector<Filter> filters;
-        SizeT          abd_report_vertex_offset = 0;
-        SizeT          abd_report_vertex_count  = 0;
-        SizeT          abd_geo_count            = 0;
-        SizeT          abd_vertex_count         = 0;
+        vector<ConstitutionRegister> constitutions;
+        SizeT                        abd_report_vertex_offset = 0;
+        SizeT                        abd_report_vertex_count  = 0;
+        SizeT                        abd_geo_count            = 0;
+        SizeT                        abd_vertex_count         = 0;
 
         vector<BodyInfo> h_body_infos;
         vector<SizeT>    h_abd_geo_body_offsets;
         vector<SizeT>    h_abd_geo_body_counts;
+        vector<SizeT>    h_constitution_body_offsets;
+        vector<SizeT>    h_constitution_body_counts;
 
         vector<ABDJacobi>           h_vertex_id_to_J;
         vector<IndexT>              h_vertex_id_to_body_id;
@@ -110,6 +139,7 @@ class AffineBodyDynamics : public SimSystem
         vector<Float>               h_body_id_to_volume;
         vector<Vector12>            h_body_id_to_abd_gravity;
         vector<IndexT>              h_body_id_to_is_fixed;
+        vector<Float>               h_constitution_shape_energy;
 
         /******************************************************************************
         *                        abd vertex attributes
@@ -207,6 +237,13 @@ class AffineBodyDynamics : public SimSystem
         DeviceBuffer<Float> body_id_to_kinetic_energy;
 
         DeviceVar<Float> abd_kinetic_energy;
+
+        DeviceBuffer<Float> constitution_shape_energy;
+
+        //tex: $$ \mathbf{H}_{ii} + \mathbf{M}_{ii} $$
+        DeviceBuffer<Matrix12x12> body_id_to_body_hessian;
+        //tex: $$ \mathbf{g}_{i} $$
+        DeviceBuffer<Vector12> body_id_to_body_gradient;
     };
 
   private:

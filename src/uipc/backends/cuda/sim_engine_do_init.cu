@@ -32,7 +32,7 @@ void SimEngine::do_init(backend::WorldVisitor v)
 
     m_world_visitor = std::make_unique<backend::WorldVisitor>(v);
 
-    // 1) Register all systems
+    // 1) ConstitutionRegister all systems
     m_state = SimEngineState::RegisterSystems;
     register_all_systems();
 

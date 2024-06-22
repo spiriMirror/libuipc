@@ -43,6 +43,7 @@ void SimEngine::do_advance()
 
             m_state = SimEngineState::ComputeGradientHassian;
             // 2) Compute Contact Gradient and Hessian => G:Vector3, H:Matrix3x3
+
             
             // 3) Compute System Gradient and Hessian => G:Vector3, H:Matrix3x3
             // E.g. FEM/ABD ...

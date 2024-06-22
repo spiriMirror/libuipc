@@ -50,7 +50,28 @@ class GlobalVertexManager : public SimSystem
         muda::BufferView<Vector3> m_displacements;
     };
 
-    void on_update(std::function<void(VertexCountInfo&)>&& report_vertex_count,
+    class Impl;
+
+    class VertexRegister
+    {
+      public:
+        VertexRegister(std::string_view name,
+                       std::function<void(VertexCountInfo&)>&& report_vertex_count,
+                       std::function<void(VertexAttributes&)>&& report_vertex_attributes,
+                       std::function<void(VertexDisplacement&)>&& report_vertex_displacement) noexcept;
+
+      private:
+        friend class GlobalVertexManager;
+        friend class Impl;
+
+        std::string                              m_name;
+        std::function<void(VertexCountInfo&)>    m_report_vertex_count;
+        std::function<void(VertexAttributes&)>   m_report_vertex_attributes;
+        std::function<void(VertexDisplacement&)> m_report_vertex_displacement;
+    };
+
+    void on_update(std::string_view                        name,
+                   std::function<void(VertexCountInfo&)>&& report_vertex_count,
                    std::function<void(VertexAttributes&)>&& report_vertex_attributes,
                    std::function<void(VertexDisplacement&)>&& report_vertex_displacement);
 
@@ -69,10 +90,8 @@ class GlobalVertexManager : public SimSystem
 
       public:
         Impl() = default;
-        void build_vertex_info();
-        void on_update(std::function<void(VertexCountInfo&)>&& report_vertex_count,
-                       std::function<void(VertexAttributes&)>&& report_vertex_attributes,
-                       std::function<void(VertexDisplacement&)>&& report_vertex_displacement);
+        void  build_vertex_info();
+        void  on_update(VertexRegister&& vertex_register);
         Float compute_max_displacement();
         AABB  compute_vertex_bounding_box();
 
@@ -92,9 +111,11 @@ class GlobalVertexManager : public SimSystem
         muda::DeviceVar<Vector3> min_pos;
         muda::DeviceVar<Vector3> max_pos;
 
-        list<std::function<void(VertexCountInfo&)>>  vertex_count_reporter;
-        list<std::function<void(VertexAttributes&)>> vertex_attribute_reporter;
-        list<std::function<void(VertexDisplacement&)>> vertex_displacement_reporter;
+        //list<std::function<void(VertexCountInfo&)>>  vertex_count_reporter;
+        //list<std::function<void(VertexAttributes&)>> vertex_attribute_reporter;
+        //list<std::function<void(VertexDisplacement&)>> vertex_displacement_reporter;
+
+        list<VertexRegister> vertex_registers;
     };
 
   private:

@@ -15,32 +15,23 @@ class SimSystemAutoRegisterInternalData
     list<std::function<U<ISimSystem>(SimEngine&)>> m_entries;
 };
 
+// default creator
+template <std::derived_from<ISimSystem> SimSystemT>
+class SimSystemCreator
+{
+  public:
+    static U<ISimSystem> create(SimEngine& engine)
+    {
+        return std::make_unique<SimSystemT>(engine);
+    }
+};
 
 namespace detail
 {
-    template <typename SimSystemT>
-    concept SimSystemHasAdvancedCreator = requires(SimEngine& engine) {
-        {
-            // 1) is derived from SimSystem
-            std::is_base_of_v<ISimSystem, SimSystemT>&&
-            // 2) has a static `advanced_creator` method
-            SimSystemT::advanced_creator(engine)
-        } -> std::convertible_to<U<ISimSystem>>;
-    };
-
     template <std::derived_from<ISimSystem> SimSystemT>
     std::function<U<ISimSystem>(SimEngine&)> register_system_creator()
     {
-        if constexpr(SimSystemHasAdvancedCreator<SimSystemT>)
-        {
-            return [](SimEngine& engine)
-            { return SimSystemT::advanced_creator(engine); };
-        }
-        else
-        {
-            return [](SimEngine& engine)
-            { return std::make_unique<SimSystemT>(engine); };
-        }
+        return &SimSystemCreator<SimSystemT>::create;
     }
 }  // namespace detail
 
@@ -58,7 +49,7 @@ class SimSystemAutoRegister
 }  // namespace uipc::backend::cuda
 
 /**
- * @brief Register a SimSystem, which will be automatically created by the SimEngine.
+ * @brief ConstitutionRegister a SimSystem, which will be automatically created by the SimEngine.
  */
 
 #define REGISTER_SIM_SYSTEM(SimSystem)                                             \
