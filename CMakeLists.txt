@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.27)
 
 # =========================================================================
 option(UIPC_CORE_ONLY "Build only the core library" OFF)
+option(UIPC_USING_LOCAL_VCPKG "Using local vcpkg" ON)
 option(UIPC_BUILD_GUI "Build GUI, turn it off if you're server only" ON)
 
 option(UIPC_BUILD_EXAMPLES "Build examples" ON)
@@ -17,9 +18,8 @@ include(cmake/uipc_utils.cmake)
 
 uipc_show_logo("0.0.1")
 uipc_show_options()
-uipc_generate_vcpkg_manifest()
+uipc_config_vcpkg_install()
 uipc_info("Checking dependencies...")
-
 project(uipc)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
