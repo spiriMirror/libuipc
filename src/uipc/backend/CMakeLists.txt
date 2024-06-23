@@ -1,4 +1,3 @@
 add_subdirectory(visitors)
-add_subdirectory(rmr) # reporter-manager-receiver model
 file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc PRIVATE ${SOURCES})

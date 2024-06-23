@@ -4,6 +4,7 @@
 #include <global_vertex_manager.h>
 #include <line_searcher.h>
 #include <gradient_hessian_computer.h>
+#include <global_linear_system.h>
 
 namespace uipc::backend::cuda
 {
@@ -35,8 +36,6 @@ void SimEngine::do_advance()
         // 4. Nonlinear-Newton Iteration
         Float tol  = m_newton_tol * box_size;
         SizeT iter = 0;
-        m_newton_max_iter;
-
         while(iter++ < m_newton_max_iter)
         {
             // 1) Build Collision Pairs
@@ -44,24 +43,23 @@ void SimEngine::do_advance()
             m_state = SimEngineState::ComputeGradientHassian;
             // 2) Compute Contact Gradient and Hessian => G:Vector3, H:Matrix3x3
 
-            
+
             // 3) Compute System Gradient and Hessian => G:Vector3, H:Matrix3x3
             // E.g. FEM/ABD ...
             m_gradient_hessian_computer->compute_gradient_hessian();
 
 
-
             m_state = SimEngineState::SolveGlobalLinearSystem;
-            // 4) Assemble Global Linear System => A:SparseMatrix of H, b:DenseVector of G
-            // 5) Solve Global Linear System => dx = A^-1 * b
+            // 4) Solve Global Linear System => dx = A^-1 * b
+            m_global_linear_system->solve();
 
-            // 6) Get Max Movement => dx_max = max(|dx|), if dx_max < tol, break
+            // 5) Get Max Movement => dx_max = max(|dx|), if dx_max < tol, break
             Float res = m_global_vertex_manager->compute_max_displacement();
             if(res < tol)
                 break;
 
             m_state = SimEngineState::LineSearch;
-            // 8) Begin Line Search
+            // 6) Begin Line Search
             {
                 // Record Current State x to x_0
                 m_line_searcher->record_current_state();

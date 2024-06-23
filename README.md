@@ -49,11 +49,9 @@ git submodule update --init
 
 ### Automatic Dependency Installation
 
-The rest dependencies are all managed by Vcpkg, they will be automatically installed in the CMake Configuration step.
+The rest dependencies are all managed by Vcpkg; they will be automatically installed in the CMake Configuration step.
 
 If the automatic installation fails, please raise an issue with the CMake error message.
-
-You can also try to install the dependencies [manually](#manaully-dependency-installation) as a temporary workaround.
 
 ### Build Project
 
@@ -114,23 +112,6 @@ mkdocs serve
 Open the browser and visit the [localhost:8000](http://127.0.0.1:8000/)
 
 ## Troubleshooting
-
-### Mannaully Dependency Installation
-If the automatic installation fails, you can manually install the dependencies, for a temporary workaround.
-
-First, remove the installed dependencies and the `vcpkg.json` file by:
-```shell
-cd libuipc
-rm -r ./vcpkg_installed
-rm ./vcpkg.json
-```
-Thus the Vcpkg manifest mode is disabled.
-
-Then, install the dependencies manually.
-```shell
-git submodule update --init
-vcpkg install eigen3 catch2 spdlog libigl fmt cppitertools dylib rapidcsv benchmark nlohmann-json imgui glfw3 bgfx
-```
 
 ### Linux GUI Support
 

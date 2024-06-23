@@ -19,7 +19,6 @@ include(cmake/uipc_utils.cmake)
 uipc_show_logo("0.0.1")
 uipc_show_options()
 uipc_config_vcpkg_install()
-uipc_info("Checking dependencies...")
 project(uipc)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)

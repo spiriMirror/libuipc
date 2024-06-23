@@ -12,12 +12,26 @@ class GradientHessianComputer : public SimSystem
     class ComputeInfo
     {
       public:
+        ComputeInfo(GradientHessianComputer* impl)
+            : m_impl(impl)
+        {
+        }
+
+        Float dt() const noexcept;
+
+      private:
+        GradientHessianComputer* m_impl;
     };
-    void on_compute_gradient_hessian(std::function<void(const ComputeInfo&)>&& action);
+    void on_compute_gradient_hessian(std::function<void(ComputeInfo&)>&& action);
+
+  protected:
+    void do_build() override;
 
   private:
     friend class SimEngine;
-    void                                          compute_gradient_hessian();
-    list<std::function<void(const ComputeInfo&)>> m_on_compute_gradient_hessian;
+    void                                    init();
+    void                                    compute_gradient_hessian();
+    list<std::function<void(ComputeInfo&)>> m_on_compute_gradient_hessian;
+    Float                                   m_dt = 0.0;
 };
 }  // namespace uipc::backend::cuda

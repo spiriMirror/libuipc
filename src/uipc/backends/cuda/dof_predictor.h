@@ -15,11 +15,11 @@ class DoFPredictor : public SimSystem
 
     using SimSystem::SimSystem;
 
-    void on_predict(std::function<void(const PredictInfo&)>&& action);
-    void on_compute_velocity(std::function<void(const PredictInfo&)>&& action);
+    void on_predict(std::function<void(PredictInfo&)>&& action);
+    void on_compute_velocity(std::function<void(PredictInfo&)>&& action);
 
   protected:
-    void build() override;
+    void do_build() override;
 
   private:
     void find_predict_info();
@@ -28,8 +28,8 @@ class DoFPredictor : public SimSystem
     void predict();           // only be called by SimEngine
     void compute_velocity();  // only be called by SimEngine
 
-    list<std::function<void(const PredictInfo&)>> m_on_predict;
-    list<std::function<void(const PredictInfo&)>> m_on_compute_velocity;
+    list<std::function<void(PredictInfo&)>> m_on_predict;
+    list<std::function<void(PredictInfo&)>> m_on_compute_velocity;
 
     PredictInfo m_predict_info;
 };

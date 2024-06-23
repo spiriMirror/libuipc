@@ -295,7 +295,7 @@ std::vector<Vector2i> two_step_lbvh_cp(span<const LinearBVHAABB> aabbs)
     DeviceBuffer<LinearBVHNode> nodes_1 = LinearBVHVisitor(lbvh).nodes();
     DeviceBuffer<LinearBVHAABB> aabbs_1 = LinearBVHVisitor(lbvh).aabbs();
 
-    lbvh.build(d_aabbs);  // build again, the internal nodes should be the same.
+    lbvh.build(d_aabbs);  // do_build again, the internal nodes should be the same.
     DeviceBuffer<LinearBVHNode> nodes_2 = LinearBVHVisitor(lbvh).nodes();
     DeviceBuffer<LinearBVHAABB> aabbs_2 = LinearBVHVisitor(lbvh).aabbs();
 

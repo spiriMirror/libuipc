@@ -77,7 +77,7 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
     /**
      * @brief A wrapper of the vertices and its attributes of the simplicial complex.
      * 
-     * @return VertexAttributes 
+     * @return VertexAttributeInfo 
      */
     [[nodiscard]] VertexAttributes  vertices() noexcept;
     [[nodiscard]] CVertexAttributes vertices() const noexcept;

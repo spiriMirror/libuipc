@@ -24,26 +24,26 @@ class SimSystem : public ISimSystem
     template <std::derived_from<SimSystem> T>
     T* find();
 
-    virtual void build() override{};
+    virtual void do_build() override{};
 
     /**
      * @brief register an action to be executed when the scene is initialized
      * 
-     * This function can only be called in build() function
+     * This function can only be called in do_build() function
      */
     void on_init_scene(std::function<void()>&& action) noexcept;
 
     /**
      * @brief register an action to be executed when the scene is rebuilt
      * 
-     * This function can only be called in build() function
+     * This function can only be called in do_build() function
      */
     void on_rebuild_scene(std::function<void()>&& action) noexcept;
 
     /**
      * @brief register an action to be executed when the scene is written
      * 
-     * This function can only be called in build() function
+     * This function can only be called in do_build() function
      */
     void on_write_scene(std::function<void()>&& action) noexcept;
 

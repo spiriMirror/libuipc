@@ -6,7 +6,7 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(LineSearcher);
 
-void LineSearcher::build()
+void LineSearcher::do_build()
 {
     on_init_scene([this]() { init(); });
 }
@@ -18,14 +18,14 @@ void LineSearcher::on_record_current_state(std::function<void()>&& action)
     m_record_current_state.push_back(std::move(action));
 }
 
-void LineSearcher::on_step_forward(std::function<void(const StepInfo& info)>&& action)
+void LineSearcher::on_step_forward(std::function<void(StepInfo& info)>&& action)
 {
     check_state(SimEngineState::BuildSystems, "on_step_forward()");
     m_step_forwards.push_back(std::move(action));
 }
 
 void LineSearcher::on_compute_energy(std::string_view name,
-                                     std::function<Float(const ComputeEnergyInfo& info)>&& action)
+                                     std::function<Float(ComputeEnergyInfo& info)>&& action)
 {
     check_state(SimEngineState::BuildSystems, "on_compute_energy()");
     m_compute_energy.push_back(std::move(action));
@@ -35,8 +35,11 @@ void LineSearcher::on_compute_energy(std::string_view name,
 
 void LineSearcher::init()
 {
-    m_report_energy = world().scene().info()["debug"]["report_energy"];
+    auto scene = world().scene();
+
+    m_report_energy = scene.info()["debug"]["report_energy"];
     m_energy_values.resize(m_compute_energy.size(), 0);
+    m_dt = scene.info()["dt"];
 }
 
 void LineSearcher::record_current_state()
@@ -81,5 +84,10 @@ Float LineSearcher::compute_energy()
     }
 
     return total_energy;
+}
+
+Float LineSearcher::ComputeEnergyInfo::dt() const noexcept
+{
+    return m_impl->m_dt;
 }
 }  // namespace uipc::backend::cuda

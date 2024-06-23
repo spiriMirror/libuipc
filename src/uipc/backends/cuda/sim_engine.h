@@ -13,6 +13,7 @@ class GlobalVertexManager;
 class DoFPredictor;
 class LineSearcher;
 class GradientHessianComputer;
+class GlobalLinearSystem;
 
 class UIPC_BACKEND_API SimEngine : public engine::IEngine
 {
@@ -65,6 +66,7 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     DoFPredictor*            m_dof_predictor             = nullptr;
     LineSearcher*            m_line_searcher             = nullptr;
     GradientHessianComputer* m_gradient_hessian_computer = nullptr;
+    GlobalLinearSystem*      m_global_linear_system      = nullptr;
 
     Float m_newton_tol      = 1e-2;
     SizeT m_newton_max_iter = 1000;

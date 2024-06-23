@@ -11,7 +11,7 @@ class ABDOrthoPotential : public SimSystem
 
     using SimSystem::SimSystem;
 
-    virtual void build() override;
+    virtual void do_build() override;
 
   public:
     class Impl
@@ -19,6 +19,8 @@ class ABDOrthoPotential : public SimSystem
       public:
         void on_filter(const AffineBodyDynamics::FilteredInfo& info, WorldVisitor& world);
         void on_compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& info);
+        void on_compute_gradient_hessian(const AffineBodyDynamics::ComputeGradientHessianInfo& info);
+
         void _build_on_device();
 
         AffineBodyDynamics* affine_body_geometry;
@@ -27,6 +29,7 @@ class ABDOrthoPotential : public SimSystem
         vector<Float>                        h_kappas;
 
         muda::DeviceBuffer<Float> kappas;
+        muda::DeviceBuffer<Float> body_energies;
     };
 
   private:

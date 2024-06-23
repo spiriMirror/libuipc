@@ -13,6 +13,8 @@ class GlobalVertexManager : public SimSystem
   public:
     using SimSystem::SimSystem;
 
+    class Impl;
+
     class VertexCountInfo
     {
       public:
@@ -23,10 +25,10 @@ class GlobalVertexManager : public SimSystem
         SizeT m_count;
     };
 
-    class VertexAttributes
+    class VertexAttributeInfo
     {
       public:
-        VertexAttributes() = default;
+        VertexAttributeInfo() = default;
         muda::BufferView<IndexT>  coindex() const noexcept;
         muda::BufferView<Vector3> positions() const noexcept;
 
@@ -37,17 +39,18 @@ class GlobalVertexManager : public SimSystem
         muda::BufferView<Vector3> m_positions;
     };
 
-    class VertexDisplacement
+    class VertexDisplacementInfo
     {
       public:
-        VertexDisplacement() = default;
+        VertexDisplacementInfo(Impl* impl, SizeT index) noexcept;
         muda::BufferView<Vector3> displacements() const noexcept;
+        muda::CBufferView<IndexT> coindex() const noexcept;
 
       private:
         friend class GlobalVertexManager;
-
-        muda::BufferView<Vector3> m_safe_positions;
+        SizeT                     m_index;
         muda::BufferView<Vector3> m_displacements;
+        Impl*                     m_impl;
     };
 
     class Impl;
@@ -57,31 +60,30 @@ class GlobalVertexManager : public SimSystem
       public:
         VertexRegister(std::string_view name,
                        std::function<void(VertexCountInfo&)>&& report_vertex_count,
-                       std::function<void(VertexAttributes&)>&& report_vertex_attributes,
-                       std::function<void(VertexDisplacement&)>&& report_vertex_displacement) noexcept;
+                       std::function<void(VertexAttributeInfo&)>&& report_vertex_attributes,
+                       std::function<void(VertexDisplacementInfo&)>&& report_vertex_displacement) noexcept;
 
       private:
         friend class GlobalVertexManager;
         friend class Impl;
 
-        std::string                              m_name;
-        std::function<void(VertexCountInfo&)>    m_report_vertex_count;
-        std::function<void(VertexAttributes&)>   m_report_vertex_attributes;
-        std::function<void(VertexDisplacement&)> m_report_vertex_displacement;
+        std::string                               m_name;
+        std::function<void(VertexCountInfo&)>     m_report_vertex_count;
+        std::function<void(VertexAttributeInfo&)> m_report_vertex_attributes;
+        std::function<void(VertexDisplacementInfo&)> m_report_vertex_displacement;
     };
 
     void on_update(std::string_view                        name,
                    std::function<void(VertexCountInfo&)>&& report_vertex_count,
-                   std::function<void(VertexAttributes&)>&& report_vertex_attributes,
-                   std::function<void(VertexDisplacement&)>&& report_vertex_displacement);
+                   std::function<void(VertexAttributeInfo&)>&& report_vertex_attributes,
+                   std::function<void(VertexDisplacementInfo&)>&& report_vertex_displacement);
 
     muda::CBufferView<IndexT>  coindex() const noexcept;
     muda::CBufferView<Vector3> positions() const noexcept;
     muda::CBufferView<Vector3> displacements() const noexcept;
 
     Float compute_max_displacement();
-
-    AABB compute_vertex_bounding_box();
+    AABB  compute_vertex_bounding_box();
 
   public:
     class Impl
@@ -94,6 +96,10 @@ class GlobalVertexManager : public SimSystem
         void  on_update(VertexRegister&& vertex_register);
         Float compute_max_displacement();
         AABB  compute_vertex_bounding_box();
+        void  collect_vertex_displacements();
+
+        template <typename T>
+        muda::BufferView<T> subview(muda::DeviceBuffer<T>& buffer, SizeT index) const noexcept;
 
       private:
         /**
@@ -111,11 +117,10 @@ class GlobalVertexManager : public SimSystem
         muda::DeviceVar<Vector3> min_pos;
         muda::DeviceVar<Vector3> max_pos;
 
-        //list<std::function<void(VertexCountInfo&)>>  vertex_count_reporter;
-        //list<std::function<void(VertexAttributes&)>> vertex_attribute_reporter;
-        //list<std::function<void(VertexDisplacement&)>> vertex_displacement_reporter;
-
-        list<VertexRegister> vertex_registers;
+        list<VertexRegister>   vertex_registers_buffer;
+        vector<VertexRegister> vertex_registers;
+        vector<SizeT>          register_vertex_offsets;
+        vector<SizeT>          register_vertex_counts;
     };
 
   private:
@@ -125,3 +130,5 @@ class GlobalVertexManager : public SimSystem
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda
+
+#include "details/global_vertex_manager.inl"

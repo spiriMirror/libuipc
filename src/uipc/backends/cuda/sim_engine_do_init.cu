@@ -7,7 +7,7 @@
 #include <dof_predictor.h>
 #include <line_searcher.h>
 #include <gradient_hessian_computer.h>
-
+#include <global_linear_system.h>
 namespace uipc::backend::cuda
 {
 void SimEngine::build()
@@ -17,6 +17,7 @@ void SimEngine::build()
     m_dof_predictor             = find<DoFPredictor>();
     m_line_searcher             = find<LineSearcher>();
     m_gradient_hessian_computer = find<GradientHessianComputer>();
+    m_global_linear_system      = find<GlobalLinearSystem>();
 }
 
 void SimEngine::init_scene()

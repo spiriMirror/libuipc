@@ -40,8 +40,8 @@ void AffineBodyDynamics::FilteredInfo::for_each_body(span<P<geometry::GeometrySl
 {
     SizeT I = 0;
 
-    auto constitution_geo_offset = m_impl->h_constitution_geo_offsets[constitution_index];
-    auto constitution_geo_count = m_impl->h_constitution_geo_counts[constitution_index];
+    auto constitution_geo_offset = m_impl->h_constitution_geo_offsets[m_constitution_index];
+    auto constitution_geo_count = m_impl->h_constitution_geo_counts[m_constitution_index];
     auto sub_abd_geo_body_offsets =
         span{m_impl->h_abd_geo_body_offsets}.subspan(constitution_geo_offset,
                                                      constitution_geo_count);

@@ -22,30 +22,36 @@ class AffineBodyDynamics : public SimSystem
   public:
     using SimSystem::SimSystem;
 
+    class Impl;
+
     class BodyInfo
     {
-      public:
-        U64 constitution_uid = 0ull;
+        U64    constitution_uid() const noexcept;
+        IndexT geometry_slot_index() const noexcept;
+        IndexT geometry_instance_index() const noexcept;
+        IndexT abd_geometry_index() const noexcept;
+        IndexT affine_body_id() const noexcept;
+        IndexT vertex_offset() const noexcept;
+        IndexT vertex_count() const noexcept;
 
-        IndexT geometry_slot_index     = -1;
-        IndexT geometry_instance_index = -1;
+      private:
+        friend class Impl;
+        U64 m_constitution_uid = 0ull;
 
-        IndexT abd_geometry_index = -1;
-        IndexT affine_body_id     = -1;
+        IndexT m_geometry_slot_index     = -1;
+        IndexT m_geometry_instance_index = -1;
 
-        IndexT vertex_offset = -1;
-        IndexT vertex_count  = -1;
+        IndexT m_abd_geometry_index = -1;
+        IndexT m_affine_body_id     = -1;
+
+        IndexT m_vertex_offset = -1;
+        IndexT m_vertex_count  = -1;
     };
-
-    class Impl;
 
     class FilteredInfo
     {
       public:
-        FilteredInfo(Impl* impl) noexcept
-            : m_impl(impl)
-        {
-        }
+        FilteredInfo(Impl* impl) noexcept;
 
         span<const BodyInfo> body_infos() const noexcept;
 
@@ -72,15 +78,15 @@ class AffineBodyDynamics : public SimSystem
     class ComputeEnergyInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl) noexcept
-            : m_impl(impl)
-        {
-        }
+        ComputeEnergyInfo(Impl*                impl,
+                          SizeT                constitution_index,
+                          muda::VarView<Float> shape_energy,
+                          Float                dt) noexcept;
         auto shape_energy() const noexcept { return m_shape_energy; }
         auto dt() const noexcept { return m_dt; }
 
         muda::CBufferView<Vector12> qs() const noexcept;
-
+        muda::CBufferView<Float>    volumes() const noexcept;
 
       private:
         friend class Impl;
@@ -93,45 +99,52 @@ class AffineBodyDynamics : public SimSystem
     class ComputeGradientHessianInfo
     {
       public:
-        ComputeGradientHessianInfo(Impl* impl) noexcept
-            : m_impl(impl)
-        {
-        }
+        ComputeGradientHessianInfo(Impl* impl,
+                                   SizeT constitution_index,
+                                   muda::BufferView<Vector12>    shape_gradient,
+                                   muda::BufferView<Matrix12x12> shape_hessian,
+                                   Float                         dt) noexcept;
+
         auto shape_hessian() const noexcept { return m_shape_hessian; }
         auto shape_gradient() const noexcept { return m_shape_gradient; }
+        muda::CBufferView<Vector12> qs() const noexcept;
+        muda::CBufferView<Float>    volumes() const noexcept;
+        auto                        dt() const noexcept { return m_dt; }
 
       private:
         friend class Impl;
+        SizeT                         m_constitution_index = ~0ull;
         muda::BufferView<Matrix12x12> m_shape_hessian;
         muda::BufferView<Vector12>    m_shape_gradient;
+        Float                         m_dt   = 0.0;
         Impl*                         m_impl = nullptr;
     };
 
-    void on_update(U64                                        constitution_uid,
-                   std::function<void(const FilteredInfo&)>&& filter,
-                   std::function<void(const ComputeEnergyInfo&)>&& compute_shape_energy,
-                   std::function<void(const ComputeGradientHessianInfo&)>&& compute_shape_gradient_hessian);
+    void on_update(U64                                  constitution_uid,
+                   std::function<void(FilteredInfo&)>&& filter,
+                   std::function<void(ComputeEnergyInfo&)>&& compute_shape_energy,
+                   std::function<void(ComputeGradientHessianInfo&)>&& compute_shape_gradient_hessian);
 
   private:
     class ConstitutionRegister
     {
       public:
         ConstitutionRegister(U64 constitution_uid,
-                             std::function<void(const FilteredInfo&)>&& filter,
-                             std::function<void(const ComputeEnergyInfo&)>&& compute_shape_energy,
-                             std::function<void(const ComputeGradientHessianInfo&)>&& compute_shape_gradient_hessian) noexcept;
+                             std::function<void(FilteredInfo&)>&& filter,
+                             std::function<void(ComputeEnergyInfo&)>&& compute_shape_energy,
+                             std::function<void(ComputeGradientHessianInfo&)>&& compute_shape_gradient_hessian) noexcept;
 
       private:
         friend class AffineBodyDynamics;
         friend class Impl;
-        U64                                           m_constitution_uid;
-        std::function<void(const FilteredInfo&)>      m_filter;
-        std::function<void(const ComputeEnergyInfo&)> m_compute_shape_energy;
-        std::function<void(const ComputeGradientHessianInfo&)> m_compute_shape_gradient_hessian;
+        U64                                     m_constitution_uid;
+        std::function<void(FilteredInfo&)>      m_filter;
+        std::function<void(ComputeEnergyInfo&)> m_compute_shape_energy;
+        std::function<void(ComputeGradientHessianInfo&)> m_compute_shape_gradient_hessian;
     };
 
   protected:
-    virtual void build() override;
+    virtual void do_build() override;
 
   public:
     class Impl
@@ -145,20 +158,20 @@ class AffineBodyDynamics : public SimSystem
         void _distribute_body_infos();
 
         void report_vertex_count(GlobalVertexManager::VertexCountInfo& vertex_count_info);
-        void receive_global_vertex_info(const GlobalVertexManager::VertexAttributes& global_vertex_info);
-
+        void report_vertex_attributes(const GlobalVertexManager::VertexAttributeInfo& global_vertex_info);
+        void report_vertex_displacements(GlobalVertexManager::VertexDisplacementInfo& vertex_displacement_info);
 
         void write_scene(WorldVisitor& world);
         void _download_geometry_to_host();
 
-        void compute_q_tilde(const DoFPredictor::PredictInfo& info);
-        void compute_q_v(const DoFPredictor::PredictInfo& info);
-        void copy_q_to_q_temp();
-        void step_forward(const LineSearcher::StepInfo& info);
-        Float compute_abd_kinetic_energy(const LineSearcher::ComputeEnergyInfo& info);
-        Float compute_abd_shape_energy(const LineSearcher::ComputeEnergyInfo& info);
+        void  compute_q_tilde(DoFPredictor::PredictInfo& info);
+        void  compute_q_v(DoFPredictor::PredictInfo& info);
+        void  copy_q_to_q_temp();
+        void  step_forward(LineSearcher::StepInfo& info);
+        Float compute_abd_kinetic_energy(LineSearcher::ComputeEnergyInfo& info);
+        Float compute_abd_shape_energy(LineSearcher::ComputeEnergyInfo& info);
 
-        void compute_gradient_hessian(const GradientHessianComputer::ComputeInfo& info);
+        void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);
 
 
         // util functions

@@ -288,7 +288,7 @@ void GlobalTimer::merge_timers()
         }
     }
 
-    // build hierarchy
+    // do_build hierarchy
     for(auto&& [name, merged_timer] : m_merge_timers)
     {
         if(merged_timer->parent_full_name.empty())

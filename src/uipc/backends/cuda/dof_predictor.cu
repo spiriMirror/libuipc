@@ -4,17 +4,17 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(DoFPredictor);
 
-void DoFPredictor::build()
+void DoFPredictor::do_build()
 {
     on_init_scene([this]() { find_predict_info(); });
 }
 
-void DoFPredictor::on_predict(std::function<void(const PredictInfo&)>&& action)
+void DoFPredictor::on_predict(std::function<void(PredictInfo&)>&& action)
 {
     m_on_predict.push_back(std::move(action));
 }
 
-void DoFPredictor::on_compute_velocity(std::function<void(const PredictInfo&)>&& action)
+void DoFPredictor::on_compute_velocity(std::function<void(PredictInfo&)>&& action)
 {
     m_on_compute_velocity.push_back(std::move(action));
 }
