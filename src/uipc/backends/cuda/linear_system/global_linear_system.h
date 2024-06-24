@@ -47,9 +47,9 @@ class GlobalLinearSystem : public SimSystem
 
       private:
         friend class Impl;
-        SizeT              m_dof_count;
-        SizeT              m_block_count;
-        HessianStorageType m_storage_type;
+        SizeT              m_dof_count    = 0;
+        SizeT              m_block_count  = 0;
+        HessianStorageType m_storage_type = HessianStorageType::Full;
     };
 
     class DiagInfo
@@ -81,9 +81,9 @@ class GlobalLinearSystem : public SimSystem
 
       private:
         friend class Impl;
-        SizeT              m_lr_block_count;
-        SizeT              m_rl_block_count;
-        HessianStorageType m_storage_type;
+        SizeT              m_lr_block_count = 0;
+        SizeT              m_rl_block_count = 0;
+        HessianStorageType m_storage_type   = HessianStorageType::Full;
     };
 
     class OffDiagInfo
