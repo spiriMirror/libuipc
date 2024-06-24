@@ -9,7 +9,7 @@ template <>
 class SimSystemCreator<ABDOrthoPotential>
 {
   public:
-    static U<ISimSystem> create(SimEngine& engine)
+    static U<ABDOrthoPotential> create(SimEngine& engine)
     {
         auto scene = engine.world().scene();
         // Check if we have the AffineBodyDynamics Type
@@ -22,7 +22,7 @@ class SimSystemCreator<ABDOrthoPotential>
         if(!std::binary_search(uids.begin(), uids.end(), ABDOrthoPotential::ConstitutionUID))
             return nullptr;
 
-        return static_pointer_cast<ISimSystem>(make_unique<AffineBodyDynamics>(engine));
+        return make_unique<ABDOrthoPotential>(engine);
     }
 };
 

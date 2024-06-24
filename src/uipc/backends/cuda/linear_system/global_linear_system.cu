@@ -18,12 +18,19 @@ void GlobalLinearSystem::do_build()
 void GlobalLinearSystem::solve()
 {
     m_impl.build_linear_system();
+    // if the system is empty, skip the following steps
+    if(m_impl.empty_system) [[unlikely]]
+        return;
     m_impl.solve_linear_system();
     m_impl.distribute_solution();
 }
 
 void GlobalLinearSystem::Impl::init()
 {
+    UIPC_ASSERT(!diag_subsystem_buffer.empty() || !off_diag_subsystem_buffer.empty(),
+                "No linear subsystems added to the global linear system.");
+
+    // build the linear subsystem infos
     diag_subsystems.resize(diag_subsystem_buffer.size());
     off_diag_subsystems.resize(off_diag_subsystem_buffer.size());
     local_preconditioners.resize(local_preconditioner_buffer.size());
@@ -36,14 +43,15 @@ void GlobalLinearSystem::Impl::init()
 
     subsystem_infos.resize(total_count);
 
+    // put the diag subsystems in the front
     auto diag_span = span{subsystem_infos}.subspan(0, diag_subsystems.size());
+    // then the off diag subsystems
     auto off_diag_span = span{subsystem_infos}.subspan(diag_subsystems.size(),
                                                        off_diag_subsystems.size());
 
     auto offset = 0;
     for(auto i : range(diag_span.size()))
     {
-
         auto& dst_diag              = diag_span[i];
         dst_diag.is_diag            = true;
         dst_diag.local_index        = i;
@@ -61,6 +69,7 @@ void GlobalLinearSystem::Impl::init()
         dst_off_diag.index       = offset + i;
     }
 
+    // prepare the storage for dof and matrix triplet
     subsystem_triplet_offsets.resize(total_count, ~0ull);
     subsystem_triplet_offsets.resize(total_count, ~0ull);
 
@@ -73,8 +82,11 @@ void GlobalLinearSystem::Impl::init()
 
 void GlobalLinearSystem::Impl::build_linear_system()
 {
-    if(!_update_subsystem_extent())  // if empty, skip the following steps
+    empty_system = !_update_subsystem_extent();
+    // if empty, skip the following steps
+    if(empty_system) [[unlikely]]
         return;
+
     _assemble_linear_system();
 
     converter.convert(triplet_A, bcoo_A);
@@ -96,12 +108,12 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
             auto           triplet_i      = subsystem_info.index;
             auto&          diag_subsystem = diag_subsystems[dof_i];
             DiagExtentInfo info;
+            info.m_storage_type = HessianStorageType::Full;
             diag_subsystem->report_extent(info);
-            UIPC_ASSERT(info.m_storage_type == HessianStorageType::Full,
-                        "Only support full storage type for now");
 
             dof_count_changed |= diag_dof_counts[dof_i] != info.m_dof_count;
             diag_dof_counts[dof_i] = info.m_dof_count;
+
 
             triplet_count_changed |= subsystem_triplet_counts[triplet_i] != info.m_block_count;
             subsystem_triplet_counts[triplet_i] = info.m_block_count;
@@ -111,10 +123,8 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
             auto triplet_i = subsystem_info.index;
             auto& off_diag_subsystem = off_diag_subsystems[subsystem_info.local_index];
             OffDiagExtentInfo info;
+            info.m_storage_type = HessianStorageType::Full;
             off_diag_subsystem->report_extent(info);
-
-            UIPC_ASSERT(info.m_storage_type == HessianStorageType::Full,
-                        "Only support full storage type for now");
 
             auto total_block_count = info.m_lr_block_count + info.m_rl_block_count;
 
@@ -142,14 +152,18 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
             b.reserve(reserve_count);
             b.resize(total_dof);
 
-            auto blocked_dof = total_dof / BlockSize;
+            auto blocked_dof = total_dof / DoFBlockSize;
 
             triplet_A.reshape(blocked_dof, blocked_dof);
-            bsr_A.reserve_offsets(reserve_count / BlockSize + 1);
+            bsr_A.reserve_offsets(reserve_count / DoFBlockSize + 1);
         }
     }
+    else
+    {
+        total_dof = diag_dof_offsets.back() + diag_dof_counts.back();
+    }
 
-    if(triplet_count_changed)
+    if(triplet_count_changed) [[likely]]
     {
         std::exclusive_scan(subsystem_triplet_counts.begin(),
                             subsystem_triplet_counts.end(),
@@ -167,8 +181,13 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
             bsr_A.reserve(reserve_count);
         }
     }
+    else
+    {
+        total_triplet =
+            subsystem_triplet_offsets.back() + subsystem_triplet_counts.back();
+    }
 
-    if(total_dof == 0 || total_triplet == 0)
+    if(total_dof == 0 || total_triplet == 0) [[unlikely]]
     {
         spdlog::warn("The global linear system is empty, skip *assembling, *solving and *solution distributing phase.");
         return false;
@@ -196,9 +215,10 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
 
             DiagInfo info{this};
 
-            info.m_index    = triplet_i;
-            info.m_gradient = X.subview(dof_offset, dof_count);
-            info.m_hessian  = HA.subview(subsystem_triplet_offsets[triplet_i],
+            info.m_index        = triplet_i;
+            info.m_storage_type = HessianStorageType::Full;
+            info.m_gradient     = X.subview(dof_offset, dof_count);
+            info.m_hessian = HA.subview(subsystem_triplet_offsets[triplet_i],
                                         subsystem_triplet_counts[triplet_i])
                                  .submatrix(ij_offset, ij_count);
 
@@ -213,11 +233,11 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
             auto& r_diag_index = off_diag_subsystem->m_r->m_index;
 
 
-            int l_blocked_dof_offset = diag_dof_offsets[l_diag_index] / BlockSize;
-            int l_blocked_dof_count = diag_dof_counts[l_diag_index] / BlockSize;
+            int l_blocked_dof_offset = diag_dof_offsets[l_diag_index] / DoFBlockSize;
+            int l_blocked_dof_count = diag_dof_counts[l_diag_index] / DoFBlockSize;
 
-            int r_blocked_dof_offset = diag_dof_offsets[r_diag_index] / BlockSize;
-            int r_blocked_dof_count = diag_dof_counts[r_diag_index] / BlockSize;
+            int r_blocked_dof_offset = diag_dof_offsets[r_diag_index] / DoFBlockSize;
+            int r_blocked_dof_count = diag_dof_counts[r_diag_index] / DoFBlockSize;
 
             auto lr_offset = subsystem_triplet_offsets[triplet_i];
             auto lr_count  = off_diag_lr_triplet_counts[local_index].x;
@@ -225,7 +245,8 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
             auto rl_count  = off_diag_lr_triplet_counts[local_index].y;
 
             OffDiagInfo info{this};
-            info.m_index = triplet_i;
+            info.m_index        = triplet_i;
+            info.m_storage_type = HessianStorageType::Full;
 
             info.m_lr_hessian =
                 HA.subview(lr_offset, lr_count)
@@ -259,9 +280,27 @@ void GlobalLinearSystem::Impl::_assemble_preconditioner()
     }
 }
 
-void GlobalLinearSystem::Impl::solve_linear_system() {}
+void GlobalLinearSystem::Impl::solve_linear_system()
+{
+    if(iterative_solver)
+    {
+        SolvingInfo info{this};
+        info.m_b = b.cview();
+        info.m_x = x.view();
+        iterative_solver->solve(info);
+    }
+}
 
-void GlobalLinearSystem::Impl::distribute_solution() {}
+void GlobalLinearSystem::Impl::distribute_solution()
+{
+    // distribute the solution to all diag subsystems
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems))
+    {
+        SolutionInfo info{this};
+        info.m_solution = x.view().subview(diag_dof_offsets[i], diag_dof_counts[i]);
+        diag_subsystem->retrieve_solution(info);
+    }
+}
 
 void GlobalLinearSystem::Impl::apply_preconditioner(muda::DenseVectorView<Float> z,
                                                     muda::CDenseVectorView<Float> r)

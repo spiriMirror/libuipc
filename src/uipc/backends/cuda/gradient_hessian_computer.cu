@@ -2,6 +2,8 @@
 
 namespace uipc::backend::cuda
 {
+REGISTER_SIM_SYSTEM(GradientHessianComputer);
+
 void GradientHessianComputer::do_build()
 {
     on_init_scene([this] { this->init(); });

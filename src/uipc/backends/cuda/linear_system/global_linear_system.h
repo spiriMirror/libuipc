@@ -16,6 +16,8 @@ class GlobalPreconditioner;
 
 class GlobalLinearSystem : public SimSystem
 {
+    static constexpr SizeT DoFBlockSize = 3;
+
   public:
     using SimSystem::SimSystem;
     using TripletMatrixView = muda::TripletMatrixView<Float, 3>;
@@ -40,14 +42,8 @@ class GlobalLinearSystem : public SimSystem
     class DiagExtentInfo
     {
       public:
-        void extent(SizeT              hessian_block_count,
-                    SizeT              dof_count,
-                    HessianStorageType storage = HessianStorageType::Full)
-        {
-            m_block_count  = hessian_block_count;
-            m_dof_count    = dof_count;
-            m_storage_type = storage;
-        }
+        HessianStorageType storage_type() { return m_storage_type; }
+        void extent(SizeT hessian_block_count, SizeT dof_count) noexcept;
 
       private:
         friend class Impl;
@@ -59,49 +55,29 @@ class GlobalLinearSystem : public SimSystem
     class DiagInfo
     {
       public:
-        DiagInfo(Impl* impl)
+        DiagInfo(Impl* impl) noexcept
             : m_impl(impl)
         {
         }
 
-        TripletMatrixView hessian() { return m_hessian; }
-        DenseVectorView   gradient() { return m_gradient; }
+        HessianStorageType storage_type() { return m_storage_type; }
+        TripletMatrixView  hessian() { return m_hessian; }
+        DenseVectorView    gradient() { return m_gradient; }
 
       private:
         friend class Impl;
-        SizeT             m_index = ~0ull;
-        TripletMatrixView m_hessian;
-        DenseVectorView   m_gradient;
-        Impl*             m_impl = nullptr;
-    };
-
-    class SolutionInfo
-    {
-      public:
-        SolutionInfo(Impl* impl)
-            : m_impl(impl)
-        {
-        }
-
-        CDenseVectorView solution() { return m_solution; }
-
-      private:
-        SizeT            m_index = ~0ull;
-        CDenseVectorView m_solution;
-        Impl*            m_impl = nullptr;
+        SizeT              m_index = ~0ull;
+        TripletMatrixView  m_hessian;
+        DenseVectorView    m_gradient;
+        HessianStorageType m_storage_type;
+        Impl*              m_impl = nullptr;
     };
 
     class OffDiagExtentInfo
     {
       public:
-        void extent(SizeT              lr_hessian_block_count,
-                    SizeT              rl_hassian_block_count,
-                    HessianStorageType storage = HessianStorageType::Full)
-        {
-            m_lr_block_count = lr_hessian_block_count;
-            m_rl_block_count = rl_hassian_block_count;
-            m_storage_type   = storage;
-        }
+        HessianStorageType storage_type() { return m_storage_type; }
+        void extent(SizeT lr_hessian_block_count, SizeT rl_hassian_block_count) noexcept;
 
       private:
         friend class Impl;
@@ -113,43 +89,47 @@ class GlobalLinearSystem : public SimSystem
     class OffDiagInfo
     {
       public:
-        OffDiagInfo(Impl* impl)
+        OffDiagInfo(Impl* impl) noexcept
             : m_impl(impl)
         {
         }
 
-        TripletMatrixView lr_hessian() { return m_lr_hessian; }
-        TripletMatrixView rl_hessian() { return m_rl_hessian; }
+        HessianStorageType storage_type() { return m_storage_type; }
+        TripletMatrixView  lr_hessian() { return m_lr_hessian; }
+        TripletMatrixView  rl_hessian() { return m_rl_hessian; }
 
       private:
         friend class Impl;
-        SizeT             m_index = ~0ull;
-        TripletMatrixView m_lr_hessian;
-        TripletMatrixView m_rl_hessian;
-        Impl*             m_impl = nullptr;
+        SizeT              m_index = ~0ull;
+        TripletMatrixView  m_lr_hessian;
+        TripletMatrixView  m_rl_hessian;
+        HessianStorageType m_storage_type;
+        Impl*              m_impl = nullptr;
     };
 
     class GlobalPreconditionerAssemblyInfo
     {
       public:
-        GlobalPreconditionerAssemblyInfo(Impl* impl)
+        GlobalPreconditionerAssemblyInfo(Impl* impl) noexcept
             : m_impl(impl)
         {
         }
 
-        auto A() { return m_A; }
+        CBCOOMatrixView    A() { return m_A; }
+        HessianStorageType storage_type() { return m_storage_type; }
 
       private:
         friend class Impl;
-        CBCOOMatrixView m_A;
-        bool            symmetric = false;
-        Impl*           m_impl    = nullptr;
+        CBCOOMatrixView    m_A;
+        bool               symmetric = false;
+        Impl*              m_impl    = nullptr;
+        HessianStorageType m_storage_type;
     };
 
     class LocalPreconditionerAssemblyInfo
     {
       public:
-        LocalPreconditionerAssemblyInfo(Impl* impl)
+        LocalPreconditionerAssemblyInfo(Impl* impl) noexcept
             : m_impl(impl)
         {
         }
@@ -163,7 +143,7 @@ class GlobalLinearSystem : public SimSystem
     class ApplyPreconditionerInfo
     {
       public:
-        ApplyPreconditionerInfo(Impl* impl)
+        ApplyPreconditionerInfo(Impl* impl) noexcept
             : m_impl(impl)
         {
         }
@@ -181,7 +161,7 @@ class GlobalLinearSystem : public SimSystem
     class AccuracyInfo
     {
       public:
-        AccuracyInfo(Impl* impl)
+        AccuracyInfo(Impl* impl) noexcept
             : m_impl(impl)
         {
         }
@@ -207,11 +187,29 @@ class GlobalLinearSystem : public SimSystem
 
         DenseVectorView  x() { return m_x; }
         CDenseVectorView b() { return m_b; }
+        void iter_count(SizeT iter_count) { m_iter_count = iter_count; }
 
       private:
         friend class Impl;
         DenseVectorView  m_x;
         CDenseVectorView m_b;
+        SizeT            m_iter_count = 0;
+        Impl*            m_impl       = nullptr;
+    };
+
+    class SolutionInfo
+    {
+      public:
+        SolutionInfo(Impl* impl)
+            : m_impl(impl)
+        {
+        }
+
+        CDenseVectorView solution() { return m_solution; }
+
+      private:
+        friend class Impl;
+        CDenseVectorView m_solution;
         Impl*            m_impl = nullptr;
     };
 
@@ -227,8 +225,6 @@ class GlobalLinearSystem : public SimSystem
   public:
     class Impl
     {
-        static constexpr SizeT BlockSize = 3;
-
       public:
         void init();
 
@@ -274,6 +270,8 @@ class GlobalLinearSystem : public SimSystem
 
         Spmv            spmver;
         MatrixConverter converter;
+
+        bool empty_system = true;
 
         void apply_preconditioner(muda::DenseVectorView<Float>  z,
                                   muda::CDenseVectorView<Float> r);

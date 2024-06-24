@@ -1,4 +1,5 @@
 #include <sim_system_collection.h>
+#include <typeinfo>
 #include <uipc/common/log.h>
 
 
@@ -9,7 +10,10 @@ void SimSystemCollection::create(U<ISimSystem> system)
     auto& s   = *system;
     U64   tid = typeid(s).hash_code();
     auto  it  = m_sim_systems.find(tid);
-    UIPC_ASSERT(it == m_sim_systems.end(), "SimSystem already exists, why can it happen?");
+    UIPC_ASSERT(it == m_sim_systems.end(),
+                "SimSystem ({}) already exists, yours {}, why can it happen?",
+                it->second->name(),
+                s.name());
 
     m_sim_systems.insert({tid, std::move(system)});
 }

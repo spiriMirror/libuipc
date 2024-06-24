@@ -4,6 +4,7 @@
 #include <uipc/common/list.h>
 #include <type_traits>
 #include <i_sim_system.h>
+#include <type_traits>
 
 namespace uipc::backend::cuda
 {
@@ -20,10 +21,9 @@ template <std::derived_from<ISimSystem> SimSystemT>
 class SimSystemCreator
 {
   public:
-    static U<ISimSystem> create(SimEngine& engine)
+    static U<SimSystemT> create(SimEngine& engine)
     {
-        return ::uipc::static_pointer_cast<ISimSystem>(
-            ::uipc::make_unique<SimSystemT>(engine));
+        return ::uipc::make_unique<SimSystemT>(engine);
     }
 };
 
@@ -31,8 +31,17 @@ namespace detail
 {
     template <std::derived_from<ISimSystem> SimSystemT>
     std::function<U<ISimSystem>(SimEngine&)> register_system_creator()
+        requires requires(SimEngine& engine) {
+            {
+                SimSystemCreator<SimSystemT>::create(engine)
+            } -> std::same_as<U<SimSystemT>>;
+        }
     {
-        return &SimSystemCreator<SimSystemT>::create;
+        return [](SimEngine& engine) -> U<ISimSystem>
+        {
+            return ::uipc::static_pointer_cast<ISimSystem>(
+                SimSystemCreator<SimSystemT>::create(engine));
+        };
     }
 }  // namespace detail
 

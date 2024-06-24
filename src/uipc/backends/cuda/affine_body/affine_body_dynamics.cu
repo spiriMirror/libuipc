@@ -15,13 +15,13 @@ template <>
 class SimSystemCreator<AffineBodyDynamics>
 {
   public:
-    static U<ISimSystem> create(SimEngine& engine)
+    static U<AffineBodyDynamics> create(SimEngine& engine)
     {
         auto  scene = engine.world().scene();
         auto& types = scene.constitution_tabular().types();
         if(types.find(world::ConstitutionTypes::AffineBody) == types.end())
             return nullptr;
-        return static_pointer_cast<ISimSystem>(make_unique<AffineBodyDynamics>(engine));
+        return make_unique<AffineBodyDynamics>(engine);
     }
 };
 
@@ -235,15 +235,12 @@ void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
         h_constitution_body_offsets.reserve(constitutions.size());
         h_constitution_body_counts.reserve(constitutions.size());
 
-        encode_offset_count(h_abd_geo_body_offsets.begin(),
-                            h_abd_geo_body_offsets.end(),
+        encode_offset_count(h_body_infos.begin(),
+                            h_body_infos.end(),
                             std::back_inserter(h_constitution_body_offsets),
                             std::back_inserter(h_constitution_body_counts),
-                            [&](SizeT a, SizeT b)
-                            {
-                                const auto& info_a = h_body_infos[a];
-                                const auto& info_b = h_body_infos[b];
-                                return info_a.m_constitution_uid == info_b.m_constitution_uid;
+                            [&](const BodyInfo& a, const BodyInfo& b) {
+                                return a.m_constitution_uid == b.m_constitution_uid;
                             });
 
         UIPC_ASSERT(abd_body_count
