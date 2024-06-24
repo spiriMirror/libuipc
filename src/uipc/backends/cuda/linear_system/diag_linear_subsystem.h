@@ -1,0 +1,32 @@
+#pragma once
+#include <sim_system.h>
+#include <linear_system/global_linear_system.h>
+namespace uipc::backend::cuda
+{
+/**
+ * @brief A diag linear subsystem represents a submatrix of the global hessian and a subvector of the global gradient.
+ */
+class DiagLinearSubsystem : public SimSystem
+{
+
+
+  public:
+    using SimSystem::SimSystem;
+
+  protected:
+    virtual void do_report_extent(GlobalLinearSystem::DiagExtentInfo& info) = 0;
+    virtual void do_assemble(GlobalLinearSystem::DiagInfo& info)            = 0;
+    virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info)  = 0;
+    virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) = 0;
+
+  private:
+    friend class GlobalLinearSystem;
+
+    void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
+    void assemble(GlobalLinearSystem::DiagInfo& info);
+    void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
+    void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
+
+    SizeT m_index = ~0ull;
+};
+}  // namespace uipc::backend::cuda

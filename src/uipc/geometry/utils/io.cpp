@@ -62,7 +62,7 @@ SimplicialComplex SimplicialComplexIO::read_msh(std::string_view file_name)
     RowMajorMatrix<IndexT> T;
     VectorXi               TriTag;
     VectorXi               TetTag;
-    if(!igl::readMSH(std::string{file_name}, X, F, T, TriTag, TetTag))
+    if(!igl::readMSH(string{file_name}, X, F, T, TriTag, TetTag))
     {
         throw GeometryIOError{fmt::format("Failed to load .msh file: {}", file_name)};
     }
@@ -89,7 +89,7 @@ SimplicialComplex SimplicialComplexIO::read_obj(std::string_view file_name)
     // TODO: We may want to take more information from the .obj file
     RowMajorMatrix<Float>  X;
     RowMajorMatrix<IndexT> F;
-    if(!igl::read_triangle_mesh(std::string{file_name}, X, F))
+    if(!igl::read_triangle_mesh(string{file_name}, X, F))
     {
         throw GeometryIOError{fmt::format("Failed to load .obj file: {}", file_name)};
     }

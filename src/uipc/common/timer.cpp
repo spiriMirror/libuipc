@@ -207,8 +207,8 @@ void GlobalTimer::clear()
 {
     auto timer_names = [&]
     {
-        std::vector<std::string> names;
-        std::stack<STimer*>      stack = m_timer_stack;
+        vector<string> names;
+        stack<STimer*> stack = m_timer_stack;
         while(stack.size() > 1)
         {
             names.push_back(fmt::format("* {}", stack.top()->name));
@@ -221,12 +221,12 @@ void GlobalTimer::clear()
                 "Are you calling clear() in the Timer Scope? Current stack:\n{}",
                 fmt::join(timer_names(), "\n"));
 
-    std::string name = m_timers.front()->name;
+    string name = m_timers.front()->name;
     m_timers.clear();
     auto& u  = m_timers.emplace_back(new STimer{name});
     u->depth = 0;
     u->setup_full_name();
-    m_timer_stack = std::stack<STimer*>();
+    m_timer_stack = stack<STimer*>();
     m_root        = u.get();
     m_timer_stack.push(m_root);
 }
@@ -263,7 +263,7 @@ void GlobalTimer::merge_timers()
         if(iter == m_merge_timers.end())
         {
             auto& new_merged_timer = m_merge_timers[timer->full_name];
-            new_merged_timer       = std::make_unique<MergeResult>();
+            new_merged_timer       = make_unique<MergeResult>();
 
             new_merged_timer->name = timer->name;
             if(timer->parent)
@@ -320,7 +320,7 @@ void GlobalTimer::_print_merged_timings(std::ostream&      o,
 
     size_t parent_full_name_length = timer->parent_full_name.size();
 
-    o << std::string(parent_full_name_length, ' ') << "*";
+    o << string(parent_full_name_length, ' ') << "*";
     o << std::setw(max_name_length - parent_full_name_length) << std::left
       << timer->name << " | ";
 

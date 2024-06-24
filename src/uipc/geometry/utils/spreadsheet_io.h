@@ -25,6 +25,6 @@ class UIPC_CORE_API SpreadSheetIO
     void write_csv(const SimplicialComplex& simplicial_complex) const;
 
   private:
-    std::string m_output_folder;
+    string m_output_folder;
 };
 }  // namespace uipc::geometry

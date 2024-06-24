@@ -1,6 +1,7 @@
 #pragma once
 #include <string_view>
 #include <uipc/common/vector.h>
+#include <uipc/common/string.h>
 #include <uipc/geometry/geometry.h>
 #include <uipc/common/unordered_map.h>
 #include <uipc/common/type_traits.h>
@@ -111,7 +112,7 @@ class UIPC_CORE_API Object : public IObject
   private:
     Scene&                        m_scene;
     IndexT                        m_id;
-    std::string                   m_name;
+    string                        m_name;
     vector<IndexT>                m_geometry_ids;
     geometry::GeometryCollection& geometry_collection() noexcept;
     geometry::GeometryCollection& rest_geometry_collection() noexcept;

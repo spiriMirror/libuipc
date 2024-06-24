@@ -8,7 +8,7 @@ namespace uipc::geometry
 {
 P<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttributeSlot& slot)
 {
-    auto n  = std::string{name};
+    auto n  = string{name};
     auto it = m_attributes.find(n);
 
     if(size() != slot.size())
@@ -27,7 +27,7 @@ P<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttri
 
 void AttributeCollection::destroy(std::string_view name)
 {
-    auto it = m_attributes.find(std::string{name});
+    auto it = m_attributes.find(string{name});
     if(it == m_attributes.end())
     {
         UIPC_WARN_WITH_LOCATION("Destroying non-existing attribute [{}]", name);
@@ -42,14 +42,14 @@ void AttributeCollection::destroy(std::string_view name)
 
 P<IAttributeSlot> AttributeCollection::find(std::string_view name)
 {
-    auto it = m_attributes.find(std::string{name});
+    auto it = m_attributes.find(string{name});
     return it != m_attributes.end() ? it->second : nullptr;
 }
 
 
 P<const IAttributeSlot> AttributeCollection::find(std::string_view name) const
 {
-    auto it = m_attributes.find(std::string{name});
+    auto it = m_attributes.find(string{name});
     return it != m_attributes.end() ? it->second : nullptr;
 }
 
@@ -74,12 +74,12 @@ void AttributeCollection::reorder(span<const SizeT> O)
 
 void AttributeCollection::copy_from(const AttributeCollection& other,
                                     const AttributeCopy&       copy,
-                                    span<const std::string>    _include_names,
-                                    span<const std::string>    _exclude_names)
+                                    span<const string>    _include_names,
+                                    span<const string>    _exclude_names)
 {
-    vector<std::string> include_names;
-    vector<std::string> exclude_names(_exclude_names.begin(), _exclude_names.end());
-    vector<std::string> filtered_names;
+    vector<string> include_names;
+    vector<string> exclude_names(_exclude_names.begin(), _exclude_names.end());
+    vector<string> filtered_names;
 
     if(_include_names.empty())
         include_names = other.names();
@@ -162,9 +162,9 @@ void AttributeCollection::reserve(SizeT N)
     }
 }
 
-vector<std::string> AttributeCollection::names() const
+vector<string> AttributeCollection::names() const
 {
-    vector<std::string> names;
+    vector<string> names;
     names.reserve(m_attributes.size());
     for(auto& [name, slot] : m_attributes)
     {

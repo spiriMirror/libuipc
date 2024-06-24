@@ -1,4 +1,5 @@
 #pragma once
+#include <uipc/common/string.h>
 #include <uipc/common/unordered_map.h>
 #include <uipc/common/exception.h>
 #include <uipc/common/smart_pointer.h>
@@ -115,8 +116,8 @@ class UIPC_CORE_API AttributeCollection
      */
     void copy_from(const AttributeCollection& other,
                    const AttributeCopy&       copy,
-                   span<const std::string>    include_names = {},
-                   span<const std::string>    exclude_names = {});
+                   span<const string>         include_names = {},
+                   span<const string>         exclude_names = {});
 
     /**
      * @brief Get the size of the attribute slots.
@@ -138,7 +139,7 @@ class UIPC_CORE_API AttributeCollection
     /**
      * @brief Get the names of all attribute slots.
      */
-    vector<std::string> names() const;
+    vector<string> names() const;
 
     /**
      * @brief Get the number of attribute slots.
@@ -151,8 +152,8 @@ class UIPC_CORE_API AttributeCollection
     Json to_json() const;
 
   private:
-    SizeT                                         m_size = 0;
-    unordered_map<std::string, S<IAttributeSlot>> m_attributes;
+    SizeT                                    m_size = 0;
+    unordered_map<string, S<IAttributeSlot>> m_attributes;
 };
 
 class UIPC_CORE_API GeometryAttributeError : public Exception

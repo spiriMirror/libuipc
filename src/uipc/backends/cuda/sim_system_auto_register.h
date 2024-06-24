@@ -22,7 +22,8 @@ class SimSystemCreator
   public:
     static U<ISimSystem> create(SimEngine& engine)
     {
-        return std::make_unique<SimSystemT>(engine);
+        return ::uipc::static_pointer_cast<ISimSystem>(
+            ::uipc::make_unique<SimSystemT>(engine));
     }
 };
 

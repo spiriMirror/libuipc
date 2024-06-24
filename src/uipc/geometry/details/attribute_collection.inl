@@ -5,18 +5,18 @@ namespace uipc::geometry
 template <typename T, bool AllowDestroy>
 P<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& default_value)
 {
-    auto n  = std::string{name};
+    auto n  = string{name};
     auto it = m_attributes.find(n);
     if(it != m_attributes.end())
     {
         throw GeometryAttributeError{
             fmt::format("Attribute with name [{}] already exist!", name)};
     }
-    auto S = std::make_shared<Attribute<T>>(default_value);
-    S->resize(m_size);
-    auto U          = std::make_shared<AttributeSlot<T>>(name, S, AllowDestroy);
-    m_attributes[n] = U;
-    return U;
+    auto A = uipc::make_shared<Attribute<T>>(default_value);
+    A->resize(m_size);
+    auto S = uipc::make_shared<AttributeSlot<T>>(name, A, AllowDestroy);
+    m_attributes[n] = S;
+    return S;
 }
 
 template <typename T>

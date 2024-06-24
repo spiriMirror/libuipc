@@ -2,14 +2,17 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
-#include <list>
-#include <memory>
-#include <set>
-#include <stack>
-#include <string>
+#include <uipc/common/vector.h>
+#include <uipc/common/smart_pointer.h>
+#include <uipc/common/stack.h>
+#include <uipc/common/string.h>
+#include <uipc/common/list.h>
+#include <uipc/common/string.h>
 #include <uipc/common/json.h>
 #include <uipc/common/macro.h>
-#include <unordered_map>
+#include <uipc/common/unordered_map.h>
+#include <uipc/common/set.h>
+#include <uipc/common/string.h>
 #include <functional>
 
 namespace uipc
@@ -29,14 +32,14 @@ class UIPC_CORE_API ScopedTimer
   private:
     friend class uipc::GlobalTimer;
     friend class uipc::Timer;
-    std::string             name;
-    std::string             full_name;
-    TimePoint               start;
-    TimePoint               end;
-    Duration                duration;
-    std::list<ScopedTimer*> children;
-    ScopedTimer*            parent = nullptr;
-    size_t                  depth  = 0;
+    string             name;
+    string             full_name;
+    TimePoint          start;
+    TimePoint          end;
+    Duration           duration;
+    list<ScopedTimer*> children;
+    ScopedTimer*       parent = nullptr;
+    size_t             depth  = 0;
 
     ScopedTimer(std::string_view name)
         : name(name)
@@ -79,14 +82,12 @@ class UIPC_CORE_API Timer
 class UIPC_CORE_API GlobalTimer
 {
     using STimer = details::ScopedTimer;
-    template <typename T>
-    using U = std::unique_ptr<T>;
 
-    std::stack<STimer*> m_timer_stack;
-    STimer*             m_root;
+    stack<STimer*> m_timer_stack;
+    STimer*        m_root;
     friend class ScopedTimer;
 
-    std::list<U<STimer>> m_timers;
+    list<U<STimer>> m_timers;
 
     friend class Timer;
     STimer& push_timer(std::string_view);
@@ -103,9 +104,9 @@ class UIPC_CORE_API GlobalTimer
     struct MergeResult
     {
 
-        std::string name;
-        std::string parent_full_name;
-        std::string parent_name;
+        string name;
+        string parent_full_name;
+        string parent_name;
 
         double                  duration = 0.0;
         size_t                  count    = 0;
@@ -114,8 +115,8 @@ class UIPC_CORE_API GlobalTimer
         size_t depth = 0;
     };
 
-    std::unordered_map<std::string, U<MergeResult>> m_merge_timers;
-    MergeResult*                                    m_merge_root = nullptr;
+    unordered_map<string, U<MergeResult>> m_merge_timers;
+    MergeResult*                          m_merge_root = nullptr;
 
     void merge_timers();
     void _print_merged_timings(std::ostream&      o,

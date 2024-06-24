@@ -22,7 +22,7 @@ class SimSystemCreator<ABDOrthoPotential>
         if(!std::binary_search(uids.begin(), uids.end(), ABDOrthoPotential::ConstitutionUID))
             return nullptr;
 
-        return std::make_unique<AffineBodyDynamics>(engine);
+        return static_pointer_cast<ISimSystem>(make_unique<AffineBodyDynamics>(engine));
     }
 };
 

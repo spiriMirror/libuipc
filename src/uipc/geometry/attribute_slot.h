@@ -122,7 +122,7 @@ class AttributeSlot final : public IAttributeSlot
     [[nodiscard]] virtual Json do_to_json(SizeT i) const override;
 
   private:
-    std::string     m_name;
+    pmr::string     m_name;
     S<Attribute<T>> m_attribute;
     bool            m_allow_destroy;
 };

@@ -242,8 +242,8 @@ class SimplicialComplexAttributes
 
     void copy_from(ConstSimplicialComplexAttributesT other,
                    const AttributeCopy&              copy          = {},
-                   span<const std::string>           include_names = {},
-                   span<const std::string>           exclude_names = {})
+                   span<const string>           include_names = {},
+                   span<const string>           exclude_names = {})
         requires(!IsConst)
     {
         m_attributes.copy_from(other.m_attributes, copy, include_names, exclude_names);

@@ -1,5 +1,6 @@
 include(uipc_utils)
 set(MODULE_FUNCTION_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/module.h")
+set(MODULE_FUNCTION_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/module.cpp")
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +34,7 @@ function(uipc_add_backend name)
     
     # folder for IDE
     set_target_properties(${name} PROPERTIES FOLDER "uipc-backends")
-    target_sources(${name} PRIVATE ${MODULE_FUNCTION_HEADER})
+    target_sources(${name} PRIVATE ${MODULE_FUNCTION_HEADER} ${MODULE_FUNCTION_SOURCE})
 
     uipc_set_output_directory(${name})
     add_dependencies(uipc_backends ${name})

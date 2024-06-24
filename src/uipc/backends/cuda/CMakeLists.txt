@@ -1,7 +1,12 @@
 uipc_add_backend(cuda)
 
 # basic setup
-target_link_libraries(cuda PUBLIC muda)
+target_link_libraries(cuda PUBLIC
+    muda
+    cublas
+    cusparse
+    cusolver
+)
 target_compile_features(cuda PUBLIC cxx_std_20)
 target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(cuda PROPERTIES
@@ -14,6 +19,8 @@ set_target_properties(cuda PROPERTIES
 # add subdirectories
 add_subdirectory(collision_detection)
 add_subdirectory(affine_body)
+add_subdirectory(linear_system)
+add_subdirectory(algorithm)
 
 # source files in this directory
 file(GLOB SOURCES "*.cpp" "*.h" "*.cu" "details/*.inl")

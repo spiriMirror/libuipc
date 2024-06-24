@@ -1,5 +1,6 @@
 #pragma once
 #include <spdlog/spdlog.h>
+#include <uipc/common/string.h>
 #include <uipc/common/config.h>
 #define UIPC_INFO_WITH_LOCATION(...)                                           \
     {                                                                          \
@@ -21,8 +22,8 @@
     {                                                                          \
         if(!(condition))                                                       \
         {                                                                      \
-            ::std::string msg = ::fmt::format(__VA_ARGS__);                    \
-            ::std::string assert_meg =                                         \
+            ::uipc::string msg = ::fmt::format(__VA_ARGS__);                   \
+            ::uipc::string assert_meg =                                        \
                 ::fmt::format("Assertion " #condition " failed. {}", msg);     \
             SPDLOG_ERROR(assert_meg);                                          \
             ::std::abort();                                                    \

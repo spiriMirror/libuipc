@@ -7,7 +7,8 @@
 #include <dof_predictor.h>
 #include <line_searcher.h>
 #include <gradient_hessian_computer.h>
-#include <global_linear_system.h>
+#include <linear_system/global_linear_system.h>
+
 namespace uipc::backend::cuda
 {
 void SimEngine::build()
@@ -31,7 +32,7 @@ void SimEngine::do_init(backend::WorldVisitor v)
 {
     LogGuard guard;
 
-    m_world_visitor = std::make_unique<backend::WorldVisitor>(v);
+    m_world_visitor = make_unique<backend::WorldVisitor>(v);
 
     // 1) ConstitutionRegister all systems
     m_state = SimEngineState::RegisterSystems;

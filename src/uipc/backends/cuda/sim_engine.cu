@@ -20,7 +20,7 @@ void say_hello_from_muda()
 }
 
 SimEngine::SimEngine()
-    : m_device_impl(std::make_unique<DeviceImpl>())
+    : m_device_impl(make_unique<DeviceImpl>())
 {
     LogGuard guard;
 
@@ -29,7 +29,7 @@ SimEngine::SimEngine()
     using namespace muda;
 
     auto viewer_ptr       = device_logger_viewer_ptr();
-    m_device_impl->logger = std::make_unique<muda::Logger>(viewer_ptr);
+    m_device_impl->logger = make_unique<muda::Logger>(viewer_ptr);
 
     Debug::set_sync_callback(
         [this]

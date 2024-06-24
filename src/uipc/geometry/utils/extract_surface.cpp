@@ -168,7 +168,7 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
     // copy other triangle attributes
 
     std::array exclude_attrs = {
-        std::string{builtin::parent_id}  // exclude parent_id
+        string{builtin::parent_id}  // exclude parent_id
     };
 
     R.triangles().copy_from(src.triangles(), AttributeCopy::pull(t_new2old), {}, exclude_attrs);

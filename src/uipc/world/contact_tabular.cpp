@@ -16,10 +16,10 @@ ContactTabular::ContactTabular() noexcept
 
 ContactElement& ContactTabular::create(std::string_view name) noexcept
 {
-    std::string name_str{name};
+    string name_str{name};
     if(name_str.empty())
         name_str = fmt::format("_{}", m_current_id);
-    m_elements.push_back(std::make_unique<ContactElement>(m_current_id++, name_str));
+    m_elements.push_back(uipc::make_unique<ContactElement>(m_current_id++, name_str));
     return *m_elements.back();
 }
 

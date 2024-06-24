@@ -21,7 +21,7 @@ class SimSystemCreator<AffineBodyDynamics>
         auto& types = scene.constitution_tabular().types();
         if(types.find(world::ConstitutionTypes::AffineBody) == types.end())
             return nullptr;
-        return std::make_unique<AffineBodyDynamics>(engine);
+        return static_pointer_cast<ISimSystem>(make_unique<AffineBodyDynamics>(engine));
     }
 };
 

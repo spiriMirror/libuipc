@@ -58,7 +58,7 @@ void SpreadSheetIO::write_csv(std::string_view         geo_name,
             attr["name"] == "topo" ? topo_idx = i : topo_idx;
         }
 
-        vector<std::string> row(attr_size);
+        vector<string> row(attr_size);
 
         auto swap_topo_and_write = [&out, &row, topo_idx]()
         {
@@ -73,7 +73,7 @@ void SpreadSheetIO::write_csv(std::string_view         geo_name,
         // write header
         for(auto&& [i, attr] : enumerate(J))
         {
-            row[i] = attr["name"].get<std::string>();
+            row[i] = attr["name"].get<string>();
         }
 
         swap_topo_and_write();

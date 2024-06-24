@@ -4,7 +4,7 @@
 #include <global_vertex_manager.h>
 #include <line_searcher.h>
 #include <gradient_hessian_computer.h>
-#include <global_linear_system.h>
+#include <linear_system/global_linear_system.h>
 
 namespace uipc::backend::cuda
 {

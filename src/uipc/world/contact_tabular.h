@@ -1,6 +1,7 @@
 #pragma once
 #include <uipc/world/contact_element.h>
 #include <uipc/world/contact_model.h>
+#include <uipc/common/string.h>
 #include <uipc/common/json.h>
 #include <uipc/common/unordered_map.h>
 #include <uipc/common/vector.h>

@@ -1,5 +1,6 @@
 #pragma once
 #include <uipc/common/type_define.h>
+#include <uipc/common/string.h>
 #include <uipc/common/json.h>
 #include <uipc/geometry/geometry.h>
 namespace uipc::world
@@ -19,7 +20,7 @@ class UIPC_CORE_API ContactElement
 
   private:
     IndexT      m_id = -1;
-    std::string m_name;
+    string m_name;
 };
 
 void to_json(Json& j, const ContactElement& element);

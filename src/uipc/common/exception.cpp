@@ -3,7 +3,7 @@
 
 namespace uipc
 {
-Exception::Exception(const std::string& msg)
+Exception::Exception(const string& msg)
     : m_msg{msg}
 {
 }

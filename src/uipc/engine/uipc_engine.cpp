@@ -1,28 +1,34 @@
 #include <uipc/engine/uipc_engine.h>
 #include <dylib.hpp>
+#include <uipc/backend/module_init_info.h>
 
 namespace uipc::engine
 {
-static std::string to_lower(std::string_view s)
+static string to_lower(std::string_view s)
 {
-    std::string result{s};
+    string result{s};
     std::transform(result.begin(), result.end(), result.begin(), ::tolower);
     return result;
 }
 
 class UIPCEngine::Impl
 {
-    std::string          m_backend_name;
+    string               m_backend_name;
     dylib                m_module;
     using Deleter                  = void (*)(IEngine*);
     IEngine*             m_engine  = nullptr;
     Deleter              m_deleter = nullptr;
+
 
   public:
     Impl(std::string_view backend_name)
         : m_backend_name(backend_name)
         , m_module{fmt::format("uipc_backend_{}", to_lower(backend_name))}
     {
+        auto info = make_unique<UIPCModuleInitInfo>();
+
+        m_module.get_function<void(UIPCModuleInitInfo*)>("uipc_init_module")(info.get());
+
         auto creator = m_module.get_function<IEngine*()>("uipc_create_engine");
         if(!creator)
             throw EngineException{fmt::format("Can't find backend [{}]'s engine creator.",
@@ -53,7 +59,7 @@ class UIPCEngine::Impl
 
 
 UIPCEngine::UIPCEngine(std::string_view backend_name)
-    : m_impl{std::make_unique<Impl>(backend_name)}
+    : m_impl{uipc::make_unique<Impl>(backend_name)}
 {
 }
 

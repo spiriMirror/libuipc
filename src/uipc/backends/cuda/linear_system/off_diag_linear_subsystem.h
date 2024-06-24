@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <diag_linear_subsystem.h>
+#include <linear_system/diag_linear_subsystem.h>
 namespace uipc::backend::cuda
 {
 /**
@@ -18,8 +18,8 @@ class OffDiagLinearSubsystem : public SimSystem
 
   private:
     friend class GlobalLinearSystem;
-    DiagLinearSubsystem* m_L = nullptr;
-    DiagLinearSubsystem* m_R = nullptr;
+    DiagLinearSubsystem* m_l = nullptr;
+    DiagLinearSubsystem* m_r = nullptr;
     void                 check_dep_systems() const;
 };
 }  // namespace uipc::backend::cuda
