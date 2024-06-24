@@ -17,6 +17,14 @@ void SimSystemCollection::create(U<ISimSystem> system)
 
     m_sim_systems.insert({tid, std::move(system)});
 }
+
+Json SimSystemCollection::to_json() const
+{
+    Json j = Json::array();
+    for(const auto& [key, value] : m_sim_systems)
+        j.push_back(value->to_json());
+    return j;
+}
 }  // namespace uipc::backend::cuda
 
 namespace fmt

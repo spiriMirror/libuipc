@@ -7,13 +7,14 @@
 #include <uipc/engine/uipc_engine.h>
 #include <uipc/geometry.h>
 #include <uipc/constitutions/affine_body.h>
+#include <fstream>
 
 using namespace uipc;
 using namespace uipc::world;
 using namespace uipc::geometry;
 using namespace uipc::engine;
 using namespace uipc::constitution;
-
+namespace fs = std::filesystem;
 
 void test_engine(std::string_view name)
 {
@@ -50,6 +51,15 @@ void test_engine(std::string_view name)
     // initialize the world using the scene
     world.init(scene);
 
+    std::string output_path = fmt::format("{}{}", AssetDir::output_path(), name);
+
+    fs::exists(output_path) || fs::create_directories(output_path);
+
+    {
+        std::ofstream f(fmt::format("{}{}/engine.json", AssetDir::output_path(), name));
+        f << engine.to_json().dump(4);
+    }
+
     std::size_t total_frames = 1;
 
     // main loop
@@ -62,7 +72,7 @@ void test_engine(std::string_view name)
 }
 
 
-TEST_CASE("engine", "[world]") 
+TEST_CASE("engine", "[world]")
 {
     test_engine("none");
     test_engine("cuda");

@@ -14,8 +14,23 @@ void ISimSystem::build()
     do_build();
 }
 
+void ISimSystem::make_engine_aware()
+{
+    set_engine_aware();
+}
+
 std::string_view ISimSystem::name() const noexcept
 {
     return get_name();
+}
+
+bool ISimSystem::is_engine_aware() const noexcept
+{
+    return get_engine_aware();
+}
+
+Json ISimSystem::to_json() const
+{
+    return do_to_json();
 }
 }  // namespace uipc::backend::cuda

@@ -11,10 +11,12 @@ class SimSystemCollection
 {
     friend struct fmt::formatter<SimSystemCollection>;
     friend class SimEngine;
+
   public:
     void create(U<ISimSystem> system);
     template <std::derived_from<ISimSystem> T>
-    T* find();
+    T*   find();
+    Json to_json() const;
 
   private:
     unordered_map<U64, U<ISimSystem>> m_sim_systems;

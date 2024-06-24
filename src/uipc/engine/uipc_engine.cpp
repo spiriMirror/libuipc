@@ -50,6 +50,14 @@ class UIPCEngine::Impl
 
     void retrieve() { m_engine->retrieve(); }
 
+    Json to_json() const
+    {
+        Json j;
+        // force copy
+        j = m_engine->to_json();
+        return j;
+    }
+
     ~Impl()
     {
         UIPC_ASSERT(m_deleter && m_engine, "Engine not initialized, why can it happen?");
@@ -83,5 +91,10 @@ void UIPCEngine::do_sync()
 void UIPCEngine::do_retrieve()
 {
     m_impl->retrieve();
+}
+
+Json UIPCEngine::do_to_json() const
+{
+    return m_impl->to_json();
 }
 }  // namespace uipc::engine

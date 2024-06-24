@@ -21,10 +21,11 @@ class UIPC_CORE_API UIPCEngine : public IEngine
     ~UIPCEngine();
 
   protected:
-    void do_init(backend::WorldVisitor v) override;
-    void do_advance() override;
-    void do_sync() override;
-    void do_retrieve() override;
+    virtual void do_init(backend::WorldVisitor v) override;
+    virtual void do_advance() override;
+    virtual void do_sync() override;
+    virtual void do_retrieve() override;
+    virtual Json do_to_json() const override;
 
   private:
     U<Impl> m_impl;

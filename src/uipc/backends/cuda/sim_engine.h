@@ -6,6 +6,7 @@
 #include <sim_system_collection.h>
 #include <sim_action.h>
 #include <sim_engine_state.h>
+#include <i_sim_system.h>
 
 namespace uipc::backend::cuda
 {
@@ -31,10 +32,11 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     SimEngineState state() const noexcept;
 
   protected:
-    void do_init(backend::WorldVisitor v) override;
-    void do_advance() override;
-    void do_sync() override;
-    void do_retrieve() override;
+    virtual void do_init(backend::WorldVisitor v) override;
+    virtual void do_advance() override;
+    virtual void do_sync() override;
+    virtual void do_retrieve() override;
+    virtual Json do_to_json() const override;
 
   private:
     void build();

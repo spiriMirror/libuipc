@@ -20,6 +20,19 @@ void SimSystem::check_state(SimEngineState state, std::string_view function_name
                 magic_enum::enum_name(m_sim_engine.m_state));
 }
 
+Json SimSystem::do_to_json() const
+{
+    Json j;
+    j["name"] = name();
+    j["deps"] = Json::array();
+    for(const auto& dep : m_dependencies)
+    {
+        j["deps"].push_back(dep->name());
+    }
+    j["engine_aware"] = m_engine_aware;
+    return j;
+}
+
 void SimSystem::on_init_scene(std::function<void()>&& action) noexcept
 {
     check_state(SimEngineState::BuildSystems, "on_init_scene()");
@@ -29,6 +42,16 @@ void SimSystem::on_init_scene(std::function<void()>&& action) noexcept
 SimSystemCollection& SimSystem::collection() noexcept
 {
     return m_sim_engine.m_system_collection;
+}
+
+void SimSystem::set_engine_aware() noexcept
+{
+    m_engine_aware = true;
+}
+
+bool SimSystem::get_engine_aware() const noexcept
+{
+    return m_engine_aware;
 }
 
 void SimSystem::on_rebuild_scene(std::function<void()>&& action) noexcept

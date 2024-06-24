@@ -51,9 +51,16 @@ class SimSystem : public ISimSystem
 
     void check_state(SimEngineState state, std::string_view function_name) noexcept;
 
+    virtual Json do_to_json() const override;
+
   private:
     SimEngine&           m_sim_engine;
+    bool                 m_engine_aware = false;
+    list<ISimSystem*>    m_dependencies;
     SimSystemCollection& collection() noexcept;
+
+    virtual void set_engine_aware() noexcept final;
+    virtual bool get_engine_aware() const noexcept final;
 };
 }  // namespace uipc::backend::cuda
 

@@ -44,6 +44,13 @@ void SimEngine::register_all_systems()
 
     spdlog::info("Registered Systems:\n{}", m_system_collection);
 }
+
+Json SimEngine::do_to_json() const
+{
+    Json j;
+    j["sim_systems"] = m_system_collection.to_json();
+    return j;
+}
 }  // namespace uipc::backend::cuda
 
 
