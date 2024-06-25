@@ -56,27 +56,27 @@ int main()
             abd.apply_to(mesh, 100.0_MPa);
             default_contact.apply_to(mesh);
 
-            mesh.instances().resize(2);
+            // mesh.instances().resize(2);
             auto trans_view = view(mesh.transforms());
             auto is_fixed   = mesh.instances().find<IndexT>(builtin::is_fixed);
             auto is_fixed_view = view(*is_fixed);
 
             {
                 Transform t     = Transform::Identity();
-                t.translation() = Vector3::UnitY() * 0.2;
+                t.translation() = Vector3::UnitY() * 0.2 + Vector3::UnitY();
 
                 trans_view[0]    = t.matrix();
                 is_fixed_view[0] = 0;
             }
 
-            {
-                Transform t     = Transform::Identity();
-                t.translation() = Vector3::UnitY() * -0.2;
+            //{
+            //    Transform t     = Transform::Identity();
+            //    t.translation() = Vector3::UnitY() * -0.2 + Vector3::UnitY();
 
-                trans_view[1] = t.matrix();
-                // fix the second cube
-                is_fixed_view[1] = 1;
-            }
+            //    trans_view[1] = t.matrix();
+            //    // fix the second cube
+            //    is_fixed_view[1] = 1;
+            //}
         }
 
         // create object

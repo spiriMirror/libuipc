@@ -223,7 +223,7 @@ class AffineBodyDynamics : public SimSystem
         vector<Float>               h_constitution_shape_energy;
 
         /******************************************************************************
-        *                        abd vertex attributes
+        *                        m_abd vertex attributes
         *******************************************************************************/
         //tex: $$ \mathbf{J}(\bar{\mathbf{x}})
         // =
@@ -237,9 +237,9 @@ class AffineBodyDynamics : public SimSystem
 
 
         /******************************************************************************
-        *                           abd body attributes
+        *                           m_abd body attributes
         *******************************************************************************
-        * abd body attributes are something that involved into physics simulation
+        * m_abd body attributes are something that involved into physics simulation
         *******************************************************************************/
         //tex:
         //$$
@@ -254,7 +254,7 @@ class AffineBodyDynamics : public SimSystem
         DeviceBuffer<Matrix12x12> body_id_to_abd_mass_inv;
 
         //tex:
-        //used to rebuild the abd shape energy coefficient
+        //used to rebuild the m_abd shape energy coefficient
         //$$V_{\perp}(m_q)=\kappa v_b\left\|\mathrm{AA}^{T}-\mathrm{I}_{3}\right\|_{F}^{2}$$
         //where $v_b$ is the volume of the affine body.
         DeviceBuffer<Float> body_id_to_volume;
@@ -335,6 +335,7 @@ class AffineBodyDynamics : public SimSystem
     };
 
   private:
+    friend class ABDLinearSubsystem;
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

@@ -13,21 +13,27 @@ static string to_lower(std::string_view s)
 
 class UIPCEngine::Impl
 {
-    string               m_backend_name;
-    dylib                m_module;
-    using Deleter                  = void (*)(IEngine*);
-    IEngine*             m_engine  = nullptr;
-    Deleter              m_deleter = nullptr;
+    string m_backend_name;
+    dylib  m_module;
+    using Deleter      = void (*)(IEngine*);
+    IEngine* m_engine  = nullptr;
+    Deleter  m_deleter = nullptr;
 
 
   public:
     Impl(std::string_view backend_name)
-        : m_backend_name(backend_name)
-        , m_module{fmt::format("uipc_backend_{}", to_lower(backend_name))}
+        : m_backend_name(to_lower(backend_name))
+        , m_module{fmt::format("uipc_backend_{}", m_backend_name)}
     {
-        auto info = make_unique<UIPCModuleInitInfo>();
+        auto info             = make_unique<UIPCModuleInitInfo>();
+        info->module_name     = m_backend_name;
+        info->memory_resource = std::pmr::get_default_resource();
 
-        m_module.get_function<void(UIPCModuleInitInfo*)>("uipc_init_module")(info.get());
+        auto init = m_module.get_function<void(UIPCModuleInitInfo*)>("uipc_init_module");
+        if(!init)
+            throw EngineException{fmt::format("Can't find backend [{}]'s module initializer.",
+                                              backend_name)};
+        init(info.get());
 
         auto creator = m_module.get_function<IEngine*()>("uipc_create_engine");
         if(!creator)

@@ -18,6 +18,7 @@ class LineSearcher : public SimSystem
     class ComputeEnergyInfo
     {
       public:
+        ComputeEnergyInfo(LineSearcher* impl) noexcept;
         Float dt() const noexcept;
 
       private:

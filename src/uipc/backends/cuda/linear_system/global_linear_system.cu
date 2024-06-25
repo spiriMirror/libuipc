@@ -27,7 +27,7 @@ void GlobalLinearSystem::solve()
 
 void GlobalLinearSystem::Impl::init()
 {
-    UIPC_ASSERT(!diag_subsystem_buffer.empty() || !off_diag_subsystem_buffer.empty(),
+    UIPC_ASSERT(!diag_subsystem_buffer.empty(),
                 "No linear subsystems added to the global linear system.");
 
     // build the linear subsystem infos
@@ -71,7 +71,8 @@ void GlobalLinearSystem::Impl::init()
 
     // prepare the storage for dof and matrix triplet
     subsystem_triplet_offsets.resize(total_count, ~0ull);
-    subsystem_triplet_offsets.resize(total_count, ~0ull);
+    subsystem_triplet_counts.resize(total_count, ~0ull);
+
 
     diag_dof_offsets.resize(diag_subsystems.size());
     diag_dof_counts.resize(diag_subsystems.size());
@@ -199,7 +200,7 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
 void GlobalLinearSystem::Impl::_assemble_linear_system()
 {
     auto HA = triplet_A.view();
-    auto X  = x.view();
+    auto B  = b.view();
     for(const auto& subsystem_info : subsystem_infos)
     {
         if(subsystem_info.is_diag)
@@ -208,16 +209,18 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
             auto  triplet_i      = subsystem_info.index;
             auto& diag_subsystem = diag_subsystems[dof_i];
 
-            int  dof_offset = diag_dof_offsets[dof_i];
-            int  dof_count  = diag_dof_counts[dof_i];
-            int2 ij_offset  = {dof_offset, dof_offset};
-            int2 ij_count   = {dof_count, dof_count};
+            int  dof_offset         = diag_dof_offsets[dof_i];
+            int  dof_count          = diag_dof_counts[dof_i];
+            int  blocked_dof_offset = dof_offset / DoFBlockSize;
+            int  blocked_dof_count  = dof_count / DoFBlockSize;
+            int2 ij_offset          = {blocked_dof_offset, blocked_dof_offset};
+            int2 ij_count           = {blocked_dof_count, blocked_dof_count};
 
             DiagInfo info{this};
 
             info.m_index        = triplet_i;
             info.m_storage_type = HessianStorageType::Full;
-            info.m_gradient     = X.subview(dof_offset, dof_count);
+            info.m_gradient     = B.subview(dof_offset, dof_count);
             info.m_hessian = HA.subview(subsystem_triplet_offsets[triplet_i],
                                         subsystem_triplet_counts[triplet_i])
                                  .submatrix(ij_offset, ij_count);
@@ -239,22 +242,22 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
             int r_blocked_dof_offset = diag_dof_offsets[r_diag_index] / DoFBlockSize;
             int r_blocked_dof_count = diag_dof_counts[r_diag_index] / DoFBlockSize;
 
-            auto lr_offset = subsystem_triplet_offsets[triplet_i];
-            auto lr_count  = off_diag_lr_triplet_counts[local_index].x;
-            auto rl_offset = lr_offset + lr_count;
-            auto rl_count  = off_diag_lr_triplet_counts[local_index].y;
+            auto lr_triplet_offset = subsystem_triplet_offsets[triplet_i];
+            auto lr_triplet_count  = off_diag_lr_triplet_counts[local_index].x;
+            auto rl_triplet_offset = lr_triplet_offset + lr_triplet_count;
+            auto rl_triplet_count  = off_diag_lr_triplet_counts[local_index].y;
 
             OffDiagInfo info{this};
             info.m_index        = triplet_i;
             info.m_storage_type = HessianStorageType::Full;
 
             info.m_lr_hessian =
-                HA.subview(lr_offset, lr_count)
+                HA.subview(lr_triplet_offset, lr_triplet_count)
                     .submatrix(int2{l_blocked_dof_offset, r_blocked_dof_offset},
                                int2{l_blocked_dof_count, r_blocked_dof_count});
 
             info.m_rl_hessian =
-                HA.subview(rl_offset, rl_count)
+                HA.subview(rl_triplet_offset, rl_triplet_count)
                     .submatrix(int2{r_blocked_dof_offset, l_blocked_dof_offset},
                                int2{r_blocked_dof_count, l_blocked_dof_count});
 
@@ -320,6 +323,11 @@ void GlobalLinearSystem::Impl::apply_preconditioner(muda::DenseVectorView<Float>
         info.m_r = r;
         preconditioner->apply(info);
     }
+
+    if(!global_preconditioner && local_preconditioners.empty())
+    {
+        muda::BufferLaunch().copy<Float>(z.buffer_view(), r.buffer_view());
+    }
 }
 
 void GlobalLinearSystem::Impl::spmv(Float                         a,
@@ -368,6 +376,7 @@ void GlobalLinearSystem::add_solver(IterativeSolver* solver)
                 "Only support one linear system solver, {} already added before.",
                 m_impl.iterative_solver->name());
     m_impl.iterative_solver = solver;
+    solver->m_system        = this;
 }
 
 void GlobalLinearSystem::add_preconditioner(LocalPreconditioner* preconditioner)

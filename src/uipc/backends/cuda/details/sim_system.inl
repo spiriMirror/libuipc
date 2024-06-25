@@ -5,6 +5,7 @@ namespace uipc::backend::cuda
 template <std::derived_from<SimSystem> T>
 T* SimSystem::find()
 {
+    check_state(SimEngineState::BuildSystems, "find()");
     auto ptr = collection().find<T>();
     if(ptr)
         m_dependencies.push_back(ptr);

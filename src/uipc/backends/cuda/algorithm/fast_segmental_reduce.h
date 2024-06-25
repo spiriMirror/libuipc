@@ -31,10 +31,8 @@ class FastSegmentalReduce : public LaunchBase<FastSegmentalReduce<BlockSize, War
     };
 
   public:
-    using Base::Base;
-
-    FastSegmentalReduce()
-        : Base(nullptr)
+    FastSegmentalReduce(cudaStream_t s = nullptr)
+        : Base(s)
     {
     }
 

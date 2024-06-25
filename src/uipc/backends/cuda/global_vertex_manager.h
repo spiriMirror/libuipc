@@ -28,15 +28,14 @@ class GlobalVertexManager : public SimSystem
     class VertexAttributeInfo
     {
       public:
-        VertexAttributeInfo() = default;
+        VertexAttributeInfo(Impl* impl, SizeT index) noexcept;
         muda::BufferView<IndexT>  coindex() const noexcept;
         muda::BufferView<Vector3> positions() const noexcept;
 
       private:
         friend class GlobalVertexManager;
-
-        muda::BufferView<IndexT>  m_coindex;
-        muda::BufferView<Vector3> m_positions;
+        SizeT                     m_index;
+        Impl*                     m_impl;
     };
 
     class VertexDisplacementInfo
@@ -49,7 +48,6 @@ class GlobalVertexManager : public SimSystem
       private:
         friend class GlobalVertexManager;
         SizeT                     m_index;
-        muda::BufferView<Vector3> m_displacements;
         Impl*                     m_impl;
     };
 

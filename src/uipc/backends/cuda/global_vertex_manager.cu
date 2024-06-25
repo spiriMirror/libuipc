@@ -40,12 +40,7 @@ void GlobalVertexManager::Impl::build_vertex_info()
     // create the subviews for each attribute_reporter
     for(auto&& [i, R] : enumerate(vertex_registers))
     {
-        VertexAttributeInfo attributes;
-        auto             offset = register_vertex_offsets[i];
-        auto             count  = register_vertex_counts[i];
-
-        attributes.m_coindex   = coindex.view(offset, count);
-        attributes.m_positions = positions.view(offset, count);
+        VertexAttributeInfo attributes{this, i};
         R.m_report_vertex_attributes(attributes);
     }
 }
@@ -92,8 +87,8 @@ AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
     return AABB{min_pos_host, max_pos_host};
 }
 GlobalVertexManager::VertexRegister::VertexRegister(
-    std::string_view                         name,
-    std::function<void(VertexCountInfo&)>&&  report_vertex_count,
+    std::string_view                            name,
+    std::function<void(VertexCountInfo&)>&&     report_vertex_count,
     std::function<void(VertexAttributeInfo&)>&& report_vertex_attributes,
     std::function<void(VertexDisplacementInfo&)>&& report_vertex_displacement) noexcept
     : m_name(name)
@@ -122,25 +117,31 @@ SizeT GlobalVertexManager::VertexCountInfo::count() const noexcept
     return m_count;
 }
 
+GlobalVertexManager::VertexAttributeInfo::VertexAttributeInfo(Impl* impl, SizeT index) noexcept
+    : m_impl(impl)
+    , m_index(index)
+{
+}
+
 muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::coindex() const noexcept
 {
-    return m_coindex;
+    return m_impl->subview(m_impl->coindex, m_index);
 }
 
 muda::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::positions() const noexcept
 {
-    return m_positions;
+    return m_impl->subview(m_impl->positions, m_index);
 }
 
 GlobalVertexManager::VertexDisplacementInfo::VertexDisplacementInfo(Impl* impl, SizeT index) noexcept
-    : m_displacements(impl->displacements)
+    : m_impl(impl)
     , m_index(index)
 {
 }
 
 muda::BufferView<Vector3> GlobalVertexManager::VertexDisplacementInfo::displacements() const noexcept
 {
-    return m_displacements;
+    return m_impl->subview(m_impl->displacements, m_index);
 }
 
 muda::CBufferView<IndexT> GlobalVertexManager::VertexDisplacementInfo::coindex() const noexcept

@@ -7,6 +7,8 @@
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/common/zip.h>
 #include <muda/cub/device/device_reduce.h>
+#include <kernel_cout.h>
+#include <muda/ext/eigen/log_proxy.h>
 
 namespace uipc::backend::cuda
 {
@@ -19,9 +21,9 @@ class SimSystemCreator<AffineBodyDynamics>
     {
         auto  scene = engine.world().scene();
         auto& types = scene.constitution_tabular().types();
-        if(types.find(world::ConstitutionTypes::AffineBody) == types.end())
-            return nullptr;
-        return make_unique<AffineBodyDynamics>(engine);
+        if(types.find(world::ConstitutionTypes::AffineBody) != types.end())
+            return make_unique<AffineBodyDynamics>(engine);
+        return nullptr;
     }
 };
 
@@ -574,7 +576,7 @@ void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
 
     span qs = h_body_id_to_q;
 
-    // 2) transfer from abd qs to transforms
+    // 2) transfer from m_abd qs to transforms
     for_each_body(
         geo_slots,
         [](geometry::SimplicialComplex& sc) { return view(sc.transforms()); },
@@ -597,17 +599,6 @@ void AffineBodyDynamics::Impl::_download_geometry_to_host()
 
     auto aync_copy = []<typename T>(muda::DeviceBuffer<T>& src, span<T> dst)
     { muda::BufferLaunch().copy<T>(dst.data(), src.view()); };
-
-
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(body_id_to_q.size(),
-               [qs = body_id_to_q.viewer().name("qs")] __device__(int i) mutable
-               {
-                   // move it up by 1 unit, just for testing
-                   qs(i).segment<3>(0) += Vector3::UnitY();
-               });
-
 
     aync_copy(body_id_to_q, span{h_body_id_to_q});
 
@@ -663,6 +654,7 @@ void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::PredictInfo& info)
                        q_v = Vector12::Zero();
                    else
                        q_v = (q - q_prev) * (1.0 / dt);
+
                    q_prev = q;
                });
 }
@@ -686,7 +678,7 @@ void AffineBodyDynamics::Impl::step_forward(LineSearcher::StepInfo& info)
                {
                    if(is_fixed(i))
                        return;
-                   qs(i) = q_temps(i) - alpha * dqs(i);
+                   qs(i) = q_temps(i) + alpha * dqs(i);
                });
 }
 
@@ -714,7 +706,8 @@ Float AffineBodyDynamics::Impl::compute_abd_kinetic_energy(LineSearcher::Compute
                        const auto& q_tilde = q_tildes(i);
                        const auto& M       = masses(i);
                        Vector12    dq      = q - q_tilde;
-                       K                   = 0.5 * dq.dot(M * dq);
+                       cout << "dq: " << dq << "\n";
+                       K = 0.5 * dq.dot(M * dq);
                    }
                });
 
@@ -792,7 +785,6 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
                 q_tildes = body_id_to_q_tilde.cviewer().name("q_tildes"),
                 masses   = body_id_to_abd_mass.cviewer().name("masses"),
                 Ks = body_id_to_kinetic_energy.cviewer().name("kinetic_energy"),
-                dqs      = body_id_to_dq.viewer().name("dqs"),
                 hessians = body_id_to_body_hessian.viewer().name("hessians"),
                 gradients = body_id_to_body_gradient.viewer().name("gradients")] __device__(int i) mutable
                {
@@ -810,11 +802,9 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
                    const auto& q       = qs(i);
                    const auto& q_tilde = q_tildes(i);
 
-                   const auto& K  = Ks(i);
-                   auto&       dq = dqs(i);
-
-                   dq = q - q_tilde;
-                   G += M * dq;
+                   const auto& K = Ks(i);
+                   G += M * (q - q_tilde);
+                   cout << "G: " << G << "\n";
                    H += M.to_mat();
                });
 }

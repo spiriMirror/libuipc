@@ -11,7 +11,6 @@ void LineSearcher::do_build()
     on_init_scene([this]() { init(); });
 }
 
-
 void LineSearcher::on_record_current_state(std::function<void()>&& action)
 {
     check_state(SimEngineState::BuildSystems, "on_record_current_state()");
@@ -62,7 +61,7 @@ void LineSearcher::step_forward(Float alpha)
 
 Float LineSearcher::compute_energy()
 {
-    ComputeEnergyInfo info;
+    ComputeEnergyInfo info{this};
     for(auto [i, action] : enumerate(m_compute_energy))
     {
         m_energy_values[i] = action(info);
@@ -81,9 +80,15 @@ Float LineSearcher::compute_energy()
             report_stream << name << "=" << value << "\n";
         }
         spdlog::info(report_stream.str());
+        report_stream.str("");
     }
 
     return total_energy;
+}
+
+LineSearcher::ComputeEnergyInfo::ComputeEnergyInfo(LineSearcher* impl) noexcept
+    : m_impl(impl)
+{
 }
 
 Float LineSearcher::ComputeEnergyInfo::dt() const noexcept

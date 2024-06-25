@@ -55,6 +55,7 @@ void SimEngine::do_advance()
 
             // 5) Get Max Movement => dx_max = max(|dx|), if dx_max < tol, break
             Float res = m_global_vertex_manager->compute_max_displacement();
+            spdlog::info("Newton Iteration: {} Residual: {}/{}", iter, res, tol);
             if(res < tol)
                 break;
 
@@ -79,7 +80,8 @@ void SimEngine::do_advance()
                 Float alpha = 1.0;
 
                 SizeT max_line_search_iter = 1000;  // now just hard code it
-                while(max_line_search_iter--)       // Energy Test
+                SizeT line_search_iter     = 0;
+                while(line_search_iter++ < max_line_search_iter)  // Energy Test
                 {
                     Float E               = compute_energy(alpha);
                     bool  energy_decrease = E < E0;  // Check Energy Decrease
@@ -92,6 +94,11 @@ void SimEngine::do_advance()
                     // If not success, then shrink alpha
                     alpha /= 2;
                     E = compute_energy(alpha);
+                    spdlog::info("Line Search Iteration: {} Alpha: {} Energy: {}/{}",
+                                 line_search_iter,
+                                 alpha,
+                                 E,
+                                 E0);
                 }
             }
         }
