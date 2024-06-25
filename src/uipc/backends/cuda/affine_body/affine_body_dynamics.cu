@@ -40,16 +40,6 @@ void AffineBodyDynamics::do_build()
     // Register the action to initialize the affine body geometry
     on_init_scene([this] { m_impl.init_affine_body_geometry(world()); });
 
-    // Register the action to do_build the vertex info
-    global_vertex_manager->on_update(
-        "affine_body",
-        [this](GlobalVertexManager::VertexCountInfo& info)
-        { m_impl.report_vertex_count(info); },
-        [this](GlobalVertexManager::VertexAttributeInfo& info)
-        { m_impl.report_vertex_attributes(info); },
-        [this](GlobalVertexManager::VertexDisplacementInfo& info)
-        { m_impl.report_vertex_displacements(info); });
-
     // Register the action to predict the affine body dof
     dof_predictor->on_predict([this](DoFPredictor::PredictInfo& info)
                               { m_impl.compute_q_tilde(info); });
@@ -508,64 +498,6 @@ void AffineBodyDynamics::Impl::init_affine_body_geometry(WorldVisitor& world)
     _distribute_body_infos();
 }
 
-void AffineBodyDynamics::Impl::report_vertex_count(GlobalVertexManager::VertexCountInfo& vertex_count_info)
-{
-    // TODO: now we just report all the affine body vertices
-    // later we may extract the surface vertices and report them
-    vertex_count_info.count(h_vertex_id_to_J.size());
-}
-
-void AffineBodyDynamics::Impl::report_vertex_attributes(const GlobalVertexManager::VertexAttributeInfo& vertex_attributes)
-{
-    using namespace muda;
-    // fill the coindex for later use
-    auto N = vertex_attributes.coindex().size();
-    // TODO: now we just use `iota` the coindex
-    // later we may extract the surface vertices as the reported vertices
-    // then the coindex will be a mapping from the surface vertices to the affine body vertices
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(N,
-               [coindex = vertex_attributes.coindex().viewer().name("coindex"),
-
-                dst_pos = vertex_attributes.positions().viewer().name("dst_pos"),
-                v2b = vertex_id_to_body_id.cviewer().name("v2b"),
-                qs  = body_id_to_q.cviewer().name("qs"),
-                src_pos = vertex_id_to_J.cviewer().name("src_pos")] __device__(int i) mutable
-               {
-                   coindex(i) = i;
-
-                   auto        body_id = v2b(i);
-                   const auto& q       = qs(body_id);
-                   dst_pos(i)          = src_pos(i).point_x(q);
-               });
-
-    // record the global vertex info
-    abd_report_vertex_offset = vertex_attributes.coindex().offset();
-    abd_report_vertex_count  = vertex_attributes.coindex().size();
-}
-
-void AffineBodyDynamics::Impl::report_vertex_displacements(GlobalVertexManager::VertexDisplacementInfo& info)
-{
-    using namespace muda;
-    auto N = info.coindex().size();
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(N,
-               [coindex = info.coindex().viewer().name("coindex"),
-                displacements = info.displacements().viewer().name("displacements"),
-                v2b = vertex_id_to_body_id.cviewer().name("v2b"),
-                dqs = body_id_to_dq.cviewer().name("dqs"),
-                Js = vertex_id_to_J.cviewer().name("Js")] __device__(int vI) mutable
-               {
-                   auto             body_id = v2b(vI);
-                   const Vector12&  dq      = dqs(body_id);
-                   const ABDJacobi& J       = Js(vI);
-                   auto&            dx      = displacements(vI);
-                   dx                       = J * dq;
-               });
-}
-
 void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
 {
     // 1) download from device to host
@@ -706,7 +638,7 @@ Float AffineBodyDynamics::Impl::compute_abd_kinetic_energy(LineSearcher::Compute
                        const auto& q_tilde = q_tildes(i);
                        const auto& M       = masses(i);
                        Vector12    dq      = q - q_tilde;
-                       cout << "dq: " << dq << "\n";
+                       // cout << "dq: " << dq << "\n";
                        K = 0.5 * dq.dot(M * dq);
                    }
                });
@@ -804,7 +736,6 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
 
                    const auto& K = Ks(i);
                    G += M * (q - q_tilde);
-                   cout << "G: " << G << "\n";
                    H += M.to_mat();
                });
 }

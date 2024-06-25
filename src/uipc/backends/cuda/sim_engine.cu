@@ -39,12 +39,13 @@ SimEngine::SimEngine()
             if(m_string_stream.str().empty())
                 return;
 
-            std::string str = m_string_stream.str();
-            spdlog::info(R"([Kernel Console] 
+            spdlog::info(R"( 
+-------------------------------------------------------------------------------
+*                               Kernel  Console                               *
 -------------------------------------------------------------------------------
 {}
 -------------------------------------------------------------------------------)",
-                         str);
+                         m_string_stream.str());
         });
 
     say_hello_from_muda();

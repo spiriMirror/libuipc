@@ -2,35 +2,44 @@
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
 #include <muda/cub/device/device_reduce.h>
+#include <vertex_reporter.h>
 
 /*************************************************************************************************
 * Core Implementation
 *************************************************************************************************/
 namespace uipc::backend::cuda
 {
-void GlobalVertexManager::Impl::build_vertex_info()
+void GlobalVertexManager::Impl::init_vertex_info()
 {
-    vertex_registers.reserve(vertex_registers_buffer.size());
-    std::ranges::move(vertex_registers_buffer, std::back_inserter(vertex_registers));
+    vertex_reporters.resize(vertex_reporter_buffer.size());
+    std::ranges::move(vertex_reporter_buffer, vertex_reporters.begin());
 
-    auto N = vertex_registers.size();
-    register_vertex_counts.resize(N);
-    register_vertex_offsets.resize(N);
+    auto N = vertex_reporters.size();
+    reporter_vertex_counts.resize(N);
+    reporter_vertex_offsets.resize(N);
 
-    for(auto&& [i, R] : enumerate(vertex_registers))
+    for(auto&& [i, R] : enumerate(vertex_reporters))
     {
         VertexCountInfo info;
-        R.m_report_vertex_count(info);
+        R->report_count(info);
         // get count back
-        register_vertex_counts[i] = info.count();
+        reporter_vertex_counts[i] = info.m_count;
+        if(info.m_changable)
+        {
+            // record
+            vertex_reporter_buffer.push_back(R);
+        }
     }
 
-    std::exclusive_scan(register_vertex_counts.begin(),
-                        register_vertex_counts.end(),
-                        register_vertex_offsets.begin(),
+    changable_vertex_reporters.resize(vertex_reporter_buffer.size());
+    std::ranges::move(vertex_reporter_buffer, changable_vertex_reporters.begin());
+
+    std::exclusive_scan(reporter_vertex_counts.begin(),
+                        reporter_vertex_counts.end(),
+                        reporter_vertex_offsets.begin(),
                         0);
 
-    auto total_count = register_vertex_offsets.back() + register_vertex_counts.back();
+    auto total_count = reporter_vertex_offsets.back() + reporter_vertex_counts.back();
 
     // resize the global coindex buffer
     coindex.resize(total_count);
@@ -38,11 +47,16 @@ void GlobalVertexManager::Impl::build_vertex_info()
     displacements.resize(total_count, Vector3::Zero());
 
     // create the subviews for each attribute_reporter
-    for(auto&& [i, R] : enumerate(vertex_registers))
+    for(auto&& [i, R] : enumerate(vertex_reporters))
     {
         VertexAttributeInfo attributes{this, i};
-        R.m_report_vertex_attributes(attributes);
+        R->report_attributes(attributes);
     }
+}
+
+void GlobalVertexManager::Impl::rebuild_vertex_info()
+{
+    // TODO: Implement this function
 }
 
 Float GlobalVertexManager::Impl::compute_max_displacement()
@@ -112,9 +126,9 @@ void GlobalVertexManager::VertexCountInfo::count(SizeT count) noexcept
     m_count = count;
 }
 
-SizeT GlobalVertexManager::VertexCountInfo::count() const noexcept
+void GlobalVertexManager::VertexCountInfo::changable(bool is_changable) noexcept
 {
-    return m_count;
+    m_changable = is_changable;
 }
 
 GlobalVertexManager::VertexAttributeInfo::VertexAttributeInfo(Impl* impl, SizeT index) noexcept
@@ -149,26 +163,14 @@ muda::CBufferView<IndexT> GlobalVertexManager::VertexDisplacementInfo::coindex()
     return m_impl->subview(m_impl->coindex, m_index);
 }
 
-void GlobalVertexManager::build_vertex_info()
+void GlobalVertexManager::init_vertex_info()
 {
-    m_impl.build_vertex_info();
+    m_impl.init_vertex_info();
 }
 
-void GlobalVertexManager::on_update(std::string_view name,
-                                    std::function<void(VertexCountInfo&)>&& report_vertex_count,
-                                    std::function<void(VertexAttributeInfo&)>&& report_vertex_attributes,
-                                    std::function<void(VertexDisplacementInfo&)>&& report_vertex_displacement)
+void GlobalVertexManager::rebuild_vertex_info()
 {
-    check_state(SimEngineState::BuildSystems, "on_update()");
-    m_impl.on_update(VertexRegister{name,
-                                    std::move(report_vertex_count),
-                                    std::move(report_vertex_attributes),
-                                    std::move(report_vertex_displacement)});
-}
-
-void GlobalVertexManager::Impl::on_update(VertexRegister&& vertex_register)
-{
-    vertex_registers_buffer.push_back(std::move(vertex_register));
+    m_impl.rebuild_vertex_info();
 }
 
 muda::CBufferView<IndexT> GlobalVertexManager::coindex() const noexcept
@@ -188,10 +190,10 @@ muda::CBufferView<Vector3> GlobalVertexManager::displacements() const noexcept
 
 void GlobalVertexManager::Impl::collect_vertex_displacements()
 {
-    for(auto&& [i, R] : enumerate(vertex_registers))
+    for(auto&& [i, R] : enumerate(vertex_reporters))
     {
         VertexDisplacementInfo vd{this, i};
-        R.m_report_vertex_displacement(vd);
+        R->report_displacements(vd);
     }
 }
 
@@ -203,5 +205,12 @@ Float GlobalVertexManager::compute_max_displacement()
 AABB GlobalVertexManager::compute_vertex_bounding_box()
 {
     return m_impl.compute_vertex_bounding_box();
+}
+
+void GlobalVertexManager::add_reporter(VertexReporter* reporter)
+{
+    check_state(SimEngineState::BuildSystems, "add_reporter()");
+    reporter->m_index = m_impl.vertex_reporter_buffer.size();
+    m_impl.vertex_reporter_buffer.push_back(reporter);
 }
 }  // namespace uipc::backend::cuda

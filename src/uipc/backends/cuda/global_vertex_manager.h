@@ -8,6 +8,7 @@
 
 namespace uipc::backend::cuda
 {
+class VertexReporter;
 class GlobalVertexManager : public SimSystem
 {
   public:
@@ -18,11 +19,13 @@ class GlobalVertexManager : public SimSystem
     class VertexCountInfo
     {
       public:
-        void  count(SizeT count) noexcept;
-        SizeT count() const noexcept;
+        void count(SizeT count) noexcept;
+        void changable(bool is_changable) noexcept;
 
       private:
+        friend class GlobalVertexManager;
         SizeT m_count;
+        bool  m_changable;
     };
 
     class VertexAttributeInfo
@@ -34,8 +37,8 @@ class GlobalVertexManager : public SimSystem
 
       private:
         friend class GlobalVertexManager;
-        SizeT                     m_index;
-        Impl*                     m_impl;
+        SizeT m_index;
+        Impl* m_impl;
     };
 
     class VertexDisplacementInfo
@@ -47,8 +50,8 @@ class GlobalVertexManager : public SimSystem
 
       private:
         friend class GlobalVertexManager;
-        SizeT                     m_index;
-        Impl*                     m_impl;
+        SizeT m_index;
+        Impl* m_impl;
     };
 
     class Impl;
@@ -71,17 +74,14 @@ class GlobalVertexManager : public SimSystem
         std::function<void(VertexDisplacementInfo&)> m_report_vertex_displacement;
     };
 
-    void on_update(std::string_view                        name,
-                   std::function<void(VertexCountInfo&)>&& report_vertex_count,
-                   std::function<void(VertexAttributeInfo&)>&& report_vertex_attributes,
-                   std::function<void(VertexDisplacementInfo&)>&& report_vertex_displacement);
-
     muda::CBufferView<IndexT>  coindex() const noexcept;
     muda::CBufferView<Vector3> positions() const noexcept;
     muda::CBufferView<Vector3> displacements() const noexcept;
 
     Float compute_max_displacement();
     AABB  compute_vertex_bounding_box();
+
+    void add_reporter(VertexReporter* reporter);
 
   public:
     class Impl
@@ -90,8 +90,8 @@ class GlobalVertexManager : public SimSystem
 
       public:
         Impl() = default;
-        void  build_vertex_info();
-        void  on_update(VertexRegister&& vertex_register);
+        void  init_vertex_info();
+        void  rebuild_vertex_info();
         Float compute_max_displacement();
         AABB  compute_vertex_bounding_box();
         void  collect_vertex_displacements();
@@ -115,15 +115,18 @@ class GlobalVertexManager : public SimSystem
         muda::DeviceVar<Vector3> min_pos;
         muda::DeviceVar<Vector3> max_pos;
 
-        list<VertexRegister>   vertex_registers_buffer;
-        vector<VertexRegister> vertex_registers;
-        vector<SizeT>          register_vertex_offsets;
-        vector<SizeT>          register_vertex_counts;
+        list<VertexReporter*>   vertex_reporter_buffer;
+        vector<VertexReporter*> vertex_reporters;
+        vector<VertexReporter*> changable_vertex_reporters;
+
+        vector<SizeT> reporter_vertex_offsets;
+        vector<SizeT> reporter_vertex_counts;
     };
 
   private:
     friend class SimEngine;
-    void build_vertex_info();  // only be called by SimEngine
+    void init_vertex_info();     // only be called by SimEngine
+    void rebuild_vertex_info();  // only be called by SimEngine
 
     Impl m_impl;
 };

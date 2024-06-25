@@ -2,6 +2,7 @@
 #include <log_pattern_guard.h>
 #include <dof_predictor.h>
 #include <global_vertex_manager.h>
+#include <global_surface_manager.h>
 #include <line_searcher.h>
 #include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
@@ -12,18 +13,11 @@ void SimEngine::do_advance()
 {
     LogGuard guard;
 
-    // Trigger the rebuild_scene event, systems register their actions will be called here
-    m_state = SimEngineState::RebuildScene;
-    event_rebuild_scene();
-
-    // After the rebuild_scene event, the pending creation or deletion can be solved
-    auto scene = m_world_visitor->scene();
-    scene.solve_pending();
+    // The Pipeline
 
     AABB vertex_bounding_box = m_global_vertex_manager->compute_vertex_bounding_box();
     Float box_size = vertex_bounding_box.diagonal().norm();
 
-    // The Pipeline
     {
         // 1. Predict Motion => x_tilde = x + v * dt
         m_state = SimEngineState::PredictMotion;
@@ -94,11 +88,11 @@ void SimEngine::do_advance()
                     // If not success, then shrink alpha
                     alpha /= 2;
                     E = compute_energy(alpha);
-                    spdlog::info("Line Search Iteration: {} Alpha: {} Energy: {}/{}",
-                                 line_search_iter,
-                                 alpha,
-                                 E,
-                                 E0);
+                    //spdlog::info("Line Search Iteration: {} Alpha: {} Energy: {}/{}",
+                    //             line_search_iter,
+                    //             alpha,
+                    //             E,
+                    //             E0);
                 }
             }
         }
@@ -107,5 +101,17 @@ void SimEngine::do_advance()
         m_state = SimEngineState::UpdateVelocity;
         m_dof_predictor->compute_velocity();
     }
+
+    // Trigger the rebuild_scene event, systems register their actions will be called here
+    m_state = SimEngineState::RebuildScene;
+    {
+        event_rebuild_scene();
+
+        m_global_vertex_manager->rebuild_vertex_info();
+        m_global_surface_manager->rebuild_surface_info();
+    }
+    // After the rebuild_scene event, the pending creation or deletion can be solved
+    auto scene = m_world_visitor->scene();
+    scene.solve_pending();
 }
 }  // namespace uipc::backend::cuda

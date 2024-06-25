@@ -11,6 +11,7 @@
 namespace uipc::backend::cuda
 {
 class GlobalVertexManager;
+class GlobalSurfaceManager;
 class DoFPredictor;
 class LineSearcher;
 class GradientHessianComputer;
@@ -65,12 +66,13 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
   private:
     // Aware Top Systems
     GlobalVertexManager*     m_global_vertex_manager     = nullptr;
+    GlobalSurfaceManager*    m_global_surface_manager    = nullptr;
     DoFPredictor*            m_dof_predictor             = nullptr;
     LineSearcher*            m_line_searcher             = nullptr;
     GradientHessianComputer* m_gradient_hessian_computer = nullptr;
     GlobalLinearSystem*      m_global_linear_system      = nullptr;
 
-    Float m_newton_tol      = 1e-2;
+    Float m_newton_tol      = 1e-3;
     SizeT m_newton_max_iter = 1000;
 };
 }  // namespace uipc::backend::cuda

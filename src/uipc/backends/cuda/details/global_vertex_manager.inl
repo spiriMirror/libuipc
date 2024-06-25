@@ -4,6 +4,6 @@ template <typename T>
 muda::BufferView<T> GlobalVertexManager::Impl::subview(muda::DeviceBuffer<T>& buffer,
                                                        SizeT index) const noexcept
 {
-    return buffer.view(register_vertex_offsets[index], register_vertex_counts[index]);
+    return buffer.view(reporter_vertex_offsets[index], reporter_vertex_counts[index]);
 }
 }  // namespace uipc::backend::cuda

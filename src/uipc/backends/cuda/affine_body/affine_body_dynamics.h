@@ -157,10 +157,6 @@ class AffineBodyDynamics : public SimSystem
         void _build_geometry_on_device(WorldVisitor& world);
         void _distribute_body_infos();
 
-        void report_vertex_count(GlobalVertexManager::VertexCountInfo& vertex_count_info);
-        void report_vertex_attributes(const GlobalVertexManager::VertexAttributeInfo& global_vertex_info);
-        void report_vertex_displacements(GlobalVertexManager::VertexDisplacementInfo& vertex_displacement_info);
-
         void write_scene(WorldVisitor& world);
         void _download_geometry_to_host();
 
@@ -170,7 +166,6 @@ class AffineBodyDynamics : public SimSystem
         void  step_forward(LineSearcher::StepInfo& info);
         Float compute_abd_kinetic_energy(LineSearcher::ComputeEnergyInfo& info);
         Float compute_abd_shape_energy(LineSearcher::ComputeEnergyInfo& info);
-
         void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);
 
 
@@ -335,6 +330,7 @@ class AffineBodyDynamics : public SimSystem
     };
 
   private:
+    friend class AffineBodyVertexReporter;
     friend class ABDLinearSubsystem;
     Impl m_impl;
 };

@@ -27,7 +27,6 @@ int main()
         auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
         auto default_contact = scene.contact_tabular().default_element();
 
-
         Transform pre_transform = Transform::Identity();
         pre_transform.scale(0.2);
         SimplicialComplexIO io{pre_transform};
@@ -45,7 +44,19 @@ int main()
         }
 
         // create geometry
-        auto mesh = io.read(fmt::format("{}cube.msh", tetmesh_dir));
+        // auto mesh = io.read(fmt::format("{}cube.msh", tetmesh_dir));
+
+        vector<Vector3> Vs = {Vector3{0, 1, 0},
+                              Vector3{0, 0, 1},
+                              Vector3{-std::sqrt(3) / 2, 0, -0.5},
+                              Vector3{std::sqrt(3) / 2, 0, -0.5}};
+
+        std::transform(
+            Vs.begin(), Vs.end(), Vs.begin(), [&](auto& v) { return v * 0.2; });
+
+        vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
+
+        auto mesh = tetmesh(Vs, Ts);
 
         label_surface(mesh);
         label_triangle_orient(mesh);
@@ -56,27 +67,27 @@ int main()
             abd.apply_to(mesh, 100.0_MPa);
             default_contact.apply_to(mesh);
 
-            // mesh.instances().resize(2);
+            mesh.instances().resize(2);
             auto trans_view = view(mesh.transforms());
             auto is_fixed   = mesh.instances().find<IndexT>(builtin::is_fixed);
             auto is_fixed_view = view(*is_fixed);
 
             {
-                Transform t     = Transform::Identity();
-                t.translation() = Vector3::UnitY() * 0.2 + Vector3::UnitY();
+                Transform t = Transform::Identity();
+                t.translation() = Vector3::UnitY() * 0.12 + Vector3::UnitY() * 0.5;
 
                 trans_view[0]    = t.matrix();
                 is_fixed_view[0] = 0;
             }
 
-            //{
-            //    Transform t     = Transform::Identity();
-            //    t.translation() = Vector3::UnitY() * -0.2 + Vector3::UnitY();
+            {
+                Transform t = Transform::Identity();
+                t.translation() = Vector3::UnitY() * -0.12 + Vector3::UnitY() * 0.5;
 
-            //    trans_view[1] = t.matrix();
-            //    // fix the second cube
-            //    is_fixed_view[1] = 1;
-            //}
+                trans_view[1] = t.matrix();
+                // fix the second cube
+                is_fixed_view[1] = 1;
+            }
         }
 
         // create object
