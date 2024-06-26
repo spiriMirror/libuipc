@@ -10,7 +10,7 @@ Scene::Scene()
 {
     m_info["dt"]                      = 0.01;
     m_info["gravity"]                 = Vector3{0.0, -9.8, 0.0};
-    m_info["newton"]["tolerance"]     = 1e-3;
+    m_info["newton"]["tolerance"]     = 1e-2;
     m_info["newton"]["max_iter"]      = 1000;
     m_info["linear_system"]["solver"] = "linear_pcg";
     m_info["debug"]["report_energy"]  = true;

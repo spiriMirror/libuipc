@@ -1,6 +1,7 @@
 #pragma once
 #include <sim_system.h>
 #include <muda/buffer/device_buffer.h>
+#include <muda/buffer/device_var.h>
 #include <affine_body/abd_jacobi_matrix.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <sim_engine.h>
@@ -122,6 +123,8 @@ class AffineBodyDynamics : public SimSystem
 
     void add_constitution(AffineBodyConstitution* constitution);
 
+    void after_build_geometry(std::function<void()>&& action);
+
   protected:
     virtual void do_build() override;
 
@@ -163,19 +166,20 @@ class AffineBodyDynamics : public SimSystem
         SizeT body_count() const noexcept { return h_body_infos.size(); }
 
       public:
+        list<std::function<void()>>     after_build_geometry;
         list<AffineBodyConstitution*>   constitution_buffer;
         vector<AffineBodyConstitution*> constitutions;
 
-        SizeT abd_report_vertex_offset = 0;
-        SizeT abd_report_vertex_count  = 0;
+        SizeT vertex_offset_in_global = 0;  // filled by AffineBodyVertexReporter
 
         // core invariant data
         vector<BodyInfo> h_body_infos;
 
         // related cache of `h_body_infos`
-        SizeT         abd_geo_count    = 0;
-        SizeT         abd_body_count   = 0;
-        SizeT         abd_vertex_count = 0;
+        SizeT abd_geo_count    = 0;
+        SizeT abd_body_count   = 0;
+        SizeT abd_vertex_count = 0;
+
         vector<SizeT> h_constitution_geo_offsets;
         vector<SizeT> h_constitution_geo_counts;
         vector<SizeT> h_abd_geo_body_offsets;

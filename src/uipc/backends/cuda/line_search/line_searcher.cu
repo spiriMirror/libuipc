@@ -67,13 +67,17 @@ Float LineSearcher::compute_energy()
 
     if(m_report_energy)
     {
-        m_report_stream << "Compute Energy: ";
-        m_report_stream << "Total=" << total_energy << "\n";
-
+        m_report_stream << R"(
+-------------------------------------------------------------------------------
+*                             Compute Energy                                  *
+-------------------------------------------------------------------------------
+)";
+        m_report_stream << "Total:" << total_energy << "\n";
         for(auto&& [R, value] : zip(m_reporters, m_energy_values))
         {
-            m_report_stream << R->name() << "=" << value << "\n";
+            m_report_stream << "  * " << R->name() << "=" << value << "\n";
         }
+        m_report_stream << "-------------------------------------------------------------------------------";
         spdlog::info(m_report_stream.str());
         m_report_stream.str("");
     }

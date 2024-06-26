@@ -56,8 +56,7 @@ void AffineBodyVertexReporter::Impl::report_attributes(GlobalVertexManager::Vert
                });
 
     // record the global vertex info
-    reporter_vertex_offset = info.coindex().offset();
-    reporter_vertex_count  = info.coindex().size();
+    abd().vertex_offset_in_global = info.coindex().offset();
 }
 
 void AffineBodyVertexReporter::Impl::report_displacements(GlobalVertexManager::VertexDisplacementInfo& info)

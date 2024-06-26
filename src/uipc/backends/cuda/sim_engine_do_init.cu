@@ -28,6 +28,9 @@ void SimEngine::init_scene()
     auto& info        = m_world_visitor->scene().info();
     m_newton_tol      = info["newton"]["tolerance"];
     m_newton_max_iter = info["newton"]["max_iter"];
+    Vector3 gravity   = info["gravity"];
+    Float   dt        = info["dt"];
+    m_abs_tol         = gravity.norm() * dt * dt / 2;
 }
 
 void SimEngine::do_init(backend::WorldVisitor v)
@@ -49,6 +52,7 @@ void SimEngine::do_init(backend::WorldVisitor v)
     // 3) Trigger the init_scene event, systems register their actions will be called here
     m_state = SimEngineState::InitScene;
     {
+        init_scene();
         event_init_scene();
 
         m_global_vertex_manager->init_vertex_info();

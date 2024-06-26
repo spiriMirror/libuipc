@@ -28,7 +28,7 @@ void SimEngine::do_advance()
         // 3. Select Adaptive Kappa
 
         // 4. Nonlinear-Newton Iteration
-        Float tol  = m_newton_tol * box_size;
+        Float tol  = std::min(m_newton_tol * box_size, m_abs_tol);
         SizeT iter = 0;
         while(iter++ < m_newton_max_iter)
         {

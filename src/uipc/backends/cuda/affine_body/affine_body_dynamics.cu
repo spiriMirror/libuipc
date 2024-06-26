@@ -70,6 +70,12 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
     m_impl.constitution_buffer.push_back(constitution);
 }
 
+void AffineBodyDynamics::after_build_geometry(std::function<void()>&& action)
+{
+    check_state(SimEngineState::BuildSystems, "after_build_body_infos()");
+    m_impl.after_build_geometry.push_back(std::move(action));
+}
+
 void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
 {
     // 1) sort the constitutions by uid
@@ -484,6 +490,9 @@ void AffineBodyDynamics::Impl::init_affine_body_geometry(WorldVisitor& world)
     _build_geometry_on_host(world);
     _build_geometry_on_device(world);
     _distribute_body_infos();
+
+    for(auto&& action : after_build_geometry)
+        action();
 }
 
 void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
