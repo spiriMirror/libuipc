@@ -11,11 +11,9 @@ class SimSystemCreator<ABDLinearSubsystem>
   public:
     static U<ABDLinearSubsystem> create(SimEngine& engine)
     {
-        auto  scene = engine.world().scene();
-        auto& types = scene.constitution_tabular().types();
-        if(types.find(world::ConstitutionTypes::AffineBody) != types.end())
-            return make_unique<ABDLinearSubsystem>(engine);
-        return nullptr;
+        return has_affine_body_constitution(engine) ?
+                   make_unique<ABDLinearSubsystem>(engine) :
+                   nullptr;
     }
 };
 

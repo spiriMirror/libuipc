@@ -21,6 +21,8 @@ add_subdirectory(collision_detection)
 add_subdirectory(affine_body)
 add_subdirectory(linear_system)
 add_subdirectory(algorithm)
+add_subdirectory(line_search)
+add_subdirectory(contact_system)
 
 # source files in this directory
 file(GLOB SOURCES "*.cpp" "*.h" "*.cu" "details/*.inl")

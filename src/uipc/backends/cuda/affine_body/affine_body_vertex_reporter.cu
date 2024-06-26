@@ -8,11 +8,9 @@ class SimSystemCreator<AffineBodyVertexReporter>
   public:
     static U<AffineBodyVertexReporter> create(SimEngine& engine)
     {
-        auto  scene = engine.world().scene();
-        auto& types = scene.constitution_tabular().types();
-        if(types.find(world::ConstitutionTypes::AffineBody) != types.end())
-            return make_unique<AffineBodyVertexReporter>(engine);
-        return nullptr;
+        return has_affine_body_constitution(engine) ?
+                   make_unique<AffineBodyVertexReporter>(engine) :
+                   nullptr;
     }
 };
 

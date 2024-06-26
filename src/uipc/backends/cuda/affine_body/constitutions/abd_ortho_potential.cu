@@ -2,7 +2,7 @@
 #include <uipc/common/enumerate.h>
 #include <affine_body/abd_energy.h>
 #include <muda/cub/device/device_reduce.h>
-#include <muda/ext/eigen/evd.h>
+
 namespace uipc::backend::cuda
 {
 template <>
@@ -30,22 +30,17 @@ REGISTER_SIM_SYSTEM(ABDOrthoPotential);
 
 void ABDOrthoPotential::do_build()
 {
-    m_impl.affine_body_geometry = find<AffineBodyDynamics>();
-
-    // ConstitutionRegister the action to filter the affine body geometry
-    m_impl.affine_body_geometry->on_update(
-        ConstitutionUID,  // By libuipc specification
-        [this](const AffineBodyDynamics::FilteredInfo& info)
-        { m_impl.on_filter(info, world()); },
-        [this](const AffineBodyDynamics::ComputeEnergyInfo& info)
-        { m_impl.on_compute_energy(info); },
-        [this](const AffineBodyDynamics::ComputeGradientHessianInfo& info) {
-
-        });
+    auto affine_body_dynamics = find<AffineBodyDynamics>();
+    affine_body_dynamics->add_constitution(this);
 }
 
-void ABDOrthoPotential::Impl::on_filter(const AffineBodyDynamics::FilteredInfo& info,
-                                        WorldVisitor& world)
+U64 ABDOrthoPotential::get_constitution_uid() const
+{
+    return ConstitutionUID;
+}
+
+void ABDOrthoPotential::Impl::filter(const AffineBodyDynamics::FilteredInfo& info,
+                                     WorldVisitor& world)
 {
     auto src = info.body_infos();
     h_body_infos.resize(src.size());
@@ -64,7 +59,7 @@ void ABDOrthoPotential::Impl::on_filter(const AffineBodyDynamics::FilteredInfo& 
     _build_on_device();
 }
 
-void ABDOrthoPotential::Impl::on_compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& info)
+void ABDOrthoPotential::Impl::compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& info)
 {
     using namespace muda;
 
@@ -94,23 +89,7 @@ void ABDOrthoPotential::Impl::on_compute_energy(const AffineBodyDynamics::Comput
     DeviceReduce().Sum(body_energies.data(), info.shape_energy().data(), body_count);
 }
 
-// file local function, make the matrix positive definite
-__device__ __host__ void make_pd(Matrix9x9& mat)
-{
-    Vector9   eigen_values;
-    Matrix9x9 eigen_vectors;
-    muda::eigen::evd(mat, eigen_values, eigen_vectors);
-    for(int i = 0; i < 9; ++i)
-    {
-        if(eigen_values(i) < 0)
-        {
-            eigen_values(i) = 0;
-        }
-    }
-    mat = eigen_vectors * eigen_values.asDiagonal() * eigen_vectors.transpose();
-}
-
-void ABDOrthoPotential::Impl::on_compute_gradient_hessian(const AffineBodyDynamics::ComputeGradientHessianInfo& info)
+void ABDOrthoPotential::Impl::compute_gradient_hessian(const AffineBodyDynamics::ComputeGradientHessianInfo& info)
 {
     using namespace muda;
     auto N = info.qs().size();
@@ -136,8 +115,6 @@ void ABDOrthoPotential::Impl::on_compute_gradient_hessian(const AffineBodyDynami
 
                    Matrix9x9 shape_H = kvt2 * shape_energy_hessian(q);
 
-                   // make H positive definite
-                   make_pd(shape_H);
                    H.block<9, 9>(3, 3) += shape_H;
                    G.segment<9>(3) += shape_gradient;
 
@@ -159,5 +136,20 @@ void ABDOrthoPotential::Impl::_build_on_device()
 
     async_copy(span{h_kappas}, kappas);
     async_resize(body_energies, kappas.size());
+}
+
+void ABDOrthoPotential::do_filter(AffineBodyDynamics::FilteredInfo& info)
+{
+    m_impl.filter(info, world());
+}
+
+void ABDOrthoPotential::do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info)
+{
+    m_impl.compute_energy(info);
+}
+
+void ABDOrthoPotential::do_compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info)
+{
+    m_impl.compute_gradient_hessian(info);
 }
 }  // namespace uipc::backend::cuda

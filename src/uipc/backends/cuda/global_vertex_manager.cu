@@ -56,7 +56,7 @@ void GlobalVertexManager::Impl::init_vertex_info()
 
 void GlobalVertexManager::Impl::rebuild_vertex_info()
 {
-    // TODO: Implement this function
+    UIPC_ASSERT(false, "Not implemented yet");
 }
 
 Float GlobalVertexManager::Impl::compute_max_displacement()

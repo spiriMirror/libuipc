@@ -6,6 +6,7 @@
 #include <string_view>
 #include <sim_engine_state.h>
 #include <sim_system_auto_register.h>
+#include <sim_system_creator_utils.h>
 #include <uipc/backend/visitors/world_visitor.h>
 
 namespace uipc::backend::cuda

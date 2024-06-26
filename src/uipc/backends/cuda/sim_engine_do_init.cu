@@ -6,7 +6,7 @@
 #include <global_surface_manager.h>
 #include <global_vertex_manager.h>
 #include <dof_predictor.h>
-#include <line_searcher.h>
+#include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
 

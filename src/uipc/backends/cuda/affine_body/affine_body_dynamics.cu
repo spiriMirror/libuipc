@@ -1,4 +1,7 @@
 #include <affine_body/affine_body_dynamics.h>
+#include <affine_body/abd_line_search_reporter.h>
+#include <affine_body/affine_body_constitution.h>
+
 #include <Eigen/Dense>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
@@ -9,6 +12,7 @@
 #include <muda/cub/device/device_reduce.h>
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
+#include <muda/ext/eigen/evd.h>
 
 namespace uipc::backend::cuda
 {
@@ -19,11 +23,9 @@ class SimSystemCreator<AffineBodyDynamics>
   public:
     static U<AffineBodyDynamics> create(SimEngine& engine)
     {
-        auto  scene = engine.world().scene();
-        auto& types = scene.constitution_tabular().types();
-        if(types.find(world::ConstitutionTypes::AffineBody) != types.end())
-            return make_unique<AffineBodyDynamics>(engine);
-        return nullptr;
+        return has_affine_body_constitution(engine) ?
+                   make_unique<AffineBodyDynamics>(engine) :
+                   nullptr;
     }
 };
 
@@ -32,9 +34,7 @@ REGISTER_SIM_SYSTEM(AffineBodyDynamics);
 void AffineBodyDynamics::do_build()
 {
     // find dependent systems
-    auto global_vertex_manager     = find<GlobalVertexManager>();
     auto dof_predictor             = find<DoFPredictor>();
-    auto line_searcher             = find<LineSearcher>();
     auto gradient_hessian_computer = find<GradientHessianComputer>();
 
     // Register the action to initialize the affine body geometry
@@ -49,19 +49,6 @@ void AffineBodyDynamics::do_build()
         [this](GradientHessianComputer::ComputeInfo& info)
         { m_impl.compute_gradient_hessian(info); });
 
-    // Register the actions to line search
-    line_searcher->on_record_current_state([this] { m_impl.copy_q_to_q_temp(); });
-    line_searcher->on_step_forward([this](LineSearcher::StepInfo& info)
-                                   { m_impl.step_forward(info); });
-    line_searcher->on_compute_energy("abd_kinetic_energy",
-                                     [this](LineSearcher::ComputeEnergyInfo& info) {
-                                         return m_impl.compute_abd_kinetic_energy(info);
-                                     });
-    line_searcher->on_compute_energy("abd_shape_energy",
-                                     [this](LineSearcher::ComputeEnergyInfo& info) {
-                                         return m_impl.compute_abd_shape_energy(info);
-                                     });
-
     // Register the action to compute the velocity of the affine body dof
     dof_predictor->on_compute_velocity([this](DoFPredictor::PredictInfo& info)
                                        { m_impl.compute_q_v(info); });
@@ -74,30 +61,32 @@ void AffineBodyDynamics::do_build()
 
 namespace uipc::backend::cuda
 {
-void AffineBodyDynamics::on_update(U64 constitution_uid,
-                                   std::function<void(FilteredInfo&)>&& filter,
-                                   std::function<void(ComputeEnergyInfo&)>&& compute_shape_energy,
-                                   std::function<void(ComputeGradientHessianInfo&)>&& compute_shape_gradient_hessian)
+void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
 {
-    m_impl.constitutions.emplace_back(constitution_uid,
-                                      std::move(filter),
-                                      std::move(compute_shape_energy),
-                                      std::move(compute_shape_gradient_hessian));
+    check_state(SimEngineState::BuildSystems, "add_constitution()");
+    // set the temp index, later we will sort constitution by uid
+    // and reset the index
+    constitution->m_index = m_impl.constitution_buffer.size();
+    m_impl.constitution_buffer.push_back(constitution);
 }
 
 void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
 {
     // 1) sort the constitutions by uid
+    constitutions.resize(constitution_buffer.size());
+    std::ranges::move(constitution_buffer, constitutions.begin());
     std::sort(constitutions.begin(),
               constitutions.end(),
-              [](const auto& a, const auto& b)
-              { return a.m_constitution_uid < b.m_constitution_uid; });
+              [](const AffineBodyConstitution* a, AffineBodyConstitution* b)
+              { return a->constitution_uid() < b->constitution_uid(); });
+    for(auto&& [i, constitution] : enumerate(constitutions))  // reset the index
+        constitution->m_index = i;
 
     vector<U64> filter_uids(constitutions.size());
     std::ranges::transform(constitutions,
                            filter_uids.begin(),
-                           [](const ConstitutionRegister& filter)
-                           { return filter.m_constitution_uid; });
+                           [](const AffineBodyConstitution* filter)
+                           { return filter->constitution_uid(); });
 
     // 2) find the affine bodies
     list<BodyInfo> body_infos;
@@ -482,8 +471,7 @@ void AffineBodyDynamics::Impl::_distribute_body_infos()
     {
         FilteredInfo info{this};
         info.m_constitution_index = I;
-
-        constitution.m_filter(info);
+        constitution->filter(info);
     }
 }
 
@@ -591,95 +579,6 @@ void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::PredictInfo& info)
                });
 }
 
-void AffineBodyDynamics::Impl::copy_q_to_q_temp()
-{
-    body_id_to_q_temp = body_id_to_q;
-}
-
-void AffineBodyDynamics::Impl::step_forward(LineSearcher::StepInfo& info)
-{
-    using namespace muda;
-    ParallelFor(256)
-        .kernel_name(__FUNCTION__ "-affine_body")
-        .apply(body_count(),
-               [is_fixed = body_id_to_is_fixed.cviewer().name("is_fixed"),
-                q_temps  = body_id_to_q_temp.cviewer().name("q_temps"),
-                qs       = body_id_to_q.viewer().name("qs"),
-                dqs      = body_id_to_dq.cviewer().name("dqs"),
-                alpha    = info.alpha] __device__(int i) mutable
-               {
-                   if(is_fixed(i))
-                       return;
-                   qs(i) = q_temps(i) + alpha * dqs(i);
-               });
-}
-
-Float AffineBodyDynamics::Impl::compute_abd_kinetic_energy(LineSearcher::ComputeEnergyInfo& info)
-{
-    using namespace muda;
-
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(body_count(),
-               [is_fixed = body_id_to_is_fixed.cviewer().name("is_fixed"),
-                qs       = body_id_to_q.cviewer().name("qs"),
-                q_tildes = body_id_to_q_tilde.viewer().name("q_tildes"),
-                masses   = body_id_to_abd_mass.cviewer().name("masses"),
-                Ks = body_id_to_kinetic_energy.viewer().name("kinetic_energy")] __device__(int i) mutable
-               {
-                   auto& K = Ks(i);
-                   if(is_fixed(i))
-                   {
-                       K = 0.0;
-                   }
-                   else
-                   {
-                       const auto& q       = qs(i);
-                       const auto& q_tilde = q_tildes(i);
-                       const auto& M       = masses(i);
-                       Vector12    dq      = q - q_tilde;
-                       // cout << "dq: " << dq << "\n";
-                       K = 0.5 * dq.dot(M * dq);
-                   }
-               });
-
-    DeviceReduce().Sum(body_id_to_kinetic_energy.data(),
-                       abd_kinetic_energy.data(),
-                       body_id_to_kinetic_energy.size());
-
-    return abd_kinetic_energy;
-}
-
-Float AffineBodyDynamics::Impl::compute_abd_shape_energy(LineSearcher::ComputeEnergyInfo& info)
-{
-    using namespace muda;
-
-    auto async_fill = []<typename T>(muda::DeviceBuffer<T>& buf, const T& value)
-    { muda::BufferLaunch().fill<T>(buf.view(), value); };
-
-    async_fill(constitution_shape_energy, 0.0);
-
-    // Distribute the computation of shape energy to each constitution
-    for(auto&& [i, cst] : enumerate(constitutions))
-    {
-        auto body_offset = h_constitution_body_offsets[i];
-        auto body_count  = h_constitution_body_counts[i];
-
-        if(body_count == 0)
-            continue;
-
-        AffineBodyDynamics::ComputeEnergyInfo this_info{
-            this, i, VarView<Float>{constitution_shape_energy.data() + i}, info.dt()};
-        cst.m_compute_shape_energy(this_info);
-    }
-    constitution_shape_energy.view().copy_to(h_constitution_shape_energy.data());
-
-    // sum up the shape energy
-    return std::accumulate(h_constitution_shape_energy.begin(),
-                           h_constitution_shape_energy.end(),
-                           0.0);
-}
-
 void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info)
 {
     using namespace muda;
@@ -705,7 +604,7 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
             body_id_to_body_gradient.view(body_offset, body_count),
             body_id_to_body_hessian.view(body_offset, body_count),
             info.dt()};
-        cst.m_compute_shape_gradient_hessian(this_info);
+        cst->compute_gradient_hessian(this_info);
     }
 
     // 2) add kinetic energy gradient and hessian
@@ -737,6 +636,18 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
                    const auto& K = Ks(i);
                    G += M * (q - q_tilde);
                    H += M.to_mat();
+
+                   Vector9   eigen_values;
+                   Matrix9x9 eigen_vectors;
+                   Matrix9x9 mat9 = H.block<9, 9>(3, 3);
+                   muda::eigen::evd(mat9, eigen_values, eigen_vectors);
+                   for(int i = 0; i < 9; ++i)
+                   {
+                       auto& v = eigen_values(i);
+                       v       = v < 0.0 ? 0.0 : v;
+                   }
+                   H.block<9, 9>(3, 3) = eigen_vectors * eigen_values.asDiagonal()
+                                         * eigen_vectors.transpose();
                });
 }
 
@@ -749,17 +660,5 @@ geometry::SimplicialComplex& AffineBodyDynamics::Impl::geometry(
                 "The geometry is not a simplicial complex (it's {}). Why can it happen?",
                 geo.type());
     return *sc;
-}
-
-AffineBodyDynamics::ConstitutionRegister::ConstitutionRegister(
-    U64                                       constitution_uid,
-    std::function<void(FilteredInfo&)>&&      filter,
-    std::function<void(ComputeEnergyInfo&)>&& compute_shape_energy,
-    std::function<void(ComputeGradientHessianInfo&)>&& compute_shape_gradient_hessian) noexcept
-    : m_constitution_uid(constitution_uid)
-    , m_filter(std::move(filter))
-    , m_compute_shape_energy(std::move(compute_shape_energy))
-    , m_compute_shape_gradient_hessian(std::move(compute_shape_gradient_hessian))
-{
 }
 }  // namespace uipc::backend::cuda

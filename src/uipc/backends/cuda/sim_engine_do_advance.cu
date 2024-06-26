@@ -3,7 +3,7 @@
 #include <dof_predictor.h>
 #include <global_vertex_manager.h>
 #include <global_surface_manager.h>
-#include <line_searcher.h>
+#include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
 
@@ -57,7 +57,7 @@ void SimEngine::do_advance()
             // 6) Begin Line Search
             {
                 // Record Current State x to x_0
-                m_line_searcher->record_current_state();
+                m_line_searcher->record_start_point();
 
                 // Compute Current Energy => E_0
                 Float E0 = m_line_searcher->compute_energy();
@@ -107,9 +107,11 @@ void SimEngine::do_advance()
     {
         event_rebuild_scene();
 
-        m_global_vertex_manager->rebuild_vertex_info();
-        m_global_surface_manager->rebuild_surface_info();
+        // TODO: rebuild the vertex and surface info
+        // m_global_vertex_manager->rebuild_vertex_info();
+        // m_global_surface_manager->rebuild_surface_info();
     }
+
     // After the rebuild_scene event, the pending creation or deletion can be solved
     auto scene = m_world_visitor->scene();
     scene.solve_pending();
