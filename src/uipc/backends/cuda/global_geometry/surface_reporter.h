@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <global_surface_manager.h>
+#include <global_geometry/global_surface_manager.h>
 
 namespace uipc::backend::cuda
 {

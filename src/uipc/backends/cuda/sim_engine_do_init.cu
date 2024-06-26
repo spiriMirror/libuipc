@@ -3,8 +3,8 @@
 #include <uipc/common/log.h>
 #include <sim_system_auto_register.h>
 #include <log_pattern_guard.h>
-#include <global_surface_manager.h>
-#include <global_vertex_manager.h>
+#include <global_geometry/global_surface_manager.h>
+#include <global_geometry/global_vertex_manager.h>
 #include <dof_predictor.h>
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
@@ -21,6 +21,8 @@ void SimEngine::build()
     m_line_searcher             = find<LineSearcher>();
     m_gradient_hessian_computer = find<GradientHessianComputer>();
     m_global_linear_system      = find<GlobalLinearSystem>();
+
+    spdlog::info("Built Systems:\n{}", m_system_collection);
 }
 
 void SimEngine::init_scene()

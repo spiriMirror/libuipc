@@ -1,5 +1,5 @@
-#include <global_surface_manager.h>
-#include <surface_reporter.h>
+#include <global_geometry/global_surface_manager.h>
+#include <global_geometry/surface_reporter.h>
 #include <uipc/common/zip.h>
 #include <uipc/common/enumerate.h>
 

@@ -1,6 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <global_vertex_manager.h>
+#include <global_geometry/global_vertex_manager.h>
 #include <muda/buffer/buffer_view.h>
 
 namespace uipc::backend::cuda

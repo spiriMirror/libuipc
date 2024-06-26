@@ -1,7 +1,7 @@
 #pragma once
 
 #include <sim_system.h>
-#include <surface_reporter.h>
+#include <global_geometry/surface_reporter.h>
 #include <affine_body/affine_body_dynamics.h>
 
 namespace uipc::backend::cuda

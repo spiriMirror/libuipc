@@ -23,6 +23,7 @@ add_subdirectory(linear_system)
 add_subdirectory(algorithm)
 add_subdirectory(line_search)
 add_subdirectory(contact_system)
+add_subdirectory(global_geometry)
 
 # source files in this directory
 file(GLOB SOURCES "*.cpp" "*.h" "*.cu" "details/*.inl")

@@ -1,5 +1,5 @@
 #pragma once
-#include <vertex_reporter.h>
+#include <global_geometry/vertex_reporter.h>
 #include <affine_body/affine_body_dynamics.h>
 namespace uipc::backend::cuda
 {

@@ -10,7 +10,7 @@ std::string_view ISimSystem::get_name() const noexcept
 
 void ISimSystem::build()
 {
-    spdlog::info("Building system: {}", name());
+    //spdlog::info("Building system: {}", name());
     do_build();
 }
 

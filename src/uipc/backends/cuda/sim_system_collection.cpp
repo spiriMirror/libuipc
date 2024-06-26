@@ -36,7 +36,11 @@ appender formatter<uipc::backend::cuda::SimSystemCollection>::format(
     int n = s.m_sim_systems.size();
     for(const auto& [key, value] : s.m_sim_systems)
     {
-        fmt::format_to(ctx.out(), "* {}{}", value->name(), ++i != n ? "\n" : "");
+        fmt::format_to(ctx.out(),
+                       "{} {}{}",
+                       value->is_engine_aware() ? ">" : "*",
+                       value->name(),
+                       ++i != n ? "\n" : "");
     }
     return ctx.out();
 }

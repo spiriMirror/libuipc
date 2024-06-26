@@ -1,8 +1,8 @@
-#include <global_vertex_manager.h>
+#include <global_geometry/global_vertex_manager.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
 #include <muda/cub/device/device_reduce.h>
-#include <vertex_reporter.h>
+#include <global_geometry/vertex_reporter.h>
 
 /*************************************************************************************************
 * Core Implementation

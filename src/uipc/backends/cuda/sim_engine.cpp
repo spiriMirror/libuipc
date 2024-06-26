@@ -41,8 +41,6 @@ void SimEngine::register_all_systems()
         if(uptr)
             m_system_collection.create(std::move(uptr));
     }
-
-    spdlog::info("Registered Systems:\n{}", m_system_collection);
 }
 
 Json SimEngine::do_to_json() const

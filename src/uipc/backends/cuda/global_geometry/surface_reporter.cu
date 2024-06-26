@@ -1,4 +1,4 @@
-#include <surface_reporter.h>
+#include <global_geometry/surface_reporter.h>
 
 namespace uipc::backend::cuda
 {

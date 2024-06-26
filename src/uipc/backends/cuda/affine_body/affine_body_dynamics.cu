@@ -483,8 +483,6 @@ void AffineBodyDynamics::Impl::_distribute_body_infos()
 
 void AffineBodyDynamics::Impl::init_affine_body_geometry(WorldVisitor& world)
 {
-    spdlog::info("Initializing Affine Body Geometry");
-
     _build_body_infos(world);
     _build_related_infos(world);
     _build_geometry_on_host(world);

@@ -1,4 +1,4 @@
-#include <vertex_reporter.h>
+#include <global_geometry/vertex_reporter.h>
 
 namespace uipc::backend::cuda
 {
