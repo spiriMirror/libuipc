@@ -3,6 +3,7 @@
 #include <dof_predictor.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_surface_manager.h>
+#include <contact_system/global_contact_manager.h>
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
@@ -14,9 +15,10 @@ void SimEngine::do_advance()
     LogGuard guard;
 
     // The Pipeline
-
     AABB vertex_bounding_box = m_global_vertex_manager->compute_vertex_bounding_box();
     Float box_size = vertex_bounding_box.diagonal().norm();
+    if(m_global_contact_manager)  // if contact is enabled
+        m_global_contact_manager->update_contact_parameters();
 
     {
         // 1. Predict Motion => x_tilde = x + v * dt

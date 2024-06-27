@@ -78,9 +78,6 @@ class GlobalVertexManager : public SimSystem
     muda::CBufferView<Vector3> positions() const noexcept;
     muda::CBufferView<Vector3> displacements() const noexcept;
 
-    Float compute_max_displacement();
-    AABB  compute_vertex_bounding_box();
-
     void add_reporter(VertexReporter* reporter);
 
     AABB vertex_bounding_box() const noexcept;
@@ -129,10 +126,11 @@ class GlobalVertexManager : public SimSystem
 
   private:
     friend class SimEngine;
-    void init_vertex_info();     // only be called by SimEngine
-    void rebuild_vertex_info();  // only be called by SimEngine
-
-    Impl m_impl;
+    void  init_vertex_info();
+    void  rebuild_vertex_info();
+    Float compute_max_displacement();
+    AABB  compute_vertex_bounding_box();
+    Impl  m_impl;
 };
 }  // namespace uipc::backend::cuda
 

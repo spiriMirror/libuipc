@@ -67,6 +67,7 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     // Aware Top Systems
     GlobalVertexManager*     m_global_vertex_manager     = nullptr;
     GlobalSurfaceManager*    m_global_surface_manager    = nullptr;
+    GlobalContactManager*    m_global_contact_manager    = nullptr;
     DoFPredictor*            m_dof_predictor             = nullptr;
     LineSearcher*            m_line_searcher             = nullptr;
     GradientHessianComputer* m_gradient_hessian_computer = nullptr;

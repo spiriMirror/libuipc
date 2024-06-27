@@ -23,4 +23,10 @@ class ISimSystem
     void build();
     void make_engine_aware();
 };
+
+class SimSystemException : public Exception
+{
+  public:
+    using Exception::Exception;
+};
 }  // namespace uipc::backend::cuda

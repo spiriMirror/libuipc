@@ -5,6 +5,7 @@
 #include <log_pattern_guard.h>
 #include <global_geometry/global_surface_manager.h>
 #include <global_geometry/global_vertex_manager.h>
+#include <contact_system/global_contact_manager.h>
 #include <dof_predictor.h>
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
@@ -15,9 +16,23 @@ namespace uipc::backend::cuda
 {
 void SimEngine::build()
 {
-    // find those engine-aware topo systems
+    // 1) build all systems
+    for(auto&& [k, s] : m_system_collection.m_sim_systems)
+    {
+        try
+        {
+            s->build();
+        }
+        catch(SimSystemException& e)
+        {
+            spdlog::error(e.what());
+        }
+    }
+
+    // 2) find those engine-aware topo systems
     m_global_vertex_manager     = find<GlobalVertexManager>();
     m_global_surface_manager    = find<GlobalSurfaceManager>();
+    m_global_contact_manager    = find<GlobalContactManager>();
     m_dof_predictor             = find<DoFPredictor>();
     m_line_searcher             = find<LineSearcher>();
     m_gradient_hessian_computer = find<GradientHessianComputer>();
@@ -56,8 +71,6 @@ void SimEngine::do_init(backend::WorldVisitor v)
 
     // 2) Build the relationships between systems
     m_state = SimEngineState::BuildSystems;
-    for(auto&& [k, s] : m_system_collection.m_sim_systems)
-        s->build();
     build();
 
     // 3) Trigger the init_scene event, systems register their actions will be called here
