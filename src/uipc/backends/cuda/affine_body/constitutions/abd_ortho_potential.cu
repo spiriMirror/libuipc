@@ -64,9 +64,6 @@ void ABDOrthoPotential::Impl::compute_energy(const AffineBodyDynamics::ComputeEn
     using namespace muda;
 
     auto body_count = info.qs().size();
-    info.qs();
-    info.shape_energy();
-
 
     ParallelFor()
         .kernel_name(__FUNCTION__)
@@ -118,8 +115,8 @@ void ABDOrthoPotential::Impl::compute_gradient_hessian(const AffineBodyDynamics:
                    H.block<9, 9>(3, 3) += shape_H;
                    G.segment<9>(3) += shape_gradient;
 
-                   gradients(i)    = G;
-                   body_hessian(i) = H;
+                   gradients(i)    += G;
+                   body_hessian(i) += H;
                });
 }
 

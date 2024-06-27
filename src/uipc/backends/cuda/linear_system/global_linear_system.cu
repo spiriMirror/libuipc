@@ -319,8 +319,11 @@ void GlobalLinearSystem::Impl::apply_preconditioner(muda::DenseVectorView<Float>
     for(auto& preconditioner : local_preconditioners)
     {
         ApplyPreconditionerInfo info{this};
-        info.m_z = z;
-        info.m_r = r;
+        auto                    index  = preconditioner->m_subsystem->m_index;
+        auto                    offset = diag_dof_offsets[index];
+        auto                    count  = diag_dof_counts[index];
+        info.m_z                       = z.subview(offset, count);
+        info.m_r                       = r.subview(offset, count);
         preconditioner->apply(info);
     }
 
@@ -362,10 +365,14 @@ void GlobalLinearSystem::add_subsystem(DiagLinearSubsystem* subsystem)
     m_impl.diag_subsystem_buffer.push_back(subsystem);
 }
 
-void GlobalLinearSystem::add_subsystem(OffDiagLinearSubsystem* subsystem)
+void GlobalLinearSystem::add_subsystem(OffDiagLinearSubsystem* subsystem,
+                                       DiagLinearSubsystem*    depend_l,
+                                       DiagLinearSubsystem*    depend_r)
 {
     check_state(SimEngineState::BuildSystems, "add_subsystem()");
-    subsystem->check_dep_systems();
+    UIPC_ASSERT(depend_l != nullptr && depend_r != nullptr,
+                "The depend_l and depend_r should not be nullptr.");
+    subsystem->depend_on(depend_l, depend_r);
     m_impl.off_diag_subsystem_buffer.push_back(subsystem);
 }
 
@@ -379,9 +386,12 @@ void GlobalLinearSystem::add_solver(IterativeSolver* solver)
     solver->m_system        = this;
 }
 
-void GlobalLinearSystem::add_preconditioner(LocalPreconditioner* preconditioner)
+void GlobalLinearSystem::add_preconditioner(LocalPreconditioner* preconditioner,
+                                            DiagLinearSubsystem* depend_subsystem)
 {
     check_state(SimEngineState::BuildSystems, "add_preconditioner()");
+    UIPC_ASSERT(depend_subsystem != nullptr, "The depend_subsystem should not be nullptr.");
+    preconditioner->m_subsystem = depend_subsystem;
     m_impl.local_preconditioner_buffer.push_back(preconditioner);
 }
 

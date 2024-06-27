@@ -4,6 +4,8 @@
 
 namespace uipc::backend::cuda
 {
+class DiagLinearSubsystem;
+
 class LocalPreconditioner : public SimSystem
 {
   public:
@@ -17,5 +19,6 @@ class LocalPreconditioner : public SimSystem
     friend class GlobalLinearSystem;
     void assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info);
     void apply(GlobalLinearSystem::ApplyPreconditionerInfo& info);
+    DiagLinearSubsystem* m_subsystem = nullptr;
 };
 }  // namespace uipc::backend::cuda

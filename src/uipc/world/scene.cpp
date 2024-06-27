@@ -5,16 +5,24 @@ namespace uipc::world
 // ----------------------------------------------------------------------------
 // Scene
 // ----------------------------------------------------------------------------
-
-Scene::Scene()
+Json Scene::default_config() noexcept
 {
-    m_info["dt"]                      = 0.01;
-    m_info["gravity"]                 = Vector3{0.0, -9.8, 0.0};
-    m_info["newton"]["tolerance"]     = 1e-2;
-    m_info["newton"]["max_iter"]      = 1000;
-    m_info["linear_system"]["solver"] = "linear_pcg";
-    m_info["debug"]["report_energy"]  = true;
-    m_info["contact"]["enable"]       = true;
+    Json j;
+    j["dt"]                      = 0.01;
+    j["gravity"]                 = Vector3{0.0, -9.8, 0.0};
+    j["newton"]["tolerance"]     = 1e-2;
+    j["newton"]["max_iter"]      = 1000;
+    j["linear_system"]["solver"] = "linear_pcg";
+    j["debug"]["report_energy"]  = true;
+    j["contact"]["enable"]       = true;
+    j["contact"]["contitution"]  = "ipc";
+    j["contact"]["d_hat"]        = 0.01;
+    return j;
+}
+
+Scene::Scene(const Json& config)
+{
+    m_info = config;
 }
 
 ContactTabular& Scene::contact_tabular() noexcept

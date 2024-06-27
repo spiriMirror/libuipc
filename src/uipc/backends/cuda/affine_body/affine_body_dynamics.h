@@ -310,6 +310,9 @@ class AffineBodyDynamics : public SimSystem
         //tex: $$ \mathbf{g}_{i} $$
         DeviceBuffer<Vector12> body_id_to_body_gradient;
 
+        //tex: consider contact
+        DeviceBuffer<Matrix12x12> diag_hessian;
+
         template <typename T>
         muda::BufferView<T> subview(DeviceBuffer<T>& body_id_to_values,
                                     SizeT constitution_index) const noexcept;
@@ -324,6 +327,7 @@ class AffineBodyDynamics : public SimSystem
 
     friend class ABDLinearSubsystem;
     friend class ABDLineSearchReporter;
+    friend class ABDDiagPreconditioner;
 
     Impl m_impl;
 };

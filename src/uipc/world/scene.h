@@ -74,7 +74,9 @@ class UIPC_CORE_API Scene
         const Scene& m_scene;
     };
 
-    Scene();
+    Scene(const Json& config = default_config());
+
+    static Json default_config() noexcept;
 
     ContactTabular&       contact_tabular() noexcept;
     const ContactTabular& contact_tabular() const noexcept;

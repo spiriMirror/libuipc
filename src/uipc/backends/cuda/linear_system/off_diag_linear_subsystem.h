@@ -10,7 +10,7 @@ class OffDiagLinearSubsystem : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
-    void depend_on(DiagLinearSubsystem* L, DiagLinearSubsystem* R);
+
 
   protected:
     virtual void report_extent(GlobalLinearSystem::OffDiagExtentInfo& info) = 0;
@@ -20,6 +20,6 @@ class OffDiagLinearSubsystem : public SimSystem
     friend class GlobalLinearSystem;
     DiagLinearSubsystem* m_l = nullptr;
     DiagLinearSubsystem* m_r = nullptr;
-    void                 check_dep_systems() const;
+    void depend_on(DiagLinearSubsystem* L, DiagLinearSubsystem* R);
 };
 }  // namespace uipc::backend::cuda

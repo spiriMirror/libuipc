@@ -26,9 +26,12 @@ class GlobalLinearSystem : public SimSystem
     using CDenseVectorView  = muda::CDenseVectorView<Float>;
 
     void add_subsystem(DiagLinearSubsystem* subsystem);
-    void add_subsystem(OffDiagLinearSubsystem* subsystem);
+    void add_subsystem(OffDiagLinearSubsystem* subsystem,
+                       DiagLinearSubsystem*    depend_l,
+                       DiagLinearSubsystem*    depend_r);
     void add_solver(IterativeSolver* solver);
-    void add_preconditioner(LocalPreconditioner* preconditioner);
+    void add_preconditioner(LocalPreconditioner* preconditioner,
+                            DiagLinearSubsystem* depend_subsystem);
     void add_preconditioner(GlobalPreconditioner* preconditioner);
 
     class Impl;

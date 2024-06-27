@@ -9,7 +9,8 @@
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
-
+#include <uipc/backends/module.h>
+#include <fstream>
 namespace uipc::backend::cuda
 {
 void SimEngine::build()
@@ -23,6 +24,14 @@ void SimEngine::build()
     m_global_linear_system      = find<GlobalLinearSystem>();
 
     spdlog::info("Built Systems:\n{}", m_system_collection);
+    auto workspace = ModuleInfo::instance().workspace();
+
+    namespace fs = std::filesystem;
+
+    fs::path      p = fs::absolute(fs::path{workspace} / "systems.json");
+    std::ofstream ofs(p);
+    ofs << to_json().dump(4);
+    spdlog::info("System info dumped to {}", p.string());
 }
 
 void SimEngine::init_scene()

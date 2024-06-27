@@ -17,7 +17,7 @@ class UIPC_CORE_API UIPCEngine : public IEngine
     class Impl;
 
   public:
-    UIPCEngine(std::string_view backend_name);
+    UIPCEngine(std::string_view backend_name, std::string_view workspace = "./");
     ~UIPCEngine();
 
   protected:

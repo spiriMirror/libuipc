@@ -19,15 +19,27 @@ class UIPCEngine::Impl
     IEngine* m_engine  = nullptr;
     Deleter  m_deleter = nullptr;
 
-
   public:
-    Impl(std::string_view backend_name)
+    Impl(std::string_view backend_name, std::string_view workspace)
         : m_backend_name(to_lower(backend_name))
         , m_module{fmt::format("uipc_backend_{}", m_backend_name)}
     {
-        auto info             = make_unique<UIPCModuleInitInfo>();
-        info->module_name     = m_backend_name;
-        info->memory_resource = std::pmr::get_default_resource();
+        auto info              = make_unique<UIPCModuleInitInfo>();
+        info->module_name      = m_backend_name;
+        info->memory_resource  = std::pmr::get_default_resource();
+        info->module_workspace = workspace;
+
+        namespace fs = std::filesystem;
+
+        fs::path w = workspace;
+        if(!fs::exists(w))  // create workspace
+        {
+            fs::create_directory(w);
+        }
+        else if(!fs::is_directory(w))
+        {
+            throw EngineException{fmt::format("Workspace [{}] is not a directory.", workspace)};
+        }
 
         auto init = m_module.get_function<void(UIPCModuleInitInfo*)>("uipc_init_module");
         if(!init)
@@ -72,8 +84,8 @@ class UIPCEngine::Impl
 };
 
 
-UIPCEngine::UIPCEngine(std::string_view backend_name)
-    : m_impl{uipc::make_unique<Impl>(backend_name)}
+UIPCEngine::UIPCEngine(std::string_view backend_name, std::string_view workspace)
+    : m_impl{uipc::make_unique<Impl>(backend_name, workspace)}
 {
 }
 

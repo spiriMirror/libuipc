@@ -98,7 +98,9 @@ AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
     Vector3 min_pos_host, max_pos_host;
     min_pos_host = min_pos;
     max_pos_host = max_pos;
-    return AABB{min_pos_host, max_pos_host};
+
+    vertex_bounding_box = AABB{min_pos_host, max_pos_host};
+    return vertex_bounding_box;
 }
 GlobalVertexManager::VertexRegister::VertexRegister(
     std::string_view                            name,
@@ -212,5 +214,10 @@ void GlobalVertexManager::add_reporter(VertexReporter* reporter)
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     reporter->m_index = m_impl.vertex_reporter_buffer.size();
     m_impl.vertex_reporter_buffer.push_back(reporter);
+}
+
+AABB GlobalVertexManager::vertex_bounding_box() const noexcept
+{
+    return m_impl.vertex_bounding_box;
 }
 }  // namespace uipc::backend::cuda

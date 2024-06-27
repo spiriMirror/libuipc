@@ -353,14 +353,13 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     h_body_id_to_abd_mass.resize(h_body_infos.size());
     h_body_id_to_volume.resize(h_body_infos.size());
 
-    for(auto&& [I, body_offset] : enumerate(h_abd_geo_body_offsets))
+    for(auto&& [I, info] : enumerate(h_body_infos))
     {
-        const auto& info = h_body_infos[body_offset];
-        auto&       mass = h_body_id_to_abd_mass[info.m_affine_body_id];
-        auto&       vol  = h_body_id_to_volume[info.m_affine_body_id];
+        auto& mass = h_body_id_to_abd_mass[info.m_affine_body_id];
+        auto& vol  = h_body_id_to_volume[info.m_affine_body_id];
 
-        mass = geo_masses[I];
-        vol  = geo_volumes[I];
+        mass = geo_masses[info.m_abd_geometry_index];
+        vol  = geo_volumes[info.m_abd_geometry_index];
     }
 
     // 5) compute the inverse of the mass matrix
@@ -462,6 +461,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_resize(constitution_shape_energy, constitutions.size(), 0.0);
 
     // setup hessian and gradient buffers
+    async_resize(diag_hessian, h_body_infos.size(), Matrix12x12::Zero().eval());
     async_resize(body_id_to_body_hessian,
                  h_body_infos.size(),
                  Matrix12x12::Zero().eval());
@@ -593,6 +593,7 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
     auto async_fill = []<typename T>(muda::DeviceBuffer<T>& buf, const T& value)
     { muda::BufferLaunch().fill<T>(buf.view(), value); };
 
+    async_fill(diag_hessian, Matrix12x12::Zero().eval());
     async_fill(body_id_to_body_hessian, Matrix12x12::Zero().eval());
     async_fill(body_id_to_body_gradient, Vector12::Zero().eval());
 
@@ -623,6 +624,7 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
                 q_tildes = body_id_to_q_tilde.cviewer().name("q_tildes"),
                 masses   = body_id_to_abd_mass.cviewer().name("masses"),
                 Ks = body_id_to_kinetic_energy.cviewer().name("kinetic_energy"),
+                diag_hessian = diag_hessian.viewer().name("diag_hessian"),
                 hessians = body_id_to_body_hessian.viewer().name("hessians"),
                 gradients = body_id_to_body_gradient.viewer().name("gradients")] __device__(int i) mutable
                {
@@ -634,28 +636,33 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
                    {
                        H = Matrix12x12::Identity();
                        G = Vector12::Zero();
-                       return;
                    }
-
-                   const auto& q       = qs(i);
-                   const auto& q_tilde = q_tildes(i);
-
-                   const auto& K = Ks(i);
-                   G += M * (q - q_tilde);
-                   H += M.to_mat();
-
-                   Vector9   eigen_values;
-                   Matrix9x9 eigen_vectors;
-                   Matrix9x9 mat9 = H.block<9, 9>(3, 3);
-                   muda::eigen::evd(mat9, eigen_values, eigen_vectors);
-                   for(int i = 0; i < 9; ++i)
+                   else
                    {
-                       auto& v = eigen_values(i);
-                       v       = v < 0.0 ? 0.0 : v;
+                       const auto& q       = qs(i);
+                       const auto& q_tilde = q_tildes(i);
+
+                       const auto& K = Ks(i);
+                       G += M * (q - q_tilde);
+                       H += M.to_mat();
+
+                       Vector9   eigen_values;
+                       Matrix9x9 eigen_vectors;
+                       Matrix9x9 mat9 = H.block<9, 9>(3, 3);
+                       muda::eigen::evd(mat9, eigen_values, eigen_vectors);
+                       for(int i = 0; i < 9; ++i)
+                       {
+                           auto& v = eigen_values(i);
+                           v       = v < 0.0 ? 0.0 : v;
+                       }
+                       H.block<9, 9>(3, 3) = eigen_vectors * eigen_values.asDiagonal()
+                                             * eigen_vectors.transpose();
                    }
-                   H.block<9, 9>(3, 3) = eigen_vectors * eigen_values.asDiagonal()
-                                         * eigen_vectors.transpose();
+
+                   diag_hessian(i) = H;
                });
+
+    // 3) fill the hessian and gradient from body contact
 }
 
 geometry::SimplicialComplex& AffineBodyDynamics::Impl::geometry(

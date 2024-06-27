@@ -83,6 +83,8 @@ class GlobalVertexManager : public SimSystem
 
     void add_reporter(VertexReporter* reporter);
 
+    AABB vertex_bounding_box() const noexcept;
+
   public:
     class Impl
     {
@@ -121,6 +123,8 @@ class GlobalVertexManager : public SimSystem
 
         vector<SizeT> reporter_vertex_offsets;
         vector<SizeT> reporter_vertex_counts;
+
+        AABB vertex_bounding_box;
     };
 
   private:

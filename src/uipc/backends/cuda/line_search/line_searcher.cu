@@ -53,13 +53,15 @@ void LineSearcher::step_forward(Float alpha)
 
 Float LineSearcher::compute_energy()
 {
-    for(auto&& [i, action] : enumerate(m_reporters))
+    for(auto&& [i, R] : enumerate(m_reporters))
     {
         ComputeEnergyInfo info{this};
-        action->compute_energy(info);
+        R->compute_energy(info);
         UIPC_ASSERT(info.m_energy.has_value(),
                     "Energy not set by reporter, did you forget to call energy()?");
         m_energy_values[i] = info.m_energy.value();
+
+        UIPC_ASSERT(!std::isnan(m_energy_values[i]), "Energy [{}] is NaN", R->name());
     }
 
     Float total_energy =
