@@ -11,7 +11,7 @@ The following dependencies are required to build the project.
 | [Python](https://www.python.org/downloads/)   | >=3.10       | build system    | system install |
 | [Vcpkg](https://github.com/microsoft/vcpkg)   | >=2024.04.26 | package manager | git clone      |
 
-The following dependencies are 3rd-party libraries that we use in the project. Don't worry, most of them will be automatically installed by Vcpkg.
+The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of them will be automatically installed by Vcpkg.
 
 | Name                                   | Version | Usage                                               | Import         |
 | -------------------------------------- | ------- | --------------------------------------------------- | -------------- |
@@ -33,15 +33,15 @@ The following dependencies are 3rd-party libraries that we use in the project. D
 | magic_enum                             | 0.9.3   | enum to string                                      | package        |
 
 ## Build
-We use Vcpkg to manage the libraries we need and use CMake to build the project. 
+We use Vcpkg to manage the libraries and use CMake to build the project. 
 
 The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
-Vcpkg supports both Windows and Linux. We recommend using Vcpkg to manage the dependencies to keep the consistency of the development environment.
+Vcpkg supports both Windows and Linux; we use it to manage the dependencies and keep the consistency of the development environment.
 
 ### Submodules
 
-Some dependencies are managed by git submodules. You can clone the project with the following command:
+Some dependencies are managed by git submodules. You need to clone the submodules with the following command:
 
 ```shell
 git submodule update --init
@@ -71,13 +71,13 @@ cmake -S ../libuipc -DUIPC_BUILD_GUI=0
 cmake --build .
 ```
 
-To enable GUI support, use `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install). See [Linux GUI Support](#Linux-gui-support).
+To enable GUI support, set `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install). See [Linux GUI Support](#Linux-gui-support).
 
 ### Run Project
 
 #### Windows
 
-Just run the executable files in `<Debug/Release/RelWithDebInfo>/bin` folder.
+Just run the executable files in `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder.
 
 #### Linux
 
@@ -87,10 +87,10 @@ Install the project.
 cmake --install . --config <Debug/Release/RelWithDebInfo>
 ```
 
-To run the programs, you need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared **libuipc** library and the dependent backends will not be found.
+To run the programs, you need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared **libuipc** library and the dependent backend modules will not be found.
 
 ```shell
-cd <Debug/Release/RelWithDebInfo>/bin
+cd CMakeBuild/<Debug/Release/RelWithDebInfo>/bin
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./
 ./hello_uipc
 ./uipc_test_world
