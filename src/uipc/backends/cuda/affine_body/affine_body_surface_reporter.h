@@ -82,7 +82,6 @@ class AffinebodySurfaceReporter : public SurfaceReporter
         vector<IndexT>   surf_vertices;
         vector<Vector2i> surf_edges;
         vector<Vector3i> surf_triangles;
-        vector<IndexT>   surf_vertex_contact_element_ids;
     };
 
   protected:

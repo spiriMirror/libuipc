@@ -13,6 +13,21 @@ void GlobalSurfaceManager::add_reporter(SurfaceReporter* reporter) noexcept
     m_impl.reporter_buffer.push_back(reporter);
 }
 
+muda::CBufferView<IndexT> GlobalSurfaceManager::surf_vertices() const noexcept
+{
+    return m_impl.surf_vertices;
+}
+
+muda::CBufferView<Vector2i> GlobalSurfaceManager::surf_edges() const noexcept
+{
+    return m_impl.surf_edges;
+}
+
+muda::CBufferView<Vector3i> GlobalSurfaceManager::surf_triangles() const noexcept
+{
+    return m_impl.surf_triangles;
+}
+
 void GlobalSurfaceManager::do_build()
 {
     m_impl.global_vertex_manager = find<GlobalVertexManager>();
@@ -66,9 +81,6 @@ void GlobalSurfaceManager::Impl::init_surface_info()
 
     // 2) resize the device buffer
     surf_vertices.resize(total_surf_vertex_count);
-    // init as default contact element id
-    contact_element_ids.resize(total_surf_vertex_count, 0);
-
     surf_edges.resize(total_surf_edge_count);
     surf_triangles.resize(total_surf_triangle_count);
 
@@ -80,8 +92,6 @@ void GlobalSurfaceManager::Impl::init_surface_info()
 
         info.m_surf_vertices =
             surf_vertices.view(Rinfo.surf_vertex_offset, Rinfo.surf_vertex_count);
-        info.m_contact_element_ids =
-            contact_element_ids.view(Rinfo.surf_vertex_offset, Rinfo.surf_vertex_count);
         info.m_surf_edges = surf_edges.view(Rinfo.surf_edge_offset, Rinfo.surf_edge_count);
         info.m_surf_triangles =
             surf_triangles.view(Rinfo.surf_triangle_offset, Rinfo.surf_triangle_count);

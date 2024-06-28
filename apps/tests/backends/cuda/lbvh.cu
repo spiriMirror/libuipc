@@ -356,8 +356,8 @@ std::vector<Vector2i> lbvh_query_point(span<const LinearBVHAABB> aabbs)
     DeviceBuffer<LinearBVHAABB> d_aabbs(aabbs.size());
     d_aabbs.view().copy_from(aabbs.data());
 
-    LinearBVH lbvh;
-    lbvh.build(d_aabbs, muda::Stream::Default());
+    LinearBVH m_lbvh;
+    m_lbvh.build(d_aabbs, muda::Stream::Default());
 
     DeviceBuffer<IndexT> counts(aabbs.size() + 1ull);
     DeviceBuffer<IndexT> offsets(aabbs.size() + 1ull);
@@ -374,7 +374,7 @@ std::vector<Vector2i> lbvh_query_point(span<const LinearBVHAABB> aabbs)
     ParallelFor()
         .kernel_name("LinearBVHTest::Query")
         .apply(aabbs.size(),
-               [LinearBVH = lbvh.viewer().name("LinearBVH"),
+               [LinearBVH = m_lbvh.viewer().name("LinearBVH"),
                 points    = points.viewer().name("points"),
                 counts = counts.viewer().name("counts")] __device__(int i) mutable
                {
@@ -399,18 +399,18 @@ std::vector<Vector2i> lbvh_query_point(span<const LinearBVHAABB> aabbs)
     ParallelFor()
         .kernel_name("LinearBVHTest::Query")
         .apply(aabbs.size(),
-               [lbvh    = lbvh.viewer().name("LinearBVH"),
+               [m_lbvh    = m_lbvh.viewer().name("LinearBVH"),
                 points  = points.viewer().name("points"),
                 counts  = counts.viewer().name("counts"),
                 offsets = offsets.viewer().name("offsets"),
-                pairs = pairs.viewer().name("pairs")] __device__(int i) mutable
+                m_pairs = pairs.viewer().name("pairs")] __device__(int i) mutable
                {
                    auto point  = points(i);
                    auto count  = counts(i);
                    auto offset = offsets(i);
-                   auto pair   = pairs.subview(offset, count);
+                   auto pair   = m_pairs.subview(offset, count);
                    int  j      = 0;
-                   lbvh.query(point,
+                   m_lbvh.query(point,
                               [&](uint32_t id) { pair(j++) = Vector2i(i, id); });
                    MUDA_ASSERT(j == count, "j = %d, count=%d", j, count);
                });
@@ -449,7 +449,7 @@ std::vector<Vector2i> adaptive_lbvh_cp(span<const LinearBVHAABB> aabbs)
     DeviceBuffer<LinearBVHAABB> d_aabbs(aabbs.size());
     d_aabbs.view().copy_from(aabbs.data());
 
-    LinearBVH lbvh;
+    LinearBVH m_lbvh;
 
     DeviceVar<int>         cp_num = 0;
     DeviceBuffer<Vector2i> pairs;
@@ -462,15 +462,15 @@ std::vector<Vector2i> adaptive_lbvh_cp(span<const LinearBVHAABB> aabbs)
         Timer timer{"adaptive_lbvh"};
         {
             Timer timer{"build_tree"};
-            lbvh.build(d_aabbs);
+            m_lbvh.build(d_aabbs);
         }
         {
             Timer timer{"rebuild_tree"};
-            lbvh.build(d_aabbs);
+            m_lbvh.build(d_aabbs);
         }
         {
             Timer timer{"update_aabbs"};
-            lbvh.update(d_aabbs);
+            m_lbvh.update(d_aabbs);
         }
 
 
@@ -480,7 +480,7 @@ std::vector<Vector2i> adaptive_lbvh_cp(span<const LinearBVHAABB> aabbs)
             ParallelFor()
                 .kernel_name("LinearBVHTest::Query")
                 .apply(aabbs.size(),
-                       [lbvh   = lbvh.viewer().name("LinearBVH"),
+                       [m_lbvh   = m_lbvh.viewer().name("LinearBVH"),
                         aabbs  = d_aabbs.viewer().name("aabbs"),
                         cp_num = cp_num.viewer().name("cp_num"),
                         pairs = pairs.viewer().name("pairs")] __device__(int i) mutable
@@ -489,7 +489,7 @@ std::vector<Vector2i> adaptive_lbvh_cp(span<const LinearBVHAABB> aabbs)
 
                            auto aabb  = aabbs(i);
                            auto count = 0;
-                           lbvh.query(aabb,
+                           m_lbvh.query(aabb,
                                       [&](uint32_t id)
                                       {
                                           if(id > i)

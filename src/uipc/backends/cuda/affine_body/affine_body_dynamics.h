@@ -193,6 +193,7 @@ class AffineBodyDynamics : public SimSystem
         *******************************************************************************/
         vector<ABDJacobi>           h_vertex_id_to_J;
         vector<IndexT>              h_vertex_id_to_body_id;
+        vector<IndexT>              h_vertex_id_to_contact_element_id;
         vector<Float>               h_vertex_id_to_mass;
         vector<Vector12>            h_body_id_to_q;
         vector<ABDJacobiDyadicMass> h_body_id_to_abd_mass;

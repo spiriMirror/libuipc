@@ -41,9 +41,11 @@ void GlobalVertexManager::Impl::init_vertex_info()
 
     auto total_count = reporter_vertex_offsets.back() + reporter_vertex_counts.back();
 
-    // resize the global coindex buffer
-    coindex.resize(total_count);
+    // resize the global coindices buffer
+    coindices.resize(total_count);
     positions.resize(total_count);
+    safe_positions.resize(total_count);
+    contact_element_ids.resize(total_count, 0);
     displacements.resize(total_count, Vector3::Zero());
 
     // create the subviews for each attribute_reporter
@@ -57,6 +59,20 @@ void GlobalVertexManager::Impl::init_vertex_info()
 void GlobalVertexManager::Impl::rebuild_vertex_info()
 {
     UIPC_ASSERT(false, "Not implemented yet");
+}
+
+void GlobalVertexManager::Impl::step_forward(Float alpha)
+{
+    using namespace muda;
+
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(positions.size(),
+               [pos      = positions.viewer().name("pos"),
+                safe_pos = safe_positions.viewer().name("safe_pos"),
+                disp     = displacements.viewer().name("disp"),
+                alpha    = alpha] __device__(int i) mutable
+               { pos(i) = safe_pos(i) + alpha * disp(i); });
 }
 
 Float GlobalVertexManager::Impl::compute_max_displacement()
@@ -102,17 +118,6 @@ AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
     vertex_bounding_box = AABB{min_pos_host, max_pos_host};
     return vertex_bounding_box;
 }
-GlobalVertexManager::VertexRegister::VertexRegister(
-    std::string_view                            name,
-    std::function<void(VertexCountInfo&)>&&     report_vertex_count,
-    std::function<void(VertexAttributeInfo&)>&& report_vertex_attributes,
-    std::function<void(VertexDisplacementInfo&)>&& report_vertex_displacement) noexcept
-    : m_name(name)
-    , m_report_vertex_count(std::move(report_vertex_count))
-    , m_report_vertex_attributes(std::move(report_vertex_attributes))
-    , m_report_vertex_displacement(std::move(report_vertex_displacement))
-{
-}
 }  // namespace uipc::backend::cuda
 
 
@@ -139,14 +144,19 @@ GlobalVertexManager::VertexAttributeInfo::VertexAttributeInfo(Impl* impl, SizeT 
 {
 }
 
-muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::coindex() const noexcept
+muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::coindices() const noexcept
 {
-    return m_impl->subview(m_impl->coindex, m_index);
+    return m_impl->subview(m_impl->coindices, m_index);
 }
 
 muda::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::positions() const noexcept
 {
     return m_impl->subview(m_impl->positions, m_index);
+}
+
+muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::contact_element_ids() const noexcept
+{
+    return m_impl->subview(m_impl->contact_element_ids, m_index);
 }
 
 GlobalVertexManager::VertexDisplacementInfo::VertexDisplacementInfo(Impl* impl, SizeT index) noexcept
@@ -160,9 +170,9 @@ muda::BufferView<Vector3> GlobalVertexManager::VertexDisplacementInfo::displacem
     return m_impl->subview(m_impl->displacements, m_index);
 }
 
-muda::CBufferView<IndexT> GlobalVertexManager::VertexDisplacementInfo::coindex() const noexcept
+muda::CBufferView<IndexT> GlobalVertexManager::VertexDisplacementInfo::coindices() const noexcept
 {
-    return m_impl->subview(m_impl->coindex, m_index);
+    return m_impl->subview(m_impl->coindices, m_index);
 }
 
 void GlobalVertexManager::init_vertex_info()
@@ -175,14 +185,24 @@ void GlobalVertexManager::rebuild_vertex_info()
     m_impl.rebuild_vertex_info();
 }
 
-muda::CBufferView<IndexT> GlobalVertexManager::coindex() const noexcept
+muda::CBufferView<IndexT> GlobalVertexManager::coindices() const noexcept
 {
-    return m_impl.coindex;
+    return m_impl.coindices;
 }
 
 muda::CBufferView<Vector3> GlobalVertexManager::positions() const noexcept
 {
     return m_impl.positions;
+}
+
+muda::CBufferView<Vector3> GlobalVertexManager::safe_positions() const noexcept
+{
+    return m_impl.safe_positions;
+}
+
+muda::CBufferView<IndexT> GlobalVertexManager::contact_element_ids() const noexcept
+{
+    return m_impl.contact_element_ids;
 }
 
 muda::CBufferView<Vector3> GlobalVertexManager::displacements() const noexcept
@@ -199,6 +219,12 @@ void GlobalVertexManager::Impl::collect_vertex_displacements()
     }
 }
 
+void GlobalVertexManager::Impl::record_start_point()
+{
+    using namespace muda;
+    BufferLaunch().copy<Vector3>(safe_positions.view(), std::as_const(positions).view());
+}
+
 Float GlobalVertexManager::compute_max_displacement()
 {
     return m_impl.compute_max_displacement();
@@ -207,6 +233,16 @@ Float GlobalVertexManager::compute_max_displacement()
 AABB GlobalVertexManager::compute_vertex_bounding_box()
 {
     return m_impl.compute_vertex_bounding_box();
+}
+
+void GlobalVertexManager::step_forward(Float alpha)
+{
+    m_impl.step_forward(alpha);
+}
+
+void GlobalVertexManager::record_start_point()
+{
+    m_impl.record_start_point();
 }
 
 void GlobalVertexManager::add_reporter(VertexReporter* reporter)

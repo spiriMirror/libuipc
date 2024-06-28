@@ -6,6 +6,8 @@
 #include <global_geometry/global_surface_manager.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <contact_system/global_contact_manager.h>
+#include <collision_detection/global_collision_detector.h>
+#include <collision_detection/global_ccd_filter.h>
 #include <dof_predictor.h>
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
@@ -33,6 +35,8 @@ void SimEngine::build()
     m_global_vertex_manager     = find<GlobalVertexManager>();
     m_global_surface_manager    = find<GlobalSurfaceManager>();
     m_global_contact_manager    = find<GlobalContactManager>();
+    m_global_collision_detector = find<GlobalCollisionDetector>();
+    m_global_ccd_filter         = find<GlobalCCDFilter>();
     m_dof_predictor             = find<DoFPredictor>();
     m_line_searcher             = find<LineSearcher>();
     m_gradient_hessian_computer = find<GradientHessianComputer>();
@@ -81,6 +85,7 @@ void SimEngine::do_init(backend::WorldVisitor v)
 
         m_global_vertex_manager->init_vertex_info();
         m_global_surface_manager->init_surface_info();
+        m_global_contact_manager->compute_d_hat();
     }
 
     // 4) Any creation and deletion of objects after this point will be pending

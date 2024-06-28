@@ -25,15 +25,28 @@ void GlobalContactManager::do_build()
     m_impl.related_d_hat         = info["contact"]["d_hat"].get<Float>();
 }
 
-void GlobalContactManager::Impl::update_contact_parameters()
+void GlobalContactManager::Impl::compute_d_hat()
 {
     AABB vert_aabb = global_vertex_manager->vertex_bounding_box();
-    d_hat          = related_d_hat * vert_aabb.diagonal().norm();
+    d_hat          = related_d_hat;  // TODO: just hard code for now
+    d_hat          = 0.02;
 }
 
-void GlobalContactManager::update_contact_parameters()
+void GlobalContactManager::Impl::compute_adaptive_kappa()
 {
-    m_impl.update_contact_parameters();
+    kappa = 1e8;  // TODO: just hard code for now
+}
+
+void GlobalContactManager::compute_d_hat()
+{
+    m_impl.compute_d_hat();
+}
+
+void GlobalContactManager::compute_contact() {}
+
+void GlobalContactManager::compute_adaptive_kappa()
+{
+    m_impl.compute_adaptive_kappa();
 }
 
 Float GlobalContactManager::d_hat() const

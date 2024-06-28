@@ -19,7 +19,7 @@ T& uipc::backend::cuda::SimSystem::require()
     if(ptr)
         m_dependencies.push_back(ptr);
     else
-        throw SimSystemException(fmt::format("System {} not found", typeid(T).name());
+        throw SimSystemException(fmt::format("System {} not found", typeid(T).name()));
     return *ptr;
 }
 }  // namespace uipc::backend::cuda

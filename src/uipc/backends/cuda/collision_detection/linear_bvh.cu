@@ -266,7 +266,20 @@ void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::Stream& s)
                 aabbs    = aabbs.viewer().name("filled_aabbs"),
                 mortons = m_mortons.viewer().name("mortons")] __device__(int i) mutable
                {
-                   Vector3 p = aabbs(i).center();
+                   auto&   aabb = aabbs(i);
+                   Vector3 p    = aabb.center();
+
+                   MUDA_ASSERT(aabbs(i).volume() >= 0,
+                               "Invalid AABB(%d), Max(%f,%f,%f) < Min(%f,%f,%f)",
+
+                               i,
+                               aabb.max().x(),
+                               aabb.max().y(),
+                               aabb.max().z(),
+                               aabb.min().x(),
+                               aabb.min().y(),
+                               aabb.min().z());
+
                    p -= max_aabb->min();
                    p.array() /= max_aabb->sizes().array();
                    mortons(i) = detail::morton_code(p);
@@ -390,6 +403,26 @@ void LinearBVH::build_internal_aabbs(muda::Stream& s)
 /*****************************************************************************************
  * API Implementation
  *****************************************************************************************/
+namespace uipc::backend::cuda::detail
+{
+LinearBVHMortonIndex::LinearBVHMortonIndex(uint32_t m, uint32_t idx) noexcept
+{
+    m_morton_index = m;
+    m_morton_index <<= 32;
+    m_morton_index |= idx;
+}
+
+LinearBVHMortonIndex::operator uint64_t() const noexcept
+{
+    return m_morton_index;
+}
+
+bool operator==(const LinearBVHMortonIndex& lhs, const LinearBVHMortonIndex& rhs) noexcept
+{
+    return lhs.m_morton_index == rhs.m_morton_index;
+}
+}  // namespace uipc::backend::cuda::detail
+
 namespace uipc::backend::cuda
 {
 LinearBVH::LinearBVH(const LinearBVHConfig& config) noexcept {}

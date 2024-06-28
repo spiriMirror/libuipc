@@ -32,8 +32,9 @@ class GlobalVertexManager : public SimSystem
     {
       public:
         VertexAttributeInfo(Impl* impl, SizeT index) noexcept;
-        muda::BufferView<IndexT>  coindex() const noexcept;
+        muda::BufferView<IndexT>  coindices() const noexcept;
         muda::BufferView<Vector3> positions() const noexcept;
+        muda::BufferView<IndexT>  contact_element_ids() const noexcept;
 
       private:
         friend class GlobalVertexManager;
@@ -46,7 +47,7 @@ class GlobalVertexManager : public SimSystem
       public:
         VertexDisplacementInfo(Impl* impl, SizeT index) noexcept;
         muda::BufferView<Vector3> displacements() const noexcept;
-        muda::CBufferView<IndexT> coindex() const noexcept;
+        muda::CBufferView<IndexT> coindices() const noexcept;
 
       private:
         friend class GlobalVertexManager;
@@ -56,26 +57,10 @@ class GlobalVertexManager : public SimSystem
 
     class Impl;
 
-    class VertexRegister
-    {
-      public:
-        VertexRegister(std::string_view name,
-                       std::function<void(VertexCountInfo&)>&& report_vertex_count,
-                       std::function<void(VertexAttributeInfo&)>&& report_vertex_attributes,
-                       std::function<void(VertexDisplacementInfo&)>&& report_vertex_displacement) noexcept;
-
-      private:
-        friend class GlobalVertexManager;
-        friend class Impl;
-
-        std::string                               m_name;
-        std::function<void(VertexCountInfo&)>     m_report_vertex_count;
-        std::function<void(VertexAttributeInfo&)> m_report_vertex_attributes;
-        std::function<void(VertexDisplacementInfo&)> m_report_vertex_displacement;
-    };
-
-    muda::CBufferView<IndexT>  coindex() const noexcept;
+    muda::CBufferView<IndexT>  coindices() const noexcept;
     muda::CBufferView<Vector3> positions() const noexcept;
+    muda::CBufferView<Vector3> safe_positions() const noexcept;
+    muda::CBufferView<IndexT>  contact_element_ids() const noexcept;
     muda::CBufferView<Vector3> displacements() const noexcept;
 
     void add_reporter(VertexReporter* reporter);
@@ -91,23 +76,27 @@ class GlobalVertexManager : public SimSystem
         Impl() = default;
         void  init_vertex_info();
         void  rebuild_vertex_info();
+        void  step_forward(Float alpha);
         Float compute_max_displacement();
         AABB  compute_vertex_bounding_box();
         void  collect_vertex_displacements();
+        void  record_start_point();
 
         template <typename T>
         muda::BufferView<T> subview(muda::DeviceBuffer<T>& buffer, SizeT index) const noexcept;
 
       private:
         /**
-         * @brief A mapping from the global vertex index to the coindex.
+         * @brief A mapping from the global vertex index to the coindices.
          * 
-         * The values of coindex is dependent on the reporters, which can be:
+         * The values of coindices is dependent on the reporters, which can be:
          * 1) the local index of the vertex
          * 2) or any other information that is needed to be stored.
          */
-        muda::DeviceBuffer<IndexT>  coindex;
+        muda::DeviceBuffer<IndexT>  coindices;
         muda::DeviceBuffer<Vector3> positions;
+        muda::DeviceBuffer<Vector3> safe_positions;
+        muda::DeviceBuffer<IndexT>  contact_element_ids;
         muda::DeviceBuffer<Vector3> displacements;
 
         muda::DeviceVar<Float>   max_disp;
@@ -130,6 +119,8 @@ class GlobalVertexManager : public SimSystem
     void  rebuild_vertex_info();
     Float compute_max_displacement();
     AABB  compute_vertex_bounding_box();
+    void  step_forward(Float alpha);
+    void  record_start_point();
     Impl  m_impl;
 };
 }  // namespace uipc::backend::cuda

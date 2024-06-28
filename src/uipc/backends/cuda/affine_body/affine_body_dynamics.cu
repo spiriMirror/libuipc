@@ -294,16 +294,30 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                           });
 
 
-    // 3) setup `vertex_id_to_body_id`
+    // 3) setup `vertex_id_to_body_id` and `vertex_id_to_contact_element_id`
     h_vertex_id_to_body_id.resize(abd_vertex_count);
+    h_vertex_id_to_contact_element_id.resize(abd_vertex_count);
     auto v2b = span{h_vertex_id_to_body_id};
-    std::ranges::for_each(h_body_infos,
-                          [&](const BodyInfo& info)
-                          {
-                              auto offset = info.m_vertex_offset;
-                              auto count  = info.m_vertex_count;
-                              std::ranges::fill(v2b.subspan(offset, count), info.m_affine_body_id);
-                          });
+    auto v2c = span{h_vertex_id_to_contact_element_id};
+    std::ranges::for_each(
+        h_body_infos,
+        [&](const BodyInfo& info)
+        {
+            auto offset = info.m_vertex_offset;
+            auto count  = info.m_vertex_count;
+            std::ranges::fill(v2b.subspan(offset, count), info.m_affine_body_id);
+            const auto& geo = geometry(geo_slots, info);
+            auto contact_element_id = geo.meta().find<IndexT>(builtin::contact_element_id);
+            if(contact_element_id)
+            {
+                auto cid_view = contact_element_id->view();
+                std::ranges::fill(v2c.subspan(offset, count), cid_view[0]);
+            }
+            else
+            {
+                std::ranges::fill(v2c.subspan(offset, count), 0);
+            }
+        });
 
     // 4) setup body_abd_mass and body_id_to_volume
     vector<ABDJacobiDyadicMass> geo_masses(abd_geo_count, ABDJacobiDyadicMass{});

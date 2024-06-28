@@ -72,31 +72,6 @@ MUDA_DEVICE uint32_t LinearBVHViewerT<IsConst>::query(const QueryType& Q,
 }
 }  // namespace uipc::backend::cuda
 
-
-/*****************************************************************************************
- * API Implementation
- *****************************************************************************************/
-namespace uipc::backend::cuda::detail
-{
-LinearBVHMortonIndex::LinearBVHMortonIndex(uint32_t m, uint32_t idx) noexcept
-{
-    m_morton_index = m;
-    m_morton_index <<= 32;
-    m_morton_index |= idx;
-}
-
-LinearBVHMortonIndex::operator uint64_t() const noexcept
-{
-    return m_morton_index;
-}
-
-bool operator==(const LinearBVHMortonIndex& lhs, const LinearBVHMortonIndex& rhs) noexcept
-{
-    return lhs.m_morton_index == rhs.m_morton_index;
-}
-}  // namespace uipc::backend::cuda::detail
-
-
 namespace uipc::backend::cuda
 {
 template <bool IsConst>

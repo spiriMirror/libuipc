@@ -28,7 +28,7 @@ int main()
         auto default_contact = scene.contact_tabular().default_element();
 
         Transform pre_transform = Transform::Identity();
-        pre_transform.scale(0.2);
+        pre_transform.scale(0.1);
         SimplicialComplexIO io{pre_transform};
 
         //{
@@ -74,7 +74,7 @@ int main()
 
                 {
                     Transform t = Transform::Identity();
-                    t.translation() = Vector3::UnitY() * 0.12 + Vector3::UnitY() * 0.5;
+                    t.translation() = Vector3::UnitY() * 0.13 + Vector3::UnitY() * 0.5;
 
                     trans_view[0]    = t.matrix();
                     is_fixed_view[0] = 0;
@@ -82,7 +82,7 @@ int main()
 
                 {
                     Transform t = Transform::Identity();
-                    t.translation() = Vector3::UnitY() * -0.12 + Vector3::UnitY() * 0.5;
+                    t.translation() = Vector3::UnitY() * -0.13 + Vector3::UnitY() * 0.5;
 
                     trans_view[1] = t.matrix();
                     // fix the second cube
@@ -119,7 +119,7 @@ int main()
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_dir, 0));
 
-    for(int i = 1; i < 10; i++)
+    for(int i = 1; i < 30; i++)
     {
         world.advance();
         world.sync();

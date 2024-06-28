@@ -76,7 +76,7 @@ TEST_CASE("pending sequence", "[scene]")
     REQUIRE(visitor.pending_rest_geometries().size() == 1);
     REQUIRE(visitor.pending_destroy_ids().size() == 0);
 
-    // solve the pending list
+    // compute_contact the pending list
     visitor.solve_pending();
 
     // all the pending geometries are created
@@ -103,7 +103,7 @@ TEST_CASE("pending sequence", "[scene]")
     REQUIRE(visitor.pending_rest_geometries().size() == 0);
     REQUIRE(visitor.pending_destroy_ids().size() == 1);
 
-    // solve the pending list
+    // compute_contact the pending list
     visitor.solve_pending();
 
     // all the pending geometries are destroyed

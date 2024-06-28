@@ -54,11 +54,6 @@ class GlobalSurfaceManager : public SimSystem
             return m_surf_vertices;
         }
 
-        muda::BufferView<IndexT> contact_element_ids() noexcept
-        {
-            return m_contact_element_ids;
-        }
-
         muda::BufferView<Vector2i> surf_edges() noexcept
         {
             return m_surf_edges;
@@ -71,7 +66,6 @@ class GlobalSurfaceManager : public SimSystem
       private:
         friend class Impl;
         muda::BufferView<IndexT>   m_surf_vertices;
-        muda::BufferView<IndexT>   m_contact_element_ids;
         muda::BufferView<Vector2i> m_surf_edges;
         muda::BufferView<Vector3i> m_surf_triangles;
         Impl*                      m_impl = nullptr;
@@ -104,12 +98,16 @@ class GlobalSurfaceManager : public SimSystem
         muda::DeviceBuffer<IndexT>   surf_vertices;
         muda::DeviceBuffer<Vector2i> surf_edges;
         muda::DeviceBuffer<Vector3i> surf_triangles;
-        muda::DeviceBuffer<IndexT>   contact_element_ids;
 
         GlobalVertexManager*     global_vertex_manager = nullptr;
         list<SurfaceReporter*>   reporter_buffer;
         vector<SurfaceReporter*> reporters;
     };
+
+    muda::CBufferView<IndexT>   surf_vertices() const noexcept;
+    muda::CBufferView<Vector2i> surf_edges() const noexcept;
+    muda::CBufferView<Vector3i> surf_triangles() const noexcept;
+
 
   protected:
     virtual void do_build() override;

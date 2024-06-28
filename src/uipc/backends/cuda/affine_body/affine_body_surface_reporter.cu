@@ -210,7 +210,6 @@ void AffinebodySurfaceReporter::Impl::_init_body_surface(backend::WorldVisitor& 
     total_surf_triangle_count = back_info.m_surf_triangle_offset + back_info.m_surf_triangle_count;
 
     surf_vertices.resize(total_surf_vertex_count);
-    surf_vertex_contact_element_ids.resize(total_surf_vertex_count);
     surf_edges.resize(total_surf_edge_count);
     surf_triangles.resize(total_surf_triangle_count);
 
@@ -238,22 +237,6 @@ void AffinebodySurfaceReporter::Impl::_init_body_surface(backend::WorldVisitor& 
                                    surf_v.begin(),
                                    [global_vertex_offset](const IndexT& geo_vert_id)
                                    { return geo_vert_id + global_vertex_offset; });
-
-            auto surf_v_contact_element_ids =
-                span{surf_vertex_contact_element_ids}.subspan(
-                    body_surf_info.m_surf_vertex_offset, body_surf_info.m_surf_vertex_count);
-
-            auto contact_element_id = geo.meta().find<IndexT>(builtin::contact_element_id);
-
-            if(contact_element_id)
-            {
-                std::ranges::fill(surf_v_contact_element_ids,
-                                  contact_element_id->view()[0]);
-            }
-            else
-            {
-                std::ranges::fill(surf_v_contact_element_ids, 0);
-            }
         }
 
         if(body_surf_info.m_surf_edge_count > 0)
@@ -321,7 +304,6 @@ void AffinebodySurfaceReporter::Impl::report_attributes(backend::WorldVisitor& w
     { muda::BufferLaunch().copy<T>(dst, src.data()); };
 
     async_copy(span{surf_vertices}, info.surf_vertices());
-    async_copy(span{surf_vertex_contact_element_ids}, info.contact_element_ids());
     async_copy(span{surf_edges}, info.surf_edges());
     async_copy(span{surf_triangles}, info.surf_triangles());
 }

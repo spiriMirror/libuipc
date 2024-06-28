@@ -33,40 +33,45 @@ void AffineBodyVertexReporter::Impl::report_count(GlobalVertexManager::VertexCou
 void AffineBodyVertexReporter::Impl::report_attributes(GlobalVertexManager::VertexAttributeInfo& info)
 {
     using namespace muda;
-    // fill the coindex for later use
-    auto N = info.coindex().size();
-    // TODO: now we just use `iota` the coindex
+    // fill the coindices for later use
+    auto N = info.coindices().size();
+    // TODO: now we just use `iota` the coindices
     // later we may extract the surface vertices as the reported vertices
-    // then the coindex will be a mapping from the surface vertices to the affine body vertices
+    // then the coindices will be a mapping from the surface vertices to the affine body vertices
     ParallelFor()
         .kernel_name(__FUNCTION__)
         .apply(N,
-               [coindex = info.coindex().viewer().name("coindex"),
+               [coindices = info.coindices().viewer().name("coindices"),
 
                 dst_pos = info.positions().viewer().name("dst_pos"),
                 v2b     = abd().vertex_id_to_body_id.cviewer().name("v2b"),
                 qs      = abd().body_id_to_q.cviewer().name("qs"),
                 src_pos = abd().vertex_id_to_J.cviewer().name("src_pos")] __device__(int i) mutable
                {
-                   coindex(i) = i;
+                   coindices(i) = i;
 
                    auto        body_id = v2b(i);
                    const auto& q       = qs(body_id);
                    dst_pos(i)          = src_pos(i).point_x(q);
                });
 
+    auto async_copy = []<typename T>(span<T> src, muda::BufferView<T> dst)
+    { muda::BufferLaunch().copy<T>(dst, src.data()); };
+
+    async_copy(span{abd().h_vertex_id_to_contact_element_id}, info.contact_element_ids());
+
     // record the global vertex info
-    abd().vertex_offset_in_global = info.coindex().offset();
+    abd().vertex_offset_in_global = info.coindices().offset();
 }
 
 void AffineBodyVertexReporter::Impl::report_displacements(GlobalVertexManager::VertexDisplacementInfo& info)
 {
     using namespace muda;
-    auto N = info.coindex().size();
+    auto N = info.coindices().size();
     ParallelFor()
         .kernel_name(__FUNCTION__)
         .apply(N,
-               [coindex = info.coindex().viewer().name("coindex"),
+               [coindices = info.coindices().viewer().name("coindices"),
                 displacements = info.displacements().viewer().name("displacements"),
                 v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
                 dqs = abd().body_id_to_dq.cviewer().name("dqs"),

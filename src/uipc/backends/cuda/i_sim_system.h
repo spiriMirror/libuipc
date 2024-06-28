@@ -1,6 +1,7 @@
 #pragma once
 #include <string_view>
 #include <uipc/common/json.h>
+#include <uipc/common/exception.h>
 namespace uipc::backend::cuda
 {
 class ISimSystem
