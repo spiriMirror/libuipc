@@ -175,6 +175,8 @@ muda::CBufferView<IndexT> GlobalVertexManager::VertexDisplacementInfo::coindices
     return m_impl->subview(m_impl->coindices, m_index);
 }
 
+void GlobalVertexManager::do_build() {}
+
 void GlobalVertexManager::init_vertex_info()
 {
     m_impl.init_vertex_info();

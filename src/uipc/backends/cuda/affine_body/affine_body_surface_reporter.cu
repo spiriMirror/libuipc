@@ -25,7 +25,7 @@ void AffinebodySurfaceReporter::do_build()
     m_impl.affine_body_dynamics->after_build_geometry(
         [this] { m_impl.init_surface(world()); });
 
-    auto global_surf_manager = find<GlobalSurfaceManager>();
+    auto global_surf_manager = find<GlobalSimpicialSurfaceManager>();
     global_surf_manager->add_reporter(this);
 }
 
@@ -290,7 +290,7 @@ void AffinebodySurfaceReporter::Impl::_init_body_surface(backend::WorldVisitor& 
 }
 
 void AffinebodySurfaceReporter::Impl::report_count(backend::WorldVisitor& world,
-                                                   GlobalSurfaceManager::SurfaceCountInfo& info)
+                                                   GlobalSimpicialSurfaceManager::SurfaceCountInfo& info)
 {
     info.surf_vertex_count(total_surf_vertex_count);
     info.surf_edge_count(total_surf_edge_count);
@@ -298,7 +298,7 @@ void AffinebodySurfaceReporter::Impl::report_count(backend::WorldVisitor& world,
 }
 
 void AffinebodySurfaceReporter::Impl::report_attributes(backend::WorldVisitor& world,
-                                                        GlobalSurfaceManager::SurfaceAttributeInfo& info)
+                                                        GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info)
 {
     auto async_copy = []<typename T>(span<T> src, muda::BufferView<T> dst)
     { muda::BufferLaunch().copy<T>(dst, src.data()); };
@@ -308,12 +308,12 @@ void AffinebodySurfaceReporter::Impl::report_attributes(backend::WorldVisitor& w
     async_copy(span{surf_triangles}, info.surf_triangles());
 }
 
-void AffinebodySurfaceReporter::do_report_count(GlobalSurfaceManager::SurfaceCountInfo& info)
+void AffinebodySurfaceReporter::do_report_count(GlobalSimpicialSurfaceManager::SurfaceCountInfo& info)
 {
     m_impl.report_count(world(), info);
 }
 
-void AffinebodySurfaceReporter::do_report_attributes(GlobalSurfaceManager::SurfaceAttributeInfo& info)
+void AffinebodySurfaceReporter::do_report_attributes(GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info)
 {
     m_impl.report_attributes(world(), info);
 }

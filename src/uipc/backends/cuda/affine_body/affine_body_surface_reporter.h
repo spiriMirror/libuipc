@@ -48,9 +48,9 @@ class AffinebodySurfaceReporter : public SurfaceReporter
         void _init_body_surface(backend::WorldVisitor& world);
 
         void report_count(backend::WorldVisitor&                  world,
-                          GlobalSurfaceManager::SurfaceCountInfo& info);
+                          GlobalSimpicialSurfaceManager::SurfaceCountInfo& info);
         void report_attributes(backend::WorldVisitor& world,
-                               GlobalSurfaceManager::SurfaceAttributeInfo& info);
+                               GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info);
 
         AffineBodyDynamics*       affine_body_dynamics = nullptr;
         AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
@@ -86,8 +86,8 @@ class AffinebodySurfaceReporter : public SurfaceReporter
 
   protected:
     virtual void do_build() override;
-    virtual void do_report_count(GlobalSurfaceManager::SurfaceCountInfo& info) override;
-    virtual void do_report_attributes(GlobalSurfaceManager::SurfaceAttributeInfo& info) override;
+    virtual void do_report_count(GlobalSimpicialSurfaceManager::SurfaceCountInfo& info) override;
+    virtual void do_report_attributes(GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info) override;
 
   private:
     Impl m_impl;

@@ -6,7 +6,7 @@
 #include <global_geometry/global_surface_manager.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <contact_system/global_contact_manager.h>
-#include <collision_detection/global_collision_detector.h>
+#include <collision_detection/global_dcd_filter.h>
 #include <collision_detection/global_ccd_filter.h>
 #include <dof_predictor.h>
 #include <line_search/line_searcher.h>
@@ -33,9 +33,9 @@ void SimEngine::build()
 
     // 2) find those engine-aware topo systems
     m_global_vertex_manager     = find<GlobalVertexManager>();
-    m_global_surface_manager    = find<GlobalSurfaceManager>();
+    m_global_surface_manager    = find<GlobalSimpicialSurfaceManager>();
     m_global_contact_manager    = find<GlobalContactManager>();
-    m_global_collision_detector = find<GlobalCollisionDetector>();
+    m_global_dcd_filter         = find<GlobalDCDFilter>();
     m_global_ccd_filter         = find<GlobalCCDFilter>();
     m_dof_predictor             = find<DoFPredictor>();
     m_line_searcher             = find<LineSearcher>();

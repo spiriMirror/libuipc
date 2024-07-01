@@ -5,35 +5,35 @@
 
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(GlobalSurfaceManager);
+REGISTER_SIM_SYSTEM(GlobalSimpicialSurfaceManager);
 
-void GlobalSurfaceManager::add_reporter(SurfaceReporter* reporter) noexcept
+void GlobalSimpicialSurfaceManager::add_reporter(SurfaceReporter* reporter) noexcept
 {
     reporter->m_index = m_impl.reporter_buffer.size();
     m_impl.reporter_buffer.push_back(reporter);
 }
 
-muda::CBufferView<IndexT> GlobalSurfaceManager::surf_vertices() const noexcept
+muda::CBufferView<IndexT> GlobalSimpicialSurfaceManager::surf_vertices() const noexcept
 {
     return m_impl.surf_vertices;
 }
 
-muda::CBufferView<Vector2i> GlobalSurfaceManager::surf_edges() const noexcept
+muda::CBufferView<Vector2i> GlobalSimpicialSurfaceManager::surf_edges() const noexcept
 {
     return m_impl.surf_edges;
 }
 
-muda::CBufferView<Vector3i> GlobalSurfaceManager::surf_triangles() const noexcept
+muda::CBufferView<Vector3i> GlobalSimpicialSurfaceManager::surf_triangles() const noexcept
 {
     return m_impl.surf_triangles;
 }
 
-void GlobalSurfaceManager::do_build()
+void GlobalSimpicialSurfaceManager::do_build()
 {
     m_impl.global_vertex_manager = find<GlobalVertexManager>();
 }
 
-void GlobalSurfaceManager::Impl::init_surface_info()
+void GlobalSimpicialSurfaceManager::Impl::init_surface_info()
 {
     // 1) build the core invariant data structure: reporter_infos
     reporters.resize(reporter_buffer.size());
@@ -132,12 +132,12 @@ void GlobalSurfaceManager::Impl::init_surface_info()
     }
 }
 
-void GlobalSurfaceManager::init_surface_info()
+void GlobalSimpicialSurfaceManager::init_surface_info()
 {
     m_impl.init_surface_info();
 }
 
-void GlobalSurfaceManager::rebuild_surface_info()
+void GlobalSimpicialSurfaceManager::rebuild_surface_info()
 {
     UIPC_ASSERT(false, "Not implemented yet");
 }

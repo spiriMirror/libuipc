@@ -6,7 +6,7 @@
 namespace uipc::backend::cuda
 {
 class SurfaceReporter;
-class GlobalSurfaceManager : public SimSystem
+class GlobalSimpicialSurfaceManager : public SimSystem
 {
   public:
     using SimSystem::SimSystem;

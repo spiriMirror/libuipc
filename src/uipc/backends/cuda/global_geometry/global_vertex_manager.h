@@ -113,6 +113,9 @@ class GlobalVertexManager : public SimSystem
         AABB vertex_bounding_box;
     };
 
+  protected:
+    virtual void do_build() override;
+
   private:
     friend class SimEngine;
     void  init_vertex_info();

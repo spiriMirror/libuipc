@@ -11,9 +11,9 @@
 namespace uipc::backend::cuda
 {
 class GlobalVertexManager;
-class GlobalSurfaceManager;
+class GlobalSimpicialSurfaceManager;
 class GlobalContactManager;
-class GlobalCollisionDetector;
+class GlobalDCDFilter;
 class GlobalCCDFilter;
 
 class DoFPredictor;
@@ -69,11 +69,11 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
 
   private:
     // Aware Top Systems
-    GlobalVertexManager*     m_global_vertex_manager     = nullptr;
-    GlobalSurfaceManager*    m_global_surface_manager    = nullptr;
-    GlobalContactManager*    m_global_contact_manager    = nullptr;
-    GlobalCollisionDetector* m_global_collision_detector = nullptr;
-    GlobalCCDFilter*         m_global_ccd_filter         = nullptr;
+    GlobalVertexManager*           m_global_vertex_manager  = nullptr;
+    GlobalSimpicialSurfaceManager* m_global_surface_manager = nullptr;
+    GlobalContactManager*          m_global_contact_manager = nullptr;
+    GlobalDCDFilter*               m_global_dcd_filter      = nullptr;
+    GlobalCCDFilter*               m_global_ccd_filter      = nullptr;
 
     DoFPredictor*            m_dof_predictor             = nullptr;
     LineSearcher*            m_line_searcher             = nullptr;

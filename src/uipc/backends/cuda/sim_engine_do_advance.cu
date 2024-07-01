@@ -4,7 +4,7 @@
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_surface_manager.h>
 #include <contact_system/global_contact_manager.h>
-#include <collision_detection/global_collision_detector.h>
+#include <collision_detection/global_dcd_filter.h>
 #include <collision_detection/global_ccd_filter.h>
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
@@ -17,33 +17,43 @@ void SimEngine::do_advance()
 {
     LogGuard guard;
 
-    auto detect_candiates = [this](Float alpha)
+    auto detect_dcd_candidates = [this]
     {
-        if(m_global_collision_detector)
-            m_global_collision_detector->detect_candidates(alpha);
+        if(m_global_dcd_filter)
+            m_global_dcd_filter->detect();
     };
 
-    auto compute_energy = [this](Float alpha) -> Float
+    auto compute_contact = [this]
     {
-        // Step Forward => x = x_0 + alpha * dx
-        m_line_searcher->step_forward(alpha);
-        m_global_vertex_manager->step_forward(alpha);
-        // Compute New Energy => E
-        return m_line_searcher->compute_energy();
+        if(m_global_contact_manager)
+            m_global_contact_manager->compute_contact();
     };
 
-    auto filter_toi = [this](Float alpha) -> Float
+    auto filter_toi = [this](Float alpha)
     {
         if(m_global_ccd_filter)
             return m_global_ccd_filter->filter_toi(alpha);
         return alpha;
     };
 
+    auto compute_energy = [this, detect_dcd_candidates](Float alpha) -> Float
+    {
+        // Step Forward => x = x_0 + alpha * dx
+        m_global_vertex_manager->step_forward(alpha);
+        m_line_searcher->step_forward(alpha);
+
+        // Update the collision pairs
+        detect_dcd_candidates();
+        
+        // Compute New Energy => E
+        return m_line_searcher->compute_energy();
+    };
+
     // The Pipeline
     {
         // 1. Adaptive Parameter Calculation
         AABB vertex_bounding_box = m_global_vertex_manager->compute_vertex_bounding_box();
-        detect_candiates(0.0);
+        detect_dcd_candidates();
         if(m_global_contact_manager)
             m_global_contact_manager->compute_adaptive_kappa();
 
@@ -59,12 +69,11 @@ void SimEngine::do_advance()
         {
             // 1) Build Collision Pairs
             if(iter > 0)
-                detect_candiates(0.0);
+                detect_dcd_candidates();
 
             m_state = SimEngineState::ComputeGradientHassian;
             // 2) Compute Contact Gradient and Hessian => G:Vector3, H:Matrix3x3
-            if(m_global_contact_manager)
-                m_global_contact_manager->compute_contact();
+            compute_contact();
 
             // 3) Compute System Gradient and Hessian => G:Vector3, H:Matrix3x3
             // E.g. FEM/ABD ...
@@ -85,11 +94,6 @@ void SimEngine::do_advance()
             // 6) Begin Line Search
             {
                 Float alpha = 1.0;
-
-                // update the candidates by the step length
-                // so now we take in all the candidates that
-                // can happen in the whole step
-                detect_candiates(alpha);
 
                 // Record Current State x to x_0
                 m_line_searcher->record_start_point();

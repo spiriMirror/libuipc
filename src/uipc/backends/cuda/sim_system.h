@@ -28,8 +28,6 @@ class SimSystem : public ISimSystem
     template <std::derived_from<SimSystem> T>
     T& require();
 
-    virtual void do_build() override{};
-
     /**
      * @brief register an action to be executed when the scene is initialized
      * 
