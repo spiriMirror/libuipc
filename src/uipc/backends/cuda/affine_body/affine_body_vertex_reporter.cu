@@ -8,7 +8,7 @@ class SimSystemCreator<AffineBodyVertexReporter>
   public:
     static U<AffineBodyVertexReporter> create(SimEngine& engine)
     {
-        return has_affine_body_constitution(engine) ?
+        return CreatorQuery::has_affine_body_constitution(engine) ?
                    make_unique<AffineBodyVertexReporter>(engine) :
                    nullptr;
     }

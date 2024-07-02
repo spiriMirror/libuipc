@@ -23,7 +23,7 @@ class SimSystemCreator<AffineBodyDynamics>
   public:
     static U<AffineBodyDynamics> create(SimEngine& engine)
     {
-        return has_affine_body_constitution(engine) ?
+        return CreatorQuery::has_affine_body_constitution(engine) ?
                    make_unique<AffineBodyDynamics>(engine) :
                    nullptr;
     }

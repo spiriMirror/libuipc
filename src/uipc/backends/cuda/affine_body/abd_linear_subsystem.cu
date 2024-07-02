@@ -11,7 +11,7 @@ class SimSystemCreator<ABDLinearSubsystem>
   public:
     static U<ABDLinearSubsystem> create(SimEngine& engine)
     {
-        return has_affine_body_constitution(engine) ?
+        return CreatorQuery::has_affine_body_constitution(engine) ?
                    make_unique<ABDLinearSubsystem>(engine) :
                    nullptr;
     }

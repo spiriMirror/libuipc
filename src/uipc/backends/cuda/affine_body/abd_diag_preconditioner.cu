@@ -11,10 +11,9 @@ class SimSystemCreator<ABDDiagPreconditioner>
   public:
     static U<ABDDiagPreconditioner> create(SimEngine& engine)
     {
-        if(has_affine_body_constitution(engine))
-            return make_unique<ABDDiagPreconditioner>(engine);
-        else
-            return nullptr;
+        return CreatorQuery::has_affine_body_constitution(engine) ?
+                   make_unique<ABDDiagPreconditioner>(engine) :
+                   nullptr;
     }
 };
 

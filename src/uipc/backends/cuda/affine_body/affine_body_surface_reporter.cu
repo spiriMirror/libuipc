@@ -9,7 +9,7 @@ class SimSystemCreator<AffinebodySurfaceReporter>
   public:
     static U<AffinebodySurfaceReporter> create(SimEngine& engine)
     {
-        return has_affine_body_constitution(engine) ?
+        return CreatorQuery::has_affine_body_constitution(engine) ?
                    make_unique<AffinebodySurfaceReporter>(engine) :
                    nullptr;
     }
@@ -297,8 +297,8 @@ void AffinebodySurfaceReporter::Impl::report_count(backend::WorldVisitor& world,
     info.surf_triangle_count(total_surf_triangle_count);
 }
 
-void AffinebodySurfaceReporter::Impl::report_attributes(backend::WorldVisitor& world,
-                                                        GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info)
+void AffinebodySurfaceReporter::Impl::report_attributes(
+    backend::WorldVisitor& world, GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info)
 {
     auto async_copy = []<typename T>(span<T> src, muda::BufferView<T> dst)
     { muda::BufferLaunch().copy<T>(dst, src.data()); };

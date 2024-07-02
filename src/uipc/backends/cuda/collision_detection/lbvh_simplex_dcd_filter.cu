@@ -74,7 +74,7 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
                 aabbs = edge_aabbs.viewer().name("aabbs"),
                 d_hat = d_hat] __device__(int i) mutable
                {
-                   auto        eI   = Es(i);
+                   const auto& eI   = Es(i);
                    const auto& pos0 = Ps(eI[0]);
                    const auto& pos1 = Ps(eI[1]);
 
@@ -94,7 +94,7 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
                 aabbs = triangle_aabbs.viewer().name("aabbs"),
                 d_hat = d_hat] __device__(int i) mutable
                {
-                   auto        fI   = Fs(i);
+                   const auto& fI   = Fs(i);
                    const auto& pos0 = Ps(fI[0]);
                    const auto& pos1 = Ps(fI[1]);
                    const auto& pos2 = Ps(fI[2]);
@@ -116,8 +116,8 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
                                    d_hat = d_hat] __device__(IndexT i, IndexT j)
                                   {
                                       // discard if the point is on the triangle
-                                      auto V = Vs(i);
-                                      auto F = Fs(j);
+                                      auto        V = Vs(i);
+                                      const auto& F = Fs(j);
 
                                       if(F[0] == V || F[1] == V || F[2] == V)
                                           return false;
@@ -145,8 +145,8 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
          d_hat = d_hat] __device__(IndexT i, IndexT j)
         {
             // discard if the edges shared same vertex
-            auto E0 = Es(i);
-            auto E1 = Es(j);
+            const auto& E0 = Es(i);
+            const auto& E1 = Es(j);
 
             if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
                 return false;
@@ -176,8 +176,8 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
                 Fs            = Fs.viewer().name("Fs"),
                 Vs = Vs.viewer().name("Vs")] __device__(int i) mutable
                {
-                   auto& PT         = candidate_PTs(i);
-                   auto  pair       = PT_pairs(i);
+                   auto&       PT   = candidate_PTs(i);
+                   const auto& pair = PT_pairs(i);
                    PT[0]            = Vs(pair[0]);
                    PT.segment<3>(1) = Fs(pair[1]);
                });
@@ -189,8 +189,8 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
                 candidate_EEs = candidate_EEs.viewer().name("candidate_EEs"),
                 Es = Es.viewer().name("Es")] __device__(int i) mutable
                {
-                   auto& EE         = candidate_EEs(i);
-                   auto  pair       = EE_pairs(i);
+                   auto&       EE   = candidate_EEs(i);
+                   const auto& pair = EE_pairs(i);
                    EE.segment<2>(0) = Es(pair[0]);
                    EE.segment<2>(2) = Es(pair[1]);
                });
@@ -255,10 +255,10 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                    Vector3i T  = PT.tail<3>();
 
 
-                   auto V  = Ps(PT(0));
-                   auto F0 = Ps(PT(1));
-                   auto F1 = Ps(PT(2));
-                   auto F2 = Ps(PT(3));
+                   const auto& V  = Ps(PT(0));
+                   const auto& F0 = Ps(PT(1));
+                   const auto& F1 = Ps(PT(2));
+                   const auto& F2 = Ps(PT(3));
 
                    auto dist_type =
                        muda::distance::point_triangle_distance_type(V, F0, F1, F2);
