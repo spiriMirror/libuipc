@@ -1,34 +1,16 @@
 #pragma once
 #include <contact_system/contact_reporter.h>
-
+#include <line_search/line_searcher.h>
+#include <contact_system/contact_coeff.h>
 namespace uipc::backend::cuda
 {
+class SimplexDCDFilter;
 class SimplexContactConstitution : public ContactReporter
 {
   public:
     using ContactReporter::ContactReporter;
 
     class Impl;
-
-    class PrimitiveCountInfo
-    {
-      public:
-        PrimitiveCountInfo(Impl* impl)
-            : m_impl(impl)
-        {
-        }
-
-        void count(SizeT PT_count, SizeT EE_count, SizeT PE_count, SizeT PP_count) noexcept
-        {
-            m_impl->PT_count = PT_count;
-            m_impl->EE_count = EE_count;
-            m_impl->PE_count = PE_count;
-            m_impl->PP_count = PP_count;
-        }
-
-      private:
-        Impl* m_impl;
-    };
 
     class ContactInfo
     {
@@ -38,8 +20,15 @@ class SimplexContactConstitution : public ContactReporter
         {
         }
 
+        muda::Buffer2DView<ContactCoeff> contact_tabular() const noexcept;
+
       private:
         Impl* m_impl;
+    };
+
+    class BuildInfo
+    {
+      public:
     };
 
 
@@ -48,6 +37,8 @@ class SimplexContactConstitution : public ContactReporter
       public:
         void prepare();
         void assemble(GlobalContactManager::ContactInfo& info);
+
+        SimplexDCDFilter* simplex_dcd_filter = nullptr;
 
         SizeT PT_count = 0;
         SizeT EE_count = 0;
@@ -68,13 +59,13 @@ class SimplexContactConstitution : public ContactReporter
     };
 
   protected:
-    virtual void do_build() override;
-    virtual void do_report_count(PrimitiveCountInfo& info) = 0;
-    virtual void do_assemble(ContactInfo& info)            = 0;
+    virtual void do_build(BuildInfo& info)      = 0;
+    virtual void do_assemble(ContactInfo& info) = 0;
 
   private:
     virtual void do_report_extent(GlobalContactManager::ContactExtentInfo& info) override final;
     virtual void do_assemble(GlobalContactManager::ContactInfo& info) override final;
+    virtual void do_build() override final;
 
     Impl m_impl;
 };

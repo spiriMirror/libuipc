@@ -14,6 +14,14 @@ void LineSearcher::add_reporter(LineSearchReporter* reporter)
     m_reporter_buffer.push_back(reporter);
 }
 
+void LineSearcher::add_reporter(std::string_view energy_name,
+                                std::function<void(EnergyInfo)>&& energy_reporter)
+{
+    check_state(SimEngineState::BuildSystems, "add_reporter()");
+    m_energy_reporters.push_back(std::move(energy_reporter));
+    m_energy_reporter_names.push_back(std::string{energy_name});
+}
+
 void LineSearcher::do_build()
 {
     on_init_scene([this]() { init(); });
@@ -26,7 +34,7 @@ void LineSearcher::init()
     m_reporters.resize(m_reporter_buffer.size());
     std::ranges::move(m_reporter_buffer, m_reporters.begin());
 
-    m_energy_values.resize(m_reporters.size(), 0);
+    m_energy_values.resize(m_reporters.size() + m_energy_reporters.size(), 0);
 
     m_report_energy = scene.info()["debug"]["report_energy"];
     m_dt            = scene.info()["dt"];
@@ -53,15 +61,29 @@ void LineSearcher::step_forward(Float alpha)
 
 Float LineSearcher::compute_energy()
 {
-    for(auto&& [i, R] : enumerate(m_reporters))
+    auto reporter_energyes = span{m_energy_values}.subspan(0, m_reporters.size());
+
+    for(auto&& [E, R] : zip(reporter_energyes, m_reporters))
     {
-        ComputeEnergyInfo info{this};
+        EnergyInfo info{this};
         R->compute_energy(info);
         UIPC_ASSERT(info.m_energy.has_value(),
-                    "Energy not set by reporter, did you forget to call energy()?");
-        m_energy_values[i] = info.m_energy.value();
+                    "Energy[{}] not set by reporter, did you forget to call energy()?", R->name());
+        E = info.m_energy.value();
+        UIPC_ASSERT(!std::isnan(E) && std::isfinite(E), "Energy [{}] is {}", R->name(), E);
+    }
 
-        UIPC_ASSERT(!std::isnan(m_energy_values[i]), "Energy [{}] is NaN", R->name());
+    auto energy_reporter_energyes = span{m_energy_values}.subspan(m_reporters.size());
+
+    for(auto&& [E, ER, name] :
+        zip(energy_reporter_energyes, m_energy_reporters, m_energy_reporter_names))
+    {
+        EnergyInfo info{this};
+        ER(info);
+        UIPC_ASSERT(info.m_energy.has_value(),
+                    "Energy[{}] not set by reporter, did you forget to call energy()?", name);
+        E = info.m_energy.value();
+        UIPC_ASSERT(!std::isnan(E) && std::isfinite(E), "Energy [{}] is {}", name, E);
     }
 
     Float total_energy =
@@ -75,10 +97,17 @@ Float LineSearcher::compute_energy()
 -------------------------------------------------------------------------------
 )";
         m_report_stream << "Total:" << total_energy << "\n";
-        for(auto&& [R, value] : zip(m_reporters, m_energy_values))
+        for(auto&& [R, value] : zip(m_reporters, reporter_energyes))
         {
-            m_report_stream << "  * " << R->name() << "=" << value << "\n";
+            m_report_stream << "  > " << R->name() << "=" << value << "\n";
         }
+
+        for(auto&& [ER, value, name] :
+            zip(m_energy_reporters, energy_reporter_energyes, m_energy_reporter_names))
+        {
+            m_report_stream << "  * " << name << "=" << value << "\n";
+        }
+
         m_report_stream << "-------------------------------------------------------------------------------";
         spdlog::info(m_report_stream.str());
         m_report_stream.str("");
@@ -87,16 +116,16 @@ Float LineSearcher::compute_energy()
     return total_energy;
 }
 
-LineSearcher::ComputeEnergyInfo::ComputeEnergyInfo(LineSearcher* impl) noexcept
+LineSearcher::EnergyInfo::EnergyInfo(LineSearcher* impl) noexcept
     : m_impl(impl)
 {
 }
 
-Float LineSearcher::ComputeEnergyInfo::dt() noexcept
+Float LineSearcher::EnergyInfo::dt() noexcept
 {
     return m_impl->m_dt;
 }
-void LineSearcher::ComputeEnergyInfo::energy(Float e) noexcept
+void LineSearcher::EnergyInfo::energy(Float e) noexcept
 {
     m_energy = e;
 }

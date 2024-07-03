@@ -1,10 +1,12 @@
 #pragma once
 #include <line_search/line_search_reporter.h>
+#include <contact_system/global_contact_manager.h>
+#include <contact_system/contact_reporter.h>
 
 namespace uipc::backend::cuda
 {
 class GlobalContactManager;
-class ContactLineSearchReporter : public LineSearchReporter
+class ContactLineSearchReporter final : public LineSearchReporter
 {
   public:
     using LineSearchReporter::LineSearchReporter;
@@ -14,16 +16,20 @@ class ContactLineSearchReporter : public LineSearchReporter
     class Impl
     {
       public:
-        GlobalContactManager* global_contact_manager = nullptr;
+        void init();
+        void do_compute_energy(LineSearcher::EnergyInfo& info);
+
+        GlobalContactManager*     global_contact_manager = nullptr;
+        muda::DeviceBuffer<Float> contact_energies;
+        vector<Float>             h_contact_energies;
     };
 
-  protected:
-    void do_build() override;
-    void do_record_start_point(LineSearcher::RecordInfo& info) override;
-    void do_step_forward(LineSearcher::StepInfo& info) override;
-    void do_compute_energy(LineSearcher::ComputeEnergyInfo& info) override;
-
   private:
+    virtual void do_build() override;
+    virtual void do_record_start_point(LineSearcher::RecordInfo& info) override;
+    virtual void do_step_forward(LineSearcher::StepInfo& info) override;
+    virtual void do_compute_energy(LineSearcher::EnergyInfo& info) override;
+
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

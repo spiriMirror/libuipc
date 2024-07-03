@@ -17,7 +17,7 @@ class LBVHSimplexCCDFilter : public SimplexCCDFilter
     {
       public:
         void broadphase_ccd(SimplexCCDFilter::FilterInfo& info);
-        void filter_toi(SimplexCCDFilter::FilterInfo& info);
+        void narrowphase_ccd(SimplexCCDFilter::FilterInfo& info);
 
         muda::DeviceBuffer<AABB>     point_aabbs;
         muda::DeviceBuffer<AABB>     triangle_aabbs;

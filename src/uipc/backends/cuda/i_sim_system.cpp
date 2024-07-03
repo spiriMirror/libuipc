@@ -19,6 +19,16 @@ void ISimSystem::make_engine_aware()
     set_engine_aware();
 }
 
+void ISimSystem::invalidate() noexcept
+{
+    set_invalid();
+}
+
+bool ISimSystem::is_valid() const noexcept
+{
+    return get_valid();
+}
+
 std::string_view ISimSystem::name() const noexcept
 {
     return get_name();

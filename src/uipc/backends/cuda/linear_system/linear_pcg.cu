@@ -90,7 +90,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
 
     rz0 = std::abs(rz);
 
-    UIPC_ASSERT(std::isnan(rz0) == false, "Init Residual is NaN");
+    UIPC_ASSERT(!std::isnan(rz0) && std::isfinite(rz0), "Init Residual is {}", rz0);
 
     // check convergence
     if(accuracy_statisfied(r) && rz0 == 0.0)
@@ -116,7 +116,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         // rz_new = dot(r.cview(), z.cview());
         Float rz_new = ctx().dot(r.cview(), z.cview());
 
-        UIPC_ASSERT(std::isnan(rz_new) == false, "Residual is NaN");
+        UIPC_ASSERT(!std::isnan(rz_new) && std::isfinite(rz_new), "Residual is {}", rz_new);
 
         // check convergence
         if(accuracy_statisfied(r) && std::abs(rz_new) <= global_tol_rate * rz0)

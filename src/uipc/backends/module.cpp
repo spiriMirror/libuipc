@@ -6,7 +6,7 @@ void uipc_init_module(UIPCModuleInitInfo* info)
 {
     auto old_resource = std::pmr::get_default_resource();
     std::pmr::set_default_resource(info->memory_resource);
-    spdlog::info("Synchronize backend module [{}] memory resource: {}->{}",
+    spdlog::info("Synchronize backend module [{}]'s Polymorphic Memory Resource: {}->{}",
                  info->module_name,
                  (void*)old_resource,
                  (void*)std::pmr::get_default_resource());
@@ -16,7 +16,11 @@ void uipc_init_module(UIPCModuleInitInfo* info)
 
 namespace uipc::backend
 {
-void        ModuleInfo::init(const UIPCModuleInitInfo& info) noexcept {}
+void ModuleInfo::init(const UIPCModuleInitInfo& info) noexcept
+{
+    m_workspace = info.module_workspace;
+}
+
 ModuleInfo& ModuleInfo::instance() noexcept
 {
     static ModuleInfo instance;

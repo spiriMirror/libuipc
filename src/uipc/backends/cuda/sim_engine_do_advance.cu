@@ -44,7 +44,7 @@ void SimEngine::do_advance()
 
         // Update the collision pairs
         detect_dcd_candidates();
-        
+
         // Compute New Energy => E
         return m_line_searcher->compute_energy();
     };
@@ -103,14 +103,13 @@ void SimEngine::do_advance()
                 Float E0 = m_line_searcher->compute_energy();
 
                 // ccd filter
-                alpha = filter_toi(alpha);
+                alpha   = filter_toi(alpha);
+                Float E = compute_energy(alpha);
 
                 SizeT max_line_search_iter = 1000;  // now just hard code it
                 SizeT line_search_iter     = 0;
                 while(line_search_iter++ < max_line_search_iter)  // Energy Test
                 {
-                    Float E = compute_energy(alpha);
-
                     bool energy_decrease = E < E0;  // Check Energy Decrease
                     bool no_inversion    = true;    // Check Inversion
 

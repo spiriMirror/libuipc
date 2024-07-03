@@ -10,4 +10,8 @@ void ContactReporter::assemble(GlobalContactManager::ContactInfo& info)
 {
     do_assemble(info);
 }
+void ContactReporter::compute_energy(GlobalContactManager::EnergyInfo& info)
+{
+    do_compute_energy(info);
+}
 }  // namespace uipc::backend::cuda

@@ -30,6 +30,7 @@ Json SimSystem::do_to_json() const
         j["deps"].push_back(dep->name());
     }
     j["engine_aware"] = m_engine_aware;
+    j["valid"]        = m_valid;
     return j;
 }
 
@@ -52,6 +53,16 @@ void SimSystem::set_engine_aware() noexcept
 bool SimSystem::get_engine_aware() const noexcept
 {
     return m_engine_aware;
+}
+
+void SimSystem::set_invalid() noexcept
+{
+    m_valid = false;
+}
+
+bool SimSystem::get_valid() const noexcept
+{
+    return m_valid;
 }
 
 void SimSystem::on_rebuild_scene(std::function<void()>&& action) noexcept

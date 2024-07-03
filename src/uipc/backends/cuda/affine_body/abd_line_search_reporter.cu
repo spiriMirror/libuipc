@@ -1,6 +1,8 @@
 #include <affine_body/abd_line_search_reporter.h>
 #include <affine_body/affine_body_constitution.h>
 #include <muda/cub/device/device_reduce.h>
+#include <kernel_cout.h>
+#include <muda/ext/eigen/log_proxy.h>
 
 namespace uipc::backend::cuda
 {
@@ -37,7 +39,7 @@ void ABDLineSearchReporter::do_step_forward(LineSearcher::StepInfo& info)
     m_impl.step_forward(info);
 }
 
-void ABDLineSearchReporter::do_compute_energy(LineSearcher::ComputeEnergyInfo& info)
+void ABDLineSearchReporter::do_compute_energy(LineSearcher::EnergyInfo& info)
 {
     m_impl.compute_energy(info);
 }
@@ -68,7 +70,7 @@ void ABDLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
                });
 }
 
-void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo& info)
+void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
 {
     using namespace muda;
 
@@ -94,7 +96,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
                        const auto& q_tilde = q_tildes(i);
                        const auto& M       = masses(i);
                        Vector12    dq      = q - q_tilde;
-                       // cout << "dq: " << dq << "\n";
+                       //cout << "dq: " << dq << "\n";
                        K = 0.5 * dq.dot(M * dq);
                    }
                });

@@ -10,16 +10,18 @@ namespace uipc::backend::cuda
 class SimSystemCollection
 {
     friend struct fmt::formatter<SimSystemCollection>;
-    friend class SimEngine;
-
   public:
+    Json to_json() const;
+  private:
+    friend class SimEngine;
+    friend class SimSystem;
     void create(U<ISimSystem> system);
     template <std::derived_from<ISimSystem> T>
-    T*   find();
-    Json to_json() const;
-
-  private:
+    T*                                find();
     unordered_map<U64, U<ISimSystem>> m_sim_systems;
+
+    void cleanup_invalid_systems();
+    void build_systems();
 };
 }  // namespace uipc::backend::cuda
 

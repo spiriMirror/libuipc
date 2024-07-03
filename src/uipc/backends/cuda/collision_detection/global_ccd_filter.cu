@@ -3,6 +3,20 @@
 #include <uipc/common/enumerate.h>
 namespace uipc::backend::cuda
 {
+template <>
+class SimSystemCreator<GlobalCCDFilter>
+{
+  public:
+    static U<GlobalCCDFilter> create(SimEngine& engine)
+    {
+        return CreatorQuery::is_contact_enabled(engine) ?
+                   make_unique<GlobalCCDFilter>(engine) :
+                   nullptr;
+    }
+};
+
+REGISTER_SIM_SYSTEM(GlobalCCDFilter);
+
 void GlobalCCDFilter::add_filter(CCDFilter* filter)
 {
     check_state(SimEngineState::BuildSystems, "add_filter()");
@@ -47,6 +61,8 @@ Float GlobalCCDFilter::Impl::filter_toi(Float alpha)
         }
     }
 
-    return *std::min_element(h_tois.begin(), h_tois.end());
+    auto min_toi = *std::min_element(h_tois.begin(), h_tois.end());
+
+    return min_toi < 1.0 ? min_toi : 1.0;
 }
 }  // namespace uipc::backend::cuda

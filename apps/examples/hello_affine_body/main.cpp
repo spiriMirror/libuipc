@@ -18,7 +18,7 @@ int main()
     fs::exists(output_dir) || fs::create_directories(output_dir);
 
 
-    UIPCEngine engine{"cuda"};
+    UIPCEngine engine{"cuda", output_dir};
     World      world{engine};
 
     Scene scene;

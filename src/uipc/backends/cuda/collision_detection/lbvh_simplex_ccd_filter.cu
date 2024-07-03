@@ -247,7 +247,7 @@ void LBVHSimplexCCDFilter::Impl::broadphase_ccd(SimplexCCDFilter::FilterInfo& in
     }
 }
 
-void LBVHSimplexCCDFilter::Impl::filter_toi(SimplexCCDFilter::FilterInfo& info)
+void LBVHSimplexCCDFilter::Impl::narrowphase_ccd(SimplexCCDFilter::FilterInfo& info)
 {
     using namespace muda;
 
@@ -344,11 +344,17 @@ void LBVHSimplexCCDFilter::Impl::filter_toi(SimplexCCDFilter::FilterInfo& info)
 
     // get min toi
     DeviceReduce().Min(tois.data(), info.toi().data(), tois.size());
+
+    Float toi = -1;
+
+    info.toi().copy_to(&toi);
+
+    spdlog::info("toi:{}", toi);
 }
 
 void LBVHSimplexCCDFilter::do_filter_toi(SimplexCCDFilter::FilterInfo& info)
 {
-    m_impl.filter_toi(info);
-    m_impl.filter_toi(info);
+    m_impl.broadphase_ccd(info);
+    m_impl.narrowphase_ccd(info);
 }
 }  // namespace uipc::backend::cuda

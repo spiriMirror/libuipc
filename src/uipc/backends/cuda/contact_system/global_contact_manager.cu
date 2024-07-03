@@ -24,6 +24,8 @@ void GlobalContactManager::do_build()
     m_impl.global_vertex_manager = find<GlobalVertexManager>();
     const auto& info             = world().scene().info();
     m_impl.related_d_hat         = info["contact"]["d_hat"].get<Float>();
+
+    on_init_scene([this] { m_impl.init(); });
 }
 
 void GlobalContactManager::Impl::init()
@@ -39,6 +41,13 @@ void GlobalContactManager::Impl::init()
 
     reporter_hessian_offsets.resize(contact_reporters.size());
     reporter_hessian_counts.resize(contact_reporters.size());
+
+    // TODO: just hard code for now
+    contact_tabular.resize(muda::Extent2D{1, 1},
+                           ContactCoeff{
+                               .kappa = kappa,
+                               .mu    = 0.0,
+                           });
 }
 
 void GlobalContactManager::Impl::assemble()
@@ -136,5 +145,10 @@ void GlobalContactManager::add_receiver(ContactReceiver* receiver)
     check_state(SimEngineState::BuildSystems, "add_receiver()");
     UIPC_ASSERT(receiver != nullptr, "receiver is nullptr");
     m_impl.contact_receiver_buffer.push_back(receiver);
+}
+
+muda::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept
+{
+    return m_impl.contact_tabular;
 }
 }  // namespace uipc::backend::cuda

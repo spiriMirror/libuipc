@@ -15,14 +15,22 @@ class ISimSystem
   protected:
     virtual void             do_build() = 0;
     virtual std::string_view get_name() const noexcept;
-    virtual void             set_engine_aware() noexcept       = 0;
-    virtual bool             get_engine_aware() const noexcept = 0;
-    virtual Json             do_to_json() const                = 0;
+    bool                     is_valid() const noexcept;
 
   private:
     friend class SimEngine;
+    friend class SimSystemCollection;
+    friend class SimSystem;
+
     void build();
     void make_engine_aware();
+    void invalidate() noexcept;
+
+    virtual void set_engine_aware() noexcept       = 0;
+    virtual bool get_engine_aware() const noexcept = 0;
+    virtual void set_invalid() noexcept            = 0;
+    virtual bool get_valid() const noexcept        = 0;
+    virtual Json do_to_json() const                = 0;
 };
 
 class SimSystemException : public Exception

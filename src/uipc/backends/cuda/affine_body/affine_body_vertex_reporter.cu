@@ -2,25 +2,13 @@
 #include <global_geometry/global_vertex_manager.h>
 namespace uipc::backend::cuda
 {
-template <>
-class SimSystemCreator<AffineBodyVertexReporter>
-{
-  public:
-    static U<AffineBodyVertexReporter> create(SimEngine& engine)
-    {
-        return CreatorQuery::has_affine_body_constitution(engine) ?
-                   make_unique<AffineBodyVertexReporter>(engine) :
-                   nullptr;
-    }
-};
-
 REGISTER_SIM_SYSTEM(AffineBodyVertexReporter);
 
 void AffineBodyVertexReporter::do_build()
 {
-    m_impl.affine_body_dynamics = find<AffineBodyDynamics>();
-    auto global_vertex_manager  = find<GlobalVertexManager>();
-    global_vertex_manager->add_reporter(this);
+    m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
+    auto& global_vertex_manager  = require<GlobalVertexManager>();
+    global_vertex_manager.add_reporter(this);
 }
 
 void AffineBodyVertexReporter::Impl::report_count(GlobalVertexManager::VertexCountInfo& info)

@@ -58,11 +58,15 @@ class SimSystem : public ISimSystem
   private:
     SimEngine&           m_sim_engine;
     bool                 m_engine_aware = false;
+    bool                 m_valid        = true;
     list<ISimSystem*>    m_dependencies;
     SimSystemCollection& collection() noexcept;
 
     virtual void set_engine_aware() noexcept final;
     virtual bool get_engine_aware() const noexcept final;
+
+    virtual bool get_valid() const noexcept override final;
+    virtual void set_invalid() noexcept override final;
 };
 }  // namespace uipc::backend::cuda
 

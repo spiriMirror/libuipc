@@ -2,13 +2,14 @@
 #include <sim_system.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <muda/ext/linear_system.h>
+#include <contact_system/contact_coeff.h>
 
 namespace uipc::backend::cuda
 {
 class ContactReporter;
 class ContactReceiver;
 
-class GlobalContactManager : public SimSystem
+class GlobalContactManager final : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
@@ -39,6 +40,15 @@ class GlobalContactManager : public SimSystem
         muda::TripletMatrixView<Float, 3> m_hessian;
     };
 
+    class EnergyInfo
+    {
+      public:
+        muda::VarView<Float> energy() { return m_energy; }
+
+      private:
+        friend class ContactLineSearchReporter;
+        muda::VarView<Float> m_energy;
+    };
 
     class Impl
     {
@@ -73,12 +83,16 @@ class GlobalContactManager : public SimSystem
         muda::DeviceDoubletVector<Float, 3> collected_contact_gradient;
         muda::DeviceBCOOVector<Float, 3>    sorted_contact_gradient;
         muda::DeviceDoubletVector<Float, 3> classified_contact_gradient;
+
+        muda::DeviceBuffer2D<ContactCoeff> contact_tabular;
     };
 
     Float d_hat() const;
 
-    void add_reporter(ContactReporter* reporter);
-    void add_receiver(ContactReceiver* receiver);
+    void                              add_reporter(ContactReporter* reporter);
+    void                              add_receiver(ContactReceiver* receiver);
+
+    muda::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
 
   protected:
     virtual void do_build() override;

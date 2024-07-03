@@ -15,7 +15,7 @@ class ABDLineSearchReporter : public LineSearchReporter
       public:
         void record_start_point(LineSearcher::RecordInfo& info);
         void step_forward(LineSearcher::StepInfo& info);
-        void compute_energy(LineSearcher::ComputeEnergyInfo& info);
+        void compute_energy(LineSearcher::EnergyInfo& info);
 
         AffineBodyDynamics*       affine_body_dynamics = nullptr;
         AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
@@ -26,7 +26,7 @@ class ABDLineSearchReporter : public LineSearchReporter
 
     virtual void do_record_start_point(LineSearcher::RecordInfo& info) override;
     virtual void do_step_forward(LineSearcher::StepInfo& info) override;
-    virtual void do_compute_energy(LineSearcher::ComputeEnergyInfo& info) override;
+    virtual void do_compute_energy(LineSearcher::EnergyInfo& info) override;
 
   private:
     Impl m_impl;

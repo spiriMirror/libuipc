@@ -19,17 +19,7 @@ namespace uipc::backend::cuda
 void SimEngine::build()
 {
     // 1) build all systems
-    for(auto&& [k, s] : m_system_collection.m_sim_systems)
-    {
-        try
-        {
-            s->build();
-        }
-        catch(SimSystemException& e)
-        {
-            spdlog::error(e.what());
-        }
-    }
+    m_system_collection.build_systems();
 
     // 2) find those engine-aware topo systems
     m_global_vertex_manager     = find<GlobalVertexManager>();
@@ -51,6 +41,8 @@ void SimEngine::build()
     std::ofstream ofs(p);
     ofs << to_json().dump(4);
     spdlog::info("System info dumped to {}", p.string());
+
+    m_system_collection.cleanup_invalid_systems();
 }
 
 void SimEngine::init_scene()

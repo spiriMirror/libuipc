@@ -25,6 +25,34 @@ Json SimSystemCollection::to_json() const
         j.push_back(value->to_json());
     return j;
 }
+
+void SimSystemCollection::cleanup_invalid_systems()
+{
+    // remove invalid systems
+    for(auto it = m_sim_systems.begin(); it != m_sim_systems.end();)
+    {
+        if(!it->second->is_valid())
+            it = m_sim_systems.erase(it);
+        else
+            ++it;
+    }
+}
+
+void SimSystemCollection::build_systems()
+{
+    for(auto&& [k, s] : m_sim_systems)
+    {
+        try
+        {
+            s->build();
+        }
+        catch(SimSystemException& e)
+        {
+            spdlog::error("SimSystem[{}] build fails, {}", s->name(), e.what());
+            s->set_invalid();
+        }
+    }
+}
 }  // namespace uipc::backend::cuda
 
 namespace fmt
