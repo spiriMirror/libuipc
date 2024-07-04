@@ -6,10 +6,23 @@ namespace uipc::backend::cuda
 {
 void SimplexContactConstitution::do_build()
 {
-    m_impl.simplex_dcd_filter = require<GlobalDCDFilter>().simplex_filter();
+    m_impl.simplex_dcd_filter     = require<GlobalDCDFilter>().simplex_filter();
+    m_impl.global_contact_manager = &require<GlobalContactManager>();
+    m_impl.global_vertex_manager  = &require<GlobalVertexManager>();
+
+
+    m_impl.global_contact_manager->add_reporter(this);
+
 
     BuildInfo info;
     do_build(info);
+}
+
+void SimplexContactConstitution::do_compute_energy(GlobalContactManager::EnergyInfo& info)
+{
+    EnergyInfo this_info;
+    this_info.m_energy = info.energy();
+    do_compute_energy(this_info);
 }
 
 void SimplexContactConstitution::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
@@ -43,6 +56,36 @@ void SimplexContactConstitution::do_assemble(GlobalContactManager::ContactInfo& 
 
     // assemble the data to the global contact manager
     m_impl.assemble(info);
+}
+
+muda::CBuffer2DView<ContactCoeff> SimplexContactConstitution::contact_tabular() const
+{
+    return m_impl.global_contact_manager->contact_tabular();
+}
+
+muda::CBufferView<Vector4i> SimplexContactConstitution::PTs() const
+{
+    return m_impl.simplex_dcd_filter->PTs();
+}
+
+muda::CBufferView<Vector4i> SimplexContactConstitution::EEs() const
+{
+    return m_impl.simplex_dcd_filter->EEs();
+}
+
+muda::CBufferView<Vector3i> SimplexContactConstitution::PEs() const
+{
+    return m_impl.simplex_dcd_filter->PEs();
+}
+
+muda::CBufferView<Vector2i> SimplexContactConstitution::PPs() const
+{
+    return m_impl.simplex_dcd_filter->PPs();
+}
+
+muda::CBufferView<Vector3> SimplexContactConstitution::positions() const
+{
+    return m_impl.global_vertex_manager->positions();
 }
 
 void SimplexContactConstitution::Impl::prepare()

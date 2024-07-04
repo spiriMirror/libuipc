@@ -146,7 +146,6 @@ void GlobalContactManager::add_receiver(ContactReceiver* receiver)
     UIPC_ASSERT(receiver != nullptr, "receiver is nullptr");
     m_impl.contact_receiver_buffer.push_back(receiver);
 }
-
 muda::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept
 {
     return m_impl.contact_tabular;
