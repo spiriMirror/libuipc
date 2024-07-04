@@ -26,11 +26,11 @@ namespace ipc_contact
     {
         using namespace muda::distance;
         Float D_hat = squared_d_hat;
-        Float D     = 0.0;
+        Float D;
         point_triangle_distance(P, T0, T1, T2, D);
-        Float E = 0.0;
-        sym::KappaBarrier(E, kappa, D, D_hat);
-        return E;
+        Float B;
+        sym::KappaBarrier(B, kappa, D, D_hat);
+        return B;
     }
 
     __device__ void PT_barrier_gradient_hessian(Vector12&      G,
@@ -45,7 +45,7 @@ namespace ipc_contact
         using namespace muda::distance;
 
         Float D_hat = squared_d_hat;
-        Float D     = 0.0;
+        Float D;
         point_triangle_distance(P, T0, T1, T2, D);
 
         Vector12 GradD;
@@ -56,7 +56,7 @@ namespace ipc_contact
 
         //tex:
         //$$
-        // G = \frac{\partial E}{\partial D} \frac{\partial D}{\partial x}
+        // G = \frac{\partial B}{\partial D} \frac{\partial D}{\partial x}
         //$$
         G = dBdD * GradD;
 
@@ -68,7 +68,7 @@ namespace ipc_contact
 
         //tex:
         //$$
-        // H = \frac{\partial^2 E}{\partial D^2} \frac{\partial D}{\partial x} \frac{\partial D}{\partial x}^T + \frac{\partial E}{\partial D} \frac{\partial^2 D}{\partial x^2}
+        // H = \frac{\partial^2 B}{\partial D^2} \frac{\partial D}{\partial x} \frac{\partial D}{\partial x}^T + \frac{\partial B}{\partial D} \frac{\partial^2 D}{\partial x^2}
         //$$
         H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
     }
@@ -80,13 +80,23 @@ namespace ipc_contact
                                        const Vector3& Eb0,
                                        const Vector3& Eb1)
     {
+        // using mollifier to improve the smoothness of the edge-edge barrier
+
         using namespace muda::distance;
         Float D_hat = squared_d_hat;
-        Float D     = 0.0;
+        Float D;
         edge_edge_distance(Ea0, Ea1, Eb0, Eb1, D);
-        Float E = 0.0;
-        sym::KappaBarrier(E, kappa, D, D_hat);
-        return E;
+        Float B;
+        sym::KappaBarrier(B, kappa, D, D_hat);
+
+        Float eps_x;
+        edge_edge_mollifier_threshold(Ea0, Ea1, Eb0, Eb1, eps_x);
+
+        Float ek;
+        edge_edge_mollifier(Ea0, Ea1, Eb0, Eb1, eps_x, ek);
+
+
+        return ek * B;
     }
 
 
@@ -102,32 +112,63 @@ namespace ipc_contact
         using namespace muda::distance;
 
         Float D_hat = squared_d_hat;
-        Float D     = 0.0;
+
+
+        Float D;
         edge_edge_distance(Ea0, Ea1, Eb0, Eb1, D);
 
+        Float B;
+        sym::KappaBarrier(B, kappa, D, D_hat);
+
+        //tex: $$ \epsilon_x $$
+        Float eps_x;
+        edge_edge_mollifier_threshold(Ea0, Ea1, Eb0, Eb1, eps_x);
+
+        //tex: $$ e_k $$
+        Float ek;
+        edge_edge_mollifier(Ea0, Ea1, Eb0, Eb1, eps_x, ek);
+
+        //tex: $$\nabla e_k$$
+        Vector12 Gradek;
+        edge_edge_mollifier_gradient(Ea0, Ea1, Eb0, Eb1, eps_x, Gradek);
+
+        //tex: $$ \nabla D$$
         Vector12 GradD;
         edge_edge_distance_gradient(Ea0, Ea1, Eb0, Eb1, GradD);
 
+        //tex: $$ \frac{\partial B}{\partial D} $$
         Float dBdD;
-        sym::dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
+        sym::dKappaBarrierdD(dBdD, kappa, D, D_hat);
+
+        //tex: $$ \nabla B = \frac{\partial B}{\partial D} \nabla D$$
+        Vector12 GradB = dBdD * GradD;
 
         //tex:
         //$$
-        // G = \frac{\partial E}{\partial D} \frac{\partial D}{\partial x}
+        // G = \nabla e_k B + e_k \nabla B
         //$$
-        G = dBdD * GradD;
+        G = Gradek * B + ek * GradB;
 
+        //tex: $$ \frac{\partial^2 B}{\partial D^2} $$
         Float ddBddD;
         sym::ddKappaBarrierddD(ddBddD, kappa, D, squared_d_hat);
 
+        //tex: $$ \nabla^2 D$$
         Matrix12x12 HessD;
         edge_edge_distance_hessian(Ea0, Ea1, Eb0, Eb1, HessD);
 
         //tex:
         //$$
-        // H = \frac{\partial^2 E}{\partial D^2} \frac{\partial D}{\partial x} \frac{\partial D}{\partial x}^T + \frac{\partial E}{\partial D} \frac{\partial^2 D}{\partial x^2}
+        // \nabla^2 B = \frac{\partial^2 B}{\partial D^2} \nabla D \nabla D^T + \frac{\partial B}{\partial D} \nabla^2 D
         //$$
-        H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
+        Vector12 HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
+
+        //tex: $$ \nabla^2 e_k$$
+        Matrix12x12 Hessek;
+        edge_edge_mollifier_hessian(Ea0, Ea1, Eb0, Eb1, eps_x, Hessek);
+
+        //tex: $$ \nabla^2 e_k B + \nabla e_k \nabla B^T + \nabla B \nabla e_k^T + e_k \nabla^2 B$$
+        H = Hessek * B + Gradek * GradB.transpose() + GradB * Gradek.transpose() + ek * HessB;
     }
 
     __device__ Float PE_barrier_energy(Float          kappa,
@@ -167,7 +208,7 @@ namespace ipc_contact
 
         //tex:
         //$$
-        // G = \frac{\partial E}{\partial D} \frac{\partial D}{\partial x}
+        // G = \frac{\partial B}{\partial D} \frac{\partial D}{\partial x}
         //$$
         G = dBdD * GradD;
 
@@ -179,7 +220,7 @@ namespace ipc_contact
 
         //tex:
         //$$
-        // H = \frac{\partial^2 E}{\partial D^2} \frac{\partial D}{\partial x} \frac{\partial D}{\partial x}^T + \frac{\partial E}{\partial D} \frac{\partial^2 D}{\partial x^2}
+        // H = \frac{\partial^2 B}{\partial D^2} \frac{\partial D}{\partial x} \frac{\partial D}{\partial x}^T + \frac{\partial B}{\partial D} \frac{\partial^2 D}{\partial x^2}
         //$$
         H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
     }
@@ -219,7 +260,7 @@ namespace ipc_contact
 
         //tex:
         //$$
-        // G = \frac{\partial E}{\partial D} \frac{\partial D}{\partial x}
+        // G = \frac{\partial B}{\partial D} \frac{\partial D}{\partial x}
         //$$
         G = dBdD * GradD;
 
@@ -231,7 +272,7 @@ namespace ipc_contact
 
         //tex:
         //$$
-        // H = \frac{\partial^2 E}{\partial D^2} \frac{\partial D}{\partial x} \frac{\partial D}{\partial x}^T + \frac{\partial E}{\partial D} \frac{\partial^2 D}{\partial x^2}
+        // H = \frac{\partial^2 B}{\partial D^2} \frac{\partial D}{\partial x} \frac{\partial D}{\partial x}^T + \frac{\partial B}{\partial D} \frac{\partial^2 D}{\partial x^2}
         //$$
         H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
     }
@@ -245,10 +286,86 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
     // Compute Point-Triangle energy
     ParallelFor()
         .kernel_name(__FUNCTION__ "-PT")
-        .apply(PTs().size(),
-               [PTs = PTs().viewer().name("PTs")] __device__(int i) {
+        .apply(info.PTs().size(),
+               [table = info.contact_tabular().viewer().name("contact_tabular"),
+                PTs   = info.PTs().viewer().name("PTs"),
+                Es    = info.PT_energies().viewer().name("Es"),
+                Ps    = info.positions().viewer().name("Ps"),
+                d_hat = info.d_hat()] __device__(int i) mutable
+               {
+                   const auto& PT = PTs(i);
+                   const auto& P  = Ps(PT[0]);
+                   const auto& T0 = Ps(PT[1]);
+                   const auto& T1 = Ps(PT[2]);
+                   const auto& T2 = Ps(PT[3]);
 
+                   // jsut hard coding now
+                   auto kappa = table(0, 0).kappa;
+
+                   Es(i) = ipc_contact::PT_barrier_energy(kappa, d_hat * d_hat, P, T0, T1, T2);
                });
+
+    // Compute Edge-Edge energy
+    ParallelFor()
+        .kernel_name(__FUNCTION__ "-EE")
+        .apply(info.EEs().size(),
+               [table = info.contact_tabular().viewer().name("contact_tabular"),
+                EEs   = info.EEs().viewer().name("EEs"),
+                Es    = info.EE_energies().viewer().name("Es"),
+                Ps    = info.positions().viewer().name("Ps"),
+                d_hat = info.d_hat()] __device__(int i) mutable
+               {
+                   const auto& EE = EEs(i);
+                   const auto& E0 = Ps(EE[0]);
+                   const auto& E1 = Ps(EE[1]);
+                   const auto& E2 = Ps(EE[2]);
+                   const auto& E3 = Ps(EE[3]);
+
+                   // jsut hard coding now
+                   auto kappa = table(0, 0).kappa;
+
+                   Es(i) = ipc_contact::EE_barrier_energy(kappa, d_hat * d_hat, E0, E1, E2, E3);
+               });
+
+    // Compute Point-Edge energy
+    ParallelFor()
+        .kernel_name(__FUNCTION__ "-PE")
+        .apply(info.PEs().size(),
+               [table = info.contact_tabular().viewer().name("contact_tabular"),
+                PEs   = info.PEs().viewer().name("PEs"),
+                Es    = info.PE_energies().viewer().name("Es"),
+                Ps    = info.positions().viewer().name("Ps"),
+                d_hat = info.d_hat()] __device__(int i) mutable
+               {
+                   const auto& PE = PEs(i);
+                   const auto& P  = Ps(PE[0]);
+                   const auto& E0 = Ps(PE[1]);
+                   const auto& E1 = Ps(PE[2]);
+
+                   // jsut hard coding now
+                   auto kappa = table(0, 0).kappa;
+
+                   Es(i) = ipc_contact::PE_barrier_energy(kappa, d_hat * d_hat, P, E0, E1);
+               });
+
+    // Compute Point-Point energy
+    ParallelFor().apply(
+        info.PPs().size(),
+        [table = info.contact_tabular().viewer().name("contact_tabular"),
+         PPs   = info.PPs().viewer().name("PPs"),
+         Es    = info.PP_energies().viewer().name("Es"),
+         Ps    = info.positions().viewer().name("Ps"),
+         d_hat = info.d_hat()] __device__(int i) mutable
+        {
+            const auto& PP = PPs(i);
+            const auto& P0 = Ps(PP[0]);
+            const auto& P1 = Ps(PP[1]);
+
+            // jsut hard coding now
+            auto kappa = table(0, 0).kappa;
+
+            Es(i) = ipc_contact::PP_barrier_energy(kappa, d_hat * d_hat, P0, P1);
+        });
 }
 
 void IPCSimplexContact::do_assemble(ContactInfo& info) {}

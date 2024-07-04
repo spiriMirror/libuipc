@@ -33,11 +33,31 @@ class SimplexContactConstitution : public ContactReporter
     class EnergyInfo
     {
       public:
-        muda::VarView<Float> energy() { return m_energy; }
+        EnergyInfo(Impl* impl)
+            : m_impl(impl)
+        {
+        }
+
+        muda::CBuffer2DView<ContactCoeff> contact_tabular() const;
+        muda::CBufferView<Vector4i>       PTs() const;
+        muda::CBufferView<Vector4i>       EEs() const;
+        muda::CBufferView<Vector3i>       PEs() const;
+        muda::CBufferView<Vector2i>       PPs() const;
+        muda::CBufferView<Vector3>        positions() const;
+        Float                             d_hat() const;
+
+        muda::BufferView<Float> PT_energies() noexcept { return m_PT_energies; }
+        muda::BufferView<Float> EE_energies() noexcept { return m_EE_energies; }
+        muda::BufferView<Float> PE_energies() noexcept { return m_PE_energies; }
+        muda::BufferView<Float> PP_energies() noexcept { return m_PP_energies; }
 
       private:
         friend class SimplexContactConstitution;
-        muda::VarView<Float> m_energy;
+        Impl*                   m_impl;
+        muda::BufferView<Float> m_PT_energies;
+        muda::BufferView<Float> m_EE_energies;
+        muda::BufferView<Float> m_PE_energies;
+        muda::BufferView<Float> m_PP_energies;
     };
 
     class Impl
@@ -66,21 +86,14 @@ class SimplexContactConstitution : public ContactReporter
         muda::DeviceBuffer<Vector2i>  PP_indices;
         muda::DeviceBuffer<Matrix6x6> PP_hessians;
         muda::DeviceBuffer<Vector6>   PP_gradients;
+
+        muda::DeviceBuffer<Float> energies;
     };
 
   protected:
     virtual void do_build(BuildInfo& info)           = 0;
     virtual void do_compute_energy(EnergyInfo& info) = 0;
     virtual void do_assemble(ContactInfo& info)      = 0;
-
-    muda::CBuffer2DView<ContactCoeff> contact_tabular() const;
-
-    muda::CBufferView<Vector4i> PTs() const;
-    muda::CBufferView<Vector4i> EEs() const;
-    muda::CBufferView<Vector3i> PEs() const;
-    muda::CBufferView<Vector2i> PPs() const;
-    muda::CBufferView<Vector3>  positions() const;
-
 
   private:
     virtual void do_compute_energy(GlobalContactManager::EnergyInfo& info) override final;

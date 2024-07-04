@@ -13,16 +13,26 @@ void SimplexContactConstitution::do_build()
 
     m_impl.global_contact_manager->add_reporter(this);
 
-
     BuildInfo info;
     do_build(info);
 }
 
 void SimplexContactConstitution::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
-    EnergyInfo this_info;
-    this_info.m_energy = info.energy();
+    EnergyInfo this_info{&m_impl};
+    SizeT      offset       = 0;
+    this_info.m_PT_energies = m_impl.energies.view(offset, m_impl.PT_count);
+    offset += m_impl.PT_count;
+    this_info.m_EE_energies = m_impl.energies.view(offset, m_impl.EE_count);
+    offset += m_impl.EE_count;
+    this_info.m_PE_energies = m_impl.energies.view(offset, m_impl.PE_count);
+    offset += m_impl.PE_count;
+    this_info.m_PP_energies = m_impl.energies.view(offset, m_impl.PP_count);
     do_compute_energy(this_info);
+
+    using namespace muda;
+    DeviceReduce().Sum(
+        m_impl.energies.data(), info.energy().data(), m_impl.energies.size());
 }
 
 void SimplexContactConstitution::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
@@ -58,34 +68,39 @@ void SimplexContactConstitution::do_assemble(GlobalContactManager::ContactInfo& 
     m_impl.assemble(info);
 }
 
-muda::CBuffer2DView<ContactCoeff> SimplexContactConstitution::contact_tabular() const
+muda::CBuffer2DView<ContactCoeff> SimplexContactConstitution::EnergyInfo::contact_tabular() const
 {
-    return m_impl.global_contact_manager->contact_tabular();
+    return m_impl->global_contact_manager->contact_tabular();
 }
 
-muda::CBufferView<Vector4i> SimplexContactConstitution::PTs() const
+muda::CBufferView<Vector4i> SimplexContactConstitution::EnergyInfo::PTs() const
 {
-    return m_impl.simplex_dcd_filter->PTs();
+    return m_impl->simplex_dcd_filter->PTs();
 }
 
-muda::CBufferView<Vector4i> SimplexContactConstitution::EEs() const
+muda::CBufferView<Vector4i> SimplexContactConstitution::EnergyInfo::EEs() const
 {
-    return m_impl.simplex_dcd_filter->EEs();
+    return m_impl->simplex_dcd_filter->EEs();
 }
 
-muda::CBufferView<Vector3i> SimplexContactConstitution::PEs() const
+muda::CBufferView<Vector3i> SimplexContactConstitution::EnergyInfo::PEs() const
 {
-    return m_impl.simplex_dcd_filter->PEs();
+    return m_impl->simplex_dcd_filter->PEs();
 }
 
-muda::CBufferView<Vector2i> SimplexContactConstitution::PPs() const
+muda::CBufferView<Vector2i> SimplexContactConstitution::EnergyInfo::PPs() const
 {
-    return m_impl.simplex_dcd_filter->PPs();
+    return m_impl->simplex_dcd_filter->PPs();
 }
 
-muda::CBufferView<Vector3> SimplexContactConstitution::positions() const
+muda::CBufferView<Vector3> SimplexContactConstitution::EnergyInfo::positions() const
 {
-    return m_impl.global_vertex_manager->positions();
+    return m_impl->global_vertex_manager->positions();
+}
+
+Float SimplexContactConstitution::EnergyInfo::d_hat() const
+{
+    return m_impl->global_contact_manager->d_hat();
 }
 
 void SimplexContactConstitution::Impl::prepare()
@@ -102,8 +117,9 @@ void SimplexContactConstitution::Impl::prepare()
 
     PP_hessians.resize(count_2);
     PP_gradients.resize(count_2);
-}
 
+    energies.resize(count_4 + count_3 + count_2);
+}
 
 namespace detail
 {
