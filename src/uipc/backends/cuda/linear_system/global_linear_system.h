@@ -4,7 +4,7 @@
 #include <uipc/common/list.h>
 #include <uipc/common/vector.h>
 #include <muda/ext/linear_system.h>
-#include <linear_system/matrix_converter.h>
+#include <algorithm/matrix_converter.h>
 #include <linear_system/spmv.h>
 namespace uipc::backend::cuda
 {
@@ -268,11 +268,11 @@ class GlobalLinearSystem : public SimSystem
         muda::DeviceDenseVector<Float>      b;
         muda::DeviceTripletMatrix<Float, 3> triplet_A;
         muda::DeviceBCOOMatrix<Float, 3>    bcoo_A;
-        muda::DeviceBSRMatrix<Float, 3>     bsr_A;
-        muda::DeviceCSRMatrix<Float>        csr_A;
+        //muda::DeviceBSRMatrix<Float, 3>     bsr_A;
+        //muda::DeviceCSRMatrix<Float>        csr_A;
 
-        Spmv            spmver;
-        MatrixConverter converter;
+        Spmv                      spmver;
+        MatrixConverter<Float, 3> converter;
 
         bool empty_system = true;
 

@@ -2,6 +2,7 @@
 #include <contact_system/contact_reporter.h>
 #include <line_search/line_searcher.h>
 #include <contact_system/contact_coeff.h>
+
 namespace uipc::backend::cuda
 {
 class SimplexDCDFilter;
@@ -12,28 +13,11 @@ class SimplexContactConstitution : public ContactReporter
 
     class Impl;
 
-    class ContactInfo
+
+    class BaseInfo
     {
       public:
-        ContactInfo(Impl* impl)
-            : m_impl(impl)
-        {
-        }
-
-
-      private:
-        Impl* m_impl;
-    };
-
-    class BuildInfo
-    {
-      public:
-    };
-
-    class EnergyInfo
-    {
-      public:
-        EnergyInfo(Impl* impl)
+        BaseInfo(Impl* impl) noexcept
             : m_impl(impl)
         {
         }
@@ -46,14 +30,97 @@ class SimplexContactConstitution : public ContactReporter
         muda::CBufferView<Vector3>        positions() const;
         Float                             d_hat() const;
 
-        muda::BufferView<Float> PT_energies() noexcept { return m_PT_energies; }
-        muda::BufferView<Float> EE_energies() noexcept { return m_EE_energies; }
-        muda::BufferView<Float> PE_energies() noexcept { return m_PE_energies; }
-        muda::BufferView<Float> PP_energies() noexcept { return m_PP_energies; }
+      private:
+        friend class SimplexContactConstitution;
+        Impl* m_impl;
+    };
+
+    class ContactInfo : public BaseInfo
+    {
+      public:
+        ContactInfo(Impl* impl) noexcept
+            : BaseInfo(impl)
+        {
+        }
+
+        muda::BufferView<Vector12> PT_gradients() const noexcept
+        {
+            return m_PT_gradients;
+        }
+        muda::BufferView<Matrix12x12> PT_hessians() const noexcept
+        {
+            return m_PT_hessians;
+        }
+
+        muda::BufferView<Vector12> EE_gradients() const noexcept
+        {
+            return m_EE_gradients;
+        }
+        muda::BufferView<Matrix12x12> EE_hessians() const noexcept
+        {
+            return m_EE_hessians;
+        }
+        muda::BufferView<Vector9> PE_gradients() const noexcept
+        {
+            return m_PE_gradients;
+        }
+        muda::BufferView<Matrix9x9> PE_hessians() const noexcept
+        {
+            return m_PE_hessians;
+        }
+        muda::BufferView<Vector6> PP_gradients() const noexcept
+        {
+            return m_PP_gradients;
+        }
+        muda::BufferView<Matrix6x6> PP_hessians() const noexcept
+        {
+            return m_PP_hessians;
+        }
 
       private:
         friend class SimplexContactConstitution;
-        Impl*                   m_impl;
+        muda::BufferView<Vector12>    m_PT_gradients;
+        muda::BufferView<Matrix12x12> m_PT_hessians;
+        muda::BufferView<Vector12>    m_EE_gradients;
+        muda::BufferView<Matrix12x12> m_EE_hessians;
+        muda::BufferView<Vector9>     m_PE_gradients;
+        muda::BufferView<Matrix9x9>   m_PE_hessians;
+        muda::BufferView<Vector6>     m_PP_gradients;
+        muda::BufferView<Matrix6x6>   m_PP_hessians;
+    };
+
+    class BuildInfo
+    {
+      public:
+    };
+
+    class EnergyInfo : public BaseInfo
+    {
+      public:
+        EnergyInfo(Impl* impl) noexcept
+            : BaseInfo(impl)
+        {
+        }
+
+        muda::BufferView<Float> PT_energies() const noexcept
+        {
+            return m_PT_energies;
+        }
+        muda::BufferView<Float> EE_energies() const noexcept
+        {
+            return m_EE_energies;
+        }
+        muda::BufferView<Float> PE_energies() const noexcept
+        {
+            return m_PE_energies;
+        }
+        muda::BufferView<Float> PP_energies() const noexcept
+        {
+            return m_PP_energies;
+        }
+
+      private:
+        friend class SimplexContactConstitution;
         muda::BufferView<Float> m_PT_energies;
         muda::BufferView<Float> m_EE_energies;
         muda::BufferView<Float> m_PE_energies;
@@ -63,7 +130,6 @@ class SimplexContactConstitution : public ContactReporter
     class Impl
     {
       public:
-        void prepare();
         void assemble(GlobalContactManager::ContactInfo& info);
 
         SimplexDCDFilter*     simplex_dcd_filter     = nullptr;
@@ -88,6 +154,18 @@ class SimplexContactConstitution : public ContactReporter
         muda::DeviceBuffer<Vector6>   PP_gradients;
 
         muda::DeviceBuffer<Float> energies;
+
+        Float reserve_ratio = 1.5;
+
+        template <typename T>
+        void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)
+        {
+            if(size > buffer.capacity())
+            {
+                buffer.reserve(size * reserve_ratio);
+            }
+            buffer.resize(size);
+        }
     };
 
   protected:

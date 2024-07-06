@@ -28,7 +28,7 @@ int main()
         auto default_contact = scene.contact_tabular().default_element();
 
         Transform pre_transform = Transform::Identity();
-        pre_transform.scale(0.1);
+        pre_transform.scale(0.3);
         SimplicialComplexIO io{pre_transform};
 
         //{
@@ -46,17 +46,18 @@ int main()
         // create geometry
         // auto mesh = io.read(fmt::format("{}cube.msh", tetmesh_dir));
 
+
         vector<Vector3> Vs = {Vector3{0, 1, 0},
                               Vector3{0, 0, 1},
                               Vector3{-std::sqrt(3) / 2, 0, -0.5},
                               Vector3{std::sqrt(3) / 2, 0, -0.5}};
 
         std::transform(
-            Vs.begin(), Vs.end(), Vs.begin(), [&](auto& v) { return v * 0.2; });
+            Vs.begin(), Vs.end(), Vs.begin(), [&](auto& v) { return v * 0.3; });
 
-        vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
+        vector<Vector4i> Ts   = {Vector4i{0, 1, 2, 3}};
+        auto             mesh = tetmesh(Vs, Ts);
 
-        auto mesh = tetmesh(Vs, Ts);
         label_surface(mesh);
         label_triangle_orient(mesh);
         auto mesh2 = mesh;
@@ -74,7 +75,7 @@ int main()
 
                 {
                     Transform t = Transform::Identity();
-                    t.translation() = Vector3::UnitY() * 0.13 + Vector3::UnitY() * 0.5;
+                    t.translation() = Vector3::UnitY() * 0.24 + Vector3::UnitY() * 0.5;
 
                     trans_view[0]    = t.matrix();
                     is_fixed_view[0] = 0;
@@ -82,7 +83,7 @@ int main()
 
                 {
                     Transform t = Transform::Identity();
-                    t.translation() = Vector3::UnitY() * -0.13 + Vector3::UnitY() * 0.5;
+                    t.translation() = Vector3::UnitY() * -0.24 + Vector3::UnitY() * 0.5;
 
                     trans_view[1] = t.matrix();
                     // fix the second cube
@@ -91,19 +92,19 @@ int main()
             }
 
 
-            {
-                mesh2.instances().resize(1);
-                abd.apply_to(mesh2, 20.0_MPa);
-                default_contact.apply_to(mesh2);
+            //{
+            //    mesh2.instances().resize(1);
+            //    abd.apply_to(mesh2, 20.0_MPa);
+            //    default_contact.apply_to(mesh2);
 
-                auto trans_view = view(mesh2.transforms());
+            //    auto trans_view = view(mesh2.transforms());
 
-                {
-                    Transform t = Transform::Identity();
-                    t.translation() = Vector3::UnitY() * 0.5 + Vector3::UnitX() * 0.5;
-                    trans_view[0] = t.matrix();
-                }
-            }
+            //    {
+            //        Transform t = Transform::Identity();
+            //        t.translation() = Vector3::UnitY() * 0.5 + Vector3::UnitX() * 0.5;
+            //        trans_view[0] = t.matrix();
+            //    }
+            //}
         }
 
         // create object
@@ -119,7 +120,7 @@ int main()
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_dir, 0));
 
-    for(int i = 1; i < 30; i++)
+    for(int i = 1; i < 50; i++)
     {
         world.advance();
         world.sync();

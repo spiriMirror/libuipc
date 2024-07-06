@@ -144,20 +144,16 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
         std::exclusive_scan(
             diag_dof_counts.begin(), diag_dof_counts.end(), diag_dof_offsets.begin(), 0);
         total_dof = diag_dof_offsets.back() + diag_dof_counts.back();
-        if(x.size() < total_dof)
+        if(x.capacity() < total_dof)
         {
             auto reserve_count = total_dof * reserve_ratio;
             x.reserve(reserve_count);
-            x.resize(total_dof);
-
             b.reserve(reserve_count);
-            b.resize(total_dof);
-
-            auto blocked_dof = total_dof / DoFBlockSize;
-
-            triplet_A.reshape(blocked_dof, blocked_dof);
-            bsr_A.reserve_offsets(reserve_count / DoFBlockSize + 1);
         }
+        auto blocked_dof = total_dof / DoFBlockSize;
+        triplet_A.reshape(blocked_dof, blocked_dof);
+        x.resize(total_dof);
+        b.resize(total_dof);
     }
     else
     {
@@ -172,15 +168,13 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
                             0);
         total_triplet =
             subsystem_triplet_offsets.back() + subsystem_triplet_counts.back();
-        if(triplet_A.triplet_count() < total_triplet)
+        if(triplet_A.triplet_capacity() < total_triplet)
         {
             auto reserve_count = total_triplet * reserve_ratio;
             triplet_A.reserve_triplets(reserve_count);
-            triplet_A.resize_triplets(total_triplet);
-
             bcoo_A.reserve_triplets(reserve_count);
-            bsr_A.reserve(reserve_count);
         }
+        triplet_A.resize_triplets(total_triplet);
     }
     else
     {
@@ -296,7 +290,7 @@ void GlobalLinearSystem::Impl::solve_linear_system()
 
 void GlobalLinearSystem::Impl::distribute_solution()
 {
-    // distribute the solution to all diag subsystems
+    // _distribute the solution to all diag subsystems
     for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems))
     {
         SolutionInfo info{this};

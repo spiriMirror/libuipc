@@ -1,5 +1,6 @@
 #include <contact_system/constitutions/ipc_simplex_contact.h>
 #include <muda/ext/geo/distance.h>
+#include <kernel_cout.h>
 
 namespace uipc::backend::cuda
 {
@@ -12,7 +13,6 @@ namespace ipc_contact
 {
     namespace sym
     {
-        using std::log;
 #include <contact_system/constitutions/sym/ipc_contact.inl>
     }  // namespace sym
 
@@ -161,7 +161,7 @@ namespace ipc_contact
         //$$
         // \nabla^2 B = \frac{\partial^2 B}{\partial D^2} \nabla D \nabla D^T + \frac{\partial B}{\partial D} \nabla^2 D
         //$$
-        Vector12 HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
+        Matrix12x12 HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
 
         //tex: $$ \nabla^2 e_k$$
         Matrix12x12 Hessek;
@@ -284,9 +284,10 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
     using namespace muda;
 
     // Compute Point-Triangle energy
+    auto PT_count = info.PTs().size();
     ParallelFor()
         .kernel_name(__FUNCTION__ "-PT")
-        .apply(info.PTs().size(),
+        .apply(PT_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 PTs   = info.PTs().viewer().name("PTs"),
                 Es    = info.PT_energies().viewer().name("Es"),
@@ -303,12 +304,15 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    auto kappa = table(0, 0).kappa;
 
                    Es(i) = ipc_contact::PT_barrier_energy(kappa, d_hat * d_hat, P, T0, T1, T2);
+
+                   // cout << "PT energy: " << Es(i) << "\n";
                });
 
     // Compute Edge-Edge energy
+    auto EE_count = info.EEs().size();
     ParallelFor()
         .kernel_name(__FUNCTION__ "-EE")
-        .apply(info.EEs().size(),
+        .apply(EE_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 EEs   = info.EEs().viewer().name("EEs"),
                 Es    = info.EE_energies().viewer().name("Es"),
@@ -328,9 +332,10 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                });
 
     // Compute Point-Edge energy
+    auto PE_count = info.PEs().size();
     ParallelFor()
         .kernel_name(__FUNCTION__ "-PE")
-        .apply(info.PEs().size(),
+        .apply(PE_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 PEs   = info.PEs().viewer().name("PEs"),
                 Es    = info.PE_energies().viewer().name("Es"),
@@ -349,24 +354,122 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                });
 
     // Compute Point-Point energy
-    ParallelFor().apply(
-        info.PPs().size(),
-        [table = info.contact_tabular().viewer().name("contact_tabular"),
-         PPs   = info.PPs().viewer().name("PPs"),
-         Es    = info.PP_energies().viewer().name("Es"),
-         Ps    = info.positions().viewer().name("Ps"),
-         d_hat = info.d_hat()] __device__(int i) mutable
-        {
-            const auto& PP = PPs(i);
-            const auto& P0 = Ps(PP[0]);
-            const auto& P1 = Ps(PP[1]);
+    auto PP_count = info.PPs().size();
+    ParallelFor()
+        .kernel_name(__FUNCTION__ "-PP")
+        .apply(PP_count,
+               [table = info.contact_tabular().viewer().name("contact_tabular"),
+                PPs   = info.PPs().viewer().name("PPs"),
+                Es    = info.PP_energies().viewer().name("Es"),
+                Ps    = info.positions().viewer().name("Ps"),
+                d_hat = info.d_hat()] __device__(int i) mutable
+               {
+                   const auto& PP = PPs(i);
+                   const auto& P0 = Ps(PP[0]);
+                   const auto& P1 = Ps(PP[1]);
 
-            // jsut hard coding now
-            auto kappa = table(0, 0).kappa;
+                   // jsut hard coding now
+                   auto kappa = table(0, 0).kappa;
 
-            Es(i) = ipc_contact::PP_barrier_energy(kappa, d_hat * d_hat, P0, P1);
-        });
+                   Es(i) = ipc_contact::PP_barrier_energy(kappa, d_hat * d_hat, P0, P1);
+               });
 }
 
-void IPCSimplexContact::do_assemble(ContactInfo& info) {}
+void IPCSimplexContact::do_assemble(ContactInfo& info)
+{
+    using namespace muda;
+
+    // Compute Point-Triangle Gradient and Hessian
+    ParallelFor()
+        .kernel_name(__FUNCTION__ "-PT")
+        .apply(info.PTs().size(),
+               [table = info.contact_tabular().viewer().name("contact_tabular"),
+                PTs   = info.PTs().viewer().name("PTs"),
+                Gs    = info.PT_gradients().viewer().name("Gs"),
+                Hs    = info.PT_hessians().viewer().name("Hs"),
+                Ps    = info.positions().viewer().name("Ps"),
+                d_hat = info.d_hat()] __device__(int i) mutable
+               {
+                   const auto& PT = PTs(i);
+                   const auto& P  = Ps(PT[0]);
+                   const auto& T0 = Ps(PT[1]);
+                   const auto& T1 = Ps(PT[2]);
+                   const auto& T2 = Ps(PT[3]);
+
+                   // jsut hard coding now
+                   auto kappa = table(0, 0).kappa;
+
+                   ipc_contact::PT_barrier_gradient_hessian(
+                       Gs(i), Hs(i), kappa, d_hat * d_hat, P, T0, T1, T2);
+               });
+
+    // Compute Edge-Edge Gradient and Hessian
+    ParallelFor()
+        .kernel_name(__FUNCTION__ "-EE")
+        .apply(info.EEs().size(),
+               [table = info.contact_tabular().viewer().name("contact_tabular"),
+                EEs   = info.EEs().viewer().name("EEs"),
+                Gs    = info.EE_gradients().viewer().name("Gs"),
+                Hs    = info.EE_hessians().viewer().name("Hs"),
+                Ps    = info.positions().viewer().name("Ps"),
+                d_hat = info.d_hat()] __device__(int i) mutable
+               {
+                   const auto& EE = EEs(i);
+                   const auto& E0 = Ps(EE[0]);
+                   const auto& E1 = Ps(EE[1]);
+                   const auto& E2 = Ps(EE[2]);
+                   const auto& E3 = Ps(EE[3]);
+
+                   // jsut hard coding now
+                   auto kappa = table(0, 0).kappa;
+
+                   ipc_contact::EE_barrier_gradient_hessian(
+                       Gs(i), Hs(i), kappa, d_hat * d_hat, E0, E1, E2, E3);
+               });
+
+    // Compute Point-Edge Gradient and Hessian
+    ParallelFor()
+        .kernel_name(__FUNCTION__ "-PE")
+        .apply(info.PEs().size(),
+               [table = info.contact_tabular().viewer().name("contact_tabular"),
+                PEs   = info.PEs().viewer().name("PEs"),
+                Gs    = info.PE_gradients().viewer().name("Gs"),
+                Hs    = info.PE_hessians().viewer().name("Hs"),
+                Ps    = info.positions().viewer().name("Ps"),
+                d_hat = info.d_hat()] __device__(int i) mutable
+               {
+                   const auto& PE = PEs(i);
+                   const auto& P  = Ps(PE[0]);
+                   const auto& E0 = Ps(PE[1]);
+                   const auto& E1 = Ps(PE[2]);
+
+                   // jsut hard coding now
+                   auto kappa = table(0, 0).kappa;
+
+                   ipc_contact::PE_barrier_gradient_hessian(
+                       Gs(i), Hs(i), kappa, d_hat * d_hat, P, E0, E1);
+               });
+
+    // Compute Point-Point Gradient and Hessian
+    ParallelFor()
+        .kernel_name(__FUNCTION__ "-PP")
+        .apply(info.PPs().size(),
+               [table = info.contact_tabular().viewer().name("contact_tabular"),
+                PPs   = info.PPs().viewer().name("PPs"),
+                Gs    = info.PP_gradients().viewer().name("Gs"),
+                Hs    = info.PP_hessians().viewer().name("Hs"),
+                Ps    = info.positions().viewer().name("Ps"),
+                d_hat = info.d_hat()] __device__(int i) mutable
+               {
+                   const auto& PP = PPs(i);
+                   const auto& P0 = Ps(PP[0]);
+                   const auto& P1 = Ps(PP[1]);
+
+                   // jsut hard coding now
+                   auto kappa = table(0, 0).kappa;
+
+                   ipc_contact::PP_barrier_gradient_hessian(
+                       Gs(i), Hs(i), kappa, d_hat * d_hat, P0, P1);
+               });
+}
 }  // namespace uipc::backend::cuda

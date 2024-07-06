@@ -3,6 +3,14 @@
 
 namespace uipc::backend::cuda
 {
+void LineSearchReporter::do_build(BuildInfo& info) {}
+void LineSearchReporter::do_build()
+{
+    auto& line_searcher = require<LineSearcher>();
+    line_searcher.add_reporter(this);
+    BuildInfo info;
+    do_build(info);
+}
 void LineSearchReporter::record_start_point(LineSearcher::RecordInfo& info)
 {
     do_record_start_point(info);

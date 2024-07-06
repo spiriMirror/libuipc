@@ -21,6 +21,12 @@ class AffineBodyVertexReporter : public VertexReporter
         AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
     };
 
+    SizeT vertex_offset() const noexcept
+    {
+        return m_impl.reporter_vertex_offset;
+    }
+    SizeT vertex_count() const noexcept { return m_impl.reporter_vertex_count; }
+
   protected:
     virtual void do_build() override;
 

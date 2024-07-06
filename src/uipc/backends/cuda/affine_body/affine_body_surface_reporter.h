@@ -1,8 +1,8 @@
 #pragma once
-
 #include <sim_system.h>
 #include <global_geometry/surface_reporter.h>
 #include <affine_body/affine_body_dynamics.h>
+#include <affine_body/affine_body_vertex_reporter.h>
 
 namespace uipc::backend::cuda
 {
@@ -47,13 +47,14 @@ class AffinebodySurfaceReporter : public SurfaceReporter
         void _init_geo_surface(backend::WorldVisitor& world);
         void _init_body_surface(backend::WorldVisitor& world);
 
-        void report_count(backend::WorldVisitor&                  world,
+        void report_count(backend::WorldVisitor& world,
                           GlobalSimpicialSurfaceManager::SurfaceCountInfo& info);
         void report_attributes(backend::WorldVisitor& world,
                                GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info);
 
         AffineBodyDynamics*       affine_body_dynamics = nullptr;
         AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
+        AffineBodyVertexReporter* affine_body_vertex_reporter = nullptr;
 
         // core invariant data
         vector<BodySurfaceInfo> body_surface_infos;

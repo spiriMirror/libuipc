@@ -486,7 +486,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
 
 void AffineBodyDynamics::Impl::_distribute_body_infos()
 {
-    // distribute the body infos to each constitution
+    // _distribute the body infos to each constitution
     for(auto&& [I, constitution] : enumerate(constitutions))
     {
         FilteredInfo info{this};
@@ -517,7 +517,7 @@ void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
 
     span qs = h_body_id_to_q;
 
-    // 2) transfer from m_abd qs to transforms
+    // 2) transfer from affine_body_dynamics qs to transforms
     for_each_body(
         geo_slots,
         [](geometry::SimplicialComplex& sc) { return view(sc.transforms()); },

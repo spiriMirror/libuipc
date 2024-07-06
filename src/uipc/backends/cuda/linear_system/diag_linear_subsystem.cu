@@ -2,6 +2,15 @@
 
 namespace uipc::backend::cuda
 {
+void DiagLinearSubsystem::do_build(BuildInfo& info) {}
+void DiagLinearSubsystem::do_build()
+{
+    auto& global_linear_system = require<GlobalLinearSystem>();
+    global_linear_system.add_subsystem(this);
+
+    BuildInfo info;
+    do_build(info);
+}
 void DiagLinearSubsystem::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
 {
     do_report_extent(info);

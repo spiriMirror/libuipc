@@ -117,6 +117,8 @@ void SimEngine::do_advance()
                     if(success)
                         break;
 
+                    spdlog::info("Line Search Iteration: {} Alpha: {}", line_search_iter, alpha);
+
                     // If not success, then shrink alpha
                     alpha /= 2;
                     E = compute_energy(alpha);

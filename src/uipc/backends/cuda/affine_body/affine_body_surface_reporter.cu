@@ -20,13 +20,15 @@ REGISTER_SIM_SYSTEM(AffinebodySurfaceReporter);
 
 void AffinebodySurfaceReporter::do_build()
 {
-    m_impl.affine_body_dynamics = find<AffineBodyDynamics>();
+    m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
 
     m_impl.affine_body_dynamics->after_build_geometry(
         [this] { m_impl.init_surface(world()); });
 
-    auto global_surf_manager = find<GlobalSimpicialSurfaceManager>();
-    global_surf_manager->add_reporter(this);
+    auto& global_surf_manager = require<GlobalSimpicialSurfaceManager>();
+    global_surf_manager.add_reporter(this);
+
+    m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
 }
 
 void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
@@ -214,7 +216,7 @@ void AffinebodySurfaceReporter::Impl::_init_body_surface(backend::WorldVisitor& 
     surf_triangles.resize(total_surf_triangle_count);
 
 
-    auto global_vertex_offset = abd().vertex_offset_in_global;
+    auto global_vertex_offset = affine_body_vertex_reporter->vertex_offset();
 
     // 2) for every body, build surface
     for(auto&& [body_info, body_surf_info] : zip(abd().h_body_infos, body_surface_infos))
@@ -283,9 +285,10 @@ void AffinebodySurfaceReporter::Impl::_init_body_surface(backend::WorldVisitor& 
         global_vertex_offset += body_surf_info.m_surf_vertex_count;
     }
 
-    UIPC_ASSERT(global_vertex_offset - abd().vertex_offset_in_global == total_surf_vertex_count,
+    UIPC_ASSERT(global_vertex_offset - affine_body_vertex_reporter->vertex_offset()
+                    == total_surf_vertex_count,
                 "vertex count mismatch, produced:{}, expected:{}",
-                global_vertex_offset - abd().vertex_offset_in_global,
+                global_vertex_offset - affine_body_vertex_reporter->vertex_offset(),
                 total_surf_vertex_count);
 }
 

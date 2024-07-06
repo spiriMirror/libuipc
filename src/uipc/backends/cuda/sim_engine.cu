@@ -49,6 +49,11 @@ SimEngine::SimEngine()
         });
 
     say_hello_from_muda();
+
+#ifndef NDEBUG
+    // if in debug mode, sync all the time to check for errors
+    muda::Debug::debug_sync_all(true);
+#endif
 }
 
 SimEngine::~SimEngine()

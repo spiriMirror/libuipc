@@ -1,6 +1,8 @@
 #pragma once
 #include <linear_system/diag_linear_subsystem.h>
 #include <affine_body/affine_body_dynamics.h>
+#include <affine_body/abd_contact_receiver.h>
+#include <affine_body/affine_body_vertex_reporter.h>
 #include <affine_body/matrix_converter.h>
 namespace uipc::backend::cuda
 {
@@ -12,20 +14,27 @@ class ABDLinearSubsystem : public DiagLinearSubsystem
     class Impl
     {
       public:
-        AffineBodyDynamics*       m_abd = nullptr;
-        AffineBodyDynamics::Impl& abd() { return m_abd->m_impl; }
-
         void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
         void assemble(GlobalLinearSystem::DiagInfo& info);
         void _assemble_gradient(GlobalLinearSystem::DiagInfo& info);
         void _assemble_hessian(GlobalLinearSystem::DiagInfo& info);
-        void _make_hessian_unique();
+        void assemble_H12x12();
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
+        AffineBodyDynamics*       affine_body_dynamics = nullptr;
+        AffineBodyDynamics::Impl& abd() noexcept
+        {
+            return affine_body_dynamics->m_impl;
+        }
+        ABDContactReceiver*       abd_contact_receiver = nullptr;
+        ABDContactReceiver::Impl& contact() noexcept
+        {
+            return abd_contact_receiver->m_impl;
+        }
+        AffineBodyVertexReporter* affine_body_vertex_reporter = nullptr;
+
         Float reserve_ratio       = 1.5;
-        SizeT dof_count           = 0;
-        SizeT hessian_block_count = 0;
 
         ABDMatrixConverter                   converter;
         muda::DeviceTripletMatrix<Float, 12> triplet_A;
@@ -33,7 +42,7 @@ class ABDLinearSubsystem : public DiagLinearSubsystem
     };
 
   protected:
-    virtual void do_build() override;
+    virtual void do_build(DiagLinearSubsystem::BuildInfo& info) override;
     virtual void do_report_extent(GlobalLinearSystem::DiagExtentInfo& info) override;
     virtual void do_assemble(GlobalLinearSystem::DiagInfo& info) override;
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) override;

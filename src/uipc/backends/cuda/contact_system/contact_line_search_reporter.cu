@@ -4,12 +4,9 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(ContactLineSearchReporter);
 
-void ContactLineSearchReporter::do_build()
+void ContactLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
     m_impl.global_contact_manager = &require<GlobalContactManager>();
-    auto& line_searcher           = require<LineSearcher>();
-
-    line_searcher.add_reporter(this);
 
     on_init_scene([this] { m_impl.init(); });
 }

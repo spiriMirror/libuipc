@@ -22,11 +22,9 @@ class SimSystemCreator<ABDLineSearchReporter>
 
 REGISTER_SIM_SYSTEM(ABDLineSearchReporter);
 
-void ABDLineSearchReporter::do_build()
+void ABDLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
-    auto line_searcher = find<LineSearcher>();
-    line_searcher->add_reporter(this);
-    m_impl.affine_body_dynamics = find<AffineBodyDynamics>();
+    m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
 }
 
 void ABDLineSearchReporter::do_record_start_point(LineSearcher::RecordInfo& info)
@@ -114,7 +112,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
 
     async_fill(abd().constitution_shape_energy, 0.0);
 
-    // distribute the computation of shape energy to each constitution
+    // _distribute the computation of shape energy to each constitution
     for(auto&& [i, cst] : enumerate(abd().constitutions))
     {
         auto body_offset = abd().h_constitution_body_offsets[i];

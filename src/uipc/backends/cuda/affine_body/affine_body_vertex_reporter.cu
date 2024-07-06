@@ -7,7 +7,7 @@ REGISTER_SIM_SYSTEM(AffineBodyVertexReporter);
 void AffineBodyVertexReporter::do_build()
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
-    auto& global_vertex_manager  = require<GlobalVertexManager>();
+    auto& global_vertex_manager = require<GlobalVertexManager>();
     global_vertex_manager.add_reporter(this);
 }
 
@@ -49,7 +49,8 @@ void AffineBodyVertexReporter::Impl::report_attributes(GlobalVertexManager::Vert
     async_copy(span{abd().h_vertex_id_to_contact_element_id}, info.contact_element_ids());
 
     // record the global vertex info
-    abd().vertex_offset_in_global = info.coindices().offset();
+    reporter_vertex_offset = info.coindices().offset();
+    reporter_vertex_count  = info.coindices().size();
 }
 
 void AffineBodyVertexReporter::Impl::report_displacements(GlobalVertexManager::VertexDisplacementInfo& info)

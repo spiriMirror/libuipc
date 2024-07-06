@@ -30,7 +30,7 @@ void NoneEngine::do_sync()
 
 void NoneEngine::do_retrieve()
 {
-    spdlog::info("[NoneEngine] do_retrieve() called.");
+    spdlog::info("[NoneEngine] do_receive() called.");
 }
 
 NoneEngine::~NoneEngine()

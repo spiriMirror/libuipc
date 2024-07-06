@@ -170,8 +170,6 @@ class AffineBodyDynamics : public SimSystem
         list<AffineBodyConstitution*>   constitution_buffer;
         vector<AffineBodyConstitution*> constitutions;
 
-        SizeT vertex_offset_in_global = 0;  // filled by AffineBodyVertexReporter
-
         // core invariant data
         vector<BodyInfo> h_body_infos;
 
@@ -235,7 +233,7 @@ class AffineBodyDynamics : public SimSystem
         DeviceBuffer<Matrix12x12> body_id_to_abd_mass_inv;
 
         //tex:
-        //used to rebuild the m_abd shape energy coefficient
+        //used to rebuild the affine_body_dynamics shape energy coefficient
         //$$V_{\perp}(m_q)=\kappa v_b\left\|\mathrm{AA}^{T}-\mathrm{I}_{3}\right\|_{F}^{2}$$
         //where $v_b$ is the volume of the affine body.
         DeviceBuffer<Float> body_id_to_volume;

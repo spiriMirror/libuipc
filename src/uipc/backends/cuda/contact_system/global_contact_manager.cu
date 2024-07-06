@@ -1,7 +1,9 @@
 #include <contact_system/global_contact_manager.h>
 #include <sim_engine.h>
 #include <contact_system/contact_reporter.h>
+#include <contact_system/contact_receiver.h>
 #include <uipc/common/enumerate.h>
+#include <kernel_cout.h>
 
 namespace uipc::backend::cuda
 {
@@ -28,13 +30,32 @@ void GlobalContactManager::do_build()
     on_init_scene([this] { m_impl.init(); });
 }
 
+void GlobalContactManager::Impl::compute_d_hat()
+{
+    AABB vert_aabb = global_vertex_manager->vertex_bounding_box();
+    d_hat          = related_d_hat;  // TODO: just hard code for now
+    d_hat          = 0.02;
+}
+
+void GlobalContactManager::Impl::compute_adaptive_kappa()
+{
+    kappa = 1e8;  // TODO: just hard code for now
+        // TODO: just hard code for now
+
+    contact_tabular.fill(ContactCoeff{
+        .kappa = kappa,
+        .mu    = 0.0,
+    });
+}
+
 void GlobalContactManager::Impl::init()
 {
+    // tabular
+    contact_tabular.resize(muda::Extent2D{1, 1});
+
+    // reporters
     contact_reporters.reserve(contact_reporter_buffer.size());
     std::ranges::move(contact_reporter_buffer, std::back_inserter(contact_reporters));
-
-    contact_receivers.reserve(contact_receiver_buffer.size());
-    std::ranges::move(contact_receiver_buffer, std::back_inserter(contact_receivers));
 
     reporter_gradient_offsets.resize(contact_reporters.size());
     reporter_gradient_counts.resize(contact_reporters.size());
@@ -42,15 +63,23 @@ void GlobalContactManager::Impl::init()
     reporter_hessian_offsets.resize(contact_reporters.size());
     reporter_hessian_counts.resize(contact_reporters.size());
 
-    // TODO: just hard code for now
-    contact_tabular.resize(muda::Extent2D{1, 1},
-                           ContactCoeff{
-                               .kappa = kappa,
-                               .mu    = 0.0,
-                           });
+    // receivers
+    contact_receivers.reserve(contact_receiver_buffer.size());
+    std::ranges::move(contact_receiver_buffer, std::back_inserter(contact_receivers));
+
+    //classify_infos.resize(contact_receivers.size());
+    classified_contact_gradients.resize(contact_receivers.size());
+    classified_contact_hessians.resize(contact_receivers.size());
 }
 
-void GlobalContactManager::Impl::assemble()
+void GlobalContactManager::Impl::compute_contact()
+{
+    _assemble();
+    _convert_matrix();
+    _distribute();
+}
+
+void GlobalContactManager::Impl::_assemble()
 {
     auto vertex_count = global_vertex_manager->positions().size();
 
@@ -60,6 +89,10 @@ void GlobalContactManager::Impl::assemble()
         reporter->report_extent(info);
         reporter_gradient_counts[i] = info.m_gradient_count;
         reporter_hessian_counts[i]  = info.m_hessian_count;
+        spdlog::info("reporter {} gradient count: {}, hessian count: {}",
+                     i,
+                     info.m_gradient_count,
+                     info.m_hessian_count);
     }
 
     // scan
@@ -78,8 +111,12 @@ void GlobalContactManager::Impl::assemble()
         reporter_hessian_offsets.back() + reporter_hessian_counts.back();
 
     // allocate
-    collected_contact_gradient.resize(vertex_count, total_gradient_count);
-    collected_contact_hessian.resize(vertex_count, vertex_count, total_hessian_count);
+    loose_resize_entries(collected_contact_gradient, total_gradient_count);
+    loose_resize_entries(sorted_contact_gradient, total_gradient_count);
+    loose_resize_entries(collected_contact_hessian, total_hessian_count);
+    loose_resize_entries(sorted_contact_hessian, total_hessian_count);
+    collected_contact_gradient.reshape(vertex_count);
+    collected_contact_hessian.reshape(vertex_count, vertex_count);
 
     // collect
     for(auto&& [i, reporter] : enumerate(contact_reporters))
@@ -98,17 +135,205 @@ void GlobalContactManager::Impl::assemble()
     }
 }
 
-void GlobalContactManager::Impl::compute_d_hat()
+void GlobalContactManager::Impl::_convert_matrix()
 {
-    AABB vert_aabb = global_vertex_manager->vertex_bounding_box();
-    d_hat          = related_d_hat;  // TODO: just hard code for now
-    d_hat          = 0.02;
+    matrix_converter.convert(collected_contact_hessian, sorted_contact_hessian);
+    matrix_converter.convert(collected_contact_gradient, sorted_contact_gradient);
 }
 
-void GlobalContactManager::Impl::compute_adaptive_kappa()
+void GlobalContactManager::Impl::_distribute()
 {
-    kappa = 1e8;  // TODO: just hard code for now
+    using namespace muda;
+
+    auto vertex_count = global_vertex_manager->positions().size();
+
+    for(auto&& [i, receiver] : enumerate(contact_receivers))
+    {
+        ClassifyInfo info;
+        receiver->report(info);
+
+        auto& classified_gradients = classified_contact_gradients[i];
+        classified_gradients.reshape(vertex_count);
+        auto& classified_hessians = classified_contact_hessians[i];
+        classified_hessians.reshape(vertex_count, vertex_count);
+
+        // 1) report gradient
+        if(!info.is_empty())
+        {
+            const auto N = sorted_contact_gradient.doublet_count();
+
+            // clear the range in device
+            gradient_range = Vector2i{0, 0};
+
+            // partition
+            ParallelFor()
+                .kernel_name(__FUNCTION__)
+                .apply(N,
+                       [gradient_range = gradient_range.viewer().name("gradient_range"),
+                        contact_gradient =
+                            std::as_const(sorted_contact_gradient).viewer().name("contact_gradient"),
+                        range = info.m_gradient_i_range] __device__(int I) mutable
+                       {
+                           auto in_range = [](int i, const Vector2i& range)
+                           { return i >= range.x() && i < range.y(); };
+
+                           auto&& [i, G]      = contact_gradient(I);
+                           bool this_in_range = in_range(i, range);
+
+                           //cout << "I: " << I << ", i: " << i << ", G: " << G
+                           //     << ", in_range: " << this_in_range << "\n";
+
+                           if(!this_in_range)
+                           {
+                               return;
+                           }
+
+                           bool prev_in_range = false;
+                           if(I > 0)
+                           {
+                               auto&& [prev_i, prev_G] = contact_gradient(I - 1);
+                               prev_in_range = in_range(prev_i, range);
+                           }
+                           bool next_in_range = false;
+                           if(I < contact_gradient.total_doublet_count() - 1)
+                           {
+                               auto&& [next_i, next_G] = contact_gradient(I + 1);
+                               next_in_range = in_range(next_i, range);
+                           }
+
+                           // if the prev is not in range, then this is the start of the partition
+                           if(!prev_in_range)
+                           {
+                               gradient_range->x() = I;
+                           }
+                           // if the next is not in range, then this is the end of the partition
+                           if(!next_in_range)
+                           {
+                               gradient_range->y() = I + 1;
+                           }
+                       });
+
+            Vector2i h_range = gradient_range;  // copy back
+
+            auto count = h_range.y() - h_range.x();
+
+            loose_resize_entries(classified_gradients, count);
+
+            // fill
+            if(count > 0)
+            {
+                ParallelFor()
+                    .kernel_name(__FUNCTION__ "-gradient")
+                    .apply(count,
+                           [contact_gradient =
+                                std::as_const(sorted_contact_gradient).viewer().name("contact_gradient"),
+                            classified_gradient = classified_gradients.viewer().name("classified_gradient"),
+                            range = h_range] __device__(int I) mutable
+                           {
+                               auto&& [i, G] = contact_gradient(range.x() + I);
+                               classified_gradient(I).write(i, G);
+                           });
+            }
+        }
+
+        // 2) report hessian
+        if(!info.is_empty())
+        {
+            const auto N = sorted_contact_hessian.triplet_count();
+
+            // +1 for calculate the total count
+            loose_resize(selected_hessian, N + 1);
+            loose_resize(selected_hessian_offsets, N + 1);
+
+            // select
+            ParallelFor()
+                .kernel_name(__FUNCTION__ "-hessian")
+                .apply(N,
+                       [selected_hessian = selected_hessian.view(0, N).viewer().name("selected_hessian"),
+                        last = VarView{selected_hessian.data() + N}.viewer().name("last"),
+                        contact_hessian = sorted_contact_hessian.cviewer().name("contact_hessian"),
+                        i_range = info.m_hessian_i_range,
+                        j_range = info.m_hessian_j_range] __device__(int I) mutable
+                       {
+                           auto&& [i, j, H] = contact_hessian(I);
+
+                           auto in_range = [](int i, const Vector2i& range)
+                           { return i >= range.x() && i < range.y(); };
+
+                           selected_hessian(I) =
+                               in_range(i, i_range) && in_range(j, j_range) ? 1 : 0;
+
+                           // fill the last one as 0, so that we can calculate the total count
+                           // during the exclusive scan
+                           if(I == 0)
+                               last = 0;
+                       });
+
+            // scan
+            DeviceScan().ExclusiveSum(selected_hessian.data(),
+                                      selected_hessian_offsets.data(),
+                                      selected_hessian.size());
+
+            IndexT h_total_count = 0;
+            VarView{selected_hessian_offsets.data() + N}.copy_to(&h_total_count);
+
+            loose_resize_entries(classified_hessians, h_total_count);
+
+            // fill
+            if(h_total_count > 0)
+            {
+                ParallelFor()
+                    .kernel_name(__FUNCTION__ "-hessian-fill")
+                    .apply(N,
+                           [selected_hessian = selected_hessian.cviewer().name("selected_hessian"),
+                            selected_hessian_offsets =
+                                selected_hessian_offsets.cviewer().name("selected_hessian_offsets"),
+                            contact_hessian = sorted_contact_hessian.cviewer().name("contact_hessian"),
+                            classified_hessian = classified_hessians.viewer().name("classified_hessian"),
+                            i_range = info.m_hessian_i_range,
+                            j_range = info.m_hessian_j_range] __device__(int I) mutable
+                           {
+                               if(selected_hessian(I))
+                               {
+                                   auto&& [i, j, H] = contact_hessian(I);
+                                   auto offset = selected_hessian_offsets(I);
+
+                                   classified_hessian(offset).write(i, j, H);
+                               }
+                           });
+            }
+
+            ClassifiedContactInfo classified_info;
+
+            classified_info.m_gradient = classified_gradients.view();
+            classified_info.m_hessian  = classified_hessians.view();
+
+            receiver->receive(classified_info);
+        }
+    }
 }
+
+void GlobalContactManager::Impl::loose_resize_entries(muda::DeviceTripletMatrix<Float, 3>& m,
+                                                      SizeT size)
+{
+    if(size > m.triplet_capacity())
+    {
+        m.reserve_triplets(size * reserve_ratio);
+    }
+    m.resize_triplets(size);
+}
+
+void GlobalContactManager::Impl::loose_resize_entries(muda::DeviceDoubletVector<Float, 3>& v,
+                                                      SizeT size)
+{
+    if(size > v.doublet_capacity())
+    {
+        v.reserve_doublets(size * reserve_ratio);
+    }
+    v.resize_doublets(size);
+}
+
+
 }  // namespace uipc::backend::cuda
 
 
@@ -121,7 +346,7 @@ void GlobalContactManager::compute_d_hat()
 
 void GlobalContactManager::compute_contact()
 {
-    // collect contact count
+    m_impl.compute_contact();
 }
 
 void GlobalContactManager::compute_adaptive_kappa()
@@ -144,6 +369,7 @@ void GlobalContactManager::add_receiver(ContactReceiver* receiver)
 {
     check_state(SimEngineState::BuildSystems, "add_receiver()");
     UIPC_ASSERT(receiver != nullptr, "receiver is nullptr");
+    receiver->m_index = m_impl.contact_receiver_buffer.size();
     m_impl.contact_receiver_buffer.push_back(receiver);
 }
 muda::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept
