@@ -127,11 +127,11 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
                                       Vector3 FP0 = Ps(F[0]);
                                       Vector3 FP1 = Ps(F[1]);
                                       Vector3 FP2 = Ps(F[2]);
-                                      Float   d;
+                                      Float   D;
                                       muda::distance::point_triangle_distance_unclassified(
-                                          VP, FP0, FP1, FP2, d);
+                                          VP, FP0, FP1, FP2, D);
 
-                                      if(d > d_hat * d_hat)
+                                      if(D >= d_hat * d_hat)
                                           return false;
 
                                       return true;
@@ -155,10 +155,10 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
             Vector3 EP1 = Ps(E0[1]);
             Vector3 EP2 = Ps(E1[0]);
             Vector3 EP3 = Ps(E1[1]);
-            Float   d;
-            muda::distance::edge_edge_distance_unclassified(EP0, EP1, EP2, EP3, d);
+            Float   D;
+            muda::distance::edge_edge_distance_unclassified(EP0, EP1, EP2, EP3, D);
 
-            if(d > d_hat * d_hat)
+            if(D >= d_hat * d_hat)
                 return false;
 
             return true;
@@ -195,24 +195,24 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
                    EE.segment<2>(2) = Es(pair[1]);
                });
 
-    {
-        std::vector<Vector4i> candidate_PTs_host;
-        std::vector<Vector4i> candidate_EEs_host;
+    //{
+    //    std::vector<Vector4i> candidate_PTs_host;
+    //    std::vector<Vector4i> candidate_EEs_host;
 
-        candidate_PTs.copy_to(candidate_PTs_host);
-        candidate_EEs.copy_to(candidate_EEs_host);
+    //    candidate_PTs.copy_to(candidate_PTs_host);
+    //    candidate_EEs.copy_to(candidate_EEs_host);
 
-        // print the candidate pairs
-        for(auto& PT : candidate_PTs_host)
-        {
-            std::cout << "PT: " << PT.transpose() << std::endl;
-        }
+    //    // print the candidate pairs
+    //    for(auto& PT : candidate_PTs_host)
+    //    {
+    //        std::cout << "PT: " << PT.transpose() << std::endl;
+    //    }
 
-        for(auto& EE : candidate_EEs_host)
-        {
-            std::cout << "EE: " << EE.transpose() << std::endl;
-        }
-    }
+    //    for(auto& EE : candidate_EEs_host)
+    //    {
+    //        std::cout << "EE: " << EE.transpose() << std::endl;
+    //    }
+    //}
 }
 
 void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
@@ -225,6 +225,27 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
     PTs.resize(candidate_PTs.size());
     temp_EEs.resize(candidate_EEs.size(), Vector4i::Ones() * -1);
     EEs.resize(candidate_EEs.size());
+
+    {
+        std::vector<Vector4i> candidate_PTs_host;
+        std::vector<Vector4i> candidate_EEs_host;
+
+        candidate_PTs.copy_to(candidate_PTs_host);
+        candidate_EEs.copy_to(candidate_EEs_host);
+
+        // print the candidate pairs
+        std::cout << "candidate pairs:" << std::endl;
+        for(auto& PT : candidate_PTs_host)
+        {
+            std::cout << "PT: " << PT.transpose() << std::endl;
+        }
+
+        for(auto& EE : candidate_EEs_host)
+        {
+            std::cout << "EE: " << EE.transpose() << std::endl;
+        }
+    }
+
 
     // PE:
     SizeT max_PE_count = candidate_PTs.size() + candidate_EEs.size();
@@ -317,7 +338,18 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                    Vector3 E2 = Ps(Eb0);
                    Vector3 E3 = Ps(Eb1);
 
+                   //Vector3 u = E1 - E0;
+                   //Vector3 v = E2 - E3;
+
+                   //auto N = u.cross(v);
+                   //if(N.norm() < 1e-6)
+                   //{
+                   //    EEs(i) = EE;
+                   //    return;
+                   //}
+
                    auto dist_type = distance::edge_edge_distance_type(E0, E1, E2, E3);
+
 
                    switch(dist_type)
                    {
@@ -397,5 +429,39 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
     info.EEs(EEs);
     info.PEs(PEs);
     info.PPs(PPs);
+
+    {
+        std::vector<Vector4i> PTs_host;
+        std::vector<Vector4i> EEs_host;
+        std::vector<Vector3i> PEs_host;
+        std::vector<Vector2i> PPs_host;
+
+        PTs.copy_to(PTs_host);
+        EEs.copy_to(EEs_host);
+        PEs.copy_to(PEs_host);
+        PPs.copy_to(PPs_host);
+
+        std::cout << "classify result:" << std::endl;
+
+        for(auto& PT : PTs_host)
+        {
+            std::cout << "PT: " << PT.transpose() << std::endl;
+        }
+
+        for(auto& EE : EEs_host)
+        {
+            std::cout << "EE: " << EE.transpose() << std::endl;
+        }
+
+        for(auto& PE : PEs_host)
+        {
+            std::cout << "PE: " << PE.transpose() << std::endl;
+        }
+
+        for(auto& PP : PPs_host)
+        {
+            std::cout << "PP: " << PP.transpose() << std::endl;
+        }
+    }
 }
 }  // namespace uipc::backend::cuda

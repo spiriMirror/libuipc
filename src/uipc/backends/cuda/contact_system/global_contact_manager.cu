@@ -34,14 +34,15 @@ void GlobalContactManager::Impl::compute_d_hat()
 {
     AABB vert_aabb = global_vertex_manager->vertex_bounding_box();
     d_hat          = related_d_hat;  // TODO: just hard code for now
-    d_hat          = 0.02;
+
+    //d_hat          = 0.001;
 }
 
 void GlobalContactManager::Impl::compute_adaptive_kappa()
 {
     kappa = 1e8;  // TODO: just hard code for now
-        // TODO: just hard code for now
 
+    // TODO: just hard code for now
     contact_tabular.fill(ContactCoeff{
         .kappa = kappa,
         .mu    = 0.0,

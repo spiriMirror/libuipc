@@ -53,6 +53,8 @@ void SimEngine::init_scene()
     Vector3 gravity   = info["gravity"];
     Float   dt        = info["dt"];
     m_abs_tol         = gravity.norm() * dt * dt / 2;
+    if(m_abs_tol == 0.0)
+        m_abs_tol = std::numeric_limits<Float>::max();
 }
 
 void SimEngine::do_init(backend::WorldVisitor v)

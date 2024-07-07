@@ -84,6 +84,7 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     Float m_abs_tol         = 0.0;
     Float m_newton_tol      = 1e-3;
     SizeT m_newton_max_iter = 1000;
+    SizeT m_current_frame   = 0;
 };
 }  // namespace uipc::backend::cuda
 

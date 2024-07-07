@@ -3,6 +3,7 @@
 #include <affine_body/affine_body_constitution.h>
 
 #include <Eigen/Dense>
+#include <algorithm>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
 #include <uipc/builtin/attribute_name.h>
@@ -152,7 +153,7 @@ void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
                                                     < b.m_geometry_instance_index;
                            });
 
-    // 4) setup the vertex offset, count
+    // 4) setup the vertex offset, vertex_count
     vector<SizeT> vertex_count(h_body_infos.size());
     vector<SizeT> vertex_offset(h_body_infos.size());
     std::ranges::transform(h_body_infos,
@@ -390,27 +391,28 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     {
         vector<Vector12> geo_gravities(abd_geo_count, Vector12::Zero());
 
-        std::ranges::transform(h_abd_geo_body_offsets,
-                               geo_gravities.begin(),
-                               [&](SizeT offset) -> Vector12
-                               {
-                                   const auto& info  = h_body_infos[offset];
-                                   auto        count = info.m_vertex_count;
+        std::ranges::transform(
+            h_abd_geo_body_offsets,
+            geo_gravities.begin(),
+            [&](SizeT offset) -> Vector12
+            {
+                const auto& info          = h_body_infos[offset];
+                auto        vertex_offset = info.m_vertex_offset;
+                auto        vertex_count  = info.m_vertex_count;
 
-                                   // sub_Js for this body
-                                   auto sub_Js = Js.subspan(offset, count);
-                                   auto sub_mass = vertex_mass.subspan(offset, count);
+                // sub_Js for this body
+                auto sub_Js = Js.subspan(vertex_offset, vertex_count);
+                auto sub_mass = vertex_mass.subspan(vertex_offset, vertex_count);
 
-                                   Vector12 G = Vector12::Zero();
+                Vector12 G = Vector12::Zero();
 
-                                   for(auto&& [m, J] : zip(sub_mass, sub_Js))
-                                       G += m * (J.T() * gravity);
+                for(auto&& [m, J] : zip(sub_mass, sub_Js))
+                    G += m * (J.T() * gravity);
 
-                                   const Matrix12x12& M_inv =
-                                       h_body_id_to_abd_mass_inv[info.m_affine_body_id];
+                const Matrix12x12& M_inv = h_body_id_to_abd_mass_inv[info.m_affine_body_id];
 
-                                   return M_inv * G;
-                               });
+                return M_inv * G;
+            });
 
         std::ranges::transform(h_body_infos,
                                h_body_id_to_abd_gravity.begin(),

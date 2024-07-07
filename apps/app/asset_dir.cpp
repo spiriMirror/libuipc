@@ -1,7 +1,9 @@
 #include <app/asset_dir.h>
 
+
 namespace uipc
 {
+namespace fs = std::filesystem;
 std::string_view AssetDir::asset_path()
 {
     return UIPC_ASSET_PATH;
@@ -29,5 +31,21 @@ std::string_view AssetDir::trimesh_path()
 std::string_view AssetDir::output_path()
 {
     return UIPC_OUTPUT_PATH;
+}
+fs::path AssetDir::output_path(const char* _file_)
+{
+    fs::path _output_path{UIPC_OUTPUT_PATH};
+    fs::path file_path{_file_};
+    auto     project_root = _output_path.parent_path().parent_path();
+    auto     apps_path    = project_root / "apps";
+    // get the relative path according to the apps path
+    auto file_relative_to_apps = fs::relative(file_path, apps_path);
+    auto file_output_path      = _output_path / file_relative_to_apps;
+
+    // create all the intermediate directories if they don't exist
+    if(!fs::exists(file_output_path))
+        fs::create_directories(file_output_path);
+
+    return file_output_path.string();
 }
 }  // namespace uipc

@@ -15,6 +15,8 @@ namespace uipc::backend::cuda
 {
 void SimEngine::do_advance()
 {
+    ++m_current_frame;
+
     LogGuard guard;
 
     auto detect_dcd_candidates = [this]
@@ -110,14 +112,26 @@ void SimEngine::do_advance()
                 SizeT line_search_iter     = 0;
                 while(line_search_iter++ < max_line_search_iter)  // Energy Test
                 {
-                    bool energy_decrease = E < E0;  // Check Energy Decrease
-                    bool no_inversion    = true;    // Check Inversion
+
+                    bool energy_decrease = E <= E0;  // Check Energy Decrease
+                    bool no_inversion    = true;     // Check Inversion
+
+                    spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}",
+                                 line_search_iter,
+                                 alpha,
+                                 E / E0);
+
+                    if(m_current_frame == 10)
+                    {
+                        int a = 0;
+                    }
 
                     bool success = energy_decrease && no_inversion;
                     if(success)
                         break;
 
-                    spdlog::info("Line Search Iteration: {} Alpha: {}", line_search_iter, alpha);
+
+                    UIPC_ASSERT(line_search_iter < 100, "Line Search Iteration Exceeds 100");
 
                     // If not success, then shrink alpha
                     alpha /= 2;

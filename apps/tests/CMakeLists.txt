@@ -28,6 +28,7 @@ add_subdirectory(geometry)
 add_subdirectory(world)
 add_subdirectory(common)
 add_subdirectory(backends)
+add_subdirectory(sim_case)
 
 if(UIPC_BUILD_GUI)
     add_subdirectory(gui)

@@ -95,7 +95,6 @@ namespace ipc_contact
         Float ek;
         edge_edge_mollifier(Ea0, Ea1, Eb0, Eb1, eps_x, ek);
 
-
         return ek * B;
     }
 
@@ -301,9 +300,16 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    const auto& T2 = Ps(PT[3]);
 
                    // jsut hard coding now
-                   auto kappa = table(0, 0).kappa;
+                   auto  kappa = table(0, 0).kappa;
+                   Float D_hat = d_hat * d_hat;
+                   Float D     = D_hat;
+                   distance::point_triangle_distance(P, T0, T1, T2, D);
+
+                   MUDA_ASSERT(D < D_hat, "PT distance is larger than d_hat(%f), %f", D_hat, D);
 
                    Es(i) = ipc_contact::PT_barrier_energy(kappa, d_hat * d_hat, P, T0, T1, T2);
+
+                   MUDA_ASSERT(Es(i) >= 0.0, "PT energy is negative, %f", Es(i));
 
                    // cout << "PT energy: " << Es(i) << "\n";
                });
@@ -328,7 +334,15 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    // jsut hard coding now
                    auto kappa = table(0, 0).kappa;
 
+                   Float D_hat = d_hat * d_hat;
+                   Float D     = D_hat;
+                   distance::edge_edge_distance(E0, E1, E2, E3, D);
+
+                   MUDA_ASSERT(D < D_hat, "EE distance is larger than d_hat(%f), %f", D_hat, D);
+
                    Es(i) = ipc_contact::EE_barrier_energy(kappa, d_hat * d_hat, E0, E1, E2, E3);
+
+                   MUDA_ASSERT(Es(i) >= 0.0, "EE energy is negative, %f", Es(i));
                });
 
     // Compute Point-Edge energy
@@ -350,7 +364,15 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    // jsut hard coding now
                    auto kappa = table(0, 0).kappa;
 
+                   Float D_hat = d_hat * d_hat;
+                   Float D     = D_hat;
+                   distance::point_edge_distance(P, E0, E1, D);
+
+                   MUDA_ASSERT(D < D_hat, "PE distance is larger than d_hat(%f), %f", D_hat, D);
+
                    Es(i) = ipc_contact::PE_barrier_energy(kappa, d_hat * d_hat, P, E0, E1);
+
+                   MUDA_ASSERT(Es(i) >= 0.0, "PE energy is negative, %f", Es(i));
                });
 
     // Compute Point-Point energy
@@ -371,7 +393,15 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    // jsut hard coding now
                    auto kappa = table(0, 0).kappa;
 
+                   Float D_hat = d_hat * d_hat;
+                   Float D     = D_hat;
+                   distance::point_point_distance(P0, P1, D);
+
+                   MUDA_ASSERT(D < D_hat, "PP distance is larger than d_hat(%f), %f", D_hat, D);
+
                    Es(i) = ipc_contact::PP_barrier_energy(kappa, d_hat * d_hat, P0, P1);
+
+                   MUDA_ASSERT(Es(i) >= 0.0, "PP energy is negative, %f", Es(i));
                });
 }
 
