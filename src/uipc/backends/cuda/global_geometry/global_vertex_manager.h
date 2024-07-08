@@ -32,6 +32,7 @@ class GlobalVertexManager : public SimSystem
     {
       public:
         VertexAttributeInfo(Impl* impl, SizeT index) noexcept;
+        muda::BufferView<Vector3> rest_positions() const noexcept;
         muda::BufferView<IndexT>  coindices() const noexcept;
         muda::BufferView<Vector3> positions() const noexcept;
         muda::BufferView<IndexT>  contact_element_ids() const noexcept;
@@ -59,6 +60,7 @@ class GlobalVertexManager : public SimSystem
 
     muda::CBufferView<IndexT>  coindices() const noexcept;
     muda::CBufferView<Vector3> positions() const noexcept;
+    muda::CBufferView<Vector3> rest_positions() const noexcept;
     muda::CBufferView<Vector3> safe_positions() const noexcept;
     muda::CBufferView<IndexT>  contact_element_ids() const noexcept;
     muda::CBufferView<Vector3> displacements() const noexcept;
@@ -95,6 +97,7 @@ class GlobalVertexManager : public SimSystem
          */
         muda::DeviceBuffer<IndexT>  coindices;
         muda::DeviceBuffer<Vector3> positions;
+        muda::DeviceBuffer<Vector3> rest_positions;
         muda::DeviceBuffer<Vector3> safe_positions;
         muda::DeviceBuffer<IndexT>  contact_element_ids;
         muda::DeviceBuffer<Vector3> displacements;

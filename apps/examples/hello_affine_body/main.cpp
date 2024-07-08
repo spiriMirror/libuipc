@@ -13,8 +13,7 @@ int main()
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    std::string output_dir =
-        fmt::format("{}/hello_affine_body/", AssetDir::output_path());
+    std::string output_dir = AssetDir::output_path(__FILE__);
     fs::exists(output_dir) || fs::create_directories(output_dir);
 
 

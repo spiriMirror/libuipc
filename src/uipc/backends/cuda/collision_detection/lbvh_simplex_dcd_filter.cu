@@ -8,6 +8,8 @@
 
 namespace uipc::backend::cuda
 {
+constexpr bool PrintDebugInfo = true;
+
 template <>
 class SimSystemCreator<LBVHSimplexDCDFilter>
 {
@@ -218,14 +220,9 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
 void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
 {
     using namespace muda;
-    auto d_hat = info.d_hat();
-    auto Ps    = info.positions();
 
-    temp_PTs.resize(candidate_PTs.size(), Vector4i::Ones() * -1);
-    PTs.resize(candidate_PTs.size());
-    temp_EEs.resize(candidate_EEs.size(), Vector4i::Ones() * -1);
-    EEs.resize(candidate_EEs.size());
 
+    if constexpr(PrintDebugInfo)
     {
         std::vector<Vector4i> candidate_PTs_host;
         std::vector<Vector4i> candidate_EEs_host;
@@ -246,21 +243,54 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
         }
     }
 
+    auto d_hat = info.d_hat();
+    auto Ps    = info.positions();
 
-    // PE:
-    SizeT max_PE_count = candidate_PTs.size() + candidate_EEs.size();
-    temp_PEs.resize(max_PE_count, Vector3i::Ones() * -1);
+    // we will classify the PT EE pairs into PTs, EEs, PEs, PPs
+
+    // PT: point-triangle, only 1 possible PT per candidate PT
+    temp_PTs.resize(candidate_PTs.size());
+    temp_PTs.fill(Vector4i::Ones() * -1);  // fill -1 to indicate invalid PT
+    PTs.resize(candidate_PTs.size());
+
+    // EE: edge-edge, only 1 possible EE per candidate EE
+    temp_EEs.resize(candidate_EEs.size());
+    temp_EEs.fill(Vector4i::Ones() * -1);  // fill -1 to indicate invalid EE
+    EEs.resize(candidate_EEs.size());
+
+
+    // PE: point-edge
+    // 3 possible PE per candidate PT
+    SizeT PT_to_PE_max_count = candidate_PTs.size() * 3;
+    // 4 possible PE per candidate EE
+    SizeT EE_to_PE_max_count = candidate_EEs.size() * 4;
+
+    SizeT max_PE_count = PT_to_PE_max_count + EE_to_PE_max_count;
+    temp_PEs.resize(max_PE_count);
+    temp_PEs.fill(Vector3i::Ones() * -1);  // fill -1 to indicate invalid PE
     PEs.resize(max_PE_count);
-    // PP:
-    SizeT max_PP_count = candidate_PTs.size() + candidate_EEs.size();
-    temp_PPs.resize(max_PP_count, Vector2i::Ones() * -1);
-    PPs.resize(max_PP_count);  // reserve enough space for PTs
+
+    // PP: point-point
+    // 3 possible PP per candidate PT
+    SizeT PT_to_PP_max_count = candidate_PTs.size() * 3;
+    // 4 possible PP per candidate EE
+    SizeT EE_to_PP_max_count = candidate_EEs.size() * 4;
+
+    SizeT max_PP_count = PT_to_PP_max_count + EE_to_PP_max_count;
+    temp_PPs.resize(max_PP_count);
+    temp_PPs.fill(Vector2i::Ones() * -1);  // fill -1 to indicate invalid PP
+    PPs.resize(max_PP_count);
 
 
+    // always use the squared distance to avoid numerical issue
+    Float D_hat = d_hat * d_hat;
+
+
+    // 1) PT-> PT, 3PE, 3PP
     auto PE_offset = 0;
-    auto PE_count  = candidate_PTs.size();
+    auto PE_count  = PT_to_PE_max_count;
     auto PP_offset = 0;
-    auto PP_count  = candidate_PTs.size();
+    auto PP_count  = PT_to_PP_max_count;
 
     ParallelFor()
         .kernel_name(__FUNCTION__)
@@ -268,8 +298,9 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                [Ps            = Ps.viewer().name("Ps"),
                 candidate_PTs = candidate_PTs.viewer().name("candidate_PTs"),
                 PTs           = temp_PTs.viewer().name("PTs"),
-                PEs = temp_PEs.view(PE_offset, PE_count).viewer().name("PEs"),
-                PPs = temp_PPs.view(PP_offset, PP_count).viewer().name("PPs")] __device__(int i) mutable
+                PEs   = temp_PEs.view(PE_offset, PE_count).viewer().name("PEs"),
+                PPs   = temp_PPs.view(PP_offset, PP_count).viewer().name("PPs"),
+                D_hat = D_hat] __device__(int i) mutable
                {
                    Vector4i PT = candidate_PTs(i);
                    IndexT   P  = PT(0);
@@ -284,38 +315,88 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                    auto dist_type =
                        muda::distance::point_triangle_distance_type(V, F0, F1, F2);
 
-                   switch(dist_type)
+                   if(dist_type == distance::PointTriangleDistanceType::PT)
                    {
-                       case muda::distance::PointTriangleDistanceType::PP_PT0:
-                           PPs(i) = Vector2i(P, T(0));
-                           break;
-                       case muda::distance::PointTriangleDistanceType::PP_PT1:
-                           PPs(i) = Vector2i(P, T(1));
-                           break;
-                       case muda::distance::PointTriangleDistanceType::PP_PT2:
-                           PPs(i) = Vector2i(P, T(2));
-                           break;
-                       case muda::distance::PointTriangleDistanceType::PE_PT0T1:
-                           PEs(i) = Vector3i(P, T(0), T(1));
-                           break;
-                       case muda::distance::PointTriangleDistanceType::PE_PT1T2:
-                           PEs(i) = Vector3i(P, T(1), T(2));
-                           break;
-                       case muda::distance::PointTriangleDistanceType::PE_PT2T0:
-                           PEs(i) = Vector3i(P, T(2), T(0));
-                           break;
-                       case muda::distance::PointTriangleDistanceType::PT:
-                           PTs(i) = PT;
-                           break;
-                       default:
-                           break;
+                       if constexpr(PrintDebugInfo)
+                       {
+                           cout << "PT->PT:" << PT.transpose().eval() << "\n";
+                       }
+
+                       if constexpr(muda::RUNTIME_CHECK_ON)
+                       {
+                           Float D;
+                           distance::point_triangle_distance(V, F0, F1, F2, D);
+                           MUDA_ASSERT(D < D_hat,
+                                       "[%d,%d,%d,%d] D(%f) < D_hat=(%f)",
+                                       P,
+                                       T(0),
+                                       T(1),
+                                       T(2),
+                                       D,
+                                       D_hat);
+                       }
+
+                       PTs(i) = PT;
+
+                       return;
+                   }
+
+                   // if not, then it can be PT->PE or PT->PP
+
+                   // 3 possible PE
+                   Vector3i PE[3] = {{P, T(0), T(1)}, {P, T(1), T(2)}, {P, T(2), T(0)}};
+
+                   for(int j = 0; j < 3; ++j)
+                   {
+                       auto& pe = PE[j];
+                       auto  E0 = Ps(pe(0));
+                       auto  E1 = Ps(pe(1));
+                       auto  E2 = Ps(pe(2));
+
+                       auto dist_type = distance::point_edge_distance_type(V, E0, E1);
+
+                       if(dist_type == distance::PointEdgeDistanceType::PE)
+                       {
+                           Float D;
+                           distance::point_edge_distance(V, E0, E1, D);
+
+                           if(D < D_hat)
+                           {
+                               if constexpr(PrintDebugInfo)
+                               {
+                                   cout << "PT->PE:" << PT.transpose().eval()
+                                        << "->" << P << "," << T(j) << "\n";
+                               }
+
+                               PEs(3 * i + j) = pe;
+                           }
+                       }
+                   }
+
+                   // 3 possible PP
+                   Vector2i PP[3] = {{P, T(0)}, {P, T(1)}, {P, T(2)}};
+
+                   for(int j = 0; j < 3; ++j)
+                   {
+                       auto& pp = PP[j];
+                       auto  P0 = Ps(pp(0));
+                       auto  P1 = Ps(pp(1));
+
+                       Float D;
+                       distance::point_point_distance(P0, P1, D);
+
+                       if(D < D_hat)
+                       {
+                           PPs(3 * i + j) = pp;
+                       }
                    }
                });
 
-    PE_offset = PE_count;
-    PE_count  = candidate_EEs.size();
-    PP_offset = PP_count;
-    PP_count  = candidate_EEs.size();
+    // 2) EE-> PT, 4PE, 4PP
+    PE_offset += PE_count;
+    PE_count = EE_to_PE_max_count;
+    PP_offset += PP_count;
+    PP_count = EE_to_PP_max_count;
 
     ParallelFor()
         .kernel_name(__FUNCTION__)
@@ -323,8 +404,9 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                [Ps            = Ps.viewer().name("Ps"),
                 candidate_EEs = candidate_EEs.viewer().name("candidate_EEs"),
                 EEs           = temp_EEs.viewer().name("EEs"),
-                PEs = temp_PEs.view(PE_offset, PE_count).viewer().name("PEs"),
-                PPs = temp_PPs.view(PP_offset, PP_count).viewer().name("PPs")] __device__(int i) mutable
+                PEs   = temp_PEs.view(PE_offset, PE_count).viewer().name("PEs"),
+                PPs   = temp_PPs.view(PP_offset, PP_count).viewer().name("PPs"),
+                D_hat = D_hat] __device__(int i) mutable
                {
                    Vector4i EE = candidate_EEs(i);
 
@@ -338,50 +420,86 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                    Vector3 E2 = Ps(Eb0);
                    Vector3 E3 = Ps(Eb1);
 
-                   //Vector3 u = E1 - E0;
-                   //Vector3 v = E2 - E3;
-
-                   //auto N = u.cross(v);
-                   //if(N.norm() < 1e-6)
-                   //{
-                   //    EEs(i) = EE;
-                   //    return;
-                   //}
-
                    auto dist_type = distance::edge_edge_distance_type(E0, E1, E2, E3);
 
-
-                   switch(dist_type)
+                   if(dist_type == distance::EdgeEdgeDistanceType::EE)
                    {
-                       case muda::distance::EdgeEdgeDistanceType::PP_Ea0Eb0:
-                           PPs(i) = Vector2i(Ea0, Eb0);
-                           break;
-                       case muda::distance::EdgeEdgeDistanceType::PP_Ea0Eb1:
-                           PPs(i) = Vector2i(Ea0, Eb1);
-                           break;
-                       case muda::distance::EdgeEdgeDistanceType::PE_Ea0Eb0Eb1:
-                           PEs(i) = Vector3i(Ea0, Eb0, Eb1);
-                           break;
-                       case muda::distance::EdgeEdgeDistanceType::PP_Ea1Eb0:
-                           PPs(i) = Vector2i(Ea1, Eb0);
-                           break;
-                       case muda::distance::EdgeEdgeDistanceType::PP_Ea1Eb1:
-                           PPs(i) = Vector2i(Ea1, Eb1);
-                           break;
-                       case muda::distance::EdgeEdgeDistanceType::PE_Ea1Eb0Eb1:
-                           PEs(i) = Vector3i(Ea1, Eb0, Eb1);
-                           break;
-                       case muda::distance::EdgeEdgeDistanceType::PE_Eb0Ea0Ea1:
-                           PEs(i) = Vector3i(Eb0, Ea0, Ea1);
-                           break;
-                       case muda::distance::EdgeEdgeDistanceType::PE_Eb1Ea0Ea1:
-                           PEs(i) = Vector3i(Eb1, Ea0, Ea1);
-                           break;
-                       case muda::distance::EdgeEdgeDistanceType::EE:
-                           EEs(i) = EE;
-                           break;
-                       default:
-                           break;
+                       if constexpr(PrintDebugInfo)
+                       {
+                           cout << "EE->EE:" << EE.transpose().eval() << "\n";
+                       }
+
+                       if constexpr(muda::RUNTIME_CHECK_ON)
+                       {
+                           Float D;
+                           distance::edge_edge_distance(E0, E1, E2, E3, D);
+                           MUDA_ASSERT(
+                               D < D_hat, "[%d,%d,%d,%d] D(%f) < D_hat=(%f)", Ea0, Ea1, Eb0, Eb1, D, D_hat);
+                       }
+
+                       EEs(i) = EE;
+
+                       return;
+                   }
+
+                   // if not, then it can be EE->PE or EE->PP
+
+                   // 4 possible PE
+                   Vector3i PE[4] = {{Ea0, Eb0, Eb1},
+                                     {Ea1, Eb0, Eb1},
+                                     {Eb0, Ea0, Ea1},
+                                     {Eb1, Ea0, Ea1}};
+
+                   for(int j = 0; j < 4; ++j)
+                   {
+                       auto& pe = PE[j];
+                       auto  E0 = Ps(pe(0));
+                       auto  E1 = Ps(pe(1));
+                       auto  E2 = Ps(pe(2));
+
+                       auto dist_type = distance::point_edge_distance_type(E0, E1, E2);
+
+                       if(dist_type == distance::PointEdgeDistanceType::PE)
+                       {
+                           Float D;
+                           distance::point_edge_distance(E0, E1, E2, D);
+
+                           if(D < D_hat)
+                           {
+                               if constexpr(PrintDebugInfo)
+                               {
+                                   cout << "EE->PE:" << EE.transpose().eval()
+                                        << "->" << pe.transpose().eval() << "\n";
+                               }
+
+                               PEs(4 * i + j) = pe;
+                           }
+                       }
+                   }
+
+                   // 4 possible PP
+                   Vector2i PP[4] = {{Ea0, Eb0}, {Ea0, Eb1}, {Ea1, Eb0}, {Ea1, Eb1}};
+
+                   for(int j = 0; j < 4; ++j)
+                   {
+                       auto& pp = PP[j];
+                       auto  P0 = Ps(pp(0));
+                       auto  P1 = Ps(pp(1));
+
+                       Float D;
+                       distance::point_point_distance(P0, P1, D);
+
+                       if(D < D_hat)
+                       {
+
+                           if constexpr(PrintDebugInfo)
+                           {
+                               cout << "EE->PP:" << EE.transpose().eval()
+                                    << "->" << pp.transpose().eval() << "\n";
+                           }
+
+                           PPs(4 * i + j) = pp;
+                       }
                    }
                });
 
@@ -430,6 +548,8 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
     info.PEs(PEs);
     info.PPs(PPs);
 
+
+    if constexpr(PrintDebugInfo)
     {
         std::vector<Vector4i> PTs_host;
         std::vector<Vector4i> EEs_host;

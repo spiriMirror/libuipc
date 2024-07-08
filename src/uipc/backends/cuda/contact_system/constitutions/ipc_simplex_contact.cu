@@ -75,6 +75,10 @@ namespace ipc_contact
 
     __device__ Float EE_barrier_energy(Float          kappa,
                                        Float          squared_d_hat,
+                                       const Vector3& t0_Ea0,
+                                       const Vector3& t0_Ea1,
+                                       const Vector3& t0_Eb0,
+                                       const Vector3& t0_Eb1,
                                        const Vector3& Ea0,
                                        const Vector3& Ea1,
                                        const Vector3& Eb0,
@@ -90,7 +94,7 @@ namespace ipc_contact
         sym::KappaBarrier(B, kappa, D, D_hat);
 
         Float eps_x;
-        edge_edge_mollifier_threshold(Ea0, Ea1, Eb0, Eb1, eps_x);
+        edge_edge_mollifier_threshold(t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, eps_x);
 
         Float ek;
         edge_edge_mollifier(Ea0, Ea1, Eb0, Eb1, eps_x, ek);
@@ -103,6 +107,10 @@ namespace ipc_contact
                                                 Matrix12x12&   H,
                                                 Float          kappa,
                                                 Float          squared_d_hat,
+                                                const Vector3& t0_Ea0,
+                                                const Vector3& t0_Ea1,
+                                                const Vector3& t0_Eb0,
+                                                const Vector3& t0_Eb1,
                                                 const Vector3& Ea0,
                                                 const Vector3& Ea1,
                                                 const Vector3& Eb0,
@@ -121,7 +129,7 @@ namespace ipc_contact
 
         //tex: $$ \epsilon_x $$
         Float eps_x;
-        edge_edge_mollifier_threshold(Ea0, Ea1, Eb0, Eb1, eps_x);
+        edge_edge_mollifier_threshold(t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, eps_x);
 
         //tex: $$ e_k $$
         Float ek;
@@ -305,7 +313,14 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    Float D     = D_hat;
                    distance::point_triangle_distance(P, T0, T1, T2, D);
 
-                   MUDA_ASSERT(D < D_hat, "PT distance is larger than d_hat(%f), %f", D_hat, D);
+                   MUDA_ASSERT(D < D_hat,
+                               "PT[%d,%d,%d,%d] distance is larger than d_hat(%f), %f",
+                               PT(0),
+                               PT(1),
+                               PT(2),
+                               PT(3),
+                               D_hat,
+                               D);
 
                    Es(i) = ipc_contact::PT_barrier_energy(kappa, d_hat * d_hat, P, T0, T1, T2);
 
@@ -323,13 +338,21 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                 EEs   = info.EEs().viewer().name("EEs"),
                 Es    = info.EE_energies().viewer().name("Es"),
                 Ps    = info.positions().viewer().name("Ps"),
-                d_hat = info.d_hat()] __device__(int i) mutable
+                rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
+                d_hat   = info.d_hat()] __device__(int i) mutable
                {
                    const auto& EE = EEs(i);
+
                    const auto& E0 = Ps(EE[0]);
                    const auto& E1 = Ps(EE[1]);
                    const auto& E2 = Ps(EE[2]);
                    const auto& E3 = Ps(EE[3]);
+
+                   const auto& t0_Ea0 = rest_Ps(EE[0]);
+                   const auto& t0_Ea1 = rest_Ps(EE[1]);
+                   const auto& t0_Eb0 = rest_Ps(EE[2]);
+                   const auto& t0_Eb1 = rest_Ps(EE[3]);
+
 
                    // jsut hard coding now
                    auto kappa = table(0, 0).kappa;
@@ -338,9 +361,17 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    Float D     = D_hat;
                    distance::edge_edge_distance(E0, E1, E2, E3, D);
 
-                   MUDA_ASSERT(D < D_hat, "EE distance is larger than d_hat(%f), %f", D_hat, D);
+                   MUDA_ASSERT(D < D_hat,
+                               "EE[%d,%d,%d,%d] distance is larger than d_hat(%f), %f",
+                               EE(0),
+                               EE(1),
+                               EE(2),
+                               EE(3),
+                               D_hat,
+                               D);
 
-                   Es(i) = ipc_contact::EE_barrier_energy(kappa, d_hat * d_hat, E0, E1, E2, E3);
+                   Es(i) = ipc_contact::EE_barrier_energy(
+                       kappa, d_hat * d_hat, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
 
                    MUDA_ASSERT(Es(i) >= 0.0, "EE energy is negative, %f", Es(i));
                });
@@ -368,7 +399,13 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    Float D     = D_hat;
                    distance::point_edge_distance(P, E0, E1, D);
 
-                   MUDA_ASSERT(D < D_hat, "PE distance is larger than d_hat(%f), %f", D_hat, D);
+                   MUDA_ASSERT(D < D_hat,
+                               "PE[%d,%d,%d] distance is larger than d_hat(%f), %f",
+                               PE(0),
+                               PE(1),
+                               PE(2),
+                               D_hat,
+                               D);
 
                    Es(i) = ipc_contact::PE_barrier_energy(kappa, d_hat * d_hat, P, E0, E1);
 
@@ -397,7 +434,12 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    Float D     = D_hat;
                    distance::point_point_distance(P0, P1, D);
 
-                   MUDA_ASSERT(D < D_hat, "PP distance is larger than d_hat(%f), %f", D_hat, D);
+                   MUDA_ASSERT(D < D_hat,
+                               "PP[%d,%d] distance is larger than d_hat(%f), %f",
+                               PP(0),
+                               PP(1),
+                               D_hat,
+                               D);
 
                    Es(i) = ipc_contact::PP_barrier_energy(kappa, d_hat * d_hat, P0, P1);
 
@@ -442,7 +484,8 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                 Gs    = info.EE_gradients().viewer().name("Gs"),
                 Hs    = info.EE_hessians().viewer().name("Hs"),
                 Ps    = info.positions().viewer().name("Ps"),
-                d_hat = info.d_hat()] __device__(int i) mutable
+                rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
+                d_hat   = info.d_hat()] __device__(int i) mutable
                {
                    const auto& EE = EEs(i);
                    const auto& E0 = Ps(EE[0]);
@@ -450,11 +493,16 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    const auto& E2 = Ps(EE[2]);
                    const auto& E3 = Ps(EE[3]);
 
+                   const auto& t0_Ea0 = rest_Ps(EE[0]);
+                   const auto& t0_Ea1 = rest_Ps(EE[1]);
+                   const auto& t0_Eb0 = rest_Ps(EE[2]);
+                   const auto& t0_Eb1 = rest_Ps(EE[3]);
+
                    // jsut hard coding now
                    auto kappa = table(0, 0).kappa;
 
                    ipc_contact::EE_barrier_gradient_hessian(
-                       Gs(i), Hs(i), kappa, d_hat * d_hat, E0, E1, E2, E3);
+                       Gs(i), Hs(i), kappa, d_hat * d_hat, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
                });
 
     // Compute Point-Edge Gradient and Hessian

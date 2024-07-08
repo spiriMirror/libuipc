@@ -32,7 +32,7 @@ std::string_view AssetDir::output_path()
 {
     return UIPC_OUTPUT_PATH;
 }
-fs::path AssetDir::output_path(const char* _file_)
+std::string AssetDir::output_path(const char* _file_)
 {
     fs::path _output_path{UIPC_OUTPUT_PATH};
     fs::path file_path{_file_};

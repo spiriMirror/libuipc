@@ -21,7 +21,7 @@ TEST_CASE("spreadsheet_simple", "[io]")
     //label_surface(mesh);
     //label_triangle_orient(mesh);
 
-    SpreadSheetIO sio{AssetDir::output_path()};
+    SpreadSheetIO sio{AssetDir::output_path(__FILE__)};
     // dump to csv
     sio.write_csv("spreadsheet_simple", mesh);
     // dump to json
@@ -61,5 +61,6 @@ TEST_CASE("spreadsheet", "[io]")
     sio.write_json("spreadsheet_surf", mesh_surface);
 
     // write the surface to obj
-    io.write_obj(fmt::format("{}cylinder_hole.obj", AssetDir::output_path()), mesh_surface);
+    io.write_obj(fmt::format("{}cylinder_hole.obj", AssetDir::output_path(__FILE__)),
+                 mesh_surface);
 }

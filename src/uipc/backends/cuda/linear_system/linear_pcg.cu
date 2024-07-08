@@ -26,7 +26,7 @@ void LinearPCG::do_build()
         {
             // TODO: get info from the scene, now we just use the default value
             max_iter_ratio  = 2.0;
-            global_tol_rate = 1e-8;
+            global_tol_rate = 1e-4;
             spdlog::info("LinearPCG: max_iter_ratio = {}, global_tol_rate = {}",
                          max_iter_ratio,
                          global_tol_rate);

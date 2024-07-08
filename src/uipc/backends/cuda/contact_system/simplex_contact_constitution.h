@@ -28,6 +28,7 @@ class SimplexContactConstitution : public ContactReporter
         muda::CBufferView<Vector3i>       PEs() const;
         muda::CBufferView<Vector2i>       PPs() const;
         muda::CBufferView<Vector3>        positions() const;
+        muda::CBufferView<Vector3>        rest_positions() const;
         Float                             d_hat() const;
 
       private:

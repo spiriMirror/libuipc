@@ -44,6 +44,7 @@ void GlobalVertexManager::Impl::init_vertex_info()
     // resize the global coindices buffer
     coindices.resize(total_count);
     positions.resize(total_count);
+    rest_positions.resize(total_count);
     safe_positions.resize(total_count);
     contact_element_ids.resize(total_count, 0);
     displacements.resize(total_count, Vector3::Zero());
@@ -54,6 +55,11 @@ void GlobalVertexManager::Impl::init_vertex_info()
         VertexAttributeInfo attributes{this, i};
         R->report_attributes(attributes);
     }
+
+    // TODO: now just copy at the first time
+    // latter, we need to check if user fill rest_positions
+    // if not, then copy, otherwise, just use it
+    rest_positions = positions;
 }
 
 void GlobalVertexManager::Impl::rebuild_vertex_info()
@@ -144,6 +150,11 @@ GlobalVertexManager::VertexAttributeInfo::VertexAttributeInfo(Impl* impl, SizeT 
 {
 }
 
+muda::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::rest_positions() const noexcept
+{
+    return m_impl->subview(m_impl->rest_positions, m_index);
+}
+
 muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::coindices() const noexcept
 {
     return m_impl->subview(m_impl->coindices, m_index);
@@ -195,6 +206,11 @@ muda::CBufferView<IndexT> GlobalVertexManager::coindices() const noexcept
 muda::CBufferView<Vector3> GlobalVertexManager::positions() const noexcept
 {
     return m_impl.positions;
+}
+
+muda::CBufferView<Vector3> GlobalVertexManager::rest_positions() const noexcept
+{
+    return m_impl.rest_positions;
 }
 
 muda::CBufferView<Vector3> GlobalVertexManager::safe_positions() const noexcept

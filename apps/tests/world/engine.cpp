@@ -18,7 +18,9 @@ namespace fs = std::filesystem;
 
 void test_engine(std::string_view name)
 {
-    UIPCEngine engine{name};
+    auto this_output_path = AssetDir::output_path(__FILE__);
+
+    UIPCEngine engine{name, this_output_path};
     World      world{engine};
 
     Scene scene;
@@ -51,12 +53,12 @@ void test_engine(std::string_view name)
     // initialize the world using the scene
     world.init(scene);
 
-    std::string output_path = fmt::format("{}{}", AssetDir::output_path(), name);
+    std::string output_path = fmt::format("{}/{}", this_output_path, name);
 
     fs::exists(output_path) || fs::create_directories(output_path);
 
     {
-        std::ofstream f(fmt::format("{}{}/engine.json", AssetDir::output_path(), name));
+        std::ofstream f(fmt::format("{}/engine.json", output_path, name));
         f << engine.to_json().dump(4);
     }
 

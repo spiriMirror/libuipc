@@ -11,6 +11,8 @@ using namespace uipc::geometry;
 
 TEST_CASE("extract_surface", "[surface]")
 {
+    auto this_output_path = AssetDir::output_path(__FILE__);
+
     {
         vector<Vector3>  Vs = {Vector3{0.0, 0.0, 0.0},
                                Vector3{1.0, 0.0, 0.0},
@@ -46,12 +48,11 @@ TEST_CASE("extract_surface", "[surface]")
         REQUIRE(surface.triangles().size() == 12);  // cube surf mesh has 12 triangles, 6 faces * 2 triangles per face
         REQUIRE(surface.tetrahedra().size() == 0);  // cube surf mesh has no tetrahedra
 
-        io.write_obj(fmt::format("{}cube_unflipped_surf.obj", AssetDir::output_path()), surface);
+        io.write_obj(fmt::format("{}cube_unflipped_surf.obj", this_output_path), surface);
 
         label_triangle_orient(mesh);
         auto flipped         = flip_inward_triangles(mesh);
         auto surface_flipped = extract_surface(flipped);
-        io.write_obj(fmt::format("{}cube_flipped_surf.obj", AssetDir::output_path()),
-                     surface_flipped);
+        io.write_obj(fmt::format("{}cube_flipped_surf.obj", this_output_path), surface_flipped);
     }
 }

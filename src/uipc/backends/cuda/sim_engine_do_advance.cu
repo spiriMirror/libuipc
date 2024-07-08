@@ -121,7 +121,7 @@ void SimEngine::do_advance()
                                  alpha,
                                  E / E0);
 
-                    if(m_current_frame == 10)
+                    if(m_current_frame >= 11)
                     {
                         int a = 0;
                     }

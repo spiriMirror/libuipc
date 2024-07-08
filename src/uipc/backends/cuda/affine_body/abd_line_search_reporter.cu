@@ -133,6 +133,8 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                               abd().h_constitution_shape_energy.end(),
                               0.0);
 
+    spdlog::info("ABD K: {}, E: {}", K, E);
+
     info.energy(K + E);
 }
 }  // namespace uipc::backend::cuda

@@ -57,5 +57,5 @@ TEST_CASE("scene_io", "[scene]")
 
     SceneIO scene_io{scene};
 
-    scene_io.write_surface(fmt::format("{}scene.obj", AssetDir::output_path()));
+    scene_io.write_surface(fmt::format("{}scene.obj", AssetDir::output_path(__FILE__)));
 }

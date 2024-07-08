@@ -204,7 +204,7 @@ void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
                 x = info.solution().viewer().name("x")] __device__(int i) mutable
                {
                    dq(i) = -x.segment<12>(i * 12).as_eigen();
-                   // cout << "solution dq: \n" << dq(i) << "\n";
+                   cout << "solution dq: \n" << dq(i) << "\n";
                });
 }
 }  // namespace uipc::backend::cuda

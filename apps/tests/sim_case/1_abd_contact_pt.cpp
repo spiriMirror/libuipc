@@ -18,14 +18,14 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     auto        this_output_path = AssetDir::output_path(__FILE__);
 
 
-    UIPCEngine engine{"cuda", this_output_path.string()};
+    UIPCEngine engine{"cuda", this_output_path};
     World      world{engine};
 
     auto config       = Scene::default_config();
     config["gravity"] = Vector3{0, -10, 0};
 
     {  // dump config
-        std::ofstream ofs(this_output_path / "config.json");
+        std::ofstream ofs(fmt::format("{}/config.json", this_output_path));
         ofs << config.dump(4);
     }
 
@@ -112,15 +112,14 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     }
 
     world.init(scene);
-    auto    output_dir = this_output_path.string();
     SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}/scene_surface{}.obj", output_dir, 0));
+    sio.write_surface(fmt::format("{}/scene_surface{}.obj", this_output_path, 0));
 
     for(int i = 1; i < 30; i++)
     {
         world.advance();
         world.sync();
         world.retrieve();
-        sio.write_surface(fmt::format("{}/scene_surface{}.obj", output_dir, i));
+        sio.write_surface(fmt::format("{}/scene_surface{}.obj", this_output_path, i));
     }
 }
