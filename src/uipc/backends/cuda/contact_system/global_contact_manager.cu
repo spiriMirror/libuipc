@@ -4,6 +4,7 @@
 #include <contact_system/contact_receiver.h>
 #include <uipc/common/enumerate.h>
 #include <kernel_cout.h>
+#include <uipc/common/unit.h>
 
 namespace uipc::backend::cuda
 {
@@ -26,27 +27,10 @@ void GlobalContactManager::do_build()
     m_impl.global_vertex_manager = find<GlobalVertexManager>();
     const auto& info             = world().scene().info();
     m_impl.related_d_hat         = info["contact"]["d_hat"].get<Float>();
+    m_impl.dt                    = info["dt"].get<Float>();
+    m_impl.kappa = world().scene().contact_tabular().default_model().resistance();
 
     on_init_scene([this] { m_impl.init(); });
-}
-
-void GlobalContactManager::Impl::compute_d_hat()
-{
-    AABB vert_aabb = global_vertex_manager->vertex_bounding_box();
-    d_hat          = related_d_hat;  // TODO: just hard code for now
-
-    //d_hat          = 0.001;
-}
-
-void GlobalContactManager::Impl::compute_adaptive_kappa()
-{
-    kappa = 1e8;  // TODO: just hard code for now
-
-    // TODO: just hard code for now
-    contact_tabular.fill(ContactCoeff{
-        .kappa = kappa,
-        .mu    = 0.0,
-    });
 }
 
 void GlobalContactManager::Impl::init()
@@ -73,6 +57,24 @@ void GlobalContactManager::Impl::init()
     classified_contact_hessians.resize(contact_receivers.size());
 }
 
+void GlobalContactManager::Impl::compute_d_hat()
+{
+    AABB vert_aabb = global_vertex_manager->vertex_bounding_box();
+    d_hat          = related_d_hat;  // TODO: just hard code for now
+
+    //d_hat          = 0.001;
+}
+
+void GlobalContactManager::Impl::compute_adaptive_kappa()
+{
+    // TODO: just hard code for now, only one model
+    // later we will support multiple models
+    contact_tabular.fill(ContactCoeff{
+        .kappa = kappa,
+        .mu    = 0.0,
+    });
+}
+
 void GlobalContactManager::Impl::compute_contact()
 {
     _assemble();
@@ -90,8 +92,8 @@ void GlobalContactManager::Impl::_assemble()
         reporter->report_extent(info);
         reporter_gradient_counts[i] = info.m_gradient_count;
         reporter_hessian_counts[i]  = info.m_hessian_count;
-        spdlog::info("reporter {} gradient count: {}, hessian count: {}",
-                     i,
+        spdlog::info("contact reporter<{}> contact gradient3 count: {}, contact hessian3x3 count: {}",
+                     reporter->name(),
                      info.m_gradient_count,
                      info.m_hessian_count);
     }

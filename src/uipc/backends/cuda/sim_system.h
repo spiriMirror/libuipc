@@ -67,6 +67,9 @@ class SimSystem : public ISimSystem
 
     virtual bool get_valid() const noexcept override final;
     virtual void set_invalid() noexcept override final;
+
+    SimSystem* find_system(SimSystem* ptr);
+    SimSystem* require_system(SimSystem* ptr);
 };
 }  // namespace uipc::backend::cuda
 

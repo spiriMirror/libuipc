@@ -6,10 +6,11 @@ void ContactReceiver::do_build(BuildInfo& info) {}
 void ContactReceiver::do_build()
 {
     auto& global_contact_manager = require<GlobalContactManager>();
-    global_contact_manager.add_receiver(this);
 
     BuildInfo info;
     do_build(info);
+
+    global_contact_manager.add_receiver(this);
 }
 void ContactReceiver::report(GlobalContactManager::ClassifyInfo& info)
 {

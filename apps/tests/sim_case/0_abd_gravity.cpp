@@ -23,7 +23,9 @@ TEST_CASE("0_abd_gravity", "[abd]")
 
     auto config = Scene::default_config();
 
-    config["gravity"] = Vector3{0, -10, 0};
+    config["gravity"]           = Vector3{0, -10, 0};
+    config["contact"]["enable"] = false;  // disable contact
+
     {  // dump config
         std::ofstream ofs(fmt::format("{}/config.json", this_output_path));
         ofs << config.dump(4);
@@ -33,7 +35,6 @@ TEST_CASE("0_abd_gravity", "[abd]")
     {
         // create constitution and contact model
         auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
-        auto& default_contact = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("tets");
@@ -58,7 +59,6 @@ TEST_CASE("0_abd_gravity", "[abd]")
 
             mesh1.instances().resize(1);
             abd.apply_to(mesh1, 100.0_MPa);
-            default_contact.apply_to(mesh1);
 
             auto trans_view = view(mesh1.transforms());
             auto is_fixed   = mesh1.instances().find<IndexT>(builtin::is_fixed);
@@ -95,7 +95,6 @@ TEST_CASE("0_abd_gravity", "[abd]")
             mesh2.instances().resize(1);
             // apply constitution and contact model to the geometry
             abd.apply_to(mesh2, 100.0_MPa);
-            default_contact.apply_to(mesh2);
 
             auto trans_view = view(mesh2.transforms());
             auto is_fixed   = mesh2.instances().find<IndexT>(builtin::is_fixed);

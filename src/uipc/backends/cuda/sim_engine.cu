@@ -15,7 +15,7 @@ void say_hello_from_muda()
 
     Launch()
         .apply([] __device__()
-               { cout << "Hello from CudaEngine CUDA Kernel!\n"; })
+               { cout << "CUDA Backend Kernel Console Init Success!\n"; })
         .wait();
 }
 

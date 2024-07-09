@@ -28,7 +28,6 @@ class LineSearcher : public SimSystem
         EnergyInfo(LineSearcher* impl) noexcept;
         Float dt() noexcept;
         void  energy(Float e) noexcept;
-
       private:
         friend class LineSearcher;
         LineSearcher*        m_impl   = nullptr;

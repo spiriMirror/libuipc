@@ -35,23 +35,23 @@ REGISTER_SIM_SYSTEM(AffineBodyDynamics);
 void AffineBodyDynamics::do_build()
 {
     // find dependent systems
-    auto dof_predictor             = find<DoFPredictor>();
-    auto gradient_hessian_computer = find<GradientHessianComputer>();
+    auto& dof_predictor             = require<DoFPredictor>();
+    auto& gradient_hessian_computer = require<GradientHessianComputer>();
 
     // Register the action to initialize the affine body geometry
     on_init_scene([this] { m_impl.init_affine_body_geometry(world()); });
 
     // Register the action to predict the affine body dof
-    dof_predictor->on_predict([this](DoFPredictor::PredictInfo& info)
+    dof_predictor.on_predict([this](DoFPredictor::PredictInfo& info)
                               { m_impl.compute_q_tilde(info); });
 
     // Register the action to compute the gradient and hessian
-    gradient_hessian_computer->on_compute_gradient_hessian(
+    gradient_hessian_computer.on_compute_gradient_hessian(
         [this](GradientHessianComputer::ComputeInfo& info)
         { m_impl.compute_gradient_hessian(info); });
 
     // Register the action to compute the velocity of the affine body dof
-    dof_predictor->on_compute_velocity([this](DoFPredictor::PredictInfo& info)
+    dof_predictor.on_compute_velocity([this](DoFPredictor::PredictInfo& info)
                                        { m_impl.compute_q_v(info); });
 
     // Register the action to write the scene
@@ -609,7 +609,6 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
     auto async_fill = []<typename T>(muda::DeviceBuffer<T>& buf, const T& value)
     { muda::BufferLaunch().fill<T>(buf.view(), value); };
 
-    async_fill(diag_hessian, Matrix12x12::Zero().eval());
     async_fill(body_id_to_body_hessian, Matrix12x12::Zero().eval());
     async_fill(body_id_to_body_gradient, Vector12::Zero().eval());
 
@@ -644,18 +643,21 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
                 hessians = body_id_to_body_hessian.viewer().name("hessians"),
                 gradients = body_id_to_body_gradient.viewer().name("gradients")] __device__(int i) mutable
                {
+                   const auto& q = qs(i);
                    auto&       H = hessians(i);
                    auto&       G = gradients(i);
                    const auto& M = masses(i);
 
+                   // cout << "q(" << i << ")=" << q.transpose().eval() << "\n";
+
                    if(is_fixed(i))
                    {
-                       H = Matrix12x12::Identity();
+                       H = M.to_mat();
                        G = Vector12::Zero();
                    }
                    else
                    {
-                       const auto& q       = qs(i);
+
                        const auto& q_tilde = q_tildes(i);
 
                        const auto& K = Ks(i);
@@ -674,8 +676,6 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
                        H.block<9, 9>(3, 3) = eigen_vectors * eigen_values.asDiagonal()
                                              * eigen_vectors.transpose();
                    }
-
-                   diag_hessian(i) = H;
                });
 
     // 3) fill the hessian and gradient from body contact

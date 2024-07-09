@@ -76,13 +76,18 @@ class GlobalVertexManager : public SimSystem
 
       public:
         Impl() = default;
-        void  init_vertex_info();
-        void  rebuild_vertex_info();
-        void  step_forward(Float alpha);
-        Float compute_max_displacement();
+        void init_vertex_info();
+        void rebuild_vertex_info();
+
+        void record_start_point();
+        void step_forward(Float alpha);
+
+        void collect_vertex_displacements();
+
+        Float compute_axis_max_displacement();
+        Float compute_max_displacement_norm();
         AABB  compute_vertex_bounding_box();
-        void  collect_vertex_displacements();
-        void  record_start_point();
+
 
         template <typename T>
         muda::BufferView<T> subview(muda::DeviceBuffer<T>& buffer, SizeT index) const noexcept;
@@ -101,8 +106,10 @@ class GlobalVertexManager : public SimSystem
         muda::DeviceBuffer<Vector3> safe_positions;
         muda::DeviceBuffer<IndexT>  contact_element_ids;
         muda::DeviceBuffer<Vector3> displacements;
+        muda::DeviceBuffer<Float>   displacement_norms;
 
-        muda::DeviceVar<Float>   max_disp;
+        muda::DeviceVar<Float>   axis_max_disp;
+        muda::DeviceVar<Float>   max_disp_norm;
         muda::DeviceVar<Vector3> min_pos;
         muda::DeviceVar<Vector3> max_pos;
 
@@ -123,7 +130,9 @@ class GlobalVertexManager : public SimSystem
     friend class SimEngine;
     void  init_vertex_info();
     void  rebuild_vertex_info();
-    Float compute_max_displacement();
+    void  collect_vertex_displacements();
+    Float compute_axis_max_displacement();
+    Float compute_max_displacement_norm();
     AABB  compute_vertex_bounding_box();
     void  step_forward(Float alpha);
     void  record_start_point();

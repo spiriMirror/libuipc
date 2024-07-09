@@ -99,37 +99,37 @@ void GlobalSimpicialSurfaceManager::Impl::init_surface_info()
         R->report_attributes(info);
     }
 
-    {
-        std::vector<IndexT>   surf_vertices;
-        std::vector<Vector2i> surf_edges;
-        std::vector<Vector3i> surf_triangles;
+    //{
+    //    std::vector<IndexT>   surf_vertices;
+    //    std::vector<Vector2i> surf_edges;
+    //    std::vector<Vector3i> surf_triangles;
 
-        this->surf_vertices.copy_to(surf_vertices);
-        this->surf_edges.copy_to(surf_edges);
-        this->surf_triangles.copy_to(surf_triangles);
+    //    this->surf_vertices.copy_to(surf_vertices);
+    //    this->surf_edges.copy_to(surf_edges);
+    //    this->surf_triangles.copy_to(surf_triangles);
 
-        // print
-        std::cout << "surf_vertices: " << std::endl;
-        for(auto&& v : surf_vertices)
-        {
-            std::cout << v << " ";
-        }
-        std::cout << std::endl;
+    //    // print
+    //    std::cout << "surf_vertices: " << std::endl;
+    //    for(auto&& v : surf_vertices)
+    //    {
+    //        std::cout << v << " ";
+    //    }
+    //    std::cout << std::endl;
 
-        std::cout << "surf_edges: " << std::endl;
-        for(auto&& e : surf_edges)
-        {
-            std::cout << e.transpose() << " ";
-        }
-        std::cout << std::endl;
+    //    std::cout << "surf_edges: " << std::endl;
+    //    for(auto&& e : surf_edges)
+    //    {
+    //        std::cout << e.transpose() << " ";
+    //    }
+    //    std::cout << std::endl;
 
-        std::cout << "surf_triangles: " << std::endl;
-        for(auto&& t : surf_triangles)
-        {
-            std::cout << t.transpose() << " ";
-        }
-        std::cout << std::endl;
-    }
+    //    std::cout << "surf_triangles: " << std::endl;
+    //    for(auto&& t : surf_triangles)
+    //    {
+    //        std::cout << t.transpose() << " ";
+    //    }
+    //    std::cout << std::endl;
+    //}
 }
 
 void GlobalSimpicialSurfaceManager::init_surface_info()

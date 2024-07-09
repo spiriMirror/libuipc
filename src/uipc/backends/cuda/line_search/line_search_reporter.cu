@@ -7,9 +7,11 @@ void LineSearchReporter::do_build(BuildInfo& info) {}
 void LineSearchReporter::do_build()
 {
     auto& line_searcher = require<LineSearcher>();
-    line_searcher.add_reporter(this);
+
     BuildInfo info;
     do_build(info);
+
+    line_searcher.add_reporter(this);
 }
 void LineSearchReporter::record_start_point(LineSearcher::RecordInfo& info)
 {

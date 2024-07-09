@@ -8,15 +8,17 @@ namespace uipc::world
 Json Scene::default_config() noexcept
 {
     Json j;
-    j["dt"]                      = 0.01;
-    j["gravity"]                 = Vector3{0.0, -9.8, 0.0};
-    j["newton"]["tolerance"]     = 1e-2;
-    j["newton"]["max_iter"]      = 1000;
-    j["linear_system"]["solver"] = "linear_pcg";
-    j["debug"]["report_energy"]  = true;
-    j["contact"]["enable"]       = true;
-    j["contact"]["contitution"]  = "ipc";
-    j["contact"]["d_hat"]        = 0.01;
+    j["dt"]                           = 0.01;
+    j["gravity"]                      = Vector3{0.0, -9.8, 0.0};
+    j["newton"]["tolerance"]          = 1e-2;
+    j["newton"]["max_iter"]           = 1000;
+    j["linear_system"]["solver"]      = "linear_pcg";
+    j["line_search"]["report_energy"] = false;
+    j["contact"]["enable"]            = true;
+    j["contact"]["contitution"]       = "ipc";
+    j["contact"]["d_hat"]             = 0.01;
+    // something that is unofficial
+    j["extras"] = Json::object();
     return j;
 }
 

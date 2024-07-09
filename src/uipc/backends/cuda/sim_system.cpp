@@ -60,6 +60,39 @@ void SimSystem::set_invalid() noexcept
     m_valid = false;
 }
 
+SimSystem* SimSystem::find_system(SimSystem* ptr)
+{
+    if(ptr)
+    {
+        if(!ptr->is_valid())
+        {
+            ptr = nullptr;
+        }
+        else
+        {
+            m_dependencies.push_back(ptr);
+        }
+    }
+    return ptr;
+}
+
+SimSystem* SimSystem::require_system(SimSystem* ptr)
+{
+    if(ptr)
+    {
+        if(!ptr->is_valid())
+        {
+            set_invalid();
+            throw SimSystemException(fmt::format("System {} is invalid", ptr->name()));
+        }
+        else
+        {
+            m_dependencies.push_back(ptr);
+        }
+    }
+    return ptr;
+}
+
 bool SimSystem::get_valid() const noexcept
 {
     return m_valid;

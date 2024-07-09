@@ -25,7 +25,7 @@ void LinearPCG::do_build()
         [this]
         {
             // TODO: get info from the scene, now we just use the default value
-            max_iter_ratio  = 2.0;
+            max_iter_ratio  = 2;
             global_tol_rate = 1e-4;
             spdlog::info("LinearPCG: max_iter_ratio = {}, global_tol_rate = {}",
                          max_iter_ratio,
@@ -44,7 +44,7 @@ void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
     x.buffer_view().fill(0);
 
     auto N = x.size();
-    if(z.size() < N)
+    if(z.capacity() < N)
     {
         auto M = reserve_ratio * N;
         z.reserve(M);

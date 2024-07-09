@@ -30,6 +30,7 @@ class SimplexContactConstitution : public ContactReporter
         muda::CBufferView<Vector3>        positions() const;
         muda::CBufferView<Vector3>        rest_positions() const;
         Float                             d_hat() const;
+        Float                             dt() const;
 
       private:
         friend class SimplexContactConstitution;
@@ -141,6 +142,7 @@ class SimplexContactConstitution : public ContactReporter
         SizeT EE_count = 0;
         SizeT PE_count = 0;
         SizeT PP_count = 0;
+        Float dt = 0;
 
         muda::DeviceBuffer<Vector4i>    PT_EE_indices;
         muda::DeviceBuffer<Matrix12x12> PT_EE_hessians;

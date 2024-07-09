@@ -11,11 +11,11 @@ void SimplexContactConstitution::do_build()
     m_impl.global_contact_manager = &require<GlobalContactManager>();
     m_impl.global_vertex_manager  = &require<GlobalVertexManager>();
 
-
-    m_impl.global_contact_manager->add_reporter(this);
-
     BuildInfo info;
     do_build(info);
+
+    m_impl.global_contact_manager->add_reporter(this);
+    m_impl.dt = world().scene().info()["dt"].get<Float>();
 }
 
 void SimplexContactConstitution::do_compute_energy(GlobalContactManager::EnergyInfo& info)
@@ -64,14 +64,11 @@ void SimplexContactConstitution::do_report_extent(GlobalContactManager::ContactE
     SizeT contact_gradient_count = 4 * count_4 + 3 * count_3 + 2 * count_2;
     SizeT contact_hessian_count = 4 * 4 * count_4 + 3 * 3 * count_3 + 2 * 2 * count_2;
 
-    spdlog::info("contact_gradient_count: {}", contact_gradient_count);
     info.gradient_count(contact_gradient_count);
-    spdlog::info("contact_hessian_count: {}", contact_hessian_count);
     info.hessian_count(contact_hessian_count);
 
 
     m_impl.loose_resize(m_impl.PT_EE_indices, count_4);
-    spdlog::info("PT_EE_indices: {}", m_impl.PT_EE_indices.size());
     m_impl.loose_resize(m_impl.PT_EE_gradients, count_4);
     m_impl.loose_resize(m_impl.PT_EE_hessians, count_4);
 
@@ -145,6 +142,11 @@ muda::CBufferView<Vector3> SimplexContactConstitution::BaseInfo::rest_positions(
 Float SimplexContactConstitution::BaseInfo::d_hat() const
 {
     return m_impl->global_contact_manager->d_hat();
+}
+
+Float SimplexContactConstitution::BaseInfo::dt() const
+{
+    return m_impl->dt;
 }
 
 namespace detail

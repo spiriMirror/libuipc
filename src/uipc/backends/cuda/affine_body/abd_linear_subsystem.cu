@@ -10,8 +10,9 @@ REGISTER_SIM_SYSTEM(ABDLinearSubsystem);
 void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
 {
     m_impl.affine_body_dynamics        = &require<AffineBodyDynamics>();
-    m_impl.abd_contact_receiver        = &require<ABDContactReceiver>();
     m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
+
+    m_impl.abd_contact_receiver = find<ABDContactReceiver>();
 }
 
 
@@ -31,10 +32,8 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
 
 
     // 2) Gradient Count
-
     SizeT G12_count = abd().body_count();
     auto  dof_count = abd().abd_body_count * G12_to_dof;
-
 
     info.extent(hessian_block_count, dof_count);
 }
@@ -58,35 +57,39 @@ void ABDLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
                { gradient.segment<12>(i * 12) = abd_gradient(i); });
 
     // contact gradient
-    auto contact_count = contact().contact_gradient.doublet_count();
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(contact_count,
-               [contact_gradient = contact().contact_gradient.cviewer().name("contact_gradient"),
-                gradient      = info.gradient().viewer().name("gradient"),
-                vertex_offset = affine_body_vertex_reporter->vertex_offset(),
-                v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                Js  = abd().vertex_id_to_J.cviewer().name("Js"),
-                is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
-               {
-                   const auto& [g_i, G3] = contact_gradient(I);
-
-                   auto i      = g_i - vertex_offset;
-                   auto body_i = v2b(i);
-                   auto J_i    = Js(i);
-
-                   if(is_fixed(body_i))
+    if(abd_contact_receiver)  // if contact is enabled
+    {
+        auto contact_count = contact().contact_gradient.doublet_count();
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(contact_count,
+                   [contact_gradient = contact().contact_gradient.cviewer().name("contact_gradient"),
+                    gradient = info.gradient().viewer().name("gradient"),
+                    vertex_offset = affine_body_vertex_reporter->vertex_offset(),
+                    v2b      = abd().vertex_id_to_body_id.cviewer().name("v2b"),
+                    Js       = abd().vertex_id_to_J.cviewer().name("Js"),
+                    is_fixed = abd().body_id_to_is_fixed.cviewer().name(
+                        "is_fixed")] __device__(int I) mutable
                    {
-                       // cout << "body_i=" << body_i << " is fixed\n";
-                   }
-                   else
-                   {
-                       Vector12 G12 = J_i.T() * G3;
-                       gradient.segment<12>(body_i * 12).atomic_add(G12);
+                       const auto& [g_i, G3] = contact_gradient(I);
 
-                       // cout << "G12: \n" << G12 << "\n";
-                   }
-               });
+                       auto i      = g_i - vertex_offset;
+                       auto body_i = v2b(i);
+                       auto J_i    = Js(i);
+
+                       if(is_fixed(body_i))
+                       {
+                           // cout << "body_i=" << body_i << " is fixed\n";
+                       }
+                       else
+                       {
+                           Vector12 G12 = J_i.T() * G3;
+                           gradient.segment<12>(body_i * 12).atomic_add(G12);
+
+                           // cout << "G12: \n" << G12 << "\n";
+                       }
+                   });
+    }
 }
 
 void ABDLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& info)
@@ -115,9 +118,15 @@ void ABDLinearSubsystem::Impl::assemble_H12x12()
 {
     using namespace muda;
 
-    auto H12x12_count = abd().body_id_to_body_hessian.size()
-                        + contact().contact_hessian.triplet_count();
+    auto H12x12_count = abd().body_id_to_body_hessian.size();
 
+    if(abd_contact_receiver)
+        H12x12_count += contact().contact_hessian.triplet_count();
+
+    auto async_fill = []<typename T>(muda::DeviceBuffer<T>& buf, const T& value)
+    { muda::BufferLaunch().fill<T>(buf.view(), value); };
+
+    async_fill(abd().diag_hessian, Matrix12x12::Zero().eval());
 
     if(triplet_A.triplet_capacity() < H12x12_count)
     {
@@ -138,13 +147,19 @@ void ABDLinearSubsystem::Impl::assemble_H12x12()
             .kernel_name(__FUNCTION__)
             .apply(count,
                    [body_hessian = abd().body_id_to_body_hessian.cviewer().name("body_hessian"),
-                    triplet = A.subview(offset, count).viewer().name("triplet")] __device__(int i) mutable
-                   { triplet(i).write(i, i, body_hessian(i)); });
+                    triplet = A.subview(offset, count).viewer().name("triplet"),
+                    diag_hessian = abd().diag_hessian.viewer().name(
+                        "diag_hessian")] __device__(int i) mutable
+                   {
+                       triplet(i).write(i, i, body_hessian(i));
+                       diag_hessian(i) += body_hessian(i);
+                   });
 
         offset += count;
     }
 
     // contact hessian
+    if(abd_contact_receiver)  // if contact is enabled
     {
         auto count         = contact().contact_hessian.triplet_count();
         auto vertex_offset = affine_body_vertex_reporter->vertex_offset();
@@ -155,10 +170,11 @@ void ABDLinearSubsystem::Impl::assemble_H12x12()
                    [contact_hessian = contact().contact_hessian.cviewer().name("contact_hessian"),
                     triplet = A.subview(offset, count).viewer().name("triplet"),
                     vertex_offset = vertex_offset,
-                    v2b      = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                    Js       = abd().vertex_id_to_J.cviewer().name("Js"),
-                    is_fixed = abd().body_id_to_is_fixed.cviewer().name(
-                        "is_fixed")] __device__(int I) mutable
+                    v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
+                    Js  = abd().vertex_id_to_J.cviewer().name("Js"),
+                    is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+                    diag_hessian = abd().diag_hessian.viewer().name(
+                        "diag_hessian")] __device__(int I) mutable
                    {
                        const auto& [g_i, g_j, H3x3] = contact_hessian(I);
 
@@ -167,6 +183,8 @@ void ABDLinearSubsystem::Impl::assemble_H12x12()
 
                        auto body_i = v2b(i);
                        auto body_j = v2b(j);
+
+                       //out << "body_i=" << body_i << " body_j=" << body_j << "\n";
 
                        auto J_i = Js(i);
                        auto J_j = Js(j);
@@ -180,6 +198,11 @@ void ABDLinearSubsystem::Impl::assemble_H12x12()
                            Matrix12x12 H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
                            triplet(I).write(body_i, body_j, H12x12);
                            // cout << "H12x12: \n" << H12x12 << "\n";
+
+                           if(body_i == body_j)
+                           {
+                               eigen::atomic_add(diag_hessian(body_i), H12x12);
+                           }
                        }
                    });
     }
@@ -204,7 +227,7 @@ void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
                 x = info.solution().viewer().name("x")] __device__(int i) mutable
                {
                    dq(i) = -x.segment<12>(i * 12).as_eigen();
-                   cout << "solution dq: \n" << dq(i) << "\n";
+                   // cout << "solution dq: \n" << dq(i) << "\n";
                });
 }
 }  // namespace uipc::backend::cuda

@@ -285,6 +285,7 @@ void GlobalLinearSystem::Impl::solve_linear_system()
         info.m_b = b.cview();
         info.m_x = x.view();
         iterative_solver->solve(info);
+        spdlog::info("Iterative linear solver iteration count: {}", info.m_iter_count);
     }
 }
 

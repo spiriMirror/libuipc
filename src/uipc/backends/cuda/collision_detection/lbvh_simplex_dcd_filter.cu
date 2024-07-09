@@ -8,21 +8,7 @@
 
 namespace uipc::backend::cuda
 {
-constexpr bool PrintDebugInfo = true;
-
-template <>
-class SimSystemCreator<LBVHSimplexDCDFilter>
-{
-  public:
-    static U<LBVHSimplexDCDFilter> create(SimEngine& engine)
-    {
-        auto& info = engine.world().scene().info();
-
-        return info["contact"]["enable"].get<bool>() ?
-                   make_unique<LBVHSimplexDCDFilter>(engine) :
-                   nullptr;
-    }
-};
+constexpr bool PrintDebugInfo = false;
 
 REGISTER_SIM_SYSTEM(LBVHSimplexDCDFilter);
 

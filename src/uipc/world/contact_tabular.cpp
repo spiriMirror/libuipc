@@ -1,6 +1,7 @@
 #include <uipc/world/contact_tabular.h>
 #include <uipc/common/log.h>
 #include <algorithm>
+#include <uipc/common/unit.h>
 
 namespace uipc::world
 {
@@ -11,7 +12,7 @@ ContactTabular::ContactTabular() noexcept
     m_elements.reserve(64);
 
     auto default_element = create("default");
-    insert(default_element, default_element, 0.5, 1e8, {});
+    insert(default_element, default_element, 0.5, 1.0_GPa, {});
 }
 
 ContactElement& ContactTabular::create(std::string_view name) noexcept

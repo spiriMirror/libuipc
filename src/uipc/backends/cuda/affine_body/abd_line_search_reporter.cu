@@ -6,20 +6,6 @@
 
 namespace uipc::backend::cuda
 {
-template <>
-class SimSystemCreator<ABDLineSearchReporter>
-{
-  public:
-    static U<ABDLineSearchReporter> create(SimEngine& engine)
-    {
-        auto  scene = engine.world().scene();
-        auto& types = scene.constitution_tabular().types();
-        if(types.find(world::ConstitutionTypes::AffineBody) != types.end())
-            return make_unique<ABDLineSearchReporter>(engine);
-        return nullptr;
-    }
-};
-
 REGISTER_SIM_SYSTEM(ABDLineSearchReporter);
 
 void ABDLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
@@ -94,7 +80,6 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        const auto& q_tilde = q_tildes(i);
                        const auto& M       = masses(i);
                        Vector12    dq      = q - q_tilde;
-                       //cout << "dq: " << dq << "\n";
                        K = 0.5 * dq.dot(M * dq);
                    }
                });
@@ -133,7 +118,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                               abd().h_constitution_shape_energy.end(),
                               0.0);
 
-    spdlog::info("ABD K: {}, E: {}", K, E);
+    // spdlog::info("ABD K: {}, E: {}", K, E);
 
     info.energy(K + E);
 }

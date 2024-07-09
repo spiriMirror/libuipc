@@ -147,6 +147,7 @@ class GlobalContactManager final : public SimSystem
         Float d_hat         = 0.0;
         Float related_d_hat = 0.0;
         Float kappa         = 0.0;
+        Float dt            = 0.0;
 
         /***********************************************************************
         *                         Contact Reporter                             *

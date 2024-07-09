@@ -7,19 +7,7 @@
 
 namespace uipc::backend::cuda
 {
-template <>
-class SimSystemCreator<LBVHSimplexCCDFilter>
-{
-  public:
-    static U<LBVHSimplexCCDFilter> create(SimEngine& engine)
-    {
-        auto& info = engine.world().scene().info();
-
-        return info["contact"]["enable"].get<bool>() ?
-                   make_unique<LBVHSimplexCCDFilter>(engine) :
-                   nullptr;
-    }
-};
+constexpr bool PrintDebugInfo = false;
 
 REGISTER_SIM_SYSTEM(LBVHSimplexCCDFilter);
 
@@ -33,8 +21,6 @@ void LBVHSimplexCCDFilter::Impl::broadphase_ccd(SimplexCCDFilter::FilterInfo& in
     auto Vs    = info.surf_vertices();
     auto Es    = info.surf_edges();
     auto Fs    = info.surf_triangles();
-
-    spdlog::info("d_hat:{}, alpha:{}", d_hat, alpha);
 
     point_aabbs.resize(Vs.size());
     triangle_aabbs.resize(Fs.size());
@@ -227,6 +213,8 @@ void LBVHSimplexCCDFilter::Impl::broadphase_ccd(SimplexCCDFilter::FilterInfo& in
                    EE.segment<2>(2) = Es(pair[1]);
                });
 
+
+    if constexpr(PrintDebugInfo)
     {
         std::vector<Vector4i> candidate_PTs_host;
         std::vector<Vector4i> candidate_EEs_host;

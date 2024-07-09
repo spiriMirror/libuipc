@@ -7,13 +7,7 @@ T* SimSystem::find()
 {
     check_state(SimEngineState::BuildSystems, "find()");
     auto ptr = collection().find<T>();
-    if(ptr)
-    {
-        SimSystem* p = ptr;
-        if(!p->is_valid())
-            this->set_invalid();
-        m_dependencies.push_back(p);
-    }
+    ptr      = static_cast<T*>(find_system(ptr));
     return ptr;
 }
 
@@ -22,14 +16,8 @@ T& uipc::backend::cuda::SimSystem::require()
 {
     check_state(SimEngineState::BuildSystems, "require()");
     auto ptr = collection().find<T>();
-    if(ptr)
-    {
-        SimSystem* p = ptr;
-        if(!p->is_valid())
-            this->set_invalid();
-        m_dependencies.push_back(p);
-    }
-    else
+    ptr      = static_cast<T*>(require_system(ptr));
+    if(!ptr)
     {
         throw SimSystemException(fmt::format("System {} not found", typeid(T).name()));
     }

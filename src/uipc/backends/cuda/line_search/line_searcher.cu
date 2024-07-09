@@ -36,7 +36,7 @@ void LineSearcher::init()
 
     m_energy_values.resize(m_reporters.size() + m_energy_reporters.size(), 0);
 
-    m_report_energy = scene.info()["debug"]["report_energy"];
+    m_report_energy = scene.info()["line_search"]["report_energy"];
     m_dt            = scene.info()["dt"];
 }
 
@@ -68,7 +68,8 @@ Float LineSearcher::compute_energy()
         EnergyInfo info{this};
         R->compute_energy(info);
         UIPC_ASSERT(info.m_energy.has_value(),
-                    "Energy[{}] not set by reporter, did you forget to call energy()?", R->name());
+                    "Energy[{}] not set by reporter, did you forget to call energy()?",
+                    R->name());
         E = info.m_energy.value();
         UIPC_ASSERT(!std::isnan(E) && std::isfinite(E), "Energy [{}] is {}", R->name(), E);
     }
@@ -81,7 +82,8 @@ Float LineSearcher::compute_energy()
         EnergyInfo info{this};
         ER(info);
         UIPC_ASSERT(info.m_energy.has_value(),
-                    "Energy[{}] not set by reporter, did you forget to call energy()?", name);
+                    "Energy[{}] not set by reporter, did you forget to call energy()?",
+                    name);
         E = info.m_energy.value();
         UIPC_ASSERT(!std::isnan(E) && std::isfinite(E), "Energy [{}] is {}", name, E);
     }

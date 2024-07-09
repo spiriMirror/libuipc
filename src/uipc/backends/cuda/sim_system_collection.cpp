@@ -48,8 +48,8 @@ void SimSystemCollection::build_systems()
         }
         catch(SimSystemException& e)
         {
-            spdlog::error("SimSystem[{}] build fails, {}", s->name(), e.what());
             s->set_invalid();
+            spdlog::info("[{}] shutdown, reason: {}", s->name(), e.what());
         }
     }
 }

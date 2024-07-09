@@ -21,11 +21,11 @@ muda::CBufferView<Vector2i> SimplexDCDFilter::PPs() const
 
 void SimplexDCDFilter::do_build()
 {
-    m_impl.global_vertex_manager  = find<GlobalVertexManager>();
-    m_impl.global_simplicial_surface_manager = find<GlobalSimpicialSurfaceManager>();
-    m_impl.global_contact_manager = find<GlobalContactManager>();
+    m_impl.global_vertex_manager = &require<GlobalVertexManager>();
+    m_impl.global_simplicial_surface_manager = &require<GlobalSimpicialSurfaceManager>();
+    m_impl.global_contact_manager = &require<GlobalContactManager>();
+    auto global_dcd_filter        = &require<GlobalDCDFilter>();
 
-    auto global_dcd_filter = find<GlobalDCDFilter>();
     global_dcd_filter->add_filter(this);
 }
 

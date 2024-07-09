@@ -48,6 +48,7 @@ void GlobalVertexManager::Impl::init_vertex_info()
     safe_positions.resize(total_count);
     contact_element_ids.resize(total_count, 0);
     displacements.resize(total_count, Vector3::Zero());
+    displacement_norms.resize(total_count, 0.0);
 
     // create the subviews for each attribute_reporter
     for(auto&& [i, R] : enumerate(vertex_reporters))
@@ -81,12 +82,10 @@ void GlobalVertexManager::Impl::step_forward(Float alpha)
                { pos(i) = safe_pos(i) + alpha * disp(i); });
 }
 
-Float GlobalVertexManager::Impl::compute_max_displacement()
+Float GlobalVertexManager::Impl::compute_axis_max_displacement()
 {
-    collect_vertex_displacements();
-
     muda::DeviceReduce().Reduce((Float*)displacements.data(),
-                                max_disp.data(),
+                                axis_max_disp.data(),
                                 displacements.size() * 3,
                                 [] CUB_RUNTIME_FUNCTION(const Float& L, const Float& R)
                                 {
@@ -95,7 +94,29 @@ Float GlobalVertexManager::Impl::compute_max_displacement()
                                     return absL > absR ? absL : absR;
                                 },
                                 0.0);
-    return max_disp;
+    return axis_max_disp;
+}
+
+Float GlobalVertexManager::Impl::compute_max_displacement_norm()
+{
+    using namespace muda;
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(displacements.size(),
+               [disps = displacements.cviewer().name("disp"),
+                disp_norms = displacement_norms.viewer().name("disp_norm")] __device__(int i) mutable
+               {
+                   auto d        = disps(i).norm();
+                   disp_norms(i) = d;
+               });
+
+    Float max_float = std::numeric_limits<Float>::max();
+
+    DeviceReduce().Max(displacement_norms.data(),
+                       max_disp_norm.data(),
+                       displacement_norms.size());
+
+    return max_disp_norm;
 }
 
 AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
@@ -198,6 +219,11 @@ void GlobalVertexManager::rebuild_vertex_info()
     m_impl.rebuild_vertex_info();
 }
 
+void GlobalVertexManager::collect_vertex_displacements()
+{
+    m_impl.collect_vertex_displacements();
+}
+
 muda::CBufferView<IndexT> GlobalVertexManager::coindices() const noexcept
 {
     return m_impl.coindices;
@@ -243,9 +269,14 @@ void GlobalVertexManager::Impl::record_start_point()
     BufferLaunch().copy<Vector3>(safe_positions.view(), std::as_const(positions).view());
 }
 
-Float GlobalVertexManager::compute_max_displacement()
+Float GlobalVertexManager::compute_axis_max_displacement()
 {
-    return m_impl.compute_max_displacement();
+    return m_impl.compute_axis_max_displacement();
+}
+
+Float GlobalVertexManager::compute_max_displacement_norm()
+{
+    return m_impl.compute_max_displacement_norm();
 }
 
 AABB GlobalVertexManager::compute_vertex_bounding_box()
