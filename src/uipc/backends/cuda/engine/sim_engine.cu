@@ -1,11 +1,9 @@
 #include <sim_engine.h>
-#include <uipc/backends/module.h>
 #include <uipc/common/log.h>
 #include <muda/muda.h>
 #include <kernel_cout.h>
 #include <sim_engine_device_common.h>
 #include <log_pattern_guard.h>
-#include <sim_system_collection.h>
 
 namespace uipc::backend::cuda
 {
@@ -86,19 +84,19 @@ SimEngineState SimEngine::state() const noexcept
 
 void SimEngine::event_init_scene()
 {
-    for(auto& action : m_on_init_scene)
+    for(auto& action : m_on_init_scene.view())
         action();
 }
 
 void SimEngine::event_rebuild_scene()
 {
-    for(auto& action : m_on_rebuild_scene)
+    for(auto& action : m_on_rebuild_scene.view())
         action();
 }
 
 void SimEngine::event_write_scene()
 {
-    for(auto& action : m_on_write_scene)
+    for(auto& action : m_on_write_scene.view())
         action();
 }
 }  // namespace uipc::backend::cuda

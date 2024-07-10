@@ -33,19 +33,22 @@ void AffineBodyDynamics::do_build()
     auto& gradient_hessian_computer = require<GradientHessianComputer>();
 
     // Register the action to initialize the affine body geometry
-    on_init_scene([this] { m_impl.init_affine_body_geometry(world()); });
+    on_init_scene([this] { m_impl.init(world()); });
 
     // Register the action to predict the affine body dof
-    dof_predictor.on_predict([this](DoFPredictor::PredictInfo& info)
+    dof_predictor.on_predict(*this,
+                             [this](DoFPredictor::PredictInfo& info)
                              { m_impl.compute_q_tilde(info); });
 
     // Register the action to compute the gradient and hessian
     gradient_hessian_computer.on_compute_gradient_hessian(
+        *this,
         [this](GradientHessianComputer::ComputeInfo& info)
         { m_impl.compute_gradient_hessian(info); });
 
     // Register the action to compute the velocity of the affine body dof
-    dof_predictor.on_compute_velocity([this](DoFPredictor::PredictInfo& info)
+    dof_predictor.on_compute_velocity(*this,
+                                      [this](DoFPredictor::PredictInfo& info)
                                       { m_impl.compute_q_v(info); });
 
     // Register the action to write the scene
@@ -61,30 +64,29 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
     check_state(SimEngineState::BuildSystems, "add_constitution()");
     // set the temp index, later we will sort constitution by uid
     // and reset the index
-    constitution->m_index = m_impl.constitution_buffer.size();
-    m_impl.constitution_buffer.push_back(constitution);
+    m_impl.constitutions.register_subsystem(*constitution);
 }
 
-void AffineBodyDynamics::after_build_geometry(std::function<void()>&& action)
+void AffineBodyDynamics::after_build_geometry(SimSystem& sim_system,
+                                              std::function<void()>&& action)
 {
     check_state(SimEngineState::BuildSystems, "after_build_body_infos()");
-    m_impl.after_build_geometry.push_back(std::move(action));
+    m_impl.after_build_geometry.register_action(sim_system, std::move(action));
 }
 
 void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
 {
     // 1) sort the constitutions by uid
-    constitutions.resize(constitution_buffer.size());
-    std::ranges::move(constitution_buffer, constitutions.begin());
-    std::sort(constitutions.begin(),
-              constitutions.end(),
-              [](const AffineBodyConstitution* a, AffineBodyConstitution* b)
-              { return a->constitution_uid() < b->constitution_uid(); });
-    for(auto&& [i, constitution] : enumerate(constitutions))  // reset the index
-        constitution->m_index = i;
+    auto constitution_view = constitutions.view();
 
-    vector<U64> filter_uids(constitutions.size());
-    std::ranges::transform(constitutions,
+    std::ranges::sort(constitution_view,
+                      [](const AffineBodyConstitution* a, AffineBodyConstitution* b)
+                      { return a->constitution_uid() < b->constitution_uid(); });
+    for(auto&& [i, C] : enumerate(constitution_view))  // reset the index
+        C->m_index = i;
+
+    vector<U64> filter_uids(constitution_view.size());
+    std::ranges::transform(constitution_view,
                            filter_uids.begin(),
                            [](const AffineBodyConstitution* filter)
                            { return filter->constitution_uid(); });
@@ -166,6 +168,8 @@ void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
 
 void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
 {
+    auto constitution_view = constitutions.view();
+
     // 1) setup h_abd_geo_body_offsets and h_abd_geo_body_counts
     {
         h_abd_geo_body_offsets.reserve(h_body_infos.size());
@@ -189,8 +193,10 @@ void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
 
     // 2) setup h_constitution_geo_offsets and h_constitution_geo_counts
     {
-        h_constitution_geo_offsets.reserve(constitutions.size());
-        h_constitution_geo_counts.reserve(constitutions.size());
+        auto constitution_view = constitutions.view();
+
+        h_constitution_geo_offsets.reserve(constitution_view.size());
+        h_constitution_geo_counts.reserve(constitution_view.size());
 
         encode_offset_count(h_abd_geo_body_offsets.begin(),
                             h_abd_geo_body_offsets.end(),
@@ -214,8 +220,8 @@ void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
 
     // 3) setup h_constitution_body_offsets and h_constitution_body_counts
     {
-        h_constitution_body_offsets.reserve(constitutions.size());
-        h_constitution_body_counts.reserve(constitutions.size());
+        h_constitution_body_offsets.reserve(constitution_view.size());
+        h_constitution_body_counts.reserve(constitution_view.size());
 
         encode_offset_count(h_body_infos.begin(),
                             h_body_infos.end(),
@@ -237,8 +243,9 @@ void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
 
 void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 {
-    auto scene     = world.scene();
-    auto geo_slots = scene.geometries();
+    auto scene             = world.scene();
+    auto geo_slots         = scene.geometries();
+    auto constitution_view = constitutions.view();
 
     // 1) setup `q` for every affine body
     h_body_id_to_q.resize(h_body_infos.size());
@@ -424,7 +431,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
         [&](SizeT i, IndexT fixed) { h_body_id_to_is_fixed[i] = fixed; });
 
     // 8) misc
-    h_constitution_shape_energy.resize(constitutions.size(), 0.0);
+    h_constitution_shape_energy.resize(constitution_view.size(), 0.0);
 }
 
 void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
@@ -468,7 +475,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_resize(body_id_to_kinetic_energy, h_body_infos.size(), 0.0);
 
     // setup constitution shape energy buffer
-    async_resize(constitution_shape_energy, constitutions.size(), 0.0);
+    async_resize(constitution_shape_energy, constitutions.view().size(), 0.0);
 
     // setup hessian and gradient buffers
     async_resize(diag_hessian, h_body_infos.size(), Matrix12x12::Zero().eval());
@@ -483,7 +490,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
 void AffineBodyDynamics::Impl::_distribute_body_infos()
 {
     // _distribute the body infos to each constitution
-    for(auto&& [I, constitution] : enumerate(constitutions))
+    for(auto&& [I, constitution] : enumerate(constitutions.view()))
     {
         FilteredInfo info{this};
         info.m_constitution_index = I;
@@ -491,16 +498,24 @@ void AffineBodyDynamics::Impl::_distribute_body_infos()
     }
 }
 
-void AffineBodyDynamics::Impl::init_affine_body_geometry(WorldVisitor& world)
+void AffineBodyDynamics::Impl::init(WorldVisitor& world)
 {
+    _build_subsystems(world);
+
     _build_body_infos(world);
     _build_related_infos(world);
     _build_geometry_on_host(world);
     _build_geometry_on_device(world);
     _distribute_body_infos();
 
-    for(auto&& action : after_build_geometry)
+    for(auto&& action : after_build_geometry.view())
         action();
+}
+
+void AffineBodyDynamics::Impl::_build_subsystems(WorldVisitor& world)
+{
+    constitutions.init();
+    after_build_geometry.init();
 }
 
 void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
@@ -607,7 +622,7 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
     async_fill(body_id_to_body_gradient, Vector12::Zero().eval());
 
     // 1) compute all shape gradients and hessians
-    for(auto&& [i, cst] : enumerate(constitutions))
+    for(auto&& [i, cst] : enumerate(constitutions.view()))
     {
         auto body_offset = h_constitution_body_offsets[i];
         auto body_count  = h_constitution_body_counts[i];

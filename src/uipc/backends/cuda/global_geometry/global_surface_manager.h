@@ -99,9 +99,8 @@ class GlobalSimpicialSurfaceManager : public SimSystem
         muda::DeviceBuffer<Vector2i> surf_edges;
         muda::DeviceBuffer<Vector3i> surf_triangles;
 
-        GlobalVertexManager*     global_vertex_manager = nullptr;
-        list<SurfaceReporter*>   reporter_buffer;
-        vector<SurfaceReporter*> reporters;
+        GlobalVertexManager* global_vertex_manager = nullptr;
+        SimSystemSlotCollection<SurfaceReporter> reporters;
     };
 
     muda::CBufferView<IndexT>   surf_vertices() const noexcept;

@@ -27,40 +27,39 @@ void GlobalLinearSystem::solve()
 
 void GlobalLinearSystem::Impl::init()
 {
-    UIPC_ASSERT(!diag_subsystem_buffer.empty(),
-                "No linear subsystems added to the global linear system.");
-
     // build the linear subsystem infos
-    diag_subsystems.resize(diag_subsystem_buffer.size());
-    off_diag_subsystems.resize(off_diag_subsystem_buffer.size());
-    local_preconditioners.resize(local_preconditioner_buffer.size());
+    diag_subsystems.init();
+    off_diag_subsystems.init();
+    local_preconditioners.init();
+    global_preconditioner.init();
+    iterative_solver.init();
 
-    std::ranges::move(diag_subsystem_buffer, diag_subsystems.begin());
-    std::ranges::move(off_diag_subsystem_buffer, off_diag_subsystems.begin());
-    std::ranges::move(local_preconditioner_buffer, local_preconditioners.begin());
+    auto diag_subsystem_view       = diag_subsystems.view();
+    auto off_diag_subsystem_view   = off_diag_subsystems.view();
+    auto local_preconditioner_view = local_preconditioners.view();
 
-    auto total_count = diag_subsystems.size() + off_diag_subsystems.size();
+    auto total_count = diag_subsystem_view.size() + off_diag_subsystem_view.size();
 
     subsystem_infos.resize(total_count);
 
     // put the diag subsystems in the front
-    auto diag_span = span{subsystem_infos}.subspan(0, diag_subsystems.size());
+    auto diag_span = span{subsystem_infos}.subspan(0, diag_subsystem_view.size());
     // then the off diag subsystems
-    auto off_diag_span = span{subsystem_infos}.subspan(diag_subsystems.size(),
-                                                       off_diag_subsystems.size());
+    auto off_diag_span = span{subsystem_infos}.subspan(diag_subsystem_view.size(),
+                                                       off_diag_subsystem_view.size());
 
     auto offset = 0;
     for(auto i : range(diag_span.size()))
     {
-        auto& dst_diag              = diag_span[i];
-        dst_diag.is_diag            = true;
-        dst_diag.local_index        = i;
-        auto index                  = offset + i;
-        dst_diag.index              = index;
-        diag_subsystems[i]->m_index = index;
+        auto& dst_diag                  = diag_span[i];
+        dst_diag.is_diag                = true;
+        dst_diag.local_index            = i;
+        auto index                      = offset + i;
+        dst_diag.index                  = index;
+        diag_subsystem_view[i]->m_index = index;
     }
 
-    offset += diag_subsystems.size();
+    offset += diag_subsystem_view.size();
     for(auto i : range(off_diag_span.size()))
     {
         auto& dst_off_diag       = off_diag_span[i];
@@ -74,11 +73,11 @@ void GlobalLinearSystem::Impl::init()
     subsystem_triplet_counts.resize(total_count, ~0ull);
 
 
-    diag_dof_offsets.resize(diag_subsystems.size());
-    diag_dof_counts.resize(diag_subsystems.size());
-    accuracy_statisfied_flags.resize(diag_subsystems.size());
+    diag_dof_offsets.resize(diag_subsystem_view.size());
+    diag_dof_counts.resize(diag_subsystem_view.size());
+    accuracy_statisfied_flags.resize(diag_subsystem_view.size());
 
-    off_diag_lr_triplet_counts.resize(off_diag_subsystems.size());
+    off_diag_lr_triplet_counts.resize(off_diag_subsystem_view.size());
 }
 
 void GlobalLinearSystem::Impl::build_linear_system()
@@ -101,13 +100,16 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     bool dof_count_changed     = false;
     bool triplet_count_changed = false;
 
+    auto diag_subsystem_view     = diag_subsystems.view();
+    auto off_diag_subsystem_view = off_diag_subsystems.view();
+
     for(const auto& subsystem_info : subsystem_infos)
     {
         if(subsystem_info.is_diag)
         {
             auto           dof_i          = subsystem_info.local_index;
             auto           triplet_i      = subsystem_info.index;
-            auto&          diag_subsystem = diag_subsystems[dof_i];
+            auto&          diag_subsystem = diag_subsystem_view[dof_i];
             DiagExtentInfo info;
             info.m_storage_type = HessianStorageType::Full;
             diag_subsystem->report_extent(info);
@@ -122,7 +124,7 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
         else
         {
             auto triplet_i = subsystem_info.index;
-            auto& off_diag_subsystem = off_diag_subsystems[subsystem_info.local_index];
+            auto& off_diag_subsystem = off_diag_subsystem_view[subsystem_info.local_index];
             OffDiagExtentInfo info;
             info.m_storage_type = HessianStorageType::Full;
             off_diag_subsystem->report_extent(info);
@@ -195,13 +197,17 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
 {
     auto HA = triplet_A.view();
     auto B  = b.view();
+
+    auto diag_subsystem_view     = diag_subsystems.view();
+    auto off_diag_subsystem_view = off_diag_subsystems.view();
+
     for(const auto& subsystem_info : subsystem_infos)
     {
         if(subsystem_info.is_diag)
         {
             auto  dof_i          = subsystem_info.local_index;
             auto  triplet_i      = subsystem_info.index;
-            auto& diag_subsystem = diag_subsystems[dof_i];
+            auto& diag_subsystem = diag_subsystem_view[dof_i];
 
             int  dof_offset         = diag_dof_offsets[dof_i];
             int  dof_count          = diag_dof_counts[dof_i];
@@ -225,7 +231,7 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
         {
             auto triplet_i   = subsystem_info.index;
             auto local_index = subsystem_info.local_index;
-            auto& off_diag_subsystem = off_diag_subsystems[subsystem_info.local_index];
+            auto& off_diag_subsystem = off_diag_subsystem_view[subsystem_info.local_index];
             auto& l_diag_index = off_diag_subsystem->m_l->m_index;
             auto& r_diag_index = off_diag_subsystem->m_r->m_index;
 
@@ -269,7 +275,7 @@ void GlobalLinearSystem::Impl::_assemble_preconditioner()
         global_preconditioner->assemble(info);
     }
 
-    for(auto&& [i, preconditioner] : enumerate(local_preconditioners))
+    for(auto&& [i, preconditioner] : enumerate(local_preconditioners.view()))
     {
         LocalPreconditionerAssemblyInfo info{this};
         info.m_index = i;
@@ -292,7 +298,7 @@ void GlobalLinearSystem::Impl::solve_linear_system()
 void GlobalLinearSystem::Impl::distribute_solution()
 {
     // _distribute the solution to all diag subsystems
-    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems))
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems.view()))
     {
         SolutionInfo info{this};
         info.m_solution = x.view().subview(diag_dof_offsets[i], diag_dof_counts[i]);
@@ -311,7 +317,7 @@ void GlobalLinearSystem::Impl::apply_preconditioner(muda::DenseVectorView<Float>
         global_preconditioner->apply(info);
     }
 
-    for(auto& preconditioner : local_preconditioners)
+    for(auto& preconditioner : local_preconditioners.view())
     {
         ApplyPreconditionerInfo info{this};
         auto                    index  = preconditioner->m_subsystem->m_index;
@@ -322,7 +328,7 @@ void GlobalLinearSystem::Impl::apply_preconditioner(muda::DenseVectorView<Float>
         preconditioner->apply(info);
     }
 
-    if(!global_preconditioner && local_preconditioners.empty())
+    if(!global_preconditioner && local_preconditioners.view().empty())
     {
         muda::BufferLaunch().copy<Float>(z.buffer_view(), r.buffer_view());
     }
@@ -338,7 +344,7 @@ void GlobalLinearSystem::Impl::spmv(Float                         a,
 
 bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> r)
 {
-    for(auto&& [i, diag_subsystems] : enumerate(diag_subsystems))
+    for(auto&& [i, diag_subsystems] : enumerate(diag_subsystems.view()))
     {
         AccuracyInfo info{this};
         info.m_r = r.subview(diag_dof_offsets[i], diag_dof_counts[i]);
@@ -350,6 +356,23 @@ bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> 
     return std::ranges::all_of(accuracy_statisfied_flags,
                                [](bool flag) { return flag; });
 }
+
+void GlobalLinearSystem::DiagExtentInfo::extent(SizeT hessian_block_count, SizeT dof_count) noexcept
+{
+    m_block_count = hessian_block_count;
+    UIPC_ASSERT(dof_count % DoFBlockSize == 0,
+                "dof_count must be multiple of {}, yours {}.",
+                DoFBlockSize,
+                dof_count);
+    m_dof_count = dof_count;
+}
+
+void GlobalLinearSystem::OffDiagExtentInfo::extent(SizeT lr_hessian_block_count,
+                                                   SizeT rl_hassian_block_count) noexcept
+{
+    m_lr_block_count = lr_hessian_block_count;
+    m_rl_block_count = rl_hassian_block_count;
+}
 }  // namespace uipc::backend::cuda
 
 namespace uipc::backend::cuda
@@ -357,7 +380,8 @@ namespace uipc::backend::cuda
 void GlobalLinearSystem::add_subsystem(DiagLinearSubsystem* subsystem)
 {
     check_state(SimEngineState::BuildSystems, "add_subsystem()");
-    m_impl.diag_subsystem_buffer.push_back(subsystem);
+    UIPC_ASSERT(subsystem != nullptr, "The subsystem should not be nullptr.");
+    m_impl.diag_subsystems.register_subsystem(*subsystem);
 }
 
 void GlobalLinearSystem::add_subsystem(OffDiagLinearSubsystem* subsystem,
@@ -368,34 +392,31 @@ void GlobalLinearSystem::add_subsystem(OffDiagLinearSubsystem* subsystem,
     UIPC_ASSERT(depend_l != nullptr && depend_r != nullptr,
                 "The depend_l and depend_r should not be nullptr.");
     subsystem->depend_on(depend_l, depend_r);
-    m_impl.off_diag_subsystem_buffer.push_back(subsystem);
+    m_impl.off_diag_subsystems.register_subsystem(*subsystem);
 }
 
 void GlobalLinearSystem::add_solver(IterativeSolver* solver)
 {
     check_state(SimEngineState::BuildSystems, "add_solver()");
-    UIPC_ASSERT(m_impl.iterative_solver == nullptr,
-                "Only support one linear system solver, {} already added before.",
-                m_impl.iterative_solver->name());
-    m_impl.iterative_solver = solver;
-    solver->m_system        = this;
+    UIPC_ASSERT(solver != nullptr, "The solver should not be nullptr.");
+    solver->m_system = this;
+    m_impl.iterative_solver.register_subsystem(*solver);
 }
 
 void GlobalLinearSystem::add_preconditioner(LocalPreconditioner* preconditioner,
                                             DiagLinearSubsystem* depend_subsystem)
 {
     check_state(SimEngineState::BuildSystems, "add_preconditioner()");
+    UIPC_ASSERT(preconditioner != nullptr, "The preconditioner should not be nullptr.");
     UIPC_ASSERT(depend_subsystem != nullptr, "The depend_subsystem should not be nullptr.");
     preconditioner->m_subsystem = depend_subsystem;
-    m_impl.local_preconditioner_buffer.push_back(preconditioner);
+    m_impl.local_preconditioners.register_subsystem(*preconditioner);
 }
 
 void GlobalLinearSystem::add_preconditioner(GlobalPreconditioner* preconditioner)
 {
     check_state(SimEngineState::BuildSystems, "add_preconditioner()");
-    UIPC_ASSERT(m_impl.global_preconditioner == nullptr,
-                "Only support one global preconditioner, {} already added before.",
-                m_impl.global_preconditioner->name());
-    m_impl.global_preconditioner = preconditioner;
+    UIPC_ASSERT(preconditioner != nullptr, "The preconditioner should not be nullptr.");
+    m_impl.global_preconditioner.register_subsystem(*preconditioner);
 }
 }  // namespace uipc::backend::cuda

@@ -29,8 +29,6 @@ class SimSystemCreator
 
 namespace detail
 {
-    void foo(const string&, int, double) {}
-
     template <std::derived_from<ISimSystem> SimSystemT>
     std::function<U<ISimSystem>(SimEngine&)> register_system_creator()
     {

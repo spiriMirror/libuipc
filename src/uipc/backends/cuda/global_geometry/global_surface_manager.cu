@@ -9,8 +9,9 @@ REGISTER_SIM_SYSTEM(GlobalSimpicialSurfaceManager);
 
 void GlobalSimpicialSurfaceManager::add_reporter(SurfaceReporter* reporter) noexcept
 {
-    reporter->m_index = m_impl.reporter_buffer.size();
-    m_impl.reporter_buffer.push_back(reporter);
+    check_state(SimEngineState::BuildSystems, "add_reporter()");
+    UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
+    m_impl.reporters.register_subsystem(*reporter);
 }
 
 muda::CBufferView<IndexT> GlobalSimpicialSurfaceManager::surf_vertices() const noexcept
@@ -36,14 +37,16 @@ void GlobalSimpicialSurfaceManager::do_build()
 void GlobalSimpicialSurfaceManager::Impl::init_surface_info()
 {
     // 1) build the core invariant data structure: reporter_infos
-    reporters.resize(reporter_buffer.size());
-    std::ranges::move(reporter_buffer, reporters.begin());
+    reporters.init();
+    auto reporter_view = reporters.view();
+    for(auto&& [i, R] : enumerate(reporter_view))
+        R->m_index = i;
 
-    reporter_infos.resize(reporters.size());
-    vector<SizeT> vertex_offsets(reporters.size(), 0);
-    vector<SizeT> edge_offsets(reporters.size(), 0);
-    vector<SizeT> triangle_offsets(reporters.size(), 0);
-    for(auto&& [R, Rinfo] : zip(reporters, reporter_infos))
+    reporter_infos.resize(reporter_view.size());
+    vector<SizeT> vertex_offsets(reporter_view.size(), 0);
+    vector<SizeT> edge_offsets(reporter_view.size(), 0);
+    vector<SizeT> triangle_offsets(reporter_view.size(), 0);
+    for(auto&& [R, Rinfo] : zip(reporter_view, reporter_infos))
     {
         SurfaceCountInfo info;
         R->report_count(info);
@@ -86,7 +89,7 @@ void GlobalSimpicialSurfaceManager::Impl::init_surface_info()
 
 
     // 3) collect surface attributes
-    for(auto&& [R, Rinfo] : zip(reporters, reporter_infos))
+    for(auto&& [R, Rinfo] : zip(reporter_view, reporter_infos))
     {
         SurfaceAttributeInfo info{this};
 

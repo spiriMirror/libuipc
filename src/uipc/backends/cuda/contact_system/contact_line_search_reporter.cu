@@ -13,14 +13,14 @@ void ContactLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 
 void ContactLineSearchReporter::Impl::init()
 {
-    auto reporters = span{global_contact_manager->m_impl.contact_reporters};
+    auto reporters = global_contact_manager->m_impl.contact_reporters.view();
     contact_energies.resize(reporters.size(), 0);
     h_contact_energies.resize(reporters.size(), 0);
 }
 
 void ContactLineSearchReporter::Impl::do_compute_energy(LineSearcher::EnergyInfo& info)
 {
-    auto reporters = span{global_contact_manager->m_impl.contact_reporters};
+    auto reporters = global_contact_manager->m_impl.contact_reporters.view();
     for(auto&& [i, reporter] : enumerate(reporters))
     {
         GlobalContactManager::EnergyInfo this_info;

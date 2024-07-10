@@ -12,7 +12,7 @@ void AffinebodySurfaceReporter::do_build()
     m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
 
     m_impl.affine_body_dynamics->after_build_geometry(
-        [this] { m_impl.init_surface(world()); });
+        *this, [this] { m_impl.init_surface(world()); });
     global_surf_manager.add_reporter(this);
 }
 

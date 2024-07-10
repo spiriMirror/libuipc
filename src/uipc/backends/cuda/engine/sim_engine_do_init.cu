@@ -21,6 +21,10 @@ void SimEngine::build()
     // 1) build all systems
     build_systems();
 
+    m_on_init_scene.init();
+    m_on_rebuild_scene.init();
+    m_on_write_scene.init();
+
     // 2) find those engine-aware topo systems
     m_global_vertex_manager     = &require<GlobalVertexManager>();
     m_dof_predictor             = &require<DoFPredictor>();
@@ -44,6 +48,7 @@ void SimEngine::init_scene()
     m_newton_max_iter = info["newton"]["max_iter"];
     Vector3 gravity   = info["gravity"];
     Float   dt        = info["dt"];
+
     m_abs_tol         = gravity.norm() * dt * dt;
     if(m_abs_tol == 0.0)
         m_abs_tol = std::numeric_limits<Float>::max();

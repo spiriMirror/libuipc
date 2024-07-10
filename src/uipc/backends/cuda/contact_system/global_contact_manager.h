@@ -4,6 +4,7 @@
 #include <muda/ext/linear_system.h>
 #include <contact_system/contact_coeff.h>
 #include <algorithm/matrix_converter.h>
+
 namespace uipc::backend::cuda
 {
 class ContactReporter;
@@ -153,8 +154,7 @@ class GlobalContactManager final : public SimSystem
         *                         Contact Reporter                             *
         ***********************************************************************/
 
-        list<ContactReporter*>   contact_reporter_buffer;
-        vector<ContactReporter*> contact_reporters;
+        SimSystemSlotCollection<ContactReporter> contact_reporters;
 
         vector<SizeT> reporter_hessian_counts;
         vector<SizeT> reporter_hessian_offsets;
@@ -172,8 +172,7 @@ class GlobalContactManager final : public SimSystem
         *                         Contact Reporter                             *
         ***********************************************************************/
 
-        list<ContactReceiver*>   contact_receiver_buffer;
-        vector<ContactReceiver*> contact_receivers;
+        SimSystemSlotCollection<ContactReceiver> contact_receivers;
 
         muda::DeviceVar<Vector2i>  gradient_range;
         muda::DeviceBuffer<IndexT> selected_hessian;

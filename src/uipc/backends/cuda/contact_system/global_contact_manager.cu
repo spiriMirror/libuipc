@@ -42,22 +42,26 @@ void GlobalContactManager::Impl::init()
     contact_tabular.resize(muda::Extent2D{1, 1});
 
     // reporters
-    contact_reporters.reserve(contact_reporter_buffer.size());
-    std::ranges::move(contact_reporter_buffer, std::back_inserter(contact_reporters));
+    contact_reporters.init();
+    auto contact_reporter_view = contact_reporters.view();
+    for(auto&& [i, R] : enumerate(contact_reporter_view))
+        R->m_index = i;
 
-    reporter_gradient_offsets.resize(contact_reporters.size());
-    reporter_gradient_counts.resize(contact_reporters.size());
+    reporter_gradient_offsets.resize(contact_reporter_view.size());
+    reporter_gradient_counts.resize(contact_reporter_view.size());
 
-    reporter_hessian_offsets.resize(contact_reporters.size());
-    reporter_hessian_counts.resize(contact_reporters.size());
+    reporter_hessian_offsets.resize(contact_reporter_view.size());
+    reporter_hessian_counts.resize(contact_reporter_view.size());
 
     // receivers
-    contact_receivers.reserve(contact_receiver_buffer.size());
-    std::ranges::move(contact_receiver_buffer, std::back_inserter(contact_receivers));
+    contact_receivers.init();
+    auto contact_receiver_view = contact_receivers.view();
+    for(auto&& [i, R] : enumerate(contact_receiver_view))
+        R->m_index = i;
 
     //classify_infos.resize(contact_receivers.size());
-    classified_contact_gradients.resize(contact_receivers.size());
-    classified_contact_hessians.resize(contact_receivers.size());
+    classified_contact_gradients.resize(contact_receiver_view.size());
+    classified_contact_hessians.resize(contact_receiver_view.size());
 }
 
 void GlobalContactManager::Impl::compute_d_hat()
@@ -89,7 +93,7 @@ void GlobalContactManager::Impl::_assemble()
 {
     auto vertex_count = global_vertex_manager->positions().size();
 
-    for(auto&& [i, reporter] : enumerate(contact_reporters))
+    for(auto&& [i, reporter] : enumerate(contact_reporters.view()))
     {
         ContactExtentInfo info;
         reporter->report_extent(info);
@@ -125,7 +129,7 @@ void GlobalContactManager::Impl::_assemble()
     collected_contact_hessian.reshape(vertex_count, vertex_count);
 
     // collect
-    for(auto&& [i, reporter] : enumerate(contact_reporters))
+    for(auto&& [i, reporter] : enumerate(contact_reporters.view()))
     {
         auto g_offset = reporter_gradient_offsets[i];
         auto g_count  = reporter_gradient_counts[i];
@@ -153,7 +157,7 @@ void GlobalContactManager::Impl::_distribute()
 
     auto vertex_count = global_vertex_manager->positions().size();
 
-    for(auto&& [i, receiver] : enumerate(contact_receivers))
+    for(auto&& [i, receiver] : enumerate(contact_receivers.view()))
     {
         ClassifyInfo info;
         receiver->report(info);
@@ -368,15 +372,13 @@ void GlobalContactManager::add_reporter(ContactReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
-    reporter->m_index = m_impl.contact_reporter_buffer.size();
-    m_impl.contact_reporter_buffer.push_back(reporter);
+    m_impl.contact_reporters.register_subsystem(*reporter);
 }
 void GlobalContactManager::add_receiver(ContactReceiver* receiver)
 {
     check_state(SimEngineState::BuildSystems, "add_receiver()");
     UIPC_ASSERT(receiver != nullptr, "receiver is nullptr");
-    receiver->m_index = m_impl.contact_receiver_buffer.size();
-    m_impl.contact_receiver_buffer.push_back(receiver);
+    m_impl.contact_receivers.register_subsystem(*receiver);
 }
 muda::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept
 {

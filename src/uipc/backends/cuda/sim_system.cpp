@@ -18,19 +18,19 @@ void SimSystem::check_state(SimEngineState state, std::string_view function_name
 void SimSystem::on_init_scene(std::function<void()>&& action) noexcept
 {
     check_state(SimEngineState::BuildSystems, "on_init_scene()");
-    engine().m_on_init_scene.emplace_back(*this, std::move(action));
+    engine().m_on_init_scene.register_action(*this, std::move(action));
 }
 
 void SimSystem::on_rebuild_scene(std::function<void()>&& action) noexcept
 {
     check_state(SimEngineState::BuildSystems, "on_rebuild_scene()");
-    engine().m_on_rebuild_scene.emplace_back(*this, std::move(action));
+    engine().m_on_rebuild_scene.register_action(*this, std::move(action));
 }
 
 void SimSystem::on_write_scene(std::function<void()>&& action) noexcept
 {
     check_state(SimEngineState::BuildSystems, "on_write_scene()");
-    engine().m_on_write_scene.emplace_back(*this, std::move(action));
+    engine().m_on_write_scene.register_action(*this, std::move(action));
 }
 
 SimEngine& SimSystem::engine() noexcept

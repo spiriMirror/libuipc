@@ -1,21 +1,6 @@
 #include <collision_detection/global_ccd_filter.h>
 #include <collision_detection/simplex_ccd_filter.h>
 #include <uipc/common/enumerate.h>
-#include <sim_engine.h>
-namespace uipc::backend
-{
-template <>
-class SimSystemCreator<cuda::GlobalCCDFilter>
-{
-  public:
-    static U<cuda::GlobalCCDFilter> create(cuda::SimEngine& engine)
-    {
-        if(engine.world().scene().info()["contact"]["enable"])
-            return make_unique<cuda::GlobalCCDFilter>(engine);
-        return nullptr;
-    }
-};
-}  // namespace uipc::backend
 
 namespace uipc::backend::cuda
 {
@@ -24,13 +9,18 @@ REGISTER_SIM_SYSTEM(GlobalCCDFilter);
 void GlobalCCDFilter::add_filter(CCDFilter* filter)
 {
     check_state(SimEngineState::BuildSystems, "add_filter()");
-    UIPC_ASSERT(filter != nullptr, "Input filter is nullptr");
-    m_impl.filters.push_back(filter);
+    UIPC_ASSERT(filter != nullptr, "Input simplex_dcd_filter is nullptr");
+    m_impl.filters.register_subsystem(*filter);
 }
 
 void GlobalCCDFilter::do_build()
 {
-    on_init_scene([this] { m_impl.build(); });
+    if(!world().scene().info()["contact"]["enable"])
+    {
+        throw SimSystemException("GlobalCCDFilter requires contact detection to be enabled");
+    }
+
+    on_init_scene([this] { m_impl.init(); });
 }
 
 Float GlobalCCDFilter::filter_toi(Float alpha)
@@ -38,17 +28,17 @@ Float GlobalCCDFilter::filter_toi(Float alpha)
     return m_impl.filter_toi(alpha);
 }
 
-void GlobalCCDFilter::Impl::build()
+void GlobalCCDFilter::Impl::init()
 {
-    filters.reserve(filter_buffer.size());
-    std::ranges::move(filter_buffer, std::back_inserter(filters));
-
-    tois.resize(filters.size());
-    h_tois.resize(filters.size());
+    filters.init();
+    auto filter_view = filters.view();
+    tois.resize(filter_view.size());
+    h_tois.resize(filter_view.size());
 }
 Float GlobalCCDFilter::Impl::filter_toi(Float alpha)
 {
-    for(auto&& [i, filter] : enumerate(filters))
+    auto filter_view = filters.view();
+    for(auto&& [i, filter] : enumerate(filter_view))
     {
         FilterInfo info;
         info.m_toi   = muda::VarView{tois.data() + i};
@@ -61,7 +51,7 @@ Float GlobalCCDFilter::Impl::filter_toi(Float alpha)
     {
         for(auto&& [i, toi] : enumerate(h_tois))
         {
-            UIPC_ASSERT(toi > 0.0f, "Invalid toi[{}] value: {}", filters[i]->name(), toi);
+            UIPC_ASSERT(toi > 0.0f, "Invalid toi[{}] value: {}", filter_view[i]->name(), toi);
         }
     }
 

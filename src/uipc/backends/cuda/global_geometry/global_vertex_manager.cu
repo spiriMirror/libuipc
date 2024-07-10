@@ -11,14 +11,18 @@ namespace uipc::backend::cuda
 {
 void GlobalVertexManager::Impl::init_vertex_info()
 {
-    vertex_reporters.resize(vertex_reporter_buffer.size());
-    std::ranges::move(vertex_reporter_buffer, vertex_reporters.begin());
+    vertex_reporters.init();
+    auto vertex_reporter_view = vertex_reporters.view();
+    for(auto&& [i, R] : enumerate(vertex_reporter_view))
+        R->m_index = i;
 
-    auto N = vertex_reporters.size();
+    auto N = vertex_reporter_view.size();
     reporter_vertex_counts.resize(N);
     reporter_vertex_offsets.resize(N);
 
-    for(auto&& [i, R] : enumerate(vertex_reporters))
+    changable_vertex_reporters.reserve(N);
+
+    for(auto&& [i, R] : enumerate(vertex_reporter_view))
     {
         VertexCountInfo info;
         R->report_count(info);
@@ -27,12 +31,9 @@ void GlobalVertexManager::Impl::init_vertex_info()
         if(info.m_changable)
         {
             // record
-            vertex_reporter_buffer.push_back(R);
+            changable_vertex_reporters.push_back(R);
         }
     }
-
-    changable_vertex_reporters.resize(vertex_reporter_buffer.size());
-    std::ranges::move(vertex_reporter_buffer, changable_vertex_reporters.begin());
 
     std::exclusive_scan(reporter_vertex_counts.begin(),
                         reporter_vertex_counts.end(),
@@ -51,7 +52,7 @@ void GlobalVertexManager::Impl::init_vertex_info()
     displacement_norms.resize(total_count, 0.0);
 
     // create the subviews for each attribute_reporter
-    for(auto&& [i, R] : enumerate(vertex_reporters))
+    for(auto&& [i, R] : enumerate(vertex_reporter_view))
     {
         VertexAttributeInfo attributes{this, i};
         R->report_attributes(attributes);
@@ -256,7 +257,7 @@ muda::CBufferView<Vector3> GlobalVertexManager::displacements() const noexcept
 
 void GlobalVertexManager::Impl::collect_vertex_displacements()
 {
-    for(auto&& [i, R] : enumerate(vertex_reporters))
+    for(auto&& [i, R] : enumerate(vertex_reporters.view()))
     {
         VertexDisplacementInfo vd{this, i};
         R->report_displacements(vd);
@@ -297,8 +298,7 @@ void GlobalVertexManager::record_start_point()
 void GlobalVertexManager::add_reporter(VertexReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    reporter->m_index = m_impl.vertex_reporter_buffer.size();
-    m_impl.vertex_reporter_buffer.push_back(reporter);
+    m_impl.vertex_reporters.register_subsystem(*reporter);
 }
 
 AABB GlobalVertexManager::vertex_bounding_box() const noexcept

@@ -123,7 +123,7 @@ class AffineBodyDynamics : public SimSystem
 
     void add_constitution(AffineBodyConstitution* constitution);
 
-    void after_build_geometry(std::function<void()>&& action);
+    void after_build_geometry(SimSystem& sim_system, std::function<void()>&& action);
 
   protected:
     virtual void do_build() override;
@@ -132,7 +132,8 @@ class AffineBodyDynamics : public SimSystem
     class Impl
     {
       public:
-        void init_affine_body_geometry(WorldVisitor& world);
+        void init(WorldVisitor& world);
+        void _build_subsystems(WorldVisitor& world);
         void _build_body_infos(WorldVisitor& world);
         void _build_related_infos(WorldVisitor& world);
         void _build_geometry_on_host(WorldVisitor& world);
@@ -166,9 +167,8 @@ class AffineBodyDynamics : public SimSystem
         SizeT body_count() const noexcept { return h_body_infos.size(); }
 
       public:
-        list<std::function<void()>>     after_build_geometry;
-        list<AffineBodyConstitution*>   constitution_buffer;
-        vector<AffineBodyConstitution*> constitutions;
+        SimActionCollection<void()>                 after_build_geometry;
+        SimSystemSlotCollection<AffineBodyConstitution> constitutions;
 
         // core invariant data
         vector<BodyInfo> h_body_infos;

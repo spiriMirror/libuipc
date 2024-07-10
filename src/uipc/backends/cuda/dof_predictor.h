@@ -1,7 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <uipc/common/list.h>
-#include <functional>
+
 namespace uipc::backend::cuda
 {
 class DoFPredictor : public SimSystem
@@ -15,21 +14,21 @@ class DoFPredictor : public SimSystem
 
     using SimSystem::SimSystem;
 
-    void on_predict(std::function<void(PredictInfo&)>&& action);
-    void on_compute_velocity(std::function<void(PredictInfo&)>&& action);
+    void on_predict(SimSystem& system, std::function<void(PredictInfo&)>&& action);
+    void on_compute_velocity(SimSystem& system, std::function<void(PredictInfo&)>&& action);
 
   protected:
     void do_build() override;
 
   private:
-    void find_predict_info();
+    void init();
 
     friend class SimEngine;
     void predict();           // only be called by SimEngine
     void compute_velocity();  // only be called by SimEngine
 
-    list<std::function<void(PredictInfo&)>> m_on_predict;
-    list<std::function<void(PredictInfo&)>> m_on_compute_velocity;
+    SimActionCollection<void(PredictInfo&)> m_on_predict;
+    SimActionCollection<void(PredictInfo&)> m_on_compute_velocity;
 
     PredictInfo m_predict_info;
 };

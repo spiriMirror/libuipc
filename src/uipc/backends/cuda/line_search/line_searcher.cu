@@ -16,9 +16,10 @@ void LineSearcher::init()
 {
     auto scene = world().scene();
 
-    m_reporters.build();
+    m_reporters.init();
+    m_energy_reporters.init();
 
-    m_energy_values.resize(m_reporters.view().size() + m_energy_reporters.size(), 0);
+    m_energy_values.resize(m_reporters.view().size() + m_energy_reporters.view().size(), 0);
 
     for(auto&& [i, R] : enumerate(m_reporters.view()))
         R->m_index = i;
@@ -67,7 +68,7 @@ Float LineSearcher::compute_energy()
         span{m_energy_values}.subspan(m_reporters.view().size());
 
     for(auto&& [E, ER, name] :
-        zip(energy_reporter_energyes, m_energy_reporters, m_energy_reporter_names))
+        zip(energy_reporter_energyes, m_energy_reporters.view(), m_energy_reporter_names))
     {
         EnergyInfo info{this};
         ER(info);
@@ -89,13 +90,13 @@ Float LineSearcher::compute_energy()
 -------------------------------------------------------------------------------
 )";
         m_report_stream << "Total:" << total_energy << "\n";
-        for(auto&& [R, value] : zip(m_reporters, reporter_energyes))
+        for(auto&& [R, value] : zip(m_reporters.view(), reporter_energyes))
         {
             m_report_stream << "  > " << R->name() << "=" << value << "\n";
         }
 
         for(auto&& [ER, value, name] :
-            zip(m_energy_reporters, energy_reporter_energyes, m_energy_reporter_names))
+            zip(m_energy_reporters.view(), energy_reporter_energyes, m_energy_reporter_names))
         {
             m_report_stream << "  * " << name << "=" << value << "\n";
         }
@@ -111,14 +112,16 @@ Float LineSearcher::compute_energy()
 void LineSearcher::add_reporter(LineSearchReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_reporters.register_subsystem(reporter);
+    UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
+    m_reporters.register_subsystem(*reporter);
 }
 
-void LineSearcher::add_reporter(std::string_view energy_name,
+void LineSearcher::add_reporter(SimSystem&       system,
+                                std::string_view energy_name,
                                 std::function<void(EnergyInfo)>&& energy_reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_energy_reporters.push_back(std::move(energy_reporter));
+    m_energy_reporters.register_action(system, std::move(energy_reporter));
     m_energy_reporter_names.push_back(std::string{energy_name});
 }
 

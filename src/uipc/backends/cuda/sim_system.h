@@ -5,6 +5,8 @@
 #include <sim_engine_state.h>
 #include <uipc/backends/sim_system.h>
 #include <uipc/backend/visitors/world_visitor.h>
+#include <sim_system_slot.h>
+#include <sim_action_collection.h>
 
 namespace uipc::backend::cuda
 {
@@ -20,12 +22,6 @@ class SimSystem : public backend::SimSystem
     using Base::Base;
 
   protected:
-    template <std::derived_from<SimSystem> T>
-    T* find();
-
-    template <std::derived_from<SimSystem> T>
-    T& require();
-
     /**
      * @brief register an action to be executed when the scene is initialized
      * 

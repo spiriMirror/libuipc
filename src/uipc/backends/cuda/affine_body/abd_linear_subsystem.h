@@ -4,6 +4,7 @@
 #include <affine_body/abd_contact_receiver.h>
 #include <affine_body/affine_body_vertex_reporter.h>
 #include <affine_body/matrix_converter.h>
+
 namespace uipc::backend::cuda
 {
 class ABDLinearSubsystem : public DiagLinearSubsystem

@@ -1,6 +1,5 @@
 #pragma once
 #include <sim_system.h>
-#include <muda/buffer/device_buffer.h>
 
 namespace uipc::backend::cuda
 {
@@ -16,7 +15,7 @@ class GlobalDCDFilter : public SimSystem
     class Impl
     {
       public:
-        SimplexDCDFilter* filter = nullptr;
+        SimSystemSlot<SimplexDCDFilter> simplex_dcd_filter;
     };
 
     void add_filter(SimplexDCDFilter* filter);

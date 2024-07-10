@@ -22,6 +22,7 @@ int main()
 
     auto config       = Scene::default_config();
     config["gravity"] = Vector3{0, -10, 0};
+    config["contact"]["enable"] = false;
     Scene scene{config};
     {
         // create constitution and contact model
@@ -136,13 +137,13 @@ int main()
     world.init(scene);
 
     SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_dir, 0));
+    sio.write_surface(fmt::format("{}/scene_surface{}.obj", output_dir, 0));
 
-    for(int i = 1; i < 300; i++)
+    for(int i = 1; i < 30; i++)
     {
         world.advance();
         world.sync();
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", output_dir, i));
+        sio.write_surface(fmt::format("{}/scene_surface{}.obj", output_dir, i));
     }
 }

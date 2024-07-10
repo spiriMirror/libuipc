@@ -1,6 +1,7 @@
 #pragma once
 #include <sim_system.h>
 #include <muda/buffer/device_buffer.h>
+
 namespace uipc::backend::cuda
 {
 class SimplexCCDFilter;
@@ -15,7 +16,7 @@ class GlobalCCDFilter : public SimSystem
     class FilterInfo
     {
       public:
-        Float alpha() const noexcept { return m_alpha; }
+        Float                alpha() const noexcept { return m_alpha; }
         muda::VarView<Float> toi() const noexcept { return m_toi; }
 
       private:
@@ -27,12 +28,12 @@ class GlobalCCDFilter : public SimSystem
     class Impl
     {
       public:
-        void                      build();
-        Float                     filter_toi(Float alpha);
-        list<CCDFilter*>          filter_buffer;
-        vector<CCDFilter*>        filters;
-        muda::DeviceBuffer<Float> tois;
-        vector<Float>             h_tois;
+        void  init();
+        Float filter_toi(Float alpha);
+
+        SimSystemSlotCollection<CCDFilter> filters;
+        muda::DeviceBuffer<Float>      tois;
+        vector<Float>                  h_tois;
     };
 
     void add_filter(CCDFilter* filter);

@@ -98,7 +98,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
     async_fill(abd().constitution_shape_energy, 0.0);
 
     // _distribute the computation of shape energy to each constitution
-    for(auto&& [i, cst] : enumerate(abd().constitutions))
+    for(auto&& [i, cst] : enumerate(abd().constitutions.view()))
     {
         auto body_offset = abd().h_constitution_body_offsets[i];
         auto body_count  = abd().h_constitution_body_counts[i];

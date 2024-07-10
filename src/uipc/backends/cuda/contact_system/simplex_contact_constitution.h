@@ -6,6 +6,7 @@
 namespace uipc::backend::cuda
 {
 class SimplexDCDFilter;
+class GlobalDCDFilter;
 class SimplexContactConstitution : public ContactReporter
 {
   public:
@@ -134,15 +135,17 @@ class SimplexContactConstitution : public ContactReporter
       public:
         void assemble(GlobalContactManager::ContactInfo& info);
 
-        SimplexDCDFilter*     simplex_dcd_filter     = nullptr;
+        GlobalDCDFilter*      global_dcd_filter      = nullptr;
         GlobalContactManager* global_contact_manager = nullptr;
         GlobalVertexManager*  global_vertex_manager  = nullptr;
+
+        SimplexDCDFilter* simplex_dcd_filter() const noexcept;
 
         SizeT PT_count = 0;
         SizeT EE_count = 0;
         SizeT PE_count = 0;
         SizeT PP_count = 0;
-        Float dt = 0;
+        Float dt       = 0;
 
         muda::DeviceBuffer<Vector4i>    PT_EE_indices;
         muda::DeviceBuffer<Matrix12x12> PT_EE_hessians;

@@ -113,9 +113,8 @@ class GlobalVertexManager : public SimSystem
         muda::DeviceVar<Vector3> min_pos;
         muda::DeviceVar<Vector3> max_pos;
 
-        list<VertexReporter*>   vertex_reporter_buffer;
-        vector<VertexReporter*> vertex_reporters;
-        vector<VertexReporter*> changable_vertex_reporters;
+        SimSystemSlotCollection<VertexReporter> vertex_reporters;
+        vector<VertexReporter*>                 changable_vertex_reporters;
 
         vector<SizeT> reporter_vertex_offsets;
         vector<SizeT> reporter_vertex_counts;

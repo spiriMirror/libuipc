@@ -1,9 +1,6 @@
 #pragma once
 #include <sim_system.h>
-#include <functional>
-#include <uipc/common/list.h>
 #include <optional>
-#include <subsystem_collection.h>
 
 namespace uipc::backend::cuda
 {
@@ -38,7 +35,8 @@ class LineSearcher : public SimSystem
     };
 
     void add_reporter(LineSearchReporter* reporter);
-    void add_reporter(std::string_view                  energy_name,
+    void add_reporter(SimSystem&                        system,
+                      std::string_view                  energy_name,
                       std::function<void(EnergyInfo)>&& energy_reporter);
 
     SizeT max_iter() const noexcept;
@@ -53,9 +51,9 @@ class LineSearcher : public SimSystem
     void  step_forward(Float alpha);  // only be called by SimEngine
     Float compute_energy();           // only be called by SimEngine
 
-    SubsystemCollection<LineSearchReporter> m_reporters;
-    list<std::function<void(EnergyInfo)>>   m_energy_reporters;
-    list<std::string>                       m_energy_reporter_names;
+    SimSystemSlotCollection<LineSearchReporter> m_reporters;
+    SimActionCollection<void(EnergyInfo)>       m_energy_reporters;
+    list<std::string>                           m_energy_reporter_names;
 
     vector<Float>     m_energy_values;
     bool              m_report_energy = false;

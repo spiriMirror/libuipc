@@ -1,5 +1,4 @@
 #pragma once
-#include <type_define.h>
 #include <uipc/backend/macro.h>
 #include <uipc/engine/engine.h>
 #include <uipc/backends/sim_system_collection.h>

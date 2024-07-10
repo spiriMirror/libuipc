@@ -6,6 +6,7 @@
 #include <muda/ext/linear_system.h>
 #include <algorithm/matrix_converter.h>
 #include <linear_system/spmv.h>
+
 namespace uipc::backend::cuda
 {
 class DiagLinearSubsystem;
@@ -249,18 +250,13 @@ class GlobalLinearSystem : public SimSystem
         vector<SizeT>              diag_dof_counts;
         vector<int>                accuracy_statisfied_flags;
 
-        // Buffer
-        list<DiagLinearSubsystem*>    diag_subsystem_buffer;
-        list<OffDiagLinearSubsystem*> off_diag_subsystem_buffer;
-        list<LocalPreconditioner*>    local_preconditioner_buffer;
-
         // Containers
-        vector<DiagLinearSubsystem*>    diag_subsystems;
-        vector<OffDiagLinearSubsystem*> off_diag_subsystems;
-        vector<LocalPreconditioner*>    local_preconditioners;
+        SimSystemSlotCollection<DiagLinearSubsystem>    diag_subsystems;
+        SimSystemSlotCollection<OffDiagLinearSubsystem> off_diag_subsystems;
+        SimSystemSlotCollection<LocalPreconditioner>    local_preconditioners;
 
-        IterativeSolver*      iterative_solver      = nullptr;
-        GlobalPreconditioner* global_preconditioner = nullptr;
+        SimSystemSlot<IterativeSolver>      iterative_solver;
+        SimSystemSlot<GlobalPreconditioner> global_preconditioner;
 
         // Linear System
         muda::LinearSystemContext           ctx;
@@ -268,8 +264,6 @@ class GlobalLinearSystem : public SimSystem
         muda::DeviceDenseVector<Float>      b;
         muda::DeviceTripletMatrix<Float, 3> triplet_A;
         muda::DeviceBCOOMatrix<Float, 3>    bcoo_A;
-        //muda::DeviceBSRMatrix<Float, 3>     bsr_A;
-        //muda::DeviceCSRMatrix<Float>        csr_A;
 
         Spmv                      spmver;
         MatrixConverter<Float, 3> converter;

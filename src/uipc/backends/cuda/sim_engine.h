@@ -1,10 +1,10 @@
 #pragma once
 #include <type_define.h>
-#include <uipc/backends/sim_engine.h>
-#include <uipc/common/list.h>
 #include <sstream>
-#include <sim_action.h>
+
 #include <sim_engine_state.h>
+#include <uipc/backends/sim_engine.h>
+#include <sim_action_collection.h>
 
 namespace uipc::backend::cuda
 {
@@ -51,12 +51,12 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
     SimEngineState    m_state = SimEngineState::None;
 
     // Events
-    list<SimAction> m_on_init_scene;
-    void            event_init_scene();
-    list<SimAction> m_on_rebuild_scene;
-    void            event_rebuild_scene();
-    list<SimAction> m_on_write_scene;
-    void            event_write_scene();
+    SimActionCollection<void()> m_on_init_scene;
+    void                        event_init_scene();
+    SimActionCollection<void()> m_on_rebuild_scene;
+    void                        event_rebuild_scene();
+    SimActionCollection<void()> m_on_write_scene;
+    void                        event_write_scene();
 
   private:
     // Aware Top Systems
