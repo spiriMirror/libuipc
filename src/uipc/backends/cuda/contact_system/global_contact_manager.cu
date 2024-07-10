@@ -15,7 +15,7 @@ class SimSystemCreator<cuda::GlobalContactManager>
     static U<cuda::GlobalContactManager> create(cuda::SimEngine& engine)
     {
         if(engine.world().scene().info()["contact"]["enable"])
-            return make_unique<cuda::GlobalContactManager>();
+            return make_unique<cuda::GlobalContactManager>(engine);
         return nullptr;
     }
 };

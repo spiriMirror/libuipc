@@ -11,7 +11,7 @@ class SimSystemCreator<cuda::GlobalCCDFilter>
     static U<cuda::GlobalCCDFilter> create(cuda::SimEngine& engine)
     {
         if(engine.world().scene().info()["contact"]["enable"])
-            return make_unique<cuda::GlobalCCDFilter>();
+            return make_unique<cuda::GlobalCCDFilter>(engine);
         return nullptr;
     }
 };
