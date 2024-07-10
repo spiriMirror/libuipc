@@ -83,7 +83,10 @@ void SimEngine::do_advance()
         return m_line_searcher->compute_energy();
     };
 
-    // The Pipeline
+    /***************************************************************************************
+    *                                  Core Pipeline
+    ***************************************************************************************/
+
     {
         // 1. Adaptive Parameter Calculation
         AABB vertex_bounding_box = m_global_vertex_manager->compute_vertex_bounding_box();
@@ -98,8 +101,7 @@ void SimEngine::do_advance()
         // 3. Nonlinear-Newton Iteration
         Float box_size = vertex_bounding_box.diagonal().norm();
         Float tol      = m_newton_tol * box_size;
-
-        Float res0 = 0.0;
+        Float res0     = 0.0;
 
         for(auto&& iter : range(m_newton_max_iter))
         {
@@ -107,17 +109,18 @@ void SimEngine::do_advance()
             if(iter > 0)
                 detect_dcd_candidates();
 
-            m_state = SimEngineState::ComputeGradientHassian;
+
             // 2) Compute Contact Gradient and Hessian => G:Vector3, H:Matrix3x3
+            m_state = SimEngineState::ComputeContact;
             compute_contact();
 
-            // 3) Compute System Gradient and Hessian => G:Vector3, H:Matrix3x3
-            // E.g. FEM/ABD ...
+            // 3) Compute System Gradient and Hessian
+            m_state = SimEngineState::ComputeGradientHessian;
             m_gradient_hessian_computer->compute_gradient_hessian();
 
 
-            m_state = SimEngineState::SolveGlobalLinearSystem;
             // 4) Solve Global Linear System => dx = A^-1 * b
+            m_state = SimEngineState::SolveGlobalLinearSystem;
             m_global_linear_system->solve();
 
             // 5) Get Max Movement => dx_max = max(|dx|), if dx_max < tol, break
@@ -134,11 +137,13 @@ void SimEngine::do_advance()
                          m_abs_tol,
                          res / res0);
 
+            // 6) Check Termination Condition
+            // TODO: Maybe we can implement a class for termination condition in the future
             if(res <= tol && (res < m_abs_tol || res <= 1e-2 * res0))
                 break;
 
+            // 7) Begin Line Search
             m_state = SimEngineState::LineSearch;
-            // 6) Begin Line Search
             {
                 alpha = 1.0;
 
@@ -173,9 +178,6 @@ void SimEngine::do_advance()
                     bool success = energy_decrease && no_inversion;
                     if(success)
                         break;
-
-
-                    // UIPC_ASSERT(line_search_iter < 100, "Line Search Iteration Exceeds 100");
 
                     // If not success, then shrink alpha
                     alpha /= 2;

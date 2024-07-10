@@ -1,6 +1,5 @@
 include(uipc_utils)
-set(MODULE_FUNCTION_HEADER "${CMAKE_CURRENT_SOURCE_DIR}/module.h")
-set(MODULE_FUNCTION_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/module.cpp")
+file(GLOB BACKEND_COMMON_SOURCES "*.h" "*.cpp" "details/*.inl")
 
 
 # ---------------------------------------------------------------------------
@@ -34,7 +33,7 @@ function(uipc_add_backend name)
     
     # folder for IDE
     set_target_properties(${name} PROPERTIES FOLDER "uipc-backends")
-    target_sources(${name} PRIVATE ${MODULE_FUNCTION_HEADER} ${MODULE_FUNCTION_SOURCE})
+    target_sources(${name} PRIVATE ${BACKEND_COMMON_SOURCES})
 
     uipc_set_output_directory(${name})
     add_dependencies(uipc_backends ${name})
@@ -48,9 +47,5 @@ add_subdirectory(none)
 add_subdirectory(cuda)
 
 
-# ---------------------------------------------------------------------------
-# Group files in IDE
-# ---------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCE_GROUP_FILES})
+
 

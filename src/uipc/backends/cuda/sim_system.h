@@ -1,12 +1,9 @@
 #pragma once
 #include <type_define.h>
-
-#include <i_sim_system.h>
 #include <sim_action.h>
 #include <string_view>
 #include <sim_engine_state.h>
-#include <sim_system_auto_register.h>
-#include <sim_system_creator_utils.h>
+#include <uipc/backends/sim_system.h>
 #include <uipc/backend/visitors/world_visitor.h>
 
 namespace uipc::backend::cuda
@@ -14,12 +11,13 @@ namespace uipc::backend::cuda
 class SimEngine;
 class SimSystemCollection;
 
-class SimSystem : public ISimSystem
+class SimSystem : public backend::SimSystem
 {
     friend class SimEngine;
+    using Base = backend::SimSystem;
 
   public:
-    SimSystem(SimEngine& sim_engine) noexcept;
+    using Base::Base;
 
   protected:
     template <std::derived_from<SimSystem> T>
@@ -53,24 +51,6 @@ class SimSystem : public ISimSystem
 
     void check_state(SimEngineState state, std::string_view function_name) noexcept;
 
-    virtual Json do_to_json() const override;
-
-  private:
-    SimEngine&           m_sim_engine;
-    bool                 m_engine_aware = false;
-    bool                 m_valid        = true;
-    list<ISimSystem*>    m_dependencies;
-    SimSystemCollection& collection() noexcept;
-
-    virtual void set_engine_aware() noexcept final;
-    virtual bool get_engine_aware() const noexcept final;
-
-    virtual bool get_valid() const noexcept override final;
-    virtual void set_invalid() noexcept override final;
-
-    SimSystem* find_system(SimSystem* ptr);
-    SimSystem* require_system(SimSystem* ptr);
+    SimEngine& engine() noexcept;
 };
 }  // namespace uipc::backend::cuda
-
-#include "details/sim_system.inl"

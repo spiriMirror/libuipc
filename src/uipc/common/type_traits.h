@@ -15,4 +15,52 @@ struct propagate_const
 
 template <typename T, typename DstT>
 using propagate_const_t = typename propagate_const<T, DstT>::type;
+
+
+template <typename Sig>
+struct signature;
+
+template <typename R, typename... Args>
+struct signature<R(Args...)>
+{
+    using type = std::tuple<R, Args...>;
+};
+
+template <typename R, typename... Args>
+struct signature<R (*)(Args...)> : signature<R(Args...)>
+{
+};
+
+template <typename R, typename... Args>
+struct signature<R (&)(Args...)> : signature<R(Args...)>
+{
+};
+
+template <typename R, typename C, typename... Args>
+struct signature<R (C::*)(Args...)> : signature<R(Args...)>
+{
+};
+
+template <typename R, typename C, typename... Args>
+struct signature<R (C::*)(Args...) const> : signature<R(Args...)>
+{
+};
+
+template <typename R, typename C, typename... Args>
+struct signature<R (C::*)(Args...) volatile> : signature<R(Args...)>
+{
+};
+
+template <typename R, typename C, typename... Args>
+struct signature<R (C::*)(Args...) const volatile> : signature<R(Args...)>
+{
+};
+
+template <typename R, typename C, typename... Args>
+struct signature<R (C::*)(Args...) &&> : signature<R(Args...)>
+{
+};
+
+template <typename Sig>
+using signature_t = typename signature<Sig>::type;
 }  // namespace uipc

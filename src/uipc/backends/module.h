@@ -7,8 +7,31 @@
 using UIPCEngineInterface = uipc::engine::IEngine;
 
 extern "C" {
+/**
+ * @brief Create a new engine instance.
+ * 
+ * This function is used to create a new engine instance, the module **should** implement this function.
+ *  
+ * @return A pointer to the new engine instance.
+ */
 UIPC_BACKEND_API UIPCEngineInterface* uipc_create_engine();
+
+/**
+ * @brief Destroy the engine instance.
+ * 
+ * This function is used to destroy the engine instance, the module **should** implement this function.
+ * 
+ * @param engine The engine instance to be destroyed.
+ */
 UIPC_BACKEND_API void uipc_destroy_engine(UIPCEngineInterface* engine);
+
+/**
+ * @brief Initialize the module with the given information.
+ * 
+ * This function is already implemented in the <uipc/backends/module.cpp> file.
+ * 
+ * @param info The module initialization information.
+*/
 UIPC_BACKEND_API void uipc_init_module(UIPCModuleInitInfo* info);
 }
 

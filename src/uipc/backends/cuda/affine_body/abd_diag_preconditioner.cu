@@ -5,26 +5,15 @@
 #include <kernel_cout.h>
 namespace uipc::backend::cuda
 {
-template <>
-class SimSystemCreator<ABDDiagPreconditioner>
-{
-  public:
-    static U<ABDDiagPreconditioner> create(SimEngine& engine)
-    {
-        return CreatorQuery::has_affine_body_constitution(engine) ?
-                   make_unique<ABDDiagPreconditioner>(engine) :
-                   nullptr;
-    }
-};
-
 REGISTER_SIM_SYSTEM(ABDDiagPreconditioner);
 
 void ABDDiagPreconditioner::do_build()
 {
-    auto global_linear_system = find<GlobalLinearSystem>();
-    auto abd_linear_subsystem = find<ABDLinearSubsystem>();
-    global_linear_system->add_preconditioner(this, abd_linear_subsystem);
-    m_impl.affine_body_dynamics = find<AffineBodyDynamics>();
+    auto& global_linear_system  = require<GlobalLinearSystem>();
+    auto  abd_linear_subsystem  = &require<ABDLinearSubsystem>();
+    m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
+
+    global_linear_system.add_preconditioner(this, abd_linear_subsystem);
 }
 
 void ABDDiagPreconditioner::Impl::assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info)

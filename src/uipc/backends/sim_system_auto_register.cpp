@@ -1,7 +1,7 @@
-#include <sim_system_auto_register.h>
+#include <uipc/backends/sim_system_auto_register.h>
 
 
-namespace uipc::backend::cuda
+namespace uipc::backend
 {
 SimSystemAutoRegister::SimSystemAutoRegister(std::function<U<ISimSystem>(SimEngine&)>&& reg)
 {

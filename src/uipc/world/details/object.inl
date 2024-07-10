@@ -9,7 +9,7 @@ ObjectGeometrySlots<GeometryT> Object::Geometries::create(const GeometryT& geome
 
     UIPC_ASSERT(m_object.geometry_collection().next_id()
                     == m_object.rest_geometry_collection().next_id(),
-                "Geometry collection element count ({}) is not equal to rest geometry collection element count ({}), why?",
+                "Geometry sim_systems element count ({}) is not equal to rest geometry sim_systems element count ({}), why?",
                 m_object.geometry_collection().size(),
                 m_object.rest_geometry_collection().size());
 

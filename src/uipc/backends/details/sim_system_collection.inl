@@ -1,6 +1,6 @@
 #include <uipc/common/log.h>
-#include <sim_system.h>
-namespace uipc::backend::cuda
+#include <uipc/backends/i_sim_system.h>
+namespace uipc::backend
 {
 template <std::derived_from<ISimSystem> T>
 T* SimSystemCollection::find()
@@ -29,4 +29,4 @@ T* SimSystemCollection::find()
     // failed to find any match
     return nullptr;
 }
-}  // namespace uipc::backend::cuda
+}  // namespace uipc::backend

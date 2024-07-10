@@ -72,4 +72,33 @@ auto SimEngine::device_impl() noexcept -> DeviceImpl&
 {
     return *m_device_impl;
 }
+
+WorldVisitor& SimEngine::world() noexcept
+{
+    UIPC_ASSERT(m_world_visitor, "WorldVisitor is not initialized.");
+    return *m_world_visitor;
+}
+
+SimEngineState SimEngine::state() const noexcept
+{
+    return m_state;
+}
+
+void SimEngine::event_init_scene()
+{
+    for(auto& action : m_on_init_scene)
+        action();
+}
+
+void SimEngine::event_rebuild_scene()
+{
+    for(auto& action : m_on_rebuild_scene)
+        action();
+}
+
+void SimEngine::event_write_scene()
+{
+    for(auto& action : m_on_write_scene)
+        action();
+}
 }  // namespace uipc::backend::cuda

@@ -6,22 +6,23 @@
 #include <sim_engine.h>
 #include <collision_detection/dcd_filter.h>
 
-namespace uipc::backend::cuda
+namespace uipc::backend
 {
 template <>
-class SimSystemCreator<GlobalDCDFilter>
+class SimSystemCreator<cuda::GlobalDCDFilter>
 {
   public:
-    static U<GlobalDCDFilter> create(SimEngine& engine)
+    static U<cuda::GlobalDCDFilter> create(cuda::SimEngine& engine)
     {
-        auto& info = engine.world().scene().info();
-
-        return info["contact"]["enable"].get<bool>() ?
-                   make_unique<GlobalDCDFilter>(engine) :
-                   nullptr;
+        if(engine.world().scene().info()["contact"]["enable"])
+            return make_unique<cuda::GlobalDCDFilter>();
+        return nullptr;
     }
 };
+}  // namespace uipc::backend
 
+namespace uipc::backend::cuda
+{
 REGISTER_SIM_SYSTEM(GlobalDCDFilter);
 
 void GlobalDCDFilter::add_filter(SimplexDCDFilter* filter)
@@ -40,7 +41,13 @@ SimplexDCDFilter* GlobalDCDFilter::simplex_filter() const
     return m_impl.filter;
 }
 
-void GlobalDCDFilter::do_build() {}
+void GlobalDCDFilter::do_build()
+{
+    if(!world().scene().info()["contact"]["enable"])
+    {
+        throw SimEngineException("GlobalDCDFilter requires contact to be enabled");
+    }
+}
 
 void GlobalDCDFilter::detect()
 {

@@ -17,23 +17,17 @@
 
 namespace uipc::backend::cuda
 {
-// specialization of the SimSystemCreator for AffineBodyDynamics, to add some logic to create the system
-template <>
-class SimSystemCreator<AffineBodyDynamics>
-{
-  public:
-    static U<AffineBodyDynamics> create(SimEngine& engine)
-    {
-        return CreatorQuery::has_affine_body_constitution(engine) ?
-                   make_unique<AffineBodyDynamics>(engine) :
-                   nullptr;
-    }
-};
-
 REGISTER_SIM_SYSTEM(AffineBodyDynamics);
 
 void AffineBodyDynamics::do_build()
 {
+    const auto& scene = engine().world().scene();
+    auto&       types = scene.constitution_tabular().types();
+    if(types.find(world::ConstitutionTypes::AffineBody) == types.end())
+    {
+        throw SimSystemException("No AffineBodyConstitution found in the scene");
+    }
+
     // find dependent systems
     auto& dof_predictor             = require<DoFPredictor>();
     auto& gradient_hessian_computer = require<GradientHessianComputer>();
@@ -43,7 +37,7 @@ void AffineBodyDynamics::do_build()
 
     // Register the action to predict the affine body dof
     dof_predictor.on_predict([this](DoFPredictor::PredictInfo& info)
-                              { m_impl.compute_q_tilde(info); });
+                             { m_impl.compute_q_tilde(info); });
 
     // Register the action to compute the gradient and hessian
     gradient_hessian_computer.on_compute_gradient_hessian(
@@ -52,7 +46,7 @@ void AffineBodyDynamics::do_build()
 
     // Register the action to compute the velocity of the affine body dof
     dof_predictor.on_compute_velocity([this](DoFPredictor::PredictInfo& info)
-                                       { m_impl.compute_q_v(info); });
+                                      { m_impl.compute_q_v(info); });
 
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });

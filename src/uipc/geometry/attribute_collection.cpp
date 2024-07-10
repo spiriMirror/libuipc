@@ -103,7 +103,7 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
         auto it = other.m_attributes.find(name);
         if(it == other.m_attributes.end())
             throw GeometryAttributeError{
-                fmt::format("Attribute [{}] not found in the source collection.", name)};
+                fmt::format("Attribute [{}] not found in the source sim_systems.", name)};
 
         auto other_slot = it->second;
 
@@ -113,7 +113,7 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
             // just share
             UIPC_ASSERT(this->size() == other.size(),
                         "Attribute size mismatch, "
-                        "dst size is {}, src size is {}, Did you forget to resize the dst attribute collection?",
+                        "dst size is {}, src size is {}, Did you forget to resize the dst attribute sim_systems?",
                         this->size(),
                         other.size());
 

@@ -3,6 +3,8 @@
 #include <functional>
 #include <uipc/common/list.h>
 #include <optional>
+#include <subsystem_collection.h>
+
 namespace uipc::backend::cuda
 {
 class LineSearchReporter;
@@ -28,6 +30,7 @@ class LineSearcher : public SimSystem
         EnergyInfo(LineSearcher* impl) noexcept;
         Float dt() noexcept;
         void  energy(Float e) noexcept;
+
       private:
         friend class LineSearcher;
         LineSearcher*        m_impl   = nullptr;
@@ -37,6 +40,8 @@ class LineSearcher : public SimSystem
     void add_reporter(LineSearchReporter* reporter);
     void add_reporter(std::string_view                  energy_name,
                       std::function<void(EnergyInfo)>&& energy_reporter);
+
+    SizeT max_iter() const noexcept;
 
   protected:
     void do_build() override;
@@ -48,14 +53,14 @@ class LineSearcher : public SimSystem
     void  step_forward(Float alpha);  // only be called by SimEngine
     Float compute_energy();           // only be called by SimEngine
 
-    list<LineSearchReporter*>             m_reporter_buffer;
-    vector<LineSearchReporter*>           m_reporters;
-    list<std::function<void(EnergyInfo)>> m_energy_reporters;
-    list<std::string>                     m_energy_reporter_names;
+    SubsystemCollection<LineSearchReporter> m_reporters;
+    list<std::function<void(EnergyInfo)>>   m_energy_reporters;
+    list<std::string>                       m_energy_reporter_names;
 
     vector<Float>     m_energy_values;
     bool              m_report_energy = false;
     std::stringstream m_report_stream;
-    Float             m_dt = 0.0;
+    Float             m_dt       = 0.0;
+    SizeT             m_max_iter = 64;
 };
 }  // namespace uipc::backend::cuda

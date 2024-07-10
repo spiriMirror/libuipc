@@ -1,7 +1,7 @@
-#include <i_sim_system.h>
 #include <typeinfo>
-#include <uipc/common/log.h>
-namespace uipc::backend::cuda
+#include <uipc/backends/i_sim_system.h>
+
+namespace uipc::backend
 {
 std::string_view ISimSystem::get_name() const noexcept
 {
@@ -29,6 +29,11 @@ bool ISimSystem::is_valid() const noexcept
     return get_valid();
 }
 
+bool ISimSystem::is_building() const noexcept
+{
+    return get_is_building();
+}
+
 std::string_view ISimSystem::name() const noexcept
 {
     return get_name();
@@ -43,4 +48,4 @@ Json ISimSystem::to_json() const
 {
     return do_to_json();
 }
-}  // namespace uipc::backend::cuda
+}  // namespace uipc::backend

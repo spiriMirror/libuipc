@@ -1,20 +1,24 @@
 #include <collision_detection/global_ccd_filter.h>
 #include <collision_detection/simplex_ccd_filter.h>
 #include <uipc/common/enumerate.h>
-namespace uipc::backend::cuda
+#include <sim_engine.h>
+namespace uipc::backend
 {
 template <>
-class SimSystemCreator<GlobalCCDFilter>
+class SimSystemCreator<cuda::GlobalCCDFilter>
 {
   public:
-    static U<GlobalCCDFilter> create(SimEngine& engine)
+    static U<cuda::GlobalCCDFilter> create(cuda::SimEngine& engine)
     {
-        return CreatorQuery::is_contact_enabled(engine) ?
-                   make_unique<GlobalCCDFilter>(engine) :
-                   nullptr;
+        if(engine.world().scene().info()["contact"]["enable"])
+            return make_unique<cuda::GlobalCCDFilter>();
+        return nullptr;
     }
 };
+}  // namespace uipc::backend
 
+namespace uipc::backend::cuda
+{
 REGISTER_SIM_SYSTEM(GlobalCCDFilter);
 
 void GlobalCCDFilter::add_filter(CCDFilter* filter)

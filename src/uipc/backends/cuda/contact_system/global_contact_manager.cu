@@ -6,20 +6,23 @@
 #include <kernel_cout.h>
 #include <uipc/common/unit.h>
 
-namespace uipc::backend::cuda
+namespace uipc::backend
 {
 template <>
-class SimSystemCreator<GlobalContactManager>
+class SimSystemCreator<cuda::GlobalContactManager>
 {
   public:
-    static U<GlobalContactManager> create(SimEngine& engine)
+    static U<cuda::GlobalContactManager> create(cuda::SimEngine& engine)
     {
-        return CreatorQuery::is_contact_enabled(engine) ?
-                   make_unique<GlobalContactManager>(engine) :
-                   nullptr;
+        if(engine.world().scene().info()["contact"]["enable"])
+            return make_unique<cuda::GlobalContactManager>();
+        return nullptr;
     }
 };
+}  // namespace uipc::backend
 
+namespace uipc::backend::cuda
+{
 REGISTER_SIM_SYSTEM(GlobalContactManager);
 
 void GlobalContactManager::do_build()

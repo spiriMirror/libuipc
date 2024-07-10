@@ -24,17 +24,18 @@ add_subdirectory(algorithm)
 add_subdirectory(line_search)
 add_subdirectory(contact_system)
 add_subdirectory(global_geometry)
+add_subdirectory(engine)
 
 # source files in this directory
 file(GLOB SOURCES "*.cpp" "*.h" "*.cu" "details/*.inl")
 target_sources(cuda PRIVATE ${SOURCES})
-
-# Group files in IDE
-file(GLOB_RECURSE ALL_SOURCES "*.cpp" "*.h" "*.cu" "*.inl")
-source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${ALL_SOURCES})
 
 if(MSVC)
     # Disable some warnings 
     # C4819: The file contains a character that cannot be represented in the current code page
     target_compile_options(cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4819>)
 endif()
+
+# Setup IDE
+get_target_property(SOURCES cuda SOURCES)
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/../" FILES ${SOURCES})

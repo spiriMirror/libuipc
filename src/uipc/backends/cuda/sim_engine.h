@@ -1,12 +1,10 @@
 #pragma once
 #include <type_define.h>
-#include <uipc/backend/macro.h>
-#include <uipc/engine/engine.h>
+#include <uipc/backends/sim_engine.h>
+#include <uipc/common/list.h>
 #include <sstream>
-#include <sim_system_collection.h>
 #include <sim_action.h>
 #include <sim_engine_state.h>
-#include <i_sim_system.h>
 
 namespace uipc::backend::cuda
 {
@@ -21,7 +19,7 @@ class LineSearcher;
 class GradientHessianComputer;
 class GlobalLinearSystem;
 
-class UIPC_BACKEND_API SimEngine : public engine::IEngine
+class UIPC_BACKEND_API SimEngine : public backend::SimEngine
 {
     class DeviceImpl;
     friend class SimSystem;
@@ -41,19 +39,16 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     virtual void do_advance() override;
     virtual void do_sync() override;
     virtual void do_retrieve() override;
-    virtual Json do_to_json() const override;
 
   private:
     void build();
     void init_scene();
-    void register_all_systems();  // called in do_init() only.
 
-    DeviceImpl&         device_impl() noexcept;
-    U<DeviceImpl>       m_device_impl;
-    std::stringstream   m_string_stream;
-    U<WorldVisitor>     m_world_visitor;
-    SimSystemCollection m_system_collection;
-    SimEngineState      m_state = SimEngineState::None;
+    DeviceImpl&       device_impl() noexcept;
+    U<DeviceImpl>     m_device_impl;
+    std::stringstream m_string_stream;
+    U<WorldVisitor>   m_world_visitor;
+    SimEngineState    m_state = SimEngineState::None;
 
     // Events
     list<SimAction> m_on_init_scene;
@@ -62,10 +57,6 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     void            event_rebuild_scene();
     list<SimAction> m_on_write_scene;
     void            event_write_scene();
-
-    // Utilities
-    template <std::derived_from<ISimSystem> T>
-    T* find();
 
   private:
     // Aware Top Systems
@@ -87,5 +78,3 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     SizeT m_current_frame   = 0;
 };
 }  // namespace uipc::backend::cuda
-
-#include "details/sim_engine.inl"

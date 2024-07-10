@@ -5,33 +5,22 @@
 
 namespace uipc::backend::cuda
 {
-template <>
-class SimSystemCreator<ABDOrthoPotential>
-{
-  public:
-    static U<ABDOrthoPotential> create(SimEngine& engine)
-    {
-        auto scene = engine.world().scene();
-        // Check if we have the AffineBodyDynamics Type
-        auto& types = scene.constitution_tabular().types();
-        if(types.find(world::ConstitutionTypes::AffineBody) == types.end())
-            return nullptr;
-
-        // Check if we have the ABDOrthoPotential constitution
-        auto uids = scene.constitution_tabular().uids();
-        if(!std::binary_search(uids.begin(), uids.end(), ABDOrthoPotential::ConstitutionUID))
-            return nullptr;
-
-        return make_unique<ABDOrthoPotential>(engine);
-    }
-};
-
 REGISTER_SIM_SYSTEM(ABDOrthoPotential);
 
 void ABDOrthoPotential::do_build()
 {
-    auto affine_body_dynamics = find<AffineBodyDynamics>();
-    affine_body_dynamics->add_constitution(this);
+    auto& affine_body_dynamics = require<AffineBodyDynamics>();
+
+    auto scene = world().scene();
+    // Check if we have the ABDOrthoPotential constitution
+    auto uids = scene.constitution_tabular().uids();
+    if(!std::binary_search(uids.begin(), uids.end(), ABDOrthoPotential::ConstitutionUID))
+    {
+        throw SimEngineException(fmt::format("ABDOrthoPotential requires ABDOrthoPotential Constitution (UID={})",
+                                             ABDOrthoPotential::ConstitutionUID));
+    }
+
+    affine_body_dynamics.add_constitution(this);
 }
 
 U64 ABDOrthoPotential::get_constitution_uid() const
@@ -115,7 +104,7 @@ void ABDOrthoPotential::Impl::compute_gradient_hessian(const AffineBodyDynamics:
                    H.block<9, 9>(3, 3) += shape_H;
                    G.segment<9>(3) += shape_gradient;
 
-                   gradients(i)    += G;
+                   gradients(i) += G;
                    body_hessian(i) += H;
                });
 }

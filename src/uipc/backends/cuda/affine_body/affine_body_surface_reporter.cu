@@ -3,32 +3,17 @@
 
 namespace uipc::backend::cuda
 {
-template <>
-class SimSystemCreator<AffinebodySurfaceReporter>
-{
-  public:
-    static U<AffinebodySurfaceReporter> create(SimEngine& engine)
-    {
-        return CreatorQuery::has_affine_body_constitution(engine) ?
-                   make_unique<AffinebodySurfaceReporter>(engine) :
-                   nullptr;
-    }
-};
-
 REGISTER_SIM_SYSTEM(AffinebodySurfaceReporter);
-
 
 void AffinebodySurfaceReporter::do_build()
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
+    auto& global_surf_manager   = require<GlobalSimpicialSurfaceManager>();
+    m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
 
     m_impl.affine_body_dynamics->after_build_geometry(
         [this] { m_impl.init_surface(world()); });
-
-    auto& global_surf_manager = require<GlobalSimpicialSurfaceManager>();
     global_surf_manager.add_reporter(this);
-
-    m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
 }
 
 void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)

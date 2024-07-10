@@ -3,24 +3,13 @@
 #include <linear_system/global_linear_system.h>
 namespace uipc::backend::cuda
 {
-template <>
-class SimSystemCreator<LinearPCG>
-{
-  public:
-    static U<LinearPCG> create(SimEngine& engine)
-    {
-        auto& info = engine.world().scene().info();
-        if(info["linear_system"]["solver"] == "linear_pcg")
-            return make_unique<LinearPCG>(engine);
-        else
-            return nullptr;
-    }
-};
-
 REGISTER_SIM_SYSTEM(LinearPCG);
 
 void LinearPCG::do_build()
 {
+    auto& global_linear_system = require<GlobalLinearSystem>();
+    global_linear_system.add_solver(this);
+
     on_init_scene(
         [this]
         {
@@ -31,9 +20,6 @@ void LinearPCG::do_build()
                          max_iter_ratio,
                          global_tol_rate);
         });
-
-    auto global_linear_system = find<GlobalLinearSystem>();
-    global_linear_system->add_solver(this);
 }
 
 void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)

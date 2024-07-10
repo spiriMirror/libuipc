@@ -1,7 +1,6 @@
 #include <sim_engine.h>
 #include <uipc/backends/module.h>
 #include <uipc/common/log.h>
-#include <sim_system_auto_register.h>
 #include <log_pattern_guard.h>
 #include <global_geometry/global_surface_manager.h>
 #include <global_geometry/global_vertex_manager.h>
@@ -14,37 +13,28 @@
 #include <linear_system/global_linear_system.h>
 #include <uipc/backends/module.h>
 #include <fstream>
+
 namespace uipc::backend::cuda
 {
 void SimEngine::build()
 {
-    namespace fs = std::filesystem;
-
     // 1) build all systems
-    m_system_collection.build_systems();
+    build_systems();
 
     // 2) find those engine-aware topo systems
-    m_global_vertex_manager     = find<GlobalVertexManager>();
-    m_global_surface_manager    = find<GlobalSimpicialSurfaceManager>();
-    m_global_contact_manager    = find<GlobalContactManager>();
-    m_global_dcd_filter         = find<GlobalDCDFilter>();
-    m_global_ccd_filter         = find<GlobalCCDFilter>();
-    m_dof_predictor             = find<DoFPredictor>();
-    m_line_searcher             = find<LineSearcher>();
-    m_gradient_hessian_computer = find<GradientHessianComputer>();
-    m_global_linear_system      = find<GlobalLinearSystem>();
+    m_global_vertex_manager     = &require<GlobalVertexManager>();
+    m_dof_predictor             = &require<DoFPredictor>();
+    m_line_searcher             = &require<LineSearcher>();
+    m_gradient_hessian_computer = &require<GradientHessianComputer>();
+    m_global_linear_system      = &require<GlobalLinearSystem>();
+
+    m_global_surface_manager = find<GlobalSimpicialSurfaceManager>();
+    m_global_contact_manager = find<GlobalContactManager>();
+    m_global_dcd_filter      = find<GlobalDCDFilter>();
+    m_global_ccd_filter      = find<GlobalCCDFilter>();
 
     // 3) dump system info
-    auto          workspace = ModuleInfo::instance().workspace();
-    fs::path      p = fs::absolute(fs::path{workspace} / "systems.json");
-    std::ofstream ofs(p);
-    ofs << to_json().dump(4);
-    spdlog::info("System info dumped to {}", p.string());
-
-    // 4) clean up invalid systems
-    spdlog::info("Cleaning up invalid systems...");
-    m_system_collection.cleanup_invalid_systems();
-    spdlog::info("Built Systems:\n{}", m_system_collection);
+    dump_system_info();
 }
 
 void SimEngine::init_scene()
@@ -65,15 +55,11 @@ void SimEngine::do_init(backend::WorldVisitor v)
 
     m_world_visitor = make_unique<backend::WorldVisitor>(v);
 
-    // 1) ConstitutionRegister all systems
-    m_state = SimEngineState::RegisterSystems;
-    register_all_systems();
-
-    // 2) Build the relationships between systems
+    // 1. Build all the systems and their dependencies
     m_state = SimEngineState::BuildSystems;
     build();
 
-    // 3) Trigger the init_scene event, systems register their actions will be called here
+    // 2. Trigger the init_scene event, systems register their actions will be called here
     m_state = SimEngineState::InitScene;
     {
         init_scene();
@@ -85,7 +71,7 @@ void SimEngine::do_init(backend::WorldVisitor v)
             m_global_contact_manager->compute_d_hat();
     }
 
-    // 4) Any creation and deletion of objects after this point will be pending
+    // 3. Any creation and deletion of objects after this point will be pending
     auto scene_visitor = m_world_visitor->scene();
     scene_visitor.begin_pending();
 }

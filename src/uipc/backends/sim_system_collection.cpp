@@ -1,15 +1,15 @@
-#include <sim_system_collection.h>
+#include <uipc/backends/sim_system_collection.h>
 #include <typeinfo>
 #include <uipc/common/log.h>
 
 
-namespace uipc::backend::cuda
+namespace uipc::backend
 {
 void SimSystemCollection::create(U<ISimSystem> system)
 {
-    auto& s   = *system;
-    U64   tid = typeid(s).hash_code();
-    auto  it  = m_sim_systems.find(tid);
+    auto&    s   = *system;
+    uint64_t tid = typeid(s).hash_code();
+    auto     it  = m_sim_systems.find(tid);
     UIPC_ASSERT(it == m_sim_systems.end(),
                 "SimSystem ({}) already exists, yours {}, why can it happen?",
                 it->second->name(),
@@ -32,7 +32,10 @@ void SimSystemCollection::cleanup_invalid_systems()
     for(auto it = m_sim_systems.begin(); it != m_sim_systems.end();)
     {
         if(!it->second->is_valid())
+        {
+            m_invalid_systems.push_back(std::move(it->second));
             it = m_sim_systems.erase(it);
+        }
         else
             ++it;
     }
@@ -40,6 +43,11 @@ void SimSystemCollection::cleanup_invalid_systems()
 
 void SimSystemCollection::build_systems()
 {
+    for(auto&& [k, s] : m_sim_systems)
+    {
+        s->set_building(true);
+    }
+
     for(auto&& [k, s] : m_sim_systems)
     {
         try
@@ -52,13 +60,23 @@ void SimSystemCollection::build_systems()
             spdlog::info("[{}] shutdown, reason: {}", s->name(), e.what());
         }
     }
+
+    cleanup_invalid_systems();
+    spdlog::info("Cleanup invalid systems done!");
+
+    for(auto&& [k, s] : m_sim_systems)
+    {
+        s->set_building(false);
+    }
+
+    spdlog::info("Built Systems:\n{}", *this);
 }
-}  // namespace uipc::backend::cuda
+}  // namespace uipc::backend
 
 namespace fmt
 {
-appender formatter<uipc::backend::cuda::SimSystemCollection>::format(
-    const uipc::backend::cuda::SimSystemCollection& s, format_context& ctx) const
+appender formatter<uipc::backend::SimSystemCollection>::format(
+    const uipc::backend::SimSystemCollection& s, format_context& ctx) const
 {
     int i = 0;
     int n = s.m_sim_systems.size();
