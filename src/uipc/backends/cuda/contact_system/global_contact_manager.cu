@@ -33,15 +33,31 @@ void GlobalContactManager::do_build()
     m_impl.dt                    = info["dt"].get<Float>();
     m_impl.kappa = world().scene().contact_tabular().default_model().resistance();
 
-    on_init_scene([this] { m_impl.init(); });
+    on_init_scene([this] { m_impl.init(world()); });
 }
 
-void GlobalContactManager::Impl::init()
+void GlobalContactManager::Impl::init(WorldVisitor& world)
 {
-    // tabular
-    contact_tabular.resize(muda::Extent2D{1, 1});
+    // 1) init tabular
+    auto contact_models = world.scene().contact_tabular().contact_models();
+    auto N              = world.scene().contact_tabular().element_count();
 
-    // reporters
+    h_contact_tabular.resize(N * N,
+                             ContactCoeff{.kappa = contact_models[0].resistance(),
+                                          .mu = contact_models[0].friction_rate()});
+
+    for(auto model : contact_models)
+    {
+        auto ids = model.ids();
+        ContactCoeff coeff{.kappa = model.resistance(), .mu = model.friction_rate()};
+        h_contact_tabular[ids.x() * N + ids.y()] = coeff;
+        h_contact_tabular[ids.y() * N + ids.x()] = coeff;
+    }
+
+    contact_tabular.resize(muda::Extent2D{N, N});
+    contact_tabular.view().copy_from(h_contact_tabular.data());
+
+    // 2) reporters
     contact_reporters.init();
     auto contact_reporter_view = contact_reporters.view();
     for(auto&& [i, R] : enumerate(contact_reporter_view))
@@ -53,13 +69,12 @@ void GlobalContactManager::Impl::init()
     reporter_hessian_offsets.resize(contact_reporter_view.size());
     reporter_hessian_counts.resize(contact_reporter_view.size());
 
-    // receivers
+    // 3) receivers
     contact_receivers.init();
     auto contact_receiver_view = contact_receivers.view();
     for(auto&& [i, R] : enumerate(contact_receiver_view))
         R->m_index = i;
 
-    //classify_infos.resize(contact_receivers.size());
     classified_contact_gradients.resize(contact_receiver_view.size());
     classified_contact_hessians.resize(contact_receiver_view.size());
 }
@@ -74,12 +89,7 @@ void GlobalContactManager::Impl::compute_d_hat()
 
 void GlobalContactManager::Impl::compute_adaptive_kappa()
 {
-    // TODO: just hard code for now, only one model
-    // later we will support multiple models
-    contact_tabular.fill(ContactCoeff{
-        .kappa = kappa,
-        .mu    = 0.0,
-    });
+
 }
 
 void GlobalContactManager::Impl::compute_contact()

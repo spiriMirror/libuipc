@@ -43,9 +43,7 @@ TEST_CASE("6_abd_cube_pile", "[abd]")
         // create object
         auto object = scene.objects().create("cubes");
 
-
         auto cube_mesh = io.read(fmt::format("{}{}", tetmesh_dir, "cube.msh"));
-
 
         label_surface(cube_mesh);
         label_triangle_orient(cube_mesh);

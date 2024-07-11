@@ -114,7 +114,7 @@ TEST_CASE("0_abd_gravity", "[abd]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}/scene_surface{}.obj", this_output_path, 0));
 
-    for(int i = 1; i < 30; i++)
+    for(int i = 1; i < 50; i++)
     {
         world.advance();
         world.sync();

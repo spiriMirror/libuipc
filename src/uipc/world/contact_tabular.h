@@ -34,6 +34,9 @@ class UIPC_CORE_API ContactTabular
     // delete copy_from
     ContactTabular(const ContactTabular&)            = delete;
     ContactTabular& operator=(const ContactTabular&) = delete;
+
+    SizeT element_count() const noexcept;
+
   private:
     IndexT                       m_current_id;
     mutable vector<ContactModel> m_models;

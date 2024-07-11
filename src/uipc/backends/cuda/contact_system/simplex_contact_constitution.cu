@@ -143,6 +143,11 @@ muda::CBufferView<Vector3> SimplexContactConstitution::BaseInfo::rest_positions(
     return m_impl->global_vertex_manager->rest_positions();
 }
 
+muda::CBufferView<IndexT> SimplexContactConstitution::BaseInfo::contact_element_ids() const
+{
+    return m_impl->global_vertex_manager->contact_element_ids();
+}
+
 Float SimplexContactConstitution::BaseInfo::d_hat() const
 {
     return m_impl->global_contact_manager->d_hat();

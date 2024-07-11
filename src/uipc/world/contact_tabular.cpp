@@ -119,6 +119,11 @@ std::span<const ContactModel> ContactTabular::contact_models() const noexcept
     return m_models;
 }
 
+SizeT ContactTabular::element_count() const noexcept
+{
+    return m_elements.size();
+}
+
 void to_json(Json& j, const ContactTabular& ct)
 {
     std::vector<ContactElement> elements(ct.m_elements.size());

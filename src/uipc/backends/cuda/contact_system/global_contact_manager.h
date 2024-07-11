@@ -132,7 +132,7 @@ class GlobalContactManager final : public SimSystem
     class Impl
     {
       public:
-        void init();
+        void init(WorldVisitor& world);
         void compute_d_hat();
         void compute_adaptive_kappa();
 
@@ -142,6 +142,7 @@ class GlobalContactManager final : public SimSystem
         void _distribute();
 
         GlobalVertexManager*               global_vertex_manager = nullptr;
+        vector<ContactCoeff>               h_contact_tabular;
         muda::DeviceBuffer2D<ContactCoeff> contact_tabular;
         Float                              reserve_ratio = 1.5;
 
