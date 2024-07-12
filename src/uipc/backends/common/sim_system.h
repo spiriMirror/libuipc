@@ -1,7 +1,7 @@
 #pragma once
-#include <uipc/backends/i_sim_system.h>
+#include <uipc/backends/common/i_sim_system.h>
 #include <string_view>
-#include <uipc/backends/sim_system_auto_register.h>
+#include <uipc/backends/common/sim_system_auto_register.h>
 #include <uipc/backend/visitors/world_visitor.h>
 
 namespace uipc::backend
@@ -32,10 +32,11 @@ class SimSystem : public ISimSystem
     bool       m_valid        = true;
     bool       m_is_building  = false;
 
-    list<ISimSystem*>    m_dependencies;
+    vector<ISimSystem*>  m_dependencies;
     SimSystemCollection& collection() noexcept;
     void                 set_building(bool b) noexcept override;
     virtual bool         get_is_building() const noexcept override;
+
 
 
     virtual void set_engine_aware() noexcept final;
@@ -44,6 +45,8 @@ class SimSystem : public ISimSystem
     virtual bool get_valid() const noexcept override final;
     virtual void set_invalid() noexcept override final;
 
+    virtual span<ISimSystem* const> get_dependencies() const noexcept override final;
+
     SimSystem* find_system(SimSystem* ptr);
     SimSystem* require_system(SimSystem* ptr);
 
@@ -51,4 +54,4 @@ class SimSystem : public ISimSystem
 };
 }  // namespace uipc::backend
 
-#include <uipc/backends/details/sim_system.inl>
+#include <uipc/backends/common/details/sim_system.inl>

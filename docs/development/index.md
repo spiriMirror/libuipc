@@ -6,6 +6,8 @@ This document describes the design and implementation of the `libuipc`, providin
 
 In this section, we describe the basic idea of Unifed Incremental Potential Contact (UIPC) Framework. Some of the terminology defined in this section may be used throughout the rest of the document.
 
+[TODO] Add contents.
+
 !!!Note
     It's highly recommended to read this section before reading the rest of the document.
 

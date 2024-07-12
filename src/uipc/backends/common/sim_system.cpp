@@ -1,5 +1,5 @@
-#include <uipc/backends/sim_system.h>
-#include <uipc/backends/sim_engine.h>
+#include <uipc/backends/common/sim_system.h>
+#include <uipc/backends/common/sim_engine.h>
 #include <typeinfo>
 
 namespace uipc::backend
@@ -53,6 +53,11 @@ bool SimSystem::get_engine_aware() const noexcept
 void SimSystem::set_invalid() noexcept
 {
     m_valid = false;
+}
+
+span<ISimSystem* const> SimSystem::get_dependencies() const noexcept
+{
+    return m_dependencies;
 }
 
 SimSystem* SimSystem::find_system(SimSystem* ptr)

@@ -1,10 +1,11 @@
-#include <uipc/backends/none/none_engine.h>
-#include <uipc/backends/module.h>
+#include <none_sim_engine.h>
+#include <uipc/backends/common/module.h>
 #include <uipc/common/log.h>
+#include <none_sim_system.h>
 
-namespace uipc::backend
+namespace uipc::backend::none
 {
-NoneEngine::NoneEngine()
+NoneSimEngine::NoneSimEngine()
 {
     spdlog::info("[NoneEngine] Constructor called.");
     spdlog::info(R"(Hello, this is the NoneEngine from libuipc backends.
@@ -13,36 +14,42 @@ And it is a good place to print out some debug information during the life cycle
 )");
 }
 
-void NoneEngine::do_init(backend::WorldVisitor v)
+void NoneSimEngine::do_init(backend::WorldVisitor v)
 {
     spdlog::info("[NoneEngine] do_init() called.");
+
+    build_systems();
+
+    m_system = &require<NoneSimSystem>();
+
+    dump_system_info();
 }
 
-void NoneEngine::do_advance()
+void NoneSimEngine::do_advance()
 {
     spdlog::info("[NoneEngine] do_advance() called.");
 }
 
-void NoneEngine::do_sync()
+void NoneSimEngine::do_sync()
 {
     spdlog::info("[NoneEngine] do_sync() called.");
 }
 
-void NoneEngine::do_retrieve()
+void NoneSimEngine::do_retrieve()
 {
     spdlog::info("[NoneEngine] do_receive() called.");
 }
 
-NoneEngine::~NoneEngine()
+NoneSimEngine::~NoneSimEngine()
 {
     spdlog::info("[NoneEngine] Destructor called.");
 }
-}  // namespace uipc::backend
+}  // namespace uipc::backend::none
 
 
 UIPC_BACKEND_API UIPCEngineInterface* uipc_create_engine()
 {
-    return new uipc::backend::NoneEngine();
+    return new uipc::backend::none::NoneSimEngine();
 }
 
 UIPC_BACKEND_API void uipc_destroy_engine(UIPCEngineInterface* engine)

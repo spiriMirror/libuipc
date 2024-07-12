@@ -73,11 +73,12 @@ void SceneIO::write_surface_obj(std::string_view filename)
 
 
     // 3) write the merged surface to file
-    fs::path path = filename;
+    fs::path path = fs::absolute(fs::path{filename});
+
     fs::exists(path.parent_path()) || fs::create_directories(path.parent_path());
+
     SimplicialComplexIO io;
     io.write_obj(path.string(), merged_surface);
-
 
     auto abs_path = fs::absolute(path).string();
     spdlog::info("Scene surface with Faces({}), Vertices({}) written to {}",

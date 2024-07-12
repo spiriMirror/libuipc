@@ -1,5 +1,5 @@
 #include <typeinfo>
-#include <uipc/backends/i_sim_system.h>
+#include <uipc/backends/common/i_sim_system.h>
 
 namespace uipc::backend
 {
@@ -32,6 +32,11 @@ bool ISimSystem::is_valid() const noexcept
 bool ISimSystem::is_building() const noexcept
 {
     return get_is_building();
+}
+
+span<ISimSystem* const> ISimSystem::dependencies() const noexcept
+{
+    return get_dependencies();
 }
 
 std::string_view ISimSystem::name() const noexcept

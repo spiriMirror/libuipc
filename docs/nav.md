@@ -29,4 +29,6 @@
     - [Macros](Libuipc/macros.md)
     - [Files](Libuipc/files.md)
 - [Development](development/index.md)
+    - [Backend](development/backend.md)
+    - [Backend Cuda](development/backend_cuda/index.md)
 - [Misc](misc/)

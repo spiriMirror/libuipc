@@ -1,19 +1,19 @@
 #include <uipc/common/log.h>
-#include <uipc/backends/i_sim_system.h>
+#include <uipc/backends/common/i_sim_system.h>
 namespace uipc::backend
 {
 template <std::derived_from<ISimSystem> T>
 T* SimSystemCollection::find()
 {
     auto tid = typeid(T).hash_code();
-    auto it  = m_sim_systems.find(tid);
+    auto it  = m_sim_system_map.find(tid);
 
     // find exact match
-    if(it != m_sim_systems.end())
+    if(it != m_sim_system_map.end())
         return dynamic_cast<T*>(it->second.get());
 
     // if not found, find compatible match
-    for(auto& [key, value] : m_sim_systems)
+    for(auto& [key, value] : m_sim_system_map)
     {
         if(auto* ptr = dynamic_cast<T*>(value.get()); ptr != nullptr)
         {

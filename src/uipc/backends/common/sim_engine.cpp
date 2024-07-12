@@ -1,6 +1,6 @@
-#include <uipc/backends/sim_engine.h>
-#include <uipc/backends/sim_system_auto_register.h>
-#include <uipc/backends/module.h>
+#include <uipc/backends/common/sim_engine.h>
+#include <uipc/backends/common/sim_system_auto_register.h>
+#include <uipc/backends/common/module.h>
 #include <filesystem>
 #include <fstream>
 
@@ -30,6 +30,8 @@ void SimEngine::dump_system_info() const
 {
     namespace fs = std::filesystem;
 
+    spdlog::info("Built systems:\n{}", m_system_collection);
+
     auto     workspace = ModuleInfo::instance().workspace();
     fs::path p         = fs::absolute(fs::path{workspace} / "systems.json");
     {
@@ -38,6 +40,7 @@ void SimEngine::dump_system_info() const
     }
     spdlog::info("System info dumped to {}", p.string());
 }
+
 ISimSystem* SimEngine::find_system(ISimSystem* ptr)
 {
     if(ptr)
@@ -53,6 +56,7 @@ ISimSystem* SimEngine::find_system(ISimSystem* ptr)
     }
     return ptr;
 }
+
 ISimSystem* SimEngine::require_system(ISimSystem* ptr)
 {
     if(ptr)

@@ -94,7 +94,7 @@ Contact model is a set of coefficients and models that define the contact behavi
 
 ### Contact Element
 
-A contact element is one side of the pairwised contact model, which has no meaning itself. The contact element ID of two objects that are in contact with each other are used to find the contact model between them.
+A contact element is one side of the pairwised contact model, which has no meaning itself. The contact element IDs of two collided objects are used to find the contact model coefficients between them.
 
 ```cpp
 wood_contact.id(); // 1

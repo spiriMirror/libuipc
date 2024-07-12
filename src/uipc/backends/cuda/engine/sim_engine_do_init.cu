@@ -1,5 +1,4 @@
 #include <sim_engine.h>
-#include <uipc/backends/module.h>
 #include <uipc/common/log.h>
 #include <log_pattern_guard.h>
 #include <global_geometry/global_surface_manager.h>
@@ -11,7 +10,6 @@
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
-#include <uipc/backends/module.h>
 #include <fstream>
 
 namespace uipc::backend::cuda
@@ -20,10 +18,6 @@ void SimEngine::build()
 {
     // 1) build all systems
     build_systems();
-
-    m_on_init_scene.init();
-    m_on_rebuild_scene.init();
-    m_on_write_scene.init();
 
     // 2) find those engine-aware topo systems
     m_global_vertex_manager     = &require<GlobalVertexManager>();
@@ -49,9 +43,21 @@ void SimEngine::init_scene()
     Vector3 gravity   = info["gravity"];
     Float   dt        = info["dt"];
 
-    m_abs_tol         = gravity.norm() * dt * dt;
+    m_abs_tol = gravity.norm() * dt * dt / 2;
     if(m_abs_tol == 0.0)
         m_abs_tol = std::numeric_limits<Float>::max();
+
+    m_on_init_scene.init();
+    m_on_rebuild_scene.init();
+    m_on_write_scene.init();
+
+    event_init_scene();
+
+    // some systems need to be initialized after the scene is built
+    m_global_vertex_manager->init_vertex_info();
+    m_global_surface_manager->init_surface_info();
+    if(m_global_contact_manager)
+        m_global_contact_manager->compute_d_hat();
 }
 
 void SimEngine::do_init(backend::WorldVisitor v)
@@ -66,15 +72,7 @@ void SimEngine::do_init(backend::WorldVisitor v)
 
     // 2. Trigger the init_scene event, systems register their actions will be called here
     m_state = SimEngineState::InitScene;
-    {
-        init_scene();
-        event_init_scene();
-
-        m_global_vertex_manager->init_vertex_info();
-        m_global_surface_manager->init_surface_info();
-        if(m_global_contact_manager)
-            m_global_contact_manager->compute_d_hat();
-    }
+    init_scene();
 
     // 3. Any creation and deletion of objects after this point will be pending
     auto scene_visitor = m_world_visitor->scene();

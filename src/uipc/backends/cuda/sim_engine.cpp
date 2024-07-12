@@ -1,5 +1,5 @@
 #include <sim_engine.h>
-#include <uipc/backends/module.h>
+#include <uipc/backends/common/module.h>
 
 UIPC_BACKEND_API UIPCEngineInterface* uipc_create_engine()
 {

@@ -3,7 +3,9 @@
 #include <uipc/common/unordered_map.h>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/common/format.h>
-#include <uipc/backends/i_sim_system.h>
+#include <uipc/common/vector.h>
+#include <uipc/common/span.h>
+#include <uipc/backends/common/i_sim_system.h>
 
 namespace uipc::backend
 {
@@ -12,20 +14,22 @@ class SimSystemCollection
     friend struct fmt::formatter<SimSystemCollection>;
 
   public:
-    Json to_json() const;
+    Json                    to_json() const;
+    span<ISimSystem* const> systems() const;
 
-  private:
-    friend class SimEngine;
-    friend class SimSystem;
     void create(U<ISimSystem> system);
+    void build_systems();
+
     template <std::derived_from<ISimSystem> T>
     T* find();
 
-    unordered_map<uint64_t, U<ISimSystem>> m_sim_systems;
+  private:
+    mutable bool                           built = false;
+    unordered_map<uint64_t, U<ISimSystem>> m_sim_system_map;
+    vector<ISimSystem*>                    m_valid_systems;
     list<U<ISimSystem>>                    m_invalid_systems;
 
     void cleanup_invalid_systems();
-    void build_systems();
 };
 }  // namespace uipc::backend
 
