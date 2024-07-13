@@ -28,10 +28,12 @@ std::string_view AssetDir::trimesh_path()
 {
     return UIPC_ASSET_PATH "sim_data/trimesh/";
 }
+
 std::string_view AssetDir::output_path()
 {
     return UIPC_OUTPUT_PATH;
 }
+
 std::string AssetDir::output_path(const char* _file_)
 {
     fs::path _output_path{UIPC_OUTPUT_PATH};
@@ -46,6 +48,6 @@ std::string AssetDir::output_path(const char* _file_)
     if(!fs::exists(file_output_path))
         fs::create_directories(file_output_path);
 
-    return file_output_path.string();
+    return file_output_path.string() + "/";
 }
 }  // namespace uipc

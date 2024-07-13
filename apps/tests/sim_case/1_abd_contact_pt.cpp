@@ -25,7 +25,7 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     config["gravity"] = Vector3{0, -10, 0};
 
     {  // dump config
-        std::ofstream ofs(fmt::format("{}/config.json", this_output_path));
+        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
         ofs << config.dump(4);
     }
 
@@ -113,13 +113,13 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
 
     world.init(scene);
     SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}/scene_surface{}.obj", this_output_path, 0));
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
     for(int i = 1; i < 50; i++)
     {
         world.advance();
         world.sync();
         world.retrieve();
-        sio.write_surface(fmt::format("{}/scene_surface{}.obj", this_output_path, i));
+        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
     }
 }
