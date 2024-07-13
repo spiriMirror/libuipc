@@ -63,7 +63,7 @@ void ABDMatrixConverter::Impl::_radix_sort_indices_and_blocks(
 
     // hash ij
     ParallelFor(256)
-        .kernel_name(__FUNCTION__ "-set ij pairs")
+        .kernel_name(__FUNCTION__)
         .apply(src_row_indices.size(),
                [row_indices = src_row_indices.cviewer().name("row_indices"),
                 col_indices = src_col_indices.cviewer().name("col_indices"),
@@ -169,7 +169,7 @@ void ABDMatrixConverter::Impl::_make_unique_block_warp_reduction(
     BufferLaunch().fill<int>(sorted_partition_input, 0);
 
     ParallelFor()
-        .kernel_name(__FUNCTION__ ":old_to_new")
+        .kernel_name(__FUNCTION__)
         .apply(unique_counts.size(),
                [sorted_partition = sorted_partition_input.viewer().name("sorted_partition"),
                 unique_counts = unique_counts.viewer().name("unique_counts"),

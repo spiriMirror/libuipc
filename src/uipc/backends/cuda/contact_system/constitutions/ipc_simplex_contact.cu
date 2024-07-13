@@ -288,7 +288,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
     // Compute Point-Triangle energy
     auto PT_count = info.PTs().size();
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-PT")
+        .kernel_name(__FUNCTION__)
         .apply(PT_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -330,7 +330,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
     // Compute Edge-Edge energy
     auto EE_count = info.EEs().size();
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-EE")
+        .kernel_name(__FUNCTION__)
         .apply(EE_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -378,7 +378,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
     // Compute Point-Edge energy
     auto PE_count = info.PEs().size();
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-PE")
+        .kernel_name(__FUNCTION__)
         .apply(PE_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -417,7 +417,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
     // Compute Point-Point energy
     auto PP_count = info.PPs().size();
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-PP")
+        .kernel_name(__FUNCTION__)
         .apply(PP_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -458,7 +458,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
 
     // Compute Point-Triangle Gradient and Hessian
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-PT")
+        .kernel_name(__FUNCTION__)
         .apply(info.PTs().size(),
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -490,7 +490,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
 
     // Compute Edge-Edge Gradient and Hessian
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-EE")
+        .kernel_name(__FUNCTION__)
         .apply(info.EEs().size(),
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -526,7 +526,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
 
     // Compute Point-Edge Gradient and Hessian
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-PE")
+        .kernel_name(__FUNCTION__)
         .apply(info.PEs().size(),
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -564,7 +564,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
 
     // Compute Point-Point Gradient and Hessian
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-PP")
+        .kernel_name(__FUNCTION__)
         .apply(info.PPs().size(),
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),

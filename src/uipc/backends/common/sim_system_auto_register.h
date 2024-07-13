@@ -84,3 +84,5 @@ class SimSystemAutoRegister
         static ::uipc::backend::SimSystemAutoRegister AutoRegister##__COUNTER__( \
             ::uipc::backend::detail::register_system_creator<SimSystem>());      \
     }
+
+// End of file, remove the warning: backslash-newline at end of file

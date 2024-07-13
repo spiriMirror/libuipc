@@ -48,7 +48,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
 
     // hash ij
     ParallelFor(256)
-        .kernel_name(__FUNCTION__ "-set ij pairs")
+        .kernel_name(__FUNCTION__)
         .apply(src_row_indices.size(),
                [row_indices = src_row_indices.cviewer().name("row_indices"),
                 col_indices = src_col_indices.cviewer().name("col_indices"),
@@ -118,7 +118,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(muda::DeviceBCOOMatri
 
     // hash ij
     ParallelFor(256)
-        .kernel_name(__FUNCTION__ "-set ij pairs")
+        .kernel_name(__FUNCTION__)
         .apply(src_row_indices.size(),
                [row_indices = src_row_indices.cviewer().name("row_indices"),
                 col_indices = src_col_indices.cviewer().name("col_indices"),
@@ -142,7 +142,7 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(muda::DeviceBCOOMatri
     auto dst_col_indices = to.block_col_indices();
 
     ParallelFor(256)
-        .kernel_name("set col row indices")
+        .kernel_name(__FUNCTION__)
         .apply(dst_row_indices.size(),
                [ij_hash = ij_hash.viewer().name("ij_hash"),
                 ij_pairs = ij_pairs.viewer().name("ij_pairs")] __device__(int i) mutable
@@ -236,7 +236,7 @@ void MatrixConverter<T, N>::_make_unique_block_warp_reduction(
     BufferLaunch().fill<int>(sorted_partition_input, 0);
 
     ParallelFor()
-        .kernel_name(__FUNCTION__ ":old_to_new")
+        .kernel_name(__FUNCTION__)
         .apply(unique_counts.size(),
                [sorted_partition = sorted_partition_input.viewer().name("sorted_partition"),
                 unique_counts = unique_counts.viewer().name("unique_counts"),
@@ -255,7 +255,7 @@ void MatrixConverter<T, N>::_make_unique_block_warp_reduction(
 
     auto blocks = to.block_values();
 
-    FastSegmentalReduce()
+    FastSegmentalReduce<>()
         .kernel_name(__FUNCTION__)
         .reduce(std::as_const(sorted_partition_output).view(),
                 std::as_const(blocks_sorted).view(),
@@ -412,7 +412,7 @@ void MatrixConverter<T, N>::_make_unique_segment_warp_reduction(
     BufferLaunch().fill<int>(sorted_partition_input, 0);
 
     ParallelFor()
-        .kernel_name(__FUNCTION__ ":old_to_new")
+        .kernel_name(__FUNCTION__)
         .apply(unique_counts.size(),
                [sorted_partition = sorted_partition_input.viewer().name("sorted_partition"),
                 unique_counts = unique_counts.viewer().name("unique_counts"),
@@ -454,7 +454,7 @@ void MatrixConverter<T, N>::ge2sym(muda::DeviceBCOOMatrix<T, N>& to)
 
     // 0. find the upper triangular part (where i <= j)
     ParallelFor(256)
-        .kernel_name(__FUNCTION__ "-set ij pairs")
+        .kernel_name(__FUNCTION__)
         .apply(to.non_zero_blocks(),
                [row_indices = to.block_row_indices().cviewer().name("row_indices"),
                 col_indices = to.block_col_indices().cviewer().name("col_indices"),
@@ -533,7 +533,7 @@ void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
 
     // setup select flag
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-set flags")
+        .kernel_name(__FUNCTION__)
         .apply(sym_size,
                [flags = flags.viewer().name("flags"),
                 row_indices = from.block_row_indices().cviewer().name("row_indices"),
@@ -562,7 +562,7 @@ void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
     // [ Diag | Upper | Lower ]
     //
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-copy")
+        .kernel_name(__FUNCTION__)
         .apply(sym_size,
                [to   = to.viewer().name("to"),
                 from = from.cviewer().name("from"),

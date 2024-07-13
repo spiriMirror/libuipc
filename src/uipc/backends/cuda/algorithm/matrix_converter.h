@@ -78,8 +78,8 @@ class MatrixConverter
                                              muda::DeviceBCOOVector<T, N>& to);
 
 
-    template <typename T>
-    void loose_resize(muda::DeviceBuffer<T>& buf, size_t new_size)
+    template <typename U>
+    void loose_resize(muda::DeviceBuffer<U>& buf, size_t new_size)
     {
         if(buf.capacity() < new_size)
             buf.reserve(new_size * reserve_ratio);

@@ -243,7 +243,7 @@ void GlobalContactManager::Impl::_distribute()
             if(count > 0)
             {
                 ParallelFor()
-                    .kernel_name(__FUNCTION__ "-gradient")
+                    .kernel_name(__FUNCTION__)
                     .apply(count,
                            [contact_gradient =
                                 std::as_const(sorted_contact_gradient).viewer().name("contact_gradient"),
@@ -267,7 +267,7 @@ void GlobalContactManager::Impl::_distribute()
 
             // select
             ParallelFor()
-                .kernel_name(__FUNCTION__ "-hessian")
+                .kernel_name(__FUNCTION__)
                 .apply(N,
                        [selected_hessian = selected_hessian.view(0, N).viewer().name("selected_hessian"),
                         last = VarView{selected_hessian.data() + N}.viewer().name("last"),
@@ -303,7 +303,7 @@ void GlobalContactManager::Impl::_distribute()
             if(h_total_count > 0)
             {
                 ParallelFor()
-                    .kernel_name(__FUNCTION__ "-hessian-fill")
+                    .kernel_name(__FUNCTION__)
                     .apply(N,
                            [selected_hessian = selected_hessian.cviewer().name("selected_hessian"),
                             selected_hessian_offsets =

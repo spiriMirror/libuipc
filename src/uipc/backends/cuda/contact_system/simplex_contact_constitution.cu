@@ -175,7 +175,7 @@ namespace detail
             for(int j = 0; j < N; ++j)
             {
                 auto R = D(j);
-                H3x3(offset++).write(L, R, H.block<3, 3>(3 * i, 3 * j));
+                H3x3(offset++).write(L, R, H.template block<3, 3>(3 * i, 3 * j));
             }
         }
     }
@@ -235,7 +235,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
     {
         SizeT H3x3_count = PTs.size() * 16;
         ParallelFor()
-            .kernel_name(__FUNCTION__ "-PT_H12x12")
+            .kernel_name(__FUNCTION__)
             .apply(PT_hessian.size(),
                    [PT_H12x12s = PT_hessian.cviewer().name("H12x12"),
                     PTs        = PTs.cviewer().name("PTs"),
@@ -243,14 +243,14 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
                    {
                        Matrix12x12 H12x12 = PT_H12x12s(I);
                        const auto& D4     = PTs(I);
-                       detail::make_spd(H12x12);
+                       detail::make_spd<12>(H12x12);
                        detail::fill_contact_hessian<4>(H3x3, I, D4, H12x12);
                    });
         H3x3_offset += H3x3_count;
 
         SizeT G3_count = PT_gradient.size() * 4;
         ParallelFor()
-            .kernel_name(__FUNCTION__ "-PT_G12")
+            .kernel_name(__FUNCTION__)
             .apply(PT_gradient.size(),
                    [PT_G12s = PT_gradient.cviewer().name("G12"),
                     PTs     = PTs.cviewer().name("PTs"),
@@ -267,7 +267,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
     {
         SizeT H3x3_count = EEs.size() * 16;
         ParallelFor()
-            .kernel_name(__FUNCTION__ "-EE_H12x12")
+            .kernel_name(__FUNCTION__)
             .apply(EE_hessian.size(),
                    [EE_H12x12s = EE_hessian.cviewer().name("H12x12"),
                     EEs        = EEs.cviewer().name("EEs"),
@@ -275,7 +275,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
                    {
                        Matrix12x12 H12x12 = EE_H12x12s(I);
                        const auto& D4     = EEs(I);
-                       detail::make_spd(H12x12);
+                       detail::make_spd<12>(H12x12);
                        detail::fill_contact_hessian<4>(H3x3, I, D4, H12x12);
                    });
 
@@ -283,7 +283,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
 
         SizeT G3_count = EE_gradient.size() * 4;
         ParallelFor()
-            .kernel_name(__FUNCTION__ "-EE_G12")
+            .kernel_name(__FUNCTION__)
             .apply(EE_gradient.size(),
                    [G12s = EE_gradient.cviewer().name("G12"),
                     EEs  = EEs.cviewer().name("EEs"),
@@ -301,7 +301,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
     {
         SizeT H3x3_count = PEs.size() * 9;
         ParallelFor()
-            .kernel_name(__FUNCTION__ "-PE_H9x9")
+            .kernel_name(__FUNCTION__)
             .apply(PEs.size(),
                    [PE_H9x9s = PE_hessians.cviewer().name("H9x9"),
                     PEs      = PEs.cviewer().name("PEs"),
@@ -309,7 +309,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
                    {
                        Matrix9x9   H9x9 = PE_H9x9s(I);
                        const auto& D3   = PEs(I);
-                       detail::make_spd(H9x9);
+                       detail::make_spd<9>(H9x9);
                        detail::fill_contact_hessian<3>(H3x3, I, D3, H9x9);
                    });
 
@@ -317,7 +317,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
 
         SizeT G3_count = PEs.size() * 3;
         ParallelFor()
-            .kernel_name(__FUNCTION__ "-PE_G9")
+            .kernel_name(__FUNCTION__)
             .apply(PEs.size(),
                    [G9s = PE_gradients.cviewer().name("G9"),
                     PEs = PEs.cviewer().name("PEs"),
@@ -336,7 +336,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
     {
         SizeT H3x3_count = PPs.size() * 4;
         ParallelFor()
-            .kernel_name(__FUNCTION__ "-PP_H6x6")
+            .kernel_name(__FUNCTION__)
             .apply(PPs.size(),
                    [PP_H6x6s = PP_hessians.cviewer().name("H6x6"),
                     PPs      = PPs.cviewer().name("PPs"),
@@ -344,7 +344,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
                    {
                        Matrix6x6   H6x6 = PP_H6x6s(I);
                        const auto& D2   = PPs(I);
-                       detail::make_spd(H6x6);
+                       detail::make_spd<6>(H6x6);
                        detail::fill_contact_hessian<2>(H3x3, I, D2, H6x6);
                    });
 
@@ -352,7 +352,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
 
         SizeT G3_count = PPs.size() * 2;
         ParallelFor()
-            .kernel_name(__FUNCTION__ "-PP_G6")
+            .kernel_name(__FUNCTION__)
             .apply(PPs.size(),
                    [G6s = PP_gradients.cviewer().name("G6"),
                     PPs = PPs.cviewer().name("PPs"),

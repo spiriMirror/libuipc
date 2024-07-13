@@ -40,7 +40,7 @@ void ABDLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
 {
     using namespace muda;
     ParallelFor(256)
-        .kernel_name(__FUNCTION__ "-affine_body")
+        .kernel_name(__FUNCTION__)
         .apply(abd().body_count(),
                [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
                 q_temps  = abd().body_id_to_q_temp.cviewer().name("q_temps"),

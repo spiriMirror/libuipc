@@ -28,7 +28,7 @@ void LBVHSimplexCCDFilter::Impl::broadphase_ccd(SimplexCCDFilter::FilterInfo& in
 
     // build AABBs for points
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-points")
+        .kernel_name(__FUNCTION__)
         .apply(Vs.size(),
                [Vs    = Vs.viewer().name("V"),
                 dxs   = dxs.viewer().name("dx"),
@@ -52,7 +52,7 @@ void LBVHSimplexCCDFilter::Impl::broadphase_ccd(SimplexCCDFilter::FilterInfo& in
 
     // build AABBs for edges
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-edges")
+        .kernel_name(__FUNCTION__)
         .apply(Es.size(),
                [Es    = Es.viewer().name("E"),
                 Ps    = Ps.viewer().name("Ps"),
@@ -81,7 +81,7 @@ void LBVHSimplexCCDFilter::Impl::broadphase_ccd(SimplexCCDFilter::FilterInfo& in
 
     // build AABBs for triangles
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-triangles")
+        .kernel_name(__FUNCTION__)
         .apply(Fs.size(),
                [Fs    = Fs.viewer().name("F"),
                 Ps    = Ps.viewer().name("Ps"),
@@ -187,7 +187,7 @@ void LBVHSimplexCCDFilter::Impl::broadphase_ccd(SimplexCCDFilter::FilterInfo& in
 
     // record the candidate pairs
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-record PT pairs")
+        .kernel_name(__FUNCTION__)
         .apply(PT_pairs.size(),
                [PT_pairs      = PT_pairs.viewer().name("PT_pairs"),
                 candidate_PTs = candidate_PTs.viewer().name("candidate_PTs"),
@@ -201,7 +201,7 @@ void LBVHSimplexCCDFilter::Impl::broadphase_ccd(SimplexCCDFilter::FilterInfo& in
                });
 
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-record EE pairs")
+        .kernel_name(__FUNCTION__)
         .apply(EE_pairs.size(),
                [EE_pairs      = EE_pairs.viewer().name("EE_pairs"),
                 candidate_EEs = candidate_EEs.viewer().name("candidate_EEs"),
@@ -253,7 +253,7 @@ void LBVHSimplexCCDFilter::Impl::narrowphase_ccd(SimplexCCDFilter::FilterInfo& i
 
     // PT
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-PT")
+        .kernel_name(__FUNCTION__)
         .apply(candidate_PTs.size(),
                [PT_tois       = PT_tois.viewer().name("PT_tois"),
                 candidate_PTs = candidate_PTs.viewer().name("candidate_PTs"),
@@ -293,7 +293,7 @@ void LBVHSimplexCCDFilter::Impl::narrowphase_ccd(SimplexCCDFilter::FilterInfo& i
 
     // EE
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-EE")
+        .kernel_name(__FUNCTION__)
         .apply(candidate_EEs.size(),
                [EE_tois       = EE_tois.viewer().name("EE_tois"),
                 candidate_EEs = candidate_EEs.viewer().name("candidate_EEs"),

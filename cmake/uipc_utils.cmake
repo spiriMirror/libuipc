@@ -36,13 +36,6 @@ function(uipc_error content)
 endfunction()
 
 # -----------------------------------------------------------------------------------------
-# Print message fatal error with uipc prefix
-# -----------------------------------------------------------------------------------------
-function(uipc_fatal_error content)
-    message(FATAL_ERROR "[libuipc] ${content}")
-endfunction()
-
-# -----------------------------------------------------------------------------------------
 # Print the options of the project
 # -----------------------------------------------------------------------------------------
 function(uipc_show_options)
@@ -61,13 +54,14 @@ endfunction()
 # checking. Only check and install the packages first time.
 # -----------------------------------------------------------------------------------------
 function(uipc_config_vcpkg_install)
-    set(VCPKG_MANIFEST_DIR "${CMAKE_CURRENT_BINARY_DIR}" PARENT_SCOPE)
-    #set(VCPKG_TRACE_FIND_PACKAGE ON PARENT_SCOPE)
-    set(vcpkg_manifest_file "${VCPKG_MANIFEST_DIR}/vcpkg.json")
-    if(NOT EXISTS "${vcpkg_manifest_file}")
-        uipc_info("${vcpkg_manifest_file} not found, start to install the packages")
+    set(VCPKG_MANIFEST_DIR "${CMAKE_CURRENT_BINARY_DIR}")
+    set(VCPKG_MANIFEST_FILE "${VCPKG_MANIFEST_DIR}/vcpkg.json")
+
+    if(NOT EXISTS "${VCPKG_MANIFEST_FILE}")
+        uipc_info("${VCPKG_MANIFEST_FILE} not found, start to install the packages")
         set(VCPKG_MANIFEST_INSTALL ON PARENT_SCOPE)
         find_package(Python REQUIRED)
+
         # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
         execute_process(
             COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
@@ -75,19 +69,28 @@ function(uipc_config_vcpkg_install)
             "--build_gui=${UIPC_BUILD_GUI}" # pass the UIPC_BUILD_GUI as argument
         )
     else()
-        uipc_info("${vcpkg_manifest_file} exists, skip the vcpkg manifest install")
+        uipc_info("${VCPKG_MANIFEST_FILE} exists, skip the vcpkg manifest install")
         set(VCPKG_MANIFEST_INSTALL OFF PARENT_SCOPE)
     endif()
+
+    set(VCPKG_INSTALLED_DIR "")
+
     if(UIPC_USING_LOCAL_VCPKG)
-        set(VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed" PARENT_SCOPE)
+        set(VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed")
     else()
         if (DEFINED ENV{VCPKG_ROOT})
-            set(VCPKG_INSTALLED_DIR "$ENV{VCPKG_ROOT}/installed" PARENT_SCOPE)
+            set(VCPKG_INSTALLED_DIR "$ENV{VCPKG_ROOT}/installed")
         else()
             uipc_error("When using system vcpkg (UIPC_USING_LOCAL_VCPKG=${UIPC_USING_LOCAL_VCPKG}), please set the VCPKG_ROOT environment variable to the vcpkg root directory.")
         endif()
     endif()
-        uipc_info("Vcpkg install directory: ${VCPKG_INSTALLED_DIR}")
+    
+    uipc_info("Package install directory: ${VCPKG_INSTALLED_DIR}")
+
+    # export some variables to the parent scope
+    set(VCPKG_MANIFEST_DIR "${VCPKG_MANIFEST_DIR}" PARENT_SCOPE)
+    # set(VCPKG_TRACE_FIND_PACKAGE ON PARENT_SCOPE)
+    set(VCPKG_INSTALLED_DIR "${VCPKG_INSTALLED_DIR}" PARENT_SCOPE)
 endfunction()
 
 

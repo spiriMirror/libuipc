@@ -35,7 +35,7 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
 
     // build AABBs for points
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-points")
+        .kernel_name(__FUNCTION__)
         .apply(Vs.size(),
                [Vs    = Vs.viewer().name("V"),
                 Ps    = Ps.viewer().name("Ps"),
@@ -55,7 +55,7 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
 
     // build AABBs for edges
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-edges")
+        .kernel_name(__FUNCTION__)
         .apply(Es.size(),
                [Es    = Es.viewer().name("E"),
                 Ps    = Ps.viewer().name("Ps"),
@@ -75,7 +75,7 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
 
     // build AABBs for triangles
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-triangles")
+        .kernel_name(__FUNCTION__)
         .apply(Fs.size(),
                [Fs    = Fs.viewer().name("F"),
                 Ps    = Ps.viewer().name("Ps"),
@@ -157,7 +157,7 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
 
     // record the candidate pairs
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-record PT pairs")
+        .kernel_name(__FUNCTION__)
         .apply(PT_pairs.size(),
                [PT_pairs      = PT_pairs.viewer().name("PT_pairs"),
                 candidate_PTs = candidate_PTs.viewer().name("candidate_PTs"),
@@ -171,7 +171,7 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
                });
 
     ParallelFor()
-        .kernel_name(__FUNCTION__ "-record EE pairs")
+        .kernel_name(__FUNCTION__)
         .apply(EE_pairs.size(),
                [EE_pairs      = EE_pairs.viewer().name("EE_pairs"),
                 candidate_EEs = candidate_EEs.viewer().name("candidate_EEs"),
