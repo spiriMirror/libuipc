@@ -1,3 +1,4 @@
+#include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/constitutions/affine_body.h>
 
@@ -9,11 +10,11 @@ int main()
     using namespace uipc::constitution;
     using namespace uipc::engine;
 
-    // UIPCEngine engine{"none"};
-    UIPCEngine engine{"cuda"};
+    UIPCEngine engine{"none"};
+    // UIPCEngine engine{"cuda"};
 
-    World      world{engine};
-    auto       config = Scene::default_config();
+    World world{engine};
+    auto  config      = Scene::default_config();
     config["gravity"] = Vector3{0, -9.8, 0};
     config["dt"]      = 0.01_s;
 
@@ -77,13 +78,15 @@ int main()
 
     SceneIO sio{scene};
 
-    sio.write_surface(fmt::format("scene_surface{}.obj", 0));
+    auto this_output_path = AssetDir::output_path(__FILE__);
+
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
     for(int i = 1; i < 50; i++)
     {
         world.advance();
         world.sync();
         world.retrieve();
-        sio.write_surface(fmt::format("scene_surface{}.obj", i));
+        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
     }
 }

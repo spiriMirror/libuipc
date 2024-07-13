@@ -1,10 +1,21 @@
 #include <affine_body/affine_body_constitution.h>
+#include <affine_body/affine_body_dynamics.h>
 
 namespace uipc::backend::cuda
 {
 U64 AffineBodyConstitution::constitution_uid() const
 {
     return get_constitution_uid();
+}
+
+void AffineBodyConstitution::do_build()
+{
+    auto& affine_body_dynamics = require<AffineBodyDynamics>();
+
+    BuildInfo info;
+    do_build(info);
+
+    affine_body_dynamics.add_constitution(this);
 }
 
 void AffineBodyConstitution::filter(AffineBodyDynamics::FilteredInfo& info)

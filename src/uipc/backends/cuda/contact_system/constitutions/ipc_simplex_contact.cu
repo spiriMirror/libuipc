@@ -8,13 +8,9 @@ REGISTER_SIM_SYSTEM(IPCSimplexContact);
 
 void IPCSimplexContact::do_build(BuildInfo& info) {}
 
-namespace ipc_contact
+namespace sym::ipc_contact
 {
-    namespace sym
-    {
-#include <contact_system/constitutions/sym/ipc_contact.inl>
-    }  // namespace sym
-
+#include "sym/ipc_contact.inl"
 
     __device__ Float PT_barrier_energy(Float          kappa,
                                        Float          squared_d_hat,
@@ -28,7 +24,7 @@ namespace ipc_contact
         Float D;
         point_triangle_distance(P, T0, T1, T2, D);
         Float B;
-        sym::KappaBarrier(B, kappa, D, D_hat);
+        KappaBarrier(B, kappa, D, D_hat);
         return B;
     }
 
@@ -51,7 +47,7 @@ namespace ipc_contact
         point_triangle_distance_gradient(P, T0, T1, T2, GradD);
 
         Float dBdD;
-        sym::dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
+        dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
 
         //tex:
         //$$
@@ -60,7 +56,7 @@ namespace ipc_contact
         G = dBdD * GradD;
 
         Float ddBddD;
-        sym::ddKappaBarrierddD(ddBddD, kappa, D, squared_d_hat);
+        ddKappaBarrierddD(ddBddD, kappa, D, squared_d_hat);
 
         Matrix12x12 HessD;
         point_triangle_distance_hessian(P, T0, T1, T2, HessD);
@@ -90,7 +86,7 @@ namespace ipc_contact
         Float D;
         edge_edge_distance(Ea0, Ea1, Eb0, Eb1, D);
         Float B;
-        sym::KappaBarrier(B, kappa, D, D_hat);
+        KappaBarrier(B, kappa, D, D_hat);
 
         Float eps_x;
         edge_edge_mollifier_threshold(t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, eps_x);
@@ -124,7 +120,7 @@ namespace ipc_contact
         edge_edge_distance(Ea0, Ea1, Eb0, Eb1, D);
 
         Float B;
-        sym::KappaBarrier(B, kappa, D, D_hat);
+        KappaBarrier(B, kappa, D, D_hat);
 
         //tex: $$ \epsilon_x $$
         Float eps_x;
@@ -144,7 +140,7 @@ namespace ipc_contact
 
         //tex: $$ \frac{\partial B}{\partial D} $$
         Float dBdD;
-        sym::dKappaBarrierdD(dBdD, kappa, D, D_hat);
+        dKappaBarrierdD(dBdD, kappa, D, D_hat);
 
         //tex: $$ \nabla B = \frac{\partial B}{\partial D} \nabla D$$
         Vector12 GradB = dBdD * GradD;
@@ -157,7 +153,7 @@ namespace ipc_contact
 
         //tex: $$ \frac{\partial^2 B}{\partial D^2} $$
         Float ddBddD;
-        sym::ddKappaBarrierddD(ddBddD, kappa, D, squared_d_hat);
+        ddKappaBarrierddD(ddBddD, kappa, D, squared_d_hat);
 
         //tex: $$ \nabla^2 D$$
         Matrix12x12 HessD;
@@ -188,7 +184,7 @@ namespace ipc_contact
         Float D     = 0.0;
         point_edge_distance(P, E0, E1, D);
         Float E = 0.0;
-        sym::KappaBarrier(E, kappa, D, D_hat);
+        KappaBarrier(E, kappa, D, D_hat);
         return E;
     }
 
@@ -210,7 +206,7 @@ namespace ipc_contact
         point_edge_distance_gradient(P, E0, E1, GradD);
 
         Float dBdD;
-        sym::dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
+        dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
 
         //tex:
         //$$
@@ -219,7 +215,7 @@ namespace ipc_contact
         G = dBdD * GradD;
 
         Float ddBddD;
-        sym::ddKappaBarrierddD(ddBddD, kappa, D, squared_d_hat);
+        ddKappaBarrierddD(ddBddD, kappa, D, squared_d_hat);
 
         Matrix9x9 HessD;
         point_edge_distance_hessian(P, E0, E1, HessD);
@@ -241,7 +237,7 @@ namespace ipc_contact
         Float D     = 0.0;
         point_point_distance(P0, P1, D);
         Float E = 0.0;
-        sym::KappaBarrier(E, kappa, D, D_hat);
+        KappaBarrier(E, kappa, D, D_hat);
         return E;
     }
 
@@ -262,7 +258,7 @@ namespace ipc_contact
         point_point_distance_gradient(P0, P1, GradD);
 
         Float dBdD;
-        sym::dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
+        dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
 
         //tex:
         //$$
@@ -271,7 +267,7 @@ namespace ipc_contact
         G = dBdD * GradD;
 
         Float ddBddD;
-        sym::ddKappaBarrierddD(ddBddD, kappa, D, squared_d_hat);
+        ddKappaBarrierddD(ddBddD, kappa, D, squared_d_hat);
 
         Matrix6x6 HessD;
         point_point_distance_hessian(P0, P1, HessD);
@@ -282,7 +278,7 @@ namespace ipc_contact
         //$$
         H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
     }
-}  // namespace ipc_contact
+}  // namespace sym::ipc_contact
 
 
 void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
@@ -326,7 +322,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                                D,
                                D_hat);
 
-                   Es(i) = ipc_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2);
+                   Es(i) = sym::ipc_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2);
 
                    //cout << "PT energy: " << Es(i) << "\n";
                });
@@ -375,7 +371,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                                D,
                                D_hat);
 
-                   Es(i) = ipc_contact::EE_barrier_energy(
+                   Es(i) = sym::ipc_contact::EE_barrier_energy(
                        kappa, D_hat, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
                });
 
@@ -415,7 +411,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                                D,
                                D_hat);
 
-                   Es(i) = ipc_contact::PE_barrier_energy(kappa, D_hat, P, E0, E1);
+                   Es(i) = sym::ipc_contact::PE_barrier_energy(kappa, D_hat, P, E0, E1);
                });
 
     // Compute Point-Point energy
@@ -452,7 +448,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                                D,
                                D_hat);
 
-                   Es(i) = ipc_contact::PP_barrier_energy(kappa, D_hat, P0, P1);
+                   Es(i) = sym::ipc_contact::PP_barrier_energy(kappa, D_hat, P0, P1);
                });
 }
 
@@ -485,7 +481,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
 
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
-                   ipc_contact::PT_barrier_gradient_hessian(
+                   sym::ipc_contact::PT_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, P, T0, T1, T2);
 
                    //cout << "PT gradient: " << Gs(i).transpose().eval() << "\n";
@@ -524,7 +520,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    // jsut hard coding now
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
-                   ipc_contact::EE_barrier_gradient_hessian(
+                   sym::ipc_contact::EE_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
                });
 
@@ -552,7 +548,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
 
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
-                   ipc_contact::PE_barrier_gradient_hessian(
+                   sym::ipc_contact::PE_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, P, E0, E1);
                });
 
@@ -589,7 +585,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
 
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
-                   ipc_contact::PP_barrier_gradient_hessian(
+                   sym::ipc_contact::PP_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, P0, P1);
                });
 }

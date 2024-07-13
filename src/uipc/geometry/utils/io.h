@@ -47,6 +47,9 @@ class UIPC_CORE_API SimplicialComplexIO
      */
     [[nodiscard]] SimplicialComplex read_obj(std::string_view file_name);
 
+
+    void write(std::string_view file_name, const SimplicialComplex& sc);
+
     /**
      * @brief Write a simplicial complex to .obj file.
      * 

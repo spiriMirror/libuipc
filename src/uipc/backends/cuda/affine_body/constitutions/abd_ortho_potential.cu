@@ -7,10 +7,8 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(ABDOrthoPotential);
 
-void ABDOrthoPotential::do_build()
+void ABDOrthoPotential::do_build(AffineBodyConstitution::BuildInfo& info)
 {
-    auto& affine_body_dynamics = require<AffineBodyDynamics>();
-
     auto scene = world().scene();
     // Check if we have the ABDOrthoPotential constitution
     auto uids = scene.constitution_tabular().uids();
@@ -19,8 +17,6 @@ void ABDOrthoPotential::do_build()
         throw SimEngineException(fmt::format("ABDOrthoPotential requires ABDOrthoPotential Constitution (UID={})",
                                              ABDOrthoPotential::ConstitutionUID));
     }
-
-    affine_body_dynamics.add_constitution(this);
 }
 
 U64 ABDOrthoPotential::get_constitution_uid() const
@@ -48,6 +44,12 @@ void ABDOrthoPotential::Impl::filter(const AffineBodyDynamics::FilteredInfo& inf
     _build_on_device();
 }
 
+namespace sym::abd_ortho_potential
+{
+#include "sym/ortho_potential.inl"
+}
+
+
 void ABDOrthoPotential::Impl::compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& info)
 {
     using namespace muda;
@@ -68,7 +70,9 @@ void ABDOrthoPotential::Impl::compute_energy(const AffineBodyDynamics::ComputeEn
                    auto& volume = volumes(i);
                    auto  kappa  = kappas(i);
 
-                   V = kappa * volume * dt * dt * shape_energy(q);
+                   sym::abd_ortho_potential::E(V, kappa * dt * dt, volume, q);
+
+                   // V = kappa * volume * dt * dt * shape_energy(q);
                });
 
     // Sum up the body energies
@@ -93,13 +97,23 @@ void ABDOrthoPotential::Impl::compute_gradient_hessian(const AffineBodyDynamics:
                    Matrix12x12 H = Matrix12x12::Zero();
                    Vector12    G = Vector12::Zero();
 
-                   const auto& q              = qs(i);
-                   Float       kappa          = kappas(i);
-                   const auto& volume         = volumes(i);
-                   auto        kvt2           = kappa * volume * dt * dt;
-                   Vector9     shape_gradient = kvt2 * shape_energy_gradient(q);
+                   const auto& q      = qs(i);
+                   Float       kappa  = kappas(i);
+                   const auto& volume = volumes(i);
 
-                   Matrix9x9 shape_H = kvt2 * shape_energy_hessian(q);
+                   // auto        kvt2           = kappa * volume * dt * dt;
+                   // Vector9     shape_gradient = kvt2 * shape_energy_gradient(q);
+                   // Vector9 shape_gradient;
+                   // Matrix9x9 shape_H = kvt2 * shape_energy_hessian(q);
+
+                   Float kt2 = kappa * dt * dt;
+
+                   Vector9 shape_gradient;
+                   sym::abd_ortho_potential::dEdq(shape_gradient, kt2, volume, q);
+
+                   Matrix9x9 shape_H;
+                   sym::abd_ortho_potential::ddEddq(shape_H, kt2, volume, q);
+
 
                    H.block<9, 9>(3, 3) += shape_H;
                    G.segment<9>(3) += shape_gradient;

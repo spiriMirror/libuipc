@@ -198,7 +198,7 @@ For example, we create a non-const view of the positions of the mesh `bar`:
 auto VA  = bar.vertices();
 auto pos = VA.find<Vector3>("position");
 pos->is_shared(); // true
-auto non_const_view = pos->view();
+auto non_const_view = geometry::view(*pos);
 pos->is_shared(); // false
 ```
 Here, `pos->is_shared()` first return `true`, which means the position data is shared. After we create a non-const view of the position data, `pos->is_shared()` will return `false`, which means, `pos` is exclusively belong to `bar`.

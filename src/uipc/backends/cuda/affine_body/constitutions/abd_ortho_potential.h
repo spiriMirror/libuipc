@@ -12,7 +12,7 @@ class ABDOrthoPotential : public AffineBodyConstitution
 
     using AffineBodyConstitution::AffineBodyConstitution;
 
-    virtual void do_build() override;
+    virtual void do_build(AffineBodyConstitution::BuildInfo& info) override;
 
   public:
     class Impl

@@ -1,6 +1,6 @@
 include(uipc_utils)
 
-set(app_name hello_uipc)
+set(app_name hello_simplicial_complex)
 
 add_executable(${app_name})
 

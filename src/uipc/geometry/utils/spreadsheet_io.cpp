@@ -121,7 +121,7 @@ void SpreadSheetIO::write_csv(std::string_view         geo_name,
     }
 
     auto abs_folder = fs::absolute(folder);
-    spdlog::info("Write spreadsheets(.csv) to [{}/]", abs_folder.string());
+    spdlog::info("Write spreadsheets(.csv) to [{}]", abs_folder.string());
 }
 
 void SpreadSheetIO::write_csv(const SimplicialComplex& simplicial_complex) const

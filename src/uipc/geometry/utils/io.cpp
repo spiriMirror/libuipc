@@ -107,6 +107,19 @@ SimplicialComplex SimplicialComplexIO::read_obj(std::string_view file_name)
     return trimesh(Vs, Fs);
 }
 
+void SimplicialComplexIO::write(std::string_view file_name, const SimplicialComplex& sc)
+{
+    fs::path path{file_name};
+    if(path.extension() == ".obj")
+    {
+        write_obj(file_name, sc);
+    }
+    else
+    {
+        throw GeometryIOError{fmt::format("Unsupported file format: {}", file_name)};
+    }
+}
+
 void SimplicialComplexIO::write_obj(std::string_view file_name, const SimplicialComplex& sc)
 {
     if(sc.dim() > 2)
