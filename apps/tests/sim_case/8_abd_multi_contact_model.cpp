@@ -37,9 +37,9 @@ TEST_CASE("8_abd_multi_contact_model", "[abd]")
         auto& default_contact = contact_tabular.default_element();
         auto& rubber_contact  = contact_tabular.create("rubber");
 
-        contact_tabular.default_model(0.5, 100.0_MPa);
-        contact_tabular.insert(default_contact, rubber_contact, 0.5, 10.0_MPa);
-        contact_tabular.insert(rubber_contact, rubber_contact, 0.5, 1.0_MPa);
+        contact_tabular.default_model(0.5, 1.0_GPa);
+        contact_tabular.insert(default_contact, rubber_contact, 0.5, 100.0_MPa);
+        contact_tabular.insert(rubber_contact, rubber_contact, 0.5, 10.0_MPa);
 
         Transform pre_transform = Transform::Identity();
         pre_transform.scale(0.3);
@@ -82,7 +82,7 @@ TEST_CASE("8_abd_multi_contact_model", "[abd]")
         // rubber cubes
         {
             SimplicialComplex rubber_cube = cube;
-            abd.apply_to(rubber_cube, 100.0_MPa);
+            abd.apply_to(rubber_cube, 10.0_MPa);
             rubber_contact.apply_to(rubber_cube);
 
             auto trans_view = view(rubber_cube.transforms());

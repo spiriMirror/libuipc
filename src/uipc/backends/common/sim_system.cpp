@@ -106,7 +106,7 @@ bool SimSystem::get_is_building() const noexcept
 
 std::string_view SimSystem::get_name() const noexcept
 {
-    if (m_name.empty())
+    if(m_name.empty())
         m_name = boost::core::demangle(typeid(*this).name());
     return m_name;
 }
