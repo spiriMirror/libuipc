@@ -3,11 +3,6 @@
 
 namespace uipc::backend
 {
-std::string_view ISimSystem::get_name() const noexcept
-{
-    return typeid(*this).name();
-}
-
 void ISimSystem::build()
 {
     //spdlog::info("Building system: {}", name());

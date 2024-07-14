@@ -19,7 +19,7 @@ class ISimSystem
 
   protected:
     virtual void             do_build() = 0;
-    virtual std::string_view get_name() const noexcept;
+    virtual std::string_view get_name() const = 0;
 
   private:
     friend class SimEngine;

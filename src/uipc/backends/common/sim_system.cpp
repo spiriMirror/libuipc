@@ -1,12 +1,14 @@
 #include <uipc/backends/common/sim_system.h>
 #include <uipc/backends/common/sim_engine.h>
 #include <typeinfo>
+#include <boost/core/demangle.hpp>
 
 namespace uipc::backend
 {
 SimSystem::SimSystem(SimEngine& sim_engine) noexcept
     : m_sim_engine(sim_engine)
 {
+    m_name = boost::core::demangle(typeid(*this).name());
 }
 
 void SimSystem::check_state(std::string_view function_name) noexcept
@@ -101,6 +103,11 @@ void SimSystem::set_building(bool b) noexcept
 bool SimSystem::get_is_building() const noexcept
 {
     return m_is_building;
+}
+
+std::string_view SimSystem::get_name() const noexcept
+{
+    return m_name;
 }
 
 bool SimSystem::get_valid() const noexcept

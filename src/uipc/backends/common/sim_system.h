@@ -27,17 +27,18 @@ class SimSystem : public ISimSystem
     SimEngine&   engine() noexcept;
 
   private:
-    SimEngine& m_sim_engine;
-    bool       m_engine_aware = false;
-    bool       m_valid        = true;
-    bool       m_is_building  = false;
+    SimEngine&  m_sim_engine;
+    bool        m_engine_aware = false;
+    bool        m_valid        = true;
+    bool        m_is_building  = false;
+    std::string m_name;
 
     vector<ISimSystem*>  m_dependencies;
     SimSystemCollection& collection() noexcept;
     void                 set_building(bool b) noexcept override;
     virtual bool         get_is_building() const noexcept override;
 
-
+    virtual std::string_view get_name() const noexcept;
 
     virtual void set_engine_aware() noexcept final;
     virtual bool get_engine_aware() const noexcept final;
