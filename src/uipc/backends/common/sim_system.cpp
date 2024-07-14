@@ -8,7 +8,6 @@ namespace uipc::backend
 SimSystem::SimSystem(SimEngine& sim_engine) noexcept
     : m_sim_engine(sim_engine)
 {
-    m_name = boost::core::demangle(typeid(*this).name());
 }
 
 void SimSystem::check_state(std::string_view function_name) noexcept
@@ -107,6 +106,8 @@ bool SimSystem::get_is_building() const noexcept
 
 std::string_view SimSystem::get_name() const noexcept
 {
+    if (m_name.empty())
+        m_name = boost::core::demangle(typeid(*this).name());
     return m_name;
 }
 

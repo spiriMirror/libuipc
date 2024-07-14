@@ -553,14 +553,14 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                });
 
 
-    Launch().apply(
-        [table = info.contact_tabular().viewer().name("contact_tabular")] __device__()
-        {
-            for(int i = 0; i < table.total_size(); i++)
-            {
-                cout << i << ":" << table.flatten(i).kappa;
-            }
-        });
+    //Launch().apply(
+    //    [table = info.contact_tabular().viewer().name("contact_tabular")] __device__()
+    //    {
+    //        for(int i = 0; i < table.total_size(); i++)
+    //        {
+    //            cout << i << ":" << table.flatten(i).kappa;
+    //        }
+    //    });
 
     // Compute Point-Point Gradient and Hessian
     ParallelFor()

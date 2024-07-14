@@ -27,11 +27,11 @@ class SimSystem : public ISimSystem
     SimEngine&   engine() noexcept;
 
   private:
-    SimEngine&  m_sim_engine;
-    bool        m_engine_aware = false;
-    bool        m_valid        = true;
-    bool        m_is_building  = false;
-    std::string m_name;
+    SimEngine&          m_sim_engine;
+    bool                m_engine_aware = false;
+    bool                m_valid        = true;
+    bool                m_is_building  = false;
+    mutable std::string m_name;
 
     vector<ISimSystem*>  m_dependencies;
     SimSystemCollection& collection() noexcept;

@@ -101,19 +101,17 @@ void ABDOrthoPotential::Impl::compute_gradient_hessian(const AffineBodyDynamics:
                    Float       kappa  = kappas(i);
                    const auto& volume = volumes(i);
 
-                   // auto        kvt2           = kappa * volume * dt * dt;
-                   // Vector9     shape_gradient = kvt2 * shape_energy_gradient(q);
-                   // Vector9 shape_gradient;
-                   // Matrix9x9 shape_H = kvt2 * shape_energy_hessian(q);
+                   //auto      kvt2           = kappa * volume * dt * dt;
+                   //Vector9   shape_gradient = kvt2 * shape_energy_gradient(q);
+                   //Matrix9x9 shape_H        = kvt2 * shape_energy_hessian(q);
 
                    Float kt2 = kappa * dt * dt;
 
-                   Vector9 shape_gradient;
+                   Vector9 shape_gradient = Vector9::Zero();
                    sym::abd_ortho_potential::dEdq(shape_gradient, kt2, volume, q);
 
-                   Matrix9x9 shape_H;
+                   Matrix9x9 shape_H = Matrix9x9::Zero();
                    sym::abd_ortho_potential::ddEddq(shape_H, kt2, volume, q);
-
 
                    H.block<9, 9>(3, 3) += shape_H;
                    G.segment<9>(3) += shape_gradient;
