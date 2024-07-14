@@ -46,6 +46,10 @@ vcpkg_json = {
         {
             "name":"magic-enum",
             "version>=": "0.9.3"
+        },
+        {
+            "name":"boost-core",
+            "version>=":"1.84.0"
         }
     ]
 }

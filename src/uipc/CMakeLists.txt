@@ -6,6 +6,7 @@ find_package(fmt CONFIG REQUIRED)
 find_package(cppitertools CONFIG REQUIRED)
 find_path(DYLIB_INCLUDE_DIRS "dylib.hpp")
 find_package(magic_enum CONFIG REQUIRED)
+find_package(Boost REQUIRED)
 
 add_library(uipc SHARED)
 add_library(uipc::uipc ALIAS uipc)
@@ -46,6 +47,7 @@ target_link_libraries(uipc PUBLIC
     fmt::fmt
     cppitertools::cppitertools
     magic_enum::magic_enum
+    Boost::boost
 )
 
 
