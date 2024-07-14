@@ -84,14 +84,14 @@ Just run the executable files in `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin`
 Install the project.
 
 ```shell
-cmake --install . --config <Debug/Release/RelWithDebInfo>
+cmake --install . --prefix . --config <Debug/Release/RelWithDebInfo>
 ```
 
 To run the programs, you need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared **libuipc** library and the dependent backend modules will not be found.
 
 ```shell
 cd CMakeBuild/<Debug/Release/RelWithDebInfo>/bin
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:./
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 ./hello_uipc
 ./uipc_test_world
 [...]
