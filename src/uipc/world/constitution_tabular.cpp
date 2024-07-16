@@ -9,7 +9,7 @@ span<U64> ConstitutionTabular::uids() const noexcept
     return m_uids;
 }
 
-const set<ConstitutionTypes>& ConstitutionTabular::types() const noexcept
+const set<ConstitutionType>& ConstitutionTabular::types() const noexcept
 {
     return m_types;
 }
