@@ -27,15 +27,19 @@ class UIPC_CORE_API AffineBodyConstitution : public world::IConstitution
     using Base = world::IConstitution;
 
   public:
-    AffineBodyConstitution() noexcept;
+    AffineBodyConstitution(const Json& config = default_config()) noexcept;
     AffineBodyMaterial create_material(Float kappa) const noexcept;
 
     void apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density = 1e3) const;
 
+    static Json default_config() noexcept;
+
   protected:
-    virtual U64               get_uid() const noexcept override;
-    virtual std::string_view  get_name() const noexcept override;
-    virtual world::ConstitutionTypes get_type() const noexcept override;
-    P<geometry::AttributeSlot<Float>> create_or_get(geometry::SimplicialComplex& sc) const;
+    virtual U64                     get_uid() const noexcept override;
+    virtual std::string_view        get_name() const noexcept override;
+    virtual world::ConstitutionType get_type() const noexcept override;
+
+  private:
+    Json m_config;
 };
 }  // namespace uipc::constitution

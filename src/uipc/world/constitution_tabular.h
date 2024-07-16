@@ -20,13 +20,13 @@ class UIPC_CORE_API ConstitutionTabular
 
     span<U64> uids() const noexcept;
 
-    const set<ConstitutionTypes>& types() const noexcept;
+    const set<ConstitutionType>& types() const noexcept;
   private:
     vector<U<IConstitution>> m_constitutions;
     mutable bool             m_is_sorted = false;
     mutable vector<U64>      m_uids;
     void                     sort_if_needed() const noexcept;
-    set<ConstitutionTypes>   m_types;
+    set<ConstitutionType>   m_types;
 };
 }  // namespace uipc::world
 

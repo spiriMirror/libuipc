@@ -37,7 +37,8 @@ class AffineBodyDynamics : public SimSystem
 
       private:
         friend class Impl;
-        U64 m_constitution_uid = 0ull;
+        U64    m_constitution_uid   = 0ull;
+        IndexT m_constitution_index = -1;
 
         IndexT m_geometry_slot_index     = -1;
         IndexT m_geometry_instance_index = -1;
@@ -167,7 +168,7 @@ class AffineBodyDynamics : public SimSystem
         SizeT body_count() const noexcept { return h_body_infos.size(); }
 
       public:
-        SimActionCollection<void()>                 after_build_geometry;
+        SimActionCollection<void()>                     after_build_geometry;
         SimSystemSlotCollection<AffineBodyConstitution> constitutions;
 
         // core invariant data

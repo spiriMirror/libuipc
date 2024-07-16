@@ -1,31 +1,30 @@
-#include <affine_body/constitutions/abd_ortho_potential.h>
+#include <affine_body/constitutions/abd_arap.h>
 #include <uipc/common/enumerate.h>
 #include <affine_body/abd_energy.h>
 #include <muda/cub/device/device_reduce.h>
 
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(ABDOrthoPotential);
+REGISTER_SIM_SYSTEM(ABDARAP);
 
-void ABDOrthoPotential::do_build(AffineBodyConstitution::BuildInfo& info)
+void ABDARAP::do_build(AffineBodyConstitution::BuildInfo& info)
 {
     auto scene = world().scene();
     // Check if we have the ABDOrthoPotential constitution
     auto uids = scene.constitution_tabular().uids();
-    if(!std::binary_search(uids.begin(), uids.end(), ABDOrthoPotential::ConstitutionUID))
+    if(!std::binary_search(uids.begin(), uids.end(), ABDARAP::ConstitutionUID))
     {
-        throw SimSystemException(fmt::format("ABDOrthoPotential requires ABDOrthoPotential Constitution (UID={})",
-                                             ABDOrthoPotential::ConstitutionUID));
+        throw SimSystemException(fmt::format("ABDARAP requires ABDARAP Constitution (UID={})",
+                                             ABDARAP::ConstitutionUID));
     }
 }
 
-U64 ABDOrthoPotential::get_constitution_uid() const
+U64 ABDARAP::get_constitution_uid() const
 {
     return ConstitutionUID;
 }
 
-void ABDOrthoPotential::Impl::filter(const AffineBodyDynamics::FilteredInfo& info,
-                                     WorldVisitor& world)
+void ABDARAP::Impl::filter(const AffineBodyDynamics::FilteredInfo& info, WorldVisitor& world)
 {
     auto src = info.body_infos();
     h_body_infos.resize(src.size());
@@ -44,13 +43,18 @@ void ABDOrthoPotential::Impl::filter(const AffineBodyDynamics::FilteredInfo& inf
     _build_on_device();
 }
 
+// TODO: To be removed, when you implement the As-Rigid-As-Possible
 namespace sym::abd_ortho_potential
 {
 #include "sym/ortho_potential.inl"
 }
 
+// TODO:
+// To make this different from the ABDOrthoPotential, here we time a magic number to the kappa
+// When you implement the As-Rigid-As-Possible, you should use your own formula
+constexpr Float magic_number = 1.0f / 3.0f;
 
-void ABDOrthoPotential::Impl::compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& info)
+void ABDARAP::Impl::compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& info)
 {
     using namespace muda;
 
@@ -63,12 +67,13 @@ void ABDOrthoPotential::Impl::compute_energy(const AffineBodyDynamics::ComputeEn
                 qs             = info.qs().cviewer().name("qs"),
                 kappas         = kappas.cviewer().name("kappas"),
                 volumes        = info.volumes().cviewer().name("volumes"),
-                dt             = info.dt()] __device__(int i) mutable
+                dt             = info.dt(),
+                magic_number   = magic_number] __device__(int i) mutable
                {
                    auto& V      = shape_energies(i);
                    auto& q      = qs(i);
                    auto& volume = volumes(i);
-                   auto  kappa  = kappas(i);
+                   auto  kappa  = kappas(i) * magic_number;
 
                    sym::abd_ortho_potential::E(V, kappa * dt * dt, volume, q);
 
@@ -79,7 +84,7 @@ void ABDOrthoPotential::Impl::compute_energy(const AffineBodyDynamics::ComputeEn
     DeviceReduce().Sum(body_energies.data(), info.shape_energy().data(), body_count);
 }
 
-void ABDOrthoPotential::Impl::compute_gradient_hessian(const AffineBodyDynamics::ComputeGradientHessianInfo& info)
+void ABDARAP::Impl::compute_gradient_hessian(const AffineBodyDynamics::ComputeGradientHessianInfo& info)
 {
     using namespace muda;
     auto N = info.qs().size();
@@ -91,14 +96,15 @@ void ABDOrthoPotential::Impl::compute_gradient_hessian(const AffineBodyDynamics:
                 volumes = info.volumes().cviewer().name("volumes"),
                 gradients = info.shape_gradient().viewer().name("shape_gradients"),
                 body_hessian = info.shape_hessian().viewer().name("shape_hessian"),
-                kappas = kappas.cviewer().name("kappas"),
-                dt     = info.dt()] __device__(int i) mutable
+                kappas       = kappas.cviewer().name("kappas"),
+                dt           = info.dt(),
+                magic_number = magic_number] __device__(int i) mutable
                {
                    Matrix12x12 H = Matrix12x12::Zero();
                    Vector12    G = Vector12::Zero();
 
                    const auto& q      = qs(i);
-                   Float       kappa  = kappas(i);
+                   Float       kappa  = kappas(i) * magic_number;
                    const auto& volume = volumes(i);
 
                    //auto      kvt2           = kappa * volume * dt * dt;
@@ -121,7 +127,7 @@ void ABDOrthoPotential::Impl::compute_gradient_hessian(const AffineBodyDynamics:
                });
 }
 
-void ABDOrthoPotential::Impl::_build_on_device()
+void ABDARAP::Impl::_build_on_device()
 {
     auto async_copy = []<typename T>(span<T> src, muda::DeviceBuffer<T>& dst)
     {
@@ -136,17 +142,17 @@ void ABDOrthoPotential::Impl::_build_on_device()
     async_resize(body_energies, kappas.size());
 }
 
-void ABDOrthoPotential::do_filter(AffineBodyDynamics::FilteredInfo& info)
+void ABDARAP::do_filter(AffineBodyDynamics::FilteredInfo& info)
 {
     m_impl.filter(info, world());
 }
 
-void ABDOrthoPotential::do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info)
+void ABDARAP::do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info)
 {
     m_impl.compute_energy(info);
 }
 
-void ABDOrthoPotential::do_compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info)
+void ABDARAP::do_compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info)
 {
     m_impl.compute_gradient_hessian(info);
 }

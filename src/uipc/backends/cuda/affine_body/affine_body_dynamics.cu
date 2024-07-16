@@ -23,7 +23,7 @@ void AffineBodyDynamics::do_build()
 {
     const auto& scene = engine().world().scene();
     auto&       types = scene.constitution_tabular().types();
-    if(types.find(world::ConstitutionTypes::AffineBody) == types.end())
+    if(types.find(world::ConstitutionType::AffineBody) == types.end())
     {
         throw SimSystemException("No AffineBodyConstitution found in the scene");
     }
@@ -91,6 +91,10 @@ void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
                            [](const AffineBodyConstitution* filter)
                            { return filter->constitution_uid(); });
 
+    unordered_map<U64, IndexT> constitution_uid_to_index;
+    for(auto&& [i, filter] : enumerate(constitution_view))
+        constitution_uid_to_index[filter->constitution_uid()] = i;
+
     // 2) find the affine bodies
     list<BodyInfo> body_infos;
     auto           scene = world.scene();
@@ -118,9 +122,10 @@ void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
                 {
                     // push all instances of the geometry to the body_infos
                     BodyInfo info;
-                    info.m_constitution_uid        = uid;
-                    info.m_abd_geometry_index      = abd_geo_count;
-                    info.m_geometry_slot_index     = i;
+                    info.m_constitution_uid    = uid;
+                    info.m_constitution_index  = constitution_uid_to_index[uid];
+                    info.m_abd_geometry_index  = abd_geo_count;
+                    info.m_geometry_slot_index = i;
                     info.m_geometry_instance_index = j;
                     info.m_affine_body_id          = abd_body_count++;
                     info.m_vertex_count            = vert_count;
@@ -168,20 +173,25 @@ void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
 
 void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
 {
+    // Note: body_infos has been sorted by (constitution uid, geometry index, geometry instance index)
+
+
     auto constitution_view = constitutions.view();
 
     // 1) setup h_abd_geo_body_offsets and h_abd_geo_body_counts
     {
-        h_abd_geo_body_offsets.reserve(h_body_infos.size());
-        h_abd_geo_body_counts.reserve(h_body_infos.size());
+        h_abd_geo_body_offsets.resize(abd_geo_count);
+        h_abd_geo_body_counts.resize(abd_geo_count);
 
-        encode_offset_count(h_body_infos.begin(),
-                            h_body_infos.end(),
-                            std::back_inserter(h_abd_geo_body_offsets),
-                            std::back_inserter(h_abd_geo_body_counts),
-                            [](const BodyInfo& a, const BodyInfo& b) {
-                                return a.m_geometry_slot_index == b.m_geometry_slot_index;
-                            });
+        std::ranges::fill(h_abd_geo_body_counts, 0);
+
+        for(auto&& body_info : h_body_infos)
+            h_abd_geo_body_counts[body_info.m_abd_geometry_index]++;
+
+        std::exclusive_scan(h_abd_geo_body_counts.begin(),
+                            h_abd_geo_body_counts.end(),
+                            h_abd_geo_body_offsets.begin(),
+                            0);
 
         UIPC_ASSERT(abd_body_count
                         == h_abd_geo_body_offsets.back() + h_abd_geo_body_counts.back(),
@@ -195,19 +205,24 @@ void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
     {
         auto constitution_view = constitutions.view();
 
-        h_constitution_geo_offsets.reserve(constitution_view.size());
-        h_constitution_geo_counts.reserve(constitution_view.size());
+        h_constitution_geo_offsets.resize(constitution_view.size());
+        h_constitution_geo_counts.resize(constitution_view.size());
 
-        encode_offset_count(h_abd_geo_body_offsets.begin(),
-                            h_abd_geo_body_offsets.end(),
-                            std::back_inserter(h_constitution_geo_offsets),
-                            std::back_inserter(h_constitution_geo_counts),
-                            [&](SizeT a, SizeT b)
-                            {
-                                const auto& info_a = h_body_infos[a];
-                                const auto& info_b = h_body_infos[b];
-                                return info_a.m_constitution_uid == info_b.m_constitution_uid;
-                            });
+        std::ranges::fill(h_constitution_geo_counts, 0);
+
+        for(IndexT last_geo_slot_index = -1; auto&& body_info : h_body_infos)
+        {
+            if(body_info.m_geometry_slot_index != last_geo_slot_index)
+            {
+                h_constitution_geo_counts[body_info.m_constitution_index]++;
+                last_geo_slot_index = body_info.m_geometry_slot_index;
+            }
+        }
+
+        std::exclusive_scan(h_constitution_geo_counts.begin(),
+                            h_constitution_geo_counts.end(),
+                            h_constitution_geo_offsets.begin(),
+                            0);
 
         UIPC_ASSERT(abd_geo_count
                         == h_constitution_geo_offsets.back()
@@ -220,16 +235,18 @@ void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
 
     // 3) setup h_constitution_body_offsets and h_constitution_body_counts
     {
-        h_constitution_body_offsets.reserve(constitution_view.size());
-        h_constitution_body_counts.reserve(constitution_view.size());
+        h_constitution_body_offsets.resize(constitution_view.size());
+        h_constitution_body_counts.resize(constitution_view.size());
 
-        encode_offset_count(h_body_infos.begin(),
-                            h_body_infos.end(),
-                            std::back_inserter(h_constitution_body_offsets),
-                            std::back_inserter(h_constitution_body_counts),
-                            [&](const BodyInfo& a, const BodyInfo& b) {
-                                return a.m_constitution_uid == b.m_constitution_uid;
-                            });
+        std::ranges::fill(h_constitution_body_counts, 0);
+
+        for(auto&& body_info : h_body_infos)
+            h_constitution_body_counts[body_info.m_constitution_index]++;
+
+        std::exclusive_scan(h_constitution_body_counts.begin(),
+                            h_constitution_body_counts.end(),
+                            h_constitution_body_offsets.begin(),
+                            0);
 
         UIPC_ASSERT(abd_body_count
                         == h_constitution_body_offsets.back()
@@ -666,7 +683,6 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
                    }
                    else
                    {
-
                        const auto& q_tilde = q_tildes(i);
 
                        const auto& K = Ks(i);

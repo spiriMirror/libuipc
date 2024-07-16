@@ -13,7 +13,7 @@ std::string_view IConstitution::name() const noexcept
     return get_name();
 }
 
-ConstitutionTypes IConstitution::type() const noexcept
+ConstitutionType IConstitution::type() const noexcept
 {
     return get_type();
 }

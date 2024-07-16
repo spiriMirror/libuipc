@@ -270,7 +270,7 @@ void GlobalContactManager::Impl::_distribute()
                 .kernel_name(__FUNCTION__)
                 .apply(N,
                        [selected_hessian = selected_hessian.view(0, N).viewer().name("selected_hessian"),
-                        last = VarView{selected_hessian.data() + N}.viewer().name("last"),
+                        last = VarView<IndexT>{selected_hessian.data() + N}.viewer().name("last"),
                         contact_hessian = sorted_contact_hessian.cviewer().name("contact_hessian"),
                         i_range = info.m_hessian_i_range,
                         j_range = info.m_hessian_j_range] __device__(int I) mutable
@@ -295,7 +295,7 @@ void GlobalContactManager::Impl::_distribute()
                                       selected_hessian.size());
 
             IndexT h_total_count = 0;
-            VarView{selected_hessian_offsets.data() + N}.copy_to(&h_total_count);
+            VarView<IndexT>{selected_hessian_offsets.data() + N}.copy_to(&h_total_count);
 
             loose_resize_entries(classified_hessians, h_total_count);
 

@@ -19,7 +19,10 @@ AffineBodyMaterial::AffineBodyMaterial(const AffineBodyConstitution& ab,
 {
 }
 
-AffineBodyConstitution::AffineBodyConstitution() noexcept {}
+AffineBodyConstitution::AffineBodyConstitution(const Json& config) noexcept
+{
+    m_config = config;
+}
 
 AffineBodyMaterial AffineBodyConstitution::create_material(Float kappa) const noexcept
 {
@@ -28,7 +31,12 @@ AffineBodyMaterial AffineBodyConstitution::create_material(Float kappa) const no
 
 U64 AffineBodyConstitution::get_uid() const noexcept
 {
-    return 2;
+    if(m_config["name"] == "OrthoPotential")
+        return 1;
+    else if(m_config["name"] == "ARAP")
+        return 2;
+
+    return 1;
 }
 
 std::string_view AffineBodyConstitution::get_name() const noexcept
@@ -36,18 +44,11 @@ std::string_view AffineBodyConstitution::get_name() const noexcept
     return builtin::ConstitutionUIDRegister::instance().find(get_uid()).name;
 }
 
-world::ConstitutionTypes AffineBodyConstitution::get_type() const noexcept
+world::ConstitutionType AffineBodyConstitution::get_type() const noexcept
 {
-    return world::ConstitutionTypes::AffineBody;
+    return world::ConstitutionType::AffineBody;
 }
 
-P<geometry::AttributeSlot<Float>> AffineBodyConstitution::create_or_get(geometry::SimplicialComplex& sc) const
-{
-    auto P = sc.instances().find<Float>("kappa");
-    if(!P)
-        P = sc.instances().create<Float>("kappa");
-    return P;
-}
 void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
 {
     Base::apply_to(sc);
@@ -56,7 +57,9 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     if(!is_fixed)
         is_fixed = sc.instances().create<IndexT>(builtin::is_fixed, 0);
 
-    auto kappa_attr = create_or_get(sc);
+    auto kappa_attr = sc.instances().find<Float>("kappa");
+    if(!kappa_attr)
+        kappa_attr = sc.instances().create<Float>("kappa", kappa);
     auto kappa_view = geometry::view(*kappa_attr);
     std::ranges::fill(kappa_view, kappa);
 
@@ -64,9 +67,16 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     if(!mass_density_attr)
         mass_density_attr =
             sc.instances().create<Float>(builtin::mass_density, mass_density);
+
     auto mass_density_view = geometry::view(*mass_density_attr);
     std::ranges::fill(mass_density_view, mass_density);
 
     geometry::compute_vertex_mass(sc, mass_density);
+}
+Json AffineBodyConstitution::default_config() noexcept
+{
+    Json j    = Json::object();
+    j["name"] = "OrthoPotential";
+    return j;
 }
 }  // namespace uipc::constitution

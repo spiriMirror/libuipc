@@ -10,7 +10,7 @@ int main()
     using namespace uipc::constitution;
     using namespace uipc::engine;
 
-    //UIPCEngine engine{"none"};
+    // UIPCEngine engine{"none"};
     UIPCEngine engine{"cuda"};
 
     World world{engine};

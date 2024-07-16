@@ -41,7 +41,7 @@ Float GlobalCCDFilter::Impl::filter_toi(Float alpha)
     for(auto&& [i, filter] : enumerate(filter_view))
     {
         FilterInfo info;
-        info.m_toi   = muda::VarView{tois.data() + i};
+        info.m_toi   = muda::VarView<Float>{tois.data() + i};
         info.m_alpha = alpha;
         filter->filter_toi(info);
     }

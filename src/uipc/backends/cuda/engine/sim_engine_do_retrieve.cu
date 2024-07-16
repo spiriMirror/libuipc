@@ -5,6 +5,13 @@ namespace uipc::backend::cuda
 void SimEngine::do_retrieve()
 {
     LogGuard guard;
-    event_write_scene();
+    try
+    {
+        event_write_scene();
+    }
+    catch(const SimEngineException& e)
+    {
+        spdlog::error("SimEngine retrieve error: {}", e.what());
+    }
 }
 }  // namespace uipc::backend::cuda
