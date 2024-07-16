@@ -2,6 +2,7 @@
 #include <uipc/common/enumerate.h>
 #include <affine_body/abd_energy.h>
 #include <muda/cub/device/device_reduce.h>
+#include <muda/ext/eigen/svd.h>
 
 namespace uipc::backend::cuda
 {
@@ -43,16 +44,12 @@ void ABDARAP::Impl::filter(const AffineBodyDynamics::FilteredInfo& info, WorldVi
     _build_on_device();
 }
 
-// TODO: To be removed, when you implement the As-Rigid-As-Possible
-namespace sym::abd_ortho_potential
+
+namespace sym::abd_arap
 {
-#include "sym/ortho_potential.inl"
+#include "sym/arap.inl"
 }
 
-// TODO:
-// To make this different from the ABDOrthoPotential, here we time a magic number to the kappa
-// When you implement the As-Rigid-As-Possible, you should use your own formula
-constexpr Float magic_number = 1.0f / 3.0f;
 
 void ABDARAP::Impl::compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& info)
 {
@@ -67,15 +64,14 @@ void ABDARAP::Impl::compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& 
                 qs             = info.qs().cviewer().name("qs"),
                 kappas         = kappas.cviewer().name("kappas"),
                 volumes        = info.volumes().cviewer().name("volumes"),
-                dt             = info.dt(),
-                magic_number   = magic_number] __device__(int i) mutable
+                dt             = info.dt()] __device__(int i) mutable
                {
                    auto& V      = shape_energies(i);
                    auto& q      = qs(i);
                    auto& volume = volumes(i);
-                   auto  kappa  = kappas(i) * magic_number;
+                   auto  kappa  = kappas(i);
 
-                   sym::abd_ortho_potential::E(V, kappa * dt * dt, volume, q);
+                   sym::abd_arap::E(V, kappa * dt * dt, volume, q);
 
                    // V = kappa * volume * dt * dt * shape_energy(q);
                });
@@ -97,14 +93,13 @@ void ABDARAP::Impl::compute_gradient_hessian(const AffineBodyDynamics::ComputeGr
                 gradients = info.shape_gradient().viewer().name("shape_gradients"),
                 body_hessian = info.shape_hessian().viewer().name("shape_hessian"),
                 kappas       = kappas.cviewer().name("kappas"),
-                dt           = info.dt(),
-                magic_number = magic_number] __device__(int i) mutable
+                dt           = info.dt()] __device__(int i) mutable
                {
                    Matrix12x12 H = Matrix12x12::Zero();
                    Vector12    G = Vector12::Zero();
 
                    const auto& q      = qs(i);
-                   Float       kappa  = kappas(i) * magic_number;
+                   Float       kappa  = kappas(i);
                    const auto& volume = volumes(i);
 
                    //auto      kvt2           = kappa * volume * dt * dt;
@@ -114,10 +109,10 @@ void ABDARAP::Impl::compute_gradient_hessian(const AffineBodyDynamics::ComputeGr
                    Float kt2 = kappa * dt * dt;
 
                    Vector9 shape_gradient = Vector9::Zero();
-                   sym::abd_ortho_potential::dEdq(shape_gradient, kt2, volume, q);
+                   sym::abd_arap::dEdq(shape_gradient, kt2, volume, q);
 
                    Matrix9x9 shape_H = Matrix9x9::Zero();
-                   sym::abd_ortho_potential::ddEddq(shape_H, kt2, volume, q);
+                   sym::abd_arap::ddEddq(shape_H, kt2, volume, q);
 
                    H.block<9, 9>(3, 3) += shape_H;
                    G.segment<9>(3) += shape_gradient;
