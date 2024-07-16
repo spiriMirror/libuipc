@@ -28,7 +28,7 @@ AffineBodyMaterial AffineBodyConstitution::create_material(Float kappa) const no
 
 U64 AffineBodyConstitution::get_uid() const noexcept
 {
-    return 1;
+    return 2;
 }
 
 std::string_view AffineBodyConstitution::get_name() const noexcept

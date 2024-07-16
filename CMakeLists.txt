@@ -10,6 +10,7 @@ option(UIPC_BUILD_TESTS "Build tests" ON)
 option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
 
 option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ON)
+
 # =========================================================================
 
 # set cmake include path
@@ -25,6 +26,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if(UIPC_WITH_CUDA_BACKEND)
     enable_language(CUDA)
+
     # set options for cuda
     set(MUDA_BUILD_EXAMPLE OFF CACHE BOOL "Build examples" FORCE)
     add_subdirectory(external/muda)
@@ -34,7 +36,7 @@ endif()
 add_subdirectory(src/uipc)
 
 # if only core is needed, ignore the rest
-if (UIPC_CORE_ONLY) 
+if(UIPC_CORE_ONLY)
     return()
 endif()
 

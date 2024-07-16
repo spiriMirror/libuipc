@@ -20,8 +20,13 @@ void say_hello_from_muda()
 SimEngine::SimEngine()
     : m_device_impl(make_unique<DeviceImpl>())
 {
-    LogGuard guard;
-
+    LogGuard    guard;
+    cudaError_t cudaStatus = cudaSetDevice(0);
+    if(cudaStatus != cudaSuccess)
+    {
+        fprintf(stderr, "cudaSetDevice failed!  Do you have a CUDA-capable GPU installed?");
+        exit(0);
+    }
     spdlog::info("Cuda Backend Init Success.");
 
     using namespace muda;
