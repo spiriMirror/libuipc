@@ -13,3 +13,4 @@ site/
 build/
 output/
 vcpkg_installed/
+.vscode/
