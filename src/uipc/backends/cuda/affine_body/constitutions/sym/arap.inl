@@ -1,22 +1,12 @@
 // Function to extract F matrix from q vector
+#define sqrt2                                                                  \
+    1.4142135623730950488016887242096980785696718753769480731766797379907324784621070388503875343276
 template <typename T>
 __host__ __device__ void extractF(Eigen::Matrix<T, 3, 3>& F, const Eigen::Vector<T, 12>& q)
 {
     F << q(3), q(4), q(5), q(6), q(7), q(8), q(9), q(10), q(11);
 }
 
-// Function to compute the rotation matrix R
-template <typename T>
-__host__ __device__ void computeR(Eigen::Matrix<T, 3, 3>&       R,
-                                  const Eigen::Matrix<T, 3, 3>& F)
-{
-    Eigen::Matrix<T, 3, 3> U, V;
-    Eigen::Vector3<T> Sigma;
-    Eigen::JacobiSVD<Eigen::Matrix<T, 3, 3>> svd(F, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    U = svd.matrixU();
-    V = svd.matrixV();
-    R = U * V.transpose();
-}
 
 // Function to compute the ARAP energy
 template <typename T>
@@ -84,9 +74,9 @@ __host__ __device__ void ARAP_Hessian(Eigen::Matrix<T, 9, 9>&       H,
     T1 << 0, 0, 0, 0, 0, 1, 0, -1, 0;
     T2 << 0, 0, 1, 0, 0, 0, -1, 0, 0;
 
-    T0 = (1 / sqrt(2)) * U * T0 * V.transpose();
-    T1 = (1 / sqrt(2)) * U * T1 * V.transpose();
-    T2 = (1 / sqrt(2)) * U * T2 * V.transpose();
+    T0 = (1 / sqrt2) * U * T0 * V.transpose();
+    T1 = (1 / sqrt2) * U * T1 * V.transpose();
+    T2 = (1 / sqrt2) * U * T2 * V.transpose();
 
     // Flatten the twist modes
     Eigen::Matrix<T, 9, 1> t0 = vec(T0);
@@ -100,7 +90,6 @@ __host__ __device__ void ARAP_Hessian(Eigen::Matrix<T, 9, 9>&       H,
 
     // Compute the Hessian
     H.setIdentity();
-    return;
     H *= 2;
     H -= (4 / (s0 + s1)) * (t0 * t0.transpose());
     H -= (4 / (s1 + s2)) * (t1 * t1.transpose());
