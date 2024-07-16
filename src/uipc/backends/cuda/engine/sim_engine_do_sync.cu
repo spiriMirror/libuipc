@@ -7,7 +7,14 @@ namespace uipc::backend::cuda
 void SimEngine::do_sync()
 {
     LogGuard guard;
-    // Sync the device
-    muda::wait_device();
+    try
+    {
+        // Sync the device
+        muda::wait_device();
+    }
+    catch(const SimEngineException& e)
+    {
+        spdlog::error("SimEngine sync error: {}", e.what());
+    }
 }
 }  // namespace uipc::backend::cuda

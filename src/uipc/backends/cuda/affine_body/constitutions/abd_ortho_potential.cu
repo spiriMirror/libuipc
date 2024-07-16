@@ -14,7 +14,7 @@ void ABDOrthoPotential::do_build(AffineBodyConstitution::BuildInfo& info)
     auto uids = scene.constitution_tabular().uids();
     if(!std::binary_search(uids.begin(), uids.end(), ABDOrthoPotential::ConstitutionUID))
     {
-        throw SimEngineException(fmt::format("ABDOrthoPotential requires ABDOrthoPotential Constitution (UID={})",
+        throw SimSystemException(fmt::format("ABDOrthoPotential requires ABDOrthoPotential Constitution (UID={})",
                                              ABDOrthoPotential::ConstitutionUID));
     }
 }

@@ -21,37 +21,43 @@ SimEngine::SimEngine()
     : m_device_impl(make_unique<DeviceImpl>())
 {
     LogGuard guard;
+    try
+    {
+        using namespace muda;
 
-    spdlog::info("Cuda Backend Init Success.");
+        spdlog::info("Cuda Backend Init Success.");
 
-    using namespace muda;
+        auto viewer_ptr       = device_logger_viewer_ptr();
+        m_device_impl->logger = make_unique<muda::Logger>(viewer_ptr);
 
-    auto viewer_ptr       = device_logger_viewer_ptr();
-    m_device_impl->logger = make_unique<muda::Logger>(viewer_ptr);
+        Debug::set_sync_callback(
+            [this]
+            {
+                m_string_stream.str("");
+                m_device_impl->logger->retrieve(m_string_stream);
+                if(m_string_stream.str().empty())
+                    return;
 
-    Debug::set_sync_callback(
-        [this]
-        {
-            m_string_stream.str("");
-            m_device_impl->logger->retrieve(m_string_stream);
-            if(m_string_stream.str().empty())
-                return;
-
-            spdlog::info(R"( 
+                spdlog::info(R"( 
 -------------------------------------------------------------------------------
 *                               Kernel  Console                               *
 -------------------------------------------------------------------------------
 {}
 -------------------------------------------------------------------------------)",
-                         m_string_stream.str());
-        });
+                             m_string_stream.str());
+            });
 
-    say_hello_from_muda();
+        say_hello_from_muda();
 
 #ifndef NDEBUG
-    // if in debug mode, sync all the time to check for errors
-    muda::Debug::debug_sync_all(true);
+        // if in debug mode, sync all the time to check for errors
+        muda::Debug::debug_sync_all(true);
 #endif
+    }
+    catch(SimEngineException& e)
+    {
+        spdlog::error("Cuda Backend Init Failed: {}", e.what());
+    }
 }
 
 SimEngine::~SimEngine()

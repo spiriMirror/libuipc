@@ -63,19 +63,25 @@ void SimEngine::init_scene()
 void SimEngine::do_init(backend::WorldVisitor v)
 {
     LogGuard guard;
+    try
+    {
+        m_world_visitor = make_unique<backend::WorldVisitor>(v);
 
-    m_world_visitor = make_unique<backend::WorldVisitor>(v);
+        // 1. Build all the systems and their dependencies
+        m_state = SimEngineState::BuildSystems;
+        build();
 
-    // 1. Build all the systems and their dependencies
-    m_state = SimEngineState::BuildSystems;
-    build();
+        // 2. Trigger the init_scene event, systems register their actions will be called here
+        m_state = SimEngineState::InitScene;
+        init_scene();
 
-    // 2. Trigger the init_scene event, systems register their actions will be called here
-    m_state = SimEngineState::InitScene;
-    init_scene();
-
-    // 3. Any creation and deletion of objects after this point will be pending
-    auto scene_visitor = m_world_visitor->scene();
-    scene_visitor.begin_pending();
+        // 3. Any creation and deletion of objects after this point will be pending
+        auto scene_visitor = m_world_visitor->scene();
+        scene_visitor.begin_pending();
+    }
+    catch(const SimEngineException& e)
+    {
+        spdlog::error("SimEngine init error: {}", e.what());
+    }
 }
 }  // namespace uipc::backend::cuda

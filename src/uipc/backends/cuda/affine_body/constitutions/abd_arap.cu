@@ -14,7 +14,7 @@ void ABDARAP::do_build(AffineBodyConstitution::BuildInfo& info)
     auto uids = scene.constitution_tabular().uids();
     if(!std::binary_search(uids.begin(), uids.end(), ABDARAP::ConstitutionUID))
     {
-        throw SimEngineException(fmt::format("ABDARAP requires ABDARAP Constitution (UID={})",
+        throw SimSystemException(fmt::format("ABDARAP requires ABDARAP Constitution (UID={})",
                                              ABDARAP::ConstitutionUID));
     }
 }
