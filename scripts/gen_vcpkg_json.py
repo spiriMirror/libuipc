@@ -54,14 +54,6 @@ vcpkg_json = {
         {
             "name":"tinygltf",
             "version>=":"2.8.23"
-        },
-        {
-            "name":"pybind11",
-            "version>=":"2.12.0"
-        },
-        {
-            "name":"python3",
-            "version>=":"3.11.8#1"
         }
     ]
 }
@@ -85,12 +77,21 @@ def gen_vcpkg_json(args):
             "name": "freeglut",
             "version>=": "3.4.0"
         })
-
+    if args.build_pybind:
+        deps.append({
+            "name":"pybind11",
+            "version>=":"2.12.0"
+        })
+        deps.append({
+            "name":"python3",
+            "version>=":"3.11.8#1"
+        })
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate vcpkg.json for libuipc.")
     parser.add_argument("output_dir", type=str, help="Output file path.")
     parser.add_argument("--build_gui", type=bool, default=False, help="Build GUI dependencies.")
+    parser.add_argument("--build_pybind", type=bool, default=False, help="Build Python bindings.")
     
     args = parser.parse_args()
     print(f"[libuipc] Generating vcpkg.json with args:")
