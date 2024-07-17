@@ -192,6 +192,7 @@ void SimEngine::do_advance()
             // 4. Update Velocity => v = (x - x_0) / dt
             m_state = SimEngineState::UpdateVelocity;
             m_dof_predictor->compute_velocity();
+            m_global_vertex_manager->record_prev_positions();
         }
 
         // Trigger the rebuild_scene event, systems register their actions will be called here

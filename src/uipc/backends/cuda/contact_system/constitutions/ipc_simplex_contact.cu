@@ -292,9 +292,10 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
         .apply(PT_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                PTs   = info.PTs().viewer().name("PTs"),
-                Es    = info.PT_energies().viewer().name("Es"),
-                Ps    = info.positions().viewer().name("Ps"),
+                PTs = info.PTs().viewer().name("PTs"),
+                Es  = info.PT_energies().viewer().name("Es"),
+                Ps  = info.positions().viewer().name("Ps"),
+                prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -308,7 +309,12 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    const auto& T1 = Ps(PT[2]);
                    const auto& T2 = Ps(PT[3]);
 
-                   auto  kappa = table(cid_L, cid_R).kappa * dt * dt;
+                   auto kappa = table(cid_L, cid_R).kappa * dt * dt;
+
+                   // Use this to compute friction
+                   auto friction_rate = table(cid_L, cid_R).mu;
+
+
                    Float D_hat = d_hat * d_hat;
                    Float D     = D_hat;
                    distance::point_triangle_distance(P, T0, T1, T2, D);
@@ -334,9 +340,10 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
         .apply(EE_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                EEs     = info.EEs().viewer().name("EEs"),
-                Es      = info.EE_energies().viewer().name("Es"),
-                Ps      = info.positions().viewer().name("Ps"),
+                EEs = info.EEs().viewer().name("EEs"),
+                Es  = info.EE_energies().viewer().name("Es"),
+                Ps  = info.positions().viewer().name("Ps"),
+                prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
                 rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                 d_hat   = info.d_hat(),
                 dt      = info.dt()] __device__(int i) mutable
@@ -357,6 +364,9 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    const auto& t0_Eb1 = rest_Ps(EE[3]);
 
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
+
+                   // Use this to compute friction
+                   auto friction_rate = table(cid_L, cid_R).mu;
 
                    Float D_hat = d_hat * d_hat;
                    Float D     = D_hat;
@@ -382,9 +392,10 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
         .apply(PE_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                PEs   = info.PEs().viewer().name("PEs"),
-                Es    = info.PE_energies().viewer().name("Es"),
-                Ps    = info.positions().viewer().name("Ps"),
+                PEs = info.PEs().viewer().name("PEs"),
+                Es  = info.PE_energies().viewer().name("Es"),
+                Ps  = info.positions().viewer().name("Ps"),
+                prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -398,6 +409,9 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    const auto& E1 = Ps(PE[2]);
 
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
+
+                   // Use this to compute friction
+                   auto friction_rate = table(cid_L, cid_R).mu;
 
                    Float D_hat = d_hat * d_hat;
                    Float D     = D_hat;
@@ -421,9 +435,10 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
         .apply(PP_count,
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                PPs   = info.PPs().viewer().name("PPs"),
-                Es    = info.PP_energies().viewer().name("Es"),
-                Ps    = info.positions().viewer().name("Ps"),
+                PPs = info.PPs().viewer().name("PPs"),
+                Es  = info.PP_energies().viewer().name("Es"),
+                Ps  = info.positions().viewer().name("Ps"),
+                prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -436,6 +451,9 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                    const auto& P1 = Ps(PP[1]);
 
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
+
+                   // Use this to compute friction
+                   auto friction_rate = table(cid_L, cid_R).mu;
 
                    Float D_hat = d_hat * d_hat;
                    Float D     = D_hat;
@@ -462,10 +480,11 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
         .apply(info.PTs().size(),
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                PTs   = info.PTs().viewer().name("PTs"),
-                Gs    = info.PT_gradients().viewer().name("Gs"),
-                Hs    = info.PT_hessians().viewer().name("Hs"),
-                Ps    = info.positions().viewer().name("Ps"),
+                PTs = info.PTs().viewer().name("PTs"),
+                Gs  = info.PT_gradients().viewer().name("Gs"),
+                Hs  = info.PT_hessians().viewer().name("Hs"),
+                Ps  = info.positions().viewer().name("Ps"),
+                prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -481,11 +500,12 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
 
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
+
+                   // Use this to compute friction
+                   auto friction_rate = table(cid_L, cid_R).mu;
+
                    sym::ipc_contact::PT_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, P, T0, T1, T2);
-
-                   //cout << "PT gradient: " << Gs(i).transpose().eval() << "\n";
-                   //cout << "PT hessian:\n " << Hs(i) << "\n";
                });
 
     // Compute Edge-Edge Gradient and Hessian
@@ -494,10 +514,11 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
         .apply(info.EEs().size(),
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                EEs     = info.EEs().viewer().name("EEs"),
-                Gs      = info.EE_gradients().viewer().name("Gs"),
-                Hs      = info.EE_hessians().viewer().name("Hs"),
-                Ps      = info.positions().viewer().name("Ps"),
+                EEs = info.EEs().viewer().name("EEs"),
+                Gs  = info.EE_gradients().viewer().name("Gs"),
+                Hs  = info.EE_hessians().viewer().name("Hs"),
+                Ps  = info.positions().viewer().name("Ps"),
+                prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
                 rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                 d_hat   = info.d_hat(),
                 dt      = info.dt()] __device__(int i) mutable
@@ -517,8 +538,10 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    const auto& t0_Eb0 = rest_Ps(EE[2]);
                    const auto& t0_Eb1 = rest_Ps(EE[3]);
 
-                   // jsut hard coding now
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
+
+                   // Use this to compute friction
+                   auto friction_rate = table(cid_L, cid_R).mu;
 
                    sym::ipc_contact::EE_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
@@ -530,10 +553,11 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
         .apply(info.PEs().size(),
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                PEs   = info.PEs().viewer().name("PEs"),
-                Gs    = info.PE_gradients().viewer().name("Gs"),
-                Hs    = info.PE_hessians().viewer().name("Hs"),
-                Ps    = info.positions().viewer().name("Ps"),
+                PEs = info.PEs().viewer().name("PEs"),
+                Gs  = info.PE_gradients().viewer().name("Gs"),
+                Hs  = info.PE_hessians().viewer().name("Hs"),
+                Ps  = info.positions().viewer().name("Ps"),
+                prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -548,19 +572,12 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
 
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
+                   // Use this to compute friction
+                   auto friction_rate = table(cid_L, cid_R).mu;
+
                    sym::ipc_contact::PE_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, P, E0, E1);
                });
-
-
-    //Launch().apply(
-    //    [table = info.contact_tabular().viewer().name("contact_tabular")] __device__()
-    //    {
-    //        for(int i = 0; i < table.total_size(); i++)
-    //        {
-    //            cout << i << ":" << table.flatten(i).kappa;
-    //        }
-    //    });
 
     // Compute Point-Point Gradient and Hessian
     ParallelFor()
@@ -568,10 +585,11 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
         .apply(info.PPs().size(),
                [table = info.contact_tabular().viewer().name("contact_tabular"),
                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                PPs   = info.PPs().viewer().name("PPs"),
-                Gs    = info.PP_gradients().viewer().name("Gs"),
-                Hs    = info.PP_hessians().viewer().name("Hs"),
-                Ps    = info.positions().viewer().name("Ps"),
+                PPs = info.PPs().viewer().name("PPs"),
+                Gs  = info.PP_gradients().viewer().name("Gs"),
+                Hs  = info.PP_hessians().viewer().name("Hs"),
+                Ps  = info.positions().viewer().name("Ps"),
+                prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -584,6 +602,9 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    const auto& P1 = Ps(PP[1]);
 
                    auto kappa = table(cid_L, cid_R).kappa * dt * dt;
+
+                   // Use this to compute friction
+                   auto friction_rate = table(cid_L, cid_R).mu;
 
                    sym::ipc_contact::PP_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, P0, P1);
