@@ -8,10 +8,15 @@ find_path(DYLIB_INCLUDE_DIRS "dylib.hpp")
 find_package(magic_enum CONFIG REQUIRED)
 find_package(Boost REQUIRED)
 
+
+
 add_library(uipc SHARED)
 add_library(uipc::uipc ALIAS uipc)
 target_compile_features(uipc PUBLIC cxx_std_20)
 
+# add tiny gltf to suppport gltf IO
+find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
+target_include_directories(uipc PUBLIC ${TINYGLTF_INCLUDE_DIRS})
 
 # ------------------------------------------------------------------------------
 # set the compile definitions
@@ -23,6 +28,7 @@ target_compile_definitions(uipc PUBLIC
     $<$<CONFIG:RelWithDebInfo>:UIPC_RUNTIME_CHECK=1>)
 target_compile_definitions(uipc PUBLIC 
     $<$<CONFIG:Release>:UIPC_RUNTIME_CHECK=0>)
+
 
 
 # ------------------------------------------------------------------------------
@@ -62,13 +68,12 @@ add_subdirectory(backend)
 add_subdirectory(builtin)
 add_subdirectory(constitutions)
 add_subdirectory(engine)
-
+add_subdirectory(util)
 
 # ------------------------------------------------------------------------------
 # add the backends to the target uipc
 # ------------------------------------------------------------------------------
 add_subdirectory(backends)
-
 
 # ------------------------------------------------------------------------------
 # set the output directory

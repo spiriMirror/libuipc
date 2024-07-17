@@ -7,7 +7,8 @@
 #include <uipc/geometry.h>
 #include <uipc/constitutions/affine_body.h>
 #include <Eigen/Geometry>
-#include <uipc/world/scene_io.h>
+// #include <uipc/world/scene_io.h>
+#include <uipc/util/io/scene_io.h>
 #include <uipc/geometry/utils/label_surface.h>
 #include <uipc/geometry/utils/label_triangle_orient.h>
 

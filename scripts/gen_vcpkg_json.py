@@ -50,6 +50,10 @@ vcpkg_json = {
         {
             "name":"boost-core",
             "version>=":"1.84.0"
+        },
+        {
+            "name":"tinygltf",
+            "version>=":"2.8.23"
         }
     ]
 }
