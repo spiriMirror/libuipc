@@ -7,6 +7,8 @@ find_package(cppitertools CONFIG REQUIRED)
 find_path(DYLIB_INCLUDE_DIRS "dylib.hpp")
 find_package(magic_enum CONFIG REQUIRED)
 find_package(Boost REQUIRED)
+find_package(pybind11 CONFIG REQUIRED)
+
 
 
 
