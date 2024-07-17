@@ -50,6 +50,18 @@ vcpkg_json = {
         {
             "name":"boost-core",
             "version>=":"1.84.0"
+        },
+        {
+            "name":"tinygltf",
+            "version>=":"2.8.23"
+        },
+        {
+            "name":"pybind11",
+            "version>=":"2.12.0"
+        },
+        {
+            "name":"python3",
+            "version>=":"3.11.8#1"
         }
     ]
 }

@@ -1,3 +1,4 @@
+#include <uipc/util/io/scene_io.h>
 #include <algorithm>
 #include <filesystem>
 #include <fmt/printf.h>
@@ -9,8 +10,9 @@
 #include <uipc/geometry/simplicial_complex_slot.h>
 #include <uipc/geometry/utils/extract_surface.h>
 #include <uipc/geometry/utils/merge.h>
-#include <uipc/world/scene_io.h>
 #include <uipc/geometry/utils/io.h>
+
+
 
 namespace uipc::world
 {

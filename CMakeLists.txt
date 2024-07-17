@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.27)
 option(UIPC_CORE_ONLY "Build only the core library" OFF)
 option(UIPC_USING_LOCAL_VCPKG "Using local vcpkg" ON)
 option(UIPC_BUILD_GUI "Build GUI, turn it off if you're server only" ON)
-
+option(UIPC_BUILD_PY "Build PY, turn it off if you're don't need it" ON)
 option(UIPC_BUILD_EXAMPLES "Build examples" ON)
 option(UIPC_BUILD_TESTS "Build tests" ON)
 option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
@@ -43,6 +43,11 @@ endif()
 if(UIPC_BUILD_GUI)
     # gui
     add_subdirectory(src/uipc_gui)
+endif()
+
+if(UIPC_BUILD_PY)
+    # py
+    add_subdirectory(src/pyuipc)
 endif()
 
 # applications
