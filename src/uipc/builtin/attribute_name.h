@@ -40,6 +40,11 @@ UIPC_BUILTIN_ATTRIBUTE(implicit_geometry_uid);
 UIPC_BUILTIN_ATTRIBUTE(is_surf);
 
 /**
+ * @brief `is_ground` attribute on `meta` to indicate if the geometry is a ground
+ */
+UIPC_BUILTIN_ATTRIBUTE(is_ground);
+
+/**
  * @brief `orient` (value=-1,0,1) attribute on triangles to indicate the orientation of the triangle.
  * 
  * 1) 0 is the default value, which means the orientation is not determined, or the triangle is not a surface triangle.

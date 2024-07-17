@@ -34,7 +34,7 @@ int main()
                                  Vector3{0.0, 1.0, 0.0},
                                  Vector3{0.0, 0.0, 1.0}};
         std::vector       Ts  = {Vector4i{0, 1, 2, 3}};
-        SimplicialComplex tet = geometry::tetmesh(Vs, Ts);
+        SimplicialComplex tet = tetmesh(Vs, Ts);
 
         // apply constitution and contact model to the geometry
         abd.apply_to(tet, 1e8);
@@ -44,11 +44,10 @@ int main()
         P<Object> object = scene.objects().create("tet");
         {
             object->geometries().create(tet);
-            object->geometries().create(tet);
         }
 
         // create a ground geometry
-        geometry::ImplicitGeometry half_plane = geometry::ground(-1.0);
+        ImplicitGeometry half_plane = ground(-1.0);
 
         P<Object> ground = scene.objects().create("ground");
         {

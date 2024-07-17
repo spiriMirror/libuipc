@@ -52,7 +52,11 @@ ImplicitGeometry ground(Float height)
     ImplicitGeometry ig;
     auto             uid = ig.meta().find<U64>(builtin::implicit_geometry_uid);
 
-    constexpr auto HalfPlaneUID = 1ull;  // By libuipc specification
+    // label this geometry as ground, for backend optimization
+    auto is_ground = ig.meta().create<IndexT>(builtin::is_ground, 1);
+
+    // By libuipc specification: half-plane has UID 1
+    constexpr auto HalfPlaneUID = 1ull;
     view(*uid)[0]               = HalfPlaneUID;
 
     ig.instances().create<Vector3>("N", Vector3{0.0, 1.0, 0.0});
