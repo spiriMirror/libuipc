@@ -296,6 +296,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                 Es  = info.PT_energies().viewer().name("Es"),
                 Ps  = info.positions().viewer().name("Ps"),
                 prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
+                eps_v = info.eps_velocity(),
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -344,6 +345,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                 Es  = info.EE_energies().viewer().name("Es"),
                 Ps  = info.positions().viewer().name("Ps"),
                 prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
+                eps_v   = info.eps_velocity(),
                 rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                 d_hat   = info.d_hat(),
                 dt      = info.dt()] __device__(int i) mutable
@@ -396,6 +398,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                 Es  = info.PE_energies().viewer().name("Es"),
                 Ps  = info.positions().viewer().name("Ps"),
                 prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
+                eps_v = info.eps_velocity(),
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -439,6 +442,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                 Es  = info.PP_energies().viewer().name("Es"),
                 Ps  = info.positions().viewer().name("Ps"),
                 prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
+                eps_v = info.eps_velocity(),
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -485,6 +489,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                 Hs  = info.PT_hessians().viewer().name("Hs"),
                 Ps  = info.positions().viewer().name("Ps"),
                 prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
+                eps_v = info.eps_velocity(),
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -519,6 +524,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                 Hs  = info.EE_hessians().viewer().name("Hs"),
                 Ps  = info.positions().viewer().name("Ps"),
                 prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
+                eps_v   = info.eps_velocity(),
                 rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                 d_hat   = info.d_hat(),
                 dt      = info.dt()] __device__(int i) mutable
@@ -558,6 +564,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                 Hs  = info.PE_hessians().viewer().name("Hs"),
                 Ps  = info.positions().viewer().name("Ps"),
                 prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
+                eps_v = info.eps_velocity(),
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {
@@ -590,6 +597,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                 Hs  = info.PP_hessians().viewer().name("Hs"),
                 Ps  = info.positions().viewer().name("Ps"),
                 prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
+                eps_v = info.eps_velocity(),
                 d_hat = info.d_hat(),
                 dt    = info.dt()] __device__(int i) mutable
                {

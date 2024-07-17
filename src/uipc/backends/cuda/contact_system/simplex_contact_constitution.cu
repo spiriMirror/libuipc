@@ -163,6 +163,11 @@ Float SimplexContactConstitution::BaseInfo::dt() const
     return m_impl->dt;
 }
 
+Float SimplexContactConstitution::BaseInfo::eps_velocity() const
+{
+    return m_impl->global_contact_manager->eps_velocity();
+}
+
 namespace detail
 {
     template <SizeT N>

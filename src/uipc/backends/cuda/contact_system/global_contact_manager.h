@@ -150,6 +150,7 @@ class GlobalContactManager final : public SimSystem
         Float related_d_hat = 0.0;
         Float kappa         = 0.0;
         Float dt            = 0.0;
+        Float eps_velocity  = 0.0;
 
         /***********************************************************************
         *                         Contact Reporter                             *
@@ -196,6 +197,7 @@ class GlobalContactManager final : public SimSystem
     };
 
     Float d_hat() const;
+    Float eps_velocity() const;
 
     void add_reporter(ContactReporter* reporter);
     void add_receiver(ContactReceiver* receiver);

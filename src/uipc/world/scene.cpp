@@ -22,6 +22,7 @@ Json Scene::default_config() noexcept
     j["contact"]["enable"]      = true;
     j["contact"]["contitution"] = "ipc";
     j["contact"]["d_hat"]       = 0.01;
+    j["contact"]["eps_velocity"] = 0.01;
 
     // something that is unofficial
     j["extras"] = Json::object();

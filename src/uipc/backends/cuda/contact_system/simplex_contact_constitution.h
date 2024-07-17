@@ -34,6 +34,7 @@ class SimplexContactConstitution : public ContactReporter
         muda::CBufferView<IndexT>         contact_element_ids() const;
         Float                             d_hat() const;
         Float                             dt() const;
+        Float                             eps_velocity() const;
 
       private:
         friend class SimplexContactConstitution;
