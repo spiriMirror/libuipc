@@ -21,7 +21,7 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
     World      world{engine};
 
     auto config       = Scene::default_config();
-    config["gravity"] = Vector3{0, -10, 0};
+    config["gravity"] = Vector3{0, -9.8, 0};
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));

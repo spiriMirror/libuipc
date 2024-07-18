@@ -76,7 +76,7 @@ class SimSystemAutoRegister
 }  // namespace uipc::backend
 
 /**
- * @brief ConstitutionRegister a SimSystem, which will be automatically created by the SimEngine.
+ * @brief Register a SimSystem, which will be automatically created by the SimEngine.
  */
 #define REGISTER_SIM_SYSTEM(SimSystem)                                           \
     namespace auto_register                                                      \
