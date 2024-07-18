@@ -57,24 +57,17 @@ endfunction()
 function(uipc_config_vcpkg_install)
     set(VCPKG_MANIFEST_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(VCPKG_MANIFEST_FILE "${VCPKG_MANIFEST_DIR}/vcpkg.json")
-
-    if(NOT EXISTS "${VCPKG_MANIFEST_FILE}")
-        uipc_info("${VCPKG_MANIFEST_FILE} not found, start to install the packages")
-        set(VCPKG_MANIFEST_INSTALL ON PARENT_SCOPE)
-        find_package(Python REQUIRED)
-
-        # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
-        execute_process(
-            COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
-            ${VCPKG_MANIFEST_DIR} # pass the CMAKE_CURRENT_BINARY_DIR as vcpkg.json output directory
-            "--build_gui=${UIPC_BUILD_GUI}" # pass the UIPC_BUILD_GUI as argument
-            "--build_pybind=${UIPC_BUILD_PYBIND}" # pass the UIPC_BUILD_PYBIND as argument
-        )
-    else()
-        uipc_info("${VCPKG_MANIFEST_FILE} exists, skip the vcpkg manifest install")
-        set(VCPKG_MANIFEST_INSTALL OFF PARENT_SCOPE)
-    endif()
-
+    find_package(Python REQUIRED)
+    # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
+    execute_process(
+        COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
+        ${VCPKG_MANIFEST_DIR} # pass the CMAKE_CURRENT_BINARY_DIR as vcpkg.json output directory
+        "--build_gui=${UIPC_BUILD_GUI}" # pass the UIPC_BUILD_GUI as argument
+        "--build_pybind=${UIPC_BUILD_PYBIND}" # pass the UIPC_BUILD_PYBIND as argument
+        # return code
+        RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT
+    )
+    set(VCPKG_MANIFEST_INSTALL ${VCPKG_JSON_GENERATE_RESULT} PARENT_SCOPE)
     set(VCPKG_INSTALLED_DIR "")
 
     if(UIPC_USING_LOCAL_VCPKG)
