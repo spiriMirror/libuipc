@@ -44,5 +44,6 @@ UIPC_CORE_API [[nodiscard]] SimplicialComplex pointcloud(span<const Vector3> Vs)
  * 
  * @param height The height of the ground plane
  */
-UIPC_CORE_API [[nodiscard]] ImplicitGeometry ground(Float height = 0.0);
+UIPC_CORE_API [[nodiscard]] ImplicitGeometry ground(Float height = 0.0,
+                                                    const Vector3& N = Vector3::UnitY());
 }  // namespace uipc::geometry

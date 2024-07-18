@@ -13,11 +13,12 @@ static string to_lower(std::string_view s)
 
 class UIPCEngine::Impl
 {
-    string m_backend_name;
-    dylib  m_module;
-    using Deleter      = void (*)(IEngine*);
-    IEngine* m_engine  = nullptr;
-    Deleter  m_deleter = nullptr;
+    string               m_backend_name;
+    dylib                m_module;
+    using Deleter                    = void (*)(IEngine*);
+    IEngine*             m_engine    = nullptr;
+    Deleter              m_deleter   = nullptr;
+    mutable bool         m_sync_flag = false;
 
   public:
     Impl(std::string_view backend_name, std::string_view workspace)
@@ -62,11 +63,24 @@ class UIPCEngine::Impl
 
     void init(backend::WorldVisitor v) { m_engine->init(v); }
 
-    void advance() { m_engine->advance(); }
+    void advance()
+    {
+        m_sync_flag = false;
+        m_engine->advance();
+    }
 
-    void sync() { m_engine->sync(); }
+    void sync()
+    {
+        m_engine->sync();
+        m_sync_flag = true;
+    }
 
-    void retrieve() { m_engine->retrieve(); }
+    void retrieve()
+    {
+        if(!m_sync_flag)
+            m_engine->sync();
+        m_engine->retrieve();
+    }
 
     Json to_json() const
     {

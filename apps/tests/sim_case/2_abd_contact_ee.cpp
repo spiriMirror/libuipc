@@ -117,7 +117,6 @@ TEST_CASE("2_abd_contact_ee", "[abd]")
     for(int i = 1; i < 50; i++)
     {
         world.advance();
-        world.sync();
         world.retrieve();
         sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
     }

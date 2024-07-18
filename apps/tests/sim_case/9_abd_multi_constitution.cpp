@@ -111,7 +111,6 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
     for(int i = 1; i < 50; i++)
     {
         world.advance();
-        world.sync();
         world.retrieve();
         sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
     }
