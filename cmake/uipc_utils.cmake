@@ -64,8 +64,7 @@ function(uipc_config_vcpkg_install)
         ${VCPKG_MANIFEST_DIR} # pass the CMAKE_CURRENT_BINARY_DIR as vcpkg.json output directory
         "--build_gui=${UIPC_BUILD_GUI}" # pass the UIPC_BUILD_GUI as argument
         "--build_pybind=${UIPC_BUILD_PYBIND}" # pass the UIPC_BUILD_PYBIND as argument
-        # return code
-        RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT
+        RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
     )
     set(VCPKG_MANIFEST_INSTALL ${VCPKG_JSON_GENERATE_RESULT} PARENT_SCOPE CACHE BOOL "VCPKG_MANIFEST_INSTALL")
     set(VCPKG_INSTALLED_DIR "")
