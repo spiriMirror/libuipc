@@ -3,6 +3,7 @@
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_surface_manager.h>
 #include <collision_detection/simplex_dcd_filter.h>
+#include <collision_detection/half_plane_dcd_filter.h>
 
 namespace uipc::backend::cuda
 {
@@ -15,9 +16,28 @@ void GlobalDCDFilter::add_filter(SimplexDCDFilter* filter)
     m_impl.simplex_dcd_filter.register_subsystem(*filter);
 }
 
+void GlobalDCDFilter::add_filter(HalfPlaneDCDFilter* filter)
+{
+    check_state(SimEngineState::BuildSystems, "add_filter()");
+    UIPC_ASSERT(filter != nullptr, "Input ground_dcd_filter is nullptr.");
+    m_impl.ground_dcd_filter.register_subsystem(*filter);
+}
+
+void GlobalDCDFilter::add_filter(SimSystem* system, std::function<void()>&& detect_action)
+{
+    check_state(SimEngineState::BuildSystems, "add_filter()");
+    UIPC_ASSERT(system != nullptr, "Input system is nullptr.");
+    m_impl.detect_actions.register_action(*system, std::move(detect_action));
+}
+
 SimplexDCDFilter* GlobalDCDFilter::simplex_filter() const
 {
     return m_impl.simplex_dcd_filter.view();
+}
+
+HalfPlaneDCDFilter* GlobalDCDFilter::ground_filter() const
+{
+    return m_impl.ground_dcd_filter.view();
 }
 
 void GlobalDCDFilter::do_build()
@@ -27,11 +47,22 @@ void GlobalDCDFilter::do_build()
         throw SimSystemException("GlobalDCDFilter requires contact to be enabled");
     }
 
-    on_init_scene([this] { m_impl.simplex_dcd_filter.init(); });
+    on_init_scene(
+        [this]
+        {
+            m_impl.simplex_dcd_filter.init();
+            m_impl.detect_actions.init();
+        });
 }
 
 void GlobalDCDFilter::detect()
 {
     m_impl.simplex_dcd_filter->detect();
+    m_impl.ground_dcd_filter->detect();
+
+    for(auto& action : m_impl.detect_actions.view())
+    {
+        action();
+    }
 }
 }  // namespace uipc::backend::cuda

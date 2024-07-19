@@ -2,7 +2,7 @@ import json
 import argparse
 import os
 
-vcpkg_json = {
+base_vcpkg_json = {
     "name": "libuipc",
     "version": "0.0.1",
     "description": "A Modern C++20 Library of Unified Incremental Potential Contact.",
@@ -62,16 +62,17 @@ vcpkg_json = {
         }
     ]
 }
-    
+
+deps = base_vcpkg_json["dependencies"]
+
 def is_enabled(arg):
     ARG = str(arg).upper()
     if ARG == "ON" or ARG == "1":
         return True
     else:
         return False
-    
+
 def gen_vcpkg_json(args):
-    deps = vcpkg_json["dependencies"]
     if is_enabled(args.build_gui):
         deps.append({
             "name": "imgui",
@@ -95,7 +96,7 @@ def gen_vcpkg_json(args):
             "version>=":"2.12.0"
         })
 
-    deps = vcpkg_json["dependencies"]
+def print_deps():
     str_names = []
     for dep in deps:
         s = "    * " + dep["name"] + " [" + dep["version>="] + "]"
@@ -123,19 +124,21 @@ if __name__ == "__main__":
     if(os.path.exists(json_path)):
         with open(json_path, "r") as f:
             old_json = json.load(f)
-            changed = str(old_json) != str(vcpkg_json)
+            changed = str(old_json) != str(base_vcpkg_json)
     
     with open(json_path, "w") as f:
-        json.dump(vcpkg_json, f, indent=4)
+        json.dump(base_vcpkg_json, f, indent=4)
     
     is_new = not os.path.exists(json_path)
     
     if is_new:
         print(f"[libuipc] Generated vcpkg.json at:\n    {json_path}")
+        print_deps()
         exit(1)
     
     if changed:
         print(f"[libuipc] vcpkg.json content has changed, overwriting:\n    {json_path}")
+        print_deps()
         exit(1)
         
     print(f"[libuipc] vcpkg.json content is unchanged, skipping:\n    {json_path}")

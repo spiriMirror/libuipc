@@ -4,9 +4,10 @@
 #include <muda/buffer/device_var.h>
 namespace uipc::backend::cuda
 {
-class Ground : public SimSystem
+class HalfPlane : public SimSystem
 {
   public:
+    static constexpr U64 ImplicitGeometryUID = 1ull;
     using SimSystem::SimSystem;
 
     using ImplicitGeometry = geometry::ImplicitGeometry;
@@ -19,10 +20,13 @@ class Ground : public SimSystem
         void _find_geometry(WorldVisitor& world);
         void _build_geometry();
 
-        ImplicitGeometry* ground_geo;
+        vector<ImplicitGeometry*> geos;
 
-        Vector3 normal;
-        Vector3 position;
+        vector<Vector3> h_normals;
+        vector<Vector3> h_positions;
+
+        muda::DeviceBuffer<Vector3> normals;
+        muda::DeviceBuffer<Vector3> positions;
     };
 
     //const Vector3& normal() const;

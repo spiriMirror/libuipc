@@ -263,7 +263,7 @@ muda::CBufferView<Vector3> GlobalVertexManager::positions() const noexcept
 
 muda::CBufferView<Vector3> GlobalVertexManager::prev_positions() const noexcept
 {
-    return m_impl.safe_positions;
+    return m_impl.prev_positions;
 }
 
 muda::CBufferView<Vector3> GlobalVertexManager::rest_positions() const noexcept

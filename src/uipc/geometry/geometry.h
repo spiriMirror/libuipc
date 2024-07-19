@@ -143,7 +143,7 @@ class UIPC_CORE_API Geometry : public IGeometry
             requires(!IsConst);
 
         /**
-         * @brief Find an attribute by type and name, if the attribute does not exist, return empty OptionalRef.
+         * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
          */
         template <typename T>
         [[nodiscard]] auto find(std::string_view name) &&

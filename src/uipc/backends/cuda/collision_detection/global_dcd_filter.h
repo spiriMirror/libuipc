@@ -4,6 +4,7 @@
 namespace uipc::backend::cuda
 {
 class SimplexDCDFilter;
+class HalfPlaneDCDFilter;
 
 class GlobalDCDFilter : public SimSystem
 {
@@ -16,11 +17,16 @@ class GlobalDCDFilter : public SimSystem
     {
       public:
         SimSystemSlot<SimplexDCDFilter> simplex_dcd_filter;
+        SimSystemSlot<HalfPlaneDCDFilter>  ground_dcd_filter;
+        SimActionCollection<void()>     detect_actions;
     };
 
     void add_filter(SimplexDCDFilter* filter);
+    void add_filter(HalfPlaneDCDFilter* filter);
+    void add_filter(SimSystem* system, std::function<void()>&& detect_action);
 
     SimplexDCDFilter* simplex_filter() const;
+    HalfPlaneDCDFilter*  ground_filter() const;
 
   protected:
     virtual void do_build() override;
