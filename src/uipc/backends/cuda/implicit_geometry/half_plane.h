@@ -22,6 +22,7 @@ class HalfPlane : public SimSystem
 
         vector<ImplicitGeometry*> geos;
 
+        vector<IndexT>  h_contact_id;
         vector<Vector3> h_normals;
         vector<Vector3> h_positions;
 
@@ -36,6 +37,7 @@ class HalfPlane : public SimSystem
     virtual void do_build() override;
 
   private:
+    friend class HalfPlaneVertexReporter;
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

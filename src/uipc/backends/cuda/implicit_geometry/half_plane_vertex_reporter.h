@@ -3,7 +3,8 @@
 
 namespace uipc::backend::cuda
 {
-class HalpPlaneVertexReporter : public VertexReporter
+class HalfPlane;
+class HalfPlaneVertexReporter : public VertexReporter
 {
   public:
     using VertexReporter::VertexReporter;
@@ -12,11 +13,20 @@ class HalpPlaneVertexReporter : public VertexReporter
 
     class Impl
     {
+      public:
+        HalfPlane* half_plane = nullptr;
+
+        void report_count(GlobalVertexManager::VertexCountInfo& info);
+        void report_attributes(GlobalVertexManager::VertexAttributeInfo& info);
+        void report_displacements(GlobalVertexManager::VertexDisplacementInfo& info);
     };
 
   protected:
+    void do_build() override;
     void do_report_count(GlobalVertexManager::VertexCountInfo& vertex_count_info) override;
     void do_report_attributes(GlobalVertexManager::VertexAttributeInfo& vertex_attribute_info) override;
     void do_report_displacements(GlobalVertexManager::VertexDisplacementInfo& vertex_displacement_info) override;
+
+    Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

@@ -17,7 +17,7 @@ class GlobalDCDFilter : public SimSystem
     {
       public:
         SimSystemSlot<SimplexDCDFilter> simplex_dcd_filter;
-        SimSystemSlot<HalfPlaneDCDFilter>  ground_dcd_filter;
+        SimSystemSlot<HalfPlaneDCDFilter>  half_plane_dcd_filter;
         SimActionCollection<void()>     detect_actions;
     };
 

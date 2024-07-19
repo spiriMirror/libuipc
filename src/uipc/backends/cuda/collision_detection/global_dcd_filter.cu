@@ -19,8 +19,8 @@ void GlobalDCDFilter::add_filter(SimplexDCDFilter* filter)
 void GlobalDCDFilter::add_filter(HalfPlaneDCDFilter* filter)
 {
     check_state(SimEngineState::BuildSystems, "add_filter()");
-    UIPC_ASSERT(filter != nullptr, "Input ground_dcd_filter is nullptr.");
-    m_impl.ground_dcd_filter.register_subsystem(*filter);
+    UIPC_ASSERT(filter != nullptr, "Input half_plane_dcd_filter is nullptr.");
+    m_impl.half_plane_dcd_filter.register_subsystem(*filter);
 }
 
 void GlobalDCDFilter::add_filter(SimSystem* system, std::function<void()>&& detect_action)
@@ -37,7 +37,7 @@ SimplexDCDFilter* GlobalDCDFilter::simplex_filter() const
 
 HalfPlaneDCDFilter* GlobalDCDFilter::ground_filter() const
 {
-    return m_impl.ground_dcd_filter.view();
+    return m_impl.half_plane_dcd_filter.view();
 }
 
 void GlobalDCDFilter::do_build()
@@ -51,14 +51,18 @@ void GlobalDCDFilter::do_build()
         [this]
         {
             m_impl.simplex_dcd_filter.init();
+            m_impl.half_plane_dcd_filter.init();
             m_impl.detect_actions.init();
         });
 }
 
 void GlobalDCDFilter::detect()
 {
-    m_impl.simplex_dcd_filter->detect();
-    m_impl.ground_dcd_filter->detect();
+    if(m_impl.simplex_dcd_filter)
+        m_impl.simplex_dcd_filter->detect();
+
+    if(m_impl.half_plane_dcd_filter)
+        m_impl.half_plane_dcd_filter->detect();
 
     for(auto& action : m_impl.detect_actions.view())
     {

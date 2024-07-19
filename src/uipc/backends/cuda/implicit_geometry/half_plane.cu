@@ -1,4 +1,4 @@
-#include <implicit_geometry/half_plane.h>
+#include <implicit_geometry/half_plane.h>d
 #include <uipc/builtin/geometry_type.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/builtin/implicit_geometry_uid_register.h>
@@ -49,6 +49,8 @@ void HalfPlane::Impl::_build_geometry()
     h_normals.reserve(instance_count);
     h_positions.reserve(instance_count);
 
+    auto I2G = flattener.compute_instance_to_gemetry();
+
     flattener.flatten(
         [&](geometry::ImplicitGeometry* geo)
         {
@@ -60,5 +62,17 @@ void HalfPlane::Impl::_build_geometry()
             h_normals.push_back(normals);
             h_positions.push_back(positions);
         });
+
+    vector<IndexT> contact_id(instance_count, 0);
+
+    //for(auto [i, g] : enumerate(geos))
+    //{
+    //}
+
+    positions.resize(h_positions.size());
+    normals.resize(h_normals.size());
+
+    positions.view().copy_from(h_positions.data());
+    normals.view().copy_from(h_normals.data());
 }
 }  // namespace uipc::backend::cuda
