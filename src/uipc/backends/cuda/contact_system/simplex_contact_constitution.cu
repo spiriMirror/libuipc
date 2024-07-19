@@ -138,6 +138,11 @@ muda::CBufferView<Vector3> SimplexContactConstitution::BaseInfo::positions() con
     return m_impl->global_vertex_manager->positions();
 }
 
+muda::CBufferView<Vector3> SimplexContactConstitution::BaseInfo::prev_positions() const
+{
+    return m_impl->global_vertex_manager->prev_positions();
+}
+
 muda::CBufferView<Vector3> SimplexContactConstitution::BaseInfo::rest_positions() const
 {
     return m_impl->global_vertex_manager->rest_positions();
@@ -156,6 +161,11 @@ Float SimplexContactConstitution::BaseInfo::d_hat() const
 Float SimplexContactConstitution::BaseInfo::dt() const
 {
     return m_impl->dt;
+}
+
+Float SimplexContactConstitution::BaseInfo::eps_velocity() const
+{
+    return m_impl->global_contact_manager->eps_velocity();
 }
 
 namespace detail

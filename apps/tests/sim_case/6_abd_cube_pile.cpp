@@ -22,7 +22,7 @@ TEST_CASE("6_abd_cube_pile", "[abd]")
     World      world{engine};
 
     auto config       = Scene::default_config();
-    config["gravity"] = Vector3{0, -10, 0};
+    config["gravity"] = Vector3{0, -9.8, 0};
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -78,7 +78,6 @@ TEST_CASE("6_abd_cube_pile", "[abd]")
     for(int i = 1; i < 50; i++)
     {
         world.advance();
-        world.sync();
         world.retrieve();
         sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
     }

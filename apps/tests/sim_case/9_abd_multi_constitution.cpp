@@ -21,7 +21,7 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
     World      world{engine};
 
     auto config       = Scene::default_config();
-    config["gravity"] = Vector3{0, -10, 0};
+    config["gravity"] = Vector3{0, -9.8, 0};
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -56,8 +56,8 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
         label_surface(cube);
         label_triangle_orient(cube);
 
-        constexpr SizeT N = 2;
-        cube.instances().resize(2);
+        constexpr SizeT N = 4;
+        cube.instances().resize(N);
 
         {
             SimplicialComplex arap_cube = cube;
@@ -71,17 +71,19 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
             for(SizeT i = 0; i < N; i++)
             {
                 Transform t      = Transform::Identity();
-                t.translation()  = Vector3::UnitY() * 0.35 * (i + 2);
+                t.translation()  = Vector3::UnitY() * 0.35 * i + Vector3::UnitX() * 0.5;
                 trans_view[i]    = t.matrix();
                 is_fixed_view[i] = 0;
             }
+
+            is_fixed_view[0] = 1;
 
             object->geometries().create(arap_cube);
         }
 
         {
             SimplicialComplex ortho_cube = cube;
-            abd_ortho.apply_to(ortho_cube, 100.0_MPa);
+            abd_ortho.apply_to(ortho_cube, 0.1_MPa);
             default_contact.apply_to(ortho_cube);
 
             auto trans_view = view(ortho_cube.transforms());
@@ -109,7 +111,6 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
     for(int i = 1; i < 50; i++)
     {
         world.advance();
-        world.sync();
         world.retrieve();
         sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
     }

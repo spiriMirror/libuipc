@@ -31,6 +31,7 @@ void GlobalContactManager::do_build()
     const auto& info             = world().scene().info();
     m_impl.related_d_hat         = info["contact"]["d_hat"].get<Float>();
     m_impl.dt                    = info["dt"].get<Float>();
+    m_impl.eps_velocity          = info["contact"]["eps_velocity"].get<Float>();
     m_impl.kappa = world().scene().contact_tabular().default_model().resistance();
 
     on_init_scene([this] { m_impl.init(world()); });
@@ -87,10 +88,7 @@ void GlobalContactManager::Impl::compute_d_hat()
     //d_hat          = 0.001;
 }
 
-void GlobalContactManager::Impl::compute_adaptive_kappa()
-{
-
-}
+void GlobalContactManager::Impl::compute_adaptive_kappa() {}
 
 void GlobalContactManager::Impl::compute_contact()
 {
@@ -268,26 +266,28 @@ void GlobalContactManager::Impl::_distribute()
             // select
             ParallelFor()
                 .kernel_name(__FUNCTION__)
-                .apply(N,
-                       [selected_hessian = selected_hessian.view(0, N).viewer().name("selected_hessian"),
-                        last = VarView<IndexT>{selected_hessian.data() + N}.viewer().name("last"),
-                        contact_hessian = sorted_contact_hessian.cviewer().name("contact_hessian"),
-                        i_range = info.m_hessian_i_range,
-                        j_range = info.m_hessian_j_range] __device__(int I) mutable
-                       {
-                           auto&& [i, j, H] = contact_hessian(I);
+                .apply(
+                    N,
+                    [selected_hessian = selected_hessian.view(0, N).viewer().name("selected_hessian"),
+                     last =
+                         VarView<IndexT>{selected_hessian.data() + N}.viewer().name("last"),
+                     contact_hessian = sorted_contact_hessian.cviewer().name("contact_hessian"),
+                     i_range = info.m_hessian_i_range,
+                     j_range = info.m_hessian_j_range] __device__(int I) mutable
+                    {
+                        auto&& [i, j, H] = contact_hessian(I);
 
-                           auto in_range = [](int i, const Vector2i& range)
-                           { return i >= range.x() && i < range.y(); };
+                        auto in_range = [](int i, const Vector2i& range)
+                        { return i >= range.x() && i < range.y(); };
 
-                           selected_hessian(I) =
-                               in_range(i, i_range) && in_range(j, j_range) ? 1 : 0;
+                        selected_hessian(I) =
+                            in_range(i, i_range) && in_range(j, j_range) ? 1 : 0;
 
-                           // fill the last one as 0, so that we can calculate the total count
-                           // during the exclusive scan
-                           if(I == 0)
-                               last = 0;
-                       });
+                        // fill the last one as 0, so that we can calculate the total count
+                        // during the exclusive scan
+                        if(I == 0)
+                            last = 0;
+                    });
 
             // scan
             DeviceScan().ExclusiveSum(selected_hessian.data(),
@@ -377,6 +377,10 @@ void GlobalContactManager::compute_adaptive_kappa()
 Float GlobalContactManager::d_hat() const
 {
     return m_impl.d_hat;
+}
+Float GlobalContactManager::eps_velocity() const
+{
+    return m_impl.eps_velocity;
 }
 void GlobalContactManager::add_reporter(ContactReporter* reporter)
 {

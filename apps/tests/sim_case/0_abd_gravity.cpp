@@ -23,7 +23,7 @@ TEST_CASE("0_abd_gravity", "[abd]")
 
     auto config = Scene::default_config();
 
-    config["gravity"]           = Vector3{0, -10, 0};
+    config["gravity"]           = Vector3{0, -9.8, 0};
     config["contact"]["enable"] = false;  // disable contact
 
     {  // dump config
@@ -117,7 +117,6 @@ TEST_CASE("0_abd_gravity", "[abd]")
     for(int i = 1; i < 50; i++)
     {
         world.advance();
-        world.sync();
         world.retrieve();
         sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
     }

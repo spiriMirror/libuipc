@@ -4,14 +4,15 @@ find_package(libigl REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(cppitertools CONFIG REQUIRED)
-find_path(DYLIB_INCLUDE_DIRS "dylib.hpp")
 find_package(magic_enum CONFIG REQUIRED)
 find_package(Boost REQUIRED)
+
+find_path(DYLIB_INCLUDE_DIRS "dylib.hpp")
+find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
 
 add_library(uipc SHARED)
 add_library(uipc::uipc ALIAS uipc)
 target_compile_features(uipc PUBLIC cxx_std_20)
-
 
 # ------------------------------------------------------------------------------
 # set the compile definitions
@@ -30,6 +31,7 @@ target_compile_definitions(uipc PUBLIC
 # ------------------------------------------------------------------------------
 target_include_directories(uipc PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/..")
 target_include_directories(uipc PRIVATE "${DYLIB_INCLUDE_DIRS}")
+target_include_directories(uipc PRIVATE "${TINYGLTF_INCLUDE_DIRS}")
 # add the source files in the current directory to the target uipc
 file(GLOB SOURCE "*.h" "*.cpp")
 target_sources(uipc PRIVATE ${SOURCE})
@@ -62,6 +64,7 @@ add_subdirectory(backend)
 add_subdirectory(builtin)
 add_subdirectory(constitutions)
 add_subdirectory(engine)
+add_subdirectory(util)
 
 
 # ------------------------------------------------------------------------------
@@ -73,7 +76,6 @@ add_subdirectory(backends)
 # ------------------------------------------------------------------------------
 # set the output directory
 # ------------------------------------------------------------------------------
-include(uipc_utils)
 uipc_set_output_directory(uipc)
 
 

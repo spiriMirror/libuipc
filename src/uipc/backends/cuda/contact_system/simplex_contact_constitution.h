@@ -29,10 +29,12 @@ class SimplexContactConstitution : public ContactReporter
         muda::CBufferView<Vector3i>       PEs() const;
         muda::CBufferView<Vector2i>       PPs() const;
         muda::CBufferView<Vector3>        positions() const;
+        muda::CBufferView<Vector3>        prev_positions() const;
         muda::CBufferView<Vector3>        rest_positions() const;
         muda::CBufferView<IndexT>         contact_element_ids() const;
         Float                             d_hat() const;
         Float                             dt() const;
+        Float                             eps_velocity() const;
 
       private:
         friend class SimplexContactConstitution;

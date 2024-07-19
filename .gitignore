@@ -13,3 +13,7 @@ site/
 build/
 output/
 vcpkg_installed/
+.vscode/
+
+__pycache__
+.pytest_cache

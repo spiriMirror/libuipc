@@ -20,19 +20,12 @@ void GlobalVertexManager::Impl::init_vertex_info()
     reporter_vertex_counts.resize(N);
     reporter_vertex_offsets.resize(N);
 
-    changable_vertex_reporters.reserve(N);
-
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
     {
         VertexCountInfo info;
         R->report_count(info);
         // get count back
         reporter_vertex_counts[i] = info.m_count;
-        if(info.m_changable)
-        {
-            // record
-            changable_vertex_reporters.push_back(R);
-        }
     }
 
     std::exclusive_scan(reporter_vertex_counts.begin(),
@@ -62,11 +55,18 @@ void GlobalVertexManager::Impl::init_vertex_info()
     // latter, we need to check if user fill rest_positions
     // if not, then copy, otherwise, just use it
     rest_positions = positions;
+    prev_positions = positions;
 }
 
 void GlobalVertexManager::Impl::rebuild_vertex_info()
 {
     UIPC_ASSERT(false, "Not implemented yet");
+}
+
+void GlobalVertexManager::add_reporter(VertexReporter* reporter)
+{
+    check_state(SimEngineState::BuildSystems, "add_reporter()");
+    m_impl.vertex_reporters.register_subsystem(*reporter);
 }
 
 void GlobalVertexManager::Impl::step_forward(Float alpha)
@@ -81,6 +81,27 @@ void GlobalVertexManager::Impl::step_forward(Float alpha)
                 disp     = displacements.viewer().name("disp"),
                 alpha    = alpha] __device__(int i) mutable
                { pos(i) = safe_pos(i) + alpha * disp(i); });
+}
+
+void GlobalVertexManager::Impl::collect_vertex_displacements()
+{
+    for(auto&& [i, R] : enumerate(vertex_reporters.view()))
+    {
+        VertexDisplacementInfo vd{this, i};
+        R->report_displacements(vd);
+    }
+}
+
+void GlobalVertexManager::Impl::record_prev_positions()
+{
+    using namespace muda;
+    BufferLaunch().copy<Vector3>(safe_positions.view(), std::as_const(positions).view());
+}
+
+void GlobalVertexManager::Impl::record_start_point()
+{
+    using namespace muda;
+    BufferLaunch().copy<Vector3>(safe_positions.view(), std::as_const(positions).view());
 }
 
 Float GlobalVertexManager::Impl::compute_axis_max_displacement()
@@ -220,6 +241,11 @@ void GlobalVertexManager::rebuild_vertex_info()
     m_impl.rebuild_vertex_info();
 }
 
+void GlobalVertexManager::record_prev_positions()
+{
+    m_impl.record_prev_positions();
+}
+
 void GlobalVertexManager::collect_vertex_displacements()
 {
     m_impl.collect_vertex_displacements();
@@ -233,6 +259,11 @@ muda::CBufferView<IndexT> GlobalVertexManager::coindices() const noexcept
 muda::CBufferView<Vector3> GlobalVertexManager::positions() const noexcept
 {
     return m_impl.positions;
+}
+
+muda::CBufferView<Vector3> GlobalVertexManager::prev_positions() const noexcept
+{
+    return m_impl.prev_positions;
 }
 
 muda::CBufferView<Vector3> GlobalVertexManager::rest_positions() const noexcept
@@ -253,21 +284,6 @@ muda::CBufferView<IndexT> GlobalVertexManager::contact_element_ids() const noexc
 muda::CBufferView<Vector3> GlobalVertexManager::displacements() const noexcept
 {
     return m_impl.displacements;
-}
-
-void GlobalVertexManager::Impl::collect_vertex_displacements()
-{
-    for(auto&& [i, R] : enumerate(vertex_reporters.view()))
-    {
-        VertexDisplacementInfo vd{this, i};
-        R->report_displacements(vd);
-    }
-}
-
-void GlobalVertexManager::Impl::record_start_point()
-{
-    using namespace muda;
-    BufferLaunch().copy<Vector3>(safe_positions.view(), std::as_const(positions).view());
 }
 
 Float GlobalVertexManager::compute_axis_max_displacement()
@@ -293,12 +309,6 @@ void GlobalVertexManager::step_forward(Float alpha)
 void GlobalVertexManager::record_start_point()
 {
     m_impl.record_start_point();
-}
-
-void GlobalVertexManager::add_reporter(VertexReporter* reporter)
-{
-    check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_impl.vertex_reporters.register_subsystem(*reporter);
 }
 
 AABB GlobalVertexManager::vertex_bounding_box() const noexcept

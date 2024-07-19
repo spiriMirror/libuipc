@@ -1,7 +1,8 @@
 import json
 import argparse
+import os
 
-vcpkg_json = {
+base_vcpkg_json = {
     "name": "libuipc",
     "version": "0.0.1",
     "description": "A Modern C++20 Library of Unified Incremental Potential Contact.",
@@ -50,13 +51,29 @@ vcpkg_json = {
         {
             "name":"boost-core",
             "version>=":"1.84.0"
+        },
+        {
+            "name":"tinygltf",
+            "version>=":"2.8.22"
+        },
+        {
+            "name":"python3",
+            "version>=":"3.11.8#1"
         }
     ]
 }
-    
+
+deps = base_vcpkg_json["dependencies"]
+
+def is_enabled(arg):
+    ARG = str(arg).upper()
+    if ARG == "ON" or ARG == "1":
+        return True
+    else:
+        return False
+
 def gen_vcpkg_json(args):
-    deps = vcpkg_json["dependencies"]
-    if args.build_gui:
+    if is_enabled(args.build_gui):
         deps.append({
             "name": "imgui",
             "version>=": "1.90.7"
@@ -73,12 +90,25 @@ def gen_vcpkg_json(args):
             "name": "freeglut",
             "version>=": "3.4.0"
         })
+    if is_enabled(args.build_pybind):
+        deps.append({
+            "name":"pybind11",
+            "version>=":"2.12.0"
+        })
 
+def print_deps():
+    str_names = []
+    for dep in deps:
+        s = "    * " + dep["name"] + " [" + dep["version>="] + "]"
+        str_names.append(s)
+    str_names = "\n".join(str_names)
+    print(f"[libuipc] Writing vcpkg.json with dependencies:\n{str_names}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate vcpkg.json for libuipc.")
     parser.add_argument("output_dir", type=str, help="Output file path.")
-    parser.add_argument("--build_gui", type=bool, default=False, help="Build GUI dependencies.")
+    parser.add_argument("--build_gui", type=str, default=False, help="Build GUI dependencies.")
+    parser.add_argument("--build_pybind", type=str, default=False, help="Build Python bindings.")
     
     args = parser.parse_args()
     print(f"[libuipc] Generating vcpkg.json with args:")
@@ -88,16 +118,30 @@ if __name__ == "__main__":
     json_path = f'{args.output_dir}/vcpkg.json'
     
     gen_vcpkg_json(args)
-    
-    deps = vcpkg_json["dependencies"]
-    str_names = []
-    for dep in deps:
-        s = "    * " + dep["name"] + " [" + dep["version>="] + "]"
-        str_names.append(s)
-    str_names = "\n".join(str_names)
-    print(f"[libuipc] Writing vcpkg.json with dependencies:\n{str_names}")
+        
+    # if json_path exists, compare the content
+    changed = False
+    if(os.path.exists(json_path)):
+        with open(json_path, "r") as f:
+            old_json = json.load(f)
+            changed = str(old_json) != str(base_vcpkg_json)
     
     with open(json_path, "w") as f:
-        json.dump(vcpkg_json, f, indent=4)
+        json.dump(base_vcpkg_json, f, indent=4)
     
-    print(f"[libuipc] Generated vcpkg.json at:\n    {json_path}")
+    is_new = not os.path.exists(json_path)
+    
+    if is_new:
+        print(f"[libuipc] Generated vcpkg.json at:\n    {json_path}")
+        print_deps()
+        exit(1)
+    
+    if changed:
+        print(f"[libuipc] vcpkg.json content has changed, overwriting:\n    {json_path}")
+        print_deps()
+        exit(1)
+        
+    print(f"[libuipc] vcpkg.json content is unchanged, skipping:\n    {json_path}")
+    exit(0)
+    
+    
