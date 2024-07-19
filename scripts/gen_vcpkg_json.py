@@ -55,6 +55,10 @@ vcpkg_json = {
         {
             "name":"tinygltf",
             "version>=":"2.8.22"
+        },
+        {
+            "name":"python3",
+            "version>=":"3.11.8#1"
         }
     ]
 }
@@ -89,10 +93,6 @@ def gen_vcpkg_json(args):
         deps.append({
             "name":"pybind11",
             "version>=":"2.12.0"
-        })
-        deps.append({
-            "name":"python3",
-            "version>=":"3.11.8#1"
         })
 
     deps = vcpkg_json["dependencies"]
