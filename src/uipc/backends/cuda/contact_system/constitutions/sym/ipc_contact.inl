@@ -85,3 +85,67 @@ auto x0 = 2*kappa;
 /* Simplified Expr */
 R = -x0*log(D/DHat) - x0*(2*D - 2*DHat)/D + kappa*(D - DHat) * (D - DHat)/(D) * (D);
 }
+/*
+    __device__ Float smooth_function(Float eps_v, 
+                                     Float h_hat, 
+                                     Float y) 
+    {
+        Float scalar = eps_v * h_hat;
+        if(0 < y && y < scalar)
+        {
+            return -y * y * y / (3 * scalar * scalar) + y * y / scalar + scalar / 3;
+        }
+    }
+*/
+template <typename T>
+__host__ __device__ void FrictionEnergy(T& R, const T& coefficient, const T& eps_v, const T& h_hat, const T& y)
+{
+    T scalar = eps_v * h_hat;
+    if (0 < y && y < scalar)
+    {
+        return coefficient * (-y * y * y / (3 * scalar * scalar) + y * y / scalar + scalar / 3);
+    }
+    else if (y > scalar) 
+    {
+        return coefficient * y;
+    }
+    return 0;
+}
+
+template <typename T>
+__host__ __device__ void dFrictionEnergydx(T& R, const T& coefficient, const Eigen::Matrix<T, 3, 3>& Tk, const T& eps_v, const T& h_hat, const Eigen::Vector<T, 3>& vk)
+{
+    T y = vk.norm();
+    T s = vk / y; 
+    if (0 < y && y < eps_v)
+    {
+        T f = - y * y / (eps_v * eps_v) + 2 * y / eps_v
+        return ceofficient * Tk * f * s;
+    }
+    else if (y > scalar) 
+    {
+        return coefficient * Tk * s;
+    }
+    return 0;
+}
+
+template <typename T>
+__host__ __device__ void ddFrictionEnergyddx(T& R, const T& coefficient, const Eigen::Matrix<T, 3, 3>& Tk, const T& eps_v, const T& h_hat, const Eigen::Vector<T, 3>& vk)
+{
+    T scalar = eps_v * h_hat;
+    T y = vk.norm();
+    T s = vk / y; 
+    if (0 < y && y < eps_v)
+    {
+        T f = - 2 / (eps_v * eps_v) + 2 / eps_v
+        Eigen::Matrix<T, 3, 3> M = -v * v.transpose() / (eps_v * eps_v * y) + Eigen::Matrix<T, 3, 3>::Identity() * f / eps_v;
+        return ceofficient * Tk * M * Tk.transpose() / h_hat;
+    }
+    else if (y > scalar) 
+    {
+        f = - 2 / (eps_v * eps_v) + 2 / eps_v
+        Eigen::Matrix<T, 3, 3> M = -v * v.transpose() / (y * y * y) + Eigen::Matrix<T, 3, 3>::Identity() * f / eps_v;
+        return ceofficient * Tk * M * Tk.transpose() / h_hat;
+    }
+    return 0;
+}
