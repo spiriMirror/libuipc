@@ -2,6 +2,7 @@
 #include <uipc/common/enumerate.h>
 #include <affine_body/abd_energy.h>
 #include <muda/cub/device/device_reduce.h>
+#include <muda/ext/eigen/svd.h>
 
 namespace uipc::backend::cuda
 {
@@ -10,7 +11,7 @@ REGISTER_SIM_SYSTEM(ABDARAP);
 void ABDARAP::do_build(AffineBodyConstitution::BuildInfo& info)
 {
     auto scene = world().scene();
-    // Check if we have the ABDOrthoPotential constitution
+    // Check if we have the ABDARAPPotential constitution
     auto uids = scene.constitution_tabular().uids();
     if(!std::binary_search(uids.begin(), uids.end(), ABDARAP::ConstitutionUID))
     {
@@ -44,9 +45,9 @@ void ABDARAP::Impl::filter(const AffineBodyDynamics::FilteredInfo& info, WorldVi
 }
 
 // TODO: To be removed, when you implement the As-Rigid-As-Possible
-namespace sym::abd_ortho_potential
+namespace sym::abd_arap_potential
 {
-#include "sym/ortho_potential.inl"
+#include "sym/arap_potential.inl"
 }
 
 // TODO:
@@ -70,14 +71,14 @@ void ABDARAP::Impl::compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& 
                 dt             = info.dt(),
                 magic_number   = magic_number] __device__(int i) mutable
                {
-                   auto& V      = shape_energies(i);
-                   auto& q      = qs(i);
-                   auto& volume = volumes(i);
-                   auto  kappa  = kappas(i) * magic_number;
+                    auto& V      = shape_energies(i);
+                    auto& q      = qs(i);
+                    auto& volume = volumes(i);
+                    auto  kappa  = kappas(i) * magic_number;
 
-                   sym::abd_ortho_potential::E(V, kappa * dt * dt, volume, q);
+                    sym::abd_arap_potential::E(V, kappa * dt * dt, volume, q);
 
-                   // V = kappa * volume * dt * dt * shape_energy(q);
+                    // V = kappa * volume * dt * dt * shape_energy(q);
                });
 
     // Sum up the body energies
@@ -114,10 +115,10 @@ void ABDARAP::Impl::compute_gradient_hessian(const AffineBodyDynamics::ComputeGr
                    Float kt2 = kappa * dt * dt;
 
                    Vector9 shape_gradient = Vector9::Zero();
-                   sym::abd_ortho_potential::dEdq(shape_gradient, kt2, volume, q);
+                   sym::abd_arap_potential::dEdq(shape_gradient, kt2, volume, q);
 
                    Matrix9x9 shape_H = Matrix9x9::Zero();
-                   sym::abd_ortho_potential::ddEddq(shape_H, kt2, volume, q);
+                   sym::abd_arap_potential::ddEddq(shape_H, kt2, volume, q);
 
                    H.block<9, 9>(3, 3) += shape_H;
                    G.segment<9>(3) += shape_gradient;
