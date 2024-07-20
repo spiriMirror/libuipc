@@ -12,6 +12,18 @@ namespace sym::ipc_contact
 {
 #include "sym/ipc_contact.inl"
 
+    __device__ Float smooth_function(Float eps_v, 
+                                     Float h_hat, 
+                                     Float y) 
+    {
+        Float scalar = eps_v * h_hat;
+        if(0 < y && y < scalar)
+        {
+            return -y * y * y / (3 * scalar * scalar) + y * y / scalar + scalar / 3;
+        }
+    }
+
+
     __device__ Float PT_barrier_energy(Float          kappa,
                                        Float          squared_d_hat,
                                        const Vector3& P,
@@ -298,7 +310,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                 prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
                 eps_v = info.eps_velocity(),
                 d_hat = info.d_hat(),
-                dt    = info.dt()] __device__(int i) mutable
+                dt    = info.dt(),] __device__(int i) mutable
                {
                    const auto& PT = PTs(i);
 

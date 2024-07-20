@@ -11,7 +11,7 @@ REGISTER_SIM_SYSTEM(ABDARAP);
 void ABDARAP::do_build(AffineBodyConstitution::BuildInfo& info)
 {
     auto scene = world().scene();
-    // Check if we have the ABDOrthoPotential constitution
+    // Check if we have the ABDARAPPotential constitution
     auto uids = scene.constitution_tabular().uids();
     if(!std::binary_search(uids.begin(), uids.end(), ABDARAP::ConstitutionUID))
     {
@@ -73,7 +73,7 @@ void ABDARAP::Impl::compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& 
 
                    sym::abd_arap::E(V, kappa * dt * dt, volume, q);
 
-                   // V = kappa * volume * dt * dt * shape_energy(q);
+                    // V = kappa * volume * dt * dt * shape_energy(q);
                });
 
     // Sum up the body energies
