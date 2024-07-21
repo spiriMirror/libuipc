@@ -19,7 +19,13 @@ class HalfPlaneVertexReporter : public VertexReporter
         void report_count(GlobalVertexManager::VertexCountInfo& info);
         void report_attributes(GlobalVertexManager::VertexAttributeInfo& info);
         void report_displacements(GlobalVertexManager::VertexDisplacementInfo& info);
+
+        size_t vertex_global_offset = ~0ull;
+        size_t vertex_count         = 0;
     };
+
+    size_t vertex_global_offset() const;
+    size_t vertex_count() const;
 
   protected:
     void do_build() override;

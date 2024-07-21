@@ -38,15 +38,16 @@ TEST_CASE("10_abd_ground_contact", "[abd]")
         auto object = scene.objects().create("tet");
         {
             vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
-            vector<Vector3>  Vs = {Vector3{0, 1, 0},
-                                   Vector3{0, 0, 1},
-                                   Vector3{-std::sqrt(3) / 2, 0, -0.5},
-                                   Vector3{std::sqrt(3) / 2, 0, -0.5}};
+            vector<Vector3>  Vs = {Vector3{0, 1, 1},
+                                   Vector3{0, 0, 0},
+                                   Vector3{-std::sqrt(3) / 2, 1, -0.5},
+                                   Vector3{std::sqrt(3) / 2, 1, -0.5}};
 
             std::transform(Vs.begin(),
                            Vs.end(),
                            Vs.begin(),
-                           [&](auto& v) { return v * 0.3; });
+                           [&](auto& v)
+                           { return v * 0.3 + Vector3::UnitY() * 0.2; });
 
             auto tet = tetmesh(Vs, Ts);
 
@@ -58,7 +59,7 @@ TEST_CASE("10_abd_ground_contact", "[abd]")
         }
 
         // create a ground geometry
-        ImplicitGeometry half_plane = ground(-1.0);
+        ImplicitGeometry half_plane = ground(0.0);
 
         auto ground = scene.objects().create("ground");
         {
