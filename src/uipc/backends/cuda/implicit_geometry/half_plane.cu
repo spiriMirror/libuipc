@@ -63,16 +63,33 @@ void HalfPlane::Impl::_build_geometry()
             h_positions.push_back(positions);
         });
 
-    vector<IndexT> contact_id(instance_count, 0);
+    vector<IndexT> geo_to_contact_id(geos.size(), 0);
 
-    //for(auto [i, g] : enumerate(geos))
-    //{
-    //}
+    for(auto&& [i, g] : enumerate(geos))
+    {
+        auto cid = g->meta().find<IndexT>(builtin::contact_element_id);
+        geo_to_contact_id[i] = cid ? cid->view()[0] : 0;
+    }
+
+    h_contact_id.resize(instance_count, 0);
+
+    for(auto&& [i, contact_id] : enumerate(h_contact_id))
+        contact_id = geo_to_contact_id[I2G[i]];
 
     positions.resize(h_positions.size());
     normals.resize(h_normals.size());
 
     positions.view().copy_from(h_positions.data());
     normals.view().copy_from(h_normals.data());
+}
+
+muda::CBufferView<Vector3> HalfPlane::normals() const
+{
+    return m_impl.normals;
+}
+
+muda::CBufferView<Vector3> HalfPlane::positions() const
+{
+    return m_impl.positions;
 }
 }  // namespace uipc::backend::cuda

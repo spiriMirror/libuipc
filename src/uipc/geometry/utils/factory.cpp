@@ -58,6 +58,7 @@ ImplicitGeometry ground(Float height, const Vector3& N)
 
     ig.instances().create<Vector3>("N", N);
     ig.instances().create<Vector3>("P", Vector3{0.0, height, 0.0});
+    ig.instances().create<IndexT>(builtin::is_fixed, 1);
 
     return ig;
 }

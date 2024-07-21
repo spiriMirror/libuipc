@@ -8,7 +8,7 @@
 
 namespace uipc::backend::cuda
 {
-class LBVHSimplexCCDFilter : public SimplexCCDFilter
+class LBVHSimplexCCDFilter final: public SimplexCCDFilter
 {
   public:
     using SimplexCCDFilter::SimplexCCDFilter;

@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <fstream>
 
-TEST_CASE("10_abd_ground_contact", "[abd]")
+TEST_CASE("12_abd_self_ground_contact", "[abd]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
@@ -34,28 +34,33 @@ TEST_CASE("10_abd_ground_contact", "[abd]")
         auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
         auto default_contact = scene.contact_tabular().default_element();
 
+        Transform pre_trans = Transform::Identity();
+        pre_trans.scale(0.3);
+        SimplicialComplexIO io{pre_trans};
+        auto cube = io.read(fmt::format("{}{}", tetmesh_dir, "cube.msh"));
+
         // create object
-        auto object = scene.objects().create("tet");
+        auto object = scene.objects().create("cubes");
         {
-            vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
-            vector<Vector3>  Vs = {Vector3{0, 1, 0},
-                                   Vector3{0, 0, 1},
-                                   Vector3{-std::sqrt(3) / 2, 0, -0.5},
-                                   Vector3{std::sqrt(3) / 2, 0, -0.5}};
 
-            std::transform(Vs.begin(),
-                           Vs.end(),
-                           Vs.begin(),
-                           [&](auto& v)
-                           { return v * 0.3 + Vector3::UnitY() * 0.2; });
+            label_surface(cube);
+            label_triangle_orient(cube);
 
-            auto tet = tetmesh(Vs, Ts);
+            cube.instances().resize(2);
 
-            label_surface(tet);
-            label_triangle_orient(tet);
-            abd.apply_to(tet, 100.0_MPa);
+            auto trans = view(cube.transforms());
 
-            object->geometries().create(tet);
+            Transform t = Transform::Identity();
+            t.translate(Vector3::UnitY() * 0.2);
+            trans[0] = t.matrix();
+
+            t = Transform::Identity();
+            t.translate(Vector3::UnitY() * 0.6);
+            trans[1] = t.matrix();
+
+            abd.apply_to(cube, 100.0_MPa);
+
+            object->geometries().create(cube);
         }
 
         // create a ground geometry

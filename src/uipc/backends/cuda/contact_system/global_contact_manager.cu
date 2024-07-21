@@ -107,7 +107,7 @@ void GlobalContactManager::Impl::_assemble()
         reporter->report_extent(info);
         reporter_gradient_counts[i] = info.m_gradient_count;
         reporter_hessian_counts[i]  = info.m_hessian_count;
-        spdlog::info("contact reporter<{}> contact gradient3 count: {}, contact hessian3x3 count: {}",
+        spdlog::info("<{}> contact Grad3 count: {}, contact Hess3x3 count: {}",
                      reporter->name(),
                      info.m_gradient_count,
                      info.m_hessian_count);

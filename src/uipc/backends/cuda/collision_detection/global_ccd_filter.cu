@@ -9,7 +9,7 @@ REGISTER_SIM_SYSTEM(GlobalCCDFilter);
 void GlobalCCDFilter::add_filter(CCDFilter* filter)
 {
     check_state(SimEngineState::BuildSystems, "add_filter()");
-    UIPC_ASSERT(filter != nullptr, "Input simplex_dcd_filter is nullptr");
+    UIPC_ASSERT(filter != nullptr, "Input half_plane_dcd_filter is nullptr");
     m_impl.filters.register_subsystem(*filter);
 }
 
