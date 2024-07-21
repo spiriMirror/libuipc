@@ -38,10 +38,10 @@ TEST_CASE("10_abd_ground_contact", "[abd]")
         auto object = scene.objects().create("tet");
         {
             vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
-            vector<Vector3>  Vs = {Vector3{0, 1, 1},
-                                   Vector3{0, 0, 0},
-                                   Vector3{-std::sqrt(3) / 2, 1, -0.5},
-                                   Vector3{std::sqrt(3) / 2, 1, -0.5}};
+            vector<Vector3>  Vs = {Vector3{0, 1, 0},
+                                   Vector3{0, 0, 1},
+                                   Vector3{-std::sqrt(3) / 2, 0, -0.5},
+                                   Vector3{std::sqrt(3) / 2, 0, -0.5}};
 
             std::transform(Vs.begin(),
                            Vs.end(),

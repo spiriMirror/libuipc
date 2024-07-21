@@ -60,35 +60,38 @@ void ABDLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
     if(abd_contact_receiver)  // if contact is enabled
     {
         auto contact_count = contact().contact_gradient.doublet_count();
-        ParallelFor()
-            .kernel_name(__FUNCTION__)
-            .apply(contact_count,
-                   [contact_gradient = contact().contact_gradient.cviewer().name("contact_gradient"),
-                    gradient = info.gradient().viewer().name("gradient"),
-                    vertex_offset = affine_body_vertex_reporter->vertex_offset(),
-                    v2b      = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                    Js       = abd().vertex_id_to_J.cviewer().name("Js"),
-                    is_fixed = abd().body_id_to_is_fixed.cviewer().name(
-                        "is_fixed")] __device__(int I) mutable
-                   {
-                       const auto& [g_i, G3] = contact_gradient(I);
-
-                       auto i      = g_i - vertex_offset;
-                       auto body_i = v2b(i);
-                       auto J_i    = Js(i);
-
-                       if(is_fixed(body_i))
+        if (contact_count)
+        {
+            ParallelFor()
+                .kernel_name(__FUNCTION__)
+                .apply(contact_count,
+                       [contact_gradient = contact().contact_gradient.cviewer().name("contact_gradient"),
+                        gradient = info.gradient().viewer().name("gradient"),
+                        vertex_offset = affine_body_vertex_reporter->vertex_offset(),
+                        v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
+                        Js  = abd().vertex_id_to_J.cviewer().name("Js"),
+                        is_fixed = abd().body_id_to_is_fixed.cviewer().name(
+                            "is_fixed")] __device__(int I) mutable
                        {
-                           // cout << "body_i=" << body_i << " is fixed\n";
-                       }
-                       else
-                       {
-                           Vector12 G12 = J_i.T() * G3;
-                           gradient.segment<12>(body_i * 12).atomic_add(G12);
+                           const auto& [g_i, G3] = contact_gradient(I);
 
-                           // cout << "G12: \n" << G12 << "\n";
-                       }
-                   });
+                           auto i      = g_i - vertex_offset;
+                           auto body_i = v2b(i);
+                           auto J_i    = Js(i);
+
+                           if(is_fixed(body_i))
+                           {
+                               // cout << "body_i=" << body_i << " is fixed\n";
+                           }
+                           else
+                           {
+                               Vector12 G12 = J_i.T() * G3;
+                               gradient.segment<12>(body_i * 12).atomic_add(G12);
+
+                               // cout << "G12: \n" << G12 << "\n";
+                           }
+                       });
+        }
     }
 }
 

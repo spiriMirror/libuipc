@@ -61,8 +61,6 @@ namespace sym::ipc_vertex_half_contact
         Matrix3x3 ddDddx;
         ddHalfPlaneDddx(ddDddx, v, P, N);
 
-        cout << "ddDddx:\n" << ddDddx << "\n";
-
         H = ddBddD * dDdx * dDdx.transpose() + dBdD * ddDddx;
     }
 
@@ -144,8 +142,9 @@ void IPCVertexHalfPlaneContact::do_assemble(ContactInfo& info)
                        sym::ipc_vertex_half_contact::PH_barrier_gradient_hessian(
                            Grad(I), Hess(I), kappa * dt * dt, D_hat, v, P, N);
 
-                       cout << "PH:" << PH.transpose().eval() << "\n"
-                            << Grad(I) << "\n";
+                       // cout << "PH:" << PH.transpose().eval() << "\n" << Grad(I) << "\n";
+
+                       // cout << "Hess:\n" << Hess(I) << "\n";
                    });
 
         int a = 1;

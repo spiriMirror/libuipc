@@ -3,7 +3,7 @@
 #include <kernel_cout.h>
 namespace uipc::backend::cuda
 {
-constexpr bool PrintDebugInfo = true;
+constexpr bool PrintDebugInfo = false;
 
 REGISTER_SIM_SYSTEM(SimpleHalfPlaneDCDFilter);
 

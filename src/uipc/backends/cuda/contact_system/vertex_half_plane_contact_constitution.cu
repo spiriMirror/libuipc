@@ -91,7 +91,7 @@ void VertexHalfPlaneContactConstitution::Impl::assemble(GlobalContactManager::Co
                        Matrix3x3   H3x3;
                        const auto& D2 = PHs(I);
                        auto        P  = D2.x();
-                       detail::make_spd<3>(H3x3);
+                       //detail::make_spd<3>(H3x3);
                        H3x3s(I).write(P, P, H3x3);
                    });
 
