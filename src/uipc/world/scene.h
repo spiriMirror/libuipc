@@ -4,6 +4,7 @@
 #include <uipc/world/object.h>
 #include <uipc/world/object_collection.h>
 
+
 namespace uipc::backend
 {
 class SceneVisitor;
@@ -11,6 +12,7 @@ class SceneVisitor;
 
 namespace uipc::world
 {
+
 class UIPC_CORE_API Scene
 {
     friend class backend::SceneVisitor;
@@ -92,16 +94,25 @@ class UIPC_CORE_API Scene
 
     const Json& info() const noexcept;
 
+
   private:
-    Json                m_info;
-    ContactTabular      m_contact_tabular;
-    ConstitutionTabular m_constitution_tabular;
-    ObjectCollection    m_objects;
+    friend class SanityChecker;
+    class Impl
+    {
+      public:
+        Json                info;
+        ContactTabular      contact_tabular;
+        ConstitutionTabular constitution_tabular;
+        ObjectCollection    objects;
 
-    geometry::GeometryCollection m_geometries;
-    geometry::GeometryCollection m_rest_geometries;
+        geometry::GeometryCollection geometries;
+        geometry::GeometryCollection rest_geometries;
 
-    bool m_started = false;
+        bool started = false;
+    };
+
+    Impl m_impl;
+
     void solve_pending() noexcept;
 };
 }  // namespace uipc::world

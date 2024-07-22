@@ -10,12 +10,6 @@ namespace uipc::backend
 {
 class SimEngine;
 
-class SimSystemAutoRegisterInternalData
-{
-  public:
-    list<std::function<U<ISimSystem>(SimEngine&)>> m_entries;
-};
-
 // default creator
 template <std::derived_from<ISimSystem> SimSystemT>
 class SimSystemCreator
@@ -68,21 +62,17 @@ class SimSystemAutoRegister
     friend class SimEngine;
 
   public:
-    SimSystemAutoRegister(std::function<U<ISimSystem>(SimEngine&)>&& reg);
+    using Creator = std::function<U<ISimSystem>(SimEngine&)>;
+
+    SimSystemAutoRegister(Creator&& reg);
+
+    class Creators
+    {
+      public:
+        list<Creator> entries;
+    };
 
   private:
-    static SimSystemAutoRegisterInternalData& internal_data();
+    static Creators& creators();
 };
 }  // namespace uipc::backend
-
-/**
- * @brief Register a SimSystem, which will be automatically created by the SimEngine.
- */
-#define REGISTER_SIM_SYSTEM(SimSystem)                                           \
-    namespace auto_register                                                      \
-    {                                                                            \
-        static ::uipc::backend::SimSystemAutoRegister AutoRegister##__COUNTER__( \
-            ::uipc::backend::detail::register_system_creator<SimSystem>());      \
-    }
-
-// End of file, remove the warning: backslash-newline at end of file

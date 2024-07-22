@@ -56,3 +56,15 @@ class SimSystem : public ISimSystem
 }  // namespace uipc::backend
 
 #include <uipc/backends/common/details/sim_system.inl>
+
+/**
+ * @brief Register a SimSystem, which will be automatically created by the SimEngine.
+ */
+#define REGISTER_SIM_SYSTEM(SimSystem)                                                    \
+    namespace auto_register                                                               \
+    {                                                                                     \
+        static ::uipc::backend::SimSystemAutoRegister SimSystemAutoRegister##__COUNTER__( \
+            ::uipc::backend::detail::register_system_creator<SimSystem>());               \
+    }
+
+// End of file, remove the warning: backslash-newline at end of file

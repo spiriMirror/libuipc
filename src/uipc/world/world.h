@@ -23,5 +23,7 @@ class UIPC_CORE_API World
   private:
     Scene*           m_scene  = nullptr;
     engine::IEngine* m_engine = nullptr;
+    bool             m_valid  = true;
+    void             sanity_check(Scene& s);
 };
 }  // namespace uipc::world

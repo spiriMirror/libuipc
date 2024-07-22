@@ -15,7 +15,7 @@ Json SimEngine::do_to_json() const
 
 void SimEngine::build_systems()
 {
-    auto& funcs = SimSystemAutoRegister::internal_data().m_entries;
+    auto& funcs = SimSystemAutoRegister::creators().entries;
     for(auto& f : funcs)
     {
         auto uptr = f(*this);
