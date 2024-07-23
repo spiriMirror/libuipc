@@ -12,18 +12,6 @@ namespace sym::ipc_contact
 {
 #include "sym/ipc_contact.inl"
 
-    __device__ Float smooth_function(Float eps_v, 
-                                     Float h_hat, 
-                                     Float y) 
-    {
-        Float scalar = eps_v * h_hat;
-        if(0 < y && y < scalar)
-        {
-            return -y * y * y / (3 * scalar * scalar) + y * y / scalar + scalar / 3;
-        }
-    }
-
-
     __device__ Float PT_barrier_energy(Float          kappa,
                                        Float          squared_d_hat,
                                        const Vector3& P,
@@ -38,6 +26,64 @@ namespace sym::ipc_contact
         Float B;
         KappaBarrier(B, kappa, D, D_hat);
         return B;
+    }
+
+    __device__ Float PT_friction_energy(Float          kappa,
+                                        Float          squared_d_hat,
+                                        Float          mu,
+                                        Float          dt,
+                                        const Vector3& P,
+                                        const Vector3& T0,
+                                        const Vector3& T1,
+                                        const Vector3& T2,
+                                        const Vector3& prev_P,
+                                        const Vector3& prev_T0,
+                                        const Vector3& prev_T1,
+                                        const Vector3& prev_T2,
+                                        Float          eps_v)
+    {
+        using namespace muda::distance;
+
+        Float D;
+        point_triangle_distance(prev_P, prev_T0, prev_T1, prev_T2, D);
+
+        Vector12 GradD;
+        point_triangle_distance_gradient(prev_P, prev_T0, prev_T1, prev_T2, GradD);
+
+        Float dBdD;
+        dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
+
+        Float lam = -dBdD * GradD.head(3).norm();
+        Vector3 n =  (T0 - T1).cross(T0 - T2);
+        Vector3 normal = n / n.norm();
+        Eigen::Matrix<Float, 6, 3> Tk;
+        Eigen::Matrix<Float, 3, 3> I = Eigen::Matrix<Float, 3, 3>::Identity();
+        Tk.block(0, 0, 3, 3) = I - normal * normal.transpose();
+        Tk.block(3, 0, 3, 3) = normal * normal.transpose() - I;
+        Vector3 v1 = (P - prev_P) / dt;
+
+        // suppose P0 = t(0) * T0 + t(1) * T1 + t(2) * T2
+        Eigen::Matrix<Float, 3, 2> base;
+        base << T1 - T0, T2 - T0;
+        Eigen::Matrix<Float, 2, 2> Lhs = base.transpose() * base;
+        Vector2 rhs = base.transpose() * (P - T0);
+        Eigen::Matrix<Float, 2, 2> Lhs_inv;
+        Float det = Lhs(0, 0) * Lhs(1, 1) - Lhs(0, 1) * Lhs(1, 0);
+        Lhs_inv << Lhs(1, 1) / det, -Lhs(0, 1) / det, -Lhs(1, 0) / det, Lhs(0, 0) / det;
+        Vector2 t = Lhs_inv * rhs;
+        Float t1 = t(0);
+        Float t2 = t(1);
+        Float t0 = 1 - t1 - t2;
+
+        Eigen::Vector<Float, 6> V;
+        V  << v1, t0 * (T0 - prev_T0) / dt + t1 * (T1 - prev_T1) / dt + t2 * (T2 - prev_T2) / dt;
+        Vector3 vk = Tk.transpose() * V;
+        Float y = vk.norm() * dt;
+        // cout << "lam: " << lam << "\n";
+        // cout << "y: " << y << "\n";
+        Float F;
+        FrictionEnergy(F, lam * mu, eps_v, dt, y);
+        return F;
     }
 
     __device__ void PT_barrier_gradient_hessian(Vector12&      G,
@@ -78,6 +124,175 @@ namespace sym::ipc_contact
         // H = \frac{\partial^2 B}{\partial D^2} \frac{\partial D}{\partial x} \frac{\partial D}{\partial x}^T + \frac{\partial B}{\partial D} \frac{\partial^2 D}{\partial x^2}
         //$$
         H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
+    }
+
+    __device__ void PT_friction_gradient_hessian(Vector12&      G,
+                                                 Matrix12x12&   H,
+                                                 Float          kappa,
+                                                 Float          squared_d_hat,
+                                                 Float          mu,
+                                                 Float          dt,
+                                                 const Vector3& P,
+                                                 const Vector3& T0,
+                                                 const Vector3& T1,
+                                                 const Vector3& T2,
+                                                 const Vector3& prev_P,
+                                                 const Vector3& prev_T0,
+                                                 const Vector3& prev_T1,
+                                                 const Vector3& prev_T2,
+                                                 Float          eps_v)
+    {
+        using namespace muda::distance;
+        Float D;
+        point_triangle_distance(prev_P, prev_T0, prev_T1, prev_T2, D);
+
+        Vector12 GradD;
+        point_triangle_distance_gradient(prev_P, prev_T0, prev_T1, prev_T2, GradD);
+
+        Float dBdD;
+        dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
+
+        Float lam = -dBdD * GradD.head(3).norm();
+        Vector3 n =  (T0 - T1).cross(T0 - T2);
+        Vector3 normal = n / n.norm();
+        Eigen::Matrix<Float, 6, 3> Tk;
+        Eigen::Matrix<Float, 3, 3> I = Eigen::Matrix<Float, 3, 3>::Identity();
+        Tk.block(0, 0, 3, 3) = I - normal * normal.transpose();
+        Tk.block(3, 0, 3, 3) = normal * normal.transpose() - I;
+        Vector3 v1 = (P - prev_P) / dt;
+
+        // suppose P0 = t(0) * T0 + t(1) * T1 + t(2) * T2
+        Eigen::Matrix<Float, 3, 2> base;
+        base << T1 - T0, T2 - T0;
+        Eigen::Matrix<Float, 2, 2> Lhs = base.transpose() * base;
+        Vector2 rhs = base.transpose() * (P - T0);
+        Eigen::Matrix<Float, 2, 2> Lhs_inv;
+        Float det = Lhs(0, 0) * Lhs(1, 1) - Lhs(0, 1) * Lhs(1, 0);
+        Lhs_inv << Lhs(1, 1) / det, -Lhs(0, 1) / det, -Lhs(1, 0) / det, Lhs(0, 0) / det;
+        Vector2 t = Lhs_inv * rhs;
+        Float t1 = t(0);
+        Float t2 = t(1);
+        Float t0 = 1 - t1 - t2;
+        Eigen::Vector<Float, 6> V;
+        V << v1, t0 * (T0 - prev_T0) / dt + t1 * (T1 - prev_T1) / dt + t2 * (T2 - prev_T2) / dt;
+        for (int i = 0; i < 6; i++) {
+            // cout << "V(" << i << "): " << V(i) << "\n";
+        }
+        Vector3 vk = Tk.transpose() * V;
+        Float y = vk.norm() * dt;
+        cout << "y: " << y << "\n";
+        Eigen::Vector<Float, 6> dFdV;
+        dFrictionEnergydV(dFdV, lam * mu, Tk,  eps_v, dt, vk);
+        Vector3 test;
+        test << 1e-10, 1e-10, 1e-10;
+        Float E1 = PT_friction_energy(kappa, squared_d_hat, mu, dt, P + test, T0, T1, T2, prev_P, prev_T0, prev_T1, prev_T2, eps_v);
+        Float E2 = PT_friction_energy(kappa, squared_d_hat, mu, dt, P - test, T0, T1, T2, prev_P, prev_T0, prev_T1, prev_T2, eps_v);
+        Float num_diff = (E1 - E2) / 2;
+        for (int i = 0; i < 6; i++) {
+            cout << "dFdV(" << i << "): " << dFdV(i) << "\n";
+        }
+        Vector6 test6;
+        test6 << 1e-8, 1e-8, 1e-8, 0, 0, 0;
+        Float E3;
+        Float y1 = (Tk.transpose() * (V + test6)).norm() * dt;
+        cout << "lam_: " << lam << "\n";
+        cout << "y1: " << y1 << "\n";
+        FrictionEnergy(E3, lam * mu, eps_v, dt, y1);
+        Float E4;
+        Float y2 = (Tk.transpose() * (V - test6)).norm() * dt;
+        cout << "y2: " << y2 << "\n";
+        FrictionEnergy(E4, lam * mu, eps_v, dt, y2);
+        cout << "E1: " << E1 << "\n";
+        cout << "E2: " << E2 << "\n";
+        cout << "E3: " << E3 << "\n";
+        cout << "E4: " << E4 << "\n";
+        Eigen::Matrix<Float, 6, 12> GradV;
+        GradV.block(0, 0, 3, 3) = I / dt;
+        GradV.block(3, 3, 3, 3) = I * t0 / dt;
+        GradV.block(3, 6, 3, 3) = I * t1 / dt;
+        GradV.block(3, 9, 3, 3) = I * t2 / dt;
+        Eigen::Matrix<Float, 12, 6> GradV_transpose = GradV.transpose();
+        for (int i = 0; i < 12; i++) {
+            for (int j = 0; j < 6; j++) {
+            // cout << "GradV_transpose(" << i << ", " << j << "): " << GradV_transpose(i, j) << "\n";
+            }
+        }
+        
+        for (int i = 0; i < 12; i++) {
+            G(i) = 0;
+            for (int j = 0; j < 6; j++) {
+                G(i) += GradV_transpose(i, j) * dFdV(j);
+                cout << "G(" << i << "): " << G(i) << "\n";
+            }
+        }
+        Float ana_diff = G(0) * test(0) + G(1) * test(1) + G(2) * test(2);
+        Float ana_diff1 = dFdV.dot(test6);
+        Float num_diff1 = (E3 - E4) / 2;
+        cout << "ana_diff1: " << ana_diff1 << "\n";
+        cout << "num_diff1: " << num_diff1 << "\n";
+        cout << "num_diff: " << num_diff << "\n";
+        cout << "ana_diff: " << ana_diff << "\n";
+        cout << "num_diff - ana_diff: " << num_diff - ana_diff << "\n";
+        // G = GradV_transpose * dFdV;
+        for (int i = 0; i < 6; i++) {
+            // cout << "G_(" << i << "): " << G(i) << "\n";
+        }
+        for (int i = 0; i < 6; i++) {
+            // cout << "dFdV(i): " << dFdV(i) << "\n";
+        }
+
+        Eigen::Matrix<Float, 6, 6> ddFddV;
+        ddFrictionEnergyddV(ddFddV, lam * mu, Tk, eps_v, dt, vk);
+        Vector3 offset = T0 - P + base * t;
+        Eigen::Matrix<Float, 2, 3> dtdP = Lhs_inv * base.transpose();
+        Eigen::Matrix<Float, 2, 3> dtdT1 = -Lhs_inv.col(0) * offset.transpose() - t1 * dtdP;
+        Eigen::Matrix<Float, 2, 3> dtdT2 = -Lhs_inv.col(1) * offset.transpose() - t2 * dtdP;
+        Eigen::Matrix<Float, 2, 3> dtdT0 = -dtdP - dtdT1 - dtdT2;
+        Vector3 dt0dP = (-dtdP.row(0) - dtdP.row(1)).transpose();
+        Vector3 dt0dT1 = (-dtdT1.row(0) - dtdT1.row(1)).transpose();
+        Vector3 dt0dT2 = (-dtdT2.row(0) - dtdT2.row(1)).transpose();
+        Vector3 dt0dT0 = (-dtdT0.row(0) - dtdT0.row(1)).transpose();
+        // Grad(GradV.transpose()) * dFdV
+        H.block(0, 0, 3, 12) = Eigen::Matrix<Float, 3, 12>::Zero();
+        H.block(3, 0, 3, 3) = dFdV.tail(3) * dt0dP.transpose() / dt;
+        H.block(3, 3, 3, 3) = dFdV.tail(3) * dt0dT0.transpose() / dt;
+        H.block(3, 6, 3, 3) = dFdV.tail(3) * dt0dT1.transpose() / dt;
+        H.block(3, 9, 3, 3) = dFdV.tail(3) * dt0dT2.transpose() / dt;
+        H.block(6, 0, 3, 3) = dFdV.tail(3) * dtdP.row(0) / dt;
+        H.block(6, 3, 3, 3) = dFdV.tail(3) * dtdT0.row(0) / dt;
+        H.block(6, 6, 3, 3) = dFdV.tail(3) * dtdT1.row(0) / dt;
+        H.block(6, 9, 3, 3) = dFdV.tail(3) * dtdT2.row(0) / dt;
+        H.block(9, 0, 3, 3) = dFdV.tail(3) * dtdP.row(1) / dt;
+        H.block(9, 3, 3, 3) = dFdV.tail(3) * dtdT0.row(1) / dt;
+        H.block(9, 6, 3, 3) = dFdV.tail(3) * dtdT1.row(1) / dt;
+        H.block(9, 9, 3, 3) = dFdV.tail(3) * dtdT2.row(1) / dt;
+        cout << "H(0,0): " << H(0, 0) << "\n";
+        for (int i=0; i < 6; i++) {
+            for (int j=0; j < 6; j++) {
+                //cout << "ddFddV(" << i << ", " << j << "): " << ddFddV(i, j) << "\n";
+            }
+        }
+        for (int i = 0; i < 6; i++) {
+            for (int j = 0; j < 12; j++) {
+                // cout << "GradV(" << i << ", " << j << "): " << GradV(i, j) << "\n";
+            }
+        }
+        Eigen::Matrix<Float, 6, 12> mat = Eigen::Matrix<Float, 6, 12>::Zero();
+        for (int i = 0; i < 6; i++) {
+            for (int j = 0; j < 12; j++) {
+                for (int k = 0; k < 6; k++) {
+                    mat(i, j) += ddFddV(i, k) * GradV(k, j);
+                }
+            }
+        }
+        for (int i = 0; i < 12; i++) {
+            for (int j = 0; j < 12; j++) {
+               for (int k = 6; k < 6; k++) {
+                   H(i, j) += GradV.transpose()(k, i) * mat(k, j);
+               }
+            }
+        }
+        cout << "H+(0, 0): " << H(0, 0) << "\n";
     }
 
     __device__ Float EE_barrier_energy(Float          kappa,
@@ -310,7 +525,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                 prev_Ps = info.prev_positions().viewer().name("prev_Ps"),  // for friction calculation
                 eps_v = info.eps_velocity(),
                 d_hat = info.d_hat(),
-                dt    = info.dt(),] __device__(int i) mutable
+                dt    = info.dt()] __device__(int i) mutable
                {
                    const auto& PT = PTs(i);
 
@@ -341,9 +556,12 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                                D,
                                D_hat);
 
-                   Es(i) = sym::ipc_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2);
-
-                   //cout << "PT energy: " << Es(i) << "\n";
+                   Es(i) = sym::ipc_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2) + sym::ipc_contact::PT_friction_energy(
+                       kappa, D_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+                   // cout << "sym::ipc_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2): " << sym::ipc_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2) << "\n";
+                   cout << "sym::ipc_contact::PT_friction_energy(kappa, D_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v): " << sym::ipc_contact::PT_friction_energy(
+                       kappa, D_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v) << "\n";
+                   // cout << "PT energy: " << Es(i) << "\n";
                });
 
     // Compute Edge-Edge energy
@@ -521,8 +739,37 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    // Use this to compute friction
                    auto friction_rate = table(cid_L, cid_R).mu;
 
+                   Vector12 G_contact;
+                   Vector12 G_friction;
+                   Matrix12x12 H_contact;
+                   Matrix12x12 H_friction;
                    sym::ipc_contact::PT_barrier_gradient_hessian(
-                       Gs(i), Hs(i), kappa, d_hat * d_hat, P, T0, T1, T2);
+                       G_contact, H_contact, kappa, d_hat * d_hat, P, T0, T1, T2);
+                   Vector3 test;
+                   test << 1e-6, 1e-6, 1e-6;
+                   Float E1 = sym::ipc_contact::PT_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P + test, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+                   Float E2 = sym::ipc_contact::PT_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P - test, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+
+                   sym::ipc_contact::PT_friction_gradient_hessian(
+                          G_friction, H_friction, kappa, d_hat * d_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+                   for (int j = 0; j < 12; ++j)
+                   {
+                       // cout << "G_contact(" << j << "): " << G_friction(j) << "\n";
+                       for (int k = 0; k < 12; ++k)
+                       {
+                           // cout << "H_contact(" << j << ", " << k << "): " << H_friction(j, k) << "\n";
+                       }
+                   }
+                   Float numerical_diff = (E1 - E2) / 2;
+                     cout << "numerical_diff: " << numerical_diff << "\n";
+                   Float analytical_diff = G_friction(0) * test(0) + G_friction(1) * test(1) + G_friction(2) * test(2);
+                     cout << "analytical_diff: " << analytical_diff << "\n";
+                   cout << "numerical_diff - analytical_diff: " << numerical_diff - analytical_diff << "\n";
+                   cout << "numerical_diff / analytical_diff: " << numerical_diff / analytical_diff << "\n";
+
+                   Gs(i) = G_contact + G_friction;
+                   // Hs(i) = H_contact + H_friction;
+                   Hs(i) = Eigen::Matrix<Float, 12, 12>::Identity();
                });
 
     // Compute Edge-Edge Gradient and Hessian
