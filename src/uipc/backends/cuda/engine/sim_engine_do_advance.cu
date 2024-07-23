@@ -216,7 +216,7 @@ void SimEngine::do_advance()
     {
         pipeline();
     }
-    catch(const SimEngineException e)
+    catch(const SimEngineException& e)
     {
         spdlog::error("Exception: {}", e.what());
     }

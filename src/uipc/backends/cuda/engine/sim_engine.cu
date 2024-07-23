@@ -25,7 +25,12 @@ SimEngine::SimEngine()
     {
         using namespace muda;
 
-        spdlog::info("Cuda Backend Init Success.");
+        spdlog::info("Initializing Cuda Backend...");
+
+        cudaDeviceProp prop;
+        cudaGetDeviceProperties(&prop, 0);
+        spdlog::info("Device: {}", prop.name);
+        spdlog::info("Compute Capability: {}.{}", prop.major, prop.minor);
 
         auto viewer_ptr       = device_logger_viewer_ptr();
         m_device_impl->logger = make_unique<muda::Logger>(viewer_ptr);
@@ -53,8 +58,9 @@ SimEngine::SimEngine()
         // if in debug mode, sync all the time to check for errors
         muda::Debug::debug_sync_all(true);
 #endif
+        spdlog::info("Cuda Backend Init Success.");
     }
-    catch(SimEngineException& e)
+    catch(const SimEngineException& e)
     {
         spdlog::error("Cuda Backend Init Failed: {}", e.what());
     }

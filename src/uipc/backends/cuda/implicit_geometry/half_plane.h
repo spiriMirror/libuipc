@@ -30,8 +30,8 @@ class HalfPlane : public SimSystem
         muda::DeviceBuffer<Vector3> positions;
     };
 
-    //const Vector3& normal() const;
-    //const Vector3& position() const;
+    muda::CBufferView<Vector3> normals() const;
+    muda::CBufferView<Vector3> positions() const;
 
   protected:
     virtual void do_build() override;

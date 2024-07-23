@@ -6,9 +6,11 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(IPCSimplexContact);
 
-void IPCSimplexContact::do_build(BuildInfo& info) {}
+void IPCSimplexContact::do_build(BuildInfo& info)
+{
+}
 
-namespace sym::ipc_contact
+namespace sym::ipc_simplex_contact
 {
 #include "sym/ipc_contact.inl"
 
@@ -505,7 +507,7 @@ namespace sym::ipc_contact
         //$$
         H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
     }
-}  // namespace sym::ipc_contact
+}  // namespace sym::ipc_simplex_contact
 
 
 void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
@@ -556,12 +558,10 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                                D,
                                D_hat);
 
-                   Es(i) = sym::ipc_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2) + sym::ipc_contact::PT_friction_energy(
-                       kappa, D_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
-                   // cout << "sym::ipc_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2): " << sym::ipc_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2) << "\n";
-                   cout << "sym::ipc_contact::PT_friction_energy(kappa, D_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v): " << sym::ipc_contact::PT_friction_energy(
-                       kappa, D_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v) << "\n";
-                   // cout << "PT energy: " << Es(i) << "\n";
+                   Es(i) = sym::ipc_simplex_contact::PT_barrier_energy(
+                       kappa, D_hat, P, T0, T1, T2);
+
+                   //cout << "PT energy: " << Es(i) << "\n";
                });
 
     // Compute Edge-Edge energy
@@ -613,7 +613,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                                D,
                                D_hat);
 
-                   Es(i) = sym::ipc_contact::EE_barrier_energy(
+                   Es(i) = sym::ipc_simplex_contact::EE_barrier_energy(
                        kappa, D_hat, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
                });
 
@@ -658,7 +658,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                                D,
                                D_hat);
 
-                   Es(i) = sym::ipc_contact::PE_barrier_energy(kappa, D_hat, P, E0, E1);
+                   Es(i) = sym::ipc_simplex_contact::PE_barrier_energy(kappa, D_hat, P, E0, E1);
                });
 
     // Compute Point-Point energy
@@ -700,7 +700,7 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                                D,
                                D_hat);
 
-                   Es(i) = sym::ipc_contact::PP_barrier_energy(kappa, D_hat, P0, P1);
+                   Es(i) = sym::ipc_simplex_contact::PP_barrier_energy(kappa, D_hat, P0, P1);
                });
 }
 
@@ -808,7 +808,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    // Use this to compute friction
                    auto friction_rate = table(cid_L, cid_R).mu;
 
-                   sym::ipc_contact::EE_barrier_gradient_hessian(
+                   sym::ipc_simplex_contact::EE_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
                });
 
@@ -841,7 +841,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    // Use this to compute friction
                    auto friction_rate = table(cid_L, cid_R).mu;
 
-                   sym::ipc_contact::PE_barrier_gradient_hessian(
+                   sym::ipc_simplex_contact::PE_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, P, E0, E1);
                });
 
@@ -873,7 +873,7 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    // Use this to compute friction
                    auto friction_rate = table(cid_L, cid_R).mu;
 
-                   sym::ipc_contact::PP_barrier_gradient_hessian(
+                   sym::ipc_simplex_contact::PP_barrier_gradient_hessian(
                        Gs(i), Hs(i), kappa, d_hat * d_hat, P0, P1);
                });
 }

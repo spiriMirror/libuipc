@@ -3,14 +3,14 @@
 
 namespace uipc::backend
 {
-SimSystemAutoRegister::SimSystemAutoRegister(std::function<U<ISimSystem>(SimEngine&)>&& reg)
+SimSystemAutoRegister::SimSystemAutoRegister(Creator&& reg)
 {
-    internal_data().m_entries.push_back(std::move(reg));
+    creators().entries.push_back(std::move(reg));
 }
 
-SimSystemAutoRegisterInternalData& SimSystemAutoRegister::internal_data()
+auto SimSystemAutoRegister::creators() -> Creators&
 {
-    static SimSystemAutoRegisterInternalData data;
+    static Creators data;
     return data;
 }
-}  // namespace uipc::backend::cuda
+}  // namespace uipc::backend

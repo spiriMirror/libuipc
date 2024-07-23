@@ -46,7 +46,8 @@ TEST_CASE("10_abd_ground_contact", "[abd]")
             std::transform(Vs.begin(),
                            Vs.end(),
                            Vs.begin(),
-                           [&](auto& v) { return v * 0.3; });
+                           [&](auto& v)
+                           { return v * 0.3 + Vector3::UnitY() * 0.2; });
 
             auto tet = tetmesh(Vs, Ts);
 
@@ -58,7 +59,7 @@ TEST_CASE("10_abd_ground_contact", "[abd]")
         }
 
         // create a ground geometry
-        ImplicitGeometry half_plane = ground(-1.0);
+        ImplicitGeometry half_plane = ground(0.0);
 
         auto ground = scene.objects().create("ground");
         {

@@ -32,6 +32,7 @@ void SimplexContactConstitution::do_compute_energy(GlobalContactManager::EnergyI
     auto count_4 = (m_impl.PT_count + m_impl.EE_count);
     auto count_3 = m_impl.PE_count;
     auto count_2 = m_impl.PP_count;
+
     m_impl.energies.resize(count_4 + count_3 + count_2);
 
     SizeT offset            = 0;
@@ -70,7 +71,6 @@ void SimplexContactConstitution::do_report_extent(GlobalContactManager::ContactE
 
     info.gradient_count(contact_gradient_count);
     info.hessian_count(contact_hessian_count);
-
 
     m_impl.loose_resize(m_impl.PT_EE_indices, count_4);
     m_impl.loose_resize(m_impl.PT_EE_gradients, count_4);

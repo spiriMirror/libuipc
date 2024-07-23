@@ -5,6 +5,7 @@
 #include <global_geometry/global_surface_manager.h>
 #include <contact_system/global_contact_manager.h>
 #include <muda/buffer/device_buffer.h>
+#include <implicit_geometry/half_plane.h>
 
 namespace uipc::backend::cuda
 {
@@ -25,14 +26,22 @@ class HalfPlaneDCDFilter : public SimSystem
 
         Float d_hat() const noexcept;
 
+        muda::CBufferView<Vector3> plane_normals() const noexcept;
+        muda::CBufferView<Vector3> plane_positions() const noexcept;
+
         muda::CBufferView<Vector3> positions() const noexcept;
         muda::CBufferView<IndexT>  surf_vertices() const noexcept;
 
-        void Ps(muda::CBufferView<IndexT> Ps) noexcept;
+        void PHs(muda::CBufferView<Vector2i> Ps) noexcept;
 
       private:
         friend class GlobalDCDFilter;
         Impl* m_impl;
+    };
+
+    class BuildInfo
+    {
+      public:
     };
 
     class Impl
@@ -41,14 +50,16 @@ class HalfPlaneDCDFilter : public SimSystem
         GlobalVertexManager* global_vertex_manager = nullptr;
         GlobalSimpicialSurfaceManager* global_simplicial_surface_manager = nullptr;
         GlobalContactManager* global_contact_manager = nullptr;
+        HalfPlane*            half_plane             = nullptr;
 
-        muda::CBufferView<IndexT> Ps;
+        muda::CBufferView<Vector2i> PHs;
     };
 
-    muda::CBufferView<IndexT> Ps() noexcept;
+    muda::CBufferView<Vector2i> PHs() noexcept;
 
   protected:
     virtual void do_detect(FilterInfo& info) = 0;
+    virtual void do_build(BuildInfo& info){};
 
   private:
     friend class GlobalDCDFilter;

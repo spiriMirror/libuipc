@@ -19,10 +19,12 @@ Json Scene::default_config() noexcept
     j["line_search"]["report_energy"] = false;
     j["line_search"]["max_iter"]      = 64;
 
-    j["contact"]["enable"]      = true;
-    j["contact"]["contitution"] = "ipc";
-    j["contact"]["d_hat"]       = 0.01;
+    j["contact"]["enable"]       = true;
+    j["contact"]["contitution"]  = "ipc";
+    j["contact"]["d_hat"]        = 0.01;
     j["contact"]["eps_velocity"] = 0.01;
+
+    j["sanity_check"]["enable"] = true;
 
     // something that is unofficial
     j["extras"] = Json::object();
@@ -31,26 +33,26 @@ Json Scene::default_config() noexcept
 
 Scene::Scene(const Json& config)
 {
-    m_info = config;
+    m_impl.info = config;
 }
 
 ContactTabular& Scene::contact_tabular() noexcept
 {
-    return m_contact_tabular;
+    return m_impl.contact_tabular;
 }
 
 const ContactTabular& Scene::contact_tabular() const noexcept
 {
-    return m_contact_tabular;
+    return m_impl.contact_tabular;
 }
 
 ConstitutionTabular& Scene::constitution_tabular() noexcept
 {
-    return m_constitution_tabular;
+    return m_impl.constitution_tabular;
 }
 const ConstitutionTabular& Scene::constitution_tabular() const noexcept
 {
-    return m_constitution_tabular;
+    return m_impl.constitution_tabular;
 }
 
 auto Scene::objects() noexcept -> Objects
@@ -75,13 +77,13 @@ auto Scene::geometries() const noexcept -> CGeometries
 
 const Json& Scene::info() const noexcept
 {
-    return m_info;
+    return m_impl.info;
 }
 
 void Scene::solve_pending() noexcept
 {
-    m_geometries.solve_pending();
-    m_rest_geometries.solve_pending();
+    m_impl.geometries.solve_pending();
+    m_impl.rest_geometries.solve_pending();
 }
 
 // ----------------------------------------------------------------------------
@@ -89,18 +91,18 @@ void Scene::solve_pending() noexcept
 // ----------------------------------------------------------------------------
 P<Object> Scene::Objects::create(std::string_view name) &&
 {
-    auto id = m_scene.m_objects.m_next_id;
-    return m_scene.m_objects.emplace(Object{m_scene, id, name});
+    auto id = m_scene.m_impl.objects.m_next_id;
+    return m_scene.m_impl.objects.emplace(Object{m_scene, id, name});
 }
 
 P<Object> Scene::Objects::find(IndexT id) && noexcept
 {
-    return m_scene.m_objects.find(id);
+    return m_scene.m_impl.objects.find(id);
 }
 
 void Scene::Objects::destroy(IndexT id) &&
 {
-    auto obj = m_scene.m_objects.find(id);
+    auto obj = m_scene.m_impl.objects.find(id);
     if(!obj)
     {
         UIPC_WARN_WITH_LOCATION("Trying to destroy non-existing object ({}), ignored.", id);
@@ -111,33 +113,33 @@ void Scene::Objects::destroy(IndexT id) &&
 
     for(auto geo_id : geo_ids)
     {
-        if(!m_scene.m_started)
+        if(!m_scene.m_impl.started)
         {
-            m_scene.m_geometries.destroy(geo_id);
-            m_scene.m_rest_geometries.destroy(geo_id);
+            m_scene.m_impl.geometries.destroy(geo_id);
+            m_scene.m_impl.rest_geometries.destroy(geo_id);
         }
         else
         {
-            m_scene.m_geometries.pending_destroy(geo_id);
-            m_scene.m_rest_geometries.pending_destroy(geo_id);
+            m_scene.m_impl.geometries.pending_destroy(geo_id);
+            m_scene.m_impl.rest_geometries.pending_destroy(geo_id);
         }
     }
-    m_scene.m_objects.destroy(id);
+    m_scene.m_impl.objects.destroy(id);
 }
 
 SizeT Scene::Objects::size() const noexcept
 {
-    return m_scene.m_objects.size();
+    return m_scene.m_impl.objects.size();
 }
 
 P<const Object> Scene::CObjects::find(IndexT id) && noexcept
 {
-    return m_scene.m_objects.find(id);
+    return m_scene.m_impl.objects.find(id);
 }
 
 SizeT Scene::CObjects::size() const noexcept
 {
-    return m_scene.m_objects.size();
+    return m_scene.m_impl.objects.size();
 }
 
 Scene::Objects::Objects(Scene& scene) noexcept
