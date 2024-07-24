@@ -1,7 +1,10 @@
 import sys
-import os 
+import os
+import json
 
-sys.path.append(os.path.dirname(__file__) + "/../../CMakeBuild/Release/bin")
-print(sys.path)
+with open(os.path.dirname(__file__) + '/../output/build_info.json') as f:
+    build_info = json.load(f)
+
+sys.path.append(build_info['CMAKE_BINARY_DIR'] + 'Release/bin')
 
 from pyuipc import add 
