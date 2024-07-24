@@ -13,6 +13,7 @@ void IPCSimplexContact::do_build(BuildInfo& info)
 namespace sym::ipc_simplex_contact
 {
 #include "sym/ipc_contact.inl"
+#include "sym/ipc_friction.inl"
 
     __device__ Float PT_barrier_energy(Float          kappa,
                                        Float          squared_d_hat,
@@ -48,7 +49,13 @@ namespace sym::ipc_simplex_contact
 
         Float D;
         point_triangle_distance(prev_P, prev_T0, prev_T1, prev_T2, D);
-
+        Float D_now;
+        point_triangle_distance(P, T0, T1, T2, D_now);
+        cout << "D*D - squared_d_hat: " << D * D - squared_d_hat << "\n";
+        cout << "D_now*D_now - squared_d_hat: " << D_now * D_now - squared_d_hat << "\n";
+        if (D * D > squared_d_hat) {
+            return 0;
+        }
         Vector12 GradD;
         point_triangle_distance_gradient(prev_P, prev_T0, prev_T1, prev_T2, GradD);
 
@@ -60,25 +67,30 @@ namespace sym::ipc_simplex_contact
         Vector3 normal = n / n.norm();
         Eigen::Matrix<Float, 6, 3> Tk;
         Eigen::Matrix<Float, 3, 3> I = Eigen::Matrix<Float, 3, 3>::Identity();
-        Tk.block(0, 0, 3, 3) = I - normal * normal.transpose();
-        Tk.block(3, 0, 3, 3) = normal * normal.transpose() - I;
+        Tk.block<3, 3>(0, 0) = I - normal * normal.transpose();
+        Tk.block<3, 3>(3, 0) = normal * normal.transpose() - I;
         Vector3 v1 = (P - prev_P) / dt;
 
         // suppose P0 = t(0) * T0 + t(1) * T1 + t(2) * T2
         Eigen::Matrix<Float, 3, 2> base;
-        base << T1 - T0, T2 - T0;
+        base.segment<3, 1>(0, 0) = T1 - T0;
+        base.segment<3, 1>(0, 1) = T2 - T0;
         Eigen::Matrix<Float, 2, 2> Lhs = base.transpose() * base;
         Vector2 rhs = base.transpose() * (P - T0);
         Eigen::Matrix<Float, 2, 2> Lhs_inv;
         Float det = Lhs(0, 0) * Lhs(1, 1) - Lhs(0, 1) * Lhs(1, 0);
-        Lhs_inv << Lhs(1, 1) / det, -Lhs(0, 1) / det, -Lhs(1, 0) / det, Lhs(0, 0) / det;
+        Lhs_inv(0) = Lhs(1, 1) / det;
+        Lhs_inv(1) = -Lhs(0, 1) / det;
+        Lhs_inv(2) = -Lhs(1, 0) / det;
+        Lhs_inv(3) = Lhs(0, 0) / det;
         Vector2 t = Lhs_inv * rhs;
         Float t1 = t(0);
         Float t2 = t(1);
         Float t0 = 1 - t1 - t2;
 
         Eigen::Vector<Float, 6> V;
-        V  << v1, t0 * (T0 - prev_T0) / dt + t1 * (T1 - prev_T1) / dt + t2 * (T2 - prev_T2) / dt;
+        V.segment<3>(0) = v1;
+        V.segment<3>(3) = t0 * (T0 - prev_T0) / dt + t1 * (T1 - prev_T1) / dt + t2 * (T2 - prev_T2) / dt;
         Vector3 vk = Tk.transpose() * V;
         Float y = vk.norm() * dt;
         // cout << "lam: " << lam << "\n";
@@ -147,7 +159,11 @@ namespace sym::ipc_simplex_contact
         using namespace muda::distance;
         Float D;
         point_triangle_distance(prev_P, prev_T0, prev_T1, prev_T2, D);
-
+        if (D * D > squared_d_hat) {
+            G.setZero();
+            H = Matrix12x12::Zero();
+            return;
+        }
         Vector12 GradD;
         point_triangle_distance_gradient(prev_P, prev_T0, prev_T1, prev_T2, GradD);
 
@@ -159,24 +175,29 @@ namespace sym::ipc_simplex_contact
         Vector3 normal = n / n.norm();
         Eigen::Matrix<Float, 6, 3> Tk;
         Eigen::Matrix<Float, 3, 3> I = Eigen::Matrix<Float, 3, 3>::Identity();
-        Tk.block(0, 0, 3, 3) = I - normal * normal.transpose();
-        Tk.block(3, 0, 3, 3) = normal * normal.transpose() - I;
+        Tk.block<3, 3>(0, 0) = I - normal * normal.transpose();
+        Tk.block<3, 3>(3, 0) = normal * normal.transpose() - I;
         Vector3 v1 = (P - prev_P) / dt;
 
         // suppose P0 = t(0) * T0 + t(1) * T1 + t(2) * T2
         Eigen::Matrix<Float, 3, 2> base;
-        base << T1 - T0, T2 - T0;
+        base.segment<3, 1>(0, 0) = T1 - T0;
+        base.segment<3, 1>(0, 1) = T2 - T0;
         Eigen::Matrix<Float, 2, 2> Lhs = base.transpose() * base;
         Vector2 rhs = base.transpose() * (P - T0);
         Eigen::Matrix<Float, 2, 2> Lhs_inv;
         Float det = Lhs(0, 0) * Lhs(1, 1) - Lhs(0, 1) * Lhs(1, 0);
-        Lhs_inv << Lhs(1, 1) / det, -Lhs(0, 1) / det, -Lhs(1, 0) / det, Lhs(0, 0) / det;
+        Lhs_inv(0) = Lhs(1, 1) / det;
+        Lhs_inv(1) = -Lhs(0, 1) / det;
+        Lhs_inv(2) = -Lhs(1, 0) / det;
+        Lhs_inv(3) = Lhs(0, 0) / det;
         Vector2 t = Lhs_inv * rhs;
         Float t1 = t(0);
         Float t2 = t(1);
         Float t0 = 1 - t1 - t2;
         Eigen::Vector<Float, 6> V;
-        V << v1, t0 * (T0 - prev_T0) / dt + t1 * (T1 - prev_T1) / dt + t2 * (T2 - prev_T2) / dt;
+        V.segment<3>(0) = v1;
+        V.segment<3>(3) = t0 * (T0 - prev_T0) / dt + t1 * (T1 - prev_T1) / dt + t2 * (T2 - prev_T2) / dt;
         for (int i = 0; i < 6; i++) {
             // cout << "V(" << i << "): " << V(i) << "\n";
         }
@@ -186,15 +207,19 @@ namespace sym::ipc_simplex_contact
         Eigen::Vector<Float, 6> dFdV;
         dFrictionEnergydV(dFdV, lam * mu, Tk,  eps_v, dt, vk);
         Vector3 test;
-        test << 1e-10, 1e-10, 1e-10;
+        test(0) = 1e-8;
+        test(1) = 1e-8;
+        test(2) = 1e-8;
         Float E1 = PT_friction_energy(kappa, squared_d_hat, mu, dt, P + test, T0, T1, T2, prev_P, prev_T0, prev_T1, prev_T2, eps_v);
         Float E2 = PT_friction_energy(kappa, squared_d_hat, mu, dt, P - test, T0, T1, T2, prev_P, prev_T0, prev_T1, prev_T2, eps_v);
         Float num_diff = (E1 - E2) / 2;
         for (int i = 0; i < 6; i++) {
             cout << "dFdV(" << i << "): " << dFdV(i) << "\n";
         }
-        Vector6 test6;
-        test6 << 1e-8, 1e-8, 1e-8, 0, 0, 0;
+        Vector6 test6 = Vector6::Zero();
+        test6(0) = 1e-8;
+        test6(1) = 1e-8;
+        test6(2) = 1e-8;
         Float E3;
         Float y1 = (Tk.transpose() * (V + test6)).norm() * dt;
         cout << "lam_: " << lam << "\n";
@@ -209,10 +234,10 @@ namespace sym::ipc_simplex_contact
         cout << "E3: " << E3 << "\n";
         cout << "E4: " << E4 << "\n";
         Eigen::Matrix<Float, 6, 12> GradV;
-        GradV.block(0, 0, 3, 3) = I / dt;
-        GradV.block(3, 3, 3, 3) = I * t0 / dt;
-        GradV.block(3, 6, 3, 3) = I * t1 / dt;
-        GradV.block(3, 9, 3, 3) = I * t2 / dt;
+        GradV.block<3, 3>(0, 0) = I / dt;
+        GradV.block<3, 3>(3, 3) = I * t0 / dt;
+        GradV.block<3, 3>(3, 6) = I * t1 / dt;
+        GradV.block<3, 3>(3, 9) = I * t2 / dt;
         Eigen::Matrix<Float, 12, 6> GradV_transpose = GradV.transpose();
         for (int i = 0; i < 12; i++) {
             for (int j = 0; j < 6; j++) {
@@ -558,9 +583,10 @@ void IPCSimplexContact::do_compute_energy(EnergyInfo& info)
                                D,
                                D_hat);
 
-                   Es(i) = sym::ipc_simplex_contact::PT_barrier_energy(
-                       kappa, D_hat, P, T0, T1, T2);
-
+                   Es(i) = sym::ipc_simplex_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2) + 
+                            sym::ipc_simplex_contact::PT_friction_energy(kappa, D_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+                   cout << "PT_barrier_energy: " << sym::ipc_simplex_contact::PT_barrier_energy(kappa, D_hat, P, T0, T1, T2) << "\n";
+                   cout << "PT_friction_energy: " << sym::ipc_simplex_contact::PT_friction_energy(kappa, D_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v) << "\n";
                    //cout << "PT energy: " << Es(i) << "\n";
                });
 
@@ -743,14 +769,16 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    Vector12 G_friction;
                    Matrix12x12 H_contact;
                    Matrix12x12 H_friction;
-                   sym::ipc_contact::PT_barrier_gradient_hessian(
+                   sym::ipc_simplex_contact::PT_barrier_gradient_hessian(
                        G_contact, H_contact, kappa, d_hat * d_hat, P, T0, T1, T2);
                    Vector3 test;
-                   test << 1e-6, 1e-6, 1e-6;
-                   Float E1 = sym::ipc_contact::PT_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P + test, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
-                   Float E2 = sym::ipc_contact::PT_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P - test, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+                   test(0) = 1e-6;
+                   test(1) = 1e-6;
+                   test(2) = 1e-6;
+                   Float E1 = sym::ipc_simplex_contact::PT_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P + test, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+                   Float E2 = sym::ipc_simplex_contact::PT_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P - test, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
 
-                   sym::ipc_contact::PT_friction_gradient_hessian(
+                   sym::ipc_simplex_contact::PT_friction_gradient_hessian(
                           G_friction, H_friction, kappa, d_hat * d_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
                    for (int j = 0; j < 12; ++j)
                    {
@@ -768,8 +796,12 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    cout << "numerical_diff / analytical_diff: " << numerical_diff / analytical_diff << "\n";
 
                    Gs(i) = G_contact + G_friction;
-                   // Hs(i) = H_contact + H_friction;
-                   Hs(i) = Eigen::Matrix<Float, 12, 12>::Identity();
+                   Hs(i) = H_contact + H_friction;
+                   cout << "G_contact: " << G_contact.norm() << "\n";
+                     cout << "G_friction: " << G_friction.norm() << "\n";
+                   cout << "H_contact: " << H_contact.norm() << "\n";
+                     cout << "H_friction: " << H_friction.norm() << "\n";
+                   // Hs(i) = Eigen::Matrix<Float, 12, 12>::Identity();
                });
 
     // Compute Edge-Edge Gradient and Hessian
