@@ -21,7 +21,7 @@ REGISTER_SIM_SYSTEM(AffineBodyDynamics);
 
 void AffineBodyDynamics::do_build()
 {
-    const auto& scene = engine().world().scene();
+    const auto& scene = world().scene();
     auto&       types = scene.constitution_tabular().types();
     if(types.find(world::ConstitutionType::AffineBody) == types.end())
     {
