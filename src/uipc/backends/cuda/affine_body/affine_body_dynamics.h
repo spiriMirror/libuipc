@@ -263,7 +263,7 @@ class AffineBodyDynamics : public SimSystem
         //$$
         //\tilde{\mathbf{q}}_{b}=\mathbf{q}_{b}^{t}+\Delta t \dot{\mathbf{q}}_{b}^{t}+\Delta t^{2} \mathbf{M}^{-1} \mathbf{f}_{b}^{t+1}
         //$$
-        //predicted m_q
+        //predicted q
         DeviceBuffer<Vector12> body_id_to_q_tilde;
         //tex: $$ \mathbf{q}^{t}_b $$
         DeviceBuffer<Vector12> body_id_to_q_prev;

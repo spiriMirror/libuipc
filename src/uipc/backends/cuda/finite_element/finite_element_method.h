@@ -5,6 +5,10 @@
 namespace uipc::backend::cuda
 {
 class FiniteElementConstitution;
+class FEM3DConstitution;
+class Codim2DConstitution;
+class Codim1DConstitution;
+class Codim0DConstitution;
 
 class FiniteElementMethod : public SimSystem
 {
@@ -38,42 +42,73 @@ class FiniteElementMethod : public SimSystem
     {
       public:
         void init(WorldVisitor& world);
+        void _init_constitutions();
         void _init_fem_geo_infos(WorldVisitor& world);
         void _build_on_host(WorldVisitor& world);
         void _build_on_device();
         void _download_geometry_to_host();
         void write_scene(WorldVisitor& world);
 
-
-        // core invariant data
-        vector<GeoInfo> fem_geo_infos;
-
+        // core invariant data:
+        vector<GeoInfo>                                    fem_geo_infos;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
 
+
+        // related data:
+        std::array<SizeT, 4> dim_geo_info_offsets;  // Map from dim to geo_info offset
+        std::array<SizeT, 4> dim_geo_info_counts;  // Map from dim to geo_info count
+        vector<FEM3DConstitution*>   fem_3d_constitutions;
+        vector<Codim2DConstitution*> codim_2d_constitutions;
+        vector<Codim1DConstitution*> codim_1d_constitutions;
+        vector<Codim0DConstitution*> codim_0d_constitutions;
+
+
+        // simulation data:
         vector<Vector3> h_positions;
+        vector<Vector3> h_mass;
 
         vector<IndexT>   h_codim_0ds;
         vector<Vector2i> h_codim_1ds;
         vector<Vector3i> h_codim_2ds;
         vector<Vector4i> h_tets;
 
-        muda::DeviceBuffer<Vector3> positions;
+        muda::DeviceBuffer<Vector3> x;        // Positions
+        muda::DeviceBuffer<Vector3> dx;       // Displacements
+        muda::DeviceBuffer<Vector3> x_temp;   // Safe Positions for line search
+        muda::DeviceBuffer<Vector3> v;        // Velocities
+        muda::DeviceBuffer<Vector3> x_tilde;  // Predicted Positions
+        muda::DeviceBuffer<Vector3> mass;     // Mass
 
-        // FEM 3D
-        muda::DeviceBuffer<Matrix12x12> H12x12;
-        muda::DeviceBuffer<Vector12>    G12;
+        // Kinetic Energy Per Vertex
+        muda::DeviceBuffer<Float> vertex_kinetic_energies;
+        // Elastic Potential Energy Per Element
+        muda::DeviceBuffer<Float> elastic_potential_energy;
 
-        // Codim 2D
-        muda::DeviceBuffer<Matrix9x9> H9x9;
-        muda::DeviceBuffer<Vector9>   G9;
 
-        // Codim 1D
-        muda::DeviceBuffer<Matrix6x6> H6x6;
-        muda::DeviceBuffer<Vector6>   G6;
+        //tex:
+        //material basis
+        //$$
+        // \begin{bmatrix}
+        // \bar{\mathbf{x}}_1 - \bar{\mathbf{x}}_0 & \bar{\mathbf{x}}_2 - \bar{\mathbf{x}}_0 & \bar{\mathbf{x}}_3 - \bar{\mathbf{x}}_0 \\
+        // \end{bmatrix}^{-1}
+        // $$
+        muda::DeviceBuffer<Matrix9x9> Dm_inv;
 
-        // Codim 0D
-        muda::DeviceBuffer<Matrix3x3> H3x3;
-        muda::DeviceBuffer<Vector3>   G3;
+        //tex: spatial basis
+        //$$
+        // \begin{bmatrix}
+        // \mathbf{x}_1 - \mathbf{x}_0 & \mathbf{x}_2 - \mathbf{x}_0 & \mathbf{x}_3 - \mathbf{x}_0 \\
+        // \end{bmatrix}
+        //$$
+        muda::DeviceBuffer<Matrix9x9> Ds;
+
+        //  Elastic Hessian and Gradient:
+        muda::DeviceBuffer<Matrix9x9> H9x9;  // FEM3D Elastic Hessian
+        muda::DeviceBuffer<Vector9>   G9;    // FEM3D Elastic Gradient
+        muda::DeviceBuffer<Matrix6x6> H6x6;  // Codim2D Elastic Hessian
+        muda::DeviceBuffer<Vector6>   G6;    // Codim2D Elastic Gradient
+        muda::DeviceBuffer<Matrix3x3> H3x3;  // Codim1D Elastic Hessian
+        muda::DeviceBuffer<Vector3>   G3;    // Codim1D Elastic Gradient
     };
 
   public:

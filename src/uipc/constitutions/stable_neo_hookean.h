@@ -11,7 +11,7 @@ class UIPC_CORE_API StableNeoHookean : public world::IConstitution
   public:
     StableNeoHookean(const Json& config = default_config()) noexcept;
 
-    void apply_to(geometry::SimplicialComplex& sc) const;
+    void apply_to(geometry::SimplicialComplex& sc, Float mass_density = 1e3) const;
 
     static Json default_config() noexcept;
 

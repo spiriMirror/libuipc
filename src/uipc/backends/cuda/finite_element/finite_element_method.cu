@@ -5,6 +5,13 @@
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/common/map.h>
+#include <uipc/common/zip.h>
+
+// constitutions
+#include <finite_element/fem_3d_constitution.h>
+#include <finite_element/codim_2d_constitution.h>
+#include <finite_element/codim_1d_constitution.h>
+#include <finite_element/codim_0d_constitution.h>
 
 bool operator<(const uipc::backend::cuda::FiniteElementMethod::DimUID& a,
                const uipc::backend::cuda::FiniteElementMethod::DimUID& b)
@@ -44,15 +51,18 @@ void FiniteElementMethod::do_build()
 
 void FiniteElementMethod::Impl::init(WorldVisitor& world)
 {
-    constitutions.init();
+    _init_constitutions();
     _init_fem_geo_infos(world);
     _build_on_host(world);
 }
 
-void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
+void FiniteElementMethod::Impl::_init_constitutions()
 {
-    // sort the constituions by their (dim, uid)
+    constitutions.init();
+
     auto constitution_view = constitutions.view();
+
+    // 1) sort the constitutions by (dim, uid)
     std::sort(constitution_view.begin(),
               constitution_view.end(),
               [](const FiniteElementConstitution* a, const FiniteElementConstitution* b)
@@ -66,9 +76,52 @@ void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
                   return uid_dim_a < uid_dim_b;
               });
 
+    // 2) classify the constitutions
+    codim_0d_constitutions.reserve(constitution_view.size());
+    codim_1d_constitutions.reserve(constitution_view.size());
+    codim_2d_constitutions.reserve(constitution_view.size());
+    fem_3d_constitutions.reserve(constitution_view.size());
+
+    for(auto&& constitution : constitution_view)
+    {
+        auto dim = constitution->dimension();
+        switch(dim)
+        {
+            case 0: {
+                auto derived = dynamic_cast<Codim0DConstitution*>(constitution);
+                UIPC_ASSERT(derived, "The constitution is not a Codim0DConstitution, its dim = {}", dim);
+                codim_0d_constitutions.push_back(derived);
+            }
+            break;
+            case 1: {
+                auto derived = dynamic_cast<Codim1DConstitution*>(constitution);
+                UIPC_ASSERT(derived, "The constitution is not a Codim1DConstitution, its dim = {}", dim);
+                codim_1d_constitutions.push_back(derived);
+            }
+            break;
+            case 2: {
+                auto derived = dynamic_cast<Codim2DConstitution*>(constitution);
+                UIPC_ASSERT(derived, "The constitution is not a Codim2DConstitution, its dim = {}", dim);
+                codim_2d_constitutions.push_back(derived);
+            }
+            break;
+            case 3: {
+                auto derived = dynamic_cast<FEM3DConstitution*>(constitution);
+                UIPC_ASSERT(derived, "The constitution is not a FEM3DConstitution, its dim = {}", dim);
+                fem_3d_constitutions.push_back(derived);
+            }
+            break;
+            default:
+                break;
+        }
+    }
+}
+
+void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
+{
     set<U64> filter_uids;
 
-    for(auto&& filter : constitution_view)
+    for(auto&& filter : constitutions.view())
         filter_uids.insert(filter->constitution_uid());
 
     // 1) find all the finite element constitutions
@@ -94,14 +147,24 @@ void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
                 info.vertex_count   = sc->vertices().size();
                 info.dim_uid.dim    = sc->dim();
                 info.dim_uid.uid    = uid;
-                if(sc->dim() == 3)
-                    info.primitive_count = sc->tetrahedra().size();
-                else if(sc->dim() == 2)
-                    info.primitive_count = sc->triangles().size();
-                else if(sc->dim() == 1)
-                    info.primitive_count = sc->edges().size();
-                else if(sc->dim() == 0)
-                    info.primitive_count = sc->vertices().size();
+
+                switch(sc->dim())
+                {
+                    case 0:
+                        info.primitive_count = sc->vertices().size();
+                        break;
+                    case 1:
+                        info.primitive_count = sc->edges().size();
+                        break;
+                    case 2:
+                        info.primitive_count = sc->triangles().size();
+                        break;
+                    case 3:
+                        info.primitive_count = sc->tetrahedra().size();
+                        break;
+                    default:
+                        break;
+                }
 
                 fem_geo_infos.push_back(info);
             }
@@ -158,6 +221,8 @@ void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
 
         auto count = std::distance(it, next_it) + 1;  // add one to calculate the total size
 
+        dim_geo_info_counts[i] = count;
+
         vector<SizeT> primitive_counts(count, 0);
         vector<SizeT> primitive_offsets(count, 0);
 
@@ -181,6 +246,12 @@ void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
             info.primitive_count  = primitive_counts[j];
         }
     }
+
+    // 5) setup the geometry offsets for each dim
+    std::exclusive_scan(dim_geo_info_counts.begin(),
+                        dim_geo_info_counts.end(),
+                        dim_geo_info_offsets.begin(),
+                        0);
 
     h_codim_0ds.resize(total_primitive_counts[0]);
     h_codim_1ds.resize(total_primitive_counts[1]);
@@ -210,61 +281,67 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
         std::copy(pos_view.begin(), pos_view.end(), dst_pos_span.begin());
 
         // 2) setup primitives
-        if(sc->dim() == 0)
+        switch(sc->dim())
         {
-            auto dst_codim_0d_span =
-                span{h_codim_0ds}.subspan(info.primitive_offset, info.primitive_count);
-            std::iota(dst_codim_0d_span.begin(), dst_codim_0d_span.end(), info.vertex_offset);
-        }
-        else if(sc->dim() == 1)
-        {
-            auto dst_codim_1d_span =
-                span{h_codim_1ds}.subspan(info.primitive_offset, info.primitive_count);
+            case 0: {
+                auto dst_codim_0d_span =
+                    span{h_codim_0ds}.subspan(info.primitive_offset, info.primitive_count);
+                std::iota(dst_codim_0d_span.begin(), dst_codim_0d_span.end(), info.vertex_offset);
+            }
+            break;
+            case 1: {
+                auto dst_codim_1d_span =
+                    span{h_codim_1ds}.subspan(info.primitive_offset, info.primitive_count);
 
-            auto edge_view = sc->edges().topo().view();
-            UIPC_ASSERT(edge_view.size() == dst_codim_1d_span.size(), "edge size mismatching");
+                auto edge_view = sc->edges().topo().view();
+                UIPC_ASSERT(edge_view.size() == dst_codim_1d_span.size(), "edge size mismatching");
 
-            std::transform(edge_view.begin(),
-                           edge_view.end(),
-                           dst_codim_1d_span.begin(),
-                           [&](const Vector2i& edge) -> Vector2i
-                           { return edge.array() + info.vertex_offset; });
-        }
-        else if(sc->dim() == 2)
-        {
-            auto dst_codim_2d_span =
-                span{h_codim_2ds}.subspan(info.primitive_offset, info.primitive_count);
+                std::transform(edge_view.begin(),
+                               edge_view.end(),
+                               dst_codim_1d_span.begin(),
+                               [&](const Vector2i& edge) -> Vector2i
+                               { return edge.array() + info.vertex_offset; });
+            }
+            break;
+            case 2: {
+                auto dst_codim_2d_span =
+                    span{h_codim_2ds}.subspan(info.primitive_offset, info.primitive_count);
 
-            auto tri_view = sc->triangles().topo().view();
-            UIPC_ASSERT(tri_view.size() == dst_codim_2d_span.size(), "triangle size mismatching");
+                auto tri_view = sc->triangles().topo().view();
+                UIPC_ASSERT(tri_view.size() == dst_codim_2d_span.size(),
+                            "triangle size mismatching");
 
-            std::transform(tri_view.begin(),
-                           tri_view.end(),
-                           dst_codim_2d_span.begin(),
-                           [&](const Vector3i& tri) -> Vector3i
-                           { return tri.array() + info.vertex_offset; });
-        }
-        else if(sc->dim() == 3)
-        {
-            auto dst_tet_span =
-                span{h_tets}.subspan(info.primitive_offset, info.primitive_count);
+                std::transform(tri_view.begin(),
+                               tri_view.end(),
+                               dst_codim_2d_span.begin(),
+                               [&](const Vector3i& tri) -> Vector3i
+                               { return tri.array() + info.vertex_offset; });
+            }
+            break;
+            case 3: {
+                auto dst_tet_span =
+                    span{h_tets}.subspan(info.primitive_offset, info.primitive_count);
 
-            auto tet_view = sc->tetrahedra().topo().view();
-            UIPC_ASSERT(tet_view.size() == dst_tet_span.size(), "tetrahedra size mismatching");
+                auto tet_view = sc->tetrahedra().topo().view();
+                UIPC_ASSERT(tet_view.size() == dst_tet_span.size(), "tetrahedra size mismatching");
 
-            std::transform(tet_view.begin(),
-                           tet_view.end(),
-                           dst_tet_span.begin(),
-                           [&](const Vector4i& tet) -> Vector4i
-                           { return tet.array() + info.vertex_offset; });
+                std::transform(tet_view.begin(),
+                               tet_view.end(),
+                               dst_tet_span.begin(),
+                               [&](const Vector4i& tet) -> Vector4i
+                               { return tet.array() + info.vertex_offset; });
+            }
+            break;
+            default:
+                break;
         }
     }
 }
 
 void FiniteElementMethod::Impl::_build_on_device()
 {
-    positions.resize(h_positions.size());
-    positions.view().copy_from(h_positions.data());
+    x.resize(h_positions.size());
+    x.view().copy_from(h_positions.data());
 }
 
 void FiniteElementMethod::Impl::write_scene(WorldVisitor& world)
@@ -289,11 +366,16 @@ void FiniteElementMethod::Impl::write_scene(WorldVisitor& world)
         auto src_pos_span = position_span.subspan(info.vertex_offset, info.vertex_count);
         UIPC_ASSERT(pos_view.size() == src_pos_span.size(), "position size mismatching");
         std::copy(src_pos_span.begin(), src_pos_span.end(), pos_view.begin());
+
+        // 2) write primitives back
+        // TODO:
+        // Now there is no topology modification, so no need to write back
+        // In the future, we may need to write back the topology if the topology is modified
     }
 }
 
 void FiniteElementMethod::Impl::_download_geometry_to_host()
 {
-    positions.view().copy_to(h_positions.data());
+    x.view().copy_to(h_positions.data());
 }
 }  // namespace uipc::backend::cuda
