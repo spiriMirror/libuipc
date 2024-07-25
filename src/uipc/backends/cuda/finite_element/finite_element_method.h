@@ -1,5 +1,6 @@
 #pragma once
 #include <sim_system.h>
+#include <muda/buffer.h>
 
 namespace uipc::backend::cuda
 {
@@ -59,6 +60,22 @@ class FiniteElementMethod : public SimSystem
         vector<Vector2i> h_codim_1ds;
         vector<Vector3i> h_codim_2ds;
         vector<Vector4i> h_tets;
+
+        // FEM 3D
+        muda::DeviceBuffer<Matrix12x12> H12x12;
+        muda::DeviceBuffer<Vector12>    G12;
+
+        // Codim 2D
+        muda::DeviceBuffer<Matrix9x9> H9x9;
+        muda::DeviceBuffer<Vector9>   G9;
+
+        // Codim 1D
+        muda::DeviceBuffer<Matrix6x6> H6x6;
+        muda::DeviceBuffer<Vector6>   G6;
+
+        // Codim 0D
+        muda::DeviceBuffer<Matrix3x3> H3x3;
+        muda::DeviceBuffer<Vector3>   G3;
     };
 
   private:
