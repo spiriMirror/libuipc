@@ -77,10 +77,17 @@ void GlobalSimpicialSurfaceManager::Impl::init_surface_info()
     }
 
     // set related data
-    auto& back_info = reporter_infos.back();
-    total_surf_vertex_count = back_info.surf_vertex_offset + back_info.surf_vertex_count;
-    total_surf_edge_count = back_info.surf_edge_offset + back_info.surf_edge_count;
-    total_surf_triangle_count = back_info.surf_triangle_offset + back_info.surf_triangle_count;
+    SizeT total_surf_vertex_count   = 0;
+    SizeT total_surf_edge_count     = 0;
+    SizeT total_surf_triangle_count = 0;
+
+    if(!reporter_infos.empty())
+    {
+        auto& back_info = reporter_infos.back();
+        total_surf_vertex_count = back_info.surf_vertex_offset + back_info.surf_vertex_count;
+        total_surf_edge_count = back_info.surf_edge_offset + back_info.surf_edge_count;
+        total_surf_triangle_count = back_info.surf_triangle_offset + back_info.surf_triangle_count;
+    }
 
     // 2) resize the device buffer
     surf_vertices.resize(total_surf_vertex_count);

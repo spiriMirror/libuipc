@@ -32,8 +32,9 @@ void GlobalVertexManager::Impl::init_vertex_info()
                         reporter_vertex_counts.end(),
                         reporter_vertex_offsets.begin(),
                         0);
-
-    auto total_count = reporter_vertex_offsets.back() + reporter_vertex_counts.back();
+    SizeT total_count = 0;
+    if(!reporter_vertex_counts.empty())
+        total_count = reporter_vertex_offsets.back() + reporter_vertex_counts.back();
 
     // resize the global coindices buffer
     coindices.resize(total_count);
@@ -56,6 +57,8 @@ void GlobalVertexManager::Impl::init_vertex_info()
     // if not, then copy, otherwise, just use it
     rest_positions = positions;
     prev_positions = positions;
+
+    axis_max_disp = 0.0;
 }
 
 void GlobalVertexManager::Impl::rebuild_vertex_info()

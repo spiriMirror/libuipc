@@ -16,6 +16,12 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FiniteElementMethod);
 
+void FiniteElementMethod::add_constitution(FiniteElementConstitution* constitution)
+{
+    check_state(SimEngineState::BuildSystems, "add_constitution()");
+    m_impl.constitutions.register_subsystem(*constitution);
+}
+
 void FiniteElementMethod::do_build()
 {
     const auto& scene = world().scene();
@@ -39,8 +45,8 @@ void FiniteElementMethod::do_build()
 void FiniteElementMethod::Impl::init(WorldVisitor& world)
 {
     constitutions.init();
-
     _init_fem_geo_infos(world);
+    _build_on_host(world);
 }
 
 void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
@@ -49,7 +55,7 @@ void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
     auto constitution_view = constitutions.view();
     std::sort(constitution_view.begin(),
               constitution_view.end(),
-              [](FiniteElementConstitution* a, FiniteElementConstitution* b)
+              [](const FiniteElementConstitution* a, const FiniteElementConstitution* b)
               {
                   auto   uida = a->constitution_uid();
                   auto   uidb = b->constitution_uid();
@@ -64,17 +70,6 @@ void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
 
     for(auto&& filter : constitution_view)
         filter_uids.insert(filter->constitution_uid());
-
-    // TOFIX:
-    map<DimUID, IndexT> constitution_uid_to_index;
-    for(auto&& [i, filter] : enumerate(constitution_view))
-    {
-        DimUID uid_dim;
-        uid_dim.dim = filter->dimension();
-        uid_dim.uid = filter->constitution_uid();
-
-        constitution_uid_to_index[uid_dim] = i;
-    }
 
     // 1) find all the finite element constitutions
     auto geo_slots = world.scene().geometries();
@@ -100,15 +95,13 @@ void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
                 info.dim_uid.dim    = sc->dim();
                 info.dim_uid.uid    = uid;
                 if(sc->dim() == 3)
-                    info.tet_count = sc->tetrahedra().size();
+                    info.primitive_count = sc->tetrahedra().size();
                 else if(sc->dim() == 2)
-                    info.codim_2d_count = sc->triangles().size();
+                    info.primitive_count = sc->triangles().size();
                 else if(sc->dim() == 1)
-                    info.codim_1d_count = sc->edges().size();
+                    info.primitive_count = sc->edges().size();
                 else if(sc->dim() == 0)
-                    info.codim_0d_count = sc->vertices().size();
-
-                info.index = constitution_uid_to_index[info.dim_uid];
+                    info.primitive_count = sc->vertices().size();
 
                 fem_geo_infos.push_back(info);
             }
@@ -116,11 +109,191 @@ void FiniteElementMethod::Impl::_init_fem_geo_infos(WorldVisitor& world)
     }
 
     // 2) sort geometry by (dim, uid)
-    std::stable_sort(fem_geo_infos.begin(),
-                     fem_geo_infos.end(),
-                     [](const GeoInfo& a, const GeoInfo& b)
-                     { return a.dim_uid < b.dim_uid; });
+    std::sort(fem_geo_infos.begin(),
+              fem_geo_infos.end(),
+              [](const GeoInfo& a, const GeoInfo& b)
+              { return a.dim_uid < b.dim_uid; });
+
+    // 3) setup vertex offsets
+    auto count = fem_geo_infos.size() + 1;  // add one to calculate the total size
+
+    vector<SizeT> vertex_counts(count, 0);
+    vector<SizeT> vertex_offsets(count, 0);
+
+    std::transform(fem_geo_infos.begin(),
+                   fem_geo_infos.end(),
+                   vertex_counts.begin(),
+                   [](const GeoInfo& info) { return info.vertex_count; });
+
+    std::exclusive_scan(
+        vertex_counts.begin(), vertex_counts.end(), vertex_offsets.begin(), 0);
+
+    for(auto&& [i, info] : enumerate(fem_geo_infos))
+        info.vertex_offset = vertex_offsets[i];
+
+    h_positions.resize(vertex_offsets.back());
+
+    // 4) setup primitive offsets
+    std::array<SizeT, 4> total_primitive_counts;
+    total_primitive_counts.fill(0);
+
+    // from 0D to 3D
+    for(SizeT i = 0; i < 4; ++i)
+    {
+        auto it = std::find_if(fem_geo_infos.begin(),
+                               fem_geo_infos.end(),
+                               [i](const GeoInfo& info)
+                               { return info.dim_uid.dim == i; });
+
+        if(it == fem_geo_infos.end())
+            continue;
+
+        // if found, try to figure out the boundary
+        auto next_it = std::find_if(it,
+                                    fem_geo_infos.end(),
+                                    [i](const GeoInfo& info)
+                                    {
+                                        return info.dim_uid.dim == i + 1;  // next dim
+                                    });
+
+        auto count = std::distance(it, next_it) + 1;  // add one to calculate the total size
+
+        vector<SizeT> primitive_counts(count, 0);
+        vector<SizeT> primitive_offsets(count, 0);
+
+        auto geo_span = span<GeoInfo>(it, next_it);
+
+        std::ranges::transform(geo_span,
+                               primitive_counts.begin(),
+                               [](const GeoInfo& info)
+                               { return info.primitive_count; });
+
+        std::exclusive_scan(primitive_counts.begin(),
+                            primitive_counts.end(),
+                            primitive_offsets.begin(),
+                            0);
+
+        total_primitive_counts[i] = primitive_offsets.back();
+
+        for(auto&& [j, info] : enumerate(geo_span))
+        {
+            info.primitive_offset = primitive_offsets[j];
+            info.primitive_count  = primitive_counts[j];
+        }
+    }
+
+    h_codim_0ds.resize(total_primitive_counts[0]);
+    h_codim_1ds.resize(total_primitive_counts[1]);
+    h_codim_2ds.resize(total_primitive_counts[2]);
+    h_tets.resize(total_primitive_counts[3]);
 }
 
-void FiniteElementMethod::Impl::write_scene(WorldVisitor& world) {}
+void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
+{
+    auto geo_slots = world.scene().geometries();
+
+    auto position_span = span{h_positions};
+
+    for(auto&& [i, info] : enumerate(fem_geo_infos))
+    {
+        auto& geo_slot = geo_slots[info.geo_slot_index];
+        auto& geo      = geo_slot->geometry();
+        auto* sc       = geo.as<geometry::SimplicialComplex>();
+        UIPC_ASSERT(sc,
+                    "The geometry is not a simplicial complex (it's {}). Why can it happen?",
+                    geo.type());
+
+        // 1) setup positions
+        auto pos_view = sc->positions().view();
+        auto dst_pos_span = position_span.subspan(info.vertex_offset, info.vertex_count);
+        UIPC_ASSERT(pos_view.size() == dst_pos_span.size(), "position size mismatching");
+        std::copy(pos_view.begin(), pos_view.end(), dst_pos_span.begin());
+
+        // 2) setup primitives
+        if(sc->dim() == 0)
+        {
+            auto dst_codim_0d_span =
+                span{h_codim_0ds}.subspan(info.primitive_offset, info.primitive_count);
+            std::iota(dst_codim_0d_span.begin(), dst_codim_0d_span.end(), info.vertex_offset);
+        }
+        else if(sc->dim() == 1)
+        {
+            auto dst_codim_1d_span =
+                span{h_codim_1ds}.subspan(info.primitive_offset, info.primitive_count);
+
+            auto edge_view = sc->edges().topo().view();
+            UIPC_ASSERT(edge_view.size() == dst_codim_1d_span.size(), "edge size mismatching");
+
+            std::transform(edge_view.begin(),
+                           edge_view.end(),
+                           dst_codim_1d_span.begin(),
+                           [&](const Vector2i& edge) -> Vector2i
+                           { return edge.array() + info.vertex_offset; });
+        }
+        else if(sc->dim() == 2)
+        {
+            auto dst_codim_2d_span =
+                span{h_codim_2ds}.subspan(info.primitive_offset, info.primitive_count);
+
+            auto tri_view = sc->triangles().topo().view();
+            UIPC_ASSERT(tri_view.size() == dst_codim_2d_span.size(), "triangle size mismatching");
+
+            std::transform(tri_view.begin(),
+                           tri_view.end(),
+                           dst_codim_2d_span.begin(),
+                           [&](const Vector3i& tri) -> Vector3i
+                           { return tri.array() + info.vertex_offset; });
+        }
+        else if(sc->dim() == 3)
+        {
+            auto dst_tet_span =
+                span{h_tets}.subspan(info.primitive_offset, info.primitive_count);
+
+            auto tet_view = sc->tetrahedra().topo().view();
+            UIPC_ASSERT(tet_view.size() == dst_tet_span.size(), "tetrahedra size mismatching");
+
+            std::transform(tet_view.begin(),
+                           tet_view.end(),
+                           dst_tet_span.begin(),
+                           [&](const Vector4i& tet) -> Vector4i
+                           { return tet.array() + info.vertex_offset; });
+        }
+    }
+}
+
+void FiniteElementMethod::Impl::_build_on_device()
+{
+    positions.resize(h_positions.size());
+    positions.view().copy_from(h_positions.data());
+}
+
+void FiniteElementMethod::Impl::write_scene(WorldVisitor& world)
+{
+    _download_geometry_to_host();
+
+    auto geo_slots = world.scene().geometries();
+
+    auto position_span = span{h_positions};
+
+    for(auto&& [i, info] : enumerate(fem_geo_infos))
+    {
+        auto& geo_slot = geo_slots[info.geo_slot_index];
+        auto& geo      = geo_slot->geometry();
+        auto* sc       = geo.as<geometry::SimplicialComplex>();
+        UIPC_ASSERT(sc,
+                    "The geometry is not a simplicial complex (it's {}). Why can it happen?",
+                    geo.type());
+
+        // 1) write positions back
+        auto pos_view = geometry::view(sc->positions());
+        auto src_pos_span = position_span.subspan(info.vertex_offset, info.vertex_count);
+        UIPC_ASSERT(pos_view.size() == src_pos_span.size(), "position size mismatching");
+        std::copy(src_pos_span.begin(), src_pos_span.end(), pos_view.begin());
+    }
+}
+
+void FiniteElementMethod::Impl::_download_geometry_to_host()
+{
+    positions.view().copy_to(h_positions.data());
+}
 }  // namespace uipc::backend::cuda

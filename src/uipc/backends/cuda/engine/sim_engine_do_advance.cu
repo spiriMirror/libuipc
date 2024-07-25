@@ -133,12 +133,14 @@ void SimEngine::do_advance()
                 if(iter == 0)
                     res0 = res;
 
+                Float rel_tol = res == 0.0 ? 0.0 : res / res0;
+
                 spdlog::info(">> Newton Iteration: {}. Residual/Tol/AbsTol/RelTol: {}/{}/{}/{}",
                              iter,
                              res,
                              tol,
                              m_abs_tol,
-                             res / res0);
+                             rel_tol);
 
                 // 6) Check Termination Condition
                 // TODO: Maybe we can implement a class for termination condition in the future

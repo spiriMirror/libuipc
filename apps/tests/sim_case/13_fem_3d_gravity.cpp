@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <fstream>
 
-TEST_CASE("13_fem3d_gravity", "[fem]")
+TEST_CASE("13_fem_3d_gravity", "[fem]")
 {
     using namespace uipc;
     using namespace uipc::geometry;

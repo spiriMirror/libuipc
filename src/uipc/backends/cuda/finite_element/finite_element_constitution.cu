@@ -10,4 +10,9 @@ IndexT FiniteElementConstitution::dimension() const
 {
     return get_dimension();
 }
+void FiniteElementConstitution::do_build()
+{
+    auto& finite_element_method = require<FiniteElementMethod>();
+    finite_element_method.add_constitution(this);
+}
 }  // namespace uipc::backend::cuda
