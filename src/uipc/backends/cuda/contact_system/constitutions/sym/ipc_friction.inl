@@ -30,16 +30,15 @@ __host__ __device__ void dFrictionEnergydV(Eigen::Vector<T, 6>& R, const T& coef
 template <typename T>
 __host__ __device__ void ddFrictionEnergyddV(Eigen::Matrix<T, 6, 6>& R, const T& coefficient, const Eigen::Matrix<T, 6, 3>& Tk, const T& eps_v, const T& h_hat, const Eigen::Vector<T, 3>& vk)
 {
-    T scalar = eps_v * h_hat;
     T y = vk.norm();
     Eigen::Vector<T, 3> s = vk / y; 
     if (0 < y && y < eps_v) {
-        T f = - 2 / (eps_v * eps_v) + 2 / eps_v;
-        Eigen::Matrix<T, 3, 3> M = -vk * vk.transpose() / (eps_v * eps_v * y) + Eigen::Matrix<T, 3, 3>::Identity() * f / eps_v;
+        T f = - y / (eps_v * eps_v) + 2 / eps_v;
+        Eigen::Matrix<T, 3, 3> M = -vk * vk.transpose() / (eps_v * eps_v * y) + Eigen::Matrix<T, 3, 3>::Identity() * f;
         R = coefficient * Tk * M * Tk.transpose() * h_hat;
     } else if (y >= eps_v) {
-        T f = - 2 / (eps_v * eps_v) + 2 / eps_v;
-        Eigen::Matrix<T, 3, 3> M = -vk * vk.transpose() / (y * y * y) + Eigen::Matrix<T, 3, 3>::Identity() * f / eps_v;
+        T f = 1 / y;
+        Eigen::Matrix<T, 3, 3> M = -vk * vk.transpose() / (y * y * y) + Eigen::Matrix<T, 3, 3>::Identity() * f;
         R = coefficient * Tk * M * Tk.transpose() * h_hat;
     } else {
         R = Eigen::Matrix<T, 6, 6>::Zero();
