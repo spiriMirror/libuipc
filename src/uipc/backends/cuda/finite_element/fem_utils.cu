@@ -1,5 +1,5 @@
 #include <finite_element/fem_utils.h>
-#include <Eigen/Dense>
+#include <muda/ext/eigen/inverse.h>
 
 namespace uipc::backend::cuda
 {
@@ -55,7 +55,7 @@ MUDA_GENERIC Matrix3x3 dJdF(const Matrix3x3& F)
 MUDA_GENERIC Matrix3x3 Dm_inv(const Vector3& X0, const Vector3& X1, const Vector3& X2, const Vector3& X3)
 {
     Matrix3x3 Dm = Ds(X0, X1, X2, X3);
-    return Dm.inverse();
+    return muda::eigen::inverse(Dm);
 }
 
 MUDA_GENERIC Matrix3x3 Ds(const Vector3& x0, const Vector3& x1, const Vector3& x2, const Vector3& x3)

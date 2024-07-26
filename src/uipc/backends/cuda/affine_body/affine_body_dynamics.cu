@@ -511,7 +511,7 @@ void AffineBodyDynamics::Impl::_distribute_body_infos()
     {
         FilteredInfo info{this};
         info.m_constitution_index = I;
-        constitution->filter(info);
+        constitution->retrieve(info);
     }
 }
 

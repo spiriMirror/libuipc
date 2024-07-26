@@ -18,6 +18,8 @@ class FEM3DConstitution : public FiniteElementConstitution
     virtual IndexT get_dimension() const override;
 
   private:
+    friend class FiniteElementMethod;
+
     virtual void do_build(FiniteElementConstitution::BuildInfo& info) override final;
 };
 }  // namespace uipc::backend::cuda
