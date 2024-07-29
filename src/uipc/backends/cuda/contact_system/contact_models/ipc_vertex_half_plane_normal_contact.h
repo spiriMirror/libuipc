@@ -1,12 +1,12 @@
 #pragma once
-#include <contact_system/vertex_half_plane_contact_constitution.h>
+#include <contact_system/vertex_half_plane_normal_contact.h>
 #include <implicit_geometry/half_plane.h>
 namespace uipc::backend::cuda
 {
-class IPCVertexHalfPlaneContact final : public VertexHalfPlaneContactConstitution
+class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContact
 {
   public:
-    using VertexHalfPlaneContactConstitution::VertexHalfPlaneContactConstitution;
+    using VertexHalfPlaneNormalContact::VertexHalfPlaneNormalContact;
 
     virtual void do_build(BuildInfo& info) override;
     virtual void do_compute_energy(EnergyInfo& info) override;

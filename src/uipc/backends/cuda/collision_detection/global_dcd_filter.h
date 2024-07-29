@@ -35,6 +35,7 @@ class GlobalDCDFilter : public SimSystem
     friend class SimEngine;
 
     void detect();
+    void record_friction_candidates();
 
     Impl m_impl;
 };

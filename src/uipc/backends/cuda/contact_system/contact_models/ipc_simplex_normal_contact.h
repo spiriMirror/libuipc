@@ -1,12 +1,12 @@
 #pragma once
-#include <contact_system/simplex_contact_constitution.h>
+#include <contact_system/simplex_normal_contact.h>
 
 namespace uipc::backend::cuda
 {
-class IPCSimplexContact final : public SimplexContactConstitution
+class IPCSimplexNormalContact final : public SimplexNormalContact
 {
   public:
-    using SimplexContactConstitution::SimplexContactConstitution;
+    using SimplexNormalContact::SimplexNormalContact;
 
     virtual void do_compute_energy(EnergyInfo& info) override;
     virtual void do_build(BuildInfo& info) override;

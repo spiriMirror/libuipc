@@ -2,23 +2,6 @@
 
 namespace uipc::backend::cuda
 {
-muda::CBufferView<Vector4i> SimplexDCDFilter::PTs() const
-{
-    return m_impl.PTs;
-}
-muda::CBufferView<Vector4i> SimplexDCDFilter::EEs() const
-{
-    return m_impl.EEs;
-}
-muda::CBufferView<Vector3i> SimplexDCDFilter::PEs() const
-{
-    return m_impl.PEs;
-}
-muda::CBufferView<Vector2i> SimplexDCDFilter::PPs() const
-{
-    return m_impl.PPs;
-}
-
 void SimplexDCDFilter::do_build()
 {
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
@@ -33,23 +16,60 @@ void SimplexDCDFilter::detect()
 {
     FilterInfo info{&m_impl};
     do_detect(info);
+
+    spdlog::info("SimplexDCDFilter PTs: {}, EEs: {}, PEs: {}, PTs: {}",
+                 m_impl.PTs.size(),
+                 m_impl.EEs.size(),
+                 m_impl.PEs.size(),
+                 m_impl.PPs.size());
 }
+
+void SimplexDCDFilter::Impl::record_friction_candidates()
+{
+    loose_resize(friction_PT, PTs.size());
+    friction_PT.view().copy_from(PTs);
+
+    loose_resize(friction_EE, EEs.size());
+    friction_EE.view().copy_from(EEs);
+
+    loose_resize(friction_PE, PEs.size());
+    friction_PE.view().copy_from(PEs);
+
+    loose_resize(friction_PP, PPs.size());
+    friction_PP.view().copy_from(PPs);
+
+    spdlog::info("SimplexDCDFilter Friction PT: {}, EE: {}, PE: {}, PP: {}",
+                 friction_PT.size(),
+                 friction_EE.size(),
+                 friction_PE.size(),
+                 friction_PP.size());
+}
+
+void SimplexDCDFilter::record_friction_candidates()
+{
+    m_impl.record_friction_candidates();
+}
+
 Float SimplexDCDFilter::FilterInfo::d_hat() const noexcept
 {
     return m_impl->global_contact_manager->d_hat();
 }
+
 muda::CBufferView<Vector3> SimplexDCDFilter::FilterInfo::positions() const noexcept
 {
     return m_impl->global_vertex_manager->positions();
 }
+
 muda::CBufferView<IndexT> SimplexDCDFilter::FilterInfo::surf_vertices() const noexcept
 {
     return m_impl->global_simplicial_surface_manager->surf_vertices();
 }
+
 muda::CBufferView<Vector2i> SimplexDCDFilter::FilterInfo::surf_edges() const noexcept
 {
     return m_impl->global_simplicial_surface_manager->surf_edges();
 }
+
 muda::CBufferView<Vector3i> SimplexDCDFilter::FilterInfo::surf_triangles() const noexcept
 {
     return m_impl->global_simplicial_surface_manager->surf_triangles();
@@ -70,5 +90,42 @@ void SimplexDCDFilter::FilterInfo::PEs(muda::CBufferView<Vector3i> PEs) noexcept
 void SimplexDCDFilter::FilterInfo::PPs(muda::CBufferView<Vector2i> PPs) noexcept
 {
     m_impl->PPs = PPs;
+}
+
+muda::CBufferView<Vector4i> SimplexDCDFilter::PTs() const noexcept
+{
+    return m_impl.PTs;
+}
+muda::CBufferView<Vector4i> SimplexDCDFilter::EEs() const noexcept
+{
+    return m_impl.EEs;
+}
+muda::CBufferView<Vector3i> SimplexDCDFilter::PEs() const noexcept
+{
+    return m_impl.PEs;
+}
+muda::CBufferView<Vector2i> SimplexDCDFilter::PPs() const noexcept
+{
+    return m_impl.PPs;
+}
+
+muda::CBufferView<Vector4i> SimplexDCDFilter::friction_PTs() const noexcept
+{
+    return m_impl.friction_PT;
+}
+
+muda::CBufferView<Vector4i> SimplexDCDFilter::friction_EEs() const noexcept
+{
+    return m_impl.friction_EE;
+}
+
+muda::CBufferView<Vector3i> SimplexDCDFilter::friction_PEs() const noexcept
+{
+    return m_impl.friction_PE;
+}
+
+muda::CBufferView<Vector2i> SimplexDCDFilter::friction_PPs() const noexcept
+{
+    return m_impl.friction_PP;
 }
 }  // namespace uipc::backend::cuda

@@ -69,4 +69,13 @@ void GlobalDCDFilter::detect()
         action();
     }
 }
+void GlobalDCDFilter::record_friction_candidates()
+{
+    if(m_impl.simplex_dcd_filter)
+        m_impl.simplex_dcd_filter->record_friction_candidates();
+
+    // TODO:
+    // if(m_impl.half_plane_dcd_filter)
+    //    m_impl.half_plane_dcd_filter->record_friction_candidates();
+}
 }  // namespace uipc::backend::cuda

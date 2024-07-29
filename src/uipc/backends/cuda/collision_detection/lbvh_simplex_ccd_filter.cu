@@ -337,7 +337,7 @@ void LBVHSimplexCCDFilter::Impl::narrowphase_ccd(SimplexCCDFilter::FilterInfo& i
 
     info.toi().copy_to(&toi);
 
-    spdlog::info("toi:{}", toi);
+    // spdlog::info("toi:{}", toi);
 }
 
 void LBVHSimplexCCDFilter::do_filter_toi(SimplexCCDFilter::FilterInfo& info)

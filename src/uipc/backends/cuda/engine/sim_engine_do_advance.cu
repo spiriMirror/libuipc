@@ -33,6 +33,18 @@ void SimEngine::do_advance()
                 m_global_dcd_filter->detect();
         };
 
+        auto record_friction_candidates = [this]
+        {
+            if(m_global_dcd_filter)
+                m_global_dcd_filter->record_friction_candidates();
+        };
+
+        auto compute_adaptive_kappa = [this]
+        {
+            if(m_global_contact_manager)
+                m_global_contact_manager->compute_adaptive_kappa();
+        };
+
         auto compute_contact = [this]
         {
             if(m_global_contact_manager)
@@ -94,24 +106,25 @@ void SimEngine::do_advance()
             AABB vertex_bounding_box =
                 m_global_vertex_manager->compute_vertex_bounding_box();
             detect_dcd_candidates();
-            if(m_global_contact_manager)
-                m_global_contact_manager->compute_adaptive_kappa();
+            compute_adaptive_kappa();
 
-            // 2. Predict Motion => x_tilde = x + v * dt
+            // 2. Record Friction Candidates at the beginning of the frame
+            record_friction_candidates();
+
+            // 3. Predict Motion => x_tilde = x + v * dt
             m_state = SimEngineState::PredictMotion;
             m_dof_predictor->predict();
 
-            // 3. Nonlinear-Newton Iteration
+            // 4. Nonlinear-Newton Iteration
             Float box_size = vertex_bounding_box.diagonal().norm();
             Float tol      = m_newton_tol * box_size;
             Float res0     = 0.0;
 
-            for(auto&& iter : range(m_newton_max_iter))
+            for(auto&& newton_iter : range(m_newton_max_iter))
             {
                 // 1) Build Collision Pairs
-                if(iter > 0)
+                if(newton_iter > 0)
                     detect_dcd_candidates();
-
 
                 // 2) Compute Contact Gradient and Hessian => G:Vector3, H:Matrix3x3
                 m_state = SimEngineState::ComputeContact;
@@ -121,7 +134,6 @@ void SimEngine::do_advance()
                 m_state = SimEngineState::ComputeGradientHessian;
                 m_gradient_hessian_computer->compute_gradient_hessian();
 
-
                 // 4) Solve Global Linear System => dx = A^-1 * b
                 m_state = SimEngineState::SolveGlobalLinearSystem;
                 m_global_linear_system->solve();
@@ -130,11 +142,11 @@ void SimEngine::do_advance()
                 m_global_vertex_manager->collect_vertex_displacements();
                 Float res = m_global_vertex_manager->compute_axis_max_displacement();
 
-                if(iter == 0)
+                if(newton_iter == 0)
                     res0 = res;
 
                 spdlog::info(">> Newton Iteration: {}. Residual/Tol/AbsTol/RelTol: {}/{}/{}/{}",
-                             iter,
+                             newton_iter,
                              res,
                              tol,
                              m_abs_tol,
@@ -166,12 +178,13 @@ void SimEngine::do_advance()
                     // Compute Test Energy => E
                     Float E = compute_energy(alpha);
 
-                    SizeT max_line_search_iter = 1000;  // now just hard code it
-                    SizeT line_search_iter     = 0;
-                    while(line_search_iter++ < max_line_search_iter)  // Energy Test
+                    SizeT line_search_iter = 0;
+                    while(line_search_iter++ < m_line_search_max_iter)  // Energy Test
                     {
                         bool energy_decrease = E <= E0;  // Check Energy Decrease
-                        bool no_inversion = true;        // Check Inversion
+
+                        // TODO: Intersection & Inversion Check
+                        bool no_inversion = true;
 
                         spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}",
                                      line_search_iter,
@@ -186,10 +199,18 @@ void SimEngine::do_advance()
                         alpha /= 2;
                         E = compute_energy(alpha);
                     }
+
+                    if(line_search_iter >= m_line_search_max_iter)
+                    {
+                        spdlog::error("Line Search Exits with Max Iteration: {} (Frame={}, Newton={})",
+                                      m_line_search_max_iter,
+                                      m_current_frame,
+                                      newton_iter);
+                    }
                 }
             }
 
-            // 4. Update Velocity => v = (x - x_0) / dt
+            // 5. Update Velocity => v = (x - x_0) / dt
             m_state = SimEngineState::UpdateVelocity;
             m_dof_predictor->compute_velocity();
             m_global_vertex_manager->record_prev_positions();

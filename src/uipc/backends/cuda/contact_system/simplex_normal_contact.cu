@@ -1,11 +1,11 @@
-#include <contact_system/simplex_contact_constitution.h>
+#include <contact_system/simplex_normal_contact.h>
 #include <collision_detection/global_dcd_filter.h>
 #include <collision_detection/simplex_dcd_filter.h>
 #include <muda/ext/eigen/evd.h>
 
 namespace uipc::backend::cuda
 {
-void SimplexContactConstitution::do_build()
+void SimplexNormalContact::do_build()
 {
     m_impl.global_dcd_filter      = &require<GlobalDCDFilter>();
     m_impl.global_contact_manager = &require<GlobalContactManager>();
@@ -18,7 +18,7 @@ void SimplexContactConstitution::do_build()
     m_impl.dt = world().scene().info()["dt"].get<Float>();
 }
 
-void SimplexContactConstitution::do_compute_energy(GlobalContactManager::EnergyInfo& info)
+void SimplexNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
     EnergyInfo this_info{&m_impl};
 
@@ -52,7 +52,7 @@ void SimplexContactConstitution::do_compute_energy(GlobalContactManager::EnergyI
         m_impl.energies.data(), info.energy().data(), m_impl.energies.size());
 }
 
-void SimplexContactConstitution::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
+void SimplexNormalContact::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
 {
     auto dcd_filter = m_impl.global_dcd_filter->simplex_filter();
 
@@ -86,7 +86,7 @@ void SimplexContactConstitution::do_report_extent(GlobalContactManager::ContactE
 }
 
 
-void SimplexContactConstitution::do_assemble(GlobalContactManager::ContactInfo& info)
+void SimplexNormalContact::do_assemble(GlobalContactManager::ContactInfo& info)
 {
     ContactInfo this_info{&m_impl};
 
@@ -108,62 +108,62 @@ void SimplexContactConstitution::do_assemble(GlobalContactManager::ContactInfo& 
     m_impl.assemble(info);
 }
 
-muda::CBuffer2DView<ContactCoeff> SimplexContactConstitution::BaseInfo::contact_tabular() const
+muda::CBuffer2DView<ContactCoeff> SimplexNormalContact::BaseInfo::contact_tabular() const
 {
     return m_impl->global_contact_manager->contact_tabular();
 }
 
-muda::CBufferView<Vector4i> SimplexContactConstitution::BaseInfo::PTs() const
+muda::CBufferView<Vector4i> SimplexNormalContact::BaseInfo::PTs() const
 {
     return m_impl->simplex_dcd_filter()->PTs();
 }
 
-muda::CBufferView<Vector4i> SimplexContactConstitution::BaseInfo::EEs() const
+muda::CBufferView<Vector4i> SimplexNormalContact::BaseInfo::EEs() const
 {
     return m_impl->simplex_dcd_filter()->EEs();
 }
 
-muda::CBufferView<Vector3i> SimplexContactConstitution::BaseInfo::PEs() const
+muda::CBufferView<Vector3i> SimplexNormalContact::BaseInfo::PEs() const
 {
     return m_impl->simplex_dcd_filter()->PEs();
 }
 
-muda::CBufferView<Vector2i> SimplexContactConstitution::BaseInfo::PPs() const
+muda::CBufferView<Vector2i> SimplexNormalContact::BaseInfo::PPs() const
 {
     return m_impl->simplex_dcd_filter()->PPs();
 }
 
-muda::CBufferView<Vector3> SimplexContactConstitution::BaseInfo::positions() const
+muda::CBufferView<Vector3> SimplexNormalContact::BaseInfo::positions() const
 {
     return m_impl->global_vertex_manager->positions();
 }
 
-muda::CBufferView<Vector3> SimplexContactConstitution::BaseInfo::prev_positions() const
+muda::CBufferView<Vector3> SimplexNormalContact::BaseInfo::prev_positions() const
 {
     return m_impl->global_vertex_manager->prev_positions();
 }
 
-muda::CBufferView<Vector3> SimplexContactConstitution::BaseInfo::rest_positions() const
+muda::CBufferView<Vector3> SimplexNormalContact::BaseInfo::rest_positions() const
 {
     return m_impl->global_vertex_manager->rest_positions();
 }
 
-muda::CBufferView<IndexT> SimplexContactConstitution::BaseInfo::contact_element_ids() const
+muda::CBufferView<IndexT> SimplexNormalContact::BaseInfo::contact_element_ids() const
 {
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
-Float SimplexContactConstitution::BaseInfo::d_hat() const
+Float SimplexNormalContact::BaseInfo::d_hat() const
 {
     return m_impl->global_contact_manager->d_hat();
 }
 
-Float SimplexContactConstitution::BaseInfo::dt() const
+Float SimplexNormalContact::BaseInfo::dt() const
 {
     return m_impl->dt;
 }
 
-Float SimplexContactConstitution::BaseInfo::eps_velocity() const
+Float SimplexNormalContact::BaseInfo::eps_velocity() const
 {
     return m_impl->global_contact_manager->eps_velocity();
 }
@@ -222,7 +222,7 @@ namespace detail
 }  // namespace detail
 
 
-void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInfo& info)
+void SimplexNormalContact::Impl::assemble(GlobalContactManager::ContactInfo& info)
 {
     using namespace muda;
 
@@ -380,7 +380,7 @@ void SimplexContactConstitution::Impl::assemble(GlobalContactManager::ContactInf
     UIPC_ASSERT(G3_offset == info.gradient().doublet_count(), "size mismatch");
 }
 
-SimplexDCDFilter* SimplexContactConstitution::Impl::simplex_dcd_filter() const noexcept
+SimplexDCDFilter* SimplexNormalContact::Impl::simplex_dcd_filter() const noexcept
 {
     return global_dcd_filter->simplex_filter();
 }
