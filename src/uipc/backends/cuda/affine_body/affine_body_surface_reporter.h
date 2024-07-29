@@ -66,14 +66,14 @@ class AffinebodySurfaceReporter : public SurfaceReporter
         vector<SizeT> geo_surf_edges_counts;
         vector<SizeT> geo_surf_triangles_counts;
 
-        vector<IndexT> geo_surf_vertices;
-        vector<IndexT> geo_surf_edges;
-        vector<IndexT> geo_surf_triangles;
+        // just a cache of geo surface data, collected from the world
+        vector<IndexT> geo_local_surf_vertices;
+        vector<IndexT> geo_local_surf_edges;
+        vector<IndexT> geo_local_surf_triangles;
 
         SizeT total_geo_surf_vertex_count   = 0;
         SizeT total_geo_surf_edge_count     = 0;
         SizeT total_geo_surf_triangle_count = 0;
-
 
         SizeT total_surf_vertex_count   = 0;
         SizeT total_surf_edge_count     = 0;

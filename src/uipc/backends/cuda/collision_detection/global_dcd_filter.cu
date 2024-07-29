@@ -9,6 +9,24 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(GlobalDCDFilter);
 
+void GlobalDCDFilter::do_build()
+{
+    if(!world().scene().info()["contact"]["enable"])
+    {
+        throw SimSystemException("GlobalDCDFilter requires contact to be enabled");
+    }
+
+    m_impl.friction_enabled = world().scene().info()["contact"]["friction"]["enable"];
+
+    on_init_scene(
+        [this]
+        {
+            m_impl.simplex_dcd_filter.init();
+            m_impl.half_plane_dcd_filter.init();
+            m_impl.detect_actions.init();
+        });
+}
+
 void GlobalDCDFilter::add_filter(SimplexDCDFilter* filter)
 {
     check_state(SimEngineState::BuildSystems, "add_filter()");
@@ -40,22 +58,6 @@ HalfPlaneDCDFilter* GlobalDCDFilter::half_plane_filter() const
     return m_impl.half_plane_dcd_filter.view();
 }
 
-void GlobalDCDFilter::do_build()
-{
-    if(!world().scene().info()["contact"]["enable"])
-    {
-        throw SimSystemException("GlobalDCDFilter requires contact to be enabled");
-    }
-
-    on_init_scene(
-        [this]
-        {
-            m_impl.simplex_dcd_filter.init();
-            m_impl.half_plane_dcd_filter.init();
-            m_impl.detect_actions.init();
-        });
-}
-
 void GlobalDCDFilter::detect()
 {
     if(m_impl.simplex_dcd_filter)
@@ -71,6 +73,9 @@ void GlobalDCDFilter::detect()
 }
 void GlobalDCDFilter::record_friction_candidates()
 {
+    if(!m_impl.friction_enabled)
+        return;
+
     if(m_impl.simplex_dcd_filter)
         m_impl.simplex_dcd_filter->record_friction_candidates();
 

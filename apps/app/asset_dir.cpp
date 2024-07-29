@@ -50,4 +50,11 @@ std::string AssetDir::output_path(const char* _file_)
 
     return (file_output_path / "").string();
 }
+
+std::string AssetDir::folder(const std::string& _file_)
+{
+    fs::path file_path{_file_};
+    return (file_path.parent_path() / "").string();
+}
+
 }  // namespace uipc

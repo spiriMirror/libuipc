@@ -18,9 +18,9 @@ void AffineBodyConstitution::do_build()
     affine_body_dynamics.add_constitution(this);
 }
 
-void AffineBodyConstitution::filter(AffineBodyDynamics::FilteredInfo& info)
+void AffineBodyConstitution::retrieve(AffineBodyDynamics::FilteredInfo& info)
 {
-    return do_filter(info);
+    return do_retrieve(info);
 }
 
 void AffineBodyConstitution::compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info)

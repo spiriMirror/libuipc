@@ -36,7 +36,7 @@ class ABDARAP : public AffineBodyConstitution
 
     // Inherited via AffineBodyConstitution
     U64  get_constitution_uid() const override;
-    void do_filter(AffineBodyDynamics::FilteredInfo& info) override;
+    void do_retrieve(AffineBodyDynamics::FilteredInfo& info) override;
     void do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info) override;
     void do_compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info) override;
 };

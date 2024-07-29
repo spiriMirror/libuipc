@@ -26,6 +26,7 @@ add_subdirectory(contact_system)
 add_subdirectory(global_geometry)
 add_subdirectory(implicit_geometry)
 add_subdirectory(engine)
+add_subdirectory(finite_element)
 
 # source files in this directory
 file(GLOB SOURCES "*.cpp" "*.h" "*.cu" "details/*.inl")

@@ -20,6 +20,7 @@ include(cmake/uipc_utils.cmake)
 uipc_show_logo("0.0.1")
 uipc_show_options()
 uipc_config_vcpkg_install()
+uipc_dump_build_info()
 project(uipc)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
@@ -51,5 +52,3 @@ endif()
 
 # applications
 add_subdirectory(apps)
-
-message(STATUS "-----------------------------------------------------------------------------------")

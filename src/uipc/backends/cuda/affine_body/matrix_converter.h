@@ -35,7 +35,6 @@ class ABDMatrixConverter
             buf.resize(new_size);
         }
 
-      private:
         muda::DeviceBuffer<int> unique_counts;
         muda::DeviceVar<int>    count;
 
@@ -51,7 +50,7 @@ class ABDMatrixConverter
 
         muda::DeviceBuffer<BlockMatrix> blocks_sorted;
 
-        Float reserve_ratio = 1.5;
+        Float reserve_ratio = 1.1;
 
         muda::DeviceBuffer<int> sorted_partition_input;
         muda::DeviceBuffer<int> sorted_partition_output;
@@ -59,6 +58,8 @@ class ABDMatrixConverter
 
     void convert(const muda::DeviceTripletMatrix<T, N>& from,
                  muda::DeviceBCOOMatrix<T, N>&          to);
+
+    void reserve_ratio(Float ratio) noexcept { m_impl.reserve_ratio = ratio; }
 
   private:
     Impl m_impl;

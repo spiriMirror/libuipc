@@ -17,7 +17,9 @@ namespace uipc::geometry
 class UIPC_CORE_API IAttribute
 {
   public:
-    IAttribute() = default;
+    IAttribute()          = default;
+    virtual ~IAttribute() = default;
+
     /**
      * @brief Get the size of the attribute.
      */

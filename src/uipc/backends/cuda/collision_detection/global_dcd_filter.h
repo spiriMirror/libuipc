@@ -19,6 +19,7 @@ class GlobalDCDFilter : public SimSystem
         SimSystemSlot<SimplexDCDFilter>   simplex_dcd_filter;
         SimSystemSlot<HalfPlaneDCDFilter> half_plane_dcd_filter;
         SimActionCollection<void()>       detect_actions;
+        bool                              friction_enabled = false;
     };
 
     void add_filter(SimplexDCDFilter* filter);

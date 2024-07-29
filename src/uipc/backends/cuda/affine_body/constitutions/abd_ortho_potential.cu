@@ -24,8 +24,8 @@ U64 ABDOrthoPotential::get_constitution_uid() const
     return ConstitutionUID;
 }
 
-void ABDOrthoPotential::Impl::filter(const AffineBodyDynamics::FilteredInfo& info,
-                                     WorldVisitor& world)
+void ABDOrthoPotential::Impl::retrieve(const AffineBodyDynamics::FilteredInfo& info,
+                                       WorldVisitor& world)
 {
     auto src = info.body_infos();
     h_body_infos.resize(src.size());
@@ -136,9 +136,9 @@ void ABDOrthoPotential::Impl::_build_on_device()
     async_resize(body_energies, kappas.size());
 }
 
-void ABDOrthoPotential::do_filter(AffineBodyDynamics::FilteredInfo& info)
+void ABDOrthoPotential::do_retrieve(AffineBodyDynamics::FilteredInfo& info)
 {
-    m_impl.filter(info, world());
+    m_impl.retrieve(info, world());
 }
 
 void ABDOrthoPotential::do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info)

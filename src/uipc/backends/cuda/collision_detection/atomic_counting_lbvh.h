@@ -35,7 +35,7 @@ class AtomicCountingLBVH
     muda::DeviceVar<IndexT>          m_cp_num;
     LinearBVH                        m_lbvh;
     muda::DeviceBuffer<Vector2i>     m_pairs;
-    Float                            m_reserve_ratio = 1.5;
+    Float                            m_reserve_ratio = 1.1;
     muda::Stream&                    m_stream;
 };
 }  // namespace uipc::backend::cuda

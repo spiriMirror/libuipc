@@ -17,7 +17,7 @@ void SimplexDCDFilter::detect()
     FilterInfo info{&m_impl};
     do_detect(info);
 
-    spdlog::info("SimplexDCDFilter PTs: {}, EEs: {}, PEs: {}, PTs: {}",
+    spdlog::info("SimplexDCDFilter PTs: {}, EEs: {}, PEs: {}, PPs: {}",
                  m_impl.PTs.size(),
                  m_impl.EEs.size(),
                  m_impl.PEs.size(),

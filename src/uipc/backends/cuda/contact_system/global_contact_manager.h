@@ -144,7 +144,7 @@ class GlobalContactManager final : public SimSystem
         GlobalVertexManager*               global_vertex_manager = nullptr;
         vector<ContactCoeff>               h_contact_tabular;
         muda::DeviceBuffer2D<ContactCoeff> contact_tabular;
-        Float                              reserve_ratio = 1.5;
+        Float                              reserve_ratio = 1.1;
 
         Float d_hat         = 0.0;
         Float related_d_hat = 0.0;

@@ -1,8 +1,6 @@
 #pragma once
 #include <uipc/world/constitution.h>
 #include <uipc/geometry/simplicial_complex.h>
-#include <random>
-#include <uipc/common/unit.h>
 
 namespace uipc::constitution
 {

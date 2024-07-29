@@ -87,6 +87,19 @@ function(uipc_config_vcpkg_install)
     set(VCPKG_INSTALLED_DIR "${VCPKG_INSTALLED_DIR}" PARENT_SCOPE)
 endfunction()
 
+# -----------------------------------------------------------------------------------------
+# dump build info
+# -----------------------------------------------------------------------------------------
+function (uipc_dump_build_info)
+    # write json file to output directory
+    set(BUILD_INFO_JSON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/output/build_info.json")
+    set(Json 
+"{
+    \"CMAKE_BINARY_DIR\": \"${CMAKE_BINARY_DIR}\"
+}")
+    file(WRITE ${BUILD_INFO_JSON_FILE} ${Json})
+    uipc_info("Build info dumped to ${BUILD_INFO_JSON_FILE}")
+endfunction()
 
 # -----------------------------------------------------------------------------------------
 # Install the target to the correct directory
