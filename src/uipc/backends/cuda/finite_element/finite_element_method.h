@@ -152,7 +152,7 @@ class FiniteElementMethod : public SimSystem
         // \bar{\mathbf{x}}_1 - \bar{\mathbf{x}}_0 & \bar{\mathbf{x}}_2 - \bar{\mathbf{x}}_0 & \bar{\mathbf{x}}_3 - \bar{\mathbf{x}}_0 \\
         // \end{bmatrix}^{-1}
         // $$
-        muda::DeviceBuffer<Matrix9x9> Dm9x9_inv;
+        muda::DeviceBuffer<Matrix3x3> Dm3x3_inv;
 
         //  Elastic Hessian and Gradient:
         muda::DeviceBuffer<Matrix12x12> H12x12;  // FEM3D Elastic Hessian

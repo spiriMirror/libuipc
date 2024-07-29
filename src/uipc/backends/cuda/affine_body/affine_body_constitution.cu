@@ -20,7 +20,7 @@ void AffineBodyConstitution::do_build()
 
 void AffineBodyConstitution::retrieve(AffineBodyDynamics::FilteredInfo& info)
 {
-    return retrieve(info);
+    return do_retrieve(info);
 }
 
 void AffineBodyConstitution::compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info)

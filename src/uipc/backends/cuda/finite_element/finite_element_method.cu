@@ -322,7 +322,7 @@ void FiniteElementMethod::Impl::_build_constitution_infos()
                                     return current.dim_uid.uid == value.dim_uid.uid;
                                 });
 
-            for (auto&& [offset, count] : zip(offsets, counts))
+            for(auto&& [offset, count] : zip(offsets, counts))
             {
                 geometry_counts[offset] = count;
             }
@@ -499,20 +499,20 @@ void FiniteElementMethod::Impl::_build_on_device()
     tets.view().copy_from(h_tets.data());
 
     // calculate FEM3D Material Basis
-    Dm9x9_inv.resize(tets.size());
+    Dm3x3_inv.resize(tets.size());
 
     ParallelFor()
         .kernel_name("FEM3D Material Basis")
         .apply(tets.size(),
-               [tets      = tets.viewer().name("tets"),
-                x_bars    = x_bar.viewer().name("x_bars"),
-                Dm9x9_inv = Dm9x9_inv.viewer().name("Dm9x9_inv")](int i)
+               [tets   = tets.viewer().name("tets"),
+                x_bars = x_bar.viewer().name("x_bars"),
+                Dm9x9_inv = Dm3x3_inv.viewer().name("Dm3x3_inv")] __device__(int i) mutable
                {
-                   auto tet = tets(i);
-                   auto x0  = x_bars(tet[0]);
-                   auto x1  = x_bars(tet[1]);
-                   auto x2  = x_bars(tet[2]);
-                   auto x3  = x_bars(tet[3]);
+                   const Vector4i& tet = tets(i);
+                   const Vector3&  x0  = x_bars(tet[0]);
+                   const Vector3&  x1  = x_bars(tet[1]);
+                   const Vector3&  x2  = x_bars(tet[2]);
+                   const Vector3&  x3  = x_bars(tet[3]);
 
                    Dm9x9_inv(i) = Dm_inv(x0, x1, x2, x3);
                });

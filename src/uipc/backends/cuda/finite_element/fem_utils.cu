@@ -1,5 +1,6 @@
 #include <finite_element/fem_utils.h>
 #include <muda/ext/eigen/inverse.h>
+#include <Eigen/Geometry>
 
 namespace uipc::backend::cuda
 {
@@ -26,7 +27,7 @@ MUDA_GENERIC Float invariant3(const Vector3& Sigma)
 MUDA_GENERIC Float invariant4(const Matrix3x3& F, const Vector3& a)
 {
     Matrix3x3 U, V;
-    Vector3 Sigma;
+    Vector3   Sigma;
     svd(F, U, Sigma, V);
     const Matrix3x3 S = V * Sigma.asDiagonal() * V.transpose();
     return (S * a).dot(a);
@@ -258,11 +259,11 @@ MUDA_GENERIC Matrix9x12 dFdx(const Matrix3x3& DmInv)
     return PFPu;
 }
 
-MUDA_GENERIC Matrix3x3 F(const Vector3& x0,
-                       const Vector3& x1,
-                       const Vector3& x2,
-                       const Vector3& x3,
-                       const Matrix3x3& DmInv)
+MUDA_GENERIC Matrix3x3 F(const Vector3&   x0,
+                         const Vector3&   x1,
+                         const Vector3&   x2,
+                         const Vector3&   x3,
+                         const Matrix3x3& DmInv)
 {
     auto ds = Ds(x0, x1, x2, x3);
     return ds * DmInv;

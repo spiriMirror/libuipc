@@ -16,9 +16,9 @@ class AffineBodyConstitution : public SimSystem
     };
 
   protected:
-    virtual U64  get_constitution_uid() const                      = 0;
-    virtual void do_build(BuildInfo& info)                         = 0;
-    virtual void retrieve(AffineBodyDynamics::FilteredInfo& info) = 0;
+    virtual U64  get_constitution_uid() const                        = 0;
+    virtual void do_build(BuildInfo& info)                           = 0;
+    virtual void do_retrieve(AffineBodyDynamics::FilteredInfo& info) = 0;
     virtual void do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info) = 0;
 
@@ -27,8 +27,9 @@ class AffineBodyConstitution : public SimSystem
     friend class ABDLineSearchReporter;
 
     virtual void do_build() override final;
-    void         retrieve(AffineBodyDynamics::FilteredInfo& info);
-    void         compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info);
+
+    void retrieve(AffineBodyDynamics::FilteredInfo& info);
+    void compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info);
     void compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info);
     SizeT m_index = ~0ull;
 };

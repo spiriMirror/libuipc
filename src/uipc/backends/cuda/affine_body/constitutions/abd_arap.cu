@@ -137,7 +137,7 @@ void ABDARAP::Impl::_build_on_device()
     async_resize(body_energies, kappas.size());
 }
 
-void ABDARAP::retrieve(AffineBodyDynamics::FilteredInfo& info)
+void ABDARAP::do_retrieve(AffineBodyDynamics::FilteredInfo& info)
 {
     m_impl.filter(info, world());
 }
