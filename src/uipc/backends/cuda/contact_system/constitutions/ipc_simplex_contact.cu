@@ -101,6 +101,7 @@ namespace sym::ipc_simplex_contact
         // cout << "y: " << y << "\n";
         Float F;
         FrictionEnergy(F, lam * mu, eps_v, dt, y);
+        cout << "mu: " << mu << "\n";
         return F;
     }
 
@@ -836,8 +837,8 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    test(0) = 1e-8;
                    test(1) = 1e-8;
                    test(2) = 1e-8;
-                   Float E1 = sym::ipc_simplex_contact::PT_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P + test, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
-                   Float E2 = sym::ipc_simplex_contact::PT_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P - test, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+                   Float E1 = sym::ipc_simplex_contact::PT_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P, T0 + test, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+                   Float E2 = sym::ipc_simplex_contact::PT_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P, T0 - test, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
 
                    sym::ipc_simplex_contact::PT_friction_gradient_hessian(
                           G_friction, H_friction, kappa, d_hat * d_hat, friction_rate, dt, P, T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
@@ -849,9 +850,11 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                            // cout << "H_contact(" << j << ", " << k << "): " << H_friction(j, k) << "\n";
                        }
                    }
+                   cout << "E1: " << E1 << "\n";
+                     cout << "E2: " << E2 << "\n";
                    Float numerical_diff = (E1 - E2) / 2;
                      cout << "numerical_diff: " << numerical_diff << "\n";
-                   Float analytical_diff = G_friction(0) * test(0) + G_friction(1) * test(1) + G_friction(2) * test(2);
+                   Float analytical_diff = G_friction(3) * test(0) + G_friction(4) * test(1) + G_friction(5) * test(2);
                      cout << "analytical_diff: " << analytical_diff << "\n";
                    cout << "numerical_diff - analytical_diff: " << numerical_diff - analytical_diff << "\n";
                    cout << "numerical_diff / analytical_diff: " << numerical_diff / analytical_diff << "\n";
@@ -860,13 +863,13 @@ void IPCSimplexContact::do_assemble(ContactInfo& info)
                    Vector12 G_friction2 = Eigen::Matrix<Float, 12, 1>::Zero();
                    Matrix12x12 H_friction0 = Eigen::Matrix<Float, 12, 12>::Zero();
                    Vector12 test12 = Eigen::Matrix<Float, 12, 1>::Zero();
-                   test12(0) = 1e-8;
-                   test12(1) = 1e-8;
-                   test12(2) = 1e-8;
+                   test12(3) = 1e-8;
+                   test12(4) = 1e-8;
+                   test12(5) = 1e-8;
                    sym::ipc_simplex_contact::PT_friction_gradient_hessian(
-                              G_friction1, H_friction0, kappa, d_hat * d_hat, friction_rate, dt, P + test12.segment<3>(0), T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+                              G_friction1, H_friction0, kappa, d_hat * d_hat, friction_rate, dt, P, T0 + test12.segment<3>(3), T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
                    sym::ipc_simplex_contact::PT_friction_gradient_hessian(
-                              G_friction2, H_friction0, kappa, d_hat * d_hat, friction_rate, dt, P - test12.segment<3>(0), T0, T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
+                              G_friction2, H_friction0, kappa, d_hat * d_hat, friction_rate, dt, P, T0 - test12.segment<3>(3), T1, T2, prev_Ps(PT[0]), prev_Ps(PT[1]), prev_Ps(PT[2]), prev_Ps(PT[3]), eps_v);
 
                    Vector12 G_friction_numerical_diff = (G_friction1 - G_friction2) / 2;
                    Vector12 G_friction_analytical_diff = H_friction * test12;
