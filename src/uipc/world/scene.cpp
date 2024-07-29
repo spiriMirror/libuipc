@@ -19,10 +19,11 @@ Json Scene::default_config() noexcept
     j["line_search"]["report_energy"] = false;
     j["line_search"]["max_iter"]      = 64;
 
-    j["contact"]["enable"]       = true;
-    j["contact"]["contitution"]  = "ipc";
-    j["contact"]["d_hat"]        = 0.01;
-    j["contact"]["eps_velocity"] = 0.01;
+    j["contact"]["enable"]             = true;
+    j["contact"]["friction"]["enable"] = true;
+    j["contact"]["contitution"]        = "ipc";
+    j["contact"]["d_hat"]              = 0.01;
+    j["contact"]["eps_velocity"]       = 0.01;
 
     j["sanity_check"]["enable"] = true;
 

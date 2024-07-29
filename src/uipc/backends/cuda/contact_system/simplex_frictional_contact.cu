@@ -11,6 +11,13 @@ void SimplexFrictionalContact::do_build()
     m_impl.global_contact_manager = &require<GlobalContactManager>();
     m_impl.global_vertex_manager  = &require<GlobalVertexManager>();
 
+    bool enable = world().scene().info()["contact"]["friction"]["enable"].get<bool>();
+
+    if(!enable)
+    {
+        throw SimSystemException("Frictional contact is disabled");
+    }
+
     BuildInfo info;
     do_build(info);
 

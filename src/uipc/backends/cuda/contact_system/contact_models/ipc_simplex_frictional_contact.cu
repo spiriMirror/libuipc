@@ -57,6 +57,8 @@ void IPCSimplexFrictionalContact::do_compute_energy(EnergyInfo& info)
                    distance::point_triangle_distance(P, T0, T1, T2, D);
                    // NOTE: D can be larger than D_hat
 
+                   cout << "PT: " << PT.transpose().eval() << " D/prev_D: " << D
+                        << "/" << prev_D << "\n";
 
                    // TODO:
                    Es(i) = 0.0;
@@ -114,6 +116,10 @@ void IPCSimplexFrictionalContact::do_compute_energy(EnergyInfo& info)
                    distance::edge_edge_distance(E0, E1, E2, E3, D);
                    // NOTE: D can be larger than D_hat
 
+
+                   cout << "EE: " << EE.transpose().eval() << " D/prev_D: " << D
+                        << "/" << prev_D << "\n";
+
                    // TODO:
                    Es(i) = 0.0;
                });
@@ -159,6 +165,9 @@ void IPCSimplexFrictionalContact::do_compute_energy(EnergyInfo& info)
                    distance::point_edge_distance(P, E0, E1, D);
                    // NOTE: D can be larger than D_hat
 
+                   cout << "PE: " << PE.transpose().eval() << " D/prev_D: " << D
+                        << "/" << prev_D << "\n";
+
                    // TODO:
                    Es(i) = 0.0;
                });
@@ -201,6 +210,9 @@ void IPCSimplexFrictionalContact::do_compute_energy(EnergyInfo& info)
                    Float          D  = D_hat;
                    distance::point_point_distance(P0, P1, D);
                    // NOTE: D can be larger than D_hat
+
+                   cout << "PP: " << PP.transpose().eval() << " D/prev_D: " << D
+                        << "/" << prev_D << "\n";
 
                    // TODO:
                    Es(i) = 0.0;
@@ -307,7 +319,6 @@ void IPCSimplexFrictionalContact::do_assemble(ContactInfo& info)
                    Float D;
                    distance::edge_edge_distance(E0, E1, E2, E3, D);
                    // NOTE: D can be larger than D_hat, if so, ignore this friction
-
 
                    // TODO:
                    Gs(i).setZero();
