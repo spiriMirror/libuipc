@@ -1,11 +1,11 @@
-#include <contact_system/vertex_half_plane_contact_constitution.h>
+#include <contact_system/vertex_half_plane_normal_contact.h>
 #include <collision_detection/half_plane_dcd_filter.h>
 #include <collision_detection/half_plane_dcd_filter.h>
 #include <muda/ext/eigen/evd.h>
 
 namespace uipc::backend::cuda
 {
-void VertexHalfPlaneContactConstitution::do_build()
+void VertexHalfPlaneNormalContact::do_build()
 {
     m_impl.global_dcd_filter      = &require<GlobalDCDFilter>();
     m_impl.global_contact_manager = &require<GlobalContactManager>();
@@ -18,7 +18,7 @@ void VertexHalfPlaneContactConstitution::do_build()
     m_impl.dt = world().scene().info()["dt"].get<Float>();
 }
 
-void VertexHalfPlaneContactConstitution::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
+void VertexHalfPlaneNormalContact::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
 {
     auto filter = m_impl.global_dcd_filter->half_plane_filter();
 
@@ -31,7 +31,7 @@ void VertexHalfPlaneContactConstitution::do_report_extent(GlobalContactManager::
     m_impl.loose_resize(m_impl.hessians, count);
 }
 
-void VertexHalfPlaneContactConstitution::do_compute_energy(GlobalContactManager::EnergyInfo& info)
+void VertexHalfPlaneNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
     using namespace muda;
 
@@ -70,7 +70,7 @@ namespace detail
 }  // namespace detail
 
 
-void VertexHalfPlaneContactConstitution::Impl::assemble(GlobalContactManager::ContactInfo& info)
+void VertexHalfPlaneNormalContact::Impl::assemble(GlobalContactManager::ContactInfo& info)
 {
     using namespace muda;
 
@@ -111,7 +111,7 @@ void VertexHalfPlaneContactConstitution::Impl::assemble(GlobalContactManager::Co
     }
 }
 
-void VertexHalfPlaneContactConstitution::do_assemble(GlobalContactManager::ContactInfo& info)
+void VertexHalfPlaneNormalContact::do_assemble(GlobalContactManager::ContactInfo& info)
 {
     ContactInfo this_info{&m_impl};
 
@@ -125,64 +125,64 @@ void VertexHalfPlaneContactConstitution::do_assemble(GlobalContactManager::Conta
     m_impl.assemble(info);
 }
 
-muda::CBuffer2DView<ContactCoeff> VertexHalfPlaneContactConstitution::BaseInfo::contact_tabular() const
+muda::CBuffer2DView<ContactCoeff> VertexHalfPlaneNormalContact::BaseInfo::contact_tabular() const
 {
     return m_impl->global_contact_manager->contact_tabular();
 }
 
-muda::CBufferView<Vector2i> VertexHalfPlaneContactConstitution::BaseInfo::PHs() const
+muda::CBufferView<Vector2i> VertexHalfPlaneNormalContact::BaseInfo::PHs() const
 {
     return m_impl->half_plane_dcd_filter()->PHs();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneContactConstitution::BaseInfo::positions() const
+muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::positions() const
 {
     return m_impl->global_vertex_manager->positions();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneContactConstitution::BaseInfo::prev_positions() const
+muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::prev_positions() const
 {
     return m_impl->global_vertex_manager->prev_positions();
 }
 
-muda::CBufferView<Vector3> VertexHalfPlaneContactConstitution::BaseInfo::rest_positions() const
+muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::rest_positions() const
 {
     return m_impl->global_vertex_manager->rest_positions();
 }
 
-muda::CBufferView<IndexT> VertexHalfPlaneContactConstitution::BaseInfo::contact_element_ids() const
+muda::CBufferView<IndexT> VertexHalfPlaneNormalContact::BaseInfo::contact_element_ids() const
 {
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
-Float VertexHalfPlaneContactConstitution::BaseInfo::d_hat() const
+Float VertexHalfPlaneNormalContact::BaseInfo::d_hat() const
 {
     return m_impl->global_contact_manager->d_hat();
 }
 
-Float VertexHalfPlaneContactConstitution::BaseInfo::dt() const
+Float VertexHalfPlaneNormalContact::BaseInfo::dt() const
 {
     return m_impl->dt;
 }
 
-Float VertexHalfPlaneContactConstitution::BaseInfo::eps_velocity() const
+Float VertexHalfPlaneNormalContact::BaseInfo::eps_velocity() const
 {
     return m_impl->global_contact_manager->eps_velocity();
 }
 
-HalfPlaneDCDFilter* VertexHalfPlaneContactConstitution::Impl::half_plane_dcd_filter() const noexcept
+HalfPlaneDCDFilter* VertexHalfPlaneNormalContact::Impl::half_plane_dcd_filter() const noexcept
 {
     return global_dcd_filter->half_plane_filter();
 }
-muda::BufferView<Vector3> VertexHalfPlaneContactConstitution::ContactInfo::gradients() const noexcept
+muda::BufferView<Vector3> VertexHalfPlaneNormalContact::ContactInfo::gradients() const noexcept
 {
     return m_gradients;
 }
-muda::BufferView<Matrix3x3> VertexHalfPlaneContactConstitution::ContactInfo::hessians() const noexcept
+muda::BufferView<Matrix3x3> VertexHalfPlaneNormalContact::ContactInfo::hessians() const noexcept
 {
     return m_hessians;
 }
-muda::BufferView<Float> VertexHalfPlaneContactConstitution::EnergyInfo::energies() const noexcept
+muda::BufferView<Float> VertexHalfPlaneNormalContact::EnergyInfo::energies() const noexcept
 {
     return m_energies;
 }

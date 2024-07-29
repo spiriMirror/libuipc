@@ -98,7 +98,7 @@ void GlobalVertexManager::Impl::collect_vertex_displacements()
 void GlobalVertexManager::Impl::record_prev_positions()
 {
     using namespace muda;
-    BufferLaunch().copy<Vector3>(safe_positions.view(), std::as_const(positions).view());
+    BufferLaunch().copy<Vector3>(prev_positions.view(), std::as_const(positions).view());
 }
 
 void GlobalVertexManager::Impl::record_start_point()
