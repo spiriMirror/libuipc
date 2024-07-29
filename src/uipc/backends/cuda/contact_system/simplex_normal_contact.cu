@@ -2,6 +2,7 @@
 #include <collision_detection/global_dcd_filter.h>
 #include <collision_detection/simplex_dcd_filter.h>
 #include <muda/ext/eigen/evd.h>
+#include <muda/cub/device/device_merge_sort.h>
 
 namespace uipc::backend::cuda
 {
@@ -18,38 +19,48 @@ void SimplexNormalContact::do_build()
     m_impl.dt = world().scene().info()["dt"].get<Float>();
 }
 
-void SimplexNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
+void SimplexNormalContact::Impl::compute_energy(SimplexNormalContact* contact,
+                                                GlobalContactManager::EnergyInfo& info)
 {
-    EnergyInfo this_info{&m_impl};
+    EnergyInfo this_info{this};
 
-    auto dcd_filter = m_impl.global_dcd_filter->simplex_filter();
+    auto dcd_filter = global_dcd_filter->simplex_filter();
 
-    m_impl.PT_count = dcd_filter->PTs().size();
-    m_impl.EE_count = dcd_filter->EEs().size();
-    m_impl.PE_count = dcd_filter->PEs().size();
-    m_impl.PP_count = dcd_filter->PPs().size();
+    PT_count = dcd_filter->PTs().size();
+    EE_count = dcd_filter->EEs().size();
+    PE_count = dcd_filter->PEs().size();
+    PP_count = dcd_filter->PPs().size();
 
-    auto count_4 = (m_impl.PT_count + m_impl.EE_count);
-    auto count_3 = m_impl.PE_count;
-    auto count_2 = m_impl.PP_count;
+    auto count_4 = (PT_count + EE_count);
+    auto count_3 = PE_count;
+    auto count_2 = PP_count;
 
-    m_impl.energies.resize(count_4 + count_3 + count_2);
+    energies.resize(count_4 + count_3 + count_2);
 
     SizeT offset            = 0;
-    this_info.m_PT_energies = m_impl.energies.view(offset, m_impl.PT_count);
-    offset += m_impl.PT_count;
-    this_info.m_EE_energies = m_impl.energies.view(offset, m_impl.EE_count);
-    offset += m_impl.EE_count;
-    this_info.m_PE_energies = m_impl.energies.view(offset, m_impl.PE_count);
-    offset += m_impl.PE_count;
-    this_info.m_PP_energies = m_impl.energies.view(offset, m_impl.PP_count);
+    this_info.m_PT_energies = energies.view(offset, PT_count);
+    offset += PT_count;
+    this_info.m_EE_energies = energies.view(offset, EE_count);
+    offset += EE_count;
+    this_info.m_PE_energies = energies.view(offset, PE_count);
+    offset += PE_count;
+    this_info.m_PP_energies = energies.view(offset, PP_count);
 
 
-    do_compute_energy(this_info);
-
+    contact->do_compute_energy(this_info);
     using namespace muda;
-    DeviceReduce().Sum(
-        m_impl.energies.data(), info.energy().data(), m_impl.energies.size());
+
+    DeviceMergeSort().SortKeys(energies.data(),
+                               energies.size(),
+                               [] CUB_RUNTIME_FUNCTION(Float a, Float b)
+                               { return a < b; });
+
+    DeviceReduce().Sum(energies.data(), info.energy().data(), energies.size());
+}
+
+void SimplexNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
+{
+    m_impl.compute_energy(this, info);
 }
 
 void SimplexNormalContact::do_report_extent(GlobalContactManager::ContactExtentInfo& info)

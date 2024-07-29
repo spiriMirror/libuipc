@@ -163,7 +163,7 @@ class SimplexFrictionalContact : public ContactReporter
 
         muda::DeviceBuffer<Float> energies;
 
-        Float reserve_ratio = 1.5;
+        Float reserve_ratio = 1.1;
 
         template <typename T>
         void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)

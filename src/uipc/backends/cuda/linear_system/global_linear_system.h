@@ -239,7 +239,7 @@ class GlobalLinearSystem : public SimSystem
         void solve_linear_system();
         void distribute_solution();
 
-        Float reserve_ratio = 1.5;
+        Float reserve_ratio = 1.1;
 
         // Core Invariant Data
         vector<LinearSubsytemInfo> subsystem_infos;

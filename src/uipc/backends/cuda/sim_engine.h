@@ -42,6 +42,7 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
   private:
     void build();
     void init_scene();
+    void dump_global_surface(std::string_view name);
 
     DeviceImpl&       device_impl() noexcept;
     U<DeviceImpl>     m_device_impl;
@@ -56,6 +57,7 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
     void                        event_rebuild_scene();
     SimActionCollection<void()> m_on_write_scene;
     void                        event_write_scene();
+    
 
   private:
     // Aware Top Systems

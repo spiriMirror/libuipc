@@ -4,7 +4,7 @@
 
 namespace uipc::backend::cuda
 {
-constexpr bool PrintDebugInfo = true;
+constexpr bool PrintDebugInfo = false;
 
 REGISTER_SIM_SYSTEM(SimpleHalfPlaneCCDFilter);
 
@@ -66,7 +66,7 @@ void SimpleHalfPlaneCCDFilter::Impl::filter_toi(FilterInfo& info)
                            if(this_toi < 1.0)
                            {
                                cout << "vI: " << vI << ", pI: " << j << ", toi: " << this_toi
-                                    << "slackness: " << slackness << "\n";
+                                    << " slackness: " << slackness << "\n";
                            }
                        }
                    }

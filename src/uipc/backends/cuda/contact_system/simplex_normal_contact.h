@@ -137,6 +137,8 @@ class SimplexNormalContact : public ContactReporter
     {
       public:
         void assemble(GlobalContactManager::ContactInfo& info);
+        void compute_energy(SimplexNormalContact*             contact,
+                            GlobalContactManager::EnergyInfo& info);
 
         GlobalDCDFilter*      global_dcd_filter      = nullptr;
         GlobalContactManager* global_contact_manager = nullptr;
@@ -163,8 +165,9 @@ class SimplexNormalContact : public ContactReporter
         muda::DeviceBuffer<Vector6>   PP_gradients;
 
         muda::DeviceBuffer<Float> energies;
+        muda::DeviceBuffer<Float> sorted_energies;
 
-        Float reserve_ratio = 1.5;
+        Float reserve_ratio = 1.1;
 
         template <typename T>
         void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)

@@ -97,7 +97,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         muda::DeviceBuffer<Vector3>   gradients;
         muda::DeviceBuffer<Matrix3x3> hessians;
 
-        Float reserve_ratio = 1.5;
+        Float reserve_ratio = 1.1;
 
         template <typename T>
         void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)

@@ -29,6 +29,8 @@ void SimEngine::do_advance()
 
         auto detect_dcd_candidates = [this]
         {
+            // dump_global_surface("dump_surface");
+
             if(m_global_dcd_filter)
                 m_global_dcd_filter->detect();
         };

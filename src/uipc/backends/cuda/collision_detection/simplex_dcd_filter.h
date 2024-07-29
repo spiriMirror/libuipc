@@ -60,7 +60,7 @@ class SimplexDCDFilter : public SimSystem
         muda::DeviceBuffer<Vector3i> friction_PE;
         muda::DeviceBuffer<Vector2i> friction_PP;
 
-        Float reserve_ratio = 1.5;
+        Float reserve_ratio = 1.1;
 
         template <typename T>
         void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)

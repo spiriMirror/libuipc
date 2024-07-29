@@ -97,33 +97,36 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
 
     // query PT
     lbvh_PT.build(triangle_aabbs);
-    auto PT_pairs = lbvh_PT.query(point_aabbs,
-                                  [Vs    = Vs.viewer().name("Vs"),
-                                   Fs    = Fs.viewer().name("Fs"),
-                                   Ps    = Ps.viewer().name("Ps"),
-                                   d_hat = d_hat] __device__(IndexT i, IndexT j)
-                                  {
-                                      // discard if the point is on the triangle
-                                      auto        V = Vs(i);
-                                      const auto& F = Fs(j);
+    auto PT_pairs = lbvh_PT.query(
+        point_aabbs,
+        [Vs    = Vs.viewer().name("Vs"),
+         Fs    = Fs.viewer().name("Fs"),
+         Ps    = Ps.viewer().name("Ps"),
+         d_hat = d_hat] __device__(IndexT i, IndexT j)
+        {
+            // discard if the point is on the triangle
+            auto        V = Vs(i);
+            const auto& F = Fs(j);
 
-                                      if(F[0] == V || F[1] == V || F[2] == V)
-                                          return false;
+            if(F[0] == V || F[1] == V || F[2] == V)
+                return false;
 
 
-                                      Vector3 VP  = Ps(V);
-                                      Vector3 FP0 = Ps(F[0]);
-                                      Vector3 FP1 = Ps(F[1]);
-                                      Vector3 FP2 = Ps(F[2]);
-                                      Float   D;
-                                      muda::distance::point_triangle_distance_unclassified(
-                                          VP, FP0, FP1, FP2, D);
+            Vector3 VP  = Ps(V);
+            Vector3 FP0 = Ps(F[0]);
+            Vector3 FP1 = Ps(F[1]);
+            Vector3 FP2 = Ps(F[2]);
+            Float   D;
+            muda::distance::point_triangle_distance_unclassified(VP, FP0, FP1, FP2, D);
 
-                                      if(D >= d_hat * d_hat)
-                                          return false;
+            if(D >= d_hat * d_hat)
+                return false;
 
-                                      return true;
-                                  });
+            //cout << "PT: " << V << " " << F.transpose().eval()
+            //     << " d: " << sqrt(D) << "d_hat: " << d_hat << "\n";
+
+            return true;
+        });
 
     // query EE
     lbvh_EE.build(edge_aabbs);
@@ -148,6 +151,9 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
 
             if(D >= d_hat * d_hat)
                 return false;
+
+            //cout << "EE: " << E0.transpose().eval() << " " << E1.transpose().eval()
+            //     << " d: " << sqrt(D) << "d_hat: " << d_hat << "\n";
 
             return true;
         });
@@ -183,24 +189,25 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
                    EE.segment<2>(2) = Es(pair[1]);
                });
 
-    //{
-    //    std::vector<Vector4i> candidate_PTs_host;
-    //    std::vector<Vector4i> candidate_EEs_host;
+    if constexpr(PrintDebugInfo)
+    {
+        std::vector<Vector4i> candidate_PTs_host;
+        std::vector<Vector4i> candidate_EEs_host;
 
-    //    candidate_PTs.copy_to(candidate_PTs_host);
-    //    candidate_EEs.copy_to(candidate_EEs_host);
+        candidate_PTs.copy_to(candidate_PTs_host);
+        candidate_EEs.copy_to(candidate_EEs_host);
 
-    //    // print the candidate pairs
-    //    for(auto& PT : candidate_PTs_host)
-    //    {
-    //        std::cout << "PT: " << PT.transpose() << std::endl;
-    //    }
+        // print the candidate pairs
+        for(auto& PT : candidate_PTs_host)
+        {
+            std::cout << "PT: " << PT.transpose() << std::endl;
+        }
 
-    //    for(auto& EE : candidate_EEs_host)
-    //    {
-    //        std::cout << "EE: " << EE.transpose() << std::endl;
-    //    }
-    //}
+        for(auto& EE : candidate_EEs_host)
+        {
+            std::cout << "EE: " << EE.transpose() << std::endl;
+        }
+    }
 }
 
 void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
