@@ -1,72 +1,18 @@
-#include <contact_system/constitutions/ipc_vertex_half_plane_contact.h>
+#include <contact_system/contact_models/ipc_vertex_half_plane_normal_contact.h>
+#include <contact_system/contact_models/ipc_vertex_half_contact_function.h>
 #include <kernel_cout.h>
 
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(IPCVertexHalfPlaneContact);
+REGISTER_SIM_SYSTEM(IPCVertexHalfPlaneNormalContact);
 
-void IPCVertexHalfPlaneContact::do_build(BuildInfo& info)
+void IPCVertexHalfPlaneNormalContact::do_build(BuildInfo& info)
 {
     half_plane = &require<HalfPlane>();
 }
 
-namespace sym::ipc_vertex_half_contact
-{
-#include "sym/ipc_contact.inl"
-#include "sym/vertex_half_plane_distance.inl"
 
-    __device__ Float PH_barrier_energy(Float          kappa,
-                                       Float          squared_d_hat,
-                                       const Vector3& v,
-                                       const Vector3& P,
-                                       const Vector3& N)
-    {
-        Float D_hat = squared_d_hat;
-        Float D;
-        HalfPlaneD(D, v, P, N);
-
-        MUDA_ASSERT(D < D_hat, "D=%f,D_hat=%f, why?", D, D_hat);
-
-        Float E = 0.0;
-        KappaBarrier(E, kappa, D, D_hat);
-
-        return E;
-    }
-
-    __device__ void PH_barrier_gradient_hessian(Vector3&       G,
-                                                Matrix3x3&     H,
-                                                Float          kappa,
-                                                Float          squared_d_hat,
-                                                const Vector3& v,
-                                                const Vector3& P,
-                                                const Vector3& N)
-    {
-        Float D_hat = squared_d_hat;
-        Float D;
-        HalfPlaneD(D, v, P, N);
-
-        MUDA_ASSERT(D < D_hat, "D=%f,D_hat=%f, why?", D, D_hat);
-
-        Float dBdD = 0.0;
-        dKappaBarrierdD(dBdD, kappa, D, D_hat);
-
-        Vector3 dDdx;
-        dHalfPlaneDdx(dDdx, v, P, N);
-
-        G = dBdD * dDdx;
-
-        Float ddBddD = 0.0;
-        ddKappaBarrierddD(ddBddD, kappa, D, D_hat);
-
-        Matrix3x3 ddDddx;
-        ddHalfPlaneDddx(ddDddx, v, P, N);
-
-        H = ddBddD * dDdx * dDdx.transpose() + dBdD * ddDddx;
-    }
-
-}  // namespace sym::ipc_vertex_half_contact
-
-void IPCVertexHalfPlaneContact::do_compute_energy(EnergyInfo& info)
+void IPCVertexHalfPlaneNormalContact::do_compute_energy(EnergyInfo& info)
 {
     using namespace muda;
 
@@ -104,7 +50,7 @@ void IPCVertexHalfPlaneContact::do_compute_energy(EnergyInfo& info)
                });
 }
 
-void IPCVertexHalfPlaneContact::do_assemble(ContactInfo& info)
+void IPCVertexHalfPlaneNormalContact::do_assemble(ContactInfo& info)
 {
     using namespace muda;
 

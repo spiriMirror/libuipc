@@ -8,7 +8,7 @@ namespace uipc::backend::cuda
 class GlobalDCDFilter;
 class HalfPlaneDCDFilter;
 
-class VertexHalfPlaneContactConstitution : public ContactReporter
+class VertexHalfPlaneNormalContact : public ContactReporter
 {
   public:
     using ContactReporter::ContactReporter;
@@ -35,7 +35,7 @@ class VertexHalfPlaneContactConstitution : public ContactReporter
         Float                             eps_velocity() const;
 
       private:
-        friend class VertexHalfPlaneContactConstitution;
+        friend class VertexHalfPlaneNormalContact;
         Impl* m_impl;
     };
 
@@ -51,7 +51,7 @@ class VertexHalfPlaneContactConstitution : public ContactReporter
         muda::BufferView<Matrix3x3> hessians() const noexcept;
 
       private:
-        friend class VertexHalfPlaneContactConstitution;
+        friend class VertexHalfPlaneNormalContact;
 
         muda::BufferView<Vector3>   m_gradients;
         muda::BufferView<Matrix3x3> m_hessians;
@@ -73,7 +73,7 @@ class VertexHalfPlaneContactConstitution : public ContactReporter
         muda::BufferView<Float> energies() const noexcept;
 
       private:
-        friend class VertexHalfPlaneContactConstitution;
+        friend class VertexHalfPlaneNormalContact;
         muda::BufferView<Float> m_energies;
     };
 

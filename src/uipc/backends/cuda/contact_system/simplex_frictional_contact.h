@@ -7,13 +7,12 @@ namespace uipc::backend::cuda
 {
 class SimplexDCDFilter;
 class GlobalDCDFilter;
-class SimplexContactConstitution : public ContactReporter
+class SimplexFrictionalContact : public ContactReporter
 {
   public:
     using ContactReporter::ContactReporter;
 
     class Impl;
-
 
     class BaseInfo
     {
@@ -24,10 +23,10 @@ class SimplexContactConstitution : public ContactReporter
         }
 
         muda::CBuffer2DView<ContactCoeff> contact_tabular() const;
-        muda::CBufferView<Vector4i>       PTs() const;
-        muda::CBufferView<Vector4i>       EEs() const;
-        muda::CBufferView<Vector3i>       PEs() const;
-        muda::CBufferView<Vector2i>       PPs() const;
+        muda::CBufferView<Vector4i>       friction_PTs() const;
+        muda::CBufferView<Vector4i>       friction_EEs() const;
+        muda::CBufferView<Vector3i>       friction_PEs() const;
+        muda::CBufferView<Vector2i>       friction_PPs() const;
         muda::CBufferView<Vector3>        positions() const;
         muda::CBufferView<Vector3>        prev_positions() const;
         muda::CBufferView<Vector3>        rest_positions() const;
@@ -37,7 +36,7 @@ class SimplexContactConstitution : public ContactReporter
         Float                             eps_velocity() const;
 
       private:
-        friend class SimplexContactConstitution;
+        friend class SimplexFrictionalContact;
         Impl* m_impl;
     };
 
@@ -49,42 +48,42 @@ class SimplexContactConstitution : public ContactReporter
         {
         }
 
-        muda::BufferView<Vector12> PT_gradients() const noexcept
+        muda::BufferView<Vector12> friction_PT_gradients() const noexcept
         {
             return m_PT_gradients;
         }
-        muda::BufferView<Matrix12x12> PT_hessians() const noexcept
+        muda::BufferView<Matrix12x12> friction_PT_hessians() const noexcept
         {
             return m_PT_hessians;
         }
 
-        muda::BufferView<Vector12> EE_gradients() const noexcept
+        muda::BufferView<Vector12> friction_EE_gradients() const noexcept
         {
             return m_EE_gradients;
         }
-        muda::BufferView<Matrix12x12> EE_hessians() const noexcept
+        muda::BufferView<Matrix12x12> friction_EE_hessians() const noexcept
         {
             return m_EE_hessians;
         }
-        muda::BufferView<Vector9> PE_gradients() const noexcept
+        muda::BufferView<Vector9> friction_PE_gradients() const noexcept
         {
             return m_PE_gradients;
         }
-        muda::BufferView<Matrix9x9> PE_hessians() const noexcept
+        muda::BufferView<Matrix9x9> friction_PE_hessians() const noexcept
         {
             return m_PE_hessians;
         }
-        muda::BufferView<Vector6> PP_gradients() const noexcept
+        muda::BufferView<Vector6> friction_PP_gradients() const noexcept
         {
             return m_PP_gradients;
         }
-        muda::BufferView<Matrix6x6> PP_hessians() const noexcept
+        muda::BufferView<Matrix6x6> friction_PP_hessians() const noexcept
         {
             return m_PP_hessians;
         }
 
       private:
-        friend class SimplexContactConstitution;
+        friend class SimplexFrictionalContact;
         muda::BufferView<Vector12>    m_PT_gradients;
         muda::BufferView<Matrix12x12> m_PT_hessians;
         muda::BufferView<Vector12>    m_EE_gradients;
@@ -108,25 +107,25 @@ class SimplexContactConstitution : public ContactReporter
         {
         }
 
-        muda::BufferView<Float> PT_energies() const noexcept
+        muda::BufferView<Float> friction_PT_energies() const noexcept
         {
             return m_PT_energies;
         }
-        muda::BufferView<Float> EE_energies() const noexcept
+        muda::BufferView<Float> friction_EE_energies() const noexcept
         {
             return m_EE_energies;
         }
-        muda::BufferView<Float> PE_energies() const noexcept
+        muda::BufferView<Float> friction_PE_energies() const noexcept
         {
             return m_PE_energies;
         }
-        muda::BufferView<Float> PP_energies() const noexcept
+        muda::BufferView<Float> friction_PP_energies() const noexcept
         {
             return m_PP_energies;
         }
 
       private:
-        friend class SimplexContactConstitution;
+        friend class SimplexFrictionalContact;
         muda::BufferView<Float> m_PT_energies;
         muda::BufferView<Float> m_EE_energies;
         muda::BufferView<Float> m_PE_energies;
@@ -180,7 +179,7 @@ class SimplexContactConstitution : public ContactReporter
   protected:
     virtual void do_build(BuildInfo& info)           = 0;
     virtual void do_compute_energy(EnergyInfo& info) = 0;
-    virtual void do_assemble(ContactInfo& info)      = 0;
+    virtual void do_assemble(ContactInfo& info)     = 0;
 
   private:
     virtual void do_compute_energy(GlobalContactManager::EnergyInfo& info) override final;
