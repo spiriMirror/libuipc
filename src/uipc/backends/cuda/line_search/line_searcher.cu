@@ -49,13 +49,14 @@ void LineSearcher::step_forward(Float alpha)
     }
 }
 
-Float LineSearcher::compute_energy()
+Float LineSearcher::compute_energy(bool is_initial)
 {
     auto reporter_energyes = span{m_energy_values}.subspan(0, m_reporters.view().size());
 
     for(auto&& [E, R] : zip(reporter_energyes, m_reporters.view()))
     {
         EnergyInfo info{this};
+        info.m_is_initial = is_initial;
         R->compute_energy(info);
         UIPC_ASSERT(info.m_energy.has_value(),
                     "Energy[{}] not set by reporter, did you forget to call energy()?",
@@ -71,6 +72,7 @@ Float LineSearcher::compute_energy()
         zip(energy_reporter_energyes, m_energy_reporters.view(), m_energy_reporter_names))
     {
         EnergyInfo info{this};
+        info.m_is_initial = is_initial;
         ER(info);
         UIPC_ASSERT(info.m_energy.has_value(),
                     "Energy[{}] not set by reporter, did you forget to call energy()?",
@@ -138,6 +140,11 @@ Float LineSearcher::EnergyInfo::dt() noexcept
 void LineSearcher::EnergyInfo::energy(Float e) noexcept
 {
     m_energy = e;
+}
+
+bool LineSearcher::EnergyInfo::is_initial() noexcept
+{
+    return m_is_initial;
 }
 
 SizeT LineSearcher::max_iter() const noexcept

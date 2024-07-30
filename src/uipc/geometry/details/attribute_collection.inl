@@ -3,7 +3,7 @@
 namespace uipc::geometry
 {
 template <typename T, bool AllowDestroy>
-P<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& default_value)
+S<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& default_value)
 {
     auto n  = string{name};
     auto it = m_attributes.find(n);
@@ -20,25 +20,25 @@ P<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& 
 }
 
 template <typename T>
-P<AttributeSlot<T>> AttributeCollection::share(std::string_view        name,
+S<AttributeSlot<T>> AttributeCollection::share(std::string_view        name,
                                                const AttributeSlot<T>& slot)
 {
     return std::static_pointer_cast<AttributeSlot<T>>(
-        this->share(name, static_cast<const IAttributeSlot&>(slot)).lock());
+        this->share(name, static_cast<const IAttributeSlot&>(slot)));
 }
 
 
 template <typename T>
-P<AttributeSlot<T>> AttributeCollection::find(std::string_view name)
+S<AttributeSlot<T>> AttributeCollection::find(std::string_view name)
 {
     auto slot = this->find(name);
-    return std::dynamic_pointer_cast<AttributeSlot<T>>(slot.lock());
+    return std::dynamic_pointer_cast<AttributeSlot<T>>(slot);
 }
 
 template <typename T>
-P<const AttributeSlot<T>> AttributeCollection::find(std::string_view name) const
+S<const AttributeSlot<T>> AttributeCollection::find(std::string_view name) const
 {
     auto slot = this->find(name);
-    return std::dynamic_pointer_cast<const AttributeSlot<T>>(slot.lock());
+    return std::dynamic_pointer_cast<const AttributeSlot<T>>(slot);
 }
 }  // namespace uipc::geometry

@@ -90,13 +90,13 @@ void Scene::solve_pending() noexcept
 // ----------------------------------------------------------------------------
 // Objects
 // ----------------------------------------------------------------------------
-P<Object> Scene::Objects::create(std::string_view name) &&
+S<Object> Scene::Objects::create(std::string_view name) &&
 {
     auto id = m_scene.m_impl.objects.m_next_id;
     return m_scene.m_impl.objects.emplace(Object{m_scene, id, name});
 }
 
-P<Object> Scene::Objects::find(IndexT id) && noexcept
+S<Object> Scene::Objects::find(IndexT id) && noexcept
 {
     return m_scene.m_impl.objects.find(id);
 }
@@ -133,7 +133,7 @@ SizeT Scene::Objects::size() const noexcept
     return m_scene.m_impl.objects.size();
 }
 
-P<const Object> Scene::CObjects::find(IndexT id) && noexcept
+S<const Object> Scene::CObjects::find(IndexT id) && noexcept
 {
     return m_scene.m_impl.objects.find(id);
 }

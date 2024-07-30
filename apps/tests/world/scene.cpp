@@ -28,9 +28,6 @@ TEST_CASE("scene", "[scene]")
 
     REQUIRE_ONCE_WARN(scene.objects().destroy(ID));
 
-    REQUIRE(geo.expired());
-    REQUIRE(rest_geo.expired());
-
     object = scene.objects().create("cube1");
 
     // create two geometries
@@ -242,8 +239,6 @@ TEST_CASE("pending destroy", "[scene]")
         for(auto id : geo_ids)
         {
             auto&& [geo, rest_geo] = scene.geometries().find<Geometry>(id);
-            REQUIRE(geo.expired());
-            REQUIRE(rest_geo.expired());
         }
     }
 

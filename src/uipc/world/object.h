@@ -33,16 +33,16 @@ class ObjectGeometrySlots
         typename propagate_const<GeometryT, geometry::GeometrySlotT<NonConstGeometryT>>::type;
 
   public:
-    P<AutoGeometrySlot> geometry;
-    P<AutoGeometrySlot> rest_geometry;
+    S<AutoGeometrySlot> geometry;
+    S<AutoGeometrySlot> rest_geometry;
 };
 
 template <>
 class ObjectGeometrySlots<geometry::Geometry>
 {
   public:
-    P<geometry::GeometrySlot> geometry;
-    P<geometry::GeometrySlot> rest_geometry;
+    S<geometry::GeometrySlot> geometry;
+    S<geometry::GeometrySlot> rest_geometry;
 };
 
 UIPC_CORE_EXPORT_TEMPLATE_CLASS ObjectGeometrySlots<geometry::Geometry>;
@@ -51,8 +51,8 @@ template <>
 class ObjectGeometrySlots<const geometry::Geometry>
 {
   public:
-    P<const geometry::GeometrySlot> geometry;
-    P<const geometry::GeometrySlot> rest_geometry;
+    S<const geometry::GeometrySlot> geometry;
+    S<const geometry::GeometrySlot> rest_geometry;
 };
 
 UIPC_CORE_EXPORT_TEMPLATE_CLASS ObjectGeometrySlots<const geometry::Geometry>;

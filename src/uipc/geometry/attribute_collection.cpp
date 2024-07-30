@@ -6,7 +6,7 @@
 #include <iostream>
 namespace uipc::geometry
 {
-P<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttributeSlot& slot)
+S<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttributeSlot& slot)
 {
     auto n  = string{name};
     auto it = m_attributes.find(n);
@@ -40,14 +40,14 @@ void AttributeCollection::destroy(std::string_view name)
     m_attributes.erase(it);
 }
 
-P<IAttributeSlot> AttributeCollection::find(std::string_view name)
+S<IAttributeSlot> AttributeCollection::find(std::string_view name)
 {
     auto it = m_attributes.find(string{name});
     return it != m_attributes.end() ? it->second : nullptr;
 }
 
 
-P<const IAttributeSlot> AttributeCollection::find(std::string_view name) const
+S<const IAttributeSlot> AttributeCollection::find(std::string_view name) const
 {
     auto it = m_attributes.find(string{name});
     return it != m_attributes.end() ? it->second : nullptr;

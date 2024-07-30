@@ -58,9 +58,9 @@ int main()
         auto ball = io.read(fmt::format("{}ball.msh", tetmesh_dir));
         auto link = io.read(fmt::format("{}link.msh", tetmesh_dir));
 
-        P<Object> cube_obj = scene.objects().create("cubes");
-        P<Object> ball_obj = scene.objects().create("balls");
-        P<Object> link_obj = scene.objects().create("links");
+        S<Object> cube_obj = scene.objects().create("cubes");
+        S<Object> ball_obj = scene.objects().create("balls");
+        S<Object> link_obj = scene.objects().create("links");
 
         abd.apply_to(cube, 10.0_MPa);
         label_surface(cube);

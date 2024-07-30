@@ -96,7 +96,7 @@ void SimEngine::do_advance()
             detect_dcd_candidates();
 
             // Compute New Energy => E
-            return m_line_searcher->compute_energy();
+            return m_line_searcher->compute_energy(false);
         };
 
         /***************************************************************************************
@@ -171,7 +171,7 @@ void SimEngine::do_advance()
                     m_global_vertex_manager->record_start_point();
 
                     // Compute Current Energy => E_0
-                    Float E0 = m_line_searcher->compute_energy();
+                    Float E0 = m_line_searcher->compute_energy(true);  // initial energy
 
                     // CCD filter
                     alpha = filter_toi(alpha);

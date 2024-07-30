@@ -16,7 +16,7 @@ class UIPC_CORE_API ContactElement
     friend void to_json(Json& j, const ContactElement& element);
     friend void from_json(const Json& j, ContactElement& element);
 
-    P<geometry::AttributeSlot<IndexT>> apply_to(geometry::Geometry& geo) const;
+    S<geometry::AttributeSlot<IndexT>> apply_to(geometry::Geometry& geo) const;
 
   private:
     IndexT      m_id = -1;

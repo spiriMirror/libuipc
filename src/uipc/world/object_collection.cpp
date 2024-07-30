@@ -8,7 +8,7 @@ T& remove_const(const T& t)
     return const_cast<T&>(t);
 }
 
-P<Object> ObjectCollection::emplace(Object&& object)
+S<Object> ObjectCollection::emplace(Object&& object)
 {
     IndexT id  = m_next_id++;
     auto   ptr = std::make_shared<Object>(std::move(object));
@@ -16,7 +16,7 @@ P<Object> ObjectCollection::emplace(Object&& object)
     return ptr;
 }
 
-P<Object> ObjectCollection::find(IndexT id) noexcept
+S<Object> ObjectCollection::find(IndexT id) noexcept
 {
     if(auto it = m_objects.find(id); it != m_objects.end())
         return it->second;
@@ -24,7 +24,7 @@ P<Object> ObjectCollection::find(IndexT id) noexcept
     return {};
 }
 
-P<const Object> ObjectCollection::find(IndexT id) const noexcept
+S<const Object> ObjectCollection::find(IndexT id) const noexcept
 {
     return remove_const(*this).find(id);
 }

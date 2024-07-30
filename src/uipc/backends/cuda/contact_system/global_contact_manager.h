@@ -51,10 +51,12 @@ class GlobalContactManager final : public SimSystem
     {
       public:
         muda::VarView<Float> energy() const { return m_energy; }
+        bool                 is_initial() const { return m_is_initial; }
 
       private:
         friend class ContactLineSearchReporter;
         muda::VarView<Float> m_energy;
+        bool                 m_is_initial = false;
     };
 
     class ClassifyInfo

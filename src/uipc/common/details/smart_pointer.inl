@@ -31,38 +31,4 @@ S<T> make_shared(Args&&... args)
     std::pmr::polymorphic_allocator<T> alloc{resource};
     return std::allocate_shared<T>(alloc, std::forward<Args>(args)...);
 }
-
-template <typename T>
-T* P<T>::operator->()
-{
-    return std::as_const(*this).operator->();
-}
-
-template <typename T>
-T& P<T>::operator*()
-{
-    return *std::as_const(*this);
-}
-
-template <typename T>
-T* P<T>::operator->() const
-{
-    auto ptr = Base::lock().get();
-    UIPC_ASSERT(ptr, "Weak pointer expired");
-    return ptr;
-}
-
-template <typename T>
-T& P<T>::operator*() const
-{
-    auto ptr = Base::lock().get();
-    UIPC_ASSERT(ptr, "Weak pointer expired");
-    return *ptr;
-}
-
-template <typename T>
-P<T>::operator bool() const
-{
-    return Base::lock().get();
-}
 }  // namespace uipc

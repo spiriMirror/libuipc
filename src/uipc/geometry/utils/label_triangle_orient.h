@@ -13,5 +13,5 @@ namespace uipc::geometry
  * 
  * @return P<AttributeSlot<IndexT>> the attribute slot of the triangle orientation.
  */
-UIPC_CORE_API P<AttributeSlot<IndexT>> label_triangle_orient(SimplicialComplex& sc);
+UIPC_CORE_API S<AttributeSlot<IndexT>> label_triangle_orient(SimplicialComplex& sc);
 }  // namespace uipc::geometry

@@ -50,10 +50,13 @@ void SimplexNormalContact::Impl::compute_energy(SimplexNormalContact* contact,
     contact->do_compute_energy(this_info);
     using namespace muda;
 
-    DeviceMergeSort().SortKeys(energies.data(),
-                               energies.size(),
-                               [] CUB_RUNTIME_FUNCTION(Float a, Float b)
-                               { return a < b; });
+    // if(info.is_initial())
+    {
+        DeviceMergeSort().SortKeys(energies.data(),
+                                   energies.size(),
+                                   [] CUB_RUNTIME_FUNCTION(Float a, Float b)
+                                   { return a < b; });
+    }
 
     DeviceReduce().Sum(energies.data(), info.energy().data(), energies.size());
 }

@@ -41,7 +41,7 @@ int main()
         default_contact.apply_to(tet);
 
         // create object
-        P<Object> object = scene.objects().create("tet");
+        S<Object> object = scene.objects().create("tet");
         {
             object->geometries().create(tet);
         }
@@ -49,7 +49,7 @@ int main()
         // create a ground geometry
         ImplicitGeometry half_plane = ground(-1.0);
 
-        P<Object> ground = scene.objects().create("ground");
+        S<Object> ground = scene.objects().create("ground");
         {
             ground->geometries().create(half_plane);
         }
@@ -67,7 +67,7 @@ void NullEngine::do_init(uipc::backend::WorldVisitor v)
 {
     using namespace uipc;
 
-    auto print_geos = [&](span<P<geometry::GeometrySlot>> geos)
+    auto print_geos = [&](span<S<geometry::GeometrySlot>> geos)
     {
         for(auto& geo : geos)
         {

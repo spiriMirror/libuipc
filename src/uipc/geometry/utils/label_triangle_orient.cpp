@@ -5,7 +5,7 @@
 
 namespace uipc::geometry
 {
-P<AttributeSlot<IndexT>> label_triangle_orient(SimplicialComplex& R)
+S<AttributeSlot<IndexT>> label_triangle_orient(SimplicialComplex& R)
 {
     UIPC_ASSERT(R.dim() == 3, "Only tetmesh is allowed. Yours dim = {}.", R.dim());
 

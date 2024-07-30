@@ -1,10 +1,28 @@
-import sys
-import os
-import json
+from pyuipc_loader import pyuipc
 
-with open(os.path.dirname(__file__) + '/../output/build_info.json') as f:
-    build_info = json.load(f)
+SmartObjectA = pyuipc.SmartObjectA
+SmartObjectB = pyuipc.SmartObjectB
+create_smart_object = pyuipc.create_smart_object
+receive_smart_object = pyuipc.receive_smart_object
+view = pyuipc.view
 
-sys.path.append(build_info['CMAKE_BINARY_DIR'] + 'Release/bin')
+soa0 = create_smart_object()
+receive_smart_object(soa0)
+print("soa0:", soa0)
 
-from pyuipc import add 
+soa1 = SmartObjectA()
+receive_smart_object(soa1)
+print("soa1:", soa1)
+
+print(soa1.name())
+print(soa1.view())
+print(view(soa1))
+
+sob = SmartObjectB()
+print(sob.view())
+print(view(sob))
+
+import numpy as np
+
+
+

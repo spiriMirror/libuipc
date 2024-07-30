@@ -29,19 +29,19 @@ class UIPC_CORE_API GeometryCollection : public IGeometryCollection
 
     template <std::derived_from<geometry::Geometry> GeometryT>
         requires(!std::is_abstract_v<GeometryT>)
-    P<geometry::GeometrySlotT<GeometryT>> emplace(const GeometryT& geometry);
+    S<geometry::GeometrySlotT<GeometryT>> emplace(const GeometryT& geometry);
 
     template <std::derived_from<geometry::Geometry> GeometryT>
         requires(!std::is_abstract_v<GeometryT>)
-    P<geometry::GeometrySlotT<GeometryT>> pending_emplace(const GeometryT& geometry);
+    S<geometry::GeometrySlotT<GeometryT>> pending_emplace(const GeometryT& geometry);
 
     template <std::derived_from<geometry::Geometry> GeometryT>
-    P<geometry::GeometrySlotT<GeometryT>> find(IndexT id) noexcept;
-    P<geometry::GeometrySlot>             find(IndexT id) noexcept;
+    S<geometry::GeometrySlotT<GeometryT>> find(IndexT id) noexcept;
+    S<geometry::GeometrySlot>             find(IndexT id) noexcept;
 
     template <std::derived_from<geometry::Geometry> GeometryT>
-    P<const geometry::GeometrySlotT<GeometryT>> find(IndexT id) const noexcept;
-    P<const geometry::GeometrySlot>             find(IndexT id) const noexcept;
+    S<const geometry::GeometrySlotT<GeometryT>> find(IndexT id) const noexcept;
+    S<const geometry::GeometrySlot>             find(IndexT id) const noexcept;
 
     void destroy(IndexT id) noexcept;
     void pending_destroy(IndexT id) noexcept;
@@ -49,8 +49,8 @@ class UIPC_CORE_API GeometryCollection : public IGeometryCollection
 
     void solve_pending() noexcept;
 
-    span<P<geometry::GeometrySlot>> geometry_slots() const noexcept;
-    span<P<geometry::GeometrySlot>> pending_create_slots() const noexcept;
+    span<S<geometry::GeometrySlot>> geometry_slots() const noexcept;
+    span<S<geometry::GeometrySlot>> pending_create_slots() const noexcept;
     span<IndexT>                    pending_destroy_ids() const noexcept;
 
   protected:
@@ -68,8 +68,8 @@ class UIPC_CORE_API GeometryCollection : public IGeometryCollection
 
     mutable bool m_dirty = true;
 
-    mutable vector<P<geometry::GeometrySlot>> m_geometry_slots;
-    mutable vector<P<geometry::GeometrySlot>> m_pending_create_slots;
+    mutable vector<S<geometry::GeometrySlot>> m_geometry_slots;
+    mutable vector<S<geometry::GeometrySlot>> m_pending_create_slots;
     mutable vector<IndexT>                    m_pending_destroy_ids;
 
     void flush() const;
