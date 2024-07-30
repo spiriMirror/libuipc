@@ -12,7 +12,9 @@ uipc_set_output_directory(pyuipc)
 file(GLOB SOURCES "*.cpp" "*.h")
 target_sources(pyuipc PRIVATE ${SOURCES})
 
+add_subdirectory(common)
 add_subdirectory(examples)
+add_subdirectory(geometry)
 
 
 # Setup IDE

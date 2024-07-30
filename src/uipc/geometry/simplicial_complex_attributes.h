@@ -2,7 +2,7 @@
 #include <uipc/geometry/simplex_slot.h>
 #include <uipc/geometry/attribute_collection.h>
 #include <uipc/common/json.h>
-
+#include <uipc/geometry/attribute_friend.h>
 namespace uipc::geometry
 {
 template <std::derived_from<ISimplexSlot> SimplexSlotT>
@@ -25,6 +25,9 @@ class SimplicialComplexTopo
     using ConstSimplexSlotT    = std::add_const_t<NonConstSimplexSlotT>;
 
     friend class SimplicialComplexTopo<NonConstSimplexSlotT>;
+
+    template <typename T>
+    friend class AttributeFriend;
 
   public:
     /**
@@ -68,6 +71,9 @@ class SimplicialComplexTopo<const VertexSlot>
     friend class SimplicialComplexAttributes<const VertexSlot>;
     friend class SimplicialComplexTopo<VertexSlot>;
 
+    template <typename T>
+    friend class AttributeFriend;
+
   public:
     /**
      * @brief Get the backend view of the topology, this function guarantees no data clone.
@@ -98,6 +104,9 @@ class SimplicialComplexTopo<VertexSlot>
 {
     friend struct fmt::formatter<SimplicialComplexTopo<VertexSlot>>;
     friend class SimplicialComplexAttributes<VertexSlot>;
+
+    template <typename T>
+    friend class AttributeFriend;
 
   public:
     /**
@@ -159,7 +168,13 @@ class SimplicialComplexAttributes
 
     using ConstSimplicialComplexAttributesT = SimplicialComplexAttributes<ConstSimplexSlotT>;
 
+    template <typename T>
+    friend class AttributeFriend;
+
   public:
+    template <typename T>
+    friend class AttributeFriend;
+
     SimplicialComplexAttributes(const SimplicialComplexAttributes& o) = default;
     SimplicialComplexAttributes(SimplicialComplexAttributes&& o)      = default;
     SimplicialComplexAttributes& operator=(const SimplicialComplexAttributes& o) = default;
@@ -242,8 +257,8 @@ class SimplicialComplexAttributes
 
     void copy_from(ConstSimplicialComplexAttributesT other,
                    const AttributeCopy&              copy          = {},
-                   span<const string>           include_names = {},
-                   span<const string>           exclude_names = {})
+                   span<const string>                include_names = {},
+                   span<const string>                exclude_names = {})
         requires(!IsConst)
     {
         m_attributes.copy_from(other.m_attributes, copy, include_names, exclude_names);

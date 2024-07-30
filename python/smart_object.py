@@ -22,7 +22,11 @@ sob = SmartObjectB()
 print(sob.view())
 print(view(sob))
 
-import numpy as np
 
+geometry = pyuipc.geometry
+SimplicialComplex = geometry.SimplicialComplex
+
+sc = SimplicialComplex()
+print(sc)
 
 

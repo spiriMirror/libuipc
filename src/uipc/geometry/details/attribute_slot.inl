@@ -16,6 +16,12 @@ span<const T> AttributeSlot<T>::view() const noexcept
     return m_attribute->view();
 }
 
+//template <typename T>
+//const BufferInfo& AttributeSlot<T>::get_buffer_info() const noexcept
+//{
+//    return m_attribute->buffer_info();
+//}
+
 template <typename T>
 std::string_view AttributeSlot<T>::get_type_name() const noexcept
 {

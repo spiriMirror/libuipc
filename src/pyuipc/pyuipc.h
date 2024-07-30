@@ -1,3 +1,4 @@
+#pragma once
 #include <pybind11/pybind11.h>
 #include <functional>
 #include <uipc/common/type_define.h>

@@ -20,6 +20,9 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
 {
     friend struct fmt::formatter<SimplicialComplex>;
 
+    template <typename T>
+    friend class AttributeFriend;
+
   public:
     /**
      * @brief Alias for the vertex attributes

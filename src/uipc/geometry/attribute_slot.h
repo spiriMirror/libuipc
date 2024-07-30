@@ -4,7 +4,7 @@
 #include <map>
 #include <uipc/common/exception.h>
 #include <uipc/backend/buffer_view.h>
-
+#include <uipc/common/buffer_info.h>
 namespace uipc::geometry
 {
 class AttributeCollection;
@@ -15,6 +15,9 @@ class AttributeCollection;
 class UIPC_CORE_API IAttributeSlot
 {
   public:
+    template <typename T>
+    friend class AttributeFriend;
+
     IAttributeSlot()          = default;
     virtual ~IAttributeSlot() = default;
     // delete copy_from
@@ -54,6 +57,7 @@ class UIPC_CORE_API IAttributeSlot
 
   protected:
     friend class AttributeCollection;
+    
     [[nodiscard]] virtual std::string_view get_name() const noexcept = 0;
     [[nodiscard]] virtual bool get_allow_destroy() const noexcept    = 0;
 
@@ -74,6 +78,9 @@ class UIPC_CORE_API IAttributeSlot
     [[nodiscard]] virtual const IAttribute& attribute() const noexcept;
     [[nodiscard]] virtual const IAttribute& get_attribute() const noexcept = 0;
     [[nodiscard]] virtual Json              do_to_json(SizeT i) const      = 0;
+
+    // [[nodiscard]] const BufferInfo& buffer_info() const;
+    // [[nodiscard]] virtual const BufferInfo& get_buffer_info() const noexcept = 0;
 };
 
 /**
@@ -105,6 +112,7 @@ class AttributeSlot final : public IAttributeSlot
 
   protected:
     friend class AttributeCollection;
+    // [[nodiscard]] virtual const BufferInfo& get_buffer_info() const noexcept override;
 
     [[nodiscard]] virtual std::string_view get_type_name() const noexcept override;
     [[nodiscard]] virtual std::string_view get_name() const noexcept override;

@@ -8,6 +8,7 @@
 #include <uipc/common/type_define.h>
 #include <uipc/common/vector.h>
 #include <uipc/geometry/attribute_copy.h>
+#include <uipc/common/buffer_info.h>
 
 namespace uipc::geometry
 {
@@ -100,9 +101,11 @@ class Attribute : public IAttribute
     virtual Json do_to_json(SizeT i) const noexcept override;
 
   private:
+    // const BufferInfo&   buffer_info() const noexcept;
     backend::BufferView m_backend_view;
     vector<T>           m_values;
     T                   m_default_value;
+    // mutable BufferInfo  m_buffer_info;
 };
 }  // namespace uipc::geometry
 

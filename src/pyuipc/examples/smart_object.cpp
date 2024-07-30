@@ -20,63 +20,6 @@ class SmartObjectA
     std::string_view name() { return "SmartObjectA"; }
 };
 
-template <typename T, size_t M, size_t N, int Options>
-py::array_t<T, py::array::c_style> as_numpy(span<Eigen::Matrix<T, M, N, Options>> v)
-    requires(M > 0 && N > 0)
-{
-    using Matrix = Eigen::Matrix<T, M, N, Options>;
-    // view it as a 3-order tensor
-    py::ssize_t stride_2 = Matrix::OuterStrideAtCompileTime;
-    py::ssize_t stride_3 = Matrix::InnerStrideAtCompileTime;
-
-    constexpr bool rowMajor = Matrix::Flags & Eigen::RowMajorBit;
-
-    if(!rowMajor)
-        std::swap(stride_2, stride_3);
-
-    py::buffer_info info;
-    info.ndim     = 3;
-    info.shape    = {(py::ssize_t)v.size(), M, N};
-    info.strides  = {(py::ssize_t)sizeof(Matrix),
-                     stride_2 * (py::ssize_t)sizeof(double),
-                     stride_3 * (py::ssize_t)sizeof(double)};
-    info.format   = py::format_descriptor<double>::format();
-    info.itemsize = sizeof(double);
-    info.ptr      = (void*)v.data();
-    info.readonly = false;
-
-    return py::array_t<Matrix>(info);
-}
-
-template <typename T, size_t M, size_t N, int Options>
-py::array_t<T, py::array::c_style> as_numpy(span<const Eigen::Matrix<T, M, N, Options>> v)
-    requires(M > 0 && N > 0)
-{
-    using Matrix = Eigen::Matrix<T, M, N, Options>;
-    // view it as a 3-order tensor
-    py::ssize_t stride_2 = Matrix::OuterStrideAtCompileTime;
-    py::ssize_t stride_3 = Matrix::InnerStrideAtCompileTime;
-
-    constexpr bool rowMajor = Matrix::Flags & Eigen::RowMajorBit;
-
-    if(!rowMajor)
-        std::swap(stride_2, stride_3);
-
-    py::buffer_info info;
-    info.ndim     = 3;
-    info.shape    = {(py::ssize_t)v.size(), M, N};
-    info.strides  = {(py::ssize_t)sizeof(Matrix),
-                     stride_2 * (py::ssize_t)sizeof(double),
-                     stride_3 * (py::ssize_t)sizeof(double)};
-    info.format   = py::format_descriptor<double>::format();
-    info.itemsize = sizeof(double);
-    info.ptr      = (void*)v.data();
-    info.readonly = true;
-
-    return py::array_t<const Matrix>(info);
-}
-
-
 class SmartObjectB
 {
   public:
@@ -114,19 +57,18 @@ std::shared_ptr<SmartObjectA> create_smart_object()
 void receive_smart_object(SmartObjectA& obj)
 {
     printf("c++: receive_smart_object=%p\n", &obj);
+    for(auto& v : obj.view())
+    {
+        printf("c++: %f\n", v);
+    }
 }
 
 static Module M(
     [](py::module& m)
     {
-        // bind Matrix3d
-
-
-        py::class_<SmartObjectA, std::shared_ptr<SmartObjectA>> obj(
-            m, PYBIND11_TOSTRING(SmartObjectA));
+        py::class_<SmartObjectA> obj(m, PYBIND11_TOSTRING(SmartObjectA));
         obj.def(py::init<>());
 
-        // use lambda to avoid ambiguity
         obj.def("view", [](SmartObjectA& self) { return as_numpy(self.view()); });
         obj.def("name", &SmartObjectA::name);
 
@@ -135,8 +77,7 @@ static Module M(
         m.def("create_smart_object", &create_smart_object);
         m.def("receive_smart_object", &receive_smart_object);
 
-        py::class_<SmartObjectB, std::shared_ptr<SmartObjectB>> obj_a(
-            m, PYBIND11_TOSTRING(SmartObjectB));
+        py::class_<SmartObjectB> obj_a(m, PYBIND11_TOSTRING(SmartObjectB));
         obj_a.def(py::init<>());
 
         obj_a.def("view",
