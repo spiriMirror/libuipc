@@ -4,7 +4,7 @@
 #include <uipc/geometry/geometry.h>
 #include <uipc/geometry/attribute_friend.h>
 #include <pyuipc/as_numpy.h>
-
+#include <pyuipc/common/json.h>
 namespace uipc::geometry
 {
 namespace py = pybind11;
@@ -29,7 +29,12 @@ class AttributeFriend<pyuipc::geometry::PySimplicialComplex>
                                     std::string_view                    name,
                                     py::object                          object)
     {
-        auto pyobj = py::cast(a.m_attributes);
+        auto pyobj = py::cast(a.m_attributes,
+                              py::return_value_policy::reference_internal,  // member object is a reference in the parent object
+                              py::cast(a)  // parent object
+        );
+
+        // call the create method of the member object
         return py::cast<S<IAttributeSlot>>(pyobj.attr("create").call(py::cast(name), object));
     }
 };
@@ -85,6 +90,8 @@ void def_method(py::module& m, py::class_<SimplicialComplexAttributes<SlotT>>& c
                         [](Attributes& self, std::string_view name, py::object object) {
                             return Accessor::template create<SlotT>(self, name, object);
                         });
+
+    class_Attribute.def("to_json", &Attributes::to_json);
 }
 
 
@@ -158,16 +165,6 @@ PySimplicialComplex::PySimplicialComplex(py::module& m)
 
     // Vertex
     {
-        //class_VertexAttributes.def(
-        //    "topo",
-        //    [](SimplicialComplex::VertexAttributes& self) { return self.topo(); },
-        //    py::return_value_policy::move);
-
-
-        //m.def("view",
-        //      [](SimplicialComplexTopo<VertexSlot>& self)
-        //      { return as_numpy(view(std::move(self))); });
-
         def_method(m, class_VertexAttributes);
 
         class_SimplicalComplexVertexTopo.def(

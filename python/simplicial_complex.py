@@ -14,6 +14,8 @@ Ts = np.array([[0,1,2,3]])
 
 sc = tetmesh(Vs, Ts)
 
+print("API test:")
+print("object:")
 print(sc)
 print(sc.meta())
 print(sc.instances())
@@ -33,11 +35,14 @@ print(sc.vertices().topo())
 print(sc.edges().topo())
 print(sc.triangles().topo())
 print(sc.tetrahedra().topo())
+
+print("view:")
 print(sc.vertices().topo().view())
 print(sc.edges().topo().view())
 print(sc.triangles().topo().view())
 print(sc.tetrahedra().topo().view())
 
+print("attribute create")
 v = sc.vertices().create("i64", np.array(0, dtype=np.int64))
 print(v)
 a = view(v)
@@ -52,6 +57,10 @@ except ValueError as e:
     print('caught ValueError:', e)
 
 print(v.view())
+
+print("attribute destroy:")
+j = sc.vertices().to_json()
+print(j)
 
 
 
