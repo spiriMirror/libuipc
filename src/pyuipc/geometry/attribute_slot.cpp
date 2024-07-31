@@ -12,11 +12,9 @@ void def_attribute_slot(py::module& m, std::string name)
     auto class_AttributeSlotT =
         py::class_<AttributeSlot<T>, IAttributeSlot, S<AttributeSlot<T>>>(m, name.c_str());
 
-    class_AttributeSlotT.def(
-        "view",
-        [](AttributeSlot<T>& self)
-        { return as_numpy(self.view(), py::cast(self)); },
-        py::return_value_policy::reference);
+    class_AttributeSlotT.def("view",
+                             [](AttributeSlot<T>& self)
+                             { return as_numpy(self.view(), py::cast(self)); });
 
     m.def("view",
           [](AttributeSlot<T>& self)
@@ -35,7 +33,7 @@ PyAttributeSlot::PyAttributeSlot(py::module& m)
         .def("is_shared", &IAttributeSlot::is_shared)
         .def("size", &IAttributeSlot::size)
         // view pure virtual
-        .def("view", [](IAttributeSlot& self) {});
+        .def("view", [](IAttributeSlot& self) -> py::array { return py::none(); });
 
     // basic types
     DEF_ATTRIBUTE_SLOT(Float);

@@ -94,6 +94,28 @@ void def_method(py::module& m, py::class_<SimplicialComplexAttributes<SlotT>>& c
     class_Attribute.def("to_json", &Attributes::to_json);
 }
 
+template <typename SlotT>
+void def_method(py::module& m, py::class_<SimplicialComplexTopo<SlotT>>& class_Attribute)
+{
+    class_Attribute.def("view",
+                        [](SimplicialComplexTopo<SlotT>& self) {
+                            return as_numpy(std::move(self).view(), py::cast(self));
+                        });
+
+    m.def("view",
+          [](SimplicialComplexTopo<SlotT>& self)
+          { return as_numpy(view(std::move(self)), py::cast(self)); });
+
+    class_Attribute.def("share",
+                        [](SimplicialComplexTopo<SlotT>& self,
+                           SimplicialComplexTopo<SlotT>& other)
+                        { return std::move(self).share(std::move(other)); });
+
+    class_Attribute.def("is_shared",
+                        [](SimplicialComplexTopo<SlotT>& self)
+                        { return std::move(self).is_shared(); });
+}
+
 
 PySimplicialComplex::PySimplicialComplex(py::module& m)
 {
@@ -167,104 +189,28 @@ PySimplicialComplex::PySimplicialComplex(py::module& m)
     {
         def_method(m, class_VertexAttributes);
 
-        class_SimplicalComplexVertexTopo.def(
-            "view",
-            [](SimplicialComplexTopo<VertexSlot>& self)
-            { return as_numpy(std::move(self).view(), py::cast(self)); });
-
-        class_SimplicalComplexVertexTopo.def(
-            "share",
-            [](SimplicialComplexTopo<VertexSlot>& self, SimplicialComplexTopo<VertexSlot>& other)
-            { return std::move(self).share(std::move(other)); });
-
-        class_SimplicalComplexVertexTopo.def("is_shared",
-                                             [](SimplicialComplexTopo<VertexSlot>& self) {
-                                                 return std::move(self).is_shared();
-                                             });
+        def_method(m, class_SimplicalComplexVertexTopo);
     }
 
     // Edges
     {
-        class_EdgeAttributes.def("find",
-                                 [](SimplicialComplex::EdgeAttributes& self, std::string_view name)
-                                 { return Accessor::find(self, name); });
+        def_method(m, class_EdgeAttributes);
 
-        class_EdgeAttributes.def(
-            "topo",
-            [](SimplicialComplex::EdgeAttributes& self) { return self.topo(); },
-            py::return_value_policy::move);
-
-        class_SimplicalComplexEdgeTopo.def(
-            "view",
-            [](SimplicialComplexTopo<EdgeSlot>& self)
-            { return as_numpy(std::move(self).view(), py::cast(self)); });
-
-        m.def("view",
-              [](SimplicialComplexTopo<EdgeSlot>& self)
-              { return as_numpy(view(std::move(self)), py::cast(self)); });
-
-        class_SimplicalComplexEdgeTopo.def(
-            "share",
-            [](SimplicialComplexTopo<EdgeSlot>& self, SimplicialComplexTopo<EdgeSlot>& other)
-            { return std::move(self).share(std::move(other)); });
+        def_method(m, class_SimplicalComplexEdgeTopo);
     }
 
-
+    // Triangles
     {
-        class_TriangleAttributes.def("find",
-                                     [](SimplicialComplex::TriangleAttributes& self,
-                                        std::string_view name)
-                                     { return Accessor::find(self, name); });
+        def_method(m, class_TriangleAttributes);
 
-
-        class_TriangleAttributes.def(
-            "topo",
-            [](SimplicialComplex::TriangleAttributes& self)
-            { return self.topo(); },
-            py::return_value_policy::move);
-
-        class_SimplicalComplexTriangleTopo.def(
-            "view",
-            [](SimplicialComplexTopo<TriangleSlot>& self)
-            { return as_numpy(std::move(self).view(), py::cast(self)); });
-
-        m.def("view",
-              [](SimplicialComplexTopo<TriangleSlot>& self)
-              { return as_numpy(view(std::move(self)), py::cast(self)); });
-
-        class_SimplicalComplexTriangleTopo.def(
-            "share",
-            [](SimplicialComplexTopo<TriangleSlot>& self,
-               SimplicialComplexTopo<TriangleSlot>& other)
-            { return std::move(self).share(std::move(other)); });
+        def_method(m, class_SimplicalComplexTriangleTopo);
     }
 
+    // Tetrahedra
     {
-        class_TetrahedronAttributes.def("find",
-                                        [](SimplicialComplex::TetrahedronAttributes& self,
-                                           std::string_view name)
-                                        { return Accessor::find(self, name); });
+        def_method(m, class_TetrahedronAttributes);
 
-        class_TetrahedronAttributes.def(
-            "topo",
-            [](SimplicialComplex::TetrahedronAttributes& self)
-            { return self.topo(); },
-            py::return_value_policy::move);
-
-        class_SimplicalComplexTetrahedronTopo.def(
-            "view",
-            [](SimplicialComplexTopo<TetrahedronSlot>& self)
-            { return as_numpy(std::move(self).view(), py::cast(self)); });
-
-        m.def("view",
-              [](SimplicialComplexTopo<TetrahedronSlot>& self)
-              { return as_numpy(view(std::move(self)), py::cast(self)); });
-
-        class_SimplicalComplexTetrahedronTopo.def(
-            "share",
-            [](SimplicialComplexTopo<TetrahedronSlot>& self,
-               SimplicialComplexTopo<TetrahedronSlot>& other)
-            { return std::move(self).share(std::move(other)); });
+        def_method(m, class_SimplicalComplexTetrahedronTopo);
     }
 }
 }  // namespace pyuipc::geometry

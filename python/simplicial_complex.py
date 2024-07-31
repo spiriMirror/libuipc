@@ -64,6 +64,12 @@ print(j)
 
 
 
+mesh = tetmesh(Vs, Ts)
+
+mesh.vertices().create("velocity", np.zeros(3))
+
+
+
 
 
 

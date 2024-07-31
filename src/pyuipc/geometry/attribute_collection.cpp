@@ -30,14 +30,17 @@ void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
         .def("create",
              [](AttributeCollection& self, std::string_view name, py::array_t<Float> arr) -> S<IAttributeSlot>
              {
-                 bool is_scalar = arr.ndim() == 0;
+                 bool is_scalar =
+                     arr.ndim() == 0 || (arr.ndim() == 1 && arr.shape(0) == 1)
+                     || (arr.ndim() == 2 && arr.shape(0) == 1 && arr.shape(1) == 1);
                  if(is_scalar)
                  {
                      return self.create(name, *arr.data());
                  }
 
-                 bool is_vector =
-                     arr.ndim() == 1 || (arr.ndim() == 2 && arr.shape(1) == 1);
+                 bool is_vector = arr.ndim() == 1
+                                  || (arr.ndim() == 2 && arr.shape(1) == 1)
+                                  || (arr.ndim() == 2 && arr.shape(0) == 1);
 
                  if(is_vector)  // Vector Type
                  {
@@ -67,7 +70,7 @@ void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
                      }
                      else
                      {
-                         throw std::runtime_error("Unsupported vector size");
+                         throw std::runtime_error("AttributeCollection: Unsupported vector size");
                      }
                  }
                  else if(arr.ndim() == 2)  // Matrix Type or Vector Type
@@ -99,12 +102,12 @@ void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
                      }
                      else
                      {
-                         throw std::runtime_error("Unsupported matrix size");
+                         throw std::runtime_error("AttributeCollection: Unsupported matrix size");
                      }
                  }
                  else
                  {
-                     throw std::runtime_error("Unsupported shape of float64");
+                     throw std::runtime_error("AttributeCollection: Unsupported shape of float64");
                  }
              })
         .def("create",
@@ -135,12 +138,12 @@ void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
                      }
                      else
                      {
-                         throw std::runtime_error("Unsupported vector size");
+                         throw std::runtime_error("AttributeCollection: Unsupported vector size");
                      }
                  }
                  else
                  {
-                     throw std::runtime_error("Unsupported shape of int");
+                     throw std::runtime_error("AttributeCollection: Unsupported shape of int");
                  }
              })
         .def("create",
@@ -152,7 +155,7 @@ void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
                      return self.create(name, *arr.data());
                  }
 
-                 throw std::runtime_error("Unsupported shape of uint64");
+                 throw std::runtime_error("AttributeCollection: Unsupported shape of uint64");
              })
         .def("create",
              [](AttributeCollection& self, std::string_view name, py::array_t<I64> arr) -> S<IAttributeSlot>
@@ -163,7 +166,7 @@ void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
                      return self.create(name, *arr.data());
                  }
 
-                 throw std::runtime_error("Unsupported shape of int64");
+                 throw std::runtime_error("AttributeCollection: Unsupported shape of int64");
              });
 }
 

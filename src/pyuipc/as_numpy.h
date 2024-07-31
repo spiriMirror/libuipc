@@ -251,7 +251,9 @@ MatrixT to_matrix(py::array_t<typename MatrixT::Scalar> arr)
             throw std::runtime_error("array must be 2D");
         }
 
-        for(int i = 0; i < Cols; i++)
+        auto count = std::max(Rows, Cols);
+
+        for(int i = 0; i < count; i++)
             m(i) = arr.at(i);
     }
     else if(arr.ndim() == 2)
