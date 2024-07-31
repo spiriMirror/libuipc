@@ -56,11 +56,22 @@ class SimplicialComplexTopo
 
     void share(SimplicialComplexTopo<ConstSimplexSlotT>&& topo) && noexcept;
 
+    template <std::derived_from<ISimplexSlot> OtherSimplexSlotT>
+    SimplicialComplexTopo(SimplicialComplexTopo<OtherSimplexSlotT>&& topo) noexcept
+        requires(!std::is_const_v<OtherSimplexSlotT>)
+        : m_topology(topo.m_topology)
+    {
+    }
+
   private:
     template <std::derived_from<ISimplexSlot> SlotT>
     friend class SimplicialComplexAttributes;
 
+    template <std::derived_from<ISimplexSlot> SlotT>
+    friend class SimplicialComplexTopo;
+
     SimplicialComplexTopo(SimplexSlotT& topo);
+
     SimplexSlotT& m_topology;
 };
 
@@ -90,6 +101,14 @@ class SimplicialComplexTopo<const VertexSlot>
      * @brief Query if the topology is owned by current simplicial complex.
      */
     [[nodiscard]] bool is_shared() && noexcept;
+
+
+    template <std::derived_from<ISimplexSlot> OtherSimplexSlotT>
+    SimplicialComplexTopo(SimplicialComplexTopo<OtherSimplexSlotT>&& topo) noexcept
+        requires(!std::is_const_v<OtherSimplexSlotT>)
+        : m_topology(topo.m_topology)
+    {
+    }
 
   private:
     template <std::derived_from<ISimplexSlot> SlotT>
@@ -130,16 +149,15 @@ class SimplicialComplexTopo<VertexSlot>
 
     void share(SimplicialComplexTopo<const VertexSlot>&& topo) && noexcept;
 
-    operator SimplicialComplexTopo<const VertexSlot>() && noexcept
-    {
-        return SimplicialComplexTopo<const VertexSlot>(m_topology);
-    }
-
   private:
     template <std::derived_from<ISimplexSlot> SlotT>
     friend class SimplicialComplexAttributes;
 
+    template <std::derived_from<ISimplexSlot> SlotT>
+    friend class SimplicialComplexTopo;
+
     SimplicialComplexTopo(VertexSlot& topo);
+
     VertexSlot& m_topology;
 };
 

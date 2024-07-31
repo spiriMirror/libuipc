@@ -1,9 +1,8 @@
-from pyuipc_loader import pyuipc
 import numpy as np
+from pyuipc_loader import pyuipc
+from pyuipc.geometry import *
 
-geometry = pyuipc.geometry
-SimplicialComplex = geometry.SimplicialComplex
-tetmesh = geometry.tetmesh
+view = pyuipc.geometry.view
 
 Vs = np.array([
     [1,0,0],
@@ -37,9 +36,7 @@ print(sc.transforms().view())
 
 print(sc.vertices().find("position"))
 
-pos = sc.vertices().find("position").view()
-
-print(pos)
+print(sc.vertices().find("position").view())
 
 print(sc.edges().find("NO_SUCH_ATTRIBUTE"))
 
@@ -54,6 +51,47 @@ print(sc.edges().topo())
 print(sc.triangles().topo())
 
 print(sc.tetrahedra().topo())
+
+print(sc.vertices().topo().view())
+
+print(sc.edges().topo().view())
+
+print(sc.triangles().topo().view())
+
+print(sc.tetrahedra().topo().view())
+
+print(type(np.uint64(0)), np.uint64(0))
+
+v = sc.vertices().create("i64", np.array(0, dtype=np.int64))
+
+#view(v)[0] = 1
+a = view(v)
+b = view(v)
+
+a.fill(1)
+b.fill(2)
+
+del b
+del a
+
+print(view(v))
+
+topo = sc.vertices().topo()
+topo_a = view(topo)
+topo_b = view(topo)
+
+del topo
+
+topo_a.fill(1)
+topo_b.fill(4)
+
+del topo_b
+del topo_a
+
+print(view(sc.vertices().topo()))
+
+
+
 
 
 

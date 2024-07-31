@@ -69,10 +69,20 @@ static Module M(
         py::class_<SmartObjectA> obj(m, PYBIND11_TOSTRING(SmartObjectA));
         obj.def(py::init<>());
 
-        obj.def("view", [](SmartObjectA& self) { return as_numpy(self.view()); });
+        obj.def("view",
+                [](SmartObjectA& self)
+                { return as_numpy(self.view(), py::cast(self)); });
         obj.def("name", &SmartObjectA::name);
 
-        m.def("view", [](SmartObjectA& self) { return as_numpy(view(self)); });
+        m.def("view",
+              [](SmartObjectA& self)
+              {
+                  auto info = buffer_info(view(self));
+                  auto obj  = py::cast(self);
+                  auto arr  = py::array_t<double>(info, obj);
+                  fmt::print("owndata: {}", arr.owndata());
+                  return arr;
+              });
 
         m.def("create_smart_object", &create_smart_object);
         m.def("receive_smart_object", &receive_smart_object);
@@ -81,7 +91,10 @@ static Module M(
         obj_a.def(py::init<>());
 
         obj_a.def("view",
-                  [](SmartObjectB& self) { return as_numpy(self.view()); });
-        m.def("view", [](SmartObjectB& self) { return as_numpy(view(self)); });
+                  [](SmartObjectB& self)
+                  { return as_numpy(self.view(), py::cast(self)); });
+        m.def("view",
+              [](SmartObjectB& self)
+              { return as_numpy(view(self), py::cast(self)); });
     });
 }  // namespace pyuipc

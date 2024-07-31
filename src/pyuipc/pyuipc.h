@@ -24,4 +24,14 @@ class Module
         return creators;
     }
 };
+
+
+template <typename T>
+auto share(T&& t)
+{
+    return std::make_shared<T>(t);
+}
+
+template <class T>
+auto share(T&) = delete;
 }  // namespace pyuipc
