@@ -6,10 +6,11 @@ class NullEngine : public uipc::engine::IEngine
     std::size_t m_frame = 0;
 
   public:
-    void do_init(uipc::backend::WorldVisitor v) override;
-    void do_advance() override;
-    void do_sync() override {}
-    void do_retrieve() override {}
+    void   do_init(uipc::backend::WorldVisitor v) override;
+    void   do_advance() override;
+    void   do_sync() override {}
+    void   do_retrieve() override {}
+    size_t get_frame() const override { return m_frame; }
 };
 
 
