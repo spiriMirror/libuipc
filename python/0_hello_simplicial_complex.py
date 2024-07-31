@@ -33,6 +33,10 @@ print("edges:\n", sc.edges().topo().view())
 print("triangles:\n", sc.triangles().topo().view())
 print("tetrahedra:\n", sc.tetrahedra().topo().view())
 
+try:
+    I64 = sc.tetrahedra().create("i64", np.zeros((10, 10), np.int64))
+except RuntimeError as e:
+    print(e)
 
 
 

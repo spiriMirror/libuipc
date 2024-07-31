@@ -25,13 +25,14 @@ class Module
     }
 };
 
-
-template <typename T>
-auto share(T&& t)
-{
-    return std::make_shared<T>(t);
-}
-
-template <class T>
-auto share(T&) = delete;
+std::string remove_project_prefix(std::string_view path);
 }  // namespace pyuipc
+
+#ifdef UIPC_RUNTIME_CHECK
+#define PYUIPC_MSG(...)                                                        \
+    (fmt::format(__VA_ARGS__) + fmt::format(R"(. Source '{}({})')", __FILE__, __LINE__))
+#else
+#define PYUIPC_MSG(...)                                                        \
+    (fmt::format(__VA_ARGS__)                                                  \
+     + fmt::format(R"(. Source '{}({})')", remove_project_prefix(__FILE__), __LINE__))
+#endif

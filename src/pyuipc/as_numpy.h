@@ -54,7 +54,7 @@ span<T> as_span(py::array_t<T> arr)
     requires std::is_arithmetic_v<T>
 {
     if(arr.ndim() != 1)
-        throw std::runtime_error("array must be 1D");
+        throw std::runtime_error(PYUIPC_MSG("array must be 1D"));
 
     if constexpr(std::is_const_v<T>)
         return span<T>(arr.data(), arr.size());
@@ -153,21 +153,21 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
         if(Rows == 1 || Cols == 1)
         {
             if(arr.shape(1) != Rows * Cols)
-                throw std::runtime_error("shape mismatch");
+                throw std::runtime_error(PYUIPC_MSG("shape mismatch"));
         }
         else
         {
-            throw std::runtime_error("array must be 3D");
+            throw std::runtime_error(PYUIPC_MSG("array must be 3D"));
         }
     }
     else if(arr.ndim() == 3)
     {
         if(arr.shape(1) != Rows || arr.shape(2) != Cols)
-            throw std::runtime_error("shape mismatch");
+            throw std::runtime_error(PYUIPC_MSG("shape mismatch"));
     }
     else
     {
-        throw std::runtime_error("array must be 2D or 3D");
+        throw std::runtime_error(PYUIPC_MSG("array must be 2D or 3D"));
     }
 
     if constexpr(IsConst)
@@ -244,7 +244,7 @@ MatrixT to_matrix(py::array_t<typename MatrixT::Scalar> arr)
         if(Rows == 1 || Cols == 1)
         {
             if(arr.size() != Rows * Cols)
-                throw std::runtime_error("shape mismatch");
+                throw std::runtime_error(PYUIPC_MSG("shape mismatch"));
         }
         else
         {
@@ -259,7 +259,7 @@ MatrixT to_matrix(py::array_t<typename MatrixT::Scalar> arr)
     else if(arr.ndim() == 2)
     {
         if(arr.shape(0) != Rows || arr.shape(1) != Cols)
-            throw std::runtime_error("shape mismatch");
+            throw std::runtime_error(PYUIPC_MSG("shape mismatch"));
 
         for(int i = 0; i < Rows; i++)
             for(int j = 0; j < Cols; j++)
@@ -267,7 +267,7 @@ MatrixT to_matrix(py::array_t<typename MatrixT::Scalar> arr)
     }
     else
     {
-        throw std::runtime_error("array must be 1D or 2D");
+        throw std::runtime_error(PYUIPC_MSG("array must be 1D or 2D"));
     }
 
     return m;
