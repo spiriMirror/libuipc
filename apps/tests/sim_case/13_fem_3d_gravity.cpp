@@ -18,8 +18,8 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
     auto        this_output_path = AssetDir::output_path(__FILE__);
 
 
-    UIPCEngine engine{"cuda", this_output_path};
-    World      world{engine};
+    Engine engine{"cuda", this_output_path};
+    World  world{engine};
 
     auto config = Scene::default_config();
 

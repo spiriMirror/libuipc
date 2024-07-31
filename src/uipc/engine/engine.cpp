@@ -28,8 +28,33 @@ Json IEngine::to_json() const
     return do_to_json();
 }
 
+bool IEngine::dump()
+{
+    return do_dump();
+}
+
+bool IEngine::recover()
+{
+    return do_recover();
+}
+
+SizeT IEngine::frame() const
+{
+    return get_frame();
+}
+
 Json IEngine::do_to_json() const
 {
     return Json{};
+}
+
+bool IEngine::do_dump()
+{
+    return false;
+}
+
+bool IEngine::do_recover()
+{
+    return false;
 }
 }  // namespace uipc::engine

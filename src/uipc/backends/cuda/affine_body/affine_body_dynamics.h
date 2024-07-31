@@ -129,6 +129,10 @@ class AffineBodyDynamics : public SimSystem
   protected:
     virtual void do_build() override;
 
+    virtual bool do_dump(DumpInfo& info) override;
+    virtual bool do_try_recover(RecoverInfo& info) override;
+    virtual void do_apply_recover(RecoverInfo& info) override;
+    virtual void do_clear_recover(RecoverInfo& info) override;
   public:
     class Impl
     {

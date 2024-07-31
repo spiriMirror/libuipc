@@ -20,7 +20,7 @@ int main()
     auto        this_folder      = AssetDir::folder(__FILE__);
 
 
-    UIPCEngine engine{"cuda", this_output_path};
+    Engine engine{"cuda", this_output_path};
     World      world{engine};
 
     auto config                             = Scene::default_config();

@@ -17,8 +17,8 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
     auto        this_output_path = AssetDir::output_path(__FILE__);
 
 
-    UIPCEngine engine{"cuda", this_output_path};
-    World      world{engine};
+    Engine engine{"cuda", this_output_path};
+    World  world{engine};
 
     auto config       = Scene::default_config();
     config["gravity"] = Vector3{0, -9.8, 0};
@@ -70,8 +70,8 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
 
             for(SizeT i = 0; i < N; i++)
             {
-                Transform t      = Transform::Identity();
-                t.translation()  = Vector3::UnitY() * 0.35 * i + Vector3::UnitX() * 0.5;
+                Transform t = Transform::Identity();
+                t.translation() = Vector3::UnitY() * 0.35 * i + Vector3::UnitX() * 0.5;
                 trans_view[i]    = t.matrix();
                 is_fixed_view[i] = 0;
             }

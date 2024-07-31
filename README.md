@@ -97,6 +97,31 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 [...]
 ```
 
+### Build Pyuipc
+
+Pyuipc is a Python binding of libuipc. It is built with the `pybind11` library.
+
+Add `-DUIPC_BUILD_PYBIND=1` to the CMake command to build the Python binding.
+
+NOTE: Pyuipc should be built in the Release or RelWithDebInfo mode.
+
+#### Run Examples
+
+We use `mypy.stubgen` to generate the stub files for the Python binding. So you need to install `mypy` first.
+
+```shell
+pip install mypy
+```
+
+Then you can run the examples in the `libuipc/python` folder.
+
+Intellisence is supported via the stub files in `libuipc/python/typings/`.
+
+If you use VSCode, you can open the project at `libuipc/python` and enjoy the Intellisence with Pylance Extension.
+```shell
+cd python & code .
+```
+
 ### Build Document
 
 Install [mkdocs](https://www.mkdocs.org/) and its plugins:

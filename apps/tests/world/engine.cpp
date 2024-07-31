@@ -20,7 +20,7 @@ void test_engine(std::string_view name)
 {
     auto this_output_path = AssetDir::output_path(__FILE__);
 
-    UIPCEngine engine{name, this_output_path};
+    Engine engine{name, this_output_path};
     World      world{engine};
 
     Scene scene;

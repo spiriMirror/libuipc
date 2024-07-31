@@ -2,10 +2,10 @@
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/constitutions/affine_body.h>
-#include <filesystem>
 #include <fstream>
 
-TEST_CASE("1_abd_contact_pt", "[abd]")
+
+TEST_CASE("dump_recover", "[world]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
@@ -21,8 +21,10 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config       = Scene::default_config();
-    config["gravity"] = Vector3{0, -9.8, 0};
+    auto config = Scene::default_config();
+
+    config["gravity"]           = Vector3{0, -9.8, 0};
+    config["contact"]["enable"] = false;  // disable contact
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -33,7 +35,6 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     {
         // create constitution and contact model
         auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
-        auto& default_contact = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("tets");
@@ -41,8 +42,8 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
         vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
 
         {
-            vector<Vector3> Vs = {Vector3{0, 1, 0},
-                                  Vector3{0, 0, 1},
+            vector<Vector3> Vs = {Vector3{0, 0, 1},
+                                  Vector3{0, -1, 0},
                                   Vector3{-std::sqrt(3) / 2, 0, -0.5},
                                   Vector3{std::sqrt(3) / 2, 0, -0.5}};
 
@@ -58,7 +59,6 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
 
             mesh1.instances().resize(1);
             abd.apply_to(mesh1, 100.0_MPa);
-            default_contact.apply_to(mesh1);
 
             auto trans_view = view(mesh1.transforms());
             auto is_fixed   = mesh1.instances().find<IndexT>(builtin::is_fixed);
@@ -66,7 +66,7 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
 
             {
                 Transform t      = Transform::Identity();
-                t.translation()  = Vector3::UnitY() * 0.35;
+                t.translation()  = Vector3::UnitY() * 1;
                 trans_view[0]    = t.matrix();
                 is_fixed_view[0] = 0;
             }
@@ -95,7 +95,6 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
             mesh2.instances().resize(1);
             // apply constitution and contact model to the geometry
             abd.apply_to(mesh2, 100.0_MPa);
-            default_contact.apply_to(mesh2);
 
             auto trans_view = view(mesh2.transforms());
             auto is_fixed   = mesh2.instances().find<IndexT>(builtin::is_fixed);
@@ -104,7 +103,7 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
             {
                 Transform t      = Transform::Identity();
                 trans_view[0]    = t.matrix();
-                is_fixed_view[0] = 1;
+                is_fixed_view[0] = 0;
             }
 
             object->geometries().create(mesh2);
@@ -115,10 +114,20 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
-    for(int i = 1; i < 50; i++)
+    SizeT frame = 1;
+
+    if(world.recover())
+    {
+        frame = world.frame();
+        spdlog::info("recover from frame {}", frame);
+    }
+
+    for(int i = frame; i < 50; i++)
     {
         world.advance();
         world.retrieve();
+        world.dump();
+
         sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
     }
 }

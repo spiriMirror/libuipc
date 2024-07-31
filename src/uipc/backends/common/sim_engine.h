@@ -58,6 +58,12 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     template <std::derived_from<ISimSystem> T>
     T& require();
 
+    span<ISimSystem* const> systems() noexcept;
+
+  protected:
+    virtual bool do_dump() override;
+    virtual bool do_recover() override;
+
   private:
     ISimSystem* find_system(ISimSystem* ptr);
     ISimSystem* require_system(ISimSystem* ptr);

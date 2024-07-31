@@ -40,8 +40,8 @@ int main()
     using namespace uipc::constitution;
     using namespace uipc::engine;
 
-    UIPCEngine engine{"cuda"};
-    World      world{engine};
+    Engine engine{"cuda"};
+    World  world{engine};
     auto config = Scene::default_config();
     config["dt"] = 0.01_s;
     config["gravity"] = Vector3{0, -9.8, 0};

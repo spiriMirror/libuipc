@@ -34,10 +34,13 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
     SimEngineState state() const noexcept;
 
   protected:
-    virtual void do_init(backend::WorldVisitor v) override;
-    virtual void do_advance() override;
-    virtual void do_sync() override;
-    virtual void do_retrieve() override;
+    virtual void  do_init(backend::WorldVisitor v) override;
+    virtual void  do_advance() override;
+    virtual void  do_sync() override;
+    virtual void  do_retrieve() override;
+    virtual SizeT get_frame() const override;
+    virtual bool  do_dump() override;
+    virtual bool  do_recover() override;
 
   private:
     void build();
@@ -57,7 +60,7 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
     void                        event_rebuild_scene();
     SimActionCollection<void()> m_on_write_scene;
     void                        event_write_scene();
-    
+
 
   private:
     // Aware Top Systems

@@ -10,8 +10,8 @@ int main()
     using namespace uipc::constitution;
     using namespace uipc::engine;
 
-    // UIPCEngine engine{"none"};
-    UIPCEngine engine{"cuda"};
+    // Engine engine{"none"};
+    Engine engine{"cuda"};
 
     World world{engine};
     auto  config      = Scene::default_config();

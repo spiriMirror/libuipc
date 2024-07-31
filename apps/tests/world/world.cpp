@@ -27,6 +27,11 @@ class NullEngine : public IEngine
     }
     void do_sync() override {}
     void do_retrieve() override {}
+
+    // Inherited via IEngine
+    bool  do_dump() override { return false; }
+    bool  do_recover() override { return false; }
+    SizeT get_frame() const override { return m_frame; }
 };
 
 TEST_CASE("simple_world", "[world]")

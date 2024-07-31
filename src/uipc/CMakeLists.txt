@@ -24,6 +24,7 @@ target_compile_definitions(uipc PUBLIC
     $<$<CONFIG:RelWithDebInfo>:UIPC_RUNTIME_CHECK=1>)
 target_compile_definitions(uipc PUBLIC 
     $<$<CONFIG:Release>:UIPC_RUNTIME_CHECK=0>)
+target_compile_definitions(uipc PUBLIC UIPC_PROJECT_DIR="${PROJECT_SOURCE_DIR}")
 
 
 # ------------------------------------------------------------------------------

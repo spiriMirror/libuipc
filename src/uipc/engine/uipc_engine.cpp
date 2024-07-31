@@ -1,7 +1,7 @@
 #include <uipc/engine/uipc_engine.h>
 #include <dylib.hpp>
 #include <uipc/backend/module_init_info.h>
-
+#include <filesystem>
 namespace uipc::engine
 {
 static string to_lower(std::string_view s)
@@ -11,36 +11,37 @@ static string to_lower(std::string_view s)
     return result;
 }
 
-class UIPCEngine::Impl
+class Engine::Impl
 {
-    string               m_backend_name;
+    std::string          m_backend_name;
     dylib                m_module;
     using Deleter                    = void (*)(IEngine*);
     IEngine*             m_engine    = nullptr;
     Deleter              m_deleter   = nullptr;
     mutable bool         m_sync_flag = false;
+    std::string          m_workspace;
 
   public:
     Impl(std::string_view backend_name, std::string_view workspace)
         : m_backend_name(to_lower(backend_name))
         , m_module{fmt::format("uipc_backend_{}", m_backend_name)}
     {
-        auto info              = make_unique<UIPCModuleInitInfo>();
-        info->module_name      = m_backend_name;
-        info->memory_resource  = std::pmr::get_default_resource();
-        info->module_workspace = workspace;
-
         namespace fs = std::filesystem;
 
-        fs::path w = workspace;
-        if(!fs::exists(w))  // create workspace
+        m_workspace = fs::absolute(workspace).string();
+        if(!fs::exists(m_workspace))  // create workspace
         {
-            fs::create_directory(w);
+            fs::create_directory(m_workspace);
         }
-        else if(!fs::is_directory(w))
+        else if(!fs::is_directory(m_workspace))
         {
             throw EngineException{fmt::format("Workspace [{}] is not a directory.", workspace)};
         }
+
+        auto info              = make_unique<UIPCModuleInitInfo>();
+        info->module_name      = m_backend_name;
+        info->memory_resource  = std::pmr::get_default_resource();
+        info->module_workspace = m_workspace;
 
         auto init = m_module.get_function<void(UIPCModuleInitInfo*)>("uipc_init_module");
         if(!init)
@@ -82,6 +83,12 @@ class UIPCEngine::Impl
         m_engine->retrieve();
     }
 
+    bool do_dump() { return m_engine->dump(); }
+
+    bool do_recover() { return m_engine->recover(); }
+
+    SizeT get_frame() const { return m_engine->frame(); }
+
     Json to_json() const
     {
         Json j;
@@ -98,35 +105,47 @@ class UIPCEngine::Impl
 };
 
 
-UIPCEngine::UIPCEngine(std::string_view backend_name, std::string_view workspace)
+Engine::Engine(std::string_view backend_name, std::string_view workspace)
     : m_impl{uipc::make_unique<Impl>(backend_name, workspace)}
 {
 }
 
-UIPCEngine::~UIPCEngine() {}
+Engine::~Engine() {}
 
-void UIPCEngine::do_init(backend::WorldVisitor v)
+void Engine::do_init(backend::WorldVisitor v)
 {
     m_impl->init(v);
 }
 
-void UIPCEngine::do_advance()
+void Engine::do_advance()
 {
     m_impl->advance();
 }
 
-void UIPCEngine::do_sync()
+void Engine::do_sync()
 {
     m_impl->sync();
 }
 
-void UIPCEngine::do_retrieve()
+void Engine::do_retrieve()
 {
     m_impl->retrieve();
 }
 
-Json UIPCEngine::do_to_json() const
+Json Engine::do_to_json() const
 {
     return m_impl->to_json();
+}
+bool Engine::do_dump()
+{
+    return m_impl->do_dump();
+}
+bool Engine::do_recover()
+{
+    return m_impl->do_recover();
+}
+SizeT Engine::get_frame() const
+{
+    return m_impl->get_frame();
 }
 }  // namespace uipc::engine

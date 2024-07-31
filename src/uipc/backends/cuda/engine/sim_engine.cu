@@ -141,4 +141,14 @@ void uipc::backend::cuda::SimEngine::dump_global_surface(std::string_view name)
 
     spdlog::info("Dumped global surface to {}", file_path);
 }
+
+bool SimEngine::do_dump()
+{
+    return backend::SimEngine::do_dump();
+}
+
+bool SimEngine::do_recover()
+{
+    return backend::SimEngine::do_recover();
+}
 }  // namespace uipc::backend::cuda

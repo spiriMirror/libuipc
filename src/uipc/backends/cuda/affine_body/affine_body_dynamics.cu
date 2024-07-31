@@ -14,6 +14,8 @@
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
 #include <muda/ext/eigen/evd.h>
+#include <fstream>
+
 
 namespace uipc::backend::cuda
 {
@@ -53,6 +55,56 @@ void AffineBodyDynamics::do_build()
 
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });
+}
+
+bool AffineBodyDynamics::do_dump(DumpInfo& info)
+{
+    std::vector<Vector12> q;
+    m_impl.body_id_to_q.copy_to(q);
+
+    auto path = info.dump_path(__FILE__);
+
+    // dump binary data
+    std::ofstream ofs(path + "q", std::ios::binary);
+    ofs.write((const char*)q.data(), sizeof(Vector12) * q.size());
+
+    for(auto v : q)
+    {
+        std::cout << v.transpose() << std::endl;
+    }
+
+    return true;
+}
+
+bool AffineBodyDynamics::do_try_recover(RecoverInfo& info)
+{
+    auto          path = info.dump_path(__FILE__);
+    std::ifstream ifs(path + "q", std::ios::binary);
+    return ifs.is_open();
+}
+
+void AffineBodyDynamics::do_apply_recover(RecoverInfo& info)
+{
+    std::vector<Vector12> q;
+    q.resize(m_impl.body_count());
+
+    auto path = info.dump_path(__FILE__);
+
+    // read binary data
+    std::ifstream ifs(path + "q", std::ios::binary);
+    ifs.read((char*)q.data(), sizeof(Vector12) * q.size());
+
+    for(auto v : q)
+    {
+        std::cout << v.transpose() << std::endl;
+    }
+
+    spdlog::info("Apply recover for AffineBodyDynamics");
+}
+
+void AffineBodyDynamics::do_clear_recover(RecoverInfo& info)
+{
+    spdlog::info("Clear recover for AffineBodyDynamics");
 }
 }  // namespace uipc::backend::cuda
 
@@ -716,4 +768,6 @@ geometry::SimplicialComplex& AffineBodyDynamics::Impl::geometry(
                 geo.type());
     return *sc;
 }
+
+
 }  // namespace uipc::backend::cuda
