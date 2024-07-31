@@ -64,11 +64,11 @@ class AffineBodyDynamics : public SimSystem
          * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
          */
         template <typename ViewGetterF, typename ForEachF>
-        void for_each_body(span<P<geometry::GeometrySlot>> geo_slots,
+        void for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
                            ViewGetterF&&                   getter,
                            ForEachF&&                      for_each) const;
 
-        static geometry::SimplicialComplex& geometry(span<P<geometry::GeometrySlot>> geo_slots,
+        static geometry::SimplicialComplex& geometry(span<S<geometry::GeometrySlot>> geo_slots,
                                                      const BodyInfo& body_info);
 
       private:
@@ -150,7 +150,7 @@ class AffineBodyDynamics : public SimSystem
 
 
         // util functions
-        static geometry::SimplicialComplex& geometry(span<P<geometry::GeometrySlot>> geo_slots,
+        static geometry::SimplicialComplex& geometry(span<S<geometry::GeometrySlot>> geo_slots,
                                                      const BodyInfo& body_info);
 
         /*
@@ -160,7 +160,7 @@ class AffineBodyDynamics : public SimSystem
         * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
         */
         template <typename ViewGetterF, typename ForEachF>
-        void for_each_body(span<P<geometry::GeometrySlot>> geo_slots,
+        void for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
                            ViewGetterF&&                   getter,
                            ForEachF&&                      for_each);
 

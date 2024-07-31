@@ -1,5 +1,5 @@
-find_package (Python COMPONENTS Interpreter Development REQUIRED)
-find_package(pybind11 CONFIG REQUIRED)
+find_package (Python COMPONENTS Interpreter Development REQUIRED QUIET)
+find_package(pybind11 CONFIG REQUIRED QUIET)
 
 
 # Create an extension module

@@ -3,7 +3,7 @@
 namespace uipc::backend::cuda
 {
 template <typename ViewGetterF, typename ForEachF>
-void AffineBodyDynamics::Impl::for_each_body(span<P<geometry::GeometrySlot>> geo_slots,
+void AffineBodyDynamics::Impl::for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
                                              ViewGetterF&& getter,
                                              ForEachF&&    for_each)
 {
@@ -34,7 +34,7 @@ span<T> AffineBodyDynamics::Impl::subview(vector<T>& buffer, SizeT constitution_
 }
 
 template <typename ViewGetterF, typename ForEachF>
-void AffineBodyDynamics::FilteredInfo::for_each_body(span<P<geometry::GeometrySlot>> geo_slots,
+void AffineBodyDynamics::FilteredInfo::for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
                                                      ViewGetterF&& getter,
                                                      ForEachF&& for_each) const
 {

@@ -85,7 +85,7 @@ auto AffineBodyDynamics::FilteredInfo::body_infos() const noexcept -> span<const
 }
 
 geometry::SimplicialComplex& AffineBodyDynamics::FilteredInfo::geometry(
-    span<P<geometry::GeometrySlot>> geo_slots, const BodyInfo& body_info)
+    span<S<geometry::GeometrySlot>> geo_slots, const BodyInfo& body_info)
 {
     return Impl::geometry(geo_slots, body_info);
 }

@@ -707,7 +707,7 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
 }
 
 geometry::SimplicialComplex& AffineBodyDynamics::Impl::geometry(
-    span<P<geometry::GeometrySlot>> geo_slots, const BodyInfo& body_info)
+    span<S<geometry::GeometrySlot>> geo_slots, const BodyInfo& body_info)
 {
     auto& geo = geo_slots[body_info.m_geometry_slot_index]->geometry();
     auto  sc  = geo.as<geometry::SimplicialComplex>();

@@ -9,6 +9,14 @@ namespace pyuipc
 namespace py = pybind11;
 using namespace uipc;
 
+inline void set_read_write_flags(py::array& arr, bool readonly)
+{
+    if(readonly)
+        py::detail::array_proxy(arr.ptr())->flags &= ~py::detail::npy_api::NPY_ARRAY_WRITEABLE_;
+    else
+        py::detail::array_proxy(arr.ptr())->flags |= py::detail::npy_api::NPY_ARRAY_WRITEABLE_;
+}
+
 template <typename T>
 auto buffer_info(const span<T>& s)
 {
@@ -32,7 +40,13 @@ auto buffer_info(const span<T>& s)
 template <typename T>
 auto as_numpy(const span<T>& s, py::handle obj)
 {
-    return py::array_t<T, py::array::c_style>(buffer_info(s), obj);
+    auto arr = py::array_t<T, py::array::c_style>(buffer_info(s), obj);
+    UIPC_ASSERT(!arr.owndata(), "the array must share the data with the input span");
+
+    set_read_write_flags(arr, std::is_const_v<T>);
+    UIPC_ASSERT(arr.writeable() == !std::is_const_v<T>,
+                "writeable flag must be consistent with the constness of the span");
+    return arr;
 }
 
 template <typename T>
@@ -42,7 +56,10 @@ span<T> as_span(py::array_t<T> arr)
     if(arr.ndim() != 1)
         throw std::runtime_error("array must be 1D");
 
-    return span<T>(arr.mutable_data(), arr.size());
+    if constexpr(std::is_const_v<T>)
+        return span<T>(arr.data(), arr.size());
+    else
+        return span<T>(arr.mutable_data(), arr.size());
 }
 
 template <typename T, size_t M, size_t N, int Options>
@@ -102,7 +119,11 @@ auto as_numpy(const span<Eigen::Matrix<T, M, N, Options>>& v, py::handle obj)
     requires(M > 0 && N > 0)
 {
     auto arr = py::array_t<T, py::array::c_style>(buffer_info(v), obj);
-    fmt::print("own: {}\n", arr.owndata());
+    UIPC_ASSERT(!arr.owndata(), "the array must share the data with the input span");
+
+    set_read_write_flags(arr, false);
+    UIPC_ASSERT(arr.writeable(), "writeable flag must be true");
+
     return arr;
 }
 
@@ -111,7 +132,7 @@ auto as_numpy(const span<const Eigen::Matrix<T, M, N, Options>>& v, py::handle o
     requires(M > 0 && N > 0)
 {
     auto arr = py::array_t<T, py::array::c_style>(buffer_info(v), obj);
-    fmt::print("own: {}\n", arr.owndata());
+    UIPC_ASSERT(!arr.owndata(), "the array must share the data with the input span");
     return arr;
 }
 
@@ -125,6 +146,7 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
     constexpr int Rows = MatrixT::RowsAtCompileTime;
     constexpr int Cols = MatrixT::ColsAtCompileTime;
 
+    constexpr bool IsConst = std::is_const_v<MatrixT>;
 
     if(arr.ndim() == 2)
     {
@@ -148,7 +170,10 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
         throw std::runtime_error("array must be 2D or 3D");
     }
 
-    return span<MatrixT>((MatrixT*)arr.mutable_data(), arr.shape(0));
+    if constexpr(IsConst)
+        return span<MatrixT>((MatrixT*)arr.data(), arr.shape(0));
+    else
+        return span<MatrixT>((MatrixT*)arr.mutable_data(), arr.shape(0));
 }
 
 template <typename T, size_t M, size_t N, int Options>
@@ -185,20 +210,20 @@ auto buffer_info(Matrix<T, M, N, Options>& m)
 };
 
 template <typename T, size_t M, size_t N, int Options>
-auto as_numpy(const Matrix<T, M, N, Options>& m, py::handle obj)
+auto as_numpy(const Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
 {
-    auto arr = py::array_t<T, py::array::c_style>(buffer_info(m), obj);
-    fmt::print("own: {}\n", arr.owndata());
+    auto arr = py::array_t<T, py::array::c_style>(buffer_info(m));
+    UIPC_ASSERT(arr.owndata(), "the array must own the data");
     return arr;
 }
 
 template <typename T, size_t M, size_t N, int Options>
-auto as_numpy(Matrix<T, M, N, Options>& m, py::handle obj)
+auto as_numpy(Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
 {
-    auto arr = py::array_t<T, py::array::c_style>(buffer_info(m), obj);
-    fmt::print("own: {}\n", arr.owndata());
+    auto arr = py::array_t<T, py::array::c_style>(buffer_info(m));
+    UIPC_ASSERT(arr.owndata(), "the array must own the data");
     return arr;
 }
 

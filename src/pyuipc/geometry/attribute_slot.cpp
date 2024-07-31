@@ -14,19 +14,13 @@ void def_attribute_slot(py::module& m, std::string name)
 
     class_AttributeSlotT.def(
         "view",
-        [](AttributeSlot<T>& self) { return as_numpy(self.view(), py::cast(self)); },
+        [](AttributeSlot<T>& self)
+        { return as_numpy(self.view(), py::cast(self)); },
         py::return_value_policy::reference);
 
     m.def("view",
           [](AttributeSlot<T>& self)
-          {
-              //auto info = buffer_info(self.view());
-
-              //return py::memoryview::from_buffer(
-              //    info.ptr, info.itemsize, info.format.data(), info.shape, info.strides);
-
-              return as_numpy(self.view(), py::cast(self));
-          });
+          { return as_numpy(view(self), py::cast(self)); });
 }
 
 #define DEF_ATTRIBUTE_SLOT(T) def_attribute_slot<T>(m, "AttributeSlot" #T)
