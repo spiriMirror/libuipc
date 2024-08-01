@@ -50,11 +50,11 @@ Json IEngine::do_to_json() const
 
 bool IEngine::do_dump()
 {
-    return false;
+    return true;
 }
 
 bool IEngine::do_recover()
 {
-    return false;
+    return true;
 }
 }  // namespace uipc::engine

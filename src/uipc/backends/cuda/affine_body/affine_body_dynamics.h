@@ -7,6 +7,7 @@
 #include <sim_engine.h>
 #include <dof_predictor.h>
 #include <gradient_hessian_computer.h>
+#include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -133,6 +134,7 @@ class AffineBodyDynamics : public SimSystem
     virtual bool do_try_recover(RecoverInfo& info) override;
     virtual void do_apply_recover(RecoverInfo& info) override;
     virtual void do_clear_recover(RecoverInfo& info) override;
+
   public:
     class Impl
     {
@@ -151,6 +153,11 @@ class AffineBodyDynamics : public SimSystem
         void compute_q_tilde(DoFPredictor::PredictInfo& info);
         void compute_q_v(DoFPredictor::PredictInfo& info);
         void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);
+
+        bool dump(DumpInfo& info);
+        bool try_recover(RecoverInfo& info);
+        void apply_recover(RecoverInfo& info);
+        void clear_recover(RecoverInfo& info);
 
 
         // util functions
@@ -323,6 +330,10 @@ class AffineBodyDynamics : public SimSystem
 
         template <typename T>
         span<T> subview(vector<T>& body_id_to_values, SizeT constitution_index) const noexcept;
+
+        BufferDump dump_q;
+        BufferDump dump_q_v;
+        BufferDump dump_q_prev;
     };
 
   private:

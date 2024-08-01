@@ -58,11 +58,19 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     template <std::derived_from<ISimSystem> T>
     T& require();
 
-    span<ISimSystem* const> systems() noexcept;
+    /**
+     * @brief Get the workspace of the engine, which is set by frontend user.
+     * 
+     * @return std::string_view 
+     */
+    std::string_view workspace() const noexcept;
 
   protected:
     virtual bool do_dump() override;
     virtual bool do_recover() override;
+    span<ISimSystem* const> systems() noexcept;
+    std::string dump_path() const noexcept;
+
 
   private:
     ISimSystem* find_system(ISimSystem* ptr);

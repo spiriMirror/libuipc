@@ -21,7 +21,7 @@ int main()
 
 
     Engine engine{"cuda", this_output_path};
-    World      world{engine};
+    World  world{engine};
 
     auto config                             = Scene::default_config();
     config["gravity"]                       = Vector3{0, -9.8, 0};
@@ -176,10 +176,14 @@ int main()
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
-    for(int i = 1; i < 500; i++)
+    world.recover();
+
+    while(world.frame() < 1000)
     {
         world.advance();
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
+        world.dump();
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     }
 }
