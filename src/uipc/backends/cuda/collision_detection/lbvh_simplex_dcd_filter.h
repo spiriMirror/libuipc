@@ -8,7 +8,7 @@
 
 namespace uipc::backend::cuda
 {
-class LBVHSimplexDCDFilter final: public SimplexDCDFilter
+class LBVHSimplexDCDFilter final : public SimplexDCDFilter
 {
   public:
     using SimplexDCDFilter::SimplexDCDFilter;
@@ -16,8 +16,8 @@ class LBVHSimplexDCDFilter final: public SimplexDCDFilter
     class Impl
     {
       public:
-        void detect(SimplexDCDFilter::FilterInfo& info);
-        void classify(SimplexDCDFilter::FilterInfo& info);
+        void detect_trajectory_candidates(SimplexDCDFilter::DetectTrajectoryInfo& info);
+        void filter_candidates(SimplexDCDFilter::FilterInfo& info);
 
         // broad phase
 
@@ -47,7 +47,8 @@ class LBVHSimplexDCDFilter final: public SimplexDCDFilter
     };
 
   protected:
-    virtual void do_detect(SimplexDCDFilter::FilterInfo& info) override;
+    virtual void do_detect_trajectory_candidates(SimplexDCDFilter::DetectTrajectoryInfo& info) override;
+    virtual void do_filter_candidates(SimplexDCDFilter::FilterInfo& info) override;
 
   private:
     Impl m_impl;

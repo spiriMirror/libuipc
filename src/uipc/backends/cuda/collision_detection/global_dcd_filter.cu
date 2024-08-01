@@ -61,16 +61,34 @@ HalfPlaneDCDFilter* GlobalDCDFilter::half_plane_filter() const
 void GlobalDCDFilter::detect()
 {
     if(m_impl.simplex_dcd_filter)
-        m_impl.simplex_dcd_filter->detect();
+    {
+        m_impl.simplex_dcd_filter->detect_trajectory_candidates(0.0);
+        m_impl.simplex_dcd_filter->filter_candidates();
+    }
 
     if(m_impl.half_plane_dcd_filter)
         m_impl.half_plane_dcd_filter->detect();
-
-    for(auto& action : m_impl.detect_actions.view())
-    {
-        action();
-    }
 }
+
+void GlobalDCDFilter::detect_trajectory_candidates(Float alpha)
+{
+    if(m_impl.simplex_dcd_filter)
+        m_impl.simplex_dcd_filter->detect_trajectory_candidates(alpha);
+
+    //if(m_impl.half_plane_dcd_filter)
+    //    m_impl.half_plane_dcd_filter->detect();
+}
+
+void GlobalDCDFilter::filter_candidates()
+{
+    if(m_impl.simplex_dcd_filter)
+        m_impl.simplex_dcd_filter->filter_candidates();
+
+
+    if(m_impl.half_plane_dcd_filter)
+        m_impl.half_plane_dcd_filter->detect();
+}
+
 void GlobalDCDFilter::record_friction_candidates()
 {
     if(!m_impl.friction_enabled)

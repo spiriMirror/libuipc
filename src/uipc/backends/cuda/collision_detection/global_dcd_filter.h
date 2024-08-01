@@ -36,6 +36,9 @@ class GlobalDCDFilter : public SimSystem
     friend class SimEngine;
 
     void detect();
+    void detect_trajectory_candidates(Float alpha);
+    void filter_candidates();
+
     void record_friction_candidates();
 
     Impl m_impl;

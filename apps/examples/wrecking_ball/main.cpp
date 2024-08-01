@@ -166,8 +166,7 @@ int main()
             auto ground_obj = scene.objects().create("ground");
             ground_obj->geometries().create(ground);
 
-            //auto g          = ground(-1.0);
-            //auto ground_obj = scene.objects().create("ground");
+            //auto g = geometry::ground(-2.0);
             //ground_obj->geometries().create(g);
         }
     }
