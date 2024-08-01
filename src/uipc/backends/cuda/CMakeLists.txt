@@ -17,6 +17,7 @@ set_target_properties(cuda PROPERTIES
 )
 
 # add subdirectories
+add_subdirectory(utils)
 add_subdirectory(collision_detection)
 add_subdirectory(affine_body)
 add_subdirectory(linear_system)

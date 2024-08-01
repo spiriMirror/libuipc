@@ -59,52 +59,22 @@ void AffineBodyDynamics::do_build()
 
 bool AffineBodyDynamics::do_dump(DumpInfo& info)
 {
-    std::vector<Vector12> q;
-    m_impl.body_id_to_q.copy_to(q);
-
-    auto path = info.dump_path(__FILE__);
-
-    // dump binary data
-    std::ofstream ofs(path + "q", std::ios::binary);
-    ofs.write((const char*)q.data(), sizeof(Vector12) * q.size());
-
-    for(auto v : q)
-    {
-        std::cout << v.transpose() << std::endl;
-    }
-
-    return true;
+    return m_impl.dump(info);
 }
 
 bool AffineBodyDynamics::do_try_recover(RecoverInfo& info)
 {
-    auto          path = info.dump_path(__FILE__);
-    std::ifstream ifs(path + "q", std::ios::binary);
-    return ifs.is_open();
+    return m_impl.try_recover(info);
 }
 
 void AffineBodyDynamics::do_apply_recover(RecoverInfo& info)
 {
-    std::vector<Vector12> q;
-    q.resize(m_impl.body_count());
-
-    auto path = info.dump_path(__FILE__);
-
-    // read binary data
-    std::ifstream ifs(path + "q", std::ios::binary);
-    ifs.read((char*)q.data(), sizeof(Vector12) * q.size());
-
-    for(auto v : q)
-    {
-        std::cout << v.transpose() << std::endl;
-    }
-
-    spdlog::info("Apply recover for AffineBodyDynamics");
+    m_impl.apply_recover(info);
 }
 
 void AffineBodyDynamics::do_clear_recover(RecoverInfo& info)
 {
-    spdlog::info("Clear recover for AffineBodyDynamics");
+    m_impl.clear_recover(info);
 }
 }  // namespace uipc::backend::cuda
 
@@ -757,6 +727,39 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
 
     // 3) fill the hessian and gradient from body contact
 }
+
+#define $(x)                                                                   \
+    if(!(x))                                                                   \
+        return false;
+
+bool AffineBodyDynamics::Impl::dump(DumpInfo& info)
+{
+    auto path = info.dump_path(__FILE__);
+
+    $(dump_q.dump(path + "q", body_id_to_q.view().as_const()));
+
+    $(dump_q_v.dump(path + "q_v", body_id_to_q_v.view().as_const()));
+
+    return true;
+}
+
+bool AffineBodyDynamics::Impl::try_recover(RecoverInfo& info)
+{
+    auto path = info.dump_path(__FILE__);
+    $(dump_q.load(path + "q"));
+    $(dump_q_v.load(path + "q_v"));
+}
+
+#undef $
+
+void AffineBodyDynamics::Impl::apply_recover(RecoverInfo& info) 
+{
+    auto path = info.dump_path(__FILE__);
+}
+
+void AffineBodyDynamics::Impl::clear_recover(RecoverInfo& info) {}
+
+
 
 geometry::SimplicialComplex& AffineBodyDynamics::Impl::geometry(
     span<S<geometry::GeometrySlot>> geo_slots, const BodyInfo& body_info)

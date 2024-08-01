@@ -234,6 +234,20 @@ muda::CBufferView<IndexT> GlobalVertexManager::VertexDisplacementInfo::coindices
 
 void GlobalVertexManager::do_build() {}
 
+bool GlobalVertexManager::do_dump(DumpInfo& info)
+{
+    return false;
+}
+
+bool GlobalVertexManager::do_try_recover(RecoverInfo& info)
+{
+    return false;
+}
+
+void GlobalVertexManager::do_apply_recover(RecoverInfo& info) {}
+
+void GlobalVertexManager::do_clear_recover(RecoverInfo& info) {}
+
 void GlobalVertexManager::init_vertex_info()
 {
     m_impl.init_vertex_info();
