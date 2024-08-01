@@ -728,38 +728,47 @@ void AffineBodyDynamics::Impl::compute_gradient_hessian(GradientHessianComputer:
     // 3) fill the hessian and gradient from body contact
 }
 
-#define $(x)                                                                   \
-    if(!(x))                                                                   \
-        return false;
 
 bool AffineBodyDynamics::Impl::dump(DumpInfo& info)
 {
     auto path = info.dump_path(__FILE__);
 
-    $(dump_q.dump(path + "q", body_id_to_q.view().as_const()));
-
-    $(dump_q_v.dump(path + "q_v", body_id_to_q_v.view().as_const()));
-
-    return true;
+    return dump_q.dump(path + "q", body_id_to_q)
+           && dump_q_v.dump(path + "q_v", body_id_to_q_v)
+           && dump_q_prev.dump(path + "q_prev", body_id_to_q_prev);
 }
 
 bool AffineBodyDynamics::Impl::try_recover(RecoverInfo& info)
 {
     auto path = info.dump_path(__FILE__);
-    $(dump_q.load(path + "q"));
-    $(dump_q_v.load(path + "q_v"));
+    return dump_q.load(path + "q") && dump_q_v.load(path + "q_v")
+           && dump_q_prev.load(path + "q_prev");
 }
 
-#undef $
 
-void AffineBodyDynamics::Impl::apply_recover(RecoverInfo& info) 
+void AffineBodyDynamics::Impl::apply_recover(RecoverInfo& info)
 {
     auto path = info.dump_path(__FILE__);
+
+    auto qs = dump_q.view<Vector12>();
+
+    //std::cout << "Recover q:" << std::endl;
+    //for(auto& q : qs)
+    //{
+    //    std::cout << q.transpose() << std::endl;
+    //}
+
+    dump_q.apply_to(body_id_to_q);
+    dump_q_v.apply_to(body_id_to_q_v);
+    dump_q_prev.apply_to(body_id_to_q_prev);
 }
 
-void AffineBodyDynamics::Impl::clear_recover(RecoverInfo& info) {}
-
-
+void AffineBodyDynamics::Impl::clear_recover(RecoverInfo& info)
+{
+    dump_q.clean_up();
+    dump_q_v.clean_up();
+    dump_q_prev.clean_up();
+}
 
 geometry::SimplicialComplex& AffineBodyDynamics::Impl::geometry(
     span<S<geometry::GeometrySlot>> geo_slots, const BodyInfo& body_info)
@@ -771,6 +780,4 @@ geometry::SimplicialComplex& AffineBodyDynamics::Impl::geometry(
                 geo.type());
     return *sc;
 }
-
-
 }  // namespace uipc::backend::cuda

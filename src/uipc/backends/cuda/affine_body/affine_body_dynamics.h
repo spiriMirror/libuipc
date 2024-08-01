@@ -333,6 +333,7 @@ class AffineBodyDynamics : public SimSystem
 
         BufferDump dump_q;
         BufferDump dump_q_v;
+        BufferDump dump_q_prev;
     };
 
   private:

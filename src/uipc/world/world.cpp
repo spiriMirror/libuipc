@@ -66,6 +66,11 @@ bool World::dump()
 
 bool World::recover()
 {
+    if(!m_scene)
+    {
+        spdlog::warn("Scene has not been set, skipping recover. Hint: you may call World::init() first.");
+        return false;
+    }
     if(!m_valid)
     {
         spdlog::error("World is not valid, skipping recover.");

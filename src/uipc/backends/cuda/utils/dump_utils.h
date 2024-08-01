@@ -18,7 +18,7 @@ class BufferDump
   public:
     BufferDump() = default;
 
-    void release()
+    void clean_up()
     {
         byte_buffer.clear();
         byte_buffer.shrink_to_fit();
@@ -60,11 +60,25 @@ class BufferDump
      * @return true for success, false for failure
      */
     template <typename T>
-    bool dump(std::string_view path, const muda::CBufferView<T>& buffer)
+    bool dump(std::string_view path, muda::CBufferView<T> buffer)
     {
         std::size_t size_bytes = buffer.size() * sizeof(T);
         byte_buffer.resize(size_bytes);
         buffer.copy_to((T*)byte_buffer.data());
+        return dump_(path);
+    }
+
+    /**
+     * @brief Dump device buffer to file
+     * 
+     * @return true for success, false for failure
+     */
+    template <typename T>
+    bool dump(std::string_view path, const muda::DeviceBuffer<T>& buffer)
+    {
+        std::size_t size_bytes = buffer.size() * sizeof(T);
+        byte_buffer.resize(size_bytes);
+        buffer.view().copy_to((T*)byte_buffer.data());
         return dump_(path);
     }
 
@@ -121,6 +135,20 @@ class BufferDump
         buffer.resize(byte_buffer.size() / sizeof(T));
 
         buffer.view().copy_from((const T*)byte_buffer.data());
+    }
+
+    template <typename T>
+    void apply_to(muda::DeviceBuffer<T>& buffer)
+    {
+        buffer.resize(byte_buffer.size() / sizeof(T));
+        buffer.view().copy_from((const T*)byte_buffer.data());
+    }
+
+    template <typename T>
+    void apply_to(vector<T>& buffer)
+    {
+        buffer.resize(byte_buffer.size() / sizeof(T));
+        std::memcpy(buffer.data(), byte_buffer.data(), byte_buffer.size());
     }
 
   private:

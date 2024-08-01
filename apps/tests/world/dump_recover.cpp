@@ -21,10 +21,8 @@ TEST_CASE("dump_recover", "[world]")
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config = Scene::default_config();
-
-    config["gravity"]           = Vector3{0, -9.8, 0};
-    config["contact"]["enable"] = false;  // disable contact
+    auto config       = Scene::default_config();
+    config["gravity"] = Vector3{0, -9.8, 0};
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -35,79 +33,42 @@ TEST_CASE("dump_recover", "[world]")
     {
         // create constitution and contact model
         auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
+        scene.contact_tabular().default_model(0.5, 1.0_GPa);
+        auto& default_contact = scene.contact_tabular().default_element();
+
+        Transform pre_transform = Transform::Identity();
+        pre_transform.scale(0.3);
+        SimplicialComplexIO io{pre_transform};
 
         // create object
-        auto object = scene.objects().create("tets");
+        auto object = scene.objects().create("cubes");
 
-        vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
+        auto cube_mesh = io.read(fmt::format("{}{}", tetmesh_dir, "cube.msh"));
 
+        label_surface(cube_mesh);
+        label_triangle_orient(cube_mesh);
+
+        constexpr SizeT N = 4;
+        cube_mesh.instances().resize(N);
+        abd.apply_to(cube_mesh, 100.0_MPa);
+        default_contact.apply_to(cube_mesh);
+
+        auto trans_view = view(cube_mesh.transforms());
+        auto is_fixed   = cube_mesh.instances().find<IndexT>(builtin::is_fixed);
+        auto is_fixed_view = view(*is_fixed);
+
+
+        for(SizeT i = 0; i < N; i++)
         {
-            vector<Vector3> Vs = {Vector3{0, 0, 1},
-                                  Vector3{0, -1, 0},
-                                  Vector3{-std::sqrt(3) / 2, 0, -0.5},
-                                  Vector3{std::sqrt(3) / 2, 0, -0.5}};
-
-            std::transform(Vs.begin(),
-                           Vs.end(),
-                           Vs.begin(),
-                           [&](auto& v) { return v * 0.3; });
-
-            auto mesh1 = tetmesh(Vs, Ts);
-
-            label_surface(mesh1);
-            label_triangle_orient(mesh1);
-
-            mesh1.instances().resize(1);
-            abd.apply_to(mesh1, 100.0_MPa);
-
-            auto trans_view = view(mesh1.transforms());
-            auto is_fixed   = mesh1.instances().find<IndexT>(builtin::is_fixed);
-            auto is_fixed_view = view(*is_fixed);
-
-            {
-                Transform t      = Transform::Identity();
-                t.translation()  = Vector3::UnitY() * 1;
-                trans_view[0]    = t.matrix();
-                is_fixed_view[0] = 0;
-            }
-
-            object->geometries().create(mesh1);
+            Transform t      = Transform::Identity();
+            t.translation()  = Vector3::UnitY() * 0.35 * i;
+            trans_view[i]    = t.matrix();
+            is_fixed_view[i] = 0;
         }
 
-        {
+        is_fixed_view[0] = 1;
 
-            vector<Vector3> Vs = {Vector3{0, 1, 0},
-                                  Vector3{0, 0, 1},
-                                  Vector3{-std::sqrt(3) / 2, 0, -0.5},
-                                  Vector3{std::sqrt(3) / 2, 0, -0.5}};
-
-            std::transform(Vs.begin(),
-                           Vs.end(),
-                           Vs.begin(),
-                           [&](auto& v) { return v * 0.3; });
-
-
-            auto mesh2 = tetmesh(Vs, Ts);
-
-            label_surface(mesh2);
-            label_triangle_orient(mesh2);
-
-            mesh2.instances().resize(1);
-            // apply constitution and contact model to the geometry
-            abd.apply_to(mesh2, 100.0_MPa);
-
-            auto trans_view = view(mesh2.transforms());
-            auto is_fixed   = mesh2.instances().find<IndexT>(builtin::is_fixed);
-            auto is_fixed_view = view(*is_fixed);
-
-            {
-                Transform t      = Transform::Identity();
-                trans_view[0]    = t.matrix();
-                is_fixed_view[0] = 0;
-            }
-
-            object->geometries().create(mesh2);
-        }
+        object->geometries().create(cube_mesh);
     }
 
     world.init(scene);
@@ -118,16 +79,16 @@ TEST_CASE("dump_recover", "[world]")
 
     if(world.recover())
     {
-        frame = world.frame();
-        spdlog::info("recover from frame {}", frame);
+        frame = world.frame() + 1;  // calculate from the next frame
     }
 
-    for(int i = frame; i < 50; i++)
+    for(int i = 0; i < 10; i++)  // always run 10 frames from the recovered frame
     {
         world.advance();
         world.retrieve();
         world.dump();
 
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     }
 }

@@ -46,6 +46,17 @@ span<ISimSystem* const> SimEngine::systems() noexcept
     return m_system_collection.systems();
 }
 
+std::string SimEngine::dump_path() const noexcept
+{
+    namespace fs = std::filesystem;
+
+    fs::path p = std::string{workspace()};
+    p /= "sim_data";
+    p /= "";
+    fs::exists(p) || fs::create_directories(p);
+    return p.string();
+}
+
 ISimSystem* SimEngine::find_system(ISimSystem* ptr)
 {
     if(ptr)
@@ -78,6 +89,11 @@ ISimSystem* SimEngine::require_system(ISimSystem* ptr)
     return ptr;
 }
 
+std::string_view SimEngine::workspace() const noexcept
+{
+    return ModuleInfo::instance().workspace();
+}
+
 bool SimEngine::do_dump()
 {
     bool all_success = true;
@@ -108,8 +124,8 @@ bool SimEngine::do_recover()
 
         if(!all_success)
         {
-            spdlog::error("Try recover system [{}] fails. Skip all recovery.",
-                          system->name());
+            spdlog::warn("Try recovering system [{}] fails, so skip recovery.",
+                         system->name());
             break;
         }
     }

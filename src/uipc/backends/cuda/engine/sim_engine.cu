@@ -144,11 +144,64 @@ void uipc::backend::cuda::SimEngine::dump_global_surface(std::string_view name)
 
 bool SimEngine::do_dump()
 {
+    auto path = dump_path();
+
+    Json j     = Json::object();
+    j["frame"] = m_current_frame;
+
+    {
+        std::ofstream file(path + "state.json");
+        file << j.dump(4);
+    }
+
     return backend::SimEngine::do_dump();
 }
 
 bool SimEngine::do_recover()
 {
-    return backend::SimEngine::do_recover();
+    auto path = dump_path();
+
+    bool success = false;
+
+    do
+    {
+        Json j;
+        {
+            std::ifstream file(path + "state.json");
+            if(file.is_open())
+            {
+                file >> j;
+            }
+            else
+            {
+                spdlog::warn("Failed to open state.json when recovering, so skip.");
+                break;
+            }
+        }
+
+        if(!backend::SimEngine::do_recover())
+            break;
+
+        bool has_error = false;
+        try
+        {
+            j["frame"].get<SizeT>();
+        }
+        catch(std::exception e)
+        {
+            has_error = true;
+            spdlog::warn("Failed to retrieve data from state.json when recovering, so skip. Reason: {}",
+                         e.what());
+        }
+        if(has_error)
+            break;
+
+        m_current_frame = j["frame"];
+        spdlog::info("Recover at frame: {}", m_current_frame);
+
+        success = true;
+    } while(0);
+
+    return success;
 }
 }  // namespace uipc::backend::cuda

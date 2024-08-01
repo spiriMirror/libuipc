@@ -5,6 +5,7 @@
 #include <functional>
 #include <Eigen/Geometry>
 #include <collision_detection/aabb.h>
+#include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -129,6 +130,11 @@ class GlobalVertexManager : public SimSystem
         template <typename T>
         muda::BufferView<T> subview(muda::DeviceBuffer<T>& buffer, SizeT index) const noexcept;
 
+        bool dump(DumpInfo& info);
+        bool try_recover(RecoverInfo& info);
+        void apply_recover(RecoverInfo& info);
+        void clear_recover(RecoverInfo& info);
+
       private:
         muda::DeviceBuffer<IndexT>  coindices;
         muda::DeviceBuffer<Vector3> positions;
@@ -150,6 +156,9 @@ class GlobalVertexManager : public SimSystem
         vector<SizeT> reporter_vertex_counts;
 
         AABB vertex_bounding_box;
+
+        BufferDump dump_positions;
+        BufferDump dump_prev_positions;
     };
 
   protected:
