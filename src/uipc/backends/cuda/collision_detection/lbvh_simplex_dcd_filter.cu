@@ -12,18 +12,14 @@ constexpr bool PrintDebugInfo = false;
 
 REGISTER_SIM_SYSTEM(LBVHSimplexDCDFilter);
 
-void LBVHSimplexDCDFilter::do_detect(SimplexDCDFilter::FilterInfo& info)
-{
-    m_impl.detect(info);
-    m_impl.classify(info);
-}
-
-void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
+void LBVHSimplexDCDFilter::Impl::detect_trajectory_candidates(SimplexDCDFilter::DetectTrajectoryInfo& info)
 {
     using namespace muda;
 
+    auto alpha = info.alpha();
     auto d_hat = info.d_hat();
     auto Ps    = info.positions();
+    auto dxs   = info.displacements();
     auto Vs    = info.surf_vertices();
     auto Es    = info.surf_edges();
     auto Fs    = info.surf_triangles();
@@ -32,162 +28,353 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
     triangle_aabbs.resize(Fs.size());
     edge_aabbs.resize(Es.size());
 
+    if(alpha == 0.0f)
+    {
+        // build AABBs for points
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(Vs.size(),
+                   [Vs    = Vs.viewer().name("V"),
+                    Ps    = Ps.viewer().name("Ps"),
+                    aabbs = point_aabbs.viewer().name("aabbs"),
+                    d_hat = d_hat] __device__(int i) mutable
+                   {
+                       auto        vI  = Vs(i);
+                       const auto& pos = Ps(vI);
 
-    // build AABBs for points
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(Vs.size(),
-               [Vs    = Vs.viewer().name("V"),
-                Ps    = Ps.viewer().name("Ps"),
-                aabbs = point_aabbs.viewer().name("aabbs"),
-                d_hat = d_hat] __device__(int i) mutable
-               {
-                   auto        vI  = Vs(i);
-                   const auto& pos = Ps(vI);
+                       AABB aabb;
+                       aabb.extend(pos);
 
-                   AABB aabb;
-                   aabb.extend(pos);
+                       aabb.min().array() -= d_hat;
+                       aabb.max().array() += d_hat;
+                       aabbs(i) = aabb;
+                   });
 
-                   aabb.min().array() -= d_hat;
-                   aabb.max().array() += d_hat;
-                   aabbs(i) = aabb;
-               });
+        // build AABBs for edges
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(Es.size(),
+                   [Es    = Es.viewer().name("E"),
+                    Ps    = Ps.viewer().name("Ps"),
+                    aabbs = edge_aabbs.viewer().name("aabbs"),
+                    d_hat = d_hat] __device__(int i) mutable
+                   {
+                       const auto& eI   = Es(i);
+                       const auto& pos0 = Ps(eI[0]);
+                       const auto& pos1 = Ps(eI[1]);
 
-    // build AABBs for edges
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(Es.size(),
-               [Es    = Es.viewer().name("E"),
-                Ps    = Ps.viewer().name("Ps"),
-                aabbs = edge_aabbs.viewer().name("aabbs"),
-                d_hat = d_hat] __device__(int i) mutable
-               {
-                   const auto& eI   = Es(i);
-                   const auto& pos0 = Ps(eI[0]);
-                   const auto& pos1 = Ps(eI[1]);
+                       AABB aabb;
+                       aabb.extend(pos0).extend(pos1);
+                       aabb.min().array() -= d_hat;
+                       aabb.max().array() += d_hat;
+                       aabbs(i) = aabb;
+                   });
 
-                   AABB aabb;
-                   aabb.extend(pos0).extend(pos1);
-                   aabb.min().array() -= d_hat;
-                   aabb.max().array() += d_hat;
-                   aabbs(i) = aabb;
-               });
+        // build AABBs for triangles
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(Fs.size(),
+                   [Fs    = Fs.viewer().name("F"),
+                    Ps    = Ps.viewer().name("Ps"),
+                    aabbs = triangle_aabbs.viewer().name("aabbs"),
+                    d_hat = d_hat] __device__(int i) mutable
+                   {
+                       const auto& fI   = Fs(i);
+                       const auto& pos0 = Ps(fI[0]);
+                       const auto& pos1 = Ps(fI[1]);
+                       const auto& pos2 = Ps(fI[2]);
 
-    // build AABBs for triangles
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(Fs.size(),
-               [Fs    = Fs.viewer().name("F"),
-                Ps    = Ps.viewer().name("Ps"),
-                aabbs = triangle_aabbs.viewer().name("aabbs"),
-                d_hat = d_hat] __device__(int i) mutable
-               {
-                   const auto& fI   = Fs(i);
-                   const auto& pos0 = Ps(fI[0]);
-                   const auto& pos1 = Ps(fI[1]);
-                   const auto& pos2 = Ps(fI[2]);
+                       AABB aabb;
+                       aabb.extend(pos0).extend(pos1).extend(pos2);
 
-                   AABB aabb;
-                   aabb.extend(pos0).extend(pos1).extend(pos2);
+                       aabb.min().array() -= d_hat;
+                       aabb.max().array() += d_hat;
+                       aabbs(i) = aabb;
+                   });
 
-                   aabb.min().array() -= d_hat;
-                   aabb.max().array() += d_hat;
-                   aabbs(i) = aabb;
-               });
+        // query PT
+        lbvh_PT.build(triangle_aabbs);
+        auto PT_pairs = lbvh_PT.query(
+            point_aabbs,
+            [Vs    = Vs.viewer().name("Vs"),
+             Fs    = Fs.viewer().name("Fs"),
+             Ps    = Ps.viewer().name("Ps"),
+             d_hat = d_hat] __device__(IndexT i, IndexT j)
+            {
+                // discard if the point is on the triangle
+                auto        V = Vs(i);
+                const auto& F = Fs(j);
 
-    // query PT
-    lbvh_PT.build(triangle_aabbs);
-    auto PT_pairs = lbvh_PT.query(
-        point_aabbs,
-        [Vs    = Vs.viewer().name("Vs"),
-         Fs    = Fs.viewer().name("Fs"),
-         Ps    = Ps.viewer().name("Ps"),
-         d_hat = d_hat] __device__(IndexT i, IndexT j)
-        {
-            // discard if the point is on the triangle
-            auto        V = Vs(i);
-            const auto& F = Fs(j);
-
-            if(F[0] == V || F[1] == V || F[2] == V)
-                return false;
+                if(F[0] == V || F[1] == V || F[2] == V)
+                    return false;
 
 
-            Vector3 VP  = Ps(V);
-            Vector3 FP0 = Ps(F[0]);
-            Vector3 FP1 = Ps(F[1]);
-            Vector3 FP2 = Ps(F[2]);
-            Float   D;
-            muda::distance::point_triangle_distance_unclassified(VP, FP0, FP1, FP2, D);
+                Vector3 VP  = Ps(V);
+                Vector3 FP0 = Ps(F[0]);
+                Vector3 FP1 = Ps(F[1]);
+                Vector3 FP2 = Ps(F[2]);
+                Float   D;
+                muda::distance::point_triangle_distance_unclassified(VP, FP0, FP1, FP2, D);
 
-            if(D >= d_hat * d_hat)
-                return false;
+                if(D >= d_hat * d_hat)
+                    return false;
 
-            //cout << "PT: " << V << " " << F.transpose().eval()
-            //     << " d: " << sqrt(D) << "d_hat: " << d_hat << "\n";
+                //cout << "PT: " << V << " " << F.transpose().eval()
+                //     << " d: " << sqrt(D) << "d_hat: " << d_hat << "\n";
 
-            return true;
-        });
+                return true;
+            });
 
-    // query EE
-    lbvh_EE.build(edge_aabbs);
-    auto EE_pairs = lbvh_EE.detect(
-        [Es    = Es.viewer().name("Es"),
-         Ps    = Ps.viewer().name("Ps"),
-         d_hat = d_hat] __device__(IndexT i, IndexT j)
-        {
-            // discard if the edges shared same vertex
-            const auto& E0 = Es(i);
-            const auto& E1 = Es(j);
+        // query EE
+        lbvh_EE.build(edge_aabbs);
+        auto EE_pairs = lbvh_EE.detect(
+            [Es    = Es.viewer().name("Es"),
+             Ps    = Ps.viewer().name("Ps"),
+             d_hat = d_hat] __device__(IndexT i, IndexT j)
+            {
+                // discard if the edges shared same vertex
+                const auto& E0 = Es(i);
+                const auto& E1 = Es(j);
 
-            if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
-                return false;
+                if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
+                    return false;
 
-            Vector3 EP0 = Ps(E0[0]);
-            Vector3 EP1 = Ps(E0[1]);
-            Vector3 EP2 = Ps(E1[0]);
-            Vector3 EP3 = Ps(E1[1]);
-            Float   D;
-            muda::distance::edge_edge_distance_unclassified(EP0, EP1, EP2, EP3, D);
+                Vector3 EP0 = Ps(E0[0]);
+                Vector3 EP1 = Ps(E0[1]);
+                Vector3 EP2 = Ps(E1[0]);
+                Vector3 EP3 = Ps(E1[1]);
+                Float   D;
+                muda::distance::edge_edge_distance_unclassified(EP0, EP1, EP2, EP3, D);
 
-            if(D >= d_hat * d_hat)
-                return false;
+                if(D >= d_hat * d_hat)
+                    return false;
 
-            //cout << "EE: " << E0.transpose().eval() << " " << E1.transpose().eval()
-            //     << " d: " << sqrt(D) << "d_hat: " << d_hat << "\n";
+                //cout << "EE: " << E0.transpose().eval() << " " << E1.transpose().eval()
+                //     << " d: " << sqrt(D) << "d_hat: " << d_hat << "\n";
 
-            return true;
-        });
+                return true;
+            });
 
-    candidate_PTs.resize(PT_pairs.size());
-    candidate_EEs.resize(EE_pairs.size());
+        candidate_PTs.resize(PT_pairs.size());
+        candidate_EEs.resize(EE_pairs.size());
 
-    // record the candidate pairs
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(PT_pairs.size(),
-               [PT_pairs      = PT_pairs.viewer().name("PT_pairs"),
-                candidate_PTs = candidate_PTs.viewer().name("candidate_PTs"),
-                Fs            = Fs.viewer().name("Fs"),
-                Vs = Vs.viewer().name("Vs")] __device__(int i) mutable
-               {
-                   auto&       PT   = candidate_PTs(i);
-                   const auto& pair = PT_pairs(i);
-                   PT[0]            = Vs(pair[0]);
-                   PT.segment<3>(1) = Fs(pair[1]);
-               });
+        // record the candidate pairs
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(PT_pairs.size(),
+                   [PT_pairs = PT_pairs.viewer().name("PT_pairs"),
+                    candidate_PTs = candidate_PTs.viewer().name("candidate_PTs"),
+                    Fs = Fs.viewer().name("Fs"),
+                    Vs = Vs.viewer().name("Vs")] __device__(int i) mutable
+                   {
+                       auto&       PT   = candidate_PTs(i);
+                       const auto& pair = PT_pairs(i);
+                       PT[0]            = Vs(pair[0]);
+                       PT.segment<3>(1) = Fs(pair[1]);
+                   });
 
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(EE_pairs.size(),
-               [EE_pairs      = EE_pairs.viewer().name("EE_pairs"),
-                candidate_EEs = candidate_EEs.viewer().name("candidate_EEs"),
-                Es = Es.viewer().name("Es")] __device__(int i) mutable
-               {
-                   auto&       EE   = candidate_EEs(i);
-                   const auto& pair = EE_pairs(i);
-                   EE.segment<2>(0) = Es(pair[0]);
-                   EE.segment<2>(2) = Es(pair[1]);
-               });
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(EE_pairs.size(),
+                   [EE_pairs = EE_pairs.viewer().name("EE_pairs"),
+                    candidate_EEs = candidate_EEs.viewer().name("candidate_EEs"),
+                    Es = Es.viewer().name("Es")] __device__(int i) mutable
+                   {
+                       auto&       EE   = candidate_EEs(i);
+                       const auto& pair = EE_pairs(i);
+                       EE.segment<2>(0) = Es(pair[0]);
+                       EE.segment<2>(2) = Es(pair[1]);
+                   });
+    }
+    else  // alpha > 0
+    {
+        // build AABBs for points
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(Vs.size(),
+                   [Vs    = Vs.viewer().name("V"),
+                    dxs   = dxs.viewer().name("dx"),
+                    Ps    = Ps.viewer().name("Ps"),
+                    aabbs = point_aabbs.viewer().name("aabbs"),
+                    alpha = alpha,
+                    d_hat = d_hat] __device__(int i) mutable
+                   {
+                       auto        vI    = Vs(i);
+                       const auto& pos   = Ps(vI);
+                       Vector3     pos_t = pos + dxs(vI) * alpha;
+
+                       AABB aabb;
+
+                       aabb.extend(pos).extend(pos_t);
+
+                       aabb.min().array() -= d_hat;
+                       aabb.max().array() += d_hat;
+                       aabbs(i) = aabb;
+                   });
+
+        // build AABBs for edges
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(Es.size(),
+                   [Es    = Es.viewer().name("E"),
+                    Ps    = Ps.viewer().name("Ps"),
+                    aabbs = edge_aabbs.viewer().name("aabbs"),
+                    dxs   = dxs.viewer().name("dx"),
+                    alpha = alpha,
+                    d_hat = d_hat] __device__(int i) mutable
+                   {
+                       auto        eI     = Es(i);
+                       const auto& pos0   = Ps(eI[0]);
+                       const auto& pos1   = Ps(eI[1]);
+                       Vector3     pos0_t = pos0 + dxs(eI[0]) * alpha;
+                       Vector3     pos1_t = pos1 + dxs(eI[1]) * alpha;
+
+                       Vector3 max = pos0_t;
+                       Vector3 min = pos0_t;
+
+                       AABB aabb;
+
+                       aabb.extend(pos0).extend(pos1).extend(pos0_t).extend(pos1_t);
+
+                       aabb.min().array() -= d_hat;
+                       aabb.max().array() += d_hat;
+                       aabbs(i) = aabb;
+                   });
+
+        // build AABBs for triangles
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(Fs.size(),
+                   [Fs    = Fs.viewer().name("F"),
+                    Ps    = Ps.viewer().name("Ps"),
+                    aabbs = triangle_aabbs.viewer().name("aabbs"),
+                    dxs   = dxs.viewer().name("dx"),
+                    alpha = alpha,
+                    d_hat = d_hat] __device__(int i) mutable
+                   {
+                       auto        fI     = Fs(i);
+                       const auto& pos0   = Ps(fI[0]);
+                       const auto& pos1   = Ps(fI[1]);
+                       const auto& pos2   = Ps(fI[2]);
+                       Vector3     pos0_t = pos0 + dxs(fI[0]) * alpha;
+                       Vector3     pos1_t = pos1 + dxs(fI[1]) * alpha;
+                       Vector3     pos2_t = pos2 + dxs(fI[2]) * alpha;
+
+                       AABB aabb;
+
+                       aabb.extend(pos0)
+                           .extend(pos1)
+                           .extend(pos2)
+                           .extend(pos0_t)
+                           .extend(pos1_t)
+                           .extend(pos2_t);
+
+                       aabb.min().array() -= d_hat;
+                       aabb.max().array() += d_hat;
+                       aabbs(i) = aabb;
+                   });
+
+        // query PT
+        lbvh_PT.build(triangle_aabbs);
+        auto PT_pairs =
+            lbvh_PT.query(point_aabbs,
+                          [Vs    = Vs.viewer().name("Vs"),
+                           Fs    = Fs.viewer().name("Fs"),
+                           Ps    = Ps.viewer().name("Ps"),
+                           dxs   = dxs.viewer().name("dxs"),
+                           d_hat = d_hat,
+                           alpha = alpha] __device__(IndexT i, IndexT j)
+                          {
+                              // discard if the point is on the triangle
+                              auto V = Vs(i);
+                              auto F = Fs(j);
+
+                              if(F[0] == V || F[1] == V || F[2] == V)
+                                  return false;
+
+                              Vector3 VP  = Ps(V);
+                              Vector3 dVP = alpha * dxs(V);
+
+                              Vector3 FP0 = Ps(F[0]);
+                              Vector3 FP1 = Ps(F[1]);
+                              Vector3 FP2 = Ps(F[2]);
+
+                              Vector3 dFP0 = alpha * dxs(F[0]);
+                              Vector3 dFP1 = alpha * dxs(F[1]);
+                              Vector3 dFP2 = alpha * dxs(F[2]);
+
+                              if(!muda::distance::point_triangle_ccd_broadphase(
+                                     VP, FP0, FP1, FP2, dVP, dFP0, dFP1, dFP2, d_hat))
+                                  return false;
+
+
+                              return true;
+                          });
+
+        // query EE
+        lbvh_EE.build(edge_aabbs);
+        auto EE_pairs = lbvh_EE.detect(
+            [Es    = Es.viewer().name("Es"),
+             Ps    = Ps.viewer().name("Ps"),
+             dxs   = dxs.viewer().name("dxs"),
+             d_hat = d_hat,
+             alpha = alpha] __device__(IndexT i, IndexT j)
+            {
+                // discard if the edges shared same vertex
+                auto E0 = Es(i);
+                auto E1 = Es(j);
+
+                if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
+                    return false;
+
+                Vector3 EP0  = Ps(E0[0]);
+                Vector3 EP1  = Ps(E0[1]);
+                Vector3 dEP0 = alpha * dxs(E0[0]);
+                Vector3 dEP1 = alpha * dxs(E0[1]);
+
+                Vector3 EP2  = Ps(E1[0]);
+                Vector3 EP3  = Ps(E1[1]);
+                Vector3 dEP2 = alpha * dxs(E1[0]);
+                Vector3 dEP3 = alpha * dxs(E1[1]);
+
+                if(!muda::distance::edge_edge_ccd_broadphase(
+                       EP0, EP1, dEP0, dEP1, EP2, EP3, dEP2, dEP3, d_hat))
+                    return false;
+
+                return true;
+            });
+
+        candidate_PTs.resize(PT_pairs.size());
+        candidate_EEs.resize(EE_pairs.size());
+
+        // record the candidate pairs
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(PT_pairs.size(),
+                   [PT_pairs = PT_pairs.viewer().name("PT_pairs"),
+                    candidate_PTs = candidate_PTs.viewer().name("candidate_PTs"),
+                    Fs = Fs.viewer().name("Fs"),
+                    Vs = Vs.viewer().name("Vs")] __device__(int i) mutable
+                   {
+                       auto& PT         = candidate_PTs(i);
+                       auto  pair       = PT_pairs(i);
+                       PT[0]            = Vs(pair[0]);
+                       PT.segment<3>(1) = Fs(pair[1]);
+                   });
+
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(EE_pairs.size(),
+                   [EE_pairs = EE_pairs.viewer().name("EE_pairs"),
+                    candidate_EEs = candidate_EEs.viewer().name("candidate_EEs"),
+                    Es = Es.viewer().name("Es")] __device__(int i) mutable
+                   {
+                       auto& EE         = candidate_EEs(i);
+                       auto  pair       = EE_pairs(i);
+                       EE.segment<2>(0) = Es(pair[0]);
+                       EE.segment<2>(2) = Es(pair[1]);
+                   });
+    }
 
     if constexpr(PrintDebugInfo)
     {
@@ -210,7 +397,7 @@ void LBVHSimplexDCDFilter::Impl::detect(SimplexDCDFilter::FilterInfo& info)
     }
 }
 
-void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
+void LBVHSimplexDCDFilter::Impl::filter_candidates(SimplexDCDFilter::FilterInfo& info)
 {
     using namespace muda;
 
@@ -243,12 +430,10 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
 
     // PT: point-triangle, only 1 possible PT per candidate PT
     temp_PTs.resize(candidate_PTs.size());
-    temp_PTs.fill(Vector4i::Ones() * -1);  // fill -1 to indicate invalid PT
     PTs.resize(candidate_PTs.size());
 
     // EE: edge-edge, only 1 possible EE per candidate EE
     temp_EEs.resize(candidate_EEs.size());
-    temp_EEs.fill(Vector4i::Ones() * -1);  // fill -1 to indicate invalid EE
     EEs.resize(candidate_EEs.size());
 
 
@@ -260,7 +445,6 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
 
     SizeT max_PE_count = PT_to_PE_max_count + EE_to_PE_max_count;
     temp_PEs.resize(max_PE_count);
-    temp_PEs.fill(Vector3i::Ones() * -1);  // fill -1 to indicate invalid PE
     PEs.resize(max_PE_count);
 
     // PP: point-point
@@ -271,7 +455,6 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
 
     SizeT max_PP_count = PT_to_PP_max_count + EE_to_PP_max_count;
     temp_PPs.resize(max_PP_count);
-    temp_PPs.fill(Vector2i::Ones() * -1);  // fill -1 to indicate invalid PP
     PPs.resize(max_PP_count);
 
 
@@ -295,10 +478,24 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                 PPs   = temp_PPs.view(PP_offset, PP_count).viewer().name("PPs"),
                 D_hat = D_hat] __device__(int i) mutable
                {
+                   auto I3 = i * 3;
+
+                   // Invalidate all the candidates
+                   {
+                       PTs(i).array() = -1;
+
+                       PEs(I3 + 0).array() = -1;
+                       PEs(I3 + 1).array() = -1;
+                       PEs(I3 + 2).array() = -1;
+
+                       PPs(I3 + 0).array() = -1;
+                       PPs(I3 + 1).array() = -1;
+                       PPs(I3 + 2).array() = -1;
+                   }
+
                    Vector4i PT = candidate_PTs(i);
                    IndexT   P  = PT(0);
                    Vector3i T  = PT.tail<3>();
-
 
                    const auto& V  = Ps(PT(0));
                    const auto& F0 = Ps(PT(1));
@@ -315,21 +512,11 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                            cout << "PT->PT:" << PT.transpose().eval() << "\n";
                        }
 
-                       if constexpr(muda::RUNTIME_CHECK_ON)
-                       {
-                           Float D;
-                           distance::point_triangle_distance(V, F0, F1, F2, D);
-                           MUDA_ASSERT(D < D_hat,
-                                       "[%d,%d,%d,%d] D(%f) < D_hat=(%f)",
-                                       P,
-                                       T(0),
-                                       T(1),
-                                       T(2),
-                                       D,
-                                       D_hat);
-                       }
+                       Float D;
+                       distance::point_triangle_distance(V, F0, F1, F2, D);
 
-                       PTs(i) = PT;
+                       if(D < D_hat)
+                           PTs(i) = PT;
 
                        return;
                    }
@@ -337,7 +524,8 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                    // if not, then it can be PT->PE or PT->PP
 
                    // 3 possible PE
-                   Vector3i PE[3] = {{P, T(0), T(1)}, {P, T(1), T(2)}, {P, T(2), T(0)}};
+                   const Vector3i PE[3] = {
+                       {P, T(0), T(1)}, {P, T(1), T(2)}, {P, T(2), T(0)}};
 
                    for(int j = 0; j < 3; ++j)
                    {
@@ -361,13 +549,13 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                                         << "->" << P << "," << T(j) << "\n";
                                }
 
-                               PEs(3 * i + j) = pe;
+                               PEs(I3 + j) = pe;
                            }
                        }
                    }
 
                    // 3 possible PP
-                   Vector2i PP[3] = {{P, T(0)}, {P, T(1)}, {P, T(2)}};
+                   const Vector2i PP[3] = {{P, T(0)}, {P, T(1)}, {P, T(2)}};
 
                    for(int j = 0; j < 3; ++j)
                    {
@@ -380,7 +568,7 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
 
                        if(D < D_hat)
                        {
-                           PPs(3 * i + j) = pp;
+                           PPs(I3 + j) = pp;
                        }
                    }
                });
@@ -401,6 +589,24 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                 PPs   = temp_PPs.view(PP_offset, PP_count).viewer().name("PPs"),
                 D_hat = D_hat] __device__(int i) mutable
                {
+                   auto I4 = i * 4;
+
+                   // Invalidate all the candidates
+                   {
+                       EEs(i).array() = -1;
+
+                       PEs(I4 + 0).array() = -1;
+                       PEs(I4 + 1).array() = -1;
+                       PEs(I4 + 2).array() = -1;
+                       PEs(I4 + 3).array() = -1;
+
+                       PPs(I4 + 0).array() = -1;
+                       PPs(I4 + 1).array() = -1;
+                       PPs(I4 + 2).array() = -1;
+                       PPs(I4 + 3).array() = -1;
+                   }
+
+
                    Vector4i EE = candidate_EEs(i);
 
                    IndexT Ea0 = EE(0);
@@ -422,15 +628,12 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                            cout << "EE->EE:" << EE.transpose().eval() << "\n";
                        }
 
-                       if constexpr(muda::RUNTIME_CHECK_ON)
-                       {
-                           Float D;
-                           distance::edge_edge_distance(E0, E1, E2, E3, D);
-                           MUDA_ASSERT(
-                               D < D_hat, "[%d,%d,%d,%d] D(%f) < D_hat=(%f)", Ea0, Ea1, Eb0, Eb1, D, D_hat);
-                       }
 
-                       EEs(i) = EE;
+                       Float D;
+                       distance::edge_edge_distance(E0, E1, E2, E3, D);
+
+                       if(D < D_hat)
+                           EEs(i) = EE;
 
                        return;
                    }
@@ -438,10 +641,10 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                    // if not, then it can be EE->PE or EE->PP
 
                    // 4 possible PE
-                   Vector3i PE[4] = {{Ea0, Eb0, Eb1},
-                                     {Ea1, Eb0, Eb1},
-                                     {Eb0, Ea0, Ea1},
-                                     {Eb1, Ea0, Ea1}};
+                   const Vector3i PE[4] = {{Ea0, Eb0, Eb1},
+                                           {Ea1, Eb0, Eb1},
+                                           {Eb0, Ea0, Ea1},
+                                           {Eb1, Ea0, Ea1}};
 
                    for(int j = 0; j < 4; ++j)
                    {
@@ -465,13 +668,13 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
                                         << "->" << pe.transpose().eval() << "\n";
                                }
 
-                               PEs(4 * i + j) = pe;
+                               PEs(I4 + j) = pe;
                            }
                        }
                    }
 
                    // 4 possible PP
-                   Vector2i PP[4] = {{Ea0, Eb0}, {Ea0, Eb1}, {Ea1, Eb0}, {Ea1, Eb1}};
+                   const Vector2i PP[4] = {{Ea0, Eb0}, {Ea0, Eb1}, {Ea1, Eb0}, {Ea1, Eb1}};
 
                    for(int j = 0; j < 4; ++j)
                    {
@@ -484,14 +687,13 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
 
                        if(D < D_hat)
                        {
-
                            if constexpr(PrintDebugInfo)
                            {
                                cout << "EE->PP:" << EE.transpose().eval()
                                     << "->" << pp.transpose().eval() << "\n";
                            }
 
-                           PPs(4 * i + j) = pp;
+                           PPs(I4 + j) = pp;
                        }
                    }
                });
@@ -576,5 +778,15 @@ void LBVHSimplexDCDFilter::Impl::classify(SimplexDCDFilter::FilterInfo& info)
             std::cout << "PP: " << PP.transpose() << std::endl;
         }
     }
+}
+
+void LBVHSimplexDCDFilter::do_detect_trajectory_candidates(SimplexDCDFilter::DetectTrajectoryInfo& info)
+{
+    m_impl.detect_trajectory_candidates(info);
+}
+
+void LBVHSimplexDCDFilter::do_filter_candidates(SimplexDCDFilter::FilterInfo& info)
+{
+    m_impl.filter_candidates(info);
 }
 }  // namespace uipc::backend::cuda

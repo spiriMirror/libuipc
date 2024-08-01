@@ -15,10 +15,10 @@ class SimplexDCDFilter : public SimSystem
 
     class Impl;
 
-    class FilterInfo
+    class BaseInfo
     {
       public:
-        FilterInfo(Impl* impl)
+        BaseInfo(Impl* impl) noexcept
             : m_impl(impl)
         {
         }
@@ -30,15 +30,44 @@ class SimplexDCDFilter : public SimSystem
         muda::CBufferView<Vector2i> surf_edges() const noexcept;
         muda::CBufferView<Vector3i> surf_triangles() const noexcept;
 
+      protected:
+        friend class SimplexDCDFilter;
+        Impl* m_impl = nullptr;
+    };
+
+    //class DetectInfo : public BaseInfo
+    //{
+    //  public:
+    //    using BaseInfo::BaseInfo;
+
+    //    void PTs(muda::CBufferView<Vector4i> PTs) noexcept;
+    //    void EEs(muda::CBufferView<Vector4i> EEs) noexcept;
+    //    void PEs(muda::CBufferView<Vector3i> PEs) noexcept;
+    //    void PPs(muda::CBufferView<Vector2i> PPs) noexcept;
+    //};
+
+    class DetectTrajectoryInfo : public BaseInfo
+    {
+      public:
+        using BaseInfo::BaseInfo;
+
+        Float                      alpha() const noexcept { return m_alpha; }
+        muda::CBufferView<Vector3> displacements() const noexcept;
+
+      private:
+        friend class SimplexDCDFilter;
+        Float m_alpha = 0.0;
+    };
+
+    class FilterInfo : public BaseInfo
+    {
+      public:
+        using BaseInfo::BaseInfo;
+
         void PTs(muda::CBufferView<Vector4i> PTs) noexcept;
         void EEs(muda::CBufferView<Vector4i> EEs) noexcept;
         void PEs(muda::CBufferView<Vector3i> PEs) noexcept;
         void PPs(muda::CBufferView<Vector2i> PPs) noexcept;
-
-
-      private:
-        friend class GlobalDCDFilter;
-        Impl* m_impl;
     };
 
     class Impl
@@ -84,13 +113,17 @@ class SimplexDCDFilter : public SimSystem
     muda::CBufferView<Vector2i> friction_PPs() const noexcept;
 
   protected:
-    virtual void do_detect(FilterInfo& info) = 0;
+    virtual void do_detect_trajectory_candidates(DetectTrajectoryInfo& info) = 0;
+    virtual void do_filter_candidates(FilterInfo& info) = 0;
 
   private:
     friend class GlobalDCDFilter;
-    Impl         m_impl;
-    void         detect();
-    void         record_friction_candidates();
+    Impl m_impl;
+    void record_friction_candidates();
+
+    void detect_trajectory_candidates(Float alpha);
+    void filter_candidates();
+
     virtual void do_build() override final;
 };
 }  // namespace uipc::backend::cuda

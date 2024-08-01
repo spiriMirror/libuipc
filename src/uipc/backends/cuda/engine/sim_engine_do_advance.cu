@@ -35,6 +35,18 @@ void SimEngine::do_advance()
                 m_global_dcd_filter->detect();
         };
 
+        auto detect_trajectory_candidates = [this](Float alpha)
+        {
+            if(m_global_dcd_filter)
+                m_global_dcd_filter->detect_trajectory_candidates(alpha);
+        };
+
+        auto filter_dcd_candidates = [this]
+        {
+            if(m_global_dcd_filter)
+                m_global_dcd_filter->filter_candidates();
+        };
+
         auto record_friction_candidates = [this]
         {
             if(m_global_dcd_filter)
@@ -55,19 +67,19 @@ void SimEngine::do_advance()
 
         auto cfl_condition = [&cfl_alpha, this](Float alpha)
         {
-            if(m_global_contact_manager)
-            {
-                auto max_disp = m_global_vertex_manager->compute_max_displacement_norm();
-                auto d_hat = m_global_contact_manager->d_hat();
+            //if(m_global_contact_manager)
+            //{
+            //    auto max_disp = m_global_vertex_manager->compute_max_displacement_norm();
+            //    auto d_hat = m_global_contact_manager->d_hat();
 
-                cfl_alpha = d_hat / max_disp;
-                spdlog::info("CFL Condition: {} / {}, max dx: {}", cfl_alpha, alpha, max_disp);
+            //    cfl_alpha = d_hat / max_disp;
+            //    spdlog::info("CFL Condition: {} / {}, max dx: {}", cfl_alpha, alpha, max_disp);
 
-                if(cfl_alpha < alpha)
-                {
-                    return cfl_alpha;
-                }
-            }
+            //    if(cfl_alpha < alpha)
+            //    {
+            //        return cfl_alpha;
+            //    }
+            //}
             return alpha;
         };
 
@@ -85,7 +97,7 @@ void SimEngine::do_advance()
             return alpha;
         };
 
-        auto compute_energy = [this, detect_dcd_candidates](Float alpha) -> Float
+        auto compute_energy = [this, filter_dcd_candidates](Float alpha) -> Float
         {
             // Step Forward => x = x_0 + alpha * dx
             spdlog::info("Step Forward : {}", alpha);
@@ -93,7 +105,7 @@ void SimEngine::do_advance()
             m_line_searcher->step_forward(alpha);
 
             // Update the collision pairs
-            detect_dcd_candidates();
+            filter_dcd_candidates();
 
             // Compute New Energy => E
             return m_line_searcher->compute_energy(false);
@@ -169,6 +181,7 @@ void SimEngine::do_advance()
                     // Record Current State x to x_0
                     m_line_searcher->record_start_point();
                     m_global_vertex_manager->record_start_point();
+                    detect_trajectory_candidates(alpha);
 
                     // Compute Current Energy => E_0
                     Float E0 = m_line_searcher->compute_energy(true);  // initial energy
