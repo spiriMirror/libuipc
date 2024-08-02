@@ -1,10 +1,10 @@
 #pragma once
 #include <sim_system.h>
-#include <global_geometry/global_surface_manager.h>
+#include <global_geometry/global_simplicial_surface_manager.h>
 
 namespace uipc::backend::cuda
 {
-class SurfaceReporter : public SimSystem
+class SimplicialSurfaceReporter : public SimSystem
 {
   public:
     using SimSystem::SimSystem;

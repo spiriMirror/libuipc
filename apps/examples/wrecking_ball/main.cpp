@@ -28,6 +28,7 @@ int main()
     config["contact"]["friction"]["enable"] = false;
     config["contact"]["enable"]             = true;
     config["contact"]["d_hat"]              = 0.01;
+    config["line_search"]["max_iter"]       = 32;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -146,7 +147,7 @@ int main()
         {
             // create ground
             Transform pre_transform = Transform::Identity();
-            pre_transform.scale(Vector3{12, 0.2, 12});
+            pre_transform.scale(Vector3{40, 0.2, 40});
 
             SimplicialComplexIO io{pre_transform};
             io          = SimplicialComplexIO{pre_transform};

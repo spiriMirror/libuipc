@@ -1,4 +1,4 @@
-#include <collision_detection/lbvh_simplex_dcd_filter.h>
+#include <collision_detection/filters/lbvh_simplex_trajectory_filter.h>
 #include <muda/cub/device/device_select.h>
 #include <muda/ext/eigen/log_proxy.h>
 #include <sim_engine.h>
@@ -10,9 +10,24 @@ namespace uipc::backend::cuda
 {
 constexpr bool PrintDebugInfo = false;
 
-REGISTER_SIM_SYSTEM(LBVHSimplexDCDFilter);
+REGISTER_SIM_SYSTEM(LBVHSimplexTrajectoryFilter);
 
-void LBVHSimplexDCDFilter::Impl::detect_trajectory_candidates(SimplexDCDFilter::DetectTrajectoryInfo& info)
+void LBVHSimplexTrajectoryFilter::do_detect(DetectInfo& info)
+{
+    m_impl.detect(info);
+}
+
+void LBVHSimplexTrajectoryFilter::do_filter_active(FilterActiveInfo& info)
+{
+    m_impl.filter_active(info);
+}
+
+void LBVHSimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
+{
+    m_impl.filter_toi(info);
+}
+
+void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 {
     using namespace muda;
 
@@ -338,7 +353,17 @@ void LBVHSimplexDCDFilter::Impl::detect_trajectory_candidates(SimplexDCDFilter::
                 Vector3 dEP3 = alpha * dxs(E1[1]);
 
                 if(!muda::distance::edge_edge_ccd_broadphase(
-                       EP0, EP1, dEP0, dEP1, EP2, EP3, dEP2, dEP3, d_hat))
+                       // position
+                       EP0,
+                       EP1,
+                       EP2,
+                       EP3,
+                       // displacement
+                       dEP0,
+                       dEP1,
+                       dEP2,
+                       dEP3,
+                       d_hat))
                     return false;
 
                 return true;
@@ -397,7 +422,7 @@ void LBVHSimplexDCDFilter::Impl::detect_trajectory_candidates(SimplexDCDFilter::
     }
 }
 
-void LBVHSimplexDCDFilter::Impl::filter_candidates(SimplexDCDFilter::FilterInfo& info)
+void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
 {
     using namespace muda;
 
@@ -780,13 +805,159 @@ void LBVHSimplexDCDFilter::Impl::filter_candidates(SimplexDCDFilter::FilterInfo&
     }
 }
 
-void LBVHSimplexDCDFilter::do_detect_trajectory_candidates(SimplexDCDFilter::DetectTrajectoryInfo& info)
+void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 {
-    m_impl.detect_trajectory_candidates(info);
-}
+    using namespace muda;
 
-void LBVHSimplexDCDFilter::do_filter_candidates(SimplexDCDFilter::FilterInfo& info)
-{
-    m_impl.filter_candidates(info);
+    tois.resize(candidate_PTs.size() + candidate_EEs.size());
+
+    auto PT_tois = tois.view(0, candidate_PTs.size());
+    auto EE_tois = tois.view(candidate_PTs.size(), candidate_EEs.size());
+
+
+    // TODO: Codimension IPC need thickness property, later we will add it
+    constexpr Float thickness = 0.0;
+    // TODO: Now hard code the minimum separation coefficient
+    // gap = eta * (dist2_cur - thickness * thickness) / (dist_cur + thickness);
+    constexpr Float eta = 0.1;
+
+    // TODO: Now hard code the maximum iteration
+    constexpr SizeT max_iter = 1000;
+
+    // large enough toi (>1)
+    constexpr Float large_enough_toi = 1.1;
+
+    // PT
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(candidate_PTs.size(),
+               [PT_tois       = PT_tois.viewer().name("PT_tois"),
+                candidate_PTs = candidate_PTs.viewer().name("candidate_PTs"),
+                Ps            = info.positions().viewer().name("Ps"),
+                dxs           = info.displacements().viewer().name("dxs"),
+                alpha         = info.alpha(),
+                d_hat         = info.d_hat(),
+                eta,
+                thickness,
+                max_iter,
+                large_enough_toi] __device__(int i) mutable
+               {
+                   auto& PT = candidate_PTs(i);
+                   auto  V  = PT[0];
+                   auto  F  = PT.segment<3>(1);
+
+                   Vector3 VP  = Ps(V);
+                   Vector3 dVP = alpha * dxs(V);
+
+                   Vector3 FP0 = Ps(F[0]);
+                   Vector3 FP1 = Ps(F[1]);
+                   Vector3 FP2 = Ps(F[2]);
+
+                   Vector3 dFP0 = alpha * dxs(F[0]);
+                   Vector3 dFP1 = alpha * dxs(F[1]);
+                   Vector3 dFP2 = alpha * dxs(F[2]);
+
+                   Float toi = large_enough_toi;
+
+
+                   bool faraway = !muda::distance::point_triangle_ccd_broadphase(
+                       VP, FP0, FP1, FP2, dVP, dFP0, dFP1, dFP2, d_hat);
+
+                   if(faraway)
+                   {
+                       PT_tois(i) = toi;
+                       return;
+                   }
+
+                   bool hit = muda::distance::point_triangle_ccd(
+                       VP, FP0, FP1, FP2, dVP, dFP0, dFP1, dFP2, eta, thickness, max_iter, toi);
+
+                   if(!hit)
+                       toi = large_enough_toi;
+
+                   PT_tois(i) = toi;
+               });
+
+    // EE
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(candidate_EEs.size(),
+               [EE_tois       = EE_tois.viewer().name("EE_tois"),
+                candidate_EEs = candidate_EEs.viewer().name("candidate_EEs"),
+                Ps            = info.positions().viewer().name("Ps"),
+                dxs           = info.displacements().viewer().name("dxs"),
+                alpha         = info.alpha(),
+                d_hat         = info.d_hat(),
+                eta,
+                thickness,
+                max_iter,
+                large_enough_toi] __device__(int i) mutable
+               {
+                   auto& EE = candidate_EEs(i);
+                   auto  E0 = EE.segment<2>(0);
+                   auto  E1 = EE.segment<2>(2);
+
+                   Vector3 EP0  = Ps(E0[0]);
+                   Vector3 EP1  = Ps(E0[1]);
+                   Vector3 dEP0 = alpha * dxs(E0[0]);
+                   Vector3 dEP1 = alpha * dxs(E0[1]);
+
+                   Vector3 EP2  = Ps(E1[0]);
+                   Vector3 EP3  = Ps(E1[1]);
+                   Vector3 dEP2 = alpha * dxs(E1[0]);
+                   Vector3 dEP3 = alpha * dxs(E1[1]);
+
+                   Float toi = large_enough_toi;
+
+                   bool faraway = !muda::distance::edge_edge_ccd_broadphase(
+                       // position
+                       EP0,
+                       EP1,
+                       EP2,
+                       EP3,
+                       // displacement
+                       dEP0,
+                       dEP1,
+                       dEP2,
+                       dEP3,
+                       d_hat);
+
+                   if(faraway)
+                   {
+                       EE_tois(i) = toi;
+                       return;
+                   }
+
+                   bool hit = muda::distance::edge_edge_ccd(
+                       // position
+                       EP0,
+                       EP1,
+                       EP2,
+                       EP3,
+                       // displacement
+                       dEP0,
+                       dEP1,
+                       dEP2,
+                       dEP3,
+                       eta,
+                       thickness,
+                       max_iter,
+                       toi);
+
+                   if(!hit)
+                       toi = large_enough_toi;
+
+                   EE_tois(i) = toi;
+               });
+
+    if(tois.size())
+    {
+        // get min toi
+        DeviceReduce().Min(tois.data(), info.toi().data(), tois.size());
+    }
+    else
+    {
+        info.toi().fill(large_enough_toi);
+    }
 }
 }  // namespace uipc::backend::cuda

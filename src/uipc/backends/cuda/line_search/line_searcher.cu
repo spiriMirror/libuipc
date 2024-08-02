@@ -16,9 +16,6 @@ void LineSearcher::init()
 {
     auto scene = world().scene();
 
-    m_reporters.init();
-    m_energy_reporters.init();
-
     m_energy_values.resize(m_reporters.view().size() + m_energy_reporters.view().size(), 0);
 
     for(auto&& [i, R] : enumerate(m_reporters.view()))

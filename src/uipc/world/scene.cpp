@@ -17,7 +17,7 @@ Json Scene::default_config() noexcept
     j["linear_system"]["solver"] = "linear_pcg";
 
     j["line_search"]["report_energy"] = false;
-    j["line_search"]["max_iter"]      = 64;
+    j["line_search"]["max_iter"]      = 8;
 
     j["contact"]["enable"]             = true;
     j["contact"]["friction"]["enable"] = true;

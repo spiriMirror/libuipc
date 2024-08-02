@@ -2,10 +2,9 @@
 #include <log_pattern_guard.h>
 #include <dof_predictor.h>
 #include <global_geometry/global_vertex_manager.h>
-#include <global_geometry/global_surface_manager.h>
+#include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/global_contact_manager.h>
-#include <collision_detection/global_dcd_filter.h>
-#include <collision_detection/global_ccd_filter.h>
+#include <collision_detection/global_trajectory_filter.h>
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
@@ -29,28 +28,35 @@ void SimEngine::do_advance()
 
         auto detect_dcd_candidates = [this]
         {
-            // dump_global_surface("dump_surface");
-
-            if(m_global_dcd_filter)
-                m_global_dcd_filter->detect();
+            if(m_global_trajectory_filter)
+            {
+                m_global_trajectory_filter->detect(0.0);
+                m_global_trajectory_filter->filter_active();
+            }
         };
 
         auto detect_trajectory_candidates = [this](Float alpha)
         {
-            if(m_global_dcd_filter)
-                m_global_dcd_filter->detect_trajectory_candidates(alpha);
+            if(m_global_trajectory_filter)
+            {
+                m_global_trajectory_filter->detect(alpha);
+            }
         };
 
         auto filter_dcd_candidates = [this]
         {
-            if(m_global_dcd_filter)
-                m_global_dcd_filter->filter_candidates();
+            if(m_global_trajectory_filter)
+            {
+                m_global_trajectory_filter->filter_active();
+            }
         };
 
         auto record_friction_candidates = [this]
         {
-            if(m_global_dcd_filter)
-                m_global_dcd_filter->record_friction_candidates();
+            if(m_global_trajectory_filter)
+            {
+                m_global_trajectory_filter->record_friction_candidates();
+            }
         };
 
         auto compute_adaptive_kappa = [this]
@@ -85,22 +91,23 @@ void SimEngine::do_advance()
 
         auto filter_toi = [&ccd_alpha, this](Float alpha)
         {
-            if(m_global_ccd_filter)
+            if(m_global_trajectory_filter)
             {
-                ccd_alpha = m_global_ccd_filter->filter_toi(alpha);
+                ccd_alpha = m_global_trajectory_filter->filter_toi(alpha);
                 if(ccd_alpha < alpha)
                 {
                     spdlog::info("CCD Filter: {} < {}", ccd_alpha, alpha);
                     return ccd_alpha;
                 }
             }
+            // return ccd_alpha;
             return alpha;
         };
 
         auto compute_energy = [this, filter_dcd_candidates](Float alpha) -> Float
         {
             // Step Forward => x = x_0 + alpha * dx
-            spdlog::info("Step Forward : {}", alpha);
+            spdlog::info("Step Forward: {}", alpha);
             m_global_vertex_manager->step_forward(alpha);
             m_line_searcher->step_forward(alpha);
 
@@ -196,17 +203,18 @@ void SimEngine::do_advance()
                     Float E = compute_energy(alpha);
 
                     SizeT line_search_iter = 0;
-                    while(line_search_iter++ < m_line_search_max_iter)  // Energy Test
+                    while(line_search_iter++ < m_line_searcher->max_iter())  // Energy Test
                     {
                         bool energy_decrease = E <= E0;  // Check Energy Decrease
 
                         // TODO: Intersection & Inversion Check
                         bool no_inversion = true;
 
-                        spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}",
+                        spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
                                      line_search_iter,
                                      alpha,
-                                     E / E0);
+                                     E / E0,
+                                     E0);
 
                         bool success = energy_decrease && no_inversion;
                         if(success)
@@ -217,12 +225,16 @@ void SimEngine::do_advance()
                         E = compute_energy(alpha);
                     }
 
-                    if(line_search_iter >= m_line_search_max_iter)
+                    if(line_search_iter >= m_line_searcher->max_iter())
                     {
-                        spdlog::error("Line Search Exits with Max Iteration: {} (Frame={}, Newton={})",
-                                      m_line_search_max_iter,
-                                      m_current_frame,
-                                      newton_iter);
+                        spdlog::warn(
+                            "Line Search Exits with Max Iteration: {} (Frame={}, Newton={})\n"
+                            "E/E0: {}, E0:{}",
+                            m_line_searcher->max_iter(),
+                            m_current_frame,
+                            newton_iter,
+                            E / E0,
+                            E0);
                     }
                 }
             }
@@ -256,7 +268,7 @@ void SimEngine::do_advance()
     }
     catch(const SimEngineException& e)
     {
-        spdlog::error("Exception: {}", e.what());
+        spdlog::error("Simulation Engine Exception: {}", e.what());
     }
 }
 }  // namespace uipc::backend::cuda

@@ -2,11 +2,10 @@
 #include <contact_system/contact_reporter.h>
 #include <line_search/line_searcher.h>
 #include <contact_system/contact_coeff.h>
+#include <collision_detection/simplex_trajectory_filter.h>
 
 namespace uipc::backend::cuda
 {
-class SimplexDCDFilter;
-class GlobalDCDFilter;
 class SimplexFrictionalContact : public ContactReporter
 {
   public:
@@ -136,12 +135,14 @@ class SimplexFrictionalContact : public ContactReporter
     {
       public:
         void assemble(GlobalContactManager::ContactInfo& info);
+        void compute_energy(SimplexFrictionalContact*         contact,
+                            GlobalContactManager::EnergyInfo& info);
 
-        GlobalDCDFilter*      global_dcd_filter      = nullptr;
-        GlobalContactManager* global_contact_manager = nullptr;
-        GlobalVertexManager*  global_vertex_manager  = nullptr;
+        GlobalTrajectoryFilter* global_trajectory_filter = nullptr;
+        GlobalContactManager*   global_contact_manager   = nullptr;
+        GlobalVertexManager*    global_vertex_manager    = nullptr;
 
-        SimplexDCDFilter* simplex_dcd_filter() const noexcept;
+        SimSystemSlot<SimplexTrajectoryFilter> simplex_trajectory_filter;
 
         SizeT PT_count = 0;
         SizeT EE_count = 0;
@@ -179,7 +180,7 @@ class SimplexFrictionalContact : public ContactReporter
   protected:
     virtual void do_build(BuildInfo& info)           = 0;
     virtual void do_compute_energy(EnergyInfo& info) = 0;
-    virtual void do_assemble(ContactInfo& info)     = 0;
+    virtual void do_assemble(ContactInfo& info)      = 0;
 
   private:
     virtual void do_compute_energy(GlobalContactManager::EnergyInfo& info) override final;

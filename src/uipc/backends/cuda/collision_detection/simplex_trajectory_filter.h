@@ -1,17 +1,17 @@
 #pragma once
-#include <sim_system.h>
-#include <collision_detection/global_dcd_filter.h>
+#include <collision_detection/trajectory_filter.h>
+#include <collision_detection/global_trajectory_filter.h>
 #include <global_geometry/global_vertex_manager.h>
-#include <global_geometry/global_surface_manager.h>
+#include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/global_contact_manager.h>
 #include <muda/buffer/device_buffer.h>
 
 namespace uipc::backend::cuda
 {
-class SimplexDCDFilter : public SimSystem
+class SimplexTrajectoryFilter : public TrajectoryFilter
 {
   public:
-    using SimSystem::SimSystem;
+    using TrajectoryFilter::TrajectoryFilter;
 
     class Impl;
 
@@ -31,22 +31,11 @@ class SimplexDCDFilter : public SimSystem
         muda::CBufferView<Vector3i> surf_triangles() const noexcept;
 
       protected:
-        friend class SimplexDCDFilter;
+        friend class SimplexTrajectoryFilter;
         Impl* m_impl = nullptr;
     };
 
-    //class DetectInfo : public BaseInfo
-    //{
-    //  public:
-    //    using BaseInfo::BaseInfo;
-
-    //    void PTs(muda::CBufferView<Vector4i> PTs) noexcept;
-    //    void EEs(muda::CBufferView<Vector4i> EEs) noexcept;
-    //    void PEs(muda::CBufferView<Vector3i> PEs) noexcept;
-    //    void PPs(muda::CBufferView<Vector2i> PPs) noexcept;
-    //};
-
-    class DetectTrajectoryInfo : public BaseInfo
+    class DetectInfo : public BaseInfo
     {
       public:
         using BaseInfo::BaseInfo;
@@ -55,11 +44,11 @@ class SimplexDCDFilter : public SimSystem
         muda::CBufferView<Vector3> displacements() const noexcept;
 
       private:
-        friend class SimplexDCDFilter;
+        friend class SimplexTrajectoryFilter;
         Float m_alpha = 0.0;
     };
 
-    class FilterInfo : public BaseInfo
+    class FilterActiveInfo : public BaseInfo
     {
       public:
         using BaseInfo::BaseInfo;
@@ -70,10 +59,22 @@ class SimplexDCDFilter : public SimSystem
         void PPs(muda::CBufferView<Vector2i> PPs) noexcept;
     };
 
+    class FilterTOIInfo : public DetectInfo
+    {
+      public:
+        using DetectInfo::DetectInfo;
+
+        muda::VarView<Float> toi() noexcept;
+
+      private:
+        friend class SimplexTrajectoryFilter;
+        muda::VarView<Float> m_toi;
+    };
+
     class Impl
     {
       public:
-        void record_friction_candidates();
+        void record_friction_candidates(GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info);
 
         GlobalVertexManager* global_vertex_manager = nullptr;
         GlobalSimpicialSurfaceManager* global_simplicial_surface_manager = nullptr;
@@ -113,17 +114,21 @@ class SimplexDCDFilter : public SimSystem
     muda::CBufferView<Vector2i> friction_PPs() const noexcept;
 
   protected:
-    virtual void do_detect_trajectory_candidates(DetectTrajectoryInfo& info) = 0;
-    virtual void do_filter_candidates(FilterInfo& info) = 0;
+    virtual void do_detect(DetectInfo& info)              = 0;
+    virtual void do_filter_active(FilterActiveInfo& info) = 0;
+    virtual void do_filter_toi(FilterTOIInfo& info)       = 0;
 
   private:
     friend class GlobalDCDFilter;
     Impl m_impl;
-    void record_friction_candidates();
-
-    void detect_trajectory_candidates(Float alpha);
-    void filter_candidates();
 
     virtual void do_build() override final;
+
+    // Inherited via TrajectoryFilter
+    virtual void do_detect(GlobalTrajectoryFilter::DetectInfo& info) override final;
+    virtual void do_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info) override final;
+    virtual void do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info) override final;
+    virtual void do_record_friction_candidates(
+        GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info) override final;
 };
 }  // namespace uipc::backend::cuda

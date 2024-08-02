@@ -11,7 +11,6 @@ namespace uipc::backend::cuda
 {
 void GlobalVertexManager::Impl::init_vertex_info()
 {
-    vertex_reporters.init();
     auto vertex_reporter_view = vertex_reporters.view();
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
         R->m_index = i;

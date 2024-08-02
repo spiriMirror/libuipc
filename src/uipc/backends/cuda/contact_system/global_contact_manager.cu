@@ -59,7 +59,6 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     contact_tabular.view().copy_from(h_contact_tabular.data());
 
     // 2) reporters
-    contact_reporters.init();
     auto contact_reporter_view = contact_reporters.view();
     for(auto&& [i, R] : enumerate(contact_reporter_view))
         R->m_index = i;
@@ -71,7 +70,6 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     reporter_hessian_counts.resize(contact_reporter_view.size());
 
     // 3) receivers
-    contact_receivers.init();
     auto contact_receiver_view = contact_receivers.view();
     for(auto&& [i, R] : enumerate(contact_receiver_view))
         R->m_index = i;

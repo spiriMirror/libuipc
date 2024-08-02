@@ -1,26 +1,32 @@
 #include <contact_system/vertex_half_plane_normal_contact.h>
-#include <collision_detection/half_plane_dcd_filter.h>
-#include <collision_detection/half_plane_dcd_filter.h>
+#include <collision_detection/vertex_half_plane_trajectory_filter.h>
 #include <muda/ext/eigen/evd.h>
 
 namespace uipc::backend::cuda
 {
 void VertexHalfPlaneNormalContact::do_build()
 {
-    m_impl.global_dcd_filter      = &require<GlobalDCDFilter>();
-    m_impl.global_contact_manager = &require<GlobalContactManager>();
-    m_impl.global_vertex_manager  = &require<GlobalVertexManager>();
+    m_impl.global_trajectory_filter = &require<GlobalTrajectoryFilter>();
+    m_impl.global_contact_manager   = &require<GlobalContactManager>();
+    m_impl.global_vertex_manager    = &require<GlobalVertexManager>();
 
     BuildInfo info;
     do_build(info);
 
     m_impl.global_contact_manager->add_reporter(this);
     m_impl.dt = world().scene().info()["dt"].get<Float>();
+
+    on_init_scene(
+        [this]
+        {
+            m_impl.veretx_half_plane_trajectory_filter =
+                m_impl.global_trajectory_filter->find<VertexHalfPlaneTrajectoryFilter>();
+        });
 }
 
 void VertexHalfPlaneNormalContact::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
 {
-    auto filter = m_impl.global_dcd_filter->half_plane_filter();
+    auto& filter = m_impl.veretx_half_plane_trajectory_filter;
 
     SizeT count = filter->PHs().size();
 
@@ -37,7 +43,7 @@ void VertexHalfPlaneNormalContact::do_compute_energy(GlobalContactManager::Energ
 
     EnergyInfo this_info{&m_impl};
 
-    auto filter = m_impl.global_dcd_filter->half_plane_filter();
+    auto& filter = m_impl.veretx_half_plane_trajectory_filter;
 
     auto count = filter->PHs().size();
 
@@ -49,6 +55,11 @@ void VertexHalfPlaneNormalContact::do_compute_energy(GlobalContactManager::Energ
 
     DeviceReduce().Sum(
         m_impl.energies.data(), info.energy().data(), m_impl.energies.size());
+
+    Float E;
+    info.energy().copy_to(&E);
+
+    spdlog::info("VertexHalfPlaneNormalContact energy: {}", E);
 }
 
 namespace detail
@@ -76,7 +87,7 @@ void VertexHalfPlaneNormalContact::Impl::assemble(GlobalContactManager::ContactI
 
     auto H3x3 = info.hessian();
     auto G3   = info.gradient();
-    auto PHs  = half_plane_dcd_filter()->PHs();
+    auto PHs  = veretx_half_plane_trajectory_filter->PHs();
 
     // PH
     {
@@ -132,7 +143,7 @@ muda::CBuffer2DView<ContactCoeff> VertexHalfPlaneNormalContact::BaseInfo::contac
 
 muda::CBufferView<Vector2i> VertexHalfPlaneNormalContact::BaseInfo::PHs() const
 {
-    return m_impl->half_plane_dcd_filter()->PHs();
+    return m_impl->veretx_half_plane_trajectory_filter->PHs();
 }
 
 muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::positions() const
@@ -170,10 +181,6 @@ Float VertexHalfPlaneNormalContact::BaseInfo::eps_velocity() const
     return m_impl->global_contact_manager->eps_velocity();
 }
 
-HalfPlaneDCDFilter* VertexHalfPlaneNormalContact::Impl::half_plane_dcd_filter() const noexcept
-{
-    return global_dcd_filter->half_plane_filter();
-}
 muda::BufferView<Vector3> VertexHalfPlaneNormalContact::ContactInfo::gradients() const noexcept
 {
     return m_gradients;

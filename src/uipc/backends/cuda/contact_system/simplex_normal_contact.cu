@@ -1,6 +1,4 @@
 #include <contact_system/simplex_normal_contact.h>
-#include <collision_detection/global_dcd_filter.h>
-#include <collision_detection/simplex_dcd_filter.h>
 #include <muda/ext/eigen/evd.h>
 #include <muda/cub/device/device_merge_sort.h>
 
@@ -8,15 +6,22 @@ namespace uipc::backend::cuda
 {
 void SimplexNormalContact::do_build()
 {
-    m_impl.global_dcd_filter      = &require<GlobalDCDFilter>();
-    m_impl.global_contact_manager = &require<GlobalContactManager>();
-    m_impl.global_vertex_manager  = &require<GlobalVertexManager>();
+    m_impl.global_trajectory_filter = &require<GlobalTrajectoryFilter>();
+    m_impl.global_contact_manager   = &require<GlobalContactManager>();
+    m_impl.global_vertex_manager    = &require<GlobalVertexManager>();
 
     BuildInfo info;
     do_build(info);
 
     m_impl.global_contact_manager->add_reporter(this);
     m_impl.dt = world().scene().info()["dt"].get<Float>();
+
+    on_init_scene(
+        [this]
+        {
+            m_impl.simplex_trajectory_filter =
+                m_impl.global_trajectory_filter->find<SimplexTrajectoryFilter>();
+        });
 }
 
 void SimplexNormalContact::Impl::compute_energy(SimplexNormalContact* contact,
@@ -24,12 +29,12 @@ void SimplexNormalContact::Impl::compute_energy(SimplexNormalContact* contact,
 {
     EnergyInfo this_info{this};
 
-    auto dcd_filter = global_dcd_filter->simplex_filter();
+    auto filter = simplex_trajectory_filter;
 
-    PT_count = dcd_filter->PTs().size();
-    EE_count = dcd_filter->EEs().size();
-    PE_count = dcd_filter->PEs().size();
-    PP_count = dcd_filter->PPs().size();
+    PT_count = filter->PTs().size();
+    EE_count = filter->EEs().size();
+    PE_count = filter->PEs().size();
+    PP_count = filter->PPs().size();
 
     auto count_4 = (PT_count + EE_count);
     auto count_3 = PE_count;
@@ -68,12 +73,12 @@ void SimplexNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& i
 
 void SimplexNormalContact::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
 {
-    auto dcd_filter = m_impl.global_dcd_filter->simplex_filter();
+    auto& filter = m_impl.simplex_trajectory_filter;
 
-    m_impl.PT_count = dcd_filter->PTs().size();
-    m_impl.EE_count = dcd_filter->EEs().size();
-    m_impl.PE_count = dcd_filter->PEs().size();
-    m_impl.PP_count = dcd_filter->PPs().size();
+    m_impl.PT_count = filter->PTs().size();
+    m_impl.EE_count = filter->EEs().size();
+    m_impl.PE_count = filter->PEs().size();
+    m_impl.PP_count = filter->PPs().size();
 
     auto count_4 = (m_impl.PT_count + m_impl.EE_count);
     auto count_3 = m_impl.PE_count;
@@ -129,22 +134,22 @@ muda::CBuffer2DView<ContactCoeff> SimplexNormalContact::BaseInfo::contact_tabula
 
 muda::CBufferView<Vector4i> SimplexNormalContact::BaseInfo::PTs() const
 {
-    return m_impl->simplex_dcd_filter()->PTs();
+    return m_impl->simplex_trajectory_filter->PTs();
 }
 
 muda::CBufferView<Vector4i> SimplexNormalContact::BaseInfo::EEs() const
 {
-    return m_impl->simplex_dcd_filter()->EEs();
+    return m_impl->simplex_trajectory_filter->EEs();
 }
 
 muda::CBufferView<Vector3i> SimplexNormalContact::BaseInfo::PEs() const
 {
-    return m_impl->simplex_dcd_filter()->PEs();
+    return m_impl->simplex_trajectory_filter->PEs();
 }
 
 muda::CBufferView<Vector2i> SimplexNormalContact::BaseInfo::PPs() const
 {
-    return m_impl->simplex_dcd_filter()->PPs();
+    return m_impl->simplex_trajectory_filter->PPs();
 }
 
 muda::CBufferView<Vector3> SimplexNormalContact::BaseInfo::positions() const
@@ -242,10 +247,10 @@ void SimplexNormalContact::Impl::assemble(GlobalContactManager::ContactInfo& inf
 
     auto H3x3 = info.hessian();
     auto G3   = info.gradient();
-    auto PTs  = simplex_dcd_filter()->PTs();
-    auto EEs  = simplex_dcd_filter()->EEs();
-    auto PEs  = simplex_dcd_filter()->PEs();
-    auto PPs  = simplex_dcd_filter()->PPs();
+    auto PTs  = simplex_trajectory_filter->PTs();
+    auto EEs  = simplex_trajectory_filter->EEs();
+    auto PEs  = simplex_trajectory_filter->PEs();
+    auto PPs  = simplex_trajectory_filter->PPs();
 
     auto PT_hessian  = PT_EE_hessians.view(0, PTs.size());
     auto PT_gradient = PT_EE_gradients.view(0, PTs.size());
@@ -392,10 +397,5 @@ void SimplexNormalContact::Impl::assemble(GlobalContactManager::ContactInfo& inf
 
     UIPC_ASSERT(H3x3_offset == info.hessian().triplet_count(), "size mismatch");
     UIPC_ASSERT(G3_offset == info.gradient().doublet_count(), "size mismatch");
-}
-
-SimplexDCDFilter* SimplexNormalContact::Impl::simplex_dcd_filter() const noexcept
-{
-    return global_dcd_filter->simplex_filter();
 }
 }  // namespace uipc::backend::cuda

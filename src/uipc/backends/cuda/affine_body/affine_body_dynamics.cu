@@ -539,7 +539,7 @@ void AffineBodyDynamics::Impl::_distribute_body_infos()
 
 void AffineBodyDynamics::Impl::init(WorldVisitor& world)
 {
-    _build_subsystems(world);
+    //_build_subsystems(world);
 
     _build_body_infos(world);
     _build_related_infos(world);
@@ -551,11 +551,11 @@ void AffineBodyDynamics::Impl::init(WorldVisitor& world)
         action();
 }
 
-void AffineBodyDynamics::Impl::_build_subsystems(WorldVisitor& world)
-{
-    constitutions.init();
-    after_build_geometry.init();
-}
+//void AffineBodyDynamics::Impl::_build_subsystems(WorldVisitor& world)
+//{
+//    constitutions.view();
+//    after_build_geometry.view();
+//}
 
 void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
 {

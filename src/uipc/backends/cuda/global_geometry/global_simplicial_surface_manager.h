@@ -5,7 +5,7 @@
 
 namespace uipc::backend::cuda
 {
-class SurfaceReporter;
+class SimplicialSurfaceReporter;
 class GlobalSimpicialSurfaceManager : public SimSystem
 {
   public:
@@ -13,7 +13,7 @@ class GlobalSimpicialSurfaceManager : public SimSystem
 
     class Impl;
 
-    void add_reporter(SurfaceReporter* reporter) noexcept;
+    void add_reporter(SimplicialSurfaceReporter* reporter) noexcept;
 
 
     class SurfaceCountInfo
@@ -100,7 +100,7 @@ class GlobalSimpicialSurfaceManager : public SimSystem
         muda::DeviceBuffer<Vector3i> surf_triangles;
 
         GlobalVertexManager* global_vertex_manager = nullptr;
-        SimSystemSlotCollection<SurfaceReporter> reporters;
+        SimSystemSlotCollection<SimplicialSurfaceReporter> reporters;
     };
 
     muda::CBufferView<IndexT>   surf_vertices() const noexcept;

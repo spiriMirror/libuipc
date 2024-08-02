@@ -57,8 +57,8 @@ void IPCSimplexFrictionalContact::do_compute_energy(EnergyInfo& info)
                    distance::point_triangle_distance(P, T0, T1, T2, D);
                    // NOTE: D can be larger than D_hat
 
-                   cout << "PT: " << PT.transpose().eval() << " D/prev_D: " << D
-                        << "/" << prev_D << "\n";
+                   //cout << "PT: " << PT.transpose().eval() << " D/prev_D: " << D
+                   //     << "/" << prev_D << "\n";
 
                    // TODO:
                    Es(i) = 0.0;
@@ -117,8 +117,8 @@ void IPCSimplexFrictionalContact::do_compute_energy(EnergyInfo& info)
                    // NOTE: D can be larger than D_hat
 
 
-                   cout << "EE: " << EE.transpose().eval() << " D/prev_D: " << D
-                        << "/" << prev_D << "\n";
+                   //cout << "EE: " << EE.transpose().eval() << " D/prev_D: " << D
+                   //     << "/" << prev_D << "\n";
 
                    // TODO:
                    Es(i) = 0.0;
@@ -165,8 +165,8 @@ void IPCSimplexFrictionalContact::do_compute_energy(EnergyInfo& info)
                    distance::point_edge_distance(P, E0, E1, D);
                    // NOTE: D can be larger than D_hat
 
-                   cout << "PE: " << PE.transpose().eval() << " D/prev_D: " << D
-                        << "/" << prev_D << "\n";
+                   //cout << "PE: " << PE.transpose().eval() << " D/prev_D: " << D
+                   //     << "/" << prev_D << "\n";
 
                    // TODO:
                    Es(i) = 0.0;
@@ -211,8 +211,8 @@ void IPCSimplexFrictionalContact::do_compute_energy(EnergyInfo& info)
                    distance::point_point_distance(P0, P1, D);
                    // NOTE: D can be larger than D_hat
 
-                   cout << "PP: " << PP.transpose().eval() << " D/prev_D: " << D
-                        << "/" << prev_D << "\n";
+                   //cout << "PP: " << PP.transpose().eval() << " D/prev_D: " << D
+                   //     << "/" << prev_D << "\n";
 
                    // TODO:
                    Es(i) = 0.0;

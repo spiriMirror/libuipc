@@ -1,26 +1,26 @@
 #pragma once
 #include <sim_system.h>
 #include <global_geometry/global_vertex_manager.h>
-#include <global_geometry/global_surface_manager.h>
+#include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/global_contact_manager.h>
 #include <collision_detection/atomic_counting_lbvh.h>
-#include <collision_detection/simplex_dcd_filter.h>
+#include <collision_detection/simplex_trajectory_filter.h>
 
 namespace uipc::backend::cuda
 {
-class LBVHSimplexDCDFilter final : public SimplexDCDFilter
+class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
 {
   public:
-    using SimplexDCDFilter::SimplexDCDFilter;
+    using SimplexTrajectoryFilter::SimplexTrajectoryFilter;
 
     class Impl
     {
       public:
-        void detect_trajectory_candidates(SimplexDCDFilter::DetectTrajectoryInfo& info);
-        void filter_candidates(SimplexDCDFilter::FilterInfo& info);
+        void detect(DetectInfo& info);
+        void filter_active(FilterActiveInfo& info);
+        void filter_toi(FilterTOIInfo& info);
 
         // broad phase
-
         muda::DeviceBuffer<AABB>     point_aabbs;
         muda::DeviceBuffer<AABB>     triangle_aabbs;
         AtomicCountingLBVH           lbvh_PT;
@@ -32,25 +32,28 @@ class LBVHSimplexDCDFilter final : public SimplexDCDFilter
 
 
         // narrow phase
-
         muda::DeviceBuffer<Vector4i> temp_PTs;
         muda::DeviceBuffer<Vector4i> temp_EEs;
         muda::DeviceBuffer<Vector3i> temp_PEs;
         muda::DeviceBuffer<Vector2i> temp_PPs;
 
+        // for filter active
         muda::DeviceBuffer<Vector4i> PTs;
         muda::DeviceBuffer<Vector4i> EEs;
         muda::DeviceBuffer<Vector3i> PEs;
         muda::DeviceBuffer<Vector2i> PPs;
 
         muda::DeviceVar<IndexT> selected;
-    };
 
-  protected:
-    virtual void do_detect_trajectory_candidates(SimplexDCDFilter::DetectTrajectoryInfo& info) override;
-    virtual void do_filter_candidates(SimplexDCDFilter::FilterInfo& info) override;
+        muda::DeviceBuffer<Float> tois;
+    };
 
   private:
     Impl m_impl;
+
+    // Inherited via SimplexTrajectoryFilter
+    virtual void do_detect(DetectInfo& info) override final;
+    virtual void do_filter_active(FilterActiveInfo& info) override final;
+    virtual void do_filter_toi(FilterTOIInfo& info) override final;
 };
 }  // namespace uipc::backend::cuda

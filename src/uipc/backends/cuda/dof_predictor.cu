@@ -22,8 +22,8 @@ void DoFPredictor::on_compute_velocity(SimSystem& system,
 
 void DoFPredictor::init()
 {
-    m_on_predict.init();
-    m_on_compute_velocity.init();
+    [[maybe_unuse]] m_on_predict.view();
+    [[maybe_unuse]] m_on_compute_velocity.view();
 
     auto scene        = world().scene();
     m_predict_info.dt = scene.info()["dt"];

@@ -1,15 +1,15 @@
 #pragma once
 #include <sim_system.h>
-#include <global_geometry/surface_reporter.h>
+#include <global_geometry/simplicial_surface_reporter.h>
 #include <affine_body/affine_body_dynamics.h>
 #include <affine_body/affine_body_vertex_reporter.h>
 
 namespace uipc::backend::cuda
 {
-class AffinebodySurfaceReporter : public SurfaceReporter
+class AffinebodySurfaceReporter : public SimplicialSurfaceReporter
 {
   public:
-    using SurfaceReporter::SurfaceReporter;
+    using SimplicialSurfaceReporter::SimplicialSurfaceReporter;
 
     class Impl;
 

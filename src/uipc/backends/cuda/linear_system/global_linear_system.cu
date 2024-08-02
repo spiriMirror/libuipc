@@ -28,11 +28,6 @@ void GlobalLinearSystem::solve()
 void GlobalLinearSystem::Impl::init()
 {
     // build the linear subsystem infos
-    diag_subsystems.init();
-    off_diag_subsystems.init();
-    local_preconditioners.init();
-    global_preconditioner.init();
-    iterative_solver.init();
 
     auto diag_subsystem_view       = diag_subsystems.view();
     auto off_diag_subsystem_view   = off_diag_subsystems.view();

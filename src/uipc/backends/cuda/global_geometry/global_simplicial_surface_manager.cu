@@ -1,5 +1,5 @@
-#include <global_geometry/global_surface_manager.h>
-#include <global_geometry/surface_reporter.h>
+#include <global_geometry/global_simplicial_surface_manager.h>
+#include <global_geometry/simplicial_surface_reporter.h>
 #include <uipc/common/zip.h>
 #include <uipc/common/enumerate.h>
 
@@ -7,7 +7,7 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(GlobalSimpicialSurfaceManager);
 
-void GlobalSimpicialSurfaceManager::add_reporter(SurfaceReporter* reporter) noexcept
+void GlobalSimpicialSurfaceManager::add_reporter(SimplicialSurfaceReporter* reporter) noexcept
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
@@ -37,7 +37,6 @@ void GlobalSimpicialSurfaceManager::do_build()
 void GlobalSimpicialSurfaceManager::Impl::init_surface_info()
 {
     // 1) build the core invariant data structure: reporter_infos
-    reporters.init();
     auto reporter_view = reporters.view();
     for(auto&& [i, R] : enumerate(reporter_view))
         R->m_index = i;

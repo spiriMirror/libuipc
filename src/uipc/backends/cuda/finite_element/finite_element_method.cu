@@ -63,8 +63,6 @@ void FiniteElementMethod::Impl::init(WorldVisitor& world)
 
 void FiniteElementMethod::Impl::_init_constitutions()
 {
-    constitutions.init();
-
     auto constitution_view = constitutions.view();
 
     // 1) sort the constitutions by (dim, uid)
@@ -207,7 +205,6 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
         info.vertex_offset = vertex_offsets[i];
 
     h_positions.resize(vertex_offsets.back());
-    h_rest_positions.resize(vertex_offsets.back());
 
     // 4) setup dim infos
     {
@@ -375,6 +372,10 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
 {
     auto geo_slots      = world.scene().geometries();
     auto rest_geo_slots = world.scene().rest_geometries();
+
+    // resize buffers
+    h_rest_positions.resize(h_positions.size());
+    h_mass.resize(h_positions.size());
 
     for(auto&& [i, info] : enumerate(geo_infos))
     {

@@ -6,7 +6,7 @@
 #include <log_pattern_guard.h>
 #include <uipc/backends/common/module.h>
 #include <global_geometry/global_vertex_manager.h>
-#include <global_geometry/global_surface_manager.h>
+#include <global_geometry/global_simplicial_surface_manager.h>
 #include <fstream>
 
 namespace uipc::backend::cuda

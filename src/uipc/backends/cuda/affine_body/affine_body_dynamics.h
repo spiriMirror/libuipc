@@ -140,7 +140,7 @@ class AffineBodyDynamics : public SimSystem
     {
       public:
         void init(WorldVisitor& world);
-        void _build_subsystems(WorldVisitor& world);
+        // void _build_subsystems(WorldVisitor& world);
         void _build_body_infos(WorldVisitor& world);
         void _build_related_infos(WorldVisitor& world);
         void _build_geometry_on_host(WorldVisitor& world);
