@@ -99,10 +99,10 @@ void VertexHalfPlaneNormalContact::Impl::assemble(GlobalContactManager::ContactI
                     PHs      = PHs.cviewer().name("PHs"),
                     H3x3s = H3x3.viewer().name("H3x3")] __device__(int I) mutable
                    {
-                       Matrix3x3   H3x3;
-                       const auto& D2 = PHs(I);
-                       auto        P  = D2.x();
-                       //detail::make_spd<3>(H3x3);
+                       Matrix3x3   H3x3 = PH_H3x3s(I);
+                       const auto& D2   = PHs(I);
+                       auto        P    = D2.x();
+                       detail::make_spd<3>(H3x3);
                        H3x3s(I).write(P, P, H3x3);
                    });
 

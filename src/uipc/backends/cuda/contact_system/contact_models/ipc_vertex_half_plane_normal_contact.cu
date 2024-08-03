@@ -45,9 +45,6 @@ void IPCVertexHalfPlaneNormalContact::do_compute_energy(EnergyInfo& info)
 
                    Es(I) = sym::ipc_vertex_half_contact::PH_barrier_energy(
                        kappa * dt * dt, D_hat, v, P, N);
-
-                   //Es(I) = sym::ipc_vertex_half_contact::GIPC_ground_energy(
-                   //    kappa * dt * dt, D_hat, v, P, N);
                });
 }
 
@@ -89,8 +86,8 @@ void IPCVertexHalfPlaneNormalContact::do_assemble(ContactInfo& info)
                        sym::ipc_vertex_half_contact::PH_barrier_gradient_hessian(
                            Grad(I), Hess(I), kappa * dt * dt, D_hat, v, P, N);
 
-                       //sym::ipc_vertex_half_contact::GIPC_ground_gradient_hessian(
-                       //    Grad(I), Hess(I), kappa * dt * dt, D_hat, v, P, N);
+                       //cout << "Grad: " << Grad(I).transpose().eval() << "\n";
+                       //cout << "Hess: " << Hess(I).eval() << "\n";
                    });
 
         int a = 1;

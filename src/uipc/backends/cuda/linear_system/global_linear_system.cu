@@ -154,7 +154,10 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     }
     else
     {
-        total_dof = diag_dof_offsets.back() + diag_dof_counts.back();
+        if(diag_dof_offsets.size() == 0) [[unlikely]]
+            total_dof = 0;
+        else
+            total_dof = diag_dof_offsets.back() + diag_dof_counts.back();
     }
 
     if(triplet_count_changed) [[likely]]
@@ -175,8 +178,11 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     }
     else
     {
-        total_triplet =
-            subsystem_triplet_offsets.back() + subsystem_triplet_counts.back();
+        if(subsystem_triplet_offsets.size() == 0) [[unlikely]]
+            total_triplet = 0;
+        else
+            total_triplet =
+                subsystem_triplet_offsets.back() + subsystem_triplet_counts.back();
     }
 
     if(total_dof == 0 || total_triplet == 0) [[unlikely]]

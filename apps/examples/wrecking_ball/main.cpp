@@ -143,9 +143,10 @@ int main()
             }
         }
 
+        constexpr bool UseMeshGround = false;
 
+        if(UseMeshGround)
         {
-            // create ground
             Transform pre_transform = Transform::Identity();
             pre_transform.scale(Vector3{40, 0.2, 40});
 
@@ -166,9 +167,12 @@ int main()
 
             auto ground_obj = scene.objects().create("ground");
             ground_obj->geometries().create(ground);
-
-            //auto g = geometry::ground(-2.0);
-            //ground_obj->geometries().create(g);
+        }
+        else
+        {
+            auto ground_obj = scene.objects().create("ground");
+            auto g          = geometry::ground(-1.0);
+            ground_obj->geometries().create(g);
         }
     }
 

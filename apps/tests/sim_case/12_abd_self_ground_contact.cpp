@@ -20,10 +20,8 @@ TEST_CASE("12_abd_self_ground_contact", "[abd]")
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config                            = Scene::default_config();
-    config["gravity"]                      = Vector3{0, -9.8, 0};
-    config["line_search"]["report_energy"] = true;
-
+    auto config       = Scene::default_config();
+    config["gravity"] = Vector3{0, -9.8, 0};
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -42,6 +40,17 @@ TEST_CASE("12_abd_self_ground_contact", "[abd]")
         SimplicialComplexIO io{pre_trans};
         auto cube = io.read(fmt::format("{}{}", tetmesh_dir, "cube.msh"));
 
+        //vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
+        //vector<Vector3>  Vs = {Vector3{0, 0, 1},
+        //                       Vector3{0, -1, 0},
+        //                       Vector3{-std::sqrt(3) / 2, 0, -0.5},
+        //                       Vector3{std::sqrt(3) / 2, 0, -0.5}};
+
+        //std::transform(
+        //    Vs.begin(), Vs.end(), Vs.begin(), [&](auto& v) { return v * 0.3; });
+
+        //auto cube = tetmesh(Vs, Ts);
+
         // create object
         auto object = scene.objects().create("cubes");
         {
@@ -57,7 +66,7 @@ TEST_CASE("12_abd_self_ground_contact", "[abd]")
             for(int i = 0; i < N; i++)
             {
                 Transform t = Transform::Identity();
-                t.translate(Vector3::UnitY() * 0.4 * (i + 0.5));
+                t.translate(Vector3::UnitY() * 0.4 * (i + 1));
                 trans[i] = t.matrix();
             }
 
@@ -69,30 +78,38 @@ TEST_CASE("12_abd_self_ground_contact", "[abd]")
         // create a ground geometry
         ImplicitGeometry half_plane = ground(0.0);
 
+        constexpr bool UseMeshGround = false;
+
+
         auto ground = scene.objects().create("ground");
         {
-            ground->geometries().create(half_plane);
+            if constexpr(UseMeshGround)
+            {
+                Transform pre_transform = Transform::Identity();
+                pre_transform.scale(Vector3{40, 0.2, 40});
 
-            //Transform pre_transform = Transform::Identity();
-            //pre_transform.scale(Vector3{2, 0.2, 2});
+                SimplicialComplexIO io{pre_transform};
+                io = SimplicialComplexIO{pre_transform};
+                auto ground = io.read(fmt::format("{}{}", tetmesh_dir, "cube.msh"));
 
-            //SimplicialComplexIO io{pre_transform};
-            //io          = SimplicialComplexIO{pre_transform};
-            //auto ground = io.read(fmt::format("{}{}", tetmesh_dir, "cube.msh"));
+                label_surface(ground);
+                label_triangle_orient(ground);
 
-            //label_surface(ground);
-            //label_triangle_orient(ground);
+                Transform transform = Transform::Identity();
+                transform.translate(Vector3{12, -1.1, 0});
+                view(ground.transforms())[0] = transform.matrix();
+                abd.apply_to(ground, 10.0_MPa);
 
-            //Transform transform = Transform::Identity();
-            //transform.translate(Vector3{0, -0.1, 0});
-            //view(ground.transforms())[0] = transform.matrix();
-            //abd.apply_to(ground, 10.0_MPa);
+                auto is_fixed = ground.instances().find<IndexT>(builtin::is_fixed);
+                view(*is_fixed)[0] = 1;
 
-            //auto is_fixed = ground.instances().find<IndexT>(builtin::is_fixed);
-            //view(*is_fixed)[0] = 1;
-
-            //auto ground_obj = scene.objects().create("ground");
-            //ground_obj->geometries().create(ground);
+                auto ground_obj = scene.objects().create("ground");
+                ground_obj->geometries().create(ground);
+            }
+            else
+            {
+                ground->geometries().create(half_plane);
+            }
         }
     }
 
