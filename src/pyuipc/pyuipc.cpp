@@ -1,20 +1,9 @@
 #include <pyuipc/pyuipc.h>
+#include <uipc/common/config.h>
+#include <fmt/format.h>
 
 namespace pyuipc
 {
-class ModuleLoader
-{
-  public:
-    static void load(py::module& m)
-    {
-        auto& creators = Module::creators();
-        for(auto& creator : creators)
-        {
-            creator(m);
-        }
-    }
-};
-
 std::string remove_project_prefix(std::string_view path)
 {
     // find last "pyuipc" in path
@@ -25,10 +14,18 @@ std::string remove_project_prefix(std::string_view path)
     }
     return std::string(path.substr(pos));
 }
-}  // namespace pyuipc
 
-PYBIND11_MODULE(pyuipc, m)
+std::string process_project_prefix(std::string_view path)
 {
-    m.doc() = "pyuipc python binding";
-    pyuipc::ModuleLoader::load(m);
+    if constexpr(uipc::RUNTIME_CHECK)
+        return remove_project_prefix(path);
+    return std::string(path);
 }
+
+std::string detail::string_with_source_location(std::string_view msg,
+                                                std::string_view path,
+                                                std::size_t      line)
+{
+    return fmt::format("{} [{}({})]", process_project_prefix(path), line, msg);
+}
+}  // namespace pyuipc

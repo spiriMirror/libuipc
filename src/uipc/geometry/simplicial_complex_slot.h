@@ -24,61 +24,6 @@ class GeometrySlotT<SimplicialComplex> : public GeometrySlot
     GeometrySlotT& operator=(const GeometrySlotT&) = delete;
     GeometrySlotT& operator=(GeometrySlotT&&)      = delete;
 
-    /**
-     * @brief Get the positions of the vertices
-     * 
-     * @return AttributeSlot<Vector3>& 
-     */
-    [[nodiscard]] AttributeSlot<Vector3>& positions() noexcept;
-
-    /**
-     * @brief A short cut to get the positions of the vertices
-     * 
-     * @return const AttributeSlot<Vector3>& 
-     */
-    [[nodiscard]] const AttributeSlot<Vector3>& positions() const noexcept;
-
-    /**
-     * @brief A wrapper of the vertices and its attributes of the simplicial complex.
-     * 
-     * @return VertexAttributeInfo 
-     */
-    [[nodiscard]] VertexAttributes  vertices() noexcept;
-    [[nodiscard]] CVertexAttributes vertices() const noexcept;
-
-    /**
-     * @brief A wrapper of the edges and its attributes of the simplicial complex.
-     * 
-     * @return EdgeAttributes 
-     */
-    [[nodiscard]] EdgeAttributes  edges() noexcept;
-    [[nodiscard]] CEdgeAttributes edges() const noexcept;
-
-
-    /**
-     * @brief  A wrapper of the triangles and its attributes of the simplicial complex.
-     * 
-     * @return TriangleAttributes 
-     */
-    [[nodiscard]] TriangleAttributes  triangles() noexcept;
-    [[nodiscard]] CTriangleAttributes triangles() const noexcept;
-    /**
-     * @brief A wrapper of the tetrahedra and its attributes of the simplicial complex.
-     * 
-     * @return TetrahedronAttributes 
-     */
-    [[nodiscard]] TetrahedronAttributes  tetrahedra() noexcept;
-    [[nodiscard]] CTetrahedronAttributes tetrahedra() const noexcept;
-
-    /**
-     * @brief Get the dimension of the simplicial complex.
-     *
-     * Return the maximum dimension of the simplices in the simplicial complex.
-     * 
-     * @return IndexT 
-     */
-    [[nodiscard]] IndexT dim() const noexcept;
-
     SimplicialComplex&       geometry() noexcept;
     const SimplicialComplex& geometry() const noexcept;
 

@@ -1,6 +1,6 @@
 #pragma once
 #include <uipc/backend/macro.h>
-#include <uipc/engine/engine.h>
+#include <uipc/engine/i_engine.h>
 #include <uipc/backends/common/sim_system_collection.h>
 #include <uipc/backends/common/i_sim_system.h>
 

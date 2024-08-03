@@ -3,7 +3,7 @@
 
 #include <uipc/world/scene.h>
 #include <uipc/world/world.h>
-#include <uipc/engine/engine.h>
+#include <uipc/engine/i_engine.h>
 #include <uipc/geometry.h>
 #include <uipc/constitutions/affine_body.h>
 #include <uipc/common/unit.h>

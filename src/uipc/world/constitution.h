@@ -1,7 +1,6 @@
 #pragma once
 #include <string_view>
 #include <uipc/geometry/geometry.h>
-#include <uipc/world/constitution_uid.h>
 #include <uipc/builtin/constitution_uid_register.h>
 namespace uipc::world
 {

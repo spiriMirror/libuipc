@@ -1,5 +1,6 @@
 #include <pyuipc/geometry/geometry.h>
 #include <uipc/geometry/geometry.h>
+#include <pyuipc/common/json.h>
 
 namespace pyuipc::geometry
 {
@@ -24,5 +25,7 @@ PyGeometry::PyGeometry(py::module& m)
         [](Geometry& self) -> AttributeSlot<Matrix4x4>&
         { return self.transforms(); },
         py::return_value_policy::reference_internal);
+
+    class_Geometry.def("to_json", [](Geometry& self) { return self.to_json(); });
 }
 }  // namespace pyuipc::geometry

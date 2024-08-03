@@ -1,7 +1,8 @@
 #pragma once
-#include <pybind11/pybind11.h>
+#include <pyuipc/pyuipc.h>
 #include <pybind11/numpy.h>
 #include <uipc/common/span.h>
+#include <uipc/common/log.h>
 #include <Eigen/Core>
 
 namespace pyuipc

@@ -97,6 +97,7 @@ class UIPC_CORE_API Object : public IObject
 
     Object(Scene& scene, IndexT id, std::string_view name = "") noexcept;
     Object(Object&&) = default;
+    ~Object();
 
     Object(const Object&)            = delete;
     Object& operator=(const Object&) = delete;

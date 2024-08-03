@@ -148,5 +148,7 @@ SimSystemSlot<U> SimSystemSlotCollection<T>::find() const noexcept
             }
         }
     }
+
+    return SimSystemSlot<U>{};
 }
 }  // namespace uipc::backend

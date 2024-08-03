@@ -1,6 +1,6 @@
 #pragma once
 #include <uipc/world/scene.h>
-#include <uipc/engine/engine.h>
+#include <uipc/engine/i_engine.h>
 namespace uipc::backend
 {
 class WorldVisitor;

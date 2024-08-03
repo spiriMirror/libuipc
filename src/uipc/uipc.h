@@ -9,7 +9,7 @@
 
 #include <uipc/geometry.h>
 #include <uipc/world.h>
-#include <uipc/engine/uipc_engine.h>
+#include <uipc/engine/engine.h>
 
 #include <uipc/builtin/implicit_geometry_uid_register.h>
 #include <uipc/builtin/constitution_uid_register.h>

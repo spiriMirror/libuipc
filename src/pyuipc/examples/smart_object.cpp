@@ -63,38 +63,36 @@ void receive_smart_object(SmartObjectA& obj)
     }
 }
 
-static Module M(
-    [](py::module& m)
-    {
-        py::class_<SmartObjectA> obj(m, PYBIND11_TOSTRING(SmartObjectA));
-        obj.def(py::init<>());
+auto M = [](py::module& m)
+{
+    py::class_<SmartObjectA> obj(m, PYBIND11_TOSTRING(SmartObjectA));
+    obj.def(py::init<>());
 
-        obj.def("view",
-                [](SmartObjectA& self)
-                { return as_numpy(self.view(), py::cast(self)); });
-        obj.def("name", &SmartObjectA::name);
+    obj.def("view",
+            [](SmartObjectA& self)
+            { return as_numpy(self.view(), py::cast(self)); });
+    obj.def("name", &SmartObjectA::name);
 
-        m.def("view",
-              [](SmartObjectA& self)
-              {
-                  auto info = buffer_info(view(self));
-                  auto obj  = py::cast(self);
-                  auto arr  = py::array_t<double>(info, obj);
-                  fmt::print("owndata: {}", arr.owndata());
-                  return arr;
-              });
+    m.def("view",
+          [](SmartObjectA& self)
+          {
+              auto info = buffer_info(view(self));
+              auto obj  = py::cast(self);
+              auto arr  = py::array_t<double>(info, obj);
+              fmt::print("owndata: {}", arr.owndata());
+              return arr;
+          });
 
-        m.def("create_smart_object", &create_smart_object);
-        m.def("receive_smart_object", &receive_smart_object);
+    m.def("create_smart_object", &create_smart_object);
+    m.def("receive_smart_object", &receive_smart_object);
 
-        py::class_<SmartObjectB> obj_a(m, PYBIND11_TOSTRING(SmartObjectB));
-        obj_a.def(py::init<>());
+    py::class_<SmartObjectB> obj_a(m, PYBIND11_TOSTRING(SmartObjectB));
+    obj_a.def(py::init<>());
 
-        obj_a.def("view",
-                  [](SmartObjectB& self)
-                  { return as_numpy(self.view(), py::cast(self)); });
-        m.def("view",
+    obj_a.def("view",
               [](SmartObjectB& self)
-              { return as_numpy(view(self), py::cast(self)); });
-    });
+              { return as_numpy(self.view(), py::cast(self)); });
+    m.def("view",
+          [](SmartObjectB& self) { return as_numpy(view(self), py::cast(self)); });
+};
 }  // namespace pyuipc

@@ -13,9 +13,10 @@ file(GLOB SOURCES "*.cpp" "*.h")
 target_sources(pyuipc PRIVATE ${SOURCES})
 
 add_subdirectory(common)
-add_subdirectory(examples)
+add_subdirectory(engine)
 add_subdirectory(geometry)
-
+add_subdirectory(world)
+add_subdirectory(constitutions)
 
 # Setup IDE
 get_target_property(SOURCES pyuipc SOURCES)

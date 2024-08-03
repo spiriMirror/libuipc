@@ -1,7 +1,7 @@
 #pragma once
 #include <uipc/common/macro.h>
 #include <memory_resource>
-#include <uipc/engine/engine.h>
+#include <uipc/engine/i_engine.h>
 #include <uipc/backend/module_init_info.h>
 
 using EngineInterface = uipc::engine::IEngine;
