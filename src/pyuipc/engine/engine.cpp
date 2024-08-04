@@ -21,9 +21,11 @@ PyEngine::PyEngine(py::module& m)
     auto class_Engine = py::class_<Engine, IEngine>(m, "Engine");
 
     class_Engine.def(
-        py::init([](std::string_view backend_name, std::string_view workspace)
-                 { return std::make_unique<Engine>(backend_name, workspace); }),
+        py::init(
+            [](std::string_view backend_name, std::string_view workspace, const Json& config)
+            { return std::make_unique<Engine>(backend_name, workspace, config); }),
         py::arg("backend_name"),
-        py::arg("workspace") = "./");
+        py::arg("workspace") = "./",
+        py::arg("config")    = Engine::default_config());
 }
 }  // namespace pyuipc::engine

@@ -1,7 +1,9 @@
 #include <uipc/engine/engine.h>
 #include <dylib.hpp>
 #include <uipc/backend/module_init_info.h>
+#include <uipc/common/uipc.h>
 #include <filesystem>
+
 namespace uipc::engine
 {
 static string to_lower(std::string_view s)
@@ -13,20 +15,25 @@ static string to_lower(std::string_view s)
 
 class Engine::Impl
 {
-    std::string          m_backend_name;
-    dylib                m_module;
-    using Deleter                    = void (*)(IEngine*);
-    IEngine*             m_engine    = nullptr;
-    Deleter              m_deleter   = nullptr;
-    mutable bool         m_sync_flag = false;
-    std::string          m_workspace;
+    std::string            m_backend_name;
+    std::unique_ptr<dylib> m_module;
+    using Deleter                      = void   (*)(IEngine*);
+    IEngine*               m_engine    = nullptr;
+    Deleter                m_deleter   = nullptr;
+    mutable bool           m_sync_flag = false;
+    std::string            m_workspace;
 
   public:
-    Impl(std::string_view backend_name, std::string_view workspace)
+    Impl(std::string_view backend_name, std::string_view workspace, const Json& config)
         : m_backend_name(to_lower(backend_name))
-        , m_module{fmt::format("uipc_backend_{}", m_backend_name)}
     {
         namespace fs = std::filesystem;
+
+        auto& uipc_config = uipc::config();
+
+        m_module =
+            std::make_unique<dylib>(uipc_config["module_dir"].get<std::string>(),
+                                    fmt::format("uipc_backend_{}", m_backend_name));
 
         m_workspace = fs::absolute(workspace).string();
         if(!fs::exists(m_workspace))  // create workspace
@@ -43,18 +50,18 @@ class Engine::Impl
         info->memory_resource  = std::pmr::get_default_resource();
         info->module_workspace = m_workspace;
 
-        auto init = m_module.get_function<void(UIPCModuleInitInfo*)>("uipc_init_module");
+        auto init = m_module->get_function<void(UIPCModuleInitInfo*)>("uipc_init_module");
         if(!init)
             throw EngineException{fmt::format("Can't find backend [{}]'s module initializer.",
                                               backend_name)};
         init(info.get());
 
-        auto creator = m_module.get_function<IEngine*()>("uipc_create_engine");
+        auto creator = m_module->get_function<IEngine*()>("uipc_create_engine");
         if(!creator)
             throw EngineException{fmt::format("Can't find backend [{}]'s engine creator.",
                                               backend_name)};
         m_engine = creator();
-        m_deleter = m_module.get_function<void(IEngine*)>("uipc_destroy_engine");
+        m_deleter = m_module->get_function<void(IEngine*)>("uipc_destroy_engine");
         if(!m_deleter)
             throw EngineException{fmt::format("Can't find backend [{}]'s engine deleter.",
                                               backend_name)};
@@ -105,12 +112,18 @@ class Engine::Impl
 };
 
 
-Engine::Engine(std::string_view backend_name, std::string_view workspace)
-    : m_impl{uipc::make_unique<Impl>(backend_name, workspace)}
+Engine::Engine(std::string_view backend_name, std::string_view workspace, const Json& config)
+    : m_impl{uipc::make_unique<Impl>(backend_name, workspace, config)}
 {
 }
 
 Engine::~Engine() {}
+
+Json Engine::default_config()
+{
+    Json j = Json::object();
+    return j;
+}
 
 void Engine::do_init(backend::WorldVisitor v)
 {

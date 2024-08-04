@@ -1,11 +1,11 @@
 #pragma once
 #include <pyuipc/pyuipc.h>
 
-namespace pyuipc::world
+namespace pyuipc::geometry
 {
-class PyContactTabular
+class PyUtils
 {
   public:
-    PyContactTabular(py::module& m);
+    PyUtils(py::module& m);
 };
 }  // namespace pyuipc::geometry

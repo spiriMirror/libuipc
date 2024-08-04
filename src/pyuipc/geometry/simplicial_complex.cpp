@@ -78,7 +78,7 @@ void def_method(py::module& m, py::class_<SimplicialComplexAttributes<SlotT>>& c
 
     class_Attribute.def("resize", &Attributes::resize);
     class_Attribute.def("size", &Attributes::size);
-    class_Attribute.def("capacity", &Attributes::reserve);
+    class_Attribute.def("reserve", &Attributes::reserve);
     class_Attribute.def("clear", &Attributes::clear);
     class_Attribute.def("destroy", &Attributes::destroy);
     class_Attribute.def("share",
@@ -122,7 +122,7 @@ PySimplicialComplex::PySimplicialComplex(py::module& m)
     // Class Def
 
     auto class_SimplicialComplex =
-        py::class_<SimplicialComplex, Geometry>(m, "SimplicialComplex");
+        py::class_<SimplicialComplex, Geometry, S<SimplicialComplex>>(m, "SimplicialComplex");
 
 
     auto class_VertexAttributes =

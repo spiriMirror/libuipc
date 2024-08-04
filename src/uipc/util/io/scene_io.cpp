@@ -13,7 +13,6 @@
 #include <uipc/geometry/utils/io.h>
 
 
-
 namespace uipc::world
 {
 namespace fs = std::filesystem;
@@ -38,6 +37,26 @@ void SceneIO::write_surface(std::string_view filename)
 }
 
 void SceneIO::write_surface_obj(std::string_view filename)
+{
+    using namespace uipc::geometry;
+
+    auto merged_surface = surface();
+
+    fs::path path = fs::absolute(fs::path{filename});
+
+    fs::exists(path.parent_path()) || fs::create_directories(path.parent_path());
+
+    SimplicialComplexIO io;
+    io.write_obj(path.string(), merged_surface);
+
+    auto abs_path = fs::absolute(path).string();
+    spdlog::info("Scene surface with Faces({}), Vertices({}) written to {}",
+                 merged_surface.triangles().size(),
+                 merged_surface.vertices().size(),
+                 abs_path.c_str());
+}
+
+geometry::SimplicialComplex SceneIO::surface() const
 {
     using namespace uipc::geometry;
 
@@ -66,26 +85,9 @@ void SceneIO::write_surface_obj(std::string_view filename)
     if(simplicial_complex_has_surf.empty())
     {
         UIPC_WARN_WITH_LOCATION("No simplicial complex with surface found.");
-        return;
     }
 
     // 2) merge all the surfaces
-    SimplicialComplex merged_surface = extract_surface(simplicial_complex_has_surf);
-    // spdlog::info("Merged Scene Surface:\n{}", merged_surface);
-
-
-    // 3) write the merged surface to file
-    fs::path path = fs::absolute(fs::path{filename});
-
-    fs::exists(path.parent_path()) || fs::create_directories(path.parent_path());
-
-    SimplicialComplexIO io;
-    io.write_obj(path.string(), merged_surface);
-
-    auto abs_path = fs::absolute(path).string();
-    spdlog::info("Scene surface with Faces({}), Vertices({}) written to {}",
-                 merged_surface.triangles().size(),
-                 merged_surface.vertices().size(),
-                 abs_path.c_str());
+    return extract_surface(simplicial_complex_has_surf);
 }
 }  // namespace uipc::world

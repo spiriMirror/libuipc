@@ -3,9 +3,9 @@
 
 namespace pyuipc::world
 {
-class PyConstitutionTabular
+class PySceneIO
 {
   public:
-    PyConstitutionTabular(py::module& m);
+    PySceneIO(py::module& m);
 };
 }  // namespace pyuipc::world

@@ -13,6 +13,7 @@ PyScene::PyScene(py::module& m)
     auto class_Objects = py::class_<Scene::Objects>(class_Scene, "Objects");
     auto class_Geometries = py::class_<Scene::Geometries>(class_Scene, "Geometries");
 
+
     // def methods
     class_Scene.def(py::init([](const Json& config)
                              { return std::make_unique<Scene>(config); }),
@@ -28,6 +29,18 @@ PyScene::PyScene(py::module& m)
         "geometries",  //
         [](Scene& self) { return self.geometries(); },
         py::return_value_policy::move);
+
+    class_Scene.def(
+        "contact_tabular",
+        [](Scene& self) -> ContactTabular& { return self.contact_tabular(); },
+        py::return_value_policy::reference_internal);
+
+    class_Scene.def(
+        "constitution_tabular",
+        [](Scene& self) -> ConstitutionTabular&
+        { return self.constitution_tabular(); },
+        py::return_value_policy::reference_internal);
+
 
     class_Objects.def("create",
                       [](Scene::Objects& self, std::string_view name) -> S<Object>
@@ -49,7 +62,7 @@ PyScene::PyScene(py::module& m)
                          {
                              auto [geo, rest_geo] =
                                  std::move(self).template find<geometry::Geometry>(id);
-                             return std::make_pair(std::move(geo), std::move(rest_geo));
+                             return std::make_pair(geo, rest_geo);
                          });
 }
 }  // namespace pyuipc::world

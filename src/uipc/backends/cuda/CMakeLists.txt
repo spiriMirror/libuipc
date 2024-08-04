@@ -7,6 +7,7 @@ target_link_libraries(cuda PUBLIC
     cusparse
     cusolver
 )
+
 target_compile_features(cuda PUBLIC cxx_std_20)
 target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(cuda PROPERTIES

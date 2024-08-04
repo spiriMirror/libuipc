@@ -17,8 +17,11 @@ class UIPC_CORE_API Engine : public IEngine
     class Impl;
 
   public:
-    Engine(std::string_view backend_name, std::string_view workspace = "./");
+    Engine(std::string_view backend_name,
+           std::string_view workspace = "./",
+           const Json&      config    = default_config());
     ~Engine();
+    static Json default_config();
 
   protected:
     virtual void  do_init(backend::WorldVisitor v) override;

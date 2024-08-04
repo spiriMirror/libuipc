@@ -27,16 +27,15 @@ PyObject::PyObject(py::module& m)
                          [](Object::Geometries& self, SimplicialComplex& sc)
                          {
                              auto [geo, rest_geo] = std::move(self).create(sc);
-                             return std::make_pair(std::move(geo), std::move(rest_geo));
+                             return std::make_pair(geo, rest_geo);
                          });
 
-    class_Geometries.def(
-        "create",
-        [](Object::Geometries& self, SimplicialComplex& sc, SimplicialComplex& rest_sc)
-        {
-            auto [geo, rest_geo] = std::move(self).create(sc, rest_sc);
-            return std::make_pair(std::move(geo), std::move(rest_geo));
-        });
+    class_Geometries.def("create",
+                         [](Object::Geometries& self, SimplicialComplex& sc, SimplicialComplex& rest_sc)
+                         {
+                             auto [geo, rest_geo] = std::move(self).create(sc, rest_sc);
+                             return std::make_pair(geo, rest_geo);
+                         });
 
     // For Implicit Geometry
 
@@ -44,16 +43,15 @@ PyObject::PyObject(py::module& m)
                          [](Object::Geometries& self, ImplicitGeometry& ig)
                          {
                              auto [geo, rest_geo] = std::move(self).create(ig);
-                             return std::make_pair(std::move(geo), std::move(rest_geo));
+                             return std::make_pair(geo, rest_geo);
                          });
 
-    class_Geometries.def(
-        "create",
-        [](Object::Geometries& self, ImplicitGeometry& ig, ImplicitGeometry& rest_ig)
-        {
-            auto [geo, rest_geo] = std::move(self).create(ig, rest_ig);
-            return std::make_pair(std::move(geo), std::move(rest_geo));
-        });
+    class_Geometries.def("create",
+                         [](Object::Geometries& self, ImplicitGeometry& ig, ImplicitGeometry& rest_ig)
+                         {
+                             auto [geo, rest_geo] = std::move(self).create(ig, rest_ig);
+                             return std::make_pair(geo, rest_geo);
+                         });
 
     class_Geometries.def("ids",
                          [](Object::Geometries& self) {

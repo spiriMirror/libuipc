@@ -9,6 +9,8 @@
 #include <pyuipc/geometry/geometry_slot.h>
 #include <pyuipc/geometry/simplicial_complex_slot.h>
 #include <pyuipc/geometry/implicit_geometry_slot.h>
+#include <pyuipc/geometry/utils/io.h>
+#include <pyuipc/geometry/utils/utils.h>
 
 namespace pyuipc::geometry
 {
@@ -27,5 +29,8 @@ Module::Module(py::module& m)
     PySimplicialComplexSlot{m};
 
     PyFactory{m};
+
+    PyIO{m};
+    PyUtils{m};
 }
 }  // namespace pyuipc::geometry
