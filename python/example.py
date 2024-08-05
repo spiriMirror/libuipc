@@ -10,7 +10,12 @@ workspace = AssetDir.output_path(__file__)
 
 engine = pyuipc.engine.Engine("cuda", workspace)
 world = pyuipc.world.World(engine)
-scene = pyuipc.world.Scene()
+
+config = pyuipc.world.Scene.default_config()
+print(config)
+config['contact']['d_hat'] = 0.01
+config['newton']['max_iter'] = 1024
+scene = pyuipc.world.Scene(config)
 
 abd = constitution.AffineBodyConstitution()
 scene.constitution_tabular().create(abd)
@@ -77,7 +82,7 @@ else:
     # try recover from the previous state
     sio.write_surface(f'{workspace}/scene_surface{0}.obj')
     world.recover()
-    while(world.frame() < 10):
+    while(world.frame() < 1000):
         world.advance()
         world.retrieve()
         sio.write_surface(f'{workspace}/scene_surface{world.frame()}.obj')

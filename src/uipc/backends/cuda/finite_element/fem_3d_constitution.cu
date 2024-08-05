@@ -2,6 +2,11 @@
 
 namespace uipc::backend::cuda
 {
+void FEM3DConstitution::retrieve(FiniteElementMethod::FEM3DFilteredInfo& info)
+{
+    UIPC_ASSERT(false, "Not implemented");
+}
+
 void FEM3DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
 {
     FEM3DConstitution::BuildInfo this_info;

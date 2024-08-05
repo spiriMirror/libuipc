@@ -59,6 +59,7 @@ void FiniteElementMethod::Impl::init(WorldVisitor& world)
     _init_constitutions();
     _build_geo_infos(world);
     _build_on_host(world);
+    _build_on_device();
 }
 
 void FiniteElementMethod::Impl::_init_constitutions()
@@ -465,6 +466,8 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
         auto mass      = sc->vertices().find<Float>(builtin::mass);
         auto mass_view = mass->view();
         auto dst_mass_span = span{h_mass}.subspan(info.vertex_offset, info.vertex_count);
+        UIPC_ASSERT(mass_view.size() == dst_mass_span.size(), "mass size mismatching");
+        std::copy(mass_view.begin(), mass_view.end(), dst_mass_span.begin());
     }
 }
 
@@ -472,6 +475,7 @@ void FiniteElementMethod::Impl::_build_on_device()
 {
     using namespace muda;
 
+    // 1) Vertex States
     x.resize(h_positions.size());
     x.view().copy_from(h_positions.data());
 
@@ -487,6 +491,7 @@ void FiniteElementMethod::Impl::_build_on_device()
     mass.resize(h_mass.size());
     mass.view().copy_from(h_mass.data());
 
+    // 2) Topology
     codim_0ds.resize(h_codim_0ds.size());
     codim_0ds.view().copy_from(h_codim_0ds.data());
 
@@ -499,9 +504,15 @@ void FiniteElementMethod::Impl::_build_on_device()
     tets.resize(h_tets.size());
     tets.view().copy_from(h_tets.data());
 
-    // calculate FEM3D Material Basis
-    Dm3x3_inv.resize(tets.size());
+    // 3) Basis
+    // String Basis
+    // TODO:
 
+    // Shell Basis
+    // TODO:
+
+    // FEM3D Material Basis
+    Dm3x3_inv.resize(tets.size());
     ParallelFor()
         .kernel_name("FEM3D Material Basis")
         .apply(tets.size(),
@@ -517,6 +528,18 @@ void FiniteElementMethod::Impl::_build_on_device()
 
                    Dm9x9_inv(i) = Dm_inv(x0, x1, x2, x3);
                });
+
+    // 4) Allocate memory for energy, gradient and hessian
+    vertex_kinetic_energies.resize(x.size());
+    elastic_potential_energy.resize(codim_0ds.size() + codim_1ds.size()
+                                    + codim_2ds.size() + tets.size());
+
+    G6.resize(codim_1ds.size());
+    H6x6.resize(codim_1ds.size());
+    G9.resize(codim_2ds.size());
+    H9x9.resize(codim_2ds.size());
+    G12.resize(tets.size());
+    H12x12.resize(tets.size());
 }
 
 void FiniteElementMethod::Impl::write_scene(WorldVisitor& world)
@@ -554,19 +577,35 @@ void FiniteElementMethod::Impl::_download_geometry_to_host()
     x.view().copy_to(h_positions.data());
 }
 
-void FiniteElementMethod::Impl::_distribute_constitution_infos() {}
+void FiniteElementMethod::Impl::_distribute_constitution_geo_infos()
+{
+
+
+    for(auto&& [i, c] : enumerate(fem_3d_constitutions))
+    {
+        FEM3DFilteredInfo filtered_info{this};
+        filtered_info.m_index_in_dim = i;
+
+        const auto& info = fem_3d_constitution_infos[i];
+
+        c->retrieve(filtered_info);
+    }
+}
 
 void FiniteElementMethod::Impl::compute_gradient_and_hessian(GradientHessianComputer::ComputeInfo& info)
 {
     //
 }
 
-}  // namespace uipc::backend::cuda
+auto FiniteElementMethod::BaseFilteredInfo::constitution_info() const noexcept
+    -> const ConstitutionInfo&
+{
+    return m_impl->fem_3d_constitution_infos[m_index_in_dim];
+}
 
-namespace uipc::backend::cuda
+auto FiniteElementMethod::BaseFilteredInfo::geo_infos() const noexcept -> span<const GeoInfo>
 {
-auto FiniteElementMethod::FEM3DFilteredInfo::geo_infos() const noexcept -> span<const GeoInfo>
-{
-    return span<const GeoInfo>();
+    auto info = this->constitution_info();
+    return span{m_impl->geo_infos}.subspan(info.geo_info_offset, info.geo_info_count);
 }
 }  // namespace uipc::backend::cuda

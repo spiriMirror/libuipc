@@ -61,16 +61,28 @@ class FiniteElementMethod : public SimSystem
         SizeT primitive_count = 0ull;
     };
 
-    class FEM3DFilteredInfo
+    class BaseFilteredInfo
     {
       public:
-        FEM3DFilteredInfo(Impl* impl) noexcept;
+        BaseFilteredInfo(Impl* impl) noexcept
+            : m_impl(impl)
+        {
+        }
 
         span<const GeoInfo> geo_infos() const noexcept;
+        const ConstitutionInfo& constitution_info() const noexcept;
+      protected:
+        friend class FiniteElementMethod;
+        Impl*               m_impl = nullptr;
+        SizeT               m_index_in_dim = ~0ull;
+    };
 
-      private:
-        SizeT m_index;
-        Impl* m_impl;
+    class FEM3DFilteredInfo : public BaseFilteredInfo
+    {
+      public:
+        using BaseFilteredInfo::BaseFilteredInfo;
+
+        
     };
 
     class Impl
@@ -84,7 +96,7 @@ class FiniteElementMethod : public SimSystem
         void _build_on_host(WorldVisitor& world);
         void _build_on_device();
         void _download_geometry_to_host();
-        void _distribute_constitution_infos();
+        void _distribute_constitution_geo_infos();
 
 
         void compute_gradient_and_hessian(GradientHessianComputer::ComputeInfo&);
@@ -139,12 +151,6 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Vector3> x_tilde;  // Predicted Positions
         muda::DeviceBuffer<Vector3> mass;     // Mass
 
-        // Kinetic Energy Per Vertex
-        muda::DeviceBuffer<Float> vertex_kinetic_energies;
-        // Elastic Potential Energy Per Element
-        muda::DeviceBuffer<Float> elastic_potential_energy;
-
-
         //tex:
         // FEM3D Material Basis
         //$$
@@ -154,21 +160,25 @@ class FiniteElementMethod : public SimSystem
         // $$
         muda::DeviceBuffer<Matrix3x3> Dm3x3_inv;
 
-        //  Elastic Hessian and Gradient:
-        muda::DeviceBuffer<Matrix12x12> H12x12;  // FEM3D Elastic Hessian
-        muda::DeviceBuffer<Vector9>     G12;     // FEM3D Elastic Gradient
-        muda::DeviceBuffer<Matrix6x6>   H9x9;    // Codim2D Elastic Hessian
-        muda::DeviceBuffer<Vector6>     G9;      // Codim2D Elastic Gradient
+        // Kinetic Energy Per Vertex
+        muda::DeviceBuffer<Float> vertex_kinetic_energies;
+        // Elastic Potential Energy Per Element
+        muda::DeviceBuffer<Float> elastic_potential_energy;
+
+        // Elastic Hessian and Gradient:
         muda::DeviceBuffer<Matrix3x3>   H6x6;    // Codim1D Elastic Hessian
         muda::DeviceBuffer<Vector3>     G6;      // Codim1D Elastic Gradient
+        muda::DeviceBuffer<Matrix6x6>   H9x9;    // Codim2D Elastic Hessian
+        muda::DeviceBuffer<Vector6>     G9;      // Codim2D Elastic Gradient
+        muda::DeviceBuffer<Matrix12x12> H12x12;  // FEM3D Elastic Hessian
+        muda::DeviceBuffer<Vector9>     G12;     // FEM3D Elastic Gradient
     };
 
   public:
     void add_constitution(FiniteElementConstitution* constitution);
 
   private:
-    Impl m_impl;
-
+    Impl         m_impl;
     virtual void do_build() override;
 };
 }  // namespace uipc::backend::cuda
