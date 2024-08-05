@@ -7,6 +7,8 @@
 #include <pyuipc/common/json.h>
 #include <pyuipc/world/constitution.h>
 #include <pyuipc/common/uipc_type.h>
+#include <pyuipc/backend/module.h>
+
 using namespace uipc;
 
 PYBIND11_MODULE(pyuipc, m)
@@ -17,7 +19,6 @@ PYBIND11_MODULE(pyuipc, m)
 
     m.def("default_config", &uipc::default_config);
     m.def("config", &uipc::config);
-
 
     pyuipc::PyUIPCType{m};
 
@@ -33,6 +34,8 @@ PYBIND11_MODULE(pyuipc, m)
     pyuipc::world::PyConstitution{world};  // must be before
     pyuipc::constitution::Module{constitution};
 
+    auto backend = m.def_submodule("backend");
 
     pyuipc::world::Module{world};
+    pyuipc::backend::Module{backend};
 }

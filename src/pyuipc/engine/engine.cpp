@@ -6,9 +6,34 @@ namespace pyuipc::engine
 {
 using namespace uipc::engine;
 
+class IPyEngine : public IEngine
+{
+  public:
+    // Inherited via IEngine
+    IPyEngine() = default;
+    void do_init(backend::WorldVisitor v) override
+    {
+        PYBIND11_OVERRIDE_PURE(void, IEngine, do_init, v);
+    }
+    void do_advance() override
+    {
+        PYBIND11_OVERRIDE_PURE(void, IEngine, do_advance);
+    }
+    void do_sync() override { PYBIND11_OVERRIDE_PURE(void, IEngine, do_sync); }
+    void do_retrieve() override
+    {
+        PYBIND11_OVERRIDE_PURE(void, IEngine, do_retrieve);
+    }
+    SizeT get_frame() const override
+    {
+        PYBIND11_OVERRIDE_PURE(SizeT, IEngine, get_frame);
+    }
+};
+
 PyEngine::PyEngine(py::module& m)
 {
-    auto class_IEngine = py::class_<IEngine>(m, "IEngine");
+    auto class_IEngine = py::class_<IEngine, IPyEngine>(m, "IEngine");
+    class_IEngine.def(py::init<>());
     class_IEngine.def("init", &IEngine::init);
     class_IEngine.def("advance", &IEngine::advance);
     class_IEngine.def("sync", &IEngine::sync);

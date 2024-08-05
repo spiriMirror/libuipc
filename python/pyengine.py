@@ -9,7 +9,32 @@ constitution = pyuipc.constitution
 workspace = AssetDir.output_path(__file__)
 
 engine = pyuipc.engine.Engine("cuda", workspace)
-world = pyuipc.world.World(engine)
+
+class PyEngine(pyuipc.engine.IEngine):
+    def __init__(self):
+        super().__init__()
+        pass
+    
+    def do_advance(self):
+        print("do_advance")
+        
+    def do_init(self, world : pyuipc.backend.WorldVisitor):
+        print("do_init with:")
+        for geo in world.scene().geometries():
+            print(geo.geometry().to_json())
+        
+    def do_retrieve(self):
+        print("do_retrieve")
+        
+    def do_sync(self):
+        print("do_sync")
+    
+    def get_frame(self):
+        print("get_frame")
+        return 0
+
+pyengine = PyEngine()
+world = pyuipc.world.World(pyengine)
 scene = pyuipc.world.Scene()
 
 abd = constitution.AffineBodyConstitution()
@@ -34,7 +59,7 @@ default_element.apply_to(cube)
 
 object = scene.objects().create("object")
 
-N = 20
+N = 2
 
 trans = pyuipc.Matrix4x4.Identity()
 
@@ -82,12 +107,3 @@ else:
         world.retrieve()
         sio.write_surface(f'{workspace}/scene_surface{world.frame()}.obj')
         world.dump()
-
-
-
-
-
-
-    
-
-    

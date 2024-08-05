@@ -35,15 +35,13 @@ void SimEngine::build()
 
 void SimEngine::init_scene()
 {
-    auto& info        = m_world_visitor->scene().info();
-    m_newton_tol      = info["newton"]["tolerance"];
-    m_newton_max_iter = info["newton"]["max_iter"];
-    Vector3 gravity   = info["gravity"];
-    Float   dt        = info["dt"];
+    auto& info            = m_world_visitor->scene().info();
+    m_newton_velocity_tol = info["newton"]["velocity_tol"];
+    m_newton_max_iter     = info["newton"]["max_iter"];
+    Vector3 gravity       = info["gravity"];
+    Float   dt            = info["dt"];
 
-    m_abs_tol = gravity.norm() * dt * dt * 0.9;
-    if(m_abs_tol == 0.0)
-        m_abs_tol = std::numeric_limits<Float>::max();
+    m_abs_tol = m_newton_velocity_tol * dt;
 
     [[maybe_unuse]] m_on_init_scene.view();
     [[maybe_unuse]] m_on_rebuild_scene.view();

@@ -28,6 +28,8 @@ class AssetDir:
         relative_path = file_dir.relative_to(this_python_root)
         # construct the output path
         output_dir = AssetDir._output_path / relative_path / ''
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
         return str(output_dir)
     
 
@@ -43,10 +45,14 @@ import pyuipc
 def generate_stub(module_dir):
     this_dir = pathlib.Path(__file__).absolute().parent
     output_path = this_dir.parent / 'typings'
-    subprocess.run(['stubgen', 
+
+    R = subprocess.run(['stubgen', 
                 '-p',  'pyuipc', 
                 "-o", output_path,
                 ], cwd=module_dir)
+    
+    if R.returncode != 0:
+        raise Exception("Failed to generate stubs, try `pip install mypy`")
 
 def init():
     module_path = pathlib.Path(pyuipc.__file__).absolute()

@@ -6,6 +6,10 @@ REGISTER_SIM_SYSTEM(DoFPredictor);
 
 void DoFPredictor::do_build()
 {
+    auto scene        = world().scene();
+    m_predict_info.dt = scene.info()["dt"];
+    spdlog::info("Find predict info: dt = {}", m_predict_info.dt);
+
     on_init_scene([this]() { init(); });
 }
 
@@ -24,10 +28,6 @@ void DoFPredictor::init()
 {
     [[maybe_unuse]] m_on_predict.view();
     [[maybe_unuse]] m_on_compute_velocity.view();
-
-    auto scene        = world().scene();
-    m_predict_info.dt = scene.info()["dt"];
-    spdlog::info("Find predict info: dt = {}", m_predict_info.dt);
 }
 
 void DoFPredictor::predict()

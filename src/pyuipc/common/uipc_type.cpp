@@ -99,14 +99,6 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                 return as_numpy(mat);
                             });
 
-    class_Matrix.def_static("Constant",
-                            [](T value)
-                            {
-                                Eigen::Matrix<T, M, N> mat =
-                                    Eigen::Matrix<T, M, N>::Constant(value);
-                                return as_numpy(mat);
-                            });
-
     class_Matrix.def_static("Values",
                             [](py::array_t<T> value) {
                                 return as_numpy(to_matrix<Eigen::Matrix<T, M, N>>(value));
@@ -138,13 +130,19 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                     return as_numpy(mat);
                                 });
 
-        class_Matrix.def_static("Unit",
-                                [](int i)
-                                {
-                                    Eigen::Matrix<T, M, N> mat =
-                                        Eigen::Matrix<T, M, N>::Unit(i);
-                                    return as_numpy(mat);
-                                });
+        class_Matrix.def_static(
+            "Unit",
+            [](int i)
+            {
+                if(i < 0 || i >= M)
+                {
+                    throw std::runtime_error(
+                        PYUIPC_MSG("Index out of range, size={}, yours={}", M, i));
+                }
+
+                Eigen::Matrix<T, M, N> mat = Eigen::Matrix<T, M, N>::Unit(i);
+                return as_numpy(mat);
+            });
 
         if constexpr(M >= 1)
         {

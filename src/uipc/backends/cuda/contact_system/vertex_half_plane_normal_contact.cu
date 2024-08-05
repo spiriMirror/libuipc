@@ -59,7 +59,7 @@ void VertexHalfPlaneNormalContact::do_compute_energy(GlobalContactManager::Energ
     Float E;
     info.energy().copy_to(&E);
 
-    spdlog::info("VertexHalfPlaneNormalContact energy: {}", E);
+    // spdlog::info("VertexHalfPlaneNormalContact energy: {}", E);
 }
 
 namespace detail

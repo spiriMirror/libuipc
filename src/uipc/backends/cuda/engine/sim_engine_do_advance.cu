@@ -107,7 +107,7 @@ void SimEngine::do_advance()
         auto compute_energy = [this, filter_dcd_candidates](Float alpha) -> Float
         {
             // Step Forward => x = x_0 + alpha * dx
-            spdlog::info("Step Forward: {}", alpha);
+            // spdlog::info("Step Forward: {}", alpha);
             m_global_vertex_manager->step_forward(alpha);
             m_line_searcher->step_forward(alpha);
 
@@ -138,7 +138,7 @@ void SimEngine::do_advance()
 
             // 4. Nonlinear-Newton Iteration
             Float box_size = vertex_bounding_box.diagonal().norm();
-            Float tol      = m_newton_tol * box_size;
+            Float tol      = m_newton_scene_tol * box_size;
             Float res0     = 0.0;
 
             for(auto&& newton_iter : range(m_newton_max_iter))
@@ -168,16 +168,16 @@ void SimEngine::do_advance()
 
                 Float rel_tol = res == 0.0 ? 0.0 : res / res0;
 
-                spdlog::info(">> Newton Iteration: {}. Residual/Tol/AbsTol/RelTol: {}/{}/{}/{}",
+                spdlog::info(">> Frame {} Newton Iteration {} => Residual/AbsTol/RelTol: {}/{}/{}",
+                             m_current_frame,
                              newton_iter,
                              res,
-                             tol,
                              m_abs_tol,
                              rel_tol);
 
                 // 6) Check Termination Condition
                 // TODO: Maybe we can implement a class for termination condition in the future
-                if(res <= tol && (res < m_abs_tol || res <= 1e-2 * res0))
+                if(res <= m_abs_tol || rel_tol <= 0.001)
                     break;
 
                 // 7) Begin Line Search
@@ -210,11 +210,11 @@ void SimEngine::do_advance()
                         // TODO: Intersection & Inversion Check
                         bool no_inversion = true;
 
-                        spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
-                                     line_search_iter,
-                                     alpha,
-                                     E / E0,
-                                     E0);
+                        //spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
+                        //             line_search_iter,
+                        //             alpha,
+                        //             E / E0,
+                        //             E0);
 
                         bool success = energy_decrease && no_inversion;
                         if(success)

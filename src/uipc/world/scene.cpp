@@ -1,5 +1,5 @@
 #include <uipc/world/scene.h>
-
+#include <uipc/common/unit.h>
 namespace uipc::world
 {
 // ----------------------------------------------------------------------------
@@ -11,10 +11,12 @@ Json Scene::default_config() noexcept
     j["dt"]      = 0.01;
     j["gravity"] = Vector3{0.0, -9.8, 0.0};
 
-    j["newton"]["tolerance"] = 1e-2;
-    j["newton"]["max_iter"]  = 1024;
+    j["newton"]["use_adaptive_tol"] = false;
+    j["newton"]["velocity_tol"]     = 0.05_m / 1.0_s;
+    j["newton"]["max_iter"]         = 1024;
 
-    j["linear_system"]["solver"] = "linear_pcg";
+    j["linear_system"]["tol_rate"] = 1e-3;
+    j["linear_system"]["solver"]   = "linear_pcg";
 
     j["line_search"]["report_energy"] = false;
     j["line_search"]["max_iter"]      = 8;
