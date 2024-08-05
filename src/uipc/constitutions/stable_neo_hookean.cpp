@@ -1,12 +1,24 @@
 #include <uipc/constitutions/stable_neo_hookean.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
+#include <uipc/builtin/attribute_name.h>
 namespace uipc::constitution
 {
 StableNeoHookean::StableNeoHookean(const Json& config) noexcept {}
 
-void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc, Float mass_density) const
+void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc, Float mu, Float lambda, Float mass_density) const
 {
     Base::apply_to(sc);
+
+    auto mu_attr = sc.vertices().find<Float>("mu");
+    if(!mu_attr)
+        mu_attr = sc.vertices().create<Float>("mu", mu);
+    std::ranges::fill(geometry::view(*mu_attr), mu);
+
+    auto lambda_attr = sc.vertices().find<Float>("lambda");
+    if(!lambda_attr)
+        lambda_attr = sc.vertices().create<Float>("lambda", lambda);
+    std::ranges::fill(geometry::view(*lambda_attr), lambda);
+
     geometry::compute_vertex_mass(sc, mass_density);
 }
 

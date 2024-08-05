@@ -18,6 +18,8 @@ class Codim2DConstitution : public FiniteElementConstitution
     virtual IndexT get_dimension() const override;
 
   private:
+    friend class FiniteElementMethod;
+    void retrieve(FiniteElementMethod::Codim2DFilteredInfo& info);
     virtual void do_build(FiniteElementConstitution::BuildInfo& info) override final;
 };
 }  // namespace uipc::backend::cuda

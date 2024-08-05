@@ -35,14 +35,16 @@ void GlobalVertexManager::Impl::init_vertex_info()
     if(!reporter_vertex_counts.empty())
         total_count = reporter_vertex_offsets.back() + reporter_vertex_counts.back();
 
-    // resize the global coindices buffer
+    // resize buffers
     coindices.resize(total_count);
     positions.resize(total_count);
     rest_positions.resize(total_count);
     safe_positions.resize(total_count);
     contact_element_ids.resize(total_count, 0);
+    thicknesses.resize(total_count, 0.0);
     displacements.resize(total_count, Vector3::Zero());
     displacement_norms.resize(total_count, 0.0);
+
 
     // create the subviews for each attribute_reporter
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
@@ -223,6 +225,11 @@ GlobalVertexManager::VertexAttributeInfo::VertexAttributeInfo(Impl* impl, SizeT 
 muda::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::rest_positions() const noexcept
 {
     return m_impl->subview(m_impl->rest_positions, m_index);
+}
+
+muda::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::thicknesses() const noexcept
+{
+    return m_impl->subview(m_impl->thicknesses, m_index);
 }
 
 muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::coindices() const noexcept

@@ -34,6 +34,7 @@ class GlobalVertexManager : public SimSystem
       public:
         VertexAttributeInfo(Impl* impl, SizeT index) noexcept;
         muda::BufferView<Vector3> rest_positions() const noexcept;
+        muda::BufferView<Float>   thicknesses() const noexcept;
         muda::BufferView<IndexT>  coindices() const noexcept;
         muda::BufferView<Vector3> positions() const noexcept;
         muda::BufferView<IndexT>  contact_element_ids() const noexcept;
@@ -141,6 +142,7 @@ class GlobalVertexManager : public SimSystem
         muda::DeviceBuffer<Vector3> prev_positions;
         muda::DeviceBuffer<Vector3> rest_positions;
         muda::DeviceBuffer<Vector3> safe_positions;
+        muda::DeviceBuffer<Float>   thicknesses;
         muda::DeviceBuffer<IndexT>  contact_element_ids;
         muda::DeviceBuffer<Vector3> displacements;
         muda::DeviceBuffer<Float>   displacement_norms;

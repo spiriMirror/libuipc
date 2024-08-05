@@ -2,6 +2,11 @@
 
 namespace uipc::backend::cuda
 {
+void Codim2DConstitution::retrieve(FiniteElementMethod::Codim2DFilteredInfo& info)
+{
+    UIPC_ASSERT(false, "Not implemented");
+}
+
 void Codim2DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
 {
     Codim2DConstitution::BuildInfo this_info;

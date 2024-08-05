@@ -579,15 +579,31 @@ void FiniteElementMethod::Impl::_download_geometry_to_host()
 
 void FiniteElementMethod::Impl::_distribute_constitution_geo_infos()
 {
+    for(auto&& [i, c] : enumerate(codim_0d_constitutions))
+    {
+        Codim0DFilteredInfo filtered_info{this};
+        filtered_info.m_index_in_dim = i;
+        c->retrieve(filtered_info);
+    }
 
+    for(auto&& [i, c] : enumerate(codim_1d_constitutions))
+    {
+        Codim1DFilteredInfo filtered_info{this};
+        filtered_info.m_index_in_dim = i;
+        c->retrieve(filtered_info);
+    }
+
+    for(auto&& [i, c] : enumerate(codim_2d_constitutions))
+    {
+        Codim2DFilteredInfo filtered_info{this};
+        filtered_info.m_index_in_dim = i;
+        c->retrieve(filtered_info);
+    }
 
     for(auto&& [i, c] : enumerate(fem_3d_constitutions))
     {
         FEM3DFilteredInfo filtered_info{this};
         filtered_info.m_index_in_dim = i;
-
-        const auto& info = fem_3d_constitution_infos[i];
-
         c->retrieve(filtered_info);
     }
 }
@@ -601,6 +617,16 @@ auto FiniteElementMethod::BaseFilteredInfo::constitution_info() const noexcept
     -> const ConstitutionInfo&
 {
     return m_impl->fem_3d_constitution_infos[m_index_in_dim];
+}
+
+size_t FiniteElementMethod::BaseFilteredInfo::vertex_count() const noexcept
+{
+    return constitution_info().vertex_count;
+}
+
+size_t FiniteElementMethod::BaseFilteredInfo::primitive_count() const noexcept
+{
+    return constitution_info().primitive_count;
 }
 
 auto FiniteElementMethod::BaseFilteredInfo::geo_infos() const noexcept -> span<const GeoInfo>

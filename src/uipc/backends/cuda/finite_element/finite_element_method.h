@@ -3,6 +3,7 @@
 #include <muda/buffer.h>
 #include <dof_predictor.h>
 #include <gradient_hessian_computer.h>
+#include <uipc/geometry/simplicial_complex.h>
 
 namespace uipc::backend::cuda
 {
@@ -69,20 +70,82 @@ class FiniteElementMethod : public SimSystem
         {
         }
 
-        span<const GeoInfo> geo_infos() const noexcept;
+        span<const GeoInfo>     geo_infos() const noexcept;
         const ConstitutionInfo& constitution_info() const noexcept;
+        size_t                  vertex_count() const noexcept;
+        size_t                  primitive_count() const noexcept;
+
+        /**
+         * @brief For each primitive or vertex in the filtered info
+         * 
+         * @code
+         *  
+         *  vector<Float> lambdas(info.vertex_count());
+         * 
+         *  info.for_each(geo_slots, 
+         *  [](SimplicialComplex& sc) 
+         *  {
+         *      return sc.vertices().find<Float>("lambda").view();
+         *  },
+         *  [&](SizeT I, Float lambda)
+         *  {
+         *      lambdas[I] = lambda;
+         *  });
+         * 
+         * @endcode
+         */
+        template <typename ForEach, typename ViewGetter>
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ViewGetter&&                    view_getter,
+                      ForEach&& for_each_action) const noexcept
+        {
+            SizeT local_vertex_offset = 0;
+
+            for(auto& geo_info : geo_infos())
+            {
+                auto geo_slot = geo_slots[geo_info.geo_slot_index];
+
+                auto sc = geo_slot->geometry().as<geometry::SimplicialComplex>();
+
+                UIPC_ASSERT(sc, "Only simplicial complex is supported");
+
+                auto view = view_getter(*sc);
+
+                for(auto&& [i, item] : enumerate(view))
+                {
+                    for_each_action(local_vertex_offset++, item);
+                }
+            }
+        }
+
       protected:
         friend class FiniteElementMethod;
-        Impl*               m_impl = nullptr;
-        SizeT               m_index_in_dim = ~0ull;
+        Impl* m_impl         = nullptr;
+        SizeT m_index_in_dim = ~0ull;
+    };
+
+    class Codim0DFilteredInfo : public BaseFilteredInfo
+    {
+      public:
+        using BaseFilteredInfo::BaseFilteredInfo;
+    };
+
+    class Codim1DFilteredInfo : public BaseFilteredInfo
+    {
+      public:
+        using BaseFilteredInfo::BaseFilteredInfo;
+    };
+
+    class Codim2DFilteredInfo : public BaseFilteredInfo
+    {
+      public:
+        using BaseFilteredInfo::BaseFilteredInfo;
     };
 
     class FEM3DFilteredInfo : public BaseFilteredInfo
     {
       public:
         using BaseFilteredInfo::BaseFilteredInfo;
-
-        
     };
 
     class Impl
@@ -131,7 +194,7 @@ class FiniteElementMethod : public SimSystem
         // simulation data:
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
-        vector<Vector3> h_mass;
+        vector<Float>   h_mass;
 
         vector<IndexT>   h_codim_0ds;
         vector<Vector2i> h_codim_1ds;
@@ -149,7 +212,7 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Vector3> x_temp;   // Safe Positions for line search
         muda::DeviceBuffer<Vector3> v;        // Velocities
         muda::DeviceBuffer<Vector3> x_tilde;  // Predicted Positions
-        muda::DeviceBuffer<Vector3> mass;     // Mass
+        muda::DeviceBuffer<Float>   mass;     // Mass
 
         //tex:
         // FEM3D Material Basis
