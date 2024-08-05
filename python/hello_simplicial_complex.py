@@ -17,11 +17,11 @@ sc = geometry.tetmesh(Vs, Ts)
 print("positions", sc.positions().view())
 
 # define velocity attribute
-vel = sc.vertices().create("velocity", np.zeros((3, 1), np.float64))
+vel = sc.vertices().create("velocity", uipc.Vector3.Zero())
 vel_view:np.ndarray[np.float64] = geometry.view(vel)
 
 for i in range(vel_view.shape[0]):
-    vel_view[i,:,:] = np.ones((3, 1), np.float64) * i
+    vel_view[i,:,:] = uipc.Vector3.Ones() * i
 
 print("vel:\n", vel_view)
 sc.vertices().destroy("velocity")

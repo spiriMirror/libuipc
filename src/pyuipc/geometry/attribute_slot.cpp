@@ -1,7 +1,7 @@
 #include <pyuipc/geometry/attribute_slot.h>
 #include <uipc/geometry/attribute_slot.h>
 #include <pyuipc/as_numpy.h>
-
+#include <pybind11/stl.h>
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
@@ -21,6 +21,66 @@ void def_attribute_slot(py::module& m, std::string name)
           { return as_numpy(view(self), py::cast(self)); });
 }
 
+template <bool IsConst>
+void def_class_StringSpan(py::module& m)
+{
+    using T    = std::conditional_t<IsConst, const std::string, std::string>;
+    using LRef = std::add_lvalue_reference_t<T>;
+
+    constexpr std::string_view name = IsConst ? "CStringSpan" : "StringSpan";
+
+    auto class_StringSpan = py::class_<span<T>>(m, name.data());
+
+    class_StringSpan.def(py::init<>())
+        .def("__len__", [](span<T>& v) { return v.size(); })
+        .def(
+            "__iter__",
+            [](span<T>& v) { return py::make_iterator(v.begin(), v.end()); },
+            py::keep_alive<0, 1>())
+        .def("__getitem__",
+             [](span<T>& v, size_t i) -> LRef
+             {
+                 if(i >= v.size())
+                 {
+                     throw py::index_error();
+                 }
+                 return v[i];
+             });
+
+    if constexpr(!IsConst)
+    {
+        class_StringSpan.def("__setitem__",
+                             [](span<T>& v, size_t i, LRef value)
+                             {
+                                 if(i >= v.size())
+                                 {
+                                     throw py::index_error();
+                                 }
+                                 v[i] = value;
+                             });
+    }
+
+    class_StringSpan.def("__repr__",
+                         [](span<T>& v)
+                         { return fmt::format("[{}]", fmt::join(v, ",")); });
+}
+
+
+void def_attribute_slot_string(py::module& m)
+{
+    // const
+    def_class_StringSpan<true>(m);
+    // non-const
+    def_class_StringSpan<false>(m);
+
+    auto class_AttributeSlotString =
+        py::class_<AttributeSlot<std::string>, IAttributeSlot, S<AttributeSlot<std::string>>>(
+            m, "AttributeSlotString");
+    class_AttributeSlotString.def(
+        "view", [](AttributeSlot<std::string>& self) { return self.view(); });
+    m.def("view", [](AttributeSlot<std::string>& self) { return view(self); });
+}
+
 #define DEF_ATTRIBUTE_SLOT(T) def_attribute_slot<T>(m, "AttributeSlot" #T)
 
 PyAttributeSlot::PyAttributeSlot(py::module& m)
@@ -35,7 +95,11 @@ PyAttributeSlot::PyAttributeSlot(py::module& m)
         // view pure virtual
         .def("view", [](IAttributeSlot& self) -> py::array { return py::none(); });
 
-    // basic types
+
+    // String span
+    def_attribute_slot_string(m);
+
+    // Basic types
     DEF_ATTRIBUTE_SLOT(Float);
     DEF_ATTRIBUTE_SLOT(I32);
     DEF_ATTRIBUTE_SLOT(I64);

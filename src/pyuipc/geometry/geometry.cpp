@@ -141,7 +141,10 @@ PyGeometry::PyGeometry(py::module& m)
     auto class_InstanceAttributes =
         py::class_<Geometry::InstanceAttributes>(class_Geometry, "InstanceAttributes");
 
+    class_Geometry.def("type", &Geometry::type);
+
     class_Geometry.def("meta", [](Geometry& self) { return self.meta(); });
+
     class_Geometry.def("instances",
                        [](Geometry& self) { return self.instances(); });
 

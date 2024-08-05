@@ -26,6 +26,7 @@ Don't use: `create('NAME', V)`, which may cause ambiguous. Instead, try: `create
 void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
 {
     class_AttributeCollection
+        // Float
         .def("create",
              [](AttributeCollection& self, std::string_view name, py::array_t<Float> arr) -> S<IAttributeSlot>
              {
@@ -109,6 +110,7 @@ void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
                      throw std::runtime_error(PYUIPC_MSG("Unsupported shape of float64"));
                  }
              })
+        // Int
         .def("create",
              [](AttributeCollection& self, std::string_view name, py::array_t<IndexT> arr) -> S<IAttributeSlot>
              {
@@ -145,6 +147,7 @@ void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
                      throw std::runtime_error(PYUIPC_MSG("Unsupported shape of int"));
                  }
              })
+        // U64
         .def("create",
              [](AttributeCollection& self, std::string_view name, py::array_t<U64> arr) -> S<IAttributeSlot>
              {
@@ -156,6 +159,7 @@ void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
 
                  throw std::runtime_error(PYUIPC_MSG("Unsupported shape of uint64"));
              })
+        // I64
         .def("create",
              [](AttributeCollection& self, std::string_view name, py::array_t<I64> arr) -> S<IAttributeSlot>
              {
@@ -166,7 +170,11 @@ void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
                  }
 
                  throw std::runtime_error(PYUIPC_MSG("Unsupported shape of int64"));
-             });
+             })
+        // String
+        .def("create",
+             [](AttributeCollection& self, std::string_view name, std::string_view str)
+             { return self.create<std::string>(name, std::string{str}); });
 }
 
 PyAttributeCollection::PyAttributeCollection(py::module& m)

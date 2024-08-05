@@ -17,6 +17,7 @@ add_subdirectory(engine)
 add_subdirectory(geometry)
 add_subdirectory(world)
 add_subdirectory(constitutions)
+add_subdirectory(backend)
 
 # Setup IDE
 get_target_property(SOURCES pyuipc SOURCES)

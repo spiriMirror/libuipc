@@ -26,6 +26,6 @@ std::string detail::string_with_source_location(std::string_view msg,
                                                 std::string_view path,
                                                 std::size_t      line)
 {
-    return fmt::format("{} [{}({})]", process_project_prefix(path), line, msg);
+    return fmt::format("{} [{}({})]", msg, process_project_prefix(path), line);
 }
 }  // namespace pyuipc
