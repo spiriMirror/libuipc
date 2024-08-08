@@ -8,7 +8,6 @@ __host__ __device__ void FrictionEnergy(T& R, const T& coefficient, const T& eps
         R = coefficient * y;
     } else {
         MUDA_ASSERT(false);
-        R = 0;
     }
 }
 
