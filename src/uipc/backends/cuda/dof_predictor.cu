@@ -6,10 +6,8 @@ REGISTER_SIM_SYSTEM(DoFPredictor);
 
 void DoFPredictor::do_build()
 {
-    auto scene        = world().scene();
-    m_predict_info.dt = scene.info()["dt"];
-    spdlog::info("Find predict info: dt = {}", m_predict_info.dt);
-
+    auto scene = world().scene();
+    m_dt       = scene.info()["dt"];
     on_init_scene([this]() { init(); });
 }
 
@@ -33,11 +31,19 @@ void DoFPredictor::init()
 void DoFPredictor::predict()
 {
     for(auto& action : m_on_predict.view())
-        action(m_predict_info);
+    {
+        PredictInfo info;
+        info.m_dt = m_dt;
+        action(info);
+    }
 }
 void DoFPredictor::compute_velocity()
 {
     for(auto& action : m_on_compute_velocity.view())
-        action(m_predict_info);
+    {
+        ComputeVelocityInfo info;
+        info.m_dt = m_dt;
+        action(info);
+    }
 }
 }  // namespace uipc::backend::cuda

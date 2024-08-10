@@ -4,6 +4,20 @@
 
 namespace uipc::constitution
 {
+class UIPC_CORE_API StableNeoHookeanParms
+{
+  public:
+    static StableNeoHookeanParms EG(Float E, Float G);
+    static StableNeoHookeanParms ML(Float mu, Float lambda);
+    static StableNeoHookeanParms EP(Float E, Float poisson);
+
+  private:
+    friend class StableNeoHookean;
+    Float m_mu;
+    Float m_lambda;
+    Float m_poisson_ratio;
+};
+
 class UIPC_CORE_API StableNeoHookean : public world::IConstitution
 {
     using Base = world::IConstitution;
@@ -11,7 +25,9 @@ class UIPC_CORE_API StableNeoHookean : public world::IConstitution
   public:
     StableNeoHookean(const Json& config = default_config()) noexcept;
 
-    void apply_to(geometry::SimplicialComplex& sc, Float mu, Float lambda, Float mass_density = 1e3) const;
+    void apply_to(geometry::SimplicialComplex& sc,
+                  const StableNeoHookeanParms& parms,
+                  Float                        mass_density = 1e3) const;
 
     static Json default_config() noexcept;
 

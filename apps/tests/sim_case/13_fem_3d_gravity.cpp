@@ -23,13 +23,17 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
 
     auto config = Scene::default_config();
 
-    config["gravity"]           = Vector3{0, -9.8, 0};
-    config["contact"]["enable"] = false;  // disable contact
+    config["gravity"]                   = Vector3{0, -9.8, 0};
+    config["contact"]["enable"]         = true;  // disable contact
+    config["line_search"]["max_iter"]   = 8;
+    config["linear_system"]["tol_rate"] = 1e-8;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
         ofs << config.dump(4);
     }
+
+    SimplicialComplexIO io;
 
     Scene scene{config};
     {
@@ -40,29 +44,48 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
         auto object = scene.objects().create("tets");
 
         vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
-        vector<Vector3>  Vs = {Vector3{0, 0, 1},
-                               Vector3{0, -1, 0},
+        vector<Vector3>  Vs = {Vector3{0, 1, 0},
+                               Vector3{0, 0, 1},
                                Vector3{-std::sqrt(3) / 2, 0, -0.5},
                                Vector3{std::sqrt(3) / 2, 0, -0.5}};
 
         std::transform(
-            Vs.begin(), Vs.end(), Vs.begin(), [&](auto& v) { return v * 0.3; });
+            Vs.begin(), Vs.end(), Vs.begin(), [&](auto& v) { return v; });
 
         auto mesh = tetmesh(Vs, Ts);
 
+        //auto mesh = io.read(fmt::format("{}cube.msh", tetmesh_dir));
         label_surface(mesh);
         label_triangle_orient(mesh);
 
-        snk.apply_to(mesh);
 
-        object->geometries().create(mesh);
+        SimplicialComplex rest_mesh = mesh;
+
+        auto vs = view(rest_mesh.positions());
+
+        //std::transform(
+        //    vs.begin(), vs.end(), vs.begin(), [&](auto& v) { return v *= 0.8; });
+
+        auto parm = StableNeoHookeanParms::EP(1e3, 0.499);
+        snk.apply_to(mesh, parm, 1e3);
+
+        auto is_fixed      = mesh.vertices().find<IndexT>(builtin::is_fixed);
+        // view(*is_fixed)[3] = 1;
+        view(*is_fixed)[2] = 1;
+        // view(*is_fixed)[0] = 1;
+
+        object->geometries().create(mesh, rest_mesh);
+
+        //auto g = ground(-2);
+
+        //object->geometries().create(g);
     }
 
     world.init(scene);
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
-    for(int i = 1; i < 50; i++)
+    for(int i = 1; i < 200; i++)
     {
         world.advance();
         world.retrieve();

@@ -119,8 +119,8 @@ int main()
             SimplicialComplex this_mesh     = mesh;
             view(this_mesh.transforms())[0] = t.matrix();
 
-            auto is_fixed_view = this_mesh.instances().find<IndexT>(builtin::is_fixed);
-            view(*is_fixed_view)[0] = is_fixed;
+            auto is_fixed_attr = this_mesh.instances().find<IndexT>(builtin::is_fixed);
+            view(*is_fixed_attr)[0] = is_fixed;
 
             obj.geometries().create(this_mesh);
         };

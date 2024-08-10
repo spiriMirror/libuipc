@@ -212,5 +212,9 @@ PySimplicialComplex::PySimplicialComplex(py::module& m)
 
         def_method(m, class_SimplicalComplexTetrahedronTopo);
     }
+
+    class_SimplicialComplex.def("copy",
+                                [](SimplicialComplex& self) -> SimplicialComplex
+                                { return self; });
 }
 }  // namespace pyuipc::geometry

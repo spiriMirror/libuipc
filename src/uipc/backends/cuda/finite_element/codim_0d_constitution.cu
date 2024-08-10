@@ -16,4 +16,14 @@ IndexT Codim0DConstitution::get_dimension() const
 {
     return 0;
 }
+
+void Codim0DConstitution::do_compute_energy(FiniteElementMethod::ComputeEnergyInfo& info)
+{
+    // do nothing
+}
+
+void Codim0DConstitution::do_compute_gradient_hessian(FiniteElementMethod::ComputeGradientHessianInfo& info)
+{
+    // do nothing
+}
 }  // namespace uipc::backend::cuda

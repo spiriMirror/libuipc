@@ -221,9 +221,10 @@ class GlobalLinearSystem : public SimSystem
     class LinearSubsytemInfo
     {
       public:
-        bool  is_diag     = false;
-        SizeT local_index = ~0ull;
-        SizeT index       = ~0ull;
+        bool  is_diag                  = false;
+        bool  has_local_preconditioner = false;
+        SizeT local_index              = ~0ull;
+        SizeT index                    = ~0ull;
     };
 
   public:
@@ -241,7 +242,6 @@ class GlobalLinearSystem : public SimSystem
 
         Float reserve_ratio = 1.1;
 
-        // Core Invariant Data
         vector<LinearSubsytemInfo> subsystem_infos;
         vector<SizeT>              subsystem_triplet_offsets;
         vector<SizeT>              subsystem_triplet_counts;
@@ -249,6 +249,7 @@ class GlobalLinearSystem : public SimSystem
         vector<SizeT>              diag_dof_offsets;
         vector<SizeT>              diag_dof_counts;
         vector<int>                accuracy_statisfied_flags;
+        vector<int>                no_precond_diag_subsystem_indices;
 
         // Containers
         SimSystemSlotCollection<DiagLinearSubsystem>    diag_subsystems;
@@ -264,6 +265,7 @@ class GlobalLinearSystem : public SimSystem
         muda::DeviceDenseVector<Float>      b;
         muda::DeviceTripletMatrix<Float, 3> triplet_A;
         muda::DeviceBCOOMatrix<Float, 3>    bcoo_A;
+        muda::DeviceDenseMatrix<Float>      debug_A;  // dense A for debug
 
         Spmv                      spmver;
         MatrixConverter<Float, 3> converter;
@@ -277,6 +279,8 @@ class GlobalLinearSystem : public SimSystem
 
         bool accuracy_statisfied(muda::DenseVectorView<Float> r);
     };
+
+    void dump_linear_system(std::string_view filename);
 
   protected:
     void do_build() override;

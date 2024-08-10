@@ -81,22 +81,18 @@ class AffineBodyDynamics : public SimSystem
     class ComputeEnergyInfo
     {
       public:
-        ComputeEnergyInfo(Impl*                impl,
-                          SizeT                constitution_index,
-                          muda::VarView<Float> shape_energy,
-                          Float                dt) noexcept;
-        auto shape_energy() const noexcept { return m_shape_energy; }
+        ComputeEnergyInfo(Impl* impl, SizeT constitution_index, Float dt) noexcept;
         auto dt() const noexcept { return m_dt; }
 
         muda::CBufferView<Vector12> qs() const noexcept;
         muda::CBufferView<Float>    volumes() const noexcept;
+        muda::BufferView<Float>     body_shape_energies() const noexcept;
 
       private:
         friend class Impl;
-        SizeT                m_constitution_index = ~0ull;
-        muda::VarView<Float> m_shape_energy;
-        Float                m_dt   = 0.0;
-        Impl*                m_impl = nullptr;
+        SizeT m_constitution_index = ~0ull;
+        Float m_dt                 = 0.0;
+        Impl* m_impl               = nullptr;
     };
 
     class ComputeGradientHessianInfo
@@ -151,7 +147,7 @@ class AffineBodyDynamics : public SimSystem
         void _download_geometry_to_host();
 
         void compute_q_tilde(DoFPredictor::PredictInfo& info);
-        void compute_q_v(DoFPredictor::PredictInfo& info);
+        void compute_q_v(DoFPredictor::ComputeVelocityInfo& info);
         void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);
 
         bool dump(DumpInfo& info);
@@ -308,13 +304,16 @@ class AffineBodyDynamics : public SimSystem
         DeviceBuffer<IndexT> body_id_to_is_fixed;
 
         //tex: $$K_i$$ kinetic energy per body
+
         DeviceBuffer<Float> body_id_to_kinetic_energy;
 
         //tex: $$K$$
         DeviceVar<Float> abd_kinetic_energy;
 
         //tex: $$E$$
-        DeviceBuffer<Float> constitution_shape_energy;
+        DeviceBuffer<Float> body_id_to_shape_energy;
+        //DeviceBuffer<Float> constitution_shape_energy;
+        DeviceVar<Float> abd_shape_energy;
 
         //tex: $$ \mathbf{H}_{ii} + \mathbf{M}_{ii} $$
         DeviceBuffer<Matrix12x12> body_id_to_body_hessian;
@@ -343,6 +342,8 @@ class AffineBodyDynamics : public SimSystem
     friend class ABDLinearSubsystem;
     friend class ABDLineSearchReporter;
     friend class ABDDiagPreconditioner;
+
+    friend class AffineBodyConstitution;
 
     Impl m_impl;
 };

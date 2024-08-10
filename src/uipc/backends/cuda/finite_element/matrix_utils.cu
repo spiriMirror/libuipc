@@ -6,12 +6,6 @@ namespace uipc::backend::cuda
 {
 MUDA_GENERIC Vector9 flatten(const Matrix3x3& A) noexcept
 {
-    //tex:
-    //$
-    //\left[\begin{matrix}f_{00} & f_{01} & f_{02}\\f_{10} & f_{11} & f_{12}\\f_{20} & f_{21} & f_{22}\end{matrix}\right]
-    //\rightarrow
-    //\left[\begin{matrix}f_{00}\\f_{01}\\f_{02}\\f_{10}\\f_{11}\\f_{12}\\f_{20}\\f_{21}\\f_{22}\end{matrix}\right]
-    //$
     Vector9 column;
 
     unsigned int index = 0;
@@ -24,12 +18,6 @@ MUDA_GENERIC Vector9 flatten(const Matrix3x3& A) noexcept
 
 MUDA_GENERIC Matrix3x3 unflatten(const Vector9& v) noexcept
 {
-    //tex:
-    //$
-    //\left[\begin{matrix}f_{00}\\f_{01}\\f_{02}\\f_{10}\\f_{11}\\f_{12}\\f_{20}\\f_{21}\\f_{22}\end{matrix}\right]
-    //\rightarrow
-    //\left[\begin{matrix}f_{00} & f_{01} & f_{02}\\f_{10} & f_{11} & f_{12}\\f_{20} & f_{21} & f_{22}\end{matrix}\right]
-    //$
     Matrix3x3      A;
     unsigned int index = 0;
     for(unsigned int j = 0; j < A.cols(); j++)

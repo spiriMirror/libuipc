@@ -50,7 +50,7 @@ void AffineBodyDynamics::do_build()
 
     // Register the action to compute the velocity of the affine body dof
     dof_predictor.on_compute_velocity(*this,
-                                      [this](DoFPredictor::PredictInfo& info)
+                                      [this](DoFPredictor::ComputeVelocityInfo& info)
                                       { m_impl.compute_q_v(info); });
 
     // Register the action to write the scene
@@ -513,8 +513,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     // setup body kinetic energy buffer
     async_resize(body_id_to_kinetic_energy, h_body_infos.size(), 0.0);
 
-    // setup constitution shape energy buffer
-    async_resize(constitution_shape_energy, constitutions.view().size(), 0.0);
+    async_resize(body_id_to_shape_energy, h_body_infos.size(), 0.0);
 
     // setup hessian and gradient buffers
     async_resize(diag_hessian, h_body_infos.size(), Matrix12x12::Zero().eval());
@@ -607,7 +606,7 @@ void AffineBodyDynamics::Impl::compute_q_tilde(DoFPredictor::PredictInfo& info)
                 q_vs     = body_id_to_q_v.cviewer().name("q_velocities"),
                 q_tildes = body_id_to_q_tilde.viewer().name("q_tilde"),
                 affine_gravity = body_id_to_abd_gravity.cviewer().name("affine_gravity"),
-                dt = info.dt] __device__(int i) mutable
+                dt = info.dt()] __device__(int i) mutable
                {
                    auto& q_prev = q_prevs(i);
                    auto& q_v    = q_vs(i);
@@ -624,7 +623,7 @@ void AffineBodyDynamics::Impl::compute_q_tilde(DoFPredictor::PredictInfo& info)
                });
 }
 
-void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::PredictInfo& info)
+void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::ComputeVelocityInfo& info)
 {
     using namespace muda;
     ParallelFor()
@@ -634,7 +633,7 @@ void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::PredictInfo& info)
                 qs       = body_id_to_q.cviewer().name("qs"),
                 q_vs     = body_id_to_q_v.viewer().name("q_vs"),
                 q_prevs  = body_id_to_q_prev.viewer().name("q_prevs"),
-                dt       = info.dt] __device__(int i) mutable
+                dt       = info.dt()] __device__(int i) mutable
                {
                    auto& q_v    = q_vs(i);
                    auto& q_prev = q_prevs(i);

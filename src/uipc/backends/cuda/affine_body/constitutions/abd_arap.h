@@ -28,7 +28,6 @@ class ABDARAP : public AffineBodyConstitution
         vector<Float>                        h_kappas;
 
         muda::DeviceBuffer<Float> kappas;
-        muda::DeviceBuffer<Float> body_energies;
     };
 
   private:

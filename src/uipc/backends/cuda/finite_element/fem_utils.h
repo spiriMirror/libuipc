@@ -1,6 +1,6 @@
 #pragma once
 #include <finite_element/matrix_utils.h>
-namespace uipc::backend::cuda
+namespace uipc::backend::cuda::fem
 {
 MUDA_GENERIC Float invariant2(const Matrix3x3& F);
 MUDA_GENERIC Float invariant2(const Vector3& Sigma);

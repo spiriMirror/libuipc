@@ -12,7 +12,15 @@ IndexT FiniteElementConstitution::dimension() const
 }
 void FiniteElementConstitution::do_build()
 {
-    auto& finite_element_method = require<FiniteElementMethod>();
-    finite_element_method.add_constitution(this);
+    m_fem = &require<FiniteElementMethod>();
+    m_fem->add_constitution(this);
+}
+void FiniteElementConstitution::compute_energy(FiniteElementMethod::ComputeEnergyInfo& info)
+{
+    do_compute_energy(info);
+}
+void FiniteElementConstitution::compute_gradient_hessian(FiniteElementMethod::ComputeGradientHessianInfo& info)
+{
+    do_compute_gradient_hessian(info);
 }
 }  // namespace uipc::backend::cuda

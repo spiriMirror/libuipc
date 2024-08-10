@@ -28,13 +28,19 @@ void AffinebodySurfaceReporter::Impl::_init_geo_surface(backend::WorldVisitor& w
 
     auto geo_count = abd().abd_geo_count;
 
-    geo_surf_vertex_offsets.resize(geo_count);
-    geo_surf_edges_offsets.resize(geo_count);
-    geo_surf_triangles_offsets.resize(geo_count);
+    auto N = geo_count + 1;  // +1 for total count
 
-    geo_surf_vertex_counts.resize(geo_count);
-    geo_surf_edges_counts.resize(geo_count);
-    geo_surf_triangles_counts.resize(geo_count);
+    geo_surf_vertex_offsets.resize(N);
+    geo_surf_edges_offsets.resize(N);
+    geo_surf_triangles_offsets.resize(N);
+
+    geo_surf_vertex_counts.resize(N);
+    geo_surf_edges_counts.resize(N);
+    geo_surf_triangles_counts.resize(N);
+
+    geo_surf_vertex_counts.back()    = 0;
+    geo_surf_edges_counts.back()     = 0;
+    geo_surf_triangles_counts.back() = 0;
 
     // 1) for every geometry, count surface primitives
     for(auto&& [i, body_offset] : enumerate(abd().h_abd_geo_body_offsets))
@@ -92,12 +98,9 @@ void AffinebodySurfaceReporter::Impl::_init_geo_surface(backend::WorldVisitor& w
                         geo_surf_triangles_offsets.begin(),
                         0);
 
-    total_geo_surf_vertex_count =
-        geo_surf_vertex_offsets.back() + geo_surf_vertex_counts.back();
-    total_geo_surf_edge_count =
-        geo_surf_edges_offsets.back() + geo_surf_edges_counts.back();
-    total_geo_surf_triangle_count =
-        geo_surf_triangles_offsets.back() + geo_surf_triangles_counts.back();
+    total_geo_surf_vertex_count   = geo_surf_vertex_offsets.back();
+    total_geo_surf_edge_count     = geo_surf_edges_offsets.back();
+    total_geo_surf_triangle_count = geo_surf_triangles_offsets.back();
 
     geo_local_surf_vertices.resize(total_geo_surf_vertex_count);
     geo_local_surf_edges.resize(total_geo_surf_edge_count);
@@ -153,10 +156,16 @@ void AffinebodySurfaceReporter::Impl::_init_body_surface(backend::WorldVisitor& 
 {
     auto geo_slots = world.scene().geometries();
 
-    vector<IndexT> body_surf_vertex_offsets(abd().abd_body_count);
-    vector<IndexT> body_surf_edges_offsets(abd().abd_body_count);
-    vector<IndexT> body_surf_triangles_offsets(abd().abd_body_count);
     body_surface_infos.resize(abd().abd_body_count);
+
+    auto           N = abd().abd_body_count + 1;  // +1 for total count
+    vector<IndexT> body_surf_vertex_offsets(N);
+    vector<IndexT> body_surf_edges_offsets(N);
+    vector<IndexT> body_surf_triangles_offsets(N);
+
+    body_surf_vertex_offsets.back()    = 0;
+    body_surf_edges_offsets.back()     = 0;
+    body_surf_triangles_offsets.back() = 0;
 
     // 1) for every body, count surface primitives
     for(auto&& [body_info, body_surf_info] : zip(abd().h_body_infos, body_surface_infos))
@@ -194,10 +203,9 @@ void AffinebodySurfaceReporter::Impl::_init_body_surface(backend::WorldVisitor& 
         body_surf_info.m_surf_triangle_offset = body_surf_triangles_offsets[i];
     }
 
-    auto& back_info = body_surface_infos.back();
-    total_surf_vertex_count = back_info.m_surf_vertex_offset + back_info.m_surf_vertex_count;
-    total_surf_edge_count = back_info.m_surf_edge_offset + back_info.m_surf_edge_count;
-    total_surf_triangle_count = back_info.m_surf_triangle_offset + back_info.m_surf_triangle_count;
+    total_surf_vertex_count   = body_surf_vertex_offsets.back();
+    total_surf_edge_count     = body_surf_edges_offsets.back();
+    total_surf_triangle_count = body_surf_triangles_offsets.back();
 
     surf_vertices.resize(total_surf_vertex_count);
     surf_edges.resize(total_surf_edge_count);

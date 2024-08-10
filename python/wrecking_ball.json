@@ -1,0 +1,3460 @@
+[
+    {
+    "mesh": "link.msh",
+    "position": [ 10.911920087683928, 18.299999999999997, 0.0 ],
+    "rotation": [ 0.0, 0.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": true
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 10.132497224277934, 17.85, 0.0 ],
+    "rotation": [ 0.0, 90.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 9.353074360871938, 17.4, 0.0 ],
+    "rotation": [ 0.0, 0.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 8.573651497465944, 16.95, 0.0 ],
+    "rotation": [ 0.0, 90.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 7.794228634059948, 16.5, 0.0 ],
+    "rotation": [ 0.0, 0.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 7.014805770653953, 16.049999999999997, 0.0 ],
+    "rotation": [ 0.0, 90.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 6.235382907247959, 15.6, 0.0 ],
+    "rotation": [ 0.0, 0.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 5.455960043841964, 15.149999999999999, 0.0 ],
+    "rotation": [ 0.0, 90.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 4.676537180435969, 14.7, 0.0 ],
+    "rotation": [ 0.0, 0.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 3.897114317029974, 14.25, 0.0 ],
+    "rotation": [ 0.0, 90.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 3.1176914536239795, 13.8, 0.0 ],
+    "rotation": [ 0.0, 0.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 2.3382685902179845, 13.35, 0.0 ],
+    "rotation": [ 0.0, 90.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "link.msh",
+    "position": [ 1.5588457268119897, 12.9, 0.0 ],
+    "rotation": [ 0.0, 0.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "ball.msh",
+    "position": [ 0.7794228634059949, 12.45, 0.0 ],
+    "rotation": [ 0.0, 90.0, -60.0 ],
+    "density": 100000,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, -0.44999999999999996, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, -0.44999999999999996, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, -0.44999999999999996, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, -0.44999999999999996, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, -0.44999999999999996, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, -0.44999999999999996, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, -0.44999999999999996, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, -0.44999999999999996, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, -0.44999999999999996, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, -0.44999999999999996, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 0.6000000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 0.6000000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 0.6000000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 0.6000000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 0.6000000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 0.6000000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 0.6000000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 0.6000000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 0.6000000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 0.6000000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 1.6500000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 1.6500000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 1.6500000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 1.6500000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 1.6500000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 1.6500000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 1.6500000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 1.6500000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 1.6500000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 1.6500000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 2.7, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 2.7, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 2.7, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 2.7, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 2.7, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 2.7, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 2.7, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 2.7, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 2.7, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 2.7, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 3.75, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 3.75, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 3.75, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 3.75, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 3.75, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 3.75, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 3.75, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 3.75, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 3.75, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 3.75, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 4.8, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 4.8, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 4.8, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 4.8, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 4.8, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 4.8, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 4.8, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 4.8, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 4.8, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 4.8, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 5.8500000000000005, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 5.8500000000000005, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 5.8500000000000005, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 5.8500000000000005, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 5.8500000000000005, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 5.8500000000000005, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 5.8500000000000005, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 5.8500000000000005, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 5.8500000000000005, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 7.411920087683928, 5.8500000000000005, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, -0.44999999999999996, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, -0.44999999999999996, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, -0.44999999999999996, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, -0.44999999999999996, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, -0.44999999999999996, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, -0.44999999999999996, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, -0.44999999999999996, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, -0.44999999999999996, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, -0.44999999999999996, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, -0.44999999999999996, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 0.6000000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 0.6000000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 0.6000000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 0.6000000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 0.6000000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 0.6000000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 0.6000000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 0.6000000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 0.6000000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 0.6000000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 1.6500000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 1.6500000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 1.6500000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 1.6500000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 1.6500000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 1.6500000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 1.6500000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 1.6500000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 1.6500000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 1.6500000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 2.7, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 2.7, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 2.7, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 2.7, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 2.7, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 2.7, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 2.7, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 2.7, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 2.7, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 2.7, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 3.75, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 3.75, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 3.75, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 3.75, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 3.75, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 3.75, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 3.75, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 3.75, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 3.75, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 3.75, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 4.8, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 4.8, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 4.8, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 4.8, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 4.8, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 4.8, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 4.8, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 4.8, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 4.8, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 4.8, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 5.8500000000000005, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 5.8500000000000005, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 5.8500000000000005, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 5.8500000000000005, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 5.8500000000000005, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 5.8500000000000005, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 5.8500000000000005, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 5.8500000000000005, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 5.8500000000000005, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 8.461920087683929, 5.8500000000000005, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, -0.44999999999999996, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, -0.44999999999999996, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, -0.44999999999999996, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, -0.44999999999999996, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, -0.44999999999999996, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, -0.44999999999999996, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, -0.44999999999999996, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, -0.44999999999999996, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, -0.44999999999999996, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, -0.44999999999999996, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 0.6000000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 0.6000000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 0.6000000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 0.6000000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 0.6000000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 0.6000000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 0.6000000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 0.6000000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 0.6000000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 0.6000000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 1.6500000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 1.6500000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 1.6500000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 1.6500000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 1.6500000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 1.6500000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 1.6500000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 1.6500000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 1.6500000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 1.6500000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 2.7, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 2.7, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 2.7, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 2.7, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 2.7, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 2.7, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 2.7, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 2.7, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 2.7, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 2.7, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 3.75, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 3.75, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 3.75, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 3.75, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 3.75, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 3.75, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 3.75, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 3.75, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 3.75, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 3.75, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 4.8, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 4.8, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 4.8, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 4.8, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 4.8, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 4.8, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 4.8, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 4.8, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 4.8, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 4.8, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 5.8500000000000005, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 5.8500000000000005, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 5.8500000000000005, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 5.8500000000000005, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 5.8500000000000005, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 5.8500000000000005, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 5.8500000000000005, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 5.8500000000000005, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 5.8500000000000005, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 9.511920087683928, 5.8500000000000005, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, -0.44999999999999996, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, -0.44999999999999996, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, -0.44999999999999996, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, -0.44999999999999996, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, -0.44999999999999996, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, -0.44999999999999996, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, -0.44999999999999996, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, -0.44999999999999996, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, -0.44999999999999996, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, -0.44999999999999996, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 0.6000000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 0.6000000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 0.6000000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 0.6000000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 0.6000000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 0.6000000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 0.6000000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 0.6000000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 0.6000000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 0.6000000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 1.6500000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 1.6500000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 1.6500000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 1.6500000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 1.6500000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 1.6500000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 1.6500000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 1.6500000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 1.6500000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 1.6500000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 2.7, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 2.7, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 2.7, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 2.7, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 2.7, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 2.7, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 2.7, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 2.7, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 2.7, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 2.7, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 3.75, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 3.75, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 3.75, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 3.75, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 3.75, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 3.75, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 3.75, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 3.75, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 3.75, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 3.75, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 4.8, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 4.8, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 4.8, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 4.8, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 4.8, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 4.8, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 4.8, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 4.8, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 4.8, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 4.8, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 5.8500000000000005, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 5.8500000000000005, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 5.8500000000000005, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 5.8500000000000005, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 5.8500000000000005, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 5.8500000000000005, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 5.8500000000000005, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 5.8500000000000005, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 5.8500000000000005, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 10.561920087683928, 5.8500000000000005, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, -0.44999999999999996, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, -0.44999999999999996, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, -0.44999999999999996, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, -0.44999999999999996, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, -0.44999999999999996, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, -0.44999999999999996, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, -0.44999999999999996, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, -0.44999999999999996, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, -0.44999999999999996, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, -0.44999999999999996, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 0.6000000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 0.6000000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 0.6000000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 0.6000000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 0.6000000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 0.6000000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 0.6000000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 0.6000000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 0.6000000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 0.6000000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 1.6500000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 1.6500000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 1.6500000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 1.6500000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 1.6500000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 1.6500000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 1.6500000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 1.6500000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 1.6500000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 1.6500000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 2.7, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 2.7, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 2.7, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 2.7, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 2.7, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 2.7, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 2.7, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 2.7, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 2.7, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 2.7, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 3.75, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 3.75, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 3.75, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 3.75, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 3.75, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 3.75, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 3.75, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 3.75, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 3.75, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 3.75, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 4.8, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 4.8, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 4.8, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 4.8, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 4.8, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 4.8, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 4.8, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 4.8, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 4.8, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 4.8, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 5.8500000000000005, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 5.8500000000000005, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 5.8500000000000005, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 5.8500000000000005, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 5.8500000000000005, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 5.8500000000000005, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 5.8500000000000005, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 5.8500000000000005, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 5.8500000000000005, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 11.611920087683927, 5.8500000000000005, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, -0.44999999999999996, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, -0.44999999999999996, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, -0.44999999999999996, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, -0.44999999999999996, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, -0.44999999999999996, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, -0.44999999999999996, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, -0.44999999999999996, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, -0.44999999999999996, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, -0.44999999999999996, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, -0.44999999999999996, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 0.6000000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 0.6000000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 0.6000000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 0.6000000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 0.6000000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 0.6000000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 0.6000000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 0.6000000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 0.6000000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 0.6000000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 1.6500000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 1.6500000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 1.6500000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 1.6500000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 1.6500000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 1.6500000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 1.6500000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 1.6500000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 1.6500000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 1.6500000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 2.7, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 2.7, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 2.7, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 2.7, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 2.7, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 2.7, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 2.7, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 2.7, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 2.7, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 2.7, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 3.75, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 3.75, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 3.75, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 3.75, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 3.75, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 3.75, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 3.75, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 3.75, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 3.75, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 3.75, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 4.8, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 4.8, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 4.8, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 4.8, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 4.8, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 4.8, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 4.8, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 4.8, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 4.8, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 4.8, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 5.8500000000000005, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 5.8500000000000005, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 5.8500000000000005, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 5.8500000000000005, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 5.8500000000000005, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 5.8500000000000005, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 5.8500000000000005, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 5.8500000000000005, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 5.8500000000000005, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 12.661920087683928, 5.8500000000000005, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, -0.44999999999999996, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, -0.44999999999999996, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, -0.44999999999999996, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, -0.44999999999999996, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, -0.44999999999999996, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, -0.44999999999999996, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, -0.44999999999999996, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, -0.44999999999999996, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, -0.44999999999999996, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, -0.44999999999999996, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 0.6000000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 0.6000000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 0.6000000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 0.6000000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 0.6000000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 0.6000000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 0.6000000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 0.6000000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 0.6000000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 0.6000000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 1.6500000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 1.6500000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 1.6500000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 1.6500000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 1.6500000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 1.6500000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 1.6500000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 1.6500000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 1.6500000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 1.6500000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 2.7, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 2.7, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 2.7, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 2.7, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 2.7, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 2.7, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 2.7, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 2.7, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 2.7, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 2.7, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 3.75, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 3.75, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 3.75, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 3.75, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 3.75, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 3.75, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 3.75, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 3.75, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 3.75, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 3.75, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 4.8, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 4.8, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 4.8, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 4.8, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 4.8, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 4.8, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 4.8, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 4.8, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 4.8, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 4.8, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 5.8500000000000005, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 5.8500000000000005, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 5.8500000000000005, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 5.8500000000000005, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 5.8500000000000005, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 5.8500000000000005, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 5.8500000000000005, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 5.8500000000000005, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 5.8500000000000005, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 13.711920087683929, 5.8500000000000005, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, -0.44999999999999996, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, -0.44999999999999996, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, -0.44999999999999996, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, -0.44999999999999996, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, -0.44999999999999996, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, -0.44999999999999996, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, -0.44999999999999996, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, -0.44999999999999996, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, -0.44999999999999996, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, -0.44999999999999996, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 0.6000000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 0.6000000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 0.6000000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 0.6000000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 0.6000000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 0.6000000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 0.6000000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 0.6000000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 0.6000000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 0.6000000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 1.6500000000000001, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 1.6500000000000001, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 1.6500000000000001, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 1.6500000000000001, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 1.6500000000000001, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 1.6500000000000001, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 1.6500000000000001, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 1.6500000000000001, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 1.6500000000000001, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 1.6500000000000001, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 2.7, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 2.7, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 2.7, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 2.7, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 2.7, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 2.7, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 2.7, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 2.7, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 2.7, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 2.7, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 3.75, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 3.75, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 3.75, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 3.75, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 3.75, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 3.75, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 3.75, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 3.75, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 3.75, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 3.75, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 4.8, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 4.8, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 4.8, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 4.8, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 4.8, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 4.8, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 4.8, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 4.8, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 4.8, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 4.8, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 5.8500000000000005, -4.5 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 5.8500000000000005, -3.45 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 5.8500000000000005, -2.4 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 5.8500000000000005, -1.3499999999999996 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 5.8500000000000005, -0.2999999999999998 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 5.8500000000000005, 0.75 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 5.8500000000000005, 1.8000000000000007 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 5.8500000000000005, 2.8500000000000005 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 5.8500000000000005, 3.9000000000000004 ],
+    "density": 500,
+    "is_dof_fixed": false
+    },
+    {
+    "mesh": "cube.msh",
+    "position": [ 14.76192008768393, 5.8500000000000005, 4.950000000000001 ],
+    "density": 500,
+    "is_dof_fixed": false
+    }
+]

@@ -158,6 +158,8 @@ void SimEngine::do_advance()
                 // 4) Solve Global Linear System => dx = A^-1 * b
                 m_state = SimEngineState::SolveGlobalLinearSystem;
                 m_global_linear_system->solve();
+                //m_global_linear_system->dump_linear_system(
+                //    fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
 
                 // 5) Get Max Movement => dx_max = max(|dx|), if dx_max < tol, break
                 m_global_vertex_manager->collect_vertex_displacements();
@@ -200,7 +202,8 @@ void SimEngine::do_advance()
                     alpha = cfl_condition(alpha);
 
                     // Compute Test Energy => E
-                    Float E = compute_energy(alpha);
+                    Float E  = compute_energy(alpha);
+                    Float E1 = E;
 
                     SizeT line_search_iter = 0;
                     while(line_search_iter++ < m_line_searcher->max_iter())  // Energy Test
@@ -210,11 +213,11 @@ void SimEngine::do_advance()
                         // TODO: Intersection & Inversion Check
                         bool no_inversion = true;
 
-                        //spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
-                        //             line_search_iter,
-                        //             alpha,
-                        //             E / E0,
-                        //             E0);
+                        spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
+                                     line_search_iter,
+                                     alpha,
+                                     E / E0,
+                                     E0);
 
                         bool success = energy_decrease && no_inversion;
                         if(success)
@@ -229,11 +232,12 @@ void SimEngine::do_advance()
                     {
                         spdlog::warn(
                             "Line Search Exits with Max Iteration: {} (Frame={}, Newton={})\n"
-                            "E/E0: {}, E0:{}",
+                            "E/E0: {}, E1/E0: {}, E0:{}",
                             m_line_searcher->max_iter(),
                             m_current_frame,
                             newton_iter,
                             E / E0,
+                            E1 / E0,
                             E0);
                     }
                 }

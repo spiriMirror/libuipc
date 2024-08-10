@@ -5,7 +5,7 @@
 
 namespace uipc::backend::cuda
 {
-class ABDOrthoPotential : public AffineBodyConstitution
+class ABDOrthoPotential final : public AffineBodyConstitution
 {
   public:
     static constexpr U64 ConstitutionUID = 1ull;
@@ -28,7 +28,6 @@ class ABDOrthoPotential : public AffineBodyConstitution
         vector<Float>                        h_kappas;
 
         muda::DeviceBuffer<Float> kappas;
-        muda::DeviceBuffer<Float> body_energies;
     };
 
   protected:

@@ -8,6 +8,7 @@
 #include <pyuipc/world/constitution.h>
 #include <pyuipc/common/uipc_type.h>
 #include <pyuipc/backend/module.h>
+#include <uipc/common/log.h>
 
 using namespace uipc;
 
@@ -21,6 +22,8 @@ PYBIND11_MODULE(pyuipc, m)
     m.def("config", &uipc::config);
 
     pyuipc::PyUIPCType{m};
+
+    m.def("no_debug_info", []() { spdlog::set_level(spdlog::level::warn); });
 
     auto geometry = m.def_submodule("geometry");
     pyuipc::geometry::Module{geometry};

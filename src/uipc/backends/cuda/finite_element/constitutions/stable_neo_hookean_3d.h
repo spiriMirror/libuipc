@@ -17,19 +17,24 @@ class StableNeoHookean3D final : public FEM3DConstitution
     {
       public:
         void retrieve(WorldVisitor& world, FiniteElementMethod::FEM3DFilteredInfo& info);
+        void compute_energy(ComputeEnergyInfo& info);
+        void compute_gradient_hessian(ComputeGradientHessianInfo& info);
 
-        vector<Float> h_mu;
-        vector<Float> h_lambda;
+        vector<Float> h_mus;
+        vector<Float> h_lambdas;
+
+        muda::DeviceBuffer<Float> mus;
+        muda::DeviceBuffer<Float> lambdas;
     };
 
   protected:
     virtual U64  get_constitution_uid() const override;
     virtual void do_build(BuildInfo& info) override;
-
-    // Inherited via FEM3DConstitution
     virtual void do_retrieve(FiniteElementMethod::FEM3DFilteredInfo& info) override;
 
   private:
-    Impl m_impl;
+    Impl         m_impl;
+    virtual void do_compute_energy(ComputeEnergyInfo& info) override;
+    virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override;
 };
 }  // namespace uipc::backend::cuda

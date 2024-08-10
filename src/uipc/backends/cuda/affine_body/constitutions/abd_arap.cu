@@ -60,11 +60,11 @@ void ABDARAP::Impl::compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& 
     ParallelFor()
         .kernel_name(__FUNCTION__)
         .apply(body_count,
-               [shape_energies = body_energies.viewer().name("body_energies"),
-                qs             = info.qs().cviewer().name("qs"),
-                kappas         = kappas.cviewer().name("kappas"),
-                volumes        = info.volumes().cviewer().name("volumes"),
-                dt             = info.dt()] __device__(int i) mutable
+               [shape_energies = info.body_shape_energies().viewer().name("body_energies"),
+                qs      = info.qs().cviewer().name("qs"),
+                kappas  = kappas.cviewer().name("kappas"),
+                volumes = info.volumes().cviewer().name("volumes"),
+                dt      = info.dt()] __device__(int i) mutable
                {
                    auto& V      = shape_energies(i);
                    auto& q      = qs(i);
@@ -75,9 +75,6 @@ void ABDARAP::Impl::compute_energy(const AffineBodyDynamics::ComputeEnergyInfo& 
 
                    // V = kappa * volume * dt * dt * shape_energy(q);
                });
-
-    // Sum up the body energies
-    DeviceReduce().Sum(body_energies.data(), info.shape_energy().data(), body_count);
 }
 
 void ABDARAP::Impl::compute_gradient_hessian(const AffineBodyDynamics::ComputeGradientHessianInfo& info)
@@ -92,8 +89,8 @@ void ABDARAP::Impl::compute_gradient_hessian(const AffineBodyDynamics::ComputeGr
                 volumes = info.volumes().cviewer().name("volumes"),
                 gradients = info.shape_gradient().viewer().name("shape_gradients"),
                 body_hessian = info.shape_hessian().viewer().name("shape_hessian"),
-                kappas       = kappas.cviewer().name("kappas"),
-                dt           = info.dt()] __device__(int i) mutable
+                kappas = kappas.cviewer().name("kappas"),
+                dt     = info.dt()] __device__(int i) mutable
                {
                    Matrix12x12 H = Matrix12x12::Zero();
                    Vector12    G = Vector12::Zero();
@@ -134,7 +131,6 @@ void ABDARAP::Impl::_build_on_device()
     { muda::BufferLaunch().resize<T>(dst, size); };
 
     async_copy(span{h_kappas}, kappas);
-    async_resize(body_energies, kappas.size());
 }
 
 void ABDARAP::do_retrieve(AffineBodyDynamics::FilteredInfo& info)
