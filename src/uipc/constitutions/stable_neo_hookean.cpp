@@ -12,7 +12,7 @@ void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc,
                                 const StableNeoHookeanParms& parms,
                                 Float                        mass_density) const
 {
-    Base::apply_to(sc);
+    Base::apply_to(sc, mass_density);
 
     auto mu     = parms.m_mu;
     auto lambda = parms.m_lambda;
@@ -28,12 +28,6 @@ void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc,
     if(!lambda_attr)
         lambda_attr = sc.tetrahedra().create<Float>("lambda", lambda);
     std::ranges::fill(geometry::view(*lambda_attr), lambda);
-
-    auto is_fixed = sc.vertices().find<IndexT>(builtin::is_fixed);
-    if(!is_fixed)
-        is_fixed = sc.vertices().create<IndexT>(builtin::is_fixed, 0);
-
-    geometry::compute_vertex_mass(sc, mass_density);
 }
 
 Json StableNeoHookean::default_config() noexcept
@@ -43,17 +37,12 @@ Json StableNeoHookean::default_config() noexcept
 
 U64 StableNeoHookean::get_uid() const noexcept
 {
-    return 9;
+    return 10;
 }
 
 std::string_view StableNeoHookean::get_name() const noexcept
 {
     return builtin::ConstitutionUIDRegister::instance().find(get_uid()).name;
-}
-
-world::ConstitutionType StableNeoHookean::get_type() const noexcept
-{
-    return world::ConstitutionType::FiniteElement;
 }
 
 StableNeoHookeanParms StableNeoHookeanParms::EG(Float E, Float G)

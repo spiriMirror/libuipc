@@ -2,10 +2,11 @@
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/constitutions/stable_neo_hookean.h>
+#include <uipc/constitutions/arap.h>
 #include <filesystem>
 #include <fstream>
 
-TEST_CASE("13_fem_3d_gravity", "[fem]")
+TEST_CASE("14_fem_3d_ground_contact", "[fem]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
@@ -23,10 +24,11 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
 
     auto config = Scene::default_config();
 
-    config["gravity"]                   = Vector3{0, -9.8, 0};
-    config["contact"]["enable"]         = false;  // disable contact
-    config["line_search"]["max_iter"]   = 8;
-    config["linear_system"]["tol_rate"] = 1e-3;
+    config["gravity"]                      = Vector3{0, -9.8, 0};
+    config["contact"]["enable"]            = true;
+    config["line_search"]["max_iter"]      = 8;
+    config["linear_system"]["tol_rate"]    = 1e-8;
+    config["line_search"]["report_energy"] = false;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -38,29 +40,33 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
     Scene scene{config};
     {
         // create constitution and contact model
-        auto& snk = scene.constitution_tabular().create<StableNeoHookean>();
+        auto& snk  = scene.constitution_tabular().create<StableNeoHookean>();
+        auto& arap = scene.constitution_tabular().create<ARAP>();
+
+        scene.contact_tabular().default_model(0.5, 1.0_GPa);
+        auto& default_element = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("tets");
 
         vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
-        vector<Vector3>  Vs = {Vector3{0, 1, 0},
-                               Vector3{0, 0, 1},
+        vector<Vector3>  Vs = {Vector3{0, 0, 1},
+                               Vector3{0, -1, 0},
                                Vector3{-std::sqrt(3) / 2, 0, -0.5},
                                Vector3{std::sqrt(3) / 2, 0, -0.5}};
-
-        std::transform(
-            Vs.begin(), Vs.end(), Vs.begin(), [&](auto& v) { return v; });
 
         auto mesh = tetmesh(Vs, Ts);
 
         label_surface(mesh);
         label_triangle_orient(mesh);
 
-        auto parm = StableNeoHookeanParms::EP(1e5, 0.499);
-        snk.apply_to(mesh, parm, 1e3);
+        auto parm = StableNeoHookeanParms::EP(10.0_kPa, 0.49);
+        snk.apply_to(mesh, parm);
 
         object->geometries().create(mesh);
+
+        auto g = ground(-1.2);
+        object->geometries().create(g);
     }
 
     world.init(scene);

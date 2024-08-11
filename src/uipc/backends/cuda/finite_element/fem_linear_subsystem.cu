@@ -129,37 +129,35 @@ void FEMLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
                    {
                        gradient.segment<3>(i * 3) = G3s(i);
                    }
-
-                   // gradient.segment<3>(i * 3) = Vector3::Zero().eval();
                });
 
     // Elastic
 
-    //// Codim1D
-    //ParallelFor()
-    //    .kernel_name(__FUNCTION__)
-    //    .apply(fem().G6s.size(),
-    //           [G6s      = fem().G6s.cviewer().name("G6s"),
-    //            indices  = fem().codim_1ds.cviewer().name("codim_1d_indices"),
-    //            gradient = info.gradient().viewer().name("gradient"),
-    //            is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
-    //           {
-    //               // fill gradient
-    //               detail::fill_gradient<2>(gradient, G6s(I), indices(I), is_fixed);
-    //           });
+    // Codim1D
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(fem().G6s.size(),
+               [G6s      = fem().G6s.cviewer().name("G6s"),
+                indices  = fem().codim_1ds.cviewer().name("codim_1d_indices"),
+                gradient = info.gradient().viewer().name("gradient"),
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               {
+                   // fill gradient
+                   detail::fill_gradient<2>(gradient, G6s(I), indices(I), is_fixed);
+               });
 
-    //// Codim2D
-    //ParallelFor()
-    //    .kernel_name(__FUNCTION__)
-    //    .apply(fem().G9s.size(),
-    //           [G9s      = fem().G9s.cviewer().name("G9s"),
-    //            indices  = fem().codim_2ds.cviewer().name("codim_2d_indices"),
-    //            gradient = info.gradient().viewer().name("gradient"),
-    //            is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
-    //           {
-    //               // fill gradient
-    //               detail::fill_gradient<3>(gradient, G9s(I), indices(I), is_fixed);
-    //           });
+    // Codim2D
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(fem().G9s.size(),
+               [G9s      = fem().G9s.cviewer().name("G9s"),
+                indices  = fem().codim_2ds.cviewer().name("codim_2d_indices"),
+                gradient = info.gradient().viewer().name("gradient"),
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               {
+                   // fill gradient
+                   detail::fill_gradient<3>(gradient, G9s(I), indices(I), is_fixed);
+               });
 
     // FEM3D
     ParallelFor()
@@ -223,6 +221,7 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
                    {
                        // Diag
                        hessian(I).write(I, I, H3x3s(I));
+
                        // cout << "Kinetic hessian: \n" << H3x3s(I) << "\n";
                    });
 
@@ -232,46 +231,46 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
 
     // Elastic
 
-    //{  // Codim1D
-    //    auto N = fem().H6x6s.size() * H6x6_to_H3x3;
+    {  // Codim1D
+        auto N = fem().H6x6s.size() * H6x6_to_H3x3;
 
-    //    ParallelFor()
-    //        .kernel_name(__FUNCTION__)
-    //        .apply(fem().H6x6s.size(),
-    //               [H6x6s = fem().H6x6s.cviewer().name("H6x6s"),
-    //                indices = fem().codim_1ds.cviewer().name("codim_1d_indices"),
-    //                hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
-    //                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
-    //               {
-    //                   // fill hessian
-    //                   Matrix6x6 H = H6x6s(I);
-    //                   detail::make_spd<6>(H);
-    //                   detail::fill_hessian<2>(I, hessian, H, indices(I), is_fixed);
-    //               });
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(fem().H6x6s.size(),
+                   [H6x6s = fem().H6x6s.cviewer().name("H6x6s"),
+                    indices = fem().codim_1ds.cviewer().name("codim_1d_indices"),
+                    hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
+                    is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+                   {
+                       // fill hessian
+                       Matrix6x6 H = H6x6s(I);
+                       detail::make_spd<6>(H);
+                       detail::fill_hessian<2>(I, hessian, H, indices(I), is_fixed);
+                   });
 
-    //    offset += N;
-    //}
+        offset += N;
+    }
 
-    //{  // Codim2D
+    {  // Codim2D
 
-    //    auto N = fem().H9x9s.size() * H9x9_to_H3x3;
+        auto N = fem().H9x9s.size() * H9x9_to_H3x3;
 
-    //    ParallelFor()
-    //        .kernel_name(__FUNCTION__)
-    //        .apply(fem().H9x9s.size(),
-    //               [H9x9s = fem().H9x9s.cviewer().name("H9x9s"),
-    //                indices = fem().codim_2ds.cviewer().name("codim_2d_indices"),
-    //                hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
-    //                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
-    //               {
-    //                   // fill hessian
-    //                   Matrix9x9 H = H9x9s(I);
-    //                   detail::make_spd<9>(H);
-    //                   detail::fill_hessian<3>(I, hessian, H, indices(I), is_fixed);
-    //               });
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(fem().H9x9s.size(),
+                   [H9x9s = fem().H9x9s.cviewer().name("H9x9s"),
+                    indices = fem().codim_2ds.cviewer().name("codim_2d_indices"),
+                    hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
+                    is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+                   {
+                       // fill hessian
+                       Matrix9x9 H = H9x9s(I);
+                       detail::make_spd<9>(H);
+                       detail::fill_hessian<3>(I, hessian, H, indices(I), is_fixed);
+                   });
 
-    //    offset += N;
-    //}
+        offset += N;
+    }
 
 
     {  // FEM3D
@@ -304,7 +303,7 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
             .kernel_name(__FUNCTION__)
             .apply(contact_count,
                    [contact_hessian = contact().contact_hessian.cviewer().name("contact_hessian"),
-                    hessian = info.hessian().viewer().name("hessian"),
+                    hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
                     vertex_offset = finite_element_vertex_reporter->vertex_offset(),
                     is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
                    {
@@ -345,7 +344,8 @@ void FEMLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
                 result = info.solution().viewer().name("result")] __device__(int i) mutable
                {
                    dxs(i) = -result.segment<3>(i * 3).as_eigen();
-                   cout << "solution dx(" << i << "):" << dxs(i).transpose().eval() << "\n";
+
+                   // cout << "solution dx(" << i << "):" << dxs(i).transpose().eval() << "\n";
                });
 }
 

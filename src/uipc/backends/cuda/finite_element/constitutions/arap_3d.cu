@@ -1,5 +1,5 @@
 #include <finite_element/fem_3d_constitution.h>
-#include <finite_element/constitutions/stable_neo_hookean_3d_function.h>
+#include <finite_element/constitutions/arap_function.h>
 #include <finite_element/fem_utils.h>
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
@@ -8,19 +8,18 @@
 
 namespace uipc::backend::cuda
 {
-class StableNeoHookean3D final : public FEM3DConstitution
+class ARAP3D final : public FEM3DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64 ConstitutionUID = 10;
+    static constexpr U64 ConstitutionUID = 9;
 
     using FEM3DConstitution::FEM3DConstitution;
 
-    vector<Float> h_mus;
+    vector<Float> h_kappas;
     vector<Float> h_lambdas;
 
-    muda::DeviceBuffer<Float> mus;
-    muda::DeviceBuffer<Float> lambdas;
+    muda::DeviceBuffer<Float> kappas;
 
     virtual U64 get_constitution_uid() const override
     {
@@ -36,42 +35,31 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
         auto N = info.primitive_count();
 
-        h_mus.resize(N);
-        h_lambdas.resize(N);
+        h_kappas.resize(N);
 
         info.for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc) -> auto
             {
-                auto mu     = sc.tetrahedra().find<Float>("mu");
-                auto lambda = sc.tetrahedra().find<Float>("lambda");
+                auto kappa = sc.tetrahedra().find<Float>("kappa");
 
-                return zip(mu->view(), lambda->view());
+                return kappa->view();
             },
-            [&](SizeT I, auto mu_and_lambda)
-            {
-                auto&& [mu, lambda] = mu_and_lambda;
-                h_mus[I]            = mu;
-                h_lambdas[I]        = lambda;
-            });
+            [&](SizeT I, Float kappa) { h_kappas[I] = kappa; });
 
-        mus.resize(N);
-        mus.view().copy_from(h_mus.data());
-
-        lambdas.resize(N);
-        lambdas.view().copy_from(h_lambdas.data());
+        kappas.resize(N);
+        kappas.view().copy_from(h_kappas.data());
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         using namespace muda;
-        namespace SNK = sym::stable_neo_hookean_3d;
+        namespace ARAP = sym::arap_3d;
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(info.indices().size(),
-                   [mus     = mus.cviewer().name("mus"),
-                    lambdas = lambdas.cviewer().name("lambdas"),
+                   [kappas = kappas.cviewer().name("mus"),
                     element_energies = info.element_energies().viewer().name("energies"),
                     indices = info.indices().viewer().name("indices"),
                     xs      = info.xs().viewer().name("xs"),
@@ -81,8 +69,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
                    {
                        const Vector4i&  tet    = indices(I);
                        const Matrix3x3& Dm_inv = Dm_invs(I);
-                       Float            mu     = mus(I);
-                       Float            lambda = lambdas(I);
+                       Float            mu     = kappas(I);
 
                        const Vector3& x0 = xs(tet(0));
                        const Vector3& x1 = xs(tet(1));
@@ -91,17 +78,10 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                        auto F = fem::F(x0, x1, x2, x3, Dm_inv);
 
-                       auto J = F.determinant();
-                       MUDA_ASSERT(J > 0, "detF = %f, StableNeoHookean3D doesn't allow inversion.", J);
-
-                       auto VecF = flatten(F);
-
                        Float E;
 
-                       //ARAP::E(E, lambda * dt * dt, volumes(I), F);
-
-                       SNK::E(E, mu, lambda, VecF);
-                       E *= dt * dt * volumes(I);
+                       ARAP::E(E, kappas(I) * dt * dt, volumes(I), F);
+                       E *= dt * dt;
                        element_energies(I) = E;
                    });
     }
@@ -109,13 +89,12 @@ class StableNeoHookean3D final : public FEM3DConstitution
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        namespace SNK = sym::stable_neo_hookean_3d;
+        namespace ARAP = sym::arap_3d;
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(info.indices().size(),
-                   [mus     = mus.cviewer().name("mus"),
-                    lambdas = lambdas.cviewer().name("lambdas"),
+                   [kappas  = kappas.cviewer().name("mus"),
                     indices = info.indices().viewer().name("indices"),
                     xs      = info.xs().viewer().name("xs"),
                     Dm_invs = info.Dm_invs().viewer().name("Dm_invs"),
@@ -126,8 +105,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
                    {
                        const Vector4i&  tet    = indices(I);
                        const Matrix3x3& Dm_inv = Dm_invs(I);
-                       Float            mu     = mus(I);
-                       Float            lambda = lambdas(I);
+                       Float            mu     = kappas(I);
 
                        const Vector3& x0 = xs(tet(0));
                        const Vector3& x1 = xs(tet(1));
@@ -136,19 +114,14 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                        auto F = fem::F(x0, x1, x2, x3, Dm_inv);
 
-                       auto J = F.determinant();
-                       MUDA_ASSERT(J > 0, "detF = %f, StableNeoHookean3D doesn't allow inversion.", J);
-
-                       auto VecF = flatten(F);
-
-                       auto vdt2 = volumes(I) * dt * dt;
-
                        Vector9   dEdF;
                        Matrix9x9 ddEddF;
-                       SNK::dEdVecF(dEdF, mu, lambda, VecF);
-                       SNK::ddEddVecF(ddEddF, mu, lambda, VecF);
-                       dEdF *= vdt2;
-                       ddEddF *= vdt2;
+
+                       auto kt2 = kappas(I) * dt * dt;
+                       auto v   = volumes(I);
+
+                       ARAP::dEdF(dEdF, kt2, v, F);
+                       ARAP::ddEddF(ddEddF, kt2, v, F);
 
                        Matrix9x12 dFdx = fem::dFdx(Dm_inv);
 
@@ -158,5 +131,5 @@ class StableNeoHookean3D final : public FEM3DConstitution
     }
 };
 
-REGISTER_SIM_SYSTEM(StableNeoHookean3D);
+REGISTER_SIM_SYSTEM(ARAP3D);
 }  // namespace uipc::backend::cuda

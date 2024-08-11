@@ -17,6 +17,7 @@ ConstitutionUIDRegister::ConstitutionUIDRegister()
     create(UIDInfo{.uid = 8, .name = "AffineBody"});
 
     // FiniteElement constitution uids
-    create(UIDInfo{.uid = 9, .name = "FiniteElement::StableNeoHookean"});
+    create(UIDInfo{.uid = 9, .name = "FiniteElement::ARAP"});
+    create(UIDInfo{.uid = 10, .name = "FiniteElement::StableNeoHookean"});
 }
 }  // namespace uipc::builtin

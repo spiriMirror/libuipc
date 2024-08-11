@@ -1,6 +1,5 @@
 #pragma once
-#include <uipc/world/constitution.h>
-#include <uipc/geometry/simplicial_complex.h>
+#include <uipc/constitutions/fem_constitution.h>
 
 namespace uipc::constitution
 {
@@ -18,9 +17,9 @@ class UIPC_CORE_API StableNeoHookeanParms
     Float m_poisson_ratio;
 };
 
-class UIPC_CORE_API StableNeoHookean : public world::IConstitution
+class UIPC_CORE_API StableNeoHookean : public FEMConstitution
 {
-    using Base = world::IConstitution;
+    using Base = FEMConstitution;
 
   public:
     StableNeoHookean(const Json& config = default_config()) noexcept;
@@ -32,9 +31,8 @@ class UIPC_CORE_API StableNeoHookean : public world::IConstitution
     static Json default_config() noexcept;
 
   protected:
-    virtual U64                     get_uid() const noexcept override;
-    virtual std::string_view        get_name() const noexcept override;
-    virtual world::ConstitutionType get_type() const noexcept override;
+    virtual U64              get_uid() const noexcept override;
+    virtual std::string_view get_name() const noexcept override;
 
   private:
     Json m_config;

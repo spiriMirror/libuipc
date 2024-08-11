@@ -4,7 +4,7 @@
 
 namespace uipc::backend::cuda
 {
-namespace sym::arap
+namespace sym::arap_3d
 {
     constexpr double sqrt2 =
         1.4142135623730950488016887242096980785696718753769480731766797379907324784621070388503875343276;
@@ -26,7 +26,7 @@ namespace sym::arap
 
     // Function to compute the gradient of the ARAP energy
     template <typename T>
-    __host__ __device__ void dEdq(Eigen::Vector<T, 9>&          gradient,
+    __host__ __device__ void dEdF(Eigen::Vector<T, 9>&          gradient,
                                   const T&                      kappa,
                                   const T&                      v,
                                   const Eigen::Matrix<T, 3, 3>& F)
@@ -39,13 +39,11 @@ namespace sym::arap
 
         Eigen::Matrix<T, 3, 3> dPsi_dF = 2 * (F - R);
 
-        for(int i = 0; i < 3; ++i)
-        {
-            for(int j = 0; j < 3; ++j)
-            {
-                gradient(i * 3 + j) = kappa * v * dPsi_dF(i, j);
-            }
-        }
+        T kv = kappa * v;
+
+        gradient.segment<3>(0) = kv * dPsi_dF.col(0);
+        gradient.segment<3>(3) = kv * dPsi_dF.col(1);
+        gradient.segment<3>(6) = kv * dPsi_dF.col(2);
     }
 
     // Function to flatten a matrix into a vector
@@ -102,7 +100,7 @@ namespace sym::arap
 
     // Function to compute the Hessian of the ARAP energy
     template <typename T>
-    __host__ __device__ void ddEddq(Eigen::Matrix<T, 9, 9>&       hessian,
+    __host__ __device__ void ddEddF(Eigen::Matrix<T, 9, 9>&       hessian,
                                     const T&                      kappa,
                                     const T&                      v,
                                     const Eigen::Matrix<T, 3, 3>& F)
@@ -110,5 +108,5 @@ namespace sym::arap
         ARAP_Hessian(hessian, F);
         hessian *= kappa * v;
     }
-}  // namespace sym::arap
+}  // namespace sym::arap_3d
 }  // namespace uipc::backend::cuda

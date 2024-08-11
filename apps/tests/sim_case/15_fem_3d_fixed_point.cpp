@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <fstream>
 
-TEST_CASE("13_fem_3d_gravity", "[fem]")
+TEST_CASE("15_fem_3d_fixed_point", "[fem]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
@@ -24,7 +24,7 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
     auto config = Scene::default_config();
 
     config["gravity"]                   = Vector3{0, -9.8, 0};
-    config["contact"]["enable"]         = false;  // disable contact
+    config["contact"]["enable"]         = true;
     config["line_search"]["max_iter"]   = 8;
     config["linear_system"]["tol_rate"] = 1e-3;
 
@@ -57,8 +57,13 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
         label_surface(mesh);
         label_triangle_orient(mesh);
 
-        auto parm = StableNeoHookeanParms::EP(1e5, 0.499);
+        auto parm = StableNeoHookeanParms::EP(5e4, 0.499);
         snk.apply_to(mesh, parm, 1e3);
+
+        auto is_fixed = mesh.vertices().find<IndexT>(builtin::is_fixed);
+
+        view(*is_fixed)[1] = 1;
+        view(*is_fixed)[3] = 1;
 
         object->geometries().create(mesh);
     }

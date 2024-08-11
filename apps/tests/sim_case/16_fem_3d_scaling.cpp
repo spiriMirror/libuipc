@@ -5,7 +5,7 @@
 #include <filesystem>
 #include <fstream>
 
-TEST_CASE("13_fem_3d_gravity", "[fem]")
+TEST_CASE("16_fem_3d_scaling", "[fem]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
@@ -23,8 +23,8 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
 
     auto config = Scene::default_config();
 
-    config["gravity"]                   = Vector3{0, -9.8, 0};
-    config["contact"]["enable"]         = false;  // disable contact
+    config["gravity"]                   = Vector3{0, 0, 0};
+    config["contact"]["enable"]         = true;
     config["line_search"]["max_iter"]   = 8;
     config["linear_system"]["tol_rate"] = 1e-3;
 
@@ -49,8 +49,6 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
                                Vector3{-std::sqrt(3) / 2, 0, -0.5},
                                Vector3{std::sqrt(3) / 2, 0, -0.5}};
 
-        std::transform(
-            Vs.begin(), Vs.end(), Vs.begin(), [&](auto& v) { return v; });
 
         auto mesh = tetmesh(Vs, Ts);
 
@@ -60,7 +58,18 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
         auto parm = StableNeoHookeanParms::EP(1e5, 0.499);
         snk.apply_to(mesh, parm, 1e3);
 
-        object->geometries().create(mesh);
+        SimplicialComplex rest_mesh = mesh;
+
+        auto pos_view = view(rest_mesh.positions());
+
+        for(auto&& v : pos_view)
+        {
+            v *= 0.6;
+        }
+
+        auto is_fixed = mesh.vertices().find<IndexT>(builtin::is_fixed);
+
+        object->geometries().create(mesh, rest_mesh);
     }
 
     world.init(scene);
