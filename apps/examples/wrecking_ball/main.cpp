@@ -1,7 +1,7 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <filesystem>
 #include <fstream>
 #include <numbers>
@@ -46,7 +46,8 @@ int main()
 
 
         // create constitution and contact model
-        auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
+        AffineBodyConstitution abd;
+        scene.constitution_tabular().insert(abd);
         auto& default_contact = scene.contact_tabular().default_element();
         scene.contact_tabular().default_model(0.5, 10.0_GPa);
 
@@ -119,8 +120,8 @@ int main()
             SimplicialComplex this_mesh     = mesh;
             view(this_mesh.transforms())[0] = t.matrix();
 
-            auto is_fixed_view = this_mesh.instances().find<IndexT>(builtin::is_fixed);
-            view(*is_fixed_view)[0] = is_fixed;
+            auto is_fixed_attr = this_mesh.instances().find<IndexT>(builtin::is_fixed);
+            view(*is_fixed_attr)[0] = is_fixed;
 
             obj.geometries().create(this_mesh);
         };

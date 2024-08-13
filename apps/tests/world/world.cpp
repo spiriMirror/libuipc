@@ -5,7 +5,7 @@
 #include <uipc/world/world.h>
 #include <uipc/engine/i_engine.h>
 #include <uipc/geometry.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <uipc/common/unit.h>
 
 using namespace uipc;
@@ -41,8 +41,8 @@ TEST_CASE("simple_world", "[world]")
 
     Scene scene;
 
-    auto& constitution_tabular = scene.constitution_tabular();
-    auto& abd = constitution_tabular.create<AffineBodyConstitution>();
+    AffineBodyConstitution abd;
+    scene.constitution_tabular().insert(abd);
 
     auto& contact_tabular = scene.contact_tabular();
     auto  default_contact = contact_tabular.default_element();

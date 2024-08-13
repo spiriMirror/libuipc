@@ -7,7 +7,7 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(ABDLinearSubsystem);
 
-void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
+void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
 {
     m_impl.affine_body_dynamics        = &require<AffineBodyDynamics>();
     m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();

@@ -32,7 +32,8 @@ class AssetDir:
             os.makedirs(output_dir)
         return str(output_dir)
     
-
+    def folder(file):
+        return pathlib.Path(file).absolute().parent
 
 with open(f'{AssetDir._output_path}/build_info.json') as f:
     build_info = json.load(f)

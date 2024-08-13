@@ -14,10 +14,15 @@ class Codim0DConstitution : public FiniteElementConstitution
     };
 
   protected:
-    virtual void   do_build(BuildInfo& info) = 0;
-    virtual IndexT get_dimension() const override;
+    virtual void do_build(BuildInfo& info){};
 
   private:
+    friend class FiniteElementMethod;
+    void retrieve(FiniteElementMethod::Codim0DFilteredInfo& info);
     virtual void do_build(FiniteElementConstitution::BuildInfo& info) override final;
+    virtual IndexT get_dimension() const override final;
+    virtual void do_compute_energy(FiniteElementMethod::ComputeEnergyInfo& info) override final;
+    virtual void do_compute_gradient_hessian(
+        FiniteElementMethod::ComputeGradientHessianInfo& info) override final;
 };
 }  // namespace uipc::backend::cuda

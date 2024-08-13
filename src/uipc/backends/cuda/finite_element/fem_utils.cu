@@ -2,7 +2,7 @@
 #include <muda/ext/eigen/inverse.h>
 #include <Eigen/Geometry>
 
-namespace uipc::backend::cuda
+namespace uipc::backend::cuda::fem
 {
 MUDA_GENERIC Float invariant2(const Matrix3x3& F)
 {

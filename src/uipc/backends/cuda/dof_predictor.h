@@ -9,13 +9,20 @@ class DoFPredictor : public SimSystem
     class PredictInfo
     {
       public:
-        Float dt;
+        auto dt() const noexcept { return m_dt; }
+
+      private:
+        friend class DoFPredictor;
+        Float m_dt;
     };
+
+    using ComputeVelocityInfo = PredictInfo;
 
     using SimSystem::SimSystem;
 
     void on_predict(SimSystem& system, std::function<void(PredictInfo&)>&& action);
-    void on_compute_velocity(SimSystem& system, std::function<void(PredictInfo&)>&& action);
+    void on_compute_velocity(SimSystem& system,
+                             std::function<void(ComputeVelocityInfo&)>&& action);
 
   protected:
     void do_build() override;
@@ -27,9 +34,9 @@ class DoFPredictor : public SimSystem
     void predict();           // only be called by SimEngine
     void compute_velocity();  // only be called by SimEngine
 
-    SimActionCollection<void(PredictInfo&)> m_on_predict;
-    SimActionCollection<void(PredictInfo&)> m_on_compute_velocity;
+    SimActionCollection<void(PredictInfo&)>         m_on_predict;
+    SimActionCollection<void(ComputeVelocityInfo&)> m_on_compute_velocity;
 
-    PredictInfo m_predict_info;
+    Float m_dt;
 };
 }  // namespace uipc::backend::cuda

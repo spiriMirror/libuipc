@@ -10,11 +10,9 @@ AffineBodyDynamics::FilteredInfo::FilteredInfo(Impl* impl) noexcept
 
 AffineBodyDynamics::ComputeEnergyInfo::ComputeEnergyInfo(Impl* impl,
                                                          SizeT constitution_index,
-                                                         muda::VarView<Float> shape_energy,
                                                          Float dt) noexcept
     : m_impl(impl)
     , m_constitution_index(constitution_index)
-    , m_shape_energy(shape_energy)
     , m_dt(dt)
 {
 }
@@ -69,6 +67,10 @@ muda::CBufferView<Vector12> AffineBodyDynamics::ComputeEnergyInfo::qs() const no
 muda::CBufferView<Float> AffineBodyDynamics::ComputeEnergyInfo::volumes() const noexcept
 {
     return m_impl->subview(m_impl->body_id_to_volume, m_constitution_index);
+}
+muda::BufferView<Float> AffineBodyDynamics::ComputeEnergyInfo::body_shape_energies() const noexcept
+{
+    return m_impl->subview(m_impl->body_id_to_shape_energy, m_constitution_index);
 }
 muda::CBufferView<Vector12> AffineBodyDynamics::ComputeGradientHessianInfo::qs() const noexcept
 {

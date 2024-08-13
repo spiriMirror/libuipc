@@ -53,9 +53,9 @@ PyObject::PyObject(py::module& m)
                              return std::make_pair(geo, rest_geo);
                          });
 
-    class_Geometries.def("ids",
-                         [](Object::Geometries& self) {
-                             return as_numpy(std::move(self).ids(), py::cast(self));
-                         });
+    class_Geometries.def(
+        "ids",
+        [](Object::Geometries& self)
+        { return as_numpy(std::move(self).ids(), py::cast(self)); });
 }
 }  // namespace pyuipc::world

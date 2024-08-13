@@ -38,7 +38,7 @@ world = pyuipc.world.World(pyengine)
 scene = pyuipc.world.Scene()
 
 abd = constitution.AffineBodyConstitution()
-scene.constitution_tabular().create(abd)
+scene.constitution_tabular().insert(abd)
 default_element = scene.contact_tabular().default_element()
 
 pre_trans = pyuipc.Matrix4x4.Identity()

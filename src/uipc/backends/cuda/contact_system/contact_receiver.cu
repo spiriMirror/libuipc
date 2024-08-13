@@ -2,7 +2,6 @@
 
 namespace uipc::backend::cuda
 {
-void ContactReceiver::do_build(BuildInfo& info) {}
 void ContactReceiver::do_build()
 {
     auto& global_contact_manager = require<GlobalContactManager>();
@@ -15,6 +14,9 @@ void ContactReceiver::do_build()
 void ContactReceiver::report(GlobalContactManager::ClassifyInfo& info)
 {
     do_report(info);
+
+    if constexpr(uipc::RUNTIME_CHECK)
+        info.sanity_check();
 }
 void ContactReceiver::receive(GlobalContactManager::ClassifiedContactInfo& info)
 {

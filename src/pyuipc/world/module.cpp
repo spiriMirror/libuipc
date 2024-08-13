@@ -2,7 +2,6 @@
 #include <pyuipc/world/object.h>
 #include <pyuipc/world/scene.h>
 #include <pyuipc/world/world.h>
-#include <pyuipc/world/constitution.h>
 #include <pyuipc/world/contact_tabular.h>
 #include <pyuipc/world/constitution_tabular.h>
 #include <pyuipc/world/scene_io.h>

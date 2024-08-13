@@ -2,11 +2,6 @@
 #include <uipc/common/log.h>
 namespace uipc::backend::cuda
 {
-void OffDiagLinearSubsystem::depend_on(DiagLinearSubsystem* L, DiagLinearSubsystem* R)
-{
-    m_l = L;
-    m_r = R;
-}
 void OffDiagLinearSubsystem::do_build()
 {
     auto&     global_linear_system = require<GlobalLinearSystem>();
@@ -17,6 +12,9 @@ void OffDiagLinearSubsystem::do_build()
                 "Did you forget to call BuildInfo::connect() in {}'s do_build()?",
                 this->name());
 
-    global_linear_system.add_subsystem(this, info.m_diag_l, info.m_diag_r);
+    m_l = info.m_diag_l;
+    m_r = info.m_diag_r;
+
+    global_linear_system.add_subsystem(this);
 }
 }  // namespace uipc::backend::cuda

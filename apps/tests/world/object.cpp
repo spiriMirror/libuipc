@@ -8,7 +8,7 @@
 
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/format.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <uipc/geometry/simplicial_complex_slot.h>
 #include <uipc/world/object.h>
 
@@ -20,8 +20,8 @@ using namespace uipc::constitution;
 TEST_CASE("object", "[object]")
 {
     Scene scene;
-    auto& constitution_tabular = scene.constitution_tabular();
-    auto& abd = constitution_tabular.create<AffineBodyConstitution>();
+    AffineBodyConstitution abd;
+    scene.constitution_tabular().insert(abd);
 
     geometry::SimplicialComplexIO io;
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
@@ -44,8 +44,8 @@ TEST_CASE("object", "[object]")
 TEST_CASE("const_object", "[object]")
 {
     Scene scene;
-    auto& constitution_tabular = scene.constitution_tabular();
-    auto& abd = constitution_tabular.create<AffineBodyConstitution>();
+    AffineBodyConstitution abd;
+    scene.constitution_tabular().insert(abd);
 
     geometry::SimplicialComplexIO io;
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));

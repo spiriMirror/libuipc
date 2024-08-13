@@ -174,7 +174,7 @@ void GlobalContactManager::Impl::_distribute()
         classified_hessians.reshape(vertex_count, vertex_count);
 
         // 1) report gradient
-        if(!info.is_empty())
+        if(info.is_diag())
         {
             const auto N = sorted_contact_gradient.doublet_count();
 
@@ -352,6 +352,28 @@ void GlobalContactManager::Impl::loose_resize_entries(muda::DeviceDoubletVector<
 }
 
 
+void GlobalContactManager::ClassifyInfo::sanity_check()
+{
+
+    if(is_diag())
+    {
+        UIPC_ASSERT(m_gradient_i_range.x() <= m_gradient_i_range.y(),
+                    "Diagonal Contact Gradient Range is invalid");
+
+        UIPC_ASSERT(m_hessian_i_range == m_hessian_j_range,
+                    "Diagonal Contact Hessian must have the same i_range and j_range");
+    }
+    else
+    {
+        UIPC_ASSERT(m_gradient_i_range.x() == m_gradient_i_range.y(),
+                    "Off-Diagonal Contact must not have Gradient Part");
+    }
+
+    UIPC_ASSERT(m_hessian_i_range.x() <= m_hessian_i_range.y(),
+                "Contact Hessian Range-i is invalid");
+    UIPC_ASSERT(m_hessian_j_range.x() <= m_hessian_j_range.y(),
+                "Contact Hessian Range-j is invalid");
+}
 }  // namespace uipc::backend::cuda
 
 

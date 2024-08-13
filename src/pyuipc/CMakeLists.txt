@@ -16,7 +16,7 @@ add_subdirectory(common)
 add_subdirectory(engine)
 add_subdirectory(geometry)
 add_subdirectory(world)
-add_subdirectory(constitutions)
+add_subdirectory(constitution)
 add_subdirectory(backend)
 
 # Setup IDE

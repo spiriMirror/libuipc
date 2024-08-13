@@ -5,7 +5,7 @@
 
 namespace uipc::backend::cuda
 {
-class ABDLineSearchReporter final: public LineSearchReporter
+class ABDLineSearchReporter final : public LineSearchReporter
 {
   public:
     using LineSearchReporter::LineSearchReporter;
