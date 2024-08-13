@@ -25,6 +25,7 @@ world = World(engine)
 config = Scene.default_config()
 print(config)
 config['newton']['max_iter'] = 8
+config['contact']['friction']['enable'] = False
 
 scene = Scene(config)
 

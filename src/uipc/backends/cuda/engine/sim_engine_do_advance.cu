@@ -215,11 +215,11 @@ void SimEngine::do_advance()
                         // TODO: Intersection & Inversion Check
                         bool no_inversion = true;
 
-                        spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
-                                     line_search_iter,
-                                     alpha,
-                                     E / E0,
-                                     E0);
+                        //spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
+                        //             line_search_iter,
+                        //             alpha,
+                        //             E / E0,
+                        //             E0);
 
                         bool success = energy_decrease && no_inversion;
                         if(success)
@@ -232,8 +232,8 @@ void SimEngine::do_advance()
 
                     if(line_search_iter >= m_line_searcher->max_iter())
                     {
-                         //m_global_linear_system->dump_linear_system(
-                         //   fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
+                        //m_global_linear_system->dump_linear_system(
+                        //   fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
 
                         spdlog::warn(
                             "Line Search Exits with Max Iteration: {} (Frame={}, Newton={})\n"
