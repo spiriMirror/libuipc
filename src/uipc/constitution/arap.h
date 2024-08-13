@@ -1,11 +1,11 @@
 #pragma once
-#include <uipc/constitutions/fem_constitution.h>
+#include <uipc/constitution/fem_constitution.h>
 
 namespace uipc::constitution
 {
-class UIPC_CORE_API ARAP : public FEMConstitution
+class UIPC_CORE_API ARAP : public FiniteElementConstitution
 {
-    using Base = FEMConstitution;
+    using Base = FiniteElementConstitution;
 
   public:
     ARAP(const Json& config = default_config()) noexcept;

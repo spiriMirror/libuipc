@@ -15,9 +15,7 @@ PyScene::PyScene(py::module& m)
 
 
     // def methods
-    class_Scene.def(py::init([](const Json& config)
-                             { return std::make_unique<Scene>(config); }),
-                    py::arg("config") = Scene::default_config());
+    class_Scene.def(py::init<const Json&>(), py::arg("config") = Scene::default_config());
 
     class_Scene.def_static("default_config", &Scene::default_config);
 
@@ -40,7 +38,6 @@ PyScene::PyScene(py::module& m)
         [](Scene& self) -> ConstitutionTabular&
         { return self.constitution_tabular(); },
         py::return_value_policy::reference_internal);
-
 
     class_Objects.def("create",
                       [](Scene::Objects& self, std::string_view name) -> S<Object>

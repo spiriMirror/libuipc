@@ -63,7 +63,7 @@ add_subdirectory(common)
 add_subdirectory(world)
 add_subdirectory(backend)
 add_subdirectory(builtin)
-add_subdirectory(constitutions)
+add_subdirectory(constitution)
 add_subdirectory(engine)
 add_subdirectory(util)
 

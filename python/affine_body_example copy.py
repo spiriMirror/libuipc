@@ -3,29 +3,29 @@ import polyscope as ps
 import polyscope.imgui as psim
 from pyuipc_loader import pyuipc
 from pyuipc_loader import AssetDir
+from pyuipc import Matrix4x4
+from pyuipc.world import *
+from pyuipc.engine import *
+from pyuipc.constitution import *
+from pyuipc.geometry import *
 
-def process_surface(sc: pyuipc.geometry.SimplicialComplex):
-    geometry.label_surface(sc)
-    geometry.label_triangle_orient(sc)
-    sc = geometry.flip_inward_triangles(sc)
+def process_surface(sc: SimplicialComplex):
+    label_surface(sc)
+    label_triangle_orient(sc)
+    sc = flip_inward_triangles(sc)
     return sc
 
-pyuipc.no_debug_info()
-geometry = pyuipc.geometry
-constitution = pyuipc.constitution
 workspace = AssetDir.output_path(__file__)
 
-engine = pyuipc.engine.Engine("cuda", workspace)
-world = pyuipc.world.World(engine)
+engine = Engine("cuda", workspace)
+world = World(engine)
 
-config = pyuipc.world.Scene.default_config()
+config = Scene.default_config()
 print(config)
-config['contact']['d_hat'] = 0.01
-config['newton']['max_iter'] = 4
-scene = pyuipc.world.Scene(config)
+scene = Scene(config)
 
-abd = constitution.AffineBodyConstitution()
-scene.constitution_tabular().create(abd)
+abd = AffineBodyConstitution()
+scene.constitution_tabular().insert(abd)
 scene.contact_tabular().default_model(0.5, 1e9)
 default_element = scene.contact_tabular().default_element()
 
@@ -36,7 +36,7 @@ pre_trans[0,0] = 0.2
 pre_trans[1,1] = 0.2
 pre_trans[2,2] = 0.2
 
-io = geometry.SimplicialComplexIO(pre_trans)
+io = SimplicialComplexIO(pre_trans)
 cube = io.read(f'{AssetDir.tetmesh_path()}/cube.msh')
 cube = process_surface(cube)
 
@@ -47,17 +47,17 @@ object = scene.objects().create("object")
 
 N = 30
 
-trans = pyuipc.Matrix4x4.Identity()
+trans = Matrix4x4.Identity()
 
 for i in range(N):
     trans[0:3, 3] = np.array([0, 0.24 * (i + 1), 0])
-    geometry.view(cube.transforms())[0] = trans
+    view(cube.transforms())[0] = trans
     object.geometries().create(cube)
 
-ground = geometry.ground(0.0)
-object.geometries().create(ground)
+g = ground(0.0)
+object.geometries().create(g)
 
-sio = pyuipc.world.SceneIO(scene)
+sio = SceneIO(scene)
 world.init(scene)
 
 run = False

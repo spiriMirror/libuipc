@@ -3,6 +3,7 @@
 #include <kernel_cout.h>
 #include <muda/ext/eigen.h>
 #include <muda/ext/eigen/evd.h>
+#include <muda/ext/eigen/atomic.h>
 
 namespace uipc::backend::cuda
 {
@@ -90,6 +91,27 @@ namespace detail
 
                 H3x3(offset++).write(L, R, H);
             }
+        }
+    }
+
+    template <int N>
+    __device__ void fill_diag_hessian(muda::Dense1D<Matrix3x3>&          diag,
+                                      const Matrix<Float, 3 * N, 3 * N>& H3Nx3N,
+                                      const Vector<IndexT, N> indices,
+                                      muda::CDense1D<IndexT>& is_fixed)
+        requires(N >= 2)
+    {
+#pragma unroll
+        for(int i = 0; i < N; ++i)
+        {
+            auto      I3 = i * 3;
+            Matrix3x3 H  = H3Nx3N.template block<3, 3>(I3, I3);
+            int       L  = indices(i);
+
+            if(is_fixed(L))
+                continue;
+
+            muda::eigen::atomic_add(diag(i), H);
         }
     }
 
@@ -215,12 +237,14 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
         ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(fem().H3x3s.size(),
-                   [H3x3s   = fem().H3x3s.cviewer().name("H3x3s"),
-                    hessian = dst_H3x3s.subview(offset, N).viewer().name(
-                        "hessian")] __device__(int I) mutable
+                   [H3x3s = fem().H3x3s.cviewer().name("H3x3s"),
+                    hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
+                    diag_hessians = fem().diag_hessians.viewer().name(
+                        "diag_hessian")] __device__(int I) mutable
                    {
                        // Diag
                        hessian(I).write(I, I, H3x3s(I));
+                       diag_hessians(I) = H3x3s(I);
 
                        // cout << "Kinetic hessian: \n" << H3x3s(I) << "\n";
                    });
@@ -240,12 +264,15 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
                    [H6x6s = fem().H6x6s.cviewer().name("H6x6s"),
                     indices = fem().codim_1ds.cviewer().name("codim_1d_indices"),
                     hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
-                    is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+                    is_fixed      = fem().is_fixed.cviewer().name("is_fixed"),
+                    diag_hessians = fem().diag_hessians.viewer().name(
+                        "diag_hessian")] __device__(int I) mutable
                    {
                        // fill hessian
                        Matrix6x6 H = H6x6s(I);
                        detail::make_spd<6>(H);
                        detail::fill_hessian<2>(I, hessian, H, indices(I), is_fixed);
+                       detail::fill_diag_hessian<2>(diag_hessians, H, indices(I), is_fixed);
                    });
 
         offset += N;
@@ -261,12 +288,15 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
                    [H9x9s = fem().H9x9s.cviewer().name("H9x9s"),
                     indices = fem().codim_2ds.cviewer().name("codim_2d_indices"),
                     hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
-                    is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+                    is_fixed      = fem().is_fixed.cviewer().name("is_fixed"),
+                    diag_hessians = fem().diag_hessians.viewer().name(
+                        "diag_hessian")] __device__(int I) mutable
                    {
                        // fill hessian
                        Matrix9x9 H = H9x9s(I);
                        detail::make_spd<9>(H);
                        detail::fill_hessian<3>(I, hessian, H, indices(I), is_fixed);
+                       detail::fill_diag_hessian<3>(diag_hessians, H, indices(I), is_fixed);
                    });
 
         offset += N;
@@ -282,12 +312,15 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
                    [H12x12s = fem().H12x12s.cviewer().name("H12x12s"),
                     indices = fem().tets.cviewer().name("tets"),
                     hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
-                    is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+                    is_fixed      = fem().is_fixed.cviewer().name("is_fixed"),
+                    diag_hessians = fem().diag_hessians.viewer().name(
+                        "diag_hessian")] __device__(int I) mutable
                    {
                        // fill hessian
                        Matrix12x12 H = H12x12s(I);
                        detail::make_spd<12>(H);
                        detail::fill_hessian<4>(I, hessian, H, indices(I), is_fixed);
+                       detail::fill_diag_hessian<4>(diag_hessians, H, indices(I), is_fixed);
                    });
 
         offset += N;
@@ -305,7 +338,9 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
                    [contact_hessian = contact().contact_hessian.cviewer().name("contact_hessian"),
                     hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
                     vertex_offset = finite_element_vertex_reporter->vertex_offset(),
-                    is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+                    is_fixed      = fem().is_fixed.cviewer().name("is_fixed"),
+                    diag_hessians = fem().diag_hessians.viewer().name(
+                        "diag_hessian")] __device__(int I) mutable
                    {
                        const auto& [g_i, g_j, H3] = contact_hessian(I);
                        auto i                     = g_i - vertex_offset;
@@ -318,6 +353,9 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
                        else
                        {
                            hessian(I).write(i, j, H3);
+
+                           if(i == j)
+                               muda::eigen::atomic_add(diag_hessians(i), H3);
                        }
                    });
 

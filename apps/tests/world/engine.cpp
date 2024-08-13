@@ -6,7 +6,7 @@
 #include <uipc/engine/i_engine.h>
 #include <uipc/engine/engine.h>
 #include <uipc/geometry.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <fstream>
 
 using namespace uipc;
@@ -25,8 +25,8 @@ void test_engine(std::string_view name)
 
     Scene scene;
 
-    auto& constitution_tabular = scene.constitution_tabular();
-    auto& abd = constitution_tabular.create<AffineBodyConstitution>();
+    AffineBodyConstitution abd;
+    scene.constitution_tabular().insert(abd);
 
     auto& contact_tabular = scene.contact_tabular();
     auto& default_contact = contact_tabular.default_element();

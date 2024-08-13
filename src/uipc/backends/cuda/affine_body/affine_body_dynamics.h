@@ -121,7 +121,7 @@ class AffineBodyDynamics : public SimSystem
 
     void add_constitution(AffineBodyConstitution* constitution);
 
-    void after_build_geometry(SimSystem& sim_system, std::function<void()>&& action);
+    // void after_build_geometry(SimSystem& sim_system, std::function<void()>&& action);
 
   protected:
     virtual void do_build() override;
@@ -175,7 +175,6 @@ class AffineBodyDynamics : public SimSystem
         SizeT body_count() const noexcept { return h_body_infos.size(); }
 
       public:
-        SimActionCollection<void()>                     after_build_geometry;
         SimSystemSlotCollection<AffineBodyConstitution> constitutions;
 
         // core invariant data
@@ -334,6 +333,21 @@ class AffineBodyDynamics : public SimSystem
         BufferDump dump_q_v;
         BufferDump dump_q_prev;
     };
+
+  public:
+    /**
+     * @brief affine body local vertex id to ABD Jacobi matrix
+     */
+    auto Js() const noexcept { return m_impl.vertex_id_to_J.view(); }
+    /**
+     * @brief affine body local vertex id to body id
+     */
+    auto v2b() const noexcept { return m_impl.vertex_id_to_body_id.view(); }
+
+    auto body_is_fixed() const noexcept
+    {
+        return m_impl.body_id_to_is_fixed.view();
+    }
 
   private:
     friend class AffineBodyVertexReporter;

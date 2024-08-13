@@ -1,5 +1,5 @@
 #include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 
 class NullEngine : public uipc::engine::IEngine
 {
@@ -26,7 +26,8 @@ int main()
     Scene      scene;
     {
         // create constitution and contact model
-        auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
+        AffineBodyConstitution abd;
+        scene.constitution_tabular().insert(abd);
         auto default_contact = scene.contact_tabular().default_element();
 
         // create geometry

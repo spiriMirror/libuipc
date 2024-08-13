@@ -1,6 +1,6 @@
 #include <pyuipc/world/constitution_tabular.h>
 #include <uipc/world/constitution_tabular.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <pybind11/stl.h>
 #include <pyuipc/as_numpy.h>
 namespace pyuipc::world
@@ -13,11 +13,7 @@ PyConstitutionTabular::PyConstitutionTabular(py::module& m)
 
     class_ConstitutionTabular.def(py::init<>());
 
-    class_ConstitutionTabular.def(
-        "create",
-        [](ConstitutionTabular& self, constitution::AffineBodyConstitution& affine_body) {
-            return self.create<constitution::AffineBodyConstitution>(affine_body);
-        });
+    class_ConstitutionTabular.def("insert", &ConstitutionTabular::insert);
 
     class_ConstitutionTabular.def("uids",
                                   [](ConstitutionTabular& self) {

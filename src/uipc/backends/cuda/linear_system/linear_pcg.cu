@@ -5,13 +5,12 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(LinearPCG);
 
-void LinearPCG::do_build()
+void LinearPCG::do_build(BuildInfo& info)
 {
     auto& global_linear_system = require<GlobalLinearSystem>();
-    global_linear_system.add_solver(this);
 
     // TODO: get info from the scene, now we just use the default value
-    max_iter_ratio = 2;
+    max_iter_ratio  = 2;
     global_tol_rate = world().scene().info()["linear_system"]["tol_rate"];
     spdlog::info("LinearPCG: max_iter_ratio = {}, tol_rate = {}", max_iter_ratio, global_tol_rate);
 }

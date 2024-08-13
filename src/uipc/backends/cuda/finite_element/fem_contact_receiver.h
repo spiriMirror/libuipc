@@ -20,6 +20,9 @@ class FEMContactReceiver final : public ContactReceiver
         muda::CTripletMatrixView<Float, 3> contact_hessian;
     };
 
+    auto contact_graidient() const noexcept { return m_impl.contact_gradient; }
+    auto contact_hessian() const noexcept { return m_impl.contact_hessian; }
+
   protected:
     virtual void do_build(ContactReceiver::BuildInfo& info) override;
 

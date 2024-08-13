@@ -1,6 +1,6 @@
 #include <affine_body/affine_body_surface_reporter.h>
 #include <uipc/builtin/attribute_name.h>
-
+#include <global_geometry/global_vertex_manager.h>
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(AffinebodySurfaceReporter);
@@ -9,9 +9,10 @@ void AffinebodySurfaceReporter::do_build()
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
     auto& global_surf_manager   = require<GlobalSimpicialSurfaceManager>();
+    auto& global_vertex_manager = require<GlobalVertexManager>();
     m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
 
-    m_impl.affine_body_dynamics->after_build_geometry(
+    global_vertex_manager.after_init_vertex_info(
         *this, [this] { m_impl.init_surface(world()); });
     global_surf_manager.add_reporter(this);
 }

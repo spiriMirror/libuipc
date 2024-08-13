@@ -1,7 +1,7 @@
-#include <uipc/constitutions/arap.h>
+#include <uipc/constitution/arap.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
 #include <uipc/builtin/attribute_name.h>
-#include <uipc/constitutions/conversion.h>
+#include <uipc/constitution/conversion.h>
 #include <uipc/common/log.h>
 
 namespace uipc::constitution

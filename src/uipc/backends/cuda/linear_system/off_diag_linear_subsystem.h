@@ -35,7 +35,6 @@ class OffDiagLinearSubsystem : public SimSystem
     friend class GlobalLinearSystem;
     DiagLinearSubsystem* m_l = nullptr;
     DiagLinearSubsystem* m_r = nullptr;
-    void         depend_on(DiagLinearSubsystem* L, DiagLinearSubsystem* R);
-    virtual void do_build() final override;
+    virtual void         do_build() final override;
 };
 }  // namespace uipc::backend::cuda

@@ -1,4 +1,4 @@
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <uipc/builtin/constitution_uid_register.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
@@ -44,9 +44,9 @@ std::string_view AffineBodyConstitution::get_name() const noexcept
     return builtin::ConstitutionUIDRegister::instance().find(get_uid()).name;
 }
 
-world::ConstitutionType AffineBodyConstitution::get_type() const noexcept
+ConstitutionType AffineBodyConstitution::get_type() const noexcept
 {
-    return world::ConstitutionType::AffineBody;
+    return ConstitutionType::AffineBody;
 }
 
 void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const

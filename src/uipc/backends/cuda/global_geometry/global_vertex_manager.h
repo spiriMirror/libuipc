@@ -108,6 +108,8 @@ class GlobalVertexManager : public SimSystem
      */
     AABB vertex_bounding_box() const noexcept;
 
+    void after_init_vertex_info(SimSystem& system, std::function<void()>&& action);
+
   public:
     class Impl
     {
@@ -153,6 +155,7 @@ class GlobalVertexManager : public SimSystem
         muda::DeviceVar<Vector3> max_pos;
 
         SimSystemSlotCollection<VertexReporter> vertex_reporters;
+        SimActionCollection<void()>             after_init_vertex_info;
 
         vector<SizeT> reporter_vertex_offsets;
         vector<SizeT> reporter_vertex_counts;

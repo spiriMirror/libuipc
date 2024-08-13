@@ -1,7 +1,7 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <filesystem>
 #include <fstream>
 
@@ -32,13 +32,13 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
     {
         // create constitution and contact model
 
-        auto& abd_ortho = scene.constitution_tabular().create<AffineBodyConstitution>(
-            AffineBodyConstitution::default_config());
+        AffineBodyConstitution abd_ortho;
+        scene.constitution_tabular().insert(abd_ortho);
 
         Json config    = AffineBodyConstitution::default_config();
         config["name"] = "ARAP";
-        auto& abd_arap =
-            scene.constitution_tabular().create<AffineBodyConstitution>(config);
+        AffineBodyConstitution abd_arap{config};
+        scene.constitution_tabular().insert(abd_arap);
 
         auto& contact_tabular = scene.contact_tabular();
         auto& default_contact = contact_tabular.default_element();

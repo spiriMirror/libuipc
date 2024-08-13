@@ -1,8 +1,8 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitutions/stable_neo_hookean.h>
-#include <uipc/constitutions/arap.h>
+#include <uipc/constitution/stable_neo_hookean.h>
+#include <uipc/constitution/arap.h>
 #include <filesystem>
 #include <fstream>
 
@@ -27,7 +27,7 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
     config["gravity"]                      = Vector3{0, -9.8, 0};
     config["contact"]["enable"]            = true;
     config["line_search"]["max_iter"]      = 8;
-    config["linear_system"]["tol_rate"]    = 1e-8;
+    config["linear_system"]["tol_rate"]    = 1e-3;
     config["line_search"]["report_energy"] = false;
 
     {  // dump config
@@ -40,9 +40,10 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
     Scene scene{config};
     {
         // create constitution and contact model
-        auto& snk  = scene.constitution_tabular().create<StableNeoHookean>();
-        auto& arap = scene.constitution_tabular().create<ARAP>();
-
+        StableNeoHookean snk;
+        scene.constitution_tabular().insert(snk);
+        ARAP arap;
+        scene.constitution_tabular().insert(arap);
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
         auto& default_element = scene.contact_tabular().default_element();
 
@@ -60,7 +61,7 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
         label_surface(mesh);
         label_triangle_orient(mesh);
 
-        auto parm = StableNeoHookeanParms::EP(10.0_kPa, 0.49);
+        auto parm = ElasticModuli::youngs_poisson(10.0_kPa, 0.49);
         snk.apply_to(mesh, parm);
 
         object->geometries().create(mesh);

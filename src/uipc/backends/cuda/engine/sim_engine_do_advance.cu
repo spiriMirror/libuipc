@@ -86,6 +86,7 @@ void SimEngine::do_advance()
             //        return cfl_alpha;
             //    }
             //}
+
             return alpha;
         };
 
@@ -100,7 +101,7 @@ void SimEngine::do_advance()
                     return ccd_alpha;
                 }
             }
-            // return ccd_alpha;
+
             return alpha;
         };
 
@@ -194,7 +195,7 @@ void SimEngine::do_advance()
 
                     // Compute Current Energy => E_0
                     Float E0 = m_line_searcher->compute_energy(true);  // initial energy
-                    spdlog::info("Initial Energy: {}", E0);
+                    // spdlog::info("Initial Energy: {}", E0);
 
                     // CCD filter
                     alpha = filter_toi(alpha);
@@ -231,8 +232,9 @@ void SimEngine::do_advance()
 
                     if(line_search_iter >= m_line_searcher->max_iter())
                     {
-                        m_global_linear_system->dump_linear_system(
-                            fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
+                         //m_global_linear_system->dump_linear_system(
+                         //   fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
+
                         spdlog::warn(
                             "Line Search Exits with Max Iteration: {} (Frame={}, Newton={})\n"
                             "E/E0: {}, E1/E0: {}, E0:{}",

@@ -25,7 +25,7 @@ void AffineBodyDynamics::do_build()
 {
     const auto& scene = world().scene();
     auto&       types = scene.constitution_tabular().types();
-    if(types.find(world::ConstitutionType::AffineBody) == types.end())
+    if(types.find(constitution::ConstitutionType::AffineBody) == types.end())
     {
         throw SimSystemException("No AffineBodyConstitution found in the scene");
     }
@@ -87,13 +87,6 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
     // set the temp index, later we will sort constitution by uid
     // and reset the index
     m_impl.constitutions.register_subsystem(*constitution);
-}
-
-void AffineBodyDynamics::after_build_geometry(SimSystem& sim_system,
-                                              std::function<void()>&& action)
-{
-    check_state(SimEngineState::BuildSystems, "after_build_body_infos()");
-    m_impl.after_build_geometry.register_action(sim_system, std::move(action));
 }
 
 void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
@@ -177,19 +170,19 @@ void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
                            });
 
     // 4) setup the vertex offset, vertex_count
-    vector<SizeT> vertex_count(h_body_infos.size());
-    vector<SizeT> vertex_offset(h_body_infos.size());
+    vector<SizeT> vertex_count(h_body_infos.size() + 1, 0);
+    vector<SizeT> vertex_offset(h_body_infos.size() + 1);
     std::ranges::transform(h_body_infos,
                            vertex_count.begin(),
                            [&](const BodyInfo& info) -> SizeT
                            { return info.m_vertex_count; });
 
     std::exclusive_scan(vertex_count.begin(), vertex_count.end(), vertex_offset.begin(), 0);
-    abd_vertex_count = vertex_offset.back() + vertex_count.back();
-    for(auto&& [info, count, offset] : zip(h_body_infos, vertex_count, vertex_offset))
+    abd_vertex_count = vertex_offset.back();
+    for(auto&& [i, info] : enumerate(h_body_infos))
     {
-        info.m_vertex_count  = count;
-        info.m_vertex_offset = offset;
+        info.m_vertex_count  = vertex_count[i];
+        info.m_vertex_offset = vertex_offset[i];
     }
 }
 
@@ -202,8 +195,8 @@ void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
 
     // 1) setup h_abd_geo_body_offsets and h_abd_geo_body_counts
     {
-        h_abd_geo_body_offsets.resize(abd_geo_count);
-        h_abd_geo_body_counts.resize(abd_geo_count);
+        h_abd_geo_body_offsets.resize(abd_geo_count + 1);
+        h_abd_geo_body_counts.resize(abd_geo_count + 1);
 
         std::ranges::fill(h_abd_geo_body_counts, 0);
 
@@ -221,6 +214,9 @@ void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
                     abd_body_count,
                     h_abd_geo_body_offsets.back(),
                     h_abd_geo_body_counts.back());
+
+        h_abd_geo_body_offsets.resize(abd_geo_count);
+        h_abd_geo_body_counts.resize(abd_geo_count);
     }
 
     // 2) setup h_constitution_geo_offsets and h_constitution_geo_counts
@@ -545,9 +541,6 @@ void AffineBodyDynamics::Impl::init(WorldVisitor& world)
     _build_geometry_on_host(world);
     _build_geometry_on_device(world);
     _distribute_body_infos();
-
-    for(auto&& action : after_build_geometry.view())
-        action();
 }
 
 //void AffineBodyDynamics::Impl::_build_subsystems(WorldVisitor& world)

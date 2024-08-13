@@ -69,7 +69,7 @@ class GlobalContactManager final : public SimSystem
 
       public:
         /**
-         * @brief The range of contact hessian i,j
+         * @brief The range of contact hessian i,j, and gradient range is empty. (Off-diagnonal)
          * 
          * $$ i \in [LBegin, LEnd) $$, $$ j \in [RBegin, REnd) $$. 
          * Contact hessian $H_{ij}$ will be passed to the reporter later.
@@ -77,29 +77,33 @@ class GlobalContactManager final : public SimSystem
          * @param LRange LRange=[LBegin, LEnd)
          * @param RRange RRange=[RBegin, REnd)
          */
-        void hessian_range(const Vector2i& LRange, const Vector2i& RRange)
+        void range(const Vector2i& LRange, const Vector2i& RRange)
         {
-            m_type            = Type::Range;
-            m_hessian_i_range = LRange;
-            m_hessian_j_range = RRange;
+            m_type             = Type::Range;
+            m_hessian_i_range  = LRange;
+            m_hessian_j_range  = RRange;
+            m_gradient_i_range = Vector2i::Zero();
         }
 
         /**
-         * @brief The range of contact gradient i
+         * @brief The range of contact hessian and gradient. (Diagnonal)
          * 
          * $$ i \in [Begin, End) $$.
          * Contact gradient $G_{i}$ will be passed to the reporter later.
          * 
          * @param Range Range=[Begin, End)
          */
-        void gradient_range(const Vector2i& Range)
+        void range(const Vector2i& Range)
         {
             m_type             = Type::Range;
             m_gradient_i_range = Range;
+            m_hessian_i_range  = Range;
+            m_hessian_j_range  = Range;
         }
 
       private:
         friend class Impl;
+        friend class ContactReceiver;
         Vector2i m_hessian_i_range  = {0, 0};
         Vector2i m_hessian_j_range  = {0, 0};
         Vector2i m_gradient_i_range = {0, 0};
@@ -108,9 +112,15 @@ class GlobalContactManager final : public SimSystem
         bool is_empty() const
         {
             return m_hessian_i_range[0] == m_hessian_i_range[1]
-                   || m_hessian_j_range[0] == m_hessian_j_range[1]
-                   || m_gradient_i_range[0] == m_gradient_i_range[1];
+                   || m_hessian_j_range[0] == m_hessian_j_range[1];
         }
+
+        bool is_diag() const
+        {
+            return m_gradient_i_range[0] != m_gradient_i_range[1];
+        }
+
+        void sanity_check();
     };
 
     class ClassifiedContactInfo
@@ -127,6 +137,7 @@ class GlobalContactManager final : public SimSystem
 
       private:
         friend class Impl;
+        friend class ContactReceiver;
         muda::CDoubletVectorView<Float, 3> m_gradient;
         muda::CTripletMatrixView<Float, 3> m_hessian;
     };

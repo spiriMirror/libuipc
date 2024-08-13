@@ -136,7 +136,6 @@ class FiniteElementMethod : public SimSystem
         // core invariant data:
         vector<GeoInfo>                                    geo_infos;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
-        SimActionCollection<void()>                        after_build_geometry;
 
         // related data:
         std::array<DimInfo, 4> dim_infos;
@@ -185,7 +184,6 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Float>    rest_volumes;
 
         // Vertex Attributes:
-
         muda::DeviceBuffer<IndexT>  is_fixed;  // Vertex Fixed
         muda::DeviceBuffer<Vector3> x_bars;    // Rest Positions
         muda::DeviceBuffer<Vector3> xs;        // Positions
@@ -195,6 +193,7 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Vector3> x_tildes;  // Predicted Positions
         muda::DeviceBuffer<Vector3> x_prevs;   // Positions at last frame
         muda::DeviceBuffer<Float>   masses;    // Mass
+        muda::DeviceBuffer<Matrix3x3> diag_hessians;  // Diagonal Hessian
 
         //tex:
         // FEM3D Material Basis
@@ -264,7 +263,35 @@ class FiniteElementMethod : public SimSystem
 
   public:
     void add_constitution(FiniteElementConstitution* constitution);
-    void after_build_geometry(SimSystem& system, std::function<void()>&& action);
+
+    // public data accessors:
+    auto codim_0ds() const noexcept { return m_impl.codim_0ds.view(); }
+    auto codim_1ds() const noexcept { return m_impl.codim_1ds.view(); }
+    auto codim_2ds() const noexcept { return m_impl.codim_2ds.view(); }
+    auto tets() const noexcept { return m_impl.tets.view(); }
+
+    auto is_fixed() const noexcept { return m_impl.is_fixed.view(); }
+    auto x_bars() const noexcept { return m_impl.x_bars.view(); }
+    auto xs() const noexcept { return m_impl.xs.view(); }
+    auto dxs() const noexcept { return m_impl.dxs.view(); }
+    auto x_temps() const noexcept { return m_impl.x_temps.view(); }
+    auto vs() const noexcept { return m_impl.vs.view(); }
+    auto x_tildes() const noexcept { return m_impl.x_tildes.view(); }
+    auto x_prevs() const noexcept { return m_impl.x_prevs.view(); }
+    auto masses() const noexcept { return m_impl.masses.view(); }
+
+    auto diag_hessians() const noexcept { return m_impl.diag_hessians.view(); }
+
+    auto Dm3x3_invs() const noexcept { return m_impl.Dm3x3_invs.view(); }
+
+    auto G3s() const noexcept { return m_impl.G3s.view(); }
+    auto H3x3s() const noexcept { return m_impl.H3x3s.view(); }
+    auto G6s() const noexcept { return m_impl.G6s.view(); }
+    auto H6x6s() const noexcept { return m_impl.H6x6s.view(); }
+    auto G9s() const noexcept { return m_impl.G9s.view(); }
+    auto H9x9s() const noexcept { return m_impl.H9x9s.view(); }
+    auto G12s() const noexcept { return m_impl.G12s.view(); }
+    auto H12x12s() const noexcept { return m_impl.H12x12s.view(); }
 
   private:
     friend class FiniteElementVertexReporter;

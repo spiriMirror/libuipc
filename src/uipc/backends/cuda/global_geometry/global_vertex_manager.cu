@@ -12,12 +12,13 @@ namespace uipc::backend::cuda
 void GlobalVertexManager::Impl::init_vertex_info()
 {
     auto vertex_reporter_view = vertex_reporters.view();
+
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
         R->m_index = i;
 
     auto N = vertex_reporter_view.size();
-    reporter_vertex_counts.resize(N);
-    reporter_vertex_offsets.resize(N);
+    reporter_vertex_counts.resize(N + 1);  // +1 for total count
+    reporter_vertex_offsets.resize(N + 1);
 
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
     {
@@ -31,9 +32,7 @@ void GlobalVertexManager::Impl::init_vertex_info()
                         reporter_vertex_counts.end(),
                         reporter_vertex_offsets.begin(),
                         0);
-    SizeT total_count = 0;
-    if(!reporter_vertex_counts.empty())
-        total_count = reporter_vertex_offsets.back() + reporter_vertex_counts.back();
+    SizeT total_count = reporter_vertex_offsets[N];
 
     // resize buffers
     coindices.resize(total_count);
@@ -60,6 +59,11 @@ void GlobalVertexManager::Impl::init_vertex_info()
     prev_positions = positions;
 
     axis_max_disp = 0.0;
+
+    for(auto&& [i, callback] : enumerate(after_init_vertex_info.view()))
+    {
+        callback();
+    }
 }
 
 void GlobalVertexManager::Impl::rebuild_vertex_info()
@@ -368,5 +372,12 @@ void GlobalVertexManager::record_start_point()
 AABB GlobalVertexManager::vertex_bounding_box() const noexcept
 {
     return m_impl.vertex_bounding_box;
+}
+
+void GlobalVertexManager::after_init_vertex_info(SimSystem&              system,
+                                                 std::function<void()>&& action)
+{
+    check_state(SimEngineState::BuildSystems, "after_build_body_infos()");
+    m_impl.after_init_vertex_info.register_action(system, std::move(action));
 }
 }  // namespace uipc::backend::cuda

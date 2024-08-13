@@ -10,8 +10,9 @@ void FiniteElementSurfaceReporter::do_build()
     m_impl.finite_element_method = &require<FiniteElementMethod>();
     auto& global_surf_manager    = require<GlobalSimpicialSurfaceManager>();
     m_impl.finite_element_vertex_reporter = &require<FiniteElementVertexReporter>();
+    auto& global_vertex_manager = require<GlobalVertexManager>();
 
-    m_impl.finite_element_method->after_build_geometry(
+    global_vertex_manager.after_init_vertex_info(
         *this, [this] { m_impl.init_surface(world()); });
     global_surf_manager.add_reporter(this);
 }
@@ -35,7 +36,7 @@ void FiniteElementSurfaceReporter::Impl::init_surface(backend::WorldVisitor& wor
     std::ranges::fill(geo_surf_triangle_counts, 0);
 
     // for every geometry count the surf vertices, edges and triangles
-    for(auto& geo_info : geo_infos)
+    for(auto&& [i, geo_info] : enumerate(geo_infos))
     {
         auto geo_slot = geo_slots[geo_info.geo_slot_index];
 
@@ -51,7 +52,7 @@ void FiniteElementSurfaceReporter::Impl::init_surface(backend::WorldVisitor& wor
                 std::ranges::count_if(view,
                                       [](IndexT is_surf) { return is_surf; });
 
-            geo_surf_vertex_counts[geo_info.geo_slot_index] = count;
+            geo_surf_vertex_counts[i] = count;
         }
 
         auto edge_is_surf = sc->edges().find<IndexT>(builtin::is_surf);
@@ -62,7 +63,7 @@ void FiniteElementSurfaceReporter::Impl::init_surface(backend::WorldVisitor& wor
                 std::ranges::count_if(view,
                                       [](IndexT is_surf) { return is_surf; });
 
-            geo_surf_edge_counts[geo_info.geo_slot_index] = count;
+            geo_surf_edge_counts[i] = count;
         }
 
         auto tri_is_surf = sc->triangles().find<IndexT>(builtin::is_surf);
@@ -73,7 +74,7 @@ void FiniteElementSurfaceReporter::Impl::init_surface(backend::WorldVisitor& wor
                 std::ranges::count_if(view,
                                       [](IndexT is_surf) { return is_surf; });
 
-            geo_surf_triangle_counts[geo_info.geo_slot_index] = count;
+            geo_surf_triangle_counts[i] = count;
         }
     }
 

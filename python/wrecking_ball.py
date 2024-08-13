@@ -4,13 +4,15 @@ import json
 import polyscope.imgui as psim
 from pyuipc_loader import pyuipc
 from pyuipc_loader import AssetDir
-
-geometry = pyuipc.geometry
-constitution = pyuipc.constitution
+from pyuipc import Matrix3x3, Matrix4x4, Logger
+from pyuipc.world import *
+from pyuipc.engine import *
+from pyuipc.constitution import *
+from pyuipc.geometry import *
 
 def rotate_x(angle):
     A = angle[0]
-    I = pyuipc.Matrix3x3.Identity()
+    I = Matrix3x3.Identity()
     I[0,0] = np.cos(A)
     I[0,1] = -np.sin(A)
     I[1,0] = np.sin(A)
@@ -19,7 +21,7 @@ def rotate_x(angle):
 
 def rotate_y(angle):
     A = angle[0]
-    I = pyuipc.Matrix3x3.Identity()
+    I = Matrix3x3.Identity()
     I[0,0] = np.cos(A)
     I[0,2] = np.sin(A)
     I[2,0] = -np.sin(A)
@@ -28,39 +30,39 @@ def rotate_y(angle):
 
 def rotate_z(angle):
     A = angle[0]
-    I = pyuipc.Matrix3x3.Identity()
+    I = Matrix3x3.Identity()
     I[1,1] = np.cos(A)
     I[1,2] = -np.sin(A)
     I[2,1] = np.sin(A)
     I[2,2] = np.cos(A)
     return I
 
-def process_surface(sc: pyuipc.geometry.SimplicialComplex):
-    geometry.label_surface(sc)
-    geometry.label_triangle_orient(sc)
-    sc = geometry.flip_inward_triangles(sc)
+def process_surface(sc: SimplicialComplex):
+    label_surface(sc)
+    label_triangle_orient(sc)
+    sc = flip_inward_triangles(sc)
     return sc
 
-pyuipc.no_debug_info()
+Logger.set_level(Logger.Level.Warn)
 workspace = AssetDir.output_path(__file__)
 folder = AssetDir.folder(__file__)
 
-engine = pyuipc.engine.Engine("cuda", workspace)
-world = pyuipc.world.World(engine)
+engine = Engine("cuda", workspace)
+world = World(engine)
 
-config = pyuipc.world.Scene.default_config()
+config = Scene.default_config()
 config["contact"]["d_hat"]              = 0.01
 config["line_search"]["max_iter"]       = 8
 print(config)
 
-scene = pyuipc.world.Scene(config)
-abd = constitution.AffineBodyConstitution()
-scene.constitution_tabular().create(abd)
+scene = Scene(config)
+abd = AffineBodyConstitution()
+scene.constitution_tabular().insert(abd)
 scene.contact_tabular().default_model(0.5, 1e10)
 default_contact = scene.contact_tabular().default_element()
 
 pre_trans = pyuipc.Matrix4x4.Identity()
-io = geometry.SimplicialComplexIO(pre_trans)
+io = SimplicialComplexIO(pre_trans)
 
 
 f = open(f'{folder}/wrecking_ball.json')
@@ -88,7 +90,7 @@ default_contact.apply_to(ball)
 abd.apply_to(link, 1e7)
 default_contact.apply_to(link)
 
-def build_mesh(json, obj:pyuipc.world.Object, mesh:geometry.SimplicialComplex):
+def build_mesh(json, obj:Object, mesh:SimplicialComplex):
     position = pyuipc.Vector3.Zero()
     if "position" in json:
         position[0] = json["position"][0]
@@ -114,10 +116,10 @@ def build_mesh(json, obj:pyuipc.world.Object, mesh:geometry.SimplicialComplex):
     trans_matrix[0:3, 3] = position.reshape(3)
     
     this_mesh = mesh.copy()
-    geometry.view(this_mesh.transforms())[0] = trans_matrix
+    view(this_mesh.transforms())[0] = trans_matrix
     
     is_fixed_attr = this_mesh.instances().find("is_fixed")
-    geometry.view(is_fixed_attr)[0] = is_fixed
+    view(is_fixed_attr)[0] = is_fixed
     
     obj.geometries().create(this_mesh)
 
@@ -129,64 +131,51 @@ for obj in wrecking_ball_scene:
     elif obj['mesh'] == 'cube.msh':
         build_mesh(obj, cube_obj, cube)
 
-pre_trans = pyuipc.Matrix4x4.Identity()
+pre_trans = Matrix4x4.Identity()
 pre_trans[0,0] = 20
 pre_trans[1,1] = 0.2
 pre_trans[2,2] = 20
 
-io = geometry.SimplicialComplexIO(pre_trans)
-ground = io.read(f'{tetmesh_dir}/cube.msh')
-geometry.label_surface(ground)
-geometry.label_triangle_orient(ground)
+io = SimplicialComplexIO(pre_trans)
+g = io.read(f'{tetmesh_dir}/cube.msh')
+process_surface(g)
 
-trans_matrix = pyuipc.Matrix4x4.Identity()
+trans_matrix = Matrix4x4.Identity()
 trans_matrix[0:3, 3] = np.array([12, -1.1, 0])
-geometry.view(ground.transforms())[0] = trans_matrix
-abd.apply_to(ground, 1e7)
+view(g.transforms())[0] = trans_matrix
+abd.apply_to(g, 1e7)
 
-is_fixed = ground.instances().find("is_fixed")
-geometry.view(is_fixed)[0] = 1
+is_fixed = g.instances().find("is_fixed")
+view(is_fixed)[0] = 1
 
 ground_obj = scene.objects().create("ground")
-ground_obj.geometries().create(ground)
+ground_obj.geometries().create(g)
 
-sio = pyuipc.world.SceneIO(scene)
+sio = SceneIO(scene)
 world.init(scene)
 
+ps.init()
+ps.set_ground_plane_mode('none')
+
+s = sio.surface()
+v = s.positions().view()
+t = s.triangles().topo().view()
+mesh = ps.register_surface_mesh('obj', v.reshape(-1,3), t.reshape(-1,3))
+mesh.set_edge_width(1.0)
+
 run = False
-use_gui = True
-if use_gui:
-    ps.init()
-    ps.set_ground_plane_mode('none')
-    
-    s = sio.surface()
-    v = s.positions().view()
-    t = s.triangles().topo().view()
-    mesh = ps.register_surface_mesh('obj', v.reshape(-1,3), t.reshape(-1,3))
-    mesh.set_edge_width(1.0)
-    
-    def on_update():
-        global run
-        if(psim.Button("run & stop")):
-            run = not run
-            
-        if(run):
-            world.advance()
-            world.retrieve()
-            s = sio.surface()
-            v = s.positions().view()
-            mesh.update_vertex_positions(v.reshape(-1,3))
-    
-    ps.set_user_callback(on_update)
-    ps.show()
-else:
-    # try recover from the previous state
-    sio.write_surface(f'{workspace}/scene_surface{0}.obj')
-    world.recover()
-    while(world.frame() < 1000):
+def on_update():
+    global run
+    if(psim.Button("run & stop")):
+        run = not run
+        
+    if(run):
         world.advance()
         world.retrieve()
-        sio.write_surface(f'{workspace}/scene_surface{world.frame()}.obj')
-        world.dump()
+        s = sio.surface()
+        v = s.positions().view()
+        mesh.update_vertex_positions(v.reshape(-1,3))
 
+ps.set_user_callback(on_update)
+ps.show()
 

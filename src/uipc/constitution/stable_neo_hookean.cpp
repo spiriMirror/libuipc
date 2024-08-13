@@ -1,7 +1,7 @@
-#include <uipc/constitutions/stable_neo_hookean.h>
+#include <uipc/constitution/stable_neo_hookean.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
 #include <uipc/builtin/attribute_name.h>
-#include <uipc/constitutions/conversion.h>
+#include <uipc/constitution/conversion.h>
 #include <uipc/common/log.h>
 
 namespace uipc::constitution
@@ -9,13 +9,13 @@ namespace uipc::constitution
 StableNeoHookean::StableNeoHookean(const Json& config) noexcept {}
 
 void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc,
-                                const StableNeoHookeanParms& parms,
+                                const ElasticModuli&         moduli,
                                 Float                        mass_density) const
 {
     Base::apply_to(sc, mass_density);
 
-    auto mu     = parms.m_mu;
-    auto lambda = parms.m_lambda;
+    auto mu     = moduli.mu();
+    auto lambda = moduli.lambda();
 
     UIPC_ASSERT(sc.dim() == 3, "Now StableNeoHookean only supports 3D simplicial complex");
 
@@ -43,32 +43,5 @@ U64 StableNeoHookean::get_uid() const noexcept
 std::string_view StableNeoHookean::get_name() const noexcept
 {
     return builtin::ConstitutionUIDRegister::instance().find(get_uid()).name;
-}
-
-StableNeoHookeanParms StableNeoHookeanParms::EG(Float E, Float G)
-{
-    StableNeoHookeanParms parms;
-    EG_to_lame(E, G, parms.m_lambda, parms.m_mu, parms.m_poisson_ratio);
-    return parms;
-}
-
-StableNeoHookeanParms StableNeoHookeanParms::ML(Float mu, Float lambda)
-{
-    StableNeoHookeanParms parms;
-    parms.m_mu     = mu;
-    parms.m_lambda = lambda;
-    lame_to_poisson(parms.m_lambda, parms.m_mu, parms.m_poisson_ratio);
-    return parms;
-}
-StableNeoHookeanParms StableNeoHookeanParms::EP(Float E, Float poisson)
-{
-    StableNeoHookeanParms parms;
-    if(poisson == 0.5)
-    {
-        throw Exception("Poission Rate can't be 0.5");
-    }
-    parms.m_poisson_ratio = poisson;
-    EP_to_lame(E, poisson, parms.m_lambda, parms.m_mu);
-    return parms;
 }
 }  // namespace uipc::constitution

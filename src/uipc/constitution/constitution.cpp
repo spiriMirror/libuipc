@@ -1,7 +1,7 @@
-#include <uipc/world/constitution.h>
+#include <uipc/constitution/constitution.h>
 #include <uipc/builtin/attribute_name.h>
 
-namespace uipc::world
+namespace uipc::constitution
 {
 U64 IConstitution::uid() const noexcept
 {
@@ -27,4 +27,4 @@ void IConstitution::apply_to(geometry::Geometry& geo) const
     else
         geometry::view(*P).front() = uid();
 }
-}  // namespace uipc::world
+}  // namespace uipc::constitution

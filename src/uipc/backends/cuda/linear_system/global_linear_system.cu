@@ -330,6 +330,8 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
                     .submatrix(int2{r_blocked_dof_offset, l_blocked_dof_offset},
                                int2{r_blocked_dof_count, l_blocked_dof_count});
 
+            spdlog::info("rl_offset: {}, lr_offset: {}", rl_triplet_offset, lr_triplet_offset);
+
             off_diag_subsystem->assemble(info);
         }
     }
@@ -460,14 +462,9 @@ void GlobalLinearSystem::add_subsystem(DiagLinearSubsystem* subsystem)
     m_impl.diag_subsystems.register_subsystem(*subsystem);
 }
 
-void GlobalLinearSystem::add_subsystem(OffDiagLinearSubsystem* subsystem,
-                                       DiagLinearSubsystem*    depend_l,
-                                       DiagLinearSubsystem*    depend_r)
+void GlobalLinearSystem::add_subsystem(OffDiagLinearSubsystem* subsystem)
 {
     check_state(SimEngineState::BuildSystems, "add_subsystem()");
-    UIPC_ASSERT(depend_l != nullptr && depend_r != nullptr,
-                "The depend_l and depend_r should not be nullptr.");
-    subsystem->depend_on(depend_l, depend_r);
     m_impl.off_diag_subsystems.register_subsystem(*subsystem);
 }
 
@@ -475,17 +472,13 @@ void GlobalLinearSystem::add_solver(IterativeSolver* solver)
 {
     check_state(SimEngineState::BuildSystems, "add_solver()");
     UIPC_ASSERT(solver != nullptr, "The solver should not be nullptr.");
-    solver->m_system = this;
     m_impl.iterative_solver.register_subsystem(*solver);
 }
 
-void GlobalLinearSystem::add_preconditioner(LocalPreconditioner* preconditioner,
-                                            DiagLinearSubsystem* depend_subsystem)
+void GlobalLinearSystem::add_preconditioner(LocalPreconditioner* preconditioner)
 {
     check_state(SimEngineState::BuildSystems, "add_preconditioner()");
     UIPC_ASSERT(preconditioner != nullptr, "The preconditioner should not be nullptr.");
-    UIPC_ASSERT(depend_subsystem != nullptr, "The depend_subsystem should not be nullptr.");
-    preconditioner->m_subsystem = depend_subsystem;
     m_impl.local_preconditioners.register_subsystem(*preconditioner);
 }
 

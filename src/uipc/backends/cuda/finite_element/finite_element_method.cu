@@ -31,18 +31,11 @@ void FiniteElementMethod::add_constitution(FiniteElementConstitution* constituti
     m_impl.constitutions.register_subsystem(*constitution);
 }
 
-void FiniteElementMethod::after_build_geometry(SimSystem&              system,
-                                               std::function<void()>&& action)
-{
-    check_state(SimEngineState::BuildSystems, "after_build_geometry()");
-    m_impl.after_build_geometry.register_action(system, std::move(action));
-}
-
 void FiniteElementMethod::do_build()
 {
     const auto& scene = world().scene();
     auto&       types = scene.constitution_tabular().types();
-    if(types.find(world::ConstitutionType::FiniteElement) == types.end())
+    if(types.find(constitution::ConstitutionType::FiniteElement) == types.end())
     {
         throw SimSystemException("No Finite Element Constitution found in the scene");
     }
@@ -74,9 +67,6 @@ void FiniteElementMethod::Impl::init(WorldVisitor& world)
     _build_on_host(world);
     _build_on_device();
     _distribute_constitution_filtered_info();
-
-    for(auto&& action : after_build_geometry.view())
-        action();
 }
 
 void FiniteElementMethod::Impl::_init_constitutions()
@@ -344,10 +334,14 @@ void FiniteElementMethod::Impl::_build_constitution_infos()
         vector<SizeT> primitive_offsets(infos.size(), 0);
         vector<SizeT> geometry_offsets(infos.size(), 0);
 
-        SizeT       dim_geo_offset    = dim_info.geo_info_offset;
-        const auto& begin_geo         = geo_infos[dim_geo_offset];
-        SizeT       dim_vertex_offset = begin_geo.vertex_offset;
+        SizeT dim_geo_offset    = dim_info.geo_info_offset;
+        SizeT dim_vertex_offset = 0;
 
+        if(geo_infos.size() > 0)
+        {
+            const auto& begin_geo         = geo_infos[dim_geo_offset];
+            SizeT       dim_vertex_offset = begin_geo.vertex_offset;
+        }
 
         std::exclusive_scan(vertex_counts.begin(),
                             vertex_counts.end(),
@@ -545,6 +539,8 @@ void FiniteElementMethod::Impl::_build_on_device()
 
     masses.resize(h_masses.size());
     masses.view().copy_from(h_masses.data());
+
+    diag_hessians.resize(xs.size());
 
     // 2) Elements
     codim_0ds.resize(h_codim_0ds.size());
