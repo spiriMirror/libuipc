@@ -25,6 +25,7 @@ void SimplexFrictionalContact::do_build()
     on_init_scene(
         [this]
         {
+            // Ensure that SimplexTrajectoryFilter is already registered in GlobalTrajectoryFilter.
             m_impl.simplex_trajectory_filter =
                 m_impl.global_trajectory_filter->find<SimplexTrajectoryFilter>();
         });
