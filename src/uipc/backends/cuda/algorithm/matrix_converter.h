@@ -11,7 +11,7 @@ class MatrixConverter
     using BlockMatrix   = muda::DeviceTripletMatrix<T, N>::BlockMatrix;
     using SegmentVector = muda::DeviceDoubletVector<T, N>::SegmentVector;
 
-    Float reserve_ratio = 1.5;
+    Float m_reserve_ratio = 1.5;
 
     muda::DeviceBuffer<int> col_counts_per_row;
     muda::DeviceBuffer<int> unique_indices;
@@ -41,6 +41,10 @@ class MatrixConverter
     muda::DeviceBuffer<int> sorted_partition_output;
 
   public:
+    void  reserve_ratio(Float ratio) { m_reserve_ratio = ratio; }
+    Float reserve_ratio() const { return m_reserve_ratio; }
+
+
     // Triplet -> BCOO
     void convert(const muda::DeviceTripletMatrix<T, N>& from,
                  muda::DeviceBCOOMatrix<T, N>&          to);
@@ -82,7 +86,7 @@ class MatrixConverter
     void loose_resize(muda::DeviceBuffer<U>& buf, size_t new_size)
     {
         if(buf.capacity() < new_size)
-            buf.reserve(new_size * reserve_ratio);
+            buf.reserve(new_size * m_reserve_ratio);
         buf.resize(new_size);
     }
 

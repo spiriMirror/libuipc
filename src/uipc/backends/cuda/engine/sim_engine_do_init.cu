@@ -1,11 +1,10 @@
 #include <sim_engine.h>
 #include <uipc/common/log.h>
 #include <log_pattern_guard.h>
-#include <global_geometry/global_surface_manager.h>
+#include <global_geometry/global_simplicial_surface_manager.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <contact_system/global_contact_manager.h>
-#include <collision_detection/global_dcd_filter.h>
-#include <collision_detection/global_ccd_filter.h>
+#include <collision_detection/global_trajectory_filter.h>
 #include <dof_predictor.h>
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
@@ -26,10 +25,9 @@ void SimEngine::build()
     m_gradient_hessian_computer = &require<GradientHessianComputer>();
     m_global_linear_system      = &require<GlobalLinearSystem>();
 
-    m_global_surface_manager = find<GlobalSimpicialSurfaceManager>();
-    m_global_contact_manager = find<GlobalContactManager>();
-    m_global_dcd_filter      = find<GlobalDCDFilter>();
-    m_global_ccd_filter      = find<GlobalCCDFilter>();
+    m_global_surface_manager   = find<GlobalSimpicialSurfaceManager>();
+    m_global_contact_manager   = find<GlobalContactManager>();
+    m_global_trajectory_filter = find<GlobalTrajectoryFilter>();
 
     // 3) dump system info
     dump_system_info();
@@ -37,19 +35,17 @@ void SimEngine::build()
 
 void SimEngine::init_scene()
 {
-    auto& info        = m_world_visitor->scene().info();
-    m_newton_tol      = info["newton"]["tolerance"];
-    m_newton_max_iter = info["newton"]["max_iter"];
-    Vector3 gravity   = info["gravity"];
-    Float   dt        = info["dt"];
+    auto& info            = m_world_visitor->scene().info();
+    m_newton_velocity_tol = info["newton"]["velocity_tol"];
+    m_newton_max_iter     = info["newton"]["max_iter"];
+    Vector3 gravity       = info["gravity"];
+    Float   dt            = info["dt"];
 
-    m_abs_tol = gravity.norm() * dt * dt / 2;
-    if(m_abs_tol == 0.0)
-        m_abs_tol = std::numeric_limits<Float>::max();
+    m_abs_tol = m_newton_velocity_tol * dt;
 
-    m_on_init_scene.init();
-    m_on_rebuild_scene.init();
-    m_on_write_scene.init();
+    [[maybe_unuse]] m_on_init_scene.view();
+    [[maybe_unuse]] m_on_rebuild_scene.view();
+    [[maybe_unuse]] m_on_write_scene.view();
 
     event_init_scene();
 

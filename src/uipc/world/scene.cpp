@@ -1,5 +1,5 @@
 #include <uipc/world/scene.h>
-
+#include <uipc/common/unit.h>
 namespace uipc::world
 {
 // ----------------------------------------------------------------------------
@@ -11,13 +11,15 @@ Json Scene::default_config() noexcept
     j["dt"]      = 0.01;
     j["gravity"] = Vector3{0.0, -9.8, 0.0};
 
-    j["newton"]["tolerance"] = 1e-2;
-    j["newton"]["max_iter"]  = 1024;
+    j["newton"]["use_adaptive_tol"] = false;
+    j["newton"]["velocity_tol"]     = 0.05_m / 1.0_s;
+    j["newton"]["max_iter"]         = 1024;
 
-    j["linear_system"]["solver"] = "linear_pcg";
+    j["linear_system"]["tol_rate"] = 1e-3;
+    j["linear_system"]["solver"]   = "linear_pcg";
 
     j["line_search"]["report_energy"] = false;
-    j["line_search"]["max_iter"]      = 64;
+    j["line_search"]["max_iter"]      = 8;
 
     j["contact"]["enable"]             = true;
     j["contact"]["friction"]["enable"] = true;
@@ -90,13 +92,13 @@ void Scene::solve_pending() noexcept
 // ----------------------------------------------------------------------------
 // Objects
 // ----------------------------------------------------------------------------
-P<Object> Scene::Objects::create(std::string_view name) &&
+S<Object> Scene::Objects::create(std::string_view name) &&
 {
     auto id = m_scene.m_impl.objects.m_next_id;
     return m_scene.m_impl.objects.emplace(Object{m_scene, id, name});
 }
 
-P<Object> Scene::Objects::find(IndexT id) && noexcept
+S<Object> Scene::Objects::find(IndexT id) && noexcept
 {
     return m_scene.m_impl.objects.find(id);
 }
@@ -133,7 +135,7 @@ SizeT Scene::Objects::size() const noexcept
     return m_scene.m_impl.objects.size();
 }
 
-P<const Object> Scene::CObjects::find(IndexT id) && noexcept
+S<const Object> Scene::CObjects::find(IndexT id) && noexcept
 {
     return m_scene.m_impl.objects.find(id);
 }

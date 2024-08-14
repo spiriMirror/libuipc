@@ -3,9 +3,9 @@
 
 #include <uipc/world/scene.h>
 #include <uipc/world/world.h>
-#include <uipc/engine/engine.h>
+#include <uipc/engine/i_engine.h>
 #include <uipc/geometry.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <Eigen/Geometry>
 // #include <uipc/world/scene_io.h>
 #include <uipc/util/io/scene_io.h>

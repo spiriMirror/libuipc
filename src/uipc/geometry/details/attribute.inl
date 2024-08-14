@@ -1,4 +1,5 @@
 #include <uipc/common/json_eigen.h>
+#include <uipc/common/type_traits.h>
 
 namespace uipc::geometry
 {
@@ -7,6 +8,36 @@ Attribute<T>::Attribute(const T& default_value) noexcept
     : m_values{}
     , m_default_value{default_value}
 {
+    //if constexpr(is_matrix_v<T>)
+    //{
+    //    using Matrix = T;
+    //    using Scalar = typename Matrix::Scalar;
+    //    // view it as a 3-order tensor
+    //    int64_t stride_2 = Matrix::OuterStrideAtCompileTime;
+    //    int64_t stride_3 = Matrix::InnerStrideAtCompileTime;
+    //    int64_t M        = Matrix::RowsAtCompileTime;
+    //    int64_t N        = Matrix::ColsAtCompileTime;
+
+    //    constexpr bool rowMajor = Matrix::Flags & Eigen::RowMajorBit;
+
+    //    if(!rowMajor)
+    //        std::swap(stride_2, stride_3);
+
+    //    m_buffer_info.itemsize = sizeof(Scalar);
+
+    //    m_buffer_info.shape   = {(int64_t)m_values.size(), M, N};
+    //    m_buffer_info.strides = {(int64_t)sizeof(Matrix),
+    //                             stride_2 * (int64_t)sizeof(Scalar),
+    //                             stride_3 * (int64_t)sizeof(Scalar)};
+    //}
+    //else
+    //{
+    //    m_buffer_info.itemsize = sizeof(T);
+    //    m_buffer_info.shape.resize(1);
+    //    m_buffer_info.shape[0] = 0;
+    //    m_buffer_info.strides.resize(1);
+    //    m_buffer_info.strides[0] = sizeof(T);
+    //}
 }
 
 template <typename T>
@@ -92,4 +123,12 @@ Json Attribute<T>::do_to_json(SizeT i) const noexcept
     }
     return j;
 }
+
+//template <typename T>
+//const BufferInfo& Attribute<T>::buffer_info() const noexcept
+//{
+//    m_buffer_info.data     = (void*)m_values.data();
+//    m_buffer_info.shape[0] = m_values.size();
+//    return m_buffer_info;
+//}
 }  // namespace uipc::geometry

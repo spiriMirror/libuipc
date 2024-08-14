@@ -2,7 +2,7 @@ namespace uipc::geometry
 {
 template <std::derived_from<geometry::Geometry> GeometryT>
     requires(!std::is_abstract_v<GeometryT>)
-P<geometry::GeometrySlotT<GeometryT>> GeometryCollection::emplace(const GeometryT& geometry)
+S<geometry::GeometrySlotT<GeometryT>> GeometryCollection::emplace(const GeometryT& geometry)
 {
     m_dirty = true;
 
@@ -16,7 +16,7 @@ P<geometry::GeometrySlotT<GeometryT>> GeometryCollection::emplace(const Geometry
 }
 template <std::derived_from<geometry::Geometry> GeometryT>
     requires(!std::is_abstract_v<GeometryT>)
-P<geometry::GeometrySlotT<GeometryT>> GeometryCollection::pending_emplace(const GeometryT& geometry)
+S<geometry::GeometrySlotT<GeometryT>> GeometryCollection::pending_emplace(const GeometryT& geometry)
 {
     m_dirty = true;
 
@@ -30,13 +30,13 @@ P<geometry::GeometrySlotT<GeometryT>> GeometryCollection::pending_emplace(const 
 }
 
 template <std::derived_from<geometry::Geometry> GeometryT>
-P<geometry::GeometrySlotT<GeometryT>> GeometryCollection::find(IndexT id) noexcept
+S<geometry::GeometrySlotT<GeometryT>> GeometryCollection::find(IndexT id) noexcept
 {
     return std::dynamic_pointer_cast<geometry::GeometrySlotT<GeometryT>>(find(id));
 }
 
 template <std::derived_from<geometry::Geometry> GeometryT>
-P<const geometry::GeometrySlotT<GeometryT>> GeometryCollection::find(IndexT id) const noexcept
+S<const geometry::GeometrySlotT<GeometryT>> GeometryCollection::find(IndexT id) const noexcept
 {
     return std::dynamic_pointer_cast<geometry::GeometrySlotT<GeometryT>>(find(id));
 }

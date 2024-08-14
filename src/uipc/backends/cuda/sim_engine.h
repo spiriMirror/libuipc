@@ -10,8 +10,7 @@ namespace uipc::backend::cuda
 class GlobalVertexManager;
 class GlobalSimpicialSurfaceManager;
 class GlobalContactManager;
-class GlobalDCDFilter;
-class GlobalCCDFilter;
+class GlobalTrajectoryFilter;
 
 class DoFPredictor;
 class LineSearcher;
@@ -34,14 +33,18 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
     SimEngineState state() const noexcept;
 
   protected:
-    virtual void do_init(backend::WorldVisitor v) override;
-    virtual void do_advance() override;
-    virtual void do_sync() override;
-    virtual void do_retrieve() override;
+    virtual void  do_init(backend::WorldVisitor v) override;
+    virtual void  do_advance() override;
+    virtual void  do_sync() override;
+    virtual void  do_retrieve() override;
+    virtual SizeT get_frame() const override;
+    virtual bool  do_dump() override;
+    virtual bool  do_recover() override;
 
   private:
     void build();
     void init_scene();
+    void dump_global_surface(std::string_view name);
 
     DeviceImpl&       device_impl() noexcept;
     U<DeviceImpl>     m_device_impl;
@@ -57,13 +60,13 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
     SimActionCollection<void()> m_on_write_scene;
     void                        event_write_scene();
 
+
   private:
     // Aware Top Systems
-    GlobalVertexManager*           m_global_vertex_manager  = nullptr;
-    GlobalSimpicialSurfaceManager* m_global_surface_manager = nullptr;
-    GlobalContactManager*          m_global_contact_manager = nullptr;
-    GlobalDCDFilter*               m_global_dcd_filter      = nullptr;
-    GlobalCCDFilter*               m_global_ccd_filter      = nullptr;
+    GlobalVertexManager*           m_global_vertex_manager    = nullptr;
+    GlobalSimpicialSurfaceManager* m_global_surface_manager   = nullptr;
+    GlobalContactManager*          m_global_contact_manager   = nullptr;
+    GlobalTrajectoryFilter*        m_global_trajectory_filter = nullptr;
 
     DoFPredictor*            m_dof_predictor             = nullptr;
     LineSearcher*            m_line_searcher             = nullptr;
@@ -71,10 +74,10 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
     GlobalLinearSystem*      m_global_linear_system      = nullptr;
 
 
-    Float m_abs_tol              = 0.0;
-    Float m_newton_tol           = 1e-3;
-    SizeT m_newton_max_iter      = 1000;
-    SizeT m_line_search_max_iter = 64;
-    SizeT m_current_frame        = 0;
+    Float m_abs_tol             = 0.0;
+    Float m_newton_velocity_tol = 0.01;
+    Float m_newton_scene_tol    = 0.01;
+    SizeT m_newton_max_iter     = 1000;
+    SizeT m_current_frame       = 0;
 };
 }  // namespace uipc::backend::cuda

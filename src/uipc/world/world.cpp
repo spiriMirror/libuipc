@@ -54,6 +54,41 @@ void World::retrieve()
     m_engine->retrieve();
 }
 
+bool World::dump()
+{
+    if(!m_valid)
+    {
+        spdlog::error("World is not valid, skipping dump.");
+        return false;
+    }
+    return m_engine->dump();
+}
+
+bool World::recover()
+{
+    if(!m_scene)
+    {
+        spdlog::warn("Scene has not been set, skipping recover. Hint: you may call World::init() first.");
+        return false;
+    }
+    if(!m_valid)
+    {
+        spdlog::error("World is not valid, skipping recover.");
+        return false;
+    }
+    return m_engine->recover();
+}
+
+SizeT World::frame() const
+{
+    if(!m_valid)
+    {
+        spdlog::error("World is not valid, frame set to 0.");
+        return 0;
+    }
+    return m_engine->frame();
+}
+
 void World::sanity_check(Scene& s)
 {
     if(s.info()["sanity_check"]["enable"] == true)

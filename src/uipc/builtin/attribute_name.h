@@ -33,7 +33,6 @@ UIPC_BUILTIN_ATTRIBUTE(constitution_uid);
  */
 UIPC_BUILTIN_ATTRIBUTE(implicit_geometry_uid);
 
-
 /**
  * @brief `is_surf` attribute on vertices/edges/triangles/tetrahedra... to indicate if the element is a surface element.
  */

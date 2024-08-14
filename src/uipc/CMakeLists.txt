@@ -24,6 +24,7 @@ target_compile_definitions(uipc PUBLIC
     $<$<CONFIG:RelWithDebInfo>:UIPC_RUNTIME_CHECK=1>)
 target_compile_definitions(uipc PUBLIC 
     $<$<CONFIG:Release>:UIPC_RUNTIME_CHECK=0>)
+target_compile_definitions(uipc PUBLIC UIPC_PROJECT_DIR="${PROJECT_SOURCE_DIR}")
 
 
 # ------------------------------------------------------------------------------
@@ -62,7 +63,7 @@ add_subdirectory(common)
 add_subdirectory(world)
 add_subdirectory(backend)
 add_subdirectory(builtin)
-add_subdirectory(constitutions)
+add_subdirectory(constitution)
 add_subdirectory(engine)
 add_subdirectory(util)
 

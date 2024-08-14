@@ -13,8 +13,9 @@ void ABDContactReceiver::do_report(GlobalContactManager::ClassifyInfo& info)
 {
     auto vertex_offset = m_impl.affine_body_vertex_reporter->vertex_offset();
     auto vertex_count  = m_impl.affine_body_vertex_reporter->vertex_count();
-    info.gradient_range({vertex_offset, vertex_count});
-    info.hessian_range({vertex_offset, vertex_count}, {vertex_offset, vertex_count});
+    auto v_begin       = vertex_offset;
+    auto v_end         = v_begin + vertex_count;
+    info.range({v_begin, v_end});
 }
 
 void ABDContactReceiver::Impl::receive(GlobalContactManager::ClassifiedContactInfo& info)

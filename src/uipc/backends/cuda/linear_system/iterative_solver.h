@@ -2,6 +2,7 @@
 #include <sim_system.h>
 #include <muda/ext/linear_system.h>
 #include <linear_system/global_linear_system.h>
+
 namespace uipc::backend::cuda
 {
 class IterativeSolver : public SimSystem
@@ -9,7 +10,14 @@ class IterativeSolver : public SimSystem
   public:
     using SimSystem::SimSystem;
 
+    class BuildInfo
+    {
+      public:
+    };
+
   protected:
+    virtual void do_build(BuildInfo& info) = 0;
+
     virtual void do_solve(GlobalLinearSystem::SolvingInfo& info) = 0;
 
 
@@ -27,6 +35,8 @@ class IterativeSolver : public SimSystem
   private:
     friend class GlobalLinearSystem;
     GlobalLinearSystem* m_system;
+
+    virtual void do_build() final override;
 
     void solve(GlobalLinearSystem::SolvingInfo& info);
 };

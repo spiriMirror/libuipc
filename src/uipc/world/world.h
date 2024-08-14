@@ -1,6 +1,6 @@
 #pragma once
 #include <uipc/world/scene.h>
-#include <uipc/engine/engine.h>
+#include <uipc/engine/i_engine.h>
 namespace uipc::backend
 {
 class WorldVisitor;
@@ -19,6 +19,10 @@ class UIPC_CORE_API World
     void advance();
     void sync();
     void retrieve();
+    bool dump();
+    bool recover();
+
+    SizeT frame() const;
 
   private:
     Scene*           m_scene  = nullptr;

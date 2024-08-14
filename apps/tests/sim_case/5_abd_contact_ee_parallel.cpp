@@ -1,7 +1,7 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <filesystem>
 #include <fstream>
 
@@ -18,8 +18,8 @@ TEST_CASE("5_abd_contact_ee_parallel", "[abd]")
     auto        this_output_path = AssetDir::output_path(__FILE__);
 
 
-    UIPCEngine engine{"cuda", this_output_path};
-    World      world{engine};
+    Engine engine{"cuda", this_output_path};
+    World  world{engine};
 
     auto config       = Scene::default_config();
     config["gravity"] = Vector3{0, -9.8, 0};
@@ -32,7 +32,8 @@ TEST_CASE("5_abd_contact_ee_parallel", "[abd]")
     Scene scene{config};
     {
         // create constitution and contact model
-        auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
+        AffineBodyConstitution abd;
+        scene.constitution_tabular().insert(abd);
         auto& default_contact = scene.contact_tabular().default_element();
 
         // create object

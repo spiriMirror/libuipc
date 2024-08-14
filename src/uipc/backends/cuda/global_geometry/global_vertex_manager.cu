@@ -11,14 +11,14 @@ namespace uipc::backend::cuda
 {
 void GlobalVertexManager::Impl::init_vertex_info()
 {
-    vertex_reporters.init();
     auto vertex_reporter_view = vertex_reporters.view();
+
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
         R->m_index = i;
 
     auto N = vertex_reporter_view.size();
-    reporter_vertex_counts.resize(N);
-    reporter_vertex_offsets.resize(N);
+    reporter_vertex_counts.resize(N + 1);  // +1 for total count
+    reporter_vertex_offsets.resize(N + 1);
 
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
     {
@@ -32,17 +32,18 @@ void GlobalVertexManager::Impl::init_vertex_info()
                         reporter_vertex_counts.end(),
                         reporter_vertex_offsets.begin(),
                         0);
+    SizeT total_count = reporter_vertex_offsets[N];
 
-    auto total_count = reporter_vertex_offsets.back() + reporter_vertex_counts.back();
-
-    // resize the global coindices buffer
+    // resize buffers
     coindices.resize(total_count);
     positions.resize(total_count);
     rest_positions.resize(total_count);
     safe_positions.resize(total_count);
     contact_element_ids.resize(total_count, 0);
+    thicknesses.resize(total_count, 0.0);
     displacements.resize(total_count, Vector3::Zero());
     displacement_norms.resize(total_count, 0.0);
+
 
     // create the subviews for each attribute_reporter
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
@@ -56,6 +57,13 @@ void GlobalVertexManager::Impl::init_vertex_info()
     // if not, then copy, otherwise, just use it
     rest_positions = positions;
     prev_positions = positions;
+
+    axis_max_disp = 0.0;
+
+    for(auto&& [i, callback] : enumerate(after_init_vertex_info.view()))
+    {
+        callback();
+    }
 }
 
 void GlobalVertexManager::Impl::rebuild_vertex_info()
@@ -167,6 +175,31 @@ AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
     vertex_bounding_box = AABB{min_pos_host, max_pos_host};
     return vertex_bounding_box;
 }
+
+bool GlobalVertexManager::Impl::dump(DumpInfo& info)
+{
+    auto path = info.dump_path(__FILE__);
+
+    return dump_positions.dump(path + "positions", positions)
+           && dump_prev_positions.dump(path + "prev_positions", prev_positions);
+}
+bool GlobalVertexManager::Impl::try_recover(RecoverInfo& info)
+{
+    auto path = info.dump_path(__FILE__);
+    return dump_positions.load(path + "positions")
+           && dump_prev_positions.load(path + "prev_positions");
+}
+void GlobalVertexManager::Impl::apply_recover(RecoverInfo& info)
+{
+    auto path = info.dump_path(__FILE__);
+    dump_positions.apply_to(positions);
+    dump_prev_positions.apply_to(prev_positions);
+}
+void GlobalVertexManager::Impl::clear_recover(RecoverInfo& info)
+{
+    dump_positions.clean_up();
+    dump_prev_positions.clean_up();
+}
 }  // namespace uipc::backend::cuda
 
 
@@ -196,6 +229,11 @@ GlobalVertexManager::VertexAttributeInfo::VertexAttributeInfo(Impl* impl, SizeT 
 muda::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::rest_positions() const noexcept
 {
     return m_impl->subview(m_impl->rest_positions, m_index);
+}
+
+muda::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::thicknesses() const noexcept
+{
+    return m_impl->subview(m_impl->thicknesses, m_index);
 }
 
 muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::coindices() const noexcept
@@ -230,6 +268,26 @@ muda::CBufferView<IndexT> GlobalVertexManager::VertexDisplacementInfo::coindices
 }
 
 void GlobalVertexManager::do_build() {}
+
+bool GlobalVertexManager::do_dump(DumpInfo& info)
+{
+    return m_impl.dump(info);
+}
+
+bool GlobalVertexManager::do_try_recover(RecoverInfo& info)
+{
+    return m_impl.try_recover(info);
+}
+
+void GlobalVertexManager::do_apply_recover(RecoverInfo& info)
+{
+    m_impl.apply_recover(info);
+}
+
+void GlobalVertexManager::do_clear_recover(RecoverInfo& info)
+{
+    m_impl.clear_recover(info);
+}
 
 void GlobalVertexManager::init_vertex_info()
 {
@@ -314,5 +372,12 @@ void GlobalVertexManager::record_start_point()
 AABB GlobalVertexManager::vertex_bounding_box() const noexcept
 {
     return m_impl.vertex_bounding_box;
+}
+
+void GlobalVertexManager::after_init_vertex_info(SimSystem&              system,
+                                                 std::function<void()>&& action)
+{
+    check_state(SimEngineState::BuildSystems, "after_build_body_infos()");
+    m_impl.after_init_vertex_info.register_action(system, std::move(action));
 }
 }  // namespace uipc::backend::cuda

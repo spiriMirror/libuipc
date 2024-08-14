@@ -18,22 +18,22 @@ void SceneVisitor::solve_pending() noexcept
     m_scene.solve_pending();
 }
 
-span<P<geometry::GeometrySlot>> SceneVisitor::geometries() const noexcept
+span<S<geometry::GeometrySlot>> SceneVisitor::geometries() const noexcept
 {
     return m_scene.m_impl.geometries.geometry_slots();
 }
 
-span<P<geometry::GeometrySlot>> SceneVisitor::pending_geometries() const noexcept
+span<S<geometry::GeometrySlot>> SceneVisitor::pending_geometries() const noexcept
 {
     return m_scene.m_impl.geometries.pending_create_slots();
 }
 
-span<P<geometry::GeometrySlot>> SceneVisitor::rest_geometries() const noexcept
+span<S<geometry::GeometrySlot>> SceneVisitor::rest_geometries() const noexcept
 {
     return m_scene.m_impl.rest_geometries.geometry_slots();
 }
 
-span<P<geometry::GeometrySlot>> SceneVisitor::pending_rest_geometries() const noexcept
+span<S<geometry::GeometrySlot>> SceneVisitor::pending_rest_geometries() const noexcept
 {
     return m_scene.m_impl.rest_geometries.pending_create_slots();
 }

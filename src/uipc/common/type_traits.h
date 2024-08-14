@@ -1,5 +1,6 @@
 #pragma once
 #include <type_traits>
+#include <Eigen/Core>
 
 namespace uipc
 {
@@ -63,4 +64,19 @@ struct signature<R (C::*)(Args...) &&> : signature<R(Args...)>
 
 template <typename Sig>
 using signature_t = typename signature<Sig>::type;
+
+
+template <typename MatrixT>
+class is_matrix : public std::false_type
+{
+};
+
+template <typename MatrixT>
+inline constexpr bool is_matrix_v = is_matrix<MatrixT>::value;
+
+template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
+class is_matrix<Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>>
+    : public std::true_type
+{
+};
 }  // namespace uipc

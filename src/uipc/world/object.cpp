@@ -75,4 +75,8 @@ Object::CGeometries Object::geometries() const noexcept
 {
     return CGeometries{*this};
 }
+
+Object::~Object()
+{
+}
 }  // namespace uipc::world

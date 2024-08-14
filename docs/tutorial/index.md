@@ -4,7 +4,7 @@ Hey there! Welcome to the tutorial section of the Libuipc documentation. This se
 
 ## Hello Libuipc
 
-Let's start with a simple example to get you started with `libuipc`. In this example, we will create a simple simulation using Libuipc.
+This is a simple example to get you started with `libuipc`. In this example, we will create a simple simulation using Libuipc.
 
 First, we include the `uipc.h` header file, which includes most the necessary headers for the `libuipc` library. Then, we use the namespace to make the code more readable:
 
@@ -40,8 +40,8 @@ int main()
     using namespace uipc::constitution;
     using namespace uipc::engine;
 
-    UIPCEngine engine{"cuda"};
-    World      world{engine};
+    Engine engine{"cuda"};
+    World  world{engine};
     auto config = Scene::default_config();
     config["dt"] = 0.01_s;
     config["gravity"] = Vector3{0, -9.8, 0};
@@ -289,5 +289,4 @@ Now you may be interested in the following topics:
 2. [ [Scene](./scene.md) ] How can I understand the scene representation in `libuipc`? 
 
 It's recommended to read the above topics in order, as they are the basic concepts of `libuipc`.
-
 

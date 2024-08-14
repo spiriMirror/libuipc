@@ -1,7 +1,7 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <filesystem>
 #include <fstream>
 
@@ -17,8 +17,8 @@ TEST_CASE("7_abd_tet_pile", "[abd]")
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
     auto        this_output_path = AssetDir::output_path(__FILE__);
 
-    UIPCEngine engine{"cuda", this_output_path};
-    World      world{engine};
+    Engine engine{"cuda", this_output_path};
+    World  world{engine};
 
     auto config       = Scene::default_config();
     config["gravity"] = Vector3{0, -9.8, 0};
@@ -31,7 +31,8 @@ TEST_CASE("7_abd_tet_pile", "[abd]")
     Scene scene{config};
     {
         // create constitution and contact model
-        auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
+        AffineBodyConstitution abd;
+        scene.constitution_tabular().insert(abd);
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
         auto& default_contact = scene.contact_tabular().default_element();
 

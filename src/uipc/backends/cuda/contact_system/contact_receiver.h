@@ -17,7 +17,7 @@ class ContactReceiver : public SimSystem
   protected:
     virtual void do_report(GlobalContactManager::ClassifyInfo& info) = 0;
     virtual void do_receive(GlobalContactManager::ClassifiedContactInfo& info) = 0;
-    virtual void do_build(BuildInfo& info);
+    virtual void do_build(BuildInfo& info) = 0;
 
   private:
     friend class GlobalContactManager;

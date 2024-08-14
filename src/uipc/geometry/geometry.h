@@ -1,7 +1,7 @@
 #pragma once
 #include <string_view>
 #include <uipc/geometry/attribute_collection.h>
-
+#include <uipc/geometry/attribute_friend.h>
 namespace uipc::geometry
 {
 /**
@@ -44,6 +44,9 @@ class UIPC_CORE_API Geometry : public IGeometry
         template <bool _IsConst>
         friend class MetaAttributesT;
 
+        template <typename T>
+        friend class AttributeFriend;
+
       public:
         MetaAttributesT(AutoAttributeCollection& attributes)
             : m_attributes(attributes)
@@ -73,11 +76,19 @@ class UIPC_CORE_API Geometry : public IGeometry
             return m_attributes.template create<T>(name, init_value);
         }
 
+        /**
+         * @sa AttributeCollection::destroy
+         */
+        void destroy(std::string_view name) &&
+            requires(!IsConst)
+        {
+            m_attributes.destroy(name);
+        }
 
-        void copy_from(MetaAttributesT<true>   other,
-                       const AttributeCopy&    copy          = {},
-                       span<const string> include_names = {},
-                       span<const string> exclude_names = {}) &&
+        void copy_from(MetaAttributesT<true> other,
+                       const AttributeCopy&  copy          = {},
+                       span<const string>    include_names = {},
+                       span<const string>    exclude_names = {}) &&
             requires(!IsConst)
         {
             m_attributes.copy_from(other.m_attributes, copy, include_names, exclude_names);
@@ -102,6 +113,9 @@ class UIPC_CORE_API Geometry : public IGeometry
 
         template <bool _IsConst>
         friend class InstanceAttributesT;
+
+        template <typename T>
+        friend class AttributeFriend;
 
         using AutoAttributeCollection =
             std::conditional_t<IsConst, const AttributeCollection, AttributeCollection>;
@@ -162,8 +176,8 @@ class UIPC_CORE_API Geometry : public IGeometry
 
         void copy_from(InstanceAttributesT<true> other,
                        const AttributeCopy&      copy          = {},
-                       span<const string>   include_names = {},
-                       span<const string>   exclude_names = {}) &&
+                       span<const string>        include_names = {},
+                       span<const string>        exclude_names = {}) &&
             requires(!IsConst)
         {
             m_attributes.copy_from(other.m_attributes, copy, include_names, exclude_names);

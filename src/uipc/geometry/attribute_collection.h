@@ -35,7 +35,7 @@ class UIPC_CORE_API AttributeCollection
      * @return The created attribute slot.
      */
     template <typename T, bool AllowDestroy = true>
-    P<AttributeSlot<T>> create(std::string_view name, const T& default_value = {});
+    S<AttributeSlot<T>> create(std::string_view name, const T& default_value = {});
 
     /**
      * @brief Share the underlying attribute of the given slot with a new name.
@@ -47,13 +47,13 @@ class UIPC_CORE_API AttributeCollection
      *
      * @throw AttributeAlreadyExist if the attribute with the given name already exists.
      */
-    P<IAttributeSlot> share(std::string_view name, const IAttributeSlot& slot);
+    S<IAttributeSlot> share(std::string_view name, const IAttributeSlot& slot);
 
     /**
      * @brief Template version of share.
      */
     template <typename T>
-    P<AttributeSlot<T>> share(std::string_view name, const AttributeSlot<T>& slot);
+    S<AttributeSlot<T>> share(std::string_view name, const AttributeSlot<T>& slot);
 
     /**
      * @brief Remove the attribute slot with the given name.
@@ -73,23 +73,23 @@ class UIPC_CORE_API AttributeCollection
      * @return The attribute slot with the given name.
      * @return nullptr if the attribute slot with the given name does not exist.
      */
-    [[nodiscard]] P<IAttributeSlot> find(std::string_view name);
+    [[nodiscard]] S<IAttributeSlot> find(std::string_view name);
     /**
      * @brief const version of find.
      */
-    [[nodiscard]] P<const IAttributeSlot> find(std::string_view name) const;
+    [[nodiscard]] S<const IAttributeSlot> find(std::string_view name) const;
 
     /**
      * @brief Template version of find.
      */
     template <typename T>
-    [[nodiscard]] P<AttributeSlot<T>> find(std::string_view name);
+    [[nodiscard]] S<AttributeSlot<T>> find(std::string_view name);
 
     /**
      * @brief  Template const version of find.
      */
     template <typename T>
-    [[nodiscard]] P<const AttributeSlot<T>> find(std::string_view name) const;
+    [[nodiscard]] S<const AttributeSlot<T>> find(std::string_view name) const;
 
     /**
      * @brief Resize all attribute slots to the given size.

@@ -19,7 +19,7 @@ std::string_view ContactElement::name() const noexcept
     return m_name;
 }
 
-P<geometry::AttributeSlot<IndexT>> ContactElement::apply_to(geometry::Geometry& geo) const
+S<geometry::AttributeSlot<IndexT>> ContactElement::apply_to(geometry::Geometry& geo) const
 {
     auto slot = geo.meta().find<IndexT>(builtin::contact_element_id);
     if(!slot)

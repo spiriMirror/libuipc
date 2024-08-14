@@ -941,36 +941,36 @@ void IPCSimplexFrictionalContact::do_assemble(ContactInfo& info)
                           G_friction, H_friction, kappa, d_hat * d_hat, friction_rate, dt, P0, P1, prev_P0, prev_P1, eps_v);
                    // Gradient check
 
-                   Vector3 test;
-                   test(0) = 1e-6;
-                   test(1) = 1e-6;
-                   test(2) = 1e-6;
-                   Float E1_ = sym::ipc_simplex_contact::PP_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P0 + test, P1, prev_P0, prev_P1, eps_v);
-                   Float E2_ = sym::ipc_simplex_contact::PP_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P0 - test, P1, prev_P0, prev_P1, eps_v);
-                   Float numerical_diff = (E1_ - E2_) / 2;
-                     cout << "numerical_diff: " << numerical_diff << "\n";
-                   Float analytical_diff = G_friction(0) * test(0) + G_friction(1) * test(1) + G_friction(2) * test(2);
-                     cout << "analytical_diff: " << analytical_diff << "\n";
-                   cout << "numerical_diff - analytical_diff: " << numerical_diff - analytical_diff << "\n";
-                   cout << "numerical_diff / analytical_diff: " << numerical_diff / analytical_diff << "\n";
+                //    Vector3 test;
+                //    test(0) = 1e-6;
+                //    test(1) = 1e-6;
+                //    test(2) = 1e-6;
+                //    Float E1_ = sym::ipc_simplex_contact::PP_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P0 + test, P1, prev_P0, prev_P1, eps_v);
+                //    Float E2_ = sym::ipc_simplex_contact::PP_friction_energy(kappa, d_hat * d_hat, friction_rate, dt, P0 - test, P1, prev_P0, prev_P1, eps_v);
+                //    Float numerical_diff = (E1_ - E2_) / 2;
+                //      cout << "numerical_diff: " << numerical_diff << "\n";
+                //    Float analytical_diff = G_friction(0) * test(0) + G_friction(1) * test(1) + G_friction(2) * test(2);
+                //      cout << "analytical_diff: " << analytical_diff << "\n";
+                //    cout << "numerical_diff - analytical_diff: " << numerical_diff - analytical_diff << "\n";
+                //    cout << "numerical_diff / analytical_diff: " << numerical_diff / analytical_diff << "\n";
 
-                   Vector6 G_friction1 = Eigen::Matrix<Float, 6, 1>::Zero();
-                   Vector6 G_friction2 = Eigen::Matrix<Float, 6, 1>::Zero();
-                   Matrix6x6 H_friction0 = Eigen::Matrix<Float, 6, 6>::Zero();
-                   Vector6 test6 = Eigen::Matrix<Float, 6, 1>::Zero();
-                   test6(0) = 1e-8;
-                   test6(1) = 1e-8;
-                   test6(2) = 1e-8;
-                   sym::ipc_simplex_contact::PP_friction_gradient_hessian(
-                              G_friction1, H_friction0, kappa, d_hat * d_hat, friction_rate, dt, P0 + test6.segment<3>(0), P1, prev_P0, prev_P1, eps_v);
-                   sym::ipc_simplex_contact::PP_friction_gradient_hessian(
-                              G_friction2, H_friction0, kappa, d_hat * d_hat, friction_rate, dt, P0 - test6.segment<3>(0), P1, prev_P0, prev_P1, eps_v);
+                //    Vector6 G_friction1 = Eigen::Matrix<Float, 6, 1>::Zero();
+                //    Vector6 G_friction2 = Eigen::Matrix<Float, 6, 1>::Zero();
+                //    Matrix6x6 H_friction0 = Eigen::Matrix<Float, 6, 6>::Zero();
+                //    Vector6 test6 = Eigen::Matrix<Float, 6, 1>::Zero();
+                //    test6(0) = 1e-8;
+                //    test6(1) = 1e-8;
+                //    test6(2) = 1e-8;
+                //    sym::ipc_simplex_contact::PP_friction_gradient_hessian(
+                //               G_friction1, H_friction0, kappa, d_hat * d_hat, friction_rate, dt, P0 + test6.segment<3>(0), P1, prev_P0, prev_P1, eps_v);
+                //    sym::ipc_simplex_contact::PP_friction_gradient_hessian(
+                //               G_friction2, H_friction0, kappa, d_hat * d_hat, friction_rate, dt, P0 - test6.segment<3>(0), P1, prev_P0, prev_P1, eps_v);
 
-                   Vector6 G_friction_numerical_diff = (G_friction1 - G_friction2) / 2;
-                   Vector6 G_friction_analytical_diff = H_friction * test6;
-                   cout << "G_friction_numerical_diff: " << G_friction_numerical_diff.norm() << "\n";
-                   cout << "G_friction_analytical_diff: " << G_friction_analytical_diff.norm() << "\n";
-                   cout << "EE_grad_diff: " << (G_friction_numerical_diff - G_friction_analytical_diff).norm() << "\n";
+                //    Vector6 G_friction_numerical_diff = (G_friction1 - G_friction2) / 2;
+                //    Vector6 G_friction_analytical_diff = H_friction * test6;
+                //    cout << "G_friction_numerical_diff: " << G_friction_numerical_diff.norm() << "\n";
+                //    cout << "G_friction_analytical_diff: " << G_friction_analytical_diff.norm() << "\n";
+                //    cout << "EE_grad_diff: " << (G_friction_numerical_diff - G_friction_analytical_diff).norm() << "\n";
 
                    Gs(i) = G_friction;
                    Hs(i) = H_friction;

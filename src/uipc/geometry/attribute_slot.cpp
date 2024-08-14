@@ -42,6 +42,11 @@ Json IAttributeSlot::to_json() const
     return j;
 }
 
+//const BufferInfo& IAttributeSlot::buffer_info() const
+//{
+//    return buffer_info();
+//}
+
 void IAttributeSlot::make_owned()
 {
     if(!is_shared())

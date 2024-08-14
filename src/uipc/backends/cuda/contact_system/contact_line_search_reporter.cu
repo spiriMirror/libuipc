@@ -25,6 +25,7 @@ void ContactLineSearchReporter::Impl::do_compute_energy(LineSearcher::EnergyInfo
     {
         GlobalContactManager::EnergyInfo this_info;
         this_info.m_energy = muda::VarView<Float>{contact_energies.data() + i};
+        this_info.m_is_initial = info.is_initial();
         reporter->compute_energy(this_info);
     }
 

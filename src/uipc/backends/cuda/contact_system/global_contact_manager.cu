@@ -59,7 +59,6 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     contact_tabular.view().copy_from(h_contact_tabular.data());
 
     // 2) reporters
-    contact_reporters.init();
     auto contact_reporter_view = contact_reporters.view();
     for(auto&& [i, R] : enumerate(contact_reporter_view))
         R->m_index = i;
@@ -71,7 +70,6 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     reporter_hessian_counts.resize(contact_reporter_view.size());
 
     // 3) receivers
-    contact_receivers.init();
     auto contact_receiver_view = contact_receivers.view();
     for(auto&& [i, R] : enumerate(contact_receiver_view))
         R->m_index = i;
@@ -176,7 +174,7 @@ void GlobalContactManager::Impl::_distribute()
         classified_hessians.reshape(vertex_count, vertex_count);
 
         // 1) report gradient
-        if(!info.is_empty())
+        if(info.is_diag())
         {
             const auto N = sorted_contact_gradient.doublet_count();
 
@@ -354,6 +352,28 @@ void GlobalContactManager::Impl::loose_resize_entries(muda::DeviceDoubletVector<
 }
 
 
+void GlobalContactManager::ClassifyInfo::sanity_check()
+{
+
+    if(is_diag())
+    {
+        UIPC_ASSERT(m_gradient_i_range.x() <= m_gradient_i_range.y(),
+                    "Diagonal Contact Gradient Range is invalid");
+
+        UIPC_ASSERT(m_hessian_i_range == m_hessian_j_range,
+                    "Diagonal Contact Hessian must have the same i_range and j_range");
+    }
+    else
+    {
+        UIPC_ASSERT(m_gradient_i_range.x() == m_gradient_i_range.y(),
+                    "Off-Diagonal Contact must not have Gradient Part");
+    }
+
+    UIPC_ASSERT(m_hessian_i_range.x() <= m_hessian_i_range.y(),
+                "Contact Hessian Range-i is invalid");
+    UIPC_ASSERT(m_hessian_j_range.x() <= m_hessian_j_range.y(),
+                "Contact Hessian Range-j is invalid");
+}
 }  // namespace uipc::backend::cuda
 
 

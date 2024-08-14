@@ -11,7 +11,6 @@ void IPCVertexHalfPlaneNormalContact::do_build(BuildInfo& info)
     half_plane = &require<HalfPlane>();
 }
 
-
 void IPCVertexHalfPlaneNormalContact::do_compute_energy(EnergyInfo& info)
 {
     using namespace muda;
@@ -40,10 +39,9 @@ void IPCVertexHalfPlaneNormalContact::do_compute_energy(EnergyInfo& info)
                    Vector3 P = plane_positions(HI);
                    Vector3 N = plane_normals(HI);
 
-                   Float kappa = table(contact_ids(vI), contact_ids(HI)).kappa;
+                   Float kappa = table(contact_ids(vI), 0).kappa;
 
                    Float D_hat = d_hat * d_hat;
-
 
                    Es(I) = sym::ipc_vertex_half_contact::PH_barrier_energy(
                        kappa * dt * dt, D_hat, v, P, N);
@@ -81,16 +79,15 @@ void IPCVertexHalfPlaneNormalContact::do_assemble(ContactInfo& info)
                        Vector3 P = plane_positions(HI);
                        Vector3 N = plane_normals(HI);
 
-                       Float kappa = table(contact_ids(vI), contact_ids(HI)).kappa;
+                       Float kappa = table(contact_ids(vI), 0).kappa;
 
                        Float D_hat = d_hat * d_hat;
 
                        sym::ipc_vertex_half_contact::PH_barrier_gradient_hessian(
                            Grad(I), Hess(I), kappa * dt * dt, D_hat, v, P, N);
 
-                       // cout << "PH:" << PH.transpose().eval() << "\n" << Grad(I) << "\n";
-
-                       // cout << "Hess:\n" << Hess(I) << "\n";
+                       //cout << "Grad: " << Grad(I).transpose().eval() << "\n";
+                       //cout << "Hess: " << Hess(I).eval() << "\n";
                    });
 
         int a = 1;

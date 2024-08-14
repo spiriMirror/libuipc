@@ -1,10 +1,10 @@
 #pragma once
 #include <uipc/common/macro.h>
 #include <memory_resource>
-#include <uipc/engine/engine.h>
+#include <uipc/engine/i_engine.h>
 #include <uipc/backend/module_init_info.h>
 
-using UIPCEngineInterface = uipc::engine::IEngine;
+using EngineInterface = uipc::engine::IEngine;
 
 extern "C" {
 /**
@@ -14,7 +14,7 @@ extern "C" {
  *  
  * @return A pointer to the new engine instance.
  */
-UIPC_BACKEND_API UIPCEngineInterface* uipc_create_engine();
+UIPC_BACKEND_API EngineInterface* uipc_create_engine();
 
 /**
  * @brief Destroy the engine instance.
@@ -23,7 +23,7 @@ UIPC_BACKEND_API UIPCEngineInterface* uipc_create_engine();
  * 
  * @param engine The engine instance to be destroyed.
  */
-UIPC_BACKEND_API void uipc_destroy_engine(UIPCEngineInterface* engine);
+UIPC_BACKEND_API void uipc_destroy_engine(EngineInterface* engine);
 
 /**
  * @brief Initialize the module with the given information.

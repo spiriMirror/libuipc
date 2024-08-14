@@ -57,7 +57,7 @@ endfunction()
 function(uipc_config_vcpkg_install)
     set(VCPKG_MANIFEST_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(VCPKG_MANIFEST_FILE "${VCPKG_MANIFEST_DIR}/vcpkg.json")
-    find_package(Python REQUIRED)
+    find_package(Python REQUIRED QUIET)
     # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
     execute_process(
         COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
@@ -66,9 +66,9 @@ function(uipc_config_vcpkg_install)
         "--build_pybind=${UIPC_BUILD_PYBIND}" # pass the UIPC_BUILD_PYBIND as argument
         RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
     )
-    set(VCPKG_MANIFEST_INSTALL ${VCPKG_JSON_GENERATE_RESULT} PARENT_SCOPE CACHE BOOL "VCPKG_MANIFEST_INSTALL")
-    set(VCPKG_INSTALLED_DIR "")
+    set(VCPKG_MANIFEST_INSTALL ${VCPKG_JSON_GENERATE_RESULT} PARENT_SCOPE)
 
+    set(VCPKG_INSTALLED_DIR "")
     if(UIPC_USING_LOCAL_VCPKG)
         set(VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed")
     else()
@@ -87,6 +87,19 @@ function(uipc_config_vcpkg_install)
     set(VCPKG_INSTALLED_DIR "${VCPKG_INSTALLED_DIR}" PARENT_SCOPE)
 endfunction()
 
+# -----------------------------------------------------------------------------------------
+# dump build info
+# -----------------------------------------------------------------------------------------
+function (uipc_dump_build_info)
+    # write json file to output directory
+    set(BUILD_INFO_JSON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/output/build_info.json")
+    set(Json 
+"{
+    \"CMAKE_BINARY_DIR\": \"${CMAKE_BINARY_DIR}\"
+}")
+    file(WRITE ${BUILD_INFO_JSON_FILE} ${Json})
+    uipc_info("Build info dumped to ${BUILD_INFO_JSON_FILE}")
+endfunction()
 
 # -----------------------------------------------------------------------------------------
 # Install the target to the correct directory

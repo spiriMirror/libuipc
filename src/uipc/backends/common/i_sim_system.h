@@ -17,9 +17,61 @@ class ISimSystem
     span<ISimSystem* const> dependencies() const noexcept;
     Json                    to_json() const;
 
+    class BaseInfo
+    {
+      public:
+        std::string_view workspace() const noexcept;
+        std::string      dump_path(std::string_view file) const noexcept;
+    };
+
+    class DumpInfo : public BaseInfo
+    {
+      public:
+    };
+
+    class RecoverInfo : public BaseInfo
+    {
+      public:
+    };
+
+    /**
+     * @brief Dump the simulation data to files
+     * 
+     * @return true if the dump is successful, false otherwise
+     */
+    bool dump(DumpInfo&);
+
+    /**
+     * @brief Try to recover the simulation data from files
+     * 
+     * SimSystem should store the information in temporary buffer, if the recovery fails, the buffer will be discarded
+     * 
+     * \return 
+     */
+    bool try_recover(RecoverInfo&);
+
+    /**
+     * @brief Apply the recovered data to the simulation
+     * 
+     * If some try_recover() fails, the apply_recover() will not be called
+     */
+    void apply_recover(RecoverInfo&);
+
+    /**
+	 * @brief Clear the valid recovered data
+	 * 
+	 * If some try_recover() fails, the clear_recover() will be called
+	 */
+    void clear_recover(RecoverInfo&);
+
+
   protected:
-    virtual void             do_build() = 0;
-    virtual std::string_view get_name() const = 0;
+    virtual void             do_build()                     = 0;
+    virtual std::string_view get_name() const               = 0;
+    virtual bool             do_dump(DumpInfo&);
+    virtual bool             do_try_recover(RecoverInfo&);
+    virtual void             do_apply_recover(RecoverInfo&);
+    virtual void             do_clear_recover(RecoverInfo&);
 
   private:
     friend class SimEngine;

@@ -1,0 +1,58 @@
+#pragma once
+#include <algorithm/matrix_converter.h>
+#include <linear_system/diag_linear_subsystem.h>
+#include <finite_element/finite_element_method.h>
+#include <finite_element/fem_contact_receiver.h>
+#include <finite_element/finite_element_vertex_reporter.h>
+
+namespace uipc::backend::cuda
+{
+class FEMLinearSubsystem : public DiagLinearSubsystem
+{
+  public:
+    using DiagLinearSubsystem::DiagLinearSubsystem;
+
+    class Impl
+    {
+      public:
+        void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
+        void assemble(GlobalLinearSystem::DiagInfo& info);
+        void _assemble_gradient(GlobalLinearSystem::DiagInfo& info);
+        void _assemble_hessian(GlobalLinearSystem::DiagInfo& info);
+        void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
+        void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
+
+        FiniteElementMethod*       finite_element_method = nullptr;
+        FiniteElementMethod::Impl& fem() noexcept
+        {
+            return finite_element_method->m_impl;
+        }
+        FEMContactReceiver*       fem_contact_receiver = nullptr;
+        FEMContactReceiver::Impl& contact() noexcept
+        {
+            return fem_contact_receiver->m_impl;
+        }
+        FiniteElementVertexReporter* finite_element_vertex_reporter = nullptr;
+
+        Float reserve_ratio = 1.5;
+
+        MatrixConverter<Float, 3>           converter;
+        muda::DeviceTripletMatrix<Float, 3> triplet_A;
+        muda::DeviceBCOOMatrix<Float, 3>    bcoo_A;
+
+        static constexpr SizeT H12x12_to_H3x3 = (12 * 12) / (3 * 3);
+        static constexpr SizeT H9x9_to_H3x3   = (9 * 9) / (3 * 3);
+        static constexpr SizeT H6x6_to_H3x3   = (6 * 6) / (3 * 3);
+    };
+
+  protected:
+    virtual void do_build(DiagLinearSubsystem::BuildInfo& info) override;
+    virtual void do_report_extent(GlobalLinearSystem::DiagExtentInfo& info) override;
+    virtual void do_assemble(GlobalLinearSystem::DiagInfo& info) override;
+    virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) override;
+    virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) override;
+
+  private:
+    Impl m_impl;
+};
+}  // namespace uipc::backend::cuda

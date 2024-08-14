@@ -3,9 +3,9 @@
 
 #include <uipc/world/scene.h>
 #include <uipc/world/world.h>
-#include <uipc/engine/engine.h>
+#include <uipc/engine/i_engine.h>
 #include <uipc/geometry.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <uipc/common/unit.h>
 
 using namespace uipc;
@@ -27,6 +27,11 @@ class NullEngine : public IEngine
     }
     void do_sync() override {}
     void do_retrieve() override {}
+
+    // Inherited via IEngine
+    bool  do_dump() override { return false; }
+    bool  do_recover() override { return false; }
+    SizeT get_frame() const override { return m_frame; }
 };
 
 TEST_CASE("simple_world", "[world]")
@@ -36,8 +41,8 @@ TEST_CASE("simple_world", "[world]")
 
     Scene scene;
 
-    auto& constitution_tabular = scene.constitution_tabular();
-    auto& abd = constitution_tabular.create<AffineBodyConstitution>();
+    AffineBodyConstitution abd;
+    scene.constitution_tabular().insert(abd);
 
     auto& contact_tabular = scene.contact_tabular();
     auto  default_contact = contact_tabular.default_element();

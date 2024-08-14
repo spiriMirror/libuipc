@@ -80,7 +80,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        const auto& q_tilde = q_tildes(i);
                        const auto& M       = masses(i);
                        Vector12    dq      = q - q_tilde;
-                       K = 0.5 * dq.dot(M * dq);
+                       K                   = 0.5 * dq.dot(M * dq);
                    }
                });
 
@@ -90,36 +90,21 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
 
     Float K = abd().abd_kinetic_energy;
 
-
-    // Compute shape energy
-    auto async_fill = []<typename T>(muda::DeviceBuffer<T>& buf, const T& value)
-    { muda::BufferLaunch().fill<T>(buf.view(), value); };
-
-    async_fill(abd().constitution_shape_energy, 0.0);
-
-    // _distribute the computation of shape energy to each constitution
+    // distribute the computation of shape energy to each constitution
     for(auto&& [i, cst] : enumerate(abd().constitutions.view()))
     {
-        auto body_offset = abd().h_constitution_body_offsets[i];
-        auto body_count  = abd().h_constitution_body_counts[i];
-
-        if(body_count == 0)
-            continue;
-
-        AffineBodyDynamics::ComputeEnergyInfo this_info{
-            &abd(), i, VarView<Float>{abd().constitution_shape_energy.data() + i}, info.dt()};
+        AffineBodyDynamics::ComputeEnergyInfo this_info{&abd(), i, info.dt()};
         cst->compute_energy(this_info);
     }
-    abd().constitution_shape_energy.view().copy_to(
-        abd().h_constitution_shape_energy.data());
 
     // sum up the shape energy
-    Float E = std::accumulate(abd().h_constitution_shape_energy.begin(),
-                              abd().h_constitution_shape_energy.end(),
-                              0.0);
+    DeviceReduce().Sum(abd().body_id_to_shape_energy.data(),
+                       abd().abd_shape_energy.data(),
+                       abd().body_id_to_shape_energy.size());
+
+    Float E = abd().abd_shape_energy;
 
     // spdlog::info("ABD K: {}, E: {}", K, E);
-
     info.energy(K + E);
 }
 }  // namespace uipc::backend::cuda

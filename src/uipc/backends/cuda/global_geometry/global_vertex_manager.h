@@ -5,6 +5,7 @@
 #include <functional>
 #include <Eigen/Geometry>
 #include <collision_detection/aabb.h>
+#include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -33,6 +34,7 @@ class GlobalVertexManager : public SimSystem
       public:
         VertexAttributeInfo(Impl* impl, SizeT index) noexcept;
         muda::BufferView<Vector3> rest_positions() const noexcept;
+        muda::BufferView<Float>   thicknesses() const noexcept;
         muda::BufferView<IndexT>  coindices() const noexcept;
         muda::BufferView<Vector3> positions() const noexcept;
         muda::BufferView<IndexT>  contact_element_ids() const noexcept;
@@ -106,6 +108,8 @@ class GlobalVertexManager : public SimSystem
      */
     AABB vertex_bounding_box() const noexcept;
 
+    void after_init_vertex_info(SimSystem& system, std::function<void()>&& action);
+
   public:
     class Impl
     {
@@ -129,12 +133,18 @@ class GlobalVertexManager : public SimSystem
         template <typename T>
         muda::BufferView<T> subview(muda::DeviceBuffer<T>& buffer, SizeT index) const noexcept;
 
+        bool dump(DumpInfo& info);
+        bool try_recover(RecoverInfo& info);
+        void apply_recover(RecoverInfo& info);
+        void clear_recover(RecoverInfo& info);
+
       private:
         muda::DeviceBuffer<IndexT>  coindices;
         muda::DeviceBuffer<Vector3> positions;
         muda::DeviceBuffer<Vector3> prev_positions;
         muda::DeviceBuffer<Vector3> rest_positions;
         muda::DeviceBuffer<Vector3> safe_positions;
+        muda::DeviceBuffer<Float>   thicknesses;
         muda::DeviceBuffer<IndexT>  contact_element_ids;
         muda::DeviceBuffer<Vector3> displacements;
         muda::DeviceBuffer<Float>   displacement_norms;
@@ -145,15 +155,23 @@ class GlobalVertexManager : public SimSystem
         muda::DeviceVar<Vector3> max_pos;
 
         SimSystemSlotCollection<VertexReporter> vertex_reporters;
+        SimActionCollection<void()>             after_init_vertex_info;
 
         vector<SizeT> reporter_vertex_offsets;
         vector<SizeT> reporter_vertex_counts;
 
         AABB vertex_bounding_box;
+
+        BufferDump dump_positions;
+        BufferDump dump_prev_positions;
     };
 
   protected:
     virtual void do_build() override;
+    virtual bool do_dump(DumpInfo& info) override;
+    virtual bool do_try_recover(RecoverInfo& info) override;
+    virtual void do_apply_recover(RecoverInfo& info) override;
+    virtual void do_clear_recover(RecoverInfo& info) override;
 
   private:
     friend class SimEngine;

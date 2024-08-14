@@ -27,6 +27,7 @@ void NoneSimEngine::do_init(backend::WorldVisitor v)
 
 void NoneSimEngine::do_advance()
 {
+    frame++;
     spdlog::info("[NoneEngine] do_advance() called.");
 }
 
@@ -44,15 +45,21 @@ NoneSimEngine::~NoneSimEngine()
 {
     spdlog::info("[NoneEngine] Destructor called.");
 }
+
+
+SizeT NoneSimEngine::get_frame() const
+{
+	return frame;
+}
 }  // namespace uipc::backend::none
 
 
-UIPC_BACKEND_API UIPCEngineInterface* uipc_create_engine()
+UIPC_BACKEND_API EngineInterface* uipc_create_engine()
 {
     return new uipc::backend::none::NoneSimEngine();
 }
 
-UIPC_BACKEND_API void uipc_destroy_engine(UIPCEngineInterface* engine)
+UIPC_BACKEND_API void uipc_destroy_engine(EngineInterface* engine)
 {
     delete engine;
 }

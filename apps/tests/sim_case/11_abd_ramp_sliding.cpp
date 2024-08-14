@@ -1,7 +1,7 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <filesystem>
 #include <fstream>
 #include <numbers>
@@ -20,8 +20,8 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
     auto        this_output_path = AssetDir::output_path(__FILE__);
 
 
-    UIPCEngine engine{"cuda", this_output_path};
-    World      world{engine};
+    Engine engine{"cuda", this_output_path};
+    World  world{engine};
 
     auto config       = Scene::default_config();
     config["gravity"] = Vector3{0, -9.8, 0};
@@ -35,8 +35,8 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
     {
         // create constitution and contact model
 
-        auto& abd_ortho = scene.constitution_tabular().create<AffineBodyConstitution>(
-            AffineBodyConstitution::default_config());
+        AffineBodyConstitution abd;
+        scene.constitution_tabular().insert(abd);
 
 
         auto& contact_tabular = scene.contact_tabular();
@@ -68,7 +68,7 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
             label_surface(cube);
             label_triangle_orient(cube);
 
-            abd_ortho.apply_to(cube, 100.0_MPa);
+            abd.apply_to(cube, 100.0_MPa);
 
 
             Float step    = 0.5;
@@ -104,7 +104,7 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
             label_triangle_orient(ramp);
 
             default_element.apply_to(ramp);
-            abd_ortho.apply_to(ramp, 100.0_MPa);
+            abd.apply_to(ramp, 100.0_MPa);
 
             auto trans_view = view(ramp.transforms());
 

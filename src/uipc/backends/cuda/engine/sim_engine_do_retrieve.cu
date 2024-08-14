@@ -14,4 +14,8 @@ void SimEngine::do_retrieve()
         spdlog::error("SimEngine retrieve error: {}", e.what());
     }
 }
+SizeT SimEngine::get_frame() const
+{
+    return m_current_frame;
+}
 }  // namespace uipc::backend::cuda

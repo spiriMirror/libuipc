@@ -16,10 +16,10 @@ class UIPC_CORE_API ObjectCollection : public IObjectCollection
 
   public:
     ObjectCollection() = default;
-    P<Object> emplace(Object&& object);
+    S<Object> emplace(Object&& object);
 
-    P<Object>       find(IndexT id) noexcept;
-    P<const Object> find(IndexT id) const noexcept;
+    S<Object>       find(IndexT id) noexcept;
+    S<const Object> find(IndexT id) const noexcept;
 
     void destroy(IndexT id) noexcept;
 

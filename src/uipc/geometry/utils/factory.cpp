@@ -47,7 +47,7 @@ SimplicialComplex pointcloud(span<const Vector3> Vs)
     return facet_closure(SimplicialComplex{asc, Vs});
 }
 
-ImplicitGeometry ground(Float height, const Vector3& N)
+ImplicitGeometry halfplane(const Vector3& P, const Vector3& N)
 {
     ImplicitGeometry ig;
     auto             uid = ig.meta().find<U64>(builtin::implicit_geometry_uid);
@@ -57,9 +57,15 @@ ImplicitGeometry ground(Float height, const Vector3& N)
     view(*uid)[0]               = HalfPlaneUID;
 
     ig.instances().create<Vector3>("N", N);
-    ig.instances().create<Vector3>("P", Vector3{0.0, height, 0.0});
+    ig.instances().create<Vector3>("P", P);
     ig.instances().create<IndexT>(builtin::is_fixed, 1);
 
     return ig;
+}
+
+ImplicitGeometry ground(Float height, const Vector3& N)
+{
+    ImplicitGeometry hp = halfplane(Vector3::UnitY() * height, N);
+    return hp;
 }
 }  // namespace uipc::geometry

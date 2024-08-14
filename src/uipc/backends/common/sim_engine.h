@@ -1,6 +1,6 @@
 #pragma once
 #include <uipc/backend/macro.h>
-#include <uipc/engine/engine.h>
+#include <uipc/engine/i_engine.h>
 #include <uipc/backends/common/sim_system_collection.h>
 #include <uipc/backends/common/i_sim_system.h>
 
@@ -57,6 +57,20 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
      */
     template <std::derived_from<ISimSystem> T>
     T& require();
+
+    /**
+     * @brief Get the workspace of the engine, which is set by frontend user.
+     * 
+     * @return std::string_view 
+     */
+    std::string_view workspace() const noexcept;
+
+  protected:
+    virtual bool do_dump() override;
+    virtual bool do_recover() override;
+    span<ISimSystem* const> systems() noexcept;
+    std::string dump_path() const noexcept;
+
 
   private:
     ISimSystem* find_system(ISimSystem* ptr);

@@ -1,7 +1,7 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <filesystem>
 #include <fstream>
 
@@ -17,8 +17,8 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
     auto        this_output_path = AssetDir::output_path(__FILE__);
 
 
-    UIPCEngine engine{"cuda", this_output_path};
-    World      world{engine};
+    Engine engine{"cuda", this_output_path};
+    World  world{engine};
 
     auto config       = Scene::default_config();
     config["gravity"] = Vector3{0, -9.8, 0};
@@ -32,13 +32,13 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
     {
         // create constitution and contact model
 
-        auto& abd_ortho = scene.constitution_tabular().create<AffineBodyConstitution>(
-            AffineBodyConstitution::default_config());
+        AffineBodyConstitution abd_ortho;
+        scene.constitution_tabular().insert(abd_ortho);
 
         Json config    = AffineBodyConstitution::default_config();
         config["name"] = "ARAP";
-        auto& abd_arap =
-            scene.constitution_tabular().create<AffineBodyConstitution>(config);
+        AffineBodyConstitution abd_arap{config};
+        scene.constitution_tabular().insert(abd_arap);
 
         auto& contact_tabular = scene.contact_tabular();
         auto& default_contact = contact_tabular.default_element();
@@ -70,8 +70,8 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
 
             for(SizeT i = 0; i < N; i++)
             {
-                Transform t      = Transform::Identity();
-                t.translation()  = Vector3::UnitY() * 0.35 * i + Vector3::UnitX() * 0.5;
+                Transform t = Transform::Identity();
+                t.translation() = Vector3::UnitY() * 0.35 * i + Vector3::UnitX() * 0.5;
                 trans_view[i]    = t.matrix();
                 is_fixed_view[i] = 0;
             }

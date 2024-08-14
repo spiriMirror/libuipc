@@ -1,6 +1,6 @@
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 
 int main()
 {
@@ -10,8 +10,8 @@ int main()
     using namespace uipc::constitution;
     using namespace uipc::engine;
 
-    // UIPCEngine engine{"none"};
-    UIPCEngine engine{"cuda"};
+    // Engine engine{"none"};
+    Engine engine{"cuda"};
 
     World world{engine};
     auto  config      = Scene::default_config();
@@ -21,7 +21,8 @@ int main()
     Scene scene{config};
     {
         // create constitution and contact model
-        auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
+        AffineBodyConstitution abd;
+        scene.constitution_tabular().insert(abd);
 
         // friction ratio and contact resistance
         scene.contact_tabular().default_model(0.5, 1.0_GPa);

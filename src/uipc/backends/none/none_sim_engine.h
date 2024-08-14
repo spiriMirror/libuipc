@@ -16,8 +16,10 @@ class UIPC_BACKEND_API NoneSimEngine : public SimEngine
     void do_advance() override;
     void do_sync() override;
     void do_retrieve() override;
+    SizeT get_frame() const override;
 
   private:
     NoneSimSystem*              m_system = nullptr;
+    SizeT          frame    = 0;
 };
 }  // namespace uipc::backend::none

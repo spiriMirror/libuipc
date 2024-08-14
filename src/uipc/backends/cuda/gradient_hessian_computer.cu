@@ -21,7 +21,7 @@ void GradientHessianComputer::init()
     auto scene = world().scene();
     m_dt       = scene.info()["dt"];
 
-    m_on_compute_gradient_hessian.init();
+    [[maybe_unuse]] m_on_compute_gradient_hessian.view();
 }
 
 void GradientHessianComputer::compute_gradient_hessian()

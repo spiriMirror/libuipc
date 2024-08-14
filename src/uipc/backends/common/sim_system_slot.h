@@ -4,44 +4,55 @@
 namespace uipc::backend
 {
 template <typename T>
-class SimSystemSlotCollection
-{
-  public:
-    void register_subsystem(T& subsystem);
-
-    void init();
-
-    span<T*>       view() noexcept;
-    span<T* const> view() const noexcept;
-
-  private:
-    list<T*>     m_subsystem_buffer;
-    vector<T*>   m_subsystems;
-    mutable bool built = false;
-
-    void check_build() const noexcept;
-};
+class SimSystemSlotCollection;
 
 template <typename T>
 class SimSystemSlot
 {
   public:
+    // default constructor
+    SimSystemSlot() noexcept = default;
+    // default copy/move
+    SimSystemSlot(const SimSystemSlot&) noexcept            = default;
+    SimSystemSlot(SimSystemSlot&&) noexcept                 = default;
+    SimSystemSlot& operator=(const SimSystemSlot&) noexcept = default;
+    SimSystemSlot& operator=(SimSystemSlot&&) noexcept      = default;
+
     void register_subsystem(T& subsystem);
 
-    void init();
-
-    T*       view() noexcept;
     T* const view() const noexcept;
-
-    T*       operator->() noexcept;
     T* const operator->() const noexcept;
-
     operator bool() const noexcept;
 
   private:
+    template <typename U>
+    friend class SimSystemSlotCollection;
+
+    SimSystemSlot(T& subsystem) noexcept;
+
+    void         lazy_init() const;
     mutable bool built       = false;
-    T*           m_subsystem = nullptr;
-    void         check_build() const noexcept;
+    mutable T*   m_subsystem = nullptr;
+};
+
+template <typename T>
+class SimSystemSlotCollection
+{
+  public:
+    void register_subsystem(T& subsystem);
+
+    span<T* const> view() const noexcept;
+    span<T*>       view() noexcept;
+
+    template <typename U>
+    SimSystemSlot<U> find() const noexcept;
+
+  private:
+    mutable list<T*>   m_subsystem_buffer;
+    mutable vector<T*> m_subsystems;
+    mutable bool       built = false;
+
+    void lazy_init() const noexcept;
 };
 }  // namespace uipc::backend
 

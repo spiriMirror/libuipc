@@ -2,7 +2,7 @@
 #include <uipc/geometry/simplex_slot.h>
 #include <uipc/geometry/attribute_collection.h>
 #include <uipc/common/json.h>
-
+#include <uipc/geometry/attribute_friend.h>
 namespace uipc::geometry
 {
 template <std::derived_from<ISimplexSlot> SimplexSlotT>
@@ -25,6 +25,9 @@ class SimplicialComplexTopo
     using ConstSimplexSlotT    = std::add_const_t<NonConstSimplexSlotT>;
 
     friend class SimplicialComplexTopo<NonConstSimplexSlotT>;
+
+    template <typename T>
+    friend class AttributeFriend;
 
   public:
     /**
@@ -53,11 +56,22 @@ class SimplicialComplexTopo
 
     void share(SimplicialComplexTopo<ConstSimplexSlotT>&& topo) && noexcept;
 
+    template <std::derived_from<ISimplexSlot> OtherSimplexSlotT>
+    SimplicialComplexTopo(SimplicialComplexTopo<OtherSimplexSlotT>&& topo) noexcept
+        requires(!std::is_const_v<OtherSimplexSlotT>)
+        : m_topology(topo.m_topology)
+    {
+    }
+
   private:
     template <std::derived_from<ISimplexSlot> SlotT>
     friend class SimplicialComplexAttributes;
 
+    template <std::derived_from<ISimplexSlot> SlotT>
+    friend class SimplicialComplexTopo;
+
     SimplicialComplexTopo(SimplexSlotT& topo);
+
     SimplexSlotT& m_topology;
 };
 
@@ -67,6 +81,9 @@ class SimplicialComplexTopo<const VertexSlot>
     friend struct fmt::formatter<SimplicialComplexTopo<const VertexSlot>>;
     friend class SimplicialComplexAttributes<const VertexSlot>;
     friend class SimplicialComplexTopo<VertexSlot>;
+
+    template <typename T>
+    friend class AttributeFriend;
 
   public:
     /**
@@ -85,6 +102,14 @@ class SimplicialComplexTopo<const VertexSlot>
      */
     [[nodiscard]] bool is_shared() && noexcept;
 
+
+    template <std::derived_from<ISimplexSlot> OtherSimplexSlotT>
+    SimplicialComplexTopo(SimplicialComplexTopo<OtherSimplexSlotT>&& topo) noexcept
+        requires(!std::is_const_v<OtherSimplexSlotT>)
+        : m_topology(topo.m_topology)
+    {
+    }
+
   private:
     template <std::derived_from<ISimplexSlot> SlotT>
     friend class SimplicialComplexAttributes;
@@ -98,6 +123,9 @@ class SimplicialComplexTopo<VertexSlot>
 {
     friend struct fmt::formatter<SimplicialComplexTopo<VertexSlot>>;
     friend class SimplicialComplexAttributes<VertexSlot>;
+
+    template <typename T>
+    friend class AttributeFriend;
 
   public:
     /**
@@ -121,16 +149,15 @@ class SimplicialComplexTopo<VertexSlot>
 
     void share(SimplicialComplexTopo<const VertexSlot>&& topo) && noexcept;
 
-    operator SimplicialComplexTopo<const VertexSlot>() && noexcept
-    {
-        return SimplicialComplexTopo<const VertexSlot>(m_topology);
-    }
-
   private:
     template <std::derived_from<ISimplexSlot> SlotT>
     friend class SimplicialComplexAttributes;
 
+    template <std::derived_from<ISimplexSlot> SlotT>
+    friend class SimplicialComplexTopo;
+
     SimplicialComplexTopo(VertexSlot& topo);
+
     VertexSlot& m_topology;
 };
 
@@ -159,7 +186,13 @@ class SimplicialComplexAttributes
 
     using ConstSimplicialComplexAttributesT = SimplicialComplexAttributes<ConstSimplexSlotT>;
 
+    template <typename T>
+    friend class AttributeFriend;
+
   public:
+    template <typename T>
+    friend class AttributeFriend;
+
     SimplicialComplexAttributes(const SimplicialComplexAttributes& o) = default;
     SimplicialComplexAttributes(SimplicialComplexAttributes&& o)      = default;
     SimplicialComplexAttributes& operator=(const SimplicialComplexAttributes& o) = default;
@@ -242,8 +275,8 @@ class SimplicialComplexAttributes
 
     void copy_from(ConstSimplicialComplexAttributesT other,
                    const AttributeCopy&              copy          = {},
-                   span<const string>           include_names = {},
-                   span<const string>           exclude_names = {})
+                   span<const string>                include_names = {},
+                   span<const string>                exclude_names = {})
         requires(!IsConst)
     {
         m_attributes.copy_from(other.m_attributes, copy, include_names, exclude_names);

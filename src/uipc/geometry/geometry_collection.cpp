@@ -95,13 +95,13 @@ void GeometryCollection::solve_pending() noexcept
     m_pending_destroy.clear();
 }
 
-span<P<geometry::GeometrySlot>> GeometryCollection::geometry_slots() const noexcept
+span<S<geometry::GeometrySlot>> GeometryCollection::geometry_slots() const noexcept
 {
     flush();
     return m_geometry_slots;
 }
 
-span<P<geometry::GeometrySlot>> GeometryCollection::pending_create_slots() const noexcept
+span<S<geometry::GeometrySlot>> GeometryCollection::pending_create_slots() const noexcept
 {
     flush();
     return m_pending_create_slots;
@@ -156,7 +156,7 @@ void GeometryCollection::flush() const
 }
 
 
-P<geometry::GeometrySlot> GeometryCollection::find(IndexT id) noexcept
+S<geometry::GeometrySlot> GeometryCollection::find(IndexT id) noexcept
 {
     if(auto it = m_pending_destroy.find(id); it != m_pending_destroy.end())
     {
@@ -176,7 +176,7 @@ P<geometry::GeometrySlot> GeometryCollection::find(IndexT id) noexcept
     return {};
 }
 
-P<const geometry::GeometrySlot> GeometryCollection::find(IndexT id) const noexcept
+S<const geometry::GeometrySlot> GeometryCollection::find(IndexT id) const noexcept
 {
     return const_cast<GeometryCollection*>(this)->find(id);
 }

@@ -39,6 +39,15 @@ UIPC_CORE_API [[nodiscard]] SimplicialComplex linemesh(span<const Vector3>  Vs,
  */
 UIPC_CORE_API [[nodiscard]] SimplicialComplex pointcloud(span<const Vector3> Vs);
 
+
+/**
+ * @brief Create a half-plane.
+ * 
+ * @param height The height of the ground plane
+ */
+UIPC_CORE_API [[nodiscard]] ImplicitGeometry halfplane(const Vector3& P = Vector3::Zero(),
+                                                       const Vector3& N = Vector3::UnitY());
+
 /**
  * @brief Create a gound plane.
  * 

@@ -7,6 +7,7 @@
 #include <sim_engine.h>
 #include <dof_predictor.h>
 #include <gradient_hessian_computer.h>
+#include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -64,11 +65,11 @@ class AffineBodyDynamics : public SimSystem
          * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
          */
         template <typename ViewGetterF, typename ForEachF>
-        void for_each_body(span<P<geometry::GeometrySlot>> geo_slots,
+        void for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
                            ViewGetterF&&                   getter,
                            ForEachF&&                      for_each) const;
 
-        static geometry::SimplicialComplex& geometry(span<P<geometry::GeometrySlot>> geo_slots,
+        static geometry::SimplicialComplex& geometry(span<S<geometry::GeometrySlot>> geo_slots,
                                                      const BodyInfo& body_info);
 
       private:
@@ -80,22 +81,18 @@ class AffineBodyDynamics : public SimSystem
     class ComputeEnergyInfo
     {
       public:
-        ComputeEnergyInfo(Impl*                impl,
-                          SizeT                constitution_index,
-                          muda::VarView<Float> shape_energy,
-                          Float                dt) noexcept;
-        auto shape_energy() const noexcept { return m_shape_energy; }
+        ComputeEnergyInfo(Impl* impl, SizeT constitution_index, Float dt) noexcept;
         auto dt() const noexcept { return m_dt; }
 
         muda::CBufferView<Vector12> qs() const noexcept;
         muda::CBufferView<Float>    volumes() const noexcept;
+        muda::BufferView<Float>     body_shape_energies() const noexcept;
 
       private:
         friend class Impl;
-        SizeT                m_constitution_index = ~0ull;
-        muda::VarView<Float> m_shape_energy;
-        Float                m_dt   = 0.0;
-        Impl*                m_impl = nullptr;
+        SizeT m_constitution_index = ~0ull;
+        Float m_dt                 = 0.0;
+        Impl* m_impl               = nullptr;
     };
 
     class ComputeGradientHessianInfo
@@ -124,17 +121,22 @@ class AffineBodyDynamics : public SimSystem
 
     void add_constitution(AffineBodyConstitution* constitution);
 
-    void after_build_geometry(SimSystem& sim_system, std::function<void()>&& action);
+    // void after_build_geometry(SimSystem& sim_system, std::function<void()>&& action);
 
   protected:
     virtual void do_build() override;
+
+    virtual bool do_dump(DumpInfo& info) override;
+    virtual bool do_try_recover(RecoverInfo& info) override;
+    virtual void do_apply_recover(RecoverInfo& info) override;
+    virtual void do_clear_recover(RecoverInfo& info) override;
 
   public:
     class Impl
     {
       public:
         void init(WorldVisitor& world);
-        void _build_subsystems(WorldVisitor& world);
+        // void _build_subsystems(WorldVisitor& world);
         void _build_body_infos(WorldVisitor& world);
         void _build_related_infos(WorldVisitor& world);
         void _build_geometry_on_host(WorldVisitor& world);
@@ -145,12 +147,17 @@ class AffineBodyDynamics : public SimSystem
         void _download_geometry_to_host();
 
         void compute_q_tilde(DoFPredictor::PredictInfo& info);
-        void compute_q_v(DoFPredictor::PredictInfo& info);
+        void compute_q_v(DoFPredictor::ComputeVelocityInfo& info);
         void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);
+
+        bool dump(DumpInfo& info);
+        bool try_recover(RecoverInfo& info);
+        void apply_recover(RecoverInfo& info);
+        void clear_recover(RecoverInfo& info);
 
 
         // util functions
-        static geometry::SimplicialComplex& geometry(span<P<geometry::GeometrySlot>> geo_slots,
+        static geometry::SimplicialComplex& geometry(span<S<geometry::GeometrySlot>> geo_slots,
                                                      const BodyInfo& body_info);
 
         /*
@@ -160,7 +167,7 @@ class AffineBodyDynamics : public SimSystem
         * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
         */
         template <typename ViewGetterF, typename ForEachF>
-        void for_each_body(span<P<geometry::GeometrySlot>> geo_slots,
+        void for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
                            ViewGetterF&&                   getter,
                            ForEachF&&                      for_each);
 
@@ -168,7 +175,6 @@ class AffineBodyDynamics : public SimSystem
         SizeT body_count() const noexcept { return h_body_infos.size(); }
 
       public:
-        SimActionCollection<void()>                     after_build_geometry;
         SimSystemSlotCollection<AffineBodyConstitution> constitutions;
 
         // core invariant data
@@ -263,7 +269,7 @@ class AffineBodyDynamics : public SimSystem
         //$$
         //\tilde{\mathbf{q}}_{b}=\mathbf{q}_{b}^{t}+\Delta t \dot{\mathbf{q}}_{b}^{t}+\Delta t^{2} \mathbf{M}^{-1} \mathbf{f}_{b}^{t+1}
         //$$
-        //predicted m_q
+        //predicted q
         DeviceBuffer<Vector12> body_id_to_q_tilde;
         //tex: $$ \mathbf{q}^{t}_b $$
         DeviceBuffer<Vector12> body_id_to_q_prev;
@@ -297,13 +303,16 @@ class AffineBodyDynamics : public SimSystem
         DeviceBuffer<IndexT> body_id_to_is_fixed;
 
         //tex: $$K_i$$ kinetic energy per body
+
         DeviceBuffer<Float> body_id_to_kinetic_energy;
 
         //tex: $$K$$
         DeviceVar<Float> abd_kinetic_energy;
 
         //tex: $$E$$
-        DeviceBuffer<Float> constitution_shape_energy;
+        DeviceBuffer<Float> body_id_to_shape_energy;
+        //DeviceBuffer<Float> constitution_shape_energy;
+        DeviceVar<Float> abd_shape_energy;
 
         //tex: $$ \mathbf{H}_{ii} + \mathbf{M}_{ii} $$
         DeviceBuffer<Matrix12x12> body_id_to_body_hessian;
@@ -319,7 +328,26 @@ class AffineBodyDynamics : public SimSystem
 
         template <typename T>
         span<T> subview(vector<T>& body_id_to_values, SizeT constitution_index) const noexcept;
+
+        BufferDump dump_q;
+        BufferDump dump_q_v;
+        BufferDump dump_q_prev;
     };
+
+  public:
+    /**
+     * @brief affine body local vertex id to ABD Jacobi matrix
+     */
+    auto Js() const noexcept { return m_impl.vertex_id_to_J.view(); }
+    /**
+     * @brief affine body local vertex id to body id
+     */
+    auto v2b() const noexcept { return m_impl.vertex_id_to_body_id.view(); }
+
+    auto body_is_fixed() const noexcept
+    {
+        return m_impl.body_id_to_is_fixed.view();
+    }
 
   private:
     friend class AffineBodyVertexReporter;
@@ -328,6 +356,8 @@ class AffineBodyDynamics : public SimSystem
     friend class ABDLinearSubsystem;
     friend class ABDLineSearchReporter;
     friend class ABDDiagPreconditioner;
+
+    friend class AffineBodyConstitution;
 
     Impl m_impl;
 };

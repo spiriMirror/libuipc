@@ -5,7 +5,7 @@
 
 namespace uipc::geometry
 {
-static P<AttributeSlot<Float>> compute_vertex_mass_from_tet(SimplicialComplex& R, Float mass_density)
+static S<AttributeSlot<Float>> compute_vertex_mass_from_tet(SimplicialComplex& R, Float mass_density)
 {
     vector<Float> tet_mass;
     tet_mass.resize(R.tetrahedra().size(), 0.0);
@@ -52,7 +52,7 @@ static P<AttributeSlot<Float>> compute_vertex_mass_from_tet(SimplicialComplex& R
     return Vm;
 }
 
-static P<AttributeSlot<Float>> compute_vertex_mass_from_tri(SimplicialComplex& R, Float mass_density)
+static S<AttributeSlot<Float>> compute_vertex_mass_from_tri(SimplicialComplex& R, Float mass_density)
 {
     vector<Float> tri_mass;
     tri_mass.resize(R.triangles().size(), 0.0);
@@ -92,7 +92,7 @@ static P<AttributeSlot<Float>> compute_vertex_mass_from_tri(SimplicialComplex& R
     return Vm;
 }
 
-static P<AttributeSlot<Float>> compute_vertex_mass_from_edge(SimplicialComplex& R, Float mass_density)
+static S<AttributeSlot<Float>> compute_vertex_mass_from_edge(SimplicialComplex& R, Float mass_density)
 {
     vector<Float> edge_mass;
     edge_mass.resize(R.edges().size(), 0.0);
@@ -130,7 +130,7 @@ static P<AttributeSlot<Float>> compute_vertex_mass_from_edge(SimplicialComplex& 
     return Vm;
 }
 
-static P<AttributeSlot<Float>> compute_vertex_mass_from_vertex(SimplicialComplex& R, Float mass_density)
+static S<AttributeSlot<Float>> compute_vertex_mass_from_vertex(SimplicialComplex& R, Float mass_density)
 {
     auto Vs = R.positions().view();
     auto Vm = R.vertices().find<Float>(builtin::mass);
@@ -145,7 +145,7 @@ static P<AttributeSlot<Float>> compute_vertex_mass_from_vertex(SimplicialComplex
     return Vm;
 }
 
-P<AttributeSlot<Float>> compute_vertex_mass(SimplicialComplex& R, Float mass_density)
+S<AttributeSlot<Float>> compute_vertex_mass(SimplicialComplex& R, Float mass_density)
 {
     switch(R.dim())
     {

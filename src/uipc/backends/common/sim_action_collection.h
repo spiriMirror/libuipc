@@ -18,17 +18,15 @@ class SimActionCollection
     template <typename Callable>
     void register_action(ISimSystem& system, Callable&& f);
 
-    void init();
 
     span<SimActionT>       view() noexcept;
     span<const SimActionT> view() const noexcept;
 
   private:
-    list<SimActionT>   m_action_buffer;
-    vector<SimActionT> m_actions;
-    mutable bool       built = false;
-
-    void check_build() const noexcept;
+    void                       lazy_init() const;
+    mutable list<SimActionT>   m_action_buffer;
+    mutable vector<SimActionT> m_actions;
+    mutable bool               built = false;
 };
 }  // namespace uipc::backend
 

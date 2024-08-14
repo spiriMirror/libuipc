@@ -1,5 +1,6 @@
 #include <affine_body/affine_body_dynamics.h>
 
+
 namespace uipc::backend::cuda
 {
 AffineBodyDynamics::FilteredInfo::FilteredInfo(Impl* impl) noexcept
@@ -9,11 +10,9 @@ AffineBodyDynamics::FilteredInfo::FilteredInfo(Impl* impl) noexcept
 
 AffineBodyDynamics::ComputeEnergyInfo::ComputeEnergyInfo(Impl* impl,
                                                          SizeT constitution_index,
-                                                         muda::VarView<Float> shape_energy,
                                                          Float dt) noexcept
     : m_impl(impl)
     , m_constitution_index(constitution_index)
-    , m_shape_energy(shape_energy)
     , m_dt(dt)
 {
 }
@@ -69,6 +68,10 @@ muda::CBufferView<Float> AffineBodyDynamics::ComputeEnergyInfo::volumes() const 
 {
     return m_impl->subview(m_impl->body_id_to_volume, m_constitution_index);
 }
+muda::BufferView<Float> AffineBodyDynamics::ComputeEnergyInfo::body_shape_energies() const noexcept
+{
+    return m_impl->subview(m_impl->body_id_to_shape_energy, m_constitution_index);
+}
 muda::CBufferView<Vector12> AffineBodyDynamics::ComputeGradientHessianInfo::qs() const noexcept
 {
     return m_impl->subview(m_impl->body_id_to_q, m_constitution_index);
@@ -84,7 +87,7 @@ auto AffineBodyDynamics::FilteredInfo::body_infos() const noexcept -> span<const
 }
 
 geometry::SimplicialComplex& AffineBodyDynamics::FilteredInfo::geometry(
-    span<P<geometry::GeometrySlot>> geo_slots, const BodyInfo& body_info)
+    span<S<geometry::GeometrySlot>> geo_slots, const BodyInfo& body_info)
 {
     return Impl::geometry(geo_slots, body_info);
 }

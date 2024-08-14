@@ -5,8 +5,8 @@
 
 namespace uipc::backend::cuda
 {
-class GlobalDCDFilter;
-class HalfPlaneDCDFilter;
+class GlobalTrajectoryFilter;
+class VertexHalfPlaneTrajectoryFilter;
 
 class VertexHalfPlaneNormalContact : public ContactReporter
 {
@@ -83,11 +83,11 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         void compute_energy(EnergyInfo& info);
         void assemble(GlobalContactManager::ContactInfo& info);
 
-        GlobalDCDFilter*      global_dcd_filter      = nullptr;
-        GlobalContactManager* global_contact_manager = nullptr;
-        GlobalVertexManager*  global_vertex_manager  = nullptr;
+        GlobalTrajectoryFilter* global_trajectory_filter      = nullptr;
+        GlobalContactManager*   global_contact_manager = nullptr;
+        GlobalVertexManager*    global_vertex_manager  = nullptr;
 
-        HalfPlaneDCDFilter* half_plane_dcd_filter() const noexcept;
+        SimSystemSlot<VertexHalfPlaneTrajectoryFilter> veretx_half_plane_trajectory_filter;
 
         SizeT PH_count = 0;
         Float dt;
@@ -97,7 +97,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         muda::DeviceBuffer<Vector3>   gradients;
         muda::DeviceBuffer<Matrix3x3> hessians;
 
-        Float reserve_ratio = 1.5;
+        Float reserve_ratio = 1.1;
 
         template <typename T>
         void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)

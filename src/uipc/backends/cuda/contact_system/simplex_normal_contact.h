@@ -2,11 +2,10 @@
 #include <contact_system/contact_reporter.h>
 #include <line_search/line_searcher.h>
 #include <contact_system/contact_coeff.h>
+#include <collision_detection/simplex_trajectory_filter.h>
 
 namespace uipc::backend::cuda
 {
-class SimplexDCDFilter;
-class GlobalDCDFilter;
 class SimplexNormalContact : public ContactReporter
 {
   public:
@@ -137,12 +136,14 @@ class SimplexNormalContact : public ContactReporter
     {
       public:
         void assemble(GlobalContactManager::ContactInfo& info);
+        void compute_energy(SimplexNormalContact*             contact,
+                            GlobalContactManager::EnergyInfo& info);
 
-        GlobalDCDFilter*      global_dcd_filter      = nullptr;
-        GlobalContactManager* global_contact_manager = nullptr;
-        GlobalVertexManager*  global_vertex_manager  = nullptr;
+        GlobalTrajectoryFilter* global_trajectory_filter      = nullptr;
+        GlobalContactManager*   global_contact_manager = nullptr;
+        GlobalVertexManager*    global_vertex_manager  = nullptr;
 
-        SimplexDCDFilter* simplex_dcd_filter() const noexcept;
+        SimSystemSlot<SimplexTrajectoryFilter> simplex_trajectory_filter;
 
         SizeT PT_count = 0;
         SizeT EE_count = 0;
@@ -163,8 +164,9 @@ class SimplexNormalContact : public ContactReporter
         muda::DeviceBuffer<Vector6>   PP_gradients;
 
         muda::DeviceBuffer<Float> energies;
+        // muda::DeviceBuffer<Float> sorted_energies;
 
-        Float reserve_ratio = 1.5;
+        Float reserve_ratio = 1.1;
 
         template <typename T>
         void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)

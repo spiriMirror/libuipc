@@ -7,14 +7,15 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(ABDLinearSubsystem);
 
-void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
+void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
 {
     m_impl.affine_body_dynamics        = &require<AffineBodyDynamics>();
     m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
 
     m_impl.abd_contact_receiver = find<ABDContactReceiver>();
-}
 
+    m_impl.converter.reserve_ratio(1.1);
+}
 
 void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
 {
@@ -60,7 +61,7 @@ void ABDLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
     if(abd_contact_receiver)  // if contact is enabled
     {
         auto contact_count = contact().contact_gradient.doublet_count();
-        if (contact_count)
+        if(contact_count)
         {
             ParallelFor()
                 .kernel_name(__FUNCTION__)

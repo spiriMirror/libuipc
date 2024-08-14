@@ -7,6 +7,7 @@ target_link_libraries(cuda PUBLIC
     cusparse
     cusolver
 )
+
 target_compile_features(cuda PUBLIC cxx_std_20)
 target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(cuda PROPERTIES
@@ -17,15 +18,18 @@ set_target_properties(cuda PROPERTIES
 )
 
 # add subdirectories
-add_subdirectory(collision_detection)
-add_subdirectory(affine_body)
+add_subdirectory(utils)
+add_subdirectory(global_geometry)
+add_subdirectory(implicit_geometry)
 add_subdirectory(linear_system)
+add_subdirectory(collision_detection)
 add_subdirectory(algorithm)
 add_subdirectory(line_search)
 add_subdirectory(contact_system)
-add_subdirectory(global_geometry)
-add_subdirectory(implicit_geometry)
 add_subdirectory(engine)
+add_subdirectory(affine_body)
+add_subdirectory(finite_element)
+add_subdirectory(coupling_system)
 
 # source files in this directory
 file(GLOB SOURCES "*.cpp" "*.h" "*.cu" "details/*.inl")

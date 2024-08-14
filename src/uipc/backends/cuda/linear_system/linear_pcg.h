@@ -10,7 +10,7 @@ class LinearPCG : public IterativeSolver
 
 
   protected:
-    virtual void do_build() override;
+    virtual void do_build(BuildInfo& info) override;
     virtual void do_solve(GlobalLinearSystem::SolvingInfo& info) override;
 
   private:

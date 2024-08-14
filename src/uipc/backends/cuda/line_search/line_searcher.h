@@ -27,11 +27,14 @@ class LineSearcher : public SimSystem
         EnergyInfo(LineSearcher* impl) noexcept;
         Float dt() noexcept;
         void  energy(Float e) noexcept;
+        bool  is_initial() noexcept;
+
 
       private:
         friend class LineSearcher;
-        LineSearcher*        m_impl   = nullptr;
-        std::optional<Float> m_energy = std::nullopt;
+        LineSearcher*        m_impl       = nullptr;
+        std::optional<Float> m_energy     = std::nullopt;
+        bool                 m_is_initial = false;
     };
 
     void add_reporter(LineSearchReporter* reporter);
@@ -49,7 +52,7 @@ class LineSearcher : public SimSystem
     void  init();
     void  record_start_point();       // only be called by SimEngine
     void  step_forward(Float alpha);  // only be called by SimEngine
-    Float compute_energy();           // only be called by SimEngine
+    Float compute_energy(bool is_initial);           // only be called by SimEngine
 
     SimSystemSlotCollection<LineSearchReporter> m_reporters;
     SimActionCollection<void(EnergyInfo)>       m_energy_reporters;

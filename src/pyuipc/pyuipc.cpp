@@ -1,17 +1,31 @@
-#include "pybind11/pybind11.h"
+#include <pyuipc/pyuipc.h>
+#include <uipc/common/config.h>
+#include <fmt/format.h>
 
-// #include "export_diff_app.h"
-
-namespace uipc::py {
-
-int add(int a, int b) {
-	return a + b;
+namespace pyuipc
+{
+std::string remove_project_prefix(std::string_view path)
+{
+    // find last "pyuipc" in path
+    auto pos = path.rfind("pyuipc");
+    if(pos == std::string::npos)
+    {
+        return std::string(path);
+    }
+    return std::string(path.substr(pos));
 }
 
-}// namespace uipc::py
-
-PYBIND11_MODULE(pyuipc, m) {
-	m.doc() = "ing python binding";
-	m.def("add", &uipc::py::add, "A function which adds two numbers");
-	// sail::ing::py::export_diff_render_app(m);
+std::string process_project_prefix(std::string_view path)
+{
+    if constexpr(uipc::RUNTIME_CHECK)
+        return remove_project_prefix(path);
+    return std::string(path);
 }
+
+std::string detail::string_with_source_location(std::string_view msg,
+                                                std::string_view path,
+                                                std::size_t      line)
+{
+    return fmt::format("{} [{}({})]", msg, process_project_prefix(path), line);
+}
+}  // namespace pyuipc

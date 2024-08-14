@@ -8,61 +8,6 @@ GeometrySlotT<SimplicialComplex>::GeometrySlotT(IndexT id, const SimplicialCompl
 {
 }
 
-AttributeSlot<Vector3>& GeometrySlotT<SimplicialComplex>::positions() noexcept
-{
-    return m_simplicial_complex.positions();
-}
-
-const AttributeSlot<Vector3>& GeometrySlotT<SimplicialComplex>::positions() const noexcept
-{
-    return m_simplicial_complex.positions();
-}
-
-auto GeometrySlotT<SimplicialComplex>::vertices() noexcept -> VertexAttributes
-{
-    return m_simplicial_complex.vertices();
-}
-
-auto GeometrySlotT<SimplicialComplex>::vertices() const noexcept -> CVertexAttributes
-{
-    return m_simplicial_complex.vertices();
-}
-
-auto GeometrySlotT<SimplicialComplex>::edges() noexcept -> EdgeAttributes
-{
-    return m_simplicial_complex.edges();
-}
-
-auto GeometrySlotT<SimplicialComplex>::edges() const noexcept -> CEdgeAttributes
-{
-    return m_simplicial_complex.edges();
-}
-
-auto GeometrySlotT<SimplicialComplex>::triangles() noexcept -> TriangleAttributes
-{
-    return m_simplicial_complex.triangles();
-}
-
-auto GeometrySlotT<SimplicialComplex>::triangles() const noexcept -> CTriangleAttributes
-{
-    return m_simplicial_complex.triangles();
-}
-
-auto GeometrySlotT<SimplicialComplex>::tetrahedra() noexcept -> TetrahedronAttributes
-{
-    return m_simplicial_complex.tetrahedra();
-}
-
-auto GeometrySlotT<SimplicialComplex>::tetrahedra() const noexcept -> CTetrahedronAttributes
-{
-    return m_simplicial_complex.tetrahedra();
-}
-
-IndexT GeometrySlotT<SimplicialComplex>::dim() const noexcept
-{
-    return m_simplicial_complex.dim();
-}
-
 SimplicialComplex& GeometrySlotT<SimplicialComplex>::geometry() noexcept
 {
     return m_simplicial_complex;

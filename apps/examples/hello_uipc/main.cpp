@@ -1,15 +1,16 @@
 #include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 
 class NullEngine : public uipc::engine::IEngine
 {
     std::size_t m_frame = 0;
 
   public:
-    void do_init(uipc::backend::WorldVisitor v) override;
-    void do_advance() override;
-    void do_sync() override {}
-    void do_retrieve() override {}
+    void   do_init(uipc::backend::WorldVisitor v) override;
+    void   do_advance() override;
+    void   do_sync() override {}
+    void   do_retrieve() override {}
+    size_t get_frame() const override { return m_frame; }
 };
 
 
@@ -25,7 +26,8 @@ int main()
     Scene      scene;
     {
         // create constitution and contact model
-        auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
+        AffineBodyConstitution abd;
+        scene.constitution_tabular().insert(abd);
         auto default_contact = scene.contact_tabular().default_element();
 
         // create geometry
@@ -41,7 +43,7 @@ int main()
         default_contact.apply_to(tet);
 
         // create object
-        P<Object> object = scene.objects().create("tet");
+        S<Object> object = scene.objects().create("tet");
         {
             object->geometries().create(tet);
         }
@@ -49,7 +51,7 @@ int main()
         // create a ground geometry
         ImplicitGeometry half_plane = ground(-1.0);
 
-        P<Object> ground = scene.objects().create("ground");
+        S<Object> ground = scene.objects().create("ground");
         {
             ground->geometries().create(half_plane);
         }
@@ -67,7 +69,7 @@ void NullEngine::do_init(uipc::backend::WorldVisitor v)
 {
     using namespace uipc;
 
-    auto print_geos = [&](span<P<geometry::GeometrySlot>> geos)
+    auto print_geos = [&](span<S<geometry::GeometrySlot>> geos)
     {
         for(auto& geo : geos)
         {

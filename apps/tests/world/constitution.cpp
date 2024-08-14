@@ -5,7 +5,7 @@
 #include <uipc/geometry.h>
 #include <iostream>
 #include <uipc/builtin/attribute_name.h>
-#include <uipc/constitutions/affine_body.h>
+#include <uipc/constitution/affine_body.h>
 #include <uipc/common/format.h>
 #include <uipc/world/object.h>
 
@@ -16,8 +16,8 @@ using namespace uipc::constitution;
 TEST_CASE("abd", "[constitution]")
 {
     Scene scene;
-    auto& constitution_tabular = scene.constitution_tabular();
-    auto& abd = constitution_tabular.create<AffineBodyConstitution>();
+    AffineBodyConstitution abd;
+    scene.constitution_tabular().insert(abd);
 
     geometry::SimplicialComplexIO io;
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
