@@ -20,32 +20,49 @@ class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         void filter_active(FilterActiveInfo& info);
         void filter_toi(FilterTOIInfo& info);
 
-        // broad phase
-        muda::DeviceBuffer<AABB>     point_aabbs;
-        muda::DeviceBuffer<AABB>     triangle_aabbs;
-        AtomicCountingLBVH           lbvh_PT;
-        muda::DeviceBuffer<Vector4i> candidate_PTs;
+        /****************************************************
+        *                   Broad Phase
+        ****************************************************/
+        
+        muda::DeviceBuffer<AABB> codim_point_aabbs;
+        muda::DeviceBuffer<AABB> point_aabbs;
+        muda::DeviceBuffer<AABB> edge_aabbs;
+        muda::DeviceBuffer<AABB> triangle_aabbs;
 
-        muda::DeviceBuffer<AABB>     edge_aabbs;
-        AtomicCountingLBVH           lbvh_EE;
-        muda::DeviceBuffer<Vector4i> candidate_EEs;
+        AtomicCountingLBVH         lbvh_PP;
+        muda::BufferView<Vector2i> candidate_PP_pairs;
+        AtomicCountingLBVH         lbvh_PE;
+        muda::BufferView<Vector2i> candidate_PE_pairs;
+        AtomicCountingLBVH         lbvh_PT;
+        muda::BufferView<Vector2i> candidate_PT_pairs;
+        AtomicCountingLBVH         lbvh_EE;
+        muda::BufferView<Vector2i> candidate_EE_pairs;
 
 
-        // narrow phase
-        muda::DeviceBuffer<Vector4i> temp_PTs;
-        muda::DeviceBuffer<Vector4i> temp_EEs;
-        muda::DeviceBuffer<Vector3i> temp_PEs;
-        muda::DeviceBuffer<Vector2i> temp_PPs;
+        /****************************************************
+        *                   Narrow Phase
+        ****************************************************/
+        
+        muda::DeviceBuffer<IndexT> PT_active_flags;
+        muda::DeviceBuffer<IndexT> PT_active_offsets;
+        muda::DeviceBuffer<IndexT> EE_active_flags;
+        muda::DeviceBuffer<IndexT> EE_active_offsets;
+        muda::DeviceBuffer<IndexT> PE_active_flags;
+        muda::DeviceBuffer<IndexT> PE_active_offsets;
+        muda::DeviceBuffer<IndexT> PP_active_flags;
+        muda::DeviceBuffer<IndexT> PP_active_offsets;
 
-        // for filter active
         muda::DeviceBuffer<Vector4i> PTs;
         muda::DeviceBuffer<Vector4i> EEs;
         muda::DeviceBuffer<Vector3i> PEs;
         muda::DeviceBuffer<Vector2i> PPs;
 
-        muda::DeviceVar<IndexT> selected;
 
-        muda::DeviceBuffer<Float> tois;
+        /****************************************************
+        *                   CCD TOI
+        ****************************************************/
+
+        muda::DeviceBuffer<Float> tois;  // PP, PE, PT, EE
     };
 
   private:

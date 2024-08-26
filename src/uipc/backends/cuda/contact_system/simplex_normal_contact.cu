@@ -56,12 +56,12 @@ void SimplexNormalContact::Impl::compute_energy(SimplexNormalContact* contact,
     using namespace muda;
 
     // if(info.is_initial())
-    {
-        DeviceMergeSort().SortKeys(energies.data(),
-                                   energies.size(),
-                                   [] CUB_RUNTIME_FUNCTION(Float a, Float b)
-                                   { return a < b; });
-    }
+    //{
+    //    DeviceMergeSort().SortKeys(energies.data(),
+    //                               energies.size(),
+    //                               [] CUB_RUNTIME_FUNCTION(Float a, Float b)
+    //                               { return a < b; });
+    //}
 
     DeviceReduce().Sum(energies.data(), info.energy().data(), energies.size());
 }
@@ -150,6 +150,11 @@ muda::CBufferView<Vector3i> SimplexNormalContact::BaseInfo::PEs() const
 muda::CBufferView<Vector2i> SimplexNormalContact::BaseInfo::PPs() const
 {
     return m_impl->simplex_trajectory_filter->PPs();
+}
+
+muda::CBufferView<Float> SimplexNormalContact::BaseInfo::thicknesses() const
+{
+    return m_impl->global_vertex_manager->thicknesses();
 }
 
 muda::CBufferView<Vector3> SimplexNormalContact::BaseInfo::positions() const
@@ -397,5 +402,10 @@ void SimplexNormalContact::Impl::assemble(GlobalContactManager::ContactInfo& inf
 
     UIPC_ASSERT(H3x3_offset == info.hessian().triplet_count(), "size mismatch");
     UIPC_ASSERT(G3_offset == info.gradient().doublet_count(), "size mismatch");
+}
+
+void SimplexNormalContact::Impl::classify_constraints() 
+{
+
 }
 }  // namespace uipc::backend::cuda

@@ -15,24 +15,24 @@ class GlobalSimpicialSurfaceManager : public SimSystem
 
     void add_reporter(SimplicialSurfaceReporter* reporter) noexcept;
 
+    class ReporterInfo
+    {
+      public:
+        SizeT surf_vertex_offset   = 0;
+        SizeT surf_vertex_count    = 0;
+        SizeT surf_edge_offset     = 0;
+        SizeT surf_edge_count      = 0;
+        SizeT surf_triangle_offset = 0;
+        SizeT surf_triangle_count  = 0;
+    };
 
     class SurfaceCountInfo
     {
       public:
-        void surf_vertex_count(SizeT count) noexcept
-        {
-            m_surf_vertex_count = count;
-        }
-        void surf_edge_count(SizeT count) noexcept
-        {
-            m_surf_edge_count = count;
-        }
-        void surf_triangle_count(SizeT count) noexcept
-        {
-            m_surf_triangle_count = count;
-        }
-
-        void changable(bool value) { m_changable = value; }
+        void surf_vertex_count(SizeT count) noexcept;
+        void surf_edge_count(SizeT count) noexcept;
+        void surf_triangle_count(SizeT count) noexcept;
+        void changable(bool value) noexcept;
 
       private:
         friend class Impl;
@@ -45,47 +45,29 @@ class GlobalSimpicialSurfaceManager : public SimSystem
     class SurfaceAttributeInfo
     {
       public:
-        SurfaceAttributeInfo(Impl* impl)
+        SurfaceAttributeInfo(Impl* impl, SizeT index)
             : m_impl(impl)
+            , m_index(index)
         {
-        }
-        muda::BufferView<IndexT> surf_vertices() noexcept
-        {
-            return m_surf_vertices;
         }
 
-        muda::BufferView<Vector2i> surf_edges() noexcept
-        {
-            return m_surf_edges;
-        }
-        muda::BufferView<Vector3i> surf_triangles() noexcept
-        {
-            return m_surf_triangles;
-        }
+        muda::BufferView<IndexT>   surf_vertices() noexcept;
+        muda::BufferView<Vector2i> surf_edges() noexcept;
+        muda::BufferView<Vector3i> surf_triangles() noexcept;
+        const ReporterInfo&        reporter_info() const noexcept;
 
       private:
         friend class Impl;
-        muda::BufferView<IndexT>   m_surf_vertices;
-        muda::BufferView<Vector2i> m_surf_edges;
-        muda::BufferView<Vector3i> m_surf_triangles;
-        Impl*                      m_impl = nullptr;
+        Impl* m_impl  = nullptr;
+        SizeT m_index = ~0ull;
     };
 
-    class ReporterInfo
-    {
-      public:
-        SizeT surf_vertex_offset   = 0;
-        SizeT surf_vertex_count    = 0;
-        SizeT surf_edge_offset     = 0;
-        SizeT surf_edge_count      = 0;
-        SizeT surf_triangle_offset = 0;
-        SizeT surf_triangle_count  = 0;
-    };
 
     class Impl
     {
       public:
         void init_surface_info();
+        void _collect_codim_vertices();
 
         // core invariant data
         vector<ReporterInfo> reporter_infos;
@@ -94,19 +76,20 @@ class GlobalSimpicialSurfaceManager : public SimSystem
         SizeT total_surf_edge_count     = 0;
         SizeT total_surf_triangle_count = 0;
 
-
+        muda::DeviceBuffer<IndexT>   codim_0d_vertices;
         muda::DeviceBuffer<IndexT>   surf_vertices;
         muda::DeviceBuffer<Vector2i> surf_edges;
         muda::DeviceBuffer<Vector3i> surf_triangles;
 
         GlobalVertexManager* global_vertex_manager = nullptr;
         SimSystemSlotCollection<SimplicialSurfaceReporter> reporters;
+        muda::DeviceVar<int>                               selected_codim_0d_count;
     };
 
+    muda::CBufferView<IndexT>   codim_vertices() const noexcept;
     muda::CBufferView<IndexT>   surf_vertices() const noexcept;
     muda::CBufferView<Vector2i> surf_edges() const noexcept;
     muda::CBufferView<Vector3i> surf_triangles() const noexcept;
-
 
   protected:
     virtual void do_build() override;
@@ -114,7 +97,7 @@ class GlobalSimpicialSurfaceManager : public SimSystem
   private:
     friend class SimEngine;
     Impl m_impl;
-    void init_surface_info();
-    void rebuild_surface_info();
+    void init_surface_info();     // only called by SimEngine
+    void rebuild_surface_info();  // only called by SimEngine
 };
 }  // namespace uipc::backend::cuda

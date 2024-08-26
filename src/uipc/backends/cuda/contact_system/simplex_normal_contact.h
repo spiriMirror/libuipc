@@ -3,6 +3,7 @@
 #include <line_search/line_searcher.h>
 #include <contact_system/contact_coeff.h>
 #include <collision_detection/simplex_trajectory_filter.h>
+#include <contact_system/simplex_contact_constraint.h>
 
 namespace uipc::backend::cuda
 {
@@ -12,7 +13,6 @@ class SimplexNormalContact : public ContactReporter
     using ContactReporter::ContactReporter;
 
     class Impl;
-
 
     class BaseInfo
     {
@@ -27,6 +27,7 @@ class SimplexNormalContact : public ContactReporter
         muda::CBufferView<Vector4i>       EEs() const;
         muda::CBufferView<Vector3i>       PEs() const;
         muda::CBufferView<Vector2i>       PPs() const;
+        muda::CBufferView<Float>          thicknesses() const;
         muda::CBufferView<Vector3>        positions() const;
         muda::CBufferView<Vector3>        prev_positions() const;
         muda::CBufferView<Vector3>        rest_positions() const;
@@ -136,12 +137,15 @@ class SimplexNormalContact : public ContactReporter
     {
       public:
         void assemble(GlobalContactManager::ContactInfo& info);
+
+        void classify_constraints();
+
         void compute_energy(SimplexNormalContact*             contact,
                             GlobalContactManager::EnergyInfo& info);
 
-        GlobalTrajectoryFilter* global_trajectory_filter      = nullptr;
-        GlobalContactManager*   global_contact_manager = nullptr;
-        GlobalVertexManager*    global_vertex_manager  = nullptr;
+        GlobalTrajectoryFilter* global_trajectory_filter = nullptr;
+        GlobalContactManager*   global_contact_manager   = nullptr;
+        GlobalVertexManager*    global_vertex_manager    = nullptr;
 
         SimSystemSlot<SimplexTrajectoryFilter> simplex_trajectory_filter;
 
@@ -151,20 +155,20 @@ class SimplexNormalContact : public ContactReporter
         SizeT PP_count = 0;
         Float dt       = 0;
 
-        muda::DeviceBuffer<Vector4i>    PT_EE_indices;
-        muda::DeviceBuffer<Matrix12x12> PT_EE_hessians;
-        muda::DeviceBuffer<Vector12>    PT_EE_gradients;
+        muda::DeviceBuffer<SimplexContactConstraint> EE_constraints;
+        muda::DeviceBuffer<SimplexContactConstraint> PT_constraints;
+        muda::DeviceBuffer<Matrix12x12>              PT_EE_hessians;
+        muda::DeviceBuffer<Vector12>                 PT_EE_gradients;
 
-        muda::DeviceBuffer<Vector3i>  PE_indices;
-        muda::DeviceBuffer<Matrix9x9> PE_hessians;
-        muda::DeviceBuffer<Vector9>   PE_gradients;
+        muda::DeviceBuffer<SimplexContactConstraint> PE_constraints;
+        muda::DeviceBuffer<Matrix9x9>                PE_hessians;
+        muda::DeviceBuffer<Vector9>                  PE_gradients;
 
-        muda::DeviceBuffer<Vector2i>  PP_indices;
-        muda::DeviceBuffer<Matrix6x6> PP_hessians;
-        muda::DeviceBuffer<Vector6>   PP_gradients;
+        muda::DeviceBuffer<SimplexContactConstraint> PP_constraints;
+        muda::DeviceBuffer<Matrix6x6>                PP_hessians;
+        muda::DeviceBuffer<Vector6>                  PP_gradients;
 
         muda::DeviceBuffer<Float> energies;
-        // muda::DeviceBuffer<Float> sorted_energies;
 
         Float reserve_ratio = 1.1;
 

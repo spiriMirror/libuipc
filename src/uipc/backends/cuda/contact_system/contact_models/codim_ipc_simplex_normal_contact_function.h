@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/ext/geo/distance.h>
+#include <utils/distance.h>
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
 
 namespace uipc::backend::cuda
@@ -16,7 +16,7 @@ namespace sym::codim_ipc_simplex_contact
                                               const Vector3& T2)
     {
         using namespace codim_ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
         Float D;
         point_triangle_distance(P, T0, T1, T2, D);
         Float B;
@@ -35,7 +35,7 @@ namespace sym::codim_ipc_simplex_contact
                                                        const Vector3& T2)
     {
         using namespace codim_ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
 
         Float D;
         point_triangle_distance(P, T0, T1, T2, D);
@@ -79,7 +79,7 @@ namespace sym::codim_ipc_simplex_contact
     {
         // using mollifier to improve the smoothness of the edge-edge barrier
         using namespace codim_ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
         Float D;
         edge_edge_distance(Ea0, Ea1, Eb0, Eb1, D);
         Float B;
@@ -110,7 +110,7 @@ namespace sym::codim_ipc_simplex_contact
                                                        const Vector3& Eb1)
     {
         using namespace codim_ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
 
         Float D;
         edge_edge_distance(Ea0, Ea1, Eb0, Eb1, D);
@@ -177,7 +177,7 @@ namespace sym::codim_ipc_simplex_contact
                                               const Vector3& E1)
     {
         using namespace codim_ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
         Float D = 0.0;
         point_edge_distance(P, E0, E1, D);
         Float E = 0.0;
@@ -195,7 +195,7 @@ namespace sym::codim_ipc_simplex_contact
                                                        const Vector3& E1)
     {
         using namespace codim_ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
 
         Float D = 0.0;
         point_edge_distance(P, E0, E1, D);
@@ -229,7 +229,7 @@ namespace sym::codim_ipc_simplex_contact
         Float kappa, Float d_hat, Float thickness, const Vector3& P0, const Vector3& P1)
     {
         using namespace codim_ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
         Float D = 0.0;
         point_point_distance(P0, P1, D);
         Float E = 0.0;
@@ -246,7 +246,7 @@ namespace sym::codim_ipc_simplex_contact
                                                        const Vector3& P1)
     {
         using namespace codim_ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
 
         Float D = 0.0;
         point_point_distance(P0, P1, D);

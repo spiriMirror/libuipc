@@ -25,7 +25,10 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
 
         Float d_hat() const noexcept;
 
-        muda::CBufferView<Vector3>  positions() const noexcept;
+        muda::CBufferView<Vector3> positions() const noexcept;
+        muda::CBufferView<Float>   thicknesses() const noexcept;
+
+        muda::CBufferView<IndexT>   codim_vertices() const noexcept;
         muda::CBufferView<IndexT>   surf_vertices() const noexcept;
         muda::CBufferView<Vector2i> surf_edges() const noexcept;
         muda::CBufferView<Vector3i> surf_triangles() const noexcept;
@@ -40,7 +43,8 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
       public:
         using BaseInfo::BaseInfo;
 
-        Float                      alpha() const noexcept { return m_alpha; }
+        Float alpha() const noexcept { return m_alpha; }
+
         muda::CBufferView<Vector3> displacements() const noexcept;
 
       private:

@@ -8,3 +8,7 @@
  *********************************************************************/
 #include <muda/ext/eigen/eigen_cxx20.h>
 #include <uipc/common/type_define.h>
+
+#define UIPC_GENERIC MUDA_GENERIC
+#define UIPC_DEVICE MUDA_DEVICE
+#define UIPC_HOST MUDA_HOST

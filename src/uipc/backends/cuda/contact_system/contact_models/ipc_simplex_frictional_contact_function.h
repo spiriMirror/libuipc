@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/ext/geo/distance.h>
+#include <utils/distance.h>
 #include <contact_system/contact_models/ipc_contact_function.h>
 
 namespace uipc::backend::cuda
@@ -23,7 +23,7 @@ namespace sym::ipc_simplex_contact
                                         const Vector3& prev_T2,
                                         Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
@@ -87,7 +87,7 @@ namespace sym::ipc_simplex_contact
                                                  const Vector3& prev_T2,
                                                  Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
@@ -160,7 +160,7 @@ namespace sym::ipc_simplex_contact
                                         const Vector3& prev_Q1,
                                         Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
@@ -226,7 +226,7 @@ namespace sym::ipc_simplex_contact
                                                  const Vector3& prev_Q1,
                                                  Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
@@ -299,7 +299,7 @@ namespace sym::ipc_simplex_contact
                                         const Vector3& prev_E1,
                                         Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
@@ -349,7 +349,7 @@ namespace sym::ipc_simplex_contact
                                                  const Vector3& prev_E1,
                                                  Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
@@ -406,7 +406,7 @@ namespace sym::ipc_simplex_contact
                                         const Vector3& prev_Q,
                                         Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
@@ -448,7 +448,7 @@ namespace sym::ipc_simplex_contact
                                                  const Vector3& prev_Q,
                                                  Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;

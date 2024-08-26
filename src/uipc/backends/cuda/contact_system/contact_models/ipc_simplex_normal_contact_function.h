@@ -1,6 +1,6 @@
 #pragma once
 #include <type_define.h>
-#include <muda/ext/geo/distance.h>
+#include <utils/distance.h>
 #include <contact_system/contact_models/ipc_contact_function.h>
 
 namespace uipc::backend::cuda
@@ -15,7 +15,7 @@ namespace sym::ipc_simplex_contact
                                               const Vector3& T2)
     {
         using namespace ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
         Float D_hat = squared_d_hat;
         Float D;
         point_triangle_distance(P, T0, T1, T2, D);
@@ -34,7 +34,7 @@ namespace sym::ipc_simplex_contact
                                                        const Vector3& T2)
     {
         using namespace ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
 
         Float D_hat = squared_d_hat;
         Float D;
@@ -78,7 +78,7 @@ namespace sym::ipc_simplex_contact
     {
         // using mollifier to improve the smoothness of the edge-edge barrier
         using namespace ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
         Float D_hat = squared_d_hat;
         Float D;
         edge_edge_distance(Ea0, Ea1, Eb0, Eb1, D);
@@ -109,7 +109,7 @@ namespace sym::ipc_simplex_contact
                                                        const Vector3& Eb1)
     {
         using namespace ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
 
         Float D_hat = squared_d_hat;
 
@@ -178,7 +178,7 @@ namespace sym::ipc_simplex_contact
                                               const Vector3& E1)
     {
         using namespace ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
         Float D_hat = squared_d_hat;
         Float D     = 0.0;
         point_edge_distance(P, E0, E1, D);
@@ -196,7 +196,7 @@ namespace sym::ipc_simplex_contact
                                                        const Vector3& E1)
     {
         using namespace ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
 
         Float D_hat = squared_d_hat;
         Float D     = 0.0;
@@ -233,7 +233,7 @@ namespace sym::ipc_simplex_contact
                                               const Vector3& P1)
     {
         using namespace ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
         Float D_hat = squared_d_hat;
         Float D     = 0.0;
         point_point_distance(P0, P1, D);
@@ -250,7 +250,7 @@ namespace sym::ipc_simplex_contact
                                                        const Vector3& P1)
     {
         using namespace ipc_contact;
-        using namespace muda::distance;
+        using namespace distance;
 
         Float D_hat = squared_d_hat;
         Float D     = 0.0;
