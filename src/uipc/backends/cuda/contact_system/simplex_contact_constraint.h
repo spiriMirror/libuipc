@@ -8,6 +8,8 @@ namespace uipc::backend::cuda
 class SimplexContactConstraint
 {
   public:
+    UIPC_GENERIC SimplexContactConstraint() noexcept;
+
     enum class Type : int
     {
         None = 0,
@@ -48,10 +50,12 @@ class SimplexContactConstraint
     UIPC_GENERIC static SimplexContactConstraint PP(IndexT p0, IndexT p1) noexcept;
 
     UIPC_GENERIC static SimplexContactConstraint None() noexcept;
+    UIPC_GENERIC                                 operator bool() const noexcept;
 
     // Accessors:
 
     UIPC_GENERIC Type type() const noexcept;
+    UIPC_GENERIC bool is_none() const noexcept;
 
     UIPC_GENERIC void as_EE(Vector2i& e0, Vector2i& e1) const noexcept;
     UIPC_GENERIC void as_PE_in_EE(IndexT& p, Vector2i& e, IndexT& inactive_p) const noexcept;
@@ -69,8 +73,13 @@ class SimplexContactConstraint
 
     UIPC_GENERIC void as_PP(IndexT& p0, IndexT& p1) const noexcept;
 
+    UIPC_GENERIC Vector4i EE_indices() const noexcept;
+    UIPC_GENERIC Vector4i PT_indices() const noexcept;
+    UIPC_GENERIC Vector3i PE_indices() const noexcept;
+    UIPC_GENERIC Vector4i PP_indices() const noexcept;
+
   private:
-    Vector4i     m_data;
+    Vector4i              m_data;
     UIPC_GENERIC SimplexContactConstraint(const Vector4i& data) noexcept;
 };
 }  // namespace uipc::backend::cuda

@@ -1,7 +1,7 @@
 #pragma once
 #include <contact_system/simplex_normal_contact.h>
 #include <contact_system/contact_models/codim_ipc_simplex_normal_contact_function.h>
-#include <utils/distance.h>
+#include <utils/distance/distance_flagged.h>
 #include <utils/codim_thickness.h>
 #include <kernel_cout.h>
 
@@ -17,6 +17,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
     virtual void do_compute_energy(EnergyInfo& info) override
     {
         using namespace muda;
+        using namespace sym::codim_ipc_simplex_contact;
 
         // Compute Point-Triangle energy
         auto PT_count = info.PTs().size();
@@ -32,7 +33,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     d_hat = info.d_hat(),
                     dt    = info.dt()] __device__(int i) mutable
                    {
-                       const auto& PT = PTs(i);
+                       Vector4i PT = PTs(i);
 
 
                        auto cid_L = contact_ids(PT[0]);
@@ -50,10 +51,13 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                                       thicknesses(PT(2)),
                                                       thicknesses(PT(3)));
 
+                       Vector4i flag =
+                           distance::point_triangle_distance_flag(P, T0, T1, T2);
+
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::point_triangle_distance(P, T0, T1, T2, D);
+                           distance::point_triangle_distance(flag, P, T0, T1, T2, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -68,8 +72,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       Es(i) = sym::codim_ipc_simplex_contact::PT_barrier_energy(
-                           kappa, d_hat, thickness, P, T0, T1, T2);
+                       Es(i) = PT_barrier_energy(flag, kappa, d_hat, thickness, P, T0, T1, T2);
                    });
 
         // Compute Edge-Edge energy
@@ -87,7 +90,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     d_hat   = info.d_hat(),
                     dt      = info.dt()] __device__(int i) mutable
                    {
-                       const auto& EE = EEs(i);
+                       Vector4i EE = EEs(i);
 
                        auto cid_L = contact_ids(EE[0]);
                        auto cid_R = contact_ids(EE[2]);
@@ -109,10 +112,12 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                                       thicknesses(EE(2)),
                                                       thicknesses(EE(3)));
 
+                       Vector4i flag = distance::edge_edge_distance_flag(E0, E1, E2, E3);
+
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::edge_edge_distance(E0, E1, E2, E3, D);
+                           distance::edge_edge_distance(flag, E0, E1, E2, E3, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -127,20 +132,20 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       Es(i) = sym::codim_ipc_simplex_contact::EE_barrier_energy(
-                           // coefficients
-                           kappa,
-                           d_hat,
-                           thickness,
-                           // positions
-                           t0_Ea0,
-                           t0_Ea1,
-                           t0_Eb0,
-                           t0_Eb1,
-                           E0,
-                           E1,
-                           E2,
-                           E3);
+                       Es(i) = mollified_EE_barrier_energy(flag,
+                                                           // coefficients
+                                                           kappa,
+                                                           d_hat,
+                                                           thickness,
+                                                           // positions
+                                                           t0_Ea0,
+                                                           t0_Ea1,
+                                                           t0_Eb0,
+                                                           t0_Eb1,
+                                                           E0,
+                                                           E1,
+                                                           E2,
+                                                           E3);
                    });
 
         // Compute Point-Edge energy
@@ -150,15 +155,16 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
             .apply(PE_count,
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    PEs = info.PEs().viewer().name("PEs"),
-                    Es  = info.PE_energies().viewer().name("Es"),
-                    Ps  = info.positions().viewer().name("Ps"),
+                    PEs     = info.PEs().viewer().name("PEs"),
+                    Es      = info.PE_energies().viewer().name("Es"),
+                    Ps      = info.positions().viewer().name("Ps"),
+                    rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     eps_v = info.eps_velocity(),
                     d_hat = info.d_hat(),
                     dt    = info.dt()] __device__(int i) mutable
                    {
-                       const auto& PE = PEs(i);
+                       Vector3i PE = PEs(i);
 
                        auto cid_L = contact_ids(PE[0]);
                        auto cid_R = contact_ids(PE[1]);
@@ -173,14 +179,16 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                                       thicknesses(PE(1)),
                                                       thicknesses(PE(2)));
 
+                       Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
+
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::point_edge_distance(P, E0, E1, D);
+                           distance::point_edge_distance(flag, P, E0, E1, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(D > range(0) && D < range(1),
+                           MUDA_ASSERT(is_active_D(range, D),
                                        "PE[%d,%d,%d] d^2(%f) out of range, (%f,%f)",
                                        PE(0),
                                        PE(1),
@@ -190,8 +198,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       Es(i) = sym::codim_ipc_simplex_contact::PE_barrier_energy(
-                           kappa, d_hat, thickness, P, E0, E1);
+                       Es(i) = PE_barrier_energy(flag, kappa, d_hat, thickness, P, E0, E1);
                    });
 
         // Compute Point-Point energy
@@ -201,30 +208,33 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
             .apply(PP_count,
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    PPs = info.PPs().viewer().name("PPs"),
-                    Es  = info.PP_energies().viewer().name("Es"),
-                    Ps  = info.positions().viewer().name("Ps"),
+                    PPs     = info.PPs().viewer().name("PPs"),
+                    Es      = info.PP_energies().viewer().name("Es"),
+                    Ps      = info.positions().viewer().name("Ps"),
+                    rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     d_hat = info.d_hat(),
                     dt    = info.dt()] __device__(int i) mutable
                    {
-                       const auto& PP = PPs(i);
+                       Vector2i PP = PPs(i);
 
                        auto cid_L = contact_ids(PP[0]);
                        auto cid_R = contact_ids(PP[1]);
 
-                       const auto& P0 = Ps(PP[0]);
-                       const auto& P1 = Ps(PP[1]);
+                       const auto& Pa = Ps(PP[0]);
+                       const auto& Pb = Ps(PP[1]);
 
                        auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
                        Float thickness =
                            PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));
 
+                       Vector2i flag = distance::point_point_distance_flag(Pa, Pb);
+
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::point_point_distance(P0, P1, D);
+                           distance::point_point_distance(flag, Pa, Pb, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -237,14 +247,14 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       Es(i) = sym::codim_ipc_simplex_contact::PP_barrier_energy(
-                           kappa, d_hat, thickness, P0, P1);
+                       Es(i) = PP_barrier_energy(flag, kappa, d_hat, thickness, Pa, Pb);
                    });
     }
 
     virtual void do_assemble(ContactInfo& info) override
     {
         using namespace muda;
+        using namespace sym::codim_ipc_simplex_contact;
 
         // Compute Point-Triangle Gradient and Hessian
         ParallelFor()
@@ -260,7 +270,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     d_hat = info.d_hat(),
                     dt    = info.dt()] __device__(int i) mutable
                    {
-                       const auto& PT = PTs(i);
+                       Vector4i PT = PTs(i);
 
                        auto cid_L = contact_ids(PT[0]);
                        auto cid_R = contact_ids(PT[1]);
@@ -277,10 +287,13 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                                       thicknesses(PT(2)),
                                                       thicknesses(PT(3)));
 
+                       Vector4i flag =
+                           distance::point_triangle_distance_flag(P, T0, T1, T2);
+
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::point_triangle_distance(P, T0, T1, T2, D);
+                           distance::point_triangle_distance(flag, P, T0, T1, T2, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -295,8 +308,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       sym::codim_ipc_simplex_contact::PT_barrier_gradient_hessian(
-                           Gs(i), Hs(i), kappa, d_hat, thickness, P, T0, T1, T2);
+                       PT_barrier_gradient_hessian(
+                           Gs(i), Hs(i), flag, kappa, d_hat, thickness, P, T0, T1, T2);
                    });
 
         // Compute Edge-Edge Gradient and Hessian
@@ -314,7 +327,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     d_hat   = info.d_hat(),
                     dt      = info.dt()] __device__(int i) mutable
                    {
-                       const auto& EE = EEs(i);
+                       Vector4i EE = EEs(i);
+
 
                        auto cid_L = contact_ids(EE[0]);
                        auto cid_R = contact_ids(EE[2]);
@@ -336,10 +350,12 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                                       thicknesses(EE(2)),
                                                       thicknesses(EE(3)));
 
+                       Vector4i flag = distance::edge_edge_distance_flag(E0, E1, E2, E3);
+
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::edge_edge_distance(E0, E1, E2, E3, D);
+                           distance::edge_edge_distance(flag, E0, E1, E2, E3, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -354,8 +370,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       sym::codim_ipc_simplex_contact::EE_barrier_gradient_hessian(
-                           Gs(i), Hs(i), kappa, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
+                       mollified_EE_barrier_gradient_hessian(
+                           Gs(i), Hs(i), flag, kappa, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
                    });
 
         // Compute Point-Edge Gradient and Hessian
@@ -364,15 +380,16 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
             .apply(info.PEs().size(),
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    PEs = info.PEs().viewer().name("PEs"),
-                    Gs  = info.PE_gradients().viewer().name("Gs"),
-                    Hs  = info.PE_hessians().viewer().name("Hs"),
-                    Ps  = info.positions().viewer().name("Ps"),
+                    PEs     = info.PEs().viewer().name("PEs"),
+                    Gs      = info.PE_gradients().viewer().name("Gs"),
+                    Hs      = info.PE_hessians().viewer().name("Hs"),
+                    Ps      = info.positions().viewer().name("Ps"),
+                    rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     d_hat = info.d_hat(),
                     dt    = info.dt()] __device__(int i) mutable
                    {
-                       const auto& PE = PEs(i);
+                       Vector3i PE = PEs(i);
 
                        auto cid_L = contact_ids(PE[0]);
                        auto cid_R = contact_ids(PE[1]);
@@ -387,10 +404,12 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                                       thicknesses(PE(1)),
                                                       thicknesses(PE(2)));
 
+                       Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
+
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::point_edge_distance(P, E0, E1, D);
+                           distance::point_edge_distance(flag, P, E0, E1, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -404,8 +423,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       sym::codim_ipc_simplex_contact::PE_barrier_gradient_hessian(
-                           Gs(i), Hs(i), kappa, d_hat, thickness, P, E0, E1);
+                       PE_barrier_gradient_hessian(
+                           Gs(i), Hs(i), flag, kappa, d_hat, thickness, P, E0, E1);
                    });
 
         // Compute Point-Point Gradient and Hessian
@@ -435,10 +454,12 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        Float thickness =
                            PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));
 
+                       Vector2i flag = distance::point_point_distance_flag(P0, P1);
+
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::point_point_distance(P0, P1, D);
+                           distance::point_point_distance(flag, P0, P1, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -452,7 +473,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        }
 
                        sym::codim_ipc_simplex_contact::PP_barrier_gradient_hessian(
-                           Gs(i), Hs(i), kappa, d_hat, thickness, P0, P1);
+                           Gs(i), Hs(i), flag, kappa, d_hat, thickness, P0, P1);
                    });
     }
 };

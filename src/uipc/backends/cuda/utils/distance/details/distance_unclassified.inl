@@ -8,6 +8,35 @@ MUDA_GENERIC void point_point_distance_unclassified(const Eigen::Vector<T, 3>& p
     return point_point_distance(p0, p1, dist2);
 }
 
+// http://geomalgorithms.com/a02-_lines.html
+template <class T>
+MUDA_GENERIC void point_edge_distance_unclassified(const Eigen::Vector<T, 3>& p,
+                                                   const Eigen::Vector<T, 3>& e0,
+                                                   const Eigen::Vector<T, 3>& e1,
+                                                   T& dist2)
+{
+    switch(point_edge_distance_type(p, e0, e1))
+    {
+        case PointEdgeDistanceType::PP_PE0: {
+            point_point_distance(p, e0, dist2);
+            break;
+        }
+
+        case PointEdgeDistanceType::PP_PE1: {
+            point_point_distance(p, e1, dist2);
+            break;
+        }
+
+        case PointEdgeDistanceType::PE: {
+            point_edge_distance(p, e0, e1, dist2);
+            break;
+        }
+        default:
+            MUDA_KERNEL_ERROR_WITH_LOCATION("invalid type");
+            break;
+    }
+}
+
 template <class T>
 MUDA_GENERIC void point_triangle_distance_unclassified(const Eigen::Vector<T, 3>& p,
                                                        const Eigen::Vector<T, 3>& t0,
@@ -117,34 +146,4 @@ MUDA_GENERIC void edge_edge_distance_unclassified(const Eigen::Vector<T, 3>& ea0
             break;
     }
 }
-
-// http://geomalgorithms.com/a02-_lines.html
-template <class T>
-MUDA_GENERIC void point_edge_distance_unclassified(const Eigen::Vector<T, 3>& p,
-                                                   const Eigen::Vector<T, 3>& e0,
-                                                   const Eigen::Vector<T, 3>& e1,
-                                                   T& dist2)
-{
-    switch(point_edge_distance_type(p, e0, e1))
-    {
-        case PointEdgeDistanceType::PP_PE0: {
-            point_point_distance(p, e0, dist2);
-            break;
-        }
-
-        case PointEdgeDistanceType::PP_PE1: {
-            point_point_distance(p, e1, dist2);
-            break;
-        }
-
-        case PointEdgeDistanceType::PE: {
-            point_edge_distance(p, e0, e1, dist2);
-            break;
-        }
-        default:
-            MUDA_KERNEL_ERROR_WITH_LOCATION("invalid type");
-            break;
-    }
-}
-
-}  // namespace muda::distance
+}  // namespace uipc::backend::cuda::distance
