@@ -215,11 +215,11 @@ void SimEngine::do_advance()
                         // TODO: Intersection & Inversion Check
                         bool no_inversion = true;
 
-                        //spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
-                        //             line_search_iter,
-                        //             alpha,
-                        //             E / E0,
-                        //             E0);
+                        spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
+                                     line_search_iter,
+                                     alpha,
+                                     E / E0,
+                                     E0);
 
                         bool success = energy_decrease && no_inversion;
                         if(success)

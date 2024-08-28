@@ -57,17 +57,20 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
+                           Float D_;
                            distance::point_triangle_distance(flag, P, T0, T1, T2, D);
+                           distance::point_triangle_distance_unclassified(P, T0, T1, T2, D_);
 
                            Vector2 range = D_range(thickness, d_hat);
 
                            MUDA_ASSERT(D > range(0) && D < range(1),
-                                       "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+                                       "PT[%d,%d,%d,%d] d^2(%f,%f) out of range, (%f,%f)",
                                        PT(0),
                                        PT(1),
                                        PT(2),
                                        PT(3),
                                        D,
+                                       D_,
                                        range(0),
                                        range(1));
                        }
@@ -117,19 +120,51 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
+                           Float D_;
                            distance::edge_edge_distance(flag, E0, E1, E2, E3, D);
+                           distance::edge_edge_distance_unclassified(E0, E1, E2, E3, D_);
+
+                           IndexT  dim = distance::active_count(flag);
+                           Vector3 P[] = {E0, E1, E2, E3};
+
+                           if(dim == 2)
+                           {
+                               Vector2i offsets;
+                               distance::active_offsets(offsets, flag);
+                               auto& P0 = P[offsets[0]];
+                               auto& P1 = P[offsets[1]];
+                               distance::point_point_distance(P0, P1, D);
+                           }
+                           else if(dim == 3)
+                           {
+                               Vector3i offsets;
+                               distance::active_offsets(offsets, flag);
+                               auto& P0 = P[offsets[0]];
+                               auto& P1 = P[offsets[1]];
+                               auto& P2 = P[offsets[2]];
+                               distance::point_edge_distance(P0, P1, P2, D);
+                           }
+                           else if(dim == 4)
+                           {
+                               distance::edge_edge_distance(E0, E1, E2, E3, D);
+                           }
 
                            Vector2 range = D_range(thickness, d_hat);
 
                            MUDA_ASSERT(D > range(0) && D < range(1),
-                                       "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+                                       "EE[%d,%d,%d,%d] d^2(%f,%f) out of range, (%f,%f), [%d,%d,%d,%d]",
                                        EE(0),
                                        EE(1),
                                        EE(2),
                                        EE(3),
                                        D,
+                                       D_,
                                        range(0),
-                                       range(1));
+                                       range(1),
+                                       flag(0),
+                                       flag(1),
+                                       flag(2),
+                                       flag(3));
                        }
 
                        Es(i) = mollified_EE_barrier_energy(flag,
@@ -256,61 +291,68 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         using namespace muda;
         using namespace sym::codim_ipc_simplex_contact;
 
-        // Compute Point-Triangle Gradient and Hessian
-        ParallelFor()
-            .kernel_name(__FUNCTION__)
-            .apply(info.PTs().size(),
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    PTs = info.PTs().viewer().name("PTs"),
-                    Gs  = info.PT_gradients().viewer().name("Gs"),
-                    Hs  = info.PT_hessians().viewer().name("Hs"),
-                    Ps  = info.positions().viewer().name("Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
-                   {
-                       Vector4i PT = PTs(i);
-
-                       auto cid_L = contact_ids(PT[0]);
-                       auto cid_R = contact_ids(PT[1]);
-
-                       const auto& P  = Ps(PT[0]);
-                       const auto& T0 = Ps(PT[1]);
-                       const auto& T1 = Ps(PT[2]);
-                       const auto& T2 = Ps(PT[3]);
-
-                       auto kappa = table(cid_L, cid_R).kappa * dt * dt;
-
-                       Float thickness = PT_thickness(thicknesses(PT(0)),
-                                                      thicknesses(PT(1)),
-                                                      thicknesses(PT(2)),
-                                                      thicknesses(PT(3)));
-
-                       Vector4i flag =
-                           distance::point_triangle_distance_flag(P, T0, T1, T2);
-
-                       if constexpr(RUNTIME_CHECK)
+        if(info.PTs().size())
+        {
+            // Compute Point-Triangle Gradient and Hessian
+            ParallelFor()
+                .kernel_name(__FUNCTION__)
+                .apply(info.PTs().size(),
+                       [table = info.contact_tabular().viewer().name("contact_tabular"),
+                        contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+                        PTs = info.PTs().viewer().name("PTs"),
+                        Gs  = info.PT_gradients().viewer().name("Gs"),
+                        Hs  = info.PT_hessians().viewer().name("Hs"),
+                        Ps  = info.positions().viewer().name("Ps"),
+                        thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                        d_hat = info.d_hat(),
+                        dt    = info.dt()] __device__(int i) mutable
                        {
-                           Float D;
-                           distance::point_triangle_distance(flag, P, T0, T1, T2, D);
+                           Vector4i PT = PTs(i);
 
-                           Vector2 range = D_range(thickness, d_hat);
+                           auto cid_L = contact_ids(PT[0]);
+                           auto cid_R = contact_ids(PT[1]);
 
-                           MUDA_ASSERT(D > range(0) && D < range(1),
-                                       "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
-                                       PT(0),
-                                       PT(1),
-                                       PT(2),
-                                       PT(3),
-                                       D,
-                                       range(0),
-                                       range(1));
-                       }
+                           const auto& P  = Ps(PT[0]);
+                           const auto& T0 = Ps(PT[1]);
+                           const auto& T1 = Ps(PT[2]);
+                           const auto& T2 = Ps(PT[3]);
 
-                       PT_barrier_gradient_hessian(
-                           Gs(i), Hs(i), flag, kappa, d_hat, thickness, P, T0, T1, T2);
-                   });
+                           auto kappa = table(cid_L, cid_R).kappa * dt * dt;
+
+                           Float thickness = PT_thickness(thicknesses(PT(0)),
+                                                          thicknesses(PT(1)),
+                                                          thicknesses(PT(2)),
+                                                          thicknesses(PT(3)));
+
+                           Vector4i flag =
+                               distance::point_triangle_distance_flag(P, T0, T1, T2);
+
+                           if constexpr(RUNTIME_CHECK)
+                           {
+                               Float D;
+                               distance::point_triangle_distance(flag, P, T0, T1, T2, D);
+
+                               Vector2 range = D_range(thickness, d_hat);
+
+                               MUDA_ASSERT(D > range(0) && D < range(1),
+                                           "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+                                           PT(0),
+                                           PT(1),
+                                           PT(2),
+                                           PT(3),
+                                           D,
+                                           range(0),
+                                           range(1));
+                           }
+
+                           PT_barrier_gradient_hessian(
+                               Gs(i), Hs(i), flag, kappa, d_hat, thickness, P, T0, T1, T2);
+
+                           //cout << "Gs: " << Gs(i).transpose().eval() << "\n"
+                           //     << "Hs: " << Hs(i).transpose().eval() << "\n";
+                       });
+        }
+
 
         // Compute Edge-Edge Gradient and Hessian
         ParallelFor()
@@ -472,7 +514,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       sym::codim_ipc_simplex_contact::PP_barrier_gradient_hessian(
+                       PP_barrier_gradient_hessian(
                            Gs(i), Hs(i), flag, kappa, d_hat, thickness, P0, P1);
                    });
     }

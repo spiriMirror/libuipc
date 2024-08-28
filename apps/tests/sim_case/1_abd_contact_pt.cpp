@@ -21,8 +21,10 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config       = Scene::default_config();
-    config["gravity"] = Vector3{0, -9.8, 0};
+    auto config                = Scene::default_config();
+    config["gravity"]          = Vector3{0, -9.8, 0};
+    config["contact"]["d_hat"] = 0.01;
+    config["line_search"]["report_energy"] = true;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -34,6 +36,7 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
         // create constitution and contact model
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
+        scene.contact_tabular().default_model(0.5, 1.0_GPa);
         auto& default_contact = scene.contact_tabular().default_element();
 
         // create object

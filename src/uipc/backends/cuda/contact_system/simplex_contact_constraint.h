@@ -76,7 +76,7 @@ class SimplexContactConstraint
     UIPC_GENERIC Vector4i EE_indices() const noexcept;
     UIPC_GENERIC Vector4i PT_indices() const noexcept;
     UIPC_GENERIC Vector3i PE_indices() const noexcept;
-    UIPC_GENERIC Vector4i PP_indices() const noexcept;
+    UIPC_GENERIC Vector2i PP_indices() const noexcept;
 
   private:
     Vector4i              m_data;

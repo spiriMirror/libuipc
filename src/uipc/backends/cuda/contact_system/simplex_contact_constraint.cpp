@@ -248,7 +248,10 @@ UIPC_GENERIC bool SimplexContactConstraint::is_none() const noexcept
 // EE: ++++
 UIPC_GENERIC void SimplexContactConstraint::as_EE(Vector2i& e0, Vector2i& e1) const noexcept
 {
-    MUDA_ASSERT(type() == Type::EE, "assume Type::EE(%d), your type=%d", Type::EE, type());
+    MUDA_ASSERT(type() == Type::EE,
+                "assume Type::EE(%d), your type=%d",
+                (int)Type::EE,
+                (int)type());
 
     e0[0] = m_data[0];  // +
     e0[1] = m_data[1];  // +
@@ -264,8 +267,8 @@ UIPC_GENERIC void SimplexContactConstraint::as_PE_in_EE(IndexT&   p,
     using namespace simplex_contact_constraint::detail;
     MUDA_ASSERT(type() == Type::PE_in_EE,
                 "assume Type::PE_in_EE(%d), your type=%d",
-                Type::PE_in_EE,
-                type());
+                (int)Type::PE_in_EE,
+                (int)type());
 
     p          = m_data[0];            // +
     e[0]       = m_data[1];            // +
@@ -282,8 +285,8 @@ UIPC_GENERIC void SimplexContactConstraint::as_PP_in_EE(IndexT& p_e0,
     using namespace simplex_contact_constraint::detail;
     MUDA_ASSERT(type() == Type::PP_in_EE,
                 "assume Type::PP_in_EE(%d), your type=%d",
-                Type::PP_in_EE,
-                type());
+                (int)Type::PP_in_EE,
+                (int)type());
 
     p_e0          = m_data[0];            // +
     p_e1          = m_data[1];            // +
@@ -295,7 +298,10 @@ UIPC_GENERIC void SimplexContactConstraint::as_PP_in_EE(IndexT& p_e0,
 UIPC_GENERIC void SimplexContactConstraint::as_PT(IndexT& p, Vector3i& t) const noexcept
 {
     using namespace simplex_contact_constraint::detail;
-    MUDA_ASSERT(type() == Type::PT, "assume Type::PT(%d), your type=%d", Type::PT, type());
+    MUDA_ASSERT(type() == Type::PT,
+                "assume Type::PT(%d), your type=%d",
+                (int)Type::PT,
+                (int)type());
 
     p    = make_pos(m_data[0]);  // -
     t[0] = m_data[1];            // +
@@ -311,8 +317,8 @@ UIPC_GENERIC void SimplexContactConstraint::as_PE_in_PT(IndexT&   p,
     using namespace simplex_contact_constraint::detail;
     MUDA_ASSERT(type() == Type::PE_in_PT,
                 "assume Type::PE_in_PT(%d), your type=%d",
-                Type::PE_in_PT,
-                type());
+                (int)Type::PE_in_PT,
+                (int)type());
 
     p          = make_pos(m_data[0]);  // -
     e[0]       = m_data[1];            // +
@@ -328,8 +334,8 @@ UIPC_GENERIC void SimplexContactConstraint::as_PP_in_PT(IndexT& p,
     using namespace simplex_contact_constraint::detail;
     MUDA_ASSERT(type() == Type::PP_in_PT,
                 "assume Type::PP_in_PT(%d), your type=%d",
-                Type::PP_in_PT,
-                type());
+                (int)Type::PP_in_PT,
+                (int)type());
 
     p          = make_pos(m_data[0]);                         // -
     p_t        = m_data[1];                                   // +
@@ -340,7 +346,10 @@ UIPC_GENERIC void SimplexContactConstraint::as_PP_in_PT(IndexT& p,
 UIPC_GENERIC void SimplexContactConstraint::as_PE(IndexT& p, Vector2i& e) const noexcept
 {
     using namespace simplex_contact_constraint::detail;
-    MUDA_ASSERT(type() == Type::PE, "assume Type::PE(%d), your type=%d", Type::PE, type());
+    MUDA_ASSERT(type() == Type::PE,
+                "assume Type::PE(%d), your type=%d",
+                (int)Type::PE,
+                (int)type());
 
     p    = m_data[0];  // +
     e[0] = m_data[1];  // -
@@ -361,8 +370,8 @@ UIPC_GENERIC void SimplexContactConstraint::as_PP_in_PE(IndexT& p,
     using namespace simplex_contact_constraint::detail;
     MUDA_ASSERT(type() == Type::PP_in_PE,
                 "assume Type::PP_in_PE(%d), your type=%d",
-                Type::PP_in_PE,
-                type());
+                (int)Type::PP_in_PE,
+                (int)type());
 
     p          = m_data[0];            // +
     p_e        = m_data[1];            // +
@@ -379,7 +388,10 @@ UIPC_GENERIC void SimplexContactConstraint::as_PP_in_PE(IndexT& p,
 UIPC_GENERIC void SimplexContactConstraint::as_PP(IndexT& p0, IndexT& p1) const noexcept
 {
     using namespace simplex_contact_constraint::detail;
-    MUDA_ASSERT(type() == Type::PP, "assume Type::PP(%d), your type=%d", Type::PP, type());
+    MUDA_ASSERT(type() == Type::PP,
+                "assume Type::PP(%d), your type=%d",
+                (int)Type::PP,
+                (int)type());
 
     p0 = make_pos(m_data[0]);  // -
     p1 = make_pos(m_data[1]);  // -
@@ -396,14 +408,20 @@ UIPC_GENERIC void SimplexContactConstraint::as_PP(IndexT& p0, IndexT& p1) const 
 UIPC_GENERIC Vector4i SimplexContactConstraint::EE_indices() const noexcept
 {
     using namespace simplex_contact_constraint::detail;
-    MUDA_ASSERT(type() == Type::EE, "assume Type::EE(%d), your type=%d", Type::EE, type());
+    MUDA_ASSERT(type() == Type::EE,
+                "assume Type::EE(%d), your type=%d",
+                (int)Type::EE,
+                (int)type());
     return make_indices<4>(m_data);
 }
 
 UIPC_GENERIC Vector4i SimplexContactConstraint::PT_indices() const noexcept
 {
     using namespace simplex_contact_constraint::detail;
-    MUDA_ASSERT(type() == Type::PT, "assume Type::PT(%d), your type=%d", Type::PT, type());
+    MUDA_ASSERT(type() == Type::PT,
+                "assume Type::PT(%d), your type=%d",
+                (int)Type::PT,
+                (int)type());
     return make_indices<4>(m_data);
 }
 
@@ -416,16 +434,16 @@ UIPC_GENERIC Vector3i SimplexContactConstraint::PE_indices() const noexcept
         auto t = type();
         MUDA_ASSERT(t == Type::PE || t == Type::PE_in_EE || t == Type::PE_in_PT,
                     "assume Type::PE(%d) or Type::PE_in_EE(%d) or Type::PE_in_PT(%d), your type=%d",
-                    Type::PE,
-                    Type::PE_in_EE,
-                    Type::PE_in_PT,
-                    t);
+                    (int)Type::PE,
+                    (int)Type::PE_in_EE,
+                    (int)Type::PE_in_PT,
+                    (int)t);
     }
 
     return make_indices<3>(m_data);
 }
 
-UIPC_GENERIC Vector4i SimplexContactConstraint::PP_indices() const noexcept
+UIPC_GENERIC Vector2i SimplexContactConstraint::PP_indices() const noexcept
 {
     using namespace simplex_contact_constraint::detail;
 
@@ -435,11 +453,11 @@ UIPC_GENERIC Vector4i SimplexContactConstraint::PP_indices() const noexcept
         MUDA_ASSERT(t == Type::PP || t == Type::PP_in_EE || t == Type::PP_in_PT
                         || t == Type::PP_in_PE,
                     "assume Type::PP(%d) or Type::PP_in_EE(%d) or Type::PP_in_PT(%d) or Type::PP_in_PE(%d), your type=%d",
-                    Type::PP,
-                    Type::PP_in_EE,
-                    Type::PP_in_PT,
-                    Type::PP_in_PE,
-                    t);
+                    (int)Type::PP,
+                    (int)Type::PP_in_EE,
+                    (int)Type::PP_in_PT,
+                    (int)Type::PP_in_PE,
+                    (int)t);
     }
 
     return make_indices<2>(m_data);

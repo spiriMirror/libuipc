@@ -17,7 +17,7 @@ void GlobalSimpicialSurfaceManager::add_reporter(SimplicialSurfaceReporter* repo
 
 muda::CBufferView<IndexT> GlobalSimpicialSurfaceManager::codim_vertices() const noexcept
 {
-    return m_impl.codim_0d_vertices;
+    return m_impl.codim_vertices;
 }
 
 muda::CBufferView<IndexT> GlobalSimpicialSurfaceManager::surf_vertices() const noexcept
@@ -95,7 +95,7 @@ void GlobalSimpicialSurfaceManager::Impl::init_surface_info()
     }
 
     // 2) resize the device buffer
-    codim_0d_vertices.resize(total_surf_vertex_count);
+    codim_vertices.resize(total_surf_vertex_count);
     surf_vertices.resize(total_surf_vertex_count);
     surf_edges.resize(total_surf_edge_count);
     surf_triangles.resize(total_surf_triangle_count);
@@ -117,20 +117,27 @@ void GlobalSimpicialSurfaceManager::Impl::_collect_codim_vertices()
     using namespace muda;
     auto dim = global_vertex_manager->dimensions();
 
-    DeviceSelect()
+    codim_vertex_flags.resize(surf_vertices.size());
+
+    ParallelFor()
         .kernel_name(__FUNCTION__)
-        .If(surf_vertices.data(),
-            codim_0d_vertices.data(),
-            selected_codim_0d_count.data(),
-            surf_vertices.size(),
-            [dim = dim.cviewer().name("dim")] CUB_RUNTIME_FUNCTION(IndexT i) mutable
-            {
-                // filter out the codim0d vertices
-                return dim(i) == 0;
-            });
+        .apply(surf_vertices.size(),
+               [dim           = dim.cviewer().name("dim"),
+                surf_vertices = surf_vertices.viewer().name("surf_vertices"),
+                flags = codim_vertex_flags.viewer().name("flags")] __device__(int I) mutable
+               {
+                   auto vI  = surf_vertices(I);
+                   flags(I) = dim(vI) == 0 ? 1 : 0;
+               });
+
+    DeviceSelect().Flagged(surf_vertices.data(),
+                           codim_vertex_flags.data(),
+                           codim_vertices.data(),
+                           selected_codim_0d_count.data(),
+                           surf_vertices.size());
 
     IndexT count = selected_codim_0d_count;
-    codim_0d_vertices.resize(count);
+    codim_vertices.resize(count);
 }
 
 void GlobalSimpicialSurfaceManager::init_surface_info()

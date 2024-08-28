@@ -216,7 +216,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     // query PE
     lbvh_PE.build(edge_aabbs);
     candidate_PE_pairs = lbvh_PE.query(
-        point_aabbs,
+        codim_point_aabbs,
         [codimVs     = codimVs.viewer().name("Vs"),
          Es          = Es.viewer().name("Es"),
          Ps          = Ps.viewer().name("Ps"),
@@ -250,7 +250,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
     // query PT
     lbvh_PT.build(triangle_aabbs);
-    auto PT_pairs = lbvh_PT.query(
+    candidate_PT_pairs = lbvh_PT.query(
         point_aabbs,
         [Vs          = Vs.viewer().name("Vs"),
          Fs          = Fs.viewer().name("Fs"),
@@ -291,7 +291,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
     // query EE
     lbvh_EE.build(edge_aabbs);
-    auto EE_pairs = lbvh_EE.detect(
+    candidate_EE_pairs = lbvh_EE.detect(
         [Es          = Es.viewer().name("Es"),
          Ps          = Ps.viewer().name("Ps"),
          dxs         = dxs.viewer().name("dxs"),
@@ -348,7 +348,6 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
     // we will filter-out the active pairs
 
     auto d_hat     = info.d_hat();
-    auto D_hat     = d_hat * d_hat;
     auto positions = info.positions();
 
     auto get_total_count = [](muda::DeviceBuffer<IndexT>& offsets)
@@ -372,7 +371,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     PP_pairs = candidate_PP_pairs.viewer().name("PP_pairs"),
                     actives  = PP_active_flags.viewer().name("actives"),
-                    D_hat    = D_hat] __device__(int i) mutable
+                    d_hat    = d_hat] __device__(int i) mutable
                    {
                        // clear flag
                        actives(i)       = 0;
@@ -388,7 +387,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        distance::point_point_distance_unclassified(V0, V1, D);
 
                        Float thickness = PP_thickness(thicknesses(P0), thicknesses(P1));
-                       Vector2i range = D_range(thickness, D_hat);
+                       Vector2 range = D_range(thickness, d_hat);
 
                        if(is_active_D(range, D))
                            actives(i) = 1;  // must use 1, we will scan the active pairs later
@@ -406,7 +405,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
         // copy the active pairs
         ParallelFor()
             .kernel_name(__FUNCTION__)
-            .apply(PP_active_flags.size(),
+            .apply(candidate_PP_pairs.size(),
                    [PP_active_flags = PP_active_flags.viewer().name("PP_active_flags"),
                     PP_active_offsets = PP_active_offsets.viewer().name("PP_active_offsets"),
                     PP_pairs = candidate_PP_pairs.viewer().name("PP_pairs"),
@@ -428,7 +427,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
     // PEs
     {
         // +1 for total count
-        PP_active_flags.resize(candidate_PE_pairs.size() + 1);
+        PE_active_flags.resize(candidate_PE_pairs.size() + 1);
         PE_active_offsets.resize(candidate_PE_pairs.size() + 1);
 
         ParallelFor()
@@ -440,7 +439,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                     PE_pairs   = candidate_PE_pairs.viewer().name("PE_pairs"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     actives = PE_active_flags.viewer().name("actives"),
-                    D_hat   = D_hat] __device__(int i) mutable
+                    d_hat   = d_hat] __device__(int i) mutable
                    {
                        // clear flag
                        actives(i) = 0;
@@ -459,7 +458,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        Float thickness = PE_thickness(
                            thicknesses(P), thicknesses(E(0)), thicknesses(E(1)));
 
-                       Vector2i range = D_range(thickness, D_hat);
+                       Vector2 range = D_range(thickness, d_hat);
 
                        if(is_active_D(range, D))
                            actives(i) = 1;  // must use 1, we will scan the active pairs later
@@ -478,7 +477,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
         // copy the active pairs
         ParallelFor()
             .kernel_name(__FUNCTION__)
-            .apply(PE_active_flags.size(),
+            .apply(candidate_PE_pairs.size(),
                    [PE_active_flags = PE_active_flags.viewer().name("PE_active_flags"),
                     PE_active_offsets = PE_active_offsets.viewer().name("PE_active_offsets"),
                     PE_pairs = candidate_PE_pairs.viewer().name("PE_pairs"),
@@ -513,7 +512,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                     surf_triangles = info.surf_triangles().viewer().name("surf_triangles"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     actives = PT_active_flags.viewer().name("actives"),
-                    D_hat   = D_hat] __device__(int i) mutable
+                    d_hat   = d_hat] __device__(int i) mutable
                    {
                        // clear flag
                        actives(i) = 0;
@@ -535,7 +534,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                                                             thicknesses(T(1)),
                                                             thicknesses(T(2)));
 
-                       Vector2i range = D_range(thickness, D_hat);
+                       Vector2 range = D_range(thickness, d_hat);
 
                        if(is_active_D(range, D))
                            actives(i) = 1;  // must use 1, we will scan the active pairs later
@@ -554,7 +553,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
-            .apply(PT_active_flags.size(),
+            .apply(candidate_PT_pairs.size(),
                    [PT_active_flags = PT_active_flags.viewer().name("PT_active_flags"),
                     PT_active_offsets = PT_active_offsets.viewer().name("PT_active_offsets"),
                     PT_pairs = candidate_PT_pairs.viewer().name("PT_pairs"),
@@ -588,7 +587,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                     surf_edges = info.surf_edges().viewer().name("surf_edges"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     actives = EE_active_flags.viewer().name("actives"),
-                    D_hat   = D_hat] __device__(int i) mutable
+                    d_hat   = d_hat] __device__(int i) mutable
                    {
                        // clear flag
                        actives(i) = 0;
@@ -602,17 +601,18 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        const auto& EP2 = Ps(E1(0));
                        const auto& EP3 = Ps(E1(1));
 
-                       auto dist_type =
-                           distance::edge_edge_distance_type(EP0, EP1, EP2, EP3);
+                       Float D;
+                       distance::edge_edge_distance_unclassified(EP0, EP1, EP2, EP3, D);
 
-                       if(dist_type == distance::EdgeEdgeDistanceType::EE)
-                       {
-                           Float D;
-                           distance::edge_edge_distance(EP0, EP1, EP2, EP3, D);
+                       Float thickness = EE_thickness(thicknesses(E0(0)),
+                                                      thicknesses(E0(1)),
+                                                      thicknesses(E1(0)),
+                                                      thicknesses(E1(1)));
 
-                           if(D < D_hat)
-                               actives(i) = 1;  // must use 1, we will scan the active pairs later
-                       }
+                       Vector2 range = D_range(thickness, d_hat);
+
+                       if(is_active_D(range, D))
+                           actives(i) = 1;  // must use 1, we will scan the active pairs later
                    });
 
         // scan the active pairs
@@ -628,7 +628,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
         // copy the active pairs
         ParallelFor()
             .kernel_name(__FUNCTION__)
-            .apply(EE_active_flags.size(),
+            .apply(candidate_EE_pairs.size(),
                    [EE_active_flags = EE_active_flags.viewer().name("EE_active_flags"),
                     EE_active_offsets = EE_active_offsets.viewer().name("EE_active_offsets"),
                     EE_pairs   = candidate_EE_pairs.viewer().name("EE_pairs"),
@@ -693,6 +693,8 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
         {
             std::cout << "EE: " << EE.transpose() << " thickness: " << thickness << "\n";
         }
+
+        std::cout << std::flush;
     }
 }
 

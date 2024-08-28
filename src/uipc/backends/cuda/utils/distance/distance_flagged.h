@@ -10,7 +10,7 @@
 namespace uipc::backend::cuda::distance
 {
 template <int N>
-IndexT active_count(const Vector<IndexT, N>& flag)
+MUDA_GENERIC IndexT active_count(const Vector<IndexT, N>& flag)
 {
     IndexT count = 0;
 #pragma unroll
@@ -20,7 +20,7 @@ IndexT active_count(const Vector<IndexT, N>& flag)
 }
 
 template <int M, int N>
-void active_offsets(Vector<IndexT, M>& offsets, const Vector<IndexT, N>& flag)
+MUDA_GENERIC void active_offsets(Vector<IndexT, M>& offsets, const Vector<IndexT, N>& flag)
 {
     IndexT iM = 0;
 #pragma unroll
@@ -36,14 +36,14 @@ void active_offsets(Vector<IndexT, M>& offsets, const Vector<IndexT, N>& flag)
 }
 
 
-using T = double;
-//template <class T>
+template <typename T>
 MUDA_GENERIC Vector<IndexT, 2> point_point_distance_flag(const Eigen::Vector<T, 3>& p0,
                                                          const Eigen::Vector<T, 3>& p1)
 {
     return Vector<IndexT, 2>{1, 1};
 }
 
+template <typename T>
 MUDA_GENERIC Vector<IndexT, 3> point_edge_distance_flag(const Eigen::Vector<T, 3>& p,
                                                         const Eigen::Vector<T, 3>& e0,
                                                         const Eigen::Vector<T, 3>& e1)
@@ -60,6 +60,7 @@ MUDA_GENERIC Vector<IndexT, 3> point_edge_distance_flag(const Eigen::Vector<T, 3
     return F;
 }
 
+template <typename T>
 MUDA_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
                                                    const Eigen::Vector<T, 3>& t0,
                                                    const Eigen::Vector<T, 3>& t1,
@@ -163,6 +164,7 @@ MUDA_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
     return F;
 }
 
+template <typename T>
 MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
                                               const Eigen::Vector<T, 3>& ea1,
                                               const Eigen::Vector<T, 3>& eb0,
@@ -300,7 +302,7 @@ MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
     return F;
 }
 
-
+template <typename T>
 MUDA_GENERIC void point_point_distance(const Vector2i&            flag,
                                        const Eigen::Vector<T, 3>& a,
                                        const Eigen::Vector<T, 3>& b,
@@ -309,6 +311,7 @@ MUDA_GENERIC void point_point_distance(const Vector2i&            flag,
     point_point_distance<T, 3>(a, b, D);
 }
 
+template <typename T>
 MUDA_GENERIC void point_edge_distance(const Vector<IndexT, 3>&   flag,
                                       const Eigen::Vector<T, 3>& p,
                                       const Eigen::Vector<T, 3>& e0,
@@ -336,6 +339,7 @@ MUDA_GENERIC void point_edge_distance(const Vector<IndexT, 3>&   flag,
     }
 }
 
+template <typename T>
 MUDA_GENERIC void point_triangle_distance(const Vector4i&            flag,
                                           const Eigen::Vector<T, 3>& p,
                                           const Eigen::Vector<T, 3>& t0,
@@ -374,6 +378,7 @@ MUDA_GENERIC void point_triangle_distance(const Vector4i&            flag,
     }
 }
 
+template <typename T>
 MUDA_GENERIC void edge_edge_distance(const Vector4i&            flag,
                                      const Eigen::Vector<T, 3>& ea0,
                                      const Eigen::Vector<T, 3>& ea1,
@@ -412,6 +417,7 @@ MUDA_GENERIC void edge_edge_distance(const Vector4i&            flag,
     }
 }
 
+template <typename T>
 MUDA_GENERIC void point_point_distance_gradient(const Vector2i&            flag,
                                                 const Eigen::Vector<T, 3>& a,
                                                 const Eigen::Vector<T, 3>& b,
@@ -421,6 +427,7 @@ MUDA_GENERIC void point_point_distance_gradient(const Vector2i&            flag,
     G.template segment<3>(3) = -G.template segment<3>(0);
 }
 
+template <typename T>
 MUDA_GENERIC void point_edge_distance_gradient(const Vector<IndexT, 3>&   flag,
                                                const Eigen::Vector<T, 3>& p,
                                                const Eigen::Vector<T, 3>& e0,
@@ -455,7 +462,7 @@ MUDA_GENERIC void point_edge_distance_gradient(const Vector<IndexT, 3>&   flag,
     }
 }
 
-
+template <typename T>
 MUDA_GENERIC void point_triangle_distance_gradient(const Vector4i& flag,
                                                    const Eigen::Vector<T, 3>& p,
                                                    const Eigen::Vector<T, 3>& t0,
@@ -507,6 +514,7 @@ MUDA_GENERIC void point_triangle_distance_gradient(const Vector4i& flag,
     }
 }
 
+template <typename T>
 MUDA_GENERIC void edge_edge_distance_gradient(const Vector4i&            flag,
                                               const Eigen::Vector<T, 3>& ea0,
                                               const Eigen::Vector<T, 3>& ea1,
@@ -569,6 +577,7 @@ MUDA_GENERIC void edge_edge_distance_gradient(const Vector4i&            flag,
     }
 }
 
+template <typename T>
 MUDA_GENERIC void point_point_distance_hessian(const Vector2i&            flag,
                                                const Eigen::Vector<T, 3>& a,
                                                const Eigen::Vector<T, 3>& b,
@@ -579,7 +588,7 @@ MUDA_GENERIC void point_point_distance_hessian(const Vector2i&            flag,
     H(0, 3) = H(1, 4) = H(2, 5) = H(3, 0) = H(4, 1) = H(5, 2) = -2.0;
 }
 
-
+template <typename T>
 MUDA_GENERIC void point_edge_distance_hessian(const Vector<IndexT, 3>&   flag,
                                               const Eigen::Vector<T, 3>& p,
                                               const Eigen::Vector<T, 3>& e0,
@@ -617,7 +626,7 @@ MUDA_GENERIC void point_edge_distance_hessian(const Vector<IndexT, 3>&   flag,
     }
 }
 
-
+template <typename T>
 MUDA_GENERIC void point_triangle_distance_hessian(const Vector4i& flag,
                                                   const Eigen::Vector<T, 3>& p,
                                                   const Eigen::Vector<T, 3>& t0,
@@ -674,6 +683,7 @@ MUDA_GENERIC void point_triangle_distance_hessian(const Vector4i& flag,
     }
 }
 
+template <typename T>
 MUDA_GENERIC void edge_edge_distance_hessian(const Vector4i&            flag,
                                              const Eigen::Vector<T, 3>& ea0,
                                              const Eigen::Vector<T, 3>& ea1,

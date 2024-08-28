@@ -28,7 +28,7 @@ int main()
     config["contact"]["friction"]["enable"] = false;
     config["contact"]["enable"]             = true;
     config["contact"]["d_hat"]              = 0.01;
-    config["line_search"]["max_iter"]       = 32;
+    config["line_search"]["max_iter"]       = 8;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -49,7 +49,7 @@ int main()
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
         auto& default_contact = scene.contact_tabular().default_element();
-        scene.contact_tabular().default_model(0.5, 10.0_GPa);
+        scene.contact_tabular().default_model(0.5, 1.0_GPa);
 
         Float     scale = 1;
         Transform T     = Transform::Identity();
@@ -144,7 +144,7 @@ int main()
             }
         }
 
-        constexpr bool UseMeshGround = false;
+        constexpr bool UseMeshGround = true;
 
         if(UseMeshGround)
         {

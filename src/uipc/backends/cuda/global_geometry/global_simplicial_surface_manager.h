@@ -76,14 +76,15 @@ class GlobalSimpicialSurfaceManager : public SimSystem
         SizeT total_surf_edge_count     = 0;
         SizeT total_surf_triangle_count = 0;
 
-        muda::DeviceBuffer<IndexT>   codim_0d_vertices;
+        muda::DeviceBuffer<IndexT>   codim_vertices;
         muda::DeviceBuffer<IndexT>   surf_vertices;
+        muda::DeviceBuffer<IndexT>   codim_vertex_flags;
         muda::DeviceBuffer<Vector2i> surf_edges;
         muda::DeviceBuffer<Vector3i> surf_triangles;
 
         GlobalVertexManager* global_vertex_manager = nullptr;
         SimSystemSlotCollection<SimplicialSurfaceReporter> reporters;
-        muda::DeviceVar<int>                               selected_codim_0d_count;
+        muda::DeviceVar<int> selected_codim_0d_count;
     };
 
     muda::CBufferView<IndexT>   codim_vertices() const noexcept;

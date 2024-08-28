@@ -1,11 +1,11 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitution/affine_body.h>
+#include <uipc/constitution/stable_neo_hookean.h>
 #include <filesystem>
 #include <fstream>
 
-TEST_CASE("2_abd_contact_ee", "[abd]")
+TEST_CASE("19_fem_contact_pt", "[fem]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
@@ -21,11 +21,9 @@ TEST_CASE("2_abd_contact_ee", "[abd]")
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config       = Scene::default_config();
-    config["gravity"] = Vector3{0, 0, 0};
-    config["contact"]["d_hat"] = 0.05;
-    config["line_search"]["report_energy"] = true;
-    config["newton"]["velocity_tol"]       = 0.05_m / 1.0_s;
+    auto config                = Scene::default_config();
+    config["gravity"]          = Vector3{0, -9.8, 0};
+    config["contact"]["d_hat"] = 0.01;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -35,8 +33,8 @@ TEST_CASE("2_abd_contact_ee", "[abd]")
     Scene scene{config};
     {
         // create constitution and contact model
-        AffineBodyConstitution abd;
-        scene.constitution_tabular().insert(abd);
+        StableNeoHookean snk;
+        scene.constitution_tabular().insert(snk);
         auto& default_contact = scene.contact_tabular().default_element();
 
         // create object
@@ -45,44 +43,39 @@ TEST_CASE("2_abd_contact_ee", "[abd]")
         vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
 
         {
-            vector<Vector3> Vs = {Vector3{-1, 1, 0},
-                                  Vector3{1, 1, 0},
+            vector<Vector3> Vs = {Vector3{0, 1, 0},
                                   Vector3{0, 0, 1},
-                                  Vector3{0, 0, -1}};
+                                  Vector3{-std::sqrt(3) / 2, 0, -0.5},
+                                  Vector3{std::sqrt(3) / 2, 0, -0.5}};
 
             std::transform(Vs.begin(),
                            Vs.end(),
                            Vs.begin(),
-                           [&](auto& v) { return v * 0.3; });
+                           [&](const Vector3& v)
+                           { return v * 0.3 + Vector3::UnitY() * 0.35; });
 
             auto mesh1 = tetmesh(Vs, Ts);
 
             label_surface(mesh1);
             label_triangle_orient(mesh1);
 
-            mesh1.instances().resize(1);
-            abd.apply_to(mesh1, 100.0_MPa);
+            auto parm = ElasticModuli::youngs_poisson(10.0_kPa, 0.49);
+            snk.apply_to(mesh1, parm);
             default_contact.apply_to(mesh1);
 
-            auto trans_view = view(mesh1.transforms());
-            auto is_fixed   = mesh1.instances().find<IndexT>(builtin::is_fixed);
+            auto is_fixed = mesh1.vertices().find<IndexT>(builtin::is_fixed);
             auto is_fixed_view = view(*is_fixed);
+            is_fixed_view[0]   = 0;
 
-            {
-                Transform t      = Transform::Identity();
-                t.translation()  = Vector3::UnitY() * 0.301;
-                trans_view[0]    = t.matrix();
-                is_fixed_view[0] = 0;
-            }
 
             object->geometries().create(mesh1);
         }
 
         {
-            vector<Vector3> Vs = {Vector3{-1, 1, 0},
-                                  Vector3{1, 1, 0},
+            vector<Vector3> Vs = {Vector3{0, 1, 0},
                                   Vector3{0, 0, 1},
-                                  Vector3{0, 0, -1}};
+                                  Vector3{-std::sqrt(3) / 2, 0, -0.5},
+                                  Vector3{std::sqrt(3) / 2, 0, -0.5}};
 
             std::transform(Vs.begin(),
                            Vs.end(),
@@ -95,23 +88,18 @@ TEST_CASE("2_abd_contact_ee", "[abd]")
             label_surface(mesh2);
             label_triangle_orient(mesh2);
 
-            mesh2.instances().resize(1);
-            // apply constitution and contact model to the geometry
-            abd.apply_to(mesh2, 100.0_MPa);
-            default_contact.apply_to(mesh2);
+            auto parm = ElasticModuli::youngs_poisson(10.0_kPa, 0.49);
+            snk.apply_to(mesh2, parm);
 
-            auto trans_view = view(mesh2.transforms());
-            auto is_fixed   = mesh2.instances().find<IndexT>(builtin::is_fixed);
+            auto is_fixed = mesh2.vertices().find<IndexT>(builtin::is_fixed);
             auto is_fixed_view = view(*is_fixed);
-
-            {
-                Transform t      = Transform::Identity();
-                trans_view[0]    = t.matrix();
-                is_fixed_view[0] = 1;
-            }
+            std::ranges::fill(is_fixed_view, 0);
 
             object->geometries().create(mesh2);
         }
+
+        auto g = ground(-0.2);
+        object->geometries().create(g);
     }
 
     world.init(scene);

@@ -28,7 +28,7 @@ TEST_CASE("17_fem_multi_constituion", "[fem]")
     config["contact"]["enable"]            = true;
     config["line_search"]["max_iter"]      = 8;
     config["linear_system"]["tol_rate"]    = 1e-3;
-    config["line_search"]["report_energy"] = false;
+    config["line_search"]["report_energy"] = true;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -72,8 +72,9 @@ TEST_CASE("17_fem_multi_constituion", "[fem]")
 
         auto parm = ElasticModuli::youngs_poisson(10.0_kPa, 0.49);
         snk.apply_to(mesh, parm);
+        snk.apply_to(mesh2, parm);
 
-        arap.apply_to(mesh2, 1.0_MPa);
+        // arap.apply_to(mesh2, 1.0_MPa);
 
         object->geometries().create(mesh);
         object->geometries().create(mesh2);
