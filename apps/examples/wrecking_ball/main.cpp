@@ -49,7 +49,7 @@ int main()
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
         auto& default_contact = scene.contact_tabular().default_element();
-        scene.contact_tabular().default_model(0.5, 1.0_GPa);
+        scene.contact_tabular().default_model(0.5, 20.0_GPa);
 
         Float     scale = 1;
         Transform T     = Transform::Identity();
@@ -144,7 +144,7 @@ int main()
             }
         }
 
-        constexpr bool UseMeshGround = true;
+        constexpr bool UseMeshGround = false;
 
         if(UseMeshGround)
         {

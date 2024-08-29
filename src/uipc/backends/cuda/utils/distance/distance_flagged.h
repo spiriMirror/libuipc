@@ -9,31 +9,159 @@
 
 namespace uipc::backend::cuda::distance
 {
-template <int N>
-MUDA_GENERIC IndexT active_count(const Vector<IndexT, N>& flag)
+namespace detail
 {
-    IndexT count = 0;
-#pragma unroll
-    for(IndexT i = 0; i < N; ++i)
-        count += flag[i];
-    return count;
-}
-
-template <int M, int N>
-MUDA_GENERIC void active_offsets(Vector<IndexT, M>& offsets, const Vector<IndexT, N>& flag)
-{
-    IndexT iM = 0;
-#pragma unroll
-    for(IndexT iN = 0; iN < N; ++iN)
+    template <int N>
+    MUDA_GENERIC IndexT active_count(const Vector<IndexT, N>& flag)
     {
-        if(flag[iN])
-        {
-            MUDA_ASSERT(iM < M, "active mismatch");
-            offsets[iM] = iN;
-            ++iM;
-        }
+        IndexT count = 0;
+#pragma unroll
+        for(IndexT i = 0; i < N; ++i)
+            count += flag[i];
+        return count;
     }
-}
+
+    inline MUDA_GENERIC Vector<IndexT, 2> pp_from_pe(const Vector<IndexT, 3>& flag)
+    {
+        MUDA_ASSERT(detail::active_count(flag) == 2, "active count mismatch");
+
+        Vector<IndexT, 2> offsets;
+        if(flag[0] == 0)
+        {
+            offsets = {1, 2};
+        }
+        else if(flag[1] == 0)
+        {
+            offsets = {0, 2};
+        }
+        else if(flag[2] == 0)
+        {
+            offsets = {0, 1};
+        }
+        else
+        {
+            MUDA_ERROR_WITH_LOCATION("Invalid flag (%d,%d,%d)", flag[0], flag[1], flag[2]);
+        }
+        return offsets;
+    }
+
+    inline MUDA_GENERIC Vector<IndexT, 3> pe_from_pt(const Vector<IndexT, 4>& flag)
+    {
+        MUDA_ASSERT(detail::active_count(flag) == 3,
+                    "active count mismatch, yours=(%d,%d,%d,%d)",
+                    flag[0],
+                    flag[1],
+                    flag[2],
+                    flag[3]);
+
+        Vector<IndexT, 3> offsets;
+        if(flag[0] == 0)
+        {
+            offsets = {1, 2, 3};
+        }
+        else if(flag[1] == 0)
+        {
+            offsets = {0, 2, 3};
+        }
+        else if(flag[2] == 0)
+        {
+            offsets = {0, 1, 3};
+        }
+        else if(flag[3] == 0)
+        {
+            offsets = {0, 1, 2};
+        }
+        else
+        {
+            MUDA_ERROR_WITH_LOCATION(
+                "Invalid flag (%d,%d,%d,%d)", flag[0], flag[1], flag[2], flag[3]);
+        }
+        return offsets;
+    }
+
+    inline MUDA_GENERIC Vector<IndexT, 2> pp_from_pt(const Vector<IndexT, 4>& flag)
+    {
+        MUDA_ASSERT(detail::active_count(flag) == 2,
+                    "active count mismatch, yours=(%d,%d,%d,%d)",
+                    flag[0],
+                    flag[1],
+                    flag[2],
+                    flag[3]);
+
+        Vector<IndexT, 2> offsets;
+        constexpr IndexT  N = 4;
+        constexpr IndexT  M = 2;
+
+        IndexT iM = 0;
+#pragma unroll
+        for(IndexT iN = 0; iN < N; ++iN)
+        {
+            if(flag[iN])
+            {
+                MUDA_ASSERT(iM < M, "active mismatch");
+                offsets[iM] = iN;
+                ++iM;
+            }
+        }
+        return offsets;
+    }
+
+    inline MUDA_GENERIC Vector<IndexT, 3> pe_from_ee(const Vector<IndexT, 4>& flag)
+    {
+        MUDA_ASSERT(detail::active_count(flag) == 3,
+                    "active count mismatch, yours=(%d,%d,%d,%d)",
+                    flag[0],
+                    flag[1],
+                    flag[2],
+                    flag[3]);
+
+        Vector<IndexT, 3> offsets;  // [P, E0, E1]
+        if(flag[0] == 0)
+        {
+            offsets = {1, 2, 3};
+        }
+        else if(flag[1] == 0)
+        {
+            offsets = {0, 2, 3};
+        }
+        else if(flag[2] == 0)
+        {
+            offsets = {3, 0, 1};
+        }
+        else if(flag[3] == 0)
+        {
+            offsets = {2, 0, 1};
+        }
+        return offsets;
+    }
+
+    inline MUDA_GENERIC Vector<IndexT, 2> pp_from_ee(const Vector<IndexT, 4>& flag)
+    {
+        MUDA_ASSERT(detail::active_count(flag) == 2,
+                    "active count mismatch, yours=(%d,%d,%d,%d)",
+                    flag[0],
+                    flag[1],
+                    flag[2],
+                    flag[3]);
+
+        Vector<IndexT, 2> offsets;
+        constexpr IndexT  N = 4;
+        constexpr IndexT  M = 2;
+
+        IndexT iM = 0;
+#pragma unroll
+        for(IndexT iN = 0; iN < N; ++iN)
+        {
+            if(flag[iN])
+            {
+                MUDA_ASSERT(iM < M, "active mismatch");
+                offsets[iM] = iN;
+                ++iM;
+            }
+        }
+        return offsets;
+    }
+}  // namespace detail
 
 
 template <typename T>
@@ -318,15 +446,15 @@ MUDA_GENERIC void point_edge_distance(const Vector<IndexT, 3>&   flag,
                                       const Eigen::Vector<T, 3>& e1,
                                       T&                         D)
 {
-    IndexT              dim = active_count(flag);
+    IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {p, e0, e1};
 
     if(dim == 2)
     {
-        Vector2i offsets;
-        active_offsets(offsets, flag);
-        auto& P0 = P[offsets[0]];
-        auto& P1 = P[offsets[1]];
+        Vector2i offsets = detail::pp_from_pe(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+
         point_point_distance<T, 3>(P0, P1, D);
     }
     else if(dim == 3)
@@ -347,24 +475,24 @@ MUDA_GENERIC void point_triangle_distance(const Vector4i&            flag,
                                           const Eigen::Vector<T, 3>& t2,
                                           T&                         D)
 {
-    IndexT              dim = active_count(flag);
+    IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {p, t0, t1, t2};
 
     if(dim == 2)
     {
-        Vector2i offsets;
-        active_offsets(offsets, flag);
-        auto& P0 = P[offsets[0]];
-        auto& P1 = P[offsets[1]];
+        Vector2i offsets = detail::pp_from_pt(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+
         point_point_distance<T, 3>(P0, P1, D);
     }
     else if(dim == 3)
     {
-        Vector3i offsets;
-        active_offsets(offsets, flag);
-        auto& P0 = P[offsets[0]];
-        auto& P1 = P[offsets[1]];
-        auto& P2 = P[offsets[2]];
+        Vector3i offsets = detail::pe_from_pt(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+        auto&    P2      = P[offsets[2]];
+
         point_edge_distance<T, 3>(P0, P1, P2, D);
     }
     else if(dim == 4)
@@ -386,24 +514,24 @@ MUDA_GENERIC void edge_edge_distance(const Vector4i&            flag,
                                      const Eigen::Vector<T, 3>& eb1,
                                      T&                         D)
 {
-    IndexT              dim = active_count(flag);
+    IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {ea0, ea1, eb0, eb1};
 
     if(dim == 2)
     {
-        Vector2i offsets;
-        active_offsets(offsets, flag);
-        auto& P0 = P[offsets[0]];
-        auto& P1 = P[offsets[1]];
+        Vector2i offsets = detail::pp_from_ee(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+
         point_point_distance<T, 3>(P0, P1, D);
     }
     else if(dim == 3)
     {
-        Vector3i offsets;
-        active_offsets(offsets, flag);
-        auto& P0 = P[offsets[0]];
-        auto& P1 = P[offsets[1]];
-        auto& P2 = P[offsets[2]];
+        Vector3i offsets = detail::pe_from_ee(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+        auto&    P2      = P[offsets[2]];
+
         point_edge_distance<T, 3>(P0, P1, P2, D);
     }
     else if(dim == 4)
@@ -436,15 +564,15 @@ MUDA_GENERIC void point_edge_distance_gradient(const Vector<IndexT, 3>&   flag,
 {
     G.setZero();
 
-    IndexT              dim = active_count(flag);
+    IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {p, e0, e1};
 
     if(dim == 2)
     {
-        Vector2i offsets;
-        active_offsets(offsets, flag);
-        auto&        P0 = P[offsets[0]];
-        auto&        P1 = P[offsets[1]];
+        Vector2i offsets = detail::pp_from_pe(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+
         Vector<T, 6> G6;
         point_point_distance_gradient<T, 3>(P0, P1, G6);
 
@@ -472,15 +600,15 @@ MUDA_GENERIC void point_triangle_distance_gradient(const Vector4i& flag,
 {
     G.setZero();
 
-    IndexT              dim = active_count(flag);
+    IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {p, t0, t1, t2};
 
     if(dim == 2)
     {
-        Vector2i offsets;
-        active_offsets(offsets, flag);
-        auto&        P0 = P[offsets[0]];
-        auto&        P1 = P[offsets[1]];
+        Vector2i offsets = detail::pp_from_pt(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+
         Vector<T, 6> G6;
         point_point_distance_gradient<T, 3>(P0, P1, G6);
 
@@ -490,11 +618,11 @@ MUDA_GENERIC void point_triangle_distance_gradient(const Vector4i& flag,
     }
     else if(dim == 3)
     {
-        Vector3i offsets;
-        active_offsets(offsets, flag);
-        auto&        P0 = P[offsets[0]];
-        auto&        P1 = P[offsets[1]];
-        auto&        P2 = P[offsets[2]];
+        Vector3i offsets = detail::pe_from_pt(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+        auto&    P2      = P[offsets[2]];
+
         Vector<T, 9> G9;
         point_edge_distance_gradient<T, 3>(P0, P1, P2, G9);
 
@@ -524,15 +652,14 @@ MUDA_GENERIC void edge_edge_distance_gradient(const Vector4i&            flag,
 {
     G.setZero();
 
-    IndexT              dim = active_count(flag);
+    IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {ea0, ea1, eb0, eb1};
 
     if(dim == 2)
     {
-        Vector2i offsets;
-        active_offsets(offsets, flag);
-        auto&        P0 = P[offsets[0]];
-        auto&        P1 = P[offsets[1]];
+        Vector2i     offsets = detail::pp_from_ee(flag);
+        auto&        P0      = P[offsets[0]];
+        auto&        P1      = P[offsets[1]];
         Vector<T, 6> G6;
         point_point_distance_gradient<T, 3>(P0, P1, G6);
 
@@ -542,11 +669,11 @@ MUDA_GENERIC void edge_edge_distance_gradient(const Vector4i&            flag,
     }
     else if(dim == 3)
     {
-        Vector3i offsets;
-        active_offsets(offsets, flag);
-        auto&        P0 = P[offsets[0]];
-        auto&        P1 = P[offsets[1]];
-        auto&        P2 = P[offsets[2]];
+        Vector3i offsets = detail::pe_from_ee(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+        auto&    P2      = P[offsets[2]];
+
         Vector<T, 9> G9;
         point_edge_distance_gradient<T, 3>(P0, P1, P2, G9);
 
@@ -597,16 +724,16 @@ MUDA_GENERIC void point_edge_distance_hessian(const Vector<IndexT, 3>&   flag,
 {
     H.setZero();
 
-    IndexT              dim = active_count(flag);
+    IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {p, e0, e1};
 
     if(dim == 2)
     {
-        Vector2i offsets;
-        active_offsets(offsets, flag);
-        auto&                  P0   = P[offsets[0]];
-        auto&                  P1   = P[offsets[1]];
-        Vector2i               flag = {1, 1};
+        Vector2i offsets = detail::pp_from_pe(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+        Vector2i flag    = {1, 1};
+
         Eigen::Matrix<T, 6, 6> H6;
         point_point_distance_hessian(flag, P0, P1, H6);
 
@@ -636,16 +763,16 @@ MUDA_GENERIC void point_triangle_distance_hessian(const Vector4i& flag,
 {
     H.setZero();
 
-    IndexT              dim = active_count(flag);
+    IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {p, t0, t1, t2};
 
     if(dim == 2)
     {
-        Vector2i offsets;
-        active_offsets(offsets, flag);
-        auto&                  P0   = P[offsets[0]];
-        auto&                  P1   = P[offsets[1]];
-        Vector2i               flag = {1, 1};
+        Vector2i offsets = detail::pp_from_pt(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+        Vector2i flag    = {1, 1};
+
         Eigen::Matrix<T, 6, 6> H6;
         point_point_distance_hessian(flag, P0, P1, H6);
 
@@ -657,11 +784,11 @@ MUDA_GENERIC void point_triangle_distance_hessian(const Vector4i& flag,
     }
     else if(dim == 3)
     {
-        Vector3i offsets;
-        active_offsets(offsets, flag);
-        auto&                  P0 = P[offsets[0]];
-        auto&                  P1 = P[offsets[1]];
-        auto&                  P2 = P[offsets[2]];
+        Vector3i offsets = detail::pe_from_pt(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+        auto&    P2      = P[offsets[2]];
+
         Eigen::Matrix<T, 9, 9> H9;
         point_edge_distance_hessian(P0, P1, P2, H9);
 
@@ -693,16 +820,16 @@ MUDA_GENERIC void edge_edge_distance_hessian(const Vector4i&            flag,
 {
     H.setZero();
 
-    IndexT              dim = active_count(flag);
+    IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {ea0, ea1, eb0, eb1};
 
     if(dim == 2)
     {
-        Vector2i offsets;
-        active_offsets(offsets, flag);
-        auto&                  P0   = P[offsets[0]];
-        auto&                  P1   = P[offsets[1]];
-        Vector2i               flag = {1, 1};
+        Vector2i offsets = detail::pp_from_ee(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+        Vector2i flag    = {1, 1};
+
         Eigen::Matrix<T, 6, 6> H6;
         point_point_distance_hessian(flag, P0, P1, H6);
 
@@ -714,11 +841,11 @@ MUDA_GENERIC void edge_edge_distance_hessian(const Vector4i&            flag,
     }
     else if(dim == 3)
     {
-        Vector3i offsets;
-        active_offsets(offsets, flag);
-        auto&                  P0 = P[offsets[0]];
-        auto&                  P1 = P[offsets[1]];
-        auto&                  P2 = P[offsets[2]];
+        Vector3i offsets = detail::pe_from_ee(flag);
+        auto&    P0      = P[offsets[0]];
+        auto&    P1      = P[offsets[1]];
+        auto&    P2      = P[offsets[2]];
+
         Eigen::Matrix<T, 9, 9> H9;
         point_edge_distance_hessian(P0, P1, P2, H9);
 

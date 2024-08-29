@@ -93,13 +93,10 @@ TEST_CASE("19_fem_contact_pt", "[fem]")
 
             auto is_fixed = mesh2.vertices().find<IndexT>(builtin::is_fixed);
             auto is_fixed_view = view(*is_fixed);
-            std::ranges::fill(is_fixed_view, 0);
+            std::ranges::fill(is_fixed_view, 1);
 
             object->geometries().create(mesh2);
         }
-
-        auto g = ground(-0.2);
-        object->geometries().create(g);
     }
 
     world.init(scene);

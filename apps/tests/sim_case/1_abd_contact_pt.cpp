@@ -21,10 +21,8 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config                = Scene::default_config();
-    config["gravity"]          = Vector3{0, -9.8, 0};
-    config["contact"]["d_hat"] = 0.01;
-    config["line_search"]["report_energy"] = true;
+    auto config       = Scene::default_config();
+    config["gravity"] = Vector3{0, -9.8, 0};
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));

@@ -22,10 +22,7 @@ TEST_CASE("2_abd_contact_ee", "[abd]")
     World  world{engine};
 
     auto config       = Scene::default_config();
-    config["gravity"] = Vector3{0, 0, 0};
-    config["contact"]["d_hat"] = 0.05;
-    config["line_search"]["report_energy"] = true;
-    config["newton"]["velocity_tol"]       = 0.05_m / 1.0_s;
+    config["gravity"] = Vector3{0, -9.8, 0};
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -37,6 +34,7 @@ TEST_CASE("2_abd_contact_ee", "[abd]")
         // create constitution and contact model
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
+        scene.contact_tabular().default_model(0.5, 1.0_GPa);
         auto& default_contact = scene.contact_tabular().default_element();
 
         // create object
@@ -70,7 +68,7 @@ TEST_CASE("2_abd_contact_ee", "[abd]")
 
             {
                 Transform t      = Transform::Identity();
-                t.translation()  = Vector3::UnitY() * 0.301;
+                t.translation()  = Vector3::UnitY() * 0.35;
                 trans_view[0]    = t.matrix();
                 is_fixed_view[0] = 0;
             }

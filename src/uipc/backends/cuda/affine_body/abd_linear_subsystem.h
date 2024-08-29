@@ -35,11 +35,15 @@ class ABDLinearSubsystem : public DiagLinearSubsystem
         }
         AffineBodyVertexReporter* affine_body_vertex_reporter = nullptr;
 
-        Float reserve_ratio       = 1.5;
+        Float reserve_ratio = 1.5;
 
-        ABDMatrixConverter                   converter;
+        bool reduce_hessian = false;
+
+        muda::TripletMatrixView<Float, 12>   A_view;
         muda::DeviceTripletMatrix<Float, 12> triplet_A;
-        muda::DeviceBCOOMatrix<Float, 12>    bcoo_A;
+
+        ABDMatrixConverter                converter;
+        muda::DeviceBCOOMatrix<Float, 12> bcoo_A;
     };
 
   protected:

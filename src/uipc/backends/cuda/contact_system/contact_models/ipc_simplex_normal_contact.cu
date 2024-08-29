@@ -63,7 +63,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                            Vector2 range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(D > range(0) && D < range(1),
+                           MUDA_ASSERT(is_active_D(range, D),
                                        "PT[%d,%d,%d,%d] d^2(%f,%f) out of range, (%f,%f)",
                                        PT(0),
                                        PT(1),
@@ -124,34 +124,9 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                            distance::edge_edge_distance(flag, E0, E1, E2, E3, D);
                            distance::edge_edge_distance_unclassified(E0, E1, E2, E3, D_);
 
-                           IndexT  dim = distance::active_count(flag);
-                           Vector3 P[] = {E0, E1, E2, E3};
-
-                           if(dim == 2)
-                           {
-                               Vector2i offsets;
-                               distance::active_offsets(offsets, flag);
-                               auto& P0 = P[offsets[0]];
-                               auto& P1 = P[offsets[1]];
-                               distance::point_point_distance(P0, P1, D);
-                           }
-                           else if(dim == 3)
-                           {
-                               Vector3i offsets;
-                               distance::active_offsets(offsets, flag);
-                               auto& P0 = P[offsets[0]];
-                               auto& P1 = P[offsets[1]];
-                               auto& P2 = P[offsets[2]];
-                               distance::point_edge_distance(P0, P1, P2, D);
-                           }
-                           else if(dim == 4)
-                           {
-                               distance::edge_edge_distance(E0, E1, E2, E3, D);
-                           }
-
                            Vector2 range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(D > range(0) && D < range(1),
+                           MUDA_ASSERT(is_active_D(range, D),
                                        "EE[%d,%d,%d,%d] d^2(%f,%f) out of range, (%f,%f), [%d,%d,%d,%d]",
                                        EE(0),
                                        EE(1),
@@ -273,7 +248,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                            Vector2 range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(D > range(0) && D < range(1),
+                           MUDA_ASSERT(is_active_D(range, D),
                                        "PP[%d,%d] d^2(%f) out of range, (%f,%f)",
                                        PP(0),
                                        PP(1),
@@ -334,7 +309,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                                Vector2 range = D_range(thickness, d_hat);
 
-                               MUDA_ASSERT(D > range(0) && D < range(1),
+                               MUDA_ASSERT(is_active_D(range, D),
                                            "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
                                            PT(0),
                                            PT(1),
@@ -401,7 +376,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                            Vector2 range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(D > range(0) && D < range(1),
+                           MUDA_ASSERT(is_active_D(range, D),
                                        "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
                                        EE(0),
                                        EE(1),
@@ -455,7 +430,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                            Vector2 range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(D > range(0) && D < range(1),
+                           MUDA_ASSERT(is_active_D(range, D),
                                        "PE[%d,%d,%d] d^2(%f) out of range, (%f,%f)",
                                        PE(0),
                                        PE(1),
@@ -505,7 +480,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                            Vector2 range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(D > range(0) && D < range(1),
+                           MUDA_ASSERT(is_active_D(range, D),
                                        "PP[%d,%d] d^2(%f) out of range, (%f,%f)",
                                        PP(0),
                                        PP(1),
