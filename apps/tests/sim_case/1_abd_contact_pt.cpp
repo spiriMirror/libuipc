@@ -117,7 +117,7 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
-    for(int i = 1; i < 50; i++)
+    for(int i = world.frame(); i < 50; i++)
     {
         world.advance();
         world.retrieve();

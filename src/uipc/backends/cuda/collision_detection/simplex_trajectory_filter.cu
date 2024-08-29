@@ -80,6 +80,11 @@ muda::CBufferView<Vector3> SimplexTrajectoryFilter::BaseInfo::positions() const 
     return m_impl->global_vertex_manager->positions();
 }
 
+muda::CBufferView<Vector3> SimplexTrajectoryFilter::BaseInfo::rest_positions() const noexcept
+{
+    return m_impl->global_vertex_manager->rest_positions();
+}
+
 muda::CBufferView<Float> SimplexTrajectoryFilter::BaseInfo::thicknesses() const noexcept
 {
     return m_impl->global_vertex_manager->thicknesses();

@@ -23,7 +23,7 @@ class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         /****************************************************
         *                   Broad Phase
         ****************************************************/
-        
+
         muda::DeviceBuffer<AABB> codim_point_aabbs;
         muda::DeviceBuffer<AABB> point_aabbs;
         muda::DeviceBuffer<AABB> edge_aabbs;
@@ -42,15 +42,25 @@ class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         /****************************************************
         *                   Narrow Phase
         ****************************************************/
-        
-        muda::DeviceBuffer<IndexT> PT_active_flags;
-        muda::DeviceBuffer<IndexT> PT_active_offsets;
-        muda::DeviceBuffer<IndexT> EE_active_flags;
-        muda::DeviceBuffer<IndexT> EE_active_offsets;
-        muda::DeviceBuffer<IndexT> PE_active_flags;
-        muda::DeviceBuffer<IndexT> PE_active_offsets;
-        muda::DeviceBuffer<IndexT> PP_active_flags;
-        muda::DeviceBuffer<IndexT> PP_active_offsets;
+
+        //muda::DeviceBuffer<IndexT> PT_active_flags;
+        //muda::DeviceBuffer<IndexT> PT_active_offsets;
+        //muda::DeviceBuffer<IndexT> EE_active_flags;
+        //muda::DeviceBuffer<IndexT> EE_active_offsets;
+        //muda::DeviceBuffer<IndexT> PE_active_flags;
+        //muda::DeviceBuffer<IndexT> PE_active_offsets;
+        //muda::DeviceBuffer<IndexT> PP_active_flags;
+        //muda::DeviceBuffer<IndexT> PP_active_offsets;
+
+        muda::DeviceVar<IndexT> selected_PT_count;
+        muda::DeviceVar<IndexT> selected_EE_count;
+        muda::DeviceVar<IndexT> selected_PE_count;
+        muda::DeviceVar<IndexT> selected_PP_count;
+
+        muda::DeviceBuffer<Vector4i> temp_PTs;
+        muda::DeviceBuffer<Vector4i> temp_EEs;
+        muda::DeviceBuffer<Vector3i> temp_PEs;
+        muda::DeviceBuffer<Vector2i> temp_PPs;
 
         muda::DeviceBuffer<Vector4i> PTs;
         muda::DeviceBuffer<Vector4i> EEs;

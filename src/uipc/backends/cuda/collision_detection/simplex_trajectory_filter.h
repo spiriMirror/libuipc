@@ -26,6 +26,7 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         Float d_hat() const noexcept;
 
         muda::CBufferView<Vector3> positions() const noexcept;
+        muda::CBufferView<Vector3> rest_positions() const noexcept;
         muda::CBufferView<Float>   thicknesses() const noexcept;
 
         muda::CBufferView<IndexT>   codim_vertices() const noexcept;

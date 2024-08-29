@@ -3,7 +3,7 @@
 #include <muda/ext/eigen/log_proxy.h>
 #include <sim_engine.h>
 #include <kernel_cout.h>
-#include <utils/distance/distance_type.h>
+#include <utils/distance/distance_flagged.h>
 #include <utils/distance.h>
 #include <utils/codim_thickness.h>
 #include <uipc/common/zip.h>
@@ -350,18 +350,25 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
     auto d_hat     = info.d_hat();
     auto positions = info.positions();
 
-    auto get_total_count = [](muda::DeviceBuffer<IndexT>& offsets)
-    {
-        IndexT total_count = 0;
-        offsets.view(offsets.size() - 1).copy_to(&total_count);
-        return total_count;
-    };
+    SizeT N_PPs = candidate_PP_pairs.size();
+    SizeT N_PEs = candidate_PE_pairs.size();
+    SizeT N_PTs = candidate_PT_pairs.size();
+    SizeT N_EEs = candidate_EE_pairs.size();
+
+    // PT, EE, PT, PP can degenerate to PP
+    temp_PPs.resize(N_PPs + N_PEs + N_PTs + N_EEs);
+    // PT, EE, PT can degenerate to PE
+    temp_PEs.resize(N_PEs + N_PTs + N_EEs);
+
+    temp_PTs.resize(N_PTs);
+    temp_EEs.resize(N_EEs);
+
+    SizeT temp_PP_offset = 0;
+    SizeT temp_PE_offset = 0;
 
     // PPs
     {
-        // +1 for total count
-        PP_active_flags.resize(candidate_PP_pairs.size() + 1);
-        PP_active_offsets.resize(candidate_PP_pairs.size() + 1);
+        auto PP_view = temp_PPs.view(temp_PP_offset, N_PPs);
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
@@ -370,65 +377,40 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                     surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     PP_pairs = candidate_PP_pairs.viewer().name("PP_pairs"),
-                    actives  = PP_active_flags.viewer().name("actives"),
+                    temp_PPs = PP_view.viewer().name("temp_PPs"),
                     d_hat    = d_hat] __device__(int i) mutable
                    {
-                       // clear flag
-                       actives(i)       = 0;
-                       Vector2i indices = PP_pairs(i);
+                       // default invalid
+                       auto& PP = temp_PPs(i);
+                       PP.setConstant(-1);
 
-                       IndexT P0 = surf_vertices(indices(0));
-                       IndexT P1 = surf_vertices(indices(1));
+                       Vector2i indices = PP_pairs(i);
+                       IndexT   P0      = surf_vertices(indices(0));
+                       IndexT   P1      = surf_vertices(indices(1));
 
                        const auto& V0 = positions(P0);
                        const auto& V1 = positions(P1);
 
-                       Float D;
-                       distance::point_point_distance_unclassified(V0, V1, D);
-
                        Float thickness = PP_thickness(thicknesses(P0), thicknesses(P1));
+
                        Vector2 range = D_range(thickness, d_hat);
 
-                       if(is_active_D(range, D))
-                           actives(i) = 1;  // must use 1, we will scan the active pairs later
+                       Float D;
+                       distance::point_point_distance(V0, V1, D);
+
+
+                       if(!is_active_D(range, D))
+                           return;  // early return
+
+                       PP = {P0, P1};
                    });
 
-        // scan the active pairs
-        DeviceScan().ExclusiveSum(PP_active_flags.data(),
-                                  PP_active_offsets.data(),
-                                  PP_active_offsets.size());
-
-        IndexT total_count = get_total_count(PP_active_offsets);
-
-        PPs.resize(total_count);
-
-        // copy the active pairs
-        ParallelFor()
-            .kernel_name(__FUNCTION__)
-            .apply(candidate_PP_pairs.size(),
-                   [PP_active_flags = PP_active_flags.viewer().name("PP_active_flags"),
-                    PP_active_offsets = PP_active_offsets.viewer().name("PP_active_offsets"),
-                    PP_pairs = candidate_PP_pairs.viewer().name("PP_pairs"),
-                    surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
-                    PPs = PPs.viewer().name("PPs")] __device__(int i) mutable
-                   {
-                       if(PP_active_flags(i))
-                       {
-                           auto     offset  = PP_active_offsets(i);
-                           Vector2i surf_vI = PP_pairs(i);
-
-                           IndexT P0 = surf_vertices(surf_vI(0));
-                           IndexT P1 = surf_vertices(surf_vI(1));
-
-                           PPs(offset) = {P0, P1};
-                       }
-                   });
+        temp_PP_offset += N_PPs;
     }
     // PEs
     {
-        // +1 for total count
-        PE_active_flags.resize(candidate_PE_pairs.size() + 1);
-        PE_active_offsets.resize(candidate_PE_pairs.size() + 1);
+        auto PP_view = temp_PPs.view(temp_PP_offset, N_PEs);
+        auto PE_view = temp_PEs.view(temp_PE_offset, N_PEs);
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
@@ -438,214 +420,301 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                     surf_edges = info.surf_edges().viewer().name("surf_edges"),
                     PE_pairs   = candidate_PE_pairs.viewer().name("PE_pairs"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    actives = PE_active_flags.viewer().name("actives"),
-                    d_hat   = d_hat] __device__(int i) mutable
+                    temp_PPs = PP_view.viewer().name("temp_PPs"),
+                    temp_PEs = PE_view.viewer().name("temp_PEs"),
+                    d_hat    = d_hat] __device__(int i) mutable
                    {
-                       // clear flag
-                       actives(i) = 0;
+                       auto& PP = temp_PPs(i);
+                       PP.setConstant(-1);
+                       auto& PE = temp_PEs(i);
+                       PE.setConstant(-1);
 
                        Vector2i indices = PE_pairs(i);
-                       IndexT   P       = surf_vertices(indices(0));
+                       IndexT   V       = surf_vertices(indices(0));
                        Vector2i E       = surf_edges(indices(1));
 
-                       const auto& V  = positions(P);
-                       const auto& E0 = positions(E(0));
-                       const auto& E1 = positions(E(1));
-
-                       Float D;
-                       distance::point_edge_distance_unclassified(V, E0, E1, D);
+                       Vector3i vIs  = {V, E(0), E(1)};
+                       Vector3  Ps[] = {positions(vIs(0)),
+                                        positions(vIs(1)),
+                                        positions(vIs(2))};
 
                        Float thickness = PE_thickness(
-                           thicknesses(P), thicknesses(E(0)), thicknesses(E(1)));
+                           thicknesses(V), thicknesses(E(0)), thicknesses(E(1)));
+
+                       Vector3i flag =
+                           distance::point_edge_distance_flag(Ps[0], Ps[1], Ps[2]);
 
                        Vector2 range = D_range(thickness, d_hat);
 
-                       if(is_active_D(range, D))
-                           actives(i) = 1;  // must use 1, we will scan the active pairs later
-                   });
+                       Float D;
+                       distance::point_edge_distance(flag, Ps[0], Ps[1], Ps[2], D);
 
-        // scan the active pairs
+                       if(!is_active_D(range, D))
+                           return;  // early return
 
-        DeviceScan().ExclusiveSum(PE_active_flags.data(),
-                                  PE_active_offsets.data(),
-                                  PE_active_offsets.size());
+                       Vector3i offsets;
+                       auto dim = distance::degenerate_point_edge(flag, offsets);
 
-        IndexT total_count = get_total_count(PE_active_offsets);
-
-        PEs.resize(total_count);
-
-        // copy the active pairs
-        ParallelFor()
-            .kernel_name(__FUNCTION__)
-            .apply(candidate_PE_pairs.size(),
-                   [PE_active_flags = PE_active_flags.viewer().name("PE_active_flags"),
-                    PE_active_offsets = PE_active_offsets.viewer().name("PE_active_offsets"),
-                    PE_pairs = candidate_PE_pairs.viewer().name("PE_pairs"),
-                    surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
-                    surf_edges = info.surf_edges().viewer().name("surf_edges"),
-                    PEs = PEs.viewer().name("PEs")] __device__(int i) mutable
-                   {
-                       if(PE_active_flags(i))
+                       switch(dim)
                        {
-                           auto     offset       = PE_active_offsets(i);
-                           Vector2i surf_indices = PE_pairs(i);
-
-                           IndexT   P = surf_vertices(surf_indices(0));
-                           Vector2i E = surf_edges(surf_indices(1));
-
-                           PEs(offset) = {P, E(0), E(1)};
+                           case 2:  // PP
+                           {
+                               IndexT V0 = vIs(offsets(0));
+                               IndexT V1 = vIs(offsets(1));
+                               PP        = {V0, V1};
+                           }
+                           break;
+                           case 3:  // PE
+                           {
+                               PE = vIs;
+                           }
+                           break;
+                           default: {
+                               MUDA_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
+                           }
+                           break;
                        }
                    });
+
+        temp_PP_offset += N_PEs;
+        temp_PE_offset += N_PEs;
     }
     // PTs
     {
-        // +1 for total count
-        PT_active_flags.resize(candidate_PT_pairs.size() + 1);
-        PT_active_offsets.resize(candidate_PT_pairs.size() + 1);
+        auto PP_view = temp_PPs.view(temp_PP_offset, N_PTs);
+        auto PE_view = temp_PEs.view(temp_PE_offset, N_PTs);
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(candidate_PT_pairs.size(),
-                   [Ps       = positions.viewer().name("Ps"),
-                    PT_pairs = candidate_PT_pairs.viewer().name("PT_pairs"),
+                   [positions = positions.viewer().name("Ps"),
+                    PT_pairs  = candidate_PT_pairs.viewer().name("PT_pairs"),
                     surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
                     surf_triangles = info.surf_triangles().viewer().name("surf_triangles"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    actives = PT_active_flags.viewer().name("actives"),
-                    d_hat   = d_hat] __device__(int i) mutable
+                    temp_PPs = PP_view.viewer().name("temp_PPs"),
+                    temp_PEs = PE_view.viewer().name("temp_PEs"),
+                    temp_PTs = temp_PTs.viewer().name("temp_PTs"),
+                    d_hat    = d_hat] __device__(int i) mutable
                    {
-                       // clear flag
-                       actives(i) = 0;
+                       auto& PP = temp_PPs(i);
+                       PP.setConstant(-1);
+                       auto& PE = temp_PEs(i);
+                       PE.setConstant(-1);
+                       auto& PT = temp_PTs(i);
+                       PT.setConstant(-1);
 
                        Vector2i indices = PT_pairs(i);
-                       IndexT   P       = surf_vertices(indices(0));
-                       Vector3i T       = surf_triangles(indices(1));
+                       IndexT   V       = surf_vertices(indices(0));
+                       Vector3i F       = surf_triangles(indices(1));
 
-                       const auto& V  = Ps(P);
-                       const auto& F0 = Ps(T(0));
-                       const auto& F1 = Ps(T(1));
-                       const auto& F2 = Ps(T(2));
+                       Vector4i vIs  = {V, F(0), F(1), F(2)};
+                       Vector3  Ps[] = {positions(vIs(0)),
+                                        positions(vIs(1)),
+                                        positions(vIs(2)),
+                                        positions(vIs(3))};
 
+                       Float thickness = PT_thickness(thicknesses(V),
+                                                      thicknesses(F(0)),
+                                                      thicknesses(F(1)),
+                                                      thicknesses(F(2)));
 
-                       Float D;
-                       distance::point_triangle_distance_unclassified(V, F0, F1, F2, D);
-
-                       Float thickness = triangle_thickness(thicknesses(T(0)),
-                                                            thicknesses(T(1)),
-                                                            thicknesses(T(2)));
+                       Vector4i flag = distance::point_triangle_distance_flag(
+                           Ps[0], Ps[1], Ps[2], Ps[3]);
 
                        Vector2 range = D_range(thickness, d_hat);
 
-                       if(is_active_D(range, D))
-                           actives(i) = 1;  // must use 1, we will scan the active pairs later
-                   });
+                       Float D;
+                       distance::point_triangle_distance(flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
 
-        // scan the active pairs
-        DeviceScan().ExclusiveSum(PT_active_flags.data(),
-                                  PT_active_offsets.data(),
-                                  PT_active_offsets.size());
+                       if(!is_active_D(range, D))
+                           return;  // early return
 
-        IndexT total_count = get_total_count(PT_active_offsets);
+                       Vector4i offsets;
+                       auto dim = distance::degenerate_point_triangle(flag, offsets);
 
-        PTs.resize(total_count);
-
-        // copy the active pairs
-
-        ParallelFor()
-            .kernel_name(__FUNCTION__)
-            .apply(candidate_PT_pairs.size(),
-                   [PT_active_flags = PT_active_flags.viewer().name("PT_active_flags"),
-                    PT_active_offsets = PT_active_offsets.viewer().name("PT_active_offsets"),
-                    PT_pairs = candidate_PT_pairs.viewer().name("PT_pairs"),
-                    surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
-                    surf_triangles = info.surf_triangles().viewer().name("surf_triangles"),
-                    PTs = PTs.viewer().name("PTs")] __device__(int i) mutable
-                   {
-                       if(PT_active_flags(i))
+                       switch(dim)
                        {
-                           auto     offset       = PT_active_offsets(i);
-                           Vector2i surf_indices = PT_pairs(i);
-
-                           IndexT   P = surf_vertices(surf_indices(0));
-                           Vector3i T = surf_triangles(surf_indices(1));
-
-                           PTs(offset) = {P, T(0), T(1), T(2)};
+                           case 2:  // PP
+                           {
+                               IndexT V0 = vIs(offsets(0));
+                               IndexT V1 = vIs(offsets(1));
+                               PP        = {V0, V1};
+                           }
+                           break;
+                           case 3:  // PE
+                           {
+                               IndexT V0 = vIs(offsets(0));
+                               IndexT V1 = vIs(offsets(1));
+                               IndexT V2 = vIs(offsets(2));
+                               PE        = {V0, V1, V2};
+                           }
+                           break;
+                           case 4:  // PT
+                           {
+                               PT = vIs;
+                           }
+                           break;
+                           default: {
+                               MUDA_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
+                           }
+                           break;
                        }
                    });
+
+        temp_PP_offset += N_PTs;
+        temp_PE_offset += N_PTs;
     }
     // EEs
     {
-        // +1 for total count
-        EE_active_flags.resize(candidate_EE_pairs.size() + 1);
-        EE_active_offsets.resize(candidate_EE_pairs.size() + 1);
+        auto PP_view = temp_PPs.view(temp_PP_offset, N_EEs);
+        auto PE_view = temp_PEs.view(temp_PE_offset, N_EEs);
+
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
-            .apply(candidate_EE_pairs.size(),
-                   [Ps         = positions.viewer().name("Ps"),
-                    EE_pairs   = candidate_EE_pairs.viewer().name("EE_pairs"),
-                    surf_edges = info.surf_edges().viewer().name("surf_edges"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    actives = EE_active_flags.viewer().name("actives"),
-                    d_hat   = d_hat] __device__(int i) mutable
-                   {
-                       // clear flag
-                       actives(i) = 0;
+            .apply(
+                candidate_EE_pairs.size(),
+                [positions = positions.viewer().name("Ps"),
+                 rest_positions = info.rest_positions().viewer().name("rest_positions"),
+                 EE_pairs    = candidate_EE_pairs.viewer().name("EE_pairs"),
+                 surf_edges  = info.surf_edges().viewer().name("surf_edges"),
+                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                 temp_PPs    = PP_view.viewer().name("temp_PPs"),
+                 temp_PEs    = PE_view.viewer().name("temp_PEs"),
+                 temp_EEs    = temp_EEs.viewer().name("temp_EEs"),
+                 d_hat       = d_hat] __device__(int i) mutable
+                {
+                    auto& PP = temp_PPs(i);
+                    PP.setConstant(-1);
+                    auto& PE = temp_PEs(i);
+                    PE.setConstant(-1);
+                    auto& EE = temp_EEs(i);
+                    EE.setConstant(-1);
 
-                       Vector2i indices = EE_pairs(i);
-                       Vector2i E0      = surf_edges(indices(0));
-                       Vector2i E1      = surf_edges(indices(1));
+                    Vector2i indices = EE_pairs(i);
+                    Vector2i E0      = surf_edges(indices(0));
+                    Vector2i E1      = surf_edges(indices(1));
 
-                       const auto& EP0 = Ps(E0(0));
-                       const auto& EP1 = Ps(E0(1));
-                       const auto& EP2 = Ps(E1(0));
-                       const auto& EP3 = Ps(E1(1));
+                    Vector4i vIs  = {E0(0), E0(1), E1(0), E1(1)};
+                    Vector3  Ps[] = {positions(vIs(0)),
+                                     positions(vIs(1)),
+                                     positions(vIs(2)),
+                                     positions(vIs(3))};
 
-                       Float D;
-                       distance::edge_edge_distance_unclassified(EP0, EP1, EP2, EP3, D);
+                    Float thickness = EE_thickness(thicknesses(E0(0)),
+                                                   thicknesses(E0(1)),
+                                                   thicknesses(E1(0)),
+                                                   thicknesses(E1(1)));
 
-                       Float thickness = EE_thickness(thicknesses(E0(0)),
-                                                      thicknesses(E0(1)),
-                                                      thicknesses(E1(0)),
-                                                      thicknesses(E1(1)));
+                    Vector2 range = D_range(thickness, d_hat);
 
-                       Vector2 range = D_range(thickness, d_hat);
+                    Vector4i flag =
+                        distance::edge_edge_distance_flag(Ps[0], Ps[1], Ps[2], Ps[3]);
 
-                       if(is_active_D(range, D))
-                           actives(i) = 1;  // must use 1, we will scan the active pairs later
-                   });
+                    Float D;
+                    distance::edge_edge_distance(flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
 
-        // scan the active pairs
+                    if(!is_active_D(range, D))
+                        return;  // early return
 
-        DeviceScan().ExclusiveSum(EE_active_flags.data(),
-                                  EE_active_offsets.data(),
-                                  EE_active_offsets.size());
+                    Float eps_x;
+                    distance::edge_edge_mollifier_threshold(rest_positions(vIs(0)),
+                                                            rest_positions(vIs(1)),
+                                                            rest_positions(vIs(2)),
+                                                            rest_positions(vIs(3)),
+                                                            eps_x);
 
-        IndexT total_count = get_total_count(EE_active_offsets);
+                    if(distance::need_mollify(Ps[0], Ps[1], Ps[2], Ps[3], eps_x))
+                    {
+                        EE = vIs;
+                        return;
+                    }
+                    else  // classify to EE/PE/PP
+                    {
+                        Vector4i offsets;
+                        auto dim = distance::degenerate_edge_edge(flag, offsets);
 
-        EEs.resize(total_count);
+                        switch(dim)
+                        {
+                            case 2:  // PP
+                            {
+                                IndexT V0 = vIs(offsets(0));
+                                IndexT V1 = vIs(offsets(1));
+                                PP        = {V0, V1};
+                            }
+                            break;
+                            case 3:  // PE
+                            {
+                                IndexT V0 = vIs(offsets(0));
+                                IndexT V1 = vIs(offsets(1));
+                                IndexT V2 = vIs(offsets(2));
+                                PE        = {V0, V1, V2};
+                            }
+                            break;
+                            case 4:  // EE
+                            {
+                                EE = vIs;
+                            }
+                            break;
+                            default: {
+                                MUDA_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
+                            }
+                            break;
+                        }
+                    }
+                });
 
-        // copy the active pairs
-        ParallelFor()
-            .kernel_name(__FUNCTION__)
-            .apply(candidate_EE_pairs.size(),
-                   [EE_active_flags = EE_active_flags.viewer().name("EE_active_flags"),
-                    EE_active_offsets = EE_active_offsets.viewer().name("EE_active_offsets"),
-                    EE_pairs   = candidate_EE_pairs.viewer().name("EE_pairs"),
-                    surf_edges = info.surf_edges().viewer().name("surf_edges"),
-                    EEs = EEs.viewer().name("EEs")] __device__(int i) mutable
-                   {
-                       if(EE_active_flags(i))
-                       {
-                           auto     offset       = EE_active_offsets(i);
-                           Vector2i surf_indices = EE_pairs(i);
+        temp_PP_offset += N_EEs;
+        temp_PE_offset += N_EEs;
+    }
 
-                           Vector2i E0 = surf_edges(surf_indices(0));
-                           Vector2i E1 = surf_edges(surf_indices(1));
+    UIPC_ASSERT(temp_PP_offset == temp_PPs.size(), "size mismatch");
+    UIPC_ASSERT(temp_PE_offset == temp_PEs.size(), "size mismatch");
 
-                           EEs(offset) = {E0(0), E0(1), E1(0), E1(1)};
-                       }
-                   });
+    {  // select the valid ones
+        PPs.resize(temp_PPs.size());
+        PEs.resize(temp_PEs.size());
+        PTs.resize(temp_PTs.size());
+        EEs.resize(temp_EEs.size());
+
+        DeviceSelect().If(temp_PPs.data(),
+                          PPs.data(),
+                          selected_PP_count.data(),
+                          temp_PPs.size(),
+                          [] CUB_RUNTIME_FUNCTION(const Vector2i& PP)
+                          { return PP(0) != -1; });
+
+        DeviceSelect().If(temp_PEs.data(),
+                          PEs.data(),
+                          selected_PE_count.data(),
+                          temp_PEs.size(),
+                          [] CUB_RUNTIME_FUNCTION(const Vector3i& PE)
+                          { return PE(0) != -1; });
+
+        DeviceSelect().If(temp_PTs.data(),
+                          PTs.data(),
+                          selected_PT_count.data(),
+                          temp_PTs.size(),
+                          [] CUB_RUNTIME_FUNCTION(const Vector4i& PT)
+                          { return PT(0) != -1; });
+
+        DeviceSelect().If(temp_EEs.data(),
+                          EEs.data(),
+                          selected_EE_count.data(),
+                          temp_EEs.size(),
+                          [] CUB_RUNTIME_FUNCTION(const Vector4i& EE)
+                          { return EE(0) != -1; });
+
+        IndexT PP_count = selected_PP_count;
+        IndexT PE_count = selected_PE_count;
+        IndexT PT_count = selected_PT_count;
+        IndexT EE_count = selected_EE_count;
+
+        PPs.resize(PP_count);
+        PEs.resize(PE_count);
+        PTs.resize(PT_count);
+        EEs.resize(EE_count);
     }
 
     info.PPs(PPs);

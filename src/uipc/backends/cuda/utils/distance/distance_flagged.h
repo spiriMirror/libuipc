@@ -164,6 +164,62 @@ namespace detail
 }  // namespace detail
 
 
+MUDA_GENERIC inline IndexT degenerate_point_triangle(const Vector<IndexT, 4>& flag,
+                                                     Vector<IndexT, 4>& offsets)
+{
+    // collect active indices
+    IndexT dim = detail::active_count(flag);
+    if(dim == 2)
+    {
+        offsets.head<2>() = detail::pp_from_pt(flag);
+    }
+    else if(dim == 3)
+    {
+        offsets.head<3>() = detail::pe_from_pt(flag);
+    }
+    else if(dim == 4)
+    {
+        offsets = {0, 1, 2, 3};
+    }
+    return dim;
+}
+
+MUDA_GENERIC inline IndexT degenerate_edge_edge(const Vector<IndexT, 4>& flag,
+                                                Vector<IndexT, 4>& offsets)
+{
+    // collect active indices
+    IndexT dim = detail::active_count(flag);
+    if(dim == 2)
+    {
+        offsets.head<2>() = detail::pp_from_ee(flag);
+    }
+    else if(dim == 3)
+    {
+        offsets.head<3>() = detail::pe_from_ee(flag);
+    }
+    else if(dim == 4)
+    {
+        offsets = {0, 1, 2, 3};
+    }
+    return dim;
+}
+
+MUDA_GENERIC inline IndexT degenerate_point_edge(const Vector<IndexT, 3>& flag,
+                                                 Vector<IndexT, 3>& offsets)
+{
+    // collect active indices
+    IndexT dim = detail::active_count(flag);
+    if(dim == 2)
+    {
+        offsets.head<2>() = detail::pp_from_pe(flag);
+    }
+    else if(dim == 3)
+    {
+        offsets = {0, 1, 2};
+    }
+    return dim;
+}
+
 template <typename T>
 MUDA_GENERIC Vector<IndexT, 2> point_point_distance_flag(const Eigen::Vector<T, 3>& p0,
                                                          const Eigen::Vector<T, 3>& p1)

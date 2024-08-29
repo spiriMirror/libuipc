@@ -1,6 +1,7 @@
+#include "edge_edge_mollified.h"
 namespace uipc::backend::cuda::distance::details
 {
-template <class T>
+template <typename T>
 MUDA_GENERIC void g_EECN2(
     T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T v31, T v32, T v33, T g[12])
 {
@@ -60,7 +61,7 @@ MUDA_GENERIC void g_EECN2(
     g[10] = -t26 + t31;
     g[11] = -t28 - t30;
 }
-template <class T>
+template <typename T>
 MUDA_GENERIC void H_EECN2(
     T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T v31, T v32, T v33, T H[144])
 {
@@ -330,21 +331,21 @@ MUDA_GENERIC void H_EECN2(
     H[142] = -t34;
     H[143] = t74;
 }
-template <class T>
+template <typename T>
 MUDA_GENERIC void EEM(T input, T eps_x, T& e)
 {
     T input_div_eps_x = input / eps_x;
     e                 = (-input_div_eps_x + 2.0) * input_div_eps_x;
 }
 
-template <class T>
+template <typename T>
 MUDA_GENERIC void g_EEM(T input, T eps_x, T& g)
 {
     T one_div_eps_x = 1.0 / eps_x;
     g               = 2.0 * one_div_eps_x * (-one_div_eps_x * input + 1.0);
 }
 
-template <class T>
+template <typename T>
 MUDA_GENERIC void H_EEM(T input, T eps_x, T& H)
 {
     H = -2.0 / (eps_x * eps_x);
@@ -353,7 +354,19 @@ MUDA_GENERIC void H_EEM(T input, T eps_x, T& H)
 
 namespace uipc::backend::cuda::distance
 {
-template <class T>
+template <typename T>
+MUDA_GENERIC bool need_mollify(const Eigen::Vector<T, 3>& ea0,
+                               const Eigen::Vector<T, 3>& ea1,
+                               const Eigen::Vector<T, 3>& eb0,
+                               const Eigen::Vector<T, 3>& eb1,
+                               T                          eps_x)
+{
+    T EECrossSqNorm;
+    edge_edge_cross_norm2(ea0, ea1, eb0, eb1, EECrossSqNorm);
+    return EECrossSqNorm < eps_x;
+}
+
+template <typename T>
 MUDA_GENERIC void edge_edge_cross_norm2(const Eigen::Vector<T, 3>& ea0,
                                         const Eigen::Vector<T, 3>& ea1,
                                         const Eigen::Vector<T, 3>& eb0,
@@ -364,7 +377,7 @@ MUDA_GENERIC void edge_edge_cross_norm2(const Eigen::Vector<T, 3>& ea0,
 }
 
 
-template <class T>
+template <typename T>
 MUDA_GENERIC void edge_edge_cross_norm2_gradient(const Eigen::Vector<T, 3>& ea0,
                                                  const Eigen::Vector<T, 3>& ea1,
                                                  const Eigen::Vector<T, 3>& eb0,
@@ -387,7 +400,7 @@ MUDA_GENERIC void edge_edge_cross_norm2_gradient(const Eigen::Vector<T, 3>& ea0,
 }
 
 
-template <class T>
+template <typename T>
 MUDA_GENERIC void edge_edge_cross_norm2_hessian(const Eigen::Vector<T, 3>& ea0,
                                                 const Eigen::Vector<T, 3>& ea1,
                                                 const Eigen::Vector<T, 3>& eb0,
@@ -410,7 +423,7 @@ MUDA_GENERIC void edge_edge_cross_norm2_hessian(const Eigen::Vector<T, 3>& ea0,
 }
 
 
-template <class T>
+template <typename T>
 MUDA_GENERIC void edge_edge_mollifier(const Eigen::Vector<T, 3>& ea0,
                                       const Eigen::Vector<T, 3>& ea1,
                                       const Eigen::Vector<T, 3>& eb0,
@@ -430,7 +443,7 @@ MUDA_GENERIC void edge_edge_mollifier(const Eigen::Vector<T, 3>& ea0,
     }
 }
 
-template <class T>
+template <typename T>
 MUDA_GENERIC void edge_edge_mollifier_gradient(const Eigen::Vector<T, 3>& ea0,
                                                const Eigen::Vector<T, 3>& ea1,
                                                const Eigen::Vector<T, 3>& eb0,
@@ -453,7 +466,7 @@ MUDA_GENERIC void edge_edge_mollifier_gradient(const Eigen::Vector<T, 3>& ea0,
     }
 }
 
-template <class T>
+template <typename T>
 MUDA_GENERIC void edge_edge_mollifier_hessian(const Eigen::Vector<T, 3>& ea0,
                                               const Eigen::Vector<T, 3>& ea1,
                                               const Eigen::Vector<T, 3>& eb0,
@@ -482,15 +495,25 @@ MUDA_GENERIC void edge_edge_mollifier_hessian(const Eigen::Vector<T, 3>& ea0,
     }
 }
 
-template <class T>
+template <typename T>
 MUDA_GENERIC void edge_edge_mollifier_threshold(const Eigen::Vector<T, 3>& ea0_rest,
                                                 const Eigen::Vector<T, 3>& ea1_rest,
                                                 const Eigen::Vector<T, 3>& eb0_rest,
                                                 const Eigen::Vector<T, 3>& eb1_rest,
                                                 T& eps_x)
 {
-    eps_x = 1.0e-3 * (ea0_rest - ea1_rest).squaredNorm()
-            * (eb0_rest - eb1_rest).squaredNorm();
+    edge_edge_mollifier_threshold(ea0_rest, ea1_rest, eb0_rest, eb1_rest, 1.0e-3, eps_x);
 }
 
+template <typename T>
+MUDA_GENERIC void edge_edge_mollifier_threshold(const Eigen::Vector<T, 3>& ea0_rest,
+                                                const Eigen::Vector<T, 3>& ea1_rest,
+                                                const Eigen::Vector<T, 3>& eb0_rest,
+                                                const Eigen::Vector<T, 3>& eb1_rest,
+                                                Float coeff,
+                                                T&    eps_x)
+{
+    eps_x = coeff * (ea0_rest - ea1_rest).squaredNorm()
+            * (eb0_rest - eb1_rest).squaredNorm();
+}
 }  // namespace uipc::backend::cuda::distance
