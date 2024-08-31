@@ -79,5 +79,6 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
     Float m_newton_scene_tol    = 0.01;
     SizeT m_newton_max_iter     = 1000;
     SizeT m_current_frame       = 0;
+    bool  m_friction_enabled    = false;
 };
 }  // namespace uipc::backend::cuda

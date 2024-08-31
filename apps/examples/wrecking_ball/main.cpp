@@ -25,7 +25,7 @@ int main()
 
     auto config                             = Scene::default_config();
     config["gravity"]                       = Vector3{0, -9.8, 0};
-    config["contact"]["friction"]["enable"] = false;
+    config["contact"]["friction"]["enable"] = true;
     config["contact"]["enable"]             = true;
     config["contact"]["d_hat"]              = 0.01;
     config["line_search"]["max_iter"]       = 8;
@@ -49,7 +49,7 @@ int main()
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
         auto& default_contact = scene.contact_tabular().default_element();
-        scene.contact_tabular().default_model(0.5, 20.0_GPa);
+        scene.contact_tabular().default_model(0.05, 20.0_GPa);
 
         Float     scale = 1;
         Transform T     = Transform::Identity();

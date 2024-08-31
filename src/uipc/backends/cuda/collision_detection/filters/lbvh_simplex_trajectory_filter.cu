@@ -396,7 +396,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        Vector2 range = D_range(thickness, d_hat);
 
                        Float D;
-                       distance::point_point_distance(V0, V1, D);
+                       distance::point_point_distance2(V0, V1, D);
 
 
                        if(!is_active_D(range, D))
@@ -447,7 +447,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        Vector2 range = D_range(thickness, d_hat);
 
                        Float D;
-                       distance::point_edge_distance(flag, Ps[0], Ps[1], Ps[2], D);
+                       distance::point_edge_distance2(flag, Ps[0], Ps[1], Ps[2], D);
 
                        if(!is_active_D(range, D))
                            return;  // early return
@@ -525,7 +525,8 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        Vector2 range = D_range(thickness, d_hat);
 
                        Float D;
-                       distance::point_triangle_distance(flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
+                       distance::point_triangle_distance2(
+                           flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
 
                        if(!is_active_D(range, D))
                            return;  // early return
@@ -613,7 +614,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                         distance::edge_edge_distance_flag(Ps[0], Ps[1], Ps[2], Ps[3]);
 
                     Float D;
-                    distance::edge_edge_distance(flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
+                    distance::edge_edge_distance2(flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
 
                     if(!is_active_D(range, D))
                         return;  // early return

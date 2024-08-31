@@ -38,11 +38,13 @@ void SimEngine::init_scene()
     auto& info            = m_world_visitor->scene().info();
     m_newton_velocity_tol = info["newton"]["velocity_tol"];
     m_newton_max_iter     = info["newton"]["max_iter"];
+    m_friction_enabled    = info["contact"]["friction"]["enable"];
     Vector3 gravity       = info["gravity"];
     Float   dt            = info["dt"];
 
     m_abs_tol = m_newton_velocity_tol * dt;
 
+    // early init:
     [[maybe_unuse]] m_on_init_scene.view();
     [[maybe_unuse]] m_on_rebuild_scene.view();
     [[maybe_unuse]] m_on_write_scene.view();

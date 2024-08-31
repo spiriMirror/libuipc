@@ -36,9 +36,9 @@ inline MUDA_GENERIC Float triangle_thickness(const Float& thickness_T0,
  * @brief Point-Triangle thickness calculation
  */
 inline MUDA_GENERIC Float PT_thickness(const Float& thickness_P,
-                                       const Float  thickness_T0,
-                                       const Float  thickness_T1,
-                                       const Float  thickness_T2)
+                                       const Float& thickness_T0,
+                                       const Float& thickness_T1,
+                                       const Float& thickness_T2)
 {
     if constexpr(RUNTIME_CHECK)
     {

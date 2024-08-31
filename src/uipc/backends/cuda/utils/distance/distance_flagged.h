@@ -487,20 +487,20 @@ MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
 }
 
 template <typename T>
-MUDA_GENERIC void point_point_distance(const Vector2i&            flag,
-                                       const Eigen::Vector<T, 3>& a,
-                                       const Eigen::Vector<T, 3>& b,
-                                       T&                         D)
+MUDA_GENERIC void point_point_distance2(const Vector2i&            flag,
+                                        const Eigen::Vector<T, 3>& a,
+                                        const Eigen::Vector<T, 3>& b,
+                                        T&                         D)
 {
-    point_point_distance<T, 3>(a, b, D);
+    point_point_distance2(a, b, D);
 }
 
 template <typename T>
-MUDA_GENERIC void point_edge_distance(const Vector<IndexT, 3>&   flag,
-                                      const Eigen::Vector<T, 3>& p,
-                                      const Eigen::Vector<T, 3>& e0,
-                                      const Eigen::Vector<T, 3>& e1,
-                                      T&                         D)
+MUDA_GENERIC void point_edge_distance2(const Vector<IndexT, 3>&   flag,
+                                       const Eigen::Vector<T, 3>& p,
+                                       const Eigen::Vector<T, 3>& e0,
+                                       const Eigen::Vector<T, 3>& e1,
+                                       T&                         D)
 {
     IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {p, e0, e1};
@@ -511,11 +511,11 @@ MUDA_GENERIC void point_edge_distance(const Vector<IndexT, 3>&   flag,
         auto&    P0      = P[offsets[0]];
         auto&    P1      = P[offsets[1]];
 
-        point_point_distance<T, 3>(P0, P1, D);
+        point_point_distance2(P0, P1, D);
     }
     else if(dim == 3)
     {
-        point_edge_distance<T, 3>(p, e0, e1, D);
+        point_edge_distance2(p, e0, e1, D);
     }
     else
     {
@@ -524,12 +524,12 @@ MUDA_GENERIC void point_edge_distance(const Vector<IndexT, 3>&   flag,
 }
 
 template <typename T>
-MUDA_GENERIC void point_triangle_distance(const Vector4i&            flag,
-                                          const Eigen::Vector<T, 3>& p,
-                                          const Eigen::Vector<T, 3>& t0,
-                                          const Eigen::Vector<T, 3>& t1,
-                                          const Eigen::Vector<T, 3>& t2,
-                                          T&                         D)
+MUDA_GENERIC void point_triangle_distance2(const Vector4i&            flag,
+                                           const Eigen::Vector<T, 3>& p,
+                                           const Eigen::Vector<T, 3>& t0,
+                                           const Eigen::Vector<T, 3>& t1,
+                                           const Eigen::Vector<T, 3>& t2,
+                                           T&                         D)
 {
     IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {p, t0, t1, t2};
@@ -540,7 +540,7 @@ MUDA_GENERIC void point_triangle_distance(const Vector4i&            flag,
         auto&    P0      = P[offsets[0]];
         auto&    P1      = P[offsets[1]];
 
-        point_point_distance<T, 3>(P0, P1, D);
+        point_point_distance2(P0, P1, D);
     }
     else if(dim == 3)
     {
@@ -549,11 +549,11 @@ MUDA_GENERIC void point_triangle_distance(const Vector4i&            flag,
         auto&    P1      = P[offsets[1]];
         auto&    P2      = P[offsets[2]];
 
-        point_edge_distance<T, 3>(P0, P1, P2, D);
+        point_edge_distance2(P0, P1, P2, D);
     }
     else if(dim == 4)
     {
-        point_triangle_distance(p, t0, t1, t2, D);
+        point_triangle_distance2(p, t0, t1, t2, D);
     }
     else
     {
@@ -563,12 +563,12 @@ MUDA_GENERIC void point_triangle_distance(const Vector4i&            flag,
 }
 
 template <typename T>
-MUDA_GENERIC void edge_edge_distance(const Vector4i&            flag,
-                                     const Eigen::Vector<T, 3>& ea0,
-                                     const Eigen::Vector<T, 3>& ea1,
-                                     const Eigen::Vector<T, 3>& eb0,
-                                     const Eigen::Vector<T, 3>& eb1,
-                                     T&                         D)
+MUDA_GENERIC void edge_edge_distance2(const Vector4i&            flag,
+                                      const Eigen::Vector<T, 3>& ea0,
+                                      const Eigen::Vector<T, 3>& ea1,
+                                      const Eigen::Vector<T, 3>& eb0,
+                                      const Eigen::Vector<T, 3>& eb1,
+                                      T&                         D)
 {
     IndexT              dim = detail::active_count(flag);
     Eigen::Vector<T, 3> P[] = {ea0, ea1, eb0, eb1};
@@ -579,7 +579,7 @@ MUDA_GENERIC void edge_edge_distance(const Vector4i&            flag,
         auto&    P0      = P[offsets[0]];
         auto&    P1      = P[offsets[1]];
 
-        point_point_distance<T, 3>(P0, P1, D);
+        point_point_distance2(P0, P1, D);
     }
     else if(dim == 3)
     {
@@ -588,11 +588,11 @@ MUDA_GENERIC void edge_edge_distance(const Vector4i&            flag,
         auto&    P1      = P[offsets[1]];
         auto&    P2      = P[offsets[2]];
 
-        point_edge_distance<T, 3>(P0, P1, P2, D);
+        point_edge_distance2(P0, P1, P2, D);
     }
     else if(dim == 4)
     {
-        edge_edge_distance(ea0, ea1, eb0, eb1, D);
+        edge_edge_distance2(ea0, ea1, eb0, eb1, D);
     }
     else
     {
@@ -602,21 +602,21 @@ MUDA_GENERIC void edge_edge_distance(const Vector4i&            flag,
 }
 
 template <typename T>
-MUDA_GENERIC void point_point_distance_gradient(const Vector2i&            flag,
-                                                const Eigen::Vector<T, 3>& a,
-                                                const Eigen::Vector<T, 3>& b,
-                                                Eigen::Vector<T, 6>&       G)
+MUDA_GENERIC void point_point_distance2_gradient(const Vector2i& flag,
+                                                 const Eigen::Vector<T, 3>& a,
+                                                 const Eigen::Vector<T, 3>& b,
+                                                 Eigen::Vector<T, 6>&       G)
 {
     G.template segment<3>(0) = 2.0 * (a - b);
     G.template segment<3>(3) = -G.template segment<3>(0);
 }
 
 template <typename T>
-MUDA_GENERIC void point_edge_distance_gradient(const Vector<IndexT, 3>&   flag,
-                                               const Eigen::Vector<T, 3>& p,
-                                               const Eigen::Vector<T, 3>& e0,
-                                               const Eigen::Vector<T, 3>& e1,
-                                               Eigen::Vector<T, 9>&       G)
+MUDA_GENERIC void point_edge_distance2_gradient(const Vector<IndexT, 3>&   flag,
+                                                const Eigen::Vector<T, 3>& p,
+                                                const Eigen::Vector<T, 3>& e0,
+                                                const Eigen::Vector<T, 3>& e1,
+                                                Eigen::Vector<T, 9>&       G)
 {
     G.setZero();
 
@@ -630,7 +630,7 @@ MUDA_GENERIC void point_edge_distance_gradient(const Vector<IndexT, 3>&   flag,
         auto&    P1      = P[offsets[1]];
 
         Vector<T, 6> G6;
-        point_point_distance_gradient<T, 3>(P0, P1, G6);
+        point_point_distance2_gradient(P0, P1, G6);
 
 #pragma unroll
         for(int i = 0; i < 2; ++i)
@@ -647,12 +647,12 @@ MUDA_GENERIC void point_edge_distance_gradient(const Vector<IndexT, 3>&   flag,
 }
 
 template <typename T>
-MUDA_GENERIC void point_triangle_distance_gradient(const Vector4i& flag,
-                                                   const Eigen::Vector<T, 3>& p,
-                                                   const Eigen::Vector<T, 3>& t0,
-                                                   const Eigen::Vector<T, 3>& t1,
-                                                   const Eigen::Vector<T, 3>& t2,
-                                                   Eigen::Vector<T, 12>& G)
+MUDA_GENERIC void point_triangle_distance2_gradient(const Vector4i& flag,
+                                                    const Eigen::Vector<T, 3>& p,
+                                                    const Eigen::Vector<T, 3>& t0,
+                                                    const Eigen::Vector<T, 3>& t1,
+                                                    const Eigen::Vector<T, 3>& t2,
+                                                    Eigen::Vector<T, 12>& G)
 {
     G.setZero();
 
@@ -666,7 +666,7 @@ MUDA_GENERIC void point_triangle_distance_gradient(const Vector4i& flag,
         auto&    P1      = P[offsets[1]];
 
         Vector<T, 6> G6;
-        point_point_distance_gradient<T, 3>(P0, P1, G6);
+        point_point_distance2_gradient(P0, P1, G6);
 
 #pragma unroll
         for(int i = 0; i < 2; ++i)
@@ -680,7 +680,7 @@ MUDA_GENERIC void point_triangle_distance_gradient(const Vector4i& flag,
         auto&    P2      = P[offsets[2]];
 
         Vector<T, 9> G9;
-        point_edge_distance_gradient<T, 3>(P0, P1, P2, G9);
+        point_edge_distance2_gradient(P0, P1, P2, G9);
 
 #pragma unroll
         for(int i = 0; i < 3; ++i)
@@ -699,12 +699,12 @@ MUDA_GENERIC void point_triangle_distance_gradient(const Vector4i& flag,
 }
 
 template <typename T>
-MUDA_GENERIC void edge_edge_distance_gradient(const Vector4i&            flag,
-                                              const Eigen::Vector<T, 3>& ea0,
-                                              const Eigen::Vector<T, 3>& ea1,
-                                              const Eigen::Vector<T, 3>& eb0,
-                                              const Eigen::Vector<T, 3>& eb1,
-                                              Eigen::Vector<T, 12>&      G)
+MUDA_GENERIC void edge_edge_distance2_gradient(const Vector4i&            flag,
+                                               const Eigen::Vector<T, 3>& ea0,
+                                               const Eigen::Vector<T, 3>& ea1,
+                                               const Eigen::Vector<T, 3>& eb0,
+                                               const Eigen::Vector<T, 3>& eb1,
+                                               Eigen::Vector<T, 12>&      G)
 {
     G.setZero();
 
@@ -717,7 +717,7 @@ MUDA_GENERIC void edge_edge_distance_gradient(const Vector4i&            flag,
         auto&        P0      = P[offsets[0]];
         auto&        P1      = P[offsets[1]];
         Vector<T, 6> G6;
-        point_point_distance_gradient<T, 3>(P0, P1, G6);
+        point_point_distance2_gradient(P0, P1, G6);
 
 #pragma unroll
         for(int i = 0; i < 2; ++i)
@@ -731,7 +731,7 @@ MUDA_GENERIC void edge_edge_distance_gradient(const Vector4i&            flag,
         auto&    P2      = P[offsets[2]];
 
         Vector<T, 9> G9;
-        point_edge_distance_gradient<T, 3>(P0, P1, P2, G9);
+        point_edge_distance2_gradient(P0, P1, P2, G9);
 
 #pragma unroll
         for(int i = 0; i < 3; ++i)
@@ -761,10 +761,10 @@ MUDA_GENERIC void edge_edge_distance_gradient(const Vector4i&            flag,
 }
 
 template <typename T>
-MUDA_GENERIC void point_point_distance_hessian(const Vector2i&            flag,
-                                               const Eigen::Vector<T, 3>& a,
-                                               const Eigen::Vector<T, 3>& b,
-                                               Eigen::Matrix<T, 6, 6>&    H)
+MUDA_GENERIC void point_point_distance2_hessian(const Vector2i&            flag,
+                                                const Eigen::Vector<T, 3>& a,
+                                                const Eigen::Vector<T, 3>& b,
+                                                Eigen::Matrix<T, 6, 6>&    H)
 {
     H.setZero();
     H.diagonal().setConstant(2.0);
@@ -772,11 +772,11 @@ MUDA_GENERIC void point_point_distance_hessian(const Vector2i&            flag,
 }
 
 template <typename T>
-MUDA_GENERIC void point_edge_distance_hessian(const Vector<IndexT, 3>&   flag,
-                                              const Eigen::Vector<T, 3>& p,
-                                              const Eigen::Vector<T, 3>& e0,
-                                              const Eigen::Vector<T, 3>& e1,
-                                              Eigen::Matrix<T, 9, 9>&    H)
+MUDA_GENERIC void point_edge_distance2_hessian(const Vector<IndexT, 3>&   flag,
+                                               const Eigen::Vector<T, 3>& p,
+                                               const Eigen::Vector<T, 3>& e0,
+                                               const Eigen::Vector<T, 3>& e1,
+                                               Eigen::Matrix<T, 9, 9>&    H)
 {
     H.setZero();
 
@@ -791,7 +791,7 @@ MUDA_GENERIC void point_edge_distance_hessian(const Vector<IndexT, 3>&   flag,
         Vector2i flag    = {1, 1};
 
         Eigen::Matrix<T, 6, 6> H6;
-        point_point_distance_hessian(flag, P0, P1, H6);
+        point_point_distance2_hessian(flag, P0, P1, H6);
 
 #pragma unroll
         for(int i = 0; i < 2; ++i)
@@ -810,12 +810,12 @@ MUDA_GENERIC void point_edge_distance_hessian(const Vector<IndexT, 3>&   flag,
 }
 
 template <typename T>
-MUDA_GENERIC void point_triangle_distance_hessian(const Vector4i& flag,
-                                                  const Eigen::Vector<T, 3>& p,
-                                                  const Eigen::Vector<T, 3>& t0,
-                                                  const Eigen::Vector<T, 3>& t1,
-                                                  const Eigen::Vector<T, 3>& t2,
-                                                  Eigen::Matrix<T, 12, 12>&  H)
+MUDA_GENERIC void point_triangle_distance2_hessian(const Vector4i& flag,
+                                                   const Eigen::Vector<T, 3>& p,
+                                                   const Eigen::Vector<T, 3>& t0,
+                                                   const Eigen::Vector<T, 3>& t1,
+                                                   const Eigen::Vector<T, 3>& t2,
+                                                   Eigen::Matrix<T, 12, 12>& H)
 {
     H.setZero();
 
@@ -830,7 +830,7 @@ MUDA_GENERIC void point_triangle_distance_hessian(const Vector4i& flag,
         Vector2i flag    = {1, 1};
 
         Eigen::Matrix<T, 6, 6> H6;
-        point_point_distance_hessian(flag, P0, P1, H6);
+        point_point_distance2_hessian(flag, P0, P1, H6);
 
 #pragma unroll
         for(int i = 0; i < 2; ++i)
@@ -846,7 +846,7 @@ MUDA_GENERIC void point_triangle_distance_hessian(const Vector4i& flag,
         auto&    P2      = P[offsets[2]];
 
         Eigen::Matrix<T, 9, 9> H9;
-        point_edge_distance_hessian(P0, P1, P2, H9);
+        point_edge_distance2_hessian(P0, P1, P2, H9);
 
 #pragma unroll
         for(int i = 0; i < 3; ++i)
@@ -867,12 +867,12 @@ MUDA_GENERIC void point_triangle_distance_hessian(const Vector4i& flag,
 }
 
 template <typename T>
-MUDA_GENERIC void edge_edge_distance_hessian(const Vector4i&            flag,
-                                             const Eigen::Vector<T, 3>& ea0,
-                                             const Eigen::Vector<T, 3>& ea1,
-                                             const Eigen::Vector<T, 3>& eb0,
-                                             const Eigen::Vector<T, 3>& eb1,
-                                             Eigen::Matrix<T, 12, 12>&  H)
+MUDA_GENERIC void edge_edge_distance2_hessian(const Vector4i&            flag,
+                                              const Eigen::Vector<T, 3>& ea0,
+                                              const Eigen::Vector<T, 3>& ea1,
+                                              const Eigen::Vector<T, 3>& eb0,
+                                              const Eigen::Vector<T, 3>& eb1,
+                                              Eigen::Matrix<T, 12, 12>&  H)
 {
     H.setZero();
 
@@ -887,7 +887,7 @@ MUDA_GENERIC void edge_edge_distance_hessian(const Vector4i&            flag,
         Vector2i flag    = {1, 1};
 
         Eigen::Matrix<T, 6, 6> H6;
-        point_point_distance_hessian(flag, P0, P1, H6);
+        point_point_distance2_hessian(flag, P0, P1, H6);
 
 #pragma unroll
         for(int i = 0; i < 2; ++i)
@@ -903,7 +903,7 @@ MUDA_GENERIC void edge_edge_distance_hessian(const Vector4i&            flag,
         auto&    P2      = P[offsets[2]];
 
         Eigen::Matrix<T, 9, 9> H9;
-        point_edge_distance_hessian(P0, P1, P2, H9);
+        point_edge_distance2_hessian(P0, P1, P2, H9);
 
 #pragma unroll
         for(int i = 0; i < 3; ++i)

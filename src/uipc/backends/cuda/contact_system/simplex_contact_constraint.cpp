@@ -1,5 +1,10 @@
 #include <contact_system/simplex_contact_constraint.h>
 #include <uipc/common/config.h>
+#include <muda/tools/debug_log.h>
+
+// NOTE:
+// The encoding rule will never expose to users. It is only used for internal
+
 // Encoding Rules:
 // ---------------------
 // EE: ++++         (F)

@@ -14,7 +14,114 @@ namespace uipc::backend::cuda
 {
 void SimEngine::do_advance()
 {
-    auto pipeline = [this]
+    Float alpha     = 1.0;
+    Float ccd_alpha = 1.0;
+    Float cfl_alpha = 1.0;
+
+    /***************************************************************************************
+    *                                  Function Shortcuts
+    ***************************************************************************************/
+
+    auto detect_dcd_candidates = [this]
+    {
+        if(m_global_trajectory_filter)
+        {
+            m_global_trajectory_filter->detect(0.0);
+            m_global_trajectory_filter->filter_active();
+        }
+    };
+
+    auto detect_trajectory_candidates = [this](Float alpha)
+    {
+        if(m_global_trajectory_filter)
+        {
+            m_global_trajectory_filter->detect(alpha);
+        }
+    };
+
+    auto filter_dcd_candidates = [this]
+    {
+        if(m_global_trajectory_filter)
+        {
+            m_global_trajectory_filter->filter_active();
+        }
+    };
+
+    auto record_friction_candidates = [this]
+    {
+        if(m_global_trajectory_filter && m_friction_enabled)
+        {
+            m_global_trajectory_filter->record_friction_candidates();
+        }
+    };
+
+    auto compute_adaptive_kappa = [this]
+    {
+        if(m_global_contact_manager)
+            m_global_contact_manager->compute_adaptive_kappa();
+    };
+
+    auto compute_contact = [this]
+    {
+        if(m_global_contact_manager)
+            m_global_contact_manager->compute_contact();
+    };
+
+    auto cfl_condition = [&cfl_alpha, this](Float alpha)
+    {
+        //if(m_global_contact_manager)
+        //{
+        //    auto max_disp = m_global_vertex_manager->compute_max_displacement_norm();
+        //    auto d_hat = m_global_contact_manager->d_hat();
+
+        //    cfl_alpha = d_hat / max_disp;
+        //    spdlog::info("CFL Condition: {} / {}, max dx: {}", cfl_alpha, alpha, max_disp);
+
+        //    if(cfl_alpha < alpha)
+        //    {
+        //        return cfl_alpha;
+        //    }
+        //}
+
+        return alpha;
+    };
+
+    auto filter_toi = [&ccd_alpha, this](Float alpha)
+    {
+        if(m_global_trajectory_filter)
+        {
+            ccd_alpha = m_global_trajectory_filter->filter_toi(alpha);
+            if(ccd_alpha < alpha)
+            {
+                spdlog::info("CCD Filter: {} < {}", ccd_alpha, alpha);
+                return ccd_alpha;
+            }
+        }
+
+        return alpha;
+    };
+
+    auto compute_energy = [this, filter_dcd_candidates](Float alpha) -> Float
+    {
+        // Step Forward => x = x_0 + alpha * dx
+        m_global_vertex_manager->step_forward(alpha);
+        m_line_searcher->step_forward(alpha);
+
+        // Update the collision pairs
+        filter_dcd_candidates();
+
+        // Compute New Energy => E
+        return m_line_searcher->compute_energy(false);
+    };
+
+    /***************************************************************************************
+    *                                  Core Pipeline
+    ***************************************************************************************/
+
+    // Abort on exception if the runtime check is enabled for debugging
+    constexpr bool AbortOnException = uipc::RUNTIME_CHECK;
+
+    auto pipeline = [&]() noexcept(AbortOnException)
     {
         LogGuard guard;
 
@@ -22,107 +129,24 @@ void SimEngine::do_advance()
 
         spdlog::info(R"(>>> Begin Frame: {})", m_current_frame);
 
-        Float alpha     = 1.0;
-        Float ccd_alpha = 1.0;
-        Float cfl_alpha = 1.0;
-
-        auto detect_dcd_candidates = [this]
+        // Rebuild Scene (No effect now)
         {
-            if(m_global_trajectory_filter)
+            // Trigger the rebuild_scene event, systems register their actions will be called here
+            m_state = SimEngineState::RebuildScene;
             {
-                m_global_trajectory_filter->detect(0.0);
-                m_global_trajectory_filter->filter_active();
-            }
-        };
+                event_rebuild_scene();
 
-        auto detect_trajectory_candidates = [this](Float alpha)
-        {
-            if(m_global_trajectory_filter)
-            {
-                m_global_trajectory_filter->detect(alpha);
-            }
-        };
-
-        auto filter_dcd_candidates = [this]
-        {
-            if(m_global_trajectory_filter)
-            {
-                m_global_trajectory_filter->filter_active();
-            }
-        };
-
-        auto record_friction_candidates = [this]
-        {
-            if(m_global_trajectory_filter)
-            {
-                m_global_trajectory_filter->record_friction_candidates();
-            }
-        };
-
-        auto compute_adaptive_kappa = [this]
-        {
-            if(m_global_contact_manager)
-                m_global_contact_manager->compute_adaptive_kappa();
-        };
-
-        auto compute_contact = [this]
-        {
-            if(m_global_contact_manager)
-                m_global_contact_manager->compute_contact();
-        };
-
-        auto cfl_condition = [&cfl_alpha, this](Float alpha)
-        {
-            //if(m_global_contact_manager)
-            //{
-            //    auto max_disp = m_global_vertex_manager->compute_max_displacement_norm();
-            //    auto d_hat = m_global_contact_manager->d_hat();
-
-            //    cfl_alpha = d_hat / max_disp;
-            //    spdlog::info("CFL Condition: {} / {}, max dx: {}", cfl_alpha, alpha, max_disp);
-
-            //    if(cfl_alpha < alpha)
-            //    {
-            //        return cfl_alpha;
-            //    }
-            //}
-
-            return alpha;
-        };
-
-        auto filter_toi = [&ccd_alpha, this](Float alpha)
-        {
-            if(m_global_trajectory_filter)
-            {
-                ccd_alpha = m_global_trajectory_filter->filter_toi(alpha);
-                if(ccd_alpha < alpha)
-                {
-                    spdlog::info("CCD Filter: {} < {}", ccd_alpha, alpha);
-                    return ccd_alpha;
-                }
+                // TODO: rebuild the vertex and surface info
+                // m_global_vertex_manager->rebuild_vertex_info();
+                // m_global_surface_manager->rebuild_surface_info();
             }
 
-            return alpha;
-        };
+            // After the rebuild_scene event, the pending creation or deletion can be solved
+            auto scene = m_world_visitor->scene();
+            scene.solve_pending();
+        }
 
-        auto compute_energy = [this, filter_dcd_candidates](Float alpha) -> Float
-        {
-            // Step Forward => x = x_0 + alpha * dx
-            // spdlog::info("Step Forward: {}", alpha);
-            m_global_vertex_manager->step_forward(alpha);
-            m_line_searcher->step_forward(alpha);
-
-            // Update the collision pairs
-            filter_dcd_candidates();
-
-            // Compute New Energy => E
-            return m_line_searcher->compute_energy(false);
-        };
-
-        /***************************************************************************************
-        *                                  Core Pipeline
-        ***************************************************************************************/
-
+        // Simulation:
         {
             // 1. Adaptive Parameter Calculation
             AABB vertex_bounding_box =
@@ -253,20 +277,6 @@ void SimEngine::do_advance()
             m_dof_predictor->compute_velocity();
             m_global_vertex_manager->record_prev_positions();
         }
-
-        // Trigger the rebuild_scene event, systems register their actions will be called here
-        m_state = SimEngineState::RebuildScene;
-        {
-            event_rebuild_scene();
-
-            // TODO: rebuild the vertex and surface info
-            // m_global_vertex_manager->rebuild_vertex_info();
-            // m_global_surface_manager->rebuild_surface_info();
-        }
-
-        // After the rebuild_scene event, the pending creation or deletion can be solved
-        auto scene = m_world_visitor->scene();
-        scene.solve_pending();
 
         spdlog::info("<<< End Frame: {}", m_current_frame);
     };

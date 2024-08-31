@@ -19,7 +19,7 @@ namespace sym::codim_ipc_simplex_contact
         using namespace codim_ipc_contact;
         using namespace distance;
         Float D;
-        point_triangle_distance(P, T0, T1, T2, D);
+        point_triangle_distance2(P, T0, T1, T2, D);
         Float B;
         KappaBarrier(B, kappa, D, d_hat, thickness);
         return B;
@@ -37,7 +37,7 @@ namespace sym::codim_ipc_simplex_contact
         using namespace codim_ipc_contact;
         using namespace distance;
         Float D;
-        point_triangle_distance(flag, P, T0, T1, T2, D);
+        point_triangle_distance2(flag, P, T0, T1, T2, D);
         Float B;
         KappaBarrier(B, kappa, D, d_hat, thickness);
         return B;
@@ -57,10 +57,10 @@ namespace sym::codim_ipc_simplex_contact
         using namespace distance;
 
         Float D;
-        point_triangle_distance(P, T0, T1, T2, D);
+        point_triangle_distance2(P, T0, T1, T2, D);
 
         Vector12 GradD;
-        point_triangle_distance_gradient(P, T0, T1, T2, GradD);
+        point_triangle_distance2_gradient(P, T0, T1, T2, GradD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, d_hat, thickness);
@@ -75,7 +75,7 @@ namespace sym::codim_ipc_simplex_contact
         ddKappaBarrierddD(ddBddD, kappa, D, d_hat, thickness);
 
         Matrix12x12 HessD;
-        point_triangle_distance_hessian(P, T0, T1, T2, HessD);
+        point_triangle_distance2_hessian(P, T0, T1, T2, HessD);
 
         //tex:
         //$$
@@ -99,10 +99,10 @@ namespace sym::codim_ipc_simplex_contact
         using namespace distance;
 
         Float D;
-        point_triangle_distance(flag, P, T0, T1, T2, D);
+        point_triangle_distance2(flag, P, T0, T1, T2, D);
 
         Vector12 GradD;
-        point_triangle_distance_gradient(flag, P, T0, T1, T2, GradD);
+        point_triangle_distance2_gradient(flag, P, T0, T1, T2, GradD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, d_hat, thickness);
@@ -117,7 +117,7 @@ namespace sym::codim_ipc_simplex_contact
         ddKappaBarrierddD(ddBddD, kappa, D, d_hat, thickness);
 
         Matrix12x12 HessD;
-        point_triangle_distance_hessian(flag, P, T0, T1, T2, HessD);
+        point_triangle_distance2_hessian(flag, P, T0, T1, T2, HessD);
 
         //tex:
         //$$
@@ -144,36 +144,7 @@ namespace sym::codim_ipc_simplex_contact
         using namespace codim_ipc_contact;
         using namespace distance;
         Float D;
-        edge_edge_distance(flag, Ea0, Ea1, Eb0, Eb1, D);
-        Float B;
-        KappaBarrier(B, kappa, D, d_hat, thickness);
-
-        Float eps_x;
-        edge_edge_mollifier_threshold(t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, eps_x);
-
-        Float ek;
-        edge_edge_mollifier(Ea0, Ea1, Eb0, Eb1, eps_x, ek);
-
-        return ek * B;
-    }
-
-    inline __device__ Float mollified_EE_barrier_energy(Float kappa,
-                                                        Float d_hat,
-                                                        Float thickness,
-                                                        const Vector3& t0_Ea0,
-                                                        const Vector3& t0_Ea1,
-                                                        const Vector3& t0_Eb0,
-                                                        const Vector3& t0_Eb1,
-                                                        const Vector3& Ea0,
-                                                        const Vector3& Ea1,
-                                                        const Vector3& Eb0,
-                                                        const Vector3& Eb1)
-    {
-        // using mollifier to improve the smoothness of the edge-edge barrier
-        using namespace codim_ipc_contact;
-        using namespace distance;
-        Float D;
-        edge_edge_distance_unclassified(Ea0, Ea1, Eb0, Eb1, D);
+        edge_edge_distance2(flag, Ea0, Ea1, Eb0, Eb1, D);
         Float B;
         KappaBarrier(B, kappa, D, d_hat, thickness);
 
@@ -205,15 +176,15 @@ namespace sym::codim_ipc_simplex_contact
         using namespace distance;
 
         Float D;
-        edge_edge_distance(flag, Ea0, Ea1, Eb0, Eb1, D);
+        edge_edge_distance2(flag, Ea0, Ea1, Eb0, Eb1, D);
 
         //tex: $$ \nabla D$$
         Vector12 GradD;
-        edge_edge_distance_gradient(flag, Ea0, Ea1, Eb0, Eb1, GradD);
+        edge_edge_distance2_gradient(flag, Ea0, Ea1, Eb0, Eb1, GradD);
 
         //tex: $$ \nabla^2 D$$
         Matrix12x12 HessD;
-        edge_edge_distance_hessian(flag, Ea0, Ea1, Eb0, Eb1, HessD);
+        edge_edge_distance2_hessian(flag, Ea0, Ea1, Eb0, Eb1, HessD);
 
         Float B;
         KappaBarrier(B, kappa, D, d_hat, thickness);
@@ -273,7 +244,7 @@ namespace sym::codim_ipc_simplex_contact
         using namespace codim_ipc_contact;
         using namespace distance;
         Float D = 0.0;
-        point_edge_distance(flag, P, E0, E1, D);
+        point_edge_distance2(flag, P, E0, E1, D);
         Float E = 0.0;
         KappaBarrier(E, kappa, D, d_hat, thickness);
         return E;
@@ -293,13 +264,13 @@ namespace sym::codim_ipc_simplex_contact
         using namespace distance;
 
         Float D = 0.0;
-        point_edge_distance(flag, P, E0, E1, D);
+        point_edge_distance2(flag, P, E0, E1, D);
 
         Vector9 GradD;
-        point_edge_distance_gradient(flag, P, E0, E1, GradD);
+        point_edge_distance2_gradient(flag, P, E0, E1, GradD);
 
         Matrix9x9 HessD;
-        point_edge_distance_hessian(flag, P, E0, E1, HessD);
+        point_edge_distance2_hessian(flag, P, E0, E1, HessD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, d_hat, thickness);
@@ -330,7 +301,7 @@ namespace sym::codim_ipc_simplex_contact
         using namespace codim_ipc_contact;
         using namespace distance;
         Float D = 0.0;
-        point_point_distance(flag, P0, P1, D);
+        point_point_distance2(flag, P0, P1, D);
         Float E = 0.0;
         KappaBarrier(E, kappa, D, d_hat, thickness);
         return E;
@@ -349,13 +320,13 @@ namespace sym::codim_ipc_simplex_contact
         using namespace distance;
 
         Float D = 0.0;
-        point_point_distance(flag, P0, P1, D);
+        point_point_distance2(flag, P0, P1, D);
 
         Vector6 GradD;
-        point_point_distance_gradient(flag, P0, P1, GradD);
+        point_point_distance2_gradient(flag, P0, P1, GradD);
 
         Matrix6x6 HessD;
-        point_point_distance_hessian(flag, P0, P1, HessD);
+        point_point_distance2_hessian(flag, P0, P1, HessD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, d_hat, thickness);

@@ -1,10 +1,10 @@
 #pragma once
 #include <type_define.h>
 #include <muda/type_define.h>
-#include <utils/distance/distance_type.h>
 
 namespace uipc::backend::cuda
 {
+// Currently Unused. May be removed in the future.
 class SimplexContactConstraint
 {
   public:
@@ -79,7 +79,7 @@ class SimplexContactConstraint
     UIPC_GENERIC Vector2i PP_indices() const noexcept;
 
   private:
-    Vector4i              m_data;
+    Vector4i     m_data;
     UIPC_GENERIC SimplexContactConstraint(const Vector4i& data) noexcept;
 };
 }  // namespace uipc::backend::cuda

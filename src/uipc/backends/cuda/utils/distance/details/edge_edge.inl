@@ -1,6 +1,6 @@
 namespace uipc::backend::cuda::distance::details
 {
-template <class T>
+template <typename T>
 MUDA_GENERIC void g_EE(
     T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T v31, T v32, T v33, T g[12])
 {
@@ -81,7 +81,7 @@ MUDA_GENERIC void g_EE(
     g[11] = t80 + t76 * t19 * 2.0;
 }
 
-template <class T>
+template <typename T>
 MUDA_GENERIC void H_EE(
     T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T v31, T v32, T v33, T H[144])
 {
@@ -697,29 +697,29 @@ MUDA_GENERIC void H_EE(
     H[142] = t527;
     H[143] = (t53 + t98 * t98 * t156 * 2.0) + b_t522_tmp * 4.0;
 }
-}  // namespace muda::distance::details
+}  // namespace uipc::backend::cuda::distance::details
 
 
 namespace uipc::backend::cuda::distance
 {
-template <class T>
-MUDA_GENERIC void edge_edge_distance(const Eigen::Matrix<T, 3, 1>& ea0,
-                                     const Eigen::Matrix<T, 3, 1>& ea1,
-                                     const Eigen::Matrix<T, 3, 1>& eb0,
-                                     const Eigen::Matrix<T, 3, 1>& eb1,
-                                     T&                            dist2)
+template <typename T>
+MUDA_GENERIC void edge_edge_distance2(const Eigen::Vector<T, 3>& ea0,
+                                      const Eigen::Vector<T, 3>& ea1,
+                                      const Eigen::Vector<T, 3>& eb0,
+                                      const Eigen::Vector<T, 3>& eb1,
+                                      T&                         dist2)
 {
     Eigen::Matrix<T, 3, 1> b = Eigen::Matrix<T, 3, 1>(ea1 - ea0).cross(eb1 - eb0);
     T aTb = Eigen::Matrix<T, 3, 1>(eb0 - ea0).dot(b);
     dist2 = aTb * aTb / b.squaredNorm();
 }
 
-template <class T>
-MUDA_GENERIC void edge_edge_distance_gradient(const Eigen::Matrix<T, 3, 1>& ea0,
-                                              const Eigen::Matrix<T, 3, 1>& ea1,
-                                              const Eigen::Matrix<T, 3, 1>& eb0,
-                                              const Eigen::Matrix<T, 3, 1>& eb1,
-                                              Eigen::Matrix<T, 12, 1>& grad)
+template <typename T>
+MUDA_GENERIC void edge_edge_distance2_gradient(const Eigen::Vector<T, 3>& ea0,
+                                               const Eigen::Vector<T, 3>& ea1,
+                                               const Eigen::Vector<T, 3>& eb0,
+                                               const Eigen::Vector<T, 3>& eb1,
+                                               Eigen::Vector<T, 12>&      grad)
 {
     details::g_EE(ea0[0],
                   ea0[1],
@@ -736,12 +736,12 @@ MUDA_GENERIC void edge_edge_distance_gradient(const Eigen::Matrix<T, 3, 1>& ea0,
                   grad.data());
 }
 
-template <class T>
-MUDA_GENERIC void edge_edge_distance_hessian(const Eigen::Matrix<T, 3, 1>& ea0,
-                                             const Eigen::Matrix<T, 3, 1>& ea1,
-                                             const Eigen::Matrix<T, 3, 1>& eb0,
-                                             const Eigen::Matrix<T, 3, 1>& eb1,
-                                             Eigen::Matrix<T, 12, 12>& Hessian)
+template <typename T>
+MUDA_GENERIC void edge_edge_distance2_hessian(const Eigen::Vector<T, 3>& ea0,
+                                              const Eigen::Vector<T, 3>& ea1,
+                                              const Eigen::Vector<T, 3>& eb0,
+                                              const Eigen::Vector<T, 3>& eb1,
+                                              Eigen::Matrix<T, 12, 12>& Hessian)
 {
     details::H_EE(ea0[0],
                   ea0[1],
@@ -758,4 +758,4 @@ MUDA_GENERIC void edge_edge_distance_hessian(const Eigen::Matrix<T, 3, 1>& ea0,
                   Hessian.data());
 }
 
-}  // namespace muda::distance
+}  // namespace uipc::backend::cuda::distance

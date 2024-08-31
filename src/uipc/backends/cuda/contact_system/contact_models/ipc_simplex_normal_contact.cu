@@ -57,20 +57,17 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           Float D_;
-                           distance::point_triangle_distance(flag, P, T0, T1, T2, D);
-                           distance::point_triangle_distance_unclassified(P, T0, T1, T2, D_);
+                           distance::point_triangle_distance2(flag, P, T0, T1, T2, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
                            MUDA_ASSERT(is_active_D(range, D),
-                                       "PT[%d,%d,%d,%d] d^2(%f,%f) out of range, (%f,%f)",
+                                       "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
                                        PT(0),
                                        PT(1),
                                        PT(2),
                                        PT(3),
                                        D,
-                                       D_,
                                        range(0),
                                        range(1));
                        }
@@ -121,19 +118,16 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        {
                            Float D;
                            Float D_;
-                           distance::edge_edge_distance(flag, E0, E1, E2, E3, D);
-                           distance::edge_edge_distance_unclassified(E0, E1, E2, E3, D_);
-
+                           distance::edge_edge_distance2(flag, E0, E1, E2, E3, D);
                            Vector2 range = D_range(thickness, d_hat);
 
                            MUDA_ASSERT(is_active_D(range, D),
-                                       "EE[%d,%d,%d,%d] d^2(%f,%f) out of range, (%f,%f), [%d,%d,%d,%d]",
+                                       "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f), [%d,%d,%d,%d]",
                                        EE(0),
                                        EE(1),
                                        EE(2),
                                        EE(3),
                                        D,
-                                       D_,
                                        range(0),
                                        range(1),
                                        flag(0),
@@ -194,7 +188,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::point_edge_distance(flag, P, E0, E1, D);
+                           distance::point_edge_distance2(flag, P, E0, E1, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -244,7 +238,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::point_point_distance(flag, Pa, Pb, D);
+                           distance::point_point_distance2(flag, Pa, Pb, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -305,7 +299,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                            if constexpr(RUNTIME_CHECK)
                            {
                                Float D;
-                               distance::point_triangle_distance(flag, P, T0, T1, T2, D);
+                               distance::point_triangle_distance2(flag, P, T0, T1, T2, D);
 
                                Vector2 range = D_range(thickness, d_hat);
 
@@ -372,7 +366,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::edge_edge_distance(flag, E0, E1, E2, E3, D);
+                           distance::edge_edge_distance2(flag, E0, E1, E2, E3, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -426,7 +420,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::point_edge_distance(flag, P, E0, E1, D);
+                           distance::point_edge_distance2(flag, P, E0, E1, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -476,7 +470,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           distance::point_point_distance(flag, P0, P1, D);
+                           distance::point_point_distance2(flag, P0, P1, D);
 
                            Vector2 range = D_range(thickness, d_hat);
 

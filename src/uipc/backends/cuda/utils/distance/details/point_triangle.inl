@@ -4,7 +4,7 @@ namespace uipc::backend::cuda::distance
 {
 namespace details
 {
-    template <class T>
+    template <typename T>
     MUDA_GENERIC void g_PT(
         T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T v31, T v32, T v33, T g[12])
     {
@@ -76,7 +76,7 @@ namespace details
                 + t43 * (t14 * t33 * 2.0 + t15 * t34 * 2.0);
     }
 
-    template <class T>
+    template <typename T>
     MUDA_GENERIC void H_PT(
         T v01, T v02, T v03, T v11, T v12, T v13, T v21, T v22, T v23, T v31, T v32, T v33, T H[144])
     {
@@ -655,35 +655,35 @@ namespace details
     }
 }  // namespace details
 
-template <class T>
-MUDA_GENERIC void point_triangle_distance(const Eigen::Vector<T, 3>& p,
-                                          const Eigen::Vector<T, 3>& t0,
-                                          const Eigen::Vector<T, 3>& t1,
-                                          const Eigen::Vector<T, 3>& t2,
-                                          T&                         dist2)
+template <typename T>
+MUDA_GENERIC void point_triangle_distance2(const Eigen::Vector<T, 3>& p,
+                                           const Eigen::Vector<T, 3>& t0,
+                                           const Eigen::Vector<T, 3>& t1,
+                                           const Eigen::Vector<T, 3>& t2,
+                                           T&                         dist2)
 {
     const Eigen::Vector<T, 3> b   = (t1 - t0).cross(t2 - t0);
     T                         aTb = (p - t0).dot(b);
     dist2                         = aTb * aTb / b.squaredNorm();
 }
 
-template <class T>
-MUDA_GENERIC void point_triangle_distance_gradient(const Eigen::Vector<T, 3>& p,
-                                                   const Eigen::Vector<T, 3>& t0,
-                                                   const Eigen::Vector<T, 3>& t1,
-                                                   const Eigen::Vector<T, 3>& t2,
-                                                   Eigen::Vector<T, 12>& grad)
+template <typename T>
+MUDA_GENERIC void point_triangle_distance2_gradient(const Eigen::Vector<T, 3>& p,
+                                                    const Eigen::Vector<T, 3>& t0,
+                                                    const Eigen::Vector<T, 3>& t1,
+                                                    const Eigen::Vector<T, 3>& t2,
+                                                    Eigen::Vector<T, 12>& grad)
 {
     details::g_PT(
         p[0], p[1], p[2], t0[0], t0[1], t0[2], t1[0], t1[1], t1[2], t2[0], t2[1], t2[2], grad.data());
 }
 
-template <class T>
-MUDA_GENERIC void point_triangle_distance_hessian(const Eigen::Vector<T, 3>& p,
-                                                  const Eigen::Vector<T, 3>& t0,
-                                                  const Eigen::Vector<T, 3>& t1,
-                                                  const Eigen::Vector<T, 3>& t2,
-                                                  Eigen::Matrix<T, 12, 12>& Hessian)
+template <typename T>
+MUDA_GENERIC void point_triangle_distance2_hessian(const Eigen::Vector<T, 3>& p,
+                                                   const Eigen::Vector<T, 3>& t0,
+                                                   const Eigen::Vector<T, 3>& t1,
+                                                   const Eigen::Vector<T, 3>& t2,
+                                                   Eigen::Matrix<T, 12, 12>& Hessian)
 {
     details::H_PT(p[0],
                   p[1],
@@ -700,4 +700,4 @@ MUDA_GENERIC void point_triangle_distance_hessian(const Eigen::Vector<T, 3>& p,
                   Hessian.data());
 }
 
-}  // namespace muda::distance
+}  // namespace uipc::backend::cuda::distance
