@@ -1,11 +1,11 @@
 #pragma once
 #include <type_define.h>
-#include <muda/ext/geo/distance.h>
+#include <utils/distance.h>
 #include <contact_system/contact_models/ipc_contact_function.h>
 
 namespace uipc::backend::cuda
 {
-namespace sym::ipc_simplex_contact
+namespace sym::ipc_contact
 {
 #include "sym/ipc_friction.inl"
 
@@ -23,14 +23,14 @@ namespace sym::ipc_simplex_contact
                                         const Vector3& prev_T2,
                                         Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
-        point_triangle_distance(prev_P, prev_T0, prev_T1, prev_T2, D);
+        point_triangle_distance2(prev_P, prev_T0, prev_T1, prev_T2, D);
         MUDA_ASSERT(D <= squared_d_hat);
         Vector12 GradD;
-        point_triangle_distance_gradient(prev_P, prev_T0, prev_T1, prev_T2, GradD);
+        point_triangle_distance2_gradient(prev_P, prev_T0, prev_T1, prev_T2, GradD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
@@ -87,14 +87,14 @@ namespace sym::ipc_simplex_contact
                                                  const Vector3& prev_T2,
                                                  Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
-        point_triangle_distance(prev_P, prev_T0, prev_T1, prev_T2, D);
+        point_triangle_distance2(prev_P, prev_T0, prev_T1, prev_T2, D);
         MUDA_ASSERT(D <= squared_d_hat);
         Vector12 GradD;
-        point_triangle_distance_gradient(prev_P, prev_T0, prev_T1, prev_T2, GradD);
+        point_triangle_distance2_gradient(prev_P, prev_T0, prev_T1, prev_T2, GradD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
@@ -160,14 +160,14 @@ namespace sym::ipc_simplex_contact
                                         const Vector3& prev_Q1,
                                         Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
-        edge_edge_distance(prev_P0, prev_P1, prev_Q0, prev_Q1, D);
+        edge_edge_distance2(prev_P0, prev_P1, prev_Q0, prev_Q1, D);
         MUDA_ASSERT(D <= squared_d_hat);
         Vector12 GradD;
-        edge_edge_distance_gradient(prev_P0, prev_P1, prev_Q0, prev_Q1, GradD);
+        edge_edge_distance2_gradient(prev_P0, prev_P1, prev_Q0, prev_Q1, GradD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
@@ -226,14 +226,14 @@ namespace sym::ipc_simplex_contact
                                                  const Vector3& prev_Q1,
                                                  Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
-        edge_edge_distance(prev_P0, prev_P1, prev_Q0, prev_Q1, D);
+        edge_edge_distance2(prev_P0, prev_P1, prev_Q0, prev_Q1, D);
         MUDA_ASSERT(D <= squared_d_hat);
         Vector12 GradD;
-        edge_edge_distance_gradient(prev_P0, prev_P1, prev_Q0, prev_Q1, GradD);
+        edge_edge_distance2_gradient(prev_P0, prev_P1, prev_Q0, prev_Q1, GradD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
@@ -299,14 +299,14 @@ namespace sym::ipc_simplex_contact
                                         const Vector3& prev_E1,
                                         Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
-        point_edge_distance(prev_P, prev_E0, prev_E1, D);
+        point_edge_distance2(prev_P, prev_E0, prev_E1, D);
         MUDA_ASSERT(D <= squared_d_hat);
         Vector9 GradD;
-        point_edge_distance_gradient(prev_P, prev_E0, prev_E1, GradD);
+        point_edge_distance2_gradient(prev_P, prev_E0, prev_E1, GradD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
@@ -349,14 +349,14 @@ namespace sym::ipc_simplex_contact
                                                  const Vector3& prev_E1,
                                                  Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
-        point_edge_distance(prev_P, prev_E0, prev_E1, D);
+        point_edge_distance2(prev_P, prev_E0, prev_E1, D);
         MUDA_ASSERT(D <= squared_d_hat);
         Vector9 GradD = Vector9::Zero();
-        point_edge_distance_gradient(prev_P, prev_E0, prev_E1, GradD);
+        point_edge_distance2_gradient(prev_P, prev_E0, prev_E1, GradD);
 
         Float dBdD = 0;
         dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
@@ -406,14 +406,14 @@ namespace sym::ipc_simplex_contact
                                         const Vector3& prev_Q,
                                         Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
-        point_point_distance(prev_P, prev_Q, D);
+        point_point_distance2(prev_P, prev_Q, D);
         MUDA_ASSERT(D <= squared_d_hat);
         Vector6 GradD;
-        point_point_distance_gradient(prev_P, prev_Q, GradD);
+        point_point_distance2_gradient(prev_P, prev_Q, GradD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);
@@ -448,14 +448,14 @@ namespace sym::ipc_simplex_contact
                                                  const Vector3& prev_Q,
                                                  Float          eps_v)
     {
-        using namespace muda::distance;
+        using namespace distance;
         using namespace sym::ipc_contact;
 
         Float D;
-        point_point_distance(prev_P, prev_Q, D);
+        point_point_distance2(prev_P, prev_Q, D);
         MUDA_ASSERT(D <= squared_d_hat);
         Vector6 GradD;
-        point_point_distance_gradient(prev_P, prev_Q, GradD);
+        point_point_distance2_gradient(prev_P, prev_Q, GradD);
 
         Float dBdD;
         dKappaBarrierdD(dBdD, kappa, D, squared_d_hat);

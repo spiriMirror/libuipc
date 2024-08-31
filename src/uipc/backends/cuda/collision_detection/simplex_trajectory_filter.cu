@@ -18,6 +18,7 @@ void SimplexTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectInfo& info
     this_info.m_alpha = info.alpha();
     do_detect(this_info);
 }
+
 void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
 {
     FilterActiveInfo this_info{&m_impl};
@@ -29,6 +30,7 @@ void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterAct
                  m_impl.PEs.size(),
                  m_impl.PPs.size());
 }
+
 void SimplexTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)
 {
     FilterTOIInfo this_info{&m_impl};
@@ -40,15 +42,19 @@ void SimplexTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInf
 void SimplexTrajectoryFilter::Impl::record_friction_candidates(
     GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info)
 {
+    // PT
     loose_resize(friction_PT, PTs.size());
     friction_PT.view().copy_from(PTs);
 
+    // EE
     loose_resize(friction_EE, EEs.size());
     friction_EE.view().copy_from(EEs);
 
+    // PE
     loose_resize(friction_PE, PEs.size());
     friction_PE.view().copy_from(PEs);
 
+    // PP
     loose_resize(friction_PP, PPs.size());
     friction_PP.view().copy_from(PPs);
 
@@ -74,6 +80,21 @@ muda::CBufferView<Vector3> SimplexTrajectoryFilter::BaseInfo::positions() const 
     return m_impl->global_vertex_manager->positions();
 }
 
+muda::CBufferView<Vector3> SimplexTrajectoryFilter::BaseInfo::rest_positions() const noexcept
+{
+    return m_impl->global_vertex_manager->rest_positions();
+}
+
+muda::CBufferView<Float> SimplexTrajectoryFilter::BaseInfo::thicknesses() const noexcept
+{
+    return m_impl->global_vertex_manager->thicknesses();
+}
+
+muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::codim_vertices() const noexcept
+{
+    return m_impl->global_simplicial_surface_manager->codim_vertices();
+}
+
 muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::surf_vertices() const noexcept
 {
     return m_impl->global_simplicial_surface_manager->surf_vertices();
@@ -93,14 +114,17 @@ muda::CBufferView<Vector4i> SimplexTrajectoryFilter::PTs() const noexcept
 {
     return m_impl.PTs;
 }
+
 muda::CBufferView<Vector4i> SimplexTrajectoryFilter::EEs() const noexcept
 {
     return m_impl.EEs;
 }
+
 muda::CBufferView<Vector3i> SimplexTrajectoryFilter::PEs() const noexcept
 {
     return m_impl.PEs;
 }
+
 muda::CBufferView<Vector2i> SimplexTrajectoryFilter::PPs() const noexcept
 {
     return m_impl.PPs;
@@ -121,10 +145,12 @@ muda::CBufferView<Vector3i> SimplexTrajectoryFilter::friction_PEs() const noexce
     return m_impl.friction_PE;
 }
 
+
 muda::CBufferView<Vector2i> SimplexTrajectoryFilter::friction_PPs() const noexcept
 {
     return m_impl.friction_PP;
 }
+
 muda::CBufferView<Vector3> SimplexTrajectoryFilter::DetectInfo::displacements() const noexcept
 {
     return m_impl->global_vertex_manager->displacements();

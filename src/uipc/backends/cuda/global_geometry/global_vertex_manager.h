@@ -36,6 +36,7 @@ class GlobalVertexManager : public SimSystem
         muda::BufferView<Vector3> rest_positions() const noexcept;
         muda::BufferView<Float>   thicknesses() const noexcept;
         muda::BufferView<IndexT>  coindices() const noexcept;
+        muda::BufferView<IndexT>  dimensions() const noexcept;
         muda::BufferView<Vector3> positions() const noexcept;
         muda::BufferView<IndexT>  contact_element_ids() const noexcept;
 
@@ -102,11 +103,26 @@ class GlobalVertexManager : public SimSystem
      * The displacements are not scaled by the alpha.
      */
     muda::CBufferView<Vector3> displacements() const noexcept;
+    /**
+     * @brief The thicknesses of the vertices.
+     * 
+     * The thicknesses are used to compute the penetration depth.
+     */
+    muda::CBufferView<Float> thicknesses() const noexcept;
+    /**
+     * @brief The dimension of the vertices. 
+     * - 0: Codim 0D
+     * - 1: Codim 1D
+     * - 2: Codim 2D
+     * - 3: 3D
+     */
+    muda::CBufferView<IndexT> dimensions() const noexcept;
 
     /**
      * @brief the axis align bounding box of the all vertices.
      */
     AABB vertex_bounding_box() const noexcept;
+
 
     void after_init_vertex_info(SimSystem& system, std::function<void()>&& action);
 
@@ -140,6 +156,7 @@ class GlobalVertexManager : public SimSystem
 
       private:
         muda::DeviceBuffer<IndexT>  coindices;
+        muda::DeviceBuffer<IndexT>  dimensions;
         muda::DeviceBuffer<Vector3> positions;
         muda::DeviceBuffer<Vector3> prev_positions;
         muda::DeviceBuffer<Vector3> rest_positions;

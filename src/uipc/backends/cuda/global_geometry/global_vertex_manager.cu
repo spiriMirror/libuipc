@@ -41,9 +41,9 @@ void GlobalVertexManager::Impl::init_vertex_info()
     safe_positions.resize(total_count);
     contact_element_ids.resize(total_count, 0);
     thicknesses.resize(total_count, 0.0);
+    dimensions.resize(total_count, 3);  // default 3D
     displacements.resize(total_count, Vector3::Zero());
     displacement_norms.resize(total_count, 0.0);
-
 
     // create the subviews for each attribute_reporter
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
@@ -241,6 +241,11 @@ muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::coindices() c
     return m_impl->subview(m_impl->coindices, m_index);
 }
 
+muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::dimensions() const noexcept
+{
+    return m_impl->subview(m_impl->dimensions, m_index);
+}
+
 muda::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::positions() const noexcept
 {
     return m_impl->subview(m_impl->positions, m_index);
@@ -344,6 +349,11 @@ muda::CBufferView<Vector3> GlobalVertexManager::displacements() const noexcept
     return m_impl.displacements;
 }
 
+muda::CBufferView<Float> GlobalVertexManager::thicknesses() const noexcept
+{
+    return m_impl.thicknesses;
+}
+
 Float GlobalVertexManager::compute_axis_max_displacement()
 {
     return m_impl.compute_axis_max_displacement();
@@ -367,6 +377,11 @@ void GlobalVertexManager::step_forward(Float alpha)
 void GlobalVertexManager::record_start_point()
 {
     m_impl.record_start_point();
+}
+
+muda::CBufferView<IndexT> GlobalVertexManager::dimensions() const noexcept
+{
+    return m_impl.dimensions;
 }
 
 AABB GlobalVertexManager::vertex_bounding_box() const noexcept

@@ -2,6 +2,7 @@
 #include <global_geometry/simplicial_surface_reporter.h>
 #include <uipc/common/zip.h>
 #include <uipc/common/enumerate.h>
+#include <muda/cub/device/device_select.h>
 
 namespace uipc::backend::cuda
 {
@@ -12,6 +13,11 @@ void GlobalSimpicialSurfaceManager::add_reporter(SimplicialSurfaceReporter* repo
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
     m_impl.reporters.register_subsystem(*reporter);
+}
+
+muda::CBufferView<IndexT> GlobalSimpicialSurfaceManager::codim_vertices() const noexcept
+{
+    return m_impl.codim_vertices;
 }
 
 muda::CBufferView<IndexT> GlobalSimpicialSurfaceManager::surf_vertices() const noexcept
@@ -89,6 +95,7 @@ void GlobalSimpicialSurfaceManager::Impl::init_surface_info()
     }
 
     // 2) resize the device buffer
+    codim_vertices.resize(total_surf_vertex_count);
     surf_vertices.resize(total_surf_vertex_count);
     surf_edges.resize(total_surf_edge_count);
     surf_triangles.resize(total_surf_triangle_count);
@@ -97,48 +104,40 @@ void GlobalSimpicialSurfaceManager::Impl::init_surface_info()
     // 3) collect surface attributes
     for(auto&& [R, Rinfo] : zip(reporter_view, reporter_infos))
     {
-        SurfaceAttributeInfo info{this};
-
-        info.m_surf_vertices =
-            surf_vertices.view(Rinfo.surf_vertex_offset, Rinfo.surf_vertex_count);
-        info.m_surf_edges = surf_edges.view(Rinfo.surf_edge_offset, Rinfo.surf_edge_count);
-        info.m_surf_triangles =
-            surf_triangles.view(Rinfo.surf_triangle_offset, Rinfo.surf_triangle_count);
-
+        SurfaceAttributeInfo info{this, R->m_index};
         R->report_attributes(info);
     }
 
-    //{
-    //    std::vector<IndexT>   surf_vertices;
-    //    std::vector<Vector2i> surf_edges;
-    //    std::vector<Vector3i> surf_triangles;
+    // 4) collect Codim0D vertices
+    _collect_codim_vertices();
+}
 
-    //    this->surf_vertices.copy_to(surf_vertices);
-    //    this->surf_edges.copy_to(surf_edges);
-    //    this->surf_triangles.copy_to(surf_triangles);
+void GlobalSimpicialSurfaceManager::Impl::_collect_codim_vertices()
+{
+    using namespace muda;
+    auto dim = global_vertex_manager->dimensions();
 
-    //    // print
-    //    std::cout << "surf_vertices: " << std::endl;
-    //    for(auto&& v : surf_vertices)
-    //    {
-    //        std::cout << v << " ";
-    //    }
-    //    std::cout << std::endl;
+    codim_vertex_flags.resize(surf_vertices.size());
 
-    //    std::cout << "surf_edges: " << std::endl;
-    //    for(auto&& e : surf_edges)
-    //    {
-    //        std::cout << e.transpose() << " ";
-    //    }
-    //    std::cout << std::endl;
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(surf_vertices.size(),
+               [dim           = dim.cviewer().name("dim"),
+                surf_vertices = surf_vertices.viewer().name("surf_vertices"),
+                flags = codim_vertex_flags.viewer().name("flags")] __device__(int I) mutable
+               {
+                   auto vI  = surf_vertices(I);
+                   flags(I) = dim(vI) == 0 ? 1 : 0;
+               });
 
-    //    std::cout << "surf_triangles: " << std::endl;
-    //    for(auto&& t : surf_triangles)
-    //    {
-    //        std::cout << t.transpose() << " ";
-    //    }
-    //    std::cout << std::endl;
-    //}
+    DeviceSelect().Flagged(surf_vertices.data(),
+                           codim_vertex_flags.data(),
+                           codim_vertices.data(),
+                           selected_codim_0d_count.data(),
+                           surf_vertices.size());
+
+    IndexT count = selected_codim_0d_count;
+    codim_vertices.resize(count);
 }
 
 void GlobalSimpicialSurfaceManager::init_surface_info()
@@ -149,5 +148,49 @@ void GlobalSimpicialSurfaceManager::init_surface_info()
 void GlobalSimpicialSurfaceManager::rebuild_surface_info()
 {
     UIPC_ASSERT(false, "Not implemented yet");
+}
+
+muda::BufferView<IndexT> GlobalSimpicialSurfaceManager::SurfaceAttributeInfo::surf_vertices() noexcept
+{
+    const auto& info = reporter_info();
+    return m_impl->surf_vertices.view(info.surf_vertex_offset, info.surf_vertex_count);
+}
+
+muda::BufferView<Vector2i> GlobalSimpicialSurfaceManager::SurfaceAttributeInfo::surf_edges() noexcept
+{
+    const auto& info = reporter_info();
+    return m_impl->surf_edges.view(info.surf_edge_offset, info.surf_edge_count);
+}
+
+muda::BufferView<Vector3i> GlobalSimpicialSurfaceManager::SurfaceAttributeInfo::surf_triangles() noexcept
+{
+    const auto& info = reporter_info();
+    return m_impl->surf_triangles.view(info.surf_triangle_offset, info.surf_triangle_count);
+}
+
+auto GlobalSimpicialSurfaceManager::SurfaceAttributeInfo::reporter_info() const noexcept
+    -> const ReporterInfo&
+{
+    return m_impl->reporter_infos[m_index];
+}
+
+void GlobalSimpicialSurfaceManager::SurfaceCountInfo::surf_vertex_count(SizeT count) noexcept
+{
+    m_surf_vertex_count = count;
+}
+
+void GlobalSimpicialSurfaceManager::SurfaceCountInfo::surf_edge_count(SizeT count) noexcept
+{
+    m_surf_edge_count = count;
+}
+
+void GlobalSimpicialSurfaceManager::SurfaceCountInfo::surf_triangle_count(SizeT count) noexcept
+{
+    m_surf_triangle_count = count;
+}
+
+void GlobalSimpicialSurfaceManager::SurfaceCountInfo::changable(bool value) noexcept
+{
+    m_changable = value;
 }
 }  // namespace uipc::backend::cuda

@@ -166,6 +166,11 @@ muda::CBufferView<Vector3> SimplexFrictionalContact::BaseInfo::rest_positions() 
     return m_impl->global_vertex_manager->rest_positions();
 }
 
+muda::CBufferView<Float> SimplexFrictionalContact::BaseInfo::thicknesses() const
+{
+    return m_impl->global_vertex_manager->thicknesses();
+}
+
 muda::CBufferView<IndexT> SimplexFrictionalContact::BaseInfo::contact_element_ids() const
 {
     return m_impl->global_vertex_manager->contact_element_ids();

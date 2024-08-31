@@ -9,12 +9,12 @@ REGISTER_SIM_SYSTEM(ABDLinearSubsystem);
 
 void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
 {
+    m_impl.reduce_hessian = false;  // default false, because of low convert efficiency according to profiling
+
     m_impl.affine_body_dynamics        = &require<AffineBodyDynamics>();
     m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
 
     m_impl.abd_contact_receiver = find<ABDContactReceiver>();
-
-    m_impl.converter.reserve_ratio(1.1);
 }
 
 void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
@@ -28,7 +28,7 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     assemble_H12x12();
 
     // 1) Hessian Count
-    SizeT H12x12_count        = bcoo_A.triplet_count();
+    SizeT H12x12_count        = A_view.triplet_count();
     auto  hessian_block_count = H12x12_count * M12x12_to_M3x3;
 
 
@@ -102,9 +102,9 @@ void ABDLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
 
     ParallelFor()
         .kernel_name(__FUNCTION__)
-        .apply(bcoo_A.non_zero_blocks(),
-               [dst = info.hessian().viewer().name("hessian"),
-                src = bcoo_A.cviewer().name("bcoo_hessian")] __device__(int I) mutable
+        .apply(A_view.triplet_count(),
+               [dst = info.hessian().viewer().name("dst_hessian"),
+                src = A_view.cviewer().name("src_hessian")] __device__(int I) mutable
                {
                    auto offset = I * 16;
                    for(int i = 0; i < 4; ++i)
@@ -136,7 +136,9 @@ void ABDLinearSubsystem::Impl::assemble_H12x12()
     {
         auto reserve_count = H12x12_count * reserve_ratio;
         triplet_A.reserve_triplets(reserve_count);
-        bcoo_A.reserve_triplets(reserve_count);
+
+        if(reduce_hessian)
+            bcoo_A.reserve_triplets(reserve_count);
     }
     triplet_A.resize_triplets(H12x12_count);
     triplet_A.reshape(abd().abd_body_count, abd().abd_body_count);
@@ -211,7 +213,15 @@ void ABDLinearSubsystem::Impl::assemble_H12x12()
                    });
     }
 
-    converter.convert(triplet_A, bcoo_A);
+    if(reduce_hessian)
+    {
+        converter.convert(triplet_A, bcoo_A);
+        A_view = bcoo_A.view();
+    }
+    else
+    {
+        A_view = triplet_A.view();
+    }
 }
 
 void ABDLinearSubsystem::Impl::accuracy_check(GlobalLinearSystem::AccuracyInfo& info)
