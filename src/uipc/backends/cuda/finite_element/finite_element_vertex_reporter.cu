@@ -37,6 +37,8 @@ void FiniteElementVertexReporter::Impl::report_attributes(GlobalVertexManager::V
 
     async_copy(span{fem().h_vertex_contact_element_ids}, info.contact_element_ids());
 
+    info.thicknesses().copy_from(fem().thicknesses);
+
     // record the global vertex info
     reporter_vertex_offset = info.coindices().offset();
     reporter_vertex_count  = info.coindices().size();

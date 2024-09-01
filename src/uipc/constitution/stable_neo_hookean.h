@@ -19,8 +19,7 @@ class UIPC_CORE_API StableNeoHookean : public FiniteElementConstitution
     static Json default_config() noexcept;
 
   protected:
-    virtual U64              get_uid() const noexcept override;
-    virtual std::string_view get_name() const noexcept override;
+    virtual U64 get_uid() const noexcept override;
 
   private:
     Json m_config;

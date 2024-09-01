@@ -17,7 +17,7 @@ class FEM3DConstitution : public FiniteElementConstitution
     {
       public:
         BaseInfo(FiniteElementMethod::Impl* impl, SizeT index_in_dim, Float dt)
-            : m_impl(impl)
+            : m_fem(impl)
             , m_index_in_dim(index_in_dim)
             , m_dt(dt)
         {
@@ -33,7 +33,7 @@ class FEM3DConstitution : public FiniteElementConstitution
 
       protected:
         SizeT                      m_index_in_dim = ~0ull;
-        FiniteElementMethod::Impl* m_impl         = nullptr;
+        FiniteElementMethod::Impl* m_fem         = nullptr;
         Float                      m_dt           = 0.0;
     };
 

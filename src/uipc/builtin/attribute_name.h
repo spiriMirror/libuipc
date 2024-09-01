@@ -66,6 +66,11 @@ UIPC_BUILTIN_ATTRIBUTE(mass_density);
  * @brief `mass` attribute on vertices/edges/triangles/tetrahedra... to indicate the mass of the element.
  */
 UIPC_BUILTIN_ATTRIBUTE(mass);
+
+/**
+ * @brief `thickness` attribute on vertices to indicate the thickness of the vertices (valid when dealing with codimensional geometries).
+ */
+UIPC_BUILTIN_ATTRIBUTE(thickness);
 }  // namespace uipc::builtin
 
 #undef UIPC_BUILTIN_ATTRIBUTE

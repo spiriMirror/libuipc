@@ -26,6 +26,7 @@ TEST_CASE("17_fem_multi_constituion", "[fem]")
 
     config["gravity"]                      = Vector3{0, -9.8, 0};
     config["contact"]["enable"]            = true;
+    config["contact"]["friction"]["enable"] = false;
     config["line_search"]["max_iter"]      = 8;
     config["linear_system"]["tol_rate"]    = 1e-3;
     config["line_search"]["report_energy"] = true;

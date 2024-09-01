@@ -3,6 +3,7 @@
 #include <muda/buffer.h>
 #include <dof_predictor.h>
 #include <uipc/geometry/simplicial_complex.h>
+#include <global_geometry/global_vertex_manager.h>
 
 namespace uipc::backend::cuda
 {
@@ -133,6 +134,8 @@ class FiniteElementMethod : public SimSystem
 
         void write_scene(WorldVisitor& world);
 
+        GlobalVertexManager* global_vertex_manager = nullptr;
+
         // core invariant data:
         vector<GeoInfo>                                    geo_infos;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
@@ -162,6 +165,7 @@ class FiniteElementMethod : public SimSystem
         vector<IndexT>  h_vertex_is_fixed;
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
+        vector<Float>   h_thicknesses;
         vector<Float>   h_masses;
 
         vector<IndexT>   h_codim_0ds;
@@ -193,6 +197,7 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Vector3> x_tildes;  // Predicted Positions
         muda::DeviceBuffer<Vector3> x_prevs;   // Positions at last frame
         muda::DeviceBuffer<Float>   masses;    // Mass
+        muda::DeviceBuffer<Float>   thicknesses;      // Thickness
         muda::DeviceBuffer<Matrix3x3> diag_hessians;  // Diagonal Hessian
 
         //tex:

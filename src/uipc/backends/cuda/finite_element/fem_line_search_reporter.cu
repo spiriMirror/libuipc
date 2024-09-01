@@ -120,7 +120,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
     Float E2 = fem().codim_2d_elastic_energy;
     Float E3 = fem().fem_3d_elastic_energy;
 
-    //spdlog::info("FEM K: {}, Codim1D-E: {}, Codim2D-E: {}, FEM3D-E: {}", K, E1, E2, E3);
+    // spdlog::info("FEM K: {}, Codim1D-E: {}, Codim2D-E: {}, FEM3D-E: {}", K, E1, E2, E3);
 
     info.energy(K + E1 + E2 + E3);
 }

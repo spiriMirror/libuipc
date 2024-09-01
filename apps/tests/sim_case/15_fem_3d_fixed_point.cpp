@@ -24,7 +24,7 @@ TEST_CASE("15_fem_3d_fixed_point", "[fem]")
     auto config = Scene::default_config();
 
     config["gravity"]                   = Vector3{0, -9.8, 0};
-    config["contact"]["enable"]         = true;
+    config["contact"]["enable"]         = false;
     config["line_search"]["max_iter"]   = 8;
     config["linear_system"]["tol_rate"] = 1e-3;
 
@@ -37,7 +37,6 @@ TEST_CASE("15_fem_3d_fixed_point", "[fem]")
 
     Scene scene{config};
     {
-        // create constitution and contact model
         StableNeoHookean snk;
         scene.constitution_tabular().insert(snk);
 

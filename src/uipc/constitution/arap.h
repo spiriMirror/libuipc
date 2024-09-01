@@ -16,7 +16,6 @@ class UIPC_CORE_API ARAP : public FiniteElementConstitution
 
   protected:
     virtual U64              get_uid() const noexcept override;
-    virtual std::string_view get_name() const noexcept override;
 
   private:
     Json m_config;

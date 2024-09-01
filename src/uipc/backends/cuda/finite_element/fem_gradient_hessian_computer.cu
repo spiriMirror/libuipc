@@ -64,17 +64,17 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
     // Elastic
     FiniteElementMethod::ComputeGradientHessianInfo this_info{info.dt()};
 
-    //// Codim1D
-    //for(auto&& [i, cst] : enumerate(fem().codim_1d_constitutions))
-    //{
-    //    cst->compute_gradient_hessian(this_info);
-    //}
+    // Codim1D
+    for(auto&& [i, cst] : enumerate(fem().codim_1d_constitutions))
+    {
+        cst->compute_gradient_hessian(this_info);
+    }
 
-    //// Codim2D
-    //for(auto&& [i, cst] : enumerate(fem().codim_2d_constitutions))
-    //{
-    //    cst->compute_gradient_hessian(this_info);
-    //}
+    // Codim2D
+    for(auto&& [i, cst] : enumerate(fem().codim_2d_constitutions))
+    {
+        cst->compute_gradient_hessian(this_info);
+    }
 
     // FEM3D
     for(auto&& [i, cst] : enumerate(fem().fem_3d_constitutions))

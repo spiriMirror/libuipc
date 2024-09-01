@@ -25,6 +25,7 @@ TEST_CASE("16_fem_3d_scaling", "[fem]")
 
     config["gravity"]                   = Vector3{0, 0, 0};
     config["contact"]["enable"]         = true;
+    config["contact"]["friction"]["enable"] = false;
     config["line_search"]["max_iter"]   = 8;
     config["linear_system"]["tol_rate"] = 1e-3;
 

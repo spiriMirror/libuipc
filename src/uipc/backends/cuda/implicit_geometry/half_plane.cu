@@ -1,7 +1,7 @@
 #include <implicit_geometry/half_plane.h>d
 #include <uipc/builtin/geometry_type.h>
 #include <uipc/builtin/attribute_name.h>
-#include <uipc/builtin/implicit_geometry_uid_register.h>
+#include <uipc/builtin/implicit_geometry_uid_collection.h>
 #include <uipc/common/range.h>
 #include <uipc/common/enumerate.h>
 #include <algorithm/geometry_instance_flattener.h>

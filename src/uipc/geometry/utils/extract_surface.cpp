@@ -199,7 +199,12 @@ SimplicialComplex extract_surface(span<const SimplicialComplex*> sc)
                    sc.end(),
                    std::back_inserter(surfaces),
                    [](const SimplicialComplex* simplicial_complex)
-                   { return extract_surface(*simplicial_complex); });
+                   {
+                       if(simplicial_complex->dim() == 3)
+                           return extract_surface(*simplicial_complex);
+                       else
+                           return *simplicial_complex;
+                   });
 
     // 2) find out all the surface instances, apply the transformation
     SizeT total_surface_instances =
