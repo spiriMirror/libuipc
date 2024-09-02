@@ -62,6 +62,11 @@ const FiniteElementMethod::ConstitutionInfo& Codim1DConstitution::BaseInfo::cons
     return m_fem->codim_1d_constitution_infos[m_index_in_dim];
 }
 
+Float Codim1DConstitution::BaseInfo::dt() const noexcept
+{
+    return m_dt;
+}
+
 muda::BufferView<Float> Codim1DConstitution::ComputeEnergyInfo::element_energies() const noexcept
 {
     auto& info = constitution_info();

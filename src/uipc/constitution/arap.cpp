@@ -15,7 +15,10 @@ REGISTER_CONSTITUTION_UIDS()
     return uids;
 }
 
-ARAP::ARAP(const Json& config) noexcept {}
+ARAP::ARAP(const Json& config) noexcept
+    : m_config(config)
+{
+}
 
 void ARAP::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
 {

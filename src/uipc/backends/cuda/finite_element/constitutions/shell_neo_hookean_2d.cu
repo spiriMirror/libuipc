@@ -16,10 +16,10 @@ class ShellNeoHookean2D final : public Codim2DConstitution
 
     using Codim2DConstitution::Codim2DConstitution;
 
-    vector<Float> h_mus;
+    vector<Float> h_kappas;
     vector<Float> h_lambdas;
 
-    muda::DeviceBuffer<Float> mus;
+    muda::DeviceBuffer<Float> kappas;
     muda::DeviceBuffer<Float> lambdas;
 
     virtual U64 get_constitution_uid() const override
@@ -36,7 +36,7 @@ class ShellNeoHookean2D final : public Codim2DConstitution
 
         auto N = info.primitive_count();
 
-        h_mus.resize(N);
+        h_kappas.resize(N);
         h_lambdas.resize(N);
 
         info.for_each(
@@ -51,12 +51,12 @@ class ShellNeoHookean2D final : public Codim2DConstitution
             [&](SizeT I, auto mu_and_lambda)
             {
                 auto&& [mu, lambda] = mu_and_lambda;
-                h_mus[I]            = mu;
+                h_kappas[I]            = mu;
                 h_lambdas[I]        = lambda;
             });
 
-        mus.resize(N);
-        mus.view().copy_from(h_mus.data());
+        kappas.resize(N);
+        kappas.view().copy_from(h_kappas.data());
 
         lambdas.resize(N);
         lambdas.view().copy_from(h_lambdas.data());
@@ -70,7 +70,7 @@ class ShellNeoHookean2D final : public Codim2DConstitution
         ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(info.indices().size(),
-                   [mus        = mus.cviewer().name("mus"),
+                   [mus        = kappas.cviewer().name("mus"),
                     lambdas    = lambdas.cviewer().name("lambdas"),
                     rest_areas = info.rest_areas().viewer().name("rest_area"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
@@ -93,6 +93,13 @@ class ShellNeoHookean2D final : public Codim2DConstitution
                        NH::A(IB, X_bar);
                        IB = muda::eigen::inverse(IB);
 
+                       if constexpr(RUNTIME_CHECK)
+                       {
+                           Matrix2x2 A;
+                           NH::A(A, X);
+                           Float detA = A.determinant();
+                       }
+
                        Float mu        = mus(I);
                        Float lambda    = lambdas(I);
                        Float rest_area = rest_areas(I);
@@ -114,7 +121,7 @@ class ShellNeoHookean2D final : public Codim2DConstitution
         ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(info.indices().size(),
-                   [mus     = mus.cviewer().name("mus"),
+                   [mus     = kappas.cviewer().name("mus"),
                     lambdas = lambdas.cviewer().name("lambdas"),
                     indices = info.indices().viewer().name("indices"),
                     xs      = info.xs().viewer().name("xs"),

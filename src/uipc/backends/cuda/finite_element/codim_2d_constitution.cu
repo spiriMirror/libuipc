@@ -49,7 +49,7 @@ muda::CBufferView<Float> Codim2DConstitution::BaseInfo::rest_areas() const noexc
 
 muda::CBufferView<Float> Codim2DConstitution::BaseInfo::thicknesses() const noexcept
 {
-    return m_fem->thicknesses;
+    return m_fem->thicknesses.view();
 }
 
 muda::CBufferView<Vector3i> Codim2DConstitution::BaseInfo::indices() const noexcept

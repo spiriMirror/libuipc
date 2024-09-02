@@ -5,17 +5,17 @@
 
 namespace uipc::constitution
 {
-class UIPC_CORE_API ShellNeoHookean : public FiniteElementConstitution
+class UIPC_CORE_API HookeanSpring : public FiniteElementConstitution
 {
     using Base = FiniteElementConstitution;
 
   public:
-    ShellNeoHookean(const Json& config = default_config()) noexcept;
+    HookeanSpring(const Json& config = default_config()) noexcept;
 
     void apply_to(geometry::SimplicialComplex& sc,
-                  const ElasticModuli& moduli = ElasticModuli::youngs_poisson(10.0_MPa, 0.49),
-                  Float mass_density = 1e3,
-                  Float thickness    = 0.01_m) const;
+                  Float                        kappa        = 20.0_kPa,
+                  Float                        mass_density = 1e3,
+                  Float                        thickness    = 0.01_m) const;
 
     static Json default_config() noexcept;
 

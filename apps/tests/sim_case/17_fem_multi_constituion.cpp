@@ -41,8 +41,8 @@ TEST_CASE("17_fem_multi_constituion", "[fem]")
     Scene scene{config};
     {
         // create constitution and contact model
-        StableNeoHookean snk;
-        scene.constitution_tabular().insert(snk);
+        StableNeoHookean snh;
+        scene.constitution_tabular().insert(snh);
         ARAP arap;
         scene.constitution_tabular().insert(arap);
 
@@ -72,8 +72,8 @@ TEST_CASE("17_fem_multi_constituion", "[fem]")
         }
 
         auto parm = ElasticModuli::youngs_poisson(10.0_kPa, 0.49);
-        snk.apply_to(mesh, parm);
-        snk.apply_to(mesh2, parm);
+        snh.apply_to(mesh, parm);
+        snh.apply_to(mesh2, parm);
 
         // arap.apply_to(mesh2, 1.0_MPa);
 

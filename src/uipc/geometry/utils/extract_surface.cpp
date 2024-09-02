@@ -184,52 +184,73 @@ static void extract_surface_check_input(span<const SimplicialComplex*> sc)
     }
 }
 
+namespace detail
+{
+    template <bool OnlyTopDim>
+    static SimplicialComplex extract_surface(span<const SimplicialComplex*> sc)
+    {
+        if(sc.empty())
+            return SimplicialComplex{};
+
+        extract_surface_check_input(sc);
+
+        // 1) extract the surface from each simplicial complex
+        vector<SimplicialComplex> surfaces;
+        surfaces.reserve(sc.size());
+
+        std::transform(sc.begin(),
+                       sc.end(),
+                       std::back_inserter(surfaces),
+                       [](const SimplicialComplex* simplicial_complex)
+                       {
+                           if(simplicial_complex->dim() == 3)
+                               return extract_surface(*simplicial_complex);
+                           else
+                               return *simplicial_complex;
+                       });
+
+        // 2) find out all the surface instances, apply the transformation
+        SizeT total_surface_instances = std::accumulate(
+            sc.begin(),
+            sc.end(),
+            0,
+            [](SizeT acc, const SimplicialComplex* simplicial_complex)
+            { return acc + simplicial_complex->instances().size(); });
+
+        vector<SimplicialComplex> all_surfaces;
+        all_surfaces.reserve(total_surface_instances);
+
+        for(auto& surface : surfaces)
+        {
+            vector<SimplicialComplex> instances = apply_transform(surface);
+            std::move(instances.begin(), instances.end(), std::back_inserter(all_surfaces));
+        }
+
+        vector<const SimplicialComplex*> surfaces_ptr(total_surface_instances);
+
+        std::transform(all_surfaces.begin(),
+                       all_surfaces.end(),
+                       surfaces_ptr.begin(),
+                       [](SimplicialComplex& surface) { return &surface; });
+
+        if constexpr(OnlyTopDim)
+        {
+            return merge_top_dim(surfaces_ptr);
+        }
+        else
+        {
+            return merge(surfaces_ptr);
+        }
+    }
+}  // namespace detail
+
 SimplicialComplex extract_surface(span<const SimplicialComplex*> sc)
 {
-    if(sc.empty())
-        return SimplicialComplex{};
+    return detail::extract_surface<false>(sc);
+}
 
-    extract_surface_check_input(sc);
-
-    // 1) extract the surface from each simplicial complex
-    vector<SimplicialComplex> surfaces;
-    surfaces.reserve(sc.size());
-
-    std::transform(sc.begin(),
-                   sc.end(),
-                   std::back_inserter(surfaces),
-                   [](const SimplicialComplex* simplicial_complex)
-                   {
-                       if(simplicial_complex->dim() == 3)
-                           return extract_surface(*simplicial_complex);
-                       else
-                           return *simplicial_complex;
-                   });
-
-    // 2) find out all the surface instances, apply the transformation
-    SizeT total_surface_instances =
-        std::accumulate(sc.begin(),
-                        sc.end(),
-                        0,
-                        [](SizeT acc, const SimplicialComplex* simplicial_complex)
-                        { return acc + simplicial_complex->instances().size(); });
-
-    vector<SimplicialComplex> all_surfaces;
-    all_surfaces.reserve(total_surface_instances);
-
-    for(auto& surface : surfaces)
-    {
-        vector<SimplicialComplex> instances = apply_transform(surface);
-        std::move(instances.begin(), instances.end(), std::back_inserter(all_surfaces));
-    }
-
-    vector<const SimplicialComplex*> surfaces_ptr(total_surface_instances);
-
-    std::transform(all_surfaces.begin(),
-                   all_surfaces.end(),
-                   surfaces_ptr.begin(),
-                   [](SimplicialComplex& surface) { return &surface; });
-
-    return merge(surfaces_ptr);
+SimplicialComplex extract_top_dim_surface(span<const SimplicialComplex*> sc)
+{
+    return detail::extract_surface<true>(sc);
 }
 }  // namespace uipc::geometry

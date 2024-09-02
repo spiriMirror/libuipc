@@ -29,6 +29,7 @@ class Codim1DConstitution : public FiniteElementConstitution
         muda::CBufferView<Vector2i> indices() const noexcept;
         muda::CBufferView<Float>    thicknesses() const noexcept;
         const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;
+        Float dt() const noexcept;
 
       protected:
         SizeT                      m_index_in_dim = ~0ull;

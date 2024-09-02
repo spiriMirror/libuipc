@@ -41,8 +41,8 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
     Scene scene{config};
     {
         // create constitution and contact model
-        StableNeoHookean snk;
-        scene.constitution_tabular().insert(snk);
+        StableNeoHookean snh;
+        scene.constitution_tabular().insert(snh);
         ARAP arap;
         scene.constitution_tabular().insert(arap);
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
@@ -63,7 +63,7 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
         label_triangle_orient(mesh);
 
         auto parm = ElasticModuli::youngs_poisson(10.0_kPa, 0.49);
-        snk.apply_to(mesh, parm);
+        snh.apply_to(mesh, parm);
 
         object->geometries().create(mesh);
 

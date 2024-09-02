@@ -15,7 +15,10 @@ REGISTER_CONSTITUTION_UIDS()
     return uids;
 }
 
-ShellNeoHookean::ShellNeoHookean(const Json& config) noexcept {}
+ShellNeoHookean::ShellNeoHookean(const Json& config) noexcept
+    : m_config(config)
+{
+}
 
 void ShellNeoHookean::apply_to(geometry::SimplicialComplex& sc,
                                const ElasticModuli&         moduli,

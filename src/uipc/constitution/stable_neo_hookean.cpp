@@ -15,7 +15,10 @@ REGISTER_CONSTITUTION_UIDS()
     return uids;
 }
 
-StableNeoHookean::StableNeoHookean(const Json& config) noexcept {}
+StableNeoHookean::StableNeoHookean(const Json& config) noexcept
+    : m_config(config)
+{
+}
 
 void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc,
                                 const ElasticModuli&         moduli,

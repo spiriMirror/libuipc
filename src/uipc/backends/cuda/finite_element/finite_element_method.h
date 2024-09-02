@@ -4,6 +4,8 @@
 #include <dof_predictor.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <global_geometry/global_vertex_manager.h>
+#include <muda/ext/linear_system/device_doublet_vector.h>
+#include <muda/ext/linear_system/device_triplet_matrix.h>
 
 namespace uipc::backend::cuda
 {
@@ -227,11 +229,16 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Vector9>   G9s;    // Codim2D Elastic Gradient
         muda::DeviceBuffer<Matrix9x9> H9x9s;  // Codim2D Elastic Hessian
 
-
         muda::DeviceVar<Float> fem_3d_elastic_energy;  // FEM3D Elastic Energy
         muda::DeviceBuffer<Float> fem_3d_elastic_energies;  // FEM3D Elastic Energy Per Element
         muda::DeviceBuffer<Vector12>    G12s;     // FEM3D Elastic Gradient
         muda::DeviceBuffer<Matrix12x12> H12x12s;  // FEM3D Elastic Hessian
+
+        // Extra Constitutions
+        muda::DeviceVar<Float>    extra_energy;    // Extra Energy
+        muda::DeviceBuffer<Float> extra_energies;  // Extra Energy Per Element
+        muda::DeviceDoubletVector<Float, 3> extra_gradient;  // Extra Gradient Per Vertex
+        muda::DeviceTripletMatrix<Float, 3> extra_hessian;  // Extra Hessian Per Vertex
     };
 
     class ComputeEnergyInfo

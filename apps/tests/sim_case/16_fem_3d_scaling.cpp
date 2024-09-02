@@ -39,8 +39,8 @@ TEST_CASE("16_fem_3d_scaling", "[fem]")
     Scene scene{config};
     {
         // create constitution and contact model
-        StableNeoHookean snk;
-        scene.constitution_tabular().insert(snk);
+        StableNeoHookean snh;
+        scene.constitution_tabular().insert(snh);
 
         // create object
         auto object = scene.objects().create("tets");
@@ -58,7 +58,7 @@ TEST_CASE("16_fem_3d_scaling", "[fem]")
         label_triangle_orient(mesh);
 
         auto parm = ElasticModuli::youngs_poisson(1e5, 0.499);
-        snk.apply_to(mesh, parm, 1e3);
+        snh.apply_to(mesh, parm, 1e3);
 
         SimplicialComplex rest_mesh = mesh;
 

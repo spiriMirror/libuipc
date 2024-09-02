@@ -42,8 +42,8 @@ TEST_CASE("18_abd_fem_contact", "[abd_fem]")
     Scene scene{config};
     {
         // create constitution and contact model
-        StableNeoHookean snk;
-        scene.constitution_tabular().insert(snk);
+        StableNeoHookean snh;
+        scene.constitution_tabular().insert(snh);
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
 
@@ -61,7 +61,7 @@ TEST_CASE("18_abd_fem_contact", "[abd_fem]")
         SimplicialComplex upper_mesh = lower_mesh;
 
         auto parm = ElasticModuli::youngs_poisson(20.0_kPa, 0.49);
-        snk.apply_to(lower_mesh, parm);
+        snh.apply_to(lower_mesh, parm);
         abd.apply_to(upper_mesh, 1.0_MPa);
 
         constexpr SizeT N = 6;

@@ -37,8 +37,8 @@ TEST_CASE("15_fem_3d_fixed_point", "[fem]")
 
     Scene scene{config};
     {
-        StableNeoHookean snk;
-        scene.constitution_tabular().insert(snk);
+        StableNeoHookean snh;
+        scene.constitution_tabular().insert(snh);
 
         // create object
         auto object = scene.objects().create("tets");
@@ -58,7 +58,7 @@ TEST_CASE("15_fem_3d_fixed_point", "[fem]")
         label_triangle_orient(mesh);
 
         auto parm = ElasticModuli::youngs_poisson(5e4, 0.499);
-        snk.apply_to(mesh, parm, 1e3);
+        snh.apply_to(mesh, parm, 1e3);
 
         auto is_fixed = mesh.vertices().find<IndexT>(builtin::is_fixed);
 
