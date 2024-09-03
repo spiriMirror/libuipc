@@ -58,7 +58,7 @@ print(config)
 scene = Scene(config)
 abd = AffineBodyConstitution()
 scene.constitution_tabular().insert(abd)
-scene.contact_tabular().default_model(0.5, 1e10)
+scene.contact_tabular().default_model(0.05, 1e10)
 default_contact = scene.contact_tabular().default_element()
 
 pre_trans = pyuipc.Matrix4x4.Identity()
