@@ -7,6 +7,9 @@ muda::BufferView<Vector2i> AtomicCountingLBVH::query(muda::CBufferView<ObjectT> 
 {
     using namespace muda;
 
+    if(m_aabbs.size() == 0)
+        return m_pairs.view(0, 0);
+
     auto do_query = [&]
     {
         cudaStream_t s = m_stream;
@@ -58,6 +61,9 @@ muda::BufferView<Vector2i> AtomicCountingLBVH::detect(Pred p)
 {
     using namespace muda;
 
+    if(m_aabbs.size() == 0)
+        return m_pairs.view(0, 0);
+
     auto do_query = [&]
     {
         cudaStream_t s = m_stream;
@@ -108,6 +114,9 @@ muda::BufferView<Vector2i> AtomicCountingLBVH::query(muda::CBufferView<LinearBVH
                                                      Pred p)
 {
     using namespace muda;
+
+    if(m_aabbs.size() == 0)
+        return m_pairs.view(0, 0);
 
     auto do_query = [&]
     {

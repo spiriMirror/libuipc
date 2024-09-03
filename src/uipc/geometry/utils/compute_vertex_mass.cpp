@@ -2,6 +2,7 @@
 #include <uipc/common/enumerate.h>
 #include <uipc/builtin/attribute_name.h>
 #include <Eigen/Dense>
+#include <numbers>
 
 namespace uipc::geometry
 {
@@ -57,6 +58,8 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_tri(SimplicialComplex& R
     vector<Float> tri_mass;
     tri_mass.resize(R.triangles().size(), 0.0);
 
+    auto thickness = R.vertices().find<Float>(builtin::thickness);
+
     auto Vs = R.positions().view();
     auto Ts = R.triangles().topo().view();
 
@@ -69,8 +72,31 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_tri(SimplicialComplex& R
 
             auto n    = (p1 - p0).cross(p2 - p0);
             auto area = 0.5 * n.norm();
-            return area * mass_density;
+            if(thickness)
+            {
+                auto thickness_view = thickness->view();
+                // check if all vertices have the same thickness
+                UIPC_ASSERT(thickness_view[t[0]] == thickness_view[t[1]]
+                                && thickness_view[t[1]] == thickness_view[t[2]],
+                            "The thickness of the triangle ({},{},{}) is not consistent, thickness = ({}, {}, {})",
+                            t[0],
+                            t[1],
+                            t[2],
+                            thickness_view[t[0]],
+                            thickness_view[t[1]],
+                            thickness_view[t[2]]);
+
+                auto v = thickness_view[t[0]];
+                auto h = 2 * v;
+
+                return area * h * mass_density;
+            }
+            else
+            {
+                return area * mass_density;
+            }
         });
+
 
     auto Vm = R.vertices().find<Float>(builtin::mass);
 
@@ -97,18 +123,39 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_edge(SimplicialComplex& 
     vector<Float> edge_mass;
     edge_mass.resize(R.edges().size(), 0.0);
 
+    auto thickness = R.vertices().find<Float>(builtin::thickness);
+
     auto Vs = R.positions().view();
     auto Es = R.edges().topo().view();
 
-    std::ranges::transform(Es,
-                           edge_mass.begin(),
-                           [&](const Vector2i& e) -> Float
-                           {
-                               auto [p0, p1] = std::tuple{Vs[e[0]], Vs[e[1]]};
+    std::ranges::transform(
+        Es,
+        edge_mass.begin(),
+        [&](const Vector2i& e) -> Float
+        {
+            auto [p0, p1] = std::tuple{Vs[e[0]], Vs[e[1]]};
 
-                               auto l = (p1 - p0).norm();
-                               return l * mass_density;
-                           });
+            auto l = (p1 - p0).norm();
+
+            if(thickness)
+            {
+                auto thickness_view = thickness->view();
+                // check if all vertices have the same thickness
+                UIPC_ASSERT(thickness_view[e[0]] == thickness_view[e[1]],
+                            "The thickness of the edge ({},{}) is not consistent, thickness = ({}, {})",
+                            e[0],
+                            e[1],
+                            thickness_view[e[0]],
+                            thickness_view[e[1]]);
+
+                auto r    = thickness_view[e[0]];
+                auto area = r * r * std::numbers::pi;
+
+                return l * area * mass_density;
+            }
+            else
+                return l * mass_density;
+        });
 
     auto Vm = R.vertices().find<Float>(builtin::mass);
 
@@ -135,13 +182,27 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_vertex(SimplicialComplex
     auto Vs = R.positions().view();
     auto Vm = R.vertices().find<Float>(builtin::mass);
 
+    auto thickness = R.vertices().find<Float>(builtin::thickness);
+
     if(!Vm)
         Vm = R.vertices().create<Float>(builtin::mass);
 
     auto Vm_view = view(*Vm);
 
-    std::ranges::fill(Vm_view, mass_density);
-
+    if(thickness)
+    {
+        auto thickness_view = thickness->view();
+        for(auto&& [i, v] : enumerate(Vs))
+        {
+            auto r     = thickness_view[i];
+            auto V     = 4.0 / 3.0 * std::pow(r, 3) * std::numbers::pi;
+            Vm_view[i] = V * mass_density;
+        }
+    }
+    else
+    {
+        std::ranges::fill(Vm_view, mass_density);
+    }
     return Vm;
 }
 

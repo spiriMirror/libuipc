@@ -14,7 +14,8 @@ class Codim0DConstitution : public FiniteElementConstitution
     };
 
   protected:
-    virtual void do_build(BuildInfo& info){};
+    virtual void do_build(BuildInfo& info) = 0;
+    virtual void do_retrieve(FiniteElementMethod::Codim0DFilteredInfo& info) = 0;
 
   private:
     friend class FiniteElementMethod;

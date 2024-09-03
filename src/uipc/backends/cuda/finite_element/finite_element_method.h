@@ -3,6 +3,9 @@
 #include <muda/buffer.h>
 #include <dof_predictor.h>
 #include <uipc/geometry/simplicial_complex.h>
+#include <global_geometry/global_vertex_manager.h>
+#include <muda/ext/linear_system/device_doublet_vector.h>
+#include <muda/ext/linear_system/device_triplet_matrix.h>
 
 namespace uipc::backend::cuda
 {
@@ -133,6 +136,8 @@ class FiniteElementMethod : public SimSystem
 
         void write_scene(WorldVisitor& world);
 
+        GlobalVertexManager* global_vertex_manager = nullptr;
+
         // core invariant data:
         vector<GeoInfo>                                    geo_infos;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
@@ -162,6 +167,8 @@ class FiniteElementMethod : public SimSystem
         vector<IndexT>  h_vertex_is_fixed;
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
+        vector<Float>   h_thicknesses;
+        vector<IndexT>  h_dimensions;
         vector<Float>   h_masses;
 
         vector<IndexT>   h_codim_0ds;
@@ -193,6 +200,7 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Vector3> x_tildes;  // Predicted Positions
         muda::DeviceBuffer<Vector3> x_prevs;   // Positions at last frame
         muda::DeviceBuffer<Float>   masses;    // Mass
+        muda::DeviceBuffer<Float>   thicknesses;      // Thickness
         muda::DeviceBuffer<Matrix3x3> diag_hessians;  // Diagonal Hessian
 
         //tex:
@@ -222,11 +230,16 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Vector9>   G9s;    // Codim2D Elastic Gradient
         muda::DeviceBuffer<Matrix9x9> H9x9s;  // Codim2D Elastic Hessian
 
-
         muda::DeviceVar<Float> fem_3d_elastic_energy;  // FEM3D Elastic Energy
         muda::DeviceBuffer<Float> fem_3d_elastic_energies;  // FEM3D Elastic Energy Per Element
         muda::DeviceBuffer<Vector12>    G12s;     // FEM3D Elastic Gradient
         muda::DeviceBuffer<Matrix12x12> H12x12s;  // FEM3D Elastic Hessian
+
+        // Extra Constitutions
+        muda::DeviceVar<Float>    extra_energy;    // Extra Energy
+        muda::DeviceBuffer<Float> extra_energies;  // Extra Energy Per Element
+        muda::DeviceDoubletVector<Float, 3> extra_gradient;  // Extra Gradient Per Vertex
+        muda::DeviceTripletMatrix<Float, 3> extra_hessian;  // Extra Hessian Per Vertex
     };
 
     class ComputeEnergyInfo

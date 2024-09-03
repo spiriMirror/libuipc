@@ -32,6 +32,12 @@ using Matrix6x6   = Matrix<Float, 6, 6>;
 using Matrix9x9   = Matrix<Float, 9, 9>;
 using Matrix12x12 = Matrix<Float, 12, 12>;
 
-using Transform = Eigen::Transform<Float, 3, Eigen::Affine>;
+using Transform   = Eigen::Transform<Float, 3, Eigen::Affine>;
 using Translation = Eigen::Translation<Float, 3>;
+
+using VectorX    = Eigen::VectorX<Float>;
+using VectorXi   = Eigen::VectorX<IndexT>;
+using VectorXi64 = Eigen::VectorX<I64>;
+using VectorXu   = Eigen::VectorX<U32>;
+using VectorXu64 = Eigen::VectorX<U64>;
 }  // namespace uipc

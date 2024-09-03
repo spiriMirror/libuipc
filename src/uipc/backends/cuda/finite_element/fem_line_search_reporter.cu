@@ -116,12 +116,19 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        fem().fem_3d_elastic_energy.data(),
                        fem().fem_3d_elastic_energies.size());
 
-    Float E1 = fem().codim_1d_elastic_energy;
-    Float E2 = fem().codim_2d_elastic_energy;
-    Float E3 = fem().fem_3d_elastic_energy;
+    DeviceReduce().Sum(fem().extra_energies.data(),
+                       fem().extra_energy.data(),
+                       fem().extra_energies.size());
 
-    //spdlog::info("FEM K: {}, Codim1D-E: {}, Codim2D-E: {}, FEM3D-E: {}", K, E1, E2, E3);
 
-    info.energy(K + E1 + E2 + E3);
+    Float E1      = fem().codim_1d_elastic_energy;
+    Float E2      = fem().codim_2d_elastic_energy;
+    Float E3      = fem().fem_3d_elastic_energy;
+    Float extra_E = fem().extra_energy;
+
+    //spdlog::info(
+    //    "FEM K: {}, Codim1D-E: {}, Codim2D-E: {}, FEM3D-E: {}, FEM-Extra-E{}", K, E1, E2, E3, extra_E);
+
+    info.energy(K + E1 + E2 + E3 + extra_E);
 }
 }  // namespace uipc::backend::cuda

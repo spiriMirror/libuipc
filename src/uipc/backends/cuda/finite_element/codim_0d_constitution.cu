@@ -4,8 +4,9 @@ namespace uipc::backend::cuda
 {
 void Codim0DConstitution::retrieve(FiniteElementMethod::Codim0DFilteredInfo& info)
 {
-    UIPC_ASSERT(false, "Not implemented");
+    do_retrieve(info);
 }
+
 void Codim0DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
 {
     Codim0DConstitution::BuildInfo this_info;

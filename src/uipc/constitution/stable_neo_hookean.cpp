@@ -1,4 +1,5 @@
 #include <uipc/constitution/stable_neo_hookean.h>
+#include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/constitution/conversion.h>
@@ -6,7 +7,18 @@
 
 namespace uipc::constitution
 {
-StableNeoHookean::StableNeoHookean(const Json& config) noexcept {}
+REGISTER_CONSTITUTION_UIDS()
+{
+    using namespace uipc::builtin;
+    list<UIDInfo> uids;
+    uids.push_back(UIDInfo{.uid = 10, .name = "FiniteElement::StableNeoHookean"});
+    return uids;
+}
+
+StableNeoHookean::StableNeoHookean(const Json& config) noexcept
+    : m_config(config)
+{
+}
 
 void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc,
                                 const ElasticModuli&         moduli,
@@ -17,7 +29,7 @@ void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc,
     auto mu     = moduli.mu();
     auto lambda = moduli.lambda();
 
-    UIPC_ASSERT(sc.dim() == 3, "Now StableNeoHookean only supports 3D simplicial complex");
+    UIPC_ASSERT(sc.dim() == 3, "StableNeoHookean only supports 3D simplicial complex");
 
     auto mu_attr = sc.tetrahedra().find<Float>("mu");
     if(!mu_attr)
@@ -38,10 +50,5 @@ Json StableNeoHookean::default_config() noexcept
 U64 StableNeoHookean::get_uid() const noexcept
 {
     return 10;
-}
-
-std::string_view StableNeoHookean::get_name() const noexcept
-{
-    return builtin::ConstitutionUIDRegister::instance().find(get_uid()).name;
 }
 }  // namespace uipc::constitution

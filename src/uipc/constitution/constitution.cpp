@@ -10,12 +10,17 @@ U64 IConstitution::uid() const noexcept
 
 std::string_view IConstitution::name() const noexcept
 {
-    return get_name();
+    return uid_info().name;
 }
 
 ConstitutionType IConstitution::type() const noexcept
 {
     return get_type();
+}
+
+const builtin::UIDInfo& IConstitution::uid_info() const noexcept
+{
+    return builtin::ConstitutionUIDCollection::instance().find(get_uid());
 }
 
 void IConstitution::apply_to(geometry::Geometry& geo) const

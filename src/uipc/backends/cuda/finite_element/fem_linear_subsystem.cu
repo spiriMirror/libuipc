@@ -26,8 +26,9 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
 
     // 1) Hessian Count
     auto hessian_block_count =
-        fem().H12x12s.size() * H12x12_to_H3x3 + fem().H9x9s.size() * H9x9_to_H3x3
-        + fem().H6x6s.size() * H6x6_to_H3x3 + fem().H3x3s.size();
+        fem().H12x12s.size() * H12x12_to_H3x3
+        + fem().H9x9s.size() * H9x9_to_H3x3 + fem().H6x6s.size() * H6x6_to_H3x3
+        + fem().H3x3s.size() + fem().extra_hessian.triplet_count();
 
     if(fem_contact_receiver)  // if contact enabled
     {
@@ -194,6 +195,26 @@ void FEMLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
                    detail::fill_gradient<4>(gradient, G12s(I), indices(I), is_fixed);
                });
 
+    // Extra
+    auto EG = fem().extra_gradient.view();
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(fem().extra_gradient.doublet_count(),
+               [extra_gradient = EG.cviewer().name("extra_gradient"),
+                gradient       = info.gradient().viewer().name("gradient"),
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               {
+                   const auto& [i, G3] = extra_gradient(I);
+
+                   if(is_fixed(i))
+                   {
+                       //
+                   }
+                   else
+                   {
+                       gradient.segment<3>(i * 3).atomic_add(G3);
+                   }
+               });
 
     if(fem_contact_receiver)  //  if contact enabled
     {
@@ -321,6 +342,37 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
                        detail::make_spd<12>(H);
                        detail::fill_hessian<4>(I, hessian, H, indices(I), is_fixed);
                        detail::fill_diag_hessian<4>(diag_hessians, H, indices(I), is_fixed);
+                   });
+
+        offset += N;
+    }
+
+    {  // Extra
+        auto EH = fem().extra_hessian.view();
+        auto N  = fem().extra_hessian.triplet_count();
+
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(fem().extra_hessian.triplet_count(),
+                   [extra_hessian = EH.cviewer().name("extra_hessian"),
+                    hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
+                    is_fixed      = fem().is_fixed.cviewer().name("is_fixed"),
+                    diag_hessians = fem().diag_hessians.viewer().name(
+                        "diag_hessian")] __device__(int I) mutable
+                   {
+                       const auto& [i, j, H3] = extra_hessian(I);
+
+                       if(is_fixed(i) || is_fixed(j))
+                       {
+                           //
+                       }
+                       else
+                       {
+                           hessian(I).write(i, j, H3);
+
+                           if(i == j)
+                               muda::eigen::atomic_add(diag_hessians(i), H3);
+                       }
                    });
 
         offset += N;

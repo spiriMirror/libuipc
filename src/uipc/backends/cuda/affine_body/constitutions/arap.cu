@@ -1,4 +1,5 @@
 #include <sim_system.h>
+#include <affine_body/constitutions/arap_function.h>
 #include <affine_body/affine_body_constitution.h>
 #include <affine_body/affine_body_dynamics.h>
 #include <uipc/common/enumerate.h>
@@ -8,12 +9,7 @@
 
 namespace uipc::backend::cuda
 {
-namespace sym::abd_arap
-{
-#include "sym/arap.inl"
-}
-
-class ARAP : public AffineBodyConstitution
+class ARAP final : public AffineBodyConstitution
 {
   public:
     static constexpr U64 ConstitutionUID = 2ull;
@@ -63,6 +59,7 @@ class ARAP : public AffineBodyConstitution
     virtual void do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info) override
     {
         using namespace muda;
+        namespace abd_arap = sym::abd_arap;
 
         auto body_count = info.qs().size();
 
@@ -75,23 +72,27 @@ class ARAP : public AffineBodyConstitution
                     volumes = info.volumes().cviewer().name("volumes"),
                     dt      = info.dt()] __device__(int i) mutable
                    {
-                       auto& V      = shape_energies(i);
                        auto& q      = qs(i);
                        auto& volume = volumes(i);
                        auto  kappa  = kappas(i);
 
-                       sym::abd_arap::E(V, kappa * dt * dt, volume, q);
+                       Float Vdt2 = volume * dt * dt;
 
-                       // V = kappa * volume * dt * dt * shape_energy(q);
+                       Float E;
+                       abd_arap::E(E, kappa, q);
+
+                       shape_energies(i) = E * Vdt2;
                    });
     }
 
     virtual void do_compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
+        namespace abd_arap = sym::abd_arap;
+
         auto N = info.qs().size();
 
-        ParallelFor(256)
+        ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(N,
                    [qs      = info.qs().cviewer().name("qs"),
@@ -108,20 +109,16 @@ class ARAP : public AffineBodyConstitution
                        Float       kappa  = kappas(i);
                        const auto& volume = volumes(i);
 
-                       //auto      kvt2           = kappa * volume * dt * dt;
-                       //Vector9   shape_gradient = kvt2 * shape_energy_gradient(q);
-                       //Matrix9x9 shape_H        = kvt2 * shape_energy_hessian(q);
+                       Float Vdt2 = volume * dt * dt;
 
-                       Float kt2 = kappa * dt * dt;
+                       Vector9 G9;
+                       abd_arap::dEdq(G9, kappa, q);
 
-                       Vector9 shape_gradient = Vector9::Zero();
-                       sym::abd_arap::dEdq(shape_gradient, kt2, volume, q);
+                       Matrix9x9 H3x3;
+                       abd_arap::ddEddq(H3x3, kappa, q);
 
-                       Matrix9x9 shape_H = Matrix9x9::Zero();
-                       sym::abd_arap::ddEddq(shape_H, kt2, volume, q);
-
-                       H.block<9, 9>(3, 3) += shape_H;
-                       G.segment<9>(3) += shape_gradient;
+                       H.block<9, 9>(3, 3) = H3x3 * Vdt2;
+                       G.segment<9>(3)     = G9 * Vdt2;
 
                        gradients(i) += G;
                        body_hessian(i) += H;

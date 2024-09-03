@@ -32,10 +32,10 @@ void FiniteElementVertexReporter::Impl::report_attributes(GlobalVertexManager::V
                    dst_pos(i)   = src_pos(i);
                });
 
-    auto async_copy = []<typename T>(span<T> src, muda::BufferView<T> dst)
-    { muda::BufferLaunch().copy<T>(dst, src.data()); };
+    info.contact_element_ids().copy_from(fem().h_vertex_contact_element_ids.data());
+    info.dimensions().copy_from(fem().h_dimensions.data());
 
-    async_copy(span{fem().h_vertex_contact_element_ids}, info.contact_element_ids());
+    info.thicknesses().copy_from(fem().thicknesses);
 
     // record the global vertex info
     reporter_vertex_offset = info.coindices().offset();

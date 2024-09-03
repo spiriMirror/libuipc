@@ -2,6 +2,7 @@
 #include <uipc/common/macro.h>
 #include <uipc/common/type_define.h>
 #include <uipc/common/string.h>
+#include <uipc/common/json.h>
 
 namespace uipc::builtin
 {
@@ -16,6 +17,7 @@ struct UIPC_CORE_API UIDInfo
     string email;
     string website;
     string description;
+    Json   extras;
 
     bool is_official_builtin_uid(U64 uid) const noexcept;
 

@@ -4,7 +4,7 @@
 
 namespace uipc::backend::cuda
 {
-MUDA_GENERIC Vector9 flatten(const Matrix3x3& A) noexcept
+UIPC_GENERIC Vector9 flatten(const Matrix3x3& A) noexcept
 {
     Vector9 column;
 
@@ -16,7 +16,7 @@ MUDA_GENERIC Vector9 flatten(const Matrix3x3& A) noexcept
     return column;
 }
 
-MUDA_GENERIC Matrix3x3 unflatten(const Vector9& v) noexcept
+UIPC_GENERIC Matrix3x3 unflatten(const Vector9& v) noexcept
 {
     Matrix3x3      A;
     unsigned int index = 0;
@@ -27,7 +27,7 @@ MUDA_GENERIC Matrix3x3 unflatten(const Vector9& v) noexcept
     return A;
 }
 
-MUDA_GENERIC Float ddot(const Matrix3x3& A, const Matrix3x3& B)
+UIPC_GENERIC Float ddot(const Matrix3x3& A, const Matrix3x3& B)
 {
     Float result = 0;
     for(int y = 0; y < 3; y++)
@@ -37,36 +37,36 @@ MUDA_GENERIC Float ddot(const Matrix3x3& A, const Matrix3x3& B)
     return result;
 }
 
-MUDA_GENERIC void svd(const Matrix3x3& F, Matrix3x3& U, Vector3& Sigma, Matrix3x3& V) noexcept
+UIPC_GENERIC void svd(const Matrix3x3& F, Matrix3x3& U, Vector3& Sigma, Matrix3x3& V) noexcept
 {
     // this function is already tested in the muda eigen test
     muda::eigen::svd(F, U, Sigma, V);
 }
 
-MUDA_GENERIC void polar_decomposition(const Matrix3x3& F, Matrix3x3& R, Matrix3x3& S) noexcept
+UIPC_GENERIC void polar_decomposition(const Matrix3x3& F, Matrix3x3& R, Matrix3x3& S) noexcept
 {
     // this function is already tested in the muda eigen test
     muda::eigen::pd(F, R, S);
 }
 
-MUDA_GENERIC void evd(const Matrix3x3& A, Vector3& eigen_values, Matrix3x3& eigen_vectors) noexcept
+UIPC_GENERIC void evd(const Matrix3x3& A, Vector3& eigen_values, Matrix3x3& eigen_vectors) noexcept
 {
     // this function is already tested in the muda eigen test
     muda::eigen::evd(A, eigen_values, eigen_vectors);
 }
 
-MUDA_GENERIC void evd(const Matrix9x9& A, Vector9& eigen_values, Matrix9x9& eigen_vectors) noexcept
+UIPC_GENERIC void evd(const Matrix9x9& A, Vector9& eigen_values, Matrix9x9& eigen_vectors) noexcept
 {
     // this function is already tested in the muda eigen test
     muda::eigen::evd(A, eigen_values, eigen_vectors);
 }
 
-MUDA_GENERIC void evd(const Matrix12x12& A, Vector12& eigen_values, Matrix12x12& eigen_vectors) noexcept
+UIPC_GENERIC void evd(const Matrix12x12& A, Vector12& eigen_values, Matrix12x12& eigen_vectors) noexcept
 {
     muda::eigen::evd(A, eigen_values, eigen_vectors);
 }
 
-MUDA_GENERIC Matrix9x9 clamp_to_spd(const Matrix9x9& A) noexcept
+UIPC_GENERIC Matrix9x9 clamp_to_spd(const Matrix9x9& A) noexcept
 {
     // clamp directly
     Matrix9x9 Q;
@@ -78,7 +78,7 @@ MUDA_GENERIC Matrix9x9 clamp_to_spd(const Matrix9x9& A) noexcept
     return B;
 }
 
-MUDA_GENERIC Matrix12x12 clamp_to_spd(const Matrix12x12& A) noexcept
+UIPC_GENERIC Matrix12x12 clamp_to_spd(const Matrix12x12& A) noexcept
 {
     // clamp directly
     Matrix12x12 Q;

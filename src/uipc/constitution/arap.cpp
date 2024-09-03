@@ -1,4 +1,5 @@
 #include <uipc/constitution/arap.h>
+#include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/constitution/conversion.h>
@@ -6,7 +7,18 @@
 
 namespace uipc::constitution
 {
-ARAP::ARAP(const Json& config) noexcept {}
+REGISTER_CONSTITUTION_UIDS()
+{
+    using namespace uipc::builtin;
+    list<UIDInfo> uids;
+    uids.push_back(UIDInfo{.uid = 9, .name = "FiniteElement::ARAP"});
+    return uids;
+}
+
+ARAP::ARAP(const Json& config) noexcept
+    : m_config(config)
+{
+}
 
 void ARAP::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
 {
@@ -28,10 +40,5 @@ Json ARAP::default_config() noexcept
 U64 ARAP::get_uid() const noexcept
 {
     return 9;
-}
-
-std::string_view ARAP::get_name() const noexcept
-{
-    return builtin::ConstitutionUIDRegister::instance().find(get_uid()).name;
 }
 }  // namespace uipc::constitution

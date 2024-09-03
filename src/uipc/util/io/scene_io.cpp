@@ -50,8 +50,9 @@ void SceneIO::write_surface_obj(std::string_view filename)
     io.write_obj(path.string(), merged_surface);
 
     auto abs_path = fs::absolute(path).string();
-    spdlog::info("Scene surface with Faces({}), Vertices({}) written to {}",
+    spdlog::info("Scene surface with Faces({}), Edges({}), Vertices({}) written to {}",
                  merged_surface.triangles().size(),
+                 merged_surface.edges().size(),
                  merged_surface.vertices().size(),
                  abs_path.c_str());
 }
@@ -75,9 +76,29 @@ geometry::SimplicialComplex SceneIO::surface() const
 
             UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
 
-            if(simplicial_complex->triangles().find<IndexT>(builtin::is_surf))
+            switch(simplicial_complex->dim())
             {
-                simplicial_complex_has_surf.push_back(simplicial_complex);
+                case 0:
+                    if(simplicial_complex->vertices().find<IndexT>(builtin::is_surf))
+                    {
+                        simplicial_complex_has_surf.push_back(simplicial_complex);
+                    }
+                    break;
+                case 1:
+                    if(simplicial_complex->edges().find<IndexT>(builtin::is_surf))
+                    {
+                        simplicial_complex_has_surf.push_back(simplicial_complex);
+                    }
+                    break;
+                case 2:
+                case 3:
+                    if(simplicial_complex->triangles().find<IndexT>(builtin::is_surf))
+                    {
+                        simplicial_complex_has_surf.push_back(simplicial_complex);
+                    }
+                    break;
+                default:
+                    break;
             }
         }
     }
@@ -88,6 +109,6 @@ geometry::SimplicialComplex SceneIO::surface() const
     }
 
     // 2) merge all the surfaces
-    return extract_surface(simplicial_complex_has_surf);
+    return extract_top_dim_surface(simplicial_complex_has_surf);
 }
 }  // namespace uipc::world

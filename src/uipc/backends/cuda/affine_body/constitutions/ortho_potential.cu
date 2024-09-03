@@ -1,4 +1,5 @@
 #include <sim_system.h>
+#include <affine_body/constitutions/ortho_potential_function.h>
 #include <affine_body/affine_body_constitution.h>
 #include <affine_body/affine_body_dynamics.h>
 #include <uipc/common/enumerate.h>
@@ -8,10 +9,6 @@
 
 namespace uipc::backend::cuda
 {
-namespace sym::abd_ortho_potential
-{
-#include "sym/ortho_potential.inl"
-}
 class OrthoPotential final : public AffineBodyConstitution
 {
   public:
@@ -64,6 +61,8 @@ class OrthoPotential final : public AffineBodyConstitution
 
         auto body_count = info.qs().size();
 
+        namespace AOP = sym::abd_ortho_potential;
+
         ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(body_count,
@@ -73,12 +72,15 @@ class OrthoPotential final : public AffineBodyConstitution
                     volumes = info.volumes().cviewer().name("volumes"),
                     dt      = info.dt()] __device__(int i) mutable
                    {
-                       auto& V      = shape_energies(i);
                        auto& q      = qs(i);
                        auto& volume = volumes(i);
                        auto  kappa  = kappas(i);
+                       Float Vdt2   = volume * dt * dt;
 
-                       sym::abd_ortho_potential::E(V, kappa * dt * dt, volume, q);
+                       Float E;
+                       AOP::E(E, kappa, q);
+
+                       shape_energies(i) = E * Vdt2;
                    });
     }
 
@@ -86,6 +88,8 @@ class OrthoPotential final : public AffineBodyConstitution
     {
         using namespace muda;
         auto N = info.qs().size();
+
+        namespace AOP = sym::abd_ortho_potential;
 
         ParallelFor(256)
             .kernel_name(__FUNCTION__)
@@ -104,16 +108,16 @@ class OrthoPotential final : public AffineBodyConstitution
                        Float       kappa  = kappas(i);
                        const auto& volume = volumes(i);
 
-                       Float kt2 = kappa * dt * dt;
+                       Float Vdt2 = volume * dt * dt;
 
-                       Vector9 shape_gradient = Vector9::Zero();
-                       sym::abd_ortho_potential::dEdq(shape_gradient, kt2, volume, q);
+                       Vector9 G9;
+                       AOP::dEdq(G9, kappa, q);
 
-                       Matrix9x9 shape_H = Matrix9x9::Zero();
-                       sym::abd_ortho_potential::ddEddq(shape_H, kt2, volume, q);
+                       Matrix9x9 H9x9;
+                       AOP::ddEddq(H9x9, kappa, q);
 
-                       H.block<9, 9>(3, 3) += shape_H;
-                       G.segment<9>(3) += shape_gradient;
+                       H.block<9, 9>(3, 3) = H9x9 * Vdt2;
+                       G.segment<9>(3)     = G9 * Vdt2;
 
                        gradients(i) += G;
                        body_hessian(i) += H;

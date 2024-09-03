@@ -1,5 +1,6 @@
 #include <finite_element/finite_element_method.h>
 #include <Eigen/Dense>
+#include <Eigen/Geometry>
 #include <finite_element/finite_element_constitution.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/simplicial_complex.h>
@@ -8,6 +9,8 @@
 #include <finite_element/fem_utils.h>
 #include <uipc/common/algorithm/run_length_encode.h>
 #include <uipc/common/json_eigen.h>
+#include <muda/ext/eigen/inverse.h>
+#include <ranges>
 
 // constitutions
 #include <finite_element/fem_3d_constitution.h>
@@ -41,6 +44,8 @@ void FiniteElementMethod::do_build()
     }
 
     m_impl.gravity = scene.info()["gravity"].get<Vector3>();
+
+    m_impl.global_vertex_manager = &require<GlobalVertexManager>();
 
     auto& dof_predictor = require<DoFPredictor>();
 
@@ -383,6 +388,8 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
 
     // resize buffers
     h_rest_positions.resize(h_positions.size());
+    h_thicknesses.resize(h_positions.size(), 0);  // fill 0 for default
+    h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
     h_masses.resize(h_positions.size());
     h_vertex_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
     h_vertex_is_fixed.resize(h_positions.size(), 0);  // fill 0 for default
@@ -458,8 +465,16 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
                 break;
         }
 
+        {  // 2) fill backend_fem_vertex_offset in geometry
+            auto vertex_offset = sc->meta().find<IndexT>(builtin::backend_fem_vertex_offset);
+            if(!vertex_offset)
+                vertex_offset =
+                    sc->meta().create<IndexT>(builtin::backend_fem_vertex_offset, -1);
+            auto vertex_offset_view = geometry::view(*vertex_offset);
+            std::ranges::fill(vertex_offset_view, info.vertex_offset);
+        }
 
-        {  // 2) setup positions
+        {  // 3) setup positions
             auto pos_view = sc->positions().view();
             auto dst_pos_span =
                 span{h_positions}.subspan(info.vertex_offset, info.vertex_count);
@@ -474,7 +489,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
             std::ranges::copy(rest_pos_view, dst_rest_pos_span.begin());
         }
 
-        {  // 3) setup mass
+        {  // 4) setup mass
             auto mass      = sc->vertices().find<Float>(builtin::mass);
             auto mass_view = mass->view();
             auto dst_mass_span =
@@ -483,8 +498,21 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
             std::ranges::copy(mass_view, dst_mass_span.begin());
         }
 
+        {  // 5) setup thickness
+            auto thickness = sc->vertices().find<Float>(builtin::thickness);
+            auto dst_thickness_span =
+                span{h_thicknesses}.subspan(info.vertex_offset, info.vertex_count);
 
-        {  // 4) setup vertex contact element id
+            if(thickness)
+            {
+                auto thickness_view = thickness->view();
+                UIPC_ASSERT(thickness_view.size() == dst_thickness_span.size(),
+                            "thickness size mismatching");
+                std::ranges::copy(thickness_view, dst_thickness_span.begin());
+            }
+        }
+
+        {  // 6) setup vertex contact element id
             auto ceid = sc->vertices().find<IndexT>(builtin::contact_element_id);
             auto dst_eid_span =
                 span{h_vertex_contact_element_ids}.subspan(info.vertex_offset,
@@ -499,7 +527,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
             }
         }
 
-        {  // 5) setup vertex is_fixed
+        {  // 7) setup vertex is_fixed
 
             auto is_fixed = sc->vertices().find<IndexT>(builtin::is_fixed);
             auto dst_is_fixed_span =
@@ -512,6 +540,12 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
                             "is_fixed size mismatching");
                 std::ranges::copy(is_fixed_view, dst_is_fixed_span.begin());
             }
+        }
+
+        {  // 8) setup dimension
+            auto dst_dim_span =
+                span{h_dimensions}.subspan(info.vertex_offset, info.vertex_count);
+            std::ranges::fill(dst_dim_span, sc->dim());
         }
     }
 }
@@ -540,6 +574,9 @@ void FiniteElementMethod::Impl::_build_on_device()
     masses.resize(h_masses.size());
     masses.view().copy_from(h_masses.data());
 
+    thicknesses.resize(h_thicknesses.size());
+    thicknesses.view().copy_from(h_thicknesses.data());
+
     diag_hessians.resize(xs.size());
 
     // 2) Elements
@@ -558,12 +595,41 @@ void FiniteElementMethod::Impl::_build_on_device()
     tets.view().copy_from(h_tets.data());
     rest_volumes.resize(tets.size());
 
-    // 3) Basis
-    // String Basis
-    // TODO:
+    // 3) Material Space Attribute
+    // Rod
+    ParallelFor()
+        .kernel_name("Rod Basis")
+        .apply(codim_1ds.size(),
+               [codim_1ds = codim_1ds.viewer().name("codim_1ds"),
+                x_bars    = x_bars.viewer().name("x_bars"),
+                rest_lengths = rest_lengths.viewer().name("rest_lengths")] __device__(int i) mutable
+               {
+                   const Vector2i& edge = codim_1ds(i);
+                   const Vector3&  x0   = x_bars(edge[0]);
+                   const Vector3&  x1   = x_bars(edge[1]);
 
-    // Shell Basis
-    // TODO:
+                   rest_lengths(i) = (x1 - x0).norm();
+               });
+
+
+    // Shell
+    ParallelFor()
+        .kernel_name("Shell Basis")
+        .apply(codim_2ds.size(),
+               [codim_2ds = codim_2ds.viewer().name("codim_2ds"),
+                x_bars    = x_bars.viewer().name("x_bars"),
+                rest_areas = rest_areas.viewer().name("rest_areas")] __device__(int i) mutable
+               {
+                   const Vector3i& tri = codim_2ds(i);
+                   const Vector3&  x0  = x_bars(tri[0]);
+                   const Vector3&  x1  = x_bars(tri[1]);
+                   const Vector3&  x2  = x_bars(tri[2]);
+
+                   Vector3 E01 = x1 - x0;
+                   Vector3 E02 = x2 - x0;
+
+                   rest_areas(i) = 0.5 * E01.cross(E02).norm();
+               });
 
     // FEM3D Material Basis
     Dm3x3_invs.resize(tets.size());
@@ -707,6 +773,7 @@ void FiniteElementMethod::Impl::compute_x_tilde(DoFPredictor::PredictInfo& info)
                    }
                });
 }
+
 void FiniteElementMethod::Impl::compute_velocity(DoFPredictor::ComputeVelocityInfo& info)
 {
     using namespace muda;

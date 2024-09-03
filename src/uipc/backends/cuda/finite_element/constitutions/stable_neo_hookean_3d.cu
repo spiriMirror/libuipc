@@ -65,7 +65,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         using namespace muda;
-        namespace SNK = sym::stable_neo_hookean_3d;
+        namespace SNH = sym::stable_neo_hookean_3d;
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
@@ -100,7 +100,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                        //ARAP::E(E, lambda * dt * dt, volumes(I), F);
 
-                       SNK::E(E, mu, lambda, VecF);
+                       SNH::E(E, mu, lambda, VecF);
                        E *= dt * dt * volumes(I);
                        element_energies(I) = E;
                    });
@@ -109,7 +109,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        namespace SNK = sym::stable_neo_hookean_3d;
+        namespace SNH = sym::stable_neo_hookean_3d;
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
@@ -145,8 +145,8 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                        Vector9   dEdF;
                        Matrix9x9 ddEddF;
-                       SNK::dEdVecF(dEdF, mu, lambda, VecF);
-                       SNK::ddEddVecF(ddEddF, mu, lambda, VecF);
+                       SNH::dEdVecF(dEdF, mu, lambda, VecF);
+                       SNH::ddEddVecF(ddEddF, mu, lambda, VecF);
                        dEdF *= vdt2;
                        ddEddF *= vdt2;
 

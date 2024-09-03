@@ -4,27 +4,27 @@
 
 namespace uipc::backend::cuda::fem
 {
-MUDA_GENERIC Float invariant2(const Matrix3x3& F)
+UIPC_GENERIC Float invariant2(const Matrix3x3& F)
 {
     return ddot(F, F);
 }
 
-MUDA_GENERIC Float invariant2(const Vector3& Sigma)
+UIPC_GENERIC Float invariant2(const Vector3& Sigma)
 {
     return Sigma[0] * Sigma[0] + Sigma[1] * Sigma[1] + Sigma[2] * Sigma[2];
 }
 
-MUDA_GENERIC Float invariant3(const Matrix3x3& F)
+UIPC_GENERIC Float invariant3(const Matrix3x3& F)
 {
     return F.determinant();
 }
 
-MUDA_GENERIC Float invariant3(const Vector3& Sigma)
+UIPC_GENERIC Float invariant3(const Vector3& Sigma)
 {
     return Sigma[0] * Sigma[1] * Sigma[2];
 }
 
-MUDA_GENERIC Float invariant4(const Matrix3x3& F, const Vector3& a)
+UIPC_GENERIC Float invariant4(const Matrix3x3& F, const Vector3& a)
 {
     Matrix3x3 U, V;
     Vector3   Sigma;
@@ -33,12 +33,12 @@ MUDA_GENERIC Float invariant4(const Matrix3x3& F, const Vector3& a)
     return (S * a).dot(a);
 }
 
-MUDA_GENERIC Float invariant5(const Matrix3x3& F, const Vector3& a)
+UIPC_GENERIC Float invariant5(const Matrix3x3& F, const Vector3& a)
 {
     return (F * a).squaredNorm();
 }
 
-MUDA_GENERIC Matrix3x3 dJdF(const Matrix3x3& F)
+UIPC_GENERIC Matrix3x3 dJdF(const Matrix3x3& F)
 {
     Matrix3x3 dJdF;
     //tex:
@@ -53,13 +53,13 @@ MUDA_GENERIC Matrix3x3 dJdF(const Matrix3x3& F)
     return dJdF;
 }
 
-MUDA_GENERIC Matrix3x3 Dm_inv(const Vector3& X0, const Vector3& X1, const Vector3& X2, const Vector3& X3)
+UIPC_GENERIC Matrix3x3 Dm_inv(const Vector3& X0, const Vector3& X1, const Vector3& X2, const Vector3& X3)
 {
     Matrix3x3 Dm = Ds(X0, X1, X2, X3);
     return muda::eigen::inverse(Dm);
 }
 
-MUDA_GENERIC Matrix3x3 Ds(const Vector3& x0, const Vector3& x1, const Vector3& x2, const Vector3& x3)
+UIPC_GENERIC Matrix3x3 Ds(const Vector3& x0, const Vector3& x1, const Vector3& x2, const Vector3& x3)
 {
     Matrix3x3 Ds;
     Ds.col(0) = x1 - x0;
@@ -68,7 +68,7 @@ MUDA_GENERIC Matrix3x3 Ds(const Vector3& x0, const Vector3& x1, const Vector3& x
     return Ds;
 }
 
-MUDA_GENERIC Matrix9x12 dFdx(const Matrix3x3& DmInv)
+UIPC_GENERIC Matrix9x12 dFdx(const Matrix3x3& DmInv)
 {
     // clang-format off
     
@@ -259,7 +259,7 @@ MUDA_GENERIC Matrix9x12 dFdx(const Matrix3x3& DmInv)
     return PFPu;
 }
 
-MUDA_GENERIC Matrix3x3 F(const Vector3&   x0,
+UIPC_GENERIC Matrix3x3 F(const Vector3&   x0,
                          const Vector3&   x1,
                          const Vector3&   x2,
                          const Vector3&   x3,
@@ -267,30 +267,5 @@ MUDA_GENERIC Matrix3x3 F(const Vector3&   x0,
 {
     auto ds = Ds(x0, x1, x2, x3);
     return ds * DmInv;
-}
-
-
-MUDA_GENERIC void EG_to_lame(Float E, Float G, Float& lambda, Float& mu, Float& poisson)
-{
-    // ref: https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
-
-    //tex: $\mu = G$
-    mu = G;
-    //tex: $\lambda = \frac{G(E-2 G)}{3 G-E}$
-    lambda = G * (E - 2 * G) / (3 * G - E);
-    //tex: $\nu = {\frac {E}{2G}}-1$
-    poisson = E / (2 * G) - 1;
-}
-
-MUDA_GENERIC void lame_to_EG(Float lambda, Float mu, Float& E, Float& G, Float& poisson)
-{
-    // ref: https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
-
-    //tex: $G = \mu$
-    G = mu;
-    //tex: $ E = \frac{G(3 \lambda+2 G)}{\lambda+G}$
-    E = G * (3 * lambda + 2 * G) / (lambda + G);
-    //tex: $\nu = \frac{\lambda}{2(\lambda+G)}$
-    poisson = lambda / (2 * (lambda + G));
 }
 }  // namespace uipc::backend::cuda

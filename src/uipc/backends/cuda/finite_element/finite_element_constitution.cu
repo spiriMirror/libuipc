@@ -6,7 +6,7 @@ void FiniteElementConstitution::do_build()
 {
     m_fem = &require<FiniteElementMethod>();
 
-    // Check if we have the Affine Body Constitution
+    // Check if we have the FiniteElementConstitution
     auto uids = world().scene().constitution_tabular().uids();
     if(!std::binary_search(uids.begin(), uids.end(), constitution_uid()))
     {

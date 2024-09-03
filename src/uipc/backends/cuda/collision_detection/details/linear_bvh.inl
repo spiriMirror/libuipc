@@ -18,6 +18,9 @@ MUDA_DEVICE uint32_t LinearBVHViewerT<IsConst>::query(const QueryType& Q,
     uint32_t* stack_end = stack + stack_num;
     *stack_ptr++        = 0;  // root node is always 0
 
+    if(m_num_objects == 0)
+        return 0;
+
     if(m_num_objects == 1)
     {
         if(Intersect(m_aabbs(0), Q))

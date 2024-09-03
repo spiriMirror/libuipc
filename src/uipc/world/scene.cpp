@@ -7,31 +7,31 @@ namespace uipc::world
 // ----------------------------------------------------------------------------
 Json Scene::default_config() noexcept
 {
-    Json j;
-    j["dt"]      = 0.01;
-    j["gravity"] = Vector3{0.0, -9.8, 0.0};
+    Json config;
+    config["dt"]      = 0.01;
+    config["gravity"] = Vector3{0.0, -9.8, 0.0};
 
-    j["newton"]["use_adaptive_tol"] = false;
-    j["newton"]["velocity_tol"]     = 0.05_m / 1.0_s;
-    j["newton"]["max_iter"]         = 1024;
+    config["newton"]["use_adaptive_tol"] = false;
+    config["newton"]["velocity_tol"]     = 0.05_m / 1.0_s;
+    config["newton"]["max_iter"]         = 1024;
 
-    j["linear_system"]["tol_rate"] = 1e-3;
-    j["linear_system"]["solver"]   = "linear_pcg";
+    config["linear_system"]["tol_rate"] = 1e-3;
+    config["linear_system"]["solver"]   = "linear_pcg";
 
-    j["line_search"]["report_energy"] = false;
-    j["line_search"]["max_iter"]      = 8;
+    config["line_search"]["report_energy"] = false;
+    config["line_search"]["max_iter"]      = 8;
 
-    j["contact"]["enable"]             = true;
-    j["contact"]["friction"]["enable"] = true;
-    j["contact"]["contitution"]        = "ipc";
-    j["contact"]["d_hat"]              = 0.01;
-    j["contact"]["eps_velocity"]       = 0.01;
+    config["contact"]["enable"]             = true;
+    config["contact"]["friction"]["enable"] = true;
+    config["contact"]["contitution"]        = "ipc";
+    config["contact"]["d_hat"]              = 0.01;
+    config["contact"]["eps_velocity"]       = 0.01;
 
-    j["sanity_check"]["enable"] = true;
+    config["sanity_check"]["enable"] = true;
 
     // something that is unofficial
-    j["extras"] = Json::object();
-    return j;
+    config["extras"] = Json::object();
+    return config;
 }
 
 Scene::Scene(const Json& config)

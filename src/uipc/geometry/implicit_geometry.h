@@ -1,6 +1,6 @@
 #pragma once
 #include <uipc/geometry/geometry.h>
-
+#include <uipc/builtin/uid_info.h>
 namespace uipc::geometry
 {
 class UIPC_CORE_API ImplicitGeometry : public Geometry
@@ -8,8 +8,10 @@ class UIPC_CORE_API ImplicitGeometry : public Geometry
   public:
     ImplicitGeometry();
 
+    const builtin::UIDInfo& uid_info() const noexcept;
+    std::string_view        name() const noexcept;
+
   protected:
-    // Inherited via Geometry
     std::string_view get_type() const noexcept override;
 };
 }  // namespace uipc::geometry
