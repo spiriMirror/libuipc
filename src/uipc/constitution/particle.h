@@ -5,15 +5,14 @@
 
 namespace uipc::constitution
 {
-class UIPC_CORE_API HookeanSpring : public FiniteElementConstitution
+class UIPC_CORE_API Particle : public FiniteElementConstitution
 {
     using Base = FiniteElementConstitution;
 
   public:
-    HookeanSpring(const Json& config = default_config()) noexcept;
+    Particle(const Json& config = default_config()) noexcept;
 
     void apply_to(geometry::SimplicialComplex& sc,
-                  Float                        kappa        = 40.0_MPa,
                   Float                        mass_density = 1e3,
                   Float                        thickness    = 0.01_m) const;
 

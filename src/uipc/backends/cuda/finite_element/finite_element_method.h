@@ -168,6 +168,7 @@ class FiniteElementMethod : public SimSystem
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
         vector<Float>   h_thicknesses;
+        vector<IndexT>  h_dimensions;
         vector<Float>   h_masses;
 
         vector<IndexT>   h_codim_0ds;

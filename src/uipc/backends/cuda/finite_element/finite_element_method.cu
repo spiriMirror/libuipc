@@ -389,6 +389,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
     // resize buffers
     h_rest_positions.resize(h_positions.size());
     h_thicknesses.resize(h_positions.size(), 0);  // fill 0 for default
+    h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
     h_masses.resize(h_positions.size());
     h_vertex_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
     h_vertex_is_fixed.resize(h_positions.size(), 0);  // fill 0 for default
@@ -511,7 +512,6 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
             }
         }
 
-
         {  // 6) setup vertex contact element id
             auto ceid = sc->vertices().find<IndexT>(builtin::contact_element_id);
             auto dst_eid_span =
@@ -540,6 +540,12 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
                             "is_fixed size mismatching");
                 std::ranges::copy(is_fixed_view, dst_is_fixed_span.begin());
             }
+        }
+
+        {  // 8) setup dimension
+            auto dst_dim_span =
+                span{h_dimensions}.subspan(info.vertex_offset, info.vertex_count);
+            std::ranges::fill(dst_dim_span, sc->dim());
         }
     }
 }

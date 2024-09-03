@@ -46,6 +46,7 @@ inline MUDA_GENERIC Float PT_thickness(const Float& thickness_P,
                     "Triangle thickness should be the same");
     }
 
+    // return (thickness_P + thickness_T0) / 2.0;
     return (thickness_P + thickness_T0) / 2.0;
 }
 
@@ -63,7 +64,8 @@ inline MUDA_GENERIC Float EE_thickness(const Float& thickness_Ea0,
                     "Edge thickness should be the same");
     }
 
-    return (thickness_Ea0 + thickness_Eb0) / 2.0;
+    // return (thickness_Ea0 + thickness_Eb0) / 2.0;
+    return (thickness_Ea0 + thickness_Eb0);
 }
 
 /**
@@ -78,7 +80,8 @@ inline MUDA_GENERIC Float PE_thickness(const Float& thickness_P,
         MUDA_ASSERT(thickness_E0 == thickness_E1, "Edge thickness should be the same");
     }
 
-    return (thickness_P + thickness_E0) / 2.0;
+    // return (thickness_P + thickness_E0) / 2.0;
+    return thickness_P + thickness_E0;
 }
 
 /**
@@ -86,15 +89,18 @@ inline MUDA_GENERIC Float PE_thickness(const Float& thickness_P,
  */
 inline MUDA_GENERIC Float PP_thickness(const Float& thickness_P0, const Float& thickness_P1)
 {
-    return (thickness_P0 + thickness_P1) / 2.0;
+    // return (thickness_P0 + thickness_P1) / 2.0;
+    return (thickness_P0 + thickness_P1);
 }
 
 /**
  * @brief the range of d^2, considering the thickness
  */
-inline MUDA_GENERIC Vector2 D_range(Float thickness, Float d_hat)
+inline MUDA_GENERIC Vector2 D_range(Float xi, Float d_hat)
 {
-    return {thickness * thickness, d_hat * d_hat + 2 * d_hat * thickness};
+    auto upper = xi + d_hat;
+    auto lower = xi;
+    return {lower * lower, upper * upper};
 }
 
 /**
@@ -103,7 +109,8 @@ inline MUDA_GENERIC Vector2 D_range(Float thickness, Float d_hat)
 inline MUDA_GENERIC bool is_active_D(Vector2 D_range, Float D)
 {
     MUDA_ASSERT(D > D_range.x(),
-                "Thickness Voilated! D should be larger than the lower bound of D_range (%f,%f)",
+                "Thickness Voilated! D(%f) should be larger than the lower bound of D_range (%f,%f)",
+                D,
                 D_range.x(),
                 D_range.y());
 

@@ -198,6 +198,9 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
             const auto& codimV = codimVs(i);
             const auto& V      = Vs(j);
 
+            if(codimV >= V)  // avoid duplicate
+                return false;
+
             Vector3 P0  = Ps(codimV);
             Vector3 P1  = Ps(V);
             Vector3 dP0 = alpha * dxs(codimV);
@@ -227,6 +230,12 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
         {
             const auto& codimV = codimVs(i);
             const auto& E      = Es(j);
+
+            MUDA_ASSERT(E[0] != codimV && E[1] != codimV,
+                        "Edge (%d,%d) contains codim vertex (%d), why can it happen?",
+                        E[0],
+                        E[1],
+                        codimV);
 
             Vector3 E0  = Ps(E[0]);
             Vector3 E1  = Ps(E[1]);
@@ -385,8 +394,10 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        PP.setConstant(-1);
 
                        Vector2i indices = PP_pairs(i);
-                       IndexT   P0      = surf_vertices(indices(0));
-                       IndexT   P1      = surf_vertices(indices(1));
+
+                       IndexT P0 = surf_vertices(indices(0));
+                       IndexT P1 = surf_vertices(indices(1));
+
 
                        const auto& V0 = positions(P0);
                        const auto& V1 = positions(P1);
@@ -828,7 +839,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                        Float toi = large_enough_toi;
 
                        bool faraway =
-                           !distance::point_point_ccd_broadphase(VP0, VP1, dVP0, dVP1, d_hat);
+                           !distance::point_point_ccd_broadphase(VP0, VP1, dVP0, dVP1, d_hat + thickness);
 
                        if(faraway)
                        {
@@ -881,7 +892,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                        Float toi = large_enough_toi;
 
                        bool faraway = !distance::point_edge_ccd_broadphase(
-                           VP, EP0, EP1, dVP, dEP0, dEP1, d_hat);
+                           VP, EP0, EP1, dVP, dEP0, dEP1, d_hat + thickness);
 
                        if(faraway)
                        {
@@ -942,7 +953,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 
 
                        bool faraway = !distance::point_triangle_ccd_broadphase(
-                           VP, FP0, FP1, FP2, dVP, dFP0, dFP1, dFP2, d_hat);
+                           VP, FP0, FP1, FP2, dVP, dFP0, dFP1, dFP2, d_hat + thickness);
 
                        if(faraway)
                        {
@@ -1009,7 +1020,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                            dEP1,
                            dEP2,
                            dEP3,
-                           d_hat);
+                           d_hat + thickness);
 
                        if(faraway)
                        {
