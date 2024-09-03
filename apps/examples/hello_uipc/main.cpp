@@ -1,5 +1,6 @@
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body.h>
+#include <uipc/builtin/implicit_geometry_uid_collection.h>
 
 class NullEngine : public uipc::engine::IEngine
 {
@@ -98,7 +99,7 @@ void NullEngine::do_init(uipc::backend::WorldVisitor v)
             if(ig)
             {
                 auto uid = ig->meta().find<uipc::U64>(uipc::builtin::implicit_geometry_uid);
-                auto info = builtin::ImplicitGeometryUIDRegister::instance().find(
+                auto info = builtin::ImplicitGeometryUIDCollection::instance().find(
                     uid->view()[0]);
                 spdlog::info("[NullEngine] Implicit Geometry: {} ({}) ", info.name, info.uid);
 

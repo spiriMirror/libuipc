@@ -2,6 +2,9 @@
 #include <pyuipc/constitution/constitution.h>
 #include <pyuipc/constitution/elastic_moduli.h>
 #include <pyuipc/constitution/fem_constitution.h>
+#include <pyuipc/constitution/particle.h>
+#include <pyuipc/constitution/hookean_spring.h>
+#include <pyuipc/constitution/shell_neo_hookean.h>
 #include <pyuipc/constitution/stable_neo_hookean.h>
 #include <pyuipc/constitution/affine_body.h>
 namespace pyuipc::constitution
@@ -12,6 +15,9 @@ Module::Module(py::module& m)
     PyElasticModuli{m};
 
     PyFiniteElementConstitution{m};
+    PyParticle{m};
+    PyHookeanSpring{m};
+    PyShellNeoHookean{m};
     PyStableNeoHookean{m};
 
     PyAffineBodyConstitution{m};

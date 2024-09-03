@@ -15,7 +15,7 @@ def process_surface(sc: SimplicialComplex):
     sc = flip_inward_triangles(sc)
     return sc
 
-Logger.set_level(Logger.Level.Warn)
+Logger.set_level(Logger.Level.Info)
 
 workspace = AssetDir.output_path(__file__)
 
@@ -24,53 +24,41 @@ world = World(engine)
 
 config = Scene.default_config()
 print(config)
-config['newton']['max_iter'] = 8
-config['contact']['friction']['enable'] = False
 
 scene = Scene(config)
 
 snk = StableNeoHookean()
-abd = AffineBodyConstitution()
 scene.constitution_tabular().insert(snk)
-scene.constitution_tabular().insert(abd)
-scene.contact_tabular().default_model(0.5, 1e9)
+scene.contact_tabular().default_model(0.05, 1e9)
 default_element = scene.contact_tabular().default_element()
 
 pre_trans = pyuipc.Matrix4x4.Identity()
+
+# scaling
+pre_trans[0,0] = 0.2
+pre_trans[1,1] = 0.2
+pre_trans[2,2] = 0.2
 
 io = SimplicialComplexIO(pre_trans)
 cube = io.read(f'{AssetDir.tetmesh_path()}/cube.msh')
 cube = process_surface(cube)
 
-fem_cube = cube.copy()
-moduli = ElasticModuli.youngs_poisson(2e4, 0.49)
-snk.apply_to(fem_cube, moduli)
-default_element.apply_to(fem_cube)
-
-abd_cube = cube.copy()
-abd.apply_to(abd_cube, 1e8)
-default_element.apply_to(abd_cube)
+moduli = ElasticModuli.youngs_poisson(1e4, 0.49)
+snk.apply_to(cube, moduli)
+default_element.apply_to(cube)
 
 object = scene.objects().create("object")
-N = 6
+N = 4
 
 trans = Matrix4x4.Identity()
 
 for i in range(N):
-    geo = None
-    if i % 2 == 0:
-        geo = fem_cube.copy()
-        pos_v = view(geo.positions())
-        for j in range(len(pos_v)):
-            pos_v[j][1] += 1.2 * i
-    else:
-        geo = abd_cube.copy()
-        pos_v = view(geo.positions())
-        for j in range(len(pos_v)):
-            pos_v[j][1] += 1.2 * i
-    object.geometries().create(geo)
+    pos_v = view(cube.positions())
+    for j in range(len(pos_v)):
+        pos_v[j][1] += 0.24
+    object.geometries().create(cube)
 
-g = ground(-1.2)
+g = ground(0.0)
 object.geometries().create(g)
 
 sio = SceneIO(scene)
