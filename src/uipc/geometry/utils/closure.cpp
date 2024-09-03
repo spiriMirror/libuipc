@@ -136,30 +136,36 @@ SimplicialComplex facet_closure(const SimplicialComplex& O)
     switch(O.dim())
     {
         case 0: {
-            // nothing to do, vertices are closure of vertices
+            R.vertices().create<IndexT>(builtin::is_facet, 1);
         }
         break;
         case 1: {
-            // share edges
             R.edges().resize(O.edges().size());
             R.edges().topo().share(O.edges().topo());
-            // no need to do anything, edges and vertices are closure of edges
+
+            R.vertices().create<IndexT>(builtin::is_facet, 0);
+            R.edges().create<IndexT>(builtin::is_facet, 1);
         }
         break;
         case 2: {
-            // share triangles
             R.triangles().resize(O.triangles().size());
             R.triangles().topo().share(O.triangles().topo());
-            // generate the edges from the triangles
             facet_closure_dim_2(R);
+
+            R.vertices().create<IndexT>(builtin::is_facet, 0);
+            R.edges().create<IndexT>(builtin::is_facet, 0);
+            R.triangles().create<IndexT>(builtin::is_facet, 1);
         }
         break;
         case 3: {
-            // share tetrahedra
             R.tetrahedra().resize(O.tetrahedra().size());
             R.tetrahedra().topo().share(O.tetrahedra().topo());
-            // generate the faces from the tetrahedrad
             facet_closure_dim_3(R);
+
+            R.vertices().create<IndexT>(builtin::is_facet, 0);
+            R.edges().create<IndexT>(builtin::is_facet, 0);
+            R.triangles().create<IndexT>(builtin::is_facet, 0);
+            R.tetrahedra().create<IndexT>(builtin::is_facet, 1);
         }
         break;
         default:

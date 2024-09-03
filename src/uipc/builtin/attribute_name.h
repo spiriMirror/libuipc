@@ -39,9 +39,16 @@ UIPC_BUILTIN_ATTRIBUTE(extra_constitution_uids);
 UIPC_BUILTIN_ATTRIBUTE(implicit_geometry_uid);
 
 /**
- * @brief `is_surf` <IndexT> attribute on **vertices** / **edges** / **triangles** / **tetrahedra**... to indicate if the element is a surface element.
+ * @brief `is_surf` <IndexT> attribute on **vertices** / **edges** / **triangles** / **tetrahedra**... 
+ * to indicate if the element is a surface element.
  */
 UIPC_BUILTIN_ATTRIBUTE(is_surf);
+
+/**
+ * @brief `is_facet` <IndexT> attribute on **vertices** / **edges** / **triangles** / **tetrahedra**
+ * to indicate if the element is a facet element.
+ */
+UIPC_BUILTIN_ATTRIBUTE(is_facet);
 
 /**
  * @brief `orient` <IndexT>[-1,0,1] attribute on **triangles** to indicate the orientation of the triangle.
