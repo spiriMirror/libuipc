@@ -152,7 +152,7 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
         edge_count = sc.edges().size();
     else if(sc.dim() == 2)
     {
-        auto is_facet      = sc.triangles().find<IndexT>(builtin::is_facet);
+        auto is_facet      = sc.edges().find<IndexT>(builtin::is_facet);
         auto is_facet_view = is_facet->view();
         for(auto&& [i, e] : enumerate(Es))
         {

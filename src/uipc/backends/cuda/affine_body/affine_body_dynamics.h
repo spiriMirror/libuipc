@@ -6,7 +6,6 @@
 #include <uipc/geometry/simplicial_complex.h>
 #include <sim_engine.h>
 #include <dof_predictor.h>
-#include <gradient_hessian_computer.h>
 #include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda
@@ -139,6 +138,7 @@ class AffineBodyDynamics : public SimSystem
         // void _build_subsystems(WorldVisitor& world);
         void _build_body_infos(WorldVisitor& world);
         void _build_related_infos(WorldVisitor& world);
+        void _setup_geometry_attributes(WorldVisitor& world);
         void _build_geometry_on_host(WorldVisitor& world);
         void _build_geometry_on_device(WorldVisitor& world);
         void _distribute_body_infos();
@@ -148,7 +148,6 @@ class AffineBodyDynamics : public SimSystem
 
         void compute_q_tilde(DoFPredictor::PredictInfo& info);
         void compute_q_v(DoFPredictor::ComputeVelocityInfo& info);
-        void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);
 
         bool dump(DumpInfo& info);
         bool try_recover(RecoverInfo& info);
@@ -358,6 +357,7 @@ class AffineBodyDynamics : public SimSystem
     friend class ABDDiagPreconditioner;
 
     friend class AffineBodyConstitution;
+    friend class ABDGradientHessianComputer;
 
     Impl m_impl;
 };

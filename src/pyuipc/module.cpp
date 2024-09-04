@@ -9,6 +9,7 @@
 #include <pyuipc/engine/module.h>
 #include <pyuipc/constitution/module.h>
 #include <pyuipc/backend/module.h>
+#include <pyuipc/builtin/module.h>
 
 
 using namespace uipc;
@@ -39,4 +40,7 @@ PYBIND11_MODULE(pyuipc, m)
 
     auto backend = m.def_submodule("backend");
     pyuipc::backend::Module{backend};
+
+    auto builtin = m.def_submodule("builtin");
+    pyuipc::builtin::Module{builtin};
 }

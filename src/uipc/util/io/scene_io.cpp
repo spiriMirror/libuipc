@@ -138,8 +138,7 @@ geometry::SimplicialComplex SceneIO::simplicial_surface() const
         UIPC_WARN_WITH_LOCATION("No simplicial complex with surface found.");
     }
 
-    // 2) merge all the surfaces
-    return merge(simplicial_complex_has_surf);
+    return extract_surface(simplicial_complex_has_surf);
 }
 
 geometry::SimplicialComplex SceneIO::simplicial_surface(IndexT dim) const
@@ -173,7 +172,6 @@ geometry::SimplicialComplex SceneIO::simplicial_surface(IndexT dim) const
         UIPC_WARN_WITH_LOCATION("No simplicial complex with surface found.");
     }
 
-    // 2) merge all the surfaces
-    return merge(simplicial_complex_has_surf);
+    return extract_surface(simplicial_complex_has_surf);
 }
 }  // namespace uipc::world

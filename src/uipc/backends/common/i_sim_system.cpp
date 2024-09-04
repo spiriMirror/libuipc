@@ -85,6 +85,13 @@ void ISimSystem::do_apply_recover(RecoverInfo&) {}
 
 void ISimSystem::do_clear_recover(RecoverInfo&) {}
 
+
+ISimSystem::BaseInfo::BaseInfo(SizeT frame, const Json& config) noexcept
+    : m_frame(frame)
+    , m_config(config)
+{
+}
+
 std::string_view ISimSystem::BaseInfo::workspace() const noexcept
 {
     return ModuleInfo::instance().workspace();
@@ -120,5 +127,14 @@ std::string ISimSystem::BaseInfo::dump_path(std::string_view _file_) const noexc
         fs::create_directories(file_output_path);
 
     return (file_output_path / "").string();
+}
+const Json& ISimSystem::BaseInfo::config() const noexcept
+{
+    return m_config;
+}
+
+SizeT ISimSystem::BaseInfo::frame() const noexcept
+{
+    return m_frame;
 }
 }  // namespace uipc::backend

@@ -173,7 +173,7 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
     };
 
     R.triangles().copy_from(src.triangles(), AttributeCopy::pull(t_new2old), {}, exclude_attrs);
-    auto is_facet      = R.triangles().find<IndexT>(builtin::is_facet);
+    auto is_facet      = R.triangles().create<IndexT>(builtin::is_facet);
     auto is_facet_view = view(*is_facet);
     std::ranges::fill(is_facet_view, 1);  // now all the triangles are facets
 

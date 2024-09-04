@@ -64,7 +64,7 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
   private:
     // Aware Top Systems
     GlobalVertexManager*           m_global_vertex_manager    = nullptr;
-    GlobalSimpicialSurfaceManager* m_global_surface_manager   = nullptr;
+    GlobalSimpicialSurfaceManager* m_global_simplicial_surface_manager   = nullptr;
     GlobalContactManager*          m_global_contact_manager   = nullptr;
     GlobalTrajectoryFilter*        m_global_trajectory_filter = nullptr;
 
