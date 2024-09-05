@@ -23,7 +23,7 @@ target_compile_definitions(uipc PUBLIC
     $<$<CONFIG:Debug>:UIPC_RUNTIME_CHECK=1>
     $<$<CONFIG:RelWithDebInfo>:UIPC_RUNTIME_CHECK=1>)
 target_compile_definitions(uipc PUBLIC 
-    $<$<CONFIG:Release>:UIPC_RUNTIME_CHECK=0>)
+    $<$<CONFIG:Release>:UIPC_RUNTIME_CHECK=1>) # now just runtime check all the time
 target_compile_definitions(uipc PUBLIC UIPC_PROJECT_DIR="${PROJECT_SOURCE_DIR}")
 
 

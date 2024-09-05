@@ -10,7 +10,7 @@ static Json m_config = default_config();
 Json default_config()
 {
     Json j          = Json::object();
-    j["version"]    = "0.0.1";
+    j["version"]    = "1.0.0";
     j["module_dir"] = "";
     return j;
 }

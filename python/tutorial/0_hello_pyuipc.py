@@ -7,6 +7,7 @@ from pyuipc.constitution import AffineBodyConstitution
 from pyuipc.engine import Engine
 from pyuipc import builtin
 
+
 import numpy as np
 
 output_path = AssetDir.output_path(__file__)
@@ -51,7 +52,7 @@ label_triangle_orient(base_mesh)
 mesh1 = base_mesh.copy()
 pos_view = view(mesh1.positions())
 # move the mesh up for 1 unit
-pos_view += Vector3.UnitY()
+pos_view += Vector3.UnitY() * 1.2
 
 mesh2 = base_mesh.copy()
 is_fixed = mesh2.instances().find(builtin.is_fixed)

@@ -24,7 +24,8 @@ We need to create a constitution for the object. Here we use the `AffineBodyCons
 ```cpp
 auto& constitution_tabular = scene.constitution_tabular();
 // create a constitution
-auto& abd = constitution_tabular.create<AffineBodyConstitution>();
+AffineBodyConstitution abd;
+constitution_tabular.insert(abd);
 // create a material with affine body stiffness 100 MPa
 auto abd_material = abd.create_material(100.0_MPa);
 ```

@@ -161,6 +161,7 @@ s = sio.simplicial_surface()
 v = s.positions().view()
 t = s.triangles().topo().view()
 mesh = ps.register_surface_mesh('obj', v.reshape(-1,3), t.reshape(-1,3))
+
 mesh.set_edge_width(1.0)
 
 run = False
