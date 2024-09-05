@@ -10,12 +10,14 @@ class UIPC_CORE_API SceneIO
   public:
     SceneIO(Scene& scene);
 
-    void                        write_surface(std::string_view filename);
-    void                        write_surface_obj(std::string_view filename);
-    geometry::SimplicialComplex surface() const;
+    void write_surface(std::string_view filename);
+    
+    geometry::SimplicialComplex simplicial_surface() const;
+    geometry::SimplicialComplex simplicial_surface(IndexT dim) const;
 
   private:
     Scene& m_scene;
+    void   write_surface_obj(std::string_view filename);
 };
 
 class SceneIOError : public Exception

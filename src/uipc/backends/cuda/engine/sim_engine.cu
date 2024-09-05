@@ -117,7 +117,7 @@ void SimEngine::event_write_scene()
         action();
 }
 
-void uipc::backend::cuda::SimEngine::dump_global_surface(std::string_view name)
+void SimEngine::dump_global_surface(std::string_view name)
 {
     auto path      = ModuleInfo::instance().workspace();
     auto file_path = fmt::format("{}{}.obj", path, name);
@@ -127,8 +127,13 @@ void uipc::backend::cuda::SimEngine::dump_global_surface(std::string_view name)
     positions.resize(src_ps.size());
     src_ps.copy_to(positions.data());
 
+    std::vector<Vector2i> edges;
+    auto src_es = m_global_simplicial_surface_manager->surf_edges();
+    edges.resize(src_es.size());
+    src_es.copy_to(edges.data());
+
     std::vector<Vector3i> faces;
-    auto                  src_fs = m_global_surface_manager->surf_triangles();
+    auto src_fs = m_global_simplicial_surface_manager->surf_triangles();
     faces.resize(src_fs.size());
     src_fs.copy_to(faces.data());
 
@@ -139,6 +144,9 @@ void uipc::backend::cuda::SimEngine::dump_global_surface(std::string_view name)
 
     for(auto& face : faces)
         file << fmt::format("f {} {} {}\n", face.x() + 1, face.y() + 1, face.z() + 1);
+
+    for(auto& edge : edges)
+        file << fmt::format("l {} {}\n", edge.x() + 1, edge.y() + 1);
 
     spdlog::info("Dumped global surface to {}", file_path);
 }
@@ -164,6 +172,8 @@ bool SimEngine::do_recover()
 
     bool success = false;
 
+    SizeT safe_frame = m_current_frame;
+
     do
     {
         Json j;
@@ -180,24 +190,25 @@ bool SimEngine::do_recover()
             }
         }
 
-        if(!backend::SimEngine::do_recover())
-            break;
-
         bool has_error = false;
         try
         {
-            j["frame"].get<SizeT>();
+            m_current_frame = j["frame"].get<SizeT>();
         }
         catch(std::exception e)
         {
             has_error = true;
             spdlog::warn("Failed to retrieve data from state.json when recovering, so skip. Reason: {}",
                          e.what());
+
+            m_current_frame = safe_frame;
         }
         if(has_error)
             break;
 
-        m_current_frame = j["frame"];
+        if(!backend::SimEngine::do_recover())
+            break;
+
         spdlog::info("Recover at frame: {}", m_current_frame);
 
         success = true;

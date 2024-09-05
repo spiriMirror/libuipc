@@ -100,7 +100,7 @@ bool SimEngine::do_dump()
 
     for(auto system : systems())
     {
-        ISimSystem::DumpInfo info;
+        ISimSystem::DumpInfo info{frame(), Json::object()};
         all_success &= system->do_dump(info);
 
         if(!all_success)
@@ -119,7 +119,7 @@ bool SimEngine::do_recover()
     // First try recover
     for(auto system : systems())
     {
-        ISimSystem::RecoverInfo info;
+        ISimSystem::RecoverInfo info{frame(), Json::object()};
         all_success &= system->try_recover(info);
 
         if(!all_success)
@@ -134,7 +134,7 @@ bool SimEngine::do_recover()
     {
         for(auto system : systems())
         {
-            ISimSystem::RecoverInfo info;
+            ISimSystem::RecoverInfo info{frame(), Json::object()};
             system->apply_recover(info);
         }
     }
@@ -142,7 +142,7 @@ bool SimEngine::do_recover()
     {
         for(auto system : systems())
         {
-            ISimSystem::RecoverInfo info;
+            ISimSystem::RecoverInfo info{frame(), Json::object()};
             system->clear_recover(info);
         }
     }

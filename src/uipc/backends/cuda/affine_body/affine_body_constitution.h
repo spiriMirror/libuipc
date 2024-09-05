@@ -24,6 +24,7 @@ class AffineBodyConstitution : public SimSystem
 
   private:
     friend class AffineBodyDynamics;
+    friend class ABDGradientHessianComputer;
     friend class ABDLineSearchReporter;
 
     virtual void do_build() override final;

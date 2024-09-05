@@ -20,6 +20,6 @@ PyStableNeoHookean::PyStableNeoHookean(py::module& m)
                                py::arg("sc"),
                                py::arg("moduli") =
                                    ElasticModuli::youngs_poisson(20.0_kPa, 0.49),
-                               py::arg("mass_density") = 1000.0);
+                               py::arg("mass_density") = 1.0e3);
 }
 }  // namespace pyuipc::constitution

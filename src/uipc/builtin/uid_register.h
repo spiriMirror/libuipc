@@ -10,7 +10,7 @@ class UIPC_CORE_API UIDRegister
   public:
     const UIDInfo& find(U64 uid) const;
     bool           exists(U64 uid) const;
-
+    Json           to_json() const noexcept;
   private:
     unordered_map<U64, UIDInfo> m_uid_to_info;
 

@@ -1,6 +1,7 @@
 #include <pyuipc/geometry/utils/io.h>
 #include <uipc/geometry/utils/io.h>
 #include <pyuipc/as_numpy.h>
+#include <Eigen/Geometry>
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
@@ -11,13 +12,19 @@ PyIO::PyIO(py::module& m)
 
     class_SimplicialComplexIO.def(py::init<>());
 
+    class_SimplicialComplexIO.def(
+        py::init<>([](const Transform& pre_transform)
+                   { return SimplicialComplexIO(pre_transform); }));
+
     class_SimplicialComplexIO.def(py::init<>(
-        [](py::array_t<Float> transform)
+        [](py::array_t<Float> pre_transform)
         {
-            auto matrix = to_matrix<Matrix4x4>(transform);
-            return std::make_unique<SimplicialComplexIO>(matrix);
+            auto mat = to_matrix<Matrix4x4>(pre_transform);
+            return SimplicialComplexIO(mat);
         }));
 
     class_SimplicialComplexIO.def("read", &SimplicialComplexIO::read);
+
+    class_SimplicialComplexIO.def("write", &SimplicialComplexIO::write);
 }
 }  // namespace pyuipc::geometry

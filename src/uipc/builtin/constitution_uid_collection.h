@@ -8,7 +8,6 @@ class UIPC_CORE_API ConstitutionUIDCollection : public details::UIDRegister
 {
   public:
     static const ConstitutionUIDCollection& instance() noexcept;
-
   private:
     friend class ConstitutionUIDAutoRegister;
     ConstitutionUIDCollection();

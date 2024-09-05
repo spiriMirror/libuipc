@@ -65,7 +65,7 @@ use_gui = True
 if use_gui:
     ps.init()
     ps.set_ground_plane_mode('none')
-    s = sio.surface()
+    s = sio.simplicial_surface()
     v = s.positions().view()
     t = s.triangles().topo().view()
     mesh = ps.register_surface_mesh('obj', v.reshape(-1,3), t.reshape(-1,3))
@@ -78,7 +78,7 @@ if use_gui:
         if(run):
             world.advance()
             world.retrieve()
-            s = sio.surface()
+            s = sio.simplicial_surface()
             v = s.positions().view()
             mesh.update_vertex_positions(v.reshape(-1,3))
     

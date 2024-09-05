@@ -25,7 +25,7 @@ void SimEngine::build()
     m_gradient_hessian_computer = &require<GradientHessianComputer>();
     m_global_linear_system      = &require<GlobalLinearSystem>();
 
-    m_global_surface_manager   = find<GlobalSimpicialSurfaceManager>();
+    m_global_simplicial_surface_manager   = find<GlobalSimpicialSurfaceManager>();
     m_global_contact_manager   = find<GlobalContactManager>();
     m_global_trajectory_filter = find<GlobalTrajectoryFilter>();
 
@@ -53,7 +53,7 @@ void SimEngine::init_scene()
 
     // some systems need to be initialized after the scene is built
     m_global_vertex_manager->init_vertex_info();
-    m_global_surface_manager->init_surface_info();
+    m_global_simplicial_surface_manager->init_surface_info();
     if(m_global_contact_manager)
         m_global_contact_manager->compute_d_hat();
 }

@@ -6,48 +6,73 @@ Hey there! Welcome to the tutorial section of the Libuipc documentation. This se
 
 This is a simple example to get you started with `libuipc`. In this example, we will create a simple simulation using Libuipc.
 
-First, we include the `uipc.h` header file, which includes most the necessary headers for the `libuipc` library. Then, we use the namespace to make the code more readable:
+=== "C++"
 
-```cpp
-#include <uipc/uipc.h>
+    First, we include the `uipc.h` header file, which includes most the necessary headers for the `libuipc` library. Then, we use the namespace to make the code more readable:
 
-int main()
-{
-    using namespace uipc;
-    using namespace uipc::geometry;
-    using namespace uipc::world;
-    using namespace uipc::constitution;
-    using namespace uipc::engine;
+    ```cpp
+    #include <uipc/uipc.h>
 
-    ...
-}
-```
+    int main()
+    {
+        using namespace uipc;
+        using namespace uipc::geometry;
+        using namespace uipc::world;
+        using namespace uipc::constitution;
+        using namespace uipc::engine;
 
-Then we create an instance of the `UIPCEngine` class, which is the main class of the `libuipc` simulation engine. We pass the `"cuda"` string to the constructor to specify the backend engine to use. 
+        ...
+    }
+    ```
+
+=== "Python"
+
+    First, we import pyuipc, and alias some of the modules to make the code more readable:
+
+    ```python
+    import pyuipc
+    from pyuipc import Vector3
+    from pyuipc.geometry import *
+    from pyuipc.world import World, Scene, SceneIO
+    from pyuipc.engine import Engine
+    from pyuipc import builtin
+
+    import numpy as np
+    ```
+
+Then we create an instance of the `Engine` class, which is the main class of the `libuipc` simulation engine. We pass the `"cuda"` string to the constructor to specify the backend engine to use. 
 
 `Engine` is the heart of the simulation, which drives the `World` evolution. 
 
 `Scene` is a **snapshot** of the simulation at a certain time, and contains all information we needed to drive the simulation.
 
-```cpp
-#include <uipc/uipc.h>
+=== "C++"
 
-int main()
-{
-    using namespace uipc;
-    using namespace uipc::geometry;
-    using namespace uipc::world;
-    using namespace uipc::constitution;
-    using namespace uipc::engine;
+    ```cpp
+    #include <uipc/uipc.h>
 
-    Engine engine{"cuda"};
-    World  world{engine};
-    auto config = Scene::default_config();
-    config["dt"] = 0.01_s;
-    config["gravity"] = Vector3{0, -9.8, 0};
-    Scene scene{config};
-}
-```
+    int main()
+    {
+        ...
+        Engine engine{"cuda"};
+        World  world{engine};
+        auto config = Scene::default_config();
+        config["dt"] = 0.01_s;
+        config["gravity"] = Vector3{0, -9.8, 0};
+        Scene scene{config};
+    }
+    ```
+
+=== "Python"
+
+    ```python
+    engine = Engine("cuda")
+    world = World(engine)
+    config = Scene.default_config()
+    config['dt'] = 0.01
+    config['gravity'] = (Vector3.UnitY() * -9.8).tolist()
+    scene = Scene(config)
+    ```
 
 Here, we configure the `Scene` with a time step of $0.01s$ and a gravity of $9.8 m/s^2$ in the negative y-direction.
 
@@ -66,30 +91,45 @@ In this example, we want to simulate a free-falling rigid tetrahedron bumping in
 
 Before that, we should first add the `AffineBodyConstitution` to the `Scene`, and configure the contact model. `Libuipc` supports flexible configuration of the contact model, any pair of colliding objects can have their own contact model. For simplicity, in this example, we will use the default contact model for all the objects:
 
-```cpp
-#include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+=== "C++"
 
-int main()
-{
-    ...
+    ```cpp
+    #include <uipc/uipc.h>
+    #include <uipc/constitutions/affine_body.h>
 
-    UIPCEngine engine{"cuda"};
-    World      world{engine};
-
-    Scene scene;
+    int main()
     {
-        // create constitution and contact model
-        auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
-
-        // friction ratio and contact resistance
-        scene.contact_tabular().default_model(0.5, 1.0_GPa);
-        auto default_element = scene.contact_tabular().default_element();
-
         ...
+        Scene scene{config};
+        {
+            // create constitution and contact model
+            AffineBodyConstitution abd;
+            scene.constitution_tabular().insert(abd);
+
+            // friction ratio and contact resistance
+            scene.contact_tabular().default_model(0.5, 1.0_GPa);
+            auto& default_element = scene.contact_tabular().default_element();
+            ...
+        }
     }
-}
-```
+    ```
+
+=== "Python"
+
+    ```python
+    import pyuipc
+    from pyuipc.constitution import AffineBodyConstitution
+    ...
+    scene = Scene(config)
+    # create constitution and contact model
+    abd = AffineBodyConstitution()
+    scene.constitution_tabular().insert(abd)
+
+    # friction ratio and contact resistance
+    scene.contact_tabular().default_model(0.5, 1e9)
+    default_element = scene.contact_tabular().default_element()
+    ...
+    ```
 
 As you can see, we set the defualt contact model to have a friction ratio of $0.5$ and a contact resistance of $1.0GPa$, which is common in the real world. And after specifying the contact model, we create a `default_element` in order to apply the default contact model to the mesh in the later steps.
 
@@ -97,51 +137,62 @@ It's time to create the mesh!
 
 In this example, we will just manually create a regular tetrahedron (`base_mesh`), and apply a `AffineBodyConstitution` with a stiffness(hardness) of $100MPa$ to the `base_mesh`, which may be a hard-rubber-like material in the real world. Then we apply the default contact model to the `base_mesh`:
 
-```cpp
-#include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+=== "C++"
 
-int main()
-{
-    using namespace uipc;
-    using namespace uipc::geometry;
-    using namespace uipc::world;
-    using namespace uipc::constitution;
-    using namespace uipc::engine;
-
-    UIPCEngine engine{"cuda"};
-    World      world{engine};
-
-    Scene scene;
+    ```cpp
+    int main()
     {
-        // create constitution and contact model
-        auto& abd = scene.constitution_tabular().create<AffineBodyConstitution>();
+        ...
+        Scene scene{config};
+        {
+            ...
+            // create a regular tetrahedron
+            vector<Vector3> Vs = {Vector3{0, 1, 0},
+                                    Vector3{0, 0, 1},
+                                    Vector3{-std::sqrt(3) / 2, 0, -0.5},
+                                    Vector3{std::sqrt(3) / 2, 0, -0.5}};
+            vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
 
-        // friction ratio and contact resistance
-        scene.contact_tabular().default_model(0.5, 1.0_GPa);
-        auto default_element = scene.contact_tabular().default_element();
+            // setup a base mesh to reduce the later work
+            SimplicialComplex base_mesh = tetmesh(Vs, Ts);
+            // apply the constitution model to the base mesh
+            abd.apply_to(base_mesh, 100.0_MPa);
+            // apply the default contact model to the base mesh
+            default_element.apply_to(base_mesh);
 
-        // create a regular tetrahedron
-        vector<Vector3> Vs = {Vector3{0, 1, 0},
-                              Vector3{0, 0, 1},
-                              Vector3{-std::sqrt(3) / 2, 0, -0.5},
-                              Vector3{std::sqrt(3) / 2, 0, -0.5}};
-        vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
-
-        // setup a base mesh to reduce the later work
-        SimplicialComplex base_mesh = tetmesh(Vs, Ts);
-        // apply the constitution and contact model to the base mesh
-        abd.apply_to(base_mesh, 100.0_MPa);
-        // apply the default contact model to the base mesh
-        default_element.apply_to(base_mesh);
-
-        // label the surface, enable the contact
-        label_surface(base_mesh);
-        // label the triangle orientation to export the correct surface mesh
-        label_triangle_orient(base_mesh);
+            // label the surface, enable the contact
+            label_surface(base_mesh);
+            // label the triangle orientation to export the correct surface mesh
+            label_triangle_orient(base_mesh);
+        }
     }
-}
-```
+    ...
+    ```
+=== "Python"
+
+    ```python
+    ...
+    scene = Scene(config)
+    ...
+    # create a regular tetrahedron
+    Vs = np.array([[0,1,0],
+                   [0,0,1],
+                   [-np.sqrt(3)/2, 0, -0.5],
+                   [np.sqrt(3)/2, 0, -0.5]])
+    Ts = np.array([[0,1,2,3]])
+
+    # setup a base mesh to reduce the later work
+    base_mesh = tetmesh(Vs, Ts)
+    # apply the constitution and contact model to the base mesh
+    abd.apply_to(base_mesh, 100e6)
+    # apply the default contact model to the base mesh
+    default_element.apply_to(base_mesh)
+
+    # label the surface, enable the contact
+    label_surface(base_mesh)
+    # label the triangle orientation to export the correct surface mesh
+    label_triangle_orient(base_mesh)
+    ```
 
 > `SimplicialComplex` is an expressive geometry representation, which is well-defined in mathematics. `Libuipc` use the concept of `SimplicialComplex` to represent the geometry of the discrete mesh in the simulation. Don't worry about the details of `SimplicialComplex`, we will cover it in the [Geometry](./geometry.md). Now, just think of it as a container that holds the vertices/edges/triangles/tetrahedra of the mesh.
 
@@ -151,126 +202,145 @@ And `label_triangle_orient` is used to label the orientation of the triangles in
 
 Using the `base_mesh`, we can easily copy the setup to create two tetrahedra, `mesh1` and `mesh2`, and modify them as we like:
 
-```cpp
-#include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+=== "C++"
 
-int main()
-{
-    using namespace uipc;
-    using namespace uipc::geometry;
-    using namespace uipc::world;
-    using namespace uipc::constitution;
-    using namespace uipc::engine;
-
-    UIPCEngine engine{"cuda"};
-    World      world{engine};
-
-    Scene scene;
+    ```cpp
+    int main()
     {
         ...
-
-        SimplicialComplex mesh1 = base_mesh;
+        Scene scene{config};
         {
-            // move the mesh1 up for 1 unit
-            auto pos_view = view(mesh1.positions());
-            std::ranges::transform(pos_view,
-                                   pos_view.begin(),
-                                   [](const Vector3& v) -> Vector3
-                                   { return v + Vector3::UnitY(); });
-        }
+            ...
 
-        SimplicialComplex mesh2 = base_mesh;
-        {
-            // find the is_fixed attribute
-            auto is_fixed = mesh2.instances().find<IndexT>(builtin::is_fixed);
-            // set the first instance to be fixed
-            auto is_fixed_view = view(*is_fixed);
-            is_fixed_view[0]   = 1;
-        }
+            SimplicialComplex mesh1 = base_mesh;
+            {
+                // move the mesh1 up for 1 unit
+                auto pos_view = view(mesh1.positions());
+                std::ranges::transform(pos_view,
+                                    pos_view.begin(),
+                                    [](const Vector3& v) -> Vector3
+                                    { return v + Vector3::UnitY(); });
+            }
 
-        ...
+            SimplicialComplex mesh2 = base_mesh;
+            {
+                // find the is_fixed attribute
+                auto is_fixed = mesh2.instances().find<IndexT>(builtin::is_fixed);
+                // set the first instance to be fixed
+                auto is_fixed_view = view(*is_fixed);
+                is_fixed_view[0]   = 1;
+            }
+        }
     }
-}
-```
+    ```
+=== "Python"
+
+    ```python
+    Scene scene = Scene(config)
+    ...
+    mesh1 = base_mesh.copy()
+    pos_view = view(mesh1.positions())
+    # move the mesh up for 1 unit
+    pos_view += Vector3.UnitY()
+
+    mesh2 = base_mesh.copy()
+    is_fixed = mesh2.instances().find(builtin.is_fixed)
+    is_fixed_view = view(is_fixed)
+    is_fixed_view[:] = 1
+    ```
 
 For `mesh1`, we move it up for $1m$ along the y-axis. And for `mesh2`, we set the first instance to be fixed.
 
-In this section, we won't go into the details of the manipulation of the mesh (exactly, thee geometry), we will cover it in the [Geometry](./geometry.md). Now, just think the code above is the `Libuipc`'s way to modify the geometry.
+In this section, we won't go into the details of the manipulation of the mesh (exactly, the geometry), we will cover it in the [Geometry](./geometry.md). Now, just think the code above is the `Libuipc`'s way to modify the geometry.
 
 In `libuipc`, `Scene` contains some objects consisting of geometries. In this example, we create 2 objects, `object1` and `object2`, each with a mesh:
 
-```cpp
-#include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+=== "C++"
 
-int main()
-{
-    using namespace uipc;
-    using namespace uipc::geometry;
-    using namespace uipc::world;
-    using namespace uipc::constitution;
-    using namespace uipc::engine;
-
-    UIPCEngine engine{"cuda"};
-    World      world{engine};
-
-    Scene scene;
+    ```cpp
+    int main()
     {
-        ...
-
-        // create objects
-        auto object1 = scene.objects().create("upper_tet");
+        Scene scene{config};
         {
-            object1->geometries().create(mesh1);
-        }
+            ...
+            // create objects
+            auto object1 = scene.objects().create("upper_tet");
+            {
+                object1->geometries().create(mesh1);
+            }
 
-        auto object2 = scene.objects().create("lower_tet");
-        {
-            object2->geometries().create(mesh2);
+            auto object2 = scene.objects().create("lower_tet");
+            {
+                object2->geometries().create(mesh2);
+            }
         }
     }
-}
-```
+    ```
+
+=== "Python"
+
+    ```python
+    ...
+    Scene scene = Scene(config)
+    ...
+    # create objects
+    object1 = scene.objects().create("upper_tet")
+    object1.geometries().create(mesh1)
+
+    object2 = scene.objects().create("lower_tet")
+    object2.geometries().create(mesh2)
+    ...
+    ```
 
 From the **API**, we know that an object can have multiple geometries. It's sensible, because in the real world, an object can have multiple parts. E.g., a cloth can have multiple patches, a car can have multiple parts, etc. Object is a concept grouping the geometries together to make up a nameable entity, which is pretty intuitive for the user to build the world. But in this example, we just use one geometry for each object, for simplicity.
 
 
 Now, we have setup the initial state of the `Scene`, we can pass it to the `World` for later simulation:
 
-```cpp
-#include <uipc/uipc.h>
-#include <uipc/constitutions/affine_body.h>
+=== "C++"
 
-int main()
-{
-    using namespace uipc;
-    using namespace uipc::geometry;
-    using namespace uipc::world;
-    using namespace uipc::constitution;
-    using namespace uipc::engine;
-
-    UIPCEngine engine{"cuda"};
-    World      world{engine};
-
-    Scene scene;
-
-    ...
-
-    world.init(scene);
-
-    SceneIO sio{scene};
-    sio.write_surface(fmt::format("scene_surface{}.obj", 0));
-
-    for(int i = 1; i < 30; i++)
+    ```cpp
+    int main()
     {
-        world.advance();
-        world.sync();
-        world.retrieve();
-        sio.write_surface(fmt::format("scene_surface{}.obj", i));
+        ...
+        World world{engine};
+        ...
+        Scene scene{config};
+        ...
+
+        world.init(scene);
+
+        SceneIO sio{scene};
+        sio.write_surface(fmt::format("scene_surface{}.obj", world.frmae()));
+
+        while(world.frame() < 100)
+        {
+            world.advance();
+            world.retrieve();
+            sio.write_surface(fmt::format("scene_surface{}.obj", world.frmae()));
+        }
     }
-}
-```
+    ```
+
+=== "Python"
+
+    ```python
+    ...
+    world = World(engine)
+    ...
+    scene = Scene(config)
+    ...
+    
+    world.init(scene)
+
+    sio = SceneIO(scene)
+    sio.write_surface(f"scene_surface{world.frame()}.obj")
+
+    while world.frame() < 100:
+        world.advance()
+        world.retrieve()
+        sio.write_surface(f"scene_surface{world.frame()}.obj")
+    ```
 
 To evolve the simulation, we call the `advance` method of the `World` to advance the simulation by one time step. Then we call the `sync` method to synchronize the `World`, (basically, it's a barrier to make sure the `World` is ready for the next time step). Finally, we call the `retrieve` method to retrieve (download) the simulation data from the `World`.
 

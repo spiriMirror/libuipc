@@ -22,5 +22,7 @@ struct UIPC_CORE_API UIDInfo
     bool is_official_builtin_uid(U64 uid) const noexcept;
 
     bool is_user_defined_uid(U64 uid) const noexcept;
+
+    Json to_json() const noexcept;
 };
 }  // namespace uipc::builtin

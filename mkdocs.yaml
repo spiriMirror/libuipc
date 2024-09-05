@@ -5,6 +5,10 @@ theme:
   custom_dir: docs/overrides
   features:
     - navigation.indexes
+    - content.tabs.link
+    - content.code.copy
+    - content.code.select
+    - content.code.annotate 
   palette:
     # Palette toggle for light mode
     - scheme: default
@@ -28,11 +32,21 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
   - pymdownx.arithmatex:
       generic: true
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
       emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight
 
 use_directory_urls: true
 

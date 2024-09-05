@@ -1,4 +1,4 @@
-#include <implicit_geometry/half_plane.h>d
+#include <implicit_geometry/half_plane.h>
 #include <uipc/builtin/geometry_type.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/builtin/implicit_geometry_uid_collection.h>

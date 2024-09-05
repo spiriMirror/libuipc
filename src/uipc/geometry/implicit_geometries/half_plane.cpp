@@ -10,5 +10,6 @@ REGISTER_IMPLICIT_GEOMETRY_UIDS()
         .uid  = 1ull,
         .name = "HalfPlane",
     });
+    return uids;
 }
 }  // namespace uipc::geometry

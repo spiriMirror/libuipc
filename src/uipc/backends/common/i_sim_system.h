@@ -1,5 +1,6 @@
 #pragma once
 #include <string_view>
+#include <uipc/common/type_define.h>
 #include <uipc/common/json.h>
 #include <uipc/common/exception.h>
 #include <uipc/common/span.h>
@@ -20,18 +21,27 @@ class ISimSystem
     class BaseInfo
     {
       public:
+        BaseInfo(SizeT frame, const Json& config) noexcept;
         std::string_view workspace() const noexcept;
         std::string      dump_path(std::string_view file) const noexcept;
+        const Json&      config() const noexcept;
+        SizeT            frame() const noexcept;
+
+      private:
+        SizeT m_frame = 0;
+        Json  m_config;
     };
 
     class DumpInfo : public BaseInfo
     {
       public:
+        using BaseInfo::BaseInfo;
     };
 
     class RecoverInfo : public BaseInfo
     {
       public:
+        using BaseInfo::BaseInfo;
     };
 
     /**
@@ -66,8 +76,8 @@ class ISimSystem
 
 
   protected:
-    virtual void             do_build()                     = 0;
-    virtual std::string_view get_name() const               = 0;
+    virtual void             do_build()       = 0;
+    virtual std::string_view get_name() const = 0;
     virtual bool             do_dump(DumpInfo&);
     virtual bool             do_try_recover(RecoverInfo&);
     virtual void             do_apply_recover(RecoverInfo&);

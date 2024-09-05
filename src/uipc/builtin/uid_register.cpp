@@ -24,4 +24,14 @@ bool UIDRegister::exists(U64 uid) const
 {
     return m_uid_to_info.find(uid) != m_uid_to_info.end();
 }
+
+Json UIDRegister::to_json() const noexcept
+{
+    Json j;
+    for(auto& [uid, info] : m_uid_to_info)
+    {
+        j.push_back(info.to_json());
+    }
+    return j;
+}
 }  // namespace uipc::builtin::details

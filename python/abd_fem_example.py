@@ -15,7 +15,7 @@ def process_surface(sc: SimplicialComplex):
     sc = flip_inward_triangles(sc)
     return sc
 
-Logger.set_level(Logger.Level.Warn)
+Logger.set_level(Logger.Level.Info)
 
 workspace = AssetDir.output_path(__file__)
 
@@ -24,8 +24,7 @@ world = World(engine)
 
 config = Scene.default_config()
 print(config)
-config['newton']['max_iter'] = 8
-config['contact']['friction']['enable'] = False
+
 
 scene = Scene(config)
 
@@ -43,7 +42,7 @@ cube = io.read(f'{AssetDir.tetmesh_path()}/cube.msh')
 cube = process_surface(cube)
 
 fem_cube = cube.copy()
-moduli = ElasticModuli.youngs_poisson(2e4, 0.49)
+moduli = ElasticModuli.youngs_poisson(1e5, 0.49)
 snk.apply_to(fem_cube, moduli)
 default_element.apply_to(fem_cube)
 
@@ -52,7 +51,7 @@ abd.apply_to(abd_cube, 1e8)
 default_element.apply_to(abd_cube)
 
 object = scene.objects().create("object")
-N = 6
+N = 15
 
 trans = Matrix4x4.Identity()
 
@@ -80,20 +79,24 @@ run = False
 
 ps.init()
 ps.set_ground_plane_mode('none')
-s = sio.surface()
+s = sio.simplicial_surface()
+
+ssio = SpreadSheetIO(workspace)
+ssio.write_csv('surf', s)
+
 v = s.positions().view()
 t = s.triangles().topo().view()
 mesh = ps.register_surface_mesh('obj', v.reshape(-1,3), t.reshape(-1,3))
 mesh.set_edge_width(1.0)
 def on_update():
     global run
-    if(psim.Button("run & stop")):
+    if(psim.Button('run & stop')):
         run = not run
         
     if(run):
         world.advance()
         world.retrieve()
-        s = sio.surface()
+        s = sio.simplicial_surface()
         v = s.positions().view()
         mesh.update_vertex_positions(v.reshape(-1,3))
 
