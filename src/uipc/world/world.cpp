@@ -6,6 +6,7 @@ namespace uipc::world
 {
 World::World(engine::IEngine& e) noexcept
     : m_engine(&e)
+    , m_animator(*this)
 {
 }
 
@@ -87,6 +88,11 @@ SizeT World::frame() const
         return 0;
     }
     return m_engine->frame();
+}
+
+Animator& World::animator()
+{
+    return m_animator;
 }
 
 void World::sanity_check(Scene& s)

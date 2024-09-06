@@ -167,4 +167,14 @@ Scene::CGeometries::CGeometries(const Scene& scene) noexcept
     : m_scene{scene}
 {
 }
+
+ObjectGeometrySlots<geometry::Geometry> world::Scene::Geometries::find(IndexT id) && noexcept
+{
+    return {m_scene.m_impl.geometries.find(id), m_scene.m_impl.rest_geometries.find(id)};
+}
+
+ObjectGeometrySlots<const geometry::Geometry> Scene::CGeometries::find(IndexT id) && noexcept
+{
+    return {m_scene.m_impl.geometries.find(id), m_scene.m_impl.rest_geometries.find(id)};
+}
 }  // namespace uipc::world

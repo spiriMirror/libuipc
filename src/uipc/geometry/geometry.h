@@ -76,6 +76,13 @@ class UIPC_CORE_API Geometry : public IGeometry
             return m_attributes.template create<T>(name, init_value);
         }
 
+        template <typename T>
+        decltype(auto) share(std::string_view name, const AttributeSlot<T>& slot)
+            requires(!IsConst)
+        {
+            return m_attributes.template share<T>(name, slot);
+        }
+
         /**
          * @sa AttributeCollection::destroy
          */
@@ -172,6 +179,13 @@ class UIPC_CORE_API Geometry : public IGeometry
         decltype(auto) create(std::string_view name, const T& init_value = {}) &&
         {
             return m_attributes.template create<T>(name, init_value);
+        }
+
+        template <typename T>
+        decltype(auto) share(std::string_view name, const AttributeSlot<T>& slot)
+            requires(!IsConst)
+        {
+            return m_attributes.template share<T>(name, slot);
         }
 
         void copy_from(InstanceAttributesT<true> other,

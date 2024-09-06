@@ -21,10 +21,11 @@ class UIPC_CORE_API SceneVisitor
     void solve_pending() noexcept;
 
     span<S<geometry::GeometrySlot>> geometries() const noexcept;
+    S<geometry::GeometrySlot>       find_geometry(IndexT id) noexcept;
     span<S<geometry::GeometrySlot>> pending_geometries() const noexcept;
 
-
     span<S<geometry::GeometrySlot>> rest_geometries() const noexcept;
+    S<geometry::GeometrySlot>       find_rest_geometry(IndexT id) noexcept;
     span<S<geometry::GeometrySlot>> pending_rest_geometries() const noexcept;
 
     span<IndexT> pending_destroy_ids() const noexcept;

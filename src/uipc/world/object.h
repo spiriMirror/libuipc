@@ -60,6 +60,7 @@ UIPC_CORE_EXPORT_TEMPLATE_CLASS ObjectGeometrySlots<const geometry::Geometry>;
 class UIPC_CORE_API Object : public IObject
 {
     friend class Scene;
+    friend class Animation;
 
   public:
     class UIPC_CORE_API Geometries

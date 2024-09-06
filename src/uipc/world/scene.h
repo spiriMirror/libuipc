@@ -53,9 +53,7 @@ class UIPC_CORE_API Scene
         friend class Scene;
 
       public:
-        template <std::derived_from<geometry::Geometry> GeometryT>
-        ObjectGeometrySlots<GeometryT> find(IndexT id) && noexcept;
-
+        ObjectGeometrySlots<geometry::Geometry> find(IndexT id) && noexcept;
 
       private:
         Geometries(Scene& scene) noexcept;
@@ -67,9 +65,7 @@ class UIPC_CORE_API Scene
         friend class Scene;
 
       public:
-        template <std::derived_from<geometry::Geometry> GeometryT>
-        ObjectGeometrySlots<const GeometryT> find(IndexT id) && noexcept;
-
+        ObjectGeometrySlots<const geometry::Geometry> find(IndexT id) && noexcept;
 
       private:
         CGeometries(const Scene& scene) noexcept;
@@ -116,4 +112,3 @@ class UIPC_CORE_API Scene
     void solve_pending() noexcept;
 };
 }  // namespace uipc::world
-#include "details/scene.inl"
