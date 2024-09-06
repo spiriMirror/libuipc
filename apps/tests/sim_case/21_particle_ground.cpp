@@ -44,7 +44,7 @@ TEST_CASE("21_particle_ground", "[fem]")
         auto object = scene.objects().create("particles");
 
 
-        constexpr int   n = 15;
+        constexpr int   n = 100;
         vector<Vector3> Vs(n);
         for(int i = 0; i < n; i++)
         {

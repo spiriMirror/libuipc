@@ -6,10 +6,10 @@
 namespace uipc::world
 {
 class World;
-class Animation
+class UIPC_CORE_API Animation
 {
   public:
-    class UpdateHint
+    class UIPC_CORE_API UpdateHint
     {
       public:
         void fixed_vertices_changing(bool v) noexcept;
@@ -20,12 +20,13 @@ class Animation
     };
 
 
-    class UpdateInfo
+    class UIPC_CORE_API UpdateInfo
     {
       public:
         Object&                         object() const noexcept;
         span<S<geometry::GeometrySlot>> geo_slots() const noexcept;
         span<S<geometry::GeometrySlot>> rest_geo_slots() const noexcept;
+        SizeT                           frame() const noexcept;
         UpdateHint&                     hint() noexcept;
 
       private:

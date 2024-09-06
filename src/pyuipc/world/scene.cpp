@@ -57,8 +57,7 @@ PyScene::PyScene(py::module& m)
     class_Geometries.def("find",
                          [](Scene::Geometries& self, IndexT id)
                          {
-                             auto [geo, rest_geo] =
-                                 std::move(self).template find<geometry::Geometry>(id);
+                             auto [geo, rest_geo] = std::move(self).find(id);
                              return std::make_pair(geo, rest_geo);
                          });
 }

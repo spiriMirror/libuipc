@@ -12,7 +12,7 @@ class AnimatorVisitor;
 namespace uipc::world
 {
 class World;
-class Animator
+class UIPC_CORE_API Animator
 {
   public:
     void insert(Object& obj, Animation::ActionOnUpdate&& on_update);

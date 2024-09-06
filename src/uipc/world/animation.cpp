@@ -102,6 +102,11 @@ span<S<geometry::GeometrySlot>> Animation::UpdateInfo::rest_geo_slots() const no
     return m_animation->m_temp_rest_geo_slots;
 }
 
+SizeT Animation::UpdateInfo::frame() const noexcept
+{
+    return m_animation->m_world->frame();
+}
+
 auto Animation::UpdateInfo::hint() noexcept -> UpdateHint&
 {
     return m_hint;
