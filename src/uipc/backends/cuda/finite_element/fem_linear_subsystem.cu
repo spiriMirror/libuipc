@@ -54,14 +54,15 @@ namespace detail
     __device__ void fill_gradient(muda::DenseVectorViewer<Float>& g,
                                   const Vector<Float, 3 * N>&     G3N,
                                   const Vector<IndexT, N>         indices,
-                                  muda::CDense1D<IndexT>&         is_fixed)
+                                  muda::CDense1D<FiniteElementMethod::FixType>& is_fixed)
         requires(N >= 2)
     {
+        using Type = FiniteElementMethod::FixType;
 #pragma unroll
         for(int i = 0; i < N; ++i)
         {
             int dst = indices(i);
-            if(is_fixed(dst))
+            if(is_fixed(dst) == Type::Fixed)
                 continue;
             Vector3 G = G3N.template segment<3>(i * 3);
             g.template segment<3>(dst * 3).atomic_add(G);
@@ -73,9 +74,12 @@ namespace detail
                                  muda::TripletMatrixViewer<Float, 3>& H3x3,
                                  const Matrix<Float, 3 * N, 3 * N>&   H3Nx3N,
                                  const Vector<IndexT, N>              indices,
-                                 muda::CDense1D<IndexT>&              is_fixed)
+                                 muda::CDense1D<FiniteElementMethod::FixType>& is_fixed)
         requires(N >= 2)
     {
+
+        using Type = FiniteElementMethod::FixType;
+
         SizeT offset = I * (N * N);
 #pragma unroll
         for(int i = 0; i < N; ++i)
@@ -87,7 +91,7 @@ namespace detail
                 int       L = indices(i);
                 int       R = indices(j);
 
-                if(is_fixed(L) || is_fixed(R))
+                if(is_fixed(L) == Type::Fixed || is_fixed(R) == Type::Fixed)
                     H.setZero();
 
                 H3x3(offset++).write(L, R, H);
@@ -99,9 +103,10 @@ namespace detail
     __device__ void fill_diag_hessian(muda::Dense1D<Matrix3x3>&          diag,
                                       const Matrix<Float, 3 * N, 3 * N>& H3Nx3N,
                                       const Vector<IndexT, N> indices,
-                                      muda::CDense1D<IndexT>& is_fixed)
+                                      muda::CDense1D<FiniteElementMethod::FixType>& is_fixed)
         requires(N >= 2)
     {
+        using Type = FiniteElementMethod::FixType;
 #pragma unroll
         for(int i = 0; i < N; ++i)
         {
@@ -109,7 +114,7 @@ namespace detail
             Matrix3x3 H  = H3Nx3N.template block<3, 3>(I3, I3);
             int       L  = indices(i);
 
-            if(is_fixed(L))
+            if(is_fixed(L) == Type::Fixed)
                 continue;
 
             muda::eigen::atomic_add(diag(i), H);
@@ -136,22 +141,17 @@ namespace detail
 void FEMLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& info)
 {
     using namespace muda;
+    using FixType = FiniteElementMethod::FixType;
+
     // Kinetic
     ParallelFor()
         .kernel_name(__FUNCTION__)
         .apply(fem().G3s.size(),
-               [G3s      = fem().G3s.cviewer().name("G3s"),
-                gradient = info.gradient().viewer().name("gradient"),
-                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int i) mutable
+               [G3s = fem().G3s.cviewer().name("G3s"),
+                gradient = info.gradient().viewer().name("gradient")] __device__(int i) mutable
                {
-                   if(is_fixed(i))
-                   {
-                       gradient.segment<3>(i * 3) = Vector3::Zero().eval();
-                   }
-                   else
-                   {
-                       gradient.segment<3>(i * 3) = G3s(i);
-                   }
+                   // fill gradient
+                   gradient.segment<3>(i * 3) = G3s(i);
                });
 
     // Elastic
@@ -206,7 +206,7 @@ void FEMLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
                {
                    const auto& [i, G3] = extra_gradient(I);
 
-                   if(is_fixed(i))
+                   if(is_fixed(i) == FixType::Fixed)
                    {
                        //
                    }
@@ -232,7 +232,7 @@ void FEMLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
                            const auto& [g_i, G3] = contact_gradient(I);
                            auto i = g_i - vertex_offset;  // from global to local
 
-                           if(is_fixed(i))
+                           if(is_fixed(i) == FixType::Fixed)
                            {
                                //
                            }
@@ -248,6 +248,8 @@ void FEMLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
 void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& info)
 {
     using namespace muda;
+
+    using FixType = FiniteElementMethod::FixType;
 
     IndexT offset    = 0;
     auto   dst_H3x3s = info.hessian();
@@ -362,7 +364,7 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
                    {
                        const auto& [i, j, H3] = extra_hessian(I);
 
-                       if(is_fixed(i) || is_fixed(j))
+                       if(is_fixed(i) == FixType::Fixed || is_fixed(j) == FixType::Fixed)
                        {
                            //
                        }
@@ -398,7 +400,7 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
                        auto i                     = g_i - vertex_offset;
                        auto j                     = g_j - vertex_offset;
 
-                       if(is_fixed(i) || is_fixed(j))
+                       if(is_fixed(i) == FixType::Fixed || is_fixed(j) == FixType::Fixed)
                        {
                            //
                        }

@@ -9,6 +9,7 @@ enum class ConstitutionType
 {
     AffineBody,
     FiniteElement,
+    Constraint
 };
 
 class UIPC_CORE_API IConstitution
@@ -22,7 +23,6 @@ class UIPC_CORE_API IConstitution
 
 
   protected:
-    void                     apply_to(geometry::Geometry& geo) const;
     virtual U64              get_uid() const noexcept  = 0;
     virtual ConstitutionType get_type() const noexcept = 0;
 };

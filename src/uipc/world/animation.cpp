@@ -29,56 +29,6 @@ void Animation::init()
         UIPC_ASSERT(rest_slot, "Animation: Rest geometry slot not found for id={}", id);
         m_temp_rest_geo_slots.push_back(rest_slot);
     }
-
-    for(auto& slot : m_temp_geo_slots)
-    {
-        if(slot->geometry().type() == builtin::SimplicialComplex)
-        {
-            auto sc = slot->geometry().as<geometry::SimplicialComplex>();
-
-
-            auto ins_is_fixed = sc->instances().find<IndexT>(builtin::is_fixed);
-
-
-            auto vert_is_fixed = sc->vertices().find<IndexT>(builtin::is_fixed);
-
-
-            auto both = ins_is_fixed && vert_is_fixed;
-
-            UIPC_ASSERT(!both,
-                        "Animation: SimplicialComplex {} has both fixed vertices and instances, which is ambiguous.",
-                        slot->id());
-
-            auto none = !ins_is_fixed && !vert_is_fixed;
-
-            UIPC_ASSERT(!none,
-                        "Animation: SimplicialComplex {} has neither fixed vertices nor instances, which is meaningless for animation.",
-                        slot->id());
-
-            if(ins_is_fixed)
-            {
-                // add aim_transform attribute, at this point, the value is shared with position
-                sc->instances().share(builtin::aim_transform, sc->transforms());
-            }
-            else if(vert_is_fixed)
-            {
-                // add aim_position attribute, at this point, the value is shared with position
-                sc->vertices().share(builtin::aim_position, sc->positions());
-            }
-        }
-        else if(slot->geometry().type() == builtin::ImplicitGeometry)
-        {
-            auto ig = slot->geometry().as<geometry::ImplicitGeometry>();
-
-            auto ins_is_fixed = ig->instances().find<IndexT>(builtin::is_fixed);
-
-            UIPC_ASSERT(ins_is_fixed,
-                        "Animation: ImplicitGeometry {} has no fixed instances, which is meaningless for animation.",
-                        slot->id());
-
-            // Do nothing for ImplicitGeometry, which is varying by its type.
-        }
-    }
 }
 
 void Animation::update()

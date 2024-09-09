@@ -10,7 +10,8 @@ REGISTER_SIM_SYSTEM(FEMLineSearchReporter);
 
 void FEMLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
-    m_impl.finite_element_method = &require<FiniteElementMethod>();
+    m_impl.finite_element_method   = &require<FiniteElementMethod>();
+    m_impl.finite_element_animator = find<FiniteElementAnimator>();
 }
 
 void FEMLineSearchReporter::do_record_start_point(LineSearcher::RecordInfo& info)
@@ -46,11 +47,7 @@ void FEMLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
                 xs       = fem().xs.viewer().name("xs"),
                 dxs      = fem().dxs.cviewer().name("dxs"),
                 alpha    = info.alpha] __device__(int i) mutable
-               {
-                   if(is_fixed(i))
-                       return;
-                   xs(i) = x_temps(i) + alpha * dxs(i);
-               });
+               { xs(i) = x_temps(i) + alpha * dxs(i); });
 }
 
 void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
@@ -69,7 +66,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                     "kinetic_energy")] __device__(int i) mutable
                {
                    auto& K = Ks(i);
-                   if(is_fixed(i))
+                   if(is_fixed(i) != FiniteElementMethod::FixType::Free)
                    {
                        K = 0.0;
                    }
@@ -83,6 +80,12 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        // K                      = 0;
                    }
                });
+
+    // Compute Animation Constraint Energy
+    if(finite_element_animator)
+    {
+        finite_element_animator->compute_energy(info);
+    }
 
     // Sum up kinetic energy
     DeviceReduce().Sum(fem().vertex_kinetic_energies.data(),

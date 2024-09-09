@@ -13,7 +13,10 @@ REGISTER_SIM_SYSTEM(FEMGradientHessianComputer);
 
 void FEMGradientHessianComputer::do_build()
 {
-    m_impl.finite_element_method    = &require<FiniteElementMethod>();
+    m_impl.finite_element_method = &require<FiniteElementMethod>();
+
+    m_impl.finite_element_animator = find<FiniteElementAnimator>();
+
     auto& gradient_hessian_computer = require<GradientHessianComputer>();
     gradient_hessian_computer.on_compute_gradient_hessian(
         *this,
@@ -46,7 +49,7 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
                    Vector3   G = Vector3::Zero();
                    Matrix3x3 H = masses(i) * Matrix3x3::Identity();
 
-                   if(is_fixed(i))
+                   if(is_fixed(i) == FiniteElementMethod::FixType::Fixed)
                    {
                        // G = Vector3::Zero();
                    }
@@ -60,6 +63,11 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
 
                    // cout << "Kinetic G:" << G.transpose().eval() << "\n";
                });
+
+    if(finite_element_animator)
+    {
+        finite_element_animator->compute_gradient_hessian(info);
+    }
 
     // Elastic
     FiniteElementMethod::ComputeGradientHessianInfo this_info{info.dt()};

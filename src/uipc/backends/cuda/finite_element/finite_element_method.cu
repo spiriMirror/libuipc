@@ -392,7 +392,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
     h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
     h_masses.resize(h_positions.size());
     h_vertex_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
-    h_vertex_is_fixed.resize(h_positions.size(), 0);  // fill 0 for default
+    h_vertex_is_fixed.resize(h_positions.size(), FixType::Free);  // fill Free for default
 
     for(auto&& [i, info] : enumerate(geo_infos))
     {
@@ -530,6 +530,8 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
         {  // 7) setup vertex is_fixed
 
             auto is_fixed = sc->vertices().find<IndexT>(builtin::is_fixed);
+            auto constraint_uid = sc->meta().find<U64>(builtin::constraint_uid);
+
             auto dst_is_fixed_span =
                 span{h_vertex_is_fixed}.subspan(info.vertex_offset, info.vertex_count);
 
@@ -538,7 +540,18 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
                 auto is_fixed_view = is_fixed->view();
                 UIPC_ASSERT(is_fixed_view.size() == dst_is_fixed_span.size(),
                             "is_fixed size mismatching");
-                std::ranges::copy(is_fixed_view, dst_is_fixed_span.begin());
+                for(auto&& [i, fixed] : enumerate(is_fixed_view))
+                {
+                    if(fixed == 0)
+                    {
+                        dst_is_fixed_span[i] = FixType::Free;
+                    }
+                    else
+                    {
+                        dst_is_fixed_span[i] =
+                            constraint_uid ? FixType::Animated : FixType::Fixed;
+                    }
+                }
             }
         }
 
@@ -763,7 +776,7 @@ void FiniteElementMethod::Impl::compute_x_tilde(DoFPredictor::PredictInfo& info)
                    const Vector3& x_prev = x_prevs(i);
                    const Vector3& v      = vs(i);
                    // TODO: this time, we only consider gravity
-                   if(is_fixed(i))
+                   if(is_fixed(i) != FixType::Free)
                    {
                        x_tildes(i) = x_prev;
                    }
@@ -780,21 +793,17 @@ void FiniteElementMethod::Impl::compute_velocity(DoFPredictor::ComputeVelocityIn
     ParallelFor()
         .kernel_name(__FUNCTION__)
         .apply(xs.size(),
-               [is_fixed = is_fixed.cviewer().name("fixed"),
-                xs       = xs.cviewer().name("xs"),
-                vs       = vs.viewer().name("vs"),
-                x_prevs  = x_prevs.viewer().name("x_prevs"),
-                dt       = info.dt()] __device__(int i) mutable
+               [xs      = xs.cviewer().name("xs"),
+                vs      = vs.viewer().name("vs"),
+                x_prevs = x_prevs.viewer().name("x_prevs"),
+                dt      = info.dt()] __device__(int i) mutable
                {
                    Vector3& v      = vs(i);
                    Vector3& x_prev = x_prevs(i);
 
                    const Vector3& x = xs(i);
 
-                   if(is_fixed(i))
-                       v = Vector3::Zero();
-                   else
-                       v = (x - x_prev) * (1.0 / dt);
+                   v = (x - x_prev) * (1.0 / dt);
 
                    x_prev = x;
                });

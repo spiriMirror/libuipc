@@ -13,7 +13,12 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
                                          Float mass_density,
                                          Float thickness) const
 {
-    Base::apply_to(sc);
+    auto P = sc.meta().find<U64>(builtin::constitution_uid);
+
+    if(!P)
+        P = sc.meta().create<U64>(builtin::constitution_uid, uid());
+    else
+        geometry::view(*P).front() = uid();
 
     auto is_fixed = sc.vertices().find<IndexT>(builtin::is_fixed);
     if(!is_fixed)

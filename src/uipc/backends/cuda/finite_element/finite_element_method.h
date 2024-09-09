@@ -65,6 +65,13 @@ class FiniteElementMethod : public SimSystem
         SizeT primitive_count  = 0ull;
     };
 
+    enum class FixType : IndexT
+    {
+        Animated = -1,
+        Free     = 0,
+        Fixed    = 1,
+    };
+
     template <int N>
     class FilteredInfo
     {
@@ -164,7 +171,7 @@ class FiniteElementMethod : public SimSystem
 
         // simulation data:
         vector<IndexT>  h_vertex_contact_element_ids;
-        vector<IndexT>  h_vertex_is_fixed;
+        vector<FixType> h_vertex_is_fixed;
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
         vector<Float>   h_thicknesses;
@@ -191,7 +198,7 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Float>    rest_volumes;
 
         // Vertex Attributes:
-        muda::DeviceBuffer<IndexT>  is_fixed;  // Vertex Fixed
+        muda::DeviceBuffer<FixType> is_fixed;  // Vertex Fixed
         muda::DeviceBuffer<Vector3> x_bars;    // Rest Positions
         muda::DeviceBuffer<Vector3> xs;        // Positions
         muda::DeviceBuffer<Vector3> dxs;       // Displacements
@@ -275,8 +282,6 @@ class FiniteElementMethod : public SimSystem
 
 
   public:
-    void add_constitution(FiniteElementConstitution* constitution);
-
     // public data accessors:
     auto codim_0ds() const noexcept { return m_impl.codim_0ds.view(); }
     auto codim_1ds() const noexcept { return m_impl.codim_1ds.view(); }
@@ -313,8 +318,40 @@ class FiniteElementMethod : public SimSystem
     friend class FEMLineSearchReporter;
     friend class FEMGradientHessianComputer;
     friend class FiniteElementConstitution;
+    friend class FiniteElementAnimator;
 
+    void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution
     virtual void do_build() override;
+
+    template <typename ForEach, typename ViewGetter>
+    static void _for_each(span<const GeoInfo>             geo_infos,
+                          span<S<geometry::GeometrySlot>> geo_slots,
+                          ViewGetter&&                    view_getter,
+                          ForEach&& for_each_action) noexcept;
+
+    /**
+     * @brief For each primitive or vertex in the filtered info
+     * 
+     * @code
+     *  
+     *  vector<Float> lambdas(info.vertex_count());
+     * 
+     *  info.for_each(geo_slots, 
+     *  [](SimplicialComplex& sc) 
+     *  {
+     *      return sc.vertices().find<Float>("lambda").view();
+     *  },
+     *  [&](SizeT I, Float lambda)
+     *  {
+     *      lambdas[I] = lambda;
+     *  });
+     * 
+     * @endcode
+     */
+    template <typename ForEach, typename ViewGetter>
+    void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                  ViewGetter&&                    view_getter,
+                  ForEach&&                       for_each_action) noexcept;
 
     Impl m_impl;
 };

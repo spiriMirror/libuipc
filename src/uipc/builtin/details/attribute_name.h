@@ -55,6 +55,12 @@ UIPC_BUILTIN_ATTRIBUTE(constitution_uid);
 UIPC_BUILTIN_ATTRIBUTE(extra_constitution_uids);
 
 /**
+ * @brief `constraint_uids` <U64> attribute on **meta**, uid is a unique identifier for a constraint
+ * which is defined in the libuipc specification.
+ */
+UIPC_BUILTIN_ATTRIBUTE(constraint_uid);
+
+/**
  * @brief `implicit_geometry_uid` <U64> attribute on **meta**, uid is a unique identifier for an implicit geometry
  * which is defined in the libuipc specification.
  */

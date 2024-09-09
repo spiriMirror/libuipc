@@ -16,6 +16,7 @@ class DoFPredictor;
 class LineSearcher;
 class GradientHessianComputer;
 class GlobalLinearSystem;
+class GlobalAnimator;
 
 class UIPC_BACKEND_API SimEngine : public backend::SimEngine
 {
@@ -63,15 +64,16 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
 
   private:
     // Aware Top Systems
-    GlobalVertexManager*           m_global_vertex_manager    = nullptr;
-    GlobalSimpicialSurfaceManager* m_global_simplicial_surface_manager   = nullptr;
-    GlobalContactManager*          m_global_contact_manager   = nullptr;
-    GlobalTrajectoryFilter*        m_global_trajectory_filter = nullptr;
+    GlobalVertexManager* m_global_vertex_manager = nullptr;
+    GlobalSimpicialSurfaceManager* m_global_simplicial_surface_manager = nullptr;
+    GlobalContactManager*   m_global_contact_manager   = nullptr;
+    GlobalTrajectoryFilter* m_global_trajectory_filter = nullptr;
 
     DoFPredictor*            m_dof_predictor             = nullptr;
     LineSearcher*            m_line_searcher             = nullptr;
     GradientHessianComputer* m_gradient_hessian_computer = nullptr;
     GlobalLinearSystem*      m_global_linear_system      = nullptr;
+    GlobalAnimator*          m_global_animator           = nullptr;
 
 
     Float m_abs_tol             = 0.0;

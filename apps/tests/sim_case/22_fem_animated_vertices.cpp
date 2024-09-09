@@ -2,8 +2,10 @@
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/stable_neo_hookean.h>
+#include <uipc/constitution/soft_position_constraint.h>
 #include <filesystem>
 #include <fstream>
+#include <numbers>
 
 TEST_CASE("22_fem_animated_vertices", "[animation]")
 {
@@ -40,8 +42,10 @@ TEST_CASE("22_fem_animated_vertices", "[animation]")
     Scene scene{config};
 
     // create constitution and contact model
-    StableNeoHookean snh;
+    StableNeoHookean       snh;
+    SoftPositionConstraint spc;
     scene.constitution_tabular().insert(snh);
+    scene.constitution_tabular().insert(spc);
 
     // create object
     auto object = scene.objects().create("tets");
@@ -59,8 +63,10 @@ TEST_CASE("22_fem_animated_vertices", "[animation]")
 
     auto parm = ElasticModuli::youngs_poisson(1e5, 0.499);
     snh.apply_to(mesh, parm, 1e3);
-
-    auto arr = mesh.tetrahedra().find<Float>("mu");
+    spc.apply_to(mesh, 100.0);
+    auto is_fixed      = mesh.vertices().find<IndexT>(builtin::is_fixed);
+    auto is_fixed_view = view(*is_fixed);
+    is_fixed_view[0]   = 1;
 
     object->geometries().create(mesh);
 
@@ -72,10 +78,11 @@ TEST_CASE("22_fem_animated_vertices", "[animation]")
                         auto geo = geo_slots[0]->geometry().as<SimplicialComplex>();
 
                         auto aim = geo->vertices().find<Vector3>(builtin::aim_position);
-                        auto aim_view = view(*aim);
-
-                        auto sin_t = std::sin(dt * info.frame());
-                        auto cos_t = std::cos(dt * info.frame());
+                        auto            aim_view = view(*aim);
+                        constexpr Float pi       = std::numbers::pi;
+                        auto            theta    = info.frame() * 2 * pi / 360;
+                        auto            cos_t    = std::cos(theta);
+                        auto            sin_t    = std::sin(theta);
 
                         // move the first vertex in a circle
                         aim_view[0] = Vector3{0, cos_t, sin_t};

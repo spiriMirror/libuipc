@@ -3,6 +3,12 @@
 #include <uipc/world/object.h>
 #include <uipc/common/span.h>
 #include <functional>
+
+namespace uipc::backend
+{
+class AnimatorVisitor;
+}
+
 namespace uipc::world
 {
 class World;
@@ -40,7 +46,7 @@ class UIPC_CORE_API Animation
 
   private:
     friend class Animator;
-    friend class AnimatorVisitor;
+    friend class backend::AnimatorVisitor;
     void init();
     void update();
 

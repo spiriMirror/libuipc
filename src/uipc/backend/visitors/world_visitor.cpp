@@ -11,4 +11,8 @@ SceneVisitor WorldVisitor::scene() noexcept
 {
     return SceneVisitor{*m_world.m_scene};
 }
+AnimatorVisitor WorldVisitor::animator() noexcept
+{
+    return AnimatorVisitor{m_world.m_animator};
+}
 }  // namespace uipc::backend

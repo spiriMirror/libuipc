@@ -9,6 +9,7 @@
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
+#include <animator/global_animator.h>
 #include <fstream>
 
 namespace uipc::backend::cuda
@@ -25,9 +26,10 @@ void SimEngine::build()
     m_gradient_hessian_computer = &require<GradientHessianComputer>();
     m_global_linear_system      = &require<GlobalLinearSystem>();
 
-    m_global_simplicial_surface_manager   = find<GlobalSimpicialSurfaceManager>();
-    m_global_contact_manager   = find<GlobalContactManager>();
-    m_global_trajectory_filter = find<GlobalTrajectoryFilter>();
+    m_global_simplicial_surface_manager = find<GlobalSimpicialSurfaceManager>();
+    m_global_contact_manager            = find<GlobalContactManager>();
+    m_global_trajectory_filter          = find<GlobalTrajectoryFilter>();
+    m_global_animator                   = find<GlobalAnimator>();
 
     // 3) dump system info
     dump_system_info();
@@ -56,6 +58,8 @@ void SimEngine::init_scene()
     m_global_simplicial_surface_manager->init_surface_info();
     if(m_global_contact_manager)
         m_global_contact_manager->compute_d_hat();
+    if(m_global_animator)
+        m_global_animator->init();
 }
 
 void SimEngine::do_init(backend::WorldVisitor v)

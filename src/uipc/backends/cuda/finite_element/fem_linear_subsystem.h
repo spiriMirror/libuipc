@@ -2,6 +2,7 @@
 #include <algorithm/matrix_converter.h>
 #include <linear_system/diag_linear_subsystem.h>
 #include <finite_element/finite_element_method.h>
+#include <finite_element/finite_element_animator.h>
 #include <finite_element/fem_contact_receiver.h>
 #include <finite_element/finite_element_vertex_reporter.h>
 
