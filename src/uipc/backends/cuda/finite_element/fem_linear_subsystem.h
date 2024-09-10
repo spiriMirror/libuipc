@@ -34,6 +34,11 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
             return fem_contact_receiver->m_impl;
         }
         FiniteElementVertexReporter* finite_element_vertex_reporter = nullptr;
+        FiniteElementAnimator*       finite_element_animator        = nullptr;
+        FiniteElementAnimator::Impl& animator() noexcept
+        {
+            return finite_element_animator->m_impl;
+        }
 
         Float reserve_ratio = 1.5;
 

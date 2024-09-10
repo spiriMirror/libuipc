@@ -55,7 +55,7 @@ class FiniteElementAnimator : public Animator
 
         muda::CBufferView<Vector3> xs() const noexcept;
         muda::CBufferView<Float>   masses() const noexcept;
-        muda::CBufferView<FiniteElementMethod::FixType> is_fixed() const noexcept;
+        muda::CBufferView<IndexT>  is_fixed() const noexcept;
 
       protected:
         Impl* m_impl  = nullptr;
@@ -76,6 +76,16 @@ class FiniteElementAnimator : public Animator
         using BaseInfo::BaseInfo;
         muda::BufferView<Vector3>   gradients() const noexcept;
         muda::BufferView<Matrix3x3> hessians() const noexcept;
+    };
+
+    class ReportExtentInfo
+    {
+      public:
+        void hessian_block_count(SizeT count) noexcept;
+
+      private:
+        friend class FiniteElementAnimator;
+        SizeT m_hessian_block_count = 0;
     };
 
     class Impl
@@ -99,6 +109,12 @@ class FiniteElementAnimator : public Animator
 
         vector<IndexT> h_anim_indices;
         muda::DeviceBuffer<IndexT> anim_indices;  // view(anim_vertex_offsets[index], anim_vertex_counts[index])
+
+        // Constraints
+        muda::DeviceVar<Float> constraint_energy;  // Constraint Energy
+        muda::DeviceBuffer<Float> constraint_energies;  // Constraint Energy Per Element
+        muda::DeviceDoubletVector<Float, 3> constraint_gradient;  // Constraint Gradient Per Vertex
+        muda::DeviceTripletMatrix<Float, 3> constraint_hessian;  // Constraint Hessian Per Vertex
     };
 
   private:
@@ -110,6 +126,14 @@ class FiniteElementAnimator : public Animator
 
     friend class FEMGradientHessianComputer;
     void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);
+
+    friend class FEMLinearSubsystem;
+    class ExtentInfo
+    {
+      public:
+        SizeT hessian_block_count;
+    };
+    void report_extent(ExtentInfo& info);
 
     Impl m_impl;
 

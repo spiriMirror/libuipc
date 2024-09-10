@@ -55,7 +55,7 @@ UIPC_BUILTIN_ATTRIBUTE(constitution_uid);
 UIPC_BUILTIN_ATTRIBUTE(extra_constitution_uids);
 
 /**
- * @brief `constraint_uids` <U64> attribute on **meta**, uid is a unique identifier for a constraint
+ * @brief `constraint_uid` <U64> attribute on **meta**, uid is a unique identifier for a constraint
  * which is defined in the libuipc specification.
  */
 UIPC_BUILTIN_ATTRIBUTE(constraint_uid);
@@ -95,13 +95,23 @@ UIPC_BUILTIN_ATTRIBUTE(parent_id);
 /**
  * @brief `is_fixed` <IndexT>[0,1] attribute, indicates if the **instance** or **vertex** is fixed.
  * 
- * 'Fixed' means the vertices are not influenced by its constitution. 
+ * 'Fixed' means the vertices are not influenced by its constitution and kinetic, keeping the position unchanged.
  * They may be fixed with a certain position, or they are animated with a certain aim position.
  * 
  * 1) 0 means the instance or vertex is not fixed.
  * 2) 1 means the instance or vertex is fixed.
  */
 UIPC_BUILTIN_ATTRIBUTE(is_fixed);
+
+/**
+ * @brief `is_constrained` <IndexT>[0,1] attribute, indicates if the **instance** or **vertex** is constrained.
+ * 
+ * 'Constrained' means the vertices are trying to obey the constraints.
+ * 
+ * 1) 0 means the instance or vertex is not constrained.
+ * 2) 1 means the instance or vertex is constrained.
+ */
+UIPC_BUILTIN_ATTRIBUTE(is_constrained);
 
 /**
  * @brief `mass` <Float> attribute on **vertices**.

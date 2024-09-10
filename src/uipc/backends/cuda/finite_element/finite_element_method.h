@@ -65,12 +65,12 @@ class FiniteElementMethod : public SimSystem
         SizeT primitive_count  = 0ull;
     };
 
-    enum class FixType : IndexT
-    {
-        Animated = -1,
-        Free     = 0,
-        Fixed    = 1,
-    };
+    //enum class FixType : IndexT
+    //{
+    //    Animated = -1,
+    //    Free     = 0,
+    //    Fixed    = 1,
+    //};
 
     template <int N>
     class FilteredInfo
@@ -170,8 +170,10 @@ class FiniteElementMethod : public SimSystem
 
 
         // simulation data:
-        vector<IndexT>  h_vertex_contact_element_ids;
-        vector<FixType> h_vertex_is_fixed;
+        vector<IndexT> h_vertex_contact_element_ids;
+        //vector<FixType> h_vertex_is_fixed;
+        vector<IndexT>  h_vertex_is_fixed;
+        vector<IndexT>  h_vertex_is_constrained;
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
         vector<Float>   h_thicknesses;
@@ -198,7 +200,11 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Float>    rest_volumes;
 
         // Vertex Attributes:
-        muda::DeviceBuffer<FixType> is_fixed;  // Vertex Fixed
+        //muda::DeviceBuffer<FixType>   is_fixed;  // Vertex Fixed
+
+        muda::DeviceBuffer<IndexT> is_fixed;        // Vertex Fixed
+        muda::DeviceBuffer<IndexT> is_constrained;  // Vertex Constrained
+
         muda::DeviceBuffer<Vector3> x_bars;    // Rest Positions
         muda::DeviceBuffer<Vector3> xs;        // Positions
         muda::DeviceBuffer<Vector3> dxs;       // Displacements
@@ -243,10 +249,10 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Matrix12x12> H12x12s;  // FEM3D Elastic Hessian
 
         // Extra Constitutions
-        muda::DeviceVar<Float>    extra_energy;    // Extra Energy
-        muda::DeviceBuffer<Float> extra_energies;  // Extra Energy Per Element
-        muda::DeviceDoubletVector<Float, 3> extra_gradient;  // Extra Gradient Per Vertex
-        muda::DeviceTripletMatrix<Float, 3> extra_hessian;  // Extra Hessian Per Vertex
+        muda::DeviceVar<Float> extra_constitution_energy;  // Extra Energy
+        muda::DeviceBuffer<Float> extra_constitution_energies;  // Extra Energy Per Element
+        muda::DeviceDoubletVector<Float, 3> extra_constitution_gradient;  // Extra Gradient Per Vertex
+        muda::DeviceTripletMatrix<Float, 3> extra_constitution_hessian;  // Extra Hessian Per Vertex
     };
 
     class ComputeEnergyInfo

@@ -28,6 +28,11 @@ void FiniteElementConstraint::step(FiniteElementAnimator::FilteredInfo& info)
     do_step(info);
 }
 
+void FiniteElementConstraint::report_extent(FiniteElementAnimator::ReportExtentInfo& info)
+{
+    do_report_extent(info);
+}
+
 void FiniteElementConstraint::compute_energy(FiniteElementAnimator::ComputeEnergyInfo& info)
 {
     do_compute_energy(info);

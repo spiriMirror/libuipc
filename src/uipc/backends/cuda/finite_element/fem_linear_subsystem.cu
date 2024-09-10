@@ -28,13 +28,15 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     auto hessian_block_count =
         fem().H12x12s.size() * H12x12_to_H3x3
         + fem().H9x9s.size() * H9x9_to_H3x3 + fem().H6x6s.size() * H6x6_to_H3x3
-        + fem().H3x3s.size() + fem().extra_hessian.triplet_count();
+        + fem().H3x3s.size() + fem().extra_constitution_hessian.triplet_count();
 
     if(fem_contact_receiver)  // if contact enabled
     {
         auto contact_count = contact().contact_hessian.triplet_count();
         hessian_block_count += contact_count;
     }
+
+    if()
 
     // 2) Gradient Count
     auto dof_count = fem().dxs.size() * 3;
@@ -196,15 +198,15 @@ void FEMLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
                });
 
     // Extra
-    auto EG = fem().extra_gradient.view();
+    auto EG = fem().extra_constitution_gradient.view();
     ParallelFor()
         .kernel_name(__FUNCTION__)
-        .apply(fem().extra_gradient.doublet_count(),
-               [extra_gradient = EG.cviewer().name("extra_gradient"),
+        .apply(fem().extra_constitution_gradient.doublet_count(),
+               [extra_constitution_gradient = EG.cviewer().name("extra_gradient"),
                 gradient       = info.gradient().viewer().name("gradient"),
                 is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
                {
-                   const auto& [i, G3] = extra_gradient(I);
+                   const auto& [i, G3] = extra_constitution_gradient(I);
 
                    if(is_fixed(i) == FixType::Fixed)
                    {
@@ -350,19 +352,19 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
     }
 
     {  // Extra
-        auto EH = fem().extra_hessian.view();
-        auto N  = fem().extra_hessian.triplet_count();
+        auto EH = fem().extra_constitution_hessian.view();
+        auto N  = fem().extra_constitution_hessian.triplet_count();
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
-            .apply(fem().extra_hessian.triplet_count(),
-                   [extra_hessian = EH.cviewer().name("extra_hessian"),
+            .apply(fem().extra_constitution_hessian.triplet_count(),
+                   [extra_constitution_hessian = EH.cviewer().name("extra_hessian"),
                     hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
                     is_fixed      = fem().is_fixed.cviewer().name("is_fixed"),
                     diag_hessians = fem().diag_hessians.viewer().name(
                         "diag_hessian")] __device__(int I) mutable
                    {
-                       const auto& [i, j, H3] = extra_hessian(I);
+                       const auto& [i, j, H3] = extra_constitution_hessian(I);
 
                        if(is_fixed(i) == FixType::Fixed || is_fixed(j) == FixType::Fixed)
                        {

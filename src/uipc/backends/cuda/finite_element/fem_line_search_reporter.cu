@@ -119,15 +119,15 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        fem().fem_3d_elastic_energy.data(),
                        fem().fem_3d_elastic_energies.size());
 
-    DeviceReduce().Sum(fem().extra_energies.data(),
-                       fem().extra_energy.data(),
-                       fem().extra_energies.size());
+    DeviceReduce().Sum(fem().extra_constitution_energies.data(),
+                       fem().extra_constitution_energy.data(),
+                       fem().extra_constitution_energies.size());
 
 
     Float E1      = fem().codim_1d_elastic_energy;
     Float E2      = fem().codim_2d_elastic_energy;
     Float E3      = fem().fem_3d_elastic_energy;
-    Float extra_E = fem().extra_energy;
+    Float extra_E = fem().extra_constitution_energy;
 
     //spdlog::info(
     //    "FEM K: {}, Codim1D-E: {}, Codim2D-E: {}, FEM3D-E: {}, FEM-Extra-E{}", K, E1, E2, E3, extra_E);

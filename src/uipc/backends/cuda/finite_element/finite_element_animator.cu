@@ -153,6 +153,21 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
     }
 }
 
+void FiniteElementAnimator::report_extent(ExtentInfo& info)
+{
+    SizeT H3x3_count = 0;
+
+    for(auto constraint : m_impl.constraints.view())
+    {
+        ReportExtentInfo this_info;
+        constraint->report_extent(this_info);
+
+        H3x3_count += this_info.m_hessian_block_count;
+    }
+
+    info.hessian_block_count = H3x3_count;
+}
+
 void FiniteElementAnimator::Impl::step()
 {
     for(auto constraint : constraints.view())
@@ -212,7 +227,7 @@ muda::CBufferView<Float> FiniteElementAnimator::BaseInfo::masses() const noexcep
     return m_impl->finite_element_method->masses();
 }
 
-muda::CBufferView<FiniteElementMethod::FixType> FiniteElementAnimator::BaseInfo::is_fixed() const noexcept
+muda::CBufferView<IndexT> FiniteElementAnimator::BaseInfo::is_fixed() const noexcept
 {
     return m_impl->finite_element_method->is_fixed();
 }
@@ -230,5 +245,9 @@ muda::BufferView<Vector3> FiniteElementAnimator::ComputeGradientHessianInfo::gra
 muda::BufferView<Matrix3x3> FiniteElementAnimator::ComputeGradientHessianInfo::hessians() const noexcept
 {
     return m_impl->finite_element_method->m_impl.H3x3s.view();
+}
+void FiniteElementAnimator::ReportExtentInfo::hessian_block_count(SizeT count) noexcept
+{
+    m_hessian_block_count = count;
 }
 }  // namespace uipc::backend::cuda
