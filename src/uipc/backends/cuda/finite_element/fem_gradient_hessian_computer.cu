@@ -49,7 +49,7 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
                    Vector3   G = Vector3::Zero();
                    Matrix3x3 H = masses(i) * Matrix3x3::Identity();
 
-                   if(is_fixed(i) == FiniteElementMethod::FixType::Fixed)
+                   if(is_fixed(i))
                    {
                        // G = Vector3::Zero();
                    }
@@ -63,11 +63,6 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
 
                    // cout << "Kinetic G:" << G.transpose().eval() << "\n";
                });
-
-    if(finite_element_animator)
-    {
-        finite_element_animator->compute_gradient_hessian(info);
-    }
 
     // Elastic
     FiniteElementMethod::ComputeGradientHessianInfo this_info{info.dt()};
@@ -88,6 +83,12 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
     for(auto&& [i, cst] : enumerate(fem().fem_3d_constitutions))
     {
         cst->compute_gradient_hessian(this_info);
+    }
+
+    // Animation
+    if(finite_element_animator)
+    {
+        finite_element_animator->compute_gradient_hessian(info);
     }
 }
 }  // namespace uipc::backend::cuda

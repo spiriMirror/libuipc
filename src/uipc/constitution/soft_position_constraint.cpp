@@ -20,16 +20,15 @@ SoftPositionConstraint::SoftPositionConstraint(const Json& config) noexcept
 {
 }
 
-void SoftPositionConstraint::apply_to(geometry::SimplicialComplex& sc,
-                                      Float strength_rate) const
+void SoftPositionConstraint::apply_to(geometry::SimplicialComplex& sc, Float strength_rate) const
 {
     Base::apply_to(sc);
 
-    auto ins_is_fixed  = sc.instances().find<IndexT>(builtin::is_fixed);
-    auto vert_is_fixed = sc.vertices().find<IndexT>(builtin::is_fixed);
-
     if constexpr(uipc::RUNTIME_CHECK)
     {
+        auto ins_is_fixed  = sc.instances().find<IndexT>(builtin::is_fixed);
+        auto vert_is_fixed = sc.vertices().find<IndexT>(builtin::is_fixed);
+
         auto both = ins_is_fixed && vert_is_fixed;
         UIPC_ASSERT(!both, "Animation: SimplicialComplex has both fixed vertices and instances, which is ambiguous.");
 
@@ -39,13 +38,19 @@ void SoftPositionConstraint::apply_to(geometry::SimplicialComplex& sc,
 
     sc.vertices().share(builtin::aim_position, sc.positions());
 
-    auto constraint_strength = sc.vertices().find<Float>("constraint_strength");
+    constexpr std::string_view strength_ratio = "strength_ratio";
+
+    auto constraint_strength = sc.vertices().find<Float>(strength_ratio);
     if(!constraint_strength)
-        constraint_strength =
-            sc.vertices().create<Float>("constraint_strength", strength_rate);
+        constraint_strength = sc.vertices().create<Float>(strength_ratio, strength_rate);
 
     auto strength_view = geometry::view(*constraint_strength);
     std::ranges::fill(strength_view, strength_rate);
+
+    auto is_constrained = sc.vertices().find<IndexT>(builtin::is_constrained);
+
+    if(!is_constrained)
+        is_constrained = sc.vertices().create<IndexT>(builtin::is_constrained, 0);
 }
 
 Json SoftPositionConstraint::default_config()

@@ -48,8 +48,6 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
                                     ViewGetter&&                    view_getter,
                                     ForEach&& for_each_action) noexcept
 {
-    SizeT local_vertex_offset = 0;
-
     for(auto& geo_info : geo_infos)
     {
         auto geo_slot = geo_slots[geo_info.geo_slot_index];
@@ -59,6 +57,8 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
         UIPC_ASSERT(sc, "Only simplicial complex is supported");
 
         auto view = view_getter(*sc);
+
+        SizeT local_vertex_offset = 0;
 
         for(auto&& item : view)
         {

@@ -96,14 +96,16 @@ class FiniteElementMethod : public SimSystem
          *  
          *  vector<Float> lambdas(info.vertex_count());
          * 
+         *  SizeT I = 0;
+         *  
          *  info.for_each(geo_slots, 
          *  [](SimplicialComplex& sc) 
          *  {
          *      return sc.vertices().find<Float>("lambda").view();
          *  },
-         *  [&](SizeT I, Float lambda)
+         *  [&](SizeT i, Float lambda) // i is the local vertex index
          *  {
-         *      lambdas[I] = lambda;
+         *      lambdas[I++] = lambda;
          *  });
          * 
          * @endcode
@@ -173,7 +175,6 @@ class FiniteElementMethod : public SimSystem
         vector<IndexT> h_vertex_contact_element_ids;
         //vector<FixType> h_vertex_is_fixed;
         vector<IndexT>  h_vertex_is_fixed;
-        vector<IndexT>  h_vertex_is_constrained;
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
         vector<Float>   h_thicknesses;
@@ -202,8 +203,7 @@ class FiniteElementMethod : public SimSystem
         // Vertex Attributes:
         //muda::DeviceBuffer<FixType>   is_fixed;  // Vertex Fixed
 
-        muda::DeviceBuffer<IndexT> is_fixed;        // Vertex Fixed
-        muda::DeviceBuffer<IndexT> is_constrained;  // Vertex Constrained
+        muda::DeviceBuffer<IndexT> is_fixed;  // Vertex Fixed
 
         muda::DeviceBuffer<Vector3> x_bars;    // Rest Positions
         muda::DeviceBuffer<Vector3> xs;        // Positions
@@ -317,6 +317,30 @@ class FiniteElementMethod : public SimSystem
     auto G12s() const noexcept { return m_impl.G12s.view(); }
     auto H12x12s() const noexcept { return m_impl.H12x12s.view(); }
 
+    /**
+     * @brief For each primitive
+     * 
+     * @code
+     *  
+     *  vector<Float> lambdas(info.vertex_count());
+     *  
+     *  info.for_each(geo_slots, 
+     *  [](SimplicialComplex& sc) 
+     *  {
+     *      return sc.vertices().find<Float>("lambda").view();
+     *  },
+     *  [&](SizeT I, Float lambda)
+     *  {
+     *      lambdas[I] = lambda;
+     *  });
+     * 
+     * @endcode
+     */
+    template <typename ForEach, typename ViewGetter>
+    void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                  ViewGetter&&                    view_getter,
+                  ForEach&&                       for_each_action) noexcept;
+
   private:
     friend class FiniteElementVertexReporter;
     friend class FiniteElementSurfaceReporter;
@@ -334,30 +358,6 @@ class FiniteElementMethod : public SimSystem
                           span<S<geometry::GeometrySlot>> geo_slots,
                           ViewGetter&&                    view_getter,
                           ForEach&& for_each_action) noexcept;
-
-    /**
-     * @brief For each primitive or vertex in the filtered info
-     * 
-     * @code
-     *  
-     *  vector<Float> lambdas(info.vertex_count());
-     * 
-     *  info.for_each(geo_slots, 
-     *  [](SimplicialComplex& sc) 
-     *  {
-     *      return sc.vertices().find<Float>("lambda").view();
-     *  },
-     *  [&](SizeT I, Float lambda)
-     *  {
-     *      lambdas[I] = lambda;
-     *  });
-     * 
-     * @endcode
-     */
-    template <typename ForEach, typename ViewGetter>
-    void for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                  ViewGetter&&                    view_getter,
-                  ForEach&&                       for_each_action) noexcept;
 
     Impl m_impl;
 };

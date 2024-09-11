@@ -20,6 +20,7 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
         void assemble(GlobalLinearSystem::DiagInfo& info);
         void _assemble_gradient(GlobalLinearSystem::DiagInfo& info);
         void _assemble_hessian(GlobalLinearSystem::DiagInfo& info);
+        void _assemble_animation(GlobalLinearSystem::DiagInfo& info);
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
@@ -39,6 +40,8 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
         {
             return finite_element_animator->m_impl;
         }
+        SizeT animator_hessian_offset = ~0ull;
+        SizeT animator_hessian_count  = ~0ull;
 
         Float reserve_ratio = 1.5;
 

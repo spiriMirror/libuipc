@@ -37,6 +37,8 @@ class ARAP3D final : public FEM3DConstitution
 
         h_kappas.resize(N);
 
+        SizeT I = 0;
+
         info.for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc) -> auto
@@ -45,7 +47,7 @@ class ARAP3D final : public FEM3DConstitution
 
                 return kappa->view();
             },
-            [&](SizeT I, Float kappa) { h_kappas[I] = kappa; });
+            [&](SizeT vi, Float kappa) { h_kappas[I++] = kappa; });
 
         kappas.resize(N);
         kappas.view().copy_from(h_kappas.data());

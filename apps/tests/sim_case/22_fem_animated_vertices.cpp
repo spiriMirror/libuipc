@@ -64,9 +64,9 @@ TEST_CASE("22_fem_animated_vertices", "[animation]")
     auto parm = ElasticModuli::youngs_poisson(1e5, 0.499);
     snh.apply_to(mesh, parm, 1e3);
     spc.apply_to(mesh, 100.0);
-    auto is_fixed      = mesh.vertices().find<IndexT>(builtin::is_fixed);
-    auto is_fixed_view = view(*is_fixed);
-    is_fixed_view[0]   = 1;
+    auto is_constrained = mesh.vertices().find<IndexT>(builtin::is_constrained);
+    auto is_constrained_view = view(*is_constrained);
+    is_constrained_view[0]   = 1;
 
     object->geometries().create(mesh);
 

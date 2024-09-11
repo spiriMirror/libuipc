@@ -392,7 +392,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
     h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
     h_masses.resize(h_positions.size());
     h_vertex_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
-    h_vertex_is_fixed.resize(h_positions.size(), FixType::Free);  // fill Free for default
+    h_vertex_is_fixed.resize(h_positions.size(), 0);  // fill 0 for default
 
     for(auto&& [i, info] : enumerate(geo_infos))
     {
@@ -540,18 +540,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
                 auto is_fixed_view = is_fixed->view();
                 UIPC_ASSERT(is_fixed_view.size() == dst_is_fixed_span.size(),
                             "is_fixed size mismatching");
-                for(auto&& [i, fixed] : enumerate(is_fixed_view))
-                {
-                    if(fixed == 0)
-                    {
-                        dst_is_fixed_span[i] = FixType::Free;
-                    }
-                    else
-                    {
-                        dst_is_fixed_span[i] =
-                            constraint_uid ? FixType::Animated : FixType::Fixed;
-                    }
-                }
+                std::ranges::copy(is_fixed_view, dst_is_fixed_span.begin());
             }
         }
 
@@ -776,7 +765,7 @@ void FiniteElementMethod::Impl::compute_x_tilde(DoFPredictor::PredictInfo& info)
                    const Vector3& x_prev = x_prevs(i);
                    const Vector3& v      = vs(i);
                    // TODO: this time, we only consider gravity
-                   if(is_fixed(i) != FixType::Free)
+                   if(is_fixed(i))
                    {
                        x_tildes(i) = x_prev;
                    }

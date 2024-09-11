@@ -7,7 +7,7 @@
 namespace uipc::backend::cuda
 {
 class FiniteElementConstraint;
-class FiniteElementAnimator : public Animator
+class FiniteElementAnimator final : public Animator
 {
   public:
     using Animator::Animator;
@@ -26,6 +26,8 @@ class FiniteElementAnimator : public Animator
         }
 
         span<const AnimatedGeoInfo> animated_geo_infos() const;
+
+        SizeT anim_vertex_count() const noexcept;
 
         span<const IndexT> anim_indices() const;
 
@@ -49,10 +51,7 @@ class FiniteElementAnimator : public Animator
         {
         }
 
-        Float dt() const noexcept;
-
-        muda::CBufferView<IndexT> anim_indices() const noexcept;
-
+        Float                      dt() const noexcept;
         muda::CBufferView<Vector3> xs() const noexcept;
         muda::CBufferView<Float>   masses() const noexcept;
         muda::CBufferView<IndexT>  is_fixed() const noexcept;
@@ -74,18 +73,22 @@ class FiniteElementAnimator : public Animator
     {
       public:
         using BaseInfo::BaseInfo;
-        muda::BufferView<Vector3>   gradients() const noexcept;
-        muda::BufferView<Matrix3x3> hessians() const noexcept;
+        muda::DoubletVectorView<Float, 3> gradients() const noexcept;
+        muda::TripletMatrixView<Float, 3> hessians() const noexcept;
     };
 
     class ReportExtentInfo
     {
       public:
         void hessian_block_count(SizeT count) noexcept;
+        void gradient_segment_count(SizeT count) noexcept;
+        void energy_count(SizeT count) noexcept;
 
       private:
         friend class FiniteElementAnimator;
-        SizeT m_hessian_block_count = 0;
+        SizeT m_hessian_block_count    = 0;
+        SizeT m_gradient_segment_count = 0;
+        SizeT m_energy_count           = 0;
     };
 
     class Impl
@@ -113,19 +116,27 @@ class FiniteElementAnimator : public Animator
         // Constraints
         muda::DeviceVar<Float> constraint_energy;  // Constraint Energy
         muda::DeviceBuffer<Float> constraint_energies;  // Constraint Energy Per Element
+        vector<SizeT> constraint_energy_offsets;
+        vector<SizeT> constraint_energy_counts;
+
         muda::DeviceDoubletVector<Float, 3> constraint_gradient;  // Constraint Gradient Per Vertex
+        vector<SizeT> constraint_gradient_offsets;
+        vector<SizeT> constraint_gradient_counts;
+
         muda::DeviceTripletMatrix<Float, 3> constraint_hessian;  // Constraint Hessian Per Vertex
+        vector<SizeT> constraint_hessian_offsets;
+        vector<SizeT> constraint_hessian_counts;
     };
 
   private:
     friend class FiniteElementConstraint;
-    void add_constraint(FiniteElementConstraint* constraint);
+    void add_constraint(FiniteElementConstraint* constraint);  // only be called by FiniteElementConstraint
 
     friend class FEMLineSearchReporter;
-    void compute_energy(LineSearcher::EnergyInfo& info);
+    Float compute_energy(LineSearcher::EnergyInfo& info);  // only be called by FEMLineSearchReporter
 
     friend class FEMGradientHessianComputer;
-    void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);
+    void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);  // only be called by GradientHessianComputer
 
     friend class FEMLinearSubsystem;
     class ExtentInfo
@@ -133,13 +144,20 @@ class FiniteElementAnimator : public Animator
       public:
         SizeT hessian_block_count;
     };
-    void report_extent(ExtentInfo& info);
+    void report_extent(ExtentInfo& info);  // only be called by FEMLinearSubsystem
+    class AssembleInfo
+    {
+      public:
+        muda::TripletMatrixView<Float, 3> hessians;
+        muda::DoubletVectorView<Float, 3> gradients;
+    };
+    void assemble(AssembleInfo& info);  // only be called by FEMLinearSubsystem
 
     Impl m_impl;
 
     virtual void do_init() override;
     virtual void do_step() override;
-    virtual void do_build(BuildInfo& info) override final;
+    virtual void do_build(BuildInfo& info) override;
 };
 }  // namespace uipc::backend::cuda
 

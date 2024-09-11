@@ -121,8 +121,7 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
 
                             Matrix12x3 H = J.to_mat().transpose() * H3x3;
 
-                            if(body_is_fixed(body_id)
-                               || vertex_is_fixed(J_fem_v) == FiniteElementMethod::FixType::Fixed)
+                            if(body_is_fixed(body_id) || vertex_is_fixed(J_fem_v))
                                 H.setZero();
 
                             for(int k = 0; k < 4; ++k)
@@ -151,8 +150,7 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
 
                             Matrix3x12 H = H3x3 * J.to_mat();
 
-                            if(body_is_fixed(body_id)
-                               || vertex_is_fixed(I_fem_v) == FiniteElementMethod::FixType::Fixed)
+                            if(body_is_fixed(body_id) || vertex_is_fixed(I_fem_v))
                                 H.setZero();
 
                             for(int k = 0; k < 4; ++k)
