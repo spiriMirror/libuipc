@@ -40,8 +40,8 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
         {
             return finite_element_animator->m_impl;
         }
-        SizeT animator_hessian_offset = ~0ull;
-        SizeT animator_hessian_count  = ~0ull;
+        SizeT animator_hessian_offset = 0;
+        SizeT animator_hessian_count  = 0;
 
         Float reserve_ratio = 1.5;
 

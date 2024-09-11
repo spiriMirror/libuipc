@@ -5,6 +5,7 @@
 #include <pyuipc/world/contact_tabular.h>
 #include <pyuipc/world/constitution_tabular.h>
 #include <pyuipc/world/scene_io.h>
+#include <pyuipc/world/animator.h>
 
 namespace pyuipc::world
 {
@@ -16,6 +17,7 @@ Module::Module(py::module& m)
     PyConstitutionTabular{m};
 
     PyScene{m};
+    PyAnimator{m};
     PyWorld{m};
     PySceneIO{m};
 }

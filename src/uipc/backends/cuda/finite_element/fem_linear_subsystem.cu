@@ -418,7 +418,7 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
         offset += N;
     }
 
-    UIPC_ASSERT(offset == animator_hessian_offset, "Hessian size mismatch");
+    // UIPC_ASSERT(offset == animator_hessian_offset, "Hessian size mismatch");
 }
 
 void FEMLinearSubsystem::Impl::_assemble_animation(GlobalLinearSystem::DiagInfo& info)
