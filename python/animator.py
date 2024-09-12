@@ -9,6 +9,7 @@ from pyuipc.world import *
 from pyuipc.engine import *
 from pyuipc.constitution import *
 from pyuipc.geometry import *
+from pyuipc_gui import SceneGUI
 
 def process_surface(sc: SimplicialComplex):
     label_surface(sc)
@@ -56,38 +57,37 @@ object.geometries().create(tet)
 g = ground(-1.2)
 object.geometries().create(g)
 
-# # scripted animation
-# def animation(info:Animation.UpdateInfo):
-#     geos:list[GeometrySlot] = info.geo_slots()
-#     geo:SimplicialComplex = geos[0].geometry()
+# scripted animation
+def animation(info:Animation.UpdateInfo):
+    geos:list[GeometrySlot] = info.geo_slots()
+    geo:SimplicialComplex = geos[0].geometry()
 
-#     # label the constrained vertices
-#     is_constrained = geo.vertices().find(builtin.is_constrained)
-#     is_constrained_view = view(is_constrained)
-#     is_constrained_view[0] = 1 if info.frame() < 180 else 0
+    # label the constrained vertices
+    is_constrained = geo.vertices().find(builtin.is_constrained)
+    is_constrained_view = view(is_constrained)
+    is_constrained_view[0] = 1 if info.frame() < 180 else 0
 
-#     # set the aim position
-#     apos = geo.vertices().find(builtin.aim_position)
-#     apos_view = view(apos)
+    # set the aim position
+    apos = geo.vertices().find(builtin.aim_position)
+    apos_view = view(apos)
     
-#     theta = - info.frame() * 2 * np.pi / 360
-#     cos_t = np.cos(theta)
-#     sin_t = np.sin(theta)
-#     apos_view[0] = Vector3.Values([0, cos_t, sin_t])
-#     pass
-# scene.animator().insert(object, animation)
+    theta = - info.frame() * 2 * np.pi / 360
+    cos_t = np.cos(theta)
+    sin_t = np.sin(theta)
+    apos_view[0] = Vector3.Values([0, cos_t, sin_t])
+    pass
+scene.animator().insert(object, animation)
 
 world.init(scene)
 
 sio = SceneIO(scene)
+sgui = SceneGUI(scene)
+
 run = False
 ps.init()
 ps.set_ground_plane_height(-1.2)
-s = sio.simplicial_surface()
-v = s.positions().view()
-t = s.triangles().topo().view()
-mesh = ps.register_surface_mesh('obj', v.reshape(-1,3), t.reshape(-1,3))
-mesh.set_edge_width(1.0)
+sgui.register()
+
 def on_update():
     global run
     if(psim.Button("run & stop")):
@@ -96,9 +96,7 @@ def on_update():
     if(run):
         world.advance()
         world.retrieve()
-        s = sio.simplicial_surface()
-        v = s.positions().view()
-        mesh.update_vertex_positions(v.reshape(-1,3))
+        sgui.update()
 
 ps.set_user_callback(on_update)
 ps.show()

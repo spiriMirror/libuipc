@@ -8,6 +8,7 @@ from pyuipc.world import *
 from pyuipc.engine import *
 from pyuipc.constitution import *
 from pyuipc.geometry import *
+from pyuipc_gui import SceneGUI
 
 def process_surface(sc: SimplicialComplex):
     label_surface(sc)
@@ -24,7 +25,6 @@ world = World(engine)
 
 config = Scene.default_config()
 print(config)
-
 
 scene = Scene(config)
 
@@ -73,10 +73,11 @@ g = ground(-1.2)
 object.geometries().create(g)
 
 sio = SceneIO(scene)
+sgui = SceneGUI(scene)
+
 world.init(scene)
 
 run = False
-
 ps.init()
 ps.set_ground_plane_mode('none')
 s = sio.simplicial_surface()
@@ -84,9 +85,7 @@ s = sio.simplicial_surface()
 ssio = SpreadSheetIO(workspace)
 ssio.write_csv('surf', s)
 
-v = s.positions().view()
-t = s.triangles().topo().view()
-mesh = ps.register_surface_mesh('obj', v.reshape(-1,3), t.reshape(-1,3))
+mesh, _, _ = sgui.register()
 mesh.set_edge_width(1.0)
 def on_update():
     global run
@@ -96,9 +95,7 @@ def on_update():
     if(run):
         world.advance()
         world.retrieve()
-        s = sio.simplicial_surface()
-        v = s.positions().view()
-        mesh.update_vertex_positions(v.reshape(-1,3))
-
+        sgui.update()
+        
 ps.set_user_callback(on_update)
 ps.show()

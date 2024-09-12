@@ -154,7 +154,7 @@ run = False
 ps.init()
 ps.set_ground_plane_height(-1.2)
 _, mesh, _ = sgui.register()
-mesh.set_radius(thickness * 0.2)
+mesh.set_radius(thickness, False)
 
 def on_update():
     global run
