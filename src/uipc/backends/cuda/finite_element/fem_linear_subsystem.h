@@ -2,6 +2,7 @@
 #include <algorithm/matrix_converter.h>
 #include <linear_system/diag_linear_subsystem.h>
 #include <finite_element/finite_element_method.h>
+#include <finite_element/finite_element_animator.h>
 #include <finite_element/fem_contact_receiver.h>
 #include <finite_element/finite_element_vertex_reporter.h>
 
@@ -19,6 +20,7 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
         void assemble(GlobalLinearSystem::DiagInfo& info);
         void _assemble_gradient(GlobalLinearSystem::DiagInfo& info);
         void _assemble_hessian(GlobalLinearSystem::DiagInfo& info);
+        void _assemble_animation(GlobalLinearSystem::DiagInfo& info);
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
@@ -33,6 +35,13 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
             return fem_contact_receiver->m_impl;
         }
         FiniteElementVertexReporter* finite_element_vertex_reporter = nullptr;
+        FiniteElementAnimator*       finite_element_animator        = nullptr;
+        FiniteElementAnimator::Impl& animator() noexcept
+        {
+            return finite_element_animator->m_impl;
+        }
+        SizeT animator_hessian_offset = 0;
+        SizeT animator_hessian_count  = 0;
 
         Float reserve_ratio = 1.5;
 

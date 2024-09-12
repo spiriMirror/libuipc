@@ -36,6 +36,8 @@ class HookeanSpring1D final : public Codim1DConstitution
 
         h_kappas.resize(N);
 
+        SizeT I = 0;
+
         info.for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc) -> auto
@@ -43,10 +45,10 @@ class HookeanSpring1D final : public Codim1DConstitution
                 auto kappa = sc.edges().find<Float>("kappa");
                 return kappa->view();
             },
-            [&](SizeT I, Float kappa)
+            [&](SizeT vi, Float kappa)
             {
                 // retrieve material parameters
-                h_kappas[I] = kappa;
+                h_kappas[I++] = kappa;
             });
 
         kappas.resize(N);
@@ -86,8 +88,8 @@ class HookeanSpring1D final : public Codim1DConstitution
                        Float E;
                        NS::E(E, kappa, X, L0);
                        element_energies(I) = E * Vdt2;
-                       cout << "E: " << E << " Vdt2: " << Vdt2
-                            << " E*Vdt2: " << E * Vdt2 << "\n";
+                       //cout << "E: " << E << " Vdt2: " << Vdt2
+                       //     << " E*Vdt2: " << E * Vdt2 << "\n";
                    });
     }
 

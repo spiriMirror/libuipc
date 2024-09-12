@@ -530,6 +530,8 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
         {  // 7) setup vertex is_fixed
 
             auto is_fixed = sc->vertices().find<IndexT>(builtin::is_fixed);
+            auto constraint_uid = sc->meta().find<U64>(builtin::constraint_uid);
+
             auto dst_is_fixed_span =
                 span{h_vertex_is_fixed}.subspan(info.vertex_offset, info.vertex_count);
 
@@ -780,21 +782,17 @@ void FiniteElementMethod::Impl::compute_velocity(DoFPredictor::ComputeVelocityIn
     ParallelFor()
         .kernel_name(__FUNCTION__)
         .apply(xs.size(),
-               [is_fixed = is_fixed.cviewer().name("fixed"),
-                xs       = xs.cviewer().name("xs"),
-                vs       = vs.viewer().name("vs"),
-                x_prevs  = x_prevs.viewer().name("x_prevs"),
-                dt       = info.dt()] __device__(int i) mutable
+               [xs      = xs.cviewer().name("xs"),
+                vs      = vs.viewer().name("vs"),
+                x_prevs = x_prevs.viewer().name("x_prevs"),
+                dt      = info.dt()] __device__(int i) mutable
                {
                    Vector3& v      = vs(i);
                    Vector3& x_prev = x_prevs(i);
 
                    const Vector3& x = xs(i);
 
-                   if(is_fixed(i))
-                       v = Vector3::Zero();
-                   else
-                       v = (x - x_prev) * (1.0 / dt);
+                   v = (x - x_prev) * (1.0 / dt);
 
                    x_prev = x;
                });

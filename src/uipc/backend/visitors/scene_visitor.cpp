@@ -28,6 +28,16 @@ span<S<geometry::GeometrySlot>> SceneVisitor::pending_geometries() const noexcep
     return m_scene.m_impl.geometries.pending_create_slots();
 }
 
+S<geometry::GeometrySlot> SceneVisitor::find_geometry(IndexT id) noexcept
+{
+    return m_scene.m_impl.geometries.find(id);
+}
+
+S<geometry::GeometrySlot> SceneVisitor::find_rest_geometry(IndexT id) noexcept
+{
+    return m_scene.m_impl.rest_geometries.find(id);
+}
+
 span<S<geometry::GeometrySlot>> SceneVisitor::rest_geometries() const noexcept
 {
     return m_scene.m_impl.rest_geometries.geometry_slots();

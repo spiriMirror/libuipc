@@ -39,6 +39,11 @@ PyScene::PyScene(py::module& m)
         { return self.constitution_tabular(); },
         py::return_value_policy::reference_internal);
 
+    class_Scene.def(
+        "animator",
+        [](Scene& self) -> Animator& { return self.animator(); },
+        py::return_value_policy::reference_internal);
+
     class_Objects.def("create",
                       [](Scene::Objects& self, std::string_view name) -> S<Object>
                       { return std::move(self).create(name); });
@@ -57,8 +62,7 @@ PyScene::PyScene(py::module& m)
     class_Geometries.def("find",
                          [](Scene::Geometries& self, IndexT id)
                          {
-                             auto [geo, rest_geo] =
-                                 std::move(self).template find<geometry::Geometry>(id);
+                             auto [geo, rest_geo] = std::move(self).find(id);
                              return std::make_pair(geo, rest_geo);
                          });
 }

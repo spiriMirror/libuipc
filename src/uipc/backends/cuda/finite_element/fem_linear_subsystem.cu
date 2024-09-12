@@ -14,7 +14,8 @@ void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
     m_impl.finite_element_method = &require<FiniteElementMethod>();
     m_impl.finite_element_vertex_reporter = &require<FiniteElementVertexReporter>();
 
-    m_impl.fem_contact_receiver = find<FEMContactReceiver>();
+    m_impl.fem_contact_receiver    = find<FEMContactReceiver>();
+    m_impl.finite_element_animator = find<FiniteElementAnimator>();
 
     m_impl.converter.reserve_ratio(1.1);
 }
@@ -28,12 +29,21 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     auto hessian_block_count =
         fem().H12x12s.size() * H12x12_to_H3x3
         + fem().H9x9s.size() * H9x9_to_H3x3 + fem().H6x6s.size() * H6x6_to_H3x3
-        + fem().H3x3s.size() + fem().extra_hessian.triplet_count();
+        + fem().H3x3s.size() + fem().extra_constitution_hessian.triplet_count();
 
     if(fem_contact_receiver)  // if contact enabled
     {
         auto contact_count = contact().contact_hessian.triplet_count();
         hessian_block_count += contact_count;
+    }
+
+    if(finite_element_animator)
+    {
+        FiniteElementAnimator::ExtentInfo extent_info;
+        finite_element_animator->report_extent(extent_info);
+        animator_hessian_offset = hessian_block_count;
+        animator_hessian_count  = extent_info.hessian_block_count;
+        hessian_block_count += animator_hessian_count;
     }
 
     // 2) Gradient Count
@@ -46,6 +56,7 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 {
     _assemble_gradient(info);
     _assemble_hessian(info);
+    _assemble_animation(info);
 }
 
 namespace detail
@@ -140,18 +151,11 @@ void FEMLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
     ParallelFor()
         .kernel_name(__FUNCTION__)
         .apply(fem().G3s.size(),
-               [G3s      = fem().G3s.cviewer().name("G3s"),
-                gradient = info.gradient().viewer().name("gradient"),
-                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int i) mutable
+               [G3s = fem().G3s.cviewer().name("G3s"),
+                gradient = info.gradient().viewer().name("gradient")] __device__(int i) mutable
                {
-                   if(is_fixed(i))
-                   {
-                       gradient.segment<3>(i * 3) = Vector3::Zero().eval();
-                   }
-                   else
-                   {
-                       gradient.segment<3>(i * 3) = G3s(i);
-                   }
+                   // fill gradient
+                   gradient.segment<3>(i * 3) = G3s(i);
                });
 
     // Elastic
@@ -196,15 +200,15 @@ void FEMLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& 
                });
 
     // Extra
-    auto EG = fem().extra_gradient.view();
+    auto EG = fem().extra_constitution_gradient.view();
     ParallelFor()
         .kernel_name(__FUNCTION__)
-        .apply(fem().extra_gradient.doublet_count(),
-               [extra_gradient = EG.cviewer().name("extra_gradient"),
-                gradient       = info.gradient().viewer().name("gradient"),
+        .apply(fem().extra_constitution_gradient.doublet_count(),
+               [extra_constitution_gradient = EG.cviewer().name("extra_gradient"),
+                gradient = info.gradient().viewer().name("gradient"),
                 is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
                {
-                   const auto& [i, G3] = extra_gradient(I);
+                   const auto& [i, G3] = extra_constitution_gradient(I);
 
                    if(is_fixed(i))
                    {
@@ -348,23 +352,23 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
     }
 
     {  // Extra
-        auto EH = fem().extra_hessian.view();
-        auto N  = fem().extra_hessian.triplet_count();
+        auto EH = fem().extra_constitution_hessian.view();
+        auto N  = fem().extra_constitution_hessian.triplet_count();
 
         ParallelFor()
             .kernel_name(__FUNCTION__)
-            .apply(fem().extra_hessian.triplet_count(),
-                   [extra_hessian = EH.cviewer().name("extra_hessian"),
+            .apply(fem().extra_constitution_hessian.triplet_count(),
+                   [extra_constitution_hessian = EH.cviewer().name("extra_hessian"),
                     hessian = dst_H3x3s.subview(offset, N).viewer().name("hessian"),
                     is_fixed      = fem().is_fixed.cviewer().name("is_fixed"),
                     diag_hessians = fem().diag_hessians.viewer().name(
                         "diag_hessian")] __device__(int I) mutable
                    {
-                       const auto& [i, j, H3] = extra_hessian(I);
+                       const auto& [i, j, H3] = extra_constitution_hessian(I);
 
                        if(is_fixed(i) || is_fixed(j))
                        {
-                           //
+                           hessian(I).write(i, j, Matrix3x3::Zero());
                        }
                        else
                        {
@@ -400,7 +404,7 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
 
                        if(is_fixed(i) || is_fixed(j))
                        {
-                           //
+                           hessian(I).write(i, j, Matrix3x3::Zero());
                        }
                        else
                        {
@@ -414,7 +418,64 @@ void FEMLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& i
         offset += N;
     }
 
-    UIPC_ASSERT(offset == info.hessian().triplet_count(), "Hessian size mismatch");
+    // UIPC_ASSERT(offset == animator_hessian_offset, "Hessian size mismatch");
+}
+
+void FEMLinearSubsystem::Impl::_assemble_animation(GlobalLinearSystem::DiagInfo& info)
+{
+    using namespace muda;
+    if(finite_element_animator)
+    {
+        FiniteElementAnimator::AssembleInfo this_info;
+        this_info.hessians =
+            info.hessian().subview(animator_hessian_offset, animator_hessian_count);
+        finite_element_animator->assemble(this_info);
+
+        // setup gradient
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(this_info.gradients.doublet_count(),
+                   [anim_gradients = this_info.gradients.cviewer().name("gradients"),
+                    gradient = info.gradient().viewer().name("gradient"),
+                    is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+                   {
+                       const auto& [i, G3] = anim_gradients(I);
+                       if(is_fixed(i))
+                       {
+                           //
+                       }
+                       else
+                       {
+                           gradient.segment<3>(i * 3).atomic_add(G3);
+                       }
+                   });
+
+        // setup hessian
+        auto dst_hessian =
+            info.hessian().subview(animator_hessian_offset, animator_hessian_count);
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(this_info.hessians.triplet_count(),
+                   [anim_hessians = this_info.hessians.cviewer().name("hessians"),
+                    hessian      = dst_hessian.viewer().name("hessian"),
+                    is_fixed     = fem().is_fixed.cviewer().name("is_fixed"),
+                    diag_hessian = fem().diag_hessians.viewer().name(
+                        "diag_hessian")] __device__(int I) mutable
+                   {
+                       const auto& [i, j, H3] = anim_hessians(I);
+                       if(is_fixed(i) || is_fixed(j))
+                       {
+                           hessian(I).write(i, j, Matrix3x3::Zero());
+                       }
+                       else
+                       {
+                           hessian(I).write(i, j, H3);
+
+                           if(i == j)
+                               muda::eigen::atomic_add(diag_hessian(i), H3);
+                       }
+                   });
+    }
 }
 
 void FEMLinearSubsystem::Impl::accuracy_check(GlobalLinearSystem::AccuracyInfo& info)

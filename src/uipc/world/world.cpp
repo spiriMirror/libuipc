@@ -21,7 +21,8 @@ void World::init(Scene& s)
 
     m_scene = &s;
     m_engine->init(backend::WorldVisitor{*this});
-    m_scene->m_impl.started = true;
+    m_scene->m_impl.world   = this;  // set the world pointer in the scene
+    m_scene->m_impl.started = true;  // set the started flag in the scene
 }
 
 void World::advance()

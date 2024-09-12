@@ -27,11 +27,13 @@ REGISTER_SIM_SYSTEM(GlobalContactManager);
 
 void GlobalContactManager::do_build()
 {
+    const auto& info = world().scene().info();
+
     m_impl.global_vertex_manager = find<GlobalVertexManager>();
-    const auto& info             = world().scene().info();
-    m_impl.related_d_hat         = info["contact"]["d_hat"].get<Float>();
-    m_impl.dt                    = info["dt"].get<Float>();
-    m_impl.eps_velocity          = info["contact"]["eps_velocity"].get<Float>();
+
+    m_impl.related_d_hat = info["contact"]["d_hat"].get<Float>();
+    m_impl.dt            = info["dt"].get<Float>();
+    m_impl.eps_velocity  = info["contact"]["eps_velocity"].get<Float>();
     m_impl.kappa = world().scene().contact_tabular().default_model().resistance();
 
     on_init_scene([this] { m_impl.init(world()); });

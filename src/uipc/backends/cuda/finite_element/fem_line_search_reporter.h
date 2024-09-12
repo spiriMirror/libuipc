@@ -2,10 +2,11 @@
 #include <sim_system.h>
 #include <line_search/line_search_reporter.h>
 #include <finite_element/finite_element_method.h>
+#include <finite_element/finite_element_animator.h>
 
 namespace uipc::backend::cuda
 {
-class FEMLineSearchReporter final: public LineSearchReporter
+class FEMLineSearchReporter final : public LineSearchReporter
 {
   public:
     using LineSearchReporter::LineSearchReporter;
@@ -17,7 +18,8 @@ class FEMLineSearchReporter final: public LineSearchReporter
         void step_forward(LineSearcher::StepInfo& info);
         void compute_energy(LineSearcher::EnergyInfo& info);
 
-        FiniteElementMethod*       finite_element_method = nullptr;
+        FiniteElementMethod*       finite_element_method   = nullptr;
+        FiniteElementAnimator*     finite_element_animator = nullptr;
         FiniteElementMethod::Impl& fem()
         {
             return finite_element_method->m_impl;

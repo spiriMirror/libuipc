@@ -5,7 +5,7 @@
 
 namespace uipc::builtin
 {
-#include <uipc/builtin/details/attribute_name.inl>
+#include <uipc/builtin/details/attribute_name.h>
 }  // namespace uipc::builtin
 
 #undef UIPC_BUILTIN_ATTRIBUTE

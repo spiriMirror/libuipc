@@ -13,7 +13,12 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
                                          Float mass_density,
                                          Float thickness) const
 {
-    Base::apply_to(sc);
+    auto P = sc.meta().find<U64>(builtin::constitution_uid);
+
+    if(!P)
+        P = sc.meta().create<U64>(builtin::constitution_uid, uid());
+    else
+        geometry::view(*P).front() = uid();
 
     auto is_fixed = sc.vertices().find<IndexT>(builtin::is_fixed);
     if(!is_fixed)
@@ -24,10 +29,8 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
     auto attr_thickness = sc.vertices().find<Float>(builtin::thickness);
     if(!attr_thickness)
         attr_thickness = sc.vertices().create<Float>(builtin::thickness, thickness);
-    else
-    {
-        auto thickness_view = geometry::view(*attr_thickness);
-        std::ranges::fill(thickness_view, thickness);
-    }
+
+    auto thickness_view = geometry::view(*attr_thickness);
+    std::ranges::fill(thickness_view, thickness);
 }
 }  // namespace uipc::constitution

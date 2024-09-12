@@ -1,9 +1,13 @@
+aim_position: str
+aim_transform: str
 backend_abd_body_offset: str
 backend_fem_vertex_offset: str
 constitution_uid: str
+constraint_uid: str
 contact_element_id: str
 extra_constitution_uids: str
 implicit_geometry_uid: str
+is_constrained: str
 is_facet: str
 is_fixed: str
 is_surf: str

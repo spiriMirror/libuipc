@@ -1,5 +1,7 @@
 #include <finite_element/finite_element_vertex_reporter.h>
 #include <global_geometry/global_vertex_manager.h>
+#include <kernel_cout.h>
+#include <muda/ext/eigen/log_proxy.h>
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FiniteElementVertexReporter);
@@ -26,7 +28,8 @@ void FiniteElementVertexReporter::Impl::report_attributes(GlobalVertexManager::V
         .apply(N,
                [coindices = info.coindices().viewer().name("coindices"),
                 src_pos   = fem().xs.cviewer().name("src_pos"),
-                dst_pos = info.positions().viewer().name("dst_pos")] __device__(int i) mutable
+                dst_pos   = info.positions().viewer().name("dst_pos"),
+                thicknesses = fem().thicknesses.viewer().name("thicknesses")] __device__(int i) mutable
                {
                    coindices(i) = i;
                    dst_pos(i)   = src_pos(i);

@@ -1,4 +1,5 @@
 #include <sim_engine.h>
+#include <uipc/common/range.h>
 #include <log_pattern_guard.h>
 #include <dof_predictor.h>
 #include <global_geometry/global_vertex_manager.h>
@@ -8,7 +9,8 @@
 #include <line_search/line_searcher.h>
 #include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
-#include <uipc/common/range.h>
+#include <animator/global_animator.h>
+
 
 namespace uipc::backend::cuda
 {
@@ -57,6 +59,7 @@ void SimEngine::do_advance()
 
     auto compute_adaptive_kappa = [this]
     {
+        // TODO: now no effect
         if(m_global_contact_manager)
             m_global_contact_manager->compute_adaptive_kappa();
     };
@@ -114,6 +117,12 @@ void SimEngine::do_advance()
         return m_line_searcher->compute_energy(false);
     };
 
+    auto step_animation = [this]()
+    {
+        if(m_global_animator)
+            m_global_animator->step();
+    };
+
     /***************************************************************************************
     *                                  Core Pipeline
     ***************************************************************************************/
@@ -160,6 +169,7 @@ void SimEngine::do_advance()
             // 3. Predict Motion => x_tilde = x + v * dt
             m_state = SimEngineState::PredictMotion;
             m_dof_predictor->predict();
+            step_animation();
 
             // 4. Nonlinear-Newton Iteration
             Float box_size = vertex_bounding_box.diagonal().norm();

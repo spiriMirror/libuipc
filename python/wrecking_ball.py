@@ -53,12 +53,13 @@ world = World(engine)
 config = Scene.default_config()
 config["contact"]["d_hat"]              = 0.01
 config["line_search"]["max_iter"]       = 8
+config["newton"]["velocity_tol"]       = 0.05
 print(config)
 
 scene = Scene(config)
 abd = AffineBodyConstitution()
 scene.constitution_tabular().insert(abd)
-scene.contact_tabular().default_model(0.05, 1e10)
+scene.contact_tabular().default_model(0, 1e10)
 default_contact = scene.contact_tabular().default_element()
 
 pre_trans = pyuipc.Matrix4x4.Identity()

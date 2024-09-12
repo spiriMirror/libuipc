@@ -13,7 +13,10 @@ REGISTER_SIM_SYSTEM(FEMGradientHessianComputer);
 
 void FEMGradientHessianComputer::do_build()
 {
-    m_impl.finite_element_method    = &require<FiniteElementMethod>();
+    m_impl.finite_element_method = &require<FiniteElementMethod>();
+
+    m_impl.finite_element_animator = find<FiniteElementAnimator>();
+
     auto& gradient_hessian_computer = require<GradientHessianComputer>();
     gradient_hessian_computer.on_compute_gradient_hessian(
         *this,
@@ -80,6 +83,12 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
     for(auto&& [i, cst] : enumerate(fem().fem_3d_constitutions))
     {
         cst->compute_gradient_hessian(this_info);
+    }
+
+    // Animation
+    if(finite_element_animator)
+    {
+        finite_element_animator->compute_gradient_hessian(info);
     }
 }
 }  // namespace uipc::backend::cuda

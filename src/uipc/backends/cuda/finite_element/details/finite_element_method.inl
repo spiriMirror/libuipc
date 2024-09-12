@@ -41,15 +41,14 @@ size_t FiniteElementMethod::FilteredInfo<N>::primitive_count() const noexcept
 {
     return constitution_info().primitive_count;
 }
-template <int N>
-template <typename ForEach, typename ViewGetter>
-void FiniteElementMethod::FilteredInfo<N>::for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                                                    ViewGetter&& view_getter,
-                                                    ForEach&& for_each_action) const noexcept
-{
-    SizeT local_vertex_offset = 0;
 
-    for(auto& geo_info : geo_infos())
+template <typename ForEach, typename ViewGetter>
+void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
+                                    span<S<geometry::GeometrySlot>> geo_slots,
+                                    ViewGetter&&                    view_getter,
+                                    ForEach&& for_each_action) noexcept
+{
+    for(auto& geo_info : geo_infos)
     {
         auto geo_slot = geo_slots[geo_info.geo_slot_index];
 
@@ -59,10 +58,35 @@ void FiniteElementMethod::FilteredInfo<N>::for_each(span<S<geometry::GeometrySlo
 
         auto view = view_getter(*sc);
 
+        SizeT local_vertex_offset = 0;
+
         for(auto&& item : view)
         {
             for_each_action(local_vertex_offset++, item);
         }
     }
+}
+
+template <typename ForEach, typename ViewGetter>
+void FiniteElementMethod::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                   ViewGetter&&                    view_getter,
+                                   ForEach&& for_each_action) noexcept
+{
+    _for_each(span{m_impl.geo_infos},
+              geo_slots,
+              std::forward<ViewGetter>(view_getter),
+              std::forward<ForEach>(for_each_action));
+}
+
+template <int N>
+template <typename ForEach, typename ViewGetter>
+void FiniteElementMethod::FilteredInfo<N>::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                                    ViewGetter&& view_getter,
+                                                    ForEach&& for_each_action) const noexcept
+{
+    FiniteElementMethod::template _for_each(geo_infos(),
+                                            geo_slots,
+                                            std::forward<ViewGetter>(view_getter),
+                                            std::forward<ForEach>(for_each_action));
 }
 }  // namespace uipc::backend::cuda

@@ -1,6 +1,7 @@
 #pragma once
 #include <sim_system.h>
 #include <finite_element/finite_element_method.h>
+#include <finite_element/finite_element_animator.h>
 #include <gradient_hessian_computer.h>
 
 namespace uipc::backend::cuda
@@ -16,7 +17,8 @@ class FEMGradientHessianComputer final : public SimSystem
     {
       public:
         void compute_gradient_and_hessian(GradientHessianComputer::ComputeInfo& info);
-        FiniteElementMethod*       finite_element_method = nullptr;
+        FiniteElementMethod*       finite_element_method   = nullptr;
+        FiniteElementAnimator*     finite_element_animator = nullptr;
         FiniteElementMethod::Impl& fem()
         {
             return finite_element_method->m_impl;

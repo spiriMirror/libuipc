@@ -35,6 +35,7 @@ Json Scene::default_config() noexcept
 }
 
 Scene::Scene(const Json& config)
+    : m_impl(*this)
 {
     m_impl.info = config;
 }
@@ -81,6 +82,16 @@ auto Scene::geometries() const noexcept -> CGeometries
 const Json& Scene::info() const noexcept
 {
     return m_impl.info;
+}
+
+Animator& Scene::animator()
+{
+    return m_impl.m_animator;
+}
+
+const Animator& Scene::animator() const
+{
+    return m_impl.m_animator;
 }
 
 void Scene::solve_pending() noexcept
@@ -165,6 +176,20 @@ Scene::Geometries::Geometries(Scene& scene) noexcept
 
 Scene::CGeometries::CGeometries(const Scene& scene) noexcept
     : m_scene{scene}
+{
+}
+
+ObjectGeometrySlots<geometry::Geometry> world::Scene::Geometries::find(IndexT id) && noexcept
+{
+    return {m_scene.m_impl.geometries.find(id), m_scene.m_impl.rest_geometries.find(id)};
+}
+
+ObjectGeometrySlots<const geometry::Geometry> Scene::CGeometries::find(IndexT id) && noexcept
+{
+    return {m_scene.m_impl.geometries.find(id), m_scene.m_impl.rest_geometries.find(id)};
+}
+Scene::Impl::Impl(Scene& s) noexcept
+    : m_animator(s)
 {
 }
 }  // namespace uipc::world

@@ -6,7 +6,7 @@ namespace pyuipc::builtin
 {
 PyAttributeName::PyAttributeName(py::module& m)
 {
-#include <uipc/builtin/details/attribute_name.inl>
+#include <uipc/builtin/details/attribute_name.h>
 }
 }  // namespace pyuipc::builtin
 

@@ -62,7 +62,12 @@ ConstitutionType AffineBodyConstitution::get_type() const noexcept
 
 void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
 {
-    Base::apply_to(sc);
+    auto P = sc.meta().find<U64>(builtin::constitution_uid);
+
+    if(!P)
+        P = sc.meta().create<U64>(builtin::constitution_uid, uid());
+    else
+        geometry::view(*P).front() = uid();
 
     auto is_fixed = sc.instances().find<IndexT>(builtin::is_fixed);
     if(!is_fixed)

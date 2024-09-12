@@ -39,6 +39,8 @@ class StableNeoHookean3D final : public FEM3DConstitution
         h_mus.resize(N);
         h_lambdas.resize(N);
 
+        SizeT I = 0;
+
         info.for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc) -> auto
@@ -48,11 +50,12 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                 return zip(mu->view(), lambda->view());
             },
-            [&](SizeT I, auto mu_and_lambda)
+            [&](SizeT vi, auto mu_and_lambda)
             {
                 auto&& [mu, lambda] = mu_and_lambda;
                 h_mus[I]            = mu;
                 h_lambdas[I]        = lambda;
+                I++;
             });
 
         mus.resize(N);

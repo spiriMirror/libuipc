@@ -10,7 +10,8 @@ REGISTER_SIM_SYSTEM(FEMLineSearchReporter);
 
 void FEMLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
-    m_impl.finite_element_method = &require<FiniteElementMethod>();
+    m_impl.finite_element_method   = &require<FiniteElementMethod>();
+    m_impl.finite_element_animator = find<FiniteElementAnimator>();
 }
 
 void FEMLineSearchReporter::do_record_start_point(LineSearcher::RecordInfo& info)
@@ -46,11 +47,7 @@ void FEMLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
                 xs       = fem().xs.viewer().name("xs"),
                 dxs      = fem().dxs.cviewer().name("dxs"),
                 alpha    = info.alpha] __device__(int i) mutable
-               {
-                   if(is_fixed(i))
-                       return;
-                   xs(i) = x_temps(i) + alpha * dxs(i);
-               });
+               { xs(i) = x_temps(i) + alpha * dxs(i); });
 }
 
 void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
@@ -89,9 +86,6 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        fem().kinetic_energy.data(),
                        fem().vertex_kinetic_energies.size());
 
-    // Copy back to host
-    Float K = fem().kinetic_energy;
-
     // Compute shape energy
     auto async_fill = []<typename T>(muda::DeviceBuffer<T>& buf, const T& value)
     { muda::BufferLaunch().fill<T>(buf.view(), value); };
@@ -116,19 +110,34 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        fem().fem_3d_elastic_energy.data(),
                        fem().fem_3d_elastic_energies.size());
 
-    DeviceReduce().Sum(fem().extra_energies.data(),
-                       fem().extra_energy.data(),
-                       fem().extra_energies.size());
+    DeviceReduce().Sum(fem().extra_constitution_energies.data(),
+                       fem().extra_constitution_energy.data(),
+                       fem().extra_constitution_energies.size());
 
+    // Copy back to host
+    Float K         = fem().kinetic_energy;
+    Float codim1D_E = fem().codim_1d_elastic_energy;
+    Float codim2D_E = fem().codim_2d_elastic_energy;
+    Float fem3D_E   = fem().fem_3d_elastic_energy;
+    Float extra_E   = fem().extra_constitution_energy;
+    Float anim_E    = 0;
+    if(finite_element_animator)
+        anim_E = finite_element_animator->compute_energy(info);
 
-    Float E1      = fem().codim_1d_elastic_energy;
-    Float E2      = fem().codim_2d_elastic_energy;
-    Float E3      = fem().fem_3d_elastic_energy;
-    Float extra_E = fem().extra_energy;
+    info.energy(K            //
+                + codim1D_E  //
+                + codim2D_E  //
+                + fem3D_E    //
+                + extra_E    //
+                + anim_E     //
+    );
 
-    //spdlog::info(
-    //    "FEM K: {}, Codim1D-E: {}, Codim2D-E: {}, FEM3D-E: {}, FEM-Extra-E{}", K, E1, E2, E3, extra_E);
-
-    info.energy(K + E1 + E2 + E3 + extra_E);
+    //spdlog::info("FEM Energy: K:{}, 1D:{}, 2D:{}, 3D:{}, Extra:{}, Anim:{}",
+    //             K,
+    //             codim1D_E,
+    //             codim2D_E,
+    //             fem3D_E,
+    //             extra_E,
+    //             anim_E);
 }
 }  // namespace uipc::backend::cuda
