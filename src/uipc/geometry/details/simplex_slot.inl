@@ -24,7 +24,7 @@ auto view(SimplexSlot<N>& slot) -> span<typename SimplexSlot<N>::ValueT>
 template <IndexT N>
 S<SimplexSlot<N>> SimplexSlot<N>::clone() const
 {
-    return std::make_shared<SimplexSlot<N>>(m_simplices);
+    return uipc::make_shared<SimplexSlot<N>>(m_simplices);
 }
 template <IndexT N>
 SizeT SimplexSlot<N>::get_use_count() const noexcept
@@ -41,7 +41,7 @@ S<ISimplexSlot> SimplexSlot<N>::do_clone() const
 template <IndexT N>
 void SimplexSlot<N>::do_make_owned()
 {
-    m_simplices = std::make_shared<Simplices<N>>(*m_simplices);
+    m_simplices = uipc::make_shared<Simplices<N>>(*m_simplices);
 }
 
 template <IndexT N>

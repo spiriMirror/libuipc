@@ -5,10 +5,21 @@ world = pyuipc.world
 geometry = pyuipc.geometry
 
 scene = world.Scene()
+Vs = np.array([[0, 1, 0], 
+               [0, 0, 1], 
+               [-np.sqrt(3)/2, 0, -0.5], 
+               [np.sqrt(3)/2, 0, -0.5]
+               ], dtype=np.float32)
+Ts = np.array([[0,1,2,3]])
+tet = geometry.tetmesh(Vs, Ts)
+
+
 obj = scene.objects().create("obj")
 
 ground = geometry.ground()
 geo, rest_geo = obj.geometries().create(ground)
+
+obj.geometries().create(tet)
 
 print(geo.geometry().to_json())
 print(rest_geo.geometry().to_json())

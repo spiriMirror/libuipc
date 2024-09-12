@@ -32,5 +32,7 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
 
     auto thickness_view = geometry::view(*attr_thickness);
     std::ranges::fill(thickness_view, thickness);
+
+    sc.meta().create<IndexT>(builtin::backend_fem_vertex_offset, -1);
 }
 }  // namespace uipc::constitution

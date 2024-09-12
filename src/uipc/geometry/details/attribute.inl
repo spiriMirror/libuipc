@@ -79,12 +79,12 @@ void Attribute<T>::do_reserve(SizeT N)
 template <typename T>
 S<IAttribute> Attribute<T>::do_clone() const
 {
-    return std::make_shared<Attribute<T>>(*this);
+    return uipc::make_shared<Attribute<T>>(*this);
 }
 template <typename T>
 inline S<IAttribute> Attribute<T>::do_clone_empty() const
 {
-    return std::make_shared<Attribute<T>>(m_default_value);
+    return uipc::make_shared<Attribute<T>>(m_default_value);
 }
 template <typename T>
 void Attribute<T>::do_reorder(span<const SizeT> O) noexcept

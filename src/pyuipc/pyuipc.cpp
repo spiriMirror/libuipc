@@ -1,5 +1,6 @@
 #include <pyuipc/pyuipc.h>
 #include <uipc/common/config.h>
+#include <uipc/common/log.h>
 #include <fmt/format.h>
 
 namespace pyuipc
@@ -27,5 +28,22 @@ std::string detail::string_with_source_location(std::string_view msg,
                                                 std::size_t      line)
 {
     return fmt::format("{} [{}({})]", msg, process_project_prefix(path), line);
+}
+
+void detail::assert_with_source_location(bool             condition,
+                                         std::string_view condition_str,
+                                         std::string_view msg,
+                                         std::string_view path,
+                                         std::size_t      line)
+{
+    if(!condition)
+    {
+        std::string assert_msg = fmt::format("Assertion {} failed. {} [{}({})]",
+                                             condition_str,
+                                             msg,
+                                             process_project_prefix(path),
+                                             line);
+        throw PyException(assert_msg);
+    }
 }
 }  // namespace pyuipc

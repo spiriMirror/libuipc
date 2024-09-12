@@ -12,6 +12,7 @@ from pyuipc.world import *
 from pyuipc.engine import *
 from pyuipc.constitution import *
 from pyuipc.geometry import *
+from pyuipc_gui import SceneGUI
 
 def process_surface(sc: SimplicialComplex):
     label_surface(sc)
@@ -26,8 +27,8 @@ class Yarns:
             self.positions.append(Vector3.Values([float(x), float(y), float(z)]))
         f.close()
         self.positions = np.array(self.positions, dtype=np.float32)
-        self.yarn_time_step = self.positions[1][1] - self.positions[0][1]
-        print('yarn time step:', self.yarn_time_step)
+        self.yarn_time_step = (self.positions[1][1] - self.positions[0][1])[0]
+        # print('yarn time step:', self.yarn_time_step)
         self.current_id = 0
         self.last_t = 0.0
     
@@ -94,7 +95,7 @@ class Braider:
                 abs_path = os.path.join(folder, file)
                 abs_path = pathlib.Path(abs_path).resolve().absolute()
                 self.files.append(str(abs_path))
-        print("yarn files:", self.files)
+        # print("yarn files:", self.files)
         self.yarns: list[Yarns] = []
         for file in self.files:
             self.yarns.append(Yarns(file))
@@ -120,7 +121,7 @@ class Braider:
         scene.animator().insert(self.object, anim)
         
 
-Logger.set_level(Logger.Level.Info)
+Logger.set_level(Logger.Level.Warn)
 
 workspace = AssetDir.output_path(__file__)
 
@@ -143,19 +144,18 @@ braider.create_animation(scene, move_up_speed=0)
 
 world.init(scene)
 
+sgui = SceneGUI(scene)
+
 sio = SceneIO(scene)
-sio.write_surface(f'{workspace}/scene_surface{0}.obj')
+# sio.write_surface(f'{workspace}/scene_surface{0}.obj')
 
 run = False
+
 ps.init()
 ps.set_ground_plane_height(-1.2)
-s = sio.simplicial_surface()
-v = s.positions().view()
-e = s.edges().topo().view()
-mesh = ps.register_curve_network('obj', v.reshape(-1,3), e.reshape(-1,2))
+_, mesh, _ = sgui.register()
 mesh.set_radius(thickness * 0.2)
-particle = ps.register_point_cloud('particle', v.reshape(-1,3))
-particle.set_radius(thickness * 0.26)
+
 def on_update():
     global run
     if(psim.Button("run & stop")):
@@ -164,12 +164,8 @@ def on_update():
     if(run):
         world.advance()
         world.retrieve()
-        s = sio.simplicial_surface()
-        v = s.positions().view()
-        mesh.update_node_positions(v.reshape(-1,3))
-        particle.update_point_positions(v.reshape(-1,3))
-        sio.write_surface(f'{workspace}/scene_surface{world.frame()}.obj')
-
+        sgui.update()
+        # sio.write_surface(f'{workspace}/scene_surface{world.frame()}.obj')
 
 ps.set_user_callback(on_update)
 ps.show()

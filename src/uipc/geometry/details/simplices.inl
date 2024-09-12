@@ -69,6 +69,6 @@ Json Simplices<N>::do_to_json(SizeT i) const
 template <IndexT N>
 S<ITopoElements> Simplices<N>::do_clone() const
 {
-    return std::make_shared<Simplices<N>>(*this);
+    return uipc::make_shared<Simplices<N>>(*this);
 }
 }  // namespace uipc::geometry

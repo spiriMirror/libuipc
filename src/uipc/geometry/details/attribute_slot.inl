@@ -45,21 +45,21 @@ void AttributeSlot<T>::do_make_owned()
 {
     // if I am not the only one who is using the attribute, then I need to make a copy_from
     if(m_attribute.use_count() > 1)
-        m_attribute = std::make_shared<Attribute<T>>(*m_attribute);
+        m_attribute = uipc::make_shared<Attribute<T>>(*m_attribute);
 }
 
 template <typename T>
 S<IAttributeSlot> AttributeSlot<T>::do_clone() const
 {
-    return std::make_shared<AttributeSlot<T>>(
+    return uipc::make_shared<AttributeSlot<T>>(
         name(), std::static_pointer_cast<Attribute<T>>(m_attribute), m_allow_destroy);
 }
 
 template <typename T>
 S<IAttributeSlot> AttributeSlot<T>::do_clone_empty() const
 {
-    return std::make_shared<AttributeSlot<T>>(
-        name(), std::make_shared<Attribute<T>>(m_attribute->m_default_value), m_allow_destroy);
+    return uipc::make_shared<AttributeSlot<T>>(
+        name(), uipc::make_shared<Attribute<T>>(m_attribute->m_default_value), m_allow_destroy);
 }
 
 template <typename T>
