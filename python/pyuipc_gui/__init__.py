@@ -20,6 +20,9 @@ class SceneGUI:
             self.ps_linemesh = ps.register_curve_network('linemesh', linemesh.positions().view().reshape(-1,3), linemesh.edges().topo().view().reshape(-1,2))
         if(pointcloud.vertices().size() != 0):
             self.ps_poincloud = ps.register_point_cloud('pointcloud', pointcloud.positions().view().reshape(-1,3))
+            thickness = pointcloud.vertices().find(pyuipc.builtin.thickness).view()
+            self.ps_poincloud.add_scalar_quantity('thickness', thickness)
+            self.ps_poincloud.set_point_radius_quantity('thickness', False)
         return self.ps_trimesh, self.ps_linemesh, self.ps_poincloud
     
     def update(self):

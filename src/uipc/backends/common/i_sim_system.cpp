@@ -85,23 +85,23 @@ void ISimSystem::do_apply_recover(RecoverInfo&) {}
 
 void ISimSystem::do_clear_recover(RecoverInfo&) {}
 
-
-ISimSystem::BaseInfo::BaseInfo(SizeT frame, const Json& config) noexcept
+ISimSystem::BaseInfo::BaseInfo(SizeT frame, std::string_view workspace, const Json& config) noexcept
     : m_frame(frame)
     , m_config(config)
+    , m_workspace(workspace)
 {
 }
 
 std::string_view ISimSystem::BaseInfo::workspace() const noexcept
 {
-    return ModuleInfo::instance().workspace();
+    return m_workspace;
 }
 
 std::string ISimSystem::BaseInfo::dump_path(std::string_view _file_) const noexcept
 {
     namespace fs = std::filesystem;
 
-    fs::path workspace = ModuleInfo::instance().workspace();
+    fs::path workspace = m_workspace;
 
     fs::path out_path = fs::absolute(fs::path{workspace} / "sim_data");
     fs::path file_path{_file_};

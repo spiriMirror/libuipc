@@ -9,12 +9,13 @@ from pyuipc.world import *
 from pyuipc.engine import *
 from pyuipc.constitution import *
 from pyuipc.geometry import *
+from pyuipc_gui import SceneGUI
 
 def process_surface(sc: SimplicialComplex):
     label_surface(sc)
     return sc
 
-Logger.set_level(Logger.Level.Warn)
+Logger.set_level(Logger.Level.Info)
 
 workspace = AssetDir.output_path(__file__)
 
@@ -50,32 +51,28 @@ object.geometries().create(mesh)
 g = ground(0)
 object.geometries().create(g)
 
-animator = scene.animator()
-
 world.init(scene)
 
-# sio = SceneIO(scene)
-# run = False
-# ps.init()
-# ps.set_ground_plane_height(0)
-# s = sio.simplicial_surface()
-# v = s.positions().view()
-# mesh = ps.register_point_cloud('obj', v.reshape(-1,3))
-# mesh.set_radius(radius * 0.2)
-# def on_update():
-#     global run
-#     if(psim.Button("run & stop")):
-#         run = not run
-        
-#     if(run):
-#         world.advance()
-#         world.retrieve()
-#         s = sio.simplicial_surface()
-#         v = s.positions().view()
-#         mesh.update_point_positions(v.reshape(-1,3))
+sio = SceneIO(scene)
+sgui = SceneGUI(scene)
 
-# ps.set_user_callback(on_update)
-# ps.show()
+run = False
+ps.init()
+ps.set_ground_plane_height(0)
+
+sgui.register()
+def on_update():
+    global run
+    if(psim.Button("run & stop")):
+        run = not run
+        
+    if(run):
+        world.advance()
+        world.retrieve()
+        sgui.update()
+
+ps.set_user_callback(on_update)
+ps.show()
 
 
 

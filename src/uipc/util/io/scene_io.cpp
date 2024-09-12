@@ -20,9 +20,10 @@ namespace fs = std::filesystem;
 namespace detail
 {
 
-    template <IndexT Dim = -1>  // Dim = -1, 0, 1, 2, 3
+    template <IndexT Dim = -1>  // Dim = -1, 0, 1, 2
     static vector<const geometry::SimplicialComplex*> collect_geometry_with_surf(
         span<S<geometry::GeometrySlot>> geos)
+        requires(Dim == -1 || Dim == 0 || Dim == 1 || Dim == 2)
     {
         using namespace uipc::geometry;
         // 1) find all simplicial complex with surface
@@ -43,6 +44,11 @@ namespace detail
                 if constexpr(Dim == -1)
                 {
                     allow = true;
+                }
+                else if constexpr(Dim == 2)
+                {
+                    // allow tetrahedron and triangle mesh
+                    allow = simplicial_complex->dim() >= 2;
                 }
                 else
                 {
@@ -146,6 +152,9 @@ geometry::SimplicialComplex SceneIO::simplicial_surface(IndexT dim) const
     vector<const geometry::SimplicialComplex*> simplicial_complex_has_surf;
     switch(dim)
     {
+        case -1:
+            simplicial_complex_has_surf = detail::collect_geometry_with_surf<-1>(geos);
+            break;
         case 0:
             simplicial_complex_has_surf = detail::collect_geometry_with_surf<0>(geos);
             break;
@@ -155,10 +164,8 @@ geometry::SimplicialComplex SceneIO::simplicial_surface(IndexT dim) const
         case 2:
             simplicial_complex_has_surf = detail::collect_geometry_with_surf<2>(geos);
             break;
-        case 3:
-            simplicial_complex_has_surf = detail::collect_geometry_with_surf<3>(geos);
-            break;
         default:
+            UIPC_ERROR_WITH_LOCATION("Unsupported input dimension {} (expected dim=0/1/2).", dim);
             break;
     }
 
