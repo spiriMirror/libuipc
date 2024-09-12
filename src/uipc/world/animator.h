@@ -11,7 +11,7 @@ class AnimatorVisitor;
 
 namespace uipc::world
 {
-class World;
+class Scene;
 class UIPC_CORE_API Animator
 {
   public:
@@ -25,12 +25,12 @@ class UIPC_CORE_API Animator
     Animator& operator=(Animator&&)      = delete;
 
   private:
-    friend class World;
+    friend class Scene;
     friend class backend::AnimatorVisitor;
 
-    Animator(World& world);  // only called by World
+    Animator(Scene& scene) noexcept;  // only called by Scene
 
     unordered_map<IndexT, Animation> m_animations;
-    World*                           m_world = nullptr;
+    Scene&                           m_scene;
 };
 }  // namespace uipc::world

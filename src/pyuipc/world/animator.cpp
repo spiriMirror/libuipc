@@ -13,22 +13,22 @@ PyAnimator::PyAnimator(py::module& m)
     auto class_UpdateInfo = py::class_<Animation::UpdateInfo>(class_Animation, "UpdateInfo");
     class_UpdateInfo.def("object", &Animation::UpdateInfo::object)
         .def("geo_slots",
-             [](Animation::UpdateInfo& self)
+             [](Animation::UpdateInfo& self) -> py::list
              {
                  py::list list;
-                 for(auto& slot : self.geo_slots())
+                 for(auto slot : self.geo_slots())
                  {
-                     list.append(slot);
+                     list.append(py::cast(slot));
                  }
                  return list;
              })
         .def("rest_geo_slots",
-             [](Animation::UpdateInfo& self)
+             [](Animation::UpdateInfo& self) -> py::list
              {
                  py::list list;
-                 for(auto& slot : self.rest_geo_slots())
+                 for(auto slot : self.rest_geo_slots())
                  {
-                     list.append(slot);
+                     list.append(py::cast(slot));
                  }
                  return list;
              })
@@ -45,7 +45,19 @@ PyAnimator::PyAnimator(py::module& m)
                            }
                            self.insert(obj,
                                        [callable](Animation::UpdateInfo& info)
-                                       { callable(py::cast(info)); });
+                                       {
+                                           try
+                                           {
+                                               callable(py::cast(info));
+                                           }
+                                           catch(const std::exception& e)
+                                           {
+                                               spdlog::error("Python Animation Script Error in Object [{}]({}):\n{}",
+                                                             info.object().name(),
+                                                             info.object().id(),
+                                                             e.what());
+                                           }
+                                       });
                        });
     class_Animator.def("erase", &Animator::erase);
 }

@@ -238,7 +238,7 @@ TEST_CASE("pending destroy", "[scene]")
 
         for(auto id : geo_ids)
         {
-            auto&& [geo, rest_geo] = scene.geometries().find<Geometry>(id);
+            auto&& [geo, rest_geo] = scene.geometries().find(id);
         }
     }
 

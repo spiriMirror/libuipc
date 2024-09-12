@@ -18,7 +18,7 @@ void Animator::insert(Object& obj, Animation::ActionOnUpdate&& on_update)
         }
     }
 
-    m_animations.emplace(obj.id(), Animation(*m_world, obj, std::move(on_update)));
+    m_animations.emplace(obj.id(), Animation(m_scene, obj, std::move(on_update)));
 }
 
 void Animator::erase(IndexT id)
@@ -34,8 +34,8 @@ void Animator::erase(IndexT id)
     m_animations.erase(id);
 }
 
-Animator::Animator(World& world)
-    : m_world(&world)
+Animator::Animator(Scene& scene) noexcept
+    : m_scene(scene)
 {
 }
 }  // namespace uipc::world

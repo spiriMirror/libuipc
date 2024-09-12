@@ -3,7 +3,7 @@
 #include <uipc/world/constitution_tabular.h>
 #include <uipc/world/object.h>
 #include <uipc/world/object_collection.h>
-
+#include <uipc/world/animator.h>
 
 namespace uipc::backend
 {
@@ -90,21 +90,27 @@ class UIPC_CORE_API Scene
 
     const Json& info() const noexcept;
 
+    Animator&       animator();
+    const Animator& animator() const;
 
   private:
     friend class SanityChecker;
+    friend class Animation;
     class Impl
     {
       public:
+        Impl(Scene& s) noexcept;
         Json                info;
         ContactTabular      contact_tabular;
         ConstitutionTabular constitution_tabular;
         ObjectCollection    objects;
+        Animator            m_animator;
 
         geometry::GeometryCollection geometries;
         geometry::GeometryCollection rest_geometries;
 
-        bool started = false;
+        bool   started = false;
+        World* world   = nullptr;
     };
 
     Impl m_impl;

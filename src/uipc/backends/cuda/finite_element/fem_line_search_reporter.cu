@@ -132,12 +132,12 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                 + anim_E     //
     );
 
-    spdlog::info("FEM Energy: K:{}, 1D:{}, 2D:{}, 3D:{}, Extra:{}, Anim:{}",
-                 K,
-                 codim1D_E,
-                 codim2D_E,
-                 fem3D_E,
-                 extra_E,
-                 anim_E);
+    //spdlog::info("FEM Energy: K:{}, 1D:{}, 2D:{}, 3D:{}, Extra:{}, Anim:{}",
+    //             K,
+    //             codim1D_E,
+    //             codim2D_E,
+    //             fem3D_E,
+    //             extra_E,
+    //             anim_E);
 }
 }  // namespace uipc::backend::cuda

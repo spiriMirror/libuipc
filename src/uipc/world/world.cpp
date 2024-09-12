@@ -6,7 +6,6 @@ namespace uipc::world
 {
 World::World(engine::IEngine& e) noexcept
     : m_engine(&e)
-    , m_animator(*this)
 {
 }
 
@@ -22,7 +21,8 @@ void World::init(Scene& s)
 
     m_scene = &s;
     m_engine->init(backend::WorldVisitor{*this});
-    m_scene->m_impl.started = true;
+    m_scene->m_impl.world   = this;  // set the world pointer in the scene
+    m_scene->m_impl.started = true;  // set the started flag in the scene
 }
 
 void World::advance()
@@ -88,11 +88,6 @@ SizeT World::frame() const
         return 0;
     }
     return m_engine->frame();
-}
-
-Animator& World::animator()
-{
-    return m_animator;
 }
 
 void World::sanity_check(Scene& s)

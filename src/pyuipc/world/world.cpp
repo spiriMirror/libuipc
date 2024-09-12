@@ -18,8 +18,7 @@ PyWorld::PyWorld(py::module& m)
         .def("retrieve", &World::retrieve)
         .def("dump", &World::dump)
         .def("recover", &World::recover)
-        .def("frame", &World::frame)
-        .def("animator", &World::animator, py::return_value_policy::reference_internal);
+        .def("frame", &World::frame);
 }
 
 }  // namespace pyuipc::world

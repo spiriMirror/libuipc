@@ -117,7 +117,6 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        if constexpr(RUNTIME_CHECK)
                        {
                            Float D;
-                           Float D_;
                            distance::edge_edge_distance2(flag, E0, E1, E2, E3, D);
                            Vector2 range = D_range(thickness, d_hat);
 
@@ -135,6 +134,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        flag(2),
                                        flag(3));
                        }
+
 
                        Es(i) = mollified_EE_barrier_energy(flag,
                                                            // coefficients

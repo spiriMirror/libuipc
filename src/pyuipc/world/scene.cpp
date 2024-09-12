@@ -39,6 +39,11 @@ PyScene::PyScene(py::module& m)
         { return self.constitution_tabular(); },
         py::return_value_policy::reference_internal);
 
+    class_Scene.def(
+        "animator",
+        [](Scene& self) -> Animator& { return self.animator(); },
+        py::return_value_policy::reference_internal);
+
     class_Objects.def("create",
                       [](Scene::Objects& self, std::string_view name) -> S<Object>
                       { return std::move(self).create(name); });

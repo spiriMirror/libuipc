@@ -4,7 +4,7 @@
 
 namespace uipc::constitution
 {
-class Constraint : public IConstitution
+class UIPC_CORE_API Constraint : public IConstitution
 {
   public:
     Constraint() noexcept;

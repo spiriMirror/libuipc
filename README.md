@@ -122,6 +122,14 @@ If you use VSCode, you can open the project at `libuipc/python` and enjoy the In
 cd python & code .
 ```
 
+### GUI
+
+We use [polyscope](https://polyscope.run/)(v2.3.0) to visualize the scene in Python.
+
+```shell
+pip install polyscope==2.3.0
+```
+
 ### Build Document
 
 Install [mkdocs](https://www.mkdocs.org/) and its plugins:

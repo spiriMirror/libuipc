@@ -16,8 +16,8 @@ Module::Module(py::module& m)
     PyContactTabular{m};
     PyConstitutionTabular{m};
 
-    PyScene{m};
     PyAnimator{m};
+    PyScene{m};
     PyWorld{m};
     PySceneIO{m};
 }

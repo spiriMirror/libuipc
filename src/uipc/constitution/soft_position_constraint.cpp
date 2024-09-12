@@ -24,18 +24,6 @@ void SoftPositionConstraint::apply_to(geometry::SimplicialComplex& sc, Float str
 {
     Base::apply_to(sc);
 
-    if constexpr(uipc::RUNTIME_CHECK)
-    {
-        auto ins_is_fixed  = sc.instances().find<IndexT>(builtin::is_fixed);
-        auto vert_is_fixed = sc.vertices().find<IndexT>(builtin::is_fixed);
-
-        auto both = ins_is_fixed && vert_is_fixed;
-        UIPC_ASSERT(!both, "Animation: SimplicialComplex has both fixed vertices and instances, which is ambiguous.");
-
-        auto none = !ins_is_fixed && !vert_is_fixed;
-        UIPC_ASSERT(!none, "Animation: SimplicialComplex has neither fixed vertices nor instances, which is meaningless for animation.");
-    }
-
     sc.vertices().share(builtin::aim_position, sc.positions());
 
     constexpr std::string_view strength_ratio = "strength_ratio";

@@ -88,8 +88,8 @@ class HookeanSpring1D final : public Codim1DConstitution
                        Float E;
                        NS::E(E, kappa, X, L0);
                        element_energies(I) = E * Vdt2;
-                       cout << "E: " << E << " Vdt2: " << Vdt2
-                            << " E*Vdt2: " << E * Vdt2 << "\n";
+                       //cout << "E: " << E << " Vdt2: " << Vdt2
+                       //     << " E*Vdt2: " << E * Vdt2 << "\n";
                    });
     }
 

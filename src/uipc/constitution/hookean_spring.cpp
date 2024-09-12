@@ -33,6 +33,7 @@ void HookeanSpring::apply_to(geometry::SimplicialComplex& sc,
     if(!kappa_attr)
         kappa_attr = sc.edges().create<Float>("kappa", kappa);
     std::ranges::fill(geometry::view(*kappa_attr), kappa);
+
 }
 
 Json HookeanSpring::default_config() noexcept

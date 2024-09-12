@@ -7,18 +7,16 @@
 #include <uipc/geometry/simplicial_complex.h>
 namespace uipc::world
 {
-Animation::Animation(World& world, Object& object, ActionOnUpdate&& on_update) noexcept
-    : m_world(&world)
+Animation::Animation(Scene& scene, Object& object, ActionOnUpdate&& on_update) noexcept
+    : m_scene(&scene)
     , m_object(&object)
     , m_on_update(std::move(on_update))
-
 {
 }
 
 void Animation::init()
 {
-    auto world   = backend::WorldVisitor{*m_world};
-    auto scene   = world.scene();
+    auto scene   = backend::SceneVisitor(*m_scene);
     auto geo_ids = m_object->geometries().ids();
     for(auto id : geo_ids)
     {
@@ -54,7 +52,7 @@ span<S<geometry::GeometrySlot>> Animation::UpdateInfo::rest_geo_slots() const no
 
 SizeT Animation::UpdateInfo::frame() const noexcept
 {
-    return m_animation->m_world->frame();
+    return m_animation->m_scene->m_impl.world->frame();
 }
 
 auto Animation::UpdateInfo::hint() noexcept -> UpdateHint&

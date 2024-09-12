@@ -47,7 +47,7 @@ inline MUDA_GENERIC Float PT_thickness(const Float& thickness_P,
     }
 
     // return (thickness_P + thickness_T0) / 2.0;
-    return (thickness_P + thickness_T0) / 2.0;
+    return thickness_P + thickness_T0;
 }
 
 /**
@@ -65,7 +65,7 @@ inline MUDA_GENERIC Float EE_thickness(const Float& thickness_Ea0,
     }
 
     // return (thickness_Ea0 + thickness_Eb0) / 2.0;
-    return (thickness_Ea0 + thickness_Eb0);
+    return thickness_Ea0 + thickness_Eb0;
 }
 
 /**
@@ -90,7 +90,7 @@ inline MUDA_GENERIC Float PE_thickness(const Float& thickness_P,
 inline MUDA_GENERIC Float PP_thickness(const Float& thickness_P0, const Float& thickness_P1)
 {
     // return (thickness_P0 + thickness_P1) / 2.0;
-    return (thickness_P0 + thickness_P1);
+    return thickness_P0 + thickness_P1;
 }
 
 /**

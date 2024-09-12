@@ -107,7 +107,7 @@ class SoftPositionConstraint final : public FiniteElementConstraint
                     is_fixed = info.is_fixed().viewer().name("is_fixed")] __device__(int I)
                    {
                        auto  i = indices(I);
-                       auto& E = energies(i);
+                       auto& E = energies(I);
 
                        if(is_fixed(i))
                        {
