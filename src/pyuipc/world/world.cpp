@@ -9,9 +9,7 @@ PyWorld::PyWorld(py::module& m)
 {
     auto class_World = py::class_<World>(m, "World");
 
-    class_World
-        .def(py::init([](engine::IEngine& e)
-                      { return std::make_unique<World>(e); }))
+    class_World.def(py::init<engine::IEngine&>())
         .def("init", &World::init, py::arg("scene"))
         .def("advance", &World::advance)
         .def("sync", &World::sync)

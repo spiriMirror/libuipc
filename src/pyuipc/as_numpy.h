@@ -42,11 +42,11 @@ template <typename T>
 auto as_numpy(const span<T>& s, py::handle obj)
 {
     auto arr = py::array_t<T, py::array::c_style>(buffer_info(s), obj);
-    UIPC_ASSERT(!arr.owndata(), "the array must share the data with the input span");
+    PYUIPC_ASSERT(!arr.owndata(), "the array must share the data with the input span");
 
     set_read_write_flags(arr, std::is_const_v<T>);
-    UIPC_ASSERT(arr.writeable() == !std::is_const_v<T>,
-                "writeable flag must be consistent with the constness of the span");
+    PYUIPC_ASSERT(arr.writeable() == !std::is_const_v<T>,
+                  "writeable flag must be consistent with the constness of the span");
     return arr;
 }
 
@@ -54,8 +54,7 @@ template <typename T>
 span<T> as_span(py::array_t<T> arr)
     requires std::is_arithmetic_v<T>
 {
-    if(arr.ndim() != 1)
-        throw std::runtime_error(PYUIPC_MSG("array must be 1D"));
+    PYUIPC_ASSERT(arr.ndim() == 1, "array must be 1D, yours={}", arr.ndim());
 
     if constexpr(std::is_const_v<T>)
         return span<T>(arr.data(), arr.size());
@@ -120,10 +119,11 @@ auto as_numpy(const span<Eigen::Matrix<T, M, N, Options>>& v, py::handle obj)
     requires(M > 0 && N > 0)
 {
     auto arr = py::array_t<T, py::array::c_style>(buffer_info(v), obj);
-    UIPC_ASSERT(!arr.owndata(), "the array must share the data with the input span");
+    PYUIPC_ASSERT(!arr.owndata() || v.size() == 0,
+                  "the array must share the data with the input span");
 
     set_read_write_flags(arr, false);
-    UIPC_ASSERT(arr.writeable(), "writeable flag must be true");
+    PYUIPC_ASSERT(arr.writeable(), "writeable flag must be true");
 
     return arr;
 }
@@ -133,7 +133,8 @@ auto as_numpy(const span<const Eigen::Matrix<T, M, N, Options>>& v, py::handle o
     requires(M > 0 && N > 0)
 {
     auto arr = py::array_t<T, py::array::c_style>(buffer_info(v), obj);
-    UIPC_ASSERT(!arr.owndata(), "the array must share the data with the input span");
+    PYUIPC_ASSERT(!arr.owndata() || v.size() == 0,
+                  "the array must share the data with the input span");
     return arr;
 }
 
@@ -153,22 +154,30 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
     {
         if(Rows == 1 || Cols == 1)
         {
-            if(arr.shape(1) != Rows * Cols)
-                throw std::runtime_error(PYUIPC_MSG("shape mismatch"));
+            PYUIPC_ASSERT(arr.shape(1) == Rows * Cols,
+                          "Shape mismatch, ask for shape=(N,{}), yours=({},{})",
+                          Rows * Cols,
+                          arr.shape(0),
+                          arr.shape(1));
         }
         else
         {
-            throw std::runtime_error(PYUIPC_MSG("array must be 3D"));
+            throw PyException(PYUIPC_MSG("array must be 3D"));
         }
     }
     else if(arr.ndim() == 3)
     {
-        if(arr.shape(1) != Rows || arr.shape(2) != Cols)
-            throw std::runtime_error(PYUIPC_MSG("shape mismatch"));
+        PYUIPC_ASSERT(arr.shape(1) == Rows && arr.shape(2) == Cols,
+                      "Shape mismatch, ask for shape=(N,{},{}), yours=({},{},{})",
+                      Rows,
+                      Cols,
+                      arr.shape(0),
+                      arr.shape(1),
+                      arr.shape(2));
     }
     else
     {
-        throw std::runtime_error(PYUIPC_MSG("array must be 2D or 3D"));
+        throw PyException(PYUIPC_MSG("array must be 2D or 3D, yours={}", arr.ndim()));
     }
 
     if constexpr(IsConst)
@@ -215,7 +224,7 @@ auto as_numpy(const Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
 {
     auto arr = py::array_t<T, py::array::c_style>(buffer_info(m));
-    UIPC_ASSERT(arr.owndata(), "the array must own the data");
+    PYUIPC_ASSERT(arr.owndata(), "the array must own the data");
     return arr;
 }
 
@@ -224,7 +233,7 @@ auto as_numpy(Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
 {
     auto arr = py::array_t<T, py::array::c_style>(buffer_info(m));
-    UIPC_ASSERT(arr.owndata(), "the array must own the data");
+    PYUIPC_ASSERT(arr.owndata(), "the array must own the data");
     return arr;
 }
 
@@ -244,12 +253,14 @@ MatrixT to_matrix(py::array_t<typename MatrixT::Scalar> arr)
     {
         if(Rows == 1 || Cols == 1)
         {
-            if(arr.size() != Rows * Cols)
-                throw std::runtime_error(PYUIPC_MSG("shape mismatch"));
+            PYUIPC_ASSERT(arr.size() == Rows * Cols,
+                          "Shape mismatch, ask for shape=(N,{}), yours={}",
+                          Rows * Cols,
+                          arr.size());
         }
         else
         {
-            throw std::runtime_error("array must be 2D");
+            throw PyException(PYUIPC_MSG("array must be 2D, yours={}", arr.ndim()));
         }
 
         auto count = std::max(Rows, Cols);
@@ -259,8 +270,12 @@ MatrixT to_matrix(py::array_t<typename MatrixT::Scalar> arr)
     }
     else if(arr.ndim() == 2)
     {
-        if(arr.shape(0) != Rows || arr.shape(1) != Cols)
-            throw std::runtime_error(PYUIPC_MSG("shape mismatch"));
+        PYUIPC_ASSERT(arr.shape(0) == Rows && arr.shape(1) == Cols,
+                      "Shape mismatch, ask for shape=({},{}), yours=({},{})",
+                      Rows,
+                      Cols,
+                      arr.shape(0),
+                      arr.shape(1));
 
         for(int i = 0; i < Rows; i++)
             for(int j = 0; j < Cols; j++)
@@ -268,7 +283,7 @@ MatrixT to_matrix(py::array_t<typename MatrixT::Scalar> arr)
     }
     else
     {
-        throw std::runtime_error(PYUIPC_MSG("array must be 1D or 2D"));
+        throw PyException(PYUIPC_MSG("array must be 1D or 2D, yours={}", arr.ndim()));
     }
 
     return m;

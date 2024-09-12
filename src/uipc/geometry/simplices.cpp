@@ -70,7 +70,7 @@ void Vertices::do_clear()
 
 S<ITopoElements> Vertices::do_clone() const
 {
-    return std::make_shared<Vertices>(*this);
+    return uipc::make_shared<Vertices>(*this);
 }
 
 void Vertices::do_reserve(SizeT N)

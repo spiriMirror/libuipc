@@ -11,7 +11,7 @@ T& remove_const(const T& t)
 S<Object> ObjectCollection::emplace(Object&& object)
 {
     IndexT id  = m_next_id++;
-    auto   ptr = std::make_shared<Object>(std::move(object));
+    auto   ptr = uipc::make_shared<Object>(std::move(object));
     m_objects.emplace(id, ptr);
     return ptr;
 }

@@ -16,7 +16,7 @@ def process_surface(sc: SimplicialComplex):
     sc = flip_inward_triangles(sc)
     return sc
 
-Logger.set_level(Logger.Level.Warn)
+Logger.set_level(Logger.Level.Info)
 
 workspace = AssetDir.output_path(__file__)
 
@@ -56,26 +56,26 @@ object.geometries().create(tet)
 g = ground(-1.2)
 object.geometries().create(g)
 
-# scripted animation
-def animation(info:Animation.UpdateInfo):
-    geos:list[GeometrySlot] = info.geo_slots()
-    geo:SimplicialComplex = geos[0].geometry()
+# # scripted animation
+# def animation(info:Animation.UpdateInfo):
+#     geos:list[GeometrySlot] = info.geo_slots()
+#     geo:SimplicialComplex = geos[0].geometry()
 
-    # label the constrained vertices
-    is_constrained = geo.vertices().find(builtin.is_constrained)
-    is_constrained_view = view(is_constrained)
-    is_constrained_view[0] = 1 if info.frame() < 180 else 0
+#     # label the constrained vertices
+#     is_constrained = geo.vertices().find(builtin.is_constrained)
+#     is_constrained_view = view(is_constrained)
+#     is_constrained_view[0] = 1 if info.frame() < 180 else 0
 
-    # set the aim position
-    apos = geo.vertices().find(builtin.aim_position)
-    apos_view = view(apos)
+#     # set the aim position
+#     apos = geo.vertices().find(builtin.aim_position)
+#     apos_view = view(apos)
     
-    theta = - info.frame() * 2 * np.pi / 360
-    cos_t = np.cos(theta)
-    sin_t = np.sin(theta)
-    apos_view[0] = Vector3.Values([0, cos_t, sin_t])
-    pass
-scene.animator().insert(object, animation)
+#     theta = - info.frame() * 2 * np.pi / 360
+#     cos_t = np.cos(theta)
+#     sin_t = np.sin(theta)
+#     apos_view[0] = Vector3.Values([0, cos_t, sin_t])
+#     pass
+# scene.animator().insert(object, animation)
 
 world.init(scene)
 

@@ -28,9 +28,9 @@ print(config)
 
 scene = Scene(config)
 
-snh = StableNeoHookean()
+snk = StableNeoHookean()
 abd = AffineBodyConstitution()
-scene.constitution_tabular().insert(snh)
+scene.constitution_tabular().insert(snk)
 scene.constitution_tabular().insert(abd)
 scene.contact_tabular().default_model(0.5, 1e9)
 default_element = scene.contact_tabular().default_element()
@@ -43,7 +43,7 @@ cube = process_surface(cube)
 
 fem_cube = cube.copy()
 moduli = ElasticModuli.youngs_poisson(1e5, 0.49)
-snh.apply_to(fem_cube, moduli)
+snk.apply_to(fem_cube, moduli)
 default_element.apply_to(fem_cube)
 
 abd_cube = cube.copy()
@@ -83,7 +83,6 @@ s = sio.simplicial_surface()
 
 ssio = SpreadSheetIO(workspace)
 ssio.write_csv('surf', s)
-sio.write_surface(f'{workspace}/scene_surface{0}.obj')
 
 v = s.positions().view()
 t = s.triangles().topo().view()
@@ -100,12 +99,6 @@ def on_update():
         s = sio.simplicial_surface()
         v = s.positions().view()
         mesh.update_vertex_positions(v.reshape(-1,3))
-        
-        while(world.frame() < 1000):
-            world.advance()
-            world.retrieve()
-            sio.write_surface(f'{workspace}/scene_surface{world.frame()}.obj')
-            world.dump()
 
 ps.set_user_callback(on_update)
 ps.show()

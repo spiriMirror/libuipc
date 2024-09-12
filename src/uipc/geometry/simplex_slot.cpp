@@ -104,7 +104,7 @@ UIPC_CORE_API span<IndexT> view(VertexSlot& slot)
 
 S<VertexSlot> VertexSlot::clone() const
 {
-    return std::make_shared<VertexSlot>(m_simplices);
+    return uipc::make_shared<VertexSlot>(m_simplices);
 }
 
 SizeT VertexSlot::get_use_count() const noexcept
@@ -119,7 +119,7 @@ S<ISimplexSlot> VertexSlot::do_clone() const
 
 void VertexSlot::do_make_owned()
 {
-    m_simplices = std::make_shared<Vertices>(*m_simplices);
+    m_simplices = uipc::make_shared<Vertices>(*m_simplices);
 }
 
 ISimplices& VertexSlot::get_simplices() noexcept

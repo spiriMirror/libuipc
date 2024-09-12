@@ -8,7 +8,7 @@ S<geometry::GeometrySlotT<GeometryT>> GeometryCollection::emplace(const Geometry
 
     auto id = m_next_id++;
 
-    auto slot = std::make_shared<geometry::GeometrySlotT<GeometryT>>(id, geometry);
+    auto slot = uipc::make_shared<geometry::GeometrySlotT<GeometryT>>(id, geometry);
     slot->state(geometry::GeometrySlotState::Normal);
     m_geometries.emplace(id, slot);
 
@@ -22,7 +22,7 @@ S<geometry::GeometrySlotT<GeometryT>> GeometryCollection::pending_emplace(const 
 
     auto id = m_next_id++;
 
-    auto slot = std::make_shared<geometry::GeometrySlotT<GeometryT>>(id, geometry);
+    auto slot = uipc::make_shared<geometry::GeometrySlotT<GeometryT>>(id, geometry);
     slot->state(geometry::GeometrySlotState::PendingCreate);
     m_pending_create.emplace(id, slot);
 

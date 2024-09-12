@@ -3,10 +3,10 @@
 namespace uipc::geometry
 {
 AbstractSimplicialComplex::AbstractSimplicialComplex()
-    : m_vertices(std::make_shared<Vertices>())
-    , m_edges(std::make_shared<Edges>())
-    , m_triangles(std::make_shared<Triangles>())
-    , m_tetrahedra(std::make_shared<Tetrahedra>())
+    : m_vertices(make_shared<Vertices>())
+    , m_edges(make_shared<Edges>())
+    , m_triangles(make_shared<Triangles>())
+    , m_tetrahedra(make_shared<Tetrahedra>())
 {
 }
 

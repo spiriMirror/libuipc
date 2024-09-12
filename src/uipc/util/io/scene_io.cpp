@@ -133,11 +133,6 @@ geometry::SimplicialComplex SceneIO::simplicial_surface() const
 
     auto simplicial_complex_has_surf = detail::collect_geometry_with_surf<-1>(geos);
 
-    if(simplicial_complex_has_surf.empty())
-    {
-        UIPC_WARN_WITH_LOCATION("No simplicial complex with surface found.");
-    }
-
     return extract_surface(simplicial_complex_has_surf);
 }
 
@@ -165,11 +160,6 @@ geometry::SimplicialComplex SceneIO::simplicial_surface(IndexT dim) const
             break;
         default:
             break;
-    }
-
-    if(simplicial_complex_has_surf.empty())
-    {
-        UIPC_WARN_WITH_LOCATION("No simplicial complex with surface found.");
     }
 
     return extract_surface(simplicial_complex_has_surf);
