@@ -16,14 +16,14 @@ using namespace uipc::constitution;
 
 class NullEngine : public IEngine
 {
-    std::size_t m_frame = 0;
+    std::size_t frame = 0;
 
   public:
     void do_init(backend::WorldVisitor v) override {}
     void do_advance() override
     {
-        m_frame++;
-        spdlog::info("[NullEngine] frame: {}", m_frame);
+        frame++;
+        spdlog::info("[NullEngine] frame: {}", frame);
     }
     void do_sync() override {}
     void do_retrieve() override {}
@@ -31,7 +31,7 @@ class NullEngine : public IEngine
     // Inherited via IEngine
     bool  do_dump() override { return false; }
     bool  do_recover() override { return false; }
-    SizeT get_frame() const override { return m_frame; }
+    SizeT get_frame() const override { return frame; }
 };
 
 TEST_CASE("simple_world", "[world]")

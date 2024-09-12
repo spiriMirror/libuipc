@@ -3,9 +3,15 @@
 #include <uipc/backends/common/module.h>
 #include <filesystem>
 #include <fstream>
+#include <uipc/backends/common/engine_create_info.h>
 
 namespace uipc::backend
 {
+SimEngine::SimEngine(EngineCreateInfo* info)
+    : m_workspace(info->workspace)
+{
+}
+
 Json SimEngine::do_to_json() const
 {
     Json j;
@@ -32,8 +38,7 @@ void SimEngine::dump_system_info() const
 
     spdlog::info("Built systems:\n{}", m_system_collection);
 
-    auto     workspace = ModuleInfo::instance().workspace();
-    fs::path p         = fs::absolute(fs::path{workspace} / "systems.json");
+    fs::path p = fs::absolute(fs::path{workspace()} / "systems.json");
     {
         std::ofstream ofs(p);
         ofs << to_json().dump(4);
@@ -91,7 +96,7 @@ ISimSystem* SimEngine::require_system(ISimSystem* ptr)
 
 std::string_view SimEngine::workspace() const noexcept
 {
-    return ModuleInfo::instance().workspace();
+    return m_workspace;
 }
 
 bool SimEngine::do_dump()
@@ -100,7 +105,7 @@ bool SimEngine::do_dump()
 
     for(auto system : systems())
     {
-        ISimSystem::DumpInfo info{frame(), Json::object()};
+        ISimSystem::DumpInfo info{frame(), workspace(), Json::object()};
         all_success &= system->do_dump(info);
 
         if(!all_success)
@@ -119,7 +124,7 @@ bool SimEngine::do_recover()
     // First try recover
     for(auto system : systems())
     {
-        ISimSystem::RecoverInfo info{frame(), Json::object()};
+        ISimSystem::RecoverInfo info{frame(), workspace(), Json::object()};
         all_success &= system->try_recover(info);
 
         if(!all_success)
@@ -134,7 +139,7 @@ bool SimEngine::do_recover()
     {
         for(auto system : systems())
         {
-            ISimSystem::RecoverInfo info{frame(), Json::object()};
+            ISimSystem::RecoverInfo info{frame(), workspace(), Json::object()};
             system->apply_recover(info);
         }
     }
@@ -142,7 +147,7 @@ bool SimEngine::do_recover()
     {
         for(auto system : systems())
         {
-            ISimSystem::RecoverInfo info{frame(), Json::object()};
+            ISimSystem::RecoverInfo info{frame(), workspace(), Json::object()};
             system->clear_recover(info);
         }
     }

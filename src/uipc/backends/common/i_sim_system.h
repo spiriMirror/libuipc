@@ -21,15 +21,16 @@ class ISimSystem
     class BaseInfo
     {
       public:
-        BaseInfo(SizeT frame, const Json& config) noexcept;
+        BaseInfo(SizeT frame, std::string_view workspace, const Json& config) noexcept;
         std::string_view workspace() const noexcept;
         std::string      dump_path(std::string_view file) const noexcept;
         const Json&      config() const noexcept;
         SizeT            frame() const noexcept;
 
       private:
-        SizeT m_frame = 0;
-        Json  m_config;
+        SizeT            m_frame = 0;
+        std::string_view m_workspace;
+        Json             m_config;
     };
 
     class DumpInfo : public BaseInfo

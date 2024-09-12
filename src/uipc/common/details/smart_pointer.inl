@@ -29,6 +29,7 @@ S<T> make_shared(Args&&... args)
 {
     auto resource = std::pmr::get_default_resource();
     std::pmr::polymorphic_allocator<T> alloc{resource};
-    return std::allocate_shared<T>(alloc, std::forward<Args>(args)...);
+    return std::shared_ptr<T>(alloc.template new_object<T, Args...>(std::forward<Args>(args)...),
+                              PmrDeleter<T>{});
 }
 }  // namespace uipc

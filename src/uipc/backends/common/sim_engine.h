@@ -6,14 +6,14 @@
 
 namespace uipc::backend
 {
+class EngineCreateInfo;
 class UIPC_BACKEND_API SimEngine : public engine::IEngine
 {
-    class DeviceImpl;
     friend class SimSystem;
 
   public:
-    SimEngine()  = default;
-    ~SimEngine() = default;
+    SimEngine(EngineCreateInfo* info);
+    virtual ~SimEngine() = default;
 
     SimEngine(const SimEngine&)            = delete;
     SimEngine& operator=(const SimEngine&) = delete;
@@ -66,10 +66,10 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     std::string_view workspace() const noexcept;
 
   protected:
-    virtual bool do_dump() override;
-    virtual bool do_recover() override;
+    virtual bool            do_dump() override;
+    virtual bool            do_recover() override;
     span<ISimSystem* const> systems() noexcept;
-    std::string dump_path() const noexcept;
+    std::string             dump_path() const noexcept;
 
 
   private:
@@ -77,6 +77,7 @@ class UIPC_BACKEND_API SimEngine : public engine::IEngine
     ISimSystem* require_system(ISimSystem* ptr);
 
     SimSystemCollection m_system_collection;
+    std::string         m_workspace;
 };
 
 class SimEngineException : public Exception

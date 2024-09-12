@@ -2,9 +2,14 @@
 #include <uipc/common/macro.h>
 #include <memory_resource>
 #include <uipc/engine/i_engine.h>
-#include <uipc/backend/module_init_info.h>
 
 using EngineInterface = uipc::engine::IEngine;
+class UIPCModuleInitInfo;
+namespace uipc::backend
+{
+class EngineCreateInfo;
+}
+using EngineCreateInfo = uipc::backend::EngineCreateInfo;
 
 extern "C" {
 /**
@@ -14,7 +19,7 @@ extern "C" {
  *  
  * @return A pointer to the new engine instance.
  */
-UIPC_BACKEND_API EngineInterface* uipc_create_engine();
+UIPC_BACKEND_API EngineInterface* uipc_create_engine(EngineCreateInfo* info);
 
 /**
  * @brief Destroy the engine instance.
@@ -34,17 +39,3 @@ UIPC_BACKEND_API void uipc_destroy_engine(EngineInterface* engine);
 */
 UIPC_BACKEND_API void uipc_init_module(UIPCModuleInitInfo* info);
 }
-
-namespace uipc::backend
-{
-class ModuleInfo
-{
-  public:
-    std::string_view   workspace() const noexcept { return m_workspace; }
-    static ModuleInfo& instance() noexcept;
-    void               init(const UIPCModuleInitInfo& info) noexcept;
-
-  private:
-    std::string m_workspace;
-};
-}  // namespace uipc::backend

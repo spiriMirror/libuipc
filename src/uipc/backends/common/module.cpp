@@ -2,6 +2,7 @@
 #include <memory_resource>
 #include <uipc/common/log.h>
 #include <filesystem>
+#include <uipc/backend/module_init_info.h>
 
 void uipc_init_module(UIPCModuleInitInfo* info)
 {
@@ -11,20 +12,4 @@ void uipc_init_module(UIPCModuleInitInfo* info)
                  info->module_name,
                  (void*)old_resource,
                  (void*)std::pmr::get_default_resource());
-
-    uipc::backend::ModuleInfo::instance().init(*info);
 }
-
-namespace uipc::backend
-{
-void ModuleInfo::init(const UIPCModuleInitInfo& info) noexcept
-{
-    m_workspace = info.module_workspace;
-}
-
-ModuleInfo& ModuleInfo::instance() noexcept
-{
-    static ModuleInfo instance;
-    return instance;
-}
-}  // namespace uipc::backend

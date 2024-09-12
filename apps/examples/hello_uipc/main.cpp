@@ -4,14 +4,14 @@
 
 class NullEngine : public uipc::engine::IEngine
 {
-    std::size_t m_frame = 0;
+    std::size_t frame = 0;
 
   public:
     void   do_init(uipc::backend::WorldVisitor v) override;
     void   do_advance() override;
     void   do_sync() override {}
     void   do_retrieve() override {}
-    size_t get_frame() const override { return m_frame; }
+    size_t get_frame() const override { return frame; }
 };
 
 
@@ -129,6 +129,6 @@ void NullEngine::do_init(uipc::backend::WorldVisitor v)
 
 void NullEngine::do_advance()
 {
-    m_frame++;
-    spdlog::info("[NullEngine] frame: {}", m_frame);
+    frame++;
+    spdlog::info("[NullEngine] frame: {}", frame);
 }

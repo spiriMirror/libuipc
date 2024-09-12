@@ -5,7 +5,8 @@
 
 namespace uipc::backend::none
 {
-NoneSimEngine::NoneSimEngine()
+NoneSimEngine::NoneSimEngine(EngineCreateInfo* info)
+    : SimEngine(info)
 {
     spdlog::info("[NoneEngine] Constructor called.");
     spdlog::info(R"(Hello, this is the NoneEngine from libuipc backends.
@@ -49,14 +50,14 @@ NoneSimEngine::~NoneSimEngine()
 
 SizeT NoneSimEngine::get_frame() const
 {
-	return frame;
+    return frame;
 }
 }  // namespace uipc::backend::none
 
 
-UIPC_BACKEND_API EngineInterface* uipc_create_engine()
+UIPC_BACKEND_API EngineInterface* uipc_create_engine(EngineCreateInfo* info)
 {
-    return new uipc::backend::none::NoneSimEngine();
+    return new uipc::backend::none::NoneSimEngine(info);
 }
 
 UIPC_BACKEND_API void uipc_destroy_engine(EngineInterface* engine)

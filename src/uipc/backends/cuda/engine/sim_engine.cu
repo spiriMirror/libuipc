@@ -21,8 +21,9 @@ void say_hello_from_muda()
         .wait();
 }
 
-SimEngine::SimEngine()
-    : m_device_impl(make_unique<DeviceImpl>())
+SimEngine::SimEngine(EngineCreateInfo* info)
+    : backend::SimEngine(info)
+    , m_device_impl(make_unique<DeviceImpl>())
 {
     LogGuard guard;
     try
@@ -119,8 +120,7 @@ void SimEngine::event_write_scene()
 
 void SimEngine::dump_global_surface(std::string_view name)
 {
-    auto path      = ModuleInfo::instance().workspace();
-    auto file_path = fmt::format("{}{}.obj", path, name);
+    auto file_path = fmt::format("{}{}.obj", workspace(), name);
 
     std::vector<Vector3> positions;
     auto                 src_ps = m_global_vertex_manager->positions();

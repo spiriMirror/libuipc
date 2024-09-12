@@ -24,8 +24,8 @@ class UIPC_BACKEND_API SimEngine : public backend::SimEngine
     friend class SimSystem;
 
   public:
-    SimEngine();
-    ~SimEngine();
+    SimEngine(EngineCreateInfo*);
+    virtual ~SimEngine();
 
     SimEngine(const SimEngine&)            = delete;
     SimEngine& operator=(const SimEngine&) = delete;
