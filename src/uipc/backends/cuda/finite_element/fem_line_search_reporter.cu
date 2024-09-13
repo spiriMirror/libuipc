@@ -98,18 +98,25 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
         cst->compute_energy(this_info);
     }
 
+    // Codim 0D
+    // Particles have no elastic energy, so we skip it
+
+    // Codim 1D
     DeviceReduce().Sum(fem().codim_1d_elastic_energies.data(),
                        fem().codim_1d_elastic_energy.data(),
                        fem().codim_1d_elastic_energies.size());
 
+    // Codim 2D
     DeviceReduce().Sum(fem().codim_2d_elastic_energies.data(),
                        fem().codim_2d_elastic_energy.data(),
                        fem().codim_2d_elastic_energies.size());
 
+    // FEM 3D
     DeviceReduce().Sum(fem().fem_3d_elastic_energies.data(),
                        fem().fem_3d_elastic_energy.data(),
                        fem().fem_3d_elastic_energies.size());
 
+    // Extra
     DeviceReduce().Sum(fem().extra_constitution_energies.data(),
                        fem().extra_constitution_energy.data(),
                        fem().extra_constitution_energies.size());
@@ -124,13 +131,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
     if(finite_element_animator)
         anim_E = finite_element_animator->compute_energy(info);
 
-    info.energy(K            //
-                + codim1D_E  //
-                + codim2D_E  //
-                + fem3D_E    //
-                + extra_E    //
-                + anim_E     //
-    );
+    Float E = K + codim1D_E + codim2D_E + fem3D_E + extra_E + anim_E;
 
     //spdlog::info("FEM Energy: K:{}, 1D:{}, 2D:{}, 3D:{}, Extra:{}, Anim:{}",
     //             K,
@@ -139,5 +140,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
     //             fem3D_E,
     //             extra_E,
     //             anim_E);
+
+    info.energy(E);
 }
 }  // namespace uipc::backend::cuda

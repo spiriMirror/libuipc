@@ -1,11 +1,13 @@
 #include <finite_element/fem_gradient_hessian_computer.h>
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
+
 // constitutions
 #include <finite_element/codim_0d_constitution.h>
 #include <finite_element/codim_1d_constitution.h>
 #include <finite_element/codim_2d_constitution.h>
 #include <finite_element/fem_3d_constitution.h>
+#include <finite_element/finite_element_extra_constitution.h>
 
 namespace uipc::backend::cuda
 {
@@ -83,6 +85,13 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
     for(auto&& [i, cst] : enumerate(fem().fem_3d_constitutions))
     {
         cst->compute_gradient_hessian(this_info);
+    }
+
+    // Extra
+    FiniteElementMethod::ComputeExtraGradientHessianInfo extra_info{info.dt()};
+    for(auto&& [i, cst] : enumerate(fem().extra_constitutions.view()))
+    {
+        cst->compute_gradient_hessian(extra_info);
     }
 
     // Animation

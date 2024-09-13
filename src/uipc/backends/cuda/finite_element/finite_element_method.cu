@@ -1,6 +1,7 @@
 #include <finite_element/finite_element_method.h>
 #include <Eigen/Dense>
 #include <Eigen/Geometry>
+#include <finite_element/finite_element_extra_constitution.h>
 #include <finite_element/finite_element_constitution.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/simplicial_complex.h>
@@ -32,6 +33,12 @@ void FiniteElementMethod::add_constitution(FiniteElementConstitution* constituti
 {
     check_state(SimEngineState::BuildSystems, "add_constitution()");
     m_impl.constitutions.register_subsystem(*constitution);
+}
+
+void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* constitution)
+{
+    check_state(SimEngineState::BuildSystems, "add_constitution()");
+    m_impl.extra_constitutions.register_subsystem(*constitution);
 }
 
 void FiniteElementMethod::do_build()
@@ -66,12 +73,16 @@ void FiniteElementMethod::do_build()
 
 void FiniteElementMethod::Impl::init(WorldVisitor& world)
 {
+    // 1) Initialize the constitutions
     _init_constitutions();
     _build_geo_infos(world);
     _build_constitution_infos();
     _build_on_host(world);
     _build_on_device();
     _distribute_constitution_filtered_info();
+
+    // 2) Initialize the extra constitutions
+    _init_extra_constitutions();
 }
 
 void FiniteElementMethod::Impl::_init_constitutions()
@@ -714,34 +725,54 @@ void FiniteElementMethod::Impl::_distribute_constitution_filtered_info()
     }
 }
 
-void FiniteElementMethod::Impl::write_scene(WorldVisitor& world)
+void FiniteElementMethod::Impl::_init_extra_constitutions()
 {
-    _download_geometry_to_host();
+    SizeT N = extra_constitutions.view().size();
 
-    auto geo_slots = world.scene().geometries();
-
-    auto position_span = span{h_positions};
-
-    for(auto&& [i, info] : enumerate(geo_infos))
+    for(auto&& [i, c] : enumerate(extra_constitutions.view()))
     {
-        auto& geo_slot = geo_slots[info.geo_slot_index];
-        auto& geo      = geo_slot->geometry();
-        auto* sc       = geo.as<geometry::SimplicialComplex>();
-        UIPC_ASSERT(sc,
-                    "The geometry is not a simplicial complex (it's {}). Why can it happen?",
-                    geo.type());
-
-        // 1) write positions back
-        auto pos_view = geometry::view(sc->positions());
-        auto src_pos_span = position_span.subspan(info.vertex_offset, info.vertex_count);
-        UIPC_ASSERT(pos_view.size() == src_pos_span.size(), "position size mismatching");
-        std::copy(src_pos_span.begin(), src_pos_span.end(), pos_view.begin());
-
-        // 2) write primitives back
-        // TODO:
-        // Now there is no topology modification, so no need to write back
-        // In the future, we may need to write back the topology if the topology is modified
+        c->init();
     }
+
+    // +1 for total count
+    vector<SizeT> energy_counts(N + 1, 0);
+    vector<SizeT> energy_offsets(N + 1, 0);
+    vector<SizeT> gradient_counts(N + 1, 0);
+    vector<SizeT> gradient_offsets(N + 1, 0);
+    vector<SizeT> hessian_counts(N + 1, 0);
+    vector<SizeT> hessian_offsets(N + 1, 0);
+
+    for(auto&& [i, c] : enumerate(extra_constitutions.view()))
+    {
+        c->collect_extent_info();
+    }
+
+    for(auto&& [i, c] : enumerate(extra_constitutions.view()))
+    {
+        energy_counts[i]   = c->m_impl.energy_count;
+        gradient_counts[i] = c->m_impl.gradient_count;
+        hessian_counts[i]  = c->m_impl.hessian_count;
+    }
+
+    std::exclusive_scan(
+        energy_counts.begin(), energy_counts.end(), energy_offsets.begin(), 0);
+    std::exclusive_scan(
+        gradient_counts.begin(), gradient_counts.end(), gradient_offsets.begin(), 0);
+    std::exclusive_scan(
+        hessian_counts.begin(), hessian_counts.end(), hessian_offsets.begin(), 0);
+
+    for(auto&& [i, c] : enumerate(extra_constitutions.view()))
+    {
+        c->m_impl.energy_offset   = energy_offsets[i];
+        c->m_impl.gradient_offset = gradient_offsets[i];
+        c->m_impl.hessian_offset  = hessian_offsets[i];
+    }
+
+    auto vertex_count = xs.size();
+
+    extra_constitution_energies.resize(energy_offsets.back());
+    extra_constitution_gradient.resize(vertex_count, gradient_counts.back());
+    extra_constitution_hessian.resize(vertex_count, vertex_count, hessian_counts.back());
 }
 
 void FiniteElementMethod::Impl::_download_geometry_to_host()
@@ -796,6 +827,36 @@ void FiniteElementMethod::Impl::compute_velocity(DoFPredictor::ComputeVelocityIn
 
                    x_prev = x;
                });
+}
+
+void FiniteElementMethod::Impl::write_scene(WorldVisitor& world)
+{
+    _download_geometry_to_host();
+
+    auto geo_slots = world.scene().geometries();
+
+    auto position_span = span{h_positions};
+
+    for(auto&& [i, info] : enumerate(geo_infos))
+    {
+        auto& geo_slot = geo_slots[info.geo_slot_index];
+        auto& geo      = geo_slot->geometry();
+        auto* sc       = geo.as<geometry::SimplicialComplex>();
+        UIPC_ASSERT(sc,
+                    "The geometry is not a simplicial complex (it's {}). Why can it happen?",
+                    geo.type());
+
+        // 1) write positions back
+        auto pos_view = geometry::view(sc->positions());
+        auto src_pos_span = position_span.subspan(info.vertex_offset, info.vertex_count);
+        UIPC_ASSERT(pos_view.size() == src_pos_span.size(), "position size mismatching");
+        std::copy(src_pos_span.begin(), src_pos_span.end(), pos_view.begin());
+
+        // 2) write primitives back
+        // TODO:
+        // Now there is no topology modification, so no need to write back
+        // In the future, we may need to write back the topology if the topology is modified
+    }
 }
 }  // namespace uipc::backend::cuda
 
