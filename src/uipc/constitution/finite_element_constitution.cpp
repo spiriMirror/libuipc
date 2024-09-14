@@ -1,4 +1,4 @@
-#include <uipc/constitution/fem_constitution.h>
+#include <uipc/constitution/finite_element_constitution.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
 

@@ -1,4 +1,4 @@
-#include <uipc/constitution/affine_body.h>
+#include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>

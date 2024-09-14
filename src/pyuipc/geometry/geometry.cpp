@@ -148,12 +148,6 @@ PyGeometry::PyGeometry(py::module& m)
     class_Geometry.def("instances",
                        [](Geometry& self) { return self.instances(); });
 
-    class_Geometry.def(
-        "transforms",
-        [](Geometry& self) -> AttributeSlot<Matrix4x4>&
-        { return self.transforms(); },
-        py::return_value_policy::reference_internal);
-
     class_Geometry.def("to_json", [](Geometry& self) { return self.to_json(); });
 
     def_method(m, class_MetaAttributes);

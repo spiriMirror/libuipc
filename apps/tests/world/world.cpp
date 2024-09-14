@@ -5,7 +5,7 @@
 #include <uipc/world/world.h>
 #include <uipc/engine/i_engine.h>
 #include <uipc/geometry.h>
-#include <uipc/constitution/affine_body.h>
+#include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/common/unit.h>
 
 using namespace uipc;

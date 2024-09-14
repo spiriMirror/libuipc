@@ -1,5 +1,6 @@
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/common/log.h>
+#include <Eigen/Geometry>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/builtin/geometry_type.h>
 
@@ -9,6 +10,10 @@ SimplicialComplex::SimplicialComplex()
 {
     // 1. AbstractSimplicialComplex is default-constructed, so no need to do anything.
     // 2. Don't create positions attribute: some algorithms just **share** the positions attribute.
+
+    // Create a default transform attribute.
+    Matrix4x4 I = Transform::Identity().matrix();
+    auto trans  = m_intances.create<Matrix4x4, false>(builtin::transform, I);
 }
 
 SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
@@ -29,6 +34,16 @@ SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
                                                           Vector3::Zero());
     auto view_ = view(*pos);
     std::ranges::copy(positions, view_.begin());
+}
+
+AttributeSlot<Matrix4x4>& SimplicialComplex::transforms()
+{
+    return *m_intances.template find<Matrix4x4>(builtin::transform);
+}
+
+const AttributeSlot<Matrix4x4>& SimplicialComplex::transforms() const
+{
+    return *m_intances.template find<Matrix4x4>(builtin::transform);
 }
 
 AttributeSlot<Vector3>& SimplicialComplex::positions() noexcept

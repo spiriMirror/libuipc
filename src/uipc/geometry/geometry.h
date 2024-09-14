@@ -217,19 +217,6 @@ class UIPC_CORE_API Geometry : public IGeometry
     Geometry& operator=(Geometry&& o)      = delete;
 
     /**
-     * @brief A short-cut to get the non-const transforms attribute slot.
-     * 
-     * @return The attribute slot of the non-const transforms.
-     */
-    [[nodiscard]] AttributeSlot<Matrix4x4>& transforms();
-    /**
-     * @brief A short-cut to get the const transforms attribute slot.
-     * 
-     * @return The attribute slot of the const transforms.
-     */
-    [[nodiscard]] const AttributeSlot<Matrix4x4>& transforms() const;
-
-    /**
      * @brief Get the meta attributes of the geometries.
      * 
      * @return The meta attributes of the geometries. 

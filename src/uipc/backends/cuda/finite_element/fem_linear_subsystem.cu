@@ -64,7 +64,7 @@ namespace detail
     template <int N>
     __device__ void fill_gradient(muda::DenseVectorViewer<Float>& g,
                                   const Vector<Float, 3 * N>&     G3N,
-                                  const Vector<IndexT, N>         indices,
+                                  const Vector<IndexT, N>&         indices,
                                   muda::CDense1D<IndexT>&         is_fixed)
         requires(N >= 2)
     {
@@ -83,7 +83,7 @@ namespace detail
     __device__ void fill_hessian(IndexT                               I,
                                  muda::TripletMatrixViewer<Float, 3>& H3x3,
                                  const Matrix<Float, 3 * N, 3 * N>&   H3Nx3N,
-                                 const Vector<IndexT, N>              indices,
+                                 const Vector<IndexT, N>&              indices,
                                  muda::CDense1D<IndexT>&              is_fixed)
         requires(N >= 2)
     {
@@ -109,7 +109,7 @@ namespace detail
     template <int N>
     __device__ void fill_diag_hessian(muda::Dense1D<Matrix3x3>&          diag,
                                       const Matrix<Float, 3 * N, 3 * N>& H3Nx3N,
-                                      const Vector<IndexT, N> indices,
+                                      const Vector<IndexT, N>& indices,
                                       muda::CDense1D<IndexT>& is_fixed)
         requires(N >= 2)
     {

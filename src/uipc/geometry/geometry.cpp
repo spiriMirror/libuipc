@@ -18,18 +18,6 @@ Geometry::Geometry()
 {
     m_meta.resize(1);      // only one meta for one geometries
     m_intances.resize(1);  // default only one instance
-    Matrix4x4 I = Eigen::Transform<Float, 3, Eigen::Affine>::Identity().matrix();
-    auto trans = m_intances.create<Matrix4x4, false>(builtin::transform, I);
-}
-
-AttributeSlot<Matrix4x4>& Geometry::transforms()
-{
-    return *m_intances.template find<Matrix4x4>(builtin::transform);
-}
-
-const AttributeSlot<Matrix4x4>& Geometry::transforms() const
-{
-    return *m_intances.template find<Matrix4x4>(builtin::transform);
 }
 
 auto Geometry::meta() -> MetaAttributes
@@ -46,10 +34,12 @@ auto Geometry::instances() -> InstanceAttributes
 {
     return InstanceAttributes{m_intances};
 }
+
 auto Geometry::instances() const -> CInstanceAttributes
 {
     return CInstanceAttributes{m_intances};
 }
+
 Json Geometry::do_to_json() const
 {
     Json j;

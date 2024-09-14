@@ -28,9 +28,12 @@ class Engine::Impl
     string       m_workspace;
 
     static unordered_map<string, S<dylib>> m_cache;
+    static std::mutex                      m_cache_mutex;
 
     static S<dylib> load_module(std::string_view backend_name)
     {
+        std::lock_guard lock{m_cache_mutex};
+
         // find in cache
         auto it = m_cache.find(std::string{backend_name});
         if(it != m_cache.end())
@@ -82,7 +85,7 @@ class Engine::Impl
 
         EngineCreateInfo info;
         info.workspace = m_workspace;
-        m_engine = creator(&info);
+        m_engine       = creator(&info);
         m_deleter = m_module->get_function<void(IEngine*)>("uipc_destroy_engine");
         if(!m_deleter)
             throw EngineException{fmt::format("Can't find backend [{}]'s engine deleter.",
@@ -134,6 +137,7 @@ class Engine::Impl
 };
 
 unordered_map<string, S<dylib>> Engine::Impl::m_cache;
+std::mutex                      Engine::Impl::m_cache_mutex;
 
 
 Engine::Engine(std::string_view backend_name, std::string_view workspace, const Json& config)

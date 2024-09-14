@@ -6,7 +6,7 @@
 #include <uipc/engine/i_engine.h>
 #include <uipc/engine/engine.h>
 #include <uipc/geometry.h>
-#include <uipc/constitution/affine_body.h>
+#include <uipc/constitution/affine_body_constitution.h>
 #include <fstream>
 
 using namespace uipc;

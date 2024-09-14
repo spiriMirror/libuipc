@@ -1,5 +1,5 @@
 #pragma once
-#include <uipc/constitution/fem_constitution.h>
+#include <uipc/constitution/finite_element_constitution.h>
 #include <uipc/constitution/elastic_moduli.h>
 #include <uipc/common/unit.h>
 

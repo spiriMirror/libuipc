@@ -1,5 +1,6 @@
 #include <finite_element/fem_line_search_reporter.h>
 #include <finite_element/finite_element_constitution.h>
+#include <finite_element/finite_element_extra_constitution.h>
 #include <muda/cub/device/device_reduce.h>
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
@@ -98,18 +99,31 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
         cst->compute_energy(this_info);
     }
 
+    // Codim 0D
+    // Particles have no elastic energy, so we skip it
+
+    // Codim 1D
     DeviceReduce().Sum(fem().codim_1d_elastic_energies.data(),
                        fem().codim_1d_elastic_energy.data(),
                        fem().codim_1d_elastic_energies.size());
 
+    // Codim 2D
     DeviceReduce().Sum(fem().codim_2d_elastic_energies.data(),
                        fem().codim_2d_elastic_energy.data(),
                        fem().codim_2d_elastic_energies.size());
 
+    // FEM 3D
     DeviceReduce().Sum(fem().fem_3d_elastic_energies.data(),
                        fem().fem_3d_elastic_energy.data(),
                        fem().fem_3d_elastic_energies.size());
 
+    for(auto&& [i, cst] : enumerate(fem().extra_constitutions.view()))
+    {
+        FiniteElementMethod::ComputeExtraEnergyInfo this_info{info.dt()};
+        cst->compute_energy(this_info);
+    }
+
+    // Extra
     DeviceReduce().Sum(fem().extra_constitution_energies.data(),
                        fem().extra_constitution_energy.data(),
                        fem().extra_constitution_energies.size());
@@ -124,20 +138,16 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
     if(finite_element_animator)
         anim_E = finite_element_animator->compute_energy(info);
 
-    info.energy(K            //
-                + codim1D_E  //
-                + codim2D_E  //
-                + fem3D_E    //
-                + extra_E    //
-                + anim_E     //
-    );
+    Float E = K + codim1D_E + codim2D_E + fem3D_E + extra_E + anim_E;
 
-    //spdlog::info("FEM Energy: K:{}, 1D:{}, 2D:{}, 3D:{}, Extra:{}, Anim:{}",
-    //             K,
-    //             codim1D_E,
-    //             codim2D_E,
-    //             fem3D_E,
-    //             extra_E,
-    //             anim_E);
+    spdlog::info("FEM Energy: K:{}, 1D:{}, 2D:{}, 3D:{}, Extra:{}, Anim:{}",
+                 K,
+                 codim1D_E,
+                 codim2D_E,
+                 fem3D_E,
+                 extra_E,
+                 anim_E);
+
+    info.energy(E);
 }
 }  // namespace uipc::backend::cuda

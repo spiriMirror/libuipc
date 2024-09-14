@@ -3,7 +3,7 @@
 #include <uipc/uipc.h>
 #include <uipc/constitution/stable_neo_hookean.h>
 #include <uipc/constitution/arap.h>
-#include <uipc/constitution/affine_body.h>
+#include <uipc/constitution/affine_body_constitution.h>
 #include <filesystem>
 #include <fstream>
 

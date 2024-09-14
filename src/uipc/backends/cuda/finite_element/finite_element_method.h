@@ -14,6 +14,7 @@ class FEM3DConstitution;
 class Codim2DConstitution;
 class Codim1DConstitution;
 class Codim0DConstitution;
+class FiniteElementExtraConstitution;
 
 class FiniteElementMethod : public SimSystem
 {
@@ -64,13 +65,6 @@ class FiniteElementMethod : public SimSystem
         SizeT primitive_offset = ~0ull;
         SizeT primitive_count  = 0ull;
     };
-
-    //enum class FixType : IndexT
-    //{
-    //    Animated = -1,
-    //    Free     = 0,
-    //    Fixed    = 1,
-    //};
 
     template <int N>
     class FilteredInfo
@@ -126,6 +120,65 @@ class FiniteElementMethod : public SimSystem
     using Codim2DFilteredInfo = FilteredInfo<2>;
     using FEM3DFilteredInfo   = FilteredInfo<3>;
 
+    class ComputeEnergyInfo
+    {
+      public:
+        ComputeEnergyInfo(Impl* impl, SizeT consitution_index, Float dt) noexcept
+            : m_impl(impl)
+            , m_consitution_index(consitution_index)
+            , m_dt(dt)
+        {
+        }
+
+        Float dt() const noexcept;
+
+      private:
+        friend class Impl;
+        SizeT m_consitution_index = ~0ull;
+        Impl* m_impl              = nullptr;
+        Float m_dt                = 0.0;
+    };
+
+    class ComputeGradientHessianInfo
+    {
+      public:
+        ComputeGradientHessianInfo(Float dt) noexcept;
+
+        auto dt() const noexcept { return m_dt; }
+
+      private:
+        friend class Impl;
+        Float m_dt = 0.0;
+    };
+
+    class ComputeExtraEnergyInfo
+    {
+      public:
+        ComputeExtraEnergyInfo(Float dt) noexcept
+            : m_dt(dt)
+        {
+        }
+        auto dt() const noexcept { return m_dt; }
+
+      private:
+        Float m_dt = 0.0;
+    };
+
+    class ComputeExtraGradientHessianInfo
+    {
+      public:
+        ComputeExtraGradientHessianInfo(Float dt) noexcept
+            : m_dt(dt)
+        {
+        }
+
+        auto dt() const noexcept { return m_dt; }
+
+      private:
+        friend class Impl;
+        Float m_dt = 0.0;
+    };
+
     class Impl
     {
       public:
@@ -133,25 +186,29 @@ class FiniteElementMethod : public SimSystem
         void _init_constitutions();
         void _build_geo_infos(WorldVisitor& world);
         void _build_constitution_infos();
-
         void _build_on_host(WorldVisitor& world);
         void _build_on_device();
         void _download_geometry_to_host();
         void _distribute_constitution_filtered_info();
+        void _init_extra_constitutions();
 
         void compute_x_tilde(DoFPredictor::PredictInfo& info);
-
         void compute_velocity(DoFPredictor::ComputeVelocityInfo& info);
 
         void write_scene(WorldVisitor& world);
 
-        GlobalVertexManager* global_vertex_manager = nullptr;
+        // related sim simsytems:
 
-        // core invariant data:
-        vector<GeoInfo>                                    geo_infos;
+        GlobalVertexManager* global_vertex_manager = nullptr;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
+        SimSystemSlotCollection<FiniteElementExtraConstitution> extra_constitutions;
+
+        // core invariant data
+        vector<GeoInfo> geo_infos;
+
 
         // related data:
+
         std::array<DimInfo, 4> dim_infos;
 
         unordered_map<U64, SizeT>    codim_0d_uid_to_index;
@@ -172,8 +229,9 @@ class FiniteElementMethod : public SimSystem
 
 
         // simulation data:
+
         vector<IndexT> h_vertex_contact_element_ids;
-        //vector<FixType> h_vertex_is_fixed;
+
         vector<IndexT>  h_vertex_is_fixed;
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
@@ -201,7 +259,6 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Float>    rest_volumes;
 
         // Vertex Attributes:
-        //muda::DeviceBuffer<FixType>   is_fixed;  // Vertex Fixed
 
         muda::DeviceBuffer<IndexT> is_fixed;  // Vertex Fixed
 
@@ -255,37 +312,6 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceTripletMatrix<Float, 3> extra_constitution_hessian;  // Extra Hessian Per Vertex
     };
 
-    class ComputeEnergyInfo
-    {
-      public:
-        ComputeEnergyInfo(Impl* impl, SizeT consitution_index, Float dt) noexcept
-            : m_impl(impl)
-            , m_consitution_index(consitution_index)
-            , m_dt(dt)
-        {
-        }
-
-        Float dt() const noexcept;
-
-      private:
-        friend class Impl;
-        SizeT m_consitution_index = ~0ull;
-        Impl* m_impl              = nullptr;
-        Float m_dt                = 0.0;
-    };
-
-    class ComputeGradientHessianInfo
-    {
-      public:
-        ComputeGradientHessianInfo(Float dt) noexcept;
-
-        auto dt() const noexcept { return m_dt; }
-
-      private:
-        friend class Impl;
-        Float m_dt = 0.0;
-    };
-
 
   public:
     // public data accessors:
@@ -324,7 +350,7 @@ class FiniteElementMethod : public SimSystem
      *  
      *  vector<Float> lambdas(info.vertex_count());
      *  
-     *  info.for_each(geo_slots, 
+     *  for_each(geo_slots, 
      *  [](SimplicialComplex& sc) 
      *  {
      *      return sc.vertices().find<Float>("lambda").view();
@@ -341,6 +367,19 @@ class FiniteElementMethod : public SimSystem
                   ViewGetter&&                    view_getter,
                   ForEach&&                       for_each_action) noexcept;
 
+    /**
+     * @brief For each geometry
+     *  
+     * for_each(geo_slots,
+     * [](SimplicialComplex& sc)
+     * {
+     * 
+     * });
+     * 
+     */
+    template <typename ForEachGeometry>
+    void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_each) noexcept;
+
   private:
     friend class FiniteElementVertexReporter;
     friend class FiniteElementSurfaceReporter;
@@ -349,8 +388,11 @@ class FiniteElementMethod : public SimSystem
     friend class FEMGradientHessianComputer;
     friend class FiniteElementConstitution;
     friend class FiniteElementAnimator;
+    friend class FiniteElementExtraConstitution;
 
     void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution
+    void add_constitution(FiniteElementExtraConstitution* constitution);  // only called by FiniteElementExtraConstitution
+
     virtual void do_build() override;
 
     template <typename ForEach, typename ViewGetter>
@@ -358,6 +400,11 @@ class FiniteElementMethod : public SimSystem
                           span<S<geometry::GeometrySlot>> geo_slots,
                           ViewGetter&&                    view_getter,
                           ForEach&& for_each_action) noexcept;
+
+    template <typename ForEachGeometry>
+    static void _for_each(span<const GeoInfo>             geo_infos,
+                          span<S<geometry::GeometrySlot>> geo_slots,
+                          ForEachGeometry&&               for_each) noexcept;
 
     Impl m_impl;
 };
