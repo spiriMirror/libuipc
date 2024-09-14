@@ -771,8 +771,8 @@ void FiniteElementMethod::Impl::_init_extra_constitutions()
     auto vertex_count = xs.size();
 
     extra_constitution_energies.resize(energy_offsets.back());
-    extra_constitution_gradient.resize(vertex_count, gradient_counts.back());
-    extra_constitution_hessian.resize(vertex_count, vertex_count, hessian_counts.back());
+    extra_constitution_gradient.resize(vertex_count, gradient_offsets.back());
+    extra_constitution_hessian.resize(vertex_count, vertex_count, hessian_offsets.back());
 }
 
 void FiniteElementMethod::Impl::_download_geometry_to_host()

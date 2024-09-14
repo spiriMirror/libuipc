@@ -1,5 +1,5 @@
 #pragma once
-#include <uipc/constitution/fem_constitution.h>
+#include <uipc/constitution/finite_element_constitution.h>
 
 namespace uipc::constitution
 {

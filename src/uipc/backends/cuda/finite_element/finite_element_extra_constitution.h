@@ -54,6 +54,10 @@ class FiniteElementExtraConstitution : public SimSystem
                       ViewGetter&&                    view_getter,
                       ForEach&&                       for_each_action) noexcept;
 
+        template <typename ForEach>
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ForEach&&                       for_each_action) noexcept;
+
       private:
         Impl* m_impl = nullptr;
     };
@@ -63,6 +67,7 @@ class FiniteElementExtraConstitution : public SimSystem
       public:
         BaseInfo(Impl* impl, Float dt)
             : m_impl(impl)
+            , m_dt(dt)
         {
         }
 
@@ -71,6 +76,7 @@ class FiniteElementExtraConstitution : public SimSystem
         muda::CBufferView<Vector3> xs() const noexcept;
         muda::CBufferView<Vector3> x_bars() const noexcept;
         muda::CBufferView<IndexT>  is_fixed() const noexcept;
+        muda::CBufferView<Float>   thicknesses() const noexcept;
 
       protected:
         Impl* m_impl = nullptr;
@@ -130,9 +136,10 @@ class FiniteElementExtraConstitution : public SimSystem
     friend class FiniteElementMethod;
     void init();                 // only be called by FiniteElementMethod
     void collect_extent_info();  // only be called by FiniteElementMethod
-    void compute_energy(FiniteElementMethod::ComputeExtraEnergyInfo& info);  // only be called by FiniteElementMethod
+    friend class FEMLineSearchReporter;
+    void compute_energy(FiniteElementMethod::ComputeExtraEnergyInfo& info);  // only be called by FEMLineSearchReporter
     friend class FEMGradientHessianComputer;
-    void compute_gradient_hessian(FiniteElementMethod::ComputeExtraGradientHessianInfo& info);  // only be called by FiniteElementMethod
+    void compute_gradient_hessian(FiniteElementMethod::ComputeExtraGradientHessianInfo& info);  // only be called by FEMGradientHessianComputer
 
     virtual void do_build() override final;
     Impl         m_impl;

@@ -1,6 +1,6 @@
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitution/affine_body.h>
+#include <uipc/constitution/affine_body_constitution.h>
 
 int main()
 {

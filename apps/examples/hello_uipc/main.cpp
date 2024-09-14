@@ -1,5 +1,5 @@
 #include <uipc/uipc.h>
-#include <uipc/constitution/affine_body.h>
+#include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/builtin/implicit_geometry_uid_collection.h>
 
 class NullEngine : public uipc::engine::IEngine

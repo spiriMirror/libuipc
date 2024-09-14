@@ -10,7 +10,7 @@ void FiniteElementExtraConstitution::do_build()
     BuildInfo info;
     do_build(info);
 
-    m_impl.finite_element_method;
+    m_impl.finite_element_method->add_constitution(this);
 }
 
 U64 FiniteElementExtraConstitution::uid() const noexcept
@@ -69,9 +69,20 @@ void FiniteElementExtraConstitution::Impl::init(U64 uid, backend::WorldVisitor& 
 
     finite_element_method->for_each(
         geo_slots,
-        [](geometry::SimplicialComplex& sc)
+        [&](geometry::SimplicialComplex& sc)
         {
             auto uids = sc.meta().find<VectorXu64>(builtin::extra_constitution_uids);
+
+            if(uids)
+            {
+                return uids->view();
+            }
+            else
+            {
+                ++I;  // skip this geometry slot
+                return span<const VectorXu64>{};
+            }
+
             return uids ? uids->view() : span<const VectorXu64>{};
         },
         [&](SizeT local_i, const VectorXu64& extra_uids)
@@ -83,11 +94,12 @@ void FiniteElementExtraConstitution::Impl::init(U64 uid, backend::WorldVisitor& 
                 if(extra_uid == uid)
                 {
                     geo_slot_indices.push_back(I);
+                    // spdlog::info("Extra constitution {} found in geometry slot {}", uid, I);
                     break;
                 }
             }
 
-            I++;
+            ++I;
         });
 
     geo_infos.resize(geo_slot_indices.size());
@@ -98,10 +110,35 @@ void FiniteElementExtraConstitution::Impl::init(U64 uid, backend::WorldVisitor& 
     }
 }
 
+Float FiniteElementExtraConstitution::BaseInfo::dt() const noexcept
+{
+    return m_dt;
+}
+
+muda::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::xs() const noexcept
+{
+    return m_impl->fem().xs.view();
+}
+
+muda::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::x_bars() const noexcept
+{
+    return m_impl->fem().x_bars.view();
+}
+
+muda::CBufferView<Float> FiniteElementExtraConstitution::BaseInfo::thicknesses() const noexcept
+{
+    return m_impl->fem().thicknesses.view();
+}
+
 muda::BufferView<Float> FiniteElementExtraConstitution::ComputeEnergyInfo::energies() const noexcept
 {
     return m_impl->fem().extra_constitution_energies.view().subview(
         m_impl->energy_offset, m_impl->energy_count);
+}
+
+span<const FiniteElementMethod::GeoInfo> FiniteElementExtraConstitution::FilteredInfo::geo_infos() const noexcept
+{
+    return m_impl->geo_infos;
 }
 
 muda::DoubletVectorView<Float, 3> FiniteElementExtraConstitution::ComputeGradientHessianInfo::gradients() const noexcept

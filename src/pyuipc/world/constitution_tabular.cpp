@@ -1,6 +1,6 @@
 #include <pyuipc/world/constitution_tabular.h>
 #include <uipc/world/constitution_tabular.h>
-#include <uipc/constitution/affine_body.h>
+#include <uipc/constitution/affine_body_constitution.h>
 #include <pybind11/stl.h>
 #include <pyuipc/as_numpy.h>
 namespace pyuipc::world

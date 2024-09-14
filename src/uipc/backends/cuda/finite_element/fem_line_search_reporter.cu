@@ -1,5 +1,6 @@
 #include <finite_element/fem_line_search_reporter.h>
 #include <finite_element/finite_element_constitution.h>
+#include <finite_element/finite_element_extra_constitution.h>
 #include <muda/cub/device/device_reduce.h>
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
@@ -116,6 +117,12 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        fem().fem_3d_elastic_energy.data(),
                        fem().fem_3d_elastic_energies.size());
 
+    for(auto&& [i, cst] : enumerate(fem().extra_constitutions.view()))
+    {
+        FiniteElementMethod::ComputeExtraEnergyInfo this_info{info.dt()};
+        cst->compute_energy(this_info);
+    }
+
     // Extra
     DeviceReduce().Sum(fem().extra_constitution_energies.data(),
                        fem().extra_constitution_energy.data(),
@@ -133,13 +140,13 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
 
     Float E = K + codim1D_E + codim2D_E + fem3D_E + extra_E + anim_E;
 
-    //spdlog::info("FEM Energy: K:{}, 1D:{}, 2D:{}, 3D:{}, Extra:{}, Anim:{}",
-    //             K,
-    //             codim1D_E,
-    //             codim2D_E,
-    //             fem3D_E,
-    //             extra_E,
-    //             anim_E);
+    spdlog::info("FEM Energy: K:{}, 1D:{}, 2D:{}, 3D:{}, Extra:{}, Anim:{}",
+                 K,
+                 codim1D_E,
+                 codim2D_E,
+                 fem3D_E,
+                 extra_E,
+                 anim_E);
 
     info.energy(E);
 }

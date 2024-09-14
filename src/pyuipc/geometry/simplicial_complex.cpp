@@ -154,7 +154,14 @@ PySimplicialComplex::PySimplicialComplex(py::module& m)
 
     // Method Def
 
-    class_SimplicialComplex.def(py::init<>());
+    // NOTE: Don't allow python frontend to construct a SimplicialComplex directly
+    // class_SimplicialComplex.def(py::init<>()); // removed
+
+    class_SimplicialComplex.def(
+        "transforms",
+        [](SimplicialComplex& self) -> AttributeSlot<Matrix4x4>&
+        { return self.transforms(); },
+        py::return_value_policy::reference_internal);
 
     class_SimplicialComplex.def(
         "vertices",

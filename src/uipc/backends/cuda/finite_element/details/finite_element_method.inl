@@ -1,4 +1,5 @@
 #include <uipc/common/zip.h>
+#include "finite_element_method.h"
 
 namespace uipc::backend::cuda
 {
@@ -67,6 +68,23 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
     }
 }
 
+template <typename ForEachGeometry>
+void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
+                                    span<S<geometry::GeometrySlot>> geo_slots,
+                                    ForEachGeometry&& for_each) noexcept
+{
+    for(auto& geo_info : geo_infos)
+    {
+        auto geo_slot = geo_slots[geo_info.geo_slot_index];
+
+        auto sc = geo_slot->geometry().template as<geometry::SimplicialComplex>();
+
+        UIPC_ASSERT(sc, "Only simplicial complex is supported");
+
+        for_each(*sc);
+    }
+}
+
 template <typename ForEach, typename ViewGetter>
 void FiniteElementMethod::for_each(span<S<geometry::GeometrySlot>> geo_slots,
                                    ViewGetter&&                    view_getter,
@@ -76,6 +94,13 @@ void FiniteElementMethod::for_each(span<S<geometry::GeometrySlot>> geo_slots,
               geo_slots,
               std::forward<ViewGetter>(view_getter),
               std::forward<ForEach>(for_each_action));
+}
+
+template <typename ForEachGeometry>
+void FiniteElementMethod::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                   ForEachGeometry&& for_each) noexcept
+{
+    _for_each(span{m_impl.geo_infos}, geo_slots, std::forward<ForEachGeometry>(for_each));
 }
 
 template <int N>

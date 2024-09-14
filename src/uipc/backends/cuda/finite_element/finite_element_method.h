@@ -367,6 +367,19 @@ class FiniteElementMethod : public SimSystem
                   ViewGetter&&                    view_getter,
                   ForEach&&                       for_each_action) noexcept;
 
+    /**
+     * @brief For each geometry
+     *  
+     * for_each(geo_slots,
+     * [](SimplicialComplex& sc)
+     * {
+     * 
+     * });
+     * 
+     */
+    template <typename ForEachGeometry>
+    void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_each) noexcept;
+
   private:
     friend class FiniteElementVertexReporter;
     friend class FiniteElementSurfaceReporter;
@@ -387,6 +400,11 @@ class FiniteElementMethod : public SimSystem
                           span<S<geometry::GeometrySlot>> geo_slots,
                           ViewGetter&&                    view_getter,
                           ForEach&& for_each_action) noexcept;
+
+    template <typename ForEachGeometry>
+    static void _for_each(span<const GeoInfo>             geo_infos,
+                          span<S<geometry::GeometrySlot>> geo_slots,
+                          ForEachGeometry&&               for_each) noexcept;
 
     Impl m_impl;
 };
