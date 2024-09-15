@@ -28,7 +28,7 @@ DHat:
 *****************************************************************************************************************************/
 /* Sub Exprs */
 /* Simplified Expr */
-R = -kappa*std::pow((D - DHat), (2))*log(D/DHat);
+R = -kappa*std::pow(D - DHat, 2)*log(D/DHat);
 }
 template <typename T>
 __host__ __device__ void dKappaBarrierdD(T& R, const T& kappa, const T& D, const T& DHat)
@@ -55,7 +55,7 @@ DHat:
 *****************************************************************************************************************************/
 /* Sub Exprs */
 /* Simplified Expr */
-R = -kappa*(2*D - 2*DHat)*log(D/DHat) - kappa*std::pow((D - DHat), (2))/D;
+R = -kappa*(2*D - 2*DHat)*log(D/DHat) - kappa*std::pow(D - DHat, 2)/D;
 }
 template <typename T>
 __host__ __device__ void ddKappaBarrierddD(T& R, const T& kappa, const T& D, const T& DHat)
@@ -83,5 +83,5 @@ DHat:
 /* Sub Exprs */
 auto x0 = 2*kappa;
 /* Simplified Expr */
-R = -x0*log(D/DHat) - x0*(2*D - 2*DHat)/D + kappa*std::pow((D - DHat), (2))/std::pow((D), (2));
+R = -x0*log(D/DHat) - x0*(2*D - 2*DHat)/D + kappa*std::pow(D - DHat, 2)/std::pow(D, 2);
 }

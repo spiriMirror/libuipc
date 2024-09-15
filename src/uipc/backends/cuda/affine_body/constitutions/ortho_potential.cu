@@ -35,11 +35,12 @@ class OrthoPotential final : public AffineBodyConstitution
         h_kappas.resize(src.size());
         auto geo_slots = world().scene().geometries();
 
-        info.for_each_body(
+        SizeT I = 0;
+        info.for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc)
             { return sc.instances().find<Float>("kappa")->view(); },
-            [&](SizeT I, Float kappa) { h_kappas[I] = kappa; });
+            [&](SizeT local_i, Float kappa) { h_kappas[I++] = kappa; });
 
         _build_on_device();
     }

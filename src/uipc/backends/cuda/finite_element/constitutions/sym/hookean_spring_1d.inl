@@ -21,7 +21,7 @@ L0:
 *****************************************************************************************************************************/
 /* Sub Exprs */
 /* Simplified Expr */
-R = (1.0/2.0)*k*std::pow((-L0 + std::pow((std::pow((-X(0) + X(3)), (2)) + std::pow((-X(1) + X(4)), (2)) + std::pow((-X(2) + X(5)), (2))), (1.0/2.0))), (2))/std::pow((L0), (2));
+R = (1.0/2.0)*k*std::pow(-L0 + std::pow(std::pow(-X(0) + X(3), 2) + std::pow(-X(1) + X(4), 2) + std::pow(-X(2) + X(5), 2), 1.0/2.0), 2)/std::pow(L0, 2);
 }
 template <typename T>
 __host__ __device__ void dEdX(Eigen::Vector<T,6>& R, const T& k, const Eigen::Vector<T,6>& X, const T& L0)
@@ -50,8 +50,8 @@ auto x2 = X(1) - X(4);
 auto x3 = -x2;
 auto x4 = X(2) - X(5);
 auto x5 = -x4;
-auto x6 = std::pow((std::pow((x1), (2)) + std::pow((x3), (2)) + std::pow((x5), (2))), (1.0/2.0));
-auto x7 = k*(-L0 + x6)/(std::pow((L0), (2))*x6);
+auto x6 = std::pow(std::pow(x1, 2) + std::pow(x3, 2) + std::pow(x5, 2), 1.0/2.0);
+auto x7 = k*(-L0 + x6)/(std::pow(L0, 2)*x6);
 /* Simplified Expr */
 R(0) = x0*x7;
 R(1) = x2*x7;
@@ -82,22 +82,22 @@ L0:
 *****************************************************************************************************************************/
 /* Sub Exprs */
 auto x0 = X(0) - X(3);
-auto x1 = std::pow((x0), (2));
+auto x1 = std::pow(x0, 2);
 auto x2 = -x0;
-auto x3 = std::pow((x2), (2));
+auto x3 = std::pow(x2, 2);
 auto x4 = X(1) - X(4);
 auto x5 = -x4;
-auto x6 = std::pow((x5), (2));
+auto x6 = std::pow(x5, 2);
 auto x7 = X(2) - X(5);
 auto x8 = -x7;
-auto x9 = std::pow((x8), (2));
+auto x9 = std::pow(x8, 2);
 auto x10 = x3 + x6 + x9;
-auto x11 = k/std::pow((L0), (2));
+auto x11 = k/std::pow(L0, 2);
 auto x12 = x11/x10;
-auto x13 = std::pow((x10), (1.0/2.0));
+auto x13 = std::pow(x10, 1.0/2.0);
 auto x14 = x11*(-L0 + x13);
 auto x15 = x14/x13;
-auto x16 = x14/std::pow((x10), (3.0/2.0));
+auto x16 = x14/std::pow(x10, 3.0/2.0);
 auto x17 = x0*x16;
 auto x18 = x15 + x17*x2;
 auto x19 = x0*x12;
@@ -113,7 +113,7 @@ auto x28 = x19*x8;
 auto x29 = x17*x7;
 auto x30 = x16*x4;
 auto x31 = x2*x30;
-auto x32 = std::pow((x4), (2));
+auto x32 = std::pow(x4, 2);
 auto x33 = x15 + x30*x5;
 auto x34 = x12*x4;
 auto x35 = x34*x7;
@@ -125,7 +125,7 @@ auto x40 = x30*x7;
 auto x41 = x16*x7;
 auto x42 = x2*x41;
 auto x43 = x41*x5;
-auto x44 = std::pow((x7), (2));
+auto x44 = std::pow(x7, 2);
 auto x45 = x15 + x41*x8;
 auto x46 = x12*x7;
 auto x47 = x2*x46;

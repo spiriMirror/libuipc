@@ -24,6 +24,19 @@ class AffineBodyDynamics : public SimSystem
 
     class Impl;
 
+    class GeoInfo
+    {
+      public:
+        IndexT geo_slot_index   = -1;
+        U64    constitution_uid = 0;
+
+        SizeT vertex_offset = 0;
+        SizeT vertex_count  = 0;
+
+        SizeT body_offset = 0;
+        SizeT body_count  = 0;
+    };
+
     class BodyInfo
     {
       public:
@@ -64,9 +77,9 @@ class AffineBodyDynamics : public SimSystem
          * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
          */
         template <typename ViewGetterF, typename ForEachF>
-        void for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
-                           ViewGetterF&&                   getter,
-                           ForEachF&&                      for_each) const;
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ViewGetterF&&                   getter,
+                      ForEachF&&                      for_each) const;
 
         static geometry::SimplicialComplex& geometry(span<S<geometry::GeometrySlot>> geo_slots,
                                                      const BodyInfo& body_info);
@@ -136,6 +149,7 @@ class AffineBodyDynamics : public SimSystem
       public:
         void init(WorldVisitor& world);
         // void _build_subsystems(WorldVisitor& world);
+        void _build_geo_infos(WorldVisitor& world);
         void _build_body_infos(WorldVisitor& world);
         void _build_related_infos(WorldVisitor& world);
         void _setup_geometry_attributes(WorldVisitor& world);
@@ -160,15 +174,28 @@ class AffineBodyDynamics : public SimSystem
                                                      const BodyInfo& body_info);
 
         /*
-        * @brief Short-cut to traverse all bodies of current constitution.
-        * 
-        * @param getter f: `span<T>(SimplicialComplex&)` or `span<const T>(SimplicialComplex&)`
-        * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
-        */
+         * @brief Short-cut to traverse all bodies of current constitution.
+         * 
+         * @param getter f: `span<T>(SimplicialComplex&)` or `span<const T>(SimplicialComplex&)`
+         * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
+         */
         template <typename ViewGetterF, typename ForEachF>
-        void for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
-                           ViewGetterF&&                   getter,
-                           ForEachF&&                      for_each);
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ViewGetterF&&                   getter,
+                      ForEachF&&                      for_each);
+
+
+        /*
+         * @brief Short-cut to traverse all bodies of current constitution.
+         * 
+         * @param getter f: `span<T>(SimplicialComplex&)` or `span<const T>(SimplicialComplex&)`
+         * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
+         */
+        template <typename ViewGetterF, typename ForEachF>
+        void _for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                       span<SizeT>                     abd_geo_body_offsets,
+                       ViewGetterF&&                   getter,
+                       ForEachF&&                      for_each);
 
 
         SizeT body_count() const noexcept { return h_body_infos.size(); }
@@ -358,6 +385,7 @@ class AffineBodyDynamics : public SimSystem
 
     friend class AffineBodyConstitution;
     friend class ABDGradientHessianComputer;
+    friend class AffineBodyAnimator;
 
     Impl m_impl;
 };

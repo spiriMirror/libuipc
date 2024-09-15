@@ -29,10 +29,10 @@ xi:
     -> Matrix([[xi]])
 *****************************************************************************************************************************/
 /* Sub Exprs */
-auto x0 = std::pow((xi), (2));
-auto x1 = std::pow((dHat), (2)) + 2*dHat*xi;
+auto x0 = std::pow(xi, 2);
+auto x1 = std::pow(dHat, 2) + 2*dHat*xi;
 /* Simplified Expr */
-R = -kappa*std::pow((D - x0 - x1), (2))*log((D - x0)/x1);
+R = -kappa*std::pow(D - x0 - x1, 2)*log((D - x0)/x1);
 }
 template <typename T>
 __host__ __device__ void dKappaBarrierdD(T& R, const T& kappa, const T& D, const T& dHat, const T& xi)
@@ -61,13 +61,13 @@ xi:
     -> Matrix([[xi]])
 *****************************************************************************************************************************/
 /* Sub Exprs */
-auto x0 = std::pow((xi), (2));
+auto x0 = std::pow(xi, 2);
 auto x1 = D - x0;
-auto x2 = std::pow((dHat), (2));
+auto x2 = std::pow(dHat, 2);
 auto x3 = dHat*xi;
 auto x4 = x2 + 2*x3;
 /* Simplified Expr */
-R = -kappa*(2*D - 2*x0 - 2*x2 - 4*x3)*log(x1/x4) - kappa*std::pow((D - x0 - x4), (2))/x1;
+R = -kappa*(2*D - 2*x0 - 2*x2 - 4*x3)*log(x1/x4) - kappa*std::pow(D - x0 - x4, 2)/x1;
 }
 template <typename T>
 __host__ __device__ void ddKappaBarrierddD(T& R, const T& kappa, const T& D, const T& dHat, const T& xi)
@@ -96,12 +96,12 @@ xi:
     -> Matrix([[xi]])
 *****************************************************************************************************************************/
 /* Sub Exprs */
-auto x0 = std::pow((xi), (2));
+auto x0 = std::pow(xi, 2);
 auto x1 = D - x0;
-auto x2 = std::pow((dHat), (2));
+auto x2 = std::pow(dHat, 2);
 auto x3 = dHat*xi;
 auto x4 = x2 + 2*x3;
 auto x5 = 2*kappa;
 /* Simplified Expr */
-R = kappa*std::pow((D - x0 - x4), (2))/std::pow((x1), (2)) - x5*log(x1/x4) - x5*(2*D - 2*x0 - 2*x2 - 4*x3)/x1;
+R = kappa*std::pow(D - x0 - x4, 2)/std::pow(x1, 2) - x5*log(x1/x4) - x5*(2*D - 2*x0 - 2*x2 - 4*x3)/x1;
 }

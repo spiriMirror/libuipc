@@ -218,11 +218,11 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
               [](const GeoInfo& a, const GeoInfo& b)
               { return a.dim_uid < b.dim_uid; });
 
-    // 3) setup vertex offsets
-    auto count = geo_infos.size() + 1;  // add one to calculate the total size
 
-    vector<SizeT> vertex_counts(count, 0);
-    vector<SizeT> vertex_offsets(count, 0);
+    // 3) setup vertex offsets
+    // + 1 for total count
+    vector<SizeT> vertex_counts(geo_infos.size() + 1, 0);
+    vector<SizeT> vertex_offsets(geo_infos.size() + 1, 0);
 
     std::transform(geo_infos.begin(),
                    geo_infos.end(),
@@ -236,6 +236,7 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
         info.vertex_offset = vertex_offsets[i];
 
     h_positions.resize(vertex_offsets.back());
+
 
     // 4) setup dim infos
     {

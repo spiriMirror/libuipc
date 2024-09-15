@@ -30,7 +30,6 @@ void AffineBodyConstitution::do_build()
 
 void AffineBodyConstitution::retrieve(AffineBodyDynamics::FilteredInfo& info)
 {
-    info.body_infos().size();
     return do_retrieve(info);
 }
 

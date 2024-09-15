@@ -36,6 +36,9 @@ class SoftPositionConstraint final : public FiniteElementConstraint
         strength_ratio.reserve(count);
 
         do_step(info);  // do the same thing as do_step
+
+        Vector3 v3;
+        v3.setRandom();
     }
 
     void do_step(FiniteElementAnimator::FilteredInfo& info) override

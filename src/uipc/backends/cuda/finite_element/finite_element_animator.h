@@ -3,6 +3,8 @@
 #include <finite_element/finite_element_method.h>
 #include <gradient_hessian_computer.h>
 #include <line_search/line_searcher.h>
+#include <muda/ext/linear_system/device_doublet_vector.h>
+#include <muda/ext/linear_system/device_triplet_matrix.h>
 
 namespace uipc::backend::cuda
 {
@@ -59,7 +61,7 @@ class FiniteElementAnimator final : public Animator
       protected:
         Impl* m_impl  = nullptr;
         SizeT m_index = ~0ull;
-        Float m_dt;
+        Float m_dt    = 0.0;
     };
 
     class ComputeEnergyInfo : public BaseInfo

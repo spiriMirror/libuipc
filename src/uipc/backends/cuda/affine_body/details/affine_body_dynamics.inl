@@ -3,19 +3,31 @@
 namespace uipc::backend::cuda
 {
 template <typename ViewGetterF, typename ForEachF>
-void AffineBodyDynamics::Impl::for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
-                                             ViewGetterF&& getter,
-                                             ForEachF&&    for_each)
+void AffineBodyDynamics::Impl::_for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                         span<SizeT>   abd_geo_body_offsets,
+                                         ViewGetterF&& getter,
+                                         ForEachF&&    for_each)
 {
-    SizeT I = 0;
-    for(auto&& [body_offset, body_count] : zip(h_abd_geo_body_offsets, h_abd_geo_body_counts))
+    for(auto&& body_offset : abd_geo_body_offsets)
     {
         auto& info      = this->h_body_infos[body_offset];
         auto& sc        = this->geometry(geo_slots, info);
         auto  attr_view = getter(sc);
+        SizeT local_i   = 0;
         for(auto&& value : attr_view)
-            for_each(I++, value);
+            for_each(local_i++, value);
     }
+}
+
+template <typename ViewGetterF, typename ForEachF>
+void AffineBodyDynamics::Impl::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                        ViewGetterF&& getter,
+                                        ForEachF&&    for_each)
+{
+    _for_each(geo_slots,
+              h_abd_geo_body_offsets,
+              std::forward<ViewGetterF>(getter),
+              std::forward<ForEachF>(for_each));
 }
 
 template <typename T>
@@ -34,28 +46,19 @@ span<T> AffineBodyDynamics::Impl::subview(vector<T>& buffer, SizeT constitution_
 }
 
 template <typename ViewGetterF, typename ForEachF>
-void AffineBodyDynamics::FilteredInfo::for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
-                                                     ViewGetterF&& getter,
-                                                     ForEachF&& for_each) const
+void AffineBodyDynamics::FilteredInfo::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                                ViewGetterF&& getter,
+                                                ForEachF&&    for_each) const
 {
-    SizeT I = 0;
-
     auto constitution_geo_offset = m_impl->h_constitution_geo_offsets[m_constitution_index];
     auto constitution_geo_count = m_impl->h_constitution_geo_counts[m_constitution_index];
     auto sub_abd_geo_body_offsets =
         span{m_impl->h_abd_geo_body_offsets}.subspan(constitution_geo_offset,
                                                      constitution_geo_count);
-    auto sub_abd_geo_body_counts =
-        span{m_impl->h_abd_geo_body_counts}.subspan(constitution_geo_offset,
-                                                    constitution_geo_count);
 
-    for(auto&& [body_offset, body_count] : zip(sub_abd_geo_body_offsets, sub_abd_geo_body_counts))
-    {
-        const auto& info      = m_impl->h_body_infos[body_offset];
-        auto&       sc        = this->geometry(geo_slots, info);
-        auto        attr_view = getter(sc);
-        for(auto&& value : attr_view)
-            for_each(I++, value);
-    }
+    m_impl->_for_each(geo_slots,
+                      sub_abd_geo_body_offsets,
+                      std::forward<ViewGetterF>(getter),
+                      std::forward<ForEachF>(for_each));
 }
 }  // namespace uipc::backend::cuda

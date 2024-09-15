@@ -30,7 +30,7 @@ void AffineBodyDynamics::do_build()
     }
 
     // find dependent systems
-    auto& dof_predictor             = require<DoFPredictor>();
+    auto& dof_predictor = require<DoFPredictor>();
 
     // Register the action to initialize the affine body geometry
     on_init_scene([this] { m_impl.init(world()); });
@@ -79,6 +79,20 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
     // set the temp index, later we will sort constitution by uid
     // and reset the index
     m_impl.constitutions.register_subsystem(*constitution);
+}
+
+void AffineBodyDynamics::Impl::init(WorldVisitor& world)
+{
+    _build_geo_infos(world);
+
+    _build_body_infos(world);
+    _build_related_infos(world);
+    _setup_geometry_attributes(world);
+
+    _build_geometry_on_host(world);
+    _build_geometry_on_device(world);
+
+    _distribute_body_infos();
 }
 
 void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
@@ -282,25 +296,30 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     auto constitution_view = constitutions.view();
 
     // 1) setup `q` for every affine body
-    h_body_id_to_q.resize(h_body_infos.size());
-    for_each_body(
-        geo_slots,
-        [](geometry::SimplicialComplex& sc) { return sc.transforms().view(); },
-        [&](SizeT i, const Matrix4x4& trans)
-        {
-            Vector12& q     = h_body_id_to_q[i];
-            q.segment<3>(0) = trans.block<3, 1>(0, 3);
 
-            Float D = trans.block<3, 3>(0, 0).determinant();
+    {
+        SizeT I = 0;
+        h_body_id_to_q.resize(h_body_infos.size());
+        for_each(
+            geo_slots,
+            [](geometry::SimplicialComplex& sc)
+            { return sc.transforms().view(); },
+            [&](SizeT local_i, const Matrix4x4& trans)
+            {
+                Vector12& q     = h_body_id_to_q[I++];
+                q.segment<3>(0) = trans.block<3, 1>(0, 3);
 
-            if(!Eigen::Vector<Float, 1>{D}.isApproxToConstant(1.0, 1e-6))
-                spdlog::warn("The determinant of the rotation matrix is not 1.0, but {}. Don't apply scaling on Affine Body.",
-                             D);
+                Float D = trans.block<3, 3>(0, 0).determinant();
 
-            q.segment<3>(3) = trans.block<1, 3>(0, 0).transpose();
-            q.segment<3>(6) = trans.block<1, 3>(1, 0).transpose();
-            q.segment<3>(9) = trans.block<1, 3>(2, 0).transpose();
-        });
+                if(!Eigen::Vector<Float, 1>{D}.isApproxToConstant(1.0, 1e-6))
+                    spdlog::warn("The determinant of the rotation matrix is not 1.0, but {}. Don't apply scaling on Affine Body.",
+                                 D);
+
+                q.segment<3>(3) = trans.block<1, 3>(0, 0).transpose();
+                q.segment<3>(6) = trans.block<1, 3>(1, 0).transpose();
+                q.segment<3>(9) = trans.block<1, 3>(2, 0).transpose();
+            });
+    }
 
 
     // 2) setup `J` and `mass` for every vertex
@@ -457,12 +476,17 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     }
 
     // 7) setup the boundary type
-    h_body_id_to_is_fixed.resize(h_body_infos.size(), 0);
-    for_each_body(
-        geo_slots,
-        [](geometry::SimplicialComplex& sc)
-        { return sc.instances().find<IndexT>(builtin::is_fixed)->view(); },
-        [&](SizeT i, IndexT fixed) { h_body_id_to_is_fixed[i] = fixed; });
+    {
+        SizeT I = 0;
+        h_body_id_to_is_fixed.resize(h_body_infos.size(), 0);
+        for_each(
+            geo_slots,
+            [](geometry::SimplicialComplex& sc)
+            { return sc.instances().find<IndexT>(builtin::is_fixed)->view(); },
+            [&](SizeT local_i, IndexT fixed)
+            { h_body_id_to_is_fixed[I++] = fixed; });
+    }
+
 
     // 8) misc
     h_constitution_shape_energy.resize(constitution_view.size(), 0.0);
@@ -531,18 +555,6 @@ void AffineBodyDynamics::Impl::_distribute_body_infos()
     }
 }
 
-void AffineBodyDynamics::Impl::init(WorldVisitor& world)
-{
-    _build_body_infos(world);
-    _build_related_infos(world);
-    _setup_geometry_attributes(world);
-
-    _build_geometry_on_host(world);
-    _build_geometry_on_device(world);
-    
-    _distribute_body_infos();
-}
-
 void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
 {
     // 1) download from device to host
@@ -554,12 +566,13 @@ void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
     span qs = h_body_id_to_q;
 
     // 2) transfer from affine_body_dynamics qs to transforms
-    for_each_body(
+    SizeT I = 0;
+    for_each(
         geo_slots,
         [](geometry::SimplicialComplex& sc) { return view(sc.transforms()); },
         [&](SizeT i, Matrix4x4& trans)
         {
-            Vector12& q = h_body_id_to_q[i];
+            Vector12& q = h_body_id_to_q[I++];
 
             trans                   = Matrix4x4::Identity();
             trans.block<3, 1>(0, 3) = q.segment<3>(0);  // translation
