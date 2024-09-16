@@ -24,6 +24,10 @@ add_subdirectory(builtin)
 get_target_property(SOURCES pyuipc SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
 
-
-
+# after build pyuipc, call copy.py to copy the Release
+add_custom_command(TARGET pyuipc POST_BUILD
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_PROJECT_SOURCE_DIR}/scripts/copy_release.py
+    WORKING_DIRECTORY ${CMAKE_TARGET_OUTPUT_DIRECTORY}
+    COMMENT "Copying Release to source/python/bin/..."
+)
 

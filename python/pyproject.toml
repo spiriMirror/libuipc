@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyuipc"
+authors = [
+    {name = "Zihang Zhu",email = "paradise_craftsman@hotmail.com"}
+]
+maintainers = [
+    {name = "Zihang Zhu",email = "paradise_craftsman@hotmail.com"}
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+version = "0.1.0"
+dependencies = [
+    "numpy"
+]
+requires-python = ">=3.11"
+description = ""
+keywords = ["ipc", "computer graphics", "physics simulation"]
+
+[project.urls]
+
+[project.optional-dependencies]
+gui = ["polyscope"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.dll", "*.so", "*.dylib", "*.pyd"]
+

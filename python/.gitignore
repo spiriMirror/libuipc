@@ -1,2 +1,4 @@
 imgui.ini
 .polyscope.ini
+dist
+*.egg-info
