@@ -27,8 +27,9 @@ class AffineBodyDynamics : public SimSystem
     class GeoInfo
     {
       public:
-        IndexT geo_slot_index   = -1;
-        U64    constitution_uid = 0;
+        IndexT geo_slot_index     = -1;
+        U64    constitution_uid   = 0;
+        U64    constitution_index = 0;
 
         SizeT vertex_offset = 0;
         SizeT vertex_count  = 0;
@@ -149,6 +150,7 @@ class AffineBodyDynamics : public SimSystem
       public:
         void init(WorldVisitor& world);
         // void _build_subsystems(WorldVisitor& world);
+        void _build_constitutions(WorldVisitor& world);
         void _build_geo_infos(WorldVisitor& world);
         void _build_body_infos(WorldVisitor& world);
         void _build_related_infos(WorldVisitor& world);
@@ -168,10 +170,11 @@ class AffineBodyDynamics : public SimSystem
         void apply_recover(RecoverInfo& info);
         void clear_recover(RecoverInfo& info);
 
-
-        // util functions
-        static geometry::SimplicialComplex& geometry(span<S<geometry::GeometrySlot>> geo_slots,
-                                                     const BodyInfo& body_info);
+        template <typename ViewGetterF, typename ForEachF>
+        static void _for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                              span<const GeoInfo>             geo_infos,
+                              ViewGetterF&&                   getter,
+                              ForEachF&&                      for_each);
 
         /*
          * @brief Short-cut to traverse all bodies of current constitution.
@@ -184,39 +187,34 @@ class AffineBodyDynamics : public SimSystem
                       ViewGetterF&&                   getter,
                       ForEachF&&                      for_each);
 
+        template <typename ForEachGeomatry>
+        static void _for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                              span<const GeoInfo>             geo_infos,
+                              ForEachGeomatry&& for_every_geometry);
 
-        /*
-         * @brief Short-cut to traverse all bodies of current constitution.
-         * 
-         * @param getter f: `span<T>(SimplicialComplex&)` or `span<const T>(SimplicialComplex&)`
-         * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
-         */
-        template <typename ViewGetterF, typename ForEachF>
-        void _for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                       span<SizeT>                     abd_geo_body_offsets,
-                       ViewGetterF&&                   getter,
-                       ForEachF&&                      for_each);
+        template <typename ForEachGeomatry>
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ForEachGeomatry&&               for_every_geometry);
 
 
-        SizeT body_count() const noexcept { return h_body_infos.size(); }
+        SizeT body_count() const noexcept { return abd_body_count; }
 
       public:
         SimSystemSlotCollection<AffineBodyConstitution> constitutions;
+        unordered_map<U64, IndexT> constitution_uid_to_index;
 
-        // core invariant data
-        vector<BodyInfo> h_body_infos;
+        vector<GeoInfo> geo_infos;
 
-        // related cache of `h_body_infos`
         SizeT abd_geo_count    = 0;
         SizeT abd_body_count   = 0;
         SizeT abd_vertex_count = 0;
 
-        vector<SizeT> h_constitution_geo_offsets;
-        vector<SizeT> h_constitution_geo_counts;
-        vector<SizeT> h_abd_geo_body_offsets;
-        vector<SizeT> h_abd_geo_body_counts;
-        vector<SizeT> h_constitution_body_offsets;
-        vector<SizeT> h_constitution_body_counts;
+        vector<SizeT> constitution_geo_offsets;
+        vector<SizeT> constitution_geo_counts;
+        vector<SizeT> abd_geo_body_offsets;
+        vector<SizeT> abd_geo_body_counts;
+        vector<SizeT> constitution_body_offsets;
+        vector<SizeT> constitution_body_counts;
 
 
         /******************************************************************************

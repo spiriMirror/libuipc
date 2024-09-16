@@ -147,7 +147,7 @@ muda::DoubletVectorView<Float, 3> FiniteElementExtraConstitution::ComputeGradien
         m_impl->gradient_offset, m_impl->gradient_count);
 }
 
-muda::TripletMatrixView<Float, 3> FiniteElementExtraConstitution::ComputeGradientHessianInfo::hessians() const noexcept
+muda::TripletMatrixView<Float, 3> FiniteElementExtraConstitution::ComputeGradientHessianInfo::m_hessians() const noexcept
 {
     return m_impl->fem().extra_constitution_hessian.view().subview(
         m_impl->hessian_offset, m_impl->hessian_count);

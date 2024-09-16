@@ -17,18 +17,45 @@ There are 4 main parts in a scene:
 Here is a simple example to create a scene:
 
 First, we declare a scene.
-```cpp
-world::Scene scene;
-```
+
+=== "C++"
+
+    ```cpp
+    world::Scene scene;
+    ```
+
+=== "Python"
+
+    ```python
+    scene = world.Scene()
+    ```
+
+Then, we need to create a constitution for the object. Here we use the `AffineBodyConstitution` as an example, `AffineBodyConstitution` is a simple constitution that can be used to approximate the behavior of a rigid body.
+
 We need to create a constitution for the object. Here we use the `AffineBodyConstitution` as an example, `AffineBodyConstitution` is a simple constitution that can be used to approximate the behavior of a rigid body.
-```cpp
-auto& constitution_tabular = scene.constitution_tabular();
-// create a constitution
-AffineBodyConstitution abd;
-constitution_tabular.insert(abd);
-// create a material with affine body stiffness 100 MPa
-auto abd_material = abd.create_material(100.0_MPa);
-```
+
+=== "C++"
+
+    ```cpp
+    auto& constitution_tabular = scene.constitution_tabular();
+    // create a constitution
+    constitution::AffineBodyConstitution abd;
+    constitution_tabular.insert(abd);
+    // create a material with affine body stiffness 100 MPa
+    auto abd_material = abd.create_material(100.0_MPa);
+    ```
+
+=== "Python"
+
+    ```python
+    constitution_tabular = scene.constitution_tabular()
+    # create a constitution
+    abd = constitution.AffineBodyConstitution()
+    constitution_tabular.insert(abd)
+    # create a material with affine body stiffness 100 MPa
+    abd_material = abd.create_material(100 * 1e6)
+    ```
+
 To simulate the contact behavior of the object, we need to create a contact model. Note that the contact model has a pairwised relationship. For example, a contact tabular among wood, steel, and rubber can be defined as follows (imaginary values, just for demonstration):
 
 |  fric  | wood | steel | rubber |
@@ -37,31 +64,63 @@ To simulate the contact behavior of the object, we need to create a contact mode
 | steel  |  -   | 0.2   | 0.4    |
 | rubber |  -   |  -    | 0.7    |
 
-```cpp
-auto& contact_tabular = scene.contact_tabular();
-// create a contact element
-auto& wood_contact = contact_tabular.create("wood");
-// create self-contact model
-// friction coefficient is 0.5, restitution coefficient is 100 MPa
-contact_tabular.insert(wood_contact, wood_contact, 0.5, 100.0_MPa);
-```
+=== "C++"
+
+    ```cpp
+    auto& contact_tabular = scene.contact_tabular();
+    // create a contact element
+    auto& wood_contact = contact_tabular.create("wood");
+    // create self-contact model
+    // friction coefficient is 0.5, restitution coefficient is 1.0 GPa
+    contact_tabular.insert(wood_contact, wood_contact, 0.5, 1.0_GPa);
+    ```
+
+=== "Python"
+
+    ```python
+    contact_tabular = scene.contact_tabular()
+    # create a contact element
+    wood_contact = contact_tabular.create("wood")
+    # create self-contact model
+    # friction coefficient is 0.5, restitution coefficient is 1.0 GPa
+    contact_tabular.insert(wood_contact, wood_contact, 0.5, 1e9)
+    ```
 
 Now we can create a wooden cube object in the scene.
-```cpp
-// read a cube mesh from file
-SimplicialComplexIO io;
-auto cube = io.read("cube.msh");
+=== "C++"
 
-// apply the material and the contact model to the cube
-abd_material.apply_to(cube);
-wood_contact.apply_to(cube);
+    ```cpp
+    // read a cube mesh from file
+    geometry::SimplicialComplexIO io;
+    auto cube = io.read("cube.msh");
 
-// create an object
-auto wooden_cube = scene.objects().create("wooden_cube");
+    // apply the material and the contact model to the cube
+    abd_material.apply_to(cube);
+    wood_contact.apply_to(cube);
 
-// create a geometry for the object
-wooden_cube->geometries().create(cube);
-```
+    // create an object
+    auto wooden_cube = scene.objects().create("wooden_cube");
+
+    // create a geometry for the object
+    wooden_cube->geometries().create(cube);
+    ```
+=== "Python"
+
+    ```python
+    # read a cube mesh from file
+    io = geometry.SimplicialComplexIO()
+    cube = io.read("cube.msh")
+
+    # apply the material and the contact model to the cube
+    abd_material.apply_to(cube)
+    wood_contact.apply_to(cube)
+
+    # create an object
+    wooden_cube = scene.objects().create("wooden_cube")
+
+    # create a geometry for the object
+    wooden_cube.geometries().create(cube)
+    ```
 
 A short summary of creating a scene:
 
@@ -97,9 +156,17 @@ Contact model is a set of coefficients and models that define the contact behavi
 
 A contact element is one side of the pairwised contact model, which has no meaning itself. The contact element IDs of two collided objects are used to find the contact model coefficients between them.
 
-```cpp
-wood_contact.id(); // 1
-```
+=== "C++"
+
+    ```cpp
+    wood_contact.id(); // 1
+    ```
+
+=== "Python"
+
+    ```python
+    wood_contact.id() # 1
+    ```
 
 Note that, `wood_contact` element id is `1`, because there is a default contact element with id `0`. The default contact model will be a fallback when the contact model between two objects is not defined.
 

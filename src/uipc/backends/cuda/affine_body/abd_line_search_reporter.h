@@ -2,6 +2,7 @@
 #include <sim_system.h>
 #include <line_search/line_search_reporter.h>
 #include <affine_body/affine_body_dynamics.h>
+#include <affine_body/affine_body_animator.h>
 
 namespace uipc::backend::cuda
 {
@@ -17,7 +18,9 @@ class ABDLineSearchReporter final : public LineSearchReporter
         void step_forward(LineSearcher::StepInfo& info);
         void compute_energy(LineSearcher::EnergyInfo& info);
 
-        AffineBodyDynamics*       affine_body_dynamics = nullptr;
+        AffineBodyDynamics* affine_body_dynamics = nullptr;
+        AffineBodyAnimator* affine_body_animator = nullptr;
+
         AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
     };
 

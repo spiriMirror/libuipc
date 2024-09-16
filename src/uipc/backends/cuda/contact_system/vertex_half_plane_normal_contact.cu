@@ -34,7 +34,7 @@ void VertexHalfPlaneNormalContact::do_report_extent(GlobalContactManager::Contac
     info.hessian_count(count);
 
     m_impl.loose_resize(m_impl.gradients, count);
-    m_impl.loose_resize(m_impl.hessians, count);
+    m_impl.loose_resize(m_impl.m_hessians, count);
 }
 
 void VertexHalfPlaneNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
@@ -94,8 +94,8 @@ void VertexHalfPlaneNormalContact::Impl::assemble(GlobalContactManager::ContactI
         // Hessians
         ParallelFor()
             .kernel_name(__FUNCTION__)
-            .apply(hessians.size(),
-                   [PH_H3x3s = hessians.cviewer().name("PH_H3x3"),
+            .apply(m_hessians.size(),
+                   [PH_H3x3s = m_hessians.cviewer().name("PH_H3x3"),
                     PHs      = PHs.cviewer().name("PHs"),
                     H3x3s = H3x3.viewer().name("H3x3")] __device__(int I) mutable
                    {
@@ -127,7 +127,7 @@ void VertexHalfPlaneNormalContact::do_assemble(GlobalContactManager::ContactInfo
     ContactInfo this_info{&m_impl};
 
     this_info.m_gradients = m_impl.gradients;
-    this_info.m_hessians  = m_impl.hessians;
+    this_info.m_hessians  = m_impl.m_hessians;
 
     // let subclass to fill in the data
     do_assemble(this_info);

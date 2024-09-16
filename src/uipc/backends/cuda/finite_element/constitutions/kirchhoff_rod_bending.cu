@@ -158,7 +158,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                     xs          = info.xs().viewer().name("xs"),
                     x_bars      = info.x_bars().viewer().name("x_bars"),
                     G3s         = info.gradients().viewer().name("gradients"),
-                    H3x3s       = info.hessians().viewer().name("hessians"),
+                    H3x3s       = info.m_hessians().viewer().name("hessians"),
                     dt          = info.dt(),
                     Pi] __device__(int I) mutable
                    {

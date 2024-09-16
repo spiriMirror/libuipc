@@ -95,7 +95,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         muda::DeviceBuffer<IndexT>    Ps;
         muda::DeviceBuffer<Float>     energies;
         muda::DeviceBuffer<Vector3>   gradients;
-        muda::DeviceBuffer<Matrix3x3> hessians;
+        muda::DeviceBuffer<Matrix3x3> m_hessians;
 
         Float reserve_ratio = 1.1;
 

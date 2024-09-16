@@ -44,7 +44,7 @@ void AffinebodySurfaceReporter::Impl::_init_geo_surface(backend::WorldVisitor& w
     geo_surf_triangles_counts.back() = 0;
 
     // 1) for every geometry, count surface primitives
-    for(auto&& [i, body_offset] : enumerate(abd().h_abd_geo_body_offsets))
+    for(auto&& [i, body_offset] : enumerate(abd().abd_geo_body_offsets))
     {
         const auto& body_info = abd().h_body_infos[body_offset];
         auto&       geo       = abd().geometry(geo_slots, body_info);
@@ -120,7 +120,7 @@ void AffinebodySurfaceReporter::Impl::_init_geo_surface(backend::WorldVisitor& w
         }
     };
 
-    for(auto&& [i, body_offset] : enumerate(abd().h_abd_geo_body_offsets))
+    for(auto&& [i, body_offset] : enumerate(abd().abd_geo_body_offsets))
     {
         const auto& body_info = abd().h_body_infos[body_offset];
         auto&       geo       = abd().geometry(geo_slots, body_info);

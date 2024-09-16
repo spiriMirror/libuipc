@@ -9,6 +9,8 @@
 namespace uipc::backend::cuda
 {
 class AffineBodyConstraint;
+class ABDLineSearchReporter;
+class ABDGradientHessianComputer;
 
 class AffineBodyAnimator final : public Animator
 {
@@ -17,10 +19,7 @@ class AffineBodyAnimator final : public Animator
 
     class Impl;
 
-    class AnimatedGeoInfo
-    {
-        // TODO:
-    };
+    using AnimatedGeoInfo = AffineBodyDynamics::GeoInfo;
 
     class FilteredInfo
     {
@@ -31,11 +30,20 @@ class AffineBodyAnimator final : public Animator
         {
         }
 
-        span<const AnimatedGeoInfo> animated_geo_infos() const noexcept;
+        span<const AnimatedGeoInfo> anim_geo_infos() const noexcept;
 
-        span<const IndexT> anim_indices() const noexcept;
+        span<const IndexT> anim_body_indices() const noexcept;
 
         SizeT anim_body_count() const noexcept;
+
+        template <typename ViewGetterF, typename ForEachF>
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ViewGetterF&&                   getter,
+                      ForEachF&&                      for_each);
+
+        template <typename ForEachGeomatry>
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ForEachGeomatry&&               for_every_geometry);
 
       private:
         Impl* m_impl  = nullptr;
@@ -54,7 +62,7 @@ class AffineBodyAnimator final : public Animator
 
         Float                                  dt() const noexcept;
         muda::CBufferView<Vector12>            qs() const noexcept;
-        muda::CBufferView<ABDJacobiDyadicMass> masses() const noexcept;
+        muda::CBufferView<ABDJacobiDyadicMass> body_masses() const noexcept;
         muda::CBufferView<IndexT>              is_fixed() const noexcept;
 
       protected:
@@ -104,10 +112,8 @@ class AffineBodyAnimator final : public Animator
         SimSystemSlotCollection<AffineBodyConstraint> constraints;
         unordered_map<U64, SizeT>                     uid_to_constraint_index;
 
-        vector<SizeT> anim_abd_geo_body_offsets;
-
-        vector<AnimatedGeoInfo> animated_geo_infos;
-        vector<IndexT>          anim_indices;
+        vector<AnimatedGeoInfo> anim_geo_infos;
+        vector<IndexT>          anim_body_indices;
 
         vector<SizeT> constraint_geo_info_offsets;
         vector<SizeT> constraint_geo_info_counts;
@@ -150,8 +156,13 @@ class AffineBodyAnimator final : public Animator
     class AssembleInfo
     {
       public:
-        muda::DoubletVectorView<Float, 12> gradients;
-        muda::TripletMatrixView<Float, 12> hessians;
+        muda::CDoubletVectorView<Float, 12> gradients() const noexcept;
+        muda::CTripletMatrixView<Float, 12> hessians() const noexcept;
+
+      private:
+        friend class AffineBodyAnimator;
+        muda::CDoubletVectorView<Float, 12> m_gradients;
+        muda::CTripletMatrixView<Float, 12> m_hessians;
     };
     void assemble(AssembleInfo& info);  // only be called by ABDLinearSubsystem
 
@@ -162,3 +173,5 @@ class AffineBodyAnimator final : public Animator
     virtual void do_build(BuildInfo& info) override;
 };
 }  // namespace uipc::backend::cuda
+
+#include "details/affine_body_animator.inl"

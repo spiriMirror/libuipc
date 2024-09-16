@@ -1,6 +1,7 @@
 #pragma once
 #include <linear_system/diag_linear_subsystem.h>
 #include <affine_body/affine_body_dynamics.h>
+#include <affine_body/affine_body_animator.h>
 #include <affine_body/abd_contact_receiver.h>
 #include <affine_body/affine_body_vertex_reporter.h>
 #include <affine_body/matrix_converter.h>
@@ -19,7 +20,7 @@ class ABDLinearSubsystem : public DiagLinearSubsystem
         void assemble(GlobalLinearSystem::DiagInfo& info);
         void _assemble_gradient(GlobalLinearSystem::DiagInfo& info);
         void _assemble_hessian(GlobalLinearSystem::DiagInfo& info);
-        void assemble_H12x12();
+        void assemble_bodies();
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
@@ -34,6 +35,7 @@ class ABDLinearSubsystem : public DiagLinearSubsystem
             return abd_contact_receiver->m_impl;
         }
         AffineBodyVertexReporter* affine_body_vertex_reporter = nullptr;
+        AffineBodyAnimator*       affine_body_animator        = nullptr;
 
         Float reserve_ratio = 1.5;
 

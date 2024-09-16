@@ -21,15 +21,8 @@ void AffineBodyAnimator::add_constraint(AffineBodyConstraint* constraint)
 
 void AffineBodyAnimator::assemble(AssembleInfo& info)
 {
-    for(auto constraint : m_impl.constraints.view())
-    {
-        ComputeGradientHessianInfo this_info{
-            &m_impl, constraint->m_index, m_impl.dt};
-        constraint->compute_gradient_hessian(this_info);
-    }
-
-    info.gradients = m_impl.constraint_gradient.view();
-    info.hessians  = m_impl.constraint_hessian.view();
+    info.m_gradients = m_impl.constraint_gradient.view();
+    info.m_hessians  = m_impl.constraint_hessian.view();
 }
 
 
@@ -61,7 +54,115 @@ void AffineBodyAnimator::Impl::init(backend::WorldVisitor& world)
         constraint->m_index          = i;
     }
 
-    // TODO:
+    // +1 for total count
+    constraint_geo_info_counts.resize(constraints.view().size() + 1, 0);
+    constraint_geo_info_offsets.resize(constraints.view().size() + 1, 0);
+
+    auto  geo_slots = world.scene().geometries();
+    auto& geo_infos = affine_body_dynamics->m_impl.geo_infos;
+
+    for(auto& info : geo_infos)
+    {
+        auto  geo_slot = geo_slots[info.geo_slot_index];
+        auto& geo      = geo_slot->geometry();
+        auto  uid      = geo.meta().find<U64>(builtin::constraint_uid);
+        if(uid)
+        {
+            auto uid_value = uid->view().front();
+            auto it        = uid_to_constraint_index.find(uid_value);
+            UIPC_ASSERT(it != uid_to_constraint_index.end(),
+                        "AffineBodyAnimator: Constraint uid not found");
+            auto index = it->second;
+            constraint_geo_info_counts[index]++;
+        }
+    }
+
+    std::exclusive_scan(constraint_geo_info_counts.begin(),
+                        constraint_geo_info_counts.end(),
+                        constraint_geo_info_offsets.begin(),
+                        0);
+
+    auto total_anim_geo_info_count = constraint_geo_info_offsets.back();
+    anim_geo_infos.resize(total_anim_geo_info_count);
+
+    vector<SizeT> anim_geo_info_counter(constraint_view.size(), 0);
+
+    for(auto& info : geo_infos)
+    {
+        auto  geo_slot = geo_slots[info.geo_slot_index];
+        auto& geo      = geo_slot->geometry();
+        auto  uid      = geo.meta().find<U64>(builtin::constraint_uid);
+        if(uid)
+        {
+            auto uid_value = uid->view().front();
+            auto it        = uid_to_constraint_index.find(uid_value);
+            UIPC_ASSERT(it != uid_to_constraint_index.end(),
+                        "Constraint: Constraint uid not found");
+            auto index = it->second;
+            auto offset =
+                constraint_geo_info_offsets[index] + anim_geo_info_counter[index];
+            anim_geo_infos[offset] = info;
+            anim_geo_info_counter[index]++;
+        }
+    }
+
+    vector<list<IndexT>> constraint_body_indices(constraint_view.size());
+    for(auto& c : constraint_view)
+    {
+        auto constraint_geo_infos =
+            span{anim_geo_infos}.subspan(constraint_geo_info_offsets[c->m_index],
+                                         constraint_geo_info_counts[c->m_index]);
+
+        auto& body_indices = constraint_body_indices[c->m_index];
+
+        for(auto& info : constraint_geo_infos)
+        {
+            body_indices.resize(info.body_count);
+            std::iota(body_indices.begin(), body_indices.end(), info.body_offset);
+        }
+    }
+
+    constraint_body_counts.resize(constraint_view.size() + 1, 0);
+    constraint_body_offsets.resize(constraint_view.size() + 1, 0);
+
+    std::ranges::transform(constraint_body_indices,
+                           constraint_body_counts.begin(),
+                           [](const auto& indices) { return indices.size(); });
+
+    std::exclusive_scan(constraint_body_counts.begin(),
+                        constraint_body_counts.end(),
+                        constraint_body_offsets.begin(),
+                        0);
+
+    auto total_body_count = constraint_body_offsets.back();
+    anim_body_indices.resize(total_body_count);
+
+    // expand the body indices
+    for(auto&& [i, indices] : enumerate(constraint_body_indices))
+    {
+        auto offset = constraint_body_offsets[i];
+        for(auto&& [j, index] : enumerate(indices))
+        {
+            anim_body_indices[offset + j] = index;
+        }
+    }
+
+    anim_body_indices.resize(total_body_count);
+
+    // initialize the constraints
+    for(auto constraint : constraints.view())
+    {
+        FilteredInfo info{this, constraint->m_index};
+        constraint->init(info);
+    }
+
+    // reserve offsets and counts for constraints (+1 for total count)
+    constraint_energy_offsets.resize(constraint_view.size() + 1, 0);
+    constraint_energy_counts.resize(constraint_view.size() + 1, 0);
+    constraint_gradient_offsets.resize(constraint_view.size() + 1, 0);
+    constraint_gradient_counts.resize(constraint_view.size() + 1, 0);
+    constraint_hessian_offsets.resize(constraint_view.size() + 1, 0);
+    constraint_hessian_counts.resize(constraint_view.size() + 1, 0);
 }
 
 void AffineBodyAnimator::report_extent(ExtentInfo& info)
@@ -153,7 +254,7 @@ void AffineBodyAnimator::compute_gradient_hessian(GradientHessianComputer::Compu
     }
 }
 
-auto AffineBodyAnimator::FilteredInfo::animated_geo_infos() const -> span<const AnimatedGeoInfo>
+auto AffineBodyAnimator::FilteredInfo::anim_geo_infos() const -> span<const AnimatedGeoInfo>
 {
     return span<const AnimatedGeoInfo>{m_impl->anim_geo_infos}.subspan(
         m_impl->constraint_geo_info_offsets[m_index],
@@ -165,26 +266,26 @@ SizeT AffineBodyAnimator::FilteredInfo::anim_body_count() const noexcept
     return m_impl->constraint_body_counts[m_index];
 }
 
-span<const IndexT> AffineBodyAnimator::FilteredInfo::anim_indices() const
+span<const IndexT> AffineBodyAnimator::FilteredInfo::anim_body_indices() const
 {
     auto offset = m_impl->constraint_body_offsets[m_index];
     auto count  = m_impl->constraint_body_counts[m_index];
-    return span{m_impl->anim_indices}.subspan(offset, count);
+    return span{m_impl->anim_body_indices}.subspan(offset, count);
 }
 
-muda::CBufferView<Vector3> AffineBodyAnimator::BaseInfo::xs() const noexcept
+muda::CBufferView<Vector12> AffineBodyAnimator::BaseInfo::qs() const noexcept
 {
-    return m_impl->finite_element_method->xs();
+    return m_impl->affine_body_dynamics->m_impl.body_id_to_q.view();
 }
 
-muda::CBufferView<Float> AffineBodyAnimator::BaseInfo::masses() const noexcept
+muda::CBufferView<ABDJacobiDyadicMass> AffineBodyAnimator::BaseInfo::body_masses() const noexcept
 {
-    return m_impl->finite_element_method->masses();
+    return m_impl->affine_body_dynamics->m_impl.body_id_to_abd_mass.view();
 }
 
 muda::CBufferView<IndexT> AffineBodyAnimator::BaseInfo::is_fixed() const noexcept
 {
-    return m_impl->finite_element_method->is_fixed();
+    return m_impl->affine_body_dynamics->m_impl.body_id_to_is_fixed.view();
 }
 
 muda::BufferView<Float> AffineBodyAnimator::ComputeEnergyInfo::energies() const noexcept
@@ -212,12 +313,23 @@ void AffineBodyAnimator::ReportExtentInfo::hessian_block_count(SizeT count) noex
 {
     m_hessian_block_count = count;
 }
+
 void AffineBodyAnimator::ReportExtentInfo::gradient_segment_count(SizeT count) noexcept
 {
     m_gradient_segment_count = count;
 }
+
 void AffineBodyAnimator::ReportExtentInfo::energy_count(SizeT count) noexcept
 {
     m_energy_count = count;
+}
+
+muda::CDoubletVectorView<Float, 12> AffineBodyAnimator::AssembleInfo::gradients() const noexcept
+{
+    return m_gradients;
+}
+muda::CTripletMatrixView<Float, 12> AffineBodyAnimator::AssembleInfo::hessians() const noexcept
+{
+    return m_hessians;
 }
 }  // namespace uipc::backend::cuda

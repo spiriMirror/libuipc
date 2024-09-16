@@ -36,12 +36,12 @@ class ARAP final : public AffineBodyConstitution
         h_kappas.resize(src.size());
         auto geo_slots = world().scene().geometries();
 
-        SizeT I = 0;
+        SizeT bodyI = 0;
         info.for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc)
             { return sc.instances().find<Float>("kappa")->view(); },
-            [&](SizeT local_i, Float kappa) { h_kappas[I++] = kappa; });
+            [&](SizeT local_i, Float kappa) { h_kappas[bodyI++] = kappa; });
 
         _build_on_device();
     }

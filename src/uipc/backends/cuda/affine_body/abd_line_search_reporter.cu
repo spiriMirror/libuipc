@@ -11,6 +11,7 @@ REGISTER_SIM_SYSTEM(ABDLineSearchReporter);
 void ABDLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
+    m_impl.affine_body_animator = &require<AffineBodyAnimator>();
 }
 
 void ABDLineSearchReporter::do_record_start_point(LineSearcher::RecordInfo& info)
@@ -102,9 +103,16 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        abd().abd_shape_energy.data(),
                        abd().body_id_to_shape_energy.size());
 
-    Float E = abd().abd_shape_energy;
+    Float shape_E = abd().abd_shape_energy;
 
-    // spdlog::info("ABD K: {}, E: {}", K, E);
-    info.energy(K + E);
+    Float anim_E = 0;
+    if(affine_body_animator)
+        anim_E = affine_body_animator->compute_energy(info);
+
+    Float E = K + shape_E + anim_E;
+
+    spdlog::info("FEM Energy: K: {}, Shape: {}, Anim: {}", K, shape_E, anim_E);
+
+    info.energy(E);
 }
 }  // namespace uipc::backend::cuda

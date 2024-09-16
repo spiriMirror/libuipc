@@ -9,6 +9,7 @@ REGISTER_SIM_SYSTEM(ABDGradientHessianComputer);
 void ABDGradientHessianComputer::do_build()
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
+    m_impl.affine_body_animator = find<AffineBodyAnimator>();
 
     auto& gradient_hessian_computer = require<GradientHessianComputer>();
     // Register the action to compute the gradient and hessian
@@ -22,17 +23,17 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
 {
     using namespace muda;
 
-    auto& body_id_to_body_hessian     = abd().body_id_to_body_hessian;
-    auto& body_id_to_body_gradient    = abd().body_id_to_body_gradient;
-    auto& body_id_to_is_fixed         = abd().body_id_to_is_fixed;
-    auto& body_id_to_q                = abd().body_id_to_q;
-    auto& body_id_to_q_tilde          = abd().body_id_to_q_tilde;
-    auto& body_id_to_abd_mass         = abd().body_id_to_abd_mass;
-    auto& body_id_to_kinetic_energy   = abd().body_id_to_kinetic_energy;
-    auto& h_constitution_body_offsets = abd().h_constitution_body_offsets;
-    auto& h_constitution_body_counts  = abd().h_constitution_body_counts;
-    auto& constitutions               = abd().constitutions;
-    auto& diag_hessian                = abd().diag_hessian;
+    auto& body_id_to_body_hessian   = abd().body_id_to_body_hessian;
+    auto& body_id_to_body_gradient  = abd().body_id_to_body_gradient;
+    auto& body_id_to_is_fixed       = abd().body_id_to_is_fixed;
+    auto& body_id_to_q              = abd().body_id_to_q;
+    auto& body_id_to_q_tilde        = abd().body_id_to_q_tilde;
+    auto& body_id_to_abd_mass       = abd().body_id_to_abd_mass;
+    auto& body_id_to_kinetic_energy = abd().body_id_to_kinetic_energy;
+    auto& constitution_body_offsets = abd().constitution_body_offsets;
+    auto& constitution_body_counts  = abd().constitution_body_counts;
+    auto& constitutions             = abd().constitutions;
+    auto& diag_hessian              = abd().diag_hessian;
 
 
     auto async_fill = []<typename T>(muda::DeviceBuffer<T>& buf, const T& value)
@@ -44,8 +45,8 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
     // 1) compute all shape gradients and hessians
     for(auto&& [i, cst] : enumerate(constitutions.view()))
     {
-        auto body_offset = h_constitution_body_offsets[i];
-        auto body_count  = h_constitution_body_counts[i];
+        auto body_offset = constitution_body_offsets[i];
+        auto body_count  = constitution_body_counts[i];
 
         if(body_count == 0)
             continue;
@@ -69,11 +70,11 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
                 masses   = body_id_to_abd_mass.cviewer().name("masses"),
                 Ks = body_id_to_kinetic_energy.cviewer().name("kinetic_energy"),
                 diag_hessian = diag_hessian.viewer().name("diag_hessian"),
-                hessians = body_id_to_body_hessian.viewer().name("hessians"),
+                m_hessians = body_id_to_body_hessian.viewer().name("hessians"),
                 gradients = body_id_to_body_gradient.viewer().name("gradients")] __device__(int i) mutable
                {
                    const auto& q = qs(i);
-                   auto&       H = hessians(i);
+                   auto&       H = m_hessians(i);
                    auto&       G = gradients(i);
                    const auto& M = masses(i);
 
@@ -105,6 +106,12 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
                                              * eigen_vectors.transpose();
                    }
                });
+
+    // 3) compute animator gradient and hessian
+    if(affine_body_animator)
+    {
+        affine_body_animator->compute_gradient_hessian(info);
+    }
 }
 
 AffineBodyDynamics::Impl& ABDGradientHessianComputer::Impl::abd() noexcept
