@@ -42,7 +42,7 @@ void ABDLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
     using namespace muda;
     ParallelFor(256)
         .kernel_name(__FUNCTION__)
-        .apply(abd().body_count(),
+        .apply(abd().abd_body_count,
                [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
                 q_temps  = abd().body_id_to_q_temp.cviewer().name("q_temps"),
                 qs       = abd().body_id_to_q.viewer().name("qs"),
@@ -62,7 +62,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
     // Compute kinetic energy
     ParallelFor()
         .kernel_name(__FUNCTION__)
-        .apply(abd().body_count(),
+        .apply(abd().abd_body_count,
                [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
                 qs       = abd().body_id_to_q.cviewer().name("qs"),
                 q_tildes = abd().body_id_to_q_tilde.viewer().name("q_tildes"),
@@ -111,7 +111,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
 
     Float E = K + shape_E + anim_E;
 
-    spdlog::info("FEM Energy: K: {}, Shape: {}, Anim: {}", K, shape_E, anim_E);
+    spdlog::info("ABD Energy: K: {}, Shape: {}, Anim: {}", K, shape_E, anim_E);
 
     info.energy(E);
 }

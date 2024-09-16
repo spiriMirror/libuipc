@@ -16,24 +16,18 @@ class ARAP final : public AffineBodyConstitution
 
     using AffineBodyConstitution::AffineBodyConstitution;
 
-
-    vector<AffineBodyDynamics::BodyInfo> h_body_infos;
-    vector<Float>                        h_kappas;
+    vector<Float> h_kappas;
 
     muda::DeviceBuffer<Float> kappas;
 
     virtual void do_build(AffineBodyConstitution::BuildInfo& info) override {}
 
-    U64 get_constitution_uid() const override { return ConstitutionUID; }
+    U64 get_uid() const override { return ConstitutionUID; }
 
-    void do_retrieve(AffineBodyDynamics::FilteredInfo& info) override
+    void do_init(AffineBodyDynamics::FilteredInfo& info) override
     {
-        auto src = info.body_infos();
-        h_body_infos.resize(src.size());
-        std::ranges::copy(src, h_body_infos.begin());
-
         // find out constitution coefficients
-        h_kappas.resize(src.size());
+        h_kappas.resize(info.body_count());
         auto geo_slots = world().scene().geometries();
 
         SizeT bodyI = 0;

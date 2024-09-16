@@ -84,27 +84,22 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
 void AffineBodyDynamics::Impl::init(WorldVisitor& world)
 {
     _build_constitutions(world);
-
     _build_geo_infos(world);
-
-    _build_body_infos(world);
-    _build_related_infos(world);
     _setup_geometry_attributes(world);
 
     _build_geometry_on_host(world);
     _build_geometry_on_device(world);
 
-    _distribute_body_infos();
+    _distribute_geo_infos();
 }
 
 void AffineBodyDynamics::Impl::_build_constitutions(WorldVisitor& world)
 {
-
     // 1) sort the constitutions by uid
     auto constitution_view = constitutions.view();
     std::ranges::sort(constitution_view,
                       [](const AffineBodyConstitution* a, AffineBodyConstitution* b)
-                      { return a->constitution_uid() < b->constitution_uid(); });
+                      { return a->uid() < b->uid(); });
     for(auto&& [i, C] : enumerate(constitution_view))  // reset the index
         C->m_index = i;
 
@@ -112,15 +107,24 @@ void AffineBodyDynamics::Impl::_build_constitutions(WorldVisitor& world)
     std::ranges::transform(constitution_view,
                            filter_uids.begin(),
                            [](const AffineBodyConstitution* filter)
-                           { return filter->constitution_uid(); });
+                           { return filter->uid(); });
 
     for(auto&& [i, filter] : enumerate(constitution_view))
-        constitution_uid_to_index[filter->constitution_uid()] = i;
+        constitution_uid_to_index[filter->uid()] = i;
+
+    constitution_infos.resize(constitution_view.size());
 
     auto geo_slots = world.scene().geometries();
 
-    list<GeoInfo> geo_infos;
+    // +1 for the total count
+    vector<SizeT> constitution_geo_counts(constitution_view.size() + 1, 0);
+    vector<SizeT> constitution_geo_offsets(constitution_view.size() + 1, 0);
+    vector<SizeT> constitution_body_counts(constitution_view.size() + 1, 0);
+    vector<SizeT> constitution_body_offsets(constitution_view.size() + 1, 0);
+    vector<SizeT> constitution_vertex_counts(constitution_view.size() + 1, 0);
+    vector<SizeT> constitution_vertex_offsets(constitution_view.size() + 1, 0);
 
+    list<GeoInfo> geo_info_list;
     for(auto&& [i, geo_slot] : enumerate(geo_slots))
     {
         auto& geo  = geo_slot->geometry();
@@ -136,21 +140,59 @@ void AffineBodyDynamics::Impl::_build_constitutions(WorldVisitor& world)
                             "The geometry is not a simplicial complex (it's {}). Why can it happen?",
                             geo.type());
 
-                auto    vert_count = sc->vertices().size();
+                auto vert_count = sc->vertices().size();
+
+                auto constitution_index = constitution_uid_to_index[uid];
+
                 GeoInfo info;
                 info.body_count = instance_count;
                 info.vertex_count = vert_count * instance_count;  // total vertex count
                 info.geo_slot_index     = i;
                 info.constitution_uid   = uid;
-                info.constitution_index = constitution_uid_to_index[uid];
-                geo_infos.push_back(std::move(info));
+                info.constitution_index = constitution_index;
+                geo_info_list.push_back(std::move(info));
+
+                constitution_geo_counts[constitution_index] += 1;  // count the geometry
+                constitution_body_counts[constitution_index] += info.body_count;  // count the body
+                constitution_vertex_counts[constitution_index] += info.vertex_count;  // count the vertex
             }
         }
     }
 
-    // 2) copy to the geo_infos
-    geo_infos.resize(geo_infos.size());
-    std::ranges::move(geo_infos, geo_infos.begin());
+    // 2) setup the offsets
+    std::exclusive_scan(constitution_geo_counts.begin(),
+                        constitution_geo_counts.end(),
+                        constitution_geo_offsets.begin(),
+                        0);
+
+    std::exclusive_scan(constitution_body_counts.begin(),
+                        constitution_body_counts.end(),
+                        constitution_body_offsets.begin(),
+                        0);
+
+    std::exclusive_scan(constitution_vertex_counts.begin(),
+                        constitution_vertex_counts.end(),
+                        constitution_vertex_offsets.begin(),
+                        0);
+
+    for(auto&& [i, info] : enumerate(constitution_infos))
+    {
+        info.geo_offset    = constitution_geo_offsets[i];
+        info.geo_count     = constitution_geo_counts[i];
+        info.body_offset   = constitution_body_offsets[i];
+        info.body_count    = constitution_body_counts[i];
+        info.vertex_offset = constitution_vertex_offsets[i];
+        info.vertex_count  = constitution_vertex_counts[i];
+    }
+
+    // 3) set the total count
+    abd_geo_count    = constitution_geo_offsets.back();
+    abd_body_count   = constitution_body_offsets.back();
+    abd_vertex_count = constitution_vertex_offsets.back();
+
+    // 4) copy to the geo_infos
+    geo_infos.resize(geo_info_list.size());
+    std::ranges::move(geo_info_list, geo_infos.begin());
 }
 
 void AffineBodyDynamics::Impl::_build_geo_infos(WorldVisitor& world)
@@ -159,14 +201,14 @@ void AffineBodyDynamics::Impl::_build_geo_infos(WorldVisitor& world)
     auto geo_slots = scene.geometries();
 
     // 1) sort the geo_infos by constitution uid
-    std::ranges::sort(geo_infos,
-                      [](const GeoInfo& a, const GeoInfo& b)
-                      { return a.constitution_uid < b.constitution_uid; });
+    std::ranges::stable_sort(geo_infos,
+                             [](const GeoInfo& a, const GeoInfo& b)
+                             { return a.constitution_uid < b.constitution_uid; });
 
 
     // 2) setup the body offset and body count
-    vector<SizeT> geo_body_counts(geo_infos.size() + 1);  // + 1 for total count
-    vector<SizeT> geo_body_offsets(geo_infos.size() + 1);  // + 1 for total count
+    vector<SizeT> geo_body_counts(geo_infos.size() + 1, 0);  // + 1 for total count
+    vector<SizeT> geo_body_offsets(geo_infos.size() + 1, 0);  // + 1 for total count
 
     std::ranges::transform(geo_infos,
                            geo_body_counts.begin(),
@@ -197,169 +239,10 @@ void AffineBodyDynamics::Impl::_build_geo_infos(WorldVisitor& world)
                         geo_vertex_offsets.begin(),
                         0);
 
-    abd_vertex_count = geo_vertex_offsets.back();
-}
-
-void AffineBodyDynamics::Impl::_build_body_infos(WorldVisitor& world)
-{
-    //// 1) sort the constitutions by uid
-
-
-    //// 2) find the affine bodies
-    //list<BodyInfo> body_infos;
-    //auto           scene = world.scene();
-
-    //auto geo_slots = scene.geometries();
-    //auto N         = geo_slots.size();
-    //abd_body_count = 0;
-    //for(auto&& [i, geo_slot] : enumerate(geo_slots))
-    //{
-    //    auto& geo  = geo_slot->geometry();
-    //    auto  cuid = geo.meta().find<U64>(builtin::constitution_uid);
-    //    if(cuid)  // if has constitution uid
-    //    {
-    //        auto uid            = cuid->view()[0];
-    //        auto instance_count = geo.instances().size();
-    //        if(std::binary_search(filter_uids.begin(), filter_uids.end(), uid))
-    //        {
-    //            auto* sc = geo.as<geometry::SimplicialComplex>();
-    //            UIPC_ASSERT(sc,
-    //                        "The geometry is not a simplicial complex (it's {}). Why can it happen?",
-    //                        geo.type());
-
-    //            auto vert_count = sc->vertices().size();
-    //            for(auto&& j : range(instance_count))
-    //            {
-    //                // push all instances of the geometry to the body_infos
-    //                BodyInfo info;
-    //                info.m_constitution_uid    = uid;
-    //                info.m_constitution_index  = constitution_uid_to_index[uid];
-    //                info.m_abd_geometry_index  = abd_geo_count;
-    //                info.m_geometry_slot_index = i;
-    //                info.m_geometry_instance_index = j;
-    //                info.m_affine_body_id = -1;  // keep it as -1, we will set it after sorting
-    //                info.m_vertex_count = vert_count;
-    //                info.m_vertex_offset = -1;  // keep it as -1, we will set it after sorting
-    //                body_infos.push_back(std::move(info));
-
-    //                abd_body_count++;
-    //            }
-    //            abd_geo_count++;
-    //        }
-    //    }
-    //}
-
-    //// 3) sort the body infos by (constitution uid, geometry index, geometry instance index)
-    //h_body_infos.resize(body_infos.size());
-
-    //std::partial_sort_copy(body_infos.begin(),
-    //                       body_infos.end(),
-    //                       h_body_infos.begin(),
-    //                       h_body_infos.end(),
-    //                       [](const BodyInfo& a, const BodyInfo& b)
-    //                       {
-    //                           return a.m_constitution_uid < b.m_constitution_uid
-    //                                  || a.m_constitution_uid == b.m_constitution_uid
-    //                                         && a.m_geometry_slot_index < b.m_geometry_slot_index
-    //                                  || a.m_constitution_uid == b.m_constitution_uid
-    //                                         && a.m_geometry_slot_index == b.m_geometry_slot_index
-    //                                         && a.m_geometry_instance_index
-    //                                                < b.m_geometry_instance_index;
-    //                       });
-
-    //for(auto&& [I, info] : enumerate(h_body_infos))
-    //{
-    //    info.m_affine_body_id = I;
-    //}
-
-    //// 4) setup the vertex offset, vertex_count
-    //vector<SizeT> vertex_count(abd_body_count + 1, 0);
-    //vector<SizeT> vertex_offset(abd_body_count + 1);
-    //std::ranges::transform(h_body_infos,
-    //                       vertex_count.begin(),
-    //                       [&](const BodyInfo& info) -> SizeT
-    //                       { return info.m_vertex_count; });
-
-    //std::exclusive_scan(vertex_count.begin(), vertex_count.end(), vertex_offset.begin(), 0);
-    //abd_vertex_count = vertex_offset.back();
-    //for(auto&& [i, info] : enumerate(h_body_infos))
-    //{
-    //    info.m_vertex_count  = vertex_count[i];
-    //    info.m_vertex_offset = vertex_offset[i];
-    //}
-}
-
-void AffineBodyDynamics::Impl::_build_related_infos(WorldVisitor& world)
-{
-    // Note: body_infos has been sorted by (constitution uid, geometry index, geometry instance index)
-
-
-    //auto constitution_view = constitutions.view();
-
-    //// 1) setup h_abd_geo_body_offsets and h_abd_geo_body_counts
-    //{
-    //    h_abd_geo_body_offsets.resize(abd_geo_count + 1);
-    //    h_abd_geo_body_counts.resize(abd_geo_count + 1);
-
-    //    std::ranges::fill(h_abd_geo_body_counts, 0);
-
-    //    for(auto&& body_info : h_body_infos)
-    //        h_abd_geo_body_counts[body_info.m_abd_geometry_index]++;
-
-    //    std::exclusive_scan(h_abd_geo_body_counts.begin(),
-    //                        h_abd_geo_body_counts.end(),
-    //                        h_abd_geo_body_offsets.begin(),
-    //                        0);
-
-    //    UIPC_ASSERT(abd_body_count == h_abd_geo_body_offsets.back(), "size mismatch");
-
-    //    h_abd_geo_body_offsets.resize(abd_geo_count);
-    //    h_abd_geo_body_counts.resize(abd_geo_count);
-    //}
-
-    //// 2) setup h_constitution_geo_offsets and h_constitution_geo_counts
-    //{
-    //    auto constitution_view = constitutions.view();
-
-    //    h_constitution_geo_offsets.resize(constitution_view.size() + 1);
-    //    h_constitution_geo_counts.resize(constitution_view.size() + 1);
-
-    //    std::ranges::fill(h_constitution_geo_counts, 0);
-
-    //    for(IndexT last_geo_slot_index = -1; auto&& body_info : h_body_infos)
-    //    {
-    //        if(body_info.m_geometry_slot_index != last_geo_slot_index)
-    //        {
-    //            h_constitution_geo_counts[body_info.m_constitution_index]++;
-    //            last_geo_slot_index = body_info.m_geometry_slot_index;
-    //        }
-    //    }
-
-    //    std::exclusive_scan(h_constitution_geo_counts.begin(),
-    //                        h_constitution_geo_counts.end(),
-    //                        h_constitution_geo_offsets.begin(),
-    //                        0);
-
-    //    UIPC_ASSERT(abd_geo_count == h_constitution_geo_offsets.back(), "size mismatch");
-    //}
-
-    //// 3) setup h_constitution_body_offsets and h_constitution_body_counts
-    //{
-    //    h_constitution_body_offsets.resize(constitution_view.size() + 1);
-    //    h_constitution_body_counts.resize(constitution_view.size() + 1);
-
-    //    std::ranges::fill(h_constitution_body_counts, 0);
-
-    //    for(auto&& body_info : h_body_infos)
-    //        h_constitution_body_counts[body_info.m_constitution_index]++;
-
-    //    std::exclusive_scan(h_constitution_body_counts.begin(),
-    //                        h_constitution_body_counts.end(),
-    //                        h_constitution_body_offsets.begin(),
-    //                        0);
-
-    //    UIPC_ASSERT(abd_body_count == h_constitution_body_offsets.back(), "size mismatch");
-    //}
+    for(auto&& [i, info] : enumerate(geo_infos))
+    {
+        info.vertex_offset = geo_vertex_offsets[i];
+    }
 }
 
 void AffineBodyDynamics::Impl::_setup_geometry_attributes(WorldVisitor& world)
@@ -389,6 +272,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
     // 1) setup `q` for every affine body
     {
+        h_body_id_to_q.resize(abd_body_count);
+
         SizeT bodyI = 0;
         for_each(
             geo_slots,
@@ -425,7 +310,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                  [&](geometry::SimplicialComplex& sc)
                  {
                      auto pos_view = sc.positions().view();
-                     auto mass     = sc.instances().find<Float>(builtin::mass);
+                     auto mass     = sc.vertices().find<Float>(builtin::mass);
                      UIPC_ASSERT(mass, "The mass attribute is not found in the affine body geometry, why can it happen?");
                      auto mass_view   = mass->view();
                      auto body_count  = sc.instances().size();
@@ -577,7 +462,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                      {
                          auto vert_count  = sc.vertices().size();
                          auto vert_offset = geo_infos[geoI].vertex_offset;
-                         auto vertex_mass = sc.instances().find<Float>(builtin::mass);
+                         auto vertex_mass = sc.vertices().find<Float>(builtin::mass);
                          UIPC_ASSERT(vertex_mass, "The mass attribute is not found in the affine body geometry, why can it happen?");
                          auto vertex_mass_view = vertex_mass->view();
                          auto body_count       = sc.instances().size();
@@ -594,7 +479,6 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          Matrix12x12 abd_body_mass_inv =
                              h_body_id_to_abd_mass_inv[body_offset];
                          Vector12 g = abd_body_mass_inv * G;
-
 
                          for(auto i : range(body_count))
                          {
@@ -675,14 +559,13 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     muda::wait_device();
 }
 
-void AffineBodyDynamics::Impl::_distribute_body_infos()
+void AffineBodyDynamics::Impl::_distribute_geo_infos()
 {
     // _distribute the body infos to each constitution
     for(auto&& [I, constitution] : enumerate(constitutions.view()))
     {
-        FilteredInfo info{this};
-        info.m_constitution_index = I;
-        constitution->retrieve(info);
+        FilteredInfo info{this, I};
+        constitution->init(info);
     }
 }
 
@@ -731,7 +614,7 @@ void AffineBodyDynamics::Impl::compute_q_tilde(DoFPredictor::PredictInfo& info)
     using namespace muda;
     ParallelFor()
         .kernel_name(__FUNCTION__)
-        .apply(body_count(),
+        .apply(abd_body_count,
                [is_fixed = body_id_to_is_fixed.cviewer().name("btype"),
                 q_prevs  = body_id_to_q_prev.cviewer().name("q_prev"),
                 q_vs     = body_id_to_q_v.cviewer().name("q_velocities"),
@@ -759,7 +642,7 @@ void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::ComputeVelocityInfo& in
     using namespace muda;
     ParallelFor()
         .kernel_name(__FUNCTION__)
-        .apply(body_count(),
+        .apply(abd_body_count,
                [is_fixed = body_id_to_is_fixed.cviewer().name("btype"),
                 qs       = body_id_to_q.cviewer().name("qs"),
                 q_vs     = body_id_to_q_v.viewer().name("q_vs"),

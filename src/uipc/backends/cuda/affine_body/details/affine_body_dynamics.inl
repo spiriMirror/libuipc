@@ -1,5 +1,4 @@
 #include <uipc/common/zip.h>
-#include "affine_body_dynamics.h"
 
 namespace uipc::backend::cuda
 {
@@ -63,15 +62,15 @@ template <typename T>
 muda::BufferView<T> AffineBodyDynamics::Impl::subview(DeviceBuffer<T>& buffer,
                                                       SizeT constitution_index) const noexcept
 {
-    return buffer.view(constitution_body_offsets[constitution_index],
-                       constitution_body_counts[constitution_index]);
+    auto& constitution_info = constitution_infos[constitution_index];
+    return buffer.view(constitution_info.body_offset, constitution_info.body_count);
 }
 
 template <typename T>
 span<T> AffineBodyDynamics::Impl::subview(vector<T>& buffer, SizeT constitution_index) const noexcept
 {
-    return span{buffer}.subspan(constitution_body_offsets[constitution_index],
-                                constitution_body_counts[constitution_index]);
+    auto& constitution_info = constitution_infos[constitution_index];
+    return span{buffer}.subspan(constitution_info.body_offset, constitution_info.body_count);
 }
 
 template <typename ViewGetterF, typename ForEachF>
@@ -79,15 +78,16 @@ void AffineBodyDynamics::FilteredInfo::for_each(span<S<geometry::GeometrySlot>> 
                                                 ViewGetterF&& getter,
                                                 ForEachF&&    for_each) const
 {
-    auto constitution_geo_offset = m_impl->constitution_geo_offsets[m_constitution_index];
-    auto constitution_geo_count = m_impl->constitution_geo_counts[m_constitution_index];
-
-    auto geo_info_span =
-        span{m_impl->geo_infos}.subspan(constitution_geo_offset, constitution_geo_count);
-
     m_impl->_for_each(geo_slots,
-                      geo_info_span,
+                      geo_infos(),
                       std::forward<ViewGetterF>(getter),
                       std::forward<ForEachF>(for_each));
+}
+
+template <typename ForEachGeomatry>
+void AffineBodyDynamics::FilteredInfo::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                                ForEachGeomatry&& for_every_geometry) const
+{
+    m_impl->_for_each(geo_slots, geo_infos(), std::forward<ForEachGeomatry>(for_every_geometry));
 }
 }  // namespace uipc::backend::cuda

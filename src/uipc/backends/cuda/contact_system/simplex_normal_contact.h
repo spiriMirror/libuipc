@@ -3,7 +3,6 @@
 #include <line_search/line_searcher.h>
 #include <contact_system/contact_coeff.h>
 #include <collision_detection/simplex_trajectory_filter.h>
-#include <contact_system/simplex_contact_constraint.h>
 
 namespace uipc::backend::cuda
 {

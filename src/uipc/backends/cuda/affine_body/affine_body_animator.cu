@@ -220,7 +220,7 @@ void AffineBodyAnimator::Impl::step()
     H12x12_count = constraint_hessian_offsets.back();
 
     // resize the buffers
-    IndexT body_count = affine_body_dynamics->m_impl.body_count();
+    IndexT body_count = affine_body_dynamics->m_impl.abd_body_count;
     constraint_energies.resize(E_count);
     constraint_gradient.resize(body_count, G12_count);
     constraint_hessian.resize(body_count, body_count, H12x12_count);
@@ -254,7 +254,8 @@ void AffineBodyAnimator::compute_gradient_hessian(GradientHessianComputer::Compu
     }
 }
 
-auto AffineBodyAnimator::FilteredInfo::anim_geo_infos() const -> span<const AnimatedGeoInfo>
+auto AffineBodyAnimator::FilteredInfo::anim_geo_infos() const noexcept
+    -> span<const AnimatedGeoInfo>
 {
     return span<const AnimatedGeoInfo>{m_impl->anim_geo_infos}.subspan(
         m_impl->constraint_geo_info_offsets[m_index],
@@ -266,7 +267,7 @@ SizeT AffineBodyAnimator::FilteredInfo::anim_body_count() const noexcept
     return m_impl->constraint_body_counts[m_index];
 }
 
-span<const IndexT> AffineBodyAnimator::FilteredInfo::anim_body_indices() const
+span<const IndexT> AffineBodyAnimator::FilteredInfo::anim_body_indices() const noexcept
 {
     auto offset = m_impl->constraint_body_offsets[m_index];
     auto count  = m_impl->constraint_body_counts[m_index];

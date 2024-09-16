@@ -27,7 +27,7 @@ class Particle0D final : public Codim0DConstitution
         // Do nothing
     }
 
-    virtual void do_retrieve(FiniteElementMethod::Codim0DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::Codim0DFilteredInfo& info) override
     {
         // Do nothing
     }

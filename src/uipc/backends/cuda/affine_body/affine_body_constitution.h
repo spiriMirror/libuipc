@@ -8,7 +8,7 @@ class AffineBodyConstitution : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
-    U64 constitution_uid() const;
+    U64 uid() const;
 
     class BuildInfo
     {
@@ -16,9 +16,9 @@ class AffineBodyConstitution : public SimSystem
     };
 
   protected:
-    virtual U64  get_constitution_uid() const                        = 0;
+    virtual U64  get_uid() const                                     = 0;
     virtual void do_build(BuildInfo& info)                           = 0;
-    virtual void do_retrieve(AffineBodyDynamics::FilteredInfo& info) = 0;
+    virtual void do_init(AffineBodyDynamics::FilteredInfo& info) = 0;
     virtual void do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info) = 0;
 
@@ -29,7 +29,7 @@ class AffineBodyConstitution : public SimSystem
 
     virtual void do_build() override final;
 
-    void retrieve(AffineBodyDynamics::FilteredInfo& info);
+    void init(AffineBodyDynamics::FilteredInfo& info);
     void compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info);
     void compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info);
     SizeT m_index = ~0ull;

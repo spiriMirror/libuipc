@@ -58,7 +58,7 @@ void IPCVertexHalfPlaneNormalContact::do_assemble(ContactInfo& info)
             .kernel_name(__FUNCTION__)
             .apply(info.PHs().size(),
                    [Grad = info.gradients().viewer().name("Grad"),
-                    Hess = info.m_hessians().viewer().name("Hess"),
+                    Hess = info.hessians().viewer().name("Hess"),
                     PHs  = info.PHs().viewer().name("PHs"),
                     plane_positions = half_plane->positions().viewer().name("plane_positions"),
                     plane_normals = half_plane->normals().viewer().name("plane_normals"),

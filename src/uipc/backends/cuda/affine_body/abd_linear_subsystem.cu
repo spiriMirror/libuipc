@@ -14,6 +14,7 @@ void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
     m_impl.affine_body_dynamics        = &require<AffineBodyDynamics>();
     m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
 
+    m_impl.affine_body_animator        = find<AffineBodyAnimator>();
     m_impl.abd_contact_receiver = find<ABDContactReceiver>();
 }
 

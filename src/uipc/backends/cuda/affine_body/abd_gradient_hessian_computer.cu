@@ -30,8 +30,6 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
     auto& body_id_to_q_tilde        = abd().body_id_to_q_tilde;
     auto& body_id_to_abd_mass       = abd().body_id_to_abd_mass;
     auto& body_id_to_kinetic_energy = abd().body_id_to_kinetic_energy;
-    auto& constitution_body_offsets = abd().constitution_body_offsets;
-    auto& constitution_body_counts  = abd().constitution_body_counts;
     auto& constitutions             = abd().constitutions;
     auto& diag_hessian              = abd().diag_hessian;
 
@@ -45,8 +43,9 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
     // 1) compute all shape gradients and hessians
     for(auto&& [i, cst] : enumerate(constitutions.view()))
     {
-        auto body_offset = constitution_body_offsets[i];
-        auto body_count  = constitution_body_counts[i];
+        const auto& constitution_info = abd().constitution_infos[i];
+        auto        body_offset       = constitution_info.body_offset;
+        auto        body_count        = constitution_info.body_count;
 
         if(body_count == 0)
             continue;
@@ -63,7 +62,7 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
     // 2) add kinetic energy gradient and hessian
     ParallelFor()
         .kernel_name(__FUNCTION__)
-        .apply(abd().body_count(),
+        .apply(abd().abd_body_count,
                [is_fixed = body_id_to_is_fixed.cviewer().name("is_fixed"),
                 qs       = body_id_to_q.cviewer().name("qs"),
                 q_tildes = body_id_to_q_tilde.cviewer().name("q_tildes"),

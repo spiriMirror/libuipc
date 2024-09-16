@@ -7,7 +7,15 @@ U64 AffineBodyConstraint::uid() const noexcept
     return get_uid();
 }
 
-void AffineBodyConstraint::do_build() {}
+void AffineBodyConstraint::do_build()
+{
+    auto& affine_body_animator = require<AffineBodyAnimator>();
+
+    BuildInfo info;
+    do_build(info);
+
+    affine_body_animator.add_constraint(this);
+}
 
 void AffineBodyConstraint::init(AffineBodyAnimator::FilteredInfo& info)
 {

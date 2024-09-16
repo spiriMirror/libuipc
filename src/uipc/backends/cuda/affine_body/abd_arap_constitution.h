@@ -8,7 +8,7 @@ class AffineBodyConstitution : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
-    U64 constitution_uid() const;
+    U64 uid() const;
 
     class BuildInfo
     {
@@ -16,7 +16,7 @@ class AffineBodyConstitution : public SimSystem
     };
 
   protected:
-    virtual U64  get_constitution_uid() const                      = 0;
+    virtual U64  get_uid() const                      = 0;
     virtual void do_build(BuildInfo& info)                         = 0;
     virtual void do_filter(AffineBodyDynamics::FilteredInfo& info) = 0;
     virtual void do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info) = 0;

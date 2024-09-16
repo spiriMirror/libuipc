@@ -70,8 +70,9 @@ class FiniteElementMethod : public SimSystem
     class FilteredInfo
     {
       public:
-        FilteredInfo(Impl* impl) noexcept
+        FilteredInfo(Impl* impl, SizeT index_in_dim) noexcept
             : m_impl(impl)
+            , m_index_in_dim(index_in_dim)
         {
         }
 
@@ -205,7 +206,6 @@ class FiniteElementMethod : public SimSystem
 
         // core invariant data
         vector<GeoInfo> geo_infos;
-
 
         // related data:
 

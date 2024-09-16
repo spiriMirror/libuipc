@@ -699,29 +699,25 @@ void FiniteElementMethod::Impl::_distribute_constitution_filtered_info()
 {
     for(auto&& [i, c] : enumerate(codim_0d_constitutions))
     {
-        Codim0DFilteredInfo filtered_info{this};
-        filtered_info.m_index_in_dim = i;
-        c->retrieve(filtered_info);
+        Codim0DFilteredInfo filtered_info{this, i};
+        c->init(filtered_info);
     }
 
     for(auto&& [i, c] : enumerate(codim_1d_constitutions))
     {
-        Codim1DFilteredInfo filtered_info{this};
-        filtered_info.m_index_in_dim = i;
+        Codim1DFilteredInfo filtered_info{this, i};
         c->retrieve(filtered_info);
     }
 
     for(auto&& [i, c] : enumerate(codim_2d_constitutions))
     {
-        Codim2DFilteredInfo filtered_info{this};
-        filtered_info.m_index_in_dim = i;
+        Codim2DFilteredInfo filtered_info{this, i};
         c->retrieve(filtered_info);
     }
 
     for(auto&& [i, c] : enumerate(fem_3d_constitutions))
     {
-        FEM3DFilteredInfo filtered_info{this};
-        filtered_info.m_index_in_dim = i;
+        FEM3DFilteredInfo filtered_info{this, i};
         c->retrieve(filtered_info);
     }
 }
@@ -773,7 +769,8 @@ void FiniteElementMethod::Impl::_init_extra_constitutions()
 
     extra_constitution_energies.resize(energy_offsets.back());
     extra_constitution_gradient.resize(vertex_count, gradient_offsets.back());
-    extra_constitution_hessian.resize(vertex_count, vertex_count, hessian_offsets.back());
+    extra_constitution_hessian.resize(
+        vertex_count, vertex_count, hessian_offsets.back());
 }
 
 void FiniteElementMethod::Impl::_download_geometry_to_host()

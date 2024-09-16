@@ -89,7 +89,7 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                 {
                     h_constrained_bodies.push_back(current_body_offset + bi);
                     h_aim_transforms.push_back(q_from_transform(aim_transform));
-                    h_strength_ratio.push_back(strength_ratio);
+                    h_strength_ratios.push_back(strength_ratio);
                 }
             });
 
