@@ -100,6 +100,7 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
     };
 
     muda::CBufferView<Vector2i> PHs() noexcept;
+    muda::CBufferView<Vector2i> friction_PHs() noexcept;
 
   protected:
     virtual void do_detect(DetectInfo& info)              = 0;

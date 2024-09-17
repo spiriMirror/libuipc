@@ -53,7 +53,10 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
 
                            Float dst = diff.dot(plane_normal);
 
-                           MUDA_ASSERT(dst > 0.0f, "dst=%f, why?", dst);
+                           MUDA_ASSERT(dst > 0.0f,
+                                       "Vertex %d is under the ground, dst=%f, why?",
+                                       vI,
+                                       dst);
 
                            if(dst < d_hat)
                            {

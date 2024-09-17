@@ -8,13 +8,12 @@ namespace uipc::backend::cuda
 class GlobalTrajectoryFilter;
 class VertexHalfPlaneTrajectoryFilter;
 
-class VertexHalfPlaneNormalContact : public ContactReporter
+class VertexHalfPlaneFrictionalContact : public ContactReporter
 {
   public:
     using ContactReporter::ContactReporter;
 
     class Impl;
-
 
     class BaseInfo
     {
@@ -35,7 +34,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         Float                             eps_velocity() const;
 
       private:
-        friend class VertexHalfPlaneNormalContact;
+        friend class VertexHalfPlaneFrictionalContact;
         Impl* m_impl;
     };
 
@@ -51,7 +50,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         muda::BufferView<Matrix3x3> hessians() const noexcept;
 
       private:
-        friend class VertexHalfPlaneNormalContact;
+        friend class VertexHalfPlaneFrictionalContact;
 
         muda::BufferView<Vector3>   m_gradients;
         muda::BufferView<Matrix3x3> m_hessians;
@@ -73,7 +72,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         muda::BufferView<Float> energies() const noexcept;
 
       private:
-        friend class VertexHalfPlaneNormalContact;
+        friend class VertexHalfPlaneFrictionalContact;
         muda::BufferView<Float> m_energies;
     };
 
@@ -93,7 +92,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
 
         muda::DeviceBuffer<Float>     energies;
         muda::DeviceBuffer<Vector3>   gradients;
-        muda::DeviceBuffer<Matrix3x3> m_hessians;
+        muda::DeviceBuffer<Matrix3x3> hessians;
 
         Float reserve_ratio = 1.1;
 

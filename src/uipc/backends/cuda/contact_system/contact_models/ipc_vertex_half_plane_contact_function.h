@@ -59,41 +59,5 @@ namespace sym::ipc_vertex_half_contact
 
         H = ddBddD * dDdx * dDdx.transpose() + dBdD * ddDddx;
     }
-
-    __device__ Float GIPC_ground_energy(
-        Float kappa, Float D_hat, const Vector3& v, const Vector3& P, const Vector3& N)
-    {
-        double dist  = N.dot(v) - P.y();
-        double dist2 = dist * dist;
-        return kappa * (-(dist2 - D_hat) * (dist2 - D_hat) * log(dist2 / D_hat));
-    }
-
-
-    __device__ void GIPC_ground_gradient_hessian(Vector3&       G,
-                                                 Matrix3x3&     H,
-                                                 Float          kappa,
-                                                 Float          D_hat,
-                                                 const Vector3& v,
-                                                 const Vector3& P,
-                                                 const Vector3& N)
-    {
-        double dist = N.dot(v) - P.y();
-
-        double dist2 = dist * dist;
-
-        double t   = dist2 - D_hat;
-        double g_b = t * log(dist2 / D_hat) * -2.0 - (t * t) / dist2;
-
-        double H_b = (log(dist2 / D_hat) * -2.0 - t * 4.0 / dist2)
-                     + 1.0 / (dist2 * dist2) * (t * t);
-
-        double param = 4.0 * H_b * dist2 + 2.0 * g_b;
-
-        MUDA_ASSERT(param > 0, "param=%f, why?", param);
-
-        G = N * kappa * g_b * 2 * dist;
-        H = N * N.transpose() * kappa * param;
-    }
-
 }  // namespace sym::ipc_vertex_half_contact
 }  // namespace uipc::backend::cuda

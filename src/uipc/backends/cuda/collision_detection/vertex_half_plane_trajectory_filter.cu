@@ -60,6 +60,11 @@ muda::CBufferView<Vector2i> VertexHalfPlaneTrajectoryFilter::PHs() noexcept
     return m_impl.PHs;
 }
 
+muda::CBufferView<Vector2i> VertexHalfPlaneTrajectoryFilter::friction_PHs() noexcept
+{
+    return m_impl.friction_PHs;
+}
+
 Float VertexHalfPlaneTrajectoryFilter::BaseInfo::d_hat() const noexcept
 {
     return m_impl->global_contact_manager->d_hat();
