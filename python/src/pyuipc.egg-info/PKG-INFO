@@ -229,3 +229,10 @@ License-File: LICENSE
 Requires-Dist: numpy
 Provides-Extra: gui
 Requires-Dist: polyscope; extra == "gui"
+
+# pyuipc
+
+The Python IPC Module
+
+- development install: `pip install --editable .`
+

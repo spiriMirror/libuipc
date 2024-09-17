@@ -1,9 +1,5 @@
-import sys 
 import os 
-import json
-import pathlib 
-import subprocess
-import ctypes
+import pathlib
 
 class AssetDir:
     this_file = pathlib.Path(os.path.dirname(__file__)).resolve()
@@ -34,4 +30,3 @@ class AssetDir:
     @staticmethod
     def folder(file):
         return pathlib.Path(file).absolute().parent
-
