@@ -106,8 +106,6 @@ class AffineBodyAnimator final : public Animator
         void init(backend::WorldVisitor& world);
         void step();
 
-        Float dt = 0.0;
-
         AffineBodyDynamics* affine_body_dynamics = nullptr;
         SimSystemSlotCollection<AffineBodyConstraint> constraints;
         unordered_map<U64, SizeT>                     uid_to_constraint_index;
@@ -150,7 +148,7 @@ class AffineBodyAnimator final : public Animator
     class ExtentInfo
     {
       public:
-        SizeT hessian_block_count;
+        SizeT hessian_block_count = 0;
     };
     void report_extent(ExtentInfo& info);  // only be called by ABDLinearSubsystem
     class AssembleInfo

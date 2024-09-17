@@ -18,7 +18,8 @@ class SimSystemSlot
     SimSystemSlot& operator=(const SimSystemSlot&) noexcept = default;
     SimSystemSlot& operator=(SimSystemSlot&&) noexcept      = default;
 
-    void register_subsystem(T& subsystem);
+    void              register_subsystem(T& subsystem);
+    SimSystemSlot<T>& operator=(T& subsystem) noexcept;
 
     T* const view() const noexcept;
     T* const operator->() const noexcept;

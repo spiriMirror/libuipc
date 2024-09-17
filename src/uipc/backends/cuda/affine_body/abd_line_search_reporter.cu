@@ -10,8 +10,11 @@ REGISTER_SIM_SYSTEM(ABDLineSearchReporter);
 
 void ABDLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
-    m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
-    m_impl.affine_body_animator = &require<AffineBodyAnimator>();
+
+    m_impl.affine_body_dynamics = require<AffineBodyDynamics>();
+    auto aba                    = find<AffineBodyAnimator>();
+    if(aba)
+        m_impl.affine_body_animator = *aba;
 }
 
 void ABDLineSearchReporter::do_record_start_point(LineSearcher::RecordInfo& info)

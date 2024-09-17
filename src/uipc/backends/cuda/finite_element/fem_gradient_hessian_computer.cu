@@ -15,9 +15,11 @@ REGISTER_SIM_SYSTEM(FEMGradientHessianComputer);
 
 void FEMGradientHessianComputer::do_build()
 {
-    m_impl.finite_element_method = &require<FiniteElementMethod>();
+    m_impl.finite_element_method = require<FiniteElementMethod>();
 
-    m_impl.finite_element_animator = find<FiniteElementAnimator>();
+    auto animator = find<FiniteElementAnimator>();
+    if(animator)
+        m_impl.finite_element_animator = *animator;
 
     auto& gradient_hessian_computer = require<GradientHessianComputer>();
     gradient_hessian_computer.on_compute_gradient_hessian(

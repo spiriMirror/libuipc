@@ -17,9 +17,9 @@ class FEMGradientHessianComputer final : public SimSystem
     {
       public:
         void compute_gradient_and_hessian(GradientHessianComputer::ComputeInfo& info);
-        FiniteElementMethod*       finite_element_method   = nullptr;
-        FiniteElementAnimator*     finite_element_animator = nullptr;
-        FiniteElementMethod::Impl& fem()
+        SimSystemSlot<FiniteElementMethod>   finite_element_method;
+        SimSystemSlot<FiniteElementAnimator> finite_element_animator;
+        FiniteElementMethod::Impl&           fem()
         {
             return finite_element_method->m_impl;
         }

@@ -10,8 +10,6 @@ REGISTER_SIM_SYSTEM(AffineBodyAnimator);
 void AffineBodyAnimator::do_build(BuildInfo& info)
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
-
-    m_impl.dt = world().scene().info()["dt"].get<Float>();
 }
 
 void AffineBodyAnimator::add_constraint(AffineBodyConstraint* constraint)

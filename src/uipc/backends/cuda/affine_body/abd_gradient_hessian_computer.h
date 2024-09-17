@@ -12,9 +12,9 @@ class ABDGradientHessianComputer final : public SimSystem
     class Impl
     {
       public:
-        AffineBodyDynamics*       affine_body_dynamics = nullptr;
-        AffineBodyAnimator*       affine_body_animator = nullptr;
-        AffineBodyDynamics::Impl& abd() noexcept;
+        SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
+        SimSystemSlot<AffineBodyAnimator> affine_body_animator;
+        AffineBodyDynamics::Impl&         abd() noexcept;
 
         void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);
     };

@@ -11,11 +11,15 @@ void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
 {
     m_impl.reduce_hessian = false;  // default false, because of low convert efficiency according to profiling
 
-    m_impl.affine_body_dynamics        = &require<AffineBodyDynamics>();
-    m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
+    m_impl.affine_body_dynamics        = require<AffineBodyDynamics>();
+    m_impl.affine_body_vertex_reporter = require<AffineBodyVertexReporter>();
 
-    m_impl.affine_body_animator        = find<AffineBodyAnimator>();
-    m_impl.abd_contact_receiver = find<ABDContactReceiver>();
+    auto aba = find<AffineBodyAnimator>();
+    if(aba)
+        m_impl.affine_body_animator = *aba;
+    auto contact = find<ABDContactReceiver>();
+    if(contact)
+        m_impl.abd_contact_receiver = *contact;
 }
 
 void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
@@ -135,7 +139,7 @@ void ABDLinearSubsystem::Impl::assemble_bodies()
         offset += count;
     }
 
-    // contact hessian
+    // contact gradient and hessian
     if(abd_contact_receiver)  // if contact is enabled
     {
         auto vertex_offset = affine_body_vertex_reporter->vertex_offset();
@@ -222,7 +226,7 @@ void ABDLinearSubsystem::Impl::assemble_bodies()
         offset += hessian_count;
     }
 
-    // animator hessian
+    // animator gradient and hessian
     if(affine_body_animator)
     {
         AffineBodyAnimator::AssembleInfo info;
@@ -311,7 +315,7 @@ void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
                 x = info.solution().viewer().name("x")] __device__(int i) mutable
                {
                    dq(i) = -x.segment<12>(i * 12).as_eigen();
-                   // cout << "solution dq: \n" << dq(i) << "\n";
+                   // cout << "solution dq("<< i << "):" << dq(i).transpose().eval() << "\n";
                });
 }
 }  // namespace uipc::backend::cuda

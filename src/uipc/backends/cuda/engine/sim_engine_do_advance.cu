@@ -214,7 +214,7 @@ void SimEngine::do_advance()
 
                 // 6) Check Termination Condition
                 // TODO: Maybe we can implement a class for termination condition in the future
-                if(newton_iter > 0 && res <= m_abs_tol || rel_tol <= 0.001)
+                if(res <= m_abs_tol || rel_tol <= 0.001)
                     break;
 
                 // 7) Begin Line Search

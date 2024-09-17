@@ -8,7 +8,7 @@
 
 namespace uipc::backend::cuda
 {
-class ABDLinearSubsystem : public DiagLinearSubsystem
+class ABDLinearSubsystem final: public DiagLinearSubsystem
 {
   public:
     using DiagLinearSubsystem::DiagLinearSubsystem;
@@ -24,18 +24,18 @@ class ABDLinearSubsystem : public DiagLinearSubsystem
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
-        AffineBodyDynamics*       affine_body_dynamics = nullptr;
-        AffineBodyDynamics::Impl& abd() noexcept
+        SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
+        AffineBodyDynamics::Impl&         abd() noexcept
         {
             return affine_body_dynamics->m_impl;
         }
-        ABDContactReceiver*       abd_contact_receiver = nullptr;
-        ABDContactReceiver::Impl& contact() noexcept
+        SimSystemSlot<ABDContactReceiver> abd_contact_receiver;
+        ABDContactReceiver::Impl&         contact() noexcept
         {
             return abd_contact_receiver->m_impl;
         }
-        AffineBodyVertexReporter* affine_body_vertex_reporter = nullptr;
-        AffineBodyAnimator*       affine_body_animator        = nullptr;
+        SimSystemSlot<AffineBodyVertexReporter> affine_body_vertex_reporter;
+        SimSystemSlot<AffineBodyAnimator>       affine_body_animator;
 
         Float reserve_ratio = 1.5;
 

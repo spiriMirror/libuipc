@@ -16,7 +16,7 @@ def process_surface(sc: SimplicialComplex):
     sc = flip_inward_triangles(sc)
     return sc
 
-Logger.set_level(Logger.Level.Info)
+Logger.set_level(Logger.Level.Warn)
 
 workspace = AssetDir.output_path(__file__)
 

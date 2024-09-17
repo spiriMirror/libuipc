@@ -72,6 +72,8 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
                                                        { return is_surf; });
                     geo_surf_triangles_counts[geoI] = count * body_count;
                 }
+
+                geoI++;
             });
     }
 
@@ -99,6 +101,10 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
 
     // 3) fill surf vertices, edges, triangles
     {
+        vector<IndexT> surf_vertex_cache;
+        vector<IndexT> surf_edge_cache;
+        vector<IndexT> surf_triangle_cache;
+
         SizeT geoI = 0;
         abd().for_each(
             geo_slots,
@@ -117,9 +123,12 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
                     UIPC_ASSERT(geo_surf_vertex_count % body_count == 0,
                                 "surf vertex count is not multiple of body count, why can it happen?");
 
-                    vector<IndexT> surf_vertex_cache;
+
                     // only need to cache the first body
-                    surf_vertex_cache.reserve(geo_surf_vertex_count / body_count);
+                    auto body_surf_vertex_count = geo_surf_vertex_count / body_count;
+
+                    surf_vertex_cache.clear();
+                    surf_vertex_cache.reserve(body_surf_vertex_count);
                     auto is_surf = sc.vertices().find<IndexT>(builtin::is_surf);
                     auto is_surf_view = is_surf->view();
 
@@ -128,13 +137,16 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
                         if(is_surf)
                             surf_vertex_cache.push_back(i);
                     }
-                    UIPC_ASSERT(surf_vertex_cache.size() == geo_surf_vertex_count / body_count,
-                                "surf vertex cache size is not correct");
+
+                    UIPC_ASSERT(surf_vertex_cache.size() == body_surf_vertex_count,
+                                "surf vertex cache size is not equal to body_surf_vertex_count, why can it happen?");
+
+                    auto body_vertex_count = geo_info.vertex_count / body_count;
 
                     for(auto i : range(body_count))
                     {
                         auto body_vertex_offset_in_global =
-                            geo_vertex_offset_in_global + i * geo_info.vertex_count;
+                            geo_vertex_offset_in_global + i * body_vertex_count;
 
                         auto surf_v = span{surf_vertices}.subspan(
                             geo_surf_vertex_offsets[geoI]
@@ -155,9 +167,12 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
                     UIPC_ASSERT(geo_surf_edge_count % body_count == 0,
                                 "surf edge count is not multiple of body count, why can it happen?");
 
-                    vector<IndexT> surf_edge_cache;
+
                     // only need to cache the first body
-                    surf_edge_cache.reserve(geo_surf_edge_count / body_count);
+                    auto body_surf_edge_count = geo_surf_edge_count / body_count;
+
+                    surf_edge_cache.clear();
+                    surf_edge_cache.reserve(body_surf_edge_count);
 
                     auto is_surf = sc.edges().find<IndexT>(builtin::is_surf);
                     auto is_surf_view = is_surf->view();
@@ -168,13 +183,15 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
                             surf_edge_cache.push_back(i);
                     }
 
-                    UIPC_ASSERT(surf_edge_cache.size() == geo_surf_edge_count / body_count,
-                                "surf edge cache size is not correct");
+                    UIPC_ASSERT(surf_edge_cache.size() == body_surf_edge_count,
+                                "surf edge cache size is not equal to body_surf_edge_count, why can it happen?");
+
+                    auto body_vertex_count = geo_info.vertex_count / body_count;
 
                     for(auto i : range(body_count))
                     {
                         auto body_vertex_offset_in_global =
-                            geo_vertex_offset_in_global + i * geo_info.vertex_count;
+                            geo_vertex_offset_in_global + i * body_vertex_count;
 
                         auto surf_e = span{surf_edges}.subspan(
                             geo_surf_edges_offsets[geoI] + i * surf_edge_cache.size(),
@@ -200,9 +217,11 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
                     UIPC_ASSERT(geo_surf_triangle_count % body_count == 0,
                                 "surf triangle count is not multiple of body count, why can it happen?");
 
-                    vector<IndexT> surf_triangle_cache;
                     // only need to cache the first body
-                    surf_triangle_cache.reserve(geo_surf_triangle_count / body_count);
+                    auto body_surf_triangle_count = geo_surf_triangle_count / body_count;
+
+                    surf_triangle_cache.clear();
+                    surf_triangle_cache.reserve(body_surf_triangle_count);
 
                     auto is_surf = sc.triangles().find<IndexT>(builtin::is_surf);
                     auto is_surf_view = is_surf->view();
@@ -213,13 +232,15 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
                             surf_triangle_cache.push_back(i);
                     }
 
-                    UIPC_ASSERT(surf_triangle_cache.size() == geo_surf_triangle_count / body_count,
-                                "surf triangle cache size is not correct");
+                    UIPC_ASSERT(surf_triangle_cache.size() == body_surf_triangle_count,
+                                "surf triangle cache size is not equal to body_surf_triangle_count, why can it happen?");
+
+                    auto body_vertex_count = geo_info.vertex_count / body_count;
 
                     for(auto i : range(body_count))
                     {
                         auto body_vertex_offset_in_global =
-                            geo_vertex_offset_in_global + i * geo_info.vertex_count;
+                            geo_vertex_offset_in_global + i * body_vertex_count;
 
                         auto surf_f = span{surf_triangles}.subspan(
                             geo_surf_triangles_offsets[geoI]

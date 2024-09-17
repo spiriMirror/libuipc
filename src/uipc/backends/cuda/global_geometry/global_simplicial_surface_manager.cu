@@ -120,7 +120,7 @@ void GlobalSimpicialSurfaceManager::Impl::_collect_codim_vertices()
     codim_vertex_flags.resize(surf_vertices.size());
 
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(surf_vertices.size(),
                [dim           = dim.cviewer().name("dim"),
                 surf_vertices = surf_vertices.viewer().name("surf_vertices"),

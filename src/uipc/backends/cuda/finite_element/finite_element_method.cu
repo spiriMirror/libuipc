@@ -12,12 +12,34 @@
 #include <uipc/common/json_eigen.h>
 #include <muda/ext/eigen/inverse.h>
 #include <ranges>
+#include <sim_engine.h>
 
 // constitutions
 #include <finite_element/fem_3d_constitution.h>
 #include <finite_element/codim_2d_constitution.h>
 #include <finite_element/codim_1d_constitution.h>
 #include <finite_element/codim_0d_constitution.h>
+
+
+namespace uipc::backend
+{
+template <>
+class backend::SimSystemCreator<cuda::FiniteElementMethod>
+{
+  public:
+    static U<cuda::FiniteElementMethod> create(SimEngine& engine)
+    {
+        auto  scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
+        auto& types = scene.constitution_tabular().types();
+        if(types.find(constitution::ConstitutionType::FiniteElement) == types.end())
+        {
+            return nullptr;
+        }
+        return uipc::make_unique<cuda::FiniteElementMethod>(engine);
+    }
+};
+}  // namespace uipc::backend
+
 
 bool operator<(const uipc::backend::cuda::FiniteElementMethod::DimUID& a,
                const uipc::backend::cuda::FiniteElementMethod::DimUID& b)
@@ -29,26 +51,9 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FiniteElementMethod);
 
-void FiniteElementMethod::add_constitution(FiniteElementConstitution* constitution)
-{
-    check_state(SimEngineState::BuildSystems, "add_constitution()");
-    m_impl.constitutions.register_subsystem(*constitution);
-}
-
-void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* constitution)
-{
-    check_state(SimEngineState::BuildSystems, "add_constitution()");
-    m_impl.extra_constitutions.register_subsystem(*constitution);
-}
-
 void FiniteElementMethod::do_build()
 {
     const auto& scene = world().scene();
-    auto&       types = scene.constitution_tabular().types();
-    if(types.find(constitution::ConstitutionType::FiniteElement) == types.end())
-    {
-        throw SimSystemException("No Finite Element Constitution found in the scene");
-    }
 
     m_impl.gravity = scene.info()["gravity"].get<Vector3>();
 
@@ -69,6 +74,18 @@ void FiniteElementMethod::do_build()
 
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });
+}
+
+void FiniteElementMethod::add_constitution(FiniteElementConstitution* constitution)
+{
+    check_state(SimEngineState::BuildSystems, "add_constitution()");
+    m_impl.constitutions.register_subsystem(*constitution);
+}
+
+void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* constitution)
+{
+    check_state(SimEngineState::BuildSystems, "add_constitution()");
+    m_impl.extra_constitutions.register_subsystem(*constitution);
 }
 
 void FiniteElementMethod::Impl::init(WorldVisitor& world)

@@ -19,6 +19,13 @@ void SimSystemSlot<T>::register_subsystem(T& subsystem)
 }
 
 template <typename T>
+SimSystemSlot<T>& SimSystemSlot<T>::operator=(T& subsystem) noexcept
+{
+    register_subsystem(subsystem);
+    return *this;
+}
+
+template <typename T>
 SimSystemSlot<T>::SimSystemSlot(T& subsystem) noexcept
     : m_subsystem(&subsystem)
 {

@@ -11,11 +11,15 @@ REGISTER_SIM_SYSTEM(FEMLinearSubsystem);
 
 void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
 {
-    m_impl.finite_element_method = &require<FiniteElementMethod>();
-    m_impl.finite_element_vertex_reporter = &require<FiniteElementVertexReporter>();
+    m_impl.finite_element_method = require<FiniteElementMethod>();
+    m_impl.finite_element_vertex_reporter = require<FiniteElementVertexReporter>();
 
-    m_impl.fem_contact_receiver    = find<FEMContactReceiver>();
-    m_impl.finite_element_animator = find<FiniteElementAnimator>();
+    auto contact = find<FEMContactReceiver>();
+    if(contact)
+        m_impl.fem_contact_receiver = *contact;
+    auto animator = find<FiniteElementAnimator>();
+    if(animator)
+        m_impl.finite_element_animator = *animator;
 
     m_impl.converter.reserve_ratio(1.1);
 }

@@ -18,8 +18,8 @@ class ABDLineSearchReporter final : public LineSearchReporter
         void step_forward(LineSearcher::StepInfo& info);
         void compute_energy(LineSearcher::EnergyInfo& info);
 
-        AffineBodyDynamics* affine_body_dynamics = nullptr;
-        AffineBodyAnimator* affine_body_animator = nullptr;
+        SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
+        SimSystemSlot<AffineBodyAnimator> affine_body_animator;
 
         AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
     };

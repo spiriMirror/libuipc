@@ -4,13 +4,16 @@ namespace uipc::backend::cuda
 {
 void FiniteElementConstraint::do_build()
 {
-    auto& fem_animator = require<FiniteElementAnimator>();
+
 
     auto all_uids = world().scene().constitution_tabular().uids();
     if(!std::binary_search(all_uids.begin(), all_uids.end(), uid()))
     {
-        throw SimSystemException(fmt::format("Requires Constraint UID={}", uid()));
+        throw SimSystemException(
+            fmt::format("{} requires Constraint UID={}", name(), uid()));
     }
+
+    auto& fem_animator = require<FiniteElementAnimator>();
 
     BuildInfo info;
     do_build(info);

@@ -49,7 +49,7 @@ int main()
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
         auto& default_contact = scene.contact_tabular().default_element();
-        scene.contact_tabular().default_model(0.05, 20.0_GPa);
+        scene.contact_tabular().default_model(0.01, 20.0_GPa);
 
         Float     scale = 1;
         Transform T     = Transform::Identity();
@@ -181,7 +181,7 @@ int main()
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
-    world.recover();
+    // world.recover();
 
     while(world.frame() < 1000)
     {

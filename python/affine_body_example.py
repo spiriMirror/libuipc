@@ -8,12 +8,16 @@ from pyuipc.world import *
 from pyuipc.engine import *
 from pyuipc.constitution import *
 from pyuipc.geometry import *
+from pyuipc_gui import SceneGUI
+from pyuipc import Logger
 
 def process_surface(sc: SimplicialComplex):
     label_surface(sc)
     label_triangle_orient(sc)
     sc = flip_inward_triangles(sc)
     return sc
+
+Logger.set_level(Logger.Level.Warn)
 
 workspace = AssetDir.output_path(__file__)
 
@@ -58,38 +62,30 @@ g = ground(0.0)
 object.geometries().create(g)
 
 sio = SceneIO(scene)
+sgui = SceneGUI(scene)
+
 world.init(scene)
 
 run = False
-use_gui = True
-if use_gui:
-    ps.init()
-    ps.set_ground_plane_mode('none')
-    s = sio.simplicial_surface()
-    v = s.positions().view()
-    t = s.triangles().topo().view()
-    mesh = ps.register_surface_mesh('obj', v.reshape(-1,3), t.reshape(-1,3))
-    mesh.set_edge_width(1.0)
-    def on_update():
-        global run
-        if(psim.Button("run & stop")):
-            run = not run
-            
-        if(run):
-            world.advance()
-            world.retrieve()
-            s = sio.simplicial_surface()
-            v = s.positions().view()
-            mesh.update_vertex_positions(v.reshape(-1,3))
-    
-    ps.set_user_callback(on_update)
-    ps.show()
-else:
-    # try recover from the previous state
-    sio.write_surface(f'{workspace}/scene_surface{0}.obj')
-    world.recover()
-    while(world.frame() < 1000):
+ps.init()
+ps.set_ground_plane_mode('none')
+s = sio.simplicial_surface()
+
+ssio = SpreadSheetIO(workspace)
+ssio.write_csv('surf', s)
+
+mesh, _, _ = sgui.register()
+mesh.set_edge_width(1.0)
+def on_update():
+    global run
+    if(psim.Button('run & stop')):
+        run = not run
+        
+    if(run):
         world.advance()
         world.retrieve()
-        sio.write_surface(f'{workspace}/scene_surface{world.frame()}.obj')
-        world.dump()
+        sgui.update()
+        
+ps.set_user_callback(on_update)
+ps.show()
+

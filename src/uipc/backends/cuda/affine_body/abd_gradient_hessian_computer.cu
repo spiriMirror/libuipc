@@ -1,6 +1,8 @@
 #include <affine_body/abd_gradient_hessian_computer.h>
 #include <affine_body/affine_body_constitution.h>
 #include <muda/ext/eigen/evd.h>
+#include <muda/ext/eigen/log_proxy.h>
+#include <kernel_cout.h>
 
 namespace uipc::backend::cuda
 {
@@ -8,8 +10,10 @@ REGISTER_SIM_SYSTEM(ABDGradientHessianComputer);
 
 void ABDGradientHessianComputer::do_build()
 {
-    m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
-    m_impl.affine_body_animator = find<AffineBodyAnimator>();
+    m_impl.affine_body_dynamics = require<AffineBodyDynamics>();
+    auto aba                    = find<AffineBodyAnimator>();
+    if(aba)
+        m_impl.affine_body_animator = *aba;
 
     auto& gradient_hessian_computer = require<GradientHessianComputer>();
     // Register the action to compute the gradient and hessian
@@ -72,12 +76,15 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
                 m_hessians = body_id_to_body_hessian.viewer().name("hessians"),
                 gradients = body_id_to_body_gradient.viewer().name("gradients")] __device__(int i) mutable
                {
-                   const auto& q = qs(i);
-                   auto&       H = m_hessians(i);
-                   auto&       G = gradients(i);
-                   const auto& M = masses(i);
+                   const auto& q       = qs(i);
+                   const auto& q_tilde = q_tildes(i);
+                   auto&       H       = m_hessians(i);
+                   auto&       G       = gradients(i);
+                   const auto& M       = masses(i);
+
 
                    // cout << "q(" << i << ")=" << q.transpose().eval() << "\n";
+                   // cout << "q_tilde(" << i << ")=" << q_tilde.transpose().eval() << "\n";
 
                    if(is_fixed(i))
                    {
@@ -86,8 +93,6 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
                    }
                    else
                    {
-                       const auto& q_tilde = q_tildes(i);
-
                        const auto& K = Ks(i);
                        G += M * (q - q_tilde);
                        H += M.to_mat();

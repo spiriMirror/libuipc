@@ -14,7 +14,26 @@
 #include <muda/ext/eigen/log_proxy.h>
 #include <muda/ext/eigen/evd.h>
 #include <fstream>
+#include <sim_engine.h>
 
+namespace uipc::backend
+{
+template <>
+class backend::SimSystemCreator<cuda::AffineBodyDynamics>
+{
+  public:
+    static U<cuda::AffineBodyDynamics> create(SimEngine& engine)
+    {
+        auto  scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
+        auto& types = scene.constitution_tabular().types();
+        if(types.find(constitution::ConstitutionType::AffineBody) == types.end())
+        {
+            return nullptr;
+        }
+        return uipc::make_unique<cuda::AffineBodyDynamics>(engine);
+    }
+};
+}  // namespace uipc::backend
 
 namespace uipc::backend::cuda
 {
@@ -22,13 +41,6 @@ REGISTER_SIM_SYSTEM(AffineBodyDynamics);
 
 void AffineBodyDynamics::do_build()
 {
-    const auto& scene = world().scene();
-    auto&       types = scene.constitution_tabular().types();
-    if(types.find(constitution::ConstitutionType::AffineBody) == types.end())
-    {
-        throw SimSystemException("No AffineBodyConstitution found in the scene");
-    }
-
     // find dependent systems
     auto& dof_predictor = require<DoFPredictor>();
 
@@ -450,7 +462,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
     // 6) setup the affine body gravity
     {
-        span Js = h_vertex_id_to_J;
+        span Js          = h_vertex_id_to_J;
+        span vertex_mass = h_vertex_id_to_mass;
 
         Vector3 gravity = scene.info()["gravity"];
         h_body_id_to_abd_gravity.resize(abd_body_count, Vector12::Zero());
@@ -462,15 +475,11 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                      {
                          auto vert_count  = sc.vertices().size();
                          auto vert_offset = geo_infos[geoI].vertex_offset;
-                         auto vertex_mass = sc.vertices().find<Float>(builtin::mass);
-                         UIPC_ASSERT(vertex_mass, "The mass attribute is not found in the affine body geometry, why can it happen?");
-                         auto vertex_mass_view = vertex_mass->view();
-                         auto body_count       = sc.instances().size();
-                         auto body_offset      = geo_infos[geoI].body_offset;
+                         auto body_count  = sc.instances().size();
+                         auto body_offset = geo_infos[geoI].body_offset;
 
                          auto sub_Js = Js.subspan(vert_offset, vert_count);
-                         auto sub_mass = vertex_mass_view.subspan(vert_offset, vert_count);
-
+                         auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
 
                          Vector12 G = Vector12::Zero();
                          for(auto&& [m, J] : zip(sub_mass, sub_Js))
@@ -487,6 +496,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
                              h_body_id_to_abd_gravity[body_id] = g;
                          }
+
+                         geoI++;
                      });
         }
     }
