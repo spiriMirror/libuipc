@@ -1,2 +1,0 @@
-pyuipc_loader
-pyuipc_utils
