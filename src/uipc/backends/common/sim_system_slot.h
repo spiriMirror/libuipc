@@ -31,9 +31,8 @@ class SimSystemSlot
 
     SimSystemSlot(T& subsystem) noexcept;
 
-    void         lazy_init() const;
-    mutable bool built       = false;
-    mutable T*   m_subsystem = nullptr;
+    void       lazy_init() const;
+    mutable T* m_subsystem = nullptr;
 };
 
 template <typename T>

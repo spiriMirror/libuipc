@@ -9,9 +9,7 @@ void VertexHalfPlaneNormalContact::do_build()
 {
     m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
     m_impl.global_contact_manager   = require<GlobalContactManager>();
-    m_impl.global_vertex_manager    = require<GlobalVertexManager>();
-    m_impl.veretx_half_plane_trajectory_filter =
-        require<VertexHalfPlaneTrajectoryFilter>();
+    m_impl.global_vertex_manager = require<GlobalVertexManager>();
 
     BuildInfo info;
     do_build(info);
@@ -19,12 +17,12 @@ void VertexHalfPlaneNormalContact::do_build()
     m_impl.global_contact_manager->add_reporter(this);
     m_impl.dt = world().scene().info()["dt"].get<Float>();
 
-    //on_init_scene(
-    //    [this]
-    //    {
-    //        m_impl.veretx_half_plane_trajectory_filter =
-    //            m_impl.global_trajectory_filter->find<VertexHalfPlaneTrajectoryFilter>();
-    //    });
+    on_init_scene(
+        [this]
+        {
+            m_impl.veretx_half_plane_trajectory_filter =
+                m_impl.global_trajectory_filter->find<VertexHalfPlaneTrajectoryFilter>();
+        });
 }
 
 void VertexHalfPlaneNormalContact::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
@@ -143,6 +141,11 @@ muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::prev_position
 muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::rest_positions() const
 {
     return m_impl->global_vertex_manager->rest_positions();
+}
+
+muda::CBufferView<Float> VertexHalfPlaneNormalContact::BaseInfo::thicknesses() const
+{
+    return m_impl->global_vertex_manager->thicknesses();
 }
 
 muda::CBufferView<IndexT> VertexHalfPlaneNormalContact::BaseInfo::contact_element_ids() const

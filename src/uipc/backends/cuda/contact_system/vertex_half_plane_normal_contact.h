@@ -29,6 +29,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         muda::CBufferView<Vector3>        positions() const;
         muda::CBufferView<Vector3>        prev_positions() const;
         muda::CBufferView<Vector3>        rest_positions() const;
+        muda::CBufferView<Float>          thicknesses() const;
         muda::CBufferView<IndexT>         contact_element_ids() const;
         Float                             d_hat() const;
         Float                             dt() const;

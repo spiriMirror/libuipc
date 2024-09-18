@@ -1,5 +1,7 @@
 #pragma once
 #include <type_define.h>
+#include <uipc/common/config.h>
+#include <muda/tools/debug_log.h>
 
 namespace uipc::backend::cuda
 {

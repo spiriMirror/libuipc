@@ -24,8 +24,9 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
         }
 
         muda::CBuffer2DView<ContactCoeff> contact_tabular() const;
-        muda::CBufferView<Vector2i>       PHs() const;
+        muda::CBufferView<Vector2i>       friction_PHs() const;
         muda::CBufferView<Vector3>        positions() const;
+        muda::CBufferView<Float>          thicknesses() const;
         muda::CBufferView<Vector3>        prev_positions() const;
         muda::CBufferView<Vector3>        rest_positions() const;
         muda::CBufferView<IndexT>         contact_element_ids() const;

@@ -90,6 +90,11 @@ muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::positions(
     return m_impl->global_vertex_manager->positions();
 }
 
+muda::CBufferView<Float> VertexHalfPlaneTrajectoryFilter::BaseInfo::thicknesses() const noexcept
+{
+    return m_impl->global_vertex_manager->thicknesses();
+}
+
 muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::surf_vertices() const noexcept
 {
     return m_impl->global_simplicial_surface_manager->surf_vertices();

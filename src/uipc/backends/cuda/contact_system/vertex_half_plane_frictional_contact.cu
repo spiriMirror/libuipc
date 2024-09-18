@@ -7,18 +7,30 @@ namespace uipc::backend::cuda
 {
 void VertexHalfPlaneFrictionalContact::do_build()
 {
+    bool enable = world().scene().info()["contact"]["friction"]["enable"].get<bool>();
+
+    if(!enable)
+    {
+        throw SimSystemException("Frictional contact is disabled");
+    }
+
     m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
     m_impl.global_contact_manager   = require<GlobalContactManager>();
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
-    m_impl.veretx_half_plane_trajectory_filter =
-        require<VertexHalfPlaneTrajectoryFilter>();
-    
+
     m_impl.dt = world().scene().info()["dt"].get<Float>();
 
     BuildInfo info;
     do_build(info);
 
     m_impl.global_contact_manager->add_reporter(this);
+
+    on_init_scene(
+        [this]
+        {
+            m_impl.veretx_half_plane_trajectory_filter =
+                m_impl.global_trajectory_filter->find<VertexHalfPlaneTrajectoryFilter>();
+        });
 }
 
 void VertexHalfPlaneFrictionalContact::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
@@ -119,14 +131,19 @@ muda::CBuffer2DView<ContactCoeff> VertexHalfPlaneFrictionalContact::BaseInfo::co
     return m_impl->global_contact_manager->contact_tabular();
 }
 
-muda::CBufferView<Vector2i> VertexHalfPlaneFrictionalContact::BaseInfo::PHs() const
+muda::CBufferView<Vector2i> VertexHalfPlaneFrictionalContact::BaseInfo::friction_PHs() const
 {
-    return m_impl->veretx_half_plane_trajectory_filter->PHs();
+    return m_impl->veretx_half_plane_trajectory_filter->friction_PHs();
 }
 
 muda::CBufferView<Vector3> VertexHalfPlaneFrictionalContact::BaseInfo::positions() const
 {
     return m_impl->global_vertex_manager->positions();
+}
+
+muda::CBufferView<Float> VertexHalfPlaneFrictionalContact::BaseInfo::thicknesses() const
+{
+    return m_impl->global_vertex_manager->thicknesses();
 }
 
 muda::CBufferView<Vector3> VertexHalfPlaneFrictionalContact::BaseInfo::prev_positions() const
