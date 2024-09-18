@@ -1,22 +1,34 @@
+import pytest 
 import numpy as np
+import math 
+import os 
+import pathlib
 import polyscope as ps
 import polyscope.imgui as psim
-import os
-import pathlib
-import math
-from pyuipc_loader import pyuipc
-from pyuipc_loader import AssetDir
-from pyuipc import Vector3, Matrix4x4, Logger
-from pyuipc import builtin
-from pyuipc.world import *
-from pyuipc.engine import *
-from pyuipc.constitution import *
-from pyuipc.geometry import *
-from pyuipc_gui import SceneGUI
+from pyuipc_loader import pyuipc as uipc
+from pyuipc_loader import \
+    Engine, World, Scene, SceneIO \
+    ,Object, ContactElement, Animation
+
+from asset import AssetDir
+
+from pyuipc_utils.geometry import \
+    SimplicialComplex, SimplicialComplexIO \
+    ,SimplicialComplexSlot \
+    ,SpreadSheetIO \
+    ,label_surface, label_triangle_orient\
+    ,ground, view, linemesh
+
+from pyuipc_utils.constitution import \
+    StableNeoHookean, AffineBodyConstitution, ElasticModuli, \
+    SoftPositionConstraint, HookeanSpring
+
+from pyuipc_utils.gui import SceneGUI
 
 def process_surface(sc: SimplicialComplex):
     label_surface(sc)
     return sc
+
 
 class Yarns:
     def __init__(self, path) -> None:
@@ -24,7 +36,7 @@ class Yarns:
         f = open(path, 'r')
         for line in f:
             x, y, z = line.split(',')
-            self.positions.append(Vector3.Values([float(x), float(y), float(z)]))
+            self.positions.append(uipc.Vector3.Values([float(x), float(y), float(z)]))
         f.close()
         self.positions = np.array(self.positions, dtype=np.float32)
         self.yarn_time_step = (self.positions[1][1] - self.positions[0][1])[0]
@@ -33,14 +45,14 @@ class Yarns:
         self.last_t = 0.0
     
     def create_geometry(self, object: Object, 
-                        spc:SoftPositionConstraint, 
+                        spc: SoftPositionConstraint, 
                         hs:HookeanSpring,
                         contact_element:ContactElement,
                         segment_height, count, thickness):
         start_point = self.positions[0]
         Vs = []
         for i in range(count):
-            Vs.append(start_point + Vector3.Values([0, i * segment_height, 0]))
+            Vs.append(start_point + uipc.Vector3.Values([0, i * segment_height, 0]))
         Vs = np.array(Vs, dtype=np.float32)
         
         Es = []
@@ -53,7 +65,7 @@ class Yarns:
         contact_element.apply_to(mesh)
         hs.apply_to(mesh, 1e9, 1e3, thickness)
         
-        is_constrained = mesh.vertices().find(builtin.is_constrained)
+        is_constrained = mesh.vertices().find(uipc.builtin.is_constrained)
         is_constrained_view = view(is_constrained)
         is_constrained_view[0] = 1 # constrain the first point
         is_constrained_view[-1] = 1 # constrain the last point
@@ -81,7 +93,7 @@ class Yarns:
     
     def move(self, geo:SimplicialComplex, dt:float, move_up_speed = 0.2):
         pos = self.next_position(dt)
-        aim_pos = geo.vertices().find(builtin.aim_position)
+        aim_pos = geo.vertices().find(uipc.builtin.aim_position)
         aim_pos_view = view(aim_pos)
         aim_pos_view[0] = pos
         aim_pos_view[-1][1]+= dt * move_up_speed
@@ -112,60 +124,62 @@ class Braider:
             yarn.create_geometry(self.object, spc, hs, ce, segment_len, count, thickness)
     
     def create_animation(self, scene: Scene, dt = 0.01, move_up_speed = 0.2):
-        def anim(info:Animation.UpdateInfo):
+        def anim(info: Animation.UpdateInfo):
             geo_slots:list[SimplicialComplexSlot] = info.geo_slots()
             for slot, yarns in zip(geo_slots, self.yarns):
                 geo = slot.geometry()
                 yarns.move(geo, dt, move_up_speed)
             pass
         scene.animator().insert(self.object, anim)
-        
 
-Logger.set_level(Logger.Level.Warn)
 
-workspace = AssetDir.output_path(__file__)
+run = False 
+ 
+@pytest.mark.example 
+def test_animated_yarns():
+    uipc.Logger.set_level(uipc.Logger.Level.Warn)
 
-engine = Engine("cuda", workspace)
-world = World(engine)
+    workspace = AssetDir.output_path(__file__)
 
-config = Scene.default_config()
-config['gravity'] = Vector3.Values([0, 0, 0]).tolist()
-config['contact']['friction']['enable'] = False
-print(config)
+    engine = Engine("cuda", workspace)
+    world = World(engine)
 
-scene = Scene(config)
+    config = Scene.default_config()
+    config['gravity'] = uipc.Vector3.Values([0, 0, 0]).tolist()
+    config['contact']['friction']['enable'] = False
+    print(config)
 
-scene.contact_tabular().default_model(0.5, 1e9)
+    scene = Scene(config)
 
-thickness = 0.05
-braider = Braider("yarns")
-braider.create_geometries(scene, segment_len=0.2, count=20, thickness=thickness)
-braider.create_animation(scene, move_up_speed=0)
+    scene.contact_tabular().default_model(0.5, 1e9)
 
-world.init(scene)
+    thickness = 0.05
+    braider = Braider("yarns")
+    braider.create_geometries(scene, segment_len=0.2, count=20, thickness=thickness)
+    braider.create_animation(scene, move_up_speed=0)
 
-sgui = SceneGUI(scene)
+    world.init(scene)
 
-sio = SceneIO(scene)
-# sio.write_surface(f'{workspace}/scene_surface{0}.obj')
+    sgui = SceneGUI(scene)
 
-run = False
+    sio = SceneIO(scene)
+    # sio.write_surface(f'{workspace}/scene_surface{0}.obj')
 
-ps.init()
-ps.set_ground_plane_height(-1.2)
-_, mesh, _ = sgui.register()
-mesh.set_radius(thickness, False)
+    ps.init()
+    ps.set_ground_plane_height(-1.2)
+    _, mesh, _ = sgui.register()
+    mesh.set_radius(thickness, False)
 
-def on_update():
-    global run
-    if(psim.Button("run & stop")):
-        run = not run
-        
-    if(run):
-        world.advance()
-        world.retrieve()
-        sgui.update()
-        # sio.write_surface(f'{workspace}/scene_surface{world.frame()}.obj')
+    def on_update():
+        global run
+        if(psim.Button("run & stop")):
+            run = not run
+            
+        if(run):
+            world.advance()
+            world.retrieve()
+            sgui.update()
+            # sio.write_surface(f'{workspace}/scene_surface{world.frame()}.obj')
 
-ps.set_user_callback(on_update)
-ps.show()
+    ps.set_user_callback(on_update)
+    ps.show()

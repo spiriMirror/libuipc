@@ -11,6 +11,7 @@
 #include <pyuipc/constitution/soft_position_constraint.h>
 #include <pyuipc/constitution/finite_element_extra_constitution.h>
 #include <pyuipc/constitution/kirchhoff_rod_bending.h>
+#include <pyuipc/constitution/soft_transform_constraint.h>
 
 namespace pyuipc::constitution
 {
@@ -36,5 +37,6 @@ Module::Module(py::module& m)
 
     // Constraints
     PySoftPositionConstraint{m};
+    PySoftTransformConstraint{m};
 }
 }  // namespace pyuipc::constitution
