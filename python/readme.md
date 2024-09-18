@@ -13,7 +13,7 @@ Prerequist useful tools:
 
 ## Development
 
-- development install: `pip install --e .` install pyuipc package in editable mode, then you can dynamically change code in `src/pyuipc` and check them with `tests`
+- development install: `pip install -e .` install pyuipc package in editable mode, then you can dynamically change code in `src/pyuipc` and check them with `tests`
 - run tests: `pytest`
 - run specific example: `pytest tests/test_abd_fem.py`
 
