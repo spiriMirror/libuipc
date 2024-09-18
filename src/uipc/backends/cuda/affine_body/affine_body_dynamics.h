@@ -24,38 +24,37 @@ class AffineBodyDynamics : public SimSystem
 
     class Impl;
 
-    class BodyInfo
+    class GeoInfo
     {
       public:
-        U64    constitution_uid() const noexcept;
-        IndexT geometry_slot_index() const noexcept;
-        IndexT geometry_instance_index() const noexcept;
-        IndexT abd_geometry_index() const noexcept;
-        IndexT affine_body_id() const noexcept;
-        IndexT vertex_offset() const noexcept;
-        IndexT vertex_count() const noexcept;
+        IndexT geo_slot_index     = -1;
+        U64    constitution_uid   = 0;
+        U64    constitution_index = 0;
 
-      private:
-        friend class Impl;
-        U64    m_constitution_uid   = 0ull;
-        IndexT m_constitution_index = -1;
+        SizeT vertex_offset = 0;
+        SizeT vertex_count  = 0;
 
-        IndexT m_geometry_slot_index     = -1;
-        IndexT m_geometry_instance_index = -1;
+        SizeT body_offset = 0;
+        SizeT body_count  = 0;
+    };
 
-        IndexT m_abd_geometry_index = -1;
-        IndexT m_affine_body_id     = -1;
+    class ConstitutionInfo
+    {
+      public:
+        SizeT geo_offset = 0;
+        SizeT geo_count  = 0;
 
-        IndexT m_vertex_offset = -1;
-        IndexT m_vertex_count  = -1;
+        SizeT body_offset = 0;
+        SizeT body_count  = 0;
+
+        SizeT vertex_offset = 0;
+        SizeT vertex_count  = 0;
     };
 
     class FilteredInfo
     {
       public:
-        FilteredInfo(Impl* impl) noexcept;
-
-        span<const BodyInfo> body_infos() const noexcept;
+        FilteredInfo(Impl* impl, SizeT constitution_index) noexcept;
 
         /**
          * @brief Short-cut to traverse all bodies of current constitution.
@@ -64,12 +63,21 @@ class AffineBodyDynamics : public SimSystem
          * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
          */
         template <typename ViewGetterF, typename ForEachF>
-        void for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
-                           ViewGetterF&&                   getter,
-                           ForEachF&&                      for_each) const;
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ViewGetterF&&                   getter,
+                      ForEachF&&                      for_each) const;
 
-        static geometry::SimplicialComplex& geometry(span<S<geometry::GeometrySlot>> geo_slots,
-                                                     const BodyInfo& body_info);
+        template <typename ForEachGeomatry>
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ForEachGeomatry&&               for_every_geometry) const;
+
+        span<const GeoInfo> geo_infos() const noexcept;
+
+        const ConstitutionInfo& constitution_info() const noexcept;
+
+        SizeT body_count() const noexcept;
+
+        SizeT vertex_count() const noexcept;
 
       private:
         friend class Impl;
@@ -118,10 +126,6 @@ class AffineBodyDynamics : public SimSystem
         Impl*                         m_impl = nullptr;
     };
 
-    void add_constitution(AffineBodyConstitution* constitution);
-
-    // void after_build_geometry(SimSystem& sim_system, std::function<void()>&& action);
-
   protected:
     virtual void do_build() override;
 
@@ -135,13 +139,14 @@ class AffineBodyDynamics : public SimSystem
     {
       public:
         void init(WorldVisitor& world);
-        // void _build_subsystems(WorldVisitor& world);
-        void _build_body_infos(WorldVisitor& world);
-        void _build_related_infos(WorldVisitor& world);
+
+        void _build_constitutions(WorldVisitor& world);
+        void _build_geo_infos(WorldVisitor& world);
+
         void _setup_geometry_attributes(WorldVisitor& world);
         void _build_geometry_on_host(WorldVisitor& world);
         void _build_geometry_on_device(WorldVisitor& world);
-        void _distribute_body_infos();
+        void _distribute_geo_infos();
 
         void write_scene(WorldVisitor& world);
         void _download_geometry_to_host();
@@ -154,42 +159,46 @@ class AffineBodyDynamics : public SimSystem
         void apply_recover(RecoverInfo& info);
         void clear_recover(RecoverInfo& info);
 
-
-        // util functions
-        static geometry::SimplicialComplex& geometry(span<S<geometry::GeometrySlot>> geo_slots,
-                                                     const BodyInfo& body_info);
+        template <typename ViewGetterF, typename ForEachF>
+        static void _for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                              span<const GeoInfo>             geo_infos,
+                              ViewGetterF&&                   getter,
+                              ForEachF&&                      for_each);
 
         /*
-        * @brief Short-cut to traverse all bodies of current constitution.
-        * 
-        * @param getter f: `span<T>(SimplicialComplex&)` or `span<const T>(SimplicialComplex&)`
-        * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
-        */
+         * @brief Short-cut to traverse all bodies of current constitution.
+         * 
+         * @param getter f: `span<T>(SimplicialComplex&)` or `span<const T>(SimplicialComplex&)`
+         * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
+         */
         template <typename ViewGetterF, typename ForEachF>
-        void for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
-                           ViewGetterF&&                   getter,
-                           ForEachF&&                      for_each);
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ViewGetterF&&                   getter,
+                      ForEachF&&                      for_each);
 
+        template <typename ForEachGeomatry>
+        static void _for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                              span<const GeoInfo>             geo_infos,
+                              ForEachGeomatry&& for_every_geometry);
 
-        SizeT body_count() const noexcept { return h_body_infos.size(); }
+        template <typename ForEachGeomatry>
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ForEachGeomatry&&               for_every_geometry);
 
-      public:
+        SizeT geo_count() const noexcept { return abd_geo_count; }
+        SizeT body_count() const noexcept { return abd_body_count; }
+        SizeT vertex_count() const noexcept { return abd_vertex_count; }
+
         SimSystemSlotCollection<AffineBodyConstitution> constitutions;
+        unordered_map<U64, IndexT> constitution_uid_to_index;
 
-        // core invariant data
-        vector<BodyInfo> h_body_infos;
-
-        // related cache of `h_body_infos`
         SizeT abd_geo_count    = 0;
         SizeT abd_body_count   = 0;
         SizeT abd_vertex_count = 0;
 
-        vector<SizeT> h_constitution_geo_offsets;
-        vector<SizeT> h_constitution_geo_counts;
-        vector<SizeT> h_abd_geo_body_offsets;
-        vector<SizeT> h_abd_geo_body_counts;
-        vector<SizeT> h_constitution_body_offsets;
-        vector<SizeT> h_constitution_body_counts;
+        // core invariant data
+        vector<GeoInfo>          geo_infos;
+        vector<ConstitutionInfo> constitution_infos;
 
 
         /******************************************************************************
@@ -349,6 +358,9 @@ class AffineBodyDynamics : public SimSystem
     }
 
   private:
+    friend class AffineBodyConstitution;
+    void add_constitution(AffineBodyConstitution* constitution);  // only be called by AffineBodyConstitution
+
     friend class AffineBodyVertexReporter;
     friend class AffinebodySurfaceReporter;
 
@@ -358,6 +370,7 @@ class AffineBodyDynamics : public SimSystem
 
     friend class AffineBodyConstitution;
     friend class ABDGradientHessianComputer;
+    friend class AffineBodyAnimator;
 
     Impl m_impl;
 };

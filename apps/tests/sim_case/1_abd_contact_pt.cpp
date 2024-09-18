@@ -24,6 +24,7 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     auto config       = Scene::default_config();
     config["gravity"] = Vector3{0, -9.8, 0};
     config["contact"]["friction"]["enable"] = false;
+    config["line_search"]["report_energy"] = true;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));

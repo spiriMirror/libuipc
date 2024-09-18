@@ -11,11 +11,15 @@ REGISTER_SIM_SYSTEM(FEMLinearSubsystem);
 
 void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
 {
-    m_impl.finite_element_method = &require<FiniteElementMethod>();
-    m_impl.finite_element_vertex_reporter = &require<FiniteElementVertexReporter>();
+    m_impl.finite_element_method = require<FiniteElementMethod>();
+    m_impl.finite_element_vertex_reporter = require<FiniteElementVertexReporter>();
 
-    m_impl.fem_contact_receiver    = find<FEMContactReceiver>();
-    m_impl.finite_element_animator = find<FiniteElementAnimator>();
+    auto contact = find<FEMContactReceiver>();
+    if(contact)
+        m_impl.fem_contact_receiver = *contact;
+    auto animator = find<FiniteElementAnimator>();
+    if(animator)
+        m_impl.finite_element_animator = *animator;
 
     m_impl.converter.reserve_ratio(1.1);
 }
@@ -64,7 +68,7 @@ namespace detail
     template <int N>
     __device__ void fill_gradient(muda::DenseVectorViewer<Float>& g,
                                   const Vector<Float, 3 * N>&     G3N,
-                                  const Vector<IndexT, N>&         indices,
+                                  const Vector<IndexT, N>&        indices,
                                   muda::CDense1D<IndexT>&         is_fixed)
         requires(N >= 2)
     {
@@ -83,7 +87,7 @@ namespace detail
     __device__ void fill_hessian(IndexT                               I,
                                  muda::TripletMatrixViewer<Float, 3>& H3x3,
                                  const Matrix<Float, 3 * N, 3 * N>&   H3Nx3N,
-                                 const Vector<IndexT, N>&              indices,
+                                 const Vector<IndexT, N>&             indices,
                                  muda::CDense1D<IndexT>&              is_fixed)
         requires(N >= 2)
     {
@@ -110,7 +114,7 @@ namespace detail
     __device__ void fill_diag_hessian(muda::Dense1D<Matrix3x3>&          diag,
                                       const Matrix<Float, 3 * N, 3 * N>& H3Nx3N,
                                       const Vector<IndexT, N>& indices,
-                                      muda::CDense1D<IndexT>& is_fixed)
+                                      muda::CDense1D<IndexT>&  is_fixed)
         requires(N >= 2)
     {
 #pragma unroll
@@ -427,15 +431,13 @@ void FEMLinearSubsystem::Impl::_assemble_animation(GlobalLinearSystem::DiagInfo&
     if(finite_element_animator)
     {
         FiniteElementAnimator::AssembleInfo this_info;
-        this_info.hessians =
-            info.hessian().subview(animator_hessian_offset, animator_hessian_count);
         finite_element_animator->assemble(this_info);
 
         // setup gradient
         ParallelFor()
             .kernel_name(__FUNCTION__)
-            .apply(this_info.gradients.doublet_count(),
-                   [anim_gradients = this_info.gradients.cviewer().name("gradients"),
+            .apply(this_info.gradients().doublet_count(),
+                   [anim_gradients = this_info.gradients().cviewer().name("gradients"),
                     gradient = info.gradient().viewer().name("gradient"),
                     is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
                    {
@@ -455,8 +457,8 @@ void FEMLinearSubsystem::Impl::_assemble_animation(GlobalLinearSystem::DiagInfo&
             info.hessian().subview(animator_hessian_offset, animator_hessian_count);
         ParallelFor()
             .kernel_name(__FUNCTION__)
-            .apply(this_info.hessians.triplet_count(),
-                   [anim_hessians = this_info.hessians.cviewer().name("hessians"),
+            .apply(this_info.hessians().triplet_count(),
+                   [anim_hessians = this_info.hessians().cviewer().name("hessians"),
                     hessian      = dst_hessian.viewer().name("hessian"),
                     is_fixed     = fem().is_fixed.cviewer().name("is_fixed"),
                     diag_hessian = fem().diag_hessians.viewer().name(

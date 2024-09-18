@@ -2,9 +2,9 @@
 
 namespace uipc::backend::cuda
 {
-void Codim0DConstitution::retrieve(FiniteElementMethod::Codim0DFilteredInfo& info)
+void Codim0DConstitution::init(FiniteElementMethod::Codim0DFilteredInfo& info)
 {
-    do_retrieve(info);
+    do_init(info);
 }
 
 void Codim0DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)

@@ -24,19 +24,19 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
-        FiniteElementMethod*       finite_element_method = nullptr;
-        FiniteElementMethod::Impl& fem() noexcept
+        SimSystemSlot<FiniteElementMethod> finite_element_method;
+        FiniteElementMethod::Impl&         fem() noexcept
         {
             return finite_element_method->m_impl;
         }
-        FEMContactReceiver*       fem_contact_receiver = nullptr;
-        FEMContactReceiver::Impl& contact() noexcept
+        SimSystemSlot<FEMContactReceiver> fem_contact_receiver;
+        FEMContactReceiver::Impl&         contact() noexcept
         {
             return fem_contact_receiver->m_impl;
         }
-        FiniteElementVertexReporter* finite_element_vertex_reporter = nullptr;
-        FiniteElementAnimator*       finite_element_animator        = nullptr;
-        FiniteElementAnimator::Impl& animator() noexcept
+        SimSystemSlot<FiniteElementVertexReporter> finite_element_vertex_reporter;
+        SimSystemSlot<FiniteElementAnimator> finite_element_animator;
+        FiniteElementAnimator::Impl&         animator() noexcept
         {
             return finite_element_animator->m_impl;
         }

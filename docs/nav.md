@@ -2,6 +2,7 @@
 - [Tutorial](tutorial/index.md)
     - [Geometry](tutorial/geometry.md)
     - [Scene](tutorial/scene.md)
+    - [Animation](tutorial/animation.md)
 - [Specification](specification/index.md)
     - [Implicit Geometry UID](specification/implicit_geometry_uid.md)
     - [Implicit Geometries](specification/implicit_geometries/)

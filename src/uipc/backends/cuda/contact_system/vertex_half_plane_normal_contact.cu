@@ -1,14 +1,15 @@
 #include <contact_system/vertex_half_plane_normal_contact.h>
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
 #include <muda/ext/eigen/evd.h>
+#include <utils/matrix_assembly_utils.h>
 
 namespace uipc::backend::cuda
 {
 void VertexHalfPlaneNormalContact::do_build()
 {
-    m_impl.global_trajectory_filter = &require<GlobalTrajectoryFilter>();
-    m_impl.global_contact_manager   = &require<GlobalContactManager>();
-    m_impl.global_vertex_manager    = &require<GlobalVertexManager>();
+    m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
+    m_impl.global_contact_manager   = require<GlobalContactManager>();
+    m_impl.global_vertex_manager = require<GlobalVertexManager>();
 
     BuildInfo info;
     do_build(info);
@@ -34,7 +35,7 @@ void VertexHalfPlaneNormalContact::do_report_extent(GlobalContactManager::Contac
     info.hessian_count(count);
 
     m_impl.loose_resize(m_impl.gradients, count);
-    m_impl.loose_resize(m_impl.hessians, count);
+    m_impl.loose_resize(m_impl.m_hessians, count);
 }
 
 void VertexHalfPlaneNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
@@ -62,25 +63,6 @@ void VertexHalfPlaneNormalContact::do_compute_energy(GlobalContactManager::Energ
     // spdlog::info("VertexHalfPlaneNormalContact energy: {}", E);
 }
 
-namespace detail
-{
-    template <SizeT N>
-    __inline__ __device__ void make_spd(Matrix<Float, N, N>& mat)
-    {
-        Vector<Float, N>    eigen_values;
-        Matrix<Float, N, N> eigen_vectors;
-        muda::eigen::template evd(mat, eigen_values, eigen_vectors);
-#pragma unroll
-        for(int i = 0; i < N; ++i)
-        {
-            auto& v = eigen_values(i);
-            v       = v < 0.0 ? 0.0 : v;
-        }
-        mat = eigen_vectors * eigen_values.asDiagonal() * eigen_vectors.transpose();
-    }
-}  // namespace detail
-
-
 void VertexHalfPlaneNormalContact::Impl::assemble(GlobalContactManager::ContactInfo& info)
 {
     using namespace muda;
@@ -93,22 +75,22 @@ void VertexHalfPlaneNormalContact::Impl::assemble(GlobalContactManager::ContactI
     {
         // Hessians
         ParallelFor()
-            .kernel_name(__FUNCTION__)
-            .apply(hessians.size(),
-                   [PH_H3x3s = hessians.cviewer().name("PH_H3x3"),
+            .file_line(__FILE__, __LINE__)
+            .apply(m_hessians.size(),
+                   [PH_H3x3s = m_hessians.cviewer().name("PH_H3x3"),
                     PHs      = PHs.cviewer().name("PHs"),
                     H3x3s = H3x3.viewer().name("H3x3")] __device__(int I) mutable
                    {
                        Matrix3x3   H3x3 = PH_H3x3s(I);
                        const auto& D2   = PHs(I);
                        auto        P    = D2.x();
-                       detail::make_spd<3>(H3x3);
+                       make_spd<3>(H3x3);
                        H3x3s(I).write(P, P, H3x3);
                    });
 
         // Gradients
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(gradients.size(),
                    [PH_G3s = gradients.cviewer().name("PHG3"),
                     PHs    = PHs.cviewer().name("PHs"),
@@ -127,7 +109,7 @@ void VertexHalfPlaneNormalContact::do_assemble(GlobalContactManager::ContactInfo
     ContactInfo this_info{&m_impl};
 
     this_info.m_gradients = m_impl.gradients;
-    this_info.m_hessians  = m_impl.hessians;
+    this_info.m_hessians  = m_impl.m_hessians;
 
     // let subclass to fill in the data
     do_assemble(this_info);
@@ -159,6 +141,11 @@ muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::prev_position
 muda::CBufferView<Vector3> VertexHalfPlaneNormalContact::BaseInfo::rest_positions() const
 {
     return m_impl->global_vertex_manager->rest_positions();
+}
+
+muda::CBufferView<Float> VertexHalfPlaneNormalContact::BaseInfo::thicknesses() const
+{
+    return m_impl->global_vertex_manager->thicknesses();
 }
 
 muda::CBufferView<IndexT> VertexHalfPlaneNormalContact::BaseInfo::contact_element_ids() const

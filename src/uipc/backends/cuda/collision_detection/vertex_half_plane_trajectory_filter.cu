@@ -60,6 +60,11 @@ muda::CBufferView<Vector2i> VertexHalfPlaneTrajectoryFilter::PHs() noexcept
     return m_impl.PHs;
 }
 
+muda::CBufferView<Vector2i> VertexHalfPlaneTrajectoryFilter::friction_PHs() noexcept
+{
+    return m_impl.friction_PHs;
+}
+
 Float VertexHalfPlaneTrajectoryFilter::BaseInfo::d_hat() const noexcept
 {
     return m_impl->global_contact_manager->d_hat();
@@ -83,6 +88,11 @@ muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_posi
 muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::positions() const noexcept
 {
     return m_impl->global_vertex_manager->positions();
+}
+
+muda::CBufferView<Float> VertexHalfPlaneTrajectoryFilter::BaseInfo::thicknesses() const noexcept
+{
+    return m_impl->global_vertex_manager->thicknesses();
 }
 
 muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::surf_vertices() const noexcept

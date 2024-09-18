@@ -29,6 +29,7 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         muda::CBufferView<Vector3> plane_positions() const noexcept;
 
         muda::CBufferView<Vector3> positions() const noexcept;
+        muda::CBufferView<Float>   thicknesses() const noexcept;
         muda::CBufferView<IndexT>  surf_vertices() const noexcept;
 
       private:
@@ -100,6 +101,7 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
     };
 
     muda::CBufferView<Vector2i> PHs() noexcept;
+    muda::CBufferView<Vector2i> friction_PHs() noexcept;
 
   protected:
     virtual void do_detect(DetectInfo& info)              = 0;

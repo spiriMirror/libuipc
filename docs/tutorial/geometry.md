@@ -79,28 +79,59 @@ The point cloud can be used to describe some 0D-codimensional objects, like a bu
 
 [TODO: add some particle figure here]
 
-The simplest way to create a simplicial complex is to use the `geometry::tetmesh()`, `geometry::trimesh()`, `geometry::linemesh()`, and `geometry::pointcloud()` functions,
-(`#include <uipc/geometry/factory.h>`), which are shown below:
-```cpp
-auto tetmesh = geometry::tetmesh(Vs,Ts);
-tetmesh.dim(); // 3
-auto trimesh = geometry::trimesh(Vs,Fs);
-trimesh.dim(); // 2
-auto linemesh = geometry::linemesh(Vs,Es);
-linemesh.dim(); // 1
-auto pointcloud = geometry::pointcloud(Vs);
-pointcloud.dim(); // 0
-```
+=== "C++"
 
-Or, you want to read the meshes from a file, you can `#include <uipc/geometry/io.h>`, and call the related functions:
-```cpp
-SimplicialComplexIO io;
-// .msh file
-auto tetmesh = io.read("bunny.msh");
-// .obj file
-auto trimesh = io.read("cloth.obj");
-// ... any other supported file format
-```
+    The simplest way to create a simplicial complex is to use the `geometry::tetmesh()`, `geometry::trimesh()`, `geometry::linemesh()`, and `geometry::pointcloud()` functions,
+    (`#include <uipc/geometry/factory.h>`), which are shown below:
+
+    ```cpp
+    auto tetmesh = geometry::tetmesh(Vs,Ts);
+    tetmesh.dim(); // 3
+    auto trimesh = geometry::trimesh(Vs,Fs);
+    trimesh.dim(); // 2
+    auto linemesh = geometry::linemesh(Vs,Es);
+    linemesh.dim(); // 1
+    auto pointcloud = geometry::pointcloud(Vs);
+    pointcloud.dim(); // 0
+    ```
+    
+    Or, you want to read the meshes from a file, you can `#include <uipc/geometry/io.h>`, and call the related functions:
+    
+    ```cpp
+    SimplicialComplexIO io;
+    // .msh file
+    auto tetmesh = io.read("bunny.msh");
+    // .obj file
+    auto trimesh = io.read("cloth.obj");
+    // ... any other supported file format
+    ```
+
+=== "Python"
+
+    The simplest way to create a simplicial complex is to use the `geometry.tetmesh()`, `geometry.trimesh()`, `geometry.linemesh()`, and `geometry.pointcloud()` functions:
+
+    ```python
+    tetmesh = geometry.tetmesh(Vs,Ts)
+    tetmesh.dim() # 3
+    trimesh = geometry.trimesh(Vs,Fs)
+    trimesh.dim() # 2
+    linemesh = geometry.linemesh(Vs,Es)
+    linemesh.dim() # 1
+    pointcloud = geometry.pointcloud(Vs)
+    pointcloud.dim() # 0
+    ```
+
+    Or you want to read the meshes from a file, you can use the `geometry.read()` function:
+
+    ```python
+    io = geometry.SimplicialComplexIO()
+    # .msh file
+    tetmesh = io.read("bunny.msh")
+    # .obj file
+    trimesh = io.read("cloth.obj")
+    # ... any other supported file format
+    ```
+
 ## Access Geometry Information
 
 In `libuipc`, the data access and memory ownership of the geometry are separated. You can notice such a design almost everywhere in the library.
@@ -109,75 +140,143 @@ To access the geometry information, you need to create a view of the geometry, w
 
 For example, now we have a cube.
 
-```cpp
-SimplicialComplexIO io;
-auto cube = io.read("cube.msh");
-```
+=== "C++"
 
-To access the positions of the cube, we need to find the attribute of the positions, which is a vector of the `Vector3` type.
+    ```cpp
+    SimplicialComplexIO io;
+    auto cube = io.read("cube.msh");
+    ```
 
-```cpp
-auto VA = cube.vertices();
-auto pos = VA.find<Vector3>("position");
-```
+=== "Python"
 
-Note that, till now, we just get a handle of the attribute "position". To access the data, we need to create a view of the attribute.
+    ```python
+    io = geometry.SimplicialComplexIO()
+    cube = io.read("cube.msh")
+    ```
 
-```cpp
-span<const Vector3> view = pos->view();
-```
+To access the positions of the cube, we need to find the attribute of the positions.
 
-The view of the position is a `span<const Vector3>` (we explicitly define it here, but you can use `auto`), which is a const view of the position data. You can not modify the data through the view.
+=== "C++"
+
+    The the atrribute `position` is of type `Vector3`.
+
+    ```cpp
+    auto VA = cube.vertices();
+    auto pos = VA.find<Vector3>(builtin::position);
+    ```
+
+    The `builtin::position` is a predefined attribute name, which is the position of the vertices to avoid typo. You can also use a string to represent the attribute name.
+
+=== "Python"
+
+    ```python
+    VA = cube.vertices()
+    pos = VA.find(builtin.position)
+    ```
+
+    The `builtin.position` is a predefined attribute name, which is the position of the vertices to avoid typo. You can also use a string to represent the attribute name.
+
+Note that, till now, we just get a handle of the attribute `position`. To access the data, we need to create a view of the attribute.
+
+=== "C++"
+
+    ```cpp
+    span<const Vector3> view = pos->view();
+    ```
+    The view of the `position` is a `span<const Vector3>` (we explicitly define it here, but you can use `auto`), which is a const view of the position data. You can not modify the data through the view.
+
+=== "Python"
+
+    ```python
+    view = pos.view()
+    ```
+    The view of the `position` is a `numpy.ndarray`, which is a const view of the position data. You can not modify the data through the view.
 
 If you want to modify the position data, you can create a non-const view of the attribute.
 
-```cpp
-span<Vector3> non_const_view = geometry::view(*pos);
-```
-You find that, it need more effort to create a non-const view of the attribute (calling the global function `geometry::view`) than creating a const view(calling the member function `view` of the attribute). This is because we want to make sure that the user is aware of the potential clone of the geometry when they modify the data. The non-const view assumes that you may modify the data, which may trigger a clone of the geometry according to `libuipc`'s [Clone on Write](#clone-on-write) strategy.
+=== "C++"
 
-Now, you can print the positions of the cube.
+    ```cpp
+    span<Vector3> non_const_view = geometry::view(*pos);
+    ```
 
-```cpp
-for (auto&& p : view) std::cout << p << std::endl;
-```
+=== "Python"
+
+    ```python
+    non_const_view = geometry.view(pos)
+    ```
+
+You find that, it need more effort to create a non-const view of the attribute (calling the global function `view`) than creating a const view(calling the member function `view` of the attribute). This is because we want to make sure that the user is aware of the potential clone of the geometry when they modify the data. The non-const view assumes that you may modify the data, which may trigger a clone of the geometry according to `libuipc`'s [Clone on Write](#clone-on-write) strategy.
 
 You may want to access the tetrahedra topology of the cube, which is similar to the positions.
 
-```cpp
-auto TA = cube.tetrahedra();
-span<Vector4i> tet_view = geometry::view(TA.topo());
-span<const Vector4i> ctet_view = TA.topo().view();
-```
+=== "C++"
+
+    ```cpp
+    auto TA = cube.tetrahedra();
+    span<Vector4i> tet_view = geometry::view(TA.topo());
+    span<const Vector4i> ctet_view = TA.topo().view();
+    ```
+
+=== "Python"
+
+    ```python
+    TA = cube.tetrahedra()
+    tet_view = geometry.view(TA.topo())
+    ctet_view = TA.topo().view()
+    ```
 
 But because the topology is already there, we don't need to `find` anything. Also, if you just want to read the topology, it's better to use the const view.
 
 To create a new attribute, you can call the `create` function, with the attribute name and the default value.
 
-```cpp
-auto vel = VA.create<Vector3>("velocity", Vector3::Zero());
-```
+=== "C++"
 
-Then we will have a new attribute named "velocity" with the default value `Vector3::Zero()`, the size of the attribute is the same as the number of vertices.
+    ```cpp
+    auto vel = VA.create<Vector3>("velocity", Vector3::Zero());
+    ```
+
+=== "Python"
+
+    ```python
+    vel = VA.create("velocity", Vector3.Zero())
+    ```
+
+Then we will have a new attribute named "velocity" with the default value, the size of the attribute is the same as the number of vertices.
 
 To remove an attribute, you can call the `destroy` function with the attribute name.
 
-```cpp
-VA.destroy("velocity");
-```
+=== "C++"
+
+    ```cpp
+    VA.destroy("velocity");
+    ```
+
+=== "Python"
+
+    ```python
+    VA.destroy("velocity")
+    ```
 
 !!!danger 
     Accessing the removed attribute slot will cause the program to crash.
 
 If you are not sure whether the attribute slot is valid, you should check it by:
-    
-```cpp
-if(vel)
-{
-    // do something
-}
-```
-The `vel` is a kind of weak pointer, which will be `nullptr` if the attribute slot is invalid.
+
+=== "C++"
+
+    ```cpp
+    if(vel)
+    {
+        // do something
+    }
+    ```
+=== "Python"
+
+    ```python
+    if vel is not None:
+        # do something
+    ```
 
 Ok, now you have a basic idea of how to access the geometry information. Let's move on to the next section. I think it's high time to show the so called `Clone on Write` strategy.
 
@@ -186,27 +285,63 @@ Ok, now you have a basic idea of how to access the geometry information. Let's m
 Geometries in `libuipc` are implemented with the `Clone on Write` strategy. Any inital copy of a geometry is a shallow copy, which means, the data of the geometry is shared. Any creation of a non-const view of the geometry will trigger a minimal clone of the modified part of the geometry.
 
 A simple example is shown below:
-```cpp
-auto foo = geometry::tetmesh(Vs,Ts);
-auto bar = foo;
-```
+
+=== "C++"
+
+    ```cpp
+    auto foo = geometry::tetmesh(Vs,Ts);
+    auto bar = foo;
+    ```
+
+=== "Python"
+
+    ```python
+    foo = geometry.tetmesh(Vs,Ts)
+    bar = foo.copy()
+    ```
+
 Here, `bar` is just a shallow copy of the `foo`.
 No matter `bar` or `foo` is modified, the related internal part of the data will be cloned.
 
 For example, we create a non-const view of the positions of the mesh `bar`:
-```cpp
-auto VA  = bar.vertices();
-auto pos = VA.find<Vector3>("position");
-pos->is_shared(); // true
-auto non_const_view = geometry::view(*pos);
-pos->is_shared(); // false
-```
-Here, `pos->is_shared()` first return `true`, which means the position data is shared. After we create a non-const view of the position data, `pos->is_shared()` will return `false`, which means, `pos` is exclusively belong to `bar`.
-```cpp
-TA = bar.tetrahedra();
-TA.topo().is_shared(); // true
-```
-Here, `TA.topo().is_shared()` will return `true`, because we don't modify the topology, so the topology of `foo` and `bar` is still shared.
+
+=== "C++"
+
+    ```cpp
+    auto VA  = bar.vertices();
+    auto pos = VA.find<Vector3>("position");
+    pos->is_shared(); // true
+    auto non_const_view = geometry::view(*pos);
+    pos->is_shared(); // false
+    ```
+    
+    Here, `pos->is_shared()` first return `true`, which means the position data is shared. After we create a non-const view of the position data, `pos->is_shared()` will return `false`, which means, `pos` is exclusively belong to `bar`.
+    
+    ```cpp
+    TA = bar.tetrahedra();
+    TA.topo().is_shared(); // true
+    ```
+    
+    Here, `TA.topo().is_shared()` will return `true`, because we don't modify the topology, so the topology of `foo` and `bar` is still shared.
+
+=== "Python"
+
+    ```python
+    VA = bar.vertices()
+    pos = VA.find(builtin.position)
+    pos.is_shared() # True
+    non_const_view = geometry.view(pos)
+    pos.is_shared() # False
+    ```
+
+    Here, `pos.is_shared()` first return `True`, which means the position data is shared. After we create a non-const view of the position data, `pos.is_shared()` will return `False`, which means, `pos` is exclusively belong to `bar`.
+
+    ```python
+    TA = bar.tetrahedra()
+    TA.topo().is_shared() # True
+    ```
+
+    Here, `TA.topo().is_shared()` will return `True`, because we don't modify the topology, so the topology of `foo` and `bar` is still shared.
 
 Such a design minimizes the geometry memory usage.
 
@@ -215,83 +350,162 @@ Such a design minimizes the geometry memory usage.
 
 !!!Danger
     Never store a view of any attribute, because the view may become invalid after the attribute is modified. Always create a new view when you need it.
+
 ## Instancing and Meta Information
 
 In the field of rendering, [instancing](https://learnopengl.com/Advanced-OpenGL/Instancing) is a common technique to render multiple instances of the same geometry with different transformations, which is very efficient to desribe the scene with many similar objects.
 
 To get the instance information of the geometry, you can call the `instances()` function of the geometry, almost the same as the `vertices()` and `tetrahedra()` functions.
 
-```cpp
-SimplicialComplexIO io;
-auto cube = io.read("cube.msh");
-auto Is = cube.instances();
-Is.size(); // 1
-```
+=== "C++"
+
+    ```cpp
+    SimplicialComplexIO io;
+    auto cube = io.read("cube.msh");
+    auto Is = cube.instances();
+    Is.size(); // 1
+    ```
+=== "Python"
+
+    ```python
+    io = geometry.SimplicialComplexIO()
+    cube = io.read("cube.msh")
+    Is = cube.instances()
+    Is.size() # 1
+    ```
 
 A geometry is initally a single instance, so the size of `Is` is excatly 1.
 
 To create instances, you just resize it.
 
-```cpp
-Is.resize(5);
-Is.size(); // 5
-```
+=== "C++"
+
+    ```cpp
+    Is.resize(5);
+    Is.size(); // 5
+    ```
+=== "Python"
+
+    ```python
+    Is.resize(5)
+    Is.size() # 5
+    ```
 
 Now, you have 5 instances of the cube.
 
 You may ask for the transformation of the instances, the answer is the same as the positions and the tetrahedra.
 
-```cpp
-auto trans = Is.find<Matrix4x4>("transform");
-auto trans_view = trans->view();
-for(auto&& t : trans_view) std::cout << t << std::endl;
-```
+=== "C++"
+
+    ```cpp
+    auto trans = Is.find<Matrix4x4>(builtin::transform);
+    auto trans_view = trans->view();
+    for(auto&& t : trans_view) std::cout << t << std::endl;
+    ```
+
+=== "Python"
+
+    ```python
+    trans = Is.find(builtin.transform)
+    trans_view = trans.view()
+    print(trans_view)
+    ```
 
 There are some short-cut you can take to access some common attributes of the geometry, such as the positions, the transforms, etc.
 
-```cpp
-auto& short_cut_trans = Is.transforms();
-auto& short_cut_pos = cube.positions();
-```
+=== "C++"
+
+    ```cpp
+    auto& short_cut_trans = Is.transforms();
+    auto& short_cut_pos = cube.positions();
+    ```
+=== "Python"
+
+    ```python
+    short_cut_trans = Is.transforms()
+    short_cut_pos = cube.positions()
+    ```
 
 The naming convention of the short-cut is the plural form of the attribute name, which is more readable and more intuitive.
 
 Destroying the short-cut is not allowed, if you do so, `libuipc` will throw an exception.
 
-```cpp
-Is.destroy("transform"); // throw AttributeDontAllowDestroy
-```
+=== "C++"
 
-To get the meta information of the geometry, you can call the `meta()` function of the geometry.
+    ```cpp
+    Is.destroy("transform"); // throw AttributeDontAllowDestroy
+    ```
+=== "Python"
 
-```cpp
-auto& meta = cube.meta();
-```
+    ```python
+    Is.destroy("transform") # raise AttributeDontAllowDestroy
+    ```
+
+Meta is used to store the root information of the geometry with a fixed size of 1. For example, constituitive model and contact model information will be stored in the meta information according to the specification of the `libuipc`. Of course, you can create and access any meta information you need.
+
+To get the meta information of the geometry, you call the `meta()` function of the geometry.
+
+=== "C++"
+
+    ```cpp
+    auto& meta = cube.meta();
+    ```
+
+=== "Python"
+
+    ```python
+    meta = cube.meta()
+    ```
 
 The way to access the meta information is the same as all the other attributes.
-The only difference is that the meta information is a "demension 1" attribute, which means, the meta information always has a size of 1, you can create attributes, but you can not resize it. The the meta describes the root information of the geometry.
+The only difference is that the meta information always has a size of 1, you can create attributes, but you can not resize it. The the meta describes the root information of the geometry.
+
 For example, you can create a meta attribute to store the name of the geometry.
 
-```cpp
-auto name = meta.create<std::string>("name", "some cubes");
-```
+=== "C++"
+
+    ```cpp
+    auto name = meta.create<std::string>("name", "some cubes");
+    ```
+
+=== "Python"
+
+    ```python
+    name = meta.create("name", "some cubes")
+    ```
 
 ### Spreadsheets
 
 `Libuipc` provides a handy way to visualize the geometry information, which is called `spreadsheets` (the same idea as the `Geometry Spreadsheet` in the `Houdini` software).
 
-All the attributes of the geometry can be described as serveral tables, which are called `spreadsheets`. To use the `spreadsheets`, you need to include the header file `#include <uipc/geometry/utils/spreadsheet_io.h>`.
+All the attributes of the geometry can be described as serveral tables, which are called `spreadsheets`. 
 
-```cpp
-SimplicialComplexIO io;
-auto mesh = io.read("cube.msh");
-SpreadSheetIO sio;
-// dump to csv
-sio.write_csv("spreadsheet", mesh);
-// dump to json
-sio.write_json("spreadsheet", mesh);
-```
-See also the [SimplicialComplexIO](../../Libuipc/classuipc_1_1geometry_1_1_spread_sheet_i_o/).
+=== "C++"
+
+    To use the `spreadsheets`, you need to include the header file `#include <uipc/geometry/utils/spreadsheet_io.h>`.
+
+    ```cpp
+    SimplicialComplexIO io;
+    auto mesh = io.read("cube.msh");
+    SpreadSheetIO sio;
+    // dump to csv
+    sio.write_csv("spreadsheet", mesh);
+    // dump to json
+    sio.write_json("spreadsheet", mesh);
+    ```
+    See also the [SimplicialComplexIO](../../Libuipc/classuipc_1_1geometry_1_1_spread_sheet_i_o/).
+
+=== "Python"
+
+    ```python
+    io = geometry.SimplicialComplexIO()
+    mesh = io.read("cube.msh")
+    sio = geometry.SpreadSheetIO()
+    # dump to csv
+    sio.write_csv("spreadsheet", mesh)
+    # dump to json
+    sio.write_json("spreadsheet", mesh)
+    ```
 
 After writing the spreadsheets to the disk, you can open them with any spreadsheet or json viewer you like.
 

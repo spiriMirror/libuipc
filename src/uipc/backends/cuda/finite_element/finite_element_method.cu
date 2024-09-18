@@ -12,12 +12,34 @@
 #include <uipc/common/json_eigen.h>
 #include <muda/ext/eigen/inverse.h>
 #include <ranges>
+#include <sim_engine.h>
 
 // constitutions
 #include <finite_element/fem_3d_constitution.h>
 #include <finite_element/codim_2d_constitution.h>
 #include <finite_element/codim_1d_constitution.h>
 #include <finite_element/codim_0d_constitution.h>
+
+
+namespace uipc::backend
+{
+template <>
+class backend::SimSystemCreator<cuda::FiniteElementMethod>
+{
+  public:
+    static U<cuda::FiniteElementMethod> create(SimEngine& engine)
+    {
+        auto  scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
+        auto& types = scene.constitution_tabular().types();
+        if(types.find(constitution::ConstitutionType::FiniteElement) == types.end())
+        {
+            return nullptr;
+        }
+        return uipc::make_unique<cuda::FiniteElementMethod>(engine);
+    }
+};
+}  // namespace uipc::backend
+
 
 bool operator<(const uipc::backend::cuda::FiniteElementMethod::DimUID& a,
                const uipc::backend::cuda::FiniteElementMethod::DimUID& b)
@@ -29,26 +51,9 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FiniteElementMethod);
 
-void FiniteElementMethod::add_constitution(FiniteElementConstitution* constitution)
-{
-    check_state(SimEngineState::BuildSystems, "add_constitution()");
-    m_impl.constitutions.register_subsystem(*constitution);
-}
-
-void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* constitution)
-{
-    check_state(SimEngineState::BuildSystems, "add_constitution()");
-    m_impl.extra_constitutions.register_subsystem(*constitution);
-}
-
 void FiniteElementMethod::do_build()
 {
     const auto& scene = world().scene();
-    auto&       types = scene.constitution_tabular().types();
-    if(types.find(constitution::ConstitutionType::FiniteElement) == types.end())
-    {
-        throw SimSystemException("No Finite Element Constitution found in the scene");
-    }
 
     m_impl.gravity = scene.info()["gravity"].get<Vector3>();
 
@@ -69,6 +74,18 @@ void FiniteElementMethod::do_build()
 
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });
+}
+
+void FiniteElementMethod::add_constitution(FiniteElementConstitution* constitution)
+{
+    check_state(SimEngineState::BuildSystems, "add_constitution()");
+    m_impl.constitutions.register_subsystem(*constitution);
+}
+
+void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* constitution)
+{
+    check_state(SimEngineState::BuildSystems, "add_constitution()");
+    m_impl.extra_constitutions.register_subsystem(*constitution);
 }
 
 void FiniteElementMethod::Impl::init(WorldVisitor& world)
@@ -218,11 +235,11 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
               [](const GeoInfo& a, const GeoInfo& b)
               { return a.dim_uid < b.dim_uid; });
 
-    // 3) setup vertex offsets
-    auto count = geo_infos.size() + 1;  // add one to calculate the total size
 
-    vector<SizeT> vertex_counts(count, 0);
-    vector<SizeT> vertex_offsets(count, 0);
+    // 3) setup vertex offsets
+    // + 1 for total count
+    vector<SizeT> vertex_counts(geo_infos.size() + 1, 0);
+    vector<SizeT> vertex_offsets(geo_infos.size() + 1, 0);
 
     std::transform(geo_infos.begin(),
                    geo_infos.end(),
@@ -236,6 +253,7 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
         info.vertex_offset = vertex_offsets[i];
 
     h_positions.resize(vertex_offsets.back());
+
 
     // 4) setup dim infos
     {
@@ -698,29 +716,25 @@ void FiniteElementMethod::Impl::_distribute_constitution_filtered_info()
 {
     for(auto&& [i, c] : enumerate(codim_0d_constitutions))
     {
-        Codim0DFilteredInfo filtered_info{this};
-        filtered_info.m_index_in_dim = i;
-        c->retrieve(filtered_info);
+        Codim0DFilteredInfo filtered_info{this, i};
+        c->init(filtered_info);
     }
 
     for(auto&& [i, c] : enumerate(codim_1d_constitutions))
     {
-        Codim1DFilteredInfo filtered_info{this};
-        filtered_info.m_index_in_dim = i;
+        Codim1DFilteredInfo filtered_info{this, i};
         c->retrieve(filtered_info);
     }
 
     for(auto&& [i, c] : enumerate(codim_2d_constitutions))
     {
-        Codim2DFilteredInfo filtered_info{this};
-        filtered_info.m_index_in_dim = i;
+        Codim2DFilteredInfo filtered_info{this, i};
         c->retrieve(filtered_info);
     }
 
     for(auto&& [i, c] : enumerate(fem_3d_constitutions))
     {
-        FEM3DFilteredInfo filtered_info{this};
-        filtered_info.m_index_in_dim = i;
+        FEM3DFilteredInfo filtered_info{this, i};
         c->retrieve(filtered_info);
     }
 }
@@ -772,7 +786,8 @@ void FiniteElementMethod::Impl::_init_extra_constitutions()
 
     extra_constitution_energies.resize(energy_offsets.back());
     extra_constitution_gradient.resize(vertex_count, gradient_offsets.back());
-    extra_constitution_hessian.resize(vertex_count, vertex_count, hessian_offsets.back());
+    extra_constitution_hessian.resize(
+        vertex_count, vertex_count, hessian_offsets.back());
 }
 
 void FiniteElementMethod::Impl::_download_geometry_to_host()

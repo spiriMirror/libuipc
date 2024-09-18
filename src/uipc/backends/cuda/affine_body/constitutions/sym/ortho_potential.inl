@@ -22,7 +22,7 @@ q:
 *****************************************************************************************************************************/
 /* Sub Exprs */
 /* Simplified Expr */
-R = kappa*(2*std::pow((q(10)*q(4) + q(11)*q(5) + q(3)*q(9)), (2)) + 2*std::pow((q(10)*q(7) + q(11)*q(8) + q(6)*q(9)), (2)) + 2*std::pow((q(3)*q(6) + q(4)*q(7) + q(5)*q(8)), (2)) + std::pow((std::pow((q(10)), (2)) + std::pow((q(11)), (2)) + std::pow((q(9)), (2)) - 1), (2)) + std::pow((std::pow((q(3)), (2)) + std::pow((q(4)), (2)) + std::pow((q(5)), (2)) - 1), (2)) + std::pow((std::pow((q(6)), (2)) + std::pow((q(7)), (2)) + std::pow((q(8)), (2)) - 1), (2)));
+R = kappa*(2*std::pow(q(10)*q(4) + q(11)*q(5) + q(3)*q(9), 2) + 2*std::pow(q(10)*q(7) + q(11)*q(8) + q(6)*q(9), 2) + 2*std::pow(q(3)*q(6) + q(4)*q(7) + q(5)*q(8), 2) + std::pow(std::pow(q(10), 2) + std::pow(q(11), 2) + std::pow(q(9), 2) - 1, 2) + std::pow(std::pow(q(3), 2) + std::pow(q(4), 2) + std::pow(q(5), 2) - 1, 2) + std::pow(std::pow(q(6), 2) + std::pow(q(7), 2) + std::pow(q(8), 2) - 1, 2));
 }
 template <typename T>
 __host__ __device__ void dEdq(Eigen::Vector<T,9>& R, const T& kappa, const Eigen::Vector<T,12>& q)
@@ -47,10 +47,10 @@ q:
 /* Sub Exprs */
 auto x0 = 4*q(3)*q(6) + 4*q(4)*q(7) + 4*q(5)*q(8);
 auto x1 = 4*q(10)*q(4) + 4*q(11)*q(5) + 4*q(3)*q(9);
-auto x2 = 4*std::pow((q(3)), (2)) + 4*std::pow((q(4)), (2)) + 4*std::pow((q(5)), (2)) - 4;
+auto x2 = 4*std::pow(q(3), 2) + 4*std::pow(q(4), 2) + 4*std::pow(q(5), 2) - 4;
 auto x3 = 4*q(10)*q(7) + 4*q(11)*q(8) + 4*q(6)*q(9);
-auto x4 = 4*std::pow((q(6)), (2)) + 4*std::pow((q(7)), (2)) + 4*std::pow((q(8)), (2)) - 4;
-auto x5 = 4*std::pow((q(10)), (2)) + 4*std::pow((q(11)), (2)) + 4*std::pow((q(9)), (2)) - 4;
+auto x4 = 4*std::pow(q(6), 2) + 4*std::pow(q(7), 2) + 4*std::pow(q(8), 2) - 4;
+auto x5 = 4*std::pow(q(10), 2) + 4*std::pow(q(11), 2) + 4*std::pow(q(9), 2) - 4;
 /* Simplified Expr */
 R(0) = kappa*(q(3)*x2 + q(6)*x0 + q(9)*x1);
 R(1) = kappa*(q(10)*x1 + q(4)*x2 + q(7)*x0);
@@ -83,15 +83,15 @@ q:
     -> Matrix([[q(0)], [q(1)], [q(2)], [q(3)], [q(4)], [q(5)], [q(6)], [q(7)], [q(8)], [q(9)], [q(10)], [q(11)]])
 *****************************************************************************************************************************/
 /* Sub Exprs */
-auto x0 = std::pow((q(3)), (2));
-auto x1 = std::pow((q(4)), (2));
+auto x0 = std::pow(q(3), 2);
+auto x1 = std::pow(q(4), 2);
 auto x2 = 4*x1;
-auto x3 = std::pow((q(6)), (2));
+auto x3 = std::pow(q(6), 2);
 auto x4 = 4*x3;
 auto x5 = x2 + x4;
-auto x6 = std::pow((q(9)), (2));
+auto x6 = std::pow(q(9), 2);
 auto x7 = 4*x6;
-auto x8 = std::pow((q(5)), (2));
+auto x8 = std::pow(q(5), 2);
 auto x9 = 4*x8 - 4;
 auto x10 = x7 + x9;
 auto x11 = 4*q(9);
@@ -117,10 +117,10 @@ auto x30 = kappa*(q(9)*x13 + x28 + x29);
 auto x31 = kappa*x11;
 auto x32 = q(4)*x31;
 auto x33 = q(5)*x31;
-auto x34 = std::pow((q(10)), (2));
+auto x34 = std::pow(q(10), 2);
 auto x35 = 4*x34;
 auto x36 = 4*x0;
-auto x37 = std::pow((q(7)), (2));
+auto x37 = std::pow(q(7), 2);
 auto x38 = 4*x37;
 auto x39 = x36 + x38;
 auto x40 = 4*q(10);
@@ -140,10 +140,10 @@ auto x53 = x40*x52;
 auto x54 = q(3)*x11;
 auto x55 = kappa*(q(10)*x42 + x29 + x54);
 auto x56 = kappa*q(10)*x22;
-auto x57 = std::pow((q(8)), (2));
+auto x57 = std::pow(q(8), 2);
 auto x58 = 4*x57;
 auto x59 = x58 - 4;
-auto x60 = std::pow((q(11)), (2));
+auto x60 = std::pow(q(11), 2);
 auto x61 = 4*x60;
 auto x62 = x36 + x61;
 auto x63 = x43*x52;

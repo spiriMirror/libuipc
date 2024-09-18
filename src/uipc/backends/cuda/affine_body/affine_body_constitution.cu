@@ -3,9 +3,9 @@
 
 namespace uipc::backend::cuda
 {
-U64 AffineBodyConstitution::constitution_uid() const
+U64 AffineBodyConstitution::uid() const
 {
-    return get_constitution_uid();
+    return get_uid();
 }
 
 void AffineBodyConstitution::do_build()
@@ -16,10 +16,9 @@ void AffineBodyConstitution::do_build()
     auto scene = world().scene();
     // Check if we have the Affine Body Constitution
     auto uids = scene.constitution_tabular().uids();
-    if(!std::binary_search(uids.begin(), uids.end(), constitution_uid()))
+    if(!std::binary_search(uids.begin(), uids.end(), uid()))
     {
-        throw SimSystemException(
-            fmt::format("Requires Constitution UID={}", constitution_uid()));
+        throw SimSystemException(fmt::format("Requires Constitution UID={}", uid()));
     }
 
     BuildInfo info;
@@ -28,16 +27,16 @@ void AffineBodyConstitution::do_build()
     affine_body_dynamics.add_constitution(this);
 }
 
-void AffineBodyConstitution::retrieve(AffineBodyDynamics::FilteredInfo& info)
+void AffineBodyConstitution::init(AffineBodyDynamics::FilteredInfo& info)
 {
-    info.body_infos().size();
-    return do_retrieve(info);
+    return do_init(info);
 }
 
 void AffineBodyConstitution::compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info)
 {
     return do_compute_energy(info);
 }
+
 void AffineBodyConstitution::compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info)
 {
     return do_compute_gradient_hessian(info);

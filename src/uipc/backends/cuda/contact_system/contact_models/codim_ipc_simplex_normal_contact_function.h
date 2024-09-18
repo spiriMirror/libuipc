@@ -1,7 +1,5 @@
 #pragma once
 #include <type_define.h>
-#include <utils/distance.h>
-#include <utils/distance/distance_flagged.h>
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
 
 namespace uipc::backend::cuda

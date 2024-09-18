@@ -20,17 +20,20 @@ void FiniteElementAnimator::add_constraint(FiniteElementConstraint* constraint)
     m_impl.constraints.register_subsystem(*constraint);
 }
 
+muda::CDoubletVectorView<Float, 3> FiniteElementAnimator::AssembleInfo::gradients() const noexcept
+{
+    return m_gradients;
+}
+
+muda::CTripletMatrixView<Float, 3> FiniteElementAnimator::AssembleInfo::hessians() const noexcept
+{
+    return m_hessians;
+}
+
 void FiniteElementAnimator::assemble(AssembleInfo& info)
 {
-    for(auto constraint : m_impl.constraints.view())
-    {
-        ComputeGradientHessianInfo this_info{
-            &m_impl, constraint->m_index, m_impl.dt};
-        constraint->compute_gradient_hessian(this_info);
-    }
-
-    info.gradients = m_impl.constraint_gradient.view();
-    info.hessians  = m_impl.constraint_hessian.view();
+    info.m_gradients = m_impl.constraint_gradient.view();
+    info.m_hessians  = m_impl.constraint_hessian.view();
 }
 
 void FiniteElementAnimator::do_init()
@@ -61,7 +64,7 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
         constraint->m_index          = i;
     }
 
-    anim_geo_infos.resize(constraint_view.size());
+    // +1 for total count
     constraint_geo_info_counts.resize(constraint_view.size() + 1, 0);
     constraint_geo_info_offsets.resize(constraint_view.size() + 1, 0);
 
@@ -78,7 +81,7 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
             auto uid_value = uid->view().front();
             auto it        = uid_to_constraint_index.find(uid_value);
             UIPC_ASSERT(it != uid_to_constraint_index.end(),
-                        "Constraint: Constraint uid not found");
+                        "FiniteElementAnimator: Constraint uid not found");
             auto index = it->second;
             constraint_geo_info_counts[index]++;
         }
@@ -113,7 +116,7 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
         }
     }
 
-    vector<list<IndexT>> constraint_vertex_indices(constraint_view.size());
+    vector<vector<IndexT>> constraint_vertex_indices(constraint_view.size());
     for(auto& c : constraint_view)
     {
         auto constraint_geo_infos =
@@ -124,10 +127,8 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
 
         for(auto& info : constraint_geo_infos)
         {
-            for(int i = 0; i < info.vertex_count; ++i)
-            {
-                indices.push_back(info.vertex_offset + i);
-            }
+            indices.resize(info.vertex_count);
+            std::iota(indices.begin(), indices.end(), info.vertex_offset);
         }
     }
 
@@ -144,7 +145,7 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
                         0);
 
     auto total_vertex_count = constraint_vertex_offsets.back();
-    h_anim_indices.resize(total_vertex_count);
+    anim_indices.resize(total_vertex_count);
 
     // expand the indices
     for(auto&& [i, indices] : enumerate(constraint_vertex_indices))
@@ -152,12 +153,9 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
         auto offset = constraint_vertex_offsets[i];
         for(auto& index : indices)
         {
-            h_anim_indices[offset++] = index;
+            anim_indices[offset++] = index;
         }
     }
-
-    anim_indices.resize(total_vertex_count);
-    anim_indices.view().copy_from(h_anim_indices.data());
 
     // initialize the constraints
     for(auto constraint : constraint_view)
@@ -264,8 +262,7 @@ void FiniteElementAnimator::compute_gradient_hessian(GradientHessianComputer::Co
     }
 }
 
-auto FiniteElementAnimator::FilteredInfo::animated_geo_infos() const
-    -> span<const AnimatedGeoInfo>
+auto FiniteElementAnimator::FilteredInfo::anim_geo_infos() const -> span<const AnimatedGeoInfo>
 {
     return span<const AnimatedGeoInfo>{m_impl->anim_geo_infos}.subspan(
         m_impl->constraint_geo_info_offsets[m_index],
@@ -281,7 +278,7 @@ span<const IndexT> FiniteElementAnimator::FilteredInfo::anim_indices() const
 {
     auto offset = m_impl->constraint_vertex_offsets[m_index];
     auto count  = m_impl->constraint_vertex_counts[m_index];
-    return span{m_impl->h_anim_indices}.subspan(offset, count);
+    return span{m_impl->anim_indices}.subspan(offset, count);
 }
 
 muda::CBufferView<Vector3> FiniteElementAnimator::BaseInfo::xs() const noexcept

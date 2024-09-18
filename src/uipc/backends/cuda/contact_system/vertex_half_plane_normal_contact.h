@@ -29,6 +29,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         muda::CBufferView<Vector3>        positions() const;
         muda::CBufferView<Vector3>        prev_positions() const;
         muda::CBufferView<Vector3>        rest_positions() const;
+        muda::CBufferView<Float>          thicknesses() const;
         muda::CBufferView<IndexT>         contact_element_ids() const;
         Float                             d_hat() const;
         Float                             dt() const;
@@ -83,19 +84,17 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         void compute_energy(EnergyInfo& info);
         void assemble(GlobalContactManager::ContactInfo& info);
 
-        GlobalTrajectoryFilter* global_trajectory_filter      = nullptr;
-        GlobalContactManager*   global_contact_manager = nullptr;
-        GlobalVertexManager*    global_vertex_manager  = nullptr;
-
+        SimSystemSlot<GlobalTrajectoryFilter> global_trajectory_filter;
+        SimSystemSlot<GlobalContactManager>   global_contact_manager;
+        SimSystemSlot<GlobalVertexManager>    global_vertex_manager;
         SimSystemSlot<VertexHalfPlaneTrajectoryFilter> veretx_half_plane_trajectory_filter;
 
         SizeT PH_count = 0;
         Float dt;
 
-        muda::DeviceBuffer<IndexT>    Ps;
         muda::DeviceBuffer<Float>     energies;
         muda::DeviceBuffer<Vector3>   gradients;
-        muda::DeviceBuffer<Matrix3x3> hessians;
+        muda::DeviceBuffer<Matrix3x3> m_hessians;
 
         Float reserve_ratio = 1.1;
 

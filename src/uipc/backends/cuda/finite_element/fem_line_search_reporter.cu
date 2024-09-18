@@ -11,8 +11,11 @@ REGISTER_SIM_SYSTEM(FEMLineSearchReporter);
 
 void FEMLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
-    m_impl.finite_element_method   = &require<FiniteElementMethod>();
-    m_impl.finite_element_animator = find<FiniteElementAnimator>();
+    m_impl.finite_element_method = require<FiniteElementMethod>();
+
+    auto fea = find<FiniteElementAnimator>();
+    if(fea)
+        m_impl.finite_element_animator = *fea;
 }
 
 void FEMLineSearchReporter::do_record_start_point(LineSearcher::RecordInfo& info)

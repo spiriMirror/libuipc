@@ -3,6 +3,8 @@
 #include <finite_element/finite_element_method.h>
 #include <gradient_hessian_computer.h>
 #include <line_search/line_searcher.h>
+#include <muda/ext/linear_system/device_doublet_vector.h>
+#include <muda/ext/linear_system/device_triplet_matrix.h>
 
 namespace uipc::backend::cuda
 {
@@ -25,7 +27,7 @@ class FiniteElementAnimator final : public Animator
         {
         }
 
-        span<const AnimatedGeoInfo> animated_geo_infos() const;
+        span<const AnimatedGeoInfo> anim_geo_infos() const;
 
         SizeT anim_vertex_count() const noexcept;
 
@@ -59,7 +61,7 @@ class FiniteElementAnimator final : public Animator
       protected:
         Impl* m_impl  = nullptr;
         SizeT m_index = ~0ull;
-        Float m_dt;
+        Float m_dt    = 0.0;
     };
 
     class ComputeEnergyInfo : public BaseInfo
@@ -110,8 +112,7 @@ class FiniteElementAnimator final : public Animator
         vector<SizeT> constraint_vertex_counts;
         vector<SizeT> constraint_vertex_offsets;
 
-        vector<IndexT> h_anim_indices;
-        muda::DeviceBuffer<IndexT> anim_indices;  // view(anim_vertex_offsets[index], anim_vertex_counts[index])
+        vector<IndexT> anim_indices;
 
         // Constraints
         muda::DeviceVar<Float> constraint_energy;  // Constraint Energy
@@ -148,8 +149,13 @@ class FiniteElementAnimator final : public Animator
     class AssembleInfo
     {
       public:
-        muda::TripletMatrixView<Float, 3> hessians;
-        muda::DoubletVectorView<Float, 3> gradients;
+        muda::CDoubletVectorView<Float, 3> gradients() const noexcept;
+        muda::CTripletMatrixView<Float, 3> hessians() const noexcept;
+
+      private:
+        friend class FiniteElementAnimator;
+        muda::CDoubletVectorView<Float, 3> m_gradients;
+        muda::CTripletMatrixView<Float, 3>  m_hessians;
     };
     void assemble(AssembleInfo& info);  // only be called by FEMLinearSubsystem
 

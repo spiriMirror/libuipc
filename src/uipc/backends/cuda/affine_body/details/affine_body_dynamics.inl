@@ -3,59 +3,91 @@
 namespace uipc::backend::cuda
 {
 template <typename ViewGetterF, typename ForEachF>
-void AffineBodyDynamics::Impl::for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
-                                             ViewGetterF&& getter,
-                                             ForEachF&&    for_each)
+void AffineBodyDynamics::Impl::_for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                         span<const GeoInfo> geo_infos,
+                                         ViewGetterF&&       getter,
+                                         ForEachF&&          for_each)
 {
-    SizeT I = 0;
-    for(auto&& [body_offset, body_count] : zip(h_abd_geo_body_offsets, h_abd_geo_body_counts))
+    for(auto&& geo_info : geo_infos)
     {
-        auto& info      = this->h_body_infos[body_offset];
-        auto& sc        = this->geometry(geo_slots, info);
-        auto  attr_view = getter(sc);
+        auto geo_index = geo_info.geo_slot_index;
+        auto sc = geo_slots[geo_index]->geometry().as<geometry::SimplicialComplex>();
+        UIPC_ASSERT(sc,
+                    "Geometry({}) is not a simplicial complex, why can it happen?",
+                    sc->type());
+
+        auto  attr_view = getter(*sc);
+        SizeT local_i   = 0;
         for(auto&& value : attr_view)
-            for_each(I++, value);
+            for_each(local_i++, value);
     }
+}
+
+template <typename ForEachGeomatry>
+void AffineBodyDynamics::Impl::_for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                         span<const GeoInfo> geo_infos,
+                                         ForEachGeomatry&&   for_every_geometry)
+{
+    for(auto&& geo_info : geo_infos)
+    {
+        auto geo_index = geo_info.geo_slot_index;
+        auto sc = geo_slots[geo_index]->geometry().as<geometry::SimplicialComplex>();
+        UIPC_ASSERT(sc,
+                    "Geometry({}) is not a simplicial complex, why can it happen?",
+                    sc->type());
+
+        for_every_geometry(*sc);
+    }
+}
+
+template <typename ForEachGeomatry>
+void AffineBodyDynamics::Impl::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                        ForEachGeomatry&& for_every_geometry)
+{
+    _for_each(geo_slots, geo_infos, std::forward<ForEachGeomatry>(for_every_geometry));
+}
+
+template <typename ViewGetterF, typename ForEachF>
+void AffineBodyDynamics::Impl::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                        ViewGetterF&& getter,
+                                        ForEachF&&    for_each)
+{
+    _for_each(geo_slots,
+              geo_infos,
+              std::forward<ViewGetterF>(getter),
+              std::forward<ForEachF>(for_each));
 }
 
 template <typename T>
 muda::BufferView<T> AffineBodyDynamics::Impl::subview(DeviceBuffer<T>& buffer,
                                                       SizeT constitution_index) const noexcept
 {
-    return buffer.view(h_constitution_body_offsets[constitution_index],
-                       h_constitution_body_counts[constitution_index]);
+    auto& constitution_info = constitution_infos[constitution_index];
+    return buffer.view(constitution_info.body_offset, constitution_info.body_count);
 }
 
 template <typename T>
 span<T> AffineBodyDynamics::Impl::subview(vector<T>& buffer, SizeT constitution_index) const noexcept
 {
-    return span{buffer}.subspan(h_constitution_body_offsets[constitution_index],
-                                h_constitution_body_counts[constitution_index]);
+    auto& constitution_info = constitution_infos[constitution_index];
+    return span{buffer}.subspan(constitution_info.body_offset, constitution_info.body_count);
 }
 
 template <typename ViewGetterF, typename ForEachF>
-void AffineBodyDynamics::FilteredInfo::for_each_body(span<S<geometry::GeometrySlot>> geo_slots,
-                                                     ViewGetterF&& getter,
-                                                     ForEachF&& for_each) const
+void AffineBodyDynamics::FilteredInfo::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                                ViewGetterF&& getter,
+                                                ForEachF&&    for_each) const
 {
-    SizeT I = 0;
+    m_impl->_for_each(geo_slots,
+                      geo_infos(),
+                      std::forward<ViewGetterF>(getter),
+                      std::forward<ForEachF>(for_each));
+}
 
-    auto constitution_geo_offset = m_impl->h_constitution_geo_offsets[m_constitution_index];
-    auto constitution_geo_count = m_impl->h_constitution_geo_counts[m_constitution_index];
-    auto sub_abd_geo_body_offsets =
-        span{m_impl->h_abd_geo_body_offsets}.subspan(constitution_geo_offset,
-                                                     constitution_geo_count);
-    auto sub_abd_geo_body_counts =
-        span{m_impl->h_abd_geo_body_counts}.subspan(constitution_geo_offset,
-                                                    constitution_geo_count);
-
-    for(auto&& [body_offset, body_count] : zip(sub_abd_geo_body_offsets, sub_abd_geo_body_counts))
-    {
-        const auto& info      = m_impl->h_body_infos[body_offset];
-        auto&       sc        = this->geometry(geo_slots, info);
-        auto        attr_view = getter(sc);
-        for(auto&& value : attr_view)
-            for_each(I++, value);
-    }
+template <typename ForEachGeomatry>
+void AffineBodyDynamics::FilteredInfo::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                                ForEachGeomatry&& for_every_geometry) const
+{
+    m_impl->_for_each(geo_slots, geo_infos(), std::forward<ForEachGeomatry>(for_every_geometry));
 }
 }  // namespace uipc::backend::cuda

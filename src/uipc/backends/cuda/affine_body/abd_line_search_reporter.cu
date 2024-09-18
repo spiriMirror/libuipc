@@ -10,7 +10,11 @@ REGISTER_SIM_SYSTEM(ABDLineSearchReporter);
 
 void ABDLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
-    m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
+
+    m_impl.affine_body_dynamics = require<AffineBodyDynamics>();
+    auto aba                    = find<AffineBodyAnimator>();
+    if(aba)
+        m_impl.affine_body_animator = *aba;
 }
 
 void ABDLineSearchReporter::do_record_start_point(LineSearcher::RecordInfo& info)
@@ -41,7 +45,7 @@ void ABDLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
     using namespace muda;
     ParallelFor(256)
         .kernel_name(__FUNCTION__)
-        .apply(abd().body_count(),
+        .apply(abd().abd_body_count,
                [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
                 q_temps  = abd().body_id_to_q_temp.cviewer().name("q_temps"),
                 qs       = abd().body_id_to_q.viewer().name("qs"),
@@ -61,7 +65,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
     // Compute kinetic energy
     ParallelFor()
         .kernel_name(__FUNCTION__)
-        .apply(abd().body_count(),
+        .apply(abd().abd_body_count,
                [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
                 qs       = abd().body_id_to_q.cviewer().name("qs"),
                 q_tildes = abd().body_id_to_q_tilde.viewer().name("q_tildes"),
@@ -102,9 +106,16 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        abd().abd_shape_energy.data(),
                        abd().body_id_to_shape_energy.size());
 
-    Float E = abd().abd_shape_energy;
+    Float shape_E = abd().abd_shape_energy;
 
-    // spdlog::info("ABD K: {}, E: {}", K, E);
-    info.energy(K + E);
+    Float anim_E = 0;
+    if(affine_body_animator)
+        anim_E = affine_body_animator->compute_energy(info);
+
+    Float E = K + shape_E + anim_E;
+
+    spdlog::info("ABD Energy: K: {}, Shape: {}, Anim: {}", K, shape_E, anim_E);
+
+    info.energy(E);
 }
 }  // namespace uipc::backend::cuda

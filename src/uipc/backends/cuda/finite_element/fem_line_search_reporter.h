@@ -18,9 +18,9 @@ class FEMLineSearchReporter final : public LineSearchReporter
         void step_forward(LineSearcher::StepInfo& info);
         void compute_energy(LineSearcher::EnergyInfo& info);
 
-        FiniteElementMethod*       finite_element_method   = nullptr;
-        FiniteElementAnimator*     finite_element_animator = nullptr;
-        FiniteElementMethod::Impl& fem()
+        SimSystemSlot<FiniteElementMethod>   finite_element_method;
+        SimSystemSlot<FiniteElementAnimator> finite_element_animator;
+        FiniteElementMethod::Impl&           fem()
         {
             return finite_element_method->m_impl;
         }

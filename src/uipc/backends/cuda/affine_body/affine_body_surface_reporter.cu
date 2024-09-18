@@ -1,6 +1,8 @@
 #include <affine_body/affine_body_surface_reporter.h>
 #include <uipc/builtin/attribute_name.h>
 #include <global_geometry/global_vertex_manager.h>
+#include <uipc/common/range.h>
+
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(AffinebodySurfaceReporter);
@@ -19,73 +21,63 @@ void AffinebodySurfaceReporter::do_build()
 
 void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
 {
-    _init_geo_surface(world);
-    _init_body_surface(world);
-}
+    auto abd_vertex_offset_in_global = affine_body_vertex_reporter->vertex_offset();
 
-void AffinebodySurfaceReporter::Impl::_init_geo_surface(backend::WorldVisitor& world)
-{
+    auto abd_geo_count = abd().abd_geo_count;
+
+    // +1 for total count
+    vector<SizeT> geo_surf_vertex_counts(abd_geo_count + 1, 0);
+    vector<SizeT> geo_surf_vertex_offsets(abd_geo_count + 1, 0);
+
+    vector<SizeT> geo_surf_edges_counts(abd_geo_count + 1, 0);
+    vector<SizeT> geo_surf_edges_offsets(abd_geo_count + 1, 0);
+
+    vector<SizeT> geo_surf_triangles_counts(abd_geo_count + 1, 0);
+    vector<SizeT> geo_surf_triangles_offsets(abd_geo_count + 1, 0);
+
     auto geo_slots = world.scene().geometries();
 
-    auto geo_count = abd().abd_geo_count;
-
-    auto N = geo_count + 1;  // +1 for total count
-
-    geo_surf_vertex_offsets.resize(N);
-    geo_surf_edges_offsets.resize(N);
-    geo_surf_triangles_offsets.resize(N);
-
-    geo_surf_vertex_counts.resize(N);
-    geo_surf_edges_counts.resize(N);
-    geo_surf_triangles_counts.resize(N);
-
-    geo_surf_vertex_counts.back()    = 0;
-    geo_surf_edges_counts.back()     = 0;
-    geo_surf_triangles_counts.back() = 0;
-
-    // 1) for every geometry, count surface primitives
-    for(auto&& [i, body_offset] : enumerate(abd().h_abd_geo_body_offsets))
+    // 1) count surf vertices, edges, triangles in each geometry
     {
-        const auto& body_info = abd().h_body_infos[body_offset];
-        auto&       geo       = abd().geometry(geo_slots, body_info);
+        SizeT geoI = 0;
+        abd().for_each(  //
+            geo_slots,
+            [&](geometry::SimplicialComplex& sc)
+            {
+                auto body_count = sc.instances().size();
 
-        auto V_is_surf = geo.vertices().find<IndexT>(builtin::is_surf);
-        if(!V_is_surf)
-        {
-            geo_surf_vertex_counts[i] = 0;
-        }
-        else
-        {
-            auto is_surf_view         = V_is_surf->view();
-            geo_surf_vertex_counts[i] = std::ranges::count_if(
-                is_surf_view, [](const IndexT& is_surf) { return is_surf; });
-        }
+                {  // vertex
+                    auto is_surf = sc.vertices().find<IndexT>(builtin::is_surf);
+                    auto is_surf_view = is_surf->view();
+                    auto count        = std::ranges::count_if(is_surf_view,
+                                                       [](const IndexT& is_surf)
+                                                       { return is_surf; });
+                    geo_surf_vertex_counts[geoI] = count * body_count;
+                }
 
-        auto E_is_surf = geo.edges().find<IndexT>(builtin::is_surf);
-        if(!E_is_surf)
-        {
-            geo_surf_edges_counts[i] = 0;
-        }
-        else
-        {
-            auto is_surf_view        = E_is_surf->view();
-            geo_surf_edges_counts[i] = std::ranges::count_if(
-                is_surf_view, [](const IndexT& is_surf) { return is_surf; });
-        }
+                {  // edge
+                    auto is_surf = sc.edges().find<IndexT>(builtin::is_surf);
+                    auto is_surf_view = is_surf->view();
+                    auto count        = std::ranges::count_if(is_surf_view,
+                                                       [](const IndexT& is_surf)
+                                                       { return is_surf; });
+                    geo_surf_edges_counts[geoI] = count * body_count;
+                }
 
-        auto F_is_surf = geo.triangles().find<IndexT>(builtin::is_surf);
-        if(!F_is_surf)
-        {
-            geo_surf_triangles_counts[i] = 0;
-        }
-        else
-        {
-            auto is_surf_view            = F_is_surf->view();
-            geo_surf_triangles_counts[i] = std::ranges::count_if(
-                is_surf_view, [](const IndexT& is_surf) { return is_surf; });
-        }
+                {  // triangle
+                    auto is_surf = sc.triangles().find<IndexT>(builtin::is_surf);
+                    auto is_surf_view = is_surf->view();
+                    auto count        = std::ranges::count_if(is_surf_view,
+                                                       [](const IndexT& is_surf)
+                                                       { return is_surf; });
+                    geo_surf_triangles_counts[geoI] = count * body_count;
+                }
+
+                geoI++;
+            });
     }
 
+    // 2) calculate offsets
     std::exclusive_scan(geo_surf_vertex_counts.begin(),
                         geo_surf_vertex_counts.end(),
                         geo_surf_vertex_offsets.begin(),
@@ -99,196 +91,186 @@ void AffinebodySurfaceReporter::Impl::_init_geo_surface(backend::WorldVisitor& w
                         geo_surf_triangles_offsets.begin(),
                         0);
 
-    total_geo_surf_vertex_count   = geo_surf_vertex_offsets.back();
-    total_geo_surf_edge_count     = geo_surf_edges_offsets.back();
-    total_geo_surf_triangle_count = geo_surf_triangles_offsets.back();
-
-    geo_local_surf_vertices.resize(total_geo_surf_vertex_count);
-    geo_local_surf_edges.resize(total_geo_surf_edge_count);
-    geo_local_surf_triangles.resize(total_geo_surf_triangle_count);
-
-    // 2) for every geometry, collect surface primitive id
-    auto collect_surf_id = [](span<const IndexT> is_surf, span<IndexT> surf_id)
-    {
-        SizeT idx = 0;
-        for(auto&& [i, is_surf] : enumerate(is_surf))
-        {
-            if(is_surf)
-            {
-                surf_id[idx++] = i;
-            }
-        }
-    };
-
-    for(auto&& [i, body_offset] : enumerate(abd().h_abd_geo_body_offsets))
-    {
-        const auto& body_info = abd().h_body_infos[body_offset];
-        auto&       geo       = abd().geometry(geo_slots, body_info);
-
-        if(geo_surf_vertex_counts[i] > 0)
-        {
-            auto surf_v =
-                span{geo_local_surf_vertices}.subspan(geo_surf_vertex_offsets[i],
-                                                      geo_surf_vertex_counts[i]);
-            auto is_surf = geo.vertices().find<IndexT>(builtin::is_surf)->view();
-            collect_surf_id(is_surf, surf_v);
-        }
-
-        if(geo_surf_edges_counts[i] > 0)
-        {
-            auto surf_e =
-                span{geo_local_surf_edges}.subspan(geo_surf_edges_offsets[i],
-                                                   geo_surf_edges_counts[i]);
-            auto is_surf = geo.edges().find<IndexT>(builtin::is_surf)->view();
-            collect_surf_id(is_surf, surf_e);
-        }
-
-        if(geo_surf_triangles_counts[i] > 0)
-        {
-            auto surf_f = span{geo_local_surf_triangles}.subspan(
-                geo_surf_triangles_offsets[i], geo_surf_triangles_counts[i]);
-            auto is_surf = geo.triangles().find<IndexT>(builtin::is_surf)->view();
-            collect_surf_id(is_surf, surf_f);
-        }
-    }
-}
-
-void AffinebodySurfaceReporter::Impl::_init_body_surface(backend::WorldVisitor& world)
-{
-    auto geo_slots = world.scene().geometries();
-
-    body_surface_infos.resize(abd().abd_body_count);
-
-    auto           N = abd().abd_body_count + 1;  // +1 for total count
-    vector<IndexT> body_surf_vertex_offsets(N);
-    vector<IndexT> body_surf_edges_offsets(N);
-    vector<IndexT> body_surf_triangles_offsets(N);
-
-    body_surf_vertex_offsets.back()    = 0;
-    body_surf_edges_offsets.back()     = 0;
-    body_surf_triangles_offsets.back() = 0;
-
-    // 1) for every body, count surface primitives
-    for(auto&& [body_info, body_surf_info] : zip(abd().h_body_infos, body_surface_infos))
-    {
-        auto geo_index  = body_info.abd_geometry_index();
-        auto body_index = body_info.affine_body_id();
-
-        body_surf_info.m_surf_vertex_count = geo_surf_vertex_counts[geo_index];
-        body_surf_vertex_offsets[body_index] = body_surf_info.m_surf_vertex_count;
-
-        body_surf_info.m_surf_edge_count    = geo_surf_edges_counts[geo_index];
-        body_surf_edges_offsets[body_index] = body_surf_info.m_surf_edge_count;
-
-        body_surf_info.m_surf_triangle_count = geo_surf_triangles_counts[geo_index];
-        body_surf_triangles_offsets[body_index] = body_surf_info.m_surf_triangle_count;
-    }
-
-    std::exclusive_scan(body_surf_vertex_offsets.begin(),
-                        body_surf_vertex_offsets.end(),
-                        body_surf_vertex_offsets.begin(),
-                        0);
-    std::exclusive_scan(body_surf_edges_offsets.begin(),
-                        body_surf_edges_offsets.end(),
-                        body_surf_edges_offsets.begin(),
-                        0);
-    std::exclusive_scan(body_surf_triangles_offsets.begin(),
-                        body_surf_triangles_offsets.end(),
-                        body_surf_triangles_offsets.begin(),
-                        0);
-
-    for(auto&& [i, body_surf_info] : enumerate(body_surface_infos))
-    {
-        body_surf_info.m_surf_vertex_offset   = body_surf_vertex_offsets[i];
-        body_surf_info.m_surf_edge_offset     = body_surf_edges_offsets[i];
-        body_surf_info.m_surf_triangle_offset = body_surf_triangles_offsets[i];
-    }
-
-    total_surf_vertex_count   = body_surf_vertex_offsets.back();
-    total_surf_edge_count     = body_surf_edges_offsets.back();
-    total_surf_triangle_count = body_surf_triangles_offsets.back();
+    auto total_surf_vertex_count   = geo_surf_vertex_offsets.back();
+    auto total_surf_edge_count     = geo_surf_edges_offsets.back();
+    auto total_surf_triangle_count = geo_surf_triangles_offsets.back();
 
     surf_vertices.resize(total_surf_vertex_count);
     surf_edges.resize(total_surf_edge_count);
     surf_triangles.resize(total_surf_triangle_count);
 
-
-    auto global_vertex_offset = affine_body_vertex_reporter->vertex_offset();
-
-    // 2) for every body, build surface
-    for(auto&& [body_info, body_surf_info] : zip(abd().h_body_infos, body_surface_infos))
+    // 3) fill surf vertices, edges, triangles
     {
-        auto  body_index = body_info.affine_body_id();
-        auto  geo_index  = body_info.abd_geometry_index();
-        auto& geo        = abd().geometry(geo_slots, body_info);
+        vector<IndexT> surf_vertex_cache;
+        vector<IndexT> surf_edge_cache;
+        vector<IndexT> surf_triangle_cache;
 
-        if(body_surf_info.m_surf_vertex_count > 0)
-        {
-            auto surf_v =
-                span{surf_vertices}.subspan(body_surf_info.m_surf_vertex_offset,
-                                            body_surf_info.m_surf_vertex_count);
+        SizeT geoI = 0;
+        abd().for_each(
+            geo_slots,
+            [&](geometry::SimplicialComplex& sc)
+            {
+                auto& geo_info   = abd().geo_infos[geoI];
+                auto  body_count = sc.instances().size();
 
-            auto geo_surf_vert_ids = span{geo_local_surf_vertices}.subspan(
-                geo_surf_vertex_offsets[geo_index], geo_surf_vertex_counts[geo_index]);
+                auto geo_vertex_offset_in_global = geo_info.vertex_offset  // offset in affine body vertex
+                                                   + abd_vertex_offset_in_global;
 
-            std::ranges::transform(geo_surf_vert_ids,
-                                   surf_v.begin(),
-                                   [&](const IndexT& geo_local_vert_id) {
-                                       return geo_local_vert_id + global_vertex_offset;
-                                   });
-        }
 
-        if(body_surf_info.m_surf_edge_count > 0)
-        {
-            auto surf_e = span{surf_edges}.subspan(body_surf_info.m_surf_edge_offset,
-                                                   body_surf_info.m_surf_edge_count);
+                {  // surf vertex
+                    auto geo_surf_vertex_count = geo_surf_vertex_counts[geoI];
 
-            auto geo_surf_edge_ids = span{geo_local_surf_edges}.subspan(
-                geo_surf_edges_offsets[geo_index], geo_surf_edges_counts[geo_index]);
+                    UIPC_ASSERT(geo_surf_vertex_count % body_count == 0,
+                                "surf vertex count is not multiple of body count, why can it happen?");
 
-            auto Es = geo.edges().topo().view();
 
-            std::ranges::transform(geo_surf_edge_ids,
-                                   surf_e.begin(),
-                                   [&](const IndexT& geo_local_edge_id) -> Vector2i
-                                   {
-                                       auto edge = Es[geo_local_edge_id];
-                                       Vector2i ret = edge.array() + global_vertex_offset;
-                                       return ret;
-                                   });
-        }
+                    // only need to cache the first body
+                    auto body_surf_vertex_count = geo_surf_vertex_count / body_count;
 
-        if(body_surf_info.m_surf_triangle_count > 0)
-        {
-            auto surf_f =
-                span{surf_triangles}.subspan(body_surf_info.m_surf_triangle_offset,
-                                             body_surf_info.m_surf_triangle_count);
+                    surf_vertex_cache.clear();
+                    surf_vertex_cache.reserve(body_surf_vertex_count);
+                    auto is_surf = sc.vertices().find<IndexT>(builtin::is_surf);
+                    auto is_surf_view = is_surf->view();
 
-            auto geo_surf_tri_ids = span{geo_local_surf_triangles}.subspan(
-                geo_surf_triangles_offsets[geo_index], geo_surf_triangles_counts[geo_index]);
+                    for(auto&& [i, is_surf] : enumerate(is_surf_view))
+                    {
+                        if(is_surf)
+                            surf_vertex_cache.push_back(i);
+                    }
 
-            auto Fs = geo.triangles().topo().view();
+                    UIPC_ASSERT(surf_vertex_cache.size() == body_surf_vertex_count,
+                                "surf vertex cache size is not equal to body_surf_vertex_count, why can it happen?");
 
-            std::ranges::transform(geo_surf_tri_ids,
-                                   surf_f.begin(),
-                                   [&](const IndexT& geo_local_tri_id) -> Vector3i
-                                   {
-                                       auto tri = Fs[geo_local_tri_id];
-                                       Vector3i ret = tri.array() + global_vertex_offset;
-                                       return ret;
-                                   });
-        }
+                    auto body_vertex_count = geo_info.vertex_count / body_count;
 
-        global_vertex_offset += body_info.vertex_count();
+                    for(auto i : range(body_count))
+                    {
+                        auto body_vertex_offset_in_global =
+                            geo_vertex_offset_in_global + i * body_vertex_count;
+
+                        auto surf_v = span{surf_vertices}.subspan(
+                            geo_surf_vertex_offsets[geoI]
+                                + i * surf_vertex_cache.size(),
+                            surf_vertex_cache.size());
+
+                        std::ranges::transform(surf_vertex_cache,
+                                               surf_v.begin(),
+                                               [&](const IndexT& local_surf_vert_id) {
+                                                   return local_surf_vert_id + body_vertex_offset_in_global;
+                                               });
+                    }
+                }
+
+                {  // surf edge
+                    auto geo_surf_edge_count = geo_surf_edges_counts[geoI];
+
+                    UIPC_ASSERT(geo_surf_edge_count % body_count == 0,
+                                "surf edge count is not multiple of body count, why can it happen?");
+
+
+                    // only need to cache the first body
+                    auto body_surf_edge_count = geo_surf_edge_count / body_count;
+
+                    surf_edge_cache.clear();
+                    surf_edge_cache.reserve(body_surf_edge_count);
+
+                    auto is_surf = sc.edges().find<IndexT>(builtin::is_surf);
+                    auto is_surf_view = is_surf->view();
+
+                    for(auto&& [i, is_surf] : enumerate(is_surf_view))
+                    {
+                        if(is_surf)
+                            surf_edge_cache.push_back(i);
+                    }
+
+                    UIPC_ASSERT(surf_edge_cache.size() == body_surf_edge_count,
+                                "surf edge cache size is not equal to body_surf_edge_count, why can it happen?");
+
+                    auto body_vertex_count = geo_info.vertex_count / body_count;
+
+                    for(auto i : range(body_count))
+                    {
+                        auto body_vertex_offset_in_global =
+                            geo_vertex_offset_in_global + i * body_vertex_count;
+
+                        auto surf_e = span{surf_edges}.subspan(
+                            geo_surf_edges_offsets[geoI] + i * surf_edge_cache.size(),
+                            surf_edge_cache.size());
+
+                        auto Es = sc.edges().topo().view();
+
+                        std::ranges::transform(surf_edge_cache,
+                                               surf_e.begin(),
+                                               [&](const IndexT& local_surf_edge_id) -> Vector2i
+                                               {
+                                                   auto edge = Es[local_surf_edge_id];
+                                                   Vector2i ret = edge.array() + body_vertex_offset_in_global;
+                                                   return ret;
+                                               });
+                    }
+                }
+
+                {  // surf triangle
+
+                    auto geo_surf_triangle_count = geo_surf_triangles_counts[geoI];
+
+                    UIPC_ASSERT(geo_surf_triangle_count % body_count == 0,
+                                "surf triangle count is not multiple of body count, why can it happen?");
+
+                    // only need to cache the first body
+                    auto body_surf_triangle_count = geo_surf_triangle_count / body_count;
+
+                    surf_triangle_cache.clear();
+                    surf_triangle_cache.reserve(body_surf_triangle_count);
+
+                    auto is_surf = sc.triangles().find<IndexT>(builtin::is_surf);
+                    auto is_surf_view = is_surf->view();
+
+                    for(auto&& [i, is_surf] : enumerate(is_surf_view))
+                    {
+                        if(is_surf)
+                            surf_triangle_cache.push_back(i);
+                    }
+
+                    UIPC_ASSERT(surf_triangle_cache.size() == body_surf_triangle_count,
+                                "surf triangle cache size is not equal to body_surf_triangle_count, why can it happen?");
+
+                    auto body_vertex_count = geo_info.vertex_count / body_count;
+
+                    for(auto i : range(body_count))
+                    {
+                        auto body_vertex_offset_in_global =
+                            geo_vertex_offset_in_global + i * body_vertex_count;
+
+                        auto surf_f = span{surf_triangles}.subspan(
+                            geo_surf_triangles_offsets[geoI]
+                                + i * surf_triangle_cache.size(),
+                            surf_triangle_cache.size());
+
+                        auto Fs = sc.triangles().topo().view();
+
+                        std::ranges::transform(surf_triangle_cache,
+                                               surf_f.begin(),
+                                               [&](const IndexT& local_surf_tri_id) -> Vector3i
+                                               {
+                                                   auto tri = Fs[local_surf_tri_id];
+                                                   Vector3i ret = tri.array() + body_vertex_offset_in_global;
+                                                   return ret;
+                                               });
+                    }
+                }
+
+                geoI++;
+            });
     }
 }
 
 void AffinebodySurfaceReporter::Impl::report_count(backend::WorldVisitor& world,
                                                    GlobalSimpicialSurfaceManager::SurfaceCountInfo& info)
 {
-    info.surf_vertex_count(total_surf_vertex_count);
-    info.surf_edge_count(total_surf_edge_count);
-    info.surf_triangle_count(total_surf_triangle_count);
+    info.surf_vertex_count(surf_vertices.size());
+    info.surf_edge_count(surf_edges.size());
+    info.surf_triangle_count(surf_triangles.size());
 }
 
 void AffinebodySurfaceReporter::Impl::report_attributes(

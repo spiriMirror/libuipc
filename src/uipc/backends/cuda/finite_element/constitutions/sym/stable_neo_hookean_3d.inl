@@ -25,7 +25,7 @@ VecF:
 /* Sub Exprs */
 auto x0 = VecF(0)*VecF(4)*VecF(8) - VecF(0)*VecF(7)*VecF(5) - VecF(3)*VecF(1)*VecF(8) + VecF(3)*VecF(7)*VecF(2) + VecF(6)*VecF(1)*VecF(5) - VecF(6)*VecF(4)*VecF(2) - 1;
 /* Simplified Expr */
-R = (1.0/2.0)*lambda*std::pow((x0), (2)) - mu*x0 + (1.0/2.0)*mu*(std::pow((VecF(0)), (2)) + std::pow((VecF(3)), (2)) + std::pow((VecF(6)), (2)) + std::pow((VecF(1)), (2)) + std::pow((VecF(4)), (2)) + std::pow((VecF(7)), (2)) + std::pow((VecF(2)), (2)) + std::pow((VecF(5)), (2)) + std::pow((VecF(8)), (2)) - 3) + std::pow((mu), (2))/std::pow((lambda), (2));
+R = (1.0/2.0)*lambda*std::pow(x0, 2) - mu*x0 + (1.0/2.0)*mu*(std::pow(VecF(0), 2) + std::pow(VecF(3), 2) + std::pow(VecF(6), 2) + std::pow(VecF(1), 2) + std::pow(VecF(4), 2) + std::pow(VecF(7), 2) + std::pow(VecF(2), 2) + std::pow(VecF(5), 2) + std::pow(VecF(8), 2) - 3) + std::pow(mu, 2)/std::pow(lambda, 2);
 }
 template <typename T>
 __host__ __device__ void dEdVecF(Eigen::Vector<T,9>& R, const T& mu, const T& lambda, const Eigen::Vector<T,9>& VecF)

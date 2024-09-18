@@ -1,5 +1,25 @@
 #include <animator/global_animator.h>
 #include <animator/animator.h>
+#include <sim_engine.h>
+
+namespace uipc::backend
+{
+template <>
+class backend::SimSystemCreator<cuda::GlobalAnimator>
+{
+  public:
+    static U<cuda::GlobalAnimator> create(SimEngine& engine)
+    {
+        auto  scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
+        auto& types = scene.constitution_tabular().types();
+        if(types.find(constitution::ConstitutionType::Constraint) == types.end())
+        {
+            return nullptr;
+        }
+        return uipc::make_unique<cuda::GlobalAnimator>(engine);
+    }
+};
+}  // namespace uipc::backend
 
 namespace uipc::backend::cuda
 {

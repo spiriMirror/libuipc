@@ -16,30 +16,26 @@ class OrthoPotential final : public AffineBodyConstitution
 
     using AffineBodyConstitution::AffineBodyConstitution;
 
-
-    vector<AffineBodyDynamics::BodyInfo> h_body_infos;
-    vector<Float>                        h_kappas;
+    vector<Float> h_kappas;
 
     muda::DeviceBuffer<Float> kappas;
 
     virtual void do_build(AffineBodyConstitution::BuildInfo& info) override {}
 
-    U64  get_constitution_uid() const override { return ConstitutionUID; }
-    void do_retrieve(AffineBodyDynamics::FilteredInfo& info) override
-    {
-        auto src = info.body_infos();
-        h_body_infos.resize(src.size());
-        std::ranges::copy(src, h_body_infos.begin());
+    U64 get_uid() const override { return ConstitutionUID; }
 
+    void do_init(AffineBodyDynamics::FilteredInfo& info) override
+    {
         // find out constitution coefficients
-        h_kappas.resize(src.size());
+        h_kappas.resize(info.body_count());
         auto geo_slots = world().scene().geometries();
 
-        info.for_each_body(
+        SizeT bodyI = 0;
+        info.for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc)
             { return sc.instances().find<Float>("kappa")->view(); },
-            [&](SizeT I, Float kappa) { h_kappas[I] = kappa; });
+            [&](SizeT local_i, Float kappa) { h_kappas[bodyI++] = kappa; });
 
         _build_on_device();
     }
