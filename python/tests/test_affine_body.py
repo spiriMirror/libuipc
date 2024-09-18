@@ -10,7 +10,7 @@ from asset import AssetDir
 from pyuipc_utils.geometry import \
     SimplicialComplex, SimplicialComplexIO \
     ,SpreadSheetIO \
-    ,label_surface, label_triangle_orient, flip_inward_trianglesm \
+    ,label_surface, label_triangle_orient, flip_inward_triangles \
     ,ground, view
 
 from pyuipc_utils.constitution import \

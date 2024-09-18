@@ -25,7 +25,16 @@ add_subdirectory(builtin)
 get_target_property(SOURCES pyuipc SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
 
-# after build pyuipc, call copy_release.py to copy the library to python/bin
+
+# copy the target shared library to python package
+add_custom_command(TARGET pyuipc POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:pyuipc>
+    "${PROJECT_SOURCE_DIR}/python/src/pyuipc_loader/$<CONFIG>/bin/"
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+)
+
+# after build pyuipc, call copy_release.py to copy shared library to python package
 add_custom_command(TARGET pyuipc POST_BUILD
     COMMAND ${Python_EXECUTABLE} 
     ARGS
@@ -33,6 +42,6 @@ add_custom_command(TARGET pyuipc POST_BUILD
     "--dir=${CMAKE_BINARY_DIR}/$<CONFIG>/bin"
     "--config=$<CONFIG>"
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-    COMMENT "Copying Release to source/python/bin/..."
+    COMMENT "Copying pyuipc dependent shared libraries to python package"
 )
 

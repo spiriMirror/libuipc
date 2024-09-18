@@ -14,10 +14,12 @@ PySoftTransformConstraint::PySoftTransformConstraint(py::module& m)
     class_SoftTransformConstraint
         .def(py::init<const Json&>(),
              py::arg("config") = SoftTransformConstraint::default_config())
-        .def("apply_to",
-             &SoftTransformConstraint::apply_to,
-             py::arg("sc"),
-             py::arg("strength_rate") = as_numpy(Vector2{100.0, 100}))
+        .def(
+            "apply_to",
+            [](SoftTransformConstraint& self, geometry::SimplicialComplex& sc, py::array_t<Float> strength_rate)
+            { self.apply_to(sc, to_matrix<Vector2>(strength_rate)); },
+            py::arg("sc"),
+            py::arg("strength_rate") = as_numpy(Vector2{100.0, 100}))
         .def_static("default_config", &SoftTransformConstraint::default_config);
 }
 }  // namespace pyuipc::constitution

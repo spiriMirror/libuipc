@@ -1,3 +1,4 @@
+import numpy
 import pyuipc.geometry
 from typing import ClassVar
 
@@ -81,7 +82,7 @@ class SoftPositionConstraint(Constraint):
 
 class SoftTransformConstraint(Constraint):
     def __init__(self, config: json = ...) -> None: ...
-    def apply_to(self, *args, **kwargs): ...
+    def apply_to(self, sc: pyuipc.geometry.SimplicialComplex, strength_rate: numpy.ndarray[numpy.float64] = ...) -> None: ...
     @staticmethod
     def default_config() -> json: ...
 

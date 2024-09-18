@@ -12,12 +12,15 @@ args = args.parse_args()
 dir = args.dir
 config = args.config
 
+if config == 'Debug':
+    raise Exception('Debug configuration is not supported, please use RelWithDebInfo or Release')
+
 print(f'module dir: {dir}')
 print(f'config: {config}')
 
 source_dir = dir
 proj_dir = project_dir.project_dir()
-target_dir = f'{proj_dir}/python/pyuipc_loader/{config}/bin/'
+target_dir = f'{proj_dir}/python/src/pyuipc_loader/{config}/bin/'
 
 if not os.path.exists(target_dir):
     os.makedirs(target_dir)
