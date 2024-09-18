@@ -17,3 +17,7 @@ vcpkg_installed/
 
 __pycache__
 .pytest_cache
+
+RelWithDebInfo/
+Release/
+.mypy_cache/

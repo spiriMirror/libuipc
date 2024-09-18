@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyuipc"
+authors = [
+    {name = "Zihang Zhu",email = "paradise_craftsman@hotmail.com"}
+]
+maintainers = [
+    {name = "Zihang Zhu",email = "paradise_craftsman@hotmail.com"}
+]
+readme = "README.md"
+license = {file = "LICENSE"}
+version = "0.1.0"
+dependencies = [
+    "numpy"
+]
+requires-python = ">=3.11"
+description = ""
+keywords = ["ipc", "computer graphics", "physics simulation"]
+
+[project.urls]
+
+[project.optional-dependencies]
+gui = ["polyscope"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.dll", "*.so", "*.dylib", "*.pyd"]
+
+[tool.pytest.ini_options]
+addopts = ["-s"]
+markers = [
+    "basic: mark a test as basic",
+    "gui: mark a test as requiring GUI",
+    "typing: mark a test as requiring type checking",
+    "example: mark a test as an example",
+]
