@@ -214,12 +214,14 @@ void SimEngine::do_advance()
 
                 // 6) Check Termination Condition
                 // TODO: Maybe we can implement a class for termination condition in the future
-                if(res <= m_abs_tol || rel_tol <= 0.001)
+                bool converged = res <= m_abs_tol || rel_tol <= 0.001;
+                if(newton_iter > 0 && converged)
                     break;
 
                 // 7) Begin Line Search
                 m_state = SimEngineState::LineSearch;
                 {
+                    // Reset Alpha
                     alpha = 1.0;
 
                     // Record Current State x to x_0
@@ -234,50 +236,53 @@ void SimEngine::do_advance()
                     // CCD filter
                     alpha = filter_toi(alpha);
 
-                    // CFL condition
+                    // CFL Condition
                     alpha = cfl_condition(alpha);
 
                     // Compute Test Energy => E
                     Float E  = compute_energy(alpha);
                     Float E1 = E;
 
-                    SizeT line_search_iter = 0;
-                    while(line_search_iter++ < m_line_searcher->max_iter())  // Energy Test
+                    if(!converged)
                     {
-                        bool energy_decrease = E <= E0;  // Check Energy Decrease
+                        SizeT line_search_iter = 0;
+                        while(line_search_iter++ < m_line_searcher->max_iter())
+                        {
+                            bool energy_decrease = E <= E0;  // Check Energy Decrease
 
-                        // TODO: Intersection & Inversion Check
-                        bool no_inversion = true;
+                            // TODO: Inversion Check (Not Implemented Yet)
+                            bool no_inversion = true;
 
-                        //spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
-                        //             line_search_iter,
-                        //             alpha,
-                        //             E / E0,
-                        //             E0);
+                            //spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
+                            //             line_search_iter,
+                            //             alpha,
+                            //             E / E0,
+                            //             E0);
 
-                        bool success = energy_decrease && no_inversion;
-                        if(success)
-                            break;
+                            bool success = energy_decrease && no_inversion;
+                            if(success)
+                                break;
 
-                        // If not success, then shrink alpha
-                        alpha /= 2;
-                        E = compute_energy(alpha);
-                    }
+                            // If not success, then shrink alpha
+                            alpha /= 2;
+                            E = compute_energy(alpha);
+                        }
 
-                    if(line_search_iter >= m_line_searcher->max_iter())
-                    {
-                        //m_global_linear_system->dump_linear_system(
-                        //   fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
+                        if(line_search_iter >= m_line_searcher->max_iter())
+                        {
+                            //m_global_linear_system->dump_linear_system(
+                            //   fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
 
-                        spdlog::warn(
-                            "Line Search Exits with Max Iteration: {} (Frame={}, Newton={})\n"
-                            "E/E0: {}, E1/E0: {}, E0:{}",
-                            m_line_searcher->max_iter(),
-                            m_current_frame,
-                            newton_iter,
-                            E / E0,
-                            E1 / E0,
-                            E0);
+                            spdlog::warn(
+                                "Line Search Exits with Max Iteration: {} (Frame={}, Newton={})\n"
+                                "E/E0: {}, E1/E0: {}, E0:{}",
+                                m_line_searcher->max_iter(),
+                                m_current_frame,
+                                newton_iter,
+                                E / E0,
+                                E1 / E0,
+                                E0);
+                        }
                     }
                 }
             }

@@ -22,7 +22,7 @@ from pyuipc_utils.geometry import \
 
 from pyuipc_utils.constitution import \
     StableNeoHookean, AffineBodyConstitution, ElasticModuli, \
-    SoftPositionConstraint, HookeanSpring
+    SoftPositionConstraint, HookeanSpring, KirchhoffRodBending
 
 from pyuipc_utils.gui import SceneGUI
 
@@ -43,7 +43,7 @@ def test_kirchoff_rod_bending():
     scene = Scene(config)
 
     hs = HookeanSpring()
-    krb = uipc.builtin.KirchhoffRodBending()
+    krb = KirchhoffRodBending()
     scene.constitution_tabular().insert(hs)
     scene.constitution_tabular().insert(krb)
     scene.contact_tabular().default_model(0.05, 1e9)

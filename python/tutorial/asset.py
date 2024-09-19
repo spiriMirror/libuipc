@@ -1,12 +1,5 @@
+import os 
 import pathlib
-import os
-import sys
-
-this_dir = pathlib.Path(os.path.dirname(__file__)).resolve()
-module_dir = str(this_dir.parent.absolute() / 'src')
-sys.path.append(module_dir)
-
-from pyuipc_loader import *
 
 class AssetDir:
     this_file = pathlib.Path(os.path.dirname(__file__)).resolve()

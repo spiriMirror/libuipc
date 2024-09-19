@@ -116,7 +116,7 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
         }
     }
 
-    vector<vector<IndexT>> constraint_vertex_indices(constraint_view.size());
+    vector<list<IndexT>> constraint_vertex_indices(constraint_view.size());
     for(auto& c : constraint_view)
     {
         auto constraint_geo_infos =
@@ -127,8 +127,10 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
 
         for(auto& info : constraint_geo_infos)
         {
-            indices.resize(info.vertex_count);
-            std::iota(indices.begin(), indices.end(), info.vertex_offset);
+            for(int i = 0; i < info.vertex_count; i++)
+            {
+                indices.push_back(info.vertex_offset + i);
+            }
         }
     }
 

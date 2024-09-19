@@ -1,29 +1,34 @@
-from pyuipc_tutorial import * # common import for all tutorial scripts
-# =================================================================================================
-from pyuipc import Vector3, Vector2, Transform
-from pyuipc.engine import Engine
-from pyuipc.geometry import \
-    tetmesh, label_surface, label_triangle_orient, flip_inward_triangles, view, ground,\
-    SimplicialComplex, SimplicialComplexSlot, SimplicialComplexIO
-from pyuipc.world import World, Scene, SceneIO, Animation
-from pyuipc.constitution import AffineBodyConstitution, SoftTransformConstraint
-from pyuipc import builtin
-from pyuipc_utils.gui import SceneGUI
-import polyscope as ps
-import polyscope.imgui as psim
 import numpy as np
+import polyscope as ps
+from polyscope import imgui
 
+from asset import AssetDir
+from pyuipc_loader import pyuipc
+from pyuipc import Vector3, Vector2, Transform, Logger, Matrix4x4
+from pyuipc import builtin
+
+from pyuipc.engine import *
+from pyuipc.world import *
+from pyuipc.geometry import *
+from pyuipc.constitution import *
+from pyuipc_utils.gui import *
+
+
+Logger.set_level(Logger.Level.Warn)
 output_path = AssetDir.output_path(__file__)
+
 
 engine = Engine('cuda', output_path)
 world = World(engine)
-dt = 0.01
+
 config = Scene.default_config()
+dt = 0.02
 config['dt'] = dt
-scene = Scene()
+config['newton']['velocity_tol'] = 0.05
+scene = Scene(config)
 
 # friction ratio and contact resistance
-scene.contact_tabular().default_model(0.5, 1e9)
+scene.contact_tabular().default_model(0.2, 1e9)
 default_element = scene.contact_tabular().default_element()
 
 # create constituiton
@@ -66,8 +71,12 @@ ground_mesh.instances().resize(2)
 
 abd.apply_to(ground_mesh, 1e7) # 10 MPa
 default_element.apply_to(ground_mesh)
+stc.apply_to(ground_mesh, Vector2.Values([100.0, 100.0]))
 is_fixed = ground_mesh.instances().find(builtin.is_fixed)
-view(is_fixed).fill(1)
+is_fixed_view = view(is_fixed)
+is_fixed_view[0] = 1 # fix the lower board
+is_fixed_view[1] = 0
+
 trans_view = view(ground_mesh.transforms())
 t = Transform.Identity()
 t.translate(Vector3.UnitZ() * 2)
@@ -84,7 +93,7 @@ ground_object.geometries().create(g)
 
 animator = scene.animator()
 
-def animation(info:Animation.UpdateInfo):
+def cube_animation(info:Animation.UpdateInfo):
     geo_slots = info.geo_slots()
     geo_slot: SimplicialComplexSlot = geo_slots[0]
     geo = geo_slot.geometry()
@@ -114,19 +123,45 @@ def animation(info:Animation.UpdateInfo):
     
     aim_view[0][0:3,0:3] = R
 
-animator.insert(cube_object, animation)
+def ground_animation(info:Animation.UpdateInfo):
+    geo_slot: SimplicialComplexSlot = info.geo_slots()[0]
+    rest_geo_slot : SimplicialComplexSlot = info.rest_geo_slots()[0]
+    geo = geo_slot.geometry()
+    rest_geo = rest_geo_slot.geometry()
+    
+    is_constrained = geo.instances().find(builtin.is_constrained)
+    view(is_constrained)[1] = 1
+    
+    current_t = dt * info.frame()
+    angular_velocity = np.pi # 180 degree per second
+    theta = angular_velocity * current_t
+    
+    T:Matrix4x4 = rest_geo.transforms().view()[1]
+    Y = np.sin(theta) * 0.4
+    T:Transform = Transform(T)
+    p = T.translation()
+    p[1] += Y
+    T = Transform.Identity()
+    T.translate(p)
+    
+    aim_trans = geo.instances().find(builtin.aim_transform)
+    view(aim_trans)[1] = T.matrix()
+
+animator.insert(cube_object, cube_animation)
+animator.insert(ground_object, ground_animation)
 
 world.init(scene)
 sgui = SceneGUI(scene)
 
 ps.init()
 ps.set_ground_plane_height(ground_height)
-sgui.register()
+tri_surf, _, _ = sgui.register()
+tri_surf.set_edge_width(1)
 
 run = False
 def on_update():
     global run
-    if(psim.Button('run & stop')):
+    if(imgui.Button('run & stop')):
         run = not run
 
     if(run):

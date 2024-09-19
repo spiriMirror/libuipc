@@ -272,7 +272,7 @@ void AffineBodyDynamics::Impl::_setup_geometry_attributes(WorldVisitor& world)
                          sc.meta().create<IndexT>(builtin::backend_abd_body_offset);
 
                  auto body_offset_view    = geometry::view(*abd_body_offset);
-                 body_offset_view.front() = geo_infos[geoI].body_offset;
+                 body_offset_view.front() = geo_infos[geoI++].body_offset;
              });
 }
 

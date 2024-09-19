@@ -115,8 +115,10 @@ void AffineBodyAnimator::Impl::init(backend::WorldVisitor& world)
 
         for(auto& info : constraint_geo_infos)
         {
-            body_indices.resize(info.body_count);
-            std::iota(body_indices.begin(), body_indices.end(), info.body_offset);
+            for(auto i = 0; i < info.body_count; i++)
+            {
+                body_indices.push_back(info.body_offset + i);
+            }
         }
     }
 

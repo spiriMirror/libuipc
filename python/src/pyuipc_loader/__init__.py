@@ -11,8 +11,7 @@ this_file_dir = os.path.dirname(__file__)
 sys.path.append(this_file_dir + '/Release/bin')
 sys.path.append(this_file_dir + '/RelWithDebInfo/bin')
 
-
-import pyuipc 
+import pyuipc
 
 def generate_stub(module_dir):
     this_dir = pathlib.Path(__file__).absolute().parent
@@ -43,5 +42,9 @@ def init():
 
 init()
 
-from pyuipc.engine import *
-from pyuipc.world import *
+import pyuipc.backend as backend
+import pyuipc.geometry as geometry
+import pyuipc.constitution as constitution
+import pyuipc.world as world
+import pyuipc.engine as engine
+import pyuipc.builtin as builtin
