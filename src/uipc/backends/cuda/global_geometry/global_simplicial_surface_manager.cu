@@ -127,7 +127,7 @@ void GlobalSimpicialSurfaceManager::Impl::_collect_codim_vertices()
                 flags = codim_vertex_flags.viewer().name("flags")] __device__(int I) mutable
                {
                    auto vI  = surf_vertices(I);
-                   flags(I) = dim(vI) == 0 ? 1 : 0;
+                   flags(I) = dim(vI) <= 1 ? 1 : 0;
                });
 
     DeviceSelect().Flagged(surf_vertices.data(),

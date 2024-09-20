@@ -114,7 +114,7 @@ ground_obj.geometries().create(g)
 
 sgui = SceneGUI(scene)
 world.init(scene)
-world.recover()
+# world.recover()
 world.retrieve()
 
 ps.init()
@@ -131,7 +131,7 @@ def on_update():
     if(run):
         world.advance()
         world.retrieve()
-        world.dump()
+        # world.dump()
         sgui.update()
 
 ps.set_user_callback(on_update)

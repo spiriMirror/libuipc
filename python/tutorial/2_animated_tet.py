@@ -113,8 +113,8 @@ sgui = SceneGUI(scene)
 
 ps.init()
 ps.set_ground_plane_height(ground_height)
-sgui.register()
-
+tri_surf, _, _ = sgui.register()
+tri_surf.set_edge_width(1)
 def on_update():
     global run
     if(imgui.Button("run & stop")):

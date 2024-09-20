@@ -29,13 +29,17 @@ class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         muda::DeviceBuffer<AABB> edge_aabbs;
         muda::DeviceBuffer<AABB> triangle_aabbs;
 
-        AtomicCountingLBVH         lbvh_PP;
+        AtomicCountingLBVH lbvh_PP;
+        // codimP-allP pairs
         muda::BufferView<Vector2i> candidate_PP_pairs;
         AtomicCountingLBVH         lbvh_PE;
+        // codimP-allE pairs
         muda::BufferView<Vector2i> candidate_PE_pairs;
         AtomicCountingLBVH         lbvh_PT;
+        // allP-allT pairs
         muda::BufferView<Vector2i> candidate_PT_pairs;
         AtomicCountingLBVH         lbvh_EE;
+        // allE-allE pairs
         muda::BufferView<Vector2i> candidate_EE_pairs;
 
 

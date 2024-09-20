@@ -74,8 +74,8 @@ void AttributeCollection::reorder(span<const SizeT> O)
 
 void AttributeCollection::copy_from(const AttributeCollection& other,
                                     const AttributeCopy&       copy,
-                                    span<const string>    _include_names,
-                                    span<const string>    _exclude_names)
+                                    span<const string>         _include_names,
+                                    span<const string>         _exclude_names)
 {
     vector<string> include_names;
     vector<string> exclude_names(_exclude_names.begin(), _exclude_names.end());
@@ -183,7 +183,9 @@ Json AttributeCollection::to_json() const
     Json j = Json::array();
     for(auto& [name, slot] : m_attributes)
     {
-        j.push_back(slot->to_json());
+        auto slot_j = slot->to_json();
+        slot_j["name"] = name;
+        j.push_back(slot_j);
     }
     return j;
 }

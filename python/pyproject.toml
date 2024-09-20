@@ -26,10 +26,10 @@ keywords = ["ipc", "computer graphics", "physics simulation"]
 gui = ["polyscope"]
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["src", "typings"]
 
 [tool.setuptools.package-data]
-"*" = ["*.dll", "*.so", "*.dylib", "*.pyd"]
+"*" = ["*.dll", "*.so", "*.dylib", "*.pyd", "*.pyi"]
 
 [tool.pytest.ini_options]
 addopts = ["-s"]

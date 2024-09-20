@@ -38,7 +38,7 @@ add_custom_command(TARGET pyuipc POST_BUILD
 add_custom_command(TARGET pyuipc POST_BUILD
     COMMAND ${Python_EXECUTABLE} 
     ARGS
-    "${PROJECT_SOURCE_DIR}/scripts/copy_release.py"
+    "${PROJECT_SOURCE_DIR}/scripts/after_build_pyuipc.py"
     "--dir=${CMAKE_BINARY_DIR}/$<CONFIG>/bin"
     "--config=$<CONFIG>"
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
