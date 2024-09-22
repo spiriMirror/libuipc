@@ -1,13 +1,8 @@
 #include <catch.hpp>
-#include <uipc/world/scene.h>
-#include <uipc/common/enumerate.h>
 #include <app/asset_dir.h>
-#include <uipc/geometry.h>
-#include <iostream>
-#include <uipc/builtin/attribute_name.h>
+#include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
-#include <uipc/common/format.h>
-#include <uipc/world/object.h>
+
 
 using namespace uipc;
 using namespace uipc::world;
@@ -15,7 +10,7 @@ using namespace uipc::constitution;
 
 TEST_CASE("abd", "[constitution]")
 {
-    Scene scene;
+    Scene                  scene;
     AffineBodyConstitution abd;
     scene.constitution_tabular().insert(abd);
 

@@ -1,16 +1,6 @@
 #include <app/test_common.h>
 #include <app/asset_dir.h>
-
-#include <uipc/world/scene.h>
-#include <uipc/world/world.h>
-#include <uipc/engine/i_engine.h>
-#include <uipc/geometry.h>
-#include <uipc/constitution/affine_body_constitution.h>
-#include <Eigen/Geometry>
-// #include <uipc/world/scene_io.h>
-#include <uipc/util/io/scene_io.h>
-#include <uipc/geometry/utils/label_surface.h>
-#include <uipc/geometry/utils/label_triangle_orient.h>
+#include <uipc/uipc.h>
 
 using namespace uipc;
 using namespace uipc::world;
