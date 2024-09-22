@@ -1,6 +1,5 @@
 #include <app/test_common.h>
-#include <uipc/geometry.h>
-#include <uipc/geometry/utils/simplex_utils.h>
+#include <uipc/uipc.h>
 #include <numeric>
 
 using namespace uipc;

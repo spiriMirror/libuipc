@@ -40,7 +40,6 @@ endfunction()
 # -----------------------------------------------------------------------------------------
 function(uipc_show_options)
     uipc_info("Options:")
-    message(STATUS "    * UIPC_CORE_ONLY: ${UIPC_CORE_ONLY}")
     message(STATUS "    * UIPC_BUILD_GUI: ${UIPC_BUILD_GUI}")
     message(STATUS "    * UIPC_BUILD_PYBIND: ${UIPC_BUILD_PYBIND}")
     message(STATUS "    * UIPC_USING_LOCAL_VCPKG: ${UIPC_USING_LOCAL_VCPKG}")
@@ -87,24 +86,24 @@ function(uipc_config_vcpkg_install)
     set(VCPKG_INSTALLED_DIR "${VCPKG_INSTALLED_DIR}" PARENT_SCOPE)
 endfunction()
 
-# -----------------------------------------------------------------------------------------
-# dump build info
-# -----------------------------------------------------------------------------------------
-function (uipc_dump_build_info)
-    # write json file to output directory
-    set(BUILD_INFO_JSON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/output/build_info.json")
-    set(Json 
-"{
-    \"CMAKE_BINARY_DIR\": \"${CMAKE_BINARY_DIR}\"
-}")
-    file(WRITE ${BUILD_INFO_JSON_FILE} ${Json})
-    uipc_info("Build info dumped to ${BUILD_INFO_JSON_FILE}")
-endfunction()
+# # -----------------------------------------------------------------------------------------
+# # dump build info
+# # -----------------------------------------------------------------------------------------
+# function (uipc_dump_build_info)
+#     # write json file to output directory
+#     set(BUILD_INFO_JSON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/output/build_info.json")
+#     set(Json 
+# "{
+#     \"CMAKE_BINARY_DIR\": \"${CMAKE_BINARY_DIR}\"
+# }")
+#     file(WRITE ${BUILD_INFO_JSON_FILE} ${Json})
+#     uipc_info("Build info dumped to ${BUILD_INFO_JSON_FILE}")
+# endfunction()
 
 # -----------------------------------------------------------------------------------------
 # Install the target to the correct directory
 # -----------------------------------------------------------------------------------------
-function(uipc_install target_name)
+function(uipc_target_install target_name)
     # This function is mainly for linux system to install the target to the correct directory
     # On windows, the `uipc_set_output_directory()` is enough to set the output directory
     # Put Debug/Release/RelWithDebInfo into different directories
@@ -131,7 +130,7 @@ endfunction()
 # -----------------------------------------------------------------------------------------
 # Set the output directory for the target
 # -----------------------------------------------------------------------------------------
-function(uipc_set_output_directory target_name)
+function(uipc_target_set_output_directory target_name)
     set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
     set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
     set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
@@ -144,16 +143,27 @@ function(uipc_set_output_directory target_name)
     set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/lib")
     set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/lib")
 
-    uipc_install(${target_name})
+    uipc_target_install(${target_name})
 endfunction()
 
 # -----------------------------------------------------------------------------------------
 # Add a dependency to the backends, so that the backends will be built before this target
 # to make sure the backends are always up-to-date when developing the target
 # -----------------------------------------------------------------------------------------
-function(uipc_add_backend_dependency target_name)
+function(uipc_target_add_backend_dependency target_name)
     add_dependencies(${target_name} uipc::backends)
 endfunction()
+
+function(uipc_target_add_include_files target_name)
+    set(INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
+    target_include_directories(${target_name} PUBLIC ${INCLUDE_DIR})
+    file(GLOB_RECURSE INCLUDE_FILES "${INCLUDE_DIR}/*.h" "${INCLUDE_DIR}/*.inl")
+    target_sources(${target_name} PRIVATE ${INCLUDE_FILES})
+
+    # setup source group for the IDE
+    source_group(TREE "${INCLUDE_DIR}" PREFIX "include" FILES ${INCLUDE_FILES})
+endfunction()
+
 
 
 

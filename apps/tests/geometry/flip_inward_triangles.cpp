@@ -1,11 +1,6 @@
 #include <app/test_common.h>
 #include <app/asset_dir.h>
-#include <uipc/geometry.h>
-#include <uipc/geometry/utils/extract_surface.h>
-#include <uipc/geometry/utils/label_surface.h>
-#include <uipc/geometry/utils/label_triangle_orient.h>
-#include <uipc/geometry/utils/flip_inward_triangles.h>
-#include <uipc/geometry/utils/closure.h>
+#include <uipc/uipc.h>
 
 using namespace uipc;
 using namespace uipc::geometry;

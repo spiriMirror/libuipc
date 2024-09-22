@@ -1,11 +1,7 @@
 #include <catch.hpp>
-#include <uipc/world/scene.h>
-#include <uipc/common/enumerate.h>
 #include <app/asset_dir.h>
-#include <uipc/geometry.h>
-#include <iostream>
-#include <uipc/builtin/attribute_name.h>
-#include <uipc/common/format.h>
+#include <uipc/uipc.h>
+
 
 using namespace uipc;
 using namespace uipc::world;

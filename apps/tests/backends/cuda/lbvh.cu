@@ -6,6 +6,7 @@
 #include <muda/cub/device/device_scan.h>
 #include <uipc/common/enumerate.h>
 #include <muda/viewer/viewer_base.h>
+#include <uipc/uipc.h>
 #include <uipc/common/timer.h>
 
 using namespace muda;

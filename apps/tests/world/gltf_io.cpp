@@ -1,6 +1,6 @@
 #include <app/test_common.h>
 #include <tiny_gltf.h>
-#include <uipc/util/io/gltf_io.h>
+#include <uipc/io/gltf_io.h>
 
 using namespace uipc;
 

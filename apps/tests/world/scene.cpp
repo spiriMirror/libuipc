@@ -1,9 +1,6 @@
 #include <app/test_common.h>
 #include <app/asset_dir.h>
-
-#include <uipc/world/scene.h>
-#include <uipc/geometry.h>
-#include <uipc/common/format.h>
+#include <uipc/uipc.h>
 #include <uipc/backend/visitors/scene_visitor.h>
 
 using namespace uipc;

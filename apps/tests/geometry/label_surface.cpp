@@ -1,7 +1,6 @@
 #include <app/test_common.h>
 #include <app/asset_dir.h>
-#include <uipc/geometry.h>
-#include <uipc/geometry/utils/label_surface.h>
+#include <uipc/uipc.h>
 
 using namespace uipc;
 using namespace uipc::geometry;

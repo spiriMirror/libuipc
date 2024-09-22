@@ -1,16 +1,7 @@
 #include <app/test_common.h>
-
 #include <app/asset_dir.h>
-#include <iostream>
-#include <uipc/common/enumerate.h>
-#include <uipc/geometry.h>
-#include <uipc/world/scene.h>
-
-#include <uipc/builtin/attribute_name.h>
-#include <uipc/common/format.h>
+#include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
-#include <uipc/geometry/simplicial_complex_slot.h>
-#include <uipc/world/object.h>
 
 
 using namespace uipc;
