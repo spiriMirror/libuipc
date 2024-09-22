@@ -16,6 +16,7 @@ Json UIDInfo::to_json() const noexcept
     Json j;
     j["uid"]         = uid;
     j["name"]        = name;
+    j["type"]        = type;
     j["author"]      = author;
     j["email"]       = email;
     j["website"]     = website;

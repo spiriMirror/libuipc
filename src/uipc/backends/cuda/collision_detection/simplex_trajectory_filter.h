@@ -80,6 +80,7 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
     {
       public:
         void record_friction_candidates(GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info);
+        void label_active_vertices(GlobalTrajectoryFilter::FilterActiveInfo& info);
 
         GlobalVertexManager* global_vertex_manager = nullptr;
         GlobalSimpicialSurfaceManager* global_simplicial_surface_manager = nullptr;

@@ -72,19 +72,15 @@ void SimEngine::do_advance()
 
     auto cfl_condition = [&cfl_alpha, this](Float alpha)
     {
-        //if(m_global_contact_manager)
-        //{
-        //    auto max_disp = m_global_vertex_manager->compute_max_displacement_norm();
-        //    auto d_hat = m_global_contact_manager->d_hat();
-
-        //    cfl_alpha = d_hat / max_disp;
-        //    spdlog::info("CFL Condition: {} / {}, max dx: {}", cfl_alpha, alpha, max_disp);
-
-        //    if(cfl_alpha < alpha)
-        //    {
-        //        return cfl_alpha;
-        //    }
-        //}
+        if(m_global_contact_manager)
+        {
+            cfl_alpha = m_global_contact_manager->compute_cfl_condition();
+            if(cfl_alpha < alpha)
+            {
+                spdlog::info("CFL Filter: {} < {}", cfl_alpha, alpha);
+                return cfl_alpha;
+            }
+        }
 
         return alpha;
     };
@@ -134,12 +130,15 @@ void SimEngine::do_advance()
     {
         LogGuard guard;
 
+        Timer timer{"Pipeline"};
+
         ++m_current_frame;
 
         spdlog::info(R"(>>> Begin Frame: {})", m_current_frame);
 
         // Rebuild Scene (No effect now)
         {
+            Timer timer{"Rebuild Scene"};
             // Trigger the rebuild_scene event, systems register their actions will be called here
             m_state = SimEngineState::RebuildScene;
             {
@@ -157,6 +156,7 @@ void SimEngine::do_advance()
 
         // Simulation:
         {
+            Timer timer{"Simulation"};
             // 1. Adaptive Parameter Calculation
             AABB vertex_bounding_box =
                 m_global_vertex_manager->compute_vertex_bounding_box();
@@ -178,23 +178,33 @@ void SimEngine::do_advance()
 
             for(auto&& newton_iter : range(m_newton_max_iter))
             {
+                Timer timer{"Newton Iteration"};
                 // 1) Build Collision Pairs
                 if(newton_iter > 0)
                     detect_dcd_candidates();
 
                 // 2) Compute Contact Gradient and Hessian => G:Vector3, H:Matrix3x3
                 m_state = SimEngineState::ComputeContact;
-                compute_contact();
+                {
+                    Timer timer{"Compute Contact"};
+                    compute_contact();
+                }
+
 
                 // 3) Compute System Gradient and Hessian
                 m_state = SimEngineState::ComputeGradientHessian;
-                m_gradient_hessian_computer->compute_gradient_hessian();
+                {
+                    Timer timer{"Compute Gradient Hessian"};
+                    m_gradient_hessian_computer->compute_gradient_hessian();
+                }
 
                 // 4) Solve Global Linear System => dx = A^-1 * b
                 m_state = SimEngineState::SolveGlobalLinearSystem;
-                m_global_linear_system->solve();
-                //m_global_linear_system->dump_linear_system(
-                //    fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
+                {
+                    Timer timer{"Solve Global Linear System"};
+                    m_global_linear_system->solve();
+                }
+
 
                 // 5) Get Max Movement => dx_max = max(|dx|), if dx_max < tol, break
                 m_global_vertex_manager->collect_vertex_displacements();
@@ -221,6 +231,8 @@ void SimEngine::do_advance()
                 // 7) Begin Line Search
                 m_state = SimEngineState::LineSearch;
                 {
+                    Timer timer{"Line Search"};
+
                     // Reset Alpha
                     alpha = 1.0;
 
@@ -248,6 +260,8 @@ void SimEngine::do_advance()
                         SizeT line_search_iter = 0;
                         while(line_search_iter++ < m_line_searcher->max_iter())
                         {
+                            Timer timer{"Line Search Iteration"};
+
                             bool energy_decrease = E <= E0;  // Check Energy Decrease
 
                             // TODO: Inversion Check (Not Implemented Yet)
@@ -271,7 +285,7 @@ void SimEngine::do_advance()
                         if(line_search_iter >= m_line_searcher->max_iter())
                         {
                             //m_global_linear_system->dump_linear_system(
-                            //   fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
+                            //    fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
 
                             spdlog::warn(
                                 "Line Search Exits with Max Iteration: {} (Frame={}, Newton={})\n"

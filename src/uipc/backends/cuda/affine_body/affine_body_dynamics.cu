@@ -15,6 +15,7 @@
 #include <muda/ext/eigen/evd.h>
 #include <fstream>
 #include <sim_engine.h>
+#include <uipc/builtin/constitution_type.h>
 
 namespace uipc::backend
 {
@@ -26,7 +27,7 @@ class backend::SimSystemCreator<cuda::AffineBodyDynamics>
     {
         auto  scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
         auto& types = scene.constitution_tabular().types();
-        if(types.find(constitution::ConstitutionType::AffineBody) == types.end())
+        if(types.find(string{builtin::AffineBody}) == types.end())
         {
             return nullptr;
         }

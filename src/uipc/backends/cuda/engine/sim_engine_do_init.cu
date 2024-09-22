@@ -54,10 +54,10 @@ void SimEngine::init_scene()
     event_init_scene();
 
     // some systems need to be initialized after the scene is built
-    m_global_vertex_manager->init_vertex_info();
-    m_global_simplicial_surface_manager->init_surface_info();
+    m_global_vertex_manager->init();
+    m_global_simplicial_surface_manager->init();
     if(m_global_contact_manager)
-        m_global_contact_manager->compute_d_hat();
+        m_global_contact_manager->init();
     if(m_global_animator)
         m_global_animator->init();
 }

@@ -31,12 +31,10 @@ void GlobalContactManager::do_build()
 
     m_impl.global_vertex_manager = find<GlobalVertexManager>();
 
-    m_impl.related_d_hat = info["contact"]["d_hat"].get<Float>();
-    m_impl.dt            = info["dt"].get<Float>();
-    m_impl.eps_velocity  = info["contact"]["eps_velocity"].get<Float>();
+    m_impl.d_hat        = info["contact"]["d_hat"].get<Float>();
+    m_impl.dt           = info["dt"].get<Float>();
+    m_impl.eps_velocity = info["contact"]["eps_velocity"].get<Float>();
     m_impl.kappa = world().scene().contact_tabular().default_model().resistance();
-
-    on_init_scene([this] { m_impl.init(world()); });
 }
 
 void GlobalContactManager::Impl::init(WorldVisitor& world)
@@ -60,7 +58,11 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     contact_tabular.resize(muda::Extent2D{N, N});
     contact_tabular.view().copy_from(h_contact_tabular.data());
 
-    // 2) reporters
+    // 2) vertex contact info
+    vert_is_active_contact.resize(global_vertex_manager->positions().size(), 0);
+    vert_disp_norms.resize(global_vertex_manager->positions().size(), 0.0);
+
+    // 3) reporters
     auto contact_reporter_view = contact_reporters.view();
     for(auto&& [i, R] : enumerate(contact_reporter_view))
         R->m_index = i;
@@ -71,7 +73,7 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     reporter_hessian_offsets.resize(contact_reporter_view.size());
     reporter_hessian_counts.resize(contact_reporter_view.size());
 
-    // 3) receivers
+    // 4) receivers
     auto contact_receiver_view = contact_receivers.view();
     for(auto&& [i, R] : enumerate(contact_receiver_view))
         R->m_index = i;
@@ -82,13 +84,38 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
 
 void GlobalContactManager::Impl::compute_d_hat()
 {
-    AABB vert_aabb = global_vertex_manager->vertex_bounding_box();
-    d_hat          = related_d_hat;  // TODO: just hard code for now
-
-    //d_hat          = 0.001;
+    // TODO: Now do nothing
 }
 
-void GlobalContactManager::Impl::compute_adaptive_kappa() {}
+void GlobalContactManager::Impl::compute_adaptive_kappa()
+{
+    // TODO: Now do nothing
+}
+
+Float GlobalContactManager::Impl::compute_cfl_condition()
+{
+    auto displacements = global_vertex_manager->displacements();
+
+    using namespace muda;
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(displacements.size(),
+               [disps             = displacements.cviewer().name("disp"),
+                disp_norms        = vert_disp_norms.viewer().name("disp_norm"),
+                is_contact_active = vert_is_active_contact.viewer().name(
+                    "vert_is_contact_active")] __device__(int i) mutable
+               {
+                   // if the contact is not active, then the displacement is ignored
+                   disp_norms(i) = is_contact_active(i) ? disps(i).norm() : 0.0;
+               });
+
+    DeviceReduce().Max(
+        vert_disp_norms.data(), max_disp_norm.data(), vert_disp_norms.size());
+
+    Float h_max_disp_norm = h_max_disp_norm;
+
+    return h_max_disp_norm == 0.0 ? 1.0 : (0.5 * d_hat / h_max_disp_norm);
+}
 
 void GlobalContactManager::Impl::compute_contact()
 {
@@ -394,6 +421,16 @@ void GlobalContactManager::compute_contact()
 void GlobalContactManager::compute_adaptive_kappa()
 {
     m_impl.compute_adaptive_kappa();
+}
+
+Float GlobalContactManager::compute_cfl_condition()
+{
+    return m_impl.compute_cfl_condition();
+}
+
+void GlobalContactManager::init()
+{
+    m_impl.init(world());
 }
 
 Float GlobalContactManager::d_hat() const

@@ -25,12 +25,31 @@ void VertexHalfPlaneTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectIn
     do_detect(this_info);  // call the derived class implementation
 }
 
+void VertexHalfPlaneTrajectoryFilter::Impl::label_active_vertices(GlobalTrajectoryFilter::FilterActiveInfo& info)
+{
+    using namespace muda;
+
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(PHs.size(),
+               [PHs = PHs.viewer().name("PHs"),
+                is_active = info.vert_is_active().viewer().name("is_active")] __device__(int i)
+               {
+                   auto PH = PHs(i);
+                   auto P  = PH[0];
+                   if(is_active(P) == 0)
+                       atomic_exch(&is_active(P), 1);
+               });
+}
+
 void VertexHalfPlaneTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
 {
     FilterActiveInfo this_info{&m_impl};
     do_filter_active(this_info);
 
     spdlog::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
+
+    m_impl.label_active_vertices(info);
 }
 
 void VertexHalfPlaneTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)

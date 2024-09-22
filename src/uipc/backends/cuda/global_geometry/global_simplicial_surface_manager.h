@@ -66,7 +66,7 @@ class GlobalSimpicialSurfaceManager : public SimSystem
     class Impl
     {
       public:
-        void init_surface_info();
+        void init();
         void _collect_codim_vertices();
 
         // core invariant data
@@ -98,7 +98,7 @@ class GlobalSimpicialSurfaceManager : public SimSystem
   private:
     friend class SimEngine;
     Impl m_impl;
-    void init_surface_info();     // only called by SimEngine
-    void rebuild_surface_info();  // only called by SimEngine
+    void init();     // only called by SimEngine
+    void rebuild();  // only called by SimEngine
 };
 }  // namespace uipc::backend::cuda

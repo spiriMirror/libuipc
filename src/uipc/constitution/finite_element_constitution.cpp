@@ -4,11 +4,6 @@
 
 namespace uipc::constitution
 {
-constitution::ConstitutionType FiniteElementConstitution::get_type() const noexcept
-{
-    return constitution::ConstitutionType::FiniteElement;
-}
-
 void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
                                          Float mass_density,
                                          Float thickness) const

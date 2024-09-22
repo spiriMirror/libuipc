@@ -7,6 +7,7 @@
 #include <fstream>
 #include <numbers>
 #include <uipc/common/enumerate.h>
+#include <uipc/common/timer.h>
 
 TEST_CASE("27_particle_abd", "[abd]")
 {
@@ -36,11 +37,8 @@ TEST_CASE("27_particle_abd", "[abd]")
     Scene scene{config};
     {
         // create constitution and contact model
-
         AffineBodyConstitution abd;
-        scene.constitution_tabular().insert(abd);
-        Particle pt;
-        scene.constitution_tabular().insert(pt);
+        Particle               pt;
 
         auto& contact_tabular = scene.contact_tabular();
         contact_tabular.default_model(0.5, 1.0_GPa);
@@ -84,6 +82,8 @@ TEST_CASE("27_particle_abd", "[abd]")
         particle_obj->geometries().create(particle);
     }
 
+    Timer::enable_all();
+
     world.init(scene);
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
@@ -93,5 +93,6 @@ TEST_CASE("27_particle_abd", "[abd]")
         world.advance();
         world.retrieve();
         sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
+        Timer::report();
     }
 }

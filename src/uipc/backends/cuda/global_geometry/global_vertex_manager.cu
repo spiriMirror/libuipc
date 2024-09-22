@@ -9,7 +9,7 @@
 *************************************************************************************************/
 namespace uipc::backend::cuda
 {
-void GlobalVertexManager::Impl::init_vertex_info()
+void GlobalVertexManager::Impl::init()
 {
     auto vertex_reporter_view = vertex_reporters.view();
 
@@ -66,7 +66,7 @@ void GlobalVertexManager::Impl::init_vertex_info()
     }
 }
 
-void GlobalVertexManager::Impl::rebuild_vertex_info()
+void GlobalVertexManager::Impl::rebuild()
 {
     UIPC_ASSERT(false, "Not implemented yet");
 }
@@ -125,28 +125,6 @@ Float GlobalVertexManager::Impl::compute_axis_max_displacement()
                                 },
                                 0.0);
     return axis_max_disp;
-}
-
-Float GlobalVertexManager::Impl::compute_max_displacement_norm()
-{
-    using namespace muda;
-    ParallelFor()
-        .kernel_name(__FUNCTION__)
-        .apply(displacements.size(),
-               [disps = displacements.cviewer().name("disp"),
-                disp_norms = displacement_norms.viewer().name("disp_norm")] __device__(int i) mutable
-               {
-                   auto d        = disps(i).norm();
-                   disp_norms(i) = d;
-               });
-
-    Float max_float = std::numeric_limits<Float>::max();
-
-    DeviceReduce().Max(displacement_norms.data(),
-                       max_disp_norm.data(),
-                       displacement_norms.size());
-
-    return max_disp_norm;
 }
 
 AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
@@ -294,14 +272,14 @@ void GlobalVertexManager::do_clear_recover(RecoverInfo& info)
     m_impl.clear_recover(info);
 }
 
-void GlobalVertexManager::init_vertex_info()
+void GlobalVertexManager::init()
 {
-    m_impl.init_vertex_info();
+    m_impl.init();
 }
 
-void GlobalVertexManager::rebuild_vertex_info()
+void GlobalVertexManager::rebuild()
 {
-    m_impl.rebuild_vertex_info();
+    m_impl.rebuild();
 }
 
 void GlobalVertexManager::record_prev_positions()
@@ -357,11 +335,6 @@ muda::CBufferView<Float> GlobalVertexManager::thicknesses() const noexcept
 Float GlobalVertexManager::compute_axis_max_displacement()
 {
     return m_impl.compute_axis_max_displacement();
-}
-
-Float GlobalVertexManager::compute_max_displacement_norm()
-{
-    return m_impl.compute_max_displacement_norm();
 }
 
 AABB GlobalVertexManager::compute_vertex_bounding_box()

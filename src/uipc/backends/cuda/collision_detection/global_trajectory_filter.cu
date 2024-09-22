@@ -1,5 +1,6 @@
 #include <collision_detection/global_trajectory_filter.h>
 #include <collision_detection/trajectory_filter.h>
+#include <contact_system/global_contact_manager.h>
 
 namespace uipc::backend::cuda
 {
@@ -13,6 +14,8 @@ void GlobalTrajectoryFilter::do_build()
     }
 
     m_impl.friction_enabled = world().scene().info()["contact"]["friction"]["enable"];
+
+    m_impl.global_contact_manager = require<GlobalContactManager>();
 
     on_init_scene([&] { m_impl.init(); });
 }
@@ -43,9 +46,13 @@ void GlobalTrajectoryFilter::detect(Float alpha)
 
 void GlobalTrajectoryFilter::filter_active()
 {
+    auto is_acitive =
+        m_impl.global_contact_manager->m_impl.vert_is_active_contact.view();
+    is_acitive.fill(0);  // clear the active flag
+
     for(auto filter : m_impl.filters.view())
     {
-        FilterActiveInfo info;
+        FilterActiveInfo info(&m_impl);
         filter->filter_active(info);
     }
 }
@@ -87,5 +94,10 @@ void GlobalTrajectoryFilter::record_friction_candidates()
         RecordFrictionCandidatesInfo info;
         filter->record_friction_candidates(info);
     }
+}
+
+muda::BufferView<IndexT> GlobalTrajectoryFilter::FilterActiveInfo::vert_is_active() const noexcept
+{
+    return m_impl->global_contact_manager->m_impl.vert_is_active_contact.view();
 }
 }  // namespace uipc::backend::cuda

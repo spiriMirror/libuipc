@@ -15,8 +15,5 @@ class UIPC_CORE_API FiniteElementExtraConstitution : public IConstitution
     void apply_to(geometry::SimplicialComplex& sc) const;
     // let the derived class to give the uid
     virtual U64 get_uid() const noexcept = 0;
-
-  protected:
-    virtual ConstitutionType get_type() const noexcept final override;
 };
 }  // namespace uipc::constitution

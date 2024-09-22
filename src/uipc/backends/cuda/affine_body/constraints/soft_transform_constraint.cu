@@ -21,7 +21,7 @@ namespace uipc::backend::cuda
 {
 class SoftTransformConstraint final : public AffineBodyConstraint
 {
-    static constexpr U64 SoftTransformConstraintUID = 15ull;
+    static constexpr U64 SoftTransformConstraintUID = 16ull;
 
   public:
     using AffineBodyConstraint::AffineBodyConstraint;

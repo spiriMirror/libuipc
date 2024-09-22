@@ -40,7 +40,7 @@ void GlobalSimpicialSurfaceManager::do_build()
     m_impl.global_vertex_manager = find<GlobalVertexManager>();
 }
 
-void GlobalSimpicialSurfaceManager::Impl::init_surface_info()
+void GlobalSimpicialSurfaceManager::Impl::init()
 {
     // 1) build the core invariant data structure: reporter_infos
     auto reporter_view = reporters.view();
@@ -140,12 +140,12 @@ void GlobalSimpicialSurfaceManager::Impl::_collect_codim_vertices()
     codim_vertices.resize(count);
 }
 
-void GlobalSimpicialSurfaceManager::init_surface_info()
+void GlobalSimpicialSurfaceManager::init()
 {
-    m_impl.init_surface_info();
+    m_impl.init();
 }
 
-void GlobalSimpicialSurfaceManager::rebuild_surface_info()
+void GlobalSimpicialSurfaceManager::rebuild()
 {
     UIPC_ASSERT(false, "Not implemented yet");
 }

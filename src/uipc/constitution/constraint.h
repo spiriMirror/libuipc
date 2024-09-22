@@ -13,8 +13,5 @@ class UIPC_CORE_API Constraint : public IConstitution
     virtual U64 get_uid() const noexcept = 0;
 
     void apply_to(geometry::SimplicialComplex& sc) const;
-
-  private:
-    ConstitutionType get_type() const noexcept override final;
 };
 }  // namespace uipc::constitution

@@ -1,5 +1,6 @@
 #include <animator/global_animator.h>
 #include <animator/animator.h>
+#include <uipc/builtin/constitution_type.h>
 #include <sim_engine.h>
 
 namespace uipc::backend
@@ -12,7 +13,7 @@ class backend::SimSystemCreator<cuda::GlobalAnimator>
     {
         auto  scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
         auto& types = scene.constitution_tabular().types();
-        if(types.find(constitution::ConstitutionType::Constraint) == types.end())
+        if(types.find(std::string{builtin::Constraint}) == types.end())
         {
             return nullptr;
         }
@@ -27,12 +28,6 @@ REGISTER_SIM_SYSTEM(GlobalAnimator);
 
 void GlobalAnimator::do_build()
 {
-    const auto& scene = world().scene();
-    auto&       types = scene.constitution_tabular().types();
-    if(types.find(constitution::ConstitutionType::Constraint) == types.end())
-    {
-        throw SimSystemException("No Constraint found in the scene");
-    }
 }
 
 void GlobalAnimator::init()

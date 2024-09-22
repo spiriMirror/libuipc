@@ -13,7 +13,9 @@ PyConstitutionTabular::PyConstitutionTabular(py::module& m)
 
     class_ConstitutionTabular.def(py::init<>());
 
-    class_ConstitutionTabular.def("insert", &ConstitutionTabular::insert);
+    class_ConstitutionTabular.def("insert",
+                                  [](ConstitutionTabular& self, constitution::IConstitution& c)
+                                  { self.insert(c); });
 
     class_ConstitutionTabular.def("uids",
                                   [](ConstitutionTabular& self) {

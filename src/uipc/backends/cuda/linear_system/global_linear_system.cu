@@ -330,7 +330,7 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
                     .submatrix(int2{r_blocked_dof_offset, l_blocked_dof_offset},
                                int2{r_blocked_dof_count, l_blocked_dof_count});
 
-            spdlog::info("rl_offset: {}, lr_offset: {}", rl_triplet_offset, lr_triplet_offset);
+            // spdlog::info("rl_offset: {}, lr_offset: {}", rl_triplet_offset, lr_triplet_offset);
 
             off_diag_subsystem->assemble(info);
         }

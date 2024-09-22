@@ -71,6 +71,9 @@ class UIPC_CORE_API Timer
     static void enable_all() { m_global_on = true; }
     static void set_sync_func(std::function<void()> sync) { m_sync = sync; }
 
+    static void report(std::ostream& o = std::cout);
+    static Json report_as_json();
+
   private:
     void                         sync() const;
     details::ScopedTimer*        m_timer = nullptr;

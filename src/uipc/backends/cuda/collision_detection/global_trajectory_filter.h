@@ -5,7 +5,7 @@
 namespace uipc::backend::cuda
 {
 class TrajectoryFilter;
-
+class GlobalContactManager;
 class GlobalTrajectoryFilter : public SimSystem
 {
   public:
@@ -38,6 +38,16 @@ class GlobalTrajectoryFilter : public SimSystem
     class FilterActiveInfo
     {
       public:
+        FilterActiveInfo(Impl* impl) noexcept
+            : m_impl(impl)
+        {
+        }
+
+        muda::BufferView<IndexT> vert_is_active() const noexcept;
+
+      private:
+        friend class GlobalTrajectoryFilter;
+        Impl* m_impl;
     };
 
     class RecordFrictionCandidatesInfo
@@ -52,7 +62,9 @@ class GlobalTrajectoryFilter : public SimSystem
         Float filter_toi(Float alpha);
 
         SimSystemSlotCollection<TrajectoryFilter> filters;
+        SimSystemSlot<GlobalContactManager>       global_contact_manager;
         bool                                      friction_enabled = false;
+
 
         muda::DeviceBuffer<Float> tois;
         vector<Float>             h_tois;

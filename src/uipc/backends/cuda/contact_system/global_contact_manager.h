@@ -145,9 +145,10 @@ class GlobalContactManager final : public SimSystem
     class Impl
     {
       public:
-        void init(WorldVisitor& world);
-        void compute_d_hat();
-        void compute_adaptive_kappa();
+        void  init(WorldVisitor& world);
+        void  compute_d_hat();
+        void  compute_adaptive_kappa();
+        Float compute_cfl_condition();
 
         void compute_contact();
         void _assemble();
@@ -159,11 +160,19 @@ class GlobalContactManager final : public SimSystem
         muda::DeviceBuffer2D<ContactCoeff> contact_tabular;
         Float                              reserve_ratio = 1.1;
 
-        Float d_hat         = 0.0;
-        Float related_d_hat = 0.0;
-        Float kappa         = 0.0;
-        Float dt            = 0.0;
-        Float eps_velocity  = 0.0;
+        Float d_hat        = 0.0;
+        Float kappa        = 0.0;
+        Float dt           = 0.0;
+        Float eps_velocity = 0.0;
+
+        /***********************************************************************
+        *                     Global Vertex Contact Info                       *
+        ***********************************************************************/
+
+        muda::DeviceBuffer<IndexT> vert_is_active_contact;
+        muda::DeviceBuffer<Float>  vert_disp_norms;
+        muda::DeviceVar<Float>     max_disp_norm;
+
 
         /***********************************************************************
         *                         Contact Reporter                             *
@@ -223,9 +232,12 @@ class GlobalContactManager final : public SimSystem
   private:
     friend class SimEngine;
     friend class ContactLineSearchReporter;
-    void compute_d_hat();
-    void compute_contact();
-    void compute_adaptive_kappa();
+    friend class GlobalTrajectoryFilter;
+    void  compute_d_hat();
+    void  compute_contact();
+    void  compute_adaptive_kappa();
+    Float compute_cfl_condition();
+    void  init();
 
     Impl m_impl;
 };

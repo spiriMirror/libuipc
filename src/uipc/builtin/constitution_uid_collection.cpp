@@ -21,6 +21,9 @@ ConstitutionUIDCollection::ConstitutionUIDCollection()
         for(auto& uid : uid_infos)
         {
             create(uid);
+            UIPC_ASSERT(!uid.type.empty(),
+                        "ConstitutionUIDCollection: Constitution type is empty for UID: {}",
+                        uid.uid);
         }
     }
 }

@@ -8,6 +8,7 @@
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <fstream>
+#include <uipc/common/timer.h>
 
 namespace uipc::backend::cuda
 {
@@ -58,6 +59,8 @@ SimEngine::SimEngine(EngineCreateInfo* info)
             });
 
         say_hello_from_muda();
+
+        Timer::set_sync_func([] { muda::wait_device(); });
 
 #ifndef NDEBUG
         // if in debug mode, sync all the time to check for errors

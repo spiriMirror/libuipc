@@ -43,7 +43,7 @@ void ScopedTimer::setup_full_name()
 
 namespace uipc
 {
-bool Timer::m_global_on = true;
+bool Timer::m_global_on = false;
 
 std::function<void()> Timer::m_sync;
 
@@ -60,6 +60,30 @@ Timer::Timer(std::string_view blockName, bool force_on)
     auto& t = GlobalTimer::current()->push_timer(blockName);
     m_timer = &t;
     t.tick();
+}
+
+void Timer::report(std::ostream& o)
+{
+    if(!GlobalTimer::current())
+    {
+        spdlog::warn("No timing information to report.");
+        return;
+    }
+
+    GlobalTimer::current()->print_merged_timings(o);
+    GlobalTimer::current()->clear();
+}
+
+Json Timer::report_as_json()
+{
+    if(!GlobalTimer::current())
+    {
+        spdlog::warn("No timing information to report.");
+        return Json::object();
+    }
+    Json json = GlobalTimer::current()->report_merged_as_json();
+    GlobalTimer::current()->clear();
+    return json;
 }
 
 double Timer::elapsed() const

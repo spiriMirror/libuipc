@@ -13,9 +13,4 @@ void Constraint::apply_to(geometry::SimplicialComplex& sc) const
     else
         geometry::view(*constraint_uid).front() = uid();
 }
-
-ConstitutionType Constraint::get_type() const noexcept
-{
-    return ConstitutionType::Constraint;
-}
 }  // namespace uipc::constitution

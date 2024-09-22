@@ -1,6 +1,7 @@
 #include <uipc/constitution/soft_position_constraint.h>
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/builtin/constitution_type.h>
 namespace uipc::constitution
 {
 constexpr U64 SoftPositionConstraintUID = 14;
@@ -8,10 +9,9 @@ REGISTER_CONSTITUTION_UIDS()
 {
     using namespace builtin;
     list<UIDInfo> uids;
-    uids.push_back(UIDInfo{
-        .uid  = SoftPositionConstraintUID,
-        .name = "Constraint::SoftPositionConstraint",
-    });
+    uids.push_back(UIDInfo{.uid  = SoftPositionConstraintUID,
+                           .name = "SoftPositionConstraint",
+                           .type = string{builtin::Constraint}});
     return uids;
 };
 

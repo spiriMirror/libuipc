@@ -10,8 +10,5 @@ class UIPC_CORE_API FiniteElementConstitution : public IConstitution
 
   protected:
     void apply_to(geometry::SimplicialComplex& sc, Float mass_density, Float thickness = 0.0) const;
-
-  private:
-    virtual ConstitutionType get_type() const noexcept final override;
 };
 }  // namespace uipc::constitution

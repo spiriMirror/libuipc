@@ -19,9 +19,4 @@ void FiniteElementExtraConstitution::apply_to(geometry::SimplicialComplex& sc) c
     vs.resize(uids_set.size());
     std::ranges::copy(uids_set, vs.begin());
 }
-
-ConstitutionType FiniteElementExtraConstitution::get_type() const noexcept
-{
-    return ConstitutionType::FiniteElement;
-}
 }  // namespace uipc::constitution

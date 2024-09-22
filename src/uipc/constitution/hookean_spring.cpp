@@ -2,6 +2,7 @@
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/builtin/constitution_type.h>
 #include <uipc/constitution/conversion.h>
 #include <uipc/common/log.h>
 
@@ -11,7 +12,7 @@ REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
     list<UIDInfo> uids;
-    uids.push_back(UIDInfo{.uid = 12, .name = "FiniteElement::HookeanSpring"});
+    uids.push_back(UIDInfo{.uid = 12, .name = "HookeanSpring", .type = string{builtin::FiniteElement}});
     return uids;
 }
 
@@ -33,7 +34,6 @@ void HookeanSpring::apply_to(geometry::SimplicialComplex& sc,
     if(!kappa_attr)
         kappa_attr = sc.edges().create<Float>("kappa", kappa);
     std::ranges::fill(geometry::view(*kappa_attr), kappa);
-
 }
 
 Json HookeanSpring::default_config() noexcept

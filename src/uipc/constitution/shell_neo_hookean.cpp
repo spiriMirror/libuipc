@@ -2,6 +2,7 @@
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/builtin/constitution_type.h>
 #include <uipc/constitution/conversion.h>
 #include <uipc/common/log.h>
 
@@ -11,7 +12,7 @@ REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
     list<UIDInfo> uids;
-    uids.push_back(UIDInfo{.uid = 11, .name = "FiniteElement::ShellNeoHookean"});
+    uids.push_back(UIDInfo{.uid = 11, .name = "ShellNeoHookean", .type = string{builtin::FiniteElement}});
     return uids;
 }
 

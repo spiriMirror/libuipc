@@ -34,7 +34,6 @@ class UIPC_CORE_API AffineBodyConstitution : public IConstitution
 
   protected:
     virtual U64              get_uid() const noexcept override;
-    virtual ConstitutionType get_type() const noexcept override;
 
   private:
     Json m_config;

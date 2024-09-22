@@ -1,6 +1,7 @@
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/builtin/constitution_type.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
 
 namespace uipc::constitution
@@ -10,14 +11,15 @@ REGISTER_CONSTITUTION_UIDS()
     using namespace uipc::builtin;
     list<UIDInfo> uids;
     // create 8 AffineBody constitution uids
-    uids.push_back(UIDInfo{.uid = 1, .name = "AffineBody::OrthoPotential"});
-    uids.push_back(UIDInfo{.uid = 2, .name = "AffineBody::ARAP"});
-    uids.push_back(UIDInfo{.uid = 3, .name = "AffineBody"});
-    uids.push_back(UIDInfo{.uid = 4, .name = "AffineBody"});
-    uids.push_back(UIDInfo{.uid = 5, .name = "AffineBody"});
-    uids.push_back(UIDInfo{.uid = 6, .name = "AffineBody"});
-    uids.push_back(UIDInfo{.uid = 7, .name = "AffineBody"});
-    uids.push_back(UIDInfo{.uid = 8, .name = "AffineBody"});
+    auto affine_body = string{builtin::AffineBody};
+    uids.push_back(UIDInfo{.uid = 1, .name = "OrthoPotential", .type = affine_body});
+    uids.push_back(UIDInfo{.uid = 2, .name = "ARAP", .type = affine_body});
+    uids.push_back(UIDInfo{.uid = 3, .name = "AffineBody", .type = affine_body});
+    uids.push_back(UIDInfo{.uid = 4, .name = "AffineBody", .type = affine_body});
+    uids.push_back(UIDInfo{.uid = 5, .name = "AffineBody", .type = affine_body});
+    uids.push_back(UIDInfo{.uid = 6, .name = "AffineBody", .type = affine_body});
+    uids.push_back(UIDInfo{.uid = 7, .name = "AffineBody", .type = affine_body});
+    uids.push_back(UIDInfo{.uid = 8, .name = "AffineBody", .type = affine_body});
     return uids;
 }
 
@@ -53,11 +55,6 @@ U64 AffineBodyConstitution::get_uid() const noexcept
         return 2;
 
     return 1;
-}
-
-ConstitutionType AffineBodyConstitution::get_type() const noexcept
-{
-    return ConstitutionType::AffineBody;
 }
 
 void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const

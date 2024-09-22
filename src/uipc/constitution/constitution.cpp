@@ -13,9 +13,9 @@ std::string_view IConstitution::name() const noexcept
     return uid_info().name;
 }
 
-ConstitutionType IConstitution::type() const noexcept
+std::string_view IConstitution::type() const noexcept
 {
-    return get_type();
+    return uid_info().type;
 }
 
 const builtin::UIDInfo& IConstitution::uid_info() const noexcept

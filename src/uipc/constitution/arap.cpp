@@ -4,6 +4,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/constitution/conversion.h>
 #include <uipc/common/log.h>
+#include <uipc/builtin/constitution_type.h>
 
 namespace uipc::constitution
 {
@@ -11,7 +12,7 @@ REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
     list<UIDInfo> uids;
-    uids.push_back(UIDInfo{.uid = 9, .name = "FiniteElement::ARAP"});
+    uids.push_back(UIDInfo{.uid = 9, .name = "ARAP", .type = string{builtin::FiniteElement}});
     return uids;
 }
 

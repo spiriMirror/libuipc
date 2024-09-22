@@ -1,6 +1,7 @@
 #include <uipc/world/world.h>
 #include <uipc/backend/visitors/world_visitor.h>
 #include <uipc/world/sanity_check/sanity_checker_collection.h>
+#include <uipc/builtin/attribute_name.h>
 #include <magic_enum.hpp>
 namespace uipc::world
 {
@@ -20,9 +21,20 @@ void World::init(Scene& s)
     }
 
     m_scene = &s;
-    m_engine->init(backend::WorldVisitor{*this});
+
+    // insert all constitution uid into constitution_tabular
+    auto scene_visitor = backend::SceneVisitor{*m_scene};
+    auto geos          = scene_visitor.geometries();
+    for(auto&& geo : geos)
+    {
+        auto uid = geo->geometry().meta().find<U64>(builtin::constitution_uid);
+        if(uid)
+            m_scene->constitution_tabular().insert(uid->view().front());
+    }
+
     m_scene->m_impl.world   = this;  // set the world pointer in the scene
     m_scene->m_impl.started = true;  // set the started flag in the scene
+    m_engine->init(backend::WorldVisitor{*this});
 }
 
 void World::advance()

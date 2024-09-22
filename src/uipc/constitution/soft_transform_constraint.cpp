@@ -1,17 +1,17 @@
 #include <uipc/constitution/soft_transform_constraint.h>
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/builtin/constitution_type.h>
 namespace uipc::constitution
 {
-constexpr U64 SoftTransformConstraintUID = 15;
+constexpr U64 SoftTransformConstraintUID = 16;
 REGISTER_CONSTITUTION_UIDS()
 {
     using namespace builtin;
     list<UIDInfo> uids;
-    uids.push_back(UIDInfo{
-        .uid  = SoftTransformConstraintUID,
-        .name = "Constraint::SoftTransformConstraint",
-    });
+    uids.push_back(UIDInfo{.uid  = SoftTransformConstraintUID,
+                           .name = "SoftTransformConstraint",
+                           .type = string{builtin::Constraint}});
     return uids;
 };
 

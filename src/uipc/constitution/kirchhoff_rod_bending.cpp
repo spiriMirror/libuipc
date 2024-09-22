@@ -1,4 +1,5 @@
 #include <uipc/constitution/kirchhoff_rod_bending.h>
+#include <uipc/builtin/constitution_type.h>
 #include <uipc/builtin/constitution_uid_auto_register.h>
 namespace uipc::constitution
 {
@@ -9,7 +10,8 @@ REGISTER_CONSTITUTION_UIDS()
     list<builtin::UIDInfo> uid_infos;
     builtin::UIDInfo       info;
     info.uid  = KirchhoffRodBendingUID;
-    info.name = "FiniteElement::KirchhoffRodBending";
+    info.name = "KirchhoffRodBending";
+    info.type = string{builtin::FiniteElement};
     uid_infos.push_back(info);
     return uid_infos;
 }

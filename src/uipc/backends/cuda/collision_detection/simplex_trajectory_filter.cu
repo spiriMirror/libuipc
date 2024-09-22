@@ -1,5 +1,5 @@
 #include <collision_detection/simplex_trajectory_filter.h>
-
+#include <muda/atomic.h>
 namespace uipc::backend::cuda
 {
 void SimplexTrajectoryFilter::do_build()
@@ -19,6 +19,73 @@ void SimplexTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectInfo& info
     do_detect(this_info);
 }
 
+void SimplexTrajectoryFilter::Impl::label_active_vertices(GlobalTrajectoryFilter::FilterActiveInfo& info)
+{
+
+    using namespace muda;
+
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(PTs.size(),
+               [PTs = PTs.viewer().name("PTs"),
+                is_active = info.vert_is_active().viewer().name("is_active")] __device__(int i)
+               {
+                   auto PT = PTs(i);
+                   for(int j = 0; j < PT.size(); ++j)
+                   {
+                       auto P = PT[j];
+                       if(is_active(P) == 0)
+                           atomic_exch(&is_active(P), 1);
+                   }
+               });
+
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(EEs.size(),
+               [EEs = EEs.viewer().name("EEs"),
+                is_active = info.vert_is_active().viewer().name("is_active")] __device__(int i)
+               {
+                   auto EE = EEs(i);
+                   for(int j = 0; j < EE.size(); ++j)
+                   {
+                       auto P = EE[j];
+                       if(is_active(P) == 0)
+                           atomic_exch(&is_active(P), 1);
+                   }
+               });
+
+
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(PEs.size(),
+               [PEs = PEs.viewer().name("PEs"),
+                is_active = info.vert_is_active().viewer().name("is_active")] __device__(int i)
+               {
+                   auto PE = PEs(i);
+                   for(int j = 0; j < PE.size(); ++j)
+                   {
+                       auto P = PE[j];
+                       if(is_active(P) == 0)
+                           atomic_exch(&is_active(P), 1);
+                   }
+               });
+
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(PPs.size(),
+               [PPs = PPs.viewer().name("PPs"),
+                is_active = info.vert_is_active().viewer().name("is_active")] __device__(int i)
+               {
+                   auto PP = PPs(i);
+                   for(int j = 0; j < PP.size(); ++j)
+                   {
+                       auto P = PP[j];
+                       if(is_active(P) == 0)
+                           atomic_exch(&is_active(P), 1);
+                   }
+               });
+}
+
 void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info)
 {
     FilterActiveInfo this_info{&m_impl};
@@ -29,6 +96,8 @@ void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterAct
                  m_impl.EEs.size(),
                  m_impl.PEs.size(),
                  m_impl.PPs.size());
+
+    m_impl.label_active_vertices(info);
 }
 
 void SimplexTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)
@@ -64,6 +133,7 @@ void SimplexTrajectoryFilter::Impl::record_friction_candidates(
                  friction_PE.size(),
                  friction_PP.size());
 }
+
 
 void SimplexTrajectoryFilter::do_record_friction_candidates(GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info)
 {

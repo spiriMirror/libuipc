@@ -7,9 +7,11 @@ void UIDRegister::create(const UIDInfo& info)
 {
     auto it = m_uid_to_info.find(info.uid);
     UIPC_ASSERT(it == m_uid_to_info.end(),
-                "UID {} already exists, name={}",
+                "UID {} already exists, name={}, yours UID {}, name={}",
                 it->second.uid,
-                it->second.name);
+                it->second.name,
+                info.uid,
+                info.name);
     m_uid_to_info[info.uid] = info;
 }
 

@@ -129,12 +129,10 @@ class GlobalVertexManager : public SimSystem
   public:
     class Impl
     {
-        friend class GlobalVertexManager;
-
       public:
         Impl() = default;
-        void init_vertex_info();
-        void rebuild_vertex_info();
+        void init();
+        void rebuild();
 
         void record_prev_positions();
         void record_start_point();
@@ -143,7 +141,6 @@ class GlobalVertexManager : public SimSystem
         void collect_vertex_displacements();
 
         Float compute_axis_max_displacement();
-        Float compute_max_displacement_norm();
         AABB  compute_vertex_bounding_box();
 
         template <typename T>
@@ -154,7 +151,6 @@ class GlobalVertexManager : public SimSystem
         void apply_recover(RecoverInfo& info);
         void clear_recover(RecoverInfo& info);
 
-      private:
         muda::DeviceBuffer<IndexT>  coindices;
         muda::DeviceBuffer<IndexT>  dimensions;
         muda::DeviceBuffer<Vector3> positions;
@@ -192,12 +188,13 @@ class GlobalVertexManager : public SimSystem
 
   private:
     friend class SimEngine;
-    void  init_vertex_info();
-    void  rebuild_vertex_info();
+    friend class GlobalTrajectoryFilter;
+    void  init();
+    void  rebuild();
     void  record_prev_positions();
     void  collect_vertex_displacements();
     Float compute_axis_max_displacement();
-    Float compute_max_displacement_norm();
+
     AABB  compute_vertex_bounding_box();
     void  step_forward(Float alpha);
     void  record_start_point();

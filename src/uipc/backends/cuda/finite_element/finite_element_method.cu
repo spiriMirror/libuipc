@@ -19,7 +19,7 @@
 #include <finite_element/codim_2d_constitution.h>
 #include <finite_element/codim_1d_constitution.h>
 #include <finite_element/codim_0d_constitution.h>
-
+#include <uipc/builtin/constitution_type.h>
 
 namespace uipc::backend
 {
@@ -31,7 +31,7 @@ class backend::SimSystemCreator<cuda::FiniteElementMethod>
     {
         auto  scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
         auto& types = scene.constitution_tabular().types();
-        if(types.find(constitution::ConstitutionType::FiniteElement) == types.end())
+        if(types.find(std::string{builtin::FiniteElement}) == types.end())
         {
             return nullptr;
         }

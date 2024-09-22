@@ -13,6 +13,7 @@ struct UIPC_CORE_API UIDInfo
 
     U64    uid;
     string name;
+    string type;
     string author;
     string email;
     string website;
