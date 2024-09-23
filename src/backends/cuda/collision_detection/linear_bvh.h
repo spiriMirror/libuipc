@@ -1,8 +1,17 @@
+/*****************************************************************//**
+ * \file   linear_bvh.h
+ * \brief  The LinearBVH class and its viewer class.
+ * 
+ * NOTE: We make the LinerBVH header-only to make unit testing easier.
+ * Otherwise, if using dllexport/dllimport, cuda will throw "InvalidDeviceFunction" error,
+ * On Windows, MSVC 14.39.33519, with CUDA Version >= 12.4.
+ * 
+ * \author MuGdxy
+ * \date   September 2024
+ *********************************************************************/
+
 #pragma once
-#include <concepts>
-#include <muda/ext/eigen/eigen_core_cxx20.h>  // to use Eigen in CUDA
-#include <uipc/common/type_define.h>
-#include <uipc/common/macro.h>
+#include <type_define.h>
 #include <muda/buffer/device_buffer.h>
 #include <muda/buffer/device_var.h>
 #include <Eigen/Geometry>
@@ -47,10 +56,9 @@ using LinearBVHAABB = AABB;
 
 class LinearBVH;
 
-template <bool IsConst>
-class LinearBVHViewerT : public muda::ViewerBase<true>
+class LinearBVHViewer : public muda::ViewerBase<true>
 {
-    MUDA_VIEWER_COMMON_NAME(LinearBVHViewerT);
+    MUDA_VIEWER_COMMON_NAME(LinearBVHViewer);
 
     using Base = muda::ViewerBase<true>;
 
@@ -67,18 +75,15 @@ class LinearBVHViewerT : public muda::ViewerBase<true>
         MUDA_GENERIC void operator()(uint32_t obj_idx) const noexcept {}
     };
 
-    MUDA_GENERIC LinearBVHViewerT(const uint32_t       num_nodes,
-                                  const uint32_t       num_objects,
-                                  const LinearBVHNode* nodes,
-                                  const LinearBVHAABB* aabbs);
+    MUDA_GENERIC LinearBVHViewer(const uint32_t       num_nodes,
+                                 const uint32_t       num_objects,
+                                 const LinearBVHNode* nodes,
+                                 const LinearBVHAABB* aabbs);
 
-    MUDA_GENERIC LinearBVHViewerT(const LinearBVHViewerT&)            = default;
-    MUDA_GENERIC LinearBVHViewerT(LinearBVHViewerT&&)                 = default;
-    MUDA_GENERIC LinearBVHViewerT& operator=(const LinearBVHViewerT&) = default;
-    MUDA_GENERIC LinearBVHViewerT& operator=(LinearBVHViewerT&&)      = default;
-
-    template <bool IsConst_ = IsConst>
-    MUDA_GENERIC LinearBVHViewerT(LinearBVHViewerT<IsConst_> viewer) noexcept;
+    MUDA_GENERIC LinearBVHViewer(const LinearBVHViewer&)            = default;
+    MUDA_GENERIC LinearBVHViewer(LinearBVHViewer&&)                 = default;
+    MUDA_GENERIC LinearBVHViewer& operator=(const LinearBVHViewer&) = default;
+    MUDA_GENERIC LinearBVHViewer& operator=(LinearBVHViewer&&)      = default;
 
     MUDA_GENERIC auto num_nodes() const noexcept { return m_num_nodes; }
     MUDA_GENERIC auto num_objects() const noexcept { return m_num_objects; }
@@ -171,13 +176,10 @@ class LinearBVHViewerT : public muda::ViewerBase<true>
                                CallbackF        Callback) const noexcept;
 };
 
-using LinearBVHViewer  = LinearBVHViewerT<false>;
-using CLinearBVHViewer = LinearBVHViewerT<true>;
-
 /**
  * @brief Configuration for LinearBVH Tree.
  */
-class UIPC_BACKEND_API LinearBVHConfig
+class LinearBVHConfig
 {
   public:
     Float buffer_resize_factor = 1.5;
@@ -186,7 +188,7 @@ class UIPC_BACKEND_API LinearBVHConfig
 /**
  * @brief LinearBVH Tree class.
  */
-class UIPC_BACKEND_API LinearBVH
+class LinearBVH
 {
     friend class LinearBVHVisitor;
 
@@ -224,11 +226,7 @@ class UIPC_BACKEND_API LinearBVH
     /**
      * @brief Get a query handler for the constructed LinearBVH tree.
      */
-    LinearBVHViewer viewer() noexcept;
-    /**
-     * @brief Get a query handler for the constructed LinearBVH tree.
-     */
-    CLinearBVHViewer viewer() const noexcept;
+    LinearBVHViewer viewer() const noexcept;
 
   private:
     template <typename T>
@@ -252,7 +250,7 @@ class UIPC_BACKEND_API LinearBVH
 /**
  * @brief Visitor class for LinearBVH, which provides the advanced information of the constructed LinearBVH tree.
  */
-class UIPC_BACKEND_API LinearBVHVisitor
+class LinearBVHVisitor
 {
   public:
     LinearBVHVisitor(LinearBVH& bvh) noexcept;

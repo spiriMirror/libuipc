@@ -1,5 +1,6 @@
 #pragma once
 #include <uipc/common/type_define.h>
+#include <uipc/common/smart_pointer.h>
 #include <uipc/geometry/geometry.h>
 
 namespace uipc::geometry
@@ -37,6 +38,8 @@ class UIPC_CORE_API GeometrySlot
     GeometrySlotState m_state = GeometrySlotState::Normal;
     void              state(GeometrySlotState state) noexcept;
 };
+
+UIPC_CORE_EXPORT_TEMPLATE_CLASS std::shared_ptr<GeometrySlot>;
 
 template <std::derived_from<Geometry> GeometryT>
     requires(!std::is_abstract_v<GeometryT>)
