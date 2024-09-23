@@ -11,12 +11,13 @@
 #include <pyuipc/constitution/module.h>
 #include <pyuipc/backend/module.h>
 #include <pyuipc/builtin/module.h>
-
+#include <pyuipc/common/unit.h>
 
 using namespace uipc;
 
 PYBIND11_MODULE(pyuipc, m)
 {
+    // pyuipc
     m.doc() = "Libuipc Python Binding";
 
     m.def("init", &uipc::init);
@@ -26,6 +27,11 @@ PYBIND11_MODULE(pyuipc, m)
     pyuipc::PyUIPCType{m};
     pyuipc::PyLogger{m};
     pyuipc::PyTransform{m};
+
+    // pyuipc.unit
+    auto unit = m.def_submodule("unit");
+    pyuipc::PyUnit{unit};
+
 
     // pyuipc.geometry
     auto geometry = m.def_submodule("geometry");

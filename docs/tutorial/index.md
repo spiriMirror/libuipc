@@ -36,6 +36,7 @@ This is a simple example to get you started with `libuipc`. In this example, we 
     from pyuipc.world import World, Scene, SceneIO
     from pyuipc.engine import Engine
     from pyuipc import builtin
+    from pyuipc.unit import GPa, MPa
 
     import numpy as np
     ```
@@ -70,7 +71,7 @@ Then we create an instance of the `Engine` class, which is the main class of the
     world = World(engine)
     config = Scene.default_config()
     config['dt'] = 0.01
-    config['gravity'] = (Vector3.UnitY() * -9.8).tolist()
+    config['gravity'] = [[0.0], [-9.8], [0.0]]
     scene = Scene(config)
     ```
 
@@ -104,7 +105,6 @@ Before that, we should first add the `AffineBodyConstitution` to the `Scene`, an
         {
             // create constitution and contact model
             AffineBodyConstitution abd;
-            scene.constitution_tabular().insert(abd);
 
             // friction ratio and contact resistance
             scene.contact_tabular().default_model(0.5, 1.0_GPa);
@@ -123,10 +123,9 @@ Before that, we should first add the `AffineBodyConstitution` to the `Scene`, an
     scene = Scene(config)
     # create constitution and contact model
     abd = AffineBodyConstitution()
-    scene.constitution_tabular().insert(abd)
 
     # friction ratio and contact resistance
-    scene.contact_tabular().default_model(0.5, 1e9)
+    scene.contact_tabular().default_model(0.5, 1.0 * GPa)
     default_element = scene.contact_tabular().default_element()
     ...
     ```
@@ -184,7 +183,7 @@ In this example, we will just manually create a regular tetrahedron (`base_mesh`
     # setup a base mesh to reduce the later work
     base_mesh = tetmesh(Vs, Ts)
     # apply the constitution and contact model to the base mesh
-    abd.apply_to(base_mesh, 100e6)
+    abd.apply_to(base_mesh, 100 * MPa)
     # apply the default contact model to the base mesh
     default_element.apply_to(base_mesh)
 
