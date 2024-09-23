@@ -33,7 +33,7 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
                            { return complex->vertices().size(); });
 
     std::exclusive_scan(
-        vertex_counts.begin(), vertex_counts.end(), vertex_offsets.begin(), 0);
+        vertex_counts.begin(), vertex_counts.end(), vertex_offsets.begin(), 0ull);
 
 
     {  // 1) merge vertices
@@ -113,7 +113,7 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
                                { return complex->triangles().size(); });
 
         std::exclusive_scan(
-            triangle_counts.begin(), triangle_counts.end(), triangle_offsets.begin(), 0);
+            triangle_counts.begin(), triangle_counts.end(), triangle_offsets.begin(), 0ull);
 
         SizeT num_triangles = triangle_offsets.back();
 
