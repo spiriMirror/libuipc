@@ -37,6 +37,7 @@ class GeometrySlotT<SimplicialComplex> : public GeometrySlot
 
 
 UIPC_CORE_EXPORT_TEMPLATE_CLASS GeometrySlotT<SimplicialComplex>;
+UIPC_CORE_EXPORT_TEMPLATE_CLASS std::shared_ptr<GeometrySlotT<SimplicialComplex>>;
 
 using SimplicialComplexSlot = GeometrySlotT<SimplicialComplex>;
 }  // namespace uipc::geometry

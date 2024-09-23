@@ -7,7 +7,7 @@
 namespace uipc::backend
 {
 class EngineCreateInfo;
-class UIPC_BACKEND_API SimEngine : public engine::IEngine
+class SimEngine : public engine::IEngine
 {
     friend class SimSystem;
 

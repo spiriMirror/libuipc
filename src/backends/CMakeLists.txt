@@ -13,7 +13,6 @@ add_library(uipc::backends ALIAS uipc_backends)
 # ---------------------------------------------------------------------------
 function(uipc_add_backend name)
     uipc_info("Adding backend: [${name}]")
-
     if(UIPC_BUILD_TESTS) # for tests, we need to link against the shared library
         # uipc_info("UIPC_BUILD_TESTS=${UIPC_BUILD_TESTS}, so we build the backend [${name}] as shared library")
         add_library(${name} SHARED)
