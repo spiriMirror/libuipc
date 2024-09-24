@@ -171,9 +171,9 @@ class SimplexSlot : public ISimplexSlot
     S<Simplices<N>> m_simplices;
 };
 
-UIPC_CORE_EXPORT_TEMPLATE_CLASS SimplexSlot<1>;
-UIPC_CORE_EXPORT_TEMPLATE_CLASS SimplexSlot<2>;
-UIPC_CORE_EXPORT_TEMPLATE_CLASS SimplexSlot<3>;
+UIPC_CORE_EXPORT_TEMPLATE_CLASS(SimplexSlot<1>);
+UIPC_CORE_EXPORT_TEMPLATE_CLASS(SimplexSlot<2>);
+UIPC_CORE_EXPORT_TEMPLATE_CLASS(SimplexSlot<3>);
 
 /**
  * @brief Alias for a slot for edges in an abstract simplicial complex.

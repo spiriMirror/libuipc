@@ -796,8 +796,8 @@ MUDA_GENERIC void point_edge_distance2_hessian(const Vector<IndexT, 3>&   flag,
 #pragma unroll
         for(int i = 0; i < 2; ++i)
             for(int j = 0; j < 2; ++j)
-                H.block<3, 3>(offsets[i] * 3, offsets[j] * 3) =
-                    H6.block<3, 3>(i * 3, j * 3);
+                H.template block<3, 3>(offsets[i] * 3, offsets[j] * 3) =
+                    H6.template block<3, 3>(i * 3, j * 3);
     }
     else if(dim == 3)
     {
@@ -835,8 +835,8 @@ MUDA_GENERIC void point_triangle_distance2_hessian(const Vector4i& flag,
 #pragma unroll
         for(int i = 0; i < 2; ++i)
             for(int j = 0; j < 2; ++j)
-                H.block<3, 3>(offsets[i] * 3, offsets[j] * 3) =
-                    H6.block<3, 3>(i * 3, j * 3);
+                H.template block<3, 3>(offsets[i] * 3, offsets[j] * 3) =
+                    H6.template block<3, 3>(i * 3, j * 3);
     }
     else if(dim == 3)
     {
@@ -851,8 +851,8 @@ MUDA_GENERIC void point_triangle_distance2_hessian(const Vector4i& flag,
 #pragma unroll
         for(int i = 0; i < 3; ++i)
             for(int j = 0; j < 3; ++j)
-                H.block<3, 3>(offsets[i] * 3, offsets[j] * 3) =
-                    H9.block<3, 3>(i * 3, j * 3);
+                H.template block<3, 3>(offsets[i] * 3, offsets[j] * 3) =
+                    H9.template block<3, 3>(i * 3, j * 3);
     }
     else if(dim == 4)
     {
@@ -892,8 +892,8 @@ MUDA_GENERIC void edge_edge_distance2_hessian(const Vector4i&            flag,
 #pragma unroll
         for(int i = 0; i < 2; ++i)
             for(int j = 0; j < 2; ++j)
-                H.block<3, 3>(offsets[i] * 3, offsets[j] * 3) =
-                    H6.block<3, 3>(i * 3, j * 3);
+                H.template block<3, 3>(offsets[i] * 3, offsets[j] * 3) =
+                    H6.template block<3, 3>(i * 3, j * 3);
     }
     else if(dim == 3)
     {
@@ -908,8 +908,8 @@ MUDA_GENERIC void edge_edge_distance2_hessian(const Vector4i&            flag,
 #pragma unroll
         for(int i = 0; i < 3; ++i)
             for(int j = 0; j < 3; ++j)
-                H.block<3, 3>(offsets[i] * 3, offsets[j] * 3) =
-                    H9.block<3, 3>(i * 3, j * 3);
+                H.template block<3, 3>(offsets[i] * 3, offsets[j] * 3) =
+                    H9.template block<3, 3>(i * 3, j * 3);
     }
     else if(dim == 4)
     {

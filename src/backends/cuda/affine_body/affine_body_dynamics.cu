@@ -492,7 +492,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
                          for(auto i : range(body_count))
                          {
-                             auto body_vert_offset = vert_offset + i * vert_count;
+                             // auto body_vert_offset = vert_offset + i * vert_count;
                              auto body_id = body_offset + i;
 
                              h_body_id_to_abd_gravity[body_id] = g;

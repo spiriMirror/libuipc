@@ -8,8 +8,13 @@ import ctypes
 import json
 
 this_file_dir = os.path.dirname(__file__)
-sys.path.append(this_file_dir + '/Release/bin')
-sys.path.append(this_file_dir + '/RelWithDebInfo/bin')
+if os.name == 'nt':
+    sys.path.append(this_file_dir + '/Release/bin')
+    sys.path.append(this_file_dir + '/RelWithDebInfo/bin')
+elif os.name == 'posix':
+    sys.path.append(this_file_dir + '/bin')
+else:
+    raise Exception("Unsupported OS")
 
 import pyuipc
 

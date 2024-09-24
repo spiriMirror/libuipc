@@ -23,7 +23,7 @@ def process_surface(sc: SimplicialComplex):
 
 run = False
 
-Logger.set_level(Logger.Level.Warn)
+Logger.set_level(Logger.Level.Info)
 
 workspace = AssetDir.output_path(__file__)
 

@@ -59,8 +59,6 @@ class GlobalVertexManager : public SimSystem
         Impl* m_impl;
     };
 
-    class Impl;
-
     void add_reporter(VertexReporter* reporter);
 
     /**

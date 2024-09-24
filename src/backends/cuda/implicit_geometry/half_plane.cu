@@ -43,7 +43,7 @@ void HalfPlane::Impl::_find_geometry(WorldVisitor& world)
 
 void HalfPlane::Impl::_build_geometry()
 {
-    GeometryInstanceFlattener flattener(span{geos});
+    GeometryInstanceFlattener flattener(span<ImplicitGeometry*>{geos});
     size_t instance_count = flattener.compute_instance_count();
 
     h_normals.reserve(instance_count);

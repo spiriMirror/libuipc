@@ -1,4 +1,3 @@
-#pragma once
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
 
 namespace uipc::backend::cuda

@@ -14,7 +14,7 @@ from pyuipc.constitution import *
 from pyuipc_utils.gui import *
 
 
-Logger.set_level(Logger.Level.Warn)
+Logger.set_level(Logger.Level.Info)
 output_path = AssetDir.output_path(__file__)
 
 

@@ -6,7 +6,7 @@
 namespace uipc::backend::cuda
 {
 template <int N>
-UIPC_GENERIC void atomic_add(muda::DenseVectorViewer<Float>& g,
+MUDA_DEVICE void atomic_add(muda::DenseVectorViewer<Float>& g,
                              const Vector<Float, 3 * N>&     G3N,
                              const Vector<IndexT, N>&        indices,
                              const Vector<IndexT, N>&        is_fixed)
@@ -24,7 +24,7 @@ UIPC_GENERIC void atomic_add(muda::DenseVectorViewer<Float>& g,
 }
 
 template <int N>
-UIPC_GENERIC void atomic_add(muda::DenseVectorViewer<Float>& g,
+MUDA_DEVICE void atomic_add(muda::DenseVectorViewer<Float>& g,
                              const Vector<Float, 3 * N>&     G3N,
                              const Vector<IndexT, N>&        indices)
     requires(N >= 2)

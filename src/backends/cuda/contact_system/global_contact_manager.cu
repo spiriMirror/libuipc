@@ -112,7 +112,7 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
     DeviceReduce().Max(
         vert_disp_norms.data(), max_disp_norm.data(), vert_disp_norms.size());
 
-    Float h_max_disp_norm = h_max_disp_norm;
+    Float h_max_disp_norm = max_disp_norm;
 
     return h_max_disp_norm == 0.0 ? 1.0 : (0.5 * d_hat / h_max_disp_norm);
 }
