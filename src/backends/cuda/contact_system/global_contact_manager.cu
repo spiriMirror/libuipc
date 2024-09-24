@@ -113,8 +113,7 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
         vert_disp_norms.data(), max_disp_norm.data(), vert_disp_norms.size());
 
     Float h_max_disp_norm = max_disp_norm;
-
-    return h_max_disp_norm == 0.0 ? 1.0 : (0.5 * d_hat / h_max_disp_norm);
+    return h_max_disp_norm == 0.0 ? 1.0 : std::min(0.5 * d_hat / h_max_disp_norm, 1.0);
 }
 
 void GlobalContactManager::Impl::compute_contact()

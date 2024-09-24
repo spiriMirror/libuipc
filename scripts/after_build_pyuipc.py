@@ -10,24 +10,33 @@ if __name__ == '__main__':
     args = ap.ArgumentParser(description='Copy the release directory to the project directory')
     args.add_argument('--target', help='target pyuipc shared library', required=True)
     args.add_argument('--binary_dir', help='cmake binary dir', required=True)
-    args.add_argument('--config', help='configuration', required=True)
+    args.add_argument('--config', help='$<CONFIG>', required=True)
+    args.add_argument('--build_type', help='CMAKE_BUILD_TYPE', required=True)
     args = args.parse_args()
 
     pyuipc_lib = args.target
     binary_dir = args.binary_dir
     config = args.config
+    build_type = args.build_type
     proj_dir = project_dir.project_dir()
 
-    if config == 'Debug':
-        raise Exception('Debug configuration is not supported, please use RelWithDebInfo or Release')
+    if config != '' and build_type != '':
+        raise Exception(f'$<CONFIG> and CMAKE_BUILD_TYPE are mutually exclusive, '
+                        'please use only one of them, now $<CONFIG>={config}, CMAKE_BUILD_TYPE={build_type}')
 
+    if config == 'Debug' or build_type == 'Debug':
+        raise Exception('Debug configuration is not supported, please use RelWithDebInfo or Release')
+    
+    if build_type == '' and config == '':
+        build_type = 'Release'
+    
     cmake_build_dir = binary_dir
     build_output_dir = pathlib.Path(binary_dir)
 
     if os.name == 'posix': # linux
-        target_dir = proj_dir / 'python' / 'src' / 'pyuipc_loader' / 'bin' # no config
+        target_dir = proj_dir / 'python' / 'src' / 'pyuipc_loader' / build_type / 'bin'
         shared_lib_ext = '.so'
-        build_output_dir = build_output_dir / 'bin'
+        build_output_dir = build_output_dir / build_type / 'bin'
     elif os.name == 'nt': # windows
         target_dir = proj_dir / 'python' / 'src' / 'pyuipc_loader' / config / 'bin'
         shared_lib_ext = '.dll'

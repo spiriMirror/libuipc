@@ -31,8 +31,6 @@ if (UIPC_WITH_CUDA_BACKEND)
     add_subdirectory(external)
 endif()
 
-uipc_info("uipc config start:")
-
 # uipc
 add_subdirectory(src)
 

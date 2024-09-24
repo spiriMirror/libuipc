@@ -68,7 +68,7 @@ On Linux, you can use the following commands to build the project.
 ```shell
 cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
 cmake -S ../libuipc -DUIPC_BUILD_GUI=0
-cmake --build .
+cmake --build . -DCMAKE_BUILD_TYPE=<Debug/Release/RelWithDebInfo>
 ```
 
 To enable GUI support, set `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install). See [Linux GUI Support](#Linux-gui-support).
@@ -81,11 +81,7 @@ Just run the executable files in `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin`
 
 #### Linux
 
-Install the project.
-
-```shell
-cmake --install . --prefix . --config <Debug/Release/RelWithDebInfo>
-```
+The excutable files are in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder. 
 
 To run the programs, you need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared **libuipc** library and the dependent backend modules will not be found.
 
@@ -96,6 +92,8 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 ./uipc_test_world
 [...]
 ```
+
+If you want to build multiple configurations at the same time, you can set the `--config` option in the `cmake --build` command and build the project in different folders. E.g., `CMakeBuildDebug/`, `CMakeBuildRelease/`, `CMakeBuildRelWithDebInfo/`.
 
 ### Build Pyuipc
 

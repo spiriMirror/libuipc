@@ -86,6 +86,10 @@ def gen_vcpkg_json(args):
             "name": "freeglut",
             "version>=": "3.4.0"
         })
+        deps.append({
+            "name": "bgfx",
+            "version>=": "1.127.8725-469"
+        })
     if is_enabled(args.build_pybind):
         deps.append({
             "name":"pybind11",
