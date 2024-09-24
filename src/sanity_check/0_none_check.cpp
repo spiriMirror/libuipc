@@ -1,5 +1,15 @@
 #include <uipc/world/sanity_check/sanity_checker.h>
 
+#ifdef _MSC_VER
+namespace uipc::world::detail
+{
+class __declspec(dllexport) DLLExport
+{
+    // dummy class to let the compiler generate the export table
+};
+}
+#endif
+
 namespace uipc::world
 {
 class NoneCheck final : public SanityChecker
