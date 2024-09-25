@@ -35,7 +35,7 @@ class AttributeFriend<pyuipc::geometry::PySimplicialComplex>
         );
 
         // call the create method of the member object
-        return py::cast<S<IAttributeSlot>>(pyobj.attr("create").call(py::cast(name), object));
+        return py::cast<S<IAttributeSlot>>(pyobj.attr("create").operator()(py::cast(name), object));
     }
 };
 }  // namespace uipc::geometry

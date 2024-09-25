@@ -67,8 +67,8 @@ On Linux, you can use the following commands to build the project.
 
 ```shell
 cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
-cmake -S ../libuipc -DUIPC_BUILD_GUI=0
-cmake --build . -DCMAKE_BUILD_TYPE=<Debug/Release/RelWithDebInfo>
+cmake -S ../libuipc -DUIPC_BUILD_GUI=0 -DCMAKE_BUILD_TYPE=<Debug/Release/RelWithDebInfo>
+cmake --build .
 ```
 
 To enable GUI support, set `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install). See [Linux GUI Support](#Linux-gui-support).
@@ -93,8 +93,6 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 [...]
 ```
 
-If you want to build multiple configurations at the same time, you can set the `--config` option in the `cmake --build` command and build the project in different folders. E.g., `CMakeBuildDebug/`, `CMakeBuildRelease/`, `CMakeBuildRelWithDebInfo/`.
-
 ### Build Pyuipc
 
 Pyuipc is a Python binding of libuipc. It is built with the `pybind11` library.
@@ -108,7 +106,7 @@ NOTE:
     sudo apt-get install python3-dev
     ```
     For Windows, you can install the development version of Python3 from the official website.
-2.  `Pyuipc` should be built in the **Release** or **RelWithDebInfo** mode.
+2.  `pyuipc` should be built in the **Release** or **RelWithDebInfo** mode.
 3.  We use `mypy.stubgen` to generate the stub files for the Python binding. So you need to install `mypy` first.
     ```shell
     pip install mypy
@@ -117,17 +115,17 @@ NOTE:
     ```shell
     pip install numpy
     ```
-    The stub files will be generated in the `libuipc/python/typings` folder automatically after building `Pyuipc`.
+    The stub files will be generated in the `libuipc/python/typings` folder automatically after building `pyuipc`.
 
 #### Install Pyuipc
 
-After building the project, you install the Python binding with the following command:
+After building the project, install the Python binding with the following command:
 
 ```shell
 cd libuipc/python; pip install .
 ```
 
-Then you can use the `Pyuipc` in your Python environment with:
+Then you can use the `pyuipc` in your Python environment with:
 
 ```python
 from pyuipc_loader import pyuipc

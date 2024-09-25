@@ -20,9 +20,8 @@ if __name__ == '__main__':
     build_type = args.build_type
     proj_dir = project_dir.project_dir()
 
-    if config != '' and build_type != '':
-        raise Exception(f'$<CONFIG> and CMAKE_BUILD_TYPE are mutually exclusive, '
-                        'please use only one of them, now $<CONFIG>={config}, CMAKE_BUILD_TYPE={build_type}')
+    if config != '' and build_type != '' and config != build_type:
+        raise Exception(f'Configuration and build type do not match, config={config}, build_type={build_type}')
 
     if config == 'Debug' or build_type == 'Debug':
         raise Exception('Debug configuration is not supported, please use RelWithDebInfo or Release')
@@ -30,7 +29,7 @@ if __name__ == '__main__':
     if build_type == '' and config == '':
         build_type = 'Release'
     
-    cmake_build_dir = binary_dir
+    cmake_binary_dir = binary_dir
     build_output_dir = pathlib.Path(binary_dir)
 
     if os.name == 'posix': # linux
@@ -45,29 +44,29 @@ if __name__ == '__main__':
         raise Exception('Unsupported OS')
 
     source_dir = pathlib.Path(build_output_dir)
-    print(f'pyuipc_lib: {pyuipc_lib}')
-    print(f'module output_dir: {build_output_dir}')
-    print(f'config: {config}')
+    print(f'pyuipc: {pyuipc_lib}')
+    print(f'module dir: {build_output_dir}')
+    print(f'config($<CONFIG>): {config} | build_type(CMAKE_BUILD_TYPE): {build_type}')
 
 
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
-        print(f'create target directory {target_dir}')
+        print(f'Create target directory {target_dir}')
 
-    print(f'copying shared library to {target_dir}:')
+    print(f'Copying shared library to {target_dir}:')
     # copy the pyuipc shared library to the target directory
     print(f'Copying {pyuipc_lib} to {target_dir}')
     shutil.copy(pyuipc_lib, target_dir)
 
     # recusively find all shared libraries and print them
-    for root, dirs, files in os.walk(source_dir):
-        for file in files:
-            if file.endswith(shared_lib_ext):
-                print(f'Found shared library: {file}')
+    # for root, dirs, files in os.walk(source_dir):
+    #     for file in files:
+    #         if file.endswith(shared_lib_ext):
+    #             print(f'Found shared library: {file}')
 
     for file in os.listdir(source_dir):
         if file.endswith(shared_lib_ext):
-            print(f'Copying {file} to {target_dir}')
+            print(f'Copying {file}')
             full_path_file = f'{source_dir}/{file}'
             shutil.copy(full_path_file, target_dir)
 
@@ -75,7 +74,7 @@ if __name__ == '__main__':
     this_dir = pathlib.Path(__file__).absolute().parent
     output_path = this_dir.parent.parent / 'typings'
 
-    print(f'Generating stubs to {typings_dir}, cwd={target_dir}')
+    print(f'Try generating stubs to {typings_dir}')
 
     # add the target directory to the python path
     sys.path.append(str(target_dir))
@@ -86,7 +85,7 @@ if __name__ == '__main__':
         inspect=True,
         doc_dir='',
         search_path=[str(target_dir)],
-        interpreter='python3',
+        interpreter=sys.executable,
         parse_only=False,
         ignore_errors=False,
         include_private=False,
