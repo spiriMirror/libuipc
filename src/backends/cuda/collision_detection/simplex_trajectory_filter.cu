@@ -4,12 +4,12 @@ namespace uipc::backend::cuda
 {
 void SimplexTrajectoryFilter::do_build()
 {
-    m_impl.global_vertex_manager = &require<GlobalVertexManager>();
-    m_impl.global_simplicial_surface_manager = &require<GlobalSimpicialSurfaceManager>();
-    m_impl.global_contact_manager = &require<GlobalContactManager>();
-    auto global_trajectory_filter = &require<GlobalTrajectoryFilter>();
+    m_impl.global_vertex_manager = require<GlobalVertexManager>();
+    m_impl.global_simplicial_surface_manager = require<GlobalSimpicialSurfaceManager>();
+    m_impl.global_contact_manager  = require<GlobalContactManager>();
+    auto& global_trajectory_filter = require<GlobalTrajectoryFilter>();
 
-    global_trajectory_filter->add_filter(this);
+    global_trajectory_filter.add_filter(this);
 }
 
 void SimplexTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectInfo& info)
@@ -19,7 +19,7 @@ void SimplexTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectInfo& info
     do_detect(this_info);
 }
 
-void SimplexTrajectoryFilter::Impl::label_active_vertices(GlobalTrajectoryFilter::FilterActiveInfo& info)
+void SimplexTrajectoryFilter::Impl::label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info)
 {
     using namespace muda;
 
@@ -95,9 +95,6 @@ void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterAct
                  m_impl.EEs.size(),
                  m_impl.PEs.size(),
                  m_impl.PPs.size());
-
-    if(m_impl.global_contact_manager->cfl_enabled())
-        m_impl.label_active_vertices(info);
 }
 
 void SimplexTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)
@@ -140,6 +137,11 @@ void SimplexTrajectoryFilter::do_record_friction_candidates(GlobalTrajectoryFilt
     m_impl.record_friction_candidates(info);
 }
 
+void SimplexTrajectoryFilter::do_label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info)
+{
+    m_impl.label_active_vertices(info);
+}
+
 Float SimplexTrajectoryFilter::BaseInfo::d_hat() const noexcept
 {
     return m_impl->global_contact_manager->d_hat();
@@ -158,6 +160,11 @@ muda::CBufferView<Vector3> SimplexTrajectoryFilter::BaseInfo::rest_positions() c
 muda::CBufferView<Float> SimplexTrajectoryFilter::BaseInfo::thicknesses() const noexcept
 {
     return m_impl->global_vertex_manager->thicknesses();
+}
+
+muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::dimensions() const noexcept
+{
+    return m_impl->global_vertex_manager->dimensions();
 }
 
 muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::codim_vertices() const noexcept

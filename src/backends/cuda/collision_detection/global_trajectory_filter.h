@@ -43,6 +43,19 @@ class GlobalTrajectoryFilter : public SimSystem
         {
         }
 
+
+      private:
+        friend class GlobalTrajectoryFilter;
+        Impl* m_impl;
+    };
+
+    class LabelActiveVerticesInfo
+    {
+      public:
+        LabelActiveVerticesInfo(Impl* impl) noexcept
+            : m_impl(impl)
+        {
+        }
         muda::BufferView<IndexT> vert_is_active() const noexcept;
 
       private:
@@ -86,6 +99,8 @@ class GlobalTrajectoryFilter : public SimSystem
     void  filter_active();               // only called by SimEngine
     Float filter_toi(Float alpha);       // only called by SimEngine
     void  record_friction_candidates();  // only called by SimEngine
+    friend class GlobalContactManager;
+    void label_active_vertices();  // only called by GlobalContactManager
 
     Impl m_impl;
 };

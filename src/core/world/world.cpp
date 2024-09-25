@@ -27,9 +27,20 @@ void World::init(Scene& s)
     auto geos          = scene_visitor.geometries();
     for(auto&& geo : geos)
     {
-        auto uid = geo->geometry().meta().find<U64>(builtin::constitution_uid);
-        if(uid)
-            m_scene->constitution_tabular().insert(uid->view().front());
+        auto constitution_uid = geo->geometry().meta().find<U64>(builtin::constitution_uid);
+        auto constraint_uid = geo->geometry().meta().find<U64>(builtin::constraint_uid);
+        auto extra_constitution_uids =
+            geo->geometry().meta().find<VectorXu64>(builtin::extra_constitution_uids);
+        if(constitution_uid)
+            m_scene->constitution_tabular().insert(constitution_uid->view().front());
+        if(constraint_uid)
+            m_scene->constitution_tabular().insert(constraint_uid->view().front());
+        if(extra_constitution_uids)
+        {
+            const auto& uids = extra_constitution_uids->view().front();
+            for(auto uid : uids)
+                m_scene->constitution_tabular().insert(uid);
+        }
     }
 
     m_scene->m_impl.world   = this;  // set the world pointer in the scene

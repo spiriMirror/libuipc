@@ -38,7 +38,6 @@ print(config)
 
 scene = Scene(config)
 abd = AffineBodyConstitution()
-scene.constitution_tabular().insert(abd)
 scene.contact_tabular().default_model(0.02, 1e10)
 default_contact = scene.contact_tabular().default_element()
 

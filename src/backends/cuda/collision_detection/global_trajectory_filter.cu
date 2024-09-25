@@ -46,7 +46,7 @@ void GlobalTrajectoryFilter::detect(Float alpha)
 
 void GlobalTrajectoryFilter::filter_active()
 {
-    if (m_impl.global_contact_manager->cfl_enabled())
+    if(m_impl.global_contact_manager->cfl_enabled())
     {
         auto is_acitive =
             m_impl.global_contact_manager->m_impl.vert_is_active_contact.view();
@@ -99,7 +99,16 @@ void GlobalTrajectoryFilter::record_friction_candidates()
     }
 }
 
-muda::BufferView<IndexT> GlobalTrajectoryFilter::FilterActiveInfo::vert_is_active() const noexcept
+void GlobalTrajectoryFilter::label_active_vertices()
+{
+    for(auto filter : m_impl.filters.view())
+    {
+        LabelActiveVerticesInfo info(&m_impl);
+        filter->label_active_vertices(info);
+    }
+}
+
+muda::BufferView<IndexT> GlobalTrajectoryFilter::LabelActiveVerticesInfo::vert_is_active() const noexcept
 {
     return m_impl->global_contact_manager->m_impl.vert_is_active_contact.view();
 }

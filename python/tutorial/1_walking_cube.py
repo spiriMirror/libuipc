@@ -14,7 +14,7 @@ from pyuipc.constitution import *
 from pyuipc_utils.gui import *
 
 
-Logger.set_level(Logger.Level.Info)
+Logger.set_level(Logger.Level.Warn)
 output_path = AssetDir.output_path(__file__)
 
 
@@ -24,7 +24,7 @@ world = World(engine)
 config = Scene.default_config()
 dt = 0.02
 config['dt'] = dt
-config['newton']['velocity_tol'] = 0.05
+config['newton']['velocity_tol'] = 0.2
 scene = Scene(config)
 
 # friction ratio and contact resistance
@@ -33,11 +33,8 @@ default_element = scene.contact_tabular().default_element()
 
 # create constituiton
 abd = AffineBodyConstitution()
-scene.constitution_tabular().insert(abd)
-
 # create constraint
 stc = SoftTransformConstraint()
-scene.constitution_tabular().insert(stc)
 
 def process_surface(sc: SimplicialComplex):
     label_surface(sc)

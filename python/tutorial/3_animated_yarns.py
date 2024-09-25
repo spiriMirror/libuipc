@@ -108,8 +108,6 @@ class Braider:
         self.object = scene.objects().create("yarns")
         spc = SoftPositionConstraint()
         hs = HookeanSpring()
-        scene.constitution_tabular().insert(spc)
-        scene.constitution_tabular().insert(hs)
         ce = scene.contact_tabular().default_element()
         for yarn in self.yarns:
             yarn.create_geometry(self.object, spc, hs, ce, segment_len, count, thickness)

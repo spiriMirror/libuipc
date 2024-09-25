@@ -24,7 +24,8 @@ void VertexHalfPlaneTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectIn
     do_detect(this_info);  // call the derived class implementation
 }
 
-void VertexHalfPlaneTrajectoryFilter::Impl::label_active_vertices(GlobalTrajectoryFilter::FilterActiveInfo& info)
+void VertexHalfPlaneTrajectoryFilter::Impl::label_active_vertices(
+    GlobalTrajectoryFilter::LabelActiveVerticesInfo& info)
 {
     using namespace muda;
 
@@ -47,9 +48,6 @@ void VertexHalfPlaneTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::F
     do_filter_active(this_info);
 
     spdlog::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
-
-    if(m_impl.global_contact_manager->cfl_enabled())
-        m_impl.label_active_vertices(info);
 }
 
 void VertexHalfPlaneTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)
@@ -72,6 +70,11 @@ void VertexHalfPlaneTrajectoryFilter::do_record_friction_candidates(
     GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info)
 {
     m_impl.record_friction_candidates(info);
+}
+
+void VertexHalfPlaneTrajectoryFilter::do_label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info)
+{
+    m_impl.label_active_vertices(info);
 }
 
 muda::CBufferView<Vector2i> VertexHalfPlaneTrajectoryFilter::PHs() noexcept

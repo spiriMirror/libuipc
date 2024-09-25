@@ -42,40 +42,43 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     auto Es      = info.surf_edges();
     auto Fs      = info.surf_triangles();
 
-    codim_point_aabbs.resize(codimVs.size());
     point_aabbs.resize(Vs.size());
     triangle_aabbs.resize(Fs.size());
     edge_aabbs.resize(Es.size());
 
     // build AABBs for codim vertices
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(codimVs.size(),
-               [codimVs     = codimVs.viewer().name("codimVs"),
-                Ps          = Ps.viewer().name("Ps"),
-                dxs         = dxs.viewer().name("dxs"),
-                aabbs       = codim_point_aabbs.viewer().name("aabbs"),
-                thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                alpha       = alpha,
-                d_hat       = d_hat] __device__(int i) mutable
-               {
-                   auto vI = codimVs(i);
+    if(codimVs.size() > 0)
+    {
+        codim_point_aabbs.resize(codimVs.size());
 
-                   Float thickness = thicknesses(vI);
+        ParallelFor()
+            .file_line(__FILE__, __LINE__)
+            .apply(codimVs.size(),
+                   [codimVs = codimVs.viewer().name("codimVs"),
+                    Ps      = Ps.viewer().name("Ps"),
+                    dxs     = dxs.viewer().name("dxs"),
+                    aabbs   = codim_point_aabbs.viewer().name("aabbs"),
+                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                    alpha = alpha,
+                    d_hat = d_hat] __device__(int i) mutable
+                   {
+                       auto vI = codimVs(i);
 
-                   const auto& pos   = Ps(vI);
-                   Vector3     pos_t = pos + dxs(vI) * alpha;
+                       Float thickness = thicknesses(vI);
 
-                   AABB aabb;
-                   aabb.extend(pos).extend(pos_t);
+                       const auto& pos   = Ps(vI);
+                       Vector3     pos_t = pos + dxs(vI) * alpha;
 
-                   Float expand = d_hat + thickness;
+                       AABB aabb;
+                       aabb.extend(pos).extend(pos_t);
 
-                   aabb.min().array() -= expand;
-                   aabb.max().array() += expand;
-                   aabbs(i) = aabb;
-               });
+                       Float expand = d_hat + thickness;
 
+                       aabb.min().array() -= expand;
+                       aabb.max().array() += expand;
+                       aabbs(i) = aabb;
+                   });
+    }
 
     // build AABBs for surf vertices (including codim vertices)
     ParallelFor()
@@ -183,142 +186,107 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                    aabbs(i) = aabb;
                });
 
-    // query CodimP and P
+    lbvh_E.build(edge_aabbs);
+    lbvh_T.build(triangle_aabbs);
+
+    if(codimVs.size() > 0)
     {
-        lbvh_PP.build(point_aabbs);
-        muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
-        candidate_PP_pairs = lbvh_PP.query(
-            codim_point_aabbs,
-            [codimVs     = codimVs.viewer().name("codimVs"),
-             Vs          = Vs.viewer().name("Vs"),
-             Ps          = Ps.viewer().name("Ps"),
-             dxs         = dxs.viewer().name("dxs"),
-             thicknesses = info.thicknesses().viewer().name("thicknesses"),
-             d_hat       = d_hat,
-             alpha       = alpha] __device__(IndexT i, IndexT j)
-            {
-                const auto& codimV = codimVs(i);
-                const auto& V      = Vs(j);
+        // Use AllP to query CodimP
+        {
+            lbvh_CodimP.build(codim_point_aabbs);
 
-                if(codimV >= V)  // avoid duplicate
-                    return false;
+            muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
+            lbvh_CodimP.query(
+                point_aabbs,                                  // AllP
+                [Vs      = Vs.viewer().name("Vs"),            // AllP
+                 codimVs = codimVs.viewer().name("codimVs"),  // CodimP
 
-                Vector3 P0  = Ps(codimV);
-                Vector3 P1  = Ps(V);
-                Vector3 dP0 = alpha * dxs(codimV);
-                Vector3 dP1 = alpha * dxs(V);
+                 Ps          = Ps.viewer().name("Ps"),
+                 dxs         = dxs.viewer().name("dxs"),
+                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                 dimensions  = info.dimensions().viewer().name("dimensions"),
+                 d_hat       = d_hat,
+                 alpha       = alpha] __device__(IndexT i, IndexT j)
+                {
+                    const auto& V      = Vs(i);
+                    const auto& codimV = codimVs(j);
 
-                Float thickness = PP_thickness(thicknesses(codimV), thicknesses(V));
+                    bool V_is_codim = dimensions(V) <= 2;  // codim 0D vert and vert from codim 1D edge
 
-                Float expand = d_hat + thickness;
+                    if(V_is_codim && V >= codimV)  // avoid duplicate CodimP-CodimP pairs
+                        return false;
 
-                if(!distance::point_point_ccd_broadphase(P0, P1, dP0, dP1, expand))
-                    return false;
 
-                return true;
-            });
+                    Vector3 P0  = Ps(V);
+                    Vector3 dP0 = alpha * dxs(V);
+
+                    Vector3 P1  = Ps(codimV);
+                    Vector3 dP1 = alpha * dxs(codimV);
+
+                    Float thickness = PP_thickness(thicknesses(V), thicknesses(codimV));
+
+                    Float expand = d_hat + thickness;
+
+                    if(!distance::point_point_ccd_broadphase(P0, P1, dP0, dP1, expand))
+                        return false;
+
+                    return true;
+                },
+                candidate_AllP_CodimP_pairs);
+        }
+
+        // Use CodimP to query AllE
+        {
+            muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
+            lbvh_E.query(
+                codim_point_aabbs,
+                [codimVs     = codimVs.viewer().name("Vs"),
+                 Es          = Es.viewer().name("Es"),
+                 Ps          = Ps.viewer().name("Ps"),
+                 dxs         = dxs.viewer().name("dxs"),
+                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                 d_hat       = d_hat,
+                 alpha       = alpha] __device__(IndexT i, IndexT j)
+                {
+                    const auto& codimV = codimVs(i);
+                    const auto& E      = Es(j);
+
+                    //MUDA_ASSERT(E[0] != codimV && E[1] != codimV,
+                    //            "Edge (%d,%d) contains codim vertex (%d), why can it happen?",
+                    //            E[0],
+                    //            E[1],
+                    //            codimV);
+
+                    if(E[0] == codimV || E[1] == codimV)
+                        return false;
+
+                    Vector3 E0  = Ps(E[0]);
+                    Vector3 E1  = Ps(E[1]);
+                    Vector3 dE0 = alpha * dxs(E[0]);
+                    Vector3 dE1 = alpha * dxs(E[1]);
+
+                    Vector3 P  = Ps(codimV);
+                    Vector3 dP = alpha * dxs(codimV);
+
+                    Float thickness = PE_thickness(thicknesses(codimV),
+                                                   thicknesses(E[0]),
+                                                   thicknesses(E[1]));
+
+                    Float expand = d_hat + thickness;
+
+                    if(!distance::point_edge_ccd_broadphase(P, E0, E1, dP, dE0, dE1, expand))
+                        return false;
+
+                    return true;
+                },
+                candidate_CodimP_AllE_pairs);
+        }
     }
 
-
-    // query CodimP and E
-    {
-        lbvh_PE.build(edge_aabbs);
-        muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
-        candidate_PE_pairs = lbvh_PE.query(
-            codim_point_aabbs,
-            [codimVs     = codimVs.viewer().name("Vs"),
-             Es          = Es.viewer().name("Es"),
-             Ps          = Ps.viewer().name("Ps"),
-             dxs         = dxs.viewer().name("dxs"),
-             thicknesses = info.thicknesses().viewer().name("thicknesses"),
-             d_hat       = d_hat,
-             alpha       = alpha] __device__(IndexT i, IndexT j)
-            {
-                const auto& codimV = codimVs(i);
-                const auto& E      = Es(j);
-
-                //MUDA_ASSERT(E[0] != codimV && E[1] != codimV,
-                //            "Edge (%d,%d) contains codim vertex (%d), why can it happen?",
-                //            E[0],
-                //            E[1],
-                //            codimV);
-
-                if(E[0] == codimV || E[1] == codimV)
-                    return false;
-
-                Vector3 E0  = Ps(E[0]);
-                Vector3 E1  = Ps(E[1]);
-                Vector3 dE0 = alpha * dxs(E[0]);
-                Vector3 dE1 = alpha * dxs(E[1]);
-
-                Vector3 P  = Ps(codimV);
-                Vector3 dP = alpha * dxs(codimV);
-
-                Float thickness = PE_thickness(
-                    thicknesses(codimV), thicknesses(E[0]), thicknesses(E[1]));
-
-                Float expand = d_hat + thickness;
-
-                if(!distance::point_edge_ccd_broadphase(P, E0, E1, dP, dE0, dE1, expand))
-                    return false;
-
-                return true;
-            });
-    }
-
-
-    // query PT
-    {
-        lbvh_PT.build(triangle_aabbs);
-        muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
-        candidate_PT_pairs =
-            lbvh_PT.query(point_aabbs,
-                          [Vs  = Vs.viewer().name("Vs"),
-                           Fs  = Fs.viewer().name("Fs"),
-                           Ps  = Ps.viewer().name("Ps"),
-                           dxs = dxs.viewer().name("dxs"),
-                           thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                           d_hat = d_hat,
-                           alpha = alpha] __device__(IndexT i, IndexT j)
-                          {
-                              // discard if the point is on the triangle
-                              auto V = Vs(i);
-                              auto F = Fs(j);
-
-                              if(F[0] == V || F[1] == V || F[2] == V)
-                                  return false;
-
-                              Vector3 P  = Ps(V);
-                              Vector3 dP = alpha * dxs(V);
-
-                              Vector3 F0 = Ps(F[0]);
-                              Vector3 F1 = Ps(F[1]);
-                              Vector3 F2 = Ps(F[2]);
-
-                              Vector3 dF0 = alpha * dxs(F[0]);
-                              Vector3 dF1 = alpha * dxs(F[1]);
-                              Vector3 dF2 = alpha * dxs(F[2]);
-
-                              Float thickness = PT_thickness(thicknesses(V),
-                                                             thicknesses(F[0]),
-                                                             thicknesses(F[1]),
-                                                             thicknesses(F[2]));
-
-                              Float expand = d_hat + thickness;
-
-                              if(!distance::point_triangle_ccd_broadphase(
-                                     P, F0, F1, F2, dP, dF0, dF1, dF2, expand))
-                                  return false;
-
-                              return true;
-                          });
-    }
-
-    // query EE
-    lbvh_EE.build(edge_aabbs);
+    // Use AllE to query AllE
     {
         muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
-        candidate_EE_pairs = lbvh_EE.detect(
+        lbvh_E.detect(
             [Es          = Es.viewer().name("Es"),
              Ps          = Ps.viewer().name("Ps"),
              dxs         = dxs.viewer().name("dxs"),
@@ -326,46 +294,82 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
              d_hat       = d_hat,
              alpha       = alpha] __device__(IndexT i, IndexT j)
             {
-                // discard if the edges shared same vertex
-                auto Ea = Es(i);
-                auto Eb = Es(j);
+                const auto& E0 = Es(i);
+                const auto& E1 = Es(j);
 
-                if(Ea[0] == Eb[0] || Ea[0] == Eb[1] || Ea[1] == Eb[0] || Ea[1] == Eb[1])
+                if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
                     return false;
 
-                Vector3 Ea0  = Ps(Ea[0]);
-                Vector3 Ea1  = Ps(Ea[1]);
-                Vector3 dEa0 = alpha * dxs(Ea[0]);
-                Vector3 dEa1 = alpha * dxs(Ea[1]);
+                Vector3 E0_0  = Ps(E0[0]);
+                Vector3 E0_1  = Ps(E0[1]);
+                Vector3 dE0_0 = alpha * dxs(E0[0]);
+                Vector3 dE0_1 = alpha * dxs(E0[1]);
 
-                Vector3 Eb0  = Ps(Eb[0]);
-                Vector3 Eb1  = Ps(Eb[1]);
-                Vector3 dEb0 = alpha * dxs(Eb[0]);
-                Vector3 dEb1 = alpha * dxs(Eb[1]);
+                Vector3 E1_0  = Ps(E1[0]);
+                Vector3 E1_1  = Ps(E1[1]);
+                Vector3 dE1_0 = alpha * dxs(E1[0]);
+                Vector3 dE1_1 = alpha * dxs(E1[1]);
 
-                Float thickness = EE_thickness(thicknesses(Ea[0]),
-                                               thicknesses(Ea[1]),
-                                               thicknesses(Eb[0]),
-                                               thicknesses(Eb[1]));
+                Float thickness = EE_thickness(thicknesses(E0[0]),
+                                               thicknesses(E0[1]),
+                                               thicknesses(E1[0]),
+                                               thicknesses(E1[1]));
 
                 Float expand = d_hat + thickness;
 
                 if(!distance::edge_edge_ccd_broadphase(
-                       // position
-                       Ea0,
-                       Ea1,
-                       Eb0,
-                       Eb1,
-                       // displacement
-                       dEa0,
-                       dEa1,
-                       dEb0,
-                       dEb1,
-                       expand))
+                       E0_0, E0_1, E1_0, E1_1, dE0_0, dE0_1, dE1_0, dE1_1, expand))
                     return false;
 
                 return true;
-            });
+            },
+            candidate_AllE_AllE_pairs);
+    }
+
+    // Use AllP to query AllT
+    {
+        muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
+        lbvh_T.query(
+            point_aabbs,
+            [Vs          = Vs.viewer().name("Vs"),
+             Fs          = Fs.viewer().name("Fs"),
+             Ps          = Ps.viewer().name("Ps"),
+             dxs         = dxs.viewer().name("dxs"),
+             thicknesses = info.thicknesses().viewer().name("thicknesses"),
+             d_hat       = d_hat,
+             alpha       = alpha] __device__(IndexT i, IndexT j)
+            {
+                // discard if the point is on the triangle
+                auto V = Vs(i);
+                auto F = Fs(j);
+
+                if(F[0] == V || F[1] == V || F[2] == V)
+                    return false;
+
+                Vector3 P  = Ps(V);
+                Vector3 dP = alpha * dxs(V);
+
+                Vector3 F0 = Ps(F[0]);
+                Vector3 F1 = Ps(F[1]);
+                Vector3 F2 = Ps(F[2]);
+
+                Vector3 dF0 = alpha * dxs(F[0]);
+                Vector3 dF1 = alpha * dxs(F[1]);
+                Vector3 dF2 = alpha * dxs(F[2]);
+
+                Float thickness = PT_thickness(thicknesses(V),
+                                               thicknesses(F[0]),
+                                               thicknesses(F[1]),
+                                               thicknesses(F[2]));
+
+                Float expand = d_hat + thickness;
+
+                if(!distance::point_triangle_ccd_broadphase(P, F0, F1, F2, dP, dF0, dF1, dF2, expand))
+                    return false;
+
+                return true;
+            },
+            candidate_AllP_AllT_pairs);
     }
 }
 
@@ -378,15 +382,15 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
     auto d_hat     = info.d_hat();
     auto positions = info.positions();
 
-    SizeT N_PPs = candidate_PP_pairs.size();
-    SizeT N_PEs = candidate_PE_pairs.size();
-    SizeT N_PTs = candidate_PT_pairs.size();
-    SizeT N_EEs = candidate_EE_pairs.size();
+    SizeT N_PCoimP  = candidate_AllP_CodimP_pairs.size();
+    SizeT N_CodimPE = candidate_CodimP_AllE_pairs.size();
+    SizeT N_PTs     = candidate_AllP_AllT_pairs.size();
+    SizeT N_EEs     = candidate_AllE_AllE_pairs.size();
 
     // PT, EE, PT, PP can degenerate to PP
-    temp_PPs.resize(N_PPs + N_PEs + N_PTs + N_EEs);
+    temp_PPs.resize(N_PCoimP + N_CodimPE + N_PTs + N_EEs);
     // PT, EE, PT can degenerate to PE
-    temp_PEs.resize(N_PEs + N_PTs + N_EEs);
+    temp_PEs.resize(N_CodimPE + N_PTs + N_EEs);
 
     temp_PTs.resize(N_PTs);
     temp_EEs.resize(N_EEs);
@@ -394,18 +398,19 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
     SizeT temp_PP_offset = 0;
     SizeT temp_PE_offset = 0;
 
-    // CodimP and AllP
+    // AllP and CodimP
+    if(N_PCoimP > 0)
     {
-        auto PP_view = temp_PPs.view(temp_PP_offset, N_PPs);
+        auto PP_view = temp_PPs.view(temp_PP_offset, N_PCoimP);
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(candidate_PP_pairs.size(),
+            .apply(candidate_AllP_CodimP_pairs.size(),
                    [positions = positions.viewer().name("positions"),
-                    codim_vertices = info.codim_vertices().viewer().name("codim_vertices"),
+                    PCodimP_pairs = candidate_AllP_CodimP_pairs.viewer().name("PP_pairs"),
                     surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
+                    codim_vertices = info.codim_vertices().viewer().name("codim_vertices"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    PP_pairs = candidate_PP_pairs.viewer().name("PP_pairs"),
                     temp_PPs = PP_view.viewer().name("temp_PPs"),
                     d_hat    = d_hat] __device__(int i) mutable
                    {
@@ -413,10 +418,10 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        auto& PP = temp_PPs(i);
                        PP.setConstant(-1);
 
-                       Vector2i indices = PP_pairs(i);
+                       Vector2i indices = PCodimP_pairs(i);
 
-                       IndexT P0 = codim_vertices(indices(0));
-                       IndexT P1 = surf_vertices(indices(1));
+                       IndexT P0 = surf_vertices(indices(0));
+                       IndexT P1 = codim_vertices(indices(1));
 
 
                        const auto& V0 = positions(P0);
@@ -436,20 +441,21 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        PP = {P0, P1};
                    });
 
-        temp_PP_offset += N_PPs;
+        temp_PP_offset += N_PCoimP;
     }
     // CodimP and AllE
+    if(N_CodimPE > 0)
     {
-        auto PP_view = temp_PPs.view(temp_PP_offset, N_PEs);
-        auto PE_view = temp_PEs.view(temp_PE_offset, N_PEs);
+        auto PP_view = temp_PPs.view(temp_PP_offset, N_CodimPE);
+        auto PE_view = temp_PEs.view(temp_PE_offset, N_CodimPE);
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(candidate_PE_pairs.size(),
+            .apply(candidate_CodimP_AllE_pairs.size(),
                    [positions = positions.viewer().name("positions"),
+                    CodimP_AllE_pairs = candidate_CodimP_AllE_pairs.viewer().name("PE_pairs"),
                     codim_veritces = info.codim_vertices().viewer().name("codim_vertices"),
                     surf_edges = info.surf_edges().viewer().name("surf_edges"),
-                    PE_pairs   = candidate_PE_pairs.viewer().name("PE_pairs"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     temp_PPs = PP_view.viewer().name("temp_PPs"),
                     temp_PEs = PE_view.viewer().name("temp_PEs"),
@@ -460,7 +466,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        auto& PE = temp_PEs(i);
                        PE.setConstant(-1);
 
-                       Vector2i indices = PE_pairs(i);
+                       Vector2i indices = CodimP_AllE_pairs(i);
                        IndexT   V       = codim_veritces(indices(0));
                        Vector2i E       = surf_edges(indices(1));
 
@@ -508,9 +514,10 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        }
                    });
 
-        temp_PP_offset += N_PEs;
-        temp_PE_offset += N_PEs;
+        temp_PP_offset += N_CodimPE;
+        temp_PE_offset += N_CodimPE;
     }
+
     // AllP and AllT
     {
         auto PP_view = temp_PPs.view(temp_PP_offset, N_PTs);
@@ -518,83 +525,85 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(candidate_PT_pairs.size(),
-                   [positions = positions.viewer().name("Ps"),
-                    PT_pairs  = candidate_PT_pairs.viewer().name("PT_pairs"),
-                    surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
-                    surf_triangles = info.surf_triangles().viewer().name("surf_triangles"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    temp_PPs = PP_view.viewer().name("temp_PPs"),
-                    temp_PEs = PE_view.viewer().name("temp_PEs"),
-                    temp_PTs = temp_PTs.viewer().name("temp_PTs"),
-                    d_hat    = d_hat] __device__(int i) mutable
-                   {
-                       auto& PP = temp_PPs(i);
-                       PP.setConstant(-1);
-                       auto& PE = temp_PEs(i);
-                       PE.setConstant(-1);
-                       auto& PT = temp_PTs(i);
-                       PT.setConstant(-1);
+            .apply(
+                candidate_AllP_AllT_pairs.size(),
+                [positions = positions.viewer().name("Ps"),
+                 PT_pairs = candidate_AllP_AllT_pairs.viewer().name("PT_pairs"),
+                 surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
+                 surf_triangles = info.surf_triangles().viewer().name("surf_triangles"),
+                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                 temp_PPs    = PP_view.viewer().name("temp_PPs"),
+                 temp_PEs    = PE_view.viewer().name("temp_PEs"),
+                 temp_PTs    = temp_PTs.viewer().name("temp_PTs"),
+                 d_hat       = d_hat] __device__(int i) mutable
+                {
+                    auto& PP = temp_PPs(i);
+                    PP.setConstant(-1);
+                    auto& PE = temp_PEs(i);
+                    PE.setConstant(-1);
+                    auto& PT = temp_PTs(i);
+                    PT.setConstant(-1);
 
-                       Vector2i indices = PT_pairs(i);
-                       IndexT   V       = surf_vertices(indices(0));
-                       Vector3i F       = surf_triangles(indices(1));
+                    Vector2i indices = PT_pairs(i);
+                    IndexT   V       = surf_vertices(indices(0));
+                    Vector3i F       = surf_triangles(indices(1));
 
-                       Vector4i vIs  = {V, F(0), F(1), F(2)};
-                       Vector3  Ps[] = {positions(vIs(0)),
-                                        positions(vIs(1)),
-                                        positions(vIs(2)),
-                                        positions(vIs(3))};
+                    Vector4i vIs  = {V, F(0), F(1), F(2)};
+                    Vector3  Ps[] = {positions(vIs(0)),
+                                     positions(vIs(1)),
+                                     positions(vIs(2)),
+                                     positions(vIs(3))};
 
-                       Float thickness = PT_thickness(thicknesses(V),
-                                                      thicknesses(F(0)),
-                                                      thicknesses(F(1)),
-                                                      thicknesses(F(2)));
+                    Float thickness = PT_thickness(thicknesses(V),
+                                                   thicknesses(F(0)),
+                                                   thicknesses(F(1)),
+                                                   thicknesses(F(2)));
 
-                       Vector4i flag = distance::point_triangle_distance_flag(
-                           Ps[0], Ps[1], Ps[2], Ps[3]);
+                    Vector4i flag =
+                        distance::point_triangle_distance_flag(Ps[0], Ps[1], Ps[2], Ps[3]);
 
-                       Vector2 range = D_range(thickness, d_hat);
+                    Vector2 range = D_range(thickness, d_hat);
 
-                       Float D;
-                       distance::point_triangle_distance2(
-                           flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
+                    Float D;
+                    distance::point_triangle_distance2(flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
 
-                       if(!is_active_D(range, D))
-                           return;  // early return
+                    MUDA_ASSERT(
+                        D > 0.0, "D=%f, V F = (%d,%d,%d,%d)", D, vIs(0), vIs(1), vIs(2), vIs(3));
 
-                       Vector4i offsets;
-                       auto dim = distance::degenerate_point_triangle(flag, offsets);
+                    if(!is_active_D(range, D))
+                        return;  // early return
 
-                       switch(dim)
-                       {
-                           case 2:  // PP
-                           {
-                               IndexT V0 = vIs(offsets(0));
-                               IndexT V1 = vIs(offsets(1));
-                               PP        = {V0, V1};
-                           }
-                           break;
-                           case 3:  // PE
-                           {
-                               IndexT V0 = vIs(offsets(0));
-                               IndexT V1 = vIs(offsets(1));
-                               IndexT V2 = vIs(offsets(2));
-                               PE        = {V0, V1, V2};
-                           }
-                           break;
-                           case 4:  // PT
-                           {
-                               PT = vIs;
-                           }
-                           break;
-                           default: {
-                               MUDA_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
-                           }
-                           break;
-                       }
-                   })
-            .wait();
+                    Vector4i offsets;
+                    auto dim = distance::degenerate_point_triangle(flag, offsets);
+
+                    switch(dim)
+                    {
+                        case 2:  // PP
+                        {
+                            IndexT V0 = vIs(offsets(0));
+                            IndexT V1 = vIs(offsets(1));
+                            PP        = {V0, V1};
+                        }
+                        break;
+                        case 3:  // PE
+                        {
+                            IndexT V0 = vIs(offsets(0));
+                            IndexT V1 = vIs(offsets(1));
+                            IndexT V2 = vIs(offsets(2));
+                            PE        = {V0, V1, V2};
+                        }
+                        break;
+                        case 4:  // PT
+                        {
+                            PT = vIs;
+                        }
+                        break;
+                        default: {
+                            MUDA_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
+                        }
+                        break;
+                    }
+                });
 
         temp_PP_offset += N_PTs;
         temp_PE_offset += N_PTs;
@@ -607,10 +616,10 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(
-                candidate_EE_pairs.size(),
+                candidate_AllE_AllE_pairs.size(),
                 [positions = positions.viewer().name("Ps"),
                  rest_positions = info.rest_positions().viewer().name("rest_positions"),
-                 EE_pairs    = candidate_EE_pairs.viewer().name("EE_pairs"),
+                 EE_pairs = candidate_AllE_AllE_pairs.viewer().name("EE_pairs"),
                  surf_edges  = info.surf_edges().viewer().name("surf_edges"),
                  thicknesses = info.thicknesses().viewer().name("thicknesses"),
                  temp_PPs    = PP_view.viewer().name("temp_PPs"),
@@ -804,19 +813,23 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 {
     using namespace muda;
 
-    auto toi_size = candidate_PP_pairs.size() + candidate_PE_pairs.size()
-                    + candidate_PT_pairs.size() + candidate_EE_pairs.size();
+    auto toi_size =
+        candidate_AllP_CodimP_pairs.size() + candidate_CodimP_AllE_pairs.size()
+        + candidate_AllP_AllT_pairs.size() + candidate_AllE_AllE_pairs.size();
 
     tois.resize(toi_size);
 
     auto offset  = 0;
-    auto PP_tois = tois.view(offset, candidate_PP_pairs.size());
-    offset += candidate_PP_pairs.size();
-    auto PE_tois = tois.view(offset, candidate_PE_pairs.size());
-    offset += candidate_PE_pairs.size();
-    auto PT_tois = tois.view(offset, candidate_PT_pairs.size());
-    offset += candidate_PT_pairs.size();
-    auto EE_tois = tois.view(offset, candidate_EE_pairs.size());
+    auto PP_tois = tois.view(offset, candidate_AllP_CodimP_pairs.size());
+    offset += candidate_AllP_CodimP_pairs.size();
+    auto PE_tois = tois.view(offset, candidate_CodimP_AllE_pairs.size());
+    offset += candidate_CodimP_AllE_pairs.size();
+    auto PT_tois = tois.view(offset, candidate_AllP_AllT_pairs.size());
+    offset += candidate_AllP_AllT_pairs.size();
+    auto EE_tois = tois.view(offset, candidate_AllE_AllE_pairs.size());
+    offset += candidate_AllE_AllE_pairs.size();
+
+    UIPC_ASSERT(offset == toi_size, "size mismatch");
 
 
     // TODO: Now hard code the minimum separation coefficient
@@ -829,13 +842,13 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     // large enough toi (>1)
     constexpr Float large_enough_toi = 1.1;
 
-    // CodimP and AllP
+    // AllP and CodimP
     {
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(candidate_PP_pairs.size(),
-                   [PP_tois  = PP_tois.viewer().name("PP_tois"),
-                    PP_pairs = candidate_PP_pairs.viewer().name("PP_pairs"),
+            .apply(candidate_AllP_CodimP_pairs.size(),
+                   [PP_tois = PP_tois.viewer().name("PP_tois"),
+                    PCodimP_pairs = candidate_AllP_CodimP_pairs.viewer().name("PP_pairs"),
                     codim_vertices = info.codim_vertices().viewer().name("codim_vertices"),
                     surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
@@ -847,9 +860,9 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                     max_iter,
                     large_enough_toi] __device__(int i) mutable
                    {
-                       auto   indices = PP_pairs(i);
-                       IndexT V0      = codim_vertices(indices(0));
-                       IndexT V1      = surf_vertices(indices(1));
+                       auto   indices = PCodimP_pairs(i);
+                       IndexT V0      = surf_vertices(indices(0));
+                       IndexT V1      = codim_vertices(indices(1));
 
                        Float thickness = PP_thickness(thicknesses(V0), thicknesses(V1));
 
@@ -883,9 +896,9 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     {
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(candidate_PE_pairs.size(),
-                   [PE_tois  = PE_tois.viewer().name("PE_tois"),
-                    PE_pairs = candidate_PE_pairs.viewer().name("PE_pairs"),
+            .apply(candidate_CodimP_AllE_pairs.size(),
+                   [PE_tois = PE_tois.viewer().name("PE_tois"),
+                    CodimP_AllE_pairs = candidate_CodimP_AllE_pairs.viewer().name("PE_pairs"),
                     codim_vertices = info.codim_vertices().viewer().name("codim_vertices"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     surf_edges = info.surf_edges().viewer().name("surf_edges"),
@@ -897,7 +910,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                     max_iter,
                     large_enough_toi] __device__(int i) mutable
                    {
-                       auto     indices   = PE_pairs(i);
+                       auto     indices   = CodimP_AllE_pairs(i);
                        IndexT   V         = codim_vertices(indices(0));
                        Vector2i E         = surf_edges(indices(1));
                        Float    thickness = PE_thickness(
@@ -936,9 +949,9 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     {
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(candidate_PT_pairs.size(),
-                   [PT_tois  = PT_tois.viewer().name("PT_tois"),
-                    PT_pairs = candidate_PT_pairs.viewer().name("PT_pairs"),
+            .apply(candidate_AllP_AllT_pairs.size(),
+                   [PT_tois = PT_tois.viewer().name("PT_tois"),
+                    PT_pairs = candidate_AllP_AllT_pairs.viewer().name("PT_pairs"),
                     surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
                     surf_triangles = info.surf_triangles().viewer().name("surf_triangles"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
@@ -997,9 +1010,9 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     {
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(candidate_EE_pairs.size(),
-                   [EE_tois    = EE_tois.viewer().name("EE_tois"),
-                    EE_pairs   = candidate_EE_pairs.viewer().name("EE_pairs"),
+            .apply(candidate_AllE_AllE_pairs.size(),
+                   [EE_tois = EE_tois.viewer().name("EE_tois"),
+                    EE_pairs = candidate_AllE_AllE_pairs.viewer().name("EE_pairs"),
                     surf_edges = info.surf_edges().viewer().name("surf_edges"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     Ps    = info.positions().viewer().name("Ps"),

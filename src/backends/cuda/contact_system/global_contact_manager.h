@@ -9,6 +9,7 @@ namespace uipc::backend::cuda
 {
 class ContactReporter;
 class ContactReceiver;
+class GlobalTrajectoryFilter;
 
 class GlobalContactManager final : public SimSystem
 {
@@ -155,11 +156,13 @@ class GlobalContactManager final : public SimSystem
         void _convert_matrix();
         void _distribute();
 
-        GlobalVertexManager*               global_vertex_manager = nullptr;
-        bool                               cfl_enabled           = false;
-        vector<ContactCoeff>               h_contact_tabular;
-        muda::DeviceBuffer2D<ContactCoeff> contact_tabular;
-        Float                              reserve_ratio = 1.1;
+        SimSystemSlot<GlobalVertexManager>    global_vertex_manager;
+        SimSystemSlot<GlobalTrajectoryFilter> global_trajectory_filter;
+
+        bool                                  cfl_enabled = false;
+        vector<ContactCoeff>                  h_contact_tabular;
+        muda::DeviceBuffer2D<ContactCoeff>    contact_tabular;
+        Float                                 reserve_ratio = 1.1;
 
         Float d_hat        = 0.0;
         Float kappa        = 0.0;

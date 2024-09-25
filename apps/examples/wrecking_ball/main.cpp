@@ -187,7 +187,7 @@ int main()
     {
         world.advance();
         world.retrieve();
-        world.dump();
+        //world.dump();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     }

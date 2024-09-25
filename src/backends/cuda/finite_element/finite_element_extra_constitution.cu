@@ -7,6 +7,14 @@ void FiniteElementExtraConstitution::do_build()
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
 
+    auto uids     = world().scene().constitution_tabular().uids();
+    auto this_uid = uid();
+    if(!std::ranges::binary_search(uids, this_uid))
+    {
+        throw SimSystemException(fmt::format("Extra Constitution UID ({}) not found in the constitution tabular",
+                                             this_uid));
+    }
+
     BuildInfo info;
     do_build(info);
 

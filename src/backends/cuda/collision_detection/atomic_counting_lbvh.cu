@@ -6,10 +6,6 @@ AtomicCountingLBVH::AtomicCountingLBVH(muda::Stream& stream) noexcept
     : m_stream(stream)
 {
 }
-void AtomicCountingLBVH::reserve(size_t size)
-{
-    m_pairs.resize(size);
-}
 
 void AtomicCountingLBVH::build(muda::CBufferView<LinearBVHAABB> aabbs)
 {

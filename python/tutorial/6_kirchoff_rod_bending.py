@@ -13,7 +13,7 @@ from pyuipc.constitution import *
 from pyuipc_utils.gui import *
 from asset import AssetDir
 
-Logger.set_level(Logger.Level.Info)
+Logger.set_level(Logger.Level.Warn)
 
 workspace = AssetDir.output_path(__file__)
 
@@ -28,8 +28,6 @@ scene = Scene(config)
 
 hs = HookeanSpring()
 krb = KirchhoffRodBending()
-scene.constitution_tabular().insert(hs)
-scene.constitution_tabular().insert(krb)
 scene.contact_tabular().default_model(0.05, 1e9)
 default_element = scene.contact_tabular().default_element()
 

@@ -1,4 +1,5 @@
 #include <contact_system/global_contact_manager.h>
+#include <collision_detection/global_trajectory_filter.h>
 #include <sim_engine.h>
 #include <contact_system/contact_reporter.h>
 #include <contact_system/contact_receiver.h>
@@ -29,7 +30,9 @@ void GlobalContactManager::do_build()
 {
     const auto& info = world().scene().info();
 
-    m_impl.global_vertex_manager = find<GlobalVertexManager>();
+    m_impl.global_vertex_manager    = require<GlobalVertexManager>();
+    m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
+
 
     m_impl.d_hat        = info["contact"]["d_hat"].get<Float>();
     m_impl.dt           = info["dt"].get<Float>();
@@ -97,6 +100,10 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
 {
     if(!cfl_enabled)  // if cfl is disabled, just return 1.0
         return 1.0;
+
+    vert_is_active_contact.fill(0);  // clear the active flag
+
+    global_trajectory_filter->label_active_vertices();
 
     auto displacements = global_vertex_manager->displacements();
 

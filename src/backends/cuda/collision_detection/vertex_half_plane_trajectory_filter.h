@@ -78,7 +78,7 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
     {
       public:
         void record_friction_candidates(GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info);
-        void label_active_vertices(GlobalTrajectoryFilter::FilterActiveInfo& info);
+        void label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info);
 
         GlobalVertexManager* global_vertex_manager = nullptr;
         GlobalSimpicialSurfaceManager* global_simplicial_surface_manager = nullptr;
@@ -115,11 +115,11 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
     Impl         m_impl;
     virtual void do_build() override final;
 
-    // Inherited via TrajectoryFilter
     virtual void do_detect(GlobalTrajectoryFilter::DetectInfo& info) override final;
     virtual void do_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info) override final;
     virtual void do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info) override final;
     virtual void do_record_friction_candidates(
         GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info) override final;
+    virtual void do_label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info) override final;
 };
 }  // namespace uipc::backend::cuda

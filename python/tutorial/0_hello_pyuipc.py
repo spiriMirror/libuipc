@@ -21,7 +21,6 @@ scene = Scene(config)
 
 # create constituiton
 abd = AffineBodyConstitution()
-scene.constitution_tabular().insert(abd)
 
 # friction ratio and contact resistance
 scene.contact_tabular().default_model(0.05, 1e9)

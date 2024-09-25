@@ -9,32 +9,34 @@ namespace uipc::backend::cuda
 class AtomicCountingLBVH
 {
   public:
+    class QueryBuffer
+    {
+      public:
+        auto  view() const noexcept { return m_pairs.view(0, m_size); }
+        void  reserve(size_t size) { m_pairs.resize(size); }
+        SizeT size() const noexcept { return m_size; }
+        auto  viewer() const noexcept { return view().viewer(); }
+
+      private:
+        friend class AtomicCountingLBVH;
+        SizeT                        m_size = 0;
+        muda::DeviceBuffer<Vector2i> m_pairs;
+    };
+
     AtomicCountingLBVH(muda::Stream& stream = muda::Stream::Default()) noexcept;
-    void reserve(size_t size);
 
     void build(muda::CBufferView<LinearBVHAABB> aabbs);
 
     template <typename Pred>
-    muda::BufferView<Vector2i> detect(Pred p);
+    void detect(Pred p, QueryBuffer& out_pairs);
 
     template <typename Pred>
-    muda::BufferView<Vector2i> query(muda::CBufferView<LinearBVHAABB> query_aabbs, Pred p);
-
-    /**
-     * @param query_obj A callable objects, e.g. indices of surface vertices, edges, etc.
-     * @param get_aabb  f: AABB (const T& obj)
-     */
-    template <typename GetQueryAABB, typename ObjectT, typename Pred>
-    muda::BufferView<Vector2i> query(muda::CBufferView<ObjectT> query_obj,
-                                     GetQueryAABB               get_aabb,
-                                     Pred                       p);
-
+    void query(muda::CBufferView<LinearBVHAABB> query_aabbs, Pred p, QueryBuffer& out_pairs);
 
   private:
     muda::CBufferView<LinearBVHAABB> m_aabbs;
     muda::DeviceVar<IndexT>          m_cp_num;
     LinearBVH                        m_lbvh;
-    muda::DeviceBuffer<Vector2i>     m_pairs;
     Float                            m_reserve_ratio = 1.1;
     muda::Stream&                    m_stream;
 };

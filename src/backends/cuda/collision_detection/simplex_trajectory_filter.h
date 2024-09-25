@@ -28,6 +28,7 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         muda::CBufferView<Vector3> positions() const noexcept;
         muda::CBufferView<Vector3> rest_positions() const noexcept;
         muda::CBufferView<Float>   thicknesses() const noexcept;
+        muda::CBufferView<IndexT>  dimensions() const noexcept;
 
         muda::CBufferView<IndexT>   codim_vertices() const noexcept;
         muda::CBufferView<IndexT>   surf_vertices() const noexcept;
@@ -80,11 +81,11 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
     {
       public:
         void record_friction_candidates(GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info);
-        void label_active_vertices(GlobalTrajectoryFilter::FilterActiveInfo& info);
+        void label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info);
 
-        GlobalVertexManager* global_vertex_manager = nullptr;
-        GlobalSimpicialSurfaceManager* global_simplicial_surface_manager = nullptr;
-        GlobalContactManager* global_contact_manager = nullptr;
+        SimSystemSlot<GlobalVertexManager> global_vertex_manager;
+        SimSystemSlot<GlobalSimpicialSurfaceManager> global_simplicial_surface_manager;
+        SimSystemSlot<GlobalContactManager> global_contact_manager;
 
         muda::CBufferView<Vector4i> PTs;
         muda::CBufferView<Vector4i> EEs;
@@ -130,11 +131,11 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
 
     virtual void do_build() override final;
 
-    // Inherited via TrajectoryFilter
     virtual void do_detect(GlobalTrajectoryFilter::DetectInfo& info) override final;
     virtual void do_filter_active(GlobalTrajectoryFilter::FilterActiveInfo& info) override final;
     virtual void do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info) override final;
     virtual void do_record_friction_candidates(
         GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info) override final;
+    virtual void do_label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info) final override;
 };
 }  // namespace uipc::backend::cuda
