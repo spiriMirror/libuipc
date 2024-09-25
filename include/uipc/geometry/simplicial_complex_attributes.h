@@ -162,8 +162,8 @@ class SimplicialComplexTopo<VertexSlot>
 };
 
 
-UIPC_CORE_EXPORT_TEMPLATE_CLASS SimplicialComplexTopo<VertexSlot>;
-UIPC_CORE_EXPORT_TEMPLATE_CLASS SimplicialComplexTopo<const VertexSlot>;
+UIPC_CORE_EXPORT_TEMPLATE_CLASS(SimplicialComplexTopo<VertexSlot>);
+UIPC_CORE_EXPORT_TEMPLATE_CLASS(SimplicialComplexTopo<const VertexSlot>);
 
 /**
  * @brief A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.

@@ -14,7 +14,7 @@ namespace uipc
 template <typename T>
 constexpr std::string_view readable_type_name() noexcept
 {
-    return boost::core::demangle(typeid(T).name());
+    return std::string_view{boost::core::demangle(typeid(T).name())};
 }
 
 

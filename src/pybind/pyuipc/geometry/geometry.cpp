@@ -40,7 +40,7 @@ class AttributeFriend<pyuipc::geometry::PyGeometry>
         );
 
         // call the create method of the member object
-        return py::cast<S<IAttributeSlot>>(pyobj.attr("create").call(py::cast(name), object));
+        return py::cast<S<IAttributeSlot>>(pyobj.attr("create").operator()(py::cast(name), object));
     }
 
     static S<IAttributeSlot> create(Geometry::InstanceAttributes& a,
@@ -53,7 +53,7 @@ class AttributeFriend<pyuipc::geometry::PyGeometry>
         );
 
         // call the create method of the member object
-        return py::cast<S<IAttributeSlot>>(pyobj.attr("create").call(py::cast(name), object));
+        return py::cast<S<IAttributeSlot>>(pyobj.attr("create").operator()(py::cast(name), object));
     }
 };
 }  // namespace uipc::geometry
@@ -70,7 +70,7 @@ void def_method(py::module& m, py::class_<Geometry::InstanceAttributes>& class_A
 
     class_Attribute.def("find",
                         [](Attributes& self, std::string_view name)
-                        { return Accessor::template find(self, name); });
+                        { return Accessor::find(self, name); });
 
     class_Attribute.def("resize",
                         [](Attributes& self, size_t size)

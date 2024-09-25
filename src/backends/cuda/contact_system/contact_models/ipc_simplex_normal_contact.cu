@@ -1,4 +1,3 @@
-#pragma once
 #include <contact_system/simplex_normal_contact.h>
 #include <contact_system/contact_models/codim_ipc_simplex_normal_contact_function.h>
 #include <utils/distance/distance_flagged.h>

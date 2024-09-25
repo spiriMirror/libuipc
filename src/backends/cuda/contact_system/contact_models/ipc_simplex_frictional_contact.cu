@@ -1,4 +1,3 @@
-#pragma once
 #include <contact_system/simplex_frictional_contact.h>
 #include <contact_system/contact_models/codim_ipc_simplex_frictional_contact_function.h>
 #include <utils/codim_thickness.h>

@@ -33,10 +33,6 @@ base_vcpkg_json = {
             "version>=": "2.1#3"
         },
         {
-            "name": "bgfx",
-            "version>=": "1.127.8725-469"
-        },
-        {
             "name": "dylib",
             "version>=": "2.2.1"
         },
@@ -90,6 +86,10 @@ def gen_vcpkg_json(args):
             "name": "freeglut",
             "version>=": "3.4.0"
         })
+        deps.append({
+            "name": "bgfx",
+            "version>=": "1.127.8725-469"
+        })
     if is_enabled(args.build_pybind):
         deps.append({
             "name":"pybind11",
@@ -118,18 +118,18 @@ if __name__ == "__main__":
     json_path = f'{args.output_dir}/vcpkg.json'
     
     gen_vcpkg_json(args)
-        
+    
+    is_new = not os.path.exists(json_path)
     # if json_path exists, compare the content
     changed = False
-    if(os.path.exists(json_path)):
+    
+    if not is_new:
         with open(json_path, "r") as f:
             old_json = json.load(f)
             changed = str(old_json) != str(base_vcpkg_json)
     
     with open(json_path, "w") as f:
         json.dump(base_vcpkg_json, f, indent=4)
-    
-    is_new = not os.path.exists(json_path)
     
     if is_new:
         print(f"[libuipc] Generated vcpkg.json at:\n    {json_path}")

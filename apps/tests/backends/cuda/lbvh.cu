@@ -489,7 +489,6 @@ std::vector<Vector2i> adaptive_lbvh_cp(span<const LinearBVHAABB> aabbs)
                            auto N = aabbs.total_size();
 
                            auto aabb  = aabbs(i);
-                           auto count = 0;
                            m_lbvh.query(aabb,
                                       [&](uint32_t id)
                                       {

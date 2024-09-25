@@ -53,7 +53,7 @@ The rest dependencies are all managed by Vcpkg; they will be automatically insta
 
 If the automatic installation fails, please raise an issue with the CMake error message.
 
-### Build Project
+### Build Libuipc
 
 #### Windows
 
@@ -67,7 +67,7 @@ On Linux, you can use the following commands to build the project.
 
 ```shell
 cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
-cmake -S ../libuipc -DUIPC_BUILD_GUI=0
+cmake -S ../libuipc -DUIPC_BUILD_GUI=0 -DCMAKE_BUILD_TYPE=<Debug/Release/RelWithDebInfo>
 cmake --build .
 ```
 
@@ -81,11 +81,7 @@ Just run the executable files in `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin`
 
 #### Linux
 
-Install the project.
-
-```shell
-cmake --install . --prefix . --config <Debug/Release/RelWithDebInfo>
-```
+The excutable files are in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder. 
 
 To run the programs, you need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared **libuipc** library and the dependent backend modules will not be found.
 
@@ -103,28 +99,48 @@ Pyuipc is a Python binding of libuipc. It is built with the `pybind11` library.
 
 Add `-DUIPC_BUILD_PYBIND=1` to the CMake command to build the Python binding.
 
-NOTE: Pyuipc should be built in the Release or RelWithDebInfo mode.
+NOTE: 
+1.  You need to install the development version of Python3 to build the Python binding.
+    For linux, you can install the development version of Python3 with the following command:
+    ```shell
+    sudo apt-get install python3-dev
+    ```
+    For Windows, you can install the development version of Python3 from the official website.
+2.  `pyuipc` should be built in the **Release** or **RelWithDebInfo** mode.
+3.  We use `mypy.stubgen` to generate the stub files for the Python binding. So you need to install `mypy` first.
+    ```shell
+    pip install mypy
+    ```
+    To generate the stub files, you need to install dependent packages:
+    ```shell
+    pip install numpy
+    ```
+    The stub files will be generated in the `libuipc/python/typings` folder automatically after building `pyuipc`.
+
+#### Install Pyuipc
+
+After building the project, install the Python binding with the following command:
+
+```shell
+cd libuipc/python; pip install .
+```
+
+Then you can use the `pyuipc` in your Python environment with:
+
+```python
+from pyuipc_loader import pyuipc
+```
 
 #### Run Examples
 
-We use `mypy.stubgen` to generate the stub files for the Python binding. So you need to install `mypy` first.
-
-```shell
-pip install mypy
-```
-
 Then you can run the examples in the `libuipc/python` folder.
 
-Intellisence is supported via the stub files in `libuipc/python/typings/`.
+- `uipc_info.py`: print the basic information of the `uipc` library. 
+- `tutorial/`: contains the basic usage of `Pyuipc`.
 
-If you use VSCode, you can open the project at `libuipc/python` and enjoy the Intellisence with Pylance Extension.
-```shell
-cd python & code .
-```
+You can run the `uipc_info.py` to check if the `Pyuipc` is installed correctly.
 
-#### GUI
-
-We use [polyscope](https://polyscope.run/)(v2.3.0) to visualize the scene in Python.
+We use [polyscope](https://polyscope.run/)(v2.3.0) to visualize the scene in Python. If you want to run the GUI examples, you need to install the `polyscope` library with the following command:
 
 ```shell
 pip install polyscope==2.3.0
@@ -154,4 +170,24 @@ If your system hasn't installed the GUI application dependencies before, you may
 
 ```shell
 sudo apt-get install libxi-dev libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev libxrandr-dev libxxf86vm-dev libxinerama-dev libxcursor-dev
+```
+### Linux Python3 System Requirement
+
+Python3 currently requires the following programs from the system package:
+
+- autoconf
+- automake
+- autoconf-archive
+
+```shell
+sudo apt-get install autoconf automake autoconf-archive
+```
+
+### Linux CXX Compiler
+
+If you own gcc/g++ doesn't work for libuipc, we recommend using the latest version of clang.
+
+```shell
+wget https://apt.llvm.org/llvm.sh; chmod 777 llvm.sh; ./llvm.sh 17;
+export CC=/usr/bin/clang-17; export CXX=/usr/bin/clang++-17;
 ```

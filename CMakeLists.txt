@@ -28,7 +28,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 if (UIPC_WITH_CUDA_BACKEND)
     enable_language(CUDA)
-    add_subdirectory(external/muda)
+    add_subdirectory(external)
 endif()
 
 # uipc

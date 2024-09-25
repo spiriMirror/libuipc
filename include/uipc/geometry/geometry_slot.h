@@ -39,9 +39,13 @@ class UIPC_CORE_API GeometrySlot
     void              state(GeometrySlotState state) noexcept;
 };
 
-UIPC_CORE_EXPORT_TEMPLATE_CLASS std::shared_ptr<GeometrySlot>;
-
 template <std::derived_from<Geometry> GeometryT>
     requires(!std::is_abstract_v<GeometryT>)
 class GeometrySlotT;
 }  // namespace uipc::geometry
+
+namespace std
+{
+// clang++-17: explicit instantiation of 'shared_ptr' should be in a namespace enclosing 'std'.
+UIPC_CORE_EXPORT_TEMPLATE_CLASS(std::shared_ptr<uipc::geometry::GeometrySlot>);
+}

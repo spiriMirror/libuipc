@@ -57,6 +57,9 @@ function(uipc_config_vcpkg_install)
     set(VCPKG_MANIFEST_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(VCPKG_MANIFEST_FILE "${VCPKG_MANIFEST_DIR}/vcpkg.json")
     find_package(Python REQUIRED QUIET)
+    if(NOT Python_FOUND)
+        uipc_error("Python is required to generate vcpkg.json. Please install Python.")
+    endif()
     # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
     execute_process(
         COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
@@ -67,7 +70,12 @@ function(uipc_config_vcpkg_install)
     )
     
     # set VCPKG_MANIFEST_INSTALL option to control the vcpkg install
-    set(VCPKG_MANIFEST_INSTALL ${VCPKG_JSON_GENERATE_RESULT} CACHE BOOL "" FORCE)
+    if(VCPKG_JSON_GENERATE_RESULT)
+        set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)
+    else()
+        set(VCPKG_MANIFEST_INSTALL OFF CACHE BOOL "" FORCE)
+    endif()
+    # message(STATUS "VCPKG_MANIFEST_INSTALL: ${VCPKG_MANIFEST_INSTALL}")
 
     set(VCPKG_INSTALLED_DIR "")
     if(UIPC_USING_LOCAL_VCPKG)
@@ -88,64 +96,31 @@ function(uipc_config_vcpkg_install)
     set(VCPKG_INSTALLED_DIR "${VCPKG_INSTALLED_DIR}" PARENT_SCOPE)
 endfunction()
 
-# # -----------------------------------------------------------------------------------------
-# # dump build info
-# # -----------------------------------------------------------------------------------------
-# function (uipc_dump_build_info)
-#     # write json file to output directory
-#     set(BUILD_INFO_JSON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/output/build_info.json")
-#     set(Json 
-# "{
-#     \"CMAKE_BINARY_DIR\": \"${CMAKE_BINARY_DIR}\"
-# }")
-#     file(WRITE ${BUILD_INFO_JSON_FILE} ${Json})
-#     uipc_info("Build info dumped to ${BUILD_INFO_JSON_FILE}")
-# endfunction()
-
-# -----------------------------------------------------------------------------------------
-# Install the target to the correct directory
-# -----------------------------------------------------------------------------------------
-function(uipc_target_install target_name)
-    # This function is mainly for linux system to install the target to the correct directory
-    # On windows, the `uipc_set_output_directory()` is enough to set the output directory
-    # Put Debug/Release/RelWithDebInfo into different directories
-    install(TARGETS ${target_name}
-        CONFIGURATIONS Debug
-        RUNTIME DESTINATION "Debug/bin"
-        LIBRARY DESTINATION "Debug/bin"
-        ARCHIVE DESTINATION "Debug/lib"
-    )
-    install(TARGETS ${target_name}
-        CONFIGURATIONS Release
-        RUNTIME DESTINATION "Release/bin"
-        LIBRARY DESTINATION "Release/bin"
-        ARCHIVE DESTINATION "Release/lib"
-    )
-    install(TARGETS ${target_name}
-        CONFIGURATIONS RelWithDebInfo
-        RUNTIME DESTINATION "RelWithDebInfo/bin"
-        LIBRARY DESTINATION "RelWithDebInfo/bin"
-        ARCHIVE DESTINATION "RelWithDebInfo/lib"
-    )
-endfunction()
-
 # -----------------------------------------------------------------------------------------
 # Set the output directory for the target
 # -----------------------------------------------------------------------------------------
 function(uipc_target_set_output_directory target_name)
-    set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
-    set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
-    set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
+    if(WIN32) # if on windows, set the output directory with different configurations
+        
+        set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
+        set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
+        set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
 
-    set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
-    set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
-    set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
+        set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
+        set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
+        set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
 
-    set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/lib")
-    set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/lib")
-    set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/lib")
-
-    uipc_target_install(${target_name})
+        set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/lib")
+        set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/lib")
+        set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/lib")
+    elseif(UNIX)  # if on linux, set the output directory
+        if("${CMAKE_BUILD_TYPE}" STREQUAL "") # if the build type is not set, set it to Release
+            set(CMAKE_BUILD_TYPE "Release")
+        endif()
+        set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin")
+        set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin")
+        set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib")
+    endif()
 endfunction()
 
 # -----------------------------------------------------------------------------------------

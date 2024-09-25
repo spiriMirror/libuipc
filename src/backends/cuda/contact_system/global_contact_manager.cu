@@ -34,6 +34,7 @@ void GlobalContactManager::do_build()
     m_impl.d_hat        = info["contact"]["d_hat"].get<Float>();
     m_impl.dt           = info["dt"].get<Float>();
     m_impl.eps_velocity = info["contact"]["eps_velocity"].get<Float>();
+    m_impl.cfl_enabled  = info["cfl"]["enable"].get<bool>();
     m_impl.kappa = world().scene().contact_tabular().default_model().resistance();
 }
 
@@ -94,6 +95,9 @@ void GlobalContactManager::Impl::compute_adaptive_kappa()
 
 Float GlobalContactManager::Impl::compute_cfl_condition()
 {
+    if(!cfl_enabled)  // if cfl is disabled, just return 1.0
+        return 1.0;
+
     auto displacements = global_vertex_manager->displacements();
 
     using namespace muda;
@@ -112,9 +116,8 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
     DeviceReduce().Max(
         vert_disp_norms.data(), max_disp_norm.data(), vert_disp_norms.size());
 
-    Float h_max_disp_norm = h_max_disp_norm;
-
-    return h_max_disp_norm == 0.0 ? 1.0 : (0.5 * d_hat / h_max_disp_norm);
+    Float h_max_disp_norm = max_disp_norm;
+    return h_max_disp_norm == 0.0 ? 1.0 : std::min(0.5 * d_hat / h_max_disp_norm, 1.0);
 }
 
 void GlobalContactManager::Impl::compute_contact()
@@ -440,6 +443,10 @@ Float GlobalContactManager::d_hat() const
 Float GlobalContactManager::eps_velocity() const
 {
     return m_impl.eps_velocity;
+}
+bool GlobalContactManager::cfl_enabled() const
+{
+    return m_impl.cfl_enabled;
 }
 void GlobalContactManager::add_reporter(ContactReporter* reporter)
 {

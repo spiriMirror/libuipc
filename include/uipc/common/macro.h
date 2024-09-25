@@ -70,41 +70,63 @@
 
 // Template specialization export
 
+#ifdef _MSC_VER
+// Define the template export macro for windows platforms
+
 // CORE
 #ifdef UIPC_CORE_EXPORT_DLL
-#define UIPC_CORE_EXPORT_TEMPLATE_CLASS template class UIPC_CORE_API
+#define UIPC_CORE_EXPORT_TEMPLATE_CLASS(className) template class UIPC_CORE_API className
 #else
-#define UIPC_CORE_EXPORT_TEMPLATE_CLASS extern template class UIPC_CORE_API
+#define UIPC_CORE_EXPORT_TEMPLATE_CLASS(className) extern template class UIPC_CORE_API className
 #endif
 
 // GEOMETRY
 #ifdef UIPC_GEOMETRY_EXPORT_DLL
-#define UIPC_GEOMETRY_EXPORT_TEMPLATE_CLASS template class UIPC_GEOMETRY_API
+#define UIPC_GEOMETRY_EXPORT_TEMPLATE_CLASS(className) template class UIPC_GEOMETRY_API className
 #else
-#define UIPC_GEOMETRY_EXPORT_TEMPLATE_CLASS                                    \
-    extern template class UIPC_GEOMETRY_API
+#define UIPC_GEOMETRY_EXPORT_TEMPLATE_CLASS(className)                                    \
+    extern template class UIPC_GEOMETRY_API className
 #endif
 
 // CONSTITUTION
 #ifdef UIPC_CONSTITUTION_EXPORT_DLL
-#define UIPC_CONSTITUTION_EXPORT_TEMPLATE_CLASS                                \
-    template class UIPC_CONSTITUTION_API
+#define UIPC_CONSTITUTION_EXPORT_TEMPLATE_CLASS(className)                                \
+    template class UIPC_CONSTITUTION_API className
 #else
-#define UIPC_CONSTITUTION_EXPORT_TEMPLATE_CLASS                                \
-    extern template class UIPC_CONSTITUTION_API
+#define UIPC_CONSTITUTION_EXPORT_TEMPLATE_CLASS(className)                                \
+    extern template class UIPC_CONSTITUTION_API className
 #endif
 
 // IO
 #ifdef UIPC_IO_EXPORT_DLL
-#define UIPC_IO_EXPORT_TEMPLATE_CLASS template class UIPC_IO_API
+#define UIPC_IO_EXPORT_TEMPLATE_CLASS(className) template class UIPC_IO_API className
 #else
-#define UIPC_IO_EXPORT_TEMPLATE_CLASS extern template class UIPC_IO_API
+#define UIPC_IO_EXPORT_TEMPLATE_CLASS(className) extern template class UIPC_IO_API className
 #endif
 
 // BACKEND
 #ifdef UIPC_BACKEND_EXPORT_DLL
-#define UIPC_BACKEND_EXPORT_TEMPLATE_CLASS template class UIPC_BACKEND_API
+#define UIPC_BACKEND_EXPORT_TEMPLATE_CLASS(className) template class UIPC_BACKEND_API className
 #else
-#define UIPC_BACKEND_EXPORT_TEMPLATE_CLASS                                     \
-    extern template class UIPC_BACKEND_API
+#define UIPC_BACKEND_EXPORT_TEMPLATE_CLASS(className)                                     \
+    extern template class UIPC_BACKEND_API className
+#endif
+
+#else
+// Define the template export macro for non-windows platforms
+
+// CORE
+#define UIPC_CORE_EXPORT_TEMPLATE_CLASS(className) 
+
+// GEOMETRY
+#define UIPC_GEOMETRY_EXPORT_TEMPLATE_CLASS(className)
+
+// CONSTITUTION
+#define UIPC_CONSTITUTION_EXPORT_TEMPLATE_CLASS(className)
+
+// IO
+#define UIPC_IO_EXPORT_TEMPLATE_CLASS(className)
+
+// BACKEND
+#define UIPC_BACKEND_EXPORT_TEMPLATE_CLASS(className)
 #endif

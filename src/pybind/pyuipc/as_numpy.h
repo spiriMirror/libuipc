@@ -62,7 +62,7 @@ span<T> as_span(py::array_t<T> arr)
         return span<T>(arr.mutable_data(), arr.size());
 }
 
-template <typename T, size_t M, size_t N, int Options>
+template <typename T, int M, int N, int Options>
 auto buffer_info(const span<const Eigen::Matrix<T, M, N, Options>>& v)
 {
     using Matrix = Eigen::Matrix<T, M, N, Options>;
@@ -88,7 +88,7 @@ auto buffer_info(const span<const Eigen::Matrix<T, M, N, Options>>& v)
     return info;
 }
 
-template <typename T, size_t M, size_t N, int Options>
+template <typename T, int M, int N, int Options>
 auto buffer_info(const span<Eigen::Matrix<T, M, N, Options>>& v)
 {
     using Matrix = Eigen::Matrix<T, M, N, Options>;
@@ -114,7 +114,7 @@ auto buffer_info(const span<Eigen::Matrix<T, M, N, Options>>& v)
     return info;
 }
 
-template <typename T, size_t M, size_t N, int Options>
+template <typename T, int M, int N, int Options>
 auto as_numpy(const span<Eigen::Matrix<T, M, N, Options>>& v, py::handle obj)
     requires(M > 0 && N > 0)
 {
@@ -128,7 +128,7 @@ auto as_numpy(const span<Eigen::Matrix<T, M, N, Options>>& v, py::handle obj)
     return arr;
 }
 
-template <typename T, size_t M, size_t N, int Options>
+template <typename T, int M, int N, int Options>
 auto as_numpy(const span<const Eigen::Matrix<T, M, N, Options>>& v, py::handle obj)
     requires(M > 0 && N > 0)
 {
@@ -186,7 +186,7 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
         return span<MatrixT>((MatrixT*)arr.mutable_data(), arr.shape(0));
 }
 
-template <typename T, size_t M, size_t N, int Options>
+template <typename T, int M, int N, int Options>
 auto buffer_info(const Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
 {
@@ -210,7 +210,7 @@ auto buffer_info(const Matrix<T, M, N, Options>& m)
     return info;
 };
 
-template <typename T, size_t M, size_t N, int Options>
+template <typename T, int M, int N, int Options>
 auto buffer_info(Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
 {
@@ -219,7 +219,7 @@ auto buffer_info(Matrix<T, M, N, Options>& m)
     return info;
 };
 
-template <typename T, size_t M, size_t N, int Options>
+template <typename T, int M, int N, int Options>
 auto as_numpy(const Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
 {
@@ -228,7 +228,7 @@ auto as_numpy(const Matrix<T, M, N, Options>& m)
     return arr;
 }
 
-template <typename T, size_t M, size_t N, int Options>
+template <typename T, int M, int N, int Options>
 auto as_numpy(Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
 {

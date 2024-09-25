@@ -35,10 +35,10 @@ class SimSystem : public ISimSystem
 
     vector<ISimSystem*>  m_dependencies;
     SimSystemCollection& collection() noexcept;
-    void                 set_building(bool b) noexcept override;
+    virtual void         set_building(bool b) noexcept override;
     virtual bool         get_is_building() const noexcept override;
 
-    virtual std::string_view get_name() const noexcept;
+    virtual std::string_view get_name() const noexcept override;
 
     virtual void set_engine_aware() noexcept final;
     virtual bool get_engine_aware() const noexcept final;

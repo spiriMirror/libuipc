@@ -16,6 +16,7 @@ enum class SanityCheckResult : int
 class UIPC_CORE_API ISanityChecker
 {
   public:
+    virtual ~ISanityChecker() = default;
     U64               id() const noexcept;
     SanityCheckResult check() noexcept;
 
