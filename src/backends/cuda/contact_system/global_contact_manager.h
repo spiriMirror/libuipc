@@ -156,6 +156,7 @@ class GlobalContactManager final : public SimSystem
         void _distribute();
 
         GlobalVertexManager*               global_vertex_manager = nullptr;
+        bool                               cfl_enabled           = false;
         vector<ContactCoeff>               h_contact_tabular;
         muda::DeviceBuffer2D<ContactCoeff> contact_tabular;
         Float                              reserve_ratio = 1.1;
@@ -220,6 +221,7 @@ class GlobalContactManager final : public SimSystem
 
     Float d_hat() const;
     Float eps_velocity() const;
+    bool  cfl_enabled() const;
 
     void add_reporter(ContactReporter* reporter);
     void add_receiver(ContactReceiver* receiver);

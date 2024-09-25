@@ -48,7 +48,8 @@ void VertexHalfPlaneTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::F
 
     spdlog::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
 
-    m_impl.label_active_vertices(info);
+    if(m_impl.global_contact_manager->cfl_enabled())
+        m_impl.label_active_vertices(info);
 }
 
 void VertexHalfPlaneTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)

@@ -21,7 +21,6 @@ void SimplexTrajectoryFilter::do_detect(GlobalTrajectoryFilter::DetectInfo& info
 
 void SimplexTrajectoryFilter::Impl::label_active_vertices(GlobalTrajectoryFilter::FilterActiveInfo& info)
 {
-
     using namespace muda;
 
     ParallelFor()
@@ -97,7 +96,8 @@ void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterAct
                  m_impl.PEs.size(),
                  m_impl.PPs.size());
 
-    m_impl.label_active_vertices(info);
+    if(m_impl.global_contact_manager->cfl_enabled())
+        m_impl.label_active_vertices(info);
 }
 
 void SimplexTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)

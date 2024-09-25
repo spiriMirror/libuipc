@@ -46,9 +46,12 @@ void GlobalTrajectoryFilter::detect(Float alpha)
 
 void GlobalTrajectoryFilter::filter_active()
 {
-    auto is_acitive =
-        m_impl.global_contact_manager->m_impl.vert_is_active_contact.view();
-    is_acitive.fill(0);  // clear the active flag
+    if (m_impl.global_contact_manager->cfl_enabled())
+    {
+        auto is_acitive =
+            m_impl.global_contact_manager->m_impl.vert_is_active_contact.view();
+        is_acitive.fill(0);  // clear the active flag
+    }
 
     for(auto filter : m_impl.filters.view())
     {

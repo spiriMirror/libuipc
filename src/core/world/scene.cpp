@@ -11,6 +11,8 @@ Json Scene::default_config() noexcept
     config["dt"]      = 0.01;
     config["gravity"] = Vector3{0.0, -9.8, 0.0};
 
+    config["cfl"]["enable"] = false;
+
     config["newton"]["use_adaptive_tol"] = false;
     config["newton"]["velocity_tol"]     = 0.05_m / 1.0_s;
     config["newton"]["max_iter"]         = 1024;
