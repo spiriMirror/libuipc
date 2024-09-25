@@ -27,4 +27,11 @@ const Geometry& GeometrySlotT<SimplicialComplex>::get_geometry() const noexcept
 {
     return m_simplicial_complex;
 }
+
+template class UIPC_CORE_API GeometrySlotT<SimplicialComplex>;
 }  // namespace uipc::geometry
+
+namespace std
+{
+template class UIPC_CORE_API std::shared_ptr<uipc::geometry::SimplicialComplexSlot>;
+}

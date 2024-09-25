@@ -123,6 +123,7 @@ class UIPC_CORE_API VertexSlot : public ISimplexSlot
 
 UIPC_CORE_API span<IndexT> view(VertexSlot& slot);
 
+
 template <IndexT N>
 class SimplexSlot : public ISimplexSlot
 {
@@ -143,7 +144,6 @@ class SimplexSlot : public ISimplexSlot
      */
     template <IndexT M>
     friend span<typename SimplexSlot<M>::ValueT> view(SimplexSlot<M>& slot);
-
 
     /**
      * @brief Get a const view of the simplices.
@@ -171,9 +171,16 @@ class SimplexSlot : public ISimplexSlot
     S<Simplices<N>> m_simplices;
 };
 
-UIPC_CORE_EXPORT_TEMPLATE_CLASS(SimplexSlot<1>);
-UIPC_CORE_EXPORT_TEMPLATE_CLASS(SimplexSlot<2>);
-UIPC_CORE_EXPORT_TEMPLATE_CLASS(SimplexSlot<3>);
+template <IndexT N>
+span<typename SimplexSlot<N>::ValueT> view(SimplexSlot<N>& slot);
+
+extern template class SimplexSlot<1>;
+extern template class SimplexSlot<2>;
+extern template class SimplexSlot<3>;
+
+extern template span<SimplexSlot<1>::ValueT> view<1>(SimplexSlot<1>& slot);
+extern template span<SimplexSlot<2>::ValueT> view<2>(SimplexSlot<2>& slot);
+extern template span<SimplexSlot<3>::ValueT> view<3>(SimplexSlot<3>& slot);
 
 /**
  * @brief Alias for a slot for edges in an abstract simplicial complex.
@@ -190,5 +197,3 @@ using TriangleSlot = SimplexSlot<2>;
  */
 using TetrahedronSlot = SimplexSlot<3>;
 }  // namespace uipc::geometry
-
-#include "details/simplex_slot.inl"

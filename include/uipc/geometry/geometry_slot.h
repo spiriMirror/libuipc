@@ -47,5 +47,5 @@ class GeometrySlotT;
 namespace std
 {
 // clang++-17: explicit instantiation of 'shared_ptr' should be in a namespace enclosing 'std'.
-UIPC_CORE_EXPORT_TEMPLATE_CLASS(std::shared_ptr<uipc::geometry::GeometrySlot>);
-}
+extern template class std::shared_ptr<uipc::geometry::GeometrySlot>;
+}  // namespace std

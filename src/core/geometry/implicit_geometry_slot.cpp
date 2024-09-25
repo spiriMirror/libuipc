@@ -27,4 +27,11 @@ const Geometry& GeometrySlotT<ImplicitGeometry>::get_geometry() const noexcept
 {
     return m_geometry;
 }
+
+template class UIPC_CORE_API GeometrySlotT<ImplicitGeometry>;
 }  // namespace uipc::geometry
+
+namespace std
+{
+template class UIPC_CORE_API std::shared_ptr<uipc::geometry::ImplicitGeometrySlot>;
+}

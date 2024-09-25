@@ -21,8 +21,12 @@ class UIPC_CORE_API GeometrySlotT<ImplicitGeometry> : public GeometrySlot
     ImplicitGeometry m_geometry;
 };
 
-UIPC_CORE_EXPORT_TEMPLATE_CLASS(GeometrySlotT<ImplicitGeometry>);
-UIPC_CORE_EXPORT_TEMPLATE_CLASS(std::shared_ptr<GeometrySlotT<ImplicitGeometry>>);
+extern template class GeometrySlotT<ImplicitGeometry>;
 
 using ImplicitGeometrySlot = GeometrySlotT<ImplicitGeometry>;
 }  // namespace uipc::geometry
+
+namespace std
+{
+extern template class std::shared_ptr<uipc::geometry::ImplicitGeometrySlot>;
+}

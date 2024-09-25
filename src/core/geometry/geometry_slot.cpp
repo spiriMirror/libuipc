@@ -27,8 +27,13 @@ GeometrySlotState GeometrySlot::state() const noexcept
     return m_state;
 }
 
-void GeometrySlot::state(GeometrySlotState state) noexcept 
+void GeometrySlot::state(GeometrySlotState state) noexcept
 {
     m_state = state;
 }
 }  // namespace uipc::geometry
+
+namespace std
+{
+template class UIPC_CORE_API std::shared_ptr<uipc::geometry::GeometrySlot>;
+}

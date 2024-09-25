@@ -6,10 +6,13 @@
 namespace uipc::geometry
 {
 template <std::derived_from<ISimplexSlot> SimplexSlotT>
-class SimplicialComplexAttributes;
+class SimplicialComplexTopo;
 
 template <std::derived_from<ISimplexSlot> SimplexSlotT>
-class SimplicialComplexTopo;
+class SimplicialComplexAttributes;
+
+template <IndexT N>
+span<typename SimplexSlot<N>::ValueT> view(SimplicialComplexTopo<SimplexSlot<N>>&& v);
 
 /**
 * @brief A wrapper of the topology of the simplicial complex.
@@ -54,7 +57,8 @@ class SimplicialComplexTopo
      */
     [[nodiscard]] bool is_shared() && noexcept;
 
-    void share(SimplicialComplexTopo<ConstSimplexSlotT>&& topo) && noexcept;
+    void share(SimplicialComplexTopo<ConstSimplexSlotT>&& topo) && noexcept
+        requires(!std::is_const_v<SimplexSlotT>);
 
     template <std::derived_from<ISimplexSlot> OtherSimplexSlotT>
     SimplicialComplexTopo(SimplicialComplexTopo<OtherSimplexSlotT>&& topo) noexcept
@@ -162,8 +166,14 @@ class SimplicialComplexTopo<VertexSlot>
 };
 
 
-UIPC_CORE_EXPORT_TEMPLATE_CLASS(SimplicialComplexTopo<VertexSlot>);
-UIPC_CORE_EXPORT_TEMPLATE_CLASS(SimplicialComplexTopo<const VertexSlot>);
+extern template class SimplicialComplexTopo<VertexSlot>;
+extern template class SimplicialComplexTopo<const VertexSlot>;
+extern template class SimplicialComplexTopo<SimplexSlot<1>>;
+extern template class SimplicialComplexTopo<const SimplexSlot<1>>;
+extern template class SimplicialComplexTopo<SimplexSlot<2>>;
+extern template class SimplicialComplexTopo<const SimplexSlot<2>>;
+extern template class SimplicialComplexTopo<SimplexSlot<3>>;
+extern template class SimplicialComplexTopo<const SimplexSlot<3>>;
 
 /**
  * @brief A collection of attributes for a specific type of simplices. The main API for accessing the attributes of a simplicial complex.
@@ -185,9 +195,6 @@ class SimplicialComplexAttributes
         std::conditional_t<IsConst, const AttributeCollection, AttributeCollection>;
 
     using ConstSimplicialComplexAttributesT = SimplicialComplexAttributes<ConstSimplexSlotT>;
-
-    template <typename T>
-    friend class AttributeFriend;
 
   public:
     template <typename T>
@@ -294,6 +301,15 @@ class SimplicialComplexAttributes
 
     SimplicialComplexAttributes(SimplexSlotT& topology, AttributeCollectionT& attributes) noexcept;
 };
+
+extern template class SimplicialComplexAttributes<VertexSlot>;
+extern template class SimplicialComplexAttributes<const VertexSlot>;
+extern template class SimplicialComplexAttributes<SimplexSlot<1>>;
+extern template class SimplicialComplexAttributes<const SimplexSlot<1>>;
+extern template class SimplicialComplexAttributes<SimplexSlot<2>>;
+extern template class SimplicialComplexAttributes<const SimplexSlot<2>>;
+extern template class SimplicialComplexAttributes<SimplexSlot<3>>;
+extern template class SimplicialComplexAttributes<const SimplexSlot<3>>;
 }  // namespace uipc::geometry
 
 
@@ -335,6 +351,3 @@ struct formatter<uipc::geometry::SimplicialComplexAttributes<SimplexSlotT>>
     }
 };
 }  // namespace fmt
-
-
-#include "details/simplicial_complex_attributes.inl"

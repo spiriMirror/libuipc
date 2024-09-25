@@ -60,7 +60,7 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
                                [](const SimplicialComplex* complex)
                                { return complex->edges().size(); });
 
-        std::exclusive_scan(edge_counts.begin(), edge_counts.end(), edge_offsets.begin(), 0);
+        std::exclusive_scan(edge_counts.begin(), edge_counts.end(), edge_offsets.begin(), 0ull);
 
         SizeT num_edges = edge_offsets.back();
 
@@ -112,8 +112,10 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
                                [](const SimplicialComplex* complex)
                                { return complex->triangles().size(); });
 
-        std::exclusive_scan(
-            triangle_counts.begin(), triangle_counts.end(), triangle_offsets.begin(), 0ull);
+        std::exclusive_scan(triangle_counts.begin(),
+                            triangle_counts.end(),
+                            triangle_offsets.begin(),
+                            0ull);
 
         SizeT num_triangles = triangle_offsets.back();
 
@@ -166,7 +168,7 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
         std::exclusive_scan(tetrahedron_counts.begin(),
                             tetrahedron_counts.end(),
                             tetrahedron_offsets.begin(),
-                            0);
+                            0ull);
 
         SizeT num_tetrahedra = tetrahedron_offsets.back();
 

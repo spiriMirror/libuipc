@@ -57,7 +57,7 @@ class UIPC_CORE_API IAttributeSlot
 
   protected:
     friend class AttributeCollection;
-    
+
     [[nodiscard]] virtual std::string_view get_name() const noexcept = 0;
     [[nodiscard]] virtual bool get_allow_destroy() const noexcept    = 0;
 
@@ -135,5 +135,4 @@ class AttributeSlot final : public IAttributeSlot
     bool            m_allow_destroy;
 };
 }  // namespace uipc::geometry
-
 #include "details/attribute_slot.inl"

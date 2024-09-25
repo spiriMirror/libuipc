@@ -2,22 +2,15 @@
 
 namespace uipc::geometry
 {
-template <typename T, bool AllowDestroy>
-S<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& default_value)
-{
-    auto n  = string{name};
-    auto it = m_attributes.find(n);
-    if(it != m_attributes.end())
-    {
-        throw GeometryAttributeError{
-            fmt::format("Attribute with name [{}] already exist!", name)};
-    }
-    auto A = uipc::make_shared<Attribute<T>>(default_value);
-    A->resize(m_size);
-    auto S = uipc::make_shared<AttributeSlot<T>>(name, A, AllowDestroy);
-    m_attributes[n] = S;
-    return S;
-}
+#define UIPC_ATTRIBUTE_EXPORT_DEF(T)                                           \
+    extern template S<AttributeSlot<T>> AttributeCollection::create<T, true>(  \
+        std::string_view, const T&);                                           \
+    extern template S<AttributeSlot<T>> AttributeCollection::create<T, false>( \
+        std::string_view, const T&)
+
+#include "attribute_export_types.inl"
+
+#undef UIPC_ATTRIBUTE_EXPORT_DEF
 
 template <typename T>
 S<AttributeSlot<T>> AttributeCollection::share(std::string_view        name,
@@ -26,7 +19,6 @@ S<AttributeSlot<T>> AttributeCollection::share(std::string_view        name,
     return std::static_pointer_cast<AttributeSlot<T>>(
         this->share(name, static_cast<const IAttributeSlot&>(slot)));
 }
-
 
 template <typename T>
 S<AttributeSlot<T>> AttributeCollection::find(std::string_view name)
