@@ -73,7 +73,7 @@ void AtomicCountingLBVH::query(muda::CBufferView<LinearBVHAABB> query_aabbs, Pre
         BufferLaunch(s).fill(m_cp_num.view(), 0);
 
         ParallelFor(0, s)
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(query_aabbs.size(),
                    [lbvh   = m_lbvh.viewer().name("lbvh"),
                     aabbs  = query_aabbs.viewer().name("aabbs"),

@@ -1,4 +1,5 @@
 #include <uipc/geometry/utils/merge.h>
+#include <uipc/builtin/attribute_name.h>
 #include <numeric>
 #include <algorithm>
 #include <ranges>
@@ -35,6 +36,7 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
     std::exclusive_scan(
         vertex_counts.begin(), vertex_counts.end(), vertex_offsets.begin(), 0ull);
 
+    vector<string> exclude_attributes = {string{builtin::topo}};
 
     {  // 1) merge vertices
         SizeT num_verts = vertex_offsets.back();
@@ -46,7 +48,9 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
             auto count  = vertex_counts[i];
             auto offset = vertex_offsets[i];
             R.vertices().copy_from(complex->vertices(),
-                                   AttributeCopy::range(offset, 0, count));
+                                   AttributeCopy::range(offset, 0, count),
+                                   {},
+                                   exclude_attributes);
         }
     }
 
@@ -65,8 +69,8 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
         SizeT num_edges = edge_offsets.back();
 
         R.edges().resize(num_edges);
-
-        auto Es = view(R.edges().topo());
+        auto topo = R.edges().create<Vector2i, false>(builtin::topo, Vector2i::Zero());
+        auto Es = view(*topo);
 
 
         // setup edge topology
@@ -97,7 +101,9 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
             if(count > 0)
             {
                 R.edges().copy_from(complex->edges(),
-                                    AttributeCopy::range(offset, 0, count));
+                                    AttributeCopy::range(offset, 0, count),
+                                    {},
+                                    exclude_attributes);
             }
         }
     }
@@ -120,8 +126,10 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
         SizeT num_triangles = triangle_offsets.back();
 
         R.triangles().resize(num_triangles);
+        auto topo =
+            R.triangles().create<Vector3i, false>(builtin::topo, Vector3i::Zero());
 
-        auto Fs = view(R.triangles().topo());
+        auto Fs = view(*topo);
 
         // setup triangle topology
         for(auto [I, complex] : enumerate(complexes))
@@ -150,7 +158,9 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
             if(count > 0)
             {
                 R.triangles().copy_from(complex->triangles(),
-                                        AttributeCopy::range(triangle_offsets[I], 0, count));
+                                        AttributeCopy::range(triangle_offsets[I], 0, count),
+                                        {},
+                                        exclude_attributes);
             }
         }
     }
@@ -173,8 +183,9 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
         SizeT num_tetrahedra = tetrahedron_offsets.back();
 
         R.tetrahedra().resize(num_tetrahedra);
-
-        auto Ts = view(R.tetrahedra().topo());
+        auto topo =
+            R.tetrahedra().create<Vector4i, false>(builtin::topo, Vector4i::Zero());
+        auto Ts = view(*topo);
 
         // setup tetrahedron topology
         for(auto [I, complex] : enumerate(complexes))
@@ -203,7 +214,9 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
             if(count > 0)
             {
                 R.tetrahedra().copy_from(complex->tetrahedra(),
-                                         AttributeCopy::range(tetrahedron_offsets[I], 0, count));
+                                         AttributeCopy::range(tetrahedron_offsets[I], 0, count),
+                                         {},
+                                         exclude_attributes);
             }
         }
     }

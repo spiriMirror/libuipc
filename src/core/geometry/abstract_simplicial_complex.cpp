@@ -1,92 +1,97 @@
 #include <uipc/geometry/abstract_simplicial_complex.h>
+#include <uipc/common/log.h>
+#include <Eigen/Geometry>
+#include <uipc/builtin/attribute_name.h>
+#include <uipc/builtin/geometry_type.h>
 
 namespace uipc::geometry
 {
-AbstractSimplicialComplex::AbstractSimplicialComplex()
-    : m_vertices(make_shared<Vertices>())
-    , m_edges(make_shared<Edges>())
-    , m_triangles(make_shared<Triangles>())
-    , m_tetrahedra(make_shared<Tetrahedra>())
+auto AbstractSimplicialComplex::vertices() noexcept -> VertexAttributes
 {
+    return VertexAttributes(m_vertex_attributes);
 }
 
-AbstractSimplicialComplex::AbstractSimplicialComplex(const AbstractSimplicialComplex& o)
-    : m_vertices(o.m_vertices.m_simplices)
-    , m_edges(o.m_edges.m_simplices)
-    , m_triangles(o.m_triangles.m_simplices)
-    , m_tetrahedra(o.m_tetrahedra.m_simplices)
+auto AbstractSimplicialComplex::vertices() const noexcept -> CVertexAttributes
 {
+    return CVertexAttributes(m_vertex_attributes);
 }
 
-AbstractSimplicialComplex& AbstractSimplicialComplex::operator=(const AbstractSimplicialComplex& o)
+auto AbstractSimplicialComplex::edges() noexcept -> EdgeAttributes
 {
-    if(std::addressof(o) != this)
-    {
-        m_vertices   = VertexSlot(m_vertices.m_simplices);
-        m_edges      = EdgeSlot(o.m_edges.m_simplices);
-        m_triangles  = TriangleSlot(o.m_triangles.m_simplices);
-        m_tetrahedra = TetrahedronSlot(o.m_tetrahedra.m_simplices);
-    }
-    return *this;
+    return EdgeAttributes(m_edge_attributes);
 }
 
-AbstractSimplicialComplex::AbstractSimplicialComplex(AbstractSimplicialComplex&& o) noexcept
-    : m_vertices(std::move(o.m_vertices))
-    , m_edges(std::move(o.m_edges))
-    , m_triangles(std::move(o.m_triangles))
-    , m_tetrahedra(std::move(o.m_tetrahedra))
+auto AbstractSimplicialComplex::edges() const noexcept -> CEdgeAttributes
 {
+    return CEdgeAttributes(m_edge_attributes);
 }
 
-AbstractSimplicialComplex& AbstractSimplicialComplex::operator=(AbstractSimplicialComplex&& o) noexcept
+auto AbstractSimplicialComplex::triangles() noexcept -> TriangleAttributes
 {
-    if(std::addressof(o) != this)
-    {
-        m_vertices   = std::move(o.m_vertices);
-        m_edges      = std::move(o.m_edges);
-        m_triangles  = std::move(o.m_triangles);
-        m_tetrahedra = std::move(o.m_tetrahedra);
-    }
-    return *this;
+    return TriangleAttributes(m_triangle_attributes);
 }
 
-VertexSlot& AbstractSimplicialComplex::vertices() noexcept
+auto AbstractSimplicialComplex::triangles() const noexcept -> CTriangleAttributes
 {
-    return m_vertices;
+    return CTriangleAttributes(m_triangle_attributes);
 }
 
-const VertexSlot& AbstractSimplicialComplex::vertices() const noexcept
+auto AbstractSimplicialComplex::tetrahedra() noexcept -> TetrahedronAttributes
 {
-    return m_vertices;
+    return TetrahedronAttributes(m_tetrahedron_attributes);
 }
 
-EdgeSlot& AbstractSimplicialComplex::edges() noexcept
+auto AbstractSimplicialComplex::tetrahedra() const noexcept -> CTetrahedronAttributes
 {
-    return m_edges;
+    return CTetrahedronAttributes(m_tetrahedron_attributes);
 }
 
-const EdgeSlot& AbstractSimplicialComplex::edges() const noexcept
+Json AbstractSimplicialComplex::do_to_json() const
 {
-    return m_edges;
+    auto base          = Geometry::do_to_json();
+    base["vertices"]   = vertices().to_json();
+    base["edges"]      = edges().to_json();
+    base["triangles"]  = triangles().to_json();
+    base["tetrahedra"] = tetrahedra().to_json();
+    return base;
 }
 
-TriangleSlot& AbstractSimplicialComplex::triangles() noexcept
+IndexT AbstractSimplicialComplex::dim() const noexcept
 {
-    return m_triangles;
+    if(m_tetrahedron_attributes.size() > 0)
+        return 3;
+    if(m_triangle_attributes.size() > 0)
+        return 2;
+    if(m_edge_attributes.size() > 0)
+        return 1;
+    return 0;
 }
 
-const TriangleSlot& AbstractSimplicialComplex::triangles() const noexcept
+std::string_view AbstractSimplicialComplex::get_type() const noexcept
 {
-    return m_triangles;
-}
-
-TetrahedronSlot& AbstractSimplicialComplex::tetrahedra() noexcept
-{
-    return m_tetrahedra;
-}
-
-const TetrahedronSlot& AbstractSimplicialComplex::tetrahedra() const noexcept
-{
-    return m_tetrahedra;
+    return builtin::AbstractSimplicialComplex;
 }
 }  // namespace uipc::geometry
+
+namespace fmt
+{
+appender fmt::formatter<uipc::geometry::AbstractSimplicialComplex>::format(
+    const uipc::geometry::AbstractSimplicialComplex& c, format_context& ctx) const
+{
+    return fmt::format_to(ctx.out(),
+                          R"({}
+vertices({}):{};
+edges({}):{};
+triangles({}):{}; 
+tetrahedra({}):{};)",
+                          static_cast<const uipc::geometry::Geometry&>(c),
+                          c.vertices().size(),
+                          c.vertices(),
+                          c.edges().size(),
+                          c.edges(),
+                          c.triangles().size(),
+                          c.triangles(),
+                          c.tetrahedra().size(),
+                          c.tetrahedra());
+}
+}  // namespace fmt

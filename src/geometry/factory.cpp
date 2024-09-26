@@ -3,48 +3,71 @@
 #include <uipc/geometry/utils/closure.h>
 namespace uipc::geometry
 {
+namespace detail
+{
+    static void create_vertices(SimplicialComplex& sc, span<const Vector3> Vs)
+    {
+        sc.vertices().resize(Vs.size());
+        auto pos =
+            sc.vertices().create<Vector3, false>(builtin::position, Vector3::Zero());
+        auto pos_view = view(*pos);
+        std::ranges::copy(Vs, pos_view.begin());
+    }
+}  // namespace detail
+
 SimplicialComplex tetmesh(span<const Vector3> Vs, span<const Vector4i> Ts)
 {
-    AbstractSimplicialComplex asc;
-    asc.vertices().resize(Vs.size());
-    asc.tetrahedra().resize(Ts.size());
+    SimplicialComplex sc;
 
-    auto dst_Ts = geometry::view(asc.tetrahedra());
-    std::ranges::copy(Ts, dst_Ts.begin());
+    // Create tetrahedra
+    sc.tetrahedra().resize(Ts.size());
+    auto topo = sc.tetrahedra().create<Vector4i, false>(builtin::topo, Vector4i::Zero());
+    auto topo_view = view(*topo);
+    std::ranges::copy(Ts, topo_view.begin());
 
-    return facet_closure(SimplicialComplex{asc, Vs});
+    detail::create_vertices(sc, Vs);
+
+    return facet_closure(sc);
 }
 
 SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
 {
-    AbstractSimplicialComplex asc;
-    asc.vertices().resize(Vs.size());
-    asc.triangles().resize(Fs.size());
+    SimplicialComplex sc;
 
-    auto dst_Ts = view(asc.triangles());
-    std::ranges::copy(Fs, dst_Ts.begin());
+    // Create triangles
+    sc.triangles().resize(Fs.size());
+    auto topo = sc.triangles().create<Vector3i, false>(builtin::topo, Vector3i::Zero());
+    auto topo_view = view(*topo);
+    std::ranges::copy(Fs, topo_view.begin());
 
-    return facet_closure(SimplicialComplex{asc, Vs});
+
+    detail::create_vertices(sc, Vs);
+
+    return facet_closure(sc);
 }
 
 SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
 {
-    AbstractSimplicialComplex asc;
-    asc.vertices().resize(Vs.size());
-    asc.edges().resize(Es.size());
+    SimplicialComplex sc;
 
-    auto dst_Ts = view(asc.edges());
-    std::ranges::copy(Es, dst_Ts.begin());
+    // Create edges
+    sc.edges().resize(Es.size());
+    auto topo = sc.edges().create<Vector2i, false>(builtin::topo, Vector2i::Zero());
+    auto topo_view = view(*topo);
+    std::ranges::copy(Es, topo_view.begin());
 
-    return facet_closure(SimplicialComplex{asc, Vs});
+    detail::create_vertices(sc, Vs);
+
+    return facet_closure(sc);
 }
 
 SimplicialComplex pointcloud(span<const Vector3> Vs)
 {
-    AbstractSimplicialComplex asc;
-    asc.vertices().resize(Vs.size());
+    SimplicialComplex sc;
 
-    return facet_closure(SimplicialComplex{asc, Vs});
+    detail::create_vertices(sc, Vs);
+
+    return sc;
 }
 
 ImplicitGeometry halfplane(const Vector3& P, const Vector3& N)

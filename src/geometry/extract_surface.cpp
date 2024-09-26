@@ -36,146 +36,156 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
     R.instances().copy_from(src.instances());
 
 
+    std::vector<IndexT> old_v_to_new_v(src.vertices().size(), -1);  // mapping from old vertex index to new vertex index
+
     // ---------------------------------------------------------------------
     // process the vertices
     // ---------------------------------------------------------------------
-
-    auto v_is_surf_view = v_is_surf->view();
-
-    std::vector<IndexT> old_v_to_new_v(src.vertices().size(), -1);
-    IndexT              surf_v_count = 0;
-    for(auto&& [i, surf] : enumerate(v_is_surf_view))
     {
-        if(surf)
+        auto   v_is_surf_view = v_is_surf->view();
+        IndexT surf_v_count   = 0;
+        for(auto&& [i, surf] : enumerate(v_is_surf_view))
         {
-            // record the mapping from old vertex index to new vertex index
-            old_v_to_new_v[i] = surf_v_count++;
+            if(surf)
+            {
+                // record the mapping from old vertex index to new vertex index
+                old_v_to_new_v[i] = surf_v_count++;
+            }
         }
+
+        // resize the destination vertices
+        R.vertices().resize(surf_v_count);
+
+        // setup new2old mapping
+        std::vector<SizeT> v_new2old(surf_v_count, -1);
+        for(auto&& [i, new_v_id] : enumerate(old_v_to_new_v))
+        {
+            if(new_v_id != -1)
+            {
+                v_new2old[new_v_id] = static_cast<SizeT>(i);
+            }
+        }
+
+        // copy vertex attributes
+        R.vertices().copy_from(src.vertices(), AttributeCopy::pull(v_new2old));
     }
 
-    // resize the destination vertices
-    R.vertices().resize(surf_v_count);
-
-    // setup new2old mapping
-    std::vector<SizeT> v_new2old(surf_v_count, -1);
-    for(auto&& [i, new_v_id] : enumerate(old_v_to_new_v))
-    {
-        if(new_v_id != -1)
-        {
-            v_new2old[new_v_id] = static_cast<SizeT>(i);
-        }
-    }
-
-    // copy vertex attributes
-    R.vertices().copy_from(src.vertices(), AttributeCopy::pull(v_new2old));
 
     // ---------------------------------------------------------------------
     // process the edges
     // ---------------------------------------------------------------------
-    auto           e_is_surf_view = e_is_surf->view();
-    IndexT         surf_edges     = 0;
-    auto           old_edge_view  = src.edges().topo().view();
-    vector<IndexT> old_e_to_new_e(src.edges().size(), -1);
-    IndexT         surf_e_count = 0;
-
-    for(auto&& [i, edge] : enumerate(old_edge_view))
     {
-        if(e_is_surf_view[i])
+        vector<string> exclude_attrs = {string{builtin::topo}};  // exclude topo
+
+        auto           e_is_surf_view = e_is_surf->view();
+        IndexT         surf_edges     = 0;
+        auto           old_edge_view  = src.edges().topo().view();
+        vector<IndexT> old_e_to_new_e(src.edges().size(), -1);
+        IndexT         surf_e_count = 0;
+
+        for(auto&& [i, edge] : enumerate(old_edge_view))
         {
-            old_e_to_new_e[i] = surf_e_count++;
+            if(e_is_surf_view[i])
+            {
+                old_e_to_new_e[i] = surf_e_count++;
+            }
         }
+
+        // resize the destination edges
+        R.edges().resize(surf_e_count);
+        auto topo          = R.edges().create<Vector2i, false>(builtin::topo);
+        auto new_edge_view = view(*topo);
+
+        // copy_from the edges
+        for(auto&& [i, new_e_id] : enumerate(old_e_to_new_e))
+        {
+            if(new_e_id != -1)
+            {
+                auto old_edge           = old_edge_view[i];
+                auto old_v0             = old_edge[0];
+                auto old_v1             = old_edge[1];
+                auto new_v0             = old_v_to_new_v[old_v0];
+                auto new_v1             = old_v_to_new_v[old_v1];
+                new_edge_view[new_e_id] = {new_v0, new_v1};
+            }
+        }
+
+        // setup new2old mapping
+        std::vector<SizeT> e_new2old(surf_e_count, -1);
+        for(auto&& [i, new_e_id] : enumerate(old_e_to_new_e))
+        {
+            if(new_e_id != -1)
+            {
+                e_new2old[new_e_id] = static_cast<SizeT>(i);
+            }
+        }
+
+        // copy other edge attributes
+        R.edges().copy_from(src.edges(), AttributeCopy::pull(e_new2old), {}, exclude_attrs);
     }
 
-    // resize the destination edges
-    R.edges().resize(surf_e_count);
-
-
-    auto new_edge_view = view(R.edges().topo());
-
-    // copy_from the edges
-    for(auto&& [i, new_e_id] : enumerate(old_e_to_new_e))
-    {
-        if(new_e_id != -1)
-        {
-            auto old_edge           = old_edge_view[i];
-            auto old_v0             = old_edge[0];
-            auto old_v1             = old_edge[1];
-            auto new_v0             = old_v_to_new_v[old_v0];
-            auto new_v1             = old_v_to_new_v[old_v1];
-            new_edge_view[new_e_id] = {new_v0, new_v1};
-        }
-    }
-
-    // setup new2old mapping
-    std::vector<SizeT> e_new2old(surf_e_count, -1);
-    for(auto&& [i, new_e_id] : enumerate(old_e_to_new_e))
-    {
-        if(new_e_id != -1)
-        {
-            e_new2old[new_e_id] = static_cast<SizeT>(i);
-        }
-    }
-
-    // copy other edge attributes
-    R.edges().copy_from(src.edges(), AttributeCopy::pull(e_new2old));
 
     // ---------------------------------------------------------------------
     // process the triangles
     // ---------------------------------------------------------------------
-    auto           t_is_surf_view = f_is_surf->view();
-    auto           old_tri_view   = src.triangles().topo().view();
-    vector<IndexT> old_t_to_new_t(src.triangles().size(), -1);
-    IndexT         surf_t_count = 0;
-
-    for(auto&& [i, tri] : enumerate(old_tri_view))
     {
-        if(t_is_surf_view[i])
+        auto           t_is_surf_view = f_is_surf->view();
+        auto           old_tri_view   = src.triangles().topo().view();
+        vector<IndexT> old_t_to_new_t(src.triangles().size(), -1);
+        IndexT         surf_t_count = 0;
+
+        for(auto&& [i, tri] : enumerate(old_tri_view))
         {
-            old_t_to_new_t[i] = surf_t_count++;
+            if(t_is_surf_view[i])
+            {
+                old_t_to_new_t[i] = surf_t_count++;
+            }
         }
-    }
 
-    // resize the destination triangles
-    R.triangles().resize(surf_t_count);
-    auto new_tri_view = view(R.triangles().topo());
+        // resize the destination triangles
+        R.triangles().resize(surf_t_count);
+        auto topo = R.triangles().create<Vector3i, false>(builtin::topo);
+        auto new_tri_view = view(*topo);
 
-    // copy_from the triangles
-    for(auto&& [i, new_t_id] : enumerate(old_t_to_new_t))
-    {
-        if(new_t_id != -1)
+        // copy_from the triangles
+        for(auto&& [i, new_t_id] : enumerate(old_t_to_new_t))
         {
-            auto old_tri           = old_tri_view[i];
-            auto old_v0            = old_tri[0];
-            auto old_v1            = old_tri[1];
-            auto old_v2            = old_tri[2];
-            auto new_v0            = old_v_to_new_v[old_v0];
-            auto new_v1            = old_v_to_new_v[old_v1];
-            auto new_v2            = old_v_to_new_v[old_v2];
-            new_tri_view[new_t_id] = {new_v0, new_v1, new_v2};
+            if(new_t_id != -1)
+            {
+                auto old_tri           = old_tri_view[i];
+                auto old_v0            = old_tri[0];
+                auto old_v1            = old_tri[1];
+                auto old_v2            = old_tri[2];
+                auto new_v0            = old_v_to_new_v[old_v0];
+                auto new_v1            = old_v_to_new_v[old_v1];
+                auto new_v2            = old_v_to_new_v[old_v2];
+                new_tri_view[new_t_id] = {new_v0, new_v1, new_v2};
+            }
         }
-    }
 
-    // setup new2old mapping
-    std::vector<SizeT> t_new2old(surf_t_count, -1);
-    for(auto&& [i, new_t_id] : enumerate(old_t_to_new_t))
-    {
-        if(new_t_id != -1)
+        // setup new2old mapping
+        std::vector<SizeT> t_new2old(surf_t_count, -1);
+        for(auto&& [i, new_t_id] : enumerate(old_t_to_new_t))
         {
-            t_new2old[new_t_id] = static_cast<SizeT>(i);
+            if(new_t_id != -1)
+            {
+                t_new2old[new_t_id] = static_cast<SizeT>(i);
+            }
         }
+
+        // copy other triangle attributes
+
+        std::array exclude_attrs = {
+            string{builtin::parent_id},  // exclude parent_id
+            string{builtin::is_facet},   // exclude is_facet
+            string{builtin::topo}        // exclude topo
+        };
+
+        R.triangles().copy_from(src.triangles(), AttributeCopy::pull(t_new2old), {}, exclude_attrs);
+        auto is_facet      = R.triangles().create<IndexT>(builtin::is_facet);
+        auto is_facet_view = view(*is_facet);
+        std::ranges::fill(is_facet_view, 1);  // now all the triangles are facets
     }
-
-    // copy other triangle attributes
-
-    std::array exclude_attrs = {
-        string{builtin::parent_id},  // exclude parent_id
-        string{builtin::is_facet}    // exclude is_facet
-    };
-
-    R.triangles().copy_from(src.triangles(), AttributeCopy::pull(t_new2old), {}, exclude_attrs);
-    auto is_facet      = R.triangles().create<IndexT>(builtin::is_facet);
-    auto is_facet_view = view(*is_facet);
-    std::ranges::fill(is_facet_view, 1);  // now all the triangles are facets
 
     return R;
 }

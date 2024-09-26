@@ -40,7 +40,6 @@ TEST_CASE("shared_attribute", "[simplicial_complex]")
     // These query don't modify the data, so the data is not cloned
     REQUIRE(VA.size() == Vs.size());
     REQUIRE(TA.size() == Ts.size());
-    REQUIRE(VA.topo().is_shared());
     REQUIRE(TA.topo().is_shared());
 
 
@@ -56,25 +55,18 @@ TEST_CASE("shared_attribute", "[simplicial_complex]")
 
     Vector3 center =
         std::accumulate(pos_view.begin(), pos_view.end(), Vector3{0, 0, 0}) / pos->size();
-    
+
     // a clone is made here
     TA.resize(2);
     auto tet_view = view(TA.topo());
 
     tet_view[1] = Vector4i{0, 1, 3, 5};
 
-    auto             vert_view = view(VA.topo());
-    std::vector<int> vert_iota(vert_view.size());
-    std::iota(vert_iota.begin(), vert_iota.end(), 0);
-
-    REQUIRE(std::ranges::equal(vert_view, vert_iota));
-
     REQUIRE(pos->size() == 8);
     REQUIRE(VA.size() == 8);
     REQUIRE(TA.size() == 2);
 
     // after changing the topo, the topo is owned
-    REQUIRE(!VA.topo().is_shared());
     REQUIRE(!TA.topo().is_shared());
 
     // shallow copy_from, the data is not cloned
@@ -86,8 +78,6 @@ TEST_CASE("shared_attribute", "[simplicial_complex]")
         auto view = geometry::view(shared_topo_mesh.positions());
         // so the positions are owned
         REQUIRE(!shared_topo_mesh.positions().is_shared());
-        // but the topo are shared
-        REQUIRE(shared_topo_mesh.vertices().topo().is_shared());
     }
 }
 
@@ -153,7 +143,6 @@ TEST_CASE("const_attribute", "[simplicial_complex]")
 
     REQUIRE(CVA.size() == VA.size());
     REQUIRE(CVA.find<Vector3>(builtin::position));
-    REQUIRE(std::ranges::equal(VA.topo().view(), CVA.topo().view()));
 
     auto TA  = mesh.tetrahedra();
     auto CTA = const_mesh.tetrahedra();
@@ -176,14 +165,6 @@ TEST_CASE("print", "[simplicial_complex]")
                  mesh);
 
     fmt::println("");
-
-    fmt::println("print topo:");
-    fmt::println("vertices topo: {}", mesh.vertices().topo());
-    fmt::println("edges topo: {}", mesh.edges().topo());
-    fmt::println("triangles topo: {}", mesh.triangles().topo());
-    fmt::println("tetrahedra topo: {}", mesh.tetrahedra().topo());
-    fmt::println("");
-
     fmt::println("print attributes:");
     fmt::println("meta: {}", mesh.meta());
     fmt::println("instances:{}", mesh.instances());

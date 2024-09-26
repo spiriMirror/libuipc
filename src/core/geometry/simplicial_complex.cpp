@@ -8,32 +8,11 @@ namespace uipc::geometry
 {
 SimplicialComplex::SimplicialComplex()
 {
-    // 1. AbstractSimplicialComplex is default-constructed, so no need to do anything.
-    // 2. Don't create positions attribute: some algorithms just **share** the positions attribute.
+    // Don't create positions attribute here: some algorithms just **share** the positions attribute.
 
     // Create a default transform attribute.
     Matrix4x4 I = Transform::Identity().matrix();
     auto trans  = m_intances.create<Matrix4x4, false>(builtin::transform, I);
-}
-
-SimplicialComplex::SimplicialComplex(const AbstractSimplicialComplex& asc,
-                                     span<const Vector3>              positions)
-    : m_asc{asc}
-{
-    UIPC_ASSERT(positions.size() == m_asc.vertices().size(),
-                "Number of vertices in the simplicial complex ({}) does not match the number of positions ({}).",
-                m_asc.vertices().size(),
-                positions.size());
-
-    m_vertex_attributes.resize(m_asc.vertices().size());
-    m_edge_attributes.resize(m_asc.edges().size());
-    m_triangle_attributes.resize(m_asc.triangles().size());
-    m_tetrahedron_attributes.resize(m_asc.tetrahedra().size());
-
-    auto pos   = m_vertex_attributes.create<Vector3, false>(builtin::position,
-                                                          Vector3::Zero());
-    auto view_ = view(*pos);
-    std::ranges::copy(positions, view_.begin());
 }
 
 AttributeSlot<Matrix4x4>& SimplicialComplex::transforms()
@@ -58,42 +37,42 @@ const AttributeSlot<Vector3>& SimplicialComplex::positions() const noexcept
 
 auto SimplicialComplex::vertices() noexcept -> VertexAttributes
 {
-    return VertexAttributes(m_asc.m_vertices, m_vertex_attributes);
+    return VertexAttributes(m_vertex_attributes);
 }
 
 auto SimplicialComplex::vertices() const noexcept -> CVertexAttributes
 {
-    return CVertexAttributes(m_asc.m_vertices, m_vertex_attributes);
+    return CVertexAttributes(m_vertex_attributes);
 }
 
 auto SimplicialComplex::edges() noexcept -> EdgeAttributes
 {
-    return EdgeAttributes(m_asc.m_edges, m_edge_attributes);
+    return EdgeAttributes(m_edge_attributes);
 }
 
 auto SimplicialComplex::edges() const noexcept -> CEdgeAttributes
 {
-    return CEdgeAttributes(m_asc.m_edges, m_edge_attributes);
+    return CEdgeAttributes(m_edge_attributes);
 }
 
 auto SimplicialComplex::triangles() noexcept -> TriangleAttributes
 {
-    return TriangleAttributes(m_asc.m_triangles, m_triangle_attributes);
+    return TriangleAttributes(m_triangle_attributes);
 }
 
 auto SimplicialComplex::triangles() const noexcept -> CTriangleAttributes
 {
-    return CTriangleAttributes(m_asc.m_triangles, m_triangle_attributes);
+    return CTriangleAttributes(m_triangle_attributes);
 }
 
 auto SimplicialComplex::tetrahedra() noexcept -> TetrahedronAttributes
 {
-    return TetrahedronAttributes(m_asc.m_tetrahedra, m_tetrahedron_attributes);
+    return TetrahedronAttributes(m_tetrahedron_attributes);
 }
 
 auto SimplicialComplex::tetrahedra() const noexcept -> CTetrahedronAttributes
 {
-    return CTetrahedronAttributes(m_asc.m_tetrahedra, m_tetrahedron_attributes);
+    return CTetrahedronAttributes(m_tetrahedron_attributes);
 }
 
 Json SimplicialComplex::do_to_json() const
@@ -108,11 +87,11 @@ Json SimplicialComplex::do_to_json() const
 
 IndexT SimplicialComplex::dim() const noexcept
 {
-    if(m_asc.m_tetrahedra.size() > 0)
+    if(m_tetrahedron_attributes.size() > 0)
         return 3;
-    if(m_asc.m_triangles.size() > 0)
+    if(m_triangle_attributes.size() > 0)
         return 2;
-    if(m_asc.m_edges.size() > 0)
+    if(m_edge_attributes.size() > 0)
         return 1;
     return 0;
 }

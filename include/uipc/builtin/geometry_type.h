@@ -3,7 +3,7 @@
 
 namespace uipc::builtin
 {
+constexpr std::string_view AbstractSimplicialComplex = "AbstractSimplicialComplex";
 constexpr std::string_view SimplicialComplex = "SimplicialComplex";
-
-constexpr std::string_view ImplicitGeometry = "ImplicitGeometry";
-}
+constexpr std::string_view ImplicitGeometry  = "ImplicitGeometry";
+}  // namespace uipc::builtin

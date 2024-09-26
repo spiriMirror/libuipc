@@ -18,6 +18,11 @@
 
 #ifdef UIPC_BUILTIN_ATTRIBUTE
 /**
+ * @brief `topo` attribute on **vertices** / **edges** / **triangles** / **tetrahedra**... 
+ * to indicate the topological type of the element.
+ */
+UIPC_BUILTIN_ATTRIBUTE(topo);
+/**
  * @brief `position` <Vector3> attribute on **vertices**
  */
 UIPC_BUILTIN_ATTRIBUTE(position);

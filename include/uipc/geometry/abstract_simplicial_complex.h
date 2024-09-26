@@ -1,5 +1,6 @@
 #pragma once
-#include <uipc/geometry/simplex_slot.h>
+#include <uipc/geometry/simplicial_complex_attributes.h>
+#include <uipc/geometry/geometry.h>
 
 namespace uipc::geometry
 {
@@ -8,70 +9,109 @@ namespace uipc::geometry
  * 
  * @note Abstract simplicial complex does not contain any geometric information, such as coordinates of vertices.
  */
-class UIPC_CORE_API AbstractSimplicialComplex
+class UIPC_CORE_API AbstractSimplicialComplex : public Geometry
 {
-    friend class SimplicialComplex;
+    template <typename T>
+    friend class AttributeFriend;
 
   public:
-    AbstractSimplicialComplex();
+    /**
+     * @brief Alias for the vertex attributes
+     * 
+     * @sa SimplicialComplexAttributes
+     */
+    using VertexAttributes  = SimplicialComplexAttributes<false, 0>;
+    using CVertexAttributes = SimplicialComplexAttributes<true, 0>;
+    /**
+     * @brief Alias for the edge attributes
+     * 
+     * @sa SimplicialComplexAttributes
+     */
+    using EdgeAttributes  = SimplicialComplexAttributes<false, 1>;
+    using CEdgeAttributes = SimplicialComplexAttributes<true, 1>;
+    /**
+     * @brief Alias for the triangle attributes
+     * 
+     * @sa SimplicialComplexAttributes
+     */
+    using TriangleAttributes  = SimplicialComplexAttributes<false, 2>;
+    using CTriangleAttributes = SimplicialComplexAttributes<true, 2>;
+    /**
+     * @brief Alias for the tetrahedron attributes
+     *
+     * @sa SimplicialComplexAttributes
+     */
+    using TetrahedronAttributes  = SimplicialComplexAttributes<false, 3>;
+    using CTetrahedronAttributes = SimplicialComplexAttributes<true, 3>;
 
-    AbstractSimplicialComplex(const AbstractSimplicialComplex&);
-    AbstractSimplicialComplex& operator=(const AbstractSimplicialComplex&);
-    AbstractSimplicialComplex(AbstractSimplicialComplex&&) noexcept;
-    AbstractSimplicialComplex& operator=(AbstractSimplicialComplex&&) noexcept;
+    AbstractSimplicialComplex()                                   = default;
+    AbstractSimplicialComplex(const AbstractSimplicialComplex& o) = default;
+    AbstractSimplicialComplex(AbstractSimplicialComplex&& o)      = default;
+
+    AbstractSimplicialComplex& operator=(const AbstractSimplicialComplex& o) = delete;
+    AbstractSimplicialComplex& operator=(AbstractSimplicialComplex&& o) = delete;
 
     /**
-     * @brief Get the non-const slot for vertices.
+     * @brief A wrapper of the vertices and its attributes of the simplicial complex.
      * 
-     * @return a non-const slot for vertices
+     * @return VertexAttributeInfo 
      */
-    VertexSlot& vertices() noexcept;
+    [[nodiscard]] VertexAttributes  vertices() noexcept;
+    [[nodiscard]] CVertexAttributes vertices() const noexcept;
+
     /**
-     * @brief Get the const slot for vertices.
+     * @brief A wrapper of the edges and its attributes of the simplicial complex.
      * 
-     * @return a const slot for vertices
+     * @return EdgeAttributes 
      */
-    const VertexSlot& vertices() const noexcept;
+    [[nodiscard]] EdgeAttributes  edges() noexcept;
+    [[nodiscard]] CEdgeAttributes edges() const noexcept;
+
+
     /**
-     * @brief Get the non-const slot for edges.
+     * @brief  A wrapper of the triangles and its attributes of the simplicial complex.
      * 
-     * @return a non-const slot for edges
+     * @return TriangleAttributes 
      */
-    EdgeSlot& edges() noexcept;
+    [[nodiscard]] TriangleAttributes  triangles() noexcept;
+    [[nodiscard]] CTriangleAttributes triangles() const noexcept;
     /**
-     * @brief Get the const slot for edges.
+     * @brief A wrapper of the tetrahedra and its attributes of the simplicial complex.
      * 
-     * @return a const slot for edges
+     * @return TetrahedronAttributes 
      */
-    const EdgeSlot& edges() const noexcept;
+    [[nodiscard]] TetrahedronAttributes  tetrahedra() noexcept;
+    [[nodiscard]] CTetrahedronAttributes tetrahedra() const noexcept;
+
     /**
-     * @brief Get the non-const slot for triangles.
+     * @brief Get the dimension of the simplicial complex.
+     *
+     * Return the maximum dimension of the simplices in the simplicial complex.
      * 
-     * @return a non-const slot for triangles
+     * @return IndexT 
      */
-    TriangleSlot& triangles() noexcept;
-    /**
-     * @brief Get the const slot for triangles.
-     * 
-     * @return a const slot for triangles
-     */
-    const TriangleSlot& triangles() const noexcept;
-    /**
-     * @brief Get the non-const slot for tetrahedra.
-     * 
-     * @return a non-const slot for tetrahedra
-     */
-    TetrahedronSlot& tetrahedra() noexcept;
-    /**
-     * @brief Get the const slot for tetrahedra.
-     * 
-     * @return a const slot for tetrahedra
-     */
-    const TetrahedronSlot& tetrahedra() const noexcept;
+    [[nodiscard]] IndexT dim() const noexcept;
+
+
+  protected:
+    virtual std::string_view   get_type() const noexcept override;
+    [[nodiscard]] virtual Json do_to_json() const override;
+
   private:
-    VertexSlot      m_vertices;
-    EdgeSlot        m_edges;
-    TriangleSlot    m_triangles;
-    TetrahedronSlot m_tetrahedra;
+    AttributeCollection m_vertex_attributes;
+    AttributeCollection m_edge_attributes;
+    AttributeCollection m_triangle_attributes;
+    AttributeCollection m_tetrahedron_attributes;
 };
-}  // namespace uipc::geometries
+}  // namespace uipc::geometry
+
+namespace fmt
+{
+template <>
+struct UIPC_CORE_API formatter<uipc::geometry::AbstractSimplicialComplex>
+    : formatter<string_view>
+{
+    appender format(const uipc::geometry::AbstractSimplicialComplex& c,
+                    format_context&                                  ctx) const;
+};
+}  // namespace fmt

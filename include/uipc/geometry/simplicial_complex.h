@@ -29,32 +29,31 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
      * 
      * @sa SimplicialComplexAttributes
      */
-    using VertexAttributes  = SimplicialComplexAttributes<VertexSlot>;
-    using CVertexAttributes = SimplicialComplexAttributes<const VertexSlot>;
+    using VertexAttributes  = SimplicialComplexAttributes<false, 0>;
+    using CVertexAttributes = SimplicialComplexAttributes<true, 0>;
     /**
      * @brief Alias for the edge attributes
      * 
      * @sa SimplicialComplexAttributes
      */
-    using EdgeAttributes  = SimplicialComplexAttributes<EdgeSlot>;
-    using CEdgeAttributes = SimplicialComplexAttributes<const EdgeSlot>;
+    using EdgeAttributes  = SimplicialComplexAttributes<false, 1>;
+    using CEdgeAttributes = SimplicialComplexAttributes<true, 1>;
     /**
      * @brief Alias for the triangle attributes
      * 
      * @sa SimplicialComplexAttributes
      */
-    using TriangleAttributes  = SimplicialComplexAttributes<TriangleSlot>;
-    using CTriangleAttributes = SimplicialComplexAttributes<const TriangleSlot>;
+    using TriangleAttributes  = SimplicialComplexAttributes<false, 2>;
+    using CTriangleAttributes = SimplicialComplexAttributes<true, 2>;
     /**
      * @brief Alias for the tetrahedron attributes
      *
      * @sa SimplicialComplexAttributes
      */
-    using TetrahedronAttributes = SimplicialComplexAttributes<TetrahedronSlot>;
-    using CTetrahedronAttributes = SimplicialComplexAttributes<const TetrahedronSlot>;
+    using TetrahedronAttributes  = SimplicialComplexAttributes<false, 3>;
+    using CTetrahedronAttributes = SimplicialComplexAttributes<true, 3>;
 
     SimplicialComplex();
-    SimplicialComplex(const AbstractSimplicialComplex& asc, span<const Vector3> positions);
 
 
     SimplicialComplex(const SimplicialComplex& o) = default;
@@ -138,11 +137,10 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
     [[nodiscard]] virtual Json do_to_json() const override;
 
   private:
-    AbstractSimplicialComplex m_asc;
-    AttributeCollection       m_vertex_attributes;
-    AttributeCollection       m_edge_attributes;
-    AttributeCollection       m_triangle_attributes;
-    AttributeCollection       m_tetrahedron_attributes;
+    AttributeCollection m_vertex_attributes;
+    AttributeCollection m_edge_attributes;
+    AttributeCollection m_triangle_attributes;
+    AttributeCollection m_tetrahedron_attributes;
 };
 }  // namespace uipc::geometry
 

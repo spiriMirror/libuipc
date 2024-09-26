@@ -16,6 +16,7 @@ orient: str
 parent_id: str
 position: str
 thickness: str
+topo: str
 transform: str
 
 class ConstitutionUIDCollection(UIDRegister):

@@ -38,6 +38,7 @@ MUDA_DEVICE uint32_t LinearBVHViewer::query(const QueryType& Q,
             Callback(m_nodes(0).object_idx);
             return 1;
         }
+        return 0;
     }
 
     uint32_t num_found = 0;

@@ -43,9 +43,10 @@ static void facet_closure_dim_2(SimplicialComplex& R)
 
     // now we have the unique edges
     R.edges().resize(sep_edges.size());
+    auto topo = R.edges().create<Vector2i, false>(builtin::topo, Vector2i::Zero());
 
     // copy_from the edges to the new complex
-    auto edge_view = view(R.edges().topo());
+    auto edge_view = view(*topo);
     std::ranges::copy(sep_edges, edge_view.begin());
 }
 
@@ -87,9 +88,10 @@ static void facet_closure_dim_3(SimplicialComplex& R)
 
     // now we have the unique faces
     R.triangles().resize(sep_faces.size());
+    auto topo = R.triangles().create<Vector3i, false>(builtin::topo, Vector3i::Zero());
 
     // copy_from the faces to the new complex
-    auto face_view = view(R.triangles().topo());
+    auto face_view = view(*topo);
     std::ranges::copy(sep_faces, face_view.begin());
 
     // then we use the triangles to generate the edges
@@ -130,7 +132,6 @@ SimplicialComplex facet_closure(const SimplicialComplex& O)
 
     // share vertices
     R.vertices().resize(O.vertices().size());
-    R.vertices().topo().share(O.vertices().topo());
     R.vertices().share(builtin::position, O.positions());
 
     switch(O.dim())
@@ -141,7 +142,7 @@ SimplicialComplex facet_closure(const SimplicialComplex& O)
         break;
         case 1: {
             R.edges().resize(O.edges().size());
-            R.edges().topo().share(O.edges().topo());
+            R.edges().share(builtin::topo, O.edges().topo());
 
             R.vertices().create<IndexT>(builtin::is_facet, 0);
             R.edges().create<IndexT>(builtin::is_facet, 1);
@@ -149,7 +150,7 @@ SimplicialComplex facet_closure(const SimplicialComplex& O)
         break;
         case 2: {
             R.triangles().resize(O.triangles().size());
-            R.triangles().topo().share(O.triangles().topo());
+            R.triangles().share(builtin::topo, O.triangles().topo());
             facet_closure_dim_2(R);
 
             R.vertices().create<IndexT>(builtin::is_facet, 0);
@@ -159,7 +160,7 @@ SimplicialComplex facet_closure(const SimplicialComplex& O)
         break;
         case 3: {
             R.tetrahedra().resize(O.tetrahedra().size());
-            R.tetrahedra().topo().share(O.tetrahedra().topo());
+            R.tetrahedra().share(builtin::topo, O.tetrahedra().topo());
             facet_closure_dim_3(R);
 
             R.vertices().create<IndexT>(builtin::is_facet, 0);

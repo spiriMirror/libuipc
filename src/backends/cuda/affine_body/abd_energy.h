@@ -2,7 +2,6 @@
 #include <type_define.h>
 #include <muda/muda_def.h>
 
-
 namespace uipc::backend::cuda
 {
 //tex:
@@ -25,5 +24,3 @@ MUDA_GENERIC Vector9 shape_energy_gradient(const Vector12& q);
 
 MUDA_GENERIC Matrix9x9 shape_energy_hessian(const Vector12& q);
 }  // namespace uipc::backend::cuda
-
-#include "details/abd_energy.inl"
