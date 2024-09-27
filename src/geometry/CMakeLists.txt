@@ -1,10 +1,16 @@
 find_package(libigl REQUIRED)
+find_package(metis CONFIG REQUIRED)
 
 add_library(uipc_geometry SHARED)
 add_library(uipc::geometry ALIAS uipc_geometry)
 
 uipc_target_add_include_files(uipc_geometry)
-target_link_libraries(uipc_geometry PUBLIC uipc::core igl::igl_core)
+
+target_link_libraries(uipc_geometry PUBLIC 
+    uipc::core
+    igl::igl_core
+    metis)
+
 target_compile_definitions(uipc_geometry PRIVATE UIPC_GEOMETRY_EXPORT_DLL=1) # export dll
 
 file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")

@@ -1,3 +1,5 @@
-# force MUDA_BUILD_EXAMPLE to be OFF
-set(MUDA_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
-add_subdirectory(muda)
+if (UIPC_WITH_CUDA_BACKEND)
+    # force MUDA_BUILD_EXAMPLE to be OFF
+    set(MUDA_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
+    add_subdirectory(muda)
+endif()

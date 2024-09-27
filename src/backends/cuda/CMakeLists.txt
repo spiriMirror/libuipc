@@ -1,3 +1,4 @@
+enable_language(CUDA)
 uipc_add_backend(cuda)
 
 # basic setup
@@ -15,6 +16,8 @@ set_target_properties(cuda PROPERTIES
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
     CUDA_ARCHITECTURES 75
     CUDA_INCLUDE_WHAT_YOU_USE ON
+    CUDA_STANDARD_REQUIRED ON
+    CUDA_STANDARD 20
 )
 
 # add subdirectories

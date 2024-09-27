@@ -26,10 +26,8 @@ project(uipc)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-if (UIPC_WITH_CUDA_BACKEND)
-    enable_language(CUDA)
-    add_subdirectory(external)
-endif()
+# dependencies
+add_subdirectory(external)
 
 # uipc
 add_subdirectory(src)
