@@ -355,7 +355,7 @@ It's not the only way to consume the simulation data. Because the interest of th
 Now you may be interested in the following topics:
 
 1. [ [Geometry](./geometry.md) ] How can I understand the geometry in `libuipc`? 
-2. [ [Scene](./scene.md) ] How can I understand the scene representation in `libuipc`? 
+2. [ [Concepts](./concepts.md) ] How can I understand the basic concepts in `libuipc`? 
 3. [ [Animation](./animation.md) ] How can I script my own animation in `libuipc`?
 
 It's recommended to read the above topics in order, as they are the basic concepts of `libuipc`.
