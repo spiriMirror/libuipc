@@ -21,3 +21,6 @@ __pycache__
 RelWithDebInfo/
 Release/
 .mypy_cache/
+
+imgui.ini
+.polyscope.ini
