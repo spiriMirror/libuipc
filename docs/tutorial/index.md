@@ -310,13 +310,13 @@ Now, we have setup the initial state of the `Scene`, we can pass it to the `Worl
         world.init(scene);
 
         SceneIO sio{scene};
-        sio.write_surface(fmt::format("scene_surface{}.obj", world.frmae()));
+        sio.write_surface(fmt::format("scene_surface{}.obj", world.frame()));
 
         while(world.frame() < 100)
         {
             world.advance();
             world.retrieve();
-            sio.write_surface(fmt::format("scene_surface{}.obj", world.frmae()));
+            sio.write_surface(fmt::format("scene_surface{}.obj", world.frame()));
         }
     }
     ```

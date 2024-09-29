@@ -46,50 +46,33 @@ TEST_CASE("25_abd_animated_rotation", "[animation]")
     RotatingMotor          rm;
 
     // create object
-    auto object = scene.objects().create("cube");
+    auto cube_object = scene.objects().create("cube");
     {
-        auto mesh = io.read(fmt::format("{}/cube.msh", tetmesh_dir));
+        auto cube_mesh = io.read(fmt::format("{}/cube.msh", tetmesh_dir));
 
-        auto trans_view = view(mesh.transforms());
+        auto trans_view = view(cube_mesh.transforms());
         {
             Transform t = Transform::Identity();
             t.translate(Vector3::UnitY() * 2);
             trans_view[0] = t.matrix();
         }
 
-        label_surface(mesh);
-        label_triangle_orient(mesh);
+        label_surface(cube_mesh);
+        label_triangle_orient(cube_mesh);
 
-        abd.apply_to(mesh, 10.0_MPa);
-        rm.apply_to(mesh, 1e2, Vector3::UnitX(), std::numbers::pi / 1.0_s);
-        object->geometries().create(mesh);
+        abd.apply_to(cube_mesh, 10.0_MPa);
+        rm.apply_to(cube_mesh, 100.0, Vector3::UnitX(), std::numbers::pi / 1.0_s);
+        cube_object->geometries().create(cube_mesh);
     }
 
     auto ground_obj = scene.objects().create("ground");
     {
-        Transform pre_transform = Transform::Identity();
-        pre_transform.scale(Vector3{3, 0.1, 12});
-
-        SimplicialComplexIO io{pre_transform};
-        io          = SimplicialComplexIO{pre_transform};
-        auto ground = io.read(fmt::format("{}{}", tetmesh_dir, "cube.msh"));
-
-        label_surface(ground);
-        label_triangle_orient(ground);
-
-        Transform transform = Transform::Identity();
-        transform.translate(Vector3{0, 0, 4.5});
-        view(ground.transforms())[0] = transform.matrix();
-        abd.apply_to(ground, 10.0_MPa);
-
-        auto is_fixed      = ground.instances().find<IndexT>(builtin::is_fixed);
-        view(*is_fixed)[0] = 1;
-
-        ground_obj->geometries().create(ground);
+        auto g = ground();
+        ground_obj->geometries().create(g);
     }
 
     auto& animator = scene.animator();
-    animator.insert(*object,
+    animator.insert(*cube_object,
                     [](Animation::UpdateInfo& info)
                     {
                         auto geo_slots = info.geo_slots();
