@@ -33,7 +33,8 @@ PyAnimator::PyAnimator(py::module& m)
                  return list;
              })
         .def("frame", &Animation::UpdateInfo::frame)
-        .def("hint", &Animation::UpdateInfo::hint);
+        .def("hint", &Animation::UpdateInfo::hint)
+        .def("dt", &Animation::UpdateInfo::dt);
 
     auto class_Animator = py::class_<Animator>(m, "Animator");
     class_Animator.def("insert",

@@ -100,11 +100,12 @@ class UIPC_CORE_API Scene
     {
       public:
         Impl(Scene& s) noexcept;
+        Float               dt = 0.0;
         Json                info;
         ContactTabular      contact_tabular;
         ConstitutionTabular constitution_tabular;
         ObjectCollection    objects;
-        Animator            m_animator;
+        Animator            animator;
 
         geometry::GeometryCollection geometries;
         geometry::GeometryCollection rest_geometries;

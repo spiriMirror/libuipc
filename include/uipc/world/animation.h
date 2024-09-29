@@ -29,6 +29,7 @@ class UIPC_CORE_API Animation
     class UIPC_CORE_API UpdateInfo
     {
       public:
+        Float                           dt() const noexcept;
         Object&                         object() const noexcept;
         span<S<geometry::GeometrySlot>> geo_slots() const noexcept;
         span<S<geometry::GeometrySlot>> rest_geo_slots() const noexcept;

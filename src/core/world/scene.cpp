@@ -40,6 +40,7 @@ Scene::Scene(const Json& config)
     : m_impl(*this)
 {
     m_impl.info = config;
+    m_impl.dt   = config["dt"].get<Float>();
 }
 
 ContactTabular& Scene::contact_tabular() noexcept
@@ -88,12 +89,12 @@ const Json& Scene::info() const noexcept
 
 Animator& Scene::animator()
 {
-    return m_impl.m_animator;
+    return m_impl.animator;
 }
 
 const Animator& Scene::animator() const
 {
-    return m_impl.m_animator;
+    return m_impl.animator;
 }
 
 void Scene::solve_pending() noexcept
@@ -191,7 +192,7 @@ ObjectGeometrySlots<const geometry::Geometry> Scene::CGeometries::find(IndexT id
     return {m_scene.m_impl.geometries.find(id), m_scene.m_impl.rest_geometries.find(id)};
 }
 Scene::Impl::Impl(Scene& s) noexcept
-    : m_animator(s)
+    : animator(s)
 {
 }
 }  // namespace uipc::world

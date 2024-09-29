@@ -34,7 +34,6 @@ default_element = scene.contact_tabular().default_element()
 # create constituiton
 abd = AffineBodyConstitution()
 # create constraint
-rm = RotatingMotor()
 stc = SoftTransformConstraint()
 
 def process_surface(sc: SimplicialComplex):
@@ -55,7 +54,7 @@ trans_view[0] = t.matrix()
 abd.apply_to(cube_mesh, 1e8) # 100 MPa
 default_element.apply_to(cube_mesh)
 # constraint the rotation
-rm.apply_to(cube_mesh, 100, motor_rot_vel=np.pi)
+stc.apply_to(cube_mesh, Vector2.Values([0, 100.0]))
 cube_object = scene.objects().create('cube')
 cube_object.geometries().create(cube_mesh)
 
@@ -97,8 +96,29 @@ def cube_animation(info:Animation.UpdateInfo):
     geo = geo_slot.geometry()
     is_constrained = geo.instances().find(builtin.is_constrained)
     view(is_constrained)[0] = 1
-    RotatingMotor.animate(geo, info.dt())
     
+    trans = geo.instances().find(builtin.transform)
+    aim = geo.instances().find(builtin.aim_transform)
+    trans_view = trans.view()
+    aim_view = view(aim)
+    
+    # Get the rotation matrix from the current transform
+    R = trans_view[0][0:3,0:3]
+    e_i = R[:,0]
+    e_j = R[:,1]
+    e_k = R[:,2]
+    
+    # Rotate the cube around the e_i axis
+    angular_velocity = np.pi # 180 degree per second
+    theta = angular_velocity * dt
+    new_e_j = np.cos(theta) * e_j + np.sin(theta) * e_k
+    new_e_k = -np.sin(theta) * e_j + np.cos(theta) * e_k
+    
+    R[:,0] = e_i
+    R[:,1] = new_e_j
+    R[:,2] = new_e_k
+    
+    aim_view[0][0:3,0:3] = R
 
 def ground_animation(info:Animation.UpdateInfo):
     geo_slot: SimplicialComplexSlot = info.geo_slots()[0]
@@ -109,7 +129,7 @@ def ground_animation(info:Animation.UpdateInfo):
     is_constrained = geo.instances().find(builtin.is_constrained)
     view(is_constrained)[1] = 1
     
-    current_t = info.dt() * info.frame()
+    current_t = dt * info.frame()
     angular_velocity = np.pi # 180 degree per second
     theta = angular_velocity * current_t
     

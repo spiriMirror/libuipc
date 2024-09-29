@@ -42,10 +42,8 @@ TEST_CASE("25_abd_animated_rotation", "[animation]")
     Scene scene{config};
 
     // create constitution and contact model
-    AffineBodyConstitution  abd;
-    SoftTransformConstraint stc;
-    scene.constitution_tabular().insert(abd);
-    scene.constitution_tabular().insert(stc);
+    AffineBodyConstitution abd;
+    RotatingMotor          rm;
 
     // create object
     auto object = scene.objects().create("cube");
@@ -62,8 +60,8 @@ TEST_CASE("25_abd_animated_rotation", "[animation]")
         label_surface(mesh);
         label_triangle_orient(mesh);
 
-        abd.apply_to(mesh, 1e7);
-        stc.apply_to(mesh, Vector2{0, 100});
+        abd.apply_to(mesh, 10.0_MPa);
+        rm.apply_to(mesh, 1e2, Vector3::UnitX(), std::numbers::pi / 1.0_s);
         object->geometries().create(mesh);
     }
 
@@ -91,43 +89,19 @@ TEST_CASE("25_abd_animated_rotation", "[animation]")
     }
 
     auto& animator = scene.animator();
-    animator.insert(
-        *object,
-        [&](Animation::UpdateInfo& info)
-        {
-            auto geo_slots = info.geo_slots();
-            auto geo       = geo_slots[0]->geometry().as<SimplicialComplex>();
+    animator.insert(*object,
+                    [](Animation::UpdateInfo& info)
+                    {
+                        auto geo_slots = info.geo_slots();
+                        auto geo = geo_slots[0]->geometry().as<SimplicialComplex>();
 
-            auto is_constrained = geo->instances().find<IndexT>(builtin::is_constrained);
-            auto is_constrained_view = view(*is_constrained);
-            is_constrained_view[0]   = 1;
+                        auto is_constrained =
+                            geo->instances().find<IndexT>(builtin::is_constrained);
+                        auto is_constrained_view = view(*is_constrained);
+                        is_constrained_view[0]   = 1;
 
-            auto trans = geo->instances().find<Matrix4x4>(builtin::transform);
-            auto aim = geo->instances().find<Matrix4x4>(builtin::aim_transform);
-
-
-            auto trans_view = trans->view();
-            auto aim_view   = view(*aim);
-
-            // Get the rotation part of the transformation matrix
-            Matrix3x3 R = trans_view[0].block<3, 3>(0, 0);
-
-            Vector3 e_i = R.col(0).normalized();
-            Vector3 e_j = R.col(1).normalized();
-            Vector3 e_k = R.col(2).normalized();
-
-            // rotate around the e_i;
-            Float   angular_velocity = std::numbers::pi / 1.0_s;
-            Float   theta            = angular_velocity * dt;
-            Vector3 new_e_j = std::cos(theta) * e_j + std::sin(theta) * e_k;
-            Vector3 new_e_k = -std::sin(theta) * e_j + std::cos(theta) * e_k;
-
-            R.col(0) = e_i;
-            R.col(1) = new_e_j.normalized();
-            R.col(2) = new_e_k.normalized();
-
-            aim_view[0].block<3, 3>(0, 0) = R;
-        });
+                        RotatingMotor::animate(*geo, info.dt());
+                    });
 
 
     world.init(scene);

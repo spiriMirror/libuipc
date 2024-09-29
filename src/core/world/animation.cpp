@@ -35,6 +35,11 @@ void Animation::update()
     m_on_update(info);
 }
 
+Float Animation::UpdateInfo::dt() const noexcept
+{
+    return m_animation->m_scene->m_impl.dt;
+}
+
 Object& Animation::UpdateInfo::object() const noexcept
 {
     return *(m_animation->m_object);
