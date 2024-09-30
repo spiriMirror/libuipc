@@ -113,7 +113,7 @@ Then we need to define the constitution and constraint for the cube.
 
 As same as the constitutions, we first define the constraint we need for the cube. Here we use `RotatingMotor` to rotate the cube around certain axis with certain speed.
 
-By calling `apply_to` method of `RotatingMotor`, we apply the constraint to the cube mesh, and set a default rotation axis $(1,0,0)$ and rotation speed $\pi$ rad/s.
+By calling `apply_to` method of `RotatingMotor`, we apply the constraint to the cube mesh, and set a default rotation axis $(1,0,0)$ and rotation speed $\pi$ rad/s. The strength of the constraint is set to 100.0, which means the stiffness of the constraint is 100 times of the mass of the cube.
 
 Then we move the cube up by 2 units, preventing the cube intersecting with the ground.
 
@@ -205,6 +205,8 @@ Now, run the simulation, you will see the cube rotating around its x-axis.
 
 ![Walking Cube](./img/walking_cube.png)
 
+[TODO]: To use rendered results.
+
 `Libuipc` also provide `LinearMotor` for you to control the translation of an affine body by specifying the translation axis and speed.
 
 When you ask the name of them:
@@ -227,3 +229,121 @@ When you ask the name of them:
 They are both `SoftTransformConstraint`. Because, `LinearMotor` and `RotatingMotor` are just special cases of `SoftTransformConstraint`. 
 
 `SoftTransformConstraint` is a general constraint that can be used to fully control the transformation of a geometry, which may require "a little bit" [Linear Algebra](https://static.hlt.bme.hu/semantics/external/pages/Harris/en.wikipedia.org/wiki/Linear_algebra.html) knowledge to use. For smooth start, we will not go into the details of `SoftTransformConstraint` here. This topic will be covered in advanced tutorials.
+
+## Periodically Pressed Tetrahedron
+
+Say, you want to animate some part of a soft body and leave the other part free (obeying the physics). `Libuipc` provides a `SoftPositionConstraint` for this purpose. The usage of `SoftPositionConstraint` is similar to the constratints we have seen before, the only difference is that `SoftPositionConstraint` applying to a soft body's vertex position rather than an affine body's instance transformation.
+
+Here we assume you have already defined the `engine`, `world`, `scene`. In this example, we use the `StableNeoHookean` constitution to simulate the soft body.
+
+=== "C++"
+
+    ```cpp
+    StableNeoHookean snh;
+    SoftPositionConstraint spc;
+    auto tet_object = scene.objects().create("tet_object");
+    {
+        vector<Vector3> Vs = {Vector3{0, 1, 0},
+                              Vector3{0, 0, 1},
+                              Vector3{-std::sqrt(3) / 2, 0, -0.5},
+                              Vector3{std::sqrt(3) / 2, 0, -0.5}};
+        vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
+        auto tet = tetmesh(Vs, Ts);
+        auto moduli = ElasticModuli::youngs_poisson(0.1_MPa, 0.49);
+        snh.apply_to(tet, moduli);
+        spc.apply_to(tet, 100); // constraint strength ratio
+        tet_object->geometries().create(tet);
+    }
+
+    auto ground_object = scene.objects().create("ground");
+    {
+        auto g = ground(-0.5);
+        ground_object->geometries().create(g);
+    }
+    ```
+
+=== "Python"
+
+    ```python
+    snh = StableNeoHookean()
+    spc = SoftPositionConstraint()
+    tet_object = scene.objects().create("tet_object")
+    Vs = [Vector3(0, 1, 0),
+          Vector3(0, 0, 1),
+          Vector3(-np.sqrt(3) / 2, 0, -0.5),
+          Vector3(np.sqrt(3) / 2, 0, -0.5)]
+    Ts = [Vector4i(0, 1, 2, 3)]
+    tet = tetmesh(Vs, Ts)
+    moduli = ElasticModuli.youngs_poisson(0.1 * MPa, 0.49)
+    snh.apply_to(tet, moduli)
+    spc.apply_to(tet, 100) # constraint strength ratio
+    tet_object.geometries().create(tet)
+
+    ground_object = scene.objects().create("ground")
+    g = ground(-0.5)
+    ground_object.geometries().create(g)
+    ```
+
+Nothing special here, we just create a tetrahedron and apply the `StableNeoHookean` constitution and `SoftPositionConstraint` to it as we did before, the ground height is set to -0.5. Now we try to animate the first vertex of the tetrahedron with a `sin` function.
+
+=== "C++"
+
+    ```cpp
+    auto& animator = scene.animator();
+    animator.insert(
+        *tet_object,
+        [](Animation::UpdateInfo& info) // animation function
+        {
+            auto geo_slots = info.geo_slots();
+            auto geo = geo_slots[0]->geometry().as<SimplicialComplex>();
+            auto rest_geo_slots = info.rest_geo_slots();
+            auto rest_geo = rest_geo_slots[0]->geometry().as<SimplicialComplex>();
+
+            auto is_constrained = geo->vertices().find<IndexT>(builtin::is_constrained);
+            auto is_constrained_view = view(*is_constrained);
+            auto aim_position = geo->vertices().find<Vector3>(builtin::aim_position);
+            auto aim_position_view = view(*aim_position);
+            auto rest_position_view = rest_geo->positions().view();
+
+            is_constrained_view[0]   = 1;
+
+            auto t = info.dt() * info.frame();
+            auto theta = std::numbers::pi * t;
+            auto y = -std::sin(theta);
+
+            aim_position_view[0] = rest_position_view[0] + Vector3::UnitY() * y;
+        });
+    ```
+
+=== "Python"
+
+    ```python
+    animator = scene.animator()
+    def animate_tet(info:Animation.UpdateInfo): # animation function
+        geo_slots = info.geo_slots()
+        geo:SimplicialComplex = geo_slots[0].geometry()
+        rest_geo_slots = info.rest_geo_slots()
+        rest_geo:SimplicialComplex = rest_geo_slots[0].geometry()
+
+        is_constrained = geo.vertices().find(builtin.is_constrained)
+        is_constrained_view = view(is_constrained)
+        aim_position = geo.vertices().find(Vector3, builtin.aim_position)
+        aim_position_view = view(aim_position)
+        rest_position_view = rest_geo.positions().view()
+
+        is_constrained_view[0] = 1
+
+        t = info.dt() * info.frame()
+        theta = np.pi * t
+        y = -np.sin(theta)
+
+        aim_position_view[0] = rest_position_view[0] + Vector3.UnitY() * y
+    
+    animator.insert(tet_object, animate_tet)
+    ```
+
+Something new here is the `info.rest_geo_slots()`, which returns the slots of the rest geometry (initial geometry) in the object. We use the rest geometry to get the initial position of the vertex we want to animate. With the initial position and a periodic function, we can setup the `aim_position` of the vertex to animate it.
+
+![periodically_pressed_tet](./img/periodically_pressed_tet.png)
+
+[TODO]: To use rendered results.

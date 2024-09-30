@@ -147,9 +147,9 @@ In this example, we will just manually create a regular tetrahedron (`base_mesh`
             ...
             // create a regular tetrahedron
             vector<Vector3> Vs = {Vector3{0, 1, 0},
-                                    Vector3{0, 0, 1},
-                                    Vector3{-std::sqrt(3) / 2, 0, -0.5},
-                                    Vector3{std::sqrt(3) / 2, 0, -0.5}};
+                                  Vector3{0, 0, 1},
+                                  Vector3{-std::sqrt(3) / 2, 0, -0.5},
+                                  Vector3{std::sqrt(3) / 2, 0, -0.5}};
             vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
 
             // setup a base mesh to reduce the later work
