@@ -39,6 +39,8 @@ class SoftPositionConstraint final : public FiniteElementConstraint
 
     void do_step(FiniteElementAnimator::FilteredInfo& info) override
     {
+        using ForEachInfo = FiniteElementMethod::ForEachInfo;
+
         auto geo_slots = world().scene().geometries();
 
         // clear
@@ -59,15 +61,19 @@ class SoftPositionConstraint final : public FiniteElementConstraint
                 auto aim_pos = sc.vertices().find<Vector3>(builtin::aim_position);
                 auto strength_ratio = sc.vertices().find<Float>("strength_ratio");
 
-                return zip(is_constrained->view(), aim_pos->view(), strength_ratio->view());
+                return zip(is_constrained->view(),
+                           aim_pos->view(),
+                           strength_ratio->view());
             },
-            [&](SizeT vi, auto&& values)
+            [&](const ForEachInfo& I, auto&& values)
             {
+                auto vI = I.local_index() + current_vertex_offset;
+
                 auto&& [is_constrained, aim_pos, strength] = values;
 
                 if(is_constrained)
                 {
-                    h_constrained_vertices.push_back(current_vertex_offset + vi);
+                    h_constrained_vertices.push_back(vI);
                     h_aim_positions.push_back(aim_pos);
                     h_strength_ratios.push_back(strength);
                 }

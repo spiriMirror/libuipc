@@ -43,8 +43,8 @@ void FEMLineSearchReporter::Impl::record_start_point(LineSearcher::RecordInfo& i
 void FEMLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
 {
     using namespace muda;
-    ParallelFor(256)
-        .kernel_name(__FUNCTION__)
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
                [is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
                 x_temps  = fem().x_temps.cviewer().name("x_temps"),
@@ -60,9 +60,10 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
 
     // Compute kinetic energy
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
                [is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
+                is_kinematic = fem().is_kinematic.cviewer().name("is_kinematic"),
                 xs       = fem().xs.cviewer().name("xs"),
                 x_tildes = fem().x_tildes.viewer().name("x_tildes"),
                 masses   = fem().masses.cviewer().name("masses"),
@@ -70,7 +71,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                     "kinetic_energy")] __device__(int i) mutable
                {
                    auto& K = Ks(i);
-                   if(is_fixed(i))
+                   if(is_fixed(i) || is_kinematic(i))
                    {
                        K = 0.0;
                    }
@@ -81,7 +82,6 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                        Float          M       = masses(i);
                        Vector3        dx      = x - x_tilde;
                        K                      = 0.5 * M * dx.dot(dx);
-                       // K                      = 0;
                    }
                });
 

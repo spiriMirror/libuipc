@@ -111,12 +111,22 @@ UIPC_BUILTIN_ATTRIBUTE(is_fixed);
 /**
  * @brief `is_constrained` <IndexT>[0,1] attribute, indicates if the **instance** or **vertex** is constrained.
  * 
- * 'Constrained' means the vertices are trying to obey the constraints.
+ * 'Constrained' means the instances or vertices are trying to obey the constraints.
  * 
  * 1) 0 means the instance or vertex is not constrained.
  * 2) 1 means the instance or vertex is constrained.
  */
 UIPC_BUILTIN_ATTRIBUTE(is_constrained);
+
+/**
+ * @brief `is_kinematic` <IndexT>[0,1] attribute, indicates if the **instance** or **vertex** is is kinematic.
+ * 
+ * 'Kinematic' means the kinetic of instances or vertices is not considered.
+ * 
+ * 1) 0 means the the kinetic of the instance or vertex is considered.
+ * 2) 1 means the the kinetic of the instance or vertex is not considered.
+ */
+UIPC_BUILTIN_ATTRIBUTE(is_kinematic);
 
 /**
  * @brief `mass` <Float> attribute on **vertices**.

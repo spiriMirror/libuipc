@@ -26,16 +26,21 @@ class OrthoPotential final : public AffineBodyConstitution
 
     void do_init(AffineBodyDynamics::FilteredInfo& info) override
     {
+        using ForEachInfo = AffineBodyDynamics::ForEachInfo;
+
         // find out constitution coefficients
         h_kappas.resize(info.body_count());
         auto geo_slots = world().scene().geometries();
 
-        SizeT bodyI = 0;
         info.for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc)
             { return sc.instances().find<Float>("kappa")->view(); },
-            [&](SizeT local_i, Float kappa) { h_kappas[bodyI++] = kappa; });
+            [&](const ForEachInfo& I, Float kappa)
+            {
+                auto bodyI      = I.global_index();
+                h_kappas[bodyI] = kappa;
+            });
 
         _build_on_device();
     }

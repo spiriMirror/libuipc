@@ -31,6 +31,7 @@ class ShellNeoHookean2D final : public Codim2DConstitution
 
     virtual void do_retrieve(FiniteElementMethod::Codim2DFilteredInfo& info) override
     {
+        using ForEachInfo = FiniteElementMethod::ForEachInfo;
 
         auto geo_slots = world().scene().geometries();
 
@@ -38,8 +39,6 @@ class ShellNeoHookean2D final : public Codim2DConstitution
 
         h_kappas.resize(N);
         h_lambdas.resize(N);
-
-        SizeT I = 0;
 
         info.for_each(
             geo_slots,
@@ -50,12 +49,13 @@ class ShellNeoHookean2D final : public Codim2DConstitution
 
                 return zip(mu->view(), lambda->view());
             },
-            [&](SizeT vi, auto mu_and_lambda)
+            [&](const ForEachInfo& I, auto mu_and_lambda)
             {
+                auto vI = I.global_index();
+
                 auto&& [mu, lambda] = mu_and_lambda;
-                h_kappas[I]         = mu;
-                h_lambdas[I]        = lambda;
-                I++;
+                h_kappas[vI]        = mu;
+                h_lambdas[vI]       = lambda;
             });
 
         kappas.resize(N);
@@ -71,7 +71,7 @@ class ShellNeoHookean2D final : public Codim2DConstitution
         namespace NH = sym::shell_neo_hookean_2d;
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
                    [mus        = kappas.cviewer().name("mus"),
                     lambdas    = lambdas.cviewer().name("lambdas"),
@@ -122,7 +122,7 @@ class ShellNeoHookean2D final : public Codim2DConstitution
         namespace NH = sym::shell_neo_hookean_2d;
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
                    [mus     = kappas.cviewer().name("mus"),
                     lambdas = lambdas.cviewer().name("lambdas"),

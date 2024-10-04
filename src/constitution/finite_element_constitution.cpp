@@ -19,6 +19,10 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
     if(!is_fixed)
         is_fixed = sc.vertices().create<IndexT>(builtin::is_fixed, 0);
 
+    auto is_kinematic = sc.vertices().find<IndexT>(builtin::is_kinematic);
+    if(!is_kinematic)
+        is_kinematic = sc.vertices().create<IndexT>(builtin::is_kinematic, 0);
+
     geometry::compute_vertex_mass(sc, mass_density);
 
     auto attr_thickness = sc.vertices().find<Float>(builtin::thickness);

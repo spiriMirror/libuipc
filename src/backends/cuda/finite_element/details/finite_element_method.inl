@@ -48,6 +48,8 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
                                     ViewGetter&&                    view_getter,
                                     ForEach&& for_each_action) noexcept
 {
+    ForEachInfo foreach_info;
+
     for(auto& geo_info : geo_infos)
     {
         auto geo_slot = geo_slots[geo_info.geo_slot_index];
@@ -58,11 +60,14 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
 
         auto view = view_getter(*sc);
 
-        SizeT local_vertex_offset = 0;
+        foreach_info.m_local_index = 0;
 
         for(auto&& item : view)
         {
-            for_each_action(local_vertex_offset++, item);
+            for_each_action(foreach_info, item);
+
+            ++foreach_info.m_local_index;
+            ++foreach_info.m_global_index;
         }
     }
 }
@@ -70,8 +75,9 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
 template <typename ForEachGeometry>
 void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
                                     span<S<geometry::GeometrySlot>> geo_slots,
-                                    ForEachGeometry&& for_each) noexcept
+                                    ForEachGeometry&& for_every_geometry) noexcept
 {
+    ForEachInfo foreach_info;
     for(auto& geo_info : geo_infos)
     {
         auto geo_slot = geo_slots[geo_info.geo_slot_index];
@@ -80,7 +86,20 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
 
         UIPC_ASSERT(sc, "Only simplicial complex is supported");
 
-        for_each(*sc);
+
+        if constexpr(std::is_invocable_v<ForEachGeometry, const ForEachInfo&, geometry::SimplicialComplex&>)
+        {
+            for_every_geometry(foreach_info, *sc);
+            ++foreach_info.m_global_index;
+        }
+        else if constexpr(std::is_invocable_v<ForEachGeometry, geometry::SimplicialComplex&>)
+        {
+            for_every_geometry(*sc);
+        }
+        else
+        {
+            static_assert("Invalid ForEachGeometry");
+        }
     }
 }
 

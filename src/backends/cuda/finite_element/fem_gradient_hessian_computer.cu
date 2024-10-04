@@ -34,13 +34,14 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
 
     // Kinetic
     ParallelFor()
-        .kernel_name("Kinetic Energy")
+        .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
                [xs       = fem().xs.viewer().name("xs"),
-                x_tildes = fem().x_tildes.viewer().name("x_tildes"),
+                x_tildes = fem().x_tildes.cviewer().name("x_tildes"),
                 vs       = fem().vs.viewer().name("vs"),
-                masses   = fem().masses.viewer().name("masses"),
-                is_fixed = fem().is_fixed.viewer().name("is_fixed"),
+                masses   = fem().masses.cviewer().name("masses"),
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
+                is_kinematic = fem().is_kinematic.cviewer().name("is_kinematic"),
                 vertex_kinetic_energies =
                     fem().vertex_kinetic_energies.viewer().name("vertex_kinetic_energies"),
                 G3s = fem().G3s.viewer().name("G3s"),
@@ -50,20 +51,24 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
                    auto& x       = xs(i);
                    auto& x_tilde = x_tildes(i);
 
-                   Vector3   G = Vector3::Zero();
-                   Matrix3x3 H = masses(i) * Matrix3x3::Identity();
+                   Vector3&   G = G3s(i);
+                   Matrix3x3& H = H3x3s(i);
 
-                   if(is_fixed(i))
+                   if(is_fixed(i))  // fixed
                    {
-                       // G = Vector3::Zero();
+                       G = Vector3::Zero();
+                       H = masses(i) * Matrix3x3::Identity();
                    }
-                   else
+                   else if(is_kinematic(i))  // constraint fully controls the motion
+                   {
+                       G = Vector3::Zero();
+                       H = Matrix3x3::Zero();
+                   }
+                   else  // free, compute kinetic
                    {
                        G = m * (x - x_tilde);
+                       H = masses(i) * Matrix3x3::Identity();
                    }
-
-                   G3s(i)   = G;
-                   H3x3s(i) = H;
 
                    // cout << "Kinetic G:" << G.transpose().eval() << "\n";
                });

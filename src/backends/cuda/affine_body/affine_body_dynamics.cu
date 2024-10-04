@@ -1,4 +1,5 @@
 #include <affine_body/affine_body_dynamics.h>
+#include <affine_body/utils.h>
 #include <affine_body/abd_line_search_reporter.h>
 #include <affine_body/affine_body_constitution.h>
 #include <Eigen/Dense>
@@ -261,11 +262,12 @@ void AffineBodyDynamics::Impl::_build_geo_infos(WorldVisitor& world)
 void AffineBodyDynamics::Impl::_setup_geometry_attributes(WorldVisitor& world)
 {
     // set the `backend_abd_body_offset` attribute in simplicial complex geometry
-    auto  geo_slots = world.scene().geometries();
-    SizeT geoI      = 0;
+    auto geo_slots = world.scene().geometries();
     for_each(geo_slots,
-             [&](geometry::SimplicialComplex& sc)
+             [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
              {
+                 auto geoI = I.global_index();
+
                  auto abd_body_offset =
                      sc.meta().find<IndexT>(builtin::backend_abd_body_offset);
                  if(!abd_body_offset)
@@ -273,7 +275,7 @@ void AffineBodyDynamics::Impl::_setup_geometry_attributes(WorldVisitor& world)
                          sc.meta().create<IndexT>(builtin::backend_abd_body_offset);
 
                  auto body_offset_view    = geometry::view(*abd_body_offset);
-                 body_offset_view.front() = geo_infos[geoI++].body_offset;
+                 body_offset_view.front() = geo_infos[geoI].body_offset;
              });
 }
 
@@ -283,19 +285,18 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     auto geo_slots         = scene.geometries();
     auto constitution_view = constitutions.view();
 
-    // 1) setup `q` for every affine body
+    // 1) Setup `q` for every affine body
     {
         h_body_id_to_q.resize(abd_body_count);
 
-        SizeT bodyI = 0;
+        // SizeT bodyI = 0;
         for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc)
             { return sc.transforms().view(); },
-            [&](SizeT local_i, const Matrix4x4& trans)
+            [&](const ForEachInfo& I, const Matrix4x4& trans)
             {
-                Vector12& q     = h_body_id_to_q[bodyI++];
-                q.segment<3>(0) = trans.block<3, 1>(0, 3);
+                auto bodyI = I.global_index();
 
                 Float D = trans.block<3, 3>(0, 0).determinant();
 
@@ -303,14 +304,14 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                     spdlog::warn("The determinant of the rotation matrix is not 1.0, but {}. Don't apply scaling on Affine Body.",
                                  D);
 
-                q.segment<3>(3) = trans.block<1, 3>(0, 0).transpose();
-                q.segment<3>(6) = trans.block<1, 3>(1, 0).transpose();
-                q.segment<3>(9) = trans.block<1, 3>(2, 0).transpose();
+                Vector12& q = h_body_id_to_q[bodyI];
+
+                q = transform_to_q(trans);
             });
     }
 
 
-    // 2) setup `J` and `mass` for every vertex
+    // 2) Setup `J` and `mass` for every vertex
     {
         h_vertex_id_to_J.resize(abd_vertex_count);
         h_vertex_id_to_mass.resize(abd_vertex_count);
@@ -318,10 +319,11 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
         span Js          = h_vertex_id_to_J;
         span vertex_mass = h_vertex_id_to_mass;
 
-        SizeT geoI = 0;
         for_each(geo_slots,
-                 [&](geometry::SimplicialComplex& sc)
+                 [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
                  {
+                     auto geoI = I.global_index();
+
                      auto pos_view = sc.positions().view();
                      auto mass     = sc.vertices().find<Float>(builtin::mass);
                      UIPC_ASSERT(mass, "The mass attribute is not found in the affine body geometry, why can it happen?");
@@ -343,13 +345,11 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          auto sub_mass = vertex_mass.subspan(body_vert_offset, vert_count);
                          std::ranges::fill(sub_mass, mass_view[i]);
                      }
-
-                     geoI++;
                  });
     }
 
 
-    // 3) setup `vertex_id_to_body_id` and `vertex_id_to_contact_element_id`
+    // 3) Setup `vertex_id_to_body_id` and `vertex_id_to_contact_element_id`
     {
         h_vertex_id_to_body_id.resize(abd_vertex_count);
         h_vertex_id_to_contact_element_id.resize(abd_vertex_count);
@@ -357,10 +357,12 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
         span v2b = h_vertex_id_to_body_id;
         span v2c = h_vertex_id_to_contact_element_id;
 
-        SizeT geoI = 0;
+        // SizeT geoI = 0;
         for_each(geo_slots,
-                 [&](geometry::SimplicialComplex& sc)
+                 [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
                  {
+                     auto geoI = I.global_index();
+
                      auto body_count  = sc.instances().size();
                      auto body_offset = geo_infos[geoI].body_offset;
                      auto vert_count  = sc.vertices().size();
@@ -387,12 +389,10 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                                                0);  // default 0
                          }
                      }
-
-                     geoI++;
                  });
     }
 
-    // 4) setup body_abd_mass and body_id_to_volume
+    // 4) Setup body_abd_mass and body_id_to_volume
     {
         vector<ABDJacobiDyadicMass> geo_masses(abd_geo_count, ABDJacobiDyadicMass{});
         vector<Float> geo_volumes(abd_geo_count, 0.0);
@@ -403,10 +403,12 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
         span Js          = h_vertex_id_to_J;
         span vertex_mass = h_vertex_id_to_mass;
 
-        SizeT geoI = 0;
+        // SizeT geoI = 0;
         for_each(geo_slots,
-                 [&](geometry::SimplicialComplex& sc)
+                 [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
                  {
+                     auto geoI = I.global_index();
+
                      auto& geo_mass = geo_masses[geoI];
                      auto& geo_vol  = geo_volumes[geoI];
 
@@ -448,20 +450,18 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          h_body_id_to_abd_mass[body_id] = geo_mass;
                          h_body_id_to_volume[body_id]   = geo_vol;
                      }
-
-                     geoI++;
                  });
     }
 
 
-    // 5) compute the inverse of the mass matrix
+    // 5) Compute the inverse of the mass matrix
     h_body_id_to_abd_mass_inv.resize(abd_body_count);
     std::ranges::transform(h_body_id_to_abd_mass,
                            h_body_id_to_abd_mass_inv.begin(),
                            [](const ABDJacobiDyadicMass& mass) -> Matrix12x12
                            { return mass.to_mat().inverse(); });
 
-    // 6) setup the affine body gravity
+    // 6) Setup the affine body gravity
     {
         span Js          = h_vertex_id_to_J;
         span vertex_mass = h_vertex_id_to_mass;
@@ -470,10 +470,12 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
         h_body_id_to_abd_gravity.resize(abd_body_count, Vector12::Zero());
         if(!gravity.isApprox(Vector3::Zero()))
         {
-            SizeT geoI = 0;
+            //SizeT geoI = 0;
             for_each(geo_slots,
-                     [&](geometry::SimplicialComplex& sc)
+                     [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
                      {
+                         auto geoI = I.global_index();
+
                          auto vert_count  = sc.vertices().size();
                          auto vert_offset = geo_infos[geoI].vertex_offset;
                          auto body_count  = sc.instances().size();
@@ -497,27 +499,37 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
                              h_body_id_to_abd_gravity[body_id] = g;
                          }
-
-                         geoI++;
                      });
         }
     }
 
 
-    // 7) setup the boundary type
+    // 7) Setup the boundary type
     {
-        SizeT bodyI = 0;
         h_body_id_to_is_fixed.resize(abd_body_count, 0);
+        h_body_id_to_is_kinematic.resize(abd_body_count, 0);
         for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc)
-            { return sc.instances().find<IndexT>(builtin::is_fixed)->view(); },
-            [&](SizeT local_i, IndexT fixed)
-            { h_body_id_to_is_fixed[bodyI++] = fixed; });
+            {
+                auto is_fixed = sc.instances().find<IndexT>(builtin::is_fixed);
+                auto is_kinematic = sc.instances().find<IndexT>(builtin::is_kinematic);
+
+                return zip(is_fixed->view(), is_kinematic->view());
+            },
+            [&](const ForEachInfo& I, auto&& data)
+            {
+                auto&& [fixed, kinematic] = data;
+
+                auto bodyI = I.global_index();
+
+                h_body_id_to_is_fixed[bodyI]     = fixed;
+                h_body_id_to_is_kinematic[bodyI] = kinematic;
+            });
     }
 
 
-    // 8) misc
+    // 8) Energy per constitution
     h_constitution_shape_energy.resize(constitution_view.size(), 0.0);
 }
 
@@ -537,6 +549,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_copy(span{h_body_id_to_abd_mass_inv}, body_id_to_abd_mass_inv);
     async_copy(span{h_body_id_to_abd_gravity}, body_id_to_abd_gravity);
     async_copy(span{h_body_id_to_is_fixed}, body_id_to_is_fixed);
+    async_copy(span{h_body_id_to_is_kinematic}, body_id_to_is_kinematic);
 
     auto async_transfer = []<typename T>(const muda::DeviceBuffer<T>& src,
                                          muda::DeviceBuffer<T>&       dst)
@@ -592,20 +605,16 @@ void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
     span qs = h_body_id_to_q;
 
     // 2) transfer from affine_body_dynamics qs to transforms
-    SizeT I = 0;
     for_each(
         geo_slots,
         [](geometry::SimplicialComplex& sc) { return view(sc.transforms()); },
-        [&](SizeT i, Matrix4x4& trans)
+        [&](const ForEachInfo& I, Matrix4x4& trans)
         {
-            Vector12& q = h_body_id_to_q[I++];
+            auto bodyI = I.global_index();
 
-            trans                   = Matrix4x4::Identity();
-            trans.block<3, 1>(0, 3) = q.segment<3>(0);  // translation
-            // rotation
-            trans.block<1, 3>(0, 0) = q.segment<3>(3).transpose();
-            trans.block<1, 3>(1, 0) = q.segment<3>(6).transpose();
-            trans.block<1, 3>(2, 0) = q.segment<3>(9).transpose();
+            Vector12& q = h_body_id_to_q[bodyI];
+
+            trans = q_to_transform(q);
         });
 }
 
@@ -627,7 +636,8 @@ void AffineBodyDynamics::Impl::compute_q_tilde(DoFPredictor::PredictInfo& info)
     ParallelFor()
         .kernel_name(__FUNCTION__)
         .apply(abd_body_count,
-               [is_fixed = body_id_to_is_fixed.cviewer().name("btype"),
+               [is_fixed = body_id_to_is_fixed.cviewer().name("is_fixed"),
+                is_kinematic = body_id_to_is_kinematic.cviewer().name("is_kinematic"),
                 q_prevs  = body_id_to_q_prev.cviewer().name("q_prev"),
                 q_vs     = body_id_to_q_v.cviewer().name("q_velocities"),
                 q_tildes = body_id_to_q_tilde.viewer().name("q_tilde"),
@@ -637,13 +647,14 @@ void AffineBodyDynamics::Impl::compute_q_tilde(DoFPredictor::PredictInfo& info)
                    auto& q_prev = q_prevs(i);
                    auto& q_v    = q_vs(i);
                    auto& g      = affine_gravity(i);
-                   // TODO: this time, we only consider gravity
-                   if(is_fixed(i))
+
+                   if(is_fixed(i) || is_kinematic(i))
                    {
                        q_tildes(i) = q_prev;
                    }
                    else
                    {
+                       // this time, we only consider gravity
                        q_tildes(i) = q_prev + q_v * dt + g * (dt * dt);
                    }
                });
@@ -666,10 +677,7 @@ void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::ComputeVelocityInfo& in
 
                    const auto& q = qs(i);
 
-                   if(is_fixed(i))
-                       q_v = Vector12::Zero();
-                   else
-                       q_v = (q - q_prev) * (1.0 / dt);
+                   q_v = (q - q_prev) * (1.0 / dt);
 
                    q_prev = q;
                });

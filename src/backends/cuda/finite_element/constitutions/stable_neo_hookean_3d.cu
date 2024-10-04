@@ -31,6 +31,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
     virtual void do_retrieve(FiniteElementMethod::FEM3DFilteredInfo& info) override
     {
+        using ForEachInfo = FiniteElementMethod::ForEachInfo;
 
         auto geo_slots = world().scene().geometries();
 
@@ -38,8 +39,6 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
         h_mus.resize(N);
         h_lambdas.resize(N);
-
-        SizeT I = 0;
 
         info.for_each(
             geo_slots,
@@ -50,12 +49,14 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                 return zip(mu->view(), lambda->view());
             },
-            [&](SizeT vi, auto mu_and_lambda)
+            [&](const ForEachInfo& I, auto mu_and_lambda)
             {
                 auto&& [mu, lambda] = mu_and_lambda;
-                h_mus[I]            = mu;
-                h_lambdas[I]        = lambda;
-                I++;
+
+                auto vI = I.global_index();
+
+                h_mus[vI]     = mu;
+                h_lambdas[vI] = lambda;
             });
 
         mus.resize(N);

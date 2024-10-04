@@ -18,7 +18,7 @@ class GradientHessianComputer;
 class GlobalLinearSystem;
 class GlobalAnimator;
 
-class UIPC_BACKEND_API SimEngine : public backend::SimEngine
+class SimEngine : public backend::SimEngine
 {
     class DeviceImpl;
     friend class SimSystem;

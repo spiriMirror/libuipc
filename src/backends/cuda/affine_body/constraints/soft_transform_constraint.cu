@@ -1,21 +1,7 @@
 #include <affine_body/affine_body_constraint.h>
+#include <affine_body/utils.h>
 #include <uipc/builtin/attribute_name.h>
 #include <kernel_cout.h>
-
-namespace uipc::backend::cuda
-{
-// TODO: move to a common header later
-inline UIPC_GENERIC Vector12 q_from_transform(const Matrix4x4& trans)
-{
-    Vector12 q;
-    q.segment<3>(0) = trans.block<3, 1>(0, 3);
-    q.segment<3>(3) = trans.block<1, 3>(0, 0).transpose();
-    q.segment<3>(6) = trans.block<1, 3>(1, 0).transpose();
-    q.segment<3>(9) = trans.block<1, 3>(2, 0).transpose();
-    return q;
-}
-}  // namespace uipc::backend::cuda
-
 
 namespace uipc::backend::cuda
 {
@@ -58,6 +44,8 @@ class SoftTransformConstraint final : public AffineBodyConstraint
 
     void do_step(AffineBodyAnimator::FilteredInfo& info) override
     {
+        using ForEachInfo = AffineBodyDynamics::ForEachInfo;
+
         auto geo_slots = world().scene().geometries();
 
         // clear
@@ -81,14 +69,17 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                            aim_transform->view(),
                            strength_ratio->view());
             },
-            [&](SizeT bi, auto&& values)
+            [&](const ForEachInfo& I, auto&& values)
             {
+                SizeT bI = I.local_index() + current_body_offset;
+
                 auto&& [is_constrained, aim_transform, strength_ratio] = values;
 
                 if(is_constrained)
                 {
-                    h_constrained_bodies.push_back(current_body_offset + bi);
-                    h_aim_transforms.push_back(q_from_transform(aim_transform));
+                    h_constrained_bodies.push_back(bI);
+                    Vector12 q = transform_to_q(aim_transform);
+                    h_aim_transforms.push_back(q);
                     h_strength_ratios.push_back(strength_ratio);
                 }
             });

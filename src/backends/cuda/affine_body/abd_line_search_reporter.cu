@@ -43,8 +43,8 @@ void ABDLineSearchReporter::Impl::record_start_point(LineSearcher::RecordInfo& i
 void ABDLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
 {
     using namespace muda;
-    ParallelFor(256)
-        .kernel_name(__FUNCTION__)
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
         .apply(abd().abd_body_count,
                [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
                 q_temps  = abd().body_id_to_q_temp.cviewer().name("q_temps"),
@@ -64,9 +64,10 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
 
     // Compute kinetic energy
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(abd().abd_body_count,
                [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+                is_kinematic = abd().body_id_to_is_kinematic.cviewer().name("is_kinematic"),
                 qs       = abd().body_id_to_q.cviewer().name("qs"),
                 q_tildes = abd().body_id_to_q_tilde.viewer().name("q_tildes"),
                 masses   = abd().body_id_to_abd_mass.cviewer().name("masses"),
@@ -74,7 +75,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                     "kinetic_energy")] __device__(int i) mutable
                {
                    auto& K = Ks(i);
-                   if(is_fixed(i))
+                   if(is_fixed(i) || is_kinematic(i))
                    {
                        K = 0.0;
                    }

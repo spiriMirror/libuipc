@@ -24,6 +24,18 @@ class AffineBodyDynamics : public SimSystem
 
     class Impl;
 
+    class ForEachInfo
+    {
+      public:
+        SizeT global_index() const noexcept { return m_global_index; }
+        SizeT local_index() const noexcept { return m_local_index; }
+
+      private:
+        friend class AffineBodyDynamics;
+        SizeT m_global_index = 0;
+        SizeT m_local_index  = 0;
+    };
+
     class GeoInfo
     {
       public:
@@ -58,18 +70,41 @@ class AffineBodyDynamics : public SimSystem
 
         /**
          * @brief Short-cut to traverse all bodies of current constitution.
-         *  
-         * @param getter f: `span<T>(SimplicialComplex&)` or `span<const T>(SimplicialComplex&)`
-         * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
+         * 
+         * @code
+         *  for_each(geo_slots, 
+         *  [](SimplicialComplex& sc)
+         *  {
+         *      return sc.transforms().view();
+         *  },
+         *  [](const ForEachInfo& I, const Matrix4x4& transforms)
+         *  {
+         *      auto bodyI = I.global_index();
+         *      ...
+         *  })
+         * @endcode
          */
         template <typename ViewGetterF, typename ForEachF>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                       ViewGetterF&&                   getter,
                       ForEachF&&                      for_each) const;
 
-        template <typename ForEachGeomatry>
+
+        /**
+         * @brief Short-cut to traverse all geometries of current constitution.
+         * 
+         * @code
+         *  for_each(geo_slots, 
+         *  [](const ForEachInfo& I, SimplicialComplex& sc)
+         *  {
+         *      auto geoI = I.global_index();
+         *      ...
+         *  });
+         * @endcode
+         */
+        template <typename ForEachGeometry>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                      ForEachGeomatry&&               for_every_geometry) const;
+                      ForEachGeometry&&               for_every_geometry) const;
 
         span<const GeoInfo> geo_infos() const noexcept;
 
@@ -167,23 +202,20 @@ class AffineBodyDynamics : public SimSystem
 
         /*
          * @brief Short-cut to traverse all bodies of current constitution.
-         * 
-         * @param getter f: `span<T>(SimplicialComplex&)` or `span<const T>(SimplicialComplex&)`
-         * @param for_each f: `void(SizeT,T&)` or `void(SizeT,const T&)`
          */
         template <typename ViewGetterF, typename ForEachF>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                       ViewGetterF&&                   getter,
                       ForEachF&&                      for_each);
 
-        template <typename ForEachGeomatry>
+        template <typename ForEachGeometry>
         static void _for_each(span<S<geometry::GeometrySlot>> geo_slots,
                               span<const GeoInfo>             geo_infos,
-                              ForEachGeomatry&& for_every_geometry);
+                              ForEachGeometry&& for_every_geometry);
 
-        template <typename ForEachGeomatry>
+        template <typename ForEachGeometry>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                      ForEachGeomatry&&               for_every_geometry);
+                      ForEachGeometry&&               for_every_geometry);
 
         SizeT geo_count() const noexcept { return abd_geo_count; }
         SizeT body_count() const noexcept { return abd_body_count; }
@@ -214,6 +246,7 @@ class AffineBodyDynamics : public SimSystem
         vector<Float>               h_body_id_to_volume;
         vector<Vector12>            h_body_id_to_abd_gravity;
         vector<IndexT>              h_body_id_to_is_fixed;
+        vector<IndexT>              h_body_id_to_is_kinematic;
         vector<Float>               h_constitution_shape_energy;
 
         /******************************************************************************
@@ -307,11 +340,10 @@ class AffineBodyDynamics : public SimSystem
         //$$
         DeviceBuffer<Vector12> body_id_to_abd_gravity;
 
-        //tex: simple boundary condition
-        DeviceBuffer<IndexT> body_id_to_is_fixed;
+        DeviceBuffer<IndexT> body_id_to_is_fixed;      // Body IsFixed
+        DeviceBuffer<IndexT> body_id_to_is_kinematic;  // Body IsKinematic
 
         //tex: $$K_i$$ kinetic energy per body
-
         DeviceBuffer<Float> body_id_to_kinetic_energy;
 
         //tex: $$K$$

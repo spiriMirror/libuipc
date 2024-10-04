@@ -421,7 +421,8 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
     h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
     h_masses.resize(h_positions.size());
     h_vertex_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
-    h_vertex_is_fixed.resize(h_positions.size(), 0);  // fill 0 for default
+    h_vertex_is_fixed.resize(h_positions.size(), 0);      // fill 0 for default
+    h_vertex_is_kinematic.resize(h_positions.size(), 0);  // fill 0 for default
 
     for(auto&& [i, info] : enumerate(geo_infos))
     {
@@ -578,6 +579,20 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
                 span{h_dimensions}.subspan(info.vertex_offset, info.vertex_count);
             std::ranges::fill(dst_dim_span, sc->dim());
         }
+
+        {  // 9) setup vertex is_kinematic
+            auto is_kinematic = sc->vertices().find<IndexT>(builtin::is_kinematic);
+            auto dst_is_kinematic_span =
+                span{h_vertex_is_kinematic}.subspan(info.vertex_offset, info.vertex_count);
+
+            if(is_kinematic)
+            {
+                auto is_kinematic_view = is_kinematic->view();
+                UIPC_ASSERT(is_kinematic_view.size() == dst_is_kinematic_span.size(),
+                            "is_kinematic size mismatching");
+                std::ranges::copy(is_kinematic_view, dst_is_kinematic_span.begin());
+            }
+        }
     }
 }
 
@@ -598,6 +613,9 @@ void FiniteElementMethod::Impl::_build_on_device()
 
     is_fixed.resize(h_vertex_is_fixed.size());
     is_fixed.view().copy_from(h_vertex_is_fixed.data());
+
+    is_kinematic.resize(h_vertex_is_kinematic.size());
+    is_kinematic.view().copy_from(h_vertex_is_kinematic.data());
 
     dxs.resize(xs.size(), Vector3::Zero());
     vs.resize(xs.size(), Vector3::Zero());
@@ -799,24 +817,26 @@ void FiniteElementMethod::Impl::compute_x_tilde(DoFPredictor::PredictInfo& info)
 {
     using namespace muda;
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(xs.size(),
-               [is_fixed = is_fixed.cviewer().name("fixed"),
-                x_prevs  = x_prevs.cviewer().name("x_prevs"),
-                vs       = vs.cviewer().name("vs"),
-                x_tildes = x_tildes.viewer().name("x_tildes"),
-                g        = gravity,
-                dt       = info.dt()] __device__(int i) mutable
+               [is_fixed     = is_fixed.cviewer().name("fixed"),
+                is_kinematic = is_kinematic.cviewer().name("is_kinematic"),
+                x_prevs      = x_prevs.cviewer().name("x_prevs"),
+                vs           = vs.cviewer().name("vs"),
+                x_tildes     = x_tildes.viewer().name("x_tildes"),
+                g            = gravity,
+                dt           = info.dt()] __device__(int i) mutable
                {
                    const Vector3& x_prev = x_prevs(i);
                    const Vector3& v      = vs(i);
-                   // TODO: this time, we only consider gravity
-                   if(is_fixed(i))
+
+                   if(is_fixed(i) || is_kinematic(i))  // fixed or kinematic
                    {
                        x_tildes(i) = x_prev;
                    }
                    else
                    {
+                       // this time, we only consider gravity
                        x_tildes(i) = x_prev + v * dt + g * (dt * dt);
                    }
                });
@@ -826,12 +846,13 @@ void FiniteElementMethod::Impl::compute_velocity(DoFPredictor::ComputeVelocityIn
 {
     using namespace muda;
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(xs.size(),
-               [xs      = xs.cviewer().name("xs"),
-                vs      = vs.viewer().name("vs"),
-                x_prevs = x_prevs.viewer().name("x_prevs"),
-                dt      = info.dt()] __device__(int i) mutable
+               [is_kinematic = is_kinematic.cviewer().name("is_kinematic"),
+                xs           = xs.cviewer().name("xs"),
+                vs           = vs.viewer().name("vs"),
+                x_prevs      = x_prevs.viewer().name("x_prevs"),
+                dt           = info.dt()] __device__(int i) mutable
                {
                    Vector3& v      = vs(i);
                    Vector3& x_prev = x_prevs(i);

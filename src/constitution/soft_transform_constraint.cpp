@@ -31,18 +31,19 @@ void SoftTransformConstraint::apply_to(geometry::SimplicialComplex& sc,
 
     sc.instances().share(builtin::aim_transform, sc.transforms());
 
+    // create constraint specified attributes
     auto constraint_strength = sc.instances().find<Vector2>("strength_ratio");
     if(!constraint_strength)
         constraint_strength =
             sc.instances().create<Vector2>("strength_ratio", strength_rate);
+    else
+        UIPC_WARN_WITH_LOCATION("Attribute `strength_ratio` on instances already exists, which may cause ambiguity.");
 
-    auto strength_view = geometry::view(*constraint_strength);
-    std::ranges::fill(strength_view, strength_rate);
-
+    // create is_constrained attribute
     auto is_constrained = sc.instances().find<IndexT>(builtin::is_constrained);
-
     if(!is_constrained)
         is_constrained = sc.instances().create<IndexT>(builtin::is_constrained, 0);
+    // NOTE: Don't fill is_constrained, if it exists, it may be filled by other constraints.
 }
 
 Json SoftTransformConstraint::default_config()
@@ -73,14 +74,14 @@ void RotatingMotor::apply_to(geometry::SimplicialComplex& sc,
     if(!constraint_strength)
         constraint_strength =
             sc.instances().create<Vector2>("strength_ratio", Vector2{0.0, strength});
-
-    auto strength_view = geometry::view(*constraint_strength);
-    std::ranges::fill(strength_view, Vector2{0.0, strength});
+    else
+        UIPC_WARN_WITH_LOCATION("Attribute `strength_ratio` on instances already exists, which may cause ambiguity.");
 
     auto is_constrained = sc.instances().find<IndexT>(builtin::is_constrained);
-
     if(!is_constrained)
         is_constrained = sc.instances().create<IndexT>(builtin::is_constrained, 0);
+    // NOTE: Don't fill is_constrained, if it exists, it may be filled by other constraints.
+
 
     // create motor specified attributes
     // motor_axis <Vector3>
@@ -89,14 +90,14 @@ void RotatingMotor::apply_to(geometry::SimplicialComplex& sc,
     auto motor_axis = sc.instances().find<Vector3>("motor_rot_axis");
     if(!motor_axis)
         motor_axis = sc.instances().create<Vector3>("motor_rot_axis", motor_rot_axis_v);
-    auto motor_axis_view = geometry::view(*motor_axis);
-    std::ranges::fill(motor_axis_view, motor_rot_axis_v);
+    else
+        UIPC_WARN_WITH_LOCATION("Attribute `motor_rot_axis` on instances already exists, which may cause ambiguity.");
 
     auto motor_rot_vel = sc.instances().find<Float>("motor_rot_vel");
     if(!motor_rot_vel)
         motor_rot_vel = sc.instances().create<Float>("motor_rot_vel", motor_rot_vel_v);
-    auto motor_rot_vel_view = geometry::view(*motor_rot_vel);
-    std::ranges::fill(motor_rot_vel_view, motor_rot_vel_v);
+    else
+        UIPC_WARN_WITH_LOCATION("Attribute `motor_rot_vel` on instances already exists, which may cause ambiguity.");
 }
 
 Json RotatingMotor::default_config()
@@ -166,30 +167,29 @@ void LinearMotor::apply_to(geometry::SimplicialComplex& sc,
     if(!constraint_strength)
         constraint_strength =
             sc.instances().create<Vector2>("strength_ratio", Vector2{strength_ratio, 0.0});
-
-    auto strength_view = geometry::view(*constraint_strength);
-    std::ranges::fill(strength_view, Vector2{strength_ratio, 0.0});
+    else
+        UIPC_WARN_WITH_LOCATION("Attribute `strength_ratio` on instances already exists, which may cause ambiguity.");
 
     auto is_constrained = sc.instances().find<IndexT>(builtin::is_constrained);
-
     if(!is_constrained)
         is_constrained = sc.instances().create<IndexT>(builtin::is_constrained, 0);
+    // NOTE: Don't fill is_constrained, if it exists, it may be filled by other constraints.
+
 
     // create motor specified attributes
     // motor_axis <Vector3>
     // motor_vel <Float>
-
     auto motor_axis = sc.instances().find<Vector3>("motor_axis");
     if(!motor_axis)
         motor_axis = sc.instances().create<Vector3>("motor_axis", motor_axis_v);
-    auto motor_axis_view = geometry::view(*motor_axis);
-    std::ranges::fill(motor_axis_view, motor_axis_v);
+    else
+        UIPC_WARN_WITH_LOCATION("Attribute `motor_axis` on instances already exists, which may cause ambiguity.");
 
     auto motor_vel = sc.instances().find<Float>("motor_vel");
     if(!motor_vel)
         motor_vel = sc.instances().create<Float>("motor_vel", motor_vel_v);
-    auto motor_vel_view = geometry::view(*motor_vel);
-    std::ranges::fill(motor_vel_view, motor_vel_v);
+    else
+        UIPC_WARN_WITH_LOCATION("Attribute `motor_vel` on instances already exists, which may cause ambiguity.");
 }
 
 Json LinearMotor::default_config()

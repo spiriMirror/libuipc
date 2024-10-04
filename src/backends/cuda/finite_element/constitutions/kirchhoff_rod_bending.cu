@@ -26,7 +26,8 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
 
     virtual void do_init(FilteredInfo& info) override
     {
-        auto geo_slots = world().scene().geometries();
+        using ForEachInfo = FiniteElementMethod::ForEachInfo;
+        auto geo_slots    = world().scene().geometries();
 
 
         list<Vector3i> hinge_list;  // X0, X1, X2
@@ -34,7 +35,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
 
         info.for_each(  //
             geo_slots,
-            [&](geometry::SimplicialComplex& sc)
+            [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
             {
                 unordered_map<IndexT, set<IndexT>> hinge_map;  // Vertex -> Connected Vertices
 

@@ -2,7 +2,7 @@
 
 namespace uipc::backend::cuda
 {
-MUDA_GENERIC Matrix3x3 q_to_A(const Vector12& q)
+UIPC_GENERIC Matrix3x3 q_to_A(const Vector12& q)
 {
     Matrix3x3 A = Matrix3x3::Zero();
     A.row(0)    = q.segment<3>(3);
@@ -10,7 +10,8 @@ MUDA_GENERIC Matrix3x3 q_to_A(const Vector12& q)
     A.row(2)    = q.segment<3>(9);
     return A;
 }
-MUDA_GENERIC Vector9 A_to_q(const Matrix3x3& A)
+
+UIPC_GENERIC Vector9 A_to_q(const Matrix3x3& A)
 {
     Vector9 q       = Vector9::Zero();
     q.segment<3>(0) = A.row(0);
@@ -19,7 +20,7 @@ MUDA_GENERIC Vector9 A_to_q(const Matrix3x3& A)
     return q;
 }
 
-MUDA_GENERIC Vector9 F_to_A(const Vector9& F)
+UIPC_GENERIC Vector9 F_to_A(const Vector9& F)
 {
     Vector9 A;
     A(0) = F(0);
@@ -34,7 +35,7 @@ MUDA_GENERIC Vector9 F_to_A(const Vector9& F)
     return A;
 }
 
-MUDA_GENERIC Matrix9x9 HF_to_HA(const Matrix9x9& HF)
+UIPC_GENERIC Matrix9x9 HF_to_HA(const Matrix9x9& HF)
 {
     Matrix9x9 HA;
     HA(0, 0) = HF(0, 0);
@@ -119,5 +120,30 @@ MUDA_GENERIC Matrix9x9 HF_to_HA(const Matrix9x9& HF)
     HA(8, 7) = HF(8, 5);
     HA(8, 8) = HF(8, 8);
     return HA;
+}
+UIPC_GENERIC Matrix4x4 q_to_transform(const Vector12& q)
+{
+    Matrix4x4 trans;
+    // translation
+    trans.block<3, 1>(0, 3) = q.segment<3>(0);
+    // rotation
+    trans.block<1, 3>(0, 0) = q.segment<3>(3).transpose();
+    trans.block<1, 3>(1, 0) = q.segment<3>(6).transpose();
+    trans.block<1, 3>(2, 0) = q.segment<3>(9).transpose();
+
+    // last row
+    trans.row(3) = Vector4{0, 0, 0, 1};
+    return trans;
+}
+
+UIPC_GENERIC Vector12 transform_to_q(const Matrix4x4& trans)
+{
+    Vector12 q;
+    q.segment<3>(0) = trans.block<3, 1>(0, 3);
+    q.segment<3>(3) = trans.block<1, 3>(0, 0).transpose();
+    q.segment<3>(6) = trans.block<1, 3>(1, 0).transpose();
+    q.segment<3>(9) = trans.block<1, 3>(2, 0).transpose();
+
+    return q;
 }
 }  // namespace uipc::backend::cuda

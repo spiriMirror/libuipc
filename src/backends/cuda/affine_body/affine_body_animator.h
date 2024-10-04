@@ -41,9 +41,9 @@ class AffineBodyAnimator final : public Animator
                       ViewGetterF&&                   getter,
                       ForEachF&&                      for_each);
 
-        template <typename ForEachGeomatry>
+        template <typename ForEachGeometry>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                      ForEachGeomatry&&               for_every_geometry);
+                      ForEachGeometry&&               for_every_geometry);
 
       private:
         Impl* m_impl  = nullptr;

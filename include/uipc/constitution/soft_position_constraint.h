@@ -16,6 +16,7 @@ class UIPC_CONSTITUTION_API SoftPositionConstraint final : public Constraint
      * 
      * @param sc The simplicial complex to apply the constraint to.
      * @param strength_rate The strength of the constraint will be `strength_rate * vertex_mass`.
+     * @param is_kinematic If the vertices' kinetic energy is not considered.
      */
     void apply_to(geometry::SimplicialComplex& sc, Float strength_rate = 100.0) const;
 

@@ -30,6 +30,7 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
     auto& body_id_to_body_hessian   = abd().body_id_to_body_hessian;
     auto& body_id_to_body_gradient  = abd().body_id_to_body_gradient;
     auto& body_id_to_is_fixed       = abd().body_id_to_is_fixed;
+    auto& body_id_to_is_kinematic   = abd().body_id_to_is_kinematic;
     auto& body_id_to_q              = abd().body_id_to_q;
     auto& body_id_to_q_tilde        = abd().body_id_to_q_tilde;
     auto& body_id_to_abd_mass       = abd().body_id_to_abd_mass;
@@ -65,9 +66,10 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
 
     // 2) add kinetic energy gradient and hessian
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(abd().abd_body_count,
                [is_fixed = body_id_to_is_fixed.cviewer().name("is_fixed"),
+                is_kinematic = body_id_to_is_kinematic.cviewer().name("is_kinematic"),
                 qs       = body_id_to_q.cviewer().name("qs"),
                 q_tildes = body_id_to_q_tilde.cviewer().name("q_tildes"),
                 masses   = body_id_to_abd_mass.cviewer().name("masses"),
@@ -86,12 +88,17 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
                    // cout << "q(" << i << ")=" << q.transpose().eval() << "\n";
                    // cout << "q_tilde(" << i << ")=" << q_tilde.transpose().eval() << "\n";
 
-                   if(is_fixed(i))
+                   if(is_kinematic(i)) [[unlikely]]
+                   {
+                       H = Matrix12x12::Zero();
+                       G = Vector12::Zero();
+                   }
+                   else if(is_fixed(i)) [[unlikely]]
                    {
                        H = M.to_mat();
                        G = Vector12::Zero();
                    }
-                   else
+                   else [[likely]]
                    {
                        const auto& K = Ks(i);
                        G += M * (q - q_tilde);

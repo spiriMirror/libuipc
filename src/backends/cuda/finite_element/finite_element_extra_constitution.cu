@@ -67,47 +67,33 @@ void FiniteElementExtraConstitution::compute_gradient_hessian(FiniteElementMetho
 
 void FiniteElementExtraConstitution::Impl::init(U64 uid, backend::WorldVisitor& world)
 {
+    using ForEachInfo = FiniteElementMethod::ForEachInfo;
+
     // 1) Find the geometry slots that have the extra constitution uids containing the given uid
     auto& fem_geo_infos = finite_element_method->m_impl.geo_infos;
     auto  geo_slots     = world.scene().geometries();
 
     list<SizeT> geo_slot_indices;
 
-    SizeT I = 0;
-
     finite_element_method->for_each(
         geo_slots,
-        [&](geometry::SimplicialComplex& sc)
+        [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
         {
+            auto geoI = I.global_index();
             auto uids = sc.meta().find<VectorXu64>(builtin::extra_constitution_uids);
-
             if(uids)
             {
-                return uids->view();
-            }
-            else
-            {
-                ++I;  // skip this geometry slot
-                return span<const VectorXu64>{};
-            }
-
-            return uids ? uids->view() : span<const VectorXu64>{};
-        },
-        [&](SizeT local_i, const VectorXu64& extra_uids)
-        {
-            UIPC_ASSERT(local_i == 0, "meta data is dim 1, why is local_i not 0?");
-
-            for(auto extra_uid : extra_uids)
-            {
-                if(extra_uid == uid)
+                auto extra_uids = uids->view().front();
+                for(auto extra_uid : extra_uids)
                 {
-                    geo_slot_indices.push_back(I);
-                    // spdlog::info("Extra constitution {} found in geometry slot {}", uid, I);
-                    break;
+                    if(extra_uid == uid)
+                    {
+                        geo_slot_indices.push_back(geoI);
+                        // spdlog::info("Extra constitution {} found in geometry slot {}", uid, I);
+                        break;
+                    }
                 }
             }
-
-            ++I;
         });
 
     geo_infos.resize(geo_slot_indices.size());

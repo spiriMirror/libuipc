@@ -38,8 +38,7 @@ TEST_CASE("23_kirchhoff_rod_bending", "[fem]")
         // create constitution and contact model
         HookeanSpring       hs;
         KirchhoffRodBending krb;
-        scene.constitution_tabular().insert(hs);
-        scene.constitution_tabular().insert(krb);
+
         auto& default_contact = scene.contact_tabular().default_element();
 
         // create object

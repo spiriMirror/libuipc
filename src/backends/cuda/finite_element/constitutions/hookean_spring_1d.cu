@@ -13,7 +13,7 @@ class HookeanSpring1D final : public Codim1DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64 ConstitutionUID = 12;
+    static constexpr U64 ConstitutionUID = 12ull;
 
     using Codim1DConstitution::Codim1DConstitution;
 
@@ -29,14 +29,13 @@ class HookeanSpring1D final : public Codim1DConstitution
 
     virtual void do_retrieve(FiniteElementMethod::Codim1DFilteredInfo& info) override
     {
+        using ForEachInfo = FiniteElementMethod::ForEachInfo;
 
         auto geo_slots = world().scene().geometries();
 
         auto N = info.primitive_count();
 
         h_kappas.resize(N);
-
-        SizeT I = 0;
 
         info.for_each(
             geo_slots,
@@ -45,10 +44,11 @@ class HookeanSpring1D final : public Codim1DConstitution
                 auto kappa = sc.edges().find<Float>("kappa");
                 return kappa->view();
             },
-            [&](SizeT vi, Float kappa)
+            [&](const ForEachInfo& I, Float kappa)
             {
+                auto vI = I.global_index();
                 // retrieve material parameters
-                h_kappas[I++] = kappa;
+                h_kappas[vI] = kappa;
             });
 
         kappas.resize(N);
@@ -61,7 +61,7 @@ class HookeanSpring1D final : public Codim1DConstitution
         namespace NS = sym::hookean_spring_1d;
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
                    [kappas = kappas.cviewer().name("kappas"),
                     rest_lengths = info.rest_lengths().viewer().name("rest_lengths"),
@@ -99,7 +99,7 @@ class HookeanSpring1D final : public Codim1DConstitution
         namespace NS = sym::hookean_spring_1d;
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
                    [G6s    = info.gradient().viewer().name("G6s"),
                     H6x6s  = info.hessian().viewer().name("H6x6s"),

@@ -31,23 +31,24 @@ class ARAP3D final : public FEM3DConstitution
     virtual void do_retrieve(FiniteElementMethod::FEM3DFilteredInfo& info) override
     {
 
+        using ForEachInfo = FiniteElementMethod::ForEachInfo;
+
         auto geo_slots = world().scene().geometries();
 
         auto N = info.primitive_count();
 
         h_kappas.resize(N);
 
-        SizeT I = 0;
-
         info.for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc) -> auto
             {
                 auto kappa = sc.tetrahedra().find<Float>("kappa");
-
+                UIPC_ASSERT(kappa, "Can't find attribute `kappa` on tetrahedra, why can it happen?");
                 return kappa->view();
             },
-            [&](SizeT vi, Float kappa) { h_kappas[I++] = kappa; });
+            [&](const ForEachInfo& I, Float kappa)
+            { h_kappas[I.global_index()] = kappa; });
 
         kappas.resize(N);
         kappas.view().copy_from(h_kappas.data());

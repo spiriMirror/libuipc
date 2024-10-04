@@ -31,14 +31,13 @@ void SoftPositionConstraint::apply_to(geometry::SimplicialComplex& sc, Float str
     auto constraint_strength = sc.vertices().find<Float>(strength_ratio);
     if(!constraint_strength)
         constraint_strength = sc.vertices().create<Float>(strength_ratio, strength_rate);
-
-    auto strength_view = geometry::view(*constraint_strength);
-    std::ranges::fill(strength_view, strength_rate);
+    else
+        UIPC_WARN_WITH_LOCATION("Attribute `strength_ratio` on vertices already exists, which may cause ambiguity.");
 
     auto is_constrained = sc.vertices().find<IndexT>(builtin::is_constrained);
-
     if(!is_constrained)
         is_constrained = sc.vertices().create<IndexT>(builtin::is_constrained, 0);
+    // NOTE: Don't fill is_constrained, if it exists, it may be filled by other constraints.
 }
 
 Json SoftPositionConstraint::default_config()

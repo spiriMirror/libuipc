@@ -66,6 +66,18 @@ class FiniteElementMethod : public SimSystem
         SizeT primitive_count  = 0ull;
     };
 
+    class ForEachInfo
+    {
+      public:
+        SizeT global_index() const noexcept { return m_global_index; }
+        SizeT local_index() const noexcept { return m_local_index; }
+
+      private:
+        friend class FiniteElementMethod;
+        SizeT m_global_index = 0;
+        SizeT m_local_index  = 0;
+    };
+
     template <int N>
     class FilteredInfo
     {
@@ -88,21 +100,17 @@ class FiniteElementMethod : public SimSystem
          * @brief For each primitive or vertex in the filtered info
          * 
          * @code
-         *  
          *  vector<Float> lambdas(info.vertex_count());
-         * 
-         *  SizeT I = 0;
          *  
          *  info.for_each(geo_slots, 
          *  [](SimplicialComplex& sc) 
          *  {
          *      return sc.vertices().find<Float>("lambda").view();
          *  },
-         *  [&](SizeT i, Float lambda) // i is the local vertex index
+         *  [&](const ForEachInfo& I, Float lambda)
          *  {
-         *      lambdas[I++] = lambda;
+         *      lambdas[I.global_index()] = lambda;
          *  });
-         * 
          * @endcode
          */
         template <typename ForEach, typename ViewGetter>
@@ -233,6 +241,7 @@ class FiniteElementMethod : public SimSystem
         vector<IndexT> h_vertex_contact_element_ids;
 
         vector<IndexT>  h_vertex_is_fixed;
+        vector<IndexT>  h_vertex_is_kinematic;
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
         vector<Float>   h_thicknesses;
@@ -260,7 +269,8 @@ class FiniteElementMethod : public SimSystem
 
         // Vertex Attributes:
 
-        muda::DeviceBuffer<IndexT> is_fixed;  // Vertex Fixed
+        muda::DeviceBuffer<IndexT> is_fixed;      // Vertex IsFixed
+        muda::DeviceBuffer<IndexT> is_kinematic;  // Vertex IsKinematic
 
         muda::DeviceBuffer<Vector3> x_bars;    // Rest Positions
         muda::DeviceBuffer<Vector3> xs;        // Positions
@@ -347,7 +357,6 @@ class FiniteElementMethod : public SimSystem
      * @brief For each primitive
      * 
      * @code
-     *  
      *  vector<Float> lambdas(info.vertex_count());
      *  
      *  for_each(geo_slots, 
@@ -355,11 +364,11 @@ class FiniteElementMethod : public SimSystem
      *  {
      *      return sc.vertices().find<Float>("lambda").view();
      *  },
-     *  [&](SizeT I, Float lambda)
+     *  [&](const ForEachInfo& I, Float lambda)
      *  {
-     *      lambdas[I] = lambda;
+     *      auto vI = I.globl_index();
+     *      lambdas[vI] = lambda;
      *  });
-     * 
      * @endcode
      */
     template <typename ForEach, typename ViewGetter>
@@ -370,12 +379,14 @@ class FiniteElementMethod : public SimSystem
     /**
      * @brief For each geometry
      *  
-     * for_each(geo_slots,
-     * [](SimplicialComplex& sc)
-     * {
-     * 
-     * });
-     * 
+     * @code
+     *  for_each(geo_slots,
+     *  [](const ForEachInfo& I,SimplicialComplex& sc)
+     *  {
+     *      auto geoI = I.global_index();
+     *      ...
+     *  });
+     * @endcode
      */
     template <typename ForEachGeometry>
     void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_each) noexcept;

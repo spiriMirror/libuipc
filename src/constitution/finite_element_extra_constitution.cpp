@@ -8,9 +8,7 @@ void FiniteElementExtraConstitution::apply_to(geometry::SimplicialComplex& sc) c
 {
     auto uids = sc.meta().find<VectorXu64>(builtin::extra_constitution_uids);
     if(!uids)
-    {
         uids = sc.meta().create<VectorXu64>(builtin::extra_constitution_uids);
-    }
 
     // add uid
     auto&    vs = geometry::view(*uids).front();
