@@ -2,6 +2,7 @@
 #include <affine_body/utils.h>
 #include <uipc/builtin/attribute_name.h>
 #include <kernel_cout.h>
+#include <animator/utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -108,8 +109,10 @@ class SoftTransformConstraint final : public AffineBodyConstraint
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(constrained_bodies.size(),
-                   [indices = constrained_bodies.viewer().name("indices"),
-                    qs      = info.qs().viewer().name("qs"),
+                   [substep_ratio = info.substep_ratio(),
+                    indices       = constrained_bodies.viewer().name("indices"),
+                    qs            = info.qs().viewer().name("qs"),
+                    q_prevs       = info.q_prevs().viewer().name("q_prevs"),
                     aim_transforms = aim_transforms.viewer().name("aim_transforms"),
                     strength_ratios = strength_ratios.viewer().name("strength_ratios"),
                     body_masses = info.body_masses().viewer().name("body_masses"),
@@ -125,10 +128,11 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                        }
                        else
                        {
-                           Vector12 q     = qs(i);
-                           Vector12 q_aim = aim_transforms(I);
-                           Vector12 dq    = q - q_aim;
-                           Vector2  s     = strength_ratios(I);
+                           Vector12 q      = qs(i);
+                           Vector12 q_prev = q_prevs(i);
+                           Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
+                           Vector12 dq = q - q_aim;
+                           Vector2  s  = strength_ratios(I);
 
                            Float translation_strength = s(0);
                            Float rotation_strength    = s(1);
@@ -150,8 +154,10 @@ class SoftTransformConstraint final : public AffineBodyConstraint
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(constrained_bodies.size(),
-                   [indices = constrained_bodies.viewer().name("indices"),
-                    qs      = info.qs().viewer().name("qs"),
+                   [substep_ratio = info.substep_ratio(),
+                    indices       = constrained_bodies.viewer().name("indices"),
+                    qs            = info.qs().viewer().name("qs"),
+                    q_prevs       = info.q_prevs().viewer().name("q_prevs"),
                     aim_transforms = aim_transforms.viewer().name("aim_transforms"),
                     strength_ratios = strength_ratios.viewer().name("strength_ratios"),
                     body_masses = info.body_masses().viewer().name("body_masses"),
@@ -171,10 +177,11 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                        }
                        else
                        {
-                           Vector12 q     = qs(i);
-                           Vector12 q_aim = aim_transforms(I);
-                           Vector12 dq    = q - q_aim;
-                           Vector2  s     = strength_ratios(I);
+                           Vector12 q      = qs(i);
+                           Vector12 q_prev = q_prevs(i);
+                           Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
+                           Vector12 dq = q - q_aim;
+                           Vector2  s  = strength_ratios(I);
 
                            Float translation_strength = s(0);
                            Float rotation_strength    = s(1);

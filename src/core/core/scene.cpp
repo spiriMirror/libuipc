@@ -11,23 +11,36 @@ Json Scene::default_config() noexcept
     config["dt"]      = 0.01;
     config["gravity"] = Vector3{0.0, -9.8, 0.0};
 
+
     config["cfl"]["enable"] = false;
 
-    config["newton"]["use_adaptive_tol"] = false;
-    config["newton"]["velocity_tol"]     = 0.05_m / 1.0_s;
-    config["newton"]["max_iter"]         = 1024;
+    auto& newton = config["newton"];
+    {
+        newton["use_adaptive_tol"] = false;
+        newton["velocity_tol"]     = 0.05_m / 1.0_s;
+        newton["max_iter"]         = 1024;
+    }
 
-    config["linear_system"]["tol_rate"] = 1e-3;
-    config["linear_system"]["solver"]   = "linear_pcg";
+    auto& linear_system = config["linear_system"];
+    {
+        linear_system["tol_rate"] = 1e-3;
+        linear_system["solver"]   = "linear_pcg";
+    }
 
-    config["line_search"]["report_energy"] = false;
-    config["line_search"]["max_iter"]      = 8;
+    auto& line_search = config["line_search"];
+    {
+        line_search["max_iter"]      = 8;
+        line_search["report_energy"] = false;
+    }
 
-    config["contact"]["enable"]             = true;
-    config["contact"]["friction"]["enable"] = true;
-    config["contact"]["contitution"]        = "ipc";
-    config["contact"]["d_hat"]              = 0.01;
-    config["contact"]["eps_velocity"]       = 0.01;
+    auto& contact = config["contact"];
+    {
+        contact["enable"]             = true;
+        contact["friction"]["enable"] = true;
+        contact["contitution"]        = "ipc";
+        contact["d_hat"]              = 0.01;
+        contact["eps_velocity"]       = 0.01;
+    }
 
     config["sanity_check"]["enable"] = true;
 
@@ -35,6 +48,7 @@ Json Scene::default_config() noexcept
 
     // something that is unofficial
     config["extras"] = Json::object();
+
     return config;
 }
 

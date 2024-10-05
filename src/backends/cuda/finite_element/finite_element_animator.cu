@@ -11,8 +11,7 @@ REGISTER_SIM_SYSTEM(FiniteElementAnimator);
 void FiniteElementAnimator::do_build(BuildInfo& info)
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
-
-    m_impl.dt = world().scene().info()["dt"].get<Float>();
+    m_impl.global_animator       = &require<GlobalAnimator>();
 }
 
 void FiniteElementAnimator::add_constraint(FiniteElementConstraint* constraint)
@@ -283,9 +282,19 @@ span<const IndexT> FiniteElementAnimator::FilteredInfo::anim_indices() const
     return span{m_impl->anim_indices}.subspan(offset, count);
 }
 
+Float FiniteElementAnimator::BaseInfo::substep_ratio() const noexcept
+{
+    return m_impl->global_animator->substep_ratio();
+}
+
 muda::CBufferView<Vector3> FiniteElementAnimator::BaseInfo::xs() const noexcept
 {
     return m_impl->finite_element_method->xs();
+}
+
+muda::CBufferView<Vector3> FiniteElementAnimator::BaseInfo::x_prevs() const noexcept
+{
+    return m_impl->finite_element_method->x_prevs();
 }
 
 muda::CBufferView<Float> FiniteElementAnimator::BaseInfo::masses() const noexcept

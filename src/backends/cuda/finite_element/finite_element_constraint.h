@@ -1,6 +1,8 @@
 #pragma once
 #include <sim_system.h>
 #include <finite_element/finite_element_animator.h>
+#include <animator/utils.h>
+
 namespace uipc::backend::cuda
 {
 class FiniteElementConstraint : public SimSystem

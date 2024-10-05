@@ -52,9 +52,10 @@ class FiniteElementAnimator final : public Animator
             , m_dt(dt)
         {
         }
-
+        Float                      substep_ratio() const noexcept;
         Float                      dt() const noexcept;
         muda::CBufferView<Vector3> xs() const noexcept;
+        muda::CBufferView<Vector3> x_prevs() const noexcept;
         muda::CBufferView<Float>   masses() const noexcept;
         muda::CBufferView<IndexT>  is_fixed() const noexcept;
 
@@ -99,9 +100,8 @@ class FiniteElementAnimator final : public Animator
         void init(backend::WorldVisitor& world);
         void step();
 
-        Float dt;
-
         FiniteElementMethod* finite_element_method = nullptr;
+        GlobalAnimator*      global_animator       = nullptr;
         SimSystemSlotCollection<FiniteElementConstraint> constraints;
         unordered_map<U64, SizeT> uid_to_constraint_index;
 
@@ -155,7 +155,7 @@ class FiniteElementAnimator final : public Animator
       private:
         friend class FiniteElementAnimator;
         muda::CDoubletVectorView<Float, 3> m_gradients;
-        muda::CTripletMatrixView<Float, 3>  m_hessians;
+        muda::CTripletMatrixView<Float, 3> m_hessians;
     };
     void assemble(AssembleInfo& info);  // only be called by FEMLinearSubsystem
 

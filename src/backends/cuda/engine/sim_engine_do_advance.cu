@@ -118,6 +118,26 @@ void SimEngine::do_advance()
             m_global_animator->step();
     };
 
+    auto compute_animation_substep_ratio = [this](SizeT newton_iter)
+    {
+        // compute the ratio to the aim position.
+        // dst = prev_position + ratio * (position - prev_position)
+        if(m_global_animator)
+        {
+            m_global_animator->compute_substep_ratio(newton_iter);
+            spdlog::info("Animation Substep Ratio: {}", m_global_animator->substep_ratio());
+        }
+    };
+
+    auto animation_reach_target = [this]()
+    {
+        if(m_global_animator)
+        {
+            return m_global_animator->substep_ratio() >= 1.0;
+        }
+        return true;
+    };
+
     /***************************************************************************************
     *                                  Core Pipeline
     ***************************************************************************************/
@@ -175,26 +195,29 @@ void SimEngine::do_advance()
             for(auto&& newton_iter : range(m_newton_max_iter))
             {
                 Timer timer{"Newton Iteration"};
-                // 1) Build Collision Pairs
+
+                // 1) Compute animation substep ratio
+                compute_animation_substep_ratio(newton_iter);
+
+                // 2) Build Collision Pairs
                 if(newton_iter > 0)
                     detect_dcd_candidates();
 
-                // 2) Compute Contact Gradient and Hessian => G:Vector3, H:Matrix3x3
+                // 3) Compute Contact Gradient and Hessian => G:Vector3, H:Matrix3x3
                 m_state = SimEngineState::ComputeContact;
                 {
                     Timer timer{"Compute Contact"};
                     compute_contact();
                 }
 
-
-                // 3) Compute System Gradient and Hessian
+                // 4) Compute System Gradient and Hessian
                 m_state = SimEngineState::ComputeGradientHessian;
                 {
                     Timer timer{"Compute Gradient Hessian"};
                     m_gradient_hessian_computer->compute_gradient_hessian();
                 }
 
-                // 4) Solve Global Linear System => dx = A^-1 * b
+                // 5) Solve Global Linear System => dx = A^-1 * b
                 m_state = SimEngineState::SolveGlobalLinearSystem;
                 {
                     Timer timer{"Solve Global Linear System"};
@@ -202,29 +225,35 @@ void SimEngine::do_advance()
                 }
 
 
-                // 5) Get Max Movement => dx_max = max(|dx|), if dx_max < tol, break
+                // 6) Get Max Movement => dx_max = max(|dx|), if dx_max < tol, break
                 m_global_vertex_manager->collect_vertex_displacements();
                 Float res = m_global_vertex_manager->compute_axis_max_displacement();
 
-                if(newton_iter == 0)
-                    res0 = res;
-
-                Float rel_tol = res == 0.0 ? 0.0 : res / res0;
-
-                spdlog::info(">> Frame {} Newton Iteration {} => Residual/AbsTol/RelTol: {}/{}/{}",
-                             m_current_frame,
-                             newton_iter,
-                             res,
-                             m_abs_tol,
-                             rel_tol);
-
-                // 6) Check Termination Condition
+                // 7) Check Termination Condition
                 // TODO: Maybe we can implement a class for termination condition in the future
-                bool converged = res <= m_abs_tol || rel_tol <= 0.001;
-                if(newton_iter > 0 && converged)
-                    break;
+                bool converged = false;
+                {
+                    if(newton_iter == 0)
+                        res0 = res;  // record the initial residual
 
-                // 7) Begin Line Search
+                    Float rel_tol = res == 0.0 ? 0.0 : res / res0;
+
+                    spdlog::info(">> Frame {} Newton Iteration {} => Residual/AbsTol/RelTol: {}/{}/{}",
+                                 m_current_frame,
+                                 newton_iter,
+                                 res,
+                                 m_abs_tol,
+                                 rel_tol);
+
+
+                    converged = res <= m_abs_tol || rel_tol <= 0.001;
+
+                    if(newton_iter > 0 && converged && animation_reach_target())
+                        break;
+                }
+
+
+                // 8) Begin Line Search
                 m_state = SimEngineState::LineSearch;
                 {
                     Timer timer{"Line Search"};

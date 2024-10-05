@@ -26,8 +26,11 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(GlobalAnimator);
 
-void GlobalAnimator::do_build()
+void GlobalAnimator::do_build() {}
+
+Float GlobalAnimator::substep_ratio() noexcept
 {
+    return m_substep_ratio;
 }
 
 void GlobalAnimator::init()
@@ -47,11 +50,23 @@ void GlobalAnimator::step()
     // update frontend animator
     world().animator().update();
 
+    // after frontend update, reset substep ratio
+    // prepare for the next newton iteration
+    m_substep_ratio = 0.0;
+
     // update backend animator
     for(auto&& animator : m_animators.view())
     {
         animator->step();
     }
+}
+
+void GlobalAnimator::compute_substep_ratio(SizeT newton_iter)
+{
+    SizeT substep = world().animator().substep();
+    Float t       = Float{newton_iter + 1} / substep;
+    UIPC_ASSERT(substep > 0, "substep must be greater than 0");
+    m_substep_ratio = std::min(t, 1.0);  // clamp t to [0, 1]
 }
 
 void GlobalAnimator::register_animator(Animator* animator)

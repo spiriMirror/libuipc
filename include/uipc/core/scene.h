@@ -20,6 +20,10 @@ class UIPC_CORE_API Scene
     friend class Object;
 
   public:
+    Scene(const Json& config = default_config());
+
+    static Json default_config() noexcept;
+
     class UIPC_CORE_API Objects
     {
         friend class Scene;
@@ -71,10 +75,6 @@ class UIPC_CORE_API Scene
         CGeometries(const Scene& scene) noexcept;
         const Scene& m_scene;
     };
-
-    Scene(const Json& config = default_config());
-
-    static Json default_config() noexcept;
 
     ContactTabular&       contact_tabular() noexcept;
     const ContactTabular& contact_tabular() const noexcept;

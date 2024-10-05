@@ -60,8 +60,10 @@ class AffineBodyAnimator final : public Animator
         {
         }
 
+        Float                                  substep_ratio() const noexcept;
         Float                                  dt() const noexcept;
         muda::CBufferView<Vector12>            qs() const noexcept;
+        muda::CBufferView<Vector12>            q_prevs() const noexcept;
         muda::CBufferView<ABDJacobiDyadicMass> body_masses() const noexcept;
         muda::CBufferView<IndexT>              is_fixed() const noexcept;
 
@@ -107,6 +109,7 @@ class AffineBodyAnimator final : public Animator
         void step();
 
         AffineBodyDynamics* affine_body_dynamics = nullptr;
+        GlobalAnimator*     global_animator      = nullptr;
         SimSystemSlotCollection<AffineBodyConstraint> constraints;
         unordered_map<U64, SizeT>                     uid_to_constraint_index;
 

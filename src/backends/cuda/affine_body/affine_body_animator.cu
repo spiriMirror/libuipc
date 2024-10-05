@@ -10,6 +10,7 @@ REGISTER_SIM_SYSTEM(AffineBodyAnimator);
 void AffineBodyAnimator::do_build(BuildInfo& info)
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
+    m_impl.global_animator      = &require<GlobalAnimator>();
 }
 
 void AffineBodyAnimator::add_constraint(AffineBodyConstraint* constraint)
@@ -274,9 +275,19 @@ span<const IndexT> AffineBodyAnimator::FilteredInfo::anim_body_indices() const n
     return span{m_impl->anim_body_indices}.subspan(offset, count);
 }
 
+Float AffineBodyAnimator::BaseInfo::substep_ratio() const noexcept
+{
+    return m_impl->global_animator->substep_ratio();
+}
+
 muda::CBufferView<Vector12> AffineBodyAnimator::BaseInfo::qs() const noexcept
 {
     return m_impl->affine_body_dynamics->m_impl.body_id_to_q.view();
+}
+
+muda::CBufferView<Vector12> AffineBodyAnimator::BaseInfo::q_prevs() const noexcept
+{
+    return m_impl->affine_body_dynamics->m_impl.body_id_to_q_prev.view();
 }
 
 muda::CBufferView<ABDJacobiDyadicMass> AffineBodyAnimator::BaseInfo::body_masses() const noexcept

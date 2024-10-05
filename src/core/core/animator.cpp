@@ -2,6 +2,17 @@
 #include <uipc/common/log.h>
 namespace uipc::core
 {
+void Animator::substep(SizeT n) noexcept
+{
+    UIPC_ASSERT(n > 0, "Animator: Substep must be greater than 0, yours' {}", n);
+    m_substep = n;
+}
+
+SizeT Animator::substep() const noexcept
+{
+    return m_substep;
+}
+
 void Animator::insert(Object& obj, Animation::ActionOnUpdate&& on_update)
 {
     if constexpr(uipc::RUNTIME_CHECK)

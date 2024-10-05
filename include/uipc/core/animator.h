@@ -15,6 +15,9 @@ class Scene;
 class UIPC_CORE_API Animator
 {
   public:
+    void  substep(SizeT n) noexcept;
+    SizeT substep() const noexcept;
+
     void insert(Object& obj, Animation::ActionOnUpdate&& on_update);
     void erase(IndexT id);
 
@@ -32,5 +35,6 @@ class UIPC_CORE_API Animator
 
     unordered_map<IndexT, Animation> m_animations;
     Scene&                           m_scene;
+    SizeT                            m_substep = 1;
 };
 }  // namespace uipc::core

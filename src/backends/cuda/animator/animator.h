@@ -23,6 +23,7 @@ class Animator : public SimSystem
     GlobalAnimator* m_global_animator = nullptr;
 
   protected:
+    Float        substep_ratio() const noexcept;
     virtual void do_init()                 = 0;
     virtual void do_step()                 = 0;
     virtual void do_build(BuildInfo& info) = 0;

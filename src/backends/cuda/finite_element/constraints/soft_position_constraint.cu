@@ -103,8 +103,10 @@ class SoftPositionConstraint final : public FiniteElementConstraint
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(constrained_vertices.size(),
-                   [indices = constrained_vertices.viewer().name("indices"),
+                   [substep_ratio = info.substep_ratio(),
+                    indices = constrained_vertices.viewer().name("indices"),
                     xs      = info.xs().viewer().name("xs"),
+                    x_prevs = info.x_prevs().viewer().name("x_prevs"),
                     aim_positions = aim_positions.viewer().name("aim_positions"),
                     strength_ratio = strength_ratios.viewer().name("strength_ratio"),
                     masses   = info.masses().viewer().name("masses"),
@@ -120,10 +122,12 @@ class SoftPositionConstraint final : public FiniteElementConstraint
                        }
                        else
                        {
-                           auto    x  = xs(i);
-                           auto    m  = masses(i);
-                           auto    s  = strength_ratio(I);
-                           Vector3 dx = x - aim_positions(I);
+                           Vector3 x      = xs(i);
+                           Vector3 x_prev = x_prevs(i);
+                           Vector3 aim_x = lerp(x_prev, aim_positions(I), substep_ratio);
+                           Float   m  = masses(i);
+                           Float   s  = strength_ratio(I);
+                           Vector3 dx = x - aim_x;
 
                            E = 0.5 * s * m * dx.dot(dx);
                        }
@@ -137,8 +141,10 @@ class SoftPositionConstraint final : public FiniteElementConstraint
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(constrained_vertices.size(),
-                   [indices = constrained_vertices.viewer().name("indices"),
+                   [substep_ratio = info.substep_ratio(),
+                    indices = constrained_vertices.viewer().name("indices"),
                     xs      = info.xs().viewer().name("xs"),
+                    x_prevs = info.x_prevs().viewer().name("x_prevs"),
                     aim_positions = aim_positions.viewer().name("aim_positions"),
                     strength_ratio = strength_ratios.viewer().name("strength_ratio"),
                     masses     = info.masses().viewer().name("masses"),
@@ -156,10 +162,12 @@ class SoftPositionConstraint final : public FiniteElementConstraint
                        }
                        else
                        {
-                           auto    x  = xs(i);
-                           auto    m  = masses(i);
-                           auto    s  = strength_ratio(I);
-                           Vector3 dx = x - aim_positions(I);
+                           Vector3 x      = xs(i);
+                           Vector3 x_prev = x_prevs(i);
+                           Vector3 aim_x = lerp(x_prev, aim_positions(I), substep_ratio);
+                           Float   m  = masses(i);
+                           Float   s  = strength_ratio(I);
+                           Vector3 dx = x - aim_x;
 
                            G = s * m * dx;
                            H = s * m * Matrix3x3::Identity();
