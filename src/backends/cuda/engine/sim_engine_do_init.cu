@@ -1,6 +1,5 @@
 #include <sim_engine.h>
 #include <uipc/common/log.h>
-#include <log_pattern_guard.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <contact_system/global_contact_manager.h>
@@ -37,7 +36,7 @@ void SimEngine::build()
 
 void SimEngine::init_scene()
 {
-    auto& info            = m_world_visitor->scene().info();
+    auto& info            = world().scene().info();
     m_newton_velocity_tol = info["newton"]["velocity_tol"];
     m_newton_max_iter     = info["newton"]["max_iter"];
     m_friction_enabled    = info["contact"]["friction"]["enable"];
@@ -62,13 +61,10 @@ void SimEngine::init_scene()
         m_global_animator->init();
 }
 
-void SimEngine::do_init(backend::WorldVisitor v)
+void SimEngine::do_init(InitInfo& info)
 {
-    LogGuard guard;
     try
     {
-        m_world_visitor = make_unique<backend::WorldVisitor>(v);
-
         // 1. Build all the systems and their dependencies
         m_state = SimEngineState::BuildSystems;
         build();
@@ -78,8 +74,7 @@ void SimEngine::do_init(backend::WorldVisitor v)
         init_scene();
 
         // 3. Any creation and deletion of objects after this point will be pending
-        auto scene_visitor = m_world_visitor->scene();
-        scene_visitor.begin_pending();
+        world().scene().begin_pending();
     }
     catch(const SimEngineException& e)
     {

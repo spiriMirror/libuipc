@@ -1,27 +1,13 @@
 import pytest 
-import numpy as np
-import math 
-import os 
-import pathlib
-import polyscope as ps
-import polyscope.imgui as psim
-from pyuipc_loader import pyuipc as uipc
-from pyuipc_loader import \
-    Engine, World, Scene, SceneIO \
-    ,Object, ContactElement, Animation
-
+from pyuipc_loader import pyuipc
+from pyuipc import Logger
+from pyuipc import Engine, World, Scene, SceneIO
+from pyuipc import Matrix4x4
+from pyuipc.geometry import SimplicialComplex, SimplicialComplexIO
+from pyuipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
+from pyuipc.geometry import ground, view
+from pyuipc.constitution import StableNeoHookean, ElasticModuli
 from asset import AssetDir
-
-from pyuipc_utils.geometry import \
-    SimplicialComplex, SimplicialComplexIO \
-    ,SimplicialComplexSlot \
-    ,SpreadSheetIO \
-    ,label_surface, label_triangle_orient, flip_inward_triangles\
-    ,ground, view, linemesh
-
-from pyuipc_utils.constitution import \
-    StableNeoHookean, AffineBodyConstitution, ElasticModuli, \
-    SoftPositionConstraint, HookeanSpring
 
 from pyuipc_utils.gui import SceneGUI
 
@@ -33,7 +19,7 @@ def process_surface(sc: SimplicialComplex):
 
 @pytest.mark.example
 def test_fem_link():
-    uipc.Logger.set_level(uipc.Logger.Level.Info)
+    Logger.set_level(Logger.Level.Info)
 
     workspace = AssetDir.output_path(__file__)
 
@@ -51,7 +37,7 @@ def test_fem_link():
     scene.contact_tabular().default_model(0.5, 1e9)
     default_element = scene.contact_tabular().default_element()
 
-    pre_trans = uipc.Matrix4x4.Identity()
+    pre_trans = Matrix4x4.Identity()
 
     # scaling
     pre_trans[0,0] = 0.2

@@ -2,20 +2,16 @@ import pytest
 import numpy as np
 import polyscope as ps
 import polyscope.imgui as psim
-from pyuipc_loader import pyuipc as uipc
-from pyuipc_loader import Engine, World, Scene, SceneIO
-
+from pyuipc_loader import pyuipc 
+from pyuipc import Logger
+from pyuipc import Matrix4x4
+from pyuipc import Engine, World, Scene, SceneIO
+from pyuipc.geometry import SimplicialComplex, SimplicialComplexIO
+from pyuipc.geometry import SpreadSheetIO
+from pyuipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
+from pyuipc.geometry import ground, view
+from pyuipc.constitution import AffineBodyConstitution
 from asset import AssetDir
-
-from pyuipc_utils.geometry import \
-    SimplicialComplex, SimplicialComplexIO \
-    ,SpreadSheetIO \
-    ,label_surface, label_triangle_orient, flip_inward_triangles \
-    ,ground, view
-
-from pyuipc_utils.constitution import \
-    StableNeoHookean, AffineBodyConstitution, ElasticModuli, \
-    SoftPositionConstraint
 
 def process_surface(sc: SimplicialComplex):
     label_surface(sc)
@@ -27,7 +23,7 @@ run = False
 
 @pytest.mark.example
 def test_affine_body():
-    uipc.Logger.set_level(uipc.Logger.Level.Info)
+    Logger.set_level(Logger.Level.Info)
     workspace = AssetDir.output_path(__file__)
     engine = Engine("cuda", workspace)
     world = World(engine)
@@ -40,7 +36,7 @@ def test_affine_body():
     scene.contact_tabular().default_model(0.5, 1e9)
     default_element = scene.contact_tabular().default_element()
 
-    pre_trans = uipc.Matrix4x4.Identity()
+    pre_trans = Matrix4x4.Identity()
 
     # scaling
     pre_trans[0,0] = 0.2
@@ -59,7 +55,7 @@ def test_affine_body():
     N = 30
 
 
-    trans = uipc.Matrix4x4.Identity()
+    trans = Matrix4x4.Identity()
 
     for i in range(N):
         trans[0:3, 3] = np.array([0, 0.24 * (i + 1), 0])

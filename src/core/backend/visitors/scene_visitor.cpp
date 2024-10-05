@@ -1,9 +1,9 @@
 #include <uipc/backend/visitors/scene_visitor.h>
-#include <uipc/world/scene.h>
+#include <uipc/core/scene.h>
 
 namespace uipc::backend
 {
-SceneVisitor::SceneVisitor(world::Scene& scene) noexcept
+SceneVisitor::SceneVisitor(core::Scene& scene) noexcept
     : m_scene(scene)
 {
 }
@@ -56,11 +56,11 @@ const Json& SceneVisitor::info() const noexcept
 {
     return m_scene.info();
 }
-const world::ConstitutionTabular& SceneVisitor::constitution_tabular() const noexcept
+const core::ConstitutionTabular& SceneVisitor::constitution_tabular() const noexcept
 {
     return m_scene.constitution_tabular();
 }
-const world::ContactTabular& SceneVisitor::contact_tabular() const noexcept
+const core::ContactTabular& SceneVisitor::contact_tabular() const noexcept
 {
     return m_scene.contact_tabular();
 }

@@ -23,8 +23,9 @@ class SimSystem : public ISimSystem
     template <std::derived_from<SimSystem> T>
     T& require();
 
-    virtual Json do_to_json() const override;
-    SimEngine&   engine() noexcept;
+    virtual Json     do_to_json() const override;
+    SimEngine&       engine() noexcept;
+    std::string_view workspace() const noexcept;
 
   private:
     SimEngine&          m_sim_engine;

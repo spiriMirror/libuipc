@@ -30,17 +30,19 @@ class SimEngine : public backend::SimEngine
     SimEngine(const SimEngine&)            = delete;
     SimEngine& operator=(const SimEngine&) = delete;
 
-    WorldVisitor&  world() noexcept;
     SimEngineState state() const noexcept;
 
   protected:
-    virtual void  do_init(backend::WorldVisitor v) override;
+    virtual void  do_init(InitInfo& info) override;
     virtual void  do_advance() override;
     virtual void  do_sync() override;
     virtual void  do_retrieve() override;
     virtual SizeT get_frame() const override;
-    virtual bool  do_dump() override;
-    virtual bool  do_recover() override;
+
+    virtual bool do_dump(DumpInfo&) override;
+    virtual bool do_try_recover(RecoverInfo&) override;
+    virtual void do_apply_recover(RecoverInfo&) override;
+    virtual void do_clear_recover(RecoverInfo&) override;
 
   private:
     void build();
@@ -50,7 +52,6 @@ class SimEngine : public backend::SimEngine
     DeviceImpl&       device_impl() noexcept;
     U<DeviceImpl>     m_device_impl;
     std::stringstream m_string_stream;
-    U<WorldVisitor>   m_world_visitor;
     SimEngineState    m_state = SimEngineState::None;
 
     // Events

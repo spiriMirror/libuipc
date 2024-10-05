@@ -22,7 +22,7 @@ target_compile_definitions(uipc_core PUBLIC
     $<$<CONFIG:RelWithDebInfo>:UIPC_RUNTIME_CHECK=1>)
 target_compile_definitions(uipc_core PUBLIC 
     $<$<CONFIG:Release>:UIPC_RUNTIME_CHECK=1>) # now just runtime check all the time
-target_compile_definitions(uipc_core PUBLIC UIPC_PROJECT_DIR="${PROJECT_SOURCE_DIR}")
+target_compile_definitions(uipc_core PUBLIC "-DUIPC_PROJECT_DIR=R\"(${PROJECT_SOURCE_DIR})\"")
 
 
 # ------------------------------------------------------------------------------
@@ -58,8 +58,8 @@ add_subdirectory(backend)
 add_subdirectory(geometry)
 add_subdirectory(constitution)
 add_subdirectory(builtin)
-add_subdirectory(world)
-add_subdirectory(engine)
+add_subdirectory(core)
+add_subdirectory(sanity_check)
 
 # ------------------------------------------------------------------------------
 # set the output directory

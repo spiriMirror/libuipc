@@ -1,7 +1,7 @@
 import pyuipc_loader
 from pyuipc_loader import pyuipc
 import polyscope as ps
-from pyuipc import Scene, SceneIO
+from pyuipc.core import Scene, SceneIO
 
 class SceneGUI:
     def __init__(self, scene:Scene):

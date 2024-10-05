@@ -1,9 +1,9 @@
 #pragma once
-#include <uipc/world/scene.h>
+#include <uipc/core/scene.h>
 #include <uipc/common/exception.h>
 #include <uipc/geometry/simplicial_complex.h>
 
-namespace uipc::world
+namespace uipc::core
 {
 class UIPC_IO_API SceneIO
 {
@@ -11,7 +11,7 @@ class UIPC_IO_API SceneIO
     SceneIO(Scene& scene);
 
     void write_surface(std::string_view filename);
-    
+
     geometry::SimplicialComplex simplicial_surface() const;
     geometry::SimplicialComplex simplicial_surface(IndexT dim) const;
 
@@ -25,4 +25,4 @@ class UIPC_IO_API SceneIOError : public Exception
   public:
     using Exception::Exception;
 };
-}  // namespace uipc::world
+}  // namespace uipc::core

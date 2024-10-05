@@ -3,13 +3,13 @@
 #include <pyuipc/geometry/attribute_collection.h>
 #include <pyuipc/geometry/geometry.h>
 #include <pyuipc/geometry/simplicial_complex.h>
-#include <pyuipc/geometry/utils/factory.h>
+#include <pyuipc/geometry/factory.h>
 #include <pyuipc/geometry/implicit_geometry.h>
 #include <pyuipc/geometry/geometry_slot.h>
 #include <pyuipc/geometry/simplicial_complex_slot.h>
 #include <pyuipc/geometry/implicit_geometry_slot.h>
-#include <pyuipc/geometry/utils/io.h>
-#include <pyuipc/geometry/utils/utils.h>
+#include <pyuipc/geometry/io.h>
+#include <pyuipc/geometry/utils.h>
 
 namespace pyuipc::geometry
 {

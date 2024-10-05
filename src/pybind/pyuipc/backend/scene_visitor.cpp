@@ -1,13 +1,13 @@
 #include <pyuipc/backend/scene_visitor.h>
 #include <uipc/backend/visitors/scene_visitor.h>
-#include <uipc/world/scene.h>
+#include <uipc/core/scene.h>
 #include <pyuipc/common/json.h>
 #include <pyuipc/as_numpy.h>
 #include <pyuipc/common/span.h>
 namespace pyuipc::backend
 {
 using namespace uipc::backend;
-using namespace uipc::world;
+using namespace uipc::core;
 PySceneVisitor::PySceneVisitor(py::module& m)
 {
     auto class_SceneVisitor = py::class_<SceneVisitor>(m, "SceneVisitor");

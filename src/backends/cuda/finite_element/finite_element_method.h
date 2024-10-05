@@ -6,6 +6,7 @@
 #include <global_geometry/global_vertex_manager.h>
 #include <muda/ext/linear_system/device_doublet_vector.h>
 #include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <backends/cuda/utils/dump_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -16,7 +17,7 @@ class Codim1DConstitution;
 class Codim0DConstitution;
 class FiniteElementExtraConstitution;
 
-class FiniteElementMethod : public SimSystem
+class FiniteElementMethod final : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
@@ -205,17 +206,24 @@ class FiniteElementMethod : public SimSystem
         void compute_velocity(DoFPredictor::ComputeVelocityInfo& info);
 
         void write_scene(WorldVisitor& world);
+        bool dump(DumpInfo& info);
+        bool try_recover(RecoverInfo& info);
+        void apply_recover(RecoverInfo& info);
+        void clear_recover(RecoverInfo& info);
 
-        // related sim simsytems:
+        // Related Sim Simsytems:
 
         GlobalVertexManager* global_vertex_manager = nullptr;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
         SimSystemSlotCollection<FiniteElementExtraConstitution> extra_constitutions;
 
-        // core invariant data
+
+        // Core Invariant Data
+
         vector<GeoInfo> geo_infos;
 
-        // related data:
+
+        // Related Data:
 
         std::array<DimInfo, 4> dim_infos;
 
@@ -236,7 +244,7 @@ class FiniteElementMethod : public SimSystem
         vector<ConstitutionInfo>   fem_3d_constitution_infos;
 
 
-        // simulation data:
+        // Simulation Data:
 
         vector<IndexT> h_vertex_contact_element_ids;
 
@@ -254,6 +262,7 @@ class FiniteElementMethod : public SimSystem
         vector<Vector4i> h_tets;
         Vector3          gravity;
 
+
         // Element Attributes:
 
         muda::DeviceBuffer<IndexT> codim_0ds;
@@ -266,6 +275,7 @@ class FiniteElementMethod : public SimSystem
 
         muda::DeviceBuffer<Vector4i> tets;
         muda::DeviceBuffer<Float>    rest_volumes;
+
 
         // Vertex Attributes:
 
@@ -282,6 +292,7 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Float>   masses;    // Mass
         muda::DeviceBuffer<Float>   thicknesses;      // Thickness
         muda::DeviceBuffer<Matrix3x3> diag_hessians;  // Diagonal Hessian
+
 
         //tex:
         // FEM3D Material Basis
@@ -315,11 +326,20 @@ class FiniteElementMethod : public SimSystem
         muda::DeviceBuffer<Vector12>    G12s;     // FEM3D Elastic Gradient
         muda::DeviceBuffer<Matrix12x12> H12x12s;  // FEM3D Elastic Hessian
 
-        // Extra Constitutions
+
+        // Extra Constitutions:
+
         muda::DeviceVar<Float> extra_constitution_energy;  // Extra Energy
         muda::DeviceBuffer<Float> extra_constitution_energies;  // Extra Energy Per Element
         muda::DeviceDoubletVector<Float, 3> extra_constitution_gradient;  // Extra Gradient Per Vertex
         muda::DeviceTripletMatrix<Float, 3> extra_constitution_hessian;  // Extra Hessian Per Vertex
+
+
+        // Dump:
+
+        BufferDump dump_xs;       // Positions
+        BufferDump dump_x_prevs;  // Positions at last frame
+        BufferDump dump_vs;       // Velocities
     };
 
 
@@ -403,6 +423,11 @@ class FiniteElementMethod : public SimSystem
 
     void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution
     void add_constitution(FiniteElementExtraConstitution* constitution);  // only called by FiniteElementExtraConstitution
+
+    virtual bool do_dump(DumpInfo& info) override;
+    virtual bool do_try_recover(RecoverInfo& info) override;
+    virtual void do_apply_recover(RecoverInfo& info) override;
+    virtual void do_clear_recover(RecoverInfo& info) override;
 
     virtual void do_build() override;
 

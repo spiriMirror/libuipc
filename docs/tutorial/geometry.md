@@ -2,7 +2,7 @@
 
 In simulation programs, geometry is a fundamental concept to represent the shape of the object, or rigrously, the domain of the simulation. 
 
-There are several kinds of geometry, such as point cloud, line mesh, triangle mesh, quad mesh, polygon mesh, tetrahedral mesh, hexahedral mesh and so on, these geometries are called explicit geometries, because we use a discrete set of vertices and primitives to represent the geometry. There are also some implicit geometries, such as the Signed Distance Field (SDF), which is a scalar field that represents the distance from the point to the surface of the geometry. It's inrealistic and inpractical to represent all the geometries in a single way, so we separate the geometries into several categories, and provide proper interfaces to access the relative information of the geometry.
+There are several kinds of geometry, such as point cloud, line mesh, triangle mesh, quad mesh, polygon mesh, tetrahedral mesh, hexahedral mesh and so on, these geometries are called explicit geometries, because we use a discrete set of vertices and primitives to represent the  There are also some implicit geometries, such as the Signed Distance Field (SDF), which is a scalar field that represents the distance from the point to the surface of the  It's inrealistic and inpractical to represent all the geometries in a single way, so we separate the geometries into several categories, and provide proper interfaces to access the relative information of the 
 
 They are:
 
@@ -10,7 +10,24 @@ They are:
 - [Quad Mesh](#quad-mesh): A 2D mesh whose primitives are quadrilaterals, which is commonly used in the simulation of cloth.
 - [Implicit Geometry](#implicit-geometry): A presentation of the implicit geometries, such as the Signed Distance Field (SDF).
 
-In this tutorial, we fill focus on the simplicial complex, which is the most common geometry in the simulation programs. And describe the geometry interface in the `libuipc` library.
+In this tutorial, we fill focus on the simplicial complex, which is the most common geometry in the simulation programs. And describe the geometry interface in the `libuipc` library. 
+
+=== "C++"
+
+    All geometry interfaces are defined in the `uipc/geometry` namespace.
+
+    ```cpp
+    using namespace uipc::geometry;
+    ```
+
+=== "Python"
+
+    All geometry interfaces are defined in the `pyuipc.geometry` module.
+
+    ```python
+    from pyuipc.geometry import *
+    ```
+
 
 ## What makes a geometry?
 
@@ -58,7 +75,7 @@ $$
 
 where $|\bullet|$ tells the element count of the set.
 
-With the same basic idea, we use a more general and well-defined way to represent such kind of geometry in the `libuipc` library, called [Simplicial Complex](https://brickisland.net/DDGSpring2022/course-description/), which is widely used in the diserete differential geometry.
+With the same basic idea, we use a more general and well-defined way to represent such kind of geometry in the `libuipc` library, called [Simplicial Complex](https://brickisland.net/DDGSpring2022/course-description/), which is widely used in the diserete differential 
 
 ## Simplicial Complex
 In `libuipc`, a `Simplicial Complex` is a general representation of an explicit mesh. In $\mathbb{R}^3$, a simplicial complex can be a tetrahedral mesh, a triangle mesh, a line mesh, or a point cloud, which have a dimension of 3, 2, 1, or 0, respectively.
@@ -81,21 +98,20 @@ The point cloud can be used to describe some 0D-codimensional objects, like a bu
 
 === "C++"
 
-    The simplest way to create a simplicial complex is to use the `geometry::tetmesh()`, `geometry::trimesh()`, `geometry::linemesh()`, and `geometry::pointcloud()` functions,
-    (`#include <uipc/geometry/factory.h>`), which are shown below:
+    The simplest way to create a simplicial complex is to use the `tetmesh()`, `trimesh()`, `linemesh()`, and `pointcloud()` functions, which are shown below:
 
     ```cpp
-    auto tetmesh = geometry::tetmesh(Vs,Ts);
-    tetmesh.dim(); // 3
-    auto trimesh = geometry::trimesh(Vs,Fs);
-    trimesh.dim(); // 2
-    auto linemesh = geometry::linemesh(Vs,Es);
-    linemesh.dim(); // 1
-    auto pointcloud = geometry::pointcloud(Vs);
-    pointcloud.dim(); // 0
+    auto tets = tetmesh(Vs,Ts);
+    tets.dim(); // 3
+    auto tris = trimesh(Vs,Fs);
+    tris.dim(); // 2
+    auto lines = linemesh(Vs,Es);
+    lines.dim(); // 1
+    auto points = pointcloud(Vs);
+    points.dim(); // 0
     ```
     
-    Or, you want to read the meshes from a file, you can `#include <uipc/geometry/io.h>`, and call the related functions:
+    Or, you want to read the meshes from a file, you can use `SimplicialComplexIO`.
     
     ```cpp
     SimplicialComplexIO io;
@@ -108,27 +124,27 @@ The point cloud can be used to describe some 0D-codimensional objects, like a bu
 
 === "Python"
 
-    The simplest way to create a simplicial complex is to use the `geometry.tetmesh()`, `geometry.trimesh()`, `geometry.linemesh()`, and `geometry.pointcloud()` functions:
+    The simplest way to create a simplicial complex is to use the `tetmesh()`, `trimesh()`, `linemesh()`, and `pointcloud()` functions:
 
     ```python
-    tetmesh = geometry.tetmesh(Vs,Ts)
-    tetmesh.dim() # 3
-    trimesh = geometry.trimesh(Vs,Fs)
-    trimesh.dim() # 2
-    linemesh = geometry.linemesh(Vs,Es)
-    linemesh.dim() # 1
-    pointcloud = geometry.pointcloud(Vs)
-    pointcloud.dim() # 0
+    tets = tetmesh(Vs,Ts)
+    tets.dim() # 3
+    tris = trimesh(Vs,Fs)
+    tris.dim() # 2
+    lines = linemesh(Vs,Es)
+    lines.dim() # 1
+    points = pointcloud(Vs)
+    points.dim() # 0
     ```
 
-    Or you want to read the meshes from a file, you can use the `geometry.read()` function:
+    Or, you want to read the meshes from a file, you can use `SimplicialComplexIO`.
 
     ```python
-    io = geometry.SimplicialComplexIO()
+    io = SimplicialComplexIO()
     # .msh file
-    tetmesh = io.read("bunny.msh")
+    tetmesh = io.read('bunny.msh')
     # .obj file
-    trimesh = io.read("cloth.obj")
+    trimesh = io.read('cloth.obj')
     # ... any other supported file format
     ```
 
@@ -136,7 +152,7 @@ The point cloud can be used to describe some 0D-codimensional objects, like a bu
 
 In `libuipc`, the data access and memory ownership of the geometry are separated. You can notice such a design almost everywhere in the library.
 
-To access the geometry information, you need to create a view of the geometry, which is a lightweight object indicating the way we access the geometry, typically the read-only or read-write. 
+To access the geometry information, you need to create a `view` of the geometry, which is a lightweight object indicating the way we access the geometry, typically the read-only or read-write. 
 
 For example, now we have a cube.
 
@@ -150,8 +166,8 @@ For example, now we have a cube.
 === "Python"
 
     ```python
-    io = geometry.SimplicialComplexIO()
-    cube = io.read("cube.msh")
+    io = SimplicialComplexIO()
+    cube = io.read('cube.msh')
     ```
 
 To access the positions of the cube, we need to find the attribute of the positions.
@@ -197,13 +213,13 @@ If you want to modify the position data, you can create a non-const view of the 
 === "C++"
 
     ```cpp
-    span<Vector3> non_const_view = geometry::view(*pos);
+    span<Vector3> non_const_view = view(*pos);
     ```
 
 === "Python"
 
     ```python
-    non_const_view = geometry.view(pos)
+    non_const_view = view(pos)
     ```
 
 You find that, it need more effort to create a non-const view of the attribute (calling the global function `view`) than creating a const view(calling the member function `view` of the attribute). This is because we want to make sure that the user is aware of the potential clone of the geometry when they modify the data. The non-const view assumes that you may modify the data, which may trigger a clone of the geometry according to `libuipc`'s [Clone on Write](#clone-on-write) strategy.
@@ -214,7 +230,7 @@ You may want to access the tetrahedra topology of the cube, which is similar to 
 
     ```cpp
     auto TA = cube.tetrahedra();
-    span<Vector4i> tet_view = geometry::view(TA.topo());
+    span<Vector4i> tet_view = view(TA.topo());
     span<const Vector4i> ctet_view = TA.topo().view();
     ```
 
@@ -222,7 +238,7 @@ You may want to access the tetrahedra topology of the cube, which is similar to 
 
     ```python
     TA = cube.tetrahedra()
-    tet_view = geometry.view(TA.topo())
+    tet_view = view(TA.topo())
     ctet_view = TA.topo().view()
     ```
 
@@ -282,25 +298,25 @@ Ok, now you have a basic idea of how to access the geometry information. Let's m
 
 ## Clone on Write
 
-Geometries in `libuipc` are implemented with the `Clone on Write` strategy. Any inital copy of a geometry is a shallow copy, which means, the data of the geometry is shared. Any creation of a non-const view of the geometry will trigger a minimal clone of the modified part of the geometry.
+Geometries in `libuipc` are implemented with the `Clone on Write` strategy. Any inital copy of a geometry is a shallow copy, which means, the data of the geometry is shared. Any creation of a non-const view of the geometry will trigger a minimal clone of the modified part of the 
 
 A simple example is shown below:
 
 === "C++"
 
     ```cpp
-    auto foo = geometry::tetmesh(Vs,Ts);
+    auto foo = tetmesh(Vs,Ts);
     auto bar = foo;
     ```
 
 === "Python"
 
     ```python
-    foo = geometry.tetmesh(Vs,Ts)
+    foo = tetmesh(Vs,Ts)
     bar = foo.copy()
     ```
 
-Here, `bar` is just a shallow copy of the `foo`.
+Here, `bar` is just a **special** shallow copy of the `foo`.
 No matter `bar` or `foo` is modified, the related internal part of the data will be cloned.
 
 For example, we create a non-const view of the positions of the mesh `bar`:
@@ -309,9 +325,9 @@ For example, we create a non-const view of the positions of the mesh `bar`:
 
     ```cpp
     auto VA  = bar.vertices();
-    auto pos = VA.find<Vector3>("position");
+    auto pos = VA.find<Vector3>(builtin::position);
     pos->is_shared(); // true
-    auto non_const_view = geometry::view(*pos);
+    auto non_const_view = view(*pos);
     pos->is_shared(); // false
     ```
     
@@ -330,7 +346,7 @@ For example, we create a non-const view of the positions of the mesh `bar`:
     VA = bar.vertices()
     pos = VA.find(builtin.position)
     pos.is_shared() # True
-    non_const_view = geometry.view(pos)
+    non_const_view = view(pos)
     pos.is_shared() # False
     ```
 
@@ -346,7 +362,7 @@ For example, we create a non-const view of the positions of the mesh `bar`:
 Such a design minimizes the geometry memory usage.
 
 !!!Warning
-    Be careful when you create a view of the geometry. Always use a const view if you don't want to modify the data to gain higher performance.
+    Be careful when you create a view of a geometry, Always use a const view if you don't want to modify the data to gain higher performance.
 
 !!!Danger
     Never store a view of any attribute, because the view may become invalid after the attribute is modified. Always create a new view when you need it.
@@ -368,7 +384,7 @@ To get the instance information of the geometry, you can call the `instances()` 
 === "Python"
 
     ```python
-    io = geometry.SimplicialComplexIO()
+    io = SimplicialComplexIO()
     cube = io.read("cube.msh")
     Is = cube.instances()
     Is.size() # 1
@@ -443,7 +459,7 @@ Destroying the short-cut is not allowed, if you do so, `libuipc` will throw an e
 
 Meta is used to store the root information of the geometry with a fixed size of 1. For example, constituitive model and contact model information will be stored in the meta information according to the specification of the `libuipc`. Of course, you can create and access any meta information you need.
 
-To get the meta information of the geometry, you call the `meta()` function of the geometry.
+To get the meta information of the geometry, you call the `meta()` function of the 
 
 === "C++"
 
@@ -458,9 +474,9 @@ To get the meta information of the geometry, you call the `meta()` function of t
     ```
 
 The way to access the meta information is the same as all the other attributes.
-The only difference is that the meta information always has a size of 1, you can create attributes, but you can not resize it. The the meta describes the root information of the geometry.
+The only difference is that the meta information always has a size of 1, you can create attributes, but you can not resize it. The the meta describes the root information of the 
 
-For example, you can create a meta attribute to store the name of the geometry.
+For example, you can create a meta attribute to store the name of the 
 
 === "C++"
 
@@ -498,9 +514,9 @@ All the attributes of the geometry can be described as serveral tables, which ar
 === "Python"
 
     ```python
-    io = geometry.SimplicialComplexIO()
+    io = SimplicialComplexIO()
     mesh = io.read("cube.msh")
-    sio = geometry.SpreadSheetIO()
+    sio = SpreadSheetIO()
     # dump to csv
     sio.write_csv("spreadsheet", mesh)
     # dump to json

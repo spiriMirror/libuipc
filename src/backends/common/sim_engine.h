@@ -1,13 +1,13 @@
 #pragma once
 #include <uipc/backend/macro.h>
-#include <uipc/engine/i_engine.h>
+#include <uipc/core/i_engine.h>
 #include <backends/common/sim_system_collection.h>
 #include <backends/common/i_sim_system.h>
 
 namespace uipc::backend
 {
 class EngineCreateInfo;
-class SimEngine : public engine::IEngine
+class SimEngine : public core::IEngine
 {
     friend class SimSystem;
 
@@ -17,6 +17,8 @@ class SimEngine : public engine::IEngine
 
     SimEngine(const SimEngine&)            = delete;
     SimEngine& operator=(const SimEngine&) = delete;
+
+    WorldVisitor& world() noexcept;
 
   protected:
     virtual Json do_to_json() const override;
@@ -65,17 +67,46 @@ class SimEngine : public engine::IEngine
      */
     std::string_view workspace() const noexcept;
 
-  protected:
-    virtual bool            do_dump() override;
-    virtual bool            do_recover() override;
-    span<ISimSystem* const> systems() noexcept;
-    std::string             dump_path() const noexcept;
+    /**
+     * @brief Return the path of the dump file.
+     * 
+     * @param _file_ Should always be __FILE__, __FILE__ should be a the backend c++ sources file.
+     */
+    std::string dump_path(std::string_view _file_) const noexcept;
 
+    class InitInfo
+    {
+      public:
+        Json& config() noexcept { return m_config; }
+
+      private:
+        friend class SimEngine;
+        InitInfo(const Json& info)
+            : m_config(info)
+        {
+        }
+        Json m_config;
+    };
+
+    using DumpInfo    = ISimSystem::DumpInfo;
+    using RecoverInfo = ISimSystem::RecoverInfo;
+
+    virtual void do_init(InitInfo&)             = 0;
+    virtual bool do_dump(DumpInfo&)             = 0;
+    virtual bool do_try_recover(RecoverInfo&)   = 0;
+    virtual void do_apply_recover(RecoverInfo&) = 0;
+    virtual void do_clear_recover(RecoverInfo&) = 0;
+
+    span<ISimSystem* const> systems() noexcept;
 
   private:
-    ISimSystem* find_system(ISimSystem* ptr);
-    ISimSystem* require_system(ISimSystem* ptr);
+    virtual void do_init(WorldVisitor v) final override;
+    virtual bool do_recover() final override;
+    virtual bool do_dump() final override;
+    ISimSystem*  find_system(ISimSystem* ptr);
+    ISimSystem*  require_system(ISimSystem* ptr);
 
+    U<WorldVisitor>     m_world_visitor;
     SimSystemCollection m_system_collection;
     std::string         m_workspace;
 };

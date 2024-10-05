@@ -15,7 +15,7 @@ And it is a good place to print out some debug information during the life cycle
 )");
 }
 
-void NoneSimEngine::do_init(backend::WorldVisitor v)
+void NoneSimEngine::do_init(InitInfo& info)
 {
     spdlog::info("[NoneEngine] do_init() called.");
 
@@ -28,7 +28,7 @@ void NoneSimEngine::do_init(backend::WorldVisitor v)
 
 void NoneSimEngine::do_advance()
 {
-    frame++;
+    m_frame++;
     spdlog::info("[NoneEngine] do_advance() called.");
 }
 
@@ -50,7 +50,29 @@ NoneSimEngine::~NoneSimEngine()
 
 SizeT NoneSimEngine::get_frame() const
 {
-    return frame;
+    return m_frame;
+}
+bool NoneSimEngine::do_dump(DumpInfo&)
+{
+    // Now just do nothing
+    return true;
+}
+
+bool NoneSimEngine::do_try_recover(RecoverInfo&)
+{
+    // Now just do nothing
+    return true;
+}
+
+void NoneSimEngine::do_apply_recover(RecoverInfo& info)
+{
+    // If success, set the current frame to the recovered frame
+    m_frame = info.frame();
+}
+
+void NoneSimEngine::do_clear_recover(RecoverInfo& info)
+{
+    // If failed, do nothing
 }
 }  // namespace uipc::backend::none
 

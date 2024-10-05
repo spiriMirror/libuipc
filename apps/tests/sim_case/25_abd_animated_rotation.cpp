@@ -10,10 +10,9 @@
 TEST_CASE("25_abd_animated_rotation", "[animation]")
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};

@@ -36,6 +36,11 @@ SimEngine& SimSystem::engine() noexcept
     return m_sim_engine;
 }
 
+std::string_view SimSystem::workspace() const noexcept
+{
+    return m_sim_engine.workspace();
+}
+
 SimSystemCollection& SimSystem::collection() noexcept
 {
     return m_sim_engine.m_system_collection;

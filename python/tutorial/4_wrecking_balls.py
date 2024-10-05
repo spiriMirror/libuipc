@@ -6,9 +6,7 @@ from polyscope import imgui
 from pyuipc_loader import pyuipc
 from pyuipc import Vector3, Vector2, Transform, Logger, Quaternion, AngleAxis
 from pyuipc import builtin
-
-from pyuipc.engine import *
-from pyuipc.world import *
+from pyuipc.core import *
 from pyuipc.geometry import *
 from pyuipc.constitution import *
 from pyuipc_utils.gui import *

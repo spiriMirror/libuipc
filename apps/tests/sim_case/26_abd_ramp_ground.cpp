@@ -10,11 +10,10 @@
 TEST_CASE("26_abd_ramp_ground", "[abd]")
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
-    using namespace std::numbers;
+    namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
     auto        this_output_path = AssetDir::output_path(__FILE__);
@@ -84,7 +83,8 @@ TEST_CASE("26_abd_ramp_ground", "[abd]")
                 auto      trans_view = view(this_cube.transforms());
                 Transform t          = Transform::Identity();
                 t.translate(Vector3{start_x + step * i, 1, -0.7});
-                t.rotate(Eigen::AngleAxisd(30.0 * pi / 180.0, Vector3::UnitX()));
+                t.rotate(Eigen::AngleAxisd(30.0 * std::numbers::pi / 180.0,
+                                           Vector3::UnitX()));
 
                 trans_view[0] = t.matrix();
 
@@ -95,7 +95,7 @@ TEST_CASE("26_abd_ramp_ground", "[abd]")
         auto object_ramp = scene.objects().create("ramp");
         {
             // rotate 30 degree
-            Float   theta = 30.0 * pi / 180.0;
+            Float   theta = 30.0 * std::numbers::pi / 180.0;
             Vector3 N     = Vector3{0, std::cos(theta), std::sin(theta)};
             Vector3 P     = Vector3{0, 0, 0};
             auto    ramp  = halfplane(P, N);

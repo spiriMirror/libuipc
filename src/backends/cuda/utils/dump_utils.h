@@ -32,15 +32,6 @@ class BufferDump
     }
 
     /**
-     * @brief Dump buffer to file
-     * 
-     * To use this function, copy the data to `BufferDump::view()` first.
-     * 
-     * @return true for success, false for failure
-     */
-    bool dump(std::string_view path) { return dump_(path); }
-
-    /**
      * @brief Dump host vector-like buffer to file
      * 
      * @return true for success, false for failure
@@ -91,52 +82,11 @@ class BufferDump
      */
     bool load(std::string_view path) { return load_(path); }
 
-
     /**
-     * @brief Load buffer from file to host vector-like buffer
+     * @brief Apply the cached data to device buffer
      * 
-     * @return true for success, false for failure
+     * @param buffer
      */
-    template <typename T>
-    bool load(std::string_view path, vector<T>& buffer)
-    {
-        auto success = load_(path);
-        if(!success)
-            return false;
-
-        if(byte_buffer.size() % sizeof(T) != 0)
-        {
-            spdlog::warn("Byte buffer size mismatch when loading buffer, invalid dump.");
-            return false;
-        }
-
-        buffer.resize(byte_buffer.size() / sizeof(T));
-        std::memcpy(buffer.data(), byte_buffer.data(), byte_buffer.size());
-    }
-
-    /**
-     * @brief Load buffer from file to device buffer
-     * 
-     * @return true for success, false for failure
-     */
-    template <typename T>
-    bool load(std::string_view path, muda::DeviceBuffer<T>& buffer)
-    {
-        auto success = load_(path);
-        if(!success)
-            return false;
-
-        if(byte_buffer.size() % sizeof(T) != 0)
-        {
-            spdlog::warn("Byte buffer size mismatch when loading buffer, invalid dump.");
-            return false;
-        }
-
-        buffer.resize(byte_buffer.size() / sizeof(T));
-
-        buffer.view().copy_from((const T*)byte_buffer.data());
-    }
-
     template <typename T>
     void apply_to(muda::DeviceBuffer<T>& buffer)
     {
@@ -144,6 +94,11 @@ class BufferDump
         buffer.view().copy_from((const T*)byte_buffer.data());
     }
 
+    /**
+     * @brief Apply the cached data to host vector
+     * 
+     * @param buffer
+     */
     template <typename T>
     void apply_to(vector<T>& buffer)
     {

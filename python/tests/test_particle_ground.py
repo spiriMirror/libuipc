@@ -3,18 +3,15 @@ import pytest
 import polyscope as ps
 import polyscope.imgui as psim
 
-from pyuipc_loader import pyuipc as uipc
-from pyuipc_loader import Engine, World, Scene, SceneIO
-
-from pyuipc_utils.geometry import \
-    SimplicialComplex, SimplicialComplexIO \
-    ,SpreadSheetIO \
-    ,label_surface, label_triangle_orient, flip_inward_triangles \
-    ,ground, view, pointcloud
-
-from pyuipc_utils.constitution import \
-    StableNeoHookean, AffineBodyConstitution, ElasticModuli, \
-    SoftPositionConstraint, Particle 
+from pyuipc_loader import pyuipc
+from pyuipc import Logger
+from pyuipc import Engine, World, Scene, SceneIO
+from pyuipc import Matrix4x4
+from pyuipc.geometry import SimplicialComplex, SimplicialComplexIO
+from pyuipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
+from pyuipc.geometry import ground, view, pointcloud
+from pyuipc.constitution import Particle
+from asset import AssetDir
 
 from pyuipc_utils.gui import SceneGUI
 
@@ -28,7 +25,7 @@ run = False
 
 @pytest.mark.example
 def test_particle_ground():
-    uipc.Logger.set_level(uipc.Logger.Level.Info)
+    Logger.set_level(Logger.Level.Info)
     workspace = AssetDir.output_path(__file__)
     engine = Engine("cuda", workspace)
     world = World(engine)

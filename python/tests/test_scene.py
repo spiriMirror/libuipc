@@ -1,27 +1,33 @@
 import numpy as np
 from pyuipc_loader import pyuipc
+from pyuipc import Logger
+from pyuipc import Engine, World, Scene, SceneIO
+from pyuipc import Matrix4x4
+from pyuipc.geometry import SimplicialComplex, SimplicialComplexIO
+from pyuipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
+from pyuipc.geometry import ground, view, tetmesh
+from pyuipc.constitution import StableNeoHookean, ElasticModuli
+from asset import AssetDir
 
 
 import pytest 
 
 @pytest.mark.basic 
 def test_scene():
-    world = pyuipc.world
-    geometry = pyuipc.geometry
-    scene = world.Scene()
+    scene = Scene()
     Vs = np.array([[0, 1, 0], 
                 [0, 0, 1], 
                 [-np.sqrt(3)/2, 0, -0.5], 
                 [np.sqrt(3)/2, 0, -0.5]
                 ], dtype=np.float32)
     Ts = np.array([[0,1,2,3]])
-    tet = geometry.tetmesh(Vs, Ts)
+    tet = tetmesh(Vs, Ts)
 
 
     obj = scene.objects().create("obj")
 
-    ground = geometry.ground()
-    geo, rest_geo = obj.geometries().create(ground)
+    g = ground()
+    geo, rest_geo = obj.geometries().create(g)
 
     obj.geometries().create(tet)
 

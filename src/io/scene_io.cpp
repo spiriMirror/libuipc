@@ -13,7 +13,7 @@
 #include <uipc/io/simplicial_complex_io.h>
 
 
-namespace uipc::world
+namespace uipc::core
 {
 namespace fs = std::filesystem;
 
@@ -171,4 +171,4 @@ geometry::SimplicialComplex SceneIO::simplicial_surface(IndexT dim) const
 
     return extract_surface(simplicial_complex_has_surf);
 }
-}  // namespace uipc::world
+}  // namespace uipc::core

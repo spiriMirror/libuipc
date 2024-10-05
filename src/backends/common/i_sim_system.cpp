@@ -2,6 +2,7 @@
 #include <backends/common/i_sim_system.h>
 #include <backends/common/module.h>
 #include <filesystem>
+#include <backends/common/backend_path_tool.h>
 
 namespace uipc::backend
 {
@@ -99,35 +100,10 @@ std::string_view ISimSystem::BaseInfo::workspace() const noexcept
 
 std::string ISimSystem::BaseInfo::dump_path(std::string_view _file_) const noexcept
 {
-    namespace fs = std::filesystem;
-
-    fs::path workspace = m_workspace;
-
-    fs::path out_path = fs::absolute(fs::path{workspace} / "sim_data");
-    fs::path file_path{_file_};
-
-    fs::path base         = UIPC_PROJECT_DIR;
-    fs::path backends_dir = base / "src" / "uipc" / "backends";
-    fs::path relative     = fs::relative(file_path, backends_dir);
-
-    // remove the first folder in relative path, which is the backend name
-
-    relative = relative.remove_filename();
-    auto it  = relative.begin();
-    auto end = relative.end();
-
-    fs::path new_relative;
-    while(++it != end)
-        new_relative /= *it;
-    new_relative /= file_path.filename();
-
-    fs::path file_output_path = out_path / new_relative;
-    // create all the intermediate directories if they don't exist
-    if(!fs::exists(file_output_path))
-        fs::create_directories(file_output_path);
-
-    return (file_output_path / "").string();
+    BackendPathTool tool{m_workspace};
+    return tool.workspace(_file_, "dump").string();
 }
+
 const Json& ISimSystem::BaseInfo::config() const noexcept
 {
     return m_config;

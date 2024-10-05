@@ -153,26 +153,35 @@ AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
     vertex_bounding_box = AABB{min_pos_host, max_pos_host};
     return vertex_bounding_box;
 }
+}  // namespace uipc::backend::cuda
 
+// Dump & Recover:
+namespace uipc::backend::cuda
+{
 bool GlobalVertexManager::Impl::dump(DumpInfo& info)
 {
-    auto path = info.dump_path(__FILE__);
+    auto path  = info.dump_path(__FILE__);
+    auto frame = info.frame();
 
-    return dump_positions.dump(path + "positions", positions)
-           && dump_prev_positions.dump(path + "prev_positions", prev_positions);
+    return dump_positions.dump(fmt::format("{}positions.{}", path, frame), positions)  //
+           && dump_prev_positions.dump(fmt::format("{}prev_positions.{}", path, frame),
+                                       prev_positions);
 }
+
 bool GlobalVertexManager::Impl::try_recover(RecoverInfo& info)
 {
     auto path = info.dump_path(__FILE__);
-    return dump_positions.load(path + "positions")
-           && dump_prev_positions.load(path + "prev_positions");
+    return dump_positions.load(fmt::format("{}positions.{}", path, info.frame()))  //
+           && dump_prev_positions.load(
+               fmt::format("{}prev_positions.{}", path, info.frame()));
 }
+
 void GlobalVertexManager::Impl::apply_recover(RecoverInfo& info)
 {
-    auto path = info.dump_path(__FILE__);
     dump_positions.apply_to(positions);
     dump_prev_positions.apply_to(prev_positions);
 }
+
 void GlobalVertexManager::Impl::clear_recover(RecoverInfo& info)
 {
     dump_positions.clean_up();

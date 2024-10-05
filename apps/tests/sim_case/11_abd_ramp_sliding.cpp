@@ -10,10 +10,9 @@
 TEST_CASE("11_abd_ramp_sliding", "[abd]")
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
     using namespace std::numbers;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};

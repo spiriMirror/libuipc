@@ -2,7 +2,15 @@ import pytest
 from pyuipc_loader import pyuipc as uipc 
 import numpy as np
 import polyscope as ps
-from pyuipc_utils.geometry import tetmesh, view, merge, label_surface, extract_surface
+from pyuipc_loader import pyuipc
+from pyuipc import Logger
+from pyuipc import Engine, World, Scene, SceneIO
+from pyuipc import Matrix4x4
+from pyuipc.geometry import SimplicialComplex, SimplicialComplexIO
+from pyuipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
+from pyuipc.geometry import ground, view, tetmesh, merge, extract_surface
+from pyuipc.constitution import StableNeoHookean, ElasticModuli
+from asset import AssetDir
 
 @pytest.mark.current 
 def test_transform():

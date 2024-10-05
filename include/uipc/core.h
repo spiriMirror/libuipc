@@ -8,8 +8,8 @@
 #include <uipc/common/enumerate.h>
 #include <uipc/common/uipc.h>
 
-#include <uipc/engine/engine.h>
-#include <uipc/world/world.h>
+#include <uipc/core/engine.h>
+#include <uipc/core/world.h>
 
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/geometry/simplicial_complex_slot.h>

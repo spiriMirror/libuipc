@@ -21,6 +21,7 @@
 #include <finite_element/codim_0d_constitution.h>
 #include <uipc/builtin/constitution_type.h>
 
+
 namespace uipc::backend
 {
 template <>
@@ -86,6 +87,26 @@ void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* const
 {
     check_state(SimEngineState::BuildSystems, "add_constitution()");
     m_impl.extra_constitutions.register_subsystem(*constitution);
+}
+
+bool FiniteElementMethod::do_dump(DumpInfo& info)
+{
+    return m_impl.dump(info);
+}
+
+bool FiniteElementMethod::do_try_recover(RecoverInfo& info)
+{
+    return m_impl.try_recover(info);
+}
+
+void FiniteElementMethod::do_apply_recover(RecoverInfo& info)
+{
+    m_impl.apply_recover(info);
+}
+
+void FiniteElementMethod::do_clear_recover(RecoverInfo& info)
+{
+    m_impl.clear_recover(info);
 }
 
 void FiniteElementMethod::Impl::init(WorldVisitor& world)
@@ -813,6 +834,94 @@ void FiniteElementMethod::Impl::_download_geometry_to_host()
     xs.view().copy_to(h_positions.data());
 }
 
+void FiniteElementMethod::Impl::write_scene(WorldVisitor& world)
+{
+    _download_geometry_to_host();
+
+    auto geo_slots = world.scene().geometries();
+
+    auto position_span = span{h_positions};
+
+    for(auto&& [i, info] : enumerate(geo_infos))
+    {
+        auto& geo_slot = geo_slots[info.geo_slot_index];
+        auto& geo      = geo_slot->geometry();
+        auto* sc       = geo.as<geometry::SimplicialComplex>();
+        UIPC_ASSERT(sc,
+                    "The geometry is not a simplicial complex (it's {}). Why can it happen?",
+                    geo.type());
+
+        // 1) write positions back
+        auto pos_view = geometry::view(sc->positions());
+        auto src_pos_span = position_span.subspan(info.vertex_offset, info.vertex_count);
+        UIPC_ASSERT(pos_view.size() == src_pos_span.size(), "position size mismatching");
+        std::copy(src_pos_span.begin(), src_pos_span.end(), pos_view.begin());
+
+        // 2) write primitives back
+        // TODO:
+        // Now there is no topology modification, so no need to write back
+        // In the future, we may need to write back the topology if the topology is modified
+    }
+}
+}  // namespace uipc::backend::cuda
+
+
+// Info:
+namespace uipc::backend::cuda
+{
+Float FiniteElementMethod::ComputeEnergyInfo::dt() const noexcept
+{
+    return m_dt;
+}
+
+FiniteElementMethod::ComputeGradientHessianInfo::ComputeGradientHessianInfo(Float dt) noexcept
+    : m_dt(dt)
+{
+}
+}  // namespace uipc::backend::cuda
+
+
+// Dump & Recover:
+namespace uipc::backend::cuda
+{
+bool FiniteElementMethod::Impl::dump(DumpInfo& info)
+{
+    auto path  = info.dump_path(__FILE__);
+    auto frame = info.frame();
+
+    return dump_xs.dump(fmt::format("{}q.{}", path, frame), xs)       //
+           && dump_vs.dump(fmt::format("{}q_v.{}", path, frame), vs)  //
+           && dump_x_prevs.dump(fmt::format("{}q_prev.{}", path, frame), x_prevs);  //
+}
+
+bool FiniteElementMethod::Impl::try_recover(RecoverInfo& info)
+{
+    auto path  = info.dump_path(__FILE__);
+    auto frame = info.frame();
+
+    return dump_xs.load(fmt::format("{}q.{}", path, frame))                //
+           && dump_vs.load(fmt::format("{}q_v.{}", path, frame))           //
+           && dump_x_prevs.load(fmt::format("{}q_prev.{}", path, frame));  //
+}
+
+void FiniteElementMethod::Impl::apply_recover(RecoverInfo& info)
+{
+    dump_xs.apply_to(xs);
+    dump_vs.apply_to(vs);
+    dump_x_prevs.apply_to(x_prevs);
+}
+
+void FiniteElementMethod::Impl::clear_recover(RecoverInfo& info)
+{
+    dump_xs.clean_up();
+    dump_vs.clean_up();
+    dump_x_prevs.clean_up();
+}
+}  // namespace uipc::backend::cuda
+
+// Simulation:
+namespace uipc::backend::cuda
+{
 void FiniteElementMethod::Impl::compute_x_tilde(DoFPredictor::PredictInfo& info)
 {
     using namespace muda;
@@ -863,50 +972,5 @@ void FiniteElementMethod::Impl::compute_velocity(DoFPredictor::ComputeVelocityIn
 
                    x_prev = x;
                });
-}
-
-void FiniteElementMethod::Impl::write_scene(WorldVisitor& world)
-{
-    _download_geometry_to_host();
-
-    auto geo_slots = world.scene().geometries();
-
-    auto position_span = span{h_positions};
-
-    for(auto&& [i, info] : enumerate(geo_infos))
-    {
-        auto& geo_slot = geo_slots[info.geo_slot_index];
-        auto& geo      = geo_slot->geometry();
-        auto* sc       = geo.as<geometry::SimplicialComplex>();
-        UIPC_ASSERT(sc,
-                    "The geometry is not a simplicial complex (it's {}). Why can it happen?",
-                    geo.type());
-
-        // 1) write positions back
-        auto pos_view = geometry::view(sc->positions());
-        auto src_pos_span = position_span.subspan(info.vertex_offset, info.vertex_count);
-        UIPC_ASSERT(pos_view.size() == src_pos_span.size(), "position size mismatching");
-        std::copy(src_pos_span.begin(), src_pos_span.end(), pos_view.begin());
-
-        // 2) write primitives back
-        // TODO:
-        // Now there is no topology modification, so no need to write back
-        // In the future, we may need to write back the topology if the topology is modified
-    }
-}
-}  // namespace uipc::backend::cuda
-
-
-// Info:
-namespace uipc::backend::cuda
-{
-Float FiniteElementMethod::ComputeEnergyInfo::dt() const noexcept
-{
-    return m_dt;
-}
-
-FiniteElementMethod::ComputeGradientHessianInfo::ComputeGradientHessianInfo(Float dt) noexcept
-    : m_dt(dt)
-{
 }
 }  // namespace uipc::backend::cuda

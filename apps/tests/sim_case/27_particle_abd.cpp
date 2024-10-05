@@ -12,11 +12,10 @@
 TEST_CASE("27_particle_abd", "[abd]")
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
-    using namespace std::numbers;
+    namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
     auto        this_output_path = AssetDir::output_path(__FILE__);

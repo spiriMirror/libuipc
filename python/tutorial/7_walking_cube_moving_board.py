@@ -7,10 +7,10 @@ from pyuipc_loader import pyuipc
 from pyuipc import Vector3, Vector2, Transform, Logger, Matrix4x4
 from pyuipc import builtin
 
-from pyuipc.engine import *
-from pyuipc.world import *
+from pyuipc.core import *
 from pyuipc.geometry import *
 from pyuipc.constitution import *
+from pyuipc.unit import GPa
 from pyuipc_utils.gui import *
 
 
@@ -28,7 +28,7 @@ config['newton']['velocity_tol'] = 0.2
 scene = Scene(config)
 
 # friction ratio and contact resistance
-scene.contact_tabular().default_model(0.2, 1e9)
+scene.contact_tabular().default_model(0.2, 1 * GPa)
 default_element = scene.contact_tabular().default_element()
 
 # create constituiton

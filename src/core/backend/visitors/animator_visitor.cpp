@@ -2,7 +2,7 @@
 
 namespace uipc::backend
 {
-AnimatorVisitor::AnimatorVisitor(world::Animator& animator) noexcept
+AnimatorVisitor::AnimatorVisitor(core::Animator& animator) noexcept
     : m_animator(animator)
 {
 }

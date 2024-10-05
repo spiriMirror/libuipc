@@ -1,7 +1,6 @@
 import numpy
-from . import backend as backend, builtin as builtin, constitution as constitution, engine as engine, geometry as geometry, unit as unit, world as world
-from pyuipc.engine import Engine as Engine
-from pyuipc.world import Scene as Scene, SceneIO as SceneIO, World as World
+from . import backend as backend, builtin as builtin, constitution as constitution, core as core, geometry as geometry, unit as unit
+from pyuipc.core import Engine as Engine, Scene as Scene, SceneIO as SceneIO, World as World
 from typing import ClassVar, overload
 
 class AngleAxis:

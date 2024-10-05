@@ -73,6 +73,9 @@ if __name__ == '__main__':
     typings_dir = proj_dir / 'python' / 'typings'
     this_dir = pathlib.Path(__file__).absolute().parent
     output_path = this_dir.parent.parent / 'typings'
+    
+    print(f'Clear typings directory: {typings_dir}')
+    shutil.rmtree(typings_dir, ignore_errors=True)
 
     print(f'Try generating stubs to {typings_dir}')
 

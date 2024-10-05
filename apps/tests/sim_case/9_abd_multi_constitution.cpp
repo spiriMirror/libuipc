@@ -9,9 +9,9 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
-    using namespace uipc::world;
+    using namespace uipc::core;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
+    using namespace uipc::core;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
     auto        this_output_path = AssetDir::output_path(__FILE__);
@@ -20,8 +20,8 @@ TEST_CASE("9_abd_multi_constitution", "[abd]")
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config       = Scene::default_config();
-    config["gravity"] = Vector3{0, -9.8, 0};
+    auto config                             = Scene::default_config();
+    config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["friction"]["enable"] = false;
 
     {  // dump config

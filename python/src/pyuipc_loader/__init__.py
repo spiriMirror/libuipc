@@ -32,10 +32,3 @@ def init():
     logging.debug("pyuipc loaded: ", config)
 
 init()
-
-import pyuipc.backend as backend
-import pyuipc.geometry as geometry
-import pyuipc.constitution as constitution
-import pyuipc.world as world
-import pyuipc.engine as engine
-import pyuipc.builtin as builtin

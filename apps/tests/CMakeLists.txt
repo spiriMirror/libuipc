@@ -24,7 +24,7 @@ function(uipc_add_gui_test name)
 endfunction()
 
 add_subdirectory(geometry)
-add_subdirectory(world)
+add_subdirectory(core)
 add_subdirectory(common)
 add_subdirectory(backends)
 add_subdirectory(sim_case)

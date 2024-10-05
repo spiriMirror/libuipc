@@ -1,10 +1,9 @@
 #include <sim_engine.h>
-#include <log_pattern_guard.h>
+
 namespace uipc::backend::cuda
 {
 void SimEngine::do_retrieve()
 {
-    LogGuard guard;
     try
     {
         event_write_scene();

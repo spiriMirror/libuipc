@@ -1,6 +1,5 @@
 #include <sim_engine.h>
 #include <uipc/common/range.h>
-#include <log_pattern_guard.h>
 #include <dof_predictor.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
@@ -128,8 +127,6 @@ void SimEngine::do_advance()
 
     auto pipeline = [&]() noexcept(AbortOnException)
     {
-        LogGuard guard;
-
         Timer timer{"Pipeline"};
 
         ++m_current_frame;
@@ -150,8 +147,7 @@ void SimEngine::do_advance()
             }
 
             // After the rebuild_scene event, the pending creation or deletion can be solved
-            auto scene = m_world_visitor->scene();
-            scene.solve_pending();
+            world().scene().solve_pending();
         }
 
         // Simulation:
@@ -266,12 +262,6 @@ void SimEngine::do_advance()
 
                             // TODO: Inversion Check (Not Implemented Yet)
                             bool no_inversion = true;
-
-                            //spdlog::info("Line Search Iteration: {} Alpha: {}, E/E0: {}, E0: {}",
-                            //             line_search_iter,
-                            //             alpha,
-                            //             E / E0,
-                            //             E0);
 
                             bool success = energy_decrease && no_inversion;
                             if(success)

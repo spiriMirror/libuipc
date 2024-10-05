@@ -3,12 +3,12 @@
 #include <muda/muda.h>
 #include <kernel_cout.h>
 #include <sim_engine_device_common.h>
-#include <log_pattern_guard.h>
 #include <backends/common/module.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <fstream>
 #include <uipc/common/timer.h>
+#include <backends/common/backend_path_tool.h>
 
 namespace uipc::backend::cuda
 {
@@ -26,7 +26,6 @@ SimEngine::SimEngine(EngineCreateInfo* info)
     : backend::SimEngine(info)
     , m_device_impl(make_unique<DeviceImpl>())
 {
-    LogGuard guard;
     try
     {
         using namespace muda;
@@ -77,8 +76,6 @@ SimEngine::SimEngine(EngineCreateInfo* info)
 
 SimEngine::~SimEngine()
 {
-    LogGuard guard;
-
     muda::wait_device();
 
     // remove the sync callback
@@ -90,12 +87,6 @@ SimEngine::~SimEngine()
 auto SimEngine::device_impl() noexcept -> DeviceImpl&
 {
     return *m_device_impl;
-}
-
-WorldVisitor& SimEngine::world() noexcept
-{
-    UIPC_ASSERT(m_world_visitor, "WorldVisitor is not initialized.");
-    return *m_world_visitor;
 }
 
 SimEngineState SimEngine::state() const noexcept
@@ -123,7 +114,8 @@ void SimEngine::event_write_scene()
 
 void SimEngine::dump_global_surface(std::string_view name)
 {
-    auto file_path = fmt::format("{}{}.obj", workspace(), name);
+    BackendPathTool tool{workspace()};
+    auto file_path = fmt::format("{}{}.obj", tool.workspace().string(), name);
 
     std::vector<Vector3> positions;
     auto                 src_ps = m_global_vertex_manager->positions();
@@ -153,70 +145,31 @@ void SimEngine::dump_global_surface(std::string_view name)
 
     spdlog::info("Dumped global surface to {}", file_path);
 }
+}  // namespace uipc::backend::cuda
 
-bool SimEngine::do_dump()
+// Dump & Recover:
+namespace uipc::backend::cuda
 {
-    auto path = dump_path();
-
-    Json j     = Json::object();
-    j["frame"] = m_current_frame;
-
-    {
-        std::ofstream file(path + "state.json");
-        file << j.dump(4);
-    }
-
-    return backend::SimEngine::do_dump();
+bool SimEngine::do_dump(DumpInfo&)
+{
+    // Now just do nothing
+    return true;
 }
 
-bool SimEngine::do_recover()
+bool SimEngine::do_try_recover(RecoverInfo&)
 {
-    auto path = dump_path();
+    // Now just do nothing
+    return true;
+}
 
-    bool success = false;
+void SimEngine::do_apply_recover(RecoverInfo& info)
+{
+    // If success, set the current frame to the recovered frame
+    m_current_frame = info.frame();
+}
 
-    SizeT safe_frame = m_current_frame;
-
-    do
-    {
-        Json j;
-        {
-            std::ifstream file(path + "state.json");
-            if(file.is_open())
-            {
-                file >> j;
-            }
-            else
-            {
-                spdlog::warn("Failed to open state.json when recovering, so skip.");
-                break;
-            }
-        }
-
-        bool has_error = false;
-        try
-        {
-            m_current_frame = j["frame"].get<SizeT>();
-        }
-        catch(std::exception e)
-        {
-            has_error = true;
-            spdlog::warn("Failed to retrieve data from state.json when recovering, so skip. Reason: {}",
-                         e.what());
-
-            m_current_frame = safe_frame;
-        }
-        if(has_error)
-            break;
-
-        if(!backend::SimEngine::do_recover())
-            break;
-
-        spdlog::info("Recover at frame: {}", m_current_frame);
-
-        success = true;
-    } while(0);
-
-    return success;
+void SimEngine::do_clear_recover(RecoverInfo& info)
+{
+    // If failed, do nothing
 }
 }  // namespace uipc::backend::cuda

@@ -1,17 +1,17 @@
 #pragma once
 
-#include <uipc/world/animator.h>
+#include <uipc/core/animator.h>
 
 namespace uipc::backend
 {
 class UIPC_CORE_API AnimatorVisitor
 {
   public:
-    AnimatorVisitor(world::Animator& animator) noexcept;
+    AnimatorVisitor(core::Animator& animator) noexcept;
     void init();
     void update();
 
   private:
-    world::Animator& m_animator;
+    core::Animator& m_animator;
 };
 }  // namespace uipc::backend

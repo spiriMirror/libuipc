@@ -16,10 +16,9 @@ This is a simple example to get you started with `libuipc`. In this example, we 
     int main()
     {
         using namespace uipc;
+        using namespace uipc::core;
         using namespace uipc::geometry;
-        using namespace uipc::world;
         using namespace uipc::constitution;
-        using namespace uipc::engine;
 
         ...
     }
@@ -33,8 +32,7 @@ This is a simple example to get you started with `libuipc`. In this example, we 
     import pyuipc
     from pyuipc import Vector3
     from pyuipc.geometry import *
-    from pyuipc.world import World, Scene, SceneIO
-    from pyuipc.engine import Engine
+    from pyuipc.core import Engine, World, Scene, SceneIO
     from pyuipc import builtin
     from pyuipc.unit import GPa, MPa
 
@@ -67,7 +65,7 @@ Then we create an instance of the `Engine` class, which is the main class of the
 === "Python"
 
     ```python
-    engine = Engine("cuda")
+    engine = Engine('cuda')
     world = World(engine)
     config = Scene.default_config()
     config['dt'] = 0.01

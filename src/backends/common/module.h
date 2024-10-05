@@ -1,9 +1,9 @@
 #pragma once
 #include <uipc/common/macro.h>
 #include <memory_resource>
-#include <uipc/engine/i_engine.h>
+#include <uipc/core/i_engine.h>
 
-using EngineInterface = uipc::engine::IEngine;
+using EngineInterface = uipc::core::IEngine;
 class UIPCModuleInitInfo;
 namespace uipc::backend
 {

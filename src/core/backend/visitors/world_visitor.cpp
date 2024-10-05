@@ -1,9 +1,9 @@
 #include <uipc/backend/visitors/world_visitor.h>
-#include <uipc/world/world.h>
+#include <uipc/core/world.h>
 
 namespace uipc::backend
 {
-WorldVisitor::WorldVisitor(world::World& w) noexcept
+WorldVisitor::WorldVisitor(core::World& w) noexcept
     : m_world(w)
 {
 }

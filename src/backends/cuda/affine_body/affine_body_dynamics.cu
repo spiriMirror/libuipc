@@ -629,12 +629,56 @@ void AffineBodyDynamics::Impl::_download_geometry_to_host()
 
     muda::wait_device();
 }
+}  // namespace uipc::backend::cuda
 
+
+// Dump & Recover:
+namespace uipc::backend::cuda
+{
+bool AffineBodyDynamics::Impl::dump(DumpInfo& info)
+{
+    auto path  = info.dump_path(__FILE__);
+    auto frame = info.frame();
+
+    return dump_q.dump(fmt::format("{}q.{}", path, frame), body_id_to_q)  //
+           && dump_q_v.dump(fmt::format("{}q_v.{}", path, frame), body_id_to_q_v)  //
+           && dump_q_prev.dump(fmt::format("{}q_prev.{}", path, frame), body_id_to_q_prev);  //
+}
+
+bool AffineBodyDynamics::Impl::try_recover(RecoverInfo& info)
+{
+    auto path  = info.dump_path(__FILE__);
+    auto frame = info.frame();
+
+    return dump_q.load(fmt::format("{}q.{}", path, frame))                //
+           && dump_q_v.load(fmt::format("{}q_v.{}", path, frame))         //
+           && dump_q_prev.load(fmt::format("{}q_prev.{}", path, frame));  //
+}
+
+void AffineBodyDynamics::Impl::apply_recover(RecoverInfo& info)
+{
+    dump_q.apply_to(body_id_to_q);
+    dump_q_v.apply_to(body_id_to_q_v);
+    dump_q_prev.apply_to(body_id_to_q_prev);
+}
+
+void AffineBodyDynamics::Impl::clear_recover(RecoverInfo& info)
+{
+    dump_q.clean_up();
+    dump_q_v.clean_up();
+    dump_q_prev.clean_up();
+}
+}  // namespace uipc::backend::cuda
+
+
+// Simulation:
+namespace uipc::backend::cuda
+{
 void AffineBodyDynamics::Impl::compute_q_tilde(DoFPredictor::PredictInfo& info)
 {
     using namespace muda;
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(abd_body_count,
                [is_fixed = body_id_to_is_fixed.cviewer().name("is_fixed"),
                 is_kinematic = body_id_to_is_kinematic.cviewer().name("is_kinematic"),
@@ -664,7 +708,7 @@ void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::ComputeVelocityInfo& in
 {
     using namespace muda;
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(abd_body_count,
                [is_fixed = body_id_to_is_fixed.cviewer().name("btype"),
                 qs       = body_id_to_q.cviewer().name("qs"),
@@ -681,41 +725,5 @@ void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::ComputeVelocityInfo& in
 
                    q_prev = q;
                });
-}
-
-bool AffineBodyDynamics::Impl::dump(DumpInfo& info)
-{
-    auto path = info.dump_path(__FILE__);
-
-    return dump_q.dump(path + "q", body_id_to_q)                     //
-           && dump_q_v.dump(path + "q_v", body_id_to_q_v)            //
-           && dump_q_prev.dump(path + "q_prev", body_id_to_q_prev);  //
-}
-
-bool AffineBodyDynamics::Impl::try_recover(RecoverInfo& info)
-{
-    auto path = info.dump_path(__FILE__);
-    return dump_q.load(path + "q")                //
-           && dump_q_v.load(path + "q_v")         //
-           && dump_q_prev.load(path + "q_prev");  //
-}
-
-
-void AffineBodyDynamics::Impl::apply_recover(RecoverInfo& info)
-{
-    auto path = info.dump_path(__FILE__);
-
-    auto qs = dump_q.view<Vector12>();
-
-    dump_q.apply_to(body_id_to_q);
-    dump_q_v.apply_to(body_id_to_q_v);
-    dump_q_prev.apply_to(body_id_to_q_prev);
-}
-
-void AffineBodyDynamics::Impl::clear_recover(RecoverInfo& info)
-{
-    dump_q.clean_up();
-    dump_q_v.clean_up();
-    dump_q_prev.clean_up();
 }
 }  // namespace uipc::backend::cuda

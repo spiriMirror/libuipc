@@ -10,10 +10,9 @@
 TEST_CASE("18_abd_fem_contact", "[abd_fem]")
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
@@ -25,12 +24,12 @@ TEST_CASE("18_abd_fem_contact", "[abd_fem]")
 
     auto config = Scene::default_config();
 
-    config["gravity"]                      = Vector3{0, -9.8, 0};
-    config["contact"]["enable"]            = true;
+    config["gravity"]                       = Vector3{0, -9.8, 0};
+    config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
-    config["line_search"]["max_iter"]      = 8;
-    config["linear_system"]["tol_rate"]    = 1e-3;
-    config["line_search"]["report_energy"] = false;
+    config["line_search"]["max_iter"]       = 8;
+    config["linear_system"]["tol_rate"]     = 1e-3;
+    config["line_search"]["report_energy"]  = false;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));

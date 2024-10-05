@@ -14,6 +14,7 @@ Conceptually, `World` is something **interests** us. `Engine` is the **heart** o
 
 From the aspect of 'programming', `Engine` is some **simulation algorithms** running on some **computing devices**, it can be `ipc-on-cuda`, `ipc-on-tbb` or even `any-method-on-any-device`, which is called the **backend** of `libuipc`. `World` is an interface exploiting the life-cycle of the simulation, you can `init()` it, `advance()` the simulation by one step, `retrieve()` the simulation data back and so on. `Scene` is a **data structure** that contains the 'current state' and the 'initial state' of the world, which is all the information we need to simulate the world.
 
+
 ## Scene
 
 Scene in `libuipc` is a whole set of entities we need to simulate the world.
@@ -28,6 +29,23 @@ There are 5 main parts in a scene:
 |**Contact Tabular**      | **Contact Tabular**  is a collection of all the contact models that are used in the scene. A contact model is a set of properties that define the contact behavior of the object. Typically, the properties include the friction coefficient, the restitution coefficient, etc.|
 |**Animator**             | **Animator** is a collection of all the animations that are used in the scene. An animation is a script that defines the motion of the object. |
 
+
+=== "C++"
+
+    The interfaces of `Engine`, `World`, `Scene`, `Object` are defined in the `uipc::core` namespace.
+
+    ```cpp
+    using namespace uipc::core;
+    ```
+
+=== "Python"
+
+    The interfaces of `Engine`, `World`, `Scene`, `Object` are defined in the `pyuipc.core` module.
+
+    ```python
+    from pyuipc.core import *
+    ```
+
 Here is a simple example to create a scene:
 
 First, we declare a scene.
@@ -35,13 +53,13 @@ First, we declare a scene.
 === "C++"
 
     ```cpp
-    world::Scene scene;
+    Scene scene;
     ```
 
 === "Python"
 
     ```python
-    scene = world.Scene()
+    scene = Scene()
     ```
 
 Then, we need to create a constitution for the object. Here we use the `AffineBodyConstitution` as an example, `AffineBodyConstitution` is a simple constitution that can be used to approximate the behavior of a rigid body.
