@@ -61,5 +61,10 @@ PyAnimator::PyAnimator(py::module& m)
                                        });
                        });
     class_Animator.def("erase", &Animator::erase);
+
+    class_Animator.def(
+        "substep", [](Animator& self, SizeT substep) { self.substep(substep); });
+
+    class_Animator.def("substep", [](Animator& self) { return self.substep(); });
 }
 }  // namespace pyuipc::core
