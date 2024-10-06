@@ -3,6 +3,7 @@
 #include <uipc/common/log.h>
 #include <pyuipc/common/json.h>
 #include <pyuipc/common/uipc_type.h>
+#include <pyuipc/common/timer.h>
 #include <pyuipc/common/transform.h>
 #include <pyuipc/common/logger.h>
 #include <pyuipc/geometry/module.h>
@@ -26,6 +27,7 @@ PYBIND11_MODULE(pyuipc, m)
     pyuipc::PyUIPCType{m};
     pyuipc::PyLogger{m};
     pyuipc::PyTransform{m};
+    pyuipc::PyTimer{m};
 
     // pyuipc.unit
     auto unit = m.def_submodule("unit");
