@@ -4,7 +4,7 @@ import polyscope as ps
 from polyscope import imgui
 
 from pyuipc_loader import pyuipc
-from pyuipc import Vector3, Vector2, Transform, Logger, Quaternion, AngleAxis
+from pyuipc import Vector3, Vector2, Transform, Logger, Quaternion, AngleAxis, Timer
 from pyuipc import builtin
 from pyuipc.core import *
 from pyuipc.geometry import *
@@ -19,6 +19,7 @@ def process_surface(sc: SimplicialComplex):
     sc = flip_inward_triangles(sc)
     return sc
 
+Timer.enable_all()
 Logger.set_level(Logger.Level.Warn)
 workspace = AssetDir.output_path(__file__)
 folder = AssetDir.folder(__file__)
@@ -130,6 +131,7 @@ def on_update():
         world.advance()
         world.retrieve()
         # world.dump()
+        Timer.report()
         sgui.update()
 
 ps.set_user_callback(on_update)

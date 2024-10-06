@@ -12,7 +12,7 @@ ContactTabular::ContactTabular() noexcept
     m_elements.reserve(64);
 
     auto default_element = create("default");
-    insert(default_element, default_element, 0.5, 1.0_GPa, {});
+    insert(default_element, default_element, 0.5, 1.0_GPa, true, default_config());
 }
 
 ContactElement& ContactTabular::create(std::string_view name) noexcept
