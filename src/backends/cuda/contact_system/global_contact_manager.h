@@ -159,10 +159,13 @@ class GlobalContactManager final : public SimSystem
         SimSystemSlot<GlobalVertexManager>    global_vertex_manager;
         SimSystemSlot<GlobalTrajectoryFilter> global_trajectory_filter;
 
-        bool                                  cfl_enabled = false;
-        vector<ContactCoeff>                  h_contact_tabular;
-        muda::DeviceBuffer2D<ContactCoeff>    contact_tabular;
-        Float                                 reserve_ratio = 1.1;
+        bool cfl_enabled = false;
+
+        vector<ContactCoeff>               h_contact_tabular;
+        muda::DeviceBuffer2D<ContactCoeff> contact_tabular;
+        vector<IndexT>                     h_contact_mask_tabular;
+        muda::DeviceBuffer2D<IndexT>       contact_mask_tabular;
+        Float                              reserve_ratio = 1.1;
 
         Float d_hat        = 0.0;
         Float kappa        = 0.0;
@@ -230,6 +233,7 @@ class GlobalContactManager final : public SimSystem
     void add_receiver(ContactReceiver* receiver);
 
     muda::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
+    muda::CBuffer2DView<IndexT>       contact_mask_tabular() const noexcept;
 
   protected:
     virtual void do_build() override;

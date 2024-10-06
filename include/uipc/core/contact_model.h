@@ -7,11 +7,12 @@ namespace uipc::core
 class UIPC_CORE_API ContactModel
 {
   public:
-    ContactModel(const Vector2i& ids, Float friction_rate, Float resistance, const Json& config = {});
+    ContactModel(const Vector2i& ids, Float friction_rate, Float resistance, bool enable, const Json& config);
 
     const Vector2i& ids() const;
     Float           friction_rate() const;
     Float           resistance() const;
+    bool            is_enabled() const;
     const Json&     config() const;
 
     friend void to_json(Json& json, const ContactModel& model);
@@ -21,6 +22,7 @@ class UIPC_CORE_API ContactModel
     Vector2i m_ids;
     Float    m_friction_rate;
     Float    m_resistance;
+    bool     m_enabled;
     Json     m_config;
 };
 

@@ -64,6 +64,7 @@ void HalfPlane::Impl::_build_geometry()
         });
 
     vector<IndexT> geo_to_contact_id(geos.size(), 0);
+    vector<IndexT> geo_to_contact_masks(geos.size(), 0);
 
     for(auto&& [i, g] : enumerate(geos))
     {
@@ -71,10 +72,13 @@ void HalfPlane::Impl::_build_geometry()
         geo_to_contact_id[i] = cid ? cid->view()[0] : 0;
     }
 
-    h_contact_id.resize(instance_count, 0);
+    h_contact_ids.resize(instance_count, 0);
 
-    for(auto&& [i, contact_id] : enumerate(h_contact_id))
-        contact_id = geo_to_contact_id[I2G[i]];
+    for(auto&& i : range(instance_count))
+    {
+        auto G           = I2G[i];
+        h_contact_ids[i] = geo_to_contact_id[G];
+    }
 
     positions.resize(h_positions.size());
     normals.resize(h_normals.size());

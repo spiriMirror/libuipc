@@ -10,8 +10,6 @@ namespace uipc::geometry
 {
 void label_surface(SimplicialComplex& R)
 {
-    Timer timer{__FUNCTION__};
-
     auto v_is_surf = R.vertices().find<IndexT>(builtin::is_surf);
     if(!v_is_surf)
     {

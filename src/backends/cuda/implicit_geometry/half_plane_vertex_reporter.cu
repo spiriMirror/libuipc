@@ -5,7 +5,7 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(HalfPlaneVertexReporter);
 
-void HalfPlaneVertexReporter::do_build()
+void HalfPlaneVertexReporter::do_build(BuildInfo& info)
 {
     m_impl.half_plane = &require<HalfPlane>();
 }
@@ -25,7 +25,7 @@ void HalfPlaneVertexReporter::Impl::report_attributes(GlobalVertexManager::Verte
     vertex_count         = info.coindices().size();
 
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(N,
                [coindices = info.coindices().viewer().name("coindices"),
 
@@ -36,7 +36,7 @@ void HalfPlaneVertexReporter::Impl::report_attributes(GlobalVertexManager::Verte
                    dst_pos(i)   = src_pos(i);
                });
 
-    info.contact_element_ids().copy_from(half_plane->m_impl.h_contact_id.data());
+    info.contact_element_ids().copy_from(half_plane->m_impl.h_contact_ids.data());
 }
 
 void HalfPlaneVertexReporter::Impl::report_displacements(GlobalVertexManager::VertexDisplacementInfo& info)

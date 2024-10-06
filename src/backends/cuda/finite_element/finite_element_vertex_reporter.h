@@ -4,7 +4,7 @@
 
 namespace uipc::backend::cuda
 {
-class FiniteElementVertexReporter : public VertexReporter
+class FiniteElementVertexReporter final : public VertexReporter
 {
   public:
     using VertexReporter::VertexReporter;
@@ -32,8 +32,7 @@ class FiniteElementVertexReporter : public VertexReporter
     SizeT vertex_count() const noexcept { return m_impl.reporter_vertex_count; }
 
   protected:
-    virtual void do_build() override;
-
+    virtual void do_build(BuildInfo& info) override;
     virtual void do_report_count(GlobalVertexManager::VertexCountInfo& info) override;
     virtual void do_report_attributes(GlobalVertexManager::VertexAttributeInfo& info) override;
     virtual void do_report_displacements(GlobalVertexManager::VertexDisplacementInfo& info) override;

@@ -135,10 +135,9 @@ UIPC_BUILTIN_ATTRIBUTE(mass);
 
 /**
  * @brief `thickness` <Float> attribute on **vertices** to indicate the shell thickness (radius) of the vertices
- * which is valid when dealing with codimensional geometries).
+ * which is valid when dealing with codimensional geometries.
  */
 UIPC_BUILTIN_ATTRIBUTE(thickness);
-
 
 /**
  * @brief `backend_fem_vertex_offset` <IndexT> attribute on **meta** to indicate the offset of the vertex in the FEM system.

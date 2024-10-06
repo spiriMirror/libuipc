@@ -28,6 +28,7 @@ void ContactTabular::insert(const ContactElement& L,
                             const ContactElement& R,
                             Float                 friction_rate,
                             Float                 resistance,
+                            bool                  enable,
                             const Json&           config)
 {
     auto     model_id = m_models.size();
@@ -75,14 +76,14 @@ void ContactTabular::insert(const ContactElement& L,
     if(insert_place == m_models.end() || insert_place == m_models.begin())
     {
         // create the new contact model.
-        m_models.emplace(insert_place, ids, friction_rate, resistance, config);
+        m_models.emplace(insert_place, ids, friction_rate, resistance, enable, config);
     }
     else
     {
         auto prev = insert_place - 1;
         if(prev->ids() == ids)
         {
-            *prev = ContactModel{ids, friction_rate, resistance, config};
+            *prev = ContactModel{ids, friction_rate, resistance, enable, config};
             UIPC_WARN_WITH_LOCATION(
                 "Contact model between {}[{}] and {}[{}] already exists, "
                 "replace the old one.",
@@ -94,14 +95,15 @@ void ContactTabular::insert(const ContactElement& L,
         else
         {
             // create the new contact model.
-            m_models.emplace(insert_place, ids, friction_rate, resistance, config);
+            m_models.emplace(insert_place, ids, friction_rate, resistance, enable, config);
         }
     }
 }
 
 void ContactTabular::default_model(Float friction_rate, Float resistance, const Json& config) noexcept
 {
-    m_models.front() = ContactModel{Vector2i::Zero(), friction_rate, resistance, config};
+    m_models.front() =
+        ContactModel{Vector2i::Zero(), friction_rate, resistance, true, config};
 }
 
 ContactElement& ContactTabular::default_element() noexcept
@@ -122,6 +124,11 @@ std::span<const ContactModel> ContactTabular::contact_models() const noexcept
 SizeT ContactTabular::element_count() const noexcept
 {
     return m_elements.size();
+}
+
+Json ContactTabular::default_config() noexcept
+{
+    return Json::object();
 }
 
 void to_json(Json& j, const ContactTabular& ct)

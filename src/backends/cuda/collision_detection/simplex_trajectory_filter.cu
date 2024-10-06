@@ -187,6 +187,16 @@ muda::CBufferView<Vector3i> SimplexTrajectoryFilter::BaseInfo::surf_triangles() 
     return m_impl->global_simplicial_surface_manager->surf_triangles();
 }
 
+muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_element_ids() const noexcept
+{
+    return m_impl->global_vertex_manager->contact_element_ids();
+}
+
+muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_mask_tabular() const noexcept
+{
+    return m_impl->global_contact_manager->contact_mask_tabular();
+}
+
 muda::CBufferView<Vector4i> SimplexTrajectoryFilter::PTs() const noexcept
 {
     return m_impl.PTs;

@@ -20,9 +20,13 @@ class UIPC_CORE_API ContactTabular
                 const ContactElement& R,
                 Float                 friction_rate,
                 Float                 resistance,
-                const Json&           config = {});
+                bool                  enable = true,
+                const Json&           config = default_config());
 
-    void default_model(Float friction_rate, Float resistance, const Json& config = {}) noexcept;
+    void default_model(Float       friction_rate,
+                       Float       resistance,
+                       const Json& config = default_config()) noexcept;
+
     ContactElement& default_element() noexcept;
 
     const ContactModel& default_model() const noexcept;
@@ -36,6 +40,8 @@ class UIPC_CORE_API ContactTabular
     ContactTabular& operator=(const ContactTabular&) = delete;
 
     SizeT element_count() const noexcept;
+
+    static Json default_config() noexcept;
 
   private:
     IndexT                       m_current_id;

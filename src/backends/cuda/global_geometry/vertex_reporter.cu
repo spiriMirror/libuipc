@@ -2,7 +2,15 @@
 
 namespace uipc::backend::cuda
 {
-void VertexReporter::do_build() {}
+void VertexReporter::do_build()
+{
+    auto& global_vertex_manager = require<GlobalVertexManager>();
+
+    BuildInfo info;
+    do_build(info);
+
+    global_vertex_manager.add_reporter(this);
+}
 
 void VertexReporter::report_count(GlobalVertexManager::VertexCountInfo& vertex_count_info)
 {

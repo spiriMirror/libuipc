@@ -27,6 +27,7 @@ PyContactTabular::PyContactTabular(py::module& m)
                              py::arg("R"),
                              py::arg("friction_rate"),
                              py::arg("resistance"),
+                             py::arg("enable") = true,
                              py::arg("config") = Json::object());
 
     class_ContactTabular.def(

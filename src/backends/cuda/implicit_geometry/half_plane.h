@@ -22,7 +22,7 @@ class HalfPlane : public SimSystem
 
         vector<ImplicitGeometry*> geos;
 
-        vector<IndexT>  h_contact_id;
+        vector<IndexT>  h_contact_ids;
         vector<Vector3> h_normals;
         vector<Vector3> h_positions;
 

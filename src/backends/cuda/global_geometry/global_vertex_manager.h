@@ -193,10 +193,10 @@ class GlobalVertexManager : public SimSystem
     void  collect_vertex_displacements();
     Float compute_axis_max_displacement();
 
-    AABB  compute_vertex_bounding_box();
-    void  step_forward(Float alpha);
-    void  record_start_point();
-    Impl  m_impl;
+    AABB compute_vertex_bounding_box();
+    void step_forward(Float alpha);
+    void record_start_point();
+    Impl m_impl;
 };
 }  // namespace uipc::backend::cuda
 

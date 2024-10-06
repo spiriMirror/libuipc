@@ -205,11 +205,20 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                  dxs         = dxs.viewer().name("dxs"),
                  thicknesses = info.thicknesses().viewer().name("thicknesses"),
                  dimensions  = info.dimensions().viewer().name("dimensions"),
-                 d_hat       = d_hat,
-                 alpha       = alpha] __device__(IndexT i, IndexT j)
+                 contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+                 contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+                 d_hat = d_hat,
+                 alpha = alpha] __device__(IndexT i, IndexT j)
                 {
                     const auto& V      = Vs(i);
                     const auto& codimV = codimVs(j);
+
+                    IndexT L = contact_element_ids(V);
+                    IndexT R = contact_element_ids(codimV);
+
+                    // discard if the contact is disabled
+                    if(contact_mask_tabular(L, R) == 0)
+                        return false;
 
                     bool V_is_codim = dimensions(V) <= 2;  // codim 0D vert and vert from codim 1D edge
 
@@ -245,18 +254,22 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                  Ps          = Ps.viewer().name("Ps"),
                  dxs         = dxs.viewer().name("dxs"),
                  thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                 d_hat       = d_hat,
-                 alpha       = alpha] __device__(IndexT i, IndexT j)
+                 contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+                 contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+                 d_hat = d_hat,
+                 alpha = alpha] __device__(IndexT i, IndexT j)
                 {
                     const auto& codimV = codimVs(i);
                     const auto& E      = Es(j);
 
-                    //MUDA_ASSERT(E[0] != codimV && E[1] != codimV,
-                    //            "Edge (%d,%d) contains codim vertex (%d), why can it happen?",
-                    //            E[0],
-                    //            E[1],
-                    //            codimV);
+                    IndexT L = contact_element_ids(codimV);
+                    IndexT R = contact_element_ids(E[0]);
 
+                    // discard if the contact is disabled
+                    if(contact_mask_tabular(L, R) == 0)
+                        return false;
+
+                    // discard if the vertex is on the edge
                     if(E[0] == codimV || E[1] == codimV)
                         return false;
 
@@ -291,12 +304,22 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
              Ps          = Ps.viewer().name("Ps"),
              dxs         = dxs.viewer().name("dxs"),
              thicknesses = info.thicknesses().viewer().name("thicknesses"),
-             d_hat       = d_hat,
-             alpha       = alpha] __device__(IndexT i, IndexT j)
+             contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+             contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+             d_hat = d_hat,
+             alpha = alpha] __device__(IndexT i, IndexT j)
             {
                 const auto& E0 = Es(i);
                 const auto& E1 = Es(j);
 
+                IndexT L = contact_element_ids(E0[0]);
+                IndexT R = contact_element_ids(E1[0]);
+
+                // discard if the contact is disabled
+                if(contact_mask_tabular(L, R) == 0)
+                    return false;
+
+                // discard if the edges share same vertex
                 if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
                     return false;
 
@@ -336,13 +359,22 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
              Ps          = Ps.viewer().name("Ps"),
              dxs         = dxs.viewer().name("dxs"),
              thicknesses = info.thicknesses().viewer().name("thicknesses"),
-             d_hat       = d_hat,
-             alpha       = alpha] __device__(IndexT i, IndexT j)
+             contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+             contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+             d_hat = d_hat,
+             alpha = alpha] __device__(IndexT i, IndexT j)
             {
-                // discard if the point is on the triangle
                 auto V = Vs(i);
                 auto F = Fs(j);
 
+                IndexT L = contact_element_ids(V);
+                IndexT R = contact_element_ids(F[0]);
+
+                // discard if the contact is disabled
+                if(contact_mask_tabular(L, R) == 0)
+                    return false;
+
+                // discard if the point is on the triangle
                 if(F[0] == V || F[1] == V || F[2] == V)
                     return false;
 

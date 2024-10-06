@@ -1,14 +1,15 @@
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
-
+#include <implicit_geometry/half_plane_vertex_reporter.h>
 namespace uipc::backend::cuda
 {
 void VertexHalfPlaneTrajectoryFilter::do_build()
 {
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
     m_impl.global_simplicial_surface_manager = &require<GlobalSimpicialSurfaceManager>();
-    m_impl.global_contact_manager = &require<GlobalContactManager>();
-    m_impl.half_plane             = &require<HalfPlane>();
-    auto global_trajectory_filter = &require<GlobalTrajectoryFilter>();
+    m_impl.global_contact_manager     = &require<GlobalContactManager>();
+    m_impl.half_plane                 = &require<HalfPlane>();
+    m_impl.half_plane_vertex_reporter = &require<HalfPlaneVertexReporter>();
+    auto global_trajectory_filter     = &require<GlobalTrajectoryFilter>();
 
     BuildInfo info;
     do_build(info);
@@ -97,6 +98,11 @@ Float VertexHalfPlaneTrajectoryFilter::DetectInfo::alpha() const noexcept
     return m_alpha;
 }
 
+IndexT VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_vertex_global_offset() const noexcept
+{
+    return m_impl->half_plane_vertex_reporter->vertex_global_offset();
+}
+
 muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_normals() const noexcept
 {
     return m_impl->half_plane->normals();
@@ -110,6 +116,16 @@ muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_posi
 muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::positions() const noexcept
 {
     return m_impl->global_vertex_manager->positions();
+}
+
+muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_element_ids() const noexcept
+{
+    return m_impl->global_vertex_manager->contact_element_ids();
+}
+
+muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_mask_tabular() const noexcept
+{
+    return m_impl->global_contact_manager->contact_mask_tabular();
 }
 
 muda::CBufferView<Float> VertexHalfPlaneTrajectoryFilter::BaseInfo::thicknesses() const noexcept

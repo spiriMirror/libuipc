@@ -384,6 +384,12 @@ class AffineBodyDynamics : public SimSystem
      */
     auto v2b() const noexcept { return m_impl.vertex_id_to_body_id.view(); }
 
+    auto qs() const noexcept { return m_impl.body_id_to_q.view(); }
+
+    auto q_prevs() const noexcept { return m_impl.body_id_to_q_prev.view(); }
+
+    auto q_vs() const noexcept { return m_impl.body_id_to_q_v.view(); }
+
     auto body_is_fixed() const noexcept
     {
         return m_impl.body_id_to_is_fixed.view();

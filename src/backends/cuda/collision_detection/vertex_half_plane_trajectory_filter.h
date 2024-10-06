@@ -8,6 +8,7 @@
 
 namespace uipc::backend::cuda
 {
+class HalfPlaneVertexReporter;
 class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
 {
   public:
@@ -25,12 +26,15 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
 
         Float d_hat() const noexcept;
 
+        IndexT                     plane_vertex_global_offset() const noexcept;
         muda::CBufferView<Vector3> plane_normals() const noexcept;
         muda::CBufferView<Vector3> plane_positions() const noexcept;
 
-        muda::CBufferView<Vector3> positions() const noexcept;
-        muda::CBufferView<Float>   thicknesses() const noexcept;
-        muda::CBufferView<IndexT>  surf_vertices() const noexcept;
+        muda::CBufferView<Vector3>  positions() const noexcept;
+        muda::CBufferView<Float>    thicknesses() const noexcept;
+        muda::CBufferView<IndexT>   contact_element_ids() const noexcept;
+        muda::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
+        muda::CBufferView<IndexT>   surf_vertices() const noexcept;
 
       private:
         friend class VertexHalfPlaneTrajectoryFilter;
@@ -82,8 +86,9 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
 
         GlobalVertexManager* global_vertex_manager = nullptr;
         GlobalSimpicialSurfaceManager* global_simplicial_surface_manager = nullptr;
-        GlobalContactManager* global_contact_manager = nullptr;
-        HalfPlane*            half_plane             = nullptr;
+        GlobalContactManager*    global_contact_manager     = nullptr;
+        HalfPlane*               half_plane                 = nullptr;
+        HalfPlaneVertexReporter* half_plane_vertex_reporter = nullptr;
 
         muda::CBufferView<Vector2i>  PHs;
         muda::DeviceBuffer<Vector2i> friction_PHs;

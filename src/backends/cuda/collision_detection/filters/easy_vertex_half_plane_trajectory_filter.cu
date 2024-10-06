@@ -35,23 +35,35 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
             .file_line(__FILE__, __LINE__)
             .apply(info.surf_vertices().size(),
                    [num = num_collisions.viewer().name("num_collisions"),
+                    plane_vertex_offset = info.plane_vertex_global_offset(),
                     surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
                     positions = info.positions().viewer().name("positions"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                    contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+                    contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
                     half_plane_positions = info.plane_positions().viewer().name("plane_positions"),
                     half_plane_normals = info.plane_normals().viewer().name("plane_normals"),
                     d_hat     = info.d_hat(),
                     PHs       = PHs.viewer().name("PHs"),
                     max_count = PHs.size()] __device__(int i) mutable
                    {
-                       IndexT  vI  = surf_vertices(i);
-                       Vector3 pos = positions(vI);
-
                        for(int j = 0; j < half_plane_positions.total_size(); ++j)
                        {
+                           IndexT vI = surf_vertices(i);
+                           IndexT vJ = plane_vertex_offset + j;
+
+                           IndexT L = contact_element_ids(vI);
+                           IndexT R = contact_element_ids(vJ);
+
+                           if(contact_mask_tabular(L, R) == 0)
+                               continue;
+
+                           Vector3 pos = positions(vI);
+
                            Vector3 plane_pos    = half_plane_positions(j);
                            Vector3 plane_normal = half_plane_normals(j);
-                           Vector3 diff         = pos - plane_pos;
+
+                           Vector3 diff = pos - plane_pos;
 
                            Float dst = diff.dot(plane_normal);
 
@@ -107,11 +119,14 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     constexpr Float eta = 0.1;
 
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(info.surf_vertices().size(),
                [surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
+                plane_vertex_offset = info.plane_vertex_global_offset(),
                 positions   = info.positions().viewer().name("positions"),
                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+                contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
                 displacements = info.displacements().viewer().name("displacements"),
                 half_plane_positions = info.plane_positions().viewer().name("plane_positions"),
                 half_plane_normals = info.plane_normals().viewer().name("plane_normals"),
@@ -120,15 +135,24 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                 d_hat = info.d_hat(),
                 eta] __device__(int i) mutable
                {
-                   IndexT  vI  = surf_vertices(i);
-                   Vector3 x   = positions(vI);
-                   Vector3 dx  = displacements(vI) * alpha;
-                   Vector3 x_t = x + dx;
-
-                   Float min_toi = 1.1f;
+                   Float min_toi = 1.1f;  // large enough
 
                    for(int j = 0; j < half_plane_positions.total_size(); ++j)
                    {
+                       IndexT vI = surf_vertices(i);
+                       IndexT vJ = plane_vertex_offset + j;
+
+                       IndexT L = contact_element_ids(vI);
+                       IndexT R = contact_element_ids(vJ);
+
+                       if(contact_mask_tabular(L, R) == 0)
+                           continue;
+
+                       Vector3 x   = positions(vI);
+                       Vector3 dx  = displacements(vI) * alpha;
+                       Vector3 x_t = x + dx;
+
+
                        Vector3 P = half_plane_positions(j);
                        Vector3 N = half_plane_normals(j);
 

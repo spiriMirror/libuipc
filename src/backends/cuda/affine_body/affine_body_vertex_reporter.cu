@@ -4,11 +4,9 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(AffineBodyVertexReporter);
 
-void AffineBodyVertexReporter::do_build()
+void AffineBodyVertexReporter::do_build(BuildInfo& info)
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
-    auto& global_vertex_manager = require<GlobalVertexManager>();
-    global_vertex_manager.add_reporter(this);
 }
 
 void AffineBodyVertexReporter::Impl::report_count(GlobalVertexManager::VertexCountInfo& info)
@@ -27,13 +25,12 @@ void AffineBodyVertexReporter::Impl::report_attributes(GlobalVertexManager::Vert
     // later we may extract the surface vertices as the reported vertices
     // then the coindices will be a mapping from the surface vertices to the affine body vertices
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(N,
                [coindices = info.coindices().viewer().name("coindices"),
-
-                dst_pos = info.positions().viewer().name("dst_pos"),
-                v2b     = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                qs      = abd().body_id_to_q.cviewer().name("qs"),
+                dst_pos   = info.positions().viewer().name("dst_pos"),
+                v2b       = abd().vertex_id_to_body_id.cviewer().name("v2b"),
+                qs        = abd().body_id_to_q.cviewer().name("qs"),
                 src_pos = abd().vertex_id_to_J.cviewer().name("src_pos")] __device__(int i) mutable
                {
                    coindices(i) = i;

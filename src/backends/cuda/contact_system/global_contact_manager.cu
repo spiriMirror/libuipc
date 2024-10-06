@@ -41,6 +41,11 @@ void GlobalContactManager::do_build()
     m_impl.kappa = world().scene().contact_tabular().default_model().resistance();
 }
 
+muda::CBuffer2DView<IndexT> GlobalContactManager::contact_mask_tabular() const noexcept
+{
+    return m_impl.contact_mask_tabular;
+}
+
 void GlobalContactManager::Impl::init(WorldVisitor& world)
 {
     // 1) init tabular
@@ -51,16 +56,27 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
                              ContactCoeff{.kappa = contact_models[0].resistance(),
                                           .mu = contact_models[0].friction_rate()});
 
-    for(auto model : contact_models)
+    h_contact_mask_tabular.resize(N * N, 1);
+
+    for(auto& model : contact_models)
     {
         auto ids = model.ids();
         ContactCoeff coeff{.kappa = model.resistance(), .mu = model.friction_rate()};
-        h_contact_tabular[ids.x() * N + ids.y()] = coeff;
-        h_contact_tabular[ids.y() * N + ids.x()] = coeff;
+
+        auto upper                    = ids.x() * N + ids.y();
+        h_contact_tabular[upper]      = coeff;
+        h_contact_mask_tabular[upper] = model.is_enabled() ? 1 : 0;
+
+        auto lower                    = ids.y() * N + ids.x();
+        h_contact_tabular[lower]      = coeff;
+        h_contact_mask_tabular[lower] = model.is_enabled() ? 1 : 0;
     }
 
     contact_tabular.resize(muda::Extent2D{N, N});
     contact_tabular.view().copy_from(h_contact_tabular.data());
+
+    contact_mask_tabular.resize(muda::Extent2D{N, N});
+    contact_mask_tabular.view().copy_from(h_contact_mask_tabular.data());
 
     // 2) vertex contact info
     vert_is_active_contact.resize(global_vertex_manager->positions().size(), 0);

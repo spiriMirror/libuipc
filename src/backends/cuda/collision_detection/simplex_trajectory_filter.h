@@ -34,6 +34,8 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         muda::CBufferView<IndexT>   surf_vertices() const noexcept;
         muda::CBufferView<Vector2i> surf_edges() const noexcept;
         muda::CBufferView<Vector3i> surf_triangles() const noexcept;
+        muda::CBufferView<IndexT>   contact_element_ids() const noexcept;
+        muda::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
 
       protected:
         friend class SimplexTrajectoryFilter;

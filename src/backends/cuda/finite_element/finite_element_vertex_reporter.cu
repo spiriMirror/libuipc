@@ -6,11 +6,9 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FiniteElementVertexReporter);
 
-void FiniteElementVertexReporter::do_build()
+void FiniteElementVertexReporter::do_build(BuildInfo& info)
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
-    auto& global_vertex_manager  = require<GlobalVertexManager>();
-    global_vertex_manager.add_reporter(this);
 }
 
 void FiniteElementVertexReporter::Impl::report_count(GlobalVertexManager::VertexCountInfo& info)
@@ -24,7 +22,7 @@ void FiniteElementVertexReporter::Impl::report_attributes(GlobalVertexManager::V
     // fill the coindices for later use
     auto N = info.coindices().size();
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(N,
                [coindices = info.coindices().viewer().name("coindices"),
                 src_pos   = fem().xs.cviewer().name("src_pos"),
@@ -36,8 +34,8 @@ void FiniteElementVertexReporter::Impl::report_attributes(GlobalVertexManager::V
                });
 
     info.contact_element_ids().copy_from(fem().h_vertex_contact_element_ids.data());
-    info.dimensions().copy_from(fem().h_dimensions.data());
 
+    info.dimensions().copy_from(fem().h_dimensions.data());
     info.thicknesses().copy_from(fem().thicknesses);
 
     // record the global vertex info

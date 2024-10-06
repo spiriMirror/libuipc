@@ -78,7 +78,7 @@ class GeometryInstanceFlattener
      *      [&](geometry::Geometry* geo)
      *      {
      *          auto transform = geo->instances().find<Matrix4x4>(builtin::transform);
-     *          return std::make_tuple(->view());
+     *          return std::make_tuple(transform->view());
      *      },
      *      [&](const Matrix4x4& transform)
      *      {
