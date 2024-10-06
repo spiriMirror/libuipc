@@ -8,11 +8,15 @@
 
 namespace uipc::constitution
 {
+constexpr U64 HookeanSpringUID = 12ull;
+
 REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
     list<UIDInfo> uids;
-    uids.push_back(UIDInfo{.uid = 12, .name = "HookeanSpring", .type = string{builtin::FiniteElement}});
+    uids.push_back(UIDInfo{.uid  = HookeanSpringUID,
+                           .name = "HookeanSpring",
+                           .type = string{builtin::FiniteElement}});
     return uids;
 }
 
@@ -43,6 +47,6 @@ Json HookeanSpring::default_config() noexcept
 
 U64 HookeanSpring::get_uid() const noexcept
 {
-    return 12;
+    return HookeanSpringUID;
 }
 }  // namespace uipc::constitution

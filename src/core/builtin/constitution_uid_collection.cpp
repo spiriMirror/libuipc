@@ -12,8 +12,6 @@ const ConstitutionUIDCollection& ConstitutionUIDCollection::instance() noexcept
 
 ConstitutionUIDCollection::ConstitutionUIDCollection()
 {
-    create(UIDInfo{.uid = 0, .name = "Empty"});
-
     auto& creators = ConstitutionUIDAutoRegister::creators();
     for(auto& C : creators)
     {

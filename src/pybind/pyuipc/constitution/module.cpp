@@ -1,4 +1,5 @@
 #include <pyuipc/constitution/module.h>
+#include <pyuipc/constitution/empty.h>
 #include <pyuipc/constitution/constitution.h>
 #include <pyuipc/constitution/elastic_moduli.h>
 #include <pyuipc/constitution/finite_element_constitution.h>
@@ -23,6 +24,7 @@ Module::Module(py::module& m)
 
     // Finite Element Constitutions
     PyFiniteElementConstitution{m};
+    PyEmpty{m};
     PyParticle{m};
     PyHookeanSpring{m};
     PyShellNeoHookean{m};

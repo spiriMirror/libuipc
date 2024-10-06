@@ -86,8 +86,12 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_tri(SimplicialComplex& R
                             thickness_view[t[1]],
                             thickness_view[t[2]]);
 
-                auto v = thickness_view[t[0]];
-                auto h = 2 * v;
+                auto r = thickness_view[t[0]];
+
+                if(r == 0.0)  // if the thickness is zero, treat the density as surface density
+                    return area * mass_density;
+
+                auto h = 2 * r;
 
                 return area * h * mass_density;
             }
@@ -148,9 +152,12 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_edge(SimplicialComplex& 
                             thickness_view[e[0]],
                             thickness_view[e[1]]);
 
-                auto r    = thickness_view[e[0]];
-                auto area = r * r * std::numbers::pi;
+                auto r = thickness_view[e[0]];
 
+                if(r == 0.0)  // if the thickness is zero, treat the density as line density
+                    return l * mass_density;
+
+                auto area = r * r * std::numbers::pi;
                 return l * area * mass_density;
             }
             else
@@ -194,9 +201,17 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_vertex(SimplicialComplex
         auto thickness_view = thickness->view();
         for(auto&& [i, v] : enumerate(Vs))
         {
-            auto r     = thickness_view[i];
-            auto V     = 4.0 / 3.0 * std::pow(r, 3) * std::numbers::pi;
-            Vm_view[i] = V * mass_density;
+            auto r = thickness_view[i];
+
+            if(r == 0.0)  // if the thickness is zero, treat the density as point mass
+            {
+                Vm_view[i] = mass_density;
+            }
+            else
+            {
+                auto V     = 4.0 / 3.0 * std::pow(r, 3) * std::numbers::pi;
+                Vm_view[i] = V * mass_density;
+            }
         }
     }
     else

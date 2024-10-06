@@ -2,11 +2,11 @@
 
 namespace uipc::backend::cuda
 {
-class Particle0D final : public Codim0DConstitution
+class Empty0D final : public Codim0DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64 ConstitutionUID = 13;
+    static constexpr U64 ConstitutionUID = 0;
 
     using Codim0DConstitution::Codim0DConstitution;
 
@@ -26,5 +26,5 @@ class Particle0D final : public Codim0DConstitution
     }
 };
 
-REGISTER_SIM_SYSTEM(Particle0D);
+REGISTER_SIM_SYSTEM(Empty0D);
 }  // namespace uipc::backend::cuda
