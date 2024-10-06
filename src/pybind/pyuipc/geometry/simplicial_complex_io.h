@@ -3,9 +3,9 @@
 
 namespace pyuipc::geometry
 {
-class PyIO
+class PySimplicialComplexIO
 {
   public:
-    PyIO(py::module& m);
+    PySimplicialComplexIO(py::module& m);
 };
 }  // namespace pyuipc::geometry

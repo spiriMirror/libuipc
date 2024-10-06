@@ -38,11 +38,12 @@ void SimplicialComplexIO::apply_pre_transform(Vector3& v) const noexcept
 SimplicialComplex SimplicialComplexIO::read(std::string_view file_name)
 {
     fs::path path{file_name};
-    if(path.extension() == ".msh")
+    auto     ext = path.extension();
+    if(ext == ".msh")
     {
         return read_msh(file_name);
     }
-    else if(path.extension() == ".obj")
+    else if(ext == ".obj")
     {
         return read_obj(file_name);
     }
