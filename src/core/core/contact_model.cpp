@@ -3,6 +3,15 @@
 
 namespace uipc::core
 {
+ContactModel::ContactModel() noexcept
+    : m_ids(-1, -1)
+    , m_friction_rate(0.0)
+    , m_resistance(0.0)
+    , m_enabled(false)
+    , m_config(Json::object())
+{
+}
+
 ContactModel::ContactModel(const Vector2i& ids,
                            Float           friction_rate,
                            Float           resistance,

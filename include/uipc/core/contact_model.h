@@ -2,11 +2,13 @@
 #include <uipc/common/macro.h>
 #include <uipc/common/type_define.h>
 #include <uipc/common/json.h>
+
 namespace uipc::core
 {
 class UIPC_CORE_API ContactModel
 {
   public:
+    ContactModel() noexcept;
     ContactModel(const Vector2i& ids, Float friction_rate, Float resistance, bool enable, const Json& config);
 
     const Vector2i& ids() const;

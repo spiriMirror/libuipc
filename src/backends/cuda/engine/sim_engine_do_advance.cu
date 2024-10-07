@@ -27,6 +27,7 @@ void SimEngine::do_advance()
     {
         if(m_global_trajectory_filter)
         {
+            Timer timer{"Detect DCD Candidates"};
             m_global_trajectory_filter->detect(0.0);
             m_global_trajectory_filter->filter_active();
         }
@@ -36,6 +37,7 @@ void SimEngine::do_advance()
     {
         if(m_global_trajectory_filter)
         {
+            Timer timer{"Detect Trajectory Candidates"};
             m_global_trajectory_filter->detect(alpha);
         }
     };
@@ -44,6 +46,7 @@ void SimEngine::do_advance()
     {
         if(m_global_trajectory_filter)
         {
+            Timer timer{"Filter Contact Candidates"};
             m_global_trajectory_filter->filter_active();
         }
     };
@@ -66,7 +69,10 @@ void SimEngine::do_advance()
     auto compute_contact = [this]
     {
         if(m_global_contact_manager)
+        {
+            Timer timer{"Compute Contact"};
             m_global_contact_manager->compute_contact();
+        }
     };
 
     auto cfl_condition = [&cfl_alpha, this](Float alpha)
@@ -88,6 +94,7 @@ void SimEngine::do_advance()
     {
         if(m_global_trajectory_filter)
         {
+            Timer timer{"Filter CCD TOI"};
             ccd_alpha = m_global_trajectory_filter->filter_toi(alpha);
             if(ccd_alpha < alpha)
             {
@@ -115,7 +122,10 @@ void SimEngine::do_advance()
     auto step_animation = [this]()
     {
         if(m_global_animator)
+        {
+            Timer timer{"Step Animation"};
             m_global_animator->step();
+        }
     };
 
     auto compute_animation_substep_ratio = [this](SizeT newton_iter)
@@ -205,10 +215,7 @@ void SimEngine::do_advance()
 
                 // 3) Compute Contact Gradient and Hessian => G:Vector3, H:Matrix3x3
                 m_state = SimEngineState::ComputeContact;
-                {
-                    Timer timer{"Compute Contact"};
-                    compute_contact();
-                }
+                compute_contact();
 
                 // 4) Compute System Gradient and Hessian
                 m_state = SimEngineState::ComputeGradientHessian;
@@ -322,8 +329,11 @@ void SimEngine::do_advance()
 
             // 5. Update Velocity => v = (x - x_0) / dt
             m_state = SimEngineState::UpdateVelocity;
-            m_dof_predictor->compute_velocity();
-            m_global_vertex_manager->record_prev_positions();
+            {
+                Timer timer{"Update Velocity"};
+                m_dof_predictor->compute_velocity();
+                m_global_vertex_manager->record_prev_positions();
+            }
         }
 
         spdlog::info("<<< End Frame: {}", m_current_frame);

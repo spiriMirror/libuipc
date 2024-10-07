@@ -1,11 +1,8 @@
 #pragma once
 #include <uipc/core/contact_element.h>
 #include <uipc/core/contact_model.h>
-#include <uipc/common/string.h>
 #include <uipc/common/json.h>
-#include <uipc/common/unordered_map.h>
-#include <uipc/common/vector.h>
-#include <uipc/common/format.h>
+#include <uipc/common/span.h>
 
 namespace uipc::core
 {
@@ -13,6 +10,10 @@ class UIPC_CORE_API ContactTabular
 {
   public:
     ContactTabular() noexcept;
+    ~ContactTabular() noexcept;
+    // delete copy_from
+    ContactTabular(const ContactTabular&)            = delete;
+    ContactTabular& operator=(const ContactTabular&) = delete;
 
     ContactElement& create(std::string_view name = "") noexcept;
 
@@ -35,17 +36,14 @@ class UIPC_CORE_API ContactTabular
 
     friend void to_json(Json& j, const ContactTabular& ct);
 
-    // delete copy_from
-    ContactTabular(const ContactTabular&)            = delete;
-    ContactTabular& operator=(const ContactTabular&) = delete;
-
     SizeT element_count() const noexcept;
 
     static Json default_config() noexcept;
 
   private:
-    IndexT                       m_current_id;
-    mutable vector<ContactModel> m_models;
-    vector<U<ContactElement>>    m_elements;
+    class Impl;
+    U<Impl> m_impl;
 };
+
+void to_json(Json& j, const ContactTabular& ct);
 }  // namespace uipc::core
