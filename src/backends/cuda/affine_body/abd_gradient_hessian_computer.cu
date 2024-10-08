@@ -30,11 +30,12 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
     auto& body_id_to_body_hessian   = abd().body_id_to_body_hessian;
     auto& body_id_to_body_gradient  = abd().body_id_to_body_gradient;
     auto& body_id_to_is_fixed       = abd().body_id_to_is_fixed;
-    auto& body_id_to_is_kinematic   = abd().body_id_to_is_kinematic;
+    auto& body_id_to_is_dynamic     = abd().body_id_to_is_dynamic;
     auto& body_id_to_q              = abd().body_id_to_q;
     auto& body_id_to_q_tilde        = abd().body_id_to_q_tilde;
     auto& body_id_to_abd_mass       = abd().body_id_to_abd_mass;
     auto& body_id_to_kinetic_energy = abd().body_id_to_kinetic_energy;
+    auto& body_id_to_abd_gravity    = abd().body_id_to_abd_gravity;
     auto& constitutions             = abd().constitutions;
     auto& diag_hessian              = abd().diag_hessian;
 
@@ -68,37 +69,32 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(abd().abd_body_count,
-               [is_fixed = body_id_to_is_fixed.cviewer().name("is_fixed"),
-                is_kinematic = body_id_to_is_kinematic.cviewer().name("is_kinematic"),
-                qs       = body_id_to_q.cviewer().name("qs"),
-                q_tildes = body_id_to_q_tilde.cviewer().name("q_tildes"),
-                masses   = body_id_to_abd_mass.cviewer().name("masses"),
+               [is_fixed   = body_id_to_is_fixed.cviewer().name("is_fixed"),
+                is_dynamic = body_id_to_is_dynamic.cviewer().name("is_dynamic"),
+                qs         = body_id_to_q.cviewer().name("qs"),
+                q_prevs    = body_id_to_q_tilde.cviewer().name("q_tildes"),
+                q_tildes   = body_id_to_q_tilde.cviewer().name("q_tildes"),
+                gravities  = body_id_to_abd_gravity.cviewer().name("gravities"),
+                masses     = body_id_to_abd_mass.cviewer().name("masses"),
                 Ks = body_id_to_kinetic_energy.cviewer().name("kinetic_energy"),
                 diag_hessian = diag_hessian.viewer().name("diag_hessian"),
                 m_hessians = body_id_to_body_hessian.viewer().name("hessians"),
-                gradients = body_id_to_body_gradient.viewer().name("gradients")] __device__(int i) mutable
+                gradients = body_id_to_body_gradient.viewer().name("gradients"),
+                dt        = info.dt()] __device__(int i) mutable
                {
                    const auto& q       = qs(i);
+                   const auto& q_prev  = q_prevs(i);
                    const auto& q_tilde = q_tildes(i);
                    auto&       H       = m_hessians(i);
                    auto&       G       = gradients(i);
                    const auto& M       = masses(i);
 
-
-                   // cout << "q(" << i << ")=" << q.transpose().eval() << "\n";
-                   // cout << "q_tilde(" << i << ")=" << q_tilde.transpose().eval() << "\n";
-
-                   if(is_kinematic(i)) [[unlikely]]
+                   if(is_fixed(i))
                    {
-                       H = Matrix12x12::Zero();
+                       H = M.to_mat();  // use mass diag to avoid singular matrix
                        G = Vector12::Zero();
                    }
-                   else if(is_fixed(i)) [[unlikely]]
-                   {
-                       H = M.to_mat();
-                       G = Vector12::Zero();
-                   }
-                   else [[likely]]
+                   else
                    {
                        const auto& K = Ks(i);
                        G += M * (q - q_tilde);

@@ -119,19 +119,27 @@ UIPC_BUILTIN_ATTRIBUTE(is_fixed);
 UIPC_BUILTIN_ATTRIBUTE(is_constrained);
 
 /**
- * @brief `is_kinematic` <IndexT>[0,1] attribute, indicates if the **instance** or **vertex** is is kinematic.
+ * @brief `is_dynamic` <IndexT>[0,1] attribute, indicates if the **instance** or **vertex** is is dynamic.
  * 
- * 'Kinematic' means the kinetic of instances or vertices is not considered.
+ * 'Dynamic' means the kinetic of instances or vertices is considered.
  * 
- * 1) 0 means the the kinetic of the instance or vertex is considered.
- * 2) 1 means the the kinetic of the instance or vertex is not considered.
+ * 1) 0 means the the kinetic of the instance or vertex is not considered.
+ * 2) 1 means the the kinetic of the instance or vertex is considered.
  */
-UIPC_BUILTIN_ATTRIBUTE(is_kinematic);
+UIPC_BUILTIN_ATTRIBUTE(is_dynamic);
 
 /**
  * @brief `mass` <Float> attribute on **vertices**.
  */
 UIPC_BUILTIN_ATTRIBUTE(mass);
+
+/**
+ * @brief `gravity` <Vector3> attribute on **instance** or **vertices**.
+ * 
+ * If attribute exists, backend will take this value as the gravity of the instance or vertices,
+ * instead of the global gravity set in the scene configuration.
+ */
+UIPC_BUILTIN_ATTRIBUTE(gravity);
 
 /**
  * @brief `thickness` <Float> attribute on **vertices** to indicate the shell thickness (radius) of the vertices

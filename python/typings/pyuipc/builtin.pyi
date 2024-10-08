@@ -6,11 +6,12 @@ constitution_uid: str
 constraint_uid: str
 contact_element_id: str
 extra_constitution_uids: str
+gravity: str
 implicit_geometry_uid: str
 is_constrained: str
+is_dynamic: str
 is_facet: str
 is_fixed: str
-is_kinematic: str
 is_surf: str
 mass: str
 orient: str

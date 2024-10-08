@@ -44,7 +44,10 @@ Json Scene::default_config() noexcept
 
     config["sanity_check"]["enable"] = true;
 
-    config["recovery"]["frame"] = ~0ull;
+    auto& recovery = config["recovery"];
+    {
+        recovery["frame"] = ~0ull;
+    }
 
     // something that is unofficial
     config["extras"] = Json::object();

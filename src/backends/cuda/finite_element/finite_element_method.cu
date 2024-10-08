@@ -56,7 +56,7 @@ void FiniteElementMethod::do_build()
 {
     const auto& scene = world().scene();
 
-    m_impl.gravity = scene.info()["gravity"].get<Vector3>();
+    m_impl.default_gravity = scene.info()["gravity"].get<Vector3>();
 
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
 
@@ -442,8 +442,9 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
     h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
     h_masses.resize(h_positions.size());
     h_vertex_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
-    h_vertex_is_fixed.resize(h_positions.size(), 0);      // fill 0 for default
-    h_vertex_is_kinematic.resize(h_positions.size(), 0);  // fill 0 for default
+    h_vertex_is_fixed.resize(h_positions.size(), 0);    // fill 0 for default
+    h_vertex_is_dynamic.resize(h_positions.size(), 1);  // fill 1 for default
+    h_gravities.resize(h_positions.size(), default_gravity);
 
     for(auto&& [i, info] : enumerate(geo_infos))
     {
@@ -599,17 +600,32 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
             std::ranges::fill(dst_dim_span, sc->dim());
         }
 
-        {  // 9) setup vertex is_kinematic
-            auto is_kinematic = sc->vertices().find<IndexT>(builtin::is_kinematic);
-            auto dst_is_kinematic_span =
-                span{h_vertex_is_kinematic}.subspan(info.vertex_offset, info.vertex_count);
+        {  // 9) setup vertex is_dynamic
+            auto is_dynamic = sc->vertices().find<IndexT>(builtin::is_dynamic);
+            auto dst_is_dynamic =
+                span{h_vertex_is_dynamic}.subspan(info.vertex_offset, info.vertex_count);
 
-            if(is_kinematic)
+            if(is_dynamic)
             {
-                auto is_kinematic_view = is_kinematic->view();
-                UIPC_ASSERT(is_kinematic_view.size() == dst_is_kinematic_span.size(),
+                auto is_dynamic_view = is_dynamic->view();
+                UIPC_ASSERT(is_dynamic_view.size() == dst_is_dynamic.size(),
                             "is_kinematic size mismatching");
-                std::ranges::copy(is_kinematic_view, dst_is_kinematic_span.begin());
+                std::ranges::copy(is_dynamic_view, dst_is_dynamic.begin());
+            }
+        }
+
+        {  // 10) setup vertex gravities
+
+            auto gravity_attr = sc->vertices().find<Vector3>(builtin::gravity);
+            auto dst_gravties =
+                span{h_gravities}.subspan(info.vertex_offset, info.vertex_count);
+
+            if(gravity_attr)
+            {
+                auto gravity_view = gravity_attr->view();
+                UIPC_ASSERT(gravity_view.size() == dst_gravties.size(),
+                            "gravity size mismatching");
+                std::ranges::copy(gravity_view, dst_gravties.begin());
             }
         }
     }
@@ -633,8 +649,11 @@ void FiniteElementMethod::Impl::_build_on_device()
     is_fixed.resize(h_vertex_is_fixed.size());
     is_fixed.view().copy_from(h_vertex_is_fixed.data());
 
-    is_kinematic.resize(h_vertex_is_kinematic.size());
-    is_kinematic.view().copy_from(h_vertex_is_kinematic.data());
+    is_dynamic.resize(h_vertex_is_dynamic.size());
+    is_dynamic.view().copy_from(h_vertex_is_dynamic.data());
+
+    gravities.resize(h_gravities.size());
+    gravities.view().copy_from(h_gravities.data());
 
     dxs.resize(xs.size(), Vector3::Zero());
     vs.resize(xs.size(), Vector3::Zero());
@@ -926,26 +945,35 @@ void FiniteElementMethod::Impl::compute_x_tilde(DoFPredictor::PredictInfo& info)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(xs.size(),
-               [is_fixed     = is_fixed.cviewer().name("fixed"),
-                is_kinematic = is_kinematic.cviewer().name("is_kinematic"),
-                x_prevs      = x_prevs.cviewer().name("x_prevs"),
-                vs           = vs.cviewer().name("vs"),
-                x_tildes     = x_tildes.viewer().name("x_tildes"),
-                g            = gravity,
-                dt           = info.dt()] __device__(int i) mutable
+               [is_fixed   = is_fixed.cviewer().name("fixed"),
+                is_dynamic = is_dynamic.cviewer().name("is_dynamic"),
+                x_prevs    = x_prevs.cviewer().name("x_prevs"),
+                vs         = vs.cviewer().name("vs"),
+                x_tildes   = x_tildes.viewer().name("x_tildes"),
+                gravities  = gravities.cviewer().name("gravities"),
+                dt         = info.dt()] __device__(int i) mutable
                {
                    const Vector3& x_prev = x_prevs(i);
                    const Vector3& v      = vs(i);
 
-                   if(is_fixed(i) || is_kinematic(i))  // fixed or kinematic
+                   // 0) fixed: x_tilde = x_prev
+                   Vector3 x_tilde = x_prev;
+
+                   if(!is_fixed(i))
                    {
-                       x_tildes(i) = x_prev;
+                       const Vector3& g = gravities(i);
+
+                       // 1) static problem: x_tilde = x_prev + g * dt * dt
+                       x_tilde += g * dt * dt;
+
+                       // 2) dynamic problem: x_tilde = x_prev + v * dt + g * dt * dt
+                       if(is_dynamic(i))
+                       {
+                           x_tilde += v * dt;
+                       }
                    }
-                   else
-                   {
-                       // this time, we only consider gravity
-                       x_tildes(i) = x_prev + v * dt + g * (dt * dt);
-                   }
+
+                   x_tildes(i) = x_tilde;
                });
 }
 
@@ -955,16 +983,14 @@ void FiniteElementMethod::Impl::compute_velocity(DoFPredictor::ComputeVelocityIn
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(xs.size(),
-               [is_kinematic = is_kinematic.cviewer().name("is_kinematic"),
-                xs           = xs.cviewer().name("xs"),
-                vs           = vs.viewer().name("vs"),
-                x_prevs      = x_prevs.viewer().name("x_prevs"),
-                dt           = info.dt()] __device__(int i) mutable
+               [xs      = xs.cviewer().name("xs"),
+                vs      = vs.viewer().name("vs"),
+                x_prevs = x_prevs.viewer().name("x_prevs"),
+                dt      = info.dt()] __device__(int i) mutable
                {
-                   Vector3& v      = vs(i);
-                   Vector3& x_prev = x_prevs(i);
-
-                   const Vector3& x = xs(i);
+                   Vector3&       v      = vs(i);
+                   Vector3&       x_prev = x_prevs(i);
+                   const Vector3& x      = xs(i);
 
                    v = (x - x_prev) * (1.0 / dt);
 

@@ -468,63 +468,69 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
         Vector3 gravity = scene.info()["gravity"];
         h_body_id_to_abd_gravity.resize(abd_body_count, Vector12::Zero());
-        if(!gravity.isApprox(Vector3::Zero()))
-        {
-            //SizeT geoI = 0;
-            for_each(geo_slots,
-                     [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
+        for_each(geo_slots,
+                 [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
+                 {
+                     auto geoI = I.global_index();
+
+                     auto vert_count  = sc.vertices().size();
+                     auto vert_offset = geo_infos[geoI].vertex_offset;
+                     auto body_count  = sc.instances().size();
+                     auto body_offset = geo_infos[geoI].body_offset;
+
+                     auto sub_Js = Js.subspan(vert_offset, vert_count);
+                     auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
+
+
+                     auto gravity_attr = sc.instances().find<Vector3>(builtin::gravity);
+                     auto gravity_view =
+                         gravity_attr ? gravity_attr->view() : span<Vector3>{};
+
+                     for(auto i : range(body_count))
                      {
-                         auto geoI = I.global_index();
-
-                         auto vert_count  = sc.vertices().size();
-                         auto vert_offset = geo_infos[geoI].vertex_offset;
-                         auto body_count  = sc.instances().size();
-                         auto body_offset = geo_infos[geoI].body_offset;
-
-                         auto sub_Js = Js.subspan(vert_offset, vert_count);
-                         auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
-
                          Vector12 G = Vector12::Zero();
+
+                         Vector3 local_gravity = gravity_attr ? gravity_view[i] : gravity;
+
                          for(auto&& [m, J] : zip(sub_mass, sub_Js))
-                             G += m * (J.T() * gravity);
+                             G += m * (J.T() * local_gravity);
 
                          Matrix12x12 abd_body_mass_inv =
                              h_body_id_to_abd_mass_inv[body_offset];
                          Vector12 g = abd_body_mass_inv * G;
 
-                         for(auto i : range(body_count))
-                         {
-                             // auto body_vert_offset = vert_offset + i * vert_count;
-                             auto body_id = body_offset + i;
+                         auto body_id = body_offset + i;
 
-                             h_body_id_to_abd_gravity[body_id] = g;
-                         }
-                     });
-        }
+                         h_body_id_to_abd_gravity[body_id] = g;
+                     }
+                 });
     }
 
 
     // 7) Setup the boundary type
     {
         h_body_id_to_is_fixed.resize(abd_body_count, 0);
-        h_body_id_to_is_kinematic.resize(abd_body_count, 0);
+        h_body_id_to_is_dynamic.resize(abd_body_count, 1);
         for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc)
             {
                 auto is_fixed = sc.instances().find<IndexT>(builtin::is_fixed);
-                auto is_kinematic = sc.instances().find<IndexT>(builtin::is_kinematic);
+                auto is_dynamic = sc.instances().find<IndexT>(builtin::is_dynamic);
 
-                return zip(is_fixed->view(), is_kinematic->view());
+                UIPC_ASSERT(is_fixed, "The is_fixed attribute is not found in the affine body geometry, why can it happen?");
+                UIPC_ASSERT(is_dynamic, "The is_dynamic attribute is not found in the affine body geometry, why can it happen?");
+
+                return zip(is_fixed->view(), is_dynamic->view());
             },
             [&](const ForEachInfo& I, auto&& data)
             {
-                auto&& [fixed, kinematic] = data;
+                auto&& [fixed, dynamic] = data;
 
                 auto bodyI = I.global_index();
 
-                h_body_id_to_is_fixed[bodyI]     = fixed;
-                h_body_id_to_is_kinematic[bodyI] = kinematic;
+                h_body_id_to_is_fixed[bodyI]   = fixed;
+                h_body_id_to_is_dynamic[bodyI] = dynamic;
             });
     }
 
@@ -549,7 +555,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_copy(span{h_body_id_to_abd_mass_inv}, body_id_to_abd_mass_inv);
     async_copy(span{h_body_id_to_abd_gravity}, body_id_to_abd_gravity);
     async_copy(span{h_body_id_to_is_fixed}, body_id_to_is_fixed);
-    async_copy(span{h_body_id_to_is_kinematic}, body_id_to_is_kinematic);
+    async_copy(span{h_body_id_to_is_dynamic}, body_id_to_is_dynamic);
 
     auto async_transfer = []<typename T>(const muda::DeviceBuffer<T>& src,
                                          muda::DeviceBuffer<T>&       dst)
@@ -680,11 +686,11 @@ void AffineBodyDynamics::Impl::compute_q_tilde(DoFPredictor::PredictInfo& info)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(abd_body_count,
-               [is_fixed = body_id_to_is_fixed.cviewer().name("is_fixed"),
-                is_kinematic = body_id_to_is_kinematic.cviewer().name("is_kinematic"),
-                q_prevs  = body_id_to_q_prev.cviewer().name("q_prev"),
-                q_vs     = body_id_to_q_v.cviewer().name("q_velocities"),
-                q_tildes = body_id_to_q_tilde.viewer().name("q_tilde"),
+               [is_fixed   = body_id_to_is_fixed.cviewer().name("is_fixed"),
+                is_dynamic = body_id_to_is_dynamic.cviewer().name("is_dynamic"),
+                q_prevs    = body_id_to_q_prev.cviewer().name("q_prev"),
+                q_vs       = body_id_to_q_v.cviewer().name("q_velocities"),
+                q_tildes   = body_id_to_q_tilde.viewer().name("q_tilde"),
                 affine_gravity = body_id_to_abd_gravity.cviewer().name("affine_gravity"),
                 dt = info.dt()] __device__(int i) mutable
                {
@@ -692,15 +698,22 @@ void AffineBodyDynamics::Impl::compute_q_tilde(DoFPredictor::PredictInfo& info)
                    auto& q_v    = q_vs(i);
                    auto& g      = affine_gravity(i);
 
-                   if(is_fixed(i) || is_kinematic(i))
+                   // 0) fixed: q_tilde = q_prev;
+                   Vector12 q_tilde = q_prev;
+
+                   if(!is_fixed(i))
                    {
-                       q_tildes(i) = q_prev;
+                       // 1) static problem: q_tilde = q_prev + g * dt * dt;
+                       q_tilde += g * dt * dt;
+
+                       // 2) dynamic problem q_tilde = q_prev + q_v * dt + g * dt * dt;
+                       if(is_dynamic(i))
+                       {
+                           q_tilde += q_v * dt;
+                       }
                    }
-                   else
-                   {
-                       // this time, we only consider gravity
-                       q_tildes(i) = q_prev + q_v * dt + g * (dt * dt);
-                   }
+
+                   q_tildes(i) = q_tilde;
                });
 }
 
@@ -710,11 +723,10 @@ void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::ComputeVelocityInfo& in
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(abd_body_count,
-               [is_fixed = body_id_to_is_fixed.cviewer().name("btype"),
-                qs       = body_id_to_q.cviewer().name("qs"),
-                q_vs     = body_id_to_q_v.viewer().name("q_vs"),
-                q_prevs  = body_id_to_q_prev.viewer().name("q_prevs"),
-                dt       = info.dt()] __device__(int i) mutable
+               [qs      = body_id_to_q.cviewer().name("qs"),
+                q_vs    = body_id_to_q_v.viewer().name("q_vs"),
+                q_prevs = body_id_to_q_prev.viewer().name("q_prevs"),
+                dt      = info.dt()] __device__(int i) mutable
                {
                    auto& q_v    = q_vs(i);
                    auto& q_prev = q_prevs(i);

@@ -36,12 +36,12 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
-               [xs       = fem().xs.viewer().name("xs"),
-                x_tildes = fem().x_tildes.cviewer().name("x_tildes"),
-                vs       = fem().vs.viewer().name("vs"),
-                masses   = fem().masses.cviewer().name("masses"),
-                is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
-                is_kinematic = fem().is_kinematic.cviewer().name("is_kinematic"),
+               [xs         = fem().xs.viewer().name("xs"),
+                x_tildes   = fem().x_tildes.cviewer().name("x_tildes"),
+                vs         = fem().vs.viewer().name("vs"),
+                masses     = fem().masses.cviewer().name("masses"),
+                is_fixed   = fem().is_fixed.cviewer().name("is_fixed"),
+                is_dynamic = fem().is_dynamic.cviewer().name("is_dynamic"),
                 vertex_kinetic_energies =
                     fem().vertex_kinetic_energies.viewer().name("vertex_kinetic_energies"),
                 G3s = fem().G3s.viewer().name("G3s"),
@@ -57,20 +57,13 @@ void FEMGradientHessianComputer::Impl::compute_gradient_and_hessian(GradientHess
                    if(is_fixed(i))  // fixed
                    {
                        G = Vector3::Zero();
-                       H = masses(i) * Matrix3x3::Identity();
                    }
-                   else if(is_kinematic(i))  // constraint fully controls the motion
-                   {
-                       G = Vector3::Zero();
-                       H = Matrix3x3::Zero();
-                   }
-                   else  // free, compute kinetic
+                   else
                    {
                        G = m * (x - x_tilde);
-                       H = masses(i) * Matrix3x3::Identity();
                    }
 
-                   // cout << "Kinetic G:" << G.transpose().eval() << "\n";
+                   H = masses(i) * Matrix3x3::Identity();
                });
 
     // Elastic

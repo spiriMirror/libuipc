@@ -246,7 +246,7 @@ class AffineBodyDynamics : public SimSystem
         vector<Float>               h_body_id_to_volume;
         vector<Vector12>            h_body_id_to_abd_gravity;
         vector<IndexT>              h_body_id_to_is_fixed;
-        vector<IndexT>              h_body_id_to_is_kinematic;
+        vector<IndexT>              h_body_id_to_is_dynamic;
         vector<Float>               h_constitution_shape_energy;
 
         /******************************************************************************
@@ -340,8 +340,8 @@ class AffineBodyDynamics : public SimSystem
         //$$
         DeviceBuffer<Vector12> body_id_to_abd_gravity;
 
-        DeviceBuffer<IndexT> body_id_to_is_fixed;      // Body IsFixed
-        DeviceBuffer<IndexT> body_id_to_is_kinematic;  // Body IsKinematic
+        DeviceBuffer<IndexT> body_id_to_is_fixed;    // Body IsFixed
+        DeviceBuffer<IndexT> body_id_to_is_dynamic;  // Body IsKinematic
 
         //tex: $$K_i$$ kinetic energy per body
         DeviceBuffer<Float> body_id_to_kinetic_energy;

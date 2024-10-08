@@ -67,15 +67,16 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
         .file_line(__FILE__, __LINE__)
         .apply(abd().abd_body_count,
                [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
-                is_kinematic = abd().body_id_to_is_kinematic.cviewer().name("is_kinematic"),
                 qs       = abd().body_id_to_q.cviewer().name("qs"),
                 q_tildes = abd().body_id_to_q_tilde.viewer().name("q_tildes"),
-                masses   = abd().body_id_to_abd_mass.cviewer().name("masses"),
-                Ks       = abd().body_id_to_kinetic_energy.viewer().name(
+                q_prevs  = abd().body_id_to_q_prev.viewer().name("q_prevs"),
+                gravities = abd().body_id_to_abd_gravity.cviewer().name("gravities"),
+                masses = abd().body_id_to_abd_mass.cviewer().name("masses"),
+                Ks     = abd().body_id_to_kinetic_energy.viewer().name(
                     "kinetic_energy")] __device__(int i) mutable
                {
                    auto& K = Ks(i);
-                   if(is_fixed(i) || is_kinematic(i))
+                   if(is_fixed(i))
                    {
                        K = 0.0;
                    }

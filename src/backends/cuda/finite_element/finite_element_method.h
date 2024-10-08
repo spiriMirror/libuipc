@@ -249,7 +249,9 @@ class FiniteElementMethod final : public SimSystem
         vector<IndexT> h_vertex_contact_element_ids;
 
         vector<IndexT>  h_vertex_is_fixed;
-        vector<IndexT>  h_vertex_is_kinematic;
+        vector<IndexT>  h_vertex_is_dynamic;
+        vector<Vector3> h_gravities;
+
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
         vector<Float>   h_thicknesses;
@@ -260,7 +262,7 @@ class FiniteElementMethod final : public SimSystem
         vector<Vector2i> h_codim_1ds;
         vector<Vector3i> h_codim_2ds;
         vector<Vector4i> h_tets;
-        Vector3          gravity;
+        Vector3          default_gravity;
 
 
         // Element Attributes:
@@ -279,8 +281,9 @@ class FiniteElementMethod final : public SimSystem
 
         // Vertex Attributes:
 
-        muda::DeviceBuffer<IndexT> is_fixed;      // Vertex IsFixed
-        muda::DeviceBuffer<IndexT> is_kinematic;  // Vertex IsKinematic
+        muda::DeviceBuffer<IndexT>  is_fixed;    // Vertex IsFixed
+        muda::DeviceBuffer<IndexT>  is_dynamic;  // Vertex IsDynamic
+        muda::DeviceBuffer<Vector3> gravities;   // Vertex Gravity
 
         muda::DeviceBuffer<Vector3> x_bars;    // Rest Positions
         muda::DeviceBuffer<Vector3> xs;        // Positions

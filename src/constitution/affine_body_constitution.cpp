@@ -69,9 +69,9 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     auto is_fixed = sc.instances().find<IndexT>(builtin::is_fixed);
     if(!is_fixed)
         is_fixed = sc.instances().create<IndexT>(builtin::is_fixed, 0);
-    auto is_kinematic = sc.instances().find<IndexT>(builtin::is_kinematic);
+    auto is_kinematic = sc.instances().find<IndexT>(builtin::is_dynamic);
     if(!is_kinematic)
-        is_kinematic = sc.instances().create<IndexT>(builtin::is_kinematic, 0);
+        is_kinematic = sc.instances().create<IndexT>(builtin::is_dynamic, 1);
 
     auto kappa_attr = sc.instances().find<Float>("kappa");
     if(!kappa_attr)

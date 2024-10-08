@@ -63,7 +63,6 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
         .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
                [is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
-                is_kinematic = fem().is_kinematic.cviewer().name("is_kinematic"),
                 xs       = fem().xs.cviewer().name("xs"),
                 x_tildes = fem().x_tildes.viewer().name("x_tildes"),
                 masses   = fem().masses.cviewer().name("masses"),
@@ -71,7 +70,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                     "kinetic_energy")] __device__(int i) mutable
                {
                    auto& K = Ks(i);
-                   if(is_fixed(i) || is_kinematic(i))
+                   if(is_fixed(i))
                    {
                        K = 0.0;
                    }

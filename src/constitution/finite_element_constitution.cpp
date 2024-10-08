@@ -19,9 +19,9 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
     if(!is_fixed)
         is_fixed = sc.vertices().create<IndexT>(builtin::is_fixed, 0);
 
-    auto is_kinematic = sc.vertices().find<IndexT>(builtin::is_kinematic);
+    auto is_kinematic = sc.vertices().find<IndexT>(builtin::is_dynamic);
     if(!is_kinematic)
-        is_kinematic = sc.vertices().create<IndexT>(builtin::is_kinematic, 0);
+        is_kinematic = sc.vertices().create<IndexT>(builtin::is_dynamic, 1);
 
     geometry::compute_vertex_mass(sc, mass_density);
 
