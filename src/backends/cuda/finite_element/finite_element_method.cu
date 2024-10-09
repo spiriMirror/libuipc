@@ -565,15 +565,29 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
         }
 
         {  // 6) setup vertex contact element id
-            auto ceid = sc->meta().find<IndexT>(builtin::contact_element_id);
+
             auto dst_eid_span =
                 span{h_vertex_contact_element_ids}.subspan(info.vertex_offset,
                                                            info.vertex_count);
 
-            if(ceid)
+            auto vert_ceid = sc->vertices().find<IndexT>(builtin::contact_element_id);
+            if(vert_ceid)
             {
-                auto eid = ceid->view()[0];
-                std::ranges::fill(dst_eid_span, eid);
+                auto ceid_view = vert_ceid->view();
+                UIPC_ASSERT(ceid_view.size() == dst_eid_span.size(),
+                            "contact element id size mismatching");
+
+                std::ranges::copy(ceid_view, dst_eid_span.begin());
+            }
+            else
+            {
+                auto ceid = sc->meta().find<IndexT>(builtin::contact_element_id);
+
+                if(ceid)
+                {
+                    auto eid = ceid->view()[0];
+                    std::ranges::fill(dst_eid_span, eid);
+                }
             }
         }
 

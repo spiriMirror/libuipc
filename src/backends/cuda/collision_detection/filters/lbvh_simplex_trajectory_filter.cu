@@ -6,6 +6,7 @@
 #include <utils/distance/distance_flagged.h>
 #include <utils/distance.h>
 #include <utils/codim_thickness.h>
+#include <utils/simplex_contact_mask_utils.h>
 #include <uipc/common/zip.h>
 
 namespace uipc::backend::cuda
@@ -213,11 +214,10 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                     const auto& V      = Vs(i);
                     const auto& codimV = codimVs(j);
 
-                    IndexT L = contact_element_ids(V);
-                    IndexT R = contact_element_ids(codimV);
+                    Vector2i cids = {contact_element_ids(V), contact_element_ids(codimV)};
 
                     // discard if the contact is disabled
-                    if(contact_mask_tabular(L, R) == 0)
+                    if(!allow_PP_contact(contact_mask_tabular, cids))
                         return false;
 
                     bool V_is_codim = dimensions(V) <= 2;  // codim 0D vert and vert from codim 1D edge
@@ -262,11 +262,12 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                     const auto& codimV = codimVs(i);
                     const auto& E      = Es(j);
 
-                    IndexT L = contact_element_ids(codimV);
-                    IndexT R = contact_element_ids(E[0]);
+                    Vector3i cids = {contact_element_ids(codimV),
+                                     contact_element_ids(E[0]),
+                                     contact_element_ids(E[1])};
 
                     // discard if the contact is disabled
-                    if(contact_mask_tabular(L, R) == 0)
+                    if(!allow_PE_contact(contact_mask_tabular, cids))
                         return false;
 
                     // discard if the vertex is on the edge
@@ -312,11 +313,13 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 const auto& E0 = Es(i);
                 const auto& E1 = Es(j);
 
-                IndexT L = contact_element_ids(E0[0]);
-                IndexT R = contact_element_ids(E1[0]);
+                Vector4i cids = {contact_element_ids(E0[0]),
+                                 contact_element_ids(E0[1]),
+                                 contact_element_ids(E1[0]),
+                                 contact_element_ids(E1[1])};
 
                 // discard if the contact is disabled
-                if(contact_mask_tabular(L, R) == 0)
+                if(!allow_EE_contact(contact_mask_tabular, cids))
                     return false;
 
                 // discard if the edges share same vertex
@@ -367,11 +370,13 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 auto V = Vs(i);
                 auto F = Fs(j);
 
-                IndexT L = contact_element_ids(V);
-                IndexT R = contact_element_ids(F[0]);
+                Vector4i cids = {contact_element_ids(V),
+                                 contact_element_ids(F[0]),
+                                 contact_element_ids(F[1]),
+                                 contact_element_ids(F[2])};
 
                 // discard if the contact is disabled
-                if(contact_mask_tabular(L, R) == 0)
+                if(!allow_PT_contact(contact_mask_tabular, cids))
                     return false;
 
                 // discard if the point is on the triangle

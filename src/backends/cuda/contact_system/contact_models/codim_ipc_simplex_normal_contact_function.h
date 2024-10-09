@@ -1,11 +1,59 @@
 #pragma once
 #include <type_define.h>
+#include <contact_system/contact_coeff.h>
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
 
 namespace uipc::backend::cuda
 {
 namespace sym::codim_ipc_simplex_contact
 {
+    inline __device__ Float PT_kappa(const muda::CDense2D<ContactCoeff>& table,
+                                     const Vector4i&                     cids)
+    {
+        Float kappa = 0.0;
+        for(int j = 1; j < 4; ++j)
+        {
+            ContactCoeff coeff = table(cids[0], cids[j]);
+            kappa += coeff.kappa;
+        }
+        return kappa / 3.0;
+    }
+
+    inline __device__ Float EE_kappa(const muda::CDense2D<ContactCoeff>& table,
+                                     const Vector4i&                     cids)
+    {
+        Float kappa = 0.0;
+        for(int j = 0; j < 2; ++j)
+        {
+            for(int k = 2; k < 4; ++k)
+            {
+                ContactCoeff coeff = table(cids[j], cids[k]);
+                kappa += coeff.kappa;
+            }
+        }
+        return kappa / 4.0;
+    }
+
+    inline __device__ Float PE_kappa(const muda::CDense2D<ContactCoeff>& table,
+                                     const Vector3i&                     cids)
+    {
+        Float kappa = 0.0;
+        for(int j = 1; j < 3; ++j)
+        {
+            ContactCoeff coeff = table(cids[0], cids[j]);
+            kappa += coeff.kappa;
+        }
+        return kappa / 2.0;
+    }
+
+    inline __device__ Float PP_kappa(const muda::CDense2D<ContactCoeff>& table,
+                                     const Vector2i&                     cids)
+    {
+        ContactCoeff coeff = table(cids[0], cids[1]);
+        return coeff.kappa;
+    }
+
+
     inline __device__ Float PT_barrier_energy(Float          kappa,
                                               Float          d_hat,
                                               Float          thickness,

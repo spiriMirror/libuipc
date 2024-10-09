@@ -20,7 +20,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         // Compute Point-Triangle energy
         auto PT_count = info.friction_PTs().size();
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(PT_count,
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -35,12 +35,14 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                    {
                        const auto& PT = PTs(i);
 
-                       auto cid_L = contact_ids(PT[0]);
-                       auto cid_R = contact_ids(PT[1]);
+                       Vector4i cids = {contact_ids(PT[0]),
+                                        contact_ids(PT[1]),
+                                        contact_ids(PT[2]),
+                                        contact_ids(PT[3])};
 
-
-                       auto kappa         = table(cid_L, cid_R).kappa * dt * dt;
-                       auto friction_rate = table(cid_L, cid_R).mu;
+                       auto  coeff = PT_contact_coeff(table, cids);
+                       Float kappa = coeff.kappa * dt * dt;
+                       Float mu    = coeff.mu;
 
                        const auto& prev_P  = prev_Ps(PT[0]);
                        const auto& prev_T0 = prev_Ps(PT[1]);
@@ -62,7 +64,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        Es(i) = PT_friction_energy(kappa,
                                                   d_hat,
                                                   thickness,
-                                                  friction_rate,
+                                                  mu,
                                                   eps_v * dt,
                                                   // previous positions
                                                   prev_P,
@@ -79,7 +81,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         // Compute Edge-Edge energy
         auto EE_count = info.friction_EEs().size();
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(EE_count,
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -95,11 +97,14 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                    {
                        const auto& EE = EEs(i);
 
-                       auto cid_L = contact_ids(EE[0]);
-                       auto cid_R = contact_ids(EE[2]);
+                       Vector4i cids = {contact_ids(EE[0]),
+                                        contact_ids(EE[1]),
+                                        contact_ids(EE[2]),
+                                        contact_ids(EE[3])};
 
-                       auto kappa         = table(cid_L, cid_R).kappa * dt * dt;
-                       auto friction_rate = table(cid_L, cid_R).mu;
+                       auto  coeff = EE_contact_coeff(table, cids);
+                       Float kappa = coeff.kappa * dt * dt;
+                       Float mu    = coeff.mu;
 
                        const Vector3& rest_Ea0 = rest_Ps(EE[0]);
                        const Vector3& rest_Ea1 = rest_Ps(EE[1]);
@@ -134,7 +139,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                            Es(i) = EE_friction_energy(kappa,
                                                       d_hat,
                                                       thickness,
-                                                      friction_rate,
+                                                      mu,
                                                       eps_v * dt,
                                                       // previous positions
                                                       prev_Ea0,
@@ -152,7 +157,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         // Compute Point-Edge energy
         auto PE_count = info.friction_PEs().size();
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(PE_count,
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -167,11 +172,13 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                    {
                        const auto& PE = PEs(i);
 
-                       auto cid_L = contact_ids(PE[0]);
-                       auto cid_R = contact_ids(PE[1]);
+                       Vector3i cids = {contact_ids(PE[0]),
+                                        contact_ids(PE[1]),
+                                        contact_ids(PE[2])};
 
-                       auto kappa         = table(cid_L, cid_R).kappa * dt * dt;
-                       auto friction_rate = table(cid_L, cid_R).mu;
+                       auto  coeff = PE_contact_coeff(table, cids);
+                       Float kappa = coeff.kappa * dt * dt;
+                       Float mu    = coeff.mu;
 
                        const Vector3& prev_P  = prev_Ps(PE[0]);
                        const Vector3& prev_E0 = prev_Ps(PE[1]);
@@ -188,7 +195,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        Es(i) = PE_friction_energy(kappa,
                                                   d_hat,
                                                   thickness,
-                                                  friction_rate,
+                                                  mu,
                                                   eps_v * dt,
                                                   // previous positions
                                                   prev_P,
@@ -203,7 +210,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         // Compute Point-Point energy
         auto PP_count = info.friction_PPs().size();
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(PP_count,
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -218,11 +225,10 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                    {
                        const auto& PP = PPs(i);
 
-                       auto cid_L = contact_ids(PP[0]);
-                       auto cid_R = contact_ids(PP[1]);
-
-                       auto kappa         = table(cid_L, cid_R).kappa * dt * dt;
-                       auto friction_rate = table(cid_L, cid_R).mu;
+                       Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};
+                       auto     coeff = PP_contact_coeff(table, cids);
+                       Float    kappa = coeff.kappa * dt * dt;
+                       Float    mu    = coeff.mu;
 
                        const Vector3& prev_P0 = prev_Ps(PP[0]);
                        const Vector3& prev_P1 = prev_Ps(PP[1]);
@@ -236,7 +242,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        Es(i) = PP_friction_energy(kappa,
                                                   d_hat,
                                                   thickness,
-                                                  friction_rate,
+                                                  mu,
                                                   eps_v * dt,
                                                   // previous positions
                                                   prev_P0,
@@ -254,7 +260,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
         // Compute Point-Triangle Gradient and Hessian
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.friction_PTs().size(),
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -270,11 +276,14 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                    {
                        const auto& PT = PTs(i);
 
-                       auto cid_L = contact_ids(PT[0]);
-                       auto cid_R = contact_ids(PT[1]);
+                       Vector4i cids = {contact_ids(PT[0]),
+                                        contact_ids(PT[1]),
+                                        contact_ids(PT[2]),
+                                        contact_ids(PT[3])};
 
-                       auto kappa         = table(cid_L, cid_R).kappa * dt * dt;
-                       auto friction_rate = table(cid_L, cid_R).mu;
+                       auto  coeff = PT_contact_coeff(table, cids);
+                       Float kappa = coeff.kappa * dt * dt;
+                       Float mu    = coeff.mu;
 
                        const auto& prev_P  = prev_Ps(PT[0]);
                        const auto& prev_T0 = prev_Ps(PT[1]);
@@ -297,7 +306,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                     kappa,
                                                     d_hat,
                                                     thickness,
-                                                    friction_rate,
+                                                    mu,
                                                     eps_v * dt,
                                                     // previous positions
                                                     prev_P,
@@ -313,7 +322,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
         // Compute Edge-Edge Gradient and Hessian
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.friction_EEs().size(),
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -330,11 +339,14 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                    {
                        const auto& EE = EEs(i);
 
-                       auto cid_L = contact_ids(EE[0]);
-                       auto cid_R = contact_ids(EE[2]);
+                       Vector4i cids = {contact_ids(EE[0]),
+                                        contact_ids(EE[1]),
+                                        contact_ids(EE[2]),
+                                        contact_ids(EE[3])};
 
-                       auto kappa         = table(cid_L, cid_R).kappa * dt * dt;
-                       auto friction_rate = table(cid_L, cid_R).mu;
+                       auto  coeff = EE_contact_coeff(table, cids);
+                       Float kappa = coeff.kappa * dt * dt;
+                       Float mu    = coeff.mu;
 
                        const Vector3& rest_Ea0 = rest_Ps(EE[0]);
                        const Vector3& rest_Ea1 = rest_Ps(EE[1]);
@@ -374,7 +386,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                         kappa,
                                                         d_hat,
                                                         thickness,
-                                                        friction_rate,
+                                                        mu,
                                                         eps_v * dt,
                                                         // previous positions
                                                         prev_Ea0,
@@ -391,7 +403,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
         // Compute Point-Edge Gradient and Hessian
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.friction_PEs().size(),
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -407,11 +419,13 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                    {
                        const auto& PE = PEs(i);
 
-                       auto cid_L = contact_ids(PE[0]);
-                       auto cid_R = contact_ids(PE[1]);
+                       Vector3i cids = {contact_ids(PE[0]),
+                                        contact_ids(PE[1]),
+                                        contact_ids(PE[2])};
 
-                       auto kappa         = table(cid_L, cid_R).kappa * dt * dt;
-                       auto friction_rate = table(cid_L, cid_R).mu;
+                       auto  coeff = PE_contact_coeff(table, cids);
+                       Float kappa = coeff.kappa * dt * dt;
+                       Float mu    = coeff.mu;
 
                        const Vector3& prev_P  = prev_Ps(PE[0]);
                        const Vector3& prev_E0 = prev_Ps(PE[1]);
@@ -430,7 +444,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                     kappa,
                                                     d_hat,
                                                     thickness,
-                                                    friction_rate,
+                                                    mu,
                                                     eps_v * dt,
                                                     // previous positions
                                                     prev_P,
@@ -444,7 +458,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
         // Compute Point-Point Gradient and Hessian
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.friction_PPs().size(),
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -460,11 +474,10 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                    {
                        const auto& PP = PPs(i);
 
-                       auto cid_L = contact_ids(PP[0]);
-                       auto cid_R = contact_ids(PP[1]);
-
-                       auto kappa         = table(cid_L, cid_R).kappa * dt * dt;
-                       auto friction_rate = table(cid_L, cid_R).mu;
+                       Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};
+                       auto     coeff = PP_contact_coeff(table, cids);
+                       Float    kappa = coeff.kappa * dt * dt;
+                       Float    mu    = coeff.mu;
 
                        const Vector3& prev_P0 = prev_Ps(PP[0]);
                        const Vector3& prev_P1 = prev_Ps(PP[1]);
@@ -480,7 +493,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                     kappa,
                                                     d_hat,
                                                     thickness,
-                                                    friction_rate,
+                                                    mu,
                                                     eps_v * dt,
                                                     // previous positions
                                                     prev_P0,

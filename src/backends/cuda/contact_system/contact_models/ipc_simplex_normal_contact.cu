@@ -21,7 +21,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         // Compute Point-Triangle energy
         auto PT_count = info.PTs().size();
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(PT_count,
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -34,16 +34,17 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector4i PT = PTs(i);
 
-
-                       auto cid_L = contact_ids(PT[0]);
-                       auto cid_R = contact_ids(PT[1]);
+                       Vector4i cids  = {contact_ids(PT[0]),
+                                         contact_ids(PT[1]),
+                                         contact_ids(PT[2]),
+                                         contact_ids(PT[3])};
+                       Float    kappa = PT_kappa(table, cids) * dt * dt;
 
                        const auto& P  = Ps(PT[0]);
                        const auto& T0 = Ps(PT[1]);
                        const auto& T1 = Ps(PT[2]);
                        const auto& T2 = Ps(PT[3]);
 
-                       auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
                        Float thickness = PT_thickness(thicknesses(PT(0)),
                                                       thicknesses(PT(1)),
@@ -77,7 +78,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         // Compute Edge-Edge energy
         auto EE_count = info.EEs().size();
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(EE_count,
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -91,8 +92,11 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector4i EE = EEs(i);
 
-                       auto cid_L = contact_ids(EE[0]);
-                       auto cid_R = contact_ids(EE[2]);
+                       Vector4i cids  = {contact_ids(EE[0]),
+                                         contact_ids(EE[1]),
+                                         contact_ids(EE[2]),
+                                         contact_ids(EE[3])};
+                       Float    kappa = EE_kappa(table, cids) * dt * dt;
 
                        const auto& E0 = Ps(EE[0]);
                        const auto& E1 = Ps(EE[1]);
@@ -103,8 +107,6 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        const auto& t0_Ea1 = rest_Ps(EE[1]);
                        const auto& t0_Eb0 = rest_Ps(EE[2]);
                        const auto& t0_Eb1 = rest_Ps(EE[3]);
-
-                       auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
                        Float thickness = EE_thickness(thicknesses(EE(0)),
                                                       thicknesses(EE(1)),
@@ -154,7 +156,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         // Compute Point-Edge energy
         auto PE_count = info.PEs().size();
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(PE_count,
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -169,14 +171,14 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector3i PE = PEs(i);
 
-                       auto cid_L = contact_ids(PE[0]);
-                       auto cid_R = contact_ids(PE[1]);
+                       Vector3i cids  = {contact_ids(PE[0]),
+                                         contact_ids(PE[1]),
+                                         contact_ids(PE[2])};
+                       Float    kappa = PE_kappa(table, cids) * dt * dt;
 
                        const auto& P  = Ps(PE[0]);
                        const auto& E0 = Ps(PE[1]);
                        const auto& E1 = Ps(PE[2]);
-
-                       auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
                        Float thickness = PE_thickness(thicknesses(PE(0)),
                                                       thicknesses(PE(1)),
@@ -207,7 +209,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         // Compute Point-Point energy
         auto PP_count = info.PPs().size();
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(PP_count,
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -221,13 +223,11 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector2i PP = PPs(i);
 
-                       auto cid_L = contact_ids(PP[0]);
-                       auto cid_R = contact_ids(PP[1]);
+                       Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};
+                       Float    kappa = PP_kappa(table, cids) * dt * dt;
 
                        const auto& Pa = Ps(PP[0]);
                        const auto& Pb = Ps(PP[1]);
-
-                       auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
                        Float thickness =
                            PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));
@@ -263,7 +263,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         {
             // Compute Point-Triangle Gradient and Hessian
             ParallelFor()
-                .kernel_name(__FUNCTION__)
+                .file_line(__FILE__, __LINE__)
                 .apply(info.PTs().size(),
                        [table = info.contact_tabular().viewer().name("contact_tabular"),
                         contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -277,15 +277,18 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        {
                            Vector4i PT = PTs(i);
 
-                           auto cid_L = contact_ids(PT[0]);
-                           auto cid_R = contact_ids(PT[1]);
+                           Vector4i cids  = {contact_ids(PT[0]),
+                                             contact_ids(PT[1]),
+                                             contact_ids(PT[2]),
+                                             contact_ids(PT[3])};
+                           Float    kappa = PT_kappa(table, cids) * dt * dt;
+
 
                            const auto& P  = Ps(PT[0]);
                            const auto& T0 = Ps(PT[1]);
                            const auto& T1 = Ps(PT[2]);
                            const auto& T2 = Ps(PT[3]);
 
-                           auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
                            Float thickness = PT_thickness(thicknesses(PT(0)),
                                                           thicknesses(PT(1)),
@@ -324,7 +327,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
         // Compute Edge-Edge Gradient and Hessian
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.EEs().size(),
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -339,9 +342,11 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector4i EE = EEs(i);
 
-
-                       auto cid_L = contact_ids(EE[0]);
-                       auto cid_R = contact_ids(EE[2]);
+                       Vector4i cids  = {contact_ids(EE[0]),
+                                         contact_ids(EE[1]),
+                                         contact_ids(EE[2]),
+                                         contact_ids(EE[3])};
+                       Float    kappa = EE_kappa(table, cids) * dt * dt;
 
                        const auto& E0 = Ps(EE[0]);
                        const auto& E1 = Ps(EE[1]);
@@ -352,8 +357,6 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        const auto& t0_Ea1 = rest_Ps(EE[1]);
                        const auto& t0_Eb0 = rest_Ps(EE[2]);
                        const auto& t0_Eb1 = rest_Ps(EE[3]);
-
-                       auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
                        Float thickness = EE_thickness(thicknesses(EE(0)),
                                                       thicknesses(EE(1)),
@@ -386,7 +389,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
         // Compute Point-Edge Gradient and Hessian
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.PEs().size(),
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -401,14 +404,14 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector3i PE = PEs(i);
 
-                       auto cid_L = contact_ids(PE[0]);
-                       auto cid_R = contact_ids(PE[1]);
+                       Vector3i cids  = {contact_ids(PE[0]),
+                                         contact_ids(PE[1]),
+                                         contact_ids(PE[2])};
+                       Float    kappa = PE_kappa(table, cids) * dt * dt;
 
                        const auto& P  = Ps(PE[0]);
                        const auto& E0 = Ps(PE[1]);
                        const auto& E1 = Ps(PE[2]);
-
-                       auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
                        Float thickness = PE_thickness(thicknesses(PE(0)),
                                                       thicknesses(PE(1)),
@@ -439,7 +442,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
         // Compute Point-Point Gradient and Hessian
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.PPs().size(),
                    [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
@@ -453,13 +456,11 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        const auto& PP = PPs(i);
 
-                       auto cid_L = contact_ids(PP[0]);
-                       auto cid_R = contact_ids(PP[1]);
+                       Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};
+                       Float    kappa = PP_kappa(table, cids) * dt * dt;
 
                        const auto& P0 = Ps(PP[0]);
                        const auto& P1 = Ps(PP[1]);
-
-                       auto kappa = table(cid_L, cid_R).kappa * dt * dt;
 
                        Float thickness =
                            PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));

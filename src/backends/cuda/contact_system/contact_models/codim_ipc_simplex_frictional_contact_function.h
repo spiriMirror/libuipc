@@ -1,11 +1,64 @@
 #pragma once
 #include <type_define.h>
+#include <contact_system/contact_coeff.h>
 #include <contact_system/contact_models/codim_ipc_contact_function.h>
 
 namespace uipc::backend::cuda
 {
 namespace sym::codim_ipc_contact
 {
+
+    inline __device__ ContactCoeff PT_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+                                                    const Vector4i& cids)
+    {
+        Float kappa = 0.0;
+        Float mu    = 0.0;
+        for(int j = 1; j < 4; ++j)
+        {
+            ContactCoeff coeff = table(cids[0], cids[j]);
+            kappa += coeff.kappa;
+            mu += coeff.mu;
+        }
+        return {kappa / 3.0, mu / 3.0};
+    }
+
+    inline __device__ ContactCoeff EE_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+                                                    const Vector4i& cids)
+    {
+        Float kappa = 0.0;
+        Float mu    = 0.0;
+        for(int j = 0; j < 2; ++j)
+        {
+            for(int k = 2; k < 4; ++k)
+            {
+                ContactCoeff coeff = table(cids[j], cids[k]);
+                kappa += coeff.kappa;
+                mu += coeff.mu;
+            }
+        }
+        return {kappa / 4.0, mu / 4.0};
+    }
+
+    inline __device__ ContactCoeff PE_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+                                                    const Vector3i& cids)
+    {
+        Float kappa = 0.0;
+        Float mu    = 0.0;
+        for(int j = 1; j < 3; ++j)
+        {
+            ContactCoeff coeff = table(cids[0], cids[j]);
+            kappa += coeff.kappa;
+            mu += coeff.mu;
+        }
+        return {kappa / 2.0, mu / 2.0};
+    }
+
+    inline __device__ ContactCoeff PP_contact_coeff(const muda::CDense2D<ContactCoeff>& table,
+                                                    const Vector2i& cids)
+    {
+        return table(cids[0], cids[1]);
+    }
+
     inline __device__ void PT_friction_basis(
         // out
         Float&               f,
