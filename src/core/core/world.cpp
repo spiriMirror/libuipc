@@ -90,7 +90,7 @@ bool World::dump()
     return m_engine->dump();
 }
 
-bool World::recover()
+bool World::recover(SizeT aim_frame)
 {
     if(!m_scene)
     {
@@ -102,7 +102,7 @@ bool World::recover()
         spdlog::error("World is not valid, skipping recover.");
         return false;
     }
-    return m_engine->recover();
+    return m_engine->recover(aim_frame);
 }
 
 SizeT World::frame() const

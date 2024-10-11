@@ -145,10 +145,12 @@ void GlobalLinearSystem::Impl::init()
 
 void GlobalLinearSystem::Impl::build_linear_system()
 {
+    Timer timer{"Build Linear System"};
     empty_system = !_update_subsystem_extent();
     // if empty, skip the following steps
     if(empty_system) [[unlikely]]
         return;
+
 
     _assemble_linear_system();
 
@@ -342,20 +344,19 @@ void GlobalLinearSystem::Impl::_assemble_preconditioner()
     if(global_preconditioner)
     {
         GlobalPreconditionerAssemblyInfo info{this};
-        info.symmetric = true;
         global_preconditioner->assemble(info);
     }
 
     for(auto&& [i, preconditioner] : enumerate(local_preconditioners.view()))
     {
-        LocalPreconditionerAssemblyInfo info{this};
-        info.m_index = i;
+        LocalPreconditionerAssemblyInfo info{this, i};
         preconditioner->assemble(info);
     }
 }
 
 void GlobalLinearSystem::Impl::solve_linear_system()
 {
+    Timer timer{"Solve Linear System"};
     if(iterative_solver)
     {
         SolvingInfo info{this};
@@ -368,7 +369,7 @@ void GlobalLinearSystem::Impl::solve_linear_system()
 
 void GlobalLinearSystem::Impl::distribute_solution()
 {
-    // _distribute the solution to all diag subsystems
+    // distribute the solution to all diag subsystems
     for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems.view()))
     {
         SolutionInfo info{this};
@@ -450,6 +451,23 @@ void GlobalLinearSystem::OffDiagExtentInfo::extent(SizeT lr_hessian_block_count,
 {
     m_lr_block_count = lr_hessian_block_count;
     m_rl_block_count = rl_hassian_block_count;
+}
+auto GlobalLinearSystem::AssemblyInfo::A() const -> CBCOOMatrixView
+{
+    return m_impl->bcoo_A.cview();
+}
+
+auto GlobalLinearSystem::AssemblyInfo::storage_type() const -> HessianStorageType
+{
+    return HessianStorageType::Symmetric;
+}
+SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_offset() const
+{
+    return m_impl->diag_dof_offsets[m_index];
+}
+SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_count() const
+{
+    return m_impl->diag_dof_counts[m_index];
 }
 }  // namespace uipc::backend::cuda
 

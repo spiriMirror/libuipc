@@ -101,7 +101,7 @@ class SimEngine : public core::IEngine
 
   private:
     virtual void do_init(WorldVisitor v) final override;
-    virtual bool do_recover() final override;
+    virtual bool do_recover(SizeT dst_frame) final override;
     virtual bool do_dump() final override;
     ISimSystem*  find_system(ISimSystem* ptr);
     ISimSystem*  require_system(ISimSystem* ptr);

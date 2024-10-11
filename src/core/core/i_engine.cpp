@@ -33,9 +33,9 @@ bool IEngine::dump()
     return do_dump();
 }
 
-bool IEngine::recover()
+bool IEngine::recover(SizeT dst_frame)
 {
-    return do_recover();
+    return do_recover(dst_frame);
 }
 
 SizeT IEngine::frame() const
@@ -53,7 +53,7 @@ bool IEngine::do_dump()
     return true;
 }
 
-bool IEngine::do_recover()
+bool IEngine::do_recover(SizeT dst_frame)
 {
     return true;
 }

@@ -37,16 +37,16 @@ Json Scene::default_config() noexcept
     {
         contact["enable"]             = true;
         contact["friction"]["enable"] = true;
-        contact["contitution"]        = "ipc";
+        contact["constitution"]       = "ipc";
         contact["d_hat"]              = 0.01;
         contact["eps_velocity"]       = 0.01;
     }
 
     config["sanity_check"]["enable"] = true;
 
-    auto& recovery = config["recovery"];
+    auto& recovery = config["recovery"] = Json::object();
     {
-        recovery["frame"] = ~0ull;
+        // now just empty
     }
 
     // something that is unofficial

@@ -134,10 +134,10 @@ class Engine::Impl
         return m_engine->dump();
     }
 
-    bool do_recover()
+    bool do_recover(SizeT dst_frame)
     {
         LogPatternGuard guard{backend_name()};
-        return m_engine->recover();
+        return m_engine->recover(dst_frame);
     }
 
     SizeT get_frame() const
@@ -213,9 +213,9 @@ bool Engine::dump()
 {
     return m_impl->do_dump();
 }
-bool Engine::recover()
+bool Engine::recover(SizeT dst_frame)
 {
-    return m_impl->do_recover();
+    return m_impl->do_recover(dst_frame);
 }
 SizeT Engine::frame() const
 {

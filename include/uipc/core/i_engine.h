@@ -5,6 +5,7 @@
 namespace uipc::core
 {
 class World;
+
 class UIPC_CORE_API IEngine
 {
   public:
@@ -16,7 +17,7 @@ class UIPC_CORE_API IEngine
     Json to_json() const;
 
     bool  dump();
-    bool  recover();
+    bool  recover(SizeT dst_frame);
     SizeT frame() const;
 
   protected:
@@ -26,7 +27,7 @@ class UIPC_CORE_API IEngine
     virtual void  do_retrieve()                    = 0;
     virtual Json  do_to_json() const;
     virtual bool  do_dump();
-    virtual bool  do_recover();
+    virtual bool  do_recover(SizeT dst_frame);
     virtual SizeT get_frame() const = 0;
 };
 }  // namespace uipc::core

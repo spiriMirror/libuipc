@@ -16,7 +16,7 @@ PyWorld::PyWorld(py::module& m)
         .def("sync", &World::sync)
         .def("retrieve", &World::retrieve)
         .def("dump", &World::dump)
-        .def("recover", &World::recover)
+        .def("recover", &World::recover, py::arg("dst_frame") = ~0ull)
         .def("frame", &World::frame);
 }
 

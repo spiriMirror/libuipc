@@ -32,7 +32,7 @@ class UIPC_CORE_API Engine final
     void  sync();                         // only be called by World
     void  retrieve();                     // only be called by World
     bool  dump();                         // only be called by World
-    bool  recover();                      // only be called by World
+    bool  recover(SizeT dst_frame);       // only be called by World
     SizeT frame() const;                  // only be called by World
 
     U<Impl> m_impl;

@@ -25,7 +25,7 @@ class UIPC_CORE_API World final
     void sync();
     void retrieve();
     bool dump();
-    bool recover();
+    bool recover(SizeT aim_frame = ~0ull);
 
     SizeT frame() const;
 

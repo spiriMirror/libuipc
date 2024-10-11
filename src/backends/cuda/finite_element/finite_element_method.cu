@@ -257,23 +257,40 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
               { return a.dim_uid < b.dim_uid; });
 
 
-    // 3) setup vertex offsets
+    // 3) setup vertex offsets and primitive offsets
     // + 1 for total count
-    vector<SizeT> vertex_counts(geo_infos.size() + 1, 0);
-    vector<SizeT> vertex_offsets(geo_infos.size() + 1, 0);
+    {
+        vector<SizeT> vertex_counts(geo_infos.size() + 1, 0);
+        vector<SizeT> vertex_offsets(geo_infos.size() + 1, 0);
+        vector<SizeT> primitive_offsets(geo_infos.size() + 1, 0);
+        vector<SizeT> primitive_counts(geo_infos.size() + 1, 0);
 
-    std::transform(geo_infos.begin(),
-                   geo_infos.end(),
-                   vertex_counts.begin(),
-                   [](const GeoInfo& info) { return info.vertex_count; });
+        std::transform(geo_infos.begin(),
+                       geo_infos.end(),
+                       vertex_counts.begin(),
+                       [](const GeoInfo& info) { return info.vertex_count; });
 
-    std::exclusive_scan(
-        vertex_counts.begin(), vertex_counts.end(), vertex_offsets.begin(), 0);
+        std::transform(geo_infos.begin(),
+                       geo_infos.end(),
+                       primitive_counts.begin(),
+                       [](const GeoInfo& info) { return info.primitive_count; });
 
-    for(auto&& [i, info] : enumerate(geo_infos))
-        info.vertex_offset = vertex_offsets[i];
+        std::exclusive_scan(
+            vertex_counts.begin(), vertex_counts.end(), vertex_offsets.begin(), 0);
 
-    h_positions.resize(vertex_offsets.back());
+        std::exclusive_scan(primitive_counts.begin(),
+                            primitive_counts.end(),
+                            primitive_offsets.begin(),
+                            0);
+
+        for(auto&& [i, info] : enumerate(geo_infos))
+        {
+            info.vertex_offset    = vertex_offsets[i];
+            info.primitive_offset = primitive_offsets[i];
+        }
+
+        h_positions.resize(vertex_offsets.back());
+    }
 
 
     // 4) setup dim infos
@@ -281,6 +298,7 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
         std::array<SizeT, 4> dim_geo_counts;
         std::array<SizeT, 4> dim_geo_offsets;
         dim_geo_counts.fill(0);
+
 
         vector<SizeT> offsets;
         offsets.reserve(dim_geo_counts.size());
@@ -312,7 +330,11 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
     }
 
 
-    // 4) setup primitive offsets
+    // 4) setup dim_info vertex and primitive
+    vector<SizeT> dim_primitive_counts(dim_infos.size(), 0);
+    vector<SizeT> dim_vertex_counts(dim_infos.size(), 0);
+    vector<SizeT> dim_vertex_offsets(dim_infos.size(), 0);
+
     for(auto&& [i, dim_info] : enumerate(dim_infos))
     {
         auto it = std::find_if(geo_infos.begin(),
@@ -323,10 +345,8 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
         if(it == geo_infos.end())
             continue;
 
-        auto count = dim_info.geo_info_count + 1;  // + 1 to calculate the total size
-
-        vector<SizeT> primitive_counts(count, 0);
-        vector<SizeT> primitive_offsets(count, 0);
+        vector<SizeT> primitive_counts(dim_info.geo_info_count + 1, 0);  // + 1 to calculate the total size
+        vector<SizeT> vertex_counts(dim_info.geo_info_count + 1);  // + 1 to calculate the total size
 
         auto geo_span =
             span{geo_infos}.subspan(dim_info.geo_info_offset, dim_info.geo_info_count);
@@ -336,21 +356,32 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
                                [](const GeoInfo& info)
                                { return info.primitive_count; });
 
-        std::exclusive_scan(primitive_counts.begin(),
-                            primitive_counts.end(),
-                            primitive_offsets.begin(),
-                            0);
+        dim_primitive_counts[i] =
+            std::accumulate(primitive_counts.begin(), primitive_counts.end(), 0);
 
-        for(auto&& [j, info] : enumerate(geo_span))
-        {
-            info.primitive_offset = primitive_offsets[j];
-            info.primitive_count  = primitive_counts[j];
-        }
+        std::ranges::transform(geo_span,
+                               vertex_counts.begin(),
+                               [](const GeoInfo& info)
+                               { return info.vertex_count; });
 
 
-        dim_info.primitive_count = primitive_offsets.back();
-        dim_info.primitive_offset = geo_infos[dim_info.geo_info_offset].primitive_offset;
+        dim_vertex_counts[i] =
+            std::accumulate(vertex_counts.begin(), vertex_counts.end(), 0);
     }
+
+    std::exclusive_scan(dim_vertex_counts.begin(),
+                        dim_vertex_counts.end(),
+                        dim_vertex_offsets.begin(),
+                        0);
+
+    for(auto&& [i, dim_info] : enumerate(dim_infos))
+    {
+        dim_info.vertex_count     = dim_vertex_counts[i];
+        dim_info.vertex_offset    = dim_vertex_offsets[i];
+        dim_info.primitive_offset = 0;  // always 0
+        dim_info.primitive_count  = dim_primitive_counts[i];
+    }
+
 
     h_codim_0ds.resize(dim_infos[0].primitive_count);
     h_codim_1ds.resize(dim_infos[1].primitive_count);
@@ -678,7 +709,7 @@ void FiniteElementMethod::Impl::_build_on_device()
     thicknesses.resize(h_thicknesses.size());
     thicknesses.view().copy_from(h_thicknesses.data());
 
-    diag_hessians.resize(xs.size());
+    // diag_hessians.resize(xs.size());
 
     // 2) Elements
     codim_0ds.resize(h_codim_0ds.size());

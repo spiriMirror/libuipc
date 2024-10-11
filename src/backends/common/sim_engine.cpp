@@ -217,13 +217,13 @@ void SimEngine::do_init(backend::WorldVisitor v)
     do_init(init_info);
 }
 
-bool SimEngine::do_recover()
+bool SimEngine::do_recover(SizeT dst_frame)
 {
     auto            path = dump_path(__FILE__);
     BackendPathTool tool{workspace()};
 
     const Json& info              = world().scene().info();
-    SizeT       try_recover_frame = info["recovery"]["frame"].get<SizeT>();
+    SizeT       try_recover_frame = dst_frame;
     auto        backend_name      = tool.backend_name();
 
     // 1. Get the file path

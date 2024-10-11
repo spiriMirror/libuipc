@@ -71,7 +71,7 @@ class GlobalLinearSystem : public SimSystem
     class OffDiagExtentInfo
     {
       public:
-        HessianStorageType storage_type() { return m_storage_type; }
+        HessianStorageType storage_type() const { return m_storage_type; }
         void extent(SizeT lr_hessian_block_count, SizeT rl_hassian_block_count) noexcept;
 
       private:
@@ -89,9 +89,9 @@ class GlobalLinearSystem : public SimSystem
         {
         }
 
-        HessianStorageType storage_type() { return m_storage_type; }
-        TripletMatrixView  lr_hessian() { return m_lr_hessian; }
-        TripletMatrixView  rl_hessian() { return m_rl_hessian; }
+        HessianStorageType storage_type() const { return m_storage_type; }
+        TripletMatrixView  lr_hessian() const { return m_lr_hessian; }
+        TripletMatrixView  rl_hessian() const { return m_rl_hessian; }
 
       private:
         friend class Impl;
@@ -102,37 +102,42 @@ class GlobalLinearSystem : public SimSystem
         Impl*              m_impl = nullptr;
     };
 
-    class GlobalPreconditionerAssemblyInfo
+    class AssemblyInfo
     {
       public:
-        GlobalPreconditionerAssemblyInfo(Impl* impl) noexcept
+        AssemblyInfo(Impl* impl) noexcept
             : m_impl(impl)
         {
         }
 
-        CBCOOMatrixView    A() { return m_A; }
-        HessianStorageType storage_type() { return m_storage_type; }
+        CBCOOMatrixView    A() const;
+        HessianStorageType storage_type() const;
 
-      private:
+      protected:
         friend class Impl;
-        CBCOOMatrixView    m_A;
-        bool               symmetric = false;
-        Impl*              m_impl    = nullptr;
-        HessianStorageType m_storage_type;
+        Impl* m_impl = nullptr;
     };
 
-    class LocalPreconditionerAssemblyInfo
+    class GlobalPreconditionerAssemblyInfo : public AssemblyInfo
     {
       public:
-        LocalPreconditionerAssemblyInfo(Impl* impl) noexcept
-            : m_impl(impl)
+        using AssemblyInfo::AssemblyInfo;
+    };
+
+    class LocalPreconditionerAssemblyInfo : public AssemblyInfo
+    {
+      public:
+        LocalPreconditionerAssemblyInfo(Impl* impl, SizeT index) noexcept
+            : AssemblyInfo(impl)
+            , m_index(index)
         {
         }
 
+        SizeT dof_offset() const;
+        SizeT dof_count() const;
+
       private:
-        friend class Impl;
-        SizeT m_index = ~0ull;
-        Impl* m_impl  = nullptr;
+        SizeT m_index;
     };
 
     class ApplyPreconditionerInfo
@@ -161,7 +166,7 @@ class GlobalLinearSystem : public SimSystem
         {
         }
 
-        CDenseVectorView r() { return m_r; }
+        CDenseVectorView r() const { return m_r; }
 
         void statisfied(bool statisfied) { m_statisfied = statisfied; }
 

@@ -65,6 +65,8 @@ class FiniteElementMethod final : public SimSystem
         SizeT geo_info_count   = 0ull;
         SizeT primitive_offset = ~0ull;
         SizeT primitive_count  = 0ull;
+        SizeT vertex_offset    = ~0ull;
+        SizeT vertex_count     = 0ull;
     };
 
     class ForEachInfo
@@ -293,8 +295,8 @@ class FiniteElementMethod final : public SimSystem
         muda::DeviceBuffer<Vector3> x_tildes;  // Predicted Positions
         muda::DeviceBuffer<Vector3> x_prevs;   // Positions at last frame
         muda::DeviceBuffer<Float>   masses;    // Mass
-        muda::DeviceBuffer<Float>   thicknesses;      // Thickness
-        muda::DeviceBuffer<Matrix3x3> diag_hessians;  // Diagonal Hessian
+        muda::DeviceBuffer<Float>   thicknesses;  // Thickness
+        // muda::DeviceBuffer<Matrix3x3> diag_hessians;  // Diagonal Hessian
 
 
         //tex:
@@ -363,7 +365,7 @@ class FiniteElementMethod final : public SimSystem
     auto x_prevs() const noexcept { return m_impl.x_prevs.view(); }
     auto masses() const noexcept { return m_impl.masses.view(); }
 
-    auto diag_hessians() const noexcept { return m_impl.diag_hessians.view(); }
+    //auto diag_hessians() const noexcept { return m_impl.diag_hessians.view(); }
 
     auto Dm3x3_invs() const noexcept { return m_impl.Dm3x3_invs.view(); }
 
@@ -423,6 +425,7 @@ class FiniteElementMethod final : public SimSystem
     friend class FiniteElementConstitution;
     friend class FiniteElementAnimator;
     friend class FiniteElementExtraConstitution;
+    friend class FEMDiagPreconditioner;
 
     void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution
     void add_constitution(FiniteElementExtraConstitution* constitution);  // only called by FiniteElementExtraConstitution
