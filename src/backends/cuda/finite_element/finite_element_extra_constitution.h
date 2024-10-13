@@ -58,6 +58,10 @@ class FiniteElementExtraConstitution : public SimSystem
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                       ForEach&&                       for_each_action) noexcept;
 
+        span<const Vector3> positions() noexcept;
+        span<const Vector3> rest_positions() noexcept;
+        span<const Float>   thicknesses() noexcept;
+
       private:
         Impl* m_impl = nullptr;
     };

@@ -2,10 +2,11 @@
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/neo_hookean_shell.h>
+#include <uipc/constitution/discrete_shell_bending.h>
 #include <filesystem>
 #include <fstream>
 
-TEST_CASE("19_shell_fixed_point", "[fem]")
+TEST_CASE("33_discrete_shell_bending", "[fem]")
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -33,7 +34,8 @@ TEST_CASE("19_shell_fixed_point", "[fem]")
     Scene scene{config};
     {
         // create constitution and contact model
-        NeoHookeanShell nhs;
+        NeoHookeanShell      nhs;
+        DiscreteShellBending dsb;
         scene.constitution_tabular().insert(nhs);
         auto& default_contact = scene.contact_tabular().default_element();
 
@@ -64,13 +66,13 @@ TEST_CASE("19_shell_fixed_point", "[fem]")
 
         auto parm = ElasticModuli::youngs_poisson(10.0_MPa, 0.49);
         nhs.apply_to(mesh, parm);
+        dsb.apply_to(mesh, 5.0_kPa);
         default_contact.apply_to(mesh);
 
         auto is_fixed      = mesh.vertices().find<IndexT>(builtin::is_fixed);
         auto is_fixed_view = view(*is_fixed);
         is_fixed_view[0]   = 1;
         is_fixed_view[2]   = 1;
-
 
         object->geometries().create(mesh);
     }

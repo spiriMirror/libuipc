@@ -135,6 +135,21 @@ span<const FiniteElementMethod::GeoInfo> FiniteElementExtraConstitution::Filtere
     return m_impl->geo_infos;
 }
 
+span<const Vector3> FiniteElementExtraConstitution::FilteredInfo::positions() noexcept
+{
+    return m_impl->fem().h_positions;
+}
+
+span<const Vector3> FiniteElementExtraConstitution::FilteredInfo::rest_positions() noexcept
+{
+    return m_impl->fem().h_rest_positions;
+}
+
+span<const Float> FiniteElementExtraConstitution::FilteredInfo::thicknesses() noexcept
+{
+    return m_impl->fem().h_thicknesses;
+}
+
 muda::DoubletVectorView<Float, 3> FiniteElementExtraConstitution::ComputeGradientHessianInfo::gradients() const noexcept
 {
     return m_impl->fem().extra_constitution_gradient.view().subview(

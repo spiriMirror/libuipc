@@ -2,9 +2,9 @@
 #include <pyuipc/pyuipc.h>
 namespace pyuipc::constitution
 {
-class PyShellNeoHookean
+class PyNeoHookeanShell
 {
   public:
-    PyShellNeoHookean(py::module& m);
+    PyNeoHookeanShell(py::module& m);
 };
 }  // namespace pyuipc::constitution

@@ -5,7 +5,7 @@
 #include <pyuipc/constitution/finite_element_constitution.h>
 #include <pyuipc/constitution/particle.h>
 #include <pyuipc/constitution/hookean_spring.h>
-#include <pyuipc/constitution/shell_neo_hookean.h>
+#include <pyuipc/constitution/neo_hookean_shell.h>
 #include <pyuipc/constitution/stable_neo_hookean.h>
 #include <pyuipc/constitution/affine_body_constitution.h>
 #include <pyuipc/constitution/constraint.h>
@@ -27,7 +27,7 @@ Module::Module(py::module& m)
     PyEmpty{m};
     PyParticle{m};
     PyHookeanSpring{m};
-    PyShellNeoHookean{m};
+    PyNeoHookeanShell{m};
     PyStableNeoHookean{m};
 
     // Finite Extra Constitutions

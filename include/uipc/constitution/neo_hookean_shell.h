@@ -5,12 +5,12 @@
 
 namespace uipc::constitution
 {
-class UIPC_CONSTITUTION_API ShellNeoHookean : public FiniteElementConstitution
+class UIPC_CONSTITUTION_API NeoHookeanShell : public FiniteElementConstitution
 {
     using Base = FiniteElementConstitution;
 
   public:
-    ShellNeoHookean(const Json& config = default_config()) noexcept;
+    NeoHookeanShell(const Json& config = default_config()) noexcept;
 
     void apply_to(geometry::SimplicialComplex& sc,
                   const ElasticModuli& moduli = ElasticModuli::youngs_poisson(10.0_MPa, 0.49),

@@ -1,4 +1,4 @@
-#include <uipc/constitution/shell_neo_hookean.h>
+#include <uipc/constitution/neo_hookean_shell.h>
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/geometry/utils/compute_vertex_mass.h>
 #include <uipc/builtin/attribute_name.h>
@@ -12,16 +12,16 @@ REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
     list<UIDInfo> uids;
-    uids.push_back(UIDInfo{.uid = 11, .name = "ShellNeoHookean", .type = string{builtin::FiniteElement}});
+    uids.push_back(UIDInfo{.uid = 11, .name = "NeoHookeanShell", .type = string{builtin::FiniteElement}});
     return uids;
 }
 
-ShellNeoHookean::ShellNeoHookean(const Json& config) noexcept
+NeoHookeanShell::NeoHookeanShell(const Json& config) noexcept
     : m_config(config)
 {
 }
 
-void ShellNeoHookean::apply_to(geometry::SimplicialComplex& sc,
+void NeoHookeanShell::apply_to(geometry::SimplicialComplex& sc,
                                const ElasticModuli&         moduli,
                                Float                        mass_density,
                                Float                        thickness) const
@@ -31,7 +31,7 @@ void ShellNeoHookean::apply_to(geometry::SimplicialComplex& sc,
     auto mu     = moduli.mu();
     auto lambda = moduli.lambda();
 
-    UIPC_ASSERT(sc.dim() == 2, "ShellNeoHookean only supports 2D simplicial complex");
+    UIPC_ASSERT(sc.dim() == 2, "NeoHookeanShell only supports 2D simplicial complex");
 
     auto mu_attr = sc.triangles().find<Float>("mu");
     if(!mu_attr)
@@ -44,12 +44,12 @@ void ShellNeoHookean::apply_to(geometry::SimplicialComplex& sc,
     std::ranges::fill(geometry::view(*lambda_attr), lambda);
 }
 
-Json ShellNeoHookean::default_config() noexcept
+Json NeoHookeanShell::default_config() noexcept
 {
     return Json::object();
 }
 
-U64 ShellNeoHookean::get_uid() const noexcept
+U64 NeoHookeanShell::get_uid() const noexcept
 {
     return 11;
 }

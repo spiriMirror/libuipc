@@ -1,5 +1,5 @@
 #include <finite_element/codim_2d_constitution.h>
-#include <finite_element/constitutions/shell_neo_hookean_2d_function.h>
+#include <finite_element/constitutions/neo_hookean_shell_2d_function.h>
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
 #include <Eigen/Dense>
@@ -8,7 +8,7 @@
 
 namespace uipc::backend::cuda
 {
-class ShellNeoHookean2D final : public Codim2DConstitution
+class NeoHookeanShell2D final : public Codim2DConstitution
 {
   public:
     // Constitution UID by libuipc specification
@@ -169,5 +169,5 @@ class ShellNeoHookean2D final : public Codim2DConstitution
     }
 };
 
-REGISTER_SIM_SYSTEM(ShellNeoHookean2D);
+REGISTER_SIM_SYSTEM(NeoHookeanShell2D);
 }  // namespace uipc::backend::cuda
