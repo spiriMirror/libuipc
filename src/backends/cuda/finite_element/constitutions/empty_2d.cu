@@ -17,9 +17,12 @@ class Empty2D final : public Codim2DConstitution
 
     using Codim2DConstitution::Codim2DConstitution;
 
-    virtual U64 get_constitution_uid() const override
+    virtual U64 get_uid() const override { return ConstitutionUID; }
+
+    virtual void do_report_extent(ReportExtentInfo& info)
     {
-        return ConstitutionUID;
+        info.energy_count(0);
+        info.stencil_dim(3);
     }
 
     virtual void do_build(BuildInfo& info) override
@@ -27,20 +30,19 @@ class Empty2D final : public Codim2DConstitution
         // do nothing
     }
 
-    virtual void do_retrieve(FiniteElementMethod::Codim2DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::Codim2DFilteredInfo& info) override
     {
         // do nothing
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        info.element_energies().fill(0);
+        // do nothing
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        info.gradient().fill(Vector9::Zero());
-        info.hessian().fill(Matrix9x9::Zero());
+        // do nothing
     }
 };
 

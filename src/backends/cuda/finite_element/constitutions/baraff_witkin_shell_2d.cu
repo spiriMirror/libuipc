@@ -22,14 +22,11 @@ class BaraffWitkinShell2D final : public Codim2DConstitution
     muda::DeviceBuffer<Float> kappas;
     muda::DeviceBuffer<Float> lambdas;
 
-    virtual U64 get_constitution_uid() const override
-    {
-        return ConstitutionUID;
-    }
+    virtual U64 get_uid() const override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
 
-    virtual void do_retrieve(FiniteElementMethod::Codim2DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::Codim2DFilteredInfo& info) override
     {
         using ForEachInfo = FiniteElementMethod::ForEachInfo;
 
@@ -48,7 +45,7 @@ class BaraffWitkinShell2D final : public Codim2DConstitution
                     lambdas    = lambdas.cviewer().name("lambdas"),
                     rest_areas = info.rest_areas().viewer().name("rest_area"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    element_energies = info.element_energies().viewer().name("energies"),
+                    element_energies = info.energies().viewer().name("energies"),
                     indices = info.indices().viewer().name("indices"),
                     xs      = info.xs().viewer().name("xs"),
                     x_bars  = info.x_bars().viewer().name("x_bars"),
@@ -73,8 +70,8 @@ class BaraffWitkinShell2D final : public Codim2DConstitution
                     xs      = info.xs().viewer().name("xs"),
                     x_bars  = info.x_bars().viewer().name("x_bars"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    G9s        = info.gradient().viewer().name("gradient"),
-                    H9x9s      = info.hessian().viewer().name("hessian"),
+                    G3s        = info.gradients().viewer().name("gradient"),
+                    H3x3s      = info.hessians().viewer().name("hessian"),
                     rest_areas = info.rest_areas().viewer().name("volumes"),
                     dt         = info.dt()] __device__(int I)
                    {

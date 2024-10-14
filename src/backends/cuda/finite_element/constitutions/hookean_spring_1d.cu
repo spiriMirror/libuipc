@@ -6,6 +6,7 @@
 #include <muda/ext/eigen/inverse.h>
 #include <utils/codim_thickness.h>
 #include <numbers>
+#include <utils/matrix_assembly_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -20,14 +21,11 @@ class HookeanSpring1D final : public Codim1DConstitution
     vector<Float>             h_kappas;
     muda::DeviceBuffer<Float> kappas;
 
-    virtual U64 get_constitution_uid() const override
-    {
-        return ConstitutionUID;
-    }
+    virtual U64 get_uid() const override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
 
-    virtual void do_retrieve(FiniteElementMethod::Codim1DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::Codim1DFilteredInfo& info) override
     {
         using ForEachInfo = FiniteElementMethod::ForEachInfo;
 
@@ -66,12 +64,12 @@ class HookeanSpring1D final : public Codim1DConstitution
                    [kappas = kappas.cviewer().name("kappas"),
                     rest_lengths = info.rest_lengths().viewer().name("rest_lengths"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    element_energies = info.element_energies().viewer().name("energies"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_bars  = info.x_bars().viewer().name("x_bars"),
-                    dt      = info.dt(),
-                    Pi      = std::numbers::pi] __device__(int I)
+                    energies = info.energies().viewer().name("energies"),
+                    indices  = info.indices().viewer().name("indices"),
+                    xs       = info.xs().viewer().name("xs"),
+                    x_bars   = info.x_bars().viewer().name("x_bars"),
+                    dt       = info.dt(),
+                    Pi       = std::numbers::pi] __device__(int I)
                    {
                        Vector6  X;
                        Vector2i idx = indices(I);
@@ -87,9 +85,7 @@ class HookeanSpring1D final : public Codim1DConstitution
 
                        Float E;
                        NS::E(E, kappa, X, L0);
-                       element_energies(I) = E * Vdt2;
-                       //cout << "E: " << E << " Vdt2: " << Vdt2
-                       //     << " E*Vdt2: " << E * Vdt2 << "\n";
+                       energies(I) = E * Vdt2;
                    });
     }
 
@@ -101,8 +97,8 @@ class HookeanSpring1D final : public Codim1DConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [G6s    = info.gradient().viewer().name("G6s"),
-                    H6x6s  = info.hessian().viewer().name("H6x6s"),
+                   [G3s    = info.gradients().viewer().name("gradients"),
+                    H3x3s  = info.hessians().viewer().name("hessians"),
                     kappas = kappas.cviewer().name("kappas"),
                     rest_lengths = info.rest_lengths().viewer().name("rest_lengths"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
@@ -110,7 +106,7 @@ class HookeanSpring1D final : public Codim1DConstitution
                     xs      = info.xs().viewer().name("xs"),
                     x_bars  = info.x_bars().viewer().name("x_bars"),
                     dt      = info.dt(),
-                    Pi      = std::numbers::pi] __device__(int I)
+                    Pi      = std::numbers::pi] __device__(int I) mutable
                    {
                        Vector6  X;
                        Vector2i idx = indices(I);
@@ -126,11 +122,14 @@ class HookeanSpring1D final : public Codim1DConstitution
 
                        Vector6 G;
                        NS::dEdX(G, kappa, X, L0);
-                       G6s(I) = G * Vdt2;
+                       G *= Vdt2;
+                       assemble<2>(G3s, I, G, idx);
 
                        Matrix6x6 H;
                        NS::ddEddX(H, kappa, X, L0);
-                       H6x6s(I) = H * Vdt2;
+                       H *= Vdt2;
+                       make_spd(H);
+                       assemble<2>(H3x3s, I, H, idx);
                    });
     }
 };

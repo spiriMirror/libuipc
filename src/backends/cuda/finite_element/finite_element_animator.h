@@ -3,6 +3,7 @@
 #include <finite_element/finite_element_method.h>
 #include <gradient_hessian_computer.h>
 #include <line_search/line_searcher.h>
+#include <muda/ext/linear_system/device_dense_vector.h>
 #include <muda/ext/linear_system/device_doublet_vector.h>
 #include <muda/ext/linear_system/device_triplet_matrix.h>
 
@@ -75,9 +76,19 @@ class FiniteElementAnimator final : public Animator
     class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        using BaseInfo::BaseInfo;
+        ComputeGradientHessianInfo(Impl*                             impl,
+                                   SizeT                             index,
+                                   Float                             dt,
+                                   muda::TripletMatrixView<Float, 3> hessians)
+            : BaseInfo(impl, index, dt)
+            , m_hessians(hessians)
+        {
+        }
         muda::DoubletVectorView<Float, 3> gradients() const noexcept;
-        muda::TripletMatrixView<Float, 3> hessians() const noexcept;
+        auto hessians() const noexcept { return m_hessians; }
+
+      private:
+        muda::TripletMatrixView<Float, 3> m_hessians;
     };
 
     class ReportExtentInfo
@@ -94,14 +105,43 @@ class FiniteElementAnimator final : public Animator
         SizeT m_energy_count           = 0;
     };
 
+    class AssembleInfo
+    {
+      public:
+        AssembleInfo(muda::DenseVectorView<Float>      gradients,
+                     muda::TripletMatrixView<Float, 3> hessians,
+                     Float                             dt)
+            : m_gradients(gradients)
+            , m_hessians(hessians)
+            , m_dt(dt)
+        {
+        }
+
+        auto  gradients() const noexcept { return m_gradients; }
+        auto  hessians() const noexcept { return m_hessians; }
+        Float dt() const noexcept { return m_dt; }
+
+      private:
+        muda::DenseVectorView<Float>      m_gradients;
+        muda::TripletMatrixView<Float, 3> m_hessians;
+        Float                             m_dt = 0.0;
+    };
+
     class Impl
     {
       public:
         void init(backend::WorldVisitor& world);
         void step();
 
-        FiniteElementMethod* finite_element_method = nullptr;
-        GlobalAnimator*      global_animator       = nullptr;
+        FiniteElementMethod*       finite_element_method = nullptr;
+        FiniteElementMethod::Impl& fem() const noexcept
+        {
+            return finite_element_method->m_impl;
+        }
+
+        void assemble(AssembleInfo& info);
+
+        GlobalAnimator* global_animator = nullptr;
         SimSystemSlotCollection<FiniteElementConstraint> constraints;
         unordered_map<U64, SizeT> uid_to_constraint_index;
 
@@ -136,9 +176,6 @@ class FiniteElementAnimator final : public Animator
     friend class FEMLineSearchReporter;
     Float compute_energy(LineSearcher::EnergyInfo& info);  // only be called by FEMLineSearchReporter
 
-    friend class FEMGradientHessianComputer;
-    void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);  // only be called by GradientHessianComputer
-
     friend class FEMLinearSubsystem;
     class ExtentInfo
     {
@@ -146,17 +183,6 @@ class FiniteElementAnimator final : public Animator
         SizeT hessian_block_count;
     };
     void report_extent(ExtentInfo& info);  // only be called by FEMLinearSubsystem
-    class AssembleInfo
-    {
-      public:
-        muda::CDoubletVectorView<Float, 3> gradients() const noexcept;
-        muda::CTripletMatrixView<Float, 3> hessians() const noexcept;
-
-      private:
-        friend class FiniteElementAnimator;
-        muda::CDoubletVectorView<Float, 3> m_gradients;
-        muda::CTripletMatrixView<Float, 3> m_hessians;
-    };
     void assemble(AssembleInfo& info);  // only be called by FEMLinearSubsystem
 
     Impl m_impl;

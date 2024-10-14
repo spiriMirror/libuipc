@@ -1,34 +1,23 @@
 #pragma once
 #include <sim_system.h>
 #include <finite_element/finite_element_method.h>
+#include <finite_element/finite_element_energy_producer.h>
 
 namespace uipc::backend::cuda
 {
-class FiniteElementExtraConstitution : public SimSystem
+class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
 {
   public:
-    using SimSystem::SimSystem;
+    using FiniteElementEnergyProducer::FiniteElementEnergyProducer;
 
     class Impl
     {
       public:
         void init(U64 uid, backend::WorldVisitor& world);
 
-        SizeT stencil_dim = 0;
-
-        SizeT energy_offset = 0;
-        SizeT energy_count  = 0;
-
-        SizeT gradient_offset = 0;
-        SizeT gradient_count  = 0;
-
-        SizeT hessian_offset = 0;
-        SizeT hessian_count  = 0;
-
         FiniteElementMethod*                 finite_element_method = nullptr;
         vector<FiniteElementMethod::GeoInfo> geo_infos;
-
-        FiniteElementMethod::Impl& fem() noexcept
+        FiniteElementMethod::Impl&           fem() noexcept
         {
             return finite_element_method->m_impl;
         }
@@ -87,33 +76,14 @@ class FiniteElementExtraConstitution : public SimSystem
         Float m_dt;
     };
 
-    class ReportExtentInfo
-    {
-      public:
-        /**
-         * @brief Set the number of element energy
-         */
-        void energy_count(SizeT count) noexcept;
-        /**
-         * @brief Set the stencil dimension
-         *
-         *  stencil_dim = N means the element contains N vertices, so
-         *  the gradient has size 3 * N, and the hessian has size (3 * N) * (3 * N)
-         * 
-         */
-        void stencil_dim(SizeT dim) noexcept;
-
-      private:
-        friend class FiniteElementExtraConstitution;
-        SizeT m_energy_count = 0;
-        SizeT m_stencil_dim  = 0;
-    };
-
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
         using BaseInfo::BaseInfo;
         muda::BufferView<Float> energies() const noexcept;
+
+      private:
+        muda::BufferView<Float> m_energies;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
@@ -122,6 +92,10 @@ class FiniteElementExtraConstitution : public SimSystem
         using BaseInfo::BaseInfo;
         muda::DoubletVectorView<Float, 3> gradients() const noexcept;
         muda::TripletMatrixView<Float, 3> hessians() const noexcept;
+
+      private:
+        muda::DoubletVectorView<Float, 3> m_gradients;
+        muda::TripletMatrixView<Float, 3> m_hessians;
     };
 
     U64 uid() const noexcept;
@@ -145,8 +119,8 @@ class FiniteElementExtraConstitution : public SimSystem
     friend class FEMGradientHessianComputer;
     void compute_gradient_hessian(FiniteElementMethod::ComputeExtraGradientHessianInfo& info);  // only be called by FEMGradientHessianComputer
 
-    virtual void do_build() override final;
-    Impl         m_impl;
+    virtual void do_build(FiniteElementEnergyProducer::BuildInfo& info) override final;
+    Impl m_impl;
 };
 }  // namespace uipc::backend::cuda
 

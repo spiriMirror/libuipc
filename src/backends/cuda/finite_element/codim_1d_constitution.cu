@@ -2,9 +2,9 @@
 
 namespace uipc::backend::cuda
 {
-void Codim1DConstitution::retrieve(FiniteElementMethod::Codim1DFilteredInfo& info)
+void Codim1DConstitution::init(FiniteElementMethod::Codim1DFilteredInfo& info)
 {
-    do_retrieve(info);
+    do_init(info);
 }
 
 void Codim1DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
@@ -13,15 +13,17 @@ void Codim1DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
     do_build(this_info);
 }
 
-void Codim1DConstitution::do_compute_energy(FiniteElementMethod::ComputeEnergyInfo& info)
+void Codim1DConstitution::do_compute_energy(FiniteElementConstitution::ComputeEnergyInfo& info)
 {
-    Codim1DConstitution::ComputeEnergyInfo this_info{&fem(), m_index_in_dim, info.dt()};
+    Codim1DConstitution::ComputeEnergyInfo this_info{
+        &fem(), m_index_in_dim, info.dt(), info.energies()};
     do_compute_energy(this_info);
 }
 
-void Codim1DConstitution::do_compute_gradient_hessian(FiniteElementMethod::ComputeGradientHessianInfo& info)
+void Codim1DConstitution::do_compute_gradient_hessian(FiniteElementConstitution::ComputeGradientHessianInfo& info)
 {
-    ComputeGradientHessianInfo this_info{&fem(), m_index_in_dim, info.dt()};
+    ComputeGradientHessianInfo this_info{
+        &fem(), m_index_in_dim, info.dt(), info.gradients(), info.hessians()};
     do_compute_gradient_hessian(this_info);
 }
 
@@ -65,22 +67,5 @@ const FiniteElementMethod::ConstitutionInfo& Codim1DConstitution::BaseInfo::cons
 Float Codim1DConstitution::BaseInfo::dt() const noexcept
 {
     return m_dt;
-}
-
-muda::BufferView<Float> Codim1DConstitution::ComputeEnergyInfo::element_energies() const noexcept
-{
-    auto& info = constitution_info();
-    return m_fem->codim_1d_elastic_energies.view(info.primitive_offset, info.primitive_count);
-}
-
-muda::BufferView<Vector6> Codim1DConstitution::ComputeGradientHessianInfo::gradient() const noexcept
-{
-    auto& info = constitution_info();
-    return m_fem->G6s.view(info.primitive_offset, info.primitive_count);
-}
-muda::BufferView<Matrix6x6> Codim1DConstitution::ComputeGradientHessianInfo::hessian() const noexcept
-{
-    auto& info = constitution_info();
-    return m_fem->H6x6s.view(info.primitive_offset, info.primitive_count);
 }
 }  // namespace uipc::backend::cuda

@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-void FiniteElementExtraConstitution::do_build()
+void FiniteElementExtraConstitution::do_build(FiniteElementEnergyProducer::BuildInfo& info)
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
 

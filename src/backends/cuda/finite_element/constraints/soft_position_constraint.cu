@@ -147,9 +147,9 @@ class SoftPositionConstraint final : public FiniteElementConstraint
                     x_prevs = info.x_prevs().viewer().name("x_prevs"),
                     aim_positions = aim_positions.viewer().name("aim_positions"),
                     strength_ratio = strength_ratios.viewer().name("strength_ratio"),
-                    masses     = info.masses().viewer().name("masses"),
-                    gradients  = info.gradients().viewer().name("gradients"),
-                    m_hessians = info.hessians().viewer().name("hessians"),
+                    masses    = info.masses().viewer().name("masses"),
+                    gradients = info.gradients().viewer().name("gradients"),
+                    hessians  = info.hessians().viewer().name("hessians"),
                     is_fixed = info.is_fixed().viewer().name("is_fixed")] __device__(int I) mutable
                    {
                        auto      i = indices(I);
@@ -174,7 +174,7 @@ class SoftPositionConstraint final : public FiniteElementConstraint
                        }
 
                        gradients(I).write(i, G);
-                       m_hessians(I).write(i, i, H);
+                       hessians(I).write(i, i, H);
                    });
     }
 };

@@ -10,10 +10,7 @@ class Empty0D final : public Codim0DConstitution
 
     using Codim0DConstitution::Codim0DConstitution;
 
-    virtual U64 get_constitution_uid() const override
-    {
-        return ConstitutionUID;
-    }
+    virtual U64 get_uid() const override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override
     {

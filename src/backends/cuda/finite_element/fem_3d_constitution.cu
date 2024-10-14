@@ -4,7 +4,7 @@ namespace uipc::backend::cuda
 {
 void FEM3DConstitution::retrieve(FiniteElementMethod::FEM3DFilteredInfo& info)
 {
-    do_retrieve(info);
+    do_init(info);
 }
 
 void FEM3DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
@@ -13,15 +13,17 @@ void FEM3DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
     do_build(this_info);
 }
 
-void FEM3DConstitution::do_compute_energy(FiniteElementMethod::ComputeEnergyInfo& info)
+void FEM3DConstitution::do_compute_energy(FiniteElementConstitution::ComputeEnergyInfo& info)
 {
-    FEM3DConstitution::ComputeEnergyInfo this_info{&fem(), m_index_in_dim, info.dt()};
+    FEM3DConstitution::ComputeEnergyInfo this_info{
+        &fem(), m_index_in_dim, info.dt(), info.energies()};
     do_compute_energy(this_info);
 }
 
-void FEM3DConstitution::do_compute_gradient_hessian(FiniteElementMethod::ComputeGradientHessianInfo& info)
+void FEM3DConstitution::do_compute_gradient_hessian(FiniteElementConstitution::ComputeGradientHessianInfo& info)
 {
-    FEM3DConstitution::ComputeGradientHessianInfo this_info{&fem(), m_index_in_dim, info.dt()};
+    FEM3DConstitution::ComputeGradientHessianInfo this_info{
+        &fem(), m_index_in_dim, info.dt(), info.gradients(), info.hessians()};
     do_compute_gradient_hessian(this_info);
 }
 
@@ -61,23 +63,5 @@ muda::CBufferView<Float> FEM3DConstitution::BaseInfo::rest_volumes() const noexc
 const FiniteElementMethod::ConstitutionInfo& FEM3DConstitution::BaseInfo::constitution_info() const noexcept
 {
     return m_fem->fem_3d_constitution_infos[m_index_in_dim];
-}
-
-muda::BufferView<Vector12> FEM3DConstitution::ComputeGradientHessianInfo::gradient() const noexcept
-{
-    auto& info = constitution_info();
-    return m_fem->G12s.view(info.primitive_offset, info.primitive_count);
-}
-
-muda::BufferView<Matrix12x12> FEM3DConstitution::ComputeGradientHessianInfo::hessian() const noexcept
-{
-    auto& info = constitution_info();
-    return m_fem->H12x12s.view(info.primitive_offset, info.primitive_count);
-}
-
-muda::BufferView<Float> FEM3DConstitution::ComputeEnergyInfo::element_energies() const noexcept
-{
-    auto& info = constitution_info();
-    return m_fem->fem_3d_elastic_energies.view(info.primitive_offset, info.primitive_count);
 }
 }  // namespace uipc::backend::cuda

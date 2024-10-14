@@ -5,6 +5,7 @@
 #include <Eigen/Dense>
 #include <muda/ext/eigen/inverse.h>
 #include <utils/codim_thickness.h>
+#include <utils/matrix_assembly_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -22,14 +23,11 @@ class NeoHookeanShell2D final : public Codim2DConstitution
     muda::DeviceBuffer<Float> kappas;
     muda::DeviceBuffer<Float> lambdas;
 
-    virtual U64 get_constitution_uid() const override
-    {
-        return ConstitutionUID;
-    }
+    virtual U64 get_uid() const override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
 
-    virtual void do_retrieve(FiniteElementMethod::Codim2DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::Codim2DFilteredInfo& info) override
     {
         using ForEachInfo = FiniteElementMethod::ForEachInfo;
 
@@ -77,11 +75,11 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                     lambdas    = lambdas.cviewer().name("lambdas"),
                     rest_areas = info.rest_areas().viewer().name("rest_area"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    element_energies = info.element_energies().viewer().name("energies"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_bars  = info.x_bars().viewer().name("x_bars"),
-                    dt      = info.dt()] __device__(int I)
+                    energies = info.energies().viewer().name("energies"),
+                    indices  = info.indices().viewer().name("indices"),
+                    xs       = info.xs().viewer().name("xs"),
+                    x_bars   = info.x_bars().viewer().name("x_bars"),
+                    dt       = info.dt()] __device__(int I)
                    {
                        Vector9  X;
                        Vector3i idx = indices(I);
@@ -112,7 +110,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
 
                        Float E;
                        NH::E(E, mu, lambda, X, IB);
-                       element_energies(I) = E * rest_area * thickness * dt * dt;
+                       energies(I) = E * rest_area * thickness * dt * dt;
                    });
     }
 
@@ -130,10 +128,10 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                     xs      = info.xs().viewer().name("xs"),
                     x_bars  = info.x_bars().viewer().name("x_bars"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    G9s        = info.gradient().viewer().name("gradient"),
-                    H9x9s      = info.hessian().viewer().name("hessian"),
+                    G3s        = info.gradients().viewer().name("gradient"),
+                    H3x3s      = info.hessians().viewer().name("hessian"),
                     rest_areas = info.rest_areas().viewer().name("volumes"),
-                    dt         = info.dt()] __device__(int I)
+                    dt         = info.dt()] __device__(int I) mutable
                    {
                        Vector9  X;
                        Vector3i idx = indices(I);
@@ -159,12 +157,14 @@ class NeoHookeanShell2D final : public Codim2DConstitution
 
                        Vector9 G;
                        NH::dEdX(G, mu, lambda, X, IB);
-                       G9s(I) = G * Vdt2;
+                       G *= Vdt2;
+                       assemble<3>(G3s, I, G, idx);
 
                        Matrix9x9 H;
                        NH::ddEddX(H, mu, lambda, X, IB);
-
-                       H9x9s(I) = H * Vdt2;
+                       H *= Vdt2;
+                       make_spd(H);
+                       assemble<3>(H3x3s, I, H, idx);
                    });
     }
 };

@@ -40,39 +40,56 @@ class Codim1DConstitution : public FiniteElementConstitution
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        using BaseInfo::BaseInfo;
+        ComputeEnergyInfo(FiniteElementMethod::Impl* impl,
+                          SizeT                      index_in_dim,
+                          Float                      dt,
+                          muda::BufferView<Float>    energies)
+            : BaseInfo(impl, index_in_dim, dt)
+            , m_energies(energies)
+        {
+        }
 
-        muda::BufferView<Float> element_energies() const noexcept;
+        auto energies() const noexcept { return m_energies; }
 
       private:
-        friend class Codim1DConstitution;
+        muda::BufferView<Float> m_energies;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        using BaseInfo::BaseInfo;
+        ComputeGradientHessianInfo(FiniteElementMethod::Impl* impl,
+                                   SizeT                      index_in_dim,
+                                   Float                      dt,
+                                   muda::DoubletVectorView<Float, 3> gradients,
+                                   muda::TripletMatrixView<Float, 3> hessians)
+            : BaseInfo(impl, index_in_dim, dt)
+            , m_gradients(gradients)
+            , m_hessians(hessians)
+        {
+        }
 
-        muda::BufferView<Vector6>   gradient() const noexcept;
-        muda::BufferView<Matrix6x6> hessian() const noexcept;
+        auto gradients() const noexcept { return m_gradients; }
+        auto hessians() const noexcept { return m_hessians; }
 
       private:
-        friend class Codim1DConstitution;
+        muda::DoubletVectorView<Float, 3> m_gradients;
+        muda::TripletMatrixView<Float, 3> m_hessians;
     };
 
-
   protected:
-    virtual void do_retrieve(FiniteElementMethod::Codim1DFilteredInfo& info) = 0;
-    virtual void do_build(BuildInfo& info)                  = 0;
-    virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
+    virtual void do_build(BuildInfo& info)                               = 0;
+    virtual void do_init(FiniteElementMethod::Codim1DFilteredInfo& info) = 0;
+    virtual void do_compute_energy(ComputeEnergyInfo& info)              = 0;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
 
   private:
     friend class FiniteElementMethod;
-    void retrieve(FiniteElementMethod::Codim1DFilteredInfo& info);
+    void init(FiniteElementMethod::Codim1DFilteredInfo& info);
     virtual void do_build(FiniteElementConstitution::BuildInfo& info) override final;
-    void do_compute_energy(FiniteElementMethod::ComputeEnergyInfo& info) override;
-    void do_compute_gradient_hessian(FiniteElementMethod::ComputeGradientHessianInfo& info) override;
+
+    void do_compute_energy(FiniteElementConstitution::ComputeEnergyInfo& info) override;
+    void do_compute_gradient_hessian(FiniteElementConstitution::ComputeGradientHessianInfo& info) override;
     virtual IndexT get_dimension() const override final;
 };
 }  // namespace uipc::backend::cuda

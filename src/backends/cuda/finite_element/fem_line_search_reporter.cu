@@ -58,98 +58,24 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
 {
     using namespace muda;
 
-    // Compute kinetic energy
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(fem().xs.size(),
-               [is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
-                xs       = fem().xs.cviewer().name("xs"),
-                x_tildes = fem().x_tildes.viewer().name("x_tildes"),
-                masses   = fem().masses.cviewer().name("masses"),
-                Ks       = fem().vertex_kinetic_energies.viewer().name(
-                    "kinetic_energy")] __device__(int i) mutable
-               {
-                   auto& K = Ks(i);
-                   if(is_fixed(i))
-                   {
-                       K = 0.0;
-                   }
-                   else
-                   {
-                       const Vector3& x       = xs(i);
-                       const Vector3& x_tilde = x_tildes(i);
-                       Float          M       = masses(i);
-                       Vector3        dx      = x - x_tilde;
-                       K                      = 0.5 * M * dx.dot(dx);
-                   }
-               });
+    // Kinetic/Elastic/Contact ...
+    for(auto* producer : fem().energy_producers)
+        producer->compute_energy();
 
-    // Sum up kinetic energy
-    DeviceReduce().Sum(fem().vertex_kinetic_energies.data(),
-                       fem().kinetic_energy.data(),
-                       fem().vertex_kinetic_energies.size());
+    DeviceReduce().Sum(fem().energy_producer_energies.data(),
+                       fem().energy_producer_energy.data(),
+                       fem().energy_producer_energies.size());
 
-    // Compute shape energy
-    auto async_fill = []<typename T>(muda::DeviceBuffer<T>& buf, const T& value)
-    { muda::BufferLaunch().fill<T>(buf.view(), value); };
+    // copy back to host
+    Float E = fem().energy_producer_energy;
 
-    // Distribute the computation of shape energy to each constitution
-    for(auto&& [i, cst] : enumerate(fem().constitutions.view()))
-    {
-        FiniteElementMethod::ComputeEnergyInfo this_info{
-            &finite_element_method->m_impl, i, info.dt()};
-        cst->compute_energy(this_info);
-    }
-
-    // Codim 0D
-    // Particles have no elastic energy, so we skip it
-
-    // Codim 1D
-    DeviceReduce().Sum(fem().codim_1d_elastic_energies.data(),
-                       fem().codim_1d_elastic_energy.data(),
-                       fem().codim_1d_elastic_energies.size());
-
-    // Codim 2D
-    DeviceReduce().Sum(fem().codim_2d_elastic_energies.data(),
-                       fem().codim_2d_elastic_energy.data(),
-                       fem().codim_2d_elastic_energies.size());
-
-    // FEM 3D
-    DeviceReduce().Sum(fem().fem_3d_elastic_energies.data(),
-                       fem().fem_3d_elastic_energy.data(),
-                       fem().fem_3d_elastic_energies.size());
-
-    for(auto&& [i, cst] : enumerate(fem().extra_constitutions.view()))
-    {
-        FiniteElementMethod::ComputeExtraEnergyInfo this_info{info.dt()};
-        cst->compute_energy(this_info);
-    }
-
-    // Extra
-    DeviceReduce().Sum(fem().extra_constitution_energies.data(),
-                       fem().extra_constitution_energy.data(),
-                       fem().extra_constitution_energies.size());
-
-    // Copy back to host
-    Float K         = fem().kinetic_energy;
-    Float codim1D_E = fem().codim_1d_elastic_energy;
-    Float codim2D_E = fem().codim_2d_elastic_energy;
-    Float fem3D_E   = fem().fem_3d_elastic_energy;
-    Float extra_E   = fem().extra_constitution_energy;
-    Float anim_E    = 0;
+    // Animation
+    Float anim_E = 0.0;
     if(finite_element_animator)
         anim_E = finite_element_animator->compute_energy(info);
 
-    Float E = K + codim1D_E + codim2D_E + fem3D_E + extra_E + anim_E;
+    Float total_E = E + anim_E;
 
-    spdlog::info("FEM Energy: K:{}, 1D:{}, 2D:{}, 3D:{}, Extra:{}, Anim:{}",
-                 K,
-                 codim1D_E,
-                 codim2D_E,
-                 fem3D_E,
-                 extra_E,
-                 anim_E);
-
-    info.energy(E);
+    info.energy(total_E);
 }
 }  // namespace uipc::backend::cuda

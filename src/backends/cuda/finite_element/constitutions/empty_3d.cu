@@ -19,9 +19,12 @@ class Empty3D final : public FEM3DConstitution
     vector<Float>             h_kappas;
     muda::DeviceBuffer<Float> kappas;
 
-    virtual U64 get_constitution_uid() const override
+    virtual U64 get_uid() const override { return ConstitutionUID; }
+
+    virtual void do_report_extent(ReportExtentInfo& info)
     {
-        return ConstitutionUID;
+        info.energy_count(0);
+        info.stencil_dim(4);
     }
 
     virtual void do_build(BuildInfo& info) override
@@ -29,20 +32,19 @@ class Empty3D final : public FEM3DConstitution
         // do nothing
     }
 
-    virtual void do_retrieve(FiniteElementMethod::FEM3DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::FEM3DFilteredInfo& info) override
     {
         // do nothing
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        info.element_energies().fill(0);
+        // do nothing
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        info.gradient().fill(Vector12::Zero());
-        info.hessian().fill(Matrix12x12::Zero());
+        // do nothing
     }
 };
 
