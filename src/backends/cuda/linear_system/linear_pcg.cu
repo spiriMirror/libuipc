@@ -69,7 +69,20 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
 
     rz0 = std::abs(rz);
 
-    UIPC_ASSERT(!std::isnan(rz0) && std::isfinite(rz0), "Init Residual is {}", rz0);
+    if constexpr(RUNTIME_CHECK)
+    {
+        if(std::isnan(rz0) || !std::isfinite(rz0))
+        {
+            auto norm_r = ctx().norm(r.cview());
+            auto norm_z = ctx().norm(z.cview());
+
+            UIPC_ASSERT(!std::isnan(rz0) && std::isfinite(rz0),
+                        "Init Residual is {}, norm(r) = {}, norm(z) = {}",
+                        rz0,
+                        norm_r,
+                        norm_z);
+        }
+    }
 
     // check convergence
     if(accuracy_statisfied(r) && rz0 == 0.0)
@@ -95,7 +108,19 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         // rz_new = dot(r.cview(), z.cview());
         Float rz_new = ctx().dot(r.cview(), z.cview());
 
-        UIPC_ASSERT(!std::isnan(rz_new) && std::isfinite(rz_new), "Residual is {}", rz_new);
+        if constexpr(RUNTIME_CHECK)
+        {
+            if(std::isnan(rz_new) || !std::isfinite(rz_new))
+            {
+                auto norm_r = ctx().norm(r.cview());
+                auto norm_z = ctx().norm(z.cview());
+                UIPC_ASSERT(!std::isnan(rz_new) && std::isfinite(rz_new),
+                            "Residual is {}, norm(r) = {}, norm(z) = {}",
+                            rz_new,
+                            norm_r,
+                            norm_z);
+            }
+        }
 
         // check convergence
         if(accuracy_statisfied(r) && std::abs(rz_new) <= global_tol_rate * rz0)

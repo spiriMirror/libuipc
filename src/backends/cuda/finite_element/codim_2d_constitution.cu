@@ -2,9 +2,16 @@
 
 namespace uipc::backend::cuda
 {
-void Codim2DConstitution::retrieve(FiniteElementMethod::Codim2DFilteredInfo& info)
+void Codim2DConstitution::init(FiniteElementMethod::Codim2DFilteredInfo& info)
 {
-    do_retrieve(info);
+    do_init(info);
+}
+
+void Codim2DConstitution::do_report_extent(ReportExtentInfo& info)
+{
+    auto& c_info = constitution_info();
+    info.energy_count(c_info.primitive_count);
+    info.stencil_dim(dimension() + 1);
 }
 
 void Codim2DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
@@ -13,22 +20,34 @@ void Codim2DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
     do_build(this_info);
 }
 
-void Codim2DConstitution::do_compute_energy(FiniteElementMethod::ComputeEnergyInfo& info)
+void Codim2DConstitution::do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info)
 {
-    Codim2DConstitution::ComputeEnergyInfo this_info{&fem(), m_index_in_dim, info.dt()};
+    Codim2DConstitution::ComputeEnergyInfo this_info{
+        &fem(), m_index_in_dim, info.dt(), info.energies()};
     do_compute_energy(this_info);
 }
 
-void Codim2DConstitution::do_compute_gradient_hessian(FiniteElementMethod::ComputeGradientHessianInfo& info)
+void Codim2DConstitution::do_compute_gradient_hessian(FiniteElementEnergyProducer::ComputeGradientHessianInfo& info)
 {
     Codim2DConstitution::ComputeGradientHessianInfo this_info{
-        &fem(), m_index_in_dim, info.dt()};
+        &fem(), m_index_in_dim, info.dt(), info.gradients(), info.hessians()};
     do_compute_gradient_hessian(this_info);
 }
 
-IndexT Codim2DConstitution::get_dimension() const
+const FiniteElementMethod::ConstitutionInfo& Codim2DConstitution::constitution_info() const noexcept
+{
+    return fem().codim_2d_constitution_infos[m_index_in_dim];
+}
+
+IndexT Codim2DConstitution::get_dimension() const noexcept
 {
     return 2;
+}
+
+Vector2i Codim2DConstitution::get_vertex_offset_count() const noexcept
+{
+    auto& info = constitution_info();
+    return Vector2i{info.vertex_offset, info.vertex_count};
 }
 
 muda::CBufferView<Vector3> Codim2DConstitution::BaseInfo::xs() const noexcept
@@ -66,23 +85,5 @@ const FiniteElementMethod::ConstitutionInfo& Codim2DConstitution::BaseInfo::cons
 Float Codim2DConstitution::BaseInfo::dt() const noexcept
 {
     return m_dt;
-}
-
-muda::BufferView<Float> Codim2DConstitution::ComputeEnergyInfo::element_energies() const noexcept
-{
-    auto& info = constitution_info();
-    return m_fem->codim_2d_elastic_energies.view(info.primitive_offset, info.primitive_count);
-}
-
-muda::BufferView<Vector9> Codim2DConstitution::ComputeGradientHessianInfo::gradient() const noexcept
-{
-    auto& info = constitution_info();
-    return m_fem->G9s.view(info.primitive_offset, info.primitive_count);
-}
-
-muda::BufferView<Matrix9x9> Codim2DConstitution::ComputeGradientHessianInfo::hessian() const noexcept
-{
-    auto& info = constitution_info();
-    return m_fem->H9x9s.view(info.primitive_offset, info.primitive_count);
 }
 }  // namespace uipc::backend::cuda

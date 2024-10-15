@@ -347,9 +347,9 @@ void GlobalLinearSystem::Impl::_assemble_preconditioner()
         global_preconditioner->assemble(info);
     }
 
-    for(auto&& [i, preconditioner] : enumerate(local_preconditioners.view()))
+    for(auto&& preconditioner : local_preconditioners.view())
     {
-        LocalPreconditionerAssemblyInfo info{this, i};
+        LocalPreconditionerAssemblyInfo info{this, preconditioner->m_subsystem->m_index};
         preconditioner->assemble(info);
     }
 }

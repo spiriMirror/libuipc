@@ -10,9 +10,12 @@ class Empty1D final : public Codim1DConstitution
 
     using Codim1DConstitution::Codim1DConstitution;
 
-    virtual U64 get_constitution_uid() const override
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
+
+    virtual void do_report_extent(ReportExtentInfo& info)
     {
-        return ConstitutionUID;
+        info.energy_count(0);
+        info.stencil_dim(2);
     }
 
     virtual void do_build(BuildInfo& info) override
@@ -20,20 +23,19 @@ class Empty1D final : public Codim1DConstitution
         // do nothing
     }
 
-    virtual void do_retrieve(FiniteElementMethod::Codim1DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::Codim1DFilteredInfo& info) override
     {
         // do nothing
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
-        info.element_energies().fill(0);
+        // do nothing
     }
 
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
-        info.gradient().fill(Vector6::Zero());
-        info.hessian().fill(Matrix6x6::Zero());
+        // do nothing
     }
 };
 

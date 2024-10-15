@@ -14,6 +14,8 @@
 #include <ranges>
 #include <sim_engine.h>
 
+// kinetic
+#include <finite_element/finite_element_kinetic.h>
 // constitutions
 #include <finite_element/fem_3d_constitution.h>
 #include <finite_element/codim_2d_constitution.h>
@@ -89,6 +91,12 @@ void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* const
     m_impl.extra_constitutions.register_subsystem(*constitution);
 }
 
+void FiniteElementMethod::add_constitution(FiniteElementKinetic* constitution)
+{
+    check_state(SimEngineState::BuildSystems, "add_constitution()");
+    m_impl.kinetic.register_subsystem(*constitution);
+}
+
 bool FiniteElementMethod::do_dump(DumpInfo& info)
 {
     return m_impl.dump(info);
@@ -121,6 +129,9 @@ void FiniteElementMethod::Impl::init(WorldVisitor& world)
 
     // 2) Initialize the extra constitutions
     _init_extra_constitutions();
+
+    // 3) Initialize the energy producers
+    _init_energy_producers();
 }
 
 void FiniteElementMethod::Impl::_init_constitutions()
@@ -132,8 +143,8 @@ void FiniteElementMethod::Impl::_init_constitutions()
               constitution_view.end(),
               [](const FiniteElementConstitution* a, const FiniteElementConstitution* b)
               {
-                  auto   uida = a->constitution_uid();
-                  auto   uidb = b->constitution_uid();
+                  auto   uida = a->uid();
+                  auto   uidb = b->uid();
                   auto   dima = a->dimension();
                   auto   dimb = b->dimension();
                   DimUID uid_dim_a{dima, uida};
@@ -160,8 +171,7 @@ void FiniteElementMethod::Impl::_init_constitutions()
                 UIPC_ASSERT(derived, "The constitution is not a Codim0DConstitution, its dim = {}", dim);
                 derived->m_index_in_dim = codim_0d_constitutions.size();
                 codim_0d_constitutions.push_back(derived);
-                codim_0d_uid_to_index.insert(
-                    {derived->constitution_uid(), derived->m_index_in_dim});
+                codim_0d_uid_to_index.insert({derived->uid(), derived->m_index_in_dim});
             }
             break;
             case 1: {
@@ -169,8 +179,7 @@ void FiniteElementMethod::Impl::_init_constitutions()
                 UIPC_ASSERT(derived, "The constitution is not a Codim1DConstitution, its dim = {}", dim);
                 derived->m_index_in_dim = codim_1d_constitutions.size();
                 codim_1d_constitutions.push_back(derived);
-                codim_1d_uid_to_index.insert(
-                    {derived->constitution_uid(), derived->m_index_in_dim});
+                codim_1d_uid_to_index.insert({derived->uid(), derived->m_index_in_dim});
             }
             break;
             case 2: {
@@ -178,8 +187,7 @@ void FiniteElementMethod::Impl::_init_constitutions()
                 UIPC_ASSERT(derived, "The constitution is not a Codim2DConstitution, its dim = {}", dim);
                 derived->m_index_in_dim = codim_2d_constitutions.size();
                 codim_2d_constitutions.push_back(derived);
-                codim_2d_uid_to_index.insert(
-                    {derived->constitution_uid(), derived->m_index_in_dim});
+                codim_2d_uid_to_index.insert({derived->uid(), derived->m_index_in_dim});
             }
             break;
             case 3: {
@@ -187,7 +195,7 @@ void FiniteElementMethod::Impl::_init_constitutions()
                 UIPC_ASSERT(derived, "The constitution is not a FEM3DConstitution, its dim = {}", dim);
                 derived->m_index_in_dim = fem_3d_constitutions.size();
                 fem_3d_constitutions.push_back(derived);
-                fem_3d_uid_to_index.insert({derived->constitution_uid(), derived->m_index_in_dim});
+                fem_3d_uid_to_index.insert({derived->uid(), derived->m_index_in_dim});
             }
             break;
             default:
@@ -201,7 +209,7 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
     set<U64> filter_uids;
 
     for(auto&& filter : constitutions.view())
-        filter_uids.insert(filter->constitution_uid());
+        filter_uids.insert(filter->uid());
 
     // 1) find all the finite element constitutions
     auto geo_slots = world.scene().geometries();
@@ -709,8 +717,6 @@ void FiniteElementMethod::Impl::_build_on_device()
     thicknesses.resize(h_thicknesses.size());
     thicknesses.view().copy_from(h_thicknesses.data());
 
-    // diag_hessians.resize(xs.size());
-
     // 2) Elements
     codim_0ds.resize(h_codim_0ds.size());
     codim_0ds.view().copy_from(h_codim_0ds.data());
@@ -789,28 +795,6 @@ void FiniteElementMethod::Impl::_build_on_device()
                                tet[3]);
                    rest_volumes(i) = V;
                });
-
-    // 4) Allocate memory for energy, gradient and hessian
-    vertex_kinetic_energies.resize(xs.size());
-    G3s.resize(xs.size());
-    H3x3s.resize(xs.size());
-
-    auto constitution_count = constitutions.view().size();
-
-    codim_1d_elastic_energy = 0;
-    codim_1d_elastic_energies.resize(codim_1ds.size());
-    G6s.resize(codim_1ds.size());
-    H6x6s.resize(codim_1ds.size());
-
-    codim_2d_elastic_energy = 0;
-    codim_2d_elastic_energies.resize(codim_2ds.size());
-    G9s.resize(codim_2ds.size());
-    H9x9s.resize(codim_2ds.size());
-
-    fem_3d_elastic_energy = 0;
-    fem_3d_elastic_energies.resize(tets.size());
-    G12s.resize(tets.size());
-    H12x12s.resize(tets.size());
 }
 
 void FiniteElementMethod::Impl::_distribute_constitution_filtered_info()
@@ -824,30 +808,39 @@ void FiniteElementMethod::Impl::_distribute_constitution_filtered_info()
     for(auto&& [i, c] : enumerate(codim_1d_constitutions))
     {
         Codim1DFilteredInfo filtered_info{this, i};
-        c->retrieve(filtered_info);
+        c->init(filtered_info);
     }
 
     for(auto&& [i, c] : enumerate(codim_2d_constitutions))
     {
         Codim2DFilteredInfo filtered_info{this, i};
-        c->retrieve(filtered_info);
+        c->init(filtered_info);
     }
 
     for(auto&& [i, c] : enumerate(fem_3d_constitutions))
     {
         FEM3DFilteredInfo filtered_info{this, i};
-        c->retrieve(filtered_info);
+        c->init(filtered_info);
     }
 }
 
 void FiniteElementMethod::Impl::_init_extra_constitutions()
 {
-    SizeT N = extra_constitutions.view().size();
-
     for(auto&& [i, c] : enumerate(extra_constitutions.view()))
     {
         c->init();
     }
+}
+
+void FiniteElementMethod::Impl::_init_energy_producers()
+{
+    auto constitution_view       = constitutions.view();
+    auto extra_constitution_view = extra_constitutions.view();
+    SizeT N = constitution_view.size() + constitution_view.size() + 1 /*Kinetic*/;
+    energy_producers.reserve(N);
+    energy_producers.push_back(kinetic.view());
+    std::ranges::copy(constitution_view, std::back_inserter(energy_producers));
+    std::ranges::copy(extra_constitution_view, std::back_inserter(energy_producers));
 
     // +1 for total count
     vector<SizeT> energy_counts(N + 1, 0);
@@ -857,12 +850,12 @@ void FiniteElementMethod::Impl::_init_extra_constitutions()
     vector<SizeT> hessian_counts(N + 1, 0);
     vector<SizeT> hessian_offsets(N + 1, 0);
 
-    for(auto&& [i, c] : enumerate(extra_constitutions.view()))
+    for(auto&& [i, c] : enumerate(energy_producers))
     {
         c->collect_extent_info();
     }
 
-    for(auto&& [i, c] : enumerate(extra_constitutions.view()))
+    for(auto&& [i, c] : enumerate(energy_producers))
     {
         energy_counts[i]   = c->m_impl.energy_count;
         gradient_counts[i] = c->m_impl.gradient_count;
@@ -876,19 +869,20 @@ void FiniteElementMethod::Impl::_init_extra_constitutions()
     std::exclusive_scan(
         hessian_counts.begin(), hessian_counts.end(), hessian_offsets.begin(), 0);
 
-    for(auto&& [i, c] : enumerate(extra_constitutions.view()))
+    for(auto&& [i, c] : enumerate(energy_producers))
     {
         c->m_impl.energy_offset   = energy_offsets[i];
         c->m_impl.gradient_offset = gradient_offsets[i];
         c->m_impl.hessian_offset  = hessian_offsets[i];
     }
 
-    auto vertex_count = xs.size();
+    auto vertex_count   = xs.size();
+    auto energy_count   = energy_offsets.back();
+    auto gradient_count = gradient_offsets.back();
 
-    extra_constitution_energies.resize(energy_offsets.back());
-    extra_constitution_gradient.resize(vertex_count, gradient_offsets.back());
-    extra_constitution_hessian.resize(
-        vertex_count, vertex_count, hessian_offsets.back());
+    energy_producer_energies.resize(energy_count);
+    energy_producer_gradients.resize(vertex_count, gradient_count);
+    energy_producer_total_hessian_count = hessian_offsets.back();
 }
 
 void FiniteElementMethod::Impl::_download_geometry_to_host()

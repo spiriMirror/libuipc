@@ -10,12 +10,16 @@
 
 namespace uipc::backend::cuda
 {
+class FiniteElementEnergyProducer;
 class FiniteElementConstitution;
+class FiniteElementExtraConstitution;
+class FiniteElementKinetic;
+
 class FEM3DConstitution;
 class Codim2DConstitution;
 class Codim1DConstitution;
 class Codim0DConstitution;
-class FiniteElementExtraConstitution;
+
 
 class FiniteElementMethod final : public SimSystem
 {
@@ -119,7 +123,7 @@ class FiniteElementMethod final : public SimSystem
         template <typename ForEach, typename ViewGetter>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                       ViewGetter&&                    view_getter,
-                      ForEach&& for_each_action) const noexcept;
+                      ForEach&&                       for_each_action) const;
 
       protected:
         friend class FiniteElementMethod;
@@ -203,6 +207,7 @@ class FiniteElementMethod final : public SimSystem
         void _download_geometry_to_host();
         void _distribute_constitution_filtered_info();
         void _init_extra_constitutions();
+        void _init_energy_producers();
 
         void compute_x_tilde(DoFPredictor::PredictInfo& info);
         void compute_velocity(DoFPredictor::ComputeVelocityInfo& info);
@@ -218,7 +223,7 @@ class FiniteElementMethod final : public SimSystem
         GlobalVertexManager* global_vertex_manager = nullptr;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
         SimSystemSlotCollection<FiniteElementExtraConstitution> extra_constitutions;
-
+        SimSystemSlot<FiniteElementKinetic> kinetic;
 
         // Core Invariant Data
 
@@ -226,6 +231,7 @@ class FiniteElementMethod final : public SimSystem
 
 
         // Related Data:
+
 
         std::array<DimInfo, 4> dim_infos;
 
@@ -245,6 +251,7 @@ class FiniteElementMethod final : public SimSystem
         vector<FEM3DConstitution*> fem_3d_constitutions;
         vector<ConstitutionInfo>   fem_3d_constitution_infos;
 
+        vector<FiniteElementEnergyProducer*> energy_producers;
 
         // Simulation Data:
 
@@ -296,7 +303,6 @@ class FiniteElementMethod final : public SimSystem
         muda::DeviceBuffer<Vector3> x_prevs;   // Positions at last frame
         muda::DeviceBuffer<Float>   masses;    // Mass
         muda::DeviceBuffer<Float>   thicknesses;  // Thickness
-        // muda::DeviceBuffer<Matrix3x3> diag_hessians;  // Diagonal Hessian
 
 
         //tex:
@@ -309,35 +315,46 @@ class FiniteElementMethod final : public SimSystem
         muda::DeviceBuffer<Matrix3x3> Dm3x3_invs;
 
 
-        // Kinetic Energy/Gradient/Hessian;
-        muda::DeviceVar<Float> kinetic_energy;              // Kinetic Energy
-        muda::DeviceBuffer<Float> vertex_kinetic_energies;  // Kinetic Energy Per Vertex
-        muda::DeviceBuffer<Matrix3x3> H3x3s;  // size = vertex_count
-        muda::DeviceBuffer<Vector3>   G3s;    // size = vertex_count
+        //// Kinetic Energy/Gradient/Hessian
 
-        // Elastic Energy/Gradient/Hessian;
-        muda::DeviceVar<Float> codim_1d_elastic_energy;  // Codim1D Elastic Energy
-        muda::DeviceBuffer<Float> codim_1d_elastic_energies;  // Codim1D Elastic Energy Per Element
-        muda::DeviceBuffer<Vector6>   G6s;    // Codim1D Elastic Gradient
-        muda::DeviceBuffer<Matrix6x6> H6x6s;  // Codim1D Elastic Hessian
-
-        muda::DeviceVar<Float> codim_2d_elastic_energy;  // Codim2D Elastic Energy
-        muda::DeviceBuffer<Float> codim_2d_elastic_energies;  // Codim2D Elastic Energy Per Element
-        muda::DeviceBuffer<Vector9>   G9s;    // Codim2D Elastic Gradient
-        muda::DeviceBuffer<Matrix9x9> H9x9s;  // Codim2D Elastic Hessian
-
-        muda::DeviceVar<Float> fem_3d_elastic_energy;  // FEM3D Elastic Energy
-        muda::DeviceBuffer<Float> fem_3d_elastic_energies;  // FEM3D Elastic Energy Per Element
-        muda::DeviceBuffer<Vector12>    G12s;     // FEM3D Elastic Gradient
-        muda::DeviceBuffer<Matrix12x12> H12x12s;  // FEM3D Elastic Hessian
+        //muda::DeviceVar<Float> kinetic_energy;              // Kinetic Energy
+        //muda::DeviceBuffer<Float> vertex_kinetic_energies;  // Kinetic Energy Per Vertex
+        //muda::DeviceBuffer<Matrix3x3> H3x3s;  // size = vertex_count
+        //muda::DeviceBuffer<Vector3>   G3s;    // size = vertex_count
 
 
-        // Extra Constitutions:
+        //// Elastic Energy/Gradient/Hessian
 
-        muda::DeviceVar<Float> extra_constitution_energy;  // Extra Energy
-        muda::DeviceBuffer<Float> extra_constitution_energies;  // Extra Energy Per Element
-        muda::DeviceDoubletVector<Float, 3> extra_constitution_gradient;  // Extra Gradient Per Vertex
-        muda::DeviceTripletMatrix<Float, 3> extra_constitution_hessian;  // Extra Hessian Per Vertex
+        //muda::DeviceVar<Float> codim_1d_elastic_energy;  // Codim1D Elastic Energy
+        //muda::DeviceBuffer<Float> codim_1d_elastic_energies;  // Codim1D Elastic Energy Per Element
+        //muda::DeviceBuffer<Vector6>   G6s;    // Codim1D Elastic Gradient
+        //muda::DeviceBuffer<Matrix6x6> H6x6s;  // Codim1D Elastic Hessian
+
+        //muda::DeviceVar<Float> codim_2d_elastic_energy;  // Codim2D Elastic Energy
+        //muda::DeviceBuffer<Float> codim_2d_elastic_energies;  // Codim2D Elastic Energy Per Element
+        //muda::DeviceBuffer<Vector9>   G9s;    // Codim2D Elastic Gradient
+        //muda::DeviceBuffer<Matrix9x9> H9x9s;  // Codim2D Elastic Hessian
+
+        //muda::DeviceVar<Float> fem_3d_elastic_energy;  // FEM3D Elastic Energy
+        //muda::DeviceBuffer<Float> fem_3d_elastic_energies;  // FEM3D Elastic Energy Per Element
+        //muda::DeviceBuffer<Vector12>    G12s;     // FEM3D Elastic Gradient
+        //muda::DeviceBuffer<Matrix12x12> H12x12s;  // FEM3D Elastic Hessian
+
+
+        //// Extra Constitutions:
+
+        //muda::DeviceVar<Float> extra_constitution_energy;  // Extra Energy
+        //muda::DeviceBuffer<Float> extra_constitution_energies;  // Extra Energy Per Element
+        //muda::DeviceDoubletVector<Float, 3> extra_constitution_gradient;  // Extra Gradient Per Vertex
+        //muda::DeviceTripletMatrix<Float, 3> extra_constitution_hessian;  // Extra Hessian Per Vertex
+
+        // Energy Producer:
+
+
+        muda::DeviceVar<Float> energy_producer_energy;  // Energy Producer Energy
+        muda::DeviceBuffer<Float> energy_producer_energies;  // Energy Producer Energies
+        muda::DeviceDoubletVector<Float, 3> energy_producer_gradients;  // Energy Producer Gradient
+        SizeT energy_producer_total_hessian_count = 0;
 
 
         // Dump:
@@ -369,15 +386,6 @@ class FiniteElementMethod final : public SimSystem
 
     auto Dm3x3_invs() const noexcept { return m_impl.Dm3x3_invs.view(); }
 
-    auto G3s() const noexcept { return m_impl.G3s.view(); }
-    auto H3x3s() const noexcept { return m_impl.H3x3s.view(); }
-    auto G6s() const noexcept { return m_impl.G6s.view(); }
-    auto H6x6s() const noexcept { return m_impl.H6x6s.view(); }
-    auto G9s() const noexcept { return m_impl.G9s.view(); }
-    auto H9x9s() const noexcept { return m_impl.H9x9s.view(); }
-    auto G12s() const noexcept { return m_impl.G12s.view(); }
-    auto H12x12s() const noexcept { return m_impl.H12x12s.view(); }
-
     /**
      * @brief For each primitive
      * 
@@ -399,7 +407,7 @@ class FiniteElementMethod final : public SimSystem
     template <typename ForEach, typename ViewGetter>
     void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                   ViewGetter&&                    view_getter,
-                  ForEach&&                       for_each_action) noexcept;
+                  ForEach&&                       for_each_action);
 
     /**
      * @brief For each geometry
@@ -414,21 +422,27 @@ class FiniteElementMethod final : public SimSystem
      * @endcode
      */
     template <typename ForEachGeometry>
-    void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_each) noexcept;
+    void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_each);
 
   private:
     friend class FiniteElementVertexReporter;
     friend class FiniteElementSurfaceReporter;
+
     friend class FEMLinearSubsystem;
     friend class FEMLineSearchReporter;
     friend class FEMGradientHessianComputer;
-    friend class FiniteElementConstitution;
+
     friend class FiniteElementAnimator;
-    friend class FiniteElementExtraConstitution;
     friend class FEMDiagPreconditioner;
+
+    friend class FiniteElementEnergyProducer;
+    friend class FiniteElementKinetic;
+    friend class FiniteElementConstitution;
+    friend class FiniteElementExtraConstitution;
 
     void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution
     void add_constitution(FiniteElementExtraConstitution* constitution);  // only called by FiniteElementExtraConstitution
+    void add_constitution(FiniteElementKinetic* constitution);  // only called by FiniteElementKinetic
 
     virtual bool do_dump(DumpInfo& info) override;
     virtual bool do_try_recover(RecoverInfo& info) override;
@@ -441,12 +455,12 @@ class FiniteElementMethod final : public SimSystem
     static void _for_each(span<const GeoInfo>             geo_infos,
                           span<S<geometry::GeometrySlot>> geo_slots,
                           ViewGetter&&                    view_getter,
-                          ForEach&& for_each_action) noexcept;
+                          ForEach&&                       for_each_action);
 
     template <typename ForEachGeometry>
     static void _for_each(span<const GeoInfo>             geo_infos,
                           span<S<geometry::GeometrySlot>> geo_slots,
-                          ForEachGeometry&&               for_each) noexcept;
+                          ForEachGeometry&&               for_each);
 
     Impl m_impl;
 };

@@ -164,7 +164,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                     Pi] __device__(int I) mutable
                    {
                        Vector3i hinge = hinges(I);
-                       Float    k     = bending_stiffnesses(I) * dt * dt;
+                       Float    k     = bending_stiffnesses(I);
                        Float    r     = thicknesses(I);
 
                        Vector9 X;
@@ -179,14 +179,18 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                        // Rest length of the two edges
                        Float L0 = (x1_bar - x0_bar).norm() + (x2_bar - x1_bar).norm();
 
+                       Float dt2 = dt * dt;
+
                        Vector9 G;
                        KRB::dEdX(G, k, X, L0, r, Pi);
-
+                       G *= dt2;
                        assemble<3>(G3s, I, G, hinge);
 
                        Matrix9x9 H;
                        KRB::ddEddX(H, k, X, L0, r, Pi);
 
+                       H *= dt2;
+                       make_spd(H);
                        assemble<3>(H3x3s, I, H, hinge);
                    });
     }

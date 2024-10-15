@@ -5,6 +5,7 @@
 #include <muda/ext/eigen/log_proxy.h>
 #include <Eigen/Dense>
 #include <muda/ext/eigen/evd.h>
+#include <utils/matrix_assembly_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -22,14 +23,11 @@ class StableNeoHookean3D final : public FEM3DConstitution
     muda::DeviceBuffer<Float> mus;
     muda::DeviceBuffer<Float> lambdas;
 
-    virtual U64 get_constitution_uid() const override
-    {
-        return ConstitutionUID;
-    }
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
 
-    virtual void do_retrieve(FiniteElementMethod::FEM3DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::FEM3DFilteredInfo& info) override
     {
         using ForEachInfo = FiniteElementMethod::ForEachInfo;
 
@@ -74,14 +72,14 @@ class StableNeoHookean3D final : public FEM3DConstitution
         ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(info.indices().size(),
-                   [mus     = mus.cviewer().name("mus"),
-                    lambdas = lambdas.cviewer().name("lambdas"),
-                    element_energies = info.element_energies().viewer().name("energies"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    Dm_invs = info.Dm_invs().viewer().name("Dm_invs"),
-                    volumes = info.rest_volumes().viewer().name("volumes"),
-                    dt      = info.dt()] __device__(int I)
+                   [mus      = mus.cviewer().name("mus"),
+                    lambdas  = lambdas.cviewer().name("lambdas"),
+                    energies = info.energies().viewer().name("energies"),
+                    indices  = info.indices().viewer().name("indices"),
+                    xs       = info.xs().viewer().name("xs"),
+                    Dm_invs  = info.Dm_invs().viewer().name("Dm_invs"),
+                    volumes  = info.rest_volumes().viewer().name("volumes"),
+                    dt       = info.dt()] __device__(int I)
                    {
                        const Vector4i&  tet    = indices(I);
                        const Matrix3x3& Dm_inv = Dm_invs(I);
@@ -106,7 +104,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                        SNH::E(E, mu, lambda, VecF);
                        E *= dt * dt * volumes(I);
-                       element_energies(I) = E;
+                       energies(I) = E;
                    });
     }
 
@@ -123,10 +121,10 @@ class StableNeoHookean3D final : public FEM3DConstitution
                     indices = info.indices().viewer().name("indices"),
                     xs      = info.xs().viewer().name("xs"),
                     Dm_invs = info.Dm_invs().viewer().name("Dm_invs"),
-                    G12s    = info.gradient().viewer().name("gradient"),
-                    H12x12s = info.hessian().viewer().name("hessian"),
+                    G3s     = info.gradients().viewer().name("gradient"),
+                    H3x3s   = info.hessians().viewer().name("hessian"),
                     volumes = info.rest_volumes().viewer().name("volumes"),
-                    dt      = info.dt()] __device__(int I)
+                    dt      = info.dt()] __device__(int I) mutable
                    {
                        const Vector4i&  tet    = indices(I);
                        const Matrix3x3& Dm_inv = Dm_invs(I);
@@ -145,19 +143,22 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                        auto VecF = flatten(F);
 
-                       auto vdt2 = volumes(I) * dt * dt;
+                       auto Vdt2 = volumes(I) * dt * dt;
 
                        Vector9   dEdF;
                        Matrix9x9 ddEddF;
                        SNH::dEdVecF(dEdF, mu, lambda, VecF);
                        SNH::ddEddVecF(ddEddF, mu, lambda, VecF);
-                       dEdF *= vdt2;
-                       ddEddF *= vdt2;
+                       dEdF *= Vdt2;
+                       ddEddF *= Vdt2;
 
-                       Matrix9x12 dFdx = fem::dFdx(Dm_inv);
+                       make_spd(ddEddF);
+                       Matrix9x12  dFdx = fem::dFdx(Dm_inv);
+                       Vector12    G    = dFdx.transpose() * dEdF;
+                       Matrix12x12 H    = dFdx.transpose() * ddEddF * dFdx;
 
-                       G12s(I)    = dFdx.transpose() * dEdF;
-                       H12x12s(I) = dFdx.transpose() * ddEddF * dFdx;
+                       assemble<4>(G3s, I, G, tet);
+                       assemble<4>(H3x3s, I, H, tet);
                    });
     }
 };

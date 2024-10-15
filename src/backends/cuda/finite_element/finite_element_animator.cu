@@ -19,20 +19,18 @@ void FiniteElementAnimator::add_constraint(FiniteElementConstraint* constraint)
     m_impl.constraints.register_subsystem(*constraint);
 }
 
-muda::CDoubletVectorView<Float, 3> FiniteElementAnimator::AssembleInfo::gradients() const noexcept
-{
-    return m_gradients;
-}
-
-muda::CTripletMatrixView<Float, 3> FiniteElementAnimator::AssembleInfo::hessians() const noexcept
-{
-    return m_hessians;
-}
-
 void FiniteElementAnimator::assemble(AssembleInfo& info)
 {
-    info.m_gradients = m_impl.constraint_gradient.view();
-    info.m_hessians  = m_impl.constraint_hessian.view();
+    // compute the gradient and hessian
+    for(auto constraint : m_impl.constraints.view())
+    {
+        ComputeGradientHessianInfo this_info{
+            &m_impl, constraint->m_index, info.dt(), info.hessians()};
+        constraint->compute_gradient_hessian(this_info);
+    }
+
+    // assemble the gradient and hessian
+    m_impl.assemble(info);
 }
 
 void FiniteElementAnimator::do_init()
@@ -235,6 +233,30 @@ void FiniteElementAnimator::Impl::step()
     constraint_hessian.resize(vertex_count, vertex_count, H3x3_count);
 }
 
+void FiniteElementAnimator::Impl::assemble(AssembleInfo& info)
+{
+    using namespace muda;
+
+    // only need to setup gradient (from doublet vector to dense vector)
+    ParallelFor()
+        .kernel_name(__FUNCTION__)
+        .apply(constraint_gradient.doublet_count(),
+               [anim_gradients = std::as_const(constraint_gradient).viewer().name("aim_gradients"),
+                gradient = info.gradients().viewer().name("gradient"),
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               {
+                   const auto& [i, G3] = anim_gradients(I);
+                   if(is_fixed(i))
+                   {
+                       //
+                   }
+                   else
+                   {
+                       gradient.segment<3>(i * 3).atomic_add(G3);
+                   }
+               });
+}
+
 Float FiniteElementAnimator::compute_energy(LineSearcher::EnergyInfo& info)
 {
     using namespace muda;
@@ -252,15 +274,6 @@ Float FiniteElementAnimator::compute_energy(LineSearcher::EnergyInfo& info)
     Float E = m_impl.constraint_energy;
 
     return E;
-}
-
-void FiniteElementAnimator::compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info)
-{
-    for(auto constraint : m_impl.constraints.view())
-    {
-        ComputeGradientHessianInfo this_info{&m_impl, constraint->m_index, info.dt()};
-        constraint->compute_gradient_hessian(this_info);
-    }
 }
 
 auto FiniteElementAnimator::FilteredInfo::anim_geo_infos() const -> span<const AnimatedGeoInfo>
@@ -319,13 +332,6 @@ muda::DoubletVectorView<Float, 3> FiniteElementAnimator::ComputeGradientHessianI
     auto offset = m_impl->constraint_gradient_offsets[m_index];
     auto count  = m_impl->constraint_gradient_counts[m_index];
     return m_impl->constraint_gradient.view().subview(offset, count);
-}
-
-muda::TripletMatrixView<Float, 3> FiniteElementAnimator::ComputeGradientHessianInfo::hessians() const noexcept
-{
-    auto offset = m_impl->constraint_hessian_offsets[m_index];
-    auto count  = m_impl->constraint_hessian_counts[m_index];
-    return m_impl->constraint_hessian.view().subview(offset, count);
 }
 
 void FiniteElementAnimator::ReportExtentInfo::hessian_block_count(SizeT count) noexcept

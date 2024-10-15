@@ -5,6 +5,7 @@
 #include <muda/ext/eigen/log_proxy.h>
 #include <Eigen/Dense>
 #include <muda/ext/eigen/evd.h>
+#include <utils/matrix_assembly_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -21,14 +22,11 @@ class ARAP3D final : public FEM3DConstitution
 
     muda::DeviceBuffer<Float> kappas;
 
-    virtual U64 get_constitution_uid() const override
-    {
-        return ConstitutionUID;
-    }
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
 
-    virtual void do_retrieve(FiniteElementMethod::FEM3DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::FEM3DFilteredInfo& info) override
     {
 
         using ForEachInfo = FiniteElementMethod::ForEachInfo;
@@ -62,17 +60,16 @@ class ARAP3D final : public FEM3DConstitution
         ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(info.indices().size(),
-                   [kappas = kappas.cviewer().name("mus"),
-                    element_energies = info.element_energies().viewer().name("energies"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    Dm_invs = info.Dm_invs().viewer().name("Dm_invs"),
-                    volumes = info.rest_volumes().viewer().name("volumes"),
-                    dt      = info.dt()] __device__(int I)
+                   [kappas   = kappas.cviewer().name("mus"),
+                    energies = info.energies().viewer().name("energies"),
+                    indices  = info.indices().viewer().name("indices"),
+                    xs       = info.xs().viewer().name("xs"),
+                    Dm_invs  = info.Dm_invs().viewer().name("Dm_invs"),
+                    volumes  = info.rest_volumes().viewer().name("volumes"),
+                    dt       = info.dt()] __device__(int I)
                    {
                        const Vector4i&  tet    = indices(I);
                        const Matrix3x3& Dm_inv = Dm_invs(I);
-                       Float            mu     = kappas(I);
 
                        const Vector3& x0 = xs(tet(0));
                        const Vector3& x1 = xs(tet(1));
@@ -84,8 +81,7 @@ class ARAP3D final : public FEM3DConstitution
                        Float E;
 
                        ARAP::E(E, kappas(I) * dt * dt, volumes(I), F);
-                       E *= dt * dt;
-                       element_energies(I) = E;
+                       energies(I) = E;
                    });
     }
 
@@ -101,14 +97,13 @@ class ARAP3D final : public FEM3DConstitution
                     indices = info.indices().viewer().name("indices"),
                     xs      = info.xs().viewer().name("xs"),
                     Dm_invs = info.Dm_invs().viewer().name("Dm_invs"),
-                    G12s    = info.gradient().viewer().name("gradient"),
-                    H12x12s = info.hessian().viewer().name("hessian"),
+                    G3s     = info.gradients().viewer().name("gradient"),
+                    H3x3s   = info.hessians().viewer().name("hessian"),
                     volumes = info.rest_volumes().viewer().name("volumes"),
-                    dt      = info.dt()] __device__(int I)
+                    dt      = info.dt()] __device__(int I) mutable
                    {
                        const Vector4i&  tet    = indices(I);
                        const Matrix3x3& Dm_inv = Dm_invs(I);
-                       Float            mu     = kappas(I);
 
                        const Vector3& x0 = xs(tet(0));
                        const Vector3& x1 = xs(tet(1));
@@ -117,19 +112,22 @@ class ARAP3D final : public FEM3DConstitution
 
                        auto F = fem::F(x0, x1, x2, x3, Dm_inv);
 
-                       Vector9   dEdF;
-                       Matrix9x9 ddEddF;
-
                        auto kt2 = kappas(I) * dt * dt;
                        auto v   = volumes(I);
 
+                       Vector9   dEdF;
+                       Matrix9x9 ddEddF;
                        ARAP::dEdF(dEdF, kt2, v, F);
                        ARAP::ddEddF(ddEddF, kt2, v, F);
 
-                       Matrix9x12 dFdx = fem::dFdx(Dm_inv);
+                       make_spd(ddEddF);
 
-                       G12s(I)    = dFdx.transpose() * dEdF;
-                       H12x12s(I) = dFdx.transpose() * ddEddF * dFdx;
+                       Matrix9x12  dFdx   = fem::dFdx(Dm_inv);
+                       Vector12    G12    = dFdx.transpose() * dEdF;
+                       Matrix12x12 H12x12 = dFdx.transpose() * ddEddF * dFdx;
+
+                       assemble<4>(G3s, I, G12, tet);
+                       assemble<4>(H3x3s, I, H12x12, tet);
                    });
     }
 };

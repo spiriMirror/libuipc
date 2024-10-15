@@ -137,9 +137,10 @@ static void run(int I)
     }
     else if(I == 2)
     {
+        auto specified_frame = 40;
         // MUST recover at the specified frame
-        REQUIRE(world.recover());
-        REQUIRE(world.frame() == 40);
+        REQUIRE(world.recover(specified_frame));
+        REQUIRE(world.frame() == specified_frame);
     }
 
     while(world.frame() < EndFrame)

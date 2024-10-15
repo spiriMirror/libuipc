@@ -2,41 +2,40 @@
 
 namespace uipc::backend::cuda
 {
-void FiniteElementConstitution::do_build()
+U64 FiniteElementConstitution::uid() const noexcept
 {
-    m_fem = &require<FiniteElementMethod>();
+    return get_uid();
+}
+
+IndexT FiniteElementConstitution::dimension() const noexcept
+{
+    return get_dimension();
+}
+
+void FiniteElementConstitution::do_build(FiniteElementEnergyProducer::BuildInfo& info)
+{
+    m_finite_element_method = &require<FiniteElementMethod>();
 
     // Check if we have the FiniteElementConstitution
     auto uids = world().scene().constitution_tabular().uids();
-    if(!std::binary_search(uids.begin(), uids.end(), constitution_uid()))
+    if(!std::binary_search(uids.begin(), uids.end(), uid()))
     {
-        throw SimSystemException(
-            fmt::format("Requires Constitution UID={}", constitution_uid()));
+        throw SimSystemException(fmt::format("Requires Constitution UID={}", uid()));
     }
 
-    BuildInfo info;
-    do_build(info);
+    BuildInfo this_info;
+    do_build(this_info);
 
-    m_fem->add_constitution(this);
+    m_finite_element_method->add_constitution(this);
 }
 
-void FiniteElementConstitution::compute_energy(FiniteElementMethod::ComputeEnergyInfo& info)
+const FiniteElementMethod::DimInfo& FiniteElementConstitution::dim_info() const noexcept
 {
-    do_compute_energy(info);
+    return fem().dim_infos[m_index_in_dim];
 }
 
-void FiniteElementConstitution::compute_gradient_hessian(FiniteElementMethod::ComputeGradientHessianInfo& info)
+FiniteElementMethod::Impl& FiniteElementConstitution::fem() const noexcept
 {
-    do_compute_gradient_hessian(info);
-}
-
-U64 FiniteElementConstitution::constitution_uid() const
-{
-    return get_constitution_uid();
-}
-
-IndexT FiniteElementConstitution::dimension() const
-{
-    return get_dimension();
+    return m_finite_element_method->m_impl;
 }
 }  // namespace uipc::backend::cuda

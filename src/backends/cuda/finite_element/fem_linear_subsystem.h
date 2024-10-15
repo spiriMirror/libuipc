@@ -18,8 +18,9 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
       public:
         void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
         void assemble(GlobalLinearSystem::DiagInfo& info);
-        void _assemble_gradient(GlobalLinearSystem::DiagInfo& info);
-        void _assemble_hessian(GlobalLinearSystem::DiagInfo& info);
+        void _assemble_producers(GlobalLinearSystem::DiagInfo& info);
+        void _assemble_contact(GlobalLinearSystem::DiagInfo& info);
+
         void _assemble_animation(GlobalLinearSystem::DiagInfo& info);
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
@@ -40,18 +41,22 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
         {
             return finite_element_animator->m_impl;
         }
+        SizeT energy_producer_hessian_offset = 0;
+        SizeT energy_producer_hessian_count  = 0;
+
+        SizeT contact_hessian_offset = 0;
+        SizeT contact_hessian_count  = 0;
+
         SizeT animator_hessian_offset = 0;
         SizeT animator_hessian_count  = 0;
+
+        Float dt = 0.0;
 
         Float reserve_ratio = 1.5;
 
         MatrixConverter<Float, 3>           converter;
         muda::DeviceTripletMatrix<Float, 3> triplet_A;
         muda::DeviceBCOOMatrix<Float, 3>    bcoo_A;
-
-        static constexpr SizeT H12x12_to_H3x3 = (12 * 12) / (3 * 3);
-        static constexpr SizeT H9x9_to_H3x3   = (9 * 9) / (3 * 3);
-        static constexpr SizeT H6x6_to_H3x3   = (6 * 6) / (3 * 3);
     };
 
   protected:

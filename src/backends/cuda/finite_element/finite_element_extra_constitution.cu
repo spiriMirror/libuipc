@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-void FiniteElementExtraConstitution::do_build()
+void FiniteElementExtraConstitution::do_build(FiniteElementEnergyProducer::BuildInfo& info)
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
 
@@ -15,10 +15,15 @@ void FiniteElementExtraConstitution::do_build()
                                              this_uid));
     }
 
-    BuildInfo info;
-    do_build(info);
+    BuildInfo this_info;
+    do_build(this_info);
 
     m_impl.finite_element_method->add_constitution(this);
+}
+
+Vector2i FiniteElementExtraConstitution::get_vertex_offset_count() const noexcept
+{
+    return Vector2i{-1, -1};
 }
 
 U64 FiniteElementExtraConstitution::uid() const noexcept
@@ -40,28 +45,17 @@ void FiniteElementExtraConstitution::init()
     do_init(info);
 }
 
-void FiniteElementExtraConstitution::collect_extent_info()
+void FiniteElementExtraConstitution::do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info)
 {
-    ReportExtentInfo info;
-    do_report_extent(info);
-    SizeT N = info.m_energy_count;
-    SizeT D = info.m_stencil_dim;
-
-    m_impl.stencil_dim    = D;
-    m_impl.energy_count   = N;
-    m_impl.gradient_count = N * D;
-    m_impl.hessian_count  = N * D * D;
-}
-
-void FiniteElementExtraConstitution::compute_energy(FiniteElementMethod::ComputeExtraEnergyInfo& info)
-{
-    ComputeEnergyInfo this_info{&m_impl, info.dt()};
+    ComputeEnergyInfo this_info{&m_impl.fem(), info.dt(), info.energies()};
     do_compute_energy(this_info);
 }
 
-void FiniteElementExtraConstitution::compute_gradient_hessian(FiniteElementMethod::ComputeExtraGradientHessianInfo& info)
+void FiniteElementExtraConstitution::do_compute_gradient_hessian(
+    FiniteElementEnergyProducer::ComputeGradientHessianInfo& info)
 {
-    ComputeGradientHessianInfo this_info{&m_impl, info.dt()};
+    ComputeGradientHessianInfo this_info{
+        &m_impl.fem(), info.dt(), info.gradients(), info.hessians()};
     do_compute_gradient_hessian(this_info);
 }
 
@@ -111,23 +105,17 @@ Float FiniteElementExtraConstitution::BaseInfo::dt() const noexcept
 
 muda::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::xs() const noexcept
 {
-    return m_impl->fem().xs.view();
+    return m_impl->xs.view();
 }
 
 muda::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::x_bars() const noexcept
 {
-    return m_impl->fem().x_bars.view();
+    return m_impl->x_bars.view();
 }
 
 muda::CBufferView<Float> FiniteElementExtraConstitution::BaseInfo::thicknesses() const noexcept
 {
-    return m_impl->fem().thicknesses.view();
-}
-
-muda::BufferView<Float> FiniteElementExtraConstitution::ComputeEnergyInfo::energies() const noexcept
-{
-    return m_impl->fem().extra_constitution_energies.view().subview(
-        m_impl->energy_offset, m_impl->energy_count);
+    return m_impl->thicknesses.view();
 }
 
 span<const FiniteElementMethod::GeoInfo> FiniteElementExtraConstitution::FilteredInfo::geo_infos() const noexcept
@@ -148,27 +136,5 @@ span<const Vector3> FiniteElementExtraConstitution::FilteredInfo::rest_positions
 span<const Float> FiniteElementExtraConstitution::FilteredInfo::thicknesses() noexcept
 {
     return m_impl->fem().h_thicknesses;
-}
-
-muda::DoubletVectorView<Float, 3> FiniteElementExtraConstitution::ComputeGradientHessianInfo::gradients() const noexcept
-{
-    return m_impl->fem().extra_constitution_gradient.view().subview(
-        m_impl->gradient_offset, m_impl->gradient_count);
-}
-
-muda::TripletMatrixView<Float, 3> FiniteElementExtraConstitution::ComputeGradientHessianInfo::hessians() const noexcept
-{
-    return m_impl->fem().extra_constitution_hessian.view().subview(
-        m_impl->hessian_offset, m_impl->hessian_count);
-}
-
-void FiniteElementExtraConstitution::ReportExtentInfo::energy_count(SizeT count) noexcept
-{
-    m_energy_count = count;
-}
-
-void FiniteElementExtraConstitution::ReportExtentInfo::stencil_dim(SizeT dim) noexcept
-{
-    m_stencil_dim = dim;
 }
 }  // namespace uipc::backend::cuda
