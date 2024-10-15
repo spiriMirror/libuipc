@@ -23,7 +23,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
     muda::DeviceBuffer<Float> mus;
     muda::DeviceBuffer<Float> lambdas;
 
-    virtual U64 get_uid() const override { return ConstitutionUID; }
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
 

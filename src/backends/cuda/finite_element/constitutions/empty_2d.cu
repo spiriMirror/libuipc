@@ -17,7 +17,7 @@ class Empty2D final : public Codim2DConstitution
 
     using Codim2DConstitution::Codim2DConstitution;
 
-    virtual U64 get_uid() const override { return ConstitutionUID; }
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_report_extent(ReportExtentInfo& info)
     {

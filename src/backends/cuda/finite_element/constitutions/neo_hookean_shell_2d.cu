@@ -23,7 +23,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
     muda::DeviceBuffer<Float> kappas;
     muda::DeviceBuffer<Float> lambdas;
 
-    virtual U64 get_uid() const override { return ConstitutionUID; }
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
 

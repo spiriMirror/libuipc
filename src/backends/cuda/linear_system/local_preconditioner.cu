@@ -19,6 +19,7 @@ void LocalPreconditioner::assemble(GlobalLinearSystem::LocalPreconditionerAssemb
 {
     do_assemble(info);
 }
+
 void LocalPreconditioner::apply(GlobalLinearSystem::ApplyPreconditionerInfo& info)
 {
     do_apply(info);

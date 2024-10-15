@@ -16,14 +16,14 @@ class FiniteElementConstitution : public FiniteElementEnergyProducer
     };
 
     U64    uid() const noexcept;
-    IndexT dimension() const;
+    IndexT dimension() const noexcept;
 
   protected:
-    virtual U64    get_uid() const       = 0;
-    virtual IndexT get_dimension() const = 0;
+    virtual U64    get_uid() const noexcept       = 0;
+    virtual IndexT get_dimension() const noexcept = 0;
 
-    virtual void do_build(BuildInfo& info) = 0;
-    virtual void do_report_extent(ReportExtentInfo& info);
+    virtual void do_build(BuildInfo& info)                = 0;
+    virtual void do_report_extent(ReportExtentInfo& info) = 0;
     const FiniteElementMethod::DimInfo& dim_info() const noexcept;
 
   private:

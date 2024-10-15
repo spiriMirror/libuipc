@@ -25,6 +25,7 @@ TEST_CASE("33_discrete_shell_bending", "[fem]")
     config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
+    // config["line_search"]["report_energy"]  = true;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -72,6 +73,7 @@ TEST_CASE("33_discrete_shell_bending", "[fem]")
         auto is_fixed      = mesh.vertices().find<IndexT>(builtin::is_fixed);
         auto is_fixed_view = view(*is_fixed);
         is_fixed_view[0]   = 1;
+        is_fixed_view[1]   = 1;
         is_fixed_view[2]   = 1;
 
         object->geometries().create(mesh);
@@ -81,10 +83,11 @@ TEST_CASE("33_discrete_shell_bending", "[fem]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
-    for(int i = 1; i < 100; i++)
+    while(world.frame() < 100)
     {
         world.advance();
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     }
 }

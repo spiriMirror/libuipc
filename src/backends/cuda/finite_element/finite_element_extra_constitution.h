@@ -41,11 +41,10 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
         template <typename ForEach, typename ViewGetter>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                       ViewGetter&&                    view_getter,
-                      ForEach&&                       for_each_action) noexcept;
+                      ForEach&&                       for_each_action);
 
         template <typename ForEach>
-        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                      ForEach&&                       for_each_action) noexcept;
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEach&& for_each_action);
 
         span<const Vector3> positions() noexcept;
         span<const Vector3> rest_positions() noexcept;
@@ -58,7 +57,7 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
     class BaseInfo
     {
       public:
-        BaseInfo(Impl* impl, Float dt)
+        BaseInfo(FiniteElementMethod::Impl* impl, Float dt)
             : m_impl(impl)
             , m_dt(dt)
         {
@@ -72,15 +71,20 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
         muda::CBufferView<Float>   thicknesses() const noexcept;
 
       protected:
-        Impl* m_impl = nullptr;
-        Float m_dt;
+        FiniteElementMethod::Impl* m_impl = nullptr;
+        Float                      m_dt;
     };
 
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        using BaseInfo::BaseInfo;
-        muda::BufferView<Float> energies() const noexcept;
+        ComputeEnergyInfo(FiniteElementMethod::Impl* impl, Float dt, muda::BufferView<Float> energies)
+            : BaseInfo(impl, dt)
+            , m_energies(energies)
+        {
+        }
+
+        auto energies() const noexcept { return m_energies; }
 
       private:
         muda::BufferView<Float> m_energies;
@@ -89,9 +93,18 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
     class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        using BaseInfo::BaseInfo;
-        muda::DoubletVectorView<Float, 3> gradients() const noexcept;
-        muda::TripletMatrixView<Float, 3> hessians() const noexcept;
+        ComputeGradientHessianInfo(FiniteElementMethod::Impl*        impl,
+                                   Float                             dt,
+                                   muda::DoubletVectorView<Float, 3> gradients,
+                                   muda::TripletMatrixView<Float, 3> hessians)
+            : BaseInfo(impl, dt)
+            , m_gradients(gradients)
+            , m_hessians(hessians)
+        {
+        }
+
+        auto gradients() const noexcept { return m_gradients; }
+        auto hessians() const noexcept { return m_hessians; }
 
       private:
         muda::DoubletVectorView<Float, 3> m_gradients;
@@ -112,14 +125,15 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
 
   private:
     friend class FiniteElementMethod;
-    void init();                 // only be called by FiniteElementMethod
-    void collect_extent_info();  // only be called by FiniteElementMethod
-    friend class FEMLineSearchReporter;
-    void compute_energy(FiniteElementMethod::ComputeExtraEnergyInfo& info);  // only be called by FEMLineSearchReporter
-    friend class FEMGradientHessianComputer;
-    void compute_gradient_hessian(FiniteElementMethod::ComputeExtraGradientHessianInfo& info);  // only be called by FEMGradientHessianComputer
-
+    void init();  // only be called by FiniteElementMethod
     virtual void do_build(FiniteElementEnergyProducer::BuildInfo& info) override final;
+    friend class FEMLineSearchReporter;
+    virtual void do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info) override final;
+    friend class FEMGradientHessianComputer;
+    virtual void do_compute_gradient_hessian(
+        FiniteElementEnergyProducer::ComputeGradientHessianInfo& info) override final;
+    virtual Vector2i get_vertex_offset_count() const noexcept override final;
+
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

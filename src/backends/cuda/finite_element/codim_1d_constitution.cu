@@ -13,23 +13,41 @@ void Codim1DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
     do_build(this_info);
 }
 
-void Codim1DConstitution::do_compute_energy(FiniteElementConstitution::ComputeEnergyInfo& info)
+void Codim1DConstitution::do_report_extent(ReportExtentInfo& info)
+{
+    auto& c_info = constitution_info();
+    info.energy_count(c_info.primitive_count);
+    info.stencil_dim(dimension() + 1);
+}
+
+void Codim1DConstitution::do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info)
 {
     Codim1DConstitution::ComputeEnergyInfo this_info{
         &fem(), m_index_in_dim, info.dt(), info.energies()};
     do_compute_energy(this_info);
 }
 
-void Codim1DConstitution::do_compute_gradient_hessian(FiniteElementConstitution::ComputeGradientHessianInfo& info)
+void Codim1DConstitution::do_compute_gradient_hessian(FiniteElementEnergyProducer::ComputeGradientHessianInfo& info)
 {
     ComputeGradientHessianInfo this_info{
         &fem(), m_index_in_dim, info.dt(), info.gradients(), info.hessians()};
     do_compute_gradient_hessian(this_info);
 }
 
-IndexT Codim1DConstitution::get_dimension() const
+const FiniteElementMethod::ConstitutionInfo& Codim1DConstitution::constitution_info() const noexcept
+{
+    return fem().codim_1d_constitution_infos[m_index_in_dim];
+}
+
+IndexT Codim1DConstitution::get_dimension() const noexcept
 {
     return 1;
+}
+
+Vector2i Codim1DConstitution::get_vertex_offset_count() const noexcept
+{
+    auto& info = constitution_info();
+    return Vector2i{info.vertex_offset, info.vertex_count};
 }
 
 muda::CBufferView<Vector3> Codim1DConstitution::BaseInfo::xs() const noexcept

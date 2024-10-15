@@ -5,7 +5,6 @@ namespace uipc::backend::cuda
 void FiniteElementKinetic::do_build(BuildInfo& info)
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
-
     m_impl.finite_element_method->add_constitution(this);
 }
 
@@ -98,4 +97,6 @@ void FiniteElementKinetic::Impl::compute_gradient_hessian(ComputeGradientHessian
                    H3x3s(i).write(i, i, H);
                });
 }
+
+REGISTER_SIM_SYSTEM(FiniteElementKinetic);
 }  // namespace uipc::backend::cuda

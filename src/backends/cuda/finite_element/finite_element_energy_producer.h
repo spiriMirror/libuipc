@@ -2,6 +2,7 @@
 #include <sim_system.h>
 #include <finite_element/finite_element_method.h>
 #include <linear_system/global_linear_system.h>
+#include <line_search/line_searcher.h>
 
 namespace uipc::backend::cuda
 {
@@ -57,8 +58,13 @@ class FiniteElementEnergyProducer : public SimSystem
     class ComputeEnergyInfo
     {
       public:
-        muda::BufferView<Float> energies() const noexcept { return m_energies; }
-        Float                   dt() const noexcept;
+        ComputeEnergyInfo(Float dt, muda::BufferView<Float> energies)
+            : m_dt(dt)
+            , m_energies(energies)
+        {
+        }
+        auto energies() const noexcept { return m_energies; }
+        auto dt() const noexcept { return m_dt; }
 
       private:
         friend class FiniteElementEnergyProducer;
@@ -69,9 +75,18 @@ class FiniteElementEnergyProducer : public SimSystem
     class ComputeGradientHessianInfo
     {
       public:
-        muda::DoubletVectorView<Float, 3> gradients() const noexcept;
-        muda::TripletMatrixView<Float, 3> hessians() const noexcept;
-        Float                             dt() const noexcept;
+        ComputeGradientHessianInfo(Float                             dt,
+                                   muda::DoubletVectorView<Float, 3> gradients,
+                                   muda::TripletMatrixView<Float, 3> hessians)
+            : m_dt(dt)
+            , m_gradients(gradients)
+            , m_hessians(hessians)
+        {
+        }
+
+        auto gradients() const noexcept { return m_gradients; }
+        auto hessians() const noexcept { return m_hessians; }
+        auto dt() const noexcept { return m_dt; }
 
       private:
         friend class FiniteElementEnergyProducer;
@@ -94,7 +109,7 @@ class FiniteElementEnergyProducer : public SimSystem
 
     virtual void do_build() override final;
     void         collect_extent_info();
-    void         compute_energy();
+    void         compute_energy(LineSearcher::EnergyInfo& info);
     class AssemblyInfo
     {
       public:

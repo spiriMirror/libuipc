@@ -46,7 +46,7 @@ template <typename ForEach, typename ViewGetter>
 void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
                                     span<S<geometry::GeometrySlot>> geo_slots,
                                     ViewGetter&&                    view_getter,
-                                    ForEach&& for_each_action) noexcept
+                                    ForEach&& for_each_action)
 {
     ForEachInfo foreach_info;
 
@@ -75,7 +75,7 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
 template <typename ForEachGeometry>
 void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
                                     span<S<geometry::GeometrySlot>> geo_slots,
-                                    ForEachGeometry&& for_every_geometry) noexcept
+                                    ForEachGeometry&& for_every_geometry)
 {
     ForEachInfo foreach_info;
     for(auto& geo_info : geo_infos)
@@ -106,7 +106,7 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
 template <typename ForEach, typename ViewGetter>
 void FiniteElementMethod::for_each(span<S<geometry::GeometrySlot>> geo_slots,
                                    ViewGetter&&                    view_getter,
-                                   ForEach&& for_each_action) noexcept
+                                   ForEach&& for_each_action)
 {
     _for_each(span{m_impl.geo_infos},
               geo_slots,
@@ -116,7 +116,7 @@ void FiniteElementMethod::for_each(span<S<geometry::GeometrySlot>> geo_slots,
 
 template <typename ForEachGeometry>
 void FiniteElementMethod::for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                                   ForEachGeometry&& for_each) noexcept
+                                   ForEachGeometry&&               for_each)
 {
     _for_each(span{m_impl.geo_infos}, geo_slots, std::forward<ForEachGeometry>(for_each));
 }
@@ -125,7 +125,7 @@ template <int N>
 template <typename ForEach, typename ViewGetter>
 void FiniteElementMethod::FilteredInfo<N>::for_each(span<S<geometry::GeometrySlot>> geo_slots,
                                                     ViewGetter&& view_getter,
-                                                    ForEach&& for_each_action) const noexcept
+                                                    ForEach&& for_each_action) const
 {
     FiniteElementMethod::template _for_each(geo_infos(),
                                             geo_slots,

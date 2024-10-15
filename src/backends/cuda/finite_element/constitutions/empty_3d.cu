@@ -18,8 +18,7 @@ class Empty3D final : public FEM3DConstitution
 
     vector<Float>             h_kappas;
     muda::DeviceBuffer<Float> kappas;
-
-    virtual U64 get_uid() const override { return ConstitutionUID; }
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_report_extent(ReportExtentInfo& info)
     {

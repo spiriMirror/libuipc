@@ -21,7 +21,7 @@ class HookeanSpring1D final : public Codim1DConstitution
     vector<Float>             h_kappas;
     muda::DeviceBuffer<Float> kappas;
 
-    virtual U64 get_uid() const override { return ConstitutionUID; }
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
 

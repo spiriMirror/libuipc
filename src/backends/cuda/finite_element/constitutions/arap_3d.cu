@@ -22,7 +22,7 @@ class ARAP3D final : public FEM3DConstitution
 
     muda::DeviceBuffer<Float> kappas;
 
-    virtual U64 get_uid() const override { return ConstitutionUID; }
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
 
@@ -70,7 +70,6 @@ class ARAP3D final : public FEM3DConstitution
                    {
                        const Vector4i&  tet    = indices(I);
                        const Matrix3x3& Dm_inv = Dm_invs(I);
-                       Float            mu     = kappas(I);
 
                        const Vector3& x0 = xs(tet(0));
                        const Vector3& x1 = xs(tet(1));
@@ -82,7 +81,6 @@ class ARAP3D final : public FEM3DConstitution
                        Float E;
 
                        ARAP::E(E, kappas(I) * dt * dt, volumes(I), F);
-                       E *= dt * dt;
                        energies(I) = E;
                    });
     }
@@ -106,7 +104,6 @@ class ARAP3D final : public FEM3DConstitution
                    {
                        const Vector4i&  tet    = indices(I);
                        const Matrix3x3& Dm_inv = Dm_invs(I);
-                       Float            mu     = kappas(I);
 
                        const Vector3& x0 = xs(tet(0));
                        const Vector3& x1 = xs(tet(1));

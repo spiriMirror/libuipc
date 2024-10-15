@@ -24,44 +24,35 @@ void FiniteElementEnergyProducer::collect_extent_info()
     m_impl.hessian_count  = N * D * D;
 }
 
-void FiniteElementEnergyProducer::compute_energy()
+void FiniteElementEnergyProducer::compute_energy(LineSearcher::EnergyInfo& info)
 {
     auto global_energies =
         m_impl.finite_element_method->m_impl.energy_producer_energies.view();
-    ComputeEnergyInfo info;
-    info.m_energies = global_energies.subview(m_impl.energy_offset, m_impl.energy_count);
-    do_compute_energy(info);
+    ComputeEnergyInfo this_info{
+        info.dt(), global_energies.subview(m_impl.energy_offset, m_impl.energy_count)};
+    do_compute_energy(this_info);
 }
 
 void FiniteElementEnergyProducer::assemble_gradient_hessian(AssemblyInfo& info)
 {
-    ComputeGradientHessianInfo this_info;
-    auto                       global_gradient_view =
+    auto global_gradient_view =
         m_impl.finite_element_method->m_impl.energy_producer_gradients.view();
 
-    this_info.m_dt = info.dt;
-
-    this_info.m_gradients =
-        global_gradient_view.subview(m_impl.gradient_offset, m_impl.gradient_count);
-
-    this_info.m_hessians =
-        info.hessians.subview(m_impl.hessian_offset, m_impl.hessian_count);
-
-    Vector2i vertex_offset_count = get_vertex_offset_count();
-    if(vertex_offset_count[1] > 0)  // basic constitution has vertex range
-    {
-        this_info.m_gradients =
-            this_info.m_gradients.subvector(vertex_offset_count[0],  // offset
-                                            vertex_offset_count[1]   // extent
-            );
-
-        this_info.m_hessians = this_info.m_hessians.submatrix(
-            {vertex_offset_count[0], vertex_offset_count[0]},  // offset
-            {vertex_offset_count[1], vertex_offset_count[1]}   // extent
-        );
-    }
-    // extra constitution has no vertex range (can connect any vertices)
+    ComputeGradientHessianInfo this_info{
+        info.dt,
+        global_gradient_view.subview(m_impl.gradient_offset, m_impl.gradient_count),
+        info.hessians.subview(m_impl.hessian_offset, m_impl.hessian_count)};
 
     do_compute_gradient_hessian(this_info);
+}
+
+void FiniteElementEnergyProducer::ReportExtentInfo::energy_count(SizeT count) noexcept
+{
+    m_energy_count = count;
+}
+
+void FiniteElementEnergyProducer::ReportExtentInfo::stencil_dim(SizeT dim) noexcept
+{
+    m_stencil_dim = dim;
 }
 }  // namespace uipc::backend::cuda

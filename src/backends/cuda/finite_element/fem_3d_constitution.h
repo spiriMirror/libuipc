@@ -80,15 +80,19 @@ class FEM3DConstitution : public FiniteElementConstitution
   protected:
     virtual void do_init(FiniteElementMethod::FEM3DFilteredInfo& info) = 0;
     virtual void do_build(BuildInfo& info)                             = 0;
-    virtual void do_compute_energy(ComputeEnergyInfo& info)            = 0;
+    virtual void do_report_extent(ReportExtentInfo& info) override;
+    virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
+    const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;
 
   private:
     friend class FiniteElementMethod;
     void init(FiniteElementMethod::FEM3DFilteredInfo& info);
     virtual void do_build(FiniteElementConstitution::BuildInfo& info) override final;
-    void do_compute_energy(FiniteElementConstitution::ComputeEnergyInfo& info) override;
-    void do_compute_gradient_hessian(FiniteElementConstitution::ComputeGradientHessianInfo& info) override;
-    virtual IndexT get_dimension() const override final;
+    virtual void do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info) override final;
+    virtual void do_compute_gradient_hessian(
+        FiniteElementEnergyProducer::ComputeGradientHessianInfo& info) override final;
+    virtual IndexT   get_dimension() const noexcept override final;
+    virtual Vector2i get_vertex_offset_count() const noexcept override final;
 };
 }  // namespace uipc::backend::cuda

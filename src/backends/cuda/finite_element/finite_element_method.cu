@@ -882,6 +882,7 @@ void FiniteElementMethod::Impl::_init_energy_producers()
 
     energy_producer_energies.resize(energy_count);
     energy_producer_gradients.resize(vertex_count, gradient_count);
+    energy_producer_total_hessian_count = hessian_offsets.back();
 }
 
 void FiniteElementMethod::Impl::_download_geometry_to_host()

@@ -10,7 +10,7 @@ class Empty1D final : public Codim1DConstitution
 
     using Codim1DConstitution::Codim1DConstitution;
 
-    virtual U64 get_uid() const override { return ConstitutionUID; }
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_report_extent(ReportExtentInfo& info)
     {

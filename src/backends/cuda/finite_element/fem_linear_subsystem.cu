@@ -60,13 +60,17 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
 
 void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 {
+    // 1) Clear Gradient
+    info.gradient().buffer_view().fill(0);
+
+    // 2) Assemble Gradient and Hessian
     _assemble_producers(info);
     _assemble_contact(info);
     _assemble_animation(info);
 
     using namespace muda;
 
-    // Clear Fixed Vertex Gradient
+    // 3) Clear Fixed Vertex Gradient
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
@@ -79,7 +83,7 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                    }
                });
 
-    // Clear Fixed Vertex hessian
+    // 4) Clear Fixed Vertex hessian
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(info.hessian().triplet_count(),
@@ -95,7 +99,8 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                        else  // avoid singular matrix
                            hessians(I).write(i, j, Matrix3x3::Identity());
                    }
-               });
+               })
+        .wait();
 }
 
 void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo& info)
@@ -109,6 +114,20 @@ void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo&
     {
         producer->assemble_gradient_hessian(assembly_info);
     }
+
+    using namespace muda;
+
+    // need to assemble doublet gradient to dense gradient
+    const auto& producer_gradients = fem().energy_producer_gradients;
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(producer_gradients.doublet_count(),
+               [dst_gradient = info.gradient().viewer().name("dst_gradient"),
+                src_gradient = producer_gradients.viewer().name("src_gradient")] __device__(int I) mutable
+               {
+                   auto&& [i, G3] = src_gradient(I);
+                   dst_gradient.segment<3>(i * 3).atomic_add(G3);
+               });
 }
 
 void FEMLinearSubsystem::Impl::_assemble_contact(GlobalLinearSystem::DiagInfo& info)
@@ -117,12 +136,14 @@ void FEMLinearSubsystem::Impl::_assemble_contact(GlobalLinearSystem::DiagInfo& i
 
     if(fem_contact_receiver)  //  if contact enabled
     {
-        auto contact_count = contact().contact_gradient.doublet_count();
-        if(contact_count)
+        auto contact_gradient_count = contact().contact_gradient.doublet_count();
+
+        // 1) Assemble Contact Gradient to Gradient
+        if(contact_gradient_count)
         {
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(contact_count,
+                .apply(contact_gradient_count,
                        [contact_gradient = contact().contact_gradient.cviewer().name("contact_gradient"),
                         gradient = info.gradient().viewer().name("gradient"),
                         vertex_offset = finite_element_vertex_reporter->vertex_offset(),
@@ -130,40 +151,29 @@ void FEMLinearSubsystem::Impl::_assemble_contact(GlobalLinearSystem::DiagInfo& i
                        {
                            const auto& [g_i, G3] = contact_gradient(I);
                            auto i = g_i - vertex_offset;  // from global to local
-
-                           if(is_fixed(i))
-                           {
-                               //
-                           }
-                           else
-                           {
-                               gradient.segment<3>(i * 3).atomic_add(G3);
-                           }
+                           gradient.segment<3>(i * 3).atomic_add(G3);
                        });
+        }
 
+        // 2) Assemble Contact Hessian to Hessian
+        if(contact_hessian_count)
+        {
             auto dst_H3x3s =
                 info.hessian().subview(contact_hessian_offset, contact_hessian_count);
 
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(contact_count,
+                .apply(contact_hessian_count,
                        [contact_hessian = contact().contact_hessian.cviewer().name("contact_hessian"),
                         hessian = dst_H3x3s.viewer().name("hessian"),
-                        vertex_offset = finite_element_vertex_reporter->vertex_offset(),
-                        is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+                        vertex_offset =
+                            finite_element_vertex_reporter->vertex_offset()] __device__(int I) mutable
                        {
                            const auto& [g_i, g_j, H3] = contact_hessian(I);
                            auto i                     = g_i - vertex_offset;
                            auto j                     = g_j - vertex_offset;
 
-                           if(is_fixed(i) || is_fixed(j))
-                           {
-                               hessian(I).write(i, j, Matrix3x3::Zero());
-                           }
-                           else
-                           {
-                               hessian(I).write(i, j, H3);
-                           }
+                           hessian(I).write(i, j, H3);
                        });
         }
     }

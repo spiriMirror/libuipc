@@ -60,7 +60,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
 
     // Kinetic/Elastic/Contact ...
     for(auto* producer : fem().energy_producers)
-        producer->compute_energy();
+        producer->compute_energy(info);
 
     DeviceReduce().Sum(fem().energy_producer_energies.data(),
                        fem().energy_producer_energy.data(),

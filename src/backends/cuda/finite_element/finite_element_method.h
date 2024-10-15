@@ -123,7 +123,7 @@ class FiniteElementMethod final : public SimSystem
         template <typename ForEach, typename ViewGetter>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                       ViewGetter&&                    view_getter,
-                      ForEach&& for_each_action) const noexcept;
+                      ForEach&&                       for_each_action) const;
 
       protected:
         friend class FiniteElementMethod;
@@ -407,7 +407,7 @@ class FiniteElementMethod final : public SimSystem
     template <typename ForEach, typename ViewGetter>
     void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                   ViewGetter&&                    view_getter,
-                  ForEach&&                       for_each_action) noexcept;
+                  ForEach&&                       for_each_action);
 
     /**
      * @brief For each geometry
@@ -422,7 +422,7 @@ class FiniteElementMethod final : public SimSystem
      * @endcode
      */
     template <typename ForEachGeometry>
-    void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_each) noexcept;
+    void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_each);
 
   private:
     friend class FiniteElementVertexReporter;
@@ -455,12 +455,12 @@ class FiniteElementMethod final : public SimSystem
     static void _for_each(span<const GeoInfo>             geo_infos,
                           span<S<geometry::GeometrySlot>> geo_slots,
                           ViewGetter&&                    view_getter,
-                          ForEach&& for_each_action) noexcept;
+                          ForEach&&                       for_each_action);
 
     template <typename ForEachGeometry>
     static void _for_each(span<const GeoInfo>             geo_infos,
                           span<S<geometry::GeometrySlot>> geo_slots,
-                          ForEachGeometry&&               for_each) noexcept;
+                          ForEachGeometry&&               for_each);
 
     Impl m_impl;
 };
