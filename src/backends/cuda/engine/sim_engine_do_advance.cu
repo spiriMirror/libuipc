@@ -19,6 +19,9 @@ void SimEngine::do_advance()
     Float ccd_alpha = 1.0;
     Float cfl_alpha = 1.0;
 
+    bool dump_surface =
+        world().scene().info()["extras"]["debug"]["dump_surface"].get<bool>();
+
     /***************************************************************************************
     *                                  Function Shortcuts
     ***************************************************************************************/
@@ -245,17 +248,23 @@ void SimEngine::do_advance()
 
                     Float rel_tol = res == 0.0 ? 0.0 : res / res0;
 
-                    spdlog::info(">> Frame {} Newton Iteration {} => Residual/AbsTol/RelTol: {}/{}/{}",
+                    spdlog::info(">> Frame {} Newton Iteration {} => Residual/AbsTol/CCDToi: {}/{}/{}",
                                  m_current_frame,
                                  newton_iter,
                                  res,
                                  m_abs_tol,
-                                 rel_tol);
-
+                                 ccd_alpha);
 
                     converged = res <= m_abs_tol || rel_tol <= 0.001;
 
-                    if(newton_iter > 0 && converged && animation_reach_target())
+                    if(dump_surface)
+                    {
+                        dump_global_surface(fmt::format(
+                            "dump_surface.{}.{}", m_current_frame, newton_iter));
+                    }
+
+                    if(newton_iter > 0 && converged && ccd_alpha >= 0.999
+                       && animation_reach_target())
                         break;
                 }
 

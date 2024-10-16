@@ -185,7 +185,7 @@ void FEMLinearSubsystem::Impl::_assemble_animation(GlobalLinearSystem::DiagInfo&
     if(finite_element_animator)
     {
         auto hessians = info.hessian().subview(animator_hessian_offset, animator_hessian_count);
-        FiniteElementAnimator::AssembleInfo this_info{info.gradient(), info.hessian(), dt};
+        FiniteElementAnimator::AssembleInfo this_info{info.gradient(), hessians, dt};
         finite_element_animator->assemble(this_info);
     }
 }

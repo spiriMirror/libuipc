@@ -5,7 +5,7 @@ from polyscope import imgui
 from asset import AssetDir
 from pyuipc_loader import pyuipc
 
-from pyuipc import Vector3, Vector2, Transform, Logger
+from pyuipc import Vector3, Vector2, Transform, Logger, Timer
 from pyuipc import builtin
 from pyuipc.core import World, Scene, SceneIO, Engine, Animation
 
@@ -23,6 +23,7 @@ def process_surface(sc: SimplicialComplex):
 
 run = False
 
+Timer.enable_all()
 Logger.set_level(Logger.Level.Info)
 
 workspace = AssetDir.output_path(__file__)
@@ -43,7 +44,7 @@ spc = SoftPositionConstraint()
 scene.contact_tabular().default_model(0.5, 1e9)
 default_element = scene.contact_tabular().default_element()
 
-N = 4
+N = 6
 Vs = np.array([[0, 1, 0], 
             [0, 0, 1], 
             [-np.sqrt(3)/2, 0, -0.5], 
@@ -102,6 +103,7 @@ def animation(info:Animation.UpdateInfo):
         apos_view[0] = P + Vector3.Values([0, h * 0.5, 0])
     pass
 
+scene.animator().substep(1)
 scene.animator().insert(object, animation)
 
 world.init(scene)
@@ -121,6 +123,7 @@ def on_update():
     if(run):
         world.advance()
         world.retrieve()
+        Timer.report()
         sgui.update()
 
 ps.set_user_callback(on_update)

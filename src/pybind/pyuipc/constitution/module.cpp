@@ -13,6 +13,7 @@
 #include <pyuipc/constitution/finite_element_extra_constitution.h>
 #include <pyuipc/constitution/kirchhoff_rod_bending.h>
 #include <pyuipc/constitution/soft_transform_constraint.h>
+#include <pyuipc/constitution/discrete_shell_bending.h>
 
 namespace pyuipc::constitution
 {
@@ -21,6 +22,9 @@ Module::Module(py::module& m)
     PyConstitution{m};
     PyConstraint{m};
     PyElasticModuli{m};
+
+    // Affine Body Constitutions
+    PyAffineBodyConstitution{m};
 
     // Finite Element Constitutions
     PyFiniteElementConstitution{m};
@@ -33,9 +37,7 @@ Module::Module(py::module& m)
     // Finite Extra Constitutions
     PyFiniteElementExtraConstitution{m};
     PyKirchhoffRodBending{m};
-
-    // Affine Body Constitutions
-    PyAffineBodyConstitution{m};
+    PyDiscreteShellBending{m};
 
     // Constraints
     PySoftPositionConstraint{m};

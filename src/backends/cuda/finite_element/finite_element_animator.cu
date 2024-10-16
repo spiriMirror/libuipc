@@ -239,7 +239,7 @@ void FiniteElementAnimator::Impl::assemble(AssembleInfo& info)
 
     // only need to setup gradient (from doublet vector to dense vector)
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(constraint_gradient.doublet_count(),
                [anim_gradients = std::as_const(constraint_gradient).viewer().name("aim_gradients"),
                 gradient = info.gradients().viewer().name("gradient"),
