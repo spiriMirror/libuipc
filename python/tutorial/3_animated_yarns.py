@@ -96,14 +96,14 @@ class Braider:
                 abs_path = os.path.join(folder, file)
                 abs_path = pathlib.Path(abs_path).resolve().absolute()
                 self.files.append(str(abs_path))
-        # print("yarn files:", self.files)
+        # print('yarn files:', self.files)
         self.yarns: list[Yarns] = []
         for file in self.files:
             self.yarns.append(Yarns(file))
         self.object: Object = None
     
     def create_geometries(self, scene: Scene, segment_len = 0.1, count=30, thickness=0.02):
-        self.object = scene.objects().create("yarns")
+        self.object = scene.objects().create('yarns')
         spc = SoftPositionConstraint()
         hs = HookeanSpring()
         ce = scene.contact_tabular().default_element()
@@ -126,13 +126,13 @@ Logger.set_level(Logger.Level.Warn)
 
 workspace = AssetDir.output_path(__file__)
 
-engine = Engine("cuda", workspace)
+engine = Engine('cuda', workspace)
 world = World(engine)
 
 config = Scene.default_config()
 dt = 0.02
-config["dt"] = dt
-config["newton"]["velocity_tol"] = 0.2
+config['dt'] = dt
+config['newton']['velocity_tol'] = 0.2
 config['gravity'] = Vector3.Values([0, 0, 0]).tolist()
 config['contact']['friction']['enable'] = False
 print(config)
@@ -142,7 +142,7 @@ scene = Scene(config)
 scene.contact_tabular().default_model(0.5, 1e9)
 
 thickness = 0.05
-braider = Braider("yarns")
+braider = Braider('yarns')
 braider.create_geometries(scene, segment_len=0.2, count=20, thickness=thickness)
 braider.create_animation(scene, dt=dt, move_up_speed=0)
 
@@ -160,7 +160,7 @@ run = False
 
 def on_update():
     global run
-    if(imgui.Button("run & stop")):
+    if(imgui.Button('run & stop')):
         run = not run
         
     if(run):

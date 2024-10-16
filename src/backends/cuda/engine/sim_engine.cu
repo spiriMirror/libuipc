@@ -115,12 +115,19 @@ void SimEngine::event_write_scene()
 void SimEngine::dump_global_surface(std::string_view name)
 {
     BackendPathTool tool{workspace()};
-    auto file_path = fmt::format("{}{}.obj", tool.workspace().string(), name);
+    auto file_path = fmt::format("{}/{}.obj", tool.workspace().string(), name);
 
     std::vector<Vector3> positions;
-    auto                 src_ps = m_global_vertex_manager->positions();
+    std::vector<Vector3> disps;
+
+    auto src_ps = m_global_vertex_manager->prev_positions();
+    auto disp   = m_global_vertex_manager->displacements();
     positions.resize(src_ps.size());
     src_ps.copy_to(positions.data());
+    disps.resize(disp.size());
+    disp.copy_to(disps.data());
+
+    std::ranges::transform(positions, disps, positions.begin(), std::plus<>());
 
     std::vector<Vector2i> edges;
     auto src_es = m_global_simplicial_surface_manager->surf_edges();

@@ -50,7 +50,10 @@ Json Scene::default_config() noexcept
     }
 
     // something that is unofficial
-    config["extras"] = Json::object();
+    auto& extras = config["extras"] = Json::object();
+    {
+        extras["debug"]["dump_surface"] = false;
+    }
 
     return config;
 }
