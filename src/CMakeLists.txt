@@ -20,6 +20,11 @@ if(UIPC_BUILD_PYBIND)
     add_subdirectory(pybind)
 endif()
 
+if(UIPC_BUILD_TORCH_EXTENSION)
+    # torch
+    add_subdirectory(torch)
+endif()
+
 add_library(uipc_uipc INTERFACE)
 add_library(uipc::uipc ALIAS uipc_uipc)
 

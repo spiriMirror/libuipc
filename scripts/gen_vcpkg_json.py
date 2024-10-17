@@ -94,11 +94,15 @@ def gen_vcpkg_json(args):
             "name": "bgfx",
             "version>=": "1.127.8725-469"
         })
-    if is_enabled(args.build_pybind):
-        deps.append({
-            "name":"pybind11",
-            "version>=":"2.12.0"
-        })
+    
+    # NOTE: now we don't use vcpkg to manage pybind11
+    # we just use the pip to find its own version
+    
+    # if is_enabled(args.build_pybind):
+    #     deps.append({
+    #         "name":"pybind11",
+    #         "version>=":"2.12.0"
+    #     })
 
 def print_deps():
     str_names = []
@@ -112,7 +116,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate vcpkg.json for libuipc.")
     parser.add_argument("output_dir", type=str, help="Output file path.")
     parser.add_argument("--build_gui", type=str, default=False, help="Build GUI dependencies.")
-    parser.add_argument("--build_pybind", type=str, default=False, help="Build Python bindings.")
     
     args = parser.parse_args()
     print(f"[libuipc] Generating vcpkg.json with args:")

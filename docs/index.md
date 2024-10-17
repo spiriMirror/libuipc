@@ -1,9 +1,11 @@
 # libuipc
 
 ## Introduction
-The libuipc is a C++ library that provides **A Unified Incremental Potential Contact Framework** for simulating the dynamics of rigid bodies, soft bodies, cloth, threads, and so on with penetration-free accurate contact.
+The libuipc is a C++ library that provides **A Unified Incremental Potential Contact Framework** for simulating the dynamics of rigid bodies, soft bodies, cloth, threads, and so on with **penetration-free accurate contact**.
 
 The libuipc is designed for the development of physics-based simulation software, such as video games, virtual reality applications, robotics applications, and so on. 
+
+The libuipc is naturally and intrinsically **differentiable**, which allows users to easily integrate the libuipc with machine learning frameworks, inverse dynamics, and optimization algorithms.
 
 The libuipc is easy to use, high-performance, robust, and highly extensible.
 

@@ -42,6 +42,7 @@ function(uipc_show_options)
     uipc_info("Options:")
     message(STATUS "    * UIPC_BUILD_GUI: ${UIPC_BUILD_GUI}")
     message(STATUS "    * UIPC_BUILD_PYBIND: ${UIPC_BUILD_PYBIND}")
+    message(STATUS "    * UIPC_BUILD_TORCH_EXTENSION: ${UIPC_BUILD_TORCH_EXTENSION}")
     message(STATUS "    * UIPC_USING_LOCAL_VCPKG: ${UIPC_USING_LOCAL_VCPKG}")
     message(STATUS "    * UIPC_BUILD_EXAMPLES: ${UIPC_BUILD_EXAMPLES}")
     message(STATUS "    * UIPC_BUILD_TESTS: ${UIPC_BUILD_TESTS}")
@@ -65,7 +66,6 @@ function(uipc_config_vcpkg_install)
         COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
         ${VCPKG_MANIFEST_DIR} # pass the CMAKE_CURRENT_BINARY_DIR as vcpkg.json output directory
         "--build_gui=${UIPC_BUILD_GUI}" # pass the UIPC_BUILD_GUI as argument
-        "--build_pybind=${UIPC_BUILD_PYBIND}" # pass the UIPC_BUILD_PYBIND as argument
         RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
     )
     

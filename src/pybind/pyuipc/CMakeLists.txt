@@ -1,8 +1,3 @@
-find_package(Python REQUIRED QUIET)
-find_package (Python COMPONENTS Interpreter Development REQUIRED QUIET)
-find_package(pybind11 CONFIG REQUIRED QUIET)
-
-
 # Create an extension module
 pybind11_add_module(pyuipc)
 target_compile_features(pyuipc PUBLIC cxx_std_20)
