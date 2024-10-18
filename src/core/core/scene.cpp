@@ -119,6 +119,16 @@ const Animator& Scene::animator() const
     return m_impl.animator;
 }
 
+DiffSim& Scene::diff_sim()
+{
+    return m_impl.diff_sim;
+}
+
+const DiffSim& Scene::diff_sim() const
+{
+    return m_impl.diff_sim;
+}
+
 void Scene::solve_pending() noexcept
 {
     m_impl.geometries.solve_pending();

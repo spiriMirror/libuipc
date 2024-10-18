@@ -25,7 +25,8 @@ span<const T> AttributeSlot<T>::view() const noexcept
 template <typename T>
 std::string_view AttributeSlot<T>::get_type_name() const noexcept
 {
-    return readable_type_name<T>();
+    thread_local static std::string type_name = readable_type_name<T>();
+    return type_name;
 }
 
 template <typename T>

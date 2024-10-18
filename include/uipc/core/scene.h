@@ -4,6 +4,7 @@
 #include <uipc/core/object.h>
 #include <uipc/core/object_collection.h>
 #include <uipc/core/animator.h>
+#include <uipc/core/diff_sim.h>
 
 namespace uipc::backend
 {
@@ -12,7 +13,6 @@ class SceneVisitor;
 
 namespace uipc::core
 {
-
 class UIPC_CORE_API Scene
 {
     friend class backend::SceneVisitor;
@@ -93,9 +93,13 @@ class UIPC_CORE_API Scene
     Animator&       animator();
     const Animator& animator() const;
 
+    DiffSim&       diff_sim();
+    const DiffSim& diff_sim() const;
+
   private:
     friend class SanityChecker;
     friend class Animation;
+
     class Impl
     {
       public:
@@ -106,6 +110,7 @@ class UIPC_CORE_API Scene
         ConstitutionTabular constitution_tabular;
         ObjectCollection    objects;
         Animator            animator;
+        DiffSim             diff_sim;
 
         geometry::GeometryCollection geometries;
         geometry::GeometryCollection rest_geometries;

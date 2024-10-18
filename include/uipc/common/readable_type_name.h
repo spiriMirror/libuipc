@@ -4,7 +4,7 @@
 #include <boost/core/demangle.hpp>
 #define READABLE_TYPE_NAME_AS_ALIAS(type)                                      \
     template <>                                                                \
-    constexpr std::string_view readable_type_name<type>() noexcept             \
+    inline std::string readable_type_name<type>() noexcept                     \
     {                                                                          \
         return #type;                                                          \
     }
@@ -12,11 +12,10 @@
 namespace uipc
 {
 template <typename T>
-constexpr std::string_view readable_type_name() noexcept
+inline std::string readable_type_name() noexcept
 {
-    return std::string_view{boost::core::demangle(typeid(T).name())};
+    return boost::core::demangle(typeid(T).name());
 }
-
 
 READABLE_TYPE_NAME_AS_ALIAS(Vector2);
 READABLE_TYPE_NAME_AS_ALIAS(Vector3);
