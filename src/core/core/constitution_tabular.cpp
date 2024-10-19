@@ -1,6 +1,8 @@
 #include <uipc/core/constitution_tabular.h>
 #include <uipc/builtin/constitution_uid_collection.h>
 #include <algorithm>
+#include <uipc/backend/visitors/scene_visitor.h>
+#include <uipc/builtin/attribute_name.h>
 
 namespace uipc::core
 {
@@ -44,6 +46,31 @@ class ConstitutionTabular::Impl
         m_is_sorted = true;
     }
 
+    void init(backend::SceneVisitor& scene_visitor)
+    {
+        auto geos      = scene_visitor.geometries();
+        auto rest_geos = scene_visitor.rest_geometries();
+
+        for(auto&& geo : geos)
+        {
+            auto constitution_uid =
+                geo->geometry().meta().find<U64>(builtin::constitution_uid);
+            auto constraint_uid = geo->geometry().meta().find<U64>(builtin::constraint_uid);
+            auto extra_constitution_uids =
+                geo->geometry().meta().find<VectorXu64>(builtin::extra_constitution_uids);
+            if(constitution_uid)
+                insert(constitution_uid->view().front());
+            if(constraint_uid)
+                insert(constraint_uid->view().front());
+            if(extra_constitution_uids)
+            {
+                const auto& uids = extra_constitution_uids->view().front();
+                for(auto uid : uids)
+                    insert(uid);
+            }
+        }
+    }
+
   private:
     mutable bool        m_is_sorted = false;
     mutable vector<U64> m_uids;
@@ -74,8 +101,8 @@ const set<std::string>& ConstitutionTabular::types() const noexcept
     return m_impl->types();
 }
 
-void ConstitutionTabular::insert(U64 uid)
+void ConstitutionTabular::init(backend::SceneVisitor& scene_visitor)
 {
-    m_impl->insert(uid);
+    m_impl->init(scene_visitor);
 }
 }  // namespace uipc::core

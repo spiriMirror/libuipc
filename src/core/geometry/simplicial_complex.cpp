@@ -85,6 +85,24 @@ Json SimplicialComplex::do_to_json() const
     return base;
 }
 
+void SimplicialComplex::do_collect_attribute_collections(vector<std::string>& names,
+                                                         vector<AttributeCollection*>& collections)
+{
+    Geometry::do_collect_attribute_collections(names, collections);
+
+    names.push_back("vertices");
+    collections.push_back(&m_vertex_attributes);
+
+    names.push_back("edges");
+    collections.push_back(&m_edge_attributes);
+
+    names.push_back("triangles");
+    collections.push_back(&m_triangle_attributes);
+
+    names.push_back("tetrahedra");
+    collections.push_back(&m_tetrahedron_attributes);
+}
+
 IndexT SimplicialComplex::dim() const noexcept
 {
     if(m_tetrahedron_attributes.size() > 0)

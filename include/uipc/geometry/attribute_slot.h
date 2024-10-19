@@ -68,10 +68,14 @@ class UIPC_CORE_API IAttributeSlot
     [[nodiscard]] virtual SizeT get_use_count() const = 0;
 
     [[nodiscard]] virtual std::string_view  get_type_name() const noexcept = 0;
-    [[nodiscard]] virtual S<IAttributeSlot> clone() const;
-    [[nodiscard]] virtual S<IAttributeSlot> do_clone() const = 0;
-    [[nodiscard]] virtual S<IAttributeSlot> clone_empty() const;
-    [[nodiscard]] virtual S<IAttributeSlot> do_clone_empty() const = 0;
+    [[nodiscard]] virtual S<IAttributeSlot> clone(std::string_view name,
+                                                  bool allow_destroy) const;
+    [[nodiscard]] virtual S<IAttributeSlot> do_clone(std::string_view name,
+                                                     bool allow_destroy) const = 0;
+    [[nodiscard]] virtual S<IAttributeSlot> clone_empty(std::string_view name,
+                                                        bool allow_destroy) const;
+    [[nodiscard]] virtual S<IAttributeSlot> do_clone_empty(std::string_view name,
+                                                           bool allow_destroy) const = 0;
 
     [[nodiscard]] virtual IAttribute&       attribute() noexcept;
     [[nodiscard]] virtual IAttribute&       get_attribute() noexcept = 0;
@@ -124,8 +128,10 @@ class AttributeSlot final : public IAttributeSlot
 
 
     void                                    do_make_owned() override;
-    [[nodiscard]] virtual S<IAttributeSlot> do_clone() const override;
-    [[nodiscard]] virtual S<IAttributeSlot> do_clone_empty() const override;
+    [[nodiscard]] virtual S<IAttributeSlot> do_clone(std::string_view name,
+                                                     bool allow_destroy) const override;
+    [[nodiscard]] virtual S<IAttributeSlot> do_clone_empty(std::string_view name,
+                                                           bool allow_destroy) const override;
 
     [[nodiscard]] virtual Json do_to_json(SizeT i) const override;
 

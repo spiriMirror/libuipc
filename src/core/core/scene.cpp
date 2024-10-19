@@ -1,7 +1,53 @@
 #include <uipc/core/scene.h>
 #include <uipc/common/unit.h>
+#include <uipc/backend/visitors/world_visitor.h>
+#include <uipc/core/world.h>
+
 namespace uipc::core
 {
+class Scene::Impl
+{
+  public:
+    Impl(Scene& scene, const Json& config) noexcept
+        : scene(scene)
+        , animator(scene)
+    {
+        info = config;
+    }
+
+    void init(backend::WorldVisitor& world)
+    {
+        backend::SceneVisitor visitor{scene};
+
+        spdlog::info("Scene Init: Collecting Constitution UIDs ...");
+        constitution_tabular.init(visitor);
+
+        if(info["diff_sim"]["enable"].get<bool>())
+        {
+            spdlog::info("Scene Init: Initializing Differentiable Simulation Parameters ...");
+            diff_sim.init(visitor);
+        }
+
+        diff_sim.init(visitor);
+
+        started = true;
+    }
+
+    Json                info;
+    ContactTabular      contact_tabular;
+    ConstitutionTabular constitution_tabular;
+    ObjectCollection    objects;
+    Animator            animator;
+    DiffSim             diff_sim;
+
+    geometry::GeometryCollection geometries;
+    geometry::GeometryCollection rest_geometries;
+
+    bool   started = false;
+    Scene& scene;
+};
+
+
 // ----------------------------------------------------------------------------
 // Scene
 // ----------------------------------------------------------------------------
@@ -59,29 +105,27 @@ Json Scene::default_config() noexcept
 }
 
 Scene::Scene(const Json& config)
-    : m_impl(*this)
+    : m_impl(uipc::make_unique<Impl>(config))
 {
-    m_impl.info = config;
-    m_impl.dt   = config["dt"].get<Float>();
 }
 
 ContactTabular& Scene::contact_tabular() noexcept
 {
-    return m_impl.contact_tabular;
+    return m_impl->contact_tabular;
 }
 
 const ContactTabular& Scene::contact_tabular() const noexcept
 {
-    return m_impl.contact_tabular;
+    return m_impl->contact_tabular;
 }
 
 ConstitutionTabular& Scene::constitution_tabular() noexcept
 {
-    return m_impl.constitution_tabular;
+    return m_impl->constitution_tabular;
 }
 const ConstitutionTabular& Scene::constitution_tabular() const noexcept
 {
-    return m_impl.constitution_tabular;
+    return m_impl->constitution_tabular;
 }
 
 auto Scene::objects() noexcept -> Objects
@@ -106,52 +150,53 @@ auto Scene::geometries() const noexcept -> CGeometries
 
 const Json& Scene::info() const noexcept
 {
-    return m_impl.info;
+    return m_impl->info;
 }
 
 Animator& Scene::animator()
 {
-    return m_impl.animator;
+    return m_impl->animator;
 }
 
 const Animator& Scene::animator() const
 {
-    return m_impl.animator;
+    return m_impl->animator;
 }
 
 DiffSim& Scene::diff_sim()
 {
-    return m_impl.diff_sim;
+    return m_impl->diff_sim;
 }
 
 const DiffSim& Scene::diff_sim() const
 {
-    return m_impl.diff_sim;
+    return m_impl->diff_sim;
 }
 
-void Scene::solve_pending() noexcept
+void Scene::init(backend::WorldVisitor& world)
 {
-    m_impl.geometries.solve_pending();
-    m_impl.rest_geometries.solve_pending();
+    m_impl->init(world);
 }
+
+void Scene::solve_pending() noexcept {}
 
 // ----------------------------------------------------------------------------
 // Objects
 // ----------------------------------------------------------------------------
 S<Object> Scene::Objects::create(std::string_view name) &&
 {
-    auto id = m_scene.m_impl.objects.m_next_id;
-    return m_scene.m_impl.objects.emplace(Object{m_scene, id, name});
+    auto id = m_scene.m_impl->objects.m_next_id;
+    return m_scene.m_impl->objects.emplace(Object{m_scene, id, name});
 }
 
 S<Object> Scene::Objects::find(IndexT id) && noexcept
 {
-    return m_scene.m_impl.objects.find(id);
+    return m_scene.m_impl->objects.find(id);
 }
 
 void Scene::Objects::destroy(IndexT id) &&
 {
-    auto obj = m_scene.m_impl.objects.find(id);
+    auto obj = m_scene.m_impl->objects.find(id);
     if(!obj)
     {
         UIPC_WARN_WITH_LOCATION("Trying to destroy non-existing object ({}), ignored.", id);
@@ -162,33 +207,33 @@ void Scene::Objects::destroy(IndexT id) &&
 
     for(auto geo_id : geo_ids)
     {
-        if(!m_scene.m_impl.started)
+        if(!m_scene.m_impl->started)
         {
-            m_scene.m_impl.geometries.destroy(geo_id);
-            m_scene.m_impl.rest_geometries.destroy(geo_id);
+            m_scene.m_impl->geometries.destroy(geo_id);
+            m_scene.m_impl->rest_geometries.destroy(geo_id);
         }
         else
         {
-            m_scene.m_impl.geometries.pending_destroy(geo_id);
-            m_scene.m_impl.rest_geometries.pending_destroy(geo_id);
+            m_scene.m_impl->geometries.pending_destroy(geo_id);
+            m_scene.m_impl->rest_geometries.pending_destroy(geo_id);
         }
     }
-    m_scene.m_impl.objects.destroy(id);
+    m_scene.m_impl->objects.destroy(id);
 }
 
 SizeT Scene::Objects::size() const noexcept
 {
-    return m_scene.m_impl.objects.size();
+    return m_scene.m_impl->objects.size();
 }
 
 S<const Object> Scene::CObjects::find(IndexT id) && noexcept
 {
-    return m_scene.m_impl.objects.find(id);
+    return m_scene.m_impl->objects.find(id);
 }
 
 SizeT Scene::CObjects::size() const noexcept
 {
-    return m_scene.m_impl.objects.size();
+    return m_scene.m_impl->objects.size();
 }
 
 Scene::Objects::Objects(Scene& scene) noexcept
@@ -216,15 +261,11 @@ Scene::CGeometries::CGeometries(const Scene& scene) noexcept
 
 ObjectGeometrySlots<geometry::Geometry> core::Scene::Geometries::find(IndexT id) && noexcept
 {
-    return {m_scene.m_impl.geometries.find(id), m_scene.m_impl.rest_geometries.find(id)};
+    return {m_scene.m_impl->geometries.find(id), m_scene.m_impl->rest_geometries.find(id)};
 }
 
 ObjectGeometrySlots<const geometry::Geometry> Scene::CGeometries::find(IndexT id) && noexcept
 {
-    return {m_scene.m_impl.geometries.find(id), m_scene.m_impl.rest_geometries.find(id)};
-}
-Scene::Impl::Impl(Scene& s) noexcept
-    : animator(s)
-{
+    return {m_scene.m_impl->geometries.find(id), m_scene.m_impl->rest_geometries.find(id)};
 }
 }  // namespace uipc::core

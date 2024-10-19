@@ -34,8 +34,10 @@ class UIPC_CORE_API AttributeCollection
      * @param name The name of the attribute slot.
      * @return The created attribute slot.
      */
-    template <typename T, bool AllowDestroy = true>
-    S<AttributeSlot<T>> create(std::string_view name, const T& default_value = {});
+    template <typename T>
+    S<AttributeSlot<T>> create(std::string_view name,
+                               const T&         default_value = {},
+                               bool             allow_destroy = true);
 
     /**
      * @brief Share the underlying attribute of the given slot with a new name.
@@ -47,13 +49,17 @@ class UIPC_CORE_API AttributeCollection
      *
      * @throw AttributeAlreadyExist if the attribute with the given name already exists.
      */
-    S<IAttributeSlot> share(std::string_view name, const IAttributeSlot& slot);
+    S<IAttributeSlot> share(std::string_view      name,
+                            const IAttributeSlot& slot,
+                            bool                  allow_destroy = true);
 
     /**
      * @brief Template version of share.
      */
     template <typename T>
-    S<AttributeSlot<T>> share(std::string_view name, const AttributeSlot<T>& slot);
+    S<AttributeSlot<T>> share(std::string_view        name,
+                              const AttributeSlot<T>& slot,
+                              bool                    allow_destroy = true);
 
     /**
      * @brief Remove the attribute slot with the given name.

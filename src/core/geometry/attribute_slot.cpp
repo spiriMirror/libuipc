@@ -58,14 +58,14 @@ SizeT IAttributeSlot::use_count() const
     return get_use_count();
 }
 
-S<IAttributeSlot> IAttributeSlot::clone() const
+S<IAttributeSlot> IAttributeSlot::clone(std::string_view name, bool allow_destroy) const
 {
-    return do_clone();
+    return do_clone(name, allow_destroy);
 }
 
-S<IAttributeSlot> IAttributeSlot::clone_empty() const
+S<IAttributeSlot> IAttributeSlot::clone_empty(std::string_view name, bool allow_destroy) const
 {
-    return do_clone_empty();
+    return do_clone_empty(name, allow_destroy);
 }
 
 IAttribute& IAttributeSlot::attribute() noexcept
