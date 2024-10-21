@@ -3,7 +3,7 @@
 namespace uipc
 {
 using Float  = double;
-using IndexT = int;
+using IndexT = int32_t;
 using SizeT  = std::size_t;
 using I32    = int32_t;
 using I64    = int64_t;

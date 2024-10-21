@@ -14,6 +14,15 @@ const diff_sim::ParameterCollection& DiffSim::parameters() const
     return m_parameters;
 }
 
+diff_sim::SparseCOOView DiffSim::H() const
+{
+    return diff_sim::SparseCOOView({}, {}, {}, {});
+}
+
+diff_sim::SparseCOOView DiffSim::pGpP() const
+{
+    return diff_sim::SparseCOOView({}, {}, {}, {});
+}
 
 void DiffSim::init(backend::SceneVisitor& scene_visitor)
 {

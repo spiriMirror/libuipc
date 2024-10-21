@@ -1,6 +1,8 @@
 #pragma once
 #include <uipc/common/macro.h>
 #include <uipc/diff_sim/parameter_collection.h>
+#include <uipc/diff_sim/sparse_coo_view.h>
+#include <uipc/diff_sim/sparse_coo_view.h>
 namespace uipc::backend
 {
 class SceneVisitor;
@@ -23,6 +25,8 @@ class UIPC_CORE_API DiffSim
   public:
     diff_sim::ParameterCollection&       parameters();
     const diff_sim::ParameterCollection& parameters() const;
+    diff_sim::SparseCOOView              H() const;
+    diff_sim::SparseCOOView              pGpP() const;
 
   private:
     void init(backend::SceneVisitor& scene);  // only be called by World.
