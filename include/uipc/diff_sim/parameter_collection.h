@@ -20,6 +20,6 @@ class UIPC_CORE_API ParameterCollection
     ParameterCollection& operator=(const ParameterCollection&) = delete;
 
   public:
-    vector<S<ParameterBundle>> insert(Object& object);
+    S<ParameterBundle> create(std::string_view name, SizeT N, Float default_value = 0.0f);
 };
 }  // namespace uipc::diff_sim

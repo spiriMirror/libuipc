@@ -9,7 +9,8 @@
 namespace uipc::backend
 {
 class SceneVisitor;
-}
+class WorldVisitor;
+}  // namespace uipc::backend
 
 namespace uipc::core
 {
@@ -18,6 +19,8 @@ class UIPC_CORE_API Scene
     friend class backend::SceneVisitor;
     friend class World;
     friend class Object;
+    friend class SanityChecker;
+    friend class Animation;
 
   public:
     Scene(const Json& config = default_config());
@@ -97,30 +100,10 @@ class UIPC_CORE_API Scene
     const DiffSim& diff_sim() const;
 
   private:
-    friend class SanityChecker;
-    friend class Animation;
+    class Impl;
+    U<Impl> m_impl;
 
-    class Impl
-    {
-      public:
-        Impl(Scene& s) noexcept;
-        Float               dt = 0.0;
-        Json                info;
-        ContactTabular      contact_tabular;
-        ConstitutionTabular constitution_tabular;
-        ObjectCollection    objects;
-        Animator            animator;
-        DiffSim             diff_sim;
-
-        geometry::GeometryCollection geometries;
-        geometry::GeometryCollection rest_geometries;
-
-        bool   started = false;
-        World* world   = nullptr;
-    };
-
-    Impl m_impl;
-
+    void init(backend::WorldVisitor& world);  // only be called by World.
     void solve_pending() noexcept;
 };
 }  // namespace uipc::core

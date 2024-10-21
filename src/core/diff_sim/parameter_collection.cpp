@@ -3,8 +3,7 @@
 
 namespace uipc::diff_sim
 {
-vector<S<ParameterBundle>> ParameterCollection::insert(Object& object)
+S<ParameterBundle> ParameterCollection::create(std::string_view name, SizeT N, Float default_value)
 {
-    return vector<S<ParameterBundle>>();
 }
 }  // namespace uipc::diff_sim

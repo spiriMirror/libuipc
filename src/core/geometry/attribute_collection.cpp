@@ -6,7 +6,9 @@
 #include <iostream>
 namespace uipc::geometry
 {
-S<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttributeSlot& slot)
+S<IAttributeSlot> AttributeCollection::share(std::string_view      name,
+                                             const IAttributeSlot& slot,
+                                             bool allow_destroy)
 {
     auto n  = string{name};
     auto it = m_attributes.find(n);
@@ -21,8 +23,7 @@ S<IAttributeSlot> AttributeCollection::share(std::string_view name, const IAttri
     if(it != m_attributes.end())
         throw GeometryAttributeError{
             fmt::format("Attribute with name [{}] already exist!", name)};
-
-    return m_attributes[n] = slot.clone();
+    return m_attributes[n] = slot.clone(name, allow_destroy);
 }
 
 void AttributeCollection::destroy(std::string_view name)
@@ -117,7 +118,8 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
                         this->size(),
                         other.size());
 
-            m_attributes[name] = other_slot->clone();
+            m_attributes[name] =
+                other_slot->clone(other_slot->name(), other_slot->allow_destroy());
 
             continue;
         }
@@ -125,7 +127,8 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
         // if the name is not found in the current collection, create a new slot
         if(auto this_it = m_attributes.find(name); this_it == m_attributes.end())
         {
-            auto c             = other_slot->do_clone_empty();
+            auto c             = other_slot->do_clone_empty(other_slot->name(),
+                                                other_slot->allow_destroy());
             m_attributes[name] = c;
             UIPC_ASSERT(c->is_shared() == false, "The attribute is shared, why can it happen?");
             c->attribute().resize(size());
@@ -194,7 +197,7 @@ AttributeCollection::AttributeCollection(const AttributeCollection& o)
 {
     for(auto& [name, attr] : o.m_attributes)
     {
-        m_attributes[name] = attr->clone();
+        m_attributes[name] = attr->clone(attr->name(), attr->allow_destroy());
     }
     m_size = o.m_size;
 }
@@ -205,7 +208,7 @@ AttributeCollection& AttributeCollection::operator=(const AttributeCollection& o
         return *this;
     for(auto& [name, attr] : o.m_attributes)
     {
-        m_attributes[name] = attr->clone();
+        m_attributes[name] = attr->clone(attr->name(), attr->allow_destroy());
     }
     m_size = o.m_size;
     return *this;
@@ -231,8 +234,10 @@ AttributeCollection& AttributeCollection::operator=(AttributeCollection&& o) noe
 // NOTE:
 // To make the allocation of the attribute always in the uipc_core.dll/.so's memory space,
 // we need to explicitly instantiate the template function in the .cpp file.
-template <typename T, bool AllowDestroy>
-S<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& default_value)
+template <typename T>
+S<AttributeSlot<T>> AttributeCollection::create(std::string_view name,
+                                                const T&         default_value,
+                                                bool             allow_destroy)
 {
     auto n  = string{name};
     auto it = m_attributes.find(n);
@@ -243,16 +248,14 @@ S<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& 
     }
     auto A = uipc::make_shared<Attribute<T>>(default_value);
     A->resize(m_size);
-    auto S = uipc::make_shared<AttributeSlot<T>>(name, A, AllowDestroy);
+    auto S = uipc::make_shared<AttributeSlot<T>>(name, A, allow_destroy);
     m_attributes[n] = S;
     return S;
 }
 
-#define UIPC_ATTRIBUTE_EXPORT_DEF(T)                                                  \
-    template UIPC_CORE_API S<AttributeSlot<T>> AttributeCollection::create<T, true>(  \
-        std::string_view, const T&);                                                  \
-    template UIPC_CORE_API S<AttributeSlot<T>> AttributeCollection::create<T, false>( \
-        std::string_view, const T&)
+#define UIPC_ATTRIBUTE_EXPORT_DEF(T)                                           \
+    template UIPC_CORE_API S<AttributeSlot<T>> AttributeCollection::create<T>( \
+        std::string_view, const T&, bool);
 
 #include <uipc/geometry/details/attribute_export_types.inl>
 

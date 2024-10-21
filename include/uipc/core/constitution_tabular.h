@@ -4,6 +4,10 @@
 #include <uipc/common/span.h>
 #include <uipc/common/set.h>
 
+namespace uipc::backend
+{
+class SceneVisitor;
+}
 namespace uipc::core
 {
 class UIPC_CORE_API ConstitutionTabular
@@ -22,7 +26,7 @@ class UIPC_CORE_API ConstitutionTabular
   private:
     class Impl;
     U<Impl> m_impl;
-    friend class World;
-    void insert(U64 uid);
+    friend class Scene;
+    void init(backend::SceneVisitor& scene);  // only be called by Scene.
 };
 }  // namespace uipc::core
