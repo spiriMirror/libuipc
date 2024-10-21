@@ -5,11 +5,11 @@ A Modern C++20 Library of Unified Incremental Potential Contact.
 
 The following dependencies are required to build the project.
 
-| Name                                          | Version      | Usage           | Import         |
-| --------------------------------------------- | ------------ | --------------- | -------------- |
-| [CMake](https://cmake.org/download/)          | >=3.27       | build system    | system install |
-| [Python](https://www.python.org/downloads/)   | >=3.10       | build system    | system install |
-| [Vcpkg](https://github.com/microsoft/vcpkg)   | >=2024.04.26 | package manager | git clone      |
+| Name                                        | Version      | Usage           | Import         |
+| ------------------------------------------- | ------------ | --------------- | -------------- |
+| [CMake](https://cmake.org/download/)        | >=3.27       | build system    | system install |
+| [Python](https://www.python.org/downloads/) | >=3.10       | build system    | system install |
+| [Vcpkg](https://github.com/microsoft/vcpkg) | >=2024.04.26 | package manager | git clone      |
 
 The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of them will be automatically installed by Vcpkg.
 
@@ -17,23 +17,24 @@ The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of the
 | -------------------------------------- | ------- | --------------------------------------------------- | -------------- |
 | [muda](https://github.com/MuGdxy/muda) | -       | improve safety and readability of CUDA programming. | submodule      |
 | cuda                                   | >=12.0  | GPU programming                                     | system install |
-| eigen3                                 | 3.4.0   | matrix calculation                                  | package        |
-| catch2                                 | 3.5.3   | unit tests                                          | package        |
-| libigl                                 | 2.5.0   | mesh processing                                     | package        |
-| rapidcsv                               | 8.80    | csv file IO                                         | package        |
-| spdlog                                 | 1.12.0  | logging                                             | package        |
-| fmt                                    | 10.1.1  | fast string formatting                              | package        |
-| cppitertools                           | 2.1#3   | python-like iteration tools                         | package        |
-| bgfx                                   | 1.127#1 | cross-platform RHI                                  | package        |
-| dylib                                  | 2.2.1   | cross-platform dynamic library loader               | package        |
-| benchmark                              | 1.8.3#3 | microbenchmark support library                      | package        |
-| nlohmann_json                          | 3.11.2  | json file IO                                        | package        |
-| imgui                                  | 1.90.7  | GUI                                                 | package        |
-| glfw3                                  | 3.3.8#2 | window management                                   | package        |
-| magic_enum                             | 0.9.3   | enum to string                                      | package        |
+| eigen3                                 | 3.4.0   | matrix calculation                                  | vcpkg          |
+| catch2                                 | 3.5.3   | unit tests                                          | vcpkg          |
+| libigl                                 | 2.5.0   | mesh processing                                     | vcpkg          |
+| rapidcsv                               | 8.80    | csv file IO                                         | vcpkg          |
+| spdlog                                 | 1.12.0  | logging                                             | vcpkg          |
+| fmt                                    | 10.1.1  | fast string formatting                              | vcpkg          |
+| cppitertools                           | 2.1#3   | python-like iteration tools                         | vcpkg          |
+| bgfx                                   | 1.127#1 | cross-platform RHI                                  | vcpkg          |
+| dylib                                  | 2.2.1   | cross-platform dynamic library loader               | vcpkg          |
+| benchmark                              | 1.8.3#3 | microbenchmark support library                      | vcpkg          |
+| nlohmann_json                          | 3.11.2  | json file IO                                        | vcpkg          |
+| imgui                                  | 1.90.7  | GUI                                                 | vcpkg          |
+| glfw3                                  | 3.3.8#2 | window management                                   | vcpkg          |
+| magic_enum                             | 0.9.3   | enum to string                                      | vcpkg          |
 
 ## Build
-We use Vcpkg to manage the libraries and use CMake to build the project. 
+
+We use Vcpkg and PyPI to manage the libraries and use CMake to build the project. 
 
 The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
@@ -97,6 +98,10 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 
 Pyuipc is a Python binding of libuipc. It is built with the `pybind11` library.
 
+```shell
+pip install pybind11
+```
+
 Add `-DUIPC_BUILD_PYBIND=1` to the CMake command to build the Python binding.
 
 NOTE: 
@@ -116,6 +121,16 @@ NOTE:
     pip install numpy
     ```
     The stub files will be generated in the `libuipc/python/typings` folder automatically after building `pyuipc`.
+
+If you need pytorch support, you need to install the pytorch package first.
+
+```shell
+pip install torch
+```
+
+Then set `-DUIPC_BUILD_TORCH_EXTENSION=1` to the CMake command to enable the pytorch extension.
+
+```shell
 
 #### Install Pyuipc
 
