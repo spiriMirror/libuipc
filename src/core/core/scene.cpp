@@ -112,6 +112,11 @@ Json Scene::default_config() noexcept
         // now just empty
     }
 
+    auto& diff_sim = config["diff_sim"] = Json::object();
+    {
+        diff_sim["enable"] = false;
+    }
+
     // something that is unofficial
     auto& extras = config["extras"] = Json::object();
     {

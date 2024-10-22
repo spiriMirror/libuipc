@@ -108,15 +108,17 @@ TEST_CASE("34_static_diff_sim", "[diff_sim]")
         Eigen::MatrixXd H_mat;     // == H.to_dense()
 
         // solve the linear system to get dXdP
-        Eigen::MatrixXd dXdP = H_mat.colPivHouseholderQr().solve(pGpP_mat);
+        // Eigen::MatrixXd dXdP = H_mat.colPivHouseholderQr().solve(pGpP_mat);
 
         // ... gradient descent ...
 
+        auto diff_parm_view = view(diff_sim.parameters());
+
         Eigen::VectorXd dP;
+        dP.resize(diff_parm_view.size());
         dP.setZero();
 
         // update the parameters
-        auto diff_parm_view = view(diff_sim.parameters());
         std::transform(diff_parm_view.begin(),
                        diff_parm_view.end(),
                        dP.begin(),
