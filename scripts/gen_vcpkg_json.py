@@ -51,10 +51,6 @@ base_vcpkg_json = {
         {
             "name":"tinygltf",
             "version>=":"2.8.22"
-        },
-        {
-            "name":"python3",
-            "version>=":"3.11.8#1"
         }
     ]
 }
