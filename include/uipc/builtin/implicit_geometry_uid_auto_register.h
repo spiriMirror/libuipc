@@ -30,3 +30,5 @@ class UIPC_CORE_API ImplicitGeometryUIDAutoRegister
  */
 #define REGISTER_IMPLICIT_GEOMETRY_UIDS(...)                                   \
     REGISTER_IMPLICIT_GEOMETRY_UIDS_INTERNAL(__COUNTER__)
+
+//

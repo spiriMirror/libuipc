@@ -1,4 +1,3 @@
-#include "atomic_counting_lbvh.h"
 namespace uipc::backend::cuda
 {
 template <typename Pred>

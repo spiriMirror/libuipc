@@ -49,6 +49,11 @@ target_link_libraries(uipc_core PUBLIC
     Boost::boost
 )
 
+# if GCC, like dlopen
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_link_libraries(uipc_core PRIVATE dl)
+endif()
+
 # ------------------------------------------------------------------------------
 # add the files in the subdirectories to the target uipc
 # so ensure that the uipc target is created before adding the subdirectories
