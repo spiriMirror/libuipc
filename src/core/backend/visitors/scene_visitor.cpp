@@ -10,7 +10,7 @@ SceneVisitor::SceneVisitor(core::Scene& scene) noexcept
 
 void SceneVisitor::begin_pending() noexcept
 {
-    m_scene.m_impl.started = true;
+    m_scene.begin_pending();
 }
 
 void SceneVisitor::solve_pending() noexcept
@@ -20,37 +20,37 @@ void SceneVisitor::solve_pending() noexcept
 
 span<S<geometry::GeometrySlot>> SceneVisitor::geometries() const noexcept
 {
-    return m_scene.m_impl.geometries.geometry_slots();
+    return m_scene.geometry_collection().geometry_slots();
 }
 
 span<S<geometry::GeometrySlot>> SceneVisitor::pending_geometries() const noexcept
 {
-    return m_scene.m_impl.geometries.pending_create_slots();
+    return m_scene.geometry_collection().pending_create_slots();
 }
 
 S<geometry::GeometrySlot> SceneVisitor::find_geometry(IndexT id) noexcept
 {
-    return m_scene.m_impl.geometries.find(id);
+    return m_scene.geometry_collection().find(id);
 }
 
 S<geometry::GeometrySlot> SceneVisitor::find_rest_geometry(IndexT id) noexcept
 {
-    return m_scene.m_impl.rest_geometries.find(id);
+    return m_scene.rest_geometry_collection().find(id);
 }
 
 span<S<geometry::GeometrySlot>> SceneVisitor::rest_geometries() const noexcept
 {
-    return m_scene.m_impl.rest_geometries.geometry_slots();
+    return m_scene.rest_geometry_collection().geometry_slots();
 }
 
 span<S<geometry::GeometrySlot>> SceneVisitor::pending_rest_geometries() const noexcept
 {
-    return m_scene.m_impl.rest_geometries.pending_create_slots();
+    return m_scene.rest_geometry_collection().pending_create_slots();
 }
 
 span<IndexT> SceneVisitor::pending_destroy_ids() const noexcept
 {
-    return m_scene.m_impl.geometries.pending_destroy_ids();
+    return m_scene.geometry_collection().pending_destroy_ids();
 }
 const Json& SceneVisitor::info() const noexcept
 {

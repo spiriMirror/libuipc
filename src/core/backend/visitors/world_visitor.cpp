@@ -17,4 +17,9 @@ AnimatorVisitor WorldVisitor::animator() noexcept
 {
     return AnimatorVisitor{m_world.m_scene->animator()};
 }
+
+core::World& WorldVisitor::world() noexcept
+{
+    return m_world;
+}
 }  // namespace uipc::backend

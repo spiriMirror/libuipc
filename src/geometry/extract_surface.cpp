@@ -93,7 +93,7 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
 
         // resize the destination edges
         R.edges().resize(surf_e_count);
-        auto topo          = R.edges().create<Vector2i, false>(builtin::topo);
+        auto topo = R.edges().create<Vector2i>(builtin::topo, Vector2i::Zero(), false);
         auto new_edge_view = view(*topo);
 
         // copy_from the edges
@@ -144,7 +144,7 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
 
         // resize the destination triangles
         R.triangles().resize(surf_t_count);
-        auto topo = R.triangles().create<Vector3i, false>(builtin::topo);
+        auto topo = R.triangles().create<Vector3i>(builtin::topo, Vector3i::Zero(), false);
         auto new_tri_view = view(*topo);
 
         // copy_from the triangles

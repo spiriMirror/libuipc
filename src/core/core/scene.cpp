@@ -17,7 +17,11 @@ class Scene::Impl
 
     void init(backend::WorldVisitor& world)
     {
+        this->world = &world.world();
+
         backend::SceneVisitor visitor{scene};
+
+        dt = info["dt"].get<Float>();
 
         spdlog::info("Scene Init: Collecting Constitution UIDs ...");
         constitution_tabular.init(visitor);
@@ -33,6 +37,17 @@ class Scene::Impl
         started = true;
     }
 
+    void begin_pending() noexcept
+    {
+        // Do nothing
+    }
+
+    void solve_pending() noexcept
+    {
+        geometries.solve_pending();
+        rest_geometries.solve_pending();
+    }
+
     Json                info;
     ContactTabular      contact_tabular;
     ConstitutionTabular constitution_tabular;
@@ -45,6 +60,8 @@ class Scene::Impl
 
     bool   started = false;
     Scene& scene;
+    World* world = nullptr;
+    Float  dt    = 0.0;
 };
 
 
@@ -105,9 +122,11 @@ Json Scene::default_config() noexcept
 }
 
 Scene::Scene(const Json& config)
-    : m_impl(uipc::make_unique<Impl>(config))
+    : m_impl(uipc::make_unique<Impl>(*this, config))
 {
 }
+
+Scene::~Scene() {}
 
 ContactTabular& Scene::contact_tabular() noexcept
 {
@@ -178,7 +197,40 @@ void Scene::init(backend::WorldVisitor& world)
     m_impl->init(world);
 }
 
-void Scene::solve_pending() noexcept {}
+void Scene::begin_pending() noexcept
+{
+    m_impl->begin_pending();
+}
+
+void Scene::solve_pending() noexcept
+{
+    m_impl->solve_pending();
+}
+
+geometry::GeometryCollection& Scene::geometry_collection() noexcept
+{
+    return m_impl->geometries;
+}
+
+geometry::GeometryCollection& Scene::rest_geometry_collection() noexcept
+{
+    return m_impl->rest_geometries;
+}
+
+World& Scene::world() noexcept
+{
+    return *m_impl->world;
+}
+
+Float Scene::dt() const noexcept
+{
+    return m_impl->dt;
+}
+
+bool Scene::is_started() const noexcept
+{
+    return m_impl->started;
+}
 
 // ----------------------------------------------------------------------------
 // Objects

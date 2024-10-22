@@ -41,7 +41,7 @@ TEST_CASE("23_kirchhoff_rod_bending", "[fem]")
         auto& default_contact = scene.contact_tabular().default_element();
 
         // create object
-        auto object = scene.objects().create("shell");
+        auto object = scene.objects().create("rods");
 
         constexpr int   n = 8;
         vector<Vector3> Vs(n);

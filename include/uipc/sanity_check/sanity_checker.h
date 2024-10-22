@@ -3,22 +3,25 @@
 #include <uipc/sanity_check/sanity_checker_auto_register.h>
 #include <uipc/core/scene.h>
 
+namespace uipc::backend
+{
+class SceneVisitor;
+}
+
 namespace uipc::core
 {
 class UIPC_CORE_API SanityChecker : public ISanityChecker
 {
   public:
-    explicit SanityChecker(const Scene& s) noexcept;
+    explicit SanityChecker(Scene& s) noexcept;
 
     virtual U64               get_id() const noexcept = 0;
     virtual SanityCheckResult do_check() noexcept;
 
   protected:
-    using SceneImpl = Scene::Impl;
+    virtual SanityCheckResult do_check(backend::SceneVisitor& scene) noexcept = 0;
 
-    virtual SanityCheckResult do_check(const SceneImpl& scene) noexcept = 0;
-
-    const Scene& m_scene;
+    Scene& m_scene;
 };
 }  // namespace uipc::core
 

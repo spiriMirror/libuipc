@@ -12,7 +12,7 @@ class UIPC_CORE_API SanityCheckerAutoRegister
     friend class SanityCheckerCollection;
 
   public:
-    using Creator = std::function<U<ISanityChecker>(const Scene&)>;
+    using Creator = std::function<U<ISanityChecker>(Scene&)>;
 
     SanityCheckerAutoRegister(Creator&& reg);
 
@@ -29,9 +29,9 @@ class UIPC_CORE_API SanityCheckerAutoRegister
 namespace detail
 {
     template <std::derived_from<ISanityChecker> SanityCheckerT>
-    std::function<U<ISanityChecker>(const Scene&)> register_sanity_checker_creator()
+    SanityCheckerAutoRegister::Creator register_sanity_checker_creator()
     {
-        return [](const Scene& scene) -> U<ISanityChecker>
+        return [](Scene& scene) -> U<ISanityChecker>
         {
             return ::uipc::static_pointer_cast<ISanityChecker>(
                 ::uipc::make_unique<SanityCheckerT>(scene));

@@ -4,8 +4,10 @@ namespace uipc::geometry
 // NOTE:
 // To make the allocation of the attribute always in the uipc_core.dll/.so's memory space,
 // we need to explicitly instantiate the template function in the .cpp file.
-template <typename T, bool AllowDestroy>
-S<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& default_value)
+template <typename T>
+S<AttributeSlot<T>> AttributeCollection::create(std::string_view name,
+                                                const T&         default_value,
+                                                bool             allow_destory)
 {
     auto n  = string{name};
     auto it = m_attributes.find(n);
@@ -16,16 +18,14 @@ S<AttributeSlot<T>> AttributeCollection::create(std::string_view name, const T& 
     }
     auto A = uipc::make_shared<Attribute<T>>(default_value);
     A->resize(m_size);
-    auto S = uipc::make_shared<AttributeSlot<T>>(name, A, AllowDestroy);
+    auto S = uipc::make_shared<AttributeSlot<T>>(name, A, allow_destory);
     m_attributes[n] = S;
     return S;
 }
 
-#define UIPC_ATTRIBUTE_EXPORT_DEF(T)                                                  \
-    template UIPC_CORE_API S<AttributeSlot<T>> AttributeCollection::create<T, true>(  \
-        std::string_view, const T&);                                                  \
-    template UIPC_CORE_API S<AttributeSlot<T>> AttributeCollection::create<T, false>( \
-        std::string_view, const T&)
+#define UIPC_ATTRIBUTE_EXPORT_DEF(T)                                           \
+    template UIPC_CORE_API S<AttributeSlot<T>> AttributeCollection::create<T>( \
+        std::string_view, const T&, bool);
 
 #include <uipc/geometry/details/attribute_export_types.inl>
 

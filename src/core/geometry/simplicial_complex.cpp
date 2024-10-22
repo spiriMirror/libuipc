@@ -11,8 +11,11 @@ SimplicialComplex::SimplicialComplex()
     // Don't create positions attribute here: some algorithms just **share** the positions attribute.
 
     // Create a default transform attribute.
-    Matrix4x4 I = Transform::Identity().matrix();
-    auto trans  = m_intances.create<Matrix4x4, false>(builtin::transform, I);
+    Matrix4x4 I     = Transform::Identity().matrix();
+    auto      trans = m_intances.create<Matrix4x4>(builtin::transform,
+                                              I,     // default identity
+                                              false  // don't allow destroy
+    );
 }
 
 AttributeSlot<Matrix4x4>& SimplicialComplex::transforms()

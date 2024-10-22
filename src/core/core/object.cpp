@@ -33,17 +33,17 @@ IndexT Object::get_id() const noexcept
 
 geometry::GeometryCollection& Object::geometry_collection() noexcept
 {
-    return m_scene.m_impl.geometries;
+    return m_scene.geometry_collection();
 }
 
 geometry::GeometryCollection& Object::rest_geometry_collection() noexcept
 {
-    return m_scene.m_impl.rest_geometries;
+    return m_scene.rest_geometry_collection();
 }
 
 bool Object::scene_started() const noexcept
 {
-    return m_scene.m_impl.started;
+    return m_scene.is_started();
 }
 
 span<const IndexT> Object::Geometries::ids() && noexcept

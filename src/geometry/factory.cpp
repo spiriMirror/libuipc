@@ -8,8 +8,7 @@ namespace detail
     static void create_vertices(SimplicialComplex& sc, span<const Vector3> Vs)
     {
         sc.vertices().resize(Vs.size());
-        auto pos =
-            sc.vertices().create<Vector3, false>(builtin::position, Vector3::Zero());
+        auto pos = sc.vertices().create<Vector3>(builtin::position, Vector3::Zero(), false);
         auto pos_view = view(*pos);
         std::ranges::copy(Vs, pos_view.begin());
     }
@@ -21,7 +20,7 @@ SimplicialComplex tetmesh(span<const Vector3> Vs, span<const Vector4i> Ts)
 
     // Create tetrahedra
     sc.tetrahedra().resize(Ts.size());
-    auto topo = sc.tetrahedra().create<Vector4i, false>(builtin::topo, Vector4i::Zero());
+    auto topo = sc.tetrahedra().create<Vector4i>(builtin::topo, Vector4i::Zero(), false);
     auto topo_view = view(*topo);
     std::ranges::copy(Ts, topo_view.begin());
 
@@ -36,7 +35,7 @@ SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
 
     // Create triangles
     sc.triangles().resize(Fs.size());
-    auto topo = sc.triangles().create<Vector3i, false>(builtin::topo, Vector3i::Zero());
+    auto topo = sc.triangles().create<Vector3i>(builtin::topo, Vector3i::Zero(), false);
     auto topo_view = view(*topo);
     std::ranges::copy(Fs, topo_view.begin());
 
@@ -52,7 +51,7 @@ SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
 
     // Create edges
     sc.edges().resize(Es.size());
-    auto topo = sc.edges().create<Vector2i, false>(builtin::topo, Vector2i::Zero());
+    auto topo = sc.edges().create<Vector2i>(builtin::topo, Vector2i::Zero(), false);
     auto topo_view = view(*topo);
     std::ranges::copy(Es, topo_view.begin());
 

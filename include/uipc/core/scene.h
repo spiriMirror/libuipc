@@ -24,6 +24,7 @@ class UIPC_CORE_API Scene
 
   public:
     Scene(const Json& config = default_config());
+    ~Scene();
 
     static Json default_config() noexcept;
 
@@ -104,6 +105,15 @@ class UIPC_CORE_API Scene
     U<Impl> m_impl;
 
     void init(backend::WorldVisitor& world);  // only be called by World.
+
+    void begin_pending() noexcept;
     void solve_pending() noexcept;
+
+    geometry::GeometryCollection& geometry_collection() noexcept;
+    geometry::GeometryCollection& rest_geometry_collection() noexcept;
+
+    World& world() noexcept;
+    Float  dt() const noexcept;
+    bool   is_started() const noexcept;
 };
 }  // namespace uipc::core

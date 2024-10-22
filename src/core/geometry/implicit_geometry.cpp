@@ -8,7 +8,10 @@ namespace uipc::geometry
 ImplicitGeometry::ImplicitGeometry()
 {
     // Set the implicit geometry UID to 0 (Empty).
-    m_meta.create<U64, false>(builtin::implicit_geometry_uid, 0ull);
+    m_meta.create<U64>(builtin::implicit_geometry_uid,
+                       0ull,  // default empty = 0
+                       false  // don't allow destroy
+    );
 }
 
 const builtin::UIDInfo& ImplicitGeometry::uid_info() const noexcept

@@ -32,11 +32,11 @@ void DiffSim::init(backend::SceneVisitor& scene_visitor)
     vector<std::string>                    collection_names;
     vector<geometry::AttributeCollection*> collections;
 
+    // 1) Collect all [ diff_parm/xxx , xxx ] Attibute Collection Pairs
     for(auto&& [geo_slot, rest_geo_slot] : zip(geos, rest_geos))
     {
         std::array<geometry::Geometry*, 2> local_geos = {&geo_slot->geometry(),
                                                          &rest_geo_slot->geometry()};
-
 
         for(geometry::Geometry* geo : local_geos)
         {
@@ -65,11 +65,17 @@ void DiffSim::init(backend::SceneVisitor& scene_visitor)
                     auto diff_parm = collection->find(diff_parm_name);
                     auto parm      = collection->find(parm_name);
 
-
-                    // TODO: connect the attribute collection to the parameters
+                    // connect diff_parm to parm
+                    m_parameters.connect(diff_parm, parm);
                 }
             }
         }
     }
+
+    // 2) Build the connections
+    m_parameters.build();
+
+    // 3) Broadcast the parameters
+    m_parameters.broadcast();
 }
 }  // namespace uipc::core
