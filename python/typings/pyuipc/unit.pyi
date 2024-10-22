@@ -1,0 +1,9 @@
+GPa: float
+MPa: float
+N: float
+Pa: float
+kPa: float
+km: float
+m: float
+mm: float
+s: float
