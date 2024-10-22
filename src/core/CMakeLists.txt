@@ -49,8 +49,8 @@ target_link_libraries(uipc_core PUBLIC
     Boost::boost
 )
 
-# if GCC, like dlopen
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # GCC requires explicit linking to the dl library for dlopen, dlsym, etc.
     target_link_libraries(uipc_core PRIVATE dl)
 endif()
 
