@@ -69,7 +69,7 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
         SizeT num_edges = edge_offsets.back();
 
         R.edges().resize(num_edges);
-        auto topo = R.edges().create<Vector2i, false>(builtin::topo, Vector2i::Zero());
+        auto topo = R.edges().create<Vector2i>(builtin::topo, Vector2i::Zero(), false);
         auto Es = view(*topo);
 
 
@@ -126,8 +126,7 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
         SizeT num_triangles = triangle_offsets.back();
 
         R.triangles().resize(num_triangles);
-        auto topo =
-            R.triangles().create<Vector3i, false>(builtin::topo, Vector3i::Zero());
+        auto topo = R.triangles().create<Vector3i>(builtin::topo, Vector3i::Zero(), false);
 
         auto Fs = view(*topo);
 
@@ -183,8 +182,7 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
         SizeT num_tetrahedra = tetrahedron_offsets.back();
 
         R.tetrahedra().resize(num_tetrahedra);
-        auto topo =
-            R.tetrahedra().create<Vector4i, false>(builtin::topo, Vector4i::Zero());
+        auto topo = R.tetrahedra().create<Vector4i>(builtin::topo, Vector4i::Zero(), false);
         auto Ts = view(*topo);
 
         // setup tetrahedron topology

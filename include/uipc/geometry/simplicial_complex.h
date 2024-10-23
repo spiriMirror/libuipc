@@ -23,6 +23,9 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
     template <typename T>
     friend class AttributeFriend;
 
+    template <typename T>
+    friend class GeometryFriend;
+
   public:
     /**
      * @brief Alias for the vertex attributes
@@ -135,6 +138,8 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
   protected:
     virtual std::string_view   get_type() const noexcept override;
     [[nodiscard]] virtual Json do_to_json() const override;
+    void do_collect_attribute_collections(vector<std::string>& names,
+                                          vector<AttributeCollection*>& collections) override;
 
   private:
     AttributeCollection m_vertex_attributes;

@@ -49,6 +49,11 @@ target_link_libraries(uipc_core PUBLIC
     Boost::boost
 )
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    # GCC requires explicit linking to the dl library for dlopen, dlsym, etc.
+    target_link_libraries(uipc_core PRIVATE dl)
+endif()
+
 # ------------------------------------------------------------------------------
 # add the files in the subdirectories to the target uipc
 # so ensure that the uipc target is created before adding the subdirectories
@@ -60,6 +65,7 @@ add_subdirectory(constitution)
 add_subdirectory(builtin)
 add_subdirectory(core)
 add_subdirectory(sanity_check)
+add_subdirectory(diff_sim)
 
 # ------------------------------------------------------------------------------
 # set the output directory

@@ -17,23 +17,23 @@ endfunction()
 # -----------------------------------------------------------------------------------------
 # Print message info with uipc prefix
 # -----------------------------------------------------------------------------------------
-function(uipc_info content)
+macro(uipc_info content)
     message(STATUS "[libuipc] ${content}")
-endfunction()
+endmacro()
 
 # -----------------------------------------------------------------------------------------
 # Print message warning with uipc prefix
 # -----------------------------------------------------------------------------------------
-function(uipc_warning content)
+macro(uipc_warning content)
     message(WARNING "[libuipc] ${content}")
-endfunction()
+endmacro()
 
 # -----------------------------------------------------------------------------------------
 # Print message error with uipc prefix
 # -----------------------------------------------------------------------------------------
-function(uipc_error content)
+macro(uipc_error content)
     message(FATAL_ERROR "[libuipc] ${content}")
-endfunction()
+endmacro()
 
 # -----------------------------------------------------------------------------------------
 # Print the options of the project

@@ -4,23 +4,27 @@
 #include <uipc/core/object.h>
 #include <uipc/core/object_collection.h>
 #include <uipc/core/animator.h>
+#include <uipc/core/diff_sim.h>
 
 namespace uipc::backend
 {
 class SceneVisitor;
-}
+class WorldVisitor;
+}  // namespace uipc::backend
 
 namespace uipc::core
 {
-
 class UIPC_CORE_API Scene
 {
     friend class backend::SceneVisitor;
     friend class World;
     friend class Object;
+    friend class SanityChecker;
+    friend class Animation;
 
   public:
     Scene(const Json& config = default_config());
+    ~Scene();
 
     static Json default_config() noexcept;
 
@@ -93,29 +97,23 @@ class UIPC_CORE_API Scene
     Animator&       animator();
     const Animator& animator() const;
 
+    DiffSim&       diff_sim();
+    const DiffSim& diff_sim() const;
+
   private:
-    friend class SanityChecker;
-    friend class Animation;
-    class Impl
-    {
-      public:
-        Impl(Scene& s) noexcept;
-        Float               dt = 0.0;
-        Json                info;
-        ContactTabular      contact_tabular;
-        ConstitutionTabular constitution_tabular;
-        ObjectCollection    objects;
-        Animator            animator;
+    class Impl;
+    U<Impl> m_impl;
 
-        geometry::GeometryCollection geometries;
-        geometry::GeometryCollection rest_geometries;
+    void init(backend::WorldVisitor& world);  // only be called by World.
 
-        bool   started = false;
-        World* world   = nullptr;
-    };
-
-    Impl m_impl;
-
+    void begin_pending() noexcept;
     void solve_pending() noexcept;
+
+    geometry::GeometryCollection& geometry_collection() noexcept;
+    geometry::GeometryCollection& rest_geometry_collection() noexcept;
+
+    World& world() noexcept;
+    Float  dt() const noexcept;
+    bool   is_started() const noexcept;
 };
 }  // namespace uipc::core

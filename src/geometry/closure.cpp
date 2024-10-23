@@ -43,7 +43,7 @@ static void facet_closure_dim_2(SimplicialComplex& R)
 
     // now we have the unique edges
     R.edges().resize(sep_edges.size());
-    auto topo = R.edges().create<Vector2i, false>(builtin::topo, Vector2i::Zero());
+    auto topo = R.edges().create<Vector2i>(builtin::topo, Vector2i::Zero(), false);
 
     // copy_from the edges to the new complex
     auto edge_view = view(*topo);
@@ -88,7 +88,7 @@ static void facet_closure_dim_3(SimplicialComplex& R)
 
     // now we have the unique faces
     R.triangles().resize(sep_faces.size());
-    auto topo = R.triangles().create<Vector3i, false>(builtin::topo, Vector3i::Zero());
+    auto topo = R.triangles().create<Vector3i>(builtin::topo, Vector3i::Zero(), false);
 
     // copy_from the faces to the new complex
     auto face_view = view(*topo);

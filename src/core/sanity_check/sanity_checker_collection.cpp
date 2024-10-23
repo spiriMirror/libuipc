@@ -3,7 +3,7 @@
 
 namespace uipc::core
 {
-void SanityCheckerCollection::init(const Scene& s)
+void SanityCheckerCollection::init(Scene& s)
 {
     for(const auto& creator : SanityCheckerAutoRegister::creators().entries)
     {

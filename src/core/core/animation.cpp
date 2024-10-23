@@ -37,7 +37,7 @@ void Animation::update()
 
 Float Animation::UpdateInfo::dt() const noexcept
 {
-    return m_animation->m_scene->m_impl.dt;
+    return m_animation->m_scene->dt();
 }
 
 Object& Animation::UpdateInfo::object() const noexcept
@@ -57,7 +57,7 @@ span<S<geometry::GeometrySlot>> Animation::UpdateInfo::rest_geo_slots() const no
 
 SizeT Animation::UpdateInfo::frame() const noexcept
 {
-    return m_animation->m_scene->m_impl.world->frame();
+    return m_animation->m_scene->world().frame();
 }
 
 auto Animation::UpdateInfo::hint() noexcept -> UpdateHint&

@@ -10,7 +10,7 @@ class SanityCheckerCollection
 {
   public:
     SanityCheckerCollection() noexcept = default;
-    void              init(const Scene& s);
+    void              init(Scene& s);
     SanityCheckResult check() const;
 
   private:

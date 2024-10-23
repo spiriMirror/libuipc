@@ -11,8 +11,11 @@ SimplicialComplex::SimplicialComplex()
     // Don't create positions attribute here: some algorithms just **share** the positions attribute.
 
     // Create a default transform attribute.
-    Matrix4x4 I = Transform::Identity().matrix();
-    auto trans  = m_intances.create<Matrix4x4, false>(builtin::transform, I);
+    Matrix4x4 I     = Transform::Identity().matrix();
+    auto      trans = m_intances.create<Matrix4x4>(builtin::transform,
+                                              I,     // default identity
+                                              false  // don't allow destroy
+    );
 }
 
 AttributeSlot<Matrix4x4>& SimplicialComplex::transforms()
@@ -83,6 +86,24 @@ Json SimplicialComplex::do_to_json() const
     base["triangles"]  = triangles().to_json();
     base["tetrahedra"] = tetrahedra().to_json();
     return base;
+}
+
+void SimplicialComplex::do_collect_attribute_collections(vector<std::string>& names,
+                                                         vector<AttributeCollection*>& collections)
+{
+    Geometry::do_collect_attribute_collections(names, collections);
+
+    names.push_back("vertices");
+    collections.push_back(&m_vertex_attributes);
+
+    names.push_back("edges");
+    collections.push_back(&m_edge_attributes);
+
+    names.push_back("triangles");
+    collections.push_back(&m_triangle_attributes);
+
+    names.push_back("tetrahedra");
+    collections.push_back(&m_tetrahedron_attributes);
 }
 
 IndexT SimplicialComplex::dim() const noexcept

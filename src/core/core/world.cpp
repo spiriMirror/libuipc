@@ -4,6 +4,7 @@
 #include <uipc/sanity_check/sanity_checker_collection.h>
 #include <uipc/builtin/attribute_name.h>
 #include <magic_enum.hpp>
+#include <uipc/common/zip.h>
 
 namespace uipc::core
 {
@@ -14,6 +15,7 @@ World::World(Engine& e) noexcept
 
 void World::init(Scene& s)
 {
+    // 1) Sanity check the scene
     sanity_check(s);
 
     if(!m_valid)
@@ -21,33 +23,10 @@ void World::init(Scene& s)
         spdlog::error("World is not valid, skipping init.");
         return;
     }
-
+    backend::WorldVisitor visitor{*this};
     m_scene = &s;
-
-    // insert all constitution uid into constitution_tabular
-    auto scene_visitor = backend::SceneVisitor{*m_scene};
-    auto geos          = scene_visitor.geometries();
-    for(auto&& geo : geos)
-    {
-        auto constitution_uid = geo->geometry().meta().find<U64>(builtin::constitution_uid);
-        auto constraint_uid = geo->geometry().meta().find<U64>(builtin::constraint_uid);
-        auto extra_constitution_uids =
-            geo->geometry().meta().find<VectorXu64>(builtin::extra_constitution_uids);
-        if(constitution_uid)
-            m_scene->constitution_tabular().insert(constitution_uid->view().front());
-        if(constraint_uid)
-            m_scene->constitution_tabular().insert(constraint_uid->view().front());
-        if(extra_constitution_uids)
-        {
-            const auto& uids = extra_constitution_uids->view().front();
-            for(auto uid : uids)
-                m_scene->constitution_tabular().insert(uid);
-        }
-    }
-
-    m_scene->m_impl.world   = this;  // set the world pointer in the scene
-    m_scene->m_impl.started = true;  // set the started flag in the scene
-    m_engine->init(backend::WorldVisitor{*this});
+    m_scene->init(visitor);
+    m_engine->init(visitor);
 }
 
 void World::advance()

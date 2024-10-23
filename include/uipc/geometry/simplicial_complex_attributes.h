@@ -110,11 +110,11 @@ class SimplicialComplexAttributes
         return std::as_const(m_attributes).template find<T>(name);
     }
 
-    template <typename T, bool AllowDestroy = true>
-    decltype(auto) create(std::string_view name, const T& default_value = {})
+    template <typename T>
+    decltype(auto) create(std::string_view name, const T& default_value = {}, bool allow_destroy = true)
         requires(!IsConst)
     {
-        return m_attributes.template create<T, AllowDestroy>(name, default_value);
+        return m_attributes.template create<T>(name, default_value, allow_destroy);
     }
 
     template <typename T>

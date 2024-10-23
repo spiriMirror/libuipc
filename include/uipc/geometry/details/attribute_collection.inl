@@ -2,22 +2,13 @@
 
 namespace uipc::geometry
 {
-#define UIPC_ATTRIBUTE_EXPORT_DEF(T)                                           \
-    extern template S<AttributeSlot<T>> AttributeCollection::create<T, true>(  \
-        std::string_view, const T&);                                           \
-    extern template S<AttributeSlot<T>> AttributeCollection::create<T, false>( \
-        std::string_view, const T&)
-
-#include "attribute_export_types.inl"
-
-#undef UIPC_ATTRIBUTE_EXPORT_DEF
-
 template <typename T>
 S<AttributeSlot<T>> AttributeCollection::share(std::string_view        name,
-                                               const AttributeSlot<T>& slot)
+                                               const AttributeSlot<T>& slot,
+                                               bool allow_destroy)
 {
     return std::static_pointer_cast<AttributeSlot<T>>(
-        this->share(name, static_cast<const IAttributeSlot&>(slot)));
+        this->share(name, static_cast<const IAttributeSlot&>(slot), allow_destroy));
 }
 
 template <typename T>

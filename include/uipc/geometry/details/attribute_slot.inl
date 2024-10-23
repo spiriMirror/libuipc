@@ -25,7 +25,8 @@ span<const T> AttributeSlot<T>::view() const noexcept
 template <typename T>
 std::string_view AttributeSlot<T>::get_type_name() const noexcept
 {
-    return readable_type_name<T>();
+    thread_local static std::string type_name = readable_type_name<T>();
+    return type_name;
 }
 
 template <typename T>
@@ -49,17 +50,17 @@ void AttributeSlot<T>::do_make_owned()
 }
 
 template <typename T>
-S<IAttributeSlot> AttributeSlot<T>::do_clone() const
+S<IAttributeSlot> AttributeSlot<T>::do_clone(std::string_view name, bool allow_destroy) const
 {
     return uipc::make_shared<AttributeSlot<T>>(
-        name(), std::static_pointer_cast<Attribute<T>>(m_attribute), m_allow_destroy);
+        name, std::static_pointer_cast<Attribute<T>>(m_attribute), allow_destroy);
 }
 
 template <typename T>
-S<IAttributeSlot> AttributeSlot<T>::do_clone_empty() const
+S<IAttributeSlot> AttributeSlot<T>::do_clone_empty(std::string_view name, bool allow_destroy) const
 {
     return uipc::make_shared<AttributeSlot<T>>(
-        name(), uipc::make_shared<Attribute<T>>(m_attribute->m_default_value), m_allow_destroy);
+        name, uipc::make_shared<Attribute<T>>(m_attribute->m_default_value), allow_destroy);
 }
 
 template <typename T>

@@ -15,6 +15,8 @@ class UIPC_CORE_API WorldVisitor
     SceneVisitor    scene() noexcept;
     AnimatorVisitor animator() noexcept;
 
+    core::World& world() noexcept;
+
   private:
     core::World& m_world;
 };

@@ -14,6 +14,12 @@ Json IGeometry::to_json() const
     return do_to_json();
 }
 
+void IGeometry::collect_attribute_collections(vector<std::string>& names,
+                                              vector<AttributeCollection*>& collections)
+{
+    do_collect_attribute_collections(names, collections);
+}
+
 Geometry::Geometry()
 {
     m_meta.resize(1);      // only one meta for one geometries
@@ -46,6 +52,15 @@ Json Geometry::do_to_json() const
     j["meta"]      = m_meta.to_json();
     j["instances"] = m_intances.to_json();
     return j;
+}
+void Geometry::do_collect_attribute_collections(vector<std::string>& names,
+                                                vector<AttributeCollection*>& collections)
+{
+    names.push_back("meta");
+    collections.push_back(&m_meta);
+
+    names.push_back("instances");
+    collections.push_back(&m_intances);
 }
 }  // namespace uipc::geometry
 

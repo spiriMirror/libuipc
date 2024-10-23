@@ -2,6 +2,11 @@
 #include <string_view>
 #include <uipc/geometry/attribute_collection.h>
 #include <uipc/geometry/attribute_friend.h>
+#include <uipc/geometry/geometry_friend.h>
+namespace uipc::backend
+{
+class GeometryVisitor;
+}
 namespace uipc::geometry
 {
 /**
@@ -9,6 +14,10 @@ namespace uipc::geometry
  */
 class UIPC_CORE_API IGeometry
 {
+    template <typename T>
+    friend class GeometryFriend;
+    friend class backend::GeometryVisitor;
+
   public:
     /**
      * @brief Get the type of the geometries, check the type to downcast the geometries to a specific type
@@ -22,6 +31,18 @@ class UIPC_CORE_API IGeometry
   protected:
     [[nodiscard]] virtual std::string_view get_type() const noexcept = 0;
     virtual Json                           do_to_json() const        = 0;
+    virtual void do_collect_attribute_collections(vector<std::string>& names,
+                                                  vector<AttributeCollection*>& collections) = 0;
+
+  private:
+    /**
+     * @brief Provide a way to use a generic way to iterate over the attribute collections.
+     * 
+     * @param[out] names The names of the attribute collections.
+     * @param[out] collections The attribute collections.
+     */
+    void collect_attribute_collections(vector<std::string>& names,
+                                       vector<AttributeCollection*>& collections);
 };
 
 /**
@@ -29,6 +50,9 @@ class UIPC_CORE_API IGeometry
  */
 class UIPC_CORE_API Geometry : public IGeometry
 {
+    template <typename T>
+    friend class GeometryFriend;
+
   public:
     /**
      * @brief A wrapper class for the meta attributes of a geometries.
@@ -240,6 +264,8 @@ class UIPC_CORE_API Geometry : public IGeometry
 
   protected:
     virtual Json do_to_json() const override;
+    virtual void do_collect_attribute_collections(vector<std::string>& names,
+                                                  vector<AttributeCollection*>& collections) override;
 
     AttributeCollection m_intances;
     AttributeCollection m_meta;
