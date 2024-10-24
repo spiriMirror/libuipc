@@ -6,14 +6,16 @@
 namespace uipc::backend
 {
 class SceneVisitor;
-}
+class DiffSimVisitor;
+}  // namespace uipc::backend
+
 namespace uipc::core
 {
 class Scene;
 class UIPC_CORE_API DiffSim
 {
     friend class Scene;
-    friend class World;
+    friend class backend::DiffSimVisitor;
 
     DiffSim()  = default;
     ~DiffSim() = default;
@@ -29,8 +31,12 @@ class UIPC_CORE_API DiffSim
     diff_sim::SparseCOOView              pGpP() const;
 
   private:
+    class Impl;
+    U<Impl> m_impl;
+
     void init(backend::SceneVisitor& scene);  // only be called by Scene
 
-    diff_sim::ParameterCollection m_parameters;
+    void H(const diff_sim::SparseCOOView& value);  // only be called by DiffSimVisitor
+    void pGpP(const diff_sim::SparseCOOView& value);  // only be called by DiffSimVisitor;
 };
 }  // namespace uipc::core
