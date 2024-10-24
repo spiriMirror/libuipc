@@ -33,7 +33,7 @@ SimEngine::SimEngine(EngineCreateInfo* info)
         spdlog::info("Initializing Cuda Backend...");
 
         cudaDeviceProp prop;
-        cudaGetDeviceProperties(&prop, 0);
+        checkCudaErrors(cudaGetDeviceProperties(&prop, 0));
         spdlog::info("Device: {}", prop.name);
         spdlog::info("Compute Capability: {}.{}", prop.major, prop.minor);
 

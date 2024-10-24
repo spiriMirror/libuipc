@@ -26,6 +26,7 @@ uipc_config_vcpkg_install()
 project(uipc)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # Generate compile_commands.json
 
 # dependencies
 add_subdirectory(external)

@@ -1,4 +1,4 @@
-#pragma
+#pragma once
 #include <uipc/common/macro.h>
 #include <uipc/common/type_define.h>
 #include <uipc/common/span.h>
