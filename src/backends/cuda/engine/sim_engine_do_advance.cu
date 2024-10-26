@@ -354,7 +354,8 @@ void SimEngine::do_advance()
     }
     catch(const SimEngineException& e)
     {
-        spdlog::error("Simulation Engine Exception: {}", e.what());
+        spdlog::error("Engine Advance Error: {}", e.what());
+        status().push_back(core::EngineStatus::error(e.what()));
     }
 }
 }  // namespace uipc::backend::cuda

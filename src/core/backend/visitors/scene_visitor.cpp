@@ -5,6 +5,7 @@ namespace uipc::backend
 {
 SceneVisitor::SceneVisitor(core::Scene& scene) noexcept
     : m_scene(scene)
+    , m_diff_sim(scene.diff_sim())
 {
 }
 
@@ -52,16 +53,29 @@ span<IndexT> SceneVisitor::pending_destroy_ids() const noexcept
 {
     return m_scene.geometry_collection().pending_destroy_ids();
 }
+
 const Json& SceneVisitor::info() const noexcept
 {
     return m_scene.info();
 }
+
 const core::ConstitutionTabular& SceneVisitor::constitution_tabular() const noexcept
 {
     return m_scene.constitution_tabular();
 }
+
 const core::ContactTabular& SceneVisitor::contact_tabular() const noexcept
 {
     return m_scene.contact_tabular();
+}
+
+const DiffSimVisitor& SceneVisitor::diff_sim() const noexcept
+{
+    return m_diff_sim;
+}
+
+DiffSimVisitor& SceneVisitor::diff_sim() noexcept
+{
+    return m_diff_sim;
 }
 }  // namespace uipc::backend

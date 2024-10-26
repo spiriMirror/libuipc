@@ -71,6 +71,7 @@ SimEngine::SimEngine(EngineCreateInfo* info)
     catch(const SimEngineException& e)
     {
         spdlog::error("Cuda Backend Init Failed: {}", e.what());
+        status().push_back(core::EngineStatus::error(e.what()));
     }
 }
 

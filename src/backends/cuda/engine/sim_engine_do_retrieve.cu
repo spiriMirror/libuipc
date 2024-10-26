@@ -10,7 +10,8 @@ void SimEngine::do_retrieve()
     }
     catch(const SimEngineException& e)
     {
-        spdlog::error("SimEngine retrieve error: {}", e.what());
+        spdlog::error("SimEngine Retrieve Error: {}", e.what());
+        status().push_back(core::EngineStatus::error(e.what()));
     }
 }
 SizeT SimEngine::get_frame() const

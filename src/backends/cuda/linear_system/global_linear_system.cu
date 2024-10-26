@@ -62,6 +62,11 @@ void GlobalLinearSystem::dump_linear_system(std::string_view filename)
     }
 }
 
+SizeT GlobalLinearSystem::dof_count() const
+{
+    return m_impl.b.size();
+}
+
 void GlobalLinearSystem::do_build()
 {
     on_init_scene([this] { m_impl.init(); });

@@ -17,6 +17,7 @@ class LineSearcher;
 class GradientHessianComputer;
 class GlobalLinearSystem;
 class GlobalAnimator;
+class GlobalDiffSimManager;
 
 class SimEngine : public backend::SimEngine
 {
@@ -75,7 +76,7 @@ class SimEngine : public backend::SimEngine
     GradientHessianComputer* m_gradient_hessian_computer = nullptr;
     GlobalLinearSystem*      m_global_linear_system      = nullptr;
     GlobalAnimator*          m_global_animator           = nullptr;
-
+    GlobalDiffSimManager*    m_global_diff_sim_manager   = nullptr;
 
     Float m_abs_tol             = 0.0;
     Float m_newton_velocity_tol = 0.01;

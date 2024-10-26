@@ -15,7 +15,6 @@ static string to_lower(std::string_view s)
     return result;
 }
 
-
 class Engine::Impl
 {
     using Deleter = void (*)(IEngine*);
@@ -154,6 +153,14 @@ class Engine::Impl
         return j;
     }
 
+    EngineStatusCollection& status()
+    {
+        LogPatternGuard guard{backend_name()};
+        return m_engine->status();
+    }
+
+    std::string_view workspace() const noexcept { return m_workspace; }
+
     ~Impl()
     {
         UIPC_ASSERT(m_deleter && m_engine, "Engine not initialized, why can it happen?");
@@ -183,6 +190,16 @@ Json Engine::default_config()
 std::string_view Engine::backend_name() const noexcept
 {
     return m_impl->backend_name();
+}
+
+std::string_view Engine::workspace() const noexcept
+{
+    return m_impl->workspace();
+}
+
+EngineStatusCollection& Engine::status()
+{
+    return m_impl->status();
 }
 
 void Engine::init(backend::WorldVisitor v)

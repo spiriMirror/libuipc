@@ -43,6 +43,11 @@ SizeT IEngine::frame() const
     return get_frame();
 }
 
+const EngineStatusCollection& IEngine::status()
+{
+    return get_status();
+}
+
 Json IEngine::do_to_json() const
 {
     return Json{};

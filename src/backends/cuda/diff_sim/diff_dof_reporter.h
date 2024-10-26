@@ -9,7 +9,6 @@ class DiffDofReporter : public SimSystem
   public:
     using SimSystem::SimSystem;
 
-
   protected:
     class BuildInfo
     {
@@ -17,10 +16,14 @@ class DiffDofReporter : public SimSystem
     };
 
     virtual void do_build(BuildInfo& info) = 0;
+    virtual void do_report_extent(GlobalDiffSimManager::DiffDofExtentInfo& info) = 0;
+    virtual void do_assemble(GlobalDiffSimManager::DiffDofInfo& info) = 0;
 
   private:
     friend class GlobalDiffSimManager;
     virtual void do_build() override final;
+    void         report_extent(GlobalDiffSimManager::DiffDofExtentInfo& info);
+    void         assemble(GlobalDiffSimManager::DiffDofInfo& info);
     SizeT        m_index = ~0ull;
 };
 }  // namespace uipc::backend::cuda

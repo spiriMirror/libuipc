@@ -278,6 +278,8 @@ class GlobalLinearSystem : public SimSystem
 
     void dump_linear_system(std::string_view filename);
 
+    SizeT dof_count() const;
+
   protected:
     void do_build() override;
 
@@ -288,6 +290,7 @@ class GlobalLinearSystem : public SimSystem
     friend class OffDiagLinearSubsystem;
     friend class LocalPreconditioner;
     friend class GlobalPreconditioner;
+    friend class GlobalDiffSimManager;
 
     void add_subsystem(DiagLinearSubsystem* subsystem);
 
@@ -300,6 +303,7 @@ class GlobalLinearSystem : public SimSystem
     void add_preconditioner(GlobalPreconditioner* preconditioner);
 
     void solve();
+
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda
