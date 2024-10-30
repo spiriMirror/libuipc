@@ -5,6 +5,7 @@
 #include <uipc/constitution/kirchhoff_rod_bending.h>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 
 TEST_CASE("34_static_diff_sim", "[diff_sim]")
 {
@@ -26,6 +27,7 @@ TEST_CASE("34_static_diff_sim", "[diff_sim]")
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["report_energy"]  = true;
+    config["diff_sim"]["enable"]            = true;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -96,34 +98,22 @@ TEST_CASE("34_static_diff_sim", "[diff_sim]")
     for(auto epoch : range(1))
     {
         world.advance();
+        world.backward();
         world.retrieve();
 
-        // get partial Gradient partial Parameters
-        auto pGpP = scene.diff_sim().pGpP();
-        // get system hessian
-        auto H = scene.diff_sim().H();
+        auto pGpP       = scene.diff_sim().pGpP();
+        auto dense_pGpP = pGpP.to_dense();
 
-        // try to optimize the parameters
-        Eigen::MatrixXd pGpP_mat;  // == pGpP.to_dense()
-        Eigen::MatrixXd H_mat;     // == H.to_dense()
+        auto H       = scene.diff_sim().H();
+        auto dense_H = H.to_dense();
+
+        std::cout << "pGpP:\n" << dense_pGpP << std::endl;
+        std::cout << "H:\n" << dense_H << std::endl;
 
         // solve the linear system to get dXdP
-        // Eigen::MatrixXd dXdP = H_mat.colPivHouseholderQr().solve(pGpP_mat);
+        Eigen::MatrixXd dXdP = dense_H.ldlt().solve(dense_pGpP);
 
-        // ... gradient descent ...
-
-        auto diff_parm_view = view(diff_sim.parameters());
-
-        Eigen::VectorXd dP;
-        dP.resize(diff_parm_view.size());
-        dP.setZero();
-
-        // update the parameters
-        std::transform(diff_parm_view.begin(),
-                       diff_parm_view.end(),
-                       dP.begin(),
-                       diff_parm_view.begin(),
-                       [](const Float& p, const Float& dp) { return p - dp; });
+        std::cout << "dXdP:\n" << dXdP << std::endl;
 
         // broadcast the updated parameters to geometry attributes
         diff_sim.parameters().broadcast();

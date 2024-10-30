@@ -4,7 +4,6 @@
 #include <uipc/common/zip.h>
 namespace uipc::diff_sim
 {
-
 class IConnection
 {
   public:
@@ -96,7 +95,8 @@ class ParameterCollection::Impl
     vector<Float>          parms;
     list<S<IConnection>>   connection_buffer;
     vector<S<IConnection>> connections;
-    bool                   built = false;
+    bool                   built                  = false;
+    bool                   need_backend_broadcast = false;
 
     void resize(SizeT N, Float default_value)
     {
@@ -113,6 +113,8 @@ class ParameterCollection::Impl
         {
             for(auto&& connection : connections)
                 connection->broadcast(parms);
+
+            need_backend_broadcast = true;
         }
     }
 
@@ -202,6 +204,16 @@ void ParameterCollection::connect(S<geometry::IAttributeSlot> diff_parm_slot,
 void ParameterCollection::build()
 {
     m_impl->build();
+}
+
+bool ParameterCollection::need_backend_broadcast() const
+{
+    return m_impl->need_backend_broadcast;
+}
+
+void ParameterCollection::need_backend_broadcast(bool v)
+{
+    m_impl->need_backend_broadcast = v;
 }
 
 span<Float> view(ParameterCollection& collection)

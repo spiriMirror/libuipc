@@ -29,4 +29,14 @@ void DiffSimVisitor::pGpP(const diff_sim::SparseCOOView& value)
 {
     m_diff_sim.pGpP(value);
 }
+
+void DiffSimVisitor::need_backend_broadcast(bool v)
+{
+    m_diff_sim.parameters().need_backend_broadcast(v);
+}
+
+bool uipc::backend::DiffSimVisitor::need_backend_broadcast() const
+{
+    return m_diff_sim.parameters().need_backend_broadcast();
+}
 }  // namespace uipc::backend

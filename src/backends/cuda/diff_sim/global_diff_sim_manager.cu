@@ -153,9 +153,14 @@ void GlobalDiffSimManager::Impl::init(WorldVisitor& world)
 
 void GlobalDiffSimManager::Impl::update()
 {
+    auto& diff_sim = sim_engine->world().scene().diff_sim();
+
+    if(!diff_sim.need_backend_broadcast())
+        return;
+
     // 1) Copy the new parameters to the device
-    auto& diff_sim  = sim_engine->world().scene().diff_sim();
-    auto  parm_view = diff_sim.parameters().view();
+
+    auto parm_view = diff_sim.parameters().view();
     parameters.view().copy_from(parm_view.data());
 
     // 2) Update the diff_parm_reporters
@@ -165,6 +170,8 @@ void GlobalDiffSimManager::Impl::update()
         DiffParmUpdateInfo info{this};
         R->update_diff_parm(info);
     }
+
+    diff_sim.need_backend_broadcast(false);
 }
 
 void GlobalDiffSimManager::Impl::assemble()

@@ -10,6 +10,11 @@ namespace uipc::core
 class DiffSim;
 }
 
+namespace uipc::backend
+{
+class DiffSimVisitor;
+}
+
 namespace uipc::diff_sim
 {
 class Object;
@@ -30,6 +35,7 @@ class UIPC_CORE_API ParameterCollection
 
   private:
     friend class uipc::core::DiffSim;
+    friend class uipc::backend::DiffSimVisitor;
 
     ParameterCollection();
     ~ParameterCollection();
@@ -44,6 +50,8 @@ class UIPC_CORE_API ParameterCollection
                  S<geometry::IAttributeSlot> parm_slot);
     void build();
 
+    bool    need_backend_broadcast() const;
+    void    need_backend_broadcast(bool v);
     U<Impl> m_impl;
 };
 }  // namespace uipc::diff_sim

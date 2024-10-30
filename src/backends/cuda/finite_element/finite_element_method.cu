@@ -145,6 +145,7 @@ void FiniteElementMethod::Impl::init(WorldVisitor& world)
 
 
     // 4) Initialize the diff reporters
+    _init_dof_info();
     _init_diff_reporters();
     _distribute_diff_reporter_filtered_info();
 }
@@ -1011,8 +1012,15 @@ void FiniteElementMethod::Impl::clear_recover(RecoverInfo& info)
     dump_vs.clean_up();
     dump_x_prevs.clean_up();
 }
+
 void FiniteElementMethod::Impl::set_dof_info(SizeT frame, IndexT dof_offset, IndexT dof_count)
 {
+    UIPC_ASSERT(frame > 0, "frame 0 is not used");
+    if(frame_to_dof_count.size() <= frame)
+    {
+        frame_to_dof_count.resize(frame + 1, -1);
+        frame_to_dof_offset.resize(frame + 1, -1);
+    }
     frame_to_dof_count[frame]  = dof_count;
     frame_to_dof_offset[frame] = dof_offset;
 }
