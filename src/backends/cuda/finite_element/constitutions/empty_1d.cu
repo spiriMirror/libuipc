@@ -23,7 +23,7 @@ class Empty1D final : public Codim1DConstitution
         // do nothing
     }
 
-    virtual void do_init(FiniteElementMethod::Codim1DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
         // do nothing
     }

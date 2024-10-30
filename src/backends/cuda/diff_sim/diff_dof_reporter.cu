@@ -17,7 +17,7 @@ void DiffDofReporter::report_extent(GlobalDiffSimManager::DiffDofExtentInfo& inf
     do_report_extent(info);
 }
 
-void DiffDofReporter::assemble(GlobalDiffSimManager::DiffDofInfo& info)
+void DiffDofReporter::assemble_diff_dof(GlobalDiffSimManager::DiffDofInfo& info)
 {
     do_assemble(info);
 }

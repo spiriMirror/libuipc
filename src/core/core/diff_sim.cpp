@@ -8,6 +8,8 @@ namespace uipc::core
 class DiffSim::Impl
 {
   public:
+    Impl() = default;
+
     void init(backend::SceneVisitor& scene_visitor)
     {
         auto geos      = scene_visitor.geometries();
@@ -16,7 +18,7 @@ class DiffSim::Impl
         vector<std::string>                    collection_names;
         vector<geometry::AttributeCollection*> collections;
 
-        // 1) Collect all [ diff_parm/xxx , xxx ] Attibute Collection Pairs
+        // 1) Collect all [ diff/xxx , xxx ] Attibute Collection Pairs
         for(auto&& [geo_slot, rest_geo_slot] : zip(geos, rest_geos))
         {
             std::array<geometry::Geometry*, 2> local_geos = {
@@ -32,7 +34,7 @@ class DiffSim::Impl
                 for(auto&& [_, collection] : zip(collection_names, collections))
                 {
                     vector<std::string> attribute_names = collection->names();
-                    std::string_view    prefix          = "diff_parm/";
+                    std::string_view    prefix          = "diff/";
 
                     auto [iter, end] = std::ranges::remove_if(
                         attribute_names,
@@ -65,12 +67,17 @@ class DiffSim::Impl
 
 
     diff_sim::ParameterCollection parameters;
-
-    diff_sim::SparseCOOView H;
-    diff_sim::SparseCOOView pGpP;
-
+    diff_sim::SparseCOOView       H;
+    diff_sim::SparseCOOView       pGpP;
 };
 
+
+DiffSim::DiffSim()
+    : m_impl{uipc::make_unique<Impl>()}
+{
+}
+
+DiffSim::~DiffSim() {}
 
 diff_sim::ParameterCollection& DiffSim::parameters()
 {

@@ -1,0 +1,69 @@
+#include <finite_element/finite_element_diff_parm_reporter.h>
+#include <finite_element/finite_element_method.h>
+
+namespace uipc::backend::cuda
+{
+void FiniteElementDiffParmReporter::do_build(DiffParmReporter::BuildInfo& info)
+{
+    m_fem = &require<FiniteElementMethod>();
+    m_dt  = world().scene().info()["dt"].get<Float>();
+    BuildInfo this_info;
+    do_build(this_info);
+}
+
+void FiniteElementDiffParmReporter::do_report_extent(GlobalDiffSimManager::DiffParmExtentInfo& info)
+{
+    DiffParmExtentInfo this_info;
+    do_report_extent(this_info);
+
+    info.triplet_count(this_info.m_triplet_count);
+}
+
+void FiniteElementDiffParmReporter::do_assemble(GlobalDiffSimManager::DiffParmInfo& info)
+{
+    DiffParmInfo this_info{this, info, m_dt};
+    do_assemble(this_info);
+}
+
+SizeT FiniteElementDiffParmReporter::DiffParmInfo::frame() const
+{
+    return m_global_info.frame();
+}
+
+IndexT FiniteElementDiffParmReporter::DiffParmInfo::dof_offset(SizeT frame) const
+{
+    // Frame Dof Offset + FEM Dof Offset => Frame FEM Dof Offset
+    return m_global_info.dof_offset(frame) + m_impl->m_fem->dof_offset(frame);
+}
+
+IndexT FiniteElementDiffParmReporter::DiffParmInfo::dof_count(SizeT frame) const
+{
+    // FEM Dof Count => Frame FEM Dof Count
+    return m_impl->m_fem->dof_count(frame);
+}
+
+muda::TripletMatrixView<Float, 1> FiniteElementDiffParmReporter::DiffParmInfo::pGpP(IndexT rel_frame) const
+{
+    IndexT IF = IndexT{frame()} + rel_frame;
+
+    UIPC_ASSERT(IF >= 1 && rel_frame <= 0,
+                "Frame index must be in range [1,{}], yours' {}",
+                frame(),
+                IF);
+
+    auto pGpP = m_global_info.pGpP();
+
+    auto row_offset = dof_offset(IF);
+    auto col_offset = 0;
+
+    auto row_count = dof_count(IF);
+    auto col_count = pGpP.extent().y;
+
+    return pGpP.submatrix({row_offset, col_offset}, {row_count, col_count});
+}
+
+Float FiniteElementDiffParmReporter::DiffParmInfo::dt() const
+{
+    return m_impl->m_dt;
+}
+}  // namespace uipc::backend::cuda

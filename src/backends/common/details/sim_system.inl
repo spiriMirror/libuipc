@@ -3,23 +3,24 @@
 namespace uipc::backend
 {
 template <std::derived_from<SimSystem> T>
-T* SimSystem::find()
+T* SimSystem::find(const QueryOptions& options)
 {
     check_state("find()");
-    auto ptr = collection().find<T>();
+    auto ptr = collection().find<T>(options);
     ptr      = static_cast<T*>(find_system(ptr));
     return ptr;
 }
 
 template <std::derived_from<SimSystem> T>
-T& SimSystem::require()
+T& SimSystem::require(const QueryOptions& options)
 {
     check_state("require()");
-    auto ptr = collection().find<T>();
+    auto ptr = collection().find<T>(options);
     ptr      = static_cast<T*>(require_system(ptr));
     if(!ptr)
     {
-        throw SimSystemException(fmt::format("SimSystem [{}] not found", typeid(T).name()));
+        throw SimSystemException(
+            fmt::format("SimSystem [{}] not found", typeid(T).name()));
     }
     return *ptr;
 }

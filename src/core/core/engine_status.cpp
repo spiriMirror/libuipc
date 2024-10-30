@@ -88,6 +88,7 @@ class EngineStatusCollection::Impl
     }
 
     bool has_error() const noexcept { return !m_errors.empty(); }
+
     Json to_json() const
     {
         Json j     = Json::object();
@@ -108,6 +109,8 @@ class EngineStatusCollection::Impl
         {
             j["errors"].push_back(error->what());
         }
+
+        return j;
     }
 
   private:

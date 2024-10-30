@@ -1,5 +1,5 @@
 #pragma once
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/backend/visitors/world_visitor.h>
 #include <uipc/core/engine_status.h>
 
@@ -13,6 +13,7 @@ class UIPC_CORE_API IEngine
     virtual ~IEngine() = default;
     void init(backend::WorldVisitor v);
     void advance();
+    void backward();
     void sync();
     void retrieve();
     Json to_json() const;
@@ -25,6 +26,7 @@ class UIPC_CORE_API IEngine
   protected:
     virtual void                    do_init(backend::WorldVisitor v) = 0;
     virtual void                    do_advance()                     = 0;
+    virtual void                    do_backward()                    = 0;
     virtual void                    do_sync()                        = 0;
     virtual void                    do_retrieve()                    = 0;
     virtual Json                    do_to_json() const;

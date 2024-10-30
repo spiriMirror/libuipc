@@ -6,6 +6,8 @@
 #include <muda/ext/eigen/atomic.h>
 #include <finite_element/finite_element_constitution.h>
 #include <finite_element/finite_element_extra_constitution.h>
+#include <sim_engine.h>
+
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FEMLinearSubsystem);
@@ -14,7 +16,8 @@ void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
 {
     m_impl.finite_element_method = require<FiniteElementMethod>();
     m_impl.finite_element_vertex_reporter = require<FiniteElementVertexReporter>();
-    m_impl.dt = world().scene().info()["dt"];
+    m_impl.sim_engine = &engine();
+    m_impl.dt         = world().scene().info()["dt"];
 
     auto contact = find<FEMContactReceiver>();
     if(contact)
@@ -60,6 +63,10 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
 
 void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 {
+    // 0) record dof info
+    auto frame = sim_engine->frame();
+    fem().set_dof_info(frame, info.gradient().offset(), info.gradient().size());
+
     // 1) Clear Gradient
     info.gradient().buffer_view().fill(0);
 

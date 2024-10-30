@@ -121,6 +121,7 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
     virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
 
+    friend class FiniteElementExtraConstitutionDiffParmReporter;
     span<const FiniteElementMethod::GeoInfo> geo_infos() const noexcept;
 
   private:
@@ -132,8 +133,6 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
     friend class FEMGradientHessianComputer;
     virtual void do_compute_gradient_hessian(
         FiniteElementEnergyProducer::ComputeGradientHessianInfo& info) override final;
-    virtual Vector2i get_vertex_offset_count() const noexcept override final;
-
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

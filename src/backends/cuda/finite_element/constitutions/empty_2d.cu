@@ -30,7 +30,7 @@ class Empty2D final : public Codim2DConstitution
         // do nothing
     }
 
-    virtual void do_init(FiniteElementMethod::Codim2DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
         // do nothing
     }

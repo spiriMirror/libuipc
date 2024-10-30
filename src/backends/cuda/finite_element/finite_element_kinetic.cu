@@ -10,7 +10,7 @@ void FiniteElementKinetic::do_build(BuildInfo& info)
 
 void FiniteElementKinetic::do_report_extent(ReportExtentInfo& info)
 {
-    auto vert_count = get_vertex_offset_count()[1];
+    auto vert_count = m_impl.fem().xs.size();
     info.energy_count(vert_count);
     info.stencil_dim(1);
 }
@@ -23,11 +23,6 @@ void FiniteElementKinetic::do_compute_energy(ComputeEnergyInfo& info)
 void FiniteElementKinetic::do_compute_gradient_hessian(ComputeGradientHessianInfo& info)
 {
     m_impl.compute_gradient_hessian(info);
-}
-
-Vector2i FiniteElementKinetic::get_vertex_offset_count() const noexcept
-{
-    return Vector2i{0, m_impl.fem().xs.size()};
 }
 
 void FiniteElementKinetic::Impl::compute_energy(ComputeEnergyInfo& info)

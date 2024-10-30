@@ -1,7 +1,8 @@
 #pragma once
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <string>
 #include <uipc/common/json.h>
+#include <uipc/common/smart_pointer.h>
 
 namespace uipc::core
 {

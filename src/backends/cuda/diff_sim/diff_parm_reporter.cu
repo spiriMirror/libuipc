@@ -16,8 +16,12 @@ void DiffParmReporter::report_extent(GlobalDiffSimManager::DiffParmExtentInfo& i
     do_report_extent(info);
 }
 
-void DiffParmReporter::assemble(GlobalDiffSimManager::DiffParmInfo& info)
+void DiffParmReporter::assemble_diff_parm(GlobalDiffSimManager::DiffParmInfo& info)
 {
     do_assemble(info);
+}
+void DiffParmReporter::update_diff_parm(GlobalDiffSimManager::DiffParmUpdateInfo& info)
+{
+    do_update(info);
 }
 }  // namespace uipc::backend::cuda

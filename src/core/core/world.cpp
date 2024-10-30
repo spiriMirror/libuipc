@@ -86,6 +86,22 @@ void World::retrieve()
     }
 }
 
+void World::backward()
+{
+    if(!m_valid)
+    {
+        spdlog::error("World is not valid, skipping backward.");
+        return;
+    }
+    m_engine->backward();
+
+    if(m_engine->status().has_error())
+    {
+        spdlog::error("Engine has error after backward, world becomes invalid.");
+        m_valid = false;
+    }
+}
+
 bool World::dump()
 {
     if(!m_valid)

@@ -1,5 +1,5 @@
 #pragma once
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/diff_sim/parameter_collection.h>
 #include <uipc/diff_sim/sparse_coo_view.h>
 
@@ -17,8 +17,8 @@ class UIPC_CORE_API DiffSim
     friend class Scene;
     friend class backend::DiffSimVisitor;
 
-    DiffSim()  = default;
-    ~DiffSim() = default;
+    DiffSim();
+    ~DiffSim();
 
     // delete copy constructor and assignment operator
     DiffSim(const DiffSim&)            = delete;

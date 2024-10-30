@@ -31,7 +31,7 @@ class Empty3D final : public FEM3DConstitution
         // do nothing
     }
 
-    virtual void do_init(FiniteElementMethod::FEM3DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
         // do nothing
     }

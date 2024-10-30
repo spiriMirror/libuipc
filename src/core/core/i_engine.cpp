@@ -13,6 +13,11 @@ void IEngine::advance()
     do_advance();
 }
 
+void IEngine::backward()
+{
+    do_backward();
+}
+
 void IEngine::sync()
 {
     do_sync();
@@ -43,7 +48,7 @@ SizeT IEngine::frame() const
     return get_frame();
 }
 
-const EngineStatusCollection& IEngine::status()
+EngineStatusCollection& IEngine::status()
 {
     return get_status();
 }

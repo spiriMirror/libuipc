@@ -20,8 +20,19 @@ class SimSystemCollection
     void create(U<ISimSystem> system);
     void build_systems();
 
+    class QueryOptions
+    {
+      public:
+        /**
+         * @brief Indicates whether the query should be exact or compatible.
+         * 
+         * 1) true, the query will return first exact system.
+         * 2) false, the query will return first exact system, if not found, it will return first compatible system.
+         */
+        bool exact = true;
+    };
     template <std::derived_from<ISimSystem> T>
-    T* find();
+    T* find(const QueryOptions& options = {});
 
   private:
     mutable bool                           built = false;

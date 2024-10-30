@@ -27,7 +27,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
     virtual void do_build(BuildInfo& info) override {}
 
-    virtual void do_init(FiniteElementMethod::FEM3DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
         using ForEachInfo = FiniteElementMethod::ForEachInfo;
 
@@ -157,8 +157,8 @@ class StableNeoHookean3D final : public FEM3DConstitution
                        Vector12    G    = dFdx.transpose() * dEdF;
                        Matrix12x12 H    = dFdx.transpose() * ddEddF * dFdx;
 
-                       assemble<4>(G3s, I, G, tet);
-                       assemble<4>(H3x3s, I, H, tet);
+                       assemble<4>(G3s, I * 4, tet, G);
+                       assemble<4>(H3x3s, I * 4 * 4, tet, H);
                    });
     }
 };

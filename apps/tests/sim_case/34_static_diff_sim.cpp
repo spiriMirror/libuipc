@@ -72,7 +72,7 @@ TEST_CASE("34_static_diff_sim", "[diff_sim]")
         hs.apply_to(mesh, 40.0_MPa);
 
         // connect every kappa to the diff_sim.parameters()[0]
-        mesh.edges().create<IndexT>("diff_parm/kappa", 0);
+        mesh.edges().create<IndexT>("diff/kappa", 0);
 
         default_contact.apply_to(mesh);
 

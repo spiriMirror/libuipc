@@ -184,14 +184,14 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                        Vector9 G;
                        KRB::dEdX(G, k, X, L0, r, Pi);
                        G *= dt2;
-                       assemble<3>(G3s, I, G, hinge);
+                       assemble<3>(G3s, I * 3, hinge, G);
 
                        Matrix9x9 H;
                        KRB::ddEddX(H, k, X, L0, r, Pi);
 
                        H *= dt2;
                        make_spd(H);
-                       assemble<3>(H3x3s, I, H, hinge);
+                       assemble<3>(H3x3s, I * 3 * 3, hinge, H);
                    });
     }
 };

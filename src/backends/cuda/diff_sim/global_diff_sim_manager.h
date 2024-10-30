@@ -33,6 +33,7 @@ class GlobalDiffSimManager final : public SimSystem
         muda::LinearSystemContext& ctx();
 
         void init(WorldVisitor& world);
+        void update();
         void assemble();
         void write_scene(WorldVisitor& world);
 
@@ -49,6 +50,8 @@ class GlobalDiffSimManager final : public SimSystem
         vector<IndexT> dof_counts;
 
         SizeT total_parm_count = 0;
+
+        muda::DeviceBuffer<Float> parameters;
 
         // NOTE:
         // local_triplet_pGpP only consider the triplet at current frame.
@@ -131,12 +134,10 @@ class GlobalDiffSimManager final : public SimSystem
       public:
         using BaseInfo::BaseInfo;
         void triplet_count(SizeT N) { m_triplet_count = N; }
-        void parm_count(SizeT N) { m_parm_count = N; }
 
       private:
         friend class Impl;
         SizeT m_triplet_count = 0;
-        SizeT m_parm_count    = 0;
     };
 
 
@@ -166,16 +167,28 @@ class GlobalDiffSimManager final : public SimSystem
 
         friend class Impl;
         muda::TripletMatrixView<Float, 1> H() const;
+    };
+
+    class DiffParmUpdateInfo
+    {
+      public:
+        DiffParmUpdateInfo(Impl* impl)
+            : m_impl(impl)
+        {
+        }
+
+        muda::CBufferView<Float> parameters() const noexcept;
 
       private:
-        Impl* m_impl  = nullptr;
-        SizeT m_index = ~0ull;
+        friend class Impl;
+        Impl* m_impl = nullptr;
     };
 
   private:
     friend class SimEngine;
     void init();      // only be called by SimEngine
     void assemble();  // only be called by SimEngine
+    void update();    // only be called by SimEngine
 
     virtual void do_build() override;
 

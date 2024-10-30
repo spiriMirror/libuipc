@@ -14,7 +14,7 @@ class backend::SimSystemCreator<cuda::GlobalDiffSimManager>
   public:
     static U<cuda::GlobalDiffSimManager> create(SimEngine& engine)
     {
-        auto scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
+        auto scene = dynamic_cast<SimEngine&>(engine).world().scene();
         if(!scene.info()["diff_sim"]["enable"].get<bool>())
         {
             return nullptr;
@@ -93,6 +93,7 @@ namespace detail
         host_coo.shape = {total_coo.rows(), total_coo.cols()};
     }
 }  // namespace detail
+// namespace detail
 }  // namespace uipc::backend::cuda
 
 namespace uipc::backend::cuda
@@ -107,7 +108,7 @@ void GlobalDiffSimManager::do_build()
     on_write_scene([&] { m_impl.write_scene(world()); });
 }
 
-muda::LinearSystemContext& cuda::GlobalDiffSimManager::Impl::ctx()
+muda::LinearSystemContext& GlobalDiffSimManager::Impl::ctx()
 {
     return global_linear_system->m_impl.ctx;
 }
@@ -115,13 +116,19 @@ muda::LinearSystemContext& cuda::GlobalDiffSimManager::Impl::ctx()
 void GlobalDiffSimManager::Impl::init(WorldVisitor& world)
 {
     auto& diff_sim   = world.scene().diff_sim();
-    total_parm_count = diff_sim.parameters().view().size();
+    auto  parm_view  = diff_sim.parameters().view();
+    total_parm_count = parm_view.size();
     dof_offsets.reserve(1024);
     dof_counts.reserve(1024);
     total_coo_pGpP.reshape(0, 0);
     total_coo_H.reshape(0, 0);
 
-    // 1) Init the diff_parm_reporters
+    // 1) Copy the parameters to the device
+    parameters.resize(total_parm_count);
+    parameters.view().copy_from(parm_view.data());
+
+
+    // 2) Init the diff_parm_reporters
     {
         auto diff_parm_reporter_view = diff_parm_reporters.view();
         for(auto&& [i, R] : enumerate(diff_parm_reporter_view))
@@ -132,7 +139,7 @@ void GlobalDiffSimManager::Impl::init(WorldVisitor& world)
         diff_parm_triplet_offset_count.resize(diff_parm_reporter_view.size());
     }
 
-    // 2) Init the diff_dof_reporters
+    // 3) Init the diff_dof_reporters
     {
         auto diff_dof_reporter_view = diff_dof_reporters.view();
         for(auto&& [i, R] : enumerate(diff_dof_reporter_view))
@@ -141,6 +148,22 @@ void GlobalDiffSimManager::Impl::init(WorldVisitor& world)
         }
 
         diff_dof_triplet_offset_count.resize(diff_dof_reporter_view.size());
+    }
+}
+
+void GlobalDiffSimManager::Impl::update()
+{
+    // 1) Copy the new parameters to the device
+    auto& diff_sim  = sim_engine->world().scene().diff_sim();
+    auto  parm_view = diff_sim.parameters().view();
+    parameters.view().copy_from(parm_view.data());
+
+    // 2) Update the diff_parm_reporters
+    auto diff_parm_reporter_view = diff_parm_reporters.view();
+    for(auto&& R : diff_parm_reporter_view)
+    {
+        DiffParmUpdateInfo info{this};
+        R->update_diff_parm(info);
     }
 }
 
@@ -179,7 +202,7 @@ void GlobalDiffSimManager::Impl::assemble()
         for(auto&& R : diff_parm_reporter_view)
         {
             DiffParmInfo info{this, R->m_index};
-            R->assemble(info);
+            R->assemble_diff_parm(info);
         }
 
         detail::build_coo_matrix(ctx(),  //
@@ -212,7 +235,7 @@ void GlobalDiffSimManager::Impl::assemble()
         for(auto&& R : diff_dof_reporter_view)
         {
             DiffDofInfo info{this, R->m_index};
-            R->assemble(info);
+            R->assemble_diff_dof(info);
         }
 
         detail::build_coo_matrix(ctx(),  //
@@ -222,7 +245,7 @@ void GlobalDiffSimManager::Impl::assemble()
     }
 }
 
-void cuda::GlobalDiffSimManager::Impl::write_scene(WorldVisitor& world)
+void GlobalDiffSimManager::Impl::write_scene(WorldVisitor& world)
 {
     auto& diff_sim = world.scene().diff_sim();
 
@@ -243,6 +266,11 @@ void GlobalDiffSimManager::assemble()
     m_impl.assemble();
 }
 
+void GlobalDiffSimManager::update()
+{
+    m_impl.update();
+}
+
 void GlobalDiffSimManager::add_reporter(DiffDofReporter* subsystem)
 {
     UIPC_ASSERT(subsystem != nullptr, "subsystem is nullptr");
@@ -255,37 +283,42 @@ void GlobalDiffSimManager::add_reporter(DiffParmReporter* subsystem)
     m_impl.diff_parm_reporters.register_subsystem(*subsystem);
 }
 
-muda::TripletMatrixView<Float, 1> cuda::GlobalDiffSimManager::DiffParmInfo::pGpP() const
+muda::TripletMatrixView<Float, 1> GlobalDiffSimManager::DiffParmInfo::pGpP() const
 {
     auto offset = m_impl->diff_parm_triplet_offset_count.offsets()[m_index];
     auto count  = m_impl->diff_parm_triplet_offset_count.counts()[m_index];
     return m_impl->local_triplet_pGpP.view().subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 1> cuda::GlobalDiffSimManager::DiffDofInfo::H() const
+muda::TripletMatrixView<Float, 1> GlobalDiffSimManager::DiffDofInfo::H() const
 {
     auto offset = m_impl->diff_dof_triplet_offset_count.offsets()[m_index];
     auto count  = m_impl->diff_dof_triplet_offset_count.counts()[m_index];
     return m_impl->local_triplet_H.view().subview(offset, count);
 }
 
-SizeT cuda::GlobalDiffSimManager::BaseInfo::frame() const
+SizeT GlobalDiffSimManager::BaseInfo::frame() const
 {
     return m_impl->sim_engine->frame();
 }
 
-IndexT cuda::GlobalDiffSimManager::BaseInfo::dof_offset(SizeT frame) const
+IndexT GlobalDiffSimManager::BaseInfo::dof_offset(SizeT frame) const
 {
     return m_impl->dof_offsets[frame - 1];  // we record from the frame 1
 }
 
-IndexT cuda::GlobalDiffSimManager::BaseInfo::dof_count(SizeT frame) const
+IndexT GlobalDiffSimManager::BaseInfo::dof_count(SizeT frame) const
 {
     return m_impl->dof_counts[frame - 1];  // we record from the frame 1
 }
 
-diff_sim::SparseCOOView cuda::GlobalDiffSimManager::SparseCOO::view() const
+diff_sim::SparseCOOView GlobalDiffSimManager::SparseCOO::view() const
 {
     return diff_sim::SparseCOOView{row_indices, col_indices, values, shape};
+}
+
+muda::CBufferView<Float> GlobalDiffSimManager::DiffParmUpdateInfo::parameters() const noexcept
+{
+    return m_impl->parameters.view();
 }
 }  // namespace uipc::backend::cuda

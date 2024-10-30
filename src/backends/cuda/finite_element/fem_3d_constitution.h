@@ -16,8 +16,8 @@ class FEM3DConstitution : public FiniteElementConstitution
     class BaseInfo
     {
       public:
-        BaseInfo(FiniteElementMethod::Impl* impl, SizeT index_in_dim, Float dt)
-            : m_fem(impl)
+        BaseInfo(FEM3DConstitution* impl, SizeT index_in_dim, Float dt)
+            : m_impl(impl)
             , m_index_in_dim(index_in_dim)
             , m_dt(dt)
         {
@@ -32,18 +32,18 @@ class FEM3DConstitution : public FiniteElementConstitution
         auto dt() const noexcept { return m_dt; }
 
       protected:
-        SizeT                      m_index_in_dim = ~0ull;
-        FiniteElementMethod::Impl* m_fem          = nullptr;
-        Float                      m_dt           = 0.0;
+        SizeT              m_index_in_dim = ~0ull;
+        FEM3DConstitution* m_impl         = nullptr;
+        Float              m_dt           = 0.0;
     };
 
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(FiniteElementMethod::Impl* impl,
-                          SizeT                      index_in_dim,
-                          Float                      dt,
-                          muda::BufferView<Float>    energies)
+        ComputeEnergyInfo(FEM3DConstitution*      impl,
+                          SizeT                   index_in_dim,
+                          Float                   dt,
+                          muda::BufferView<Float> energies)
             : BaseInfo(impl, index_in_dim, dt)
             , m_energies(energies)
         {
@@ -58,9 +58,9 @@ class FEM3DConstitution : public FiniteElementConstitution
     class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        ComputeGradientHessianInfo(FiniteElementMethod::Impl* impl,
-                                   SizeT                      index_in_dim,
-                                   Float                      dt,
+        ComputeGradientHessianInfo(FEM3DConstitution* impl,
+                                   SizeT              index_in_dim,
+                                   Float              dt,
                                    muda::DoubletVectorView<Float, 3> gradients,
                                    muda::TripletMatrixView<Float, 3> hessians)
             : BaseInfo(impl, index_in_dim, dt)
@@ -78,21 +78,16 @@ class FEM3DConstitution : public FiniteElementConstitution
     };
 
   protected:
-    virtual void do_init(FiniteElementMethod::FEM3DFilteredInfo& info) = 0;
-    virtual void do_build(BuildInfo& info)                             = 0;
-    virtual void do_report_extent(ReportExtentInfo& info) override;
+    virtual void do_build(BuildInfo& info)                  = 0;
     virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
-    const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;
 
   private:
     friend class FiniteElementMethod;
-    void init(FiniteElementMethod::FEM3DFilteredInfo& info);
     virtual void do_build(FiniteElementConstitution::BuildInfo& info) override final;
     virtual void do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info) override final;
     virtual void do_compute_gradient_hessian(
         FiniteElementEnergyProducer::ComputeGradientHessianInfo& info) override final;
-    virtual IndexT   get_dimension() const noexcept override final;
-    virtual Vector2i get_vertex_offset_count() const noexcept override final;
+    virtual IndexT get_dim() const noexcept override final;
 };
 }  // namespace uipc::backend::cuda

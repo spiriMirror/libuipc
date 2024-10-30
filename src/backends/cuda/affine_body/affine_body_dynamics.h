@@ -186,8 +186,8 @@ class AffineBodyDynamics : public SimSystem
         void write_scene(WorldVisitor& world);
         void _download_geometry_to_host();
 
-        void compute_q_tilde(DoFPredictor::PredictInfo& info);
-        void compute_q_v(DoFPredictor::ComputeVelocityInfo& info);
+        void compute_q_tilde(DofPredictor::PredictInfo& info);
+        void compute_q_v(DofPredictor::ComputeVelocityInfo& info);
 
         bool dump(DumpInfo& info);
         bool try_recover(RecoverInfo& info);

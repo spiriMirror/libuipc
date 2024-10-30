@@ -1,5 +1,5 @@
 #pragma once
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/common/type_define.h>
 #include <uipc/common/span.h>
 namespace uipc::diff_sim
@@ -7,6 +7,8 @@ namespace uipc::diff_sim
 class UIPC_CORE_API SparseCOOView
 {
   public:
+    SparseCOOView() = default;
+
     SparseCOOView(span<const IndexT> row_indices,
                   span<const IndexT> col_indices,
                   span<const Float>  values,

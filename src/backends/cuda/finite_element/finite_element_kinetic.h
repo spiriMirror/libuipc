@@ -28,8 +28,6 @@ class FiniteElementKinetic final : public FiniteElementEnergyProducer
     virtual void do_compute_energy(ComputeEnergyInfo& info) override;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override;
 
-    virtual Vector2i get_vertex_offset_count() const noexcept override;
-
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

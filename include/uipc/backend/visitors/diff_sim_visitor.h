@@ -8,7 +8,7 @@ class DiffSim;
 }
 namespace uipc::backend
 {
-class DiffSimVisitor
+class UIPC_CORE_API DiffSimVisitor
 {
   public:
     DiffSimVisitor(core::DiffSim& diff_sim);

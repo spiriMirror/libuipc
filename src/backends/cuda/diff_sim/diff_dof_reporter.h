@@ -23,7 +23,7 @@ class DiffDofReporter : public SimSystem
     friend class GlobalDiffSimManager;
     virtual void do_build() override final;
     void         report_extent(GlobalDiffSimManager::DiffDofExtentInfo& info);
-    void         assemble(GlobalDiffSimManager::DiffDofInfo& info);
+    void         assemble_diff_dof(GlobalDiffSimManager::DiffDofInfo& info);
     SizeT        m_index = ~0ull;
 };
 }  // namespace uipc::backend::cuda

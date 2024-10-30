@@ -274,12 +274,12 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
 
                        DSB::dEdx(G12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
                        G12 *= Vdt2;
-                       assemble<4>(G3s, I, G12, stencil);
+                       assemble<4>(G3s, I * 4, stencil, G12);
 
                        DSB::ddEddx(H12x12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
                        H12x12 *= Vdt2;
                        make_spd(H12x12);
-                       assemble<4>(H3x3s, I, H12x12, stencil);
+                       assemble<4>(H3x3s, I * 4 * 4, stencil, H12x12);
                    });
     }
 };

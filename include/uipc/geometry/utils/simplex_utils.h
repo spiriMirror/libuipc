@@ -1,6 +1,6 @@
 #pragma once
 #include <uipc/common/type_define.h>
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/common/span.h>
 namespace uipc::geometry
 {

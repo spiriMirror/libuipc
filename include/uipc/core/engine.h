@@ -1,6 +1,6 @@
 #pragma once
 #include <string>
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/core/i_engine.h>
 #include <uipc/backend/visitors/world_visitor.h>
@@ -32,6 +32,7 @@ class UIPC_CORE_API Engine final
 
     void  init(backend::WorldVisitor v);  // only be called by World
     void  advance();                      // only be called by World
+    void  backward();                     // only be called by World
     void  sync();                         // only be called by World
     void  retrieve();                     // only be called by World
     bool  dump();                         // only be called by World

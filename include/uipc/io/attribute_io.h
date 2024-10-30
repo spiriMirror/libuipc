@@ -1,5 +1,5 @@
 #pragma once
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/geometry/attribute_slot.h>
 

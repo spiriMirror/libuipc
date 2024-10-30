@@ -14,8 +14,5 @@ void SimEngine::do_retrieve()
         status().push_back(core::EngineStatus::error(e.what()));
     }
 }
-SizeT SimEngine::get_frame() const
-{
-    return m_current_frame;
-}
+
 }  // namespace uipc::backend::cuda

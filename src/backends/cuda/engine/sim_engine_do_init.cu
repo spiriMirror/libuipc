@@ -21,7 +21,7 @@ void SimEngine::build()
 
     // 2) find those engine-aware topo systems
     m_global_vertex_manager     = &require<GlobalVertexManager>();
-    m_dof_predictor             = &require<DoFPredictor>();
+    m_dof_predictor             = &require<DofPredictor>();
     m_line_searcher             = &require<LineSearcher>();
     m_gradient_hessian_computer = &require<GradientHessianComputer>();
     m_global_linear_system      = &require<GlobalLinearSystem>();

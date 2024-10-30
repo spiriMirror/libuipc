@@ -12,14 +12,14 @@ class GlobalSimpicialSurfaceManager;
 class GlobalContactManager;
 class GlobalTrajectoryFilter;
 
-class DoFPredictor;
+class DofPredictor;
 class LineSearcher;
 class GradientHessianComputer;
 class GlobalLinearSystem;
 class GlobalAnimator;
 class GlobalDiffSimManager;
 
-class SimEngine : public backend::SimEngine
+class SimEngine final : public backend::SimEngine
 {
     class DeviceImpl;
     friend class SimSystem;
@@ -33,11 +33,12 @@ class SimEngine : public backend::SimEngine
 
     SimEngineState state() const noexcept;
 
-  protected:
+  private:
     virtual void  do_init(InitInfo& info) override;
     virtual void  do_advance() override;
     virtual void  do_sync() override;
     virtual void  do_retrieve() override;
+    virtual void  do_backward() override;
     virtual SizeT get_frame() const override;
 
     virtual bool do_dump(DumpInfo&) override;
@@ -45,7 +46,6 @@ class SimEngine : public backend::SimEngine
     virtual void do_apply_recover(RecoverInfo&) override;
     virtual void do_clear_recover(RecoverInfo&) override;
 
-  private:
     void build();
     void init_scene();
     void dump_global_surface(std::string_view name);
@@ -71,7 +71,7 @@ class SimEngine : public backend::SimEngine
     GlobalContactManager*   m_global_contact_manager   = nullptr;
     GlobalTrajectoryFilter* m_global_trajectory_filter = nullptr;
 
-    DoFPredictor*            m_dof_predictor             = nullptr;
+    DofPredictor*            m_dof_predictor             = nullptr;
     LineSearcher*            m_line_searcher             = nullptr;
     GradientHessianComputer* m_gradient_hessian_computer = nullptr;
     GlobalLinearSystem*      m_global_linear_system      = nullptr;
@@ -84,5 +84,6 @@ class SimEngine : public backend::SimEngine
     SizeT m_newton_max_iter     = 1000;
     SizeT m_current_frame       = 0;
     bool  m_friction_enabled    = false;
+    bool  m_last_solved_frame   = false;
 };
 }  // namespace uipc::backend::cuda

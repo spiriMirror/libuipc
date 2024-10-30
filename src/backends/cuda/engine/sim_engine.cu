@@ -180,4 +180,9 @@ void SimEngine::do_clear_recover(RecoverInfo& info)
 {
     // If failed, do nothing
 }
+
+SizeT SimEngine::get_frame() const
+{
+    return m_current_frame;
+}
 }  // namespace uipc::backend::cuda

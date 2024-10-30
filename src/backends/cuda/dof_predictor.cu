@@ -2,33 +2,33 @@
 
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(DoFPredictor);
+REGISTER_SIM_SYSTEM(DofPredictor);
 
-void DoFPredictor::do_build()
+void DofPredictor::do_build()
 {
     auto scene = world().scene();
     m_dt       = scene.info()["dt"];
     on_init_scene([this]() { init(); });
 }
 
-void DoFPredictor::on_predict(SimSystem& system, std::function<void(PredictInfo&)>&& action)
+void DofPredictor::on_predict(SimSystem& system, std::function<void(PredictInfo&)>&& action)
 {
     m_on_predict.register_action(system, std::move(action));
 }
 
-void DoFPredictor::on_compute_velocity(SimSystem& system,
+void DofPredictor::on_compute_velocity(SimSystem& system,
                                        std::function<void(PredictInfo&)>&& action)
 {
     m_on_compute_velocity.register_action(system, std::move(action));
 }
 
-void DoFPredictor::init()
+void DofPredictor::init()
 {
     [[maybe_unuse]] m_on_predict.view();
     [[maybe_unuse]] m_on_compute_velocity.view();
 }
 
-void DoFPredictor::predict()
+void DofPredictor::predict()
 {
     for(auto& action : m_on_predict.view())
     {
@@ -37,7 +37,7 @@ void DoFPredictor::predict()
         action(info);
     }
 }
-void DoFPredictor::compute_velocity()
+void DofPredictor::compute_velocity()
 {
     for(auto& action : m_on_compute_velocity.view())
     {
