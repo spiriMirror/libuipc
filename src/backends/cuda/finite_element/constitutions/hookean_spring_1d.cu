@@ -252,6 +252,7 @@ class DiffHookeanSpring1D final : public Codim1DConstitutionDiffParmReporter
                     Pi      = std::numbers::pi] __device__(int I) mutable
                    {
                        auto edge_index = edge_indices(I);
+                       auto parm_index = diff_parm_indices(I);
 
                        Vector6  X;
                        Vector2i idx = indices(edge_index);
@@ -275,7 +276,7 @@ class DiffHookeanSpring1D final : public Codim1DConstitutionDiffParmReporter
                        for(int k = 0; k < 2; ++k)
                        {
                            auto i = idx(k) * 3;  // 3 dof per vertex
-                           auto j = diff_parm_indices(I);
+                           auto j = parm_index;
 
                            unpacker
                                .segment<3>((I + k) * 3)  // take a range for 3 dof, [(I+k)*3, (I+k)*3+3)
