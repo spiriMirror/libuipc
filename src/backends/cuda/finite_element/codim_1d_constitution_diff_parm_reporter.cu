@@ -34,6 +34,11 @@ muda::CBufferView<Float> Codim1DConstitutionDiffParmReporter::DiffParmInfo::thic
     return m_impl->fem().thicknesses.view();
 }
 
+muda::CBufferView<IndexT> Codim1DConstitutionDiffParmReporter::DiffParmInfo::is_fixed() const noexcept
+{
+    return m_impl->fem().is_fixed.view();  // must return full buffer, because the indices index into the full buffer
+}
+
 muda::CBufferView<Vector2i> Codim1DConstitutionDiffParmReporter::DiffParmInfo::indices() const noexcept
 {
     auto& info = constitution_info();

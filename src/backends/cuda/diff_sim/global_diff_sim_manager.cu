@@ -5,6 +5,7 @@
 #include <sim_engine.h>
 #include <utils/offset_count_collection.h>
 #include <sim_engine.h>
+#include <kernel_cout.h>
 
 namespace uipc::backend
 {
@@ -70,6 +71,7 @@ namespace detail
                    {
                        auto&& [i, j, V] = local_triplet(I);
                        total_triplet(I).write(i, j, V);
+                       // cout << "i: " << i << ", j: " << j << ", V: " << V << "\n";
                    });
 
         // 3) convert the total_triplet to total_coo

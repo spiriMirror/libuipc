@@ -107,13 +107,13 @@ class DoubletVectorAssembler
 
         MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
                                 const Eigen::Vector<IndexT, N>& ignore,
-                                const ElementVector&            value)
+                                const SegmentVector&            value)
             requires(N > 1)
         {
             IndexT offset = m_I;
             for(IndexT ii = 0; ii < N; ++ii)
             {
-                ElementVector G = value;
+                ElementVector G = value.template segment<SegmentDim>(ii * SegmentDim);
                 if(ignore(ii))
                     G.setZero();
                 m_assembler.m_doublet(offset++).write(indices(ii), G);

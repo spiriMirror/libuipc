@@ -24,6 +24,7 @@ class Codim1DConstitutionDiffParmReporter : public FiniteElementConstitutionDiff
         muda::CBufferView<Float>    rest_lengths() const noexcept;
         muda::CBufferView<Vector2i> indices() const noexcept;
         muda::CBufferView<Float>    thicknesses() const noexcept;
+        muda::CBufferView<IndexT>   is_fixed() const noexcept;
         const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;
 
         SizeT  frame() const;

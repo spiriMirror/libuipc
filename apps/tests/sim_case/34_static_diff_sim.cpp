@@ -23,8 +23,9 @@ TEST_CASE("34_static_diff_sim", "[diff_sim]")
     World  world{engine};
 
     auto config                             = Scene::default_config();
+    config["dt"]                            = 1.0;
     config["gravity"]                       = Vector3{0, -9.8, 0};
-    config["contact"]["enable"]             = true;
+    config["contact"]["enable"]             = false;
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["report_energy"]  = true;
     config["diff_sim"]["enable"]            = true;
@@ -39,7 +40,7 @@ TEST_CASE("34_static_diff_sim", "[diff_sim]")
     diff_sim.parameters().resize(1);
     // fill default value
     auto diff_parm_view = view(diff_sim.parameters());
-    std::ranges::fill(diff_parm_view, 40.0_MPa);
+    std::ranges::fill(diff_parm_view, 40.0_kPa);
 
     {
         // create constitution and contact model
@@ -54,7 +55,7 @@ TEST_CASE("34_static_diff_sim", "[diff_sim]")
         vector<Vector3> Vs(n);
         for(int i = 0; i < n; i++)
         {
-            Vs[i] = Vector3{0, 0, 0} + Vector3::UnitZ() * i;
+            Vs[i] = Vector3{0, 0, 0} - Vector3::UnitY() * 0.1 * i;
         }
 
         vector<Vector2i> Es(n - 1);
@@ -62,12 +63,6 @@ TEST_CASE("34_static_diff_sim", "[diff_sim]")
         {
             Es[i] = Vector2i{i, i + 1};
         }
-
-        std::transform(Vs.begin(),
-                       Vs.end(),
-                       Vs.begin(),
-                       [&](const Vector3& v)
-                       { return v * 0.03 + Vector3::UnitY() * 0.1; });
 
         auto mesh = linemesh(Vs, Es);
         label_surface(mesh);
@@ -111,7 +106,7 @@ TEST_CASE("34_static_diff_sim", "[diff_sim]")
         std::cout << "H:\n" << dense_H << std::endl;
 
         // solve the linear system to get dXdP
-        Eigen::MatrixXd dXdP = dense_H.ldlt().solve(dense_pGpP);
+        Eigen::MatrixXd dXdP = dense_H.ldlt().solve(-dense_pGpP);
 
         std::cout << "dXdP:\n" << dXdP << std::endl;
 

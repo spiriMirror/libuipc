@@ -2,6 +2,8 @@
 #include <diff_sim/diff_dof_reporter.h>
 #include <linear_system/global_linear_system.h>
 #include <utils/matrix_unpacker.h>
+#include <kernel_cout.h>
+#include <muda/ext/eigen/log_proxy.h>
 
 namespace uipc::backend::cuda
 {
@@ -25,8 +27,6 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
     GlobalLinearSystem* global_linear_system = nullptr;
     IndexT              triplet_count        = 0;
 
-    muda::DeviceBCOOMatrix<Float, 3> full_bcoo_A;
-
     muda::BCOOMatrixView<Float, 3> bcoo_A()
     {
         return global_linear_system->m_impl.bcoo_A;
@@ -39,7 +39,6 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
 
     virtual void do_report_extent(GlobalDiffSimManager::DiffDofExtentInfo& info) override
     {
-        // BCOO A is symmetric
         auto A        = bcoo_A();
         triplet_count = A.triplet_count();
 
@@ -69,6 +68,8 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
                     sub_H = sub_H.viewer().name("sub_H")] __device__(int I) mutable
                    {
                        auto&& [i, j, H3x3] = bcoo_A(I);
+
+                       // cout << "i: " << i << ", j: " << j << ", H3x3:\n " << H3x3 << "\n";
 
                        TripletMatrixUnpacker<Float> unpacker{sub_H};
                        // every x has 3 dofs

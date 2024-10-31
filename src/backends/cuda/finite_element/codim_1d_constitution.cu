@@ -53,6 +53,10 @@ muda::CBufferView<Vector2i> Codim1DConstitution::BaseInfo::indices() const noexc
     auto& info = constitution_info();
     return m_impl->fem().codim_1ds.view(info.primitive_offset, info.primitive_count);
 }
+muda::CBufferView<IndexT> Codim1DConstitution::BaseInfo::is_fixed() const noexcept
+{
+    return m_impl->fem().is_fixed.view();  // must return full buffer, because the indices index into the full buffer
+}
 
 const FiniteElementMethod::ConstitutionInfo& Codim1DConstitution::BaseInfo::constitution_info() const noexcept
 {

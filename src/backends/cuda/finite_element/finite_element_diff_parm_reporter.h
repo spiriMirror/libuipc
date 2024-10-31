@@ -9,6 +9,8 @@ class FiniteElementDiffParmReporter : public DiffParmReporter
   public:
     using DiffParmReporter::DiffParmReporter;
 
+    class Impl;
+
     class BuildInfo
     {
       public:
@@ -27,9 +29,9 @@ class FiniteElementDiffParmReporter : public DiffParmReporter
     class DiffParmInfo
     {
       public:
-        DiffParmInfo(FiniteElementDiffParmReporter*      impl,
-                     GlobalDiffSimManager::DiffParmInfo& global_info,
-                     Float                               dt)
+        DiffParmInfo(FiniteElementDiffParmReporter::Impl* impl,
+                     GlobalDiffSimManager::DiffParmInfo&  global_info,
+                     Float                                dt)
             : m_impl(impl)
             , m_global_info(global_info)
             , m_dt(dt)
@@ -44,10 +46,17 @@ class FiniteElementDiffParmReporter : public DiffParmReporter
         Float                             dt() const;
 
       private:
-        friend class FiniteElementDiffParmReporter;
-        FiniteElementDiffParmReporter*      m_impl;
-        GlobalDiffSimManager::DiffParmInfo& m_global_info;
-        Float                               m_dt = 0.0;
+        friend class Impl;
+        FiniteElementDiffParmReporter::Impl* m_impl;
+        GlobalDiffSimManager::DiffParmInfo&  m_global_info;
+        Float                                m_dt = 0.0;
+    };
+
+    class Impl
+    {
+      public:
+        FiniteElementMethod* fem = nullptr;
+        Float                dt  = 0.0;
     };
 
   protected:
@@ -55,14 +64,16 @@ class FiniteElementDiffParmReporter : public DiffParmReporter
     virtual void do_report_extent(DiffParmExtentInfo& info) = 0;
     virtual void do_assemble(DiffParmInfo& info)            = 0;
 
-    FiniteElementMethod::Impl& fem() const noexcept { return m_fem->m_impl; }
+    FiniteElementMethod::Impl& fem() const noexcept
+    {
+        return m_impl.fem->m_impl;
+    }
 
   private:
     virtual void do_build(DiffParmReporter::BuildInfo& info) override final;
     virtual void do_report_extent(GlobalDiffSimManager::DiffParmExtentInfo& info) override final;
     virtual void do_assemble(GlobalDiffSimManager::DiffParmInfo& info) override final;
 
-    FiniteElementMethod* m_fem = nullptr;
-    Float                m_dt  = 0.0;
+    Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

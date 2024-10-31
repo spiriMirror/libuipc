@@ -103,8 +103,6 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                    {
                        if(i != j)
                            hessians(I).write(i, j, Matrix3x3::Zero());
-                       else  // avoid singular matrix
-                           hessians(I).write(i, j, Matrix3x3::Identity());
                    }
                })
         .wait();

@@ -105,11 +105,12 @@ class HookeanSpring1D final : public Codim1DConstitution
                     kappas = kappas.cviewer().name("kappas"),
                     rest_lengths = info.rest_lengths().viewer().name("rest_lengths"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_bars  = info.x_bars().viewer().name("x_bars"),
-                    dt      = info.dt(),
-                    Pi      = std::numbers::pi] __device__(int I) mutable
+                    indices  = info.indices().viewer().name("indices"),
+                    xs       = info.xs().viewer().name("xs"),
+                    x_bars   = info.x_bars().viewer().name("x_bars"),
+                    is_fixed = info.is_fixed().viewer().name("is_fixed"),
+                    dt       = info.dt(),
+                    Pi       = std::numbers::pi] __device__(int I) mutable
                    {
                        Vector6  X;
                        Vector2i idx = indices(I);
@@ -123,18 +124,20 @@ class HookeanSpring1D final : public Codim1DConstitution
 
                        Float Vdt2 = L0 * r * r * Pi * dt * dt;
 
+                       Vector2i ignore = {is_fixed(idx(0)), is_fixed(idx(1))};
+
                        Vector6 G;
                        NS::dEdX(G, kappa, X, L0);
                        G *= Vdt2;
                        DoubletVectorAssembler VA{G3s};
-                       VA.segment<2>(I * 2).write(idx, G);
+                       VA.segment<2>(I * 2).write(idx, ignore, G);
 
                        Matrix6x6 H;
                        NS::ddEddX(H, kappa, X, L0);
                        H *= Vdt2;
                        make_spd(H);
                        TripletMatrixAssembler MA{H3x3s};
-                       MA.block<2, 2>(I * 2 * 2).write(idx, H);
+                       MA.block<2, 2>(I * 2 * 2).write(idx, ignore, H);
                    });
     }
 };
@@ -245,11 +248,12 @@ class DiffHookeanSpring1D final : public Codim1DConstitutionDiffParmReporter
                     kappas = constitution().kappas.viewer().name("kappas"),
                     rest_lengths = info.rest_lengths().viewer().name("rest_lengths"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_bars  = info.x_bars().viewer().name("x_bars"),
-                    dt      = info.dt(),
-                    Pi      = std::numbers::pi] __device__(int I) mutable
+                    indices  = info.indices().viewer().name("indices"),
+                    xs       = info.xs().viewer().name("xs"),
+                    x_bars   = info.x_bars().viewer().name("x_bars"),
+                    is_fixed = info.is_fixed().viewer().name("is_fixed"),
+                    dt       = info.dt(),
+                    Pi       = std::numbers::pi] __device__(int I) mutable
                    {
                        auto edge_index = edge_indices(I);
                        auto parm_index = diff_parm_indices(I);
@@ -273,6 +277,12 @@ class DiffHookeanSpring1D final : public Codim1DConstitutionDiffParmReporter
 
                        TripletMatrixUnpacker unpacker(pGpP);
 
+                       Vector2i ignore = {is_fixed(idx(0)), is_fixed(idx(1))};
+
+                       zero_out(pGpk, ignore);
+
+                       // cout << "pGpk: " << pGpk.transpose().eval() << "\n";
+
                        for(int k = 0; k < 2; ++k)
                        {
                            auto i = idx(k) * 3;  // 3 dof per vertex
@@ -282,7 +292,7 @@ class DiffHookeanSpring1D final : public Codim1DConstitutionDiffParmReporter
                                .segment<3>((I + k) * 3)  // take a range for 3 dof, [(I+k)*3, (I+k)*3+3)
                                .write(i,
                                       j,
-                                      pGpk.segment<3>(3 * i)  // 3x1 vector
+                                      pGpk.segment<3>(3 * k)  // 3x1 vector
                                );
                        }
                    });
