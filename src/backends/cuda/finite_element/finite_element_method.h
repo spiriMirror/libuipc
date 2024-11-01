@@ -27,6 +27,8 @@ class Codim2DConstitutionDiffParmReporter;
 class Codim1DConstitutionDiffParmReporter;
 class Codim0DConstitutionDiffParmReporter;
 
+class FiniteElementDiffDofReporter;
+
 class FEMDofPredictor;
 
 class FiniteElementMethod final : public SimSystem
@@ -429,7 +431,7 @@ class FiniteElementMethod final : public SimSystem
 
     friend class FiniteElementDiffParmReporter;
     friend class FiniteElementConstitutionDiffParmReporter;
-    friend class FEMDiffDofReporter;
+    friend class FiniteElementDiffDofReporter;
 
 
     void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution

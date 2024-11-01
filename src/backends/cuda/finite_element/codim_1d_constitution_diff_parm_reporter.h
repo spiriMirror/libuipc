@@ -31,7 +31,7 @@ class Codim1DConstitutionDiffParmReporter : public FiniteElementConstitutionDiff
         IndexT dof_offset(SizeT frame) const;
         IndexT dof_count(SizeT frame) const;
 
-        muda::TripletMatrixView<Float, 1> pGpP(IndexT rel_frame = 0) const;
+        muda::TripletMatrixView<Float, 1> pGpP() const;
         Float                             dt() const;
 
       protected:
@@ -40,7 +40,7 @@ class Codim1DConstitutionDiffParmReporter : public FiniteElementConstitutionDiff
     };
 
   protected:
-    virtual void do_assemble(Codim1DConstitutionDiffParmReporter::DiffParmInfo& info) = 0;
+    virtual void do_assemble(DiffParmInfo& info) = 0;
 
   private:
     virtual void do_assemble(Base::DiffParmInfo& info) final override;

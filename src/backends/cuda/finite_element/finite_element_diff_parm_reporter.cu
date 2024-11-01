@@ -11,14 +11,6 @@ void FiniteElementDiffParmReporter::do_build(DiffParmReporter::BuildInfo& info)
     do_build(this_info);
 }
 
-void FiniteElementDiffParmReporter::do_report_extent(GlobalDiffSimManager::DiffParmExtentInfo& info)
-{
-    DiffParmExtentInfo this_info;
-    do_report_extent(this_info);
-
-    info.triplet_count(this_info.m_triplet_count);
-}
-
 void FiniteElementDiffParmReporter::do_assemble(GlobalDiffSimManager::DiffParmInfo& info)
 {
     DiffParmInfo this_info{&m_impl, info, m_impl.dt};
@@ -42,14 +34,9 @@ IndexT FiniteElementDiffParmReporter::DiffParmInfo::dof_count(SizeT frame) const
     return m_impl->fem->dof_count(frame);
 }
 
-muda::TripletMatrixView<Float, 1> FiniteElementDiffParmReporter::DiffParmInfo::pGpP(IndexT rel_frame) const
+muda::TripletMatrixView<Float, 1> FiniteElementDiffParmReporter::DiffParmInfo::pGpP() const
 {
-    IndexT IF = IndexT{frame()} + rel_frame;
-
-    UIPC_ASSERT(IF >= 1 && rel_frame <= 0,
-                "Frame index must be in range [1,{}], yours' {}",
-                frame(),
-                IF);
+    IndexT IF = IndexT{frame()};
 
     auto pGpP = m_global_info.pGpP();
 

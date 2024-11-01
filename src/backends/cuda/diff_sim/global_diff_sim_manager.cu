@@ -72,7 +72,8 @@ namespace detail
                        auto&& [i, j, V] = local_triplet(I);
                        total_triplet(I).write(i, j, V);
                        // cout << "i: " << i << ", j: " << j << ", V: " << V << "\n";
-                   });
+                   })
+            .wait();
 
         // 3) convert the total_triplet to total_coo
         ctx.convert(total_triplet, total_coo);

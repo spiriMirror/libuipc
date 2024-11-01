@@ -63,9 +63,9 @@ IndexT Codim1DConstitutionDiffParmReporter::DiffParmInfo::dof_count(SizeT frame)
     return m_diff_parm_info.dof_count(frame);
 }
 
-muda::TripletMatrixView<Float, 1> Codim1DConstitutionDiffParmReporter::DiffParmInfo::pGpP(IndexT rel_frame) const
+muda::TripletMatrixView<Float, 1> Codim1DConstitutionDiffParmReporter::DiffParmInfo::pGpP() const
 {
-    return m_diff_parm_info.pGpP(rel_frame);
+    return m_diff_parm_info.pGpP();
 }
 
 Float Codim1DConstitutionDiffParmReporter::DiffParmInfo::dt() const

@@ -92,9 +92,12 @@ TEST_CASE("34_static_diff_sim", "[diff_sim]")
 
     for(auto epoch : range(1))
     {
-        world.advance();
-        world.backward();
-        world.retrieve();
+        while(world.frame() < 3)
+        {
+            world.advance();
+            world.backward();
+            world.retrieve();
+        }
 
         auto pGpP       = scene.diff_sim().pGpP();
         auto dense_pGpP = pGpP.to_dense();

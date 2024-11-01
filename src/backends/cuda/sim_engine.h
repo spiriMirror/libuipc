@@ -84,6 +84,6 @@ class SimEngine final : public backend::SimEngine
     SizeT m_newton_max_iter     = 1000;
     SizeT m_current_frame       = 0;
     bool  m_friction_enabled    = false;
-    bool  m_last_solved_frame   = false;
+    SizeT m_last_solved_frame   = 0;
 };
 }  // namespace uipc::backend::cuda
