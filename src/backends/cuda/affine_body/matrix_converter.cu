@@ -29,9 +29,7 @@ void ABDMatrixConverter::convert(const muda::DeviceTripletMatrix<T, N>& from,
 void ABDMatrixConverter::Impl::convert(const muda::DeviceTripletMatrix<T, N>& from,
                                        muda::DeviceBCOOMatrix<T, N>& to)
 {
-    Timer timer("convert12x12");
-
-    to.reshape(from.block_rows(), from.block_cols());
+    to.reshape(from.rows(), from.cols());
     to.resize_triplets(from.triplet_count());
 
 
@@ -49,9 +47,9 @@ void ABDMatrixConverter::Impl::_radix_sort_indices_and_blocks(
 {
     using namespace muda;
 
-    auto src_row_indices = from.block_row_indices();
-    auto src_col_indices = from.block_col_indices();
-    auto src_blocks      = from.block_values();
+    auto src_row_indices = from.row_indices();
+    auto src_col_indices = from.col_indices();
+    auto src_blocks      = from.values();
 
     loose_resize(ij_hash_input, src_row_indices.size());
     loose_resize(sort_index_input, src_row_indices.size());
@@ -83,8 +81,8 @@ void ABDMatrixConverter::Impl::_radix_sort_indices_and_blocks(
 
     // set ij_hash back to row_indices and col_indices
 
-    auto dst_row_indices = to.block_row_indices();
-    auto dst_col_indices = to.block_col_indices();
+    auto dst_row_indices = to.row_indices();
+    auto dst_col_indices = to.col_indices();
 
     ParallelFor(256)
         .kernel_name("set col row indices")
@@ -103,13 +101,13 @@ void ABDMatrixConverter::Impl::_radix_sort_indices_and_blocks(
 
     {
         Timer timer("set block values");
-        loose_resize(blocks_sorted, from.block_values().size());
+        loose_resize(blocks_sorted, from.values().size());
         ParallelFor(256)
             .kernel_name(__FUNCTION__)
             .apply(src_blocks.size(),
                    [src_blocks = src_blocks.cviewer().name("blocks"),
                     sort_index = sort_index.cviewer().name("sort_index"),
-                    dst_blocks = blocks_sorted.viewer().name("block_values")] __device__(int i) mutable
+                    dst_blocks = blocks_sorted.viewer().name("values")] __device__(int i) mutable
                    { dst_blocks(i) = src_blocks(sort_index(i)); });
     }
 }
@@ -119,8 +117,8 @@ void ABDMatrixConverter::Impl::_make_unique_indices(const muda::DeviceTripletMat
 {
     using namespace muda;
 
-    auto row_indices = to.block_row_indices();
-    auto col_indices = to.block_col_indices();
+    auto row_indices = to.row_indices();
+    auto col_indices = to.col_indices();
 
     loose_resize(unique_ij_pairs, ij_pairs.size());
     loose_resize(unique_counts, ij_pairs.size());
@@ -186,7 +184,7 @@ void ABDMatrixConverter::Impl::_make_unique_block_warp_reduction(
                               sorted_partition_output.data(),
                               sorted_partition_input.size());
 
-    auto blocks = to.block_values();
+    auto blocks = to.values();
 
 
     FastSegmentalReduce()

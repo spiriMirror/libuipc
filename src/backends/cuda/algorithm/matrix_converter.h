@@ -8,8 +8,8 @@ namespace uipc::backend::cuda
 template <typename T, int N>
 class MatrixConverter
 {
-    using BlockMatrix   = muda::DeviceTripletMatrix<T, N>::BlockMatrix;
-    using SegmentVector = muda::DeviceDoubletVector<T, N>::SegmentVector;
+    using BlockMatrix   = muda::DeviceTripletMatrix<T, N>::ValueT;
+    using SegmentVector = muda::DeviceDoubletVector<T, N>::ValueT;
 
     Float m_reserve_ratio = 1.5;
 

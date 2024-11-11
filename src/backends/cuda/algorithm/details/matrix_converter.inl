@@ -15,7 +15,7 @@ template <typename T, int N>
 void MatrixConverter<T, N>::convert(const muda::DeviceTripletMatrix<T, N>& from,
                                     muda::DeviceBCOOMatrix<T, N>&          to)
 {
-    to.reshape(from.block_rows(), from.block_cols());
+    to.reshape(from.rows(), from.cols());
     to.resize_triplets(from.triplet_count());
 
 
@@ -34,9 +34,9 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
 {
     using namespace muda;
 
-    auto src_row_indices = from.block_row_indices();
-    auto src_col_indices = from.block_col_indices();
-    auto src_blocks      = from.block_values();
+    auto src_row_indices = from.row_indices();
+    auto src_col_indices = from.col_indices();
+    auto src_blocks      = from.values();
 
     loose_resize(ij_hash_input, src_row_indices.size());
     loose_resize(sort_index_input, src_row_indices.size());
@@ -68,8 +68,8 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
 
     // set ij_hash back to row_indices and col_indices
 
-    auto dst_row_indices = to.block_row_indices();
-    auto dst_col_indices = to.block_col_indices();
+    auto dst_row_indices = to.row_indices();
+    auto dst_col_indices = to.col_indices();
 
     ParallelFor(256)
         .file_line(__FILE__, __LINE__)
@@ -87,13 +87,13 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
     // sort the block values
 
     {
-        loose_resize(blocks_sorted, from.block_values().size());
+        loose_resize(blocks_sorted, from.values().size());
         ParallelFor(256)
             .file_line(__FILE__, __LINE__)
             .apply(src_blocks.size(),
                    [src_blocks = src_blocks.cviewer().name("blocks"),
                     sort_index = sort_index.cviewer().name("sort_index"),
-                    dst_blocks = blocks_sorted.viewer().name("block_values")] __device__(int i) mutable
+                    dst_blocks = blocks_sorted.viewer().name("values")] __device__(int i) mutable
                    { dst_blocks(i) = src_blocks(sort_index(i)); });
     }
 }
@@ -103,9 +103,9 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(muda::DeviceBCOOMatri
 {
     using namespace muda;
 
-    auto src_row_indices = to.block_row_indices();
-    auto src_col_indices = to.block_col_indices();
-    auto src_blocks      = to.block_values();
+    auto src_row_indices = to.row_indices();
+    auto src_col_indices = to.col_indices();
+    auto src_blocks      = to.values();
 
     loose_resize(ij_hash_input, src_row_indices.size());
     loose_resize(sort_index_input, src_row_indices.size());
@@ -137,8 +137,8 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(muda::DeviceBCOOMatri
 
     // set ij_hash back to row_indices and col_indices
 
-    auto dst_row_indices = to.block_row_indices();
-    auto dst_col_indices = to.block_col_indices();
+    auto dst_row_indices = to.row_indices();
+    auto dst_col_indices = to.col_indices();
 
     ParallelFor(256)
         .file_line(__FILE__, __LINE__)
@@ -156,24 +156,24 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(muda::DeviceBCOOMatri
     // sort the block values
 
     {
-        loose_resize(blocks_sorted, to.block_values().size());
+        loose_resize(blocks_sorted, to.values().size());
         ParallelFor(256)
             .file_line(__FILE__, __LINE__)
             .apply(src_blocks.size(),
                    [src_blocks = src_blocks.cviewer().name("blocks"),
                     sort_index = sort_index.cviewer().name("sort_index"),
                     ij_pairs   = ij_pairs.cviewer().name("ij_pairs"),
-                    dst_row = to.block_row_indices().viewer().name("row_indices"),
-                    dst_col = to.block_col_indices().viewer().name("col_indices"),
+                    dst_row = to.row_indices().viewer().name("row_indices"),
+                    dst_col = to.col_indices().viewer().name("col_indices"),
 
-                    dst_blocks = blocks_sorted.viewer().name("block_values")] __device__(int i) mutable
+                    dst_blocks = blocks_sorted.viewer().name("values")] __device__(int i) mutable
                    {
                        dst_blocks(i) = src_blocks(sort_index(i));
                        dst_row(i)    = ij_pairs(i).x;
                        dst_col(i)    = ij_pairs(i).y;
                    });
 
-        to.block_values().copy_from(blocks_sorted);
+        to.values().copy_from(blocks_sorted);
     }
 }
 
@@ -183,8 +183,8 @@ void MatrixConverter<T, N>::_make_unique_indices(const muda::DeviceTripletMatrix
 {
     using namespace muda;
 
-    auto row_indices = to.block_row_indices();
-    auto col_indices = to.block_col_indices();
+    auto row_indices = to.row_indices();
+    auto col_indices = to.col_indices();
 
     loose_resize(unique_ij_pairs, ij_pairs.size());
     loose_resize(unique_counts, ij_pairs.size());
@@ -251,7 +251,7 @@ void MatrixConverter<T, N>::_make_unique_block_warp_reduction(
                               sorted_partition_output.data(),
                               sorted_partition_input.size());
 
-    auto blocks = to.block_values();
+    auto blocks = to.values();
 
     FastSegmentalReduce<>()
         .file_line(__FILE__, __LINE__)
@@ -267,13 +267,13 @@ void MatrixConverter<T, N>::convert(const muda::DeviceBCOOMatrix<T, N>& from,
     // calculate the row offsets
     _calculate_block_offsets(from, to);
 
-    to.resize(from.non_zero_blocks());
+    to.resize(from.non_zeros());
 
-    auto vals        = to.block_values();
-    auto col_indices = to.block_col_indices();
+    auto vals        = to.values();
+    auto col_indices = to.col_indices();
 
-    vals.copy_from(from.block_values());  // BCOO and BSR have the same block values
-    col_indices.copy_from(from.block_col_indices());  // BCOO and BSR have the same block col indices
+    vals.copy_from(from.values());  // BCOO and BSR have the same block values
+    col_indices.copy_from(from.col_indices());  // BCOO and BSR have the same block col indices
 }
 
 template <typename T, int N>
@@ -286,21 +286,21 @@ void MatrixConverter<T, N>::_calculate_block_offsets(const muda::DeviceBCOOMatri
     to.reshape(from.block_rows(), from.block_cols());
 
 
-    auto dst_row_offsets = to.block_row_offsets();
+    auto dst_row_offsets = to.row_offsets();
 
     col_counts_per_row.resize(dst_row_offsets.size());
     col_counts_per_row.fill(0);
 
-    unique_indices.resize(from.non_zero_blocks());
-    unique_counts.resize(from.non_zero_blocks());
+    unique_indices.resize(from.non_zeros());
+    unique_counts.resize(from.non_zeros());
 
 
     // run length encode the row
-    DeviceRunLengthEncode().Encode(from.block_row_indices().data(),
+    DeviceRunLengthEncode().Encode(from.row_indices().data(),
                                    unique_indices.data(),
                                    unique_counts.data(),
                                    count.data(),
-                                   from.non_zero_blocks());
+                                   from.non_zeros());
     int h_count = count;
 
     unique_indices.resize(h_count);
@@ -331,7 +331,7 @@ template <typename T, int N>
 void MatrixConverter<T, N>::convert(const muda::DeviceDoubletVector<T, N>& from,
                                     muda::DeviceBCOOVector<T, N>&          to)
 {
-    to.reshape(from.segment_count());
+    to.reshape(from.count());
     to.resize_doublets(from.doublet_count());
 
     if(to.doublet_count() == 0)
@@ -348,8 +348,8 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_segments(
 {
     using namespace muda;
 
-    auto src_indices  = from.segment_indices();
-    auto src_segments = from.segment_values();
+    auto src_indices  = from.indices();
+    auto src_segments = from.values();
 
     loose_resize(indices_sorted, src_indices.size());
     loose_resize(segments_sorted, src_segments.size());
@@ -367,8 +367,8 @@ void MatrixConverter<T, N>::_make_unique_indices(const muda::DeviceDoubletVector
 {
     using namespace muda;
 
-    auto dst_indices  = to.segment_indices();
-    auto dst_segments = to.segment_values();
+    auto dst_indices  = to.indices();
+    auto dst_segments = to.values();
     loose_resize(unique_indices, indices_sorted.size());
     loose_resize(unique_counts, indices_sorted.size());
 
@@ -427,7 +427,7 @@ void MatrixConverter<T, N>::_make_unique_segment_warp_reduction(
                               sorted_partition_output.data(),
                               sorted_partition_input.size());
 
-    auto segments = to.segment_values();
+    auto segments = to.values();
 
     FastSegmentalReduce<64, 32>()
         .file_line(__FILE__, __LINE__)
@@ -445,19 +445,19 @@ void MatrixConverter<T, N>::ge2sym(muda::DeviceBCOOMatrix<T, N>& to)
     auto& counts     = unique_counts;
     auto& block_temp = blocks_sorted;
 
-    loose_resize(counts, to.non_zero_blocks());
-    loose_resize(offsets, to.non_zero_blocks());
-    loose_resize(ij_pairs, to.non_zero_blocks());
-    loose_resize(block_temp, to.block_values().size());
+    loose_resize(counts, to.non_zeros());
+    loose_resize(offsets, to.non_zeros());
+    loose_resize(ij_pairs, to.non_zeros());
+    loose_resize(block_temp, to.values().size());
 
     // 0. find the upper triangular part (where i <= j)
     ParallelFor(256)
         .file_line(__FILE__, __LINE__)
-        .apply(to.non_zero_blocks(),
-               [row_indices = to.block_row_indices().cviewer().name("row_indices"),
-                col_indices = to.block_col_indices().cviewer().name("col_indices"),
+        .apply(to.non_zeros(),
+               [row_indices = to.row_indices().cviewer().name("row_indices"),
+                col_indices = to.col_indices().cviewer().name("col_indices"),
                 ij_pairs   = ij_pairs.viewer().name("ij_pairs"),
-                blocks     = to.block_values().cviewer().name("block_temp"),
+                blocks     = to.values().cviewer().name("block_temp"),
                 block_temp = block_temp.viewer().name("block_temp"),
                 counts = counts.viewer().name("counts")] __device__(int i) mutable
                {
@@ -471,7 +471,7 @@ void MatrixConverter<T, N>::ge2sym(muda::DeviceBCOOMatrix<T, N>& to)
     DeviceScan().ExclusiveSum(counts.data(), offsets.data(), counts.size());
 
     // set the values
-    auto dst_block = to.block_values();
+    auto dst_block = to.values();
 
     ParallelFor(256)
         .file_line(__FILE__, __LINE__)
@@ -479,8 +479,8 @@ void MatrixConverter<T, N>::ge2sym(muda::DeviceBCOOMatrix<T, N>& to)
                [dst_blocks = dst_block.viewer().name("blocks"),
                 src_blocks = block_temp.cviewer().name("src_blocks"),
                 ij_pairs   = ij_pairs.cviewer().name("ij_pairs"),
-                row_indices = to.block_row_indices().viewer().name("row_indices"),
-                col_indices = to.block_col_indices().viewer().name("col_indices"),
+                row_indices = to.row_indices().viewer().name("row_indices"),
+                col_indices = to.col_indices().viewer().name("col_indices"),
                 counts  = counts.cviewer().name("counts"),
                 offsets = offsets.cviewer().name("offsets"),
                 total_count = count.viewer().name("total_count")] __device__(int i) mutable
@@ -514,7 +514,7 @@ void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
 {
     using namespace muda;
 
-    auto sym_size = from.non_zero_blocks();
+    auto sym_size = from.non_zeros();
 
     // alias to reuse the memory
     auto& flags                 = offsets;
@@ -534,8 +534,8 @@ void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
         .file_line(__FILE__, __LINE__)
         .apply(sym_size,
                [flags = flags.viewer().name("flags"),
-                row_indices = from.block_row_indices().cviewer().name("row_indices"),
-                col_indices = from.block_col_indices().cviewer().name("col_indices"),
+                row_indices = from.row_indices().cviewer().name("row_indices"),
+                col_indices = from.col_indices().cviewer().name("col_indices"),
                 partition_index = partition_index_input.viewer().name(
                     "partitioned")] __device__(int i) mutable
                {
@@ -571,13 +571,13 @@ void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
                    auto index = partition_index(i);
                    auto f     = from(index);
                    // diag + upper
-                   to(i).write(f.block_row_index, f.block_col_index, f.block_value);
+                   to(i).write(f.row_index, f.col_index, f.block_value);
                    if(i >= diag_count)
                    {
                        // lower
                        to(i + sym_size - diag_count)
-                           .write(f.block_col_index,
-                                  f.block_row_index,
+                           .write(f.col_index,
+                                  f.row_index,
                                   f.block_value.transpose());
                    }
                });
