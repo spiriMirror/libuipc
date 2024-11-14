@@ -1,21 +1,19 @@
+from project_dir import project_dir
+import argparse as ap
 import subprocess as sp
-import pathlib as pl
 
-# get rpoject source dir
-file = __file__
-project_source_dir = pl.Path(file).parent.parent.absolute()
-print(f"project_source_dir: {project_source_dir}")
-
-# get the mkdocs config file
-mkdocs_config_file = project_source_dir / "mkdocs.yaml"
-
-# get the cwd
-cwd = pl.Path.cwd().absolute()
-print(f"cwd: {cwd}")
-
-# build the docs
-docs_dir = cwd / "docs"
-sp.run(["mkdocs", "build", "-f", mkdocs_config_file, "-d", docs_dir], cwd=cwd)
-
-
-
+if __name__ == '__main__':
+    proj_dir = project_dir()
+    parser = ap.ArgumentParser(description='Build the documents')
+    doc_default_dir = proj_dir.parent / 'libuipc-doc' / 'docs'
+    parser.add_argument('-o', '--output', help='the output dir', default=f'{doc_default_dir}')
+    args = parser.parse_args()
+    doc_dir = args.output
+    print(f'output_dir={doc_default_dir}')
+    config_file = proj_dir / 'mkdocs.yaml'
+    print(f'config_file={config_file}')
+    Value = sp.call(['mkdocs', 'build', '-f', config_file, '-d', doc_dir], cwd=proj_dir)
+    if Value == 0:
+        print('Success')
+    else:
+        print('Failure')

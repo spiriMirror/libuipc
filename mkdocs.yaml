@@ -57,7 +57,7 @@ plugins:
   - mkdoxy:
       projects:
         Libuipc: # name of project must be alphanumeric + numbers (without spaces)
-          src-dirs: src/uipc # path to source code (support multiple paths separated by space) => INPUT
+          src-dirs: include/ # path to source code (support multiple paths separated by space) => INPUT
           full-doc: True # if you want to generate full documentation
           doxy-cfg: # standard doxygen configuration (key: value)
             FILE_PATTERNS: "*.h*" # specify file patterns to filter out
