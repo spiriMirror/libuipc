@@ -19,6 +19,8 @@ class UIPC_CORE_API DiffSimVisitor
     void pGpP(const diff_sim::SparseCOOView& value);
     void need_backend_broadcast(bool v);
     bool need_backend_broadcast() const;
+    void need_backend_clear(bool v);
+    bool need_backend_clear() const;
 
   private:
     core::DiffSim& m_diff_sim;

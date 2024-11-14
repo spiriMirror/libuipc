@@ -1,11 +1,11 @@
 #pragma once
 #include <pyuipc/pyuipc.h>
 
-namespace pyuipc::core
+namespace pyuipc::diff_sim
 {
 class PyModule
 {
   public:
     PyModule(py::module& m);
 };
-}  // namespace pyuipc::core
+}  // namespace pyuipc::diff_sim

@@ -8,169 +8,164 @@ namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
 
-template <typename T>
-void disable_create_scalar_like_this(py::class_<AttributeCollection>& class_AttributeCollection)
-    requires(!is_matrix_v<T>)
-{
-    class_AttributeCollection.def(
-        "create",
-        [](AttributeCollection& self, std::string_view name, T& value) -> S<IAttributeSlot>
-        {
-            auto type_name = boost::core::demangle(typeid(T).name());
-            fmt::print("scalar type check: <{}>\n", type_name);
-            throw std::runtime_error(PYUIPC_MSG(R"(-- Misuage of `create` method when create scalar attribute --
-Don't use: `create('NAME', V)`, which may cause ambiguous. Instead, try: `create('NAME', numpy.array(V, dtype=Type))`.)"));
-        });
-}
-
 void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
 {
     class_AttributeCollection
-        // Float
-        .def("create",
-             [](AttributeCollection& self, std::string_view name, py::array_t<Float> arr) -> S<IAttributeSlot>
-             {
-                 bool is_scalar =
-                     arr.ndim() == 0 || (arr.ndim() == 1 && arr.shape(0) == 1)
-                     || (arr.ndim() == 2 && arr.shape(0) == 1 && arr.shape(1) == 1);
-                 if(is_scalar)
-                 {
-                     return self.create(name, *arr.data());
-                 }
-
-                 bool is_vector = arr.ndim() == 1
-                                  || (arr.ndim() == 2 && arr.shape(1) == 1)
-                                  || (arr.ndim() == 2 && arr.shape(0) == 1);
-
-                 if(is_vector)  // Vector Type
-                 {
-                     if(arr.shape(0) == 2)
-                     {
-                         return self.create(name, to_matrix<Vector2>(arr));
-                     }
-                     else if(arr.shape(0) == 3)
-                     {
-                         return self.create(name, to_matrix<Vector3>(arr));
-                     }
-                     else if(arr.shape(0) == 4)
-                     {
-                         return self.create(name, to_matrix<Vector4>(arr));
-                     }
-                     else if(arr.shape(0) == 6)
-                     {
-                         return self.create(name, to_matrix<Vector6>(arr));
-                     }
-                     else if(arr.shape(0) == 9)
-                     {
-                         return self.create(name, to_matrix<Vector9>(arr));
-                     }
-                     else if(arr.shape(0) == 12)
-                     {
-                         return self.create(name, to_matrix<Vector12>(arr));
-                     }
-                     else
-                     {
-                         throw std::runtime_error(PYUIPC_MSG("Unsupported vector size"));
-                     }
-                 }
-                 else if(arr.ndim() == 2)  // Matrix Type or Vector Type
-                 {
-
-                     if(arr.shape(0) == 2 && arr.shape(1) == 2)
-                     {
-                         return self.create(name, to_matrix<Matrix2x2>(arr));
-                     }
-                     else if(arr.shape(0) == 3 && arr.shape(1) == 3)
-                     {
-                         return self.create(name, to_matrix<Matrix3x3>(arr));
-                     }
-                     else if(arr.shape(0) == 4 && arr.shape(1) == 4)
-                     {
-                         return self.create(name, to_matrix<Matrix4x4>(arr));
-                     }
-                     else if(arr.shape(0) == 6 && arr.shape(1) == 6)
-                     {
-                         return self.create(name, to_matrix<Matrix6x6>(arr));
-                     }
-                     else if(arr.shape(0) == 9 && arr.shape(1) == 9)
-                     {
-                         return self.create(name, to_matrix<Matrix9x9>(arr));
-                     }
-                     else if(arr.shape(0) == 12 && arr.shape(1) == 12)
-                     {
-                         return self.create(name, to_matrix<Matrix12x12>(arr));
-                     }
-                     else
-                     {
-                         throw std::runtime_error(PYUIPC_MSG("Unsupported matrix size"));
-                     }
-                 }
-                 else
-                 {
-                     throw std::runtime_error(PYUIPC_MSG("Unsupported shape of float64"));
-                 }
-             })
-        // Int
-        .def("create",
-             [](AttributeCollection& self, std::string_view name, py::array_t<IndexT> arr) -> S<IAttributeSlot>
-             {
-                 bool is_scalar = arr.ndim() == 0;
-                 if(is_scalar)
-                 {
-                     return self.create(name, *arr.data());
-                 }
-
-                 bool is_vector =
-                     arr.ndim() == 1 || (arr.ndim() == 2 && arr.shape(1) == 1);
-
-                 if(is_vector)  // Vector Type
-                 {
-                     if(arr.shape(0) == 2)
-                     {
-                         return self.create(name, to_matrix<Vector2i>(arr));
-                     }
-                     else if(arr.shape(0) == 3)
-                     {
-                         return self.create(name, to_matrix<Vector3i>(arr));
-                     }
-                     else if(arr.shape(0) == 4)
-                     {
-                         return self.create(name, to_matrix<Vector4i>(arr));
-                     }
-                     else
-                     {
-                         throw std::runtime_error(PYUIPC_MSG("Unsupported vector size"));
-                     }
-                 }
-                 else
-                 {
-                     throw std::runtime_error(PYUIPC_MSG("Unsupported shape of int"));
-                 }
-             })
-        // U64
-        .def("create",
-             [](AttributeCollection& self, std::string_view name, py::array_t<U64> arr) -> S<IAttributeSlot>
-             {
-                 bool is_scalar = arr.ndim() == 0;
-                 if(is_scalar)
-                 {
-                     return self.create(name, *arr.data());
-                 }
-
-                 throw std::runtime_error(PYUIPC_MSG("Unsupported shape of uint64"));
-             })
+        // I32
+        .def(
+            "create",
+            [](AttributeCollection& self, std::string_view name, I32 value) -> S<IAttributeSlot>
+            { return self.create(name, value); },
+            py::arg("name"),
+            py::arg("value").noconvert())
         // I64
-        .def("create",
-             [](AttributeCollection& self, std::string_view name, py::array_t<I64> arr) -> S<IAttributeSlot>
-             {
-                 bool is_scalar = arr.ndim() == 0;
-                 if(is_scalar)
-                 {
-                     return self.create(name, *arr.data());
-                 }
+        .def(
+            "create",
+            [](AttributeCollection& self, std::string_view name, I64 arr) -> S<IAttributeSlot>
+            { return self.create(name, arr); },
+            py::arg("name"),
+            py::arg("value").noconvert())
+        // U64
+        .def(
+            "create",
+            [](AttributeCollection& self, std::string_view name, U64 arr) -> S<IAttributeSlot>
+            { return self.create(name, arr); },
+            py::arg("name"),
+            py::arg("value").noconvert())
+        // Float
+        .def(
+            "create",
+            [](AttributeCollection& self, std::string_view name, Float arr) -> S<IAttributeSlot>
+            { return self.create(name, arr); },
+            py::arg("name"),
+            py::arg("value").noconvert())
+        // Float Array
+        .def(
+            "create",
+            [](AttributeCollection& self, std::string_view name, py::array_t<Float> arr) -> S<IAttributeSlot>
+            {
+                bool is_scalar =
+                    arr.ndim() == 0 || (arr.ndim() == 1 && arr.shape(0) == 1)
+                    || (arr.ndim() == 2 && arr.shape(0) == 1 && arr.shape(1) == 1);
+                if(is_scalar)
+                {
+                    return self.create(name, *arr.data());
+                }
 
-                 throw std::runtime_error(PYUIPC_MSG("Unsupported shape of int64"));
-             })
+                bool is_vector = arr.ndim() == 1
+                                 || (arr.ndim() == 2 && arr.shape(1) == 1)
+                                 || (arr.ndim() == 2 && arr.shape(0) == 1);
+
+                if(is_vector)  // Vector Type
+                {
+                    if(arr.shape(0) == 2)
+                    {
+                        return self.create(name, to_matrix<Vector2>(arr));
+                    }
+                    else if(arr.shape(0) == 3)
+                    {
+                        return self.create(name, to_matrix<Vector3>(arr));
+                    }
+                    else if(arr.shape(0) == 4)
+                    {
+                        return self.create(name, to_matrix<Vector4>(arr));
+                    }
+                    else if(arr.shape(0) == 6)
+                    {
+                        return self.create(name, to_matrix<Vector6>(arr));
+                    }
+                    else if(arr.shape(0) == 9)
+                    {
+                        return self.create(name, to_matrix<Vector9>(arr));
+                    }
+                    else if(arr.shape(0) == 12)
+                    {
+                        return self.create(name, to_matrix<Vector12>(arr));
+                    }
+                    else
+                    {
+                        throw std::runtime_error(PYUIPC_MSG("Unsupported vector size"));
+                    }
+                }
+                else if(arr.ndim() == 2)  // Matrix Type or Vector Type
+                {
+
+                    if(arr.shape(0) == 2 && arr.shape(1) == 2)
+                    {
+                        return self.create(name, to_matrix<Matrix2x2>(arr));
+                    }
+                    else if(arr.shape(0) == 3 && arr.shape(1) == 3)
+                    {
+                        return self.create(name, to_matrix<Matrix3x3>(arr));
+                    }
+                    else if(arr.shape(0) == 4 && arr.shape(1) == 4)
+                    {
+                        return self.create(name, to_matrix<Matrix4x4>(arr));
+                    }
+                    else if(arr.shape(0) == 6 && arr.shape(1) == 6)
+                    {
+                        return self.create(name, to_matrix<Matrix6x6>(arr));
+                    }
+                    else if(arr.shape(0) == 9 && arr.shape(1) == 9)
+                    {
+                        return self.create(name, to_matrix<Matrix9x9>(arr));
+                    }
+                    else if(arr.shape(0) == 12 && arr.shape(1) == 12)
+                    {
+                        return self.create(name, to_matrix<Matrix12x12>(arr));
+                    }
+                    else
+                    {
+                        throw std::runtime_error(PYUIPC_MSG("Unsupported matrix size"));
+                    }
+                }
+                else
+                {
+                    throw std::runtime_error(PYUIPC_MSG("Unsupported shape of float64"));
+                }
+            },
+            py::arg("name"),
+            py::arg("value").noconvert())
+        // Int Array
+        .def(
+            "create",
+            [](AttributeCollection& self, std::string_view name, py::array_t<IndexT> arr) -> S<IAttributeSlot>
+            {
+                bool is_scalar = arr.ndim() == 0;
+                if(is_scalar)
+                {
+                    return self.create(name, *arr.data());
+                }
+
+                bool is_vector =
+                    arr.ndim() == 1 || (arr.ndim() == 2 && arr.shape(1) == 1);
+
+                if(is_vector)  // Vector Type
+                {
+                    if(arr.shape(0) == 2)
+                    {
+                        return self.create(name, to_matrix<Vector2i>(arr));
+                    }
+                    else if(arr.shape(0) == 3)
+                    {
+                        return self.create(name, to_matrix<Vector3i>(arr));
+                    }
+                    else if(arr.shape(0) == 4)
+                    {
+                        return self.create(name, to_matrix<Vector4i>(arr));
+                    }
+                    else
+                    {
+                        throw std::runtime_error(PYUIPC_MSG("Unsupported vector size"));
+                    }
+                }
+                else
+                {
+                    throw std::runtime_error(PYUIPC_MSG("Unsupported shape of int"));
+                }
+            },
+            py::arg("name"),
+            py::arg("value").noconvert())
         // String
         .def("create",
              [](AttributeCollection& self, std::string_view name, std::string_view str)
@@ -183,10 +178,6 @@ PyAttributeCollection::PyAttributeCollection(py::module& m)
         py::class_<AttributeCollection>(m, "AttributeCollection");
 
     def_create(class_AttributeCollection);
-
-    disable_create_scalar_like_this<U64>(class_AttributeCollection);
-    disable_create_scalar_like_this<I64>(class_AttributeCollection);
-    disable_create_scalar_like_this<Float>(class_AttributeCollection);
 
     class_AttributeCollection.def(
         "share",

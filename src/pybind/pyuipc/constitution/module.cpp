@@ -17,7 +17,7 @@
 
 namespace pyuipc::constitution
 {
-Module::Module(py::module& m)
+PyModule::PyModule(py::module& m)
 {
     PyConstitution{m};
     PyConstraint{m};

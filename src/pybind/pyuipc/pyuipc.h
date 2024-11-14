@@ -9,6 +9,8 @@ namespace pyuipc
 using namespace uipc;
 namespace py = pybind11;
 
+extern py::module& top_module();
+
 namespace detail
 {
     std::string string_with_source_location(std::string_view msg,

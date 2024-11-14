@@ -39,4 +39,13 @@ bool uipc::backend::DiffSimVisitor::need_backend_broadcast() const
 {
     return m_diff_sim.parameters().need_backend_broadcast();
 }
+void uipc::backend::DiffSimVisitor::need_backend_clear(bool v)
+{
+    m_diff_sim.need_backend_clear(v);
+}
+
+bool uipc::backend::DiffSimVisitor::need_backend_clear() const
+{
+    return m_diff_sim.need_backend_clear();
+}
 }  // namespace uipc::backend

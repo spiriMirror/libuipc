@@ -3,9 +3,9 @@
 
 namespace pyuipc::geometry
 {
-class Module
+class PyModule
 {
   public:
-    Module(py::module& m);
+    PyModule(py::module& m);
 };
 }  // namespace pyuipc::geometry

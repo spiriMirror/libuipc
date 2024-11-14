@@ -33,12 +33,13 @@ class UIPC_CORE_API ParameterCollection
     void              broadcast();
     span<const Float> view() const;
 
+    ~ParameterCollection();
+
   private:
     friend class uipc::core::DiffSim;
     friend class uipc::backend::DiffSimVisitor;
 
     ParameterCollection();
-    ~ParameterCollection();
 
     // delete copy constructor and assignment operator
     ParameterCollection(const ParameterCollection&)            = delete;

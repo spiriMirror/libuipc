@@ -4,6 +4,7 @@ from polyscope import imgui
 
 from asset import AssetDir
 from pyuipc_loader import pyuipc
+from pyuipc import view
 from pyuipc import Vector3, Vector2, Transform, Logger, Matrix4x4
 from pyuipc import builtin
 

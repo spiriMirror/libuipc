@@ -1,4 +1,4 @@
-#include <uipc/geometry/utils/apply_instances.h>
+#include <uipc/geometry/utils/apply_transform.h>
 #include <uipc/common/enumerate.h>
 #include <Eigen/Geometry>
 
@@ -17,7 +17,11 @@ vector<SimplicialComplex> apply_transform(const SimplicialComplex& complex)
         R.instances().copy_from(complex.instances(), AttributeCopy::range(0, i, 1));
 
         // transform the vertices
-        auto T  = view(R.transforms());
+        auto T = view(R.transforms());
+
+        if(T[0].isIdentity())
+            continue;
+
         auto Vs = view(R.positions());
         std::ranges::transform(Vs,
                                Vs.begin(),

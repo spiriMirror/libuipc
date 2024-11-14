@@ -4,7 +4,7 @@
 
 namespace pyuipc::backend
 {
-Module::Module(py::module& m)
+PyModule::PyModule(py::module& m)
 {
     PySceneVisitor{m};
     PyWorldVisitor{m};

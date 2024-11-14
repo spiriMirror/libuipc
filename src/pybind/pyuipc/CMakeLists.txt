@@ -15,6 +15,7 @@ add_subdirectory(geometry)
 add_subdirectory(constitution)
 add_subdirectory(backend)
 add_subdirectory(builtin)
+add_subdirectory(diff_sim)
 
 # Setup IDE
 get_target_property(SOURCES pyuipc SOURCES)

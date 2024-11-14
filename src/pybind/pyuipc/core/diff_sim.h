@@ -3,9 +3,10 @@
 
 namespace pyuipc::core
 {
-class PyModule
+class PyDiffSim
 {
   public:
-    PyModule(py::module& m);
+    PyDiffSim(py::module& m);
 };
+
 }  // namespace pyuipc::core

@@ -2,11 +2,11 @@
 
 `Libuipc` has frontend and backend components. The frontend part is used to create the scene, objects, and geometries, and the backend part is used to simulate the physics of the scene.
 
-A `libuipc` backend is a independent module that will be dynamically loaded and linked by the frontend. Typically througth the `engine::UIPCEngine` class.
+A `libuipc` backend is a independent module that will be dynamically loaded and linked by the frontend. Typically througth the `engine::Engine` class.
 The frontend user utilizes the backend functionalities through `World` interface.
 
 ```cpp
-engine::UIPCEngine engine{"BACKEND_NAME"};
+engine::Engine engine{"BACKEND_NAME"};
 world::World world{engine};
 ```
 

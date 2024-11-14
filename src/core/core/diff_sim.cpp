@@ -65,10 +65,18 @@ class DiffSim::Impl
         parameters.broadcast();
     }
 
+    void clear()
+    {
+        H    = diff_sim::SparseCOOView{};
+        pGpP = diff_sim::SparseCOOView{};
+
+        need_backend_clear = true;
+    }
 
     diff_sim::ParameterCollection parameters;
     diff_sim::SparseCOOView       H;
     diff_sim::SparseCOOView       pGpP;
+    bool                          need_backend_clear = false;
 };
 
 
@@ -97,6 +105,21 @@ diff_sim::SparseCOOView DiffSim::H() const
 diff_sim::SparseCOOView DiffSim::pGpP() const
 {
     return m_impl->pGpP;
+}
+
+void DiffSim::clear()
+{
+    m_impl->clear();
+}
+
+void DiffSim::need_backend_clear(bool value)
+{
+    m_impl->need_backend_clear = value;
+}
+
+bool DiffSim::need_backend_clear() const
+{
+    return m_impl->need_backend_clear;
 }
 
 void DiffSim::init(backend::SceneVisitor& scene_visitor)

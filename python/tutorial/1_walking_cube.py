@@ -7,6 +7,7 @@ from pyuipc_loader import pyuipc
 from pyuipc import Vector3, Vector2, Transform, Logger, Matrix4x4
 from pyuipc import builtin
 from pyuipc.core import World, Scene, Engine, Animation
+from pyuipc import view
 
 from pyuipc.geometry import *
 from pyuipc.constitution import *

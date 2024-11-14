@@ -43,6 +43,7 @@ namespace detail
         total_triplet.reshape(M, N);
 
         // 2) append the local_triplet to the total_triplet
+        //  2.1) resize copy the total_coo to total_triplet
         auto new_triplet_count = total_coo.non_zeros() + local_triplet.triplet_count();
         total_triplet.resize_triplets(new_triplet_count);
         auto total_triplet_view = total_triplet.view();
@@ -58,7 +59,7 @@ namespace detail
                        auto&& [i, j, V] = total_coo(I);
                        total_triplet(I).write(i, j, V);
                    });
-
+        //  2.2) append the local_triplet to the total_triplet
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(local_triplet.triplet_count(),
@@ -179,15 +180,27 @@ void GlobalDiffSimManager::Impl::update()
 
 void GlobalDiffSimManager::Impl::assemble()
 {
-    // 0) Prepare the frame dof count
+    auto& diff_sim = sim_engine->world().scene().diff_sim();
+
+    // 0) Check if we need to clear the total coo matrices
+    if(diff_sim.need_backend_clear())
+    {
+        total_coo_pGpP.clear();
+        total_coo_H.clear();
+        dof_offsets.clear();
+        dof_counts.clear();
+        total_frame_dof_count = 0;
+        diff_sim.need_backend_clear(false);
+    }
+
+    // 1) Prepare the frame dof count
     auto current_frame_dof_offset = total_frame_dof_count;
     current_frame_dof_count       = global_linear_system->dof_count();
     total_frame_dof_count += current_frame_dof_count;
     dof_offsets.push_back(current_frame_dof_offset);
     dof_counts.push_back(current_frame_dof_count);
 
-
-    // 1) Assemble the pGpH Triplets
+    // 2) Assemble the pGpH Triplets
     {
         auto diff_parm_reporter_view  = diff_parm_reporters.view();
         auto diff_parm_triplet_counts = diff_parm_triplet_offset_count.counts();
@@ -221,7 +234,7 @@ void GlobalDiffSimManager::Impl::assemble()
                                  local_triplet_pGpP);
     }
 
-    // 2) Assemble the H Triplets
+    // 3) Assemble the H Triplets
     {
         auto diff_dof_reporter_view  = diff_dof_reporters.view();
         auto diff_dof_triplet_counts = diff_dof_triplet_offset_count.counts();

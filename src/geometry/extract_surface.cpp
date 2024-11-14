@@ -2,7 +2,7 @@
 #include <uipc/geometry/utils/label_surface.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/builtin/attribute_name.h>
-#include <uipc/geometry/utils/apply_instances.h>
+#include <uipc/geometry/utils/apply_transform.h>
 #include <uipc/geometry/utils/merge.h>
 #include <numeric>
 
