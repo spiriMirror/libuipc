@@ -8,6 +8,8 @@
 #include <uipc/geometry/utils/apply_transform.h>
 #include <uipc/geometry/utils/closure.h>
 #include <uipc/geometry/utils/label_connected_vertices.h>
+#include <uipc/geometry/utils/label_region.h>
+#include <uipc/geometry/utils/apply_region.h>
 #include <pyuipc/as_numpy.h>
 
 namespace pyuipc::geometry
@@ -70,5 +72,13 @@ PyUtils::PyUtils(py::module& m)
 
     m.def("facet_closure", &facet_closure);
     m.def("label_connected_vertices", &label_connected_vertices);
+    m.def("label_region", &label_region);
+    m.def("apply_region",
+          [](const SimplicialComplex& simplicial_complex) -> py::list
+          {
+              auto scs  = apply_region(simplicial_complex);
+              auto list = list_of_sc(scs);
+              return list;
+          });
 }
 }  // namespace pyuipc::geometry

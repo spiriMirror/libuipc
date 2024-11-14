@@ -5,7 +5,7 @@
 using namespace uipc;
 using namespace uipc::geometry;
 
-TEST_CASE("label_region", "[connected_components]")
+TEST_CASE("apply_region", "[connected_components]")
 {
     SimplicialComplexIO io;
     auto cube = io.read(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
@@ -70,7 +70,41 @@ TEST_CASE("label_region", "[connected_components]")
         check_region(edge_region_view);
         check_region(tri_region_view);
 
-        SpreadSheetIO io{output_path};
-        io.write_json("merged_mesh", merged_mesh);
+        SpreadSheetIO sio{output_path};
+        sio.write_json("merged_mesh", merged_mesh);
+
+        auto apart_meshes = apply_region(merged_mesh);
+
+        REQUIRE(apart_meshes.size() == 2);
+
+        for(auto&& [i, apart_mesh] : enumerate(apart_meshes))
+        {
+            auto region_count = apart_mesh.meta().find<IndexT>("region_count");
+            REQUIRE(!region_count);  // the region_count attribute should be removed
+
+            auto vert_region = apart_mesh.vertices().find<IndexT>("region");
+
+            REQUIRE(!vert_region);  // the region attribute should be removed
+
+            auto edge_region = apart_mesh.edges().find<IndexT>("region");
+
+            REQUIRE(!edge_region);  // the region attribute should be removed
+
+            auto tri_region = apart_mesh.triangles().find<IndexT>("region");
+
+            REQUIRE(!tri_region);  // the region attribute should be removed
+
+            REQUIRE(apart_mesh.vertices().find<Vector3>(builtin::position));  // the position attribute should be kept
+
+            REQUIRE(apart_mesh.vertices().size() == cube.vertices().size());
+
+            REQUIRE(apart_mesh.edges().size() == cube.edges().size());
+
+            REQUIRE(apart_mesh.triangles().size() == cube.triangles().size());
+        }
+
+        io.write(fmt::format("{}merged_mesh.obj", output_path), merged_mesh);
+        io.write(fmt::format("{}apart_mesh_0.obj", output_path), apart_meshes[0]);
+        io.write(fmt::format("{}apart_mesh_1.obj", output_path), apart_meshes[1]);
     }
 }

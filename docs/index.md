@@ -23,3 +23,20 @@ Both C++ and Python API are provided!
 - Penetration-Free & Accurate Contact Handling
 - User Scriptable Animation Control
 - Fully Differentiable Simulation (Diff-Sim Coming Soon)
+
+## Citation
+
+If you use **Libuipc** in your project, please consider citing our work:
+
+```
+@misc{huang2024advancinggpuipcstiff,
+      title={Advancing GPU IPC for stiff affine-deformable simulation}, 
+      author={Kemeng Huang and Xinyu Lu and Huancheng Lin and Taku Komura and Minchen Li},
+      year={2024},
+      eprint={2411.06224},
+      archivePrefix={arXiv},
+      primaryClass={cs.GR},
+      url={https://arxiv.org/abs/2411.06224}, 
+}
+```
+

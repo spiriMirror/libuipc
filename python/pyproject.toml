@@ -5,14 +5,15 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pyuipc"
 authors = [
-    {name = "Zihang Zhu",email = "paradise_craftsman@hotmail.com"}
+    {name = "Zihang Zhu", email = "paradise_craftsman@hotmail.com"},
 ]
 maintainers = [
-    {name = "Zihang Zhu",email = "paradise_craftsman@hotmail.com"}
+    {name = "Zihang Zhu",email = "paradise_craftsman@hotmail.com"},
+    {name = "Lu Xinyu", email = "lxy819469559@gmail.com"}
 ]
 readme = "README.md"
 license = {file = "LICENSE"}
-version = "0.1.0"
+version = "0.9.0"
 dependencies = [
     "numpy"
 ]

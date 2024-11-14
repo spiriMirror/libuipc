@@ -20,7 +20,7 @@ option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
 option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ON)
 
 
-uipc_show_logo("0.0.1")
+uipc_show_logo("0.9.0")
 uipc_show_options()
 uipc_config_vcpkg_install()
 project(uipc)

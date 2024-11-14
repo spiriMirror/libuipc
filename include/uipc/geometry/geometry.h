@@ -77,6 +77,13 @@ class UIPC_CORE_API Geometry : public IGeometry
         {
         }
 
+        template <bool OtherIsConst>
+        MetaAttributesT(const MetaAttributesT<OtherIsConst>& o) noexcept
+            requires(IsConst)
+            : m_attributes(o.m_attributes)
+        {
+        }
+
         MetaAttributesT(const MetaAttributesT& o)            = default;
         MetaAttributesT(MetaAttributesT&& o)                 = default;
         MetaAttributesT& operator=(const MetaAttributesT& o) = default;
@@ -156,6 +163,14 @@ class UIPC_CORE_API Geometry : public IGeometry
             : m_attributes(attributes)
         {
         }
+
+        template <bool OtherIsConst>
+        InstanceAttributesT(const InstanceAttributesT<OtherIsConst>& o) noexcept
+            requires(IsConst)
+            : m_attributes(o.m_attributes)
+        {
+        }
+
         InstanceAttributesT(const InstanceAttributesT& o)            = default;
         InstanceAttributesT(InstanceAttributesT&& o)                 = default;
         InstanceAttributesT& operator=(const InstanceAttributesT& o) = default;
