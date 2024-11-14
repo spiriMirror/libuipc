@@ -2,21 +2,45 @@
 #include <uipc/common/uipc.h>
 #include <uipc/common/log.h>
 #include <pyuipc/common/json.h>
+#include <pyuipc/common/unit.h>
 #include <pyuipc/common/uipc_type.h>
 #include <pyuipc/common/timer.h>
 #include <pyuipc/common/transform.h>
 #include <pyuipc/common/logger.h>
+
 #include <pyuipc/geometry/module.h>
 #include <pyuipc/core/module.h>
 #include <pyuipc/constitution/module.h>
 #include <pyuipc/backend/module.h>
 #include <pyuipc/builtin/module.h>
-#include <pyuipc/common/unit.h>
+#include <pyuipc/diff_sim/module.h>
 
 using namespace uipc;
 
+namespace pyuipc
+{
+static py::module* g_top_module = nullptr;
+
+py::module& top_module()
+{
+    PYUIPC_ASSERT(g_top_module != nullptr, "top module is not initialized");
+    return *g_top_module;
+}
+}  // namespace pyuipc
+
+
 PYBIND11_MODULE(pyuipc, m)
 {
+    pyuipc::g_top_module = &m;
+
+    auto unit         = m.def_submodule("unit");
+    auto geometry     = m.def_submodule("geometry");
+    auto constitution = m.def_submodule("constitution");
+    auto diff_sim     = m.def_submodule("diff_sim");
+    auto core         = m.def_submodule("core");
+    auto backend      = m.def_submodule("backend");
+    auto builtin      = m.def_submodule("builtin");
+
     // pyuipc
     m.doc() = "Libuipc Python Binding";
 
@@ -30,21 +54,20 @@ PYBIND11_MODULE(pyuipc, m)
     pyuipc::PyTimer{m};
 
     // pyuipc.unit
-    auto unit = m.def_submodule("unit");
     pyuipc::PyUnit{unit};
 
-
     // pyuipc.geometry
-    auto geometry = m.def_submodule("geometry");
-    pyuipc::geometry::Module{geometry};
+    pyuipc::geometry::PyModule{geometry};
 
     // pyuipc.constitution
-    auto constitution = m.def_submodule("constitution");
-    pyuipc::constitution::Module{constitution};
+    pyuipc::constitution::PyModule{constitution};
+
+    // pyuipc::diff_sim
+    pyuipc::diff_sim::PyModule{diff_sim};
 
     // pyuipc.core
-    auto core = m.def_submodule("core");
-    pyuipc::core::Module{core};
+    pyuipc::core::PyModule{core};
+
     // expose core classes to top level
     m.attr("Engine")  = core.attr("Engine");
     m.attr("World")   = core.attr("World");
@@ -52,10 +75,8 @@ PYBIND11_MODULE(pyuipc, m)
     m.attr("SceneIO") = core.attr("SceneIO");
 
     // pyuipc.backend
-    auto backend = m.def_submodule("backend");
-    pyuipc::backend::Module{backend};
+    pyuipc::backend::PyModule{backend};
 
     // pyuipc.builtin
-    auto builtin = m.def_submodule("builtin");
-    pyuipc::builtin::Module{builtin};
+    pyuipc::builtin::PyModule{builtin};
 }

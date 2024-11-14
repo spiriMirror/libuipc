@@ -17,6 +17,7 @@ PyWorld::PyWorld(py::module& m)
         .def("retrieve", &World::retrieve)
         .def("dump", &World::dump)
         .def("recover", &World::recover, py::arg("dst_frame") = ~0ull)
+        .def("backward", &World::backward)
         .def("frame", &World::frame);
 }
 

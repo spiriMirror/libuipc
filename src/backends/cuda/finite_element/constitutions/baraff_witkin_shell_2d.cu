@@ -26,7 +26,7 @@ class BaraffWitkinShell2D final : public Codim2DConstitution
 
     virtual void do_build(BuildInfo& info) override {}
 
-    virtual void do_init(FiniteElementMethod::Codim2DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
         using ForEachInfo = FiniteElementMethod::ForEachInfo;
 

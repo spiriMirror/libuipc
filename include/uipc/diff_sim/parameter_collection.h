@@ -1,5 +1,5 @@
 #pragma once
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/common/span.h>
 #include <uipc/common/type_define.h>
 #include <uipc/common/smart_pointer.h>
@@ -8,6 +8,11 @@
 namespace uipc::core
 {
 class DiffSim;
+}
+
+namespace uipc::backend
+{
+class DiffSimVisitor;
 }
 
 namespace uipc::diff_sim
@@ -28,11 +33,13 @@ class UIPC_CORE_API ParameterCollection
     void              broadcast();
     span<const Float> view() const;
 
+    ~ParameterCollection();
+
   private:
     friend class uipc::core::DiffSim;
+    friend class uipc::backend::DiffSimVisitor;
 
     ParameterCollection();
-    ~ParameterCollection();
 
     // delete copy constructor and assignment operator
     ParameterCollection(const ParameterCollection&)            = delete;
@@ -44,6 +51,8 @@ class UIPC_CORE_API ParameterCollection
                  S<geometry::IAttributeSlot> parm_slot);
     void build();
 
+    bool    need_backend_broadcast() const;
+    void    need_backend_broadcast(bool v);
     U<Impl> m_impl;
 };
 }  // namespace uipc::diff_sim

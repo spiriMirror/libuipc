@@ -44,19 +44,19 @@ REGISTER_SIM_SYSTEM(AffineBodyDynamics);
 void AffineBodyDynamics::do_build()
 {
     // find dependent systems
-    auto& dof_predictor = require<DoFPredictor>();
+    auto& dof_predictor = require<DofPredictor>();
 
     // Register the action to initialize the affine body geometry
     on_init_scene([this] { m_impl.init(world()); });
 
     // Register the action to predict the affine body dof
     dof_predictor.on_predict(*this,
-                             [this](DoFPredictor::PredictInfo& info)
+                             [this](DofPredictor::PredictInfo& info)
                              { m_impl.compute_q_tilde(info); });
 
     // Register the action to compute the velocity of the affine body dof
     dof_predictor.on_compute_velocity(*this,
-                                      [this](DoFPredictor::ComputeVelocityInfo& info)
+                                      [this](DofPredictor::ComputeVelocityInfo& info)
                                       { m_impl.compute_q_v(info); });
 
     // Register the action to write the scene
@@ -701,7 +701,7 @@ void AffineBodyDynamics::Impl::clear_recover(RecoverInfo& info)
 // Simulation:
 namespace uipc::backend::cuda
 {
-void AffineBodyDynamics::Impl::compute_q_tilde(DoFPredictor::PredictInfo& info)
+void AffineBodyDynamics::Impl::compute_q_tilde(DofPredictor::PredictInfo& info)
 {
     using namespace muda;
     ParallelFor()
@@ -738,7 +738,7 @@ void AffineBodyDynamics::Impl::compute_q_tilde(DoFPredictor::PredictInfo& info)
                });
 }
 
-void AffineBodyDynamics::Impl::compute_q_v(DoFPredictor::ComputeVelocityInfo& info)
+void AffineBodyDynamics::Impl::compute_q_v(DofPredictor::ComputeVelocityInfo& info)
 {
     using namespace muda;
     ParallelFor()

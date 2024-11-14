@@ -278,6 +278,8 @@ class GlobalLinearSystem : public SimSystem
 
     void dump_linear_system(std::string_view filename);
 
+    SizeT dof_count() const;
+
   protected:
     void do_build() override;
 
@@ -288,18 +290,22 @@ class GlobalLinearSystem : public SimSystem
     friend class OffDiagLinearSubsystem;
     friend class LocalPreconditioner;
     friend class GlobalPreconditioner;
+    friend class GlobalDiffSimManager;
+    friend class CurrentFrameDiffDofReporter;
 
     void add_subsystem(DiagLinearSubsystem* subsystem);
-
     void add_subsystem(OffDiagLinearSubsystem* subsystem);
-
     void add_solver(IterativeSolver* solver);
-
     void add_preconditioner(LocalPreconditioner* preconditioner);
-
     void add_preconditioner(GlobalPreconditioner* preconditioner);
 
+    // only be called by SimEngine::do_advance()
     void solve();
+
+    // only be called by SimEngine::do_backward()
+    // we just build a full hessian matrix for diff simulation
+    void prepare_hessian();
+
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

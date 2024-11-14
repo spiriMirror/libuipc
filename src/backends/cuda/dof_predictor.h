@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-class DoFPredictor : public SimSystem
+class DofPredictor : public SimSystem
 {
   public:
     class PredictInfo
@@ -12,7 +12,7 @@ class DoFPredictor : public SimSystem
         auto dt() const noexcept { return m_dt; }
 
       private:
-        friend class DoFPredictor;
+        friend class DofPredictor;
         Float m_dt;
     };
 

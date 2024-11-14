@@ -3,6 +3,7 @@
 #include <uipc/core/i_engine.h>
 #include <backends/common/sim_system_collection.h>
 #include <backends/common/i_sim_system.h>
+#include <uipc/core/engine_status.h>
 
 namespace uipc::backend
 {
@@ -105,10 +106,12 @@ class SimEngine : public core::IEngine
     virtual bool do_dump() final override;
     ISimSystem*  find_system(ISimSystem* ptr);
     ISimSystem*  require_system(ISimSystem* ptr);
+    virtual core::EngineStatusCollection& get_status() noexcept final override;
 
-    U<WorldVisitor>     m_world_visitor;
-    SimSystemCollection m_system_collection;
-    std::string         m_workspace;
+    U<WorldVisitor>              m_world_visitor;
+    SimSystemCollection          m_system_collection;
+    std::string                  m_workspace;
+    core::EngineStatusCollection m_status;
 };
 
 class SimEngineException : public Exception

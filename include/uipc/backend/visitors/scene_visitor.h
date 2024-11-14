@@ -6,6 +6,8 @@
 #include <uipc/geometry/geometry_collection.h>
 #include <uipc/core/constitution_tabular.h>
 #include <uipc/core/contact_tabular.h>
+#include <uipc/backend/visitors/diff_sim_visitor.h>
+
 namespace uipc::core
 {
 class Scene;
@@ -34,7 +36,11 @@ class UIPC_CORE_API SceneVisitor
     const core::ConstitutionTabular& constitution_tabular() const noexcept;
     const core::ContactTabular&      contact_tabular() const noexcept;
 
+    const DiffSimVisitor& diff_sim() const noexcept;
+    DiffSimVisitor&       diff_sim() noexcept;
+
   private:
-    core::Scene& m_scene;
+    core::Scene&   m_scene;
+    DiffSimVisitor m_diff_sim;
 };
 }  // namespace uipc::backend

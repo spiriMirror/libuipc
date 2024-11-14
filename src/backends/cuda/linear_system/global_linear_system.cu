@@ -62,6 +62,11 @@ void GlobalLinearSystem::dump_linear_system(std::string_view filename)
     }
 }
 
+SizeT GlobalLinearSystem::dof_count() const
+{
+    return m_impl.b.size();
+}
+
 void GlobalLinearSystem::do_build()
 {
     on_init_scene([this] { m_impl.init(); });
@@ -75,6 +80,18 @@ void GlobalLinearSystem::solve()
         return;
     m_impl.solve_linear_system();
     m_impl.distribute_solution();
+}
+
+void GlobalLinearSystem::prepare_hessian()
+{
+    Timer timer{"Build Linear System"};
+    m_impl.empty_system = !m_impl._update_subsystem_extent();
+    // if empty, skip the following steps
+    if(m_impl.empty_system) [[unlikely]]
+        return;
+
+    m_impl._assemble_linear_system();
+    m_impl.converter.convert(m_impl.triplet_A, m_impl.bcoo_A);
 }
 
 void GlobalLinearSystem::Impl::init()

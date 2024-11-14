@@ -5,11 +5,52 @@
 
 namespace uipc::backend::cuda
 {
+template <int M, int N>
+UIPC_GENERIC void zero_out(Vector<Float, M>& Vec, const Vector<IndexT, N>& zero_out_flag)
+    requires(M % N == 0)
+{
+    constexpr int Segment = M / N;
+    for(int i = 0; i < N; ++i)
+    {
+        if(zero_out_flag(i))
+            Vec.template segment<Segment>(i * Segment).setZero();
+    }
+}
+
+template <int M, int N>
+UIPC_GENERIC void zero_out(Matrix<Float, M, M>& Mat, const Vector<IndexT, N>& zero_out_flag)
+    requires(M % N == 0)
+{
+    constexpr int Segment = M / N;
+    for(int i = 0; i < N; ++i)
+    {
+        for(int j = 0; j < N; ++j)
+        {
+            if(zero_out_flag(i) || zero_out_flag(j))
+                Mat.template block<Segment, Segment>(i * Segment, j * Segment).setZero();
+        }
+    }
+}
+
+template <int N>
+UIPC_GENERIC void make_spd(Matrix<Float, N, N>& H)
+{
+    Vector<Float, N>    eigen_values;
+    Matrix<Float, N, N> eigen_vectors;
+    muda::eigen::template evd<Float, N>(H, eigen_values, eigen_vectors);
+    for(int i = 0; i < N; ++i)
+    {
+        auto& v = eigen_values(i);
+        v       = v < 0.0 ? 0.0 : v;
+    }
+    H = eigen_vectors * eigen_values.asDiagonal() * eigen_vectors.transpose();
+}
+
 template <int N>
 MUDA_DEVICE void atomic_add(muda::DenseVectorViewer<Float>& g,
-                            const Vector<Float, 3 * N>&     G3N,
                             const Vector<IndexT, N>&        indices,
-                            const Vector<IndexT, N>&        is_fixed)
+                            const Vector<IndexT, N>&        is_fixed,
+                            const Vector<Float, 3 * N>&     G3N)
     requires(N >= 2)
 {
 #pragma unroll
@@ -25,8 +66,8 @@ MUDA_DEVICE void atomic_add(muda::DenseVectorViewer<Float>& g,
 
 template <int N>
 MUDA_DEVICE void atomic_add(muda::DenseVectorViewer<Float>& g,
-                            const Vector<Float, 3 * N>&     G3N,
-                            const Vector<IndexT, N>&        indices)
+                            const Vector<IndexT, N>&        indices,
+                            const Vector<Float, 3 * N>&     G3N)
     requires(N >= 2)
 {
 #pragma unroll
@@ -40,13 +81,13 @@ MUDA_DEVICE void atomic_add(muda::DenseVectorViewer<Float>& g,
 
 template <int N>
 UIPC_GENERIC void assemble(muda::DoubletVectorViewer<Float, 3>& G3,
-                           IndexT                               I_of_G3N,
-                           const Vector<Float, 3 * N>&          G3N,
+                           IndexT                               I_of_G3,
                            const Vector<IndexT, N>&             indices,
-                           const Vector<IndexT, N>&             is_fixed)
+                           const Vector<IndexT, N>&             is_fixed,
+                           const Vector<Float, 3 * N>&          G3N)
     requires(N >= 2)
 {
-    SizeT offset = I_of_G3N * N;
+    SizeT offset = I_of_G3;
 #pragma unroll
     for(int i = 0; i < N; ++i)
     {
@@ -59,21 +100,21 @@ UIPC_GENERIC void assemble(muda::DoubletVectorViewer<Float, 3>& G3,
 }
 
 inline UIPC_GENERIC void assemble(muda::DoubletVectorViewer<Float, 3>& G3,
-                                  IndexT                               I,
-                                  const Vector<Float, 3>&              G3N,
-                                  IndexT                               indices)
+                                  IndexT                               I_of_G3,
+                                  IndexT                               indices,
+                                  const Vector<Float, 3>&              G3N)
 {
-    G3(I).write(indices, G3N);
+    G3(I_of_G3).write(indices, G3N);
 }
 
 template <int N>
 UIPC_GENERIC void assemble(muda::DoubletVectorViewer<Float, 3>& G3,
-                           IndexT                               I_of_G3N,
-                           const Vector<Float, 3 * N>&          G3N,
-                           const Vector<IndexT, N>&             indices)
+                           IndexT                               I_of_G3,
+                           const Vector<IndexT, N>&             indices,
+                           const Vector<Float, 3 * N>&          G3N)
     requires(N >= 2)
 {
-    SizeT offset = I_of_G3N * N;
+    SizeT offset = I_of_G3;
 #pragma unroll
     for(int i = 0; i < N; ++i)
     {
@@ -84,25 +125,25 @@ UIPC_GENERIC void assemble(muda::DoubletVectorViewer<Float, 3>& G3,
 }
 
 inline UIPC_GENERIC void assemble(muda::DoubletVectorViewer<Float, 3>& G3,
-                                  IndexT                               I,
-                                  const Vector<Float, 3>&              G3N,
+                                  IndexT                               I_of_G3,
                                   IndexT                               indices,
-                                  IndexT                               is_fixed)
+                                  IndexT                               is_fixed,
+                                  const Vector<Float, 3>&              G3N)
 {
     if(is_fixed)
         return;
-    G3(I).write(indices, G3N);
+    G3(I_of_G3).write(indices, G3N);
 }
 
 template <int N>
 UIPC_GENERIC void assemble(muda::TripletMatrixViewer<Float, 3>& H3x3,
-                           IndexT                               I_of_H3Nx3N,
-                           const Matrix<Float, 3 * N, 3 * N>&   H3Nx3N,
+                           IndexT                               I_of_H3x3,
                            const Vector<IndexT, N>              indices,
-                           const Vector<IndexT, N>&             is_fixed)
+                           const Vector<IndexT, N>&             is_fixed,
+                           const Matrix<Float, 3 * N, 3 * N>&   H3Nx3N)
     requires(N >= 2)
 {
-    SizeT offset = I_of_H3Nx3N * (N * N);
+    SizeT offset = I_of_H3x3;
 #pragma unroll
     for(int i = 0; i < N; ++i)
     {
@@ -124,9 +165,9 @@ UIPC_GENERIC void assemble(muda::TripletMatrixViewer<Float, 3>& H3x3,
 
 inline UIPC_GENERIC void assemble(muda::TripletMatrixViewer<Float, 3>& H3x3,
                                   IndexT                               I,
-                                  const Matrix<Float, 3, 3>&           H3Nx3N,
                                   IndexT                               indices,
-                                  IndexT                               is_fixed)
+                                  IndexT                               is_fixed,
+                                  const Matrix<Float, 3, 3>&           H3Nx3N)
 {
     SizeT     offset = I;
     Matrix3x3 H      = H3Nx3N;
@@ -138,8 +179,8 @@ inline UIPC_GENERIC void assemble(muda::TripletMatrixViewer<Float, 3>& H3x3,
 template <int N>
 UIPC_GENERIC void assemble(muda::TripletMatrixViewer<Float, 3>& H3x3,
                            IndexT                               I_of_H3Nx3N,
-                           const Matrix<Float, 3 * N, 3 * N>&   H3Nx3N,
-                           const Vector<IndexT, N>              indices)
+                           const Vector<IndexT, N>              indices,
+                           const Matrix<Float, 3 * N, 3 * N>&   H3Nx3N)
     requires(N >= 2)
 {
     SizeT offset = I_of_H3Nx3N * (N * N);
@@ -159,26 +200,12 @@ UIPC_GENERIC void assemble(muda::TripletMatrixViewer<Float, 3>& H3x3,
     }
 }
 
-inline UIPC_GENERIC void assemble(muda::TripletMatrixViewer<Float, 3>& H3x3,
-                                  IndexT                               I,
-                                  const Matrix<Float, 3, 3>&           H3Nx3N,
-                                  IndexT                               indices)
+inline UIPC_GENERIC void assemble(IndexT I_of_H3x3,
+                                  muda::TripletMatrixViewer<Float, 3>& H3x3,
+                                  IndexT                               indices,
+                                  const Matrix<Float, 3, 3>&           H3Nx3N)
 {
-    SizeT offset = I;
+    SizeT offset = I_of_H3x3;
     H3x3(offset).write(indices, indices, H3Nx3N);
-}
-
-template <int N>
-UIPC_GENERIC void make_spd(Matrix<Float, N, N>& H)
-{
-    Vector<Float, N>    eigen_values;
-    Matrix<Float, N, N> eigen_vectors;
-    muda::eigen::template evd<Float, N>(H, eigen_values, eigen_vectors);
-    for(int i = 0; i < N; ++i)
-    {
-        auto& v = eigen_values(i);
-        v       = v < 0.0 ? 0.0 : v;
-    }
-    H = eigen_vectors * eigen_values.asDiagonal() * eigen_vectors.transpose();
 }
 }  // namespace uipc::backend::cuda

@@ -65,5 +65,10 @@ PyScene::PyScene(py::module& m)
                              auto [geo, rest_geo] = std::move(self).find(id);
                              return std::make_pair(geo, rest_geo);
                          });
+
+    class_Scene.def(
+        "diff_sim",
+        [](Scene& self) -> DiffSim& { return self.diff_sim(); },
+        py::return_value_policy::reference_internal);
 }
 }  // namespace pyuipc::core

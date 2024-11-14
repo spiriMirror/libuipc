@@ -1,5 +1,5 @@
 #pragma once
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/common/json.h>
 
 namespace uipc

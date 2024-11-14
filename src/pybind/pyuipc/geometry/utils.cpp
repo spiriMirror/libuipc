@@ -5,8 +5,9 @@
 #include <uipc/geometry/utils/flip_inward_triangles.h>
 #include <uipc/geometry/utils/extract_surface.h>
 #include <uipc/geometry/utils/merge.h>
-#include <uipc/geometry/utils/apply_instances.h>
+#include <uipc/geometry/utils/apply_transform.h>
 #include <uipc/geometry/utils/closure.h>
+#include <uipc/geometry/utils/label_connected_vertices.h>
 #include <pyuipc/as_numpy.h>
 
 namespace pyuipc::geometry
@@ -43,10 +44,7 @@ PyUtils::PyUtils(py::module& m)
     m.def("flip_inward_triangles", &flip_inward_triangles);
     m.def("extract_surface",
           [](const SimplicialComplex& simplicial_complex)
-          {
-              spdlog::info("Extracting surface from simplicial complex");
-              return extract_surface(simplicial_complex);
-          });
+          { return extract_surface(simplicial_complex); });
 
     m.def("extract_surface",
           [&](py::list list_of_sc)
@@ -69,5 +67,8 @@ PyUtils::PyUtils(py::module& m)
               auto list = list_of_sc(scs);
               return list;
           });
+
+    m.def("facet_closure", &facet_closure);
+    m.def("label_connected_vertices", &label_connected_vertices);
 }
 }  // namespace pyuipc::geometry

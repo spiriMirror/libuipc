@@ -9,7 +9,7 @@
 #include <uipc/common/list.h>
 #include <uipc/common/string.h>
 #include <uipc/common/json.h>
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/common/unordered_map.h>
 #include <uipc/common/set.h>
 #include <uipc/common/string.h>

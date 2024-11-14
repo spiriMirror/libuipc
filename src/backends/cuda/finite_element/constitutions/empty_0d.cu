@@ -6,7 +6,7 @@ class Empty0D final : public Codim0DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64 ConstitutionUID = 0;
+    static constexpr U64 ConstitutionUID = 0ull;
 
     using Codim0DConstitution::Codim0DConstitution;
 
@@ -17,7 +17,7 @@ class Empty0D final : public Codim0DConstitution
         // Do nothing
     }
 
-    virtual void do_init(FiniteElementMethod::Codim0DFilteredInfo& info) override
+    virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
         // Do nothing
     }

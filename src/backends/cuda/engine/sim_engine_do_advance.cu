@@ -9,7 +9,7 @@
 #include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
 #include <animator/global_animator.h>
-
+#include <diff_sim/global_diff_sim_manager.h>
 
 namespace uipc::backend::cuda
 {
@@ -151,6 +151,15 @@ void SimEngine::do_advance()
         return true;
     };
 
+    auto update_diff_parm = [this]()
+    {
+        if(m_global_diff_sim_manager)
+        {
+            Timer timer{"Update Diff Parm"};
+            m_global_diff_sim_manager->update();
+        }
+    };
+
     /***************************************************************************************
     *                                  Core Pipeline
     ***************************************************************************************/
@@ -166,7 +175,7 @@ void SimEngine::do_advance()
 
         spdlog::info(R"(>>> Begin Frame: {})", m_current_frame);
 
-        // Rebuild Scene (No effect now)
+        // Rebuild Scene
         {
             Timer timer{"Rebuild Scene"};
             // Trigger the rebuild_scene event, systems register their actions will be called here
@@ -181,6 +190,9 @@ void SimEngine::do_advance()
 
             // After the rebuild_scene event, the pending creation or deletion can be solved
             world().scene().solve_pending();
+
+            // Update the diff parms
+            update_diff_parm();
         }
 
         // Simulation:
@@ -345,16 +357,21 @@ void SimEngine::do_advance()
             }
         }
 
+        // NOTE: Don't change any state after this point
+        // 1) SimEngine::do_backward() may be called later, please keep the state consistent
+
         spdlog::info("<<< End Frame: {}", m_current_frame);
     };
 
     try
     {
         pipeline();
+        m_last_solved_frame = m_current_frame;
     }
     catch(const SimEngineException& e)
     {
-        spdlog::error("Simulation Engine Exception: {}", e.what());
+        spdlog::error("Engine Advance Error: {}", e.what());
+        status().push_back(core::EngineStatus::error(e.what()));
     }
 }
 }  // namespace uipc::backend::cuda

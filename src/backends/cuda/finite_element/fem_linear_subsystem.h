@@ -25,6 +25,8 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
+        SimEngine* sim_engine = nullptr;
+
         SimSystemSlot<FiniteElementMethod> finite_element_method;
         FiniteElementMethod::Impl&         fem() noexcept
         {

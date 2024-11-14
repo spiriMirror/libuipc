@@ -33,6 +33,7 @@ add_subdirectory(affine_body)
 add_subdirectory(finite_element)
 add_subdirectory(coupling_system)
 add_subdirectory(animator)
+add_subdirectory(diff_sim)
 
 # source files in this directory
 file(GLOB SOURCES "*.cpp" "*.h" "*.cu" "details/*.inl")

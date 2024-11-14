@@ -22,6 +22,9 @@
 #include <finite_element/codim_1d_constitution.h>
 #include <finite_element/codim_0d_constitution.h>
 #include <uipc/builtin/constitution_type.h>
+// diff parm reporters
+#include <finite_element/finite_element_diff_parm_reporter.h>
+#include <finite_element/finite_element_constitution_diff_parm_reporter.h>
 
 
 namespace uipc::backend
@@ -62,21 +65,21 @@ void FiniteElementMethod::do_build()
 
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
 
-    auto& dof_predictor = require<DoFPredictor>();
-
-    dof_predictor.on_predict(*this,
-                             [this](DoFPredictor::PredictInfo& info)
-                             { m_impl.compute_x_tilde(info); });
-
-    dof_predictor.on_compute_velocity(*this,
-                                      [this](DoFPredictor::ComputeVelocityInfo& info)
-                                      { m_impl.compute_velocity(info); });
-
     // Register the action to initialize the finite element geometry
     on_init_scene([this] { m_impl.init(world()); });
 
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });
+}
+
+IndexT FiniteElementMethod::dof_offset(SizeT frame) const noexcept
+{
+    return m_impl.dof_offset(frame);
+}
+
+IndexT FiniteElementMethod::dof_count(SizeT frame) const noexcept
+{
+    return m_impl.dof_count(frame);
 }
 
 void FiniteElementMethod::add_constitution(FiniteElementConstitution* constitution)
@@ -95,6 +98,12 @@ void FiniteElementMethod::add_constitution(FiniteElementKinetic* constitution)
 {
     check_state(SimEngineState::BuildSystems, "add_constitution()");
     m_impl.kinetic.register_subsystem(*constitution);
+}
+
+void FiniteElementMethod::add_reporter(FiniteElementConstitutionDiffParmReporter* reporter)
+{
+    check_state(SimEngineState::BuildSystems, "add_reporter()");
+    m_impl.constitution_diff_parm_reporters.register_subsystem(*reporter);
 }
 
 bool FiniteElementMethod::do_dump(DumpInfo& info)
@@ -130,8 +139,24 @@ void FiniteElementMethod::Impl::init(WorldVisitor& world)
     // 2) Initialize the extra constitutions
     _init_extra_constitutions();
 
+
     // 3) Initialize the energy producers
     _init_energy_producers();
+
+
+    // 4) Initialize the diff reporters
+    _init_dof_info();
+    _init_diff_reporters();
+    _distribute_diff_reporter_filtered_info();
+}
+
+void FiniteElementMethod::Impl::_init_dof_info()
+{
+    frame_to_dof_count.reserve(1024);
+    frame_to_dof_offset.reserve(1024);
+    // frame 0 is not used
+    frame_to_dof_offset.push_back(-1);
+    frame_to_dof_count.push_back(-1);
 }
 
 void FiniteElementMethod::Impl::_init_constitutions()
@@ -145,8 +170,8 @@ void FiniteElementMethod::Impl::_init_constitutions()
               {
                   auto   uida = a->uid();
                   auto   uidb = b->uid();
-                  auto   dima = a->dimension();
-                  auto   dimb = b->dimension();
+                  auto   dima = a->dim();
+                  auto   dimb = b->dim();
                   DimUID uid_dim_a{dima, uida};
                   DimUID uid_dim_b{dimb, uidb};
                   return uid_dim_a < uid_dim_b;
@@ -163,7 +188,7 @@ void FiniteElementMethod::Impl::_init_constitutions()
 
     for(auto&& constitution : constitution_view)
     {
-        auto dim = constitution->dimension();
+        auto dim = constitution->dim();
         switch(dim)
         {
             case 0: {
@@ -201,6 +226,24 @@ void FiniteElementMethod::Impl::_init_constitutions()
             default:
                 break;
         }
+    }
+}
+
+void FiniteElementMethod::Impl::_init_diff_reporters()
+{
+    auto constitution_diff_parm_reporter_view = constitution_diff_parm_reporters.view();
+    for(auto& cdpr : constitution_diff_parm_reporter_view)
+    {
+        cdpr->connect();  // connect the reporter to the related constitution
+    }
+}
+
+void FiniteElementMethod::Impl::_distribute_diff_reporter_filtered_info()
+{
+    auto constitution_diff_parm_reporter_view = constitution_diff_parm_reporters.view();
+    for(auto& cdpr : constitution_diff_parm_reporter_view)
+    {
+        cdpr->init();
     }
 }
 
@@ -801,26 +844,22 @@ void FiniteElementMethod::Impl::_distribute_constitution_filtered_info()
 {
     for(auto&& [i, c] : enumerate(codim_0d_constitutions))
     {
-        Codim0DFilteredInfo filtered_info{this, i};
-        c->init(filtered_info);
+        c->init();
     }
 
     for(auto&& [i, c] : enumerate(codim_1d_constitutions))
     {
-        Codim1DFilteredInfo filtered_info{this, i};
-        c->init(filtered_info);
+        c->init();
     }
 
     for(auto&& [i, c] : enumerate(codim_2d_constitutions))
     {
-        Codim2DFilteredInfo filtered_info{this, i};
-        c->init(filtered_info);
+        c->init();
     }
 
     for(auto&& [i, c] : enumerate(fem_3d_constitutions))
     {
-        FEM3DFilteredInfo filtered_info{this, i};
-        c->init(filtered_info);
+        c->init();
     }
 }
 
@@ -973,67 +1012,63 @@ void FiniteElementMethod::Impl::clear_recover(RecoverInfo& info)
     dump_vs.clean_up();
     dump_x_prevs.clean_up();
 }
-}  // namespace uipc::backend::cuda
 
-// Simulation:
-namespace uipc::backend::cuda
+void FiniteElementMethod::Impl::set_dof_info(SizeT frame, IndexT dof_offset, IndexT dof_count)
 {
-void FiniteElementMethod::Impl::compute_x_tilde(DoFPredictor::PredictInfo& info)
-{
-    using namespace muda;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(xs.size(),
-               [is_fixed   = is_fixed.cviewer().name("fixed"),
-                is_dynamic = is_dynamic.cviewer().name("is_dynamic"),
-                x_prevs    = x_prevs.cviewer().name("x_prevs"),
-                vs         = vs.cviewer().name("vs"),
-                x_tildes   = x_tildes.viewer().name("x_tildes"),
-                gravities  = gravities.cviewer().name("gravities"),
-                dt         = info.dt()] __device__(int i) mutable
-               {
-                   const Vector3& x_prev = x_prevs(i);
-                   const Vector3& v      = vs(i);
-
-                   // 0) fixed: x_tilde = x_prev
-                   Vector3 x_tilde = x_prev;
-
-                   if(!is_fixed(i))
-                   {
-                       const Vector3& g = gravities(i);
-
-                       // 1) static problem: x_tilde = x_prev + g * dt * dt
-                       x_tilde += g * dt * dt;
-
-                       // 2) dynamic problem: x_tilde = x_prev + v * dt + g * dt * dt
-                       if(is_dynamic(i))
-                       {
-                           x_tilde += v * dt;
-                       }
-                   }
-
-                   x_tildes(i) = x_tilde;
-               });
+    UIPC_ASSERT(frame > 0, "frame 0 is not used");
+    if(frame_to_dof_count.size() <= frame)
+    {
+        frame_to_dof_count.resize(frame + 1, -1);
+        frame_to_dof_offset.resize(frame + 1, -1);
+    }
+    frame_to_dof_count[frame]  = dof_count;
+    frame_to_dof_offset[frame] = dof_offset;
 }
 
-void FiniteElementMethod::Impl::compute_velocity(DoFPredictor::ComputeVelocityInfo& info)
+IndexT FiniteElementMethod::Impl::dof_offset(SizeT frame) const noexcept
 {
-    using namespace muda;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(xs.size(),
-               [xs      = xs.cviewer().name("xs"),
-                vs      = vs.viewer().name("vs"),
-                x_prevs = x_prevs.viewer().name("x_prevs"),
-                dt      = info.dt()] __device__(int i) mutable
-               {
-                   Vector3&       v      = vs(i);
-                   Vector3&       x_prev = x_prevs(i);
-                   const Vector3& x      = xs(i);
+    return frame_to_dof_offset[frame];
+}
 
-                   v = (x - x_prev) * (1.0 / dt);
+IndexT FiniteElementMethod::Impl::dof_count(SizeT frame) const noexcept
+{
+    return frame_to_dof_count[frame];
+}
 
-                   x_prev = x;
-               });
+
+auto FiniteElementMethod::FilteredInfo::geo_infos() const noexcept -> span<const GeoInfo>
+{
+    auto info = this->constitution_info();
+    return span{m_impl->geo_infos}.subspan(info.geo_info_offset, info.geo_info_count);
+}
+
+
+auto FiniteElementMethod::FilteredInfo::constitution_info() const noexcept
+    -> const ConstitutionInfo&
+{
+    switch(m_dim)
+    {
+        case 0:
+            return m_impl->codim_0d_constitution_infos[m_index_in_dim];
+        case 1:
+            return m_impl->codim_1d_constitution_infos[m_index_in_dim];
+        case 2:
+            return m_impl->codim_2d_constitution_infos[m_index_in_dim];
+        case 3:
+            return m_impl->fem_3d_constitution_infos[m_index_in_dim];
+        default:
+            UIPC_ASSERT(false, "Invalid dimension");
+            break;
+    }
+}
+
+size_t FiniteElementMethod::FilteredInfo::vertex_count() const noexcept
+{
+    return constitution_info().vertex_count;
+}
+
+size_t FiniteElementMethod::FilteredInfo::primitive_count() const noexcept
+{
+    return constitution_info().primitive_count;
 }
 }  // namespace uipc::backend::cuda

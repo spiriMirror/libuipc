@@ -16,9 +16,13 @@ void def_attribute_slot(py::module& m, std::string name)
                              [](AttributeSlot<T>& self)
                              { return as_numpy(self.view(), py::cast(self)); });
 
-    m.def("view",
-          [](AttributeSlot<T>& self)
-          { return as_numpy(view(self), py::cast(self)); });
+    top_module().def("view",
+                     [](AttributeSlot<T>& self)
+                     { return as_numpy(view(self), py::cast(self)); });
+
+    //m.def("view",
+    //      [](AttributeSlot<T>& self)
+    //      { return as_numpy(view(self), py::cast(self)); });
 }
 
 template <bool IsConst>
@@ -78,7 +82,11 @@ void def_attribute_slot_string(py::module& m)
             m, "AttributeSlotString");
     class_AttributeSlotString.def(
         "view", [](AttributeSlot<std::string>& self) { return self.view(); });
-    m.def("view", [](AttributeSlot<std::string>& self) { return view(self); });
+
+    //m.def("view", [](AttributeSlot<std::string>& self) { return view(self); });
+
+    top_module().def("view",
+                     [](AttributeSlot<std::string>& self) { return view(self); });
 }
 
 #define DEF_ATTRIBUTE_SLOT(T) def_attribute_slot<T>(m, "AttributeSlot" #T)

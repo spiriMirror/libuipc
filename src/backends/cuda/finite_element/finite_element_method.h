@@ -20,6 +20,16 @@ class Codim2DConstitution;
 class Codim1DConstitution;
 class Codim0DConstitution;
 
+class FiniteElementDiffParmReporter;
+class FiniteElementConstitutionDiffParmReporter;
+class FEM3DConstitutionDiffParmReporter;
+class Codim2DConstitutionDiffParmReporter;
+class Codim1DConstitutionDiffParmReporter;
+class Codim0DConstitutionDiffParmReporter;
+
+class FiniteElementDiffDofReporter;
+
+class FEMDofPredictor;
 
 class FiniteElementMethod final : public SimSystem
 {
@@ -85,12 +95,12 @@ class FiniteElementMethod final : public SimSystem
         SizeT m_local_index  = 0;
     };
 
-    template <int N>
     class FilteredInfo
     {
       public:
-        FilteredInfo(Impl* impl, SizeT index_in_dim) noexcept
+        FilteredInfo(Impl* impl, IndexT dim, SizeT index_in_dim) noexcept
             : m_impl(impl)
+            , m_dim(dim)
             , m_index_in_dim(index_in_dim)
         {
         }
@@ -127,14 +137,10 @@ class FiniteElementMethod final : public SimSystem
 
       protected:
         friend class FiniteElementMethod;
-        Impl* m_impl         = nullptr;
-        SizeT m_index_in_dim = ~0ull;
+        Impl*  m_impl         = nullptr;
+        SizeT  m_index_in_dim = ~0ull;
+        IndexT m_dim          = -1;
     };
-
-    using Codim0DFilteredInfo = FilteredInfo<0>;
-    using Codim1DFilteredInfo = FilteredInfo<1>;
-    using Codim2DFilteredInfo = FilteredInfo<2>;
-    using FEM3DFilteredInfo   = FilteredInfo<3>;
 
     class ComputeEnergyInfo
     {
@@ -199,7 +205,9 @@ class FiniteElementMethod final : public SimSystem
     {
       public:
         void init(WorldVisitor& world);
+        void _init_dof_info();
         void _init_constitutions();
+
         void _build_geo_infos(WorldVisitor& world);
         void _build_constitution_infos();
         void _build_on_host(WorldVisitor& world);
@@ -209,8 +217,8 @@ class FiniteElementMethod final : public SimSystem
         void _init_extra_constitutions();
         void _init_energy_producers();
 
-        void compute_x_tilde(DoFPredictor::PredictInfo& info);
-        void compute_velocity(DoFPredictor::ComputeVelocityInfo& info);
+        void _init_diff_reporters();
+        void _distribute_diff_reporter_filtered_info();
 
         void write_scene(WorldVisitor& world);
         bool dump(DumpInfo& info);
@@ -218,20 +226,23 @@ class FiniteElementMethod final : public SimSystem
         void apply_recover(RecoverInfo& info);
         void clear_recover(RecoverInfo& info);
 
-        // Related Sim Simsytems:
+        // Forward Simulation:
 
         GlobalVertexManager* global_vertex_manager = nullptr;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
         SimSystemSlotCollection<FiniteElementExtraConstitution> extra_constitutions;
         SimSystemSlot<FiniteElementKinetic> kinetic;
 
-        // Core Invariant Data
+        // Differentiable Simulation Systems:
+        SimSystemSlotCollection<FiniteElementConstitutionDiffParmReporter> constitution_diff_parm_reporters;
+
+
+        // Core Invariant Data:
 
         vector<GeoInfo> geo_infos;
 
 
         // Related Data:
-
 
         std::array<DimInfo, 4> dim_infos;
 
@@ -250,6 +261,7 @@ class FiniteElementMethod final : public SimSystem
         unordered_map<U64, SizeT>  fem_3d_uid_to_index;
         vector<FEM3DConstitution*> fem_3d_constitutions;
         vector<ConstitutionInfo>   fem_3d_constitution_infos;
+
 
         vector<FiniteElementEnergyProducer*> energy_producers;
 
@@ -315,41 +327,7 @@ class FiniteElementMethod final : public SimSystem
         muda::DeviceBuffer<Matrix3x3> Dm3x3_invs;
 
 
-        //// Kinetic Energy/Gradient/Hessian
-
-        //muda::DeviceVar<Float> kinetic_energy;              // Kinetic Energy
-        //muda::DeviceBuffer<Float> vertex_kinetic_energies;  // Kinetic Energy Per Vertex
-        //muda::DeviceBuffer<Matrix3x3> H3x3s;  // size = vertex_count
-        //muda::DeviceBuffer<Vector3>   G3s;    // size = vertex_count
-
-
-        //// Elastic Energy/Gradient/Hessian
-
-        //muda::DeviceVar<Float> codim_1d_elastic_energy;  // Codim1D Elastic Energy
-        //muda::DeviceBuffer<Float> codim_1d_elastic_energies;  // Codim1D Elastic Energy Per Element
-        //muda::DeviceBuffer<Vector6>   G6s;    // Codim1D Elastic Gradient
-        //muda::DeviceBuffer<Matrix6x6> H6x6s;  // Codim1D Elastic Hessian
-
-        //muda::DeviceVar<Float> codim_2d_elastic_energy;  // Codim2D Elastic Energy
-        //muda::DeviceBuffer<Float> codim_2d_elastic_energies;  // Codim2D Elastic Energy Per Element
-        //muda::DeviceBuffer<Vector9>   G9s;    // Codim2D Elastic Gradient
-        //muda::DeviceBuffer<Matrix9x9> H9x9s;  // Codim2D Elastic Hessian
-
-        //muda::DeviceVar<Float> fem_3d_elastic_energy;  // FEM3D Elastic Energy
-        //muda::DeviceBuffer<Float> fem_3d_elastic_energies;  // FEM3D Elastic Energy Per Element
-        //muda::DeviceBuffer<Vector12>    G12s;     // FEM3D Elastic Gradient
-        //muda::DeviceBuffer<Matrix12x12> H12x12s;  // FEM3D Elastic Hessian
-
-
-        //// Extra Constitutions:
-
-        //muda::DeviceVar<Float> extra_constitution_energy;  // Extra Energy
-        //muda::DeviceBuffer<Float> extra_constitution_energies;  // Extra Energy Per Element
-        //muda::DeviceDoubletVector<Float, 3> extra_constitution_gradient;  // Extra Gradient Per Vertex
-        //muda::DeviceTripletMatrix<Float, 3> extra_constitution_hessian;  // Extra Hessian Per Vertex
-
         // Energy Producer:
-
 
         muda::DeviceVar<Float> energy_producer_energy;  // Energy Producer Energy
         muda::DeviceBuffer<Float> energy_producer_energies;  // Energy Producer Energies
@@ -362,6 +340,15 @@ class FiniteElementMethod final : public SimSystem
         BufferDump dump_xs;       // Positions
         BufferDump dump_x_prevs;  // Positions at last frame
         BufferDump dump_vs;       // Velocities
+
+        // Dof Info:
+        void set_dof_info(SizeT frame, IndexT dof_offset, IndexT dof_count);  // only called by FEMLinearSubsystem
+        IndexT dof_offset(SizeT frame) const noexcept;
+        IndexT dof_count(SizeT frame) const noexcept;
+
+      private:
+        vector<IndexT> frame_to_dof_offset;
+        vector<IndexT> frame_to_dof_count;
     };
 
 
@@ -382,9 +369,10 @@ class FiniteElementMethod final : public SimSystem
     auto x_prevs() const noexcept { return m_impl.x_prevs.view(); }
     auto masses() const noexcept { return m_impl.masses.view(); }
 
-    //auto diag_hessians() const noexcept { return m_impl.diag_hessians.view(); }
-
     auto Dm3x3_invs() const noexcept { return m_impl.Dm3x3_invs.view(); }
+
+    IndexT dof_offset(SizeT frame) const noexcept;
+    IndexT dof_count(SizeT frame) const noexcept;
 
     /**
      * @brief For each primitive
@@ -431,6 +419,7 @@ class FiniteElementMethod final : public SimSystem
     friend class FEMLinearSubsystem;
     friend class FEMLineSearchReporter;
     friend class FEMGradientHessianComputer;
+    friend class FEMDofPredictor;
 
     friend class FiniteElementAnimator;
     friend class FEMDiagPreconditioner;
@@ -440,9 +429,16 @@ class FiniteElementMethod final : public SimSystem
     friend class FiniteElementConstitution;
     friend class FiniteElementExtraConstitution;
 
+    friend class FiniteElementDiffParmReporter;
+    friend class FiniteElementConstitutionDiffParmReporter;
+    friend class FiniteElementDiffDofReporter;
+
+
     void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution
     void add_constitution(FiniteElementExtraConstitution* constitution);  // only called by FiniteElementExtraConstitution
     void add_constitution(FiniteElementKinetic* constitution);  // only called by FiniteElementKinetic
+
+    void add_reporter(FiniteElementConstitutionDiffParmReporter* reporter);  // only called by FEMDiffParmReporter
 
     virtual bool do_dump(DumpInfo& info) override;
     virtual bool do_try_recover(RecoverInfo& info) override;

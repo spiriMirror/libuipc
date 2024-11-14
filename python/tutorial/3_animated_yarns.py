@@ -6,6 +6,7 @@ import polyscope as ps
 from polyscope import imgui
 
 from pyuipc_loader import pyuipc
+from pyuipc import view
 from pyuipc import Vector3, Vector2, Transform, Logger, Quaternion, AngleAxis
 from pyuipc import builtin
 from pyuipc.core import *

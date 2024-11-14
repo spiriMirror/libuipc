@@ -9,6 +9,7 @@
 #include <fstream>
 #include <uipc/common/timer.h>
 #include <backends/common/backend_path_tool.h>
+#include <future>
 
 namespace uipc::backend::cuda
 {
@@ -36,6 +37,7 @@ SimEngine::SimEngine(EngineCreateInfo* info)
         checkCudaErrors(cudaGetDeviceProperties(&prop, 0));
         spdlog::info("Device: {}", prop.name);
         spdlog::info("Compute Capability: {}.{}", prop.major, prop.minor);
+        spdlog::info("Total Global Memory: {} MB", prop.totalGlobalMem / 1024 / 1024);
 
         auto viewer_ptr       = device_logger_viewer_ptr();
         m_device_impl->logger = make_unique<muda::Logger>(viewer_ptr);
@@ -71,6 +73,7 @@ SimEngine::SimEngine(EngineCreateInfo* info)
     catch(const SimEngineException& e)
     {
         spdlog::error("Cuda Backend Init Failed: {}", e.what());
+        status().push_back(core::EngineStatus::error(e.what()));
     }
 }
 
@@ -178,5 +181,10 @@ void SimEngine::do_apply_recover(RecoverInfo& info)
 void SimEngine::do_clear_recover(RecoverInfo& info)
 {
     // If failed, do nothing
+}
+
+SizeT SimEngine::get_frame() const
+{
+    return m_current_frame;
 }
 }  // namespace uipc::backend::cuda

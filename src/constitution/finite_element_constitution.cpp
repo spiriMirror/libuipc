@@ -23,13 +23,13 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
     if(!is_kinematic)
         is_kinematic = sc.vertices().create<IndexT>(builtin::is_dynamic, 1);
 
-    geometry::compute_vertex_mass(sc, mass_density);
-
     auto attr_thickness = sc.vertices().find<Float>(builtin::thickness);
     if(!attr_thickness)
         attr_thickness = sc.vertices().create<Float>(builtin::thickness, thickness);
 
     auto thickness_view = geometry::view(*attr_thickness);
     std::ranges::fill(thickness_view, thickness);
+
+    geometry::compute_vertex_mass(sc, mass_density);
 }
 }  // namespace uipc::constitution

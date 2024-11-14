@@ -64,6 +64,11 @@ span<ISimSystem* const> SimEngine::systems() noexcept
     return m_system_collection.systems();
 }
 
+core::EngineStatusCollection& SimEngine::get_status() noexcept
+{
+    return m_status;
+}
+
 ISimSystem* SimEngine::find_system(ISimSystem* ptr)
 {
     if(ptr)

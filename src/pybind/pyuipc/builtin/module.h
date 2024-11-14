@@ -3,9 +3,9 @@
 
 namespace pyuipc::builtin
 {
-class Module
+class PyModule
 {
   public:
-    Module(py::module& m);
+    PyModule(py::module& m);
 };
-}  // namespace pyuipc::constitution
+}  // namespace pyuipc::builtin

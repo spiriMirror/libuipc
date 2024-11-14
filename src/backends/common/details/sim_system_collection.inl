@@ -3,26 +3,24 @@
 namespace uipc::backend
 {
 template <std::derived_from<ISimSystem> T>
-T* SimSystemCollection::find()
+T* SimSystemCollection::find(const QueryOptions& options)
 {
     auto tid = typeid(T).hash_code();
     auto it  = m_sim_system_map.find(tid);
 
-    // find exact match
+    // look for exact match
     if(it != m_sim_system_map.end())
         return dynamic_cast<T*>(it->second.get());
 
-    // if not found, find compatible match
-    for(auto& [key, value] : m_sim_system_map)
+    if(!options.exact)  // if allow compatible match
     {
-        if(auto* ptr = dynamic_cast<T*>(value.get()); ptr != nullptr)
+        // if not found, look for compatible match
+        for(auto& [key, value] : m_sim_system_map)
         {
-            UIPC_WARN_WITH_LOCATION(
-                "Unable to find the excat SimSystem <{}>, but found a compatible one <{}>, "
-                "consider optimizing your implementation.",
-                typeid(T).name(),
-                typeid(*ptr).name());
-            return ptr;
+            if(auto* ptr = dynamic_cast<T*>(value.get()); ptr != nullptr)
+            {
+                return ptr;
+            }
         }
     }
 

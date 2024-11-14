@@ -7,7 +7,7 @@ The following dependencies are required to build the project.
 
 | Name                                        | Version      | Usage           | Import         |
 | ------------------------------------------- | ------------ | --------------- | -------------- |
-| [CMake](https://cmake.org/download/)        | >=3.27       | build system    | system install |
+| [CMake](https://cmake.org/download/)        | >=3.26       | build system    | system install |
 | [Python](https://www.python.org/downloads/) | >=3.10       | build system    | system install |
 | [Vcpkg](https://github.com/microsoft/vcpkg) | >=2024.04.26 | package manager | git clone      |
 
@@ -36,8 +36,6 @@ The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of the
 
 We use Vcpkg and PyPI to manage the libraries and use CMake to build the project. 
 
-The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
-
 Vcpkg supports both Windows and Linux; we use it to manage the dependencies and keep the consistency of the development environment.
 
 ### Submodules
@@ -54,17 +52,92 @@ The rest dependencies are all managed by Vcpkg; they will be automatically insta
 
 If the automatic installation fails, please raise an issue with the CMake error message.
 
-### Build Libuipc
+## Windows
 
-#### Windows
+### Install Vcpkg
+
+If you haven't installed Vcpkg, you can clone the repository with the following command:
+
+```shell
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+./bootstrap-vcpkg.bat
+```
+The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
+
+### Build Libuipc
 
 On Windows, you can use the `CMake-GUI` to configure the project and generate the Visual Studio solution file with only a few clicks.
 
-You can also use the same commands as Linux to build the project.
+Or, you can use the following commands to build the project.
 
-#### Linux
+```shell
+cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
+cmake -S ../libuipc -DCMAKE_BUILD_TYPE=<Debug/Release/RelWithDebInfo>
+cmake --build .
+```
 
-On Linux, you can use the following commands to build the project.
+### Run Project
+
+Just run the executable files in `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder.
+
+### Build Pyuipc
+
+Pyuipc is a Python binding of libuipc. It is built with the `pybind11` library.
+
+Download python3 https://www.python.org/downloads/.
+
+Install packages with the following command:
+
+```shell
+pip install pybind11 mypy numpy
+```
+
+We use `mypy.stubgen` to generate the stub files for the Python binding.  The stub files will be generated in the `libuipc/python/typings` folder automatically after building `pyuipc`.
+
+Add `-DUIPC_BUILD_PYBIND=1` to the CMake command to build the Python binding.
+
+NOTE: `pyuipc` should be built in the **Release** or **RelWithDebInfo** mode.
+
+(Optional) If you need torch support, you need to install the torch package first.
+
+```shell
+pip install torch
+```
+
+Add `-DUIPC_BUILD_TORCH_EXTENSION=1` to the CMake command to enable the pytorch extension.
+
+### Install Pyuipc
+
+After building the project, install the Python binding with the following command:
+
+```shell
+cd libuipc/python; pip install .
+```
+
+Then you can use the `pyuipc` in your Python environment with:
+
+```python
+from pyuipc_loader import pyuipc
+```
+
+## Linux
+
+### Install Vcpkg
+
+If you haven't installed Vcpkg, you can clone the repository with the following command:
+
+```shell
+git clone https://github.com/microsoft/vcpkg.git
+cd vcpkg
+./bootstrap-vcpkg.sh
+```
+
+We recommend using conda environments to build the project on Linux. See the [Conda](#Conda) section for more details. If you don't want to use conda, then go on with the following steps.
+
+### Build Libuipc
+
+You can use the following commands to build the project.
 
 ```shell
 cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
@@ -76,15 +149,9 @@ To enable GUI support, set `-DUIPC_BUILD_GUI=1`, but you may need to install som
 
 ### Run Project
 
-#### Windows
-
-Just run the executable files in `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder.
-
-#### Linux
-
 The excutable files are in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder. 
 
-To run the programs, you need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared **libuipc** library and the dependent backend modules will not be found.
+To run the programs, you may need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared **libuipc** library and the dependent backend modules may not be found.
 
 ```shell
 cd CMakeBuild/<Debug/Release/RelWithDebInfo>/bin
@@ -99,30 +166,22 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 Pyuipc is a Python binding of libuipc. It is built with the `pybind11` library.
 
 ```shell
-pip install pybind11
+sudo apt-get install python3-dev
 ```
+
+Install packages with the following command:
+
+```shell
+pip install pybind11 mypy numpy
+```
+
+We use `mypy.stubgen` to generate the stub files for the Python binding.  The stub files will be generated in the `libuipc/python/typings` folder automatically after building `pyuipc`.
 
 Add `-DUIPC_BUILD_PYBIND=1` to the CMake command to build the Python binding.
 
-NOTE: 
-1.  You need to install the development version of Python3 to build the Python binding.
-    For linux, you can install the development version of Python3 with the following command:
-    ```shell
-    sudo apt-get install python3-dev
-    ```
-    For Windows, you can install the development version of Python3 from the official website.
-2.  `pyuipc` should be built in the **Release** or **RelWithDebInfo** mode.
-3.  We use `mypy.stubgen` to generate the stub files for the Python binding. So you need to install `mypy` first.
-    ```shell
-    pip install mypy
-    ```
-    To generate the stub files, you need to install dependent packages:
-    ```shell
-    pip install numpy
-    ```
-    The stub files will be generated in the `libuipc/python/typings` folder automatically after building `pyuipc`.
+NOTE: `pyuipc` should be built in the **Release** or **RelWithDebInfo** mode.
 
-If you need pytorch support, you need to install the pytorch package first.
+(Optional) If you need pytorch support, you need to install the pytorch package first.
 
 ```shell
 pip install torch
@@ -130,9 +189,7 @@ pip install torch
 
 Then set `-DUIPC_BUILD_TORCH_EXTENSION=1` to the CMake command to enable the pytorch extension.
 
-```shell
-
-#### Install Pyuipc
+### Install Pyuipc
 
 After building the project, install the Python binding with the following command:
 
@@ -146,7 +203,54 @@ Then you can use the `pyuipc` in your Python environment with:
 from pyuipc_loader import pyuipc
 ```
 
-#### Run Examples
+## Conda
+
+If you are using conda, you can create a new environment with the following command:
+
+```shell
+conda create -n uipc_env python=3.10
+```
+
+Then activate the environment with:
+
+```shell
+conda activate uipc_env
+```
+
+### CMake
+Install CMake-3.26 with the following command:
+
+```shell
+conda install cmake=3.26
+```
+
+### GCC
+
+Install the tested version of gcc with the following command:
+
+```shell
+conda install gcc_linux-64=11.2.0
+```
+
+### Cuda
+
+Install the tested version of cuda with the following command:
+
+```shell
+conda install nvidia/label/cuda-12.4.0::cuda-toolkit
+```
+
+Cuda-12.4.0 requires driver version >= 550.54.14 (https://docs.nvidia.com/deploy/cuda-compatibility/index.html#use-the-right-compat-package),check your nvidia driver version with the following command
+
+```shell
+nvidia-smi
+```
+
+### Then
+
+Go back to the [Linux](#linux) or [Windows](#windows) build steps to continue building the project.
+
+## Run Examples
 
 Then you can run the examples in the `libuipc/python` folder.
 
@@ -161,7 +265,7 @@ We use [polyscope](https://polyscope.run/)(v2.3.0) to visualize the scene in Pyt
 pip install polyscope==2.3.0
 ```
 
-### Build Document
+## Build Document
 
 Download and install doxygen https://www.doxygen.nl/download.html.
 
@@ -186,6 +290,7 @@ If your system hasn't installed the GUI application dependencies before, you may
 ```shell
 sudo apt-get install libxi-dev libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev libxrandr-dev libxxf86vm-dev libxinerama-dev libxcursor-dev
 ```
+
 ### Linux Python3 System Requirement
 
 Python3 currently requires the following programs from the system package:
@@ -196,13 +301,4 @@ Python3 currently requires the following programs from the system package:
 
 ```shell
 sudo apt-get install autoconf automake autoconf-archive
-```
-
-### Linux CXX Compiler
-
-If you own gcc/g++ doesn't work for libuipc, we recommend using the latest version of clang.
-
-```shell
-wget https://apt.llvm.org/llvm.sh; chmod 777 llvm.sh; ./llvm.sh 17;
-export CC=/usr/bin/clang-17; export CXX=/usr/bin/clang++-17;
 ```

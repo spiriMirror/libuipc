@@ -16,8 +16,8 @@ class Codim1DConstitution : public FiniteElementConstitution
     class BaseInfo
     {
       public:
-        BaseInfo(FiniteElementMethod::Impl* impl, SizeT index_in_dim, Float dt)
-            : m_fem(impl)
+        BaseInfo(Codim1DConstitution* impl, SizeT index_in_dim, Float dt)
+            : m_impl(impl)
             , m_index_in_dim(index_in_dim)
             , m_dt(dt)
         {
@@ -28,22 +28,23 @@ class Codim1DConstitution : public FiniteElementConstitution
         muda::CBufferView<Float>    rest_lengths() const noexcept;
         muda::CBufferView<Vector2i> indices() const noexcept;
         muda::CBufferView<Float>    thicknesses() const noexcept;
+        muda::CBufferView<IndexT>   is_fixed() const noexcept;
         const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;
         Float dt() const noexcept;
 
       protected:
-        SizeT                      m_index_in_dim = ~0ull;
-        FiniteElementMethod::Impl* m_fem          = nullptr;
-        Float                      m_dt           = 0.0;
+        SizeT                m_index_in_dim = ~0ull;
+        Codim1DConstitution* m_impl         = nullptr;
+        Float                m_dt           = 0.0;
     };
 
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(FiniteElementMethod::Impl* impl,
-                          SizeT                      index_in_dim,
-                          Float                      dt,
-                          muda::BufferView<Float>    energies)
+        ComputeEnergyInfo(Codim1DConstitution*    impl,
+                          SizeT                   index_in_dim,
+                          Float                   dt,
+                          muda::BufferView<Float> energies)
             : BaseInfo(impl, index_in_dim, dt)
             , m_energies(energies)
         {
@@ -58,9 +59,9 @@ class Codim1DConstitution : public FiniteElementConstitution
     class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        ComputeGradientHessianInfo(FiniteElementMethod::Impl* impl,
-                                   SizeT                      index_in_dim,
-                                   Float                      dt,
+        ComputeGradientHessianInfo(Codim1DConstitution* impl,
+                                   SizeT                index_in_dim,
+                                   Float                dt,
                                    muda::DoubletVectorView<Float, 3> gradients,
                                    muda::TripletMatrixView<Float, 3> hessians)
             : BaseInfo(impl, index_in_dim, dt)
@@ -78,23 +79,16 @@ class Codim1DConstitution : public FiniteElementConstitution
     };
 
   protected:
-    virtual void do_build(BuildInfo& info)                               = 0;
-    virtual void do_init(FiniteElementMethod::Codim1DFilteredInfo& info) = 0;
-    virtual void do_report_extent(ReportExtentInfo& info) override;
+    virtual void do_build(BuildInfo& info)                  = 0;
     virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
-    const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;
 
   private:
-    friend class FiniteElementMethod;
-    void init(FiniteElementMethod::Codim1DFilteredInfo& info);
-
     virtual void do_build(FiniteElementConstitution::BuildInfo& info) override final;
     virtual void do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info) override final;
     virtual void do_compute_gradient_hessian(
         FiniteElementEnergyProducer::ComputeGradientHessianInfo& info) override final;
 
-    virtual IndexT   get_dimension() const noexcept override final;
-    virtual Vector2i get_vertex_offset_count() const noexcept override final;
+    virtual IndexT get_dim() const noexcept override final;
 };
 }  // namespace uipc::backend::cuda

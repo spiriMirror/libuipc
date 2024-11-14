@@ -7,10 +7,11 @@
 #include <pyuipc/core/constitution_tabular.h>
 #include <pyuipc/core/scene_io.h>
 #include <pyuipc/core/animator.h>
+#include <pyuipc/core/diff_sim.h>
 
 namespace pyuipc::core
 {
-Module::Module(py::module& m)
+PyModule::PyModule(py::module& m)
 {
     PyEngine{m};
 
@@ -20,8 +21,11 @@ Module::Module(py::module& m)
     PyConstitutionTabular{m};
 
     PyAnimator{m};
+    PyDiffSim{m};
+
     PyScene{m};
     PyWorld{m};
+
     PySceneIO{m};
 }
 }  // namespace pyuipc::core

@@ -1,6 +1,6 @@
 #pragma once
 #include <spdlog/spdlog.h>
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 namespace uipc
 {
 class UIPC_CORE_API LogPatternGuard

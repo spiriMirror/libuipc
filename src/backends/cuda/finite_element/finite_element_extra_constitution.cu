@@ -21,11 +21,6 @@ void FiniteElementExtraConstitution::do_build(FiniteElementEnergyProducer::Build
     m_impl.finite_element_method->add_constitution(this);
 }
 
-Vector2i FiniteElementExtraConstitution::get_vertex_offset_count() const noexcept
-{
-    return Vector2i{-1, -1};
-}
-
 U64 FiniteElementExtraConstitution::uid() const noexcept
 {
     return get_uid();

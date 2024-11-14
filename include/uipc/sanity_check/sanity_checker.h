@@ -1,4 +1,5 @@
 #pragma once
+#include <uipc/common/macro.h>
 #include <uipc/sanity_check/i_sanity_checker.h>
 #include <uipc/sanity_check/sanity_checker_auto_register.h>
 #include <uipc/core/scene.h>
@@ -25,11 +26,11 @@ class UIPC_CORE_API SanityChecker : public ISanityChecker
 };
 }  // namespace uipc::core
 
-#define REGISTER_SANITY_CHECKER(SanityChecker)                                                 \
-    namespace auto_register                                                                    \
-    {                                                                                          \
-        static ::uipc::core::SanityCheckerAutoRegister SanityCheckerAutoRegister##__COUNTER__{ \
-            ::uipc::core::detail::register_sanity_checker_creator<SanityChecker>()};           \
+#define REGISTER_SANITY_CHECKER(SanityChecker)                                                       \
+    namespace auto_register                                                                          \
+    {                                                                                                \
+        static ::uipc::core::SanityCheckerAutoRegister UIPC_NAME_WITH_ID(SanityCheckerAutoRegister){ \
+            ::uipc::core::detail::register_sanity_checker_creator<SanityChecker>()};                 \
     }
 
 // End of file

@@ -1,5 +1,6 @@
 #pragma once
 #include <backends/common/i_sim_system.h>
+#include <uipc/common/macro.h>
 #include <string_view>
 #include <backends/common/sim_system_auto_register.h>
 #include <uipc/backend/visitors/world_visitor.h>
@@ -17,11 +18,13 @@ class SimSystem : public ISimSystem
     SimSystem(SimEngine& sim_engine) noexcept;
 
   protected:
-    template <std::derived_from<SimSystem> T>
-    T* find();
+    using QueryOptions = SimSystemCollection::QueryOptions;
 
     template <std::derived_from<SimSystem> T>
-    T& require();
+    T* find(const QueryOptions& options = {});
+
+    template <std::derived_from<SimSystem> T>
+    T& require(const QueryOptions& options = {});
 
     virtual Json     do_to_json() const override;
     SimEngine&       engine() noexcept;
@@ -61,11 +64,11 @@ class SimSystem : public ISimSystem
 /**
  * @brief Register a SimSystem, which will be automatically created by the SimEngine.
  */
-#define REGISTER_SIM_SYSTEM(SimSystem)                                                    \
-    namespace auto_register                                                               \
-    {                                                                                     \
-        static ::uipc::backend::SimSystemAutoRegister SimSystemAutoRegister##__COUNTER__( \
-            ::uipc::backend::detail::register_system_creator<SimSystem>());               \
+#define REGISTER_SIM_SYSTEM(SimSystem)                                                          \
+    namespace auto_register                                                                     \
+    {                                                                                           \
+        static ::uipc::backend::SimSystemAutoRegister UIPC_NAME_WITH_ID(SimSystemAutoRegister)( \
+            ::uipc::backend::detail::register_system_creator<SimSystem>());                     \
     }
 
 // End of file, remove the warning: backslash-newline at end of file

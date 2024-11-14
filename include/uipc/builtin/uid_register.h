@@ -1,5 +1,5 @@
 #pragma once
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/builtin/uid_info.h>
 #include <uipc/common/unordered_map.h>
 

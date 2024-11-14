@@ -100,7 +100,6 @@ class FiniteElementEnergyProducer : public SimSystem
     virtual void do_report_extent(ReportExtentInfo& info)   = 0;
     virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
-    virtual Vector2i get_vertex_offset_count() const noexcept = 0;
 
   private:
     friend class FEMLinearSubsystem;

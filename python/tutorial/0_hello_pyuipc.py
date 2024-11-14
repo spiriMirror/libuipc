@@ -1,6 +1,7 @@
 from pyuipc_loader import pyuipc
 from pyuipc import Vector3
 from pyuipc.geometry import *
+from pyuipc import view
 from pyuipc.core import World, Scene, SceneIO, Engine
 from pyuipc.constitution import AffineBodyConstitution
 from pyuipc import builtin

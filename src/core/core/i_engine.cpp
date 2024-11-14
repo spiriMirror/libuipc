@@ -13,6 +13,11 @@ void IEngine::advance()
     do_advance();
 }
 
+void IEngine::backward()
+{
+    do_backward();
+}
+
 void IEngine::sync()
 {
     do_sync();
@@ -41,6 +46,11 @@ bool IEngine::recover(SizeT dst_frame)
 SizeT IEngine::frame() const
 {
     return get_frame();
+}
+
+EngineStatusCollection& IEngine::status()
+{
+    return get_status();
 }
 
 Json IEngine::do_to_json() const

@@ -2,7 +2,7 @@
 #include <string_view>
 #include <uipc/backend/buffer_view.h>
 #include <uipc/common/json.h>
-#include <uipc/common/macro.h>
+#include <uipc/common/dllexport.h>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/common/span.h>
 #include <uipc/common/type_define.h>

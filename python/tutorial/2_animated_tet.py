@@ -13,6 +13,8 @@ from pyuipc.geometry import *
 from pyuipc.constitution import *
 from pyuipc_utils.gui import *
 
+from pyuipc import view
+
 from asset import AssetDir
 
 def process_surface(sc: SimplicialComplex):
