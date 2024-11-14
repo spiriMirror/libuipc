@@ -118,10 +118,10 @@ class SimplicialComplexAttributes
     }
 
     template <typename T>
-    decltype(auto) share(std::string_view name, const AttributeSlot<T>& slot)
+    decltype(auto) share(std::string_view name, const AttributeSlot<T>& slot, bool allow_destroy = true)
         requires(!IsConst)
     {
-        return m_attributes.template share<T>(name, slot);
+        return m_attributes.template share<T>(name, slot, allow_destroy);
     }
 
     void copy_from(SimplicialComplexAttributes<true, N> other,
