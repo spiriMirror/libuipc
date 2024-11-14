@@ -11,4 +11,7 @@ namespace uipc::geometry
  * @return SimplicialComplex the merged simplicial complex.
  */
 UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex merge(span<const SimplicialComplex*> complexes);
+
+UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex merge(
+    std::initializer_list<const SimplicialComplex*>&& complexes);
 }  // namespace uipc::geometry

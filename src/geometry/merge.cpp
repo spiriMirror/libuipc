@@ -221,4 +221,10 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
 
     return R;
 }
+
+SimplicialComplex merge(std::initializer_list<const SimplicialComplex*>&& complexes)
+{
+    vector<const SimplicialComplex*> complex_ptrs{complexes.begin(), complexes.end()};
+    return merge(complex_ptrs);
+}
 }  // namespace uipc::geometry

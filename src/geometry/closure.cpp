@@ -132,7 +132,7 @@ SimplicialComplex facet_closure(const SimplicialComplex& O)
 
     // share vertices
     R.vertices().resize(O.vertices().size());
-    R.vertices().share(builtin::position, O.positions());
+    R.vertices().share(builtin::position, O.positions(), false);
 
     switch(O.dim())
     {
