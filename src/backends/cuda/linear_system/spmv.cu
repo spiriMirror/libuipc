@@ -180,22 +180,22 @@ void Spmv::rbk_spmv(Float                           a,
                 if(global_thread_id > 0 && global_thread_id < A.triplet_count())
                 {
                     auto prev_triplet = A(global_thread_id - 1);
-                    prev_i            = prev_triplet.block_row_index;
+                    prev_i            = prev_triplet.row_index;
                 }
 
                 if(global_thread_id < A.triplet_count() - 1)
                 {
                     auto next_triplet = A(global_thread_id + 1);
-                    next_i            = next_triplet.block_row_index;
+                    next_i            = next_triplet.row_index;
                 }
 
                 if(global_thread_id < A.triplet_count())
                 {
                     auto Triplet = A(global_thread_id);
-                    i            = Triplet.block_row_index;
-                    auto j       = Triplet.block_col_index;
+                    i            = Triplet.row_index;
+                    auto j       = Triplet.col_index;
 
-                    vec = Triplet.block_value * x.segment<N>(j * N).as_eigen();
+                    vec = Triplet.value * x.segment<N>(j * N).as_eigen();
 
                     flags.is_valid = 1;
                 }
@@ -345,29 +345,29 @@ void Spmv::rbk_sym_spmv(Float                           a,
                 if(global_thread_id > 0 && global_thread_id < A.triplet_count())
                 {
                     auto prev_triplet = A(global_thread_id - 1);
-                    prev_i            = prev_triplet.block_row_index;
+                    prev_i            = prev_triplet.row_index;
                 }
 
                 // set the next row index
                 if(global_thread_id < A.triplet_count() - 1 /* && global_thread_id>=0 */)
                 {
                     auto next_triplet = A(global_thread_id + 1);
-                    next_i            = next_triplet.block_row_index;
+                    next_i            = next_triplet.row_index;
                 }
 
                 if(global_thread_id < A.triplet_count())
                 {
                     auto Triplet = A(global_thread_id);
-                    i            = Triplet.block_row_index;
-                    auto j       = Triplet.block_col_index;
+                    i            = Triplet.row_index;
+                    auto j       = Triplet.col_index;
 
-                    vec = Triplet.block_value * x.segment<N>(j * N).as_eigen();
+                    vec = Triplet.value * x.segment<N>(j * N).as_eigen();
 
                     flags.is_valid = 1;
 
                     if(i != j)  // process lower triangle
                     {
-                        Vector3 vec_ = a * Triplet.block_value.transpose()
+                        Vector3 vec_ = a * Triplet.value.transpose()
                                        * x.segment<N>(i * N).as_eigen();
 
                         y.segment<N>(j * N).atomic_add(vec_);

@@ -11,7 +11,7 @@ class ABDMatrixConverter
   public:
     using T                = Float;
     constexpr static int N = 12;
-    using BlockMatrix      = muda::DeviceTripletMatrix<T, N>::BlockMatrix;
+    using BlockMatrix      = muda::DeviceTripletMatrix<T, N>::ValueT;
 
     class Impl
     {
