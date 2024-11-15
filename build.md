@@ -4,6 +4,11 @@ A Cross-Platform Modern C++20 **Lib**rary of **U**nified **I**ncremental **P**ot
 
 This page will guide you through building the project.
 
+We use Vcpkg and PyPI to manage the libraries and use CMake to build the project. 
+
+Vcpkg supports both Windows and Linux, we use it to manage the dependencies and keep the consistency of the development environment.
+
+
 ## Dependencies
 
 The following dependencies are required to build the project.
@@ -35,23 +40,10 @@ The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of the
 | glfw3                                  | 3.3.8#2 | window management                                   | vcpkg          |
 | magic_enum                             | 0.9.3   | enum to string                                      | vcpkg          |
 
-## Build
-
-We use Vcpkg and PyPI to manage the libraries and use CMake to build the project. 
-
-Vcpkg supports both Windows and Linux; we use it to manage the dependencies and keep the consistency of the development environment.
-
-### Submodules
-
-Some dependencies are managed by git submodules. You need to clone the submodules with the following command:
-
-```shell
-git submodule update --init
-```
 
 ### Automatic Dependency Installation
 
-The rest dependencies are all managed by Vcpkg; they will be automatically installed in the CMake Configuration step.
+The Dependencies and submodules will be automatically installed in the CMake Configuration step.
 
 If the automatic installation fails, please raise an issue with the CMake error message.
 
@@ -304,4 +296,12 @@ Python3 currently requires the following programs from the system package:
 
 ```shell
 sudo apt-get install autoconf automake autoconf-archive
+```
+
+### Submodule Manual Initialization & Update
+
+If the submodule is not initialized, you can use the following command to initialize the submodule:
+
+```shell
+git submodule update --init
 ```

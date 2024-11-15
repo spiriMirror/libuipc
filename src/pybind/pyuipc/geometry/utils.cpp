@@ -1,4 +1,6 @@
 #include <pyuipc/geometry/utils.h>
+#include <pyuipc/as_numpy.h>
+#include <pyuipc/common/json.h>
 #include <Eigen/Geometry>
 #include <uipc/geometry/utils/label_surface.h>
 #include <uipc/geometry/utils/label_triangle_orient.h>
@@ -10,7 +12,8 @@
 #include <uipc/geometry/utils/label_connected_vertices.h>
 #include <uipc/geometry/utils/label_region.h>
 #include <uipc/geometry/utils/apply_region.h>
-#include <pyuipc/as_numpy.h>
+#include <uipc/geometry/utils/tetrahedralize.h>
+
 
 namespace pyuipc::geometry
 {
@@ -42,8 +45,11 @@ static py::list list_of_sc(const vector<SimplicialComplex>& simplicial_complexes
 PyUtils::PyUtils(py::module& m)
 {
     m.def("label_surface", &label_surface);
+
     m.def("label_triangle_orient", &label_triangle_orient);
+
     m.def("flip_inward_triangles", &flip_inward_triangles);
+
     m.def("extract_surface",
           [](const SimplicialComplex& simplicial_complex)
           { return extract_surface(simplicial_complex); });
@@ -71,8 +77,11 @@ PyUtils::PyUtils(py::module& m)
           });
 
     m.def("facet_closure", &facet_closure);
+
     m.def("label_connected_vertices", &label_connected_vertices);
+
     m.def("label_region", &label_region);
+
     m.def("apply_region",
           [](const SimplicialComplex& simplicial_complex) -> py::list
           {
@@ -80,5 +89,12 @@ PyUtils::PyUtils(py::module& m)
               auto list = list_of_sc(scs);
               return list;
           });
+
+    m.def(
+        "tetrahedralize",
+        [](const SimplicialComplex& simplicial_complex, const Json& options) -> SimplicialComplex
+        { return tetrahedralize(simplicial_complex, options); },
+        py::arg("simplicial_complex"),
+        py::arg("options") = Json::object());
 }
 }  // namespace pyuipc::geometry

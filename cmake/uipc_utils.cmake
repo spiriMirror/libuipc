@@ -141,6 +141,20 @@ function(uipc_target_add_include_files target_name)
     source_group(TREE "${INCLUDE_DIR}" PREFIX "include" FILES ${INCLUDE_FILES})
 endfunction()
 
-
+function(uipc_init_submodule target)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${target}")
+        uipc_error("Can not find submodule ${target} in ${CMAKE_CURRENT_SOURCE_DIR}, why?")
+    endif()
+    if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${target}/.git")
+        find_package(Git QUIET)
+        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init ${target}
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
+        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+            uipc_error("git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+        endif()
+        uipc_info("Submodule ${target} is initialized")
+    endif()
+endfunction()
 
 
