@@ -224,7 +224,7 @@ conda install cmake=3.26
 Install the tested version of gcc with the following command:
 
 ```shell
-conda install gcc_linux-64=11.2.0
+conda install gcc_linux-64=11.2.0 gxx_linux-64=11.2.0
 ```
 
 ### Cuda
