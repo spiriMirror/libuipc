@@ -266,7 +266,7 @@ Download and install doxygen https://www.doxygen.nl/download.html.
 
 Install [mkdocs](https://www.mkdocs.org/) and its plugins:
 ```shell
-pip install mkdocs mkdocs-material mkdocs-literate-nav mkdoxy
+pip install mkdocs mkdocs-material mkdocs-literate-nav mkdoxy mkdocs-video
 ```
 
 Turn on the local server:

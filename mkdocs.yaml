@@ -52,6 +52,7 @@ use_directory_urls: true
 
 plugins:
   - search
+  - mkdocs-video
   - literate-nav:
       nav_file: nav.md
   - mkdoxy:
