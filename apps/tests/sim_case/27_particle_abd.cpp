@@ -81,8 +81,6 @@ TEST_CASE("27_particle_abd", "[abd]")
         particle_obj->geometries().create(particle);
     }
 
-    Timer::enable_all();
-
     world.init(scene);
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
@@ -92,6 +90,5 @@ TEST_CASE("27_particle_abd", "[abd]")
         world.advance();
         world.retrieve();
         sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
-        Timer::report();
     }
 }

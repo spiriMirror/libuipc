@@ -178,12 +178,12 @@ inline UIPC_GENERIC void assemble(muda::TripletMatrixViewer<Float, 3>& H3x3,
 
 template <int N>
 UIPC_GENERIC void assemble(muda::TripletMatrixViewer<Float, 3>& H3x3,
-                           IndexT                               I_of_H3Nx3N,
+                           IndexT                               I_of_H3x3,
                            const Vector<IndexT, N>              indices,
                            const Matrix<Float, 3 * N, 3 * N>&   H3Nx3N)
     requires(N >= 2)
 {
-    SizeT offset = I_of_H3Nx3N * (N * N);
+    SizeT offset = I_of_H3x3;
 #pragma unroll
     for(int i = 0; i < N; ++i)
     {

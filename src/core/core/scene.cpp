@@ -189,13 +189,11 @@ const Animator& Scene::animator() const
 
 DiffSim& Scene::diff_sim()
 {
-    UIPC_ASSERT(false, "Not fully implemented yet in this version.");
     return m_impl->diff_sim;
 }
 
 const DiffSim& Scene::diff_sim() const
 {
-    UIPC_ASSERT(false, "Not fully implemented yet in this version.");
     return m_impl->diff_sim;
 }
 

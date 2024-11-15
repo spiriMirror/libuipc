@@ -13,7 +13,7 @@ PyScene::PyScene(py::module& m)
     auto class_Objects = py::class_<Scene::Objects>(class_Scene, "Objects");
     auto class_Geometries = py::class_<Scene::Geometries>(class_Scene, "Geometries");
 
-
+    
     // def methods
     class_Scene.def(py::init<const Json&>(), py::arg("config") = Scene::default_config());
 
