@@ -58,6 +58,14 @@ class UIPC_IO_API SimplicialComplexIO
      */
     void write_obj(std::string_view file_name, const SimplicialComplex& sc);
 
+    /**
+     * @brief Write a simplicial complex to .msh file.
+     * 
+     * @param file_name The file to write
+     * @param sc The simplicial complex to write
+     */
+    void write_msh(std::string_view file_name, const SimplicialComplex& sc);
+
   private:
     Matrix4x4 m_pre_transform = Matrix4x4::Identity();
     void      apply_pre_transform(Vector3& v) const noexcept;

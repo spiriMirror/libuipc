@@ -10,6 +10,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <Eigen/Geometry>
 
+
 namespace uipc::geometry
 {
 SimplicialComplexIO::SimplicialComplexIO(const Matrix4x4& pre_transform) noexcept
@@ -116,6 +117,10 @@ void SimplicialComplexIO::write(std::string_view file_name, const SimplicialComp
     {
         write_obj(file_name, sc);
     }
+    else if(path.extension() == ".msh")
+    {
+        write_msh(file_name, sc);
+    }
     else
     {
         throw GeometryIOError{fmt::format("Unsupported file format: {}", file_name)};
@@ -214,6 +219,99 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
                 fmt::println(fp, "f {} {} {}", F[0] + 1, F[1] + 1, F[2] + 1);
         }
     }
+
+    std::fclose(fp);
+}
+
+
+void SimplicialComplexIO::write_msh(std::string_view file_name, const SimplicialComplex& sc)
+{
+    const auto Dim = sc.dim();
+
+    auto fp = std::fopen(file_name.data(), "w");
+
+    if(!fp)
+    {
+        throw GeometryIOError{fmt::format("Failed to open file {} for writing.", file_name)};
+    }
+
+    auto Vs = sc.positions().view();
+
+    fmt::println(fp,
+                 R"($MeshFormat
+2.2 0 8
+$EndMeshFormat
+)");
+
+    fmt::println(fp, "$Nodes");
+    fmt::println(fp, "{}", Vs.size());
+    for(auto&& [i, v] : enumerate(Vs))
+    {
+        // ID x y z
+        fmt::println(fp, "{} {} {} {}", i + 1, v[0], v[1], v[2]);
+    }
+    fmt::println(fp, "$EndNodes");
+
+    fmt::println(fp, "$Elements");
+
+    SizeT type     = Dim + 1;
+    SizeT num_tags = 0;  // no tags
+
+    if(Dim == 3)
+    {
+        auto Ts = sc.tetrahedra().topo().view();
+        fmt::println(fp, "{}", Ts.size());
+        for(auto&& [i, t] : enumerate(Ts))
+        {
+            // ID elm-type number-of-tags < tags ... > node-number-list
+
+            fmt::println(fp,
+                         "{} {} {} {} {} {} {}",
+                         i + 1,
+                         type,
+                         num_tags,  //
+                         t[0] + 1,
+                         t[1] + 1,
+                         t[2] + 1,
+                         t[3] + 1);
+        }
+    }
+    else if(Dim == 2)
+    {
+        auto Fs = sc.triangles().topo().view();
+        fmt::println(fp, "{}", Fs.size());
+        for(auto&& [i, f] : enumerate(Fs))
+        {
+            // ID elm-type number-of-tags < tags ... > node-number-list
+
+            fmt::println(fp,
+                         "{} {} {} {} {} {}",
+                         i + 1,
+                         type,
+                         num_tags,  //
+                         f[0] + 1,
+                         f[1] + 1,
+                         f[2] + 1);
+        }
+    }
+    else if(Dim == 1)
+    {
+        auto Es = sc.edges().topo().view();
+        fmt::println(fp, "{}", Es.size());
+        for(auto&& [i, e] : enumerate(Es))
+        {
+            // ID elm-type number-of-tags < tags ... > node-number-list
+
+            fmt::println(fp,
+                         "{} {} {} {} {}",
+                         i + 1,
+                         type,
+                         num_tags,  //
+                         e[0] + 1,
+                         e[1] + 1);
+        }
+    }
+    fmt::println(fp, "$EndElements");
 
     std::fclose(fp);
 }
