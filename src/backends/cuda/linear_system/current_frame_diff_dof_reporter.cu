@@ -71,7 +71,7 @@ class CurrentFrameDiffDofReporter : public DiffDofReporter
 
                        // cout << "i: " << i << ", j: " << j << ", H3x3:\n " << H3x3 << "\n";
 
-                       TripletMatrixUnpacker<Float> unpacker{sub_H};
+                       TripletMatrixUnpacker unpacker{sub_H};
                        // every x has 3 dofs
                        unpacker.block<3, 3>(I * 3 * 3).write(i * 3, j * 3, H3x3);
                    });

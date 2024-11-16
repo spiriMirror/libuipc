@@ -3,6 +3,13 @@
 
 namespace uipc::backend::cuda
 {
+/**
+ * @brief A finite element kinetic energy producer.
+ * 
+ * Now we only support the backward Euler method (BDF1).
+ * If we need to support other methods, we can make this class a base class,
+ * and derive other classes from it.
+ */
 class FiniteElementKinetic final : public FiniteElementEnergyProducer
 {
   public:

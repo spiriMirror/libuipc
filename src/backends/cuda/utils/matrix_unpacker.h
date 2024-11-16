@@ -4,11 +4,11 @@
 
 namespace uipc::backend::cuda
 {
-template <typename T>
+template <typename T, int BlockDim>
 class TripletMatrixUnpacker
 {
   public:
-    MUDA_GENERIC TripletMatrixUnpacker(muda::TripletMatrixViewer<T, 1>& triplet)
+    MUDA_GENERIC TripletMatrixUnpacker(muda::TripletMatrixViewer<T, BlockDim>& triplet)
         : m_triplet(triplet)
     {
     }
@@ -33,8 +33,27 @@ class TripletMatrixUnpacker
         }
 
 
+        MUDA_GENERIC void write(IndexT i,
+                                IndexT j,
+                                const Eigen::Matrix<T, BlockDim * M, BlockDim * N>& value)
+            requires(BlockDim > 1 && (M > 1 || N > 1))
+        {
+            IndexT offset = m_I;
+            for(IndexT ii = 0; ii < M; ++ii)
+            {
+                for(IndexT jj = 0; jj < N; ++jj)
+                {
+                    m_unpacker.m_triplet(offset).write(
+                        i + ii,
+                        j + jj,
+                        value.template block<BlockDim, BlockDim>(ii * BlockDim, jj * BlockDim));
+                    ++offset;
+                }
+            }
+        }
+
         MUDA_GENERIC void write(IndexT i, IndexT j, const Eigen::Matrix<T, M, N>& value)
-            requires(M > 1 || N > 1)
+            requires(BlockDim == 1 && (M > 1 || N > 1))
         {
             IndexT offset = m_I;
             for(IndexT ii = 0; ii < M; ++ii)
@@ -47,8 +66,16 @@ class TripletMatrixUnpacker
             }
         }
 
-        MUDA_GENERIC void write(IndexT i, IndexT j, const T value)
-            requires(M == 1 && N == 1)
+
+        MUDA_GENERIC void write(IndexT i, IndexT j, const Eigen::Matrix<T, BlockDim, BlockDim>& value)
+            requires(BlockDim > 1 && M == 1 && N == 1)
+        {
+            m_unpacker.m_triplet(m_I).write(i, j, value);
+        }
+
+
+        MUDA_GENERIC void write(IndexT i, IndexT j, const T& value)
+            requires(BlockDim == 1 && M == 1 && N == 1)
         {
             m_unpacker.m_triplet(m_I).write(i, j, value);
         }
@@ -86,10 +113,11 @@ class TripletMatrixUnpacker
     }
 
   private:
-    muda::TripletMatrixViewer<T, 1>& m_triplet;
+    muda::TripletMatrixViewer<T, BlockDim>& m_triplet;
 };
 
 // CTAD
-template <typename T>
-TripletMatrixUnpacker(muda::TripletMatrixViewer<T, 1>&) -> TripletMatrixUnpacker<T>;
+template <typename T, int BlockDim>
+TripletMatrixUnpacker(muda::TripletMatrixViewer<T, BlockDim>&)
+    -> TripletMatrixUnpacker<T, BlockDim>;
 }  // namespace uipc::backend::cuda

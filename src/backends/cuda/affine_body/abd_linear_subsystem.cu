@@ -2,6 +2,8 @@
 #include <sim_engine.h>
 #include <kernel_cout.h>
 #include <muda/ext/eigen.h>
+#include <utils/matrix_assembler.h>
+#include <utils/matrix_unpacker.h>
 
 namespace uipc::backend::cuda
 {
@@ -9,8 +11,6 @@ REGISTER_SIM_SYSTEM(ABDLinearSubsystem);
 
 void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
 {
-    m_impl.reduce_hessian = false;  // default false, because of low convert efficiency according to profiling
-
     m_impl.affine_body_dynamics        = require<AffineBodyDynamics>();
     m_impl.affine_body_vertex_reporter = require<AffineBodyVertexReporter>();
 
@@ -30,128 +30,85 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     constexpr SizeT M12x12_to_M3x3 = (12 * 12) / (3 * 3);
     constexpr SizeT G12_to_dof     = 12;
 
-    assemble_bodies();
-
     // 1) Hessian Count
-    SizeT H12x12_count        = A_view.triplet_count();
-    auto  hessian_block_count = H12x12_count * M12x12_to_M3x3;
+    SizeT H12x12_count = 0;
+
+    // body hessian
+    H12x12_count += abd().body_id_to_body_hessian.size();
+    if(abd_contact_receiver)
+    {
+        H12x12_count += contact().contact_hessian.triplet_count();
+    }
+    if(affine_body_animator)
+    {
+        AffineBodyAnimator::ExtentInfo anim_extent_info;
+        affine_body_animator->report_extent(anim_extent_info);
+        H12x12_count += anim_extent_info.hessian_block_count;
+    }
+
+    auto H3x3_count = H12x12_count * M12x12_to_M3x3;
 
 
     // 2) Gradient Count
     SizeT G12_count = abd().body_count();
     auto  dof_count = abd().abd_body_count * G12_to_dof;
 
-    info.extent(hessian_block_count, dof_count);
+    info.extent(H3x3_count, dof_count);
 }
 
 void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 {
-    _assemble_gradient(info);
-    _assemble_hessian(info);
-}
-
-void ABDLinearSubsystem::Impl::_assemble_gradient(GlobalLinearSystem::DiagInfo& info)
-{
     using namespace muda;
 
-    // body gradient
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(abd().body_count(),
-               [abd_gradient = abd().body_id_to_body_gradient.cviewer().name("abd_gradient"),
-                gradient = info.gradient().viewer().name("gradient")] __device__(int i) mutable
-               { gradient.segment<12>(i * 12) = abd_gradient(i); });
-}
-
-void ABDLinearSubsystem::Impl::_assemble_hessian(GlobalLinearSystem::DiagInfo& info)
-{
-    using namespace muda;
-
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(A_view.triplet_count(),
-               [dst = info.hessian().viewer().name("dst_hessian"),
-                src = A_view.cviewer().name("src_hessian")] __device__(int I) mutable
-               {
-                   auto offset = I * 16;
-                   for(int i = 0; i < 4; ++i)
-                       for(int j = 0; j < 4; ++j)
-                       {
-                           auto&& [row, col, H12x12] = src(I);
-                           dst(offset++).write(row * 4 + i,
-                                               col * 4 + j,
-                                               H12x12.block<3, 3>(3 * i, 3 * j));
-                       }
-               });
-}
-
-void ABDLinearSubsystem::Impl::assemble_bodies()
-{
-    using namespace muda;
-
-    auto H12x12_count = abd().body_id_to_body_hessian.size();
-
-    if(abd_contact_receiver)
-        H12x12_count += contact().contact_hessian.triplet_count();
-
-    if(affine_body_animator)
+    // 1) Kinetic & Shape
+    IndexT offset = 0;
     {
-        AffineBodyAnimator::ExtentInfo info;
-        affine_body_animator->report_extent(info);
-        H12x12_count += info.hessian_block_count;
-    }
-
-    auto async_fill = []<typename T>(muda::DeviceBuffer<T>& buf, const T& value)
-    { muda::BufferLaunch().fill<T>(buf.view(), value); };
-
-    async_fill(abd().diag_hessian, Matrix12x12::Zero().eval());
-
-    if(triplet_A.triplet_capacity() < H12x12_count)
-    {
-        auto reserve_count = H12x12_count * reserve_ratio;
-        triplet_A.reserve_triplets(reserve_count);
-
-        if(reduce_hessian)
-            bcoo_A.reserve_triplets(reserve_count);
-    }
-
-    triplet_A.resize_triplets(H12x12_count);
-    triplet_A.reshape(abd().abd_body_count, abd().abd_body_count);
-
-    auto A = triplet_A.view();
-
-    // body hessian
-    auto offset = 0;
-    {
-        auto count = abd().body_id_to_body_hessian.size();
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(count,
-                   [body_hessian = abd().body_id_to_body_hessian.cviewer().name("body_hessian"),
-                    triplet = A.subview(offset, count).viewer().name("triplet"),
+            .apply(abd().body_count(),
+                   [body_gradient = abd().body_id_to_body_gradient.cviewer().name("abd_gradient"),
+                    gradient = info.gradient().viewer().name("gradient")] __device__(int i) mutable
+                   { gradient.segment<12>(i * 12) = body_gradient(i); });
+
+        auto body_count = abd().body_id_to_body_hessian.size();
+        auto H3x3_count = body_count * 16;
+        auto body_H3x3  = info.hessian().subview(offset, H3x3_count);
+        ParallelFor()
+            .file_line(__FILE__, __LINE__)
+            .apply(body_count,
+                   [dst = body_H3x3.viewer().name("dst_hessian"),
+                    src = abd().body_id_to_body_hessian.cviewer().name("src_hessian"),
                     diag_hessian = abd().diag_hessian.viewer().name(
-                        "diag_hessian")] __device__(int i) mutable
+                        "diag_hessian")] __device__(int I) mutable
                    {
-                       triplet(i).write(i, i, body_hessian(i));
-                       diag_hessian(i) += body_hessian(i);
+                       TripletMatrixUnpacker MA{dst};
+
+                       MA.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
+                           .write(I * 4,          // begin row
+                                  I * 4,          // begin col
+                                  src(I));
+
+                       diag_hessian(I) = src(I);
                    });
 
-        offset += count;
+        offset += H3x3_count;
     }
 
-    // contact gradient and hessian
-    if(abd_contact_receiver)  // if contact is enabled
+    // 2) Contact
+    if(abd_contact_receiver)
     {
         auto vertex_offset = affine_body_vertex_reporter->vertex_offset();
 
-        auto gradient_count = contact().contact_gradient.doublet_count();
-        if(gradient_count)
+        auto contact_gradient_count = contact().contact_gradient.doublet_count();
+
+        if(contact_gradient_count)
         {
+
             ParallelFor()
-                .kernel_name(__FUNCTION__)
-                .apply(gradient_count,
+                .file_line(__FILE__, __LINE__)
+                .apply(contact_gradient_count,
                        [contact_gradient = contact().contact_gradient.cviewer().name("contact_gradient"),
-                        abd_gradient = abd().body_id_to_body_gradient.viewer().name("abd_gradient"),
+                        gradient = info.gradient().viewer().name("gradient"),
                         v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
                         Js  = abd().vertex_id_to_J.cviewer().name("Js"),
                         is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
@@ -169,28 +126,28 @@ void ABDLinearSubsystem::Impl::assemble_bodies()
                            }
                            else
                            {
-                               Vector12 G12  = J_i.T() * G3;
-                               auto&    dstG = abd_gradient(body_i);
-                               muda::eigen::atomic_add(dstG, G12);
+                               Vector12 G12 = J_i.T() * G3;
+                               gradient.segment<12>(body_i * 12).atomic_add(G12);
                            }
                        });
         }
 
-        auto hessian_count = contact().contact_hessian.triplet_count();
+        auto contact_hessian_count = contact().contact_hessian.triplet_count();
+        auto H3x3_count            = contact_hessian_count * 16;
+        auto contact_H3x3          = info.hessian().subview(offset, H3x3_count);
 
-        if(hessian_count)
+        if(contact_hessian_count)
         {
             ParallelFor()
-                .kernel_name(__FUNCTION__)
-                .apply(hessian_count,
+                .file_line(__FILE__, __LINE__)
+                .apply(contact_hessian_count,
                        [contact_hessian = contact().contact_hessian.cviewer().name("contact_hessian"),
-                        triplet = A.subview(offset, hessian_count).viewer().name("triplet"),
-                        vertex_offset = vertex_offset,
+                        dst = contact_H3x3.viewer().name("dst_hessian"),
                         v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
                         Js  = abd().vertex_id_to_J.cviewer().name("Js"),
                         is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
-                        diag_hessian = abd().diag_hessian.viewer().name(
-                            "diag_hessian")] __device__(int I) mutable
+                        diag_hessian = abd().diag_hessian.viewer().name("diag_hessian"),
+                        vertex_offset = vertex_offset] __device__(int I) mutable
                        {
                            const auto& [g_i, g_j, H3x3] = contact_hessian(I);
 
@@ -200,46 +157,52 @@ void ABDLinearSubsystem::Impl::assemble_bodies()
                            auto body_i = v2b(i);
                            auto body_j = v2b(j);
 
-                           //out << "body_i=" << body_i << " body_j=" << body_j << "\n";
-
                            auto J_i = Js(i);
                            auto J_j = Js(j);
 
+                           Matrix12x12 H12x12;
                            if(is_fixed(body_i) || is_fixed(body_j))
                            {
-                               triplet(I).write(body_i, body_j, Matrix12x12::Zero());
+                               H12x12.setZero();
                            }
                            else
                            {
-                               Matrix12x12 H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
-                               triplet(I).write(body_i, body_j, H12x12);
-                               // cout << "H12x12: \n" << H12x12 << "\n";
+                               H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
 
+                               // Fill diagonal hessian for diag-inv preconditioner
+                               // TODO: Maybe later we can move it to a separate kernel for readability
                                if(body_i == body_j)
                                {
                                    eigen::atomic_add(diag_hessian(body_i), H12x12);
                                }
                            }
+
+                           TripletMatrixUnpacker MU{dst};
+                           MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
+                               .write(body_i * 4,  // begin row
+                                      body_j * 4,  // begin col
+                                      H12x12);
                        });
         }
 
-        offset += hessian_count;
+        offset += H3x3_count;
     }
 
-    // animator gradient and hessian
+    // 3) Animator
     if(affine_body_animator)
     {
-        AffineBodyAnimator::AssembleInfo info;
-        affine_body_animator->assemble(info);
+        AffineBodyAnimator::AssembleInfo anim_info;
+        affine_body_animator->assemble(anim_info);
 
-        auto gradient_count = info.gradients().doublet_count();
+        auto gradient_count = anim_info.gradients().doublet_count();
+
         if(gradient_count)
         {
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(gradient_count,
-                       [animator_gradient = info.gradients().cviewer().name("animator_gradient"),
-                        abd_gradient = abd().body_id_to_body_gradient.viewer().name("abd_gradient"),
+                       [animator_gradient = anim_info.gradients().cviewer().name("animator_gradient"),
+                        gradient = info.gradient().viewer().name("abd_gradient"),
                         is_fixed = abd().body_id_to_is_fixed.cviewer().name(
                             "is_fixed")] __device__(int I) mutable
                        {
@@ -251,32 +214,43 @@ void ABDLinearSubsystem::Impl::assemble_bodies()
                            }
                            else
                            {
-                               muda::eigen::atomic_add(abd_gradient(body_i), G12);
+                               gradient.segment<12>(body_i * 12).atomic_add(G12);
                            }
                        });
         }
 
-        auto hessian_count = info.hessians().triplet_count();
-        if(hessian_count)
+        auto anim_hessian_count = anim_info.hessians().triplet_count();
+        auto H3x3_count         = anim_hessian_count * 16;
+        auto anim_H3x3          = info.hessian().subview(offset, H3x3_count);
+
+        if(anim_hessian_count)
         {
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(hessian_count,
-                       [animator_hessian = info.hessians().cviewer().name("animator_hessian"),
-                        triplet = A.subview(offset, hessian_count).viewer().name("triplet"),
+                .apply(anim_hessian_count,
+                       [animator_hessian = anim_info.hessians().cviewer().name("animator_hessian"),
+                        dst = anim_H3x3.viewer().name("triplet"),
                         is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
                         diag_hessian = abd().diag_hessian.viewer().name(
                             "diag_hessian")] __device__(int I) mutable
                        {
+                           TripletMatrixUnpacker MU{dst};
+
                            const auto& [body_i, body_j, H12x12] = animator_hessian(I);
 
                            if(is_fixed(body_i) || is_fixed(body_j))
                            {
-                               triplet(I).write(body_i, body_j, Matrix12x12::Zero());
+                               MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
+                                   .write(body_i * 4,  // begin row
+                                          body_j * 4,  // begin col
+                                          Matrix12x12::Zero());
                            }
                            else
                            {
-                               triplet(I).write(body_i, body_j, H12x12);
+                               MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
+                                   .write(body_i * 4,  // begin row
+                                          body_j * 4,  // begin col
+                                          H12x12);
 
                                if(body_i == body_j)
                                {
@@ -285,17 +259,14 @@ void ABDLinearSubsystem::Impl::assemble_bodies()
                            }
                        });
         }
+
+        offset += H3x3_count;
     }
 
-    if(reduce_hessian)
-    {
-        converter.convert(triplet_A, bcoo_A);
-        A_view = bcoo_A.view();
-    }
-    else
-    {
-        A_view = triplet_A.view();
-    }
+    UIPC_ASSERT(offset == info.hessian().triplet_count(),
+                "Hessian count mismatch, expect {}, got {}",
+                offset,
+                info.hessian().triplet_count());
 }
 
 void ABDLinearSubsystem::Impl::accuracy_check(GlobalLinearSystem::AccuracyInfo& info)

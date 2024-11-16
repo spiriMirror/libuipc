@@ -11,6 +11,7 @@
 namespace uipc::backend::cuda
 {
 class AffineBodyConstitution;
+class AffineBodyEnergyProducer;
 class AffineBodyDynamics : public SimSystem
 {
     template <typename T>
@@ -221,7 +222,8 @@ class AffineBodyDynamics : public SimSystem
         SizeT body_count() const noexcept { return abd_body_count; }
         SizeT vertex_count() const noexcept { return abd_vertex_count; }
 
-        SimSystemSlotCollection<AffineBodyConstitution> constitutions;
+        SimSystemSlotCollection<AffineBodyEnergyProducer> energy_producers;
+        SimSystemSlotCollection<AffineBodyConstitution>   constitutions;
         unordered_map<U64, IndexT> constitution_uid_to_index;
 
         SizeT abd_geo_count    = 0;
@@ -351,8 +353,7 @@ class AffineBodyDynamics : public SimSystem
 
         //tex: $$E$$
         DeviceBuffer<Float> body_id_to_shape_energy;
-        //DeviceBuffer<Float> constitution_shape_energy;
-        DeviceVar<Float> abd_shape_energy;
+        DeviceVar<Float>    abd_shape_energy;
 
         //tex: $$ \mathbf{H}_{ii} + \mathbf{M}_{ii} $$
         DeviceBuffer<Matrix12x12> body_id_to_body_hessian;
@@ -409,6 +410,8 @@ class AffineBodyDynamics : public SimSystem
     friend class AffineBodyConstitution;
     friend class ABDGradientHessianComputer;
     friend class AffineBodyAnimator;
+
+    friend class AffineBodyEnergyProducer;
 
     Impl m_impl;
 };

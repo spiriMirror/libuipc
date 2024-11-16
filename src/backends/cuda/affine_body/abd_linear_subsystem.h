@@ -8,7 +8,7 @@
 
 namespace uipc::backend::cuda
 {
-class ABDLinearSubsystem final: public DiagLinearSubsystem
+class ABDLinearSubsystem final : public DiagLinearSubsystem
 {
   public:
     using DiagLinearSubsystem::DiagLinearSubsystem;
@@ -38,14 +38,6 @@ class ABDLinearSubsystem final: public DiagLinearSubsystem
         SimSystemSlot<AffineBodyAnimator>       affine_body_animator;
 
         Float reserve_ratio = 1.5;
-
-        bool reduce_hessian = false;
-
-        muda::TripletMatrixView<Float, 12>   A_view;
-        muda::DeviceTripletMatrix<Float, 12> triplet_A;
-
-        ABDMatrixConverter                converter;
-        muda::DeviceBCOOMatrix<Float, 12> bcoo_A;
     };
 
   protected:

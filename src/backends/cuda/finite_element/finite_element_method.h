@@ -231,9 +231,11 @@ class FiniteElementMethod final : public SimSystem
         GlobalVertexManager* global_vertex_manager = nullptr;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
         SimSystemSlotCollection<FiniteElementExtraConstitution> extra_constitutions;
-        SimSystemSlot<FiniteElementKinetic> kinetic;
+        SimSystemSlot<FiniteElementKinetic>  kinetic;
+        vector<FiniteElementEnergyProducer*> energy_producers;
 
         // Differentiable Simulation Systems:
+
         SimSystemSlotCollection<FiniteElementConstitutionDiffParmReporter> constitution_diff_parm_reporters;
 
 
@@ -261,9 +263,6 @@ class FiniteElementMethod final : public SimSystem
         unordered_map<U64, SizeT>  fem_3d_uid_to_index;
         vector<FEM3DConstitution*> fem_3d_constitutions;
         vector<ConstitutionInfo>   fem_3d_constitution_infos;
-
-
-        vector<FiniteElementEnergyProducer*> energy_producers;
 
         // Simulation Data:
 
@@ -342,6 +341,7 @@ class FiniteElementMethod final : public SimSystem
         BufferDump dump_vs;       // Velocities
 
         // Dof Info:
+
         void set_dof_info(SizeT frame, IndexT dof_offset, IndexT dof_count);  // only called by FEMLinearSubsystem
         IndexT dof_offset(SizeT frame) const noexcept;
         IndexT dof_count(SizeT frame) const noexcept;
