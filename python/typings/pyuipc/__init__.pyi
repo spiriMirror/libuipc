@@ -3,6 +3,8 @@ from . import backend as backend, builtin as builtin, constitution as constituti
 from pyuipc.core import Engine as Engine, Scene as Scene, SceneIO as SceneIO, World as World
 from typing import ClassVar, overload
 
+__version__: str
+
 class AngleAxis:
     @overload
     def __init__(self, angle: float, axis: numpy.ndarray[numpy.float64]) -> None: ...

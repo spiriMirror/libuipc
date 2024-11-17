@@ -400,7 +400,7 @@ std::vector<Vector2i> lbvh_query_point(span<const LinearBVHAABB> aabbs)
     ParallelFor()
         .kernel_name("LinearBVHTest::Query")
         .apply(aabbs.size(),
-               [m_lbvh    = m_lbvh.viewer().name("LinearBVH"),
+               [m_lbvh  = m_lbvh.viewer().name("LinearBVH"),
                 points  = points.viewer().name("points"),
                 counts  = counts.viewer().name("counts"),
                 offsets = offsets.viewer().name("offsets"),
@@ -412,7 +412,7 @@ std::vector<Vector2i> lbvh_query_point(span<const LinearBVHAABB> aabbs)
                    auto pair   = m_pairs.subview(offset, count);
                    int  j      = 0;
                    m_lbvh.query(point,
-                              [&](uint32_t id) { pair(j++) = Vector2i(i, id); });
+                                [&](uint32_t id) { pair(j++) = Vector2i(i, id); });
                    MUDA_ASSERT(j == count, "j = %d, count=%d", j, count);
                });
 
@@ -481,27 +481,27 @@ std::vector<Vector2i> adaptive_lbvh_cp(span<const LinearBVHAABB> aabbs)
             ParallelFor()
                 .kernel_name("LinearBVHTest::Query")
                 .apply(aabbs.size(),
-                       [m_lbvh   = m_lbvh.viewer().name("LinearBVH"),
+                       [m_lbvh = m_lbvh.viewer().name("LinearBVH"),
                         aabbs  = d_aabbs.viewer().name("aabbs"),
                         cp_num = cp_num.viewer().name("cp_num"),
                         pairs = pairs.viewer().name("pairs")] __device__(int i) mutable
                        {
                            auto N = aabbs.total_size();
 
-                           auto aabb  = aabbs(i);
+                           auto aabb = aabbs(i);
                            m_lbvh.query(aabb,
-                                      [&](uint32_t id)
-                                      {
-                                          if(id > i)
-                                          {
-                                              auto last =
-                                                  muda::atomic_add(cp_num.data(), 1);
-                                              if(last < pairs.total_size())
-                                              {
-                                                  pairs(last) = Vector2i(i, id);
-                                              }
-                                          }
-                                      });
+                                        [&](uint32_t id)
+                                        {
+                                            if(id > i)
+                                            {
+                                                auto last =
+                                                    muda::atomic_add(cp_num.data(), 1);
+                                                if(last < pairs.total_size())
+                                                {
+                                                    pairs(last) = Vector2i(i, id);
+                                                }
+                                            }
+                                        });
                        });
         };
 
@@ -618,28 +618,19 @@ TEST_CASE("lbvh", "[collision detection]")
         lbvh_test(mesh);
     }
 
-    SECTION("cylinder_hole.msh")
+    SECTION("ball.msh")
     {
-        fmt::println("cylinder_hole.msh:");
+        fmt::println("ball.msh:");
         SimplicialComplexIO io;
-        auto                mesh =
-            io.read(fmt::format("{}cylinder_hole.msh", AssetDir::tetmesh_path()));
+        auto mesh = io.read(fmt::format("{}ball.msh", AssetDir::tetmesh_path()));
         lbvh_test(mesh);
     }
 
-    SECTION("simple_axle.msh")
+    SECTION("link.msh")
     {
-        fmt::println("simple_axle.msh:");
+        fmt::println("link.msh:");
         SimplicialComplexIO io;
-        auto mesh = io.read(fmt::format("{}simple_axle.msh", AssetDir::tetmesh_path()));
-        lbvh_test(mesh);
-    }
-
-    SECTION("wheel_axle.msh")
-    {
-        fmt::println("wheel_axle.msh:");
-        SimplicialComplexIO io;
-        auto mesh = io.read(fmt::format("{}wheel_axle.msh", AssetDir::tetmesh_path()));
+        auto mesh = io.read(fmt::format("{}link.msh", AssetDir::tetmesh_path()));
         lbvh_test(mesh);
     }
 

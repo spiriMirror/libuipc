@@ -4,6 +4,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(cmake/uipc_utils.cmake)
 
 # =========================================================================
+# Project Version
+# =========================================================================
+set(UIPC_VERSION_MAJOR 0)
+set(UIPC_VERSION_MINOR 9)
+set(UIPC_VERSION_PATCH 0)
+
+# =========================================================================
 # Project Options
 # =========================================================================
 option(UIPC_USING_LOCAL_VCPKG "Using local vcpkg" ON)
@@ -19,10 +26,20 @@ option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
 # =========================================================================
 option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ON)
 
-
+# =========================================================================
+# Show Logo and Options
+# =========================================================================
 uipc_show_logo("0.9.0")
 uipc_show_options()
 uipc_config_vcpkg_install()
+
+
+# =========================================================================
+#
+# Libuipc Project
+#
+# =========================================================================
+
 project(uipc)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)

@@ -44,9 +44,15 @@ PYBIND11_MODULE(pyuipc, m)
     // pyuipc
     m.doc() = "Libuipc Python Binding";
 
+    // define version
+    m.attr("__version__") =
+        fmt::format("{}.{}.{}", UIPC_VERSION_MAJOR, UIPC_VERSION_MINOR, UIPC_VERSION_PATCH);
+
+
     m.def("init", &uipc::init);
     m.def("default_config", &uipc::default_config);
     m.def("config", &uipc::config);
+
 
     pyuipc::PyUIPCType{m};
     pyuipc::PyLogger{m};

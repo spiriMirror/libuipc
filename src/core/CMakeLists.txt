@@ -19,11 +19,13 @@ target_compile_definitions(uipc_core PRIVATE UIPC_CORE_EXPORT_DLL=1) # export dl
 # if debug build or release build with debug info, enable uipc runtime check
 target_compile_definitions(uipc_core PUBLIC 
     $<$<CONFIG:Debug>:UIPC_RUNTIME_CHECK=1>
-    $<$<CONFIG:RelWithDebInfo>:UIPC_RUNTIME_CHECK=1>)
-target_compile_definitions(uipc_core PUBLIC 
-    $<$<CONFIG:Release>:UIPC_RUNTIME_CHECK=1>) # now just runtime check all the time
+    $<$<CONFIG:RelWithDebInfo>:UIPC_RUNTIME_CHECK=1>
+    $<$<CONFIG:Release>:UIPC_RUNTIME_CHECK=1> # release build also enable runtime check now
+)
 target_compile_definitions(uipc_core PUBLIC "-DUIPC_PROJECT_DIR=R\"(${PROJECT_SOURCE_DIR})\"")
-
+target_compile_definitions(uipc_core PUBLIC "-DUIPC_VERSION_MAJOR=${UIPC_VERSION_MAJOR}")
+target_compile_definitions(uipc_core PUBLIC "-DUIPC_VERSION_MINOR=${UIPC_VERSION_MINOR}")
+target_compile_definitions(uipc_core PUBLIC "-DUIPC_VERSION_PATCH=${UIPC_VERSION_PATCH}")
 
 # ------------------------------------------------------------------------------
 # set the target source files
