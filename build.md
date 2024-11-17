@@ -1,4 +1,4 @@
-# Libuipc
+# Build & Install
 
 A Cross-Platform Modern C++20 **Lib**rary of **U**nified **I**ncremental **P**otential **C**ontact.
 
@@ -41,15 +41,14 @@ The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of the
 | magic_enum                             | 0.9.3   | enum to string                                      | vcpkg          |
 
 
-### Automatic Dependency Installation
+## Automatic Dependency Installation
 
 The Dependencies and submodules will be automatically installed in the CMake Configuration step.
 
 If the automatic installation fails, please raise an issue with the CMake error message.
 
-## Windows
 
-### Install Vcpkg
+## Install Vcpkg
 
 If you haven't installed Vcpkg, you can clone the repository with the following command:
 
@@ -60,7 +59,7 @@ cd vcpkg
 ```
 The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
-### Build Libuipc
+## Build Libuipc
 
 On Windows, you can use the `CMake-GUI` to configure the project and generate the Visual Studio solution file with only a few clicks.
 
@@ -72,11 +71,11 @@ cmake -S ../libuipc -DCMAKE_BUILD_TYPE=<Debug/Release/RelWithDebInfo>
 cmake --build .
 ```
 
-### Run Project
+## Run Project
 
 Just run the executable files in `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder.
 
-### Build Pyuipc
+## Build Pyuipc
 
 Pyuipc is a Python binding of libuipc. It is built with the `pybind11` library.
 
@@ -102,7 +101,7 @@ pip install torch
 
 Add `-DUIPC_BUILD_TORCH_EXTENSION=1` to the CMake command to enable the pytorch extension.
 
-### Install Pyuipc
+## Install Pyuipc
 
 After building the project, install the Python binding with the following command:
 
@@ -116,9 +115,8 @@ Then you can use the `pyuipc` in your Python environment with:
 from pyuipc_loader import pyuipc
 ```
 
-## Linux
 
-### Install Vcpkg
+## Install Vcpkg
 
 If you haven't installed Vcpkg, you can clone the repository with the following command:
 
@@ -130,7 +128,7 @@ cd vcpkg
 
 We recommend using conda environments to build the project on Linux. See the [Conda](#Conda) section for more details. If you don't want to use conda, then go on with the following steps.
 
-### Build Libuipc
+## Build Libuipc
 
 You can use the following commands to build the project.
 
@@ -140,9 +138,9 @@ cmake -S ../libuipc -DUIPC_BUILD_GUI=0 -DCMAKE_BUILD_TYPE=<Debug/Release/RelWith
 cmake --build .
 ```
 
-To enable GUI support, set `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install). See [Linux GUI Support](#Linux-gui-support).
+To enable GUI support, set `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install). See [Linux GUI Support](#gui-support).
 
-### Run Project
+## Run Project
 
 The excutable files are in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder. 
 
@@ -156,7 +154,7 @@ export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
 [...]
 ```
 
-### Build Pyuipc
+## Build Pyuipc
 
 Pyuipc is a Python binding of libuipc. It is built with the `pybind11` library.
 
@@ -184,7 +182,7 @@ pip install torch
 
 Then set `-DUIPC_BUILD_TORCH_EXTENSION=1` to the CMake command to enable the pytorch extension.
 
-### Install Pyuipc
+## Install Pyuipc
 
 After building the project, install the Python binding with the following command:
 
@@ -212,14 +210,14 @@ Then activate the environment with:
 conda activate uipc_env
 ```
 
-### CMake
+## CMake
 Install CMake-3.26 with the following command:
 
 ```shell
 conda install cmake=3.26
 ```
 
-### GCC
+## GCC
 
 Install the tested version of gcc with the following command:
 
@@ -227,7 +225,7 @@ Install the tested version of gcc with the following command:
 conda install gcc_linux-64=11.2.0 gxx_linux-64=11.2.0
 ```
 
-### Cuda
+## Cuda
 
 Install the tested version of cuda with the following command:
 
@@ -241,7 +239,7 @@ Cuda-12.4.0 requires driver version >= 550.54.14 (https://docs.nvidia.com/deploy
 nvidia-smi
 ```
 
-### Then
+## Then
 
 Go back to the [Linux](#linux) or [Windows](#windows) build steps to continue building the project.
 
@@ -262,7 +260,7 @@ pip install polyscope==2.3.0
 
 ## Build Document
 
-Download and install doxygen https://www.doxygen.nl/download.html.
+Download and install [doxygen](https://www.doxygen.nl/download.html).
 
 Install [mkdocs](https://www.mkdocs.org/) and its plugins:
 ```shell
@@ -278,7 +276,7 @@ Open the browser and visit the [localhost:8000](http://127.0.0.1:8000/)
 
 ## Troubleshooting
 
-### Linux GUI Support
+### GUI Support 
 
 If your system hasn't installed the GUI application dependencies before, you may need to install the following packages to enable GUI support.
 
@@ -286,7 +284,7 @@ If your system hasn't installed the GUI application dependencies before, you may
 sudo apt-get install libxi-dev libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev libxrandr-dev libxxf86vm-dev libxinerama-dev libxcursor-dev
 ```
 
-### Linux Python3 System Requirement
+### Python3 System Requirement
 
 Python3 currently requires the following programs from the system package:
 

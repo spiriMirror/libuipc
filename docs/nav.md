@@ -1,4 +1,5 @@
 - [Home](index.md)
+- [Build & Install](build.md)
 - [Tutorial](tutorial/index.md)
     - [Geometry](tutorial/geometry.md)
     - [Concepts](tutorial/concepts.md)
