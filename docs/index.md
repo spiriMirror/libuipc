@@ -6,7 +6,22 @@ Both **<font color=red>C++</font>** and **<font color=red>Python</font>** APIs a
 
 ![](./media/teaser.png)
 
+<div align="center">
+
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113497581032756&bvid=BV1FMU6Y6Eu2&cid=26807108424&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" height="200" width="200">
+</iframe>
+
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113497581032756&bvid=BV1FMU6Y6Eu2&cid=26807108424&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" height="200" width="200">
+</iframe>
+
+
+<iframe src="//player.bilibili.com/player.html?isOutside=true&aid=113497581032756&bvid=BV1FMU6Y6Eu2&cid=26807108424&p=1" scrolling="no" border="0" frameborder="no" framespacing="0" allowfullscreen="true" height="200" width="200">
+</iframe>
+
+</div>
+
 ## Introduction
+
 **Libuipc** is a library that offers a unified **GPU** incremental potential contact framework for simulating the dynamics of rigid bodies, soft bodies, cloth, and threads, and their couplings. It ensures accurate, **penetration-free frictional contact** and is naturally **differentiable**. Libuipc aims to provide robust and efficient **forward** and **backward** simulations, making it easy for users to integrate with machine learning frameworks, inverse dynamics, robotics, and more.
 
 ## Why Libuipc
