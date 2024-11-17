@@ -116,7 +116,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
 
     Float E = K + shape_E + anim_E;
 
-    spdlog::info("ABD Energy: K: {}, Shape: {}, Anim: {}", K, shape_E, anim_E);
+    // spdlog::info("ABD Energy: K: {}, Shape: {}, Anim: {}", K, shape_E, anim_E);
 
     info.energy(E);
 }

@@ -75,10 +75,11 @@ PYBIND11_MODULE(pyuipc, m)
     pyuipc::core::PyModule{core};
 
     // expose core classes to top level
-    m.attr("Engine")  = core.attr("Engine");
-    m.attr("World")   = core.attr("World");
-    m.attr("Scene")   = core.attr("Scene");
-    m.attr("SceneIO") = core.attr("SceneIO");
+    m.attr("Engine")    = core.attr("Engine");
+    m.attr("World")     = core.attr("World");
+    m.attr("Scene")     = core.attr("Scene");
+    m.attr("SceneIO")   = core.attr("SceneIO");
+    m.attr("Animation") = core.attr("Animation");
 
     // pyuipc.backend
     pyuipc::backend::PyModule{backend};

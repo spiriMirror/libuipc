@@ -243,7 +243,7 @@ bool SimEngine::do_recover(SizeT dst_frame)
             }
             else
             {
-                spdlog::warn("No dump files found, so skip recovery.");
+                spdlog::info("No dump files found, so skip recovery.");
                 return false;
             }
         }
@@ -256,7 +256,7 @@ bool SimEngine::do_recover(SizeT dst_frame)
         std::ifstream ifs(dump_file_path);
         if(!ifs)
         {
-            spdlog::warn("No dump file {} found, so skip recovery.", dump_file_path);
+            spdlog::info("No dump file {} found, so skip recovery.", dump_file_path);
             return false;
         }
 
@@ -265,7 +265,7 @@ bool SimEngine::do_recover(SizeT dst_frame)
             std::ifstream ifs(dump_file_path);
             if(!ifs)
             {
-                spdlog::warn("No dump file {} found, so skip recovery.", dump_file_path);
+                spdlog::info("No dump file {} found, so skip recovery.", dump_file_path);
                 return false;
             }
             ifs >> j;
@@ -282,24 +282,24 @@ bool SimEngine::do_recover(SizeT dst_frame)
         catch(std::exception e)
         {
             has_error = true;
-            spdlog::warn("Failed to retrieve data from state.json when recovering, so skip. Reason: {}",
+            spdlog::info("Failed to retrieve data from state.json when recovering, so skip. Reason: {}",
                          e.what());
         }
         if(has_error)
         {
-            spdlog::warn("Failed to recover from dump file {}, so skip recovery.", dump_file_path);
+            spdlog::info("Failed to recover from dump file {}, so skip recovery.", dump_file_path);
             return false;
         }
         if(check_frame != try_recover_frame)
         {
-            spdlog::warn("Frame mismatch when recovering, so skip recovery. try={}, record={}",
+            spdlog::info("Frame mismatch when recovering, so skip recovery. try={}, record={}",
                          try_recover_frame,
                          check_frame);
             return false;
         }
         if(check_backend_name != backend_name)
         {
-            spdlog::warn("Backend name mismatch when recovering, so skip recovery. try={}, record={}",
+            spdlog::info("Backend name mismatch when recovering, so skip recovery. try={}, record={}",
                          backend_name,
                          check_backend_name);
             return false;

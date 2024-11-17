@@ -15,6 +15,16 @@ constexpr bool PrintDebugInfo = false;
 
 REGISTER_SIM_SYSTEM(LBVHSimplexTrajectoryFilter);
 
+void LBVHSimplexTrajectoryFilter::do_build(BuildInfo& info)
+{
+    auto& config = world().scene().info();
+    auto  method = config["collision_detection"]["method"].get<std::string>();
+    if(method != "linear_bvh")
+    {
+        throw SimSystemException("Linear BVH unused");
+    }
+}
+
 void LBVHSimplexTrajectoryFilter::do_detect(DetectInfo& info)
 {
     m_impl.detect(info);

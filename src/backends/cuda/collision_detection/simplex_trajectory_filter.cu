@@ -9,6 +9,9 @@ void SimplexTrajectoryFilter::do_build()
     m_impl.global_contact_manager  = require<GlobalContactManager>();
     auto& global_trajectory_filter = require<GlobalTrajectoryFilter>();
 
+    BuildInfo info;
+    do_build(info);
+
     global_trajectory_filter.add_filter(this);
 }
 

@@ -107,10 +107,11 @@ TEST_CASE("26_abd_ramp_ground", "[abd]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
-    for(int i = 1; i < 200; i++)
+    while(world.frame() < 100)
     {
         world.advance();
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     }
 }

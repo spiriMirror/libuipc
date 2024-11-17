@@ -329,15 +329,13 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
         std::exclusive_scan(
             vertex_counts.begin(), vertex_counts.end(), vertex_offsets.begin(), 0);
 
-        std::exclusive_scan(primitive_counts.begin(),
-                            primitive_counts.end(),
-                            primitive_offsets.begin(),
-                            0);
+        // we don't calculate the primitive offset here
+        // the primitive offset is related to the dimension
+        // the primitive offset in every dim starts from 0
 
         for(auto&& [i, info] : enumerate(geo_infos))
         {
-            info.vertex_offset    = vertex_offsets[i];
-            info.primitive_offset = primitive_offsets[i];
+            info.vertex_offset = vertex_offsets[i];
         }
 
         h_positions.resize(vertex_offsets.back());
@@ -407,8 +405,19 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
                                [](const GeoInfo& info)
                                { return info.primitive_count; });
 
-        dim_primitive_counts[i] =
-            std::accumulate(primitive_counts.begin(), primitive_counts.end(), 0);
+        vector<SizeT> primitive_offsets(primitive_counts.size(), 0);
+
+        std::exclusive_scan(primitive_counts.begin(),
+                            primitive_counts.end(),
+                            primitive_offsets.begin(),
+                            0);
+
+        for(auto&& [i, info] : enumerate(geo_span))
+        {
+            info.primitive_offset = primitive_offsets[i];
+        }
+
+        dim_primitive_counts[i] = primitive_offsets.back();
 
         std::ranges::transform(geo_span,
                                vertex_counts.begin(),

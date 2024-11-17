@@ -96,7 +96,7 @@ class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
   private:
     Impl m_impl;
 
-    // Inherited via SimplexTrajectoryFilter
+    virtual void do_build(BuildInfo& info) override final;
     virtual void do_detect(DetectInfo& info) override final;
     virtual void do_filter_active(FilterActiveInfo& info) override final;
     virtual void do_filter_toi(FilterTOIInfo& info) override final;

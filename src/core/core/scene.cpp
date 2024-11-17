@@ -105,6 +105,11 @@ Json Scene::default_config() noexcept
         contact["eps_velocity"]       = 0.01;
     }
 
+    auto& collision_detection = config["collision_detection"];
+    {
+        collision_detection["method"] = "linear_bvh";
+    }
+
     config["sanity_check"]["enable"] = true;
 
     auto& recovery = config["recovery"] = Json::object();

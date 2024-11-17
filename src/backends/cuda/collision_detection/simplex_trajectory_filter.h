@@ -15,6 +15,11 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
 
     class Impl;
 
+    class BuildInfo
+    {
+      public:
+    };
+
     class BaseInfo
     {
       public:
@@ -123,6 +128,7 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
     muda::CBufferView<Vector2i> friction_PPs() const noexcept;
 
   protected:
+    virtual void do_build(BuildInfo& info)                = 0;
     virtual void do_detect(DetectInfo& info)              = 0;
     virtual void do_filter_active(FilterActiveInfo& info) = 0;
     virtual void do_filter_toi(FilterTOIInfo& info)       = 0;
