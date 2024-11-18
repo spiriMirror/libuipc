@@ -3,7 +3,6 @@ find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 find_package(cppitertools CONFIG REQUIRED)
-find_package(magic_enum CONFIG REQUIRED)
 find_package(Boost REQUIRED)
 find_path(DYLIB_INCLUDE_DIRS "dylib.hpp")
 find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
@@ -47,7 +46,6 @@ target_link_libraries(uipc_core PUBLIC
     nlohmann_json::nlohmann_json
     fmt::fmt
     cppitertools::cppitertools
-    magic_enum::magic_enum
     Boost::boost
 )
 

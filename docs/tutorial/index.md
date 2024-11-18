@@ -29,7 +29,7 @@ This is a simple example to get you started with `libuipc`. In this example, we 
     First, we import pyuipc, and alias some of the modules to make the code more readable:
 
     ```python
-    import pyuipc
+    from pyuipc_loader import pyuipc
     from pyuipc import Vector3
     from pyuipc.geometry import *
     from pyuipc.core import Engine, World, Scene, SceneIO
@@ -115,7 +115,7 @@ Before that, we should first add the `AffineBodyConstitution` to the `Scene`, an
 === "Python"
 
     ```python
-    import pyuipc
+    from pyuipc_loader import pyuipc
     from pyuipc.constitution import AffineBodyConstitution
     ...
     scene = Scene(config)
@@ -211,12 +211,12 @@ Using the `base_mesh`, we can easily copy the setup to create two tetrahedra, `m
 
             SimplicialComplex mesh1 = base_mesh;
             {
-                // move the mesh1 up for 1 unit
+                // move the mesh1 up for 1.5 unit
                 auto pos_view = view(mesh1.positions());
                 std::ranges::transform(pos_view,
                                     pos_view.begin(),
                                     [](const Vector3& v) -> Vector3
-                                    { return v + Vector3::UnitY(); });
+                                    { return v + Vector3::UnitY() * 1.5; });
             }
 
             SimplicialComplex mesh2 = base_mesh;
@@ -237,8 +237,8 @@ Using the `base_mesh`, we can easily copy the setup to create two tetrahedra, `m
     ...
     mesh1 = base_mesh.copy()
     pos_view = view(mesh1.positions())
-    # move the mesh up for 1 unit
-    pos_view += Vector3.UnitY()
+    # move the mesh up for 1.5 unit
+    pos_view += Vector3.UnitY() * 1.5
 
     mesh2 = base_mesh.copy()
     is_fixed = mesh2.instances().find(builtin.is_fixed)
