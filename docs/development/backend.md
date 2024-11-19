@@ -20,9 +20,9 @@ In the `my_backend/` folder, you need to create a `CMakeLists.txt` file to defin
 
 ```cmake
 # my_backend/CMakeLists.txt
-uipc_add_backend(none)
+uipc_add_backend(my_backend)
 file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
-target_sources(none PRIVATE ${SOURCES})
+target_sources(my_backend PRIVATE ${SOURCES})
 ```
 
 The backend `none` is a good example for creating a new backend.
@@ -161,25 +161,6 @@ To keep the reference of the other systems, you **should** use the `SimSystemSlo
 Some wierd situation may happen: the other system is valid when you require it, but it's invalid when you use it. The `SimSystemSlot` and `SimSystemSlotCollection` will help you to avoid such situation.
 
 Or you should manually check the validity of the other systems before you use them.
-
-```cpp
-// my_backend/my_sim_system.cpp
-namespace uipc::backend::my_backend
-{
-void MySimSystem::do_init(backend::WorldVisitor v) override
-{
-    build_systems();
-
-    // if this require failed, the engine will throw an exception and close itself
-    auto& system = require<MySimSystem>(); 
-
-    // if this find failed, the system_ptr will be nullptr
-    auto* system_ptr = find<MySimSystem>();
-
-    dump_system_infos();
-}
-}
-```
 
 ### Lifecycle Functions
 

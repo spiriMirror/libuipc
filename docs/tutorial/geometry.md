@@ -526,9 +526,9 @@ After writing the spreadsheets to the disk, you can open them with any spreadshe
 
 The following figures using the VSCode extensions:
 
-| CSV                                      | Json                                      |
-| ---------------------------------------- | ----------------------------------------- |
-| ![](img/spreadsheet_csv.png) | ![](img/spreadsheet_json.png) |
+| CSV                                                                                          | Json                                                                                   |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| ![](media/spreadsheet_csv.png)                                                               | ![](media/spreadsheet_json.png)                                                        |
 | [Excel Viewer](https://marketplace.visualstudio.com/items?itemName=GrapeCity.gc-excelviewer) | [Json Grid](https://marketplace.visualstudio.com/items?itemName=DutchIgor.json-viewer) |
 
 It's a very convenient way to check the geometry information. If you are interested in some geometry operations, you can write the results to the spreadsheets and check them with the viewer.

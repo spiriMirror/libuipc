@@ -2,6 +2,8 @@
 
 Hey there! Welcome to the tutorial section of the Libuipc documentation. This section is designed to help you get started with Libuipc and understand the basics of the library. If you are new to Libuipc, this is the best place to start.
 
+Most of the codes can be found in [libuipc-samples](https://github.com/spiriMirror/libuipc-samples).
+
 ## Hello Libuipc
 
 This is a simple example to get you started with `libuipc`. In this example, we will create a simple simulation using Libuipc.
@@ -343,10 +345,21 @@ To evolve the simulation, we call the `advance` method of the `World` to advance
 
 The easiest way to consume the simulation is to export the surface mesh of the `Scene` at each time step. Here we use the `SceneIO` class to export the surface of all the meshes to the `.obj` file.
 
-![falling tet](./img/falling_tet.png)
-[TODO] add the rendered falling tetrahedron gif later
+<div align="center">
+<video style="width:75%" muted="" controls="" alt="type:video">
+   <source src="./media/falling_tet.mp4" type="video/mp4">
+</video>
+</div>
 
 It's not the only way to consume the simulation data. Because the interest of the user may vary: some may want to visualize the simulation in some GUI software, some may want to analyze the simulation data in some post-processing software, some may want to do some machine learning on the simulation data, etc. It's up to you to decide what kind of data to get from the evolution of the `World`.
+
+=== "C++"
+
+    source: [TODO]
+
+=== "Python"
+
+    source: [hello_libuipc](https://github.com/spiriMirror/libuipc-samples/blob/main/python/1_hello_libuipc/main.py)
 
 ## Next Steps
 

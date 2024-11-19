@@ -2,7 +2,7 @@
 
 Here is an illustration of almost all the concepts and their relationship in `libuipc`. It might look a little bit complicated, but don't worry, we will explain it step by step.
 
-![concepts_img](./img/concepts.drawio.svg)
+![concepts_img](./media/concepts.drawio.svg)
 
 As we can see, there are 3 top-most concepts in `libuipc`, they are:
 
