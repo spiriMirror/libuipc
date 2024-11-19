@@ -40,10 +40,10 @@ base_vcpkg_json = {
             "name": "nlohmann-json",
             "version>=": "3.11.2"
         },
-        # {
-        #     "name":"magic-enum",
-        #     "version>=": "0.9.3"
-        # },
+        {
+            "name":"magic-enum",
+            "version>=": "0.9.3"
+        },
         {
             "name":"boost-core",
             "version>=":"1.84.0"

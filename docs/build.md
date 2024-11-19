@@ -37,7 +37,7 @@ The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of the
 | nlohmann_json                          | 3.11.2  | json file IO                                        | vcpkg          |
 | imgui                                  | 1.90.7  | GUI                                                 | vcpkg          |
 | glfw3                                  | 3.3.8#2 | window management                                   | vcpkg          |
-
+| magic_enum                             | 0.9.3   | enum to string                                      | vcpkg          |
 
 ## Automatic Dependency Installation
 
