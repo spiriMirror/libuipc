@@ -5,7 +5,7 @@ Both C++ and Python API are provided!
 
 Website: ➡️ https://spirimirror.github.io/libuipc-doc/
 
-![teaser](docs/img/teaser.png)
+![teaser](docs/media/teaser.png)
 
 ## Introduction
 
@@ -27,7 +27,7 @@ Website: ➡️ https://spirimirror.github.io/libuipc-doc/
 
 ## Build & Run
 
-Please refer to the [Build Guide](./build.md) for detailed instructions.
+Please refer to the [Build Guide](https://spirimirror.github.io/libuipc-doc/build/) for detailed instructions.
 
 ## Citation
 

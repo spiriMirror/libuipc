@@ -2,6 +2,8 @@
 
 Hey there! Welcome to the tutorial section of the Libuipc documentation. This section is designed to help you get started with Libuipc and understand the basics of the library. If you are new to Libuipc, this is the best place to start.
 
+Most of the codes can be found in [libuipc-samples](https://github.com/spiriMirror/libuipc-samples).
+
 ## Hello Libuipc
 
 This is a simple example to get you started with `libuipc`. In this example, we will create a simple simulation using Libuipc.
@@ -29,7 +31,7 @@ This is a simple example to get you started with `libuipc`. In this example, we 
     First, we import pyuipc, and alias some of the modules to make the code more readable:
 
     ```python
-    import pyuipc
+    from pyuipc_loader import pyuipc
     from pyuipc import Vector3
     from pyuipc.geometry import *
     from pyuipc.core import Engine, World, Scene, SceneIO
@@ -115,7 +117,7 @@ Before that, we should first add the `AffineBodyConstitution` to the `Scene`, an
 === "Python"
 
     ```python
-    import pyuipc
+    from pyuipc_loader import pyuipc
     from pyuipc.constitution import AffineBodyConstitution
     ...
     scene = Scene(config)
@@ -211,12 +213,12 @@ Using the `base_mesh`, we can easily copy the setup to create two tetrahedra, `m
 
             SimplicialComplex mesh1 = base_mesh;
             {
-                // move the mesh1 up for 1 unit
+                // move the mesh1 up for 1.5 unit
                 auto pos_view = view(mesh1.positions());
                 std::ranges::transform(pos_view,
                                     pos_view.begin(),
                                     [](const Vector3& v) -> Vector3
-                                    { return v + Vector3::UnitY(); });
+                                    { return v + Vector3::UnitY() * 1.5; });
             }
 
             SimplicialComplex mesh2 = base_mesh;
@@ -237,8 +239,8 @@ Using the `base_mesh`, we can easily copy the setup to create two tetrahedra, `m
     ...
     mesh1 = base_mesh.copy()
     pos_view = view(mesh1.positions())
-    # move the mesh up for 1 unit
-    pos_view += Vector3.UnitY()
+    # move the mesh up for 1.5 unit
+    pos_view += Vector3.UnitY() * 1.5
 
     mesh2 = base_mesh.copy()
     is_fixed = mesh2.instances().find(builtin.is_fixed)
@@ -343,10 +345,21 @@ To evolve the simulation, we call the `advance` method of the `World` to advance
 
 The easiest way to consume the simulation is to export the surface mesh of the `Scene` at each time step. Here we use the `SceneIO` class to export the surface of all the meshes to the `.obj` file.
 
-![falling tet](./img/falling_tet.png)
-[TODO] add the rendered falling tetrahedron gif later
+<div align="center">
+<video style="width:75%" muted="" controls="" alt="type:video">
+   <source src="./media/falling_tet.mp4" type="video/mp4">
+</video>
+</div>
 
 It's not the only way to consume the simulation data. Because the interest of the user may vary: some may want to visualize the simulation in some GUI software, some may want to analyze the simulation data in some post-processing software, some may want to do some machine learning on the simulation data, etc. It's up to you to decide what kind of data to get from the evolution of the `World`.
+
+=== "C++"
+
+    source: [TODO]
+
+=== "Python"
+
+    source: [hello_libuipc](https://github.com/spiriMirror/libuipc-samples/blob/main/python/1_hello_libuipc/main.py)
 
 ## Next Steps
 

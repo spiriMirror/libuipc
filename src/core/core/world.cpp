@@ -3,7 +3,6 @@
 #include <uipc/backend/visitors/world_visitor.h>
 #include <uipc/sanity_check/sanity_checker_collection.h>
 #include <uipc/builtin/attribute_name.h>
-#include <magic_enum.hpp>
 #include <uipc/common/zip.h>
 
 namespace uipc::core

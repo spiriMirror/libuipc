@@ -28,7 +28,6 @@ The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of the
 | eigen3                                 | 3.4.0   | matrix calculation                                  | vcpkg          |
 | catch2                                 | 3.5.3   | unit tests                                          | vcpkg          |
 | libigl                                 | 2.5.0   | mesh processing                                     | vcpkg          |
-| rapidcsv                               | 8.80    | csv file IO                                         | vcpkg          |
 | spdlog                                 | 1.12.0  | logging                                             | vcpkg          |
 | fmt                                    | 10.1.1  | fast string formatting                              | vcpkg          |
 | cppitertools                           | 2.1#3   | python-like iteration tools                         | vcpkg          |
@@ -39,7 +38,6 @@ The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of the
 | imgui                                  | 1.90.7  | GUI                                                 | vcpkg          |
 | glfw3                                  | 3.3.8#2 | window management                                   | vcpkg          |
 | magic_enum                             | 0.9.3   | enum to string                                      | vcpkg          |
-
 
 ## Automatic Dependency Installation
 

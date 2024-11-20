@@ -163,25 +163,6 @@ Some wierd situation may happen: the other system is valid when you require it, 
 
 Or you should manually check the validity of the other systems before you use them.
 
-```cpp
-// my_backend/my_sim_system.cpp
-namespace uipc::backend::my_backend
-{
-void MySimSystem::do_init(backend::WorldVisitor v) override
-{
-    build_systems();
-
-    // if this require failed, the engine will throw an exception and close itself
-    auto& system = require<MySimSystem>(); 
-
-    // if this find failed, the system_ptr will be nullptr
-    auto* system_ptr = find<MySimSystem>();
-
-    dump_system_infos();
-}
-}
-```
-
 ### Lifecycle Functions
 
 Lifecyle of a simulator is the most complex part of the backend, varying among different simulation methods. So the common utilities won't provide a default implementation for the lifecycle functions.

@@ -87,7 +87,7 @@ Then we need to define the constitution and constraint for the cube.
     rm = RotatingMotor()
 
     # create object
-    cube_object = scene.objects().create("cube")
+    cube_object = scene.objects().create('cube')
     
     # apply the constitution and constraint
     abd.apply_to(cube_mesh, 10.0 * MPa)
@@ -106,7 +106,7 @@ Then we need to define the constitution and constraint for the cube.
 
     cube_object.geometries().create(cube_mesh)
 
-    ground_obj = scene.objects().create("ground")
+    ground_obj = scene.objects().create('ground')
     g = ground()
     ground_obj.geometries().create(g)
     ```
@@ -153,12 +153,12 @@ Ok, it's time to animate the cube!
 
     def animate_cube(info:Animation.UpdateInfo): # animation function
         # get all geometries attached to the object
-        geo_slots = info.geo_slots()
+        geo_slots:list[GeometrySlot] = info.geo_slots()
         geo:SimplicialComplex = geo_slots[0].geometry()
 
         # by setting is_constrained to 1, the cube will be controlled by the animation
         is_constrained = geo.instances().find(builtin.is_constrained)
-        is_constrained[0] = 1
+        view(is_constrained)[0] = 1
 
         # using the RotatingMotor to animate the cube
         RotatingMotor.animate(geo, info.dt())
@@ -203,9 +203,16 @@ Now, run the simulation, you will see the cube rotating around its x-axis.
         sio.write_surface(f"scene_surface{world.frame()}.obj")
     ```
 
-![Walking Cube](./img/walking_cube.png)
+Voila! The cube is walking on the ground!
 
-[TODO]: To use rendered results.
+<div align="center">
+<video style="width:75%" muted="" controls="" alt="type:video">
+   <source src="../media/walking_cube.mp4" type="video/mp4"> 
+   <!-- must use the parent folder to find the video -->
+</video>
+</div>
+
+
 
 `Libuipc` also provide `LinearMotor` for you to control the translation of an affine body by specifying the translation axis and speed.
 
@@ -228,7 +235,16 @@ When you ask the name of them:
     ```
 They are both `SoftTransformConstraint`. Because, `LinearMotor` and `RotatingMotor` are just special cases of `SoftTransformConstraint`. 
 
-`SoftTransformConstraint` is a general constraint that can be used to fully control the transformation of a geometry, which may require "a little bit" [Linear Algebra](https://static.hlt.bme.hu/semantics/external/pages/Harris/en.wikipedia.org/wiki/Linear_algebra.html) knowledge to use. For smooth start, we will not go into the details of `SoftTransformConstraint` here. This topic will be covered in advanced tutorials.
+`SoftTransformConstraint` is a general constraint that can be used to fully control the transformation of a geometry, which may require some mathematical knowledge of [transformation matrix](https://learnopengl.com/Getting-started/Transformations). For smooth start, we will not go into the details of `SoftTransformConstraint` here. This topic will be covered in advanced tutorials.
+
+=== "C++"
+
+    source: [TODO]
+
+=== "Python"
+
+    source: [walking_cube](https://github.com/spiriMirror/libuipc-samples/blob/main/python/2_walking_cube/main.py)
+
 
 ## Periodically Pressed Tetrahedron
 
@@ -249,6 +265,8 @@ Here we assume you have already defined the `engine`, `world`, `scene`. In this 
                               Vector3{std::sqrt(3) / 2, 0, -0.5}};
         vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
         auto tet = tetmesh(Vs, Ts);
+        label_surface(tet);
+        label_triangle_orient(tet);
         auto moduli = ElasticModuli::youngs_poisson(0.1_MPa, 0.49);
         snh.apply_to(tet, moduli);
         spc.apply_to(tet, 100); // constraint strength ratio
@@ -267,19 +285,21 @@ Here we assume you have already defined the `engine`, `world`, `scene`. In this 
     ```python
     snh = StableNeoHookean()
     spc = SoftPositionConstraint()
-    tet_object = scene.objects().create("tet_object")
-    Vs = [Vector3(0, 1, 0),
-          Vector3(0, 0, 1),
-          Vector3(-np.sqrt(3) / 2, 0, -0.5),
-          Vector3(np.sqrt(3) / 2, 0, -0.5)]
-    Ts = [Vector4i(0, 1, 2, 3)]
+    tet_object = scene.objects().create('tet_object')
+    Vs = np.array([[0,1,0],
+                   [0,0,1],
+                   [-np.sqrt(3)/2, 0, -0.5],
+                   [np.sqrt(3)/2, 0, -0.5]])
+    Ts = np.array([[0,1,2,3]])
     tet = tetmesh(Vs, Ts)
+    label_surface(tet)
+    label_triangle_orient(tet)
     moduli = ElasticModuli.youngs_poisson(0.1 * MPa, 0.49)
     snh.apply_to(tet, moduli)
     spc.apply_to(tet, 100) # constraint strength ratio
     tet_object.geometries().create(tet)
 
-    ground_object = scene.objects().create("ground")
+    ground_object = scene.objects().create('ground')
     g = ground(-0.5)
     ground_object.geometries().create(g)
     ```
@@ -320,14 +340,14 @@ Nothing special here, we just create a tetrahedron and apply the `StableNeoHooke
     ```python
     animator = scene.animator()
     def animate_tet(info:Animation.UpdateInfo): # animation function
-        geo_slots = info.geo_slots()
+        geo_slots:list[GeometrySlot] = info.geo_slots()
         geo:SimplicialComplex = geo_slots[0].geometry()
-        rest_geo_slots = info.rest_geo_slots()
+        rest_geo_slots:list[GeometrySlot] = info.rest_geo_slots()
         rest_geo:SimplicialComplex = rest_geo_slots[0].geometry()
 
         is_constrained = geo.vertices().find(builtin.is_constrained)
         is_constrained_view = view(is_constrained)
-        aim_position = geo.vertices().find(Vector3, builtin.aim_position)
+        aim_position = geo.vertices().find(builtin.aim_position)
         aim_position_view = view(aim_position)
         rest_position_view = rest_geo.positions().view()
 
@@ -344,6 +364,20 @@ Nothing special here, we just create a tetrahedron and apply the `StableNeoHooke
 
 Something new here is the `info.rest_geo_slots()`, which returns the slots of the rest geometry (initial geometry) in the object. We use the rest geometry to get the initial position of the vertex we want to animate. With the initial position and a periodic function, we can setup the `aim_position` of the vertex to animate it.
 
-![periodically_pressed_tet](./img/periodically_pressed_tet.png)
 
-[TODO]: To use rendered results.
+Here we go!
+
+<div align="center">
+<video style="width:75%" muted="" controls="" alt="type:video">
+   <source src="../media/periodically_pressed_tetrahedron.mp4" type="video/mp4"> 
+    <!-- must use the parent folder to find the video -->
+</video>
+</div>
+
+=== "C++"
+
+    source: [TODO]
+
+=== "Python"
+
+    source: [periodically_pressed_tetrahedron](https://github.com/spiriMirror/libuipc-samples/blob/main/python/3_periodically_pressed_tetrahedron/main.py)

@@ -2,20 +2,19 @@
 
 In simulation programs, geometry is a fundamental concept to represent the shape of the object, or rigrously, the domain of the simulation. 
 
-There are several kinds of geometry, such as point cloud, line mesh, triangle mesh, quad mesh, polygon mesh, tetrahedral mesh, hexahedral mesh and so on, these geometries are called explicit geometries, because we use a discrete set of vertices and primitives to represent the  There are also some implicit geometries, such as the Signed Distance Field (SDF), which is a scalar field that represents the distance from the point to the surface of the  It's inrealistic and inpractical to represent all the geometries in a single way, so we separate the geometries into several categories, and provide proper interfaces to access the relative information of the 
+There are several kinds of geometry, such as point cloud, line mesh, triangle mesh, quad mesh, polygon mesh, tetrahedral mesh, hexahedral mesh and so on, these geometries are called explicit geometries, because we use a discrete set of vertices and primitives to represent the  There are also some implicit geometries, such as the Signed Distance Field (SDF), which is a scalar field that represents the distance from the point to the surface of the  It's inrealistic and inpractical to represent all the geometries in a single way, so we separate the geometries into several categories, and provide proper interfaces to access the relative information.
 
 They are:
 
 - [Simplicial Complex](#simplicial-complex): A unified representation of the explicit geometries, whose primitives are simplices, such as point, line, triangle, tetrahedron, etc. Some examples are point cloud, line mesh, triangle mesh, tetrahedral mesh, etc.
-- [Quad Mesh](#quad-mesh): A 2D mesh whose primitives are quadrilaterals, which is commonly used in the simulation of cloth.
 - [Implicit Geometry](#implicit-geometry): A presentation of the implicit geometries, such as the Signed Distance Field (SDF).
 
-In this tutorial, we fill focus on the simplicial complex, which is the most common geometry in the simulation programs. And describe the geometry interface in the `libuipc` library. 
+In this tutorial, we will focus on the simplicial complex, which is the most common geometry in the simulation programs. And describe the geometry interface in the `libuipc` library. 
 
 === "C++"
 
     All geometry interfaces are defined in the `uipc/geometry` namespace.
-
+    
     ```cpp
     using namespace uipc::geometry;
     ```
@@ -23,7 +22,7 @@ In this tutorial, we fill focus on the simplicial complex, which is the most com
 === "Python"
 
     All geometry interfaces are defined in the `pyuipc.geometry` module.
-
+    
     ```python
     from pyuipc.geometry import *
     ```
@@ -99,7 +98,7 @@ The point cloud can be used to describe some 0D-codimensional objects, like a bu
 === "C++"
 
     The simplest way to create a simplicial complex is to use the `tetmesh()`, `trimesh()`, `linemesh()`, and `pointcloud()` functions, which are shown below:
-
+    
     ```cpp
     auto tets = tetmesh(Vs,Ts);
     tets.dim(); // 3
@@ -125,7 +124,7 @@ The point cloud can be used to describe some 0D-codimensional objects, like a bu
 === "Python"
 
     The simplest way to create a simplicial complex is to use the `tetmesh()`, `trimesh()`, `linemesh()`, and `pointcloud()` functions:
-
+    
     ```python
     tets = tetmesh(Vs,Ts)
     tets.dim() # 3
@@ -136,9 +135,9 @@ The point cloud can be used to describe some 0D-codimensional objects, like a bu
     points = pointcloud(Vs)
     points.dim() # 0
     ```
-
+    
     Or, you want to read the meshes from a file, you can use `SimplicialComplexIO`.
-
+    
     ```python
     io = SimplicialComplexIO()
     # .msh file
@@ -175,12 +174,12 @@ To access the positions of the cube, we need to find the attribute of the positi
 === "C++"
 
     The the atrribute `position` is of type `Vector3`.
-
+    
     ```cpp
     auto VA = cube.vertices();
     auto pos = VA.find<Vector3>(builtin::position);
     ```
-
+    
     The `builtin::position` is a predefined attribute name, which is the position of the vertices to avoid typo. You can also use a string to represent the attribute name.
 
 === "Python"
@@ -189,7 +188,7 @@ To access the positions of the cube, we need to find the attribute of the positi
     VA = cube.vertices()
     pos = VA.find(builtin.position)
     ```
-
+    
     The `builtin.position` is a predefined attribute name, which is the position of the vertices to avoid typo. You can also use a string to represent the attribute name.
 
 Note that, till now, we just get a handle of the attribute `position`. To access the data, we need to create a view of the attribute.
@@ -349,14 +348,14 @@ For example, we create a non-const view of the positions of the mesh `bar`:
     non_const_view = view(pos)
     pos.is_shared() # False
     ```
-
+    
     Here, `pos.is_shared()` first return `True`, which means the position data is shared. After we create a non-const view of the position data, `pos.is_shared()` will return `False`, which means, `pos` is exclusively belong to `bar`.
-
+    
     ```python
     TA = bar.tetrahedra()
     TA.topo().is_shared() # True
     ```
-
+    
     Here, `TA.topo().is_shared()` will return `True`, because we don't modify the topology, so the topology of `foo` and `bar` is still shared.
 
 Such a design minimizes the geometry memory usage.
@@ -499,7 +498,7 @@ All the attributes of the geometry can be described as serveral tables, which ar
 === "C++"
 
     To use the `spreadsheets`, you need to include the header file `#include <uipc/geometry/utils/spreadsheet_io.h>`.
-
+    
     ```cpp
     SimplicialComplexIO io;
     auto mesh = io.read("cube.msh");
@@ -527,14 +526,12 @@ After writing the spreadsheets to the disk, you can open them with any spreadshe
 
 The following figures using the VSCode extensions:
 
-| CSV                                      | Json                                      |
-| ---------------------------------------- | ----------------------------------------- |
-| ![](img/spreadsheet_csv.png) | ![](img/spreadsheet_json.png) |
+| CSV                                                                                          | Json                                                                                   |
+| -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| ![](media/spreadsheet_csv.png)                                                               | ![](media/spreadsheet_json.png)                                                        |
 | [Excel Viewer](https://marketplace.visualstudio.com/items?itemName=GrapeCity.gc-excelviewer) | [Json Grid](https://marketplace.visualstudio.com/items?itemName=DutchIgor.json-viewer) |
 
 It's a very convenient way to check the geometry information. If you are interested in some geometry operations, you can write the results to the spreadsheets and check them with the viewer.
 
-## Quad Mesh
-[TODO]
 ## Implicit Geometry
 [TODO]
