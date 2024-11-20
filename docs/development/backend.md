@@ -20,9 +20,9 @@ In the `my_backend/` folder, you need to create a `CMakeLists.txt` file to defin
 
 ```cmake
 # my_backend/CMakeLists.txt
-uipc_add_backend(none)
+uipc_add_backend(my_backend)
 file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
-target_sources(none PRIVATE ${SOURCES})
+target_sources(my_backend PRIVATE ${SOURCES})
 ```
 
 The backend `none` is a good example for creating a new backend.
@@ -79,6 +79,7 @@ class UIPC_BACKEND_API MySimEngine : public SimEngine
     void do_advance() override;
     void do_sync() override;
     void do_retrieve() override;
+    ...
 };
 }
 
