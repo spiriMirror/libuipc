@@ -9,7 +9,8 @@
 #include <igl/writeOBJ.h>
 #include <uipc/builtin/attribute_name.h>
 #include <Eigen/Geometry>
-
+#include <igl/readSTL.h>
+#include <igl/readPLY.h>
 
 namespace uipc::geometry
 {
@@ -39,7 +40,9 @@ void SimplicialComplexIO::apply_pre_transform(Vector3& v) const noexcept
 SimplicialComplex SimplicialComplexIO::read(std::string_view file_name)
 {
     fs::path path{file_name};
-    auto     ext = path.extension();
+    auto     ext = path.extension().string();
+    // lowercase the extension
+    std::ranges::transform(ext, ext.begin(), ::tolower);
     if(ext == ".msh")
     {
         return read_msh(file_name);
@@ -47,6 +50,10 @@ SimplicialComplex SimplicialComplexIO::read(std::string_view file_name)
     else if(ext == ".obj")
     {
         return read_obj(file_name);
+    }
+    else if(ext == ".ply")
+    {
+        return read_ply(file_name);
     }
     else
     {
@@ -110,14 +117,47 @@ SimplicialComplex SimplicialComplexIO::read_obj(std::string_view file_name)
     return trimesh(Vs, Fs);
 }
 
+SimplicialComplex SimplicialComplexIO::read_ply(std::string_view file_name)
+{
+    if(!std::filesystem::exists(file_name))
+    {
+        throw GeometryIOError{fmt::format("File does not exist: {}", file_name)};
+    }
+
+    RowMajorMatrix<Float>  X;
+    RowMajorMatrix<IndexT> F;
+    if(!igl::readPLY(string{file_name}, X, F))
+    {
+        throw GeometryIOError{fmt::format("Failed to load .ply file: {}", file_name)};
+    }
+
+    vector<Vector3> Vs;
+    Vs.resize(X.rows());
+    for(auto&& [i, v] : enumerate(Vs))
+    {
+        v = X.row(i);
+        apply_pre_transform(v);
+    }
+
+    vector<Vector3i> Fs;
+    Fs.resize(F.rows());
+    for(auto&& [i, f] : enumerate(Fs))
+        f = F.row(i);
+
+    return trimesh(Vs, Fs);
+}
+
 void SimplicialComplexIO::write(std::string_view file_name, const SimplicialComplex& sc)
 {
     fs::path path{file_name};
-    if(path.extension() == ".obj")
+    auto     ext = path.extension().string();
+    // lowercase the extension
+    std::ranges::transform(ext, ext.begin(), ::tolower);
+    if(ext == ".obj")
     {
         write_obj(file_name, sc);
     }
-    else if(path.extension() == ".msh")
+    else if(ext == ".msh")
     {
         write_msh(file_name, sc);
     }

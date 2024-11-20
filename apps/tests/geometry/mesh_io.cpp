@@ -30,6 +30,19 @@ TEST_CASE("read_obj", "[io]")
                       GeometryIOError);
 }
 
+TEST_CASE("read_ply", "[io]")
+{
+    SimplicialComplexIO io;
+    auto mesh = io.read_ply(fmt::format("{}cube.ply", AssetDir::trimesh_path()));
+    REQUIRE(mesh.vertices().size() == 8);
+    REQUIRE(mesh.triangles().size() == 12);
+    REQUIRE(mesh.tetrahedra().size() == 0);
+    REQUIRE(mesh.dim() == 2);
+
+    REQUIRE_THROWS_AS(io.read_ply(fmt::format("{}NOMESH.ply", AssetDir::trimesh_path())),
+                      GeometryIOError);
+}
+
 TEST_CASE("write_msh", "[io]")
 {
     auto output_path = AssetDir::output_path(__FILE__);
