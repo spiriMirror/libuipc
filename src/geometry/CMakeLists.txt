@@ -3,6 +3,8 @@ find_package(libigl REQUIRED)
 add_library(uipc_geometry SHARED)
 add_library(uipc::geometry ALIAS uipc_geometry)
 
+target_include_directories(uipc_geometry PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
 uipc_target_add_include_files(uipc_geometry)
 
 target_link_libraries(uipc_geometry PUBLIC 
@@ -24,3 +26,4 @@ file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
 
 add_subdirectory(implicit_geometries)
+add_subdirectory(affine_body)

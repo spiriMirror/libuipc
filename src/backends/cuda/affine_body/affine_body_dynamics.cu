@@ -325,12 +325,16 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                      auto geoI = I.global_index();
 
                      auto pos_view = sc.positions().view();
-                     auto mass     = sc.vertices().find<Float>(builtin::mass);
-                     UIPC_ASSERT(mass, "The mass attribute is not found in the affine body geometry, why can it happen?");
-                     auto mass_view   = mass->view();
+                     auto volume   = sc.vertices().find<Float>(builtin::volume);
+                     UIPC_ASSERT(volume, "The `volume` attribute is not found in the affine body geometry, why can it happen?");
+                     auto volume_view = volume->view();
                      auto body_count  = sc.instances().size();
                      auto vert_count  = sc.vertices().size();
                      auto vert_offset = geo_infos[geoI].vertex_offset;
+                     auto meta_mass_density = sc.meta().find<Float>(builtin::mass_density);
+                     UIPC_ASSERT(meta_mass_density,
+                                 "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
+                     auto mass_density = meta_mass_density->view().front();
 
                      for(auto i : range(body_count))
                      {
@@ -343,7 +347,11 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                                                 { return pos; });
 
                          auto sub_mass = vertex_mass.subspan(body_vert_offset, vert_count);
-                         std::ranges::fill(sub_mass, mass_view[i]);
+
+                         std::ranges::transform(volume_view,
+                                                sub_mass.begin(),
+                                                [mass_density](Float v) -> Float
+                                                { return v * mass_density; });
                      }
                  });
     }

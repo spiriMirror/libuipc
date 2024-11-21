@@ -1,6 +1,5 @@
 #include <uipc/constitution/arap.h>
 #include <uipc/builtin/constitution_uid_auto_register.h>
-#include <uipc/geometry/utils/compute_vertex_mass.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/constitution/conversion.h>
 #include <uipc/common/log.h>

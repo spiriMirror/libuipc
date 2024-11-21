@@ -633,12 +633,28 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
         }
 
         {  // 4) setup mass
-            auto mass      = sc->vertices().find<Float>(builtin::mass);
-            auto mass_view = mass->view();
+            auto volume      = rest_sc->vertices().find<Float>(builtin::volume);
+            auto volume_view = volume->view();
+
+            auto meta_mass_density = sc->meta().find<Float>(builtin::mass_density);
+            auto vertex_mass_density = sc->vertices().find<Float>(builtin::mass_density);
+            UIPC_ASSERT(meta_mass_density || vertex_mass_density,
+                        "mass density is not found in the geometry");
+            auto mass_density_view = vertex_mass_density ?
+                                         vertex_mass_density->view() :
+                                         meta_mass_density->view();
+
             auto dst_mass_span =
                 span{h_masses}.subspan(info.vertex_offset, info.vertex_count);
-            UIPC_ASSERT(mass_view.size() == dst_mass_span.size(), "mass size mismatching");
-            std::ranges::copy(mass_view, dst_mass_span.begin());
+            UIPC_ASSERT(volume_view.size() == dst_mass_span.size(), "mass size mismatching");
+            std::ranges::copy(volume_view, dst_mass_span.begin());
+
+            for(auto&& [i, dst_vert_mass] : enumerate(dst_mass_span))
+            {
+                auto density  = vertex_mass_density ? mass_density_view[i] :
+                                                      mass_density_view[0];
+                dst_vert_mass = density * volume_view[i];
+            }
         }
 
         {  // 5) setup thickness

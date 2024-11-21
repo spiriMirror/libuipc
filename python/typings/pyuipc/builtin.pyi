@@ -13,13 +13,14 @@ is_dynamic: str
 is_facet: str
 is_fixed: str
 is_surf: str
-mass: str
+mass_density: str
 orient: str
 parent_id: str
 position: str
 thickness: str
 topo: str
 transform: str
+volume: str
 
 class ConstitutionUIDCollection(UIDRegister):
     def __init__(self, *args, **kwargs) -> None: ...

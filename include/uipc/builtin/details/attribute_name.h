@@ -129,9 +129,14 @@ UIPC_BUILTIN_ATTRIBUTE(is_constrained);
 UIPC_BUILTIN_ATTRIBUTE(is_dynamic);
 
 /**
- * @brief `mass` <Float> attribute on **vertices**.
+ * @brief `volume` <Float> attribute on **vertices**.
  */
-UIPC_BUILTIN_ATTRIBUTE(mass);
+UIPC_BUILTIN_ATTRIBUTE(volume);
+
+/**
+ * @brief `mass_density` <Float> attribute on **vertices** or **meta**.
+ */
+UIPC_BUILTIN_ATTRIBUTE(mass_density);
 
 /**
  * @brief `gravity` <Vector3> attribute on **instance** or **vertices**.
