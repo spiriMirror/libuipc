@@ -7,6 +7,7 @@ target_link_libraries(cuda PUBLIC
     cublas
     cusparse
     cusolver
+    uipc_geometry
 )
 
 target_compile_features(cuda PUBLIC cxx_std_20)

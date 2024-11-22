@@ -169,12 +169,24 @@ class ABDJacobiDyadicMass
     {
     }
 
+    MUDA_GENERIC static ABDJacobiDyadicMass from_dyadic_mass(Float sum_m,
+                                                             const Vector3& sum_m_x_bar,
+                                                             const Matrix3x3& sum_m_x_bar_x_bar)
+    {
+        ABDJacobiDyadicMass ret;
+        ret.m_mass                    = sum_m;
+        ret.m_mass_times_x_bar        = sum_m_x_bar;
+        ret.m_mass_times_dyadic_x_bar = sum_m_x_bar_x_bar;
+        return ret;
+    }
+
     MUDA_GENERIC ABDJacobiDyadicMass(double node_mass, const Vector3& x_bar)
         : m_mass(node_mass)
         , m_mass_times_x_bar(node_mass * x_bar)
         , m_mass_times_dyadic_x_bar((node_mass * x_bar) * x_bar.transpose())
     {
     }
+
     MUDA_GENERIC friend Vector12 operator*(const ABDJacobiDyadicMass& mJTJ,
                                            const Vector12&            p);
 

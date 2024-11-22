@@ -21,6 +21,7 @@ namespace uipc::geometry::affine_body
  * @param[out] m_x_bar_x_bar The total mass times the center of mass times the center of mass transpose.
  */
 UIPC_GEOMETRY_API void compute_dyadic_mass(const SimplicialComplex& sc,
+                                           Float                    rho,
                                            //tex: $$ \sum \mathbf{m} $$
                                            Float& m,
                                            //tex: $$ \sum \mathbf{m} \bar{\mathbf{x}} $$

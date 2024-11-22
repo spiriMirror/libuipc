@@ -2,7 +2,7 @@
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/builtin/constitution_type.h>
-#include <uipc/geometry/utils/compute_vertex_volume.h>
+#include <uipc/geometry/utils/compute_instance_volume.h>
 
 namespace uipc::constitution
 {
@@ -79,7 +79,7 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     auto kappa_view = geometry::view(*kappa_attr);
     std::ranges::fill(kappa_view, kappa);
 
-    geometry::compute_vertex_volume(sc);
+    geometry::compute_instance_volume(sc);
 
     auto meta_mass = sc.meta().find<Float>(builtin::mass_density);
 

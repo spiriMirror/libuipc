@@ -17,6 +17,8 @@
 #include <fstream>
 #include <sim_engine.h>
 #include <uipc/builtin/constitution_type.h>
+#include <uipc/geometry/utils/affine_body/compute_dyadic_mass.h>
+#include <uipc/geometry/utils/affine_body/compute_body_force.h>
 
 namespace uipc::backend
 {
@@ -314,10 +316,10 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     // 2) Setup `J` and `mass` for every vertex
     {
         h_vertex_id_to_J.resize(abd_vertex_count);
-        h_vertex_id_to_mass.resize(abd_vertex_count);
+        // h_vertex_id_to_mass.resize(abd_vertex_count);
 
         span Js          = h_vertex_id_to_J;
-        span vertex_mass = h_vertex_id_to_mass;
+        // span vertex_mass = h_vertex_id_to_mass;
 
         for_each(geo_slots,
                  [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
@@ -325,16 +327,19 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                      auto geoI = I.global_index();
 
                      auto pos_view = sc.positions().view();
-                     auto volume   = sc.vertices().find<Float>(builtin::volume);
-                     UIPC_ASSERT(volume, "The `volume` attribute is not found in the affine body geometry, why can it happen?");
-                     auto volume_view = volume->view();
+
+                     //auto volume   = sc.vertices().find<Float>(builtin::volume);
+                     //UIPC_ASSERT(volume, "The `volume` attribute is not found in the affine body geometry, why can it happen?");
+                     //auto volume_view = volume->view();
+
                      auto body_count  = sc.instances().size();
                      auto vert_count  = sc.vertices().size();
                      auto vert_offset = geo_infos[geoI].vertex_offset;
-                     auto meta_mass_density = sc.meta().find<Float>(builtin::mass_density);
-                     UIPC_ASSERT(meta_mass_density,
-                                 "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
-                     auto mass_density = meta_mass_density->view().front();
+
+                     //auto meta_mass_density = sc.meta().find<Float>(builtin::mass_density);
+                     //UIPC_ASSERT(meta_mass_density,
+                     //            "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
+                     //auto mass_density = meta_mass_density->view().front();
 
                      for(auto i : range(body_count))
                      {
@@ -346,12 +351,14 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                                                 [](const Vector3& pos) -> ABDJacobi
                                                 { return pos; });
 
-                         auto sub_mass = vertex_mass.subspan(body_vert_offset, vert_count);
+                         // auto sub_mass = vertex_mass.subspan(body_vert_offset, vert_count);
 
-                         std::ranges::transform(volume_view,
-                                                sub_mass.begin(),
-                                                [mass_density](Float v) -> Float
-                                                { return v * mass_density; });
+                         //std::ranges::transform(volume_view,
+                         //                       sub_mass.begin(),
+                         //                       [mass_density](Float v) -> Float
+                         //                       { return v * mass_density; });
+
+                         // std::ranges::fill(sub_mass, 0.0);
                      }
                  });
     }
@@ -423,63 +430,79 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
     // 4) Setup body_abd_mass and body_id_to_volume
     {
-        vector<ABDJacobiDyadicMass> geo_masses(abd_geo_count, ABDJacobiDyadicMass{});
-        vector<Float> geo_volumes(abd_geo_count, 0.0);
-
         h_body_id_to_abd_mass.resize(abd_body_count);
         h_body_id_to_volume.resize(abd_body_count);
 
         span Js          = h_vertex_id_to_J;
-        span vertex_mass = h_vertex_id_to_mass;
+        // span vertex_mass = h_vertex_id_to_mass;
 
         // SizeT geoI = 0;
-        for_each(geo_slots,
-                 [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
-                 {
-                     auto geoI = I.global_index();
+        for_each(
+            geo_slots,
+            [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
+            {
+                auto geoI = I.global_index();
 
-                     auto& geo_mass = geo_masses[geoI];
-                     auto& geo_vol  = geo_volumes[geoI];
+                auto vert_count  = sc.vertices().size();
+                auto vert_offset = geo_infos[geoI].vertex_offset;
+                auto body_count  = sc.instances().size();
+                auto body_offset = geo_infos[geoI].body_offset;
 
-                     auto vert_count  = sc.vertices().size();
-                     auto vert_offset = geo_infos[geoI].vertex_offset;
-                     auto body_count  = sc.instances().size();
-                     auto body_offset = geo_infos[geoI].body_offset;
+                auto sub_Js   = Js.subspan(vert_offset, vert_count);
+                // auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
 
-                     auto sub_Js = Js.subspan(vert_offset, vert_count);
-                     auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
+                //for(auto&& [m, J] : zip(sub_mass, sub_Js))
+                //    geo_mass += ABDJacobiDyadicMass{m, J.x_bar()};
 
-                     for(auto&& [m, J] : zip(sub_mass, sub_Js))
-                         geo_mass += ABDJacobiDyadicMass{m, J.x_bar()};
+                ABDJacobiDyadicMass geo_mass;
+                {
+                    auto rho = sc.meta().find<Float>(builtin::mass_density);
+                    UIPC_ASSERT(rho, "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
 
-                     auto Vs = sc.positions().view();
-                     auto Ts = sc.tetrahedra().topo().view();
+                    auto rho_view = rho->view();
 
-                     for(const auto& t : Ts)
-                     {
-                         auto [p0, p1, p2, p3] =
-                             std::tuple{Vs[t[0]], Vs[t[1]], Vs[t[2]], Vs[t[3]]};
+                    Float     m;
+                    Vector3   m_x_bar;
+                    Matrix3x3 m_x_bar_x_bar;
 
-                         Eigen::Matrix<Float, 3, 3> A;
-                         A.col(0) = p1 - p0;
-                         A.col(1) = p2 - p0;
-                         A.col(2) = p3 - p0;
-                         auto D   = A.determinant();
-                         UIPC_ASSERT(D > 0.0,
-                                     "The determinant of the tetrahedron is non-positive ({}), which means the tetrahedron is inverted.",
-                                     D);
+                    uipc::geometry::affine_body::compute_dyadic_mass(
+                        sc, rho_view[0], m, m_x_bar, m_x_bar_x_bar);
+                    geo_mass = ABDJacobiDyadicMass::from_dyadic_mass(m, m_x_bar, m_x_bar_x_bar);
+                }
 
-                         auto volume = D / 6.0;
-                         geo_vol += volume;
-                     }
+                //auto Vs = sc.positions().view();
+                //auto Ts = sc.tetrahedra().topo().view();
 
-                     for(auto i : range(body_count))
-                     {
-                         auto body_id                   = body_offset + i;
-                         h_body_id_to_abd_mass[body_id] = geo_mass;
-                         h_body_id_to_volume[body_id]   = geo_vol;
-                     }
-                 });
+                //for(const auto& t : Ts)
+                //{
+                //    auto [p0, p1, p2, p3] =
+                //        std::tuple{Vs[t[0]], Vs[t[1]], Vs[t[2]], Vs[t[3]]};
+
+                //    Eigen::Matrix<Float, 3, 3> A;
+                //    A.col(0) = p1 - p0;
+                //    A.col(1) = p2 - p0;
+                //    A.col(2) = p3 - p0;
+                //    auto D   = A.determinant();
+                //    UIPC_ASSERT(D > 0.0,
+                //                "The determinant of the tetrahedron is non-positive ({}), which means the tetrahedron is inverted.",
+                //                D);
+
+                //    auto volume = D / 6.0;
+                //    geo_vol += volume;
+                //}
+
+                auto volume = sc.instances().find<Float>(builtin::volume);
+                UIPC_ASSERT(volume, "The `volume` attribute is not found in the affine body instance, why can it happen?");
+
+                auto volume_view = volume->view();
+
+                for(auto i : range(body_count))
+                {
+                    auto body_id                   = body_offset + i;
+                    h_body_id_to_abd_mass[body_id] = geo_mass;
+                    h_body_id_to_volume[body_id]   = volume_view[i];
+                }
+            });
     }
 
 
@@ -493,7 +516,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     // 6) Setup the affine body gravity
     {
         span Js          = h_vertex_id_to_J;
-        span vertex_mass = h_vertex_id_to_mass;
+        // span vertex_mass = h_vertex_id_to_mass;
 
         Vector3 gravity = scene.info()["gravity"];
         h_body_id_to_abd_gravity.resize(abd_body_count, Vector12::Zero());
@@ -508,12 +531,16 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                      auto body_offset = geo_infos[geoI].body_offset;
 
                      auto sub_Js = Js.subspan(vert_offset, vert_count);
-                     auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
+                     // auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
 
 
                      auto gravity_attr = sc.instances().find<Vector3>(builtin::gravity);
-                     auto gravity_view =
-                         gravity_attr ? gravity_attr->view() : span<Vector3>{};
+                     auto gravity_view = gravity_attr ? gravity_attr->view() :
+                                                        span<const Vector3>{};
+
+                     auto rho = sc.meta().find<Float>(builtin::mass_density);
+                     UIPC_ASSERT(rho, "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
+                     auto rho_view = rho->view();
 
                      for(auto i : range(body_count))
                      {
@@ -521,8 +548,12 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
                          Vector3 local_gravity = gravity_attr ? gravity_view[i] : gravity;
 
-                         for(auto&& [m, J] : zip(sub_mass, sub_Js))
-                             G += m * (J.T() * local_gravity);
+                         Vector3 force_density = local_gravity * rho_view[0];
+
+                         //for(auto&& [m, J] : zip(sub_mass, sub_Js))
+                         //    G += m * (J.T() * local_gravity);
+
+                         G = uipc::geometry::affine_body::compute_body_force(sc, force_density);
 
                          Matrix12x12 abd_body_mass_inv =
                              h_body_id_to_abd_mass_inv[body_offset];

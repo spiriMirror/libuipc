@@ -2,49 +2,60 @@
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/range.h>
 #include <Eigen/Dense>
-
+#include <iostream>
 namespace uipc::geometry::affine_body
 {
-static Vector12 apply_jacobi(const Vector3& x_bar, const Vector3& f)
-{
-    return Vector12{
-
-        f.x(),  //
-        f.y(),  //
-        f.z(),  //
-
-        x_bar.x() * f.x(),  //
-        x_bar.y() * f.x(),  //
-        x_bar.z() * f.x(),  //
-
-        x_bar.x() * f.y(),  //
-        x_bar.y() * f.y(),  //
-        x_bar.z() * f.y(),  //
-
-        x_bar.x() * f.z(),  //
-        x_bar.y() * f.z(),  //
-        x_bar.z() * f.z(),  //
-    };
-}
-
+// ref: libuipc/scripts/symbol_calculation/affine_body_quantity.ipynb
 
 static Vector12 compute_tetmesh_body_force(const SimplicialComplex& sc,
                                            const Vector3& body_force_density)
 {
     Vector12 body_force = Vector12::Zero();
 
-    auto pos_view      = sc.positions().view();
-    auto vertex_volume = sc.vertices().find<Float>(builtin::volume);
+    auto    pos_view      = sc.positions().view();
+    auto    tet_view      = sc.tetrahedra().topo().view();
+    auto    vertex_volume = sc.vertices().find<Float>(builtin::volume);
+    Vector3 f             = body_force_density;
 
-    UIPC_ASSERT(vertex_volume, "Volume attribute not found, why can it happen?");
-
-    auto volume_view = vertex_volume->view();
-
-    for(auto&& i : range(pos_view.size()))
+    for(auto&& [i, T] : enumerate(tet_view))
     {
-        const auto& x_bar = pos_view[i];
-        auto        f     = body_force_density * volume_view[i];
-        body_force += apply_jacobi(x_bar, f);
+        const auto& p0 = pos_view[T[0]];
+        const auto& p1 = pos_view[T[1]];
+        const auto& p2 = pos_view[T[2]];
+        const auto& p3 = pos_view[T[3]];
+
+
+        Vector3 r0 = p0;
+        Vector3 e1 = p1 - p0;
+        Vector3 e2 = p2 - p0;
+        Vector3 e3 = p3 - p0;
+
+        Float D = e1.dot(e2.cross(e3));
+
+        auto V = D / 6.0;
+
+        auto Q = [D](IndexT i, const Vector3& r0, const Vector3& e1, const Vector3& e2, const Vector3& e3)
+        {
+            Float V = 0.0;
+
+            V += r0(i) / 6;
+            V += e1(i) / 24;
+            V += e2(i) / 24;
+            V += e3(i) / 24;
+
+            return D * V;
+        };
+
+        Vector3 Qs = Vector3{
+            Q(0, r0, e1, e2, e3),  //
+            Q(1, r0, e1, e2, e3),  //
+            Q(2, r0, e1, e2, e3)   //
+        };
+
+        body_force.segment<3>(0) += f * V;
+        body_force.segment<3>(3) += f.x() * Qs;
+        body_force.segment<3>(6) += f.y() * Qs;
+        body_force.segment<3>(9) += f.z() * Qs;
     }
 
     return body_force;
@@ -57,7 +68,7 @@ static Vector12 compute_trimesh_body_force(const SimplicialComplex& sc,
 
     auto pos_view    = sc.positions().view();
     auto tri_view    = sc.triangles().topo().view();
-    auto orient      = sc.meta().find<IndexT>(builtin::orient);
+    auto orient      = sc.triangles().find<IndexT>(builtin::orient);
     auto orient_view = orient ? orient->view() : span<const IndexT>{};
 
     const auto& f = body_force_density;
@@ -71,32 +82,41 @@ static Vector12 compute_trimesh_body_force(const SimplicialComplex& sc,
         const auto& p1 = pos_view[F[1]];
         const auto& p2 = pos_view[F[2]];
 
-        Vector3 X = (p0 + p1 + p2) / 3.0;
+        Vector3 r0 = p0;
+        Vector3 e1 = p1 - p0;
+        Vector3 e2 = p2 - p0;
 
-        Vector3 S = (p1 - p0).cross(p2 - p0) / 2.0;
+        Vector3 N = (p1 - p0).cross(p2 - p0);
         if(orient && orient_view[i] < 0)
-            S = -S;
+            N = -N;
 
+        auto V = p0.dot(N) / 6.0;
 
-        body_force(0) += f.x() * X.x() * S.x();  // [fx * x, 0, 0] * [Sx, Sy, Sz] = fx * x * Sx
-        body_force(1) += f.y() * X.y() * S.y();  // [0, fy * y, 0] * [Sx, Sy, Sz] = fy * y * Sy
-        body_force(2) += f.z() * X.z() * S.z();  // [0, 0, fz * z] * [Sx, Sy, Sz] = fz * z * Sz
+        auto Q = [](IndexT a, const Vector3& N, const Vector3& r0, const Vector3& e1, const Vector3& e2)
+        {
+            Float V = 0.0;
 
-        Float half_xxSx = X.x() * X.x() * S.x() / 2.0;
-        Float half_yySy = X.y() * X.y() * S.y() / 2.0;
-        Float half_zzSz = X.z() * X.z() * S.z() / 2.0;
+            V += e1(a) * e1(a) / 12;
+            V += e1(a) * e2(a) / 12;
+            V += e1(a) * r0(a) / 3;
 
-        body_force(3) += f.x() * half_xxSx;
-        body_force(4) += f.x() * half_yySy;
-        body_force(5) += f.x() * half_zzSz;
+            V += e2(a) * e2(a) / 12;
+            V += e2(a) * r0(a) / 3;
+            V += r0(a) * r0(a) / 2;
 
-        body_force(6) += f.y() * half_xxSx;
-        body_force(7) += f.y() * half_yySy;
-        body_force(8) += f.y() * half_zzSz;
+            return 1.0 / 2 * N(a) * V;
+        };
 
-        body_force(9) += f.z() * half_xxSx;
-        body_force(10) += f.z() * half_yySy;
-        body_force(11) += f.z() * half_zzSz;
+        Vector3 Qs = Vector3{
+            Q(0, N, r0, e1, e2),  //
+            Q(1, N, r0, e1, e2),  //
+            Q(2, N, r0, e1, e2)   //
+        };
+
+        body_force.segment<3>(0) += f * V;
+        body_force.segment<3>(3) += f.x() * Qs;
+        body_force.segment<3>(6) += f.y() * Qs;
+        body_force.segment<3>(9) += f.z() * Qs;
     }
 
     return body_force;
