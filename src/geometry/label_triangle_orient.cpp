@@ -2,12 +2,12 @@
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/enumerate.h>
 #include <Eigen/Geometry>
-
+#include <uipc/geometry/utils/is_trimesh_closed.h>
 namespace uipc::geometry
 {
 S<AttributeSlot<IndexT>> label_triangle_orient(SimplicialComplex& R)
 {
-    UIPC_ASSERT(R.dim() == 3, "Only tetmesh is allowed. Yours dim = {}.", R.dim());
+    UIPC_ASSERT(R.dim() == 3, "label_triangle_orient() only works on 3D simplicial complex (tetmesh).");
 
     auto f_is_surf   = R.triangles().find<IndexT>(builtin::is_surf);
     auto f_parent_id = R.triangles().find<IndexT>(builtin::parent_id);
