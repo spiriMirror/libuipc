@@ -1,6 +1,5 @@
 #include <uipc/constitution/stable_neo_hookean.h>
 #include <uipc/builtin/constitution_uid_auto_register.h>
-#include <uipc/geometry/utils/compute_vertex_mass.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/builtin/constitution_type.h>
 #include <uipc/constitution/conversion.h>

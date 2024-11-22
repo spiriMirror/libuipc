@@ -79,6 +79,7 @@ class UIPC_BACKEND_API MySimEngine : public SimEngine
     void do_advance() override;
     void do_sync() override;
     void do_retrieve() override;
+    ...
 };
 }
 

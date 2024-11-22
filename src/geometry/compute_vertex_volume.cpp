@@ -1,4 +1,4 @@
-#include <uipc/geometry/utils/compute_vertex_mass.h>
+#include <uipc/geometry/utils/compute_vertex_volume.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/builtin/attribute_name.h>
 #include <Eigen/Dense>
@@ -6,16 +6,16 @@
 
 namespace uipc::geometry
 {
-static S<AttributeSlot<Float>> compute_vertex_mass_from_tet(SimplicialComplex& R, Float mass_density)
+static S<AttributeSlot<Float>> compute_vertex_volume_from_tet(SimplicialComplex& R)
 {
-    vector<Float> tet_mass;
-    tet_mass.resize(R.tetrahedra().size(), 0.0);
+    vector<Float> tet_volume;
+    tet_volume.resize(R.tetrahedra().size(), 0.0);
 
     auto Vs = R.positions().view();
     auto Ts = R.tetrahedra().topo().view();
 
     std::ranges::transform(Ts,
-                           tet_mass.begin(),
+                           tet_volume.begin(),
                            [&](const Vector4i& t) -> Float
                            {
                                auto [p0, p1, p2, p3] =
@@ -30,33 +30,33 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_tet(SimplicialComplex& R
                                            "The determinant of the tetrahedron is non-positive ({}), which means the tetrahedron is inverted.",
                                            D);
                                auto volume = D / 6.0;
-                               return volume * mass_density;
+                               return volume;
                            });
 
-    auto Vm = R.vertices().find<Float>(builtin::mass);
+    auto volume = R.vertices().find<Float>(builtin::volume);
 
-    if(!Vm)
-        Vm = R.vertices().create<Float>(builtin::mass);
+    if(!volume)
+        volume = R.vertices().create<Float>(builtin::volume);
 
-    auto Vm_view = view(*Vm);
+    auto volume_view = view(*volume);
 
-    std::ranges::fill(Vm_view, 0.0);
+    std::ranges::fill(volume_view, 0.0);
 
     for(auto&& [i, t] : enumerate(Ts))
     {
         for(auto&& v : t)
         {
-            Vm_view[v] += tet_mass[i] / 4.0;
+            volume_view[v] += tet_volume[i] / 4.0;
         }
     }
 
-    return Vm;
+    return volume;
 }
 
-static S<AttributeSlot<Float>> compute_vertex_mass_from_tri(SimplicialComplex& R, Float mass_density)
+static S<AttributeSlot<Float>> compute_vertex_volume_from_tri(SimplicialComplex& R)
 {
-    vector<Float> tri_mass;
-    tri_mass.resize(R.triangles().size(), 0.0);
+    vector<Float> tri_volume;
+    tri_volume.resize(R.triangles().size(), 0.0);
 
     auto thickness = R.vertices().find<Float>(builtin::thickness);
 
@@ -65,7 +65,7 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_tri(SimplicialComplex& R
 
     std::ranges::transform(
         Ts,
-        tri_mass.begin(),
+        tri_volume.begin(),
         [&](const Vector3i& t) -> Float
         {
             auto [p0, p1, p2] = std::tuple{Vs[t[0]], Vs[t[1]], Vs[t[2]]};
@@ -89,43 +89,43 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_tri(SimplicialComplex& R
                 auto r = thickness_view[t[0]];
 
                 if(r == 0.0)  // if the thickness is zero, treat the density as surface density
-                    return area * mass_density;
+                    return area;
 
                 auto h = 2 * r;
 
-                return area * h * mass_density;
+                return area * h;
             }
             else
             {
-                return area * mass_density;
+                return area;
             }
         });
 
 
-    auto Vm = R.vertices().find<Float>(builtin::mass);
+    auto volume = R.vertices().find<Float>(builtin::volume);
 
-    if(!Vm)
-        Vm = R.vertices().create<Float>(builtin::mass);
+    if(!volume)
+        volume = R.vertices().create<Float>(builtin::volume);
 
-    auto Vm_view = view(*Vm);
+    auto volume_view = view(*volume);
 
-    std::ranges::fill(Vm_view, 0.0);
+    std::ranges::fill(volume_view, 0.0);
 
     for(auto&& [i, t] : enumerate(Ts))
     {
         for(auto&& v : t)
         {
-            Vm_view[v] += tri_mass[i] / 3.0;
+            volume_view[v] += tri_volume[i] / 3.0;
         }
     }
 
-    return Vm;
+    return volume;
 }
 
-static S<AttributeSlot<Float>> compute_vertex_mass_from_edge(SimplicialComplex& R, Float mass_density)
+static S<AttributeSlot<Float>> compute_vertex_volume_from_edge(SimplicialComplex& R)
 {
-    vector<Float> edge_mass;
-    edge_mass.resize(R.edges().size(), 0.0);
+    vector<Float> edge_volume;
+    edge_volume.resize(R.edges().size(), 0.0);
 
     auto thickness = R.vertices().find<Float>(builtin::thickness);
 
@@ -134,7 +134,7 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_edge(SimplicialComplex& 
 
     std::ranges::transform(
         Es,
-        edge_mass.begin(),
+        edge_volume.begin(),
         [&](const Vector2i& e) -> Float
         {
             auto [p0, p1] = std::tuple{Vs[e[0]], Vs[e[1]]};
@@ -154,47 +154,47 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_edge(SimplicialComplex& 
 
                 auto r = thickness_view[e[0]];
 
-                if(r == 0.0)  // if the thickness is zero, treat the density as line density
-                    return l * mass_density;
+                if(r == 0.0)  // if the thickness is zero, set length as volume
+                    return l;
 
                 auto area = r * r * std::numbers::pi;
-                return l * area * mass_density;
+                return l * area;
             }
             else
-                return l * mass_density;
+                return l;
         });
 
-    auto Vm = R.vertices().find<Float>(builtin::mass);
+    auto volume = R.vertices().find<Float>(builtin::volume);
 
-    if(!Vm)
-        Vm = R.vertices().create<Float>(builtin::mass);
+    if(!volume)
+        volume = R.vertices().create<Float>(builtin::volume);
 
-    auto Vm_view = view(*Vm);
+    auto volume_view = view(*volume);
 
-    std::ranges::fill(Vm_view, 0.0);
+    std::ranges::fill(volume_view, 0.0);
 
     for(auto&& [i, e] : enumerate(Es))
     {
         for(auto&& v : e)
         {
-            Vm_view[v] += edge_mass[i] / 2.0;
+            volume_view[v] += edge_volume[i] / 2.0;
         }
     }
 
-    return Vm;
+    return volume;
 }
 
-static S<AttributeSlot<Float>> compute_vertex_mass_from_vertex(SimplicialComplex& R, Float mass_density)
+static S<AttributeSlot<Float>> compute_vertex_volume_from_vertex(SimplicialComplex& R)
 {
-    auto Vs = R.positions().view();
-    auto Vm = R.vertices().find<Float>(builtin::mass);
+    auto Vs     = R.positions().view();
+    auto volume = R.vertices().find<Float>(builtin::volume);
 
     auto thickness = R.vertices().find<Float>(builtin::thickness);
 
-    if(!Vm)
-        Vm = R.vertices().create<Float>(builtin::mass);
+    if(!volume)
+        volume = R.vertices().create<Float>(builtin::volume);
 
-    auto Vm_view = view(*Vm);
+    auto Vm_view = view(*volume);
 
     if(thickness)
     {
@@ -203,39 +203,39 @@ static S<AttributeSlot<Float>> compute_vertex_mass_from_vertex(SimplicialComplex
         {
             auto r = thickness_view[i];
 
-            if(r == 0.0)  // if the thickness is zero, treat the density as point mass
+            if(r == 0.0)  // if the thickness is zero, set volume to 1
             {
-                Vm_view[i] = mass_density;
+                Vm_view[i] = 1.0;
             }
             else
             {
                 auto V     = 4.0 / 3.0 * std::pow(r, 3) * std::numbers::pi;
-                Vm_view[i] = V * mass_density;
+                Vm_view[i] = V;
             }
         }
     }
     else
     {
-        std::ranges::fill(Vm_view, mass_density);
+        std::ranges::fill(Vm_view, 1);
     }
-    return Vm;
+    return volume;
 }
 
-S<AttributeSlot<Float>> compute_vertex_mass(SimplicialComplex& R, Float mass_density)
+S<AttributeSlot<Float>> compute_vertex_volume(SimplicialComplex& R)
 {
     switch(R.dim())
     {
         case 0:
-            return compute_vertex_mass_from_vertex(R, mass_density);
+            return compute_vertex_volume_from_vertex(R);
         case 1:
-            return compute_vertex_mass_from_edge(R, mass_density);
+            return compute_vertex_volume_from_edge(R);
         case 2:
-            return compute_vertex_mass_from_tri(R, mass_density);
+            return compute_vertex_volume_from_tri(R);
         case 3:
-            return compute_vertex_mass_from_tet(R, mass_density);
+            return compute_vertex_volume_from_tet(R);
         default: {
             UIPC_ASSERT(false, "Unsupported dimension: {}", R.dim());
-            return {};
+            return nullptr;
         }
     }
 }
