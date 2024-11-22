@@ -11,8 +11,9 @@ add_subdirectory(sanity_check)
 add_subdirectory(io)
 
 if(UIPC_BUILD_GUI)
+    uipc_warning("This version C++ GUI is not finished yet, waiting for contributions.")
     # gui
-    add_subdirectory(gui)
+    # add_subdirectory(gui)
 endif()
 
 if(UIPC_BUILD_PYBIND)

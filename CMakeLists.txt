@@ -14,7 +14,7 @@ set(UIPC_VERSION_PATCH 0)
 # Project Options
 # =========================================================================
 option(UIPC_USING_LOCAL_VCPKG "Using local vcpkg" ON)
-option(UIPC_BUILD_GUI "Build GUI, turn it off if you're server only" ON)
+option(UIPC_BUILD_GUI "Build GUI, turn it off if you're server only" OFF)
 option(UIPC_BUILD_PYBIND "Build pyuipc" OFF)
 option(UIPC_BUILD_TORCH_EXTENSION "Build pytorch extension" OFF)
 option(UIPC_BUILD_EXAMPLES "Build examples" ON)
@@ -29,7 +29,7 @@ option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ON)
 # =========================================================================
 # Show Logo and Options
 # =========================================================================
-uipc_show_logo("0.9.0")
+uipc_show_logo()
 uipc_show_options()
 uipc_config_vcpkg_install()
 

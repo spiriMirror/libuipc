@@ -79,7 +79,7 @@ If the automatic installation fails, please raise an issue with the CMake error 
 
     Pyuipc is a Python binding of libuipc. It is built with the `pybind11` library.
 
-    Download python3 https://www.python.org/downloads/.
+    Download [Python3](https://www.python.org/downloads/).
 
     Install packages with the following command:
 
@@ -136,8 +136,11 @@ If the automatic installation fails, please raise an issue with the CMake error 
     ```shell
     cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
     cmake -S ../libuipc -DUIPC_BUILD_GUI=0 -DCMAKE_BUILD_TYPE=<Debug/Release/RelWithDebInfo>
-    cmake --build .
+    cmake --build . -j8
     ```
+
+    !!!NOTE
+        Use multi-thread to speed up the build process as possible, becasue the NVCC compiler will take a lot of time.
 
     To enable GUI support, set `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install). See [Linux GUI Support](#gui-support).
 

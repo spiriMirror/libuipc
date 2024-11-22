@@ -105,8 +105,6 @@ Before that, we should first add the `AffineBodyConstitution` to the `Scene`, an
         {
             // create constitution and contact model
             AffineBodyConstitution abd;
-
-            // friction ratio and contact resistance
             scene.contact_tabular().default_model(0.5, 1.0_GPa);
             auto& default_element = scene.contact_tabular().default_element();
             ...
@@ -123,8 +121,6 @@ Before that, we should first add the `AffineBodyConstitution` to the `Scene`, an
     scene = Scene(config)
     # create constitution and contact model
     abd = AffineBodyConstitution()
-
-    # friction ratio and contact resistance
     scene.contact_tabular().default_model(0.5, 1.0 * GPa)
     default_element = scene.contact_tabular().default_element()
     ...
@@ -341,9 +337,9 @@ Now, we have setup the initial state of the `Scene`, we can pass it to the `Worl
         sio.write_surface(f"scene_surface{world.frame()}.obj")
     ```
 
-To evolve the simulation, we call the `advance` method of the `World` to advance the simulation by one time step. Then we call the `sync` method to synchronize the `World`, (basically, it's a barrier to make sure the `World` is ready for the next time step). Finally, we call the `retrieve` method to retrieve (download) the simulation data from the `World`.
+To evolve the simulation, we call the `advance` method of the `World` to advance the simulation by one time step. Finally, we call the `retrieve` method to retrieve (download) the simulation data from the `World`.
 
-The easiest way to consume the simulation is to export the surface mesh of the `Scene` at each time step. Here we use the `SceneIO` class to export the surface of all the meshes to the `.obj` file.
+The easiest way to consume the simulation data is to export the surface mesh of the `Scene` at each time step. Here we use the `SceneIO` class to export the surface of all the meshes to the `.obj` file.
 
 <div align="center">
 <video style="width:75%" muted="" controls="" alt="type:video">

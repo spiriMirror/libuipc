@@ -30,5 +30,6 @@ add_subdirectory(backends)
 add_subdirectory(sim_case)
 
 if(UIPC_BUILD_GUI)
-    add_subdirectory(gui)
+    uipc_warning("This version C++ GUI is not finished yet, waiting for contributions.")
+    # add_subdirectory(gui)
 endif()
