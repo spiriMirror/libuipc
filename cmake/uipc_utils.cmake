@@ -160,4 +160,25 @@ function(uipc_init_submodule target)
     endif()
 endfunction()
 
+# -----------------------------------------------------------------------------------------
+# Require a python module, if not found, try to install it with pip
+# -----------------------------------------------------------------------------------------
+function(uipc_require_python_module python_dir module_name)
+#ask for numpy, allow failure
+execute_process(COMMAND ${Python_EXECUTABLE}
+    "-c" "import ${module_name}"
+    RESULT_VARIABLE CMD_RESULT
+    OUTPUT_QUIET
+)
+if (NOT CMD_RESULT EQUAL 0)
+    uipc_info("${module_name} not found, try installing numpy...")
+    execute_process(COMMAND ${Python_EXECUTABLE} "-m" "pip" "install" "${module_name}"
+    RESULT_VARIABLE INSTALL_RESULT)
+    if (NOT INSTALL_RESULT EQUAL 0)
+        uipc_error("Python [${python_dir}] failed to install [${module_name}], please install it manually.")
+    else()
+        uipc_info("${module_name} installed successfully with [${python_dir}].")
+    endif()
+endif()
+endfunction()
 

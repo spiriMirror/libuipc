@@ -21,12 +21,8 @@ add_subdirectory(diff_sim)
 get_target_property(SOURCES pyuipc SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
 
-uipc_info("Python found: ${Python_EXECUTABLE}.")
-message(STATUS "  > Make sure that the following dependencies are installed in the same environment:")
-message(STATUS "    * mypy  -> we use `mypy.stubgen` to generate the stub files for `pyuipc`.")
-message(STATUS "    * numpy -> dependency for `pyuipc`.")
-
-
+uipc_require_python_module(${Python_EXECUTABLE} "mypy")
+uipc_require_python_module(${Python_EXECUTABLE}  "numpy")
 
 # after build pyuipc, call the script to copy the dependent shared libraries to python package
 add_custom_command(TARGET pyuipc POST_BUILD
