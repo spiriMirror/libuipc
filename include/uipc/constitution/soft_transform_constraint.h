@@ -41,8 +41,8 @@ class UIPC_CONSTITUTION_API RotatingMotor final : public Constraint
 
     void apply_to(geometry::SimplicialComplex& sc,
                   Float                        strength_ratio = 100.0,
-                  Vector3 motor_rot_axis = Vector3::UnitX(),
-                  Float   motor_rot_vel  = 2 * std::numbers::pi) const;
+                  const Vector3& motor_rot_axis = Vector3::UnitX(),
+                  Float          motor_rot_vel  = 2 * std::numbers::pi) const;
 
     static Json default_config();
 

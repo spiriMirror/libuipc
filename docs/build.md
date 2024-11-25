@@ -13,31 +13,35 @@ Vcpkg supports both Windows and Linux, we use it to manage the dependencies and 
 
 The following dependencies are required to build the project.
 
-| Name                                        | Version      | Usage           | Import         |
-| ------------------------------------------- | ------------ | --------------- | -------------- |
-| [CMake](https://cmake.org/download/)        | >=3.26       | build system    | system install |
-| [Python](https://www.python.org/downloads/) | >=3.10       | build system    | system install |
-| [Vcpkg](https://github.com/microsoft/vcpkg) | >=2024.04.26 | package manager | git clone      |
+| Name                                                | Version      | Usage           | Import         |
+| --------------------------------------------------- | ------------ | --------------- | -------------- |
+| [CMake](https://cmake.org/download/)                | >=3.26       | build system    | system install |
+| [Python](https://www.python.org/downloads/)         | >=3.10       | build system    | system install |
+| [Cuda](https://developer.nvidia.com/cuda-downloads) | >=12.0       | GPU programming | system install |
+| [Vcpkg](https://github.com/microsoft/vcpkg)         | >=2024.04.26 | package manager | git clone      |
 
-The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of them will be automatically installed by Vcpkg.
 
-| Name                                   | Version | Usage                                               | Import         |
-| -------------------------------------- | ------- | --------------------------------------------------- | -------------- |
-| [muda](https://github.com/MuGdxy/muda) | -       | improve safety and readability of CUDA programming. | submodule      |
-| cuda                                   | >=12.0  | GPU programming                                     | system install |
-| eigen3                                 | 3.4.0   | matrix calculation                                  | vcpkg          |
-| catch2                                 | 3.5.3   | unit tests                                          | vcpkg          |
-| libigl                                 | 2.5.0   | mesh processing                                     | vcpkg          |
-| spdlog                                 | 1.12.0  | logging                                             | vcpkg          |
-| fmt                                    | 10.1.1  | fast string formatting                              | vcpkg          |
-| cppitertools                           | 2.1#3   | python-like iteration tools                         | vcpkg          |
-| bgfx                                   | 1.127#1 | cross-platform RHI                                  | vcpkg          |
-| dylib                                  | 2.2.1   | cross-platform dynamic library loader               | vcpkg          |
-| benchmark                              | 1.8.3#3 | microbenchmark support library                      | vcpkg          |
-| nlohmann_json                          | 3.11.2  | json file IO                                        | vcpkg          |
-| imgui                                  | 1.90.7  | GUI                                                 | vcpkg          |
-| glfw3                                  | 3.3.8#2 | window management                                   | vcpkg          |
-| magic_enum                             | 0.9.3   | enum to string                                      | vcpkg          |
+The following are **libuipc**'s 3rd-party dependencies. 
+
+!!!NOTE
+   Normally, you don't need to install the following dependencies manually.
+
+| Name                                   | Version | Usage                                               | Import    |
+| -------------------------------------- | ------- | --------------------------------------------------- | --------- |
+| [muda](https://github.com/MuGdxy/muda) | -       | improve safety and readability of CUDA programming. | submodule |
+| eigen3                                 | 3.4.0   | matrix calculation                                  | vcpkg     |
+| catch2                                 | 3.5.3   | unit tests                                          | vcpkg     |
+| libigl                                 | 2.5.0   | mesh processing                                     | vcpkg     |
+| spdlog                                 | 1.12.0  | logging                                             | vcpkg     |
+| fmt                                    | 10.1.1  | fast string formatting                              | vcpkg     |
+| cppitertools                           | 2.1#3   | python-like iteration tools                         | vcpkg     |
+| bgfx                                   | 1.127#1 | cross-platform RHI                                  | vcpkg     |
+| dylib                                  | 2.2.1   | cross-platform dynamic library loader               | vcpkg     |
+| benchmark                              | 1.8.3#3 | microbenchmark support library                      | vcpkg     |
+| nlohmann_json                          | 3.11.2  | json file IO                                        | vcpkg     |
+| imgui                                  | 1.90.7  | GUI                                                 | vcpkg     |
+| glfw3                                  | 3.3.8#2 | window management                                   | vcpkg     |
+| magic_enum                             | 0.9.3   | enum to string                                      | vcpkg     |
 
 ## Automatic Dependency Installation
 

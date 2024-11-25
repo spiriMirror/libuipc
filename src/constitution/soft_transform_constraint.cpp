@@ -63,7 +63,7 @@ RotatingMotor::RotatingMotor(const Json& config) noexcept
 
 void RotatingMotor::apply_to(geometry::SimplicialComplex& sc,
                              Float                        strength,
-                             Vector3                      motor_rot_axis_v,
+                             const Vector3&               motor_rot_axis_v,
                              Float                        motor_rot_vel_v) const
 {
     Base::apply_to(sc);
