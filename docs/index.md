@@ -33,7 +33,7 @@ We are **actively** developing Libuipc and will continue to add more features an
 - **Easy & Powerful**: Libuipc offers an intuitive and unified approach to creating and accessing vivid simulation scenes, supporting a variety of objects and constraints that can be easily added.
 - **Fast & Robust**: Libuipc is designed to run fully in parallel on the GPU, achieving high performance and enabling large-scale simulations. It features a robust and accurate frictional contact model that effectively handles complex frictional scenarios without penetration.
 - **High Flexibility**: Libuipc provides APIs in both Python and C++ and supports both Linux and Windows systems.
-- **Fully Differentiable**: Libuipc provides differentiable simulation APIs for backward optimizaitons. (Coming Soon)
+- **Fully Differentiable**: Libuipc provides differentiable simulation APIs for backward optimizations. (Coming Soon)
 
 <table>
   <tr>
@@ -56,7 +56,7 @@ We are **actively** developing Libuipc and will continue to add more features an
 
 ## News
 
-<!-- - **2024-11-xx**: Libuipc v0.9.0 (Alpha) is published! We are excited to share our work with the community. This is a preview version, if you have any feedback or suggestions, please feel free to contact us! [Issues](https://github.com/spiriMirror/libuipc/issues) and [PRs](https://github.com/spiriMirror/libuipc/pulls) are welcome! -->
+**2024-11-25**: Libuipc v0.9.0 (Alpha) is published! We are excited to share our work with the community. This is a preview version, if you have any feedback or suggestions, please feel free to contact us! [Issues](https://github.com/spiriMirror/libuipc/issues) and [PRs](https://github.com/spiriMirror/libuipc/pulls) are welcome! 
 
 ## Citation
 

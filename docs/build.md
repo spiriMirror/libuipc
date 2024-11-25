@@ -24,7 +24,7 @@ The following dependencies are required to build the project.
 The following are **libuipc**'s 3rd-party dependencies. 
 
 !!!NOTE
-   Normally, you don't need to install the following dependencies manually.
+    Normally, you don't need to install the following dependencies manually.
 
 | Name                                   | Version | Usage                                               | Import    |
 | -------------------------------------- | ------- | --------------------------------------------------- | --------- |
