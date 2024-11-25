@@ -1,4 +1,3 @@
-#pragma once
 #include <diff_sim/diff_dof_reporter.h>
 #include <linear_system/global_linear_system.h>
 #include <utils/matrix_unpacker.h>

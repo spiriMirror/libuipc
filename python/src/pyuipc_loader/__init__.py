@@ -12,7 +12,8 @@ if os.name == 'nt':
     sys.path.append(this_file_dir + '/Release/bin')
     sys.path.append(this_file_dir + '/RelWithDebInfo/bin')
 elif os.name == 'posix':
-    sys.path.append(this_file_dir + '/bin')
+    sys.path.append(this_file_dir + '/Release/bin')
+    sys.path.append(this_file_dir + '/RelWithDebInfo/bin')
 else:
     raise Exception("Unsupported OS")
 
