@@ -19,8 +19,6 @@ end
 target("muda")
     set_kind("headeronly")
     add_includedirs("external/muda/src/", {public = true})
-    add_cugencodes("compute_75", {public = true})
-    add_links("nvrtc", "cudart", "cuda", "cublas", "cusparse", "cusolver", {public = true})
     add_cuflags("--extended-lambda", {public = true}) -- must be set for muda
     add_cuflags("--expt-relaxed-constexpr", {public = true}) -- must be set for muda
     add_cuflags("-rdc=true", {public = true})
@@ -36,7 +34,7 @@ add_requires("boost[core]")
 add_requires("eigen", {version="3.4.0"})
 add_requires("catch2", {version="3.5.3"})
 add_requires("spdlog", {version="1.12.0"})
-add_requires("fmt", {version = "10.1.1"})
+add_requires("fmt[headeronly]", {version = "10.1.1"})
 add_requires("cppitertools")
 add_requires("tinygltf")
 add_requires("dylib", {version = "2.2.1"})

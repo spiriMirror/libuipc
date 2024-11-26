@@ -1,7 +1,9 @@
 #include <sim_system.h>
 #include <typeinfo>
 #include <sim_engine.h>
+// TODO: XMAKE_BUILD MACRO? #include <magic_enum/magic_enum.hpp>
 #include <magic_enum.hpp>
+
 
 namespace uipc::backend::cuda
 {

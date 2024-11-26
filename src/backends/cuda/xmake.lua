@@ -5,19 +5,20 @@ target("uipc_backend_cuda")
     add_defines("UIPC_BACKEND_NAME=\"cuda\"")
     add_packages("magic_enum")
     add_deps("uipc_core", "uipc_geometry", { public = true })
-    add_deps(
-        "muda",
-    { public = true })
-    add_files("**.cu", "**.cpp")
+    add_deps("muda", { public = true })
 
+    add_cugencodes("compute_75", {public = true})
+    add_links("nvrtc", "cudart", "cuda", "cublas", "cusparse", "cusolver", {public = true})
+    
+    add_files("**.cu", "**.cpp")
     add_files("../common/**.cpp")
+    add_files("../none/**.cpp")
     -- add inl
     add_includedirs(".")
     add_includedirs("../common")
-    add_headerfiles("**(details/*.inl)")
-    add_headerfiles("**.h")
-    add_headerfiles("../common/**(details/*.inl)")
-    add_headerfiles("../common/**.h")
+    add_includedirs("../none/")
+
+
 target_end()
 
 target("uipc_backends")
