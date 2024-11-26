@@ -1,0 +1,11 @@
+target("app_util")
+    set_kind("static")
+    add_defines("UIPC_ASSET_PATH=\"D:/ws/repos/libuipc/assets/\"", { public = true })
+    add_defines("UIPC_OUTPUT_PATH=\"D:/ws/repos/libuipc/output/\"", { public = true })
+    add_files("app/*.cpp")
+    add_deps("uipc_uipc")
+    add_includedirs(".", { public = true })
+target_end()
+
+includes("examples/hello_affine_body")
+includes("tests")

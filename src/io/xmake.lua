@@ -1,0 +1,6 @@
+target("uipc_io")
+    set_kind("shared")
+    add_deps("uipc_core", "uipc_geometry", { public = true })
+    add_defines("UIPC_IO_EXPORT_DLL")
+    add_files("*.cpp")
+target_end()

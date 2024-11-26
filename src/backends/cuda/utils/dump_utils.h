@@ -2,7 +2,7 @@
 #include <type_define.h>
 #include <muda/buffer/device_buffer.h>
 #include <uipc/common/vector.h>
-#include <fmt/printf.h>
+// #include <fmt/printf.h>
 #include <uipc/common/log.h>
 #include <fstream>
 

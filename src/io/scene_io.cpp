@@ -1,7 +1,7 @@
 #include <uipc/io/scene_io.h>
 #include <algorithm>
 #include <filesystem>
-#include <fmt/printf.h>
+// #include <fmt/printf.h>
 #include <fstream>
 #include <uipc/backend/visitors/scene_visitor.h>
 #include <uipc/builtin/attribute_name.h>
