@@ -16,43 +16,6 @@ function version_patch()
     return "0"
 end
 
-rule("sail.cuda")
-    on_load(function(target)
-        local cuda_path = os.getenv("CUDA_PATH")
-        if cuda_path then
-            target:add("sysincludedirs", path.join(cuda_path, "include"), {public=true})
-            target:add("linkdirs", path.join(cuda_path, "lib/x64/"), {public=true})
-            target:add("links", "nvrtc", "cudart", "cuda", {public=true})
-        else
-            target:set("enabled", false)
-            return
-        end
-        if is_plat("windows") then
-            target:add("defines", "NOMINMAX", "UNICODE")
-            target:add("syslinks", "Cfgmgr32", "Advapi32")
-        end
-    end)
-
-    after_build(function(target)
-        local cuda_path = os.getenv("CUDA_PATH")
-        if cuda_path then
-            shared_files = os.match(path.join(cuda_path, "bin/*.dll"))
-            -- if shared files not exists(targetdir()), copy them
-            local shared_file_names = {}
-            for _, shared_file in ipairs(shared_files) do
-                table.insert(shared_file_names, path.filename(shared_file))
-            end
-            for _, shared_file_name in ipairs(shared_file_names) do
-                if not os.isfile(path.join(target:targetdir(), shared_file_name)) then
-                    os.cp(path.join(cuda_path, "bin", shared_file_name), target:targetdir())
-                    print("copy " .. shared_file_name .. " to " .. target:targetdir())
-                end
-            end
-            -- os.cp(path.join(cuda_path, "lib/x64/cudadevrt.lib"), target:targetdir())
-        end
-    end)
-rule_end()
-
 target("muda")
     set_kind("headeronly")
     add_includedirs("external/muda/src/", {public = true})
