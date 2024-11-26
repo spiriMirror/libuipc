@@ -20,6 +20,7 @@ option(UIPC_BUILD_TORCH_EXTENSION "Build pytorch extension" OFF)
 option(UIPC_BUILD_EXAMPLES "Build examples" ON)
 option(UIPC_BUILD_TESTS "Build tests" ON)
 option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
+option(UIPC_DEV_MODE "Enable developer mode" OFF)
 
 # =========================================================================
 # Backend Options
