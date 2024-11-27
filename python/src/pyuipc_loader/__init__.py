@@ -20,6 +20,10 @@ else:
 import pyuipc
 
 def init():
+    if pyuipc is None:
+        err_message = "Python binding is not built. \n           Please make a `Release` or `RelWithDebInfo` build with option `-DUIPC_BUILD_PYBIND=1` to enable python binding."
+        raise Exception(err_message)
+    
     module_path = pathlib.Path(pyuipc.__file__).absolute()
     module_dir = module_path.parent
 
