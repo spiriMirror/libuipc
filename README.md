@@ -62,18 +62,18 @@ If you use **Libuipc** in your project, please cite our works:
 
 ```
 @article{gipc2024,
-author = {Huang, Kemeng and Chitalu, Floyd M. and Lin, Huancheng and Komura, Taku},
-title = {GIPC: Fast and Stable Gauss-Newton Optimization of IPC Barrier Energy},
-year = {2024},
-publisher = {Association for Computing Machinery},
-volume = {43},
-number = {2},
-issn = {0730-0301},
-doi = {10.1145/3643028},
-journal = {ACM Trans. Graph.},
-month = {mar},
-articleno = {23},
-numpages = {18}
+      author = {Huang, Kemeng and Chitalu, Floyd M. and Lin, Huancheng and Komura, Taku},
+      title = {GIPC: Fast and Stable Gauss-Newton Optimization of IPC Barrier Energy},
+      year = {2024},
+      publisher = {Association for Computing Machinery},
+      volume = {43},
+      number = {2},
+      issn = {0730-0301},
+      doi = {10.1145/3643028},
+      journal = {ACM Trans. Graph.},
+      month = {mar},
+      articleno = {23},
+      numpages = {18}
 }
 ```
 
