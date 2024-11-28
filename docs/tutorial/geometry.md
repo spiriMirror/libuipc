@@ -2,12 +2,13 @@
 
 In simulation programs, geometry is a fundamental concept to represent the shape of the object, or rigrously, the domain of the simulation. 
 
-There are several kinds of geometry, such as point cloud, line mesh, triangle mesh, quad mesh, polygon mesh, tetrahedral mesh, hexahedral mesh and so on, these geometries are called explicit geometries, because we use a discrete set of vertices and primitives to represent the  There are also some implicit geometries, such as the Signed Distance Field (SDF), which is a scalar field that represents the distance from the point to the surface of the  It's inrealistic and inpractical to represent all the geometries in a single way, so we separate the geometries into several categories, and provide proper interfaces to access the relative information.
+There are several kinds of geometry, such as point cloud, line mesh, triangle mesh, quad mesh, polygon mesh, tetrahedral mesh, hexahedral mesh and so on, these geometries are called **explicit geometries**, because we use a discrete set of vertices and primitives to represent them. There are also some **implicit geometries**, such as the Signed Distance Field (SDF), which is a scalar field that represents the distance from the point to the surface of the geometry. It's inrealistic and inpractical to represent all the geometries in a single way, so we separate the geometries into several categories, and provide proper interfaces to access the relative information.
 
 They are:
 
 - [Simplicial Complex](#simplicial-complex): A unified representation of the explicit geometries, whose primitives are simplices, such as point, line, triangle, tetrahedron, etc. Some examples are point cloud, line mesh, triangle mesh, tetrahedral mesh, etc.
 - [Implicit Geometry](#implicit-geometry): A presentation of the implicit geometries, such as the Signed Distance Field (SDF).
+- ...
 
 In this tutorial, we will focus on the simplicial complex, which is the most common geometry in the simulation programs. And describe the geometry interface in the `libuipc` library. 
 
@@ -40,7 +41,7 @@ $$
 
 Topologies describe how a geometry is connected, and attributes who have the same dimension as the topology carry the information of the geometry.
 
-For example, to represent a 2D surface in a triangle mesh (like famous `.obj` format), we store the positions of the vertices and the triangles that connect the vertices, as shown below:
+For example, to represent a 2D surface in a triangle mesh (like the famous `.obj` format), we store the positions of the vertices and the triangles that connect the vertices, as shown below:
 
 $$
 V = \{ 0,1,...,N-1 \},
@@ -51,7 +52,7 @@ where $V$ is the set of vertices, and $N$ is the number of vertices.
 We may store the positions of the vertices with the same count as the vertices:
 
 $$
-P = \{ \mathbf{x}_i\mid i \in V \},
+P = \{ \mathbf{x}_i\mid i \in V \}, \mathbf{x}_i \in \mathbb{R}^3.
 $$
 
 To represent the triangle, we may store the indices of the vertices that form the triangle:
@@ -74,26 +75,15 @@ $$
 
 where $|\bullet|$ tells the element count of the set.
 
-With the same basic idea, we use a more general and well-defined way to represent such kind of geometry in the `libuipc` library, called [Simplicial Complex](https://brickisland.net/DDGSpring2022/course-description/), which is widely used in the diserete differential 
+With the same basic idea, we use a more general and well-defined way to represent such kind of geometry in the `libuipc` library, called [Simplicial Complex](https://brickisland.net/DDGSpring2022/course-description/), which is widely used in the diserete differential geometry.
 
 ## Simplicial Complex
-In `libuipc`, a `Simplicial Complex` is a general representation of an explicit mesh. In $\mathbb{R}^3$, a simplicial complex can be a tetrahedral mesh, a triangle mesh, a line mesh, or a point cloud, which have a dimension of 3, 2, 1, or 0, respectively.
+In `libuipc`, a `Simplicial Complex` is a general representation of an explicit mesh. In $\mathbb{R}^3$, a simplicial complex can be a tetrahedral mesh, a triangle mesh, a line mesh, or a point cloud, which have a dimension of $3$, $2$, $1$, or $0$, respectively.
 
-The tetrahedral mesh can be used to describe solid objects, like a bus, boxes ...
-
-[TODO: add some solid object figure]
-
-The triangle mesh can be used to describe some 2D-codimensional objects, like a cloth with a thin thickness.
-
-[TODO: add some cloth figure]
-
-The line mesh can be used to describe some 1D-codimensional objects, like a rope, a curve, or a wire.
-
-[TODO: add some rope figure here]
-
-The point cloud can be used to describe some 0D-codimensional objects, like a bunch of particles.
-
-[TODO: add some particle figure here]
+- The tetrahedral mesh can be used to describe solid objects.
+- The triangle mesh can be used to describe some 2D-codimensional objects, like a cloth with a thin thickness or the surface of a solid object.
+- The line mesh can be used to describe some 1D-codimensional objects, like a rope, a curve, or a wire.
+- The point cloud can be used to describe some 0D-codimensional objects, like a bunch of particles.
 
 === "C++"
 
@@ -196,14 +186,14 @@ Note that, till now, we just get a handle of the attribute `position`. To access
 === "C++"
 
     ```cpp
-    span<const Vector3> view = pos->view();
+    span<const Vector3> const_view = pos->view();
     ```
     The view of the `position` is a `span<const Vector3>` (we explicitly define it here, but you can use `auto`), which is a const view of the position data. You can not modify the data through the view.
 
 === "Python"
 
     ```python
-    view = pos.view()
+    const_view = pos.view()
     ```
     The view of the `position` is a `numpy.ndarray`, which is a const view of the position data. You can not modify the data through the view.
 
@@ -221,7 +211,7 @@ If you want to modify the position data, you can create a non-const view of the 
     non_const_view = view(pos)
     ```
 
-You find that, it need more effort to create a non-const view of the attribute (calling the global function `view`) than creating a const view(calling the member function `view` of the attribute). This is because we want to make sure that the user is aware of the potential clone of the geometry when they modify the data. The non-const view assumes that you may modify the data, which may trigger a clone of the geometry according to `libuipc`'s [Clone on Write](#clone-on-write) strategy.
+You find that, it need more effort to create a non-const view of the attribute (calling the global function `view`) than creating a const view(calling the member function `view` of the attribute). This is because we want to make sure that the user is aware of the potential clone of the geometry when they modify the data. The non-const view assumes that you will modify the data later, which may trigger a clone of the geometry according to `libuipc`'s [Clone on Write](#clone-on-write) strategy.
 
 You may want to access the tetrahedra topology of the cube, which is similar to the positions.
 
@@ -297,7 +287,7 @@ Ok, now you have a basic idea of how to access the geometry information. Let's m
 
 ## Clone on Write
 
-Geometries in `libuipc` are implemented with the `Clone on Write` strategy. Any inital copy of a geometry is a shallow copy, which means, the data of the geometry is shared. Any creation of a non-const view of the geometry will trigger a minimal clone of the modified part of the 
+Geometries in `libuipc` are implemented with the `Clone on Write` strategy. Any inital copy of a geometry is a shallow copy, which means, the data of the geometry is shared. Any creation of a non-const view of the geometry will trigger a minimal clone of the modified part of the geometry.
 
 A simple example is shown below:
 
@@ -315,8 +305,7 @@ A simple example is shown below:
     bar = foo.copy()
     ```
 
-Here, `bar` is just a **special** shallow copy of the `foo`.
-No matter `bar` or `foo` is modified, the related internal part of the data will be cloned.
+Here, `bar` is just a **special** shallow copy of the `foo`. No matter `bar` or `foo` is modified, the related internal part of the data will be cloned.
 
 For example, we create a non-const view of the positions of the mesh `bar`:
 
@@ -358,7 +347,7 @@ For example, we create a non-const view of the positions of the mesh `bar`:
     
     Here, `TA.topo().is_shared()` will return `True`, because we don't modify the topology, so the topology of `foo` and `bar` is still shared.
 
-Such a design minimizes the geometry memory usage.
+Such a design minimizes the geometry memory usage and offloads users' concern about the geometry copy cost.
 
 !!!Warning
     Be careful when you create a view of a geometry, Always use a const view if you don't want to modify the data to gain higher performance.
@@ -534,4 +523,13 @@ The following figures using the VSCode extensions:
 It's a very convenient way to check the geometry information. If you are interested in some geometry operations, you can write the results to the spreadsheets and check them with the viewer.
 
 ## Implicit Geometry
-[TODO]
+
+Implicit geometry is a kind of geometry that is represented using certain equations. There is no general data structure for such kind of geometry. In `libuipc`, we asign a unique id to each kind of implicit geometry.
+
+For example, the `HalfPlane` in `libuipc` has an UID of `1`, which is represented by a point $\mathbf{P}$ and a normal vector $\mathbf{N}$.
+
+The way to access/modify the implicit geometry is the same as the explicit geometry. While the basic attributes may vary according to the geometry type.
+
+For example, the `HalfPlane` places the $\mathbf{P}$ and $\mathbf{N}$ in the `instances` with the attribute name `P` and `N` respectively.
+
+Later, there may be more implicit geometries in the `libuipc`, such as the `Sphere`, `Cylinder`, etc.
