@@ -79,9 +79,15 @@ Json Scene::default_config() noexcept
 
     auto& newton = config["newton"];
     {
+        newton["max_iter"] = 1024;
+
         newton["use_adaptive_tol"] = false;
-        newton["velocity_tol"]     = 0.05_m / 1.0_s;
-        newton["max_iter"]         = 1024;
+
+        // convergence tolerance
+        // 1) max dx * dt <= velocity_tol
+        newton["velocity_tol"] = 0.05_m / 1.0_s;
+        // 2) ccd_toi >= ccd_tol
+        newton["ccd_tol"] = 1.0;
     }
 
     auto& linear_system = config["linear_system"];
@@ -102,7 +108,7 @@ Json Scene::default_config() noexcept
         contact["friction"]["enable"] = true;
         contact["constitution"]       = "ipc";
         contact["d_hat"]              = 0.01;
-        contact["eps_velocity"]       = 0.01;
+        contact["eps_velocity"]       = 0.01_m / 1.0_s;
     }
 
     auto& collision_detection = config["collision_detection"];
@@ -126,6 +132,7 @@ Json Scene::default_config() noexcept
     auto& extras = config["extras"] = Json::object();
     {
         extras["debug"]["dump_surface"] = false;
+        extras["strict_mode"]["enable"] = false;
     }
 
     return config;
