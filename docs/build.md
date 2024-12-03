@@ -24,7 +24,7 @@ The following dependencies are required to build the project.
 The following are **libuipc**'s 3rd-party dependencies. 
 
 !!!NOTE
-   Normally, you don't need to install the following dependencies manually.
+    Normally, you don't need to install the following dependencies manually.
 
 | Name                                   | Version | Usage                                               | Import    |
 | -------------------------------------- | ------- | --------------------------------------------------- | --------- |
@@ -130,7 +130,8 @@ If the automatic installation fails, please raise an issue with the CMake error 
     cd vcpkg
     ./bootstrap-vcpkg.sh
     ```
-
+    The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
+    
     We recommend using conda environments to build the project on Linux. See the [Conda](#Conda) section for more details. If you don't want to use conda, then go on with the following steps.
 
     ## Build Libuipc

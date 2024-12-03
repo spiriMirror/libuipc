@@ -217,7 +217,8 @@ void SimEngine::do_advance()
             Float tol      = m_newton_scene_tol * box_size;
             Float res0     = 0.0;
 
-            for(auto&& newton_iter : range(m_newton_max_iter))
+            SizeT newton_iter = 0;
+            for(; newton_iter < m_newton_max_iter; ++newton_iter)
             {
                 Timer timer{"Newton Iteration"};
 
@@ -275,7 +276,7 @@ void SimEngine::do_advance()
                             "dump_surface.{}.{}", m_current_frame, newton_iter));
                     }
 
-                    if(newton_iter > 0 && converged && ccd_alpha >= 0.999
+                    if(newton_iter > 0 && converged && ccd_alpha >= m_ccd_tol
                        && animation_reach_target())
                         break;
                 }
@@ -311,7 +312,7 @@ void SimEngine::do_advance()
                     if(!converged)
                     {
                         SizeT line_search_iter = 0;
-                        while(line_search_iter++ < m_line_searcher->max_iter())
+                        while(line_search_iter < m_line_searcher->max_iter())
                         {
                             Timer timer{"Line Search Iteration"};
 
@@ -327,9 +328,11 @@ void SimEngine::do_advance()
                             // If not success, then shrink alpha
                             alpha /= 2;
                             E = compute_energy(alpha);
+
+                            line_search_iter++;
                         }
 
-                        if(line_search_iter >= m_line_searcher->max_iter())
+                        if(line_search_iter > m_line_searcher->max_iter())
                         {
                             //m_global_linear_system->dump_linear_system(
                             //    fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
@@ -343,6 +346,11 @@ void SimEngine::do_advance()
                                 E / E0,
                                 E1 / E0,
                                 E0);
+
+                            if(m_strict_mode)
+                            {
+                                throw SimEngineException("StrictMode: Line Search Exits with Max Iteration");
+                            }
                         }
                     }
                 }
@@ -354,6 +362,18 @@ void SimEngine::do_advance()
                 Timer timer{"Update Velocity"};
                 m_dof_predictor->compute_velocity();
                 m_global_vertex_manager->record_prev_positions();
+            }
+
+            if(newton_iter > m_newton_max_iter)
+            {
+                spdlog::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
+                             m_newton_max_iter,
+                             m_current_frame);
+
+                if(m_strict_mode)
+                {
+                    throw SimEngineException("StrictMode: Newton Iteration Exits with Max Iteration");
+                }
             }
         }
 

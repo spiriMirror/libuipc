@@ -108,6 +108,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate vcpkg.json for libuipc.")
     parser.add_argument("output_dir", type=str, help="Output file path.")
     parser.add_argument("--build_gui", type=str, default=False, help="Build GUI dependencies.")
+    parser.add_argument("--dev_mode", type=str, default=False, help="Enable development mode.")
     
     args = parser.parse_args()
     print(f"[libuipc] Generating vcpkg.json with args:")
@@ -117,6 +118,8 @@ if __name__ == "__main__":
     json_path = f'{args.output_dir}/vcpkg.json'
     
     gen_vcpkg_json(args)
+    
+    is_div_mode = is_enabled(args.dev_mode)
     
     is_new = not os.path.exists(json_path)
     # if json_path exists, compare the content
@@ -140,7 +143,14 @@ if __name__ == "__main__":
         print_deps()
         exit(1)
         
-    print(f"[libuipc] vcpkg.json content is unchanged, skipping:\n    {json_path}")
-    exit(0)
+    if is_div_mode:
+        print(f"[libuipc] vcpkg.json content is unchanged, skipping:\n    {json_path}")
+        print_deps()
+        exit(0)
+    
+    print('[libuipc] User mode always try to install dependencies. '
+          'If you want to skip, please define `-DUIPC_DEV_MODE=ON` when configuring CMake.')
+    print_deps()
+    exit(1)
     
     

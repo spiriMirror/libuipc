@@ -60,6 +60,13 @@ endfunction()
 function(uipc_config_vcpkg_install)
     set(VCPKG_MANIFEST_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(VCPKG_MANIFEST_FILE "${VCPKG_MANIFEST_DIR}/vcpkg.json")
+    if ("${CMAKE_TOOLCHAIN_FILE}" EQUAL "")
+        uipc_error(
+        "`CMAKE_TOOLCHAIN_FILE` is not set. It seems that CMake can't find the Vcpkg\n"
+        "Please setup the environment variable `CMAKE_TOOLCHAIN_FILE` to your vcpkg.cmake file.\n" 
+        "Details: https://spirimirror.github.io/libuipc-doc/build/")
+    endif()
+    uipc_info("CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
     find_package(Python REQUIRED QUIET)
     if(NOT Python_FOUND)
         uipc_error("Python is required to generate vcpkg.json. Please install Python.")
@@ -69,9 +76,10 @@ function(uipc_config_vcpkg_install)
         COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
         ${VCPKG_MANIFEST_DIR} # pass the CMAKE_CURRENT_BINARY_DIR as vcpkg.json output directory
         "--build_gui=${UIPC_BUILD_GUI}" # pass the UIPC_BUILD_GUI as argument
+        "--dev_mode=${UIPC_DEV_MODE}" # pass the UIPC_DEV_MODE as argument
         RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
     )
-    
+
     # set VCPKG_MANIFEST_INSTALL option to control the vcpkg install
     if(VCPKG_JSON_GENERATE_RESULT)
         set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)
