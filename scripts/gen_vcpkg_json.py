@@ -51,6 +51,10 @@ base_vcpkg_json = {
         {
             "name":"tinygltf",
             "version>=":"2.8.22"
+        },
+        {
+            "name":"tbb",
+            "version>=":"2021.11.0"
         }
     ]
 }
