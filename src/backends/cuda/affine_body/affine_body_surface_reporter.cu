@@ -48,8 +48,10 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
 
                 {  // vertex
                     auto is_surf = sc.vertices().find<IndexT>(builtin::is_surf);
-                    auto is_surf_view = is_surf->view();
-                    auto count        = std::ranges::count_if(is_surf_view,
+
+                    auto is_surf_view = is_surf ? is_surf->view() : span<const IndexT>{};
+
+                    auto count = std::ranges::count_if(is_surf_view,
                                                        [](const IndexT& is_surf)
                                                        { return is_surf; });
                     geo_surf_vertex_counts[geoI] = count * body_count;
@@ -57,8 +59,8 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
 
                 {  // edge
                     auto is_surf = sc.edges().find<IndexT>(builtin::is_surf);
-                    auto is_surf_view = is_surf->view();
-                    auto count        = std::ranges::count_if(is_surf_view,
+                    auto is_surf_view = is_surf ? is_surf->view() : span<const IndexT>{};
+                    auto count = std::ranges::count_if(is_surf_view,
                                                        [](const IndexT& is_surf)
                                                        { return is_surf; });
                     geo_surf_edges_counts[geoI] = count * body_count;
@@ -66,8 +68,8 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
 
                 {  // triangle
                     auto is_surf = sc.triangles().find<IndexT>(builtin::is_surf);
-                    auto is_surf_view = is_surf->view();
-                    auto count        = std::ranges::count_if(is_surf_view,
+                    auto is_surf_view = is_surf ? is_surf->view() : span<const IndexT>{};
+                    auto count = std::ranges::count_if(is_surf_view,
                                                        [](const IndexT& is_surf)
                                                        { return is_surf; });
                     geo_surf_triangles_counts[geoI] = count * body_count;
@@ -130,7 +132,7 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
                     surf_vertex_cache.clear();
                     surf_vertex_cache.reserve(body_surf_vertex_count);
                     auto is_surf = sc.vertices().find<IndexT>(builtin::is_surf);
-                    auto is_surf_view = is_surf->view();
+                    auto is_surf_view = is_surf ? is_surf->view() : span<const IndexT>{};
 
                     for(auto&& [i, is_surf] : enumerate(is_surf_view))
                     {
@@ -175,7 +177,7 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
                     surf_edge_cache.reserve(body_surf_edge_count);
 
                     auto is_surf = sc.edges().find<IndexT>(builtin::is_surf);
-                    auto is_surf_view = is_surf->view();
+                    auto is_surf_view = is_surf ? is_surf->view() : span<const IndexT>{};
 
                     for(auto&& [i, is_surf] : enumerate(is_surf_view))
                     {
@@ -224,7 +226,7 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
                     surf_triangle_cache.reserve(body_surf_triangle_count);
 
                     auto is_surf = sc.triangles().find<IndexT>(builtin::is_surf);
-                    auto is_surf_view = is_surf->view();
+                    auto is_surf_view = is_surf ? is_surf->view() : span<const IndexT>{};
 
                     for(auto&& [i, is_surf] : enumerate(is_surf_view))
                     {

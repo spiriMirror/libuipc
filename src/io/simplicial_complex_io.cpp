@@ -186,9 +186,17 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
         throw GeometryIOError{fmt::format("Failed to open file {} for writing.", file_name)};
     }
 
-    auto Fs = sc.triangles().topo().view();
-    auto Es = sc.edges().topo().view();
-    auto Vs = sc.positions().view();
+    span<const Vector3> Vs =
+        sc.vertices().size() > 0 ? sc.positions().view() : span<const Vector3>{};
+
+    if(Vs.size() == 0)
+    {
+        spdlog::warn("No vertices found in the simplicial complex. Writing an empty .obj file.");
+    }
+
+    auto Es = sc.edges().size() > 0 ? sc.edges().topo().view() : span<const Vector2i>{};
+    auto Fs = sc.triangles().size() > 0 ? sc.triangles().topo().view() :
+                                          span<const Vector3i>{};
 
     SizeT edge_count = 0;
 
@@ -199,7 +207,7 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
     else if(sc.dim() == 2)
     {
         auto is_facet      = sc.edges().find<IndexT>(builtin::is_facet);
-        auto is_facet_view = is_facet->view();
+        auto is_facet_view = is_facet ? is_facet->view() : span<const IndexT>{};
         for(auto&& [i, e] : enumerate(Es))
         {
             if(is_facet_view[i])
@@ -275,7 +283,12 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
         throw GeometryIOError{fmt::format("Failed to open file {} for writing.", file_name)};
     }
 
-    auto Vs = sc.positions().view();
+    auto Vs = sc.vertices().size() > 0 ? sc.positions().view() : span<const Vector3>{};
+
+    if(Vs.size() == 0)
+    {
+        spdlog::warn("No vertices found in the simplicial complex. Writing an empty .msh file.");
+    }
 
     fmt::println(fp,
                  R"($MeshFormat
@@ -299,7 +312,13 @@ $EndMeshFormat
 
     if(Dim == 3)
     {
-        auto Ts = sc.tetrahedra().topo().view();
+        auto Ts = sc.tetrahedra().size() > 0 ? sc.tetrahedra().topo().view() :
+                                               span<const Vector4i>{};
+        if(Ts.size() == 0)
+        {
+            spdlog::warn("No tetrahedra found in the simplicial complex. Writing only vertices.");
+        }
+
         fmt::println(fp, "{}", Ts.size());
         for(auto&& [i, t] : enumerate(Ts))
         {
@@ -318,7 +337,14 @@ $EndMeshFormat
     }
     else if(Dim == 2)
     {
-        auto Fs = sc.triangles().topo().view();
+        auto Fs = sc.triangles().size() > 0 ? sc.triangles().topo().view() :
+                                              span<const Vector3i>{};
+
+        if(Fs.size() == 0)
+        {
+            spdlog::warn("No triangles found in the simplicial complex 2D. Writing only vertices.");
+        }
+
         fmt::println(fp, "{}", Fs.size());
         for(auto&& [i, f] : enumerate(Fs))
         {
@@ -336,7 +362,14 @@ $EndMeshFormat
     }
     else if(Dim == 1)
     {
-        auto Es = sc.edges().topo().view();
+        auto Es = sc.edges().size() > 0 ? sc.edges().topo().view() :
+                                          span<const Vector2i>{};
+
+        if(Es.size() == 0)
+        {
+            spdlog::warn("No edges found in the simplicial complex 1D. Writing only vertices.");
+        }
+
         fmt::println(fp, "{}", Es.size());
         for(auto&& [i, e] : enumerate(Es))
         {
