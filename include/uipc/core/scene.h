@@ -37,6 +37,7 @@ class UIPC_CORE_API Scene
         S<Object> find(IndexT id) && noexcept;
         void      destroy(IndexT id) &&;
         SizeT     size() const noexcept;
+        SizeT     created_count() const noexcept;
 
       private:
         Objects(Scene& scene) noexcept;
@@ -50,6 +51,7 @@ class UIPC_CORE_API Scene
       public:
         S<const Object> find(IndexT id) && noexcept;
         SizeT           size() const noexcept;
+        SizeT           created_count() const noexcept;
 
       private:
         CObjects(const Scene& scene) noexcept;

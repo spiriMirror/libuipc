@@ -295,6 +295,11 @@ SizeT Scene::Objects::size() const noexcept
     return m_scene.m_impl->objects.size();
 }
 
+SizeT Scene::Objects::created_count() const noexcept
+{
+    return m_scene.m_impl->objects.next_id();
+}
+
 S<const Object> Scene::CObjects::find(IndexT id) && noexcept
 {
     return m_scene.m_impl->objects.find(id);
@@ -303,6 +308,11 @@ S<const Object> Scene::CObjects::find(IndexT id) && noexcept
 SizeT Scene::CObjects::size() const noexcept
 {
     return m_scene.m_impl->objects.size();
+}
+
+SizeT Scene::CObjects::created_count() const noexcept
+{
+    return m_scene.m_impl->objects.next_id();
 }
 
 Scene::Objects::Objects(Scene& scene) noexcept

@@ -27,3 +27,4 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
 
 add_subdirectory(implicit_geometries)
 add_subdirectory(affine_body)
+add_subdirectory(bvh)
