@@ -18,9 +18,9 @@ class PyUIPCModule(ModuleBase):
             Please make a `Release` or `RelWithDebInfo` build with option `-DUIPC_BUILD_PYBIND=1` to enable python binding.'''
             raise Exception(err_message)
     
-        # config = self._module.default_config()
-        # config['module_dir'] = str(cwd)
-        # self.init(config)
+        config = self._module.default_config()
+        config['module_dir'] = str(cwd)
+        self.init(config)
 
     def init(self, config):
         self.lazy_call_func("init")(config)
