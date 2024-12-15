@@ -25,8 +25,7 @@ Release/
 imgui.ini
 .polyscope.ini
 
-# xmake ignore
-.xmake
-build/
-.cache
-external/spdlog
+bin/
+.xmake/
+.cache/
+
