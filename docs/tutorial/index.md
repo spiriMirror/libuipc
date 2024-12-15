@@ -2,6 +2,8 @@
 
 Hey there! Welcome to the tutorial section of the Libuipc documentation. This section is designed to help you get started with Libuipc and understand the basics of the library. If you are new to Libuipc, this is the best place to start.
 
+Most of the codes can be found in [libuipc-samples](https://github.com/spiriMirror/libuipc-samples).
+
 ## Hello Libuipc
 
 This is a simple example to get you started with `libuipc`. In this example, we will create a simple simulation using Libuipc.
@@ -16,10 +18,9 @@ This is a simple example to get you started with `libuipc`. In this example, we 
     int main()
     {
         using namespace uipc;
+        using namespace uipc::core;
         using namespace uipc::geometry;
-        using namespace uipc::world;
         using namespace uipc::constitution;
-        using namespace uipc::engine;
 
         ...
     }
@@ -30,12 +31,12 @@ This is a simple example to get you started with `libuipc`. In this example, we 
     First, we import pyuipc, and alias some of the modules to make the code more readable:
 
     ```python
-    import pyuipc
+    from pyuipc_loader import pyuipc
     from pyuipc import Vector3
     from pyuipc.geometry import *
-    from pyuipc.world import World, Scene, SceneIO
-    from pyuipc.engine import Engine
+    from pyuipc.core import Engine, World, Scene, SceneIO
     from pyuipc import builtin
+    from pyuipc.unit import GPa, MPa
 
     import numpy as np
     ```
@@ -66,11 +67,11 @@ Then we create an instance of the `Engine` class, which is the main class of the
 === "Python"
 
     ```python
-    engine = Engine("cuda")
+    engine = Engine('cuda')
     world = World(engine)
     config = Scene.default_config()
     config['dt'] = 0.01
-    config['gravity'] = (Vector3.UnitY() * -9.8).tolist()
+    config['gravity'] = [[0.0], [-9.8], [0.0]]
     scene = Scene(config)
     ```
 
@@ -104,9 +105,6 @@ Before that, we should first add the `AffineBodyConstitution` to the `Scene`, an
         {
             // create constitution and contact model
             AffineBodyConstitution abd;
-            scene.constitution_tabular().insert(abd);
-
-            // friction ratio and contact resistance
             scene.contact_tabular().default_model(0.5, 1.0_GPa);
             auto& default_element = scene.contact_tabular().default_element();
             ...
@@ -117,16 +115,13 @@ Before that, we should first add the `AffineBodyConstitution` to the `Scene`, an
 === "Python"
 
     ```python
-    import pyuipc
+    from pyuipc_loader import pyuipc
     from pyuipc.constitution import AffineBodyConstitution
     ...
     scene = Scene(config)
     # create constitution and contact model
     abd = AffineBodyConstitution()
-    scene.constitution_tabular().insert(abd)
-
-    # friction ratio and contact resistance
-    scene.contact_tabular().default_model(0.5, 1e9)
+    scene.contact_tabular().default_model(0.5, 1.0 * GPa)
     default_element = scene.contact_tabular().default_element()
     ...
     ```
@@ -148,9 +143,9 @@ In this example, we will just manually create a regular tetrahedron (`base_mesh`
             ...
             // create a regular tetrahedron
             vector<Vector3> Vs = {Vector3{0, 1, 0},
-                                    Vector3{0, 0, 1},
-                                    Vector3{-std::sqrt(3) / 2, 0, -0.5},
-                                    Vector3{std::sqrt(3) / 2, 0, -0.5}};
+                                  Vector3{0, 0, 1},
+                                  Vector3{-std::sqrt(3) / 2, 0, -0.5},
+                                  Vector3{std::sqrt(3) / 2, 0, -0.5}};
             vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
 
             // setup a base mesh to reduce the later work
@@ -184,7 +179,7 @@ In this example, we will just manually create a regular tetrahedron (`base_mesh`
     # setup a base mesh to reduce the later work
     base_mesh = tetmesh(Vs, Ts)
     # apply the constitution and contact model to the base mesh
-    abd.apply_to(base_mesh, 100e6)
+    abd.apply_to(base_mesh, 100 * MPa)
     # apply the default contact model to the base mesh
     default_element.apply_to(base_mesh)
 
@@ -214,12 +209,12 @@ Using the `base_mesh`, we can easily copy the setup to create two tetrahedra, `m
 
             SimplicialComplex mesh1 = base_mesh;
             {
-                // move the mesh1 up for 1 unit
+                // move the mesh1 up for 1.5 unit
                 auto pos_view = view(mesh1.positions());
                 std::ranges::transform(pos_view,
                                     pos_view.begin(),
                                     [](const Vector3& v) -> Vector3
-                                    { return v + Vector3::UnitY(); });
+                                    { return v + Vector3::UnitY() * 1.5; });
             }
 
             SimplicialComplex mesh2 = base_mesh;
@@ -240,8 +235,8 @@ Using the `base_mesh`, we can easily copy the setup to create two tetrahedra, `m
     ...
     mesh1 = base_mesh.copy()
     pos_view = view(mesh1.positions())
-    # move the mesh up for 1 unit
-    pos_view += Vector3.UnitY()
+    # move the mesh up for 1.5 unit
+    pos_view += Vector3.UnitY() * 1.5
 
     mesh2 = base_mesh.copy()
     is_fixed = mesh2.instances().find(builtin.is_fixed)
@@ -311,13 +306,13 @@ Now, we have setup the initial state of the `Scene`, we can pass it to the `Worl
         world.init(scene);
 
         SceneIO sio{scene};
-        sio.write_surface(fmt::format("scene_surface{}.obj", world.frmae()));
+        sio.write_surface(fmt::format("scene_surface{}.obj", world.frame()));
 
         while(world.frame() < 100)
         {
             world.advance();
             world.retrieve();
-            sio.write_surface(fmt::format("scene_surface{}.obj", world.frmae()));
+            sio.write_surface(fmt::format("scene_surface{}.obj", world.frame()));
         }
     }
     ```
@@ -342,21 +337,33 @@ Now, we have setup the initial state of the `Scene`, we can pass it to the `Worl
         sio.write_surface(f"scene_surface{world.frame()}.obj")
     ```
 
-To evolve the simulation, we call the `advance` method of the `World` to advance the simulation by one time step. Then we call the `sync` method to synchronize the `World`, (basically, it's a barrier to make sure the `World` is ready for the next time step). Finally, we call the `retrieve` method to retrieve (download) the simulation data from the `World`.
+To evolve the simulation, we call the `advance` method of the `World` to advance the simulation by one time step. Finally, we call the `retrieve` method to retrieve (download) the simulation data from the `World`.
 
-The easiest way to consume the simulation is to export the surface mesh of the `Scene` at each time step. Here we use the `SceneIO` class to export the surface of all the meshes to the `.obj` file.
+The easiest way to consume the simulation data is to export the surface mesh of the `Scene` at each time step. Here we use the `SceneIO` class to export the surface of all the meshes to the `.obj` file.
 
-![falling tet](./img/falling_tet.png)
-[TODO] add the rendered falling tetrahedron gif later
+<div align="center">
+<video style="width:75%" muted="" controls="" alt="type:video">
+   <source src="./media/falling_tet.mp4" type="video/mp4">
+</video>
+</div>
 
 It's not the only way to consume the simulation data. Because the interest of the user may vary: some may want to visualize the simulation in some GUI software, some may want to analyze the simulation data in some post-processing software, some may want to do some machine learning on the simulation data, etc. It's up to you to decide what kind of data to get from the evolution of the `World`.
+
+=== "C++"
+
+    source: [TODO]
+
+=== "Python"
+
+    source: [hello_libuipc](https://github.com/spiriMirror/libuipc-samples/blob/main/python/1_hello_libuipc/main.py)
 
 ## Next Steps
 
 Now you may be interested in the following topics:
 
 1. [ [Geometry](./geometry.md) ] How can I understand the geometry in `libuipc`? 
-2. [ [Scene](./scene.md) ] How can I understand the scene representation in `libuipc`? 
+2. [ [Concepts](./concepts.md) ] How can I understand the basic concepts in `libuipc`? 
+3. [ [Animation](./animation.md) ] How can I script my own animation in `libuipc`?
 
 It's recommended to read the above topics in order, as they are the basic concepts of `libuipc`.
 

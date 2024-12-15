@@ -9,10 +9,9 @@
 int main()
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
@@ -49,7 +48,7 @@ int main()
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
         auto& default_contact = scene.contact_tabular().default_element();
-        scene.contact_tabular().default_model(0.05, 20.0_GPa);
+        scene.contact_tabular().default_model(0.01, 20.0_GPa);
 
         Float     scale = 1;
         Transform T     = Transform::Identity();
@@ -181,13 +180,13 @@ int main()
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
-    world.recover();
+    // world.recover();
 
     while(world.frame() < 1000)
     {
         world.advance();
         world.retrieve();
-        world.dump();
+        //world.dump();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     }

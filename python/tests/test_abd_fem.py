@@ -2,13 +2,15 @@ import numpy as np
 import pytest 
 import polyscope as ps
 import polyscope.imgui as psim
-from pyuipc_loader import pyuipc as uipc 
-from pyuipc_loader import Engine, World, Scene, SceneIO
-from pyuipc_utils.geometry import SimplicialComplex, SimplicialComplexIO
-from pyuipc_utils.geometry import SpreadSheetIO
-from pyuipc_utils.geometry import label_surface, label_triangle_orient, flip_inward_triangles
-from pyuipc_utils.geometry import ground, view
-from pyuipc_utils.constitution import StableNeoHookean, AffineBodyConstitution, ElasticModuli
+from pyuipc_loader import pyuipc 
+from pyuipc import Logger
+from pyuipc import Matrix4x4
+from pyuipc import Engine, World, Scene, SceneIO
+from pyuipc.geometry import SimplicialComplex, SimplicialComplexIO
+from pyuipc.geometry import SpreadSheetIO
+from pyuipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
+from pyuipc.geometry import ground, view
+from pyuipc.constitution import StableNeoHookean, AffineBodyConstitution, ElasticModuli
 
 from asset import AssetDir
 from pyuipc_utils.gui import SceneGUI 
@@ -22,7 +24,7 @@ def process_surface(sc: SimplicialComplex):
 run = False
 @pytest.mark.example
 def test_abd_fem():
-    uipc.Logger.set_level(uipc.Logger.Level.Info)
+    Logger.set_level(Logger.Level.Info)
     workspace = AssetDir.output_path(__file__)
     engine = Engine("cuda", workspace)
     world = World(engine)
@@ -37,7 +39,7 @@ def test_abd_fem():
     scene.contact_tabular().default_model(0.5, 1e9)
     default_element = scene.contact_tabular().default_element()
 
-    pre_trans = uipc.Matrix4x4.Identity()
+    pre_trans = Matrix4x4.Identity()
 
     io = SimplicialComplexIO(pre_trans)
     cube = io.read(f'{AssetDir.tetmesh_path()}/cube.msh')
@@ -55,7 +57,7 @@ def test_abd_fem():
     object = scene.objects().create("object")
     N = 15
 
-    trans = uipc.Matrix4x4.Identity()
+    trans = Matrix4x4.Identity()
 
     for i in range(N):
         geo = None

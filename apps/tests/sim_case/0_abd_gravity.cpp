@@ -1,4 +1,5 @@
-#include <catch.hpp>
+#include <catch2/catch_all.hpp>
+
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
@@ -8,10 +9,10 @@
 TEST_CASE("0_abd_gravity", "[abd]")
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
+
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};

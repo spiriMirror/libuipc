@@ -10,10 +10,9 @@
 TEST_CASE("11_abd_ramp_sliding", "[abd]")
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
     using namespace std::numbers;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
@@ -23,10 +22,9 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config       = Scene::default_config();
-    config["gravity"] = Vector3{0, -9.8, 0};
+    auto config                             = Scene::default_config();
+    config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["friction"]["enable"] = true;
-    config["contact"]["friction"]["enable"] = false;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -45,7 +43,7 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
         contact_tabular.default_model(0.5, 1.0_GPa);
         auto& default_element = contact_tabular.default_element();
 
-        constexpr SizeT N = 4;
+        constexpr SizeT N = 8;
 
         auto friction_rate_step = 1.0 / (N - 1);
 
@@ -96,7 +94,7 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
         auto object_ramp = scene.objects().create("ramp");
         {
             Transform pre_transform = Transform::Identity();
-            pre_transform.scale(Vector3{2, 0.1, 3});
+            pre_transform.scale(Vector3{0.5 * N, 0.1, 5});
 
             SimplicialComplexIO io{pre_transform};
             io        = SimplicialComplexIO{pre_transform};

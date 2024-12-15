@@ -1,0 +1,16 @@
+target("app_util")
+    set_kind("static")
+    on_load(function(target)
+        local project_dir = os.projectdir()
+        -- substitude "\" with "/"
+        project_dir = string.gsub(project_dir, "\\", "/")
+        target:add("defines", "UIPC_ASSET_PATH=\"" .. project_dir .. "/assets/\"", { public = true })
+        target:add("defines", "UIPC_OUTPUT_PATH=\"" .. project_dir .. "/output/\"", { public = true })
+    end)
+    add_files("app/*.cpp")
+    add_deps("uipc_uipc")
+    add_includedirs(".", { public = true })
+target_end()
+
+includes("examples/hello_affine_body")
+includes("tests")

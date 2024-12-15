@@ -8,10 +8,9 @@
 TEST_CASE("16_fem_3d_scaling", "[fem]")
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
@@ -23,11 +22,11 @@ TEST_CASE("16_fem_3d_scaling", "[fem]")
 
     auto config = Scene::default_config();
 
-    config["gravity"]                   = Vector3{0, 0, 0};
-    config["contact"]["enable"]         = true;
+    config["gravity"]                       = Vector3{0, 0, 0};
+    config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
-    config["line_search"]["max_iter"]   = 8;
-    config["linear_system"]["tol_rate"] = 1e-3;
+    config["line_search"]["max_iter"]       = 8;
+    config["linear_system"]["tol_rate"]     = 1e-3;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));

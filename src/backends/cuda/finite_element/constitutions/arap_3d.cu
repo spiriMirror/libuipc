@@ -1,0 +1,136 @@
+#include <finite_element/fem_3d_constitution.h>
+#include <finite_element/constitutions/arap_function.h>
+#include <finite_element/fem_utils.h>
+#include <kernel_cout.h>
+#include <muda/ext/eigen/log_proxy.h>
+#include <Eigen/Dense>
+#include <muda/ext/eigen/evd.h>
+#include <utils/matrix_assembly_utils.h>
+
+namespace uipc::backend::cuda
+{
+class ARAP3D final : public FEM3DConstitution
+{
+  public:
+    // Constitution UID by libuipc specification
+    static constexpr U64 ConstitutionUID = 9;
+
+    using FEM3DConstitution::FEM3DConstitution;
+
+    vector<Float> h_kappas;
+    vector<Float> h_lambdas;
+
+    muda::DeviceBuffer<Float> kappas;
+
+    virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
+
+    virtual void do_build(BuildInfo& info) override {}
+
+    virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
+    {
+
+        using ForEachInfo = FiniteElementMethod::ForEachInfo;
+
+        auto geo_slots = world().scene().geometries();
+
+        auto N = info.primitive_count();
+
+        h_kappas.resize(N);
+
+        info.for_each(
+            geo_slots,
+            [](geometry::SimplicialComplex& sc) -> auto
+            {
+                auto kappa = sc.tetrahedra().find<Float>("kappa");
+                UIPC_ASSERT(kappa, "Can't find attribute `kappa` on tetrahedra, why can it happen?");
+                return kappa->view();
+            },
+            [&](const ForEachInfo& I, Float kappa)
+            { h_kappas[I.global_index()] = kappa; });
+
+        kappas.resize(N);
+        kappas.view().copy_from(h_kappas.data());
+    }
+
+    virtual void do_compute_energy(ComputeEnergyInfo& info) override
+    {
+        using namespace muda;
+        namespace ARAP = sym::arap_3d;
+
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(info.indices().size(),
+                   [kappas   = kappas.cviewer().name("mus"),
+                    energies = info.energies().viewer().name("energies"),
+                    indices  = info.indices().viewer().name("indices"),
+                    xs       = info.xs().viewer().name("xs"),
+                    Dm_invs  = info.Dm_invs().viewer().name("Dm_invs"),
+                    volumes  = info.rest_volumes().viewer().name("volumes"),
+                    dt       = info.dt()] __device__(int I)
+                   {
+                       const Vector4i&  tet    = indices(I);
+                       const Matrix3x3& Dm_inv = Dm_invs(I);
+
+                       const Vector3& x0 = xs(tet(0));
+                       const Vector3& x1 = xs(tet(1));
+                       const Vector3& x2 = xs(tet(2));
+                       const Vector3& x3 = xs(tet(3));
+
+                       auto F = fem::F(x0, x1, x2, x3, Dm_inv);
+
+                       Float E;
+
+                       ARAP::E(E, kappas(I) * dt * dt, volumes(I), F);
+                       energies(I) = E;
+                   });
+    }
+
+    virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
+    {
+        using namespace muda;
+        namespace ARAP = sym::arap_3d;
+
+        ParallelFor()
+            .kernel_name(__FUNCTION__)
+            .apply(info.indices().size(),
+                   [kappas  = kappas.cviewer().name("mus"),
+                    indices = info.indices().viewer().name("indices"),
+                    xs      = info.xs().viewer().name("xs"),
+                    Dm_invs = info.Dm_invs().viewer().name("Dm_invs"),
+                    G3s     = info.gradients().viewer().name("gradient"),
+                    H3x3s   = info.hessians().viewer().name("hessian"),
+                    volumes = info.rest_volumes().viewer().name("volumes"),
+                    dt      = info.dt()] __device__(int I) mutable
+                   {
+                       const Vector4i&  tet    = indices(I);
+                       const Matrix3x3& Dm_inv = Dm_invs(I);
+
+                       const Vector3& x0 = xs(tet(0));
+                       const Vector3& x1 = xs(tet(1));
+                       const Vector3& x2 = xs(tet(2));
+                       const Vector3& x3 = xs(tet(3));
+
+                       auto F = fem::F(x0, x1, x2, x3, Dm_inv);
+
+                       auto kt2 = kappas(I) * dt * dt;
+                       auto v   = volumes(I);
+
+                       Vector9   dEdF;
+                       Matrix9x9 ddEddF;
+                       ARAP::dEdF(dEdF, kt2, v, F);
+                       ARAP::ddEddF(ddEddF, kt2, v, F);
+
+                       make_spd(ddEddF);
+
+                       Matrix9x12  dFdx   = fem::dFdx(Dm_inv);
+                       Vector12    G12    = dFdx.transpose() * dEdF;
+                       Matrix12x12 H12x12 = dFdx.transpose() * ddEddF * dFdx;
+
+                       assemble<4>(G3s, I * 4, tet, G12);
+                       assemble<4>(H3x3s, I * 4 * 4, tet, H12x12);
+                   });
+    }
+};
+
+REGISTER_SIM_SYSTEM(ARAP3D);
+}  // namespace uipc::backend::cuda

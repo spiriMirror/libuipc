@@ -1,10 +1,13 @@
 # -----------------------------------------------------------------------------------------
 # Libuipc Logo
 # -----------------------------------------------------------------------------------------
-function(uipc_show_logo version)
+function(uipc_show_logo)
+set(M ${UIPC_VERSION_MAJOR})
+set(m ${UIPC_VERSION_MINOR})
+set(p ${UIPC_VERSION_PATCH})
 message(STATUS "
 -----------------------------------------------------------------------------------
-                                   v.${version}
+                                   v ${M}.${m}.${p}
                 ██      ██ ██████  ██    ██ ██ ██████   ██████
                 ██      ██ ██   ██ ██    ██ ██ ██   ██ ██     
                 ██      ██ ██████  ██    ██ ██ ██████  ██     
@@ -17,32 +20,32 @@ endfunction()
 # -----------------------------------------------------------------------------------------
 # Print message info with uipc prefix
 # -----------------------------------------------------------------------------------------
-function(uipc_info content)
+macro(uipc_info content)
     message(STATUS "[libuipc] ${content}")
-endfunction()
+endmacro()
 
 # -----------------------------------------------------------------------------------------
 # Print message warning with uipc prefix
 # -----------------------------------------------------------------------------------------
-function(uipc_warning content)
+macro(uipc_warning content)
     message(WARNING "[libuipc] ${content}")
-endfunction()
+endmacro()
 
 # -----------------------------------------------------------------------------------------
 # Print message error with uipc prefix
 # -----------------------------------------------------------------------------------------
-function(uipc_error content)
+macro(uipc_error content)
     message(FATAL_ERROR "[libuipc] ${content}")
-endfunction()
+endmacro()
 
 # -----------------------------------------------------------------------------------------
 # Print the options of the project
 # -----------------------------------------------------------------------------------------
 function(uipc_show_options)
     uipc_info("Options:")
-    message(STATUS "    * UIPC_CORE_ONLY: ${UIPC_CORE_ONLY}")
     message(STATUS "    * UIPC_BUILD_GUI: ${UIPC_BUILD_GUI}")
     message(STATUS "    * UIPC_BUILD_PYBIND: ${UIPC_BUILD_PYBIND}")
+    message(STATUS "    * UIPC_BUILD_TORCH_EXTENSION: ${UIPC_BUILD_TORCH_EXTENSION}")
     message(STATUS "    * UIPC_USING_LOCAL_VCPKG: ${UIPC_USING_LOCAL_VCPKG}")
     message(STATUS "    * UIPC_BUILD_EXAMPLES: ${UIPC_BUILD_EXAMPLES}")
     message(STATUS "    * UIPC_BUILD_TESTS: ${UIPC_BUILD_TESTS}")
@@ -57,16 +60,33 @@ endfunction()
 function(uipc_config_vcpkg_install)
     set(VCPKG_MANIFEST_DIR "${CMAKE_CURRENT_BINARY_DIR}")
     set(VCPKG_MANIFEST_FILE "${VCPKG_MANIFEST_DIR}/vcpkg.json")
+    if ("${CMAKE_TOOLCHAIN_FILE}" EQUAL "")
+        uipc_error(
+        "`CMAKE_TOOLCHAIN_FILE` is not set. It seems that CMake can't find the Vcpkg\n"
+        "Please setup the environment variable `CMAKE_TOOLCHAIN_FILE` to your vcpkg.cmake file.\n" 
+        "Details: https://spirimirror.github.io/libuipc-doc/build/")
+    endif()
+    uipc_info("CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
     find_package(Python REQUIRED QUIET)
+    if(NOT Python_FOUND)
+        uipc_error("Python is required to generate vcpkg.json. Please install Python.")
+    endif()
     # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
     execute_process(
         COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
         ${VCPKG_MANIFEST_DIR} # pass the CMAKE_CURRENT_BINARY_DIR as vcpkg.json output directory
         "--build_gui=${UIPC_BUILD_GUI}" # pass the UIPC_BUILD_GUI as argument
-        "--build_pybind=${UIPC_BUILD_PYBIND}" # pass the UIPC_BUILD_PYBIND as argument
+        "--dev_mode=${UIPC_DEV_MODE}" # pass the UIPC_DEV_MODE as argument
         RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
     )
-    set(VCPKG_MANIFEST_INSTALL ${VCPKG_JSON_GENERATE_RESULT} PARENT_SCOPE)
+
+    # set VCPKG_MANIFEST_INSTALL option to control the vcpkg install
+    if(VCPKG_JSON_GENERATE_RESULT)
+        set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)
+    else()
+        set(VCPKG_MANIFEST_INSTALL OFF CACHE BOOL "" FORCE)
+    endif()
+    # message(STATUS "VCPKG_MANIFEST_INSTALL: ${VCPKG_MANIFEST_INSTALL}")
 
     set(VCPKG_INSTALLED_DIR "")
     if(UIPC_USING_LOCAL_VCPKG)
@@ -88,72 +108,85 @@ function(uipc_config_vcpkg_install)
 endfunction()
 
 # -----------------------------------------------------------------------------------------
-# dump build info
-# -----------------------------------------------------------------------------------------
-function (uipc_dump_build_info)
-    # write json file to output directory
-    set(BUILD_INFO_JSON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/output/build_info.json")
-    set(Json 
-"{
-    \"CMAKE_BINARY_DIR\": \"${CMAKE_BINARY_DIR}\"
-}")
-    file(WRITE ${BUILD_INFO_JSON_FILE} ${Json})
-    uipc_info("Build info dumped to ${BUILD_INFO_JSON_FILE}")
-endfunction()
-
-# -----------------------------------------------------------------------------------------
-# Install the target to the correct directory
-# -----------------------------------------------------------------------------------------
-function(uipc_install target_name)
-    # This function is mainly for linux system to install the target to the correct directory
-    # On windows, the `uipc_set_output_directory()` is enough to set the output directory
-    # Put Debug/Release/RelWithDebInfo into different directories
-    install(TARGETS ${target_name}
-        CONFIGURATIONS Debug
-        RUNTIME DESTINATION "Debug/bin"
-        LIBRARY DESTINATION "Debug/bin"
-        ARCHIVE DESTINATION "Debug/lib"
-    )
-    install(TARGETS ${target_name}
-        CONFIGURATIONS Release
-        RUNTIME DESTINATION "Release/bin"
-        LIBRARY DESTINATION "Release/bin"
-        ARCHIVE DESTINATION "Release/lib"
-    )
-    install(TARGETS ${target_name}
-        CONFIGURATIONS RelWithDebInfo
-        RUNTIME DESTINATION "RelWithDebInfo/bin"
-        LIBRARY DESTINATION "RelWithDebInfo/bin"
-        ARCHIVE DESTINATION "RelWithDebInfo/lib"
-    )
-endfunction()
-
-# -----------------------------------------------------------------------------------------
 # Set the output directory for the target
 # -----------------------------------------------------------------------------------------
-function(uipc_set_output_directory target_name)
-    set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
-    set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
-    set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
+function(uipc_target_set_output_directory target_name)
+    if(WIN32) # if on windows, set the output directory with different configurations
+        
+        set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
+        set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
+        set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
 
-    set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
-    set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
-    set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
+        set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
+        set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
+        set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
 
-    set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/lib")
-    set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/lib")
-    set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/lib")
-
-    uipc_install(${target_name})
+        set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/lib")
+        set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/lib")
+        set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/lib")
+    elseif(UNIX)  # if on linux, set the output directory
+        if("${CMAKE_BUILD_TYPE}" STREQUAL "") # if the build type is not set, set it to Release
+            set(CMAKE_BUILD_TYPE "Release")
+        endif()
+        set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin")
+        set_target_properties(${target_name} PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin")
+        set_target_properties(${target_name} PROPERTIES ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib")
+    endif()
 endfunction()
 
 # -----------------------------------------------------------------------------------------
 # Add a dependency to the backends, so that the backends will be built before this target
 # to make sure the backends are always up-to-date when developing the target
 # -----------------------------------------------------------------------------------------
-function(uipc_add_backend_dependency target_name)
+function(uipc_target_add_backend_dependency target_name)
     add_dependencies(${target_name} uipc::backends)
 endfunction()
 
+function(uipc_target_add_include_files target_name)
+    set(INCLUDE_DIR "${PROJECT_SOURCE_DIR}/include")
+    target_include_directories(${target_name} PUBLIC ${INCLUDE_DIR})
+    file(GLOB_RECURSE INCLUDE_FILES "${INCLUDE_DIR}/*.h" "${INCLUDE_DIR}/*.inl")
+    target_sources(${target_name} PRIVATE ${INCLUDE_FILES})
 
+    # setup source group for the IDE
+    source_group(TREE "${INCLUDE_DIR}" PREFIX "include" FILES ${INCLUDE_FILES})
+endfunction()
+
+function(uipc_init_submodule target)
+    if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${target}")
+        uipc_error("Can not find submodule ${target} in ${CMAKE_CURRENT_SOURCE_DIR}, why?")
+    endif()
+    if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${target}/.git")
+        find_package(Git QUIET)
+        execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init ${target}
+                        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                        RESULT_VARIABLE GIT_SUBMOD_RESULT)
+        if(NOT GIT_SUBMOD_RESULT EQUAL "0")
+            uipc_error("git submodule update --init failed with ${GIT_SUBMOD_RESULT}, please checkout submodules")
+        endif()
+        uipc_info("Submodule ${target} is initialized")
+    endif()
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Require a python module, if not found, try to install it with pip
+# -----------------------------------------------------------------------------------------
+function(uipc_require_python_module python_dir module_name)
+#ask for numpy, allow failure
+execute_process(COMMAND ${Python_EXECUTABLE}
+    "-c" "import ${module_name}"
+    RESULT_VARIABLE CMD_RESULT
+    OUTPUT_QUIET
+)
+if (NOT CMD_RESULT EQUAL 0)
+    uipc_info("${module_name} not found, try installing numpy...")
+    execute_process(COMMAND ${Python_EXECUTABLE} "-m" "pip" "install" "${module_name}"
+    RESULT_VARIABLE INSTALL_RESULT)
+    if (NOT INSTALL_RESULT EQUAL 0)
+        uipc_error("Python [${python_dir}] failed to install [${module_name}], please install it manually.")
+    else()
+        uipc_info("${module_name} installed successfully with [${python_dir}].")
+    endif()
+endif()
+endfunction()
 

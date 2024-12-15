@@ -5,3 +5,6 @@
 [submodule "scripts/SymEigen"]
 	path = scripts/SymEigen
 	url = https://github.com/MuGdxy/SymEigen.git
+[submodule "external/tetgen"]
+	path = external/tetgen
+	url = https://github.com/spiriMirror/tetgen.git

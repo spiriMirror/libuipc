@@ -1,11 +1,10 @@
 import pytest 
 import numpy as np
 from pyuipc_loader import pyuipc
+from pyuipc.geometry import tetmesh, view
 
 @pytest.mark.basic 
 def test_attrib():
-    geometry = pyuipc.geometry
-    view = geometry.view
     Vs = np.array([
         [1,0,0],
         [0,1,0],
@@ -14,7 +13,7 @@ def test_attrib():
 
     Ts = np.array([[0,1,2,3]])
 
-    sc = geometry.tetmesh(Vs, Ts)
+    sc = tetmesh(Vs, Ts)
 
     name_attr = sc.instances().create("name", "MyString")
     print("name_attr:\n", name_attr.view())

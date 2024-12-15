@@ -1,12 +1,11 @@
-from pyuipc_tutorial import * # common import for all tutorial scripts
-# =================================================================================================
+from pyuipc_loader import pyuipc
 from pyuipc import Vector3
 from pyuipc.geometry import *
-from pyuipc.world import World, Scene, SceneIO
+from pyuipc import view
+from pyuipc.core import World, Scene, SceneIO, Engine
 from pyuipc.constitution import AffineBodyConstitution
-from pyuipc.engine import Engine
 from pyuipc import builtin
-
+from asset import AssetDir
 
 import numpy as np
 
@@ -22,7 +21,6 @@ scene = Scene(config)
 
 # create constituiton
 abd = AffineBodyConstitution()
-scene.constitution_tabular().insert(abd)
 
 # friction ratio and contact resistance
 scene.contact_tabular().default_model(0.05, 1e9)

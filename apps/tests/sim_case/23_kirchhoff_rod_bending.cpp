@@ -9,10 +9,9 @@
 TEST_CASE("23_kirchhoff_rod_bending", "[fem]")
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
@@ -38,12 +37,11 @@ TEST_CASE("23_kirchhoff_rod_bending", "[fem]")
         // create constitution and contact model
         HookeanSpring       hs;
         KirchhoffRodBending krb;
-        scene.constitution_tabular().insert(hs);
-        scene.constitution_tabular().insert(krb);
+
         auto& default_contact = scene.contact_tabular().default_element();
 
         // create object
-        auto object = scene.objects().create("shell");
+        auto object = scene.objects().create("rods");
 
         constexpr int   n = 8;
         vector<Vector3> Vs(n);

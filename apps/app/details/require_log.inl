@@ -1,6 +1,6 @@
 #include <algorithm>
-#include <fmt/printf.h>
-#include <fmt/color.h>
+// #include <fmt/printf.h>
+// #include <fmt/color.h>
 namespace uipc::test
 {
 template <spdlog::level::level_enum Level>
@@ -32,27 +32,27 @@ RequireLog<Level>::RequireLog(::std::function<void()> check, Type type)
                               [](auto& msg) { return msg.level == Level; });
     }
 
-    auto print_captured = [&]
-    {
-        for(auto& msg : sinks->m_msg)
-        {
-            fmt::print("|> {}", msg.payload);
-        }
-        fmt::print("-------------------------------------------------------------------------------\n");
-    };
+    // auto print_captured = [&]
+    // {
+    //     for(auto& msg : sinks->m_msg)
+    //     {
+    //         fmt::print("|> {}", msg.payload);
+    //     }
+    //     fmt::print("-------------------------------------------------------------------------------\n");
+    // };
 
-    if(!success)
-    {
-        fmt::print("-------------------------------------------------------------------------------\n");
-        fmt::print(fg(fmt::terminal_color::red), "RequireLog Fails. Captured messages:\n");
-        print_captured();
-    }
-    else
-    {
-        fmt::print("-------------------------------------------------------------------------------\n");
-        fmt::print(fg(fmt::terminal_color::green), "RequireLog Passes. Captured messages:\n");
-        print_captured();
-    }
+    // if(!success)
+    // {
+    //     fmt::print("-------------------------------------------------------------------------------\n");
+    //     fmt::print(fg(fmt::terminal_color::red), "RequireLog Fails. Captured messages:\n");
+    //     print_captured();
+    // }
+    // else
+    // {
+    //     fmt::print("-------------------------------------------------------------------------------\n");
+    //     fmt::print(fg(fmt::terminal_color::green), "RequireLog Passes. Captured messages:\n");
+    //     print_captured();
+    // }
 
     sinks->m_msg.clear();
 };

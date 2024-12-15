@@ -21,3 +21,12 @@ __pycache__
 RelWithDebInfo/
 Release/
 .mypy_cache/
+
+imgui.ini
+.polyscope.ini
+
+# xmake ignore
+.xmake
+build/
+.cache
+external/spdlog

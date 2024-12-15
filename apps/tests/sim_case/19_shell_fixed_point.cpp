@@ -1,17 +1,16 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
-#include <uipc/constitution/shell_neo_hookean.h>
+#include <uipc/constitution/neo_hookean_shell.h>
 #include <filesystem>
 #include <fstream>
 
 TEST_CASE("19_shell_fixed_point", "[fem]")
 {
     using namespace uipc;
+    using namespace uipc::core;
     using namespace uipc::geometry;
-    using namespace uipc::world;
     using namespace uipc::constitution;
-    using namespace uipc::engine;
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
@@ -34,8 +33,8 @@ TEST_CASE("19_shell_fixed_point", "[fem]")
     Scene scene{config};
     {
         // create constitution and contact model
-        ShellNeoHookean snh;
-        scene.constitution_tabular().insert(snh);
+        NeoHookeanShell nhs;
+        scene.constitution_tabular().insert(nhs);
         auto& default_contact = scene.contact_tabular().default_element();
 
         // create object
@@ -64,7 +63,7 @@ TEST_CASE("19_shell_fixed_point", "[fem]")
         label_surface(mesh);
 
         auto parm = ElasticModuli::youngs_poisson(10.0_MPa, 0.49);
-        snh.apply_to(mesh, parm);
+        nhs.apply_to(mesh, parm);
         default_contact.apply_to(mesh);
 
         auto is_fixed      = mesh.vertices().find<IndexT>(builtin::is_fixed);

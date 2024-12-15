@@ -1,0 +1,5 @@
+target("hello_affine_body")
+    set_kind("binary")
+    add_files("main.cpp")
+    add_deps("app_util")
+target_end()

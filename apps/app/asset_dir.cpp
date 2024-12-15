@@ -44,10 +44,11 @@ std::string AssetDir::output_path(const char* _file_)
     auto file_relative_to_apps = fs::relative(file_path, apps_path);
     auto file_output_path      = _output_path / file_relative_to_apps;
 
+
     // create all the intermediate directories if they don't exist
     if(!fs::exists(file_output_path))
         fs::create_directories(file_output_path);
-
+    file_output_path = fs::canonical(file_output_path);
     return (file_output_path / "").string();
 }
 

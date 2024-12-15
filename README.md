@@ -1,155 +1,79 @@
 # libuipc
-A Modern C++20 Library of Unified Incremental Potential Contact.
+A Cross-Platform Modern C++20 **Lib**rary of **U**nified **I**ncremental **P**otential **C**ontact.
 
-## Dependencies
+Both C++ and Python API are provided!
 
-The following dependencies are required to build the project.
+Website: ➡️ https://spirimirror.github.io/libuipc-doc/
 
-| Name                                          | Version      | Usage           | Import         |
-| --------------------------------------------- | ------------ | --------------- | -------------- |
-| [CMake](https://cmake.org/download/)          | >=3.27       | build system    | system install |
-| [Python](https://www.python.org/downloads/)   | >=3.10       | build system    | system install |
-| [Vcpkg](https://github.com/microsoft/vcpkg)   | >=2024.04.26 | package manager | git clone      |
+![teaser](docs/media/teaser.png)
 
-The following are **libuipc**'s 3rd-party dependencies. Don't worry, most of them will be automatically installed by Vcpkg.
+## Introduction
 
-| Name                                   | Version | Usage                                               | Import         |
-| -------------------------------------- | ------- | --------------------------------------------------- | -------------- |
-| [muda](https://github.com/MuGdxy/muda) | -       | improve safety and readability of CUDA programming. | submodule      |
-| cuda                                   | >=12.0  | GPU programming                                     | system install |
-| eigen3                                 | 3.4.0   | matrix calculation                                  | package        |
-| catch2                                 | 3.5.3   | unit tests                                          | package        |
-| libigl                                 | 2.5.0   | mesh processing                                     | package        |
-| rapidcsv                               | 8.80    | csv file IO                                         | package        |
-| spdlog                                 | 1.12.0  | logging                                             | package        |
-| fmt                                    | 10.1.1  | fast string formatting                              | package        |
-| cppitertools                           | 2.1#3   | python-like iteration tools                         | package        |
-| bgfx                                   | 1.127#1 | cross-platform RHI                                  | package        |
-| dylib                                  | 2.2.1   | cross-platform dynamic library loader               | package        |
-| benchmark                              | 1.8.3#3 | microbenchmark support library                      | package        |
-| nlohmann_json                          | 3.11.2  | json file IO                                        | package        |
-| imgui                                  | 1.90.7  | GUI                                                 | package        |
-| glfw3                                  | 3.3.8#2 | window management                                   | package        |
-| magic_enum                             | 0.9.3   | enum to string                                      | package        |
+**Libuipc** is a library that offers a unified **GPU** incremental potential contact framework for simulating the dynamics of rigid bodies, soft bodies, cloth, and threads, and their couplings. It ensures accurate, **penetration-free frictional contact** and is naturally **differentiable**. Libuipc aims to provide robust and efficient **forward** and **backward** simulations, making it easy for users to integrate with machine learning frameworks, inverse dynamics, robotics, and more.
 
-## Build
-We use Vcpkg to manage the libraries and use CMake to build the project. 
+We are **actively** developing Libuipc and will continue to add more features and improve its performance. We welcome any feedback and contributions from the community!
 
-The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
+## Why Libuipc
 
-Vcpkg supports both Windows and Linux; we use it to manage the dependencies and keep the consistency of the development environment.
+- **Easy & Powerful**: Libuipc offers an intuitive and unified approach to creating and accessing vivid simulation scenes, supporting a variety of objects and constraints that can be easily added.
+- **Fast & Robust**: Libuipc is designed to run fully in parallel on the GPU, achieving high performance and enabling large-scale simulations. It features a robust and accurate frictional contact model that effectively handles complex frictional scenarios without penetration.
+- **High Flexibility**: Libuipc provides APIs in both Python and C++ and supports both Linux and Windows systems.
+- **Fully Differentiable**: Libuipc provides differentiable simulation APIs for backward optimizations. (Coming Soon)
 
-### Submodules
+<table>
+  <tr>
+    <td>
+      <img src="docs/tutorial/media/concepts_code.svg" width="400">
+    </td>
+    <td>
+      <img src="docs/tutorial/media/concepts.drawio.svg" width="450">
+    </td>
+  </tr>
+</table>
 
-Some dependencies are managed by git submodules. You need to clone the submodules with the following command:
 
-```shell
-git submodule update --init
+## Key Features
+
+- Finite Element-Based Deformable Simulation
+- Rigid & Soft Body Strong Coupling Simulation
+- Penetration-Free & Accurate Frictional Contact Handling
+- User Scriptable Animation Control
+- Fully Differentiable Simulation (Diff-Sim Coming Soon)
+
+## News
+
+**2024-11-25**: Libuipc v0.9.0 (Alpha) is published! We are excited to share our work with the community. This is a preview version, if you have any feedback or suggestions, please feel free to contact us! [Issues](https://github.com/spiriMirror/libuipc/issues) and [PRs](https://github.com/spiriMirror/libuipc/pulls) are welcome!
+
+## Citation
+
+If you use **Libuipc** in your project, please cite our works:
+
+```
+@misc{huang2024advancinggpuipcstiff,
+      title={Advancing GPU IPC for stiff affine-deformable simulation}, 
+      author={Kemeng Huang and Xinyu Lu and Huancheng Lin and Taku Komura and Minchen Li},
+      year={2024},
+      eprint={2411.06224},
+      archivePrefix={arXiv},
+      primaryClass={cs.GR},
+      url={https://arxiv.org/abs/2411.06224}, 
+}
 ```
 
-### Automatic Dependency Installation
-
-The rest dependencies are all managed by Vcpkg; they will be automatically installed in the CMake Configuration step.
-
-If the automatic installation fails, please raise an issue with the CMake error message.
-
-### Build Project
-
-#### Windows
-
-On Windows, you can use the `CMake-GUI` to configure the project and generate the Visual Studio solution file with only a few clicks.
-
-You can also use the same commands as Linux to build the project.
-
-#### Linux
-
-On Linux, you can use the following commands to build the project.
-
-```shell
-cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
-cmake -S ../libuipc -DUIPC_BUILD_GUI=0
-cmake --build .
+```
+@article{gipc2024,
+      author = {Huang, Kemeng and Chitalu, Floyd M. and Lin, Huancheng and Komura, Taku},
+      title = {GIPC: Fast and Stable Gauss-Newton Optimization of IPC Barrier Energy},
+      year = {2024},
+      publisher = {Association for Computing Machinery},
+      volume = {43},
+      number = {2},
+      issn = {0730-0301},
+      doi = {10.1145/3643028},
+      journal = {ACM Trans. Graph.},
+      month = {mar},
+      articleno = {23},
+      numpages = {18}
+}
 ```
 
-To enable GUI support, set `-DUIPC_BUILD_GUI=1`, but you may need to install some additional dependencies manually (system install). See [Linux GUI Support](#Linux-gui-support).
-
-### Run Project
-
-#### Windows
-
-Just run the executable files in `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder.
-
-#### Linux
-
-Install the project.
-
-```shell
-cmake --install . --prefix . --config <Debug/Release/RelWithDebInfo>
-```
-
-To run the programs, you need to set the environment variable `LD_LIBRARY_PATH` to include the shared libraries in the `CMakeBuild/<Debug/Release/RelWithDebInfo>/bin` folder, otherwise the shared **libuipc** library and the dependent backend modules will not be found.
-
-```shell
-cd CMakeBuild/<Debug/Release/RelWithDebInfo>/bin
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:.
-./hello_uipc
-./uipc_test_world
-[...]
-```
-
-### Build Pyuipc
-
-Pyuipc is a Python binding of libuipc. It is built with the `pybind11` library.
-
-Add `-DUIPC_BUILD_PYBIND=1` to the CMake command to build the Python binding.
-
-NOTE: Pyuipc should be built in the Release or RelWithDebInfo mode.
-
-#### Run Examples
-
-We use `mypy.stubgen` to generate the stub files for the Python binding. So you need to install `mypy` first.
-
-```shell
-pip install mypy
-```
-
-Then you can run the examples in the `libuipc/python` folder.
-
-Intellisence is supported via the stub files in `libuipc/python/typings/`.
-
-If you use VSCode, you can open the project at `libuipc/python` and enjoy the Intellisence with Pylance Extension.
-```shell
-cd python & code .
-```
-
-### GUI
-
-We use [polyscope](https://polyscope.run/)(v2.3.0) to visualize the scene in Python.
-
-```shell
-pip install polyscope==2.3.0
-```
-
-### Build Document
-
-Install [mkdocs](https://www.mkdocs.org/) and its plugins:
-```shell
-pip install mkdocs mkdocs-material mkdocs-literate-nav mkdoxy
-```
-
-Turn on the local server:
-```shell
-mkdocs serve
-```
-
-Open the browser and visit the [localhost:8000](http://127.0.0.1:8000/)
-
-## Troubleshooting
-
-### Linux GUI Support
-
-If your system hasn't installed the GUI application dependencies before, you may need to install the following packages to enable GUI support.
-
-```shell
-sudo apt-get install libxi-dev libgl1-mesa-dev libglu1-mesa-dev mesa-common-dev libxrandr-dev libxxf86vm-dev libxinerama-dev libxcursor-dev
-```
