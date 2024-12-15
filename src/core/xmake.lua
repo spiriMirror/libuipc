@@ -2,10 +2,10 @@ target("uipc_core")
     set_kind("shared")
     add_defines("UIPC_CORE_EXPORT_DLL")
     add_defines("UIPC_RUNTIME_CHECK")
-    add_defines("UIPC_PROJECT_DIR=\"$(projectdir)\"")
-    add_defines("UIPC_VERSION_MAJOR=" .. version_major())
-    add_defines("UIPC_VERSION_MINOR=" .. version_minor())
-    add_defines("UIPC_VERSION_PATCH=" .. version_patch())
+    add_defines("UIPC_PROJECT_DIR=\"$(projectdir)\"", { public = true })
+    add_defines("UIPC_VERSION_MAJOR=" .. version_major(), { public = true })
+    add_defines("UIPC_VERSION_MINOR=" .. version_minor(), { public = true })
+    add_defines("UIPC_VERSION_PATCH=" .. version_patch(), { public = true })
     
     add_packages(
         "boost",

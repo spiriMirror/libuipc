@@ -14,3 +14,7 @@ target("uipc_uipc")
         "uipc_io", 
         "uipc_sanity_check", { public = true })
 target_end()
+
+if has_config("uipc_enable_pybind") then
+    includes("pybind")
+end

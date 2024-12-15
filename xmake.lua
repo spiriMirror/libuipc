@@ -15,6 +15,13 @@ else
 end
 
 
+option("uipc_enable_pybind")
+    set_default(true)
+    set_showmenu(true)
+option_end()
+
+
+
 function version_major()
     return "0"
 end
@@ -55,8 +62,12 @@ add_requires("nlohmann_json", {version = "3.11.2"})
 add_requires("libigl")
 add_requires("imgui")
 add_requires("glfw")
-
 add_requires("magic_enum")
+
+if has_config("uipc_enable_pybind") then
+    add_requires("python[3.11.9]")
+    add_requires("pybind11")
+end
 
 -- global include
 add_includedirs("include")
