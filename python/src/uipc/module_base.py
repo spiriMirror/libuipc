@@ -10,18 +10,15 @@ class ModuleBase:
     _cwd: str 
     _module = None
 
-    def __init__(self, name: str, module_name: str, cwds: List[str]):
+    def __init__(self, name: str, module_name: str, cwd: str):
         self._name = name
         self._module_name = module_name
-        self._cwds = cwds
-        assert len(self._cwds) > 0, "cwd list is empty"
-        logging.info("loading module {} from {}".format(self._module_name, self._cwds))
+        self._cwd = cwd 
+        logging.info("loading module {} from {}".format(self._module_name, self._cwd))
         self.load_module()
 
     def load_module(self):
-        for cwd in self._cwds:
-            sys.path.append(cwd)
-        
+        sys.path.append(self._cwd)
         try:
             self._module = importlib.import_module(self._module_name)
             logging.info("module {} loaded".format(self._module_name))
