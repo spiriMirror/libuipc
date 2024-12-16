@@ -1,14 +1,16 @@
 set_xmakever("2.9.2")
-add_rules("mode.release", "mode.debug")
+add_rules("mode.release", "mode.debug", "mode.releasedbg")
 engine_version = "0.1.0"
 set_languages("c++20")
 add_undefines("min","max")
 
+add_cxxflags("/NODEFAULTLIB:libcmt")
 if is_mode("debug") then
     set_targetdir("bin/debug")
     set_runtimes("MDd")
-    -- remove libcmt
-    add_cxxflags("/NODEFAULTLIB:libcmt")
+elseif is_mode("releasedbg") then
+    set_targetdir("bin/releasedbg")
+    set_runtimes("MD")
 else
     set_targetdir("bin/release")
     set_runtimes("MD")
