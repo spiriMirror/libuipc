@@ -1,8 +1,8 @@
 #include <uipc/geometry/utils/octree.h>
 #include <uipc/common/vector.h>
 #include <uipc/common/enumerate.h>
-#include <octree/octree.h>
-#include <octree/adaptor.eigen.h>
+#include <Octree/octree.h>
+#include <Octree/adaptor.eigen.h>
 #include <Eigen/Dense>
 
 namespace uipc::geometry
