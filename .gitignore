@@ -30,3 +30,5 @@ bin/
 .cache/
 
 vsxmake2022
+release
+releasedbg
