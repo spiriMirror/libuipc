@@ -7,7 +7,8 @@ class PyUIPCModule(ModuleBase):
         cwds = []
         cwd = os.path.dirname(os.path.abspath(__file__))
         if os.name == 'nt':
-            cwds = [cwd + '/Release/bin', cwd + '/RelWithDebInfo/bin']
+            # cwds = [cwd + '/Release/bin', cwd + '/RelWithDebInfo/bin']
+            cwds = [cwd + "/releasedbg"]
         elif os.name == 'posix':
             cwds = [cwd + '/Release/bin', cwd + '/RelWithDebInfo/bin']
         else:
