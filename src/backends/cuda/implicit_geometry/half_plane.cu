@@ -82,9 +82,11 @@ void HalfPlane::Impl::_build_geometry()
 
     positions.resize(h_positions.size());
     normals.resize(h_normals.size());
+    contact_ids.resize(h_contact_ids.size());
 
     positions.view().copy_from(h_positions.data());
     normals.view().copy_from(h_normals.data());
+    contact_ids.view().copy_from(h_contact_ids.data());
 }
 
 muda::CBufferView<Vector3> HalfPlane::normals() const
@@ -95,5 +97,9 @@ muda::CBufferView<Vector3> HalfPlane::normals() const
 muda::CBufferView<Vector3> HalfPlane::positions() const
 {
     return m_impl.positions;
+}
+muda::CBufferView<IndexT> HalfPlane::contact_ids() const
+{
+    return m_impl.contact_ids;
 }
 }  // namespace uipc::backend::cuda
