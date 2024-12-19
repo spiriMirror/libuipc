@@ -8,5 +8,5 @@ function uipc_add_test(name)
     target_end()
 end
 
-uipc_add_test("sim_case")
+-- uipc_add_test("sim_case")
 

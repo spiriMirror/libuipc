@@ -1,5 +1,7 @@
 target("uipc_core")
     set_kind("shared")
+    add_rules("uipc.predef")
+
     add_defines("UIPC_CORE_EXPORT_DLL")
     add_defines("UIPC_RUNTIME_CHECK")
     add_defines("UIPC_PROJECT_DIR=\"$(projectdir)\"", { public = true })
