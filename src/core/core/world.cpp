@@ -1,9 +1,13 @@
 #include <uipc/core/world.h>
 #include <uipc/core/engine.h>
 #include <uipc/backend/visitors/world_visitor.h>
-#include <uipc/sanity_check/sanity_checker_collection.h>
+#include <uipc/core/sanity_checker.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/zip.h>
+#include <uipc/common/uipc.h>
+#include <dylib.hpp>
+#include <uipc/backend/module_init_info.h>
+
 
 namespace uipc::core
 {
@@ -155,14 +159,71 @@ SizeT World::frame() const
     return m_engine->frame();
 }
 
+
+static S<dylib> load_sanity_check_module()
+{
+    static std::mutex m_cache_mutex;
+    static S<dylib>   m_cache;
+
+    std::lock_guard lock{m_cache_mutex};
+
+    if(m_cache)
+        return m_cache;
+
+    // if not found, load it
+    auto& uipc_config = uipc::config();
+    auto  this_module =
+        uipc::make_shared<dylib>(uipc_config["module_dir"].get<std::string>(),
+                                 "uipc_sanity_check");
+
+    std::string_view module_name = "sanity_check";
+
+    UIPCModuleInitInfo info;
+    info.module_name     = "sanity_check";
+    info.memory_resource = std::pmr::get_default_resource();
+
+    auto init = this_module->get_function<void(UIPCModuleInitInfo*)>("uipc_init_module");
+    if(!init)
+        throw Exception{fmt::format("Can't find [sanity_check]'s module initializer.")};
+
+    init(&info);
+
+    m_cache = this_module;
+    return m_cache;
+}
+
 void World::sanity_check(Scene& s)
 {
     if(s.info()["sanity_check"]["enable"] == true)
     {
-        SanityCheckerCollection sanity_checkers;
-        sanity_checkers.init(s);
+        auto sanity_check_module = load_sanity_check_module();
+        auto creator =
+            sanity_check_module->get_function<ISanityCheckerCollection*(SanityCheckerCollectionCreateInfo*)>(
+                "uipc_create_sanity_checker_collection");
 
-        auto result = sanity_checkers.check();
+        if(!creator)
+        {
+            spdlog::error("Can't find [sanity_check]'s sanity checker creator, so we skip sanity check.");
+            return;
+        }
+
+        auto destroyer =
+            sanity_check_module->get_function<void(ISanityCheckerCollection*)>(
+                "uipc_destroy_sanity_checker_collection");
+
+        if(!destroyer)
+        {
+            spdlog::error("Can't find [sanity_check]'s sanity checker destroyer, so we skip sanity check.");
+            return;
+        }
+
+        SanityCheckerCollectionCreateInfo info;
+        info.workspace = m_engine->workspace();
+
+        ISanityCheckerCollection* sanity_checkers = creator(&info);
+        sanity_checkers->init(s);
+
+        auto result = sanity_checkers->check();
         switch(result)
         {
             case SanityCheckResult::Success:

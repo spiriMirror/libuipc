@@ -13,11 +13,10 @@ SpreadSheetIO::SpreadSheetIO(std::string_view output_folder)
     fs::exists(m_output_folder) || fs::create_directories(m_output_folder);
 }
 
-void SpreadSheetIO::write_json(std::string_view geo_name,
-                               const SimplicialComplex& simplicial_complex) const
+void SpreadSheetIO::write_json(std::string_view geo_name, const Geometry& geo) const
 {
     constexpr int dump_indent = 4;
-    auto          json        = simplicial_complex.to_json();
+    auto          json        = geo.to_json();
     auto file = fs::path(m_output_folder) / fmt::format("{}.json", geo_name);
 
     {
@@ -29,18 +28,17 @@ void SpreadSheetIO::write_json(std::string_view geo_name,
     spdlog::info("Write spreadsheet(.json) to {}", abs_file.string());
 }
 
-void SpreadSheetIO::write_json(const SimplicialComplex& simplicial_complex) const
+void SpreadSheetIO::write_json(const Geometry& geo) const
 {
-    write_json("spreadsheet", simplicial_complex);
+    write_json("spreadsheet", geo);
 }
 
-void SpreadSheetIO::write_csv(std::string_view         geo_name,
-                              const SimplicialComplex& simplicial_complex) const
+void SpreadSheetIO::write_csv(std::string_view geo_name, const Geometry& geo) const
 {
     auto folder = fs::path(m_output_folder) / fmt::format("{}", geo_name);
     fs::exists(folder) || fs::create_directories(folder);
 
-    auto json = simplicial_complex.to_json();
+    auto json = geo.to_json();
 
     for(auto& [key, J] : json.items())
     {
@@ -124,8 +122,8 @@ void SpreadSheetIO::write_csv(std::string_view         geo_name,
     spdlog::info("Write spreadsheets(.csv) to {}", abs_folder.string());
 }
 
-void SpreadSheetIO::write_csv(const SimplicialComplex& simplicial_complex) const
+void SpreadSheetIO::write_csv(const Geometry& geo) const
 {
-    write_csv("spreadsheet", simplicial_complex);
+    write_csv("spreadsheet", geo);
 }
 }  // namespace uipc::geometry

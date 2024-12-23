@@ -22,6 +22,8 @@ description = ""
 keywords = ["ipc", "computer graphics", "physics simulation"]
 
 [project.urls]
+Homepage = "https://spirimirror.github.io/libuipc-doc/"
+Issues = "https://github.com/spiriMirror/libuipc/issues"
 
 [project.optional-dependencies]
 gui = ["polyscope"]
@@ -40,3 +42,4 @@ markers = [
     "typing: mark a test as requiring type checking",
     "example: mark a test as an example",
 ]
+

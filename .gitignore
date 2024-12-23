@@ -24,3 +24,8 @@ Release/
 
 imgui.ini
 .polyscope.ini
+
+bin/
+.xmake/
+.cache/
+

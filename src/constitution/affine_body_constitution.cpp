@@ -79,7 +79,17 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     auto kappa_view = geometry::view(*kappa_attr);
     std::ranges::fill(kappa_view, kappa);
 
-    geometry::compute_instance_volume(sc);
+    auto volumes = geometry::compute_instance_volume(sc);
+
+    auto volume_view = volumes->view();
+
+    if constexpr(uipc::RUNTIME_CHECK)
+    {
+        for(auto [i, v] : enumerate(volume_view))
+        {
+            UIPC_ASSERT(v > 0, "Volume of instance ({}) is negative ({}), which is not allowed.", i, v);
+        }
+    }
 
     auto meta_mass = sc.meta().find<Float>(builtin::mass_density);
 

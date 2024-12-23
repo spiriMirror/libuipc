@@ -26,7 +26,7 @@ base_vcpkg_json = {
         },
         {
             "name": "fmt",
-            "version>=": "10.1.1"
+            "version>=": "10.2.1"
         },
         {
             "name": "cppitertools",

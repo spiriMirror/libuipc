@@ -66,7 +66,6 @@ add_subdirectory(geometry)
 add_subdirectory(constitution)
 add_subdirectory(builtin)
 add_subdirectory(core)
-add_subdirectory(sanity_check)
 add_subdirectory(diff_sim)
 
 # ------------------------------------------------------------------------------
