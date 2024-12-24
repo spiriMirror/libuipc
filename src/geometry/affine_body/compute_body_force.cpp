@@ -1,8 +1,9 @@
+#include "uipc/common/log.h"
 #include <uipc/geometry/utils/affine_body/compute_body_force.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/range.h>
 #include <Eigen/Dense>
-#include <iostream>
+
 namespace uipc::geometry::affine_body
 {
 // ref: libuipc/scripts/symbol_calculation/affine_body_quantity.ipynb
@@ -34,22 +35,23 @@ static Vector12 compute_tetmesh_body_force(const SimplicialComplex& sc,
 
         auto V = D / 6.0;
 
-        auto Q = [D](IndexT i, const Vector3& r0, const Vector3& e1, const Vector3& e2, const Vector3& e3)
+        auto Q_p =
+            [D](IndexT i, const Vector3& p0, const Vector3& p1, const Vector3& p2, const Vector3& p3)
         {
             Float V = 0.0;
 
-            V += r0(i) / 6;
-            V += e1(i) / 24;
-            V += e2(i) / 24;
-            V += e3(i) / 24;
+            V += p0(i) / 24;
+            V += p1(i) / 24;
+            V += p2(i) / 24;
+            V += p3(i) / 24;
 
             return D * V;
         };
 
         Vector3 Qs = Vector3{
-            Q(0, r0, e1, e2, e3),  //
-            Q(1, r0, e1, e2, e3),  //
-            Q(2, r0, e1, e2, e3)   //
+            Q_p(0, p0, p1, p2, p3),  //
+            Q_p(1, p0, p1, p2, p3),  //
+            Q_p(2, p0, p1, p2, p3)   //
         };
 
         body_force.segment<3>(0) += f * V;
@@ -92,25 +94,25 @@ static Vector12 compute_trimesh_body_force(const SimplicialComplex& sc,
 
         auto V = p0.dot(N) / 6.0;
 
-        auto Q = [](IndexT a, const Vector3& N, const Vector3& r0, const Vector3& e1, const Vector3& e2)
+        auto Q_p = [](IndexT a, const Vector3& N, const Vector3& p0, const Vector3& p1, const Vector3& p2)
         {
             Float V = 0.0;
 
-            V += e1(a) * e1(a) / 12;
-            V += e1(a) * e2(a) / 12;
-            V += e1(a) * r0(a) / 3;
+            V += p0(a) * p0(a) / 12;
+            V += p0(a) * p1(a) / 12;
+            V += p0(a) * p2(a) / 12;
 
-            V += e2(a) * e2(a) / 12;
-            V += e2(a) * r0(a) / 3;
-            V += r0(a) * r0(a) / 2;
+            V += p1(a) * p1(a) / 12;
+            V += p1(a) * p2(a) / 12;
+            V += p2(a) * p2(a) / 12;
 
             return 1.0 / 2 * N(a) * V;
         };
 
         Vector3 Qs = Vector3{
-            Q(0, N, r0, e1, e2),  //
-            Q(1, N, r0, e1, e2),  //
-            Q(2, N, r0, e1, e2)   //
+            Q_p(0, N, p0, p1, p2),  //
+            Q_p(1, N, p0, p1, p2),  //
+            Q_p(2, N, p0, p1, p2)   //
         };
 
         body_force.segment<3>(0) += f * V;
