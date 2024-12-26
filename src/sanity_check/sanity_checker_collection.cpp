@@ -2,12 +2,17 @@
 #include <sanity_checker_auto_register.h>
 #include <context.h>
 #include <spdlog/spdlog.h>
-
+#include <filesystem>
 namespace uipc::sanity_check
 {
 SanityCheckerCollection::SanityCheckerCollection(std::string_view workspace) noexcept
 {
-    m_workspace = fmt::format("{}/sanity_check/", workspace);
+    namespace fs = std::filesystem;
+
+    fs::path path{workspace};
+    path /= "sanity_check";
+    fs::exists(path) || fs::create_directories(path);
+    m_workspace = path.string();
 }
 
 SanityCheckerCollection::~SanityCheckerCollection() {}
@@ -37,7 +42,7 @@ void SanityCheckerCollection::build(core::Scene& s)
         }
         catch(const SanityCheckerException& e)
         {
-            spdlog::info("SanityCheckBuild: {}", e.what());
+            spdlog::debug("[{}] shutdown, reason: {}", entry->name(), e.what());
         }
     }
 

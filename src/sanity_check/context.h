@@ -8,13 +8,19 @@ using uipc::core::SanityCheckResult;
 class ContactTabular
 {
   public:
+    ContactTabular() noexcept = default;
     void                      init(backend::SceneVisitor& s);
     const core::ContactModel& at(IndexT i, IndexT j) const;
     SizeT                     element_count() const noexcept;
 
+    // delete copy constructor
+    ContactTabular(const ContactTabular&) = delete;
+    // delete copy assignment
+    ContactTabular& operator=(const ContactTabular&) = delete;
+
   private:
     vector<core::ContactModel> m_table;
-    SizeT                      m_contact_element_count;
+    SizeT                      m_contact_element_count = 0;
 };
 
 class Context final : public SanityChecker

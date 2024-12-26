@@ -149,6 +149,11 @@ bool World::recover(SizeT aim_frame)
     return success && !has_error;
 }
 
+bool World::is_valid() const
+{
+    return m_valid;
+}
+
 SizeT World::frame() const
 {
     if(!m_valid)

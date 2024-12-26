@@ -6,7 +6,7 @@ void uipc_init_module(UIPCModuleInitInfo* info)
 {
     auto old_resource = std::pmr::get_default_resource();
     std::pmr::set_default_resource(info->memory_resource);
-    spdlog::info("Synchronize module [sanity_check]'s Polymorphic Memory Resource: {}->{}",
+    spdlog::info("Synchronize module [{}]'s Polymorphic Memory Resource: {}->{}",
                  info->module_name,
                  (void*)old_resource,
                  (void*)std::pmr::get_default_resource());

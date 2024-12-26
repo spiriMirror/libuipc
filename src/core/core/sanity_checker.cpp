@@ -13,4 +13,8 @@ SanityCheckResult ISanityChecker::check()
 {
     return do_check();
 }
+std::string uipc::core::ISanityChecker::name() const noexcept
+{
+    return get_name();
+}
 }  // namespace uipc::core

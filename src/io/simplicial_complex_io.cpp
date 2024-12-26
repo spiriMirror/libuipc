@@ -200,20 +200,29 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
 
     SizeT edge_count = 0;
 
-    list<IndexT> facet_edge_indices;
+    list<IndexT> surf_edge_indices;
 
     if(sc.dim() == 1)
         edge_count = sc.edges().size();
     else if(sc.dim() == 2)
     {
-        auto is_facet      = sc.edges().find<IndexT>(builtin::is_facet);
-        auto is_facet_view = is_facet ? is_facet->view() : span<const IndexT>{};
-        for(auto&& [i, e] : enumerate(Es))
+        auto is_facet = sc.edges().find<IndexT>(builtin::is_facet);
+        if(is_facet)
         {
-            if(is_facet_view[i])
-                facet_edge_indices.push_back(i);
+            auto is_facet_view = is_facet->view();
+            for(auto&& [i, e] : enumerate(Es))
+            {
+                if(is_facet_view[i])
+                    surf_edge_indices.push_back(i);
+            }
         }
-        edge_count = facet_edge_indices.size();
+        else  // if no is_facet attribute, just write all edges
+        {
+            surf_edge_indices.resize(Es.size());
+            std::iota(surf_edge_indices.begin(), surf_edge_indices.end(), 0);
+        }
+
+        edge_count = surf_edge_indices.size();
     }
 
     fmt::println(fp,
@@ -240,7 +249,7 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
     else if(sc.dim() == 2)
     {
         // write edges
-        for(auto&& i : facet_edge_indices)
+        for(auto&& i : surf_edge_indices)
         {
             auto e = Es[i];
             fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);

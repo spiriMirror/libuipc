@@ -21,10 +21,12 @@ class UIPC_CORE_API ISanityChecker
     virtual void      build();
     U64               id() const noexcept;
     SanityCheckResult check();
+    std::string       name() const noexcept;
 
   protected:
-    virtual U64               get_id() const noexcept = 0;
-    virtual SanityCheckResult do_check()              = 0;
+    virtual U64               get_id() const noexcept   = 0;
+    virtual std::string       get_name() const noexcept = 0;
+    virtual SanityCheckResult do_check()                = 0;
 };
 
 class UIPC_CORE_API SanityCheckerCollectionCreateInfo

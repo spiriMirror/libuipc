@@ -308,9 +308,11 @@ class Context::Impl
 
     void prepare()
     {
+        auto scene_visitor = backend::SceneVisitor{m_scene};
+        m_contact_tabular.init(scene_visitor);
+
         build_geo_id_to_object_id();
 
-        auto scene_visitor = backend::SceneVisitor{m_scene};
         detail::create_basic_sanity_check_attributes(scene_visitor.geometries(),
                                                      m_geo_id_to_object_id);
 
