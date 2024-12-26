@@ -61,7 +61,7 @@ TEST_CASE("36_no_surf_but_contact_on", "[abd]")
     world.init(scene);
     SceneIO sio{scene};
 
-    REQUIRE_ONCE_WARN(
+    REQUIRE_HAS_WARN(
         sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0)));
 
 
@@ -69,7 +69,7 @@ TEST_CASE("36_no_surf_but_contact_on", "[abd]")
     {
         world.advance();
         world.retrieve();
-        REQUIRE_ONCE_WARN(sio.write_surface(
+        REQUIRE_HAS_WARN(sio.write_surface(
             fmt::format("{}scene_surface{}.obj", this_output_path, world.frame())));
     }
 }
