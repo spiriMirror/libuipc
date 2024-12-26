@@ -5,6 +5,18 @@ namespace uipc::sanity_check
 {
 using uipc::core::SanityCheckResult;
 
+class ContactTabular
+{
+  public:
+    void                      init(backend::SceneVisitor& s);
+    const core::ContactModel& at(IndexT i, IndexT j) const;
+    SizeT                     element_count() const noexcept;
+
+  private:
+    vector<core::ContactModel> m_table;
+    SizeT                      m_contact_element_count;
+};
+
 class Context final : public SanityChecker
 {
   public:
@@ -12,13 +24,17 @@ class Context final : public SanityChecker
     virtual ~Context() override;
 
     const geometry::SimplicialComplex& scene_simplicial_surface() const noexcept;
+    const ContactTabular& contact_tabular() const noexcept;
 
   private:
-    virtual void init() noexcept override;
-    virtual void deinit() noexcept override;
-    virtual U64  get_id() const noexcept override;
+    friend class SanityCheckerCollection;
+    void prepare();
+    void destroy();
 
-    virtual SanityCheckResult do_check(backend::SceneVisitor&) noexcept override;
+    virtual U64 get_id() const noexcept override;
+
+    virtual SanityCheckResult do_check(backend::SceneVisitor&) override;
+
     class Impl;
     U<Impl> m_impl;
 };

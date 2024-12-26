@@ -11,22 +11,21 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
     auto P = sc.meta().find<U64>(builtin::constitution_uid);
 
     if(!P)
-        P = sc.meta().create<U64>(builtin::constitution_uid, uid());
-    else
-        geometry::view(*P).front() = uid();
+        P = sc.meta().create<U64>(builtin::constitution_uid, 0);
+    geometry::view(*P).front() = uid();
 
     auto is_fixed = sc.vertices().find<IndexT>(builtin::is_fixed);
     if(!is_fixed)
         is_fixed = sc.vertices().create<IndexT>(builtin::is_fixed, 0);
 
-    auto is_kinematic = sc.vertices().find<IndexT>(builtin::is_dynamic);
-    if(!is_kinematic)
-        is_kinematic = sc.vertices().create<IndexT>(builtin::is_dynamic, 1);
+    auto is_dynamic = sc.vertices().find<IndexT>(builtin::is_dynamic);
+    if(!is_dynamic)
+        is_dynamic = sc.vertices().create<IndexT>(builtin::is_dynamic, 1);
 
     auto attr_thickness = sc.vertices().find<Float>(builtin::thickness);
     if(!attr_thickness)
-        attr_thickness = sc.vertices().create<Float>(builtin::thickness, thickness);
-
+        attr_thickness = sc.vertices().create<Float>(builtin::thickness, 0.0);
+    
     auto thickness_view = geometry::view(*attr_thickness);
     std::ranges::fill(thickness_view, thickness);
 

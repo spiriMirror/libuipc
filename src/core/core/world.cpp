@@ -221,7 +221,7 @@ void World::sanity_check(Scene& s)
         info.workspace = m_engine->workspace();
 
         ISanityCheckerCollection* sanity_checkers = creator(&info);
-        sanity_checkers->init(s);
+        sanity_checkers->build(s);
 
         auto result = sanity_checkers->check();
         switch(result)

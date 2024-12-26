@@ -2,9 +2,7 @@
 
 namespace uipc::core
 {
-void ISanityChecker::init() {}
-
-void ISanityChecker::deinit() {}
+void ISanityChecker::build() {}
 
 U64 ISanityChecker::id() const noexcept
 {
