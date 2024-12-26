@@ -102,9 +102,16 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
 
         const ContactTabular& contact_tabular = context->contact_tabular();
 
-        auto Vs = scene_surface.positions().view();
-        auto Es = scene_surface.edges().topo().view();
-        auto Fs = scene_surface.triangles().topo().view();
+        auto Vs = scene_surface.vertices().size() ? scene_surface.positions().view() :
+                                                    span<const Vector3>{};
+        auto Es = scene_surface.edges().size() ? scene_surface.edges().topo().view() :
+                                                 span<const Vector2i>{};
+        auto Fs = scene_surface.triangles().size() ?
+                      scene_surface.triangles().topo().view() :
+                      span<const Vector3i>{};
+
+        if(Vs.size() == 0 || Es.size() == 0 || Fs.size() == 0)  // no neet to check intersection
+            return SanityCheckResult::Success;
 
         auto attr_cids =
             scene_surface.vertices().find<IndexT>("sanity_check/contact_element_id");
