@@ -193,8 +193,10 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
 
                 Vector3 uvw;
                 Vector2 uv;
-                bool    intersected = geometry::tri_edge_intersect(
-                    Vs[F[0]], Vs[F[1]], Vs[F[2]], Vs[E[0]], Vs[E[1]], uvw, uv);
+                bool    is_coplanar;
+
+                bool intersected = geometry::tri_edge_intersect(
+                    Vs[F[0]], Vs[F[1]], Vs[F[2]], Vs[E[0]], Vs[E[1]], is_coplanar, uvw, uv);
 
                 if(intersected)
                 {
@@ -236,14 +238,14 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
                 UIPC_ASSERT(obj_1 != nullptr, "Object[{}] not found", ObjIds[1]);
 
                 fmt::format_to(std::back_inserter(buffer),
-                               "Geometry[{}] in object[{}({})] intersects with geometry[{}] in "
-                               "object[{}({})]\n",
+                               "Geometry({}) in Object[{}({})] intersects with Geometry({}) in "
+                               "Object[{}({})]\n",
                                GeoIds[0],
-                               obj_0->id(),
                                obj_0->name(),
+                               obj_0->id(),
                                GeoIds[1],
-                               obj_1->id(),
-                               obj_1->name());
+                               obj_1->name(),
+                               obj_1->id());
             }
 
             auto intersected_mesh =
@@ -259,7 +261,7 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
             path /= "intersected_mesh.obj";
             auto output_path = path.string();
 
-            fmt::format_to(std::back_inserter(buffer), "Saving intersected mesh to {}.\n", output_path);
+            fmt::format_to(std::back_inserter(buffer), "Saving intersected mesh to {}.", output_path);
 
             spdlog::error(buffer);
 
