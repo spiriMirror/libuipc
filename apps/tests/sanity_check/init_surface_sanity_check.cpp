@@ -1,5 +1,6 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
+#include <app/require_log.h>
 #include <uipc/uipc.h>
 #include <filesystem>
 #include <fstream>
@@ -77,7 +78,7 @@ TEST_CASE("init_surface_intersection", "[init_surface]")
         object->geometries().create(mesh2);
     }
 
-    world.init(scene);
+    REQUIRE_HAS_ERROR(world.init(scene));
 
     REQUIRE(!world.is_valid());
 }

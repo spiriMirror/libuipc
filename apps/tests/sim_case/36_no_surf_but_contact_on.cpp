@@ -1,5 +1,6 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
+#include <app/require_log.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/stable_neo_hookean.h>
@@ -59,13 +60,16 @@ TEST_CASE("36_no_surf_but_contact_on", "[abd]")
 
     world.init(scene);
     SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
+
+    REQUIRE_ONCE_WARN(
+        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0)));
+
 
     while(world.frame() < 50)
     {
         world.advance();
         world.retrieve();
-        sio.write_surface(
-            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+        REQUIRE_ONCE_WARN(sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame())));
     }
 }
