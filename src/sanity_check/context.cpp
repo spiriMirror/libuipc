@@ -1,3 +1,4 @@
+#include "uipc/common/log.h"
 #include <context.h>
 #include <uipc/common/zip.h>
 #include <uipc/backend/visitors/geometry_visitor.h>
@@ -11,6 +12,36 @@
 
 namespace uipc::sanity_check
 {
+void ContactTabular::init(backend::SceneVisitor& scene)
+{
+    auto models   = scene.contact_tabular().contact_models();
+    auto elements = scene.contact_tabular().element_count();
+    m_table.resize(elements * elements, models.front());
+    m_contact_element_count = elements;
+    for(auto& model : models)
+    {
+        auto id                             = model.ids();
+        m_table[id.x() * elements + id.y()] = model;
+    }
+}
+
+const core::ContactModel& ContactTabular::at(IndexT i, IndexT j) const
+{
+    UIPC_ASSERT(i < m_contact_element_count && j < m_contact_element_count,
+                "Invalid contact element id, id should be in [{},{}), your i={}, j={}.",
+                0,
+                m_contact_element_count,
+                i,
+                j);
+
+    return m_table[i * m_contact_element_count + j];
+}
+
+SizeT ContactTabular::element_count() const noexcept
+{
+    return m_contact_element_count;
+}
+
 namespace detail
 {
     using namespace uipc::geometry;
@@ -154,7 +185,8 @@ namespace detail
 
                 if(!vertex_contact_element_id)
                     vertex_contact_element_id =
-                        simplicial_complex->vertices().create<IndexT>("sanity_check/contact_element_id");
+                        simplicial_complex->vertices().create<IndexT>(
+                            "sanity_check/contact_element_id", 0);
 
                 std::ranges::fill(view(*vertex_contact_element_id), CID);
             }
@@ -274,11 +306,13 @@ class Context::Impl
 
     ~Impl() = default;
 
-    void init()
+    void prepare()
     {
+        auto scene_visitor = backend::SceneVisitor{m_scene};
+        m_contact_tabular.init(scene_visitor);
+
         build_geo_id_to_object_id();
 
-        auto scene_visitor = backend::SceneVisitor{m_scene};
         detail::create_basic_sanity_check_attributes(scene_visitor.geometries(),
                                                      m_geo_id_to_object_id);
 
@@ -290,7 +324,7 @@ class Context::Impl
         }
     }
 
-    void deinit()
+    void destroy()
     {
         auto scene_visitor = backend::SceneVisitor{m_scene};
         detail::destory_sanity_check_attributes(scene_visitor);
@@ -340,17 +374,38 @@ class Context::Impl
         return *m_scene_simplicial_surface;
     }
 
+    void init_contact_tabular(ContactTabular& contact_tabular) const
+    {
+        auto scene_visitor = backend::SceneVisitor{m_scene};
+        contact_tabular.init(scene_visitor);
+    }
+
+    const ContactTabular& contact_tabular() const noexcept
+    {
+        return m_contact_tabular;
+    }
 
   private:
     core::Scene&                           m_scene;
     mutable U<geometry::SimplicialComplex> m_scene_simplicial_surface;
     mutable unordered_map<IndexT, IndexT>  m_geo_id_to_object_id;
+    ContactTabular                         m_contact_tabular;
 };
 
 Context::Context(SanityCheckerCollection& c, core::Scene& s) noexcept
     : SanityChecker(c, s)
     , m_impl(uipc::make_unique<Impl>(s))
 {
+}
+
+void Context::prepare()
+{
+    m_impl->prepare();
+}
+
+void Context::destroy()
+{
+    m_impl->destroy();
 }
 
 Context::~Context() {}
@@ -360,21 +415,17 @@ const geometry::SimplicialComplex& Context::scene_simplicial_surface() const noe
     return m_impl->scene_simplicial_surface();
 }
 
-void Context::init() noexcept
+const ContactTabular& Context::contact_tabular() const noexcept
 {
-    m_impl->init();
-}
-
-void Context::deinit() noexcept
-{
-    m_impl->deinit();
+    return m_impl->contact_tabular();
 }
 
 U64 Context::get_id() const noexcept
 {
     return 0;
 }
-SanityCheckResult Context::do_check(backend::SceneVisitor&) noexcept
+
+SanityCheckResult Context::do_check(backend::SceneVisitor&)
 {
     // Do nothing, this checker is only for providing context for other checkers
     return SanityCheckResult::Success;

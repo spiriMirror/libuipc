@@ -1,5 +1,6 @@
 #pragma once
 #include <uipc/common/macro.h>
+#include <sanity_checker_exception.h>
 #include <uipc/core/sanity_checker.h>
 #include <sanity_checker_auto_register.h>
 #include <uipc/core/scene.h>
@@ -21,16 +22,25 @@ class SanityChecker : public core::ISanityChecker
     SanityChecker(SanityCheckerCollection& c, core::Scene& s) noexcept;
 
     std::string_view workspace() const noexcept;
+    std::string      this_output_path() const noexcept;
 
   protected:
-    virtual U64 get_id() const noexcept = 0;
+    virtual std::string get_name() const noexcept override;
+
+    virtual void build(backend::SceneVisitor& scene);
 
     template <std::derived_from<core::ISanityChecker> SanityCheckerT>
     SanityCheckerT* find() const;
 
+    template <std::derived_from<core::ISanityChecker> SanityCheckerT>
+    SanityCheckerT& require() const;
+
     virtual SanityCheckResult do_check(backend::SceneVisitor& scene) = 0;
 
+    core::Scene::CObjects objects() const noexcept;
+
   private:
+    virtual void              build() override final;
     virtual SanityCheckResult do_check() override;
     SanityCheckerCollection&  m_collection;
     core::Scene&              m_scene;

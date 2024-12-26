@@ -149,6 +149,11 @@ bool World::recover(SizeT aim_frame)
     return success && !has_error;
 }
 
+bool World::is_valid() const
+{
+    return m_valid;
+}
+
 SizeT World::frame() const
 {
     if(!m_valid)
@@ -221,7 +226,7 @@ void World::sanity_check(Scene& s)
         info.workspace = m_engine->workspace();
 
         ISanityCheckerCollection* sanity_checkers = creator(&info);
-        sanity_checkers->init(s);
+        sanity_checkers->build(s);
 
         auto result = sanity_checkers->check();
         switch(result)

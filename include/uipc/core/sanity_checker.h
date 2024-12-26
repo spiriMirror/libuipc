@@ -18,14 +18,15 @@ class UIPC_CORE_API ISanityChecker
 {
   public:
     virtual ~ISanityChecker() = default;
-    virtual void      init();
-    virtual void      deinit();
+    virtual void      build();
     U64               id() const noexcept;
     SanityCheckResult check();
+    std::string       name() const noexcept;
 
   protected:
-    virtual U64               get_id() const noexcept = 0;
-    virtual SanityCheckResult do_check()              = 0;
+    virtual U64               get_id() const noexcept   = 0;
+    virtual std::string       get_name() const noexcept = 0;
+    virtual SanityCheckResult do_check()                = 0;
 };
 
 class UIPC_CORE_API SanityCheckerCollectionCreateInfo
@@ -37,8 +38,8 @@ class UIPC_CORE_API SanityCheckerCollectionCreateInfo
 class UIPC_CORE_API ISanityCheckerCollection
 {
   public:
-    virtual ~ISanityCheckerCollection()      = default;
-    virtual void              init(Scene& s) = 0;
-    virtual SanityCheckResult check() const  = 0;
+    virtual ~ISanityCheckerCollection()       = default;
+    virtual void              build(Scene& s) = 0;
+    virtual SanityCheckResult check() const   = 0;
 };
 }  // namespace uipc::core

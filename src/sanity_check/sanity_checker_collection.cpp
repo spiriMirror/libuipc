@@ -1,11 +1,18 @@
 #include <sanity_checker_collection.h>
 #include <sanity_checker_auto_register.h>
-
+#include <context.h>
+#include <spdlog/spdlog.h>
+#include <filesystem>
 namespace uipc::sanity_check
 {
 SanityCheckerCollection::SanityCheckerCollection(std::string_view workspace) noexcept
 {
-    m_workspace = fmt::format("{}/sanity_check/", workspace);
+    namespace fs = std::filesystem;
+
+    fs::path path{workspace};
+    path /= "sanity_check";
+    fs::exists(path) || fs::create_directories(path);
+    m_workspace = path.string();
 }
 
 SanityCheckerCollection::~SanityCheckerCollection() {}
@@ -15,35 +22,48 @@ std::string_view SanityCheckerCollection::workspace() const noexcept
     return m_workspace;
 }
 
-void SanityCheckerCollection::init(core::Scene& s)
+void SanityCheckerCollection::build(core::Scene& s)
 {
     for(const auto& creator : SanityCheckerAutoRegister::creators().entries)
     {
-        m_entries.emplace_back(creator(*this, s));
+        auto entry = creator(*this, s);
+        if(entry)
+        {
+            m_entries.emplace_back(std::move(entry));
+        }
     }
 
     for(const auto& entry : m_entries)
     {
-        entry->init();
+        try
+        {
+            entry->build();
+            m_valid_entries.emplace_back(entry.get());
+        }
+        catch(const SanityCheckerException& e)
+        {
+            spdlog::debug("[{}] shutdown, reason: {}", entry->name(), e.what());
+        }
     }
+
+    auto ctx = find<Context>();
+    UIPC_ASSERT(ctx != nullptr, "SanityCheckBuild: Context not found");
+
+    ctx->prepare();
 }
 
 SanityCheckResult SanityCheckerCollection::check() const
 {
-    int result = static_cast<int>(SanityCheckResult::Success);
-    for(const auto& entry : m_entries)
+    auto ctx    = find<Context>();
+    int  result = static_cast<int>(SanityCheckResult::Success);
+    for(const auto& entry : m_valid_entries)
     {
         int check = static_cast<int>(entry->check());
 
         if(check > result)
             result = check;
     }
-
-    for(const auto& entry : m_entries)
-    {
-        entry->deinit();
-    }
-
+    ctx->destroy();
     return static_cast<SanityCheckResult>(result);
 }
 }  // namespace uipc::sanity_check

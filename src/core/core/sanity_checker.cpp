@@ -2,9 +2,7 @@
 
 namespace uipc::core
 {
-void ISanityChecker::init() {}
-
-void ISanityChecker::deinit() {}
+void ISanityChecker::build() {}
 
 U64 ISanityChecker::id() const noexcept
 {
@@ -14,5 +12,9 @@ U64 ISanityChecker::id() const noexcept
 SanityCheckResult ISanityChecker::check()
 {
     return do_check();
+}
+std::string uipc::core::ISanityChecker::name() const noexcept
+{
+    return get_name();
 }
 }  // namespace uipc::core

@@ -88,7 +88,7 @@ TEST_CASE("24_abd_animated_translation", "[animation]")
                     });
 
 
-    world.init(scene);
+    world.init(scene); REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

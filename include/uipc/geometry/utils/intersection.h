@@ -24,6 +24,7 @@ UIPC_GEOMETRY_API bool tri_edge_intersect(const Vector3& T0,
                                           const Vector3& T2,
                                           const Vector3& E0,
                                           const Vector3& E1,
+                                          bool&          coplanar,
                                           Vector3&       uvw_in_tri,
                                           Vector2&       uv_in_edge);
 
