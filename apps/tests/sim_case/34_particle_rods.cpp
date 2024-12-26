@@ -69,7 +69,7 @@ TEST_CASE("34_particle_rods", "[abd]")
         }
     }
 
-    world.init(scene);
+    world.init(scene); REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

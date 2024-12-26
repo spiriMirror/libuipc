@@ -59,6 +59,7 @@ TEST_CASE("36_no_surf_but_contact_on", "[abd]")
     }
 
     world.init(scene);
+    REQUIRE(world.is_valid());
     SceneIO sio{scene};
 
     REQUIRE_HAS_WARN(
