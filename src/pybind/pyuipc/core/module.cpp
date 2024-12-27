@@ -8,6 +8,7 @@
 #include <pyuipc/core/scene_io.h>
 #include <pyuipc/core/animator.h>
 #include <pyuipc/core/diff_sim.h>
+#include <pyuipc/core/sanity_checker.h>
 
 namespace pyuipc::core
 {
@@ -23,6 +24,7 @@ PyModule::PyModule(py::module& m)
     PyAnimator{m};
     PyDiffSim{m};
 
+    PySanityChecker{m};
     PyScene{m};
     PyWorld{m};
 
