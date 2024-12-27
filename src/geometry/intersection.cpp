@@ -1,5 +1,6 @@
 #include <uipc/geometry/utils/intersection.h>
 #include <Eigen/Dense>
+#include <igl/segment_segment_intersect.h>
 
 namespace uipc::geometry
 {
@@ -29,7 +30,7 @@ bool tri_edge_intersect(const Vector3& triVA,
     M.col(1) = AB;
     M.col(2) = AC;
 
-    if(M.determinant() == 0)  // coplanar or parallel
+    if(std::abs(M.determinant()) <= 1e-6)  // coplanar or parallel
     {
         // check if E is in the plane of the triangle
         Eigen::Vector3d N       = AB.cross(AC);
@@ -37,40 +38,20 @@ bool tri_edge_intersect(const Vector3& triVA,
         if(AE_on_N != 0)  // parallel
             return false;
 
+        Vector3 BC = triVC - triVB;
+
         coplanar = true;
 
-        auto solve_uv = [&](const Vector3& AX) -> Vector2
-        {
-            Matrix2x2 M;
-            M(0, 0) = AB.dot(AB);
-            M(0, 1) = AB.dot(AC);
-            M(1, 0) = AC.dot(AB);
-            M(1, 1) = AC.dot(AC);
+        Vector2 tu;
+        bool    intersect = false;
+        intersect |=
+            igl::segment_segment_intersect(edgeVE, EF, triVA, AB, tu[0], tu[1]);
+        intersect |=
+            igl::segment_segment_intersect(edgeVE, EF, triVA, AC, tu[0], tu[1]);
+        intersect |=
+            igl::segment_segment_intersect(edgeVE, EF, triVB, BC, tu[0], tu[1]);
 
-            Vector2 b;
-            b[0] = AB.dot(AX);
-            b[1] = AC.dot(AX);
-
-            return M.inverse() * b;
-        };
-
-        auto in_01 = [](Float x) { return x >= 0 && x <= 1; };
-
-        {
-            Vector2 uv  = solve_uv(AE);
-            auto in_tri = in_01(uv[0]) && in_01(uv[1]) && in_01(uv[0] + uv[1]);
-            if(in_tri)
-                return true;
-        }
-
-        {
-            Vector2 uv  = solve_uv(EF);
-            auto in_tri = in_01(uv[0]) && in_01(uv[1]) && in_01(uv[0] + uv[1]);
-            if(in_tri)
-                return true;
-        }
-
-        return false;
+        return intersect;
     }
 
     Vector3 tuv = M.inverse() * AE;
@@ -82,8 +63,8 @@ bool tri_edge_intersect(const Vector3& triVA,
     uvw_in_tri[1] = tuv[1];
     uvw_in_tri[2] = tuv[2];
 
-    uv_in_edge[0] = tuv[0];
-    uv_in_edge[1] = 1.0 - tuv[0];
+    uv_in_edge[0] = 1.0 - tuv[0];
+    uv_in_edge[1] = tuv[0];
 
     auto in_01 = [](double x) { return x >= 0 && x <= 1; };
 

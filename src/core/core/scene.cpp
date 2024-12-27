@@ -118,7 +118,14 @@ Json Scene::default_config() noexcept
         collision_detection["method"] = "linear_bvh";
     }
 
-    config["sanity_check"]["enable"] = true;
+    auto& sanity_check = config["sanity_check"];
+    {
+        sanity_check["enable"] = true;
+
+        // normal: automatically export mesh to workspace
+        // quiet: do not export mesh
+        sanity_check["mode"] = "normal";
+    }
 
     auto& recovery = config["recovery"] = Json::object();
     {
