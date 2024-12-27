@@ -30,8 +30,8 @@ namespace detail
         MUDA_GENERIC operator uint64_t() const noexcept;
 
       private:
-        friend bool operator==(const LinearBVHMortonIndex& lhs,
-                               const LinearBVHMortonIndex& rhs) noexcept;
+        friend MUDA_GENERIC bool operator==(const LinearBVHMortonIndex& lhs,
+                                            const LinearBVHMortonIndex& rhs) noexcept;
         uint64_t    m_morton_index = 0;
     };
 

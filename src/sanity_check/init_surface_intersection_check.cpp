@@ -47,21 +47,33 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
 
     virtual U64 get_id() const noexcept override { return SanityCheckerUID; }
 
-    geometry::SimplicialComplex extract_intersect_mesh(const geometry::SimplicialComplex& scene_surface,
-                                                       span<const IndexT> edge_intersected,
-                                                       span<const IndexT> tri_intersected)
+    geometry::SimplicialComplex extract_intersected_mesh(const geometry::SimplicialComplex& scene_surface,
+                                                         span<const IndexT> edge_intersected,
+                                                         span<const IndexT> tri_intersected)
     {
         geometry::SimplicialComplex i_mesh;
         i_mesh.vertices().resize(scene_surface.vertices().size());
-        auto i_edge_count =
-            std::ranges::count_if(edge_intersected,
-                                  [&](IndexT i) { return i == 1; });
-        auto i_tri_count = std::ranges::count_if(tri_intersected,
-                                                 [&](IndexT i) { return i == 1; });
+
+        vector<SizeT> intersected_edges;
+        intersected_edges.reserve(edge_intersected.size());
+        for(auto i = 0; i < edge_intersected.size(); i++)
+        {
+            if(edge_intersected[i] == 1)
+                intersected_edges.push_back(i);
+        }
+
+        vector<SizeT> intersected_tris;
+        intersected_tris.reserve(tri_intersected.size());
+        for(auto i = 0; i < tri_intersected.size(); i++)
+        {
+            if(tri_intersected[i] == 1)
+                intersected_tris.push_back(i);
+        }
+
         i_mesh.edges().create<Vector2i>(builtin::topo);
-        i_mesh.edges().resize(i_edge_count);
+        i_mesh.edges().resize(intersected_edges.size());
         i_mesh.triangles().create<Vector3i>(builtin::topo);
-        i_mesh.triangles().resize(i_tri_count);
+        i_mesh.triangles().resize(intersected_tris.size());
 
         auto pos      = i_mesh.vertices().create<Vector3>(builtin::position);
         auto pos_view = view(*pos);
@@ -74,26 +86,21 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
         auto dst_tri_view  = view(i_mesh.triangles().topo());
 
 
-        {
-            auto I = 0;
-            std::ranges::copy_if(src_edge_view,
-                                 dst_edge_view.begin(),
-                                 [&](const Vector2i& e)
-                                 { return edge_intersected[I++] == 1; });
-        }
+        // copy all vertex attributes
+        i_mesh.vertices().copy_from(scene_surface.vertices());
 
-        {
-            auto I = 0;
-            std::ranges::copy_if(src_tri_view,
-                                 dst_tri_view.begin(),
-                                 [&](const Vector3i& f)
-                                 { return tri_intersected[I++] == 1; });
-        }
+        // copy selected edges
+        i_mesh.edges().copy_from(scene_surface.edges(),
+                                 geometry::AttributeCopy::pull(intersected_edges));
+        // copy selected triangles
+        i_mesh.triangles().copy_from(scene_surface.triangles(),
+                                     geometry::AttributeCopy::pull(intersected_tris));
 
         return i_mesh;
     }
 
-    virtual SanityCheckResult do_check(backend::SceneVisitor& scene) noexcept override
+    virtual SanityCheckResult do_check(backend::SceneVisitor& scene,
+                                       backend::SanityCheckMessageVisitor& msg) noexcept override
     {
         auto context = find<Context>();
 
@@ -223,11 +230,7 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
         if(has_intersection)
         {
             // create a fmt buffer
-            std::string buffer;
-
-            fmt::format_to(std::back_inserter(buffer),
-                           "InitSurfaceIntersectionCheck({}):\n",
-                           get_id());
+            auto& buffer = msg.message();
 
             for(auto& [GeoIds, ObjIds] : intersected_geo_ids)
             {
@@ -249,24 +252,37 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
             }
 
             auto intersected_mesh =
-                extract_intersect_mesh(scene_surface, edge_intersected, tri_intersected);
+                extract_intersected_mesh(scene_surface, edge_intersected, tri_intersected);
 
             fmt::format_to(std::back_inserter(buffer),
                            "Intersected mesh has {} edges and {} triangles.\n",
                            intersected_mesh.edges().size(),
                            intersected_mesh.triangles().size());
 
-            namespace fs = std::filesystem;
-            fs::path path{this_output_path()};
-            path /= "intersected_mesh.obj";
-            auto output_path = path.string();
+            std::string name = "intersected_mesh";
 
-            fmt::format_to(std::back_inserter(buffer), "Saving intersected mesh to {}.", output_path);
+            if(scene.info()["sanity_check"]["mode"] == "normal")
+            {
+                auto output_path = this_output_path();
+                namespace fs     = std::filesystem;
+                fs::path path{output_path};
+                path /= fmt::format("{}.obj", name);
+                auto path_str = path.string();
 
-            spdlog::error(buffer);
+                geometry::SimplicialComplexIO io;
+                io.write(path_str, intersected_mesh);
+                fmt::format_to(std::back_inserter(buffer),
+                               "Intersected mesh is saved at {}.\n",
+                               path_str);
+            }
 
-            geometry::SimplicialComplexIO io;
-            io.write(output_path, intersected_mesh);
+            fmt::format_to(std::back_inserter(buffer),
+                           "Create mesh [{}<{}>] for post-processing.",
+                           name,
+                           intersected_mesh.type());
+
+            msg.geometries()["intersected_mesh"] =
+                uipc::make_shared<geometry::SimplicialComplex>(std::move(intersected_mesh));
 
             return SanityCheckResult::Error;
         }

@@ -81,6 +81,15 @@ TEST_CASE("init_surface_intersection", "[init_surface]")
     REQUIRE_HAS_ERROR(world.init(scene));
 
     REQUIRE(!world.is_valid());
+
+    {
+        auto& msg  = scene.sanity_checker().errors().at(1);
+        auto& mesh = msg->geometries().at("intersected_mesh");
+
+        SimplicialComplexIO io;
+        io.write(fmt::format("{}/tets.obj", this_output_path),
+                 *mesh->as<SimplicialComplex>());
+    }
 }
 
 void test_init_surf_intersection_check(std::string_view            name,
@@ -93,13 +102,15 @@ void test_init_surf_intersection_check(std::string_view            name,
     using namespace uipc::constitution;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto this_output_path = AssetDir::output_path(__FILE__) + fmt::format("/{}", name);
+    auto        this_output_path =
+        AssetDir::output_path(__FILE__) + fmt::format("/{}-{}", name, trans.size());
 
     Engine engine{"none", this_output_path};
     World  world{engine};
 
     auto config                      = Scene::default_config();
     config["sanity_check"]["enable"] = true;
+    config["sanity_check"]["mode"]   = "quiet";
     Scene scene{config};
 
     // create object
@@ -113,14 +124,26 @@ void test_init_surf_intersection_check(std::string_view            name,
 
         if(m.dim() == 3)
             label_triangle_orient(m);
-
-
         object->geometries().create(m);
     }
 
-    REQUIRE_HAS_ERROR(world.init(scene));
 
-    REQUIRE(!world.is_valid());
+    if(trans.size() == 1)
+    {
+        world.init(scene);
+        REQUIRE(world.is_valid());
+    }
+    else
+    {
+        REQUIRE_HAS_ERROR(world.init(scene));
+        REQUIRE(!world.is_valid());
+
+        auto& msg  = scene.sanity_checker().errors().at(1);
+        auto& mesh = msg->geometries().at("intersected_mesh");
+        auto  sc   = mesh->as<SimplicialComplex>();
+        REQUIRE(sc->edges().size() > 0);
+        REQUIRE(sc->triangles().size() > 0);
+    }
 }
 
 TEST_CASE("init_surface_mesh_intersection", "[init_surface]")
@@ -139,7 +162,8 @@ TEST_CASE("init_surface_mesh_intersection", "[init_surface]")
             t.translate(Vector3::UnitY() * 0.2 * i);
             transforms.push_back(t);
         }
-        test_init_surf_intersection_check(name, path, transforms);
+        test_init_surf_intersection_check(name, path, span{transforms});
+        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
     }
 
     {
@@ -152,7 +176,8 @@ TEST_CASE("init_surface_mesh_intersection", "[init_surface]")
             t.translate(Vector3::UnitY() * 0.2 * i);
             transforms.push_back(t);
         }
-        test_init_surf_intersection_check(name, path, transforms);
+        test_init_surf_intersection_check(name, path, span{transforms});
+        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
     }
 
     {
@@ -165,7 +190,8 @@ TEST_CASE("init_surface_mesh_intersection", "[init_surface]")
             t.translate(Vector3::UnitY() * 0.2 * i);
             transforms.push_back(t);
         }
-        test_init_surf_intersection_check(name, path, transforms);
+        test_init_surf_intersection_check(name, path, span{transforms});
+        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
     }
 
     {
@@ -178,6 +204,7 @@ TEST_CASE("init_surface_mesh_intersection", "[init_surface]")
             t.translate(Vector3::UnitY() * 0.2 * i);
             transforms.push_back(t);
         }
-        test_init_surf_intersection_check(name, path, transforms);
+        test_init_surf_intersection_check(name, path, span{transforms});
+        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
     }
 }

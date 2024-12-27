@@ -1,6 +1,7 @@
 #include <sanity_checker.h>
 #include <sanity_checker_collection.h>
 #include <uipc/backend/visitors/scene_visitor.h>
+#include <uipc/backend/visitors/sanity_check_message_visitor.h>
 #include <boost/core/demangle.hpp>
 
 namespace uipc::sanity_check
@@ -44,9 +45,18 @@ void SanityChecker::build()
     build(sv);
 }
 
-SanityCheckResult SanityChecker::do_check()
+SanityCheckResult SanityChecker::do_check(core::SanityCheckMessage& msg)
 {
-    backend::SceneVisitor sv{m_scene};
-    return do_check(sv);
+    backend::SceneVisitor              sv{m_scene};
+    backend::SanityCheckMessageVisitor scmv{msg};
+
+    scmv.id()     = get_id();
+    scmv.name()   = get_name();
+    scmv.result() = SanityCheckResult::Success;
+
+    auto result   = do_check(sv, scmv);
+    scmv.result() = result;
+
+    return result;
 }
 }  // namespace uipc::sanity_check

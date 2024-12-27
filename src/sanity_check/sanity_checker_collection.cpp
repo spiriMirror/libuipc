@@ -52,14 +52,16 @@ void SanityCheckerCollection::build(core::Scene& s)
     ctx->prepare();
 }
 
-SanityCheckResult SanityCheckerCollection::check() const
+SanityCheckResult SanityCheckerCollection::check(core::SanityCheckMessageCollection& msgs) const
 {
     auto ctx    = find<Context>();
     int  result = static_cast<int>(SanityCheckResult::Success);
     for(const auto& entry : m_valid_entries)
     {
-        int check = static_cast<int>(entry->check());
-
+        auto& msg = msgs.messages()[entry->id()];
+        if(!msg)
+            msg = uipc::make_shared<core::SanityCheckMessage>();
+        int check = static_cast<int>(entry->check(*msg));
         if(check > result)
             result = check;
     }
