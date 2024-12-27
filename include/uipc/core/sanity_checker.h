@@ -1,45 +1,30 @@
 #pragma once
-#include <uipc/common/type_define.h>
-#include <uipc/common/dllexport.h>
-#include <uipc/common/span.h>
+#include <uipc/core/i_sanity_checker.h>
 
 namespace uipc::core
 {
 class Scene;
 
-enum class SanityCheckResult : int
-{
-    Success = 0,
-    Warning = 1,
-    Error   = 2
-};
-
-class UIPC_CORE_API ISanityChecker
+class UIPC_CORE_API SanityChecker final
 {
   public:
-    virtual ~ISanityChecker() = default;
-    virtual void      build();
-    U64               id() const noexcept;
-    SanityCheckResult check();
-    std::string       name() const noexcept;
+    SanityChecker(Scene& scene);
+    ~SanityChecker();
 
-  protected:
-    virtual U64               get_id() const noexcept   = 0;
-    virtual std::string       get_name() const noexcept = 0;
-    virtual SanityCheckResult do_check()                = 0;
-};
+    SanityCheckResult check(std::string_view workspace);
+    void              report();
 
-class UIPC_CORE_API SanityCheckerCollectionCreateInfo
-{
-  public:
-    std::string_view workspace;
-};
+    const unordered_map<U64, S<SanityCheckMessage>>& errors() const;
+    const unordered_map<U64, S<SanityCheckMessage>>& warns() const;
+    const unordered_map<U64, S<SanityCheckMessage>>& infos() const;
 
-class UIPC_CORE_API ISanityCheckerCollection
-{
-  public:
-    virtual ~ISanityCheckerCollection()       = default;
-    virtual void              build(Scene& s) = 0;
-    virtual SanityCheckResult check() const   = 0;
+    void clear();
+
+  private:
+    core::SanityCheckMessageCollection m_errors;
+    core::SanityCheckMessageCollection m_warns;
+    core::SanityCheckMessageCollection m_infos;
+
+    Scene& m_scene;
 };
 }  // namespace uipc::core

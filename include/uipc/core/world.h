@@ -16,6 +16,7 @@ namespace uipc::core
 class UIPC_CORE_API World final
 {
     friend class backend::WorldVisitor;
+    friend class SanityChecker;
 
   public:
     World(Engine& e) noexcept;

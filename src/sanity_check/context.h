@@ -39,7 +39,8 @@ class Context final : public SanityChecker
 
     virtual U64 get_id() const noexcept override;
 
-    virtual SanityCheckResult do_check(backend::SceneVisitor&) override;
+    virtual SanityCheckResult do_check(backend::SceneVisitor&,
+                                       backend::SanityCheckMessageVisitor&) override;
 
     class Impl;
     U<Impl> m_impl;

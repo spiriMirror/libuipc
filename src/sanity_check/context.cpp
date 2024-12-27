@@ -425,7 +425,7 @@ U64 Context::get_id() const noexcept
     return 0;
 }
 
-SanityCheckResult Context::do_check(backend::SceneVisitor&)
+SanityCheckResult Context::do_check(backend::SceneVisitor&, backend::SanityCheckMessageVisitor&)
 {
     // Do nothing, this checker is only for providing context for other checkers
     return SanityCheckResult::Success;

@@ -93,7 +93,8 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
         return i_mesh;
     }
 
-    virtual SanityCheckResult do_check(backend::SceneVisitor& scene) noexcept override
+    virtual SanityCheckResult do_check(backend::SceneVisitor& scene,
+                                       backend::SanityCheckMessageVisitor& msg) noexcept override
     {
         auto context = find<Context>();
 
@@ -223,11 +224,7 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
         if(has_intersection)
         {
             // create a fmt buffer
-            std::string buffer;
-
-            fmt::format_to(std::back_inserter(buffer),
-                           "InitSurfaceIntersectionCheck({}):\n",
-                           get_id());
+            auto& buffer = msg.message();
 
             for(auto& [GeoIds, ObjIds] : intersected_geo_ids)
             {
@@ -252,21 +249,14 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
                 extract_intersect_mesh(scene_surface, edge_intersected, tri_intersected);
 
             fmt::format_to(std::back_inserter(buffer),
-                           "Intersected mesh has {} edges and {} triangles.\n",
+                           "Intersected mesh has {} edges and {} triangles.",
                            intersected_mesh.edges().size(),
                            intersected_mesh.triangles().size());
 
-            namespace fs = std::filesystem;
-            fs::path path{this_output_path()};
-            path /= "intersected_mesh.obj";
-            auto output_path = path.string();
+            std::string name = "intersected_mesh";
 
-            fmt::format_to(std::back_inserter(buffer), "Saving intersected mesh to {}.", output_path);
-
-            spdlog::error(buffer);
-
-            geometry::SimplicialComplexIO io;
-            io.write(output_path, intersected_mesh);
+            msg.geometries()["intersected_mesh"] =
+                uipc::make_shared<geometry::SimplicialComplex>(std::move(intersected_mesh));
 
             return SanityCheckResult::Error;
         }
