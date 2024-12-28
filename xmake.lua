@@ -31,6 +31,8 @@ function version_patch()
     return "0"
 end
 
+includes("scripts/xmake/rules.lua")
+
 target("muda")
     set_kind("headeronly")
     add_includedirs("external/muda/src/", {public = true})
@@ -62,7 +64,6 @@ add_requires("glfw")
 add_requires("magic_enum")
 
 if has_config("uipc_enable_pybind") then
-    add_requires("python[3.9.11]")
     add_requires("pybind11")
 end
 -- global include

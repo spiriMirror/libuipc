@@ -32,3 +32,6 @@ bin/
 vsxmake2022
 release
 releasedbg
+
+pythoninclude.txt
+pythonlink.txt 
