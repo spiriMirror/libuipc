@@ -63,12 +63,11 @@ void SimSystemCollection::build_systems()
         catch(SimSystemException& e)
         {
             s->set_invalid();
-            spdlog::info("[{}] shutdown, reason: {}", s->name(), e.what());
+            spdlog::debug("[{}] shutdown, reason: {}", s->name(), e.what());
         }
     }
 
     cleanup_invalid_systems();
-    spdlog::info("Cleanup invalid systems done!");
 
     m_valid_systems.resize(m_sim_system_map.size());
     std::ranges::transform(m_sim_system_map,

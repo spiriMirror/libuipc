@@ -43,7 +43,7 @@ void SimEngine::dump_system_info() const
 {
     namespace fs = std::filesystem;
 
-    spdlog::info("Built systems:\n{}", m_system_collection);
+    spdlog::debug("Built systems:\n{}", m_system_collection);
 
     fs::path p = fs::absolute(fs::path{workspace()} / "systems.json");
     {

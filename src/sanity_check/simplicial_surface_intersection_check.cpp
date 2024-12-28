@@ -25,15 +25,13 @@ struct less<uipc::Vector2i>
 
 namespace uipc::sanity_check
 {
-class InitSurfaceIntersectionCheck final : public SanityChecker
+class SimplicialSurfaceIntersectionCheck final : public SanityChecker
 {
   public:
     constexpr static U64 SanityCheckerUID = 1;
     using SanityChecker::SanityChecker;
 
-    geometry::BVH              bvh;
-    vector<core::ContactModel> contact_table;
-    SizeT                      contact_element_count;
+    geometry::BVH bvh;
 
   protected:
     virtual void build(backend::SceneVisitor& scene) override
@@ -163,6 +161,7 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
 
         bool has_intersection = false;
 
+        // key: {geo_id_0, geo_id_1}, value: {obj_id_0, obj_id_1}
         map<Vector2i, Vector2i> intersected_geo_ids;
 
         bvh.query(
@@ -229,7 +228,6 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
 
         if(has_intersection)
         {
-            // create a fmt buffer
             auto& buffer = msg.message();
 
             for(auto& [GeoIds, ObjIds] : intersected_geo_ids)
@@ -291,5 +289,5 @@ class InitSurfaceIntersectionCheck final : public SanityChecker
     };
 };
 
-REGISTER_SANITY_CHECKER(InitSurfaceIntersectionCheck);
+REGISTER_SANITY_CHECKER(SimplicialSurfaceIntersectionCheck);
 }  // namespace uipc::sanity_check

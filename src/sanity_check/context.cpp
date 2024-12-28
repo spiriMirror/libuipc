@@ -97,19 +97,20 @@ namespace detail
     static void create_basic_sanity_check_attributes(span<S<GeometrySlot>> geos,
                                                      const unordered_map<IndexT, IndexT>& geo_id_to_object_id)
     {
-        for(auto& geo : geos)
+        for(auto& geo_slot : geos)
         {
-            if(geo->geometry().type() == builtin::SimplicialComplex)
+            auto& geo = geo_slot->geometry();
+
+            if(geo.type() == builtin::SimplicialComplex)
             {
-                auto simplicial_complex =
-                    dynamic_cast<SimplicialComplex*>(&geo->geometry());
+                auto simplicial_complex = geo.as<SimplicialComplex>();
 
                 UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
 
                 // 1) label original_index for each vertex, edge, triangle, tetrahedron
                 {
                     auto OI = simplicial_complex->vertices().create<IndexT>(
-                        "sanity_check/original_index");
+                        "sanity_check/original_index", -1);
                     auto OI_view = view(*OI);
 
                     std::iota(OI_view.begin(), OI_view.end(), 0);
@@ -117,7 +118,8 @@ namespace detail
 
                 if(simplicial_complex->dim() >= 1)
                 {
-                    auto OI = simplicial_complex->edges().create<IndexT>("sanity_check/original_index");
+                    auto OI = simplicial_complex->edges().create<IndexT>(
+                        "sanity_check/original_index", -1);
                     auto OI_view = view(*OI);
 
                     std::iota(OI_view.begin(), OI_view.end(), 0);
@@ -126,7 +128,7 @@ namespace detail
                 if(simplicial_complex->dim() >= 2)
                 {
                     auto OI = simplicial_complex->triangles().create<IndexT>(
-                        "sanity_check/original_index");
+                        "sanity_check/original_index", -1);
                     auto OI_view = view(*OI);
 
                     std::iota(OI_view.begin(), OI_view.end(), 0);
@@ -135,7 +137,7 @@ namespace detail
                 if(simplicial_complex->dim() == 3)
                 {
                     auto OI = simplicial_complex->tetrahedra().create<IndexT>(
-                        "sanity_check/original_index");
+                        "sanity_check/original_index", -1);
                     auto OI_view = view(*OI);
 
                     std::iota(OI_view.begin(), OI_view.end(), 0);
@@ -149,15 +151,32 @@ namespace detail
                         geo_id = simplicial_complex->vertices().create<IndexT>(
                             "sanity_check/geometry_id");
 
-                    std::ranges::fill(view(*geo_id), geo->id());
+                    std::ranges::fill(view(*geo_id), geo_slot->id());
 
                     auto obj_id = simplicial_complex->vertices().find<IndexT>("sanity_check/object_id");
 
                     if(!obj_id)
-                        obj_id = simplicial_complex->vertices().create<IndexT>("sanity_check/object_id");
+                        obj_id = simplicial_complex->vertices().create<IndexT>(
+                            "sanity_check/object_id", -1);
 
-                    std::ranges::fill(view(*obj_id), geo_id_to_object_id.at(geo->id()));
+                    std::ranges::fill(view(*obj_id),
+                                      geo_id_to_object_id.at(geo_slot->id()));
                 }
+            }
+
+            if(geo.type() == builtin::ImplicitGeometry)
+            {
+                auto geo_id = geo.instances().find<IndexT>("sanity_check/geometry_id");
+                if(!geo_id)
+                    geo_id = geo.instances().create<IndexT>("sanity_check/geometry_id");
+
+                std::ranges::fill(view(*geo_id), geo_slot->id());
+
+                auto obj_id = geo.instances().find<IndexT>("sanity_check/object_id");
+                if(!obj_id)
+                    obj_id = geo.instances().create<IndexT>("sanity_check/object_id");
+
+                std::ranges::fill(view(*obj_id), geo_id_to_object_id.at(geo_slot->id()));
             }
         }
     }

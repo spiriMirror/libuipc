@@ -171,26 +171,12 @@ void World::sanity_check(Scene& s)
     {
         auto result = s.sanity_checker().check(m_engine->workspace());
 
-        switch(result)
-        {
-            case SanityCheckResult::Success:
-                spdlog::info("Scene sanity check passed.");
-                break;
-            case SanityCheckResult::Warning:
-                spdlog::warn("Scene sanity check passed with warnings.");
-                break;
-            case SanityCheckResult::Error:
-                spdlog::error("Scene sanity check failed, we invalidate World.");
-                m_valid = false;
-                break;
-            default:
-                break;
-        }
-
         if(result != SanityCheckResult::Success)
         {
             s.sanity_checker().report();
         }
+
+        m_valid = (result == SanityCheckResult::Success);
     }
 }
 }  // namespace uipc::core
