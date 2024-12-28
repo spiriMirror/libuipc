@@ -1,4 +1,3 @@
-
 [submodule "external/muda"]
 	path = external/muda
 	url = https://github.com/MuGdxy/muda.git
@@ -8,3 +7,6 @@
 [submodule "external/tetgen"]
 	path = external/tetgen
 	url = https://github.com/spiriMirror/tetgen.git
+[submodule "external/octree/Octree"]
+	path = external/octree/Octree
+	url = https://github.com/attcs/Octree.git

@@ -2,17 +2,7 @@
 #include <pyuipc/as_numpy.h>
 #include <pyuipc/common/json.h>
 #include <Eigen/Geometry>
-#include <uipc/geometry/utils/label_surface.h>
-#include <uipc/geometry/utils/label_triangle_orient.h>
-#include <uipc/geometry/utils/flip_inward_triangles.h>
-#include <uipc/geometry/utils/extract_surface.h>
-#include <uipc/geometry/utils/merge.h>
-#include <uipc/geometry/utils/apply_transform.h>
-#include <uipc/geometry/utils/closure.h>
-#include <uipc/geometry/utils/label_connected_vertices.h>
-#include <uipc/geometry/utils/label_region.h>
-#include <uipc/geometry/utils/apply_region.h>
-#include <uipc/geometry/utils/tetrahedralize.h>
+#include <uipc/geometry/utils.h>
 
 
 namespace pyuipc::geometry
@@ -96,5 +86,17 @@ PyUtils::PyUtils(py::module& m)
         { return tetrahedralize(simplicial_complex, options); },
         py::arg("simplicial_complex"),
         py::arg("options") = Json::object());
+
+    m.def("optimal_transform",
+          [](py::array_t<const Float> S, py::array_t<const Float> D)
+          {
+              auto S_ = as_span_of<const Vector3>(S);
+              auto D_ = as_span_of<const Vector3>(D);
+              return as_numpy(optimal_transform(S_, D_));
+          });
+
+    m.def("optimal_transform",
+          [](const SimplicialComplex& S, const SimplicialComplex& D)
+          { return as_numpy(optimal_transform(S, D)); });
 }
 }  // namespace pyuipc::geometry

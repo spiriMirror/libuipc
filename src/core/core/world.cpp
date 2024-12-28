@@ -1,9 +1,13 @@
 #include <uipc/core/world.h>
 #include <uipc/core/engine.h>
 #include <uipc/backend/visitors/world_visitor.h>
-#include <uipc/sanity_check/sanity_checker_collection.h>
+#include <uipc/core/sanity_checker.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/zip.h>
+#include <uipc/common/uipc.h>
+#include <dylib.hpp>
+#include <uipc/backend/module_init_info.h>
+
 
 namespace uipc::core
 {
@@ -145,6 +149,11 @@ bool World::recover(SizeT aim_frame)
     return success && !has_error;
 }
 
+bool World::is_valid() const
+{
+    return m_valid;
+}
+
 SizeT World::frame() const
 {
     if(!m_valid)
@@ -155,14 +164,13 @@ SizeT World::frame() const
     return m_engine->frame();
 }
 
+
 void World::sanity_check(Scene& s)
 {
     if(s.info()["sanity_check"]["enable"] == true)
     {
-        SanityCheckerCollection sanity_checkers;
-        sanity_checkers.init(s);
+        auto result = s.sanity_checker().check(m_engine->workspace());
 
-        auto result = sanity_checkers.check();
         switch(result)
         {
             case SanityCheckResult::Success:
@@ -177,6 +185,11 @@ void World::sanity_check(Scene& s)
                 break;
             default:
                 break;
+        }
+
+        if(result != SanityCheckResult::Success)
+        {
+            s.sanity_checker().report();
         }
     }
 }

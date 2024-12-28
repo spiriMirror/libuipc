@@ -188,26 +188,43 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
         throw GeometryIOError{fmt::format("Failed to open file {} for writing.", file_name)};
     }
 
-    auto Fs = sc.triangles().topo().view();
-    auto Es = sc.edges().topo().view();
-    auto Vs = sc.positions().view();
+    span<const Vector3> Vs =
+        sc.vertices().size() > 0 ? sc.positions().view() : span<const Vector3>{};
+
+    if(Vs.size() == 0)
+    {
+        spdlog::warn("No vertices found in the simplicial complex. Writing an empty .obj file.");
+    }
+
+    auto Es = sc.edges().size() > 0 ? sc.edges().topo().view() : span<const Vector2i>{};
+    auto Fs = sc.triangles().size() > 0 ? sc.triangles().topo().view() :
+                                          span<const Vector3i>{};
 
     SizeT edge_count = 0;
 
-    list<IndexT> facet_edge_indices;
+    list<IndexT> surf_edge_indices;
 
     if(sc.dim() == 1)
         edge_count = sc.edges().size();
     else if(sc.dim() == 2)
     {
-        auto is_facet      = sc.edges().find<IndexT>(builtin::is_facet);
-        auto is_facet_view = is_facet->view();
-        for(auto&& [i, e] : enumerate(Es))
+        auto is_facet = sc.edges().find<IndexT>(builtin::is_facet);
+        if(is_facet)
         {
-            if(is_facet_view[i])
-                facet_edge_indices.push_back(i);
+            auto is_facet_view = is_facet->view();
+            for(auto&& [i, e] : enumerate(Es))
+            {
+                if(is_facet_view[i])
+                    surf_edge_indices.push_back(i);
+            }
         }
-        edge_count = facet_edge_indices.size();
+        else  // if no is_facet attribute, just write all edges
+        {
+            surf_edge_indices.resize(Es.size());
+            std::iota(surf_edge_indices.begin(), surf_edge_indices.end(), 0);
+        }
+
+        edge_count = surf_edge_indices.size();
     }
 
 //     fmt::println(fp,
@@ -225,6 +242,7 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
     // for(auto&& v : Vs)
     //     fmt::println(fp, "v {} {} {}", v[0], v[1], v[2]);
 
+<<<<<<< HEAD
     // if(sc.dim() == 1)  // All edges are facets
     // {
     //     // write edges
@@ -239,6 +257,22 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
     //         auto e = Es[i];
     //         fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);
     //     }
+=======
+    if(sc.dim() == 1)  // All edges are facets
+    {
+        // write edges
+        for(auto&& e : Es)
+            fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);
+    }
+    else if(sc.dim() == 2)
+    {
+        // write edges
+        for(auto&& i : surf_edge_indices)
+        {
+            auto e = Es[i];
+            fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);
+        }
+>>>>>>> dev
 
     //     // write faces
     //     auto orient = sc.triangles().find<IndexT>(builtin::orient);
@@ -277,7 +311,12 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
         throw GeometryIOError{fmt::format("Failed to open file {} for writing.", file_name)};
     }
 
-    auto Vs = sc.positions().view();
+    auto Vs = sc.vertices().size() > 0 ? sc.positions().view() : span<const Vector3>{};
+
+    if(Vs.size() == 0)
+    {
+        spdlog::warn("No vertices found in the simplicial complex. Writing an empty .msh file.");
+    }
 
 //     fmt::println(fp,
 //                  R"($MeshFormat
@@ -299,6 +338,7 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
     SizeT type     = Dim + 1;
     SizeT num_tags = 0;  // no tags
 
+<<<<<<< HEAD
     // if(Dim == 3)
     // {
     //     auto Ts = sc.tetrahedra().topo().view();
@@ -343,6 +383,72 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
     //     for(auto&& [i, e] : enumerate(Es))
     //     {
     //         // ID elm-type number-of-tags < tags ... > node-number-list
+=======
+    if(Dim == 3)
+    {
+        auto Ts = sc.tetrahedra().size() > 0 ? sc.tetrahedra().topo().view() :
+                                               span<const Vector4i>{};
+        if(Ts.size() == 0)
+        {
+            spdlog::warn("No tetrahedra found in the simplicial complex. Writing only vertices.");
+        }
+
+        fmt::println(fp, "{}", Ts.size());
+        for(auto&& [i, t] : enumerate(Ts))
+        {
+            // ID elm-type number-of-tags < tags ... > node-number-list
+
+            fmt::println(fp,
+                         "{} {} {} {} {} {} {}",
+                         i + 1,
+                         type,
+                         num_tags,  //
+                         t[0] + 1,
+                         t[1] + 1,
+                         t[2] + 1,
+                         t[3] + 1);
+        }
+    }
+    else if(Dim == 2)
+    {
+        auto Fs = sc.triangles().size() > 0 ? sc.triangles().topo().view() :
+                                              span<const Vector3i>{};
+
+        if(Fs.size() == 0)
+        {
+            spdlog::warn("No triangles found in the simplicial complex 2D. Writing only vertices.");
+        }
+
+        fmt::println(fp, "{}", Fs.size());
+        for(auto&& [i, f] : enumerate(Fs))
+        {
+            // ID elm-type number-of-tags < tags ... > node-number-list
+
+            fmt::println(fp,
+                         "{} {} {} {} {} {}",
+                         i + 1,
+                         type,
+                         num_tags,  //
+                         f[0] + 1,
+                         f[1] + 1,
+                         f[2] + 1);
+        }
+    }
+    else if(Dim == 1)
+    {
+        auto Es = sc.edges().size() > 0 ? sc.edges().topo().view() :
+                                          span<const Vector2i>{};
+
+        if(Es.size() == 0)
+        {
+            spdlog::warn("No edges found in the simplicial complex 1D. Writing only vertices.");
+        }
+
+        fmt::println(fp, "{}", Es.size());
+        for(auto&& [i, e] : enumerate(Es))
+        {
+            // ID elm-type number-of-tags < tags ... > node-number-list
+>>>>>>> dev
 
     //         fmt::println(fp,
     //                      "{} {} {} {} {}",

@@ -114,7 +114,7 @@ TEST_CASE("12_abd_self_ground_contact", "[abd]")
         }
     }
 
-    world.init(scene);
+    world.init(scene); REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

@@ -26,7 +26,7 @@ base_vcpkg_json = {
         },
         {
             "name": "fmt",
-            "version>=": "10.1.1"
+            "version>=": "10.2.1"
         },
         {
             "name": "cppitertools",
@@ -51,6 +51,10 @@ base_vcpkg_json = {
         {
             "name":"tinygltf",
             "version>=":"2.8.22"
+        },
+        {
+            "name":"tbb",
+            "version>=":"2021.11.0"
         }
     ]
 }

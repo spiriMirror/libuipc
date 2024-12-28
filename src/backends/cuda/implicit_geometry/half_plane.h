@@ -28,10 +28,12 @@ class HalfPlane : public SimSystem
 
         muda::DeviceBuffer<Vector3> normals;
         muda::DeviceBuffer<Vector3> positions;
+        muda::DeviceBuffer<IndexT>  contact_ids;
     };
 
     muda::CBufferView<Vector3> normals() const;
     muda::CBufferView<Vector3> positions() const;
+    muda::CBufferView<IndexT>  contact_ids() const;
 
   protected:
     virtual void do_build() override;

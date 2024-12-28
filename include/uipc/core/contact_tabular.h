@@ -24,6 +24,8 @@ class UIPC_CORE_API ContactTabular
                 bool                  enable = true,
                 const Json&           config = default_config());
 
+    ContactModel at(SizeT i, SizeT j) const;
+
     void default_model(Float       friction_rate,
                        Float       resistance,
                        const Json& config = default_config()) noexcept;

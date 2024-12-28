@@ -73,7 +73,7 @@ TEST_CASE("6_abd_cube_pile", "[abd]")
         object->geometries().create(cube_mesh);
     }
 
-    world.init(scene);
+    world.init(scene); REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

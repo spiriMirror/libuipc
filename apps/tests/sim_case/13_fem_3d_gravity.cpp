@@ -64,7 +64,7 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
         object->geometries().create(mesh);
     }
 
-    world.init(scene);
+    world.init(scene); REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

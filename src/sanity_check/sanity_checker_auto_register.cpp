@@ -1,6 +1,6 @@
-#include <uipc/sanity_check/sanity_checker_auto_register.h>
+#include <sanity_checker_auto_register.h>
 
-namespace uipc::core
+namespace uipc::sanity_check
 {
 SanityCheckerAutoRegister::SanityCheckerAutoRegister(Creator&& reg)
 {
@@ -12,4 +12,4 @@ auto SanityCheckerAutoRegister::creators() -> Creators&
     static Creators creators;
     return creators;
 }
-}  // namespace uipc::core
+}  // namespace uipc::sanity_check

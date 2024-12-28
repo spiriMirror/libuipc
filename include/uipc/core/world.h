@@ -16,6 +16,7 @@ namespace uipc::core
 class UIPC_CORE_API World final
 {
     friend class backend::WorldVisitor;
+    friend class SanityChecker;
 
   public:
     World(Engine& e) noexcept;
@@ -27,6 +28,7 @@ class UIPC_CORE_API World final
     void backward();
     bool dump();
     bool recover(SizeT aim_frame = ~0ull);
+    bool is_valid() const;
 
     SizeT frame() const;
 

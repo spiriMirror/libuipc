@@ -1,3 +1,4 @@
+#include "uipc/core/contact_model.h"
 #include <uipc/core/contact_tabular.h>
 #include <uipc/common/log.h>
 #include <algorithm>
@@ -91,6 +92,25 @@ class ContactTabular::Impl
         }
     }
 
+    ContactModel at(SizeT i, SizeT j) const
+    {
+        Vector2i ids{i, j};
+        if(ids.x() > ids.y())
+            std::swap(ids.x(), ids.y());
+
+        UIPC_ASSERT(i < m_current_id && j < m_current_id,
+                    "Invalid contact element id, id should be in [{},{}), your i={}, j={}.",
+                    0,
+                    m_current_id,
+                    i,
+                    j);
+
+        auto it = m_model_map.find(ids);
+        if(it == m_model_map.end())
+            return default_model();
+        else
+            return it->second;
+    }
 
     void default_model(Float friction_rate, Float resistance, const Json& config) noexcept
     {
@@ -150,6 +170,11 @@ void ContactTabular::insert(const ContactElement& L,
                             const Json&           config)
 {
     m_impl->insert(L, R, friction_rate, resistance, enable, config);
+}
+
+ContactModel ContactTabular::at(SizeT i, SizeT j) const
+{
+    return m_impl->at(i, j);
 }
 
 void ContactTabular::default_model(Float friction_rate, Float resistance, const Json& config) noexcept

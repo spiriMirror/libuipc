@@ -14,8 +14,8 @@ static void compute_tetmesh_dyadic_mass(const SimplicialComplex& sc,
                                         Vector3&                 m_x_bar,
                                         Matrix3x3&               m_x_bar_x_bar)
 {
-    auto pos_view      = sc.positions().view();
-    auto tet_view      = sc.tetrahedra().topo().view();
+    auto pos_view = sc.positions().view();
+    auto tet_view = sc.tetrahedra().topo().view();
 
     m = 0.0;
     m_x_bar.setZero();
@@ -40,27 +40,26 @@ static void compute_tetmesh_dyadic_mass(const SimplicialComplex& sc,
         m += rho * D / 6.0;
 
         {
-            auto Q = [D](IndexT         i,
+            auto Q = [D](IndexT         a,
                          Float          rho,
-                         const Vector3& r0,
-                         const Vector3& e1,
-                         const Vector3& e2,
-                         const Vector3& e3)
+                         const Vector3& p0,
+                         const Vector3& p1,
+                         const Vector3& p2,
+                         const Vector3& p3)
             {
                 Float V = 0.0;
 
-                V += r0(i) / 6;
-                V += e1(i) / 24;
-                V += e2(i) / 24;
-                V += e3(i) / 24;
+                V += p0(a) / 24;
+                V += p1(a) / 24;
+                V += p2(a) / 24;
+                V += p3(a) / 24;
 
                 return rho * D * V;
             };
 
-
             for(IndexT i = 0; i < 3; i++)
             {
-                m_x_bar(i) += Q(i, rho, r0, e1, e2, e3);
+                m_x_bar(i) += Q(i, rho, p0, p1, p2, p3);
             }
         }
 
@@ -68,43 +67,39 @@ static void compute_tetmesh_dyadic_mass(const SimplicialComplex& sc,
             auto Q = [D](IndexT         a,
                          IndexT         b,
                          Float          rho,
-                         const Vector3& r0,
-                         const Vector3& e1,
-                         const Vector3& e2,
-                         const Vector3& e3)
+                         const Vector3& p0,
+                         const Vector3& p1,
+                         const Vector3& p2,
+                         const Vector3& p3)
             {
                 Float V = 0.0;
 
-                V += e1(a) * e1(b) / 60;
-                V += e1(a) * e2(b) / 120;
-                V += e1(a) * e3(b) / 120;
-                V += e1(a) * r0(b) / 24;
+                V += p0(a) * p0(b) / 60;
+                V += p0(a) * p1(b) / 120;
+                V += p0(a) * p2(b) / 120;
+                V += p0(a) * p3(b) / 120;
 
-                V += e1(b) * e2(a) / 120;
-                V += e1(b) * e3(a) / 120;
-                V += e1(b) * r0(a) / 24;
-                V += e2(a) * e2(b) / 60;
+                V += p0(b) * p1(a) / 120;
+                V += p0(b) * p2(a) / 120;
+                V += p0(b) * p3(a) / 120;
+                V += p1(a) * p1(b) / 60;
 
-                V += e2(a) * e3(b) / 120;
-                V += e2(a) * r0(b) / 24;
-                V += e2(b) * e3(a) / 120;
-                V += e2(b) * r0(a) / 24;
+                V += p1(a) * p2(b) / 120;
+                V += p1(a) * p3(b) / 120;
+                V += p1(b) * p2(a) / 120;
+                V += p1(b) * p3(a) / 120;
 
-                V += e3(a) * e3(b) / 60;
-                V += e3(a) * r0(b) / 24;
-                V += e3(b) * r0(a) / 24;
-                V += r0(a) * r0(b) / 6;
+                V += p2(a) * p2(b) / 60;
+                V += p2(a) * p3(b) / 120;
+                V += p2(b) * p3(a) / 120;
+                V += p3(a) * p3(b) / 60;
 
                 return rho * D * V;
             };
 
             for(IndexT a = 0; a < 3; a++)
-            {
                 for(IndexT b = 0; b < 3; b++)
-                {
-                    m_x_bar_x_bar(a, b) += Q(a, b, rho, r0, e1, e2, e3);
-                }
-            }
+                    m_x_bar_x_bar(a, b) += Q(a, b, rho, p0, p1, p2, p3);
         }
     }
 }
@@ -140,169 +135,126 @@ static void compute_trimesh_dyadic_mass(const SimplicialComplex& sc,
         if(orient && orient_view[i] < 0)
             N = -N;
 
-        //tex:
-        //$$
-        // m_b = \int_{\Omega} \rho dV = \int_{\partial \Omega} \frac{\rho}{3} \mathbf{x} \cdot d\mathbf{S}
-        //$$
-
         m += rho * p0.dot(N) / 6.0;
-
-        //tex:
-        //$$
-        // (mx)_b = \int_{\Omega} \rho x dV = \int_{\partial \Omega}
-        // \begin{bmatrix}
-        // \frac{\rho}{2}{x}^2 \\
-        // 0 \\
-        // 0
-        // \end{bmatrix}
-        //
-        // \cdot d\mathbf{S}
-        //$$
 
 
         {
+
             auto Q = [](IndexT         a,
                         Float          rho,
                         const Vector3& N,
-                        const Vector3& r0,
-                        const Vector3& e1,
-                        const Vector3& e2)
+                        const Vector3& p0,
+                        const Vector3& p1,
+                        const Vector3& p2)
             {
                 Float V = 0.0;
 
-                V += e1(a) * e1(a) / 12;
-                V += e1(a) * e2(a) / 12;
-                V += e1(a) * r0(a) / 3;
+                V += p0(a) * p0(a) / 12;
+                V += p0(a) * p1(a) / 12;
+                V += p0(a) * p2(a) / 12;
 
-                V += e2(a) * e2(a) / 12;
-                V += e2(a) * r0(a) / 3;
-                V += r0(a) * r0(a) / 2;
+                V += p1(a) * p1(a) / 12;
+                V += p1(a) * p2(a) / 12;
+                V += p2(a) * p2(a) / 12;
 
                 return rho / 2 * N(a) * V;
             };
 
             for(IndexT a = 0; a < 3; a++)
             {
-                m_x_bar(a) += Q(a, rho, N, p0, e1, e2);
+                m_x_bar(a) += Q(a, rho, N, p0, p1, p2);
             }
         }
-
-        //tex:
-        //$$
-        // (mxx)_b = \int_{\Omega} \rho x^2 dV = \int_{\partial \Omega}
-        // \begin{bmatrix}
-        // \frac{\rho}{3} x^3 \\
-        // 0 \\
-        // 0 \\
-        // \end{bmatrix}
-        // \cdot
-        // d\mathbf{S}
-        //$$
-
 
         {
             auto Q = [](IndexT         a,
                         Float          rho,
                         const Vector3& N,
-                        const Vector3& r0,
-                        const Vector3& e1,
-                        const Vector3& e2)
+                        const Vector3& p0,
+                        const Vector3& p1,
+                        const Vector3& p2)
             {
                 Float V = 0.0;
 
-                Float e1a_2 = e1(a) * e1(a);
-                Float e2a_2 = e2(a) * e2(a);
-                Float r0a_2 = r0(a) * r0(a);
+                Float p0a_2 = p0(a) * p0(a);
+                Float p1a_2 = p1(a) * p1(a);
+                Float p2a_2 = p2(a) * p2(a);
 
-                Float e1a_3 = e1a_2 * e1(a);
-                Float e2a_3 = e2a_2 * e2(a);
-                Float r0a_3 = r0a_2 * r0(a);
+                Float p0a_3 = p0a_2 * p0(a);
+                Float p1a_3 = p1a_2 * p1(a);
+                Float p2a_3 = p2a_2 * p2(a);
 
-                V += e1a_3 / 20;
-                V += e1a_2 * e2(a) / 20;
-                V += e1a_2 * r0(a) / 4;
+                V += p0a_3 / 20;
+                V += p0a_2 * p1(a) / 20;
+                V += p0a_2 * p2(a) / 20;
 
-                V += e1(a) * e2a_2 / 20;
-                V += e1(a) * e2(a) * r0(a) / 4;
-                V += e1(a) * r0a_2 / 2;
+                V += p0(a) * p1a_2 / 20;
+                V += p0(a) * p1(a) * p2(a) / 20;
+                V += p0(a) * p2a_2 / 20;
 
-                V += e2a_3 / 20;
-                V += e2a_2 * r0(a) / 4;
-                V += e2(a) * r0a_2 / 2;
+                V += p1a_3 / 20;
+                V += p1a_2 * p2(a) / 20;
+                V += p1(a) * p2a_2 / 20;
 
-                V += r0a_3 / 2;
+                V += p2a_3 / 20;
 
                 return rho / 3 * N(a) * V;
             };
 
-            m_x_bar_x_bar(0, 0) += Q(0, rho, N, p0, e1, e2);
-            m_x_bar_x_bar(1, 1) += Q(1, rho, N, p0, e1, e2);
-            m_x_bar_x_bar(2, 2) += Q(2, rho, N, p0, e1, e2);
+            for(IndexT i = 0; i < 3; i++)  // diagonal
+                m_x_bar_x_bar(i, i) += Q(i, rho, N, p0, p1, p2);
         }
-
-        //tex:
-        //$$
-        // (mxy)_b = \int_{\Omega} \rho xy dV = \int_{\partial \Omega}
-        // \begin{bmatrix}
-        // \frac{1}{2} \rho x^2 y \\ 
-        // 0 \\
-        // 0
-        // \end{bmatrix}
-        // \cdot
-        // d\mathbf{S}
-        //$$
 
         {
             auto Q = [](IndexT         a,
                         IndexT         b,
                         Float          rho,
                         const Vector3& N,
-                        const Vector3& r0,
-                        const Vector3& e1,
-                        const Vector3& e2)
+                        const Vector3& p0,
+                        const Vector3& p1,
+                        const Vector3& p2)
             {
                 Float V = 0.0;
 
-                Float e1a_2 = e1(a) * e1(a);
-                Float e2a_2 = e2(a) * e2(a);
-                Float r0a_2 = r0(a) * r0(a);
+                Float p0a_2 = p0(a) * p0(a);
+                Float p1a_2 = p1(a) * p1(a);
+                Float p2a_2 = p2(a) * p2(a);
 
-                V += e1a_2 * e1(b) / 20;
-                V += e1a_2 * e2(b) / 60;
-                V += e1a_2 * r0(b) / 12;
-                V += e1(a) * e1(b) * e2(a) / 30;
+                V += p0a_2 * p0(b) / 20;
+                V += p0a_2 * p1(b) / 60;
+                V += p0a_2 * p2(b) / 60;
+                V += p0(a) * p0(b) * p1(a) / 30;
 
-                V += e1(a) * e1(b) * r0(a) / 6;
-                V += e1(a) * e2(a) * e2(b) / 30;
-                V += e1(a) * e2(a) * r0(b) / 12;
-                V += e1(a) * e2(b) * r0(a) / 12;
+                V += p0(a) * p0(b) * p2(a) / 30;
+                V += p0(a) * p1(a) * p1(b) / 30;
+                V += p0(a) * p1(a) * p2(b) / 60;
+                V += p0(a) * p1(b) * p2(a) / 60;
 
-                V += e1(a) * r0(a) * r0(b) / 3;
-                V += e1(b) * e2a_2 / 60;
-                V += e1(b) * e2(a) * r0(a) / 12;
-                V += e1(b) * r0a_2 / 6;
+                V += p0(a) * p2(a) * p2(b) / 30;
+                V += p0(b) * p1a_2 / 60;
+                V += p0(b) * p1(a) * p2(a) / 60;
+                V += p0(b) * p2a_2 / 60;
 
-                V += e2a_2 * e2(b) / 20;
-                V += e2a_2 * r0(b) / 12;
-                V += e2(a) * e2(b) * r0(a) / 6;
-                V += e2(a) * r0(a) * r0(b) / 3;
+                V += p1a_2 * p1(b) / 20;
+                V += p1a_2 * p2(b) / 60;
+                V += p1(a) * p1(b) * p2(a) / 30;
+                V += p1(a) * p2(a) * p2(b) / 30;
 
-                V += e2(b) * r0a_2 / 6;
-                V += r0a_2 * r0(b) / 2;
+                V += p1(b) * p2a_2 / 60;
+                V += p2a_2 * p2(b) / 20;
 
                 return rho / 2 * N(a) * V;
             };
 
-            m_x_bar_x_bar(0, 1) += Q(0, 1, rho, N, p0, e1, e2);
-            m_x_bar_x_bar(0, 2) += Q(0, 2, rho, N, p0, e1, e2);
-            m_x_bar_x_bar(1, 2) += Q(1, 2, rho, N, p0, e1, e2);
-
-            // symmetric
-
-            m_x_bar_x_bar(1, 0) = m_x_bar_x_bar(0, 1);
-            m_x_bar_x_bar(2, 0) = m_x_bar_x_bar(0, 2);
-            m_x_bar_x_bar(2, 1) = m_x_bar_x_bar(1, 2);
+            m_x_bar_x_bar(0, 1) += Q(0, 1, rho, N, p0, p1, p2);
+            m_x_bar_x_bar(0, 2) += Q(0, 2, rho, N, p0, p1, p2);
+            m_x_bar_x_bar(1, 2) += Q(1, 2, rho, N, p0, p1, p2);
         }
+
+        // symmetric
+        m_x_bar_x_bar(1, 0) = m_x_bar_x_bar(0, 1);
+        m_x_bar_x_bar(2, 0) = m_x_bar_x_bar(0, 2);
+        m_x_bar_x_bar(2, 1) = m_x_bar_x_bar(1, 2);
     }
 }
 

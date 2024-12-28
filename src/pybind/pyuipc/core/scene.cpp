@@ -13,7 +13,7 @@ PyScene::PyScene(py::module& m)
     auto class_Objects = py::class_<Scene::Objects>(class_Scene, "Objects");
     auto class_Geometries = py::class_<Scene::Geometries>(class_Scene, "Geometries");
 
-    
+
     // def methods
     class_Scene.def(py::init<const Json&>(), py::arg("config") = Scene::default_config());
 
@@ -69,6 +69,11 @@ PyScene::PyScene(py::module& m)
     class_Scene.def(
         "diff_sim",
         [](Scene& self) -> DiffSim& { return self.diff_sim(); },
+        py::return_value_policy::reference_internal);
+
+    class_Scene.def(
+        "sanity_checker",
+        [](Scene& self) -> SanityChecker& { return self.sanity_checker(); },
         py::return_value_policy::reference_internal);
 }
 }  // namespace pyuipc::core

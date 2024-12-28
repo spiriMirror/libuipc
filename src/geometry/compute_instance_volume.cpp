@@ -79,7 +79,8 @@ UIPC_GEOMETRY_API S<AttributeSlot<Float>> compute_instance_volume(SimplicialComp
     }
     else if(R.dim() == 2)
     {
-        // UIPC_ASSERT(is_trimesh_closed(R), "Only closed trimesh is supported.");
+        UIPC_ASSERT(is_trimesh_closed(R), "Calculating volume of open trimesh is meaningless.");
+
         volume = compute_trimesh_volume(R);
     }
     else

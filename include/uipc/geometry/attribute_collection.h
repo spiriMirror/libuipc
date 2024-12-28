@@ -116,7 +116,7 @@ class UIPC_CORE_API AttributeCollection
     /**
      * @brief copy_from the underlying attribute values of all attribute slots.
      * 
-     * @param O A New2Old mapping. O[i] = j means the i-th element in the new order has the value of the j-th element in the old order.
+     * @param copy The copy strategy.
      * @param include_names The names of the attribute slots to be copied. If it is empty, all attribute slots will be copied.
      * @param exclude_names The names of the attribute slots not to be copied, the exclude_names has higher priority than include_names.
      */

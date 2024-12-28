@@ -24,13 +24,10 @@ S<geometry::AttributeSlot<IndexT>> ContactElement::apply_to(geometry::Geometry& 
     auto slot = geo.meta().find<IndexT>(builtin::contact_element_id);
     if(!slot)
     {
-        slot = geo.meta().create<IndexT>(builtin::contact_element_id, id());
+        slot = geo.meta().create<IndexT>(builtin::contact_element_id, 0);
     }
-    else
-    {
-        auto view    = geometry::view(*slot);
-        view.front() = id();
-    }
+    auto view    = geometry::view(*slot);
+    view.front() = id();
 
     return slot;
 }

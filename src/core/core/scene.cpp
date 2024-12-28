@@ -11,6 +11,7 @@ class Scene::Impl
     Impl(Scene& scene, const Json& config) noexcept
         : scene(scene)
         , animator(scene)
+        , sanity_checker(scene)
     {
         info = config;
     }
@@ -57,6 +58,7 @@ class Scene::Impl
 
     geometry::GeometryCollection geometries;
     geometry::GeometryCollection rest_geometries;
+    SanityChecker                sanity_checker;
 
     bool   started = false;
     Scene& scene;
@@ -116,7 +118,14 @@ Json Scene::default_config() noexcept
         collision_detection["method"] = "linear_bvh";
     }
 
-    config["sanity_check"]["enable"] = true;
+    auto& sanity_check = config["sanity_check"];
+    {
+        sanity_check["enable"] = true;
+
+        // normal: automatically export mesh to workspace
+        // quiet: do not export mesh
+        sanity_check["mode"] = "normal";
+    }
 
     auto& recovery = config["recovery"] = Json::object();
     {
@@ -209,6 +218,16 @@ const DiffSim& Scene::diff_sim() const
     return m_impl->diff_sim;
 }
 
+SanityChecker& Scene::sanity_checker()
+{
+    return m_impl->sanity_checker;
+}
+
+const SanityChecker& Scene::sanity_checker() const
+{
+    return m_impl->sanity_checker;
+}
+
 void Scene::init(backend::WorldVisitor& world)
 {
     m_impl->init(world);
@@ -295,6 +314,11 @@ SizeT Scene::Objects::size() const noexcept
     return m_scene.m_impl->objects.size();
 }
 
+SizeT Scene::Objects::created_count() const noexcept
+{
+    return m_scene.m_impl->objects.next_id();
+}
+
 S<const Object> Scene::CObjects::find(IndexT id) && noexcept
 {
     return m_scene.m_impl->objects.find(id);
@@ -303,6 +327,11 @@ S<const Object> Scene::CObjects::find(IndexT id) && noexcept
 SizeT Scene::CObjects::size() const noexcept
 {
     return m_scene.m_impl->objects.size();
+}
+
+SizeT Scene::CObjects::created_count() const noexcept
+{
+    return m_scene.m_impl->objects.next_id();
 }
 
 Scene::Objects::Objects(Scene& scene) noexcept

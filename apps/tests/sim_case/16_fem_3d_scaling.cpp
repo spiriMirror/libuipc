@@ -73,7 +73,7 @@ TEST_CASE("16_fem_3d_scaling", "[fem]")
         object->geometries().create(mesh, rest_mesh);
     }
 
-    world.init(scene);
+    world.init(scene); REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
