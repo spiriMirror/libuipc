@@ -242,22 +242,6 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
     // for(auto&& v : Vs)
     //     fmt::println(fp, "v {} {} {}", v[0], v[1], v[2]);
 
-<<<<<<< HEAD
-    // if(sc.dim() == 1)  // All edges are facets
-    // {
-    //     // write edges
-    //     for(auto&& e : Es)
-    //         fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);
-    // }
-    // else if(sc.dim() == 2)
-    // {
-    //     // write edges
-    //     for(auto&& i : facet_edge_indices)
-    //     {
-    //         auto e = Es[i];
-    //         fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);
-    //     }
-=======
     if(sc.dim() == 1)  // All edges are facets
     {
         // write edges
@@ -272,7 +256,6 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
             auto e = Es[i];
             fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);
         }
->>>>>>> dev
 
     //     // write faces
     //     auto orient = sc.triangles().find<IndexT>(builtin::orient);
@@ -338,52 +321,6 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
     SizeT type     = Dim + 1;
     SizeT num_tags = 0;  // no tags
 
-<<<<<<< HEAD
-    // if(Dim == 3)
-    // {
-    //     auto Ts = sc.tetrahedra().topo().view();
-    //     fmt::println(fp, "{}", Ts.size());
-    //     for(auto&& [i, t] : enumerate(Ts))
-    //     {
-    //         // ID elm-type number-of-tags < tags ... > node-number-list
-
-    //         fmt::println(fp,
-    //                      "{} {} {} {} {} {} {}",
-    //                      i + 1,
-    //                      type,
-    //                      num_tags,  //
-    //                      t[0] + 1,
-    //                      t[1] + 1,
-    //                      t[2] + 1,
-    //                      t[3] + 1);
-    //     }
-    // }
-    // else if(Dim == 2)
-    // {
-    //     auto Fs = sc.triangles().topo().view();
-    //     fmt::println(fp, "{}", Fs.size());
-    //     for(auto&& [i, f] : enumerate(Fs))
-    //     {
-    //         // ID elm-type number-of-tags < tags ... > node-number-list
-
-    //         fmt::println(fp,
-    //                      "{} {} {} {} {} {}",
-    //                      i + 1,
-    //                      type,
-    //                      num_tags,  //
-    //                      f[0] + 1,
-    //                      f[1] + 1,
-    //                      f[2] + 1);
-    //     }
-    // }
-    // else if(Dim == 1)
-    // {
-    //     auto Es = sc.edges().topo().view();
-    //     fmt::println(fp, "{}", Es.size());
-    //     for(auto&& [i, e] : enumerate(Es))
-    //     {
-    //         // ID elm-type number-of-tags < tags ... > node-number-list
-=======
     if(Dim == 3)
     {
         auto Ts = sc.tetrahedra().size() > 0 ? sc.tetrahedra().topo().view() :
@@ -448,7 +385,6 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
         for(auto&& [i, e] : enumerate(Es))
         {
             // ID elm-type number-of-tags < tags ... > node-number-list
->>>>>>> dev
 
     //         fmt::println(fp,
     //                      "{} {} {} {} {}",
