@@ -47,6 +47,10 @@ target("tetgen")
     add_includedirs("external/tetgen/", {public = true})
 target_end()
 
+target("octree")
+    set_kind("headeronly")
+    add_includedirs("external/octree", {public = true})
+target_end()
 
 add_requires("boost", { configs = { core = true }})
 add_requires("eigen", {version="3.4.0"})
@@ -66,6 +70,7 @@ add_requires("magic_enum")
 if has_config("uipc_enable_pybind") then
     add_requires("pybind11")
 end
+
 -- global include
 add_includedirs("include")
 add_includedirs("src")

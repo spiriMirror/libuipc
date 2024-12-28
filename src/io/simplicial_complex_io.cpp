@@ -59,7 +59,8 @@ SimplicialComplex SimplicialComplexIO::read(std::string_view file_name)
     }
     else
     {
-        throw GeometryIOError{fmt::format("Unsupported file format: {}", file_name)};
+        throw GeometryIOError{
+            fmt::format("Unsupported file format: {}", file_name)};
     }
 }
 
@@ -245,8 +246,10 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
     if(sc.dim() == 1)  // All edges are facets
     {
         // write edges
-        for(auto&& e : Es)
-            fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);
+        for(auto&& e : Es) {
+            // fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);
+        }
+
     }
     else if(sc.dim() == 2)
     {
@@ -254,7 +257,7 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
         for(auto&& i : surf_edge_indices)
         {
             auto e = Es[i];
-            fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);
+            // fmt::println(fp, "l {} {}", e[0] + 1, e[1] + 1);
         }
 
     //     // write faces
@@ -277,7 +280,7 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
     //         for(auto&& F : Fs)
     //             fmt::println(fp, "f {} {} {}", F[0] + 1, F[1] + 1, F[2] + 1);
     //     }
-    // }
+    }
 
     std::fclose(fp);
 }
@@ -330,20 +333,20 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
             spdlog::warn("No tetrahedra found in the simplicial complex. Writing only vertices.");
         }
 
-        fmt::println(fp, "{}", Ts.size());
+        // fmt::println(fp, "{}", Ts.size());
         for(auto&& [i, t] : enumerate(Ts))
         {
             // ID elm-type number-of-tags < tags ... > node-number-list
 
-            fmt::println(fp,
-                         "{} {} {} {} {} {} {}",
-                         i + 1,
-                         type,
-                         num_tags,  //
-                         t[0] + 1,
-                         t[1] + 1,
-                         t[2] + 1,
-                         t[3] + 1);
+            // fmt::println(fp,
+            //              "{} {} {} {} {} {} {}",
+            //              i + 1,
+            //              type,
+            //              num_tags,  //
+            //              t[0] + 1,
+            //              t[1] + 1,
+            //              t[2] + 1,
+            //              t[3] + 1);
         }
     }
     else if(Dim == 2)
@@ -356,19 +359,19 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
             spdlog::warn("No triangles found in the simplicial complex 2D. Writing only vertices.");
         }
 
-        fmt::println(fp, "{}", Fs.size());
+        // fmt::println(fp, "{}", Fs.size());
         for(auto&& [i, f] : enumerate(Fs))
         {
             // ID elm-type number-of-tags < tags ... > node-number-list
 
-            fmt::println(fp,
-                         "{} {} {} {} {} {}",
-                         i + 1,
-                         type,
-                         num_tags,  //
-                         f[0] + 1,
-                         f[1] + 1,
-                         f[2] + 1);
+            // fmt::println(fp,
+            //              "{} {} {} {} {} {}",
+            //              i + 1,
+            //              type,
+            //              num_tags,  //
+            //              f[0] + 1,
+            //              f[1] + 1,
+            //              f[2] + 1);
         }
     }
     else if(Dim == 1)
@@ -381,7 +384,7 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
             spdlog::warn("No edges found in the simplicial complex 1D. Writing only vertices.");
         }
 
-        fmt::println(fp, "{}", Es.size());
+        // fmt::println(fp, "{}", Es.size());
         for(auto&& [i, e] : enumerate(Es))
         {
             // ID elm-type number-of-tags < tags ... > node-number-list
@@ -393,8 +396,8 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
     //                      num_tags,  //
     //                      e[0] + 1,
     //                      e[1] + 1);
-    //     }
-    // }
+        }
+    }
     // fmt::println(fp, "$EndElements");
 
     std::fclose(fp);
