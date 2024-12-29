@@ -35,15 +35,7 @@ class UIPC_GEOMETRY_API BVH
      * the first index is from the input list, and the second index is from the BVH tree's AABBs.
      */
     void query(span<const AABB> aabbs, std::function<void(IndexT, IndexT)>&& QF) const;
-
-    /**
-     * @brief Detect the self-intersections of the BVH tree
-     * 
-     * @param QF f:void(IndexT, IndexT), where the two indices are the indices of the two AABBs that intersect,
-     * the two indices are from the BVH tree's AABBs.
-     */
-    void detect(std::function<void(IndexT, IndexT)>&& QF) const;
-
+    
   private:
     class Impl;
     U<Impl> m_impl;

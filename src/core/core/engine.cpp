@@ -5,6 +5,7 @@
 #include <uipc/common/uipc.h>
 #include <filesystem>
 #include <uipc/common/log_pattern_guard.h>
+#include <fstream>
 
 namespace uipc::core
 {
@@ -85,6 +86,7 @@ class Engine::Impl
 
         EngineCreateInfo info;
         info.workspace = m_workspace;
+        info.config    = config;
         {
             // guard the creation
             LogPatternGuard guard{backend_name};
@@ -190,7 +192,40 @@ Engine::~Engine() {}
 
 Json Engine::default_config()
 {
-    Json j = Json::object();
+    Json j;
+    auto config_path      = std::getenv("UIPC_ENGINE_DEFAULT_CONFIG");
+    bool override_default = false;
+
+    if(config_path)
+    {
+        std::ifstream ifs{config_path};
+        if(!ifs)
+        {
+            spdlog::warn("Load default config file [{}] failed, fallback to default config.",
+                         config_path);
+        }
+        else
+        {
+            try
+            {
+                j                = Json::parse(ifs);
+                override_default = true;
+                spdlog::info("Override default config using config file [{}] successfully.",
+                             config_path);
+            }
+            catch(const std::exception& e)
+            {
+                spdlog::warn("Load default config file [{}] failed: {}, rollback to default config.",
+                             config_path,
+                             e.what());
+            }
+        }
+    }
+
+    if(!override_default)
+    {
+        j["gpu"]["device"] = 0;
+    }
     return j;
 }
 

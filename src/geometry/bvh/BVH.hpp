@@ -45,6 +45,7 @@ class BVH
 
     static int max_node_index(int node_index, int b, int e);
 
+    
     vector<AABB>                 boxlist;
     vector<int>                  new2old;
     size_t                       n_corners = -1;

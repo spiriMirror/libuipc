@@ -10,7 +10,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/map.h>
 #include <uipc/geometry/utils/distance.h>
-
+#include <uipc/geometry/utils/octree.h>
 namespace std
 {
 // Vector2i  set comparison
@@ -43,7 +43,9 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
     constexpr static U64 SanityCheckerUID = 3;
     using SanityChecker::SanityChecker;
 
-    geometry::BVH bvh;
+    geometry::BVH tri_bvh;
+    geometry::BVH edge_bvh;
+    geometry::BVH point_bvh;
 
   protected:
     virtual void build(backend::SceneVisitor& scene) override
@@ -168,6 +170,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                                                     span<const Vector3>{};
         auto Es = scene_surface.edges().size() ? scene_surface.edges().topo().view() :
                                                  span<const Vector2i>{};
+
         auto Fs = scene_surface.triangles().size() ?
                       scene_surface.triangles().topo().view() :
                       span<const Vector3i>{};
@@ -240,9 +243,9 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 .extend(Vs[f[2]] + extend);
         }
 
-        bvh.build(tri_aabbs);
-        bvh.build(edge_aabbs);
-        bvh.build(point_aabbs);
+        tri_bvh.build(tri_aabbs);
+        edge_bvh.build(edge_aabbs);
+        point_bvh.build(point_aabbs);
 
         vector<IndexT> vertex_too_close(Vs.size(), 0);
         vector<IndexT> edge_too_close(Es.size(), 0);
@@ -275,107 +278,19 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
         };
 
         // 1) CodimP-AllP
-        bvh.query(codim_point_aabbs,
-                  [&](IndexT i, IndexT j)
-                  {
-                      IndexT CodimP = CodimPs[i];
-                      IndexT P      = j;
-
-                      //1) if the two vertices are the same, don't consider it
-                      if(CodimP == P)
-                          return;
-
-                      auto L = CIds[CodimP];
-                      auto R = CIds[P];
-
-                      const core::ContactModel& model = contact_table.at(L, R);
-
-                      // 2) if the contact model is not enabled, don't consider it
-                      if(!model.is_enabled())
-                          return;
-
-                      Float D =
-                          geometry::point_point_squared_distance(Vs[CodimP], Vs[P]);
-
-                      Float thickness =
-                          VThickness.empty() ? 0 : VThickness[CodimP] + VThickness[P];
-                      Float thickness2 = thickness * thickness;
-
-                      if(D <= thickness2)
-                      {
-                          vertex_too_close[CodimP] = 1;
-                          vertex_too_close[P]      = 1;
-
-                          is_too_close = true;
-
-                          Vector2i geo_ids{VGeoIds[CodimP], VGeoIds[P]};
-
-                          close_geo_ids[geo_ids] = {VObjectIds[CodimP], VObjectIds[P]};
-
-                          set_geo_distance(geo_ids, D, thickness2);
-                      }
-                  });
-
-        // 2) CodimP-AllE
-        bvh.query(codim_point_aabbs,
-                  [&](IndexT i, IndexT j)
-                  {
-                      IndexT   CodimP = CodimPs[i];
-                      Vector2i E      = Es[j];
-
-                      // 1) if the point is on the edge, don't consider it
-                      if(CodimP == E[0] || CodimP == E[1])
-                          return;
-
-                      auto L = CIds[CodimP];
-                      auto R = CIds[E[0]];
-
-                      const core::ContactModel& model = contact_table.at(L, R);
-
-                      // 2) if the contact model is not enabled, don't consider it
-                      if(!model.is_enabled())
-                          return;
-
-                      Float D = geometry::point_edge_squared_distance(
-                          Vs[CodimP], Vs[E[0]], Vs[E[1]]);
-
-                      Float thickness  = VThickness.empty() ?
-                                             0 :
-                                             VThickness[CodimP] + VThickness[E[0]];
-                      Float thickness2 = thickness * thickness;
-                      if(D <= thickness2)
-                      {
-                          vertex_too_close[CodimP] = 1;
-                          edge_too_close[j]        = 1;
-
-                          // also mark the vertex of the edge
-                          vertex_too_close[E[0]] = 1;
-                          vertex_too_close[E[1]] = 1;
-
-                          is_too_close = true;
-
-                          Vector2i geo_ids{VGeoIds[CodimP], VGeoIds[E[0]]};
-
-                          close_geo_ids[geo_ids] = {VObjectIds[CodimP], VObjectIds[E[0]]};
-
-                          set_geo_distance(geo_ids, D, thickness2);
-                      }
-                  });
-
-        // 3) AllP-AllT
-        bvh.query(
-            point_aabbs,
+        point_bvh.query(
+            codim_point_aabbs,
             [&](IndexT i, IndexT j)
             {
-                IndexT   P = i;
-                Vector3i T = Fs[j];
+                IndexT CodimP = CodimPs[i];
+                IndexT P      = j;
 
-                // 1) if the point is on the triangle, don't consider it
-                if(P == T[0] || P == T[1] || P == T[2])
+                //1) if the two vertices are the same, don't consider it
+                if(CodimP == P)
                     return;
 
-                auto L = CIds[P];
-                auto R = CIds[T[0]];
+                auto L = CIds[CodimP];
+                auto R = CIds[P];
 
                 const core::ContactModel& model = contact_table.at(L, R);
 
@@ -383,84 +298,171 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 if(!model.is_enabled())
                     return;
 
-                Float D = geometry::point_triangle_squared_distance(
-                    Vs[P], Vs[T[0]], Vs[T[1]], Vs[T[2]]);
+                Float D = geometry::point_point_squared_distance(Vs[CodimP], Vs[P]);
 
                 Float thickness =
-                    VThickness.empty() ? 0 : VThickness[P] + VThickness[T[0]];
-
+                    VThickness.empty() ? 0 : VThickness[CodimP] + VThickness[P];
                 Float thickness2 = thickness * thickness;
 
                 if(D <= thickness2)
                 {
-                    vertex_too_close[P] = 1;
-                    tri_too_close[j]    = 1;
-
-                    // also mark the vertices of the triangle
-                    vertex_too_close[T[0]] = 1;
-                    vertex_too_close[T[1]] = 1;
-                    vertex_too_close[T[2]] = 1;
+                    vertex_too_close[CodimP] = 1;
+                    vertex_too_close[P]      = 1;
 
                     is_too_close = true;
 
-                    Vector2i geo_ids{VGeoIds[P], VGeoIds[T[0]]};
+                    Vector2i geo_ids{VGeoIds[CodimP], VGeoIds[P]};
 
-                    close_geo_ids[geo_ids] = {VObjectIds[P], VObjectIds[T[0]]};
+                    close_geo_ids[geo_ids] = {VObjectIds[CodimP], VObjectIds[P]};
 
                     set_geo_distance(geo_ids, D, thickness2);
                 }
             });
 
-        // 4) AllE-AllE
-        bvh.query(edge_aabbs,
-                  [&](IndexT i, IndexT j)
-                  {
-                      Vector2i E0 = Es[i];
-                      Vector2i E1 = Es[j];
+        // 2) CodimP-AllE
+        edge_bvh.query(
+            codim_point_aabbs,
+            [&](IndexT i, IndexT j)
+            {
+                IndexT   CodimP = CodimPs[i];
+                Vector2i E      = Es[j];
 
-                      // 1) if the two edges share a vertex, don't consider it
-                      if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0]
-                         || E0[1] == E1[1])
-                          return;
+                // 1) if the point is on the edge, don't consider it
+                if(CodimP == E[0] || CodimP == E[1])
+                    return;
 
-                      auto L = CIds[E0[0]];
-                      auto R = CIds[E1[0]];
+                auto L = CIds[CodimP];
+                auto R = CIds[E[0]];
 
-                      const core::ContactModel& model = contact_table.at(L, R);
+                const core::ContactModel& model = contact_table.at(L, R);
 
-                      // 2) if the contact model is not enabled, don't consider it
-                      if(!model.is_enabled())
-                          return;
+                // 2) if the contact model is not enabled, don't consider it
+                if(!model.is_enabled())
+                    return;
 
-                      Float D = geometry::edge_edge_squared_distance(
-                          Vs[E0[0]], Vs[E0[1]], Vs[E1[0]], Vs[E1[1]]);
+                Float D =
+                    geometry::point_edge_squared_distance(Vs[CodimP], Vs[E[0]], Vs[E[1]]);
 
-                      Float thickness = VThickness.empty() ?
-                                            0 :
-                                            VThickness[E0[0]] + VThickness[E1[0]];
+                Float thickness =
+                    VThickness.empty() ? 0 : VThickness[CodimP] + VThickness[E[0]];
+                Float thickness2 = thickness * thickness;
+                if(D <= thickness2)
+                {
+                    vertex_too_close[CodimP] = 1;
+                    edge_too_close[j]        = 1;
 
-                      Float thickness2 = thickness * thickness;
+                    // also mark the vertex of the edge
+                    vertex_too_close[E[0]] = 1;
+                    vertex_too_close[E[1]] = 1;
 
-                      if(D <= thickness2)
+                    is_too_close = true;
+
+                    Vector2i geo_ids{VGeoIds[CodimP], VGeoIds[E[0]]};
+
+                    close_geo_ids[geo_ids] = {VObjectIds[CodimP], VObjectIds[E[0]]};
+
+                    set_geo_distance(geo_ids, D, thickness2);
+                }
+            });
+
+        // 3) AllP-AllT
+        tri_bvh.query(point_aabbs,
+                      [&](IndexT i, IndexT j)
                       {
-                          edge_too_close[i] = 1;
-                          edge_too_close[j] = 1;
+                          IndexT   P = i;
+                          Vector3i T = Fs[j];
 
-                          // also mark the vertices of the edges
-                          vertex_too_close[E0[0]] = 1;
-                          vertex_too_close[E0[1]] = 1;
-                          vertex_too_close[E1[0]] = 1;
-                          vertex_too_close[E1[1]] = 1;
+                          // 1) if the point is on the triangle, don't consider it
+                          if(P == T[0] || P == T[1] || P == T[2])
+                              return;
 
-                          is_too_close = true;
+                          auto L = CIds[P];
+                          auto R = CIds[T[0]];
 
-                          Vector2i geo_ids{VGeoIds[E0[0]], VGeoIds[E1[0]]};
+                          const core::ContactModel& model = contact_table.at(L, R);
 
-                          close_geo_ids[geo_ids] = {VObjectIds[E0[0]], VObjectIds[E1[0]]};
+                          // 2) if the contact model is not enabled, don't consider it
+                          if(!model.is_enabled())
+                              return;
 
-                          set_geo_distance(geo_ids, D, thickness2);
-                      }
-                  });
+                          Float D = geometry::point_triangle_squared_distance(
+                              Vs[P], Vs[T[0]], Vs[T[1]], Vs[T[2]]);
+
+                          Float thickness = VThickness.empty() ?
+                                                0 :
+                                                VThickness[P] + VThickness[T[0]];
+
+                          Float thickness2 = thickness * thickness;
+
+                          if(D <= thickness2)
+                          {
+                              vertex_too_close[P] = 1;
+                              tri_too_close[j]    = 1;
+
+                              // also mark the vertices of the triangle
+                              vertex_too_close[T[0]] = 1;
+                              vertex_too_close[T[1]] = 1;
+                              vertex_too_close[T[2]] = 1;
+
+                              is_too_close = true;
+
+                              Vector2i geo_ids{VGeoIds[P], VGeoIds[T[0]]};
+
+                              close_geo_ids[geo_ids] = {VObjectIds[P], VObjectIds[T[0]]};
+
+                              set_geo_distance(geo_ids, D, thickness2);
+                          }
+                      });
+
+        // 4) AllE-AllE
+        edge_bvh.query(
+            edge_aabbs,
+            [&](IndexT i, IndexT j)
+            {
+                Vector2i E0 = Es[i];
+                Vector2i E1 = Es[j];
+
+                // 1) if the two edges share a vertex, don't consider it
+                if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
+                    return;
+
+                auto L = CIds[E0[0]];
+                auto R = CIds[E1[0]];
+
+                const core::ContactModel& model = contact_table.at(L, R);
+
+                // 2) if the contact model is not enabled, don't consider it
+                if(!model.is_enabled())
+                    return;
+
+                Float D = geometry::edge_edge_squared_distance(
+                    Vs[E0[0]], Vs[E0[1]], Vs[E1[0]], Vs[E1[1]]);
+
+                Float thickness =
+                    VThickness.empty() ? 0 : VThickness[E0[0]] + VThickness[E1[0]];
+
+                Float thickness2 = thickness * thickness;
+
+                if(D <= thickness2)
+                {
+                    edge_too_close[i] = 1;
+                    edge_too_close[j] = 1;
+
+                    // also mark the vertices of the edges
+                    vertex_too_close[E0[0]] = 1;
+                    vertex_too_close[E0[1]] = 1;
+                    vertex_too_close[E1[0]] = 1;
+                    vertex_too_close[E1[1]] = 1;
+
+                    is_too_close = true;
+
+                    Vector2i geo_ids{VGeoIds[E0[0]], VGeoIds[E1[0]]};
+
+                    close_geo_ids[geo_ids] = {VObjectIds[E0[0]], VObjectIds[E1[0]]};
+
+                    set_geo_distance(geo_ids, D, thickness2);
+                }
+            });
 
         if(is_too_close)
         {

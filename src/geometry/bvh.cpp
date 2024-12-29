@@ -24,24 +24,6 @@ class BVH::Impl
         }
     }
 
-    void detect(std::function<void(IndexT, IndexT)>&& QF) const
-    {
-        m_indices.clear();
-        auto boxes = m_impl.boxes();
-
-        for(auto&& [i, aabb] : enumerate(boxes))
-        {
-            m_indices.clear();
-            m_impl.intersect(aabb, m_indices);
-
-            for(const auto& index : m_indices)
-            {
-                QF(i, index);
-            }
-        }
-    }
-
-
     SimpleBVH::BVH               m_impl;
     mutable vector<unsigned int> m_indices;
 };
@@ -66,10 +48,5 @@ void BVH::clear()
 void BVH::query(span<const AABB> aabbs, std::function<void(IndexT, IndexT)>&& QF) const
 {
     m_impl->query(aabbs, std::move(QF));
-}
-
-void BVH::detect(std::function<void(IndexT, IndexT)>&& QF) const
-{
-    m_impl->detect(std::move(QF));
 }
 }  // namespace uipc::geometry
