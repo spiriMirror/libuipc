@@ -162,6 +162,17 @@ namespace detail
                     std::ranges::fill(view(*obj_id),
                                       geo_id_to_object_id.at(geo_slot->id()));
                 }
+
+                // 3) label vertices with dimension
+                {
+                    auto dim = simplicial_complex->dim();
+                    auto dim_attr = simplicial_complex->vertices().find<IndexT>("sanity_check/dim");
+                    if(!dim_attr)
+                        dim_attr = simplicial_complex->vertices().create<IndexT>(
+                            "sanity_check/dim", -1);
+
+                    std::ranges::fill(view(*dim_attr), dim);
+                }
             }
 
             if(geo.type() == builtin::ImplicitGeometry)
@@ -181,7 +192,7 @@ namespace detail
         }
     }
 
-    static void label_vertices_with_contact_element_id(span<S<GeometrySlot>> geos)
+    static void label_vertices_with_contact_info(span<S<GeometrySlot>> geos)
     {
         for(auto& geo : geos)
         {
@@ -191,23 +202,36 @@ namespace detail
                     dynamic_cast<SimplicialComplex*>(&geo->geometry());
                 UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
 
+                // 1) Contact Element ID
                 auto contact_element_id =
                     simplicial_complex->meta().find<IndexT>(builtin::contact_element_id);
+                auto v_is_surf =
+                    simplicial_complex->vertices().find<IndexT>(builtin::is_surf);
 
-                IndexT CID = 0;
+                IndexT CID        = 0;
+                bool   need_label = false;
+
+                if(v_is_surf && !contact_element_id)
+                    need_label = true;
 
                 if(contact_element_id)
-                    CID = contact_element_id->view()[0];
+                {
+                    CID        = contact_element_id->view()[0];
+                    need_label = true;
+                }
 
-                auto vertex_contact_element_id =
-                    simplicial_complex->vertices().find<IndexT>("sanity_check/contact_element_id");
+                if(need_label)
+                {
+                    auto vertex_contact_element_id =
+                        simplicial_complex->vertices().find<IndexT>("sanity_check/contact_element_id");
 
-                if(!vertex_contact_element_id)
-                    vertex_contact_element_id =
-                        simplicial_complex->vertices().create<IndexT>(
-                            "sanity_check/contact_element_id", 0);
+                    if(!vertex_contact_element_id)
+                        vertex_contact_element_id =
+                            simplicial_complex->vertices().create<IndexT>(
+                                "sanity_check/contact_element_id", 0);
 
-                std::ranges::fill(view(*vertex_contact_element_id), CID);
+                    std::ranges::fill(view(*vertex_contact_element_id), CID);
+                }
             }
         }
     }
@@ -339,7 +363,7 @@ class Context::Impl
         auto  enable_contact = info["contact"]["enable"].get<bool>();
         if(enable_contact)
         {
-            detail::label_vertices_with_contact_element_id(scene_visitor.geometries());
+            detail::label_vertices_with_contact_info(scene_visitor.geometries());
         }
     }
 

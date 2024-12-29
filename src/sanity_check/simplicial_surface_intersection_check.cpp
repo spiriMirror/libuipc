@@ -46,53 +46,75 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
     virtual U64 get_id() const noexcept override { return SanityCheckerUID; }
 
     geometry::SimplicialComplex extract_intersected_mesh(const geometry::SimplicialComplex& scene_surface,
+                                                         span<const IndexT> vert_intersected,
                                                          span<const IndexT> edge_intersected,
                                                          span<const IndexT> tri_intersected)
     {
         geometry::SimplicialComplex i_mesh;
-        i_mesh.vertices().resize(scene_surface.vertices().size());
 
+        // 1) Build up the intersected vertices, edges, and triangles
+        vector<SizeT> intersected_verts;
         vector<SizeT> intersected_edges;
-        intersected_edges.reserve(edge_intersected.size());
-        for(auto i = 0; i < edge_intersected.size(); i++)
-        {
-            if(edge_intersected[i] == 1)
-                intersected_edges.push_back(i);
-        }
-
         vector<SizeT> intersected_tris;
-        intersected_tris.reserve(tri_intersected.size());
-        for(auto i = 0; i < tri_intersected.size(); i++)
         {
-            if(tri_intersected[i] == 1)
-                intersected_tris.push_back(i);
+            intersected_verts.reserve(vert_intersected.size());
+            for(auto i = 0; i < vert_intersected.size(); i++)
+            {
+                if(vert_intersected[i] == 1)
+                    intersected_verts.push_back(i);
+            }
+
+            intersected_edges.reserve(edge_intersected.size());
+            for(auto i = 0; i < edge_intersected.size(); i++)
+            {
+                if(edge_intersected[i] == 1)
+                    intersected_edges.push_back(i);
+            }
+
+            intersected_tris.reserve(tri_intersected.size());
+            for(auto i = 0; i < tri_intersected.size(); i++)
+            {
+                if(tri_intersected[i] == 1)
+                    intersected_tris.push_back(i);
+            }
         }
 
-        i_mesh.edges().create<Vector2i>(builtin::topo);
-        i_mesh.edges().resize(intersected_edges.size());
-        i_mesh.triangles().create<Vector3i>(builtin::topo);
-        i_mesh.triangles().resize(intersected_tris.size());
 
-        auto pos      = i_mesh.vertices().create<Vector3>(builtin::position);
-        auto pos_view = view(*pos);
-        std::ranges::copy(scene_surface.positions().view(), pos_view.begin());
+        // 2) Copy attributes
+        {
+            i_mesh.vertices().resize(intersected_verts.size());
+            i_mesh.vertices().copy_from(scene_surface.vertices(),
+                                        geometry::AttributeCopy::pull(intersected_verts));
 
-        auto src_edge_view = scene_surface.edges().topo().view();
-        auto src_tri_view  = scene_surface.triangles().topo().view();
+            i_mesh.edges().resize(intersected_edges.size());
+            i_mesh.edges().copy_from(scene_surface.edges(),
+                                     geometry::AttributeCopy::pull(intersected_edges));
 
-        auto dst_edge_view = view(i_mesh.edges().topo());
-        auto dst_tri_view  = view(i_mesh.triangles().topo());
+            i_mesh.triangles().resize(intersected_tris.size());
+            i_mesh.triangles().copy_from(scene_surface.triangles(),
+                                         geometry::AttributeCopy::pull(intersected_tris));
+        }
 
+        // 3) Remap vertex indices
+        {
+            vector<IndexT> vertex_remap(scene_surface.vertices().size(), -1);
+            for(auto [i, v] : enumerate(intersected_verts))
+                vertex_remap[v] = i;
 
-        // copy all vertex attributes
-        i_mesh.vertices().copy_from(scene_surface.vertices());
+            auto Map = [&]<IndexT N>(const Eigen::Vector<IndexT, N>& V) -> Eigen::Vector<IndexT, N>
+            {
+                auto ret = V;
+                for(auto& v : ret)
+                    v = vertex_remap[v];
+                return ret;
+            };
 
-        // copy selected edges
-        i_mesh.edges().copy_from(scene_surface.edges(),
-                                 geometry::AttributeCopy::pull(intersected_edges));
-        // copy selected triangles
-        i_mesh.triangles().copy_from(scene_surface.triangles(),
-                                     geometry::AttributeCopy::pull(intersected_tris));
+            auto edge_topo_view = view(i_mesh.edges().topo());
+            std::ranges::transform(edge_topo_view, edge_topo_view.begin(), Map);
+
+            auto tri_topo_view = view(i_mesh.triangles().topo());
+            std::ranges::transform(tri_topo_view, tri_topo_view.begin(), Map);
+        }
 
         return i_mesh;
     }
@@ -115,7 +137,7 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                       scene_surface.triangles().topo().view() :
                       span<const Vector3i>{};
 
-        if(Vs.size() == 0 || Es.size() == 0 || Fs.size() == 0)  // no neet to check intersection
+        if(Vs.size() == 0 || Es.size() == 0 || Fs.size() == 0)  // no need to check intersection
             return SanityCheckResult::Success;
 
         auto attr_cids =
@@ -153,6 +175,7 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
 
         bvh.build(tri_aabbs);
 
+        vector<IndexT> vertex_intersected(Vs.size(), 0);
         vector<IndexT> edge_intersected(Es.size(), 0);
         vector<IndexT> tri_intersected(Fs.size(), 0);
 
@@ -208,7 +231,15 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                 {
                     edge_intersected[i] = 1;
                     tri_intersected[j]  = 1;
-                    has_intersection    = true;
+
+                    vertex_intersected[E[0]] = 1;
+                    vertex_intersected[E[1]] = 1;
+
+                    vertex_intersected[F[0]] = 1;
+                    vertex_intersected[F[1]] = 1;
+                    vertex_intersected[F[2]] = 1;
+
+                    has_intersection = true;
 
                     auto GeoIdL = VGeoIds[E[0]];
                     auto GeoIdR = VGeoIds[F[1]];
@@ -249,11 +280,12 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                                obj_1->id());
             }
 
-            auto intersected_mesh =
-                extract_intersected_mesh(scene_surface, edge_intersected, tri_intersected);
+            auto intersected_mesh = extract_intersected_mesh(
+                scene_surface, vertex_intersected, edge_intersected, tri_intersected);
 
             fmt::format_to(std::back_inserter(buffer),
-                           "Intersected mesh has {} edges and {} triangles.\n",
+                           "Intersected mesh has {} vertices, {} edges, and {} triangles.\n",
+                           intersected_mesh.vertices().size(),
                            intersected_mesh.edges().size(),
                            intersected_mesh.triangles().size());
 
@@ -279,7 +311,7 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                            name,
                            intersected_mesh.type());
 
-            msg.geometries()["intersected_mesh"] =
+            msg.geometries()[name] =
                 uipc::make_shared<geometry::SimplicialComplex>(std::move(intersected_mesh));
 
             return SanityCheckResult::Error;

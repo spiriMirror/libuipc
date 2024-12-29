@@ -71,43 +71,84 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
     }
 
     geometry::SimplicialComplex create_close_mesh(const geometry::SimplicialComplex& scene_surface,
-                                                  const vector<IndexT>& vertex_too_close)
+                                                  const vector<IndexT>& vertex_is_too_close)
     {
         geometry::SimplicialComplex mesh;
 
-        // copy all vertex attributes
-        mesh.vertices().resize(scene_surface.vertices().size());
-        mesh.vertices().copy_from(scene_surface.vertices());
-
-        auto src_Es = scene_surface.edges().topo().view();
-        auto src_Fs = scene_surface.triangles().topo().view();
-
-
-        vector<SizeT> close_edges;
-        close_edges.reserve(src_Es.size());
-        for(auto&& [I, E] : enumerate(src_Es))
+        // 1) Copy attributes
+        vector<SizeT> close_vertices;
         {
-            if(vertex_too_close[E[0]] || vertex_too_close[E[1]])
-            {
-                close_edges.push_back(I);
-            }
-        }
-        mesh.edges().resize(close_edges.size());
-        mesh.edges().copy_from(scene_surface.edges(),
-                               geometry::AttributeCopy::pull(close_edges));
+            close_vertices.reserve(vertex_is_too_close.size());
 
-        vector<SizeT> close_triangles;
-        close_triangles.reserve(src_Fs.size());
-        for(auto&& [I, F] : enumerate(src_Fs))
-        {
-            if(vertex_too_close[F[0]] || vertex_too_close[F[1]] || vertex_too_close[F[2]])
+            for(auto&& [I, is_close] : enumerate(vertex_is_too_close))
             {
-                close_triangles.push_back(I);
+                if(is_close)
+                {
+                    close_vertices.push_back(I);
+                }
             }
+
+            mesh.vertices().resize(close_vertices.size());
+            mesh.vertices().copy_from(scene_surface.vertices(),
+                                      geometry::AttributeCopy::pull(close_vertices));
         }
-        mesh.triangles().resize(close_triangles.size());
-        mesh.triangles().copy_from(scene_surface.triangles(),
-                                   geometry::AttributeCopy::pull(close_triangles));
+
+
+        // 2) Find close edges and triangles
+        {
+            auto src_Es = scene_surface.edges().topo().view();
+            auto src_Fs = scene_surface.triangles().topo().view();
+
+            vector<SizeT> close_edges;
+            close_edges.reserve(src_Es.size());
+            for(auto&& [I, E] : enumerate(src_Es))
+            {
+                if(vertex_is_too_close[E[0]] && vertex_is_too_close[E[1]])
+                {
+                    close_edges.push_back(I);
+                }
+            }
+            mesh.edges().resize(close_edges.size());
+            mesh.edges().copy_from(scene_surface.edges(),
+                                   geometry::AttributeCopy::pull(close_edges));
+
+            vector<SizeT> close_triangles;
+            close_triangles.reserve(src_Fs.size());
+            for(auto&& [I, F] : enumerate(src_Fs))
+            {
+                if(vertex_is_too_close[F[0]] && vertex_is_too_close[F[1]]
+                   && vertex_is_too_close[F[2]])
+                {
+                    close_triangles.push_back(I);
+                }
+            }
+            mesh.triangles().resize(close_triangles.size());
+            mesh.triangles().copy_from(scene_surface.triangles(),
+                                       geometry::AttributeCopy::pull(close_triangles));
+        }
+
+        // 3) Remap the vertex indices in edges and triangles
+        {
+            vector<SizeT> vert_remap(scene_surface.vertices().size(), -1);
+            for(auto&& [I, V] : enumerate(close_vertices))
+            {
+                vert_remap[V] = I;
+            }
+
+            auto Map = [&]<IndexT N>(const Eigen::Vector<IndexT, N>& V) -> Eigen::Vector<IndexT, N>
+            {
+                auto ret = V;
+                for(auto& v : ret)
+                    v = vert_remap[v];
+                return ret;
+            };
+
+            auto edge_topo_view = view(mesh.edges().topo());
+            std::ranges::transform(edge_topo_view, edge_topo_view.begin(), Map);
+
+            auto tri_topo_view = view(mesh.triangles().topo());
+            std::ranges::transform(tri_topo_view, tri_topo_view.begin(), Map);
+        }
 
         return mesh;
     }
@@ -136,7 +177,7 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
                       scene_surface.triangles().topo().view() :
                       span<const Vector3i>{};
 
-        if(Vs.size() == 0 || Es.size() == 0 || Fs.size() == 0)  // no neet to check distance
+        if(Vs.size() == 0)  // no need to check distance
             return SanityCheckResult::Success;
 
         auto attr_cids =
@@ -148,12 +189,6 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
             scene_surface.vertices().find<IndexT>("sanity_check/geometry_id");
         UIPC_ASSERT(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
         auto VGeoIds = attr_v_geo_ids->view();
-
-        auto attr_v_instance_id =
-            scene_surface.vertices().find<IndexT>("sanity_check/instance_id");
-        UIPC_ASSERT(attr_v_instance_id,
-                    "`sanity_check/instance_id` is not found in scene surface");
-        auto VInstanceIds = attr_v_instance_id->view();
 
         auto attr_v_object_id =
             scene_surface.vertices().find<IndexT>("sanity_check/object_id");
@@ -220,11 +255,11 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
                     {
                         too_close = true;
 
-                        auto geo_id_0 = HGeoIds[I];
-                        auto geo_id_1 = VGeoIds[vI];
+                        auto geo_id_0 = VGeoIds[vI];
+                        auto geo_id_1 = HGeoIds[I];
 
-                        auto obj_id_0 = HObjectIds[I];
-                        auto obj_id_1 = VObjectIds[vI];
+                        auto obj_id_0 = VObjectIds[vI];
+                        auto obj_id_1 = HObjectIds[I];
 
                         close_geo_ids[{geo_id_0, geo_id_1}] = {obj_id_0, obj_id_1};
 
@@ -247,7 +282,7 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
                 UIPC_ASSERT(obj_1 != nullptr, "Object[{}] not found", ObjIds[1]);
 
                 fmt::format_to(std::back_inserter(buffer),
-                               "Geometry({}) in Object[{}({})] is too close (0-distance) to Geometry({}) in "
+                               "Geometry({}) in Object[{}({})] is too close (distance <= 0) to HalfPlane({}) in "
                                "Object[{}({})]\n",
                                GeoIds[0],
                                obj_0->name(),
@@ -260,7 +295,8 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
             auto close_mesh = create_close_mesh(scene_surface, vertex_too_close);
 
             fmt::format_to(std::back_inserter(buffer),
-                           "Close mesh has {} edges and {} triangles.\n",
+                           "Close mesh has {} vertices, {} edges, {} triangles.\n",
+                           close_mesh.vertices().size(),
                            close_mesh.edges().size(),
                            close_mesh.triangles().size());
 
@@ -284,7 +320,7 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
                            name,
                            close_mesh.type());
 
-            msg.geometries()["close_mesh"] =
+            msg.geometries()[name] =
                 uipc::make_shared<geometry::SimplicialComplex>(std::move(close_mesh));
 
             return SanityCheckResult::Error;

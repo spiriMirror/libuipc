@@ -5,9 +5,10 @@
 #include <filesystem>
 #include <fstream>
 
-void test_init_surf_intersection_check(std::string_view            name,
-                                       std::string_view            mesh,
-                                       uipc::span<uipc::Transform> trans)
+void test_init_surf_distance_check(std::string_view            name,
+                                   std::string_view            mesh,
+                                   uipc::Float                 thickness,
+                                   uipc::span<uipc::Transform> trans)
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -37,6 +38,10 @@ void test_init_surf_intersection_check(std::string_view            name,
 
         if(m.dim() == 3)
             label_triangle_orient(m);
+
+        auto attr_thickness = m.vertices().create<Float>(builtin::thickness);
+        auto thickness_view = geometry::view(*attr_thickness);
+        std::ranges::fill(thickness_view, thickness);
         object->geometries().create(m);
     }
 
@@ -59,11 +64,14 @@ void test_init_surf_intersection_check(std::string_view            name,
     }
 }
 
-TEST_CASE("simplicial_surface_intersection", "[init_surface]")
+TEST_CASE("simplicial_surface_distance", "[init_surface]")
 {
     using namespace uipc;
     auto tetmesh_dir = AssetDir::tetmesh_path();
     auto trimesh_dir = AssetDir::trimesh_path();
+
+    Float thickness = 0.005;
+    Float move      = thickness * 2 * 0.9;
 
     {
         auto              name = "cube.obj";
@@ -72,11 +80,12 @@ TEST_CASE("simplicial_surface_intersection", "[init_surface]")
         for(auto i = 0; i < 2; ++i)
         {
             Transform t = Transform::Identity();
-            t.translate(Vector3::UnitY() * 0.2 * i);
+            t.translate(Vector3::UnitY() * move * i);
             transforms.push_back(t);
         }
-        test_init_surf_intersection_check(name, path, span{transforms});
-        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
+        test_init_surf_distance_check(name, path, thickness, span{transforms});
+        test_init_surf_distance_check(
+            name, path, thickness, span{transforms}.subspan<0, 1>());
     }
 
     {
@@ -86,11 +95,12 @@ TEST_CASE("simplicial_surface_intersection", "[init_surface]")
         for(auto i = 0; i < 2; ++i)
         {
             Transform t = Transform::Identity();
-            t.translate(Vector3::UnitY() * 0.2 * i);
+            t.translate(Vector3::UnitY() * move * i);
             transforms.push_back(t);
         }
-        test_init_surf_intersection_check(name, path, span{transforms});
-        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
+        test_init_surf_distance_check(name, path, thickness, span{transforms});
+        test_init_surf_distance_check(
+            name, path, thickness, span{transforms}.subspan<0, 1>());
     }
 
     {
@@ -100,11 +110,12 @@ TEST_CASE("simplicial_surface_intersection", "[init_surface]")
         for(auto i = 0; i < 2; ++i)
         {
             Transform t = Transform::Identity();
-            t.translate(Vector3::UnitY() * 0.2 * i);
+            t.translate(Vector3::UnitY() * move * i);
             transforms.push_back(t);
         }
-        test_init_surf_intersection_check(name, path, span{transforms});
-        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
+        test_init_surf_distance_check(name, path, thickness, span{transforms});
+        test_init_surf_distance_check(
+            name, path, thickness, span{transforms}.subspan<0, 1>());
     }
 
     {
@@ -114,10 +125,11 @@ TEST_CASE("simplicial_surface_intersection", "[init_surface]")
         for(auto i = 0; i < 2; ++i)
         {
             Transform t = Transform::Identity();
-            t.translate(Vector3::UnitY() * 0.2 * i);
+            t.translate(Vector3::UnitY() * move * i);
             transforms.push_back(t);
         }
-        test_init_surf_intersection_check(name, path, span{transforms});
-        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
+        test_init_surf_distance_check(name, path, thickness, span{transforms});
+        test_init_surf_distance_check(
+            name, path, thickness, span{transforms}.subspan<0, 1>());
     }
 }
