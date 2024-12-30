@@ -1,6 +1,5 @@
 #include "BVH.hpp"
 #include "Morton.hpp"
-#include <iostream>
 
 namespace SimpleBVH
 {
@@ -94,6 +93,12 @@ int BVH::max_node_index(int node_index, int b, int e)
 
 void BVH::init(span<const AABB> cornerlist)
 {
+    if(cornerlist.empty())
+    {
+        clear();
+        return;
+    }
+
     n_corners = cornerlist.size();
     m_tmp.resize(n_corners);
 

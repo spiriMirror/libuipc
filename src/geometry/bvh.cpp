@@ -11,6 +11,8 @@ class BVH::Impl
     void clear() { m_impl.clear(); }
     void query(span<const AABB> aabbs, std::function<void(IndexT, IndexT)>&& QF) const
     {
+        if(aabbs.empty() || m_impl.boxes().empty())
+            return;
         m_indices.reserve(aabbs.size());
         for(auto&& [i, aabb] : enumerate(aabbs))
         {

@@ -162,21 +162,20 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
 
         const ContactTabular& contact_tabular = context->contact_tabular();
 
-        collect_codim_points(scene_surface);
-
-        auto CodimPs = span{this->CodimPs};
-
         auto Vs = scene_surface.vertices().size() ? scene_surface.positions().view() :
                                                     span<const Vector3>{};
         auto Es = scene_surface.edges().size() ? scene_surface.edges().topo().view() :
                                                  span<const Vector2i>{};
-
         auto Fs = scene_surface.triangles().size() ?
                       scene_surface.triangles().topo().view() :
                       span<const Vector3i>{};
 
-        if(Vs.size() == 0)  // no need to check intersection
+        if(Vs.size() == 0)  // no need to check distance
             return SanityCheckResult::Success;
+
+        collect_codim_points(scene_surface);
+
+        auto CodimPs = span{this->CodimPs};
 
         auto attr_cids =
             scene_surface.vertices().find<IndexT>("sanity_check/contact_element_id");
