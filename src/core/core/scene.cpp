@@ -24,16 +24,12 @@ class Scene::Impl
 
         dt = info["dt"].get<Float>();
 
-        spdlog::info("Scene Init: Collecting Constitution UIDs ...");
         constitution_tabular.init(visitor);
 
         if(info["diff_sim"]["enable"].get<bool>())
         {
-            spdlog::info("Scene Init: Initializing Differentiable Simulation Parameters ...");
             diff_sim.init(visitor);
         }
-
-        diff_sim.init(visitor);
 
         started = true;
     }

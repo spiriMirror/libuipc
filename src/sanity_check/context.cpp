@@ -97,19 +97,20 @@ namespace detail
     static void create_basic_sanity_check_attributes(span<S<GeometrySlot>> geos,
                                                      const unordered_map<IndexT, IndexT>& geo_id_to_object_id)
     {
-        for(auto& geo : geos)
+        for(auto& geo_slot : geos)
         {
-            if(geo->geometry().type() == builtin::SimplicialComplex)
+            auto& geo = geo_slot->geometry();
+
+            if(geo.type() == builtin::SimplicialComplex)
             {
-                auto simplicial_complex =
-                    dynamic_cast<SimplicialComplex*>(&geo->geometry());
+                auto simplicial_complex = geo.as<SimplicialComplex>();
 
                 UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
 
                 // 1) label original_index for each vertex, edge, triangle, tetrahedron
                 {
                     auto OI = simplicial_complex->vertices().create<IndexT>(
-                        "sanity_check/original_index");
+                        "sanity_check/original_index", -1);
                     auto OI_view = view(*OI);
 
                     std::iota(OI_view.begin(), OI_view.end(), 0);
@@ -117,7 +118,8 @@ namespace detail
 
                 if(simplicial_complex->dim() >= 1)
                 {
-                    auto OI = simplicial_complex->edges().create<IndexT>("sanity_check/original_index");
+                    auto OI = simplicial_complex->edges().create<IndexT>(
+                        "sanity_check/original_index", -1);
                     auto OI_view = view(*OI);
 
                     std::iota(OI_view.begin(), OI_view.end(), 0);
@@ -126,7 +128,7 @@ namespace detail
                 if(simplicial_complex->dim() >= 2)
                 {
                     auto OI = simplicial_complex->triangles().create<IndexT>(
-                        "sanity_check/original_index");
+                        "sanity_check/original_index", -1);
                     auto OI_view = view(*OI);
 
                     std::iota(OI_view.begin(), OI_view.end(), 0);
@@ -135,7 +137,7 @@ namespace detail
                 if(simplicial_complex->dim() == 3)
                 {
                     auto OI = simplicial_complex->tetrahedra().create<IndexT>(
-                        "sanity_check/original_index");
+                        "sanity_check/original_index", -1);
                     auto OI_view = view(*OI);
 
                     std::iota(OI_view.begin(), OI_view.end(), 0);
@@ -149,20 +151,48 @@ namespace detail
                         geo_id = simplicial_complex->vertices().create<IndexT>(
                             "sanity_check/geometry_id");
 
-                    std::ranges::fill(view(*geo_id), geo->id());
+                    std::ranges::fill(view(*geo_id), geo_slot->id());
 
                     auto obj_id = simplicial_complex->vertices().find<IndexT>("sanity_check/object_id");
 
                     if(!obj_id)
-                        obj_id = simplicial_complex->vertices().create<IndexT>("sanity_check/object_id");
+                        obj_id = simplicial_complex->vertices().create<IndexT>(
+                            "sanity_check/object_id", -1);
 
-                    std::ranges::fill(view(*obj_id), geo_id_to_object_id.at(geo->id()));
+                    std::ranges::fill(view(*obj_id),
+                                      geo_id_to_object_id.at(geo_slot->id()));
                 }
+
+                // 3) label vertices with dimension
+                {
+                    auto dim = simplicial_complex->dim();
+                    auto dim_attr = simplicial_complex->vertices().find<IndexT>("sanity_check/dim");
+                    if(!dim_attr)
+                        dim_attr = simplicial_complex->vertices().create<IndexT>(
+                            "sanity_check/dim", -1);
+
+                    std::ranges::fill(view(*dim_attr), dim);
+                }
+            }
+
+            if(geo.type() == builtin::ImplicitGeometry)
+            {
+                auto geo_id = geo.instances().find<IndexT>("sanity_check/geometry_id");
+                if(!geo_id)
+                    geo_id = geo.instances().create<IndexT>("sanity_check/geometry_id");
+
+                std::ranges::fill(view(*geo_id), geo_slot->id());
+
+                auto obj_id = geo.instances().find<IndexT>("sanity_check/object_id");
+                if(!obj_id)
+                    obj_id = geo.instances().create<IndexT>("sanity_check/object_id");
+
+                std::ranges::fill(view(*obj_id), geo_id_to_object_id.at(geo_slot->id()));
             }
         }
     }
 
-    static void label_vertices_with_contact_element_id(span<S<GeometrySlot>> geos)
+    static void label_vertices_with_contact_info(span<S<GeometrySlot>> geos)
     {
         for(auto& geo : geos)
         {
@@ -172,23 +202,36 @@ namespace detail
                     dynamic_cast<SimplicialComplex*>(&geo->geometry());
                 UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
 
+                // 1) Contact Element ID
                 auto contact_element_id =
                     simplicial_complex->meta().find<IndexT>(builtin::contact_element_id);
+                auto v_is_surf =
+                    simplicial_complex->vertices().find<IndexT>(builtin::is_surf);
 
-                IndexT CID = 0;
+                IndexT CID        = 0;
+                bool   need_label = false;
+
+                if(v_is_surf && !contact_element_id)
+                    need_label = true;
 
                 if(contact_element_id)
-                    CID = contact_element_id->view()[0];
+                {
+                    CID        = contact_element_id->view()[0];
+                    need_label = true;
+                }
 
-                auto vertex_contact_element_id =
-                    simplicial_complex->vertices().find<IndexT>("sanity_check/contact_element_id");
+                if(need_label)
+                {
+                    auto vertex_contact_element_id =
+                        simplicial_complex->vertices().find<IndexT>("sanity_check/contact_element_id");
 
-                if(!vertex_contact_element_id)
-                    vertex_contact_element_id =
-                        simplicial_complex->vertices().create<IndexT>(
-                            "sanity_check/contact_element_id", 0);
+                    if(!vertex_contact_element_id)
+                        vertex_contact_element_id =
+                            simplicial_complex->vertices().create<IndexT>(
+                                "sanity_check/contact_element_id", 0);
 
-                std::ranges::fill(view(*vertex_contact_element_id), CID);
+                    std::ranges::fill(view(*vertex_contact_element_id), CID);
+                }
             }
         }
     }
@@ -320,7 +363,7 @@ class Context::Impl
         auto  enable_contact = info["contact"]["enable"].get<bool>();
         if(enable_contact)
         {
-            detail::label_vertices_with_contact_element_id(scene_visitor.geometries());
+            detail::label_vertices_with_contact_info(scene_visitor.geometries());
         }
     }
 

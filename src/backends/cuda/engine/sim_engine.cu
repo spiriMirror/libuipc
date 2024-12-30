@@ -9,6 +9,7 @@
 #include <fstream>
 #include <uipc/common/timer.h>
 #include <backends/common/backend_path_tool.h>
+#include <uipc/backend/engine_create_info.h>
 #include <future>
 
 namespace uipc::backend::cuda
@@ -33,9 +34,23 @@ SimEngine::SimEngine(EngineCreateInfo* info)
 
         spdlog::info("Initializing Cuda Backend...");
 
+        auto device_id = info->config["gpu"]["device"].get<IndexT>();
+
+        // get gpu device count
+        int device_count;
+        checkCudaErrors(cudaGetDeviceCount(&device_count));
+        if(device_id >= device_count)
+        {
+            UIPC_WARN_WITH_LOCATION(
+                "Cannot find device with id {}. Using device 0 instead.", 
+                device_id);
+
+            device_id = 0;
+        }
+
         cudaDeviceProp prop;
-        checkCudaErrors(cudaGetDeviceProperties(&prop, 0));
-        spdlog::info("Device: {}", prop.name);
+        checkCudaErrors(cudaGetDeviceProperties(&prop, device_id));
+        spdlog::info("Device: [{}] {}", device_id, prop.name);
         spdlog::info("Compute Capability: {}.{}", prop.major, prop.minor);
         spdlog::info("Total Global Memory: {} MB", prop.totalGlobalMem / 1024 / 1024);
 
