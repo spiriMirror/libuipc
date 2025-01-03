@@ -43,6 +43,7 @@ endmacro()
 # -----------------------------------------------------------------------------------------
 function(uipc_show_options)
     uipc_info("Options:")
+    message(STATUS "    * UIPC_DEV_MODE: ${UIPC_DEV_MODE}")
     message(STATUS "    * UIPC_BUILD_GUI: ${UIPC_BUILD_GUI}")
     message(STATUS "    * UIPC_BUILD_PYBIND: ${UIPC_BUILD_PYBIND}")
     message(STATUS "    * UIPC_BUILD_TORCH_EXTENSION: ${UIPC_BUILD_TORCH_EXTENSION}")
@@ -156,7 +157,8 @@ function(uipc_init_submodule target)
     if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${target}")
         uipc_error("Can not find submodule ${target} in ${CMAKE_CURRENT_SOURCE_DIR}, why?")
     endif()
-    if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${target}/.git")
+    if (NOT UIPC_DEV_MODE)
+        # NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${target}/.git"
         find_package(Git QUIET)
         execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init ${target}
                         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
@@ -179,7 +181,7 @@ execute_process(COMMAND ${Python_EXECUTABLE}
     OUTPUT_QUIET
 )
 if (NOT CMD_RESULT EQUAL 0)
-    uipc_info("${module_name} not found, try installing numpy...")
+    uipc_info("${module_name} not found, try installing ${module_name}...")
     execute_process(COMMAND ${Python_EXECUTABLE} "-m" "pip" "install" "${module_name}"
     RESULT_VARIABLE INSTALL_RESULT)
     if (NOT INSTALL_RESULT EQUAL 0)
