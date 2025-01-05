@@ -19,6 +19,7 @@
 #include <uipc/builtin/constitution_type.h>
 #include <uipc/geometry/utils/affine_body/compute_dyadic_mass.h>
 #include <uipc/geometry/utils/affine_body/compute_body_force.h>
+#include <muda/ext/eigen/inverse.h>
 
 namespace uipc::backend
 {
@@ -285,6 +286,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 {
     auto scene             = world.scene();
     auto geo_slots         = scene.geometries();
+    auto rest_geo_slots    = scene.rest_geometries();
     auto constitution_view = constitutions.view();
 
     // 1) Setup `q` for every affine body
@@ -302,13 +304,23 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
                 Float D = trans.block<3, 3>(0, 0).determinant();
 
-                if(!Eigen::Vector<Float, 1>{D}.isApproxToConstant(1.0, 1e-6))
-                    spdlog::warn("The determinant of the rotation matrix is not 1.0, but {}. Don't apply scaling on Affine Body.",
-                                 D);
-
                 Vector12& q = h_body_id_to_q[bodyI];
 
                 q = transform_to_q(trans);
+            });
+        
+        for_each(
+            rest_geo_slots,
+            [](geometry::SimplicialComplex& sc)
+            { return sc.transforms().view(); },
+            [&](const ForEachInfo& I, const Matrix4x4 trans)
+            {
+                auto bodyI = I.global_index();
+
+                Float D = trans.block<3,3>(0,0).determinant();
+
+                if(!Eigen::Vector<Float, 1>{D}.isApproxToConstant(1.0, 1e-6))
+                    spdlog::warn("Don't apply scaling on Affine Body's rest shape.");
             });
     }
 
@@ -463,7 +475,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     std::ranges::transform(h_body_id_to_abd_mass,
                            h_body_id_to_abd_mass_inv.begin(),
                            [](const ABDJacobiDyadicMass& mass) -> Matrix12x12
-                           { return mass.to_mat().inverse(); });
+                           { return muda::eigen::inverse(mass.to_mat()); });
 
     // 6) Setup the affine body gravity
     {
