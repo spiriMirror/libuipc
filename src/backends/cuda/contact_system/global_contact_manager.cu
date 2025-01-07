@@ -50,12 +50,12 @@ muda::CBuffer2DView<IndexT> GlobalContactManager::contact_mask_tabular() const n
 void GlobalContactManager::Impl::init(WorldVisitor& world)
 {
     // 1) init tabular
-    auto& contact_models = world.scene().contact_tabular().contact_models();
+    auto contact_models = world.scene().contact_tabular().contact_models();
 
     auto attr_topo          = contact_models.find<Vector2i>("topo");
     auto attr_resistance    = contact_models.find<Float>("resistance");
     auto attr_friction_rate = contact_models.find<Float>("friction_rate");
-    auto attr_enabled       = contact_models.find<bool>("is_enabled");
+    auto attr_enabled       = contact_models.find<IndexT>("is_enabled");
 
     UIPC_ASSERT(attr_topo != nullptr, "topo is not found in contact tabular");
     UIPC_ASSERT(attr_resistance != nullptr, "resistance is not found in contact tabular");

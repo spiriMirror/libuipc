@@ -103,6 +103,7 @@ class ContactTabular::Impl
             _append_contact_models();
         }
 
+        view(*m_topo)[index]           = ids;
         view(*m_friction_rates)[index] = friction_rate;
         view(*m_resistances)[index]    = resistance;
         view(*m_is_enabled)[index]     = enable;
@@ -199,7 +200,7 @@ IndexT ContactTabular::insert(const ContactElement& L,
                               bool                  enable,
                               const Json&           config)
 {
-    return insert(L, R, friction_rate, resistance, enable, config);
+    return m_impl->insert(L, R, friction_rate, resistance, enable, config);
 }
 
 ContactModel ContactTabular::at(SizeT i, SizeT j) const

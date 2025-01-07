@@ -21,7 +21,7 @@ void ContactTabular::init(backend::SceneVisitor& scene)
     auto attr_topo          = contact_models.find<Vector2i>("topo");
     auto attr_resistance    = contact_models.find<Float>("resistance");
     auto attr_friction_rate = contact_models.find<Float>("friction_rate");
-    auto attr_enabled       = contact_models.find<bool>("is_enabled");
+    auto attr_enabled       = contact_models.find<IndexT>("is_enabled");
 
     UIPC_ASSERT(attr_topo != nullptr, "topo is not found in contact tabular");
     UIPC_ASSERT(attr_resistance != nullptr, "resistance is not found in contact tabular");
@@ -40,8 +40,8 @@ void ContactTabular::init(backend::SceneVisitor& scene)
     for(auto&& [topo, resistance, friction_rate, enabled] :
         zip(topo_view, resistance_view, friction_rate_view, enabled_view))
     {
-        m_table[topo.x() * elements + topo.y()] =
-            core::ContactModel{topo, friction_rate, resistance, enabled, Json::object()};
+        m_table[topo.x() * elements + topo.y()] = core::ContactModel{
+            topo, friction_rate, resistance, enabled ? true : false, Json::object()};
     }
 }
 
