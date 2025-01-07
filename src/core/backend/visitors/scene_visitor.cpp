@@ -64,7 +64,17 @@ const core::ConstitutionTabular& SceneVisitor::constitution_tabular() const noex
     return m_scene.constitution_tabular();
 }
 
+core::ConstitutionTabular& SceneVisitor::constitution_tabular() noexcept
+{
+    return m_scene.constitution_tabular();
+}
+
 const core::ContactTabular& SceneVisitor::contact_tabular() const noexcept
+{
+    return m_scene.contact_tabular();
+}
+
+core::ContactTabular& SceneVisitor::contact_tabular() noexcept
 {
     return m_scene.contact_tabular();
 }

@@ -12,7 +12,7 @@ class Octree::Impl
   public:
     void build(span<const AABB> aabbs)
     {
-        octree = Eigen::OctreeBox3d(aabbs);
+        octree = Eigen::OctreeBox3d{aabbs};
         leafs.resize(aabbs.size());
         std::copy(aabbs.begin(), aabbs.end(), leafs.begin());
     }

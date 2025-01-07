@@ -9,19 +9,39 @@
 #include <uipc/geometry/utils/extract_surface.h>
 #include <uipc/geometry/utils/apply_transform.h>
 #include <uipc/geometry/utils/merge.h>
+#include <uipc/common/zip.h>
 
 namespace uipc::sanity_check
 {
 void ContactTabular::init(backend::SceneVisitor& scene)
 {
-    auto models   = scene.contact_tabular().contact_models();
-    auto elements = scene.contact_tabular().element_count();
-    m_table.resize(elements * elements, models.front());
+    auto contact_models = scene.contact_tabular().contact_models();
+    auto elements       = scene.contact_tabular().element_count();
+
+    auto attr_topo          = contact_models.find<Vector2i>("topo");
+    auto attr_resistance    = contact_models.find<Float>("resistance");
+    auto attr_friction_rate = contact_models.find<Float>("friction_rate");
+    auto attr_enabled       = contact_models.find<bool>("is_enabled");
+
+    UIPC_ASSERT(attr_topo != nullptr, "topo is not found in contact tabular");
+    UIPC_ASSERT(attr_resistance != nullptr, "resistance is not found in contact tabular");
+    UIPC_ASSERT(attr_friction_rate != nullptr, "friction_rate is not found in contact tabular");
+    UIPC_ASSERT(attr_enabled != nullptr, "is_enabled is not found in contact tabular");
+
+    auto topo_view          = attr_topo->view();
+    auto resistance_view    = attr_resistance->view();
+    auto friction_rate_view = attr_friction_rate->view();
+    auto enabled_view       = attr_enabled->view();
+
+    auto default_model = scene.contact_tabular().default_model();
+
+    m_table.resize(elements * elements, default_model);
     m_contact_element_count = elements;
-    for(auto& model : models)
+    for(auto&& [topo, resistance, friction_rate, enabled] :
+        zip(topo_view, resistance_view, friction_rate_view, enabled_view))
     {
-        auto id                             = model.ids();
-        m_table[id.x() * elements + id.y()] = model;
+        m_table[topo.x() * elements + topo.y()] =
+            core::ContactModel{topo, friction_rate, resistance, enabled, Json::object()};
     }
 }
 
