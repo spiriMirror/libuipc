@@ -14,6 +14,7 @@
 #include <pyuipc/constitution/kirchhoff_rod_bending.h>
 #include <pyuipc/constitution/soft_transform_constraint.h>
 #include <pyuipc/constitution/discrete_shell_bending.h>
+#include <pyuipc/constitution/arap.h>
 
 namespace pyuipc::constitution
 {
@@ -33,6 +34,7 @@ PyModule::PyModule(py::module& m)
     PyHookeanSpring{m};
     PyNeoHookeanShell{m};
     PyStableNeoHookean{m};
+    PyARAP{m};
 
     // Finite Extra Constitutions
     PyFiniteElementExtraConstitution{m};
