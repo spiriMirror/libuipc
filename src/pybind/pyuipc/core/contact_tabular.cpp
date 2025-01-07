@@ -32,10 +32,11 @@ PyContactTabular::PyContactTabular(py::module& m)
 
     class_ContactTabular.def(
         "default_model",
-        [](ContactTabular& self, Float friction_rate, Float resistance, const Json& config = Json{})
-        { self.default_model(friction_rate, resistance, config); },
+        [](ContactTabular& self, Float friction_rate, Float resistance, bool enable, const Json& config = Json{})
+        { self.default_model(friction_rate, resistance, enable, config); },
         py::arg("friction_rate"),
         py::arg("resistance"),
+        py::arg("enable") = true,
         py::arg("config") = Json::object());
 
     class_ContactTabular.def("default_element",

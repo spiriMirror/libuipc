@@ -8,7 +8,7 @@ class ContactTabular;
 
 namespace uipc::backend
 {
-class ContactTabularVisitor final
+class UIPC_CORE_API ContactTabularVisitor
 {
   public:
     ContactTabularVisitor(core::ContactTabular& contact_tabular) noexcept

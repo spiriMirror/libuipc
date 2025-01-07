@@ -1,3 +1,4 @@
+#include "uipc/core/constitution_tabular.h"
 #include <pyuipc/backend/scene_visitor.h>
 #include <uipc/backend/visitors/scene_visitor.h>
 #include <uipc/core/scene.h>
@@ -35,7 +36,11 @@ PySceneVisitor::PySceneVisitor(py::module& m)
 
     class_SceneVisitor.def("info", &SceneVisitor::info);
 
-    class_SceneVisitor.def("constitution_tabular", &SceneVisitor::constitution_tabular);
-    class_SceneVisitor.def("contact_tabular", &SceneVisitor::contact_tabular);
+    class_SceneVisitor.def("constitution_tabular",
+                           [](SceneVisitor& self) -> ConstitutionTabular&
+                           { return self.constitution_tabular(); });
+    class_SceneVisitor.def("contact_tabular",
+                           [](SceneVisitor& self) -> ContactTabular&
+                           { return self.contact_tabular(); });
 }
 }  // namespace pyuipc::backend
