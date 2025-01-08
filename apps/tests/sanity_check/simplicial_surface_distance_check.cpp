@@ -70,7 +70,7 @@ TEST_CASE("simplicial_surface_distance", "[init_surface]")
     auto tetmesh_dir = AssetDir::tetmesh_path();
     auto trimesh_dir = AssetDir::trimesh_path();
 
-    Float thickness = 0.005;
+    Float thickness = 0.002;
     Float move      = thickness * 2 * 0.9;
 
     {
