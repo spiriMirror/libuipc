@@ -5,6 +5,7 @@
 #include <uipc/geometry/attribute_friend.h>
 #include <pyuipc/as_numpy.h>
 #include <pyuipc/common/json.h>
+#include <pyuipc/geometry/attribute_creator.h>
 namespace uipc::geometry
 {
 namespace py = pybind11;
@@ -31,14 +32,7 @@ class AttributeFriend<pyuipc::geometry::PySimplicialComplex>
                                     std::string_view                       name,
                                     py::object object)
     {
-        auto pyobj = py::cast(a.m_attributes,
-                              py::return_value_policy::reference_internal,  // member object is a reference in the parent object
-                              py::cast(a)  // parent object
-        );
-
-        // call the create method of the member object
-        return py::cast<S<IAttributeSlot>>(
-            pyobj.attr("create").operator()(py::cast(name), object));
+        return pyuipc::geometry::AttributeCreator::create(a.m_attributes, name, object);
     }
 };
 }  // namespace uipc::geometry

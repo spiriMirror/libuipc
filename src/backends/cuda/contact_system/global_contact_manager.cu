@@ -6,6 +6,7 @@
 #include <uipc/common/enumerate.h>
 #include <kernel_cout.h>
 #include <uipc/common/unit.h>
+#include <uipc/common/zip.h>
 
 namespace uipc::backend
 {
@@ -50,26 +51,42 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
 {
     // 1) init tabular
     auto contact_models = world.scene().contact_tabular().contact_models();
-    auto N              = world.scene().contact_tabular().element_count();
 
-    h_contact_tabular.resize(N * N,
-                             ContactCoeff{.kappa = contact_models[0].resistance(),
-                                          .mu = contact_models[0].friction_rate()});
+    auto attr_topo          = contact_models.find<Vector2i>("topo");
+    auto attr_resistance    = contact_models.find<Float>("resistance");
+    auto attr_friction_rate = contact_models.find<Float>("friction_rate");
+    auto attr_enabled       = contact_models.find<IndexT>("is_enabled");
+
+    UIPC_ASSERT(attr_topo != nullptr, "topo is not found in contact tabular");
+    UIPC_ASSERT(attr_resistance != nullptr, "resistance is not found in contact tabular");
+    UIPC_ASSERT(attr_friction_rate != nullptr, "friction_rate is not found in contact tabular");
+    UIPC_ASSERT(attr_enabled != nullptr, "is_enabled is not found in contact tabular");
+
+    auto topo_view          = attr_topo->view();
+    auto resistance_view    = attr_resistance->view();
+    auto friction_rate_view = attr_friction_rate->view();
+    auto enabled_view       = attr_enabled->view();
+
+    auto N = world.scene().contact_tabular().element_count();
+
+    h_contact_tabular.resize(
+        N * N, ContactCoeff{.kappa = resistance_view[0], .mu = friction_rate_view[0]});
 
     h_contact_mask_tabular.resize(N * N, 1);
 
-    for(auto& model : contact_models)
+    for(auto&& [ids, kappa, mu, is_enabled] :
+        zip(topo_view, resistance_view, friction_rate_view, enabled_view))
     {
-        auto ids = model.ids();
-        ContactCoeff coeff{.kappa = model.resistance(), .mu = model.friction_rate()};
+
+        ContactCoeff coeff{.kappa = kappa, .mu = mu};
 
         auto upper                    = ids.x() * N + ids.y();
         h_contact_tabular[upper]      = coeff;
-        h_contact_mask_tabular[upper] = model.is_enabled() ? 1 : 0;
+        h_contact_mask_tabular[upper] = is_enabled;
 
         auto lower                    = ids.y() * N + ids.x();
         h_contact_tabular[lower]      = coeff;
-        h_contact_mask_tabular[lower] = model.is_enabled() ? 1 : 0;
+        h_contact_mask_tabular[lower] = is_enabled;
     }
 
     contact_tabular.resize(muda::Extent2D{N, N});

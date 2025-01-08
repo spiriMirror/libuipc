@@ -2,6 +2,7 @@
 #include <uipc/backend/visitors/scene_visitor.h>
 #include <uipc/backend/visitors/geometry_visitor.h>
 #include <uipc/common/zip.h>
+#include <uipc/backend/visitors/contact_tabular_visitor.h>
 
 namespace uipc::core
 {
@@ -18,50 +19,65 @@ class DiffSim::Impl
         vector<std::string>                    collection_names;
         vector<geometry::AttributeCollection*> collections;
 
-        // 1) Collect all [ diff/xxx , xxx ] Attibute Collection Pairs
-        for(auto&& [geo_slot, rest_geo_slot] : zip(geos, rest_geos))
+        // 1. Collect all [ diff/xxx , xxx ] Attibute Collection Pairs
         {
-            std::array<geometry::Geometry*, 2> local_geos = {
-                &geo_slot->geometry(), &rest_geo_slot->geometry()};
-
-            for(geometry::Geometry* geo : local_geos)
+            // Common Function to detect diff/xxx and xxx
+            auto detect_and_connect = [this](geometry::AttributeCollection& collection)
             {
-                backend::GeometryVisitor geo_visitor{*geo};
-                collection_names.clear();
-                collections.clear();
-                geo_visitor.collect_attribute_collections(collection_names, collections);
+                vector<std::string> attribute_names = collection.names();
+                std::string_view    prefix          = "diff/";
 
-                for(auto&& [_, collection] : zip(collection_names, collections))
+                auto [iter, end] = std::ranges::remove_if(
+                    attribute_names,
+                    [prefix](const std::string& name)
+                    { return name.find(prefix) == std::string::npos; });
+
+                attribute_names.erase(iter, end);
+
+                for(const std::string& diff_parm_name : attribute_names)
                 {
-                    vector<std::string> attribute_names = collection->names();
-                    std::string_view    prefix          = "diff/";
+                    auto parm_name =
+                        std::string_view{diff_parm_name}.substr(prefix.size());
 
-                    auto [iter, end] = std::ranges::remove_if(
-                        attribute_names,
-                        [prefix](const std::string& name)
-                        { return name.find(prefix) == std::string::npos; });
+                    auto diff_parm = collection.find(diff_parm_name);
+                    auto parm      = collection.find(parm_name);
 
-                    attribute_names.erase(iter, end);
+                    // connect diff_parm to parm
+                    parameters.connect(diff_parm, parm);
+                }
+            };
 
-                    for(const std::string& diff_parm_name : attribute_names)
-                    {
-                        auto parm_name =
-                            std::string_view{diff_parm_name}.substr(prefix.size());
+            // 1) Collect From Contact Tabular
+            {
+                auto& contact_tabular = scene_visitor.contact_tabular();
+                backend::ContactTabularVisitor ctv{contact_tabular};
+                detect_and_connect(ctv.contact_models());
+            }
 
-                        auto diff_parm = collection->find(diff_parm_name);
-                        auto parm      = collection->find(parm_name);
+            // 2) Collect From Geometries
+            for(auto&& [geo_slot, rest_geo_slot] : zip(geos, rest_geos))
+            {
+                std::array<geometry::Geometry*, 2> local_geos = {
+                    &geo_slot->geometry(), &rest_geo_slot->geometry()};
 
-                        // connect diff_parm to parm
-                        parameters.connect(diff_parm, parm);
-                    }
+                for(geometry::Geometry* geo : local_geos)
+                {
+                    backend::GeometryVisitor geo_visitor{*geo};
+                    collection_names.clear();
+                    collections.clear();
+                    geo_visitor.collect_attribute_collections(collection_names, collections);
+
+                    for(auto&& collection : collections)
+                        detect_and_connect(*collection);
                 }
             }
         }
 
-        // 2) Build the connections
+
+        // 2. Build the connections
         parameters.build();
 
-        // 3) Broadcast the parameters
+        // 3. Broadcast the parameters
         parameters.broadcast();
     }
 

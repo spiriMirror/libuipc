@@ -19,14 +19,12 @@ TEST_CASE("contact_model", "[contact_model]")
     contact_tabular.insert(rubber_contact, rubber_contact, 0.6, 1e8);
     contact_tabular.insert(wood_contact, rubber_contact, 0.3, 1e8);
 
-    vector<Vector2i> gt = {{0, 0}, {1, 1}, {1, 2}, {2, 2}};
-
     auto contact_models = contact_tabular.contact_models();
 
-    REQUIRE(std::ranges::equal(gt,
-                               contact_models,
-                               [](const Vector2i& a, const ContactModel& b)
-                               { return a == b.ids(); }));
+    REQUIRE(contact_models.find<Vector2i>("topo") != nullptr);
+    REQUIRE(contact_models.find<Float>("friction_rate"));
+    REQUIRE(contact_models.find<Float>("resistance"));
+    REQUIRE(contact_models.find<Float>("is_enabled"));
 
     geometry::SimplicialComplexIO io;
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));

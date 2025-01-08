@@ -25,7 +25,7 @@ ContactModel::ContactModel(const Vector2i& ids,
 {
 }
 
-const Vector2i& ContactModel::ids() const
+const Vector2i& ContactModel::topo() const
 {
     return m_ids;
 }
@@ -51,7 +51,7 @@ const Json& ContactModel::config() const
 }
 void to_json(Json& json, const ContactModel& model)
 {
-    json = Json{{"ids", model.ids()},
+    json = Json{{"ids", model.topo()},
                 {"friction_rate", model.friction_rate()},
                 {"resistance", model.resistance()},
                 {"enabled", model.is_enabled()},
