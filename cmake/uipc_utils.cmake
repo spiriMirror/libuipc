@@ -81,6 +81,10 @@ function(uipc_config_vcpkg_install)
         RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
     )
 
+    if (DEFINED uipc_github_actions)
+        return()
+    endif()
+
     # set VCPKG_MANIFEST_INSTALL option to control the vcpkg install
     if(VCPKG_JSON_GENERATE_RESULT)
         set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)

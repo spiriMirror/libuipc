@@ -38,6 +38,12 @@ jobs:
         with:
           submodules: true
 
+      - name: Generate vcpkg.json
+        env:
+          VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
+        run: |
+          cmake --preset ci-release
+
       - name: Setup vcpkg
         id: vcpkg
         uses: johnwason/vcpkg-action@v6
