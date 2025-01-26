@@ -40,6 +40,8 @@ jobs:
 
       - name: Generate vcpkg.json
         continue-on-error: true
+        env:
+          VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
         run: |
           cmake --preset ci-release
 
