@@ -83,7 +83,7 @@ function(uipc_config_vcpkg_install)
     )
 
     # set VCPKG_MANIFEST_INSTALL option to control the vcpkg install
-    if(VCPKG_JSON_GENERATE_RESULT)
+    if(VCPKG_JSON_GENERATE_RESULT or UIPC_GITHUB_ACTIONS)
         set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)
     else()
         set(VCPKG_MANIFEST_INSTALL OFF CACHE BOOL "" FORCE)

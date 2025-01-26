@@ -31,7 +31,7 @@
             "displayName": "Generate vcpkg.json",
             "inherits": "config-base",
             "cacheVariables": {
-                "VCPKG_MANIFEST_INSTALL": "ON"
+                "UIPC_GITHUB_ACTIONS": "ON"
             }
         },
         {
