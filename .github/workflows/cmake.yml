@@ -53,6 +53,7 @@ jobs:
           revision: master
           token: ${{ github.token }}
           github-binarycache: true
+          fetch-depth: '1'
 
       - name: Build libuipc
         env:
