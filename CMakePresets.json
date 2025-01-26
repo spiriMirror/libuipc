@@ -27,6 +27,14 @@
             }
         },
         {
+            "name": "ci-release",
+            "displayName": "Generate vcpkg.json",
+            "inherits": "config-base",
+            "cacheVariables": {
+                "VCPKG_MANIFEST_INSTALL": "ON"
+            }
+        },
+        {
             "name": "release",
             "displayName": "Config Release",
             "description": "Sets release build type",
@@ -46,6 +54,10 @@
         }
     ],
     "buildPresets": [
+        {
+            "name": "ci-release",
+            "configurePreset": "ci-release"
+        },
         {
             "name": "release",
             "configurePreset": "release"
