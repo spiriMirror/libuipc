@@ -50,6 +50,7 @@ jobs:
           manifest-dir: "${{ github.workspace }}/build"
           triplet: x64-windows-release
           cache-key: ${{ matrix.os }}
+          revision: master
           token: ${{ github.token }}
           github-binarycache: true
 
