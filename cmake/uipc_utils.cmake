@@ -67,6 +67,7 @@ function(uipc_config_vcpkg_install)
         "Please setup the environment variable `CMAKE_TOOLCHAIN_FILE` to your vcpkg.cmake file.\n" 
         "Details: https://spirimirror.github.io/libuipc-doc/build/")
     endif()
+    string(REPLACE "\\" "/" CMAKE_TOOLCHAIN_FILE ${CMAKE_TOOLCHAIN_FILE})
     uipc_info("CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
     find_package(Python REQUIRED QUIET)
     if(NOT Python_FOUND)
@@ -80,10 +81,6 @@ function(uipc_config_vcpkg_install)
         "--dev_mode=${UIPC_DEV_MODE}" # pass the UIPC_DEV_MODE as argument
         RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
     )
-
-    if (DEFINED uipc_github_actions)
-        return()
-    endif()
 
     # set VCPKG_MANIFEST_INSTALL option to control the vcpkg install
     if(VCPKG_JSON_GENERATE_RESULT)

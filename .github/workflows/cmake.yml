@@ -43,7 +43,7 @@ jobs:
         env:
           VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
         run: |
-          cmake --preset ci-release
+          cmake --preset release
 
       - name: Setup vcpkg
         id: vcpkg

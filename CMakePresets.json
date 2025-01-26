@@ -27,14 +27,6 @@
             }
         },
         {
-            "name": "ci-release",
-            "displayName": "Generate vcpkg.json",
-            "inherits": "config-base",
-            "cacheVariables": {
-                "uipc_github_actions": "ON"
-            }
-        },
-        {
             "name": "release",
             "displayName": "Config Release",
             "description": "Sets release build type",
