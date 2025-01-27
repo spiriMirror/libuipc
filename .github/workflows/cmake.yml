@@ -50,7 +50,7 @@ jobs:
         uses: johnwason/vcpkg-action@v6
         with:
           manifest-dir: "${{ github.workspace }}/build"
-          triplet: x64-windows-release
+          triplet: ${{ matrix.os == 'windows-2022' && 'x64-windows-release' || 'x64-linux' }}
           cache-key: ${{ matrix.os }}
           revision: master
           token: ${{ github.token }}
