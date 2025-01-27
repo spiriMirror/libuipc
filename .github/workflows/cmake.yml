@@ -25,7 +25,7 @@ jobs:
         uses: Jimver/cuda-toolkit@v0.2.20
         id: cuda-toolkit
         with:
-          cuda: '12.6.3'
+          cuda: '12.4.0'
 
       - name: Setup ninja
         if: matrix.os == 'ubuntu-22.04'
