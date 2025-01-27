@@ -1,0 +1,70 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 26,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "config-base",
+            "hidden": true,
+            "displayName": "base Configuration",
+            "description": "Default build using Ninja generator",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build",
+            "cacheVariables": {
+                "UIPC_USING_LOCAL_VCPKG": "ON",
+                "UIPC_BUILD_GUI": "OFF",
+                "UIPC_BUILD_PYBIND": "OFF",
+                "UIPC_BUILD_TORCH_EXTENSION": "OFF",
+                "UIPC_BUILD_EXAMPLES": "ON",
+                "UIPC_BUILD_TESTS": "ON",
+                "UIPC_BUILD_BENCHMARKS": "ON",
+                "UIPC_DEV_MODE": "ON",
+                "UIPC_WITH_CUDA_BACKEND": "ON",
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            }
+        },
+        {
+            "name": "ci-release",
+            "displayName": "Generate vcpkg.json",
+            "inherits": "config-base",
+            "cacheVariables": {
+                "UIPC_GITHUB_ACTIONS": "ON"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Config Release",
+            "description": "Sets release build type",
+            "inherits": "config-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release"
+            }
+        },
+        {
+            "name": "debug",
+            "displayName": "Config Debug",
+            "description": "Sets debug build type",
+            "inherits": "config-base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "ci-release",
+            "configurePreset": "ci-release"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release"
+        },
+        {
+            "name": "debug",
+            "configurePreset": "debug"
+        }
+    ]
+}
