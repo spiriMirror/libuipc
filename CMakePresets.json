@@ -23,7 +23,8 @@
                 "UIPC_BUILD_BENCHMARKS": "ON",
                 "UIPC_DEV_MODE": "ON",
                 "UIPC_WITH_CUDA_BACKEND": "ON",
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                "CMAKE_CUDA_FLAGS": "-allow-unsupported-compiler"
             }
         },
         {
