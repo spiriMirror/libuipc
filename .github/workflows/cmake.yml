@@ -22,6 +22,7 @@ jobs:
 
     steps:
       - name: Maximize build space
+        if: matrix.os == 'ubuntu-22.04'
         uses: AdityaGarg8/remove-unwanted-software@v4.1
         with:
           remove-android: 'true'
