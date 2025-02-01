@@ -34,15 +34,13 @@ class Scene::Impl
         started = true;
     }
 
-    void begin_pending() noexcept
-    {
-        // Do nothing
-    }
+    void begin_pending() noexcept { pending = true; }
 
     void solve_pending() noexcept
     {
         geometries.solve_pending();
         rest_geometries.solve_pending();
+        pending = false;
     }
 
     Json                info;
@@ -57,6 +55,7 @@ class Scene::Impl
     SanityChecker                sanity_checker;
 
     bool   started = false;
+    bool   pending = false;
     Scene& scene;
     World* world = nullptr;
     Float  dt    = 0.0;
@@ -264,6 +263,11 @@ bool Scene::is_started() const noexcept
     return m_impl->started;
 }
 
+bool Scene::is_pending() const noexcept
+{
+    return m_impl->pending;
+}
+
 // ----------------------------------------------------------------------------
 // Objects
 // ----------------------------------------------------------------------------
@@ -291,15 +295,15 @@ void Scene::Objects::destroy(IndexT id) &&
 
     for(auto geo_id : geo_ids)
     {
-        if(!m_scene.m_impl->started)
-        {
-            m_scene.m_impl->geometries.destroy(geo_id);
-            m_scene.m_impl->rest_geometries.destroy(geo_id);
-        }
-        else
+        if(m_scene.is_started() || m_scene.is_pending())
         {
             m_scene.m_impl->geometries.pending_destroy(geo_id);
             m_scene.m_impl->rest_geometries.pending_destroy(geo_id);
+        }
+        else // before `world.init(scene)` is called
+        {
+            m_scene.m_impl->geometries.destroy(geo_id);
+            m_scene.m_impl->rest_geometries.destroy(geo_id);
         }
     }
     m_scene.m_impl->objects.destroy(id);

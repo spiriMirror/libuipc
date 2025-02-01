@@ -122,5 +122,6 @@ class UIPC_CORE_API Scene final
     World& world() noexcept;
     Float  dt() const noexcept;
     bool   is_started() const noexcept;
+    bool   is_pending() const noexcept;
 };
 }  // namespace uipc::core

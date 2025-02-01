@@ -13,15 +13,15 @@ ObjectGeometrySlots<GeometryT> Object::Geometries::create(const GeometryT& geome
                 m_object.geometry_collection().size(),
                 m_object.rest_geometry_collection().size());
 
-    if(!m_object.scene_started())
-    {
-        return {m_object.geometry_collection().emplace(geometry),
-                m_object.rest_geometry_collection().emplace(rest_geometry)};
-    }
-    else
+    if(m_object.scene_started() || m_object.scene_pending())
     {
         return {m_object.geometry_collection().pending_emplace(geometry),
                 m_object.rest_geometry_collection().pending_emplace(rest_geometry)};
+    }
+    else // before `world.init(scene)` is called
+    {
+        return {m_object.geometry_collection().emplace(geometry),
+                m_object.rest_geometry_collection().emplace(rest_geometry)};
     }
 }
 

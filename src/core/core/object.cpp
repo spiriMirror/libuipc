@@ -46,6 +46,11 @@ bool Object::scene_started() const noexcept
     return m_scene.is_started();
 }
 
+bool Object::scene_pending() const noexcept
+{
+    return m_scene.is_pending();
+}
+
 span<const IndexT> Object::Geometries::ids() && noexcept
 {
     return m_object.m_geometry_ids;
