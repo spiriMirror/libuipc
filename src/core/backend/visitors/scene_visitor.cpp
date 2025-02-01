@@ -19,6 +19,11 @@ void SceneVisitor::solve_pending() noexcept
     m_scene.solve_pending();
 }
 
+bool SceneVisitor::is_pending() const noexcept
+{
+    return m_scene.is_pending();
+}
+
 span<S<geometry::GeometrySlot>> SceneVisitor::geometries() const noexcept
 {
     return m_scene.geometry_collection().geometry_slots();

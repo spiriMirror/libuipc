@@ -85,6 +85,8 @@ TEST_CASE("pending sequence", "[scene]")
     REQUIRE(visitor.pending_rest_geometries().size() == 0);
     REQUIRE(visitor.pending_destroy_ids().size() == 0);
 
+    visitor.begin_pending();
+
     // destroy the object
     scene.objects().destroy(new_object->id());
 
@@ -112,12 +114,15 @@ TEST_CASE("pending sequence", "[scene]")
     REQUIRE(visitor.pending_rest_geometries().size() == 0);
     REQUIRE(visitor.pending_destroy_ids().size() == 0);
 
-    // create a new object
+    visitor.begin_pending();
+
+    // create a new object immediately
     new_object = scene.objects().create("cube3");
 
     REQUIRE(new_object->id() == 2);
     REQUIRE(scene.objects().size() == 2);
-
+    
+    // create 3 geometries in pending list
     new_object->geometries().create(mesh);
     new_object->geometries().create(mesh);
     new_object->geometries().create(mesh);

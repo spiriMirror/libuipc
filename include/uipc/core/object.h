@@ -115,6 +115,7 @@ class UIPC_CORE_API Object : public IObject
     geometry::GeometryCollection& geometry_collection() noexcept;
     geometry::GeometryCollection& rest_geometry_collection() noexcept;
     bool                          scene_started() const noexcept;
+    bool                          scene_pending() const noexcept;
 };
 }  // namespace uipc::core
 

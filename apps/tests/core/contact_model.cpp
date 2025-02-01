@@ -21,10 +21,10 @@ TEST_CASE("contact_model", "[contact_model]")
 
     auto contact_models = contact_tabular.contact_models();
 
-    REQUIRE(contact_models.find<Vector2i>("topo") != nullptr);
+    REQUIRE(contact_models.find<Vector2i>("topo"));
     REQUIRE(contact_models.find<Float>("friction_rate"));
     REQUIRE(contact_models.find<Float>("resistance"));
-    REQUIRE(contact_models.find<Float>("is_enabled"));
+    REQUIRE(contact_models.find<IndexT>("is_enabled"));
 
     geometry::SimplicialComplexIO io;
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));

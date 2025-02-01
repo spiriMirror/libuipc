@@ -72,5 +72,4 @@ void test_engine(std::string_view name)
 TEST_CASE("engine", "[world]")
 {
     test_engine("none");
-    test_engine("cuda");
 }

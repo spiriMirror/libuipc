@@ -4,5 +4,5 @@
 
 namespace uipc
 {
-UIPC_IO_API int test_gltf();
+UIPC_IO_API int test_gltf(std::string_view path);
 }
