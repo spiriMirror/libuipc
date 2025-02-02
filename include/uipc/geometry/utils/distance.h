@@ -12,24 +12,24 @@ namespace uipc::geometry
  * @param V The Vertex point.
  * @param V_thickness The thickness of the vertex.
  */
-Float UIPC_CORE_API halfplane_vertex_signed_distance(const Vector3& P,
-                                                     const Vector3& N,
-                                                     const Vector3& V,
-                                                     Float V_thickness = 0.0);
+Float UIPC_GEOMETRY_API halfplane_vertex_signed_distance(const Vector3& P,
+                                                         const Vector3& N,
+                                                         const Vector3& V,
+                                                         Float V_thickness = 0.0);
 
-Float UIPC_CORE_API point_point_squared_distance(const Vector3& P0, const Vector3& P1);
+Float UIPC_GEOMETRY_API point_point_squared_distance(const Vector3& P0, const Vector3& P1);
 
-Float UIPC_CORE_API point_edge_squared_distance(const Vector3& P,
-                                                const Vector3& E0,
-                                                const Vector3& E1);
+Float UIPC_GEOMETRY_API point_edge_squared_distance(const Vector3& P,
+                                                    const Vector3& E0,
+                                                    const Vector3& E1);
 
-Float UIPC_CORE_API point_triangle_squared_distance(const Vector3& P,
-                                                    const Vector3& T0,
-                                                    const Vector3& T1,
-                                                    const Vector3& T2);
+Float UIPC_GEOMETRY_API point_triangle_squared_distance(const Vector3& P,
+                                                        const Vector3& T0,
+                                                        const Vector3& T1,
+                                                        const Vector3& T2);
 
-Float UIPC_CORE_API edge_edge_squared_distance(const Vector3& Ea0,
-                                               const Vector3& Ea1,
-                                               const Vector3& Eb0,
-                                               const Vector3& Eb1);
+Float UIPC_GEOMETRY_API edge_edge_squared_distance(const Vector3& Ea0,
+                                                   const Vector3& Ea1,
+                                                   const Vector3& Eb0,
+                                                   const Vector3& Eb1);
 }  // namespace uipc::geometry
