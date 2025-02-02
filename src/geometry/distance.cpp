@@ -44,7 +44,6 @@ namespace detail
     static IndexT active_count(const Vector<IndexT, N>& flag)
     {
         IndexT count = 0;
-#pragma unroll
         for(IndexT i = 0; i < N; ++i)
             count += flag[i];
         return count;
@@ -122,7 +121,6 @@ namespace detail
         constexpr IndexT  M = 2;
 
         IndexT iM = 0;
-#pragma unroll
         for(IndexT iN = 0; iN < N; ++iN)
         {
             if(flag[iN])
@@ -178,7 +176,6 @@ namespace detail
         constexpr IndexT  M = 2;
 
         IndexT iM = 0;
-#pragma unroll
         for(IndexT iN = 0; iN < N; ++iN)
         {
             if(flag[iN])
