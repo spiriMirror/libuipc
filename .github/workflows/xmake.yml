@@ -36,17 +36,17 @@ jobs:
         with:
           cuda: '12.6.3'
 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
       - name: Setup xmake
         uses: xmake-io/github-action-setup-xmake@v1
         with:
           xmake-version: branch@master
           actions-cache-folder: '.xmake-cache'
           actions-cache-key: ${{ matrix.os }}
-
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: false
 
       - name: Xmake configure
         run: |
@@ -55,4 +55,3 @@ jobs:
       - name: Build libuipc
         run: |
           xmake build --verbose --diagnosis --all
-  
