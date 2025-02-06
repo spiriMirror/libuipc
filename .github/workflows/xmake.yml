@@ -54,5 +54,6 @@ jobs:
 
       - name: Build libuipc
         run: |
-          xmake build cuda --jobs=4
+          xmake build geometry
+          xmake build --jobs=4 cuda
           xmake build --all
