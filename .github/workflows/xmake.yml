@@ -1,0 +1,59 @@
+name: xmake
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+    paths-ignore:
+      - '.clang-format'
+      - '.clangd'
+      - '.gitignore'
+      - 'LICENSE'
+      - 'README.md'
+      - 'docs/**'
+      - '.github/workflows/cmake.yml'
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [windows-2022, ubuntu-22.04]
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Maximize build space
+        if: matrix.os == 'ubuntu-22.04'
+        uses: AdityaGarg8/remove-unwanted-software@v4.1
+        with:
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      - name: Setup cuda
+        uses: Jimver/cuda-toolkit@v0.2.20
+        id: cuda-toolkit
+        with:
+          cuda: '12.6.3'
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup xmake
+        uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: branch@master
+          actions-cache-folder: '.xmake-cache'
+          actions-cache-key: ${{ matrix.os }}
+
+      - name: Xmake configure
+        run: |
+          xmake config --yes
+
+      - name: Build libuipc
+        run: |
+          xmake build geometry
+          xmake build --jobs=4 cuda
+          xmake build --all
