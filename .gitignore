@@ -28,4 +28,5 @@ imgui.ini
 bin/
 .xmake/
 .cache/
+/.clangd
 
