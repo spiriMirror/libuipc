@@ -71,9 +71,13 @@ If the automatic installation fails, please raise an issue with the CMake error 
     
     ```shell
     cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
-    cmake -S ../libuipc -DCMAKE_BUILD_TYPE=<Debug/Release/RelWithDebInfo>
-    cmake --build .
+    cmake -S ../libuipc
+    cmake --build . --config <Debug/Release/RelWithDebInfo> -j4
     ```
+
+    !!!NOTE
+        Use multi-thread to speed up the build process as possible, becasue the NVCC compiler will take a lot of time.
+
     
     ## Run Project
     

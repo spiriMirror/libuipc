@@ -21,7 +21,15 @@ if __name__ == '__main__':
     proj_dir = project_dir.project_dir()
 
     if config != '' and build_type != '' and config != build_type:
-        raise Exception(f'Configuration and build type do not match, config={config}, build_type={build_type}')
+        raise Exception(f'''Configuration and build type do not match, config={config}, build_type={build_type}.
+                        This may be caused by the incorrect build command.
+                        For Windows:
+                            cmake -S <source_dir>
+                            cmake --build <build_dir> --config <Release/RelWithDebInfo>
+                        For Linux:
+                            cmake -S <source_dir> -DCMAKE_BUILD_TYPE=<Release/RelWithDebInfo>
+                            cmake --build <build_dir>
+                        Ref: https://stackoverflow.com/questions/19024259/how-to-change-the-build-type-to-release-mode-in-cmake''')
 
     if config == 'Debug' or build_type == 'Debug':
         raise Exception('Debug configuration is not supported, please use RelWithDebInfo or Release')
