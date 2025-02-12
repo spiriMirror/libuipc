@@ -67,7 +67,6 @@ function(uipc_find_python_executable_path)
         endif()
         # set the python executable path cache
         set(UIPC_PYTHON_EXECUTABLE_PATH "${Python_EXECUTABLE}" CACHE STRING "Python executable path" FORCE)
-        uipc_info("Python executable path: ${UIPC_PYTHON_EXECUTABLE_PATH}")
     endif()
 endfunction()
 
