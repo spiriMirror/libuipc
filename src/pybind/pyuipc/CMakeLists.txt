@@ -21,12 +21,12 @@ add_subdirectory(diff_sim)
 get_target_property(SOURCES pyuipc SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
 
-uipc_require_python_module(${Python_EXECUTABLE} "mypy")
-uipc_require_python_module(${Python_EXECUTABLE}  "numpy")
+uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH} "mypy")
+uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH}  "numpy")
 
 # after build pyuipc, call the script to copy the dependent shared libraries to python package
 add_custom_command(TARGET pyuipc POST_BUILD
-    COMMAND ${Python_EXECUTABLE} 
+    COMMAND ${UIPC_PYTHON_EXECUTABLE_PATH} 
     ARGS
     "${PROJECT_SOURCE_DIR}/scripts/after_build_pyuipc.py"
     "--target=$<TARGET_FILE:pyuipc>"

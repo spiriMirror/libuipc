@@ -1,8 +1,4 @@
-find_package(Python REQUIRED QUIET)
-if(NOT Python_FOUND)
-    uipc_error("Python is required to generate vcpkg.json. Please install Python.")
-endif()
-execute_process(COMMAND ${Python_EXECUTABLE}
+execute_process(COMMAND ${UIPC_PYTHON_EXECUTABLE_PATH}
     "-c" "import torch; print(torch.utils.cmake_prefix_path, end='')"
     OUTPUT_VARIABLE TORCH_CMAKE_PREFIX_PATH
     RESULT_VARIABLE TORCH_CMAKE_PREFIX_PATH_RESULT
