@@ -52,6 +52,22 @@ function(uipc_show_options)
     message(STATUS "    * UIPC_BUILD_TESTS: ${UIPC_BUILD_TESTS}")
     message(STATUS "    * UIPC_BUILD_BENCHMARKS: ${UIPC_BUILD_BENCHMARKS}")
     message(STATUS "    * UIPC_WITH_CUDA_BACKEND: ${UIPC_WITH_CUDA_BACKEND}")
+    message(STATUS "    * UIPC_PYTHON_EXECUTABLE_PATH: ${UIPC_PYTHON_EXECUTABLE_PATH}")
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Full path of the python executable
+# -----------------------------------------------------------------------------------------
+function(uipc_find_python_executable_path)
+    if ("${UIPC_PYTHON_EXECUTABLE_PATH}" STREQUAL "")
+        find_package(Python REQUIRED QUIET)
+        # find_package (Python COMPONENTS Interpreter Development REQUIRED QUIET)
+        if(NOT Python_FOUND)
+            uipc_error("Python is required to generate vcpkg.json. Please install Python.")
+        endif()
+        # set the python executable path cache
+        set(UIPC_PYTHON_EXECUTABLE_PATH "${Python_EXECUTABLE}" CACHE STRING "Python executable path" FORCE)
+    endif()
 endfunction()
 
 # -----------------------------------------------------------------------------------------
@@ -69,13 +85,10 @@ function(uipc_config_vcpkg_install)
     endif()
     string(REPLACE "\\" "/" CMAKE_TOOLCHAIN_FILE ${CMAKE_TOOLCHAIN_FILE})
     uipc_info("CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
-    find_package(Python REQUIRED QUIET)
-    if(NOT Python_FOUND)
-        uipc_error("Python is required to generate vcpkg.json. Please install Python.")
-    endif()
+    uipc_find_python_executable_path()
     # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
     execute_process(
-        COMMAND ${Python_EXECUTABLE} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
+        COMMAND ${UIPC_PYTHON_EXECUTABLE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/scripts/gen_vcpkg_json.py"
         ${VCPKG_MANIFEST_DIR} # pass the CMAKE_CURRENT_BINARY_DIR as vcpkg.json output directory
         "--build_gui=${UIPC_BUILD_GUI}" # pass the UIPC_BUILD_GUI as argument
         "--dev_mode=${UIPC_DEV_MODE}" # pass the UIPC_DEV_MODE as argument
@@ -178,15 +191,14 @@ endfunction()
 # Require a python module, if not found, try to install it with pip
 # -----------------------------------------------------------------------------------------
 function(uipc_require_python_module python_dir module_name)
-#ask for numpy, allow failure
-execute_process(COMMAND ${Python_EXECUTABLE}
+execute_process(COMMAND ${python_dir}
     "-c" "import ${module_name}"
     RESULT_VARIABLE CMD_RESULT
     OUTPUT_QUIET
 )
 if (NOT CMD_RESULT EQUAL 0)
     uipc_info("${module_name} not found, try installing ${module_name}...")
-    execute_process(COMMAND ${Python_EXECUTABLE} "-m" "pip" "install" "${module_name}"
+    execute_process(COMMAND ${python_dir} "-m" "pip" "install" "${module_name}"
     RESULT_VARIABLE INSTALL_RESULT)
     if (NOT INSTALL_RESULT EQUAL 0)
         uipc_error("Python [${python_dir}] failed to install [${module_name}], please install it manually.")
