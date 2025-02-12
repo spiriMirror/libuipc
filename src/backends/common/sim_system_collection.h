@@ -32,7 +32,7 @@ class SimSystemCollection
         bool exact = true;
     };
     template <std::derived_from<ISimSystem> T>
-    T* find(const QueryOptions& options = {});
+    T* find(const QueryOptions& options = {.exact = true});
 
   private:
     mutable bool                           built = false;
