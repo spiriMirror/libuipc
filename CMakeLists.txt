@@ -21,7 +21,7 @@ option(UIPC_BUILD_EXAMPLES "Build examples" ON)
 option(UIPC_BUILD_TESTS "Build tests" ON)
 option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
 option(UIPC_DEV_MODE "Enable developer mode" OFF)
-set(UIPC_PYTHON_EXECUTABLE_PATH "" CACHE STRING "Python executable path")
+set(UIPC_PYTHON_EXECUTABLE_PATH "" CACHE PATH "Python executable path")
 
 # =========================================================================
 # Backend Options
