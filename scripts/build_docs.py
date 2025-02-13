@@ -10,7 +10,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     doc_dir = args.output
     print(f'output_dir={doc_default_dir}')
-    config_file = proj_dir / 'mkdocs.yaml'
+    config_file = proj_dir / 'mkdocs-with-api.yaml'
     print(f'config_file={config_file}')
     Value = sp.call(['mkdocs', 'build', '-f', config_file, '-d', doc_dir], cwd=proj_dir)
     if Value == 0:

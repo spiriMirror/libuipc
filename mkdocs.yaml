@@ -55,18 +55,18 @@ plugins:
   - mkdocs-video
   - literate-nav:
       nav_file: nav.md
-  - mkdoxy:
-      projects:
-        Libuipc: # name of project must be alphanumeric + numbers (without spaces)
-          src-dirs: include/ # path to source code (support multiple paths separated by space) => INPUT
-          full-doc: True # if you want to generate full documentation
-          doxy-cfg: # standard doxygen configuration (key: value)
-            FILE_PATTERNS: "*.h*" # specify file patterns to filter out
-            RECURSIVE: True # recursive search in source directories
-            GENERATE_LATEX: False # generate latex output
-            HAVE_DOT: True
-            CLASS_DIAGRAMS: True
-            CLASS_GRAPH: True
+  # - mkdoxy:
+  #     projects:
+  #       Libuipc: # name of project must be alphanumeric + numbers (without spaces)
+  #         src-dirs: src/uipc # path to source code (support multiple paths separated by space) => INPUT
+  #         full-doc: True # if you want to generate full documentation
+  #         doxy-cfg: # standard doxygen configuration (key: value)
+  #           FILE_PATTERNS: "*.h*" # specify file patterns to filter out
+  #           RECURSIVE: True # recursive search in source directories
+  #           GENERATE_LATEX: False # generate latex output
+  #           HAVE_DOT: True
+  #           CLASS_DIAGRAMS: True
+  #           CLASS_GRAPH: True
 
 extra_css:
   - stylesheets/doxide.css
