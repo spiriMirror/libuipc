@@ -33,7 +33,7 @@ class Yarns:
         # print('yarn time step:', self.yarn_time_step)
         self.current_id = 0
         self.last_t = 0.0
-    
+
     def create_geometry(self, object: Object, 
                         spc: SoftPositionConstraint, 
                         hs:HookeanSpring,
