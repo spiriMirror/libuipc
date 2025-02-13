@@ -82,7 +82,7 @@ conda create -n uipc_env python=3.10
 cmake -S ../libuipc -DUIPC_BUILD_PYBIND=1 -DUIPC_PYTHON_EXECUTABLE_PATH=<PYTHON_EXE_IN_CONDA_ENV>
 cmake --build . --config <Release/RelWithDebInfo> -j8
 ```
-For example, the <PYTHON_EXE_IN_CONDA_ENV> may be  `C:\Users\<UserName>\anaconda3\envs\uipc_env\python.exe`
+For example, the `<PYTHON_EXE_IN_CONDA_ENV>` may be  `C:\Users\<UserName>\anaconda3\envs\uipc_env\python.exe`
 
 ## Check Installation
 
