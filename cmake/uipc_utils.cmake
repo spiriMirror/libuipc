@@ -83,7 +83,7 @@ function(uipc_config_vcpkg_install)
         "Please setup the environment variable `CMAKE_TOOLCHAIN_FILE` to your vcpkg.cmake file.\n" 
         "Details: https://spirimirror.github.io/libuipc-doc/build_install/")
     endif()
-    file(TO_CMAKE_PATH CMAKE_TOOLCHAIN_FILE "${CMAKE_TOOLCHAIN_FILE}")
+    file(TO_CMAKE_PATH "${CMAKE_TOOLCHAIN_FILE}" CMAKE_TOOLCHAIN_FILE)
     uipc_info("CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
     uipc_find_python_executable_path()
     # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
