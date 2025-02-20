@@ -144,10 +144,20 @@ void GeometryCollection::flush() const
             m_geometry_slots[I] = geo.second;
         }
 
+        std::sort(m_geometry_slots.begin(),
+                  m_geometry_slots.end(),
+                  [](const S<geometry::GeometrySlot>& a, const S<geometry::GeometrySlot>& b)
+                  { return a->id() < b->id(); });
+
         for(auto&& [I, geo] : enumerate(m_pending_create))
         {
             m_pending_create_slots[I] = geo.second;
         }
+
+        std::sort(m_pending_create_slots.begin(),
+                  m_pending_create_slots.end(),
+                  [](const S<geometry::GeometrySlot>& a, const S<geometry::GeometrySlot>& b)
+                  { return a->id() < b->id(); });
 
         std::ranges::copy(m_pending_destroy, m_pending_destroy_ids.begin());
 
