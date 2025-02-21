@@ -161,4 +161,14 @@ UIPC_BUILTIN_ATTRIBUTE(backend_fem_vertex_offset);
  * @brief `backend_abd_body_offset` <IndexT> attribute on **meta** to indicate the offset of the body(instance) in the ABD system.
  */
 UIPC_BUILTIN_ATTRIBUTE(backend_abd_body_offset);
+
+/**
+ * @brief `dof_offset` <IndexT> attribute on **meta** to indicate the degree of freedom offset of this geometry in the whole system.
+ */
+UIPC_BUILTIN_ATTRIBUTE(dof_offset);
+
+/**
+ * @brief `dof_count` <IndexT> attribute on **meta** to indicate the degree of freedom count of this geometry in the whole system.
+ */
+UIPC_BUILTIN_ATTRIBUTE(dof_count);
 #endif

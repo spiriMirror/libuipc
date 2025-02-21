@@ -14,6 +14,14 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
         P = sc.meta().create<U64>(builtin::constitution_uid, 0);
     geometry::view(*P).front() = uid();
 
+    auto dof_offset = sc.meta().find<IndexT>(builtin::dof_offset);
+    if(!dof_offset)
+        dof_offset = sc.meta().create<IndexT>(builtin::dof_offset, -1);
+
+    auto dof_count = sc.meta().find<IndexT>(builtin::dof_count);
+    if(!dof_count)
+        dof_count = sc.meta().create<IndexT>(builtin::dof_count, 0);
+
     auto is_fixed = sc.vertices().find<IndexT>(builtin::is_fixed);
     if(!is_fixed)
         is_fixed = sc.vertices().create<IndexT>(builtin::is_fixed, 0);
@@ -25,7 +33,7 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
     auto attr_thickness = sc.vertices().find<Float>(builtin::thickness);
     if(!attr_thickness)
         attr_thickness = sc.vertices().create<Float>(builtin::thickness, 0.0);
-    
+
     auto thickness_view = geometry::view(*attr_thickness);
     std::ranges::fill(thickness_view, thickness);
 

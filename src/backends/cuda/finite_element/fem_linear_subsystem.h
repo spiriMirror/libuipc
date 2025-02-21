@@ -8,7 +8,7 @@
 
 namespace uipc::backend::cuda
 {
-class FEMLinearSubsystem : public DiagLinearSubsystem
+class FEMLinearSubsystem final : public DiagLinearSubsystem
 {
   public:
     using DiagLinearSubsystem::DiagLinearSubsystem;
@@ -16,6 +16,9 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
     class Impl
     {
       public:
+        void report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info);
+        void receive_init_dof_info(WorldVisitor& w, GlobalLinearSystem::InitDofInfo& info);
+
         void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
         void assemble(GlobalLinearSystem::DiagInfo& info);
         void _assemble_producers(GlobalLinearSystem::DiagInfo& info);
@@ -61,14 +64,15 @@ class FEMLinearSubsystem : public DiagLinearSubsystem
         muda::DeviceBCOOMatrix<Float, 3>    bcoo_A;
     };
 
-  protected:
+  private:
     virtual void do_build(DiagLinearSubsystem::BuildInfo& info) override;
     virtual void do_report_extent(GlobalLinearSystem::DiagExtentInfo& info) override;
     virtual void do_assemble(GlobalLinearSystem::DiagInfo& info) override;
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) override;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) override;
+    virtual void do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info) override;
+    virtual void do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info) override;
 
-  private:
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

@@ -52,6 +52,7 @@ void SimEngine::init_scene()
     event_init_scene();
 
     // some systems should be initialized after the scene is built
+    m_global_linear_system->init();
     m_global_vertex_manager->init();
     m_global_simplicial_surface_manager->init();
     if(m_global_contact_manager)

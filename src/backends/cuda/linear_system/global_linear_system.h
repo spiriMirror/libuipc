@@ -6,7 +6,7 @@
 #include <muda/ext/linear_system.h>
 #include <algorithm/matrix_converter.h>
 #include <linear_system/spmv.h>
-
+#include <utils/offset_count_collection.h>
 namespace uipc::backend::cuda
 {
 class DiagLinearSubsystem;
@@ -32,6 +32,28 @@ class GlobalLinearSystem : public SimSystem
     {
         Full      = 0,
         Symmetric = 1
+    };
+
+    class InitDofExtentInfo
+    {
+      public:
+        void extent(SizeT dof_count) noexcept { m_dof_count = dof_count; }
+
+      private:
+        friend class Impl;
+        SizeT m_dof_count = 0;
+    };
+
+    class InitDofInfo
+    {
+      public:
+        IndexT dof_offset() const { return m_dof_offset; }
+        IndexT dof_count() const { return m_dof_count; }
+
+      private:
+        friend class Impl;
+        IndexT m_dof_offset = 0;
+        IndexT m_dof_count  = 0;
     };
 
     class DiagExtentInfo
@@ -239,13 +261,15 @@ class GlobalLinearSystem : public SimSystem
         Float reserve_ratio = 1.1;
 
         vector<LinearSubsytemInfo> subsystem_infos;
-        vector<SizeT>              subsystem_triplet_offsets;
-        vector<SizeT>              subsystem_triplet_counts;
-        vector<ulonglong2>         off_diag_lr_triplet_counts;
-        vector<SizeT>              diag_dof_offsets;
-        vector<SizeT>              diag_dof_counts;
-        vector<int>                accuracy_statisfied_flags;
-        vector<int>                no_precond_diag_subsystem_indices;
+
+        OffsetCountCollection<IndexT> diag_dof_offsets_counts;
+        OffsetCountCollection<IndexT> subsystem_triplet_offsets_counts;
+
+        vector<ulonglong2> off_diag_lr_triplet_counts;
+
+
+        vector<int> accuracy_statisfied_flags;
+        vector<int> no_precond_diag_subsystem_indices;
 
         // Containers
         SimSystemSlotCollection<DiagLinearSubsystem>    diag_subsystems;
@@ -298,6 +322,9 @@ class GlobalLinearSystem : public SimSystem
     void add_solver(IterativeSolver* solver);
     void add_preconditioner(LocalPreconditioner* preconditioner);
     void add_preconditioner(GlobalPreconditioner* preconditioner);
+
+    // only be called by SimEngine::do_init();
+    void init();
 
     // only be called by SimEngine::do_advance()
     void solve();

@@ -4,6 +4,7 @@
 #include <muda/ext/eigen.h>
 #include <utils/matrix_assembler.h>
 #include <utils/matrix_unpacker.h>
+#include <uipc/builtin/attribute_name.h>
 
 namespace uipc::backend::cuda
 {
@@ -20,6 +21,40 @@ void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
     auto contact = find<ABDContactReceiver>();
     if(contact)
         m_impl.abd_contact_receiver = *contact;
+}
+
+void ABDLinearSubsystem::Impl::report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info)
+{
+    info.extent(abd().body_count() * 12);
+}
+
+void ABDLinearSubsystem::Impl::receive_init_dof_info(WorldVisitor& w,
+                                                     GlobalLinearSystem::InitDofInfo& info)
+{
+    auto& geo_infos = abd().geo_infos;
+    auto  geo_slots = w.scene().geometries();
+
+    IndexT offset = info.dof_offset();
+
+    // fill the dof_offset and dof_count for each geometry
+    affine_body_dynamics->for_each(
+        geo_slots,
+        [&](const AffineBodyDynamics::ForEachInfo& foreach_info, geometry::SimplicialComplex& sc)
+        {
+            auto I          = foreach_info.global_index();
+            auto dof_offset = sc.meta().find<IndexT>(builtin::dof_offset);
+            UIPC_ASSERT(dof_offset, "dof_offset not found on ABD mesh why can it happen?");
+            auto dof_count = sc.meta().find<IndexT>(builtin::dof_count);
+            UIPC_ASSERT(dof_count, "dof_count not found on ABD mesh why can it happen?");
+
+            IndexT this_dof_count = 12 * sc.instances().size();
+            view(*dof_offset)[0]  = offset;
+            view(*dof_count)[0]   = this_dof_count;
+
+            offset += this_dof_count;
+        });
+
+    UIPC_ASSERT(offset == info.dof_offset() + info.dof_count(), "dof size mismatch");
 }
 
 void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
@@ -314,4 +349,13 @@ void ABDLinearSubsystem::do_retrieve_solution(GlobalLinearSystem::SolutionInfo& 
     m_impl.retrieve_solution(info);
 }
 
+void ABDLinearSubsystem::do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info)
+{
+    m_impl.report_init_extent(info);
+}
+
+void ABDLinearSubsystem::do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info)
+{
+    m_impl.receive_init_dof_info(world(), info);
+}
 }  // namespace uipc::backend::cuda
