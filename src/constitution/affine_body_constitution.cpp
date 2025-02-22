@@ -63,16 +63,14 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
 
     if(!P)
         P = sc.meta().create<U64>(builtin::constitution_uid, 0);
-    else
-        geometry::view(*P).front() = uid();
+    geometry::view(*P).front() = uid();
 
-    auto dof_offset = sc.instances().find<IndexT>(builtin::dof_offset);
+    auto dof_offset = sc.meta().find<IndexT>(builtin::dof_offset);
     if(!dof_offset)
-        dof_offset = sc.instances().create<IndexT>(builtin::dof_offset, -1);
-
-    auto dof_count = sc.instances().find<IndexT>(builtin::dof_count);
+        dof_offset = sc.meta().create<IndexT>(builtin::dof_offset, -1);
+    auto dof_count = sc.meta().find<IndexT>(builtin::dof_count);
     if(!dof_count)
-        dof_count = sc.instances().create<IndexT>(builtin::dof_count, 0);
+        dof_count = sc.meta().create<IndexT>(builtin::dof_count, 0);
 
     auto is_fixed = sc.instances().find<IndexT>(builtin::is_fixed);
     if(!is_fixed)

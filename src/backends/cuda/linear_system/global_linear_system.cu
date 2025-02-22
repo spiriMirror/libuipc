@@ -239,45 +239,33 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
 
     if(dof_count_changed)
     {
-        std::exclusive_scan(
-            diag_dof_counts.begin(), diag_dof_counts.end(), diag_dof_offsets.begin(), 0);
-        total_dof = diag_dof_offsets.back() + diag_dof_counts.back();
-        if(x.capacity() < total_dof)
-        {
-            auto reserve_count = total_dof * reserve_ratio;
-            x.reserve(reserve_count);
-            b.reserve(reserve_count);
-        }
-        auto blocked_dof = total_dof / DoFBlockSize;
-        triplet_A.reshape(blocked_dof, blocked_dof);
-        x.resize(total_dof);
-        b.resize(total_dof);
+        diag_dof_offsets_counts.scan();
     }
-    else
+    total_dof = diag_dof_offsets_counts.total_count();
+    if(x.capacity() < total_dof)
     {
-        if(diag_dof_offsets.size() == 0) [[unlikely]]
-            total_dof = 0;
-        else
-            total_dof = diag_dof_offsets.back() + diag_dof_counts.back();
+        auto reserve_count = total_dof * reserve_ratio;
+        x.reserve(reserve_count);
+        b.reserve(reserve_count);
     }
+    auto blocked_dof = total_dof / DoFBlockSize;
+    triplet_A.reshape(blocked_dof, blocked_dof);
+    x.resize(total_dof);
+    b.resize(total_dof);
 
     if(triplet_count_changed) [[likely]]
     {
         subsystem_triplet_offsets_counts.scan();
-        total_triplet = subsystem_triplet_offsets_counts.total_count();
+    }
+    total_triplet = subsystem_triplet_offsets_counts.total_count();
 
-        if(triplet_A.triplet_capacity() < total_triplet)
-        {
-            auto reserve_count = total_triplet * reserve_ratio;
-            triplet_A.reserve_triplets(reserve_count);
-            bcoo_A.reserve_triplets(reserve_count);
-        }
-        triplet_A.resize_triplets(total_triplet);
-    }
-    else
+    if(triplet_A.triplet_capacity() < total_triplet)
     {
-        total_triplet = subsystem_triplet_offsets_counts.total_count();
+        auto reserve_count = total_triplet * reserve_ratio;
+        triplet_A.reserve_triplets(reserve_count);
+        bcoo_A.reserve_triplets(reserve_count);
     }
+    triplet_A.resize_triplets(total_triplet);
 
     if(total_dof == 0 || total_triplet == 0) [[unlikely]]
     {
