@@ -40,8 +40,11 @@ void ContactTabular::init(backend::SceneVisitor& scene)
     for(auto&& [topo, resistance, friction_rate, enabled] :
         zip(topo_view, resistance_view, friction_rate_view, enabled_view))
     {
-        m_table[topo.x() * elements + topo.y()] = core::ContactModel{
+        auto model = core::ContactModel{
             topo, friction_rate, resistance, enabled ? true : false, Json::object()};
+
+        m_table[topo.x() * elements + topo.y()] = model;
+        m_table[topo.y() * elements + topo.x()] = model;
     }
 }
 
