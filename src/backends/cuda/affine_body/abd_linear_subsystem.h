@@ -17,10 +17,11 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
     {
       public:
         void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
+
+        void report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info);
+        void receive_init_dof_info(WorldVisitor& w, GlobalLinearSystem::InitDofInfo& info);
+
         void assemble(GlobalLinearSystem::DiagInfo& info);
-        void _assemble_gradient(GlobalLinearSystem::DiagInfo& info);
-        void _assemble_hessian(GlobalLinearSystem::DiagInfo& info);
-        void assemble_bodies();
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
@@ -40,14 +41,17 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         Float reserve_ratio = 1.5;
     };
 
-  protected:
+  private:
     virtual void do_build(DiagLinearSubsystem::BuildInfo& info) override;
+
+    virtual void do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info) override;
+    virtual void do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info) override;
+
     virtual void do_report_extent(GlobalLinearSystem::DiagExtentInfo& info) override;
     virtual void do_assemble(GlobalLinearSystem::DiagInfo& info) override;
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) override;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) override;
 
-  private:
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

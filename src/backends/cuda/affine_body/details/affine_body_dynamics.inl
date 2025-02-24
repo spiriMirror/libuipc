@@ -111,4 +111,11 @@ void AffineBodyDynamics::FilteredInfo::for_each(span<S<geometry::GeometrySlot>> 
 {
     m_impl->_for_each(geo_slots, geo_infos(), std::forward<ForEachGeometry>(for_every_geometry));
 }
+
+template <typename ForEachGeometry>
+void AffineBodyDynamics::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                  ForEachGeometry&& for_every_geometry)
+{
+    m_impl.for_each(geo_slots, std::forward<ForEachGeometry>(for_every_geometry));
+}
 }  // namespace uipc::backend::cuda

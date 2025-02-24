@@ -397,6 +397,9 @@ class AffineBodyDynamics : public SimSystem
         return m_impl.body_id_to_is_fixed.view();
     }
 
+    template <typename ForEachGeometry>
+    void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_every_geometry);
+
   private:
     friend class AffineBodyConstitution;
     void add_constitution(AffineBodyConstitution* constitution);  // only be called by AffineBodyConstitution

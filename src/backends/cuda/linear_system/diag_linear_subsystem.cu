@@ -12,6 +12,14 @@ void DiagLinearSubsystem::do_build()
 
     global_linear_system.add_subsystem(this);
 }
+void DiagLinearSubsystem::report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info)
+{
+    do_report_init_extent(info);
+}
+void DiagLinearSubsystem::receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info)
+{
+    do_receive_init_dof_info(info);
+}
 void DiagLinearSubsystem::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
 {
     do_report_extent(info);

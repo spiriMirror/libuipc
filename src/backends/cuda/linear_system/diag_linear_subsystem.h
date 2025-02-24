@@ -18,6 +18,10 @@ class DiagLinearSubsystem : public SimSystem
 
   protected:
     virtual void do_build(BuildInfo& info);
+
+    virtual void do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info) = 0;
+    virtual void do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info) = 0;
+
     virtual void do_report_extent(GlobalLinearSystem::DiagExtentInfo& info) = 0;
     virtual void do_assemble(GlobalLinearSystem::DiagInfo& info)            = 0;
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info)  = 0;
@@ -26,10 +30,15 @@ class DiagLinearSubsystem : public SimSystem
   private:
     friend class GlobalLinearSystem;
     virtual void do_build() final override;
-    void         report_extent(GlobalLinearSystem::DiagExtentInfo& info);
-    void         assemble(GlobalLinearSystem::DiagInfo& info);
-    void         accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
-    void         retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
+
+    void report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info);
+    void receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info);
+
+    void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
+    void assemble(GlobalLinearSystem::DiagInfo& info);
+    void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
+    void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
+
 
     SizeT m_index = ~0ull;
 };

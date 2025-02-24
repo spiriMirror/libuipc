@@ -7,6 +7,7 @@
 #include <finite_element/finite_element_constitution.h>
 #include <finite_element/finite_element_extra_constitution.h>
 #include <sim_engine.h>
+#include <uipc/builtin/attribute_name.h>
 
 namespace uipc::backend::cuda
 {
@@ -27,6 +28,39 @@ void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
         m_impl.finite_element_animator = *animator;
 
     m_impl.converter.reserve_ratio(1.1);
+}
+
+void FEMLinearSubsystem::Impl::report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info)
+{
+    info.extent(fem().xs.size() * 3);
+}
+
+void FEMLinearSubsystem::Impl::receive_init_dof_info(WorldVisitor& w,
+                                                     GlobalLinearSystem::InitDofInfo& info)
+{
+    auto& geo_infos = fem().geo_infos;
+    auto  geo_slots = w.scene().geometries();
+
+    IndexT offset = info.dof_offset();
+
+    finite_element_method->for_each(
+        geo_slots,
+        [&](const FiniteElementMethod::ForEachInfo& foreach_info, geometry::SimplicialComplex& sc)
+        {
+            auto I          = foreach_info.global_index();
+            auto dof_offset = sc.meta().find<IndexT>(builtin::dof_offset);
+            UIPC_ASSERT(dof_offset, "dof_offset not found on FEM mesh why can it happen?");
+            auto dof_count = sc.meta().find<IndexT>(builtin::dof_count);
+            UIPC_ASSERT(dof_count, "dof_count not found on FEM mesh why can it happen?");
+
+            IndexT this_dof_count = 3 * sc.vertices().size();
+            view(*dof_offset)[0]  = offset;
+            view(*dof_count)[0]   = this_dof_count;
+
+            offset += this_dof_count;
+        });
+
+    UIPC_ASSERT(offset == info.dof_offset() + info.dof_count(), "dof size mismatch");
 }
 
 void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
@@ -235,6 +269,16 @@ void FEMLinearSubsystem::do_accuracy_check(GlobalLinearSystem::AccuracyInfo& inf
 void FEMLinearSubsystem::do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info)
 {
     m_impl.retrieve_solution(info);
+}
+
+void FEMLinearSubsystem::do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info)
+{
+    m_impl.report_init_extent(info);
+}
+
+void FEMLinearSubsystem::do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info)
+{
+    m_impl.receive_init_dof_info(world(), info);
 }
 
 }  // namespace uipc::backend::cuda

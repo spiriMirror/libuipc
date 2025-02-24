@@ -67,10 +67,7 @@ SizeT GlobalLinearSystem::dof_count() const
     return m_impl.b.size();
 }
 
-void GlobalLinearSystem::do_build()
-{
-    on_init_scene([this] { m_impl.init(); });
-}
+void GlobalLinearSystem::do_build() {}
 
 void GlobalLinearSystem::solve()
 {
@@ -96,61 +93,74 @@ void GlobalLinearSystem::prepare_hessian()
 
 void GlobalLinearSystem::Impl::init()
 {
-    // build the linear subsystem infos
-
     auto diag_subsystem_view       = diag_subsystems.view();
     auto off_diag_subsystem_view   = off_diag_subsystems.view();
     auto local_preconditioner_view = local_preconditioners.view();
 
+    // 1) Record Diag and OffDiag Subsystems
     auto total_count = diag_subsystem_view.size() + off_diag_subsystem_view.size();
-
     subsystem_infos.resize(total_count);
-
     // put the diag subsystems in the front
     auto diag_span = span{subsystem_infos}.subspan(0, diag_subsystem_view.size());
     // then the off diag subsystems
     auto off_diag_span = span{subsystem_infos}.subspan(diag_subsystem_view.size(),
                                                        off_diag_subsystem_view.size());
-
-    auto offset = 0;
-    for(auto i : range(diag_span.size()))
     {
-        auto& dst_diag                  = diag_span[i];
-        dst_diag.is_diag                = true;
-        dst_diag.local_index            = i;
-        auto index                      = offset + i;
-        dst_diag.index                  = index;
-        diag_subsystem_view[i]->m_index = index;
+        auto offset = 0;
+        for(auto i : range(diag_span.size()))
+        {
+            auto& dst_diag                  = diag_span[i];
+            dst_diag.is_diag                = true;
+            dst_diag.local_index            = i;
+            auto index                      = offset + i;
+            dst_diag.index                  = index;
+            diag_subsystem_view[i]->m_index = index;
+        }
+
+        offset += diag_subsystem_view.size();
+        for(auto i : range(off_diag_span.size()))
+        {
+            auto& dst_off_diag       = off_diag_span[i];
+            dst_off_diag.is_diag     = false;
+            dst_off_diag.local_index = i;
+            dst_off_diag.index       = offset + i;
+        }
     }
 
-    offset += diag_subsystem_view.size();
-    for(auto i : range(off_diag_span.size()))
-    {
-        auto& dst_off_diag       = off_diag_span[i];
-        dst_off_diag.is_diag     = false;
-        dst_off_diag.local_index = i;
-        dst_off_diag.index       = offset + i;
-    }
-
-    // prepare the storage for dof and matrix triplet
-    subsystem_triplet_offsets.resize(total_count, ~0ull);
-    subsystem_triplet_counts.resize(total_count, ~0ull);
-
-    diag_dof_offsets.resize(diag_subsystem_view.size());
-    diag_dof_counts.resize(diag_subsystem_view.size());
+    // 2) DoF Offsets/Counts
     accuracy_statisfied_flags.resize(diag_subsystem_view.size());
+    {
+        diag_dof_offsets_counts.resize(diag_subsystem_view.size());
+        auto diag_dof_counts = diag_dof_offsets_counts.counts();
+        for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
+        {
+            InitDofExtentInfo info;
+            diag_subsystem->report_init_extent(info);
+            diag_dof_counts[i] = info.m_dof_count;
+        }
+        diag_dof_offsets_counts.scan();
+        auto diag_dof_offsets = diag_dof_offsets_counts.offsets();
+        for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
+        {
+            InitDofInfo info;
+            info.m_dof_offset = diag_dof_offsets[i];
+            info.m_dof_count  = diag_dof_counts[i];
+            diag_subsystem->receive_init_dof_info(info);
+        }
+    }
 
+    // 3) Triplet Offsets/Counts
+    subsystem_triplet_offsets_counts.resize(total_count);
     off_diag_lr_triplet_counts.resize(off_diag_subsystem_view.size());
 
+    // 4) Preconditioner
     // find out diag systems that don't have preconditioner
     for(auto precond : local_preconditioner_view)
     {
         auto index = precond->m_subsystem->m_index;
         diag_span[index].has_local_preconditioner = true;
     }
-
     no_precond_diag_subsystem_indices.reserve(diag_span.size());
-
     for(auto&& [i, diag_info] : enumerate(diag_span))
     {
         if(!diag_info.has_local_preconditioner)
@@ -182,8 +192,12 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
     bool dof_count_changed     = false;
     bool triplet_count_changed = false;
 
-    auto diag_subsystem_view     = diag_subsystems.view();
-    auto off_diag_subsystem_view = off_diag_subsystems.view();
+    auto diag_subsystem_view       = diag_subsystems.view();
+    auto off_diag_subsystem_view   = off_diag_subsystems.view();
+    auto diag_dof_counts           = diag_dof_offsets_counts.counts();
+    auto diag_dof_offsets          = diag_dof_offsets_counts.offsets();
+    auto subsystem_triplet_counts  = subsystem_triplet_offsets_counts.counts();
+    auto subsystem_triplet_offsets = subsystem_triplet_offsets_counts.offsets();
 
     for(const auto& subsystem_info : subsystem_infos)
     {
@@ -225,52 +239,33 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
 
     if(dof_count_changed)
     {
-        std::exclusive_scan(
-            diag_dof_counts.begin(), diag_dof_counts.end(), diag_dof_offsets.begin(), 0);
-        total_dof = diag_dof_offsets.back() + diag_dof_counts.back();
-        if(x.capacity() < total_dof)
-        {
-            auto reserve_count = total_dof * reserve_ratio;
-            x.reserve(reserve_count);
-            b.reserve(reserve_count);
-        }
-        auto blocked_dof = total_dof / DoFBlockSize;
-        triplet_A.reshape(blocked_dof, blocked_dof);
-        x.resize(total_dof);
-        b.resize(total_dof);
+        diag_dof_offsets_counts.scan();
     }
-    else
+    total_dof = diag_dof_offsets_counts.total_count();
+    if(x.capacity() < total_dof)
     {
-        if(diag_dof_offsets.size() == 0) [[unlikely]]
-            total_dof = 0;
-        else
-            total_dof = diag_dof_offsets.back() + diag_dof_counts.back();
+        auto reserve_count = total_dof * reserve_ratio;
+        x.reserve(reserve_count);
+        b.reserve(reserve_count);
     }
+    auto blocked_dof = total_dof / DoFBlockSize;
+    triplet_A.reshape(blocked_dof, blocked_dof);
+    x.resize(total_dof);
+    b.resize(total_dof);
 
     if(triplet_count_changed) [[likely]]
     {
-        std::exclusive_scan(subsystem_triplet_counts.begin(),
-                            subsystem_triplet_counts.end(),
-                            subsystem_triplet_offsets.begin(),
-                            0);
-        total_triplet =
-            subsystem_triplet_offsets.back() + subsystem_triplet_counts.back();
-        if(triplet_A.triplet_capacity() < total_triplet)
-        {
-            auto reserve_count = total_triplet * reserve_ratio;
-            triplet_A.reserve_triplets(reserve_count);
-            bcoo_A.reserve_triplets(reserve_count);
-        }
-        triplet_A.resize_triplets(total_triplet);
+        subsystem_triplet_offsets_counts.scan();
     }
-    else
+    total_triplet = subsystem_triplet_offsets_counts.total_count();
+
+    if(triplet_A.triplet_capacity() < total_triplet)
     {
-        if(subsystem_triplet_offsets.size() == 0) [[unlikely]]
-            total_triplet = 0;
-        else
-            total_triplet =
-                subsystem_triplet_offsets.back() + subsystem_triplet_counts.back();
+        auto reserve_count = total_triplet * reserve_ratio;
+        triplet_A.reserve_triplets(reserve_count);
+        bcoo_A.reserve_triplets(reserve_count);
     }
+    triplet_A.resize_triplets(total_triplet);
 
     if(total_dof == 0 || total_triplet == 0) [[unlikely]]
     {
@@ -288,6 +283,12 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
 
     auto diag_subsystem_view     = diag_subsystems.view();
     auto off_diag_subsystem_view = off_diag_subsystems.view();
+
+    auto diag_dof_counts  = diag_dof_offsets_counts.counts();
+    auto diag_dof_offsets = diag_dof_offsets_counts.offsets();
+
+    auto subsystem_triplet_counts  = subsystem_triplet_offsets_counts.counts();
+    auto subsystem_triplet_offsets = subsystem_triplet_offsets_counts.offsets();
 
     for(const auto& subsystem_info : subsystem_infos)
     {
@@ -386,6 +387,10 @@ void GlobalLinearSystem::Impl::solve_linear_system()
 
 void GlobalLinearSystem::Impl::distribute_solution()
 {
+    auto diag_subsystem_view = diag_subsystems.view();
+    auto diag_dof_counts     = diag_dof_offsets_counts.counts();
+    auto diag_dof_offsets    = diag_dof_offsets_counts.offsets();
+
     // distribute the solution to all diag subsystems
     for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems.view()))
     {
@@ -398,6 +403,9 @@ void GlobalLinearSystem::Impl::distribute_solution()
 void GlobalLinearSystem::Impl::apply_preconditioner(muda::DenseVectorView<Float> z,
                                                     muda::CDenseVectorView<Float> r)
 {
+    auto diag_dof_counts  = diag_dof_offsets_counts.counts();
+    auto diag_dof_offsets = diag_dof_offsets_counts.offsets();
+
     if(global_preconditioner)
     {
         ApplyPreconditionerInfo info{this};
@@ -440,6 +448,9 @@ void GlobalLinearSystem::Impl::spmv(Float                         a,
 
 bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> r)
 {
+    auto diag_dof_counts  = diag_dof_offsets_counts.counts();
+    auto diag_dof_offsets = diag_dof_offsets_counts.offsets();
+
     for(auto&& [i, diag_subsystems] : enumerate(diag_subsystems.view()))
     {
         AccuracyInfo info{this};
@@ -480,11 +491,13 @@ auto GlobalLinearSystem::AssemblyInfo::storage_type() const -> HessianStorageTyp
 }
 SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_offset() const
 {
-    return m_impl->diag_dof_offsets[m_index];
+    auto diag_dof_offsets = m_impl->diag_dof_offsets_counts.offsets();
+    return diag_dof_offsets[m_index];
 }
 SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_count() const
 {
-    return m_impl->diag_dof_counts[m_index];
+    auto diag_dof_counts = m_impl->diag_dof_offsets_counts.counts();
+    return diag_dof_counts[m_index];
 }
 }  // namespace uipc::backend::cuda
 
@@ -522,5 +535,10 @@ void GlobalLinearSystem::add_preconditioner(GlobalPreconditioner* preconditioner
     check_state(SimEngineState::BuildSystems, "add_preconditioner()");
     UIPC_ASSERT(preconditioner != nullptr, "The preconditioner should not be nullptr.");
     m_impl.global_preconditioner.register_subsystem(*preconditioner);
+}
+
+void GlobalLinearSystem::init()
+{
+    m_impl.init();
 }
 }  // namespace uipc::backend::cuda

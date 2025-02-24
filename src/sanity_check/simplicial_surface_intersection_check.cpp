@@ -211,7 +211,7 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                 }
 
                 auto L = CIds[E[0]];
-                auto R = CIds[E[1]];
+                auto R = CIds[F[0]];
 
                 const core::ContactModel& model = contact_table.at(L, R);
 
