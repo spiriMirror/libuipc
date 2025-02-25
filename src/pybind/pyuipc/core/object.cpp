@@ -12,6 +12,9 @@ PyObject::PyObject(py::module& m)
 {
     auto class_Object = py::class_<Object, S<Object>>(m, "Object");
 
+    class_Object.def("__repr__",
+                     [](const Object& self) { return fmt::format("{}", self); });
+
     auto class_Geometries = py::class_<Object::Geometries>(class_Object, "Geometries");
 
     class_Object

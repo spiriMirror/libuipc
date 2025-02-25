@@ -141,6 +141,10 @@ PySimplicialComplex::PySimplicialComplex(py::module& m)
                                 [](SimplicialComplex& self) -> SimplicialComplex
                                 { return self; });
 
+    class_SimplicialComplex.def("__repr__",
+                                [](const SimplicialComplex& self)
+                                { return fmt::format("{}", self); });
+
     def_method(m, class_VertexAttributes);
     def_method(m, class_EdgeAttributes);
     def_method(m, class_TriangleAttributes);

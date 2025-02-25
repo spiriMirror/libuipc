@@ -40,7 +40,8 @@ class AttributeFriend<pyuipc::geometry::PyGeometry>
         );
 
         // call the create method of the member object
-        return py::cast<S<IAttributeSlot>>(pyobj.attr("create").operator()(py::cast(name), object));
+        return py::cast<S<IAttributeSlot>>(
+            pyobj.attr("create").operator()(py::cast(name), object));
     }
 
     static S<IAttributeSlot> create(Geometry::InstanceAttributes& a,
@@ -53,7 +54,8 @@ class AttributeFriend<pyuipc::geometry::PyGeometry>
         );
 
         // call the create method of the member object
-        return py::cast<S<IAttributeSlot>>(pyobj.attr("create").operator()(py::cast(name), object));
+        return py::cast<S<IAttributeSlot>>(
+            pyobj.attr("create").operator()(py::cast(name), object));
     }
 };
 }  // namespace uipc::geometry
@@ -149,6 +151,9 @@ PyGeometry::PyGeometry(py::module& m)
                        [](Geometry& self) { return self.instances(); });
 
     class_Geometry.def("to_json", [](Geometry& self) { return self.to_json(); });
+
+    class_Geometry.def("__repr__",
+                       [](Geometry& self) { return fmt::format("{}", self); });
 
     def_method(m, class_MetaAttributes);
 

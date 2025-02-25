@@ -11,5 +11,9 @@ PyImplicitGeometry::PyImplicitGeometry(py::module& m)
         py::class_<ImplicitGeometry, Geometry, S<ImplicitGeometry>>(m, "ImplicitGeometry");
 
     class_ImplicitGeometry.def(py::init<>());
+
+    class_ImplicitGeometry.def("__repr__",
+                               [](const ImplicitGeometry& self)
+                               { return fmt::format("{}", self); });
 }
 }  // namespace pyuipc::geometry

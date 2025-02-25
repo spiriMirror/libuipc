@@ -50,3 +50,20 @@ Animator::Animator(Scene& scene) noexcept
 {
 }
 }  // namespace uipc::core
+
+namespace fmt
+{
+appender fmt::formatter<uipc::core::Animator>::format(const uipc::core::Animator& c,
+                                                      format_context& ctx) const
+{
+
+    fmt::format_to(ctx.out(), "Animations({}):", c.m_animations.size());
+
+    for(auto& [id, animation] : c.m_animations)
+    {
+        fmt::format_to(ctx.out(), "\n  {}", animation);
+    }
+
+    return ctx.out();
+}
+}  // namespace fmt

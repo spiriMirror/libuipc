@@ -300,7 +300,7 @@ void Scene::Objects::destroy(IndexT id) &&
             m_scene.m_impl->geometries.pending_destroy(geo_id);
             m_scene.m_impl->rest_geometries.pending_destroy(geo_id);
         }
-        else // before `world.init(scene)` is called
+        else  // before `world.init(scene)` is called
         {
             m_scene.m_impl->geometries.destroy(geo_id);
             m_scene.m_impl->rest_geometries.destroy(geo_id);
@@ -367,3 +367,15 @@ ObjectGeometrySlots<const geometry::Geometry> Scene::CGeometries::find(IndexT id
     return {m_scene.m_impl->geometries.find(id), m_scene.m_impl->rest_geometries.find(id)};
 }
 }  // namespace uipc::core
+
+
+namespace fmt
+{
+appender fmt::formatter<uipc::core::Scene>::format(const uipc::core::Scene& c,
+                                                   format_context& ctx) const
+{
+    fmt::format_to(ctx.out(), "{}", c.m_impl->objects);
+    fmt::format_to(ctx.out(), "\n{}", c.m_impl->animator);
+    return ctx.out();
+}
+}  // namespace fmt

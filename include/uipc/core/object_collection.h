@@ -13,6 +13,7 @@ class UIPC_CORE_API IObjectCollection
 class UIPC_CORE_API ObjectCollection : public IObjectCollection
 {
     friend class Scene;
+    friend struct fmt::formatter<ObjectCollection>;
 
   public:
     ObjectCollection() = default;
@@ -32,3 +33,12 @@ class UIPC_CORE_API ObjectCollection : public IObjectCollection
     unordered_map<IndexT, S<Object>> m_objects;
 };
 }  // namespace uipc::core
+
+namespace fmt
+{
+template <>
+struct UIPC_CORE_API formatter<uipc::core::ObjectCollection> : formatter<string_view>
+{
+    appender format(const uipc::core::ObjectCollection& c, format_context& ctx) const;
+};
+}  // namespace fmt

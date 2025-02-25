@@ -52,3 +52,19 @@ IndexT ObjectCollection::next_id() const noexcept
     return m_next_id;
 }
 }  // namespace uipc::core
+
+namespace fmt
+{
+appender fmt::formatter<uipc::core::ObjectCollection>::format(const uipc::core::ObjectCollection& c,
+                                                              format_context& ctx) const
+{
+    fmt::format_to(ctx.out(), "Objects({}):", c.size());
+
+    for(auto& [id, object] : c.m_objects)
+    {
+        fmt::format_to(ctx.out(), "\n  [{}] {}", object->id(), object->name());
+    }
+
+    return ctx.out();
+}
+}  // namespace fmt

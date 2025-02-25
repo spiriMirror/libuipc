@@ -108,6 +108,8 @@ class UIPC_CORE_API Object : public IObject
     [[nodiscard]] IndexT           get_id() const noexcept override;
 
   private:
+    friend struct fmt::formatter<Object>;
+
     Scene&                        m_scene;
     IndexT                        m_id;
     string                        m_name;
@@ -119,5 +121,13 @@ class UIPC_CORE_API Object : public IObject
 };
 }  // namespace uipc::core
 
+namespace fmt
+{
+template <>
+struct UIPC_CORE_API formatter<uipc::core::Object> : formatter<string_view>
+{
+    appender format(const uipc::core::Object& c, format_context& ctx) const;
+};
+}  // namespace fmt
 
 #include "details/object.inl"
