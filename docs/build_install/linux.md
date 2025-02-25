@@ -22,18 +22,23 @@ cd vcpkg
 ```
 The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
+## Clone Libuipc
+
+Clone the repository with the following command:
+
+```shell
+git clone https://github.com/spiriMirror/libuipc.git
+```
+
 ## Conda Environment
 
 We **recommend** using conda environments to build the project on Linux.
 
 ```shell
-conda create -n uipc_env python=3.10
-conda activate uipc_env
-conda install cmake=3.26
-conda install nvidia/label/cuda-12.4.0::cuda-toolkit
+conda env create -f conda/env.yaml
 ```
 
-Cuda-12.4.0 requires driver version >= 550.54.14 (https://docs.nvidia.com/deploy/cuda-compatibility/index.html#use-the-right-compat-package), check your nvidia driver version with the following command
+Cuda-12.4.0 requires driver version >= 550.54.14 (https://docs.nvidia.com/deploy/cuda-compatibility/index.html#use-the-right-compat-package), check your nvidia driver version with the following command.
 
 ```shell
 nvidia-smi
@@ -41,15 +46,9 @@ nvidia-smi
 
 ## Other Environment
 
-If you don't want to use conda, you can manually install `CMake 3.26`, `GCC 11.4`, `Cuda 12.4` and `Python >=3.10` with your favorite package manager.
+If you don't want to use conda, you can manually install `CMake 3.26`, `GCC 11.4`, `Cuda 12.4` and `Python >=3.11` with your favorite package manager.
 
 ## Build Libuipc
-
-Clone the repository with the following command:
-
-```shell
-git clone https://github.com/spiriMirror/libuipc.git
-```
 
 Build the project with the following commands.
 
