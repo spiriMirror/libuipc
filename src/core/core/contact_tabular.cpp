@@ -9,10 +9,14 @@
 
 namespace std
 {
-bool operator<(const uipc::Vector2i& L, const uipc::Vector2i& R)
+template<>
+struct less<uipc::Vector2i>
 {
-    return L.x() < R.x() || (L.x() == R.x() && L.y() < R.y());
-}
+    bool operator()(const uipc::Vector2i& L, const uipc::Vector2i& R) const
+    {
+        return L.x() < R.x() || (L.x() == R.x() && L.y() < R.y());
+    }
+};
 }  // namespace std
 
 namespace uipc::core

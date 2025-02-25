@@ -69,9 +69,9 @@ pip install .
 
 If you want to install the Python binding in a Conda environment, you should additionally specify the Python executable path of the Conda environment.
 
-First, create a Conda environment with Python >=3.10
+First, create a Conda environment with Python >=3.11
 ```shell
-conda create -n uipc_env python=3.10
+conda create -n uipc_env python=3.11
 ```
 
 !!!NOTE
