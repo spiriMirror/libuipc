@@ -1,4 +1,4 @@
-#include "uipc/common/log.h"
+#include <uipc/common/log.h>
 #include <uipc/geometry/utils/affine_body/compute_body_force.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/range.h>
@@ -139,6 +139,7 @@ UIPC_GEOMETRY_API Vector12 compute_body_force(const SimplicialComplex& sc,
     else
     {
         UIPC_ASSERT(false, "Only 2D and 3D SimplicialComplex is supported.");
+        return Vector12::Zero();
     }
 }
 }  // namespace uipc::geometry::affine_body
