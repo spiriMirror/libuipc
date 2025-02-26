@@ -54,7 +54,7 @@ base_vcpkg_json = {
         },
         {
             "name":"tbb",
-            "version>=":"2021.11.0"
+            "version>=":"2022.0.0"
         }
     ]
 }
