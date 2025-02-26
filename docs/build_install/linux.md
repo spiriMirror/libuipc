@@ -7,9 +7,9 @@ The following dependencies are required to build the project.
 | Name                                                | Version      | Usage           | Import         |
 | --------------------------------------------------- | ------------ | --------------- | -------------- |
 | [CMake](https://cmake.org/download/)                | >=3.26       | build system    | system install |
-| [Python](https://www.python.org/downloads/)         | >=3.10       | build system    | system install |
-| [Cuda](https://developer.nvidia.com/cuda-downloads) | >=12.2       | GPU programming | system install |
-| [Vcpkg](https://github.com/microsoft/vcpkg)         | >=2024.04.26 | package manager | git clone      |
+| [Python](https://www.python.org/downloads/)         | >=3.11       | build system    | system install |
+| [Cuda](https://developer.nvidia.com/cuda-downloads) | >=12.4       | GPU programming | system install |
+| [Vcpkg](https://github.com/microsoft/vcpkg)         | >=2024.11.16 | package manager | git clone      |
 
 ## Install Vcpkg
 
