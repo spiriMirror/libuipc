@@ -86,12 +86,12 @@ triangles({}):{};
 tetrahedra({}):{};)",
                           static_cast<const uipc::geometry::Geometry&>(c),
                           c.vertices().size(),
-                          c.vertices(),
+                          c.m_vertex_attributes,
                           c.edges().size(),
-                          c.edges(),
+                          c.m_edge_attributes,
                           c.triangles().size(),
-                          c.triangles(),
+                          c.m_triangle_attributes,
                           c.tetrahedra().size(),
-                          c.tetrahedra());
+                          c.m_tetrahedron_attributes);
 }
 }  // namespace fmt

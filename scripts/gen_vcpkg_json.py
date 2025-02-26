@@ -59,6 +59,19 @@ base_vcpkg_json = {
             'name':'tbb',
             'version>=':'2022.0.0'
         }
+    ],
+    
+    'overrides':[
+        # fix fmt version
+        {
+            'name': 'fmt',
+            'version': '10.2.1',
+        },
+        # fix spdlog version
+        {
+            'name': 'spdlog',
+            'version': '1.12.0',
+        }
     ]
 }
 
