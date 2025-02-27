@@ -30,6 +30,7 @@ class UIPC_CORE_API Animator
   private:
     friend class Scene;
     friend class backend::AnimatorVisitor;
+    friend struct fmt::formatter<Animator>;
 
     Animator(Scene& scene) noexcept;  // only called by Scene
 
@@ -38,3 +39,12 @@ class UIPC_CORE_API Animator
     SizeT                            m_substep = 1;
 };
 }  // namespace uipc::core
+
+namespace fmt
+{
+template <>
+struct UIPC_CORE_API formatter<uipc::core::Animator> : formatter<string_view>
+{
+    appender format(const uipc::core::Animator& c, format_context& ctx) const;
+};
+}  // namespace fmt

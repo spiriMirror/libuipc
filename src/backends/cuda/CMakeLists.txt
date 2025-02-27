@@ -43,7 +43,7 @@ target_sources(cuda PRIVATE ${SOURCES})
 if(MSVC)
     # Disable some warnings 
     # C4819: The file contains a character that cannot be represented in the current code page
-    target_compile_options(cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4819>)
+    # target_compile_options(cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=/wd4819>)
 endif()
 
 # ------------------------------------------------------------------------------

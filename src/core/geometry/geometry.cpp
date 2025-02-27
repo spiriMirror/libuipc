@@ -67,7 +67,7 @@ void Geometry::do_collect_attribute_collections(vector<std::string>& names,
 namespace fmt
 {
 appender formatter<uipc::geometry::Geometry>::format(const uipc::geometry::Geometry& geo,
-                                                     format_context& ctx)
+                                                     format_context& ctx) const
 {
     return fmt::format_to(ctx.out(),
                           R"(type:<{}>;

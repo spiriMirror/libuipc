@@ -75,3 +75,12 @@ void Animation::UpdateHint::fixed_vertices_changing(bool v) noexcept
     m_fixed_vertices_changing = v;
 }
 }  // namespace uipc::core
+
+namespace fmt
+{
+appender fmt::formatter<uipc::core::Animation>::format(const uipc::core::Animation& c,
+                                                       format_context& ctx) const
+{
+    return fmt::format_to(ctx.out(), "Animation[{}]", *c.m_object);
+}
+}  // namespace fmt

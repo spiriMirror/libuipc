@@ -83,3 +83,26 @@ Object::CGeometries Object::geometries() const noexcept
 
 Object::~Object() {}
 }  // namespace uipc::core
+
+namespace fmt
+{
+appender formatter<uipc::core::Object>::format(const uipc::core::Object& c,
+                                               format_context& ctx) const
+{
+    fmt::format_to(ctx.out(), "Object[{}(#{})]:", c.name(), c.id());
+    for(auto id : c.geometries().ids())
+    {
+        auto geo_slot = c.m_scene.geometries().find(id);
+        auto geo      = geo_slot.geometry;
+        auto rest_geo = geo_slot.rest_geometry;
+
+        fmt::format_to(ctx.out(),
+                       "\n  [{}] <{}, {}>",
+                       id,
+                       geo->geometry().type(),
+                       rest_geo->geometry().type());
+    }
+
+    return ctx.out();
+}
+}  // namespace fmt

@@ -48,6 +48,7 @@ class UIPC_CORE_API Animation
   private:
     friend class Animator;
     friend class backend::AnimatorVisitor;
+    friend struct fmt::formatter<Animation>;
     void init();
     void update();
 
@@ -61,3 +62,12 @@ class UIPC_CORE_API Animation
     mutable vector<S<geometry::GeometrySlot>> m_temp_rest_geo_slots;
 };
 }  // namespace uipc::core
+
+namespace fmt
+{
+template <>
+struct UIPC_CORE_API formatter<uipc::core::Animation> : formatter<string_view>
+{
+    appender format(const uipc::core::Animation& c, format_context& ctx) const;
+};
+}  // namespace fmt

@@ -167,7 +167,7 @@ struct formatter<uipc::geometry::SimplicialComplexAttributes<IsConst, N>>
     : formatter<std::string_view>
 {
     appender format(const uipc::geometry::SimplicialComplexAttributes<IsConst, N>& attributes,
-                    format_context& ctx)
+                    format_context& ctx) const
     {
         return ::fmt::format_to(ctx.out(), "{}", attributes.m_attributes);
     }

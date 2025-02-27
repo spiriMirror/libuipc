@@ -30,3 +30,12 @@ std::string_view ImplicitGeometry::get_type() const noexcept
     return uipc::builtin::ImplicitGeometry;
 }
 }  // namespace uipc::geometry
+
+namespace fmt
+{
+appender fmt::formatter<uipc::geometry::ImplicitGeometry>::format(
+    const uipc::geometry::ImplicitGeometry& geometry, format_context& ctx) const
+{
+    return fmt::format_to(ctx.out(), "{}", static_cast<const uipc::geometry::Geometry&>(geometry));
+}
+}  // namespace fmt

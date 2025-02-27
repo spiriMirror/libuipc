@@ -38,8 +38,8 @@ static void facet_closure_dim_2(SimplicialComplex& R)
                       { return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1]); });
 
     // make unique and erase the duplicate edges
-    auto [first, last] = std::ranges::unique(sep_edges);
-    sep_edges.erase(first, last);
+    auto it = std::unique(sep_edges.begin(), sep_edges.end());
+    sep_edges.erase(it, sep_edges.end());
 
     // now we have the unique edges
     R.edges().resize(sep_edges.size());
@@ -83,8 +83,8 @@ static void facet_closure_dim_3(SimplicialComplex& R)
                       });
 
     // make unique and erase the duplicate faces
-    auto [first, last] = std::ranges::unique(sep_faces);
-    sep_faces.erase(first, last);
+    auto it = std::unique(sep_faces.begin(), sep_faces.end());
+    sep_faces.erase(it, sep_faces.end());
 
     // now we have the unique faces
     R.triangles().resize(sep_faces.size());
@@ -142,7 +142,7 @@ SimplicialComplex facet_closure(const SimplicialComplex& O)
         break;
         case 1: {
             R.edges().resize(O.edges().size());
-            R.edges().share(builtin::topo, O.edges().topo());
+            R.edges().share(builtin::topo, O.edges().topo(), false);
 
             R.vertices().create<IndexT>(builtin::is_facet, 0);
             R.edges().create<IndexT>(builtin::is_facet, 1);
@@ -150,7 +150,7 @@ SimplicialComplex facet_closure(const SimplicialComplex& O)
         break;
         case 2: {
             R.triangles().resize(O.triangles().size());
-            R.triangles().share(builtin::topo, O.triangles().topo());
+            R.triangles().share(builtin::topo, O.triangles().topo(), false);
             facet_closure_dim_2(R);
 
             R.vertices().create<IndexT>(builtin::is_facet, 0);
@@ -160,7 +160,7 @@ SimplicialComplex facet_closure(const SimplicialComplex& O)
         break;
         case 3: {
             R.tetrahedra().resize(O.tetrahedra().size());
-            R.tetrahedra().share(builtin::topo, O.tetrahedra().topo());
+            R.tetrahedra().share(builtin::topo, O.tetrahedra().topo(), false);
             facet_closure_dim_3(R);
 
             R.vertices().create<IndexT>(builtin::is_facet, 0);
