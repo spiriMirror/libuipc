@@ -1,5 +1,6 @@
 #include <uipc/common/timer.h>
 #include <uipc/common/log.h>
+#include <fmt/ranges.h>
 
 namespace uipc::details
 {

@@ -2,6 +2,7 @@ find_package(Eigen3 REQUIRED)
 find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(fmt CONFIG REQUIRED)
+
 find_package(cppitertools CONFIG REQUIRED)
 find_package(Boost CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)

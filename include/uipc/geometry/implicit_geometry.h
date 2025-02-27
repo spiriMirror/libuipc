@@ -22,10 +22,7 @@ template <>
 struct UIPC_CORE_API formatter<uipc::geometry::ImplicitGeometry>
     : public formatter<std::string_view>
 {
-    auto format(const uipc::geometry::ImplicitGeometry& geometry, format_context& ctx)
-    {
-        return fmt::format_to(
-            ctx.out(), "{}", static_cast<const uipc::geometry::Geometry&>(geometry));
-    }
+    appender format(const uipc::geometry::ImplicitGeometry& geometry,
+                    format_context&                         ctx) const;
 };
 }  // namespace fmt

@@ -1,6 +1,8 @@
 - [Home](index.md)
 - [Gallery](gallery.md)
 - [Build & Install](build_install/index.md)
+    - [Windows](build_install/windows.md)
+    - [Linux](build_install/linux.md)
 - [Tutorial](tutorial/index.md)
     - [Geometry](tutorial/geometry.md)
     - [Concepts](tutorial/concepts.md)

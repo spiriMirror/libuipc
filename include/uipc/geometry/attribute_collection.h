@@ -177,7 +177,7 @@ struct UIPC_CORE_API formatter<uipc::geometry::AttributeCollection>
     : formatter<std::string_view>
 {
     appender format(const uipc::geometry::AttributeCollection& collection,
-                    format_context&                            ctx);
+                    format_context&                            ctx) const;
 };
 }  // namespace fmt
 

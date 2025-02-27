@@ -98,6 +98,7 @@ class UIPC_CORE_API AbstractSimplicialComplex : public Geometry
     [[nodiscard]] virtual Json do_to_json() const override;
 
   private:
+    friend struct fmt::formatter<AbstractSimplicialComplex>;
     AttributeCollection m_vertex_attributes;
     AttributeCollection m_edge_attributes;
     AttributeCollection m_triangle_attributes;

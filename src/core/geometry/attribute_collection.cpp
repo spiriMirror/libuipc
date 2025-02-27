@@ -265,7 +265,7 @@ S<AttributeSlot<T>> AttributeCollection::create(std::string_view name,
 namespace fmt
 {
 appender formatter<uipc::geometry::AttributeCollection>::format(
-    const uipc::geometry::AttributeCollection& collection, format_context& ctx)
+    const uipc::geometry::AttributeCollection& collection, format_context& ctx) const
 {
     auto size = collection.size();
 

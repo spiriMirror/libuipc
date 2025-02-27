@@ -295,7 +295,7 @@ struct formatter<uipc::geometry::Geometry::MetaAttributesT<IsConst>>
     : public formatter<string_view>
 {
     auto format(const uipc::geometry::Geometry::MetaAttributesT<IsConst>& attr,
-                format_context&                                           ctx)
+                format_context& ctx) const
     {
         return fmt::format_to(ctx.out(), "{}", attr.m_attributes);
     }
@@ -306,7 +306,7 @@ struct formatter<uipc::geometry::Geometry::InstanceAttributesT<IsConst>>
     : public formatter<string_view>
 {
     auto format(const uipc::geometry::Geometry::InstanceAttributesT<IsConst>& attr,
-                format_context& ctx)
+                format_context& ctx) const
     {
         return fmt::format_to(ctx.out(), "{}", attr.m_attributes);
     }
@@ -315,7 +315,7 @@ struct formatter<uipc::geometry::Geometry::InstanceAttributesT<IsConst>>
 template <>
 struct UIPC_CORE_API formatter<uipc::geometry::Geometry> : public formatter<string_view>
 {
-    appender format(const uipc::geometry::Geometry& geo, format_context& ctx);
+    appender format(const uipc::geometry::Geometry& geo, format_context& ctx) const;
 };
 }  // namespace fmt
 
