@@ -4,7 +4,7 @@ find_package(nlohmann_json REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 
 find_package(cppitertools CONFIG REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
 find_path(DYLIB_INCLUDE_DIRS "dylib.hpp")
 find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
