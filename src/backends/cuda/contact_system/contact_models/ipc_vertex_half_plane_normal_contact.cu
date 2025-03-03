@@ -12,6 +12,13 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
 
     virtual void do_build(BuildInfo& info) override
     {
+        auto constitution =
+            world().scene().info()["contact"]["constitution"].get<std::string>();
+        if(constitution != "ipc")
+        {
+            throw SimSystemException("Constitution is not IPC");
+        }
+
         half_plane = &require<HalfPlane>();
     }
 
