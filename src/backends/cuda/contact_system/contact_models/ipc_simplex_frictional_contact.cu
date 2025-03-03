@@ -10,7 +10,15 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
   public:
     using SimplexFrictionalContact::SimplexFrictionalContact;
 
-    virtual void do_build(BuildInfo& info) override {}
+    virtual void do_build(BuildInfo& info) override
+    {
+        auto constitution =
+            world().scene().info()["contact"]["constitution"].get<std::string>();
+        if(constitution != "ipc")
+        {
+            throw SimSystemException("Constitution is not IPC");
+        }
+    }
 
     virtual void do_compute_energy(EnergyInfo& info) override
     {
