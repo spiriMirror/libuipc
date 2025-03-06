@@ -3,6 +3,8 @@ pybind11_add_module(pyuipc)
 target_compile_features(pyuipc PUBLIC cxx_std_20)
 target_link_libraries(pyuipc PUBLIC pybind11::module)
 target_link_libraries(pyuipc PUBLIC uipc::uipc)
+# ensure all backends are built before pyuipc
+add_dependencies(pyuipc uipc::backends)
 target_include_directories(pyuipc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../")
 uipc_target_set_output_directory(pyuipc)
 
