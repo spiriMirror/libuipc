@@ -35,5 +35,6 @@ add_custom_command(TARGET pyuipc POST_BUILD
     "--build_type=${CMAKE_BUILD_TYPE}"
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     COMMENT "Copying pyuipc dependent shared libraries to python package"
+    DEPENDS uipc::uipc
 )
 

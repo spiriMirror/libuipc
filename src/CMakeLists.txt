@@ -16,16 +16,6 @@ if(UIPC_BUILD_GUI)
     # add_subdirectory(gui)
 endif()
 
-if(UIPC_BUILD_PYBIND)
-    # py
-    add_subdirectory(pybind)
-endif()
-
-if(UIPC_BUILD_TORCH_EXTENSION)
-    # torch
-    add_subdirectory(torch)
-endif()
-
 add_library(uipc_uipc INTERFACE)
 add_library(uipc::uipc ALIAS uipc_uipc)
 
@@ -36,6 +26,12 @@ target_link_libraries(uipc_uipc INTERFACE
     uipc::io
     uipc::sanity_check
 )
+
+if(UIPC_BUILD_PYBIND)
+    # py
+    add_subdirectory(pybind)
+endif()
+
 
 
 
