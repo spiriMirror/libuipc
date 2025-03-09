@@ -212,6 +212,14 @@ namespace detail
 
                 std::ranges::fill(view(*obj_id), geo_id_to_object_id.at(geo_slot->id()));
             }
+
+            // 4) label geometry meta with geometry_id and object_id
+            {
+                auto gid = geo.meta().create<IndexT>("sanity_check/geometry_id", -1);
+                view(*gid)[0] = geo_slot->id();
+                auto oid = geo.meta().create<IndexT>("sanity_check/object_id", -1);
+                view(*oid)[0] = geo_id_to_object_id.at(geo_slot->id());
+            }
         }
     }
 
