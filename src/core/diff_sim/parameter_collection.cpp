@@ -2,6 +2,8 @@
 #include <uipc/core/object.h>
 #include <uipc/common/list.h>
 #include <uipc/common/zip.h>
+#include <uipc/common/span_as_eigen.h>
+
 namespace uipc::diff_sim
 {
 class IConnection
@@ -195,6 +197,16 @@ span<const Float> ParameterCollection::view() const
     return m_impl->view();
 }
 
+Eigen::Map<const Eigen::Matrix<Float, Eigen::Dynamic, 1>> ParameterCollection::as_eigen() const
+{
+    return uipc::as_eigen(view());
+}
+
+SizeT ParameterCollection::size() const
+{
+    return m_impl->parms.size();
+}
+
 void ParameterCollection::connect(S<geometry::IAttributeSlot> diff_parm_slot,
                                   S<geometry::IAttributeSlot> parm_slot)
 {
@@ -219,5 +231,10 @@ void ParameterCollection::need_backend_broadcast(bool v)
 span<Float> view(ParameterCollection& collection)
 {
     return collection.m_impl->view();
+}
+
+Eigen::Map<Eigen::Matrix<Float, Eigen::Dynamic, 1>> as_eigen(ParameterCollection& collection)
+{
+    return uipc::as_eigen(view(collection));
 }
 }  // namespace uipc::diff_sim

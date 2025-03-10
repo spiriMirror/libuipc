@@ -98,7 +98,8 @@ class SimEngine : public core::IEngine
     virtual void do_apply_recover(RecoverInfo&) = 0;
     virtual void do_clear_recover(RecoverInfo&) = 0;
 
-    span<ISimSystem* const> systems() noexcept;
+    span<ISimSystem* const>  systems() noexcept;
+    core::FeatureCollection& features() noexcept;
 
   private:
     virtual void do_init(WorldVisitor v) final override;
@@ -106,12 +107,14 @@ class SimEngine : public core::IEngine
     virtual bool do_dump() final override;
     ISimSystem*  find_system(ISimSystem* ptr);
     ISimSystem*  require_system(ISimSystem* ptr);
-    virtual core::EngineStatusCollection& get_status() noexcept final override;
+    virtual core::EngineStatusCollection&  get_status() final override;
+    virtual const core::FeatureCollection& get_features() const final override;
 
     U<WorldVisitor>              m_world_visitor;
     SimSystemCollection          m_system_collection;
     std::string                  m_workspace;
     core::EngineStatusCollection m_status;
+    core::FeatureCollection      m_features;
 };
 
 class SimEngineException : public Exception

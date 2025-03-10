@@ -18,6 +18,9 @@ PyEngine::PyEngine(py::module& m)
              py::arg("backend_name"),
              py::arg("workspace") = "./",
              py::arg("config")    = Engine::default_config())
-        .def("backend_name", &Engine::backend_name);
+        .def("backend_name", &Engine::backend_name)
+        .def("workspace", &Engine::workspace)
+        .def("features", &Engine::features, py::return_value_policy::reference_internal)
+        .def_static("default_config", &Engine::default_config);
 }
 }  // namespace pyuipc::core

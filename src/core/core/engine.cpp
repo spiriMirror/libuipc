@@ -168,6 +168,12 @@ class Engine::Impl
         return m_engine->status();
     }
 
+    const FeatureCollection& features()
+    {
+        LogPatternGuard guard{backend_name()};
+        return m_engine->features();
+    }
+
     std::string_view workspace() const noexcept { return m_workspace; }
 
     ~Impl()
@@ -224,7 +230,8 @@ Json Engine::default_config()
 
     if(!override_default)
     {
-        j["gpu"]["device"] = 0;
+        j["gpu"]["device"]           = 0;
+        j["extras"]["gui"]["enable"] = true;
     }
     return j;
 }
@@ -242,6 +249,11 @@ std::string_view Engine::workspace() const noexcept
 EngineStatusCollection& Engine::status()
 {
     return m_impl->status();
+}
+
+const FeatureCollection& Engine::features()
+{
+    return m_impl->features();
 }
 
 void Engine::init(backend::WorldVisitor v)

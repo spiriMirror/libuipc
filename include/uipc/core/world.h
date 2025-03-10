@@ -1,5 +1,6 @@
 #pragma once
 #include <uipc/core/scene.h>
+#include <uipc/core/feature_collection.h>
 
 namespace uipc::backend
 {
@@ -31,6 +32,8 @@ class UIPC_CORE_API World final
     bool is_valid() const;
 
     SizeT frame() const;
+
+    const FeatureCollection& features() const;
 
   private:
     Scene*        m_scene  = nullptr;

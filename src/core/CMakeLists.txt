@@ -1,5 +1,5 @@
 find_package(Eigen3 REQUIRED)
-find_package(spdlog REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 
@@ -44,7 +44,7 @@ target_sources(uipc_core PRIVATE ${SOURCE})
 # ------------------------------------------------------------------------------
 target_link_libraries(uipc_core PUBLIC 
     Eigen3::Eigen 
-    spdlog::spdlog 
+    spdlog::spdlog
     nlohmann_json::nlohmann_json
     fmt::fmt
     cppitertools::cppitertools
@@ -55,6 +55,11 @@ target_link_libraries(uipc_core PUBLIC
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     # GCC requires explicit linking to the dl library for dlopen, dlsym, etc.
     target_link_libraries(uipc_core PRIVATE dl)
+endif()
+
+# if MSVC, define /bigobj
+if(MSVC)
+    target_compile_options(uipc_core PRIVATE "/bigobj")
 endif()
 
 # ------------------------------------------------------------------------------

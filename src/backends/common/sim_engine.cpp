@@ -17,6 +17,7 @@ Json SimEngine::do_to_json() const
 {
     Json j;
     j["sim_systems"] = m_system_collection.to_json();
+    j["features"]    = m_features.to_json();
     return j;
 }
 
@@ -64,9 +65,19 @@ span<ISimSystem* const> SimEngine::systems() noexcept
     return m_system_collection.systems();
 }
 
-core::EngineStatusCollection& SimEngine::get_status() noexcept
+core::FeatureCollection& SimEngine::features() noexcept
+{
+    return m_features;
+}
+
+core::EngineStatusCollection& SimEngine::get_status()
 {
     return m_status;
+}
+
+const core::FeatureCollection& SimEngine::get_features() const
+{
+    return m_features;
 }
 
 ISimSystem* SimEngine::find_system(ISimSystem* ptr)

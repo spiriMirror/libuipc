@@ -1,10 +1,10 @@
-#include "uipc/core/constitution_tabular.h"
 #include <pyuipc/backend/scene_visitor.h>
 #include <uipc/backend/visitors/scene_visitor.h>
 #include <uipc/core/scene.h>
 #include <pyuipc/common/json.h>
 #include <pyuipc/as_numpy.h>
 #include <pyuipc/common/span.h>
+
 namespace pyuipc::backend
 {
 using namespace uipc::backend;
@@ -42,5 +42,11 @@ PySceneVisitor::PySceneVisitor(py::module& m)
     class_SceneVisitor.def("contact_tabular",
                            [](SceneVisitor& self) -> ContactTabular&
                            { return self.contact_tabular(); });
+
+    class_SceneVisitor.def("diff_sim",
+                           [](SceneVisitor& self) -> DiffSimVisitor&
+                           { return self.diff_sim(); });
+
+    class_SceneVisitor.def("ref", &SceneVisitor::ref, py::return_value_policy::reference_internal);
 }
 }  // namespace pyuipc::backend

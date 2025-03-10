@@ -53,6 +53,11 @@ EngineStatusCollection& IEngine::status()
     return get_status();
 }
 
+const FeatureCollection& IEngine::features() const
+{
+    return get_features();
+}
+
 Json IEngine::do_to_json() const
 {
     return Json{};

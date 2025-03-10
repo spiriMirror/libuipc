@@ -27,12 +27,13 @@ class DiffSim::Impl
                 vector<std::string> attribute_names = collection.names();
                 std::string_view    prefix          = "diff/";
 
-                auto [iter, end] = std::ranges::remove_if(
-                    attribute_names,
-                    [prefix](const std::string& name)
-                    { return name.find(prefix) == std::string::npos; });
+                auto e = std::ranges::remove_if(attribute_names,
+                                                [prefix](const std::string& name) {
+                                                    return name.find(prefix)
+                                                           == std::string::npos;
+                                                });
 
-                attribute_names.erase(iter, end);
+                attribute_names.erase(e.begin(), e.end());
 
                 for(const std::string& diff_parm_name : attribute_names)
                 {
@@ -41,6 +42,13 @@ class DiffSim::Impl
 
                     auto diff_parm = collection.find(diff_parm_name);
                     auto parm      = collection.find(parm_name);
+
+                    UIPC_ASSERT(diff_parm, "Diff Parm `{}` not found, why can it happen?", diff_parm_name);
+                    UIPC_ASSERT(parm,
+                                "Diff Parm `{}` found, but Parm `{}` not, did you forget to create an attribute with name `{}` ?",
+                                diff_parm_name,
+                                parm_name,
+                                parm_name);
 
                     // connect diff_parm to parm
                     parameters.connect(diff_parm, parm);

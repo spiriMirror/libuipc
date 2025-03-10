@@ -18,7 +18,7 @@ AnimatorVisitor WorldVisitor::animator() noexcept
     return AnimatorVisitor{m_world.m_scene->animator()};
 }
 
-core::World& WorldVisitor::world() noexcept
+core::World& WorldVisitor::ref() noexcept
 {
     return m_world;
 }

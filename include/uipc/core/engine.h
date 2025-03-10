@@ -19,9 +19,10 @@ class UIPC_CORE_API Engine final
            const Json&      config    = default_config());
     ~Engine();
 
-    std::string_view        backend_name() const noexcept;
-    std::string_view        workspace() const noexcept;
-    EngineStatusCollection& status();
+    std::string_view         backend_name() const noexcept;
+    std::string_view         workspace() const noexcept;
+    EngineStatusCollection&  status();
+    const FeatureCollection& features();
 
     Json to_json() const;
 

@@ -18,7 +18,9 @@ World::World(Engine& e) noexcept
 
 void World::init(Scene& s)
 {
-    // 1) Sanity check the scene
+    if(m_scene)
+        return;
+
     sanity_check(s);
 
     if(!m_valid)
@@ -96,7 +98,15 @@ void World::backward()
         spdlog::error("World is not valid, skipping backward.");
         return;
     }
-    m_engine->backward();
+    if(m_scene->diff_sim().parameters().size())
+    {
+        m_engine->backward();
+    }
+    else
+    {
+        spdlog::warn("No parameters to backward, skipping backward.");
+        return;
+    }
 
     if(m_engine->status().has_error())
     {
@@ -137,6 +147,7 @@ bool World::recover(SizeT aim_frame)
         spdlog::error("World is not valid, skipping recover.");
         return false;
     }
+
     bool success   = m_engine->recover(aim_frame);
     bool has_error = m_engine->status().has_error();
 
@@ -144,6 +155,14 @@ bool World::recover(SizeT aim_frame)
     {
         spdlog::error("Engine has error after recover, world becomes invalid.");
         m_valid = false;
+    }
+
+    if(success && !has_error)
+    {
+        // if diff_sim is not empty, broadcast parameters
+        auto& diff_sim = m_scene->diff_sim();
+        if(diff_sim.parameters().size() > 0)
+            diff_sim.parameters().broadcast();
     }
 
     return success && !has_error;
@@ -164,6 +183,10 @@ SizeT World::frame() const
     return m_engine->frame();
 }
 
+const FeatureCollection& World::features() const
+{
+    return m_engine->features();
+}
 
 void World::sanity_check(Scene& s)
 {

@@ -19,6 +19,7 @@ PyWorld::PyWorld(py::module& m)
         .def("recover", &World::recover, py::arg("dst_frame") = ~0ull)
         .def("backward", &World::backward)
         .def("frame", &World::frame)
+        .def("features", &World::features, py::return_value_policy::reference_internal)
         .def("is_valid", &World::is_valid);
 }
 

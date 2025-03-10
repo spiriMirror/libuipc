@@ -9,7 +9,7 @@
 
 namespace std
 {
-template<>
+template <>
 struct less<uipc::Vector2i>
 {
     bool operator()(const uipc::Vector2i& L, const uipc::Vector2i& R) const

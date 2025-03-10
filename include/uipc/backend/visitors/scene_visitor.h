@@ -43,6 +43,8 @@ class UIPC_CORE_API SceneVisitor
     const DiffSimVisitor& diff_sim() const noexcept;
     DiffSimVisitor&       diff_sim() noexcept;
 
+    core::Scene& ref() noexcept;
+
   private:
     core::Scene&   m_scene;
     DiffSimVisitor m_diff_sim;
