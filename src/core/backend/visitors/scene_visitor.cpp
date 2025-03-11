@@ -5,7 +5,7 @@ namespace uipc::backend
 {
 SceneVisitor::SceneVisitor(core::Scene& scene) noexcept
     : m_scene(scene)
-    , m_diff_sim(scene.diff_sim())
+    , m_diff_sim(scene._diff_sim())
 {
 }
 
@@ -92,5 +92,10 @@ const DiffSimVisitor& SceneVisitor::diff_sim() const noexcept
 DiffSimVisitor& SceneVisitor::diff_sim() noexcept
 {
     return m_diff_sim;
+}
+
+core::Scene& uipc::backend::SceneVisitor::ref() noexcept
+{
+    return m_scene;
 }
 }  // namespace uipc::backend

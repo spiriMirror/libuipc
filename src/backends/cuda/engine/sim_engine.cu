@@ -41,9 +41,8 @@ SimEngine::SimEngine(EngineCreateInfo* info)
         checkCudaErrors(cudaGetDeviceCount(&device_count));
         if(device_id >= device_count)
         {
-            UIPC_WARN_WITH_LOCATION(
-                "Cannot find device with id {}. Using device 0 instead.", 
-                device_id);
+            UIPC_WARN_WITH_LOCATION("Cannot find device with id {}. Using device 0 instead.",
+                                    device_id);
 
             device_id = 0;
         }

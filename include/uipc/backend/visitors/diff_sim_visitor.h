@@ -15,12 +15,13 @@ class UIPC_CORE_API DiffSimVisitor
     ~DiffSimVisitor();
     diff_sim::ParameterCollection&       parameters();
     const diff_sim::ParameterCollection& parameters() const;
-    void H(const diff_sim::SparseCOOView& value);
-    void pGpP(const diff_sim::SparseCOOView& value);
-    void need_backend_broadcast(bool v);
-    bool need_backend_broadcast() const;
-    void need_backend_clear(bool v);
-    bool need_backend_clear() const;
+    void           H(const diff_sim::SparseCOOView& value);
+    void           pGpP(const diff_sim::SparseCOOView& value);
+    void           need_backend_broadcast(bool v);
+    bool           need_backend_broadcast() const;
+    void           need_backend_clear(bool v);
+    bool           need_backend_clear() const;
+    core::DiffSim& ref();
 
   private:
     core::DiffSim& m_diff_sim;

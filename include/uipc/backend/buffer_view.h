@@ -32,7 +32,7 @@ class UIPC_CORE_API BufferView
   private:
     HandleT m_handle = 0;
     SizeT   m_offset = INVALID;
-    SizeT   m_size   = INVALID;
+    SizeT   m_size   = 0;
 
     SizeT            m_element_size   = INVALID;
     SizeT            m_element_stride = INVALID;

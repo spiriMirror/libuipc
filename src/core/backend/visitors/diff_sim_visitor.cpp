@@ -48,4 +48,9 @@ bool uipc::backend::DiffSimVisitor::need_backend_clear() const
 {
     return m_diff_sim.need_backend_clear();
 }
+
+core::DiffSim& DiffSimVisitor::ref()
+{
+    return m_diff_sim;
+}
 }  // namespace uipc::backend

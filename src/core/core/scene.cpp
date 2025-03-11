@@ -18,7 +18,7 @@ class Scene::Impl
 
     void init(backend::WorldVisitor& world)
     {
-        this->world = &world.world();
+        this->world = &world.ref();
 
         backend::SceneVisitor visitor{scene};
 
@@ -205,6 +205,8 @@ const Animator& Scene::animator() const
 
 DiffSim& Scene::diff_sim()
 {
+    // automatically enable diff_sim
+    m_impl->info["diff_sim"]["enable"] = true;
     return m_impl->diff_sim;
 }
 
@@ -261,6 +263,11 @@ Float Scene::dt() const noexcept
 bool Scene::is_started() const noexcept
 {
     return m_impl->started;
+}
+
+DiffSim& Scene::_diff_sim() noexcept
+{
+    return m_impl->diff_sim;
 }
 
 bool Scene::is_pending() const noexcept

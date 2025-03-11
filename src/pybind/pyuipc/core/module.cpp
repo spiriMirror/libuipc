@@ -9,11 +9,14 @@
 #include <pyuipc/core/animator.h>
 #include <pyuipc/core/diff_sim.h>
 #include <pyuipc/core/sanity_checker.h>
+#include <pyuipc/core/feature_collection.h>
 
 namespace pyuipc::core
 {
 PyModule::PyModule(py::module& m)
 {
+    PyFeatureCollection{m};
+
     PyEngine{m};
 
     PyObject{m};
