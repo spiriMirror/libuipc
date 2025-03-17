@@ -1,10 +1,10 @@
 import numpy as np
-from pyuipc_loader import pyuipc
+import uipc
 import pytest 
 
 @pytest.mark.basic 
 def test_implicit():
-    geometry = pyuipc.geometry
+    geometry = uipc.geometry
     ig = geometry.ImplicitGeometry()
     print(ig)
     print(ig.to_json())

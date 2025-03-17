@@ -1,11 +1,10 @@
 import numpy as np
-from pyuipc_loader import pyuipc
+import uipc
 import pytest 
 import pytetwild
 import numpy as np
-import pyuipc_loader
-from pyuipc_loader import pyuipc
-from pyuipc import constitution
+import uipc
+from uipc import constitution
 
 @pytest.mark.basic 
 def test_tetwild():
@@ -38,9 +37,9 @@ def test_tetwild():
             tet[0], tet[1] = tet[1], tet[0]
             print(f'corrected tetrahedron {tet}')
 
-    tet = pyuipc.geometry.tetmesh(v_out, tetra)
-    pyuipc.geometry.label_surface(tet)
-    surf = pyuipc.geometry.extract_surface(tet)
+    tet = uipc.geometry.tetmesh(v_out, tetra)
+    uipc.geometry.label_surface(tet)
+    surf = uipc.geometry.extract_surface(tet)
 
     abd = constitution.AffineBodyConstitution()
     abd.apply_to(tet, 1e8)

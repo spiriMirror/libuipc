@@ -1,12 +1,13 @@
 import numpy as np
-from pyuipc_loader import pyuipc
-from pyuipc import Logger
-from pyuipc import Engine, World, Scene, SceneIO
-from pyuipc import Matrix4x4
-from pyuipc.geometry import SimplicialComplex, SimplicialComplexIO
-from pyuipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
-from pyuipc.geometry import ground, view, tetmesh
-from pyuipc.constitution import StableNeoHookean, ElasticModuli
+import uipc
+from uipc import Logger
+from uipc import Engine, World, Scene, SceneIO
+from uipc import Matrix4x4
+from uipc import view
+from uipc.geometry import SimplicialComplex, SimplicialComplexIO
+from uipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
+from uipc.geometry import ground, tetmesh
+from uipc.constitution import StableNeoHookean, ElasticModuli
 from asset import AssetDir
 
 

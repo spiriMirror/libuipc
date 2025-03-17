@@ -1,7 +1,8 @@
 import pytest 
 import numpy as np
-from pyuipc_loader import pyuipc
-from pyuipc.geometry import tetmesh, view
+import uipc
+from uipc.geometry import tetmesh
+from uipc import view
 
 @pytest.mark.basic 
 def test_attrib():
