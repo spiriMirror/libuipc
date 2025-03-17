@@ -7,6 +7,10 @@ import pathlib
 from mypy import stubgen
 import subprocess as sp
 
+def flush_info():
+    sys.stdout.flush()
+    sys.stderr.flush()
+
 def get_config(config: str, build_type: str):
     ret_config = ''
     
@@ -58,7 +62,7 @@ def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
     else:
         raise Exception('Unsupported OS')
     
-    target_dir = binary_dir / 'python' / 'src' / 'pyuipc_loader' / config / 'bin'
+    target_dir = binary_dir / 'python' / 'src' / 'uipc' / 'modules' / config / 'bin'
     shared_lib_dir = binary_dir / config / 'bin'
     
     if not os.path.exists(target_dir):
@@ -79,11 +83,15 @@ def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
     return target_dir
 
 def generate_stub(target_dir):
-    typings_dir = binary_dir / 'python' / 'typings'
+    PACKAGE_NAME = 'pyuipc'
+    typings_dir = binary_dir / 'python' / 'src'
     
-    print(f'Clear typings directory: {typings_dir}')
-    shutil.rmtree(typings_dir, ignore_errors=True)
+    # clear the typings directory
+    typings_folder = typings_dir / PACKAGE_NAME
+    print(f'Clear typings directory: {typings_folder}')
+    shutil.rmtree(typings_folder, ignore_errors=True)
 
+    # generate the stubs
     print(f'Try generating stubs to {typings_dir}')
     sys.path.append(str(target_dir))
     
@@ -99,7 +107,7 @@ def generate_stub(target_dir):
         include_private=False,
         output_dir=str(typings_dir),
         modules=[],
-        packages=['pyuipc'],
+        packages=[PACKAGE_NAME],
         files=[],
         verbose=True,
         quiet=False,
@@ -134,22 +142,21 @@ if __name__ == '__main__':
     pyuipc_lib = args.target
     binary_dir = pathlib.Path(args.binary_dir)
     proj_dir = pathlib.Path(project_dir.project_dir())
-    build_output_dir = binary_dir
     
     print(f'Copying package code to the target directory:')
     copy_python_source_code(proj_dir / 'python', binary_dir / 'python')
+    flush_info()
     
     config = get_config(args.config, args.build_type)
     
     print(f'Copying shared libraries to the target directory:')
     target_dir = copy_shared_libs(binary_dir, pyuipc_lib)
+    flush_info()
     
     print(f'Generating stubs:')
     generate_stub(target_dir)
-    
-    # flush the buffer to avoid the output being mixed
-    sys.stdout.flush() 
-    sys.stderr.flush()
+    flush_info()
     
     print(f'Installing the package to Python Environment: {sys.executable}')
     install_package(binary_dir)
+    flush_info()

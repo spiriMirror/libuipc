@@ -1,6 +1,6 @@
-from pyuipc_loader import pyuipc
-from pyuipc import builtin
-from pyuipc import unit
+import uipc
+from uipc import builtin
+from uipc import unit
 
 constitutions = builtin.ConstitutionUIDCollection.instance().to_json()
 implicit_geomeries = builtin.ImplicitGeometryUIDCollection.instance().to_json()

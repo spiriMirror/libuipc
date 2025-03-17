@@ -2,15 +2,14 @@ import pytest
 import numpy as np
 import polyscope as ps
 import polyscope.imgui as psim
-from pyuipc_loader import pyuipc 
-from pyuipc import Logger
-from pyuipc import Matrix4x4
-from pyuipc import Engine, World, Scene, SceneIO
-from pyuipc.geometry import SimplicialComplex, SimplicialComplexIO
-from pyuipc.geometry import SpreadSheetIO
-from pyuipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
-from pyuipc.geometry import ground, view
-from pyuipc.constitution import AffineBodyConstitution
+from uipc import Logger
+from uipc import Matrix4x4
+from uipc import Engine, World, Scene, SceneIO
+from uipc.geometry import SimplicialComplex, SimplicialComplexIO
+from uipc.geometry import SpreadSheetIO
+from uipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
+from uipc.geometry import ground, view
+from uipc.constitution import AffineBodyConstitution
 from asset import AssetDir
 
 def process_surface(sc: SimplicialComplex):

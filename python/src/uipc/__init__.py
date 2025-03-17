@@ -2,20 +2,16 @@ import sys
 import os 
 import pathlib
 import logging 
-
-import subprocess
-import ctypes
 import json
 
 this_file_dir = os.path.dirname(__file__)
-if os.name == 'nt':
-    sys.path.append(this_file_dir + '/Release/bin')
-    sys.path.append(this_file_dir + '/RelWithDebInfo/bin')
-elif os.name == 'posix':
-    sys.path.append(this_file_dir + '/Release/bin')
-    sys.path.append(this_file_dir + '/RelWithDebInfo/bin')
-else:
-    raise Exception('Unsupported OS')
+if os.name not in ['nt', 'posix']:
+    raise Exception('Unsupported platform: ' + os.name)
+
+sys.path.append(this_file_dir + '/modules/Release/bin')
+sys.path.append(this_file_dir + '/modules/RelWithDebInfo/bin')
+sys.path.append(this_file_dir + '/modules/releasedbg')
+sys.path.append(this_file_dir + '/modules/release')
 
 import pyuipc
 
@@ -39,3 +35,5 @@ def init():
     logging.debug('pyuipc loaded: ', config)
 
 init()
+
+from pyuipc import *

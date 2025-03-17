@@ -1,12 +1,12 @@
 import pytest 
 
 import numpy as np
-from pyuipc_loader import pyuipc as uipc 
+import uipc as uipc 
+from uipc import view
+from uipc import geometry
 
 @pytest.mark.basic
 def test_simplicial():
-    geometry = uipc.geometry
-
     Vs = np.array([
         [1,0,0],
         [0,1,0],
@@ -21,7 +21,7 @@ def test_simplicial():
 
     # define velocity attribute
     vel = sc.vertices().create("velocity", uipc.Vector3.Zero())
-    vel_view:np.ndarray[np.float64] = geometry.view(vel)
+    vel_view:np.ndarray[np.float64] = view(vel)
 
     for i in range(vel_view.shape[0]):
         vel_view[i,:,:] = uipc.Vector3.Ones() * i
@@ -41,11 +41,6 @@ def test_simplicial():
     except RuntimeError as e:
         print(e)
 
-
-
-
-
-    view = geometry.view
     Vs = np.array([
         [1,0,0],
         [0,1,0],

@@ -3,17 +3,18 @@ import pytest
 import polyscope as ps
 import polyscope.imgui as psim
 
-from pyuipc_loader import pyuipc
-from pyuipc import Logger
-from pyuipc import Engine, World, Scene, SceneIO
-from pyuipc import Matrix4x4
-from pyuipc.geometry import SimplicialComplex, SimplicialComplexIO
-from pyuipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
-from pyuipc.geometry import ground, view, pointcloud
-from pyuipc.constitution import Particle
+import uipc
+from uipc import Logger
+from uipc import Engine, World, Scene, SceneIO
+from uipc import Matrix4x4
+from uipc import view
+from uipc.geometry import SimplicialComplex, SimplicialComplexIO
+from uipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
+from uipc.geometry import ground, pointcloud
+from uipc.constitution import Particle
 from asset import AssetDir
 
-from pyuipc_utils.gui import SceneGUI
+from uipc.gui import SceneGUI
 
 from asset import AssetDir
 

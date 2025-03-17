@@ -1,7 +1,7 @@
 import pytest 
 import numpy as np 
-from pyuipc_loader import pyuipc
-from pyuipc import Float, Vector3
+import uipc
+from uipc import Float, Vector3
 
 @pytest.mark.typing 
 def test_typings():
