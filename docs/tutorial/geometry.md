@@ -25,7 +25,7 @@ In this tutorial, we will focus on the simplicial complex, which is the most com
     All geometry interfaces are defined in the `pyuipc.geometry` module.
     
     ```python
-    from pyuipc.geometry import *
+    from uipc.geometry import *
     ```
 
 
