@@ -31,12 +31,12 @@ This is a simple example to get you started with `libuipc`. In this example, we 
     First, we import pyuipc, and alias some of the modules to make the code more readable:
 
     ```python
-    from pyuipc_loader import pyuipc
-    from pyuipc import Vector3
-    from pyuipc.geometry import *
-    from pyuipc.core import Engine, World, Scene, SceneIO
-    from pyuipc import builtin
-    from pyuipc.unit import GPa, MPa
+    import uipc
+    from uipc import Vector3
+    from uipc import Engine, World, Scene, SceneIO
+    from uipc.geometry import *
+    from uipc import builtin
+    from uipc.unit import GPa, MPa
 
     import numpy as np
     ```
@@ -115,8 +115,7 @@ Before that, we should first add the `AffineBodyConstitution` to the `Scene`, an
 === "Python"
 
     ```python
-    from pyuipc_loader import pyuipc
-    from pyuipc.constitution import AffineBodyConstitution
+    from uipc.constitution import AffineBodyConstitution
     ...
     scene = Scene(config)
     # create constitution and contact model

@@ -40,10 +40,10 @@ There are 5 main parts in a scene:
 
 === "Python"
 
-    The interfaces of `Engine`, `World`, `Scene`, `Object` are defined in the `pyuipc.core` module.
+    The interfaces of `Engine`, `World`, `Scene`, `Object` are defined in the `uipc.core` module.
 
     ```python
-    from pyuipc.core import *
+    from uipc.core import *
     ```
 
 Here is a simple example to create a scene:
