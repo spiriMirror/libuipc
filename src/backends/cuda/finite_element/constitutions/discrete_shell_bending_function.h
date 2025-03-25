@@ -26,7 +26,7 @@ namespace sym::discrete_shell_bending
         Vector3 n1 = (x1_bar - x0_bar).cross(x2_bar - x0_bar);
         Vector3 n2 = (x2_bar - x0_bar).cross(x1_bar - x3_bar);
         Float   A  = (n1.norm() + n2.norm()) / 2.0;
-        h_bar      = A / 3.0;  // h_bar == A1 + A2 / 3
+        h_bar      = A / 3.0 / L0;
         dihedral_angle(x0_bar, x1_bar, x2_bar, x3_bar, theta_bar);
 
         Float thickness = (thickness0 + thickness1 + thickness2 + thickness3) / 4.0;
