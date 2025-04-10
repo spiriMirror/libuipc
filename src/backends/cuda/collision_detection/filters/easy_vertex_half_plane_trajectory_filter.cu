@@ -172,14 +172,14 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 
                        min_toi = std::min(min_toi, this_toi);
 
-                       if constexpr(PrintDebugInfo)
-                       {
-                           if(this_toi < 1.0)
-                           {
-                               cout << "vI: " << vI << ", pI: " << j
-                                    << ", toi: " << this_toi << " d0: " << -t0 << "\n";
-                           }
-                       }
+                       //if constexpr(PrintDebugInfo)
+                       //{
+                       //    if(this_toi < 1.0)
+                       //    {
+                       //        cout << "vI: " << vI << ", pI: " << j
+                       //             << ", toi: " << this_toi << " d0: " << -t0 << "\n";
+                       //    }
+                       //}
                    }
 
                    tois(i) = min_toi;

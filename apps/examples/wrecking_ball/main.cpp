@@ -14,6 +14,8 @@ int main()
     using namespace uipc::constitution;
     namespace fs = std::filesystem;
 
+    spdlog::set_level(spdlog::level::info);
+
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
     auto        this_output_path = AssetDir::output_path(__FILE__);
     auto        this_folder      = AssetDir::folder(__FILE__);
@@ -189,5 +191,6 @@ int main()
         //world.dump();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+        // fmt::println("frame: {}", world.frame());
     }
 }
