@@ -11,7 +11,7 @@ muda::LoggerViewer* device_logger_viewer_ptr() noexcept
     // In IDE this will show an error, but it's fine
     // don't change the `cout` to `&cout`
     // or you get runtime error
-    checkCudaErrors(cudaGetSymbolAddress((void**)&ptr, cout));
+    checkCudaErrors(cudaGetSymbolAddress((void**)&ptr, uipc::backend::cuda::cout));
     return ptr;
 }
 }  // namespace uipc::backend::cuda
