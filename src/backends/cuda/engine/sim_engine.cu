@@ -14,19 +14,17 @@
 
 namespace uipc::backend::cuda
 {
-void say_hello_from_muda()
+void say_hello_from_cuda()
 {
     using namespace muda;
-
     Launch()
-        .apply([] __device__()
+        .apply([cout = KernelCout::viewer()] __device__() mutable
                { cout << "CUDA Backend Kernel Console Init Success!\n"; })
         .wait();
 }
 
 SimEngine::SimEngine(EngineCreateInfo* info)
     : backend::SimEngine(info)
-    , m_device_impl(make_unique<DeviceImpl>())
 {
     try
     {
@@ -53,29 +51,9 @@ SimEngine::SimEngine(EngineCreateInfo* info)
         spdlog::info("Compute Capability: {}.{}", prop.major, prop.minor);
         spdlog::info("Total Global Memory: {} MB", prop.totalGlobalMem / 1024 / 1024);
 
-        auto viewer_ptr       = device_logger_viewer_ptr();
-        m_device_impl->logger = make_unique<muda::Logger>(viewer_ptr);
-
-        Debug::set_sync_callback(
-            [this]
-            {
-                m_string_stream.str("");
-                m_device_impl->logger->retrieve(m_string_stream);
-                if(m_string_stream.str().empty())
-                    return;
-
-                spdlog::info(R"( 
--------------------------------------------------------------------------------
-*                               Kernel  Console                               *
--------------------------------------------------------------------------------
-{}
--------------------------------------------------------------------------------)",
-                             m_string_stream.str());
-            });
-
-        say_hello_from_muda();
-
         Timer::set_sync_func([] { muda::wait_device(); });
+
+        say_hello_from_cuda();
 
 #ifndef NDEBUG
         // if in debug mode, sync all the time to check for errors
@@ -99,11 +77,6 @@ SimEngine::~SimEngine()
     muda::Debug::set_sync_callback(nullptr);
 
     spdlog::info("Cuda Backend Shutdown Success.");
-}
-
-auto SimEngine::device_impl() noexcept -> DeviceImpl&
-{
-    return *m_device_impl;
 }
 
 SimEngineState SimEngine::state() const noexcept

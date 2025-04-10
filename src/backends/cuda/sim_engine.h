@@ -21,7 +21,6 @@ class GlobalDiffSimManager;
 
 class SimEngine final : public backend::SimEngine
 {
-    class DeviceImpl;
     friend class SimSystem;
 
   public:
@@ -50,8 +49,6 @@ class SimEngine final : public backend::SimEngine
     void init_scene();
     void dump_global_surface(std::string_view name);
 
-    DeviceImpl&       device_impl() noexcept;
-    U<DeviceImpl>     m_device_impl;
     std::stringstream m_string_stream;
     SimEngineState    m_state = SimEngineState::None;
 
