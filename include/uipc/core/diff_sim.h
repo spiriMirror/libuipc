@@ -26,10 +26,6 @@ class UIPC_CORE_API DiffSim
   public:
     diff_sim::ParameterCollection&       parameters();
     const diff_sim::ParameterCollection& parameters() const;
-    diff_sim::SparseCOOView              H() const;
-    diff_sim::SparseCOOView              pGpP() const;
-    void                                 clear();
-
     ~DiffSim();
 
   private:
@@ -37,10 +33,5 @@ class UIPC_CORE_API DiffSim
     U<Impl> m_impl;
 
     void init(backend::SceneVisitor& scene);  // only be called by Scene
-
-    void H(const diff_sim::SparseCOOView& value);  // only be called by DiffSimVisitor
-    void pGpP(const diff_sim::SparseCOOView& value);  // only be called by DiffSimVisitor;
-    void need_backend_clear(bool value);  // only be called by DiffSimVisitor
-    bool need_backend_clear() const;
 };
 }  // namespace uipc::core

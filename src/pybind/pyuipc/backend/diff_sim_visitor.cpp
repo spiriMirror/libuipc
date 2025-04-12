@@ -13,8 +13,6 @@ PyDiffSimVisitor::PyDiffSimVisitor(py::module& m)
             [](DiffSimVisitor& self) -> diff_sim::ParameterCollection&
             { return self.parameters(); },
             py::return_value_policy::reference_internal)
-        .def("H", &DiffSimVisitor::H)
-        .def("pGpP", &DiffSimVisitor::pGpP)
         .def("ref", &DiffSimVisitor::ref, py::return_value_policy::reference_internal);
 }
 }  // namespace pyuipc::backend

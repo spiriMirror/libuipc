@@ -121,43 +121,8 @@ const diff_sim::ParameterCollection& DiffSim::parameters() const
     return m_impl->parameters;
 }
 
-diff_sim::SparseCOOView DiffSim::H() const
-{
-    return m_impl->H;
-}
-
-diff_sim::SparseCOOView DiffSim::pGpP() const
-{
-    return m_impl->pGpP;
-}
-
-void DiffSim::clear()
-{
-    m_impl->clear();
-}
-
-void DiffSim::need_backend_clear(bool value)
-{
-    m_impl->need_backend_clear = value;
-}
-
-bool DiffSim::need_backend_clear() const
-{
-    return m_impl->need_backend_clear;
-}
-
 void DiffSim::init(backend::SceneVisitor& scene_visitor)
 {
     m_impl->init(scene_visitor);
-}
-
-void DiffSim::H(const diff_sim::SparseCOOView& value)
-{
-    m_impl->H = value;
-}
-
-void DiffSim::pGpP(const diff_sim::SparseCOOView& value)
-{
-    m_impl->pGpP = value;
 }
 }  // namespace uipc::core
