@@ -157,126 +157,17 @@ void GlobalDiffSimManager::Impl::init(WorldVisitor& world)
 
 void GlobalDiffSimManager::Impl::update()
 {
-    auto& diff_sim = sim_engine->world().scene().diff_sim();
-
-    if(!diff_sim.need_backend_broadcast())
-        return;
-
-    // 1) Copy the new parameters to the device
-
-    auto parm_view = diff_sim.parameters().view();
-    parameters.view().copy_from(parm_view.data());
-
-    // 2) Update the diff_parm_reporters
-    auto diff_parm_reporter_view = diff_parm_reporters.view();
-    for(auto&& R : diff_parm_reporter_view)
-    {
-        DiffParmUpdateInfo info{this};
-        R->update_diff_parm(info);
-    }
-
-    diff_sim.need_backend_broadcast(false);
+    // Waiting for later version merging
 }
 
 void GlobalDiffSimManager::Impl::assemble()
 {
-    auto& diff_sim = sim_engine->world().scene().diff_sim();
-
-    // 0) Check if we need to clear the total coo matrices
-    if(diff_sim.need_backend_clear())
-    {
-        total_coo_pGpP.clear();
-        total_coo_H.clear();
-        dof_offsets.clear();
-        dof_counts.clear();
-        total_frame_dof_count = 0;
-        diff_sim.need_backend_clear(false);
-    }
-
-    // 1) Prepare the frame dof count
-    auto current_frame_dof_offset = total_frame_dof_count;
-    current_frame_dof_count       = global_linear_system->dof_count();
-    total_frame_dof_count += current_frame_dof_count;
-    dof_offsets.push_back(current_frame_dof_offset);
-    dof_counts.push_back(current_frame_dof_count);
-
-    // 2) Assemble the pGpH Triplets
-    {
-        auto diff_parm_reporter_view  = diff_parm_reporters.view();
-        auto diff_parm_triplet_counts = diff_parm_triplet_offset_count.counts();
-
-        for(auto&& [i, R] : enumerate(diff_parm_reporter_view))
-        {
-            DiffParmExtentInfo info{this, R->m_index};
-            R->report_extent(info);
-
-            diff_parm_triplet_counts[i] = info.m_triplet_count;
-        }
-
-        diff_parm_triplet_offset_count.scan();
-
-        auto M             = total_frame_dof_count;
-        auto N             = total_parm_count;
-        auto triplet_count = diff_parm_triplet_offset_count.total_count();
-
-        local_triplet_pGpP.reshape(M, N);
-        local_triplet_pGpP.resize_triplets(triplet_count);
-
-        for(auto&& R : diff_parm_reporter_view)
-        {
-            DiffParmInfo info{this, R->m_index};
-            R->assemble_diff_parm(info);
-        }
-
-        detail::build_coo_matrix(ctx(),  //
-                                 total_coo_pGpP,
-                                 total_triplet_pGpP,
-                                 local_triplet_pGpP);
-    }
-
-    // 3) Assemble the H Triplets
-    {
-        auto diff_dof_reporter_view  = diff_dof_reporters.view();
-        auto diff_dof_triplet_counts = diff_dof_triplet_offset_count.counts();
-
-        for(auto&& [i, R] : enumerate(diff_dof_reporter_view))
-        {
-            DiffDofExtentInfo info{this, R->m_index};
-            R->report_extent(info);
-
-            diff_dof_triplet_counts[i] = info.m_triplet_count;
-        }
-
-        diff_dof_triplet_offset_count.scan();
-
-        auto N             = total_frame_dof_count;
-        auto triplet_count = diff_dof_triplet_offset_count.total_count();
-
-        local_triplet_H.reshape(N, N);
-        local_triplet_H.resize_triplets(triplet_count);
-
-        for(auto&& R : diff_dof_reporter_view)
-        {
-            DiffDofInfo info{this, R->m_index};
-            R->assemble_diff_dof(info);
-        }
-
-        detail::build_coo_matrix(ctx(),  //
-                                 total_coo_H,
-                                 total_triplet_H,
-                                 local_triplet_H);
-    }
+    // Waiting for later version merging
 }
 
 void GlobalDiffSimManager::Impl::write_scene(WorldVisitor& world)
 {
-    auto& diff_sim = world.scene().diff_sim();
-
-    detail::copy_to_host(total_coo_pGpP, host_coo_pGpP);
-    detail::copy_to_host(total_coo_H, host_coo_H);
-
-    diff_sim.pGpP(host_coo_pGpP.view());
-    diff_sim.H(host_coo_H.view());
+    // Waiting for later version merging
 }
 
 void GlobalDiffSimManager::init()

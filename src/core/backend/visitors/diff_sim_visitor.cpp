@@ -20,35 +20,6 @@ const diff_sim::ParameterCollection& DiffSimVisitor::parameters() const
     return m_diff_sim.parameters();
 }
 
-void DiffSimVisitor::H(const diff_sim::SparseCOOView& value)
-{
-    m_diff_sim.H(value);
-}
-
-void DiffSimVisitor::pGpP(const diff_sim::SparseCOOView& value)
-{
-    m_diff_sim.pGpP(value);
-}
-
-void DiffSimVisitor::need_backend_broadcast(bool v)
-{
-    m_diff_sim.parameters().need_backend_broadcast(v);
-}
-
-bool uipc::backend::DiffSimVisitor::need_backend_broadcast() const
-{
-    return m_diff_sim.parameters().need_backend_broadcast();
-}
-void uipc::backend::DiffSimVisitor::need_backend_clear(bool v)
-{
-    m_diff_sim.need_backend_clear(v);
-}
-
-bool uipc::backend::DiffSimVisitor::need_backend_clear() const
-{
-    return m_diff_sim.need_backend_clear();
-}
-
 core::DiffSim& DiffSimVisitor::ref()
 {
     return m_diff_sim;

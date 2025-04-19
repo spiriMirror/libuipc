@@ -58,6 +58,10 @@ base_vcpkg_json = {
         {
             'name':'tbb',
             'version>=':'2022.0.0'
+        },
+        {
+            'name':'urdfdom',
+            'version>=':'3.1.1'
         }
     ],
     
