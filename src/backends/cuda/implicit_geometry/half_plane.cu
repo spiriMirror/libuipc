@@ -31,9 +31,18 @@ void HalfPlane::Impl::_find_geometry(WorldVisitor& world)
     for(auto slot : geo_slots)
     {
         geometry::Geometry* geo = &slot->geometry();
-        if(geo->type() == builtin::ImplicitGeometry)
+        if(geo->type() != builtin::ImplicitGeometry)
+            continue;
+        auto ig = geo->as<geometry::ImplicitGeometry>();
+        UIPC_ASSERT(ig, "ImplicitGeometry is expected here");
+
+        auto uid = ig->meta().find<U64>(builtin::implicit_geometry_uid);
+        if(!uid)
+            continue;
+
+        if(uid->view()[0] == HalfPlane::ImplicitGeometryUID)
         {
-            geo_buffer.push_back(geo->as<geometry::ImplicitGeometry>());
+            geo_buffer.push_back(ig);
         }
     }
 
