@@ -11,7 +11,7 @@ target("pyuipc")
         "geometry",
         "constitution",
         "io",
-        "sanity_check"
+        "uipc_sanity_check"
     )
     add_packages("pybind11")
 

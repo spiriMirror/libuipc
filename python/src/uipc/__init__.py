@@ -37,3 +37,4 @@ def init():
 init()
 
 from pyuipc import *
+__version__ = pyuipc.__version__
