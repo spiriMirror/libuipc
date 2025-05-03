@@ -30,6 +30,10 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
     if(!is_dynamic)
         is_dynamic = sc.vertices().create<IndexT>(builtin::is_dynamic, 1);
 
+    auto velocity = sc.vertices().find<Vector3>(builtin::velocity);
+    if(!velocity)
+        velocity = sc.vertices().create<Vector3>(builtin::velocity, Vector3::Zero());
+
     auto attr_thickness = sc.vertices().find<Float>(builtin::thickness);
     if(!attr_thickness)
         attr_thickness = sc.vertices().create<Float>(builtin::thickness, 0.0);

@@ -11,6 +11,8 @@
 #include <linear_system/global_linear_system.h>
 #include <sim_engine.h>
 #include <uipc/common/log.h>
+#include <affine_body/affine_body_dynamics.h>
+#include <finite_element/finite_element_method.h>
 
 namespace uipc::backend::cuda
 {
@@ -32,6 +34,9 @@ void SimEngine::build()
     m_global_animator                   = find<GlobalAnimator>();
     m_global_diff_sim_manager           = find<GlobalDiffSimManager>();
 
+    m_affine_body_dynamics  = find<AffineBodyDynamics>();
+    m_finite_element_method = find<FiniteElementMethod>();
+
     // 3) dump system info
     dump_system_info();
 }
@@ -49,18 +54,32 @@ void SimEngine::init_scene()
 
     m_abs_tol = m_newton_velocity_tol * dt;
 
+    // 1. Before Common Scene Initialization
+    if(m_affine_body_dynamics)
+        m_affine_body_dynamics->init();
+    if(m_finite_element_method)
+        m_finite_element_method->init();
+
+    // 2. Common Scene Initialization Phase
     event_init_scene();
 
-    // some systems should be initialized after the scene is built
-    m_global_linear_system->init();
+    // 3. After Common Scene Initialization
+    // 3.1 Forwards
     m_global_vertex_manager->init();
     m_global_simplicial_surface_manager->init();
     if(m_global_contact_manager)
         m_global_contact_manager->init();
     if(m_global_animator)
         m_global_animator->init();
+    m_global_linear_system->init();
+
+    // 3.2 Backwards (if needed)
     if(m_global_diff_sim_manager)
         m_global_diff_sim_manager->init();
+    //if(m_global_diff_contact_manager)
+    //    m_global_diff_contact_manager->init();
+    //if(m_abd_diff_sim_manager)
+    //    m_abd_diff_sim_manager->init();
 }
 
 void SimEngine::do_init(InitInfo& info)

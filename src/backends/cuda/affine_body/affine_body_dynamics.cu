@@ -1,9 +1,11 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <affine_body/utils.h>
 #include <affine_body/abd_line_search_reporter.h>
+#include <fstream>
+#include <algorithm>
+
 #include <affine_body/affine_body_constitution.h>
 #include <Eigen/Dense>
-#include <algorithm>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
 #include <uipc/builtin/attribute_name.h>
@@ -13,13 +15,12 @@
 #include <muda/cub/device/device_reduce.h>
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
-#include <muda/ext/eigen/evd.h>
-#include <fstream>
 #include <sim_engine.h>
 #include <uipc/builtin/constitution_type.h>
 #include <uipc/geometry/utils/affine_body/compute_dyadic_mass.h>
 #include <uipc/geometry/utils/affine_body/compute_body_force.h>
 #include <muda/ext/eigen/inverse.h>
+#include <uipc/builtin/attribute_name.h>
 
 namespace uipc::backend
 {
@@ -48,9 +49,6 @@ void AffineBodyDynamics::do_build()
 {
     // find dependent systems
     auto& dof_predictor = require<DofPredictor>();
-
-    // Register the action to initialize the affine body geometry
-    on_init_scene([this] { m_impl.init(world()); });
 
     // Register the action to predict the affine body dof
     dof_predictor.on_predict(*this,
@@ -85,11 +83,17 @@ void AffineBodyDynamics::do_clear_recover(RecoverInfo& info)
 {
     m_impl.clear_recover(info);
 }
-}  // namespace uipc::backend::cuda
 
-
-namespace uipc::backend::cuda
+IndexT AffineBodyDynamics::dof_offset(SizeT frame) const
 {
+    return m_impl.dof_offset(frame);
+}
+
+IndexT AffineBodyDynamics::dof_count(SizeT frame) const
+{
+    return m_impl.dof_count(frame);
+}
+
 void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
 {
     check_state(SimEngineState::BuildSystems, "add_constitution()");
@@ -98,8 +102,23 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
     m_impl.constitutions.register_subsystem(*constitution);
 }
 
+void AffineBodyDynamics::add_reporter(AffineBodyKineticDiffParmReporter* reporter)
+{
+    UIPC_ASSERT(false, "NOT IMPL IN THIS VERSION");
+
+    //check_state(SimEngineState::BuildSystems, "add_reporter()");
+    //m_impl.diff_parm_reporter.register_subsystem(*reporter);
+}
+
+void AffineBodyDynamics::init()
+{
+    m_impl.init(world());
+}
+
 void AffineBodyDynamics::Impl::init(WorldVisitor& world)
 {
+    _init_dof_info();
+
     _build_constitutions(world);
     _build_geo_infos(world);
     _setup_geometry_attributes(world);
@@ -108,6 +127,8 @@ void AffineBodyDynamics::Impl::init(WorldVisitor& world)
     _build_geometry_on_device(world);
 
     _distribute_geo_infos();
+
+    _init_diff_reporters();
 }
 
 void AffineBodyDynamics::Impl::_build_constitutions(WorldVisitor& world)
@@ -289,38 +310,37 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     auto rest_geo_slots    = scene.rest_geometries();
     auto constitution_view = constitutions.view();
 
-    // 1) Setup `q` for every affine body
+    // 1) Setup `q` and `q_v` for every affine body
     {
         h_body_id_to_q.resize(abd_body_count);
+        h_body_id_to_q_v.resize(abd_body_count, Vector12::Zero());
 
-        // SizeT bodyI = 0;
         for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc)
             { return sc.transforms().view(); },
             [&](const ForEachInfo& I, const Matrix4x4& trans)
             {
-                auto bodyI = I.global_index();
-
-                Float D = trans.block<3, 3>(0, 0).determinant();
-
+                auto  bodyI = I.global_index();
+                Float D     = trans.block<3, 3>(0, 0).determinant();
+                UIPC_ASSERT(D >= 0, "determinant of the transform matrix is non-positive, why can it happen?");
                 Vector12& q = h_body_id_to_q[bodyI];
-
-                q = transform_to_q(trans);
+                q           = transform_to_q(trans);
             });
-        
+
         for_each(
-            rest_geo_slots,
+            geo_slots,
             [](geometry::SimplicialComplex& sc)
-            { return sc.transforms().view(); },
-            [&](const ForEachInfo& I, const Matrix4x4 trans)
             {
-                auto bodyI = I.global_index();
-
-                Float D = trans.block<3,3>(0,0).determinant();
-
-                if(!Eigen::Vector<Float, 1>{D}.isApproxToConstant(1.0, 1e-6))
-                    spdlog::warn("Don't apply scaling on Affine Body's rest shape.");
+                auto vel = sc.instances().find<Matrix4x4>(builtin::velocity);
+                return vel ? vel->view() : span<const Matrix4x4>{};
+            },
+            [&](const ForEachInfo& I, const Matrix4x4& velocity)
+            {
+                auto&     geo_info = I.geo_info();
+                auto      bodyI    = geo_info.body_offset + I.local_index();
+                Vector12& q_v      = h_body_id_to_q_v[bodyI];
+                q_v                = transform_to_q(velocity);
             });
     }
 
@@ -356,7 +376,9 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     }
 
 
-    // 3) Setup `vertex_id_to_body_id` and `vertex_id_to_contact_element_id`
+    // 3) Setup:
+    // - `vertex_id_to_body_id`
+    // - `vertex_id_to_contact_element_id`
     {
         h_vertex_id_to_body_id.resize(abd_vertex_count);
         h_vertex_id_to_contact_element_id.resize(abd_vertex_count);
@@ -420,10 +442,14 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
             });
     }
 
-    // 4) Setup body_abd_mass and body_id_to_volume
+    // 4) Setup:
+    // - `body_abd_mass`
+    // - `body_id_to_volume`
+    // - `body_id_to_dim`
     {
         h_body_id_to_abd_mass.resize(abd_body_count);
         h_body_id_to_volume.resize(abd_body_count);
+        h_body_id_to_dim.resize(abd_body_count);
 
         span Js = h_vertex_id_to_J;
 
@@ -453,18 +479,26 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          uipc::geometry::affine_body::compute_dyadic_mass(
                              sc, rho_view[0], m, m_x_bar, m_x_bar_x_bar);
                          geo_mass = ABDJacobiDyadicMass::from_dyadic_mass(m, m_x_bar, m_x_bar_x_bar);
+
+                         //std::cout << "mass: \n"
+                         //          << geo_mass.to_mat() << std::endl;
                      }
 
                      auto volume = sc.instances().find<Float>(builtin::volume);
                      UIPC_ASSERT(volume, "The `volume` attribute is not found in the affine body instance, why can it happen?");
 
                      auto volume_view = volume->view();
+                     //std::cout << "volume: " << volume_view[0] << std::endl;
 
                      for(auto i : range(body_count))
                      {
-                         auto body_id                   = body_offset + i;
+                         auto body_id = body_offset + i;
+                         // mass
                          h_body_id_to_abd_mass[body_id] = geo_mass;
-                         h_body_id_to_volume[body_id]   = volume_view[i];
+                         // volume
+                         h_body_id_to_volume[body_id] = volume_view[i];
+                         // dim
+                         h_body_id_to_dim[body_id] = sc.dim();
                      }
                  });
     }
@@ -515,6 +549,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          Vector12 G =
                              uipc::geometry::affine_body::compute_body_force(sc, force_density);
 
+                         // std::cout << "force: " << G.transpose() << std::endl;
+
                          Matrix12x12 abd_body_mass_inv =
                              h_body_id_to_abd_mass_inv[body_offset];
                          Vector12 g = abd_body_mass_inv * G;
@@ -522,6 +558,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          auto body_id = body_offset + i;
 
                          h_body_id_to_abd_gravity[body_id] = g;
+
+                         // std::cout << "gravity: " << g.transpose() << std::endl;
                      }
                  });
     }
@@ -568,6 +606,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     };
 
     async_copy(span{h_body_id_to_q}, body_id_to_q);
+    async_copy(span{h_body_id_to_q_v}, body_id_to_q_v);
+    async_copy(span{h_body_id_to_dim}, body_id_to_dim);
     async_copy(span{h_vertex_id_to_J}, vertex_id_to_J);
     async_copy(span{h_vertex_id_to_body_id}, vertex_id_to_body_id);
     async_copy(span{h_body_id_to_abd_mass}, body_id_to_abd_mass);
@@ -594,7 +634,6 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
         muda::BufferLaunch().fill<T>(buf.view(), value);
     };
 
-    async_resize(body_id_to_q_v, abd_body_count, Vector12::Zero().eval());
     async_resize(body_id_to_dq, abd_body_count, Vector12::Zero().eval());
 
     // setup body kinetic energy buffer
@@ -607,7 +646,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_resize(body_id_to_body_hessian, abd_body_count, Matrix12x12::Zero().eval());
     async_resize(body_id_to_body_gradient, abd_body_count, Vector12::Zero().eval());
 
-    muda::wait_device();
+    muda::wait_stream(nullptr);
 }
 
 void AffineBodyDynamics::Impl::_distribute_geo_infos()
@@ -618,6 +657,47 @@ void AffineBodyDynamics::Impl::_distribute_geo_infos()
         FilteredInfo info{this, I};
         constitution->init(info);
     }
+}
+
+void AffineBodyDynamics::Impl::set_dof_info(SizeT frame, IndexT dof_offset, IndexT dof_count)
+{
+    UIPC_ASSERT(frame > 0, "frame 0 is not used");
+    if(frame_to_dof_count.size() <= frame)
+    {
+        frame_to_dof_count.resize(frame + 1, -1);
+        frame_to_dof_offset.resize(frame + 1, -1);
+    }
+    frame_to_dof_count[frame]  = dof_count;
+    frame_to_dof_offset[frame] = dof_offset;
+}
+
+void AffineBodyDynamics::Impl::_init_dof_info()
+{
+    frame_to_dof_count.reserve(1024);
+    frame_to_dof_offset.reserve(1024);
+    // frame 0 is not used, just fill 0
+    frame_to_dof_offset.push_back(0);
+    frame_to_dof_count.push_back(0);
+}
+
+void AffineBodyDynamics::Impl::_init_diff_reporters()
+{
+    //for(auto&& reporter : diff_parm_reporter.view())
+    //{
+    //    reporter->init();
+    //}
+}
+
+void AffineBodyDynamics::Impl::_download_geometry_to_host()
+{
+    using namespace muda;
+
+    auto aync_copy = []<typename T>(muda::DeviceBuffer<T>& src, span<T> dst)
+    { muda::BufferLaunch().copy<T>(dst.data(), src.view()); };
+
+    aync_copy(body_id_to_q, span{h_body_id_to_q});
+
+    muda::wait_device();
 }
 
 void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
@@ -644,16 +724,16 @@ void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
         });
 }
 
-void AffineBodyDynamics::Impl::_download_geometry_to_host()
+IndexT AffineBodyDynamics::Impl::dof_offset(SizeT frame) const
 {
-    using namespace muda;
+    UIPC_ASSERT(frame > 0, "frame 0 is not used");
+    return frame_to_dof_offset[frame];
+}
 
-    auto aync_copy = []<typename T>(muda::DeviceBuffer<T>& src, span<T> dst)
-    { muda::BufferLaunch().copy<T>(dst.data(), src.view()); };
-
-    aync_copy(body_id_to_q, span{h_body_id_to_q});
-
-    muda::wait_device();
+IndexT AffineBodyDynamics::Impl::dof_count(SizeT frame) const
+{
+    UIPC_ASSERT(frame > 0, "frame 0 is not used");
+    return frame_to_dof_count[frame];
 }
 }  // namespace uipc::backend::cuda
 
@@ -698,6 +778,8 @@ void AffineBodyDynamics::Impl::clear_recover(RecoverInfo& info)
 
 
 // Simulation:
+// TODO:
+// Later, may we need to abstract this part as VelocityIntegrator ...
 namespace uipc::backend::cuda
 {
 void AffineBodyDynamics::Impl::compute_q_tilde(DofPredictor::PredictInfo& info)
@@ -757,5 +839,82 @@ void AffineBodyDynamics::Impl::compute_q_v(DofPredictor::ComputeVelocityInfo& in
 
                    q_prev = q;
                });
+}
+}  // namespace uipc::backend::cuda
+
+namespace uipc::backend::cuda
+{
+AffineBodyDynamics::FilteredInfo::FilteredInfo(Impl* impl, SizeT constitution_index) noexcept
+    : m_impl(impl)
+    , m_constitution_index(constitution_index)
+{
+}
+
+auto AffineBodyDynamics::FilteredInfo::geo_infos() const noexcept -> span<const GeoInfo>
+{
+
+    auto& constitution_info = m_impl->constitution_infos[m_constitution_index];
+    return span{m_impl->geo_infos}.subspan(constitution_info.geo_offset,
+                                           constitution_info.geo_count);
+}
+
+auto AffineBodyDynamics::FilteredInfo::constitution_info() const noexcept
+    -> const ConstitutionInfo&
+{
+    return m_impl->constitution_infos[m_constitution_index];
+}
+
+SizeT AffineBodyDynamics::FilteredInfo::body_count() const noexcept
+{
+    return constitution_info().body_count;
+}
+
+SizeT AffineBodyDynamics::FilteredInfo::vertex_count() const noexcept
+{
+    return constitution_info().vertex_count;
+}
+
+AffineBodyDynamics::ComputeEnergyInfo::ComputeEnergyInfo(Impl* impl,
+                                                         SizeT constitution_index,
+                                                         Float dt) noexcept
+    : m_impl(impl)
+    , m_constitution_index(constitution_index)
+    , m_dt(dt)
+{
+}
+
+AffineBodyDynamics::ComputeGradientHessianInfo::ComputeGradientHessianInfo(
+    Impl*                         impl,
+    SizeT                         constitution_index,
+    muda::BufferView<Vector12>    shape_gradient,
+    muda::BufferView<Matrix12x12> shape_hessian,
+    Float                         dt) noexcept
+    : m_impl(impl)
+    , m_constitution_index(constitution_index)
+    , m_shape_gradient(shape_gradient)
+    , m_shape_hessian(shape_hessian)
+    , m_dt(dt)
+{
+}
+
+muda::CBufferView<Vector12> AffineBodyDynamics::ComputeEnergyInfo::qs() const noexcept
+{
+    return m_impl->subview(m_impl->body_id_to_q, m_constitution_index);
+}
+muda::CBufferView<Float> AffineBodyDynamics::ComputeEnergyInfo::volumes() const noexcept
+{
+    return m_impl->subview(m_impl->body_id_to_volume, m_constitution_index);
+}
+muda::BufferView<Float> AffineBodyDynamics::ComputeEnergyInfo::body_shape_energies() const noexcept
+{
+    return m_impl->subview(m_impl->body_id_to_shape_energy, m_constitution_index);
+}
+muda::CBufferView<Vector12> AffineBodyDynamics::ComputeGradientHessianInfo::qs() const noexcept
+{
+    return m_impl->subview(m_impl->body_id_to_q, m_constitution_index);
+}
+muda::CBufferView<Float> AffineBodyDynamics::ComputeGradientHessianInfo::volumes() const noexcept
+{
+    return m_impl->subview(m_impl->body_id_to_volume, m_constitution_index);
 }
 }  // namespace uipc::backend::cuda

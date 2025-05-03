@@ -3,6 +3,23 @@
 namespace uipc::backend::cuda
 {
 template <typename ViewGetterF, typename ForEachF>
+void AffineBodyDynamics::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                  ViewGetterF&&                   getter,
+                                  ForEachF&&                      for_each)
+{
+    m_impl.template for_each(geo_slots,
+                             std::forward<ViewGetterF>(getter),
+                             std::forward<ForEachF>(for_each));
+}
+template <typename ForEachGeometry>
+void AffineBodyDynamics::for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                  ForEachGeometry&& for_every_geometry)
+{
+    m_impl.template for_each(geo_slots, std::forward<ForEachGeometry>(for_every_geometry));
+}
+
+
+template <typename ViewGetterF, typename ForEachF>
 void AffineBodyDynamics::Impl::_for_each(span<S<geometry::GeometrySlot>> geo_slots,
                                          span<const GeoInfo> geo_infos,
                                          ViewGetterF&&       getter,
@@ -20,6 +37,7 @@ void AffineBodyDynamics::Impl::_for_each(span<S<geometry::GeometrySlot>> geo_slo
 
         auto attr_view             = getter(*sc);
         foreach_info.m_local_index = 0;
+        foreach_info.m_geo_info    = &geo_info;
         for(auto&& value : attr_view)
         {
             for_each(foreach_info, value);
@@ -47,6 +65,7 @@ void AffineBodyDynamics::Impl::_for_each(span<S<geometry::GeometrySlot>> geo_slo
 
         if constexpr(std::is_invocable_v<ForEachGeometry, const ForEachInfo&, geometry::SimplicialComplex&>)
         {
+            foreach_info.m_geo_info = &geo_info;
             for_every_geometry(foreach_info, *sc);
             ++foreach_info.m_global_index;
         }
@@ -110,12 +129,5 @@ void AffineBodyDynamics::FilteredInfo::for_each(span<S<geometry::GeometrySlot>> 
                                                 ForEachGeometry&& for_every_geometry) const
 {
     m_impl->_for_each(geo_slots, geo_infos(), std::forward<ForEachGeometry>(for_every_geometry));
-}
-
-template <typename ForEachGeometry>
-void AffineBodyDynamics::for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                                  ForEachGeometry&& for_every_geometry)
-{
-    m_impl.for_each(geo_slots, std::forward<ForEachGeometry>(for_every_geometry));
 }
 }  // namespace uipc::backend::cuda

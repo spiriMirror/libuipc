@@ -18,6 +18,8 @@ class GradientHessianComputer;
 class GlobalLinearSystem;
 class GlobalAnimator;
 class GlobalDiffSimManager;
+class AffineBodyDynamics;
+class FiniteElementMethod;
 
 class SimEngine final : public backend::SimEngine
 {
@@ -74,6 +76,11 @@ class SimEngine final : public backend::SimEngine
     GlobalLinearSystem*      m_global_linear_system      = nullptr;
     GlobalAnimator*          m_global_animator           = nullptr;
     GlobalDiffSimManager*    m_global_diff_sim_manager   = nullptr;
+    //GlobalDiffContactManager*    m_global_diff_contact_manager    = nullptr;
+    //GlobalAdjointMethodReplayer* m_global_adjoint_method_replayer = nullptr;
+    AffineBodyDynamics* m_affine_body_dynamics = nullptr;
+    //ABDDiffSimManager*           m_abd_diff_sim_manager           = nullptr;
+    FiniteElementMethod* m_finite_element_method = nullptr;
 
     Float m_abs_tol             = 0.0;
     Float m_newton_velocity_tol = 0.01;

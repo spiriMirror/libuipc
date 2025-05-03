@@ -11,7 +11,10 @@
 namespace uipc::backend::cuda
 {
 class AffineBodyConstitution;
-class AffineBodyEnergyProducer;
+class AffineBodyDiffParmReporter;
+class AffineBodyDiffDofReporter;
+class AffineBodyKineticDiffParmReporter;
+
 class AffineBodyDynamics : public SimSystem
 {
     template <typename T>
@@ -25,18 +28,6 @@ class AffineBodyDynamics : public SimSystem
 
     class Impl;
 
-    class ForEachInfo
-    {
-      public:
-        SizeT global_index() const noexcept { return m_global_index; }
-        SizeT local_index() const noexcept { return m_local_index; }
-
-      private:
-        friend class AffineBodyDynamics;
-        SizeT m_global_index = 0;
-        SizeT m_local_index  = 0;
-    };
-
     class GeoInfo
     {
       public:
@@ -49,6 +40,20 @@ class AffineBodyDynamics : public SimSystem
 
         SizeT body_offset = 0;
         SizeT body_count  = 0;
+    };
+
+    class ForEachInfo
+    {
+      public:
+        SizeT          global_index() const noexcept { return m_global_index; }
+        SizeT          local_index() const noexcept { return m_local_index; }
+        const GeoInfo& geo_info() const noexcept { return *m_geo_info; }
+
+      private:
+        friend class AffineBodyDynamics;
+        SizeT          m_global_index = 0;
+        SizeT          m_local_index  = 0;
+        const GeoInfo* m_geo_info     = nullptr;
     };
 
     class ConstitutionInfo
@@ -183,10 +188,12 @@ class AffineBodyDynamics : public SimSystem
         void _build_geometry_on_host(WorldVisitor& world);
         void _build_geometry_on_device(WorldVisitor& world);
         void _distribute_geo_infos();
-
-        void write_scene(WorldVisitor& world);
         void _download_geometry_to_host();
 
+        void _init_dof_info();
+        void _init_diff_reporters();
+
+        void write_scene(WorldVisitor& world);
         void compute_q_tilde(DofPredictor::PredictInfo& info);
         void compute_q_v(DofPredictor::ComputeVelocityInfo& info);
 
@@ -222,17 +229,19 @@ class AffineBodyDynamics : public SimSystem
         SizeT body_count() const noexcept { return abd_body_count; }
         SizeT vertex_count() const noexcept { return abd_vertex_count; }
 
-        SimSystemSlotCollection<AffineBodyEnergyProducer> energy_producers;
-        SimSystemSlotCollection<AffineBodyConstitution>   constitutions;
-        unordered_map<U64, IndexT> constitution_uid_to_index;
+        SimSystemSlotCollection<AffineBodyConstitution> constitutions;
 
         SizeT abd_geo_count    = 0;
         SizeT abd_body_count   = 0;
         SizeT abd_vertex_count = 0;
 
         // core invariant data
-        vector<GeoInfo>          geo_infos;
-        vector<ConstitutionInfo> constitution_infos;
+        vector<GeoInfo>            geo_infos;
+        unordered_map<U64, IndexT> constitution_uid_to_index;
+        vector<ConstitutionInfo>   constitution_infos;
+
+        // diff reporters
+        SimSystemSlotCollection<AffineBodyDiffParmReporter> diff_parm_reporter;
 
 
         /******************************************************************************
@@ -241,9 +250,10 @@ class AffineBodyDynamics : public SimSystem
         vector<ABDJacobi> h_vertex_id_to_J;
         vector<IndexT>    h_vertex_id_to_body_id;
         vector<IndexT>    h_vertex_id_to_contact_element_id;
-        // vector<Float>     h_vertex_id_to_mass;
 
         vector<Vector12>            h_body_id_to_q;
+        vector<Vector12>            h_body_id_to_q_v;
+        vector<IndexT>              h_body_id_to_dim;  // 2 or 3
         vector<ABDJacobiDyadicMass> h_body_id_to_abd_mass;
         vector<Matrix12x12>         h_body_id_to_abd_mass_inv;
         vector<Float>               h_body_id_to_volume;
@@ -271,6 +281,9 @@ class AffineBodyDynamics : public SimSystem
         *******************************************************************************
         * abd body attributes are something that involved into physics simulation
         *******************************************************************************/
+
+        // dim = 2 or 3, 2 for affine body from trimesh, 3 for affine body from tetmesh
+        DeviceBuffer<IndexT> body_id_to_dim;
         //tex:
         //$$
         //\mathbf{M}_i
@@ -335,12 +348,6 @@ class AffineBodyDynamics : public SimSystem
         // built from the tetrahedrons $\mathcal{T}_j$ it contains.
         DeviceBuffer<Vector12> body_id_to_abd_force;
 
-        //tex:
-        //$$
-        //\mathbf{G}_i
-        // =
-        // \mathbf{M}_i^{-1}\left( \sum_{j \in \mathcal{B}_i} \sum_{k \in \mathcal{T}_j} \mathbf{J}_k^T m_k g_k\right)
-        //$$
         DeviceBuffer<Vector12> body_id_to_abd_gravity;
 
         DeviceBuffer<IndexT> body_id_to_is_fixed;    // Body IsFixed
@@ -361,7 +368,7 @@ class AffineBodyDynamics : public SimSystem
         //tex: $$ \mathbf{g}_{i} $$
         DeviceBuffer<Vector12> body_id_to_body_gradient;
 
-        //tex: consider contact
+        //tex: diag hessian consider contact
         DeviceBuffer<Matrix12x12> diag_hessian;
 
         template <typename T>
@@ -371,9 +378,34 @@ class AffineBodyDynamics : public SimSystem
         template <typename T>
         span<T> subview(vector<T>& body_id_to_values, SizeT constitution_index) const noexcept;
 
+        // Dump:
+
         BufferDump dump_q;
         BufferDump dump_q_v;
         BufferDump dump_q_prev;
+
+        // Dof Info:
+        void set_dof_info(SizeT frame, IndexT dof_offset, IndexT dof_count);
+
+        /**
+         * @brief dof offset in global linear system at the given frame.
+         * 
+         * \param frame
+         * \return 
+         */
+        IndexT dof_offset(SizeT frame) const;
+
+        /**
+         * @brief dof count in global linear system at the given frame.
+         * 
+         * \param frame
+         * \return 
+         */
+        IndexT dof_count(SizeT frame) const;
+
+      private:
+        vector<IndexT> frame_to_dof_offset;
+        vector<IndexT> frame_to_dof_count;
     };
 
   public:
@@ -388,14 +420,65 @@ class AffineBodyDynamics : public SimSystem
 
     auto qs() const noexcept { return m_impl.body_id_to_q.view(); }
 
+    auto q_tildes() const noexcept { return m_impl.body_id_to_q_tilde.view(); }
+
     auto q_prevs() const noexcept { return m_impl.body_id_to_q_prev.view(); }
 
     auto q_vs() const noexcept { return m_impl.body_id_to_q_v.view(); }
+
+    auto body_volumes() const noexcept
+    {
+        return m_impl.body_id_to_volume.view();
+    }
+
+    auto body_masses() const noexcept
+    {
+        return m_impl.body_id_to_abd_mass.view();
+    }
+
+    auto body_mass_invs() const noexcept
+    {
+        return m_impl.body_id_to_abd_mass_inv.view();
+    }
+
+    auto body_gravities() const noexcept
+    {
+        return m_impl.body_id_to_abd_gravity.view();
+    }
 
     auto body_is_fixed() const noexcept
     {
         return m_impl.body_id_to_is_fixed.view();
     }
+
+    auto body_is_dynamic() const noexcept
+    {
+        return m_impl.body_id_to_is_dynamic.view();
+    }
+
+    /**
+     * @brief return the body dimension of ABD at the given body.
+     * 
+     * - dim = 2: affine body represented by trimesh (still 3D entity)
+     * - dim = 3: affine body represented by tetmesh
+     *
+     */
+    auto body_dim() const noexcept { return m_impl.body_id_to_dim.view(); }
+
+    /**
+     * @brief return the frame-local dof offset of ABD at the given frame.
+     */
+    IndexT dof_offset(SizeT frame) const;
+    /**
+     * @brief return the frame-local dof count of ABD at the given frame.
+     */
+    IndexT dof_count(SizeT frame) const;
+
+    /*
+     * @brief Short-cut to traverse all bodies of current constitution.
+     */
+    template <typename ViewGetterF, typename ForEachF>
+    void for_each(span<S<geometry::GeometrySlot>> geo_slots, ViewGetterF&& getter, ForEachF&& for_each);
 
     template <typename ForEachGeometry>
     void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_every_geometry);
@@ -415,7 +498,16 @@ class AffineBodyDynamics : public SimSystem
     friend class ABDGradientHessianComputer;
     friend class AffineBodyAnimator;
 
-    friend class AffineBodyEnergyProducer;
+    friend class AffineBodyDiffParmReporter;
+    friend class AffineBodyDiffDofReporter;
+    friend class ABDAdjointMethodReplayer;
+    friend class ABDDiffSimManager;
+
+    friend class AffineBodyKineticDiffParmReporter;
+    void add_reporter(AffineBodyKineticDiffParmReporter* reporter);
+
+    friend class SimEngine;
+    void init();  // only be called by SimEngine
 
     Impl m_impl;
 };
