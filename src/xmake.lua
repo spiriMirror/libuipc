@@ -20,7 +20,7 @@ target("io")
     add_headerfiles(path.join(os.projectdir(), "include/uipc/io/*.h"))
     add_deps("geometry")
 
-target("sanity_check")
+target("uipc_sanity_check")
     add_rules("component")
     add_files("sanity_check/*.cpp")
     add_includedirs("sanity_check")

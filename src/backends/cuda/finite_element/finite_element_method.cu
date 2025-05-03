@@ -507,8 +507,8 @@ void FiniteElementMethod::Impl::_build_base_constitution_infos()
 
         SizeT dim_geo_offset    = dim_info.geo_info_offset;
         SizeT dim_vertex_offset = 0;
-        //auto  infotest          = geo_infos;
-        if(geo_infos.size() > dim_info.geo_info_offset)
+
+        if(geo_infos.size() > dim_geo_offset)
         {
             const auto& begin_geo         = geo_infos[dim_geo_offset];
             SizeT       dim_vertex_offset = begin_geo.vertex_offset;
