@@ -25,6 +25,7 @@
 // diff parm reporters
 #include <finite_element/finite_element_diff_parm_reporter.h>
 #include <finite_element/finite_element_constitution_diff_parm_reporter.h>
+#include <finite_element/finite_element_extra_constitution_diff_parm_reporter.h>
 
 
 namespace uipc::backend
@@ -65,9 +66,6 @@ void FiniteElementMethod::do_build()
 
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
 
-    // Register the action to initialize the finite element geometry
-    on_init_scene([this] { m_impl.init(world()); });
-
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });
 }
@@ -102,8 +100,25 @@ void FiniteElementMethod::add_constitution(FiniteElementKinetic* constitution)
 
 void FiniteElementMethod::add_reporter(FiniteElementConstitutionDiffParmReporter* reporter)
 {
-    check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_impl.constitution_diff_parm_reporters.register_subsystem(*reporter);
+    //check_state(SimEngineState::BuildSystems, "add_reporter()");
+    //m_impl.constitution_diff_parm_reporters.register_subsystem(*reporter);
+}
+
+void FiniteElementMethod::add_reporter(FiniteElementExtraConstitutionDiffParmReporter* reporter)
+{
+    //check_state(SimEngineState::BuildSystems, "add_reporter()");
+    //m_impl.extra_constitution_diff_parm_reporters.register_subsystem(*reporter);
+}
+
+void FiniteElementMethod::add_kinetic_reporter(FiniteElementDiffParmReporter* reporter)
+{
+    //check_state(SimEngineState::BuildSystems, "add_reporter()");
+    //m_impl.kinetic_diff_parm_reporter.register_subsystem(*reporter);
+}
+
+void FiniteElementMethod::init()
+{
+    m_impl.init(world());
 }
 
 bool FiniteElementMethod::do_dump(DumpInfo& info)
@@ -128,26 +143,20 @@ void FiniteElementMethod::do_clear_recover(RecoverInfo& info)
 
 void FiniteElementMethod::Impl::init(WorldVisitor& world)
 {
-    // 1) Initialize the constitutions
-    _init_constitutions();
+    _init_dof_info();
+
+    // 1) setup base constitution infos
+    _classify_base_constitutions();
     _build_geo_infos(world);
-    _build_constitution_infos();
+    _build_base_constitution_infos();
     _build_on_host(world);
     _build_on_device();
-    _distribute_constitution_filtered_info();
 
-    // 2) Initialize the extra constitutions
+    // 2) Init event
+    _init_base_constitution();
     _init_extra_constitutions();
-
-
-    // 3) Initialize the energy producers
     _init_energy_producers();
-
-
-    // 4) Initialize the diff reporters
-    _init_dof_info();
     _init_diff_reporters();
-    _distribute_diff_reporter_filtered_info();
 }
 
 void FiniteElementMethod::Impl::_init_dof_info()
@@ -155,11 +164,11 @@ void FiniteElementMethod::Impl::_init_dof_info()
     frame_to_dof_count.reserve(1024);
     frame_to_dof_offset.reserve(1024);
     // frame 0 is not used
-    frame_to_dof_offset.push_back(-1);
-    frame_to_dof_count.push_back(-1);
+    frame_to_dof_offset.push_back(0);
+    frame_to_dof_count.push_back(0);
 }
 
-void FiniteElementMethod::Impl::_init_constitutions()
+void FiniteElementMethod::Impl::_classify_base_constitutions()
 {
     auto constitution_view = constitutions.view();
 
@@ -231,20 +240,36 @@ void FiniteElementMethod::Impl::_init_constitutions()
 
 void FiniteElementMethod::Impl::_init_diff_reporters()
 {
-    auto constitution_diff_parm_reporter_view = constitution_diff_parm_reporters.view();
-    for(auto& cdpr : constitution_diff_parm_reporter_view)
-    {
-        cdpr->connect();  // connect the reporter to the related constitution
-    }
-}
+    //if(kinetic_diff_parm_reporter)
+    //{
+    //    kinetic_diff_parm_reporter.view()->init();
+    //}
 
-void FiniteElementMethod::Impl::_distribute_diff_reporter_filtered_info()
-{
-    auto constitution_diff_parm_reporter_view = constitution_diff_parm_reporters.view();
-    for(auto& cdpr : constitution_diff_parm_reporter_view)
-    {
-        cdpr->init();
-    }
+    //auto constitution_diff_parm_reporter_view = constitution_diff_parm_reporters.view();
+    //auto extra_constitution_diff_parm_reporter_view =
+    //    extra_constitution_diff_parm_reporters.view();
+
+    //// 1. Connect the reporter to the related constitution
+    //for(auto& cdpr : constitution_diff_parm_reporter_view)
+    //{
+    //    cdpr->connect();
+    //}
+
+    //for(auto& ecdpr : extra_constitution_diff_parm_reporter_view)
+    //{
+    //    ecdpr->connect();
+    //}
+
+    //// 2. Init the reporter
+    //for(auto& cdpr : constitution_diff_parm_reporter_view)
+    //{
+    //    cdpr->init();
+    //}
+
+    //for(auto& ecdpr : extra_constitution_diff_parm_reporter_view)
+    //{
+    //    ecdpr->init();
+    //}
 }
 
 void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
@@ -449,7 +474,7 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
     h_tets.resize(dim_infos[3].primitive_count);
 }
 
-void FiniteElementMethod::Impl::_build_constitution_infos()
+void FiniteElementMethod::Impl::_build_base_constitution_infos()
 {
     auto build_infos = [&]<std::derived_from<FiniteElementConstitution> ConstitutionT>(
                            vector<ConstitutionInfo>& infos,
@@ -513,6 +538,7 @@ void FiniteElementMethod::Impl::_build_constitution_infos()
             info.geo_info_count   = geometry_counts[i];
             info.geo_info_offset  = geometry_offsets[i];
         }
+        return 0;
     };
 
 
@@ -529,6 +555,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
 
     // resize buffers
     h_rest_positions.resize(h_positions.size());
+    h_velocities.resize(h_positions.size(), Vector3::Zero());  // fill 0 for default
     h_thicknesses.resize(h_positions.size(), 0);  // fill 0 for default
     h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
     h_masses.resize(h_positions.size());
@@ -617,7 +644,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
             std::ranges::fill(vertex_offset_view, info.vertex_offset);
         }
 
-        {  // 3) setup positions
+        {  // 3) setup positions and velocities
             auto pos_view = sc->positions().view();
             auto dst_pos_span =
                 span{h_positions}.subspan(info.vertex_offset, info.vertex_count);
@@ -630,6 +657,17 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
             UIPC_ASSERT(rest_pos_view.size() == dst_rest_pos_span.size(),
                         "rest position size mismatching");
             std::ranges::copy(rest_pos_view, dst_rest_pos_span.begin());
+
+            auto vel = sc->vertices().find<Vector3>(builtin::velocity);
+            if(vel)  // if user set the velocity
+            {
+                auto vel_view = vel->view();
+                auto dst_vel_span =
+                    span{h_velocities}.subspan(info.vertex_offset, info.vertex_count);
+                UIPC_ASSERT(vel_view.size() == dst_vel_span.size(), "velocity size mismatching");
+                std::ranges::copy(vel_view, dst_vel_span.begin());
+            }
+            // else, keep the default value (0)
         }
 
         {  // 4) setup mass
@@ -777,7 +815,8 @@ void FiniteElementMethod::Impl::_build_on_device()
     gravities.view().copy_from(h_gravities.data());
 
     dxs.resize(xs.size(), Vector3::Zero());
-    vs.resize(xs.size(), Vector3::Zero());
+    vs.resize(h_velocities.size());
+    vs.view().copy_from(h_velocities.data());
 
     masses.resize(h_masses.size());
     masses.view().copy_from(h_masses.data());
@@ -865,7 +904,7 @@ void FiniteElementMethod::Impl::_build_on_device()
                });
 }
 
-void FiniteElementMethod::Impl::_distribute_constitution_filtered_info()
+void FiniteElementMethod::Impl::_init_base_constitution()
 {
     for(auto&& [i, c] : enumerate(codim_0d_constitutions))
     {
@@ -893,6 +932,8 @@ void FiniteElementMethod::Impl::_init_extra_constitutions()
     for(auto&& [i, c] : enumerate(extra_constitutions.view()))
     {
         c->init();
+        auto uid = c->uid();
+        extra_constitution_uid_to_index.insert({uid, i});
     }
 }
 
@@ -1083,7 +1124,7 @@ auto FiniteElementMethod::FilteredInfo::constitution_info() const noexcept
             return m_impl->fem_3d_constitution_infos[m_index_in_dim];
         default:
             UIPC_ASSERT(false, "Invalid dimension");
-            break;
+            return m_impl->codim_0d_constitution_infos[m_index_in_dim];  // dummy
     }
 }
 

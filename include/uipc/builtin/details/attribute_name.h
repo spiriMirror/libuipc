@@ -22,10 +22,16 @@
  * to indicate the topological type of the element.
  */
 UIPC_BUILTIN_ATTRIBUTE(topo);
+
 /**
  * @brief `position` <Vector3> attribute on **vertices**
  */
 UIPC_BUILTIN_ATTRIBUTE(position);
+
+/**
+ * @brief `velocity` <Vector3> attribute on **vertices** or `velocity` <Matrix4x4> attribute on **instances** (the derivative of the transform matrix).
+ */
+UIPC_BUILTIN_ATTRIBUTE(velocity);
 
 /**
  * @brief `aim_position` <Vector3> attribute on **vertices**, indicates the aim position of the vertices if the vertices are animated.

@@ -22,6 +22,8 @@ class Codim0DConstitution;
 
 class FiniteElementDiffParmReporter;
 class FiniteElementConstitutionDiffParmReporter;
+class FiniteElementExtraConstitutionDiffParmReporter;
+
 class FEM3DConstitutionDiffParmReporter;
 class Codim2DConstitutionDiffParmReporter;
 class Codim1DConstitutionDiffParmReporter;
@@ -86,13 +88,15 @@ class FiniteElementMethod final : public SimSystem
     class ForEachInfo
     {
       public:
-        SizeT global_index() const noexcept { return m_global_index; }
-        SizeT local_index() const noexcept { return m_local_index; }
+        SizeT          global_index() const noexcept { return m_global_index; }
+        SizeT          local_index() const noexcept { return m_local_index; }
+        const GeoInfo& geo_info() const noexcept { return *m_geo_info; }
 
       private:
         friend class FiniteElementMethod;
-        SizeT m_global_index = 0;
-        SizeT m_local_index  = 0;
+        SizeT          m_global_index = 0;
+        SizeT          m_local_index  = 0;
+        const GeoInfo* m_geo_info     = nullptr;
     };
 
     class FilteredInfo
@@ -134,6 +138,10 @@ class FiniteElementMethod final : public SimSystem
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                       ViewGetter&&                    view_getter,
                       ForEach&&                       for_each_action) const;
+
+        template <typename ForEachGeometry>
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                      ForEachGeometry&&               for_each) const;
 
       protected:
         friend class FiniteElementMethod;
@@ -206,19 +214,18 @@ class FiniteElementMethod final : public SimSystem
       public:
         void init(WorldVisitor& world);
         void _init_dof_info();
-        void _init_constitutions();
+        void _classify_base_constitutions();
 
         void _build_geo_infos(WorldVisitor& world);
-        void _build_constitution_infos();
+        void _build_base_constitution_infos();
         void _build_on_host(WorldVisitor& world);
         void _build_on_device();
         void _download_geometry_to_host();
-        void _distribute_constitution_filtered_info();
+        void _init_base_constitution();
         void _init_extra_constitutions();
         void _init_energy_producers();
 
         void _init_diff_reporters();
-        void _distribute_diff_reporter_filtered_info();
 
         void write_scene(WorldVisitor& world);
         bool dump(DumpInfo& info);
@@ -235,8 +242,9 @@ class FiniteElementMethod final : public SimSystem
         vector<FiniteElementEnergyProducer*> energy_producers;
 
         // Differentiable Simulation Systems:
-
+        SimSystemSlot<FiniteElementDiffParmReporter> kinetic_diff_parm_reporter;
         SimSystemSlotCollection<FiniteElementConstitutionDiffParmReporter> constitution_diff_parm_reporters;
+        SimSystemSlotCollection<FiniteElementExtraConstitutionDiffParmReporter> extra_constitution_diff_parm_reporters;
 
 
         // Core Invariant Data:
@@ -264,6 +272,8 @@ class FiniteElementMethod final : public SimSystem
         vector<FEM3DConstitution*> fem_3d_constitutions;
         vector<ConstitutionInfo>   fem_3d_constitution_infos;
 
+        unordered_map<U64, SizeT> extra_constitution_uid_to_index;
+
         // Simulation Data:
 
         vector<IndexT> h_vertex_contact_element_ids;
@@ -274,6 +284,7 @@ class FiniteElementMethod final : public SimSystem
 
         vector<Vector3> h_positions;
         vector<Vector3> h_rest_positions;
+        vector<Vector3> h_velocities;
         vector<Float>   h_thicknesses;
         vector<IndexT>  h_dimensions;
         vector<Float>   h_masses;
@@ -360,6 +371,7 @@ class FiniteElementMethod final : public SimSystem
     auto tets() const noexcept { return m_impl.tets.view(); }
 
     auto is_fixed() const noexcept { return m_impl.is_fixed.view(); }
+    auto is_dynamic() const noexcept { return m_impl.is_dynamic.view(); }
     auto x_bars() const noexcept { return m_impl.x_bars.view(); }
     auto xs() const noexcept { return m_impl.xs.view(); }
     auto dxs() const noexcept { return m_impl.dxs.view(); }
@@ -368,10 +380,19 @@ class FiniteElementMethod final : public SimSystem
     auto x_tildes() const noexcept { return m_impl.x_tildes.view(); }
     auto x_prevs() const noexcept { return m_impl.x_prevs.view(); }
     auto masses() const noexcept { return m_impl.masses.view(); }
-
+    auto thicknesses() const noexcept { return m_impl.thicknesses.view(); }
+    auto rest_volumes() const noexcept { return m_impl.rest_volumes.view(); }
+    auto rest_areas() const noexcept { return m_impl.rest_areas.view(); }
+    auto rest_lengths() const noexcept { return m_impl.rest_lengths.view(); }
     auto Dm3x3_invs() const noexcept { return m_impl.Dm3x3_invs.view(); }
 
+    /**
+     * @brief return the frame-local dof offset of FEM for the given frame
+     */
     IndexT dof_offset(SizeT frame) const noexcept;
+    /**
+     * @brief return the frame-local dof count of FEM for the given frame
+     */
     IndexT dof_count(SizeT frame) const noexcept;
 
     /**
@@ -425,28 +446,31 @@ class FiniteElementMethod final : public SimSystem
     friend class FEMDiagPreconditioner;
 
     friend class FiniteElementEnergyProducer;
-    friend class FiniteElementKinetic;
-    friend class FiniteElementConstitution;
-    friend class FiniteElementExtraConstitution;
 
-    friend class FiniteElementDiffParmReporter;
-    friend class FiniteElementConstitutionDiffParmReporter;
     friend class FiniteElementDiffDofReporter;
+    friend class FiniteElementKineticDiffParmReporter;
+    friend class FEMAdjointMethodReplayer;
 
+    friend class SimEngine;
+    void init();  // only be called by SimEngine
 
+    friend class FiniteElementConstitution;
     void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution
+    friend class FiniteElementExtraConstitution;
     void add_constitution(FiniteElementExtraConstitution* constitution);  // only called by FiniteElementExtraConstitution
+    friend class FiniteElementKinetic;
     void add_constitution(FiniteElementKinetic* constitution);  // only called by FiniteElementKinetic
 
-    void add_reporter(FiniteElementConstitutionDiffParmReporter* reporter);  // only called by FEMDiffParmReporter
+    friend class FiniteElementConstitutionDiffParmReporter;
+    void add_reporter(FiniteElementConstitutionDiffParmReporter* reporter);  // only called by FiniteElementConstitutionDiffParmReporter
+    friend class FiniteElementExtraConstitutionDiffParmReporter;
+    void add_reporter(FiniteElementExtraConstitutionDiffParmReporter* reporter);  // only called by FiniteElementExtraConstitutionDiffParmReporter
 
-    virtual bool do_dump(DumpInfo& info) override;
-    virtual bool do_try_recover(RecoverInfo& info) override;
-    virtual void do_apply_recover(RecoverInfo& info) override;
-    virtual void do_clear_recover(RecoverInfo& info) override;
+    friend class FiniteElementDiffParmReporter;
+    void add_kinetic_reporter(FiniteElementDiffParmReporter* reporter);  // only called by FiniteElementKineticDiffParmReporter
 
-    virtual void do_build() override;
 
+    // Internal:
     template <typename ForEach, typename ViewGetter>
     static void _for_each(span<const GeoInfo>             geo_infos,
                           span<S<geometry::GeometrySlot>> geo_slots,
@@ -457,6 +481,13 @@ class FiniteElementMethod final : public SimSystem
     static void _for_each(span<const GeoInfo>             geo_infos,
                           span<S<geometry::GeometrySlot>> geo_slots,
                           ForEachGeometry&&               for_each);
+
+    virtual void do_build() override;
+
+    virtual bool do_dump(DumpInfo& info) override;
+    virtual bool do_try_recover(RecoverInfo& info) override;
+    virtual void do_apply_recover(RecoverInfo& info) override;
+    virtual void do_clear_recover(RecoverInfo& info) override;
 
     Impl m_impl;
 };

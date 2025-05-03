@@ -60,7 +60,6 @@ U64 AffineBodyConstitution::get_uid() const noexcept
 void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
 {
     auto P = sc.meta().find<U64>(builtin::constitution_uid);
-
     if(!P)
         P = sc.meta().create<U64>(builtin::constitution_uid, 0);
     geometry::view(*P).front() = uid();
@@ -68,6 +67,7 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     auto dof_offset = sc.meta().find<IndexT>(builtin::dof_offset);
     if(!dof_offset)
         dof_offset = sc.meta().create<IndexT>(builtin::dof_offset, -1);
+
     auto dof_count = sc.meta().find<IndexT>(builtin::dof_count);
     if(!dof_count)
         dof_count = sc.meta().create<IndexT>(builtin::dof_count, 0);
@@ -75,9 +75,14 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     auto is_fixed = sc.instances().find<IndexT>(builtin::is_fixed);
     if(!is_fixed)
         is_fixed = sc.instances().create<IndexT>(builtin::is_fixed, 0);
+
     auto is_kinematic = sc.instances().find<IndexT>(builtin::is_dynamic);
     if(!is_kinematic)
         is_kinematic = sc.instances().create<IndexT>(builtin::is_dynamic, 1);
+
+    auto velocity = sc.instances().find<Matrix4x4>(builtin::velocity);
+    if(!velocity)
+        velocity = sc.instances().create<Matrix4x4>(builtin::velocity, Matrix4x4::Zero());
 
     auto kappa_attr = sc.instances().find<Float>("kappa");
     if(!kappa_attr)
