@@ -6,6 +6,7 @@
 #include <pyuipc/constitution/particle.h>
 #include <pyuipc/constitution/hookean_spring.h>
 #include <pyuipc/constitution/neo_hookean_shell.h>
+#include <pyuipc/constitution/neo_hookean_pattern.h>
 #include <pyuipc/constitution/stable_neo_hookean.h>
 #include <pyuipc/constitution/affine_body_constitution.h>
 #include <pyuipc/constitution/constraint.h>
@@ -33,6 +34,7 @@ PyModule::PyModule(py::module& m)
     PyParticle{m};
     PyHookeanSpring{m};
     PyNeoHookeanShell{m};
+    PyNeoHookeanPattern{m};
     PyStableNeoHookean{m};
     PyARAP{m};
 
