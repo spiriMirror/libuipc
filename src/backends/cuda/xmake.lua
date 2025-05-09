@@ -6,7 +6,8 @@ target("cuda")
     add_headerfiles("**.h", "**.inl")
 
     -- add_cugencodes("sm_75")
-    add_cugencodes("sm_89")
+    -- add_cugencodes("sm_89")
+    add_cugencodes("native")
     add_cuflags("/wd4819", {tools = "cl"})
 
     add_links(
