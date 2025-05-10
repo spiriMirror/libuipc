@@ -94,7 +94,6 @@ class StableNeoHookean3D final : public FEM3DConstitution
                        auto F = fem::F(x0, x1, x2, x3, Dm_inv);
 
                        auto J = F.determinant();
-                       MUDA_ASSERT(J > 0, "detF = %f, StableNeoHookean3D doesn't allow inversion.", J);
 
                        auto VecF = flatten(F);
 
@@ -139,7 +138,6 @@ class StableNeoHookean3D final : public FEM3DConstitution
                        auto F = fem::F(x0, x1, x2, x3, Dm_inv);
 
                        auto J = F.determinant();
-                       MUDA_ASSERT(J > 0, "detF = %f, StableNeoHookean3D doesn't allow inversion.", J);
 
                        auto VecF = flatten(F);
 
