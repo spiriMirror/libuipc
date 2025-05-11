@@ -21,6 +21,16 @@ Json IAttribute::to_json() const noexcept
     return j;
 }
 
+void IAttribute::from_json(const Json& j) noexcept
+{
+    do_from_json(j);
+}
+
+std::string_view IAttribute::type_name() const noexcept
+{
+    return get_type_name();
+}
+
 void IAttribute::resize(SizeT N)
 {
     do_resize(N);

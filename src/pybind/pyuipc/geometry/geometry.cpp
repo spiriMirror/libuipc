@@ -135,7 +135,18 @@ using namespace uipc::geometry;
 
 PyGeometry::PyGeometry(py::module& m)
 {
-    auto class_Geometry = py::class_<Geometry, S<Geometry>>(m, "Geometry");
+    // IGeometry:
+    auto class_IGeometry = py::class_<IGeometry, S<IGeometry>>(m, "IGeometry");
+
+    class_IGeometry.def("type", &IGeometry::type);
+
+    class_IGeometry.def("to_json", [](IGeometry& self) { return self.to_json(); });
+
+    class_IGeometry.def("clone", &IGeometry::clone);
+
+
+    // Geometry:
+    auto class_Geometry = py::class_<Geometry, IGeometry, S<Geometry>>(m, "Geometry");
 
     auto class_MetaAttributes =
         py::class_<Geometry::MetaAttributes>(class_Geometry, "MetaAttributes");
@@ -143,14 +154,12 @@ PyGeometry::PyGeometry(py::module& m)
     auto class_InstanceAttributes =
         py::class_<Geometry::InstanceAttributes>(class_Geometry, "InstanceAttributes");
 
-    class_Geometry.def("type", &Geometry::type);
 
     class_Geometry.def("meta", [](Geometry& self) { return self.meta(); });
 
     class_Geometry.def("instances",
                        [](Geometry& self) { return self.instances(); });
 
-    class_Geometry.def("to_json", [](Geometry& self) { return self.to_json(); });
 
     class_Geometry.def("__repr__",
                        [](Geometry& self) { return fmt::format("{}", self); });

@@ -10,7 +10,7 @@ std::string_view IAttributeSlot::name() const noexcept
 
 std::string_view IAttributeSlot::type_name() const noexcept
 {
-    return get_type_name();
+    return attribute().type_name();
 }
 
 bool IAttributeSlot::allow_destroy() const noexcept

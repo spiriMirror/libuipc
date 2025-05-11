@@ -3,6 +3,7 @@
 #include <Eigen/Geometry>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/builtin/geometry_type.h>
+#include <uipc/common/zip.h>
 
 namespace uipc::geometry
 {
@@ -104,6 +105,37 @@ void SimplicialComplex::do_collect_attribute_collections(vector<std::string>& na
 
     names.push_back("tetrahedra");
     collections.push_back(&m_tetrahedron_attributes);
+}
+
+void SimplicialComplex::do_build_from_attribute_collections(span<std::string> names,
+                                                            span<AttributeCollection*> collections) noexcept
+{
+    Geometry::do_build_from_attribute_collections(names, collections);
+
+    for(auto&& [name, ac] : zip(names, collections))
+    {
+        if(name == "vertices")
+        {
+            m_vertex_attributes = *ac;
+        }
+        else if(name == "edges")
+        {
+            m_edge_attributes = *ac;
+        }
+        else if(name == "triangles")
+        {
+            m_triangle_attributes = *ac;
+        }
+        else if(name == "tetrahedra")
+        {
+            m_tetrahedron_attributes = *ac;
+        }
+    }
+}
+
+S<IGeometry> SimplicialComplex::do_clone() const
+{
+    return std::make_shared<SimplicialComplex>(*this);
 }
 
 IndexT SimplicialComplex::dim() const noexcept

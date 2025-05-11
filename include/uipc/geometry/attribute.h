@@ -30,6 +30,12 @@ class UIPC_CORE_API IAttribute
 
     [[nodiscard]] Json to_json() const noexcept;
 
+    [[nodiscard]] void from_json(const Json& j) noexcept;
+    /**
+     * @brief Get the type name of data stored in the attribute slot.
+     */
+    [[nodiscard]] std::string_view type_name() const noexcept;
+
   private:
     friend class AttributeCollection;
     friend class IAttributeSlot;
@@ -47,6 +53,7 @@ class UIPC_CORE_API IAttribute
     backend::BufferView         backend_view() const noexcept;
     virtual SizeT               get_size() const                  = 0;
     virtual backend::BufferView get_backend_view() const noexcept = 0;
+    virtual std::string_view    get_type_name() const noexcept    = 0;
 
     virtual void          do_resize(SizeT N)                       = 0;
     virtual void          do_clear()                               = 0;
@@ -54,10 +61,10 @@ class UIPC_CORE_API IAttribute
     virtual S<IAttribute> do_clone() const                         = 0;
     virtual S<IAttribute> do_clone_empty() const                   = 0;
     virtual void          do_reorder(span<const SizeT> O) noexcept = 0;
-
     virtual void do_copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept = 0;
 
-    virtual Json do_to_json(SizeT i) const noexcept = 0;
+    virtual void do_from_json(const Json& j) noexcept = 0;
+    virtual Json do_to_json(SizeT i) const noexcept   = 0;
 };
 
 template <typename T>
@@ -87,9 +94,12 @@ class Attribute : public IAttribute
 
     [[nodiscard]] span<const T> view() const noexcept;
 
+    static std::string type() noexcept;
+
   protected:
     virtual SizeT               get_size() const override;
     virtual backend::BufferView get_backend_view() const noexcept override;
+    virtual std::string_view    get_type_name() const noexcept override;
 
     virtual void          do_resize(SizeT N) override;
     virtual void          do_clear() override;
@@ -98,7 +108,9 @@ class Attribute : public IAttribute
     virtual S<IAttribute> do_clone_empty() const override;
     virtual void          do_reorder(span<const SizeT> O) noexcept override;
     virtual void do_copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept override;
+
     virtual Json do_to_json(SizeT i) const noexcept override;
+    virtual void do_from_json(const Json& j) const noexcept override;
 
   private:
     // const BufferInfo&   buffer_info() const noexcept;

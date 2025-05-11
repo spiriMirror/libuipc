@@ -8,42 +8,18 @@ Attribute<T>::Attribute(const T& default_value) noexcept
     : m_values{}
     , m_default_value{default_value}
 {
-    //if constexpr(is_matrix_v<T>)
-    //{
-    //    using Matrix = T;
-    //    using Scalar = typename Matrix::Scalar;
-    //    // view it as a 3-order tensor
-    //    int64_t stride_2 = Matrix::OuterStrideAtCompileTime;
-    //    int64_t stride_3 = Matrix::InnerStrideAtCompileTime;
-    //    int64_t M        = Matrix::RowsAtCompileTime;
-    //    int64_t N        = Matrix::ColsAtCompileTime;
-
-    //    constexpr bool rowMajor = Matrix::Flags & Eigen::RowMajorBit;
-
-    //    if(!rowMajor)
-    //        std::swap(stride_2, stride_3);
-
-    //    m_buffer_info.itemsize = sizeof(Scalar);
-
-    //    m_buffer_info.shape   = {(int64_t)m_values.size(), M, N};
-    //    m_buffer_info.strides = {(int64_t)sizeof(Matrix),
-    //                             stride_2 * (int64_t)sizeof(Scalar),
-    //                             stride_3 * (int64_t)sizeof(Scalar)};
-    //}
-    //else
-    //{
-    //    m_buffer_info.itemsize = sizeof(T);
-    //    m_buffer_info.shape.resize(1);
-    //    m_buffer_info.shape[0] = 0;
-    //    m_buffer_info.strides.resize(1);
-    //    m_buffer_info.strides[0] = sizeof(T);
-    //}
 }
 
 template <typename T>
 span<const T> Attribute<T>::view() const noexcept
 {
     return m_values;
+}
+
+template <typename T>
+std::string Attribute<T>::type() noexcept
+{
+    return readable_type_name<T>();
 }
 
 template <typename T>
@@ -56,6 +32,13 @@ template <typename T>
 backend::BufferView Attribute<T>::get_backend_view() const noexcept
 {
     return m_backend_view;
+}
+
+template <typename T>
+std::string_view Attribute<T>::get_type_name() const noexcept
+{
+    thread_local static std::string type_name = readable_type_name<T>();
+    return type_name;
 }
 
 template <typename T>
@@ -122,6 +105,35 @@ Json Attribute<T>::do_to_json(SizeT i) const noexcept
         j = fmt::format("<{}>", typeid(T).name());
     }
     return j;
+}
+
+template <typename T>
+void Attribute<T>::do_from_json(const Json& j) const noexcept
+{
+    UIPC_ASSERT(j.is_array(), "To create an Attribute, this json must be an array");
+    if constexpr(requires(T t) {
+                     Json j;
+                     j.get<T>();  // can get<T>()
+                 })
+    {
+        m_values.resize(j.size());
+        for(SizeT i = 0; i < j.size(); ++i)
+        {
+            m_values[i] = j[i].get<T>();
+        }
+    }
+    else if constexpr(requires(T t) { t.from_json(j); })
+    {
+        m_values.resize(j.size());
+        for(SizeT i = 0; i < j.size(); ++i)
+        {
+            m_values[i].from_json(j[i]);
+        }
+    }
+    else
+    {
+        static_assert("Attribute<T>::from_json: T must be a type that can be converted from json");
+    }
 }
 
 //template <typename T>

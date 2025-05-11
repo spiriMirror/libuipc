@@ -12,7 +12,8 @@ class UIPC_CORE_API ImplicitGeometry : public Geometry
     std::string_view        name() const noexcept;
 
   protected:
-    std::string_view get_type() const noexcept override;
+    virtual std::string_view get_type() const noexcept override;
+    virtual S<IGeometry>     do_clone() const override;
 };
 }  // namespace uipc::geometry
 
