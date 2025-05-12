@@ -14,6 +14,7 @@ S<geometry::GeometrySlotT<GeometryT>> GeometryCollection::emplace(const Geometry
 
     return slot;
 }
+
 template <std::derived_from<geometry::Geometry> GeometryT>
     requires(!std::is_abstract_v<GeometryT>)
 S<geometry::GeometrySlotT<GeometryT>> GeometryCollection::pending_emplace(const GeometryT& geometry)

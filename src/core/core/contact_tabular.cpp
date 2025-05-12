@@ -240,9 +240,20 @@ CContactModelCollection ContactTabular::contact_models() const noexcept
     return m_impl->contact_models();
 }
 
-geometry::AttributeCollection& ContactTabular::internal_contact_models() noexcept
+geometry::AttributeCollection& ContactTabular::internal_contact_models() const noexcept
 {
     return m_impl->contact_models();
+}
+
+vector<ContactElement> ContactTabular::contact_elements() const noexcept
+{
+    vector<ContactElement> elements(m_impl->element_count());
+    auto&                  element_ptrs = m_impl->m_elements;
+
+    std::ranges::transform(
+        element_ptrs, elements.begin(), [](const auto& e) { return *e; });
+
+    return elements;
 }
 
 SizeT ContactTabular::element_count() const noexcept
@@ -257,14 +268,7 @@ Json ContactTabular::default_config() noexcept
 
 void to_json(Json& j, const ContactTabular& ct)
 {
-    std::vector<ContactElement> elements(ct.element_count());
-
-    auto& element_ptrs = ct.m_impl->m_elements;
-
-    std::ranges::transform(
-        element_ptrs, elements.begin(), [](const auto& e) { return *e; });
-
-    j["elements"] = elements;
+    j["elements"] = ct.contact_elements();
     j["models"]   = ct.contact_models().to_json();
 }
 }  // namespace uipc::core

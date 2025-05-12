@@ -82,6 +82,13 @@ Object::CGeometries Object::geometries() const noexcept
 }
 
 Object::~Object() {}
+
+void to_json(Json& j, const Object& object) noexcept
+{
+    j["id"]         = object.id();
+    j["name"]       = object.name();
+    j["geometries"] = object.geometries().ids();
+}
 }  // namespace uipc::core
 
 namespace fmt

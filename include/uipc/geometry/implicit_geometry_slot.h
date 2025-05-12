@@ -21,8 +21,6 @@ class UIPC_CORE_API GeometrySlotT<ImplicitGeometry> : public GeometrySlot
     ImplicitGeometry m_geometry;
 };
 
-extern template class GeometrySlotT<ImplicitGeometry>;
-
 using ImplicitGeometrySlot = GeometrySlotT<ImplicitGeometry>;
 }  // namespace uipc::geometry
 

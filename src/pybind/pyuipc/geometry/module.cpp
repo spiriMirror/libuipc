@@ -4,6 +4,8 @@
 #include <pyuipc/geometry/geometry.h>
 #include <pyuipc/geometry/simplicial_complex.h>
 #include <pyuipc/geometry/factory.h>
+#include <pyuipc/geometry/geometry_atlas.h>
+
 #include <pyuipc/geometry/implicit_geometry.h>
 #include <pyuipc/geometry/geometry_slot.h>
 #include <pyuipc/geometry/simplicial_complex_slot.h>
@@ -25,6 +27,8 @@ PyModule::PyModule(py::module& m)
     PyGeometry{m};
     PyImplicitGeometry{m};
     PySimplicialComplex{m};
+
+    PyGeometryAtlas{m};
 
     PyGeometrySlot{m};
     PyImplicitGeometrySlot{m};

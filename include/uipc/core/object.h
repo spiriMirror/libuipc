@@ -73,6 +73,7 @@ class UIPC_CORE_API Object : public IObject
         ObjectGeometrySlots<GeometryT> create(const GeometryT& geometry,
                                               const GeometryT& rest_geometry) &&;
 
+
         span<const IndexT> ids() && noexcept;
 
       private:
@@ -119,6 +120,8 @@ class UIPC_CORE_API Object : public IObject
     bool                          scene_started() const noexcept;
     bool                          scene_pending() const noexcept;
 };
+
+void to_json(Json& j, const Object& object) noexcept;
 }  // namespace uipc::core
 
 namespace fmt

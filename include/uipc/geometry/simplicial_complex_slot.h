@@ -6,16 +6,6 @@ namespace uipc::geometry
 template <>
 class GeometrySlotT<SimplicialComplex> : public GeometrySlot
 {
-  private:
-    using VertexAttributes    = typename SimplicialComplex::VertexAttributes;
-    using CVertexAttributes   = typename SimplicialComplex::CVertexAttributes;
-    using EdgeAttributes      = typename SimplicialComplex::EdgeAttributes;
-    using CEdgeAttributes     = typename SimplicialComplex::CEdgeAttributes;
-    using TriangleAttributes  = typename SimplicialComplex::TriangleAttributes;
-    using CTriangleAttributes = typename SimplicialComplex::CTriangleAttributes;
-    using TetrahedronAttributes = typename SimplicialComplex::TetrahedronAttributes;
-    using CTetrahedronAttributes = typename SimplicialComplex::CTetrahedronAttributes;
-
   public:
     GeometrySlotT(IndexT id, const SimplicialComplex& simplicial_complex) noexcept;
 

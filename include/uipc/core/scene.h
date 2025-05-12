@@ -22,10 +22,13 @@ class UIPC_CORE_API Scene final
     friend class Object;
     friend class SanityChecker;
     friend class Animation;
+    friend class SceneFactory;
 
   public:
     Scene(const Json& config = default_config());
+    const Json& config() const noexcept;
     ~Scene();
+
 
     static Json default_config() noexcept;
 
@@ -117,15 +120,16 @@ class UIPC_CORE_API Scene final
     void begin_pending() noexcept;
     void solve_pending() noexcept;
 
-    geometry::GeometryCollection& geometry_collection() noexcept;
-    geometry::GeometryCollection& rest_geometry_collection() noexcept;
+    geometry::GeometryCollection& geometry_collection() const noexcept;
+    geometry::GeometryCollection& rest_geometry_collection() const noexcept;
+    ObjectCollection&             object_collection() const noexcept;
 
     World& world() noexcept;
     Float  dt() const noexcept;
     bool   is_started() const noexcept;
 
-    DiffSim& _diff_sim() noexcept; // only called by SceneVisitor
-    bool   is_pending() const noexcept;
+    DiffSim& _diff_sim() noexcept;  // only called by SceneVisitor
+    bool     is_pending() const noexcept;
 };
 }  // namespace uipc::core
 

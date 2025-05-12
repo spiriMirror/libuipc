@@ -51,6 +51,7 @@ IndexT ObjectCollection::next_id() const noexcept
 {
     return m_next_id;
 }
+Json ObjectCollection::to_json() const noexcept {}
 }  // namespace uipc::core
 
 namespace fmt

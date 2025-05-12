@@ -35,6 +35,7 @@ class UIPC_CORE_API GeometrySlot
 
   private:
     IndexT            m_id;
+    void              id(IndexT id) noexcept;
     GeometrySlotState m_state = GeometrySlotState::Normal;
     void              state(GeometrySlotState state) noexcept;
 };
@@ -42,6 +43,20 @@ class UIPC_CORE_API GeometrySlot
 template <std::derived_from<Geometry> GeometryT>
     requires(!std::is_abstract_v<GeometryT>)
 class GeometrySlotT;
+
+template <>
+class UIPC_CORE_API GeometrySlotT<Geometry> : public GeometrySlot
+{
+  public:
+    GeometrySlotT(IndexT id, const Geometry& geometry);
+
+  protected:
+    Geometry&       get_geometry() noexcept override;
+    const Geometry& get_geometry() const noexcept override;
+
+  private:
+    Geometry m_geometry;
+};
 }  // namespace uipc::geometry
 
 namespace std

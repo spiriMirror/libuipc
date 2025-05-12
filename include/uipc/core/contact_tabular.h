@@ -54,8 +54,10 @@ class UIPC_CORE_API ContactTabular final
 
   private:
     class Impl;
-    U<Impl>                        m_impl;
-    geometry::AttributeCollection& internal_contact_models() noexcept;
+    U<Impl> m_impl;
+    friend class SceneFactory;
+    geometry::AttributeCollection& internal_contact_models() const noexcept;
+    vector<ContactElement>         contact_elements() const noexcept;
 };
 
 void to_json(Json& j, const ContactTabular& ct);

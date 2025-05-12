@@ -13,6 +13,7 @@ class UIPC_CORE_API IObjectCollection
 class UIPC_CORE_API ObjectCollection : public IObjectCollection
 {
     friend class Scene;
+    friend class SceneFactory;
     friend struct fmt::formatter<ObjectCollection>;
 
   public:
@@ -27,6 +28,8 @@ class UIPC_CORE_API ObjectCollection : public IObjectCollection
     void   reserve(SizeT size) noexcept;
     SizeT  size() const noexcept;
     IndexT next_id() const noexcept;
+
+    Json to_json() const noexcept;
 
   private:
     IndexT                           m_next_id = 0;
