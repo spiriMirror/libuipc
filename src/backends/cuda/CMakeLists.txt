@@ -10,8 +10,12 @@ target_link_libraries(cuda PUBLIC
     uipc_geometry
 )
 
+if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
+    set(CMAKE_CUDA_ARCHITECTURES "native")
+endif()
+
 target_compile_features(cuda PUBLIC cxx_std_20)
-message(STATUS "CMAKE_CUDA_ARCHITECTURES = ${CMAKE_CUDA_ARCHITECTURES}")
+uipc_info("CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
 target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(cuda PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
