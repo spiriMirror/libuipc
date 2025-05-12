@@ -17,6 +17,9 @@ namespace uipc::geometry
  */
 class UIPC_CORE_API IAttribute
 {
+    template <typename T>
+    friend class AttributeFriend;
+
   public:
     IAttribute()          = default;
     virtual ~IAttribute() = default;
@@ -39,6 +42,7 @@ class UIPC_CORE_API IAttribute
   private:
     friend class AttributeCollection;
     friend class IAttributeSlot;
+
     void          resize(SizeT N);
     void          reserve(SizeT N);
     S<IAttribute> clone() const;
@@ -65,6 +69,7 @@ class UIPC_CORE_API IAttribute
 
     virtual void do_from_json(const Json& j) noexcept = 0;
     virtual Json do_to_json(SizeT i) const noexcept   = 0;
+    virtual Json do_to_json() const noexcept          = 0;
 };
 
 template <typename T>
@@ -110,14 +115,14 @@ class Attribute : public IAttribute
     virtual void do_copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept override;
 
     virtual Json do_to_json(SizeT i) const noexcept override;
-    virtual void do_from_json(const Json& j) const noexcept override;
+    virtual Json do_to_json() const noexcept override;
+
+    virtual void do_from_json(const Json& j) noexcept override;
 
   private:
-    // const BufferInfo&   buffer_info() const noexcept;
     backend::BufferView m_backend_view;
     vector<T>           m_values;
     T                   m_default_value;
-    // mutable BufferInfo  m_buffer_info;
 };
 }  // namespace uipc::geometry
 

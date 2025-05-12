@@ -16,7 +16,7 @@ S<IAttributeSlot> AttributeCollection::share(std::string_view      name,
     if(size() != slot.size())
         throw GeometryAttributeError{
             fmt::format("Attribute size mismatch, "
-                        "Attribute Collision size is {}, input slot size is {}.",
+                        "Attribute Collection size is {}, input slot size is {}.",
                         size(),
                         slot.size())};
 
@@ -183,12 +183,12 @@ SizeT AttributeCollection::attribute_count() const
 
 Json AttributeCollection::to_json() const
 {
-    Json j = Json::array();
+    Json j = Json::object();
     for(auto& [name, slot] : m_attributes)
     {
+        j[name]        = slot->to_json();
         auto slot_j    = slot->to_json();
         slot_j["name"] = name;
-        j.push_back(slot_j);
     }
     return j;
 }

@@ -2,6 +2,7 @@
 #include <Eigen/Geometry>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/zip.h>
+#include <uipc/builtin/geometry_type.h>
 
 namespace uipc::geometry
 {
@@ -102,6 +103,11 @@ void Geometry::do_build_from_attribute_collections(span<std::string> names,
 S<IGeometry> Geometry::do_clone() const
 {
     return std::make_shared<Geometry>(*this);
+}
+
+std::string_view Geometry::get_type() const noexcept
+{
+    return builtin::Geometry;
 }
 }  // namespace uipc::geometry
 

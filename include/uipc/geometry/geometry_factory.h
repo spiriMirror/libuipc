@@ -11,9 +11,10 @@ class UIPC_CORE_API GeometryFactory
     GeometryFactory();
     ~GeometryFactory();
 
-    [[nodiscard]] vector<S<Geometry>> from_json(const Json& j, span<S<IAttribute>> attributes);
+    [[nodiscard]] vector<S<Geometry>> from_json(const Json& j,
+                                                span<S<IAttributeSlot>> attributes);
 
-    [[nodiscard]] Json to_json(span<Geometry*> attributes,
+    [[nodiscard]] Json to_json(span<Geometry*> geos,
                                unordered_map<IAttribute*, IndexT> attr_to_index);
 
   private:

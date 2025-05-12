@@ -15,10 +15,7 @@ Json IAttribute::to_json(SizeT i) const noexcept
 
 Json IAttribute::to_json() const noexcept
 {
-    Json j;
-    for(auto i : range(size()))
-        j.push_back(to_json(i));
-    return j;
+    return do_to_json();
 }
 
 void IAttribute::from_json(const Json& j) noexcept

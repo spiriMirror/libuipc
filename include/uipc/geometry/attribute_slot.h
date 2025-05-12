@@ -81,9 +81,6 @@ class UIPC_CORE_API IAttributeSlot
     [[nodiscard]] virtual const IAttribute& attribute() const noexcept;
     [[nodiscard]] virtual const IAttribute& get_attribute() const noexcept = 0;
     [[nodiscard]] virtual Json              do_to_json(SizeT i) const      = 0;
-
-    // [[nodiscard]] const BufferInfo& buffer_info() const;
-    // [[nodiscard]] virtual const BufferInfo& get_buffer_info() const noexcept = 0;
 };
 
 /**

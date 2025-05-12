@@ -5,7 +5,10 @@
 #include <uipc/common/unordered_map.h>
 #include <uipc/common/span.h>
 #include <uipc/geometry/attribute_factory.h>
+#include <uipc/geometry/attribute_collection_factory.h>
+#include <uipc/geometry/geometry_factory.h>
 #include <uipc/common/zip.h>
+#include <uipc/builtin/factory_keyword.h>
 
 namespace uipc::geometry
 {
@@ -53,8 +56,9 @@ class GeometryAtlas::Impl
     {
         S<Geometry> new_geo = std::static_pointer_cast<Geometry>(geo.clone());
         build_attributes_index_from_geometry(*new_geo);
-        IndexT id        = static_cast<IndexT>(m_geometries.size());
-        m_geometries[id] = std::move(new_geo);
+
+        IndexT id = static_cast<IndexT>(m_geometries.size());
+        m_geometries.push_back(std::move(new_geo));
 
         return id;
     }
@@ -140,121 +144,99 @@ class GeometryAtlas::Impl
     *                           Serialize
     ***************************************************************/
 
-    Json attributes_to_json()
-    {
-        AttributeFactory af;
-        return af.to_json(m_index_to_attr);
-    }
+    Json attributes_to_json() { return af().to_json(m_index_to_attr); }
 
     Json attribute_collection_to_json(const AttributeCollection& ac)
     {
-        using AF        = AttributeFriend<GeometryAtlas>;
-        auto attr_slots = AF::attribute_slots(ac);
-
-        Json  j    = Json::object();
-        auto& meta = j["meta"];
-        {
-            meta["type"] = UIPC_TO_STRING(AttributeCollection);
-        }
-        auto& ac_data = j["data"];
-
-        for(auto&& [name, attr_slot] : attr_slots)
-        {
-            auto attr = AF::attribute(attr_slot);
-            auto it   = m_attr_to_index.find(attr);
-            if(it != m_attr_to_index.end())
-            {
-                // attr name -> attr index
-                ac_data[name] = it->second;
-            }
-            else
-            {
-                UIPC_WARN_WITH_LOCATION("Attribute type {} not registered, so we ignore it",
-                                        attr->type_name());
-            }
-        }
+        return acf().to_json(&ac, m_attr_to_index);
     }
 
-    Json geometry_to_json(Geometry& geo)
+    Json geometries_to_json(span<S<Geometry>> geos)
     {
-        using GF = GeometryFriend<GeometryAtlas>;
-        vector<std::string>          collection_names;
-        vector<AttributeCollection*> attribute_collections;
-        GF::attribute_collections(geo, collection_names, attribute_collections);
-
-        Json  j    = Json::object();
-        auto& meta = j["meta"];
-        {
-            meta["type"] = geo.type();
-        }
-
-        auto& data = j["data"];
-        for(auto&& [cn, ac] : zip(collection_names, attribute_collections))
-        {
-            data[cn] = attribute_collection_to_json(*ac);
-        }
+        vector<Geometry*> geos_ptr;
+        geos_ptr.reserve(geos.size());
+        std::transform(geos.begin(),
+                       geos.end(),
+                       std::back_inserter(geos_ptr),
+                       [](const S<Geometry>& geo) { return geo.get(); });
+        return gf().to_json(geos_ptr, m_attr_to_index);
     }
 
     Json to_json()
     {
-        Json j = Json::object();
-        // .meta
+        Json  j    = Json::object();
+        auto& meta = j[builtin::__meta__];
         {
-            auto& meta = j["meta"];
-            {
-                meta["type"] = UIPC_TO_STRING(GeometryAtlas);
-            }
+
+            meta["type"] = UIPC_TO_STRING(GeometryAtlas);
         }
 
-        //.data
+        auto& data = j[builtin::__data__];
         {
-            auto& data = j["data"];
+            // An Array of <Attribute>
+            data["attributes"] = attributes_to_json();
+
+            // A Map of <Name,AttributeCollection>
+            auto& attribute_collections = data["attribute_collections"];
+            for(auto&& [name, ac] : m_attribute_collections)
             {
-                auto& attribute_collections = data["attribute_collections"];
-                // A map of <Name,AttributeCollection>
-                for(auto&& [name, ac] : m_attribute_collections)
-                {
-                    attribute_collections["name"] = attribute_collection_to_json(*ac);
-                }
-
-                // An Array of <Geometry>
-                auto& geometries = data["geometries"];
-                geometries       = Json::array();
-                for(auto&& geo : m_geometries)
-                {
-                    geometries.push_back(geometry_to_json(*geo));
-                }
-
-                // An Array of <Attribute>
-                data["attributes"] = attributes_to_json();
+                attribute_collections[name] = attribute_collection_to_json(*ac);
             }
+
+            // An Array of <Geometry>
+            auto& geometries = data["geometries"];
+            geometries       = geometries_to_json(m_geometries);
         }
+
+        return j;
     }
 
     /**************************************************************
     *                           Deserialize
     ***************************************************************/
 
-    vector<S<IAttribute>> m_attributes;
+    vector<S<IAttributeSlot>> m_attributes;
+
+    static AttributeFactory& af()
+    {
+        static thread_local AttributeFactory af;
+        return af;
+    }
+
+    static AttributeCollectionFactory& acf()
+    {
+        static thread_local AttributeCollectionFactory acf;
+        return acf;
+    }
+
+    static GeometryFactory& gf()
+    {
+        static thread_local GeometryFactory gf;
+        return gf;
+    }
 
     void attributes_from_json(const Json& j)
     {
-        AttributeFactory af;
-        m_attributes = af.from_json(j);
+        m_attributes = af().from_json(j);
     }
 
     S<AttributeCollection> attribute_collection_from_json(const Json& j)
     {
-        using AF = AttributeFriend<GeometryAtlas>;
+        return acf().from_json(j, m_attributes);
+    }
+
+    vector<S<Geometry>> geometries_from_json(const Json& j)
+    {
+        return gf().from_json(j, m_attributes);
     }
 
     void from_json(const Json& j)
     {
-        UIPC_ASSERT(is_empty(), "Not allow non-empty GeometryAltas generating from json");
+        clear();
 
-        // .meta
+        // __meta__
         {
-            auto it = j.find("meta");
+            auto it = j.find(builtin::__meta__);
             if(it == j.end())
             {
                 UIPC_WARN_WITH_LOCATION("`meta` not found in json, skip.");
@@ -277,9 +259,9 @@ class GeometryAtlas::Impl
             }
         }
 
-        // .data
+        // __data__
         {
-            auto it_data = j.find("data");
+            auto it_data = j.find(builtin::__data__);
             if(it_data == j.end())
             {
                 UIPC_WARN_WITH_LOCATION("`data` not found in json, skip");
@@ -288,53 +270,48 @@ class GeometryAtlas::Impl
 
             auto& data = *it_data;
             {
-                auto it_ac = data.find("attribute_collections");
-                if(it_ac != data.end())
-                {
-                    auto& attribute_collections = *it_ac;
-                    for(auto&& [name, ac] : attribute_collections.items())
-                    {
-                        //auto attr_collection = AttributeCollection{};
-                        //attr_collection.from_json(ac);
-                        //create(name, attr_collection);
-                    }
-                }
-            }
 
-            {
-                auto it_geo = data.find("geometries");
-                if(it_geo != data.end())
-                {
-                    auto& geometries = *it_geo;
-                    for(auto&& geo : geometries)
-                    {
-                        //auto geometry = Geometry{};
-                        //geometry.from_json(geo);
-                        //create(geometry);
-                    }
-                }
-            }
-
-            {
                 auto it_attr = data.find("attributes");
                 if(it_attr != data.end())
                 {
                     attributes_from_json(*it_attr);
                 }
+
+                auto it_ac = data.find("attribute_collections");
+                if(it_ac != data.end())
+                {
+                    auto& attribute_collections = *it_ac;
+                    for(auto&& [name, ac_json] : attribute_collections.items())
+                    {
+                        auto ac = attribute_collection_from_json(ac_json);
+                        if(ac)
+                        {
+                            create(name, *ac);
+                        }
+                    }
+                }
+
+                auto it_geo = data.find("geometries");
+                if(it_geo != data.end())
+                {
+                    auto& geometries = *it_geo;
+                    auto  geos       = geometries_from_json(geometries);
+                    for(auto&& geo : geos)
+                    {
+                        create(*geo);
+                    }
+                }
             }
         }
     }
 
-
-    bool is_empty() const
+    void clear()
     {
-        bool ret = true;
-        ret &= m_geometries.empty();
-        ret &= m_attribute_collections.empty();
-        ret &= m_attr_to_index.empty();
-        ret &= m_index_to_attr.empty();
-        ret &= m_attributes.empty();
-        return ret;
+        m_geometries.clear();
+        m_attribute_collections.clear();
+        m_attr_to_index.clear();
+        m_index_to_attr.clear();
+        m_attributes.clear();
     }
 };
 
@@ -366,5 +343,12 @@ const AttributeCollection* GeometryAtlas::find(std::string_view name) const
     return m_impl->find(name);
 }
 
-Json GeometryAtlas::to_json() const {}
+Json GeometryAtlas::to_json() const
+{
+    return m_impl->to_json();
+}
+void GeometryAtlas::from_json(const Json& j)
+{
+    m_impl->from_json(j);
+}
 }  // namespace uipc::geometry

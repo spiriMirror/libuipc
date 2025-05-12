@@ -199,18 +199,15 @@ class UIPC_CORE_API Geometry : public IGeometry
         /**
          * @sa AttributeCollection::resize
          */
-        void resize(size_t size) &&
-            requires(!IsConst);
+        void resize(size_t size) && requires(!IsConst);
         /**
          * @sa AttributeCollection::reserve
          */
-        void reserve(size_t size) &&
-            requires(!IsConst);
+        void reserve(size_t size) && requires(!IsConst);
         /**
          * @sa AttributeCollection::clear
          */
-        void clear() &&
-            requires(!IsConst);
+        void clear() && requires(!IsConst);
         /**
          * @sa AttributeCollection::size
          */
@@ -219,8 +216,7 @@ class UIPC_CORE_API Geometry : public IGeometry
         /**
          * @sa AttributeCollection::destroy
          */
-        void destroy(std::string_view name) &&
-            requires(!IsConst);
+        void destroy(std::string_view name) && requires(!IsConst);
 
         /**
          * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
@@ -297,6 +293,9 @@ class UIPC_CORE_API Geometry : public IGeometry
     template <std::derived_from<Geometry> T>
     [[nodiscard]] T* as();
 
+    template <std::derived_from<Geometry> T>
+    [[nodiscard]] const T* as() const;
+
   protected:
     virtual Json do_to_json() const override;
     virtual void do_collect_attribute_collections(vector<std::string>& names,
@@ -304,6 +303,8 @@ class UIPC_CORE_API Geometry : public IGeometry
     virtual void do_build_from_attribute_collections(span<std::string> names,
                                                      span<AttributeCollection*> collections) noexcept override;
     virtual S<IGeometry> do_clone() const override;
+
+    virtual std::string_view get_type() const noexcept override;
 
     AttributeCollection m_intances;
     AttributeCollection m_meta;

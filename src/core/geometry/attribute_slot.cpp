@@ -36,8 +36,8 @@ Json IAttributeSlot::to_json(SizeT i) const
 Json IAttributeSlot::to_json() const
 {
     Json j;
-    j["name"]   = name();
-    j["values"] = attribute().to_json();
+    j["name"]      = name();
+    j["attribute"] = attribute().to_json();
     return j;
 }
 

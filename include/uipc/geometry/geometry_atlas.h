@@ -21,6 +21,7 @@ class UIPC_CORE_API GeometryAtlas
     void create(std::string_view name, const AttributeCollection& ac);
     const AttributeCollection* find(std::string_view name) const;
     Json                       to_json() const;
+    void                       from_json(const Json& j);
 
   private:
     U<Impl> m_impl;

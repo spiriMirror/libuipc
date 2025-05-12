@@ -1,5 +1,6 @@
 #include <uipc/common/json_eigen.h>
 #include <uipc/common/type_traits.h>
+#include <uipc/common/range.h>
 
 namespace uipc::geometry
 {
@@ -108,39 +109,68 @@ Json Attribute<T>::do_to_json(SizeT i) const noexcept
 }
 
 template <typename T>
-void Attribute<T>::do_from_json(const Json& j) const noexcept
+Json Attribute<T>::do_to_json() const noexcept
 {
-    UIPC_ASSERT(j.is_array(), "To create an Attribute, this json must be an array");
-    if constexpr(requires(T t) {
-                     Json j;
+    Json  j;
+    auto& values = j["values"];
+    values       = Json::array();
+    for(auto i : range(j.size()))
+    {
+        values.push_back(do_to_json(i));
+    }
+    j["default_value"] = m_default_value;
+    return j;
+}
+
+template <typename T>
+void Attribute<T>::do_from_json(const Json& j) noexcept
+{
+    UIPC_ASSERT(j.is_object(), "To create an Attribute, this json must be an object");
+
+    auto values_it = j.find("values");
+    if(values_it == j.end())
+    {
+        UIPC_WARN_WITH_LOCATION("Can not find `values` in json, skip");
+        return;
+    }
+    if(!values_it->is_array())
+    {
+        UIPC_WARN_WITH_LOCATION("`values` in json must be an array, skip");
+        return;
+    }
+    auto& values = *values_it;
+
+    auto default_value_it = j.find("default_value");
+    if(default_value_it == j.end())
+    {
+        UIPC_WARN_WITH_LOCATION("Can not find `default_value` in json, skip");
+        return;
+    }
+
+
+    if constexpr(requires(T t, Json j) {
                      j.get<T>();  // can get<T>()
                  })
     {
-        m_values.resize(j.size());
-        for(SizeT i = 0; i < j.size(); ++i)
+        m_values.resize(values.size());
+        for(SizeT i = 0; i < values.size(); ++i)
         {
-            m_values[i] = j[i].get<T>();
+            m_values[i] = values[i].get<T>();
         }
+        m_default_value = default_value_it->get<T>();
     }
     else if constexpr(requires(T t) { t.from_json(j); })
     {
         m_values.resize(j.size());
-        for(SizeT i = 0; i < j.size(); ++i)
+        for(SizeT i = 0; i < values.size(); ++i)
         {
-            m_values[i].from_json(j[i]);
+            m_values[i].from_json(values[i]);
         }
+        m_default_value.from_json(*default_value_it);
     }
     else
     {
         static_assert("Attribute<T>::from_json: T must be a type that can be converted from json");
     }
 }
-
-//template <typename T>
-//const BufferInfo& Attribute<T>::buffer_info() const noexcept
-//{
-//    m_buffer_info.data     = (void*)m_values.data();
-//    m_buffer_info.shape[0] = m_values.size();
-//    return m_buffer_info;
-//}
 }  // namespace uipc::geometry

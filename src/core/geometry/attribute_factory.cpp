@@ -1,20 +1,44 @@
 #include <uipc/geometry/attribute_factory.h>
+#include <uipc/geometry/attribute_slot.h>
+#include <uipc/builtin/factory_keyword.h>
 
 namespace uipc::geometry
 {
-using Creator = std::function<S<IAttribute>(const Json&)>;
+// Must Return AttributeSlot, we need to use the clone facility of IAttributeSlot
+using Creator = std::function<S<IAttributeSlot>(const Json&)>;
 
 template <typename T>
 static void register_type(std::unordered_map<std::string, Creator>& creators)
 {
     creators.insert({Attribute<T>::type(),  //
-                     [](const Json& j) -> S<IAttribute>
+                     [](const Json& j) -> S<IAttributeSlot>
                      {
                          auto attribute = std::make_shared<Attribute<T>>();
                          attribute->from_json(j);
-                         return attribute;
+
+                         // an AttributeSlot without ownership
+                         // don't need name (never used)
+                         // allow_destroy is false (no care)
+                         auto attr_slot =
+                             std::make_shared<AttributeSlot<T>>("", attribute, false);
+
+                         return attr_slot;
                      }});
 }
+
+
+// A Json representation of the attribute looks like this:
+// {
+//     __meta__:
+//     {
+//         base: "IAttribute",
+//         type: "T"
+//     }
+//     __data__:
+//     {
+//          // json representation of the attribute
+//     }
+//  }
 
 class AttributeFactory::Impl
 {
@@ -34,51 +58,7 @@ class AttributeFactory::Impl
 
 #undef UIPC_ATTRIBUTE_EXPORT_DEF
                        });
-
-
         return m_creators;
-    }
-
-    vector<S<IAttribute>> from_json(const Json& j)
-    {
-        vector<S<IAttribute>> attributes;
-        UIPC_ASSERT(j.is_array(), "This json must be an array of attributes");
-        attributes.reserve(j.size());
-
-        for(SizeT i = 0; i < j.size(); ++i)
-        {
-            auto& elem    = j[i];
-            auto  meta_it = elem.find("meta");
-            if(meta_it == elem.end())
-            {
-                UIPC_WARN_WITH_LOCATION("`meta` info not found, so we ignore it");
-                continue;
-            }
-            auto& meta    = *meta_it;
-            auto  type_it = meta.find("type");
-            if(type_it == meta.end())
-            {
-                UIPC_WARN_WITH_LOCATION("`meta.type` info not found, so we ignore it");
-                continue;
-            }
-            auto& type = *type_it;
-
-            auto it = creators().find(type.get<std::string>());
-            if(it != creators().end())
-            {
-                auto& data = elem["data"];
-                // call creator
-                Creator& creator = it->second;
-                auto     attr    = creator(data);
-                attributes.push_back(attr);
-            }
-            else
-            {
-                UIPC_WARN_WITH_LOCATION("Attribute type {} not registered, so we ignore it",
-                                        type.get<std::string>());
-            }
-        }
-        return attributes;
     }
 
     Json to_json(span<IAttribute*> attributes)
@@ -87,20 +67,77 @@ class AttributeFactory::Impl
         for(auto&& attr : attributes)
         {
             auto it = creators().find(std::string{attr->type_name()});
+
             if(it != creators().end())
             {
-                auto& meta   = j["meta"];
+                Json  elem   = Json::object();
+                auto& meta   = elem[builtin::__meta__];
+                meta["base"] = "IAttribute";
                 meta["type"] = attr->type_name();
-                auto& data   = j["data"];
+                auto& data   = elem[builtin::__data__];
                 data         = attr->to_json();
+                j.push_back(elem);
             }
             else
             {
-                UIPC_WARN_WITH_LOCATION("Attribute type {} not registered, so we ignore it",
+                UIPC_WARN_WITH_LOCATION("Attribute<{}> not registered, so we ignore it",
                                         attr->type_name());
             }
         }
         return j;
+    }
+
+    vector<S<IAttributeSlot>> from_json(const Json& j)
+    {
+        vector<S<IAttributeSlot>> attributes;
+        UIPC_ASSERT(j.is_array(), "This json must be an array of attributes");
+        attributes.reserve(j.size());
+
+        for(SizeT i = 0; i < j.size(); ++i)
+        {
+            auto& items   = j[i];
+            auto  meta_it = items.find(builtin::__meta__);
+            if(meta_it == items.end())
+            {
+                UIPC_WARN_WITH_LOCATION("`__meta__` info not found, so we ignore it");
+                continue;
+            }
+            auto& meta    = *meta_it;
+            auto  base_it = meta.find("base");
+            if(base_it == meta.end())
+            {
+                UIPC_WARN_WITH_LOCATION("`base` info not found, so we ignore it");
+                continue;
+            }
+            auto& base = *base_it;
+            if(base.get<std::string>() != "IAttribute")
+            {
+                UIPC_WARN_WITH_LOCATION("`base` info not match, so we ignore it");
+                continue;
+            }
+            auto type_it = meta.find("type");
+            if(type_it == meta.end())
+            {
+                UIPC_WARN_WITH_LOCATION("`type` info not found, so we ignore it");
+                continue;
+            }
+            auto type = type_it->get<std::string>();
+
+            auto& data       = items[builtin::__data__];
+            auto  creator_it = creators().find(type);
+            if(creator_it != creators().end())
+            {
+                // call creator
+                Creator& creator = creator_it->second;
+                auto     attr    = creator(data);
+                attributes.push_back(attr);
+            }
+            else
+            {
+                UIPC_WARN_WITH_LOCATION("Attribute<{}> not registered, so we ignore it", type);
+            }
+        }
+        return attributes;
     }
 };
 
@@ -112,7 +149,7 @@ AttributeFactory::AttributeFactory()
 
 AttributeFactory::~AttributeFactory() {}
 
-vector<S<IAttribute>> AttributeFactory::from_json(const Json& j)
+vector<S<IAttributeSlot>> AttributeFactory::from_json(const Json& j)
 {
     return m_impl->from_json(j);
 }
