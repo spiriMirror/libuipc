@@ -6,6 +6,7 @@
 #include <uipc/geometry/attribute.h>
 #include <uipc/geometry/attribute_slot.h>
 #include <uipc/geometry/attribute_copy.h>
+#include <uipc/geometry/attribute_friend.h>
 
 namespace uipc::geometry
 {
@@ -16,6 +17,9 @@ namespace uipc::geometry
  */
 class UIPC_CORE_API AttributeCollection
 {
+    template <typename T>
+    friend class AttributeFriend;
+
     friend struct fmt::formatter<AttributeCollection>;
 
   public:

@@ -138,8 +138,11 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
   protected:
     virtual std::string_view   get_type() const noexcept override;
     [[nodiscard]] virtual Json do_to_json() const override;
-    void do_collect_attribute_collections(vector<std::string>& names,
-                                          vector<AttributeCollection*>& collections) override;
+    virtual void do_collect_attribute_collections(vector<std::string>& names,
+                                                  vector<AttributeCollection*>& collections) override;
+    virtual void do_build_from_attribute_collections(span<std::string> names,
+                                                     span<AttributeCollection*> collections) noexcept override;
+    virtual S<IGeometry> do_clone() const override;
 
   private:
     AttributeCollection m_vertex_attributes;

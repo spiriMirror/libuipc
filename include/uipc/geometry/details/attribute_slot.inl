@@ -10,23 +10,20 @@ AttributeSlot<T>::AttributeSlot(std::string_view m_name, S<Attribute<T>> attribu
     , m_allow_destroy(allow_destroy)
 {
 }
+
+template <typename U>
+[[nodiscard]] span<U> view(AttributeSlot<U>& slot)
+{
+    UIPC_ASSERT(&slot, "You are trying to access a nullptr attribute slot, please check if the attribute name is correct");
+    slot.make_owned();
+    return view(*slot.m_attribute);
+}
+
 template <typename T>
 span<const T> AttributeSlot<T>::view() const noexcept
 {
+    UIPC_ASSERT(this, "You are trying to access a nullptr attribute slot, please check if the attribute name is correct");
     return m_attribute->view();
-}
-
-//template <typename T>
-//const BufferInfo& AttributeSlot<T>::get_buffer_info() const noexcept
-//{
-//    return m_attribute->buffer_info();
-//}
-
-template <typename T>
-std::string_view AttributeSlot<T>::get_type_name() const noexcept
-{
-    thread_local static std::string type_name = readable_type_name<T>();
-    return type_name;
 }
 
 template <typename T>
@@ -84,12 +81,5 @@ template <typename T>
 SizeT uipc::geometry::AttributeSlot<T>::get_use_count() const noexcept
 {
     return m_attribute.use_count();
-}
-
-template <typename U>
-[[nodiscard]] span<U> view(AttributeSlot<U>& slot)
-{
-    slot.make_owned();
-    return view(*slot.m_attribute);
 }
 }  // namespace uipc::geometry

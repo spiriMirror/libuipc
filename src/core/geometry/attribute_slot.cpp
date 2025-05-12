@@ -10,7 +10,7 @@ std::string_view IAttributeSlot::name() const noexcept
 
 std::string_view IAttributeSlot::type_name() const noexcept
 {
-    return get_type_name();
+    return attribute().type_name();
 }
 
 bool IAttributeSlot::allow_destroy() const noexcept
@@ -36,8 +36,8 @@ Json IAttributeSlot::to_json(SizeT i) const
 Json IAttributeSlot::to_json() const
 {
     Json j;
-    j["name"]   = name();
-    j["values"] = attribute().to_json();
+    j["name"]      = name();
+    j["attribute"] = attribute().to_json();
     return j;
 }
 

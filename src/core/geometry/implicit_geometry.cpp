@@ -29,6 +29,10 @@ std::string_view ImplicitGeometry::get_type() const noexcept
 {
     return uipc::builtin::ImplicitGeometry;
 }
+S<IGeometry> ImplicitGeometry::do_clone() const
+{
+    return std::make_shared<ImplicitGeometry>(*this);
+}
 }  // namespace uipc::geometry
 
 namespace fmt
