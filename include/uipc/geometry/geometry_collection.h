@@ -4,6 +4,11 @@
 #include <uipc/geometry/geometry_slot.h>
 #include <uipc/common/set.h>
 
+namespace uipc::core
+{
+class SceneFactory;
+}
+
 namespace uipc::geometry
 {
 class UIPC_CORE_API IGeometryCollection
@@ -24,6 +29,8 @@ class UIPC_CORE_API IGeometryCollection
 
 class UIPC_CORE_API GeometryCollection : public IGeometryCollection
 {
+    friend class core::SceneFactory;
+
   public:
     GeometryCollection() = default;
 
@@ -73,6 +80,8 @@ class UIPC_CORE_API GeometryCollection : public IGeometryCollection
     mutable vector<IndexT>                    m_pending_destroy_ids;
 
     void flush() const;
+
+    void build_from(span<S<geometry::GeometrySlot>> slots) noexcept;
 };
 }  // namespace uipc::geometry
 

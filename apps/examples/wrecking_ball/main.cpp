@@ -49,7 +49,7 @@ int main()
         // create constitution and contact model
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
-        auto& default_contact = scene.contact_tabular().default_element();
+        auto default_contact = scene.contact_tabular().default_element();
         scene.contact_tabular().default_model(0.01, 20.0_GPa);
 
         Float     scale = 1;

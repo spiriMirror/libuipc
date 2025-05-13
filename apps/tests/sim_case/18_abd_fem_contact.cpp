@@ -45,7 +45,7 @@ TEST_CASE("18_abd_fem_contact", "[abd_fem]")
         AffineBodyConstitution abd;
 
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
-        auto& default_element = scene.contact_tabular().default_element();
+        auto default_element = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("cubes");

@@ -45,7 +45,7 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
         ARAP arap;
         scene.constitution_tabular().insert(arap);
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
-        auto& default_element = scene.contact_tabular().default_element();
+        auto default_element = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("tets");

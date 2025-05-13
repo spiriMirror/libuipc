@@ -51,6 +51,28 @@ IndexT ObjectCollection::next_id() const noexcept
 {
     return m_next_id;
 }
+
+unordered_map<IndexT, S<Object>>& ObjectCollection::objects()
+{
+    return m_objects;
+}
+const unordered_map<IndexT, S<Object>>& ObjectCollection::objects() const
+{
+    return m_objects;
+}
+
+void ObjectCollection::build_from(span<S<Object>> objects) noexcept
+{
+    m_objects.clear();
+    m_next_id = 0;
+    for(auto& object : objects)
+    {
+        auto id = object->id();
+        if(id >= m_next_id)
+            m_next_id = id + 1;
+        m_objects.emplace(id, object);
+    }
+}
 }  // namespace uipc::core
 
 namespace fmt

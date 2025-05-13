@@ -28,6 +28,11 @@ const Geometry& GeometrySlotT<ImplicitGeometry>::get_geometry() const noexcept
     return m_geometry;
 }
 
+S<GeometrySlot> GeometrySlotT<ImplicitGeometry>::do_clone() const
+{
+    return std::make_shared<GeometrySlotT<ImplicitGeometry>>(id(), m_geometry);
+}
+
 template class UIPC_CORE_API GeometrySlotT<ImplicitGeometry>;
 }  // namespace uipc::geometry
 

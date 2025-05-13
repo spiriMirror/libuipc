@@ -41,7 +41,7 @@ TEST_CASE("27_particle_abd", "[abd]")
 
         auto& contact_tabular = scene.contact_tabular();
         contact_tabular.default_model(0.5, 1.0_GPa);
-        auto& default_element = contact_tabular.default_element();
+        auto default_element = contact_tabular.default_element();
 
         {
             vector<Vector3> Vs = {Vector3{0, 0, 1},
@@ -81,7 +81,8 @@ TEST_CASE("27_particle_abd", "[abd]")
         particle_obj->geometries().create(particle);
     }
 
-    world.init(scene); REQUIRE(world.is_valid());
+    world.init(scene);
+    REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

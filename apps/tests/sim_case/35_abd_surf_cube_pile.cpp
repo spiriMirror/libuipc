@@ -34,7 +34,7 @@ TEST_CASE("35_abd_surf_cube_pile", "[abd]")
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
-        auto& default_contact = scene.contact_tabular().default_element();
+        auto default_contact = scene.contact_tabular().default_element();
 
         Transform pre_transform = Transform::Identity();
         pre_transform.scale(0.3);

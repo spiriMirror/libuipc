@@ -147,7 +147,12 @@ Scene::Scene(const Json& config)
 {
 }
 
-Scene::~Scene() {}
+const Json& Scene::config() const noexcept
+{
+    return m_impl->info;
+}
+
+Scene::~Scene() = default;
 
 ContactTabular& Scene::contact_tabular() noexcept
 {
@@ -240,14 +245,19 @@ void Scene::solve_pending() noexcept
     m_impl->solve_pending();
 }
 
-geometry::GeometryCollection& Scene::geometry_collection() noexcept
+geometry::GeometryCollection& Scene::geometry_collection() const noexcept
 {
     return m_impl->geometries;
 }
 
-geometry::GeometryCollection& Scene::rest_geometry_collection() noexcept
+geometry::GeometryCollection& Scene::rest_geometry_collection() const noexcept
 {
     return m_impl->rest_geometries;
+}
+
+ObjectCollection& Scene::object_collection() const noexcept
+{
+    return m_impl->objects;
 }
 
 World& Scene::world() noexcept

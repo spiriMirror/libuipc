@@ -1,6 +1,7 @@
 #include <catch.hpp>
 #include <app/asset_dir.h>
 #include <uipc/io/simplicial_complex_io.h>
+#include <uipc/geometry.h>
 #include <uipc/geometry/geometry_atlas.h>
 #include <uipc/common/format.h>
 #include <fstream>
@@ -37,7 +38,7 @@ TEST_CASE("geometry_atlas", "[serialization]")
 
     auto geo = atlas.find(0);
     REQUIRE(geo != nullptr);
-    auto sc = geo->as<SimplicialComplex>();
+    auto sc = geo->geometry().as<SimplicialComplex>();
     REQUIRE(sc != nullptr);
     REQUIRE(sc->to_json() == mesh.to_json());
 

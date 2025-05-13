@@ -130,18 +130,6 @@ void SceneIO::write_surface(std::string_view filename)
     }
 }
 
-geometry::SimplicialComplex SceneIO::simplicial_surface() const
-{
-    using namespace uipc::geometry;
-
-    auto scene = backend::SceneVisitor{m_scene};
-    auto geos  = scene.geometries();
-
-    auto simplicial_complex_has_surf = detail::collect_geometry_with_surf<-1>(geos);
-
-    return extract_surface(simplicial_complex_has_surf);
-}
-
 geometry::SimplicialComplex SceneIO::simplicial_surface(IndexT dim) const
 {
     using namespace uipc::geometry;

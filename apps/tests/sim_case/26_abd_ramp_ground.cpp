@@ -41,18 +41,18 @@ TEST_CASE("26_abd_ramp_ground", "[abd]")
 
         auto& contact_tabular = scene.contact_tabular();
         contact_tabular.default_model(0.5, 1.0_GPa);
-        auto& default_element = contact_tabular.default_element();
+        auto default_element = contact_tabular.default_element();
 
         constexpr SizeT N = 8;
 
         auto friction_rate_step = 1.0 / (N - 1);
 
-        vector<ContactElement*> contact_elements(N);
+        vector<ContactElement> contact_elements(N);
 
         for(auto&& [i, e] : enumerate(contact_elements))
         {
-            e = &contact_tabular.create(fmt::format("element{}", i));
-            contact_tabular.insert(*e, default_element, friction_rate_step * i, 1.0_GPa);
+            e = contact_tabular.create(fmt::format("element{}", i));
+            contact_tabular.insert(e, default_element, friction_rate_step * i, 1.0_GPa);
         }
 
 
@@ -78,7 +78,7 @@ TEST_CASE("26_abd_ramp_ground", "[abd]")
             {
                 SimplicialComplex this_cube = cube;
 
-                contact_elements[i]->apply_to(this_cube);
+                contact_elements[i].apply_to(this_cube);
 
                 auto      trans_view = view(this_cube.transforms());
                 Transform t          = Transform::Identity();
@@ -103,7 +103,8 @@ TEST_CASE("26_abd_ramp_ground", "[abd]")
         }
     }
 
-    world.init(scene); REQUIRE(world.is_valid());
+    world.init(scene);
+    REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
