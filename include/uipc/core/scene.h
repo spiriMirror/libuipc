@@ -35,11 +35,12 @@ class UIPC_CORE_API Scene final
         friend class Scene;
 
       public:
-        S<Object> create(std::string_view name = "") &&;
-        S<Object> find(IndexT id) && noexcept;
-        void      destroy(IndexT id) &&;
-        SizeT     size() const noexcept;
-        SizeT     created_count() const noexcept;
+        S<Object>         create(std::string_view name = "") &&;
+        S<Object>         find(IndexT id) && noexcept;
+        vector<S<Object>> find(std::string_view name) && noexcept;
+        void              destroy(IndexT id) &&;
+        SizeT             size() const noexcept;
+        SizeT             created_count() const noexcept;
 
       private:
         Objects(Scene& scene) noexcept;
@@ -51,9 +52,10 @@ class UIPC_CORE_API Scene final
         friend class Scene;
 
       public:
-        S<const Object> find(IndexT id) && noexcept;
-        SizeT           size() const noexcept;
-        SizeT           created_count() const noexcept;
+        S<const Object>         find(IndexT id) && noexcept;
+        vector<S<const Object>> find(std::string_view name) && noexcept;
+        SizeT                   size() const noexcept;
+        SizeT                   created_count() const noexcept;
 
       private:
         CObjects(const Scene& scene) noexcept;

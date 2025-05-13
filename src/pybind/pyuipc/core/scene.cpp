@@ -9,7 +9,7 @@ using namespace uipc::geometry;
 PyScene::PyScene(py::module& m)
 {
     // def class
-    auto class_Scene   = py::class_<Scene>(m, "Scene");
+    auto class_Scene   = py::class_<Scene, S<Scene>>(m, "Scene");
     auto class_Objects = py::class_<Scene::Objects>(class_Scene, "Objects");
     auto class_Geometries = py::class_<Scene::Geometries>(class_Scene, "Geometries");
 
@@ -51,6 +51,18 @@ PyScene::PyScene(py::module& m)
     class_Objects.def("find",
                       [](Scene::Objects& self, IndexT id)
                       { return std::move(self).find(id); });
+
+    class_Objects.def("find",
+                      [](Scene::Objects& self, std::string_view name) -> py::list
+                      {
+                          py::list ret;
+                          auto     objects = std::move(self).find(name);
+                          for(auto& obj : objects)
+                          {
+                              ret.append(obj);
+                          }
+                          return ret;
+                      });
 
     class_Objects.def("destroy",
                       [](Scene::Objects& self, IndexT id)
