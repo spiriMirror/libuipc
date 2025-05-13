@@ -16,11 +16,19 @@ The following dependencies are required to build the project.
 If you haven't installed Vcpkg, you can clone the repository with the following command:
 
 ```shell
+mkdir ~/Toolchain
+cd ~/Toolchain
 git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
 ./bootstrap-vcpkg.sh
 ```
-The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
+
+The simplest way to let CMake detect Vcpkg is to set the **System Environment Variable** `CMAKE_TOOLCHAIN_FILE` to `~/Toolchain/scripts/buildsystems/vcpkg.cmake`
+
+```shell
+# Write in ~/.bashrc
+export CMAKE_TOOLCHAIN_FILE="$HOME/Toolchain/scripts/buildsystems/vcpkg.cmake"
+```
 
 ## Clone Libuipc
 
