@@ -20,8 +20,10 @@ class UIPC_CORE_API ObjectCollection : public IObjectCollection
     ObjectCollection() = default;
     S<Object> emplace(Object&& object);
 
-    S<Object>       find(IndexT id) noexcept;
-    S<const Object> find(IndexT id) const noexcept;
+    S<Object>               find(IndexT id) noexcept;
+    S<const Object>         find(IndexT id) const noexcept;
+    vector<S<Object>>       find(std::string_view name) noexcept;
+    vector<S<const Object>> find(std::string_view name) const noexcept;
 
     void destroy(IndexT id) noexcept;
 

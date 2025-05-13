@@ -1,4 +1,5 @@
 #include <uipc/io/scene_io.h>
+#include <uipc/core/scene_factory.h>
 #include <algorithm>
 #include <filesystem>
 #include <fmt/printf.h>
@@ -158,5 +159,114 @@ geometry::SimplicialComplex SceneIO::simplicial_surface(IndexT dim) const
     }
 
     return extract_surface(simplicial_complex_has_surf);
+}
+
+void SceneIO::save(const Scene& scene, std::string_view filename)
+{
+    fs::path path{filename};
+    path = fs::absolute(path);
+
+    auto ext = path.extension();
+
+    SceneFactory sf;
+    auto         scene_json = sf.to_json(scene);
+
+    if(ext == ".json")
+    {
+        fs::exists(path.parent_path()) || fs::create_directories(path.parent_path());
+        std::ofstream file(path.string());
+        if(file)
+        {
+            file << scene_json.dump(4);
+        }
+        else
+        {
+            throw SceneIOError(fmt::format("Failed to open file {} for writing.",
+                                           path.string()));
+        }
+    }
+    else if(ext == ".bson")
+    {
+        fs::exists(path.parent_path()) || fs::create_directories(path.parent_path());
+        std::vector<std::uint8_t> v = Json::to_bson(scene_json);
+        std::ofstream             file(path, std::ios::binary);
+        if(file)
+        {
+            file.write(reinterpret_cast<const char*>(v.data()), v.size());
+        }
+        else
+        {
+            throw SceneIOError(fmt::format("Failed to open file {} for writing.",
+                                           path.string()));
+        }
+    }
+    else
+    {
+        throw SceneIOError(fmt::format("Unsupported file format when writing {}.", filename));
+    }
+}
+
+void SceneIO::save(std::string_view filename) const
+{
+    save(m_scene, filename);
+}
+
+S<Scene> SceneIO::load(std::string_view filename)
+{
+
+    S<Scene> scene;
+
+    fs::path path{filename};
+    path = fs::absolute(path);
+
+    auto ext = path.extension();
+
+    SceneFactory sf;
+    if(ext == ".json")
+    {
+        std::ifstream file(path.string());
+        if(file)
+        {
+            Json scene_json;
+            file >> scene_json;
+            scene = sf.from_json(scene_json);
+        }
+        else
+        {
+            throw SceneIOError(fmt::format("Failed to open file {} for reading.",
+                                           path.string()));
+        }
+    }
+    else if(ext == ".bson")
+    {
+        std::ifstream file(path, std::ios::binary);
+        if(file)
+        {
+            std::vector<std::uint8_t> v((std::istreambuf_iterator<char>(file)),
+                                        std::istreambuf_iterator<char>());
+            Json                      scene_json = Json::from_bson(v);
+            scene                                = sf.from_json(scene_json);
+        }
+        else
+        {
+            throw SceneIOError(fmt::format("Failed to open file {} for reading.",
+                                           path.string()));
+        }
+    }
+    else
+    {
+        throw SceneIOError(fmt::format("Unsupported file format when loading {}.", filename));
+    }
+
+    if(!scene)
+    {
+        spdlog::warn("Failed to load scene from file {}.", filename);
+    }
+    else
+    {
+        spdlog::info("Scene loaded from file {}.", filename);
+    }
+
+    return scene;
 }
 }  // namespace uipc::core

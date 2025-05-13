@@ -29,6 +29,28 @@ S<const Object> ObjectCollection::find(IndexT id) const noexcept
     return remove_const(*this).find(id);
 }
 
+vector<S<Object>> ObjectCollection::find(std::string_view name) noexcept
+{
+    vector<S<Object>> result;
+    for(auto& [id, object] : m_objects)
+    {
+        if(object->name() == name)
+            result.push_back(object);
+    }
+    return result;
+}
+
+vector<S<const Object>> ObjectCollection::find(std::string_view name) const noexcept
+{
+    vector<S<const Object>> result;
+    for(auto& [id, object] : m_objects)
+    {
+        if(object->name() == name)
+            result.push_back(object);
+    }
+    return result;
+}
+
 void ObjectCollection::destroy(IndexT id) noexcept
 {
     auto it = m_objects.find(id);

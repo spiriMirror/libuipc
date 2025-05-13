@@ -12,5 +12,11 @@ PySceneIO::PySceneIO(py::module& m)
         "simplicial_surface",
         [](SceneIO& self, IndexT dim) { return self.simplicial_surface(dim); },
         py::arg("dim") = -1);
+    class_SceneIO.def_static(
+        "load",
+        [](std::string_view filename) { return SceneIO::load(filename); },
+        py::arg("filename"));
+    class_SceneIO.def(
+        "save", [](SceneIO& self, std::string_view file) { self.save(file); }, py::arg("filename"));
 }
 }  // namespace pyuipc::core
