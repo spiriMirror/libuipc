@@ -10,9 +10,9 @@ TEST_CASE("contact_model", "[contact_model]")
     Scene scene;
     auto& contact_tabular = scene.contact_tabular();
 
-    auto& default_element = contact_tabular.default_element();
-    auto& wood_contact    = contact_tabular.create();
-    auto& rubber_contact  = contact_tabular.create();
+    auto default_element = contact_tabular.default_element();
+    auto wood_contact    = contact_tabular.create();
+    auto rubber_contact  = contact_tabular.create();
 
     contact_tabular.default_model(0.5, 1e8);
     contact_tabular.insert(wood_contact, wood_contact, 0.5, 1e8);

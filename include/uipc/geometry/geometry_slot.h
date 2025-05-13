@@ -3,6 +3,11 @@
 #include <uipc/common/smart_pointer.h>
 #include <uipc/geometry/geometry.h>
 
+namespace uipc::core
+{
+class SceneFactory;
+}
+
 namespace uipc::geometry
 {
 enum class GeometrySlotState
@@ -15,14 +20,18 @@ enum class GeometrySlotState
 class UIPC_CORE_API GeometrySlot
 {
     friend class GeometryCollection;
+    friend class core::SceneFactory;
+    friend class GeometryAtlas;
 
   public:
     GeometrySlot(IndexT id) noexcept;
     virtual ~GeometrySlot() = default;
-    IndexT            id() const noexcept;
-    Geometry&         geometry() noexcept;
-    const Geometry&   geometry() const noexcept;
+    IndexT          id() const noexcept;
+    Geometry&       geometry() noexcept;
+    const Geometry& geometry() const noexcept;
+
     GeometrySlotState state() const noexcept;
+    S<GeometrySlot>   clone() const;
 
     GeometrySlot(const GeometrySlot&)            = delete;
     GeometrySlot(GeometrySlot&&)                 = delete;
@@ -32,6 +41,7 @@ class UIPC_CORE_API GeometrySlot
   protected:
     virtual Geometry&       get_geometry() noexcept       = 0;
     virtual const Geometry& get_geometry() const noexcept = 0;
+    virtual S<GeometrySlot> do_clone() const              = 0;
 
   private:
     IndexT            m_id;
@@ -53,6 +63,7 @@ class UIPC_CORE_API GeometrySlotT<Geometry> : public GeometrySlot
   protected:
     Geometry&       get_geometry() noexcept override;
     const Geometry& get_geometry() const noexcept override;
+    S<GeometrySlot> do_clone() const override;
 
   private:
     Geometry m_geometry;

@@ -35,7 +35,7 @@ TEST_CASE("19_shell_fixed_point", "[fem]")
         // create constitution and contact model
         NeoHookeanShell nhs;
         scene.constitution_tabular().insert(nhs);
-        auto& default_contact = scene.contact_tabular().default_element();
+        auto default_contact = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("shell");
@@ -75,7 +75,8 @@ TEST_CASE("19_shell_fixed_point", "[fem]")
         object->geometries().create(mesh);
     }
 
-    world.init(scene); REQUIRE(world.is_valid());
+    world.init(scene);
+    REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

@@ -20,6 +20,7 @@ class GeometrySlotT<SimplicialComplex> : public GeometrySlot
   protected:
     virtual Geometry&       get_geometry() noexcept override;
     virtual const Geometry& get_geometry() const noexcept override;
+    virtual S<GeometrySlot> do_clone() const override;
 
   private:
     SimplicialComplex m_simplicial_complex;

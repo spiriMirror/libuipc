@@ -36,8 +36,8 @@ TEST_CASE("8_abd_multi_contact_model", "[abd]")
         scene.constitution_tabular().insert(abd);
 
         auto& contact_tabular = scene.contact_tabular();
-        auto& default_contact = contact_tabular.default_element();
-        auto& rubber_contact  = contact_tabular.create("rubber");
+        auto  default_contact = contact_tabular.default_element();
+        auto  rubber_contact  = contact_tabular.create("rubber");
 
         contact_tabular.default_model(0.5, 1.0_GPa);
         contact_tabular.insert(default_contact, rubber_contact, 0.5, 100.0_MPa);
@@ -103,7 +103,8 @@ TEST_CASE("8_abd_multi_contact_model", "[abd]")
         }
     }
 
-    world.init(scene); REQUIRE(world.is_valid());
+    world.init(scene);
+    REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

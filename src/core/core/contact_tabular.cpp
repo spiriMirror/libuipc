@@ -42,14 +42,16 @@ class ContactTabular::Impl
         insert(default_element, default_element, 0.5, 1.0_GPa, true, default_config());
     }
 
-    ContactElement& create(std::string_view name) noexcept
+    ContactElement create(std::string_view name) noexcept
     {
+        auto   id = current_element_id();
         string name_str{name};
         if(name_str.empty())
-            name_str = fmt::format("_{}", m_current_element_id);
-        m_elements.push_back(
-            uipc::make_unique<ContactElement>(m_current_element_id++, name_str));
-        return *m_elements.back();
+            name_str = fmt::format("_{}", id);
+
+        m_elements.push_back(ContactElement(id, name_str));
+
+        return m_elements.back();
     }
 
     IndexT insert(const ContactElement& L,
@@ -62,25 +64,25 @@ class ContactTabular::Impl
         Vector2i ids = {L.id(), R.id()};
 
         // check if the contact element id is valid.
-        UIPC_ASSERT(L.id() < m_current_element_id && L.id() >= 0
-                        && R.id() < m_current_element_id && R.id() >= 0,
+        UIPC_ASSERT(L.id() < current_element_id() && L.id() >= 0
+                        && R.id() < current_element_id() && R.id() >= 0,
                     "Invalid contact element id, id should be in [{},{}), your L={}, R={}.",
                     0,
-                    m_current_element_id,
+                    current_element_id(),
                     L.id(),
                     R.id());
 
         // check if the name is matched.
-        UIPC_ASSERT(m_elements[L.id()]->name() == L.name()
-                        && m_elements[R.id()]->name() == R.name(),
+        UIPC_ASSERT(m_elements[L.id()].name() == L.name()
+                        && m_elements[R.id()].name() == R.name(),
                     "Contact element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
                     "It seems the contact element and contact model don't come from the same ContactTabular.",
                     L.id(),
                     L.name(),
-                    m_elements[L.id()]->name(),
+                    m_elements[L.id()].name(),
                     R.id(),
                     R.name(),
-                    m_elements[R.id()]->name());
+                    m_elements[R.id()].name());
 
         // ensure ids.x() < ids.y(), because the contact model is symmetric.
         if(ids.x() > ids.y())
@@ -94,9 +96,9 @@ class ContactTabular::Impl
         {
             index = it->second;
             UIPC_WARN_WITH_LOCATION("Contact model between {}[{}] and {}[{}] already exists, replace the old one.",
-                                    m_elements[L.id()]->name(),
+                                    m_elements[L.id()].name(),
                                     L.id(),
-                                    m_elements[R.id()]->name(),
+                                    m_elements[R.id()].name(),
                                     R.id());
         }
         else
@@ -114,6 +116,8 @@ class ContactTabular::Impl
 
         return index;
     }
+
+    IndexT current_element_id() const noexcept { return m_elements.size(); }
 
     IndexT index_at(SizeT i, SizeT j) const
     {
@@ -143,7 +147,7 @@ class ContactTabular::Impl
 
     ContactModel default_model() const noexcept { return at(0, 0); }
 
-    ContactElement& default_element() noexcept { return *m_elements.front(); }
+    ContactElement default_element() noexcept { return m_elements.front(); }
 
     const geometry::AttributeCollection& contact_models() const noexcept
     {
@@ -159,15 +163,12 @@ class ContactTabular::Impl
 
     static Json default_config() noexcept { return Json::object(); }
 
-    IndexT m_current_element_id = 0;
-    // mutable bool m_is_dirty = true;
-    // mutable vector<ContactModel> m_models;
-    vector<U<ContactElement>> m_elements;
-
-    map<Vector2i, IndexT> m_model_map;
-
+    vector<ContactElement>        m_elements;
     geometry::AttributeCollection m_contact_models;
     SizeT                         m_contact_model_capacity = 1024;
+
+    mutable map<Vector2i, IndexT> m_model_map;
+
     mutable S<geometry::AttributeSlot<Vector2i>> m_topo;
     mutable S<geometry::AttributeSlot<Float>>    m_friction_rates;
     mutable S<geometry::AttributeSlot<Float>>    m_resistances;
@@ -183,6 +184,30 @@ class ContactTabular::Impl
         }
         m_contact_models.resize(new_size);
     }
+
+    void build_from(const geometry::AttributeCollection& ac, span<ContactElement> ce)
+    {
+        m_elements.clear();
+        m_elements = vector<ContactElement>(ce.begin(), ce.end());
+
+        m_contact_models = ac;
+        m_topo           = m_contact_models.find<Vector2i>("topo");
+        UIPC_ASSERT(m_topo, "Contact model topology is not found, please check the attribute collection.");
+        m_friction_rates = m_contact_models.find<Float>("friction_rate");
+        UIPC_ASSERT(m_friction_rates, "Contact model friction rates is not found, please check the attribute collection.");
+        m_resistances = m_contact_models.find<Float>("resistance");
+        UIPC_ASSERT(m_resistances, "Contact model resistances is not found, please check the attribute collection.");
+        m_is_enabled = m_contact_models.find<IndexT>("is_enabled");
+        UIPC_ASSERT(m_is_enabled, "Contact model is_enabled is not found, please check the attribute collection.");
+
+        m_model_map.clear();
+        auto topo_view = m_topo->view();
+        for(SizeT i = 0; i < topo_view.size(); ++i)
+        {
+            auto ids         = topo_view[i];
+            m_model_map[ids] = i;
+        }
+    }
 };
 
 ContactTabular::ContactTabular() noexcept
@@ -192,7 +217,7 @@ ContactTabular::ContactTabular() noexcept
 
 ContactTabular::~ContactTabular() noexcept {}
 
-ContactElement& ContactTabular::create(std::string_view name) noexcept
+ContactElement ContactTabular::create(std::string_view name) noexcept
 {
     return m_impl->create(name);
 }
@@ -220,7 +245,7 @@ void ContactTabular::default_model(Float       friction_rate,
     m_impl->default_model(friction_rate, resistance, enable, config);
 }
 
-ContactElement& ContactTabular::default_element() noexcept
+ContactElement ContactTabular::default_element() noexcept
 {
     return m_impl->default_element();
 }
@@ -245,15 +270,9 @@ geometry::AttributeCollection& ContactTabular::internal_contact_models() const n
     return m_impl->contact_models();
 }
 
-vector<ContactElement> ContactTabular::contact_elements() const noexcept
+span<ContactElement> ContactTabular::contact_elements() const noexcept
 {
-    vector<ContactElement> elements(m_impl->element_count());
-    auto&                  element_ptrs = m_impl->m_elements;
-
-    std::ranges::transform(
-        element_ptrs, elements.begin(), [](const auto& e) { return *e; });
-
-    return elements;
+    return m_impl->m_elements;
 }
 
 SizeT ContactTabular::element_count() const noexcept
@@ -266,9 +285,15 @@ Json ContactTabular::default_config() noexcept
     return Impl::default_config();
 }
 
+void ContactTabular::build_from(const geometry::AttributeCollection& ac,
+                                span<ContactElement>                 ce)
+{
+    m_impl->build_from(ac, ce);
+}
+
 void to_json(Json& j, const ContactTabular& ct)
 {
-    j["elements"] = ct.contact_elements();
-    j["models"]   = ct.contact_models().to_json();
+    j["contact_elements"] = ct.contact_elements();
+    j["contact_models"]   = ct.contact_models().to_json();
 }
 }  // namespace uipc::core

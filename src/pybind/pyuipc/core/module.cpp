@@ -2,6 +2,7 @@
 #include <pyuipc/core/engine.h>
 #include <pyuipc/core/object.h>
 #include <pyuipc/core/scene.h>
+#include <pyuipc/core/scene_factory.h>
 #include <pyuipc/core/world.h>
 #include <pyuipc/core/contact_tabular.h>
 #include <pyuipc/core/constitution_tabular.h>
@@ -29,6 +30,7 @@ PyModule::PyModule(py::module& m)
 
     PySanityChecker{m};
     PyScene{m};
+    PySceneFactory{m};
     PyWorld{m};
 
     PySceneIO{m};

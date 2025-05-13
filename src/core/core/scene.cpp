@@ -152,7 +152,7 @@ const Json& Scene::config() const noexcept
     return m_impl->info;
 }
 
-Scene::~Scene() {}
+Scene::~Scene() = default;
 
 ContactTabular& Scene::contact_tabular() noexcept
 {

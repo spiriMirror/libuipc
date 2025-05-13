@@ -29,11 +29,14 @@ class UIPC_CORE_API ObjectCollection : public IObjectCollection
     SizeT  size() const noexcept;
     IndexT next_id() const noexcept;
 
-    Json to_json() const noexcept;
-
   private:
-    IndexT                           m_next_id = 0;
+    mutable IndexT                   m_next_id = 0;
     unordered_map<IndexT, S<Object>> m_objects;
+
+    unordered_map<IndexT, S<Object>>&       objects();
+    const unordered_map<IndexT, S<Object>>& objects() const;
+
+    void build_from(span<S<Object>> objects) noexcept;
 };
 }  // namespace uipc::core
 

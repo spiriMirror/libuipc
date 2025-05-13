@@ -9,6 +9,12 @@ class UIPC_CORE_API ContactElement
 {
   public:
     ContactElement() = default;
+
+    ContactElement(const ContactElement&)            = default;
+    ContactElement(ContactElement&&)                 = default;
+    ContactElement& operator=(const ContactElement&) = default;
+    ContactElement& operator=(ContactElement&&)      = default;
+
     ContactElement(IndexT id, std::string_view name) noexcept;
     IndexT           id() const noexcept;
     std::string_view name() const noexcept;

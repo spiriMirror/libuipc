@@ -36,7 +36,7 @@ TEST_CASE("2_abd_contact_ee", "[abd]")
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
-        auto& default_contact = scene.contact_tabular().default_element();
+        auto default_contact = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("tets");

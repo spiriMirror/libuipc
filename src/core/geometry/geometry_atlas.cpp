@@ -47,33 +47,30 @@ class GeometryAtlas::Impl
     *                          Building
     ***************************************************************/
 
-    vector<S<Geometry>>                                m_geometries;
+    vector<S<GeometrySlot>>                            m_geometries;
     unordered_map<std::string, S<AttributeCollection>> m_attribute_collections;
     unordered_map<IAttribute*, IndexT>                 m_attr_to_index;
     vector<IAttribute*>                                m_index_to_attr;
 
-    IndexT create(const Geometry& geo)
+    IndexT create(const Geometry& geometry)
     {
-        S<Geometry> new_geo = std::static_pointer_cast<Geometry>(geo.clone());
-        build_attributes_index_from_geometry(*new_geo);
-
         IndexT id = static_cast<IndexT>(m_geometries.size());
-        m_geometries.push_back(std::move(new_geo));
 
+        auto slot = gf().create_slot(id, geometry);
+        build_attributes_index_from_geometry(slot->geometry());
+        slot->id(id);
+        m_geometries.push_back(std::move(slot));
         return id;
     }
 
-    const Geometry* find(IndexT id) const
+    const GeometrySlot* find(IndexT id) const
     {
         if(id >= m_geometries.size())
         {
-            UIPC_WARN_WITH_LOCATION("Geometry with id {} not found", id);
+            UIPC_WARN_WITH_LOCATION("GeometrySlot with id {} not found", id);
             return nullptr;
         }
-        else
-        {
-            return m_geometries[id].get();
-        }
+        return m_geometries[id].get();
     }
 
     void create(std::string_view name, const AttributeCollection& ac)
@@ -151,14 +148,18 @@ class GeometryAtlas::Impl
         return acf().to_json(&ac, m_attr_to_index);
     }
 
-    Json geometries_to_json(span<S<Geometry>> geos)
+    Json geometries_to_json(span<S<GeometrySlot>> geos)
     {
+
+
         vector<Geometry*> geos_ptr;
         geos_ptr.reserve(geos.size());
         std::transform(geos.begin(),
                        geos.end(),
                        std::back_inserter(geos_ptr),
-                       [](const S<Geometry>& geo) { return geo.get(); });
+                       [](const S<GeometrySlot>& geo)
+                       { return &geo->geometry(); });
+
         return gf().to_json(geos_ptr, m_attr_to_index);
     }
 
@@ -328,9 +329,14 @@ IndexT GeometryAtlas::create(const Geometry& geo)
     return m_impl->create(geo);
 }
 
-const Geometry* GeometryAtlas::find(IndexT id) const
+const GeometrySlot* GeometryAtlas::find(IndexT id) const
 {
     return m_impl->find(id);
+}
+
+SizeT GeometryAtlas::geometry_count() const noexcept
+{
+    return m_impl->m_geometries.size();
 }
 
 void GeometryAtlas::create(std::string_view name, const AttributeCollection& ac)
@@ -343,10 +349,27 @@ const AttributeCollection* GeometryAtlas::find(std::string_view name) const
     return m_impl->find(name);
 }
 
+SizeT GeometryAtlas::attribute_collection_count() const noexcept
+{
+    return m_impl->m_attribute_collections.size();
+}
+
+vector<std::string> GeometryAtlas::attribute_collection_names() const noexcept
+{
+    vector<std::string> names;
+    names.reserve(m_impl->m_attribute_collections.size());
+    for(auto&& [name, _] : m_impl->m_attribute_collections)
+    {
+        names.push_back(name);
+    }
+    return names;
+}
+
 Json GeometryAtlas::to_json() const
 {
     return m_impl->to_json();
 }
+
 void GeometryAtlas::from_json(const Json& j)
 {
     m_impl->from_json(j);

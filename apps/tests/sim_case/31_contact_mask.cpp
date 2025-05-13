@@ -47,9 +47,9 @@ TEST_CASE("31_contact_mask", "[fem]")
 
         auto& contact_tabular = scene.contact_tabular();
         contact_tabular.default_model(0.5, 1.0_GPa);
-        auto& default_element = contact_tabular.default_element();
+        auto default_element = contact_tabular.default_element();
 
-        auto& group_1 = contact_tabular.create("group_1");
+        auto group_1 = contact_tabular.create("group_1");
         // ignore self-contact
         contact_tabular.insert(group_1, group_1, 0.0, 0.0, false);
 
@@ -98,7 +98,8 @@ TEST_CASE("31_contact_mask", "[fem]")
         object->geometries().create(g);
     }
 
-    world.init(scene); REQUIRE(world.is_valid());
+    world.init(scene);
+    REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

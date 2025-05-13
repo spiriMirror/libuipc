@@ -25,7 +25,7 @@ void test_engine(std::string_view name)
     scene.constitution_tabular().insert(abd);
 
     auto& contact_tabular = scene.contact_tabular();
-    auto& default_contact = contact_tabular.default_element();
+    auto  default_contact = contact_tabular.default_element();
 
 
     auto object = scene.objects().create("cube");

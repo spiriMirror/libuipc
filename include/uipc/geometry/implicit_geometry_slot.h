@@ -16,6 +16,7 @@ class UIPC_CORE_API GeometrySlotT<ImplicitGeometry> : public GeometrySlot
   protected:
     Geometry&       get_geometry() noexcept override;
     const Geometry& get_geometry() const noexcept override;
+    S<GeometrySlot> do_clone() const override;
 
   private:
     ImplicitGeometry m_geometry;

@@ -35,7 +35,7 @@ TEST_CASE("7_abd_tet_pile", "[abd]")
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
-        auto& default_contact = scene.contact_tabular().default_element();
+        auto default_contact = scene.contact_tabular().default_element();
 
         Transform pre_transform = Transform::Identity();
         pre_transform.scale(0.3);
@@ -90,7 +90,8 @@ TEST_CASE("7_abd_tet_pile", "[abd]")
         object->geometries().create(mesh);
     }
 
-    world.init(scene); REQUIRE(world.is_valid());
+    world.init(scene);
+    REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

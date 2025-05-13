@@ -25,10 +25,8 @@ class UIPC_CORE_API Scene final
     friend class SceneFactory;
 
   public:
-    Scene(const Json& config = default_config());
-    const Json& config() const noexcept;
+    explicit Scene(const Json& config = default_config());
     ~Scene();
-
 
     static Json default_config() noexcept;
 
@@ -85,6 +83,8 @@ class UIPC_CORE_API Scene final
         CGeometries(const Scene& scene) noexcept;
         const Scene& m_scene;
     };
+
+    const Json& config() const noexcept;
 
     ContactTabular&       contact_tabular() noexcept;
     const ContactTabular& contact_tabular() const noexcept;

@@ -7,9 +7,34 @@
 #include <uipc/common/zip.h>
 #include <uipc/common/macro.h>
 
+#include <uipc/geometry/geometry_slot.h>
+#include <uipc/geometry/simplicial_complex_slot.h>
+#include <uipc/geometry/implicit_geometry_slot.h>
+
+
+// A Json representation of the geometry may look like this:
+//  {
+//      __meta__:
+//      {
+//            base: "Geometry",,
+//            type: "SimplicialComplex"
+//      },
+//      __data__:
+//      {
+//            // AttributeCollection json representation
+//            meta:{ ... },
+//            instances: { ... },
+//            vertices: {...},
+//            edges: {...},
+//            triangles: {...},
+//            tetrahedra: {...}
+//      }
+//  }
+
 namespace uipc::geometry
 {
 using Creator = std::function<S<Geometry>(const Json&, span<S<IAttributeSlot>>)>;
+using GeometryToSlot = std::function<S<GeometrySlot>(IndexT, const Geometry&)>;
 
 template <>
 class GeometryFriend<GeometryFactory>
@@ -39,16 +64,16 @@ class GeometryFriend<GeometryFactory>
 
 
 template <std::derived_from<Geometry> T>
-static void register_type(AttributeCollectionFactory&               acf,
-                          std::unordered_map<std::string, Creator>& creators,
-                          std::string_view                          type_name)
+static void register_geometry_from_json(AttributeCollectionFactory& acf,
+                                        std::unordered_map<std::string, Creator>& creators,
+                                        std::string_view type_name)
 {
     using GF = GeometryFriend<GeometryFactory>;
     creators.insert(
         {std::string{type_name},
          [&](const Json& j, span<S<IAttributeSlot>> attributes) -> S<Geometry>
          {
-             S<Geometry> geometry = std::make_shared<T>();
+             S<T> geometry = std::make_shared<T>();
 
              vector<std::string> names;
              names.reserve(8);
@@ -68,24 +93,19 @@ static void register_type(AttributeCollectionFactory&               acf,
          }});
 }
 
-// A Json representation of the geometry may look like this:
-//  {
-//      __meta__:
-//      {
-//            base: "Geometry",,
-//            type: "SimplicialComplex"
-//      },
-//      __data__:
-//      {
-//            // AttributeCollection json representation
-//            meta:{ ... },
-//            instances: { ... },
-//            vertices: {...},
-//            edges: {...},
-//            triangles: {...},
-//            tetrahedra: {...}
-//      }
-//  }
+template <std::derived_from<Geometry> T>
+static void register_slot_from_geometry(std::unordered_map<std::string, GeometryToSlot>& creators,
+                                        std::string_view type_name)
+{
+    creators.insert({std::string{type_name},
+                     [&](IndexT id, const Geometry& geometry) -> S<GeometrySlot>
+                     {
+                         auto slot =
+                             std::make_shared<GeometrySlotT<T>>(id, *geometry.as<T>());
+                         return std::static_pointer_cast<GeometrySlot>(slot);
+                     }});
+}
+
 
 class GeometryFactory::Impl
 {
@@ -101,15 +121,38 @@ class GeometryFactory::Impl
         static thread_local std::once_flag                           f;
         static thread_local std::unordered_map<std::string, Creator> m_creators;
 
+        std::call_once(
+            f,
+            [&]
+            {
+#define UIPC_GEOMETRY_EXPORT_DEF(T)                                            \
+    register_geometry_from_json<T>(acf(), m_creators, UIPC_TO_STRING(T));
+
+        // This is a macro to register all visible geometry types
+#include <uipc/geometry/details/geometry_export_types.inl>
+
+#undef UIPC_GEOMETRY_EXPORT_DEF
+            });
+
+
+        return m_creators;
+    }
+
+    static auto& slot_creators()
+    {
+        static thread_local std::once_flag f;
+        static thread_local std::unordered_map<std::string, GeometryToSlot> m_creators;
         std::call_once(f,
                        [&]
                        {
-                           // Register all exported geometry types here
-                           register_type<SimplicialComplex>(acf(), m_creators, builtin::SimplicialComplex);
-                           register_type<ImplicitGeometry>(acf(), m_creators, builtin::ImplicitGeometry);
+#define UIPC_GEOMETRY_EXPORT_DEF(T)                                            \
+    register_slot_from_geometry<T>(m_creators, UIPC_TO_STRING(T));
+
+        // This is a macro to register all visible geometry types
+#include <uipc/geometry/details/geometry_export_types.inl>
+
+#undef UIPC_GEOMETRY_EXPORT_DEF
                        });
-
-
         return m_creators;
     }
 
@@ -220,6 +263,17 @@ class GeometryFactory::Impl
 
         return j;
     }
+
+    S<GeometrySlot> create_slot(IndexT id, const Geometry& geometry)
+    {
+        auto type = geometry.type();
+        auto it   = slot_creators().find(std::string{type});
+        UIPC_ASSERT(it != slot_creators().end(),
+                    "Geometry<{}> not registered, why can it happen?",
+                    type);
+        auto creator = it->second;
+        return creator(id, geometry);
+    }
 };
 
 
@@ -233,6 +287,11 @@ GeometryFactory::~GeometryFactory() {}
 vector<S<Geometry>> GeometryFactory::from_json(const Json& j, span<S<IAttributeSlot>> geos)
 {
     return m_impl->from_json(j, geos);
+}
+
+S<GeometrySlot> GeometryFactory::create_slot(IndexT id, const Geometry& geometry)
+{
+    return m_impl->create_slot(id, geometry);
 }
 
 Json GeometryFactory::to_json(span<Geometry*> geos, unordered_map<IAttribute*, IndexT> attr_to_index)

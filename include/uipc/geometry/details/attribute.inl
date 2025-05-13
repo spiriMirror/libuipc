@@ -112,12 +112,8 @@ template <typename T>
 Json Attribute<T>::do_to_json() const noexcept
 {
     Json  j;
-    auto& values = j["values"];
-    values       = Json::array();
-    for(auto i : range(j.size()))
-    {
-        values.push_back(do_to_json(i));
-    }
+    auto& values       = j["values"];
+    values             = m_values;
     j["default_value"] = m_default_value;
     return j;
 }
@@ -138,7 +134,6 @@ void Attribute<T>::do_from_json(const Json& j) noexcept
         UIPC_WARN_WITH_LOCATION("`values` in json must be an array, skip");
         return;
     }
-    auto& values = *values_it;
 
     auto default_value_it = j.find("default_value");
     if(default_value_it == j.end())
@@ -147,30 +142,7 @@ void Attribute<T>::do_from_json(const Json& j) noexcept
         return;
     }
 
-
-    if constexpr(requires(T t, Json j) {
-                     j.get<T>();  // can get<T>()
-                 })
-    {
-        m_values.resize(values.size());
-        for(SizeT i = 0; i < values.size(); ++i)
-        {
-            m_values[i] = values[i].get<T>();
-        }
-        m_default_value = default_value_it->get<T>();
-    }
-    else if constexpr(requires(T t) { t.from_json(j); })
-    {
-        m_values.resize(j.size());
-        for(SizeT i = 0; i < values.size(); ++i)
-        {
-            m_values[i].from_json(values[i]);
-        }
-        m_default_value.from_json(*default_value_it);
-    }
-    else
-    {
-        static_assert("Attribute<T>::from_json: T must be a type that can be converted from json");
-    }
+    m_values        = values_it->get<vector<T>>();
+    m_default_value = default_value_it->get<T>();
 }
 }  // namespace uipc::geometry

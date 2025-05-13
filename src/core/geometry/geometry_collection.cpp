@@ -165,6 +165,35 @@ void GeometryCollection::flush() const
     }
 }
 
+void GeometryCollection::build_from(span<S<geometry::GeometrySlot>> slots) noexcept
+{
+    m_dirty   = true;
+    m_next_id = 0;
+
+    m_geometries.clear();
+    m_pending_create.clear();
+    m_pending_destroy.clear();
+
+    {
+        m_geometry_slots.clear();
+        m_pending_create_slots.clear();
+        m_pending_destroy_ids.clear();
+    }
+
+    m_geometries.reserve(slots.size());
+
+    for(auto&& slot : slots)
+    {
+        auto my_slot = slot->clone();
+        m_geometries.insert({my_slot->id(), my_slot});
+        m_next_id = std::max(m_next_id, my_slot->id() + 1);
+    }
+
+    for(auto&& [id, slots] : m_geometries)
+    {
+        slots->state(GeometrySlotState::Normal);
+    }
+}
 
 S<geometry::GeometrySlot> GeometryCollection::find(IndexT id) noexcept
 {

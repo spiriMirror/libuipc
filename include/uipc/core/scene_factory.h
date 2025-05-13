@@ -11,8 +11,8 @@ class UIPC_CORE_API SceneFactory
     SceneFactory();
     ~SceneFactory();
 
-    [[nodiscard]] Scene from_json(const Json& j);
-    [[nodiscard]] Json  to_json(const Scene& scene);
+    [[nodiscard]] S<Scene> from_json(const Json& j);
+    [[nodiscard]] Json     to_json(const Scene& scene);
 
   private:
     U<Impl> m_impl;

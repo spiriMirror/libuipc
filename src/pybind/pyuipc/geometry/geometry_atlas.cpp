@@ -21,6 +21,21 @@ PyGeometryAtlas::PyGeometryAtlas(py::module& m)
         { return self.create(name, ac); },
         py::arg("name"),
         py::arg("ac"));
+
+    class_GeometryAtlas.def("geometry_count", &GeometryAtlas::geometry_count);
+    class_GeometryAtlas.def("attribute_collection_count",
+                            &GeometryAtlas::attribute_collection_count);
+    class_GeometryAtlas.def("attribute_collection_names",
+                            [](GeometryAtlas& self) -> py::list
+                            {
+                                auto names = self.attribute_collection_names();
+                                py::list py_names;
+                                for(auto&& name : names)
+                                {
+                                    py_names.append(name);
+                                }
+                                return py_names;
+                            });
     class_GeometryAtlas.def("to_json", &GeometryAtlas::to_json);
     class_GeometryAtlas.def("from_json", &GeometryAtlas::from_json);
 }

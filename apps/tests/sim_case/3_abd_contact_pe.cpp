@@ -36,7 +36,7 @@ TEST_CASE("3_abd_contact_pe", "[abd]")
         AffineBodyConstitution abd;
         scene.constitution_tabular().insert(abd);
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
-        auto& default_contact = scene.contact_tabular().default_element();
+        auto default_contact = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("tets");
@@ -113,7 +113,8 @@ TEST_CASE("3_abd_contact_pe", "[abd]")
         }
     }
 
-    world.init(scene); REQUIRE(world.is_valid());
+    world.init(scene);
+    REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

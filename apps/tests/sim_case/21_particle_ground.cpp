@@ -37,7 +37,7 @@ TEST_CASE("21_particle_ground", "[fem]")
         // create constitution and contact model
         Particle pt;
         scene.constitution_tabular().insert(pt);
-        auto& default_contact = scene.contact_tabular().default_element();
+        auto default_contact = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("particles");
@@ -68,7 +68,8 @@ TEST_CASE("21_particle_ground", "[fem]")
         object->geometries().create(g);
     }
 
-    world.init(scene); REQUIRE(world.is_valid());
+    world.init(scene);
+    REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

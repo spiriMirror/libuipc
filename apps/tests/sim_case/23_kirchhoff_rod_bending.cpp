@@ -38,7 +38,7 @@ TEST_CASE("23_kirchhoff_rod_bending", "[fem]")
         HookeanSpring       hs;
         KirchhoffRodBending krb;
 
-        auto& default_contact = scene.contact_tabular().default_element();
+        auto default_contact = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("rods");
@@ -102,7 +102,8 @@ TEST_CASE("23_kirchhoff_rod_bending", "[fem]")
         }
     }
 
-    world.init(scene); REQUIRE(world.is_valid());
+    world.init(scene);
+    REQUIRE(world.is_valid());
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
