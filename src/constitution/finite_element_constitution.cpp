@@ -8,11 +8,15 @@ void FiniteElementConstitution::apply_to(geometry::SimplicialComplex& sc,
                                          Float mass_density,
                                          Float thickness) const
 {
-    auto P = sc.meta().find<U64>(builtin::constitution_uid);
+    auto cuid = sc.meta().find<U64>(builtin::constitution_uid);
 
-    if(!P)
-        P = sc.meta().create<U64>(builtin::constitution_uid, 0);
-    geometry::view(*P).front() = uid();
+    if(!cuid)
+        cuid = sc.meta().create<U64>(builtin::constitution_uid, 0);
+    geometry::view(*cuid).front() = uid();
+
+    // finite element object' vertex-position changing over time
+    // label the vertex-position as evolving for streaming optimization
+    sc.positions().is_evolving(true);
 
     auto dof_offset = sc.meta().find<IndexT>(builtin::dof_offset);
     if(!dof_offset)

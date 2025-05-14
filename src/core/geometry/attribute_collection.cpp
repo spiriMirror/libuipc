@@ -186,9 +186,7 @@ Json AttributeCollection::to_json() const
     Json j = Json::object();
     for(auto& [name, slot] : m_attributes)
     {
-        j[name]        = slot->to_json();
-        auto slot_j    = slot->to_json();
-        slot_j["name"] = name;
+        j[name] = slot->to_json();
     }
     return j;
 }

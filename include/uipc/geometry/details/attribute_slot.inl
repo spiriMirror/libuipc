@@ -1,5 +1,6 @@
 #include <uipc/common/format.h>
 #include <uipc/common/readable_type_name.h>
+#include "attribute_slot.h"
 
 namespace uipc::geometry
 {
@@ -20,7 +21,7 @@ template <typename U>
 }
 
 template <typename T>
-span<const T> AttributeSlot<T>::view() const noexcept
+[[nodiscard]] span<const T> AttributeSlot<T>::view() const noexcept
 {
     UIPC_ASSERT(this, "You are trying to access a nullptr attribute slot, please check if the attribute name is correct");
     return m_attribute->view();
@@ -36,6 +37,18 @@ template <typename T>
 bool AttributeSlot<T>::get_allow_destroy() const noexcept
 {
     return m_allow_destroy;
+}
+
+template <typename T>
+bool AttributeSlot<T>::get_is_evolving() const noexcept
+{
+    return m_is_evolving;
+}
+
+template <typename T>
+void AttributeSlot<T>::set_is_evolving(bool v) noexcept
+{
+    m_is_evolving = v;
 }
 
 template <typename T>
@@ -61,12 +74,6 @@ S<IAttributeSlot> AttributeSlot<T>::do_clone_empty(std::string_view name, bool a
 }
 
 template <typename T>
-Json AttributeSlot<T>::do_to_json(SizeT i) const
-{
-    return m_attribute->do_to_json(i);
-}
-
-template <typename T>
 IAttribute& AttributeSlot<T>::get_attribute() noexcept
 {
     return *m_attribute;
@@ -77,6 +84,7 @@ const IAttribute& AttributeSlot<T>::get_attribute() const noexcept
 {
     return *m_attribute;
 }
+
 template <typename T>
 SizeT uipc::geometry::AttributeSlot<T>::get_use_count() const noexcept
 {

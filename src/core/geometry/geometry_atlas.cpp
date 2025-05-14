@@ -49,10 +49,11 @@ class GeometryAtlas::Impl
 
     vector<S<GeometrySlot>>                            m_geometries;
     unordered_map<std::string, S<AttributeCollection>> m_attribute_collections;
-    unordered_map<IAttribute*, IndexT>                 m_attr_to_index;
-    vector<IAttribute*>                                m_index_to_attr;
 
-    IndexT create(const Geometry& geometry)
+    unordered_map<IAttribute*, IndexT> m_attr_to_index;
+    vector<IAttribute*>                m_index_to_attr;
+
+    IndexT create(const Geometry& geometry, bool evolving_only)
     {
         IndexT id = static_cast<IndexT>(m_geometries.size());
 
@@ -73,7 +74,7 @@ class GeometryAtlas::Impl
         return m_geometries[id].get();
     }
 
-    void create(std::string_view name, const AttributeCollection& ac)
+    void create(std::string_view name, const AttributeCollection& ac, bool evolving_only)
     {
         S<AttributeCollection> new_ac = std::make_shared<AttributeCollection>(ac);
         build_attributes_index_from_attribute_collection(*new_ac);
@@ -287,7 +288,7 @@ class GeometryAtlas::Impl
                         auto ac = attribute_collection_from_json(ac_json);
                         if(ac)
                         {
-                            create(name, *ac);
+                            create(name, *ac, false);
                         }
                     }
                 }
@@ -299,7 +300,7 @@ class GeometryAtlas::Impl
                     auto  geos       = geometries_from_json(geometries);
                     for(auto&& geo : geos)
                     {
-                        create(*geo);
+                        create(*geo, false);
                     }
                 }
             }
@@ -324,9 +325,9 @@ GeometryAtlas::GeometryAtlas()
 
 GeometryAtlas::~GeometryAtlas() {}
 
-IndexT GeometryAtlas::create(const Geometry& geo)
+IndexT GeometryAtlas::create(const Geometry& geo, bool evolving_only)
 {
-    return m_impl->create(geo);
+    return m_impl->create(geo, evolving_only);
 }
 
 const GeometrySlot* GeometryAtlas::find(IndexT id) const
@@ -339,9 +340,9 @@ SizeT GeometryAtlas::geometry_count() const noexcept
     return m_impl->m_geometries.size();
 }
 
-void GeometryAtlas::create(std::string_view name, const AttributeCollection& ac)
+void GeometryAtlas::create(std::string_view name, const AttributeCollection& ac, bool evolving_only)
 {
-    m_impl->create(name, ac);
+    m_impl->create(name, ac, evolving_only);
 }
 
 const AttributeCollection* GeometryAtlas::find(std::string_view name) const

@@ -59,10 +59,14 @@ U64 AffineBodyConstitution::get_uid() const noexcept
 
 void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
 {
-    auto P = sc.meta().find<U64>(builtin::constitution_uid);
-    if(!P)
-        P = sc.meta().create<U64>(builtin::constitution_uid, 0);
-    geometry::view(*P).front() = uid();
+    auto cuid = sc.meta().find<U64>(builtin::constitution_uid);
+    if(!cuid)
+        cuid = sc.meta().create<U64>(builtin::constitution_uid, 0);
+    geometry::view(*cuid).front() = uid();
+
+    // affine body object' transform changing over time
+    // label transform as evolving for streaming optimization
+    sc.transforms().is_evolving(true);
 
     auto dof_offset = sc.meta().find<IndexT>(builtin::dof_offset);
     if(!dof_offset)

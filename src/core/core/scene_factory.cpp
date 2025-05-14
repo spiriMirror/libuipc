@@ -13,6 +13,7 @@ namespace uipc::core
 //      __meta__:
 //      {
 //          type:"Scene"
+//          kind:"init"/"commit"
 //      },
 //      __data__:
 //      {
@@ -38,6 +39,20 @@ namespace uipc::core
 class SceneFactory::Impl
 {
   public:
+    explicit Impl(const Json& config)
+        : m_config{config}
+    {
+        // parse config
+        if(config["kind"].get<std::string>() == "commit")
+        {
+            is_commit = true;
+        }
+        else
+        {
+            is_commit = false;
+        }
+    }
+
     using GeometryAtlas = uipc::geometry::GeometryAtlas;
 
     void build_geometry_atlas_from_scene(const Scene& scene, Json& data, GeometryAtlas& ga)
@@ -85,8 +100,8 @@ class SceneFactory::Impl
         auto& meta = j[builtin::__meta__];
         {
             meta["type"] = UIPC_TO_STRING(Scene);
+            meta["kind"] = m_config["kind"];
         }
-
         // __data__
         auto& data = j[builtin::__data__];
         {
@@ -261,10 +276,13 @@ class SceneFactory::Impl
 
         return scene;
     }
+
+    bool is_commit = false;
+    Json m_config;
 };
 
-SceneFactory::SceneFactory()
-    : m_impl(make_unique<Impl>())
+SceneFactory::SceneFactory(const Json& config)
+    : m_impl(uipc::make_unique<Impl>(config))
 {
 }
 
@@ -278,5 +296,10 @@ S<Scene> SceneFactory::from_json(const Json& j)
 Json SceneFactory::to_json(const Scene& scene)
 {
     return m_impl->to_json(scene);
+}
+Json SceneFactory::default_config()
+{
+    Json j    = Json::object();
+    j["kind"] = "init";  // "init" / "commit"
 }
 }  // namespace uipc::core

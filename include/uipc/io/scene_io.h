@@ -32,6 +32,59 @@ class UIPC_IO_API SceneIO
      */
     geometry::SimplicialComplex simplicial_surface(IndexT dim = -1) const;
 
+<<<<<<< Updated upstream
+=======
+    /**
+     * @brief Load a scene from a file.
+     * 
+     * Supported formats:
+     * - .json
+     * - .bson
+     * 
+     * @param filename
+     * @return 
+     */
+    static S<Scene> load(std::string_view filename);
+
+    /**
+     * @brief Save the scene to a file.
+     * 
+     * Supported formats:
+     * - .json
+     * - .bson
+     * 
+     * @param scene
+     * @param filename
+     */
+    static void save(const Scene& scene, std::string_view filename);
+
+    /**
+     * @brief Save the scene to a file.
+     * 
+     * Supported formats:
+     * - .json
+     * - .bson
+     * 
+     * @param filename
+     */
+    void save(std::string_view filename) const;
+
+    /**
+     * @brief Convert the scene to a JSON object.
+     * 
+     * @return 
+     */
+    Json to_json() const;
+
+    /**
+     * @brief Convert a JSON object to a scene.
+     * 
+     * @param json
+     * @return 
+     */
+    static S<Scene> from_json(const Json& json);
+
+>>>>>>> Stashed changes
   private:
     Scene& m_scene;
     void   write_surface_obj(std::string_view filename);

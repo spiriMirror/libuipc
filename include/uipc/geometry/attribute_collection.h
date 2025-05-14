@@ -149,17 +149,17 @@ class UIPC_CORE_API AttributeCollection
     /**
      * @brief Get the names of all attribute slots.
      */
-    vector<string> names() const;
+    [[nodiscard]] vector<string> names() const;
 
     /**
      * @brief Get the number of attribute slots.
     */
-    SizeT attribute_count() const;
+    [[nodiscard]] SizeT attribute_count() const;
 
     /**
     * @brief Get the json representation of the attribute collection.
     */
-    Json to_json() const;
+    [[nodiscard]] Json to_json() const;
 
   private:
     SizeT                                    m_size = 0;

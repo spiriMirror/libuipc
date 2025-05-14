@@ -1,6 +1,7 @@
 #include <uipc/common/json_eigen.h>
 #include <uipc/common/type_traits.h>
 #include <uipc/common/range.h>
+#include "attribute.h"
 
 namespace uipc::geometry
 {
@@ -27,12 +28,6 @@ template <typename T>
 SizeT Attribute<T>::get_size() const
 {
     return m_values.size();
-}
-
-template <typename T>
-backend::BufferView Attribute<T>::get_backend_view() const noexcept
-{
-    return m_backend_view;
 }
 
 template <typename T>

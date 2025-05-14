@@ -1,3 +1,5 @@
+#include "attribute.h"
+#include "attribute.h"
 #include <uipc/geometry/attribute.h>
 #include <iostream>
 #include <uipc/common/range.h>
@@ -26,6 +28,16 @@ void IAttribute::from_json(const Json& j) noexcept
 std::string_view IAttribute::type_name() const noexcept
 {
     return get_type_name();
+}
+
+bool IAttribute::is_evolving() const noexcept
+{
+    return get_is_evolving();
+}
+
+void IAttribute::is_evolving(bool v) noexcept
+{
+    set_is_evolving(v);
 }
 
 void IAttribute::resize(SizeT N)
@@ -60,15 +72,5 @@ void IAttribute::reorder(span<const SizeT> O) noexcept
 void IAttribute::copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept
 {
     do_copy_from(other, copy);
-}
-
-backend::BufferView IAttribute::backend_view() const noexcept
-{
-    return get_backend_view();
-}
-
-backend::BufferView backend_view(const IAttribute& a) noexcept
-{
-    return a.backend_view();
 }
 }  // namespace uipc::geometry

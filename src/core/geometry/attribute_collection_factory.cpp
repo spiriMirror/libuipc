@@ -152,7 +152,9 @@ class AttributeCollectionFactory::Impl
         return ac;
     }
 
-    Json to_json(const AttributeCollection* ac, unordered_map<IAttribute*, IndexT> attr_to_index)
+    Json to_json(const AttributeCollection*         ac,
+                 unordered_map<IAttribute*, IndexT> attr_to_index,
+                 bool                               evolving_only)
     {
         Json j = Json::object();
         return attribute_collection_to_json(*ac, attr_to_index);
@@ -165,6 +167,36 @@ class AttributeCollectionFactory::Impl
             attribute_collection_from_json(j, attributes);
         return attribute_collections;
     }
+
+    S<AttributeCollection> collect_evolving(const AttributeCollection& source)
+    {
+        using AF = AttributeFriend<AttributeCollectionFactory>;
+
+        auto ac = uipc::make_shared<AttributeCollection>();
+        for(auto&& [name, attr_slot] : AF::attribute_slots(source))
+        {
+            if(attr_slot->is_evolving())
+            {
+                ac->share(name, *attr_slot, attr_slot->allow_destroy());
+            }
+        }
+        return ac;
+    }
+
+    vector<std::string> collect_removing(const AttributeCollection& current,
+                                         const AttributeCollection& reference)
+    {
+        auto cn = current.names();
+        std::ranges::sort(cn);
+        auto rn = reference.names();
+        std::ranges::sort(rn);
+        vector<std::string> names;
+        names.reserve(rn.size());
+
+        // compute: ref - cur
+        std::ranges::set_difference(rn, cn, std::back_inserter(names));
+        return names;
+    }
 };
 
 
@@ -175,6 +207,17 @@ AttributeCollectionFactory::AttributeCollectionFactory()
 
 AttributeCollectionFactory::~AttributeCollectionFactory() {}
 
+S<AttributeCollection> AttributeCollectionFactory::collect_evolving(const AttributeCollection& source)
+{
+    return m_impl->collect_evolving(source);
+}
+
+vector<std::string> AttributeCollectionFactory::collect_removing(
+    const AttributeCollection& current, const AttributeCollection& reference)
+{
+    return m_impl->collect_removing(current, reference);
+}
+
 S<AttributeCollection> AttributeCollectionFactory::from_json(const Json& j,
                                                              span<S<IAttributeSlot>> attributes)
 {
@@ -182,8 +225,9 @@ S<AttributeCollection> AttributeCollectionFactory::from_json(const Json& j,
 }
 
 Json AttributeCollectionFactory::to_json(const AttributeCollection* acs,
-                                         unordered_map<IAttribute*, IndexT> attr_to_index)
+                                         unordered_map<IAttribute*, IndexT> attr_to_index,
+                                         bool evolving_only)
 {
-    return m_impl->to_json(acs, attr_to_index);
+    return m_impl->to_json(acs, attr_to_index, evolving_only);
 }
 }  // namespace uipc::geometry

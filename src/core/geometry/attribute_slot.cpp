@@ -1,3 +1,4 @@
+#include "attribute_slot.h"
 #include <uipc/geometry/attribute_collection.h>
 #include <uipc/common/log.h>
 
@@ -28,11 +29,6 @@ SizeT IAttributeSlot::size() const noexcept
     return attribute().size();
 }
 
-Json IAttributeSlot::to_json(SizeT i) const
-{
-    return do_to_json(i);
-}
-
 Json IAttributeSlot::to_json() const
 {
     Json j;
@@ -41,10 +37,15 @@ Json IAttributeSlot::to_json() const
     return j;
 }
 
-//const BufferInfo& IAttributeSlot::buffer_info() const
-//{
-//    return buffer_info();
-//}
+bool IAttributeSlot::is_evolving() const noexcept
+{
+    return get_is_evolving();
+}
+
+void IAttributeSlot::is_evolving(bool v) noexcept
+{
+    set_is_evolving(v);
+}
 
 void IAttributeSlot::make_owned()
 {
@@ -76,10 +77,5 @@ IAttribute& IAttributeSlot::attribute() noexcept
 const IAttribute& IAttributeSlot::attribute() const noexcept
 {
     return get_attribute();
-}
-
-backend::BufferView backend_view(const IAttributeSlot& a) noexcept
-{
-    return backend_view(a.attribute());
 }
 }  // namespace uipc::geometry

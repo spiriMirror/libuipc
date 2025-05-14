@@ -230,6 +230,7 @@ class GeometryFactory::Impl
     Json geometry_to_json(Geometry& geometry, unordered_map<IAttribute*, IndexT> attr_to_index)
     {
         using GF   = GeometryFriend<GeometryFactory>;
+        
         Json  j    = Json::object();
         auto& meta = j[builtin::__meta__];
         {
