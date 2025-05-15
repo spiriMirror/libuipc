@@ -1,4 +1,3 @@
-#include "attribute_slot.h"
 #include <uipc/geometry/attribute_collection.h>
 #include <uipc/common/log.h>
 

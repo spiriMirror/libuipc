@@ -1,8 +1,7 @@
-#include "attribute.h"
-#include "attribute.h"
 #include <uipc/geometry/attribute.h>
 #include <iostream>
 #include <uipc/common/range.h>
+
 namespace uipc::geometry
 {
 SizeT IAttribute::size() const noexcept
@@ -28,16 +27,6 @@ void IAttribute::from_json(const Json& j) noexcept
 std::string_view IAttribute::type_name() const noexcept
 {
     return get_type_name();
-}
-
-bool IAttribute::is_evolving() const noexcept
-{
-    return get_is_evolving();
-}
-
-void IAttribute::is_evolving(bool v) noexcept
-{
-    set_is_evolving(v);
 }
 
 void IAttribute::resize(SizeT N)

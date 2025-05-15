@@ -131,6 +131,40 @@ class UIPC_CORE_API Scene final
     DiffSim& _diff_sim() noexcept;  // only called by SceneVisitor
     bool     is_pending() const noexcept;
 };
+
+/**
+ * Create a scene snapshot from the given scene, which is a plain data
+ * copy of the scene (detached from the world).
+ */
+class UIPC_CORE_API SceneSnap
+{
+  public:
+    class Object
+    {
+      public:
+      private:
+        IndexT         m_id;
+        std::string    m_name;
+        vector<IndexT> m_geometry_ids;
+    };
+
+    SceneSnap(const Scene& scene);
+    SceneSnap(const SceneSnap&) = default;
+    SceneSnap(SceneSnap&&)      = default;
+
+
+    const Json& config() const noexcept;
+    Json        config() noexcept;
+    unordered_map<IndexT, S<geometry::GeometrySlot>> geometries() const noexcept;
+    unordered_map<IndexT, S<geometry::GeometrySlot>> rest_geometries() const noexcept;
+    geometry::AttributeCollection contact_tabular() const noexcept;
+
+  private:
+    Json                                             m_config;
+    unordered_map<IndexT, S<geometry::GeometrySlot>> m_geometries;
+    unordered_map<IndexT, S<geometry::GeometrySlot>> m_rest_geometries;
+    geometry::AttributeCollection                    m_contact_tabular;
+};
 }  // namespace uipc::core
 
 namespace fmt

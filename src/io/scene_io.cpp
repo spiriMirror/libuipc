@@ -11,6 +11,7 @@
 #include <uipc/geometry/utils/extract_surface.h>
 #include <uipc/geometry/utils/merge.h>
 #include <uipc/io/simplicial_complex_io.h>
+#include <uipc/core/scene_factory.h>
 
 
 namespace uipc::core
@@ -159,8 +160,6 @@ geometry::SimplicialComplex SceneIO::simplicial_surface(IndexT dim) const
 
     return extract_surface(simplicial_complex_has_surf);
 }
-<<<<<<< Updated upstream
-=======
 
 void SceneIO::save(const Scene& scene, std::string_view filename)
 {
@@ -282,5 +281,4 @@ S<Scene> SceneIO::from_json(const Json& json)
     SceneFactory sf;
     return sf.from_json(json);
 }
->>>>>>> Stashed changes
 }  // namespace uipc::core

@@ -17,9 +17,6 @@ class UIPC_IO_API SceneIO
      */
     void write_surface(std::string_view filename);
 
-    void save(std::string_view filename);
-    void load(std::string_view filename);
-
     /**
      * @brief Get the surface of the scene in the form of a simplicial complex allow
      * to specify the dimension of the surface.
@@ -32,8 +29,6 @@ class UIPC_IO_API SceneIO
      */
     geometry::SimplicialComplex simplicial_surface(IndexT dim = -1) const;
 
-<<<<<<< Updated upstream
-=======
     /**
      * @brief Load a scene from a file.
      * 
@@ -84,7 +79,6 @@ class UIPC_IO_API SceneIO
      */
     static S<Scene> from_json(const Json& json);
 
->>>>>>> Stashed changes
   private:
     Scene& m_scene;
     void   write_surface_obj(std::string_view filename);

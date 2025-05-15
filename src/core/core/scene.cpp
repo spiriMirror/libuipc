@@ -13,7 +13,7 @@ class Scene::Impl
         , animator(scene)
         , sanity_checker(scene)
     {
-        info = config;
+        this->config = config;
     }
 
     void init(backend::WorldVisitor& world)
@@ -22,11 +22,11 @@ class Scene::Impl
 
         backend::SceneVisitor visitor{scene};
 
-        dt = info["dt"].get<Float>();
+        dt = config["dt"].get<Float>();
 
         constitution_tabular.init(visitor);
 
-        if(info["diff_sim"]["enable"].get<bool>())
+        if(config["diff_sim"]["enable"].get<bool>())
         {
             diff_sim.init(visitor);
         }
@@ -43,7 +43,7 @@ class Scene::Impl
         pending = false;
     }
 
-    Json                info;
+    Json                config;
     ContactTabular      contact_tabular;
     ConstitutionTabular constitution_tabular;
     ObjectCollection    objects;
@@ -149,7 +149,7 @@ Scene::Scene(const Json& config)
 
 const Json& Scene::config() const noexcept
 {
-    return m_impl->info;
+    return m_impl->config;
 }
 
 Scene::~Scene() = default;
@@ -195,7 +195,7 @@ auto Scene::geometries() const noexcept -> CGeometries
 
 const Json& Scene::info() const noexcept
 {
-    return m_impl->info;
+    return m_impl->config;
 }
 
 Animator& Scene::animator()
@@ -211,7 +211,7 @@ const Animator& Scene::animator() const
 DiffSim& Scene::diff_sim()
 {
     // automatically enable diff_sim
-    m_impl->info["diff_sim"]["enable"] = true;
+    m_impl->config["diff_sim"]["enable"] = true;
     return m_impl->diff_sim;
 }
 

@@ -7,6 +7,7 @@ class UIPC_CORE_API SceneFactory
 {
     class Impl;
 
+
   public:
     SceneFactory(const Json& config = default_config());
     ~SceneFactory();
