@@ -185,7 +185,7 @@ class ContactTabular::Impl
         m_contact_models.resize(new_size);
     }
 
-    void build_from(const geometry::AttributeCollection& ac, span<ContactElement> ce)
+    void build_from(const geometry::AttributeCollection& ac, span<const ContactElement> ce)
     {
         m_elements.clear();
         m_elements = vector<ContactElement>(ce.begin(), ce.end());
@@ -286,7 +286,7 @@ Json ContactTabular::default_config() noexcept
 }
 
 void ContactTabular::build_from(const geometry::AttributeCollection& ac,
-                                span<ContactElement>                 ce)
+                                span<const ContactElement>           ce)
 {
     m_impl->build_from(ac, ce);
 }

@@ -30,9 +30,16 @@ class UIPC_CORE_API IGeometryCollection
 class UIPC_CORE_API GeometryCollection : public IGeometryCollection
 {
     friend class core::SceneFactory;
+    friend class GeometryCollectionCommit;
 
   public:
     GeometryCollection() = default;
+
+    GeometryCollection(const GeometryCollection&);
+    GeometryCollection& operator=(const GeometryCollection&) = delete;
+
+    GeometryCollection(GeometryCollection&&) noexcept   = default;
+    GeometryCollection& operator=(GeometryCollection&&) = default;
 
     template <std::derived_from<geometry::Geometry> GeometryT>
         requires(!std::is_abstract_v<GeometryT>)

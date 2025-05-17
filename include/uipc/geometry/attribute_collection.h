@@ -22,6 +22,8 @@ class UIPC_CORE_API AttributeCollection
 
     friend struct fmt::formatter<AttributeCollection>;
 
+    friend class AttributeCollectionCommit;
+
   public:
     AttributeCollection() = default;
 
@@ -166,7 +168,7 @@ class UIPC_CORE_API AttributeCollection
     unordered_map<string, S<IAttributeSlot>> m_attributes;
 };
 
-class UIPC_CORE_API GeometryAttributeError : public Exception
+class UIPC_CORE_API AttributeCollectionError : public Exception
 {
   public:
     using Exception::Exception;

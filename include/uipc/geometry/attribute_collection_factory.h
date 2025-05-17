@@ -1,8 +1,11 @@
 #pragma once
 #include <uipc/geometry/attribute_collection.h>
+#include <uipc/geometry/attribute_collection_commit.h>
 
 namespace uipc::geometry
 {
+
+
 class UIPC_CORE_API AttributeCollectionFactory
 {
     class Impl;
@@ -10,23 +13,6 @@ class UIPC_CORE_API AttributeCollectionFactory
   public:
     AttributeCollectionFactory();
     ~AttributeCollectionFactory();
-
-    /**
-     * @breif Collect all attributes that are `evolving` from the source attribute collection.
-     */
-    [[nodiscard]] S<AttributeCollection> collect_evolving(const AttributeCollection& source);
-
-    /**
-     * @brief Collect all names of the attributes that are deleting from the reference attribute collection.
-     * 
-     * retNames = referenceNames - currentNames
-     * 
-     * @param current The current attribute collection.
-     * @param reference The reference attribute collection.
-     * @return A vector of strings representing the names of the attributes that are deleting.
-     */
-    [[nodiscard]] vector<std::string> collect_removing(const AttributeCollection& current,
-                                                       const AttributeCollection& reference);
 
     /**
      * @brief Create an attribute collection from a json object and a pool of shared attributes
@@ -40,6 +26,21 @@ class UIPC_CORE_API AttributeCollectionFactory
     [[nodiscard]] Json to_json(const AttributeCollection*         acs,
                                unordered_map<IAttribute*, IndexT> attr_to_index,
                                bool evolving_only = false);
+
+    /**
+     * @brief Get the difference between the current and reference attribute collections.
+     * 
+     * - New Attributes and Modified Attributes will be copied to the diff_copy.
+     * - Deleted Attributes will be collected in the removed_names.
+     * 
+     */
+    AttributeCollectionCommit diff(const AttributeCollection& current,
+                                   const AttributeCollection& reference);
+
+    /**
+     * @brief Update the base attribute collection with the diff commit.
+     */
+    void update_from(AttributeCollection& base, const AttributeCollectionCommit& commit);
 
   private:
     U<Impl> m_impl;

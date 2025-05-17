@@ -3,18 +3,35 @@
 #include <uipc/backend/visitors/geometry_visitor.h>
 #include <uipc/common/zip.h>
 #include <uipc/backend/visitors/contact_tabular_visitor.h>
+#include <uipc/core/internal/scene.h>
+
+namespace uipc::geometry
+{
+template <>
+class geometry::GeometryFriend<uipc::core::DiffSim>
+{
+  public:
+    static auto& attribute_collections(Geometry& geometry) noexcept
+    {
+        return geometry.m_attribute_collections;
+    }
+};
+
+}  // namespace uipc::geometry
 
 namespace uipc::core
 {
+
+
 class DiffSim::Impl
 {
   public:
     Impl() = default;
 
-    void init(backend::SceneVisitor& scene_visitor)
+    void init(internal::Scene& scene)
     {
-        auto geos      = scene_visitor.geometries();
-        auto rest_geos = scene_visitor.rest_geometries();
+        auto geos      = scene.geometries().geometry_slots();
+        auto rest_geos = scene.rest_geometries().geometry_slots();
 
         vector<std::string>                    collection_names;
         vector<geometry::AttributeCollection*> collections;
@@ -27,11 +44,10 @@ class DiffSim::Impl
                 vector<std::string> attribute_names = collection.names();
                 std::string_view    prefix          = "diff/";
 
-                auto e = std::ranges::remove_if(attribute_names,
-                                                [prefix](const std::string& name) {
-                                                    return name.find(prefix)
-                                                           == std::string::npos;
-                                                });
+                auto e = std::ranges::remove_if(
+                    attribute_names,
+                    [prefix](const std::string& name)
+                    { return name.find(prefix) == std::string::npos; });
 
                 attribute_names.erase(e.begin(), e.end());
 
@@ -57,12 +73,13 @@ class DiffSim::Impl
 
             // 1) Collect From Contact Tabular
             {
-                auto& contact_tabular = scene_visitor.contact_tabular();
+                auto& contact_tabular = scene.contact_tabular();
                 backend::ContactTabularVisitor ctv{contact_tabular};
                 detect_and_connect(ctv.contact_models());
             }
 
             // 2) Collect From Geometries
+            using GF = geometry::GeometryFriend<DiffSim>;
             for(auto&& [geo_slot, rest_geo_slot] : zip(geos, rest_geos))
             {
                 std::array<geometry::Geometry*, 2> local_geos = {
@@ -75,7 +92,9 @@ class DiffSim::Impl
                     collections.clear();
                     geo_visitor.collect_attribute_collections(collection_names, collections);
 
-                    for(auto&& collection : collections)
+                    auto& collection_map = GF::attribute_collections(*geo);
+
+                    for(auto&& [name, collection] : collection_map)
                         detect_and_connect(*collection);
                 }
             }
@@ -121,8 +140,8 @@ const diff_sim::ParameterCollection& DiffSim::parameters() const
     return m_impl->parameters;
 }
 
-void DiffSim::init(backend::SceneVisitor& scene_visitor)
+void DiffSim::init(internal::Scene& scene)
 {
-    m_impl->init(scene_visitor);
+    m_impl->init(scene);
 }
 }  // namespace uipc::core

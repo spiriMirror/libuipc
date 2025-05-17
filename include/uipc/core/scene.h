@@ -6,6 +6,11 @@
 #include <uipc/core/animator.h>
 #include <uipc/core/diff_sim.h>
 #include <uipc/core/sanity_checker.h>
+namespace uipc::core::internal
+{
+class Scene;
+class World;
+}  // namespace uipc::core::internal
 
 namespace uipc::backend
 {
@@ -13,19 +18,33 @@ class SceneVisitor;
 class WorldVisitor;
 }  // namespace uipc::backend
 
+namespace uipc::sanity_check
+{
+class SanityChecker;
+}
+
 namespace uipc::core
 {
+class SceneSnapshotCommit;
+class SceneSnapshot;
+
 class UIPC_CORE_API Scene final
 {
     friend class backend::SceneVisitor;
     friend class World;
     friend class Object;
-    friend class SanityChecker;
+    friend class sanity_check::SanityChecker;
     friend class Animation;
     friend class SceneFactory;
+    friend class SceneSnapshot;
+    friend struct fmt::formatter<Scene>;
 
   public:
     explicit Scene(const Json& config = default_config());
+
+    Scene(const Scene&) = delete;
+    Scene(Scene&&)      = default;
+
     ~Scene();
 
     static Json default_config() noexcept;
@@ -42,8 +61,8 @@ class UIPC_CORE_API Scene final
         SizeT     created_count() const noexcept;
 
       private:
-        Objects(Scene& scene) noexcept;
-        Scene& m_scene;
+        Objects(internal::Scene& scene) noexcept;
+        internal::Scene& m_scene;
     };
 
     class UIPC_CORE_API CObjects
@@ -56,8 +75,8 @@ class UIPC_CORE_API Scene final
         SizeT           created_count() const noexcept;
 
       private:
-        CObjects(const Scene& scene) noexcept;
-        const Scene& m_scene;
+        CObjects(const internal::Scene& scene) noexcept;
+        const internal::Scene& m_scene;
     };
 
     class UIPC_CORE_API Geometries
@@ -68,8 +87,8 @@ class UIPC_CORE_API Scene final
         ObjectGeometrySlots<geometry::Geometry> find(IndexT id) && noexcept;
 
       private:
-        Geometries(Scene& scene) noexcept;
-        Scene& m_scene;
+        Geometries(internal::Scene& scene) noexcept;
+        internal::Scene& m_scene;
     };
 
     class UIPC_CORE_API CGeometries
@@ -80,8 +99,8 @@ class UIPC_CORE_API Scene final
         ObjectGeometrySlots<const geometry::Geometry> find(IndexT id) && noexcept;
 
       private:
-        CGeometries(const Scene& scene) noexcept;
-        const Scene& m_scene;
+        CGeometries(const internal::Scene& scene) noexcept;
+        const internal::Scene& m_scene;
     };
 
     const Json& config() const noexcept;
@@ -109,61 +128,13 @@ class UIPC_CORE_API Scene final
     SanityChecker&       sanity_checker();
     const SanityChecker& sanity_checker() const;
 
-  private:
-    class Impl;
-    U<Impl> m_impl;
-    friend class SanityChecker;
-    friend struct fmt::formatter<Scene>;
-
-    void init(backend::WorldVisitor& world);  // only be called by World.
-
-    void begin_pending() noexcept;
-    void solve_pending() noexcept;
-
-    geometry::GeometryCollection& geometry_collection() const noexcept;
-    geometry::GeometryCollection& rest_geometry_collection() const noexcept;
-    ObjectCollection&             object_collection() const noexcept;
-
-    World& world() noexcept;
-    Float  dt() const noexcept;
-    bool   is_started() const noexcept;
-
-    DiffSim& _diff_sim() noexcept;  // only called by SceneVisitor
-    bool     is_pending() const noexcept;
-};
-
-/**
- * Create a scene snapshot from the given scene, which is a plain data
- * copy of the scene (detached from the world).
- */
-class UIPC_CORE_API SceneSnap
-{
-  public:
-    class Object
-    {
-      public:
-      private:
-        IndexT         m_id;
-        std::string    m_name;
-        vector<IndexT> m_geometry_ids;
-    };
-
-    SceneSnap(const Scene& scene);
-    SceneSnap(const SceneSnap&) = default;
-    SceneSnap(SceneSnap&&)      = default;
-
-
-    const Json& config() const noexcept;
-    Json        config() noexcept;
-    unordered_map<IndexT, S<geometry::GeometrySlot>> geometries() const noexcept;
-    unordered_map<IndexT, S<geometry::GeometrySlot>> rest_geometries() const noexcept;
-    geometry::AttributeCollection contact_tabular() const noexcept;
+    void update_from(const SceneSnapshotCommit& snapshot);
+    void build_from(const SceneSnapshot& snapshot);
 
   private:
-    Json                                             m_config;
-    unordered_map<IndexT, S<geometry::GeometrySlot>> m_geometries;
-    unordered_map<IndexT, S<geometry::GeometrySlot>> m_rest_geometries;
-    geometry::AttributeCollection                    m_contact_tabular;
+    // Allow create a core::Scene from a core::internal::Scene
+    Scene(S<internal::Scene> scene) noexcept;
+    S<core::internal::Scene> m_internal;
 };
 }  // namespace uipc::core
 

@@ -14,6 +14,8 @@ class UIPC_CORE_API ObjectCollection : public IObjectCollection
 {
     friend class Scene;
     friend class SceneFactory;
+    friend class SceneSnapshot;
+    friend class SceneSnapshotCommit;
     friend struct fmt::formatter<ObjectCollection>;
 
   public:

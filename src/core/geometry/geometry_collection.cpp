@@ -1,5 +1,6 @@
 #include <uipc/geometry/geometry_collection.h>
 #include <uipc/common/enumerate.h>
+#include <uipc/geometry/geometry_factory.h>
 
 namespace uipc::geometry
 {
@@ -193,6 +194,32 @@ void GeometryCollection::build_from(span<S<geometry::GeometrySlot>> slots) noexc
     {
         slots->state(GeometrySlotState::Normal);
     }
+}
+
+GeometryCollection::GeometryCollection(const GeometryCollection& other)
+{
+    GeometryFactory gf;
+
+    auto create_geo_slot = [&](S<GeometrySlot> src) -> S<GeometrySlot>
+    { return gf.create_slot(src->id(), src->geometry()); };
+
+    for(auto&& [name, slot] : other.m_geometries)
+    {
+        auto my_slot = create_geo_slot(slot);
+        m_geometries.insert({my_slot->id(), my_slot});
+    }
+
+    for(auto&& [name, slot] : other.m_pending_create)
+    {
+        auto my_slot = create_geo_slot(slot);
+        m_pending_create.insert({my_slot->id(), my_slot});
+    }
+
+    m_pending_destroy = other.m_pending_destroy;
+
+    m_next_id = other.m_next_id;
+
+    m_dirty = true;
 }
 
 S<geometry::GeometrySlot> GeometryCollection::find(IndexT id) noexcept

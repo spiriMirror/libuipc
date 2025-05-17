@@ -13,7 +13,7 @@ S<AttributeSlot<T>> AttributeCollection::create(std::string_view name,
     auto it = m_attributes.find(n);
     if(it != m_attributes.end())
     {
-        throw GeometryAttributeError{
+        throw AttributeCollectionError{
             fmt::format("Attribute with name [{}] already exist!", name)};
     }
     auto A = uipc::make_shared<Attribute<T>>(default_value);

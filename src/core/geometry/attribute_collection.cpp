@@ -4,6 +4,8 @@
 #include <uipc/common/list.h>
 #include <uipc/common/range.h>
 #include <iostream>
+#include <uipc/geometry/attribute_collection_factory.h>
+
 namespace uipc::geometry
 {
 S<IAttributeSlot> AttributeCollection::share(std::string_view      name,
@@ -14,15 +16,12 @@ S<IAttributeSlot> AttributeCollection::share(std::string_view      name,
     auto it = m_attributes.find(n);
 
     if(size() != slot.size())
-        throw GeometryAttributeError{
+        throw AttributeCollectionError{
             fmt::format("Attribute size mismatch, "
                         "Attribute Collection size is {}, input slot size is {}.",
                         size(),
                         slot.size())};
 
-    if(it != m_attributes.end())
-        throw GeometryAttributeError{
-            fmt::format("Attribute with name [{}] already exist!", name)};
     return m_attributes[n] = slot.clone(name, allow_destroy);
 }
 
@@ -36,7 +35,8 @@ void AttributeCollection::destroy(std::string_view name)
     }
 
     if(!it->second->allow_destroy())
-        throw GeometryAttributeError{fmt::format("Attribute [{}] don't allow destroy!", name)};
+        throw AttributeCollectionError{
+            fmt::format("Attribute [{}] don't allow destroy!", name)};
 
     m_attributes.erase(it);
 }
@@ -103,7 +103,7 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
     {
         auto it = other.m_attributes.find(name);
         if(it == other.m_attributes.end())
-            throw GeometryAttributeError{fmt::format(
+            throw AttributeCollectionError{fmt::format(
                 "Attribute [{}] not found in the source attribute collection.", name)};
 
         auto other_slot = it->second;
@@ -241,7 +241,7 @@ S<AttributeSlot<T>> AttributeCollection::create(std::string_view name,
     auto it = m_attributes.find(n);
     if(it != m_attributes.end())
     {
-        throw GeometryAttributeError{
+        throw AttributeCollectionError{
             fmt::format("Attribute with name [{}] already exist!", name)};
     }
     auto A = uipc::make_shared<Attribute<T>>(default_value);

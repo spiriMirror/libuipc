@@ -5,9 +5,11 @@
 #include <uipc/geometry/implicit_geometry.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/simplicial_complex.h>
+#include <uipc/core/internal/scene.h>
+
 namespace uipc::core
 {
-Animation::Animation(Scene& scene, Object& object, ActionOnUpdate&& on_update) noexcept
+Animation::Animation(internal::Scene& scene, Object& object, ActionOnUpdate&& on_update) noexcept
     : m_scene(&scene)
     , m_object(&object)
     , m_on_update(std::move(on_update))
@@ -57,7 +59,7 @@ span<S<geometry::GeometrySlot>> Animation::UpdateInfo::rest_geo_slots() const no
 
 SizeT Animation::UpdateInfo::frame() const noexcept
 {
-    return m_animation->m_scene->world().frame();
+    return m_animation->m_scene->world()->frame();
 }
 
 auto Animation::UpdateInfo::hint() noexcept -> UpdateHint&

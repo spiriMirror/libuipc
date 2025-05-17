@@ -8,143 +8,110 @@
 namespace uipc::geometry
 {
 SimplicialComplex::SimplicialComplex()
+    : Geometry()
 {
+    UIPC_ASSERT(find("meta") && find("instances"),
+                "SimplicialComplex should have meta and instance attributes.");
+
+    // create attribute collections and setup shortcuts
+    m_vertex_attributes      = create("vertices");
+    m_edge_attributes        = create("edges");
+    m_triangle_attributes    = create("triangles");
+    m_tetrahedron_attributes = create("tetrahedra");
+
     // Don't create positions attribute here: some algorithms just **share** the positions attribute.
 
     // Create a default transform attribute.
-    Matrix4x4 I     = Transform::Identity().matrix();
-    auto      trans = m_intances.create<Matrix4x4>(builtin::transform,
-                                              I,     // default identity
+    auto      instances = find("instances");  // in base class
+    Matrix4x4 I         = Transform::Identity().matrix();
+    auto      trans     = instances->create<Matrix4x4>(builtin::transform,
+                                              I,  // default identity
                                               false  // don't allow destroy
     );
 }
 
+SimplicialComplex::SimplicialComplex(const SimplicialComplex& o)
+    : Geometry(o)
+{
+    // setup shortcuts
+    m_vertex_attributes      = find("vertices");
+    m_edge_attributes        = find("edges");
+    m_triangle_attributes    = find("triangles");
+    m_tetrahedron_attributes = find("tetrahedra");
+}
+
 AttributeSlot<Matrix4x4>& SimplicialComplex::transforms()
 {
-    return *m_intances.template find<Matrix4x4>(builtin::transform);
+    return *instances().template find<Matrix4x4>(builtin::transform);
 }
 
 const AttributeSlot<Matrix4x4>& SimplicialComplex::transforms() const
 {
-    return *m_intances.template find<Matrix4x4>(builtin::transform);
+    return *instances().template find<Matrix4x4>(builtin::transform);
 }
 
 AttributeSlot<Vector3>& SimplicialComplex::positions() noexcept
 {
-    return *m_vertex_attributes.find<Vector3>(builtin::position);
+    return *m_vertex_attributes->find<Vector3>(builtin::position);
 }
 
 const AttributeSlot<Vector3>& SimplicialComplex::positions() const noexcept
 {
-    return *m_vertex_attributes.find<Vector3>(builtin::position);
+    return *m_vertex_attributes->find<Vector3>(builtin::position);
 }
 
 auto SimplicialComplex::vertices() noexcept -> VertexAttributes
 {
-    return VertexAttributes(m_vertex_attributes);
+    return VertexAttributes(*m_vertex_attributes);
 }
 
 auto SimplicialComplex::vertices() const noexcept -> CVertexAttributes
 {
-    return CVertexAttributes(m_vertex_attributes);
+    return CVertexAttributes(*m_vertex_attributes);
 }
 
 auto SimplicialComplex::edges() noexcept -> EdgeAttributes
 {
-    return EdgeAttributes(m_edge_attributes);
+    return EdgeAttributes(*m_edge_attributes);
 }
 
 auto SimplicialComplex::edges() const noexcept -> CEdgeAttributes
 {
-    return CEdgeAttributes(m_edge_attributes);
+    return CEdgeAttributes(*m_edge_attributes);
 }
 
 auto SimplicialComplex::triangles() noexcept -> TriangleAttributes
 {
-    return TriangleAttributes(m_triangle_attributes);
+    return TriangleAttributes(*m_triangle_attributes);
 }
 
 auto SimplicialComplex::triangles() const noexcept -> CTriangleAttributes
 {
-    return CTriangleAttributes(m_triangle_attributes);
+    return CTriangleAttributes(*m_triangle_attributes);
 }
 
 auto SimplicialComplex::tetrahedra() noexcept -> TetrahedronAttributes
 {
-    return TetrahedronAttributes(m_tetrahedron_attributes);
+    return TetrahedronAttributes(*m_tetrahedron_attributes);
 }
 
 auto SimplicialComplex::tetrahedra() const noexcept -> CTetrahedronAttributes
 {
-    return CTetrahedronAttributes(m_tetrahedron_attributes);
-}
-
-Json SimplicialComplex::do_to_json() const
-{
-    auto base          = Geometry::do_to_json();
-    base["vertices"]   = vertices().to_json();
-    base["edges"]      = edges().to_json();
-    base["triangles"]  = triangles().to_json();
-    base["tetrahedra"] = tetrahedra().to_json();
-    return base;
-}
-
-void SimplicialComplex::do_collect_attribute_collections(vector<std::string>& names,
-                                                         vector<AttributeCollection*>& collections)
-{
-    Geometry::do_collect_attribute_collections(names, collections);
-
-    names.push_back("vertices");
-    collections.push_back(&m_vertex_attributes);
-
-    names.push_back("edges");
-    collections.push_back(&m_edge_attributes);
-
-    names.push_back("triangles");
-    collections.push_back(&m_triangle_attributes);
-
-    names.push_back("tetrahedra");
-    collections.push_back(&m_tetrahedron_attributes);
-}
-
-void SimplicialComplex::do_build_from_attribute_collections(span<std::string> names,
-                                                            span<AttributeCollection*> collections) noexcept
-{
-    Geometry::do_build_from_attribute_collections(names, collections);
-
-    for(auto&& [name, ac] : zip(names, collections))
-    {
-        if(name == "vertices")
-        {
-            m_vertex_attributes = *ac;
-        }
-        else if(name == "edges")
-        {
-            m_edge_attributes = *ac;
-        }
-        else if(name == "triangles")
-        {
-            m_triangle_attributes = *ac;
-        }
-        else if(name == "tetrahedra")
-        {
-            m_tetrahedron_attributes = *ac;
-        }
-    }
+    return CTetrahedronAttributes(*m_tetrahedron_attributes);
 }
 
 S<IGeometry> SimplicialComplex::do_clone() const
 {
-    return std::make_shared<SimplicialComplex>(*this);
+    return uipc::make_shared<SimplicialComplex>(*this);
 }
 
 IndexT SimplicialComplex::dim() const noexcept
 {
-    if(m_tetrahedron_attributes.size() > 0)
+    if(m_tetrahedron_attributes->size() > 0)
         return 3;
-    if(m_triangle_attributes.size() > 0)
+    if(m_triangle_attributes->size() > 0)
         return 2;
-    if(m_edge_attributes.size() > 0)
+    if(m_edge_attributes->size() > 0)
         return 1;
     return 0;
 }

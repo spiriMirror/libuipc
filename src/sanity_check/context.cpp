@@ -1,4 +1,4 @@
-#include "uipc/common/log.h"
+#include <uipc/common/log.h>
 #include <context.h>
 #include <uipc/common/zip.h>
 #include <uipc/backend/visitors/geometry_visitor.h>
@@ -9,7 +9,7 @@
 #include <uipc/geometry/utils/extract_surface.h>
 #include <uipc/geometry/utils/apply_transform.h>
 #include <uipc/geometry/utils/merge.h>
-#include <uipc/common/zip.h>
+#include <uipc/core/internal/scene.h>
 
 namespace uipc::sanity_check
 {
@@ -373,7 +373,7 @@ namespace detail
 class Context::Impl
 {
   public:
-    Impl(core::Scene& s) noexcept
+    Impl(core::internal::Scene& s) noexcept
         : m_scene(s)
     {
     }
@@ -408,7 +408,7 @@ class Context::Impl
     {
         auto scene_visitor = backend::SceneVisitor{m_scene};
 
-        auto N = m_scene.objects().created_count();
+        auto N = m_scene.objects().size();
 
         auto& map = m_geo_id_to_object_id;
 
@@ -460,13 +460,13 @@ class Context::Impl
     }
 
   private:
-    core::Scene&                           m_scene;
+    core::internal::Scene&                 m_scene;
     mutable U<geometry::SimplicialComplex> m_scene_simplicial_surface;
     mutable unordered_map<IndexT, IndexT>  m_geo_id_to_object_id;
     ContactTabular                         m_contact_tabular;
 };
 
-Context::Context(SanityCheckerCollection& c, core::Scene& s) noexcept
+Context::Context(SanityCheckerCollection& c, core::internal::Scene& s) noexcept
     : SanityChecker(c, s)
     , m_impl(uipc::make_unique<Impl>(s))
 {

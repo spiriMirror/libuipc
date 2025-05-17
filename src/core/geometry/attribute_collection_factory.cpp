@@ -168,34 +168,61 @@ class AttributeCollectionFactory::Impl
         return attribute_collections;
     }
 
-    S<AttributeCollection> collect_evolving(const AttributeCollection& source)
+    void diff(const AttributeCollection& current,
+              const AttributeCollection& reference,
+              AttributeCollection&       diff_copy,
+              vector<std::string>&       removed_names)
     {
         using AF = AttributeFriend<AttributeCollectionFactory>;
 
-        auto ac = uipc::make_shared<AttributeCollection>();
-        for(auto&& [name, attr_slot] : AF::attribute_slots(source))
+        for(auto&& [name, attr_slot] : AF::attribute_slots(current))
         {
+            // check if the attribute is evolving
+            // if so, we need to copy it to the diff_copy
             if(attr_slot->is_evolving())
             {
-                ac->share(name, *attr_slot, attr_slot->allow_destroy());
+                diff_copy.share(name, *attr_slot, attr_slot->allow_destroy());
+            }
+
+            // check if the attribute is newer than the reference
+            // if so we also need to copy it to the diff_copy
+            auto ret_attribute = reference.find(name);
+            if(ret_attribute)
+            {
+                if(attr_slot->last_modified() > ret_attribute->last_modified())
+                {
+                    diff_copy.share(name, *attr_slot, attr_slot->allow_destroy());
+                }
             }
         }
-        return ac;
-    }
 
-    vector<std::string> collect_removing(const AttributeCollection& current,
-                                         const AttributeCollection& reference)
-    {
+        // collect the removed names
+        removed_names.clear();
         auto cn = current.names();
         std::ranges::sort(cn);
         auto rn = reference.names();
         std::ranges::sort(rn);
-        vector<std::string> names;
-        names.reserve(rn.size());
+        removed_names.reserve(rn.size());
 
         // compute: ref - cur
-        std::ranges::set_difference(rn, cn, std::back_inserter(names));
-        return names;
+        // e.g.
+        // ref = {"A", "B", "C"}
+        // cur = {"A", "D"}
+        // removed_names = {"B", "C"}
+        std::ranges::set_difference(rn, cn, std::back_inserter(removed_names));
+    }
+
+    void update_from(AttributeCollection& base, const AttributeCollectionCommit& inc)
+    {
+        using AF = AttributeFriend<AttributeCollectionFactory>;
+        base.copy_from(inc.m_inc, AttributeCopy::same_dim());
+
+        for(auto&& name : inc.m_removed_names)
+        {
+            auto it = base.find(name);
+            if(it && it->allow_destroy())
+                base.destroy(name);
+        }
     }
 };
 
@@ -205,18 +232,7 @@ AttributeCollectionFactory::AttributeCollectionFactory()
 {
 }
 
-AttributeCollectionFactory::~AttributeCollectionFactory() {}
-
-S<AttributeCollection> AttributeCollectionFactory::collect_evolving(const AttributeCollection& source)
-{
-    return m_impl->collect_evolving(source);
-}
-
-vector<std::string> AttributeCollectionFactory::collect_removing(
-    const AttributeCollection& current, const AttributeCollection& reference)
-{
-    return m_impl->collect_removing(current, reference);
-}
+AttributeCollectionFactory::~AttributeCollectionFactory() = default;
 
 S<AttributeCollection> AttributeCollectionFactory::from_json(const Json& j,
                                                              span<S<IAttributeSlot>> attributes)
@@ -229,5 +245,19 @@ Json AttributeCollectionFactory::to_json(const AttributeCollection* acs,
                                          bool evolving_only)
 {
     return m_impl->to_json(acs, attr_to_index, evolving_only);
+}
+
+AttributeCollectionCommit AttributeCollectionFactory::diff(const AttributeCollection& current,
+                                                           const AttributeCollection& reference)
+{
+    AttributeCollectionCommit commit;
+    m_impl->diff(current, reference, commit.m_inc, commit.m_removed_names);
+    return commit;
+}
+
+void AttributeCollectionFactory::update_from(AttributeCollection& base,
+                                             const AttributeCollectionCommit& inc)
+{
+    m_impl->update_from(base, inc);
 }
 }  // namespace uipc::geometry

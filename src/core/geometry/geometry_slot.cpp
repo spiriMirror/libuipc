@@ -60,7 +60,7 @@ const Geometry& GeometrySlotT<Geometry>::get_geometry() const noexcept
 
 S<GeometrySlot> GeometrySlotT<Geometry>::do_clone() const
 {
-    return std::make_shared<GeometrySlotT<Geometry>>(id(), m_geometry);
+    return uipc::make_shared<GeometrySlotT<Geometry>>(id(), m_geometry);
 }
 
 template class UIPC_CORE_API GeometrySlotT<Geometry>;

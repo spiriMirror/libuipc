@@ -22,87 +22,149 @@ S<IGeometry> IGeometry::clone() const
 }
 
 void IGeometry::collect_attribute_collections(vector<std::string>& names,
+                                              vector<const AttributeCollection*>& collections) const
+{
+    do_collect_attribute_collections(names, collections);
+}
+
+void IGeometry::collect_attribute_collections(vector<std::string>& names,
                                               vector<AttributeCollection*>& collections)
 {
     do_collect_attribute_collections(names, collections);
 }
 
-void IGeometry::build_from_attribute_collections(span<std::string> names,
-                                                 span<AttributeCollection*> collections) noexcept
+void IGeometry::build_from_attribute_collections(span<const std::string> names,
+                                                 span<const AttributeCollection*> collections)
 {
-    UIPC_ASSERT(names.size() == collections.size(),
-                "The size of names and collections must be the same. names: {}, collections: {}",
-                names.size(),
-                collections.size());
     do_build_from_attribute_collections(names, collections);
+}
+
+void IGeometry::update_from_commit(span<const std::string> names,
+                                   span<const AttributeCollectionCommit> collections)
+{
+    do_update_from_commit(names, collections);
 }
 
 Geometry::Geometry()
 {
-    m_meta.resize(1);      // only one meta for one geometries
-    m_intances.resize(1);  // default only one instance
+    m_meta = create("meta");
+    m_meta->resize(1);
+    m_intances = create("instances");
+    m_intances->resize(1);
+}
+
+Geometry::Geometry(const Geometry& o)
+{
+    for(auto&& [name, ac] : o.m_attribute_collections)
+    {
+        m_attribute_collections[name] = uipc::make_shared<AttributeCollection>(*ac);
+    }
+    m_meta     = find("meta");
+    m_intances = find("instances");
+    UIPC_ASSERT(m_meta && m_intances,
+                "Meta and instances attribute collections should be created in the constructor");
 }
 
 auto Geometry::meta() -> MetaAttributes
 {
-    return MetaAttributes{m_meta};
+
+    return MetaAttributes{*m_meta};
 }
 
 auto Geometry::meta() const -> CMetaAttributes
 {
-    return CMetaAttributes{m_meta};
+    return CMetaAttributes{*m_meta};
 }
 
 auto Geometry::instances() -> InstanceAttributes
 {
-    return InstanceAttributes{m_intances};
+    return InstanceAttributes{*m_intances};
 }
 
 auto Geometry::instances() const -> CInstanceAttributes
 {
-    return CInstanceAttributes{m_intances};
+    return CInstanceAttributes{*m_intances};
+}
+
+S<AttributeCollection> Geometry::create(std::string_view name)
+{
+    auto ret = uipc::make_shared<AttributeCollection>();
+    m_attribute_collections[std::string{name}] = ret;
+    return ret;
+}
+
+S<const AttributeCollection> Geometry::find(std::string_view name) const
+{
+    auto it = m_attribute_collections.find(std::string{name});
+    if(it == m_attribute_collections.end())
+        return nullptr;
+    return it->second;
+}
+
+S<AttributeCollection> Geometry::find(std::string_view name)
+{
+    auto it = m_attribute_collections.find(std::string{name});
+    if(it == m_attribute_collections.end())
+        return nullptr;
+    return it->second;
 }
 
 Json Geometry::do_to_json() const
 {
-    Json j;
-    j["meta"]      = m_meta.to_json();
-    j["instances"] = m_intances.to_json();
+    Json j = Json::object();
+    for(auto&& [name, ac] : m_attribute_collections)
+    {
+        j[name] = ac->to_json();
+    }
     return j;
+}
+
+void Geometry::do_collect_attribute_collections(vector<std::string>& names,
+                                                vector<const AttributeCollection*>& collections) const
+{
+    names.reserve(m_attribute_collections.size());
+    collections.reserve(m_attribute_collections.size());
+    for(auto&& [name, ac] : m_attribute_collections)
+    {
+        names.push_back(name);
+        collections.push_back(ac.get());
+    }
 }
 
 void Geometry::do_collect_attribute_collections(vector<std::string>& names,
                                                 vector<AttributeCollection*>& collections)
 {
-    names.push_back("meta");
-    collections.push_back(&m_meta);
-
-    names.push_back("instances");
-    collections.push_back(&m_intances);
+    names.reserve(m_attribute_collections.size());
+    collections.reserve(m_attribute_collections.size());
+    for(auto&& [name, ac] : m_attribute_collections)
+    {
+        names.push_back(name);
+        collections.push_back(ac.get());
+    }
 }
 
-void Geometry::do_build_from_attribute_collections(span<std::string> names,
-                                                   span<AttributeCollection*> collections) noexcept
+void Geometry::do_build_from_attribute_collections(span<const std::string> names,
+                                                   span<const AttributeCollection*> collections)
 {
-    m_meta.clear();
-    m_intances.clear();
-
     for(auto&& [name, ac] : zip(names, collections))
     {
-        if(name == "meta")
-        {
-            m_meta = *ac;
-        }
-        else if(name == "instances")
-        {
-            m_intances = *ac;
-        }
+        m_attribute_collections[name] = uipc::make_shared<AttributeCollection>(*ac);
+    }
+}
+
+void Geometry::do_update_from_commit(span<const std::string> names,
+                                     span<const AttributeCollectionCommit> commits)
+{
+    for(auto&& [name, cmt] : zip(names, commits))
+    {
+        auto& this_ac = *m_attribute_collections[name];
+        this_ac += cmt;  // update the attribute collection
     }
 }
 
 S<IGeometry> Geometry::do_clone() const
 {
-    return std::make_shared<Geometry>(*this);
+    return uipc::make_shared<Geometry>(*this);
 }
 
 std::string_view Geometry::get_type() const noexcept

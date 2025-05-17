@@ -45,7 +45,7 @@ void Animator::erase(IndexT id)
     m_animations.erase(id);
 }
 
-Animator::Animator(Scene& scene) noexcept
+Animator::Animator(internal::Scene& scene) noexcept
     : m_scene(scene)
 {
 }

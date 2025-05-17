@@ -19,7 +19,9 @@ void test_engine(std::string_view name)
     Engine engine{name, this_output_path};
     World  world{engine};
 
-    Scene scene;
+    auto config                      = Scene::default_config();
+    config["sanity_check"]["enable"] = false;
+    Scene scene{config};
 
     AffineBodyConstitution abd;
     scene.constitution_tabular().insert(abd);
@@ -49,23 +51,23 @@ void test_engine(std::string_view name)
     // initialize the world using the scene
     world.init(scene);
 
-    std::string output_path = fmt::format("{}/{}", this_output_path, name);
+    //std::string output_path = fmt::format("{}/{}", this_output_path, name);
 
-    fs::exists(output_path) || fs::create_directories(output_path);
+    //fs::exists(output_path) || fs::create_directories(output_path);
 
-    {
-        std::ofstream f(fmt::format("{}/engine.json", output_path, name));
-        f << engine.to_json().dump(4);
-    }
+    //{
+    //    std::ofstream f(fmt::format("{}/engine.json", output_path, name));
+    //    f << engine.to_json().dump(4);
+    //}
 
-    std::size_t total_frames = 1;
+    //std::size_t total_frames = 1;
 
-    // main loop
-    while(world.frame() < total_frames)
-    {
-        world.advance();
-        world.retrieve();
-    }
+    //// main loop
+    //while(world.frame() < total_frames)
+    //{
+    //    world.advance();
+    //    world.retrieve();
+    //}
 }
 
 

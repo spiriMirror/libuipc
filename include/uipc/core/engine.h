@@ -6,41 +6,40 @@
 #include <uipc/backend/visitors/world_visitor.h>
 #include <uipc/common/exception.h>
 
+
 namespace uipc::core
 {
+namespace internal
+{
+    class UIPC_CORE_API Engine;
+}
+
 class World;
 class UIPC_CORE_API Engine final
 {
-    class Impl;
-
   public:
     Engine(std::string_view backend_name,
            std::string_view workspace = "./",
            const Json&      config    = default_config());
     ~Engine();
 
+    // no copy
+    Engine(const Engine&)            = delete;
+    Engine& operator=(const Engine&) = delete;
+    // allow move
+    Engine(Engine&&) noexcept            = default;
+    Engine& operator=(Engine&&) noexcept = default;
+
     std::string_view         backend_name() const noexcept;
     std::string_view         workspace() const noexcept;
     EngineStatusCollection&  status();
     const FeatureCollection& features();
-
-    Json to_json() const;
-
-    static Json default_config();
+    Json                     to_json() const;
+    static Json              default_config();
 
   private:
     friend class World;
-
-    void  init(backend::WorldVisitor v);  // only be called by World
-    void  advance();                      // only be called by World
-    void  backward();                     // only be called by World
-    void  sync();                         // only be called by World
-    void  retrieve();                     // only be called by World
-    bool  dump();                         // only be called by World
-    bool  recover(SizeT dst_frame);       // only be called by World
-    SizeT frame() const;                  // only be called by World
-
-    U<Impl> m_impl;
+    S<internal::Engine> m_internal;
 };
 
 class UIPC_CORE_API EngineException : public Exception

@@ -1,6 +1,7 @@
 #pragma once
 #include <uipc/common/type_define.h>
 #include <uipc/common/dllexport.h>
+#include <uipc/common/smart_pointer.h>
 
 namespace uipc::core
 {

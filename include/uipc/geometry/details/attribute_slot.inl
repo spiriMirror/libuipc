@@ -1,6 +1,5 @@
 #include <uipc/common/format.h>
 #include <uipc/common/readable_type_name.h>
-#include "attribute_slot.h"
 
 namespace uipc::geometry
 {
@@ -9,6 +8,7 @@ AttributeSlot<T>::AttributeSlot(std::string_view m_name, S<Attribute<T>> attribu
     : m_name(m_name)
     , m_attribute(std::move(attribute))
     , m_allow_destroy(allow_destroy)
+    , m_last_modified(std::chrono::high_resolution_clock::now())
 {
 }
 
@@ -17,6 +17,8 @@ template <typename U>
 {
     UIPC_ASSERT(&slot, "You are trying to access a nullptr attribute slot, please check if the attribute name is correct");
     slot.make_owned();
+    // record the modification time
+    slot.m_last_modified = std::chrono::high_resolution_clock::now();
     return view(*slot.m_attribute);
 }
 
@@ -71,6 +73,12 @@ S<IAttributeSlot> AttributeSlot<T>::do_clone_empty(std::string_view name, bool a
 {
     return uipc::make_shared<AttributeSlot<T>>(
         name, uipc::make_shared<Attribute<T>>(m_attribute->m_default_value), allow_destroy);
+}
+
+template <typename T>
+TimePoint AttributeSlot<T>::get_last_modified() const noexcept
+{
+    return m_last_modified;
 }
 
 template <typename T>

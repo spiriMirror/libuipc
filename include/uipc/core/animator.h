@@ -4,6 +4,11 @@
 #include <functional>
 #include <uipc/common/unordered_map.h>
 
+namespace uipc::core::internal
+{
+class Scene;
+}
+
 namespace uipc::backend
 {
 class AnimatorVisitor;
@@ -28,14 +33,14 @@ class UIPC_CORE_API Animator
     Animator& operator=(Animator&&)      = delete;
 
   private:
-    friend class Scene;
+    friend class internal::Scene;
     friend class backend::AnimatorVisitor;
     friend struct fmt::formatter<Animator>;
 
-    Animator(Scene& scene) noexcept;  // only called by Scene
+    Animator(internal::Scene& scene) noexcept;
 
     unordered_map<IndexT, Animation> m_animations;
-    Scene&                           m_scene;
+    internal::Scene&                 m_scene;
     SizeT                            m_substep = 1;
 };
 }  // namespace uipc::core

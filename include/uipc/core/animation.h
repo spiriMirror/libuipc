@@ -52,11 +52,11 @@ class UIPC_CORE_API Animation
     void init();
     void update();
 
-    Animation(Scene& scene, Object& object, ActionOnUpdate&& on_update) noexcept;
+    Animation(internal::Scene& scene, Object& object, ActionOnUpdate&& on_update) noexcept;
 
-    Object*        m_object = nullptr;
-    Scene*         m_scene  = nullptr;
-    ActionOnUpdate m_on_update;
+    Object*          m_object = nullptr;
+    internal::Scene* m_scene  = nullptr;
+    ActionOnUpdate   m_on_update;
 
     mutable vector<S<geometry::GeometrySlot>> m_temp_geo_slots;
     mutable vector<S<geometry::GeometrySlot>> m_temp_rest_geo_slots;

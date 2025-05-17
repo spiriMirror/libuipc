@@ -31,9 +31,9 @@ template <>
 class GeometryFriend<GeometryAtlas>
 {
   public:
-    static void attribute_collections(Geometry&                     geometry,
-                                      vector<std::string>&          names,
-                                      vector<AttributeCollection*>& collections)
+    static void attribute_collections(Geometry&            geometry,
+                                      vector<std::string>& names,
+                                      vector<const AttributeCollection*>& collections)
     {
         geometry.collect_attribute_collections(names, collections);
     }
@@ -76,7 +76,7 @@ class GeometryAtlas::Impl
 
     void create(std::string_view name, const AttributeCollection& ac, bool evolving_only)
     {
-        S<AttributeCollection> new_ac = std::make_shared<AttributeCollection>(ac);
+        S<AttributeCollection> new_ac = uipc::make_shared<AttributeCollection>(ac);
         build_attributes_index_from_attribute_collection(*new_ac);
         auto it = m_attribute_collections.find(std::string{name});
         if(it == m_attribute_collections.end())
@@ -102,7 +102,7 @@ class GeometryAtlas::Impl
     }
 
 
-    void build_attributes_index_from_attribute_collection(AttributeCollection& ac)
+    void build_attributes_index_from_attribute_collection(const AttributeCollection& ac)
     {
         using AF = AttributeFriend<GeometryAtlas>;
 
@@ -129,8 +129,8 @@ class GeometryAtlas::Impl
     {
         using GF = GeometryFriend<GeometryAtlas>;
 
-        vector<std::string>          collection_names;
-        vector<AttributeCollection*> attribute_collections;
+        vector<std::string>                collection_names;
+        vector<const AttributeCollection*> attribute_collections;
         GF::attribute_collections(geo, collection_names, attribute_collections);
         for(auto&& ac : attribute_collections)
         {

@@ -15,7 +15,7 @@ class SanityCheckerAutoRegister
 
   public:
     using Creator =
-        std::function<U<core::ISanityChecker>(SanityCheckerCollection&, core::Scene&)>;
+        std::function<U<core::ISanityChecker>(SanityCheckerCollection&, core::internal::Scene&)>;
 
     SanityCheckerAutoRegister(Creator&& reg);
 
@@ -34,7 +34,7 @@ namespace detail
     template <std::derived_from<core::ISanityChecker> SanityCheckerT>
     SanityCheckerAutoRegister::Creator register_sanity_checker_creator()
     {
-        return [](SanityCheckerCollection& c, core::Scene& scene) -> U<core::ISanityChecker>
+        return [](SanityCheckerCollection& c, core::internal::Scene& scene) -> U<core::ISanityChecker>
         {
             return ::uipc::static_pointer_cast<core::ISanityChecker>(
                 ::uipc::make_unique<SanityCheckerT>(c, scene));

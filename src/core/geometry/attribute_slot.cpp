@@ -46,6 +46,11 @@ void IAttributeSlot::is_evolving(bool v) noexcept
     set_is_evolving(v);
 }
 
+TimePoint IAttributeSlot::last_modified() const noexcept
+{
+    return get_last_modified();
+}
+
 void IAttributeSlot::make_owned()
 {
     if(!is_shared())

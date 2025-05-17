@@ -6,17 +6,21 @@
 namespace uipc::geometry
 {
 ImplicitGeometry::ImplicitGeometry()
+    : Geometry()
 {
+    auto meta = find("meta");  // in base class
+    UIPC_ASSERT(meta, "Meta attribute collection not found, why can it happen?");
+
     // Set the implicit geometry UID to 0 (Empty).
-    m_meta.create<U64>(builtin::implicit_geometry_uid,
-                       0ull,  // default empty = 0
-                       false  // don't allow destroy
+    meta->create<U64>(builtin::implicit_geometry_uid,
+                      0ull,  // default empty = 0
+                      false  // don't allow destroy
     );
 }
 
 const builtin::UIDInfo& ImplicitGeometry::uid_info() const noexcept
 {
-    U64 uid = m_meta.find<U64>(builtin::implicit_geometry_uid)->view()[0];
+    U64 uid = meta().find<U64>(builtin::implicit_geometry_uid)->view()[0];
     return builtin::ImplicitGeometryUIDCollection::instance().find(uid);
 }
 
@@ -29,9 +33,10 @@ std::string_view ImplicitGeometry::get_type() const noexcept
 {
     return uipc::builtin::ImplicitGeometry;
 }
+
 S<IGeometry> ImplicitGeometry::do_clone() const
 {
-    return std::make_shared<ImplicitGeometry>(*this);
+    return uipc::make_shared<ImplicitGeometry>(*this);
 }
 }  // namespace uipc::geometry
 

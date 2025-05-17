@@ -22,7 +22,7 @@ std::string_view SanityCheckerCollection::workspace() const noexcept
     return m_workspace;
 }
 
-void SanityCheckerCollection::build(core::Scene& s)
+void SanityCheckerCollection::build(core::internal::Scene& s)
 {
     for(const auto& creator : SanityCheckerAutoRegister::creators().entries)
     {

@@ -42,4 +42,10 @@ AttributeCopy AttributeCopy::pair(span<const std::pair<SizeT, SizeT>> pairs) noe
     copy.m_pairs = pairs;
     return copy;
 }
+AttributeCopy AttributeCopy::same_dim() noexcept
+{
+    AttributeCopy copy;
+    copy.m_type = CopyType::SameDim;
+    return copy;
+}
 }  // namespace uipc::geometry

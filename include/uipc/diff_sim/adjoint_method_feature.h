@@ -1,5 +1,4 @@
-#pragma once
-#include <uipc/backend/visitors/world_visitor.h>
+#pragma 
 #include <uipc/core/feature.h>
 #include <uipc/backend/buffer_view.h>
 

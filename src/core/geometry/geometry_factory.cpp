@@ -35,16 +35,17 @@ namespace uipc::geometry
 {
 using Creator = std::function<S<Geometry>(const Json&, span<S<IAttributeSlot>>)>;
 using GeometryToSlot = std::function<S<GeometrySlot>(IndexT, const Geometry&)>;
+using EmptyGeometryCreator = std::function<S<Geometry>()>;
 
 template <>
 class GeometryFriend<GeometryFactory>
 {
   public:
-    static void build_from_attribute_collections(Geometry&         geometry,
-                                                 span<std::string> names,
+    static void build_from_attribute_collections(Geometry& geometry,
+                                                 span<const std::string> names,
                                                  span<S<AttributeCollection>> collections) noexcept
     {
-        vector<AttributeCollection*> collections_ptr;
+        vector<const AttributeCollection*> collections_ptr;
         collections_ptr.reserve(collections.size());
         std::transform(collections.begin(),
                        collections.end(),
@@ -56,9 +57,16 @@ class GeometryFriend<GeometryFactory>
 
     static void collect_attribute_collections(Geometry&            geometry,
                                               vector<std::string>& names,
-                                              vector<AttributeCollection*>& collections) noexcept
+                                              vector<const AttributeCollection*>& collections) noexcept
     {
         geometry.collect_attribute_collections(names, collections);
+    }
+
+    static void update_from_commit(Geometry&               geometry,
+                                   span<const std::string> names,
+                                   span<const AttributeCollectionCommit> collections)
+    {
+        static_cast<IGeometry&>(geometry).update_from_commit(names, collections);
     }
 };
 
@@ -73,7 +81,7 @@ static void register_geometry_from_json(AttributeCollectionFactory& acf,
         {std::string{type_name},
          [&](const Json& j, span<S<IAttributeSlot>> attributes) -> S<Geometry>
          {
-             S<T> geometry = std::make_shared<T>();
+             S<T> geometry = uipc::make_shared<T>();
 
              vector<std::string> names;
              names.reserve(8);
@@ -101,7 +109,7 @@ static void register_slot_from_geometry(std::unordered_map<std::string, Geometry
                      [&](IndexT id, const Geometry& geometry) -> S<GeometrySlot>
                      {
                          auto slot =
-                             std::make_shared<GeometrySlotT<T>>(id, *geometry.as<T>());
+                             uipc::make_shared<GeometrySlotT<T>>(id, *geometry.as<T>());
                          return std::static_pointer_cast<GeometrySlot>(slot);
                      }});
 }
@@ -229,8 +237,8 @@ class GeometryFactory::Impl
 
     Json geometry_to_json(Geometry& geometry, unordered_map<IAttribute*, IndexT> attr_to_index)
     {
-        using GF   = GeometryFriend<GeometryFactory>;
-        
+        using GF = GeometryFriend<GeometryFactory>;
+
         Json  j    = Json::object();
         auto& meta = j[builtin::__meta__];
         {
@@ -241,7 +249,7 @@ class GeometryFactory::Impl
         {
             vector<std::string> names;
             names.reserve(8);
-            vector<AttributeCollection*> collections;
+            vector<const AttributeCollection*> collections;
             collections.reserve(8);
             GF::collect_attribute_collections(geometry, names, collections);
             for(auto&& [name, collection] : zip(names, collections))
@@ -293,6 +301,25 @@ vector<S<Geometry>> GeometryFactory::from_json(const Json& j, span<S<IAttributeS
 S<GeometrySlot> GeometryFactory::create_slot(IndexT id, const Geometry& geometry)
 {
     return m_impl->create_slot(id, geometry);
+}
+
+S<Geometry> GeometryFactory::create_geometry(std::string_view type)
+{
+    return S<Geometry>();
+}
+
+void GeometryFactory::update_from(Geometry& base, const GeometryCommit& inc)
+{
+    if(!inc.m_is_valid)
+    {
+        UIPC_WARN_WITH_LOCATION("GeometryCommit: The GeometryCommit is invalid, so we ignore it.");
+    }
+    auto names = span<const std::string>{inc.m_names.data(), inc.m_names.size()};
+    auto acs = span<const AttributeCollectionCommit>{inc.m_commits.data(),
+                                                     inc.m_commits.size()};
+
+    using GF = GeometryFriend<GeometryFactory>;
+    GF::update_from_commit(base, names, acs);
 }
 
 Json GeometryFactory::to_json(span<Geometry*> geos, unordered_map<IAttribute*, IndexT> attr_to_index)

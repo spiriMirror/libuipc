@@ -13,12 +13,24 @@ namespace uipc::core
 class Scene;
 }
 
+namespace uipc::core::internal
+{
+class Scene;
+}
+
 namespace uipc::backend
 {
 class UIPC_CORE_API SceneVisitor
 {
   public:
     SceneVisitor(core::Scene& scene) noexcept;
+    SceneVisitor(core::internal::Scene& scene) noexcept;
+
+    SceneVisitor(const SceneVisitor&)            = delete;
+    SceneVisitor(SceneVisitor&&)                 = default;
+    SceneVisitor& operator=(const SceneVisitor&) = delete;
+    SceneVisitor& operator=(SceneVisitor&&)      = default;
+
     void begin_pending() noexcept;
     void solve_pending() noexcept;
     bool is_pending() const noexcept;
@@ -46,7 +58,8 @@ class UIPC_CORE_API SceneVisitor
     core::Scene& ref() noexcept;
 
   private:
-    core::Scene&   m_scene;
-    DiffSimVisitor m_diff_sim;
+    mutable S<core::Scene> m_ref;
+    core::internal::Scene& m_scene;
+    DiffSimVisitor         m_diff_sim_visitor;
 };
 }  // namespace uipc::backend

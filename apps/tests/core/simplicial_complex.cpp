@@ -115,7 +115,7 @@ TEST_CASE("create_delete_share_attribute", "[simplicial_complex]")
     REQUIRE(vel->size() == VA.size());
 
 
-    REQUIRE_THROWS_AS(VA.create<Vector3>("velocity"), GeometryAttributeError);
+    REQUIRE_THROWS_AS(VA.create<Vector3>("velocity"), AttributeCollectionError);
 
     VA.destroy("velocity");
     REQUIRE_ONCE_WARN(VA.destroy("velocity"));
@@ -124,12 +124,12 @@ TEST_CASE("create_delete_share_attribute", "[simplicial_complex]")
     REQUIRE(!find_vel);
     REQUIRE(find_vel.use_count() == 0);
 
-    REQUIRE_THROWS_AS(VA.destroy(builtin::position), GeometryAttributeError);
+    REQUIRE_THROWS_AS(VA.destroy(builtin::position), AttributeCollectionError);
 
     VA.share("velocity", pos);
     REQUIRE(VA.find<Vector3>("velocity")->is_shared());
 
-    REQUIRE_THROWS_AS(VA.share("velocity", point_cloud.positions()), GeometryAttributeError);
+    REQUIRE_THROWS_AS(VA.share("velocity", point_cloud.positions()), AttributeCollectionError);
 }
 
 TEST_CASE("const_attribute", "[simplicial_complex]")

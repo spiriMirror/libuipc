@@ -1,5 +1,5 @@
-#include <uipc/core/scene_archieve.h>
-#include <uipc/core/scene_factory.h>
+//#include <uipc/core/scene_archieve.h>
+//#include <uipc/core/scene_factory.h>
 
 
 // A Json representation of a Scene may look like this:
@@ -47,53 +47,50 @@
 
 namespace uipc::core
 {
-class SceneArchieve::Impl
-{
-  public:
-    Impl(Scene& scene)
-        : m_scene(scene)
-    {
-        SceneFactory sf;
-        m_init_scene = sf.to_json(m_scene);
-    }
-
-    const Json& init() { return m_init_scene; }
-
-    Json push()
-    {
-        SceneFactory sf;
-        auto         j = sf.to_json(m_scene);
-        return j;
-    }
-
-    void pull(const Json& j) {}
-
-
-    Scene& m_scene;
-
-    geometry::GeometryCollection geometry_collection;
-    geometry::GeometryCollection rest_geometry_collection;
-};
-
-SceneArchieve::SceneArchieve(Scene& scene)
-    : m_impl{uipc::make_unique<Impl>(scene)}
-{
-}
-
-SceneArchieve::~SceneArchieve() = default;
-
-const Json& SceneArchieve::init()
-{
-    return m_impl->init();
-}
-
-Json SceneArchieve::push()
-{
-    return m_impl->push();
-}
-
-void SceneArchieve::pull(const Json& json)
-{
-    m_impl->pull(json);
-}
+//class SceneArchieve::Impl
+//{
+//  public:
+//    Impl(Scene& scene)
+//        : m_scene(scene)
+//    {
+//        SceneFactory sf;
+//    }
+//
+//    Json push()
+//    {
+//        SceneFactory sf;
+//        auto         j = sf.to_json(m_scene);
+//        return j;
+//    }
+//
+//    void pull(const Json& j) {}
+//
+//
+//    Scene& m_scene;
+//
+//    geometry::GeometryCollection geometry_collection;
+//    geometry::GeometryCollection rest_geometry_collection;
+//};
+//
+//SceneArchieve::SceneArchieve(Scene& scene)
+//    : m_impl{uipc::make_unique<Impl>(scene)}
+//{
+//}
+//
+//SceneArchieve::~SceneArchieve() = default;
+//
+//const Json& SceneArchieve::init()
+//{
+//    return m_impl->init();
+//}
+//
+//Json SceneArchieve::push()
+//{
+//    return m_impl->push();
+//}
+//
+//void SceneArchieve::pull(const Json& json)
+//{
+//    m_impl->pull(json);
+//}
 }  // namespace uipc::core

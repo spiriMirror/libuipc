@@ -1,6 +1,11 @@
 #pragma once
 #include <uipc/core/i_sanity_checker.h>
 
+namespace uipc::core::internal
+{
+class Scene;
+}
+
 namespace uipc::core
 {
 class Scene;
@@ -8,7 +13,7 @@ class Scene;
 class UIPC_CORE_API SanityChecker final
 {
   public:
-    SanityChecker(Scene& scene);
+    SanityChecker(internal::Scene& scene);
     ~SanityChecker();
 
     SanityCheckResult check(std::string_view workspace);
@@ -25,6 +30,6 @@ class UIPC_CORE_API SanityChecker final
     core::SanityCheckMessageCollection m_warns;
     core::SanityCheckMessageCollection m_infos;
 
-    Scene& m_scene;
+    internal::Scene& m_scene;
 };
 }  // namespace uipc::core

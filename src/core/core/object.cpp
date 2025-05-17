@@ -1,5 +1,6 @@
 #include <uipc/core/object.h>
 #include <uipc/core/scene.h>
+#include <uipc/core/internal/scene.h>
 
 namespace uipc::core
 {
@@ -13,7 +14,7 @@ IndexT IObject::id() const noexcept
     return get_id();
 }
 
-Object::Object(Scene& scene, IndexT id, std::string_view name) noexcept
+Object::Object(internal::Scene& scene, IndexT id, std::string_view name) noexcept
     : m_scene{&scene}
     , m_id{id}
     , m_name{name}
@@ -39,12 +40,12 @@ IndexT Object::get_id() const noexcept
 
 geometry::GeometryCollection& Object::geometry_collection() noexcept
 {
-    return m_scene->geometry_collection();
+    return m_scene->geometries();
 }
 
 geometry::GeometryCollection& Object::rest_geometry_collection() noexcept
 {
-    return m_scene->rest_geometry_collection();
+    return m_scene->rest_geometries();
 }
 
 bool Object::scene_started() const noexcept
@@ -57,10 +58,11 @@ bool Object::scene_pending() const noexcept
     return m_scene->is_pending();
 }
 
-void Object::scene(Scene& scene) noexcept
+void Object::build_from(span<const IndexT> geo_ids) noexcept
 {
-    UIPC_ASSERT(m_scene == nullptr, "Object already belongs to a scene.");
-    m_scene = &scene;
+    m_geometry_ids.clear();
+    m_geometry_ids.reserve(geo_ids.size());
+    std::ranges::copy(geo_ids, std::back_inserter(m_geometry_ids));
 }
 
 span<const IndexT> Object::Geometries::ids() && noexcept
@@ -118,15 +120,14 @@ appender formatter<uipc::core::Object>::format(const uipc::core::Object& c,
     fmt::format_to(ctx.out(), "Object[{}(#{})]:", c.name(), c.id());
     for(auto id : c.geometries().ids())
     {
-        auto geo_slot = c.m_scene->geometries().find(id);
-        auto geo      = geo_slot.geometry;
-        auto rest_geo = geo_slot.rest_geometry;
+        auto geo_slot      = c.m_scene->geometries().find(id);
+        auto rest_geo_slot = c.m_scene->rest_geometries().find(id);
 
         fmt::format_to(ctx.out(),
                        "\n  [{}] <{}, {}>",
                        id,
-                       geo->geometry().type(),
-                       rest_geo->geometry().type());
+                       geo_slot->geometry().type(),
+                       rest_geo_slot->geometry().type());
     }
 
     return ctx.out();

@@ -3,12 +3,16 @@
 #include <uipc/geometry/attribute_collection.h>
 #include <uipc/geometry/attribute_friend.h>
 #include <uipc/geometry/geometry_friend.h>
+#include <uipc/geometry/attribute_collection_commit.h>
+
 namespace uipc::backend
 {
 class GeometryVisitor;
 }
 namespace uipc::geometry
 {
+class GeometryCommit;
+
 /**
  * @brief An abstract class for geometries
  */
@@ -17,6 +21,7 @@ class UIPC_CORE_API IGeometry
     template <typename T>
     friend class GeometryFriend;
     friend class backend::GeometryVisitor;
+    friend class GeometryCommit;
 
   public:
     /**
@@ -31,16 +36,25 @@ class UIPC_CORE_API IGeometry
     /*
     * @brief Clone the underlying geometry, this is used to create a new geometry with the same type and attributes.
     */
-    [[nodiscard]] virtual S<IGeometry> clone() const;
+    [[nodiscard]] S<IGeometry> clone() const;
 
   protected:
     [[nodiscard]] virtual std::string_view get_type() const noexcept = 0;
     virtual Json                           do_to_json() const        = 0;
+
+    virtual void do_collect_attribute_collections(
+        vector<std::string>&                names,
+        vector<const AttributeCollection*>& collections) const = 0;
+
     virtual void do_collect_attribute_collections(vector<std::string>& names,
                                                   vector<AttributeCollection*>& collections) = 0;
-    virtual void do_build_from_attribute_collections(
-        span<std::string> names, span<AttributeCollection*> collections) noexcept = 0;
+
+    virtual void do_build_from_attribute_collections(span<const std::string> names,
+                                                     span<const AttributeCollection*> collections) = 0;
     virtual S<IGeometry> do_clone() const = 0;
+
+    virtual void do_update_from_commit(span<const std::string> names,
+                                       span<const AttributeCollectionCommit> collections) = 0;
 
   private:
     /**
@@ -51,7 +65,13 @@ class UIPC_CORE_API IGeometry
      * @param[out] collections The attribute collections.
      */
     void collect_attribute_collections(vector<std::string>& names,
+                                       vector<const AttributeCollection*>& collections) const;
+
+    void collect_attribute_collections(vector<std::string>& names,
                                        vector<AttributeCollection*>& collections);
+
+    void build_from_attribute_collections(span<const std::string> names,
+                                          span<AttributeCollection*> collections);
 
 
     /**
@@ -61,8 +81,11 @@ class UIPC_CORE_API IGeometry
      * @param[in] names The names of the attribute collections.
      * @param[in] collections The attribute collections. 
      */
-    void build_from_attribute_collections(span<std::string> names,
-                                          span<AttributeCollection*> collections) noexcept;
+    void build_from_attribute_collections(span<const std::string> names,
+                                          span<const AttributeCollection*> collections);
+
+    void update_from_commit(span<const std::string>               names,
+                            span<const AttributeCollectionCommit> collections);
 };
 
 /**
@@ -264,8 +287,8 @@ class UIPC_CORE_API Geometry : public IGeometry
     Geometry();
 
     // allow copy_from and move on construction, because the geometry truely empty
-    Geometry(const Geometry& o) = default;
-    Geometry(Geometry&& o)      = default;
+    Geometry(const Geometry& o);
+    Geometry(Geometry&& o) = default;
 
     // no copy_from or move assignment, because the geometry is no longer empty
     Geometry& operator=(const Geometry& o) = delete;
@@ -297,17 +320,34 @@ class UIPC_CORE_API Geometry : public IGeometry
     [[nodiscard]] const T* as() const;
 
   protected:
+    S<AttributeCollection>       create(std::string_view name);
+    S<const AttributeCollection> find(std::string_view name) const;
+    S<AttributeCollection>       find(std::string_view name);
+
     virtual Json do_to_json() const override;
     virtual void do_collect_attribute_collections(vector<std::string>& names,
+                                                  vector<const AttributeCollection*>& collections) const override;
+
+    virtual void do_collect_attribute_collections(vector<std::string>& names,
                                                   vector<AttributeCollection*>& collections) override;
-    virtual void do_build_from_attribute_collections(span<std::string> names,
-                                                     span<AttributeCollection*> collections) noexcept override;
+
+    virtual void do_build_from_attribute_collections(span<const std::string> names,
+                                                     span<const AttributeCollection*> collections) override;
+
+    virtual void do_update_from_commit(span<const std::string> names,
+                                       span<const AttributeCollectionCommit> commits) override;
+
     virtual S<IGeometry> do_clone() const override;
 
     virtual std::string_view get_type() const noexcept override;
 
-    AttributeCollection m_intances;
-    AttributeCollection m_meta;
+  private:
+    // shortcut
+    mutable S<AttributeCollection> m_intances;
+    mutable S<AttributeCollection> m_meta;
+
+    // Core Data Structure
+    unordered_map<std::string, S<AttributeCollection>> m_attribute_collections;
 };
 }  // namespace uipc::geometry
 
