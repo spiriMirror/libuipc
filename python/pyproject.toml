@@ -17,7 +17,7 @@ version = "0.9.0"
 dependencies = [
     "numpy"
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 description = ""
 keywords = ["ipc", "computer graphics", "physics simulation"]
 
@@ -27,6 +27,7 @@ Issues = "https://github.com/spiriMirror/libuipc/issues"
 
 [project.optional-dependencies]
 gui = ["polyscope"]
+dev = ["pytest"]
 
 [tool.setuptools.packages.find]
 where = ["src", "typings"]
