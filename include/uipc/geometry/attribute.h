@@ -33,7 +33,7 @@ class UIPC_CORE_API IAttribute
 
     [[nodiscard]] Json to_json() const noexcept;
 
-    [[nodiscard]] void from_json(const Json& j) noexcept;
+    void from_json(const Json& j) noexcept;
     /**
      * @brief Get the type name of data stored in the attribute slot.
      */

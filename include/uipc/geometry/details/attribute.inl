@@ -1,7 +1,7 @@
 #include <uipc/common/json_eigen.h>
 #include <uipc/common/type_traits.h>
 #include <uipc/common/range.h>
-#include "attribute.h"
+#include <uipc/common/readable_type_name.h>
 
 namespace uipc::geometry
 {

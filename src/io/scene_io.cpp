@@ -1,4 +1,5 @@
 #include <uipc/io/scene_io.h>
+#include <uipc/core/scene_factory.h>
 #include <algorithm>
 #include <filesystem>
 #include <fmt/printf.h>

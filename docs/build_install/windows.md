@@ -16,12 +16,21 @@ The following dependencies are required to build the project.
 If you haven't installed Vcpkg, you can clone the repository with the following command:
 
 ```shell
+mkdir ~/Toolchain
+cd ~/Toolchain
 git clone https://github.com/microsoft/vcpkg.git
 cd vcpkg
 ./bootstrap-vcpkg.bat
 ```
 
-The simplest way to let CMake detect Vcpkg is to set the system environment variable `CMAKE_TOOLCHAIN_FILE` to `(YOUR_VCPKG_PARENT_FOLDER)/vcpkg/scripts/buildsystems/vcpkg.cmake`
+The simplest way to let CMake detect Vcpkg is to set the **System Environment Variable** `CMAKE_TOOLCHAIN_FILE` to `~/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake`
+
+You can set the environment variable in the PowerShell:
+
+```shell
+# In PowerShell: Permanently set the environment variable
+[System.Environment]::SetEnvironmentVariable("CMAKE_TOOLCHAIN_FILE", "~/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake", "User")
+```
 
 ## Build Libuipc
 

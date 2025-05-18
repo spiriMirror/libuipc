@@ -12,8 +12,6 @@ PySceneIO::PySceneIO(py::module& m)
         "simplicial_surface",
         [](SceneIO& self, IndexT dim) { return self.simplicial_surface(dim); },
         py::arg("dim") = -1);
-<<<<<<< Updated upstream
-=======
     class_SceneIO.def_static(
         "load",
         [](std::string_view filename) { return SceneIO::load(filename); },
@@ -22,6 +20,5 @@ PySceneIO::PySceneIO(py::module& m)
         "save", [](SceneIO& self, std::string_view file) { self.save(file); }, py::arg("filename"));
     class_SceneIO.def("to_json", &SceneIO::to_json);
     class_SceneIO.def_static("from_json", &SceneIO::from_json, py::arg("json"));
->>>>>>> Stashed changes
 }
 }  // namespace pyuipc::core

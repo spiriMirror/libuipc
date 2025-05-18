@@ -134,7 +134,8 @@ class AttributeCollectionFactory::Impl
                 UIPC_WARN_WITH_LOCATION("`name` not found, skip.");
                 continue;
             }
-            auto name = name_it->get<std::string>();
+            
+            // auto name = name_it->get<std::string>();
 
             auto allow_destroy_it = object.find("allow_destroy");
             if(allow_destroy_it == object.end())

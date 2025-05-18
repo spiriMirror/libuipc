@@ -200,6 +200,11 @@ S<Object> Scene::Objects::find(IndexT id) && noexcept
     return m_scene.objects().find(id);
 }
 
+vector<S<Object>> Scene::Objects::find(std::string_view name) && noexcept
+{
+    return m_scene.m_impl->objects.find(name);
+}
+
 void Scene::Objects::destroy(IndexT id) &&
 {
     auto obj = m_scene.objects().find(id);
@@ -240,6 +245,11 @@ SizeT Scene::Objects::created_count() const noexcept
 S<const Object> Scene::CObjects::find(IndexT id) && noexcept
 {
     return m_scene.objects().find(id);
+}
+
+vector<S<const Object>> Scene::CObjects::find(std::string_view name) && noexcept
+{
+    return std::as_const(m_scene.m_impl->objects).find(name);
 }
 
 SizeT Scene::CObjects::size() const noexcept
