@@ -13,8 +13,8 @@ site/
 build/
 output/
 vcpkg_installed/
-.vscode/
-
+.vscode/.cache 
+.vscode/compile_commands.json
 __pycache__
 .pytest_cache
 

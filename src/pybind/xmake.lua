@@ -27,3 +27,11 @@ target("pyuipc")
             )
         end
     end)
+
+    after_build(function (target)
+        local py_module_target = "$(projectdir)" .. "/python/src/uipc/modules/" 
+        -- make module target if it doesn't exist
+        os.mkdir(py_module_target)
+        print("Copying folder from " .. target:targetdir() .. " to " .. py_module_target)
+        os.cp(target:targetdir(), py_module_target)
+    end)

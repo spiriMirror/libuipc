@@ -1,0 +1,28 @@
+{
+	"folders": [
+		{
+			"path": "../python"
+		}
+	],
+    "extensions": {
+        "recommendations": [
+            "ms-python.python",
+            "ms-toolsai.jupyter",
+            "ms-python.vscode-pylance",
+            "charliermarsh.ruff"
+        ]
+    },
+	"settings": {
+		"python.analysis.exclude": [
+			"data",
+			".venv"
+		],
+		"python.languageServer": "Pylance",
+		"python.analysis.fixAll": [
+			"source.convertImportFormat"
+		],
+		"python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+		"editor.defaultFormatter": "charliermarsh.ruff",
+		"editor.formatOnSave": true
+	}
+}
