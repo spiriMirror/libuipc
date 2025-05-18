@@ -2,6 +2,12 @@
 #include <uipc/common/unordered_map.h>
 #include <uipc/core/object.h>
 #include <uipc/common/set.h>
+
+namespace uipc::core::internal
+{
+class Scene;
+}
+
 namespace uipc::core
 {
 class UIPC_CORE_API IObjectCollection
@@ -13,6 +19,7 @@ class UIPC_CORE_API IObjectCollection
 class UIPC_CORE_API ObjectCollection : public IObjectCollection
 {
     friend class Scene;
+    friend class internal::Scene;
     friend class SceneFactory;
     friend class SceneSnapshot;
     friend class SceneSnapshotCommit;
@@ -41,6 +48,7 @@ class UIPC_CORE_API ObjectCollection : public IObjectCollection
     const unordered_map<IndexT, S<Object>>& objects() const;
 
     void build_from(span<S<Object>> objects) noexcept;
+    void update_from(internal::Scene& scene, span<const ObjectSnapshot> snapshots) noexcept;
 };
 }  // namespace uipc::core
 

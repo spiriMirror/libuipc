@@ -79,11 +79,15 @@ class UIPC_CORE_API IAttributeSlot
     SizeT         use_count() const;
     virtual SizeT get_use_count() const = 0;
 
-    virtual S<IAttributeSlot> clone(std::string_view name, bool allow_destroy) const;
+    S<IAttributeSlot> clone(std::string_view name, bool allow_destroy) const;
     virtual S<IAttributeSlot> do_clone(std::string_view name, bool allow_destroy) const = 0;
-    virtual S<IAttributeSlot> clone_empty(std::string_view name, bool allow_destroy) const;
+
+    S<IAttributeSlot> clone_empty(std::string_view name, bool allow_destroy) const;
     virtual S<IAttributeSlot> do_clone_empty(std::string_view name,
                                              bool allow_destroy) const = 0;
+
+    void         share_from(const IAttributeSlot& other) noexcept;
+    virtual void do_share_from(const IAttributeSlot& other) noexcept = 0;
 
     virtual IAttribute&       attribute() noexcept;
     virtual IAttribute&       get_attribute() noexcept = 0;
@@ -137,7 +141,8 @@ class AttributeSlot final : public IAttributeSlot
     virtual S<IAttributeSlot> do_clone(std::string_view name, bool allow_destroy) const override;
     virtual S<IAttributeSlot> do_clone_empty(std::string_view name,
                                              bool allow_destroy) const override;
-    virtual TimePoint         get_last_modified() const noexcept override;
+    virtual void do_share_from(const IAttributeSlot& other) noexcept override;
+    virtual TimePoint get_last_modified() const noexcept override;
 
     TimePoint       m_last_modified;
     std::string     m_name;

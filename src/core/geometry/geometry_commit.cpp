@@ -87,8 +87,7 @@ GeometryCommit operator-(const Geometry& dst, const Geometry& src)
 
 Geometry& operator+=(Geometry& base, const GeometryCommit& inc)
 {
-    GeometryFactory gf;
-    gf.update_from(base, inc);
+    base.update_from(inc);
     return base;
 }
 }  // namespace uipc::geometry

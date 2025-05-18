@@ -1,5 +1,7 @@
 #include <uipc/core/object_collection.h>
 #include <uipc/common/log.h>
+#include <uipc/core/object_snapshot.h>
+
 namespace uipc::core
 {
 template <typename T>
@@ -93,6 +95,29 @@ void ObjectCollection::build_from(span<S<Object>> objects) noexcept
         if(id >= m_next_id)
             m_next_id = id + 1;
         m_objects.emplace(id, object);
+    }
+}
+
+void ObjectCollection::update_from(internal::Scene& scene,
+                                   span<const ObjectSnapshot> snapshots) noexcept
+{
+    for(auto& snapshot : snapshots)
+    {
+        auto it = m_objects.find(snapshot.m_id);
+        if(it != m_objects.end())
+        {
+            auto& object = *it->second;
+            object.update_from(snapshot);
+        }
+        else
+        {
+            auto id = snapshot.m_id;
+            auto new_object = uipc::make_shared<Object>(scene, id, snapshot.m_name);
+            new_object->build_from(snapshot.m_geometries);
+            m_objects.emplace(id, new_object);
+            if(id >= m_next_id)
+                m_next_id = id + 1;
+        }
     }
 }
 }  // namespace uipc::core

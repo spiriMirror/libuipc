@@ -6,7 +6,8 @@ namespace uipc::geometry
 {
 class UIPC_CORE_API GeometryCommit
 {
-    friend class GeometryFactory;
+    friend class Geometry;
+    friend class GeometryCollection;
     friend UIPC_CORE_API GeometryCommit operator-(const Geometry& dst, const Geometry& src);
     friend UIPC_CORE_API Geometry& operator+=(Geometry& base, const GeometryCommit& inc);
 

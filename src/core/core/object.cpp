@@ -1,6 +1,7 @@
 #include <uipc/core/object.h>
 #include <uipc/core/scene.h>
 #include <uipc/core/internal/scene.h>
+#include <uipc/core/object_snapshot.h>
 
 namespace uipc::core
 {
@@ -102,6 +103,13 @@ void to_json(Json& j, const Object& object) noexcept
     j["id"]         = object.id();
     j["name"]       = object.name();
     j["geometries"] = object.geometries().ids();
+}
+
+void Object::update_from(const ObjectSnapshot& snapshot) noexcept
+{
+    m_id           = snapshot.m_id;
+    m_name         = snapshot.m_name;
+    m_geometry_ids = snapshot.m_geometries;
 }
 
 void from_json(const Json& j, Object& object) noexcept

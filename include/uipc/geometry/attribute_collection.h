@@ -10,6 +10,7 @@
 
 namespace uipc::geometry
 {
+class AttributeCollectionCommit;
 /**
  * @brief A collection of geometries attributes.
  *
@@ -162,6 +163,14 @@ class UIPC_CORE_API AttributeCollection
     * @brief Get the json representation of the attribute collection.
     */
     [[nodiscard]] Json to_json() const;
+
+
+    /**
+     * @brief Update the attribute collection from AttributeCollectionCommit.
+     * 
+     * \param commit
+     */
+    void update_from(const AttributeCollectionCommit& commit);
 
   private:
     SizeT                                    m_size = 0;

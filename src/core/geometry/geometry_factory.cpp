@@ -61,13 +61,6 @@ class GeometryFriend<GeometryFactory>
     {
         geometry.collect_attribute_collections(names, collections);
     }
-
-    static void update_from_commit(Geometry&               geometry,
-                                   span<const std::string> names,
-                                   span<const AttributeCollectionCommit> collections)
-    {
-        static_cast<IGeometry&>(geometry).update_from_commit(names, collections);
-    }
 };
 
 
@@ -129,10 +122,8 @@ class GeometryFactory::Impl
         static thread_local std::once_flag                           f;
         static thread_local std::unordered_map<std::string, Creator> m_creators;
 
-        std::call_once(
-            f,
-            [&]
-            {
+        std::call_once(f,
+                       [&] {
 #define UIPC_GEOMETRY_EXPORT_DEF(T)                                            \
     register_geometry_from_json<T>(acf(), m_creators, UIPC_TO_STRING(T));
 
@@ -140,7 +131,7 @@ class GeometryFactory::Impl
 #include <uipc/geometry/details/geometry_export_types.inl>
 
 #undef UIPC_GEOMETRY_EXPORT_DEF
-            });
+                       });
 
 
         return m_creators;
@@ -151,8 +142,7 @@ class GeometryFactory::Impl
         static thread_local std::once_flag f;
         static thread_local std::unordered_map<std::string, GeometryToSlot> m_creators;
         std::call_once(f,
-                       [&]
-                       {
+                       [&] {
 #define UIPC_GEOMETRY_EXPORT_DEF(T)                                            \
     register_slot_from_geometry<T>(m_creators, UIPC_TO_STRING(T));
 
@@ -306,20 +296,6 @@ S<GeometrySlot> GeometryFactory::create_slot(IndexT id, const Geometry& geometry
 S<Geometry> GeometryFactory::create_geometry(std::string_view type)
 {
     return S<Geometry>();
-}
-
-void GeometryFactory::update_from(Geometry& base, const GeometryCommit& inc)
-{
-    if(!inc.m_is_valid)
-    {
-        UIPC_WARN_WITH_LOCATION("GeometryCommit: The GeometryCommit is invalid, so we ignore it.");
-    }
-    auto names = span<const std::string>{inc.m_names.data(), inc.m_names.size()};
-    auto acs = span<const AttributeCollectionCommit>{inc.m_commits.data(),
-                                                     inc.m_commits.size()};
-
-    using GF = GeometryFriend<GeometryFactory>;
-    GF::update_from_commit(base, names, acs);
 }
 
 Json GeometryFactory::to_json(span<Geometry*> geos, unordered_map<IAttribute*, IndexT> attr_to_index)

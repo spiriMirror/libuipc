@@ -6,9 +6,12 @@ namespace uipc::geometry
 class UIPC_CORE_API AttributeCollectionCommit
 {
     friend class GeometryCommit;
+    friend class AttributeCollection;
     friend class AttributeCollectionFactory;
     friend UIPC_CORE_API AttributeCollectionCommit operator-(const AttributeCollection& dst,
                                                              const AttributeCollection& src);
+    friend UIPC_CORE_API AttributeCollection& operator+=(AttributeCollection& dst,
+                                                         const AttributeCollectionCommit& inc);
 
   public:
     explicit AttributeCollectionCommit(const AttributeCollection& dst);

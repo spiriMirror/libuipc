@@ -55,8 +55,7 @@ AttributeCollectionCommit operator-(const AttributeCollection& dst,
 
 AttributeCollection& operator+=(AttributeCollection& dst, const AttributeCollectionCommit& inc)
 {
-    AttributeCollectionFactory acf;
-    acf.update_from(dst, inc);
+    dst.update_from(inc);
     return dst;
 }
 }  // namespace uipc::geometry

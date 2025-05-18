@@ -14,6 +14,7 @@ class Scene;
 
 namespace uipc::core
 {
+class ObjectSnapshot;
 class Scene;
 
 class UIPC_CORE_API IObject
@@ -129,6 +130,7 @@ class UIPC_CORE_API Object : public IObject
     bool                          scene_pending() const noexcept;
 
     void build_from(span<const IndexT> geo_ids) noexcept;
+    void update_from(const ObjectSnapshot& snapshot) noexcept;
 
     friend void to_json(Json& j, const Object& object) noexcept;
     friend void from_json(const Json& j, Object& object) noexcept;

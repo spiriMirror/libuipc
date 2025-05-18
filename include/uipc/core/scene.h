@@ -131,7 +131,6 @@ class UIPC_CORE_API Scene final
     const SanityChecker& sanity_checker() const;
 
     void update_from(const SceneSnapshotCommit& snapshot);
-    void build_from(const SceneSnapshot& snapshot);
 
   private:
     // Allow create a core::Scene from a core::internal::Scene

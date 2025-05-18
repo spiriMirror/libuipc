@@ -8,6 +8,11 @@
 #include <uipc/core/sanity_checker.h>
 #include <uipc/core/internal/world.h>
 
+namespace uipc::core
+{
+class SceneSnapshotCommit;
+}
+
 namespace uipc::core::internal
 {
 class World;
@@ -26,6 +31,8 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
     void begin_pending() noexcept;
 
     void solve_pending() noexcept;
+
+    void update_from(const SceneSnapshotCommit& commit);
 
     auto& config() const noexcept { return m_config; }
     auto& config() noexcept { return m_config; }

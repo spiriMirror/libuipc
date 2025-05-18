@@ -37,11 +37,6 @@ class UIPC_CORE_API AttributeCollectionFactory
     AttributeCollectionCommit diff(const AttributeCollection& current,
                                    const AttributeCollection& reference);
 
-    /**
-     * @brief Update the base attribute collection with the diff commit.
-     */
-    void update_from(AttributeCollection& base, const AttributeCollectionCommit& commit);
-
   private:
     U<Impl> m_impl;
 };

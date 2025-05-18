@@ -53,8 +53,8 @@ TEST_CASE("scene_io", "[scene]")
     auto scene_loaded =
         SceneIO::load(fmt::format("{}scene.json", AssetDir::output_path(__FILE__)));
 
-    auto object_loaded = scene_loaded->objects().find(0);
+    auto object_loaded = scene_loaded.objects().find(0);
     REQUIRE(object_loaded->name() == object->name());
-    auto objects_find = scene_loaded->objects().find("objects");
-    REQUIRE(objects_find.size() == 1);
+    auto objects_found = scene_loaded.objects().find("objects");
+    REQUIRE(objects_found.size() == 1);
 }

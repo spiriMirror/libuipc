@@ -22,9 +22,6 @@ class UIPC_CORE_API GeometryFactory
 
     [[nodiscard]] S<Geometry> create_geometry(std::string_view type);
 
-    void update_from(Geometry& base, const GeometryCommit& inc);
-
-
   private:
     U<Impl> m_impl;
 };

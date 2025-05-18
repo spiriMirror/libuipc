@@ -3,6 +3,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/zip.h>
 #include <uipc/builtin/geometry_type.h>
+#include <uipc/geometry/geometry_commit.h>
 
 namespace uipc::geometry
 {
@@ -39,10 +40,9 @@ void IGeometry::build_from_attribute_collections(span<const std::string> names,
     do_build_from_attribute_collections(names, collections);
 }
 
-void IGeometry::update_from_commit(span<const std::string> names,
-                                   span<const AttributeCollectionCommit> collections)
+void IGeometry::update_from(const GeometryCommit& commit)
 {
-    do_update_from_commit(names, collections);
+    do_update_from(commit);
 }
 
 Geometry::Geometry()
@@ -152,10 +152,9 @@ void Geometry::do_build_from_attribute_collections(span<const std::string> names
     }
 }
 
-void Geometry::do_update_from_commit(span<const std::string> names,
-                                     span<const AttributeCollectionCommit> commits)
+void Geometry::do_update_from(const GeometryCommit& commit)
 {
-    for(auto&& [name, cmt] : zip(names, commits))
+    for(auto&& [name, cmt] : zip(commit.m_names, commit.m_commits))
     {
         auto& this_ac = *m_attribute_collections[name];
         this_ac += cmt;  // update the attribute collection

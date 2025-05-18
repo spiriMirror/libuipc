@@ -196,6 +196,25 @@ void GeometryCollection::build_from(span<S<geometry::GeometrySlot>> slots) noexc
     }
 }
 
+void GeometryCollection::update_from(const unordered_map<IndexT, GeometryCommit>& slots) noexcept
+{
+    m_dirty = true;
+
+    for(auto&& [id, commit] : slots)
+    {
+        auto it = m_geometries.find(id);
+        if(it != m_geometries.end())
+        {
+            auto& slot = it->second;
+            slot->geometry().update_from(commit);
+        }
+        else
+        {
+            emplace(*commit.m_new_geometry);
+        }
+    }
+}
+
 GeometryCollection::GeometryCollection(const GeometryCollection& other)
 {
     GeometryFactory gf;
@@ -220,6 +239,17 @@ GeometryCollection::GeometryCollection(const GeometryCollection& other)
     m_next_id = other.m_next_id;
 
     m_dirty = true;
+}
+
+S<geometry::GeometrySlot> GeometryCollection::emplace(const geometry::Geometry& geometry)
+{
+    GeometryFactory gf;
+    auto            geo_slot = gf.create_slot(m_next_id, geometry);
+    m_geometries.insert({m_next_id, geo_slot});
+    geo_slot->state(geometry::GeometrySlotState::Normal);
+    m_next_id++;
+    m_dirty = true;
+    return geo_slot;
 }
 
 S<geometry::GeometrySlot> GeometryCollection::find(IndexT id) noexcept

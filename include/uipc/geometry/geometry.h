@@ -22,6 +22,7 @@ class UIPC_CORE_API IGeometry
     friend class GeometryFriend;
     friend class backend::GeometryVisitor;
     friend class GeometryCommit;
+    friend class GeometryCollection;
 
   public:
     /**
@@ -38,6 +39,8 @@ class UIPC_CORE_API IGeometry
     */
     [[nodiscard]] S<IGeometry> clone() const;
 
+    void update_from(const GeometryCommit& commit);
+
   protected:
     [[nodiscard]] virtual std::string_view get_type() const noexcept = 0;
     virtual Json                           do_to_json() const        = 0;
@@ -53,8 +56,7 @@ class UIPC_CORE_API IGeometry
                                                      span<const AttributeCollection*> collections) = 0;
     virtual S<IGeometry> do_clone() const = 0;
 
-    virtual void do_update_from_commit(span<const std::string> names,
-                                       span<const AttributeCollectionCommit> collections) = 0;
+    virtual void do_update_from(const GeometryCommit& commit) = 0;
 
   private:
     /**
@@ -83,9 +85,6 @@ class UIPC_CORE_API IGeometry
      */
     void build_from_attribute_collections(span<const std::string> names,
                                           span<const AttributeCollection*> collections);
-
-    void update_from_commit(span<const std::string>               names,
-                            span<const AttributeCollectionCommit> collections);
 };
 
 /**
@@ -222,15 +221,18 @@ class UIPC_CORE_API Geometry : public IGeometry
         /**
          * @sa AttributeCollection::resize
          */
-        void resize(size_t size) && requires(!IsConst);
+        void resize(size_t size) &&
+            requires(!IsConst);
         /**
          * @sa AttributeCollection::reserve
          */
-        void reserve(size_t size) && requires(!IsConst);
+        void reserve(size_t size) &&
+            requires(!IsConst);
         /**
          * @sa AttributeCollection::clear
          */
-        void clear() && requires(!IsConst);
+        void clear() &&
+            requires(!IsConst);
         /**
          * @sa AttributeCollection::size
          */
@@ -239,7 +241,8 @@ class UIPC_CORE_API Geometry : public IGeometry
         /**
          * @sa AttributeCollection::destroy
          */
-        void destroy(std::string_view name) && requires(!IsConst);
+        void destroy(std::string_view name) &&
+            requires(!IsConst);
 
         /**
          * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
@@ -334,8 +337,7 @@ class UIPC_CORE_API Geometry : public IGeometry
     virtual void do_build_from_attribute_collections(span<const std::string> names,
                                                      span<const AttributeCollection*> collections) override;
 
-    virtual void do_update_from_commit(span<const std::string> names,
-                                       span<const AttributeCollectionCommit> commits) override;
+    virtual void do_update_from(const GeometryCommit& commit) override;
 
     virtual S<IGeometry> do_clone() const override;
 

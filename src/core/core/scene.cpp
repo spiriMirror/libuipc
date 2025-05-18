@@ -181,10 +181,8 @@ const SanityChecker& Scene::sanity_checker() const
 
 void Scene::update_from(const SceneSnapshotCommit& snapshot)
 {
-    UIPC_ASSERT(false, "Not implemented yet");
+    m_internal->update_from(snapshot);
 }
-
-void Scene::build_from(const SceneSnapshot& snapshot) {}
 
 // ----------------------------------------------------------------------------
 // Objects
@@ -202,7 +200,7 @@ S<Object> Scene::Objects::find(IndexT id) && noexcept
 
 vector<S<Object>> Scene::Objects::find(std::string_view name) && noexcept
 {
-    return m_scene.m_impl->objects.find(name);
+    return m_scene.objects().find(name);
 }
 
 void Scene::Objects::destroy(IndexT id) &&
@@ -249,7 +247,7 @@ S<const Object> Scene::CObjects::find(IndexT id) && noexcept
 
 vector<S<const Object>> Scene::CObjects::find(std::string_view name) && noexcept
 {
-    return std::as_const(m_scene.m_impl->objects).find(name);
+    return std::as_const(m_scene.objects()).find(name);
 }
 
 SizeT Scene::CObjects::size() const noexcept

@@ -76,6 +76,15 @@ S<IAttributeSlot> AttributeSlot<T>::do_clone_empty(std::string_view name, bool a
 }
 
 template <typename T>
+void AttributeSlot<T>::do_share_from(const IAttributeSlot& other) noexcept
+{
+    auto& other_slot = static_cast<const AttributeSlot<T>&>(other);
+    m_attribute      = other_slot.m_attribute;
+    m_last_modified  = std::chrono::high_resolution_clock::now();
+    m_is_evolving    = other_slot.m_is_evolving;
+}
+
+template <typename T>
 TimePoint AttributeSlot<T>::get_last_modified() const noexcept
 {
     return m_last_modified;

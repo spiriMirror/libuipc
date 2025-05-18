@@ -68,9 +68,16 @@ S<IAttributeSlot> IAttributeSlot::clone(std::string_view name, bool allow_destro
     return do_clone(name, allow_destroy);
 }
 
-S<IAttributeSlot> IAttributeSlot::clone_empty(std::string_view name, bool allow_destroy) const
+//S<IAttributeSlot> IAttributeSlot::clone_empty(std::string_view name, bool allow_destroy) const
+//{
+//    return do_clone_empty(name, allow_destroy);
+//}
+
+void IAttributeSlot::share_from(const IAttributeSlot& other) noexcept
 {
-    return do_clone_empty(name, allow_destroy);
+    if(std::addressof(other) == this)
+        return;
+    share_from(other);
 }
 
 IAttribute& IAttributeSlot::attribute() noexcept

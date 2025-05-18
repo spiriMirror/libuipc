@@ -195,7 +195,7 @@ class SceneFactory::Impl
                 snapshot.m_objects.reserve(objects_json.size());
                 for(auto& obj_json : objects_json)
                 {
-                    SceneSnapshot::Object snap_obj;
+                    ObjectSnapshot snap_obj;
                     snap_obj.m_id   = obj_json["id"].get<IndexT>();
                     snap_obj.m_name = obj_json["name"].get<std::string>();
                     auto ids = obj_json["geometries"].get<vector<IndexT>>();
@@ -305,87 +305,5 @@ SceneSnapshot SceneFactory::from_json(const Json& j)
 Json SceneFactory::to_json(const SceneSnapshot& scene)
 {
     return m_impl->to_json(scene);
-}
-
-SceneSnapshot::SceneSnapshot(const Scene& scene)
-    : m_config(scene.config())
-    , m_contact_models(scene.contact_tabular().internal_contact_models())
-{
-    auto& internal_scene = *scene.m_internal;
-    UIPC_ASSERT(internal_scene.geometries().pending_create_slots().size() == 0
-                    && internal_scene.rest_geometries().pending_create_slots().size() == 0
-                    && internal_scene.geometries().pending_destroy_ids().size() == 0
-                    && internal_scene.rest_geometries().pending_destroy_ids().size() == 0,
-                R"(GeometryCollection has pending create slots, you should create SceneSnapshot immediately after:
-- world.init()
-- world.advance()
-)");
-
-    // retrieve contact elements
-    auto span = scene.contact_tabular().contact_elements();
-    m_contact_elements.resize(span.size());
-    std::ranges::copy(span, m_contact_elements.begin());
-
-    // retrieve constitution elements
-    auto& objects = internal_scene.objects().objects();
-    m_objects.reserve(objects.size());
-    for(auto&& [id, object] : objects)
-    {
-        SceneSnapshot::Object snap_obj;
-        snap_obj.m_id   = id;
-        snap_obj.m_name = object->name();
-        auto ids        = object->geometries().ids();
-        snap_obj.m_geometries.resize(ids.size());
-        std::ranges::copy(ids, snap_obj.m_geometries.begin());
-    }
-
-    // retrieve geometries
-    auto geometry_slots = internal_scene.geometries().geometry_slots();
-    m_geometries.reserve(geometry_slots.size());
-    for(auto&& slot : geometry_slots)
-    {
-        auto& geometry = slot->geometry();
-        m_geometries[slot->id()] =
-            std::static_pointer_cast<geometry::Geometry>(geometry.clone());
-    }
-
-    // retrieve rest geometries
-    auto rest_geometry_slots = internal_scene.rest_geometries().geometry_slots();
-    m_rest_geometries.reserve(rest_geometry_slots.size());
-    for(auto&& slot : rest_geometry_slots)
-    {
-        auto& geometry = slot->geometry();
-        m_rest_geometries[slot->id()] =
-            std::static_pointer_cast<geometry::Geometry>(geometry.clone());
-    }
-}
-
-SceneSnapCommit::SceneSnapCommit(const SceneSnapshot& dst, const SceneSnapshot& src)
-    : m_contact_models(dst.m_contact_models - src.m_contact_models)
-{
-    m_config           = dst.m_config;
-    m_objects          = dst.m_objects;
-    m_contact_elements = dst.m_contact_elements;
-
-    m_diff_geometries.reserve(dst.m_geometries.size());
-    for(auto&& [id, dst_geo] : dst.m_geometries)
-    {
-        auto src_geo = src.m_geometries.find(id);
-        if(src_geo != src.m_geometries.end())
-        {
-            // diff geometry
-            m_diff_geometries[id] = *dst_geo - (*src_geo->second);
-        }
-        else
-        {
-            // new geometry
-            m_diff_geometries[id] = geometry::GeometryCommit{*dst_geo};
-        }
-    }
-}
-
-SceneSnapCommit UIPC_CORE_API operator-(const SceneSnapshot& dst, const SceneSnapshot& src)
-{
-    return SceneSnapCommit{dst, src};
 }
 }  // namespace uipc::core

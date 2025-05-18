@@ -1,4 +1,5 @@
 #include <uipc/core/internal/scene.h>
+#include <uipc/core/scene_snapshot.h>
 
 namespace uipc::core::internal
 {
@@ -35,6 +36,16 @@ void Scene::solve_pending() noexcept
     m_geometries.solve_pending();
     m_rest_geometries.solve_pending();
     m_pending = false;
+}
+
+void Scene::update_from(const SceneSnapshotCommit& commit)
+{
+    m_config = commit.m_config;
+    m_objects.update_from(*this, commit.m_objects);
+    m_contact_tabular.update_from(commit.m_contact_models, commit.m_contact_elements);
+
+    m_geometries.update_from(commit.m_diff_geometries);
+    m_rest_geometries.update_from(commit.m_rest_diff_geometries);
 }
 
 Scene::~Scene() = default;

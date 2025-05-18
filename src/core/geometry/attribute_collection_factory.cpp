@@ -134,7 +134,7 @@ class AttributeCollectionFactory::Impl
                 UIPC_WARN_WITH_LOCATION("`name` not found, skip.");
                 continue;
             }
-            
+
             // auto name = name_it->get<std::string>();
 
             auto allow_destroy_it = object.find("allow_destroy");
@@ -212,19 +212,6 @@ class AttributeCollectionFactory::Impl
         // removed_names = {"B", "C"}
         std::ranges::set_difference(rn, cn, std::back_inserter(removed_names));
     }
-
-    void update_from(AttributeCollection& base, const AttributeCollectionCommit& inc)
-    {
-        using AF = AttributeFriend<AttributeCollectionFactory>;
-        base.copy_from(inc.m_inc, AttributeCopy::same_dim());
-
-        for(auto&& name : inc.m_removed_names)
-        {
-            auto it = base.find(name);
-            if(it && it->allow_destroy())
-                base.destroy(name);
-        }
-    }
 };
 
 
@@ -254,11 +241,5 @@ AttributeCollectionCommit AttributeCollectionFactory::diff(const AttributeCollec
     AttributeCollectionCommit commit;
     m_impl->diff(current, reference, commit.m_inc, commit.m_removed_names);
     return commit;
-}
-
-void AttributeCollectionFactory::update_from(AttributeCollection& base,
-                                             const AttributeCollectionCommit& inc)
-{
-    m_impl->update_from(base, inc);
 }
 }  // namespace uipc::geometry
