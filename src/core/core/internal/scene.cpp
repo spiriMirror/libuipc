@@ -41,7 +41,7 @@ void Scene::solve_pending() noexcept
 void Scene::update_from(const SceneSnapshotCommit& commit)
 {
     m_config = commit.m_config;
-    m_objects.update_from(*this, commit.m_objects);
+    m_objects.update_from(*this, commit.m_object_collection);
     m_contact_tabular.update_from(commit.m_contact_models, commit.m_contact_elements);
 
     m_geometries.update_from(commit.m_diff_geometries);

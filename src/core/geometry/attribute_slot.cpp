@@ -77,7 +77,7 @@ void IAttributeSlot::share_from(const IAttributeSlot& other) noexcept
 {
     if(std::addressof(other) == this)
         return;
-    share_from(other);
+    do_share_from(other);
 }
 
 IAttribute& IAttributeSlot::attribute() noexcept

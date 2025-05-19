@@ -65,6 +65,7 @@ class UIPC_CORE_API Object : public IObject
     friend class Animation;
     friend class ObjectCollection;
     friend class SceneFactory;
+    friend class ObjectSnapshot;
 
   public:
     class UIPC_CORE_API Geometries

@@ -24,17 +24,8 @@ SceneSnapshot::SceneSnapshot(const Scene& scene)
     std::ranges::copy(span, m_contact_elements.begin());
 
     // retrieve constitution elements
-    auto& objects = internal_scene.objects().objects();
-    m_objects.reserve(objects.size());
-    for(auto&& [id, object] : objects)
-    {
-        ObjectSnapshot snap_obj;
-        snap_obj.m_id   = id;
-        snap_obj.m_name = object->name();
-        auto ids        = object->geometries().ids();
-        snap_obj.m_geometries.resize(ids.size());
-        std::ranges::copy(ids, snap_obj.m_geometries.begin());
-    }
+    auto& objects       = internal_scene.objects();
+    m_object_collection = ObjectCollectionSnapshot{objects};
 
     // retrieve geometries
     auto geometry_slots = internal_scene.geometries().geometry_slots();
@@ -60,9 +51,9 @@ SceneSnapshot::SceneSnapshot(const Scene& scene)
 SceneSnapshotCommit::SceneSnapshotCommit(const SceneSnapshot& dst, const SceneSnapshot& src)
     : m_contact_models(dst.m_contact_models - src.m_contact_models)
 {
-    m_config           = dst.m_config;
-    m_objects          = dst.m_objects;
-    m_contact_elements = dst.m_contact_elements;
+    m_config            = dst.m_config;
+    m_object_collection = dst.m_object_collection;
+    m_contact_elements  = dst.m_contact_elements;
 
     m_diff_geometries.reserve(dst.m_geometries.size());
     for(auto&& [id, dst_geo] : dst.m_geometries)

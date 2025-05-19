@@ -99,17 +99,8 @@ class SceneFactory::Impl
             // don't need to store constitution tabular
             // this will be recovered from geometries
             // objects
-            auto& objects_json = data["objects"];
-            auto& objects      = snapshot.m_objects;
-            objects_json       = Json::array();
-            for(auto&& obj : objects)
-            {
-                Json obj_json;
-                obj_json["id"]         = obj.m_id;
-                obj_json["name"]       = obj.m_name;
-                obj_json["geometries"] = obj.m_geometries;
-                objects_json.push_back(obj_json);
-            }
+            auto& objects_json = data["object_collection"];
+            uipc::core::to_json(objects_json, snapshot.m_object_collection);
             // geometry_atlas
             auto& geometry_atlas = data["geometry_atlas"];
             build_geometry_atlas_from_scene_snapshot(snapshot, data, ga);
@@ -189,24 +180,8 @@ class SceneFactory::Impl
 
         // 4) Retrieve objects
         {
-            auto& objects_json = data["objects"];
-            if(objects_json.is_array())
-            {
-                snapshot.m_objects.reserve(objects_json.size());
-                for(auto& obj_json : objects_json)
-                {
-                    ObjectSnapshot snap_obj;
-                    snap_obj.m_id   = obj_json["id"].get<IndexT>();
-                    snap_obj.m_name = obj_json["name"].get<std::string>();
-                    auto ids = obj_json["geometries"].get<vector<IndexT>>();
-                    snap_obj.m_geometries = ids;
-                    snapshot.m_objects.push_back(snap_obj);
-                }
-            }
-            else
-            {
-                UIPC_WARN_WITH_LOCATION("`objects` is not an array");
-            }
+            auto& objects_json = data["object_collection"];
+            uipc::core::from_json(objects_json, snapshot.m_object_collection);
         }
 
         // 5) Recover geometry slots & rest geometry slots
@@ -271,13 +246,15 @@ class SceneFactory::Impl
         scene.m_internal->geometries().build_from(rest_geometry_slots);
 
         // 5) Objects
-        auto&             objects = snapshot.m_objects;
+        auto&             objects = snapshot.m_object_collection.m_objects;
         vector<S<Object>> object_slots;
         object_slots.reserve(objects.size());
-        for(auto&& obj : objects)
+        for(auto&& [id, obj] : objects)
         {
-            auto object = std::make_unique<Object>(*scene.m_internal, obj.m_id, obj.m_name);
+            auto object =
+                uipc::make_shared<Object>(*scene.m_internal, obj.m_id, obj.m_name);
             object->build_from(obj.m_geometries);
+            object_slots.push_back(std::move(object));
         }
         scene.m_internal->objects().build_from(object_slots);
 

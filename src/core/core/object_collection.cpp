@@ -99,9 +99,21 @@ void ObjectCollection::build_from(span<S<Object>> objects) noexcept
 }
 
 void ObjectCollection::update_from(internal::Scene& scene,
-                                   span<const ObjectSnapshot> snapshots) noexcept
+                                   const ObjectCollectionSnapshot& commit) noexcept
 {
-    for(auto& snapshot : snapshots)
+    vector<IndexT> to_remove;
+    to_remove.reserve(m_objects.size());
+
+    for(auto&& [id, object] : m_objects)
+    {
+        auto it = commit.m_objects.find(id);
+        if(it == commit.m_objects.end())
+        {
+            to_remove.push_back(object->id());
+        }
+    }
+
+    for(auto&& [id, snapshot] : commit.m_objects)
     {
         auto it = m_objects.find(snapshot.m_id);
         if(it != m_objects.end())
@@ -115,9 +127,63 @@ void ObjectCollection::update_from(internal::Scene& scene,
             auto new_object = uipc::make_shared<Object>(scene, id, snapshot.m_name);
             new_object->build_from(snapshot.m_geometries);
             m_objects.emplace(id, new_object);
-            if(id >= m_next_id)
-                m_next_id = id + 1;
         }
+    }
+
+    for(auto&& id : to_remove)
+    {
+        m_objects.erase(id);
+    }
+
+    m_next_id = commit.m_next_id;
+}
+
+ObjectCollectionSnapshot::ObjectCollectionSnapshot(const ObjectCollection& dst)
+{
+    m_next_id = dst.m_next_id;
+    for(auto&& [id, object] : dst.m_objects)
+    {
+        m_objects.emplace(id, ObjectSnapshot(*object));
+    }
+}
+
+void to_json(Json& j, const ObjectCollectionSnapshot& obj)
+{
+    j["next_id"]  = obj.m_next_id;
+    auto& objects = j["objects"];
+    objects       = Json::array();
+    for(auto&& [id, object] : obj.m_objects)
+    {
+        objects.push_back(object);
+    }
+}
+
+void from_json(const Json& j, ObjectCollectionSnapshot& obj)
+{
+    auto objects = j["objects"];
+    for(auto&& object : objects)
+    {
+        ObjectSnapshot snapshot;
+        from_json(object, snapshot);
+        obj.m_objects.emplace(snapshot.id(), snapshot);
+    }
+
+    if(j.contains("next_id"))
+    {
+        obj.m_next_id = j["next_id"].get<IndexT>();
+    }
+    else
+    {
+        IndexT max_id = -1;
+        for(auto&& [id, object] : obj.m_objects)
+        {
+            if(id > max_id)
+                max_id = id;
+        }
+        obj.m_next_id = max_id + 1;
+
+        UIPC_WARN_WITH_LOCATION("ObjectCollectionSnapshot: next_id not found, guess from objects, next_id = {}",
+                                obj.m_next_id);
     }
 }
 }  // namespace uipc::core

@@ -94,6 +94,7 @@ class UIPC_CORE_API Geometry : public IGeometry
 {
     template <typename T>
     friend class GeometryFriend;
+    friend class GeometryCommit;
 
   public:
     /**
@@ -221,18 +222,15 @@ class UIPC_CORE_API Geometry : public IGeometry
         /**
          * @sa AttributeCollection::resize
          */
-        void resize(size_t size) &&
-            requires(!IsConst);
+        void resize(size_t size) && requires(!IsConst);
         /**
          * @sa AttributeCollection::reserve
          */
-        void reserve(size_t size) &&
-            requires(!IsConst);
+        void reserve(size_t size) && requires(!IsConst);
         /**
          * @sa AttributeCollection::clear
          */
-        void clear() &&
-            requires(!IsConst);
+        void clear() && requires(!IsConst);
         /**
          * @sa AttributeCollection::size
          */
@@ -241,8 +239,7 @@ class UIPC_CORE_API Geometry : public IGeometry
         /**
          * @sa AttributeCollection::destroy
          */
-        void destroy(std::string_view name) &&
-            requires(!IsConst);
+        void destroy(std::string_view name) && requires(!IsConst);
 
         /**
          * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.

@@ -38,7 +38,7 @@ TEST_CASE("scene", "[scene]")
 }
 
 
-TEST_CASE("pending sequence", "[scene]")
+TEST_CASE("pending_sequence", "[scene]")
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -121,7 +121,7 @@ TEST_CASE("pending sequence", "[scene]")
 
     REQUIRE(new_object->id() == 2);
     REQUIRE(scene.objects().size() == 2);
-    
+
     // create 3 geometries in pending list
     new_object->geometries().create(mesh);
     new_object->geometries().create(mesh);
@@ -141,7 +141,7 @@ TEST_CASE("pending sequence", "[scene]")
     REQUIRE(visitor.pending_rest_geometries().size() == 0);
 }
 
-TEST_CASE("pending create", "[scene]")
+TEST_CASE("pending_create", "[scene]")
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -198,7 +198,7 @@ TEST_CASE("pending create", "[scene]")
     }
 }
 
-TEST_CASE("pending destroy", "[scene]")
+TEST_CASE("pending_destroy", "[scene]")
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -266,4 +266,44 @@ TEST_CASE("pending destroy", "[scene]")
         REQUIRE(visitor.pending_geometries().size() == 0);
         REQUIRE(visitor.pending_rest_geometries().size() == 0);
     }
+}
+
+TEST_CASE("scene_commit")
+{
+    using namespace uipc;
+    using namespace uipc::core;
+    using namespace uipc::geometry;
+
+    Scene               scene;
+    SimplicialComplexIO io;
+    auto mesh = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
+    auto object                    = scene.objects().create("cube");
+    auto [geo_slot, rest_geo_slot] = object->geometries().create(mesh);
+
+    SceneSnapshot snapshot{scene};
+
+    SceneFactory sf;
+    Scene        new_scene = sf.from_snapshot(snapshot);
+
+    auto& geo      = geo_slot->geometry();
+    auto  pos_view = view(geo.positions());
+    std::ranges::transform(pos_view.begin(),
+                           pos_view.end(),
+                           pos_view.begin(),
+                           [](const auto& p) { return p + Vector3{1, 1, 1}; });
+
+    SceneSnapshotCommit commit = scene - snapshot;
+    new_scene.update_from(commit);
+
+    auto new_obj = new_scene.objects().find(object->id());
+    REQUIRE(new_obj != nullptr);
+    REQUIRE(new_obj->name() == object->name());
+
+    auto [new_geo_slot, new_rest_geo_slot] =
+        new_scene.geometries().find(geo_slot->id());
+
+    auto new_geo      = new_geo_slot->geometry().as<SimplicialComplex>();
+    auto new_pos_view = new_geo->positions().view();
+
+    REQUIRE(std::ranges::equal(pos_view, new_pos_view));
 }

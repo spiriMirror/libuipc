@@ -9,7 +9,7 @@ GeometryCommit::GeometryCommit(const Geometry& dst, const Geometry& src)
     m_is_valid     = true;
     m_new_geometry = nullptr;  // no new geometry
 
-    do  // For the sake of break
+    auto create_commit = [&]()
     {
         if(dst.type() != src.type())
         {
@@ -19,18 +19,13 @@ GeometryCommit::GeometryCommit(const Geometry& dst, const Geometry& src)
                 "dst type is {}, src type is {}, set invalid GeometryCommit!",
                 dst.type(),
                 src.type());
-            break;
+            return;
         }
 
         m_type = dst.type();
 
-        vector<std::string>                dst_names;
-        vector<const AttributeCollection*> dst_acs;
-        static_cast<const IGeometry&>(dst).collect_attribute_collections(dst_names, dst_acs);
-
-        vector<std::string>                src_names;
-        vector<const AttributeCollection*> src_acs;
-        static_cast<const IGeometry&>(src).collect_attribute_collections(src_names, src_acs);
+        auto& dst_acs = dst.m_attribute_collections;
+        auto& src_acs = src.m_attribute_collections;
 
         if(dst_acs.size() != src_acs.size())
         {
@@ -40,33 +35,29 @@ GeometryCommit::GeometryCommit(const Geometry& dst, const Geometry& src)
                 "dst size is {}, src size is {}, set invalid GeometryCommit!",
                 dst_acs.size(),
                 src_acs.size());
-            break;
+            return;
         }
 
-        std::ranges::sort(dst_names);
-        std::ranges::sort(src_names);
-
-        if(!std::ranges::equal(dst_names, src_names))
+        for(auto&& [name, dst_ac] : dst_acs)
         {
-            m_is_valid = false;
-            UIPC_WARN_WITH_LOCATION(
-                "GeometryCommit: The names of the attribute collections are not the same, "
-                "dst names are [{}], src names are [{}], set invalid GeometryCommit!",
-                fmt::join(dst_names, ","),
-                fmt::join(src_names, ","));
-            break;
-        }
+            auto src_it = src_acs.find(name);
+            if(src_it == src_acs.end())
+            {
+                m_is_valid = false;
+                UIPC_WARN_WITH_LOCATION(
+                    "GeometryCommit: The attribute collection [{}] is not found in the source geometry, "
+                    "set invalid GeometryCommit!",
+                    name);
+                return;
+            }
+            auto& src_ac = src_it->second;
 
-        m_names.reserve(dst_names.size());
-        m_commits.reserve(dst_acs.size());
-
-        for(auto&& [name, dst_ac, src_ac] : zip(dst_names, dst_acs, src_acs))
-        {
             m_names.push_back(name);
-            m_commits.push_back(*dst_ac - *src_ac);
+            m_commits.emplace_back(*dst_ac - *src_ac);
         }
+    };
 
-    } while(0);
+    create_commit();
 
     if(!m_is_valid)
     {

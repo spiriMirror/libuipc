@@ -92,6 +92,9 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
                                     span<const string>         _include_names,
                                     span<const string>         _exclude_names)
 {
+    if(size() == 0)
+        resize(other.size());
+
     vector<string> include_names;
     vector<string> exclude_names(_exclude_names.begin(), _exclude_names.end());
     vector<string> filtered_names;

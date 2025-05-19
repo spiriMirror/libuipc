@@ -1,7 +1,7 @@
 #pragma once
 #include <uipc/core/scene.h>
 #include <uipc/geometry/geometry_commit.h>
-#include <uipc/core/object_snapshot.h>
+#include <uipc/core/object_collection.h>
 
 namespace uipc::core
 {
@@ -24,9 +24,9 @@ class UIPC_CORE_API SceneSnapshot
 
   private:
     SceneSnapshot() = default;
-    Json                   m_config;
-    vector<ObjectSnapshot> m_objects;
-    vector<ContactElement> m_contact_elements;
+    Json                     m_config;
+    ObjectCollectionSnapshot m_object_collection;
+    vector<ContactElement>   m_contact_elements;
 
 
     unordered_map<IndexT, S<geometry::Geometry>> m_geometries;
@@ -49,9 +49,9 @@ class UIPC_CORE_API SceneSnapshotCommit
 
   private:
     // Fully Copy:
-    Json                   m_config;
-    vector<ObjectSnapshot> m_objects;
-    vector<ContactElement> m_contact_elements;
+    Json                     m_config;
+    ObjectCollectionSnapshot m_object_collection;
+    vector<ContactElement>   m_contact_elements;
 
     // Full Copy Geometries/ Diff Copy AttributeCollection
     unordered_map<IndexT, geometry::GeometryCommit> m_diff_geometries;

@@ -3,6 +3,7 @@
 #include <uipc/backend/visitors/world_visitor.h>
 #include <uipc/core/world.h>
 #include <uipc/core/internal/scene.h>
+#include <uipc/core/scene_snapshot.h>
 
 namespace uipc::core
 {

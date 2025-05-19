@@ -25,6 +25,11 @@ AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& 
                 m_inc.share(name, *attr_slot, attr_slot->allow_destroy());
             }
         }
+        else
+        {
+            // if the attribute is not in the reference, we need to copy it to the diff_copy
+            m_inc.share(name, *attr_slot, attr_slot->allow_destroy());
+        }
     }
 
     auto cn = current.names();
