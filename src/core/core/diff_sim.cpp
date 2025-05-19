@@ -8,7 +8,7 @@
 namespace uipc::geometry
 {
 template <>
-class geometry::GeometryFriend<uipc::core::DiffSim>
+class GeometryFriend<uipc::core::DiffSim>
 {
   public:
     static auto& attribute_collections(Geometry& geometry) noexcept
