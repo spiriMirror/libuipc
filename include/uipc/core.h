@@ -10,6 +10,9 @@
 
 #include <uipc/core/engine.h>
 #include <uipc/core/world.h>
+#include <uipc/core/scene.h>
+#include <uipc/core/scene_snapshot.h>
+#include <uipc/core/scene_factory.h>
 
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/geometry/simplicial_complex_slot.h>

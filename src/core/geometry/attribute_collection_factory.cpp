@@ -134,7 +134,7 @@ class AttributeCollectionFactory::Impl
                 UIPC_WARN_WITH_LOCATION("`name` not found, skip.");
                 continue;
             }
-            
+
             // auto name = name_it->get<std::string>();
 
             auto allow_destroy_it = object.find("allow_destroy");
@@ -153,7 +153,9 @@ class AttributeCollectionFactory::Impl
         return ac;
     }
 
-    Json to_json(const AttributeCollection* ac, unordered_map<IAttribute*, IndexT> attr_to_index)
+    Json to_json(const AttributeCollection*         ac,
+                 unordered_map<IAttribute*, IndexT> attr_to_index,
+                 bool                               evolving_only)
     {
         Json j = Json::object();
         return attribute_collection_to_json(*ac, attr_to_index);
@@ -166,6 +168,50 @@ class AttributeCollectionFactory::Impl
             attribute_collection_from_json(j, attributes);
         return attribute_collections;
     }
+
+    void diff(const AttributeCollection& current,
+              const AttributeCollection& reference,
+              AttributeCollection&       diff_copy,
+              vector<std::string>&       removed_names)
+    {
+        using AF = AttributeFriend<AttributeCollectionFactory>;
+
+        for(auto&& [name, attr_slot] : AF::attribute_slots(current))
+        {
+            // check if the attribute is evolving
+            // if so, we need to copy it to the diff_copy
+            if(attr_slot->is_evolving())
+            {
+                diff_copy.share(name, *attr_slot, attr_slot->allow_destroy());
+            }
+
+            // check if the attribute is newer than the reference
+            // if so we also need to copy it to the diff_copy
+            auto ret_attribute = reference.find(name);
+            if(ret_attribute)
+            {
+                if(attr_slot->last_modified() > ret_attribute->last_modified())
+                {
+                    diff_copy.share(name, *attr_slot, attr_slot->allow_destroy());
+                }
+            }
+        }
+
+        // collect the removed names
+        removed_names.clear();
+        auto cn = current.names();
+        std::ranges::sort(cn);
+        auto rn = reference.names();
+        std::ranges::sort(rn);
+        removed_names.reserve(rn.size());
+
+        // compute: ref - cur
+        // e.g.
+        // ref = {"A", "B", "C"}
+        // cur = {"A", "D"}
+        // removed_names = {"B", "C"}
+        std::ranges::set_difference(rn, cn, std::back_inserter(removed_names));
+    }
 };
 
 
@@ -174,7 +220,7 @@ AttributeCollectionFactory::AttributeCollectionFactory()
 {
 }
 
-AttributeCollectionFactory::~AttributeCollectionFactory() {}
+AttributeCollectionFactory::~AttributeCollectionFactory() = default;
 
 S<AttributeCollection> AttributeCollectionFactory::from_json(const Json& j,
                                                              span<S<IAttributeSlot>> attributes)
@@ -183,8 +229,17 @@ S<AttributeCollection> AttributeCollectionFactory::from_json(const Json& j,
 }
 
 Json AttributeCollectionFactory::to_json(const AttributeCollection* acs,
-                                         unordered_map<IAttribute*, IndexT> attr_to_index)
+                                         unordered_map<IAttribute*, IndexT> attr_to_index,
+                                         bool evolving_only)
 {
-    return m_impl->to_json(acs, attr_to_index);
+    return m_impl->to_json(acs, attr_to_index, evolving_only);
+}
+
+AttributeCollectionCommit AttributeCollectionFactory::diff(const AttributeCollection& current,
+                                                           const AttributeCollection& reference)
+{
+    AttributeCollectionCommit commit;
+    m_impl->diff(current, reference, commit.m_inc, commit.m_removed_names);
+    return commit;
 }
 }  // namespace uipc::geometry

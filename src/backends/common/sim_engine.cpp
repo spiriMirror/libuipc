@@ -225,9 +225,9 @@ bool SimEngine::do_dump()
     return all_success;
 }
 
-void SimEngine::do_init(backend::WorldVisitor v)
+void SimEngine::do_init(core::internal::World& w)
 {
-    m_world_visitor = make_unique<backend::WorldVisitor>(v);
+    m_world_visitor = make_unique<backend::WorldVisitor>(w);
 
     InitInfo init_info{Json::object()};
     do_init(init_info);

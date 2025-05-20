@@ -18,5 +18,7 @@ PySceneIO::PySceneIO(py::module& m)
         py::arg("filename"));
     class_SceneIO.def(
         "save", [](SceneIO& self, std::string_view file) { self.save(file); }, py::arg("filename"));
+    class_SceneIO.def("to_json", &SceneIO::to_json);
+    class_SceneIO.def_static("from_json", &SceneIO::from_json, py::arg("json"));
 }
 }  // namespace pyuipc::core

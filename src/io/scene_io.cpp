@@ -12,6 +12,7 @@
 #include <uipc/geometry/utils/extract_surface.h>
 #include <uipc/geometry/utils/merge.h>
 #include <uipc/io/simplicial_complex_io.h>
+#include <uipc/core/scene_factory.h>
 
 
 namespace uipc::core
@@ -211,11 +212,8 @@ void SceneIO::save(std::string_view filename) const
     save(m_scene, filename);
 }
 
-S<Scene> SceneIO::load(std::string_view filename)
+Scene SceneIO::load(std::string_view filename)
 {
-
-    S<Scene> scene;
-
     fs::path path{filename};
     path = fs::absolute(path);
 
@@ -229,7 +227,7 @@ S<Scene> SceneIO::load(std::string_view filename)
         {
             Json scene_json;
             file >> scene_json;
-            scene = sf.from_json(scene_json);
+            return sf.from_snapshot(sf.from_json(scene_json));
         }
         else
         {
@@ -245,7 +243,7 @@ S<Scene> SceneIO::load(std::string_view filename)
             std::vector<std::uint8_t> v((std::istreambuf_iterator<char>(file)),
                                         std::istreambuf_iterator<char>());
             Json                      scene_json = Json::from_bson(v);
-            scene                                = sf.from_json(scene_json);
+            return sf.from_snapshot(sf.from_json(scene_json));
         }
         else
         {
@@ -258,15 +256,18 @@ S<Scene> SceneIO::load(std::string_view filename)
         throw SceneIOError(fmt::format("Unsupported file format when loading {}.", filename));
     }
 
-    if(!scene)
-    {
-        spdlog::warn("Failed to load scene from file {}.", filename);
-    }
-    else
-    {
-        spdlog::info("Scene loaded from file {}.", filename);
-    }
+    return Scene{};
+}
 
-    return scene;
+Json SceneIO::to_json() const
+{
+    SceneFactory sf;
+    return sf.to_json(m_scene);
+}
+
+Scene SceneIO::from_json(const Json& json)
+{
+    SceneFactory sf;
+    return sf.from_snapshot(sf.from_json(json));
 }
 }  // namespace uipc::core

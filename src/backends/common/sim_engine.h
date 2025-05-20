@@ -102,7 +102,7 @@ class SimEngine : public core::IEngine
     core::FeatureCollection& features() noexcept;
 
   private:
-    virtual void do_init(WorldVisitor v) final override;
+    virtual void do_init(core::internal::World& v) final override;
     virtual bool do_recover(SizeT dst_frame) final override;
     virtual bool do_dump() final override;
     ISimSystem*  find_system(ISimSystem* ptr);

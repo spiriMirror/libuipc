@@ -20,7 +20,7 @@ class SanityCheckerCollection;
 class SanityChecker : public core::ISanityChecker
 {
   public:
-    SanityChecker(SanityCheckerCollection& c, core::Scene& s) noexcept;
+    SanityChecker(SanityCheckerCollection& c, core::internal::Scene& s) noexcept;
 
     std::string_view workspace() const noexcept;
     std::string      this_output_path() const noexcept;
@@ -45,7 +45,8 @@ class SanityChecker : public core::ISanityChecker
     virtual void              build() override final;
     virtual SanityCheckResult do_check(core::SanityCheckMessage& msg) override;
     SanityCheckerCollection&  m_collection;
-    core::Scene&              m_scene;
+    // this is scene shares the internal::Scene with the user's one
+    S<core::Scene> m_scene;
 };
 }  // namespace uipc::sanity_check
 

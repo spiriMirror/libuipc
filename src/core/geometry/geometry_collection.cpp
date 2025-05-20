@@ -1,5 +1,6 @@
 #include <uipc/geometry/geometry_collection.h>
 #include <uipc/common/enumerate.h>
+#include <uipc/geometry/geometry_factory.h>
 
 namespace uipc::geometry
 {
@@ -193,6 +194,62 @@ void GeometryCollection::build_from(span<S<geometry::GeometrySlot>> slots) noexc
     {
         slots->state(GeometrySlotState::Normal);
     }
+}
+
+void GeometryCollection::update_from(const unordered_map<IndexT, GeometryCommit>& slots) noexcept
+{
+    m_dirty = true;
+
+    for(auto&& [id, commit] : slots)
+    {
+        auto it = m_geometries.find(id);
+        if(it != m_geometries.end())
+        {
+            auto& slot = it->second;
+            slot->geometry().update_from(commit);
+        }
+        else
+        {
+            emplace(*commit.m_new_geometry);
+        }
+    }
+}
+
+GeometryCollection::GeometryCollection(const GeometryCollection& other)
+{
+    GeometryFactory gf;
+
+    auto create_geo_slot = [&](S<GeometrySlot> src) -> S<GeometrySlot>
+    { return gf.create_slot(src->id(), src->geometry()); };
+
+    for(auto&& [name, slot] : other.m_geometries)
+    {
+        auto my_slot = create_geo_slot(slot);
+        m_geometries.insert({my_slot->id(), my_slot});
+    }
+
+    for(auto&& [name, slot] : other.m_pending_create)
+    {
+        auto my_slot = create_geo_slot(slot);
+        m_pending_create.insert({my_slot->id(), my_slot});
+    }
+
+    m_pending_destroy = other.m_pending_destroy;
+
+    m_next_id = other.m_next_id;
+
+    m_dirty = true;
+}
+
+S<geometry::GeometrySlot> GeometryCollection::emplace(const geometry::Geometry& geometry)
+{
+    GeometryFactory gf;
+    auto            geo_slot = gf.create_slot(m_next_id, geometry);
+    m_geometries.insert({m_next_id, geo_slot});
+    geo_slot->state(geometry::GeometrySlotState::Normal);
+    m_next_id++;
+    m_dirty = true;
+    return geo_slot;
 }
 
 S<geometry::GeometrySlot> GeometryCollection::find(IndexT id) noexcept

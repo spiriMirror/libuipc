@@ -2,66 +2,11 @@
 #include <uipc/common/unit.h>
 #include <uipc/backend/visitors/world_visitor.h>
 #include <uipc/core/world.h>
+#include <uipc/core/internal/scene.h>
+#include <uipc/core/scene_snapshot.h>
 
 namespace uipc::core
 {
-class Scene::Impl
-{
-  public:
-    Impl(Scene& scene, const Json& config) noexcept
-        : scene(scene)
-        , animator(scene)
-        , sanity_checker(scene)
-    {
-        info = config;
-    }
-
-    void init(backend::WorldVisitor& world)
-    {
-        this->world = &world.ref();
-
-        backend::SceneVisitor visitor{scene};
-
-        dt = info["dt"].get<Float>();
-
-        constitution_tabular.init(visitor);
-
-        if(info["diff_sim"]["enable"].get<bool>())
-        {
-            diff_sim.init(visitor);
-        }
-
-        started = true;
-    }
-
-    void begin_pending() noexcept { pending = true; }
-
-    void solve_pending() noexcept
-    {
-        geometries.solve_pending();
-        rest_geometries.solve_pending();
-        pending = false;
-    }
-
-    Json                info;
-    ContactTabular      contact_tabular;
-    ConstitutionTabular constitution_tabular;
-    ObjectCollection    objects;
-    Animator            animator;
-    DiffSim             diff_sim;
-
-    geometry::GeometryCollection geometries;
-    geometry::GeometryCollection rest_geometries;
-    SanityChecker                sanity_checker;
-
-    bool   started = false;
-    bool   pending = false;
-    Scene& scene;
-    World* world = nullptr;
-    Float  dt    = 0.0;
-};
-
-
 // ----------------------------------------------------------------------------
 // Scene
 // ----------------------------------------------------------------------------
@@ -143,146 +88,101 @@ Json Scene::default_config() noexcept
 }
 
 Scene::Scene(const Json& config)
-    : m_impl(uipc::make_unique<Impl>(*this, config))
+    : m_internal(uipc::make_shared<internal::Scene>(config))
+{
+}
+
+Scene::Scene(S<internal::Scene> scene) noexcept
+    : m_internal(std::move(scene))
 {
 }
 
 const Json& Scene::config() const noexcept
 {
-    return m_impl->info;
+    return m_internal->config();
 }
 
 Scene::~Scene() = default;
 
 ContactTabular& Scene::contact_tabular() noexcept
 {
-    return m_impl->contact_tabular;
+    return m_internal->contact_tabular();
 }
 
 const ContactTabular& Scene::contact_tabular() const noexcept
 {
-    return m_impl->contact_tabular;
+    return m_internal->contact_tabular();
 }
 
 ConstitutionTabular& Scene::constitution_tabular() noexcept
 {
-    return m_impl->constitution_tabular;
+    return m_internal->constitution_tabular();
 }
 const ConstitutionTabular& Scene::constitution_tabular() const noexcept
 {
-    return m_impl->constitution_tabular;
+    return m_internal->constitution_tabular();
 }
 
 auto Scene::objects() noexcept -> Objects
 {
-    return Objects{*this};
+    return Objects{*m_internal};
 }
 
 auto Scene::objects() const noexcept -> CObjects
 {
-    return CObjects{*this};
+    return CObjects{*m_internal};
 }
 
 auto Scene::geometries() noexcept -> Geometries
 {
-    return Geometries{*this};
+    return Geometries{*m_internal};
 }
 
 auto Scene::geometries() const noexcept -> CGeometries
 {
-    return CGeometries{*this};
+    return CGeometries{*m_internal};
 }
 
 const Json& Scene::info() const noexcept
 {
-    return m_impl->info;
+    return m_internal->config();
 }
 
 Animator& Scene::animator()
 {
-    return m_impl->animator;
+    return m_internal->animator();
 }
 
 const Animator& Scene::animator() const
 {
-    return m_impl->animator;
+    return m_internal->animator();
 }
 
 DiffSim& Scene::diff_sim()
 {
     // automatically enable diff_sim
-    m_impl->info["diff_sim"]["enable"] = true;
-    return m_impl->diff_sim;
+    m_internal->config()["diff_sim"]["enable"] = true;
+    return m_internal->diff_sim();
 }
 
 const DiffSim& Scene::diff_sim() const
 {
-    return m_impl->diff_sim;
+    return m_internal->diff_sim();
 }
 
 SanityChecker& Scene::sanity_checker()
 {
-    return m_impl->sanity_checker;
+    return m_internal->sanity_checker();
 }
 
 const SanityChecker& Scene::sanity_checker() const
 {
-    return m_impl->sanity_checker;
+    return m_internal->sanity_checker();
 }
 
-void Scene::init(backend::WorldVisitor& world)
+void Scene::update_from(const SceneSnapshotCommit& snapshot)
 {
-    m_impl->init(world);
-}
-
-void Scene::begin_pending() noexcept
-{
-    m_impl->begin_pending();
-}
-
-void Scene::solve_pending() noexcept
-{
-    m_impl->solve_pending();
-}
-
-geometry::GeometryCollection& Scene::geometry_collection() const noexcept
-{
-    return m_impl->geometries;
-}
-
-geometry::GeometryCollection& Scene::rest_geometry_collection() const noexcept
-{
-    return m_impl->rest_geometries;
-}
-
-ObjectCollection& Scene::object_collection() const noexcept
-{
-    return m_impl->objects;
-}
-
-World& Scene::world() noexcept
-{
-    return *m_impl->world;
-}
-
-Float Scene::dt() const noexcept
-{
-    return m_impl->dt;
-}
-
-bool Scene::is_started() const noexcept
-{
-    return m_impl->started;
-}
-
-DiffSim& Scene::_diff_sim() noexcept
-{
-    return m_impl->diff_sim;
-}
-
-bool Scene::is_pending() const noexcept
-{
-    return m_impl->pending;
+    m_internal->update_from(snapshot);
 }
 
 // ----------------------------------------------------------------------------
@@ -290,23 +190,23 @@ bool Scene::is_pending() const noexcept
 // ----------------------------------------------------------------------------
 S<Object> Scene::Objects::create(std::string_view name) &&
 {
-    auto id = m_scene.m_impl->objects.m_next_id;
-    return m_scene.m_impl->objects.emplace(Object{m_scene, id, name});
+    auto id = m_scene.objects().m_next_id;
+    return m_scene.objects().emplace(Object{m_scene, id, name});
 }
 
 S<Object> Scene::Objects::find(IndexT id) && noexcept
 {
-    return m_scene.m_impl->objects.find(id);
+    return m_scene.objects().find(id);
 }
 
 vector<S<Object>> Scene::Objects::find(std::string_view name) && noexcept
 {
-    return m_scene.m_impl->objects.find(name);
+    return m_scene.objects().find(name);
 }
 
 void Scene::Objects::destroy(IndexT id) &&
 {
-    auto obj = m_scene.m_impl->objects.find(id);
+    auto obj = m_scene.objects().find(id);
     if(!obj)
     {
         UIPC_WARN_WITH_LOCATION("Trying to destroy non-existing object ({}), ignored.", id);
@@ -319,54 +219,54 @@ void Scene::Objects::destroy(IndexT id) &&
     {
         if(m_scene.is_started() || m_scene.is_pending())
         {
-            m_scene.m_impl->geometries.pending_destroy(geo_id);
-            m_scene.m_impl->rest_geometries.pending_destroy(geo_id);
+            m_scene.geometries().pending_destroy(geo_id);
+            m_scene.rest_geometries().pending_destroy(geo_id);
         }
         else  // before `world.init(scene)` is called
         {
-            m_scene.m_impl->geometries.destroy(geo_id);
-            m_scene.m_impl->rest_geometries.destroy(geo_id);
+            m_scene.geometries().destroy(geo_id);
+            m_scene.rest_geometries().destroy(geo_id);
         }
     }
-    m_scene.m_impl->objects.destroy(id);
+    m_scene.objects().destroy(id);
 }
 
 SizeT Scene::Objects::size() const noexcept
 {
-    return m_scene.m_impl->objects.size();
+    return m_scene.objects().size();
 }
 
 SizeT Scene::Objects::created_count() const noexcept
 {
-    return m_scene.m_impl->objects.next_id();
+    return m_scene.objects().next_id();
 }
 
 S<const Object> Scene::CObjects::find(IndexT id) && noexcept
 {
-    return m_scene.m_impl->objects.find(id);
+    return m_scene.objects().find(id);
 }
 
 vector<S<const Object>> Scene::CObjects::find(std::string_view name) && noexcept
 {
-    return std::as_const(m_scene.m_impl->objects).find(name);
+    return std::as_const(m_scene.objects()).find(name);
 }
 
 SizeT Scene::CObjects::size() const noexcept
 {
-    return m_scene.m_impl->objects.size();
+    return m_scene.objects().size();
 }
 
 SizeT Scene::CObjects::created_count() const noexcept
 {
-    return m_scene.m_impl->objects.next_id();
+    return m_scene.objects().next_id();
 }
 
-Scene::Objects::Objects(Scene& scene) noexcept
+Scene::Objects::Objects(internal::Scene& scene) noexcept
     : m_scene{scene}
 {
 }
 
-Scene::CObjects::CObjects(const Scene& scene) noexcept
+Scene::CObjects::CObjects(const internal::Scene& scene) noexcept
     : m_scene{scene}
 {
 }
@@ -374,24 +274,24 @@ Scene::CObjects::CObjects(const Scene& scene) noexcept
 // ----------------------------------------------------------------------------
 // Geometries
 // ----------------------------------------------------------------------------
-Scene::Geometries::Geometries(Scene& scene) noexcept
+Scene::Geometries::Geometries(internal::Scene& scene) noexcept
     : m_scene{scene}
 {
 }
 
-Scene::CGeometries::CGeometries(const Scene& scene) noexcept
+Scene::CGeometries::CGeometries(const internal::Scene& scene) noexcept
     : m_scene{scene}
 {
 }
 
 ObjectGeometrySlots<geometry::Geometry> core::Scene::Geometries::find(IndexT id) && noexcept
 {
-    return {m_scene.m_impl->geometries.find(id), m_scene.m_impl->rest_geometries.find(id)};
+    return {m_scene.geometries().find(id), m_scene.rest_geometries().find(id)};
 }
 
 ObjectGeometrySlots<const geometry::Geometry> Scene::CGeometries::find(IndexT id) && noexcept
 {
-    return {m_scene.m_impl->geometries.find(id), m_scene.m_impl->rest_geometries.find(id)};
+    return {m_scene.geometries().find(id), m_scene.rest_geometries().find(id)};
 }
 }  // namespace uipc::core
 
@@ -401,8 +301,8 @@ namespace fmt
 appender fmt::formatter<uipc::core::Scene>::format(const uipc::core::Scene& c,
                                                    format_context& ctx) const
 {
-    fmt::format_to(ctx.out(), "{}", c.m_impl->objects);
-    fmt::format_to(ctx.out(), "\n{}", c.m_impl->animator);
+    fmt::format_to(ctx.out(), "{}", c.m_internal->objects());
+    fmt::format_to(ctx.out(), "\n{}", c.m_internal->animator());
     return ctx.out();
 }
 }  // namespace fmt

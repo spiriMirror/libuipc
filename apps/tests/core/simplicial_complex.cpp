@@ -115,7 +115,7 @@ TEST_CASE("create_delete_share_attribute", "[simplicial_complex]")
     REQUIRE(vel->size() == VA.size());
 
 
-    REQUIRE_THROWS_AS(VA.create<Vector3>("velocity"), GeometryAttributeError);
+    REQUIRE_THROWS_AS(VA.create<Vector3>("velocity"), AttributeCollectionError);
 
     VA.destroy("velocity");
     REQUIRE_ONCE_WARN(VA.destroy("velocity"));
@@ -124,12 +124,12 @@ TEST_CASE("create_delete_share_attribute", "[simplicial_complex]")
     REQUIRE(!find_vel);
     REQUIRE(find_vel.use_count() == 0);
 
-    REQUIRE_THROWS_AS(VA.destroy(builtin::position), GeometryAttributeError);
+    REQUIRE_THROWS_AS(VA.destroy(builtin::position), AttributeCollectionError);
 
     VA.share("velocity", pos);
     REQUIRE(VA.find<Vector3>("velocity")->is_shared());
 
-    REQUIRE_THROWS_AS(VA.share("velocity", point_cloud.positions()), GeometryAttributeError);
+    REQUIRE_THROWS_AS(VA.share("velocity", point_cloud.positions()), AttributeCollectionError);
 }
 
 TEST_CASE("const_attribute", "[simplicial_complex]")
@@ -180,4 +180,30 @@ TEST_CASE("utils", "[simplicial_complex]")
     using SU = SimplexUtils;
     REQUIRE(SU::is_same_edge(Vector2i{0, 10}, Vector2i{0, 11}) == false);
     REQUIRE(SU::is_same_edge(Vector2i{0, 10}, Vector2i{10, 0}) == true);
+}
+
+TEST_CASE("geometry_commit", "[simplicial_complex]")
+{
+    auto mesh = create_tetrahedron();
+
+    SimplicialComplex mesh_copy = mesh;
+
+    auto name = mesh.meta().create<std::string>("name");
+    // update
+    auto pos_view = view(mesh.positions());
+    std::ranges::transform(pos_view,
+                           pos_view.begin(),
+                           [](auto& p) { return p + Vector3{1.0, 1.0, 1.0}; });
+
+    REQUIRE(mesh_copy.positions().last_modified() < mesh.positions().last_modified());
+
+    GeometryCommit commit = mesh - mesh_copy;
+    mesh_copy.update_from(commit);
+
+    auto name_copy = mesh_copy.meta().find<std::string>("name");
+    REQUIRE(name_copy != nullptr);
+
+    auto dst_pos_view = view(mesh_copy.positions());
+    auto src_pos_view = view(mesh.positions());
+    REQUIRE(std::ranges::equal(src_pos_view, dst_pos_view));
 }

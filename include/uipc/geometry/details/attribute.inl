@@ -31,12 +31,6 @@ SizeT Attribute<T>::get_size() const
 }
 
 template <typename T>
-backend::BufferView Attribute<T>::get_backend_view() const noexcept
-{
-    return m_backend_view;
-}
-
-template <typename T>
 std::string_view Attribute<T>::get_type_name() const noexcept
 {
     thread_local static std::string type_name = readable_type_name<T>();

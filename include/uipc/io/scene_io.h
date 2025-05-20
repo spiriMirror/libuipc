@@ -39,7 +39,7 @@ class UIPC_IO_API SceneIO
      * @param filename
      * @return 
      */
-    static S<Scene> load(std::string_view filename);
+    static Scene load(std::string_view filename);
 
     /**
      * @brief Save the scene to a file.
@@ -63,6 +63,21 @@ class UIPC_IO_API SceneIO
      * @param filename
      */
     void save(std::string_view filename) const;
+
+    /**
+     * @brief Convert the scene to a JSON object.
+     * 
+     * @return 
+     */
+    Json to_json() const;
+
+    /**
+     * @brief Convert a JSON object to a scene.
+     * 
+     * @param json
+     * @return 
+     */
+    static Scene from_json(const Json& json);
 
   private:
     Scene& m_scene;

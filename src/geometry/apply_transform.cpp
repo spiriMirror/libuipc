@@ -7,7 +7,8 @@ namespace uipc::geometry
 vector<SimplicialComplex> apply_transform(const SimplicialComplex& complex)
 {
     // here we share all the attributes
-    vector<SimplicialComplex> Rs(complex.instances().size(), complex);
+    auto                      size = complex.instances().size();
+    vector<SimplicialComplex> Rs(size, complex);
 
     for(auto&& [i, R] : enumerate(Rs))
     {

@@ -34,8 +34,8 @@ TEST_CASE("scene_factory", "[serialization]")
         ofs << j.dump(4);
     }
 
-    auto new_scene                 = sf.from_json(j);
-    auto [geo_slot, rest_geo_slot] = new_scene->geometries().find(0);
+    auto new_scene                 = sf.from_snapshot(sf.from_json(j));
+    auto [geo_slot, rest_geo_slot] = new_scene.geometries().find(0);
     auto sc = geo_slot->geometry().as<SimplicialComplex>();
 
     auto positions        = mesh.positions().view();

@@ -63,7 +63,6 @@ vector<SimplicialComplex> apply_region(const SimplicialComplex& sc)
     auto GV2LV = [&global_vert_to_local_vert]<int N>(const Eigen::Vector<IndexT, N>& GV)  // Map the global vertex to local vertex
     {
         Eigen::Vector<IndexT, N> ret;
-#pragma unroll
         for(int i = 0; i < N; i++)
         {
             ret[i] = static_cast<IndexT>(global_vert_to_local_vert[GV[i]]);

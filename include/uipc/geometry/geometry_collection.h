@@ -4,6 +4,11 @@
 #include <uipc/geometry/geometry_slot.h>
 #include <uipc/common/set.h>
 
+namespace uipc::core::internal
+{
+class Scene;
+}
+
 namespace uipc::core
 {
 class SceneFactory;
@@ -29,14 +34,24 @@ class UIPC_CORE_API IGeometryCollection
 
 class UIPC_CORE_API GeometryCollection : public IGeometryCollection
 {
+    friend class core::internal::Scene;
     friend class core::SceneFactory;
+    friend class GeometryCollectionCommit;
 
   public:
     GeometryCollection() = default;
 
+    GeometryCollection(const GeometryCollection&);
+    GeometryCollection& operator=(const GeometryCollection&) = delete;
+
+    GeometryCollection(GeometryCollection&&) noexcept   = default;
+    GeometryCollection& operator=(GeometryCollection&&) = default;
+
     template <std::derived_from<geometry::Geometry> GeometryT>
         requires(!std::is_abstract_v<GeometryT>)
     S<geometry::GeometrySlotT<GeometryT>> emplace(const GeometryT& geometry);
+
+    S<geometry::GeometrySlot> emplace(const geometry::Geometry& geometry);
 
     template <std::derived_from<geometry::Geometry> GeometryT>
         requires(!std::is_abstract_v<GeometryT>)
@@ -82,6 +97,7 @@ class UIPC_CORE_API GeometryCollection : public IGeometryCollection
     void flush() const;
 
     void build_from(span<S<geometry::GeometrySlot>> slots) noexcept;
+    void update_from(const unordered_map<IndexT, GeometryCommit>& slots) noexcept;
 };
 }  // namespace uipc::geometry
 

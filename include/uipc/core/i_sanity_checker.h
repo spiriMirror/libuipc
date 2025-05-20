@@ -6,6 +6,11 @@
 #include <uipc/common/unordered_map.h>
 #include <uipc/geometry/geometry.h>
 
+namespace uipc::core::internal
+{
+class Scene;
+}
+
 namespace uipc::backend
 {
 class SanityCheckMessageVisitor;
@@ -78,8 +83,8 @@ class UIPC_CORE_API SanityCheckerCollectionCreateInfo
 class UIPC_CORE_API ISanityCheckerCollection
 {
   public:
-    virtual ~ISanityCheckerCollection() = default;
-    virtual void build(Scene& s)        = 0;
+    virtual ~ISanityCheckerCollection()          = default;
+    virtual void build(core::internal::Scene& s) = 0;
     virtual SanityCheckResult check(SanityCheckMessageCollection& msg) const = 0;
 };
 }  // namespace uipc::core

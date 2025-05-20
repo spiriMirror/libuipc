@@ -13,14 +13,14 @@ static void register_type(std::unordered_map<std::string, Creator>& creators)
     creators.insert({Attribute<T>::type(),  //
                      [](const Json& j) -> S<IAttributeSlot>
                      {
-                         auto attribute = std::make_shared<Attribute<T>>();
+                         auto attribute = uipc::make_shared<Attribute<T>>();
                          attribute->from_json(j);
 
                          // an AttributeSlot without ownership
                          // don't need name (never used)
                          // allow_destroy is false (no care)
                          auto attr_slot =
-                             std::make_shared<AttributeSlot<T>>("", attribute, false);
+                             uipc::make_shared<AttributeSlot<T>>("", attribute, false);
 
                          return attr_slot;
                      }});

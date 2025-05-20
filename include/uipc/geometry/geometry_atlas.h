@@ -16,7 +16,7 @@ class UIPC_CORE_API GeometryAtlas
     /**
      * @brief Create a geometry in the atlas
      */
-    IndexT create(const Geometry& geo);
+    IndexT create(const Geometry& geo, bool evolving_only = false);
 
     /**
      * @brief Find the geometry slot by id
@@ -30,7 +30,7 @@ class UIPC_CORE_API GeometryAtlas
     /**
      * @brief Create a named AttributeCollection in the atlas
      */
-    void create(std::string_view name, const AttributeCollection& ac);
+    void create(std::string_view name, const AttributeCollection& ac, bool evolving_only = false);
 
     /**
      * @brief Find the AttributeCollection by name

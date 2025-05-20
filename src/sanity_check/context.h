@@ -1,5 +1,11 @@
+#pragma once
 #include <sanity_checker.h>
 #include <uipc/geometry/simplicial_complex.h>
+
+namespace uipc::core::internal
+{
+class Scene;
+}
 
 namespace uipc::sanity_check
 {
@@ -26,7 +32,7 @@ class ContactTabular
 class Context final : public SanityChecker
 {
   public:
-    explicit Context(SanityCheckerCollection& c, core::Scene& s) noexcept;
+    explicit Context(SanityCheckerCollection& c, core::internal::Scene& s) noexcept;
     virtual ~Context() override;
 
     const geometry::SimplicialComplex& scene_simplicial_surface() const noexcept;

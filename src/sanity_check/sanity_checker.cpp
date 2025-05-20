@@ -3,12 +3,13 @@
 #include <uipc/backend/visitors/scene_visitor.h>
 #include <uipc/backend/visitors/sanity_check_message_visitor.h>
 #include <boost/core/demangle.hpp>
+#include <uipc/core/internal/scene.h>
 
 namespace uipc::sanity_check
 {
-SanityChecker::SanityChecker(SanityCheckerCollection& c, core::Scene& s) noexcept
+SanityChecker::SanityChecker(SanityCheckerCollection& c, core::internal::Scene& s) noexcept
     : m_collection{c}
-    , m_scene{s}
+    , m_scene{S<core::Scene>{new core::Scene(s.shared_from_this())}}
 {
 }
 
@@ -36,18 +37,18 @@ void SanityChecker::build(backend::SceneVisitor& scene) {}
 
 core::Scene::CObjects SanityChecker::objects() const noexcept
 {
-    return std::as_const(m_scene).objects();
+    return std::as_const(*m_scene).objects();
 }
 
 void SanityChecker::build()
 {
-    backend::SceneVisitor sv{m_scene};
+    backend::SceneVisitor sv{*m_scene};
     build(sv);
 }
 
 SanityCheckResult SanityChecker::do_check(core::SanityCheckMessage& msg)
 {
-    backend::SceneVisitor              sv{m_scene};
+    backend::SceneVisitor              sv{*m_scene};
     backend::SanityCheckMessageVisitor scmv{msg};
 
     scmv.id()     = get_id();

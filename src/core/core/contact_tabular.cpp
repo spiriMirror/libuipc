@@ -185,7 +185,7 @@ class ContactTabular::Impl
         m_contact_models.resize(new_size);
     }
 
-    void build_from(const geometry::AttributeCollection& ac, span<ContactElement> ce)
+    void build_from(const geometry::AttributeCollection& ac, span<const ContactElement> ce)
     {
         m_elements.clear();
         m_elements = vector<ContactElement>(ce.begin(), ce.end());
@@ -201,6 +201,30 @@ class ContactTabular::Impl
         UIPC_ASSERT(m_is_enabled, "Contact model is_enabled is not found, please check the attribute collection.");
 
         m_model_map.clear();
+        auto topo_view = m_topo->view();
+        for(SizeT i = 0; i < topo_view.size(); ++i)
+        {
+            auto ids         = topo_view[i];
+            m_model_map[ids] = i;
+        }
+    }
+
+    void update_from(const geometry::AttributeCollectionCommit& ac,
+                     span<const ContactElement>                 ce)
+    {
+        m_elements.clear();
+        m_elements = vector<ContactElement>(ce.begin(), ce.end());
+
+        m_contact_models.update_from(ac);
+        m_topo = m_contact_models.find<Vector2i>("topo");
+        UIPC_ASSERT(m_topo, "Contact model topology is not found, please check the attribute collection.");
+        m_friction_rates = m_contact_models.find<Float>("friction_rate");
+        UIPC_ASSERT(m_friction_rates, "Contact model friction rates is not found, please check the attribute collection.");
+        m_resistances = m_contact_models.find<Float>("resistance");
+        UIPC_ASSERT(m_resistances, "Contact model resistances is not found, please check the attribute collection.");
+        m_is_enabled = m_contact_models.find<IndexT>("is_enabled");
+        UIPC_ASSERT(m_is_enabled, "Contact model is_enabled is not found, please check the attribute collection.");
+
         auto topo_view = m_topo->view();
         for(SizeT i = 0; i < topo_view.size(); ++i)
         {
@@ -286,9 +310,15 @@ Json ContactTabular::default_config() noexcept
 }
 
 void ContactTabular::build_from(const geometry::AttributeCollection& ac,
-                                span<ContactElement>                 ce)
+                                span<const ContactElement>           ce)
 {
     m_impl->build_from(ac, ce);
+}
+
+void ContactTabular::update_from(const geometry::AttributeCollectionCommit& ac,
+                                 span<const ContactElement>                 ce)
+{
+    m_impl->update_from(ac, ce);
 }
 
 void to_json(Json& j, const ContactTabular& ct)

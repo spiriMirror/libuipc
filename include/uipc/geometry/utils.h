@@ -14,3 +14,4 @@
 #include <uipc/geometry/utils/tetrahedralize.h>
 #include <uipc/geometry/utils/compute_instance_volume.h>
 #include <uipc/geometry/utils/optimal_transform.h>
+#include <uipc/geometry/utils/is_trimesh_closed.h>

@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <uipc/backend/visitors/scene_visitor.h>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/core/internal/scene.h>
 
 namespace uipc::core
 {
@@ -46,10 +47,10 @@ class ConstitutionTabular::Impl
         m_is_sorted = true;
     }
 
-    void init(backend::SceneVisitor& scene_visitor)
+    void init(internal::Scene& scene)
     {
-        auto geos      = scene_visitor.geometries();
-        auto rest_geos = scene_visitor.rest_geometries();
+        auto geos      = scene.geometries().geometry_slots();
+        auto rest_geos = scene.rest_geometries().geometry_slots();
 
         for(auto&& geo : geos)
         {
@@ -101,8 +102,8 @@ const set<std::string>& ConstitutionTabular::types() const noexcept
     return m_impl->types();
 }
 
-void ConstitutionTabular::init(backend::SceneVisitor& scene_visitor)
+void ConstitutionTabular::init(internal::Scene& scene)
 {
-    m_impl->init(scene_visitor);
+    m_impl->init(scene);
 }
 }  // namespace uipc::core

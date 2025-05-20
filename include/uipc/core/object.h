@@ -7,8 +7,14 @@
 #include <uipc/common/type_traits.h>
 #include <uipc/geometry/geometry_collection.h>
 
+namespace uipc::core::internal
+{
+class Scene;
+}
+
 namespace uipc::core
 {
+class ObjectSnapshot;
 class Scene;
 
 class UIPC_CORE_API IObject
@@ -59,6 +65,7 @@ class UIPC_CORE_API Object : public IObject
     friend class Animation;
     friend class ObjectCollection;
     friend class SceneFactory;
+    friend class ObjectSnapshot;
 
   public:
     class UIPC_CORE_API Geometries
@@ -95,7 +102,7 @@ class UIPC_CORE_API Object : public IObject
         const Object& m_object;
     };
 
-    Object(Scene& scene, IndexT id, std::string_view name = "") noexcept;
+    Object(internal::Scene& scene, IndexT id, std::string_view name = "") noexcept;
     Object() noexcept;
     Object(Object&&) = default;
     ~Object();
@@ -114,7 +121,7 @@ class UIPC_CORE_API Object : public IObject
   private:
     friend struct fmt::formatter<Object>;
 
-    Scene*                        m_scene = nullptr;
+    internal::Scene*              m_scene = nullptr;
     IndexT                        m_id;
     string                        m_name;
     vector<IndexT>                m_geometry_ids;
@@ -123,7 +130,8 @@ class UIPC_CORE_API Object : public IObject
     bool                          scene_started() const noexcept;
     bool                          scene_pending() const noexcept;
 
-    void scene(Scene& scene) noexcept;
+    void build_from(span<const IndexT> geo_ids) noexcept;
+    void update_from(const ObjectSnapshot& snapshot) noexcept;
 
     friend void to_json(Json& j, const Object& object) noexcept;
     friend void from_json(const Json& j, Object& object) noexcept;

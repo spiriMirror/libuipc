@@ -1,6 +1,7 @@
 #include <uipc/geometry/attribute.h>
 #include <iostream>
 #include <uipc/common/range.h>
+
 namespace uipc::geometry
 {
 SizeT IAttribute::size() const noexcept
@@ -60,15 +61,5 @@ void IAttribute::reorder(span<const SizeT> O) noexcept
 void IAttribute::copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept
 {
     do_copy_from(other, copy);
-}
-
-backend::BufferView IAttribute::backend_view() const noexcept
-{
-    return get_backend_view();
-}
-
-backend::BufferView backend_view(const IAttribute& a) noexcept
-{
-    return a.backend_view();
 }
 }  // namespace uipc::geometry

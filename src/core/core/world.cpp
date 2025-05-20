@@ -7,199 +7,70 @@
 #include <uipc/common/uipc.h>
 #include <dylib.hpp>
 #include <uipc/backend/module_init_info.h>
+#include <uipc/core/internal/world.h>
 
 
 namespace uipc::core
 {
 World::World(Engine& e) noexcept
-    : m_engine(&e)
+    : m_internal{uipc::make_shared<internal::World>(*e.m_internal)}
 {
 }
 
+World::World(S<internal::World> w) noexcept
+    : m_internal{std::move(w)}
+{
+}
+
+World::~World() {}
+
 void World::init(Scene& s)
 {
-    if(m_scene)
-        return;
-
-    sanity_check(s);
-
-    if(!m_valid)
-    {
-        spdlog::error("World is not valid, skipping init.");
-        return;
-    }
-
-    backend::WorldVisitor visitor{*this};
-    m_scene = &s;
-    m_scene->init(visitor);
-    m_engine->init(visitor);
-
-    if(m_engine->status().has_error())
-    {
-        spdlog::error("Engine has error after init, world becomes invalid.");
-        m_valid = false;
-    }
+    m_internal->init(*s.m_internal);
 }
 
 void World::advance()
 {
-    if(!m_valid)
-    {
-        spdlog::error("World is not valid, skipping advance.");
-        return;
-    }
-
-    m_engine->advance();
-
-    if(m_engine->status().has_error())
-    {
-        spdlog::error("Engine has error after advance, world becomes invalid.");
-        m_valid = false;
-    }
+    m_internal->advance();
 }
 
 void World::sync()
 {
-    if(!m_valid)
-    {
-        spdlog::error("World is not valid, skipping sync.");
-        return;
-    }
-
-    m_engine->sync();
-
-    if(m_engine->status().has_error())
-    {
-        spdlog::error("Engine has error after sync, world becomes invalid.");
-        m_valid = false;
-    }
+    m_internal->sync();
 }
 
 void World::retrieve()
 {
-    if(!m_valid)
-    {
-        spdlog::error("World is not valid, skipping retrieve.");
-        return;
-    }
-    m_engine->retrieve();
-
-    if(m_engine->status().has_error())
-    {
-        spdlog::error("Engine has error after retrieve, world becomes invalid.");
-        m_valid = false;
-    }
+    m_internal->retrieve();
 }
 
 void World::backward()
 {
-    if(!m_valid)
-    {
-        spdlog::error("World is not valid, skipping backward.");
-        return;
-    }
-    if(m_scene->diff_sim().parameters().size())
-    {
-        m_engine->backward();
-    }
-    else
-    {
-        spdlog::warn("No parameters to backward, skipping backward.");
-        return;
-    }
-
-    if(m_engine->status().has_error())
-    {
-        spdlog::error("Engine has error after backward, world becomes invalid.");
-        m_valid = false;
-    }
+    m_internal->backward();
 }
 
 bool World::dump()
 {
-    if(!m_valid)
-    {
-        spdlog::error("World is not valid, skipping dump.");
-        return false;
-    }
-
-    bool success   = m_engine->dump();
-    bool has_error = m_engine->status().has_error();
-    if(has_error)
-    {
-        spdlog::error("Engine has error after dump, world becomes invalid.");
-        m_valid = false;
-    }
-
-    return success && !has_error;
+    return m_internal->dump();
 }
 
 bool World::recover(SizeT aim_frame)
 {
-    if(!m_scene)
-    {
-        spdlog::warn("Scene has not been set, skipping recover. Hint: you may call World::init() first.");
-        return false;
-    }
-
-    if(!m_valid)
-    {
-        spdlog::error("World is not valid, skipping recover.");
-        return false;
-    }
-
-    bool success   = m_engine->recover(aim_frame);
-    bool has_error = m_engine->status().has_error();
-
-    if(has_error)
-    {
-        spdlog::error("Engine has error after recover, world becomes invalid.");
-        m_valid = false;
-    }
-
-    if(success && !has_error)
-    {
-        // if diff_sim is not empty, broadcast parameters
-        auto& diff_sim = m_scene->diff_sim();
-        if(diff_sim.parameters().size() > 0)
-            diff_sim.parameters().broadcast();
-    }
-
-    return success && !has_error;
+    return m_internal->recover(aim_frame);
 }
 
 bool World::is_valid() const
 {
-    return m_valid;
+    return m_internal->is_valid();
 }
 
 SizeT World::frame() const
 {
-    if(!m_valid)
-    {
-        spdlog::error("World is not valid, frame set to 0.");
-        return 0;
-    }
-    return m_engine->frame();
+    return m_internal->frame();
 }
 
 const FeatureCollection& World::features() const
 {
-    return m_engine->features();
-}
-
-void World::sanity_check(Scene& s)
-{
-    if(s.info()["sanity_check"]["enable"] == true)
-    {
-        auto result = s.sanity_checker().check(m_engine->workspace());
-
-        if(result != SanityCheckResult::Success)
-        {
-            s.sanity_checker().report();
-        }
-
-        m_valid = (result == SanityCheckResult::Success);
-    }
+    return m_internal->features();
 }
 }  // namespace uipc::core

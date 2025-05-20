@@ -51,13 +51,9 @@ class UIPC_CORE_API IAttribute
     void          reorder(span<const SizeT> O) noexcept;
     void copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept;
 
-    friend backend::BufferView backend_view(const IAttribute& a) noexcept;
-
   protected:
-    backend::BufferView         backend_view() const noexcept;
-    virtual SizeT               get_size() const                  = 0;
-    virtual backend::BufferView get_backend_view() const noexcept = 0;
-    virtual std::string_view    get_type_name() const noexcept    = 0;
+    virtual SizeT            get_size() const               = 0;
+    virtual std::string_view get_type_name() const noexcept = 0;
 
     virtual void          do_resize(SizeT N)                       = 0;
     virtual void          do_clear()                               = 0;
@@ -99,12 +95,11 @@ class Attribute : public IAttribute
 
     [[nodiscard]] span<const T> view() const noexcept;
 
-    static std::string type() noexcept;
+    [[nodiscard]] static std::string type() noexcept;
 
   protected:
-    virtual SizeT               get_size() const override;
-    virtual backend::BufferView get_backend_view() const noexcept override;
-    virtual std::string_view    get_type_name() const noexcept override;
+    virtual SizeT            get_size() const override;
+    virtual std::string_view get_type_name() const noexcept override;
 
     virtual void          do_resize(SizeT N) override;
     virtual void          do_clear() override;
@@ -120,9 +115,8 @@ class Attribute : public IAttribute
     virtual void do_from_json(const Json& j) noexcept override;
 
   private:
-    backend::BufferView m_backend_view;
-    vector<T>           m_values;
-    T                   m_default_value;
+    vector<T> m_values;
+    T         m_default_value;
 };
 }  // namespace uipc::geometry
 

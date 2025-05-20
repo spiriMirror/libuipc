@@ -8,6 +8,7 @@ AttributeSlot<T>::AttributeSlot(std::string_view m_name, S<Attribute<T>> attribu
     : m_name(m_name)
     , m_attribute(std::move(attribute))
     , m_allow_destroy(allow_destroy)
+    , m_last_modified(std::chrono::high_resolution_clock::now())
 {
 }
 
@@ -16,11 +17,13 @@ template <typename U>
 {
     UIPC_ASSERT(&slot, "You are trying to access a nullptr attribute slot, please check if the attribute name is correct");
     slot.make_owned();
+    // record the modification time
+    slot.m_last_modified = std::chrono::high_resolution_clock::now();
     return view(*slot.m_attribute);
 }
 
 template <typename T>
-span<const T> AttributeSlot<T>::view() const noexcept
+[[nodiscard]] span<const T> AttributeSlot<T>::view() const noexcept
 {
     UIPC_ASSERT(this, "You are trying to access a nullptr attribute slot, please check if the attribute name is correct");
     return m_attribute->view();
@@ -36,6 +39,18 @@ template <typename T>
 bool AttributeSlot<T>::get_allow_destroy() const noexcept
 {
     return m_allow_destroy;
+}
+
+template <typename T>
+bool AttributeSlot<T>::get_is_evolving() const noexcept
+{
+    return m_is_evolving;
+}
+
+template <typename T>
+void AttributeSlot<T>::set_is_evolving(bool v) noexcept
+{
+    m_is_evolving = v;
 }
 
 template <typename T>
@@ -61,9 +76,18 @@ S<IAttributeSlot> AttributeSlot<T>::do_clone_empty(std::string_view name, bool a
 }
 
 template <typename T>
-Json AttributeSlot<T>::do_to_json(SizeT i) const
+void AttributeSlot<T>::do_share_from(const IAttributeSlot& other) noexcept
 {
-    return m_attribute->do_to_json(i);
+    auto& other_slot = static_cast<const AttributeSlot<T>&>(other);
+    m_attribute      = other_slot.m_attribute;
+    m_last_modified  = std::chrono::high_resolution_clock::now();
+    m_is_evolving    = other_slot.m_is_evolving;
+}
+
+template <typename T>
+TimePoint AttributeSlot<T>::get_last_modified() const noexcept
+{
+    return m_last_modified;
 }
 
 template <typename T>
@@ -77,6 +101,7 @@ const IAttribute& AttributeSlot<T>::get_attribute() const noexcept
 {
     return *m_attribute;
 }
+
 template <typename T>
 SizeT uipc::geometry::AttributeSlot<T>::get_use_count() const noexcept
 {

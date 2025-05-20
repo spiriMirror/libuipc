@@ -9,13 +9,20 @@ class SceneVisitor;
 class DiffSimVisitor;
 }  // namespace uipc::backend
 
+namespace uipc::core::internal
+{
+class Scene;
+}
+
 namespace uipc::core
 {
 class Scene;
 class UIPC_CORE_API DiffSim
 {
     friend class Scene;
+    friend class internal::Scene;
     friend class backend::DiffSimVisitor;
+
 
     DiffSim();
 
@@ -32,6 +39,6 @@ class UIPC_CORE_API DiffSim
     class Impl;
     U<Impl> m_impl;
 
-    void init(backend::SceneVisitor& scene);  // only be called by Scene
+    void init(internal::Scene& scene);  // only be called by Scene
 };
 }  // namespace uipc::core

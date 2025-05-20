@@ -7,13 +7,15 @@ namespace uipc::backend
 class WorldVisitor;
 }
 
-namespace uipc::core
+namespace uipc::core::internal
 {
-class Engine;
+class World;
 }
 
 namespace uipc::core
 {
+class Engine;
+
 class UIPC_CORE_API World final
 {
     friend class backend::WorldVisitor;
@@ -21,6 +23,13 @@ class UIPC_CORE_API World final
 
   public:
     World(Engine& e) noexcept;
+    ~World();
+
+    World(const World&)            = delete;
+    World(World&&)                 = default;
+    World& operator=(const World&) = delete;
+    World& operator=(World&&)      = default;
+
     void init(Scene& s);
 
     void advance();
@@ -36,9 +45,8 @@ class UIPC_CORE_API World final
     const FeatureCollection& features() const;
 
   private:
-    Scene*        m_scene  = nullptr;
-    core::Engine* m_engine = nullptr;
-    bool          m_valid  = true;
-    void          sanity_check(Scene& s);
+    // Allow create a core::World from a core::internal::World
+    World(S<internal::World> w) noexcept;
+    S<internal::World> m_internal;
 };
 }  // namespace uipc::core

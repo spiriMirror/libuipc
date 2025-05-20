@@ -3,6 +3,7 @@
 #include <uipc/common/uipc.h>
 #include <uipc/backend/module_init_info.h>
 #include <uipc/core/scene.h>
+#include <uipc/core/internal/scene.h>
 #include <uipc/core/world.h>
 #include <uipc/core/engine.h>
 
@@ -40,7 +41,7 @@ static S<dylib> load_sanity_check_module()
     return m_cache;
 }
 
-SanityChecker::SanityChecker(Scene& scene)
+SanityChecker::SanityChecker(internal::Scene& scene)
     : m_scene{scene}
 {
 }

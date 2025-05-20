@@ -59,8 +59,8 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
     SimplicialComplex();
 
 
-    SimplicialComplex(const SimplicialComplex& o) = default;
-    SimplicialComplex(SimplicialComplex&& o)      = default;
+    SimplicialComplex(const SimplicialComplex& o);
+    SimplicialComplex(SimplicialComplex&& o) = default;
 
     SimplicialComplex& operator=(const SimplicialComplex& o) = delete;
     SimplicialComplex& operator=(SimplicialComplex&& o)      = delete;
@@ -136,19 +136,16 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
 
 
   protected:
-    virtual std::string_view   get_type() const noexcept override;
-    [[nodiscard]] virtual Json do_to_json() const override;
-    virtual void do_collect_attribute_collections(vector<std::string>& names,
-                                                  vector<AttributeCollection*>& collections) override;
-    virtual void do_build_from_attribute_collections(span<std::string> names,
-                                                     span<AttributeCollection*> collections) noexcept override;
+    virtual std::string_view get_type() const noexcept override;
+
     virtual S<IGeometry> do_clone() const override;
 
   private:
-    AttributeCollection m_vertex_attributes;
-    AttributeCollection m_edge_attributes;
-    AttributeCollection m_triangle_attributes;
-    AttributeCollection m_tetrahedron_attributes;
+    // shortcut to the attribute collections
+    S<AttributeCollection> m_vertex_attributes;
+    S<AttributeCollection> m_edge_attributes;
+    S<AttributeCollection> m_triangle_attributes;
+    S<AttributeCollection> m_tetrahedron_attributes;
 };
 }  // namespace uipc::geometry
 

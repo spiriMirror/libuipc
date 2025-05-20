@@ -8,10 +8,18 @@ namespace uipc::backend
 {
 class SceneVisitor;
 }
+
+namespace uipc::core::internal
+{
+class Scene;
+}
+
 namespace uipc::core
 {
 class UIPC_CORE_API ConstitutionTabular
 {
+    friend class internal::Scene;
+
   public:
     ConstitutionTabular() noexcept;
     ~ConstitutionTabular() noexcept;
@@ -27,6 +35,6 @@ class UIPC_CORE_API ConstitutionTabular
     class Impl;
     U<Impl> m_impl;
     friend class Scene;
-    void init(backend::SceneVisitor& scene);  // only be called by Scene.
+    void init(internal::Scene& scene);  // only be called by Scene.
 };
 }  // namespace uipc::core

@@ -3,9 +3,9 @@
 
 namespace uipc::core
 {
-void IEngine::init(backend::WorldVisitor v)
+void IEngine::init(internal::World& w)
 {
-    do_init(v);
+    do_init(w);
 }
 
 void IEngine::advance()

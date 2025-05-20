@@ -34,51 +34,62 @@ static py::list list_of_sc(const vector<SimplicialComplex>& simplicial_complexes
 
 PyUtils::PyUtils(py::module& m)
 {
-    m.def("label_surface", &label_surface);
+    m.def("label_surface", &label_surface, py::arg("sc"));
 
-    m.def("label_triangle_orient", &label_triangle_orient);
+    m.def("label_triangle_orient", &label_triangle_orient, py::arg("sc"));
 
-    m.def("flip_inward_triangles", &flip_inward_triangles);
+    m.def("flip_inward_triangles", &flip_inward_triangles, py::arg("sc"));
 
-    m.def("extract_surface",
-          [](const SimplicialComplex& simplicial_complex)
-          { return extract_surface(simplicial_complex); });
+    m.def(
+        "extract_surface",
+        [](const SimplicialComplex& simplicial_complex)
+        { return extract_surface(simplicial_complex); },
+        py::arg("sc"));
 
-    m.def("extract_surface",
-          [&](py::list list_of_sc)
-          {
-              auto simplicial_complexes = vector_of_sc(list_of_sc);
-              return extract_surface(simplicial_complexes);
-          });
+    m.def(
+        "extract_surface",
+        [&](py::list list_of_sc)
+        {
+            auto simplicial_complexes = vector_of_sc(list_of_sc);
+            return extract_surface(simplicial_complexes);
+        },
+        py::arg("sc"));
 
-    m.def("merge",
-          [&](py::list list_of_sc)
-          {
-              auto simplicial_complexes = vector_of_sc(list_of_sc);
-              return merge(simplicial_complexes);
-          });
+    m.def(
+        "merge",
+        [&](py::list list_of_sc)
+        {
+            auto simplicial_complexes = vector_of_sc(list_of_sc);
+            return merge(simplicial_complexes);
+        },
+        py::arg("sc_list"));
 
-    m.def("apply_transform",
-          [](const SimplicialComplex& simplicial_complex) -> py::list
-          {
-              auto scs  = apply_transform(simplicial_complex);
-              auto list = list_of_sc(scs);
-              return list;
-          });
+    m.def(
+        "apply_transform",
+        [](const SimplicialComplex& simplicial_complex) -> py::list
+        {
+            auto scs  = apply_transform(simplicial_complex);
+            auto list = list_of_sc(scs);
+            return list;
+        },
+        py::arg("sc"));
 
-    m.def("facet_closure", &facet_closure);
+    m.def("facet_closure", &facet_closure, py::arg("sc"));
 
-    m.def("label_connected_vertices", &label_connected_vertices);
 
-    m.def("label_region", &label_region);
+    m.def("label_connected_vertices", &label_connected_vertices, py::arg("sc"));
 
-    m.def("apply_region",
-          [](const SimplicialComplex& simplicial_complex) -> py::list
-          {
-              auto scs  = apply_region(simplicial_complex);
-              auto list = list_of_sc(scs);
-              return list;
-          });
+    m.def("label_region", &label_region, py::arg("sc"));
+
+    m.def(
+        "apply_region",
+        [](const SimplicialComplex& simplicial_complex) -> py::list
+        {
+            auto scs  = apply_region(simplicial_complex);
+            auto list = list_of_sc(scs);
+            return list;
+        },
+        py::arg("sc"));
 
     m.def(
         "tetrahedralize",
@@ -87,16 +98,24 @@ PyUtils::PyUtils(py::module& m)
         py::arg("simplicial_complex"),
         py::arg("options") = Json::object());
 
-    m.def("optimal_transform",
-          [](py::array_t<const Float> S, py::array_t<const Float> D)
-          {
-              auto S_ = as_span_of<const Vector3>(S);
-              auto D_ = as_span_of<const Vector3>(D);
-              return as_numpy(optimal_transform(S_, D_));
-          });
+    m.def(
+        "optimal_transform",
+        [](py::array_t<const Float> S, py::array_t<const Float> D)
+        {
+            auto S_ = as_span_of<const Vector3>(S);
+            auto D_ = as_span_of<const Vector3>(D);
+            return as_numpy(optimal_transform(S_, D_));
+        },
+        py::arg("src"),
+        py::arg("dst"));
 
-    m.def("optimal_transform",
-          [](const SimplicialComplex& S, const SimplicialComplex& D)
-          { return as_numpy(optimal_transform(S, D)); });
+    m.def(
+        "optimal_transform",
+        [](const SimplicialComplex& S, const SimplicialComplex& D)
+        { return as_numpy(optimal_transform(S, D)); },
+        py::arg("src"),
+        py::arg("dst"));
+
+    m.def("is_trimesh_closed", &is_trimesh_closed, py::arg("sc"));
 }
 }  // namespace pyuipc::geometry
