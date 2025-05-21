@@ -31,6 +31,7 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
     auto query = [&]
     {
         num_collisions = 0;
+
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.surf_vertices().size(),

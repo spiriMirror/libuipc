@@ -21,7 +21,7 @@ auto BackendPathTool::relative(std::string_view _file_,
     Path file_path{_file_};
 
     Path backends_dir = backend_source_dir();
-
+    
     if constexpr(uipc::RUNTIME_CHECK)
     {
         auto [left, right] = std::mismatch(file_path.begin(),

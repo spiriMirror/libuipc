@@ -97,9 +97,9 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
     auto total_surf_edge_count     = geo_surf_edges_offsets.back();
     auto total_surf_triangle_count = geo_surf_triangles_offsets.back();
 
-    surf_vertices.resize(total_surf_vertex_count);
-    surf_edges.resize(total_surf_edge_count);
-    surf_triangles.resize(total_surf_triangle_count);
+    surf_vertices.resize(total_surf_vertex_count, -1);
+    surf_edges.resize(total_surf_edge_count, -Vector2i::Ones());
+    surf_triangles.resize(total_surf_triangle_count, -Vector3i::Ones());
 
     // 3) fill surf vertices, edges, triangles
     {
@@ -157,9 +157,18 @@ void AffinebodySurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
 
                         std::ranges::transform(surf_vertex_cache,
                                                surf_v.begin(),
-                                               [&](const IndexT& local_surf_vert_id) {
+                                               [&](const IndexT& local_surf_vert_id)
+                                               {
                                                    return local_surf_vert_id + body_vertex_offset_in_global;
                                                });
+
+                        for(auto&& [i, v] : enumerate(surf_v))
+                        {
+                            if(v == 0)
+                            {
+                                fmt::println("surf vertex {}: {}", i, v);
+                            }
+                        }
                     }
                 }
 

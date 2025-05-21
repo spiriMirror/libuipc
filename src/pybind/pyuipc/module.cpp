@@ -1,7 +1,7 @@
+#include <pyuipc/common/json.h>
 #include <pyuipc/pyuipc.h>
 #include <uipc/common/uipc.h>
 #include <uipc/common/log.h>
-#include <pyuipc/common/json.h>
 #include <pyuipc/common/unit.h>
 #include <pyuipc/common/uipc_type.h>
 #include <pyuipc/common/timer.h>
@@ -48,9 +48,12 @@ PYBIND11_MODULE(pyuipc, m)
     m.attr("__version__") =
         fmt::format("{}.{}.{}", UIPC_VERSION_MAJOR, UIPC_VERSION_MINOR, UIPC_VERSION_PATCH);
 
+    // # Workaround for MSVC Release Config
+    // # Manually Convert Python Dict to Json
+    m.def("init", [](py::dict dict) { uipc::init(pyjson::to_json(dict)); });
 
-    m.def("init", &uipc::init);
     m.def("default_config", &uipc::default_config);
+
     m.def("config", &uipc::config);
 
 

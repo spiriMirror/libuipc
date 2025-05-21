@@ -102,7 +102,7 @@ inline MUDA_GENERIC Vector2 D_range(Float xi, Float d_hat)
 {
     auto upper = xi + d_hat;
     auto lower = xi;
-    return {lower * lower, upper * upper};
+    return Vector2{lower * lower, upper * upper};
 }
 
 /**
