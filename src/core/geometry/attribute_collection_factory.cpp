@@ -39,8 +39,8 @@ class AttributeFriend<AttributeCollectionFactory>
 class AttributeCollectionFactory::Impl
 {
   public:
-    Json attribute_collection_to_json(const AttributeCollection& ac,
-                                      unordered_map<IAttribute*, IndexT> attr_to_index)
+    Json attribute_collection_to_json(const AttributeCollection&    ac,
+                                      SerialSharedAttributeContext& ctx)
     {
         using AF        = AttributeFriend<AttributeCollectionFactory>;
         auto attr_slots = AF::attribute_slots(ac);
@@ -55,14 +55,14 @@ class AttributeCollectionFactory::Impl
         {
             for(auto&& [name, attr_slot] : attr_slots)
             {
-                auto attr = AF::attribute(attr_slot);
-                auto it   = attr_to_index.find(attr);
-                if(it != attr_to_index.end())
+                auto attr  = AF::attribute(attr_slot);
+                auto index = ctx.index_of(attr);
+                if(index >= 0)
                 {
                     // attr name -> attr index
                     auto& attr_slot_json = data[name];
                     {
-                        attr_slot_json["index"] = it->second;
+                        attr_slot_json["index"] = index;
                         attr_slot_json["name"]  = name;
                         attr_slot_json["allow_destroy"] = attr_slot->allow_destroy();
                     }
@@ -79,7 +79,7 @@ class AttributeCollectionFactory::Impl
     }
 
     S<AttributeCollection> attribute_collection_from_json(const Json& j,
-                                                          span<S<IAttributeSlot>> attributes)
+                                                          DeserialSharedAttributeContext& ctx)
     {
         using AF = AttributeFriend<AttributeCollectionFactory>;
 
@@ -145,7 +145,7 @@ class AttributeCollectionFactory::Impl
             }
             auto allow_destroy = allow_destroy_it->get<bool>();
 
-            S<IAttributeSlot> attr = attributes[index];
+            S<IAttributeSlot> attr = ctx.attribute_slot_of(index);
             ac->resize(attr->size());
             ac->share(name, *attr, allow_destroy);
         }
@@ -153,16 +153,16 @@ class AttributeCollectionFactory::Impl
         return ac;
     }
 
-    Json to_json(const AttributeCollection& ac, unordered_map<IAttribute*, IndexT> attr_to_index)
+    Json to_json(const AttributeCollection& ac, SerialSharedAttributeContext& ctx)
     {
-        return attribute_collection_to_json(ac, attr_to_index);
+        return attribute_collection_to_json(ac, ctx);
     }
 
-    S<AttributeCollection> from_json(const Json& j, span<S<IAttributeSlot>> attributes)
+    S<AttributeCollection> from_json(const Json& j, DeserialSharedAttributeContext& ctx)
     {
         UIPC_ASSERT(j.is_object(), "This json must be an object");
         S<AttributeCollection> attribute_collections =
-            attribute_collection_from_json(j, attributes);
+            attribute_collection_from_json(j, ctx);
         return attribute_collections;
     }
 
@@ -210,8 +210,7 @@ class AttributeCollectionFactory::Impl
         std::ranges::set_difference(rn, cn, std::back_inserter(removed_names));
     }
 
-    Json commit_to_json(const AttributeCollectionCommit&   acs,
-                        unordered_map<IAttribute*, IndexT> attr_to_index)
+    Json commit_to_json(const AttributeCollectionCommit& acs, SerialSharedAttributeContext& ctx)
     {
         Json  j    = Json::object();
         auto& meta = j[builtin::__meta__];
@@ -222,14 +221,15 @@ class AttributeCollectionFactory::Impl
         auto& data = j[builtin::__data__];
         {
             data["attribute_collection"] =
-                attribute_collection_to_json(acs.m_attribute_collection, attr_to_index);
+                attribute_collection_to_json(acs.m_attribute_collection, ctx);
             data["removed_names"] = acs.m_removed_names;
         }
 
         return j;
     }
 
-    S<AttributeCollectionCommit> commit_from_json(const Json& j, span<S<IAttributeSlot>> attributes)
+    S<AttributeCollectionCommit> commit_from_json(const Json& j,
+                                                  DeserialSharedAttributeContext& ctx)
     {
         using AF = AttributeFriend<AttributeCollectionFactory>;
         auto acc = uipc::make_shared<AttributeCollectionCommit>();
@@ -278,7 +278,7 @@ class AttributeCollectionFactory::Impl
             }
 
             auto& attribute_collection = *attribute_collection_it;
-            auto ac = attribute_collection_from_json(attribute_collection, attributes);
+            auto ac = attribute_collection_from_json(attribute_collection, ctx);
             if(ac)
             {
                 acc->m_attribute_collection = std::move(*ac);
@@ -309,27 +309,27 @@ AttributeCollectionFactory::AttributeCollectionFactory()
 AttributeCollectionFactory::~AttributeCollectionFactory() = default;
 
 S<AttributeCollection> AttributeCollectionFactory::from_json(const Json& j,
-                                                             span<S<IAttributeSlot>> attributes)
+                                                             DeserialSharedAttributeContext& ctx)
 {
-    return m_impl->from_json(j, attributes);
+    return m_impl->from_json(j, ctx);
 }
 
-Json AttributeCollectionFactory::to_json(const AttributeCollection& acs,
-                                         unordered_map<IAttribute*, IndexT> attr_to_index)
+Json AttributeCollectionFactory::to_json(const AttributeCollection&    acs,
+                                         SerialSharedAttributeContext& ctx)
 {
-    return m_impl->to_json(acs, attr_to_index);
+    return m_impl->to_json(acs, ctx);
 }
 
 Json AttributeCollectionFactory::commit_to_json(const AttributeCollectionCommit& acs,
-                                                unordered_map<IAttribute*, IndexT> attr_to_index)
+                                                SerialSharedAttributeContext& ctx)
 {
-    return m_impl->commit_to_json(acs, attr_to_index);
+    return m_impl->commit_to_json(acs, ctx);
 }
 
 S<AttributeCollectionCommit> AttributeCollectionFactory::commit_from_json(
-    const Json& j, span<S<IAttributeSlot>> attributes)
+    const Json& j, DeserialSharedAttributeContext& ctx)
 {
-    return m_impl->commit_from_json(j, attributes);
+    return m_impl->commit_from_json(j, ctx);
 }
 
 AttributeCollectionCommit AttributeCollectionFactory::diff(const AttributeCollection& current,

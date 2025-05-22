@@ -9,6 +9,7 @@
 #include <uipc/geometry/geometry_factory.h>
 #include <uipc/common/zip.h>
 #include <uipc/builtin/factory_keyword.h>
+#include <uipc/geometry/shared_attribute_context.h>
 
 namespace uipc::geometry
 {
@@ -81,8 +82,8 @@ class GeometryAtlas::Impl
     vector<S<GeometrySlot>>                            m_geometries;
     unordered_map<std::string, S<AttributeCollection>> m_attribute_collections;
 
-    unordered_map<IAttribute*, IndexT> m_attr_to_index;
-    vector<IAttribute*>                m_index_to_attr;
+    SerialSharedAttributeContext   m_serial_context;
+    DeserialSharedAttributeContext m_deserial_context;
 
     IndexT create(const Geometry& geometry, bool evolving_only)
     {
@@ -135,7 +136,8 @@ class GeometryAtlas::Impl
 
     void build_attributes_index_from_attribute_collection(const AttributeCollection& ac)
     {
-        _build_attributes_index_from_attribute_collection(m_attr_to_index, m_index_to_attr, ac);
+        _build_attributes_index_from_attribute_collection(
+            m_serial_context.m_attr_to_index, m_serial_context.m_index_to_attr, ac);
     }
 
     void build_attributes_index_from_geometry(Geometry& geo)
@@ -155,11 +157,14 @@ class GeometryAtlas::Impl
     *                           Serialize
     ***************************************************************/
 
-    Json attributes_to_json() { return af().to_json(m_index_to_attr); }
+    Json attributes_to_json()
+    {
+        return af().to_json(m_serial_context.m_index_to_attr);
+    }
 
     Json attribute_collection_to_json(const AttributeCollection& ac)
     {
-        return acf().to_json(ac, m_attr_to_index);
+        return acf().to_json(ac, m_serial_context);
     }
 
     Json geometries_to_json(span<S<GeometrySlot>> geos)
@@ -172,7 +177,7 @@ class GeometryAtlas::Impl
                        [](const S<GeometrySlot>& geo)
                        { return &geo->geometry(); });
 
-        return gf().to_json(geos_ptr, m_attr_to_index);
+        return gf().to_json(geos_ptr, m_serial_context);
     }
 
     Json to_json()
@@ -208,8 +213,6 @@ class GeometryAtlas::Impl
     *                           Deserialize
     ***************************************************************/
 
-    vector<S<IAttributeSlot>> m_attributes;
-
     static AttributeFactory& af()
     {
         static thread_local AttributeFactory af;
@@ -230,17 +233,17 @@ class GeometryAtlas::Impl
 
     void attributes_from_json(const Json& j)
     {
-        m_attributes = af().from_json(j);
+        m_deserial_context.m_attribute_slots = af().from_json(j);
     }
 
     S<AttributeCollection> attribute_collection_from_json(const Json& j)
     {
-        return acf().from_json(j, m_attributes);
+        return acf().from_json(j, m_deserial_context);
     }
 
     vector<S<Geometry>> geometries_from_json(const Json& j)
     {
-        return gf().from_json(j, m_attributes);
+        return gf().from_json(j, m_deserial_context);
     }
 
     void from_json(const Json& j)
@@ -322,9 +325,8 @@ class GeometryAtlas::Impl
     {
         m_geometries.clear();
         m_attribute_collections.clear();
-        m_attr_to_index.clear();
-        m_index_to_attr.clear();
-        m_attributes.clear();
+        m_serial_context.clear();
+        m_deserial_context.clear();
     }
 };
 
@@ -397,9 +399,8 @@ class GeometryAtlasCommit::Impl
     vector<S<GeometryCommit>> m_geometries;
     unordered_map<std::string, S<AttributeCollectionCommit>> m_attribute_collections;
 
-    unordered_map<IAttribute*, IndexT> m_attr_to_index;
-    vector<IAttribute*>                m_index_to_attr;
-
+    SerialSharedAttributeContext   m_serial_context;
+    DeserialSharedAttributeContext m_deserial_context;
 
     static AttributeFactory& af()
     {
@@ -489,7 +490,8 @@ class GeometryAtlasCommit::Impl
 
     void build_attributes_index_from_attribute_collection(const AttributeCollection& ac)
     {
-        _build_attributes_index_from_attribute_collection(m_attr_to_index, m_index_to_attr, ac);
+        _build_attributes_index_from_attribute_collection(
+            m_serial_context.m_attr_to_index, m_serial_context.m_index_to_attr, ac);
     }
 
     void build_attributes_index_from_geometry(Geometry& geo)
@@ -506,16 +508,19 @@ class GeometryAtlasCommit::Impl
     *                          Serialize
     ***************************************************************/
 
-    Json attributes_to_json() { return af().to_json(m_index_to_attr); }
+    Json attributes_to_json()
+    {
+        return af().to_json(m_serial_context.m_index_to_attr);
+    }
 
     Json attribute_collection_commit_to_json(const AttributeCollectionCommit& ac)
     {
-        return acf().commit_to_json(ac, m_attr_to_index);
+        return acf().commit_to_json(ac, m_serial_context);
     }
 
     Json geometry_commit_to_json(const GeometryCommit& geo)
     {
-        return gf().commit_to_json(geo, m_attr_to_index);
+        return gf().commit_to_json(geo, m_serial_context);
     }
 
     Json to_json()
@@ -552,30 +557,29 @@ class GeometryAtlasCommit::Impl
     /**************************************************************
     *                          Deserialize
     ***************************************************************/
-    vector<S<IAttributeSlot>> m_attributes;
+
 
     void attributes_from_json(const Json& j)
     {
-        m_attributes = af().from_json(j);
+        m_deserial_context.m_attribute_slots = af().from_json(j);
     }
 
     S<AttributeCollectionCommit> attribute_collection_commit_from_json(const Json& j)
     {
-        return acf().commit_from_json(j, m_attributes);
+        return acf().commit_from_json(j, m_deserial_context);
     }
 
     S<GeometryCommit> geometry_commit_from_json(const Json& j)
     {
-        return gf().commit_from_json(j, m_attributes);
+        return gf().commit_from_json(j, m_deserial_context);
     }
 
     void clear()
     {
-        m_attributes.clear();
         m_geometries.clear();
         m_attribute_collections.clear();
-        m_attr_to_index.clear();
-        m_index_to_attr.clear();
+        m_serial_context.clear();
+        m_deserial_context.clear();
     }
 
     void from_json(const Json& j)
