@@ -23,10 +23,14 @@ class UIPC_CORE_API AttributeCollectionFactory
     /**
      * @breif Convert an attribute collection to a json object, while using index to replace the attributes pointer
      */
-    [[nodiscard]] Json to_json(const AttributeCollection*         acs,
-                               unordered_map<IAttribute*, IndexT> attr_to_index,
-                               bool evolving_only = false);
+    [[nodiscard]] Json to_json(const AttributeCollection& ac,
+                               unordered_map<IAttribute*, IndexT> attr_to_index);
 
+    [[nodiscard]] Json commit_to_json(const AttributeCollectionCommit& acc,
+                                      unordered_map<IAttribute*, IndexT> attr_to_index);
+
+    [[nodiscard]] S<AttributeCollectionCommit> commit_from_json(const Json& j,
+                                                                span<S<IAttributeSlot>> attributes);
     /**
      * @brief Get the difference between the current and reference attribute collections.
      * 
@@ -34,8 +38,8 @@ class UIPC_CORE_API AttributeCollectionFactory
      * - Deleted Attributes will be collected in the removed_names.
      * 
      */
-    AttributeCollectionCommit diff(const AttributeCollection& current,
-                                   const AttributeCollection& reference);
+    [[nodiscard]] AttributeCollectionCommit diff(const AttributeCollection& current,
+                                                 const AttributeCollection& reference);
 
   private:
     U<Impl> m_impl;

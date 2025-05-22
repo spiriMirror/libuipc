@@ -12,7 +12,7 @@ AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& 
         // if so, we need to copy it to the diff_copy
         if(attr_slot->is_evolving())
         {
-            m_inc.share(name, *attr_slot, attr_slot->allow_destroy());
+            m_attribute_collection.share(name, *attr_slot, attr_slot->allow_destroy());
         }
 
         // check if the attribute is newer than the reference
@@ -22,13 +22,13 @@ AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& 
         {
             if(attr_slot->last_modified() > ret_attribute->last_modified())
             {
-                m_inc.share(name, *attr_slot, attr_slot->allow_destroy());
+                m_attribute_collection.share(name, *attr_slot, attr_slot->allow_destroy());
             }
         }
         else
         {
             // if the attribute is not in the reference, we need to copy it to the diff_copy
-            m_inc.share(name, *attr_slot, attr_slot->allow_destroy());
+            m_attribute_collection.share(name, *attr_slot, attr_slot->allow_destroy());
         }
     }
 
@@ -47,7 +47,7 @@ AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& 
 }
 
 AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& dst)
-    : m_inc{dst}
+    : m_attribute_collection{dst}
 {
     // all the attributes are new
 }

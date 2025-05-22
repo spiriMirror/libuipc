@@ -153,12 +153,9 @@ class AttributeCollectionFactory::Impl
         return ac;
     }
 
-    Json to_json(const AttributeCollection*         ac,
-                 unordered_map<IAttribute*, IndexT> attr_to_index,
-                 bool                               evolving_only)
+    Json to_json(const AttributeCollection& ac, unordered_map<IAttribute*, IndexT> attr_to_index)
     {
-        Json j = Json::object();
-        return attribute_collection_to_json(*ac, attr_to_index);
+        return attribute_collection_to_json(ac, attr_to_index);
     }
 
     S<AttributeCollection> from_json(const Json& j, span<S<IAttributeSlot>> attributes)
@@ -212,6 +209,95 @@ class AttributeCollectionFactory::Impl
         // removed_names = {"B", "C"}
         std::ranges::set_difference(rn, cn, std::back_inserter(removed_names));
     }
+
+    Json commit_to_json(const AttributeCollectionCommit&   acs,
+                        unordered_map<IAttribute*, IndexT> attr_to_index)
+    {
+        Json  j    = Json::object();
+        auto& meta = j[builtin::__meta__];
+        {
+            meta["type"] = UIPC_TO_STRING(AttributeCollectionCommit);
+        }
+
+        auto& data = j[builtin::__data__];
+        {
+            data["attribute_collection"] =
+                attribute_collection_to_json(acs.m_attribute_collection, attr_to_index);
+            data["removed_names"] = acs.m_removed_names;
+        }
+
+        return j;
+    }
+
+    S<AttributeCollectionCommit> commit_from_json(const Json& j, span<S<IAttributeSlot>> attributes)
+    {
+        using AF = AttributeFriend<AttributeCollectionFactory>;
+        auto acc = uipc::make_shared<AttributeCollectionCommit>();
+        // check meta
+        do
+        {
+            {
+                auto meta_it = j.find(builtin::__meta__);
+                if(meta_it == j.end())
+                {
+                    UIPC_WARN_WITH_LOCATION("`__meta__` not found in json, skip.");
+                    break;
+                }
+                auto& meta = *meta_it;
+
+                auto type_it = meta.find("type");
+                if(type_it == meta.end())
+                {
+                    UIPC_WARN_WITH_LOCATION("`__meta__.type` not found in json, skip.");
+                    break;
+                }
+                auto type = type_it->get<std::string>();
+
+                if(type != UIPC_TO_STRING(AttributeCollectionCommit))
+                {
+                    UIPC_WARN_WITH_LOCATION("`__meta__.type` is not `AttributeCollectionCommit`, skip.");
+                    break;
+                }
+            }
+
+            // build from data
+            auto data_it = j.find(builtin::__data__);
+            if(data_it == j.end())
+            {
+                UIPC_WARN_WITH_LOCATION("`__data__` not found in json, skip.");
+                break;
+            }
+
+            auto& data = *data_it;
+
+            auto attribute_collection_it = data.find("attribute_collection");
+            if(attribute_collection_it == data.end())
+            {
+                UIPC_WARN_WITH_LOCATION("`attribute_collection` not found, skip.");
+                break;
+            }
+
+            auto& attribute_collection = *attribute_collection_it;
+            auto ac = attribute_collection_from_json(attribute_collection, attributes);
+            if(ac)
+            {
+                acc->m_attribute_collection = std::move(*ac);
+            }
+
+            auto removed_names_it = data.find("removed_names");
+
+            if(removed_names_it == data.end())
+            {
+                UIPC_WARN_WITH_LOCATION("`removed_names` not found, skip.");
+                break;
+            }
+
+            auto& removed_names  = *removed_names_it;
+            acc->m_removed_names = removed_names.get<vector<std::string>>();
+        } while(0);  // for safe break;
+
+        return acc;
+    }
 };
 
 
@@ -228,18 +314,29 @@ S<AttributeCollection> AttributeCollectionFactory::from_json(const Json& j,
     return m_impl->from_json(j, attributes);
 }
 
-Json AttributeCollectionFactory::to_json(const AttributeCollection* acs,
-                                         unordered_map<IAttribute*, IndexT> attr_to_index,
-                                         bool evolving_only)
+Json AttributeCollectionFactory::to_json(const AttributeCollection& acs,
+                                         unordered_map<IAttribute*, IndexT> attr_to_index)
 {
-    return m_impl->to_json(acs, attr_to_index, evolving_only);
+    return m_impl->to_json(acs, attr_to_index);
+}
+
+Json AttributeCollectionFactory::commit_to_json(const AttributeCollectionCommit& acs,
+                                                unordered_map<IAttribute*, IndexT> attr_to_index)
+{
+    return m_impl->commit_to_json(acs, attr_to_index);
+}
+
+S<AttributeCollectionCommit> AttributeCollectionFactory::commit_from_json(
+    const Json& j, span<S<IAttributeSlot>> attributes)
+{
+    return m_impl->commit_from_json(j, attributes);
 }
 
 AttributeCollectionCommit AttributeCollectionFactory::diff(const AttributeCollection& current,
                                                            const AttributeCollection& reference)
 {
     AttributeCollectionCommit commit;
-    m_impl->diff(current, reference, commit.m_inc, commit.m_removed_names);
+    m_impl->diff(current, reference, commit.m_attribute_collection, commit.m_removed_names);
     return commit;
 }
 }  // namespace uipc::geometry

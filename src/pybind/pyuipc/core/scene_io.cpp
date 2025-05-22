@@ -1,5 +1,7 @@
 #include <pyuipc/core/scene_io.h>
 #include <uipc/io/scene_io.h>
+#include <uipc/core/scene_snapshot.h>
+
 namespace pyuipc::core
 {
 using namespace uipc::core;
@@ -20,5 +22,18 @@ PySceneIO::PySceneIO(py::module& m)
         "save", [](SceneIO& self, std::string_view file) { self.save(file); }, py::arg("filename"));
     class_SceneIO.def("to_json", &SceneIO::to_json);
     class_SceneIO.def_static("from_json", &SceneIO::from_json, py::arg("json"));
+
+    class_SceneIO.def(
+        "commit",
+        [](SceneIO& self, const SceneSnapshot& last, std::string_view filename)
+        { return self.commit(last, filename); },
+        py::arg("last"),
+        py::arg("name"));
+
+    class_SceneIO.def(
+        "update",
+        [](SceneIO& self, std::string_view filename)
+        { return self.update(filename); },
+        py::arg("filename"));
 }
 }  // namespace pyuipc::core

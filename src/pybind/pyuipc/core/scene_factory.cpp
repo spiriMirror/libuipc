@@ -13,5 +13,9 @@ PySceneFactory::PySceneFactory(py::module& m)
                                   .def(py::init<>())
                                   .def("from_json", &SceneFactory::from_json)
                                   .def("to_json", &SceneFactory::to_json);
+
+    class_SceneFactory.def("from_snapshot", &SceneFactory::from_snapshot);
+    class_SceneFactory.def("commit_from_json", &SceneFactory::commit_from_json);
+    class_SceneFactory.def("commit_to_json", &SceneFactory::commit_to_json);
 }
 }  // namespace pyuipc::core

@@ -224,7 +224,6 @@ class GeometryFactory::Impl
         return geometries;
     }
 
-
     Json geometry_to_json(Geometry& geometry, unordered_map<IAttribute*, IndexT> attr_to_index)
     {
         using GF = GeometryFriend<GeometryFactory>;
@@ -244,7 +243,7 @@ class GeometryFactory::Impl
             GF::collect_attribute_collections(geometry, names, collections);
             for(auto&& [name, collection] : zip(names, collections))
             {
-                data[name] = acf().to_json(collection, attr_to_index);
+                data[name] = acf().to_json(*collection, attr_to_index);
             }
         }
         return j;
@@ -273,6 +272,124 @@ class GeometryFactory::Impl
         auto creator = it->second;
         return creator(id, geometry);
     }
+
+    Json commit_to_json(const GeometryCommit& gc, unordered_map<IAttribute*, IndexT> attr_to_index)
+    {
+        Json  j    = Json::object();
+        auto& meta = j[builtin::__meta__];
+        {
+            meta["type"] = UIPC_TO_STRING(GeometryCommit);
+        }
+        auto& data = j[builtin::__data__];
+        {
+            // - type
+            // - new_geometry
+            // - attribute_collection_commit
+            //  {
+            //      names - commit pair
+            //  }
+            data["type"] = gc.m_type;
+            if(gc.m_new_geometry)
+            {
+                data["new_geometry"] = geometry_to_json(*gc.m_new_geometry, attr_to_index);
+            }
+            else
+            {
+                data["new_geometry"] = nullptr;
+
+                auto& attribute_collection_commit = data["attribute_collections"];
+
+                for(auto&& [name, commit] : gc.m_attribute_collections)
+                {
+                    attribute_collection_commit[name] =
+                        acf().commit_to_json(commit, attr_to_index);
+                }
+            }
+        }
+        return j;
+    }
+
+    S<GeometryCommit> commit_from_json(const Json& j, span<S<IAttributeSlot>> attributes)
+    {
+        auto meta_it = j.find(builtin::__meta__);
+        if(meta_it == j.end())
+        {
+            UIPC_WARN_WITH_LOCATION("`__meta__` info not found, so we ignore it");
+            return nullptr;
+        }
+        auto& meta    = *meta_it;
+        auto  type_it = meta.find("type");
+        if(type_it == meta.end())
+        {
+            UIPC_WARN_WITH_LOCATION("`__meta__.type` not found, so we ignore it");
+            return nullptr;
+        }
+        auto type = type_it->get<std::string>();
+        if(type != UIPC_TO_STRING(GeometryCommit))
+        {
+            UIPC_WARN_WITH_LOCATION("`__meta__.type` not match, so we ignore it");
+            return nullptr;
+        }
+
+        auto data_it = j.find(builtin::__data__);
+        if(data_it == j.end())
+        {
+            UIPC_WARN_WITH_LOCATION("`__data__` not found in json, skip.");
+            return nullptr;
+        }
+
+        auto commit = uipc::make_shared<GeometryCommit>();
+
+        auto& data = *data_it;
+
+        do
+        {
+            auto type_it = data.find("type");
+            if(type_it == data.end())
+            {
+                UIPC_WARN_WITH_LOCATION("`__data__.type` not found, so we ignore it");
+                commit->m_is_valid = false;
+                break;
+            }
+
+            commit->m_type = type_it->get<std::string>();
+
+            auto new_geometry_it = data.find("new_geometry");
+
+            if(new_geometry_it != data.end())
+            {
+                auto& new_geometry = *new_geometry_it;
+                if(new_geometry.is_null())
+                {
+                    commit->m_new_geometry = nullptr;
+                }
+                else
+                {
+                    commit->m_new_geometry = geometry_from_json(new_geometry, attributes);
+                }
+            }
+            else
+            {
+                commit->m_new_geometry = nullptr;
+            }
+
+
+            auto attribute_collections_it = data.find("attribute_collections");
+
+            if(attribute_collections_it != data.end())
+            {
+                auto& attribute_collections = *attribute_collections_it;
+                for(auto&& [name, ac_json] : attribute_collections.items())
+                {
+                    commit->m_attribute_collections.insert(
+                        {name, *acf().commit_from_json(ac_json, attributes)});
+                }
+            }
+
+        } while(0);
+
+        return commit;
+    }
 };
 
 
@@ -293,13 +410,25 @@ S<GeometrySlot> GeometryFactory::create_slot(IndexT id, const Geometry& geometry
     return m_impl->create_slot(id, geometry);
 }
 
-S<Geometry> GeometryFactory::create_geometry(std::string_view type)
-{
-    return S<Geometry>();
-}
-
 Json GeometryFactory::to_json(span<Geometry*> geos, unordered_map<IAttribute*, IndexT> attr_to_index)
 {
     return m_impl->to_json(geos, attr_to_index);
+}
+
+Json GeometryFactory::to_json(Geometry& geos, unordered_map<IAttribute*, IndexT> attr_to_index)
+{
+    return m_impl->geometry_to_json(geos, attr_to_index);
+}
+
+Json GeometryFactory::commit_to_json(const GeometryCommit& gc,
+                                     unordered_map<IAttribute*, IndexT> attr_to_index)
+{
+    return m_impl->commit_to_json(gc, attr_to_index);
+}
+
+S<GeometryCommit> GeometryFactory::commit_from_json(const Json& j,
+                                                    span<S<IAttributeSlot>> attributes)
+{
+    return m_impl->commit_from_json(j, attributes);
 }
 }  // namespace uipc::geometry

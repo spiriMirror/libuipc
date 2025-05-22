@@ -154,7 +154,7 @@ void Geometry::do_build_from_attribute_collections(span<const std::string> names
 
 void Geometry::do_update_from(const GeometryCommit& commit)
 {
-    for(auto&& [name, cmt] : zip(commit.m_names, commit.m_commits))
+    for(auto&& [name, cmt] : commit.m_attribute_collections)
     {
         auto& this_ac = *m_attribute_collections[name];
         this_ac += cmt;  // update the attribute collection

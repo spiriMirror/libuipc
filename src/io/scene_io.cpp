@@ -259,6 +259,106 @@ Scene SceneIO::load(std::string_view filename)
     return Scene{};
 }
 
+void SceneIO::commit(const SceneSnapshot& last, std::string_view filename)
+{
+    fs::path path{filename};
+    path = fs::absolute(path);
+
+    auto ext = path.extension();
+
+    SceneFactory        sf;
+    SceneSnapshotCommit commit      = m_scene - last;
+    auto                commit_json = sf.commit_to_json(commit);
+
+    if(ext == ".json")
+    {
+        fs::exists(path.parent_path()) || fs::create_directories(path.parent_path());
+        std::ofstream file(path.string());
+        if(file)
+        {
+            file << commit_json.dump(4);
+        }
+        else
+        {
+            throw SceneIOError(fmt::format("Failed to open file {} for writing.",
+                                           path.string()));
+        }
+    }
+    else if(ext == ".bson")
+    {
+        fs::exists(path.parent_path()) || fs::create_directories(path.parent_path());
+        std::vector<std::uint8_t> v = Json::to_bson(commit_json);
+        std::ofstream             file(path, std::ios::binary);
+        if(file)
+        {
+            file.write(reinterpret_cast<const char*>(v.data()), v.size());
+        }
+        else
+        {
+            throw SceneIOError(fmt::format("Failed to open file {} for writing.",
+                                           path.string()));
+        }
+    }
+    else
+    {
+        throw SceneIOError(fmt::format("Unsupported file format when writing {}.", filename));
+    }
+}
+
+void SceneIO::update(std::string_view filename)
+{
+    fs::path path{filename};
+    path = fs::absolute(path);
+
+    auto ext = path.extension();
+
+    Json commit_json;
+
+    SceneFactory sf;
+    if(ext == ".json")
+    {
+        std::ifstream file(path.string());
+        if(file)
+        {
+            file >> commit_json;
+        }
+        else
+        {
+            throw SceneIOError(fmt::format("Failed to open file {} for reading.",
+                                           path.string()));
+        }
+    }
+    else if(ext == ".bson")
+    {
+        std::ifstream file(path, std::ios::binary);
+        if(file)
+        {
+            std::vector<std::uint8_t> v((std::istreambuf_iterator<char>(file)),
+                                        std::istreambuf_iterator<char>());
+            commit_json = Json::from_bson(v);
+        }
+        else
+        {
+            throw SceneIOError(fmt::format("Failed to open file {} for reading.",
+                                           path.string()));
+        }
+    }
+    else
+    {
+        throw SceneIOError(fmt::format("Unsupported file format when loading {}.", filename));
+    }
+
+    auto commit = sf.commit_from_json(commit_json);
+
+    if(!commit.is_valid())
+    {
+        UIPC_WARN_WITH_LOCATION("Invalid commit file, no update to scene");
+        return;
+    }
+
+    m_scene.update_from(commit);
+}
+
 Json SceneIO::to_json() const
 {
     SceneFactory sf;

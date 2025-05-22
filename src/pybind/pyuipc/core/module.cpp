@@ -7,6 +7,7 @@
 #include <pyuipc/core/contact_tabular.h>
 #include <pyuipc/core/constitution_tabular.h>
 #include <pyuipc/core/scene_io.h>
+#include <pyuipc/core/scene_snapshot.h>
 #include <pyuipc/core/animator.h>
 #include <pyuipc/core/diff_sim.h>
 #include <pyuipc/core/sanity_checker.h>
@@ -30,6 +31,8 @@ PyModule::PyModule(py::module& m)
 
     PySanityChecker{m};
     PyScene{m};
+    PySceneSnapshot{m};
+
     PySceneFactory{m};
     PyWorld{m};
 

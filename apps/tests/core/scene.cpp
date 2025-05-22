@@ -2,6 +2,7 @@
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/backend/visitors/scene_visitor.h>
+#include <fstream>
 
 
 TEST_CASE("scene", "[scene]")
@@ -268,11 +269,13 @@ TEST_CASE("pending_destroy", "[scene]")
     }
 }
 
-TEST_CASE("scene_commit")
+TEST_CASE("scene_commit", "[scene]")
 {
     using namespace uipc;
     using namespace uipc::core;
     using namespace uipc::geometry;
+
+    auto output_path = AssetDir::output_path(__FILE__);
 
     Scene               scene;
     SimplicialComplexIO io;
@@ -290,7 +293,9 @@ TEST_CASE("scene_commit")
     std::ranges::transform(pos_view.begin(),
                            pos_view.end(),
                            pos_view.begin(),
-                           [](const auto& p) { return p + Vector3{1, 1, 1}; });
+                           [](const auto& p) {
+                               return p + Vector3{1, 1, 1};
+                           });
 
     SceneSnapshotCommit commit = scene - snapshot;
     new_scene.update_from(commit);
@@ -306,4 +311,17 @@ TEST_CASE("scene_commit")
     auto new_pos_view = new_geo->positions().view();
 
     REQUIRE(std::ranges::equal(pos_view, new_pos_view));
+
+    auto commit_json = sf.commit_to_json(commit);
+    {
+        auto output_file = fmt::format("{}/scene_commit.json", output_path);
+        std::ofstream ofs(output_file);
+        ofs << commit_json.dump(4);
+    }
+
+    auto commit2 = sf.commit_from_json(commit_json);
+    REQUIRE(commit2.is_valid());
+
+    REQUIRE(commit2.geometries().size() == commit.geometries().size());
+    REQUIRE(commit2.rest_geometries().size() == commit.rest_geometries().size());
 }
