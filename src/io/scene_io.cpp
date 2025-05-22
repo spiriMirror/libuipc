@@ -266,9 +266,7 @@ void SceneIO::commit(const SceneSnapshot& last, std::string_view filename)
 
     auto ext = path.extension();
 
-    SceneFactory        sf;
-    SceneSnapshotCommit commit      = m_scene - last;
-    auto                commit_json = sf.commit_to_json(commit);
+    Json commit_json = commit_to_json(last);
 
     if(ext == ".json")
     {
@@ -314,7 +312,6 @@ void SceneIO::update(std::string_view filename)
 
     Json commit_json;
 
-    SceneFactory sf;
     if(ext == ".json")
     {
         std::ifstream file(path.string());
@@ -348,15 +345,7 @@ void SceneIO::update(std::string_view filename)
         throw SceneIOError(fmt::format("Unsupported file format when loading {}.", filename));
     }
 
-    auto commit = sf.commit_from_json(commit_json);
-
-    if(!commit.is_valid())
-    {
-        UIPC_WARN_WITH_LOCATION("Invalid commit file, no update to scene");
-        return;
-    }
-
-    m_scene.update_from(commit);
+    update_from_json(commit_json);
 }
 
 Json SceneIO::to_json() const
@@ -369,5 +358,26 @@ Scene SceneIO::from_json(const Json& json)
 {
     SceneFactory sf;
     return sf.from_snapshot(sf.from_json(json));
+}
+
+Json SceneIO::commit_to_json(const SceneSnapshot& reference) const
+{
+    SceneFactory        sf;
+    SceneSnapshotCommit commit = m_scene - reference;
+    return sf.commit_to_json(commit);
+}
+
+void SceneIO::update_from_json(const Json& json)
+{
+    SceneFactory sf;
+    auto         commit = sf.commit_from_json(json);
+
+    if(!commit.is_valid())
+    {
+        UIPC_WARN_WITH_LOCATION("Invalid commit file, no update to scene");
+        return;
+    }
+
+    m_scene.update_from(commit);
 }
 }  // namespace uipc::core
