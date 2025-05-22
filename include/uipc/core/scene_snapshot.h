@@ -40,22 +40,51 @@ class UIPC_CORE_API SceneSnapshot
  */
 class UIPC_CORE_API SceneSnapshotCommit
 {
+    friend class SceneFactory;
     friend SceneSnapshotCommit UIPC_CORE_API operator-(const SceneSnapshot& dst,
                                                        const SceneSnapshot& src);
     friend class internal::Scene;
 
-  private:
+  public:
+    SceneSnapshotCommit() = default;
     SceneSnapshotCommit(const SceneSnapshot& dst, const SceneSnapshot& src);
 
+    bool        is_valid() const noexcept { return m_is_valid; }
+    const Json& config() const noexcept { return m_config; }
+    const ObjectCollectionSnapshot& object_collection() const noexcept
+    {
+        return m_object_collection;
+    }
+    const vector<ContactElement>& contact_elements() const noexcept
+    {
+        return m_contact_elements;
+    }
+
+    const unordered_map<IndexT, geometry::GeometryCommit>& geometries() const noexcept
+    {
+        return m_geometries;
+    }
+
+    const unordered_map<IndexT, geometry::GeometryCommit>& rest_geometries() const noexcept
+    {
+        return m_rest_geometries;
+    }
+
+    const geometry::AttributeCollectionCommit& contact_models() const noexcept
+    {
+        return m_contact_models;
+    }
+
   private:
+    bool m_is_valid = true;
     // Fully Copy:
     Json                     m_config;
     ObjectCollectionSnapshot m_object_collection;
     vector<ContactElement>   m_contact_elements;
 
     // Full Copy Geometries/ Diff Copy AttributeCollection
-    unordered_map<IndexT, geometry::GeometryCommit> m_diff_geometries;
-    unordered_map<IndexT, geometry::GeometryCommit> m_rest_diff_geometries;
+    unordered_map<IndexT, geometry::GeometryCommit> m_geometries;
+    unordered_map<IndexT, geometry::GeometryCommit> m_rest_geometries;
 
     // Diff Copy AttributeCollection
     geometry::AttributeCollectionCommit m_contact_models;

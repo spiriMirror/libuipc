@@ -65,19 +65,65 @@ class UIPC_IO_API SceneIO
     void save(std::string_view filename) const;
 
     /**
-     * @brief Convert the scene to a JSON object.
+     * @brief Commit the scene's update to a file.
+     * 
+     * Supported formats:
+     * - .json
+     * - .bson
+     * 
+     * @param reference
+     * @param filename
+     */
+    void commit(const SceneSnapshot& reference, std::string_view filename);
+
+    /**
+     * @brief Update the scene from a SnapshotCommit file.
+     * 
+     * Supported formats:
+     * * - .json
+     * - .bson
+     * 
+     * @param filename
+     */
+    void update(std::string_view filename);
+
+    /**
+     * @brief Convert the scene to a json object.
      * 
      * @return 
      */
     Json to_json() const;
 
     /**
-     * @brief Convert a JSON object to a scene.
+     * @brief Convert a json object to a scene.
      * 
      * @param json
      * @return 
      */
     static Scene from_json(const Json& json);
+
+    /**
+     * @brief Commit the scene's update to a json object.
+     * 
+     * Supported formats:
+     * - .json
+     * - .bson
+     * 
+     * @param reference
+     * @param filename
+     */
+    Json commit_to_json(const SceneSnapshot& reference) const;
+
+    /**
+     * @brief Update the scene from a scene commit json object.
+     * 
+     * Supported formats:
+     * * - .json
+     * - .bson
+     * 
+     * @param filename
+     */
+    void update_from_json(const Json& json);
 
   private:
     Scene& m_scene;

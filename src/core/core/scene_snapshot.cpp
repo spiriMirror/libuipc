@@ -55,21 +55,29 @@ SceneSnapshotCommit::SceneSnapshotCommit(const SceneSnapshot& dst, const SceneSn
     m_object_collection = dst.m_object_collection;
     m_contact_elements  = dst.m_contact_elements;
 
-    m_diff_geometries.reserve(dst.m_geometries.size());
-    for(auto&& [id, dst_geo] : dst.m_geometries)
+    auto setup = [&dst, &src](unordered_map<IndexT, geometry::GeometryCommit>& gcs)
     {
-        auto src_geo = src.m_geometries.find(id);
-        if(src_geo != src.m_geometries.end())
+        gcs.reserve(dst.m_geometries.size());
+        for(auto&& [id, dst_geo] : dst.m_geometries)
         {
-            // diff geometry
-            m_diff_geometries[id] = *dst_geo - (*src_geo->second);
+            auto src_geo = src.m_geometries.find(id);
+            if(src_geo != src.m_geometries.end())
+            {
+                // diff geometry
+                gcs[id] = *dst_geo - (*src_geo->second);
+            }
+            else
+            {
+                // new geometry
+                gcs[id] = geometry::GeometryCommit{*dst_geo};
+            }
         }
-        else
-        {
-            // new geometry
-            m_diff_geometries[id] = geometry::GeometryCommit{*dst_geo};
-        }
-    }
+    };
+
+    // geometries
+    setup(m_geometries);
+    // rest geometries
+    setup(m_rest_geometries);
 }
 
 SceneSnapshotCommit UIPC_CORE_API operator-(const SceneSnapshot& dst, const SceneSnapshot& src)

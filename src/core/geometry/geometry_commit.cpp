@@ -52,8 +52,7 @@ GeometryCommit::GeometryCommit(const Geometry& dst, const Geometry& src)
             }
             auto& src_ac = src_it->second;
 
-            m_names.push_back(name);
-            m_commits.emplace_back(*dst_ac - *src_ac);
+            m_attribute_collections.insert({name, *dst_ac - *src_ac});
         }
     };
 
@@ -61,14 +60,50 @@ GeometryCommit::GeometryCommit(const Geometry& dst, const Geometry& src)
 
     if(!m_is_valid)
     {
-        m_commits.clear();
+        m_attribute_collections.clear();
     }
+}
+
+GeometryCommit::GeometryCommit(const GeometryCommit& gc)
+    : m_attribute_collections(gc.m_attribute_collections)
+    , m_is_valid(gc.m_is_valid)
+    , m_type(gc.m_type)
+{
+    if(gc.m_new_geometry)
+    {
+        m_new_geometry = std::static_pointer_cast<Geometry>(gc.m_new_geometry->clone());
+    }
+    else
+    {
+        m_new_geometry = nullptr;
+    }
+}
+
+GeometryCommit& GeometryCommit::operator=(const GeometryCommit& gc)
+{
+    if(this != &gc)
+    {
+        m_attribute_collections = gc.m_attribute_collections;
+        m_is_valid              = gc.m_is_valid;
+        m_type                  = gc.m_type;
+
+        if(gc.m_new_geometry)
+        {
+            m_new_geometry =
+                std::static_pointer_cast<Geometry>(gc.m_new_geometry->clone());
+        }
+        else
+        {
+            m_new_geometry = nullptr;
+        }
+    }
+    return *this;
 }
 
 GeometryCommit::GeometryCommit(const Geometry& dst)
     : m_is_valid{true}
+    , m_new_geometry{std::static_pointer_cast<Geometry>(dst.clone())}
 {
-    m_new_geometry = std::static_pointer_cast<Geometry>(dst.clone());
 }
 
 GeometryCommit operator-(const Geometry& dst, const Geometry& src)

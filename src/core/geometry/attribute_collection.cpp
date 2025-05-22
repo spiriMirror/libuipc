@@ -221,7 +221,7 @@ Json AttributeCollection::to_json() const
 
 void AttributeCollection::update_from(const AttributeCollectionCommit& commit)
 {
-    copy_from(commit.m_inc, AttributeCopy::same_dim());
+    copy_from(commit.m_attribute_collection, AttributeCopy::same_dim());
 
     for(auto&& name : commit.m_removed_names)
     {

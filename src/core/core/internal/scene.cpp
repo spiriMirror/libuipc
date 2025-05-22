@@ -40,12 +40,18 @@ void Scene::solve_pending() noexcept
 
 void Scene::update_from(const SceneSnapshotCommit& commit)
 {
+    if(!commit.is_valid())
+    {
+        UIPC_WARN_WITH_LOCATION("Invalid scene commit, scene will not be updated.");
+        return;
+    }
+
     m_config = commit.m_config;
     m_objects.update_from(*this, commit.m_object_collection);
     m_contact_tabular.update_from(commit.m_contact_models, commit.m_contact_elements);
 
-    m_geometries.update_from(commit.m_diff_geometries);
-    m_rest_geometries.update_from(commit.m_rest_diff_geometries);
+    m_geometries.update_from(commit.m_geometries);
+    m_rest_geometries.update_from(commit.m_rest_geometries);
 }
 
 Scene::~Scene() = default;
