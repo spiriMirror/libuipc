@@ -72,6 +72,7 @@ void IAttributeSlot::share_from(const IAttributeSlot& other) noexcept
 {
     if(std::addressof(other) == this)
         return;
+    last_modified(std::chrono::high_resolution_clock::now());
     do_share_from(other);
 }
 
@@ -83,5 +84,16 @@ IAttribute& IAttributeSlot::attribute() noexcept
 const IAttribute& IAttributeSlot::attribute() const noexcept
 {
     return get_attribute();
+}
+
+void IAttributeSlot::rw_access()
+{
+    last_modified(std::chrono::high_resolution_clock::now());
+    make_owned();
+}
+
+void IAttributeSlot::last_modified(const TimePoint& tp)
+{
+    set_last_modified(tp);
 }
 }  // namespace uipc::geometry

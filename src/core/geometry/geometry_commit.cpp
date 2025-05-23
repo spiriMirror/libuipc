@@ -51,8 +51,9 @@ GeometryCommit::GeometryCommit(const Geometry& dst, const Geometry& src)
                 return;
             }
             auto& src_ac = src_it->second;
-
-            m_attribute_collections.insert({name, *dst_ac - *src_ac});
+            auto  ac_commit =
+                uipc::make_shared<AttributeCollectionCommit>(*dst_ac - *src_ac);
+            m_attribute_collections.insert({name, std::move(ac_commit)});
         }
     };
 
@@ -65,8 +66,7 @@ GeometryCommit::GeometryCommit(const Geometry& dst, const Geometry& src)
 }
 
 GeometryCommit::GeometryCommit(const GeometryCommit& gc)
-    : m_attribute_collections(gc.m_attribute_collections)
-    , m_is_valid(gc.m_is_valid)
+    : m_is_valid(gc.m_is_valid)
     , m_type(gc.m_type)
 {
     if(gc.m_new_geometry)
@@ -77,28 +77,34 @@ GeometryCommit::GeometryCommit(const GeometryCommit& gc)
     {
         m_new_geometry = nullptr;
     }
-}
 
-GeometryCommit& GeometryCommit::operator=(const GeometryCommit& gc)
-{
-    if(this != &gc)
+    for(auto&& [name, ac] : gc.m_attribute_collections)
     {
-        m_attribute_collections = gc.m_attribute_collections;
-        m_is_valid              = gc.m_is_valid;
-        m_type                  = gc.m_type;
-
-        if(gc.m_new_geometry)
-        {
-            m_new_geometry =
-                std::static_pointer_cast<Geometry>(gc.m_new_geometry->clone());
-        }
-        else
-        {
-            m_new_geometry = nullptr;
-        }
+        m_attribute_collections[name] =
+            uipc::make_shared<AttributeCollectionCommit>(*ac);
     }
-    return *this;
 }
+
+//GeometryCommit& GeometryCommit::operator=(const GeometryCommit& gc)
+//{
+//    if(this != &gc)
+//    {
+//        m_attribute_collections = gc.m_attribute_collections;
+//        m_is_valid              = gc.m_is_valid;
+//        m_type                  = gc.m_type;
+//
+//        if(gc.m_new_geometry)
+//        {
+//            m_new_geometry =
+//                std::static_pointer_cast<Geometry>(gc.m_new_geometry->clone());
+//        }
+//        else
+//        {
+//            m_new_geometry = nullptr;
+//        }
+//    }
+//    return *this;
+//}
 
 GeometryCommit::GeometryCommit(const Geometry& dst)
     : m_is_valid{true}

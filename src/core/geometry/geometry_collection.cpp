@@ -196,7 +196,7 @@ void GeometryCollection::build_from(span<S<geometry::GeometrySlot>> slots) noexc
     }
 }
 
-void GeometryCollection::update_from(const unordered_map<IndexT, GeometryCommit>& commits) noexcept
+void GeometryCollection::update_from(const unordered_map<IndexT, S<GeometryCommit>>& commits) noexcept
 {
     m_dirty = true;
 
@@ -206,11 +206,11 @@ void GeometryCollection::update_from(const unordered_map<IndexT, GeometryCommit>
         if(it != m_geometries.end())
         {
             auto& slot = it->second;
-            slot->geometry().update_from(commit);
+            slot->geometry().update_from(*commit);
         }
         else
         {
-            emplace(*commit.m_new_geometry);
+            emplace(*(commit->m_new_geometry));
         }
     }
 }

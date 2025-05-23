@@ -6,8 +6,10 @@ namespace uipc::core
 {
 SceneSnapshot::SceneSnapshot(const Scene& scene)
     : m_config(scene.config())
-    , m_contact_models(scene.contact_tabular().internal_contact_models())
 {
+    m_contact_models = uipc::make_shared<geometry::AttributeCollection>(
+        scene.contact_tabular().internal_contact_models());
+
     auto& internal_scene = *scene.m_internal;
     UIPC_ASSERT(internal_scene.geometries().pending_create_slots().size() == 0
                     && internal_scene.rest_geometries().pending_create_slots().size() == 0
@@ -49,13 +51,14 @@ SceneSnapshot::SceneSnapshot(const Scene& scene)
 }
 
 SceneSnapshotCommit::SceneSnapshotCommit(const SceneSnapshot& dst, const SceneSnapshot& src)
-    : m_contact_models(dst.m_contact_models - src.m_contact_models)
+    : m_contact_models(uipc::make_shared<geometry::AttributeCollectionCommit>(
+        *dst.m_contact_models - *src.m_contact_models))
 {
     m_config            = dst.m_config;
     m_object_collection = dst.m_object_collection;
     m_contact_elements  = dst.m_contact_elements;
 
-    auto setup = [&dst, &src](unordered_map<IndexT, geometry::GeometryCommit>& gcs)
+    auto setup = [&dst, &src](unordered_map<IndexT, S<geometry::GeometryCommit>>& gcs)
     {
         gcs.reserve(dst.m_geometries.size());
         for(auto&& [id, dst_geo] : dst.m_geometries)
@@ -64,12 +67,13 @@ SceneSnapshotCommit::SceneSnapshotCommit(const SceneSnapshot& dst, const SceneSn
             if(src_geo != src.m_geometries.end())
             {
                 // diff geometry
-                gcs[id] = *dst_geo - (*src_geo->second);
+                gcs[id] = uipc::make_shared<geometry::GeometryCommit>(
+                    *dst_geo - (*src_geo->second));
             }
             else
             {
                 // new geometry
-                gcs[id] = geometry::GeometryCommit{*dst_geo};
+                gcs[id] = uipc::make_shared<geometry::GeometryCommit>(*dst_geo);
             }
         }
     };

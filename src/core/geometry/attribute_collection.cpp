@@ -72,7 +72,7 @@ void AttributeCollection::resize(SizeT N)
 {
     for(auto& [name, slot] : m_attributes)
     {
-        slot->make_owned();
+        slot->rw_access();
         slot->attribute().resize(N);
     }
     m_size = N;
@@ -82,7 +82,7 @@ void AttributeCollection::reorder(span<const SizeT> O)
 {
     for(auto& [name, slot] : m_attributes)
     {
-        slot->make_owned();
+        slot->rw_access();
         slot->attribute().reorder(O);
     }
 }
@@ -235,7 +235,8 @@ AttributeCollection::AttributeCollection(const AttributeCollection& o)
 {
     for(auto& [name, attr] : o.m_attributes)
     {
-        m_attributes[name] = attr->clone(attr->name(), attr->allow_destroy());
+        auto attr_slot     = attr->clone(attr->name(), attr->allow_destroy());
+        m_attributes[name] = attr_slot;
     }
     m_size = o.m_size;
 }

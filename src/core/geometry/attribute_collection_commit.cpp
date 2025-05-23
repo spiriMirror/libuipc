@@ -17,10 +17,10 @@ AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& 
 
         // check if the attribute is newer than the reference
         // if so we also need to copy it to the diff_copy
-        auto ret_attribute = reference.find(name);
-        if(ret_attribute)
+        auto ref_attribute = reference.find(name);
+        if(ref_attribute)
         {
-            if(attr_slot->last_modified() > ret_attribute->last_modified())
+            if(attr_slot->last_modified() > ref_attribute->last_modified())
             {
                 m_attribute_collection.share(name, *attr_slot, attr_slot->allow_destroy());
             }
@@ -49,7 +49,6 @@ AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& 
 AttributeCollectionCommit::AttributeCollectionCommit(const AttributeCollection& dst)
     : m_attribute_collection{dst}
 {
-    // all the attributes are new
 }
 
 AttributeCollectionCommit operator-(const AttributeCollection& dst,

@@ -300,7 +300,8 @@ class GeometryFactory::Impl
 
                 for(auto&& [name, commit] : gc.m_attribute_collections)
                 {
-                    attribute_collection_commit[name] = acf().commit_to_json(commit, ctx);
+                    attribute_collection_commit[name] =
+                        acf().commit_to_json(*commit, ctx);
                 }
             }
         }
@@ -379,8 +380,9 @@ class GeometryFactory::Impl
                 auto& attribute_collections = *attribute_collections_it;
                 for(auto&& [name, ac_json] : attribute_collections.items())
                 {
-                    commit->m_attribute_collections.insert(
-                        {name, *acf().commit_from_json(ac_json, ctx)});
+                    commit->m_attribute_collections[name] =
+                        uipc::make_shared<AttributeCollectionCommit>(
+                            *acf().commit_from_json(ac_json, ctx));
                 }
             }
 

@@ -76,7 +76,7 @@ class SceneFactory::Impl
 
         // contact models
         {
-            ga.create("contact_models", snapshot.m_contact_models);
+            ga.create("contact_models", *snapshot.m_contact_models);
         }
 
         data["geometry_atlas"] = ga.to_json();
@@ -179,7 +179,8 @@ class SceneFactory::Impl
             auto contact_models = ga.find("contact_models");
             if(contact_models && !ce.empty())
             {
-                snapshot.m_contact_models   = *contact_models;
+                snapshot.m_contact_models =
+                    uipc::make_shared<geometry::AttributeCollection>(*contact_models);
                 snapshot.m_contact_elements = ce;
             }
         }
@@ -231,7 +232,8 @@ class SceneFactory::Impl
         // 1) Config
         Scene scene{snapshot.m_config};
         // 2) Contact tabular
-        scene.contact_tabular().build_from(snapshot.m_contact_models, snapshot.m_contact_elements);
+        scene.contact_tabular().build_from(*snapshot.m_contact_models,
+                                           snapshot.m_contact_elements);
 
 
         // 3) Geometry
@@ -294,21 +296,21 @@ class SceneFactory::Impl
             auto& objects_json = data["object_collection"];
             uipc::core::to_json(objects_json, commit.m_object_collection);
 
-            gac.create("contact_models", commit.m_contact_models);
+            gac.create("contact_models", *commit.m_contact_models);
 
             // geometry slots
             auto& geo_slots_json      = data["geometry_slots"];
             auto& rest_geo_slots_json = data["rest_geometry_slots"];
 
             auto setup = [&](Json& slots_json,
-                             const unordered_map<IndexT, geometry::GeometryCommit>& geos)
+                             const unordered_map<IndexT, S<geometry::GeometryCommit>>& geos)
             {
                 auto& geo_commit = commit.m_geometries;
                 for(auto& [id, geo] : geos)
                 {
                     Json slot_json     = Json::object();
                     slot_json["id"]    = id;
-                    slot_json["index"] = gac.create(geo);
+                    slot_json["index"] = gac.create(*geo);
                     slots_json.push_back(slot_json);
                 }
             };
@@ -431,7 +433,8 @@ class SceneFactory::Impl
                         commit.m_is_valid = false;
                         break;
                     }
-                    commit.m_contact_models = *contact_models;
+                    commit.m_contact_models =
+                        uipc::make_shared<geometry::AttributeCollectionCommit>(*contact_models);
                 }
 
 
@@ -441,7 +444,7 @@ class SceneFactory::Impl
 
                 auto build_geo_commits =
                     [&gac](const Json& commits_json,
-                           unordered_map<IndexT, geometry::GeometryCommit>& geo_commits)
+                           unordered_map<IndexT, S<geometry::GeometryCommit>>& geo_commits)
                 {
                     for(auto& slot_json : commits_json)
                     {
@@ -455,7 +458,8 @@ class SceneFactory::Impl
                             continue;
                         }
 
-                        geo_commits[id] = *geometry_commit;
+                        geo_commits[id] =
+                            uipc::make_shared<geometry::GeometryCommit>(*geometry_commit);
                     }
                 };
 

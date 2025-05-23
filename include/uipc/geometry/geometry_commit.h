@@ -17,7 +17,7 @@ class UIPC_CORE_API GeometryCommit
   public:
     GeometryCommit() = default;
     GeometryCommit(const GeometryCommit&);
-    GeometryCommit& operator=(const GeometryCommit&);
+    GeometryCommit& operator=(const GeometryCommit&) = delete;
 
     explicit GeometryCommit(const Geometry& dst);
     bool is_valid() const noexcept { return m_is_valid; }
@@ -28,7 +28,7 @@ class UIPC_CORE_API GeometryCommit
     }
     S<Geometry>        new_geometry() const noexcept { return m_new_geometry; }
     const std::string& type() const noexcept { return m_type; }
-    const unordered_map<std::string, AttributeCollectionCommit>& attribute_collections() const noexcept
+    const unordered_map<std::string, S<AttributeCollectionCommit>>& attribute_collections() const noexcept
     {
         return m_attribute_collections;
     }
@@ -40,7 +40,7 @@ class UIPC_CORE_API GeometryCommit
     S<Geometry> m_new_geometry;  // the new geometry
 
     std::string m_type;
-    unordered_map<std::string, AttributeCollectionCommit> m_attribute_collections;
+    unordered_map<std::string, S<AttributeCollectionCommit>> m_attribute_collections;
 };
 
 UIPC_CORE_API GeometryCommit operator-(const Geometry& dst, const Geometry& src);

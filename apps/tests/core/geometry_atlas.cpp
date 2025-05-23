@@ -113,6 +113,6 @@ TEST_CASE("geometry_atlas_commit", "[serialization]")
         auto instances2_it = gc2->attribute_collections().find("instances");
         REQUIRE(instances2_it != gc2->attribute_collections().end());
 
-        REQUIRE(instances2_it->second.attribute_collection().size() == 2);
+        REQUIRE(instances2_it->second->attribute_collection().size() == 2);
     }
 }
