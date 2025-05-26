@@ -23,11 +23,11 @@ cd vcpkg
 ./bootstrap-vcpkg.sh
 ```
 
-The simplest way to let CMake detect Vcpkg is to set the **System Environment Variable** `CMAKE_TOOLCHAIN_FILE` to `~/Toolchain/scripts/buildsystems/vcpkg.cmake`
+The simplest way to let CMake detect Vcpkg is to set the **System Environment Variable** `CMAKE_TOOLCHAIN_FILE` to `~/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake`
 
 ```shell
 # Write in ~/.bashrc
-export CMAKE_TOOLCHAIN_FILE="$HOME/Toolchain/scripts/buildsystems/vcpkg.cmake"
+export CMAKE_TOOLCHAIN_FILE="$HOME/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake"
 ```
 
 ## Clone Libuipc
