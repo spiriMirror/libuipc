@@ -28,39 +28,6 @@ py::module& top_module()
 }
 }  // namespace pyuipc
 
-
-#include <pybind11/pybind11.h>
-#include <mutex>
-
-class MyClass
-{
-  public:
-    MyClass() {}
-
-    void lock_mutex()
-    {
-        py::gil_scoped_acquire      r;
-        std::mutex                  my_mutex;  // Properly initialized mutex
-        std::lock_guard<std::mutex> lock(my_mutex);
-        // Critical section code here, accessing shared data
-    }
-
-    // If passing from Python:
-    void set_mutex(std::mutex* mtx_ptr)
-    {
-        py::gil_scoped_release r;
-        if(mtx_ptr)
-        {
-            my_mutex_ptr = mtx_ptr;
-            // Lock through pointer.
-            std::lock_guard<std::mutex> lock(*mtx_ptr);
-        }
-    }
-
-  private:
-    std::mutex* my_mutex_ptr = nullptr;  // Pointer
-};
-
 PYBIND11_MODULE(pyuipc, m)
 {
     pyuipc::g_top_module = &m;
@@ -121,9 +88,4 @@ PYBIND11_MODULE(pyuipc, m)
 
     // pyuipc.builtin
     pyuipc::builtin::PyModule{builtin};
-
-    pybind11::class_<MyClass>(m, "MyClass")
-        .def(pybind11::init<>())
-        .def("lock_mutex", &MyClass::lock_mutex)
-        .def("set_mutex", &MyClass::set_mutex);
 }
