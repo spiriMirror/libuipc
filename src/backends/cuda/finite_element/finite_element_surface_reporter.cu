@@ -5,19 +5,13 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FiniteElementSurfaceReporter);
 
-void FiniteElementSurfaceReporter::do_build()
+void FiniteElementSurfaceReporter::do_build(BuildInfo& info)
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
-    auto& global_surf_manager    = require<GlobalSimpicialSurfaceManager>();
     m_impl.finite_element_vertex_reporter = &require<FiniteElementVertexReporter>();
-    auto& global_vertex_manager = require<GlobalVertexManager>();
-
-    global_vertex_manager.after_init_vertex_info(
-        *this, [this] { m_impl.init_surface(world()); });
-    global_surf_manager.add_reporter(this);
 }
 
-void FiniteElementSurfaceReporter::Impl::init_surface(backend::WorldVisitor& world)
+void FiniteElementSurfaceReporter::Impl::init(backend::WorldVisitor& world)
 {
     auto& geo_infos = fem().geo_infos;
 
@@ -173,15 +167,15 @@ void FiniteElementSurfaceReporter::Impl::init_surface(backend::WorldVisitor& wor
 }
 
 void FiniteElementSurfaceReporter::Impl::report_count(backend::WorldVisitor& world,
-                                                      GlobalSimpicialSurfaceManager::SurfaceCountInfo& info)
+                                                      SurfaceCountInfo& info)
 {
     info.surf_vertex_count(surf_vertices.size());
     info.surf_edge_count(surf_edges.size());
     info.surf_triangle_count(surf_triangles.size());
 }
 
-void FiniteElementSurfaceReporter::Impl::report_attributes(
-    backend::WorldVisitor& world, GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info)
+void FiniteElementSurfaceReporter::Impl::report_attributes(backend::WorldVisitor& world,
+                                                           SurfaceAttributeInfo& info)
 {
     auto async_copy = []<typename T>(span<T> src, muda::BufferView<T> dst)
     { muda::BufferLaunch().copy<T>(dst, src.data()); };
@@ -191,12 +185,17 @@ void FiniteElementSurfaceReporter::Impl::report_attributes(
     async_copy(span{surf_triangles}, info.surf_triangles());
 }
 
-void FiniteElementSurfaceReporter::do_report_count(GlobalSimpicialSurfaceManager::SurfaceCountInfo& info)
+void FiniteElementSurfaceReporter::do_init(SurfaceInitInfo& info)
+{
+    m_impl.init(world());
+}
+
+void FiniteElementSurfaceReporter::do_report_count(SurfaceCountInfo& info)
 {
     m_impl.report_count(world(), info);
 }
 
-void FiniteElementSurfaceReporter::do_report_attributes(GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info)
+void FiniteElementSurfaceReporter::do_report_attributes(SurfaceAttributeInfo& info)
 {
     m_impl.report_attributes(world(), info);
 }

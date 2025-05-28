@@ -26,6 +26,8 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
         info.connect(abd_linear_subsystem);
     }
 
+    virtual void do_init(InitInfo& info) override {}
+
     virtual void do_assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info) override
     {
         using namespace muda;
@@ -33,7 +35,7 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
         diag_inv.resize(abd().diag_hessian.size());
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(diag_inv.size(),
                    [diag_hessian = abd().diag_hessian.viewer().name("diag_hessian"),
                     diag_inv = diag_inv.viewer().name("diag_inv")] __device__(int i) mutable
@@ -45,7 +47,7 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
         using namespace muda;
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(diag_inv.size(),
                    [r = info.r().viewer().name("r"),
                     z = info.z().viewer().name("z"),

@@ -7,6 +7,7 @@ void SimplexTrajectoryFilter::do_build()
     m_impl.global_vertex_manager = require<GlobalVertexManager>();
     m_impl.global_simplicial_surface_manager = require<GlobalSimpicialSurfaceManager>();
     m_impl.global_contact_manager  = require<GlobalContactManager>();
+    m_impl.global_body_manager     = require<GlobalBodyManager>();
     auto& global_trajectory_filter = require<GlobalTrajectoryFilter>();
 
     BuildInfo info;
@@ -150,6 +151,11 @@ Float SimplexTrajectoryFilter::BaseInfo::d_hat() const noexcept
     return m_impl->global_contact_manager->d_hat();
 }
 
+muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::v2b() const noexcept
+{
+    return m_impl->global_vertex_manager->body_ids();
+}
+
 muda::CBufferView<Vector3> SimplexTrajectoryFilter::BaseInfo::positions() const noexcept
 {
     return m_impl->global_vertex_manager->positions();
@@ -168,6 +174,11 @@ muda::CBufferView<Float> SimplexTrajectoryFilter::BaseInfo::thicknesses() const 
 muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::dimensions() const noexcept
 {
     return m_impl->global_vertex_manager->dimensions();
+}
+
+muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::body_self_collision() const noexcept
+{
+    return m_impl->global_body_manager->self_collision();
 }
 
 muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::codim_vertices() const noexcept

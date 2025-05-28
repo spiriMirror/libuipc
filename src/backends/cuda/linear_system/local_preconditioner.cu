@@ -15,6 +15,12 @@ void LocalPreconditioner::do_build()
     global_linear_system.add_preconditioner(this);
 }
 
+void LocalPreconditioner::init()
+{
+    InitInfo info;
+    do_init(info);
+}
+
 void LocalPreconditioner::assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info)
 {
     do_assemble(info);

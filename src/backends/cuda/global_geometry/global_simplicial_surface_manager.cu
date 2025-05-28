@@ -3,6 +3,7 @@
 #include <uipc/common/zip.h>
 #include <uipc/common/enumerate.h>
 #include <muda/cub/device/device_select.h>
+#include <utils/offset_count_collection.h>
 
 namespace uipc::backend::cuda
 {
@@ -42,15 +43,35 @@ void GlobalSimpicialSurfaceManager::do_build()
 
 void GlobalSimpicialSurfaceManager::Impl::init()
 {
-    // 1) build the core invariant data structure: reporter_infos
     auto reporter_view = reporters.view();
+
+
+    // 1) initialize the reporters
     for(auto&& [i, R] : enumerate(reporter_view))
         R->m_index = i;
 
+
+    for(auto&& R : reporter_view)
+    {
+        SurfaceInitInfo info;
+        R->init(info);
+    }
+
+    auto reporter_count = reporter_view.size();
+
+    // 2) compute the counts and offsets
     reporter_infos.resize(reporter_view.size());
-    vector<SizeT> vertex_offsets(reporter_view.size(), 0);
-    vector<SizeT> edge_offsets(reporter_view.size(), 0);
-    vector<SizeT> triangle_offsets(reporter_view.size(), 0);
+    OffsetCountCollection<IndexT> vertex_offsets_counts;
+    vertex_offsets_counts.resize(reporter_count);
+    OffsetCountCollection<IndexT> edge_offsets_counts;
+    edge_offsets_counts.resize(reporter_count);
+    OffsetCountCollection<IndexT> triangle_offsets_counts;
+    triangle_offsets_counts.resize(reporter_count);
+
+    span<IndexT> vertex_counts   = vertex_offsets_counts.counts();
+    span<IndexT> edge_counts     = edge_offsets_counts.counts();
+    span<IndexT> triangle_counts = triangle_offsets_counts.counts();
+
     for(auto&& [R, Rinfo] : zip(reporter_view, reporter_infos))
     {
         SurfaceCountInfo info;
@@ -63,16 +84,18 @@ void GlobalSimpicialSurfaceManager::Impl::init()
         Rinfo.surf_edge_count     = E;
         Rinfo.surf_triangle_count = F;
 
-        vertex_offsets[R->m_index]   = V;
-        edge_offsets[R->m_index]     = E;
-        triangle_offsets[R->m_index] = F;
+        vertex_counts[R->m_index]   = V;
+        edge_counts[R->m_index]     = E;
+        triangle_counts[R->m_index] = F;
     }
 
-    std::exclusive_scan(
-        vertex_offsets.begin(), vertex_offsets.end(), vertex_offsets.begin(), 0);
-    std::exclusive_scan(edge_offsets.begin(), edge_offsets.end(), edge_offsets.begin(), 0);
-    std::exclusive_scan(
-        triangle_offsets.begin(), triangle_offsets.end(), triangle_offsets.begin(), 0);
+    vertex_offsets_counts.scan();
+    edge_offsets_counts.scan();
+    triangle_offsets_counts.scan();
+
+    span<const IndexT> vertex_offsets   = vertex_offsets_counts.offsets();
+    span<const IndexT> edge_offsets     = edge_offsets_counts.offsets();
+    span<const IndexT> triangle_offsets = triangle_offsets_counts.offsets();
 
     for(auto&& [i, Rinfo] : enumerate(reporter_infos))
     {
@@ -81,34 +104,25 @@ void GlobalSimpicialSurfaceManager::Impl::init()
         Rinfo.surf_triangle_offset = triangle_offsets[i];
     }
 
-    // set related data
-    SizeT total_surf_vertex_count   = 0;
-    SizeT total_surf_edge_count     = 0;
-    SizeT total_surf_triangle_count = 0;
+    SizeT total_surf_vertex_count   = vertex_offsets_counts.total_count();
+    SizeT total_surf_edge_count     = edge_offsets_counts.total_count();
+    SizeT total_surf_triangle_count = triangle_offsets_counts.total_count();
 
-    if(!reporter_infos.empty())
-    {
-        auto& back_info = reporter_infos.back();
-        total_surf_vertex_count = back_info.surf_vertex_offset + back_info.surf_vertex_count;
-        total_surf_edge_count = back_info.surf_edge_offset + back_info.surf_edge_count;
-        total_surf_triangle_count = back_info.surf_triangle_offset + back_info.surf_triangle_count;
-    }
-
-    // 2) resize the device buffer
+    // 3) resize the device buffer
     codim_vertices.resize(total_surf_vertex_count);
     surf_vertices.resize(total_surf_vertex_count);
     surf_edges.resize(total_surf_edge_count);
     surf_triangles.resize(total_surf_triangle_count);
 
 
-    // 3) collect surface attributes
+    // 4) collect surface attributes
     for(auto&& [R, Rinfo] : zip(reporter_view, reporter_infos))
     {
         SurfaceAttributeInfo info{this, R->m_index};
         R->report_attributes(info);
     }
 
-    // 4) collect Codim0D vertices
+    // 5) collect Codim0D vertices
     _collect_codim_vertices();
 }
 

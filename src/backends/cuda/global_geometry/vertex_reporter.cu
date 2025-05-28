@@ -12,18 +12,27 @@ void VertexReporter::do_build()
     global_vertex_manager.add_reporter(this);
 }
 
-void VertexReporter::report_count(GlobalVertexManager::VertexCountInfo& vertex_count_info)
+void VertexReporter::report_count(GlobalVertexManager::VertexCountInfo& info)
 {
-    do_report_count(vertex_count_info);
+    do_report_count(info);
+    // Record the vertex count
+    m_vertex_count = info.m_count;
 }
 
-void VertexReporter::report_attributes(GlobalVertexManager::VertexAttributeInfo& vertex_attribute_info)
+void VertexReporter::report_attributes(GlobalVertexManager::VertexAttributeInfo& info)
 {
-    do_report_attributes(vertex_attribute_info);
+    do_report_attributes(info);
+    // Record the global vertex info
+    m_vertex_offset = info.coindices().offset();
+    UIPC_ASSERT(m_vertex_count == info.coindices().size(),
+                "Vertex count mismatch: expected {}, got {}",
+                m_vertex_count,
+                info.coindices().size());
+    m_vertex_count = info.coindices().size();
 }
 
-void VertexReporter::report_displacements(GlobalVertexManager::VertexDisplacementInfo& vertex_displacement_info)
+void VertexReporter::report_displacements(GlobalVertexManager::VertexDisplacementInfo& info)
 {
-    do_report_displacements(vertex_displacement_info);
+    do_report_displacements(info);
 }
 }  // namespace uipc::backend::cuda

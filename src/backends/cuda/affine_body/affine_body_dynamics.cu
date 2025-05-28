@@ -22,6 +22,8 @@
 #include <muda/ext/eigen/inverse.h>
 #include <uipc/builtin/attribute_name.h>
 
+#include <utils/offset_count_collection.h>
+
 namespace uipc::backend
 {
 template <>
@@ -133,7 +135,7 @@ void AffineBodyDynamics::Impl::init(WorldVisitor& world)
 
 void AffineBodyDynamics::Impl::_build_constitutions(WorldVisitor& world)
 {
-    // 1) sort the constitutions by uid
+    // 1) Sort the constitutions by uid
     auto constitution_view = constitutions.view();
     std::ranges::sort(constitution_view,
                       [](const AffineBodyConstitution* a, AffineBodyConstitution* b)
@@ -154,13 +156,19 @@ void AffineBodyDynamics::Impl::_build_constitutions(WorldVisitor& world)
 
     auto geo_slots = world.scene().geometries();
 
-    // +1 for the total count
-    vector<SizeT> constitution_geo_counts(constitution_view.size() + 1, 0);
-    vector<SizeT> constitution_geo_offsets(constitution_view.size() + 1, 0);
-    vector<SizeT> constitution_body_counts(constitution_view.size() + 1, 0);
-    vector<SizeT> constitution_body_offsets(constitution_view.size() + 1, 0);
-    vector<SizeT> constitution_vertex_counts(constitution_view.size() + 1, 0);
-    vector<SizeT> constitution_vertex_offsets(constitution_view.size() + 1, 0);
+    // 2) Build the geo_infos and count the geometries, bodies, and vertices per constitution
+    OffsetCountCollection<IndexT> constitution_geo_offsets_counts;
+    constitution_geo_offsets_counts.resize(constitution_view.size());
+
+    OffsetCountCollection<IndexT> constitution_body_offsets_counts;
+    constitution_body_offsets_counts.resize(constitution_view.size());
+
+    OffsetCountCollection<IndexT> constitution_vertex_offsets_counts;
+    constitution_vertex_offsets_counts.resize(constitution_view.size());
+
+    span<IndexT> constitution_geo_counts = constitution_geo_offsets_counts.counts();
+    span<IndexT> constitution_body_counts = constitution_body_offsets_counts.counts();
+    span<IndexT> constitution_vertex_counts = constitution_vertex_offsets_counts.counts();
 
     list<GeoInfo> geo_info_list;
     for(auto&& [i, geo_slot] : enumerate(geo_slots))
@@ -197,21 +205,18 @@ void AffineBodyDynamics::Impl::_build_constitutions(WorldVisitor& world)
         }
     }
 
-    // 2) setup the offsets
-    std::exclusive_scan(constitution_geo_counts.begin(),
-                        constitution_geo_counts.end(),
-                        constitution_geo_offsets.begin(),
-                        0);
+    // 3) Setup the offsets
+    constitution_geo_offsets_counts.scan();
+    constitution_body_offsets_counts.scan();
+    constitution_vertex_offsets_counts.scan();
 
-    std::exclusive_scan(constitution_body_counts.begin(),
-                        constitution_body_counts.end(),
-                        constitution_body_offsets.begin(),
-                        0);
+    span<const IndexT> constitution_geo_offsets =
+        constitution_geo_offsets_counts.offsets();
+    span<const IndexT> constitution_body_offsets =
+        constitution_body_offsets_counts.offsets();
+    span<const IndexT> constitution_vertex_offsets =
+        constitution_vertex_offsets_counts.offsets();
 
-    std::exclusive_scan(constitution_vertex_counts.begin(),
-                        constitution_vertex_counts.end(),
-                        constitution_vertex_offsets.begin(),
-                        0);
 
     for(auto&& [i, info] : enumerate(constitution_infos))
     {
@@ -223,10 +228,10 @@ void AffineBodyDynamics::Impl::_build_constitutions(WorldVisitor& world)
         info.vertex_count  = constitution_vertex_counts[i];
     }
 
-    // 3) set the total count
-    abd_geo_count    = constitution_geo_offsets.back();
-    abd_body_count   = constitution_body_offsets.back();
-    abd_vertex_count = constitution_vertex_offsets.back();
+    // 4) set the total count
+    abd_geo_count    = constitution_geo_offsets_counts.total_count();
+    abd_body_count   = constitution_body_offsets_counts.total_count();
+    abd_vertex_count = constitution_vertex_offsets_counts.total_count();
 
     // 4) copy to the geo_infos
     geo_infos.resize(geo_info_list.size());
@@ -238,44 +243,46 @@ void AffineBodyDynamics::Impl::_build_geo_infos(WorldVisitor& world)
     auto scene     = world.scene();
     auto geo_slots = scene.geometries();
 
-    // 1) sort the geo_infos by constitution uid
+    // 1) Sort the geo_infos by constitution uid
     std::ranges::stable_sort(geo_infos,
                              [](const GeoInfo& a, const GeoInfo& b)
                              { return a.constitution_uid < b.constitution_uid; });
 
 
-    // 2) setup the body offset and body count
-    vector<SizeT> geo_body_counts(geo_infos.size() + 1, 0);  // + 1 for total count
-    vector<SizeT> geo_body_offsets(geo_infos.size() + 1, 0);  // + 1 for total count
+    // 2) Setup the body offset and body count
+    OffsetCountCollection<IndexT> geo_body_offsets_counts;
+    geo_body_offsets_counts.resize(geo_infos.size());
+
+    span<IndexT> geo_body_counts  = geo_body_offsets_counts.counts();
+    span<IndexT> geo_body_offsets = geo_body_offsets_counts.offsets();
 
     std::ranges::transform(geo_infos,
                            geo_body_counts.begin(),
                            [](const GeoInfo& info) -> SizeT
                            { return info.body_count; });
 
-    std::exclusive_scan(
-        geo_body_counts.begin(), geo_body_counts.end(), geo_body_offsets.begin(), 0);
+    geo_body_offsets_counts.scan();
 
-    abd_body_count = geo_body_offsets.back();
+    abd_body_count = geo_body_offsets_counts.total_count();
 
     for(auto&& [i, info] : enumerate(geo_infos))
     {
         info.body_offset = geo_body_offsets[i];
     }
 
-    // 3) setup the vertex offset and vertex count
-    vector<SizeT> geo_vertex_counts(geo_infos.size() + 1);  // + 1 for total count
-    vector<SizeT> geo_vertex_offsets(geo_infos.size() + 1);  // + 1 for total count
+    // 3) Setup the vertex offset and vertex count
+    OffsetCountCollection<IndexT> geo_vertex_offsets_counts;
+    geo_vertex_offsets_counts.resize(geo_infos.size());
+
+    span<IndexT> geo_vertex_counts = geo_vertex_offsets_counts.counts();
 
     std::ranges::transform(geo_infos,
                            geo_vertex_counts.begin(),
                            [](const GeoInfo& info) -> SizeT
                            { return info.vertex_count; });
 
-    std::exclusive_scan(geo_vertex_counts.begin(),
-                        geo_vertex_counts.end(),
-                        geo_vertex_offsets.begin(),
-                        0);
+    geo_vertex_offsets_counts.scan();
+    span<const IndexT> geo_vertex_offsets = geo_vertex_offsets_counts.offsets();
 
     for(auto&& [i, info] : enumerate(geo_infos))
     {
@@ -446,10 +453,12 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     // - `body_abd_mass`
     // - `body_id_to_volume`
     // - `body_id_to_dim`
+    // - `body_id_to_self_collision`
     {
         h_body_id_to_abd_mass.resize(abd_body_count);
         h_body_id_to_volume.resize(abd_body_count);
         h_body_id_to_dim.resize(abd_body_count);
+        h_body_id_to_self_collision.resize(abd_body_count, 0);  // default 0
 
         span Js = h_vertex_id_to_J;
 
@@ -490,6 +499,11 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                      auto volume_view = volume->view();
                      //std::cout << "volume: " << volume_view[0] << std::endl;
 
+                     auto self_collision = sc.meta().find<IndexT>(builtin::self_collision);
+                     UIPC_ASSERT(self_collision, "The `self_collision` attribute is not found in the affine body `meta`, why can it happen?");
+
+                     IndexT self_collision_value = self_collision->view()[0];
+
                      for(auto i : range(body_count))
                      {
                          auto body_id = body_offset + i;
@@ -499,6 +513,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          h_body_id_to_volume[body_id] = volume_view[i];
                          // dim
                          h_body_id_to_dim[body_id] = sc.dim();
+                         // self_collision
+                         h_body_id_to_self_collision[body_id] = self_collision_value;
                      }
                  });
     }

@@ -14,6 +14,7 @@ class AffineBodyConstitution;
 class AffineBodyDiffParmReporter;
 class AffineBodyDiffDofReporter;
 class AffineBodyKineticDiffParmReporter;
+class AffineBodyBodyReporter;
 
 class AffineBodyDynamics : public SimSystem
 {
@@ -253,7 +254,8 @@ class AffineBodyDynamics : public SimSystem
 
         vector<Vector12>            h_body_id_to_q;
         vector<Vector12>            h_body_id_to_q_v;
-        vector<IndexT>              h_body_id_to_dim;  // 2 or 3
+        vector<IndexT>              h_body_id_to_dim;             // 2 or 3
+        vector<IndexT>              h_body_id_to_self_collision;  // 0 or 1
         vector<ABDJacobiDyadicMass> h_body_id_to_abd_mass;
         vector<Matrix12x12>         h_body_id_to_abd_mass_inv;
         vector<Float>               h_body_id_to_volume;
@@ -489,6 +491,7 @@ class AffineBodyDynamics : public SimSystem
 
     friend class AffineBodyVertexReporter;
     friend class AffinebodySurfaceReporter;
+    friend class AffineBodyBodyReporter;
 
     friend class ABDLinearSubsystem;
     friend class ABDLineSearchReporter;

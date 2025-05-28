@@ -13,8 +13,6 @@ class GlobalSimpicialSurfaceManager : public SimSystem
 
     class Impl;
 
-    void add_reporter(SimplicialSurfaceReporter* reporter) noexcept;
-
     class ReporterInfo
     {
       public:
@@ -62,6 +60,11 @@ class GlobalSimpicialSurfaceManager : public SimSystem
         SizeT m_index = ~0ull;
     };
 
+    class SurfaceInitInfo
+    {
+      public:
+    };
+
 
     class Impl
     {
@@ -100,5 +103,8 @@ class GlobalSimpicialSurfaceManager : public SimSystem
     Impl m_impl;
     void init();     // only called by SimEngine
     void rebuild();  // only called by SimEngine
+
+    friend class SimplicialSurfaceReporter;
+    void add_reporter(SimplicialSurfaceReporter* reporter) noexcept; // only called by SimplicialSurfaceReporter
 };
 }  // namespace uipc::backend::cuda

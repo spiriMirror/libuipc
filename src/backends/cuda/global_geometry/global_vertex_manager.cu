@@ -9,16 +9,21 @@
 *************************************************************************************************/
 namespace uipc::backend::cuda
 {
+REGISTER_SIM_SYSTEM(GlobalVertexManager);
+
 void GlobalVertexManager::Impl::init()
 {
     auto vertex_reporter_view = vertex_reporters.view();
 
+    // 1) Setup index for each vertex reporter
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
         R->m_index = i;
 
+    // 2) Count the number of vertices reported by each reporter
     auto N = vertex_reporter_view.size();
-    reporter_vertex_counts.resize(N + 1);  // +1 for total count
-    reporter_vertex_offsets.resize(N + 1);
+    reporter_vertex_offsets_counts.resize(N);
+
+    span<IndexT> reporter_vertex_counts = reporter_vertex_offsets_counts.counts();
 
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
     {
@@ -27,14 +32,10 @@ void GlobalVertexManager::Impl::init()
         // get count back
         reporter_vertex_counts[i] = info.m_count;
     }
+    reporter_vertex_offsets_counts.scan();
+    SizeT total_count = reporter_vertex_offsets_counts.total_count();
 
-    std::exclusive_scan(reporter_vertex_counts.begin(),
-                        reporter_vertex_counts.end(),
-                        reporter_vertex_offsets.begin(),
-                        0);
-    SizeT total_count = reporter_vertex_offsets[N];
-
-    // resize buffers
+    // 3) Initialize buffers for vertex attributes
     coindices.resize(total_count);
     positions.resize(total_count);
     rest_positions.resize(total_count);
@@ -44,26 +45,22 @@ void GlobalVertexManager::Impl::init()
     dimensions.resize(total_count, 3);  // default 3D
     displacements.resize(total_count, Vector3::Zero());
     displacement_norms.resize(total_count, 0.0);
+    body_ids.resize(total_count, -1);  // -1 means no care about body id
 
-    // create the subviews for each attribute_reporter
+    // 4) Create the subviews for each attribute_reporter,
+    //    so that each reporter can write to its own subview
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
     {
         VertexAttributeInfo attributes{this, i};
         R->report_attributes(attributes);
     }
 
-    // TODO: now just copy at the first time
-    // latter, we need to check if user fill rest_positions
-    // if not, then copy, otherwise, just use it
-    rest_positions = positions;
+    // 5) Initialize previous positions and safe positions
     prev_positions = positions;
+    safe_positions = positions;
 
+    // 6) Other initializations
     axis_max_disp = 0.0;
-
-    for(auto&& [i, callback] : enumerate(after_init_vertex_info.view()))
-    {
-        callback();
-    }
 }
 
 void GlobalVertexManager::Impl::rebuild()
@@ -195,14 +192,12 @@ void GlobalVertexManager::Impl::clear_recover(RecoverInfo& info)
 *************************************************************************************************/
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(GlobalVertexManager);
-
 void GlobalVertexManager::VertexCountInfo::count(SizeT count) noexcept
 {
     m_count = count;
 }
 
-void GlobalVertexManager::VertexCountInfo::changable(bool is_changable) noexcept
+void GlobalVertexManager::VertexCountInfo::changeable(bool is_changable) noexcept
 {
     m_changable = is_changable;
 }
@@ -241,6 +236,11 @@ muda::BufferView<Vector3> GlobalVertexManager::VertexAttributeInfo::positions() 
 muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::contact_element_ids() const noexcept
 {
     return m_impl->subview(m_impl->contact_element_ids, m_index);
+}
+
+muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::body_ids() const noexcept
+{
+    return m_impl->subview(m_impl->body_ids, m_index);
 }
 
 GlobalVertexManager::VertexDisplacementInfo::VertexDisplacementInfo(Impl* impl, SizeT index) noexcept
@@ -306,6 +306,11 @@ muda::CBufferView<IndexT> GlobalVertexManager::coindices() const noexcept
     return m_impl.coindices;
 }
 
+muda::CBufferView<IndexT> GlobalVertexManager::body_ids() const noexcept
+{
+    return m_impl.body_ids;
+}
+
 muda::CBufferView<Vector3> GlobalVertexManager::positions() const noexcept
 {
     return m_impl.positions;
@@ -369,12 +374,5 @@ muda::CBufferView<IndexT> GlobalVertexManager::dimensions() const noexcept
 AABB GlobalVertexManager::vertex_bounding_box() const noexcept
 {
     return m_impl.vertex_bounding_box;
-}
-
-void GlobalVertexManager::after_init_vertex_info(SimSystem&              system,
-                                                 std::function<void()>&& action)
-{
-    check_state(SimEngineState::BuildSystems, "after_build_body_infos()");
-    m_impl.after_init_vertex_info.register_action(system, std::move(action));
 }
 }  // namespace uipc::backend::cuda

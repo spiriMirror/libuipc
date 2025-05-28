@@ -100,7 +100,7 @@ Float VertexHalfPlaneTrajectoryFilter::DetectInfo::alpha() const noexcept
 
 IndexT VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_vertex_global_offset() const noexcept
 {
-    return m_impl->half_plane_vertex_reporter->vertex_global_offset();
+    return m_impl->half_plane_vertex_reporter->vertex_offset();
 }
 
 muda::CBufferView<Vector3> VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_normals() const noexcept
