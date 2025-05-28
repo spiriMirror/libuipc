@@ -102,7 +102,8 @@ ImplicitGeometry halfplane(const Vector3& P, const Vector3& N)
 
 ImplicitGeometry ground(Float height, const Vector3& N)
 {
-    ImplicitGeometry hp = halfplane(Vector3::UnitY() * height, N);
-    return hp;
+    // Create a half-plane at the given height
+    // P = N * height
+    return halfplane(N * height, N);
 }
 }  // namespace uipc::geometry
