@@ -186,6 +186,47 @@ span<MatrixT> as_span_of(py::array_t<typename MatrixT::Scalar> arr)
         return span<MatrixT>((MatrixT*)arr.mutable_data(), arr.shape(0));
 }
 
+template <typename MatrixT>
+bool is_span_of(py::array_t<typename MatrixT::Scalar> arr)
+    requires requires(MatrixT) {
+        MatrixT::RowsAtCompileTime > 0;
+        MatrixT::ColsAtCompileTime > 0;
+    }
+{
+    constexpr int Rows = MatrixT::RowsAtCompileTime;
+    constexpr int Cols = MatrixT::ColsAtCompileTime;
+
+    constexpr bool IsConst = std::is_const_v<MatrixT>;
+
+    if(arr.ndim() == 2)
+    {
+        if constexpr(Rows == 1 || Cols == 1)
+        {
+            if(arr.shape(1) != Rows * Cols)
+            {
+                return false;  // Shape mismatch
+            }
+        }
+        else
+        {
+            return false;
+        }
+    }
+    else if(arr.ndim() == 3)
+    {
+        if(!(arr.shape(1) == Rows && arr.shape(2) == Cols))
+        {
+            return false;  // Shape mismatch
+        }
+    }
+    else
+    {
+        return false;  // Not 2D or 3D
+    }
+
+    return true;
+}
+
 template <typename T, int M, int N, int Options>
 auto buffer_info(const Matrix<T, M, N, Options>& m)
     requires(M > 0 && N > 0)
