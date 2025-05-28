@@ -58,6 +58,9 @@ TEST_CASE("attribute_collection", "[geometry]")
         AttributeCollectionCommit c = foo - foo_copy;
         foo_copy.update_from(c);
 
+        auto commit_pos = c.attribute_collection().find("position");
+        REQUIRE(commit_pos == nullptr);
+
         auto pos_found = foo_copy.find("position");
         auto vel_found = foo_copy.find("velocity");
 

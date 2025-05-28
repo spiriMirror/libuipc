@@ -2,6 +2,17 @@
 
 namespace uipc::geometry
 {
+GeometryCollectionCommit::GeometryCollectionCommit(const GeometryCollectionCommit& other)
+    : m_next_id{other.m_next_id}
+{
+    m_geometries.reserve(other.m_geometries.size());
+
+    for(auto&& [id, commit] : other.m_geometries)
+    {
+        m_geometries[id] = uipc::make_shared<GeometryCommit>(*commit);
+    }
+}
+
 GeometryCollectionCommit::GeometryCollectionCommit(const GeometryCollection& dst,
                                                    const GeometryCollection& src)
 {
@@ -23,17 +34,19 @@ GeometryCollectionCommit::GeometryCollectionCommit(const GeometryCollection& dst
 
 
     m_next_id = dst.next_id();
-    m_diff_geometries.reserve(dst.m_geometries.size());
+    m_geometries.reserve(dst.m_geometries.size());
     for(auto&& [id, dst_geo_slot] : dst.m_geometries)
     {
         auto src_geo_slot = src.find(id);
         if(src_geo_slot)
         {
-            m_diff_geometries[id] = dst_geo_slot->geometry() - src_geo_slot->geometry();
+            m_geometries[id] = uipc::make_shared<GeometryCommit>(
+                dst_geo_slot->geometry() - src_geo_slot->geometry());
         }
         else
         {
-            m_diff_geometries[id] = GeometryCommit{dst_geo_slot->geometry()};
+            m_geometries[id] =
+                uipc::make_shared<GeometryCommit>(dst_geo_slot->geometry());
         }
     }
 }

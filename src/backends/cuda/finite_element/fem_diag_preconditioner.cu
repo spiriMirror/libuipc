@@ -82,12 +82,6 @@ namespace detail
 
         diagNxN(dim_local_i3) = H3x3;
     }
-
-    template <IndexT N>
-    SizeT roundup(SizeT x)
-    {
-        return (x + N - 1) / N;
-    }
 }  // namespace detail
 
 
@@ -111,36 +105,18 @@ class FEMDiagPreconditioner : public LocalPreconditioner
 
         // This FEMDiagPreconditioner depends on FEMLinearSubsystem
         info.connect(fem_linear_subsystem);
-
-        // after build vertex info, we can get the number of nodes
-        global_vertex_manager.after_init_vertex_info(
-            *this,
-            [this]
-            {
-                const auto& dim_infos = finite_element_method->m_impl.dim_infos;
-
-                auto compute_range = [&](int i)
-                {
-                    return Vector2i{dim_infos[i].vertex_offset,
-                                    dim_infos[i].vertex_offset + dim_infos[i].vertex_count};
-                };
-
-                auto compute_dof = [&](int i)
-                {
-                    return Vector2i{dim_infos[i].vertex_offset * 3,
-                                    dim_infos[i].vertex_count * 3};
-                };
-
-                diag_inv.resize(finite_element_method->xs().size());
-            });
     }
 
-    void do_assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info) override
+    virtual void do_init(InitInfo& info) override {}
+
+    virtual void do_assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info) override
     {
         using namespace muda;
 
         UIPC_ASSERT(info.storage_type() == GlobalLinearSystem::HessianStorageType::Symmetric,
                     "Now only support Symmetric Hessian");
+
+        diag_inv.resize(finite_element_method->xs().size());
 
         // 1) collect diagonal blocks
         ParallelFor()
@@ -171,7 +147,7 @@ class FEMDiagPreconditioner : public LocalPreconditioner
                    { diag_inv(i) = muda::eigen::inverse(diag_inv(i)); });
     }
 
-    void do_apply(GlobalLinearSystem::ApplyPreconditionerInfo& info) override
+    virtual void do_apply(GlobalLinearSystem::ApplyPreconditionerInfo& info) override
     {
         using namespace muda;
 

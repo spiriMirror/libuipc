@@ -440,7 +440,7 @@ class GeometryAtlasCommit::Impl
 
         for(auto&& [name, ac_commit] : gc->m_attribute_collections)
         {
-            build_attributes_index_from_attribute_collection(ac_commit.attribute_collection());
+            build_attributes_index_from_attribute_collection(ac_commit->attribute_collection());
         }
 
         m_geometries.push_back(std::move(gc));

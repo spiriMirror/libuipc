@@ -94,6 +94,10 @@ class UIPC_CORE_API IAttributeSlot
     virtual const IAttribute& attribute() const noexcept;
     virtual const IAttribute& get_attribute() const noexcept     = 0;
     virtual TimePoint         get_last_modified() const noexcept = 0;
+
+    void         rw_access();
+    void         last_modified(const TimePoint& tp);
+    virtual void set_last_modified(const TimePoint& tp) noexcept = 0;
 };
 
 /**
@@ -107,7 +111,8 @@ class AttributeSlot final : public IAttributeSlot
   public:
     using value_type = T;
 
-    AttributeSlot(std::string_view m_name, S<Attribute<T>> attribute, bool allow_destroy);
+    AttributeSlot(std::string_view name, S<Attribute<T>> attribute, bool allow_destroy);
+    AttributeSlot(std::string_view name, S<Attribute<T>> attribute, bool allow_destory, TimePoint tp);
 
     /**
      * @brief Get the non-const attribute values.
@@ -143,6 +148,7 @@ class AttributeSlot final : public IAttributeSlot
                                              bool allow_destroy) const override;
     virtual void do_share_from(const IAttributeSlot& other) noexcept override;
     virtual TimePoint get_last_modified() const noexcept override;
+    virtual void      set_last_modified(const TimePoint& pt) noexcept;
 
     TimePoint       m_last_modified;
     std::string     m_name;

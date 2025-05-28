@@ -177,4 +177,9 @@ UIPC_BUILTIN_ATTRIBUTE(dof_offset);
  * @brief `dof_count` <IndexT> attribute on **meta** to indicate the degree of freedom count of this geometry in the whole system.
  */
 UIPC_BUILTIN_ATTRIBUTE(dof_count);
+
+/**
+ * @brief `self_collision` <IndexT>[0,1] attribute on **meta** to indicate if the geometry needs self-collision detection.
+ */
+UIPC_BUILTIN_ATTRIBUTE(self_collision);
 #endif

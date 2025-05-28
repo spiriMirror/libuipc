@@ -4,6 +4,7 @@
 namespace uipc::backend::cuda
 {
 class HalfPlane;
+class HalfPlaneBodyReporter;
 class HalfPlaneVertexReporter : public VertexReporter
 {
   public:
@@ -14,18 +15,14 @@ class HalfPlaneVertexReporter : public VertexReporter
     class Impl
     {
       public:
-        HalfPlane* half_plane = nullptr;
+        HalfPlane*             half_plane    = nullptr;
+        HalfPlaneBodyReporter* body_reporter = nullptr;
+
 
         void report_count(GlobalVertexManager::VertexCountInfo& info);
         void report_attributes(GlobalVertexManager::VertexAttributeInfo& info);
         void report_displacements(GlobalVertexManager::VertexDisplacementInfo& info);
-
-        size_t vertex_global_offset = ~0ull;
-        size_t vertex_count         = 0;
     };
-
-    size_t vertex_global_offset() const;
-    size_t vertex_count() const;
 
   protected:
     virtual void do_build(BuildInfo& info) override;

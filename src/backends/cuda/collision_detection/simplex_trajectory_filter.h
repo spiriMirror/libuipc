@@ -3,6 +3,7 @@
 #include <collision_detection/global_trajectory_filter.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
+#include <global_geometry/global_body_manager.h>
 #include <contact_system/global_contact_manager.h>
 #include <muda/buffer/device_buffer.h>
 
@@ -30,17 +31,32 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
 
         Float d_hat() const noexcept;
 
-        muda::CBufferView<Vector3> positions() const noexcept;
-        muda::CBufferView<Vector3> rest_positions() const noexcept;
-        muda::CBufferView<Float>   thicknesses() const noexcept;
-        muda::CBufferView<IndexT>  dimensions() const noexcept;
+        // Vertex Attributes
+
+        /**
+         * @brief Vertex Id to Body Id mapping.
+         */
+        muda::CBufferView<IndexT>   v2b() const noexcept;
+        muda::CBufferView<Vector3>  positions() const noexcept;
+        muda::CBufferView<Vector3>  rest_positions() const noexcept;
+        muda::CBufferView<Float>    thicknesses() const noexcept;
+        muda::CBufferView<IndexT>   dimensions() const noexcept;
+        muda::CBufferView<IndexT>   contact_element_ids() const noexcept;
+        muda::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
+
+        // Body Attributes
+
+        /**
+         * @brief Tell if the body needs self-collision
+         */
+        muda::CBufferView<IndexT> body_self_collision() const noexcept;
+
+        // Topologies
 
         muda::CBufferView<IndexT>   codim_vertices() const noexcept;
         muda::CBufferView<IndexT>   surf_vertices() const noexcept;
         muda::CBufferView<Vector2i> surf_edges() const noexcept;
         muda::CBufferView<Vector3i> surf_triangles() const noexcept;
-        muda::CBufferView<IndexT>   contact_element_ids() const noexcept;
-        muda::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
 
       protected:
         friend class SimplexTrajectoryFilter;
@@ -93,6 +109,7 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         SimSystemSlot<GlobalVertexManager> global_vertex_manager;
         SimSystemSlot<GlobalSimpicialSurfaceManager> global_simplicial_surface_manager;
         SimSystemSlot<GlobalContactManager> global_contact_manager;
+        SimSystemSlot<GlobalBodyManager>    global_body_manager;
 
         muda::CBufferView<Vector4i> PTs;
         muda::CBufferView<Vector4i> EEs;

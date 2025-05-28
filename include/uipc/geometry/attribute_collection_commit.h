@@ -19,11 +19,13 @@ class UIPC_CORE_API AttributeCollectionCommit
     AttributeCollectionCommit() = default;
     explicit AttributeCollectionCommit(const AttributeCollection& dst);
     AttributeCollectionCommit(const AttributeCollectionCommit& other) = default;
-    AttributeCollectionCommit& operator=(const AttributeCollectionCommit& other) = default;
+    AttributeCollectionCommit& operator=(const AttributeCollectionCommit& other) = delete;
+
     const AttributeCollection& attribute_collection() const noexcept
     {
         return m_attribute_collection;
     }
+
     span<const std::string> removed_names() const noexcept
     {
         return span<const std::string>(m_removed_names);

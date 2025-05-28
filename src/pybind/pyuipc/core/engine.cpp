@@ -8,13 +8,11 @@ using namespace uipc::core;
 
 PyEngine::PyEngine(py::module& m)
 {
-    auto class_Engine = py::class_<Engine>(m, "Engine");
+    auto class_Engine = py::class_<Engine, S<Engine>>(m, "Engine");
 
     class_Engine
-        .def(py::init(
-                 [](std::string_view backend_name, std::string_view workspace, const Json& config) {
-                     return std::make_unique<Engine>(backend_name, workspace, config);
-                 }),
+        .def(py::init<std::string_view, std::string_view, const Json&>(),
+             py::call_guard<py::gil_scoped_acquire>(),
              py::arg("backend_name"),
              py::arg("workspace") = "./",
              py::arg("config")    = Engine::default_config())

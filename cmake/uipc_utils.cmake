@@ -66,6 +66,10 @@ function(uipc_find_python_executable_path)
         endif()
         # set the python executable path cache
         set(UIPC_PYTHON_EXECUTABLE_PATH "${Python_EXECUTABLE}" CACHE STRING "Python executable path" FORCE)
+    else()
+        # make the UIPC_PYTHON_EXECUTABLE_PATH to a cmake path
+        file(TO_CMAKE_PATH "${UIPC_PYTHON_EXECUTABLE_PATH}" UIPC_PYTHON_EXECUTABLE_PATH)
+        set(Python_EXECUTABLE "${UIPC_PYTHON_EXECUTABLE_PATH}" CACHE STRING "Python executable path" FORCE)
     endif()
 endfunction()
 
@@ -190,20 +194,28 @@ endfunction()
 # Require a python module, if not found, try to install it with pip
 # -----------------------------------------------------------------------------------------
 function(uipc_require_python_module python_dir module_name)
-execute_process(COMMAND ${python_dir}
-    "-c" "import ${module_name}"
-    RESULT_VARIABLE CMD_RESULT
-    OUTPUT_QUIET
-)
-if (NOT CMD_RESULT EQUAL 0)
-    uipc_info("${module_name} not found, try installing ${module_name}...")
-    execute_process(COMMAND ${python_dir} "-m" "pip" "install" "${module_name}"
-    RESULT_VARIABLE INSTALL_RESULT)
-    if (NOT INSTALL_RESULT EQUAL 0)
-        uipc_error("Python [${python_dir}] failed to install [${module_name}], please install it manually.")
+
+file(TO_CMAKE_PATH "${python_dir}" python_dir)
+    uipc_info("Check python module [${module_name}] with [${python_dir}]")
+
+    execute_process(COMMAND ${python_dir}
+        "-c" "import ${module_name}"
+        RESULT_VARIABLE CMD_RESULT
+        OUTPUT_QUIET
+    )
+
+    if (NOT CMD_RESULT EQUAL 0)
+        uipc_info("${module_name} not found, try installing ${module_name}...")
+        execute_process(COMMAND ${python_dir} "-m" "pip" "install" "${module_name}"
+        RESULT_VARIABLE INSTALL_RESULT)
+        if (NOT INSTALL_RESULT EQUAL 0)
+            uipc_error("Python [${python_dir}] failed to install [${module_name}], please install it manually.")
+        else()
+            uipc_info("[${module_name}] installed successfully with [${python_dir}].")
+        endif()
     else()
-        uipc_info("${module_name} installed successfully with [${python_dir}].")
+        uipc_info("[${module_name}] found with [${python_dir}].")
     endif()
-endif()
+
 endfunction()
 

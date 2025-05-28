@@ -157,7 +157,7 @@ void Geometry::do_update_from(const GeometryCommit& commit)
     for(auto&& [name, cmt] : commit.m_attribute_collections)
     {
         auto& this_ac = *m_attribute_collections[name];
-        this_ac += cmt;  // update the attribute collection
+        this_ac += *cmt;  // update the attribute collection
     }
 }
 

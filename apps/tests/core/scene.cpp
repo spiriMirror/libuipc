@@ -298,6 +298,7 @@ TEST_CASE("scene_commit", "[scene]")
                            });
 
     SceneSnapshotCommit commit = scene - snapshot;
+    REQUIRE(commit.contact_models().attribute_collection().find("topo") == nullptr);
     new_scene.update_from(commit);
 
     auto new_obj = new_scene.objects().find(object->id());
@@ -324,4 +325,36 @@ TEST_CASE("scene_commit", "[scene]")
 
     REQUIRE(commit2.geometries().size() == commit.geometries().size());
     REQUIRE(commit2.rest_geometries().size() == commit.rest_geometries().size());
+}
+
+TEST_CASE("scene_commit_empty", "[scene]")
+{
+    using namespace uipc;
+    using namespace uipc::core;
+    using namespace uipc::geometry;
+
+    auto output_path = AssetDir::output_path(__FILE__);
+
+    Scene               scene;
+    SimplicialComplexIO io;
+    auto mesh = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
+    auto object                    = scene.objects().create("cube");
+    auto [geo_slot, rest_geo_slot] = object->geometries().create(mesh);
+
+    SceneSnapshot snapshot0{scene};
+    SceneSnapshot snapshot1{scene};
+
+    geo_slot->geometry().vertices().create<Vector3>("myattribute");
+
+    SceneSnapshotCommit ssc = snapshot1 - snapshot0;
+    REQUIRE(ssc.contact_models().attribute_collection().attribute_count() == 0);
+
+    SceneSnapshotCommit ssc2 = scene - snapshot1;
+    REQUIRE(ssc2.geometries()
+                .find(0)
+                ->second->attribute_collections()
+                .find("vertices")
+                ->second->attribute_collection()
+                .find("myattribute")
+            != nullptr);
 }

@@ -4,11 +4,20 @@
 namespace uipc::geometry
 {
 template <typename T>
-AttributeSlot<T>::AttributeSlot(std::string_view m_name, S<Attribute<T>> attribute, bool allow_destroy)
-    : m_name(m_name)
+AttributeSlot<T>::AttributeSlot(std::string_view name, S<Attribute<T>> attribute, bool allow_destroy_)
+    : AttributeSlot{name, attribute, allow_destroy_, std::chrono::high_resolution_clock::now()}
+{
+}
+
+template <typename T>
+AttributeSlot<T>::AttributeSlot(std::string_view name,
+                                S<Attribute<T>>  attribute,
+                                bool             allow_destory_,
+                                TimePoint        tp)
+    : m_name(name)
     , m_attribute(std::move(attribute))
-    , m_allow_destroy(allow_destroy)
-    , m_last_modified(std::chrono::high_resolution_clock::now())
+    , m_allow_destroy(allow_destory_)
+    , m_last_modified(tp)
 {
 }
 
@@ -16,9 +25,7 @@ template <typename U>
 [[nodiscard]] span<U> view(AttributeSlot<U>& slot)
 {
     UIPC_ASSERT(&slot, "You are trying to access a nullptr attribute slot, please check if the attribute name is correct");
-    slot.make_owned();
-    // record the modification time
-    slot.m_last_modified = std::chrono::high_resolution_clock::now();
+    slot.rw_access();
     return view(*slot.m_attribute);
 }
 
@@ -65,7 +72,7 @@ template <typename T>
 S<IAttributeSlot> AttributeSlot<T>::do_clone(std::string_view name, bool allow_destroy) const
 {
     return uipc::make_shared<AttributeSlot<T>>(
-        name, std::static_pointer_cast<Attribute<T>>(m_attribute), allow_destroy);
+        name, std::static_pointer_cast<Attribute<T>>(m_attribute), allow_destroy, this->m_last_modified);
 }
 
 template <typename T>
@@ -79,15 +86,22 @@ template <typename T>
 void AttributeSlot<T>::do_share_from(const IAttributeSlot& other) noexcept
 {
     auto& other_slot = static_cast<const AttributeSlot<T>&>(other);
+    m_name           = other_slot.m_name;
     m_attribute      = other_slot.m_attribute;
-    m_last_modified  = std::chrono::high_resolution_clock::now();
-    m_is_evolving    = other_slot.m_is_evolving;
+    // m_last_modified is updated in base class
+    m_is_evolving = other_slot.m_is_evolving;
 }
 
 template <typename T>
 TimePoint AttributeSlot<T>::get_last_modified() const noexcept
 {
     return m_last_modified;
+}
+
+template <typename T>
+void AttributeSlot<T>::set_last_modified(const TimePoint& pt) noexcept
+{
+    m_last_modified = pt;
 }
 
 template <typename T>

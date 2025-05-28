@@ -41,12 +41,10 @@ class FiniteElementSurfaceReporter : public SimplicialSurfaceReporter
     class Impl
     {
       public:
-        void init_surface(backend::WorldVisitor& world);
+        void init(backend::WorldVisitor& world);
 
-        void report_count(backend::WorldVisitor& world,
-                          GlobalSimpicialSurfaceManager::SurfaceCountInfo& info);
-        void report_attributes(backend::WorldVisitor& world,
-                               GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info);
+        void report_count(backend::WorldVisitor& world, SurfaceCountInfo& info);
+        void report_attributes(backend::WorldVisitor& world, SurfaceAttributeInfo& info);
 
         FiniteElementMethod*       finite_element_method = nullptr;
         FiniteElementMethod::Impl& fem()
@@ -71,9 +69,11 @@ class FiniteElementSurfaceReporter : public SimplicialSurfaceReporter
     };
 
   protected:
-    virtual void do_build() override;
-    virtual void do_report_count(GlobalSimpicialSurfaceManager::SurfaceCountInfo& info) override;
-    virtual void do_report_attributes(GlobalSimpicialSurfaceManager::SurfaceAttributeInfo& info) override;
+    virtual void do_build(BuildInfo& info) override;
+
+    virtual void do_init(SurfaceInitInfo& info) override;
+    virtual void do_report_count(SurfaceCountInfo& info) override;
+    virtual void do_report_attributes(SurfaceAttributeInfo& info) override;
 
   private:
     Impl m_impl;

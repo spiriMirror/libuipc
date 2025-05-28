@@ -13,6 +13,7 @@
 #include <uipc/common/log.h>
 #include <affine_body/affine_body_dynamics.h>
 #include <finite_element/finite_element_method.h>
+#include <global_geometry/global_body_manager.h>
 
 namespace uipc::backend::cuda
 {
@@ -23,6 +24,7 @@ void SimEngine::build()
 
     // 2) find those engine-aware topo systems
     m_global_vertex_manager     = &require<GlobalVertexManager>();
+    m_global_body_manager       = &require<GlobalBodyManager>();
     m_dof_predictor             = &require<DofPredictor>();
     m_line_searcher             = &require<LineSearcher>();
     m_gradient_hessian_computer = &require<GradientHessianComputer>();
@@ -59,6 +61,7 @@ void SimEngine::init_scene()
         m_affine_body_dynamics->init();
     if(m_finite_element_method)
         m_finite_element_method->init();
+    m_global_body_manager->init();
 
     // 2. Common Scene Initialization Phase
     event_init_scene();
@@ -67,6 +70,7 @@ void SimEngine::init_scene()
     // 3.1 Forwards
     m_global_vertex_manager->init();
     m_global_simplicial_surface_manager->init();
+
     if(m_global_contact_manager)
         m_global_contact_manager->init();
     if(m_global_animator)

@@ -15,14 +15,16 @@ class UIPC_CORE_API GeometryCollectionCommit
 
   public:
     GeometryCollectionCommit() = default;
+
+    GeometryCollectionCommit(const GeometryCollectionCommit&);
+    GeometryCollectionCommit& operator=(const GeometryCollectionCommit&) = delete;
+
     GeometryCollectionCommit(const GeometryCollection& dst, const GeometryCollection& src);
 
   private:
-    static void update_from(GeometryCollection& base, const GeometryCollectionCommit& inc);
-
     IndexT m_next_id = 0;
 
-    unordered_map<IndexT, GeometryCommit> m_diff_geometries;
+    unordered_map<IndexT, S<GeometryCommit>> m_geometries;
 };
 
 UIPC_CORE_API GeometryCollectionCommit operator-(const GeometryCollection& dst,

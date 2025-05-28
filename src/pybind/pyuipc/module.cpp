@@ -28,7 +28,6 @@ py::module& top_module()
 }
 }  // namespace pyuipc
 
-
 PYBIND11_MODULE(pyuipc, m)
 {
     pyuipc::g_top_module = &m;
