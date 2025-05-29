@@ -93,9 +93,9 @@ void GlobalLinearSystem::prepare_hessian()
 
 void GlobalLinearSystem::Impl::init()
 {
-    auto diag_subsystem_view       = diag_subsystems.view();
-    auto off_diag_subsystem_view   = off_diag_subsystems.view();
-    auto local_preconditioner_view = local_preconditioners.view();
+    auto diag_subsystem_view     = diag_subsystems.view();
+    auto off_diag_subsystem_view = off_diag_subsystems.view();
+
 
     // 1) Record Diag and OffDiag Subsystems
     auto total_count = diag_subsystem_view.size() + off_diag_subsystem_view.size();
@@ -155,6 +155,13 @@ void GlobalLinearSystem::Impl::init()
 
     // 4) Preconditioner
     // find out diag systems that don't have preconditioner
+    auto local_preconditioner_view = local_preconditioners.view();
+
+    for(auto precond : local_preconditioner_view)
+    {
+        precond->init();
+    }
+
     for(auto precond : local_preconditioner_view)
     {
         auto index = precond->m_subsystem->m_index;

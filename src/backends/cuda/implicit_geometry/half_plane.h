@@ -40,6 +40,7 @@ class HalfPlane : public SimSystem
 
   private:
     friend class HalfPlaneVertexReporter;
+    friend class HalfPlaneBodyReporter;
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

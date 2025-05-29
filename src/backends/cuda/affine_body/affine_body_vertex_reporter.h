@@ -3,6 +3,7 @@
 #include <affine_body/affine_body_dynamics.h>
 namespace uipc::backend::cuda
 {
+class AffineBodyBodyReporter;
 class AffineBodyVertexReporter final : public VertexReporter
 {
   public:
@@ -11,27 +12,20 @@ class AffineBodyVertexReporter final : public VertexReporter
     class Impl
     {
       public:
-        void report_count(GlobalVertexManager::VertexCountInfo& info);
-        void report_attributes(GlobalVertexManager::VertexAttributeInfo& info);
-        void report_displacements(GlobalVertexManager::VertexDisplacementInfo& info);
+        void report_count(VertexCountInfo& info);
+        void report_attributes(VertexAttributeInfo& info);
+        void report_displacements(VertexDisplacementInfo& info);
 
-        SizeT                     reporter_vertex_offset = 0;
-        SizeT                     reporter_vertex_count  = 0;
         AffineBodyDynamics*       affine_body_dynamics;
+        AffineBodyBodyReporter*   body_reporter = nullptr;
         AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
     };
 
-    SizeT vertex_offset() const noexcept
-    {
-        return m_impl.reporter_vertex_offset;
-    }
-    SizeT vertex_count() const noexcept { return m_impl.reporter_vertex_count; }
-
   protected:
     virtual void do_build(BuildInfo& info) override;
-    virtual void do_report_count(GlobalVertexManager::VertexCountInfo& info) override;
-    virtual void do_report_attributes(GlobalVertexManager::VertexAttributeInfo& info) override;
-    virtual void do_report_displacements(GlobalVertexManager::VertexDisplacementInfo& info) override;
+    virtual void do_report_count(VertexCountInfo& info) override;
+    virtual void do_report_attributes(VertexAttributeInfo& info) override;
+    virtual void do_report_displacements(VertexDisplacementInfo& info) override;
 
   private:
     Impl m_impl;

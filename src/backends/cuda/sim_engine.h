@@ -9,6 +9,7 @@ namespace uipc::backend::cuda
 {
 class GlobalVertexManager;
 class GlobalSimpicialSurfaceManager;
+class GlobalBodyManager;
 class GlobalContactManager;
 class GlobalTrajectoryFilter;
 
@@ -67,6 +68,7 @@ class SimEngine final : public backend::SimEngine
     // Aware Top Systems
     GlobalVertexManager* m_global_vertex_manager = nullptr;
     GlobalSimpicialSurfaceManager* m_global_simplicial_surface_manager = nullptr;
+    GlobalBodyManager*      m_global_body_manager      = nullptr;
     GlobalContactManager*   m_global_contact_manager   = nullptr;
     GlobalTrajectoryFilter* m_global_trajectory_filter = nullptr;
 
@@ -81,6 +83,7 @@ class SimEngine final : public backend::SimEngine
     AffineBodyDynamics* m_affine_body_dynamics = nullptr;
     //ABDDiffSimManager*           m_abd_diff_sim_manager           = nullptr;
     FiniteElementMethod* m_finite_element_method = nullptr;
+
 
     Float m_abs_tol             = 0.0;
     Float m_newton_velocity_tol = 0.01;

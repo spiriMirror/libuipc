@@ -6,11 +6,12 @@
 #include <Eigen/Geometry>
 #include <collision_detection/aabb.h>
 #include <utils/dump_utils.h>
+#include <utils/offset_count_collection.h>
 
 namespace uipc::backend::cuda
 {
 class VertexReporter;
-class GlobalVertexManager : public SimSystem
+class GlobalVertexManager final : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
@@ -21,12 +22,14 @@ class GlobalVertexManager : public SimSystem
     {
       public:
         void count(SizeT count) noexcept;
-        void changable(bool is_changable) noexcept;
+        void changeable(bool is_changable) noexcept;
 
       private:
         friend class GlobalVertexManager;
-        SizeT m_count;
-        bool  m_changable;
+        friend class VertexReporter;
+
+        SizeT m_count     = 0;
+        bool  m_changable = false;
     };
 
     class VertexAttributeInfo
@@ -39,6 +42,7 @@ class GlobalVertexManager : public SimSystem
         muda::BufferView<IndexT>  dimensions() const noexcept;
         muda::BufferView<Vector3> positions() const noexcept;
         muda::BufferView<IndexT>  contact_element_ids() const noexcept;
+        muda::BufferView<IndexT>  body_ids() const noexcept;
 
       private:
         friend class GlobalVertexManager;
@@ -69,6 +73,10 @@ class GlobalVertexManager : public SimSystem
      * 2) or any other information that is needed to be stored.
      */
     muda::CBufferView<IndexT> coindices() const noexcept;
+    /**
+     * @brief A mapping from the global vertex index to the body id.
+     */
+    muda::CBufferView<IndexT> body_ids() const noexcept;
     /**
      * @brief The current positions of the vertices.
      */
@@ -121,9 +129,6 @@ class GlobalVertexManager : public SimSystem
      */
     AABB vertex_bounding_box() const noexcept;
 
-
-    void after_init_vertex_info(SimSystem& system, std::function<void()>&& action);
-
   public:
     class Impl
     {
@@ -150,6 +155,7 @@ class GlobalVertexManager : public SimSystem
         void clear_recover(RecoverInfo& info);
 
         muda::DeviceBuffer<IndexT>  coindices;
+        muda::DeviceBuffer<IndexT>  body_ids;
         muda::DeviceBuffer<IndexT>  dimensions;
         muda::DeviceBuffer<Vector3> positions;
         muda::DeviceBuffer<Vector3> prev_positions;
@@ -166,10 +172,8 @@ class GlobalVertexManager : public SimSystem
         muda::DeviceVar<Vector3> max_pos;
 
         SimSystemSlotCollection<VertexReporter> vertex_reporters;
-        SimActionCollection<void()>             after_init_vertex_info;
 
-        vector<SizeT> reporter_vertex_offsets;
-        vector<SizeT> reporter_vertex_counts;
+        OffsetCountCollection<IndexT> reporter_vertex_offsets_counts;
 
         AABB vertex_bounding_box;
 

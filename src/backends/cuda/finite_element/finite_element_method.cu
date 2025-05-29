@@ -13,6 +13,7 @@
 #include <muda/ext/eigen/inverse.h>
 #include <ranges>
 #include <sim_engine.h>
+#include <utils/offset_count_collection.h>
 
 // kinetic
 #include <finite_element/finite_element_kinetic.h>
@@ -336,10 +337,13 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
     // 3) setup vertex offsets and primitive offsets
     // + 1 for total count
     {
-        vector<SizeT> vertex_counts(geo_infos.size() + 1, 0);
-        vector<SizeT> vertex_offsets(geo_infos.size() + 1, 0);
-        vector<SizeT> primitive_offsets(geo_infos.size() + 1, 0);
-        vector<SizeT> primitive_counts(geo_infos.size() + 1, 0);
+        OffsetCountCollection<IndexT> vertex_offsets_counts;
+        vertex_offsets_counts.resize(geo_infos.size());
+        OffsetCountCollection<IndexT> primitive_offsets_counts;
+        primitive_offsets_counts.resize(geo_infos.size());
+
+        span<IndexT> vertex_counts    = vertex_offsets_counts.counts();
+        span<IndexT> primitive_counts = primitive_offsets_counts.counts();
 
         std::transform(geo_infos.begin(),
                        geo_infos.end(),
@@ -351,19 +355,20 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
                        primitive_counts.begin(),
                        [](const GeoInfo& info) { return info.primitive_count; });
 
-        std::exclusive_scan(
-            vertex_counts.begin(), vertex_counts.end(), vertex_offsets.begin(), 0);
+        vertex_offsets_counts.scan();
 
         // we don't calculate the primitive offset here
         // the primitive offset is related to the dimension
         // the primitive offset in every dim starts from 0
+
+        span<const IndexT> vertex_offsets = vertex_offsets_counts.offsets();
 
         for(auto&& [i, info] : enumerate(geo_infos))
         {
             info.vertex_offset = vertex_offsets[i];
         }
 
-        h_positions.resize(vertex_offsets.back());
+        h_positions.resize(vertex_offsets_counts.total_count());
     }
 
 
@@ -419,8 +424,11 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
         if(it == geo_infos.end())
             continue;
 
-        vector<SizeT> primitive_counts(dim_info.geo_info_count + 1, 0);  // + 1 to calculate the total size
-        vector<SizeT> vertex_counts(dim_info.geo_info_count + 1);  // + 1 to calculate the total size
+        OffsetCountCollection<IndexT> primitive_offsets_counts;
+        primitive_offsets_counts.resize(dim_info.geo_info_count);
+
+        span<IndexT>   primitive_counts = primitive_offsets_counts.counts();
+        vector<IndexT> vertex_counts(dim_info.geo_info_count);
 
         auto geo_span =
             span{geo_infos}.subspan(dim_info.geo_info_offset, dim_info.geo_info_count);
@@ -430,19 +438,22 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
                                [](const GeoInfo& info)
                                { return info.primitive_count; });
 
-        vector<SizeT> primitive_offsets(primitive_counts.size(), 0);
+        // exclusive scan the primitive counts
+        primitive_offsets_counts.scan();
 
-        std::exclusive_scan(primitive_counts.begin(),
-                            primitive_counts.end(),
-                            primitive_offsets.begin(),
-                            0);
+        span<const IndexT> primitive_offsets = primitive_offsets_counts.offsets();
 
-        for(auto&& [i, info] : enumerate(geo_span))
+        for(auto&& [j, info] : enumerate(geo_span))
         {
-            info.primitive_offset = primitive_offsets[i];
+            info.primitive_offset = primitive_offsets[j];
         }
 
-        dim_primitive_counts[i] = primitive_offsets.back();
+        dim_primitive_counts[i] = primitive_offsets_counts.total_count();
+
+        UIPC_ASSERT(geo_span.size() == vertex_counts.size(),
+                    "Size mismatching in geo_span({}) and vertex_counts({}), why can it happen?",
+                    geo_span.size(),
+                    vertex_counts.size());
 
         std::ranges::transform(geo_span,
                                vertex_counts.begin(),
@@ -553,238 +564,275 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
     auto geo_slots      = world.scene().geometries();
     auto rest_geo_slots = world.scene().rest_geometries();
 
-    // resize buffers
-    h_rest_positions.resize(h_positions.size());
-    h_velocities.resize(h_positions.size(), Vector3::Zero());  // fill 0 for default
-    h_thicknesses.resize(h_positions.size(), 0);  // fill 0 for default
-    h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
-    h_masses.resize(h_positions.size());
-    h_vertex_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
-    h_vertex_is_fixed.resize(h_positions.size(), 0);    // fill 0 for default
-    h_vertex_is_dynamic.resize(h_positions.size(), 1);  // fill 1 for default
-    h_gravities.resize(h_positions.size(), default_gravity);
-
-    for(auto&& [i, info] : enumerate(geo_infos))
+    // 1. Vertex Attributes
     {
-        auto& geo_slot      = geo_slots[info.geo_slot_index];
-        auto& rest_geo_slot = rest_geo_slots[info.geo_slot_index];
-        auto& geo           = geo_slot->geometry();
-        auto& rest_geo      = rest_geo_slot->geometry();
-        auto* sc            = geo.as<geometry::SimplicialComplex>();
-        UIPC_ASSERT(sc,
-                    "The geometry is not a simplicial complex (it's {}). Why can it happen?",
-                    geo.type());
-        auto* rest_sc = rest_geo.as<geometry::SimplicialComplex>();
-        UIPC_ASSERT(rest_sc,
-                    "The geometry is not a simplicial complex (it's {}). Why can it happen?",
-                    rest_geo.type());
+        h_gravities.resize(h_positions.size(), default_gravity);
+        h_rest_positions.resize(h_positions.size());
+        h_velocities.resize(h_positions.size(), Vector3::Zero());  // fill 0 for default
+        h_thicknesses.resize(h_positions.size(), 0);  // fill 0 for default
+        h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
+        h_masses.resize(h_positions.size());
+        h_vertex_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
+        h_vertex_is_fixed.resize(h_positions.size(), 0);  // fill 0 for default, default non-fixed
+        h_vertex_is_dynamic.resize(h_positions.size(), 1);  // fill 1 for default, default dynamic
+        h_vertex_body_id.resize(h_positions.size(), -1);  // fill -1 for default, invalid body id
 
-        // 1) setup primitives
-        switch(sc->dim())
+
+        for(auto&& [i, info] : enumerate(geo_infos))
         {
-            case 0: {
-                auto dst_codim_0d_span =
-                    span{h_codim_0ds}.subspan(info.primitive_offset, info.primitive_count);
-                std::iota(dst_codim_0d_span.begin(), dst_codim_0d_span.end(), info.vertex_offset);
-            }
-            break;
-            case 1: {
-                auto dst_codim_1d_span =
-                    span{h_codim_1ds}.subspan(info.primitive_offset, info.primitive_count);
+            auto& geo_slot      = geo_slots[info.geo_slot_index];
+            auto& rest_geo_slot = rest_geo_slots[info.geo_slot_index];
+            auto& geo           = geo_slot->geometry();
+            auto& rest_geo      = rest_geo_slot->geometry();
+            auto* sc            = geo.as<geometry::SimplicialComplex>();
+            UIPC_ASSERT(sc,
+                        "The geometry is not a simplicial complex (it's {}). Why can it happen?",
+                        geo.type());
+            auto* rest_sc = rest_geo.as<geometry::SimplicialComplex>();
+            UIPC_ASSERT(rest_sc,
+                        "The geometry is not a simplicial complex (it's {}). Why can it happen?",
+                        rest_geo.type());
 
-                auto edge_view = sc->edges().topo().view();
-                UIPC_ASSERT(edge_view.size() == dst_codim_1d_span.size(), "edge size mismatching");
-
-                std::transform(edge_view.begin(),
-                               edge_view.end(),
-                               dst_codim_1d_span.begin(),
-                               [&](const Vector2i& edge) -> Vector2i
-                               { return edge.array() + info.vertex_offset; });
-            }
-            break;
-            case 2: {
-                auto dst_codim_2d_span =
-                    span{h_codim_2ds}.subspan(info.primitive_offset, info.primitive_count);
-
-                auto tri_view = sc->triangles().topo().view();
-                UIPC_ASSERT(tri_view.size() == dst_codim_2d_span.size(),
-                            "triangle size mismatching");
-
-                std::transform(tri_view.begin(),
-                               tri_view.end(),
-                               dst_codim_2d_span.begin(),
-                               [&](const Vector3i& tri) -> Vector3i
-                               { return tri.array() + info.vertex_offset; });
-            }
-            break;
-            case 3: {
-                auto dst_tet_span =
-                    span{h_tets}.subspan(info.primitive_offset, info.primitive_count);
-
-                auto tet_view = sc->tetrahedra().topo().view();
-                UIPC_ASSERT(tet_view.size() == dst_tet_span.size(), "tetrahedra size mismatching");
-
-                std::transform(tet_view.begin(),
-                               tet_view.end(),
-                               dst_tet_span.begin(),
-                               [&](const Vector4i& tet) -> Vector4i
-                               { return tet.array() + info.vertex_offset; });
-            }
-            break;
-            default:
+            // 1) setup primitives
+            switch(sc->dim())
+            {
+                case 0: {
+                    auto dst_codim_0d_span =
+                        span{h_codim_0ds}.subspan(info.primitive_offset, info.primitive_count);
+                    std::iota(dst_codim_0d_span.begin(), dst_codim_0d_span.end(), info.vertex_offset);
+                }
                 break;
-        }
+                case 1: {
+                    auto dst_codim_1d_span =
+                        span{h_codim_1ds}.subspan(info.primitive_offset, info.primitive_count);
 
-        {  // 2) fill backend_fem_vertex_offset in geometry
-            auto vertex_offset = sc->meta().find<IndexT>(builtin::backend_fem_vertex_offset);
-            if(!vertex_offset)
-                vertex_offset =
-                    sc->meta().create<IndexT>(builtin::backend_fem_vertex_offset, -1);
-            auto vertex_offset_view = geometry::view(*vertex_offset);
-            std::ranges::fill(vertex_offset_view, info.vertex_offset);
-        }
+                    auto edge_view = sc->edges().topo().view();
+                    UIPC_ASSERT(edge_view.size() == dst_codim_1d_span.size(),
+                                "edge size mismatching");
 
-        {  // 3) setup positions and velocities
-            auto pos_view = sc->positions().view();
-            auto dst_pos_span =
-                span{h_positions}.subspan(info.vertex_offset, info.vertex_count);
-            UIPC_ASSERT(pos_view.size() == dst_pos_span.size(), "position size mismatching");
-            std::copy(pos_view.begin(), pos_view.end(), dst_pos_span.begin());
+                    std::transform(edge_view.begin(),
+                                   edge_view.end(),
+                                   dst_codim_1d_span.begin(),
+                                   [&](const Vector2i& edge) -> Vector2i
+                                   { return edge.array() + info.vertex_offset; });
+                }
+                break;
+                case 2: {
+                    auto dst_codim_2d_span =
+                        span{h_codim_2ds}.subspan(info.primitive_offset, info.primitive_count);
 
-            auto rest_pos_view = rest_sc->positions().view();
-            auto dst_rest_pos_span =
-                span{h_rest_positions}.subspan(info.vertex_offset, info.vertex_count);
-            UIPC_ASSERT(rest_pos_view.size() == dst_rest_pos_span.size(),
-                        "rest position size mismatching");
-            std::ranges::copy(rest_pos_view, dst_rest_pos_span.begin());
+                    auto tri_view = sc->triangles().topo().view();
+                    UIPC_ASSERT(tri_view.size() == dst_codim_2d_span.size(),
+                                "triangle size mismatching");
 
-            auto vel = sc->vertices().find<Vector3>(builtin::velocity);
-            if(vel)  // if user set the velocity
-            {
-                auto vel_view = vel->view();
-                auto dst_vel_span =
-                    span{h_velocities}.subspan(info.vertex_offset, info.vertex_count);
-                UIPC_ASSERT(vel_view.size() == dst_vel_span.size(), "velocity size mismatching");
-                std::ranges::copy(vel_view, dst_vel_span.begin());
+                    std::transform(tri_view.begin(),
+                                   tri_view.end(),
+                                   dst_codim_2d_span.begin(),
+                                   [&](const Vector3i& tri) -> Vector3i
+                                   { return tri.array() + info.vertex_offset; });
+                }
+                break;
+                case 3: {
+                    auto dst_tet_span =
+                        span{h_tets}.subspan(info.primitive_offset, info.primitive_count);
+
+                    auto tet_view = sc->tetrahedra().topo().view();
+                    UIPC_ASSERT(tet_view.size() == dst_tet_span.size(),
+                                "tetrahedra size mismatching");
+
+                    std::transform(tet_view.begin(),
+                                   tet_view.end(),
+                                   dst_tet_span.begin(),
+                                   [&](const Vector4i& tet) -> Vector4i
+                                   { return tet.array() + info.vertex_offset; });
+                }
+                break;
+                default:
+                    break;
             }
-            // else, keep the default value (0)
-        }
 
-        {  // 4) setup mass
-            auto volume      = rest_sc->vertices().find<Float>(builtin::volume);
-            auto volume_view = volume->view();
-
-            auto meta_mass_density = sc->meta().find<Float>(builtin::mass_density);
-            auto vertex_mass_density = sc->vertices().find<Float>(builtin::mass_density);
-            UIPC_ASSERT(meta_mass_density || vertex_mass_density,
-                        "mass density is not found in the geometry");
-            auto mass_density_view = vertex_mass_density ?
-                                         vertex_mass_density->view() :
-                                         meta_mass_density->view();
-
-            auto dst_mass_span =
-                span{h_masses}.subspan(info.vertex_offset, info.vertex_count);
-            UIPC_ASSERT(volume_view.size() == dst_mass_span.size(), "mass size mismatching");
-            std::ranges::copy(volume_view, dst_mass_span.begin());
-
-            for(auto&& [i, dst_vert_mass] : enumerate(dst_mass_span))
-            {
-                auto density  = vertex_mass_density ? mass_density_view[i] :
-                                                      mass_density_view[0];
-                dst_vert_mass = density * volume_view[i];
+            {  // 2) fill backend_fem_vertex_offset in geometry
+                auto vertex_offset =
+                    sc->meta().find<IndexT>(builtin::backend_fem_vertex_offset);
+                if(!vertex_offset)
+                    vertex_offset =
+                        sc->meta().create<IndexT>(builtin::backend_fem_vertex_offset, -1);
+                auto vertex_offset_view = geometry::view(*vertex_offset);
+                std::ranges::fill(vertex_offset_view, info.vertex_offset);
             }
-        }
 
-        {  // 5) setup thickness
-            auto thickness = sc->vertices().find<Float>(builtin::thickness);
-            auto dst_thickness_span =
-                span{h_thicknesses}.subspan(info.vertex_offset, info.vertex_count);
+            {  // 3) setup positions and velocities
+                auto pos_view = sc->positions().view();
+                auto dst_pos_span =
+                    span{h_positions}.subspan(info.vertex_offset, info.vertex_count);
+                UIPC_ASSERT(pos_view.size() == dst_pos_span.size(), "position size mismatching");
+                std::copy(pos_view.begin(), pos_view.end(), dst_pos_span.begin());
 
-            if(thickness)
-            {
-                auto thickness_view = thickness->view();
-                UIPC_ASSERT(thickness_view.size() == dst_thickness_span.size(),
-                            "thickness size mismatching");
-                std::ranges::copy(thickness_view, dst_thickness_span.begin());
-            }
-        }
+                auto rest_pos_view = rest_sc->positions().view();
+                auto dst_rest_pos_span =
+                    span{h_rest_positions}.subspan(info.vertex_offset, info.vertex_count);
+                UIPC_ASSERT(rest_pos_view.size() == dst_rest_pos_span.size(),
+                            "rest position size mismatching");
+                std::ranges::copy(rest_pos_view, dst_rest_pos_span.begin());
 
-        {  // 6) setup vertex contact element id
-
-            auto dst_eid_span =
-                span{h_vertex_contact_element_ids}.subspan(info.vertex_offset,
-                                                           info.vertex_count);
-
-            auto vert_ceid = sc->vertices().find<IndexT>(builtin::contact_element_id);
-            if(vert_ceid)
-            {
-                auto ceid_view = vert_ceid->view();
-                UIPC_ASSERT(ceid_view.size() == dst_eid_span.size(),
-                            "contact element id size mismatching");
-
-                std::ranges::copy(ceid_view, dst_eid_span.begin());
-            }
-            else
-            {
-                auto ceid = sc->meta().find<IndexT>(builtin::contact_element_id);
-
-                if(ceid)
+                auto vel = sc->vertices().find<Vector3>(builtin::velocity);
+                if(vel)  // if user set the velocity
                 {
-                    auto eid = ceid->view()[0];
-                    std::ranges::fill(dst_eid_span, eid);
+                    auto vel_view = vel->view();
+                    auto dst_vel_span =
+                        span{h_velocities}.subspan(info.vertex_offset, info.vertex_count);
+                    UIPC_ASSERT(vel_view.size() == dst_vel_span.size(),
+                                "velocity size mismatching");
+                    std::ranges::copy(vel_view, dst_vel_span.begin());
+                }
+                // else, keep the default value (0)
+            }
+
+            {  // 4) setup mass
+                auto volume = rest_sc->vertices().find<Float>(builtin::volume);
+                auto volume_view = volume->view();
+
+                auto meta_mass_density = sc->meta().find<Float>(builtin::mass_density);
+                auto vertex_mass_density = sc->vertices().find<Float>(builtin::mass_density);
+                UIPC_ASSERT(meta_mass_density || vertex_mass_density,
+                            "mass density is not found in the geometry");
+                auto mass_density_view = vertex_mass_density ?
+                                             vertex_mass_density->view() :
+                                             meta_mass_density->view();
+
+                auto dst_mass_span =
+                    span{h_masses}.subspan(info.vertex_offset, info.vertex_count);
+                UIPC_ASSERT(volume_view.size() == dst_mass_span.size(), "mass size mismatching");
+                std::ranges::copy(volume_view, dst_mass_span.begin());
+
+                for(auto&& [i, dst_vert_mass] : enumerate(dst_mass_span))
+                {
+                    auto density  = vertex_mass_density ? mass_density_view[i] :
+                                                          mass_density_view[0];
+                    dst_vert_mass = density * volume_view[i];
                 }
             }
-        }
 
-        {  // 7) setup vertex is_fixed
+            {  // 5) setup thickness
+                auto thickness = sc->vertices().find<Float>(builtin::thickness);
+                auto dst_thickness_span =
+                    span{h_thicknesses}.subspan(info.vertex_offset, info.vertex_count);
 
-            auto is_fixed = sc->vertices().find<IndexT>(builtin::is_fixed);
-            auto constraint_uid = sc->meta().find<U64>(builtin::constraint_uid);
+                if(thickness)
+                {
+                    auto thickness_view = thickness->view();
+                    UIPC_ASSERT(thickness_view.size() == dst_thickness_span.size(),
+                                "thickness size mismatching");
+                    std::ranges::copy(thickness_view, dst_thickness_span.begin());
+                }
+            }
 
-            auto dst_is_fixed_span =
-                span{h_vertex_is_fixed}.subspan(info.vertex_offset, info.vertex_count);
+            {  // 6) setup vertex contact element id
 
-            if(is_fixed)
-            {
-                auto is_fixed_view = is_fixed->view();
-                UIPC_ASSERT(is_fixed_view.size() == dst_is_fixed_span.size(),
-                            "is_fixed size mismatching");
-                std::ranges::copy(is_fixed_view, dst_is_fixed_span.begin());
+                auto dst_eid_span = span{h_vertex_contact_element_ids}.subspan(
+                    info.vertex_offset, info.vertex_count);
+
+                auto vert_ceid = sc->vertices().find<IndexT>(builtin::contact_element_id);
+                if(vert_ceid)
+                {
+                    auto ceid_view = vert_ceid->view();
+                    UIPC_ASSERT(ceid_view.size() == dst_eid_span.size(),
+                                "contact element id size mismatching");
+
+                    std::ranges::copy(ceid_view, dst_eid_span.begin());
+                }
+                else
+                {
+                    auto ceid = sc->meta().find<IndexT>(builtin::contact_element_id);
+
+                    if(ceid)
+                    {
+                        auto eid = ceid->view()[0];
+                        std::ranges::fill(dst_eid_span, eid);
+                    }
+                }
+            }
+
+            {  // 7) setup vertex is_fixed
+
+                auto is_fixed = sc->vertices().find<IndexT>(builtin::is_fixed);
+                auto constraint_uid = sc->meta().find<U64>(builtin::constraint_uid);
+
+                auto dst_is_fixed_span =
+                    span{h_vertex_is_fixed}.subspan(info.vertex_offset, info.vertex_count);
+
+                if(is_fixed)
+                {
+                    auto is_fixed_view = is_fixed->view();
+                    UIPC_ASSERT(is_fixed_view.size() == dst_is_fixed_span.size(),
+                                "is_fixed size mismatching");
+                    std::ranges::copy(is_fixed_view, dst_is_fixed_span.begin());
+                }
+            }
+
+            {  // 8) setup dimension
+                auto dst_dim_span =
+                    span{h_dimensions}.subspan(info.vertex_offset, info.vertex_count);
+                std::ranges::fill(dst_dim_span, sc->dim());
+            }
+
+            {  // 9) setup vertex is_dynamic
+                auto is_dynamic = sc->vertices().find<IndexT>(builtin::is_dynamic);
+                auto dst_is_dynamic =
+                    span{h_vertex_is_dynamic}.subspan(info.vertex_offset, info.vertex_count);
+
+                if(is_dynamic)
+                {
+                    auto is_dynamic_view = is_dynamic->view();
+                    UIPC_ASSERT(is_dynamic_view.size() == dst_is_dynamic.size(),
+                                "is_kinematic size mismatching");
+                    std::ranges::copy(is_dynamic_view, dst_is_dynamic.begin());
+                }
+            }
+
+            {  // 10) setup vertex gravities
+
+                auto gravity_attr = sc->vertices().find<Vector3>(builtin::gravity);
+                auto dst_gravties =
+                    span{h_gravities}.subspan(info.vertex_offset, info.vertex_count);
+
+                if(gravity_attr)
+                {
+                    auto gravity_view = gravity_attr->view();
+                    UIPC_ASSERT(gravity_view.size() == dst_gravties.size(),
+                                "gravity size mismatching");
+                    std::ranges::copy(gravity_view, dst_gravties.begin());
+                }
+            }
+
+            {  // 11) setup vertex body id
+
+                IndexT body_id = i;  // geo slot index is the body id
+                auto   dst_body_id_span =
+                    span{h_vertex_body_id}.subspan(info.vertex_offset, info.vertex_count);
+                std::ranges::fill(dst_body_id_span, body_id);
             }
         }
+    }
 
-        {  // 8) setup dimension
-            auto dst_dim_span =
-                span{h_dimensions}.subspan(info.vertex_offset, info.vertex_count);
-            std::ranges::fill(dst_dim_span, sc->dim());
-        }
+    // 2. Body Attributes
+    {
+        h_body_self_collision.resize(geo_infos.size(), 1);  // fill 1 for default turn on self-collision
 
-        {  // 9) setup vertex is_dynamic
-            auto is_dynamic = sc->vertices().find<IndexT>(builtin::is_dynamic);
-            auto dst_is_dynamic =
-                span{h_vertex_is_dynamic}.subspan(info.vertex_offset, info.vertex_count);
+        for(auto&& [i, info] : enumerate(geo_infos))
+        {
+            auto& geo_slot = geo_slots[info.geo_slot_index];
+            auto& geo      = geo_slot->geometry();
+            auto* sc       = geo.as<geometry::SimplicialComplex>();
+            UIPC_ASSERT(sc,
+                        "The geometry is not a simplicial complex (it's {}). Why can it happen?",
+                        geo.type());
 
-            if(is_dynamic)
-            {
-                auto is_dynamic_view = is_dynamic->view();
-                UIPC_ASSERT(is_dynamic_view.size() == dst_is_dynamic.size(),
-                            "is_kinematic size mismatching");
-                std::ranges::copy(is_dynamic_view, dst_is_dynamic.begin());
-            }
-        }
+            {  // 1) setup body self-collision
 
-        {  // 10) setup vertex gravities
-
-            auto gravity_attr = sc->vertices().find<Vector3>(builtin::gravity);
-            auto dst_gravties =
-                span{h_gravities}.subspan(info.vertex_offset, info.vertex_count);
-
-            if(gravity_attr)
-            {
-                auto gravity_view = gravity_attr->view();
-                UIPC_ASSERT(gravity_view.size() == dst_gravties.size(),
-                            "gravity size mismatching");
-                std::ranges::copy(gravity_view, dst_gravties.begin());
+                auto self_collision = sc->meta().find<IndexT>(builtin::self_collision);
+                UIPC_ASSERT(self_collision, "self_collision is not found in finite element `meta`, why can it happen?");
+                h_body_self_collision[i] = self_collision->view()[0];
             }
         }
     }

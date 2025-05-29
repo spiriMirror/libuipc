@@ -78,13 +78,7 @@ class GlobalContactManager final : public SimSystem
          * @param LRange LRange=[LBegin, LEnd)
          * @param RRange RRange=[RBegin, REnd)
          */
-        void range(const Vector2i& LRange, const Vector2i& RRange)
-        {
-            m_type             = Type::Range;
-            m_hessian_i_range  = LRange;
-            m_hessian_j_range  = RRange;
-            m_gradient_i_range = Vector2i::Zero();
-        }
+        void range(const Vector2i& LRange, const Vector2i& RRange);
 
         /**
          * @brief The range of contact hessian and gradient. (Diagnonal)
@@ -94,13 +88,7 @@ class GlobalContactManager final : public SimSystem
          * 
          * @param Range Range=[Begin, End)
          */
-        void range(const Vector2i& Range)
-        {
-            m_type             = Type::Range;
-            m_gradient_i_range = Range;
-            m_hessian_i_range  = Range;
-            m_hessian_j_range  = Range;
-        }
+        void range(const Vector2i& Range);
 
       private:
         friend class Impl;
@@ -110,16 +98,9 @@ class GlobalContactManager final : public SimSystem
         Vector2i m_gradient_i_range = {0, 0};
         Type     m_type;
 
-        bool is_empty() const
-        {
-            return m_hessian_i_range[0] == m_hessian_i_range[1]
-                   || m_hessian_j_range[0] == m_hessian_j_range[1];
-        }
+        bool is_empty() const;
 
-        bool is_diag() const
-        {
-            return m_gradient_i_range[0] != m_gradient_i_range[1];
-        }
+        bool is_diag() const;
 
         void sanity_check();
     };

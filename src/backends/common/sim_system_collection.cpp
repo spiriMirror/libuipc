@@ -37,16 +37,44 @@ span<ISimSystem* const> SimSystemCollection::systems() const
 void SimSystemCollection::cleanup_invalid_systems()
 {
     // remove invalid systems
-    for(auto it = m_sim_system_map.begin(); it != m_sim_system_map.end();)
+    bool changed = false;
+
+    auto check_valid = [](const ISimSystem* ss) -> bool
     {
-        if(!it->second->is_valid())
+        auto this_valid = ss->is_valid();
+        auto deps       = ss->dependencies();
+        bool deps_valid = true;
+        for(auto dep : deps)
         {
-            m_invalid_systems.push_back(std::move(it->second));
-            it = m_sim_system_map.erase(it);
+            if(!dep->is_valid())
+            {
+                deps_valid = false;
+                spdlog::debug("[{}] will be removed, because its dep [{}] is invalid",
+                              ss->name(),
+                              dep->name());
+                break;
+            }
         }
-        else
-            ++it;
-    }
+        return this_valid && deps_valid;
+    };
+
+    // clean all invalid sim system
+    do
+    {
+        changed = false;
+        for(auto it = m_sim_system_map.begin(); it != m_sim_system_map.end();)
+        {
+            if(!check_valid(it->second.get()))
+            {
+                it->second->set_invalid();
+                m_invalid_systems.push_back(std::move(it->second));
+                it      = m_sim_system_map.erase(it);
+                changed = true;
+            }
+            else
+                ++it;
+        }
+    } while(changed);
 }
 
 void SimSystemCollection::build_systems()
@@ -75,6 +103,8 @@ void SimSystemCollection::build_systems()
                            [](auto& p) { return p.second.get(); });
 
     for(auto&& s : m_valid_systems)
+        s->set_building(false);
+    for(auto&& s : m_invalid_systems)
         s->set_building(false);
 
     built = true;

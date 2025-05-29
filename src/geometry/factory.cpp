@@ -1,6 +1,8 @@
 #include <uipc/geometry/utils/factory.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/utils/closure.h>
+#include <igl/polygons_to_triangles.h>
+
 namespace uipc::geometry
 {
 namespace detail
@@ -45,6 +47,19 @@ SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
     return facet_closure(sc);
 }
 
+SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector4i> Fs)
+{
+    vector<Vector3i> Ts;
+    Ts.reserve(Fs.size() * 2);
+    for(const auto& f : Fs)
+    {
+        // Split each quad into two triangles
+        Ts.emplace_back(f[0], f[1], f[2]);
+        Ts.emplace_back(f[0], f[2], f[3]);
+    }
+    return trimesh(Vs, Ts);
+}
+
 SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
 {
     SimplicialComplex sc;
@@ -87,7 +102,8 @@ ImplicitGeometry halfplane(const Vector3& P, const Vector3& N)
 
 ImplicitGeometry ground(Float height, const Vector3& N)
 {
-    ImplicitGeometry hp = halfplane(Vector3::UnitY() * height, N);
-    return hp;
+    // Create a half-plane at the given height
+    // P = N * height
+    return halfplane(N * height, N);
 }
 }  // namespace uipc::geometry

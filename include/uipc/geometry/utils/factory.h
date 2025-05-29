@@ -22,6 +22,17 @@ UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex tetmesh(span<const Vector3> Vs
  */
 UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex trimesh(span<const Vector3> Vs,
                                                           span<const Vector3i> Fs);
+
+/**
+ * @brief Create a 2D simplicial complex from a quad mesh (4-sided polygons).
+ * 
+ * @param Vs The vertex positions of the quad mesh
+ * @param Fs The quads of the quad mesh
+ * @return SimplicialComplex 
+ */
+UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex trimesh(span<const Vector3> Vs,
+                                                          span<const Vector4i> Fs);
+
 /**
  * @brief Create a simplicial complex from a line mesh.
  * 

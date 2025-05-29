@@ -10,6 +10,10 @@
 
 namespace uipc::backend::cuda
 {
+class FiniteElementVertexReporter;
+class FiniteElementSurfaceReporter;
+class FiniteElementBodyReporter;
+
 class FiniteElementEnergyProducer;
 class FiniteElementConstitution;
 class FiniteElementExtraConstitution;
@@ -280,6 +284,7 @@ class FiniteElementMethod final : public SimSystem
 
         vector<IndexT>  h_vertex_is_fixed;
         vector<IndexT>  h_vertex_is_dynamic;
+        vector<IndexT>  h_vertex_body_id;
         vector<Vector3> h_gravities;
 
         vector<Vector3> h_positions;
@@ -293,7 +298,10 @@ class FiniteElementMethod final : public SimSystem
         vector<Vector2i> h_codim_1ds;
         vector<Vector3i> h_codim_2ds;
         vector<Vector4i> h_tets;
-        Vector3          default_gravity;
+
+        vector<IndexT> h_body_self_collision;
+
+        Vector3 default_gravity;
 
 
         // Element Attributes:
@@ -436,6 +444,7 @@ class FiniteElementMethod final : public SimSystem
   private:
     friend class FiniteElementVertexReporter;
     friend class FiniteElementSurfaceReporter;
+    friend class FiniteElementBodyReporter;
 
     friend class FEMLinearSubsystem;
     friend class FEMLineSearchReporter;
