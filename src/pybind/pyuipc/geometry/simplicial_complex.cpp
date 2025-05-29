@@ -141,6 +141,8 @@ PySimplicialComplex::PySimplicialComplex(py::module& m)
                                 [](SimplicialComplex& self) -> SimplicialComplex
                                 { return self; });
 
+    class_SimplicialComplex.def("dim", &SimplicialComplex::dim);
+
     class_SimplicialComplex.def("__repr__",
                                 [](const SimplicialComplex& self)
                                 { return fmt::format("{}", self); });
