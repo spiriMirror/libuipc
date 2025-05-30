@@ -47,6 +47,8 @@ We are **actively** developing Libuipc and will continue to add more features an
 
 ## News
 
+**2025-5-23**: [StiffGIPC](https://dl.acm.org/doi/10.1145/3735126) will be presented at Siggraph 2025, and Libuipc v1.0.0 will be released soon!
+
 **2024-11-25**: Libuipc v0.9.0 (Alpha) is published! We are excited to share our work with the community. This is a preview version, if you have any feedback or suggestions, please feel free to contact us! [Issues](https://github.com/spiriMirror/libuipc/issues) and [PRs](https://github.com/spiriMirror/libuipc/pulls) are welcome!
 
 ## Citation
@@ -54,14 +56,21 @@ We are **actively** developing Libuipc and will continue to add more features an
 If you use **Libuipc** in your project, please cite our works:
 
 ```
-@misc{huang2024advancinggpuipcstiff,
-      title={Advancing GPU IPC for stiff affine-deformable simulation}, 
-      author={Kemeng Huang and Xinyu Lu and Huancheng Lin and Taku Komura and Minchen Li},
-      year={2024},
-      eprint={2411.06224},
-      archivePrefix={arXiv},
-      primaryClass={cs.GR},
-      url={https://arxiv.org/abs/2411.06224}, 
+@article{stiffgipc2025,
+author = {Huang, Kemeng and Lu, Xinyu and Lin, Huancheng and Komura, Taku and Li, Minchen},
+title = {StiffGIPC: Advancing GPU IPC for Stiff Affine-Deformable Simulation},
+year = {2025},
+issue_date = {June 2025},
+publisher = {Association for Computing Machinery},
+address = {New York, NY, USA},
+volume = {44},
+number = {3},
+issn = {0730-0301},
+doi = {10.1145/3735126},
+month = may,
+articleno = {31},
+numpages = {20},
+keywords = {GPU programming, incremental potential contact, elastodynamics, finite element method, affine body dynamics, preconditioning, cloth simulation}
 }
 ```
 
