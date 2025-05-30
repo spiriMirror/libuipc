@@ -56,20 +56,19 @@ We are **actively** developing Libuipc and will continue to add more features an
 If you use **Libuipc** in your project, please cite our works:
 
 ```
-@article{stiffgipc2025,
-author = {Huang, Kemeng and Lu, Xinyu and Lin, Huancheng and Komura, Taku and Li, Minchen},
-title = {StiffGIPC: Advancing GPU IPC for Stiff Affine-Deformable Simulation},
-year = {2025},
-issue_date = {June 2025},
-publisher = {Association for Computing Machinery},
-address = {New York, NY, USA},
-volume = {44},
-number = {3},
-issn = {0730-0301},
-doi = {10.1145/3735126},
-month = may,
-articleno = {31},
-numpages = {20}
+@article{10.1145/3735126,
+      author = {Huang, Kemeng and Lu, Xinyu and Lin, Huancheng and Komura, Taku and Li, Minchen},
+      title = {StiffGIPC: Advancing GPU IPC for Stiff Affine-Deformable Simulation},
+      year = {2025},
+      publisher = {Association for Computing Machinery},
+      volume = {44},
+      number = {3},
+      issn = {0730-0301},
+      doi = {10.1145/3735126},
+      journal = {ACM Trans. Graph.},
+      month = may,
+      articleno = {31},
+      numpages = {20}
 }
 ```
 
