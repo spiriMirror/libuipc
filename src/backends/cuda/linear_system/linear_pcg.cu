@@ -85,7 +85,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
     }
 
     // check convergence
-    if(accuracy_statisfied(r) && rz0 == 0.0)
+    if(accuracy_statisfied(r) && rz0 == Float{0.0})
         return 0;
 
     for(k = 1; k < max_iter; ++k)
@@ -96,10 +96,10 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         alpha = rz / ctx().dot(p.cview(), Ap.cview());
 
         // x = x + alpha * p
-        ctx().axpby(alpha, p.cview(), 1.0, x);
+        ctx().axpby(alpha, p.cview(), Float{1}, x);
 
         // r = r - alpha * Ap
-        ctx().axpby(-alpha, Ap.cview(), 1.0, r.view());
+        ctx().axpby(-alpha, Ap.cview(), Float{1}, r.view());
 
         // z = P * r (apply preconditioner)
         apply_preconditioner(z, r);
@@ -130,7 +130,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         beta = rz_new / rz;
 
         // p = z + beta * p
-        ctx().axpby(1.0, z.cview(), beta, p.view());
+        ctx().axpby(Float{1}, z.cview(), beta, p.view());
 
         // update rz
         rz = rz_new;

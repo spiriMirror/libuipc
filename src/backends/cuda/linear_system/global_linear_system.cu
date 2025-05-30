@@ -16,7 +16,7 @@ void GlobalLinearSystem::dump_linear_system(std::string_view filename)
     {
         auto& A = m_impl.debug_A;
         m_impl.ctx.convert(m_impl.bcoo_A, A);
-        Eigen::MatrixXd mat;
+        Eigen::MatrixX<Float> mat;
         A.copy_to(mat);
 
         auto A_file = fmt::format("{}.A.csv", filename);
@@ -34,7 +34,7 @@ void GlobalLinearSystem::dump_linear_system(std::string_view filename)
     }
 
     {
-        Eigen::VectorXd b;
+        Eigen::VectorX<Float> b;
         m_impl.b.copy_to(b);
 
         auto b_file = fmt::format("{}.b.csv", filename);
@@ -48,7 +48,7 @@ void GlobalLinearSystem::dump_linear_system(std::string_view filename)
     }
 
     {
-        Eigen::VectorXd x;
+        Eigen::VectorX<Float> x;
         m_impl.x.copy_to(x);
 
         auto x_file = fmt::format("{}.x.csv", filename);

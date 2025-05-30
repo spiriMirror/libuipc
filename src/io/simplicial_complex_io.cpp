@@ -67,14 +67,24 @@ SimplicialComplex SimplicialComplexIO::read_msh(std::string_view file_name)
     {
         throw GeometryIOError{fmt::format("File does not exist: {}", file_name)};
     }
+
+    RowMajorMatrix<double> doubleX;
     RowMajorMatrix<Float>  X;
+
     RowMajorMatrix<IndexT> F;
     RowMajorMatrix<IndexT> T;
     VectorXi               TriTag;
     VectorXi               TetTag;
-    if(!igl::readMSH(string{file_name}, X, F, T, TriTag, TetTag))
+    if(!igl::readMSH(string{file_name}, doubleX, F, T, TriTag, TetTag))
     {
         throw GeometryIOError{fmt::format("Failed to load .msh file: {}", file_name)};
+    }
+
+    if constexpr (std::is_same_v<double, Float>) {
+        X = std::move(doubleX);
+    }
+    else {
+        X = doubleX.cast<Float>();
     }
     vector<Vector3> Vs;
     Vs.resize(X.rows());
