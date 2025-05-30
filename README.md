@@ -69,8 +69,7 @@ issn = {0730-0301},
 doi = {10.1145/3735126},
 month = may,
 articleno = {31},
-numpages = {20},
-keywords = {GPU programming, incremental potential contact, elastodynamics, finite element method, affine body dynamics, preconditioning, cloth simulation}
+numpages = {20}
 }
 ```
 
