@@ -91,7 +91,7 @@ int main()
                 position[2] = j["position"][2].get<Float>();
             }
 
-            Eigen::Quaterniond Q = Eigen::Quaterniond::Identity();
+            Eigen::Quaternion<Float> Q = Eigen::Quaternion<Float>::Identity();
 
             if(j.find("rotation") != j.end())
             {
@@ -102,9 +102,9 @@ int main()
 
                 rotation *= std::numbers::pi / 180.0;
 
-                Q = Eigen::AngleAxisd(rotation.z(), Eigen::Vector3d::UnitZ())
-                    * Eigen::AngleAxisd(rotation.y(), Eigen::Vector3d::UnitY())
-                    * Eigen::AngleAxisd(rotation.x(), Eigen::Vector3d::UnitX());
+                Q = AngleAxis(rotation.z(), Vector3::UnitZ())
+                    * AngleAxis(rotation.y(), Vector3::UnitY())
+                    * AngleAxis(rotation.x(), Vector3::UnitX());
             }
 
             IndexT is_fixed = 0;

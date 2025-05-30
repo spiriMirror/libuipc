@@ -653,9 +653,9 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_resize(body_id_to_dq, abd_body_count, Vector12::Zero().eval());
 
     // setup body kinetic energy buffer
-    async_resize(body_id_to_kinetic_energy, abd_body_count, 0.0);
+    async_resize(body_id_to_kinetic_energy, abd_body_count, Float{0});
 
-    async_resize(body_id_to_shape_energy, abd_body_count, 0.0);
+    async_resize(body_id_to_shape_energy, abd_body_count, Float{0});
 
     // setup hessian and gradient buffers
     async_resize(diag_hessian, abd_body_count, Matrix12x12::Zero().eval());

@@ -63,10 +63,10 @@ void GlobalAnimator::step()
 
 void GlobalAnimator::compute_substep_ratio(SizeT newton_iter)
 {
-    SizeT substep = world().animator().substep();
-    Float t       = Float{newton_iter + 1} / substep;
+    Float substep = static_cast<Float>(world().animator().substep());
+    Float t       = (static_cast<Float>(newton_iter) + Float{1.0}) / substep;
     UIPC_ASSERT(substep > 0, "substep must be greater than 0");
-    m_substep_ratio = std::min(t, 1.0);  // clamp t to [0, 1]
+    m_substep_ratio = std::min(t, Float{1.0});  // clamp t to [0, 1]
 }
 
 void GlobalAnimator::register_animator(Animator* animator)

@@ -106,7 +106,7 @@ static Vector12 compute_trimesh_body_force(const SimplicialComplex& sc,
             V += p1(a) * p2(a) / 12;
             V += p2(a) * p2(a) / 12;
 
-            return 1.0 / 2 * N(a) * V;
+            return Float{1.0} / Float{2} * N(a) * V;
         };
 
         Vector3 Qs = Vector3{

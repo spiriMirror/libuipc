@@ -300,13 +300,12 @@ void Spmv::rbk_sym_spmv(Float                           a,
         muda::BufferLaunch().fill<Float>(y.buffer_view(), 0);
     }
 
-    constexpr int          warp_size = 32;
-    constexpr unsigned int warp_mask = ~0u;
-    constexpr int          block_dim = 256;
-    int block_count = (A.triplet_count() + block_dim - 1) / block_dim;
+    constexpr int warp_size   = 32;
+    constexpr int block_dim   = 256;
+    int           block_count = (A.triplet_count() + block_dim - 1) / block_dim;
 
     muda::Launch(block_count, block_dim)
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(
             [a = a,
              A = A.viewer().name("A"),

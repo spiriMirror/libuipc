@@ -1,8 +1,12 @@
+#include <uipc/common/type_define.h>
 #include "BVH.hpp"
 #include "Morton.hpp"
 
 namespace SimpleBVH
 {
+using uipc::Vector3;
+using MatrixX = Eigen::MatrixX<Float>;
+
 void BVH::clear()
 {
     boxlist.clear();
@@ -102,15 +106,15 @@ void BVH::init(span<const AABB> cornerlist)
     n_corners = cornerlist.size();
     m_tmp.resize(n_corners);
 
-    Eigen::MatrixXd box_centers(n_corners, 3);
+    MatrixX box_centers(n_corners, 3);
     for(int i = 0; i < n_corners; ++i)
     {
         box_centers.row(i) = (cornerlist[i].min() + cornerlist[i].max()) / 2;
     }
 
-    const Eigen::RowVector3d vmin   = box_centers.colwise().minCoeff();
-    const Eigen::RowVector3d vmax   = box_centers.colwise().maxCoeff();
-    const Eigen::RowVector3d center = (vmin + vmax) / 2;
+    const Eigen::RowVector3<Float> vmin   = box_centers.colwise().minCoeff();
+    const Eigen::RowVector3<Float> vmax   = box_centers.colwise().maxCoeff();
+    const Eigen::RowVector3<Float> center = (vmin + vmax) / 2;
     for(int i = 0; i < n_corners; i++)
     {
         // make box centered at origin
@@ -118,8 +122,8 @@ void BVH::init(span<const AABB> cornerlist)
     }
 
     // after placing box at origin, vmax and vmin are symetric.
-    const Eigen::Vector3d scale_point = vmax - center;
-    const double          scale       = scale_point.lpNorm<Eigen::Infinity>();
+    const Vector3 scale_point = vmax - center;
+    const Float   scale       = scale_point.lpNorm<Eigen::Infinity>();
     // if the box is too big, resize it
     if(scale > 100)
     {
@@ -137,7 +141,7 @@ void BVH::init(span<const AABB> cornerlist)
 
     for(int i = 0; i < n_corners; i++)
     {
-        const Eigen::MatrixXd tmp = box_centers.row(i) * multi;
+        MatrixX tmp = box_centers.row(i) * multi;
 
         list[i].morton = Resorting::MortonCode64(int(tmp(0)), int(tmp(1)), int(tmp(2)));
         list[i].order = i;

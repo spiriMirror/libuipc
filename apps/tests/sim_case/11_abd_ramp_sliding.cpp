@@ -83,7 +83,7 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
                 auto      trans_view = view(this_cube.transforms());
                 Transform t          = Transform::Identity();
                 t.translate(Vector3{start_x + step * i, 1, -0.7});
-                t.rotate(Eigen::AngleAxisd(30.0 * pi / 180.0, Vector3::UnitX()));
+                t.rotate(AngleAxis(30.0 * pi / 180.0, Vector3::UnitX()));
 
                 trans_view[0] = t.matrix();
 
@@ -110,7 +110,7 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
 
             Transform t = Transform::Identity();
             // rotate 30 degree around x axis
-            t.rotate(Eigen::AngleAxisd(30.0 * pi / 180.0, Vector3::UnitX()));
+            t.rotate(AngleAxis(30.0 * pi / 180.0, Vector3::UnitX()));
 
             trans_view[0] = t.matrix();
 
