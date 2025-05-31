@@ -32,18 +32,18 @@ namespace sym::baraff_witkin_shell_2d
 
     inline UIPC_GENERIC Matrix2x2 Dm2x2(const Vector3& x0, const Vector3& x1, const Vector3& x2)
     {
-        Eigen::Vector3d v01 = x1 - x0;
-        Eigen::Vector3d v02 = x2 - x1;
+        Vector3 v01 = x1 - x0;
+        Vector3 v02 = x2 - x1;
         // compute uv coordinates by rotating each triangle normal to (0, 1, 0)
-        Eigen::Vector3d normal = v01.cross(v02).normalized();
-        Eigen::Vector3d target = Eigen::Vector3d(0, 1, 0);
+        Vector3 normal = v01.cross(v02).normalized();
+        Vector3 target = Vector3(0, 1, 0);
 
 
-        Eigen::Vector3d vec      = normal.cross(target);
+        Vector3 vec      = normal.cross(target);
         Float           sin      = vec.norm();
         Float           cos      = normal.dot(target);
-        Eigen::Matrix3d rotation = Eigen::Matrix3d::Identity();
-        Eigen::Matrix3d cross_vec;
+        Matrix3x3 rotation = Matrix3x3::Identity();
+        Matrix3x3 cross_vec;
 
         cross_vec << 0, -vec.z(), vec.y(),  //
             vec.z(), 0, -vec.x(),           //
@@ -55,9 +55,9 @@ namespace sym::baraff_witkin_shell_2d
         Vector3 rotate_uv1 = rotation * x1;
         Vector3 rotate_uv2 = rotation * x2;
 
-        auto      uv0 = Eigen::Vector2d(rotate_uv0.x(), rotate_uv0.z());
-        auto      uv1 = Eigen::Vector2d(rotate_uv1.x(), rotate_uv1.z());
-        auto      uv2 = Eigen::Vector2d(rotate_uv2.x(), rotate_uv2.z());
+        auto      uv0 = Vector2(rotate_uv0.x(), rotate_uv0.z());
+        auto      uv1 = Vector2(rotate_uv1.x(), rotate_uv1.z());
+        auto      uv2 = Vector2(rotate_uv2.x(), rotate_uv2.z());
         Matrix2x2 M;
         M.col(0) = uv1 - uv0;
         M.col(1) = uv2 - uv0;
@@ -115,8 +115,8 @@ namespace sym::baraff_witkin_shell_2d
                        + F * anisotropic_b * anisotropic_a.transpose());
         Float I5u    = (F * anisotropic_a).transpose() * F * anisotropic_a;
         Float I5v    = (F * anisotropic_b).transpose() * F * anisotropic_b;
-        Float ucoeff = 1.0 - 1 / sqrt(I5u);
-        Float vcoeff = 1.0 - 1 / sqrt(I5v);
+        Float ucoeff = Float{1} - Float{1} / sqrt(I5u);
+        Float vcoeff = Float{1} - Float{1} / sqrt(I5v);
 
         if(I5u > 1)
         {
@@ -128,8 +128,8 @@ namespace sym::baraff_witkin_shell_2d
         }
 
 
-        stretch_pk1 = ucoeff * 2. * F * anisotropic_a * anisotropic_a.transpose()
-                      + vcoeff * 2. * F * anisotropic_b * anisotropic_b.transpose();
+        stretch_pk1 = ucoeff * Float{2} * F * anisotropic_a * anisotropic_a.transpose()
+                      + vcoeff * Float{2} * F * anisotropic_b * anisotropic_b.transpose();
 
         R = (area_0 * stretchS * stretch_pk1 + area_0 * shearS * shear_pk1);
     }
@@ -149,8 +149,8 @@ namespace sym::baraff_witkin_shell_2d
             H.setZero();
             Float I5u = (F * anisotropic_a).transpose() * F * anisotropic_a;
             Float I5v = (F * anisotropic_b).transpose() * F * anisotropic_b;
-            Float invSqrtI5u = 1.0 / sqrt(I5u);
-            Float invSqrtI5v = 1.0 / sqrt(I5v);
+            Float invSqrtI5u = Float{1} / sqrt(I5u);
+            Float invSqrtI5v = Float{1} / sqrt(I5v);
 
             Float sqrtI5u = sqrt(I5u);
             Float sqrtI5v = sqrt(I5v);
@@ -168,12 +168,12 @@ namespace sym::baraff_witkin_shell_2d
             auto fu = F.col(0).normalized();
             auto fv = F.col(1).normalized();
 
-            Float uCoeff = (sqrtI5u > 1.0) ?
+            Float uCoeff = (sqrtI5u > Float{1.0}) ?
                                (3 * I5u * strainRate - 3 * strainRate + 2) / (sqrt(I5u)) :
                                2.0;
-            Float vCoeff = (sqrtI5v > 1.0) ?
+            Float vCoeff = (sqrtI5v > Float{1.0}) ?
                                (3 * I5v * strainRate - 3 * strainRate + 2) / (sqrt(I5v)) :
-                               2.0;
+                               Float{2.0};
 
 
             H.block<3, 3>(0, 0) += uCoeff * (fu * fu.transpose());
@@ -200,7 +200,7 @@ namespace sym::baraff_witkin_shell_2d
             Eigen::Matrix<Float, 6, 1> q0 =
                 (I6 * H * vec_g + lambda0 * vec_g).normalized();
             Eigen::Matrix<Float, 6, 6> T = Eigen::Matrix<Float, 6, 6>::Identity();
-            T            = 0.5 * (T + signI6 * H);
+            T            = Float{0.5} * (T + signI6 * H);
             auto  Tq     = T * q0;
             Float normTq = Tq.squaredNorm();
             H_shear      = fabs(I6) * (T - (Tq * Tq.transpose()) / normTq)

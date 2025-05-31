@@ -13,7 +13,7 @@ tetgenio mesh_to_tetgenio(span<const Vector3>  V,   // vertex position list
                           span<const IndexT>   VM,  // vertex marker list
                           span<const IndexT>   FM,  // face marker list
                           span<const Vector3> H,  // seed point inside each hole
-                          span<const Eigen::Vector<double, 5>> R  // seed point inside each region
+                          span<const Eigen::Vector<Float, 5>> R  // seed point inside each region
 )
 {
     using namespace std;
@@ -251,15 +251,15 @@ SimplicialComplex tetrahedralize(const SimplicialComplex& sc, const Json& option
         return SimplicialComplex{};
     }
 
-    Eigen::MatrixXd TV;  // vertex position list
-    Eigen::MatrixXi TT;  // tetrahedron list
-    Eigen::MatrixXi TF;  // triangle list
-    Eigen::VectorXi TM;  // material list
-    Eigen::VectorXi TR;  // region list
-    Eigen::MatrixXi TN;  // neighbor list
-    Eigen::VectorXi PT;  // point to tetrahedron list
-    Eigen::MatrixXi FT;  // face to tetrahedron list
-    int             num_regions;
+    Eigen::MatrixX<Float> TV;  // vertex position list
+    Eigen::MatrixXi       TT;  // tetrahedron list
+    Eigen::MatrixXi       TF;  // triangle list
+    Eigen::VectorXi       TM;  // material list
+    Eigen::VectorXi       TR;  // region list
+    Eigen::MatrixXi       TN;  // neighbor list
+    Eigen::VectorXi       PT;  // point to tetrahedron list
+    Eigen::MatrixXi       FT;  // face to tetrahedron list
+    int                   num_regions;
 
     // Prepare output
     bool ret = tetgenio_to_tetmesh(out, TV, TT, TF, TM, TR, TN, PT, FT, num_regions);

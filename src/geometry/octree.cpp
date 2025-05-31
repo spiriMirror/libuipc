@@ -9,10 +9,12 @@ namespace uipc::geometry
 {
 class Octree::Impl
 {
+    using OctreeBox = OrthoTree::EigenAdaptor::EigenOrthoTreeBox<Float, 3, 2>;
+
   public:
     void build(span<const AABB> aabbs)
     {
-        octree = Eigen::OctreeBox3d{aabbs};
+        octree = OctreeBox{aabbs};
         leafs.resize(aabbs.size());
         std::copy(aabbs.begin(), aabbs.end(), leafs.begin());
     }
@@ -40,8 +42,8 @@ class Octree::Impl
         }
     }
 
-    Eigen::OctreeBox3d octree;
-    vector<AABB>       leafs;
+    OctreeBox    octree;
+    vector<AABB> leafs;
 };
 
 Octree::Octree()

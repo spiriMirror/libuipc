@@ -15,16 +15,16 @@ bool tri_edge_intersect(const Vector3& triVA,
 {
     coplanar = false;
 
-    Eigen ::Vector3d EF = edgeVF - edgeVE;
-    Vector3          AB = triVB - triVA;
-    Vector3          AC = triVC - triVA;
-    Vector3          AE = edgeVE - triVA;
+    Vector3 EF = edgeVF - edgeVE;
+    Vector3 AB = triVB - triVA;
+    Vector3 AC = triVC - triVA;
+    Vector3 AE = edgeVE - triVA;
 
     // E + EF * t = A + AB * u + AC * v
     // => AE =  - EF * t + AB * u + AC * v
     // solve for t, u, v
 
-    Eigen::Matrix3d M;
+    Matrix3x3 M;
 
     M.col(0) = -EF;
     M.col(1) = AB;
@@ -33,8 +33,8 @@ bool tri_edge_intersect(const Vector3& triVA,
     if(std::abs(M.determinant()) <= 1e-6)  // coplanar or parallel
     {
         // check if E is in the plane of the triangle
-        Eigen::Vector3d N       = AB.cross(AC);
-        auto            AE_on_N = N.dot(AE);
+        Vector3 N       = AB.cross(AC);
+        auto    AE_on_N = N.dot(AE);
         if(AE_on_N != 0)  // parallel
             return false;
 
@@ -42,8 +42,8 @@ bool tri_edge_intersect(const Vector3& triVA,
 
         coplanar = true;
 
-        Vector2 tu;
-        bool    intersect = false;
+        Eigen::Vector2d tu;
+        bool            intersect = false;
         intersect |=
             igl::segment_segment_intersect(edgeVE, EF, triVA, AB, tu[0], tu[1]);
         intersect |=
@@ -91,7 +91,7 @@ bool is_point_in_tet(const Vector3& tetVA,
     Vector3 AD = tetVD - tetVA;
     Vector3 AP = point - tetVA;
 
-    Eigen::Matrix3d M;
+    Matrix3x3 M;
 
     M.col(0) = AB;
     M.col(1) = AC;

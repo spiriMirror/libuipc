@@ -83,7 +83,7 @@ TEST_CASE("26_abd_ramp_ground", "[abd]")
                 auto      trans_view = view(this_cube.transforms());
                 Transform t          = Transform::Identity();
                 t.translate(Vector3{start_x + step * i, 1, -0.7});
-                t.rotate(Eigen::AngleAxisd(30.0 * std::numbers::pi / 180.0,
+                t.rotate(AngleAxis(30.0 * std::numbers::pi / 180.0,
                                            Vector3::UnitX()));
 
                 trans_view[0] = t.matrix();
