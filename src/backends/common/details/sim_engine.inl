@@ -1,3 +1,5 @@
+#include <uipc/common/demangle.h>
+
 namespace uipc::backend
 {
 template <std::derived_from<ISimSystem> T>
@@ -15,7 +17,8 @@ T& SimEngine::require()
     ptr      = static_cast<T*>(require_system(ptr));
     if(!ptr)
     {
-        throw SimEngineException(fmt::format("SimSystem [{}] not found", typeid(T).name()));
+        throw SimEngineException(
+            fmt::format("SimSystem [{}] not found", uipc::demangle<T>()));
     }
     return *ptr;
 }

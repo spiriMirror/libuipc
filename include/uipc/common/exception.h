@@ -2,17 +2,13 @@
 #include <uipc/common/string.h>
 #include <uipc/common/dllexport.h>
 #include <exception>
+#include <cpptrace/cpptrace.hpp>
 
 namespace uipc
 {
-class UIPC_CORE_API Exception : public std::exception
+class UIPC_CORE_API Exception : public cpptrace::exception_with_message
 {
   public:
-    Exception(const string& msg);
-
-    virtual const char* what() const noexcept override;
-
-  private:
-    string m_msg;
+    Exception(std::string_view msg);
 };
 }  // namespace uipc

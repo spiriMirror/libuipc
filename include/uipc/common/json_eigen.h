@@ -5,7 +5,7 @@
 
 namespace uipc
 {
-class JsonIOError : public Exception
+class UIPC_CORE_API JsonIOError : public Exception
 {
   public:
     using Exception::Exception;

@@ -4,10 +4,10 @@ find_package(nlohmann_json REQUIRED)
 find_package(fmt CONFIG REQUIRED)
 
 find_package(cppitertools CONFIG REQUIRED)
-find_package(Boost CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
 find_path(DYLIB_INCLUDE_DIRS "dylib.hpp")
 find_path(TINYGLTF_INCLUDE_DIRS "tiny_gltf.h")
+find_package(cpptrace CONFIG REQUIRED)
 
 add_library(uipc_core SHARED)
 add_library(uipc::core ALIAS uipc_core)
@@ -48,8 +48,8 @@ target_link_libraries(uipc_core PUBLIC
     nlohmann_json::nlohmann_json
     fmt::fmt
     cppitertools::cppitertools
-    Boost::boost
     magic_enum::magic_enum
+    cpptrace::cpptrace
 )
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
