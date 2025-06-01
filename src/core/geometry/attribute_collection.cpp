@@ -92,9 +92,6 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
                                     span<const string>         _include_names,
                                     span<const string>         _exclude_names)
 {
-    if(size() == 0)
-        resize(other.size());
-
     vector<string> include_names;
     vector<string> exclude_names(_exclude_names.begin(), _exclude_names.end());
     vector<string> filtered_names;
@@ -130,7 +127,8 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
             // just share
             UIPC_ASSERT(this->size() == other.size(),
                         "Attribute size mismatch, "
-                        "dst size is {}, src size is {}, Did you forget to resize the dst attribute collection?",
+                        "dst size is {}, src size is {}. "
+                        "Did you forget to resize the dst attribute collection before copying?",
                         this->size(),
                         other.size());
 
