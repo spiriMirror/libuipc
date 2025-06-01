@@ -220,15 +220,21 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                     return;
 
 
-                Vector3 uvw;
-                Vector2 uv;
-                bool    is_coplanar;
-
                 bool intersected = geometry::tri_edge_intersect(
-                    Vs[F[0]], Vs[F[1]], Vs[F[2]], Vs[E[0]], Vs[E[1]], is_coplanar, uvw, uv);
+                    Vs[F[0]], Vs[F[1]], Vs[F[2]], Vs[E[0]], Vs[E[1]]);
 
                 if(intersected)
                 {
+                    spdlog::error(fmt::format("tri_edge_intersect: E[{}] = ({}, {}), F[{}] = ({}, {}, {}) -> intersected = {}",
+                                              i,
+                                              E[0],
+                                              E[1],
+                                              j,
+                                              F[0],
+                                              F[1],
+                                              F[2],
+                                              intersected));
+
                     edge_intersected[i] = 1;
                     tri_intersected[j]  = 1;
 
@@ -300,6 +306,14 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                 auto path_str = path.string();
 
                 geometry::SimplicialComplexIO io;
+                {
+                    auto is_facet =
+                        intersected_mesh.edges().find<IndexT>(builtin::is_facet);
+                    if(!is_facet)
+                        intersected_mesh.edges().create<IndexT>(builtin::is_facet, 0);
+                    auto is_facet_view = view(*is_facet);
+                    std::ranges::fill(is_facet_view, 1);
+                }
                 io.write(path_str, intersected_mesh);
                 fmt::format_to(std::back_inserter(buffer),
                                "Intersected mesh is saved at {}.\n",
