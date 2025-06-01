@@ -2,6 +2,7 @@
 #include <spdlog/spdlog.h>
 #include <uipc/common/string.h>
 #include <uipc/common/config.h>
+#include <uipc/common/abort.h>
 
 #define UIPC_LOG_WITH_LOCATION(level, ...)                                     \
     {                                                                          \
@@ -19,7 +20,6 @@
     UIPC_LOG_WITH_LOCATION(spdlog::level::err, __VA_ARGS__)
 
 #define UIPC_ASSERT(condition, ...)                                                       \
-    if constexpr(::uipc::RUNTIME_CHECK)                                                   \
     {                                                                                     \
         if(!(condition))                                                                  \
         {                                                                                 \
@@ -27,6 +27,6 @@
             ::uipc::string assert_meg =                                                   \
                 ::fmt::format("Assertion " #condition " failed. {}", msg);                \
             spdlog::log(spdlog::level::err, "{} {}({})", assert_meg, __FILE__, __LINE__); \
-            ::std::abort();                                                               \
+            ::uipc::abort();                                                              \
         }                                                                                 \
     }

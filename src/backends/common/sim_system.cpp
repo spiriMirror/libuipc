@@ -1,7 +1,7 @@
 #include <backends/common/sim_system.h>
 #include <backends/common/sim_engine.h>
 #include <typeinfo>
-#include <boost/core/demangle.hpp>
+#include <uipc/common/demangle.h>
 
 namespace uipc::backend
 {
@@ -112,7 +112,7 @@ bool SimSystem::get_is_building() const noexcept
 std::string_view SimSystem::get_name() const noexcept
 {
     if(m_name.empty())
-        m_name = boost::core::demangle(typeid(*this).name());
+        m_name = uipc::demangle(typeid(*this).name());
     return m_name;
 }
 

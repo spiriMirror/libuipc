@@ -1,5 +1,5 @@
 #include "sanity_checker.h"
-#include <boost/core/demangle.hpp>
+#include <uipc/common/demangle.h>
 #include <sanity_checker_collection.h>
 
 namespace uipc::sanity_check
@@ -28,7 +28,7 @@ inline SanityCheckerT& SanityCheckerCollection::require() const
         }
     }
 
-    std::string name = boost::core::demangle(typeid(SanityCheckerT).name());
+    std::string name = uipc::demangle<SanityCheckerT>();
 
     throw SanityCheckerException{fmt::format("SanityChecker[{}] not found", name)};
 }

@@ -1,7 +1,8 @@
 #pragma once
 #include <uipc/common/type_define.h>
 #include <string_view>
-#include <boost/core/demangle.hpp>
+#include <uipc/common/demangle.h>
+
 #define READABLE_TYPE_NAME_AS_ALIAS(type)                                      \
     template <>                                                                \
     inline std::string readable_type_name<type>() noexcept                     \
@@ -14,7 +15,7 @@ namespace uipc
 template <typename T>
 inline std::string readable_type_name() noexcept
 {
-    return boost::core::demangle(typeid(T).name());
+    return uipc::demangle<T>();
 }
 
 READABLE_TYPE_NAME_AS_ALIAS(Vector2);

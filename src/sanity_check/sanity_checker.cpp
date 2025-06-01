@@ -2,7 +2,7 @@
 #include <sanity_checker_collection.h>
 #include <uipc/backend/visitors/scene_visitor.h>
 #include <uipc/backend/visitors/sanity_check_message_visitor.h>
-#include <boost/core/demangle.hpp>
+#include <uipc/common/demangle.h>
 #include <uipc/core/internal/scene.h>
 
 namespace uipc::sanity_check
@@ -30,7 +30,7 @@ std::string SanityChecker::this_output_path() const noexcept
 
 std::string SanityChecker::get_name() const noexcept
 {
-    return boost::core::demangle(typeid(*this).name());
+    return uipc::demangle(typeid(*this).name());
 }
 
 void SanityChecker::build(backend::SceneVisitor& scene) {}

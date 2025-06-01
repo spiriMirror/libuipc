@@ -2,6 +2,7 @@
 #include <uipc/common/type_traits.h>
 #include <uipc/common/range.h>
 #include <uipc/common/readable_type_name.h>
+#include <uipc/common/demangle.h>
 
 namespace uipc::geometry
 {
@@ -98,7 +99,7 @@ Json Attribute<T>::do_to_json(SizeT i) const noexcept
     }
     else
     {
-        j = fmt::format("<{}>", typeid(T).name());
+        j = fmt::format("<{}>", uipc::demangle<T>());
     }
     return j;
 }

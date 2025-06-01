@@ -3,13 +3,8 @@
 
 namespace uipc
 {
-Exception::Exception(const string& msg)
-    : m_msg{msg}
+Exception::Exception(std::string_view msg)
+    : cpptrace::exception_with_message{std::string{msg}}
 {
-}
-
-const char* Exception::what() const noexcept
-{
-    return m_msg.c_str();
 }
 }  // namespace uipc

@@ -47,8 +47,8 @@ namespace detail
                 SimEnginePointer e = dynamic_cast<SimEnginePointer>(&engine);
                 UIPC_ASSERT(e != nullptr,
                             "{} cannot be cast to {}",
-                            typeid(engine).name(),
-                            typeid(SimEngineT).name());
+                            uipc::demangle(typeid(engine).name()),
+                            uipc::demangle(typeid(SimEngineT).name()));
                 return ::uipc::static_pointer_cast<ISimSystem>(
                     SimSystemCreator<SimSystemT>::create(*e));
             };

@@ -1,3 +1,5 @@
+#include <uipc/common/demangle.h>
+
 namespace uipc::backend
 {
 template <typename T>
@@ -95,7 +97,7 @@ void SimSystemSlotCollection<T>::lazy_init() const noexcept
 
             UIPC_ASSERT(not_building,
                         "SimSystemSlotCollection<{}>::lazy_init() should be called after building",
-                        typeid(T).name());
+                        uipc::demangle<T>());
         }
 
         m_subsystems.reserve(m_subsystem_buffer.size());

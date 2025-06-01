@@ -1,4 +1,5 @@
 #include <backends/common/sim_system_collection.h>
+#include <uipc/common/demangle.h>
 
 namespace uipc::backend
 {
@@ -20,7 +21,7 @@ T& SimSystem::require(const QueryOptions& options)
     if(!ptr)
     {
         throw SimSystemException(
-            fmt::format("SimSystem [{}] not found", typeid(T).name()));
+            fmt::format("SimSystem [{}] not found", uipc::demangle<T>()));
     }
     return *ptr;
 }

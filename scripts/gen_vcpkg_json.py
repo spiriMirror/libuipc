@@ -48,10 +48,6 @@ base_vcpkg_json = {
             'version>=': '0.9.3'
         },
         {
-            'name':'boost-core',
-            'version>=':'1.84.0'
-        },
-        {
             'name':'tinygltf',
             'version>=':'2.8.22'
         },
@@ -62,6 +58,10 @@ base_vcpkg_json = {
         {
             'name':'urdfdom',
             'version>=':'3.1.1'
+        },
+        {
+            'name':'cpptrace',
+            'version>=': '0.8.3'
         }
     ],
     

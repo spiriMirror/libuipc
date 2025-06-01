@@ -1,5 +1,6 @@
 #include <uipc/core/feature.h>
-#include <boost/core/demangle.hpp>
+#include <uipc/common/demangle.h>
+
 namespace uipc::core
 {
 std::string_view IFeature::name() const
@@ -16,7 +17,7 @@ std::string_view Feature::get_type_name() const
 {
     if(m_type_name.empty())
     {
-        m_type_name = boost::core::demangle(typeid(*this).name());
+        m_type_name = uipc::demangle(typeid(*this).name());
     }
     return m_type_name;
 }

@@ -1,5 +1,7 @@
 #include <uipc/common/uipc.h>
 #include <filesystem>
+#include <cpptrace/cpptrace.hpp>
+#include <uipc/common/exception.h>
 
 namespace uipc
 {
@@ -26,14 +28,14 @@ void init(const Json& config)
 
     if(m_config.find("module_dir") == m_config.end())
     {
-        throw std::runtime_error("module_dir is not set in config.");
+        throw uipc::Exception("module_dir is not set in config.");
     }
     else
     {
         auto module_dir = m_config["module_dir"].get<std::string>();
         if(!fs::exists(module_dir))
         {
-            throw std::runtime_error("module_dir does not exist.");
+            throw uipc::Exception("module_dir does not exist.");
         }
     }
 }
