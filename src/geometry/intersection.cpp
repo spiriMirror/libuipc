@@ -4,76 +4,154 @@
 
 namespace uipc::geometry
 {
-bool tri_edge_intersect(const Vector3& triVA,
-                        const Vector3& triVB,
-                        const Vector3& triVC,
-                        const Vector3& edgeVE,
-                        const Vector3& edgeVF,
-                        bool&          coplanar,
-                        Vector3&       uvw_in_tri,
-                        Vector2&       uv_in_edge)
+static constexpr auto eps = std::numeric_limits<Float>::epsilon();
+
+// Returns true if segment ab intersects triangle (p0,p1,p2)
+bool tri_edge_intersect(const Vector3& T0,
+                        const Vector3& T1,
+                        const Vector3& T2,
+                        const Vector3& E0,
+                        const Vector3& E1)
 {
-    coplanar = false;
+    // Check if segment and triangle are coplanar
+    Vector3 n = (T1 - T0).cross(T2 - T0);
+    n.normalize();
+    double da = (E0 - T0).dot(n);
+    double db = (E1 - T0).dot(n);
 
-    Vector3 EF = edgeVF - edgeVE;
-    Vector3 AB = triVB - triVA;
-    Vector3 AC = triVC - triVA;
-    Vector3 AE = edgeVE - triVA;
+    // If both endpoints of edge are on the same side, no intersection
+    if((da > 0 && db > 0) || (da < 0 && db < 0))
+        return false;
 
-    // E + EF * t = A + AB * u + AC * v
-    // => AE =  - EF * t + AB * u + AC * v
-    // solve for t, u, v
-
-    Matrix3x3 M;
-
-    M.col(0) = -EF;
-    M.col(1) = AB;
-    M.col(2) = AC;
-
-    if(std::abs(M.determinant()) <= 1e-6)  // coplanar or parallel
+    // If both are zero, edge lies in the triangle's plane (coplanar)
+    if(fabs(da) < eps && fabs(db) < eps)
     {
-        // check if E is in the plane of the triangle
-        Vector3 N       = AB.cross(AC);
-        auto    AE_on_N = N.dot(AE);
-        if(AE_on_N != 0)  // parallel
-            return false;
+        // Check if either endpoint is inside the triangle
+        auto point_in_triangle =
+            [](const Vector3& pt, const Vector3& t0, const Vector3& t1, const Vector3& t2)
+        {
+            Vector3 u  = t1 - t0;
+            Vector3 v  = t2 - t0;
+            Vector3 w  = pt - t0;
+            double  uu = u.dot(u), uv = u.dot(v), vv = v.dot(v);
+            double  wu = w.dot(u), wv = w.dot(v);
+            double  denom = uv * uv - uu * vv;
+            double  s     = (uv * wv - vv * wu) / denom;
+            double  t     = (uv * wu - uu * wv) / denom;
+            return (s >= 0) && (t >= 0) && (s + t <= 1);
+        };
+        if(point_in_triangle(E0, T0, T1, T2) || point_in_triangle(E1, T0, T1, T2))
+            return true;
 
-        Vector3 BC = triVC - triVB;
+        Float u, v;
+        // Check if edge and any triangle edge overlap (as segments)
+        if(igl::segment_segment_intersect(E0, E1 - E0, T0, T1 - T0, u, v)
+           || igl::segment_segment_intersect(E0, E1 - E0, T1, T2 - T1, u, v)
+           || igl::segment_segment_intersect(E0, E1 - E0, T2, T0 - T2, u, v))
+        {
+            return true;
+        }
 
-        coplanar = true;
-
-        Eigen::Vector2d tu;
-        bool            intersect = false;
-        intersect |=
-            igl::segment_segment_intersect(edgeVE, EF, triVA, AB, tu[0], tu[1]);
-        intersect |=
-            igl::segment_segment_intersect(edgeVE, EF, triVA, AC, tu[0], tu[1]);
-        intersect |=
-            igl::segment_segment_intersect(edgeVE, EF, triVB, BC, tu[0], tu[1]);
-
-        return intersect;
+        return false;
     }
 
-    Vector3 tuv = M.inverse() * AE;
+    // Otherwise, compute intersection with the plane and check if point is inside triangle and on the edge
+    double  t     = da / (da - db);
+    Vector3 inter = E0 + t * (E1 - E0);
 
-    // t should be in [0, 1]
-    // u, v should be in [0, 1] and u + v <= 1
+    // Check if intersection is within segment (already ensured by t in [0,1])
+    if(t < 0 || t > 1.0)
+        return false;
 
-    uvw_in_tri[0] = 1.0 - tuv[1] - tuv[2];
-    uvw_in_tri[1] = tuv[1];
-    uvw_in_tri[2] = tuv[2];
+    // Check if intersection point is inside the triangle
+    auto point_in_triangle =
+        [](const Vector3& pt, const Vector3& t0, const Vector3& t1, const Vector3& t2)
+    {
+        Vector3 u  = t1 - t0;
+        Vector3 v  = t2 - t0;
+        Vector3 w  = pt - t0;
+        double  uu = u.dot(u), uv = u.dot(v), vv = v.dot(v);
+        double  wu = w.dot(u), wv = w.dot(v);
+        double  denom = uv * uv - uu * vv;
+        double  s     = (uv * wv - vv * wu) / denom;
+        double  t     = (uv * wu - uu * wv) / denom;
+        return (s >= 0) && (t >= 0) && (s + t <= 1.0);
+    };
 
-    uv_in_edge[0] = 1.0 - tuv[0];
-    uv_in_edge[1] = tuv[0];
-
-    auto in_01 = [](double x) { return x >= 0 && x <= 1; };
-
-    bool in_tri = in_01(uvw_in_tri[0]) && in_01(uvw_in_tri[1]) && in_01(uvw_in_tri[2]);
-
-    bool in_edge = in_01(uv_in_edge[0]) && in_01(uv_in_edge[1]);
-
-    return in_tri && in_edge;
+    return point_in_triangle(inter, T0, T1, T2);
 }
+
+
+//bool tri_edge_intersect(const Vector3& triVA,
+//                        const Vector3& triVB,
+//                        const Vector3& triVC,
+//                        const Vector3& edgeVE,
+//                        const Vector3& edgeVF,
+//                        bool&          coplanar,
+//                        Vector3&       uvw_in_tri,
+//                        Vector2&       uv_in_edge)
+//{
+//    coplanar = false;
+//
+//    Vector3 EF = edgeVF - edgeVE;
+//    Vector3 AB = triVB - triVA;
+//    Vector3 AC = triVC - triVA;
+//    Vector3 AE = edgeVE - triVA;
+//
+//    // E + EF * t = A + AB * u + AC * v
+//    // => AE =  - EF * t + AB * u + AC * v
+//    // solve for t, u, v
+//
+//    Matrix3x3 M;
+//
+//    M.col(0) = -EF;
+//    M.col(1) = AB;
+//    M.col(2) = AC;
+//
+//    if(std::abs(M.determinant()) <= 1e-6)  // coplanar or parallel
+//    {
+//        // check if E is in the plane of the triangle
+//        Vector3 N       = AB.cross(AC);
+//        auto    AE_on_N = N.dot(AE);
+//        if(AE_on_N != 0)  // parallel
+//            return false;
+//
+//        Vector3 BC = triVC - triVB;
+//
+//        coplanar = true;
+//
+//        Eigen::Vector2d tu;
+//        bool            intersect = false;
+//        intersect |=
+//            igl::segment_segment_intersect(edgeVE, EF, triVA, AB, tu[0], tu[1]);
+//        intersect |=
+//            igl::segment_segment_intersect(edgeVE, EF, triVA, AC, tu[0], tu[1]);
+//        intersect |=
+//            igl::segment_segment_intersect(edgeVE, EF, triVB, BC, tu[0], tu[1]);
+//
+//        return intersect;
+//    }
+//
+//    Vector3 tuv = M.inverse() * AE;
+//
+//    // t should be in [0, 1]
+//    // u, v should be in [0, 1] and u + v <= 1
+//
+//    uvw_in_tri[0] = 1.0 - tuv[1] - tuv[2];
+//    uvw_in_tri[1] = tuv[1];
+//    uvw_in_tri[2] = tuv[2];
+//
+//    uv_in_edge[0] = 1.0 - tuv[0];
+//    uv_in_edge[1] = tuv[0];
+//
+//    auto in_01 = [](double x) { return x >= 0 && x <= 1; };
+//
+//    bool in_tri = in_01(uvw_in_tri[0]) && in_01(uvw_in_tri[1]) && in_01(uvw_in_tri[2]);
+//
+//    bool in_edge = in_01(uv_in_edge[0]) && in_01(uv_in_edge[1]);
+//
+//    return in_tri && in_edge;
+//}
 
 bool is_point_in_tet(const Vector3& tetVA,
                      const Vector3& tetVB,
