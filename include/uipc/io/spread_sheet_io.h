@@ -19,10 +19,10 @@ class UIPC_IO_API SpreadSheetIO
 {
   public:
     SpreadSheetIO(std::string_view output_folder = "./");
-    void write_json(std::string_view geo_name, const Geometry& simplicial_complex) const;
-    void write_json(const Geometry& simplicial_complex) const;
-    void write_csv(std::string_view geo_name, const Geometry& simplicial_complex) const;
-    void write_csv(const Geometry& simplicial_complex) const;
+    void write_json(std::string_view geo_name, const Geometry& geo) const;
+    void write_json(const Geometry& geo) const;
+    void write_csv(std::string_view geo_name, const Geometry& geo) const;
+    void write_csv(const Geometry& geo) const;
 
   private:
     string m_output_folder;

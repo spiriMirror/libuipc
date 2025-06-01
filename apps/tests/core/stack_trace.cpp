@@ -19,7 +19,7 @@ void stackB()
     fmt::println("this should not be printed");
 }
 
-TEST_CASE(".stack_trace", "[stack_trace]")
+TEST_CASE(".stack_trace", "[.stack_trace]")
 {
     stackB();
 }
