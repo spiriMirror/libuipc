@@ -20,11 +20,16 @@ void SimSystem::check_state(std::string_view function_name) noexcept
 Json SimSystem::do_to_json() const
 {
     Json j;
-    j["name"] = name();
-    j["deps"] = Json::array();
-    for(const auto& dep : m_dependencies)
+    j["name"]        = name();
+    j["strong_deps"] = Json::array();
+    for(const auto& dep : m_strong_dependencies)
     {
-        j["deps"].push_back(dep->name());
+        j["strong_deps"].push_back(dep->name());
+    }
+    j["weak_deps"] = Json::array();
+    for(const auto& dep : m_weak_dependencies)
+    {
+        j["weak_deps"].push_back(dep->name());
     }
     j["engine_aware"] = m_engine_aware;
     j["valid"]        = m_valid;
@@ -61,22 +66,26 @@ void SimSystem::set_invalid() noexcept
     m_valid = false;
 }
 
-span<ISimSystem* const> SimSystem::get_dependencies() const noexcept
+span<ISimSystem* const> SimSystem::get_strong_dependencies() const noexcept
 {
-    return m_dependencies;
+    return m_strong_dependencies;
+}
+
+span<ISimSystem* const> SimSystem::get_weak_dependencies() const noexcept
+{
+    return m_weak_dependencies;
 }
 
 SimSystem* SimSystem::find_system(SimSystem* ptr)
 {
     if(ptr)
     {
+        // always record deps
+        m_weak_dependencies.push_back(ptr);
+
         if(!ptr->is_valid())
         {
             ptr = nullptr;
-        }
-        else
-        {
-            m_dependencies.push_back(ptr);
         }
     }
     return ptr;
@@ -86,14 +95,13 @@ SimSystem* SimSystem::require_system(SimSystem* ptr)
 {
     if(ptr)
     {
+        // always record deps
+        m_strong_dependencies.push_back(ptr);
+
         if(!ptr->is_valid())
         {
             set_invalid();
             throw SimSystemException(fmt::format("SimSystem [{}] is invalid", ptr->name()));
-        }
-        else
-        {
-            m_dependencies.push_back(ptr);
         }
     }
     return ptr;
