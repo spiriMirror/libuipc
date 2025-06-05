@@ -30,6 +30,8 @@ void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
     m_impl.converter.reserve_ratio(1.1);
 }
 
+void FEMLinearSubsystem::do_init(DiagLinearSubsystem::InitInfo& info) {}
+
 void FEMLinearSubsystem::Impl::report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info)
 {
     info.extent(fem().xs.size() * 3);

@@ -93,7 +93,13 @@ void GlobalLinearSystem::prepare_hessian()
 
 void GlobalLinearSystem::Impl::init()
 {
-    auto diag_subsystem_view     = diag_subsystems.view();
+    auto diag_subsystem_view = diag_subsystems.view();
+    // init all diag subsystems
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
+    {
+        diag_subsystem->init();
+    }
+
     auto off_diag_subsystem_view = off_diag_subsystems.view();
 
 

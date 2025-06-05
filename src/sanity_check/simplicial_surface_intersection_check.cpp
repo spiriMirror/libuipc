@@ -225,15 +225,15 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
 
                 if(intersected)
                 {
-                    spdlog::error(fmt::format("tri_edge_intersect: E[{}] = ({}, {}), F[{}] = ({}, {}, {}) -> intersected = {}",
-                                              i,
-                                              E[0],
-                                              E[1],
-                                              j,
-                                              F[0],
-                                              F[1],
-                                              F[2],
-                                              intersected));
+                    //spdlog::error(fmt::format("tri_edge_intersect: E[{}] = ({}, {}), F[{}] = ({}, {}, {}) -> intersected = {}",
+                    //                          i,
+                    //                          E[0],
+                    //                          E[1],
+                    //                          j,
+                    //                          F[0],
+                    //                          F[1],
+                    //                          F[2],
+                    //                          intersected));
 
                     edge_intersected[i] = 1;
                     tri_intersected[j]  = 1;
