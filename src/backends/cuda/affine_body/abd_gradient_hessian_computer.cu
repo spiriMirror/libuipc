@@ -113,12 +113,6 @@ void ABDGradientHessianComputer::Impl::compute_gradient_hessian(GradientHessianC
                                              * eigen_vectors.transpose();
                    }
                });
-
-    // 3) compute animator gradient and hessian
-    if(affine_body_animator)
-    {
-        affine_body_animator->compute_gradient_hessian(info);
-    }
 }
 
 AffineBodyDynamics::Impl& ABDGradientHessianComputer::Impl::abd() noexcept
