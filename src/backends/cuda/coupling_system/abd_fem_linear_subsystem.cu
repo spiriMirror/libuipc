@@ -17,37 +17,37 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
   public:
     using OffDiagLinearSubsystem::OffDiagLinearSubsystem;
 
-    GlobalLinearSystem* global_linear_system = nullptr;
+    SimSystemSlot<GlobalLinearSystem> global_linear_system;
 
-    ABDFEMContactReceiver* abd_fem_contact_receiver = nullptr;
-    FEMABDContactReceiver* fem_abd_contact_receiver = nullptr;
+    SimSystemSlot<ABDFEMContactReceiver> abd_fem_contact_receiver;
+    SimSystemSlot<FEMABDContactReceiver> fem_abd_contact_receiver;
 
-    ABDLinearSubsystem* abd_linear_subsystem = nullptr;
-    FEMLinearSubsystem* fem_linear_subsystem = nullptr;
+    SimSystemSlot<ABDLinearSubsystem> abd_linear_subsystem;
+    SimSystemSlot<FEMLinearSubsystem> fem_linear_subsystem;
 
-    AffineBodyDynamics*  affine_body_dynamics  = nullptr;
-    FiniteElementMethod* finite_element_method = nullptr;
+    SimSystemSlot<AffineBodyDynamics>  affine_body_dynamics;
+    SimSystemSlot<FiniteElementMethod> finite_element_method;
 
-    AffineBodyVertexReporter*    affine_body_vertex_reporter    = nullptr;
-    FiniteElementVertexReporter* finite_element_vertex_reporter = nullptr;
+    SimSystemSlot<AffineBodyVertexReporter>    affine_body_vertex_reporter;
+    SimSystemSlot<FiniteElementVertexReporter> finite_element_vertex_reporter;
 
     virtual void do_build(BuildInfo& info) override
     {
-        global_linear_system = &require<GlobalLinearSystem>();
+        global_linear_system = require<GlobalLinearSystem>();
 
-        abd_fem_contact_receiver = &require<ABDFEMContactReceiver>();
-        fem_abd_contact_receiver = &require<FEMABDContactReceiver>();
+        abd_fem_contact_receiver = require<ABDFEMContactReceiver>();
+        fem_abd_contact_receiver = require<FEMABDContactReceiver>();
 
-        abd_linear_subsystem = &require<ABDLinearSubsystem>();
-        fem_linear_subsystem = &require<FEMLinearSubsystem>();
+        abd_linear_subsystem = require<ABDLinearSubsystem>();
+        fem_linear_subsystem = require<FEMLinearSubsystem>();
 
-        affine_body_dynamics  = &require<AffineBodyDynamics>();
-        finite_element_method = &require<FiniteElementMethod>();
+        affine_body_dynamics  = require<AffineBodyDynamics>();
+        finite_element_method = require<FiniteElementMethod>();
 
-        affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
-        finite_element_vertex_reporter = &require<FiniteElementVertexReporter>();
+        affine_body_vertex_reporter    = require<AffineBodyVertexReporter>();
+        finite_element_vertex_reporter = require<FiniteElementVertexReporter>();
 
-        info.connect(abd_linear_subsystem, fem_linear_subsystem);
+        info.connect(abd_linear_subsystem.view(), fem_linear_subsystem.view());
     }
 
     virtual void report_extent(GlobalLinearSystem::OffDiagExtentInfo& info) override
