@@ -25,4 +25,10 @@ void LineSearchReporter::compute_energy(LineSearcher::EnergyInfo& info)
 {
     do_compute_energy(info);
 }
+
+void LineSearchReporter::init()
+{
+    InitInfo info;
+    do_init(info);
+}
 }  // namespace uipc::backend::cuda

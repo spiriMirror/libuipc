@@ -218,6 +218,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                  dimensions  = info.dimensions().viewer().name("dimensions"),
                  contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                  contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+                 v2b = info.v2b().viewer().name("v2b"),
+                 body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
                  d_hat = d_hat,
                  alpha = alpha] __device__(IndexT i, IndexT j)
                 {
@@ -234,6 +236,12 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
                     if(V_is_codim && V >= codimV)  // avoid duplicate CodimP-CodimP pairs
                         return false;
+
+                    auto body_i = v2b(V);
+                    auto body_j = v2b(codimV);
+                    // skip self-collision for the same body if self collision off
+                    if(body_i == body_j && !body_self_collision(body_i))
+                        return false;  
 
 
                     Vector3 P0  = Ps(V);
@@ -266,6 +274,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                  thicknesses = info.thicknesses().viewer().name("thicknesses"),
                  contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                  contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+                 v2b = info.v2b().viewer().name("v2b"),
+                 body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
                  d_hat = d_hat,
                  alpha = alpha] __device__(IndexT i, IndexT j)
                 {
@@ -282,6 +292,12 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
                     // discard if the vertex is on the edge
                     if(E[0] == codimV || E[1] == codimV)
+                        return false;
+
+                    auto body_i = v2b(codimV);
+                    auto body_j = v2b(E[0]);
+                    // skip self-collision for the same body if self collision off
+                    if(body_i == body_j && !body_self_collision(body_i))
                         return false;
 
                     Vector3 E0  = Ps(E[0]);
@@ -317,6 +333,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
              thicknesses = info.thicknesses().viewer().name("thicknesses"),
              contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
              contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+             v2b = info.v2b().viewer().name("v2b"),
+             body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
              d_hat = d_hat,
              alpha = alpha] __device__(IndexT i, IndexT j)
             {
@@ -335,6 +353,12 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 // discard if the edges share same vertex
                 if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
                     return false;
+
+                auto body_i = v2b(E0[0]);
+                auto body_j = v2b(E1[0]);
+                if(body_i == body_j && !body_self_collision(body_i))
+                    return false;  // skip self-collision for the same body
+
 
                 Vector3 E0_0  = Ps(E0[0]);
                 Vector3 E0_1  = Ps(E0[1]);
@@ -374,6 +398,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
              thicknesses = info.thicknesses().viewer().name("thicknesses"),
              contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
              contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+             v2b = info.v2b().viewer().name("v2b"),
+             body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
              d_hat = d_hat,
              alpha = alpha] __device__(IndexT i, IndexT j)
             {
@@ -392,6 +418,13 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 // discard if the point is on the triangle
                 if(F[0] == V || F[1] == V || F[2] == V)
                     return false;
+
+                auto body_i = v2b(V);
+                auto body_j = v2b(F[0]);
+                // skip self-collision for the same body if self collision off
+                if(body_i == body_j && !body_self_collision(body_i))
+                    return false;
+
 
                 Vector3 P  = Ps(V);
                 Vector3 dP = alpha * dxs(V);

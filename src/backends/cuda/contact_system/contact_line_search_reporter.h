@@ -25,6 +25,7 @@ class ContactLineSearchReporter final : public LineSearchReporter
     };
 
   private:
+    virtual void do_init(LineSearchReporter::InitInfo& info) override;
     virtual void do_build(LineSearchReporter::BuildInfo& info) override;
     virtual void do_record_start_point(LineSearcher::RecordInfo& info) override;
     virtual void do_step_forward(LineSearcher::StepInfo& info) override;

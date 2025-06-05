@@ -21,6 +21,7 @@ class GlobalAnimator;
 class GlobalDiffSimManager;
 class AffineBodyDynamics;
 class FiniteElementMethod;
+class InterAffineBodyConstitutionManager;
 
 class SimEngine final : public backend::SimEngine
 {
@@ -81,6 +82,7 @@ class SimEngine final : public backend::SimEngine
     //GlobalDiffContactManager*    m_global_diff_contact_manager    = nullptr;
     //GlobalAdjointMethodReplayer* m_global_adjoint_method_replayer = nullptr;
     AffineBodyDynamics* m_affine_body_dynamics = nullptr;
+    InterAffineBodyConstitutionManager* m_inter_affine_body_constitution_manager = nullptr;
     //ABDDiffSimManager*           m_abd_diff_sim_manager           = nullptr;
     FiniteElementMethod* m_finite_element_method = nullptr;
 

@@ -33,6 +33,7 @@ class AffineBodyDynamics : public SimSystem
     {
       public:
         IndexT geo_slot_index     = -1;
+        IndexT geo_id             = -1;
         U64    constitution_uid   = 0;
         U64    constitution_index = 0;
 
@@ -237,7 +238,8 @@ class AffineBodyDynamics : public SimSystem
         SizeT abd_vertex_count = 0;
 
         // core invariant data
-        vector<GeoInfo>            geo_infos;
+        vector<GeoInfo> geo_infos;
+        unordered_map<U64, IndexT> geo_id_to_geo_info_index;  // uid -> geo_info index
         unordered_map<U64, IndexT> constitution_uid_to_index;
         vector<ConstitutionInfo>   constitution_infos;
 
@@ -492,6 +494,7 @@ class AffineBodyDynamics : public SimSystem
     friend class AffineBodyVertexReporter;
     friend class AffinebodySurfaceReporter;
     friend class AffineBodyBodyReporter;
+    friend class InterAffineBodyConstitutionManager;
 
     friend class ABDLinearSubsystem;
     friend class ABDLineSearchReporter;

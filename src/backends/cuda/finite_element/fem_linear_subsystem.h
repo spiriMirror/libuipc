@@ -66,6 +66,7 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
 
   private:
     virtual void do_build(DiagLinearSubsystem::BuildInfo& info) override;
+    virtual void do_init(DiagLinearSubsystem::InitInfo& info) override;
     virtual void do_report_extent(GlobalLinearSystem::DiagExtentInfo& info) override;
     virtual void do_assemble(GlobalLinearSystem::DiagInfo& info) override;
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) override;
