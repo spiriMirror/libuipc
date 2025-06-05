@@ -7,8 +7,11 @@ REGISTER_SIM_SYSTEM(ContactLineSearchReporter);
 void ContactLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
     m_impl.global_contact_manager = &require<GlobalContactManager>();
+}
 
-    on_init_scene([this] { m_impl.init(); });
+void ContactLineSearchReporter::do_init(LineSearchReporter::InitInfo& info)
+{
+    m_impl.init();
 }
 
 void ContactLineSearchReporter::Impl::init()

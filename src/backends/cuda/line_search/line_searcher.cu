@@ -7,24 +7,25 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(LineSearcher);
 
-void LineSearcher::do_build()
-{
-    on_init_scene([this]() { init(); });
-}
+void LineSearcher::do_build() {}
 
 void LineSearcher::init()
 {
     auto scene = world().scene();
 
-    m_energy_values.resize(m_reporters.view().size() + m_energy_reporters.view().size(), 0);
-
-    for(auto&& [i, R] : enumerate(m_reporters.view()))
-        R->m_index = i;
-
-
     m_report_energy = scene.info()["line_search"]["report_energy"];
     m_max_iter      = scene.info()["line_search"]["max_iter"];
     m_dt            = scene.info()["dt"];
+
+    m_energy_values.resize(m_reporters.view().size() + m_energy_reporters.view().size(), 0);
+
+    auto reporter_view = m_reporters.view();
+
+    for(auto&& [i, R] : enumerate(reporter_view))
+        R->m_index = i;
+
+    for(auto&& [i, R] : enumerate(reporter_view))
+        R->init();
 }
 
 void LineSearcher::record_start_point()
@@ -110,8 +111,8 @@ Float LineSearcher::compute_energy(bool is_initial)
 
 void LineSearcher::add_reporter(LineSearchReporter* reporter)
 {
+    UIPC_ASSERT(reporter, "reporter is nullptr");
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
     m_reporters.register_subsystem(*reporter);
 }
 
