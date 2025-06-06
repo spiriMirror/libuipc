@@ -20,6 +20,7 @@ class SimSystemSlot
 
     void              register_subsystem(T& subsystem);
     SimSystemSlot<T>& operator=(T& subsystem) noexcept;
+    SimSystemSlot<T>& operator=(T* subsystem) noexcept;
 
     T* view() const noexcept;
     T* operator->() const noexcept;

@@ -286,8 +286,10 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                            {
                                // Do nothing
                            }
-
-                           dst.segment<12>(body_i * 12).atomic_add(G12);
+                           else
+                           {
+                               dst.segment<12>(body_i * 12).atomic_add(G12);
+                           }
                        });
         }
 
@@ -405,13 +407,13 @@ ABDLinearSubsystem::AssembleInfo::AssembleInfo(Impl* impl, IndexT index) noexcep
 {
 }
 
-muda::DoubletVectorView<Float, 12> ABDLinearSubsystem::AssembleInfo::gradient() const
+muda::DoubletVectorView<Float, 12> ABDLinearSubsystem::AssembleInfo::gradients() const
 {
     auto [offset, count] = m_impl->reporter_gradient_offsets_counts[m_index];
     return m_impl->reporter_gradients.view().subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 12, 12> ABDLinearSubsystem::AssembleInfo::hessian() const
+muda::TripletMatrixView<Float, 12, 12> ABDLinearSubsystem::AssembleInfo::hessians() const
 {
     auto [offset, count] = m_impl->reporter_hessian_offsets_counts[m_index];
     return m_impl->reporter_hessians.view().subview(offset, count);
