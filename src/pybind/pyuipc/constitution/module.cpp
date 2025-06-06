@@ -15,6 +15,7 @@
 #include <pyuipc/constitution/soft_transform_constraint.h>
 #include <pyuipc/constitution/discrete_shell_bending.h>
 #include <pyuipc/constitution/arap.h>
+#include <pyuipc/constitution/affine_body_revolute_joint.h>
 
 namespace pyuipc::constitution
 {
@@ -26,6 +27,7 @@ PyModule::PyModule(py::module& m)
 
     // Affine Body Constitutions
     PyAffineBodyConstitution{m};
+    PyAffineBodyRevoluteJoint{m};
 
     // Finite Element Constitutions
     PyFiniteElementConstitution{m};

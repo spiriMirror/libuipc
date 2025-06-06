@@ -14,11 +14,10 @@ class InterAffineBodyConstitution : public SimSystem
 
     using FilteredInfo = InterAffineBodyConstitutionManager::FilteredInfo;
     using EnergyExtentInfo = InterAffineBodyConstitutionManager::EnergyExtentInfo;
-    using ComputeEnergyInfo = InterAffineBodyConstitutionManager::ComputeEnergyInfo;
+    using ComputeEnergyInfo = InterAffineBodyConstitutionManager::EnergyInfo;
     using GradientHessianExtentInfo =
         InterAffineBodyConstitutionManager::GradientHessianExtentInfo;
-    using ComputeGradientHessianInfo =
-        InterAffineBodyConstitutionManager::ComputeGradientHessianInfo;
+    using ComputeGradientHessianInfo = InterAffineBodyConstitutionManager::GradientHessianInfo;
 
     U64 uid() const noexcept;
 

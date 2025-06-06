@@ -190,8 +190,7 @@ void AffineBodyAnimator::compute_energy(ABDLineSearchReporter::EnergyInfo& info)
 {
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, m_impl.dt};
-        this_info.m_energies = info.energies();
+        EnergyInfo this_info{&m_impl, constraint->m_index, m_impl.dt, info.energies()};
         constraint->compute_energy(this_info);
     }
 }
@@ -200,10 +199,8 @@ void AffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::AssembleIn
 {
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeGradientHessianInfo this_info{
-            &m_impl, constraint->m_index, m_impl.dt};
-        this_info.m_gradients = info.gradient();
-        this_info.m_hessians  = info.hessian();
+        GradientHessianInfo this_info{
+            &m_impl, constraint->m_index, m_impl.dt, info.gradients(), info.hessians()};
         constraint->compute_gradient_hessian(this_info);
     }
 }
@@ -252,19 +249,19 @@ muda::CBufferView<IndexT> AffineBodyAnimator::BaseInfo::is_fixed() const noexcep
     return m_impl->affine_body_dynamics->m_impl.body_id_to_is_fixed.view();
 }
 
-muda::BufferView<Float> AffineBodyAnimator::ComputeEnergyInfo::energies() const noexcept
+muda::BufferView<Float> AffineBodyAnimator::EnergyInfo::energies() const noexcept
 {
     auto [offset, count] = m_impl->constraint_energy_offsets_counts[m_index];
     return m_energies.subview(offset, count);
 }
 
-muda::DoubletVectorView<Float, 12> AffineBodyAnimator::ComputeGradientHessianInfo::gradients() const noexcept
+muda::DoubletVectorView<Float, 12> AffineBodyAnimator::GradientHessianInfo::gradients() const noexcept
 {
     auto [offset, count] = m_impl->constraint_gradient_offsets_counts[m_index];
     return m_gradients.subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 12> AffineBodyAnimator::ComputeGradientHessianInfo::hessians() const noexcept
+muda::TripletMatrixView<Float, 12> AffineBodyAnimator::GradientHessianInfo::hessians() const noexcept
 {
     auto [offset, count] = m_impl->constraint_hessian_offsets_counts[m_index];
     return m_hessians.subview(offset, count);
@@ -292,11 +289,11 @@ class AffineBodyAnimatorLinearSubsystemReporter final : public ABDLinearSubsyste
 {
   public:
     using ABDLinearSubsystemReporter::ABDLinearSubsystemReporter;
-    AffineBodyAnimator* animator = nullptr;
+    SimSystemSlot<AffineBodyAnimator> animator;
 
     virtual void do_build(BuildInfo& info) override
     {
-        animator = &require<AffineBodyAnimator>();
+        animator = require<AffineBodyAnimator>();
     }
 
     virtual void do_init(InitInfo& info) override {}
@@ -326,11 +323,11 @@ class AffineBodyAnimatorLineSearchSubreporter final : public ABDLineSearchSubrep
 {
   public:
     using ABDLineSearchSubreporter::ABDLineSearchSubreporter;
-    AffineBodyAnimator* animator = nullptr;
+    SimSystemSlot<AffineBodyAnimator> animator;
 
     virtual void do_build(BuildInfo& info) override
     {
-        animator = &require<AffineBodyAnimator>();
+        animator = require<AffineBodyAnimator>();
     }
 
     virtual void do_init(InitInfo& info) override {}

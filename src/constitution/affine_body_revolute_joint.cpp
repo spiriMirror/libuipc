@@ -13,7 +13,7 @@ REGISTER_CONSTITUTION_UIDS()
     list<UIDInfo> uids;
     uids.push_back(UIDInfo{.uid  = ConstitutionUID,
                            .name = "AffineBodyRevoluteJoint",
-                           .type = string{builtin::Constraint}});
+                           .type = string{builtin::InterAffineBody}});
     return uids;
 }
 
@@ -29,7 +29,9 @@ AffineBodyRevoluteJoint::AffineBodyRevoluteJoint(const Json& config)
 
 AffineBodyRevoluteJoint::~AffineBodyRevoluteJoint() = default;
 
-void AffineBodyRevoluteJoint::apply_to(geometry::SimplicialComplex& sc, span<SlotTuple> geo_slots)
+void AffineBodyRevoluteJoint::apply_to(geometry::SimplicialComplex& sc,
+                                       span<SlotTuple>              geo_slots,
+                                       Float strength_ratio_v)
 {
     auto size = sc.edges().size();
     UIPC_ASSERT(size == geo_slots.size(),
@@ -50,6 +52,13 @@ void AffineBodyRevoluteJoint::apply_to(geometry::SimplicialComplex& sc, span<Slo
         links = sc.edges().create<Vector2i>("links", Vector2i{-1, -1});
     }
     auto links_view = view(*links);
+
+    auto strength_ratio = sc.edges().find<Float>("strength_ratio");
+    if(!strength_ratio)
+    {
+        strength_ratio = sc.edges().create<Float>("strength_ratio", 0.0);
+    }
+    std::ranges::fill(view(*strength_ratio), strength_ratio_v);
 
     std::ranges::transform(geo_slots,
                            links_view.begin(),

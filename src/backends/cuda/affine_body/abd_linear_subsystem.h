@@ -34,8 +34,8 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
     {
       public:
         AssembleInfo(Impl* impl, IndexT index) noexcept;
-        muda::DoubletVectorView<Float, 12>     gradient() const;
-        muda::TripletMatrixView<Float, 12, 12> hessian() const;
+        muda::DoubletVectorView<Float, 12>     gradients() const;
+        muda::TripletMatrixView<Float, 12, 12> hessians() const;
 
       private:
         friend class ABDLinearSubsystem;
