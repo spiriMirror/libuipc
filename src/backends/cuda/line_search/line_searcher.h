@@ -49,10 +49,10 @@ class LineSearcher : public SimSystem
 
   private:
     friend class SimEngine;
-    void  init();
-    void  record_start_point();       // only be called by SimEngine
-    void  step_forward(Float alpha);  // only be called by SimEngine
-    Float compute_energy(bool is_initial);           // only be called by SimEngine
+    void  init();                           // only be called by SimEngine
+    void  record_start_point();             // only be called by SimEngine
+    void  step_forward(Float alpha);        // only be called by SimEngine
+    Float compute_energy(bool is_initial);  // only be called by SimEngine
 
     SimSystemSlotCollection<LineSearchReporter> m_reporters;
     SimActionCollection<void(EnergyInfo)>       m_energy_reporters;

@@ -5,6 +5,8 @@
 #include <line_search/line_searcher.h>
 #include <muda/ext/linear_system/device_doublet_vector.h>
 #include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <affine_body/abd_linear_subsystem_reporter.h>
+#include <affine_body/abd_line_search_subreporter.h>
 
 namespace uipc::backend::cuda
 {
@@ -73,19 +75,41 @@ class AffineBodyAnimator final : public Animator
         Float m_dt    = 0.0;
     };
 
-    class ComputeEnergyInfo : public BaseInfo
+    class EnergyInfo : public BaseInfo
     {
       public:
-        using BaseInfo::BaseInfo;
+        EnergyInfo(Impl* impl, SizeT index, Float dt, muda::BufferView<Float> energy)
+            : BaseInfo(impl, index, dt)
+            , m_energies(energy)
+        {
+        }
         muda::BufferView<Float> energies() const noexcept;
+
+      private:
+        friend class AffineBodyAnimator;
+        muda::BufferView<Float> m_energies;
     };
 
-    class ComputeGradientHessianInfo : public BaseInfo
+    class GradientHessianInfo : public BaseInfo
     {
       public:
-        using BaseInfo::BaseInfo;
+        GradientHessianInfo(Impl*                              impl,
+                            SizeT                              index,
+                            Float                              dt,
+                            muda::DoubletVectorView<Float, 12> gradients,
+                            muda::TripletMatrixView<Float, 12> hessians)
+            : BaseInfo(impl, index, dt)
+            , m_gradients(gradients)
+            , m_hessians(hessians)
+        {
+        }
         muda::DoubletVectorView<Float, 12> gradients() const noexcept;
         muda::TripletMatrixView<Float, 12> hessians() const noexcept;
+
+      private:
+        friend class AffineBodyAnimator;
+        muda::DoubletVectorView<Float, 12> m_gradients;
+        muda::TripletMatrixView<Float, 12> m_hessians;
     };
 
     class ReportExtentInfo
@@ -108,6 +132,8 @@ class AffineBodyAnimator final : public Animator
         void init(backend::WorldVisitor& world);
         void step();
 
+        Float dt = 0.0;
+
         AffineBodyDynamics* affine_body_dynamics = nullptr;
         GlobalAnimator*     global_animator      = nullptr;
         SimSystemSlotCollection<AffineBodyConstraint> constraints;
@@ -116,56 +142,26 @@ class AffineBodyAnimator final : public Animator
         vector<AnimatedGeoInfo> anim_geo_infos;
         vector<IndexT>          anim_body_indices;
 
-        vector<SizeT> constraint_geo_info_offsets;
-        vector<SizeT> constraint_geo_info_counts;
+        OffsetCountCollection<IndexT> constraint_geo_info_offsets_counts;
 
-        vector<SizeT> constraint_body_offsets;
-        vector<SizeT> constraint_body_counts;
+        OffsetCountCollection<IndexT> constraint_body_offsets_counts;
 
         // Constraints
-        muda::DeviceVar<Float>    constraint_energy;
-        muda::DeviceBuffer<Float> constraint_energies;
-        vector<SizeT>             constraint_energy_offsets;
-        vector<SizeT>             constraint_energy_counts;
 
-        muda::DeviceDoubletVector<Float, 12> constraint_gradient;
-        vector<SizeT>                        constraint_gradient_offsets;
-        vector<SizeT>                        constraint_gradient_counts;
-
-        muda::DeviceTripletMatrix<Float, 12> constraint_hessian;
-        vector<SizeT>                        constraint_hessian_offsets;
-        vector<SizeT>                        constraint_hessian_counts;
+        OffsetCountCollection<IndexT> constraint_energy_offsets_counts;
+        OffsetCountCollection<IndexT> constraint_gradient_offsets_counts;
+        OffsetCountCollection<IndexT> constraint_hessian_offsets_counts;
     };
 
   private:
     friend class AffineBodyConstraint;
     void add_constraint(AffineBodyConstraint* constraint);  // only be called by AffinieElementConstraint
 
-    friend class ABDLineSearchReporter;
-    Float compute_energy(LineSearcher::EnergyInfo& info);  // only be called by ABDLineSearchReporter
+    friend class AffineBodyAnimatorLineSearchSubreporter;
+    void compute_energy(ABDLineSearchReporter::EnergyInfo& info);  // only be called by ABDLineSearchSubreporter
 
-    friend class ABDGradientHessianComputer;
-    void compute_gradient_hessian(GradientHessianComputer::ComputeInfo& info);  // only be called by ABDGradientHessianComputer
-
-    friend class ABDLinearSubsystem;
-    class ExtentInfo
-    {
-      public:
-        SizeT hessian_block_count = 0;
-    };
-    void report_extent(ExtentInfo& info);  // only be called by ABDLinearSubsystem
-    class AssembleInfo
-    {
-      public:
-        muda::CDoubletVectorView<Float, 12> gradients() const noexcept;
-        muda::CTripletMatrixView<Float, 12> hessians() const noexcept;
-
-      private:
-        friend class AffineBodyAnimator;
-        muda::CDoubletVectorView<Float, 12> m_gradients;
-        muda::CTripletMatrixView<Float, 12> m_hessians;
-    };
-    void assemble(AssembleInfo& info);  // only be called by ABDLinearSubsystem
+    friend class AffineBodyAnimatorLinearSubsystemReporter;
+    void compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info);  // only be called by AffineBodyAnimatorLinearSubsystemReporter
 
     Impl m_impl;
 

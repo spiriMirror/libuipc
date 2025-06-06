@@ -9,6 +9,8 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FEMLineSearchReporter);
 
+void FEMLineSearchReporter::do_init(InitInfo& info) {}
+
 void FEMLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
     m_impl.finite_element_method = require<FiniteElementMethod>();
