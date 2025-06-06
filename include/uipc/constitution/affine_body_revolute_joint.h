@@ -16,7 +16,9 @@ class UIPC_CONSTITUTION_API AffineBodyRevoluteJoint final : public InterAffineBo
 
     virtual ~AffineBodyRevoluteJoint();
 
-    void apply_to(geometry::SimplicialComplex& edges, span<SlotTuple> geo_slots);
+    void apply_to(geometry::SimplicialComplex& edges,
+                  span<SlotTuple>              geo_slots,
+                  Float                        strength_ratio = Float{100});
 
   private:
     virtual U64 get_uid() const noexcept override;

@@ -75,10 +75,14 @@ class AffineBodyAnimator final : public Animator
         Float m_dt    = 0.0;
     };
 
-    class ComputeEnergyInfo : public BaseInfo
+    class EnergyInfo : public BaseInfo
     {
       public:
-        using BaseInfo::BaseInfo;
+        EnergyInfo(Impl* impl, SizeT index, Float dt, muda::BufferView<Float> energy)
+            : BaseInfo(impl, index, dt)
+            , m_energies(energy)
+        {
+        }
         muda::BufferView<Float> energies() const noexcept;
 
       private:
@@ -86,10 +90,19 @@ class AffineBodyAnimator final : public Animator
         muda::BufferView<Float> m_energies;
     };
 
-    class ComputeGradientHessianInfo : public BaseInfo
+    class GradientHessianInfo : public BaseInfo
     {
       public:
-        using BaseInfo::BaseInfo;
+        GradientHessianInfo(Impl*                              impl,
+                            SizeT                              index,
+                            Float                              dt,
+                            muda::DoubletVectorView<Float, 12> gradients,
+                            muda::TripletMatrixView<Float, 12> hessians)
+            : BaseInfo(impl, index, dt)
+            , m_gradients(gradients)
+            , m_hessians(hessians)
+        {
+        }
         muda::DoubletVectorView<Float, 12> gradients() const noexcept;
         muda::TripletMatrixView<Float, 12> hessians() const noexcept;
 

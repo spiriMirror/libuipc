@@ -51,8 +51,10 @@ TEST_CASE("37_abd_revolute_joint", "[abd]")
         SimplicialComplex left_mesh = abd_mesh;
         {
             Transform t = Transform::Identity();
-            t.translate(Vector3::UnitX() * -0.5);
+            t.translate(Vector3::UnitX() * -0.6);
             view(left_mesh.transforms())[0] = t.matrix();
+            auto is_fixed = left_mesh.instances().find<IndexT>(builtin::is_fixed);
+            // view(*is_fixed)[0] = 0;  // fix the right link
         }
         auto [left_geo_slot, left_rest_geo_slot] =
             left_link->geometries().create(left_mesh);
@@ -60,7 +62,7 @@ TEST_CASE("37_abd_revolute_joint", "[abd]")
         SimplicialComplex right_mesh = abd_mesh;
         {
             Transform t = Transform::Identity();
-            t.translate(Vector3::UnitX() * 0.5);
+            t.translate(Vector3::UnitX() * 0.6);
             view(right_mesh.transforms())[0] = t.matrix();
             auto is_fixed = right_mesh.instances().find<IndexT>(builtin::is_fixed);
             view(*is_fixed)[0] = 1;  // fix the right link
@@ -92,7 +94,7 @@ TEST_CASE("37_abd_revolute_joint", "[abd]")
     REQUIRE(world.is_valid());
 
 
-    while(world.frame() < 50)
+    while(world.frame() < 100)
     {
         world.advance();
         world.retrieve();
