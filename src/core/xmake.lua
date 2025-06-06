@@ -1,11 +1,11 @@
 add_requires(
-    "eigen", "nlohmann_json", "cppitertools", "magic_enum", "tinygltf", "dylib",
-    "boost[header_only=y]",
+    "eigen", "nlohmann_json", "cppitertools", "magic_enum", "tinygltf", "dylib", "cpptrace",
     -- Use non-header-only spdlog and fmt
-    "spdlog[header_only=n,fmt_external=y]"
+    "spdlog[header_only=n,fmt_external=y] <=1.15.2"
 )
 
 -- https://stackoverflow.com/questions/78935510/no-member-named-join-in-namespace-fmt
+-- https://forums.developer.nvidia.com/t/utf-8-option-for-the-host-function-in-cuda-msvc/312739
 add_requireconfs("spdlog.fmt", {override = true, version = "<11"})
 
 target("core")
@@ -24,6 +24,6 @@ target("core")
 
     add_packages(
         "eigen", "nlohmann_json", "cppitertools", "magic_enum", "tinygltf", "dylib",
-        "boost", "spdlog",
+        "cpptrace", "spdlog",
         {public = true}
     )
