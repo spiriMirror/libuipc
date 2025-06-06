@@ -14,7 +14,7 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <finite_element/finite_element_method.h>
 #include <global_geometry/global_body_manager.h>
-
+#include <affine_body/inter_affine_body_constitution_manager.h>
 namespace uipc::backend::cuda
 {
 void SimEngine::build()
@@ -36,7 +36,9 @@ void SimEngine::build()
     m_global_animator                   = find<GlobalAnimator>();
     m_global_diff_sim_manager           = find<GlobalDiffSimManager>();
 
-    m_affine_body_dynamics  = find<AffineBodyDynamics>();
+    m_affine_body_dynamics = find<AffineBodyDynamics>();
+    m_inter_affine_body_constitution_manager =
+        find<InterAffineBodyConstitutionManager>();
     m_finite_element_method = find<FiniteElementMethod>();
 
     // 3) dump system info
@@ -57,33 +59,43 @@ void SimEngine::init_scene()
     m_abs_tol = m_newton_velocity_tol * dt;
 
     // 1. Before Common Scene Initialization
-    if(m_affine_body_dynamics)
-        m_affine_body_dynamics->init();
-    if(m_finite_element_method)
-        m_finite_element_method->init();
-    m_global_body_manager->init();
+    {
+        if(m_affine_body_dynamics)
+            m_affine_body_dynamics->init();
+        if(m_inter_affine_body_constitution_manager)
+            m_inter_affine_body_constitution_manager->init();
+        if(m_finite_element_method)
+            m_finite_element_method->init();
+        m_global_body_manager->init();
+    }
 
     // 2. Common Scene Initialization Phase
     event_init_scene();
 
     // 3. After Common Scene Initialization
     // 3.1 Forwards
-    m_global_vertex_manager->init();
-    m_global_simplicial_surface_manager->init();
+    {
+        m_global_vertex_manager->init();
+        m_global_simplicial_surface_manager->init();
 
-    if(m_global_contact_manager)
-        m_global_contact_manager->init();
-    if(m_global_animator)
-        m_global_animator->init();
-    m_global_linear_system->init();
+        if(m_global_contact_manager)
+            m_global_contact_manager->init();
+        if(m_global_animator)
+            m_global_animator->init();
+
+        m_line_searcher->init();
+        m_global_linear_system->init();
+    }
 
     // 3.2 Backwards (if needed)
-    if(m_global_diff_sim_manager)
-        m_global_diff_sim_manager->init();
-    //if(m_global_diff_contact_manager)
-    //    m_global_diff_contact_manager->init();
-    //if(m_abd_diff_sim_manager)
-    //    m_abd_diff_sim_manager->init();
+    {
+        if(m_global_diff_sim_manager)
+            m_global_diff_sim_manager->init();
+        //if(m_global_diff_contact_manager)
+        //    m_global_diff_contact_manager->init();
+        //if(m_abd_diff_sim_manager)
+        //    m_abd_diff_sim_manager->init();
+    }
 }
 
 void SimEngine::do_init(InitInfo& info)

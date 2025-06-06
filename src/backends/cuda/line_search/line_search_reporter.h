@@ -14,7 +14,13 @@ class LineSearchReporter : public SimSystem
       public:
     };
 
+    class InitInfo
+    {
+      public:
+    };
+
   protected:
+    virtual void do_init(InitInfo& info)                               = 0;
     virtual void do_record_start_point(LineSearcher::RecordInfo& info) = 0;
     virtual void do_step_forward(LineSearcher::StepInfo& info)         = 0;
     virtual void do_compute_energy(LineSearcher::EnergyInfo& info)     = 0;
@@ -28,6 +34,8 @@ class LineSearchReporter : public SimSystem
     void         record_start_point(LineSearcher::RecordInfo& info);
     void         step_forward(LineSearcher::StepInfo& info);
     void         compute_energy(LineSearcher::EnergyInfo& info);
+    void         init();
+
     SizeT        m_index = ~0ull;
 };
 

@@ -16,8 +16,15 @@ class DiagLinearSubsystem : public SimSystem
       public:
     };
 
+    class InitInfo
+    {
+      public:
+    };
+
   protected:
     virtual void do_build(BuildInfo& info);
+
+    virtual void do_init(InitInfo& info) = 0;
 
     virtual void do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info) = 0;
     virtual void do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info) = 0;
@@ -30,6 +37,8 @@ class DiagLinearSubsystem : public SimSystem
   private:
     friend class GlobalLinearSystem;
     virtual void do_build() final override;
+
+    void init();  // only be called by GlobalLinearSystem
 
     void report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info);
     void receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info);

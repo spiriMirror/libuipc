@@ -191,6 +191,7 @@ void AffineBodyDynamics::Impl::_build_constitutions(WorldVisitor& world)
                 auto constitution_index = constitution_uid_to_index[uid];
 
                 GeoInfo info;
+                info.geo_id     = geo_slot->id();
                 info.body_count = instance_count;
                 info.vertex_count = vert_count * instance_count;  // total vertex count
                 info.geo_slot_index     = i;
@@ -248,13 +249,17 @@ void AffineBodyDynamics::Impl::_build_geo_infos(WorldVisitor& world)
                              [](const GeoInfo& a, const GeoInfo& b)
                              { return a.constitution_uid < b.constitution_uid; });
 
+    for(auto&& [i, info] : enumerate(geo_infos))
+    {
+        geo_id_to_geo_info_index[info.geo_id] = i;  // build map for geo_id to geo_info index
+    }
 
     // 2) Setup the body offset and body count
     OffsetCountCollection<IndexT> geo_body_offsets_counts;
     geo_body_offsets_counts.resize(geo_infos.size());
 
-    span<IndexT> geo_body_counts  = geo_body_offsets_counts.counts();
-    span<IndexT> geo_body_offsets = geo_body_offsets_counts.offsets();
+    span<IndexT>       geo_body_counts  = geo_body_offsets_counts.counts();
+    span<const IndexT> geo_body_offsets = geo_body_offsets_counts.offsets();
 
     std::ranges::transform(geo_infos,
                            geo_body_counts.begin(),

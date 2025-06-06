@@ -5,6 +5,8 @@
 #include <utils/matrix_assembler.h>
 #include <utils/matrix_unpacker.h>
 #include <uipc/builtin/attribute_name.h>
+#include <affine_body/inter_affine_body_constitution_manager.h>
+#include <affine_body/abd_linear_subsystem_reporter.h>
 
 namespace uipc::backend::cuda
 {
@@ -15,12 +17,21 @@ void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
     m_impl.affine_body_dynamics        = require<AffineBodyDynamics>();
     m_impl.affine_body_vertex_reporter = require<AffineBodyVertexReporter>();
 
-    auto aba = find<AffineBodyAnimator>();
-    if(aba)
-        m_impl.affine_body_animator = *aba;
     auto contact = find<ABDContactReceiver>();
     if(contact)
         m_impl.abd_contact_receiver = *contact;
+}
+
+void ABDLinearSubsystem::Impl::init()
+{
+    auto reporter_view = reporters.view();
+    for(auto&& [i, r] : enumerate(reporter_view))
+        r->m_index = i;
+    for(auto& r : reporter_view)
+        r->init();
+
+    reporter_gradient_offsets_counts.resize(reporter_view.size());
+    reporter_hessian_offsets_counts.resize(reporter_view.size());
 }
 
 void ABDLinearSubsystem::Impl::report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info)
@@ -64,25 +75,45 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
 
     constexpr SizeT M12x12_to_M3x3 = (12 * 12) / (3 * 3);
     constexpr SizeT G12_to_dof     = 12;
+    SizeT           body_count     = abd().body_count();
 
     // 1) Hessian Count
     SizeT H12x12_count = 0;
+    {
+        // body hessian: kinetic + shape
+        SizeT body_hessian_count = abd().body_id_to_body_hessian.size();
 
-    // body hessian
-    H12x12_count += abd().body_id_to_body_hessian.size();
-    if(abd_contact_receiver)
-    {
-        H12x12_count += contact().contact_hessian.triplet_count();
-    }
-    if(affine_body_animator)
-    {
-        AffineBodyAnimator::ExtentInfo anim_extent_info;
-        affine_body_animator->report_extent(anim_extent_info);
-        H12x12_count += anim_extent_info.hessian_block_count;
+        // contact hessian: contact hessian
+        SizeT contact_hessian_count = contact().contact_hessian.triplet_count();
+
+        // other hessian
+        auto reporter_view = reporters.view();
+        auto grad_counts   = reporter_gradient_offsets_counts.counts();
+        auto hess_counts   = reporter_hessian_offsets_counts.counts();
+
+        for(auto&& R : reporter_view)
+        {
+            ReportExtentInfo info;
+            R->report_extent(info);
+
+            grad_counts[R->m_index] = info.m_gradient_count;
+            hess_counts[R->m_index] = info.m_hessian_count;
+        }
+
+        reporter_gradient_offsets_counts.scan();
+        reporter_hessian_offsets_counts.scan();
+
+        reporter_gradients.reshape(body_count);
+        reporter_gradients.resize_doublets(reporter_gradient_offsets_counts.total_count());
+
+        reporter_hessians.reshape(body_count, body_count);
+        reporter_hessians.resize_triplets(reporter_hessian_offsets_counts.total_count());
+
+        H12x12_count = reporter_hessian_offsets_counts.total_count()
+                       + body_hessian_count + contact_hessian_count;
     }
 
     auto H3x3_count = H12x12_count * M12x12_to_M3x3;
-
 
     // 2) Gradient Count
     SizeT G12_count = abd().body_count();
@@ -103,11 +134,17 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
             .apply(abd().body_count(),
                    [body_gradient = abd().body_id_to_body_gradient.cviewer().name("abd_gradient"),
                     gradient = info.gradient().viewer().name("gradient")] __device__(int i) mutable
-                   { gradient.segment<12>(i * 12) = body_gradient(i); });
+                   {
+                       // don't need to consider fixed
+                       // fixed body will always have a zero gradient (for no motion)
+
+                       gradient.segment<12>(i * 12) = body_gradient(i);
+                   });
 
         auto body_count = abd().body_id_to_body_hessian.size();
         auto H3x3_count = body_count * 16;
         auto body_H3x3  = info.hessian().subview(offset, H3x3_count);
+
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_count,
@@ -117,6 +154,9 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                         "diag_hessian")] __device__(int I) mutable
                    {
                        TripletMatrixUnpacker MA{dst};
+
+                       // don't need to consider fixed
+                       // fixed body will always have a Mass hessian (for safe)
 
                        MA.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
                            .write(I * 4,          // begin row
@@ -130,15 +170,12 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
     }
 
     // 2) Contact
-    if(abd_contact_receiver)
     {
         auto vertex_offset = affine_body_vertex_reporter->vertex_offset();
-
         auto contact_gradient_count = contact().contact_gradient.doublet_count();
 
         if(contact_gradient_count)
         {
-
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(contact_gradient_count,
@@ -223,25 +260,27 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
         offset += H3x3_count;
     }
 
-    // 3) Animator
-    if(affine_body_animator)
+
+    // 2) Other
     {
-        AffineBodyAnimator::AssembleInfo anim_info;
-        affine_body_animator->assemble(anim_info);
+        // Fill TripletMatrix and DoubletVector
+        for(auto& R : reporters.view())
+        {
+            AssembleInfo info{this, R->m_index};
+            R->assemble(info);
+        }
 
-        auto gradient_count = anim_info.gradients().doublet_count();
-
-        if(gradient_count)
+        if(reporter_gradients.doublet_count())
         {
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(gradient_count,
-                       [animator_gradient = anim_info.gradients().cviewer().name("animator_gradient"),
-                        gradient = info.gradient().viewer().name("abd_gradient"),
+                .apply(reporter_gradients.doublet_count(),
+                       [dst = info.gradient().viewer().name("dst_gradient"),
+                        src = reporter_gradients.cviewer().name("src_gradient"),
                         is_fixed = abd().body_id_to_is_fixed.cviewer().name(
                             "is_fixed")] __device__(int I) mutable
                        {
-                           const auto& [body_i, G12] = animator_gradient(I);
+                           auto&& [body_i, G12] = src(I);
 
                            if(is_fixed(body_i))
                            {
@@ -249,59 +288,50 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                            }
                            else
                            {
-                               gradient.segment<12>(body_i * 12).atomic_add(G12);
+                               dst.segment<12>(body_i * 12).atomic_add(G12);
                            }
                        });
         }
 
-        auto anim_hessian_count = anim_info.hessians().triplet_count();
-        auto H3x3_count         = anim_hessian_count * 16;
-        auto anim_H3x3          = info.hessian().subview(offset, H3x3_count);
-
-        if(anim_hessian_count)
+        if(reporter_hessians.triplet_count())
         {
+            // get rest
+            auto H3x3s = info.hessian().subview(offset);
+
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(anim_hessian_count,
-                       [animator_hessian = anim_info.hessians().cviewer().name("animator_hessian"),
-                        dst = anim_H3x3.viewer().name("triplet"),
-                        is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
-                        diag_hessian = abd().diag_hessian.viewer().name(
-                            "diag_hessian")] __device__(int I) mutable
+                .apply(reporter_hessians.triplet_count(),
+                       [dst = H3x3s.viewer().name("dst_hessian"),
+                        src = reporter_hessians.cviewer().name("src_hessian"),
+                        diag_hessian = abd().diag_hessian.viewer().name("diag_hessian"),
+                        is_fixed = abd().body_id_to_is_fixed.cviewer().name(
+                            "is_fixed")] __device__(int I) mutable
                        {
                            TripletMatrixUnpacker MU{dst};
+                           Matrix12x12           Value;
+                           auto&& [body_i, body_j, H12x12] = src(I);
+                           Value                           = H12x12;
 
-                           const auto& [body_i, body_j, H12x12] = animator_hessian(I);
+                           bool has_fixed = (is_fixed(body_i) || is_fixed(body_j));
 
-                           if(is_fixed(body_i) || is_fixed(body_j))
+                           if(has_fixed)
                            {
-                               MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
-                                   .write(body_i * 4,  // begin row
-                                          body_j * 4,  // begin col
-                                          Matrix12x12::Zero());
+                               Value.setZero();  // zero out hessian for fixed bodies
                            }
-                           else
-                           {
-                               MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
-                                   .write(body_i * 4,  // begin row
-                                          body_j * 4,  // begin col
-                                          H12x12);
 
-                               if(body_i == body_j)
-                               {
-                                   eigen::atomic_add(diag_hessian(body_i), H12x12);
-                               }
+                           MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
+                               .write(body_i * 4,  // begin row
+                                      body_j * 4,  // begin col
+                                      Value);
+
+                           // Fill diagonal hessian for diag-inv preconditioner
+                           if(body_i == body_j && !has_fixed)
+                           {
+                               eigen::atomic_add(diag_hessian(body_i), H12x12);
                            }
                        });
         }
-
-        offset += H3x3_count;
     }
-
-    UIPC_ASSERT(offset == info.hessian().triplet_count(),
-                "Hessian count mismatch, expect {}, got {}",
-                offset,
-                info.hessian().triplet_count());
 }
 
 void ABDLinearSubsystem::Impl::accuracy_check(GlobalLinearSystem::AccuracyInfo& info)
@@ -315,13 +345,13 @@ void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
 
     auto dq = abd().body_id_to_dq.view();
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(abd().body_count(),
                [dq = dq.viewer().name("dq"),
                 x = info.solution().viewer().name("x")] __device__(int i) mutable
                {
+                   // retrieve solution for each body
                    dq(i) = -x.segment<12>(i * 12).as_eigen();
-                   // cout << "solution dq("<< i << "):" << dq(i).transpose().eval() << "\n";
                });
 }
 }  // namespace uipc::backend::cuda
@@ -329,6 +359,11 @@ void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
 
 namespace uipc::backend::cuda
 {
+void ABDLinearSubsystem::do_init(InitInfo& info)
+{
+    m_impl.init();
+}
+
 void ABDLinearSubsystem::do_report_extent(GlobalLinearSystem::DiagExtentInfo& info)
 {
     m_impl.report_extent(info);
@@ -349,6 +384,13 @@ void ABDLinearSubsystem::do_retrieve_solution(GlobalLinearSystem::SolutionInfo& 
     m_impl.retrieve_solution(info);
 }
 
+void ABDLinearSubsystem::add_reporter(ABDLinearSubsystemReporter* reporter)
+{
+    UIPC_ASSERT(reporter, "reporter cannot be null");
+    check_state(SimEngineState::BuildSystems, "add_reporter");
+    m_impl.reporters.register_subsystem(*reporter);
+}
+
 void ABDLinearSubsystem::do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info)
 {
     m_impl.report_init_extent(info);
@@ -357,5 +399,43 @@ void ABDLinearSubsystem::do_report_init_extent(GlobalLinearSystem::InitDofExtent
 void ABDLinearSubsystem::do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info)
 {
     m_impl.receive_init_dof_info(world(), info);
+}
+
+ABDLinearSubsystem::AssembleInfo::AssembleInfo(Impl* impl, IndexT index) noexcept
+    : m_impl(impl)
+    , m_index(index)
+{
+}
+
+muda::DoubletVectorView<Float, 12> ABDLinearSubsystem::AssembleInfo::gradients() const
+{
+    auto [offset, count] = m_impl->reporter_gradient_offsets_counts[m_index];
+    return m_impl->reporter_gradients.view().subview(offset, count);
+}
+
+muda::TripletMatrixView<Float, 12, 12> ABDLinearSubsystem::AssembleInfo::hessians() const
+{
+    auto [offset, count] = m_impl->reporter_hessian_offsets_counts[m_index];
+    return m_impl->reporter_hessians.view().subview(offset, count);
+}
+
+void ABDLinearSubsystem::ReportExtentInfo::gradient_count(SizeT size)
+{
+    m_gradient_count = size;
+}
+
+void ABDLinearSubsystem::ReportExtentInfo::hessian_count(SizeT size)
+{
+    m_hessian_count = size;
+}
+
+AffineBodyDynamics::Impl& ABDLinearSubsystem::Impl::abd() const noexcept
+{
+    return affine_body_dynamics->m_impl;
+}
+
+ABDContactReceiver::Impl& ABDLinearSubsystem::Impl::contact() const noexcept
+{
+    return abd_contact_receiver->m_impl;
 }
 }  // namespace uipc::backend::cuda
