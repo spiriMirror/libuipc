@@ -1,4 +1,5 @@
 #include <uipc/common/demangle.h>
+#include "sim_system_slot.h"
 
 namespace uipc::backend
 {
@@ -15,6 +16,20 @@ template <typename T>
 SimSystemSlot<T>& SimSystemSlot<T>::operator=(T& subsystem) noexcept
 {
     register_subsystem(subsystem);
+    return *this;
+}
+
+template <typename T>
+SimSystemSlot<T>& SimSystemSlot<T>::operator=(T* subsystem) noexcept
+{
+    if(subsystem)
+    {
+        register_subsystem(*subsystem);
+    }
+    else
+    {
+        m_subsystem = nullptr;  // reset to nullptr if subsystem is null
+    }
     return *this;
 }
 

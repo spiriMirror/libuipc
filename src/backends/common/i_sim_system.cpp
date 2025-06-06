@@ -32,9 +32,14 @@ bool ISimSystem::is_building() const noexcept
     return get_is_building();
 }
 
-span<ISimSystem* const> ISimSystem::dependencies() const noexcept
+span<ISimSystem* const> ISimSystem::strong_dependencies() const noexcept
 {
-    return get_dependencies();
+    return get_strong_dependencies();
+}
+
+span<ISimSystem* const> ISimSystem::weak_dependencies() const noexcept
+{
+    return get_weak_dependencies();
 }
 
 std::string_view ISimSystem::name() const noexcept

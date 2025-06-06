@@ -2,6 +2,8 @@
 #include <affine_body/inter_affine_body_constitution.h>
 #include <sim_engine.h>
 #include <uipc/builtin/attribute_name.h>
+#include <affine_body/abd_line_search_subreporter.h>
+#include <affine_body/abd_linear_subsystem_reporter.h>
 
 namespace uipc::backend
 {
@@ -16,8 +18,7 @@ class backend::SimSystemCreator<cuda::InterAffineBodyConstitutionManager>
 
         // inter affine body constitution manager requires
         // affine body and constraint types to be present
-        if(types.find(string{builtin::AffineBody}) == types.end()
-           || types.find(string{builtin::Constraint}) == types.end())
+        if(!types.contains(string{builtin::InterAffineBody}))
         {
             return nullptr;
         }
@@ -34,6 +35,7 @@ REGISTER_SIM_SYSTEM(InterAffineBodyConstitutionManager);
 void InterAffineBodyConstitutionManager::do_build()
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
+    m_impl.dt                   = world().scene().info()["dt"].get<Float>();
 }
 
 void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
@@ -52,7 +54,7 @@ void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
 
     constitution_geo_info_offsets_counts.resize(constitution_view.size());
     auto geo_slots = scene.geometries();
-    geo_infos.reserve(geo_slots.size());
+    inter_geo_infos.reserve(geo_slots.size());
 
     span<IndexT> constitution_geo_info_counts =
         constitution_geo_info_offsets_counts.counts();
@@ -73,10 +75,11 @@ void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
         geo_info.geo_id           = slot->id();
         geo_info.constitution_uid = uid_value;
         constitution_geo_info_counts[uid_to_index[uid_value]]++;
+        inter_geo_infos.push_back(geo_info);
     }
 
     // stable sort by constitution uid to ensure that geometries from the same constitution are grouped together
-    std::ranges::stable_sort(geo_infos,
+    std::ranges::stable_sort(inter_geo_infos,
                              [](const InterGeoInfo& a, const InterGeoInfo& b)
                              { return a.constitution_uid < b.constitution_uid; });
 
@@ -86,10 +89,11 @@ void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
     // thus, the geo_infos are sorted by constitution uid and can use offset/count
     // to get a subspan for each constitution
 
-    UIPC_ASSERT(constitution_geo_info_offsets_counts.total_count() == geo_infos.size(),
+    UIPC_ASSERT(constitution_geo_info_offsets_counts.total_count()
+                    == inter_geo_infos.size(),
                 "Mismatch in geometry count for constitutions: expected {}, found {}",
                 constitution_geo_info_offsets_counts.total_count(),
-                geo_infos.size());
+                inter_geo_infos.size());
 
 
     // count geometries
@@ -99,7 +103,72 @@ void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
         FilteredInfo info{this, c->m_index};
         c->init(info);
     }
+
+    constitution_energy_offsets_counts.resize(constitution_view.size());
+    constitution_gradient_offsets_counts.resize(constitution_view.size());
+    constitution_hessian_offsets_counts.resize(constitution_view.size());
 }
+
+void InterAffineBodyConstitutionManager::Impl::report_energy_extent(ABDLineSearchReporter::ExtentInfo& info)
+{
+    auto constitution_view = constitutions.view();
+
+    auto counts = constitution_energy_offsets_counts.counts();
+
+    for(auto&& [i, c] : enumerate(constitution_view))
+    {
+        EnergyExtentInfo extent_info;
+        c->report_energy_extent(extent_info);
+        counts[i] = extent_info.m_energy_count;
+    }
+
+    constitution_energy_offsets_counts.scan();
+    info.energy_count(constitution_energy_offsets_counts.total_count());
+}
+
+void InterAffineBodyConstitutionManager::Impl::compute_energy(ABDLineSearchReporter::EnergyInfo& info)
+{
+    auto constitution_view = constitutions.view();
+    for(auto&& [i, c] : enumerate(constitution_view))
+    {
+        EnergyInfo this_info{this, c->m_index, dt, info.energies()};
+        c->compute_energy(this_info);
+    }
+}
+
+void InterAffineBodyConstitutionManager::Impl::report_gradient_hessian_extent(
+    ABDLinearSubsystem::ReportExtentInfo& info)
+{
+    auto constitution_view = constitutions.view();
+
+    auto gradient_counts = constitution_gradient_offsets_counts.counts();
+    auto hessian_counts  = constitution_hessian_offsets_counts.counts();
+
+    for(auto&& [i, c] : enumerate(constitution_view))
+    {
+        GradientHessianExtentInfo extent_info;
+        c->report_gradient_hessian_extent(extent_info);
+        gradient_counts[i] = extent_info.m_gradient_count;
+        hessian_counts[i]  = extent_info.m_hessian_count;
+    }
+
+    constitution_gradient_offsets_counts.scan();
+    constitution_hessian_offsets_counts.scan();
+
+    info.gradient_count(constitution_gradient_offsets_counts.total_count());
+    info.hessian_count(constitution_hessian_offsets_counts.total_count());
+}
+
+void InterAffineBodyConstitutionManager::Impl::compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info)
+{
+    auto constitution_view = constitutions.view();
+    for(auto&& [i, c] : enumerate(constitution_view))
+    {
+        GradientHessianInfo this_info{this, c->m_index, dt, info.gradients(), info.hessians()};
+        c->compute_gradient_hessian(this_info);
+    }
+}
+
 
 void InterAffineBodyConstitutionManager::init()
 {
@@ -129,10 +198,29 @@ void InterAffineBodyConstitutionManager::EnergyExtentInfo::energy_count(SizeT co
     m_energy_count = count;
 }
 
+muda::BufferView<Float> InterAffineBodyConstitutionManager::EnergyInfo::energies() const noexcept
+{
+    auto [offset, count] = m_impl->constitution_energy_offsets_counts[m_index];
+    return m_energies.subview(offset, count);
+}
+
+muda::DoubletVectorView<Float, 12> InterAffineBodyConstitutionManager::GradientHessianInfo::gradients() const noexcept
+{
+    auto [offset, count] = m_impl->constitution_gradient_offsets_counts[m_index];
+    return m_gradients.subview(offset, count);
+}
+
+muda::TripletMatrixView<Float, 12> InterAffineBodyConstitutionManager::GradientHessianInfo::hessians() const noexcept
+{
+    auto [offset, count] = m_impl->constitution_hessian_offsets_counts[m_index];
+    return m_hessians.subview(offset, count);
+}
+
+
 span<const InterAffineBodyConstitutionManager::InterGeoInfo> InterAffineBodyConstitutionManager::FilteredInfo::inter_geo_infos() const noexcept
 {
     auto [offset, count] = m_impl->constitution_geo_info_offsets_counts[m_index];
-    return span{m_impl->geo_infos}.subspan(offset, count);
+    return span{m_impl->inter_geo_infos}.subspan(offset, count);
 }
 
 span<const AffineBodyDynamics::GeoInfo> InterAffineBodyConstitutionManager::FilteredInfo::geo_infos() const noexcept
@@ -140,18 +228,115 @@ span<const AffineBodyDynamics::GeoInfo> InterAffineBodyConstitutionManager::Filt
     return m_impl->affine_body_dynamics->m_impl.geo_infos;
 }
 
-IndexT InterAffineBodyConstitutionManager::FilteredInfo::geo_id_to_geo_info_index(IndexT geo_id) const noexcept
+const AffineBodyDynamics::GeoInfo& cuda::InterAffineBodyConstitutionManager::FilteredInfo::geo_info(
+    IndexT geo_id) const noexcept
 {
-    return m_impl->affine_body_dynamics->m_impl.geo_id_to_geo_info_index[geo_id];
+    auto& gid_to_ginfo_index = m_impl->affine_body_dynamics->m_impl.geo_id_to_geo_info_index;
+    auto it = gid_to_ginfo_index.find(geo_id);
+    UIPC_ASSERT(it != gid_to_ginfo_index.end(),
+                "Geometry ID {} does not have any affine body constitution",
+                geo_id);
+    auto geo_info_index = it->second;
+    return m_impl->affine_body_dynamics->m_impl.geo_infos[geo_info_index];
 }
-IndexT InterAffineBodyConstitutionManager::FilteredInfo::body_id(geometry::GeometrySlot& slot)
+
+IndexT cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT geo_id) const noexcept
 {
-    auto geo_info_index = geo_id_to_geo_info_index(slot.id());
-    UIPC_ASSERT(geo_info_index >= 0,
-                "Geometry slot does not belong to any affine body constitution");
-    const auto& geo_info = m_impl->affine_body_dynamics->m_impl.geo_infos[geo_info_index];
-    UIPC_ASSERT(geo_info.body_count == 1,
-                "Geometry slot must belong to exactly one affine body constitution");
-    return m_impl->affine_body_dynamics->m_impl.geo_infos[geo_info_index].body_offset;
+    const auto& info = geo_info(geo_id);
+    UIPC_ASSERT(info.body_count == 1, "Body count in geometry must be 1");
+    return info.body_offset;
 }
+
+
+geometry::SimplicialComplex* cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_geo(
+    span<S<geometry::GeometrySlot>> geo_slots, IndexT geo_id) const noexcept
+{
+    const auto& info = geo_info(geo_id);
+    UIPC_ASSERT(info.geo_slot_index < geo_slots.size(),
+                "Geometry slot index {} out of range for geo slots size {}, why can it happen?",
+                info.geo_slot_index,
+                geo_slots.size());
+    return geo_slots[info.geo_slot_index]->geometry().as<geometry::SimplicialComplex>();
+}
+
+Float InterAffineBodyConstitutionManager::BaseInfo::dt() const noexcept
+{
+    return m_impl->dt;
+}
+
+muda::CBufferView<Vector12> InterAffineBodyConstitutionManager::BaseInfo::qs() const noexcept
+{
+    return m_impl->affine_body_dynamics->m_impl.body_id_to_q.view();
+}
+
+muda::CBufferView<Vector12> InterAffineBodyConstitutionManager::BaseInfo::q_prevs() const noexcept
+{
+    return m_impl->affine_body_dynamics->m_impl.body_id_to_q_prev.view();
+}
+
+muda::CBufferView<ABDJacobiDyadicMass> InterAffineBodyConstitutionManager::BaseInfo::body_masses() const noexcept
+{
+    return m_impl->affine_body_dynamics->m_impl.body_id_to_abd_mass.view();
+}
+
+muda::CBufferView<IndexT> InterAffineBodyConstitutionManager::BaseInfo::is_fixed() const noexcept
+{
+    return m_impl->affine_body_dynamics->m_impl.body_id_to_is_fixed.view();
+}
+}  // namespace uipc::backend::cuda
+
+namespace uipc::backend::cuda
+{
+class InterAffineBodyConstitutionLinearSubsystemReporter final : public ABDLinearSubsystemReporter
+{
+  public:
+    using ABDLinearSubsystemReporter::ABDLinearSubsystemReporter;
+    SimSystemSlot<InterAffineBodyConstitutionManager> manager;
+
+    virtual void do_build(BuildInfo& info) override
+    {
+        manager = require<InterAffineBodyConstitutionManager>();
+    }
+
+    virtual void do_init(InitInfo& info) override {}
+
+    virtual void do_report_extent(ReportExtentInfo& info) override
+    {
+        manager->m_impl.report_gradient_hessian_extent(info);
+    }
+
+    virtual void do_assemble(AssembleInfo& info) override
+    {
+        manager->m_impl.compute_gradient_hessian(info);
+    }
+};
+
+REGISTER_SIM_SYSTEM(InterAffineBodyConstitutionLinearSubsystemReporter);
+
+
+class InterAffineBodyConstitutionLineSearchSubreporter final : public ABDLineSearchSubreporter
+{
+  public:
+    using ABDLineSearchSubreporter::ABDLineSearchSubreporter;
+    SimSystemSlot<InterAffineBodyConstitutionManager> manager;
+
+    virtual void do_build(BuildInfo& info) override
+    {
+        manager = require<InterAffineBodyConstitutionManager>();
+    }
+
+    virtual void do_init(InitInfo& info) override {}
+
+    virtual void do_report_extent(ExtentInfo& info) override
+    {
+        manager->m_impl.report_energy_extent(info);
+    }
+
+    virtual void do_report_energy(EnergyInfo& info)
+    {
+        manager->m_impl.compute_energy(info);
+    }
+};
+
+REGISTER_SIM_SYSTEM(InterAffineBodyConstitutionLineSearchSubreporter);
 }  // namespace uipc::backend::cuda

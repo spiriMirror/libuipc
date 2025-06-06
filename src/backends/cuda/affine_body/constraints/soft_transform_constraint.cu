@@ -102,7 +102,7 @@ class SoftTransformConstraint final : public AffineBodyConstraint
         info.hessian_block_count(h_constrained_bodies.size());
     }
 
-    void do_compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info) override
+    void do_compute_energy(AffineBodyAnimator::EnergyInfo& info) override
     {
         using namespace muda;
 
@@ -147,7 +147,7 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                    });
     }
 
-    void do_compute_gradient_hessian(AffineBodyAnimator::ComputeGradientHessianInfo& info) override
+    void do_compute_gradient_hessian(AffineBodyAnimator::GradientHessianInfo& info) override
     {
         using namespace muda;
 

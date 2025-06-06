@@ -42,7 +42,8 @@ void SimSystemCollection::cleanup_invalid_systems()
     auto check_valid = [](const ISimSystem* ss) -> bool
     {
         auto this_valid = ss->is_valid();
-        auto deps       = ss->dependencies();
+        // check in strong dependencies
+        auto deps       = ss->strong_dependencies();
         bool deps_valid = true;
         for(auto dep : deps)
         {

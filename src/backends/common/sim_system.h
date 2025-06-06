@@ -37,7 +37,9 @@ class SimSystem : public ISimSystem
     bool                m_is_building  = false;
     mutable std::string m_name;
 
-    vector<ISimSystem*>  m_dependencies;
+    vector<ISimSystem*> m_strong_dependencies;
+    vector<ISimSystem*> m_weak_dependencies;
+
     SimSystemCollection& collection() noexcept;
     virtual void         set_building(bool b) noexcept override;
     virtual bool         get_is_building() const noexcept override;
@@ -50,7 +52,8 @@ class SimSystem : public ISimSystem
     virtual bool get_valid() const noexcept override final;
     virtual void set_invalid() noexcept override final;
 
-    virtual span<ISimSystem* const> get_dependencies() const noexcept override final;
+    virtual span<ISimSystem* const> get_strong_dependencies() const noexcept override final;
+    virtual span<ISimSystem* const> get_weak_dependencies() const noexcept override final;
 
     SimSystem* find_system(SimSystem* ptr);
     SimSystem* require_system(SimSystem* ptr);
