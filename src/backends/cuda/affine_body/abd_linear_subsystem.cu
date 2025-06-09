@@ -84,7 +84,9 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
         SizeT body_hessian_count = abd().body_id_to_body_hessian.size();
 
         // contact hessian: contact hessian
-        SizeT contact_hessian_count = contact().contact_hessian.triplet_count();
+        SizeT contact_hessian_count = 0;
+        if(abd_contact_receiver)
+            contact_hessian_count = contact().contact_hessian.triplet_count();
 
         // other hessian
         auto reporter_view = reporters.view();
@@ -171,8 +173,12 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 
     // 2) Contact
     {
-        auto vertex_offset = affine_body_vertex_reporter->vertex_offset();
-        auto contact_gradient_count = contact().contact_gradient.doublet_count();
+        auto  vertex_offset = affine_body_vertex_reporter->vertex_offset();
+        SizeT contact_gradient_count = 0;
+        if(abd_contact_receiver)
+        {
+            contact_gradient_count = contact().contact_gradient.doublet_count();
+        }
 
         if(contact_gradient_count)
         {
@@ -204,12 +210,17 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                        });
         }
 
-        auto contact_hessian_count = contact().contact_hessian.triplet_count();
-        auto H3x3_count            = contact_hessian_count * 16;
-        auto contact_H3x3          = info.hessian().subview(offset, H3x3_count);
+        SizeT contact_hessian_count = 0;
+        if(abd_contact_receiver)
+            contact_hessian_count = contact().contact_hessian.triplet_count();
+
+        auto H3x3_count   = contact_hessian_count * 16;
+        auto contact_H3x3 = info.hessian().subview(offset, H3x3_count);
 
         if(contact_hessian_count)
         {
+
+
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(contact_hessian_count,
@@ -439,3 +450,4 @@ ABDContactReceiver::Impl& ABDLinearSubsystem::Impl::contact() const noexcept
     return abd_contact_receiver->m_impl;
 }
 }  // namespace uipc::backend::cuda
+ 
