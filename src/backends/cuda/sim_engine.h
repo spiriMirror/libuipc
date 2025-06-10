@@ -22,6 +22,7 @@ class GlobalDiffSimManager;
 class AffineBodyDynamics;
 class FiniteElementMethod;
 class InterAffineBodyConstitutionManager;
+class NewtonToleranceManager;
 
 class SimEngine final : public backend::SimEngine
 {
@@ -67,18 +68,22 @@ class SimEngine final : public backend::SimEngine
 
   private:
     // Aware Top Systems
+
     GlobalVertexManager* m_global_vertex_manager = nullptr;
     GlobalSimpicialSurfaceManager* m_global_simplicial_surface_manager = nullptr;
     GlobalBodyManager*      m_global_body_manager      = nullptr;
     GlobalContactManager*   m_global_contact_manager   = nullptr;
     GlobalTrajectoryFilter* m_global_trajectory_filter = nullptr;
 
+    // Newton Solver Systems
     DofPredictor*            m_dof_predictor             = nullptr;
     LineSearcher*            m_line_searcher             = nullptr;
     GradientHessianComputer* m_gradient_hessian_computer = nullptr;
     GlobalLinearSystem*      m_global_linear_system      = nullptr;
-    GlobalAnimator*          m_global_animator           = nullptr;
-    GlobalDiffSimManager*    m_global_diff_sim_manager   = nullptr;
+    NewtonToleranceManager*  m_newton_tolerance_manager  = nullptr;
+
+    GlobalAnimator*       m_global_animator         = nullptr;
+    GlobalDiffSimManager* m_global_diff_sim_manager = nullptr;
     //GlobalDiffContactManager*    m_global_diff_contact_manager    = nullptr;
     //GlobalAdjointMethodReplayer* m_global_adjoint_method_replayer = nullptr;
     AffineBodyDynamics* m_affine_body_dynamics = nullptr;
@@ -86,8 +91,6 @@ class SimEngine final : public backend::SimEngine
     //ABDDiffSimManager*           m_abd_diff_sim_manager           = nullptr;
     FiniteElementMethod* m_finite_element_method = nullptr;
 
-
-    Float m_abs_tol             = 0.0;
     Float m_newton_velocity_tol = 0.01;
     Float m_newton_scene_tol    = 0.01;
     SizeT m_newton_max_iter     = 1000;

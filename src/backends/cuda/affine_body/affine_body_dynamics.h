@@ -424,6 +424,8 @@ class AffineBodyDynamics : public SimSystem
 
     auto qs() const noexcept { return m_impl.body_id_to_q.view(); }
 
+    auto dqs() const noexcept { return m_impl.body_id_to_dq.view(); }
+
     auto q_tildes() const noexcept { return m_impl.body_id_to_q_tilde.view(); }
 
     auto q_prevs() const noexcept { return m_impl.body_id_to_q_prev.view(); }

@@ -240,8 +240,8 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                            auto body_i = v2b(i);
                            auto body_j = v2b(j);
 
-                           auto J_i = Js(i);
-                           auto J_j = Js(j);
+                           auto& J_i = Js(i);
+                           auto& J_j = Js(j);
 
                            Matrix12x12 H12x12;
                            if(is_fixed(body_i) || is_fixed(body_j))
@@ -450,4 +450,3 @@ ABDContactReceiver::Impl& ABDLinearSubsystem::Impl::contact() const noexcept
     return abd_contact_receiver->m_impl;
 }
 }  // namespace uipc::backend::cuda
- 

@@ -26,10 +26,12 @@ Json Scene::default_config() noexcept
         newton["use_adaptive_tol"] = false;
 
         // convergence tolerance
-        // 1) max dx * dt <= velocity_tol
+        // 1) max dx <= velocity_tol * dt
         newton["velocity_tol"] = 0.05_m / 1.0_s;
         // 2) ccd_toi >= ccd_tol
         newton["ccd_tol"] = 1.0;
+        // 3) max dF <=  dF <= transform_tol * dt
+        newton["transrate_tol"] = 0.1 / 1.0_s;  // 10%/s change in transform
     }
 
     auto& linear_system = config["linear_system"];
