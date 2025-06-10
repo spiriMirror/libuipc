@@ -10,6 +10,7 @@
 #include <linear_system/global_linear_system.h>
 #include <animator/global_animator.h>
 #include <diff_sim/global_diff_sim_manager.h>
+#include <newton_tolerance/newton_tolerance_manager.h>
 
 namespace uipc::backend::cuda
 {
@@ -216,6 +217,7 @@ void SimEngine::do_advance()
             Float box_size = vertex_bounding_box.diagonal().norm();
             Float tol      = m_newton_scene_tol * box_size;
             Float res0     = 0.0;
+            m_newton_tolerance_manager->pre_newton(m_current_frame);
 
             SizeT newton_iter = 0;
             for(; newton_iter < m_newton_max_iter; ++newton_iter)
@@ -248,27 +250,19 @@ void SimEngine::do_advance()
                 }
 
 
-                // 6) Get Max Movement => dx_max = max(|dx|), if dx_max < tol, break
+                // 6) Collect Vertex Displacements Globally
                 m_global_vertex_manager->collect_vertex_displacements();
-                Float res = m_global_vertex_manager->compute_axis_max_displacement();
+
 
                 // 7) Check Termination Condition
-                // TODO: Maybe we can implement a class for termination condition in the future
                 bool converged = false;
                 {
-                    if(newton_iter == 0)
-                        res0 = res;  // record the initial residual
+                    NewtonToleranceManager::ResultInfo result_info;
+                    result_info.frame(m_current_frame);
+                    result_info.newton_iter(newton_iter);
+                    m_newton_tolerance_manager->check(result_info);
 
-                    Float rel_tol = res == 0.0 ? 0.0 : res / res0;
-
-                    spdlog::info(">> Frame {} Newton Iteration {} => Residual/AbsTol/CCDToi: {}/{}/{}",
-                                 m_current_frame,
-                                 newton_iter,
-                                 res,
-                                 m_abs_tol,
-                                 ccd_alpha);
-
-                    converged = res <= m_abs_tol || rel_tol <= 0.001;
+                    converged = result_info.converged();
 
                     if(dump_surface)
                     {
@@ -276,9 +270,13 @@ void SimEngine::do_advance()
                             "dump_surface.{}.{}", m_current_frame, newton_iter));
                     }
 
-                    if(newton_iter > 0 && converged && ccd_alpha >= m_ccd_tol
-                       && animation_reach_target())
+                    if(newton_iter > 0  // always skip the first iteration
+                       && converged     // check convergence
+                       && ccd_alpha >= m_ccd_tol     // check ccd tolerance
+                       && animation_reach_target())  // check animation target
+                    {
                         break;
+                    }
                 }
 
 
@@ -305,6 +303,7 @@ void SimEngine::do_advance()
                     // CFL Condition
                     alpha = cfl_condition(alpha);
 
+                    // * Step Forward => x = x_0 + alpha * dx
                     // Compute Test Energy => E
                     Float E  = compute_energy(alpha);
                     Float E1 = E;

@@ -190,6 +190,7 @@ class GlobalVertexManager final : public SimSystem
 
   private:
     friend class SimEngine;
+    friend class MaxTranslationChecker;
     friend class GlobalTrajectoryFilter;
     void  init();
     void  rebuild();
