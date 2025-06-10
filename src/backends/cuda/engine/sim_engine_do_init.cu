@@ -15,6 +15,8 @@
 #include <finite_element/finite_element_method.h>
 #include <global_geometry/global_body_manager.h>
 #include <affine_body/inter_affine_body_constitution_manager.h>
+#include <newton_tolerance/newton_tolerance_manager.h>
+
 namespace uipc::backend::cuda
 {
 void SimEngine::build()
@@ -29,6 +31,7 @@ void SimEngine::build()
     m_line_searcher             = &require<LineSearcher>();
     m_gradient_hessian_computer = &require<GradientHessianComputer>();
     m_global_linear_system      = &require<GlobalLinearSystem>();
+    m_newton_tolerance_manager  = &require<NewtonToleranceManager>();
 
     m_global_simplicial_surface_manager = find<GlobalSimpicialSurfaceManager>();
     m_global_contact_manager            = find<GlobalContactManager>();
@@ -40,6 +43,7 @@ void SimEngine::build()
     m_inter_affine_body_constitution_manager =
         find<InterAffineBodyConstitutionManager>();
     m_finite_element_method = find<FiniteElementMethod>();
+
 
     // 3) dump system info
     dump_system_info();
@@ -54,9 +58,6 @@ void SimEngine::init_scene()
     m_friction_enabled    = info["contact"]["friction"]["enable"];
     m_strict_mode         = info["extras"]["strict_mode"]["enable"];
     Vector3 gravity       = info["gravity"];
-    Float   dt            = info["dt"];
-
-    m_abs_tol = m_newton_velocity_tol * dt;
 
     // 1. Before Common Scene Initialization
     {
@@ -85,6 +86,8 @@ void SimEngine::init_scene()
 
         m_line_searcher->init();
         m_global_linear_system->init();
+
+        m_newton_tolerance_manager->init();
     }
 
     // 3.2 Backwards (if needed)
