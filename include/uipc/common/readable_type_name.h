@@ -18,6 +18,29 @@ inline std::string readable_type_name() noexcept
     return uipc::demangle<T>();
 }
 
+template <>
+inline std::string readable_type_name<std::string>() noexcept
+{
+    return "string";
+}
+
+READABLE_TYPE_NAME_AS_ALIAS(I32);
+READABLE_TYPE_NAME_AS_ALIAS(U32);
+READABLE_TYPE_NAME_AS_ALIAS(I64);
+READABLE_TYPE_NAME_AS_ALIAS(U64);
+
+template <>
+inline std::string readable_type_name<float>() noexcept
+{
+    return "F32";
+}
+
+template <>
+inline std::string readable_type_name<double>() noexcept
+{
+    return "F64";
+}
+
 READABLE_TYPE_NAME_AS_ALIAS(Vector2);
 READABLE_TYPE_NAME_AS_ALIAS(Vector3);
 READABLE_TYPE_NAME_AS_ALIAS(Vector4);
