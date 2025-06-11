@@ -1,5 +1,6 @@
 #include <affine_body/inter_affine_body_constitution.h>
 #include <uipc/builtin/attribute_name.h>
+#include <affine_body/inter_affine_body_constraint.h>
 #include <affine_body/constitutions/affine_body_revolute_joint_function.h>
 
 namespace uipc::backend::cuda

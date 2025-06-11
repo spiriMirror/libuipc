@@ -178,6 +178,7 @@ class InterAffineBodyConstitutionManager final : public SimSystem
 
     friend class InterAffineBodyConstitutionLineSearchSubreporter;
     friend class InterAffineBodyConstitutionLinearSubsystemReporter;
+    friend class InterAffineBodyAnimator;
 
     Impl m_impl;
 
