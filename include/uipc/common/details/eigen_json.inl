@@ -36,7 +36,7 @@ void adl_serializer<Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>
 
     for(int i = 0; i < j.size(); ++i)
     {
-        if constexpr(Cols == Eigen::Dynamic)
+        if constexpr(Rows == Eigen::Dynamic || Cols == Eigen::Dynamic)
         {
             if(i == 0)
             {
