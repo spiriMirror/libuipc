@@ -161,4 +161,4 @@ class InterAffineBodyAnimator final : public Animator
 };
 }  // namespace uipc::backend::cuda
 
-#include "details/affine_body_animator.inl"
+#include "details/inter_affine_body_animator.inl"
