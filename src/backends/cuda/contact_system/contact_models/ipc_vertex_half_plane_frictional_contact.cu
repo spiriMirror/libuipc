@@ -5,6 +5,7 @@
 #include <collision_detection/global_trajectory_filter.h>
 #include <contact_system/global_contact_manager.h>
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
+#include <utils/matrix_assembly_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -59,15 +60,15 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
 
                        ContactCoeff coeff =
                            table(contact_ids(vI), half_plane_contact_ids(HI));
-                       Float kappa = coeff.kappa * dt * dt;
-                       Float mu    = coeff.mu;
+                       Float kt2 = coeff.kappa * dt * dt;
+                       Float mu  = coeff.mu;
 
                        Float D_hat = d_hat * d_hat;
 
                        Float thickness = thicknesses(vI);
 
                        Es(I) = PH_friction_energy(
-                           kappa, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
+                           kt2, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
                    });
     }
 
@@ -109,20 +110,21 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
 
                            ContactCoeff coeff =
                                table(contact_ids(vI), half_plane_contact_ids(HI));
-                           Float kappa = coeff.kappa;
-                           Float mu    = coeff.mu;
+                           Float kt2 = coeff.kappa * dt * dt;
+                           Float mu  = coeff.mu;
 
                            Float thickness = thicknesses(vI);
 
-                           Float     dt2 = dt * dt;
                            Vector3   G;
                            Matrix3x3 H;
 
                            PH_friction_gradient_hessian(
-                               G, H, kappa, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
+                               G, H, kt2, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
 
-                           Grad(I) = G * dt2;
-                           Hess(I) = H * dt2;
+                           cuda::make_spd(H);
+
+                           Grad(I).write(PH(0), G);
+                           Hess(I).write(PH(0), PH(0), H);
                        });
         }
     }

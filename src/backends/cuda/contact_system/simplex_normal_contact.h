@@ -48,51 +48,28 @@ class SimplexNormalContact : public ContactReporter
             : BaseInfo(impl)
         {
         }
-
-        muda::BufferView<Vector12> PT_gradients() const noexcept
-        {
-            return m_PT_gradients;
-        }
-        muda::BufferView<Matrix12x12> PT_hessians() const noexcept
-        {
-            return m_PT_hessians;
-        }
-
-        muda::BufferView<Vector12> EE_gradients() const noexcept
-        {
-            return m_EE_gradients;
-        }
-        muda::BufferView<Matrix12x12> EE_hessians() const noexcept
-        {
-            return m_EE_hessians;
-        }
-        muda::BufferView<Vector9> PE_gradients() const noexcept
-        {
-            return m_PE_gradients;
-        }
-        muda::BufferView<Matrix9x9> PE_hessians() const noexcept
-        {
-            return m_PE_hessians;
-        }
-        muda::BufferView<Vector6> PP_gradients() const noexcept
-        {
-            return m_PP_gradients;
-        }
-        muda::BufferView<Matrix6x6> PP_hessians() const noexcept
-        {
-            return m_PP_hessians;
-        }
+        auto PT_gradients() const noexcept { return m_PT_gradients; }
+        auto PT_hessians() const noexcept { return m_PT_hessians; }
+        auto EE_gradients() const noexcept { return m_EE_gradients; }
+        auto EE_hessians() const noexcept { return m_EE_hessians; }
+        auto PE_gradients() const noexcept { return m_PE_gradients; }
+        auto PE_hessians() const noexcept { return m_PE_hessians; }
+        auto PP_gradients() const noexcept { return m_PP_gradients; }
+        auto PP_hessians() const noexcept { return m_PP_hessians; }
 
       private:
         friend class SimplexNormalContact;
-        muda::BufferView<Vector12>    m_PT_gradients;
-        muda::BufferView<Matrix12x12> m_PT_hessians;
-        muda::BufferView<Vector12>    m_EE_gradients;
-        muda::BufferView<Matrix12x12> m_EE_hessians;
-        muda::BufferView<Vector9>     m_PE_gradients;
-        muda::BufferView<Matrix9x9>   m_PE_hessians;
-        muda::BufferView<Vector6>     m_PP_gradients;
-        muda::BufferView<Matrix6x6>   m_PP_hessians;
+        muda::DoubletVectorView<Float, 3> m_PT_gradients;
+        muda::TripletMatrixView<Float, 3> m_PT_hessians;
+
+        muda::DoubletVectorView<Float, 3> m_EE_gradients;
+        muda::TripletMatrixView<Float, 3> m_EE_hessians;
+
+        muda::DoubletVectorView<Float, 3> m_PE_gradients;
+        muda::TripletMatrixView<Float, 3> m_PE_hessians;
+
+        muda::DoubletVectorView<Float, 3> m_PP_gradients;
+        muda::TripletMatrixView<Float, 3> m_PP_hessians;
     };
 
     class BuildInfo
@@ -136,11 +113,6 @@ class SimplexNormalContact : public ContactReporter
     class Impl
     {
       public:
-        void assemble(GlobalContactManager::ContactInfo& info);
-
-        //void classify_constraints();
-        //void setup_constraints();
-
         void compute_energy(SimplexNormalContact*             contact,
                             GlobalContactManager::EnergyInfo& info);
 
@@ -157,30 +129,8 @@ class SimplexNormalContact : public ContactReporter
         SizeT PE_count = 0;
         SizeT PP_count = 0;
 
-        Float                   dt = 0;
-        muda::DeviceVar<IndexT> selected_count;
-
-        //muda::DeviceBuffer<SimplexContactConstraint> temp_PP_constraints;
-        //muda::DeviceBuffer<SimplexContactConstraint> temp_PE_constraints;
-        //muda::DeviceBuffer<SimplexContactConstraint> temp_EE_constraints;
-        //muda::DeviceBuffer<SimplexContactConstraint> temp_PT_constraints;
-
-        //muda::DeviceBuffer<SimplexContactConstraint> EE_constraints;
-        //muda::DeviceBuffer<SimplexContactConstraint> PT_constraints;
-        muda::DeviceBuffer<Vector4i>    PT_EE_indices;
-        muda::DeviceBuffer<Matrix12x12> PT_EE_hessians;
-        muda::DeviceBuffer<Vector12>    PT_EE_gradients;
-
-        //muda::DeviceBuffer<SimplexContactConstraint> PE_constraints;
-        muda::DeviceBuffer<Vector3i>  PE_indices;
-        muda::DeviceBuffer<Matrix9x9> PE_hessians;
-        muda::DeviceBuffer<Vector9>   PE_gradients;
-
-        //muda::DeviceBuffer<SimplexContactConstraint> PP_constraints;
-        muda::DeviceBuffer<Vector2i>  PP_indices;
-        muda::DeviceBuffer<Matrix6x6> PP_hessians;
-        muda::DeviceBuffer<Vector6>   PP_gradients;
-
+        Float                     dt = 0;
+        muda::DeviceVar<IndexT>   selected_count;
         muda::DeviceBuffer<Float> energies;
 
         Float reserve_ratio = 1.1;
