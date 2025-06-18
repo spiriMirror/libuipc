@@ -3,6 +3,7 @@
 #include <utils/distance/distance_flagged.h>
 #include <utils/codim_thickness.h>
 #include <kernel_cout.h>
+#include <utils/matrix_assembly_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -42,11 +43,11 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector4i PT = PTs(i);
 
-                       Vector4i cids  = {contact_ids(PT[0]),
-                                         contact_ids(PT[1]),
-                                         contact_ids(PT[2]),
-                                         contact_ids(PT[3])};
-                       Float    kappa = PT_kappa(table, cids) * dt * dt;
+                       Vector4i cids = {contact_ids(PT[0]),
+                                        contact_ids(PT[1]),
+                                        contact_ids(PT[2]),
+                                        contact_ids(PT[3])};
+                       Float    kt2  = PT_kappa(table, cids) * dt * dt;
 
                        const auto& P  = Ps(PT[0]);
                        const auto& T0 = Ps(PT[1]);
@@ -80,7 +81,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       Es(i) = PT_barrier_energy(flag, kappa, d_hat, thickness, P, T0, T1, T2);
+                       Es(i) = PT_barrier_energy(flag, kt2, d_hat, thickness, P, T0, T1, T2);
                    });
 
         // Compute Edge-Edge energy
@@ -100,11 +101,11 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector4i EE = EEs(i);
 
-                       Vector4i cids  = {contact_ids(EE[0]),
-                                         contact_ids(EE[1]),
-                                         contact_ids(EE[2]),
-                                         contact_ids(EE[3])};
-                       Float    kappa = EE_kappa(table, cids) * dt * dt;
+                       Vector4i cids = {contact_ids(EE[0]),
+                                        contact_ids(EE[1]),
+                                        contact_ids(EE[2]),
+                                        contact_ids(EE[3])};
+                       Float    kt2  = EE_kappa(table, cids) * dt * dt;
 
                        const auto& E0 = Ps(EE[0]);
                        const auto& E1 = Ps(EE[1]);
@@ -147,7 +148,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                        Es(i) = mollified_EE_barrier_energy(flag,
                                                            // coefficients
-                                                           kappa,
+                                                           kt2,
                                                            d_hat,
                                                            thickness,
                                                            // positions
@@ -179,10 +180,10 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector3i PE = PEs(i);
 
-                       Vector3i cids  = {contact_ids(PE[0]),
-                                         contact_ids(PE[1]),
-                                         contact_ids(PE[2])};
-                       Float    kappa = PE_kappa(table, cids) * dt * dt;
+                       Vector3i cids = {contact_ids(PE[0]),
+                                        contact_ids(PE[1]),
+                                        contact_ids(PE[2])};
+                       Float    kt2  = PE_kappa(table, cids) * dt * dt;
 
                        const auto& P  = Ps(PE[0]);
                        const auto& E0 = Ps(PE[1]);
@@ -211,7 +212,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       Es(i) = PE_barrier_energy(flag, kappa, d_hat, thickness, P, E0, E1);
+                       Es(i) = PE_barrier_energy(flag, kt2, d_hat, thickness, P, E0, E1);
                    });
 
         // Compute Point-Point energy
@@ -232,7 +233,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        Vector2i PP = PPs(i);
 
                        Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};
-                       Float    kappa = PP_kappa(table, cids) * dt * dt;
+                       Float    kt2  = PP_kappa(table, cids) * dt * dt;
 
                        const auto& Pa = Ps(PP[0]);
                        const auto& Pb = Ps(PP[1]);
@@ -258,7 +259,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       Es(i) = PP_barrier_energy(flag, kappa, d_hat, thickness, Pa, Pb);
+                       Es(i) = PP_barrier_energy(flag, kt2, d_hat, thickness, Pa, Pb);
                    });
     }
 
@@ -285,11 +286,11 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        {
                            Vector4i PT = PTs(i);
 
-                           Vector4i cids  = {contact_ids(PT[0]),
-                                             contact_ids(PT[1]),
-                                             contact_ids(PT[2]),
-                                             contact_ids(PT[3])};
-                           Float    kappa = PT_kappa(table, cids) * dt * dt;
+                           Vector4i cids = {contact_ids(PT[0]),
+                                            contact_ids(PT[1]),
+                                            contact_ids(PT[2]),
+                                            contact_ids(PT[3])};
+                           Float    kt2  = PT_kappa(table, cids) * dt * dt;
 
 
                            const auto& P  = Ps(PT[0]);
@@ -324,11 +325,16 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                            range(1));
                            }
 
-                           PT_barrier_gradient_hessian(
-                               Gs(i), Hs(i), flag, kappa, d_hat, thickness, P, T0, T1, T2);
+                           Vector12    G;
+                           Matrix12x12 H;
 
-                           //cout << "Gs: " << Gs(i).transpose().eval() << "\n"
-                           //     << "Hs: " << Hs(i).transpose().eval() << "\n";
+                           PT_barrier_gradient_hessian(
+                               G, H, flag, kt2, d_hat, thickness, P, T0, T1, T2);
+
+                           make_spd(H);
+
+                           cuda::assemble<4>(Gs, i * 4, PT, G);
+                           cuda::assemble<4>(Hs, i * 4 * 4, PT, H);
                        });
         }
 
@@ -350,11 +356,11 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector4i EE = EEs(i);
 
-                       Vector4i cids  = {contact_ids(EE[0]),
-                                         contact_ids(EE[1]),
-                                         contact_ids(EE[2]),
-                                         contact_ids(EE[3])};
-                       Float    kappa = EE_kappa(table, cids) * dt * dt;
+                       Vector4i cids = {contact_ids(EE[0]),
+                                        contact_ids(EE[1]),
+                                        contact_ids(EE[2]),
+                                        contact_ids(EE[3])};
+                       Float    kt2  = EE_kappa(table, cids) * dt * dt;
 
                        const auto& E0 = Ps(EE[0]);
                        const auto& E1 = Ps(EE[1]);
@@ -391,8 +397,15 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
+                       Vector12    G;
+                       Matrix12x12 H;
                        mollified_EE_barrier_gradient_hessian(
-                           Gs(i), Hs(i), flag, kappa, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
+                           G, H, flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
+
+                       cuda::make_spd(H);
+
+                       cuda::assemble<4>(Gs, i * 4, EE, G);
+                       cuda::assemble<4>(Hs, i * 4 * 4, EE, H);
                    });
 
         // Compute Point-Edge Gradient and Hessian
@@ -412,10 +425,10 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                    {
                        Vector3i PE = PEs(i);
 
-                       Vector3i cids  = {contact_ids(PE[0]),
-                                         contact_ids(PE[1]),
-                                         contact_ids(PE[2])};
-                       Float    kappa = PE_kappa(table, cids) * dt * dt;
+                       Vector3i cids = {contact_ids(PE[0]),
+                                        contact_ids(PE[1]),
+                                        contact_ids(PE[2])};
+                       Float    kt2  = PE_kappa(table, cids) * dt * dt;
 
                        const auto& P  = Ps(PE[0]);
                        const auto& E0 = Ps(PE[1]);
@@ -444,8 +457,15 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       PE_barrier_gradient_hessian(
-                           Gs(i), Hs(i), flag, kappa, d_hat, thickness, P, E0, E1);
+                       Vector9   G;
+                       Matrix9x9 H;
+
+                       PE_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P, E0, E1);
+
+                       cuda::make_spd(H);
+
+                       cuda::assemble<3>(Gs, i * 3, PE, G);
+                       cuda::assemble<3>(Hs, i * 3 * 3, PE, H);
                    });
 
         // Compute Point-Point Gradient and Hessian
@@ -465,7 +485,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        const auto& PP = PPs(i);
 
                        Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};
-                       Float    kappa = PP_kappa(table, cids) * dt * dt;
+                       Float    kt2  = PP_kappa(table, cids) * dt * dt;
 
                        const auto& P0 = Ps(PP[0]);
                        const auto& P1 = Ps(PP[1]);
@@ -491,8 +511,15 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       PP_barrier_gradient_hessian(
-                           Gs(i), Hs(i), flag, kappa, d_hat, thickness, P0, P1);
+                       Vector6   G;
+                       Matrix6x6 H;
+
+                       PP_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P0, P1);
+
+                       cuda::make_spd(H);
+
+                       cuda::assemble<2>(Gs, i * 2, PP, G);
+                       cuda::assemble<2>(Hs, i * 2 * 2, PP, H);
                    });
     }
 };

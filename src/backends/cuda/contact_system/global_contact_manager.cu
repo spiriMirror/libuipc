@@ -89,39 +89,11 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
         h_contact_mask_tabular[lower] = is_enabled;
     }
 
-    // print table:
-    // for(auto i = 0; i < N; ++i)
-    // {
-    //     for(auto j = 0; j < N; ++j)
-    //     {
-    //         auto idx   = i * N + j;
-    //         auto coeff = h_contact_tabular[idx];
-    //         auto mask  = h_contact_mask_tabular[idx];
-    //         std::cout << "(" << i << ", " << j << ") : " << coeff.kappa << ", "
-    //                   << coeff.mu << ", " << mask << "\n";
-    //     }
-    // }
-
     contact_tabular.resize(muda::Extent2D{N, N});
     contact_tabular.view().copy_from(h_contact_tabular.data());
 
     contact_mask_tabular.resize(muda::Extent2D{N, N});
     contact_mask_tabular.view().copy_from(h_contact_mask_tabular.data());
-
-    // muda::Launch().apply(
-    //     [contact_mask_tabular = contact_mask_tabular.viewer().name("contact_mask_tabular"),
-    //      N] __device__()
-    //     {
-    //         for(auto i = 0; i < N; ++i)
-    //         {
-    //             for(auto j = 0; j < N; ++j)
-    //             {
-    //                 auto idx   = i * N + j;
-    //                 auto coeff = contact_mask_tabular(i, j);
-    //                 printf("%d %d = %d\n", i, j, coeff);
-    //             }
-    //         }
-    //     });
 
     // 2) vertex contact info
     vert_is_active_contact.resize(global_vertex_manager->positions().size(), 0);

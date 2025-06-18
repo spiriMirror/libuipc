@@ -2,6 +2,8 @@
 #include <contact_system/contact_models/codim_ipc_simplex_frictional_contact_function.h>
 #include <utils/codim_thickness.h>
 #include <kernel_cout.h>
+#include <utils/matrix_assembly_utils.h>
+
 
 namespace uipc::backend::cuda
 {
@@ -49,7 +51,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                         contact_ids(PT[3])};
 
                        auto  coeff = PT_contact_coeff(table, cids);
-                       Float kappa = coeff.kappa * dt * dt;
+                       Float kt2   = coeff.kappa * dt * dt;
                        Float mu    = coeff.mu;
 
                        const auto& prev_P  = prev_Ps(PT[0]);
@@ -69,7 +71,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                       thicknesses(PT[3]));
 
 
-                       Es(i) = PT_friction_energy(kappa,
+                       Es(i) = PT_friction_energy(kt2,
                                                   d_hat,
                                                   thickness,
                                                   mu,
@@ -111,7 +113,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                         contact_ids(EE[3])};
 
                        auto  coeff = EE_contact_coeff(table, cids);
-                       Float kappa = coeff.kappa * dt * dt;
+                       Float kt2   = coeff.kappa * dt * dt;
                        Float mu    = coeff.mu;
 
                        const Vector3& rest_Ea0 = rest_Ps(EE[0]);
@@ -144,7 +146,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        }
                        else
                        {
-                           Es(i) = EE_friction_energy(kappa,
+                           Es(i) = EE_friction_energy(kt2,
                                                       d_hat,
                                                       thickness,
                                                       mu,
@@ -185,7 +187,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                         contact_ids(PE[2])};
 
                        auto  coeff = PE_contact_coeff(table, cids);
-                       Float kappa = coeff.kappa * dt * dt;
+                       Float kt2   = coeff.kappa * dt * dt;
                        Float mu    = coeff.mu;
 
                        const Vector3& prev_P  = prev_Ps(PE[0]);
@@ -200,7 +202,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                       thicknesses(PE[1]),
                                                       thicknesses(PE[2]));
 
-                       Es(i) = PE_friction_energy(kappa,
+                       Es(i) = PE_friction_energy(kt2,
                                                   d_hat,
                                                   thickness,
                                                   mu,
@@ -235,7 +237,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
                        Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};
                        auto     coeff = PP_contact_coeff(table, cids);
-                       Float    kappa = coeff.kappa * dt * dt;
+                       Float    kt2   = coeff.kappa * dt * dt;
                        Float    mu    = coeff.mu;
 
                        const Vector3& prev_P0 = prev_Ps(PP[0]);
@@ -247,7 +249,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        Float thickness =
                            PP_thickness(thicknesses(PP[0]), thicknesses(PP[1]));
 
-                       Es(i) = PP_friction_energy(kappa,
+                       Es(i) = PP_friction_energy(kt2,
                                                   d_hat,
                                                   thickness,
                                                   mu,
@@ -290,7 +292,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                         contact_ids(PT[3])};
 
                        auto  coeff = PT_contact_coeff(table, cids);
-                       Float kappa = coeff.kappa * dt * dt;
+                       Float kt2   = coeff.kappa * dt * dt;
                        Float mu    = coeff.mu;
 
                        const auto& prev_P  = prev_Ps(PT[0]);
@@ -309,9 +311,12 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                       thicknesses(PT[2]),
                                                       thicknesses(PT[3]));
 
-                       PT_friction_gradient_hessian(Gs(i),
-                                                    Hs(i),
-                                                    kappa,
+                       Vector12    G;
+                       Matrix12x12 H;
+
+                       PT_friction_gradient_hessian(G,
+                                                    H,
+                                                    kt2,
                                                     d_hat,
                                                     thickness,
                                                     mu,
@@ -326,6 +331,11 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                     T0,
                                                     T1,
                                                     T2);
+
+                       cuda::make_spd(H);
+
+                       cuda::assemble<4>(Gs, i * 4, PT, G);
+                       cuda::assemble<4>(Hs, i * 4 * 4, PT, H);
                    });
 
         // Compute Edge-Edge Gradient and Hessian
@@ -353,7 +363,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                         contact_ids(EE[3])};
 
                        auto  coeff = EE_contact_coeff(table, cids);
-                       Float kappa = coeff.kappa * dt * dt;
+                       Float kt2   = coeff.kappa * dt * dt;
                        Float mu    = coeff.mu;
 
                        const Vector3& rest_Ea0 = rest_Ps(EE[0]);
@@ -380,18 +390,20 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        distance::edge_edge_mollifier_threshold(
                            rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, eps_x);
 
+                       Vector12    G;
+                       Matrix12x12 H;
+
                        if(distance::need_mollify(prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, eps_x))
                        // almost parallel, don't compute gradient and hessian
                        {
-
-                           Gs(i).setZero();
-                           Hs(i).setZero();
+                           G.setZero();
+                           H.setZero();
                        }
                        else
                        {
-                           EE_friction_gradient_hessian(Gs(i),
-                                                        Hs(i),
-                                                        kappa,
+                           EE_friction_gradient_hessian(G,
+                                                        H,
+                                                        kt2,
                                                         d_hat,
                                                         thickness,
                                                         mu,
@@ -406,7 +418,12 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                         Ea1,
                                                         Eb0,
                                                         Eb1);
+
+                           cuda::make_spd(H);
                        }
+
+                       cuda::assemble<4>(Gs, i * 4, EE, G);
+                       cuda::assemble<4>(Hs, i * 4 * 4, EE, H);
                    });
 
         // Compute Point-Edge Gradient and Hessian
@@ -432,7 +449,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                         contact_ids(PE[2])};
 
                        auto  coeff = PE_contact_coeff(table, cids);
-                       Float kappa = coeff.kappa * dt * dt;
+                       Float kt2   = coeff.kappa * dt * dt;
                        Float mu    = coeff.mu;
 
                        const Vector3& prev_P  = prev_Ps(PE[0]);
@@ -447,9 +464,12 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                       thicknesses(PE[1]),
                                                       thicknesses(PE[2]));
 
-                       PE_friction_gradient_hessian(Gs(i),
-                                                    Hs(i),
-                                                    kappa,
+                       Vector9   G;
+                       Matrix9x9 H;
+
+                       PE_friction_gradient_hessian(G,
+                                                    H,
+                                                    kt2,
                                                     d_hat,
                                                     thickness,
                                                     mu,
@@ -462,6 +482,11 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                     P,
                                                     E0,
                                                     E1);
+
+                       cuda::make_spd(H);
+
+                       cuda::assemble<3>(Gs, i * 3, PE, G);
+                       cuda::assemble<3>(Hs, i * 3 * 3, PE, H);
                    });
 
         // Compute Point-Point Gradient and Hessian
@@ -484,7 +509,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
                        Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};
                        auto     coeff = PP_contact_coeff(table, cids);
-                       Float    kappa = coeff.kappa * dt * dt;
+                       Float    kt2   = coeff.kappa * dt * dt;
                        Float    mu    = coeff.mu;
 
                        const Vector3& prev_P0 = prev_Ps(PP[0]);
@@ -496,9 +521,13 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        Float thickness =
                            PP_thickness(thicknesses(PP[0]), thicknesses(PP[1]));
 
-                       PP_friction_gradient_hessian(Gs(i),
-                                                    Hs(i),
-                                                    kappa,
+
+                       Vector6   G;
+                       Matrix6x6 H;
+
+                       PP_friction_gradient_hessian(G,
+                                                    H,
+                                                    kt2,
                                                     d_hat,
                                                     thickness,
                                                     mu,
@@ -509,6 +538,11 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                     // current positions
                                                     P0,
                                                     P1);
+
+                       cuda::make_spd(H);
+
+                       cuda::assemble<2>(Gs, i * 2, PP, G);
+                       cuda::assemble<2>(Hs, i * 2 * 2, PP, H);
                    });
     }
 };

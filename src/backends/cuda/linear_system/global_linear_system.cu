@@ -194,8 +194,8 @@ void GlobalLinearSystem::Impl::build_linear_system()
 
     _assemble_linear_system();
 
+    converter.ge2sym(triplet_A);
     converter.convert(triplet_A, bcoo_A);
-    converter.ge2sym(bcoo_A);
 
     _assemble_preconditioner();
 }

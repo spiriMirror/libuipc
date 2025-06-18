@@ -2,6 +2,7 @@
 #include <implicit_geometry/half_plane.h>
 #include <contact_system/contact_models/ipc_vertex_half_plane_contact_function.h>
 #include <kernel_cout.h>
+#include <utils/matrix_assembly_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -52,13 +53,14 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
                        Vector3 P = plane_positions(HI);
                        Vector3 N = plane_normals(HI);
 
-                       Float kappa =
-                           table(contact_ids(vI), half_plane_contact_ids(HI)).kappa;
+                       Float kt2 =
+                           table(contact_ids(vI), half_plane_contact_ids(HI)).kappa
+                           * dt * dt;
 
                        Float thickness = thicknesses(vI);
 
                        Es(I) = sym::ipc_vertex_half_contact::PH_barrier_energy(
-                           kappa * dt * dt, d_hat, thickness, v, P, N);
+                           kt2, d_hat, thickness, v, P, N);
                    });
     }
 
@@ -95,16 +97,22 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
                         Vector3 P = plane_positions(HI);
                         Vector3 N = plane_normals(HI);
 
-                        Float kappa =
-                            table(contact_ids(vI), half_plane_contact_ids(HI)).kappa;
+                        Float kt2 =
+                            table(contact_ids(vI), half_plane_contact_ids(HI)).kappa
+                            * dt * dt;
 
                         Float thickness = thicknesses(vI);
 
-                        sym::ipc_vertex_half_contact::PH_barrier_gradient_hessian(
-                            Grad(I), Hess(I), kappa * dt * dt, d_hat, thickness, v, P, N);
+                        Vector3   G;
+                        Matrix3x3 H;
 
-                        //cout << "Grad: " << Grad(I).transpose().eval() << "\n";
-                        //cout << "Hess: " << Hess(I).eval() << "\n";
+                        sym::ipc_vertex_half_contact::PH_barrier_gradient_hessian(
+                            G, H, kt2, d_hat, thickness, v, P, N);
+
+                        cuda::make_spd(H);
+
+                        Grad(I).write(PH(0), G);
+                        Hess(I).write(PH(0), PH(0), H);
                     });
         }
     }

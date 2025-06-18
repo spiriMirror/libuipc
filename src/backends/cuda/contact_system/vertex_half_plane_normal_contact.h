@@ -48,14 +48,14 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         {
         }
 
-        muda::BufferView<Vector3>   gradients() const noexcept;
-        muda::BufferView<Matrix3x3> hessians() const noexcept;
+        auto gradients() const noexcept { return m_gradients; }
+        auto hessians() const noexcept { return m_hessians; }
 
       private:
         friend class VertexHalfPlaneNormalContact;
 
-        muda::BufferView<Vector3>   m_gradients;
-        muda::BufferView<Matrix3x3> m_hessians;
+        muda::DoubletVectorView<Float, 3> m_gradients;
+        muda::TripletMatrixView<Float, 3> m_hessians;
     };
 
     class BuildInfo
@@ -82,7 +82,6 @@ class VertexHalfPlaneNormalContact : public ContactReporter
     {
       public:
         void compute_energy(EnergyInfo& info);
-        void assemble(GlobalContactManager::ContactInfo& info);
 
         SimSystemSlot<GlobalTrajectoryFilter> global_trajectory_filter;
         SimSystemSlot<GlobalContactManager>   global_contact_manager;
@@ -92,9 +91,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         SizeT PH_count = 0;
         Float dt;
 
-        muda::DeviceBuffer<Float>     energies;
-        muda::DeviceBuffer<Vector3>   gradients;
-        muda::DeviceBuffer<Matrix3x3> m_hessians;
+        muda::DeviceBuffer<Float> energies;
 
         Float reserve_ratio = 1.1;
 
