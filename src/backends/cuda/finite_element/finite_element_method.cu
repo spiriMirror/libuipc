@@ -592,6 +592,10 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
             UIPC_ASSERT(rest_sc,
                         "The geometry is not a simplicial complex (it's {}). Why can it happen?",
                         rest_geo.type());
+            UIPC_ASSERT(sc->instances().size() == 1,
+                        "Finite element geometry only supports one instance. But yours {} (Geo ID={})",
+                        sc->instances().size(),
+                        geo_slot->id());
 
             // 1) setup primitives
             switch(sc->dim())
@@ -662,6 +666,23 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
             }
 
             {  // 3) setup positions and velocities
+                auto ctransview = sc->transforms().view();
+                if(!ctransview[0].isIdentity())
+                {
+                    auto      transview = view(sc->transforms());
+                    Transform t(transview[0]);
+                    auto      posview = view(sc->positions());
+                    std::ranges::transform(posview,
+                                           posview.begin(),
+                                           [&](const Vector3& p)
+                                           { return t * p; });
+
+                    transview[0].setIdentity();
+
+                    spdlog::warn(R"(FEM Geometry ID={} has non-identity transform. The transform is applied to the positions and reset to identity.
+To avoid this warning, please apply the transform to the positions mannally. https://github.com/spiriMirror/libuipc/issues/152)");
+                }
+
                 auto pos_view = sc->positions().view();
                 auto dst_pos_span =
                     span{h_positions}.subspan(info.vertex_offset, info.vertex_count);
