@@ -17,13 +17,17 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [windows-2022, ubuntu-22.04]
+        os: [windows-2025, ubuntu-24.04]
 
     runs-on: ${{ matrix.os }}
 
+    concurrency:
+        group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-xmake-${{ matrix.os }}
+        cancel-in-progress: true
+
     steps:
       - name: Maximize build space
-        if: matrix.os == 'ubuntu-22.04'
+        if: matrix.os == 'ubuntu-24.04'
         uses: AdityaGarg8/remove-unwanted-software@v4.1
         with:
           remove-android: 'true'
@@ -50,7 +54,7 @@ jobs:
 
       - name: Xmake configure
         run: |
-          xmake config --yes
+          xmake config --yes --github_actions=y
 
       - name: Build libuipc
         run: |

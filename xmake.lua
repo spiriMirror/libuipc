@@ -7,6 +7,7 @@ option("examples", {default = false})
 option("tests", {default = false})
 option("benchmarks", {default = false})
 option("dev", {default = true, description = "Enable developer mode"})
+option("github_actions", {default = false})
 
 option("backend", {default = "cuda", description = "Build with CUDA backend"})
 

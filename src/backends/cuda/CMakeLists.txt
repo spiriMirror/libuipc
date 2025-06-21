@@ -11,7 +11,11 @@ target_link_libraries(cuda PUBLIC
 )
 
 if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-    set(CMAKE_CUDA_ARCHITECTURES "native")
+    if(UIPC_GITHUB_ACTIONS)
+        set(CMAKE_CUDA_ARCHITECTURES 75)
+    else()
+        set(CMAKE_CUDA_ARCHITECTURES "native")
+    endif()
 endif()
 
 target_compile_features(cuda PUBLIC cxx_std_20)
