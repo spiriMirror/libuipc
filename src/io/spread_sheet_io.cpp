@@ -3,6 +3,8 @@
 #include <fstream>
 #include <uipc/common/enumerate.h>
 
+#include <fmt/ranges.h>
+
 namespace uipc::geometry
 {
 namespace fs = std::filesystem;

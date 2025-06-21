@@ -21,6 +21,10 @@ jobs:
 
     runs-on: ${{ matrix.os }}
 
+    concurrency:
+        group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-cmake-${{ matrix.os }}
+        cancel-in-progress: true
+
     steps:
       - name: Maximize build space
         if: matrix.os == 'ubuntu-22.04'
