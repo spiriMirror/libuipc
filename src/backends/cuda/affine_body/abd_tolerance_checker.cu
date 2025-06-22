@@ -12,7 +12,7 @@ class ABDToleranceChecker final : public NewtonToleranceChecker
     Float                             abs_tol = 0.0;
     muda::DeviceVar<IndexT>           success;
     IndexT h_success = 1;  // 1 means success, 0 means failure
-
+    
     // Inherited via NewtonToleranceChecker
     void do_build(BuildInfo& info) override
     {

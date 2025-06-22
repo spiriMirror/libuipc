@@ -47,52 +47,30 @@ class SimplexFrictionalContact : public ContactReporter
             : BaseInfo(impl)
         {
         }
-
-        muda::BufferView<Vector12> friction_PT_gradients() const noexcept
-        {
-            return m_PT_gradients;
-        }
-        muda::BufferView<Matrix12x12> friction_PT_hessians() const noexcept
-        {
-            return m_PT_hessians;
-        }
-
-        muda::BufferView<Vector12> friction_EE_gradients() const noexcept
-        {
-            return m_EE_gradients;
-        }
-        muda::BufferView<Matrix12x12> friction_EE_hessians() const noexcept
-        {
-            return m_EE_hessians;
-        }
-        muda::BufferView<Vector9> friction_PE_gradients() const noexcept
-        {
-            return m_PE_gradients;
-        }
-        muda::BufferView<Matrix9x9> friction_PE_hessians() const noexcept
-        {
-            return m_PE_hessians;
-        }
-        muda::BufferView<Vector6> friction_PP_gradients() const noexcept
-        {
-            return m_PP_gradients;
-        }
-        muda::BufferView<Matrix6x6> friction_PP_hessians() const noexcept
-        {
-            return m_PP_hessians;
-        }
+        auto friction_PT_gradients() const noexcept { return m_PT_gradients; }
+        auto friction_PT_hessians() const noexcept { return m_PT_hessians; }
+        auto friction_EE_gradients() const noexcept { return m_EE_gradients; }
+        auto friction_EE_hessians() const noexcept { return m_EE_hessians; }
+        auto friction_PE_gradients() const noexcept { return m_PE_gradients; }
+        auto friction_PE_hessians() const noexcept { return m_PE_hessians; }
+        auto friction_PP_gradients() const noexcept { return m_PP_gradients; }
+        auto friction_PP_hessians() const noexcept { return m_PP_hessians; }
 
       private:
         friend class SimplexFrictionalContact;
-        muda::BufferView<Vector12>    m_PT_gradients;
-        muda::BufferView<Matrix12x12> m_PT_hessians;
-        muda::BufferView<Vector12>    m_EE_gradients;
-        muda::BufferView<Matrix12x12> m_EE_hessians;
-        muda::BufferView<Vector9>     m_PE_gradients;
-        muda::BufferView<Matrix9x9>   m_PE_hessians;
-        muda::BufferView<Vector6>     m_PP_gradients;
-        muda::BufferView<Matrix6x6>   m_PP_hessians;
+        muda::DoubletVectorView<Float, 3> m_PT_gradients;
+        muda::TripletMatrixView<Float, 3> m_PT_hessians;
+
+        muda::DoubletVectorView<Float, 3> m_EE_gradients;
+        muda::TripletMatrixView<Float, 3> m_EE_hessians;
+
+        muda::DoubletVectorView<Float, 3> m_PE_gradients;
+        muda::TripletMatrixView<Float, 3> m_PE_hessians;
+
+        muda::DoubletVectorView<Float, 3> m_PP_gradients;
+        muda::TripletMatrixView<Float, 3> m_PP_hessians;
     };
+
 
     class BuildInfo
     {
@@ -135,7 +113,6 @@ class SimplexFrictionalContact : public ContactReporter
     class Impl
     {
       public:
-        void assemble(GlobalContactManager::ContactInfo& info);
         void compute_energy(SimplexFrictionalContact*         contact,
                             GlobalContactManager::EnergyInfo& info);
 
@@ -150,18 +127,6 @@ class SimplexFrictionalContact : public ContactReporter
         SizeT PE_count = 0;
         SizeT PP_count = 0;
         Float dt       = 0;
-
-        muda::DeviceBuffer<Vector4i>    PT_EE_indices;
-        muda::DeviceBuffer<Matrix12x12> PT_EE_hessians;
-        muda::DeviceBuffer<Vector12>    PT_EE_gradients;
-
-        muda::DeviceBuffer<Vector3i>  PE_indices;
-        muda::DeviceBuffer<Matrix9x9> PE_hessians;
-        muda::DeviceBuffer<Vector9>   PE_gradients;
-
-        muda::DeviceBuffer<Vector2i>  PP_indices;
-        muda::DeviceBuffer<Matrix6x6> PP_hessians;
-        muda::DeviceBuffer<Vector6>   PP_gradients;
 
         muda::DeviceBuffer<Float> energies;
 
