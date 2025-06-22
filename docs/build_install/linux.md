@@ -61,7 +61,8 @@ If you don't want to use conda, you can manually install `CMake 3.26`, `GCC 11.4
 Build the project with the following commands.
 
 ```shell
-cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
+conda activate uipc_env
+cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild;
 cmake -S ../libuipc -DUIPC_BUILD_PYBIND=1 -DCMAKE_BUILD_TYPE=<Release/RelWithDebInfo> 
 cmake --build . -j8
 ```

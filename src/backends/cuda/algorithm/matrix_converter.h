@@ -92,6 +92,8 @@ class MatrixConverter
 
     void ge2sym(muda::DeviceBCOOMatrix<T, N>& to);
 
+    void ge2sym(muda::DeviceTripletMatrix<T, N>& to);
+
     void sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
                 muda::DeviceBCOOMatrix<T, N>&       to);
 };

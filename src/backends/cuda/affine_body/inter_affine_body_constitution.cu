@@ -4,6 +4,13 @@ namespace uipc::backend::cuda
 {
 void InterAffineBodyConstitution::do_build()
 {
+    auto all_uids = world().scene().constitution_tabular().uids();
+    if(!std::binary_search(all_uids.begin(), all_uids.end(), uid()))
+    {
+        throw SimSystemException(
+            fmt::format("{} requires Constraint UID={}", name(), uid()));
+    }
+
     auto& manager = require<InterAffineBodyConstitutionManager>();
 
     // let the subclass take care of its own build

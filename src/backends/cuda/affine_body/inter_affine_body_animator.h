@@ -11,18 +11,18 @@
 
 namespace uipc::backend::cuda
 {
-class AffineBodyConstraint;
+class InterAffineBodyConstraint;
 class ABDLineSearchReporter;
 class ABDGradientHessianComputer;
 
-class AffineBodyAnimator final : public Animator
+class InterAffineBodyAnimator final : public Animator
 {
   public:
     using Animator::Animator;
 
     class Impl;
 
-    using AnimatedGeoInfo = AffineBodyDynamics::GeoInfo;
+    using AnimatedInterGeoInfo = InterAffineBodyConstitutionManager::InterGeoInfo;
 
     class FilteredInfo
     {
@@ -33,16 +33,7 @@ class AffineBodyAnimator final : public Animator
         {
         }
 
-        span<const AnimatedGeoInfo> anim_geo_infos() const noexcept;
-
-        span<const IndexT> anim_body_indices() const noexcept;
-
-        SizeT anim_body_count() const noexcept;
-
-        template <typename ViewGetterF, typename ForEachF>
-        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                      ViewGetterF&&                   getter,
-                      ForEachF&&                      for_each);
+        span<const AnimatedInterGeoInfo> anim_inter_geo_infos() const noexcept;
 
         template <typename ForEachGeometry>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
@@ -87,7 +78,7 @@ class AffineBodyAnimator final : public Animator
         muda::BufferView<Float> energies() const noexcept;
 
       private:
-        friend class AffineBodyAnimator;
+        friend class InterAffineBodyAnimator;
         muda::BufferView<Float> m_energies;
     };
 
@@ -108,7 +99,7 @@ class AffineBodyAnimator final : public Animator
         muda::TripletMatrixView<Float, 12> hessians() const noexcept;
 
       private:
-        friend class AffineBodyAnimator;
+        friend class InterAffineBodyAnimator;
         muda::DoubletVectorView<Float, 12> m_gradients;
         muda::TripletMatrixView<Float, 12> m_hessians;
     };
@@ -121,7 +112,7 @@ class AffineBodyAnimator final : public Animator
         void energy_count(SizeT count) noexcept;
 
       private:
-        friend class AffineBodyAnimator;
+        friend class InterAffineBodyAnimator;
         SizeT m_hessian_block_count    = 0;
         SizeT m_gradient_segment_count = 0;
         SizeT m_energy_count           = 0;
@@ -135,17 +126,15 @@ class AffineBodyAnimator final : public Animator
 
         Float dt = 0.0;
 
-        AffineBodyDynamics* affine_body_dynamics = nullptr;
-        GlobalAnimator*     global_animator      = nullptr;
-        SimSystemSlotCollection<AffineBodyConstraint> constraints;
-        unordered_map<U64, SizeT>                     uid_to_constraint_index;
+        AffineBodyDynamics*                 affine_body_dynamics = nullptr;
+        InterAffineBodyConstitutionManager* manager              = nullptr;
+        GlobalAnimator*                     global_animator      = nullptr;
 
-        vector<AnimatedGeoInfo> anim_geo_infos;
-        vector<IndexT>          anim_body_indices;
+        SimSystemSlotCollection<InterAffineBodyConstraint> constraints;
+        unordered_map<U64, SizeT> uid_to_constraint_index;
 
+        vector<AnimatedInterGeoInfo>  anim_geo_infos;
         OffsetCountCollection<IndexT> constraint_geo_info_offsets_counts;
-
-        OffsetCountCollection<IndexT> constraint_body_offsets_counts;
 
         // Constraints
 
@@ -155,13 +144,13 @@ class AffineBodyAnimator final : public Animator
     };
 
   private:
-    friend class AffineBodyConstraint;
-    void add_constraint(AffineBodyConstraint* constraint);  // only be called by AffinieElementConstraint
+    friend class InterAffineBodyConstraint;
+    void add_constraint(InterAffineBodyConstraint* constraint);  // only be called by AffinieElementConstraint
 
-    friend class AffineBodyAnimatorLineSearchSubreporter;
+    friend class InterAffineBodyAnimatorLineSearchSubreporter;
     void compute_energy(ABDLineSearchReporter::EnergyInfo& info);  // only be called by AffineBodyAnimatorLineSearchSubreporter
 
-    friend class AffineBodyAnimatorLinearSubsystemReporter;
+    friend class InterAffineBodyAnimatorLinearSubsystemReporter;
     void compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info);  // only be called by AffineBodyAnimatorLinearSubsystemReporter
 
     Impl m_impl;
@@ -172,4 +161,4 @@ class AffineBodyAnimator final : public Animator
 };
 }  // namespace uipc::backend::cuda
 
-#include "details/affine_body_animator.inl"
+#include "details/inter_affine_body_animator.inl"
