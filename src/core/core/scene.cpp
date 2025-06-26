@@ -19,6 +19,11 @@ Json Scene::default_config() noexcept
 
     config["cfl"]["enable"] = false;
 
+    auto& integrator = config["integrator"];
+    {
+        integrator["type"] = "bdf1"; // bdf1
+    }
+
     auto& newton = config["newton"];
     {
         newton["max_iter"] = 1024;
