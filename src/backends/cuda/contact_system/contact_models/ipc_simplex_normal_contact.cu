@@ -3,7 +3,8 @@
 #include <utils/distance/distance_flagged.h>
 #include <utils/codim_thickness.h>
 #include <kernel_cout.h>
-#include <utils/matrix_assembly_utils.h>
+#include <utils/matrix_assembler.h>
+#include <utils/make_spd.h>
 
 namespace uipc::backend::cuda
 {
@@ -333,8 +334,12 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                            make_spd(H);
 
-                           cuda::assemble<4>(Gs, i * 4, PT, G);
-                           cuda::assemble<4>(Hs, i * 4 * 4, PT, H);
+
+                           DoubletVectorAssembler DVA{Gs};
+                           DVA.segment<4>(i * 4).write(PT, G);
+
+                           TripletMatrixAssembler TMA{Hs};
+                           TMA.block<4, 4>(i * 4 * 4).write(PT, H);
                        });
         }
 
@@ -402,10 +407,13 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        mollified_EE_barrier_gradient_hessian(
                            G, H, flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
 
-                       cuda::make_spd(H);
+                       make_spd(H);
 
-                       cuda::assemble<4>(Gs, i * 4, EE, G);
-                       cuda::assemble<4>(Hs, i * 4 * 4, EE, H);
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<4>(i * 4).write(EE, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<4, 4>(i * 4 * 4).write(EE, H);
                    });
 
         // Compute Point-Edge Gradient and Hessian
@@ -462,10 +470,14 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                        PE_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P, E0, E1);
 
-                       cuda::make_spd(H);
+                       make_spd(H);
 
-                       cuda::assemble<3>(Gs, i * 3, PE, G);
-                       cuda::assemble<3>(Hs, i * 3 * 3, PE, H);
+
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<3>(i * 3).write(PE, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<3, 3>(i * 3 * 3).write(PE, H);
                    });
 
         // Compute Point-Point Gradient and Hessian
@@ -516,10 +528,13 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                        PP_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P0, P1);
 
-                       cuda::make_spd(H);
+                       make_spd(H);
 
-                       cuda::assemble<2>(Gs, i * 2, PP, G);
-                       cuda::assemble<2>(Hs, i * 2 * 2, PP, H);
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<2>(i * 2).write(PP, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<2, 2>(i * 2 * 2).write(PP, H);
                    });
     }
 };

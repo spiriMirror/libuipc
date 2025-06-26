@@ -501,6 +501,7 @@ class AffineBodyDynamics : public SimSystem
     friend class AffineBodyKinetic;
     void add_kinetic(AffineBodyKinetic* kinetic);  // only be called by AffineBodyKinetic
 
+    friend class InterAffineBodyAnimator;
     friend class AffineBodyVertexReporter;
     friend class AffinebodySurfaceReporter;
     friend class AffineBodyBodyReporter;

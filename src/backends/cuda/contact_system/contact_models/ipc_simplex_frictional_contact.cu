@@ -2,7 +2,8 @@
 #include <contact_system/contact_models/codim_ipc_simplex_frictional_contact_function.h>
 #include <utils/codim_thickness.h>
 #include <kernel_cout.h>
-#include <utils/matrix_assembly_utils.h>
+#include <utils/make_spd.h>
+#include <utils/matrix_assembler.h>
 
 
 namespace uipc::backend::cuda
@@ -334,8 +335,11 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
                        cuda::make_spd(H);
 
-                       cuda::assemble<4>(Gs, i * 4, PT, G);
-                       cuda::assemble<4>(Hs, i * 4 * 4, PT, H);
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<4>(i * 4).write(PT, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<4, 4>(i * 4 * 4).write(PT, H);
                    });
 
         // Compute Edge-Edge Gradient and Hessian
@@ -422,8 +426,11 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                            cuda::make_spd(H);
                        }
 
-                       cuda::assemble<4>(Gs, i * 4, EE, G);
-                       cuda::assemble<4>(Hs, i * 4 * 4, EE, H);
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<4>(i * 4).write(EE, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<4, 4>(i * 4 * 4).write(EE, H);
                    });
 
         // Compute Point-Edge Gradient and Hessian
@@ -485,8 +492,11 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
                        cuda::make_spd(H);
 
-                       cuda::assemble<3>(Gs, i * 3, PE, G);
-                       cuda::assemble<3>(Hs, i * 3 * 3, PE, H);
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<3>(i * 3).write(PE, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<3, 3>(i * 3 * 3).write(PE, H);
                    });
 
         // Compute Point-Point Gradient and Hessian
@@ -541,8 +551,11 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
                        cuda::make_spd(H);
 
-                       cuda::assemble<2>(Gs, i * 2, PP, G);
-                       cuda::assemble<2>(Hs, i * 2 * 2, PP, H);
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<2>(i * 2).write(PP, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<2, 2>(i * 2 * 2).write(PP, H);
                    });
     }
 };
