@@ -10,7 +10,7 @@ U64 AffineBodyConstitution::uid() const
 
 void AffineBodyConstitution::do_build()
 {
-    auto& affine_body_dynamics = require<AffineBodyDynamics>();
+    m_impl.affine_body_dynamics = require<AffineBodyDynamics>();
 
 
     auto scene = world().scene();
@@ -24,7 +24,7 @@ void AffineBodyConstitution::do_build()
     BuildInfo info;
     do_build(info);
 
-    affine_body_dynamics.add_constitution(this);
+    m_impl.affine_body_dynamics->add_constitution(this);
 }
 
 void AffineBodyConstitution::init(AffineBodyDynamics::FilteredInfo& info)
@@ -34,11 +34,33 @@ void AffineBodyConstitution::init(AffineBodyDynamics::FilteredInfo& info)
 
 void AffineBodyConstitution::compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info)
 {
-    return do_compute_energy(info);
+    ComputeEnergyInfo this_info{&m_impl, m_index, &info};
+    return do_compute_energy(this_info);
 }
 
 void AffineBodyConstitution::compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info)
 {
-    return do_compute_gradient_hessian(info);
+    ComputeGradientHessianInfo this_info{&m_impl, m_index, &info};
+    return do_compute_gradient_hessian(this_info);
 }
+
+muda::CBufferView<Vector12> AffineBodyConstitution::BaseInfo::qs() const noexcept
+{
+    auto& abd = m_impl->abd();
+    return abd.subview(abd.body_id_to_q, m_index);
+}
+
+muda::CBufferView<Vector12> AffineBodyConstitution::BaseInfo::q_prevs() const noexcept
+{
+    auto& abd = m_impl->abd();
+    return abd.subview(abd.body_id_to_q_prev, m_index);
+}
+
+muda::CBufferView<Float> AffineBodyConstitution::BaseInfo::volumes() const noexcept
+{
+    auto& abd = m_impl->abd();
+    return abd.subview(abd.body_id_to_volume, m_index);
+}
+
+
 }  // namespace uipc::backend::cuda

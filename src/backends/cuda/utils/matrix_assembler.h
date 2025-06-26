@@ -4,6 +4,32 @@
 
 namespace uipc::backend::cuda
 {
+template <int M, int N>
+UIPC_GENERIC void zero_out(Vector<Float, M>& Vec, const Vector<IndexT, N>& zero_out_flag)
+    requires(M % N == 0)
+{
+    constexpr int Segment = M / N;
+    for(int i = 0; i < N; ++i)
+    {
+        if(zero_out_flag(i))
+            Vec.template segment<Segment>(i * Segment).setZero();
+    }
+}
+
+template <int M, int N>
+UIPC_GENERIC void zero_out(Matrix<Float, M, M>& Mat, const Vector<IndexT, N>& zero_out_flag)
+    requires(M % N == 0)
+{
+    constexpr int Segment = M / N;
+    for(int i = 0; i < N; ++i)
+    {
+        for(int j = 0; j < N; ++j)
+        {
+            if(zero_out_flag(i) || zero_out_flag(j))
+                Mat.template block<Segment, Segment>(i * Segment, j * Segment).setZero();
+        }
+    }
+}
 template <typename T>
 class DenseVectorAssembler
 {

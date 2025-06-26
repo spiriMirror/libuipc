@@ -1,21 +1,19 @@
+#include <sim_engine.h>
 #include <animator/global_animator.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <contact_system/global_contact_manager.h>
 #include <diff_sim/global_diff_sim_manager.h>
-#include <dof_predictor.h>
-#include <fstream>
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <global_geometry/global_vertex_manager.h>
-#include <gradient_hessian_computer.h>
 #include <line_search/line_searcher.h>
 #include <linear_system/global_linear_system.h>
-#include <sim_engine.h>
 #include <uipc/common/log.h>
 #include <affine_body/affine_body_dynamics.h>
 #include <finite_element/finite_element_method.h>
 #include <global_geometry/global_body_manager.h>
 #include <affine_body/inter_affine_body_constitution_manager.h>
 #include <newton_tolerance/newton_tolerance_manager.h>
+#include <time_integrator/time_integrator_manager.h>
 
 namespace uipc::backend::cuda
 {
@@ -25,13 +23,12 @@ void SimEngine::build()
     build_systems();
 
     // 2) find those engine-aware topo systems
-    m_global_vertex_manager     = &require<GlobalVertexManager>();
-    m_global_body_manager       = &require<GlobalBodyManager>();
-    m_dof_predictor             = &require<DofPredictor>();
-    m_line_searcher             = &require<LineSearcher>();
-    m_gradient_hessian_computer = &require<GradientHessianComputer>();
-    m_global_linear_system      = &require<GlobalLinearSystem>();
-    m_newton_tolerance_manager  = &require<NewtonToleranceManager>();
+    m_global_vertex_manager = &require<GlobalVertexManager>();
+    m_global_body_manager   = &require<GlobalBodyManager>();
+    m_time_integrator_manager  = &require<TimeIntegratorManager>();
+    m_line_searcher            = &require<LineSearcher>();
+    m_global_linear_system     = &require<GlobalLinearSystem>();
+    m_newton_tolerance_manager = &require<NewtonToleranceManager>();
 
     m_global_simplicial_surface_manager = find<GlobalSimpicialSurfaceManager>();
     m_global_contact_manager            = find<GlobalContactManager>();
@@ -86,6 +83,8 @@ void SimEngine::init_scene()
 
         m_line_searcher->init();
         m_global_linear_system->init();
+
+        m_time_integrator_manager->init();
 
         m_newton_tolerance_manager->init();
     }

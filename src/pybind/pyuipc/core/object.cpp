@@ -17,9 +17,9 @@ PyObject::PyObject(py::module& m)
 
     auto class_Geometries = py::class_<Object::Geometries>(class_Object, "Geometries");
 
-    class_Object
-        .def("name", &Object::name)  //
-        .def("id", &Object::id);     //
+    class_Object.def("name", [](Object& self) { return self.name(); });
+
+    class_Object.def("id", [](Object& self) { return self.id(); });
 
     class_Object.def(
         "geometries", [](Object& self) { return self.geometries(); }, py::return_value_policy::move);

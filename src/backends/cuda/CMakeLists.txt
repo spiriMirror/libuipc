@@ -25,25 +25,9 @@ set_target_properties(cuda PROPERTIES
     CUDA_STANDARD 20
 )
 
-# add subdirectories
-add_subdirectory(utils)
-add_subdirectory(global_geometry)
-add_subdirectory(implicit_geometry)
-add_subdirectory(linear_system)
-add_subdirectory(collision_detection)
-add_subdirectory(algorithm)
-add_subdirectory(line_search)
-add_subdirectory(contact_system)
-add_subdirectory(engine)
-add_subdirectory(affine_body)
-add_subdirectory(finite_element)
-add_subdirectory(coupling_system)
-add_subdirectory(animator)
-add_subdirectory(diff_sim)
-add_subdirectory(newton_tolerance)
+# all files in this directory
+file(GLOB_RECURSE SOURCES "*.cu" "*.h" "*.cpp" "*.inl")
 
-# source files in this directory
-file(GLOB SOURCES "*.cpp" "*.h" "*.cu" "details/*.inl")
 target_sources(cuda PRIVATE ${SOURCES})
 
 if(MSVC)

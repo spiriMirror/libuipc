@@ -13,9 +13,8 @@ class GlobalBodyManager;
 class GlobalContactManager;
 class GlobalTrajectoryFilter;
 
-class DofPredictor;
+class TimeIntegratorManager;
 class LineSearcher;
-class GradientHessianComputer;
 class GlobalLinearSystem;
 class GlobalAnimator;
 class GlobalDiffSimManager;
@@ -23,6 +22,7 @@ class AffineBodyDynamics;
 class FiniteElementMethod;
 class InterAffineBodyConstitutionManager;
 class NewtonToleranceManager;
+
 
 class SimEngine final : public backend::SimEngine
 {
@@ -76,11 +76,10 @@ class SimEngine final : public backend::SimEngine
     GlobalTrajectoryFilter* m_global_trajectory_filter = nullptr;
 
     // Newton Solver Systems
-    DofPredictor*            m_dof_predictor             = nullptr;
-    LineSearcher*            m_line_searcher             = nullptr;
-    GradientHessianComputer* m_gradient_hessian_computer = nullptr;
-    GlobalLinearSystem*      m_global_linear_system      = nullptr;
-    NewtonToleranceManager*  m_newton_tolerance_manager  = nullptr;
+    TimeIntegratorManager*  m_time_integrator_manager  = nullptr;
+    LineSearcher*           m_line_searcher            = nullptr;
+    GlobalLinearSystem*     m_global_linear_system     = nullptr;
+    NewtonToleranceManager* m_newton_tolerance_manager = nullptr;
 
     GlobalAnimator*       m_global_animator         = nullptr;
     GlobalDiffSimManager* m_global_diff_sim_manager = nullptr;

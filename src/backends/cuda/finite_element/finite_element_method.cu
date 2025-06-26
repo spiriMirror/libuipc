@@ -93,7 +93,7 @@ void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* const
     m_impl.extra_constitutions.register_subsystem(*constitution);
 }
 
-void FiniteElementMethod::add_constitution(FiniteElementKinetic* constitution)
+void FiniteElementMethod::add_kinetic(FiniteElementKinetic* constitution)
 {
     check_state(SimEngineState::BuildSystems, "add_constitution()");
     m_impl.kinetic.register_subsystem(*constitution);

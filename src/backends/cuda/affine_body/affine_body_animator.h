@@ -1,7 +1,6 @@
 #pragma once
 #include <animator/animator.h>
 #include <affine_body/affine_body_dynamics.h>
-#include <gradient_hessian_computer.h>
 #include <line_search/line_searcher.h>
 #include <muda/ext/linear_system/device_doublet_vector.h>
 #include <muda/ext/linear_system/device_triplet_matrix.h>
