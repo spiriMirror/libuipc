@@ -2,7 +2,7 @@
 #include <implicit_geometry/half_plane.h>
 #include <contact_system/contact_models/ipc_vertex_half_plane_contact_function.h>
 #include <kernel_cout.h>
-#include <utils/matrix_assembly_utils.h>
+#include <utils/make_spd.h>
 
 namespace uipc::backend::cuda
 {
