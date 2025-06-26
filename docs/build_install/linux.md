@@ -72,14 +72,7 @@ cmake --build . -j8
 
 ## Run Project
 
-The excutable files are in the `CMakeBuild/<Release/RelWithDebInfo>/bin` folder. 
-
-```shell
-cd CMakeBuild/<Release/RelWithDebInfo>/bin
-./hello_uipc
-./uipc_sim_case
-[...]
-```
+Just run the executable files in `CMakeBuild/<Release/RelWithDebInfo>/bin` folder.
 
 ## Install Pyuipc
 

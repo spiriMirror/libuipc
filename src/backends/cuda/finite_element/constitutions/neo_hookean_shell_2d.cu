@@ -5,7 +5,8 @@
 #include <Eigen/Dense>
 #include <muda/ext/eigen/inverse.h>
 #include <utils/codim_thickness.h>
-#include <utils/matrix_assembly_utils.h>
+#include <utils/make_spd.h>
+#include <utils/matrix_assembler.h>
 
 namespace uipc::backend::cuda
 {
@@ -158,13 +159,15 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                        Vector9 G;
                        NH::dEdX(G, mu, lambda, X, IB);
                        G *= Vdt2;
-                       assemble<3>(G3s, I * 3, idx, G);
+                       DoubletVectorAssembler DVA{G3s};
+                       DVA.segment<3>(I * 3).write(idx, G);
 
                        Matrix9x9 H;
                        NH::ddEddX(H, mu, lambda, X, IB);
                        H *= Vdt2;
                        make_spd(H);
-                       assemble<3>(H3x3s, I * 3 * 3, idx, H);
+                       TripletMatrixAssembler TMA{H3x3s};
+                       TMA.block<3, 3>(I * 3 * 3).write(idx, H);
                    });
     }
 };

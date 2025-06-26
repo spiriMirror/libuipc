@@ -4,33 +4,27 @@
 
 namespace uipc::backend::cuda
 {
-class AffineBodyConstitution : public SimSystem
+class AffineBodyKinetic : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
-    U64 uid() const;
+
+    class Impl
+    {
+      public:
+        SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
+    };
 
     class BuildInfo
     {
       public:
     };
 
-    class Impl
-    {
-      public:
-        SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
-        AffineBodyDynamics::Impl&         abd() noexcept
-        {
-            return affine_body_dynamics->m_impl;
-        }
-    };
-
     class BaseInfo
     {
       public:
-        BaseInfo(Impl* impl, IndexT index) noexcept
+        BaseInfo(Impl* impl) noexcept
             : m_impl(impl)
-            , m_index(index)
         {
         }
 
@@ -39,22 +33,44 @@ class AffineBodyConstitution : public SimSystem
             return m_impl->affine_body_dynamics->body_is_fixed();
         }
 
-        muda::CBufferView<Vector12> qs() const noexcept;
+        auto is_dynamic() const noexcept
+        {
+            return m_impl->affine_body_dynamics->body_is_dynamic();
+        }
 
-        muda::CBufferView<Vector12> q_prevs() const noexcept;
+        auto Js() const noexcept { return m_impl->affine_body_dynamics->Js(); }
 
-        muda::CBufferView<Float> volumes() const noexcept;
+        auto qs() const noexcept { return m_impl->affine_body_dynamics->qs(); }
+
+        auto q_tildes() const noexcept
+        {
+            return m_impl->affine_body_dynamics->q_tildes();
+        }
+
+        auto q_prevs() const noexcept
+        {
+            return m_impl->affine_body_dynamics->q_prevs();
+        }
+
+        auto masses() const noexcept
+        {
+            return m_impl->affine_body_dynamics->body_masses();
+        }
+
+        auto gravities() const noexcept
+        {
+            return m_impl->affine_body_dynamics->body_gravities();
+        }
 
       protected:
-        Impl*  m_impl  = nullptr;
-        IndexT m_index = -1;
+        Impl* m_impl = nullptr;
     };
 
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl, IndexT index, AffineBodyDynamics::ComputeEnergyInfo* base_info) noexcept
-            : BaseInfo(impl, index)
+        ComputeEnergyInfo(Impl* impl, AffineBodyDynamics::ComputeEnergyInfo* base_info) noexcept
+            : BaseInfo(impl)
             , base_info(base_info)
         {
         }
@@ -70,10 +86,9 @@ class AffineBodyConstitution : public SimSystem
     class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        ComputeGradientHessianInfo(Impl*  impl,
-                                   IndexT index,
+        ComputeGradientHessianInfo(Impl* impl,
                                    AffineBodyDynamics::ComputeGradientHessianInfo* base_info) noexcept
-            : BaseInfo(impl, index)
+            : BaseInfo(impl)
             , base_info(base_info)
         {
         }
@@ -87,24 +102,20 @@ class AffineBodyConstitution : public SimSystem
     };
 
   protected:
-    virtual U64  get_uid() const                                 = 0;
-    virtual void do_build(BuildInfo& info)                       = 0;
-    virtual void do_init(AffineBodyDynamics::FilteredInfo& info) = 0;
-    virtual void do_compute_energy(ComputeEnergyInfo& info)      = 0;
+    virtual void do_build(BuildInfo& info)                  = 0;
+    virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
 
-  private:
-    friend class AffineBodyDynamics;
-    friend class ABDLineSearchReporter;
-    friend class ABDLinearSubsystem;
 
+  private:
     virtual void do_build() override final;
 
-    void init(AffineBodyDynamics::FilteredInfo& info);
+    friend class ABDLineSearchReporter;
     void compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info);
+    friend class AffineBodyDynamics;
+    friend class ABDLinearSubsystem;
     void compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info);
 
-    IndexT m_index = -1;
-    Impl   m_impl;
+    Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

@@ -23,6 +23,7 @@
 #include <uipc/builtin/attribute_name.h>
 
 #include <utils/offset_count_collection.h>
+#include <affine_body/affine_body_kinetic.h>
 
 namespace uipc::backend
 {
@@ -49,19 +50,6 @@ REGISTER_SIM_SYSTEM(AffineBodyDynamics);
 
 void AffineBodyDynamics::do_build()
 {
-    // find dependent systems
-    auto& dof_predictor = require<DofPredictor>();
-
-    // Register the action to predict the affine body dof
-    dof_predictor.on_predict(*this,
-                             [this](DofPredictor::PredictInfo& info)
-                             { m_impl.compute_q_tilde(info); });
-
-    // Register the action to compute the velocity of the affine body dof
-    dof_predictor.on_compute_velocity(*this,
-                                      [this](DofPredictor::ComputeVelocityInfo& info)
-                                      { m_impl.compute_q_v(info); });
-
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });
 }
@@ -102,6 +90,12 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
     // set the temp index, later we will sort constitution by uid
     // and reset the index
     m_impl.constitutions.register_subsystem(*constitution);
+}
+
+void AffineBodyDynamics::add_kinetic(AffineBodyKinetic* kinetic)
+{
+    check_state(SimEngineState::BuildSystems, "add_kinetic()");
+    m_impl.kinetic.register_subsystem(*kinetic);
 }
 
 void AffineBodyDynamics::add_reporter(AffineBodyKineticDiffParmReporter* reporter)
@@ -659,13 +653,14 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
 
     // setup body kinetic energy buffer
     async_resize(body_id_to_kinetic_energy, abd_body_count, Float{0});
-
     async_resize(body_id_to_shape_energy, abd_body_count, Float{0});
 
     // setup hessian and gradient buffers
     async_resize(diag_hessian, abd_body_count, Matrix12x12::Zero().eval());
-    async_resize(body_id_to_body_hessian, abd_body_count, Matrix12x12::Zero().eval());
-    async_resize(body_id_to_body_gradient, abd_body_count, Vector12::Zero().eval());
+    async_resize(body_id_to_shape_gradient, abd_body_count, Vector12::Zero().eval());
+    async_resize(body_id_to_shape_hessian, abd_body_count, Matrix12x12::Zero().eval());
+    async_resize(body_id_to_kinetic_gradient, abd_body_count, Vector12::Zero().eval());
+    async_resize(body_id_to_kinetic_hessian, abd_body_count, Matrix12x12::Zero().eval());
 
     muda::wait_stream(nullptr);
 }
@@ -797,72 +792,6 @@ void AffineBodyDynamics::Impl::clear_recover(RecoverInfo& info)
 }
 }  // namespace uipc::backend::cuda
 
-
-// Simulation:
-// TODO:
-// Later, may we need to abstract this part as VelocityIntegrator ...
-namespace uipc::backend::cuda
-{
-void AffineBodyDynamics::Impl::compute_q_tilde(DofPredictor::PredictInfo& info)
-{
-    using namespace muda;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(abd_body_count,
-               [is_fixed   = body_id_to_is_fixed.cviewer().name("is_fixed"),
-                is_dynamic = body_id_to_is_dynamic.cviewer().name("is_dynamic"),
-                q_prevs    = body_id_to_q_prev.cviewer().name("q_prev"),
-                q_vs       = body_id_to_q_v.cviewer().name("q_velocities"),
-                q_tildes   = body_id_to_q_tilde.viewer().name("q_tilde"),
-                affine_gravity = body_id_to_abd_gravity.cviewer().name("affine_gravity"),
-                dt = info.dt()] __device__(int i) mutable
-               {
-                   auto& q_prev = q_prevs(i);
-                   auto& q_v    = q_vs(i);
-                   auto& g      = affine_gravity(i);
-
-                   // 0) fixed: q_tilde = q_prev;
-                   Vector12 q_tilde = q_prev;
-
-                   if(!is_fixed(i))
-                   {
-                       // 1) static problem: q_tilde = q_prev + g * dt * dt;
-                       q_tilde += g * dt * dt;
-
-                       // 2) dynamic problem q_tilde = q_prev + q_v * dt + g * dt * dt;
-                       if(is_dynamic(i))
-                       {
-                           q_tilde += q_v * dt;
-                       }
-                   }
-
-                   q_tildes(i) = q_tilde;
-               });
-}
-
-void AffineBodyDynamics::Impl::compute_q_v(DofPredictor::ComputeVelocityInfo& info)
-{
-    using namespace muda;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(abd_body_count,
-               [qs      = body_id_to_q.cviewer().name("qs"),
-                q_vs    = body_id_to_q_v.viewer().name("q_vs"),
-                q_prevs = body_id_to_q_prev.viewer().name("q_prevs"),
-                dt      = info.dt()] __device__(int i) mutable
-               {
-                   auto& q_v    = q_vs(i);
-                   auto& q_prev = q_prevs(i);
-
-                   const auto& q = qs(i);
-
-                   q_v = (q - q_prev) * (1.0 / dt);
-
-                   q_prev = q;
-               });
-}
-}  // namespace uipc::backend::cuda
-
 namespace uipc::backend::cuda
 {
 AffineBodyDynamics::FilteredInfo::FilteredInfo(Impl* impl, SizeT constitution_index) noexcept
@@ -893,49 +822,5 @@ SizeT AffineBodyDynamics::FilteredInfo::body_count() const noexcept
 SizeT AffineBodyDynamics::FilteredInfo::vertex_count() const noexcept
 {
     return constitution_info().vertex_count;
-}
-
-AffineBodyDynamics::ComputeEnergyInfo::ComputeEnergyInfo(Impl* impl,
-                                                         SizeT constitution_index,
-                                                         Float dt) noexcept
-    : m_impl(impl)
-    , m_constitution_index(constitution_index)
-    , m_dt(dt)
-{
-}
-
-AffineBodyDynamics::ComputeGradientHessianInfo::ComputeGradientHessianInfo(
-    Impl*                         impl,
-    SizeT                         constitution_index,
-    muda::BufferView<Vector12>    shape_gradient,
-    muda::BufferView<Matrix12x12> shape_hessian,
-    Float                         dt) noexcept
-    : m_impl(impl)
-    , m_constitution_index(constitution_index)
-    , m_shape_gradient(shape_gradient)
-    , m_shape_hessian(shape_hessian)
-    , m_dt(dt)
-{
-}
-
-muda::CBufferView<Vector12> AffineBodyDynamics::ComputeEnergyInfo::qs() const noexcept
-{
-    return m_impl->subview(m_impl->body_id_to_q, m_constitution_index);
-}
-muda::CBufferView<Float> AffineBodyDynamics::ComputeEnergyInfo::volumes() const noexcept
-{
-    return m_impl->subview(m_impl->body_id_to_volume, m_constitution_index);
-}
-muda::BufferView<Float> AffineBodyDynamics::ComputeEnergyInfo::body_shape_energies() const noexcept
-{
-    return m_impl->subview(m_impl->body_id_to_shape_energy, m_constitution_index);
-}
-muda::CBufferView<Vector12> AffineBodyDynamics::ComputeGradientHessianInfo::qs() const noexcept
-{
-    return m_impl->subview(m_impl->body_id_to_q, m_constitution_index);
-}
-muda::CBufferView<Float> AffineBodyDynamics::ComputeGradientHessianInfo::volumes() const noexcept
-{
-    return m_impl->subview(m_impl->body_id_to_volume, m_constitution_index);
 }
 }  // namespace uipc::backend::cuda

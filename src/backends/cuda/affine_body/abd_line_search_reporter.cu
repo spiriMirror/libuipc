@@ -4,6 +4,7 @@
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
 #include <affine_body/abd_line_search_subreporter.h>
+#include <affine_body/affine_body_kinetic.h>
 
 namespace uipc::backend::cuda
 {
@@ -56,32 +57,12 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
     using namespace muda;
 
     // Compute kinetic energy
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(abd().abd_body_count,
-               [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
-                qs       = abd().body_id_to_q.cviewer().name("qs"),
-                q_tildes = abd().body_id_to_q_tilde.viewer().name("q_tildes"),
-                q_prevs  = abd().body_id_to_q_prev.viewer().name("q_prevs"),
-                gravities = abd().body_id_to_abd_gravity.cviewer().name("gravities"),
-                masses = abd().body_id_to_abd_mass.cviewer().name("masses"),
-                Ks     = abd().body_id_to_kinetic_energy.viewer().name(
-                    "kinetic_energy")] __device__(int i) mutable
-               {
-                   auto& K = Ks(i);
-                   if(is_fixed(i))
-                   {
-                       K = 0.0;
-                   }
-                   else
-                   {
-                       const auto& q       = qs(i);
-                       const auto& q_tilde = q_tildes(i);
-                       const auto& M       = masses(i);
-                       Vector12    dq      = q - q_tilde;
-                       K                   = 0.5 * dq.dot(M * dq);
-                   }
-               });
+    {
+        AffineBodyDynamics::ComputeEnergyInfo this_info{abd().body_id_to_kinetic_energy,
+                                                        info.dt()};
+        abd().kinetic->compute_energy(this_info);
+    }
+
 
     // Sum up the kinetic energy
     DeviceReduce().Sum(abd().body_id_to_kinetic_energy.data(),
@@ -91,7 +72,9 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
     // Distribute the computation of shape energy to each constitution
     for(auto&& [i, cst] : enumerate(abd().constitutions.view()))
     {
-        AffineBodyDynamics::ComputeEnergyInfo this_info{&abd(), i, info.dt()};
+        auto shape_energy = abd().subview(abd().body_id_to_shape_energy, cst->m_index);
+
+        AffineBodyDynamics::ComputeEnergyInfo this_info{shape_energy, info.dt()};
         cst->compute_energy(this_info);
     }
 

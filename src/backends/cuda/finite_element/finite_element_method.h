@@ -1,7 +1,6 @@
 #pragma once
 #include <sim_system.h>
 #include <muda/buffer.h>
-#include <dof_predictor.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <muda/ext/linear_system/device_doublet_vector.h>
@@ -34,8 +33,6 @@ class Codim1DConstitutionDiffParmReporter;
 class Codim0DConstitutionDiffParmReporter;
 
 class FiniteElementDiffDofReporter;
-
-class FEMDofPredictor;
 
 class FiniteElementMethod final : public SimSystem
 {
@@ -393,6 +390,7 @@ class FiniteElementMethod final : public SimSystem
     auto rest_areas() const noexcept { return m_impl.rest_areas.view(); }
     auto rest_lengths() const noexcept { return m_impl.rest_lengths.view(); }
     auto Dm3x3_invs() const noexcept { return m_impl.Dm3x3_invs.view(); }
+    auto gravities() const noexcept { return m_impl.gravities.view(); }
 
     /**
      * @brief return the frame-local dof offset of FEM for the given frame
@@ -449,7 +447,6 @@ class FiniteElementMethod final : public SimSystem
     friend class FEMLinearSubsystem;
     friend class FEMLineSearchReporter;
     friend class FEMGradientHessianComputer;
-    friend class FEMDofPredictor;
 
     friend class FiniteElementAnimator;
     friend class FEMDiagPreconditioner;
@@ -459,6 +456,7 @@ class FiniteElementMethod final : public SimSystem
     friend class FiniteElementDiffDofReporter;
     friend class FiniteElementKineticDiffParmReporter;
     friend class FEMAdjointMethodReplayer;
+    friend class FEMTimeIntegrator;
 
     friend class SimEngine;
     void init();  // only be called by SimEngine
@@ -468,7 +466,7 @@ class FiniteElementMethod final : public SimSystem
     friend class FiniteElementExtraConstitution;
     void add_constitution(FiniteElementExtraConstitution* constitution);  // only called by FiniteElementExtraConstitution
     friend class FiniteElementKinetic;
-    void add_constitution(FiniteElementKinetic* constitution);  // only called by FiniteElementKinetic
+    void add_kinetic(FiniteElementKinetic* constitution);  // only called by FiniteElementKinetic
 
     friend class FiniteElementConstitutionDiffParmReporter;
     void add_reporter(FiniteElementConstitutionDiffParmReporter* reporter);  // only called by FiniteElementConstitutionDiffParmReporter
