@@ -2,7 +2,9 @@
 #include <uipc/builtin/attribute_name.h>
 #include <finite_element/constitutions/kirchhoff_rod_bending_function.h>
 #include <numbers>
-#include <utils/matrix_assembly_utils.h>
+#include <utils/make_spd.h>
+#include <utils/matrix_assembler.h>
+
 #include <kernel_cout.h>
 namespace uipc::backend::cuda
 {
@@ -184,14 +186,16 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                        Vector9 G;
                        KRB::dEdX(G, k, X, L0, r, Pi);
                        G *= dt2;
-                       assemble<3>(G3s, I * 3, hinge, G);
+                       DoubletVectorAssembler DVA{G3s};
+                       DVA.segment<3>(I * 3).write(hinge, G);
 
                        Matrix9x9 H;
                        KRB::ddEddX(H, k, X, L0, r, Pi);
 
                        H *= dt2;
                        make_spd(H);
-                       assemble<3>(H3x3s, I * 3 * 3, hinge, H);
+                       TripletMatrixAssembler TMA{H3x3s};
+                       TMA.block<3, 3>(I * 3 * 3).write(hinge, H);
                    });
     }
 };

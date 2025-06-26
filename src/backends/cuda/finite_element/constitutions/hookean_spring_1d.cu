@@ -6,10 +6,9 @@
 #include <Eigen/Dense>
 #include <muda/ext/eigen/inverse.h>
 #include <utils/codim_thickness.h>
-#include <numbers>
-#include <utils/matrix_assembly_utils.h>
-#include <utils/matrix_unpacker.h>
 #include <utils/matrix_assembler.h>
+#include <numbers>
+#include <utils/make_spd.h>
 
 namespace uipc::backend::cuda
 {

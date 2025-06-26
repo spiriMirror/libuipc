@@ -71,6 +71,8 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 
         muda::DeviceTripletMatrix<Float, 12, 12> reporter_hessians;
         muda::DeviceDoubletVector<Float, 12>     reporter_gradients;
+
+        Float dt = 0.0f;  // time step, used in assemble
     };
 
   private:

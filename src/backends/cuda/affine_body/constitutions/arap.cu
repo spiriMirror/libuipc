@@ -6,6 +6,7 @@
 #include <affine_body/abd_energy.h>
 #include <muda/cub/device/device_reduce.h>
 #include <muda/ext/eigen/svd.h>
+#include <utils/make_spd.h>
 
 namespace uipc::backend::cuda
 {
@@ -54,7 +55,7 @@ class ARAP final : public AffineBodyConstitution
         async_copy(span{h_kappas}, kappas);
     }
 
-    virtual void do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info) override
+    virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         using namespace muda;
         namespace abd_arap = sym::abd_arap;
@@ -64,11 +65,11 @@ class ARAP final : public AffineBodyConstitution
         ParallelFor()
             .kernel_name(__FUNCTION__)
             .apply(body_count,
-                   [shape_energies = info.body_shape_energies().viewer().name("body_energies"),
-                    qs      = info.qs().cviewer().name("qs"),
-                    kappas  = kappas.cviewer().name("kappas"),
-                    volumes = info.volumes().cviewer().name("volumes"),
-                    dt      = info.dt()] __device__(int i) mutable
+                   [shape_energies = info.energies().viewer().name("energies"),
+                    qs             = info.qs().cviewer().name("qs"),
+                    kappas         = kappas.cviewer().name("kappas"),
+                    volumes        = info.volumes().cviewer().name("volumes"),
+                    dt             = info.dt()] __device__(int i) mutable
                    {
                        auto& q      = qs(i);
                        auto& volume = volumes(i);
@@ -83,7 +84,7 @@ class ARAP final : public AffineBodyConstitution
                    });
     }
 
-    virtual void do_compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info) override
+    virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
         namespace abd_arap = sym::abd_arap;
@@ -95,10 +96,10 @@ class ARAP final : public AffineBodyConstitution
             .apply(N,
                    [qs      = info.qs().cviewer().name("qs"),
                     volumes = info.volumes().cviewer().name("volumes"),
-                    gradients = info.shape_gradient().viewer().name("shape_gradients"),
-                    body_hessian = info.shape_hessian().viewer().name("shape_hessian"),
-                    kappas = kappas.cviewer().name("kappas"),
-                    dt     = info.dt()] __device__(int i) mutable
+                    gradients = info.gradients().viewer().name("shape_gradients"),
+                    hessians = info.hessians().viewer().name("shape_hessian"),
+                    kappas   = kappas.cviewer().name("kappas"),
+                    dt       = info.dt()] __device__(int i) mutable
                    {
                        Matrix12x12 H = Matrix12x12::Zero();
                        Vector12    G = Vector12::Zero();
@@ -112,14 +113,14 @@ class ARAP final : public AffineBodyConstitution
                        Vector9 G9;
                        abd_arap::dEdq(G9, kappa, q);
 
-                       Matrix9x9 H3x3;
-                       abd_arap::ddEddq(H3x3, kappa, q);
+                       Matrix9x9 H9x9;
+                       abd_arap::ddEddq(H9x9, kappa, q);
 
-                       H.block<9, 9>(3, 3) = H3x3 * Vdt2;
+                       H.block<9, 9>(3, 3) = H9x9 * Vdt2;
                        G.segment<9>(3)     = G9 * Vdt2;
 
-                       gradients(i) += G;
-                       body_hessian(i) += H;
+                       gradients(i) = G;
+                       hessians(i)  = H;
                    });
     }
 };
