@@ -2,6 +2,7 @@
 #include <sim_system.h>
 #include <uipc/geometry/implicit_geometry_slot.h>
 #include <muda/buffer/device_var.h>
+#include <utils/offset_count_collection.h>
 namespace uipc::backend::cuda
 {
 class HalfPlane : public SimSystem
@@ -11,7 +12,30 @@ class HalfPlane : public SimSystem
     using SimSystem::SimSystem;
 
     using ImplicitGeometry = geometry::ImplicitGeometry;
+
+    class GeoInfo
+    {
+      public:
+        IndexT geo_slot_index = -1;
+        IndexT geo_id         = -1;
+        IndexT vertex_offset  = -1;
+        IndexT vertex_count   = 0;
+    };
+
+    class ForEachInfo
+    {
+      public:
+        SizeT          global_index() const noexcept { return m_global_index; }
+        const GeoInfo& geo_info() const noexcept { return *m_geo_info; }
+
+      private:
+        friend class HalfPlane;
+        SizeT          m_global_index = 0;
+        const GeoInfo* m_geo_info     = nullptr;
+    };
+
     class Impl;
+
 
     class Impl
     {
@@ -20,7 +44,10 @@ class HalfPlane : public SimSystem
         void _find_geometry(WorldVisitor& world);
         void _build_geometry();
 
-        vector<ImplicitGeometry*> geos;
+        vector<GeoInfo>               geo_infos;
+        vector<ImplicitGeometry*>     geos;
+        OffsetCountCollection<IndexT> geo_vertex_offset_count;
+
 
         vector<IndexT>  h_contact_ids;
         vector<Vector3> h_normals;
@@ -35,6 +62,14 @@ class HalfPlane : public SimSystem
     muda::CBufferView<Vector3> positions() const;
     muda::CBufferView<IndexT>  contact_ids() const;
 
+    span<const GeoInfo> geo_infos() const noexcept { return m_impl.geo_infos; }
+
+    template <typename ForEachGeometry>
+    void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_every_geometry)
+    {
+        _for_each(geo_slots, m_impl.geo_infos, std::forward<ForEachGeometry>(for_every_geometry));
+    }
+
   protected:
     virtual void do_build() override;
 
@@ -42,5 +77,12 @@ class HalfPlane : public SimSystem
     friend class HalfPlaneVertexReporter;
     friend class HalfPlaneBodyReporter;
     Impl m_impl;
+
+    template <typename ForEachGeometry>
+    static void _for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                          span<GeoInfo>                   geo_infos,
+                          ForEachGeometry&&               for_every_geometry);
 };
 }  // namespace uipc::backend::cuda
+
+#include "details/half_plane.inl"
