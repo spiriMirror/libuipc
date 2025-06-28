@@ -4,6 +4,7 @@
 #include <collision_detection/global_trajectory_filter.h>
 #include <collision_detection/simplex_trajectory_filter.h>
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
+#include <implicit_geometry/half_plane_vertex_reporter.h>
 
 namespace uipc::backend::cuda
 {
@@ -29,5 +30,6 @@ class ContactSystemExporter final : public SimSystem
     SimSystemSlot<GlobalContactManager>    m_global_contact_manager;
     SimSystemSlot<SimplexTrajectoryFilter> m_simplex_trajectory_filter;
     SimSystemSlot<VertexHalfPlaneTrajectoryFilter> m_vertex_half_plane_trajectory_filter;
+    SimSystemSlot<HalfPlaneVertexReporter> m_half_plane_vertex_reporter;
 };
 }  // namespace uipc::backend::cuda
