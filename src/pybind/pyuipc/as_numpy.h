@@ -42,7 +42,12 @@ template <typename T>
 auto as_numpy(const span<T>& s, py::handle obj)
 {
     auto arr = py::array_t<T, py::array::c_style>(buffer_info(s), obj);
-    PYUIPC_ASSERT(!arr.owndata(), "the array must share the data with the input span");
+
+    // NOTE:
+    // In some impl, the py-array may own the data when the span is empty.
+    // To avoid a fake assertion, we allow the array to own the data when the span is empty.
+    PYUIPC_ASSERT(arr.size() == 0 || !arr.owndata(),
+                  "the array must share the data with the input span");
 
     set_read_write_flags(arr, std::is_const_v<T>);
     PYUIPC_ASSERT(arr.writeable() == !std::is_const_v<T>,
