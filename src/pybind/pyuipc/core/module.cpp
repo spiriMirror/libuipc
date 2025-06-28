@@ -12,12 +12,15 @@
 #include <pyuipc/core/diff_sim.h>
 #include <pyuipc/core/sanity_checker.h>
 #include <pyuipc/core/feature_collection.h>
+#include <pyuipc/core/contact_system_feature.h>
 
 namespace pyuipc::core
 {
 PyModule::PyModule(py::module& m)
 {
+
     PyFeatureCollection{m};
+    PyContactSystemFeature{m};
 
     PyEngine{m};
 

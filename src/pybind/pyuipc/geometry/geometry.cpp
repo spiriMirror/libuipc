@@ -148,6 +148,8 @@ PyGeometry::PyGeometry(py::module& m)
     // Geometry:
     auto class_Geometry = py::class_<Geometry, IGeometry, S<Geometry>>(m, "Geometry");
 
+    class_Geometry.def(py::init<>());
+
     auto class_MetaAttributes =
         py::class_<Geometry::MetaAttributes>(class_Geometry, "MetaAttributes");
 
