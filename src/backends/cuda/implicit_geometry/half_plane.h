@@ -3,6 +3,7 @@
 #include <uipc/geometry/implicit_geometry_slot.h>
 #include <muda/buffer/device_var.h>
 #include <utils/offset_count_collection.h>
+
 namespace uipc::backend::cuda
 {
 class HalfPlane : public SimSystem
