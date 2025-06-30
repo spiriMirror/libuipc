@@ -27,8 +27,9 @@ void HalfPlane::Impl::_find_geometry(WorldVisitor& world)
 {
     auto                              geo_slots = world.scene().geometries();
     list<geometry::ImplicitGeometry*> geo_buffer;
+    list<GeoInfo>                     geo_info_buffer;
 
-    for(auto slot : geo_slots)
+    for(auto&& [i, slot] : enumerate(geo_slots))
     {
         geometry::Geometry* geo = &slot->geometry();
         if(geo->type() != builtin::ImplicitGeometry)
@@ -43,11 +44,19 @@ void HalfPlane::Impl::_find_geometry(WorldVisitor& world)
         if(uid->view()[0] == HalfPlane::ImplicitGeometryUID)
         {
             geo_buffer.push_back(ig);
+            GeoInfo info;
+            info.geo_id         = slot->id();
+            info.geo_slot_index = i;
+            info.vertex_count = ig->instances().size();  // one vertex per instance
+            geo_info_buffer.push_back(info);
         }
     }
 
     geos.resize(geo_buffer.size());
     std::ranges::move(geo_buffer, geos.begin());
+
+    geo_infos.resize(geo_info_buffer.size());
+    std::ranges::move(geo_info_buffer, geo_infos.begin());
 }
 
 void HalfPlane::Impl::_build_geometry()
@@ -96,6 +105,27 @@ void HalfPlane::Impl::_build_geometry()
     positions.view().copy_from(h_positions.data());
     normals.view().copy_from(h_normals.data());
     contact_ids.view().copy_from(h_contact_ids.data());
+
+    // compute vertex offsets for each geometry
+    geo_vertex_offset_count.resize(geo_infos.size());
+    {
+        auto geo_vert_counts = geo_vertex_offset_count.counts();
+
+        std::ranges::transform(geo_infos,
+                               geo_vert_counts.begin(),
+                               [](const GeoInfo& info)
+                               { return info.vertex_count; });
+
+        geo_vertex_offset_count.scan();
+
+        auto geo_offsets = geo_vertex_offset_count.offsets();
+
+        // set offsets back to the geo_infos
+        for(auto&& [i, info] : enumerate(geo_infos))
+        {
+            info.vertex_offset = geo_offsets[i];
+        }
+    }
 }
 
 muda::CBufferView<Vector3> HalfPlane::normals() const

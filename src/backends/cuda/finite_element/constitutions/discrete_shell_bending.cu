@@ -2,7 +2,8 @@
 #include <uipc/builtin/attribute_name.h>
 #include <finite_element/constitutions/discrete_shell_bending_function.h>
 #include <numbers>
-#include <utils/matrix_assembly_utils.h>
+#include <utils/make_spd.h>
+#include <utils/matrix_assembler.h>
 #include <kernel_cout.h>
 
 namespace std
@@ -274,12 +275,15 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
 
                        DSB::dEdx(G12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
                        G12 *= Vdt2;
-                       assemble<4>(G3s, I * 4, stencil, G12);
+                       DoubletVectorAssembler DVA{G3s};
+                       DVA.segment<4>(I * 4).write(stencil, G12);
 
                        DSB::ddEddx(H12x12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
                        H12x12 *= Vdt2;
                        make_spd(H12x12);
-                       assemble<4>(H3x3s, I * 4 * 4, stencil, H12x12);
+
+                       TripletMatrixAssembler TMA{H3x3s};
+                       TMA.block<4, 4>(I * 4 * 4).write(stencil, H12x12);
                    });
     }
 };

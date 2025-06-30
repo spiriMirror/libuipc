@@ -1,10 +1,6 @@
-#include <sim_system.h>
-#include <affine_body/constitutions/ortho_potential_function.h>
 #include <affine_body/affine_body_constitution.h>
-#include <affine_body/affine_body_dynamics.h>
-#include <uipc/common/enumerate.h>
-#include <affine_body/abd_energy.h>
-#include <muda/cub/device/device_reduce.h>
+#include <affine_body/constitutions/ortho_potential_function.h>
+#include <utils/make_spd.h>
 
 
 namespace uipc::backend::cuda
@@ -42,11 +38,6 @@ class OrthoPotential final : public AffineBodyConstitution
                 h_kappas[bodyI] = kappa;
             });
 
-        _build_on_device();
-    }
-
-    void _build_on_device()
-    {
         auto async_copy = []<typename T>(span<T> src, muda::DeviceBuffer<T>& dst)
         {
             muda::BufferLaunch().resize<T>(dst, src.size());
@@ -56,7 +47,7 @@ class OrthoPotential final : public AffineBodyConstitution
         async_copy(span{h_kappas}, kappas);
     }
 
-    virtual void do_compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info) override
+    virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         using namespace muda;
 
@@ -65,13 +56,13 @@ class OrthoPotential final : public AffineBodyConstitution
         namespace AOP = sym::abd_ortho_potential;
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(body_count,
-                   [shape_energies = info.body_shape_energies().viewer().name("body_energies"),
-                    qs      = info.qs().cviewer().name("qs"),
-                    kappas  = kappas.cviewer().name("kappas"),
-                    volumes = info.volumes().cviewer().name("volumes"),
-                    dt      = info.dt()] __device__(int i) mutable
+                   [shape_energies = info.energies().viewer().name("energies"),
+                    qs             = info.qs().cviewer().name("qs"),
+                    kappas         = kappas.cviewer().name("kappas"),
+                    volumes        = info.volumes().cviewer().name("volumes"),
+                    dt             = info.dt()] __device__(int i) mutable
                    {
                        auto& q      = qs(i);
                        auto& volume = volumes(i);
@@ -85,20 +76,20 @@ class OrthoPotential final : public AffineBodyConstitution
                    });
     }
 
-    virtual void do_compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info) override
+    virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
         auto N = info.qs().size();
 
         namespace AOP = sym::abd_ortho_potential;
 
-        ParallelFor(256)
-            .kernel_name(__FUNCTION__)
+        ParallelFor()
+            .file_line(__FILE__, __LINE__)
             .apply(N,
                    [qs      = info.qs().cviewer().name("qs"),
                     volumes = info.volumes().cviewer().name("volumes"),
-                    gradients = info.shape_gradient().viewer().name("shape_gradients"),
-                    body_hessian = info.shape_hessian().viewer().name("shape_hessian"),
+                    gradients = info.gradients().viewer().name("shape_gradients"),
+                    body_hessian = info.hessians().viewer().name("shape_hessian"),
                     kappas = kappas.cviewer().name("kappas"),
                     dt     = info.dt()] __device__(int i) mutable
                    {
@@ -117,11 +108,13 @@ class OrthoPotential final : public AffineBodyConstitution
                        Matrix9x9 H9x9;
                        AOP::ddEddq(H9x9, kappa, q);
 
+                       make_spd(H9x9);
+
                        H.block<9, 9>(3, 3) = H9x9 * Vdt2;
                        G.segment<9>(3)     = G9 * Vdt2;
 
-                       gradients(i) += G;
-                       body_hessian(i) += H;
+                       gradients(i)    = G;
+                       body_hessian(i) = H;
                    });
     }
 };

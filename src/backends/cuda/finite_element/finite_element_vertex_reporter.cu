@@ -3,6 +3,7 @@
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
 #include <finite_element/finite_element_body_reporter.h>
+#include <uipc/builtin/attribute_name.h>
 
 namespace uipc::backend::cuda
 {
@@ -64,6 +65,25 @@ void FiniteElementVertexReporter::do_report_count(VertexCountInfo& info)
 void FiniteElementVertexReporter::do_report_attributes(VertexAttributeInfo& info)
 {
     m_impl.report_attributes(info);
+
+    auto global_offset = info.coindices().offset();
+
+    auto geo_slots = world().scene().geometries();
+
+    // add global vertex offset attribute
+    m_impl.finite_element_method->for_each(  //
+        geo_slots,
+        [&](const FiniteElementMethod::ForEachInfo& I, geometry::SimplicialComplex& sc)
+        {
+            auto gvo = sc.meta().find<IndexT>(builtin::global_vertex_offset);
+            if(!gvo)
+            {
+                gvo = sc.meta().create<IndexT>(builtin::global_vertex_offset);
+            }
+
+            // [global-vertex-offset] = [vertex-offset-in-fem-system] + [fem-system-vertex-offset]
+            view(*gvo)[0] = I.geo_info().vertex_offset + global_offset;
+        });
 }
 
 void FiniteElementVertexReporter::do_report_displacements(VertexDisplacementInfo& info)

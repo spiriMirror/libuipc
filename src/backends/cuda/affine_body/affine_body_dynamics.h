@@ -5,7 +5,6 @@
 #include <affine_body/abd_jacobi_matrix.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <sim_engine.h>
-#include <dof_predictor.h>
 #include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda
@@ -15,6 +14,7 @@ class AffineBodyDiffParmReporter;
 class AffineBodyDiffDofReporter;
 class AffineBodyKineticDiffParmReporter;
 class AffineBodyBodyReporter;
+class AffineBodyKinetic;
 
 class AffineBodyDynamics : public SimSystem
 {
@@ -131,42 +131,43 @@ class AffineBodyDynamics : public SimSystem
     class ComputeEnergyInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl, SizeT constitution_index, Float dt) noexcept;
+        ComputeEnergyInfo(muda::BufferView<Float> energies, Float dt) noexcept
+            : m_energies(energies)
+            , m_dt(dt)
+        {
+        }
+
         auto dt() const noexcept { return m_dt; }
 
-        muda::CBufferView<Vector12> qs() const noexcept;
-        muda::CBufferView<Float>    volumes() const noexcept;
-        muda::BufferView<Float>     body_shape_energies() const noexcept;
+        auto energies() const noexcept { return m_energies; }
 
       private:
         friend class Impl;
-        SizeT m_constitution_index = ~0ull;
-        Float m_dt                 = 0.0;
-        Impl* m_impl               = nullptr;
+        muda::BufferView<Float> m_energies;
+        Float                   m_dt = 0.0;
     };
 
     class ComputeGradientHessianInfo
     {
       public:
-        ComputeGradientHessianInfo(Impl* impl,
-                                   SizeT constitution_index,
-                                   muda::BufferView<Vector12>    shape_gradient,
-                                   muda::BufferView<Matrix12x12> shape_hessian,
-                                   Float                         dt) noexcept;
+        ComputeGradientHessianInfo(muda::BufferView<Vector12>    gradient,
+                                   muda::BufferView<Matrix12x12> hessian,
+                                   Float                         dt)
+            : m_gradients(gradient)
+            , m_hessians(hessian)
+            , m_dt(dt)
+        {
+        }
 
-        auto shape_hessian() const noexcept { return m_shape_hessian; }
-        auto shape_gradient() const noexcept { return m_shape_gradient; }
-        muda::CBufferView<Vector12> qs() const noexcept;
-        muda::CBufferView<Float>    volumes() const noexcept;
-        auto                        dt() const noexcept { return m_dt; }
+        auto hessians() const noexcept { return m_hessians; }
+        auto gradients() const noexcept { return m_gradients; }
+        auto dt() const noexcept { return m_dt; }
 
       private:
         friend class Impl;
-        SizeT                         m_constitution_index = ~0ull;
-        muda::BufferView<Matrix12x12> m_shape_hessian;
-        muda::BufferView<Vector12>    m_shape_gradient;
-        Float                         m_dt   = 0.0;
-        Impl*                         m_impl = nullptr;
+        muda::BufferView<Matrix12x12> m_hessians;
+        muda::BufferView<Vector12>    m_gradients;
+        Float                         m_dt = 0.0;
     };
 
   protected:
@@ -196,8 +197,6 @@ class AffineBodyDynamics : public SimSystem
         void _init_diff_reporters();
 
         void write_scene(WorldVisitor& world);
-        void compute_q_tilde(DofPredictor::PredictInfo& info);
-        void compute_q_v(DofPredictor::ComputeVelocityInfo& info);
 
         bool dump(DumpInfo& info);
         bool try_recover(RecoverInfo& info);
@@ -232,6 +231,7 @@ class AffineBodyDynamics : public SimSystem
         SizeT vertex_count() const noexcept { return abd_vertex_count; }
 
         SimSystemSlotCollection<AffineBodyConstitution> constitutions;
+        SimSystemSlot<AffineBodyKinetic> kinetic;  // ABD Kinetic, only one allowed
 
         SizeT abd_geo_count    = 0;
         SizeT abd_body_count   = 0;
@@ -367,10 +367,15 @@ class AffineBodyDynamics : public SimSystem
         DeviceBuffer<Float> body_id_to_shape_energy;
         DeviceVar<Float>    abd_shape_energy;
 
-        //tex: $$ \mathbf{H}_{ii} + \mathbf{M}_{ii} $$
-        DeviceBuffer<Matrix12x12> body_id_to_body_hessian;
+        //tex: $$ \mathbf{H}_{ii} $$
+        DeviceBuffer<Matrix12x12> body_id_to_shape_hessian;
         //tex: $$ \mathbf{g}_{i} $$
-        DeviceBuffer<Vector12> body_id_to_body_gradient;
+        DeviceBuffer<Vector12> body_id_to_shape_gradient;
+
+        //tex: $$ \mathbf{M}_{ii} $$
+        DeviceBuffer<Matrix12x12> body_id_to_kinetic_hessian;
+        //tex: $$ \mathbf{g}_{i} $$
+        DeviceBuffer<Vector12> body_id_to_kinetic_gradient;
 
         //tex: diag hessian consider contact
         DeviceBuffer<Matrix12x12> diag_hessian;
@@ -493,6 +498,10 @@ class AffineBodyDynamics : public SimSystem
     friend class AffineBodyConstitution;
     void add_constitution(AffineBodyConstitution* constitution);  // only be called by AffineBodyConstitution
 
+    friend class AffineBodyKinetic;
+    void add_kinetic(AffineBodyKinetic* kinetic);  // only be called by AffineBodyKinetic
+
+    friend class InterAffineBodyAnimator;
     friend class AffineBodyVertexReporter;
     friend class AffinebodySurfaceReporter;
     friend class AffineBodyBodyReporter;
@@ -512,6 +521,8 @@ class AffineBodyDynamics : public SimSystem
     friend class ABDDiffSimManager;
 
     friend class AffineBodyKineticDiffParmReporter;
+    friend class ABDTimeIntegrator;
+
     void add_reporter(AffineBodyKineticDiffParmReporter* reporter);
 
     friend class SimEngine;

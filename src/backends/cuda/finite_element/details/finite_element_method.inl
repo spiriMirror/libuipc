@@ -16,6 +16,7 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
 
         UIPC_ASSERT(sc, "Only simplicial complex is supported");
 
+        foreach_info.m_geo_info = &geo_info;
 
         if constexpr(std::is_invocable_v<ForEachGeometry, const ForEachInfo&, geometry::SimplicialComplex&>)
         {
@@ -52,6 +53,7 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
         auto view = view_getter(*sc);
 
         foreach_info.m_local_index = 0;
+        foreach_info.m_geo_info    = &geo_info;
 
         for(auto&& item : view)
         {

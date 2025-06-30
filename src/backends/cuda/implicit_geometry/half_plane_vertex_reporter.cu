@@ -1,6 +1,7 @@
 #include <implicit_geometry/half_plane_vertex_reporter.h>
 #include <implicit_geometry/half_plane.h>
 #include <implicit_geometry/half_plane_body_reporter.h>
+#include <uipc/builtin/attribute_name.h>
 
 namespace uipc::backend::cuda
 {
@@ -56,6 +57,26 @@ void HalfPlaneVertexReporter::do_report_count(GlobalVertexManager::VertexCountIn
 void HalfPlaneVertexReporter::do_report_attributes(GlobalVertexManager::VertexAttributeInfo& info)
 {
     m_impl.report_attributes(info);
+
+
+    auto global_offset = info.coindices().offset();
+
+    auto geo_slots = world().scene().geometries();
+
+    // add global vertex offset attribute
+    m_impl.half_plane->for_each(  //
+        geo_slots,
+        [&](const HalfPlane::ForEachInfo& I, geometry::ImplicitGeometry& ig)
+        {
+            auto gvo = ig.meta().find<IndexT>(builtin::global_vertex_offset);
+            if(!gvo)
+            {
+                gvo = ig.meta().create<IndexT>(builtin::global_vertex_offset);
+            }
+
+            // [global-vertex-offset] = [vertex-offset-in-halfplane-system] + [halfplane-system-vertex-offset]
+            view(*gvo)[0] = I.geo_info().vertex_offset + global_offset;
+        });
 }
 
 void HalfPlaneVertexReporter::do_report_displacements(GlobalVertexManager::VertexDisplacementInfo& info)

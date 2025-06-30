@@ -216,6 +216,9 @@ class GlobalContactManager final : public SimSystem
     muda::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
     muda::CBuffer2DView<IndexT>       contact_mask_tabular() const noexcept;
 
+    muda::CBCOOVectorView<Float, 3> contact_gradient() const noexcept;
+    muda::CBCOOMatrixView<Float, 3> contact_hessian() const noexcept;
+
   protected:
     virtual void do_build() override;
 
@@ -223,6 +226,8 @@ class GlobalContactManager final : public SimSystem
     friend class SimEngine;
     friend class ContactLineSearchReporter;
     friend class GlobalTrajectoryFilter;
+    friend class ContactSystemExporter;
+
     void  compute_d_hat();
     void  compute_contact();
     void  compute_adaptive_kappa();

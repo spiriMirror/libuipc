@@ -5,7 +5,7 @@
 #include <collision_detection/global_trajectory_filter.h>
 #include <contact_system/global_contact_manager.h>
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
-#include <utils/matrix_assembly_utils.h>
+#include <utils/make_spd.h>
 
 namespace uipc::backend::cuda
 {

@@ -7,6 +7,8 @@
 #include <uipc/builtin/attribute_name.h>
 #include <affine_body/inter_affine_body_constitution_manager.h>
 #include <affine_body/abd_linear_subsystem_reporter.h>
+#include <affine_body/affine_body_kinetic.h>
+#include <affine_body/affine_body_constitution.h>
 
 namespace uipc::backend::cuda
 {
@@ -16,6 +18,7 @@ void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
 {
     m_impl.affine_body_dynamics        = require<AffineBodyDynamics>();
     m_impl.affine_body_vertex_reporter = require<AffineBodyVertexReporter>();
+    m_impl.dt = world().scene().info()["dt"].get<Float>();
 
     auto contact = find<ABDContactReceiver>();
     if(contact)
@@ -81,7 +84,7 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     SizeT H12x12_count = 0;
     {
         // body hessian: kinetic + shape
-        SizeT body_hessian_count = abd().body_id_to_body_hessian.size();
+        SizeT body_hessian_count = abd().body_id_to_shape_hessian.size();
 
         // contact hessian: contact hessian
         SizeT contact_hessian_count = 0;
@@ -131,19 +134,47 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
     // 1) Kinetic & Shape
     IndexT offset = 0;
     {
+        // Collect Kinetic
+        AffineBodyDynamics::ComputeGradientHessianInfo this_info{
+            abd().body_id_to_kinetic_gradient, abd().body_id_to_kinetic_hessian, dt};
+        abd().kinetic->compute_gradient_hessian(this_info);
+
+        // Collect Shape
+        for(auto&& [i, cst] : enumerate(abd().constitutions.view()))
+        {
+            AffineBodyDynamics::ComputeGradientHessianInfo this_info{
+                abd().subview(abd().body_id_to_shape_gradient, cst->m_index),
+                abd().subview(abd().body_id_to_shape_hessian, cst->m_index),
+                dt};
+
+            cst->compute_gradient_hessian(this_info);
+        }
+
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(abd().body_count(),
-                   [body_gradient = abd().body_id_to_body_gradient.cviewer().name("abd_gradient"),
-                    gradient = info.gradient().viewer().name("gradient")] __device__(int i) mutable
+                   [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+                    shape_gradient = abd().body_id_to_shape_gradient.cviewer().name("shape_gradient"),
+                    kinetic_gradient =
+                        abd().body_id_to_kinetic_gradient.cviewer().name("kinetic_gradient"),
+                    gradient = info.gradient().viewer().name("gradient"),
+                    cout     = KernelCout::viewer()] __device__(int i) mutable
                    {
-                       // don't need to consider fixed
-                       // fixed body will always have a zero gradient (for no motion)
+                       Vector12 src;
 
-                       gradient.segment<12>(i * 12) = body_gradient(i);
+                       if(!is_fixed(i))  // if not fixed, add kinetic and shape gradients
+                       {
+                           src = kinetic_gradient(i) + shape_gradient(i);
+                       }
+                       else
+                       {
+                           src.setZero();  // if fixed, set to zero
+                       }
+
+                       gradient.segment<12>(i * 12) = src;
                    });
 
-        auto body_count = abd().body_id_to_body_hessian.size();
+        auto body_count = abd().body_id_to_shape_hessian.size();
         auto H3x3_count = body_count * 16;
         auto body_H3x3  = info.hessian().subview(offset, H3x3_count);
 
@@ -151,21 +182,29 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
             .file_line(__FILE__, __LINE__)
             .apply(body_count,
                    [dst = body_H3x3.viewer().name("dst_hessian"),
-                    src = abd().body_id_to_body_hessian.cviewer().name("src_hessian"),
+                    is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+                    shape_hessian = abd().body_id_to_shape_hessian.cviewer().name("src_hessian"),
+                    kinetic_hessian = abd().body_id_to_kinetic_hessian.cviewer().name("kinetic_hessian"),
                     diag_hessian = abd().diag_hessian.viewer().name(
                         "diag_hessian")] __device__(int I) mutable
                    {
                        TripletMatrixUnpacker MA{dst};
 
-                       // don't need to consider fixed
-                       // fixed body will always have a Mass hessian (for safe)
+                       // Fill kinetic hessian to avoid singularity
+                       Matrix12x12 src = kinetic_hessian(I);
+
+                       if(!is_fixed(I))  // if not fixed, add shape hessian
+                       {
+                           src += shape_hessian(I);
+                       }
 
                        MA.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
                            .write(I * 4,          // begin row
                                   I * 4,          // begin col
-                                  src(I));
+                                  src);
 
-                       diag_hessian(I) = src(I);
+                       // record diagonal hessian for diag-inv preconditioner
+                       diag_hessian(I) = src;
                    });
 
         offset += H3x3_count;
@@ -219,8 +258,6 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 
         if(contact_hessian_count)
         {
-
-
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(contact_hessian_count,
@@ -341,8 +378,16 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                                eigen::atomic_add(diag_hessian(body_i), H12x12);
                            }
                        });
+
+            offset += reporter_hessians.triplet_count() * 16;  // 16 = 4 * 4
         }
     }
+
+    // 3) Check the size
+    UIPC_ASSERT(offset == info.hessian().triplet_count(),
+                "Hessian size mismatch: expected {}, got {}",
+                info.hessian().triplet_count(),
+                offset);
 }
 
 void ABDLinearSubsystem::Impl::accuracy_check(GlobalLinearSystem::AccuracyInfo& info)
@@ -450,4 +495,3 @@ ABDContactReceiver::Impl& ABDLinearSubsystem::Impl::contact() const noexcept
     return abd_contact_receiver->m_impl;
 }
 }  // namespace uipc::backend::cuda
- 

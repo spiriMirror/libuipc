@@ -1,6 +1,7 @@
 #include <affine_body/affine_body_vertex_reporter.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <affine_body/affine_body_body_reporter.h>
+#include <uipc/builtin/attribute_name.h>
 
 namespace uipc::backend::cuda
 {
@@ -84,6 +85,26 @@ void AffineBodyVertexReporter::do_report_count(VertexCountInfo& info)
 void AffineBodyVertexReporter::do_report_attributes(VertexAttributeInfo& info)
 {
     m_impl.report_attributes(info);
+
+
+    auto global_offset = info.coindices().offset();
+
+    auto geo_slots = world().scene().geometries();
+
+    // add global vertex offset attribute
+    m_impl.affine_body_dynamics->for_each(  //
+        geo_slots,
+        [&](const AffineBodyDynamics::ForEachInfo& I, geometry::SimplicialComplex& sc)
+        {
+            auto gvo = sc.meta().find<IndexT>(builtin::global_vertex_offset);
+            if(!gvo)
+            {
+                gvo = sc.meta().create<IndexT>(builtin::global_vertex_offset);
+            }
+
+            // [global-vertex-offset] = [vertex-offset-in-abd-system] + [abd-system-vertex-offset]
+            view(*gvo)[0] = I.geo_info().vertex_offset + global_offset;
+        });
 }
 
 void AffineBodyVertexReporter::do_report_displacements(VertexDisplacementInfo& info)

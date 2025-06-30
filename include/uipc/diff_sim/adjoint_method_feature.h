@@ -1,4 +1,4 @@
-#pragma 
+#pragma once
 #include <uipc/core/feature.h>
 #include <uipc/backend/buffer_view.h>
 
