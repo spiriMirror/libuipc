@@ -47,6 +47,16 @@ muda::CBuffer2DView<IndexT> GlobalContactManager::contact_mask_tabular() const n
     return m_impl.contact_mask_tabular;
 }
 
+muda::CBCOOVectorView<Float, 3> GlobalContactManager::contact_gradient() const noexcept
+{
+    return m_impl.sorted_contact_gradient.view();
+}
+
+muda::CBCOOMatrixView<Float, 3> GlobalContactManager::contact_hessian() const noexcept
+{
+    return m_impl.sorted_contact_hessian.view();
+}
+
 void GlobalContactManager::Impl::init(WorldVisitor& world)
 {
     // 1) init tabular

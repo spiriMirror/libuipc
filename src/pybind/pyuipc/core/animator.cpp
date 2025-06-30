@@ -11,7 +11,9 @@ PyAnimator::PyAnimator(py::module& m)
     auto class_UpdateHint = py::class_<Animation::UpdateHint>(class_Animation, "UpdateHint");
 
     auto class_UpdateInfo = py::class_<Animation::UpdateInfo>(class_Animation, "UpdateInfo");
-    class_UpdateInfo.def("object", &Animation::UpdateInfo::object)
+
+    class_UpdateInfo
+        .def("object", &Animation::UpdateInfo::object, py::return_value_policy::reference_internal)
         .def("geo_slots",
              [](Animation::UpdateInfo& self) -> py::list
              {

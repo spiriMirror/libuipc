@@ -4,8 +4,8 @@
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
 #include <Eigen/Dense>
-#include <muda/ext/eigen/evd.h>
-#include <utils/matrix_assembly_utils.h>
+#include <utils/make_spd.h>
+#include <utils/matrix_assembler.h>
 
 namespace uipc::backend::cuda
 {
@@ -58,7 +58,7 @@ class ARAP3D final : public FEM3DConstitution
         namespace ARAP = sym::arap_3d;
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
                    [kappas   = kappas.cviewer().name("mus"),
                     energies = info.energies().viewer().name("energies"),
@@ -91,7 +91,7 @@ class ARAP3D final : public FEM3DConstitution
         namespace ARAP = sym::arap_3d;
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
                    [kappas  = kappas.cviewer().name("mus"),
                     indices = info.indices().viewer().name("indices"),
@@ -126,8 +126,12 @@ class ARAP3D final : public FEM3DConstitution
                        Vector12    G12    = dFdx.transpose() * dEdF;
                        Matrix12x12 H12x12 = dFdx.transpose() * ddEddF * dFdx;
 
-                       assemble<4>(G3s, I * 4, tet, G12);
-                       assemble<4>(H3x3s, I * 4 * 4, tet, H12x12);
+                       DoubletVectorAssembler DVA{G3s};
+                       DVA.segment<4>(I * 4).write(tet, G12);
+
+
+                       TripletMatrixAssembler TMA{H3x3s};
+                       TMA.block<4, 4>(I * 4 * 4).write(tet, H12x12);
                    });
     }
 };

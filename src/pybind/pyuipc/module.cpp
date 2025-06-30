@@ -15,6 +15,10 @@
 #include <pyuipc/builtin/module.h>
 #include <pyuipc/diff_sim/module.h>
 
+#include <pyuipc/backend/buffer_view.h>
+#include <pyuipc/backend/buffer.h>
+#include <pyuipc/core/feature.h>
+
 using namespace uipc;
 
 namespace pyuipc
@@ -60,6 +64,12 @@ PYBIND11_MODULE(pyuipc, m)
     pyuipc::PyLogger{m};
     pyuipc::PyTransform{m};
     pyuipc::PyTimer{m};
+
+    // early expose buffer view
+    pyuipc::backend::PyBufferView{backend};
+    pyuipc::backend::PyBuffer{backend};
+    // early expose feature
+    pyuipc::core::PyFeature{core};
 
     // pyuipc.unit
     pyuipc::PyUnit{unit};

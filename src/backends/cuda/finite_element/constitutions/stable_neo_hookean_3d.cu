@@ -5,7 +5,8 @@
 #include <muda/ext/eigen/log_proxy.h>
 #include <Eigen/Dense>
 #include <muda/ext/eigen/evd.h>
-#include <utils/matrix_assembly_utils.h>
+#include <utils/make_spd.h>
+#include <utils/matrix_assembler.h>
 
 namespace uipc::backend::cuda
 {
@@ -70,7 +71,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
         namespace SNH = sym::stable_neo_hookean_3d;
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
                    [mus      = mus.cviewer().name("mus"),
                     lambdas  = lambdas.cviewer().name("lambdas"),
@@ -113,7 +114,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
         namespace SNH = sym::stable_neo_hookean_3d;
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
                    [mus     = mus.cviewer().name("mus"),
                     lambdas = lambdas.cviewer().name("lambdas"),
@@ -155,8 +156,11 @@ class StableNeoHookean3D final : public FEM3DConstitution
                        Vector12    G    = dFdx.transpose() * dEdF;
                        Matrix12x12 H    = dFdx.transpose() * ddEddF * dFdx;
 
-                       assemble<4>(G3s, I * 4, tet, G);
-                       assemble<4>(H3x3s, I * 4 * 4, tet, H);
+                       DoubletVectorAssembler DVA{G3s};
+                       DVA.segment<4>(I * 4).write(tet, G);
+
+                       TripletMatrixAssembler TMA{H3x3s};
+                       TMA.block<4, 4>(I * 4 * 4).write(tet, H);
                    });
     }
 };

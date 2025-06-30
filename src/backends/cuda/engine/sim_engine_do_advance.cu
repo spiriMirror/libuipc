@@ -1,16 +1,15 @@
 #include <sim_engine.h>
 #include <uipc/common/range.h>
-#include <dof_predictor.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/global_contact_manager.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <line_search/line_searcher.h>
-#include <gradient_hessian_computer.h>
 #include <linear_system/global_linear_system.h>
 #include <animator/global_animator.h>
 #include <diff_sim/global_diff_sim_manager.h>
 #include <newton_tolerance/newton_tolerance_manager.h>
+#include <time_integrator/time_integrator_manager.h>
 
 namespace uipc::backend::cuda
 {
@@ -210,7 +209,7 @@ void SimEngine::do_advance()
 
             // 3. Predict Motion => x_tilde = x + v * dt
             m_state = SimEngineState::PredictMotion;
-            m_dof_predictor->predict();
+            m_time_integrator_manager->predict_dof();
             step_animation();
 
             // 4. Nonlinear-Newton Iteration
@@ -235,14 +234,7 @@ void SimEngine::do_advance()
                 m_state = SimEngineState::ComputeContact;
                 compute_contact();
 
-                // 4) Compute System Gradient and Hessian
-                m_state = SimEngineState::ComputeGradientHessian;
-                {
-                    Timer timer{"Compute Gradient Hessian"};
-                    m_gradient_hessian_computer->compute_gradient_hessian();
-                }
-
-                // 5) Solve Global Linear System => dx = A^-1 * b
+                // 4) Solve Global Linear System => dx = A^-1 * b
                 m_state = SimEngineState::SolveGlobalLinearSystem;
                 {
                     Timer timer{"Solve Global Linear System"};
@@ -250,11 +242,11 @@ void SimEngine::do_advance()
                 }
 
 
-                // 6) Collect Vertex Displacements Globally
+                // 5) Collect Vertex Displacements Globally
                 m_global_vertex_manager->collect_vertex_displacements();
 
 
-                // 7) Check Termination Condition
+                // 6) Check Termination Condition
                 bool converged = false;
                 {
                     NewtonToleranceManager::ResultInfo result_info;
@@ -359,7 +351,7 @@ void SimEngine::do_advance()
             m_state = SimEngineState::UpdateVelocity;
             {
                 Timer timer{"Update Velocity"};
-                m_dof_predictor->compute_velocity();
+                m_time_integrator_manager->update_state();
                 m_global_vertex_manager->record_prev_positions();
             }
 

@@ -179,6 +179,11 @@ UIPC_BUILTIN_ATTRIBUTE(dof_offset);
 UIPC_BUILTIN_ATTRIBUTE(dof_count);
 
 /**
+ * @breif `global_vertex_offset` <IndexT> attribute on **meta** to indicate the global vertex offset of this geometry in the whole system.
+ */
+UIPC_BUILTIN_ATTRIBUTE(global_vertex_offset);
+
+/**
  * @brief `self_collision` <IndexT>[0,1] attribute on **meta** to indicate if the geometry needs self-collision detection.
  */
 UIPC_BUILTIN_ATTRIBUTE(self_collision);
