@@ -7,8 +7,9 @@ REGISTER_SIM_SYSTEM(ContactSystemExporter);
 
 void ContactSystemExporter::do_build()
 {
-    m_global_trajectory_filter = require<GlobalTrajectoryFilter>();
-    m_global_contact_manager   = require<GlobalContactManager>();
+    m_global_trajectory_filter   = require<GlobalTrajectoryFilter>();
+    m_global_contact_manager     = require<GlobalContactManager>();
+    m_half_plane_vertex_reporter = find<HalfPlaneVertexReporter>();
 
 
     auto overrider = std::make_shared<ContactSystemFeatureOverrider>(this);
@@ -168,6 +169,20 @@ void ContactSystemExporter::get_contact_primtives(std::string_view    prim_type,
             }
             auto topo_view = view(*topo);
             PHs.copy_to(topo_view.data());
+
+            // NOTE:
+            // Because the H in PH using the local index of half-plane
+            // So we need to adjust the vertex indices by the offset to
+            // get the global vertex indices
+            auto v_offset = m_half_plane_vertex_reporter->vertex_offset();
+            std::ranges::transform(topo_view,
+                                   topo_view.begin(),
+                                   [v_offset](Vector2i& v)
+                                   {
+                                       // Adjust vertex indices by the offset
+                                       v[1] += v_offset;
+                                       return v;
+                                   });
         }
     }
 }
