@@ -1,5 +1,7 @@
 #include <pyuipc/core/contact_system_feature.h>
 #include <uipc/core/contact_system_feature.h>
+#include <pybind11/stl.h>
+
 namespace pyuipc::core
 {
 using namespace uipc::core;
