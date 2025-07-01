@@ -1,9 +1,11 @@
-
 #include <uipc/backend/buffer_view.h>
 #include <uipc/common/log.h>
+#include <uipc/common/const_string_map.h>
 
 namespace uipc::backend
 {
+static thread_local ConstStringMap m_backend_name_map;
+
 BufferView::BufferView(HandleT          handle,
                        SizeT            offset,
                        SizeT            size,
@@ -15,7 +17,7 @@ BufferView::BufferView(HandleT          handle,
     , m_size(size)
     , m_element_size(element_size)
     , m_element_stride(element_stride)
-    , m_backend(backend_name)
+    , m_backend(m_backend_name_map[backend_name])
 {
     UIPC_ASSERT(element_stride >= element_size,
                 "[{}]: Element stride({}) must be greater or equal to element size({}). ",
