@@ -19,9 +19,9 @@ class ContactLineSearchReporter final : public LineSearchReporter
         void init();
         void do_compute_energy(LineSearcher::EnergyInfo& info);
 
-        GlobalContactManager*     global_contact_manager = nullptr;
-        muda::DeviceBuffer<Float> contact_energies;
-        vector<Float>             h_contact_energies;
+        SimSystemSlot<GlobalContactManager> global_contact_manager;
+        muda::DeviceBuffer<Float>           contact_energies;
+        vector<Float>                       h_contact_energies;
     };
 
   private:

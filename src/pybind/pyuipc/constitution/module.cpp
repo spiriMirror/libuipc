@@ -15,7 +15,10 @@
 #include <pyuipc/constitution/soft_transform_constraint.h>
 #include <pyuipc/constitution/discrete_shell_bending.h>
 #include <pyuipc/constitution/arap.h>
+#include <pyuipc/constitution/inter_affine_body_constitution.h>
 #include <pyuipc/constitution/affine_body_revolute_joint.h>
+#include <pyuipc/constitution/inter_primitive_constitution.h>
+#include <pyuipc/constitution/soft_vertex_stitch.h>
 
 namespace pyuipc::constitution
 {
@@ -27,6 +30,7 @@ PyModule::PyModule(py::module& m)
 
     // Affine Body Constitutions
     PyAffineBodyConstitution{m};
+    PyInterAffineBodyConstitution{m};
     PyAffineBodyRevoluteJoint{m};
 
     // Finite Element Constitutions
@@ -42,6 +46,10 @@ PyModule::PyModule(py::module& m)
     PyFiniteElementExtraConstitution{m};
     PyKirchhoffRodBending{m};
     PyDiscreteShellBending{m};
+
+    // Inter Primitive Constitutions
+    PyInterPrimitiveConstitution{m};
+    PySoftVertexStitch{m};
 
     // Constraints
     PySoftPositionConstraint{m};
