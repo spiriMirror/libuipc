@@ -115,7 +115,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
     virtual void do_compute_energy(GlobalContactManager::EnergyInfo& info) override final;
     virtual void do_report_extent(GlobalContactManager::ContactExtentInfo& info) override final;
     virtual void do_assemble(GlobalContactManager::ContactInfo& info) override final;
-    virtual void do_build() override final;
+    virtual void do_build(ContactReporter::BuildInfo& info) override final;
 
     Impl m_impl;
 };

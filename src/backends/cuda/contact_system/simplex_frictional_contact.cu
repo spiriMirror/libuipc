@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-void SimplexFrictionalContact::do_build()
+void SimplexFrictionalContact::do_build(ContactReporter::BuildInfo& info)
 {
     bool enable = world().scene().info()["contact"]["friction"]["enable"].get<bool>();
 
@@ -15,12 +15,10 @@ void SimplexFrictionalContact::do_build()
     m_impl.global_trajectory_filter = &require<GlobalTrajectoryFilter>();
     m_impl.global_contact_manager   = &require<GlobalContactManager>();
     m_impl.global_vertex_manager    = &require<GlobalVertexManager>();
+    m_impl.dt                       = world().scene().info()["dt"].get<Float>();
 
-    BuildInfo info;
-    do_build(info);
-
-    m_impl.global_contact_manager->add_reporter(this);
-    m_impl.dt = world().scene().info()["dt"].get<Float>();
+    BuildInfo this_info;
+    do_build(this_info);
 
     on_init_scene(
         [this]

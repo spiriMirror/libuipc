@@ -6,7 +6,7 @@ namespace uipc::backend::cuda
 {
 class TrajectoryFilter;
 class GlobalContactManager;
-class GlobalTrajectoryFilter : public SimSystem
+class GlobalTrajectoryFilter final : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
