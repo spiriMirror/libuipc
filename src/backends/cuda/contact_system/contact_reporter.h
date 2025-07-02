@@ -8,7 +8,19 @@ class ContactReporter : public SimSystem
   public:
     using SimSystem::SimSystem;
 
+    class BuildInfo
+    {
+      public:
+    };
+
+    class InitInfo
+    {
+      public:
+    };
+
   protected:
+    virtual void do_build(BuildInfo& info) = 0;
+    virtual void do_init(InitInfo&);
     virtual void do_report_extent(GlobalContactManager::ContactExtentInfo& info) = 0;
     virtual void do_assemble(GlobalContactManager::ContactInfo& info)      = 0;
     virtual void do_compute_energy(GlobalContactManager::EnergyInfo& info) = 0;
@@ -16,6 +28,8 @@ class ContactReporter : public SimSystem
   private:
     friend class GlobalContactManager;
     friend class ContactLineSearchReporter;
+    void  init();  // only be called by GlobalContactManager
+    void  do_build() final override;
     void  report_extent(GlobalContactManager::ContactExtentInfo& info);
     void  assemble(GlobalContactManager::ContactInfo& info);
     void  compute_energy(GlobalContactManager::EnergyInfo& info);

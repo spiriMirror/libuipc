@@ -11,6 +11,15 @@ void ContactReceiver::do_build()
 
     global_contact_manager.add_receiver(this);
 }
+
+void ContactReceiver::do_init(InitInfo&) {}
+
+void ContactReceiver::init()
+{
+    InitInfo info;
+    do_init(info);
+}
+
 void ContactReceiver::report(GlobalContactManager::ClassifyInfo& info)
 {
     do_report(info);

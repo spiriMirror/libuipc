@@ -6,17 +6,15 @@
 
 namespace uipc::backend::cuda
 {
-void SimplexNormalContact::do_build()
+void SimplexNormalContact::do_build(ContactReporter::BuildInfo& info)
 {
     m_impl.global_trajectory_filter = &require<GlobalTrajectoryFilter>();
     m_impl.global_contact_manager   = &require<GlobalContactManager>();
     m_impl.global_vertex_manager    = &require<GlobalVertexManager>();
+    m_impl.dt                       = world().scene().info()["dt"].get<Float>();
 
-    BuildInfo info;
-    do_build(info);
-
-    m_impl.global_contact_manager->add_reporter(this);
-    m_impl.dt = world().scene().info()["dt"].get<Float>();
+    BuildInfo this_info;
+    do_build(this_info);
 
     on_init_scene(
         [this]
@@ -56,14 +54,6 @@ void SimplexNormalContact::Impl::compute_energy(SimplexNormalContact* contact,
 
     contact->do_compute_energy(this_info);
     using namespace muda;
-
-    // if(info.is_initial())
-    //{
-    //    DeviceMergeSort().SortKeys(energies.data(),
-    //                               energies.size(),
-    //                               [] CUB_RUNTIME_FUNCTION(Float a, Float b)
-    //                               { return a < b; });
-    //}
 
     DeviceReduce().Sum(energies.data(), info.energy().data(), energies.size());
 }

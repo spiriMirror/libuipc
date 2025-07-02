@@ -247,7 +247,6 @@ IndexT cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT ge
     return info.body_offset;
 }
 
-
 geometry::SimplicialComplex* cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_geo(
     span<S<geometry::GeometrySlot>> geo_slots, IndexT geo_id) const noexcept
 {

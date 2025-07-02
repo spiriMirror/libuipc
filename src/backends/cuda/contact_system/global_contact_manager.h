@@ -210,9 +210,6 @@ class GlobalContactManager final : public SimSystem
     Float eps_velocity() const;
     bool  cfl_enabled() const;
 
-    void add_reporter(ContactReporter* reporter);
-    void add_receiver(ContactReceiver* receiver);
-
     muda::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
     muda::CBuffer2DView<IndexT>       contact_mask_tabular() const noexcept;
 
@@ -228,11 +225,17 @@ class GlobalContactManager final : public SimSystem
     friend class GlobalTrajectoryFilter;
     friend class ContactSystemExporter;
 
+    void init();
+
     void  compute_d_hat();
     void  compute_contact();
     void  compute_adaptive_kappa();
     Float compute_cfl_condition();
-    void  init();
+
+    friend class ContactReporter;
+    void add_reporter(ContactReporter* reporter);
+    friend class ContactReceiver;
+    void add_receiver(ContactReceiver* receiver);
 
     Impl m_impl;
 };

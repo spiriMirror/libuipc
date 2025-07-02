@@ -56,6 +56,23 @@ PyObject::PyObject(py::module& m)
                              return std::make_pair(geo, rest_geo);
                          });
 
+
+    // For Geometry
+    class_Geometries.def("create",
+                         [](Object::Geometries& self, Geometry& geo)
+                         {
+                             auto [new_geo, rest_geo] = std::move(self).create(geo);
+                             return std::make_pair(new_geo, rest_geo);
+                         });
+
+    class_Geometries.def("create",
+                         [](Object::Geometries& self, Geometry& geo, Geometry& rest_geo)
+                         {
+                             auto [new_geo, new_rest_geo] =
+                                 std::move(self).create(geo, rest_geo);
+                             return std::make_pair(new_geo, new_rest_geo);
+                         });
+
     class_Geometries.def("ids",
                          [](Object::Geometries& self) {
                              return as_numpy(std::move(self).ids(), py::cast(self));
