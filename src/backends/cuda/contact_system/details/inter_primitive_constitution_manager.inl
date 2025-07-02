@@ -1,17 +1,9 @@
 namespace uipc::backend::cuda
 {
 template <typename ForEachGeometry>
-void InterAffineBodyConstitutionManager::FilteredInfo::for_each(
-    span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_every_geometry) const
-{
-    InterAffineBodyConstitutionManager::_for_each(
-        geo_slots, this->inter_geo_infos(), std::forward<ForEachGeometry>(for_every_geometry));
-}
-
-template <typename ForEachGeometry>
-void InterAffineBodyConstitutionManager::_for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                                                   span<const InterGeoInfo> geo_infos,
-                                                   ForEachGeometry&& for_every_geometry)
+void InterPrimitiveConstitutionManager::_for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                                                  span<const InterGeoInfo> geo_infos,
+                                                  ForEachGeometry&& for_every_geometry)
 {
     ForEachInfo foreach_info;
 
@@ -36,4 +28,12 @@ void InterAffineBodyConstitutionManager::_for_each(span<S<geometry::GeometrySlot
         }
     }
 }
-}  // namespace uipc::backend::cuda
+
+template <typename ForEachGeometry>
+void InterPrimitiveConstitutionManager::FilteredInfo::for_each(
+    span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_every_geometry) const
+{
+    InterPrimitiveConstitutionManager::_for_each(
+        geo_slots, this->inter_geo_infos(), std::forward<ForEachGeometry>(for_every_geometry));
+}
+}

@@ -16,7 +16,13 @@ class SimSystemCreator<cuda::GlobalContactManager>
   public:
     static U<cuda::GlobalContactManager> create(cuda::SimEngine& engine)
     {
-        if(engine.world().scene().info()["contact"]["enable"])
+        bool contact_enable = engine.world().scene().info()["contact"]["enable"];
+
+        auto& types = engine.world().scene().constitution_tabular().types();
+        bool  has_inter_primitive_constitution =
+            types.find(std::string{builtin::InterPrimitive}) != types.end();
+
+        if(contact_enable || has_inter_primitive_constitution)
             return make_unique<cuda::GlobalContactManager>(engine);
         return nullptr;
     }
@@ -32,7 +38,7 @@ void GlobalContactManager::do_build()
     const auto& info = world().scene().info();
 
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
-    m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
+    m_impl.global_trajectory_filter = find<GlobalTrajectoryFilter>();
 
 
     m_impl.d_hat        = info["contact"]["d_hat"].get<Float>();
@@ -112,6 +118,8 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     // 3) reporters
     auto contact_reporter_view = contact_reporters.view();
     for(auto&& [i, R] : enumerate(contact_reporter_view))
+        R->init();
+    for(auto&& [i, R] : enumerate(contact_reporter_view))
         R->m_index = i;
 
     reporter_gradient_offsets.resize(contact_reporter_view.size());
@@ -122,6 +130,8 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
 
     // 4) receivers
     auto contact_receiver_view = contact_receivers.view();
+    for(auto&& [i, R] : enumerate(contact_receiver_view))
+        R->init();
     for(auto&& [i, R] : enumerate(contact_receiver_view))
         R->m_index = i;
 
@@ -146,28 +156,36 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
 
     vert_is_active_contact.fill(0);  // clear the active flag
 
-    global_trajectory_filter->label_active_vertices();
+    if(global_trajectory_filter)
+    {
+        global_trajectory_filter->label_active_vertices();
 
-    auto displacements = global_vertex_manager->displacements();
+        auto displacements = global_vertex_manager->displacements();
 
-    using namespace muda;
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(displacements.size(),
-               [disps             = displacements.cviewer().name("disp"),
-                disp_norms        = vert_disp_norms.viewer().name("disp_norm"),
-                is_contact_active = vert_is_active_contact.viewer().name(
-                    "vert_is_contact_active")] __device__(int i) mutable
-               {
-                   // if the contact is not active, then the displacement is ignored
-                   disp_norms(i) = is_contact_active(i) ? disps(i).norm() : 0.0;
-               });
+        using namespace muda;
+        ParallelFor()
+            .file_line(__FILE__, __LINE__)
+            .apply(displacements.size(),
+                   [disps      = displacements.cviewer().name("disp"),
+                    disp_norms = vert_disp_norms.viewer().name("disp_norm"),
+                    is_contact_active = vert_is_active_contact.viewer().name(
+                        "vert_is_contact_active")] __device__(int i) mutable
+                   {
+                       // if the contact is not active, then the displacement is ignored
+                       disp_norms(i) = is_contact_active(i) ? disps(i).norm() : 0.0;
+                   });
 
-    DeviceReduce().Max(
-        vert_disp_norms.data(), max_disp_norm.data(), vert_disp_norms.size());
+        DeviceReduce().Max(vert_disp_norms.data(),
+                           max_disp_norm.data(),
+                           vert_disp_norms.size());
 
-    Float h_max_disp_norm = max_disp_norm;
-    return h_max_disp_norm == 0.0 ? 1.0 : std::min(0.5 * d_hat / h_max_disp_norm, 1.0);
+        Float h_max_disp_norm = max_disp_norm;
+        return h_max_disp_norm == 0.0 ? 1.0 : std::min(0.5 * d_hat / h_max_disp_norm, 1.0);
+    }
+    else
+    {
+        return 1.0;
+    }
 }
 
 void GlobalContactManager::Impl::compute_contact()

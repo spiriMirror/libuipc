@@ -1,6 +1,24 @@
 #include <collision_detection/global_trajectory_filter.h>
 #include <collision_detection/trajectory_filter.h>
 #include <contact_system/global_contact_manager.h>
+#include <sim_engine.h>
+
+namespace uipc::backend
+{
+template <>
+class SimSystemCreator<cuda::GlobalTrajectoryFilter>
+{
+  public:
+    static U<cuda::GlobalTrajectoryFilter> create(cuda::SimEngine& engine)
+    {
+        bool contact_enable = engine.world().scene().info()["contact"]["enable"];
+        if(contact_enable)
+            return make_unique<cuda::GlobalTrajectoryFilter>(engine);
+        return nullptr;
+    }
+};
+}  // namespace uipc::backend
+
 
 namespace uipc::backend::cuda
 {
@@ -8,11 +26,6 @@ REGISTER_SIM_SYSTEM(GlobalTrajectoryFilter);
 
 void GlobalTrajectoryFilter::do_build()
 {
-    if(!world().scene().info()["contact"]["enable"])
-    {
-        throw SimSystemException("GlobalTrajectoryFilter requires contact to be enabled");
-    }
-
     m_impl.friction_enabled = world().scene().info()["contact"]["friction"]["enable"];
 
     m_impl.global_contact_manager = require<GlobalContactManager>();

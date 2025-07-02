@@ -6,7 +6,7 @@ REGISTER_SIM_SYSTEM(ContactLineSearchReporter);
 
 void ContactLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
-    m_impl.global_contact_manager = &require<GlobalContactManager>();
+    m_impl.global_contact_manager = require<GlobalContactManager>();
 }
 
 void ContactLineSearchReporter::do_init(LineSearchReporter::InitInfo& info)
@@ -44,10 +44,12 @@ void ContactLineSearchReporter::do_record_start_point(LineSearcher::RecordInfo& 
 {
     // Do nothing, because GlobalVertexManager will do the record start point for all the vertices we need
 }
+
 void ContactLineSearchReporter::do_step_forward(LineSearcher::StepInfo& info)
 {
     // Do nothing, because GlobalVertexManager will do the step forward for all the vertices we need
 }
+
 void ContactLineSearchReporter::do_compute_energy(LineSearcher::EnergyInfo& info)
 {
     m_impl.do_compute_energy(info);

@@ -9,7 +9,7 @@ using namespace uipc::constitution;
 PyAffineBodyRevoluteJoint::PyAffineBodyRevoluteJoint(py::module& m)
 {
     auto class_AffineBodyRevoluteJoint =
-        py::class_<AffineBodyRevoluteJoint, IConstitution>(m, "AffineBodyRevoluteJoint");
+        py::class_<AffineBodyRevoluteJoint, InterAffineBodyConstitution>(m, "AffineBodyRevoluteJoint");
 
     class_AffineBodyRevoluteJoint.def(py::init<const Json&>(),
                                       py::arg("config") =
