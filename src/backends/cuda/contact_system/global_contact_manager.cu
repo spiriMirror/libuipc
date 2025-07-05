@@ -122,11 +122,9 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     for(auto&& [i, R] : enumerate(contact_reporter_view))
         R->m_index = i;
 
-    reporter_gradient_offsets.resize(contact_reporter_view.size());
-    reporter_gradient_counts.resize(contact_reporter_view.size());
-
-    reporter_hessian_offsets.resize(contact_reporter_view.size());
-    reporter_hessian_counts.resize(contact_reporter_view.size());
+    reporter_energy_offsets_counts.resize(contact_reporter_view.size());
+    reporter_gradient_offsets_counts.resize(contact_reporter_view.size());
+    reporter_hessian_offsets_counts.resize(contact_reporter_view.size());
 
     // 4) receivers
     auto contact_receiver_view = contact_receivers.view();
@@ -199,10 +197,13 @@ void GlobalContactManager::Impl::_assemble()
 {
     auto vertex_count = global_vertex_manager->positions().size();
 
+    auto reporter_gradient_counts = reporter_gradient_offsets_counts.counts();
+    auto reporter_hessian_counts  = reporter_hessian_offsets_counts.counts();
+
     for(auto&& [i, reporter] : enumerate(contact_reporters.view()))
     {
-        ContactExtentInfo info;
-        reporter->report_extent(info);
+        GradientHessianExtentInfo info;
+        reporter->report_gradient_hessian_extent(info);
         reporter_gradient_counts[i] = info.m_gradient_count;
         reporter_hessian_counts[i]  = info.m_hessian_count;
         spdlog::info("<{}> contact Grad3 count: {}, contact Hess3x3 count: {}",
@@ -212,19 +213,11 @@ void GlobalContactManager::Impl::_assemble()
     }
 
     // scan
-    std::exclusive_scan(reporter_gradient_counts.begin(),
-                        reporter_gradient_counts.end(),
-                        reporter_gradient_offsets.begin(),
-                        0);
-    std::exclusive_scan(reporter_hessian_counts.begin(),
-                        reporter_hessian_counts.end(),
-                        reporter_hessian_offsets.begin(),
-                        0);
+    reporter_gradient_offsets_counts.scan();
+    reporter_hessian_offsets_counts.scan();
 
-    auto total_gradient_count =
-        reporter_gradient_offsets.back() + reporter_gradient_counts.back();
-    auto total_hessian_count =
-        reporter_hessian_offsets.back() + reporter_hessian_counts.back();
+    auto total_gradient_count = reporter_gradient_offsets_counts.total_count();
+    auto total_hessian_count  = reporter_hessian_offsets_counts.total_count();
 
     // allocate
     loose_resize_entries(collected_contact_gradient, total_gradient_count);
@@ -237,12 +230,11 @@ void GlobalContactManager::Impl::_assemble()
     // collect
     for(auto&& [i, reporter] : enumerate(contact_reporters.view()))
     {
-        auto g_offset = reporter_gradient_offsets[i];
-        auto g_count  = reporter_gradient_counts[i];
-        auto h_offset = reporter_hessian_offsets[i];
-        auto h_count  = reporter_hessian_counts[i];
+        auto [g_offset, g_count] = reporter_gradient_offsets_counts[i];
+        auto [h_offset, h_count] = reporter_hessian_offsets_counts[i];
 
-        ContactInfo info;
+
+        GradientHessianInfo info;
 
         info.m_gradient = collected_contact_gradient.view().subview(g_offset, g_count);
         info.m_hessian = collected_contact_hessian.view().subview(h_offset, h_count);
