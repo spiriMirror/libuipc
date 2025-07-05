@@ -16,7 +16,7 @@ void ContactLineSearchReporter::do_init(LineSearchReporter::InitInfo& info)
 
 void ContactLineSearchReporter::Impl::init() {}
 
-void ContactLineSearchReporter::Impl::do_compute_energy(LineSearcher::EnergyInfo& info)
+void ContactLineSearchReporter::Impl::compute_energy(bool is_init)
 {
     auto& gcm       = global_contact_manager->m_impl;
     auto  reporters = gcm.contact_reporters.view();
@@ -37,18 +37,9 @@ void ContactLineSearchReporter::Impl::do_compute_energy(LineSearcher::EnergyInfo
         GlobalContactManager::EnergyInfo this_info;
         auto [offset, count]   = gcm.reporter_energy_offsets_counts[i];
         this_info.m_energies   = energies.view(offset, count);
-        this_info.m_is_initial = info.is_initial();
+        this_info.m_is_initial = is_init;
         reporter->compute_energy(this_info);
     }
-
-    using namespace muda;
-
-    DeviceReduce().Sum(energies.data(), energy.data(), energies.size());
-
-    // Copy from device to host
-    Float total_contact_energy = energy;
-
-    info.energy(total_contact_energy);
 }
 
 void ContactLineSearchReporter::do_record_start_point(LineSearcher::RecordInfo& info)
@@ -63,6 +54,11 @@ void ContactLineSearchReporter::do_step_forward(LineSearcher::StepInfo& info)
 
 void ContactLineSearchReporter::do_compute_energy(LineSearcher::EnergyInfo& info)
 {
-    m_impl.do_compute_energy(info);
+    using namespace muda;
+
+    DeviceReduce().Sum(
+        m_impl.energies.data(), m_impl.energy.data(), m_impl.energies.size());
+
+    info.energy(m_impl.energy);
 }
 }  // namespace uipc::backend::cuda

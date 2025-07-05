@@ -17,7 +17,7 @@ class ContactLineSearchReporter final : public LineSearchReporter
     {
       public:
         void init();
-        void do_compute_energy(LineSearcher::EnergyInfo& info);
+        void compute_energy(bool is_init);
 
         SimSystemSlot<GlobalContactManager> global_contact_manager;
 
@@ -42,6 +42,8 @@ class ContactLineSearchReporter final : public LineSearchReporter
     virtual void do_record_start_point(LineSearcher::RecordInfo& info) override;
     virtual void do_step_forward(LineSearcher::StepInfo& info) override;
     virtual void do_compute_energy(LineSearcher::EnergyInfo& info) override;
+
+    friend class ContactExporterManager;
 
     Impl m_impl;
 };

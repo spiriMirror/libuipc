@@ -140,7 +140,43 @@ class SimplexNormalContact : public ContactReporter
             }
             buffer.resize(size);
         }
+
+        muda::CBufferView<Float>           PT_energies;
+        muda::CDoubletVectorView<Float, 3> PT_gradients;
+        muda::CTripletMatrixView<Float, 3> PT_hessians;
+
+        muda::CBufferView<Float>           EE_energies;
+        muda::CDoubletVectorView<Float, 3> EE_gradients;
+        muda::CTripletMatrixView<Float, 3> EE_hessians;
+
+        muda::CBufferView<Float>           PE_energies;
+        muda::CDoubletVectorView<Float, 3> PE_gradients;
+        muda::CTripletMatrixView<Float, 3> PE_hessians;
+
+        muda::CBufferView<Float>           PP_energies;
+        muda::CDoubletVectorView<Float, 3> PP_gradients;
+        muda::CTripletMatrixView<Float, 3> PP_hessians;
     };
+
+    muda::CBufferView<Vector4i>        PTs() const;
+    muda::CBufferView<Float>           PT_energies() const;
+    muda::CDoubletVectorView<Float, 3> PT_gradients() const;
+    muda::CTripletMatrixView<Float, 3> PT_hessians() const;
+
+    muda::CBufferView<Vector4i>        EEs() const;
+    muda::CBufferView<Float>           EE_energies() const;
+    muda::CDoubletVectorView<Float, 3> EE_gradients() const;
+    muda::CTripletMatrixView<Float, 3> EE_hessians() const;
+
+    muda::CBufferView<Vector3i>        PEs() const;
+    muda::CBufferView<Float>           PE_energies() const;
+    muda::CDoubletVectorView<Float, 3> PE_gradients() const;
+    muda::CTripletMatrixView<Float, 3> PE_hessians() const;
+
+    muda::CBufferView<Vector2i>        PPs() const;
+    muda::CBufferView<Float>           PP_energies() const;
+    muda::CDoubletVectorView<Float, 3> PP_gradients() const;
+    muda::CTripletMatrixView<Float, 3> PP_hessians() const;
 
   protected:
     virtual void do_build(BuildInfo& info)           = 0;
