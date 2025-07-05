@@ -132,7 +132,7 @@ muda::BufferView<Float> VertexHalfPlaneFrictionalContact::EnergyInfo::energies()
 
 muda::CBufferView<Vector2i> VertexHalfPlaneFrictionalContact::PHs() const noexcept
 {
-    return m_impl.veretx_half_plane_trajectory_filter->PHs();
+    return m_impl.veretx_half_plane_trajectory_filter->friction_PHs();
 }
 
 muda::CBufferView<Float> VertexHalfPlaneFrictionalContact::energies() const noexcept

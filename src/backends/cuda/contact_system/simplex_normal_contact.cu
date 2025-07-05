@@ -573,6 +573,7 @@ class SimplexNormalContactPEExporter final : public ContactExporter
         PE_hess.values().copy_to(hess_view.data());
     }
 };
+REGISTER_SIM_SYSTEM(SimplexNormalContactPEExporter);
 
 // PP
 class SimplexNormalContactPPExporter final : public ContactExporter
