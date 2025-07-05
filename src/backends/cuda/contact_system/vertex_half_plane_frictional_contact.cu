@@ -29,7 +29,8 @@ void VertexHalfPlaneFrictionalContact::do_build(ContactReporter::BuildInfo& info
         });
 }
 
-void VertexHalfPlaneFrictionalContact::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
+void VertexHalfPlaneFrictionalContact::do_report_gradient_hessian_extent(
+    GlobalContactManager::GradientHessianExtentInfo& info)
 {
     auto& filter = m_impl.veretx_half_plane_trajectory_filter;
 
@@ -39,37 +40,33 @@ void VertexHalfPlaneFrictionalContact::do_report_extent(GlobalContactManager::Co
     info.hessian_count(count);
 }
 
+void VertexHalfPlaneFrictionalContact::do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info)
+{
+    auto& filter = m_impl.veretx_half_plane_trajectory_filter;
+
+    SizeT count     = filter->friction_PHs().size();
+    m_impl.PH_count = count;
+
+    info.energy_count(count);
+}
+
 void VertexHalfPlaneFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
     using namespace muda;
 
     EnergyInfo this_info{&m_impl};
-
-    auto& filter = m_impl.veretx_half_plane_trajectory_filter;
-
-    auto count = filter->friction_PHs().size();
-
-    m_impl.loose_resize(m_impl.energies, count);
-    this_info.m_energies = m_impl.energies.view();
+    this_info.m_energies = info.energies();
 
     // let subclass to fill in the data
     do_compute_energy(this_info);
-
-    DeviceReduce().Sum(
-        m_impl.energies.data(), info.energy().data(), m_impl.energies.size());
-
-    Float E;
-    info.energy().copy_to(&E);
-
-    // spdlog::info("VertexHalfPlaneFrictionalContact energy: {}", E);
 }
 
-void VertexHalfPlaneFrictionalContact::do_assemble(GlobalContactManager::ContactInfo& info)
+void VertexHalfPlaneFrictionalContact::do_assemble(GlobalContactManager::GradientHessianInfo& info)
 {
     ContactInfo this_info{&m_impl};
 
-    this_info.m_gradients = info.gradient();
-    this_info.m_hessians  = info.hessian();
+    this_info.m_gradients = info.gradients();
+    this_info.m_hessians  = info.hessians();
 
     // let subclass to fill in the data
     do_assemble(this_info);

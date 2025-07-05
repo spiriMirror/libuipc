@@ -22,7 +22,28 @@ void VertexHalfPlaneNormalContact::do_build(ContactReporter::BuildInfo& info)
         });
 }
 
-void VertexHalfPlaneNormalContact::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
+void VertexHalfPlaneNormalContact::do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info)
+{
+    auto& filter = m_impl.veretx_half_plane_trajectory_filter;
+
+    SizeT count     = filter->PHs().size();
+    m_impl.PH_count = count;
+
+    info.energy_count(count);
+}
+
+void VertexHalfPlaneNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
+{
+    using namespace muda;
+
+    EnergyInfo this_info{&m_impl};
+    this_info.m_energies = info.energies();
+
+    do_compute_energy(this_info);
+}
+
+void VertexHalfPlaneNormalContact::do_report_gradient_hessian_extent(
+    GlobalContactManager::GradientHessianExtentInfo& info)
 {
     auto& filter = m_impl.veretx_half_plane_trajectory_filter;
 
@@ -32,37 +53,13 @@ void VertexHalfPlaneNormalContact::do_report_extent(GlobalContactManager::Contac
     info.hessian_count(count);
 }
 
-void VertexHalfPlaneNormalContact::do_compute_energy(GlobalContactManager::EnergyInfo& info)
-{
-    using namespace muda;
 
-    EnergyInfo this_info{&m_impl};
-
-    auto& filter = m_impl.veretx_half_plane_trajectory_filter;
-
-    auto count = filter->PHs().size();
-
-    m_impl.loose_resize(m_impl.energies, count);
-    this_info.m_energies = m_impl.energies.view();
-
-    // let subclass to fill in the data
-    do_compute_energy(this_info);
-
-    DeviceReduce().Sum(
-        m_impl.energies.data(), info.energy().data(), m_impl.energies.size());
-
-    Float E;
-    info.energy().copy_to(&E);
-
-    // spdlog::info("VertexHalfPlaneNormalContact energy: {}", E);
-}
-
-void VertexHalfPlaneNormalContact::do_assemble(GlobalContactManager::ContactInfo& info)
+void VertexHalfPlaneNormalContact::do_assemble(GlobalContactManager::GradientHessianInfo& info)
 {
     ContactInfo this_info{&m_impl};
 
-    this_info.m_gradients = info.gradient();
-    this_info.m_hessians  = info.hessian();
+    this_info.m_gradients = info.gradients();
+    this_info.m_hessians  = info.hessians();
 
     // let subclass to fill in the data
     do_assemble(this_info);
