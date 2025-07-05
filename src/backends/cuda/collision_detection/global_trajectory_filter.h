@@ -6,6 +6,8 @@ namespace uipc::backend::cuda
 {
 class TrajectoryFilter;
 class GlobalContactManager;
+class ContactExporterManager;
+
 class GlobalTrajectoryFilter final : public SimSystem
 {
   public:
@@ -95,8 +97,10 @@ class GlobalTrajectoryFilter final : public SimSystem
     virtual void do_build() override final;
 
     friend class SimEngine;
-    void  detect(Float alpha);           // only called by SimEngine
-    void  filter_active();               // only called by SimEngine
+    friend class ContactExporterManager;
+    void detect(Float alpha);  // called by SimEngine and ContactExporterManager
+    void filter_active();      // called by SimEngine and ContactExporterManager
+
     Float filter_toi(Float alpha);       // only called by SimEngine
     void  record_friction_candidates();  // only called by SimEngine
     friend class GlobalContactManager;

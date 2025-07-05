@@ -4,6 +4,7 @@
 #include <muda/ext/linear_system.h>
 #include <contact_system/contact_coeff.h>
 #include <algorithm/matrix_converter.h>
+#include <utils/offset_count_collection.h>
 
 namespace uipc::backend::cuda
 {
@@ -18,7 +19,7 @@ class GlobalContactManager final : public SimSystem
 
     class Impl;
 
-    class ContactExtentInfo
+    class GradientHessianExtentInfo
     {
       public:
         void gradient_count(SizeT count) noexcept { m_gradient_count = count; }
@@ -30,17 +31,18 @@ class GlobalContactManager final : public SimSystem
         SizeT m_hessian_count;
     };
 
-    class ContactInfo
+    class GradientHessianInfo
     {
       public:
-        muda::DoubletVectorView<Float, 3> gradient() const noexcept
+        muda::DoubletVectorView<Float, 3> gradients() const noexcept
         {
             return m_gradient;
         }
-        muda::TripletMatrixView<Float, 3> hessian() const noexcept
+        muda::TripletMatrixView<Float, 3> hessians() const noexcept
         {
             return m_hessian;
         }
+
 
       private:
         friend class Impl;
@@ -48,16 +50,27 @@ class GlobalContactManager final : public SimSystem
         muda::TripletMatrixView<Float, 3> m_hessian;
     };
 
+    class EnergyExtentInfo
+    {
+      public:
+        void energy_count(SizeT count) noexcept { m_energy_count = count; }
+
+      private:
+        friend class Impl;
+        friend class ContactLineSearchReporter;
+        SizeT m_energy_count = 0;
+    };
+
     class EnergyInfo
     {
       public:
-        muda::VarView<Float> energy() const { return m_energy; }
-        bool                 is_initial() const { return m_is_initial; }
+        muda::BufferView<Float> energies() const { return m_energies; }
+        bool                    is_initial() const { return m_is_initial; }
 
       private:
         friend class ContactLineSearchReporter;
-        muda::VarView<Float> m_energy;
-        bool                 m_is_initial = false;
+        muda::BufferView<Float> m_energies;
+        bool                    m_is_initial = false;
     };
 
     class ClassifyInfo
@@ -168,10 +181,9 @@ class GlobalContactManager final : public SimSystem
 
         SimSystemSlotCollection<ContactReporter> contact_reporters;
 
-        vector<SizeT> reporter_hessian_counts;
-        vector<SizeT> reporter_hessian_offsets;
-        vector<SizeT> reporter_gradient_counts;
-        vector<SizeT> reporter_gradient_offsets;
+        OffsetCountCollection<IndexT> reporter_energy_offsets_counts;
+        OffsetCountCollection<IndexT> reporter_gradient_offsets_counts;
+        OffsetCountCollection<IndexT> reporter_hessian_offsets_counts;
 
         muda::DeviceTripletMatrix<Float, 3> collected_contact_hessian;
         muda::DeviceDoubletVector<Float, 3> collected_contact_gradient;
@@ -181,7 +193,7 @@ class GlobalContactManager final : public SimSystem
         muda::DeviceBCOOVector<Float, 3> sorted_contact_gradient;
 
         /***********************************************************************
-        *                         Contact Reporter                             *
+        *                         Contact Receiver                             *
         ***********************************************************************/
 
         SimSystemSlotCollection<ContactReceiver> contact_receivers;
@@ -223,7 +235,7 @@ class GlobalContactManager final : public SimSystem
     friend class SimEngine;
     friend class ContactLineSearchReporter;
     friend class GlobalTrajectoryFilter;
-    friend class ContactSystemExporter;
+    friend class ContactExporterManager;
 
     void init();
 

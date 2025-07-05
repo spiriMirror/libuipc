@@ -105,65 +105,23 @@ void InterPrimitiveConstitutionManager::Impl::init(SceneVisitor& scene)
     constitution_hessian_offsets_counts.resize(constitution_view.size());
 }
 
-void InterPrimitiveConstitutionManager::Impl::report_extent(GlobalContactManager::ContactExtentInfo& info)
-{
-    auto constitution_view = constitutions.view();
-
-    // energy counts
-    {
-        auto counts = constitution_energy_offsets_counts.counts();
-
-        for(auto&& [i, c] : enumerate(constitution_view))
-        {
-            EnergyExtentInfo extent_info;
-            c->report_energy_extent(extent_info);
-            counts[i] = extent_info.m_energy_count;
-        }
-
-        constitution_energy_offsets_counts.scan();
-        energies.resize(constitution_energy_offsets_counts.total_count());
-    }
-
-    // gradient and hessian counts
-    {
-        auto gradient_counts = constitution_gradient_offsets_counts.counts();
-        auto hessian_counts  = constitution_hessian_offsets_counts.counts();
-
-        for(auto&& [i, c] : enumerate(constitution_view))
-        {
-            GradientHessianExtentInfo extent_info;
-            c->report_gradient_hessian_extent(extent_info);
-            gradient_counts[i] = extent_info.m_gradient_count;
-            hessian_counts[i]  = extent_info.m_hessian_count;
-        }
-
-        constitution_gradient_offsets_counts.scan();
-        constitution_hessian_offsets_counts.scan();
-
-        info.gradient_count(constitution_gradient_offsets_counts.total_count());
-        info.hessian_count(constitution_hessian_offsets_counts.total_count());
-    }
-}
-
 void InterPrimitiveConstitutionManager::Impl::compute_energy(GlobalContactManager::EnergyInfo& info)
 {
     auto constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
     {
-        EnergyInfo this_info{this, c->m_index, dt, energies.view()};
+        EnergyInfo this_info{this, c->m_index, dt, info.energies()};
         c->compute_energy(this_info);
     }
-
-    using namespace muda;
-    DeviceReduce().Sum(energies.data(), info.energy().data(), energies.size());
 }
 
-void InterPrimitiveConstitutionManager::Impl::compute_gradient_hessian(GlobalContactManager::ContactInfo& info)
+void InterPrimitiveConstitutionManager::Impl::compute_gradient_hessian(
+    GlobalContactManager::GradientHessianInfo& info)
 {
     auto constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
     {
-        GradientHessianInfo this_info{this, c->m_index, dt, info.gradient(), info.hessian()};
+        GradientHessianInfo this_info{this, c->m_index, dt, info.gradients(), info.hessians()};
         c->compute_gradient_hessian(this_info);
     }
 }
@@ -181,12 +139,32 @@ void InterPrimitiveConstitutionManager::add_constitution(InterPrimitiveConstitut
     m_impl.constitutions.register_subsystem(*constitution);
 }
 
-void InterPrimitiveConstitutionManager::do_report_extent(GlobalContactManager::ContactExtentInfo& info)
+void InterPrimitiveConstitutionManager::do_report_gradient_hessian_extent(
+    GlobalContactManager::GradientHessianExtentInfo& info)
 {
-    m_impl.report_extent(info);
+    auto constitution_view = m_impl.constitutions.view();
+    // gradient and hessian counts
+    {
+        auto gradient_counts = m_impl.constitution_gradient_offsets_counts.counts();
+        auto hessian_counts = m_impl.constitution_hessian_offsets_counts.counts();
+
+        for(auto&& [i, c] : enumerate(constitution_view))
+        {
+            GradientHessianExtentInfo extent_info;
+            c->report_gradient_hessian_extent(extent_info);
+            gradient_counts[i] = extent_info.m_gradient_count;
+            hessian_counts[i]  = extent_info.m_hessian_count;
+        }
+
+        m_impl.constitution_gradient_offsets_counts.scan();
+        m_impl.constitution_hessian_offsets_counts.scan();
+
+        info.gradient_count(m_impl.constitution_gradient_offsets_counts.total_count());
+        info.hessian_count(m_impl.constitution_hessian_offsets_counts.total_count());
+    }
 }
 
-void InterPrimitiveConstitutionManager::do_assemble(GlobalContactManager::ContactInfo& info)
+void InterPrimitiveConstitutionManager::do_assemble(GlobalContactManager::GradientHessianInfo& info)
 {
     m_impl.compute_gradient_hessian(info);
 }
@@ -194,6 +172,24 @@ void InterPrimitiveConstitutionManager::do_assemble(GlobalContactManager::Contac
 void InterPrimitiveConstitutionManager::do_compute_energy(GlobalContactManager::EnergyInfo& info)
 {
     m_impl.compute_energy(info);
+}
+
+void InterPrimitiveConstitutionManager::do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info)
+{
+    auto constitution_view = m_impl.constitutions.view();
+
+    auto counts = m_impl.constitution_energy_offsets_counts.counts();
+
+    for(auto&& [i, c] : enumerate(constitution_view))
+    {
+        EnergyExtentInfo extent_info;
+        c->report_energy_extent(extent_info);
+        counts[i] = extent_info.m_energy_count;
+    }
+
+    m_impl.constitution_energy_offsets_counts.scan();
+
+    info.energy_count(m_impl.constitution_energy_offsets_counts.total_count());
 }
 
 muda::BufferView<Float> InterPrimitiveConstitutionManager::EnergyInfo::energies() const noexcept
