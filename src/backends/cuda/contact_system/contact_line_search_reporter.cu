@@ -56,6 +56,8 @@ void ContactLineSearchReporter::do_compute_energy(LineSearcher::EnergyInfo& info
 {
     using namespace muda;
 
+    m_impl.compute_energy(info.is_initial());
+
     DeviceReduce().Sum(
         m_impl.energies.data(), m_impl.energy.data(), m_impl.energies.size());
 

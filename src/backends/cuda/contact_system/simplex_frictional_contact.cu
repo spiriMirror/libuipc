@@ -149,7 +149,7 @@ void SimplexFrictionalContact::do_assemble(GlobalContactManager::GradientHessian
 
 muda::CBufferView<Vector4i> SimplexFrictionalContact::PTs() const
 {
-    return m_impl.simplex_trajectory_filter->PTs();
+    return m_impl.simplex_trajectory_filter->friction_PTs();
 }
 
 muda::CBufferView<Float> SimplexFrictionalContact::PT_energies() const
@@ -169,7 +169,7 @@ muda::CTripletMatrixView<Float, 3> SimplexFrictionalContact::PT_hessians() const
 
 muda::CBufferView<Vector4i> SimplexFrictionalContact::EEs() const
 {
-    return m_impl.simplex_trajectory_filter->EEs();
+    return m_impl.simplex_trajectory_filter->friction_EEs();
 }
 
 muda::CBufferView<Float> SimplexFrictionalContact::EE_energies() const
@@ -189,7 +189,7 @@ muda::CTripletMatrixView<Float, 3> SimplexFrictionalContact::EE_hessians() const
 
 muda::CBufferView<Vector3i> SimplexFrictionalContact::PEs() const
 {
-    return m_impl.simplex_trajectory_filter->PEs();
+    return m_impl.simplex_trajectory_filter->friction_PEs();
 }
 
 muda::CBufferView<Float> SimplexFrictionalContact::PE_energies() const
@@ -209,7 +209,7 @@ muda::CTripletMatrixView<Float, 3> SimplexFrictionalContact::PE_hessians() const
 
 muda::CBufferView<Vector2i> SimplexFrictionalContact::PPs() const
 {
-    return m_impl.simplex_trajectory_filter->PPs();
+    return m_impl.simplex_trajectory_filter->friction_PPs();
 }
 
 muda::CBufferView<Float> SimplexFrictionalContact::PP_energies() const
@@ -570,6 +570,7 @@ class SimplexFrictionalContactPEExporter final : public ContactExporter
         PE_hess.values().copy_to(hess_view.data());
     }
 };
+REGISTER_SIM_SYSTEM(SimplexFrictionalContactPEExporter);
 
 // PP
 class SimplexFrictionalContactPPExporter final : public ContactExporter

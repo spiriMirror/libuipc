@@ -4,7 +4,7 @@
 
 namespace uipc::backend::cuda
 {
-//REGISTER_SIM_SYSTEM(ContactExporterManager);
+REGISTER_SIM_SYSTEM(ContactExporterManager);
 
 void ContactExporterManager::do_build()
 {
