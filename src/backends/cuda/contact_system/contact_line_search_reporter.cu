@@ -14,28 +14,39 @@ void ContactLineSearchReporter::do_init(LineSearchReporter::InitInfo& info)
     m_impl.init();
 }
 
-void ContactLineSearchReporter::Impl::init()
-{
-    auto reporters = global_contact_manager->m_impl.contact_reporters.view();
-    contact_energies.resize(reporters.size(), 0);
-    h_contact_energies.resize(reporters.size(), 0);
-}
+void ContactLineSearchReporter::Impl::init() {}
 
 void ContactLineSearchReporter::Impl::do_compute_energy(LineSearcher::EnergyInfo& info)
 {
-    auto reporters = global_contact_manager->m_impl.contact_reporters.view();
+    auto& gcm       = global_contact_manager->m_impl;
+    auto  reporters = gcm.contact_reporters.view();
+
+    auto energy_counts = gcm.reporter_energy_offsets_counts.counts();
+    for(auto&& [i, reporter] : enumerate(reporters))
+    {
+        GlobalContactManager::EnergyExtentInfo extent_info;
+        reporter->report_energy_extent(extent_info);
+        energy_counts[i] = extent_info.m_energy_count;
+    }
+
+    gcm.reporter_energy_offsets_counts.scan();
+    energies.resize(gcm.reporter_energy_offsets_counts.total_count());
+
     for(auto&& [i, reporter] : enumerate(reporters))
     {
         GlobalContactManager::EnergyInfo this_info;
-        this_info.m_energy = muda::VarView<Float>{contact_energies.data() + i};
+        auto [offset, count]   = gcm.reporter_energy_offsets_counts[i];
+        this_info.m_energies   = energies.view(offset, count);
         this_info.m_is_initial = info.is_initial();
         reporter->compute_energy(this_info);
     }
 
-    contact_energies.view().copy_to(h_contact_energies.data());
+    using namespace muda;
 
-    Float total_contact_energy =
-        std::accumulate(h_contact_energies.begin(), h_contact_energies.end(), 0.0f);
+    DeviceReduce().Sum(energies.data(), energy.data(), energies.size());
+
+    // Copy from device to host
+    Float total_contact_energy = energy;
 
     info.energy(total_contact_energy);
 }

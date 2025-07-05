@@ -143,9 +143,8 @@ class InterPrimitiveConstitutionManager final : public ContactReporter
     {
       public:
         void init(SceneVisitor& scene);
-        void report_extent(GlobalContactManager::ContactExtentInfo& info);
         void compute_energy(GlobalContactManager::EnergyInfo& info);
-        void compute_gradient_hessian(GlobalContactManager::ContactInfo& info);
+        void compute_gradient_hessian(GlobalContactManager::GradientHessianInfo& info);
 
         Float dt = 0.0;
 
@@ -159,8 +158,6 @@ class InterPrimitiveConstitutionManager final : public ContactReporter
         OffsetCountCollection<IndexT> constitution_energy_offsets_counts;
         OffsetCountCollection<IndexT> constitution_gradient_offsets_counts;
         OffsetCountCollection<IndexT> constitution_hessian_offsets_counts;
-
-        muda::DeviceBuffer<Float> energies;
     };
 
   private:
@@ -172,17 +169,17 @@ class InterPrimitiveConstitutionManager final : public ContactReporter
     friend class InterPrimitiveConstitution;
     void add_constitution(InterPrimitiveConstitution* constitution) noexcept;
 
+    void do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info) override final;
+    void do_report_gradient_hessian_extent(GlobalContactManager::GradientHessianExtentInfo& info) override final;
+    void do_assemble(GlobalContactManager::GradientHessianInfo& info) override;
+    void do_compute_energy(GlobalContactManager::EnergyInfo& info) override;
+
     Impl m_impl;
 
     template <typename ForEachGeometry>
     static void _for_each(span<S<geometry::GeometrySlot>> geo_slots,
                           span<const InterGeoInfo>        geo_infos,
                           ForEachGeometry&&               for_every_geometry);
-
-    // Inherited via ContactReporter
-    void do_report_extent(GlobalContactManager::ContactExtentInfo& info) override;
-    void do_assemble(GlobalContactManager::ContactInfo& info) override;
-    void do_compute_energy(GlobalContactManager::EnergyInfo& info) override;
 };
 }  // namespace uipc::backend::cuda
 

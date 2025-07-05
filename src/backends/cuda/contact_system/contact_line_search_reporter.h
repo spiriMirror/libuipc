@@ -20,8 +20,20 @@ class ContactLineSearchReporter final : public LineSearchReporter
         void do_compute_energy(LineSearcher::EnergyInfo& info);
 
         SimSystemSlot<GlobalContactManager> global_contact_manager;
-        muda::DeviceBuffer<Float>           contact_energies;
-        vector<Float>                       h_contact_energies;
+
+        muda::DeviceVar<Float>    energy;
+        muda::DeviceBuffer<Float> energies;
+        SizeT                     reserve_ratio = 1.5;
+
+        template <typename T>
+        void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)
+        {
+            if(size > buffer.capacity())
+            {
+                buffer.reserve(size * reserve_ratio);
+            }
+            buffer.resize(size);
+        }
     };
 
   private:

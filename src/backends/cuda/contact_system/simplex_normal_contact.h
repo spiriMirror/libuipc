@@ -113,12 +113,9 @@ class SimplexNormalContact : public ContactReporter
     class Impl
     {
       public:
-        void compute_energy(SimplexNormalContact*             contact,
-                            GlobalContactManager::EnergyInfo& info);
-
-        GlobalTrajectoryFilter* global_trajectory_filter = nullptr;
-        GlobalContactManager*   global_contact_manager   = nullptr;
-        GlobalVertexManager*    global_vertex_manager    = nullptr;
+        SimSystemSlot<GlobalTrajectoryFilter> global_trajectory_filter;
+        SimSystemSlot<GlobalContactManager>   global_contact_manager;
+        SimSystemSlot<GlobalVertexManager>    global_vertex_manager;
 
         SimSystemSlot<SimplexTrajectoryFilter> simplex_trajectory_filter;
 
@@ -129,9 +126,8 @@ class SimplexNormalContact : public ContactReporter
         SizeT PE_count = 0;
         SizeT PP_count = 0;
 
-        Float                     dt = 0;
-        muda::DeviceVar<IndexT>   selected_count;
-        muda::DeviceBuffer<Float> energies;
+        Float                   dt = 0;
+        muda::DeviceVar<IndexT> selected_count;
 
         Float reserve_ratio = 1.1;
 
@@ -152,9 +148,11 @@ class SimplexNormalContact : public ContactReporter
     virtual void do_assemble(ContactInfo& info)      = 0;
 
   private:
+    virtual void do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info) override final;
     virtual void do_compute_energy(GlobalContactManager::EnergyInfo& info) override final;
-    virtual void do_report_extent(GlobalContactManager::ContactExtentInfo& info) override final;
-    virtual void do_assemble(GlobalContactManager::ContactInfo& info) override final;
+    virtual void do_report_gradient_hessian_extent(
+        GlobalContactManager::GradientHessianExtentInfo& info) override final;
+    virtual void do_assemble(GlobalContactManager::GradientHessianInfo& info) override final;
     virtual void do_build(ContactReporter::BuildInfo& info) override final;
 
     Impl m_impl;
