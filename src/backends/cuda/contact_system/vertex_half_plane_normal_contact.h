@@ -96,20 +96,10 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         muda::CTripletMatrixView<Float, 3> hessians;
     };
 
-    muda::CBufferView<Float> energies() const noexcept
-    {
-        return m_impl.energies;
-    }
-
-    muda::CDoubletVectorView<Float, 3> gradients() const noexcept
-    {
-        return m_impl.gradients;
-    }
-
-    muda::CTripletMatrixView<Float, 3> hessians() const noexcept
-    {
-        return m_impl.hessians;
-    }
+    muda::CBufferView<Vector2i>        PHs() const noexcept;
+    muda::CBufferView<Float>           energies() const noexcept;
+    muda::CDoubletVectorView<Float, 3> gradients() const noexcept;
+    muda::CTripletMatrixView<Float, 3> hessians() const noexcept;
 
   protected:
     virtual void do_build(BuildInfo& info)           = 0;

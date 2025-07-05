@@ -89,7 +89,16 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
 
         SizeT PH_count = 0;
         Float dt       = 0.0;
+
+        muda::CBufferView<Float>           energies;
+        muda::CDoubletVectorView<Float, 3> gradients;
+        muda::CTripletMatrixView<Float, 3> hessians;
     };
+
+    muda::CBufferView<Vector2i>        PHs() const noexcept;
+    muda::CBufferView<Float>           energies() const noexcept;
+    muda::CDoubletVectorView<Float, 3> gradients() const noexcept;
+    muda::CTripletMatrixView<Float, 3> hessians() const noexcept;
 
   protected:
     virtual void do_build(BuildInfo& info)           = 0;

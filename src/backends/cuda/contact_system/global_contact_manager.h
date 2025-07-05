@@ -235,7 +235,7 @@ class GlobalContactManager final : public SimSystem
     friend class SimEngine;
     friend class ContactLineSearchReporter;
     friend class GlobalTrajectoryFilter;
-    friend class ContactSystemExporter;
+    friend class ContactExporterManager;
 
     void init();
 
