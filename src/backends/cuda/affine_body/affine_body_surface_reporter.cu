@@ -155,14 +155,6 @@ void AffinebodySurfaceReporter::Impl::init(backend::WorldVisitor& world)
                                                [&](const IndexT& local_surf_vert_id) {
                                                    return local_surf_vert_id + body_vertex_offset_in_global;
                                                });
-
-                        for(auto&& [i, v] : enumerate(surf_v))
-                        {
-                            if(v == 0)
-                            {
-                                fmt::println("surf vertex {}: {}", i, v);
-                            }
-                        }
                     }
                 }
 
