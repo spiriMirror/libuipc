@@ -13,6 +13,11 @@ std::string_view IFeature::type_name() const
     return get_type_name();
 }
 
+void IFeature::on_required()
+{
+    do_on_required();
+}
+
 std::string_view Feature::get_type_name() const
 {
     if(m_type_name.empty())
@@ -21,4 +26,6 @@ std::string_view Feature::get_type_name() const
     }
     return m_type_name;
 }
+
+void Feature::do_on_required() const {}
 }  // namespace uipc::core
