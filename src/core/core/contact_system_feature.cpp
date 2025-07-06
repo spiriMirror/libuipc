@@ -12,6 +12,11 @@ void ContactSystemFeature::compute_contact()
     m_impl->do_compute_contact();
 }
 
+void ContactSystemFeature::contact_energy(geometry::Geometry& energy_geo)
+{
+    m_impl->get_contact_energy(energy_geo);
+}
+
 void ContactSystemFeature::contact_gradient(geometry::Geometry& vert_grad)
 {
     m_impl->get_contact_gradient(vert_grad);
