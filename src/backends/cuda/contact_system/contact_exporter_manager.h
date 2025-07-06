@@ -28,9 +28,9 @@ class ContactExporterManager final : public SimSystem
 
     void compute_contact();
 
+    void get_contact_energy(geometry::Geometry& vert_energy);
     void get_contact_gradient(geometry::Geometry& vert_grad);
     void get_contact_hessian(geometry::Geometry& vert_hess);
-
 
     void get_contact_energy(std::string_view prim_type, geometry::Geometry& prim_energy);
     void get_contact_gradient(std::string_view prim_type, geometry::Geometry& prim_grad);

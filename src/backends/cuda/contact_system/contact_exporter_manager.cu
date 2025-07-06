@@ -56,6 +56,20 @@ void ContactExporterManager::compute_contact()
     m_contact_line_search_reporter->m_impl.compute_energy(false);
 }
 
+void ContactExporterManager::get_contact_energy(geometry::Geometry& energy_geo)
+{
+    auto& e = m_contact_line_search_reporter->m_impl.energy;
+    energy_geo.instances().resize(1);  // we only have one energy instance (sum of all energies)
+    auto energy = energy_geo.instances().find<Float>("energy");
+    if(!energy)
+    {
+        energy = energy_geo.instances().create<Float>("energy");
+    }
+    auto energy_view = view(*energy);
+    // copy from device to host
+    energy_view[0] = e;
+}
+
 void ContactExporterManager::get_contact_gradient(geometry::Geometry& vert_grad)
 {
     auto& g = m_global_contact_manager->m_impl.sorted_contact_gradient;
