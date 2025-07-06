@@ -16,6 +16,7 @@ class ContactSystemFeatureOverrider final : public core::ContactSystemFeatureOve
 
     void do_compute_contact() override;
 
+    void get_contact_energy(geometry::Geometry& energy_geo) override;
     void get_contact_gradient(geometry::Geometry& vert_grad) override;
     void get_contact_hessian(geometry::Geometry& vert_hess) override;
 
