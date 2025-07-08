@@ -9,6 +9,7 @@
 #include <uipc/geometry/utils/intersection.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/map.h>
+#include <primtive_contact.h>
 
 namespace std
 {
@@ -213,18 +214,9 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                 Vector2i CidEs = {CIds[E[0]], CIds[E[1]]};
                 Vector3i CidFs = {CIds[F[0]], CIds[F[1]], CIds[F[2]]};
 
-                // 2) if the contact model is not enabled, don't consider it as an intersection
-                for(auto& L : CidEs)
-                {
-                    for(auto& R : CidFs)
-                    {
-                        const core::ContactModel& model = contact_table.at(L, R);
-
-
-                        if(!model.is_enabled())
-                            return;
-                    }
-                }
+                // 2) if contact is not enabled between two elements, skip it
+                if(!need_contact(contact_table, CidEs, CidFs))
+                    return;
 
                 bool intersected = geometry::tri_edge_intersect(
                     Vs[F[0]], Vs[F[1]], Vs[F[2]], Vs[E[0]], Vs[E[1]]);
