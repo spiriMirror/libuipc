@@ -11,6 +11,8 @@
 #include <uipc/common/map.h>
 #include <uipc/geometry/utils/distance.h>
 #include <uipc/geometry/utils/octree.h>
+#include <primtive_contact.h>
+
 namespace std
 {
 // Vector2i  set comparison
@@ -291,10 +293,8 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 auto L = CIds[CodimP];
                 auto R = CIds[P];
 
-                const core::ContactModel& model = contact_table.at(L, R);
-
                 // 2) if the contact model is not enabled, don't consider it
-                if(!model.is_enabled())
+                if(!need_contact(contact_table, L, R))
                     return;
 
                 Float D = geometry::point_point_squared_distance(Vs[CodimP], Vs[P]);
@@ -330,13 +330,10 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 if(CodimP == E[0] || CodimP == E[1])
                     return;
 
-                auto L = CIds[CodimP];
-                auto R = CIds[E[0]];
-
-                const core::ContactModel& model = contact_table.at(L, R);
-
+                auto     CIdL  = CIds[CodimP];
+                Vector2i CIdRs = {CIds[E[0]], CIds[E[1]]};
                 // 2) if the contact model is not enabled, don't consider it
-                if(!model.is_enabled())
+                if(!need_contact(contact_table, CIdL, CIdRs))
                     return;
 
                 Float D =
@@ -365,53 +362,51 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
             });
 
         // 3) AllP-AllT
-        tri_bvh.query(point_aabbs,
-                      [&](IndexT i, IndexT j)
-                      {
-                          IndexT   P = i;
-                          Vector3i T = Fs[j];
+        tri_bvh.query(
+            point_aabbs,
+            [&](IndexT i, IndexT j)
+            {
+                IndexT   P = i;
+                Vector3i T = Fs[j];
 
-                          // 1) if the point is on the triangle, don't consider it
-                          if(P == T[0] || P == T[1] || P == T[2])
-                              return;
+                // 1) if the point is on the triangle, don't consider it
+                if(P == T[0] || P == T[1] || P == T[2])
+                    return;
 
-                          auto L = CIds[P];
-                          auto R = CIds[T[0]];
+                auto     CIdL  = CIds[P];
+                Vector3i CIdRs = {CIds[T[0]], CIds[T[1]], CIds[T[2]]};
 
-                          const core::ContactModel& model = contact_table.at(L, R);
+                // 2) if the contact model is not enabled, don't consider it
+                if(!need_contact(contact_table, CIdL, CIdRs))
+                    return;
 
-                          // 2) if the contact model is not enabled, don't consider it
-                          if(!model.is_enabled())
-                              return;
+                Float D = geometry::point_triangle_squared_distance(
+                    Vs[P], Vs[T[0]], Vs[T[1]], Vs[T[2]]);
 
-                          Float D = geometry::point_triangle_squared_distance(
-                              Vs[P], Vs[T[0]], Vs[T[1]], Vs[T[2]]);
+                Float thickness =
+                    VThickness.empty() ? 0 : VThickness[P] + VThickness[T[0]];
 
-                          Float thickness = VThickness.empty() ?
-                                                0 :
-                                                VThickness[P] + VThickness[T[0]];
+                Float thickness2 = thickness * thickness;
 
-                          Float thickness2 = thickness * thickness;
+                if(D <= thickness2)
+                {
+                    vertex_too_close[P] = 1;
+                    tri_too_close[j]    = 1;
 
-                          if(D <= thickness2)
-                          {
-                              vertex_too_close[P] = 1;
-                              tri_too_close[j]    = 1;
+                    // also mark the vertices of the triangle
+                    vertex_too_close[T[0]] = 1;
+                    vertex_too_close[T[1]] = 1;
+                    vertex_too_close[T[2]] = 1;
 
-                              // also mark the vertices of the triangle
-                              vertex_too_close[T[0]] = 1;
-                              vertex_too_close[T[1]] = 1;
-                              vertex_too_close[T[2]] = 1;
+                    is_too_close = true;
 
-                              is_too_close = true;
+                    Vector2i geo_ids{VGeoIds[P], VGeoIds[T[0]]};
 
-                              Vector2i geo_ids{VGeoIds[P], VGeoIds[T[0]]};
+                    close_geo_ids[geo_ids] = {VObjectIds[P], VObjectIds[T[0]]};
 
-                              close_geo_ids[geo_ids] = {VObjectIds[P], VObjectIds[T[0]]};
-
-                              set_geo_distance(geo_ids, D, thickness2);
-                          }
-                      });
+                    set_geo_distance(geo_ids, D, thickness2);
+                }
+            });
 
         // 4) AllE-AllE
         edge_bvh.query(
@@ -425,13 +420,11 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
                     return;
 
-                auto L = CIds[E0[0]];
-                auto R = CIds[E1[0]];
-
-                const core::ContactModel& model = contact_table.at(L, R);
+                Vector2i CIdLs = {CIds[E0[0]], CIds[E0[1]]};
+                Vector2i CIdRs = {CIds[E1[0]], CIds[E1[1]]};
 
                 // 2) if the contact model is not enabled, don't consider it
-                if(!model.is_enabled())
+                if(!need_contact(contact_table, CIdLs, CIdRs))
                     return;
 
                 Float D = geometry::edge_edge_squared_distance(
