@@ -210,31 +210,27 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                         return;
                 }
 
-                auto L = CIds[E[0]];
-                auto R = CIds[F[0]];
-
-                const core::ContactModel& model = contact_table.at(L, R);
+                Vector2i CidEs = {CIds[E[0]], CIds[E[1]]};
+                Vector3i CidFs = {CIds[F[0]], CIds[F[1]], CIds[F[2]]};
 
                 // 2) if the contact model is not enabled, don't consider it as an intersection
-                if(!model.is_enabled())
-                    return;
+                for(auto& L : CidEs)
+                {
+                    for(auto& R : CidFs)
+                    {
+                        const core::ContactModel& model = contact_table.at(L, R);
 
+
+                        if(!model.is_enabled())
+                            return;
+                    }
+                }
 
                 bool intersected = geometry::tri_edge_intersect(
                     Vs[F[0]], Vs[F[1]], Vs[F[2]], Vs[E[0]], Vs[E[1]]);
 
                 if(intersected)
                 {
-                    //spdlog::error(fmt::format("tri_edge_intersect: E[{}] = ({}, {}), F[{}] = ({}, {}, {}) -> intersected = {}",
-                    //                          i,
-                    //                          E[0],
-                    //                          E[1],
-                    //                          j,
-                    //                          F[0],
-                    //                          F[1],
-                    //                          F[2],
-                    //                          intersected));
-
                     edge_intersected[i] = 1;
                     tri_intersected[j]  = 1;
 
