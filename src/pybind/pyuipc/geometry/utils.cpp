@@ -4,7 +4,6 @@
 #include <Eigen/Geometry>
 #include <uipc/geometry/utils.h>
 
-
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
@@ -117,5 +116,7 @@ PyUtils::PyUtils(py::module& m)
         py::arg("dst"));
 
     m.def("is_trimesh_closed", &is_trimesh_closed, py::arg("sc"));
+
+    m.def("constitution_type", &constitution_type, py::arg("geo"));
 }
 }  // namespace pyuipc::geometry
