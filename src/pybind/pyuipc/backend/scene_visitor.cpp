@@ -36,12 +36,16 @@ PySceneVisitor::PySceneVisitor(py::module& m)
 
     class_SceneVisitor.def("info", &SceneVisitor::info);
 
-    class_SceneVisitor.def("constitution_tabular",
-                           [](SceneVisitor& self) -> ConstitutionTabular&
-                           { return self.constitution_tabular(); });
-    class_SceneVisitor.def("contact_tabular",
-                           [](SceneVisitor& self) -> ContactTabular&
-                           { return self.contact_tabular(); });
+    class_SceneVisitor.def(
+        "constitution_tabular",
+        [](SceneVisitor& self) -> ConstitutionTabular&
+        { return self.constitution_tabular(); },
+        py::return_value_policy::reference_internal);
+    class_SceneVisitor.def(
+        "contact_tabular",
+        [](SceneVisitor& self) -> ContactTabular&
+        { return self.contact_tabular(); },
+        py::return_value_policy::reference_internal);
 
     class_SceneVisitor.def("diff_sim",
                            [](SceneVisitor& self) -> DiffSimVisitor&

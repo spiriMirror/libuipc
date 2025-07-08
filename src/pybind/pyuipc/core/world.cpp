@@ -8,7 +8,7 @@ using namespace uipc::core;
 
 PyWorld::PyWorld(py::module& m)
 {
-    auto class_World = py::class_<World>(m, "World");
+    auto class_World = py::class_<World, S<World>>(m, "World");
 
     class_World.def(py::init<Engine&>())
         .def("init", &World::init, py::arg("scene"))
