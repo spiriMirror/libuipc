@@ -253,15 +253,31 @@ namespace detail
 
                 if(need_label)
                 {
-                    auto vertex_contact_element_id =
+                    auto sanity_vertex_contact_element_id =
                         simplicial_complex->vertices().find<IndexT>("sanity_check/contact_element_id");
 
-                    if(!vertex_contact_element_id)
-                        vertex_contact_element_id =
+                    if(!sanity_vertex_contact_element_id)
+                    {
+                        sanity_vertex_contact_element_id =
                             simplicial_complex->vertices().create<IndexT>(
                                 "sanity_check/contact_element_id", 0);
+                    }
 
-                    std::ranges::fill(view(*vertex_contact_element_id), CID);
+                    auto vertex_contact_element_id =
+                        simplicial_complex->vertices().find<IndexT>(builtin::contact_element_id);
+
+                    // if vertex contact_element_id does not exist, label all surface vertices with `meta` contact_element_id
+                    if(!vertex_contact_element_id)
+                    {
+                        std::ranges::fill(view(*sanity_vertex_contact_element_id), CID);
+                    }
+                    else  // copy from vertex_contact_element_id
+                    {
+                        auto src_view = vertex_contact_element_id->view();
+                        auto dst_view = view(*sanity_vertex_contact_element_id);
+
+                        std::ranges::copy(src_view, dst_view.begin());
+                    }
                 }
             }
         }
