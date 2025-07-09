@@ -8,6 +8,15 @@ Engine::Engine(std::string_view backend_name, std::string_view workspace, const 
 {
 }
 
+Engine::Engine(std::string_view backend_name,
+               S<IEngine>       overrider,
+               std::string_view workspace,
+               const Json&      config)
+    : m_internal{uipc::make_unique<internal::Engine>(
+        backend_name, std::move(overrider), workspace, config)}
+{
+}
+
 Engine::~Engine() {}
 
 std::string_view Engine::backend_name() const noexcept

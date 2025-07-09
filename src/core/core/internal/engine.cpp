@@ -24,7 +24,9 @@ class Engine::Impl
     string   m_backend_name;
     S<dylib> m_module;
 
-    IEngine*     m_engine    = nullptr;
+    IEngine*   m_engine    = nullptr;
+    S<IEngine> m_overrider = nullptr;
+
     Deleter      m_deleter   = nullptr;
     mutable bool m_sync_flag = false;
     string       m_workspace;
@@ -98,6 +100,18 @@ class Engine::Impl
         if(!m_deleter)
             throw EngineException{fmt::format("Can't find backend [{}]'s engine deleter.",
                                               backend_name)};
+    }
+
+    Impl(std::string_view backend_name, S<IEngine> overrider, std::string_view workspace, const Json& config)
+        : m_backend_name(to_lower(backend_name))
+        , m_module(nullptr)  // no module for overrider
+        , m_overrider(overrider)
+        , m_engine(overrider.get())
+        , m_deleter{nullptr}
+        , m_workspace(workspace)
+    {
+        if(!m_engine)
+            throw EngineException{"Overrider engine is null."};
     }
 
     std::string_view backend_name() const noexcept { return m_backend_name; }
@@ -179,10 +193,13 @@ class Engine::Impl
 
     ~Impl()
     {
-        UIPC_ASSERT(m_deleter && m_engine, "Engine not initialized, why can it happen?");
-        // guard the destruction
-        LogPatternGuard guard{backend_name()};
-        m_deleter(m_engine);
+        if(!m_overrider)  // if no overrider, we need to destroy the engine
+        {
+            UIPC_ASSERT(m_deleter && m_engine, "Engine not initialized, why can it happen?");
+            // guard the destruction
+            LogPatternGuard guard{backend_name()};
+            m_deleter(m_engine);
+        }
     }
 };
 
@@ -192,6 +209,14 @@ std::mutex                      Engine::Impl::m_cache_mutex;
 
 Engine::Engine(std::string_view backend_name, std::string_view workspace, const Json& config)
     : m_impl{uipc::make_unique<Impl>(backend_name, workspace, config)}
+{
+}
+
+Engine::Engine(std::string_view backend_name,
+               S<IEngine>       overrider,
+               std::string_view workspace,
+               const Json&      config)
+    : m_impl{uipc::make_unique<Impl>(backend_name, std::move(overrider), workspace, config)}
 {
 }
 
