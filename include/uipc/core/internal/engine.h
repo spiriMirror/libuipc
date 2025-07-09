@@ -18,6 +18,12 @@ class UIPC_CORE_API Engine final
     Engine(std::string_view backend_name,
            std::string_view workspace = "./",
            const Json&      config    = default_config());
+
+    Engine(std::string_view backend_name,
+           S<IEngine>       overrider,
+           std::string_view workspace = "./",
+           const Json&      config    = default_config());
+
     ~Engine();
 
     std::string_view         backend_name() const noexcept;

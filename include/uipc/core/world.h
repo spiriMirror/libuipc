@@ -44,9 +44,10 @@ class UIPC_CORE_API World final
 
     const FeatureCollection& features() const;
 
-  private:
     // Allow create a core::World from a core::internal::World
     World(S<internal::World> w) noexcept;
+
+  private:
     S<internal::World> m_internal;
 };
 }  // namespace uipc::core
