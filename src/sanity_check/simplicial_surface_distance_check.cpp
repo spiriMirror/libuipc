@@ -189,10 +189,22 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
         UIPC_ASSERT(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
         auto VGeoIds = attr_v_geo_ids->view();
 
+        auto attr_v_instance_id =
+            scene_surface.vertices().find<IndexT>("sanity_check/instance_id");
+        UIPC_ASSERT(attr_v_instance_id,
+                    "`sanity_check/instance_id` is not found in scene surface");
+        auto VInstanceIds = attr_v_instance_id->view();
+
         auto attr_v_object_id =
             scene_surface.vertices().find<IndexT>("sanity_check/object_id");
         UIPC_ASSERT(attr_v_object_id, "`sanity_check/object_id` is not found in scene surface");
         auto VObjectIds = attr_v_object_id->view();
+
+        auto attr_self_collision =
+            scene_surface.vertices().find<IndexT>("sanity_check/self_collision");
+        UIPC_ASSERT(attr_self_collision,
+                    "`sanity_check/self_collision` is not found in scene surface");
+        auto SelfCollision = attr_self_collision->view();
 
         auto attr_v_thickness = scene_surface.vertices().find<Float>(builtin::thickness);
         auto VThickness =
@@ -293,7 +305,16 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 auto L = CIds[CodimP];
                 auto R = CIds[P];
 
-                // 2) if the contact model is not enabled, don't consider it
+                // 2) if this is a self-collision
+                if(VInstanceIds[CodimP] == VInstanceIds[P])
+                {
+                    // if self-collision is not enabled, skip it
+                    auto Inst = VInstanceIds[CodimP];
+                    if(!SelfCollision[Inst])
+                        return;
+                }
+
+                // 3) if the contact model is not enabled, don't consider it
                 if(!need_contact(contact_table, L, R))
                     return;
 
@@ -329,6 +350,20 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 // 1) if the point is on the edge, don't consider it
                 if(CodimP == E[0] || CodimP == E[1])
                     return;
+
+                // 2) if this is a self-collision
+                UIPC_ASSERT(VInstanceIds[E[0]] == VInstanceIds[E[1]],
+                            "Why Edge({},{}) is not in the same instance?",
+                            E[0],
+                            E[1]);
+
+                if(VInstanceIds[CodimP] == VInstanceIds[E[0]])
+                {
+                    // if self-collision is not enabled, skip it
+                    auto Inst = VInstanceIds[CodimP];
+                    if(!SelfCollision[Inst])
+                        return;
+                }
 
                 auto     CIdL  = CIds[CodimP];
                 Vector2i CIdRs = {CIds[E[0]], CIds[E[1]]};
@@ -376,7 +411,22 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 auto     CIdL  = CIds[P];
                 Vector3i CIdRs = {CIds[T[0]], CIds[T[1]], CIds[T[2]]};
 
-                // 2) if the contact model is not enabled, don't consider it
+                // 2) if this is a self-collision
+                UIPC_ASSERT(VInstanceIds[T[0]] == VInstanceIds[T[1]]
+                                && VInstanceIds[T[1]] == VInstanceIds[T[2]],
+                            "Why Triangle({},{},{}) is not in the same instance?",
+                            T[0],
+                            T[1],
+                            T[2]);
+                if(VInstanceIds[P] == VInstanceIds[T[0]])
+                {
+                    // if self-collision is not enabled, skip it
+                    auto Inst = VInstanceIds[P];
+                    if(!SelfCollision[Inst])
+                        return;
+                }
+
+                // 3) if the contact model is not enabled, don't consider it
                 if(!need_contact(contact_table, CIdL, CIdRs))
                     return;
 
@@ -423,7 +473,26 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 Vector2i CIdLs = {CIds[E0[0]], CIds[E0[1]]};
                 Vector2i CIdRs = {CIds[E1[0]], CIds[E1[1]]};
 
-                // 2) if the contact model is not enabled, don't consider it
+                // 2) if this is a self-collision
+                UIPC_ASSERT(VInstanceIds[E0[0]] == VInstanceIds[E0[1]],
+                            "Why Edge({},{}) is not in the same instance?",
+                            E0[0],
+                            E0[1]);
+
+                UIPC_ASSERT(VInstanceIds[E1[0]] == VInstanceIds[E1[1]],
+                            "Why Edge({},{}) is not in the same instance?",
+                            E1[0],
+                            E1[1]);
+
+                if(VInstanceIds[E0[0]] == VInstanceIds[E1[0]])
+                {
+                    auto Inst = VInstanceIds[E0[0]];
+                    // if self-collision is not enabled, skip it
+                    if(!SelfCollision[Inst])
+                        return;
+                }
+
+                // 3) if the contact model is not enabled, don't consider it
                 if(!need_contact(contact_table, CIdLs, CIdRs))
                     return;
 

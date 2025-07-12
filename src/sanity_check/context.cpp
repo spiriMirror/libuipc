@@ -196,6 +196,33 @@ namespace detail
 
                     std::ranges::fill(view(*dim_attr), dim);
                 }
+
+                // 4) label vertices with self_collision
+                {
+                    auto sanity_check_self_collision =
+                        simplicial_complex->vertices().find<IndexT>("sanity_check/self_collision");
+                    if(!sanity_check_self_collision)
+                        sanity_check_self_collision =
+                            simplicial_complex->vertices().create<IndexT>(
+                                "sanity_check/self_collision", 0);
+                    auto sanity_check_self_collision_view =
+                        view(*sanity_check_self_collision);
+
+                    auto self_collision =
+                        simplicial_complex->meta().find<IndexT>(builtin::self_collision);
+
+                    if(self_collision)
+                    {
+
+                        std::ranges::fill(sanity_check_self_collision_view,
+                                          self_collision->view()[0]);
+                    }
+                    else
+                    {
+                        // if self_collision is not set, we assume no self collision
+                        std::ranges::fill(sanity_check_self_collision_view, 0);
+                    }
+                }
             }
 
             if(geo.type() == builtin::ImplicitGeometry)
@@ -360,9 +387,10 @@ namespace detail
         {
             vector<SimplicialComplex> instances = apply_transform(surface);
 
-            // label vertices with instance id
+
             for(auto&& [I, instance] : enumerate(instances))
             {
+                // label vertices with instance id
                 auto instance_id =
                     instance.vertices().find<IndexT>("sanity_check/instance_id");
 
@@ -371,6 +399,7 @@ namespace detail
 
                 std::ranges::fill(view(*instance_id), I);
             }
+
 
             std::move(instances.begin(), instances.end(), std::back_inserter(all_surfaces));
         }
