@@ -12,7 +12,7 @@ static void check_merge_input(span<const SimplicialComplex*> complexes)
     {
         UIPC_ASSERT(complex != nullptr, "complex[{}] is nullptr", I);
         UIPC_ASSERT(complex->instances().size() == 1,
-                    "complex[{}] has multiple instances ({}), call `apply_instances()` before merging multiple-instance-geometry",
+                    "complex[{}] has multiple instances ({}), call `apply_transform()` before merging multiple-instance-geometry",
                     I,
                     complex->instances().size());
     }
@@ -225,6 +225,16 @@ SimplicialComplex merge(span<const SimplicialComplex*> complexes)
 SimplicialComplex merge(std::initializer_list<const SimplicialComplex*>&& complexes)
 {
     vector<const SimplicialComplex*> complex_ptrs{complexes.begin(), complexes.end()};
+    return merge(complex_ptrs);
+}
+
+SimplicialComplex merge(span<const SimplicialComplex> complexes)
+{
+    vector<const SimplicialComplex*> complex_ptrs(complexes.size(), nullptr);
+    std::ranges::transform(complexes,
+                           complex_ptrs.begin(),
+                           [](const SimplicialComplex& complex) -> const SimplicialComplex*
+                           { return &complex; });
     return merge(complex_ptrs);
 }
 }  // namespace uipc::geometry

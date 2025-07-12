@@ -162,6 +162,12 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
         UIPC_ASSERT(attr_v_object_id, "`sanity_check/object_id` is not found in scene surface");
         auto VObjectIds = attr_v_object_id->view();
 
+        auto attr_self_collision =
+            scene_surface.vertices().find<IndexT>("sanity_check/self_collision");
+        UIPC_ASSERT(attr_self_collision,
+                    "`sanity_check/self_collision` is not found in scene surface");
+        auto SelfCollision = attr_self_collision->view();
+
         vector<geometry::BVH::AABB> tri_aabbs(Fs.size());
         for(auto [i, f] : enumerate(Fs))
         {
@@ -211,10 +217,30 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                         return;
                 }
 
+                // 2) if this is a self-collision
+                UIPC_ASSERT(VInstanceIds[E[0]] == VInstanceIds[E[1]],
+                            "Why Edge({},{}) is not in the same instance?",
+                            E[0],
+                            E[1]);
+                UIPC_ASSERT(VInstanceIds[F[0]] == VInstanceIds[F[1]]
+                                && VInstanceIds[F[1]] == VInstanceIds[F[2]],
+                            "Why Triangle({},{},{}) is not in the same instance?",
+                            F[0],
+                            F[1],
+                            F[2]);
+
+                if(VInstanceIds[E[0]] == VInstanceIds[F[0]])
+                {
+                    // if self-collision is not enabled, skip it
+                    auto Inst = VInstanceIds[E[0]];
+                    if(!SelfCollision[Inst])
+                        return;
+                }
+
                 Vector2i CidEs = {CIds[E[0]], CIds[E[1]]};
                 Vector3i CidFs = {CIds[F[0]], CIds[F[1]], CIds[F[2]]};
 
-                // 2) if contact is not enabled between two elements, skip it
+                // 3) if contact is not enabled between two elements, skip it
                 if(!need_contact(contact_table, CidEs, CidFs))
                     return;
 
