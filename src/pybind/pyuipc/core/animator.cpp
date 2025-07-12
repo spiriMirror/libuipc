@@ -49,8 +49,10 @@ PyAnimator::PyAnimator(py::module& m)
                            self.insert(obj,
                                        [callable](Animation::UpdateInfo& info)
                                        {
+                                           py::gil_scoped_acquire acquire;
                                            try
                                            {
+                                               // acquire gil
                                                callable(py::cast(info));
                                            }
                                            catch(const std::exception& e)
