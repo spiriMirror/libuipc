@@ -29,6 +29,11 @@ std::string_view AssetDir::trimesh_path()
     return UIPC_ASSET_PATH "sim_data/trimesh/";
 }
 
+std::string_view AssetDir::linemesh_path()
+{
+    return UIPC_ASSET_PATH "sim_data/linemesh/";
+}
+
 std::string_view AssetDir::output_path()
 {
     return UIPC_OUTPUT_PATH;

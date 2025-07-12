@@ -106,6 +106,7 @@ class UIPC_CORE_API Scene final
     };
 
     const Json& config() const noexcept;
+    Json&       config() noexcept;
 
     ContactTabular&       contact_tabular() noexcept;
     const ContactTabular& contact_tabular() const noexcept;
@@ -118,8 +119,6 @@ class UIPC_CORE_API Scene final
 
     Geometries  geometries() noexcept;
     CGeometries geometries() const noexcept;
-
-    const Json& info() const noexcept;
 
     Animator&       animator();
     const Animator& animator() const;

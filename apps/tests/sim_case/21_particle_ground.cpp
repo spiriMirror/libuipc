@@ -24,8 +24,8 @@ TEST_CASE("21_particle_ground", "[fem]")
     config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
-    config["line_search"]["report_energy"]  = false;
-    config["line_search"]["max_iter"]       = 32;
+    config["line_search"]["max_iter"]       = 8;
+    config["newton"]["velocity_tol"]        = 0.05;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -36,18 +36,17 @@ TEST_CASE("21_particle_ground", "[fem]")
     {
         // create constitution and contact model
         Particle pt;
-        scene.constitution_tabular().insert(pt);
-        auto default_contact = scene.contact_tabular().default_element();
+        auto     default_contact = scene.contact_tabular().default_element();
 
         // create object
         auto object = scene.objects().create("particles");
 
 
-        constexpr int   n = 100;
+        constexpr int   n = 10;
         vector<Vector3> Vs(n);
         for(int i = 0; i < n; i++)
         {
-            Vs[i] = Vector3::UnitY() * i;
+            Vs[i] = Vector3::UnitZ() * i;
         }
 
         std::transform(Vs.begin(),

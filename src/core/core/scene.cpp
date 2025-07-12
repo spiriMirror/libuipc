@@ -21,7 +21,7 @@ Json Scene::default_config() noexcept
 
     auto& integrator = config["integrator"];
     {
-        integrator["type"] = "bdf1"; // bdf1
+        integrator["type"] = "bdf1";  // bdf1
     }
 
     auto& newton = config["newton"];
@@ -109,6 +109,11 @@ const Json& Scene::config() const noexcept
     return m_internal->config();
 }
 
+Json& Scene::config() noexcept
+{
+    return m_internal->config();
+}
+
 Scene::~Scene() = default;
 
 ContactTabular& Scene::contact_tabular() noexcept
@@ -148,11 +153,6 @@ auto Scene::geometries() noexcept -> Geometries
 auto Scene::geometries() const noexcept -> CGeometries
 {
     return CGeometries{*m_internal};
-}
-
-const Json& Scene::info() const noexcept
-{
-    return m_internal->config();
 }
 
 Animator& Scene::animator()

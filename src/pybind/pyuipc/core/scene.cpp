@@ -17,6 +17,11 @@ PyScene::PyScene(py::module& m)
     // def methods
     class_Scene.def(py::init<const Json&>(), py::arg("config") = Scene::default_config());
 
+    class_Scene.def(
+        "config",  //
+        [](const Scene& self) -> const Json& { return self.config(); },
+        py::return_value_policy::reference_internal);
+
     class_Scene.def_static("default_config", &Scene::default_config);
 
     class_Scene.def(
