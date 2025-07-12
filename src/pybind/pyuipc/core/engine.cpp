@@ -59,19 +59,26 @@ PyEngine::PyEngine(py::module& m)
 
     auto class_Engine = py::class_<Engine, S<Engine>>(m, "Engine");
     class_Engine.def(py::init<std::string_view, std::string_view, const Json&>(),
-                     py::call_guard<py::gil_scoped_acquire>(),
+                     py::call_guard<py::gil_scoped_release>(),
                      py::arg("backend_name"),
                      py::arg("workspace") = "./",
                      py::arg("config")    = Engine::default_config());
     class_Engine.def(py::init<std::string_view, S<IEngine>, std::string_view, const Json&>(),
-                     py::call_guard<py::gil_scoped_acquire>(),
+                     py::call_guard<py::gil_scoped_release>(),
                      py::arg("backend_name"),
                      py::arg("overrider"),
                      py::arg("workspace") = "./",
                      py::arg("config")    = Engine::default_config());
-    class_Engine.def("backend_name", &Engine::backend_name);
-    class_Engine.def("workspace", &Engine::workspace);
-    class_Engine.def("features", &Engine::features, py::return_value_policy::reference_internal);
-    class_Engine.def_static("default_config", &Engine::default_config);
+    class_Engine.def("backend_name",
+                     &Engine::backend_name,
+                     py::call_guard<py::gil_scoped_release>());
+    class_Engine.def("workspace", &Engine::workspace, py::call_guard<py::gil_scoped_release>());
+    class_Engine.def("features",
+                     &Engine::features,
+                     py::return_value_policy::reference_internal,
+                     py::call_guard<py::gil_scoped_release>());
+    class_Engine.def_static("default_config",
+                            &Engine::default_config,
+                            py::call_guard<py::gil_scoped_release>());
 }
 }  // namespace pyuipc::core
