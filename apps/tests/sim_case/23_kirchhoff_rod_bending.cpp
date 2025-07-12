@@ -89,8 +89,8 @@ TEST_CASE("23_kirchhoff_rod_bending", "[fem]")
             auto mesh = linemesh(Vs, Es);
 
             label_surface(mesh);
-            hs.apply_to(mesh, 40.0_MPa);
-            krb.apply_to(mesh, (i + 1) * 1.0_GPa);
+            hs.apply_to(mesh, 40.0_kPa);
+            krb.apply_to(mesh, (i + 1) * 0.1_MPa);
             default_contact.apply_to(mesh);
 
             auto is_fixed = mesh.vertices().find<IndexT>(builtin::is_fixed);

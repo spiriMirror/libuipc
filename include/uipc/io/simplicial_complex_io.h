@@ -56,6 +56,14 @@ class UIPC_IO_API SimplicialComplexIO
      */
     [[nodiscard]] SimplicialComplex read_ply(std::string_view file_name);
 
+    /**
+     * @brief Read a trimesh, linemesh or particles from a .stl file.
+     * 
+     * @param file_name The file to read
+     * 
+     * @return  SimplicialComplex
+     */
+    [[nodiscard]] SimplicialComplex read_stl(std::string_view file_name);
 
     /**
      * @brief Write a simplicial complex to a file, the file type is determined by the file extension.

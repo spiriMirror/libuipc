@@ -20,14 +20,25 @@ TEST_CASE("read_msh", "[io]")
 TEST_CASE("read_obj", "[io]")
 {
     SimplicialComplexIO io;
-    auto mesh = io.read_obj(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
-    REQUIRE(mesh.vertices().size() == 8);
-    REQUIRE(mesh.triangles().size() == 12);
-    REQUIRE(mesh.tetrahedra().size() == 0);
-    REQUIRE(mesh.dim() == 2);
+    {
+        auto mesh = io.read_obj(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
+        REQUIRE(mesh.vertices().size() == 8);
+        REQUIRE(mesh.triangles().size() == 12);
+        REQUIRE(mesh.tetrahedra().size() == 0);
+        REQUIRE(mesh.dim() == 2);
 
-    REQUIRE_THROWS_AS(io.read_obj(fmt::format("{}NOMESH.obj", AssetDir::trimesh_path())),
-                      GeometryIOError);
+        REQUIRE_THROWS_AS(io.read_obj(fmt::format("{}NOMESH.obj", AssetDir::trimesh_path())),
+                          GeometryIOError);
+    }
+
+    {
+        auto mesh = io.read_obj(fmt::format("{}circle.obj", AssetDir::linemesh_path()));
+        REQUIRE(mesh.vertices().size() == 50);
+        REQUIRE(mesh.edges().size() == 50);
+        REQUIRE(mesh.triangles().size() == 0);
+        REQUIRE(mesh.tetrahedra().size() == 0);
+        REQUIRE(mesh.dim() == 1);
+    }
 }
 
 TEST_CASE("read_ply", "[io]")
