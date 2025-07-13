@@ -30,5 +30,23 @@ PySoftVertexStitch::PySoftVertexStitch(py::module& m)
         py::arg("aim_geo_slots"),
         py::arg("stitched_vert_ids"),
         py::arg("kappa") = Float{1e6});
-}
+
+    class_SoftVertexStitch.def(
+        "create_geometry",
+        [](SoftVertexStitch&                            self,
+           const SoftVertexStitch::SlotTuple&           aim_geo_slots,
+           const py::array_t<Float>&                    stitched_vert_ids,
+           const SoftVertexStitch::ContactElementTuple& contact_elements,
+           Float                                        kappa)
+        {
+            return self.create_geometry(aim_geo_slots,
+                                        as_span_of<const Vector2i>(stitched_vert_ids),
+                                        contact_elements,
+                                        kappa);
+        },
+        py::arg("aim_geo_slots"),
+        py::arg("stitched_vert_ids"),
+        py::arg("contact_elements"),
+        py::arg("kappa") = Float{1e6});
+};
 }  // namespace pyuipc::constitution

@@ -46,6 +46,9 @@ TEST_CASE("39_soft_vertex_stitch", "[abd_fem]")
 
     scene.contact_tabular().default_model(0.5, 1.0_GPa);
     auto default_element = scene.contact_tabular().default_element();
+    auto stitch_element  = scene.contact_tabular().create("stitch");
+    // cancel stitch vertex's contact
+    scene.contact_tabular().insert(stitch_element, stitch_element, 0, 0, false);
 
     // create object
     auto object = scene.objects().create("cubes");
@@ -80,7 +83,11 @@ TEST_CASE("39_soft_vertex_stitch", "[abd_fem]")
     auto             stich_obj = scene.objects().create("stitch");
     SoftVertexStitch stitch;
     vector<Vector2i> Es = {Vector2i{0, 4}};
-    auto stitch_geo     = stitch.create_geometry({l_geo_slot, u_geo_slot}, Es);
+
+    // setup stitch
+    auto stitch_geo = stitch.create_geometry(
+        {l_geo_slot, u_geo_slot}, Es, {stitch_element, stitch_element}, 1e8);
+
     stich_obj->geometries().create(stitch_geo);
 
     world.init(scene);
