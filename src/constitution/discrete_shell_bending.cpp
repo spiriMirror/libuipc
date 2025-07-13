@@ -22,7 +22,7 @@ DiscreteShellBending::DiscreteShellBending(const Json& json)
 {
 }
 
-void DiscreteShellBending::apply_to(geometry::SimplicialComplex& sc, Float E)
+void DiscreteShellBending::apply_to(geometry::SimplicialComplex& sc, Float bending_stiffness_v)
 {
     Base::apply_to(sc);
     auto bs = sc.edges().find<Float>("bending_stiffness");
@@ -31,7 +31,7 @@ void DiscreteShellBending::apply_to(geometry::SimplicialComplex& sc, Float E)
         bs = sc.edges().create<Float>("bending_stiffness");
     }
     auto bs_view = geometry::view(*bs);
-    std::ranges::fill(bs_view, E);
+    std::ranges::fill(bs_view, bending_stiffness_v);
 }
 
 U64 DiscreteShellBending::get_uid() const noexcept

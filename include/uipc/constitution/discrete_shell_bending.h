@@ -11,7 +11,7 @@ class UIPC_CONSTITUTION_API DiscreteShellBending : public FiniteElementExtraCons
   public:
     DiscreteShellBending(const Json& json = default_config());
 
-    void apply_to(geometry::SimplicialComplex& sc, Float E = 100.0_kPa);
+    void apply_to(geometry::SimplicialComplex& sc, Float bending_stiffness = 100.0_kPa);
 
     static Json default_config();
 
