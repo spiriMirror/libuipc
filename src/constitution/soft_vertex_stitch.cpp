@@ -58,6 +58,77 @@ geometry::Geometry SoftVertexStitch::create_geometry(const SlotTuple& aim_geo_sl
     return geo;
 }
 
+template <typename T>
+static auto tuple2array(const std::tuple<T, T>& t)
+{
+    return std::array<T, 2>{std::get<0>(t), std::get<1>(t)};
+}
+
+static auto find_meta_ce(const geometry::Geometry& geo)
+{
+    auto meta_ce = geo.meta().find<IndexT>(builtin::contact_element_id);
+
+    if(meta_ce)
+        return meta_ce->view()[0];
+    else
+        return 0;
+}
+
+static auto find_or_create_vert_ce(geometry::SimplicialComplex& geo)
+{
+    auto vert_ce = geo.vertices().find<IndexT>(builtin::contact_element_id);
+
+    if(!vert_ce)
+    {
+        // if the geometry does not have contact element id attribute
+        // create default one, and fill with meta contact element id
+        IndexT meta_ce_v = find_meta_ce(geo);
+
+        vert_ce = geo.vertices().create<IndexT>(builtin::contact_element_id, 0);
+        std::ranges::fill(view(*vert_ce), meta_ce_v);
+    }
+
+    return vert_ce;
+}
+
+geometry::Geometry SoftVertexStitch::create_geometry(const SlotTuple& aim_geo_slots,
+                                                     span<const Vector2i> stitched_vert_ids,
+                                                     const ContactElementTuple& contact_elements,
+                                                     Float kappa) const
+{
+    auto geo = create_geometry(aim_geo_slots, stitched_vert_ids, kappa);
+
+    auto slots = tuple2array(aim_geo_slots);
+    auto ces   = tuple2array(contact_elements);
+
+    for(auto&& [i, slot] : enumerate(slots))
+    {
+        auto& this_geo = slot->geometry();
+
+        IndexT meta_ce_v    = find_meta_ce(this_geo);
+        auto   vert_ce      = find_or_create_vert_ce(this_geo);
+        auto   vert_ce_view = view(*vert_ce);
+
+        auto& this_ce = ces[i];
+
+
+        for(auto&& v_id_pair : stitched_vert_ids)
+        {
+            auto v_id = v_id_pair[i];
+
+            UIPC_ASSERT(v_id >= 0 && v_id < this_geo.vertices().size(),
+                        "Stitched vertex id {} out of range [0, {}) in Geometry({}). Please check the stitched vertex ids and the geometry slots.\n",
+                        v_id,
+                        this_geo.vertices().size(),
+                        slot->id());
+
+            vert_ce_view[v_id] = this_ce.id();
+        }
+    }
+
+    return geo;
+}
+
 Json SoftVertexStitch::default_config()
 {
     return Json::object();

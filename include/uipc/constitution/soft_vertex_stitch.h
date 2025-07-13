@@ -2,7 +2,7 @@
 #include <uipc/constitution/inter_primitive_constitution.h>
 #include <uipc/geometry/geometry.h>
 #include <uipc/geometry/simplicial_complex_slot.h>
-
+#include <uipc/core/contact_element.h>
 namespace uipc::constitution
 {
 class UIPC_CONSTITUTION_API SoftVertexStitch final : public InterPrimitiveConstitution
@@ -12,6 +12,7 @@ class UIPC_CONSTITUTION_API SoftVertexStitch final : public InterPrimitiveConsti
   public:
     using SlotTuple =
         std::tuple<S<geometry::SimplicialComplexSlot>, S<geometry::SimplicialComplexSlot>>;
+    using ContactElementTuple = std::tuple<core::ContactElement, core::ContactElement>;
 
     SoftVertexStitch(const Json& config = default_config());
 
@@ -26,6 +27,11 @@ class UIPC_CONSTITUTION_API SoftVertexStitch final : public InterPrimitiveConsti
     geometry::Geometry create_geometry(const SlotTuple&     aim_geo_slots,
                                        span<const Vector2i> stitched_vert_ids,
                                        Float                kappa = 1e6) const;
+
+    geometry::Geometry create_geometry(const SlotTuple&     aim_geo_slots,
+                                       span<const Vector2i> stitched_vert_ids,
+                                       const ContactElementTuple& contact_elements,
+                                       Float kappa = 1e6) const;
 
     static Json default_config();
 
