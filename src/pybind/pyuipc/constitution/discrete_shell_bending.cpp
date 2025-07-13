@@ -18,7 +18,9 @@ PyDiscreteShellBending::PyDiscreteShellBending(py::module& m)
     class_DiscreteShellBending.def_static("default_config",
                                           &DiscreteShellBending::default_config);
 
-    class_DiscreteShellBending.def(
-        "apply_to", &DiscreteShellBending::apply_to, py::arg("sc"), py::arg("E") = 100.0_kPa);
+    class_DiscreteShellBending.def("apply_to",
+                                   &DiscreteShellBending::apply_to,
+                                   py::arg("sc"),
+                                   py::arg("bending_stiffness") = 100.0_kPa);
 }
 }  // namespace pyuipc::constitution
