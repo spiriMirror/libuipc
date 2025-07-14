@@ -32,6 +32,7 @@ class SimplexFrictionalContact : public ContactReporter
         muda::CBufferView<Float>          thicknesses() const;
         muda::CBufferView<IndexT>         contact_element_ids() const;
         Float                             d_hat() const;
+        muda::CBufferView<Float>          d_hats() const;
         Float                             dt() const;
         Float                             eps_velocity() const;
 
