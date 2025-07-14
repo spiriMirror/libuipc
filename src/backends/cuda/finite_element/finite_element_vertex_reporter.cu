@@ -30,6 +30,7 @@ void FiniteElementVertexReporter::Impl::report_attributes(VertexAttributeInfo& i
     info.thicknesses().copy_from(fem().thicknesses);
 
     info.body_ids().copy_from(fem().h_vertex_body_id.data());
+    info.d_hats().copy_from(fem().h_vertex_d_hat.data());
 
     // fill the coindices for later use
     auto N = info.coindices().size();

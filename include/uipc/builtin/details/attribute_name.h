@@ -55,6 +55,12 @@ UIPC_BUILTIN_ATTRIBUTE(aim_transform);
 UIPC_BUILTIN_ATTRIBUTE(contact_element_id);
 
 /**
+ * @brief `d_hat` <Float> attribute on **meta**, indicates mesh-wise d_hat
+ */
+
+UIPC_BUILTIN_ATTRIBUTE(d_hat);
+
+/**
  * @brief `constitution_uid` <U64> attribute on **meta**, uid is a unique identifier for a constitution
  * which is defined in the libuipc specification.
  */

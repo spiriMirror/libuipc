@@ -278,6 +278,7 @@ class FiniteElementMethod final : public SimSystem
         // Simulation Data:
 
         vector<IndexT> h_vertex_contact_element_ids;
+        vector<Float>  h_vertex_d_hat;
 
         vector<IndexT>  h_vertex_is_fixed;
         vector<IndexT>  h_vertex_is_dynamic;
@@ -299,6 +300,7 @@ class FiniteElementMethod final : public SimSystem
         vector<IndexT> h_body_self_collision;
 
         Vector3 default_gravity;
+        Float   default_d_hat;
 
 
         // Element Attributes:
