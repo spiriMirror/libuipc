@@ -118,5 +118,7 @@ PyUtils::PyUtils(py::module& m)
     m.def("is_trimesh_closed", &is_trimesh_closed, py::arg("sc"));
 
     m.def("constitution_type", &constitution_type, py::arg("geo"));
+
+    m.def("compute_mesh_d_hat", &compute_mesh_d_hat, py::arg("sc"), py::arg("max_d_hat"));
 }
 }  // namespace pyuipc::geometry
