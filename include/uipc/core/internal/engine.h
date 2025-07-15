@@ -10,7 +10,7 @@ namespace uipc::core::internal
 {
 class World;
 
-class UIPC_CORE_API Engine final
+class UIPC_CORE_API Engine final : public std::enable_shared_from_this<Engine>
 {
     class Impl;
 
