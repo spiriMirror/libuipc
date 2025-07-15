@@ -54,5 +54,8 @@ void Scene::update_from(const SceneSnapshotCommit& commit)
     m_rest_geometries.update_from(commit.m_rest_geometries);
 }
 
-Scene::~Scene() = default;
+Scene::~Scene()
+{
+    spdlog::info("Scene <{}> destructed.", (void*)this);
+}
 }  // namespace uipc::core::internal

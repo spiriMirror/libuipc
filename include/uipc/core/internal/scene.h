@@ -72,9 +72,10 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
     geometry::GeometryCollection m_rest_geometries;
     SanityChecker                m_sanity_checker;
 
-    bool             m_started = false;
-    bool             m_pending = false;
-    internal::World* m_world   = nullptr;
-    Float            m_dt      = 0.0;
+    bool m_started = false;
+    bool m_pending = false;
+    // MUST NOT use shared_ptr to avoid circular reference
+    internal::World* m_world = nullptr;
+    Float            m_dt    = 0.0;
 };
 }  // namespace uipc::core::internal
