@@ -59,7 +59,6 @@ SimEngine::SimEngine(EngineCreateInfo* info)
         // if in debug mode, sync all the time to check for errors
         muda::Debug::debug_sync_all(true);
 #endif
-
         spdlog::info("Cuda Backend Init Success.");
     }
     catch(const SimEngineException& e)

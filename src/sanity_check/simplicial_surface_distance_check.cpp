@@ -157,7 +157,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
     {
         auto context = find<Context>();
 
-        auto d_hat = scene.info()["contact"]["d_hat"].get<Float>();
+        //auto d_hat = scene.info()["contact"]["d_hat"].get<Float>();
 
         const geometry::SimplicialComplex& scene_surface =
             context->scene_simplicial_surface();
@@ -210,12 +210,17 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
         auto VThickness =
             attr_v_thickness ? attr_v_thickness->view() : span<const Float>{};
 
+        auto attr_v_d_hat = scene_surface.vertices().find<Float>("sanity_check/d_hat");
+        UIPC_ASSERT(attr_v_d_hat, "`sanity_check/d_hat` is not found in scene surface");
+        auto Vd_hats = attr_v_d_hat->view();
 
         vector<geometry::BVH::AABB> codim_point_aabbs(CodimPs.size());
         for(auto [i, p] : enumerate(CodimPs))
         {
             auto thickness = VThickness.empty() ? 0 : VThickness[p];
-            auto extend    = Vector3::Constant(thickness + d_hat);
+            auto expansion = point_dcd_expansion(Vd_hats[p]);
+            auto extend    = Vector3::Constant(thickness + expansion);
+
             codim_point_aabbs[i].extend(Vs[p] - extend).extend(Vs[p] + extend);
         }
 
@@ -223,7 +228,9 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
         for(auto [i, v] : enumerate(Vs))
         {
             auto thickness = VThickness.empty() ? 0 : VThickness[i];
-            auto extend    = Vector3::Constant(thickness + d_hat);
+            auto expansion = point_dcd_expansion(Vd_hats[i]);
+            auto extend    = Vector3::Constant(thickness + expansion);
+
             point_aabbs[i].extend(v - extend).extend(v + extend);
         }
 
@@ -232,7 +239,10 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
         {
             auto thickness =
                 VThickness.empty() ? 0 : VThickness[e[0]] + VThickness[e[1]];
-            auto extend = Vector3::Constant(thickness + d_hat);
+
+            auto expansion = edge_dcd_expansion(Vd_hats[e[0]], Vd_hats[e[1]]);  // average d_hat of two vertices
+
+            auto extend = Vector3::Constant(thickness + expansion);
             edge_aabbs[i]
                 .extend(Vs[e[0]] - extend)
                 .extend(Vs[e[0]] + extend)
@@ -246,7 +256,11 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
             auto thickness = VThickness.empty() ?
                                  0 :
                                  VThickness[f[0]] + VThickness[f[1]] + VThickness[f[2]];
-            auto extend    = Vector3::Constant(thickness + d_hat);
+
+            auto expansion =
+                triangle_dcd_expansion(Vd_hats[f[0]], Vd_hats[f[1]], Vd_hats[f[2]]);  // average d_hat of three vertices
+
+            auto extend = Vector3::Constant(thickness + expansion);
             tri_aabbs[i]
                 .extend(Vs[f[0]] - extend)
                 .extend(Vs[f[0]] + extend)

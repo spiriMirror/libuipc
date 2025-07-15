@@ -805,7 +805,8 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                             break;
                         }
                     }
-                });
+                })
+            .wait();
 
         temp_PP_offset += N_EEs;
         temp_PE_offset += N_EEs;
