@@ -55,6 +55,7 @@ void AffineBodyVertexReporter::Impl::report_attributes(VertexAttributeInfo& info
     { muda::BufferLaunch().copy<T>(dst, src.data()); };
 
     async_copy(span{abd().h_vertex_id_to_contact_element_id}, info.contact_element_ids());
+    async_copy(span{abd().h_vertex_id_to_d_hat}, info.d_hats());
 }
 
 void AffineBodyVertexReporter::Impl::report_displacements(VertexDisplacementInfo& info)
@@ -62,7 +63,7 @@ void AffineBodyVertexReporter::Impl::report_displacements(VertexDisplacementInfo
     using namespace muda;
     auto N = info.coindices().size();
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(N,
                [coindices = info.coindices().viewer().name("coindices"),
                 displacements = info.displacements().viewer().name("displacements"),

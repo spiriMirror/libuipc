@@ -151,6 +151,11 @@ Float SimplexTrajectoryFilter::BaseInfo::d_hat() const noexcept
     return m_impl->global_contact_manager->d_hat();
 }
 
+muda::CBufferView<Float> SimplexTrajectoryFilter::BaseInfo::d_hats() const noexcept
+{
+    return m_impl->global_vertex_manager->d_hats();
+}
+
 muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::v2b() const noexcept
 {
     return m_impl->global_vertex_manager->body_ids();

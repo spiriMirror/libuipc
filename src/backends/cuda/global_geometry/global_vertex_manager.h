@@ -43,6 +43,8 @@ class GlobalVertexManager final : public SimSystem
         muda::BufferView<Vector3> positions() const noexcept;
         muda::BufferView<IndexT>  contact_element_ids() const noexcept;
         muda::BufferView<IndexT>  body_ids() const noexcept;
+        // vert-wise d_hat
+        muda::BufferView<Float> d_hats() const noexcept;
 
       private:
         friend class GlobalVertexManager;
@@ -77,6 +79,14 @@ class GlobalVertexManager final : public SimSystem
      * @brief A mapping from the global vertex index to the body id.
      */
     muda::CBufferView<IndexT> body_ids() const noexcept;
+
+    /**
+     * @brief The d_hat of the vertices.
+     * 
+     * The d_hat is used to compute the penetration depth.
+     */
+    muda::CBufferView<Float> d_hats() const noexcept;
+
     /**
      * @brief The current positions of the vertices.
      */
@@ -124,6 +134,7 @@ class GlobalVertexManager final : public SimSystem
      */
     muda::CBufferView<IndexT> dimensions() const noexcept;
 
+
     /**
      * @brief the axis align bounding box of the all vertices.
      */
@@ -154,8 +165,11 @@ class GlobalVertexManager final : public SimSystem
         void apply_recover(RecoverInfo& info);
         void clear_recover(RecoverInfo& info);
 
+        Float default_d_hat = 0.01;
+
         muda::DeviceBuffer<IndexT>  coindices;
         muda::DeviceBuffer<IndexT>  body_ids;
+        muda::DeviceBuffer<Float>   d_hats;
         muda::DeviceBuffer<IndexT>  dimensions;
         muda::DeviceBuffer<Vector3> positions;
         muda::DeviceBuffer<Vector3> prev_positions;
@@ -170,6 +184,7 @@ class GlobalVertexManager final : public SimSystem
         muda::DeviceVar<Float>   max_disp_norm;
         muda::DeviceVar<Vector3> min_pos;
         muda::DeviceVar<Vector3> max_pos;
+
 
         SimSystemSlotCollection<VertexReporter> vertex_reporters;
 

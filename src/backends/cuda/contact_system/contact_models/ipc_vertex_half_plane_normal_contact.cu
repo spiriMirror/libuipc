@@ -39,15 +39,16 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
                     half_plane_contact_ids = half_plane->contact_ids().viewer().name("half_plane_contact_ids"),
                     Ps = info.positions().viewer().name("Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    eps_v = info.eps_velocity(),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int I) mutable
+                    eps_v  = info.eps_velocity(),
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    dt     = info.dt()] __device__(int I) mutable
                    {
                        Vector2i PH = PHs(I);
 
                        IndexT vI = PH(0);
                        IndexT HI = PH(1);
 
+                       Float d_hat = d_hats(vI);
 
                        Vector3 v = Ps(vI);
                        Vector3 P = plane_positions(HI);
@@ -84,9 +85,9 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
                      half_plane_contact_ids = half_plane->contact_ids().viewer().name("half_plane_contact_ids"),
                      Ps = info.positions().viewer().name("Ps"),
                      thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                     eps_v = info.eps_velocity(),
-                     d_hat = info.d_hat(),
-                     dt    = info.dt()] __device__(int I) mutable
+                     eps_v  = info.eps_velocity(),
+                     d_hats = info.d_hats().viewer().name("d_hats"),
+                     dt     = info.dt()] __device__(int I) mutable
                     {
                         Vector2i PH = PHs(I);
 
@@ -96,6 +97,8 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
                         Vector3 v = Ps(vI);
                         Vector3 P = plane_positions(HI);
                         Vector3 N = plane_normals(HI);
+
+                        Float d_hat = d_hats(vI);
 
                         Float kt2 =
                             table(contact_ids(vI), half_plane_contact_ids(HI)).kappa

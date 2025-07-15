@@ -44,14 +44,16 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
                     contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
                     half_plane_positions = info.plane_positions().viewer().name("plane_positions"),
                     half_plane_normals = info.plane_normals().viewer().name("plane_normals"),
-                    d_hat     = info.d_hat(),
                     PHs       = PHs.viewer().name("PHs"),
+                    d_hats    = info.d_hats().viewer().name("d_hats"),
                     max_count = PHs.size()] __device__(int i) mutable
                    {
                        for(int j = 0; j < half_plane_positions.total_size(); ++j)
                        {
                            IndexT vI = surf_vertices(i);
                            IndexT vJ = plane_vertex_offset + j;
+
+                           Float d_hat = d_hats(vI);
 
                            IndexT L = contact_element_ids(vI);
                            IndexT R = contact_element_ids(vJ);
@@ -133,7 +135,6 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                 half_plane_normals = info.plane_normals().viewer().name("plane_normals"),
                 tois  = tois.viewer().name("tois"),
                 alpha = info.alpha(),
-                d_hat = info.d_hat(),
                 eta] __device__(int i) mutable
                {
                    Float min_toi = 1.1f;  // large enough

@@ -11,10 +11,8 @@
 #include <Eigen/Geometry>
 #include <igl/readSTL.h>
 #include <igl/readPLY.h>
-#include <igl/readOBJ.h>
 #include "stl_reader.h"
 #include <igl/remove_duplicate_vertices.h>
-
 
 namespace uipc::geometry
 {
@@ -35,10 +33,14 @@ using Eigen::VectorXi;
 
 namespace fs = std::filesystem;
 
+static void apply_pre_transform(Vector3& v, const Matrix4x4& pre_transform) noexcept
+{
+    v = (pre_transform * v.homogeneous()).head<3>();
+}
 
 void SimplicialComplexIO::apply_pre_transform(Vector3& v) const noexcept
 {
-    v = (m_pre_transform * v.homogeneous()).head<3>();
+    ::uipc::geometry::apply_pre_transform(v, m_pre_transform);
 }
 
 SimplicialComplex SimplicialComplexIO::read(std::string_view file_name)
@@ -110,91 +112,143 @@ SimplicialComplex SimplicialComplexIO::read_msh(std::string_view file_name)
     return tetmesh(Vs, Ts);
 }
 
-static SimplicialComplex obj_trimesh(std::string_view    file_name,
-                                     IndexT              deg3_count,
-                                     IndexT              deg4_count,
-                                     span<const Vector3> Xs,
-                                     const VectorXi&     Is,
-                                     const VectorXi&     Cs)
+bool obj_is_pure_line_mesh(std::string_view file_name)
 {
-    IndexT tri_count = deg3_count + deg4_count * 2;  // each deg4 polygon is split into 2 triangles
-    vector<Vector3i> Fs;
-    Fs.reserve(tri_count);
-    UIPC_ASSERT(Cs[0] == 0,
-                "Cs[0] must be 0, got: {} in file {}, why can it happen, something wrong with libigl::readOBJ?",
-                Cs[0],
-                file_name);
-
-    IndexT offset = Cs[0];
-    for(IndexT i = 0; i < Cs.size() - 1; ++i)
+    std::ifstream ifs(file_name.data());
+    if(!ifs)
+        throw GeometryIOError{fmt::format("Failed to open file: {}", file_name)};
+    std::string line;
+    while(std::getline(ifs, line))
     {
-        IndexT deg = Cs[i + 1] - Cs[i];
-        if(deg == 3)  // triangle
-        {
-            Fs.push_back(Vector3i{Is[offset + 0], Is[offset + 1], Is[offset + 2]});
-        }
-        else if(deg == 4)  // quad, split into two triangles
-        {
-            Fs.push_back(Vector3i{Is[offset + 0], Is[offset + 1], Is[offset + 2]});
-            Fs.push_back(Vector3i{Is[offset + 0], Is[offset + 2], Is[offset + 3]});
-        }
-        else  // no error but skip for robust
-        {
-            vector<IndexT> indices;
-            indices.resize(deg);
-            for(IndexT j = 0; j < deg; ++j)
-            {
-                indices[j] = Is[offset + j];
-            }
-            spdlog::warn("Unsupported polygon degree: {}  (face [{}]) in file: {}, skipping it.",
-                         deg,
-                         fmt::join(indices, ", "),
-                         file_name);
-        }
-        offset += deg;  // move to the next polygon
+        std::istringstream ss(line);
+        std::string        type;
+        ss >> type;
+        if(type == "f")
+            return false;  // found a face, not a pure line mesh
     }
-
-    return trimesh(Xs, Fs);
+    return true;  // no faces found, pure line mesh
 }
 
-static SimplicialComplex obj_linemesh(std::string_view    file_name,
-                                      IndexT              deg2_count,
-                                      span<const Vector3> Xs,
-                                      const VectorXi&     Is,
-                                      const VectorXi&     Cs)
+template <typename DerivedV, typename DerivedE>
+bool obj_read_linemesh_(const std::string&                str,
+                        Eigen::PlainObjectBase<DerivedV>& V,
+                        Eigen::PlainObjectBase<DerivedE>& E)
 {
-    IndexT           edge_count = deg2_count;
-    vector<Vector2i> Es;
-    Es.reserve(edge_count);
-    UIPC_ASSERT(Cs[0] == 0,
-                "Cs[0] must be 0, got: {} in file {}, why can it happen, something wrong with libigl::readOBJ?",
-                Cs[0],
-                file_name);
-    IndexT offset = Cs[0];
-    for(IndexT i = 0; i < Cs.size() - 1; ++i)
+    std::ifstream ifs(str.c_str());
+    if(!ifs)
     {
-        IndexT deg = Cs[i + 1] - Cs[i];
-        if(deg == 2)  // line segment
+        return false;
+    }
+    std::string                            line;
+    int                                    line_number = 0;
+    std::vector<typename DerivedV::Scalar> verts;
+    std::vector<typename DerivedE::Scalar> lines;
+    while(std::getline(ifs, line))
+    {
+        line_number++;
+        std::istringstream ss(line);
+        std::string        type;
+        ss >> type;
+
+        if(type == "v")
         {
-            Es.push_back(Vector2i{Is[offset + 0], Is[offset + 1]});
+            typename DerivedV::Scalar x, y, z;
+            ss >> x >> y >> z;
+            verts.emplace_back(x);
+            verts.emplace_back(y);
+            verts.emplace_back(z);
         }
-        else  // no error but skip for robust
+        else if(type == "l")
         {
-            vector<IndexT> indices;
-            indices.resize(deg);
-            for(IndexT j = 0; j < deg; ++j)
+            std::vector<typename DerivedE::Scalar> idxs;
+            typename DerivedE::Scalar              idx;
+            while(ss >> idx)
             {
-                indices[j] = Is[offset + j];
+                idxs.push_back(idx);
             }
-            spdlog::warn("Unsupported polygon degree: {}  (edge [{}]) in file: {}, skipping it.",
-                         deg,
-                         fmt::join(indices, ", "),
-                         file_name);
+            if(idxs.size() >= 2)
+            {
+                lines.push_back(idxs[0] - 1);
+                lines.push_back(idxs[1] - 1);
+            }
         }
-        offset += deg;  // move to the next polygon
+        else if(type == "f")
+        {
+            UIPC_ASSERT(false,
+                        "Found face in line mesh .obj file at line {}. "
+                        "This is not a pure line mesh.",
+                        line_number);
+        }
     }
 
-    return linemesh(Xs, Es);
+    V.resize(verts.size() / 3, 3);
+    for(int i = 0; i < V.rows(); ++i)
+    {
+        V(i, 0) = verts[3 * i];
+        V(i, 1) = verts[3 * i + 1];
+        V(i, 2) = verts[3 * i + 2];
+    }
+
+    E.resize(lines.size() / 2, 2);
+    for(int i = 0; i < E.rows(); ++i)
+    {
+        E(i, 0) = lines[2 * i];
+        E(i, 1) = lines[2 * i + 1];
+    }
+
+    return true;
+}
+
+SimplicialComplex obj_read_linemesh(std::string_view file_name, const Matrix4x4& pre_trans)
+{
+    fs::path path{file_name};
+    auto     ext = path.extension().string();
+    // lowercase the extension
+    std::ranges::transform(ext, ext.begin(), ::tolower);
+
+    RowMajorMatrix<Float>  X;
+    RowMajorMatrix<IndexT> E;
+    if(!obj_read_linemesh_(string{file_name}, X, E))
+    {
+        throw GeometryIOError{fmt::format("Failed to load .obj file: {}", file_name)};
+    }
+    vector<Vector3> Vs;
+    Vs.resize(X.rows());
+    for(auto&& [i, v] : enumerate(Vs))
+    {
+        v = X.row(i);
+        apply_pre_transform(v, pre_trans);
+    }
+    vector<Vector2i> Es;
+    Es.resize(E.rows());
+    for(auto&& [i, l] : enumerate(Es))
+        l = E.row(i);
+    return linemesh(Vs, Es);
+}
+
+SimplicialComplex obj_read_trimesh(std::string_view file_name, const Matrix4x4& pre_transform)
+{
+    SimplicialComplexIO io{pre_transform};
+
+    RowMajorMatrix<Float>  X;
+    RowMajorMatrix<IndexT> F;
+    if(!igl::read_triangle_mesh(string{file_name}, X, F))
+    {
+        throw GeometryIOError{fmt::format("Failed to load .obj file: {}", file_name)};
+    }
+    vector<Vector3> Vs;
+    Vs.resize(X.rows());
+    for(auto&& [i, v] : enumerate(Vs))
+    {
+        v = X.row(i);
+        apply_pre_transform(v, pre_transform);
+    }
+    vector<Vector3i> Fs;
+    Fs.resize(F.rows());
+    for(auto&& [i, f] : enumerate(Fs))
+        f = F.row(i);
+
+    return trimesh(Vs, Fs);
 }
 
 SimplicialComplex SimplicialComplexIO::read_obj(std::string_view file_name)
@@ -204,60 +258,14 @@ SimplicialComplex SimplicialComplexIO::read_obj(std::string_view file_name)
         throw GeometryIOError{fmt::format("File does not exist: {}", file_name)};
     }
 
-    RowMajorMatrix<Float> Xs;
-    VectorXi              Is;
-    VectorXi              Cs;
-
-    if(!igl::readOBJ(string{file_name}, Xs, Is, Cs))
+    if(obj_is_pure_line_mesh(file_name))
     {
-        throw GeometryIOError{fmt::format("Failed to load .obj file: {}", file_name)};
+        return obj_read_linemesh(file_name, m_pre_transform);
     }
-
-    vector<Vector3> Vs;
-    Vs.resize(Xs.rows());
-    for(auto&& [i, v] : enumerate(Vs))
+    else
     {
-        v = Xs.row(i);
-        apply_pre_transform(v);
+        return obj_read_trimesh(file_name, m_pre_transform);
     }
-
-    if(Is.size() == 0)  // point cloud
-    {
-        return pointcloud(Vs);
-    }
-
-    UIPC_ASSERT(Cs.size() >= 2, "must have at least 1 component");
-
-    vector<IndexT> poly_deg2count;
-    poly_deg2count.resize(5, 0);
-
-    for(IndexT i = 0; i < Cs.size() - 1; ++i)
-    {
-        IndexT deg = Cs[i + 1] - Cs[i];
-        UIPC_ASSERT(deg >= 2, "poly deg({}) < 2, why can it happen?", deg);
-        if(deg >= poly_deg2count.size())
-        {
-            poly_deg2count.resize(deg + 1);
-            poly_deg2count[deg] = 0;  // initialize new degree count
-        }
-        poly_deg2count[deg] += 1;
-    }
-
-    if(poly_deg2count[3] || poly_deg2count[4])  // trimesh
-    {
-        return obj_trimesh(file_name, poly_deg2count[3], poly_deg2count[4], Vs, Is, Cs);
-    }
-
-    if(poly_deg2count[2] == 0)  // point cloud
-    {
-        return obj_linemesh(file_name, poly_deg2count[2], Vs, Is, Cs);
-    }
-
-    throw GeometryIOError{fmt::format(R"(Unsupported .obj file: {}. 
-Only point cloud, line mesh and triangle mesh are supported. But in this file:
-Polygon degree statistics -> [{}])",
-                                      file_name,
-                                      fmt::join(poly_deg2count, ", "))};  // only point cloud, line mesh and triangle mesh are supported
 }
 
 SimplicialComplex SimplicialComplexIO::read_ply(std::string_view file_name)
@@ -337,7 +345,6 @@ SimplicialComplex SimplicialComplexIO::read_stl(std::string_view file_name)
 
     return trimesh(Vs_new, Fs_new);
 }
-
 
 void SimplicialComplexIO::write(std::string_view file_name, const SimplicialComplex& sc)
 {
@@ -471,7 +478,6 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
 
     std::fclose(fp);
 }
-
 
 void SimplicialComplexIO::write_msh(std::string_view file_name, const SimplicialComplex& sc)
 {

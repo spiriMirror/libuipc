@@ -4,6 +4,7 @@
 #include <kernel_cout.h>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
+#include <utils/primitive_d_hat.h>
 
 
 namespace uipc::backend::cuda
@@ -40,9 +41,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                     Ps      = info.positions().viewer().name("Ps"),
                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    eps_v = info.eps_velocity(),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    eps_v  = info.eps_velocity(),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        const auto& PT = PTs(i);
 
@@ -70,6 +71,8 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                       thicknesses(PT[1]),
                                                       thicknesses(PT[2]),
                                                       thicknesses(PT[3]));
+                       Float d_hat     = PT_d_hat(
+                           d_hats(PT[0]), d_hats(PT[1]), d_hats(PT[2]), d_hats(PT[3]));
 
 
                        Es(i) = PT_friction_energy(kt2,
@@ -103,8 +106,8 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                     rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                     eps_v   = info.eps_velocity(),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        const auto& EE = EEs(i);
 
@@ -136,6 +139,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                       thicknesses(EE[1]),
                                                       thicknesses(EE[2]),
                                                       thicknesses(EE[3]));
+
+                       Float d_hat = EE_d_hat(
+                           d_hats(EE[0]), d_hats(EE[1]), d_hats(EE[2]), d_hats(EE[3]));
 
                        Float eps_x;
                        distance::edge_edge_mollifier_threshold(
@@ -177,9 +183,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                     Ps      = info.positions().viewer().name("Ps"),
                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    eps_v = info.eps_velocity(),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    eps_v  = info.eps_velocity(),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        const auto& PE = PEs(i);
 
@@ -202,6 +208,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        Float thickness = PE_thickness(thicknesses(PE[0]),
                                                       thicknesses(PE[1]),
                                                       thicknesses(PE[2]));
+
+                       Float d_hat =
+                           PE_d_hat(d_hats(PE[0]), d_hats(PE[1]), d_hats(PE[2]));
 
                        Es(i) = PE_friction_energy(kt2,
                                                   d_hat,
@@ -230,9 +239,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                     Ps      = info.positions().viewer().name("Ps"),
                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    eps_v = info.eps_velocity(),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    eps_v  = info.eps_velocity(),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        const auto& PP = PPs(i);
 
@@ -249,6 +258,8 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
                        Float thickness =
                            PP_thickness(thicknesses(PP[0]), thicknesses(PP[1]));
+
+                       Float d_hat = PP_d_hat(d_hats(PP[0]), d_hats(PP[1]));
 
                        Es(i) = PP_friction_energy(kt2,
                                                   d_hat,
@@ -281,9 +292,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                     Ps      = info.positions().viewer().name("Ps"),
                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    eps_v = info.eps_velocity(),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    eps_v  = info.eps_velocity(),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        const auto& PT = PTs(i);
 
@@ -311,6 +322,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                       thicknesses(PT[1]),
                                                       thicknesses(PT[2]),
                                                       thicknesses(PT[3]));
+
+                       Float d_hat = PT_d_hat(
+                           d_hats(PT[0]), d_hats(PT[1]), d_hats(PT[2]), d_hats(PT[3]));
 
                        Vector12    G;
                        Matrix12x12 H;
@@ -355,9 +369,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                     rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    eps_v = info.eps_velocity(),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    eps_v  = info.eps_velocity(),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        const auto& EE = EEs(i);
 
@@ -389,6 +403,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                       thicknesses(EE[1]),
                                                       thicknesses(EE[2]),
                                                       thicknesses(EE[3]));
+
+                       Float d_hat = EE_d_hat(
+                           d_hats(EE[0]), d_hats(EE[1]), d_hats(EE[2]), d_hats(EE[3]));
 
                        Float eps_x;
                        distance::edge_edge_mollifier_threshold(
@@ -445,9 +462,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                     Ps      = info.positions().viewer().name("Ps"),
                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    eps_v = info.eps_velocity(),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    eps_v  = info.eps_velocity(),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        const auto& PE = PEs(i);
 
@@ -470,6 +487,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        Float thickness = PE_thickness(thicknesses(PE[0]),
                                                       thicknesses(PE[1]),
                                                       thicknesses(PE[2]));
+
+                       Float d_hat =
+                           PE_d_hat(d_hats(PE[0]), d_hats(PE[1]), d_hats(PE[2]));
 
                        Vector9   G;
                        Matrix9x9 H;
@@ -511,9 +531,9 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                     Ps      = info.positions().viewer().name("Ps"),
                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    eps_v = info.eps_velocity(),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    eps_v  = info.eps_velocity(),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        const auto& PP = PPs(i);
 
@@ -530,6 +550,8 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
                        Float thickness =
                            PP_thickness(thicknesses(PP[0]), thicknesses(PP[1]));
+
+                       Float d_hat = PP_d_hat(d_hats(PP[0]), d_hats(PP[1]));
 
 
                        Vector6   G;

@@ -50,6 +50,8 @@ REGISTER_SIM_SYSTEM(AffineBodyDynamics);
 
 void AffineBodyDynamics::do_build()
 {
+    m_impl.default_d_hat = world().scene().info()["contact"]["d_hat"].get<Float>();
+
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });
 }
@@ -385,12 +387,15 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     // 3) Setup:
     // - `vertex_id_to_body_id`
     // - `vertex_id_to_contact_element_id`
+    // - `vertex_id_to_d_hat`
     {
         h_vertex_id_to_body_id.resize(abd_vertex_count);
         h_vertex_id_to_contact_element_id.resize(abd_vertex_count);
+        h_vertex_id_to_d_hat.resize(abd_vertex_count);
 
-        span v2b = h_vertex_id_to_body_id;
-        span v2c = h_vertex_id_to_contact_element_id;
+        span v2b     = h_vertex_id_to_body_id;
+        span v2c     = h_vertex_id_to_contact_element_id;
+        span v2d_hat = h_vertex_id_to_d_hat;
 
         for_each(
             geo_slots,
@@ -416,6 +421,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
                     auto v2b_span = v2b.subspan(body_vert_offset, vert_count);
                     auto v2c_span = v2c.subspan(body_vert_offset, vert_count);
+                    auto v2d_hat_span = v2d_hat.subspan(body_vert_offset, vert_count);
 
                     std::ranges::fill(v2b_span, body_id);
 
@@ -443,6 +449,18 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                             std::ranges::fill(v2c_span,
                                               0);  // default 0
                         }
+                    }
+
+                    auto meta_d_hat = sc.meta().find<Float>(builtin::d_hat);
+
+                    if(meta_d_hat)
+                    {
+                        auto vert_d_hat_view = meta_d_hat->view();
+                        std::ranges::fill(v2d_hat_span, vert_d_hat_view.front());  // use the meta d_hat value
+                    }
+                    else
+                    {
+                        std::ranges::fill(v2d_hat_span, default_d_hat);  // default d_hat
                     }
                 }
             });
