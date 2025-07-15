@@ -250,14 +250,17 @@ class AffineBodyDynamics : public SimSystem
         /******************************************************************************
         *                        host simulation data
         *******************************************************************************/
+        Float             default_d_hat = 0.01;
         vector<ABDJacobi> h_vertex_id_to_J;
+        vector<Float>     h_vertex_id_to_d_hat;
         vector<IndexT>    h_vertex_id_to_body_id;
         vector<IndexT>    h_vertex_id_to_contact_element_id;
 
-        vector<Vector12>            h_body_id_to_q;
-        vector<Vector12>            h_body_id_to_q_v;
-        vector<IndexT>              h_body_id_to_dim;             // 2 or 3
-        vector<IndexT>              h_body_id_to_self_collision;  // 0 or 1
+        vector<Vector12> h_body_id_to_q;
+        vector<Vector12> h_body_id_to_q_v;
+        vector<IndexT>   h_body_id_to_dim;             // 2 or 3
+        vector<IndexT>   h_body_id_to_self_collision;  // 0 or 1
+
         vector<ABDJacobiDyadicMass> h_body_id_to_abd_mass;
         vector<Matrix12x12>         h_body_id_to_abd_mass_inv;
         vector<Float>               h_body_id_to_volume;

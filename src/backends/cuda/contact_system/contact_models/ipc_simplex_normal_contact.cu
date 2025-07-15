@@ -5,6 +5,7 @@
 #include <kernel_cout.h>
 #include <utils/matrix_assembler.h>
 #include <utils/make_spd.h>
+#include <utils/primitive_d_hat.h>
 
 namespace uipc::backend::cuda
 {
@@ -39,8 +40,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     Es  = info.PT_energies().viewer().name("Es"),
                     Ps  = info.positions().viewer().name("Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        Vector4i PT = PTs(i);
 
@@ -60,6 +61,9 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                                       thicknesses(PT(1)),
                                                       thicknesses(PT(2)),
                                                       thicknesses(PT(3)));
+
+                       Float d_hat = PT_d_hat(
+                           d_hats(PT(0)), d_hats(PT(1)), d_hats(PT(2)), d_hats(PT(3)));
 
                        Vector4i flag =
                            distance::point_triangle_distance_flag(P, T0, T1, T2);
@@ -97,7 +101,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     Ps  = info.positions().viewer().name("Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
-                    d_hat   = info.d_hat(),
+                    d_hats  = info.d_hats().viewer().name("d_hats"),
                     dt      = info.dt()] __device__(int i) mutable
                    {
                        Vector4i EE = EEs(i);
@@ -122,6 +126,9 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                                       thicknesses(EE(1)),
                                                       thicknesses(EE(2)),
                                                       thicknesses(EE(3)));
+
+                       Float d_hat = EE_d_hat(
+                           d_hats(EE(0)), d_hats(EE(1)), d_hats(EE(2)), d_hats(EE(3)));
 
                        Vector4i flag = distance::edge_edge_distance_flag(E0, E1, E2, E3);
 
@@ -175,9 +182,9 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     Ps      = info.positions().viewer().name("Ps"),
                     rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    eps_v = info.eps_velocity(),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    eps_v  = info.eps_velocity(),
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        Vector3i PE = PEs(i);
 
@@ -193,6 +200,9 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        Float thickness = PE_thickness(thicknesses(PE(0)),
                                                       thicknesses(PE(1)),
                                                       thicknesses(PE(2)));
+
+                       Float d_hat =
+                           PE_d_hat(d_hats(PE(0)), d_hats(PE(1)), d_hats(PE(2)));
 
                        Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
 
@@ -228,8 +238,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     Ps      = info.positions().viewer().name("Ps"),
                     rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        Vector2i PP = PPs(i);
 
@@ -241,6 +251,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                        Float thickness =
                            PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));
+
+                       Float d_hat = PP_d_hat(d_hats(PP(0)), d_hats(PP(1)));
 
                        Vector2i flag = distance::point_point_distance_flag(Pa, Pb);
 
@@ -282,8 +294,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                         Hs  = info.PT_hessians().viewer().name("Hs"),
                         Ps  = info.positions().viewer().name("Ps"),
                         thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                        d_hat = info.d_hat(),
-                        dt    = info.dt()] __device__(int i) mutable
+                        d_hats = info.d_hats().viewer().name("d_hats"),
+                        dt     = info.dt()] __device__(int i) mutable
                        {
                            Vector4i PT = PTs(i);
 
@@ -304,6 +316,11 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                                           thicknesses(PT(1)),
                                                           thicknesses(PT(2)),
                                                           thicknesses(PT(3)));
+
+                           Float d_hat = PT_d_hat(d_hats(PT(0)),
+                                                  d_hats(PT(1)),
+                                                  d_hats(PT(2)),
+                                                  d_hats(PT(3)));
 
                            Vector4i flag =
                                distance::point_triangle_distance_flag(P, T0, T1, T2);
@@ -347,74 +364,78 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
         // Compute Edge-Edge Gradient and Hessian
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(info.EEs().size(),
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
-                    contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    EEs = info.EEs().viewer().name("EEs"),
-                    Gs  = info.EE_gradients().viewer().name("Gs"),
-                    Hs  = info.EE_hessians().viewer().name("Hs"),
-                    Ps  = info.positions().viewer().name("Ps"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
-                    d_hat   = info.d_hat(),
-                    dt      = info.dt()] __device__(int i) mutable
-                   {
-                       Vector4i EE = EEs(i);
+            .apply(
+                info.EEs().size(),
+                [table = info.contact_tabular().viewer().name("contact_tabular"),
+                 contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+                 EEs         = info.EEs().viewer().name("EEs"),
+                 Gs          = info.EE_gradients().viewer().name("Gs"),
+                 Hs          = info.EE_hessians().viewer().name("Hs"),
+                 Ps          = info.positions().viewer().name("Ps"),
+                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                 rest_Ps     = info.rest_positions().viewer().name("rest_Ps"),
+                 d_hats      = info.d_hats().viewer().name("d_hats"),
+                 dt          = info.dt()] __device__(int i) mutable
+                {
+                    Vector4i EE = EEs(i);
 
-                       Vector4i cids = {contact_ids(EE[0]),
-                                        contact_ids(EE[1]),
-                                        contact_ids(EE[2]),
-                                        contact_ids(EE[3])};
-                       Float    kt2  = EE_kappa(table, cids) * dt * dt;
+                    Vector4i cids = {contact_ids(EE[0]),
+                                     contact_ids(EE[1]),
+                                     contact_ids(EE[2]),
+                                     contact_ids(EE[3])};
+                    Float    kt2  = EE_kappa(table, cids) * dt * dt;
 
-                       const auto& E0 = Ps(EE[0]);
-                       const auto& E1 = Ps(EE[1]);
-                       const auto& E2 = Ps(EE[2]);
-                       const auto& E3 = Ps(EE[3]);
+                    const auto& E0 = Ps(EE[0]);
+                    const auto& E1 = Ps(EE[1]);
+                    const auto& E2 = Ps(EE[2]);
+                    const auto& E3 = Ps(EE[3]);
 
-                       const auto& t0_Ea0 = rest_Ps(EE[0]);
-                       const auto& t0_Ea1 = rest_Ps(EE[1]);
-                       const auto& t0_Eb0 = rest_Ps(EE[2]);
-                       const auto& t0_Eb1 = rest_Ps(EE[3]);
+                    const auto& t0_Ea0 = rest_Ps(EE[0]);
+                    const auto& t0_Ea1 = rest_Ps(EE[1]);
+                    const auto& t0_Eb0 = rest_Ps(EE[2]);
+                    const auto& t0_Eb1 = rest_Ps(EE[3]);
 
-                       Float thickness = EE_thickness(thicknesses(EE(0)),
-                                                      thicknesses(EE(1)),
-                                                      thicknesses(EE(2)),
-                                                      thicknesses(EE(3)));
+                    Float thickness = EE_thickness(thicknesses(EE(0)),
+                                                   thicknesses(EE(1)),
+                                                   thicknesses(EE(2)),
+                                                   thicknesses(EE(3)));
 
-                       Vector4i flag = distance::edge_edge_distance_flag(E0, E1, E2, E3);
+                    Float d_hat = EE_d_hat(
+                        d_hats(EE(0)), d_hats(EE(1)), d_hats(EE(2)), d_hats(EE(3)));
 
-                       if constexpr(RUNTIME_CHECK)
-                       {
-                           Float D;
-                           distance::edge_edge_distance2(flag, E0, E1, E2, E3, D);
+                    Vector4i flag = distance::edge_edge_distance_flag(E0, E1, E2, E3);
 
-                           Vector2 range = D_range(thickness, d_hat);
+                    if constexpr(RUNTIME_CHECK)
+                    {
+                        Float D;
+                        distance::edge_edge_distance2(flag, E0, E1, E2, E3, D);
 
-                           MUDA_ASSERT(is_active_D(range, D),
-                                       "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
-                                       EE(0),
-                                       EE(1),
-                                       EE(2),
-                                       EE(3),
-                                       D,
-                                       range(0),
-                                       range(1));
-                       }
+                        Vector2 range = D_range(thickness, d_hat);
 
-                       Vector12    G;
-                       Matrix12x12 H;
-                       mollified_EE_barrier_gradient_hessian(
-                           G, H, flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
+                        MUDA_ASSERT(is_active_D(range, D),
+                                    "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+                                    EE(0),
+                                    EE(1),
+                                    EE(2),
+                                    EE(3),
+                                    D,
+                                    range(0),
+                                    range(1));
+                    }
 
-                       make_spd(H);
+                    Vector12    G;
+                    Matrix12x12 H;
+                    mollified_EE_barrier_gradient_hessian(
+                        G, H, flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
 
-                       DoubletVectorAssembler DVA{Gs};
-                       DVA.segment<4>(i * 4).write(EE, G);
+                    make_spd(H);
 
-                       TripletMatrixAssembler TMA{Hs};
-                       TMA.block<4, 4>(i * 4 * 4).write(EE, H);
-                   });
+                    DoubletVectorAssembler DVA{Gs};
+                    DVA.segment<4>(i * 4).write(EE, G);
+
+                    TripletMatrixAssembler TMA{Hs};
+                    TMA.block<4, 4>(i * 4 * 4).write(EE, H);
+                });
 
         // Compute Point-Edge Gradient and Hessian
         ParallelFor()
@@ -428,8 +449,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     Ps      = info.positions().viewer().name("Ps"),
                     rest_Ps = info.rest_positions().viewer().name("rest_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        Vector3i PE = PEs(i);
 
@@ -445,6 +466,9 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        Float thickness = PE_thickness(thicknesses(PE(0)),
                                                       thicknesses(PE(1)),
                                                       thicknesses(PE(2)));
+
+                       Float d_hat =
+                           PE_d_hat(d_hats(PE(0)), d_hats(PE(1)), d_hats(PE(2)));
 
                        Vector3i flag = distance::point_edge_distance_flag(P, E0, E1);
 
@@ -491,8 +515,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     Hs  = info.PP_hessians().viewer().name("Hs"),
                     Ps  = info.positions().viewer().name("Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    dt     = info.dt()] __device__(int i) mutable
                    {
                        const auto& PP = PPs(i);
 
@@ -504,6 +528,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
                        Float thickness =
                            PP_thickness(thicknesses(PP(0)), thicknesses(PP(1)));
+
+                       Float d_hat = PP_d_hat(d_hats(PP(0)), d_hats(PP(1)));
 
                        Vector2i flag = distance::point_point_distance_flag(P0, P1);
 

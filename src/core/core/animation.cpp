@@ -59,6 +59,9 @@ span<S<geometry::GeometrySlot>> Animation::UpdateInfo::rest_geo_slots() const no
 
 SizeT Animation::UpdateInfo::frame() const noexcept
 {
+    //auto s_world = m_animation->m_scene->world().lock();
+    //UIPC_ASSERT(s_world, "World is expired, did you throw the `World`?");
+    //return s_world->frame();
     return m_animation->m_scene->world()->frame();
 }
 

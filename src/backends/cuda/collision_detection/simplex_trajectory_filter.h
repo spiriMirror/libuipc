@@ -36,6 +36,7 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         /**
          * @brief Vertex Id to Body Id mapping.
          */
+        muda::CBufferView<Float>    d_hats() const noexcept;
         muda::CBufferView<IndexT>   v2b() const noexcept;
         muda::CBufferView<Vector3>  positions() const noexcept;
         muda::CBufferView<Vector3>  rest_positions() const noexcept;

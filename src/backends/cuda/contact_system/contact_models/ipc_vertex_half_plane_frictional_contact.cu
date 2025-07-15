@@ -44,9 +44,9 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                     Ps      = info.positions().viewer().name("Ps"),
                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    eps_v = info.eps_velocity(),
-                    d_hat = info.d_hat(),
-                    dt    = info.dt()] __device__(int I) mutable
+                    eps_v  = info.eps_velocity(),
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    dt     = info.dt()] __device__(int I) mutable
                    {
                        Vector2i PH = PHs(I);
 
@@ -57,6 +57,8 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                        Vector3 prev_v = prev_Ps(vI);
                        Vector3 P      = plane_positions(HI);
                        Vector3 N      = plane_normals(HI);
+
+                       Float d_hat = d_hats(vI);
 
                        ContactCoeff coeff =
                            table(contact_ids(vI), half_plane_contact_ids(HI));
@@ -94,9 +96,9 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                         Ps = info.positions().viewer().name("Ps"),
                         prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                         thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                        eps_v = info.eps_velocity(),
-                        d_hat = info.d_hat(),
-                        dt    = info.dt()] __device__(int I) mutable
+                        eps_v  = info.eps_velocity(),
+                        d_hats = info.d_hats().viewer().name("d_hats"),
+                        dt     = info.dt()] __device__(int I) mutable
                        {
                            Vector2i PH = PHs(I);
 
@@ -107,6 +109,8 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                            Vector3 prev_v = prev_Ps(vI);
                            Vector3 P      = plane_positions(HI);
                            Vector3 N      = plane_normals(HI);
+
+                           Float d_hat = d_hats(vI);
 
                            ContactCoeff coeff =
                                table(contact_ids(vI), half_plane_contact_ids(HI));

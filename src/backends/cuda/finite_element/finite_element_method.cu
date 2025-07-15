@@ -64,6 +64,7 @@ void FiniteElementMethod::do_build()
     const auto& scene = world().scene();
 
     m_impl.default_gravity = scene.info()["gravity"].get<Vector3>();
+    m_impl.default_d_hat   = scene.info()["contact"]["d_hat"].get<Float>();
 
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
 
@@ -573,6 +574,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
         h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
         h_masses.resize(h_positions.size());
         h_vertex_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
+        h_vertex_d_hat.resize(h_positions.size(), default_d_hat);  // fill default d_hat
         h_vertex_is_fixed.resize(h_positions.size(), 0);  // fill 0 for default, default non-fixed
         h_vertex_is_dynamic.resize(h_positions.size(), 1);  // fill 1 for default, default dynamic
         h_vertex_body_id.resize(h_positions.size(), -1);  // fill -1 for default, invalid body id
@@ -748,7 +750,7 @@ To avoid this warning, please apply the transform to the positions mannally. htt
                 }
             }
 
-            {  // 6) setup vertex contact element id
+            {  // 6) setup vertex contact element id and d_hat
 
                 auto dst_eid_span = span{h_vertex_contact_element_ids}.subspan(
                     info.vertex_offset, info.vertex_count);
@@ -771,6 +773,20 @@ To avoid this warning, please apply the transform to the positions mannally. htt
                         auto eid = ceid->view()[0];
                         std::ranges::fill(dst_eid_span, eid);
                     }
+                }
+
+                auto dst_d_hat_span =
+                    span{h_vertex_d_hat}.subspan(info.vertex_offset, info.vertex_count);
+
+                auto meta_d_hat = sc->meta().find<Float>(builtin::d_hat);
+                if(meta_d_hat)
+                {
+                    auto d_hat_view = meta_d_hat->view();
+                    std::ranges::fill(dst_d_hat_span, d_hat_view.front());
+                }
+                else
+                {
+                    std::ranges::fill(dst_d_hat_span, default_d_hat);
                 }
             }
 

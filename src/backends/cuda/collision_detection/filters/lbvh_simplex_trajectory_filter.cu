@@ -8,6 +8,7 @@
 #include <utils/codim_thickness.h>
 #include <utils/simplex_contact_mask_utils.h>
 #include <uipc/common/zip.h>
+#include <utils/primitive_d_hat.h>
 
 namespace uipc::backend::cuda
 {
@@ -45,7 +46,6 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     using namespace muda;
 
     auto alpha   = info.alpha();
-    auto d_hat   = info.d_hat();
     auto Ps      = info.positions();
     auto dxs     = info.displacements();
     auto codimVs = info.codim_vertices();
@@ -70,12 +70,13 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                     dxs     = dxs.viewer().name("dxs"),
                     aabbs   = codim_point_aabbs.viewer().name("aabbs"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    alpha = alpha,
-                    d_hat = d_hat] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    alpha  = alpha] __device__(int i) mutable
                    {
                        auto vI = codimVs(i);
 
-                       Float thickness = thicknesses(vI);
+                       Float thickness       = thicknesses(vI);
+                       Float d_hat_expansion = point_dcd_expansion(d_hats(vI));
 
                        const auto& pos   = Ps(vI);
                        Vector3     pos_t = pos + dxs(vI) * alpha;
@@ -83,7 +84,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                        AABB aabb;
                        aabb.extend(pos).extend(pos_t);
 
-                       Float expand = d_hat + thickness;
+                       Float expand = d_hat_expansion + thickness;
 
                        aabb.min().array() -= expand;
                        aabb.max().array() += expand;
@@ -100,12 +101,13 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 Ps          = Ps.viewer().name("Ps"),
                 aabbs       = point_aabbs.viewer().name("aabbs"),
                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                alpha       = alpha,
-                d_hat       = d_hat] __device__(int i) mutable
+                d_hats      = info.d_hats().viewer().name("d_hats"),
+                alpha       = alpha] __device__(int i) mutable
                {
                    auto vI = Vs(i);
 
-                   Float thickness = thicknesses(vI);
+                   Float thickness       = thicknesses(vI);
+                   Float d_hat_expansion = point_dcd_expansion(d_hats(vI));
 
                    const auto& pos   = Ps(vI);
                    Vector3     pos_t = pos + dxs(vI) * alpha;
@@ -113,7 +115,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                    AABB aabb;
                    aabb.extend(pos).extend(pos_t);
 
-                   Float expand = d_hat + thickness;
+                   Float expand = d_hat_expansion + thickness;
 
                    aabb.min().array() -= expand;
                    aabb.max().array() += expand;
@@ -129,13 +131,15 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 aabbs       = edge_aabbs.viewer().name("aabbs"),
                 dxs         = dxs.viewer().name("dx"),
                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                alpha       = alpha,
-                d_hat       = d_hat] __device__(int i) mutable
+                d_hats      = info.d_hats().viewer().name("d_hats"),
+                alpha       = alpha] __device__(int i) mutable
                {
                    auto eI = Es(i);
 
                    Float thickness =
                        edge_thickness(thicknesses(eI[0]), thicknesses(eI[1]));
+                   Float d_hat_expansion =
+                       edge_dcd_expansion(d_hats(eI[0]), d_hats(eI[1]));
 
                    const auto& pos0   = Ps(eI[0]);
                    const auto& pos1   = Ps(eI[1]);
@@ -149,7 +153,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
                    aabb.extend(pos0).extend(pos1).extend(pos0_t).extend(pos1_t);
 
-                   Float expand = d_hat + thickness;
+                   Float expand = d_hat_expansion + thickness;
 
                    aabb.min().array() -= expand;
                    aabb.max().array() += expand;
@@ -165,14 +169,16 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 aabbs       = triangle_aabbs.viewer().name("aabbs"),
                 dxs         = dxs.viewer().name("dx"),
                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                alpha       = alpha,
-                d_hat       = d_hat] __device__(int i) mutable
+                d_hats      = info.d_hats().viewer().name("d_hats"),
+                alpha       = alpha] __device__(int i) mutable
                {
                    auto fI = Fs(i);
 
                    Float thickness = triangle_thickness(thicknesses(fI[0]),
                                                         thicknesses(fI[1]),
                                                         thicknesses(fI[2]));
+                   Float d_hat_expansion = triangle_dcd_expansion(
+                       d_hats(fI[0]), d_hats(fI[1]), d_hats(fI[2]));
 
                    const auto& pos0   = Ps(fI[0]);
                    const auto& pos1   = Ps(fI[1]);
@@ -190,7 +196,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                        .extend(pos1_t)
                        .extend(pos2_t);
 
-                   Float expand = d_hat + thickness;
+                   Float expand = d_hat_expansion + thickness;
 
                    aabb.min().array() -= expand;
                    aabb.max().array() += expand;
@@ -220,8 +226,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                  contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
                  v2b = info.v2b().viewer().name("v2b"),
                  body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
-                 d_hat = d_hat,
-                 alpha = alpha] __device__(IndexT i, IndexT j)
+                 d_hats = info.d_hats().viewer().name("d_hats"),
+                 alpha  = alpha] __device__(IndexT i, IndexT j)
                 {
                     const auto& V      = Vs(i);
                     const auto& codimV = codimVs(j);
@@ -241,7 +247,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                     auto body_j = v2b(codimV);
                     // skip self-collision for the same body if self collision off
                     if(body_i == body_j && !body_self_collision(body_i))
-                        return false;  
+                        return false;
 
 
                     Vector3 P0  = Ps(V);
@@ -251,6 +257,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                     Vector3 dP1 = alpha * dxs(codimV);
 
                     Float thickness = PP_thickness(thicknesses(V), thicknesses(codimV));
+                    Float d_hat = PP_d_hat(d_hats(V), d_hats(codimV));
 
                     Float expand = d_hat + thickness;
 
@@ -276,8 +283,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                  contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
                  v2b = info.v2b().viewer().name("v2b"),
                  body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
-                 d_hat = d_hat,
-                 alpha = alpha] __device__(IndexT i, IndexT j)
+                 d_hats = info.d_hats().viewer().name("d_hats"),
+                 alpha  = alpha] __device__(IndexT i, IndexT j)
                 {
                     const auto& codimV = codimVs(i);
                     const auto& E      = Es(j);
@@ -311,6 +318,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                     Float thickness = PE_thickness(thicknesses(codimV),
                                                    thicknesses(E[0]),
                                                    thicknesses(E[1]));
+                    Float d_hat = PE_d_hat(d_hats(codimV), d_hats(E[0]), d_hats(E[1]));
 
                     Float expand = d_hat + thickness;
 
@@ -335,8 +343,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
              contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
              v2b = info.v2b().viewer().name("v2b"),
              body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
-             d_hat = d_hat,
-             alpha = alpha] __device__(IndexT i, IndexT j)
+             d_hats = info.d_hats().viewer().name("d_hats"),
+             alpha  = alpha] __device__(IndexT i, IndexT j)
             {
                 const auto& E0 = Es(i);
                 const auto& E1 = Es(j);
@@ -375,6 +383,9 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                                                thicknesses(E1[0]),
                                                thicknesses(E1[1]));
 
+                Float d_hat =
+                    EE_d_hat(d_hats(E0[0]), d_hats(E0[1]), d_hats(E1[0]), d_hats(E1[1]));
+
                 Float expand = d_hat + thickness;
 
                 if(!distance::edge_edge_ccd_broadphase(
@@ -400,8 +411,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
              contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
              v2b = info.v2b().viewer().name("v2b"),
              body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
-             d_hat = d_hat,
-             alpha = alpha] __device__(IndexT i, IndexT j)
+             d_hats = info.d_hats().viewer().name("d_hats"),
+             alpha  = alpha] __device__(IndexT i, IndexT j)
             {
                 auto V = Vs(i);
                 auto F = Fs(j);
@@ -442,6 +453,9 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                                                thicknesses(F[1]),
                                                thicknesses(F[2]));
 
+                Float d_hat =
+                    PT_d_hat(d_hats(V), d_hats(F[0]), d_hats(F[1]), d_hats(F[2]));
+
                 Float expand = d_hat + thickness;
 
                 if(!distance::point_triangle_ccd_broadphase(P, F0, F1, F2, dP, dF0, dF1, dF2, expand))
@@ -458,8 +472,6 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
     using namespace muda;
 
     // we will filter-out the active pairs
-
-    auto d_hat     = info.d_hat();
     auto positions = info.positions();
 
     SizeT N_PCoimP  = candidate_AllP_CodimP_pairs.size();
@@ -492,7 +504,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                     codim_vertices = info.codim_vertices().viewer().name("codim_vertices"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     temp_PPs = PP_view.viewer().name("temp_PPs"),
-                    d_hat    = d_hat] __device__(int i) mutable
+                    d_hats = info.d_hats().viewer().name("d_hats")] __device__(int i) mutable
                    {
                        // default invalid
                        auto& PP = temp_PPs(i);
@@ -508,6 +520,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        const auto& V1 = positions(P1);
 
                        Float thickness = PP_thickness(thicknesses(P0), thicknesses(P1));
+                       Float d_hat = PP_d_hat(d_hats(P0), d_hats(P1));
 
                        Vector2 range = D_range(thickness, d_hat);
 
@@ -531,68 +544,69 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(candidate_CodimP_AllE_pairs.size(),
-                   [positions = positions.viewer().name("positions"),
-                    CodimP_AllE_pairs = candidate_CodimP_AllE_pairs.viewer().name("PE_pairs"),
-                    codim_veritces = info.codim_vertices().viewer().name("codim_vertices"),
-                    surf_edges = info.surf_edges().viewer().name("surf_edges"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    temp_PPs = PP_view.viewer().name("temp_PPs"),
-                    temp_PEs = PE_view.viewer().name("temp_PEs"),
-                    d_hat    = d_hat] __device__(int i) mutable
-                   {
-                       auto& PP = temp_PPs(i);
-                       PP.setConstant(-1);
-                       auto& PE = temp_PEs(i);
-                       PE.setConstant(-1);
+            .apply(
+                candidate_CodimP_AllE_pairs.size(),
+                [positions = positions.viewer().name("positions"),
+                 CodimP_AllE_pairs = candidate_CodimP_AllE_pairs.viewer().name("PE_pairs"),
+                 codim_veritces = info.codim_vertices().viewer().name("codim_vertices"),
+                 surf_edges  = info.surf_edges().viewer().name("surf_edges"),
+                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                 temp_PPs    = PP_view.viewer().name("temp_PPs"),
+                 temp_PEs    = PE_view.viewer().name("temp_PEs"),
+                 d_hats = info.d_hats().viewer().name("d_hats")] __device__(int i) mutable
+                {
+                    auto& PP = temp_PPs(i);
+                    PP.setConstant(-1);
+                    auto& PE = temp_PEs(i);
+                    PE.setConstant(-1);
 
-                       Vector2i indices = CodimP_AllE_pairs(i);
-                       IndexT   V       = codim_veritces(indices(0));
-                       Vector2i E       = surf_edges(indices(1));
+                    Vector2i indices = CodimP_AllE_pairs(i);
+                    IndexT   V       = codim_veritces(indices(0));
+                    Vector2i E       = surf_edges(indices(1));
 
-                       Vector3i vIs  = {V, E(0), E(1)};
-                       Vector3  Ps[] = {positions(vIs(0)),
-                                        positions(vIs(1)),
-                                        positions(vIs(2))};
+                    Vector3i vIs = {V, E(0), E(1)};
+                    Vector3 Ps[] = {positions(vIs(0)), positions(vIs(1)), positions(vIs(2))};
 
-                       Float thickness = PE_thickness(
-                           thicknesses(V), thicknesses(E(0)), thicknesses(E(1)));
+                    Float thickness = PE_thickness(
+                        thicknesses(V), thicknesses(E(0)), thicknesses(E(1)));
+
+                    Float d_hat = PE_d_hat(d_hats(V), d_hats(E(0)), d_hats(E(1)));
 
 
-                       Vector3i flag =
-                           distance::point_edge_distance_flag(Ps[0], Ps[1], Ps[2]);
+                    Vector3i flag =
+                        distance::point_edge_distance_flag(Ps[0], Ps[1], Ps[2]);
 
-                       Vector2 range = D_range(thickness, d_hat);
+                    Vector2 range = D_range(thickness, d_hat);
 
-                       Float D;
-                       distance::point_edge_distance2(flag, Ps[0], Ps[1], Ps[2], D);
+                    Float D;
+                    distance::point_edge_distance2(flag, Ps[0], Ps[1], Ps[2], D);
 
-                       if(!is_active_D(range, D))
-                           return;  // early return
+                    if(!is_active_D(range, D))
+                        return;  // early return
 
-                       Vector3i offsets;
-                       auto dim = distance::degenerate_point_edge(flag, offsets);
+                    Vector3i offsets;
+                    auto dim = distance::degenerate_point_edge(flag, offsets);
 
-                       switch(dim)
-                       {
-                           case 2:  // PP
-                           {
-                               IndexT V0 = vIs(offsets(0));
-                               IndexT V1 = vIs(offsets(1));
-                               PP        = {V0, V1};
-                           }
-                           break;
-                           case 3:  // PE
-                           {
-                               PE = vIs;
-                           }
-                           break;
-                           default: {
-                               MUDA_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
-                           }
-                           break;
-                       }
-                   });
+                    switch(dim)
+                    {
+                        case 2:  // PP
+                        {
+                            IndexT V0 = vIs(offsets(0));
+                            IndexT V1 = vIs(offsets(1));
+                            PP        = {V0, V1};
+                        }
+                        break;
+                        case 3:  // PE
+                        {
+                            PE = vIs;
+                        }
+                        break;
+                        default: {
+                            MUDA_ERROR_WITH_LOCATION("unexpected degenerate case dim=%d", dim);
+                        }
+                        break;
+                    }
+                });
 
         temp_PP_offset += N_CodimPE;
         temp_PE_offset += N_CodimPE;
@@ -615,7 +629,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                  temp_PPs    = PP_view.viewer().name("temp_PPs"),
                  temp_PEs    = PE_view.viewer().name("temp_PEs"),
                  temp_PTs    = temp_PTs.viewer().name("temp_PTs"),
-                 d_hat       = d_hat] __device__(int i) mutable
+                 d_hats = info.d_hats().viewer().name("d_hats")] __device__(int i) mutable
                 {
                     auto& PP = temp_PPs(i);
                     PP.setConstant(-1);
@@ -638,6 +652,9 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                                                    thicknesses(F(0)),
                                                    thicknesses(F(1)),
                                                    thicknesses(F(2)));
+
+                    Float d_hat =
+                        PT_d_hat(d_hats(V), d_hats(F(0)), d_hats(F(1)), d_hats(F(2)));
 
                     Vector4i flag =
                         distance::point_triangle_distance_flag(Ps[0], Ps[1], Ps[2], Ps[3]);
@@ -705,7 +722,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                  temp_PPs    = PP_view.viewer().name("temp_PPs"),
                  temp_PEs    = PE_view.viewer().name("temp_PEs"),
                  temp_EEs    = temp_EEs.viewer().name("temp_EEs"),
-                 d_hat       = d_hat] __device__(int i) mutable
+                 d_hats = info.d_hats().viewer().name("d_hats")] __device__(int i) mutable
                 {
                     auto& PP = temp_PPs(i);
                     PP.setConstant(-1);
@@ -728,6 +745,9 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                                                    thicknesses(E0(1)),
                                                    thicknesses(E1(0)),
                                                    thicknesses(E1(1)));
+
+                    Float d_hat = EE_d_hat(
+                        d_hats(E0(0)), d_hats(E0(1)), d_hats(E1(0)), d_hats(E1(1)));
 
                     Vector2 range = D_range(thickness, d_hat);
 
@@ -785,7 +805,8 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                             break;
                         }
                     }
-                });
+                })
+            .wait();
 
         temp_PP_offset += N_EEs;
         temp_PE_offset += N_EEs;
@@ -934,8 +955,9 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     positions = info.positions().viewer().name("Ps"),
                     dxs       = info.displacements().viewer().name("dxs"),
+                    d_hats    = info.d_hats().viewer().name("d_hats"),
                     alpha     = info.alpha(),
-                    d_hat     = info.d_hat(),
+
                     eta,
                     max_iter,
                     large_enough_toi] __device__(int i) mutable
@@ -945,6 +967,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                        IndexT V1      = codim_vertices(indices(1));
 
                        Float thickness = PP_thickness(thicknesses(V0), thicknesses(V1));
+                       Float d_hat = PP_d_hat(d_hats(V0), d_hats(V1));
 
                        Vector3 VP0  = positions(V0);
                        Vector3 VP1  = positions(V1);
@@ -984,17 +1007,19 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                     surf_edges = info.surf_edges().viewer().name("surf_edges"),
                     Ps         = info.positions().viewer().name("Ps"),
                     dxs        = info.displacements().viewer().name("dxs"),
+                    d_hats     = info.d_hats().viewer().name("d_hats"),
                     alpha      = info.alpha(),
-                    d_hat      = info.d_hat(),
                     eta,
                     max_iter,
                     large_enough_toi] __device__(int i) mutable
                    {
-                       auto     indices   = CodimP_AllE_pairs(i);
-                       IndexT   V         = codim_vertices(indices(0));
-                       Vector2i E         = surf_edges(indices(1));
-                       Float    thickness = PE_thickness(
+                       auto     indices = CodimP_AllE_pairs(i);
+                       IndexT   V       = codim_vertices(indices(0));
+                       Vector2i E       = surf_edges(indices(1));
+
+                       Float thickness = PE_thickness(
                            thicknesses(V), thicknesses(E(0)), thicknesses(E(1)));
+                       Float d_hat = PE_d_hat(d_hats(V), d_hats(E(0)), d_hats(E(1)));
 
                        Vector3 VP  = Ps(V);
                        Vector3 dVP = alpha * dxs(V);
@@ -1035,23 +1060,24 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                     surf_vertices = info.surf_vertices().viewer().name("surf_vertices"),
                     surf_triangles = info.surf_triangles().viewer().name("surf_triangles"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    Ps  = info.positions().viewer().name("Ps"),
-                    dxs = info.displacements().viewer().name("dxs"),
-
-                    alpha = info.alpha(),
-                    d_hat = info.d_hat(),
+                    Ps     = info.positions().viewer().name("Ps"),
+                    dxs    = info.displacements().viewer().name("dxs"),
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    alpha  = info.alpha(),
                     eta,
-
                     max_iter,
                     large_enough_toi] __device__(int i) mutable
                    {
-                       auto     indices   = PT_pairs(i);
-                       IndexT   V         = surf_vertices(indices(0));
-                       Vector3i F         = surf_triangles(indices(1));
-                       Float    thickness = PT_thickness(thicknesses(V),
+                       auto     indices = PT_pairs(i);
+                       IndexT   V       = surf_vertices(indices(0));
+                       Vector3i F       = surf_triangles(indices(1));
+
+                       Float thickness = PT_thickness(thicknesses(V),
                                                       thicknesses(F(0)),
                                                       thicknesses(F(1)),
                                                       thicknesses(F(2)));
+                       Float d_hat =
+                           PT_d_hat(d_hats(V), d_hats(F(0)), d_hats(F(1)), d_hats(F(2)));
 
                        Vector3 VP  = Ps(V);
                        Vector3 dVP = alpha * dxs(V);
@@ -1095,21 +1121,25 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                     EE_pairs = candidate_AllE_AllE_pairs.viewer().name("EE_pairs"),
                     surf_edges = info.surf_edges().viewer().name("surf_edges"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    Ps    = info.positions().viewer().name("Ps"),
-                    dxs   = info.displacements().viewer().name("dxs"),
-                    alpha = info.alpha(),
-                    d_hat = info.d_hat(),
+                    Ps     = info.positions().viewer().name("Ps"),
+                    dxs    = info.displacements().viewer().name("dxs"),
+                    d_hats = info.d_hats().viewer().name("d_hats"),
+                    alpha  = info.alpha(),
                     eta,
                     max_iter,
                     large_enough_toi] __device__(int i) mutable
                    {
-                       auto     indices   = EE_pairs(i);
-                       Vector2i E0        = surf_edges(indices(0));
-                       Vector2i E1        = surf_edges(indices(1));
-                       Float    thickness = EE_thickness(thicknesses(E0(0)),
+                       auto     indices = EE_pairs(i);
+                       Vector2i E0      = surf_edges(indices(0));
+                       Vector2i E1      = surf_edges(indices(1));
+
+                       Float thickness = EE_thickness(thicknesses(E0(0)),
                                                       thicknesses(E0(1)),
                                                       thicknesses(E1(0)),
                                                       thicknesses(E1(1)));
+
+                       Float d_hat = EE_d_hat(
+                           d_hats(E0(0)), d_hats(E0(1)), d_hats(E1(0)), d_hats(E1(1)));
 
 
                        Vector3 EP0  = Ps(E0[0]);

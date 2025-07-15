@@ -31,6 +31,7 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
         muda::CBufferView<Vector3>        rest_positions() const;
         muda::CBufferView<IndexT>         contact_element_ids() const;
         Float                             d_hat() const;
+        muda::CBufferView<Float>          d_hats() const;
         Float                             dt() const;
         Float                             eps_velocity() const;
 

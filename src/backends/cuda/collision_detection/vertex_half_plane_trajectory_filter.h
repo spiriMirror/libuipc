@@ -24,7 +24,8 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         {
         }
 
-        Float d_hat() const noexcept;
+        Float                    d_hat() const noexcept;
+        muda::CBufferView<Float> d_hats() const noexcept;
 
         IndexT                     plane_vertex_global_offset() const noexcept;
         muda::CBufferView<Vector3> plane_normals() const noexcept;

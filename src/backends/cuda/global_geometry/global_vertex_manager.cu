@@ -11,6 +11,11 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(GlobalVertexManager);
 
+void GlobalVertexManager::do_build()
+{
+    m_impl.default_d_hat = world().scene().info()["contact"]["d_hat"].get<Float>();
+}
+
 void GlobalVertexManager::Impl::init()
 {
     auto vertex_reporter_view = vertex_reporters.view();
@@ -46,6 +51,7 @@ void GlobalVertexManager::Impl::init()
     displacements.resize(total_count, Vector3::Zero());
     displacement_norms.resize(total_count, 0.0);
     body_ids.resize(total_count, -1);  // -1 means no care about body id
+    d_hats.resize(total_count, default_d_hat);  // use default d_hat if not specified
 
     // 4) Create the subviews for each attribute_reporter,
     //    so that each reporter can write to its own subview
@@ -79,7 +85,7 @@ void GlobalVertexManager::Impl::step_forward(Float alpha)
     using namespace muda;
 
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(positions.size(),
                [pos      = positions.viewer().name("pos"),
                 safe_pos = safe_positions.viewer().name("safe_pos"),
@@ -243,6 +249,11 @@ muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::body_ids() co
     return m_impl->subview(m_impl->body_ids, m_index);
 }
 
+muda::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::d_hats() const noexcept
+{
+    return m_impl->subview(m_impl->d_hats, m_index);  // Assuming d_hats are stored in thicknesses
+}
+
 GlobalVertexManager::VertexDisplacementInfo::VertexDisplacementInfo(Impl* impl, SizeT index) noexcept
     : m_impl(impl)
     , m_index(index)
@@ -258,8 +269,6 @@ muda::CBufferView<IndexT> GlobalVertexManager::VertexDisplacementInfo::coindices
 {
     return m_impl->subview(m_impl->coindices, m_index);
 }
-
-void GlobalVertexManager::do_build() {}
 
 bool GlobalVertexManager::do_dump(DumpInfo& info)
 {
@@ -309,6 +318,11 @@ muda::CBufferView<IndexT> GlobalVertexManager::coindices() const noexcept
 muda::CBufferView<IndexT> GlobalVertexManager::body_ids() const noexcept
 {
     return m_impl.body_ids;
+}
+
+muda::CBufferView<Float> GlobalVertexManager::d_hats() const noexcept
+{
+    return m_impl.d_hats;
 }
 
 muda::CBufferView<Vector3> GlobalVertexManager::positions() const noexcept

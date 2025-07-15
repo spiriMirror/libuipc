@@ -109,6 +109,11 @@ Float VertexHalfPlaneNormalContact::BaseInfo::d_hat() const
     return m_impl->global_contact_manager->d_hat();
 }
 
+muda::CBufferView<Float> VertexHalfPlaneNormalContact::BaseInfo::d_hats() const
+{
+    return m_impl->global_vertex_manager->d_hats();
+}
+
 Float VertexHalfPlaneNormalContact::BaseInfo::dt() const
 {
     return m_impl->dt;
