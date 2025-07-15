@@ -250,8 +250,11 @@ namespace detail
         }
     }
 
-    static void label_vertices_with_contact_info(span<S<GeometrySlot>> geos)
+    static void label_vertices_with_contact_info(backend::SceneVisitor& sv)
     {
+        Float default_d_hat        = sv.info()["contact"]["d_hat"].get<Float>();
+        span<S<GeometrySlot>> geos = sv.geometries();
+
         for(auto& geo : geos)
         {
             if(geo->geometry().type() == builtin::SimplicialComplex)
@@ -280,6 +283,10 @@ namespace detail
 
                 if(need_label)
                 {
+                    /****************************************************************************
+                    *                           contact_element_id
+                    ****************************************************************************/
+
                     auto sanity_vertex_contact_element_id =
                         simplicial_complex->vertices().find<IndexT>("sanity_check/contact_element_id");
 
@@ -304,6 +311,34 @@ namespace detail
                         auto dst_view = view(*sanity_vertex_contact_element_id);
 
                         std::ranges::copy(src_view, dst_view.begin());
+                    }
+
+                    /****************************************************************************
+                    *                           d_hat
+                    ****************************************************************************/
+
+                    auto d_hat_attr =
+                        simplicial_complex->meta().find<Float>(builtin::d_hat);
+
+                    auto vertex_d_hat_attr =
+                        simplicial_complex->vertices().find<Float>("sanity_check/d_hat");
+
+                    if(!vertex_d_hat_attr)
+                    {
+                        vertex_d_hat_attr =
+                            simplicial_complex->vertices().create<Float>("sanity_check/d_hat",
+                                                                         0.0);
+                    }
+
+                    auto vertex_d_hat_view = view(*vertex_d_hat_attr);
+
+                    if(d_hat_attr)
+                    {
+                        std::ranges::fill(vertex_d_hat_view, d_hat_attr->view()[0]);
+                    }
+                    else
+                    {
+                        std::ranges::fill(vertex_d_hat_view, default_d_hat);
                     }
                 }
             }
@@ -383,6 +418,8 @@ namespace detail
         vector<SimplicialComplex> all_surfaces;
         all_surfaces.reserve(total_surface_instances);
 
+        IndexT InstId = 0;
+
         for(auto& surface : surfaces)
         {
             vector<SimplicialComplex> instances = apply_transform(surface);
@@ -397,7 +434,7 @@ namespace detail
                 if(!instance_id)
                     instance_id = instance.vertices().create<IndexT>("sanity_check/instance_id");
 
-                std::ranges::fill(view(*instance_id), I);
+                std::ranges::fill(view(*instance_id), InstId++);
             }
 
 
@@ -439,7 +476,7 @@ class Context::Impl
         auto  enable_contact = info["contact"]["enable"].get<bool>();
         if(enable_contact)
         {
-            detail::label_vertices_with_contact_info(scene_visitor.geometries());
+            detail::label_vertices_with_contact_info(scene_visitor);
         }
     }
 

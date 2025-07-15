@@ -251,7 +251,7 @@ muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::body_ids() co
 
 muda::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::d_hats() const noexcept
 {
-    return m_impl->subview(m_impl->thicknesses, m_index);  // Assuming d_hats are stored in thicknesses
+    return m_impl->subview(m_impl->d_hats, m_index);  // Assuming d_hats are stored in thicknesses
 }
 
 GlobalVertexManager::VertexDisplacementInfo::VertexDisplacementInfo(Impl* impl, SizeT index) noexcept
