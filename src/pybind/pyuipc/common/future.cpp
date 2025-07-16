@@ -47,7 +47,7 @@ PyFuture::PyFuture(py::module& m)
         [](const Future& future) { return future.is_ready(); },
         py::call_guard<py::gil_scoped_release>());
 
-    class_Future.def(
+    class_Future.def_static(
         "launch",
         [](py::function func) -> Future
         {
