@@ -11,6 +11,12 @@
 
 namespace uipc::core::internal
 {
+static S<internal::Engine> lock(const W<internal::Engine>& e)
+{
+    UIPC_ASSERT(!e.expired(), "Engine is expired, did you throw the `Engine`?");
+    return e.lock();
+}
+
 World::World(internal::Engine& e) noexcept
     : m_engine(e.weak_from_this())
 {
@@ -31,7 +37,7 @@ void World::init(internal::Scene& s)
     m_scene = s.shared_from_this();
     m_scene->init(*this);
 
-    auto engine = m_engine.lock();
+    auto engine = lock(m_engine);
 
     engine->init(*this);
 
@@ -50,7 +56,7 @@ void World::advance()
         return;
     }
 
-    auto engine = m_engine.lock();
+    auto engine = lock(m_engine);
 
     engine->advance();
 
@@ -69,7 +75,7 @@ void World::sync()
         return;
     }
 
-    auto engine = m_engine.lock();
+    auto engine = lock(m_engine);
 
     engine->sync();
 
@@ -88,7 +94,7 @@ void World::retrieve()
         return;
     }
 
-    auto engine = m_engine.lock();
+    auto engine = lock(m_engine);
 
     engine->retrieve();
 
@@ -107,7 +113,7 @@ void World::backward()
         return;
     }
 
-    auto engine = m_engine.lock();
+    auto engine = lock(m_engine);
 
     if(m_scene->diff_sim().parameters().size())
     {
@@ -134,7 +140,7 @@ bool World::dump()
         return false;
     }
 
-    auto engine = m_engine.lock();
+    auto engine = lock(m_engine);
 
     bool success   = engine->dump();
     bool has_error = engine->status().has_error();
@@ -161,7 +167,7 @@ bool World::recover(SizeT aim_frame)
         return false;
     }
 
-    auto engine = m_engine.lock();
+    auto engine = lock(m_engine);
 
     bool success   = engine->recover(aim_frame);
     bool has_error = engine->status().has_error();
@@ -190,7 +196,7 @@ bool World::is_valid() const
 
 SizeT World::frame() const
 {
-    auto engine = m_engine.lock();
+    auto engine = lock(m_engine);
 
     if(!m_valid)
     {
@@ -202,14 +208,13 @@ SizeT World::frame() const
 
 const FeatureCollection& World::features() const
 {
-    auto engine = m_engine.lock();
-
+    auto engine = lock(m_engine);
     return engine->features();
 }
 
 void World::sanity_check(Scene& s)
 {
-    auto engine = m_engine.lock();
+    auto engine = lock(m_engine);
 
     auto& config = s.config();
     if(config["sanity_check"]["enable"].get<bool>() == true)
