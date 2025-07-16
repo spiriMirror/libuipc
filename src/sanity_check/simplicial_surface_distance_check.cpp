@@ -323,8 +323,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 if(VInstanceIds[CodimP] == VInstanceIds[P])
                 {
                     // if self-collision is not enabled, skip it
-                    auto Inst = VInstanceIds[CodimP];
-                    if(!SelfCollision[Inst])
+                    if(!SelfCollision[CodimP])
                         return;
                 }
 
@@ -374,8 +373,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 if(VInstanceIds[CodimP] == VInstanceIds[E[0]])
                 {
                     // if self-collision is not enabled, skip it
-                    auto Inst = VInstanceIds[CodimP];
-                    if(!SelfCollision[Inst])
+                    if(!SelfCollision[CodimP])
                         return;
                 }
 
@@ -435,8 +433,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 if(VInstanceIds[P] == VInstanceIds[T[0]])
                 {
                     // if self-collision is not enabled, skip it
-                    auto Inst = VInstanceIds[P];
-                    if(!SelfCollision[Inst])
+                    if(!SelfCollision[P])
                         return;
                 }
 
@@ -500,9 +497,8 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
 
                 if(VInstanceIds[E0[0]] == VInstanceIds[E1[0]])
                 {
-                    auto Inst = VInstanceIds[E0[0]];
                     // if self-collision is not enabled, skip it
-                    if(!SelfCollision[Inst])
+                    if(!SelfCollision[E0[0]])
                         return;
                 }
 
