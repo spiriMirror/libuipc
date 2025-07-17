@@ -18,7 +18,7 @@
 #include <pyuipc/backend/buffer_view.h>
 #include <pyuipc/backend/buffer.h>
 #include <pyuipc/core/feature.h>
-#include <pyuipc/common/future.h>
+#include <pyuipc/common/resident_thread.h>
 
 using namespace uipc;
 
@@ -65,7 +65,7 @@ PYBIND11_MODULE(pyuipc, m)
     pyuipc::PyLogger{m};
     pyuipc::PyTransform{m};
     pyuipc::PyTimer{m};
-    pyuipc::PyFuture{m};
+    pyuipc::PyResidentThread{m};
 
     // early expose buffer view
     pyuipc::backend::PyBufferView{backend};

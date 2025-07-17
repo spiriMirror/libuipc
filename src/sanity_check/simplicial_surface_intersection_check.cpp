@@ -227,14 +227,17 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                             "Why Triangle({},{},{}) is not in the same instance?",
                             F[0],
                             F[1],
+
                             F[2]);
 
                 if(VInstanceIds[E[0]] == VInstanceIds[F[0]])
                 {
                     // if self-collision is not enabled, skip it
                     auto Inst = VInstanceIds[E[0]];
-                    if(!SelfCollision[Inst])
+                    if(!SelfCollision[E[0]])
+                    {
                         return;
+                    }
                 }
 
                 Vector2i CidEs = {CIds[E[0]], CIds[E[1]]};
@@ -266,6 +269,30 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
 
                     auto ObjIdL = VObjectIds[E[0]];
                     auto ObjIdR = VObjectIds[F[1]];
+
+                    auto InstIdL = VInstanceIds[E[0]];
+                    auto InstIdR = VInstanceIds[F[1]];
+
+                    auto SelfCollL = SelfCollision[InstIdL];
+                    auto SelfCollR = SelfCollision[InstIdR];
+
+                    spdlog::error(
+                        "Intersection detected between Edge({},{}) in Geometry({}) "
+                        "Instance({}) Object[{}] and Triangle({},{},{}) in "
+                        "Geometry({}) Instance({}) Object[{}], SelfColl({},{})",
+                        E[0],
+                        E[1],
+                        GeoIdL,
+                        InstIdL,
+                        ObjIdL,
+                        F[0],
+                        F[1],
+                        F[2],
+                        GeoIdR,
+                        InstIdR,
+                        ObjIdR,
+                        SelfCollL,
+                        SelfCollR);
 
                     if(GeoIdL > GeoIdR)
                     {
