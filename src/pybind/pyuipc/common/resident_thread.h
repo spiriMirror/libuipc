@@ -3,9 +3,9 @@
 
 namespace pyuipc
 {
-class PyFuture
+class PyResidentThread
 {
   public:
-    PyFuture(py::module& m);
+    PyResidentThread(py::module& m);
 };
 }  // namespace pyuipc

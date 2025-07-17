@@ -213,7 +213,6 @@ namespace detail
 
                     if(self_collision)
                     {
-
                         std::ranges::fill(sanity_check_self_collision_view,
                                           self_collision->view()[0]);
                     }
