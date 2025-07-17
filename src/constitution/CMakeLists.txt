@@ -6,6 +6,7 @@ target_link_libraries(uipc_constitution PUBLIC uipc::core uipc::geometry)
 target_compile_definitions(uipc_constitution PRIVATE UIPC_CONSTITUTION_EXPORT_DLL=1) # export dll
 
 uipc_target_set_output_directory(uipc_constitution)
+uipc_target_set_rpath(uipc_constitution)
 
 file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_constitution PRIVATE ${SOURCES})

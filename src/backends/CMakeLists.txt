@@ -34,6 +34,7 @@ function(uipc_add_backend name)
     
     
     uipc_target_set_output_directory(${name})
+    uipc_target_set_rpath(${name})
     add_dependencies(uipc_backends ${name})
 
     # folder for IDE
