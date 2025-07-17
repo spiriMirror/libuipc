@@ -78,6 +78,7 @@ add_subdirectory(diff_sim)
 # set the output directory
 # ------------------------------------------------------------------------------
 uipc_target_set_output_directory(uipc_core)
+uipc_target_set_rpath(uipc_core)
 
 
 # ------------------------------------------------------------------------------
