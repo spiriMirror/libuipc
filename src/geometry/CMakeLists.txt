@@ -20,6 +20,7 @@ file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_geometry PRIVATE ${SOURCES})
 
 uipc_target_set_output_directory(uipc_geometry)
+uipc_target_set_rpath(uipc_geometry)
 
 # ------------------------------------------------------------------------------
 # setup source group for the IDE
