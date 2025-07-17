@@ -235,7 +235,6 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                     // if self-collision is not enabled, skip it
                     if(!SelfCollision[E[0]])
                         return;
-                    }
                 }
 
                 Vector2i CidEs = {CIds[E[0]], CIds[E[1]]};
