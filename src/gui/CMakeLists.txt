@@ -29,6 +29,7 @@ include(uipc_utils)
 uipc_target_add_backend_dependency(uipc_gui)
 uipc_target_add_include_files(uipc_gui)
 uipc_target_set_output_directory(uipc_gui)
+uipc_target_set_rpath(uipc_gui)
 
 
 # ------------------------------------------------------------------------------

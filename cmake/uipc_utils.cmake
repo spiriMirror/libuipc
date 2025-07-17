@@ -219,3 +219,10 @@ file(TO_CMAKE_PATH "${python_dir}" python_dir)
 
 endfunction()
 
+# -----------------------------------------------------------------------------------------
+# 
+# --
+
+function(uipc_target_set_rpath target_name)
+    set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "$ORIGIN")
+endfunction()
