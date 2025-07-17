@@ -233,9 +233,7 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                 if(VInstanceIds[E[0]] == VInstanceIds[F[0]])
                 {
                     // if self-collision is not enabled, skip it
-                    auto Inst = VInstanceIds[E[0]];
                     if(!SelfCollision[E[0]])
-                    {
                         return;
                     }
                 }
