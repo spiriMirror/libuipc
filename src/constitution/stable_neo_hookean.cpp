@@ -31,17 +31,20 @@ void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc,
     auto mu     = moduli.mu();
     auto lambda = moduli.lambda();
 
+    auto snh_mu = 4 * mu / 3;
+    auto snh_lambda = lambda + 5 * mu / 6;
+
     UIPC_ASSERT(sc.dim() == 3, "StableNeoHookean only supports 3D simplicial complex");
 
     auto mu_attr = sc.tetrahedra().find<Float>("mu");
     if(!mu_attr)
-        mu_attr = sc.tetrahedra().create<Float>("mu", mu);
-    std::ranges::fill(geometry::view(*mu_attr), mu);
+        mu_attr = sc.tetrahedra().create<Float>("mu", snh_mu);
+    std::ranges::fill(geometry::view(*mu_attr), snh_mu);
 
     auto lambda_attr = sc.tetrahedra().find<Float>("lambda");
     if(!lambda_attr)
-        lambda_attr = sc.tetrahedra().create<Float>("lambda", lambda);
-    std::ranges::fill(geometry::view(*lambda_attr), lambda);
+        lambda_attr = sc.tetrahedra().create<Float>("lambda", snh_lambda);
+    std::ranges::fill(geometry::view(*lambda_attr), snh_lambda);
 }
 
 Json StableNeoHookean::default_config() noexcept
