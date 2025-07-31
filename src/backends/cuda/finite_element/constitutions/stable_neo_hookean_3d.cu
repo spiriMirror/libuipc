@@ -96,13 +96,11 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                        auto J = F.determinant();
 
-                       auto VecF = flatten(F);
+                       //auto VecF = flatten(F);
 
                        Float E;
 
-                       //ARAP::E(E, lambda * dt * dt, volumes(I), F);
-
-                       SNH::E(E, mu, lambda, VecF);
+                       SNH::E(E, mu, lambda, F);
                        E *= dt * dt * volumes(I);
                        energies(I) = E;
                    });
@@ -144,16 +142,19 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                        auto Vdt2 = volumes(I) * dt * dt;
 
-                       Vector9   dEdF;
+                       Matrix3x3   dEdF;
                        Matrix9x9 ddEddF;
-                       SNH::dEdVecF(dEdF, mu, lambda, VecF);
-                       SNH::ddEddVecF(ddEddF, mu, lambda, VecF);
-                       dEdF *= Vdt2;
+                       SNH::dEdVecF(dEdF, mu, lambda, F);
+                       SNH::ddEddVecF(ddEddF, mu, lambda, F);
+
+                       auto VecdEdF = flatten(dEdF);
+
+                       VecdEdF *= Vdt2;
                        ddEddF *= Vdt2;
 
                        make_spd(ddEddF);
                        Matrix9x12  dFdx = fem::dFdx(Dm_inv);
-                       Vector12    G    = dFdx.transpose() * dEdF;
+                       Vector12    G    = dFdx.transpose() * VecdEdF;
                        Matrix12x12 H    = dFdx.transpose() * ddEddF * dFdx;
 
                        DoubletVectorAssembler DVA{G3s};
