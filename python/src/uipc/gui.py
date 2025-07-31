@@ -196,7 +196,18 @@ class SceneGUI:
             return
         height = P.view()[0][1]
         normal = N.view()[0]
-        if (normal != np.array([0, 1, 0])).all():
+        #if (normal != np.array([0, 1, 0])).all():
+            #return
+        
+        normal = normal.flatten()
+        #print(normal)
+        if np.allclose(normal, [0, 1, 0]):
+            ps.set_up_dir("y_up")
+        elif np.allclose(normal, [1, 0, 0]):
+            ps.set_up_dir("x_up")
+        elif np.allclose(normal, [0, 0, 1]):
+            ps.set_up_dir("z_up")
+        else:
             return
         ps.set_ground_plane_height(height)
 
