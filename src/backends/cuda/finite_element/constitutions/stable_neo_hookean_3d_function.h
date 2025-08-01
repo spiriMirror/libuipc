@@ -5,6 +5,6 @@ namespace uipc::backend::cuda
 {
 namespace sym::stable_neo_hookean_3d
 {
-#include "sym/stable_neo_hookean_3d.inl"
+#include "detail/stable_neo_hookean_3d.inl"
 }
 }  // namespace uipc::backend::cuda
