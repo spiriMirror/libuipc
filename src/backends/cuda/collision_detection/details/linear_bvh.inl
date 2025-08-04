@@ -390,7 +390,6 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
     BufferLaunch(s).fill(m_aabbs.view(), default_aabb);
 
     resize(s, m_sorted_mortons, num_objects);
-    resize(s, m_sorted_mortons, num_objects);
 
     resize(s, m_indices, num_objects);
     resize(s, m_new_to_old, num_objects);
@@ -463,7 +462,8 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
                 mortons   = m_sorted_mortons.viewer().name("mortons"),
                 indices = m_new_to_old.viewer().name("indices")] __device__(int i) mutable
                {
-                   MortonIndex morton{mortons(i), indices(i)};
+                   uint32_t idx = i;
+                   MortonIndex morton{mortons(i), idx};
                    morton64s(i) = morton;
                });
 
