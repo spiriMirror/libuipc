@@ -206,6 +206,7 @@ void SimEngine::do_advance()
 
             // 2. Record Friction Candidates at the beginning of the frame
             record_friction_candidates();
+            m_global_vertex_manager->record_prev_positions();
 
             // 3. Predict Motion => x_tilde = x + v * dt
             m_state = SimEngineState::PredictMotion;
@@ -352,7 +353,6 @@ void SimEngine::do_advance()
             {
                 Timer timer{"Update Velocity"};
                 m_time_integrator_manager->update_state();
-                m_global_vertex_manager->record_prev_positions();
             }
 
             if(newton_iter > m_newton_max_iter)
