@@ -1026,7 +1026,7 @@ void FiniteElementMethod::Impl::_init_energy_producers()
 {
     auto constitution_view       = constitutions.view();
     auto extra_constitution_view = extra_constitutions.view();
-    SizeT N = constitution_view.size() + constitution_view.size() + 1 /*Kinetic*/;
+    SizeT N = constitution_view.size() + extra_constitution_view.size() + 1 /*Kinetic*/;
     energy_producers.reserve(N);
     energy_producers.push_back(kinetic.view());
     std::ranges::copy(constitution_view, std::back_inserter(energy_producers));
