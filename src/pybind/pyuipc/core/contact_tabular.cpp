@@ -33,6 +33,7 @@ PyContactTabular::PyContactTabular(py::module& m)
         class_ContactElement.def("id", &ContactElement::id);
         class_ContactElement.def("name", &ContactElement::name);
         class_ContactElement.def("apply_to", &ContactElement::apply_to);
+        class_ContactElement.def("subscene_append", &ContactElement::subscene_append);
     }
 
     {
@@ -72,6 +73,8 @@ PyContactTabular::PyContactTabular(py::module& m)
         // Elements:
         class_ContactTabular.def("create", &ContactTabular::create, py::arg("name") = "");
 
+        class_ContactTabular.def("create_subscene", &ContactTabular::create_subscene, py::arg("name") = "");
+
         class_ContactTabular.def("default_element",
                                  &ContactTabular::default_element,
                                  py::return_value_policy::reference_internal);
@@ -85,6 +88,13 @@ PyContactTabular::PyContactTabular(py::module& m)
                                  py::arg("R"),
                                  py::arg("friction_rate"),
                                  py::arg("resistance"),
+                                 py::arg("enable") = true,
+                                 py::arg("config") = Json::object());
+
+        class_ContactTabular.def("subscene_insert",
+                                 &ContactTabular::subscene_insert,
+                                 py::arg("L"),
+                                 py::arg("R"),
                                  py::arg("enable") = true,
                                  py::arg("config") = Json::object());
 

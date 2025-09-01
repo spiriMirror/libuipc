@@ -255,6 +255,7 @@ class AffineBodyDynamics : public SimSystem
         vector<Float>     h_vertex_id_to_d_hat;
         vector<IndexT>    h_vertex_id_to_body_id;
         vector<IndexT>    h_vertex_id_to_contact_element_id;
+        vector<IndexT>    h_vertex_id_to_subscene_contact_element_id;
 
         vector<Vector12> h_body_id_to_q;
         vector<Vector12> h_body_id_to_q_v;

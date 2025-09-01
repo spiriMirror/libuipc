@@ -278,6 +278,7 @@ class FiniteElementMethod final : public SimSystem
         // Simulation Data:
 
         vector<IndexT> h_vertex_contact_element_ids;
+        vector<IndexT> h_vertex_subscene_contact_element_ids;
         vector<Float>  h_vertex_d_hat;
 
         vector<IndexT>  h_vertex_is_fixed;

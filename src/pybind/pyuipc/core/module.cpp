@@ -26,7 +26,7 @@ PyModule::PyModule(py::module& m)
 
     PyObject{m};
 
-    PyContactTabular{m};
+    PyContactTabular{m}; 
     PyConstitutionTabular{m};
 
     PyAnimator{m};

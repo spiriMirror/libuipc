@@ -224,6 +224,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                  dimensions  = info.dimensions().viewer().name("dimensions"),
                  contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                  contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+                 subscene_contact_element_ids = info.subscene_contact_element_ids().viewer().name("subscene_contact_element_ids"),
+                 subscene_contact_mask_tabular = info.subscene_contact_mask_tabular().viewer().name("subscene_contact_mask_tabular"),
                  v2b = info.v2b().viewer().name("v2b"),
                  body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
                  d_hats = info.d_hats().viewer().name("d_hats"),
@@ -233,8 +235,11 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                     const auto& codimV = codimVs(j);
 
                     Vector2i cids = {contact_element_ids(V), contact_element_ids(codimV)};
+                    Vector2i scids = {subscene_contact_element_ids(V), subscene_contact_element_ids(codimV)};
 
                     // discard if the contact is disabled
+                    if(!allow_PP_contact(subscene_contact_mask_tabular, scids))
+                        return false;
                     if(!allow_PP_contact(contact_mask_tabular, cids))
                         return false;
 
@@ -281,6 +286,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                  thicknesses = info.thicknesses().viewer().name("thicknesses"),
                  contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                  contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+                 subscene_contact_element_ids = info.subscene_contact_element_ids().viewer().name("subscene_contact_element_ids"),
+                 subscene_contact_mask_tabular = info.subscene_contact_mask_tabular().viewer().name("subscene_contact_mask_tabular"),
                  v2b = info.v2b().viewer().name("v2b"),
                  body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
                  d_hats = info.d_hats().viewer().name("d_hats"),
@@ -293,7 +300,13 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                                      contact_element_ids(E[0]),
                                      contact_element_ids(E[1])};
 
+                    Vector3i scids = {subscene_contact_element_ids(codimV),
+                                      subscene_contact_element_ids(E[0]),
+                                      subscene_contact_element_ids(E[1])};
+
                     // discard if the contact is disabled
+                    if(!allow_PE_contact(subscene_contact_mask_tabular, scids))
+                        return false;
                     if(!allow_PE_contact(contact_mask_tabular, cids))
                         return false;
 
@@ -341,6 +354,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
              thicknesses = info.thicknesses().viewer().name("thicknesses"),
              contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
              contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+             subscene_contact_element_ids = info.subscene_contact_element_ids().viewer().name("subscene_contact_element_ids"),
+             subscene_contact_mask_tabular = info.subscene_contact_mask_tabular().viewer().name("subscene_contact_mask_tabular"),
              v2b = info.v2b().viewer().name("v2b"),
              body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
              d_hats = info.d_hats().viewer().name("d_hats"),
@@ -354,7 +369,14 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                                  contact_element_ids(E1[0]),
                                  contact_element_ids(E1[1])};
 
+                Vector4i scids = {subscene_contact_element_ids(E0[0]),
+                                 subscene_contact_element_ids(E0[1]),
+                                 subscene_contact_element_ids(E1[0]),
+                                 subscene_contact_element_ids(E1[1])};
+
                 // discard if the contact is disabled
+                if(!allow_EE_contact(subscene_contact_mask_tabular, scids))
+                    return false;
                 if(!allow_EE_contact(contact_mask_tabular, cids))
                     return false;
 
@@ -409,6 +431,8 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
              thicknesses = info.thicknesses().viewer().name("thicknesses"),
              contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
              contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+             subscene_contact_element_ids = info.subscene_contact_element_ids().viewer().name("subscene_contact_element_ids"),
+             subscene_contact_mask_tabular = info.subscene_contact_mask_tabular().viewer().name("subscene_contact_mask_tabular"),
              v2b = info.v2b().viewer().name("v2b"),
              body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
              d_hats = info.d_hats().viewer().name("d_hats"),
@@ -422,7 +446,14 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                                  contact_element_ids(F[1]),
                                  contact_element_ids(F[2])};
 
+                Vector4i scids = {subscene_contact_element_ids(V),
+                                 subscene_contact_element_ids(F[0]),
+                                 subscene_contact_element_ids(F[1]),
+                                 subscene_contact_element_ids(F[2])};
+
                 // discard if the contact is disabled
+                if(!allow_PT_contact(subscene_contact_mask_tabular, scids))
+                    return false;
                 if(!allow_PT_contact(contact_mask_tabular, cids))
                     return false;
 

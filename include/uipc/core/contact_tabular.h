@@ -33,10 +33,17 @@ class UIPC_CORE_API ContactTabular final
 
     ContactElement create(std::string_view name = "") noexcept;
 
+    ContactElement create_subscene(std::string_view name = "") noexcept;
+
     IndexT insert(const ContactElement& L,
                   const ContactElement& R,
                   Float                 friction_rate,
                   Float                 resistance,
+                  bool                  enable = true,
+                  const Json&           config = default_config());
+
+    IndexT subscene_insert(const ContactElement& L,
+                  const ContactElement& R,
                   bool                  enable = true,
                   const Json&           config = default_config());
 
@@ -48,6 +55,7 @@ class UIPC_CORE_API ContactTabular final
                        const Json& config = default_config()) noexcept;
 
     ContactElement default_element() noexcept;
+    ContactElement default_subscene_element() noexcept;
     ContactModel   default_model() const noexcept;
 
 
@@ -55,10 +63,15 @@ class UIPC_CORE_API ContactTabular final
 
     SizeT element_count() const noexcept;
 
+    SizeT subscene_element_count() const noexcept;
+
     static Json default_config() noexcept;
 
     ContactModelCollection  contact_models() noexcept;
     CContactModelCollection contact_models() const noexcept;
+
+    ContactModelCollection  subscene_contact_models() noexcept;
+    CContactModelCollection subscene_contact_models() const noexcept;
 
   private:
     class Impl;

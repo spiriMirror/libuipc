@@ -41,7 +41,9 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
                     positions = info.positions().viewer().name("positions"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+                    subscene_contact_element_ids = info.subscene_contact_element_ids().viewer().name("contact_element_ids"),
                     contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+                    subscene_contact_mask_tabular = info.subscene_contact_mask_tabular().viewer().name("subscene_contact_mask_tabular"),
                     half_plane_positions = info.plane_positions().viewer().name("plane_positions"),
                     half_plane_normals = info.plane_normals().viewer().name("plane_normals"),
                     PHs       = PHs.viewer().name("PHs"),
@@ -57,6 +59,12 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
 
                            IndexT L = contact_element_ids(vI);
                            IndexT R = contact_element_ids(vJ);
+
+                           IndexT sL = subscene_contact_element_ids(vI);
+                           IndexT sR = subscene_contact_element_ids(vJ);
+
+                           if(subscene_contact_mask_tabular(sL, sR) == 0)
+                               continue;
 
                            if(contact_mask_tabular(L, R) == 0)
                                continue;
@@ -129,6 +137,8 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                 positions   = info.positions().viewer().name("positions"),
                 thicknesses = info.thicknesses().viewer().name("thicknesses"),
                 contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+                subscene_contact_element_ids = info.subscene_contact_element_ids().viewer().name("contact_element_ids"),
+                subscene_contact_mask_tabular = info.subscene_contact_mask_tabular().viewer().name("subscene_contact_mask_tabular"),
                 contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
                 displacements = info.displacements().viewer().name("displacements"),
                 half_plane_positions = info.plane_positions().viewer().name("plane_positions"),
@@ -146,6 +156,12 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 
                        IndexT L = contact_element_ids(vI);
                        IndexT R = contact_element_ids(vJ);
+
+                       IndexT sL = subscene_contact_element_ids(vI);
+                       IndexT sR = subscene_contact_element_ids(vJ);
+
+                       if(subscene_contact_mask_tabular(sL, sR) == 0)
+                           continue;
 
                        if(contact_mask_tabular(L, R) == 0)
                            continue;

@@ -574,6 +574,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
         h_dimensions.resize(h_positions.size(), 3);   // fill 3(D) for default
         h_masses.resize(h_positions.size());
         h_vertex_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
+        h_vertex_subscene_contact_element_ids.resize(h_positions.size(), 0);  // fill 0 for default
         h_vertex_d_hat.resize(h_positions.size(), default_d_hat);  // fill default d_hat
         h_vertex_is_fixed.resize(h_positions.size(), 0);  // fill 0 for default, default non-fixed
         h_vertex_is_dynamic.resize(h_positions.size(), 1);  // fill 1 for default, default dynamic
@@ -755,7 +756,11 @@ To avoid this warning, please apply the transform to the positions mannally. htt
                 auto dst_eid_span = span{h_vertex_contact_element_ids}.subspan(
                     info.vertex_offset, info.vertex_count);
 
+                auto dst_subscene_eid_span = span{h_vertex_subscene_contact_element_ids}.subspan(
+                    info.vertex_offset, info.vertex_count);
+
                 auto vert_ceid = sc->vertices().find<IndexT>(builtin::contact_element_id);
+
                 if(vert_ceid)
                 {
                     auto ceid_view = vert_ceid->view();
@@ -772,6 +777,31 @@ To avoid this warning, please apply the transform to the positions mannally. htt
                     {
                         auto eid = ceid->view()[0];
                         std::ranges::fill(dst_eid_span, eid);
+                    }
+                }
+
+                auto vert_subscene_ceid =
+                    sc->vertices().find<IndexT>(builtin::contact_subscene_element_id);
+                if(vert_subscene_ceid)
+                {
+                    auto subscene_ceid_view = vert_subscene_ceid->view();
+                    UIPC_ASSERT(subscene_ceid_view.size() == dst_subscene_eid_span.size(),
+                                "subscene contact element id size mismatching");
+
+                    std::ranges::copy(subscene_ceid_view, dst_subscene_eid_span.begin());
+                }
+                else
+                {
+                    auto subscene_ceid = sc->meta().find<IndexT>(builtin::contact_subscene_element_id);
+
+                    if(subscene_ceid)
+                    {
+                        auto eid = subscene_ceid->view()[0];
+                        std::ranges::fill(dst_subscene_eid_span, eid);
+                    }
+                    else
+                    {
+                        std::ranges::fill(dst_subscene_eid_span, 0);
                     }
                 }
 
