@@ -391,10 +391,12 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     {
         h_vertex_id_to_body_id.resize(abd_vertex_count);
         h_vertex_id_to_contact_element_id.resize(abd_vertex_count);
+        h_vertex_id_to_subscene_contact_element_id.resize(abd_vertex_count);
         h_vertex_id_to_d_hat.resize(abd_vertex_count);
 
         span v2b     = h_vertex_id_to_body_id;
         span v2c     = h_vertex_id_to_contact_element_id;
+        span v2sc    = h_vertex_id_to_subscene_contact_element_id;
         span v2d_hat = h_vertex_id_to_d_hat;
 
         for_each(
@@ -411,8 +413,14 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                 auto vert_contact_element_id =
                     sc.vertices().find<IndexT>(builtin::contact_element_id);
 
+                auto vert_contact_subscene_element_id =
+                    sc.vertices().find<IndexT>(builtin::contact_subscene_element_id);
+
                 auto contact_element_id =
                     sc.meta().find<IndexT>(builtin::contact_element_id);
+
+                auto contact_subscene_element_id =
+                    sc.meta().find<IndexT>(builtin::contact_subscene_element_id);
 
                 for(auto i : range(body_count))
                 {
@@ -421,6 +429,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
                     auto v2b_span = v2b.subspan(body_vert_offset, vert_count);
                     auto v2c_span = v2c.subspan(body_vert_offset, vert_count);
+                    auto v2sc_span = v2sc.subspan(body_vert_offset, vert_count);
                     auto v2d_hat_span = v2d_hat.subspan(body_vert_offset, vert_count);
 
                     std::ranges::fill(v2b_span, body_id);
@@ -446,8 +455,33 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                         }
                         else
                         {
-                            std::ranges::fill(v2c_span,
-                                              0);  // default 0
+                            std::ranges::fill(v2c_span, 0);  // default 0
+                        }
+                    }
+
+                    if(vert_contact_subscene_element_id)
+                    {
+                        auto vert_contact_subscene_element_id_view =
+                            vert_contact_subscene_element_id->view();
+
+                        UIPC_ASSERT(vert_contact_subscene_element_id_view.size() == vert_count,
+                                    "The size of the contact_element_id attribute is not equal to the vertex count ({} != {}).",
+                                    vert_contact_subscene_element_id_view.size(),
+                                    vert_count);
+
+                        std::ranges::copy(vert_contact_subscene_element_id_view,
+                                          v2sc_span.begin());
+                    }
+                    else
+                    {
+                        if(contact_subscene_element_id)
+                        {
+                            auto contact_subscene_element_id_view = contact_subscene_element_id->view();
+                            std::ranges::fill(v2sc_span, contact_subscene_element_id_view.front());
+                        }
+                        else
+                        {
+                            std::ranges::fill(v2sc_span, 0);  // default 0
                         }
                     }
 

@@ -53,6 +53,11 @@ muda::CBuffer2DView<IndexT> GlobalContactManager::contact_mask_tabular() const n
     return m_impl.contact_mask_tabular;
 }
 
+muda::CBuffer2DView<IndexT> GlobalContactManager::subscene_contact_mask_tabular() const noexcept
+{
+    return m_impl.contact_mask_tabular_subscene;
+}
+
 muda::CBCOOVectorView<Float, 3> GlobalContactManager::contact_gradient() const noexcept
 {
     return m_impl.sorted_contact_gradient.view();
@@ -67,28 +72,39 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
 {
     // 1) init tabular
     auto contact_models = world.scene().contact_tabular().contact_models();
+    auto subscene_contact_models = world.scene().contact_tabular().subscene_contact_models();
 
     auto attr_topo          = contact_models.find<Vector2i>("topo");
     auto attr_resistance    = contact_models.find<Float>("resistance");
     auto attr_friction_rate = contact_models.find<Float>("friction_rate");
     auto attr_enabled       = contact_models.find<IndexT>("is_enabled");
 
+    auto attr_subscene_topo    = subscene_contact_models.find<Vector2i>("topo");
+    auto attr_subscene_enabled = subscene_contact_models.find<IndexT>("is_enabled");
+
     UIPC_ASSERT(attr_topo != nullptr, "topo is not found in contact tabular");
     UIPC_ASSERT(attr_resistance != nullptr, "resistance is not found in contact tabular");
     UIPC_ASSERT(attr_friction_rate != nullptr, "friction_rate is not found in contact tabular");
     UIPC_ASSERT(attr_enabled != nullptr, "is_enabled is not found in contact tabular");
 
+    UIPC_ASSERT(attr_subscene_topo != nullptr, "subscene topo is not found in contact tabular");
+    UIPC_ASSERT(attr_subscene_enabled != nullptr, "subscene is_enabled is not found in contact tabular");
+
     auto topo_view          = attr_topo->view();
     auto resistance_view    = attr_resistance->view();
     auto friction_rate_view = attr_friction_rate->view();
     auto enabled_view       = attr_enabled->view();
+    auto subscene_topo_view = attr_subscene_topo->view();
+    auto subscene_enable_view = attr_subscene_enabled->view();
 
     auto N = world.scene().contact_tabular().element_count();
+    auto SN = world.scene().contact_tabular().subscene_element_count();
 
     h_contact_tabular.resize(
         N * N, ContactCoeff{.kappa = resistance_view[0], .mu = friction_rate_view[0]});
 
     h_contact_mask_tabular.resize(N * N, 1);
+    h_contact_mask_tabular_subscene.resize(SN * SN, 1);
 
     for(auto&& [ids, kappa, mu, is_enabled] :
         zip(topo_view, resistance_view, friction_rate_view, enabled_view))
@@ -105,12 +121,24 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
         h_contact_mask_tabular[lower] = is_enabled;
     }
 
+    for(auto&& [ids, is_enabled] : zip(subscene_topo_view, subscene_enable_view))
+    {
+        auto upper                             = ids.x() * SN + ids.y();
+        h_contact_mask_tabular_subscene[upper] = is_enabled;
+
+        auto lower                             = ids.y() * SN + ids.x();
+        h_contact_mask_tabular_subscene[lower] = is_enabled;
+    }
+
     contact_tabular.resize(muda::Extent2D{N, N});
     contact_tabular.view().copy_from(h_contact_tabular.data());
 
     contact_mask_tabular.resize(muda::Extent2D{N, N});
     contact_mask_tabular.view().copy_from(h_contact_mask_tabular.data());
 
+    contact_mask_tabular_subscene.resize(muda::Extent2D{SN, SN});
+    contact_mask_tabular_subscene.view().copy_from(h_contact_mask_tabular_subscene.data());
+    
     // 2) vertex contact info
     vert_is_active_contact.resize(global_vertex_manager->positions().size(), 0);
     vert_disp_norms.resize(global_vertex_manager->positions().size(), 0.0);
