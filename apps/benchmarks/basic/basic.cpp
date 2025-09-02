@@ -1,4 +1,4 @@
-#include <catch.hpp>
+#include <catch2/catch_all.hpp>
 
 std::uint64_t Fibonacci(std::uint64_t number)
 {

@@ -1,4 +1,4 @@
-#include <catch.hpp>
+#include <catch2/catch_all.hpp>
 #include <app/asset_dir.h>
 #include <uipc/io/simplicial_complex_io.h>
 #include <uipc/geometry.h>
