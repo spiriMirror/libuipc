@@ -3,7 +3,6 @@
 #include <pyuipc/as_numpy.h>
 #include <uipc/common/type_traits.h>
 #include <pybind11/numpy.h>
-#include <boost/core/demangle.hpp>
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;

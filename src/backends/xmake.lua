@@ -24,9 +24,9 @@ rule("backend")
         local format_string = [[%s=R"(%s)"]]
         target:add("defines",
             "UIPC_BACKEND_EXPORT_DLL",
-            format(format_string, "UIPC_BACKEND_DIR", path.unix(path.join(os.scriptdir(), target:name()))),
+            format(format_string, "UIPC_BACKEND_DIR", os.scriptdir()),
             format(format_string, "UIPC_BACKEND_NAME", target:name())
         )
 
-        target:add("deps", "core")
+        target:add("deps", "uipc_core")
     end)

@@ -1,3 +1,3 @@
 #pragma once
-#include <catch.hpp>
+#include <catch2/catch_all.hpp>
 #include <app/test_utils.h>
