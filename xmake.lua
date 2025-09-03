@@ -1,7 +1,7 @@
 set_xmakever("2.9.8")
 
 option("gui", {default = false})
-option("pybind", {default = true, description = "Build pyuipc"})
+option("pybind", {default = false, description = "Build pyuipc"})
 option("torch", {default = false, description = "Build pytorch extension"})
 option("examples", {default = true})
 option("tests", {default = true})
@@ -14,22 +14,18 @@ option("backend", {default = "cuda", description = "Build with CUDA backend"})
 option("python_version", {default = "3.11.x", description = "Specify python version"})
 option("python_system", {default = false, description = "Use system python"})
 
-includes("src", "xmake/*.lua")
+includes("src", "apps", "xmake/*.lua")
 
 add_rules("mode.release", "mode.debug", "mode.releasedbg")
-add_rules("plugin.compile_commands.autoupdate", {outputdir = ".vscode"})
 
 set_languages("c++20")
 
 if is_plat("windows") then
-    add_cxflags("/FC", {force = true})
-    add_cxflags("/wd4068", {force = true})
-    add_cxxflags("/wd4068", {force = true})
+    add_cxflags("/FC")
+    add_cxflags("/wd4068", "/wd4068")
 else
-    local project_dir = os.projectdir()
-    add_cxflags("-fmacro-prefix-map=" .. project_dir .. "=.", {force = true})
+    add_cxflags("-fmacro-prefix-map==" .. os.projectdir(), {force = true})
 end
-add_cxflags("/wd4068", {force = true})
 
 if is_plat("linux") then
     add_rpathdirs("$ORIGIN")
@@ -45,5 +41,3 @@ if has_config("dev") then
         set_runtimes("MD")
     end
 end
-
-includes("apps")
