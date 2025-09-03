@@ -1,17 +1,20 @@
-add_requires("muda")
+add_requires("muda 5b177ad0f450183914300ee55e481bf01c673d5d")
 
 target("cuda")
     add_rules("backend")
+    if has_config("dev") then
+        add_rules("clangd")
+    end
     add_files("**.cpp", "**.cu")
     add_headerfiles("**.h", "**.inl")
-
+    add_includedirs(os.scriptdir(), {public = true})
     if has_config("github_actions") then
-        add_cugencodes("sm_75")
+        add_cugencodes("sm_89")
     else
         add_cugencodes("native")
     end
     add_cuflags("/wd4819", {tools = "cl"})
-
+    add_cuflags("--diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,550", {force = true})
     add_links(
         "cudart",
         "cublas",
@@ -19,7 +22,7 @@ target("cuda")
         "cusolver"
     )
 
-    add_deps("geometry")
+    add_deps("uipc_geometry")
     add_packages("muda")
 
 package("muda")
