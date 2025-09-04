@@ -146,6 +146,11 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
         UIPC_ASSERT(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
         auto CIds = attr_cids->view();
 
+        auto attr_scids =
+            scene_surface.vertices().find<IndexT>("sanity_check/subscene_contact_element_id");
+        UIPC_ASSERT(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
+        auto SCIds = attr_scids->view();
+
         auto attr_v_geo_ids =
             scene_surface.vertices().find<IndexT>("sanity_check/geometry_id");
         UIPC_ASSERT(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
@@ -186,7 +191,7 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
         vector<IndexT> edge_intersected(Es.size(), 0);
         vector<IndexT> tri_intersected(Fs.size(), 0);
 
-        auto& contact_table = context->contact_tabular();
+        //auto& contact_table = context->contact_tabular();
         auto  objs          = this->objects();
 
         bool has_intersection = false;
@@ -237,11 +242,19 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                         return;
                 }
 
+                Vector2i SCidEs = {SCIds[E[0]], SCIds[E[1]]};
+                Vector3i SCidFs = {SCIds[F[0]], SCIds[F[1]], SCIds[F[2]]};
+
+                // 3) if subscene contact is not enabled between two subscene, skip it
+                if(!need_subscene_contact(contact_tabular, SCidEs, SCidFs))
+                    return;
+
+
                 Vector2i CidEs = {CIds[E[0]], CIds[E[1]]};
                 Vector3i CidFs = {CIds[F[0]], CIds[F[1]], CIds[F[2]]};
 
                 // 3) if contact is not enabled between two elements, skip it
-                if(!need_contact(contact_table, CidEs, CidFs))
+                if(!need_contact(contact_tabular, CidEs, CidFs))
                     return;
 
                 bool intersected = geometry::tri_edge_intersect(

@@ -18,20 +18,30 @@ void ContactTabular::init(backend::SceneVisitor& scene)
     auto contact_models = scene.contact_tabular().contact_models();
     auto elements       = scene.contact_tabular().element_count();
 
+    auto subscene_contact_model = scene.contact_tabular().subscene_contact_models();
+    auto subscene_elements = scene.contact_tabular().subscene_element_count();
+
     auto attr_topo          = contact_models.find<Vector2i>("topo");
     auto attr_resistance    = contact_models.find<Float>("resistance");
     auto attr_friction_rate = contact_models.find<Float>("friction_rate");
     auto attr_enabled       = contact_models.find<IndexT>("is_enabled");
 
+    auto attr_subscene_topo    = subscene_contact_model.find<Vector2i>("topo");
+    auto attr_subscene_enabled = subscene_contact_model.find<IndexT>("is_enabled");
+
     UIPC_ASSERT(attr_topo != nullptr, "topo is not found in contact tabular");
     UIPC_ASSERT(attr_resistance != nullptr, "resistance is not found in contact tabular");
     UIPC_ASSERT(attr_friction_rate != nullptr, "friction_rate is not found in contact tabular");
     UIPC_ASSERT(attr_enabled != nullptr, "is_enabled is not found in contact tabular");
+    UIPC_ASSERT(attr_topo != nullptr, "subscene topo is not found in contact tabular");
+    UIPC_ASSERT(attr_enabled != nullptr, "subscene is_enabled is not found in contact tabular");
 
     auto topo_view          = attr_topo->view();
     auto resistance_view    = attr_resistance->view();
     auto friction_rate_view = attr_friction_rate->view();
     auto enabled_view       = attr_enabled->view();
+    auto subscene_topo_view    = attr_subscene_topo->view();
+    auto subscene_enabled_view = attr_subscene_enabled->view();
 
     auto default_model = scene.contact_tabular().default_model();
 
@@ -45,6 +55,18 @@ void ContactTabular::init(backend::SceneVisitor& scene)
 
         m_table[topo.x() * elements + topo.y()] = model;
         m_table[topo.y() * elements + topo.x()] = model;
+    }
+
+    m_subscene_table.resize(subscene_elements * subscene_elements);
+    m_subscene_contact_element_count = subscene_elements;
+    for(auto&& [topo, enabled] :
+        zip(subscene_topo_view, subscene_enabled_view))
+    {
+        auto model = core::ContactModel{
+            topo, 0, 0, enabled ? true : false, Json::object()};
+
+        m_subscene_table[topo.x() * subscene_elements + topo.y()] = model;
+        m_subscene_table[topo.y() * subscene_elements + topo.x()] = model;
     }
 }
 
@@ -60,9 +82,26 @@ const core::ContactModel& ContactTabular::at(IndexT i, IndexT j) const
     return m_table[i * m_contact_element_count + j];
 }
 
+const core::ContactModel& ContactTabular::subscene_at(IndexT i, IndexT j) const
+{
+    UIPC_ASSERT(i < m_subscene_contact_element_count && j < m_subscene_contact_element_count,
+                "Invalid subscene contact element id, id should be in [{},{}), your i={}, j={}.",
+                0,
+                m_subscene_contact_element_count,
+                i,
+                j);
+
+    return m_subscene_table[i * m_subscene_contact_element_count + j];
+}
+
 SizeT ContactTabular::element_count() const noexcept
 {
     return m_contact_element_count;
+}
+
+SizeT ContactTabular::subscene_element_count() const noexcept
+{
+    return m_subscene_contact_element_count;
 }
 
 namespace detail
@@ -265,19 +304,65 @@ namespace detail
                 // 1) Contact Element ID
                 auto contact_element_id =
                     simplicial_complex->meta().find<IndexT>(builtin::contact_element_id);
+                auto subscene_contact_element_id =
+                    simplicial_complex->meta().find<IndexT>(builtin::contact_subscene_element_id);
                 auto v_is_surf =
                     simplicial_complex->vertices().find<IndexT>(builtin::is_surf);
 
                 IndexT CID        = 0;
                 bool   need_label = false;
 
+                IndexT SCID        = 0;
+                bool   need_subscene_label = false;
+
                 if(v_is_surf && !contact_element_id)
                     need_label = true;
+
+                if(v_is_surf && !subscene_contact_element_id)
+                    need_subscene_label = true;
 
                 if(contact_element_id)
                 {
                     CID        = contact_element_id->view()[0];
                     need_label = true;
+                }
+
+                if(subscene_contact_element_id)
+                {
+                    SCID = subscene_contact_element_id->view()[0];
+                    need_subscene_label = true;
+                }
+
+
+                if(need_subscene_label)
+                {
+                    auto sanity_vertex_subscene_contact_element_id =
+                        simplicial_complex->vertices().find<IndexT>(
+                            "sanity_check/subscene_contact_element_id");
+
+                    if(!sanity_vertex_subscene_contact_element_id)
+                    {
+                        sanity_vertex_subscene_contact_element_id =
+                            simplicial_complex->vertices().create<IndexT>(
+                                "sanity_check/subscene_contact_element_id", 0);
+                    }
+
+                    auto vertex_subscene_contact_element_id =
+                        simplicial_complex->vertices().find<IndexT>(
+                            builtin::contact_subscene_element_id);
+
+                    // if vertex subscene contact_element_id does not exist, label all surface vertices with `meta` contact_element_id
+                    if(!vertex_subscene_contact_element_id)
+                    {
+                        std::ranges::fill(view(*sanity_vertex_subscene_contact_element_id), SCID);
+                    }
+                    else  // copy from vertex_subscene_contact_element_id
+                    {
+                        auto src_view = vertex_subscene_contact_element_id->view();
+                        auto dst_view = view(*sanity_vertex_subscene_contact_element_id);
+
+                        std::ranges::copy(src_view, dst_view.begin());
+                    }
                 }
 
                 if(need_label)
@@ -296,6 +381,7 @@ namespace detail
                                 "sanity_check/contact_element_id", 0);
                     }
 
+                    
                     auto vertex_contact_element_id =
                         simplicial_complex->vertices().find<IndexT>(builtin::contact_element_id);
 

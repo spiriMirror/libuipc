@@ -184,6 +184,11 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
         UIPC_ASSERT(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
         auto CIds = attr_cids->view();
 
+        auto attr_scids =
+            scene_surface.vertices().find<IndexT>("sanity_check/subscene_contact_element_id");
+        UIPC_ASSERT(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
+        auto SCIds = attr_scids->view();
+
         auto attr_v_geo_ids =
             scene_surface.vertices().find<IndexT>("sanity_check/geometry_id");
         UIPC_ASSERT(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
@@ -319,6 +324,9 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 auto L = CIds[CodimP];
                 auto R = CIds[P];
 
+                auto SL = SCIds[CodimP];
+                auto SR = SCIds[P];
+
                 // 2) if this is a self-collision
                 if(VInstanceIds[CodimP] == VInstanceIds[P])
                 {
@@ -328,6 +336,9 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 }
 
                 // 3) if the contact model is not enabled, don't consider it
+                if(!need_subscene_contact(contact_table, SL, SR))
+                    return;
+
                 if(!need_contact(contact_table, L, R))
                     return;
 
@@ -379,7 +390,15 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
 
                 auto     CIdL  = CIds[CodimP];
                 Vector2i CIdRs = {CIds[E[0]], CIds[E[1]]};
+
+                auto     SCIdL  = SCIds[CodimP];
+                Vector2i SCIdRs = {SCIds[E[0]], SCIds[E[1]]};
+
+                
                 // 2) if the contact model is not enabled, don't consider it
+                if(!need_subscene_contact(contact_table, SCIdL, SCIdRs))
+                    return;
+
                 if(!need_contact(contact_table, CIdL, CIdRs))
                     return;
 
@@ -423,6 +442,9 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 auto     CIdL  = CIds[P];
                 Vector3i CIdRs = {CIds[T[0]], CIds[T[1]], CIds[T[2]]};
 
+                auto     SCIdL  = SCIds[P];
+                Vector3i SCIdRs = {SCIds[T[0]], SCIds[T[1]], SCIds[T[2]]};
+
                 // 2) if this is a self-collision
                 UIPC_ASSERT(VInstanceIds[T[0]] == VInstanceIds[T[1]]
                                 && VInstanceIds[T[1]] == VInstanceIds[T[2]],
@@ -438,6 +460,9 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 }
 
                 // 3) if the contact model is not enabled, don't consider it
+                if(!need_subscene_contact(contact_table, SCIdL, SCIdRs))
+                    return;
+
                 if(!need_contact(contact_table, CIdL, CIdRs))
                     return;
 
@@ -484,6 +509,9 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 Vector2i CIdLs = {CIds[E0[0]], CIds[E0[1]]};
                 Vector2i CIdRs = {CIds[E1[0]], CIds[E1[1]]};
 
+                Vector2i SCIdLs = {SCIds[E0[0]], SCIds[E0[1]]};
+                Vector2i SCIdRs = {SCIds[E1[0]], SCIds[E1[1]]};
+
                 // 2) if this is a self-collision
                 UIPC_ASSERT(VInstanceIds[E0[0]] == VInstanceIds[E0[1]],
                             "Why Edge({},{}) is not in the same instance?",
@@ -503,6 +531,9 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 }
 
                 // 3) if the contact model is not enabled, don't consider it
+                if(!need_subscene_contact(contact_table, SCIdLs, SCIdRs))
+                    return;
+
                 if(!need_contact(contact_table, CIdLs, CIdRs))
                     return;
 
