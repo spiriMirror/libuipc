@@ -1,16 +1,16 @@
 add_requires("pybind11")
 
 target("pyuipc")
-    add_rules("python.library")
+    add_rules("python.module")
     add_files("**.cpp")
     add_includedirs(os.scriptdir())
     add_headerfiles("**.h")
 
     add_deps(
-        "core",
-        "geometry",
-        "constitution",
-        "io",
+        "uipc_core",
+        "uipc_geometry",
+        "uipc_constitution",
+        "uipc_io",
         "uipc_sanity_check"
     )
     add_packages("pybind11")

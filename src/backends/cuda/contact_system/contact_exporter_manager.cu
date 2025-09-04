@@ -1,3 +1,4 @@
+#include <fmt/ranges.h>
 #include <contact_system/contact_exporter_manager.h>
 #include <contact_system/contact_system_feature.h>
 #include <contact_system/contact_exporter.h>
