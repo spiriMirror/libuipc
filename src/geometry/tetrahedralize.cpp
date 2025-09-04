@@ -1,9 +1,12 @@
 #include <uipc/geometry/utils/tetrahedralize.h>
 #include <uipc/geometry/utils/closure.h>
 #include <uipc/builtin/attribute_name.h>
+#if __has_include(<tetgen/tetgen.h>)
 #include <tetgen/tetgen.h>
+#else
+#include <tetgen.h>
+#endif
 #include <iostream>
-
 // ref: https://github.com/libigl/libigl/blob/main/include/igl/copyleft/tetgen/tetrahedralize.h
 namespace uipc::geometry
 {
