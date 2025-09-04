@@ -185,6 +185,11 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
         UIPC_ASSERT(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
         auto CIds = attr_cids->view();
 
+        auto attr_scids =
+            scene_surface.vertices().find<IndexT>("sanity_check/subscene_contact_element_id");
+        UIPC_ASSERT(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
+        auto SCIds = attr_scids->view();
+
         auto attr_v_geo_ids =
             scene_surface.vertices().find<IndexT>("sanity_check/geometry_id");
         UIPC_ASSERT(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
@@ -233,6 +238,9 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
             auto attr_cid = halfplane->meta().find<IndexT>(builtin::contact_element_id);
             auto HCid = attr_cid ? attr_cid->view()[0] : 0;
 
+            auto attr_scid = halfplane->meta().find<IndexT>(builtin::contact_subscene_element_id);
+            auto HSCid = attr_scid ? attr_scid->view()[0] : 0;
+
 
             for(auto I : range(instance_count))
             {
@@ -241,6 +249,11 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
 
                 for(auto vI : range(Vs.size()))
                 {
+                    const auto& SCM = contact_table.subscene_at(HSCid, SCIds[vI]);
+
+                    if(!SCM.is_enabled())  // if unenabled, skip
+                        continue;
+
                     const auto& CM = contact_table.at(HCid, CIds[vI]);
 
                     if(!CM.is_enabled())  // if unenabled, skip

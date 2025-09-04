@@ -17,7 +17,9 @@ class ContactTabular
     ContactTabular() noexcept = default;
     void                      init(backend::SceneVisitor& s);
     const core::ContactModel& at(IndexT i, IndexT j) const;
+    const core::ContactModel& subscene_at(IndexT i, IndexT j) const;
     SizeT                     element_count() const noexcept;
+    SizeT                     subscene_element_count() const noexcept;
 
     // delete copy constructor
     ContactTabular(const ContactTabular&) = delete;
@@ -26,7 +28,9 @@ class ContactTabular
 
   private:
     vector<core::ContactModel> m_table;
+    vector<core::ContactModel> m_subscene_table;
     SizeT                      m_contact_element_count = 0;
+    SizeT                      m_subscene_contact_element_count = 0;
 };
 
 class Context final : public SanityChecker
