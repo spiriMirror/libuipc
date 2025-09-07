@@ -1,5 +1,5 @@
 #include <finite_element/codim_2d_constitution.h>
-#include <finite_element/constitutions/baraff_witkin_shell_2d_function.h>
+#include <finite_element/constitutions/strain_limiting_baraff_witkin_shell_2d.h>
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
 #include <Eigen/Dense>
@@ -9,7 +9,7 @@
 
 namespace uipc::backend::cuda
 {
-class BaraffWitkinShell2D final : public Codim2DConstitution
+class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 {
   public:
     // Constitution UID by libuipc specification
@@ -73,7 +73,7 @@ class BaraffWitkinShell2D final : public Codim2DConstitution
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         using namespace muda;
-        namespace BWS = sym::baraff_witkin_shell_2d;
+        namespace BWS = sym::strainlimiting_baraff_witkin_shell_2d;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
@@ -126,7 +126,7 @@ class BaraffWitkinShell2D final : public Codim2DConstitution
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        namespace BWS = sym::baraff_witkin_shell_2d;
+        namespace BWS = sym::strainlimiting_baraff_witkin_shell_2d;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
@@ -202,5 +202,5 @@ class BaraffWitkinShell2D final : public Codim2DConstitution
     }
 };
 
-REGISTER_SIM_SYSTEM(BaraffWitkinShell2D);
+REGISTER_SIM_SYSTEM(StrianLimitingBaraffWitkinShell2D);
 }  // namespace uipc::backend::cuda
