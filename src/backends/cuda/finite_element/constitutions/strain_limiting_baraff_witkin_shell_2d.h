@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-namespace sym::baraff_witkin_shell_2d
+namespace sym::strainlimiting_baraff_witkin_shell_2d
 {
     inline UIPC_GENERIC Vector6 flatten(const Matrix<Float, 3, 2>& F)
     {
@@ -243,5 +243,5 @@ namespace sym::baraff_witkin_shell_2d
         }
         R = final_H;
     }
-}  // namespace sym::baraff_witkin_shell_2d
+}  // namespace sym::strainlimiting_baraff_witkin_shell_2d
 }  // namespace uipc::backend::cuda
