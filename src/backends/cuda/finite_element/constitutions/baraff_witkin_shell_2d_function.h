@@ -33,14 +33,12 @@ namespace sym::baraff_witkin_shell_2d
     inline UIPC_GENERIC Matrix2x2 Dm2x2(const Vector3& x0, const Vector3& x1, const Vector3& x2)
     {
         Vector3 v01 = x1 - x0;
-        Vector3 v02 = x2 - x1;
+        Vector3 v02 = x2 - x0;
         // compute uv coordinates by rotating each triangle normal to (0, 1, 0)
         Vector3 normal = v01.cross(v02).normalized();
         Vector3 target = Vector3(0, 1, 0);
 
-
         Vector3 vec      = normal.cross(target);
-        Float           sin      = vec.norm();
         Float           cos      = normal.dot(target);
         Matrix3x3 rotation = Matrix3x3::Identity();
         Matrix3x3 cross_vec;
