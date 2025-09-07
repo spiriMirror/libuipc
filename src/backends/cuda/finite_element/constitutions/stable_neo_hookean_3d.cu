@@ -138,7 +138,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                        auto J = F.determinant();
 
-                       auto VecF = flatten(F);
+                       //auto VecF = flatten(F);
 
                        auto Vdt2 = volumes(I) * dt * dt;
 

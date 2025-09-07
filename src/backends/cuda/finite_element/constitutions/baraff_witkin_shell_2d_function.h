@@ -62,8 +62,41 @@ namespace sym::baraff_witkin_shell_2d
         return M;
     }
 
+    inline UIPC_GENERIC Matrix<Float, 6, 9> dFdX(const Matrix2x2& DmI)
+    {
+        Matrix<Float, 6, 9> dfdx;
+        dfdx.setZero();
+        Float d0 = DmI(0, 0);
+        Float d1 = DmI(1, 0);
+        Float d2 = DmI(0, 1);
+        Float d3 = DmI(1, 1);
+        Float s0 = d0 + d1;
+        Float s1 = d2 + d3;
+
+        for(int i = 0; i < 3; i++)
+        {
+            dfdx(i, i)     = -s0;
+            dfdx(i + 3, i) = -s1;
+        }
+        
+        for(int i = 0; i < 3; i++)
+        {
+            dfdx(i, i + 3)     = d0;
+            dfdx(i + 3, i + 3) = d2;
+        }
+
+        for(int i = 0; i < 3; i++)
+        {
+            dfdx(i, i + 6)     = d1;
+            dfdx(i + 3, i + 6) = d3;
+        }
+
+        return dfdx;
+    }
+
+
+
     inline UIPC_GENERIC Float E(const Matrix<Float, 3, 2>& F,
-                                Float                      area_0,
                                 const Vector2&             anisotropic_a,
                                 const Vector2&             anisotropic_b,
                                 Float                      stretchS,
@@ -72,7 +105,7 @@ namespace sym::baraff_witkin_shell_2d
     {
         Float I6 = anisotropic_a.transpose() * F.transpose() * F * anisotropic_b;
         Float shear_energy = I6 * I6;
-
+        stretchS /= strainRate;
 
         Float I5u = (F * anisotropic_a).norm();
         Float I5v = (F * anisotropic_b).norm();
@@ -93,18 +126,18 @@ namespace sym::baraff_witkin_shell_2d
         Float stretch_energy =
             std::pow(I5u - 1, 2) + ucoeff * strainRate * std::pow(I5u - 1, 3)
             + std::pow(I5v - 1, 2) + vcoeff * strainRate * std::pow(I5v - 1, 3);
-        return (stretchS * stretch_energy + shearS * shear_energy) * area_0;
+        return (stretchS * stretch_energy + shearS * shear_energy);
     }
 
     inline UIPC_GENERIC void dEdF(Matrix<Float, 3, 2>        R,
-                                  const Matrix<Float, 3, 2>& F,
-                                  Float                      area_0,
+                                  const Matrix<Float, 3, 2>& F,                               
                                   const Vector2&             anisotropic_a,
                                   const Vector2&             anisotropic_b,
                                   Float                      stretchS,
                                   Float                      shearS,
                                   Float                      strainRate)
     {
+        stretchS /= strainRate;
         Float I6 = anisotropic_a.transpose() * F.transpose() * F * anisotropic_b;
         Eigen::Matrix<Float, 3, 2> stretch_pk1, shear_pk1;
 
@@ -129,18 +162,20 @@ namespace sym::baraff_witkin_shell_2d
         stretch_pk1 = ucoeff * Float{2} * F * anisotropic_a * anisotropic_a.transpose()
                       + vcoeff * Float{2} * F * anisotropic_b * anisotropic_b.transpose();
 
-        R = (area_0 * stretchS * stretch_pk1 + area_0 * shearS * shear_pk1);
+        R = (stretchS * stretch_pk1 + shearS * shear_pk1);
     }
 
     inline UIPC_GENERIC void ddEddF(Eigen::Matrix<Float, 6, 6>& R,
                                     const Matrix<Float, 3, 2>&  F,
-                                    Float                       area_0,
                                     const Vector2&              anisotropic_a,
                                     const Vector2&              anisotropic_b,
                                     Float                       stretchS,
                                     Float                       shearS,
                                     Float                       strainRate)
     {
+
+        stretchS /= strainRate;
+
         Eigen::Matrix<Float, 6, 6> final_H = Eigen::Matrix<Float, 6, 6>::Zero();
         {
             Eigen::Matrix<Float, 6, 6> H;
@@ -177,7 +212,7 @@ namespace sym::baraff_witkin_shell_2d
             H.block<3, 3>(0, 0) += uCoeff * (fu * fu.transpose());
             H.block<3, 3>(3, 3) += vCoeff * (fv * fv.transpose());
 
-            final_H += (area_0 * stretchS) * H;
+            final_H += stretchS * H;
         }
         {
             Eigen::Matrix<Float, 6, 6> H_shear;
@@ -204,7 +239,7 @@ namespace sym::baraff_witkin_shell_2d
             H_shear      = fabs(I6) * (T - (Tq * Tq.transpose()) / normTq)
                       + lambda0 * (q0 * q0.transpose());
             H_shear *= 2;
-            final_H += (area_0 * shearS) * H_shear;
+            final_H += shearS * H_shear;
         }
         R = final_H;
     }
