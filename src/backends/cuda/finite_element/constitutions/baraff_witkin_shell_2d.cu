@@ -193,7 +193,7 @@ class BaraffWitkinShell2D final : public Codim2DConstitution
 
                        Matrix6x6 ddEddF;
                        BWS::ddEddF(ddEddF, F, anisotropic_a, anisotropic_b, mu, lambda, strainRate);
-                       H *= Vdt2;
+                       ddEddF *= Vdt2;
                        
                        Matrix9x9 H = dFdx.transpose() * ddEddF * dFdx;
                        TripletMatrixAssembler TMA{H3x3s};
