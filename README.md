@@ -56,7 +56,7 @@ We are **actively** developing Libuipc and will continue to add more features an
 If you use **Libuipc** in your project, please cite our works:
 
 ```
-@article{10.1145/3735126,
+@article{stiffgipc2025,
       author = {Huang, Kemeng and Lu, Xinyu and Lin, Huancheng and Komura, Taku and Li, Minchen},
       title = {StiffGIPC: Advancing GPU IPC for Stiff Affine-Deformable Simulation},
       year = {2025},
