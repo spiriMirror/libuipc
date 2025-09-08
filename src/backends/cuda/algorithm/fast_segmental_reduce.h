@@ -2,6 +2,7 @@
 #include <muda/launch.h>
 #include <muda/buffer/buffer_view.h>
 #include <Eigen/Core>
+#include <cub/util_type.cuh>
 namespace muda
 {
 template <int BlockSize = 128, int WarpSize = 32>
@@ -37,17 +38,17 @@ class FastSegmentalReduce : public LaunchBase<FastSegmentalReduce<BlockSize, War
     }
 
     // e.g.
-    // when ReduceOp = cub::Sum
+    // when ReduceOp = cuda::std::plus
     // dst = [0, 1, 1, 2, 2, 2]
     // in  = [1, 1, 1, 1, 1, 1]
     // out = [1, 2, 3]
-    template <typename T, int M, int N, typename ReduceOp = cub::Sum>
+    template <typename T, int M, int N, typename ReduceOp = cuda::std::plus<T>>
     void reduce(CBufferView<int>                    dst,
                 CBufferView<Eigen::Matrix<T, M, N>> in,
                 BufferView<Eigen::Matrix<T, M, N>>  out,
                 ReduceOp                            op = ReduceOp{});
 
-    template <typename T, typename ReduceOp = cub::Sum>
+    template <typename T, typename ReduceOp = cuda::std::plus<T>>
     void reduce(CBufferView<int> dst, CBufferView<T> in, BufferView<T> out, ReduceOp op = ReduceOp{});
 };
 }  // namespace muda

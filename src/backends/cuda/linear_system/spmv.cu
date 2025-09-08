@@ -3,7 +3,7 @@
 #include <cub/warp/warp_reduce.cuh>
 #include <cub/warp/warp_scan.cuh>
 #include <cub/util_math.cuh>
-
+#include <cuda_device/bit_operation.h>
 namespace uipc::backend::cuda
 {
 void Spmv::sym_spmv(Float                           a,
@@ -230,16 +230,28 @@ void Spmv::rbk_spmv(Float                           a,
 
                 flags.flags =
                     WarpReduceInt(temp_storage_int[warp_id])
-                        .HeadSegmentedReduce(flags.flags, flags.is_head, cub::Sum());
+                                  .HeadSegmentedReduce(flags.flags,
+                                                       flags.is_head,
+                                                       [](uint32_t a, uint32_t b)
+                                                       { return a + b; });
 
                 vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
-                              .HeadSegmentedReduce(vec.x(), flags.is_head, cub::Sum());
+                              .HeadSegmentedReduce(vec.x(),
+                                                   flags.is_head,
+                                                   [](Float a, Float b)
+                                                   { return a + b; });
 
                 vec.y() = WarpReduceFloat(temp_storage_float[warp_id])
-                              .HeadSegmentedReduce(vec.y(), flags.is_head, cub::Sum());
+                              .HeadSegmentedReduce(vec.y(),
+                                                   flags.is_head,
+                                                   [](Float a, Float b)
+                                                   { return a + b; });
 
                 vec.z() = WarpReduceFloat(temp_storage_float[warp_id])
-                              .HeadSegmentedReduce(vec.z(), flags.is_head, cub::Sum());
+                              .HeadSegmentedReduce(vec.z(),
+                                                   flags.is_head,
+                                                   [](Float a, Float b)
+                                                   { return a + b; });
 
 
                 // cub::WARP_SYNC(warp_mask);
@@ -247,11 +259,11 @@ void Spmv::rbk_spmv(Float                           a,
                 flags.is_head = b2i(flags.is_head && flags.is_valid);
 
                 flags.b2i();
-                int is_head_mask = cub::WARP_BALLOT(flags.is_head, warp_mask);
+                int is_head_mask = detail::bit_operation::WARP_BALLOT(flags.is_head, warp_mask);
                 uint32_t offset  = fns(is_head_mask, 0, lane_id + 1);
 
                 int valid_bit    = (offset != ~0u);
-                int shuffle_mask = cub::WARP_BALLOT(valid_bit, warp_mask);
+                int shuffle_mask = detail::bit_operation::WARP_BALLOT(valid_bit, warp_mask);
 
                 i = cub::ShuffleIndex<32>(i, offset, shuffle_mask);
                 flags.flags = cub::ShuffleIndex<32>(flags.flags, offset, shuffle_mask);
@@ -395,13 +407,22 @@ void Spmv::rbk_sym_spmv(Float                           a,
                         .HeadSegmentedReduce(flags.flags, flags.is_head, cub::Sum());
 
                 vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
-                              .HeadSegmentedReduce(vec.x(), flags.is_head, cub::Sum());
+                              .HeadSegmentedReduce(vec.x(),
+                                                   flags.is_head,
+                                                   [](Float a, Float b)
+                                                   { return a + b; });
 
                 vec.y() = WarpReduceFloat(temp_storage_float[warp_id])
-                              .HeadSegmentedReduce(vec.y(), flags.is_head, cub::Sum());
+                              .HeadSegmentedReduce(vec.y(),
+                                                   flags.is_head,
+                                                   [](Float a, Float b)
+                                                   { return a + b; });
 
                 vec.z() = WarpReduceFloat(temp_storage_float[warp_id])
-                              .HeadSegmentedReduce(vec.z(), flags.is_head, cub::Sum());
+                              .HeadSegmentedReduce(vec.z(),
+                                                   flags.is_head,
+                                                   [](Float a, Float b)
+                                                   { return a + b; });
                 // ----------------------------------- warp reduce -----------------------------------------------
 
 
