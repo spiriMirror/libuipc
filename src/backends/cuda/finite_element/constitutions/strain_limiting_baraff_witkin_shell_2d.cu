@@ -13,7 +13,7 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64 ConstitutionUID = 18;
+    static constexpr U64 ConstitutionUID = 819;
 
     using Codim2DConstitution::Codim2DConstitution;
 
