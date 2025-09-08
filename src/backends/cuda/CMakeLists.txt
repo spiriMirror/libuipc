@@ -1,6 +1,9 @@
 enable_language(CUDA)
 uipc_add_backend(cuda)
 
+# Find CUDA Toolkit for CCCL
+find_package(CUDAToolkit REQUIRED)
+
 # basic setup
 target_link_libraries(cuda PUBLIC
     muda
@@ -9,6 +12,11 @@ target_link_libraries(cuda PUBLIC
     cusolver
     uipc_geometry
 )
+
+# Add CCCL include directory for CUDA 13.0 compatibility
+if(CUDAToolkit_VERSION_MAJOR GREATER_EQUAL 13)
+    target_include_directories(cuda PRIVATE ${CUDAToolkit_INCLUDE_DIRS}/cccl)
+endif()
 
 if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
     if(UIPC_GITHUB_ACTIONS)

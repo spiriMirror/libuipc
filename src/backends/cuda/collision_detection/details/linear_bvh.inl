@@ -7,7 +7,6 @@
 #include <cuda/atomic>
 #include <muda/atomic.h>
 #include <muda/ext/eigen/atomic.h>
-#include <thrust/detail/minmax.h>
 
 #include <uipc/common/log.h>
 
@@ -212,7 +211,7 @@ MUDA_INLINE MUDA_DEVICE uint2 determine_range(muda::Dense1D<LinearBVHMortonIndex
 
     // Compute upper bound for the length of the range
 
-    const int delta_min = thrust::min(L_delta, R_delta);
+    const int delta_min = (L_delta < R_delta) ? L_delta : R_delta;
     int       l_max     = 2;
     int       delta     = -1;
     int       i_tmp     = idx + d * l_max;
@@ -251,7 +250,10 @@ MUDA_INLINE MUDA_DEVICE uint2 determine_range(muda::Dense1D<LinearBVHMortonIndex
     uint32_t jdx = idx + l * d;
     if(d < 0)
     {
-        thrust::swap(idx, jdx);  // make it sure that idx < jdx
+        // make it sure that idx < jdx
+        auto tmp = idx;
+        idx      = jdx;
+        jdx      = tmp;
     }
     return make_uint2(idx, jdx);
 }
@@ -505,11 +507,11 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
 
                    nodes(idx).left_idx  = gamma;
                    nodes(idx).right_idx = gamma + 1;
-                   if(thrust::min(ij.x, ij.y) == gamma)
+                   if(((ij.x < ij.y) ? ij.x : ij.y) == gamma)
                    {
                        nodes(idx).left_idx += num_objects - 1;
                    }
-                   if(thrust::max(ij.x, ij.y) == gamma + 1)
+                   if(((ij.x > ij.y) ? ij.x : ij.y) == gamma + 1)
                    {
                        nodes(idx).right_idx += num_objects - 1;
                    }
