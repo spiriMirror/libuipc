@@ -11,7 +11,7 @@ REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
     list<UIDInfo> uids;
-    uids.push_back(UIDInfo{.uid = 18, .name = "StrainLimitingBaraffWitkinShell", .type = string{builtin::FiniteElement}});
+    uids.push_back(UIDInfo{.uid = 819, .name = "StrainLimitingBaraffWitkinShell", .type = string{builtin::FiniteElement}});
     return uids;
 }
 
@@ -50,6 +50,6 @@ Json StrainLimitingBaraffWitkinShell::default_config() noexcept
 
 U64 StrainLimitingBaraffWitkinShell::get_uid() const noexcept
 {
-    return 18;
+    return 819;
 }
 }  // namespace uipc::constitution
