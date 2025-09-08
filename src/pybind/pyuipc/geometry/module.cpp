@@ -15,6 +15,7 @@
 #include <pyuipc/geometry/simplicial_complex_io.h>
 #include <pyuipc/geometry/spread_sheet_io.h>
 
+#include <pyuipc/geometry//urdf_io.h>
 #include <pyuipc/geometry/utils.h>
 
 namespace pyuipc::geometry
@@ -39,6 +40,7 @@ PyModule::PyModule(py::module& m)
     PyAttributeIO{m};
     PySimplicialComplexIO{m};
     PySpreadSheetIO{m};
+    PyUrdfIO{m};
     PyUtils{m};
 }
 }  // namespace pyuipc::geometry
