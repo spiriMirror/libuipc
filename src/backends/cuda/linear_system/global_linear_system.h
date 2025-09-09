@@ -9,6 +9,13 @@
 #include <utils/offset_count_collection.h>
 namespace uipc::backend::cuda
 {
+// Define a simple POD to avoid constructing CUDA's built-in vector type with pmr allocators in host code
+struct SizeT2
+{
+    SizeT x;
+    SizeT y;
+};
+
 class DiagLinearSubsystem;
 class OffDiagLinearSubsystem;
 class IterativeSolver;
@@ -260,16 +267,16 @@ class GlobalLinearSystem : public SimSystem
 
         Float reserve_ratio = 1.1;
 
-        vector<LinearSubsytemInfo> subsystem_infos;
+        std::vector<LinearSubsytemInfo> subsystem_infos;
 
         OffsetCountCollection<IndexT> diag_dof_offsets_counts;
         OffsetCountCollection<IndexT> subsystem_triplet_offsets_counts;
 
-        vector<ulonglong2> off_diag_lr_triplet_counts;
+        std::vector<SizeT2> off_diag_lr_triplet_counts;
 
 
-        vector<int> accuracy_statisfied_flags;
-        vector<int> no_precond_diag_subsystem_indices;
+        std::vector<int> accuracy_statisfied_flags;
+        std::vector<int> no_precond_diag_subsystem_indices;
 
         // Containers
         SimSystemSlotCollection<DiagLinearSubsystem>    diag_subsystems;
