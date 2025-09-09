@@ -243,7 +243,7 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
             triplet_count_changed |= subsystem_triplet_counts[triplet_i] != total_block_count;
             subsystem_triplet_counts[triplet_i] = total_block_count;
             off_diag_lr_triplet_counts[subsystem_info.local_index] =
-                ulonglong2{info.m_lr_block_count, info.m_rl_block_count};
+                SizeT2{info.m_lr_block_count, info.m_rl_block_count};
         }
     }
 

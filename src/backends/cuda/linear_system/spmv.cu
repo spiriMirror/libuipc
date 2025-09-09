@@ -404,7 +404,10 @@ void Spmv::rbk_sym_spmv(Float                           a,
                 // ----------------------------------- warp reduce ----------------------------------------------
                 flags.flags =
                     WarpReduceInt(temp_storage_int[warp_id])
-                        .HeadSegmentedReduce(flags.flags, flags.is_head, cub::Sum());
+                                  .HeadSegmentedReduce(flags.flags,
+                                                       flags.is_head,
+                                                       [](uint32_t a, uint32_t b)
+                                                       { return a + b; });
 
                 vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
                               .HeadSegmentedReduce(vec.x(),
