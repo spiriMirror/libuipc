@@ -38,7 +38,7 @@ set_target_properties(cuda PROPERTIES
 )
 
 # all files in this directory
-file(GLOB_RECURSE SOURCES "*.cu" "*.h" "*.cpp" "*.inl")
+file(GLOB_RECURSE SOURCES "*.cu" "*.h" "*.hpp" "*.cpp" "*.inl")
 
 target_sources(cuda PRIVATE ${SOURCES})
 
@@ -51,5 +51,5 @@ endif()
 # ------------------------------------------------------------------------------
 # setup source group for the IDE
 # ------------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.cu" "*.inl")
+file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.hpp" "*.cpp" "*.cu" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})

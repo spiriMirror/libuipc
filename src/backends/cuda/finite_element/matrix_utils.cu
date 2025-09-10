@@ -1,7 +1,7 @@
 #include <finite_element/matrix_utils.h>
 #include <muda/ext/eigen/svd.h>
 #include <muda/ext/eigen/evd.h>
-
+#include <algorithm/qr_svd.hpp>
 namespace uipc::backend::cuda
 {
 UIPC_GENERIC Vector9 flatten(const Matrix3x3& A) noexcept
@@ -39,8 +39,7 @@ UIPC_GENERIC Float ddot(const Matrix3x3& A, const Matrix3x3& B)
 
 UIPC_GENERIC void svd(const Matrix3x3& F, Matrix3x3& U, Vector3& Sigma, Matrix3x3& V) noexcept
 {
-    // this function is already tested in the muda eigen test
-    muda::eigen::svd(F, U, Sigma, V);
+    math::qr_svd(F, Sigma, U, V);
 }
 
 UIPC_GENERIC void polar_decomposition(const Matrix3x3& F, Matrix3x3& R, Matrix3x3& S) noexcept

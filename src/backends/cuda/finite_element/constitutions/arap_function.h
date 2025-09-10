@@ -1,7 +1,7 @@
 #pragma once
 #include <type_define.h>
-#include <muda/ext/eigen/svd.h>
-
+//#include <muda/ext/eigen/svd.h>
+#include <finite_element/matrix_utils.h>
 namespace uipc::backend::cuda
 {
 namespace sym::arap_3d
@@ -19,7 +19,7 @@ namespace sym::arap_3d
         Eigen::Matrix<T, 3, 3> R;
         Eigen::Matrix<T, 3, 3> U, V;
         Eigen::Vector3<T>      Sigma;
-        muda::eigen::svd(F, U, Sigma, V);
+        svd(F, U, Sigma, V);
         R      = U * V.transpose();
         energy = kappa * v * (F - R).squaredNorm();
     }
@@ -34,7 +34,7 @@ namespace sym::arap_3d
         Eigen::Matrix<T, 3, 3> R;
         Eigen::Matrix<T, 3, 3> U, V;
         Eigen::Vector3<T>      Sigma;
-        muda::eigen::svd(F, U, Sigma, V);
+        svd(F, U, Sigma, V);
         R = U * V.transpose();
 
         Eigen::Matrix<T, 3, 3> dPsi_dF = 2 * (F - R);
@@ -63,7 +63,7 @@ namespace sym::arap_3d
     {
         Eigen::Matrix<T, 3, 3> U, V;
         Eigen::Vector3<T>      Sigma;
-        muda::eigen::svd(F, U, Sigma, V);
+        svd(F, U, Sigma, V);
         // Define the twist modes
         Eigen::Matrix<T, 3, 3> T0, T1, T2;
         T0.row(0) = Eigen::Vector3<T>(0, -1, 0);
