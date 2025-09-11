@@ -1,0 +1,193 @@
+name: Build Wheels
+
+on:
+  push:
+    tags:
+      - 'v*'
+  pull_request:
+    paths:
+      - 'python/**'
+      - '.github/workflows/build-wheels.yml'
+  workflow_dispatch:
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+        python: ['3.10', '3.11', '3.12', '3.13']
+
+    concurrency:
+      group: ${{ github.ref }}-build-wheels-${{ matrix.os }}-${{ matrix.python }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Maximize build space
+        if: matrix.os == 'ubuntu-22.04'
+        uses: AdityaGarg8/remove-unwanted-software@v4.1
+        with:
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      - name: Setup CUDA 12.4
+        uses: Jimver/cuda-toolkit@v0.2.20
+        id: cuda-toolkit
+        with:
+          cuda: '12.4.1'
+          method: 'network'
+          non-cuda-sub-packages: '["libcublas","libcublas-dev"]'
+          sub-packages: '["nvcc","compiler","libraries","libraries-dev","runtime"]'
+
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Setup ninja
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt update
+          sudo apt install ninja-build
+
+      - name: Setup ninja
+        if: matrix.os == 'windows-2022'
+        uses: seanmiddleditch/gha-setup-ninja@master
+
+      - name: Setup msvc sysroot for cmake
+        if: matrix.os == 'windows-2022'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build wheel setuptools
+
+      - name: Setup vcpkg cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/Toolchain/vcpkg
+            ${{ github.workspace }}/build/vcpkg_installed
+          key: vcpkg-${{ matrix.os }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ matrix.os }}-
+
+      - name: Setup vcpkg
+        run: |
+          # Create Toolchain directory
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            mkdir -p ~/Toolchain
+            cd ~/Toolchain
+            if [ ! -d "vcpkg" ]; then
+              git clone https://github.com/microsoft/vcpkg.git
+            fi
+            cd vcpkg
+            git pull
+            ./bootstrap-vcpkg.sh
+            echo "CMAKE_TOOLCHAIN_FILE=$HOME/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+          else
+            mkdir -p ~/Toolchain
+            cd ~/Toolchain
+            if [ ! -d "vcpkg" ]; then
+              git clone https://github.com/microsoft/vcpkg.git
+            fi
+            cd vcpkg
+            git pull
+            ./bootstrap-vcpkg.bat
+            echo "CMAKE_TOOLCHAIN_FILE=$HOME/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Configure CMake
+        run: |
+          # Set Python executable path based on OS
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            PYTHON_PATH="${{ env.pythonLocation }}/bin/python"
+          else
+            PYTHON_PATH="${{ env.pythonLocation }}/python.exe"
+          fi
+          
+          cmake -S . -B build \
+            -DUIPC_BUILD_PYBIND=ON \
+            -DUIPC_BUILD_EXAMPLES=OFF \
+            -DUIPC_BUILD_TESTS=OFF \
+            -DUIPC_BUILD_GUI=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUIPC_PYTHON_EXECUTABLE_PATH="$PYTHON_PATH" \
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.CMAKE_TOOLCHAIN_FILE }}"
+        shell: bash
+
+      - name: Build LibUIPC
+        run: |
+          cmake --build build --config Release --parallel 4
+
+      - name: Build Python wheel
+        working-directory: python
+        run: |
+          # Copy built libraries to python directory
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            mkdir -p src/uipc/lib
+            cp ../build/Release/lib/*.so src/uipc/lib/ || cp ../build/lib/*.so src/uipc/lib/ || true
+            cp ../build/python/Release/*.so src/uipc/ || cp ../build/python/*.so src/uipc/ || true
+          else
+            mkdir -p src/uipc/lib
+            cp ../build/Release/bin/*.dll src/uipc/lib/ || cp ../build/bin/*.dll src/uipc/lib/ || true
+            cp ../build/python/Release/*.pyd src/uipc/ || cp ../build/python/*.pyd src/uipc/ || true
+          fi
+          
+          # Build wheel
+          python -m build --wheel
+        shell: bash
+
+      - name: Test wheel installation
+        working-directory: python
+        run: |
+          python -m pip install dist/*.whl
+          python -c "import uipc; print('✅ uipc import successful')"
+          python uipc_info.py
+        shell: bash
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v3
+        with:
+          name: wheels-${{ matrix.os }}-py${{ matrix.python }}
+          path: python/dist/*.whl
+
+  upload_pypi:
+    name: Upload to PyPI
+    needs: [build_wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v3
+        with:
+          path: dist
+
+      - name: Move wheels to single directory
+        run: |
+          mkdir -p wheelhouse
+          find dist -name "*.whl" -exec mv {} wheelhouse/ \;
+
+      - name: Publish to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: wheelhouse/
+
+      - name: Publish to PyPI
+        if: success()
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: wheelhouse/
