@@ -14,7 +14,6 @@ class NoneSimEngine final : public SimEngine
   private:
     void         do_init(InitInfo&) override;
     virtual bool do_dump(DumpInfo&) override;
-    virtual void do_backward() override;
     virtual bool do_try_recover(RecoverInfo&) override;
     virtual void do_apply_recover(RecoverInfo&) override;
     virtual void do_clear_recover(RecoverInfo&) override;

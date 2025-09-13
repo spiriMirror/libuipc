@@ -105,33 +105,6 @@ void World::retrieve()
     }
 }
 
-void World::backward()
-{
-    if(!m_valid)
-    {
-        spdlog::error("World is not valid, skipping backward.");
-        return;
-    }
-
-    auto engine = lock(m_engine);
-
-    if(m_scene->diff_sim().parameters().size())
-    {
-        engine->backward();
-    }
-    else
-    {
-        spdlog::warn("No parameters to backward, skipping backward.");
-        return;
-    }
-
-    if(engine->status().has_error())
-    {
-        spdlog::error("Engine has error after backward, world becomes invalid.");
-        m_valid = false;
-    }
-}
-
 bool World::dump()
 {
     if(!m_valid)

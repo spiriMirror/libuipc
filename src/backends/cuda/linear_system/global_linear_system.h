@@ -336,10 +336,6 @@ class GlobalLinearSystem : public SimSystem
     // only be called by SimEngine::do_advance()
     void solve();
 
-    // only be called by SimEngine::do_backward()
-    // we just build a full hessian matrix for diff simulation
-    void prepare_hessian();
-
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda
