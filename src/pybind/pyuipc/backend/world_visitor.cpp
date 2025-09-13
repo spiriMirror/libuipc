@@ -12,6 +12,6 @@ PyWorldVisitor::PyWorldVisitor(py::module& m)
     class_WorldVisitor.def(py::init<uipc::core::World&>());
     class_WorldVisitor.def("scene", &WorldVisitor::scene);
     class_WorldVisitor.def("animator", &WorldVisitor::animator);
-    class_WorldVisitor.def("ref", &WorldVisitor::ref, py::return_value_policy::reference_internal);
+    class_WorldVisitor.def("get", &WorldVisitor::get, py::return_value_policy::move);
 }
 }  // namespace pyuipc::backend

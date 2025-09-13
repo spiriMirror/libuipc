@@ -12,7 +12,6 @@ WorldVisitor::WorldVisitor(core::World& w) noexcept
 WorldVisitor::WorldVisitor(core::internal::World& w) noexcept
     : m_world(w)
 {
-    m_ref = S<core::World>{new core::World(w.shared_from_this())};
 }
 
 SceneVisitor WorldVisitor::scene() noexcept
@@ -25,8 +24,8 @@ AnimatorVisitor WorldVisitor::animator() noexcept
     return AnimatorVisitor{m_world.m_scene->animator()};
 }
 
-core::World& WorldVisitor::ref() noexcept
+core::World WorldVisitor::get() noexcept
 {
-    return *m_ref;
+    return core::World{m_world.shared_from_this()};
 }
 }  // namespace uipc::backend
