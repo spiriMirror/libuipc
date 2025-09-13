@@ -45,12 +45,13 @@ $$
 $$
 
 P.S. The state variable for a **Soft Body** Vertex:
+
 $$
-\mathbf{x} = 
-\begin{bmatrix}
-x\\
-y\\
-z\\
+\mathbf{x} 
+= \begin{bmatrix}
+x \\
+y \\
+z \\
 \end{bmatrix}
 $$
 
@@ -68,7 +69,7 @@ $$
 \end{array}\right]
 $$
 
-where, $\bar{\mathbf{x}} = \begin{bmatrix}\bar{x}^1 & \bar{x}^2 & \bar{x}^2\end{bmatrix}^T$, $\bar{\mathbf{x}}$ is the material point position in the local(model) space. Every material point$\mathbf{x}$ has a Jacobi Matrix $\mathbf{J}(\bar{\mathbf{x}})$
+where, $\bar{\mathbf{x}} = \begin{bmatrix}\bar{x}^1 & \bar{x}^2 & \bar{x}^2\end{bmatrix}^T$, $\bar{\mathbf{x}}$ is the material point position in the local(model) space. Every material point $\mathbf{x}$ has a Jacobi Matrix $\mathbf{J}(\bar{\mathbf{x}})$
 
 P.S. The Jacobi Matrix for a **Soft Body** Vertex is an identity matrix:
 
