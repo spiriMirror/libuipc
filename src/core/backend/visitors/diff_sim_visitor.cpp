@@ -19,9 +19,4 @@ const diff_sim::ParameterCollection& DiffSimVisitor::parameters() const
 {
     return m_diff_sim.parameters();
 }
-
-core::DiffSim& DiffSimVisitor::ref()
-{
-    return m_diff_sim;
-}
 }  // namespace uipc::backend
