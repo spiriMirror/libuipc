@@ -42,7 +42,6 @@ class SimEngine final : public backend::SimEngine
     virtual void  do_advance() override;
     virtual void  do_sync() override;
     virtual void  do_retrieve() override;
-    virtual void  do_backward() override;
     virtual SizeT get_frame() const override;
 
     virtual bool do_dump(DumpInfo&) override;

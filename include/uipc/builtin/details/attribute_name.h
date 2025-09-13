@@ -8,7 +8,7 @@
  * 
  * @code{.cpp}
  * #define UIPC_BUILTIN_ATTRIBUTE(name) constexpr std::string_view name = #name
- * #include <pyuipc/builtin/attribute_name.h>
+ * #include <uipc/builtin/attribute_name.h>
  * #undef UIPC_BUILTIN_ATTRIBUTE
  * @endcode
  * 

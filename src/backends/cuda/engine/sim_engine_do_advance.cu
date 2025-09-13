@@ -368,9 +368,6 @@ void SimEngine::do_advance()
             }
         }
 
-        // NOTE: Don't change any state after this point
-        // 1) SimEngine::do_backward() may be called later, please keep the state consistent
-
         spdlog::info("<<< End Frame: {}", m_current_frame);
     };
 

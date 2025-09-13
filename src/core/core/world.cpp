@@ -44,11 +44,6 @@ void World::retrieve()
     m_internal->retrieve();
 }
 
-void World::backward()
-{
-    m_internal->backward();
-}
-
 bool World::dump()
 {
     return m_internal->dump();
