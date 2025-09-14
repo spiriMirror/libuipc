@@ -3,7 +3,7 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pyuipc"
+name = "zhaofeng-pyuipc"
 authors = [
     {name = "Zihang Zhu", email = "paradise_craftsman@hotmail.com"},
 ]
@@ -24,7 +24,7 @@ classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -49,9 +49,10 @@ dev = ["pytest"]
 where = ["src", "typings"]
 
 [tool.setuptools.package-data]
-"*" = ["*.dll", "*.so", "*.dylib", "*.pyd", "*.pyi"]
-"uipc" = ["lib/*.dll", "lib/*.so", "*.pyd"]
-"uipc.lib" = ["*.dll", "*.so"]
+"*" = ["*.dll", "*.so*", "*.dylib", "*.pyd", "*.pyi"]
+"uipc" = ["lib/*.dll", "lib/*.so*", "*.pyd"]
+"uipc.lib" = ["*.dll", "*.so*"]
+
 
 [tool.pytest.ini_options]
 addopts = ["-s"]

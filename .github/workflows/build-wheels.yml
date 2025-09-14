@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'support-pypi'  # Temporary: for testing
   pull_request:
     paths:
       - 'python/**'
@@ -17,10 +19,11 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04, windows-2022]
-        python: ['3.10', '3.11', '3.12', '3.13']
+        python: ['3.11', '3.12', '3.13']
+        cuda: ['12.4.1']
 
     concurrency:
-      group: ${{ github.ref }}-build-wheels-${{ matrix.os }}-${{ matrix.python }}
+      group: ${{ github.ref }}-build-wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.cuda }}
       cancel-in-progress: true
 
     steps:
@@ -32,25 +35,30 @@ jobs:
           remove-haskell: 'true'
           remove-codeql: 'true'
 
-      - name: Setup CUDA 12.4
-        uses: Jimver/cuda-toolkit@v0.2.20
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup CUDA ${{ matrix.cuda }}
+        uses: Jimver/cuda-toolkit@v0.2.24
         id: cuda-toolkit
         with:
-          cuda: '12.4.1'
-          method: 'network'
-          non-cuda-sub-packages: '["libcublas","libcublas-dev"]'
-          sub-packages: '["nvcc","compiler","libraries","libraries-dev","runtime"]'
+          cuda: ${{ matrix.cuda }}
+          method: 'local'
+          use-local-cache: true
+          log-file-suffix: '${{ matrix.os }}-py${{ matrix.python }}-cuda${{ matrix.cuda }}.txt'
 
       - name: Setup Python ${{ matrix.python }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Setup ninja
+      - name: Setup ninja and patchelf
         if: matrix.os == 'ubuntu-22.04'
         run: |
           sudo apt update
-          sudo apt install ninja-build
+          sudo apt install ninja-build patchelf
 
       - name: Setup ninja
         if: matrix.os == 'windows-2022'
@@ -60,10 +68,11 @@ jobs:
         if: matrix.os == 'windows-2022'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
         with:
-          submodules: true
+          key: ${{ github.job }}-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.cuda }}
+          max-size: 2G
 
       - name: Install Python build dependencies
         run: |
@@ -71,7 +80,7 @@ jobs:
           python -m pip install build wheel setuptools
 
       - name: Setup vcpkg cache
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/Toolchain/vcpkg
@@ -79,6 +88,21 @@ jobs:
           key: vcpkg-${{ matrix.os }}-${{ hashFiles('**/vcpkg.json') }}
           restore-keys: |
             vcpkg-${{ matrix.os }}-
+
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/CMakeCache.txt
+            build/cmake_install.cmake
+            build/CMakeFiles
+            build/*.ninja
+            build/vcpkg_installed
+          key: cmake-config-${{ matrix.os }}-${{ matrix.python }}-cuda${{ matrix.cuda }}-${{ hashFiles('**/CMakeLists.txt', '**/vcpkg.json') }}
+          restore-keys: |
+            cmake-config-${{ matrix.os }}-${{ matrix.python }}-
+            cmake-config-${{ matrix.os }}-
+
 
       - name: Setup vcpkg
         run: |
@@ -111,55 +135,282 @@ jobs:
           # Set Python executable path based on OS
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
             PYTHON_PATH="${{ env.pythonLocation }}/bin/python"
+            
+            # Set CUDA compiler path for Linux
+            CUDA_VERSION="${{ matrix.cuda }}"
+            CUDA_MAJOR=$(echo $CUDA_VERSION | cut -d. -f1)
+            CUDA_MINOR=$(echo $CUDA_VERSION | cut -d. -f2)
+            CUDA_PATH="/usr/local/cuda-${CUDA_MAJOR}.${CUDA_MINOR}"
+            
+            # Check if CUDA is installed and set compiler
+            if [ -f "$CUDA_PATH/bin/nvcc" ]; then
+              export CMAKE_CUDA_COMPILER="$CUDA_PATH/bin/nvcc"
+              export CUDACXX="$CUDA_PATH/bin/nvcc"
+            elif [ -f "/usr/local/cuda/bin/nvcc" ]; then
+              export CMAKE_CUDA_COMPILER="/usr/local/cuda/bin/nvcc"
+              export CUDACXX="/usr/local/cuda/bin/nvcc"
+            else
+              echo "❌ CUDA compiler not found in expected locations"
+              find /usr/local -name "nvcc" 2>/dev/null || echo "nvcc not found"
+              exit 1
+            fi
+            
+            echo "✅ Using CUDA compiler: $CMAKE_CUDA_COMPILER"
           else
             PYTHON_PATH="${{ env.pythonLocation }}/python.exe"
           fi
           
           cmake -S . -B build \
+            -G Ninja \
             -DUIPC_BUILD_PYBIND=ON \
             -DUIPC_BUILD_EXAMPLES=OFF \
             -DUIPC_BUILD_TESTS=OFF \
             -DUIPC_BUILD_GUI=OFF \
             -DCMAKE_BUILD_TYPE=Release \
             -DUIPC_PYTHON_EXECUTABLE_PATH="$PYTHON_PATH" \
-            -DCMAKE_TOOLCHAIN_FILE="${{ env.CMAKE_TOOLCHAIN_FILE }}"
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.CMAKE_TOOLCHAIN_FILE }}" \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
+            -DUIPC_GITHUB_ACTIONS=ON
         shell: bash
 
       - name: Build LibUIPC
         run: |
           cmake --build build --config Release --parallel 4
 
+      - name: Debug build directories
+        run: |
+          echo "🔍 Current directory: $(pwd)"
+          echo "📂 Build directory structure:"
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            find build -type f -name "*.so" -o -name "*.pyd" -o -name "*.dll" 2>/dev/null | head -20 || echo "No shared libraries found"
+            find build -name "*pyuipc*" 2>/dev/null | head -10 || echo "No pyuipc files found"
+            ls -la build/ 2>/dev/null || echo "Build directory not found"
+          else
+            # Windows commands using bash-compatible tools
+            find build -name "*.dll" -o -name "*.pyd" 2>/dev/null | head -20 || echo "No shared libraries found"
+            find build -name "*pyuipc*" 2>/dev/null | head -10 || echo "No pyuipc files found"
+            ls build/ 2>/dev/null || echo "Build directory not found"
+          fi
+        shell: bash
+
       - name: Build Python wheel
         working-directory: python
         run: |
-          # Copy built libraries to python directory
+          echo "📦 Building base wheel (will create full and lite variants during repair)..."
+          
+          # Use the properly built Python package from build/python
+          echo "📦 Using pre-built Python package from after_build_pyuipc.py script"
+          
+          # Check what was created by the build script
+          echo "📂 Build directory python package:"
+          find ../build/python -name "*.so" -o -name "*.pyd" -o -name "*.dll" | head -10
+          
+          # Copy the entire pre-built python package
+          cp -r ../build/python/* . 2>/dev/null || true
+          
+          # Copy vcpkg dependencies and fix RPATH
+          echo "📦 Copying vcpkg dependencies and fixing RPATH:"
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            mkdir -p src/uipc/lib
-            cp ../build/Release/lib/*.so src/uipc/lib/ || cp ../build/lib/*.so src/uipc/lib/ || true
-            cp ../build/python/Release/*.so src/uipc/ || cp ../build/python/*.so src/uipc/ || true
+            VCPKG_TRIPLET="x64-linux"
+            SHARED_LIB_EXT=".so*"
           else
-            mkdir -p src/uipc/lib
-            cp ../build/Release/bin/*.dll src/uipc/lib/ || cp ../build/bin/*.dll src/uipc/lib/ || true
-            cp ../build/python/Release/*.pyd src/uipc/ || cp ../build/python/*.pyd src/uipc/ || true
+            VCPKG_TRIPLET="x64-windows"
+            SHARED_LIB_EXT=".dll"
+          fi
+
+          
+          # Debug: Check what configurations were actually built
+          echo "🔍 Checking build configurations:"
+          find ../build -name "*pyuipc*" -type d 2>/dev/null | head -5 || echo "No pyuipc directories found"
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            ls -la ../build/ | grep -E "(Release|RelWithDebInfo|Debug)" || echo "No config directories found"
+          else
+            ls ../build/ | findstr /C:"Release" /C:"RelWithDebInfo" /C:"Debug" 2>/dev/null || echo "No config directories found"
           fi
           
-          # Build wheel
+          # Find the actual modules directory that was created by after_build_pyuipc.py
+          MODULES_BASE_DIR="src/uipc/modules"
+          if [ -d "$MODULES_BASE_DIR/Release/bin" ]; then
+            MODULES_DIR="$MODULES_BASE_DIR/Release/bin"
+            BUILD_CONFIG="Release"
+          elif [ -d "$MODULES_BASE_DIR/RelWithDebInfo/bin" ]; then
+            MODULES_DIR="$MODULES_BASE_DIR/RelWithDebInfo/bin"
+            BUILD_CONFIG="RelWithDebInfo"
+          elif [ -d "$MODULES_BASE_DIR/Debug/bin" ]; then
+            MODULES_DIR="$MODULES_BASE_DIR/Debug/bin"
+            BUILD_CONFIG="Debug"
+          else
+            echo "❌ No modules directory found, creating Release directory as fallback"
+            MODULES_DIR="$MODULES_BASE_DIR/Release/bin"
+            BUILD_CONFIG="Release"
+            mkdir -p "$MODULES_DIR"
+          fi
+          
+          echo "📂 Using modules directory: $MODULES_DIR (config: $BUILD_CONFIG)"
+          
+          # Debug: Check what's in the modules directory before copying
+          echo "📋 Current modules directory contents:"
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            ls -la "$MODULES_DIR" || echo "Directory is empty or doesn't exist"
+          else
+            ls "$MODULES_DIR" || echo "Directory is empty or doesn't exist"
+          fi
+          
+          # Copy vcpkg dependencies to modules directory
+          VCPKG_BIN_DIR="../build/vcpkg_installed/${VCPKG_TRIPLET}/bin"
+          echo "🔍 Looking for vcpkg dependencies in: $VCPKG_BIN_DIR"
+          if [ -d "$VCPKG_BIN_DIR" ]; then
+            echo "📂 Found vcpkg dependencies, copying to: $MODULES_DIR"
+            find "$VCPKG_BIN_DIR" -name "*${SHARED_LIB_EXT}" -exec cp {} "$MODULES_DIR/" \;
+            echo "✅ Copied vcpkg dependencies"
+          else
+            echo "⚠️  vcpkg bin directory not found, checking alternative locations:"
+            find ../build -name "vcpkg_installed" -type d | head -3
+            find ../build -path "*/vcpkg_installed/*/bin" -type d | head -3
+          fi
+          VCPKG_LIB_DIR="../build/vcpkg_installed/${VCPKG_TRIPLET}/lib"
+          echo "🔍 Looking for vcpkg dependencies in: $VCPKG_LIB_DIR"
+          if [ -d "$VCPKG_LIB_DIR" ]; then
+            echo "📂 Found vcpkg dependencies, copying to: $MODULES_DIR"
+            find "$VCPKG_LIB_DIR" -name "*${SHARED_LIB_EXT}" -exec cp {} "$MODULES_DIR/" \;
+            echo "✅ Copied vcpkg dependencies"
+          else
+            echo "⚠️  vcpkg lib directory not found, checking alternative locations:"
+            find ../build -name "vcpkg_installed" -type d | head -3
+            find ../build -path "*/vcpkg_installed/*/lib" -type d | head -3
+          fi
+          # Fix RPATH for all shared libraries on Linux
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            echo "🔧 Fixing RPATH for all shared libraries in: $MODULES_DIR"
+            for lib in "$MODULES_DIR"/*${SHARED_LIB_EXT}; do
+              if [ -f "$lib" ]; then
+                echo "  📝 Fixing RPATH for $(basename $lib)"
+                patchelf --set-rpath '$ORIGIN' "$lib" || echo "  ⚠️ Failed to set RPATH for $(basename $lib)"
+              fi
+            done
+            echo "✅ RPATH fix completed"
+            
+            # Verify RPATH was set correctly
+            echo "🔍 Verifying RPATH for first few libraries:"
+            count=0
+            for lib in "$MODULES_DIR"/*${SHARED_LIB_EXT}; do
+              if [ -f "$lib" ] && [ $count -lt 5 ]; then
+                echo "  $(basename $lib):"
+                readelf -d "$lib" | grep -E "(RPATH|RUNPATH)" || echo "    No RPATH/RUNPATH found"
+                count=$((count + 1))
+              fi
+            done
+          fi
+          
+          # List final contents
+          echo "📋 Final modules directory contents:"
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            ls -la "$MODULES_DIR"/ 2>/dev/null || echo "Directory empty or not found"
+          else
+            ls "$MODULES_DIR"/ 2>/dev/null || echo "Directory empty or not found"
+          fi
+          
+          # Verify the structure
+          echo "📂 Package structure:"
+          find src/uipc -name "*pyuipc*" 2>/dev/null | head -5 || echo "No pyuipc files found"
+          find src/uipc -name "modules" -type d 2>/dev/null || echo "No modules directory found"
+          
+          # Build wheel from the properly prepared package
           python -m build --wheel
+        shell: bash
+
+      - name: Repair wheels for PyPI compatibility (create both variants)
+        if: matrix.os == 'ubuntu-22.04'
+        working-directory: python
+        run: |
+          pip install auditwheel
+          echo "🔧 Repairing wheels for PyPI compatibility (creating both full and lite variants)..."
+          
+          # Create directories for both variants
+          mkdir -p wheelhouse-full wheelhouse-lite dist-final
+          
+          for wheel in dist/*.whl; do
+            echo ""
+            echo "📦 Processing $(basename $wheel)..."
+            
+            # Create full variant (include all CUDA libraries)
+            echo "  Creating full variant: zhaofeng-pyuipc-full"
+            auditwheel repair "$wheel" -w wheelhouse-full/
+            
+            # Create lite variant (exclude CUDA libraries)  
+            echo "  Creating lite variant: zhaofeng-pyuipc"
+            auditwheel repair "$wheel" \
+            --exclude '*libcublas*' \
+            --exclude '*libcudart*' \
+            --exclude '*libcusparse*' \
+            --exclude '*libcusolver*' \
+            --exclude '*libnvJitLink*' \
+            -w wheelhouse-lite/
+            
+            # Properly rename full variant wheel with internal metadata
+            for repaired in wheelhouse-full/*.whl; do
+              echo "  Renaming full variant wheel metadata..."
+              TEMP_DIR="temp-rename-$(basename $repaired .whl)"
+              mkdir -p "$TEMP_DIR"
+              cd "$TEMP_DIR"
+              
+              # Extract wheel
+              unzip -q "../$repaired"
+              
+              # Rename .dist-info directory
+              mv zhaofeng_pyuipc-*.dist-info zhaofeng_pyuipc_full-0.9.0.dist-info
+              
+              # Update METADATA file
+              sed -i 's/Name: zhaofeng-pyuipc$/Name: zhaofeng-pyuipc-full/' zhaofeng_pyuipc_full-*.dist-info/METADATA
+              
+              # Create new wheel
+              FINAL_NAME=$(echo "$(basename $repaired)" | sed 's/zhaofeng_pyuipc-/zhaofeng_pyuipc_full-/')
+              zip -r "../dist-final/$FINAL_NAME" .
+              
+              cd ..
+              rm -rf "$TEMP_DIR"
+            done
+            
+            # Move lite wheel to final directory
+            mv wheelhouse-lite/*.whl dist-final/
+            
+            # Clear wheelhouse directories for next iteration
+            rm -rf wheelhouse-full/* wheelhouse-lite/*
+          done
+          
+          # Replace original dist with final variants
+          rm -rf dist wheelhouse-full wheelhouse-lite
+          mv dist-final dist
+          
+          echo "✅ Wheel repair completed (both variants created)"
+          ls -la dist/
+        shell: bash
+
+      - name: Prepare Windows wheels (lite variant only)
+        if: matrix.os == 'windows-2022'
+        working-directory: python
+        run: |
+          echo "Windows wheels prepared (lite variant only - no CUDA libraries included)"
+          echo "Using original wheel as zhaofeng-pyuipc (lite)"
+          ls dist/ 2>/dev/null || dir dist
         shell: bash
 
       - name: Test wheel installation
         working-directory: python
         run: |
-          python -m pip install dist/*.whl
-          python -c "import uipc; print('✅ uipc import successful')"
+          python -m pip install --force-reinstall dist/*.whl
+          python -c "import uipc; print('uipc import successful')"
           python uipc_info.py
         shell: bash
 
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}-py${{ matrix.python }}
+          name: wheels-${{ matrix.os }}-py${{ matrix.python }}-cuda${{ matrix.cuda }}-${{ github.run_id }}
           path: python/dist/*.whl
+          retention-days: 7
 
   upload_pypi:
     name: Upload to PyPI
@@ -169,14 +420,24 @@ jobs:
     
     steps:
       - name: Download all wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
+          pattern: wheels-*
           path: dist
+          merge-multiple: true
 
       - name: Move wheels to single directory
         run: |
-          mkdir -p wheelhouse
-          find dist -name "*.whl" -exec mv {} wheelhouse/ \;
+          mkdir -p wheelhouse wheelhouse-full
+          # Move lite variants to main wheelhouse (for PyPI upload)
+          find dist -name "zhaofeng_pyuipc-*.whl" -exec mv {} wheelhouse/ \;
+          # Move full variants to separate directory (too large for PyPI)
+          find dist -name "zhaofeng_pyuipc_full-*.whl" -exec mv {} wheelhouse-full/ \;
+          
+          echo "Lite variants for PyPI upload:"
+          ls -lah wheelhouse/
+          echo "Full variants (kept as artifacts only):"
+          ls -lah wheelhouse-full/
 
       - name: Publish to Test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -184,6 +445,7 @@ jobs:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
           packages-dir: wheelhouse/
+          verbose: true
 
       - name: Publish to PyPI
         if: success()
