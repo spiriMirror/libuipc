@@ -13,7 +13,6 @@ SceneVisitor::SceneVisitor(core::internal::Scene& scene) noexcept
     : m_scene(scene)
     , m_diff_sim_visitor(scene.diff_sim())
 {
-    m_ref = S<core::Scene>{new core::Scene(scene.shared_from_this())};
 }
 
 void SceneVisitor::begin_pending() noexcept
@@ -101,8 +100,8 @@ DiffSimVisitor& SceneVisitor::diff_sim() noexcept
     return m_diff_sim_visitor;
 }
 
-core::Scene& uipc::backend::SceneVisitor::ref() noexcept
+core::Scene uipc::backend::SceneVisitor::get() noexcept
 {
-    return *m_ref;
+    return core::Scene{m_scene.shared_from_this()};
 }
 }  // namespace uipc::backend

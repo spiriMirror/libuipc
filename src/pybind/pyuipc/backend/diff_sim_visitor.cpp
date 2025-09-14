@@ -12,7 +12,6 @@ PyDiffSimVisitor::PyDiffSimVisitor(py::module& m)
             "parameters",
             [](DiffSimVisitor& self) -> diff_sim::ParameterCollection&
             { return self.parameters(); },
-            py::return_value_policy::reference_internal)
-        .def("ref", &DiffSimVisitor::ref, py::return_value_policy::reference_internal);
+            py::return_value_policy::reference_internal);
 }
 }  // namespace pyuipc::backend

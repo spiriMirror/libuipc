@@ -12,7 +12,6 @@ class PyIEngine : public uipc::core::IEngine
     PyIEngine()                                                    = default;
     virtual void                                do_init()          = 0;
     virtual void                                do_advance()       = 0;
-    virtual void                                do_backward()      = 0;
     virtual void                                do_sync()          = 0;
     virtual void                                do_retrieve()      = 0;
     virtual Json                                do_to_json() const = 0;
@@ -43,11 +42,6 @@ class PyIEngine_ : public PyIEngine
     virtual void do_advance() override
     {
         PYBIND11_OVERRIDE_PURE(void, PyIEngine_, do_advance);
-    };
-
-    virtual void do_backward() override
-    {
-        PYBIND11_OVERRIDE(void, PyIEngine_, do_backward);
     };
 
     virtual void do_sync() override

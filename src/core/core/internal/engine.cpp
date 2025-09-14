@@ -129,13 +129,6 @@ class Engine::Impl
         m_engine->advance();
     }
 
-    void backward()
-    {
-        m_sync_flag = false;
-        LogPatternGuard guard{backend_name()};
-        m_engine->backward();
-    }
-
     void sync()
     {
         LogPatternGuard guard{backend_name()};
@@ -290,11 +283,6 @@ void Engine::init(internal::World& v)
 void Engine::advance()
 {
     m_impl->advance();
-}
-
-void Engine::backward()
-{
-    m_impl->backward();
 }
 
 void Engine::sync()

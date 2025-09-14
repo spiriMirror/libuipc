@@ -29,10 +29,9 @@ class UIPC_CORE_API WorldVisitor
 
     SceneVisitor    scene() noexcept;
     AnimatorVisitor animator() noexcept;
-    core::World&    ref() noexcept;
+    core::World     get() noexcept;
 
   private:
-    mutable S<core::World> m_ref;
     core::internal::World& m_world;
 };
 }  // namespace uipc::backend

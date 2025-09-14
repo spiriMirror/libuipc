@@ -40,7 +40,6 @@ class UIPC_CORE_API Engine final : public std::enable_shared_from_this<Engine>
     // only be called by internal::world
     void  init(internal::World& world);
     void  advance();
-    void  backward();
     void  sync();
     void  retrieve();
     bool  dump();
