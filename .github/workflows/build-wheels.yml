@@ -74,10 +74,10 @@ jobs:
           key: ${{ github.job }}-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.cuda }}
           max-size: 2G
 
-      - name: Install Python build dependencies
+      - name: Install uv and Python build dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install build wheel setuptools
+          python -m pip install --upgrade pip uv
+          uv pip install build wheel setuptools --system
 
       - name: Setup vcpkg cache
         uses: actions/cache@v4
@@ -325,7 +325,7 @@ jobs:
         if: matrix.os == 'ubuntu-22.04'
         working-directory: python
         run: |
-          pip install auditwheel
+          uv pip install auditwheel --system
           echo "🔧 Repairing wheels for PyPI compatibility (creating both full and lite variants)..."
           
           # Create directories for both variants
@@ -400,9 +400,15 @@ jobs:
       - name: Test wheel installation
         working-directory: python
         run: |
-          python -m pip install --force-reinstall dist/*.whl
-          python -c "import uipc; print('uipc import successful')"
-          python uipc_info.py
+          uv pip install --force-reinstall dist/*.whl --system
+          
+          # Run comprehensive wheel tests
+          python ../scripts/test_wheel.py
+          
+          # Run info script if it exists
+          if [ -f "uipc_info.py" ]; then
+            python uipc_info.py
+          fi
         shell: bash
 
       - name: Upload wheels
