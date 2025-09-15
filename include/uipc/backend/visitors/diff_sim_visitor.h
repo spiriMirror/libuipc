@@ -15,7 +15,6 @@ class UIPC_CORE_API DiffSimVisitor
     ~DiffSimVisitor();
     diff_sim::ParameterCollection&       parameters();
     const diff_sim::ParameterCollection& parameters() const;
-    core::DiffSim&                       ref();
 
   private:
     core::DiffSim& m_diff_sim;

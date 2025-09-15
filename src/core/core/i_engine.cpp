@@ -13,11 +13,6 @@ void IEngine::advance()
     do_advance();
 }
 
-void IEngine::backward()
-{
-    do_backward();
-}
-
 void IEngine::sync()
 {
     do_sync();

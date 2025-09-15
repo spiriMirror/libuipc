@@ -58,11 +58,6 @@ bool NoneSimEngine::do_dump(DumpInfo&)
     return true;
 }
 
-void NoneSimEngine::do_backward()
-{
-    // Do nothing
-}
-
 bool NoneSimEngine::do_try_recover(RecoverInfo&)
 {
     // Now just do nothing

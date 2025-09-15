@@ -51,6 +51,6 @@ PySceneVisitor::PySceneVisitor(py::module& m)
                            [](SceneVisitor& self) -> DiffSimVisitor&
                            { return self.diff_sim(); });
 
-    class_SceneVisitor.def("ref", &SceneVisitor::ref, py::return_value_policy::reference_internal);
+    class_SceneVisitor.def("get", &SceneVisitor::get, py::return_value_policy::move);
 }
 }  // namespace pyuipc::backend

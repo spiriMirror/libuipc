@@ -20,7 +20,6 @@ PyWorld::PyWorld(py::module& m)
              &World::recover,
              py::arg("dst_frame") = ~0ull,
              py::call_guard<py::gil_scoped_release>())
-        .def("backward", &World::backward, py::call_guard<py::gil_scoped_release>())
         .def("frame", &World::frame, py::call_guard<py::gil_scoped_release>())
         .def("features",
              &World::features,
