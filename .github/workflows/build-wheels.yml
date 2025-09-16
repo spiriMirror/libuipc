@@ -238,11 +238,11 @@ jobs:
             echo "Processing $(basename $wheel)..."
             
             # Create full variant (include all CUDA libraries)
-            echo "  Creating full variant: zhaofeng-pyuipc-full"
+            echo "  Creating full variant: pyuipc-full"
             auditwheel repair "$wheel" -w wheelhouse-full/
             
             # Create lite variant (exclude CUDA libraries)  
-            echo "  Creating lite variant: zhaofeng-pyuipc"
+            echo "  Creating lite variant: pyuipc"
             auditwheel repair "$wheel" \
             --exclude '*libcublas*' \
             --exclude '*libcudart*' \
@@ -265,7 +265,7 @@ jobs:
               mv zhaofeng_pyuipc-*.dist-info zhaofeng_pyuipc_full-0.9.0.dist-info
               
               # Update METADATA file
-              sed -i 's/Name: zhaofeng-pyuipc$/Name: zhaofeng-pyuipc-full/' zhaofeng_pyuipc_full-*.dist-info/METADATA
+              sed -i 's/Name: pyuipc$/Name: pyuipc-full/' zhaofeng_pyuipc_full-*.dist-info/METADATA
               
               # Create new wheel
               FINAL_NAME=$(echo "$(basename $repaired)" | sed 's/zhaofeng_pyuipc-/zhaofeng_pyuipc_full-/')
@@ -295,7 +295,7 @@ jobs:
         working-directory: python
         run: |
           echo "Windows wheels prepared (lite variant only - no CUDA libraries included)"
-          echo "Using original wheel as zhaofeng-pyuipc (lite)"
+          echo "Using original wheel as pyuipc (lite)"
           ls dist/ 2>/dev/null || dir dist
         shell: bash
 

@@ -57,7 +57,7 @@ class UserExperienceTest:
         
         if self.use_pypi:
             # Install from PyPI
-            cmd = [self.pip_exe, "install", "zhaofeng-pyuipc"]
+            cmd = [self.pip_exe, "install", "pyuipc"]
             print("Installing from PyPI...")
         else:
             # Install from local wheel
