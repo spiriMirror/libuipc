@@ -10,10 +10,10 @@ def test_basic_import():
     """Test basic uipc import"""
     try:
         import uipc
-        print("✓ Basic uipc import successful")
+        print("[OK] Basic uipc import successful")
         return True
     except ImportError as e:
-        print(f"✗ Failed to import uipc: {e}")
+        print(f"[ERROR] Failed to import uipc: {e}")
         return False
 
 def test_stub_files():
@@ -48,7 +48,7 @@ def test_stub_files():
                 break
                 
         if not stub_dir:
-            print("✗ pyuipc stub directory not found")
+            print("[ERROR] pyuipc stub directory not found")
             return False
             
         print(f"Found stub directory at: {stub_dir}")
@@ -60,14 +60,14 @@ def test_stub_files():
                 missing_stubs.append(stub_file)
                 
         if missing_stubs:
-            print(f"✗ Missing stub files: {missing_stubs}")
+            print(f"[ERROR] Missing stub files: {missing_stubs}")
             return False
         else:
-            print(f"✓ All {len(stub_files)} stub files found")
+            print(f"[OK] All {len(stub_files)} stub files found")
             return True
             
     except Exception as e:
-        print(f"✗ Error checking stub files: {e}")
+        print(f"[ERROR] Error checking stub files: {e}")
         return False
 
 def test_core_functionality():
@@ -79,11 +79,11 @@ def test_core_functionality():
         
         # Test if we can access basic attributes (without causing errors)
         hasattr(uipc, '__version__')  # This might exist
-        print("✓ Core functionality accessible")
+        print("[OK] Core functionality accessible")
         return True
         
     except Exception as e:
-        print(f"✗ Core functionality test failed: {e}")
+        print(f"[ERROR] Core functionality test failed: {e}")
         return False
 
 def main():
@@ -109,10 +109,10 @@ def main():
     print(f"Results: {passed}/{total} tests passed")
     
     if passed == total:
-        print("🎉 All tests passed!")
+        print("All tests passed!")
         return 0
     else:
-        print("❌ Some tests failed!")
+        print("Some tests failed!")
         return 1
 
 if __name__ == "__main__":

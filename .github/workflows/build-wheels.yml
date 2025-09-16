@@ -74,10 +74,13 @@ jobs:
           key: ${{ github.job }}-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.cuda }}
           max-size: 2G
 
-      - name: Install uv and Python build dependencies
-        run: |
-          python -m pip install --upgrade pip uv
-          uv pip install build wheel setuptools --system
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install Python build dependencies
+        run: uv pip install build wheel setuptools --system
 
       - name: Setup vcpkg cache
         uses: actions/cache@v4
@@ -150,16 +153,17 @@ jobs:
               export CMAKE_CUDA_COMPILER="/usr/local/cuda/bin/nvcc"
               export CUDACXX="/usr/local/cuda/bin/nvcc"
             else
-              echo "❌ CUDA compiler not found in expected locations"
+              echo "ERROR: CUDA compiler not found in expected locations"
               find /usr/local -name "nvcc" 2>/dev/null || echo "nvcc not found"
               exit 1
             fi
             
-            echo "✅ Using CUDA compiler: $CMAKE_CUDA_COMPILER"
+            echo "Using CUDA compiler: $CMAKE_CUDA_COMPILER"
           else
             PYTHON_PATH="${{ env.pythonLocation }}/python.exe"
           fi
           
+
           cmake -S . -B build \
             -G Ninja \
             -DUIPC_BUILD_PYBIND=ON \
@@ -181,8 +185,8 @@ jobs:
 
       - name: Debug build directories
         run: |
-          echo "🔍 Current directory: $(pwd)"
-          echo "📂 Build directory structure:"
+          echo "Current directory: $(pwd)"
+          echo "Build directory structure:"
           if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
             find build -type f -name "*.so" -o -name "*.pyd" -o -name "*.dll" 2>/dev/null | head -20 || echo "No shared libraries found"
             find build -name "*pyuipc*" 2>/dev/null | head -10 || echo "No pyuipc files found"
@@ -198,127 +202,25 @@ jobs:
       - name: Build Python wheel
         working-directory: python
         run: |
-          echo "📦 Building base wheel (will create full and lite variants during repair)..."
+          echo "Building base wheel (will create full and lite variants during repair)..."
           
           # Use the properly built Python package from build/python
-          echo "📦 Using pre-built Python package from after_build_pyuipc.py script"
+          echo "Using pre-built Python package from after_build_pyuipc.py script"
           
           # Check what was created by the build script
-          echo "📂 Build directory python package:"
+          echo "Build directory python package:"
           find ../build/python -name "*.so" -o -name "*.pyd" -o -name "*.dll" | head -10
           
           # Copy the entire pre-built python package
           cp -r ../build/python/* . 2>/dev/null || true
           
-          # Copy vcpkg dependencies and fix RPATH
-          echo "📦 Copying vcpkg dependencies and fixing RPATH:"
-          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            VCPKG_TRIPLET="x64-linux"
-            SHARED_LIB_EXT=".so*"
-          else
-            VCPKG_TRIPLET="x64-windows"
-            SHARED_LIB_EXT=".dll"
-          fi
-
-          
-          # Debug: Check what configurations were actually built
-          echo "🔍 Checking build configurations:"
-          find ../build -name "*pyuipc*" -type d 2>/dev/null | head -5 || echo "No pyuipc directories found"
-          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            ls -la ../build/ | grep -E "(Release|RelWithDebInfo|Debug)" || echo "No config directories found"
-          else
-            ls ../build/ | findstr /C:"Release" /C:"RelWithDebInfo" /C:"Debug" 2>/dev/null || echo "No config directories found"
-          fi
-          
-          # Find the actual modules directory that was created by after_build_pyuipc.py
-          MODULES_BASE_DIR="src/uipc/modules"
-          if [ -d "$MODULES_BASE_DIR/Release/bin" ]; then
-            MODULES_DIR="$MODULES_BASE_DIR/Release/bin"
-            BUILD_CONFIG="Release"
-          elif [ -d "$MODULES_BASE_DIR/RelWithDebInfo/bin" ]; then
-            MODULES_DIR="$MODULES_BASE_DIR/RelWithDebInfo/bin"
-            BUILD_CONFIG="RelWithDebInfo"
-          elif [ -d "$MODULES_BASE_DIR/Debug/bin" ]; then
-            MODULES_DIR="$MODULES_BASE_DIR/Debug/bin"
-            BUILD_CONFIG="Debug"
-          else
-            echo "❌ No modules directory found, creating Release directory as fallback"
-            MODULES_DIR="$MODULES_BASE_DIR/Release/bin"
-            BUILD_CONFIG="Release"
-            mkdir -p "$MODULES_DIR"
-          fi
-          
-          echo "📂 Using modules directory: $MODULES_DIR (config: $BUILD_CONFIG)"
-          
-          # Debug: Check what's in the modules directory before copying
-          echo "📋 Current modules directory contents:"
-          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            ls -la "$MODULES_DIR" || echo "Directory is empty or doesn't exist"
-          else
-            ls "$MODULES_DIR" || echo "Directory is empty or doesn't exist"
-          fi
-          
-          # Copy vcpkg dependencies to modules directory
-          VCPKG_BIN_DIR="../build/vcpkg_installed/${VCPKG_TRIPLET}/bin"
-          echo "🔍 Looking for vcpkg dependencies in: $VCPKG_BIN_DIR"
-          if [ -d "$VCPKG_BIN_DIR" ]; then
-            echo "📂 Found vcpkg dependencies, copying to: $MODULES_DIR"
-            find "$VCPKG_BIN_DIR" -name "*${SHARED_LIB_EXT}" -exec cp {} "$MODULES_DIR/" \;
-            echo "✅ Copied vcpkg dependencies"
-          else
-            echo "⚠️  vcpkg bin directory not found, checking alternative locations:"
-            find ../build -name "vcpkg_installed" -type d | head -3
-            find ../build -path "*/vcpkg_installed/*/bin" -type d | head -3
-          fi
-          VCPKG_LIB_DIR="../build/vcpkg_installed/${VCPKG_TRIPLET}/lib"
-          echo "🔍 Looking for vcpkg dependencies in: $VCPKG_LIB_DIR"
-          if [ -d "$VCPKG_LIB_DIR" ]; then
-            echo "📂 Found vcpkg dependencies, copying to: $MODULES_DIR"
-            find "$VCPKG_LIB_DIR" -name "*${SHARED_LIB_EXT}" -exec cp {} "$MODULES_DIR/" \;
-            echo "✅ Copied vcpkg dependencies"
-          else
-            echo "⚠️  vcpkg lib directory not found, checking alternative locations:"
-            find ../build -name "vcpkg_installed" -type d | head -3
-            find ../build -path "*/vcpkg_installed/*/lib" -type d | head -3
-          fi
-          # Fix RPATH for all shared libraries on Linux
-          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            echo "🔧 Fixing RPATH for all shared libraries in: $MODULES_DIR"
-            for lib in "$MODULES_DIR"/*${SHARED_LIB_EXT}; do
-              if [ -f "$lib" ]; then
-                echo "  📝 Fixing RPATH for $(basename $lib)"
-                patchelf --set-rpath '$ORIGIN' "$lib" || echo "  ⚠️ Failed to set RPATH for $(basename $lib)"
-              fi
-            done
-            echo "✅ RPATH fix completed"
-            
-            # Verify RPATH was set correctly
-            echo "🔍 Verifying RPATH for first few libraries:"
-            count=0
-            for lib in "$MODULES_DIR"/*${SHARED_LIB_EXT}; do
-              if [ -f "$lib" ] && [ $count -lt 5 ]; then
-                echo "  $(basename $lib):"
-                readelf -d "$lib" | grep -E "(RPATH|RUNPATH)" || echo "    No RPATH/RUNPATH found"
-                count=$((count + 1))
-              fi
-            done
-          fi
-          
-          # List final contents
-          echo "📋 Final modules directory contents:"
-          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
-            ls -la "$MODULES_DIR"/ 2>/dev/null || echo "Directory empty or not found"
-          else
-            ls "$MODULES_DIR"/ 2>/dev/null || echo "Directory empty or not found"
-          fi
-          
           # Verify the structure
-          echo "📂 Package structure:"
+          echo "Package structure:"
           find src/uipc -name "*pyuipc*" 2>/dev/null | head -5 || echo "No pyuipc files found"
           find src/uipc -name "modules" -type d 2>/dev/null || echo "No modules directory found"
           
           # Build wheel from the properly prepared package
-          python -m build --wheel
+          uv build --wheel
         shell: bash
 
       - name: Repair wheels for PyPI compatibility (create both variants)
@@ -326,14 +228,14 @@ jobs:
         working-directory: python
         run: |
           uv pip install auditwheel --system
-          echo "🔧 Repairing wheels for PyPI compatibility (creating both full and lite variants)..."
+          echo "Repairing wheels for PyPI compatibility (creating both full and lite variants)..."
           
           # Create directories for both variants
           mkdir -p wheelhouse-full wheelhouse-lite dist-final
           
           for wheel in dist/*.whl; do
             echo ""
-            echo "📦 Processing $(basename $wheel)..."
+            echo "Processing $(basename $wheel)..."
             
             # Create full variant (include all CUDA libraries)
             echo "  Creating full variant: zhaofeng-pyuipc-full"
@@ -384,7 +286,7 @@ jobs:
           rm -rf dist wheelhouse-full wheelhouse-lite
           mv dist-final dist
           
-          echo "✅ Wheel repair completed (both variants created)"
+          echo "Wheel repair completed (both variants created)"
           ls -la dist/
         shell: bash
 
@@ -400,11 +302,12 @@ jobs:
       - name: Test wheel installation
         working-directory: python
         run: |
+          # Install wheel to system Python
           uv pip install --force-reinstall dist/*.whl --system
-          
-          # Run comprehensive wheel tests
+
+          # Test the installation using system Python (not uv run)
           python ../scripts/test_wheel.py
-          
+
           # Run info script if it exists
           if [ -f "uipc_info.py" ]; then
             python uipc_info.py

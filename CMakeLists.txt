@@ -48,6 +48,25 @@ project(uipc)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # Generate compile_commands.json
 
+# Suppress warnings on Windows
+if(WIN32 AND MSVC)
+    # For CUDA files, use CUDA-specific flags to avoid conflicts
+    if(CMAKE_CUDA_COMPILER)
+        # CUDA warnings
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --diag-suppress=1394")
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --diag-suppress=20012")
+        # Pass MSVC flags through CUDA compiler only
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=/W1")
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=/wd4068")
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=/wd4251")
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=/wd4275")
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -Xcompiler=/wd4996")
+    endif()
+
+    # For non-CUDA C++ files, use regular MSVC flags
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W1 /wd4068 /wd4251 /wd4275 /wd4996")
+endif()
+
 # dependencies
 add_subdirectory(external)
 
