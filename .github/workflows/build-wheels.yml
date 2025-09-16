@@ -262,13 +262,13 @@ jobs:
               unzip -q "../$repaired"
               
               # Rename .dist-info directory
-              mv zhaofeng_pyuipc-*.dist-info zhaofeng_pyuipc_full-0.9.0.dist-info
+              mv pyuipc-*.dist-info pyuipc_full-0.9.0.dist-info
               
               # Update METADATA file
-              sed -i 's/Name: pyuipc$/Name: pyuipc-full/' zhaofeng_pyuipc_full-*.dist-info/METADATA
+              sed -i 's/Name: pyuipc$/Name: pyuipc-full/' pyuipc_full-*.dist-info/METADATA
               
               # Create new wheel
-              FINAL_NAME=$(echo "$(basename $repaired)" | sed 's/zhaofeng_pyuipc-/zhaofeng_pyuipc_full-/')
+              FINAL_NAME=$(echo "$(basename $repaired)" | sed 's/pyuipc-/pyuipc_full-/')
               zip -r "../dist-final/$FINAL_NAME" .
               
               cd ..
@@ -339,9 +339,9 @@ jobs:
         run: |
           mkdir -p wheelhouse wheelhouse-full
           # Move lite variants to main wheelhouse (for PyPI upload)
-          find dist -name "zhaofeng_pyuipc-*.whl" -exec mv {} wheelhouse/ \;
+          find dist -name "pyuipc-*.whl" -exec mv {} wheelhouse/ \;
           # Move full variants to separate directory (too large for PyPI)
-          find dist -name "zhaofeng_pyuipc_full-*.whl" -exec mv {} wheelhouse-full/ \;
+          find dist -name "pyuipc_full-*.whl" -exec mv {} wheelhouse-full/ \;
           
           echo "Lite variants for PyPI upload:"
           ls -lah wheelhouse/
