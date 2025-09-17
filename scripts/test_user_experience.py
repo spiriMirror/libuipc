@@ -221,14 +221,16 @@ except Exception as e:
         test_script = '''
 try:
     import uipc
+    import inspect
     
-    # Try to get help information
-    help_info = help(uipc)
+    # Print help information to stdout
+    help(uipc)
     print("[OK] Help information accessible")
     
-    # Check for docstrings
-    if uipc.__doc__:
-        print(f"[OK] Package docstring: {uipc.__doc__[:100]}...")
+    # Check for docstrings using inspect.getdoc for robustness
+    doc = inspect.getdoc(uipc)
+    if doc:
+        print(f"[OK] Package docstring: {doc[:100]}...")
     else:
         print("? No package docstring found")
         
