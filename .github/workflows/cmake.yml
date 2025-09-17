@@ -12,6 +12,7 @@ on:
       - 'README.md'
       - 'docs/**'
       - '.github/workflows/xmake.yml'
+      - '**/xmake.lua'
 
 jobs:
   build:
