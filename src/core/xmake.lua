@@ -11,8 +11,6 @@ else
     add_requireconfs("spdlog", "spdlog.fmt", {override = true, system = false})
 end
 
-add_defines("LUISA_USE_SYSTEM_STL", "_DISABLE_EXTENDED_ALIGNED_STORAGE", {public = true})
-
 target("uipc_core")
     add_rules("component")
     add_files("**.cpp")
