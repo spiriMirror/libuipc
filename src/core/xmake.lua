@@ -1,16 +1,17 @@
 add_requires(
-    "eigen", "nlohmann_json", "cppitertools", "magic_enum", "tinygltf", "dylib", "cpptrace",
+    "eigen", "nlohmann_json", "cppitertools", "magic_enum", "tinygltf", "dylib <3", "cpptrace",
     -- Use non-header-only spdlog and fmt
-    "spdlog[shared,header_only=n,fmt_external=y] <=1.15.2"
+    "spdlog[shared,header_only=n,fmt_external=y]"
 )
 
 if is_plat("windows") then
     -- https://forums.developer.nvidia.com/t/utf-8-option-for-the-host-function-in-cuda-msvc/312739
-    add_requireconfs("spdlog.fmt", {override = true, version = "<11"})
+    add_requireconfs("spdlog.fmt", {override = true, configs = {unicode = false}})
 else
-    add_requireconfs("spdlog", {override = true, system = false})
-    add_requireconfs("spdlog.fmt", {override = true, system = false})
+    add_requireconfs("spdlog", "spdlog.fmt", {override = true, system = false})
 end
+
+add_defines("LUISA_USE_SYSTEM_STL", "_DISABLE_EXTENDED_ALIGNED_STORAGE", {public = true})
 
 target("uipc_core")
     add_rules("component")
