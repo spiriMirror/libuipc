@@ -12,6 +12,8 @@ on:
       - 'README.md'
       - 'docs/**'
       - '.github/workflows/cmake.yml'
+      - '**/CMakeLists.txt'
+      - CMakePresets.json
 
 jobs:
   build:
@@ -58,6 +60,6 @@ jobs:
 
       - name: Build libuipc
         run: |
-          xmake build geometry
+          xmake build uipc_geometry
           xmake build --jobs=4 cuda
           xmake build --all
