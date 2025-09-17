@@ -265,7 +265,9 @@ jobs:
               mv pyuipc-*.dist-info pyuipc_full-0.9.0.dist-info
               
               # Update METADATA file
-              sed -i 's/Name: pyuipc$/Name: pyuipc-full/' pyuipc_full-*.dist-info/METADATA
+              for meta in pyuipc_full-*.dist-info/METADATA; do
+                sed -i 's/Name: pyuipc$/Name: pyuipc-full/' "$meta"
+              done
               
               # Create new wheel
               FINAL_NAME=$(echo "$(basename $repaired)" | sed 's/pyuipc-/pyuipc_full-/')
