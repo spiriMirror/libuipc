@@ -101,11 +101,13 @@ $$
 
 Formulation: [Affine body dynamics: fast, stable and intersection-free simulation of stiff materials](https://dl.acm.org/doi/10.1145/3528223.3530064) (eq. 7)
 
+Shape preservation energy per body:
+
 $$
-V_{\perp}(\mathbf{q}) = \kappa v \|\mathbf{A}\mathbf{A}^T - \mathbf{I}_3\|_F^2,
+V_{\perp}(\mathbf{q}) = \kappa \bar{v} \|\mathbf{A}\mathbf{A}^T - \mathbf{I}_3\|_F^2,
 $$
 
-where $\kappa$ is the stiffness parameter, $v$ is the volume of the affine body, $\mathbf{I}_3$ is the $3\times3$ identity matrix, and $\|\cdot\|_F$ is the [Frobenius norm](https://en.wikipedia.org/wiki/Matrix_norm).
+where $\kappa$ is the stiffness parameter, $\bar{v}$ is the rest volume of the affine body, $\mathbf{I}_3$ is the $3\times3$ identity matrix, and $\|\cdot\|_F$ is the [Frobenius norm](https://en.wikipedia.org/wiki/Matrix_norm).
 
 We'd like to take $100MPa \le \kappa \le 100GPa$.
 
@@ -116,10 +118,10 @@ Implementation and Production
 Practicalities (Now With Code!)
 ](http://www.tkim.graphics/DYNAMIC_DEFORMABLES/)
 
-As Rigid As Possible (ARAP) deformation energy:
+As Rigid As Possible (ARAP) deformation energy per body:
 
 $$
-V = \kappa v \|\mathbf{A}-\mathbf{R}\|_F^2 = \kappa v \|\mathbf{S}-\mathbf{I}\|_F^2
+V = \kappa \bar{v} \|\mathbf{A}-\mathbf{R}\|_F^2 = \kappa \bar{v} \|\mathbf{S}-\mathbf{I}\|_F^2
 $$
 
 where $\mathbf{R}\mathbf{S}$ is the polar decomposition of $\mathbf{A}$. 
