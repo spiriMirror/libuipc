@@ -64,7 +64,6 @@ Float Scene::dt() const noexcept
 template <typename T>
 void create_and_set(geometry::AttributeCollection& coll, std::string_view key, const T& value)
 {
-
     auto attr = coll.find<T>(key);
     if(!attr)
         attr = coll.create<T>(key);
