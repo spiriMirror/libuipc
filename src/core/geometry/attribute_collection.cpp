@@ -73,7 +73,7 @@ S<IAttributeSlot> AttributeCollection::find(std::string_view name)
 S<const IAttributeSlot> AttributeCollection::find(std::string_view name) const
 {
     auto s_name = string{name};
-    auto it     = m_attributes.find(string{name});
+    auto it     = m_attributes.find(s_name);
     if(it == m_attributes.end())
     {
         AttributeDebugInfo::thread_local_last_not_found_name() = s_name;
