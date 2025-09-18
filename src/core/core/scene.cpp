@@ -104,14 +104,14 @@ Scene::Scene(S<internal::Scene> scene) noexcept
 {
 }
 
-Scene::ConfigAttributes Scene::config() const noexcept
+Scene::CConfigAttributes Scene::config() const noexcept
 {
-    return ConfigAttributes{m_internal->config()};
+    return CConfigAttributes{m_internal->config()};
 }
 
-Scene::CConfigAttributes Scene::config() noexcept
+Scene::ConfigAttributes Scene::config() noexcept
 {
-    return m_internal->config();
+    return ConfigAttributes{m_internal->config()};
 }
 
 Scene::~Scene() = default;
