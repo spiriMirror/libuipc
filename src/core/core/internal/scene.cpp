@@ -62,7 +62,7 @@ Float Scene::dt() const noexcept
 }
 
 template <typename T>
-static void create_and_set(geometry::AttributeCollection& coll, std::string_view key, const T& value)
+void create_and_set(geometry::AttributeCollection& coll, std::string_view key, const T& value)
 {
 
     auto attr = coll.find<T>(key);
@@ -73,9 +73,7 @@ static void create_and_set(geometry::AttributeCollection& coll, std::string_view
 
 // For boolean values converted to IndexT
 template <>
-static void create_and_set(geometry::AttributeCollection& coll,
-                           std::string_view               key,
-                           const bool&                    value)
+void create_and_set(geometry::AttributeCollection& coll, std::string_view key, const bool& value)
 {
     auto attr = coll.find<IndexT>(key);
     if(!attr)
