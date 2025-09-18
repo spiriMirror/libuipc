@@ -52,7 +52,7 @@ void GlobalContactManager::do_build()
     auto eps_velocity_attr = config.find<Float>("contact/eps_velocity");
     m_impl.eps_velocity    = eps_velocity_attr->view()[0];
 
-    auto cfl_enable_attr = config.find<IndexT>("contact/cfl/enable");
+    auto cfl_enable_attr = config.find<IndexT>("cfl/enable");
     m_impl.cfl_enabled   = cfl_enable_attr->view()[0] != 0;
 
     m_impl.kappa = world().scene().contact_tabular().default_model().resistance();

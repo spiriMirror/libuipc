@@ -196,8 +196,8 @@ class UIPC_CORE_API Scene final
         const internal::Scene& m_scene;
     };
 
-    ConfigAttributes  config() const noexcept;
-    CConfigAttributes config() noexcept;
+    ConfigAttributes  config() noexcept;
+    CConfigAttributes config() const noexcept;
 
     ContactTabular&       contact_tabular() noexcept;
     const ContactTabular& contact_tabular() const noexcept;
