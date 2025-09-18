@@ -63,9 +63,8 @@ void FiniteElementMethod::do_build()
 {
     const auto& scene = world().scene();
 
-    m_impl.default_gravity = scene.info()["gravity"].get<Vector3>();
-    m_impl.default_d_hat   = scene.info()["contact"]["d_hat"].get<Float>();
-
+    m_impl.default_gravity = scene.config().find<Vector3>("gravity")->view()[0];
+    m_impl.default_d_hat = scene.config().find<Float>("contact/d_hat")->view()[0];
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
 
     // Register the action to write the scene
@@ -756,8 +755,9 @@ To avoid this warning, please apply the transform to the positions mannally. htt
                 auto dst_eid_span = span{h_vertex_contact_element_ids}.subspan(
                     info.vertex_offset, info.vertex_count);
 
-                auto dst_subscene_eid_span = span{h_vertex_subscene_contact_element_ids}.subspan(
-                    info.vertex_offset, info.vertex_count);
+                auto dst_subscene_eid_span =
+                    span{h_vertex_subscene_contact_element_ids}.subspan(
+                        info.vertex_offset, info.vertex_count);
 
                 auto vert_ceid = sc->vertices().find<IndexT>(builtin::contact_element_id);
 
@@ -785,14 +785,16 @@ To avoid this warning, please apply the transform to the positions mannally. htt
                 if(vert_subscene_ceid)
                 {
                     auto subscene_ceid_view = vert_subscene_ceid->view();
-                    UIPC_ASSERT(subscene_ceid_view.size() == dst_subscene_eid_span.size(),
+                    UIPC_ASSERT(subscene_ceid_view.size()
+                                    == dst_subscene_eid_span.size(),
                                 "subscene contact element id size mismatching");
 
                     std::ranges::copy(subscene_ceid_view, dst_subscene_eid_span.begin());
                 }
                 else
                 {
-                    auto subscene_ceid = sc->meta().find<IndexT>(builtin::contact_subscene_element_id);
+                    auto subscene_ceid =
+                        sc->meta().find<IndexT>(builtin::contact_subscene_element_id);
 
                     if(subscene_ceid)
                     {

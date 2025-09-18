@@ -19,9 +19,6 @@ void SimEngine::do_advance()
     Float ccd_alpha = 1.0;
     Float cfl_alpha = 1.0;
 
-    bool dump_surface =
-        world().scene().info()["extras"]["debug"]["dump_surface"].get<bool>();
-
     /***************************************************************************************
     *                                  Function Shortcuts
     ***************************************************************************************/
@@ -219,8 +216,9 @@ void SimEngine::do_advance()
             Float res0     = 0.0;
             m_newton_tolerance_manager->pre_newton(m_current_frame);
 
-            SizeT newton_iter = 0;
-            for(; newton_iter < m_newton_max_iter; ++newton_iter)
+            auto   newton_max_iter = m_newton_max_iter->view()[0];
+            IndexT newton_iter     = 0;
+            for(; newton_iter < newton_max_iter; ++newton_iter)
             {
                 Timer timer{"Newton Iteration"};
 
@@ -257,7 +255,7 @@ void SimEngine::do_advance()
 
                     converged = result_info.converged();
 
-                    if(dump_surface)
+                    if(m_dump_surface->view()[0])
                     {
                         dump_global_surface(fmt::format(
                             "dump_surface.{}.{}", m_current_frame, newton_iter));
@@ -265,7 +263,7 @@ void SimEngine::do_advance()
 
                     if(newton_iter > 0  // always skip the first iteration
                        && converged     // check convergence
-                       && ccd_alpha >= m_ccd_tol     // check ccd tolerance
+                       && ccd_alpha >= m_ccd_tol->view()[0]  // check ccd tolerance
                        && animation_reach_target())  // check animation target
                     {
                         break;
@@ -355,10 +353,11 @@ void SimEngine::do_advance()
                 m_time_integrator_manager->update_state();
             }
 
-            if(newton_iter > m_newton_max_iter)
+
+            if(newton_iter > newton_max_iter)
             {
                 spdlog::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
-                             m_newton_max_iter,
+                             newton_max_iter,
                              m_current_frame);
 
                 if(m_strict_mode)

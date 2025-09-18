@@ -16,7 +16,9 @@ class backend::SimSystemCreator<cuda::GlobalDiffSimManager>
     static U<cuda::GlobalDiffSimManager> create(SimEngine& engine)
     {
         auto scene = dynamic_cast<SimEngine&>(engine).world().scene();
-        if(!scene.info()["diff_sim"]["enable"].get<bool>())
+        auto diff_sim_enable_attr = scene.config().find<IndexT>("diff_sim/enable");
+
+        if(!diff_sim_enable_attr->view()[0])
         {
             return nullptr;
         }

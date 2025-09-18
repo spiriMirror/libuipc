@@ -104,12 +104,12 @@ Scene::Scene(S<internal::Scene> scene) noexcept
 {
 }
 
-const Json& Scene::config() const noexcept
+Scene::ConfigAttributes Scene::config() const noexcept
 {
-    return m_internal->config();
+    return ConfigAttributes{m_internal->config()};
 }
 
-Json& Scene::config() noexcept
+Scene::CConfigAttributes Scene::config() noexcept
 {
     return m_internal->config();
 }
@@ -168,7 +168,9 @@ const Animator& Scene::animator() const
 DiffSim& Scene::diff_sim()
 {
     // automatically enable diff_sim
-    m_internal->config()["diff_sim"]["enable"] = true;
+    auto diff_sim_enable = m_internal->config().find<IndexT>("diff_sim/enable");
+    UIPC_ASSERT(diff_sim_enable, "Scene config must have a 'diff_sim/enable' attribute.");
+    geometry::view(*diff_sim_enable)[0] = 1;
     return m_internal->diff_sim();
 }
 
@@ -308,7 +310,8 @@ namespace fmt
 appender fmt::formatter<uipc::core::Scene>::format(const uipc::core::Scene& c,
                                                    format_context& ctx) const
 {
-    fmt::format_to(ctx.out(), "{}", c.m_internal->objects());
+    fmt::format_to(ctx.out(), "config:\n{}", c.m_internal->config());
+    fmt::format_to(ctx.out(), "\n{}", c.m_internal->objects());
     fmt::format_to(ctx.out(), "\n{}", c.m_internal->animator());
     return ctx.out();
 }

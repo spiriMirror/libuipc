@@ -37,8 +37,8 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
   protected:
     virtual void build(backend::SceneVisitor& scene) override
     {
-        auto enable_contact = scene.info()["contact"]["enable"].get<bool>();
-        if(!enable_contact)
+        auto enable_contact = scene.config().find<IndexT>("contact/enable");
+        if(!enable_contact->view()[0])
         {
             throw SanityCheckerException("Contact is not enabled");
         }
@@ -146,8 +146,8 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
         UIPC_ASSERT(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
         auto CIds = attr_cids->view();
 
-        auto attr_scids =
-            scene_surface.vertices().find<IndexT>("sanity_check/subscene_contact_element_id");
+        auto attr_scids = scene_surface.vertices().find<IndexT>(
+            "sanity_check/subscene_contact_element_id");
         UIPC_ASSERT(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
         auto SCIds = attr_scids->view();
 
@@ -192,7 +192,7 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
         vector<IndexT> tri_intersected(Fs.size(), 0);
 
         //auto& contact_table = context->contact_tabular();
-        auto  objs          = this->objects();
+        auto objs = this->objects();
 
         bool has_intersection = false;
 
@@ -348,7 +348,8 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
 
             std::string name = "intersected_mesh";
 
-            if(scene.info()["sanity_check"]["mode"] == "normal")
+            auto sanity_check_mode = scene.config().find<std::string>("sanity_check/mode");
+            if(sanity_check_mode->view()[0] == "normal")
             {
                 auto output_path = this_output_path();
                 namespace fs     = std::filesystem;

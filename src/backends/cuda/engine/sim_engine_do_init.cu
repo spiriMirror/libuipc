@@ -23,8 +23,8 @@ void SimEngine::build()
     build_systems();
 
     // 2) find those engine-aware topo systems
-    m_global_vertex_manager = &require<GlobalVertexManager>();
-    m_global_body_manager   = &require<GlobalBodyManager>();
+    m_global_vertex_manager    = &require<GlobalVertexManager>();
+    m_global_body_manager      = &require<GlobalBodyManager>();
     m_time_integrator_manager  = &require<TimeIntegratorManager>();
     m_line_searcher            = &require<LineSearcher>();
     m_global_linear_system     = &require<GlobalLinearSystem>();
@@ -48,13 +48,24 @@ void SimEngine::build()
 
 void SimEngine::init_scene()
 {
-    auto& info            = world().scene().info();
-    m_newton_velocity_tol = info["newton"]["velocity_tol"];
-    m_newton_max_iter     = info["newton"]["max_iter"];
-    m_ccd_tol             = info["newton"]["ccd_tol"];
-    m_friction_enabled    = info["contact"]["friction"]["enable"];
-    m_strict_mode         = info["extras"]["strict_mode"]["enable"];
-    Vector3 gravity       = info["gravity"];
+    auto& info     = world().scene().config();
+    m_dump_surface = info.find<IndexT>("extras/debug/dump_surface");
+
+    //m_newton_velocity_tol = info["newton"]["velocity_tol"];
+    //m_newton_max_iter     = info["newton"]["max_iter"];
+    //m_ccd_tol             = info["newton"]["ccd_tol"];
+    //m_friction_enabled    = info["contact"]["friction"]["enable"];
+    //m_strict_mode         = info["extras"]["strict_mode"]["enable"];
+    //Vector3 gravity       = info["gravity"];
+
+    m_newton_velocity_tol = info.find<Float>("newton/velocity_tol");
+    m_newton_max_iter     = info.find<IndexT>("newton/max_iter");
+    m_ccd_tol             = info.find<Float>("newton/ccd_tol");
+    m_strict_mode         = info.find<IndexT>("extras/strict_mode/enable");
+
+    m_friction_enabled = info.find<IndexT>("contact/friction/enable")->view()[0];
+    Vector3 gravity = info.find<Vector3>("gravity")->view()[0];
+
 
     // 1. Before Common Scene Initialization
     {

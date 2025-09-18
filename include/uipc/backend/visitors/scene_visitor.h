@@ -43,8 +43,8 @@ class UIPC_CORE_API SceneVisitor
     S<geometry::GeometrySlot>       find_rest_geometry(IndexT id) noexcept;
     span<S<geometry::GeometrySlot>> pending_rest_geometries() const noexcept;
 
-    span<IndexT> pending_destroy_ids() const noexcept;
-    const Json&  info() const noexcept;
+    span<IndexT>                         pending_destroy_ids() const noexcept;
+    const geometry::AttributeCollection& config() const noexcept;
 
     const core::ConstitutionTabular& constitution_tabular() const noexcept;
     core::ConstitutionTabular&       constitution_tabular() noexcept;

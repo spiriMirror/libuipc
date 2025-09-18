@@ -7,6 +7,7 @@
 #include <uipc/core/diff_sim.h>
 #include <uipc/core/sanity_checker.h>
 #include <uipc/core/internal/world.h>
+#include <uipc/geometry/attribute_collection.h>
 
 namespace uipc::core
 {
@@ -36,7 +37,7 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
 
     auto& config() const noexcept { return m_config; }
     auto& config() noexcept { return m_config; }
-    Float dt() const noexcept { return m_config["dt"].get<Float>(); }
+    Float dt() const noexcept;
     bool  is_started() const noexcept { return m_started; }
     bool  is_pending() const noexcept { return m_pending; }
     auto& contact_tabular() const noexcept { return m_contact_tabular; }
@@ -60,13 +61,17 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
     auto& sanity_checker() const noexcept { return m_sanity_checker; }
     auto& sanity_checker() noexcept { return m_sanity_checker; }
 
+
   private:
-    Json                m_config;
-    ContactTabular      m_contact_tabular;
-    ConstitutionTabular m_constitution_tabular;
-    ObjectCollection    m_objects;
-    Animator            m_animator;
-    DiffSim             m_diff_sim;
+    void build_config(const Json& config);
+
+    geometry::AttributeCollection m_config;
+    ContactTabular                m_contact_tabular;
+    ConstitutionTabular           m_constitution_tabular;
+    ObjectCollection              m_objects;
+    Animator                      m_animator;
+    DiffSim                       m_diff_sim;
+
 
     geometry::GeometryCollection m_geometries;
     geometry::GeometryCollection m_rest_geometries;
@@ -76,6 +81,5 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
     bool m_pending = false;
     // MUST NOT use shared_ptr to avoid circular reference
     internal::World* m_world = nullptr;
-    Float            m_dt    = 0.0;
 };
 }  // namespace uipc::core::internal
