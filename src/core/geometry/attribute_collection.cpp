@@ -6,6 +6,7 @@
 #include <uipc/common/range.h>
 #include <iostream>
 #include <uipc/geometry/attribute_collection_factory.h>
+#include <uipc/geometry/attribute_debug_info.h>
 
 namespace uipc::geometry
 {
@@ -57,15 +58,28 @@ void AttributeCollection::destroy(std::string_view name)
 
 S<IAttributeSlot> AttributeCollection::find(std::string_view name)
 {
-    auto it = m_attributes.find(string{name});
-    return it != m_attributes.end() ? it->second : nullptr;
+    auto s_name = string{name};
+    auto it     = m_attributes.find(s_name);
+    // If the attribute is not found, we store the name in the thread-local storage
+    if(it == m_attributes.end())
+    {
+        AttributeDebugInfo::thread_local_last_not_found_name() = s_name;
+        return nullptr;
+    }
+    return it->second;
 }
 
 
 S<const IAttributeSlot> AttributeCollection::find(std::string_view name) const
 {
-    auto it = m_attributes.find(string{name});
-    return it != m_attributes.end() ? it->second : nullptr;
+    auto s_name = string{name};
+    auto it     = m_attributes.find(string{name});
+    if(it == m_attributes.end())
+    {
+        AttributeDebugInfo::thread_local_last_not_found_name() = s_name;
+        return nullptr;
+    }
+    return it->second;
 }
 
 void AttributeCollection::resize(SizeT N)

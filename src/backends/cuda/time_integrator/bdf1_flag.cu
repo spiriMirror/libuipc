@@ -10,7 +10,9 @@ class backend::SimSystemCreator<cuda::BDF1Flag>
     static U<cuda::BDF1Flag> create(SimEngine& engine)
     {
         auto scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
-        if(scene.info()["integrator"]["type"] != "bdf1")
+        auto itype_attr = scene.config().find<std::string>("integrator/type");
+
+        if(itype_attr->view()[0] != "bdf1")
         {
             return nullptr;  // Not a BDF1 integrator
         }

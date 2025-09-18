@@ -11,8 +11,8 @@ class SimSystemCreator<cuda::GlobalTrajectoryFilter>
   public:
     static U<cuda::GlobalTrajectoryFilter> create(cuda::SimEngine& engine)
     {
-        bool contact_enable = engine.world().scene().info()["contact"]["enable"];
-        if(contact_enable)
+        auto contact_enable = engine.world().scene().config().find<IndexT>("contact/enable");
+        if(contact_enable->view()[0])
             return make_unique<cuda::GlobalTrajectoryFilter>(engine);
         return nullptr;
     }
@@ -26,7 +26,10 @@ REGISTER_SIM_SYSTEM(GlobalTrajectoryFilter);
 
 void GlobalTrajectoryFilter::do_build()
 {
-    m_impl.friction_enabled = world().scene().info()["contact"]["friction"]["enable"];
+    auto& config               = world().scene().config();
+    auto  friction_enable_attr = config.find<IndexT>("contact/friction/enable");
+
+    m_impl.friction_enabled = friction_enable_attr->view()[0];
 
     m_impl.global_contact_manager = require<GlobalContactManager>();
 

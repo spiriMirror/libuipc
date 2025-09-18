@@ -4,8 +4,9 @@ namespace uipc::backend::cuda
 {
 void FiniteElementDiffDofReporter::do_build(DiffDofReporter::BuildInfo& info)
 {
-    m_impl.fem = &require<FiniteElementMethod>();
-    m_impl.dt  = world().scene().info()["dt"].get<Float>();
+    m_impl.fem   = &require<FiniteElementMethod>();
+    auto dt_attr = world().scene().config().find<Float>("dt");
+    m_impl.dt    = dt_attr->view()[0];
     BuildInfo this_info;
     do_build(this_info);
 }

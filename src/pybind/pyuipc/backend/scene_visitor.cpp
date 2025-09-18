@@ -34,7 +34,7 @@ PySceneVisitor::PySceneVisitor(py::module& m)
                            [](SceneVisitor& self)
                            { return self.pending_rest_geometries(); });
 
-    class_SceneVisitor.def("info", &SceneVisitor::info);
+    class_SceneVisitor.def("config", &SceneVisitor::config);
 
     class_SceneVisitor.def(
         "constitution_tabular",

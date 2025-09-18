@@ -17,8 +17,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
     virtual void do_build(BuildInfo& info) override
     {
         auto constitution =
-            world().scene().info()["contact"]["constitution"].get<std::string>();
-        if(constitution != "ipc")
+            world().scene().config().find<std::string>("contact/constitution");
+        if(constitution->view()[0] != "ipc")
         {
             throw SimSystemException("Constitution is not IPC");
         }

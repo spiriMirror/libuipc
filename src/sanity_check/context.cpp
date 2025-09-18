@@ -26,7 +26,7 @@ void ContactTabular::init(backend::SceneVisitor& scene)
     auto attr_friction_rate = contact_models.find<Float>("friction_rate");
     auto attr_enabled       = contact_models.find<IndexT>("is_enabled");
 
-    auto attr_subscene_topo    = subscene_contact_model.find<Vector2i>("topo");
+    auto attr_subscene_topo = subscene_contact_model.find<Vector2i>("topo");
     auto attr_subscene_enabled = subscene_contact_model.find<IndexT>("is_enabled");
 
     UIPC_ASSERT(attr_topo != nullptr, "topo is not found in contact tabular");
@@ -36,10 +36,10 @@ void ContactTabular::init(backend::SceneVisitor& scene)
     UIPC_ASSERT(attr_topo != nullptr, "subscene topo is not found in contact tabular");
     UIPC_ASSERT(attr_enabled != nullptr, "subscene is_enabled is not found in contact tabular");
 
-    auto topo_view          = attr_topo->view();
-    auto resistance_view    = attr_resistance->view();
-    auto friction_rate_view = attr_friction_rate->view();
-    auto enabled_view       = attr_enabled->view();
+    auto topo_view             = attr_topo->view();
+    auto resistance_view       = attr_resistance->view();
+    auto friction_rate_view    = attr_friction_rate->view();
+    auto enabled_view          = attr_enabled->view();
     auto subscene_topo_view    = attr_subscene_topo->view();
     auto subscene_enabled_view = attr_subscene_enabled->view();
 
@@ -59,11 +59,10 @@ void ContactTabular::init(backend::SceneVisitor& scene)
 
     m_subscene_table.resize(subscene_elements * subscene_elements);
     m_subscene_contact_element_count = subscene_elements;
-    for(auto&& [topo, enabled] :
-        zip(subscene_topo_view, subscene_enabled_view))
+    for(auto&& [topo, enabled] : zip(subscene_topo_view, subscene_enabled_view))
     {
-        auto model = core::ContactModel{
-            topo, 0, 0, enabled ? true : false, Json::object()};
+        auto model =
+            core::ContactModel{topo, 0, 0, enabled ? true : false, Json::object()};
 
         m_subscene_table[topo.x() * subscene_elements + topo.y()] = model;
         m_subscene_table[topo.y() * subscene_elements + topo.x()] = model;
@@ -290,7 +289,8 @@ namespace detail
 
     static void label_vertices_with_contact_info(backend::SceneVisitor& sv)
     {
-        Float default_d_hat        = sv.info()["contact"]["d_hat"].get<Float>();
+        auto  d_hat_attr           = sv.config().find<Float>("contact/d_hat");
+        Float default_d_hat        = d_hat_attr->view()[0];
         span<S<GeometrySlot>> geos = sv.geometries();
 
         for(auto& geo : geos)
@@ -312,7 +312,7 @@ namespace detail
                 IndexT CID        = 0;
                 bool   need_label = false;
 
-                IndexT SCID        = 0;
+                IndexT SCID                = 0;
                 bool   need_subscene_label = false;
 
                 if(v_is_surf && !contact_element_id)
@@ -381,7 +381,7 @@ namespace detail
                                 "sanity_check/contact_element_id", 0);
                     }
 
-                    
+
                     auto vertex_contact_element_id =
                         simplicial_complex->vertices().find<IndexT>(builtin::contact_element_id);
 
@@ -557,9 +557,8 @@ class Context::Impl
         detail::create_basic_sanity_check_attributes(scene_visitor.geometries(),
                                                      m_geo_id_to_object_id);
 
-        auto& info           = scene_visitor.info();
-        auto  enable_contact = info["contact"]["enable"].get<bool>();
-        if(enable_contact)
+        auto enable_contact = scene_visitor.config().find<IndexT>("contact/enable");
+        if(enable_contact->view()[0])
         {
             detail::label_vertices_with_contact_info(scene_visitor);
         }

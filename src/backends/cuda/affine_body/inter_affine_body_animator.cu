@@ -13,7 +13,8 @@ void InterAffineBodyAnimator::do_build(BuildInfo& info)
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
     m_impl.manager         = &require<InterAffineBodyConstitutionManager>();
     m_impl.global_animator = &require<GlobalAnimator>();
-    m_impl.dt              = world().scene().info()["dt"].get<Float>();
+    auto dt_attr           = world().scene().config().find<Float>("dt");
+    m_impl.dt              = dt_attr->view()[0];
 }
 
 void InterAffineBodyAnimator::add_constraint(InterAffineBodyConstraint* constraint)

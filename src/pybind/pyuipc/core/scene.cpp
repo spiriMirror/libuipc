@@ -1,6 +1,73 @@
 #include <pyuipc/core/scene.h>
 #include <uipc/core/scene.h>
 #include <pyuipc/common/json.h>
+#include <uipc/geometry/geometry.h>
+#include <pyuipc/common/json.h>
+#include <uipc/geometry/attribute_friend.h>
+
+namespace uipc::geometry
+{
+namespace py = pybind11;
+template <>
+class AttributeFriend<pyuipc::core::PyScene>
+{
+  public:
+    static S<IAttributeSlot> find(core::Scene::ConfigAttributes& a, std::string_view name)
+    {
+        return a.m_attributes.find(name);
+    }
+
+    static void share(core::Scene::ConfigAttributes& a, std::string_view name, IAttributeSlot& b)
+    {
+        a.m_attributes.share(name, b);
+    }
+
+    static S<IAttributeSlot> create(core::Scene::ConfigAttributes& a,
+                                    std::string_view               name,
+                                    py::object                     object)
+    {
+        auto pyobj = py::cast(a.m_attributes,
+                              py::return_value_policy::reference_internal,  // member object is a reference in the parent object
+                              py::cast(a)  // parent object
+        );
+
+        // call the create method of the member object
+        return py::cast<S<IAttributeSlot>>(
+            pyobj.attr("create").operator()(py::cast(name), object));
+    }
+};
+}  // namespace uipc::geometry
+
+namespace pyuipc::core
+{
+using namespace uipc::core;
+
+using Accessor = uipc::geometry::AttributeFriend<PyScene>;
+
+void def_method(py::module& m, py::class_<Scene::ConfigAttributes>& class_Attribute)
+{
+    using Attributes = Scene::ConfigAttributes;
+
+    class_Attribute.def("find",
+                        [](Attributes& self, std::string_view name)
+                        { return Accessor::find(self, name); });
+
+    class_Attribute.def("destroy",
+                        [](Attributes& self, std::string_view name)
+                        { std::move(self).destroy(name); });
+
+    class_Attribute.def("share",
+                        [](Attributes& self, std::string_view name, uipc::geometry::IAttributeSlot& attribute)
+                        { Accessor::share(self, name, attribute); });
+
+    class_Attribute.def("create",
+                        [](Attributes& self, std::string_view name, py::object object)
+                        { return Accessor::create(self, name, object); });
+
+    class_Attribute.def("to_json", &Attributes::to_json);
+}
+
+}  // namespace pyuipc::core
 
 namespace pyuipc::core
 {
@@ -17,10 +84,12 @@ PyScene::PyScene(py::module& m)
     // def methods
     class_Scene.def(py::init<const Json&>(), py::arg("config") = Scene::default_config());
 
-    class_Scene.def(
-        "config",  //
-        [](const Scene& self) -> const Json& { return self.config(); },
-        py::return_value_policy::reference_internal);
+    auto class_ConfigAttributes =
+        py::class_<Scene::ConfigAttributes>(class_Scene, "ConfigAttributes");
+
+    def_method(m, class_ConfigAttributes);
+
+    class_Scene.def("config", [](Scene& self) { return self.config(); });
 
     class_Scene.def_static("default_config", &Scene::default_config);
 
