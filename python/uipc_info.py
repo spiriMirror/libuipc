@@ -17,4 +17,4 @@ if __name__ == '__main__':
     print(f'Pa={unit.Pa}')
     print(f'kPa={unit.kPa}')
     print(f'MPa={unit.MPa}')
-    print(f'GPa={unit.GPa}')
+print(f'GPa={unit.GPa}')
