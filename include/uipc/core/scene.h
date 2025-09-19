@@ -6,6 +6,8 @@
 #include <uipc/core/animator.h>
 #include <uipc/core/diff_sim.h>
 #include <uipc/core/sanity_checker.h>
+#include <uipc/geometry/attribute_collection.h>
+
 namespace uipc::core::internal
 {
 class Scene;
@@ -40,7 +42,96 @@ class UIPC_CORE_API Scene final
     friend struct fmt::formatter<Scene>;
 
   public:
+    template <bool IsConst>
+    class ConfigAttributesT
+    {
+        friend struct fmt::formatter<ConfigAttributesT<IsConst>>;
+        using AttributeCollection = geometry::AttributeCollection;
+        template <typename T>
+        using AttributeSlot = geometry::AttributeSlot<T>;
+        using AttributeCopy = geometry::AttributeCopy;
+
+        using AutoAttributeCollection =
+            std::conditional_t<IsConst, const AttributeCollection, AttributeCollection>;
+
+        template <bool _IsConst>
+        friend class ConfigAttributesT;
+
+        template <typename T>
+        friend class geometry::AttributeFriend;
+
+      public:
+        ConfigAttributesT(AutoAttributeCollection& attributes)
+            : m_attributes(attributes)
+        {
+        }
+
+        template <bool OtherIsConst>
+        ConfigAttributesT(const ConfigAttributesT<OtherIsConst>& o) noexcept
+            requires(IsConst)
+            : m_attributes(o.m_attributes)
+        {
+        }
+
+        ConfigAttributesT(const ConfigAttributesT& o)            = default;
+        ConfigAttributesT(ConfigAttributesT&& o)                 = default;
+        ConfigAttributesT& operator=(const ConfigAttributesT& o) = default;
+        ConfigAttributesT& operator=(ConfigAttributesT&& o)      = default;
+
+        /**
+         * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
+         */
+        template <typename T>
+        [[nodiscard]] auto find(std::string_view name) &&
+        {
+            return m_attributes.template find<T>(name);
+        }
+
+        /**
+         * @brief Create an attribute with the given name.
+         */
+        template <typename T>
+        decltype(auto) create(std::string_view name, const T& init_value = {}) &&
+        {
+            return m_attributes.template create<T>(name, init_value);
+        }
+
+        template <typename T>
+        decltype(auto) share(std::string_view name, const AttributeSlot<T>& slot)
+            requires(!IsConst)
+        {
+            return m_attributes.template share<T>(name, slot);
+        }
+
+        /**
+         * @sa AttributeCollection::destroy
+         */
+        void destroy(std::string_view name) &&
+            requires(!IsConst)
+        {
+            m_attributes.destroy(name);
+        }
+
+        void copy_from(ConfigAttributesT<true> other,
+                       const AttributeCopy&    copy          = {},
+                       span<const string>      include_names = {},
+                       span<const string>      exclude_names = {}) &&
+            requires(!IsConst)
+        {
+            m_attributes.copy_from(other.m_attributes, copy, include_names, exclude_names);
+        }
+
+        Json to_json() const { return m_attributes.to_json(); }
+
+      private:
+        AutoAttributeCollection& m_attributes;
+    };
+
+    using ConfigAttributes  = ConfigAttributesT<false>;
+    using CConfigAttributes = ConfigAttributesT<true>;
+
     explicit Scene(const Json& config = default_config());
+
 
     Scene(const Scene&) = delete;
     Scene(Scene&&)      = default;
@@ -105,8 +196,8 @@ class UIPC_CORE_API Scene final
         const internal::Scene& m_scene;
     };
 
-    const Json& config() const noexcept;
-    Json&       config() noexcept;
+    ConfigAttributes  config() noexcept;
+    CConfigAttributes config() const noexcept;
 
     ContactTabular&       contact_tabular() noexcept;
     const ContactTabular& contact_tabular() const noexcept;

@@ -52,8 +52,8 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
   protected:
     virtual void build(backend::SceneVisitor& scene) override
     {
-        auto enable_contact = scene.info()["contact"]["enable"].get<bool>();
-        if(!enable_contact)
+        auto enable_contact = scene.config().find<IndexT>("contact/enable");
+        if(!enable_contact->view()[0])
         {
             throw SanityCheckerException("Contact is not enabled");
         }
@@ -157,8 +157,6 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
     {
         auto context = find<Context>();
 
-        //auto d_hat = scene.info()["contact"]["d_hat"].get<Float>();
-
         const geometry::SimplicialComplex& scene_surface =
             context->scene_simplicial_surface();
 
@@ -184,8 +182,8 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
         UIPC_ASSERT(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
         auto CIds = attr_cids->view();
 
-        auto attr_scids =
-            scene_surface.vertices().find<IndexT>("sanity_check/subscene_contact_element_id");
+        auto attr_scids = scene_surface.vertices().find<IndexT>(
+            "sanity_check/subscene_contact_element_id");
         UIPC_ASSERT(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
         auto SCIds = attr_scids->view();
 
@@ -394,7 +392,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 auto     SCIdL  = SCIds[CodimP];
                 Vector2i SCIdRs = {SCIds[E[0]], SCIds[E[1]]};
 
-                
+
                 // 2) if the contact model is not enabled, don't consider it
                 if(!need_subscene_contact(contact_table, SCIdL, SCIdRs))
                     return;
@@ -602,7 +600,9 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
 
             std::string name = "close_mesh";
 
-            if(scene.info()["sanity_check"]["mode"] == "normal")
+            auto sanity_check_mode = scene.config().find<std::string>("sanity_check/mode");
+
+            if(sanity_check_mode->view()[0] == "normal")
             {
                 auto output_path = this_output_path();
                 namespace fs     = std::filesystem;

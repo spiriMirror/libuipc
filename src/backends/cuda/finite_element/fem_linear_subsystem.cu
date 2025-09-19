@@ -18,7 +18,8 @@ void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
     m_impl.finite_element_method = require<FiniteElementMethod>();
     m_impl.finite_element_vertex_reporter = require<FiniteElementVertexReporter>();
     m_impl.sim_engine = &engine();
-    m_impl.dt         = world().scene().info()["dt"];
+    auto dt_attr      = world().scene().config().find<Float>("dt");
+    m_impl.dt         = dt_attr->view()[0];
 
     auto contact = find<FEMContactReceiver>();
     if(contact)

@@ -62,6 +62,6 @@ class LineSearcher : public SimSystem
     bool              m_report_energy = false;
     std::stringstream m_report_stream;
     Float             m_dt       = 0.0;
-    SizeT             m_max_iter = 64;
+    IndexT            m_max_iter = 64;
 };
 }  // namespace uipc::backend::cuda

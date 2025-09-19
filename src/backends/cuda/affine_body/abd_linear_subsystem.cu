@@ -18,7 +18,8 @@ void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
 {
     m_impl.affine_body_dynamics        = require<AffineBodyDynamics>();
     m_impl.affine_body_vertex_reporter = require<AffineBodyVertexReporter>();
-    m_impl.dt = world().scene().info()["dt"].get<Float>();
+    auto attr = world().scene().config().find<Float>("dt");
+    m_impl.dt = attr->view()[0];
 
     auto contact = find<ABDContactReceiver>();
     if(contact)

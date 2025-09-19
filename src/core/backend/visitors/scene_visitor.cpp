@@ -65,7 +65,7 @@ span<IndexT> SceneVisitor::pending_destroy_ids() const noexcept
     return m_scene.geometries().pending_destroy_ids();
 }
 
-const Json& SceneVisitor::info() const noexcept
+const geometry::AttributeCollection& SceneVisitor::config() const noexcept
 {
     return m_scene.config();
 }

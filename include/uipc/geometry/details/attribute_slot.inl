@@ -24,7 +24,7 @@ AttributeSlot<T>::AttributeSlot(std::string_view name,
 template <typename U>
 [[nodiscard]] span<U> view(AttributeSlot<U>& slot)
 {
-    UIPC_ASSERT(&slot, "You are trying to access a nullptr attribute slot, please check if the attribute name is correct");
+    check_view(&slot);
     slot.rw_access();
     return view(*slot.m_attribute);
 }
@@ -32,7 +32,7 @@ template <typename U>
 template <typename T>
 [[nodiscard]] span<const T> AttributeSlot<T>::view() const noexcept
 {
-    UIPC_ASSERT(this, "You are trying to access a nullptr attribute slot, please check if the attribute name is correct");
+    check_view(this);
     return m_attribute->view();
 }
 
