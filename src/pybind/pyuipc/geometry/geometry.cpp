@@ -125,6 +125,10 @@ void def_method(py::module& m, py::class_<Geometry::MetaAttributes>& class_Attri
                         { return Accessor::create(self, name, object); });
 
     class_Attribute.def("to_json", &Attributes::to_json);
+
+    class_Attribute.def("__repr__",
+                        [](const Attributes& self)
+                        { return fmt::format("{}", self.to_json().dump(4)); });
 }
 
 }  // namespace pyuipc::geometry
