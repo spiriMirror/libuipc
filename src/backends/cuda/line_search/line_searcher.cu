@@ -13,9 +13,14 @@ void LineSearcher::init()
 {
     auto scene = world().scene();
 
-    m_report_energy = scene.info()["line_search"]["report_energy"];
-    m_max_iter      = scene.info()["line_search"]["max_iter"];
-    m_dt            = scene.info()["dt"];
+    auto report_enery_attr = scene.config().find<IndexT>("line_search/report_energy");
+    m_report_energy = report_enery_attr->view()[0] != 0;
+
+    auto max_iter_attr = scene.config().find<IndexT>("line_search/max_iter");
+    m_max_iter         = max_iter_attr->view()[0];
+
+    auto dt_attr = scene.config().find<Float>("dt");
+    m_dt         = dt_attr->view()[0];
 
     m_energy_values.resize(m_reporters.view().size() + m_energy_reporters.view().size(), 0);
 

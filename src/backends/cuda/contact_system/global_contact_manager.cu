@@ -16,7 +16,9 @@ class SimSystemCreator<cuda::GlobalContactManager>
   public:
     static U<cuda::GlobalContactManager> create(cuda::SimEngine& engine)
     {
-        bool contact_enable = engine.world().scene().info()["contact"]["enable"];
+        auto contact_enable_attr =
+            engine.world().scene().config().find<IndexT>("contact/enable");
+        bool contact_enable = contact_enable_attr->view()[0] != 0;
 
         auto& types = engine.world().scene().constitution_tabular().types();
         bool  has_inter_primitive_constitution =
@@ -35,16 +37,24 @@ REGISTER_SIM_SYSTEM(GlobalContactManager);
 
 void GlobalContactManager::do_build()
 {
-    const auto& info = world().scene().info();
+    const auto& config = world().scene().config();
 
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
     m_impl.global_trajectory_filter = find<GlobalTrajectoryFilter>();
 
 
-    m_impl.d_hat        = info["contact"]["d_hat"].get<Float>();
-    m_impl.dt           = info["dt"].get<Float>();
-    m_impl.eps_velocity = info["contact"]["eps_velocity"].get<Float>();
-    m_impl.cfl_enabled  = info["cfl"]["enable"].get<bool>();
+    auto d_hat_attr = config.find<Float>("contact/d_hat");
+    m_impl.d_hat    = d_hat_attr->view()[0];
+
+    auto dt_attr = config.find<Float>("dt");
+    m_impl.dt    = dt_attr->view()[0];
+
+    auto eps_velocity_attr = config.find<Float>("contact/eps_velocity");
+    m_impl.eps_velocity    = eps_velocity_attr->view()[0];
+
+    auto cfl_enable_attr = config.find<IndexT>("cfl/enable");
+    m_impl.cfl_enabled   = cfl_enable_attr->view()[0] != 0;
+
     m_impl.kappa = world().scene().contact_tabular().default_model().resistance();
 }
 
@@ -72,14 +82,15 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
 {
     // 1) init tabular
     auto contact_models = world.scene().contact_tabular().contact_models();
-    auto subscene_contact_models = world.scene().contact_tabular().subscene_contact_models();
+    auto subscene_contact_models =
+        world.scene().contact_tabular().subscene_contact_models();
 
     auto attr_topo          = contact_models.find<Vector2i>("topo");
     auto attr_resistance    = contact_models.find<Float>("resistance");
     auto attr_friction_rate = contact_models.find<Float>("friction_rate");
     auto attr_enabled       = contact_models.find<IndexT>("is_enabled");
 
-    auto attr_subscene_topo    = subscene_contact_models.find<Vector2i>("topo");
+    auto attr_subscene_topo = subscene_contact_models.find<Vector2i>("topo");
     auto attr_subscene_enabled = subscene_contact_models.find<IndexT>("is_enabled");
 
     UIPC_ASSERT(attr_topo != nullptr, "topo is not found in contact tabular");
@@ -88,16 +99,17 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     UIPC_ASSERT(attr_enabled != nullptr, "is_enabled is not found in contact tabular");
 
     UIPC_ASSERT(attr_subscene_topo != nullptr, "subscene topo is not found in contact tabular");
-    UIPC_ASSERT(attr_subscene_enabled != nullptr, "subscene is_enabled is not found in contact tabular");
+    UIPC_ASSERT(attr_subscene_enabled != nullptr,
+                "subscene is_enabled is not found in contact tabular");
 
-    auto topo_view          = attr_topo->view();
-    auto resistance_view    = attr_resistance->view();
-    auto friction_rate_view = attr_friction_rate->view();
-    auto enabled_view       = attr_enabled->view();
-    auto subscene_topo_view = attr_subscene_topo->view();
+    auto topo_view            = attr_topo->view();
+    auto resistance_view      = attr_resistance->view();
+    auto friction_rate_view   = attr_friction_rate->view();
+    auto enabled_view         = attr_enabled->view();
+    auto subscene_topo_view   = attr_subscene_topo->view();
     auto subscene_enable_view = attr_subscene_enabled->view();
 
-    auto N = world.scene().contact_tabular().element_count();
+    auto N  = world.scene().contact_tabular().element_count();
     auto SN = world.scene().contact_tabular().subscene_element_count();
 
     h_contact_tabular.resize(
@@ -137,8 +149,9 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     contact_mask_tabular.view().copy_from(h_contact_mask_tabular.data());
 
     contact_mask_tabular_subscene.resize(muda::Extent2D{SN, SN});
-    contact_mask_tabular_subscene.view().copy_from(h_contact_mask_tabular_subscene.data());
-    
+    contact_mask_tabular_subscene.view().copy_from(
+        h_contact_mask_tabular_subscene.data());
+
     // 2) vertex contact info
     vert_is_active_contact.resize(global_vertex_manager->positions().size(), 0);
     vert_disp_norms.resize(global_vertex_manager->positions().size(), 0.0);

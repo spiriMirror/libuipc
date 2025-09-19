@@ -30,7 +30,8 @@ REGISTER_SIM_SYSTEM(InterPrimitiveConstitutionManager);
 
 void InterPrimitiveConstitutionManager::do_build(ContactReporter::BuildInfo&)
 {
-    m_impl.dt                    = world().scene().info()["dt"].get<Float>();
+    auto dt_attr                 = world().scene().config().find<Float>("dt");
+    m_impl.dt                    = dt_attr->view()[0];
     m_impl.global_vertex_manager = require<GlobalVertexManager>();
 }
 

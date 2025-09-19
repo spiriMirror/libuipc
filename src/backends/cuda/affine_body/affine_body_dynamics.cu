@@ -50,7 +50,9 @@ REGISTER_SIM_SYSTEM(AffineBodyDynamics);
 
 void AffineBodyDynamics::do_build()
 {
-    m_impl.default_d_hat = world().scene().info()["contact"]["d_hat"].get<Float>();
+    auto& config         = world().scene().config();
+    auto  d_hat_attr     = config.find<Float>("contact/d_hat");
+    m_impl.default_d_hat = d_hat_attr->view()[0];
 
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });
@@ -427,8 +429,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                     auto body_vert_offset = vert_offset + i * vert_count;
                     auto body_id          = body_offset + i;
 
-                    auto v2b_span = v2b.subspan(body_vert_offset, vert_count);
-                    auto v2c_span = v2c.subspan(body_vert_offset, vert_count);
+                    auto v2b_span  = v2b.subspan(body_vert_offset, vert_count);
+                    auto v2c_span  = v2c.subspan(body_vert_offset, vert_count);
                     auto v2sc_span = v2sc.subspan(body_vert_offset, vert_count);
                     auto v2d_hat_span = v2d_hat.subspan(body_vert_offset, vert_count);
 
@@ -476,8 +478,10 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                     {
                         if(contact_subscene_element_id)
                         {
-                            auto contact_subscene_element_id_view = contact_subscene_element_id->view();
-                            std::ranges::fill(v2sc_span, contact_subscene_element_id_view.front());
+                            auto contact_subscene_element_id_view =
+                                contact_subscene_element_id->view();
+                            std::ranges::fill(v2sc_span,
+                                              contact_subscene_element_id_view.front());
                         }
                         else
                         {
@@ -580,9 +584,9 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
     // 6) Setup the affine body gravity
     {
-        span Js = h_vertex_id_to_J;
-
-        Vector3 gravity = scene.info()["gravity"];
+        span    Js           = h_vertex_id_to_J;
+        auto    gravity_attr = scene.config().find<Vector3>("gravity");
+        Vector3 gravity      = gravity_attr->view()[0];
         h_body_id_to_abd_gravity.resize(abd_body_count, Vector12::Zero());
         for_each(geo_slots,
                  [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)

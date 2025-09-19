@@ -13,7 +13,8 @@ REGISTER_SIM_SYSTEM(GlobalVertexManager);
 
 void GlobalVertexManager::do_build()
 {
-    m_impl.default_d_hat = world().scene().info()["contact"]["d_hat"].get<Float>();
+    auto d_hat = world().scene().config().find<Float>("contact/d_hat");
+    m_impl.default_d_hat = d_hat->view()[0];
 }
 
 void GlobalVertexManager::Impl::init()

@@ -20,8 +20,6 @@ namespace uipc::core
 //      },
 //      __data__:
 //      {
-//          config:{ ... },
-//
 //          contact_tabular:
 //          {
 //              elements:{}
@@ -76,6 +74,7 @@ class SceneFactory::Impl
 
         // contact models
         {
+            ga.create("config", *snapshot.m_config);
             ga.create("contact_models", *snapshot.m_contact_models);
         }
 
@@ -93,7 +92,6 @@ class SceneFactory::Impl
         }
         auto& data = j[builtin::__data__];
         {
-            data["config"] = snapshot.m_config;
             // contact_tabular
             auto& contact_tabular               = data["contact_tabular"];
             contact_tabular["contact_elements"] = snapshot.m_contact_elements;
@@ -137,20 +135,25 @@ class SceneFactory::Impl
         }
         auto& data = *data_it;
 
-        // 1) Config
-        {
-            auto config = Scene::default_config();
-            // merge default config with the one in json
-            // if same key, json config will override default config
-            config.merge_patch(data["config"]);
-            snapshot.m_config = config;
-        }
-
-        // 2) Build geometry atlas
+        // 1) Build geometry atlas
         GeometryAtlas ga;
         {
             auto& geometry_atlas_json = data["geometry_atlas"];
             ga.from_json(geometry_atlas_json);
+        }
+
+        // 2) Retrieve config
+        {
+            auto config = ga.find("config");
+            if(config)
+            {
+                snapshot.m_config =
+                    uipc::make_shared<geometry::AttributeCollection>(*config);
+            }
+            else
+            {
+                UIPC_WARN_WITH_LOCATION("Config not found in geometry atlas");
+            }
         }
 
         // 3) Retrieve contact tabular
@@ -230,7 +233,8 @@ class SceneFactory::Impl
         geometry::GeometryFactory gf;
 
         // 1) Config
-        Scene scene{snapshot.m_config};
+
+        Scene scene{Scene::default_config()};
         // 2) Contact tabular
         scene.contact_tabular().build_from(*snapshot.m_contact_models,
                                            snapshot.m_contact_elements);
@@ -285,7 +289,9 @@ class SceneFactory::Impl
         }
         auto& data = j[builtin::__data__];
         {
-            data["config"] = commit.m_config;
+            // config
+            gac.create("config", *commit.m_config);
+
             // contact_tabular
             auto& contact_tabular               = data["contact_tabular"];
             contact_tabular["contact_elements"] = commit.m_contact_elements;
@@ -358,25 +364,8 @@ class SceneFactory::Impl
 
                 auto& data = *data_it;
 
-                // 1) Config
-                {
-                    auto config_it = data.find("config");
-                    if(config_it == data.end())
-                    {
-                        UIPC_WARN_WITH_LOCATION("Can not find `config` in json");
-                        commit.m_is_valid = false;
-                        break;
-                    }
 
-                    auto config = Scene::default_config();
-                    // merge default config with the one in json
-                    // if same key, json config will override default config
-
-                    config.merge_patch(data["config"]);
-                    commit.m_config = config;
-                }
-
-                // 2) Build geometry atlas commit
+                // 1) Build geometry atlas commit
                 {
                     auto geometry_atlas_it = data.find("geometry_atlas");
                     if(geometry_atlas_it == data.end())
@@ -390,6 +379,18 @@ class SceneFactory::Impl
                     gac.from_json(geometry_atlas_json);
                 }
 
+                // 2) Retrieve config
+                {
+                    auto config = gac.find("config");
+                    if(!config)
+                    {
+                        UIPC_WARN_WITH_LOCATION("Config not found in geometry atlas");
+                        commit.m_is_valid = false;
+                        break;
+                    }
+                    commit.m_config =
+                        uipc::make_shared<geometry::AttributeCollectionCommit>(*config);
+                }
 
                 // 3) Build object collection commit
                 {
@@ -403,6 +404,7 @@ class SceneFactory::Impl
                     auto& objects_json = *object_collection_it;
                     uipc::core::from_json(objects_json, commit.m_object_collection);
                 }
+
 
                 // 4) Retrieve contact tabular
                 {

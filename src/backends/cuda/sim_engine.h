@@ -89,13 +89,19 @@ class SimEngine final : public backend::SimEngine
     //ABDDiffSimManager*           m_abd_diff_sim_manager           = nullptr;
     FiniteElementMethod* m_finite_element_method = nullptr;
 
-    Float m_newton_velocity_tol = 0.01;
-    Float m_newton_scene_tol    = 0.01;
-    SizeT m_newton_max_iter     = 1000;
-    SizeT m_current_frame       = 0;
-    bool  m_friction_enabled    = false;
-    SizeT m_last_solved_frame   = 0;
-    bool  m_strict_mode         = false;
-    Float m_ccd_tol             = 1;
+
+    bool  m_friction_enabled  = false;
+    SizeT m_last_solved_frame = 0;
+    SizeT m_current_frame     = 0;
+    Float m_newton_scene_tol  = 0.01;
+
+    template <typename T>
+    using CAS = S<const geometry::AttributeSlot<T>>;
+
+    CAS<Float>  m_newton_velocity_tol;
+    CAS<IndexT> m_newton_max_iter;
+    CAS<IndexT> m_strict_mode;
+    CAS<Float>  m_ccd_tol;
+    CAS<IndexT> m_dump_surface;
 };
 }  // namespace uipc::backend::cuda

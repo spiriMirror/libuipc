@@ -12,15 +12,17 @@ class ABDToleranceChecker final : public NewtonToleranceChecker
     Float                             abs_tol = 0.0;
     muda::DeviceVar<IndexT>           success;
     IndexT h_success = 1;  // 1 means success, 0 means failure
-    
+
     // Inherited via NewtonToleranceChecker
     void do_build(BuildInfo& info) override
     {
-        affine_body_dynamics = require<AffineBodyDynamics>();
-        auto& config         = world().scene().info();
-        Float dt             = config["dt"].get<Float>();
-        Float transrate_tol  = config["newton"]["transrate_tol"].get<Float>();
-        abs_tol              = transrate_tol * dt;
+        affine_body_dynamics     = require<AffineBodyDynamics>();
+        auto& config             = world().scene().config();
+        auto  dt_attr            = config.find<Float>("dt");
+        Float dt                 = dt_attr->view()[0];
+        auto  transrate_tol_attr = config.find<Float>("newton/transrate_tol");
+        Float transrate_tol      = transrate_tol_attr->view()[0];
+        abs_tol                  = transrate_tol * dt;
     }
 
     void do_init(InitInfo& info) override {}
