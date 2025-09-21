@@ -5,7 +5,6 @@
 
 namespace uipc::backend::cuda
 {
-class GlobalDyTopoEffectManager;
 class DyTopoEffectLineSearchReporter final : public LineSearchReporter
 {
   public:
@@ -43,8 +42,6 @@ class DyTopoEffectLineSearchReporter final : public LineSearchReporter
     virtual void do_init(LineSearchReporter::InitInfo& info) override;
     virtual void do_build(LineSearchReporter::BuildInfo& info) override;
     virtual void do_compute_energy(LineSearcher::EnergyInfo& info) override;
-
-    friend class DyTopoEffectExporterManager;
 
     Impl m_impl;
 };

@@ -20,7 +20,7 @@ class FEMDyTopoEffectReceiver final : public DyTopoEffectReceiver
         muda::CTripletMatrixView<Float, 3> hessians;
     };
 
-    auto graidients() const noexcept { return m_impl.gradients; }
+    auto gradients() const noexcept { return m_impl.gradients; }
     auto hessians() const noexcept { return m_impl.hessians; }
 
   protected:

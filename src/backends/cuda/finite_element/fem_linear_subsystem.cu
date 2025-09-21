@@ -174,7 +174,7 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(GlobalLinearSystem::DiagI
     if(dytopo_effect_receiver)  //  if dytopo_effect enabled
     {
         auto dytopo_effect_gradient_count =
-            dytopo_effect_receiver->graidients().doublet_count();
+            dytopo_effect_receiver->gradients().doublet_count();
 
         // 1) Assemble DyTopoEffect Gradient to Gradient
         if(dytopo_effect_gradient_count)
@@ -183,7 +183,7 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(GlobalLinearSystem::DiagI
                 .file_line(__FILE__, __LINE__)
                 .apply(dytopo_effect_gradient_count,
                        [dytopo_effect_gradient =
-                            dytopo_effect_receiver->graidients().cviewer().name("dytopo_effect_gradient"),
+                            dytopo_effect_receiver->gradients().cviewer().name("dytopo_effect_gradient"),
                         gradients = info.gradients().viewer().name("gradients"),
                         vertex_offset = finite_element_vertex_reporter->vertex_offset(),
                         is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable

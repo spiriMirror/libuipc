@@ -34,7 +34,6 @@ class ContactReporter : public DyTopoEffectReporter
 
   private:
     friend class GlobalContactManager;
-    friend class ContactLineSearchReporter;
     void  init();  // only be called by GlobalContactManager
     void  do_build(DyTopoEffectReporter::BuildInfo&) final override;
     SizeT m_index = ~0ull;
