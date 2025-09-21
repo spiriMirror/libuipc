@@ -31,6 +31,7 @@ class SimSystemSlot
     friend class SimSystemSlotCollection;
 
     SimSystemSlot(T& subsystem) noexcept;
+    SimSystemSlot(T* subsystem) noexcept;
 
     void       lazy_init() const;
     mutable T* m_subsystem = nullptr;

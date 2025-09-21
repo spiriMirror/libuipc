@@ -1,6 +1,7 @@
 #include <sim_engine.h>
 #include <animator/global_animator.h>
 #include <collision_detection/global_trajectory_filter.h>
+#include <dytopo_effect_system/global_dytopo_effect_manager.h>
 #include <contact_system/global_contact_manager.h>
 #include <diff_sim/global_diff_sim_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
@@ -31,6 +32,7 @@ void SimEngine::build()
     m_newton_tolerance_manager = &require<NewtonToleranceManager>();
 
     m_global_simplicial_surface_manager = find<GlobalSimpicialSurfaceManager>();
+    m_global_dytopo_effect_manager      = find<GlobalDyTopoEffectManager>();
     m_global_contact_manager            = find<GlobalContactManager>();
     m_global_trajectory_filter          = find<GlobalTrajectoryFilter>();
     m_global_animator                   = find<GlobalAnimator>();
@@ -79,7 +81,8 @@ void SimEngine::init_scene()
     {
         m_global_vertex_manager->init();
         m_global_simplicial_surface_manager->init();
-
+        if(m_global_dytopo_effect_manager)
+            m_global_dytopo_effect_manager->init();
         if(m_global_contact_manager)
             m_global_contact_manager->init();
         if(m_global_animator)

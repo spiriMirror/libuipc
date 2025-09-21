@@ -1,12 +1,12 @@
 #pragma once
 #include <line_search/line_search_reporter.h>
-#include <contact_system/global_contact_manager.h>
-#include <contact_system/contact_reporter.h>
+#include <dytopo_effect_system/global_dytopo_effect_manager.h>
+#include <dytopo_effect_system/dytopo_effect_reporter.h>
 
 namespace uipc::backend::cuda
 {
-class GlobalContactManager;
-class ContactLineSearchReporter final : public LineSearchReporter
+class GlobalDyTopoEffectManager;
+class DyTopoEffectLineSearchReporter final : public LineSearchReporter
 {
   public:
     using LineSearchReporter::LineSearchReporter;
@@ -19,7 +19,7 @@ class ContactLineSearchReporter final : public LineSearchReporter
         void init();
         void compute_energy(bool is_init);
 
-        SimSystemSlot<GlobalContactManager> global_contact_manager;
+        SimSystemSlot<GlobalDyTopoEffectManager> global_dytopo_effect_manager;
 
         muda::DeviceVar<Float>    energy;
         muda::DeviceBuffer<Float> energies;
@@ -36,14 +36,15 @@ class ContactLineSearchReporter final : public LineSearchReporter
         }
     };
 
+    virtual void do_record_start_point(LineSearcher::RecordInfo& info) override;
+    virtual void do_step_forward(LineSearcher::StepInfo& info) override;
+
   private:
     virtual void do_init(LineSearchReporter::InitInfo& info) override;
     virtual void do_build(LineSearchReporter::BuildInfo& info) override;
-    virtual void do_record_start_point(LineSearcher::RecordInfo& info) override;
-    virtual void do_step_forward(LineSearcher::StepInfo& info) override;
     virtual void do_compute_energy(LineSearcher::EnergyInfo& info) override;
 
-    friend class ContactExporterManager;
+    friend class DyTopoEffectExporterManager;
 
     Impl m_impl;
 };

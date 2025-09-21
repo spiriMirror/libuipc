@@ -3,7 +3,7 @@
 #include <linear_system/diag_linear_subsystem.h>
 #include <finite_element/finite_element_method.h>
 #include <finite_element/finite_element_animator.h>
-#include <finite_element/fem_contact_receiver.h>
+#include <finite_element/fem_dytopo_effect_receiver.h>
 #include <finite_element/finite_element_vertex_reporter.h>
 
 namespace uipc::backend::cuda
@@ -22,7 +22,7 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
         void assemble(GlobalLinearSystem::DiagInfo& info);
         void _assemble_producers(GlobalLinearSystem::DiagInfo& info);
-        void _assemble_contact(GlobalLinearSystem::DiagInfo& info);
+        void _assemble_dytopo_effect(GlobalLinearSystem::DiagInfo& info);
 
         void _assemble_animation(GlobalLinearSystem::DiagInfo& info);
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
@@ -35,11 +35,7 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         {
             return finite_element_method->m_impl;
         }
-        SimSystemSlot<FEMContactReceiver> fem_contact_receiver;
-        FEMContactReceiver::Impl&         contact() noexcept
-        {
-            return fem_contact_receiver->m_impl;
-        }
+        SimSystemSlot<FEMDyTopoEffectReceiver> dytopo_effect_receiver;
         SimSystemSlot<FiniteElementVertexReporter> finite_element_vertex_reporter;
         SimSystemSlot<FiniteElementAnimator> finite_element_animator;
         FiniteElementAnimator::Impl&         animator() noexcept
@@ -49,8 +45,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         SizeT energy_producer_hessian_offset = 0;
         SizeT energy_producer_hessian_count  = 0;
 
-        SizeT contact_hessian_offset = 0;
-        SizeT contact_hessian_count  = 0;
+        SizeT dytopo_effect_hessian_offset = 0;
+        SizeT dytopo_effect_hessian_count  = 0;
 
         SizeT animator_hessian_offset = 0;
         SizeT animator_hessian_count  = 0;

@@ -1,5 +1,5 @@
 #pragma once
-#include <contact_system/inter_primitive_constitution_manager.h>
+#include <inter_primitive_effect_system/inter_primitive_constitution_manager.h>
 
 namespace uipc::backend::cuda
 {
@@ -35,7 +35,7 @@ class InterPrimitiveConstitution : public SimSystem
 
   private:
     friend class InterPrimitiveConstitutionManager;
-    virtual void do_build() override;
+    virtual void do_build() override final;
 
     void init(FilteredInfo& info);
     void report_energy_extent(EnergyExtentInfo& info);

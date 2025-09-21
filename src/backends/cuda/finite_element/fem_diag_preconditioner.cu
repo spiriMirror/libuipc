@@ -2,7 +2,6 @@
 #include <Eigen/Dense>
 #include <linear_system/local_preconditioner.h>
 #include <finite_element/finite_element_method.h>
-#include <finite_element/fem_contact_receiver.h>
 #include <linear_system/global_linear_system.h>
 #include <finite_element/fem_linear_subsystem.h>
 #include <global_geometry/global_vertex_manager.h>
