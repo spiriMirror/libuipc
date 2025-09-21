@@ -141,7 +141,7 @@ if __name__ == '__main__':
     
     gen_vcpkg_json(args)
     
-    is_div_mode = is_enabled(args.dev_mode)
+    is_dev_mode = is_enabled(args.dev_mode)
     
     is_new = not os.path.exists(json_path)
     # if json_path exists, compare the content
@@ -165,7 +165,7 @@ if __name__ == '__main__':
         print_deps()
         exit(1)
         
-    if is_div_mode:
+    if is_dev_mode:
         print(f'[libuipc] vcpkg.json content is unchanged, skipping:\n    {json_path}')
         print_deps()
         exit(0)
