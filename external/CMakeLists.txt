@@ -2,7 +2,7 @@ if (UIPC_WITH_CUDA_BACKEND)
     uipc_init_submodule(muda)
     # force MUDA_BUILD_EXAMPLE to be OFF
     set(MUDA_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
-    if (NOT DEFINED CMAKE_ABSOLUTE_DESTINATION_FILES)
+    if (NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
         set(CMAKE_CUDA_ARCHITECTURES "native")
     endif()
     add_subdirectory(muda)
