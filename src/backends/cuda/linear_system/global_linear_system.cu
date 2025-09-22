@@ -310,10 +310,10 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
 
             info.m_index        = triplet_i;
             info.m_storage_type = HessianStorageType::Full;
-            info.m_gradient     = B.subview(dof_offset, dof_count);
-            info.m_hessian = HA.subview(subsystem_triplet_offsets[triplet_i],
-                                        subsystem_triplet_counts[triplet_i])
-                                 .submatrix(ij_offset, ij_count);
+            info.m_gradients    = B.subview(dof_offset, dof_count);
+            info.m_hessians = HA.subview(subsystem_triplet_offsets[triplet_i],
+                                         subsystem_triplet_counts[triplet_i])
+                                  .submatrix(ij_offset, ij_count);
 
             diag_subsystem->assemble(info);
         }

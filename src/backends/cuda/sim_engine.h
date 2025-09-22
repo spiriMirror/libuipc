@@ -11,6 +11,7 @@ class GlobalVertexManager;
 class GlobalSimpicialSurfaceManager;
 class GlobalBodyManager;
 class GlobalContactManager;
+class GlobalDyTopoEffectManager;
 class GlobalTrajectoryFilter;
 
 class TimeIntegratorManager;
@@ -70,9 +71,10 @@ class SimEngine final : public backend::SimEngine
 
     GlobalVertexManager* m_global_vertex_manager = nullptr;
     GlobalSimpicialSurfaceManager* m_global_simplicial_surface_manager = nullptr;
-    GlobalBodyManager*      m_global_body_manager      = nullptr;
-    GlobalContactManager*   m_global_contact_manager   = nullptr;
-    GlobalTrajectoryFilter* m_global_trajectory_filter = nullptr;
+    GlobalBodyManager*         m_global_body_manager          = nullptr;
+    GlobalContactManager*      m_global_contact_manager       = nullptr;
+    GlobalDyTopoEffectManager* m_global_dytopo_effect_manager = nullptr;
+    GlobalTrajectoryFilter*    m_global_trajectory_filter     = nullptr;
 
     // Newton Solver Systems
     TimeIntegratorManager*  m_time_integrator_manager  = nullptr;

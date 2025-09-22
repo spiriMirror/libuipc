@@ -242,7 +242,7 @@ void FiniteElementAnimator::Impl::assemble(AssembleInfo& info)
         .file_line(__FILE__, __LINE__)
         .apply(constraint_gradient.doublet_count(),
                [anim_gradients = std::as_const(constraint_gradient).viewer().name("aim_gradients"),
-                gradient = info.gradients().viewer().name("gradient"),
+                gradients = info.gradients().viewer().name("gradients"),
                 is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
                {
                    const auto& [i, G3] = anim_gradients(I);
@@ -252,7 +252,7 @@ void FiniteElementAnimator::Impl::assemble(AssembleInfo& info)
                    }
                    else
                    {
-                       gradient.segment<3>(i * 3).atomic_add(G3);
+                       gradients.segment<3>(i * 3).atomic_add(G3);
                    }
                });
 }

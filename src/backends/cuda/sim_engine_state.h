@@ -9,7 +9,7 @@ enum class SimEngineState
     InitScene,
     RebuildScene,
     PredictMotion,
-    ComputeContact,
+    ComputeDyTopoEffect,
     // ComputeGradientHessian,
     SolveGlobalLinearSystem,
     LineSearch,

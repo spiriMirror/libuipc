@@ -61,7 +61,7 @@ void ABDMatrixConverter::Impl::_radix_sort_indices_and_blocks(
 
     // hash ij
     ParallelFor(256)
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(src_row_indices.size(),
                [row_indices = src_row_indices.cviewer().name("row_indices"),
                 col_indices = src_col_indices.cviewer().name("col_indices"),
@@ -103,7 +103,7 @@ void ABDMatrixConverter::Impl::_radix_sort_indices_and_blocks(
         Timer timer("set block values");
         loose_resize(blocks_sorted, from.values().size());
         ParallelFor(256)
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(src_blocks.size(),
                    [src_blocks = src_blocks.cviewer().name("blocks"),
                     sort_index = sort_index.cviewer().name("sort_index"),
@@ -142,7 +142,7 @@ void ABDMatrixConverter::Impl::_make_unique_indices(const muda::DeviceTripletMat
 
 
     muda::ParallelFor(256)
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(unique_counts.size(),
                [unique_ij_pairs = unique_ij_pairs.viewer().name("unique_ij_pairs"),
                 row_indices = row_indices.viewer().name("row_indices"),
@@ -167,7 +167,7 @@ void ABDMatrixConverter::Impl::_make_unique_block_warp_reduction(
     BufferLaunch().fill<int>(sorted_partition_input, 0);
 
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(unique_counts.size(),
                [sorted_partition = sorted_partition_input.viewer().name("sorted_partition"),
                 unique_counts = unique_counts.viewer().name("unique_counts"),
@@ -188,7 +188,7 @@ void ABDMatrixConverter::Impl::_make_unique_block_warp_reduction(
 
 
     FastSegmentalReduce()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .reduce(std::as_const(sorted_partition_output).view(),
                 std::as_const(blocks_sorted).view(),
                 blocks);

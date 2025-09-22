@@ -2,6 +2,7 @@
 #include <uipc/common/range.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
+#include <dytopo_effect_system/global_dytopo_effect_manager.h>
 #include <contact_system/global_contact_manager.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <line_search/line_searcher.h>
@@ -66,12 +67,15 @@ void SimEngine::do_advance()
             m_global_contact_manager->compute_adaptive_kappa();
     };
 
-    auto compute_contact = [this]
+    auto compute_dytopo_effect = [this]
     {
-        if(m_global_contact_manager)
+        // compute the dytopo effect gradient and hessian, containing:
+        // 1) contact effect from contact pairs
+        // 2) other dynamic topo effects, e.g. point picker, vertex stitch ...
+        if(m_global_dytopo_effect_manager)
         {
-            Timer timer{"Compute Contact"};
-            m_global_contact_manager->compute_contact();
+            Timer timer{"Compute DyTopo Effect"};
+            m_global_dytopo_effect_manager->compute_dytopo_effect();
         }
     };
 
@@ -229,9 +233,10 @@ void SimEngine::do_advance()
                 if(newton_iter > 0)
                     detect_dcd_candidates();
 
-                // 3) Compute Contact Gradient and Hessian => G:Vector3, H:Matrix3x3
-                m_state = SimEngineState::ComputeContact;
-                compute_contact();
+                // 3) Compute Dynamic Topo Effect Gradient and Hessian => G:Vector3, H:Matrix3x3
+                //    Including Contact Effect
+                m_state = SimEngineState::ComputeDyTopoEffect;
+                compute_dytopo_effect();
 
                 // 4) Solve Global Linear System => dx = A^-1 * b
                 m_state = SimEngineState::SolveGlobalLinearSystem;
@@ -261,8 +266,7 @@ void SimEngine::do_advance()
                             "dump_surface.{}.{}", m_current_frame, newton_iter));
                     }
 
-                    if(newton_iter > 0  // always skip the first iteration
-                       && converged     // check convergence
+                    if(converged  // check convergence
                        && ccd_alpha >= m_ccd_tol->view()[0]  // check ccd tolerance
                        && animation_reach_target())  // check animation target
                     {
@@ -270,8 +274,7 @@ void SimEngine::do_advance()
                     }
                 }
 
-
-                // 8) Begin Line Search
+                // 7) Begin Line Search
                 m_state = SimEngineState::LineSearch;
                 {
                     Timer timer{"Line Search"};
@@ -299,48 +302,43 @@ void SimEngine::do_advance()
                     Float E  = compute_energy(alpha);
                     Float E1 = E;
 
-                    if(!converged)
+                    SizeT line_search_iter = 0;
+                    while(line_search_iter < m_line_searcher->max_iter())
                     {
-                        SizeT line_search_iter = 0;
-                        while(line_search_iter < m_line_searcher->max_iter())
+                        Timer timer{"Line Search Iteration"};
+
+                        bool energy_decrease = E <= E0;  // Check Energy Decrease
+
+                        // TODO: Inversion Check (Not Implemented Yet)
+                        bool no_inversion = true;
+
+                        bool success = energy_decrease && no_inversion;
+
+                        if(success)
+                            break;
+
+                        // If not success, then shrink alpha
+                        alpha /= 2;
+                        E = compute_energy(alpha);
+
+                        line_search_iter++;
+                    }
+
+                    if(line_search_iter >= m_line_searcher->max_iter())
+                    {
+                        spdlog::warn(
+                            "Line Search Exits with Max Iteration: {} (Frame={}, Newton={})\n"
+                            "E/E0: {}, E1/E0: {}, E0:{}",
+                            m_line_searcher->max_iter(),
+                            m_current_frame,
+                            newton_iter,
+                            E / E0,
+                            E1 / E0,
+                            E0);
+
+                        if(m_strict_mode)
                         {
-                            Timer timer{"Line Search Iteration"};
-
-                            bool energy_decrease = E <= E0;  // Check Energy Decrease
-
-                            // TODO: Inversion Check (Not Implemented Yet)
-                            bool no_inversion = true;
-
-                            bool success = energy_decrease && no_inversion;
-                            if(success)
-                                break;
-
-                            // If not success, then shrink alpha
-                            alpha /= 2;
-                            E = compute_energy(alpha);
-
-                            line_search_iter++;
-                        }
-
-                        if(line_search_iter > m_line_searcher->max_iter())
-                        {
-                            //m_global_linear_system->dump_linear_system(
-                            //    fmt::format("{}.{}.{}", workspace(), frame(), newton_iter));
-
-                            spdlog::warn(
-                                "Line Search Exits with Max Iteration: {} (Frame={}, Newton={})\n"
-                                "E/E0: {}, E1/E0: {}, E0:{}",
-                                m_line_searcher->max_iter(),
-                                m_current_frame,
-                                newton_iter,
-                                E / E0,
-                                E1 / E0,
-                                E0);
-
-                            if(m_strict_mode)
-                            {
-                                throw SimEngineException("StrictMode: Line Search Exits with Max Iteration");
-                            }
+                            throw SimEngineException("StrictMode: Line Search Exits with Max Iteration");
                         }
                     }
                 }

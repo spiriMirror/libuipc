@@ -9,10 +9,6 @@ REGISTER_SIM_SYSTEM(ContactExporterManager);
 
 void ContactExporterManager::do_build()
 {
-    m_global_trajectory_filter     = require<GlobalTrajectoryFilter>();
-    m_global_contact_manager       = require<GlobalContactManager>();
-    m_contact_line_search_reporter = require<ContactLineSearchReporter>();
-
     auto overrider = std::make_shared<ContactSystemFeatureOverrider>(this);
     auto feature   = std::make_shared<core::ContactSystemFeature>(overrider);
     features().insert(feature);
@@ -44,83 +40,6 @@ void ContactExporterManager::init()
 
         m_contact_prim_types[i] = prim_type;
     }
-}
-
-void ContactExporterManager::compute_contact()
-{
-    if(m_global_trajectory_filter)
-    {
-        m_global_trajectory_filter->detect(0.0);
-        m_global_trajectory_filter->filter_active();
-    }
-    m_global_contact_manager->compute_contact();
-    m_contact_line_search_reporter->m_impl.compute_energy(false);
-}
-
-void ContactExporterManager::get_contact_energy(geometry::Geometry& energy_geo)
-{
-    auto& e = m_contact_line_search_reporter->m_impl.energy;
-    energy_geo.instances().resize(1);  // we only have one energy instance (sum of all energies)
-    auto energy = energy_geo.instances().find<Float>("energy");
-    if(!energy)
-    {
-        energy = energy_geo.instances().create<Float>("energy");
-    }
-    auto energy_view = view(*energy);
-    // copy from device to host
-    energy_view[0] = e;
-}
-
-void ContactExporterManager::get_contact_gradient(geometry::Geometry& vert_grad)
-{
-    auto& g = m_global_contact_manager->m_impl.sorted_contact_gradient;
-
-    vert_grad.instances().resize(g.doublet_count());
-    auto i = vert_grad.instances().find<IndexT>("i");
-    if(!i)
-    {
-        i = vert_grad.instances().create<IndexT>("i");
-    }
-    auto grad = vert_grad.instances().find<Vector3>("grad");
-    if(!grad)
-    {
-        grad = vert_grad.instances().create<Vector3>("grad");
-    }
-
-    auto i_view = view(*i);
-    g.indices().copy_to(i_view.data());
-
-    auto grad_view = view(*grad);
-    g.values().copy_to(grad_view.data());
-}
-
-void ContactExporterManager::get_contact_hessian(geometry::Geometry& vert_hess)
-{
-    auto& h = m_global_contact_manager->m_impl.sorted_contact_hessian;
-
-    vert_hess.instances().resize(h.triplet_count());
-    auto i = vert_hess.instances().find<IndexT>("i");
-    if(!i)
-    {
-        i = vert_hess.instances().create<IndexT>("i");
-    }
-    auto j = vert_hess.instances().find<IndexT>("j");
-    if(!j)
-    {
-        j = vert_hess.instances().create<IndexT>("j");
-    }
-    auto hess = vert_hess.instances().find<Matrix3x3>("hess");
-    if(!hess)
-    {
-        hess = vert_hess.instances().create<Matrix3x3>("hess");
-    }
-    auto i_view    = view(*i);
-    auto j_view    = view(*j);
-    auto hess_view = view(*hess);
-
-    h.row_indices().copy_to(i_view.data());
-    h.col_indices().copy_to(j_view.data());
-    h.values().copy_to(hess_view.data());
 }
 
 void ContactExporterManager::get_contact_energy(std::string_view    prim_type,

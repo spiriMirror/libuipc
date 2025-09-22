@@ -85,14 +85,14 @@ class GlobalLinearSystem : public SimSystem
         }
 
         HessianStorageType storage_type() { return m_storage_type; }
-        TripletMatrixView  hessian() { return m_hessian; }
-        DenseVectorView    gradient() { return m_gradient; }
+        TripletMatrixView  hessians() { return m_hessians; }
+        DenseVectorView    gradients() { return m_gradients; }
 
       private:
         friend class Impl;
         SizeT              m_index = ~0ull;
-        TripletMatrixView  m_hessian;
-        DenseVectorView    m_gradient;
+        TripletMatrixView  m_hessians;
+        DenseVectorView    m_gradients;
         HessianStorageType m_storage_type;
         Impl*              m_impl = nullptr;
     };
