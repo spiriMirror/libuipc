@@ -1,7 +1,7 @@
 #include <sim_system.h>
 #include <typeinfo>
 #include <sim_engine.h>
-#include <magic_enum.hpp>
+#include <uipc/common/magic_enum.h>
 
 namespace uipc::backend::cuda
 {

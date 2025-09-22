@@ -2,8 +2,8 @@ import json
 import argparse
 import os
 
-VCPKG_BASE_LINE = 'b2cb0da531c2f1f740045bfe7c4dac59f0b2b69c'
-VCPKG_TAG = '2024.11.16' 
+VCPKG_BASE_LINE = 'dd3097e305afa53f7b4312371f62058d2e665320'
+VCPKG_TAG = '2025.7.25'
 
 base_vcpkg_json = {
     'name': 'libuipc',
@@ -110,6 +110,11 @@ def gen_vcpkg_json(args):
             'name': 'bgfx',
             'version>=': '1.127.8725-469'
         })
+    if is_enabled(args.with_usd_support):
+        deps.append({
+            'name': 'usd',
+            'version>=': '25.5.1'
+        })
 
 def print_deps():
     str_names = []
@@ -124,6 +129,7 @@ if __name__ == '__main__':
     parser.add_argument('output_dir', type=str, help='Output file path.')
     parser.add_argument('--build_gui', type=str, default=False, help='Build GUI dependencies.')
     parser.add_argument('--dev_mode', type=str, default=False, help='Enable development mode.')
+    parser.add_argument('--with_usd_support', type=str, default=False, help='Enable USD support.')
     
     args = parser.parse_args()
     print(f'[libuipc] Generating vcpkg.json with args:')
@@ -135,7 +141,7 @@ if __name__ == '__main__':
     
     gen_vcpkg_json(args)
     
-    is_div_mode = is_enabled(args.dev_mode)
+    is_dev_mode = is_enabled(args.dev_mode)
     
     is_new = not os.path.exists(json_path)
     # if json_path exists, compare the content
@@ -159,7 +165,7 @@ if __name__ == '__main__':
         print_deps()
         exit(1)
         
-    if is_div_mode:
+    if is_dev_mode:
         print(f'[libuipc] vcpkg.json content is unchanged, skipping:\n    {json_path}')
         print_deps()
         exit(0)
