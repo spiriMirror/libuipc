@@ -32,6 +32,10 @@ if(UIPC_BUILD_PYBIND)
     add_subdirectory(pybind)
 endif()
 
+if(UIPC_WITH_USD_SUPPORT)
+    # usd
+    add_subdirectory(usd)
+endif()
 
 
 
