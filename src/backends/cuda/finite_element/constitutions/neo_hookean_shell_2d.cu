@@ -129,8 +129,8 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                     xs      = info.xs().viewer().name("xs"),
                     x_bars  = info.x_bars().viewer().name("x_bars"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    G3s        = info.gradients().viewer().name("gradient"),
-                    H3x3s      = info.hessians().viewer().name("hessian"),
+                    G3s        = info.gradients().viewer().name("gradients"),
+                    H3x3s      = info.hessians().viewer().name("hessians"),
                     rest_areas = info.rest_areas().viewer().name("volumes"),
                     dt         = info.dt()] __device__(int I) mutable
                    {

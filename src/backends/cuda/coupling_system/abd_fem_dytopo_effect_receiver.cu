@@ -1,16 +1,16 @@
-#include <coupling_system/abd_fem_contact_receiver.h>
+#include <coupling_system/abd_fem_dytopo_effect_receiver.h>
 
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(ABDFEMContactReceiver);
+REGISTER_SIM_SYSTEM(ABDFEMDyTopoEffectReceiver);
 
-void ABDFEMContactReceiver::do_build(BuildInfo& info)
+void ABDFEMDyTopoEffectReceiver::do_build(BuildInfo& info)
 {
     m_impl.affine_body_vertex_reporter = &require<AffineBodyVertexReporter>();
     m_impl.finite_element_vertex_reporter = &require<FiniteElementVertexReporter>();
 }
 
-void ABDFEMContactReceiver::do_report(GlobalContactManager::ClassifyInfo& info)
+void ABDFEMDyTopoEffectReceiver::do_report(GlobalDyTopoEffectManager::ClassifyInfo& info)
 {
     IndexT fem_v_offset = m_impl.finite_element_vertex_reporter->vertex_offset();
     IndexT fem_v_count = m_impl.finite_element_vertex_reporter->vertex_count();
@@ -27,8 +27,8 @@ void ABDFEMContactReceiver::do_report(GlobalContactManager::ClassifyInfo& info)
     info.range({abd_v_begin, abd_v_end}, {fem_v_begin, fem_v_end});
 }
 
-void ABDFEMContactReceiver::do_receive(GlobalContactManager::ClassifiedContactInfo& info)
+void ABDFEMDyTopoEffectReceiver::do_receive(GlobalDyTopoEffectManager::ClassifiedDyTopoEffectInfo& info)
 {
-    m_impl.contact_hessian = info.hessian();
+    m_impl.hessians = info.hessians();
 }
 }  // namespace uipc::backend::cuda

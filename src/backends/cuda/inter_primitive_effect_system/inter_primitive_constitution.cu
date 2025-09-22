@@ -1,4 +1,4 @@
-#include <contact_system/inter_primitive_constitution.h>
+#include <inter_primitive_effect_system/inter_primitive_constitution.h>
 
 namespace uipc::backend::cuda
 {

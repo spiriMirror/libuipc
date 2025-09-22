@@ -1,6 +1,6 @@
-#include <contact_system/inter_primitive_constitution_manager.h>
+#include <inter_primitive_effect_system/inter_primitive_constitution_manager.h>
 #include <sim_engine.h>
-#include <contact_system/inter_primitive_constitution.h>
+#include <inter_primitive_effect_system/inter_primitive_constitution.h>
 #include <uipc/builtin/attribute_name.h>
 
 namespace uipc::backend

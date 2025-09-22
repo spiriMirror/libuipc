@@ -19,7 +19,7 @@ void Spmv::sym_spmv(Float                           a,
     if(b != 0)
     {
         muda::ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(y.size(),
                    [b = b, y = y.viewer().name("y")] __device__(int i) mutable
                    { y(i) = b * y(i); });
@@ -30,7 +30,7 @@ void Spmv::sym_spmv(Float                           a,
     }
 
     muda::ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(A.triplet_count(),
                [a = a,
                 A = A.viewer().name("A"),
@@ -126,7 +126,7 @@ void Spmv::rbk_spmv(Float                           a,
     if(b != 0)
     {
         muda::ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(y.size(),
                    [b = b, y = y.viewer().name("y")] __device__(int i) mutable
                    { y(i) = b * y(i); });
@@ -142,7 +142,7 @@ void Spmv::rbk_spmv(Float                           a,
     int block_count = (A.triplet_count() + block_dim - 1) / block_dim;
 
     muda::Launch(block_count, block_dim)
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(
             [a = a,
              A = A.viewer().name("A"),
@@ -302,7 +302,7 @@ void Spmv::rbk_sym_spmv(Float                           a,
     if(b != 0)
     {
         muda::ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(y.size(),
                    [b = b, y = y.viewer().name("y")] __device__(int i) mutable
                    { y(i) = b * y(i); });
