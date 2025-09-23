@@ -19,8 +19,8 @@ class UIPC_CORE_API SubsceneElement
     IndexT           id() const noexcept;
     std::string_view name() const noexcept;
 
-    friend void to_json(Json& j, const SubsceneElement& element);
-    friend void from_json(const Json& j, SubsceneElement& element);
+    friend UIPC_CORE_API void to_json(Json& j, const SubsceneElement& element);
+    friend UIPC_CORE_API void from_json(const Json& j, SubsceneElement& element);
 
     S<geometry::AttributeSlot<IndexT>> apply_to(geometry::Geometry& geo) const;
 
@@ -29,6 +29,6 @@ class UIPC_CORE_API SubsceneElement
     string m_name;
 };
 
-void to_json(Json& j, const SubsceneElement& element);
-void from_json(const Json& j, SubsceneElement& element);
+UIPC_CORE_API void to_json(Json& j, const SubsceneElement& element);
+UIPC_CORE_API void  from_json(const Json& j, SubsceneElement& element);
 }  // namespace uipc::core

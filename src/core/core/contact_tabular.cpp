@@ -166,7 +166,7 @@ class ContactTabular::Impl
     static Json default_config() noexcept { return Json::object(); }
 
     vector<ContactElement>        m_elements;
-    geometry::AttributeCollection m_contact_models;
+    geometry::AttributeCollection m_models;
     SizeT                         m_model_capacity = 1024;
 
     mutable map<Vector2i, IndexT> m_model_map;

@@ -62,6 +62,10 @@ PySubsceneTabular::PySubsceneTabular(py::module& m)
                                           [](SubsceneModelCollection& self,
                                              std::string_view name) -> S<uipc::geometry::IAttributeSlot>
                                           { return self.find(name); });
+        class_SubsceneModelCollection.def(
+            "__repr__",
+            [](const SubsceneModelCollection& self)
+            { return fmt::format("{}", self.to_json().dump(4)); });
     }
 
     {
@@ -81,7 +85,7 @@ PySubsceneTabular::PySubsceneTabular(py::module& m)
                                   &SubsceneTabular::insert,
                                   py::arg("L"),
                                   py::arg("R"),
-                                  py::arg("enable") = true,
+                                  py::arg("enable") = false,
                                   py::arg("config") = Json::object());
 
 

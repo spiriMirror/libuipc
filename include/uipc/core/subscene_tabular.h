@@ -35,7 +35,7 @@ class UIPC_CORE_API SubsceneTabular final
 
     IndexT insert(const SubsceneElement& L,
                   const SubsceneElement& R,
-                  bool                   enable = true,
+                  bool                   enable = false,
                   const Json&            config = default_config());
 
     SubsceneModel at(SizeT i, SizeT j) const;

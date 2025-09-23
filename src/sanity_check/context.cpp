@@ -480,15 +480,13 @@ class Context::Impl
 
     void build_geo_id_to_object_id() const noexcept
     {
-        auto        scene_visitor = backend::SceneVisitor{*m_scene};
-        core::Scene scene         = scene_visitor.get();
-        auto        N             = scene.objects().size();
+        auto N = m_scene->objects().size();
 
         auto& map = m_geo_id_to_object_id;
 
         for(IndexT objI = 0; objI < N; ++objI)
         {
-            auto obj = scene.objects().find(objI);
+            auto obj = m_scene->objects().find(objI);
             if(obj)
             {
                 auto geo_ids = obj->geometries().ids();

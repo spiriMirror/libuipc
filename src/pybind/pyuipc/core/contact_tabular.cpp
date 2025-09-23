@@ -64,6 +64,11 @@ PyContactTabular::PyContactTabular(py::module& m)
                                          [](ContactModelCollection& self,
                                             std::string_view name) -> S<uipc::geometry::IAttributeSlot>
                                          { return self.find(name); });
+
+        class_ContactModelCollection.def(
+            "__repr__",
+            [](const ContactModelCollection& self) -> std::string
+            { return fmt::format("{}", self.to_json().dump(4)); });
     }
 
     {
