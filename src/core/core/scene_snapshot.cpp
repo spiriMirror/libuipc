@@ -6,7 +6,7 @@ namespace uipc::core
 {
 SceneSnapshot::SceneSnapshot(const Scene& scene)
 {
-    m_contact_models = uipc::make_shared<geometry::AttributeCollection>(
+    m_models = uipc::make_shared<geometry::AttributeCollection>(
         scene.contact_tabular().internal_contact_models());
 
     m_config =
@@ -55,8 +55,8 @@ SceneSnapshot::SceneSnapshot(const Scene& scene)
 SceneSnapshotCommit::SceneSnapshotCommit(const SceneSnapshot& dst, const SceneSnapshot& src)
     : m_config{uipc::make_shared<geometry::AttributeCollectionCommit>(
         *dst.m_config - *src.m_config)}
-    , m_contact_models{uipc::make_shared<geometry::AttributeCollectionCommit>(
-          *dst.m_contact_models - *src.m_contact_models)}
+    , m_models{uipc::make_shared<geometry::AttributeCollectionCommit>(
+          *dst.m_models - *src.m_models)}
 {
     m_object_collection = dst.m_object_collection;
     m_contact_elements  = dst.m_contact_elements;

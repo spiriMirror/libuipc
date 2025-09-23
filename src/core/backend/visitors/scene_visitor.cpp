@@ -110,7 +110,7 @@ DiffSimVisitor& SceneVisitor::diff_sim() noexcept
     return m_diff_sim_visitor;
 }
 
-core::Scene uipc::backend::SceneVisitor::get() noexcept
+core::Scene uipc::backend::SceneVisitor::get() const noexcept
 {
     return core::Scene{m_scene.shared_from_this()};
 }

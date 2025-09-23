@@ -75,7 +75,7 @@ class SceneFactory::Impl
         // contact models
         {
             ga.create("config", *snapshot.m_config);
-            ga.create("contact_models", *snapshot.m_contact_models);
+            ga.create("contact_models", *snapshot.m_models);
         }
 
         data["geometry_atlas"] = ga.to_json();
@@ -182,7 +182,7 @@ class SceneFactory::Impl
             auto contact_models = ga.find("contact_models");
             if(contact_models && !ce.empty())
             {
-                snapshot.m_contact_models =
+                snapshot.m_models =
                     uipc::make_shared<geometry::AttributeCollection>(*contact_models);
                 snapshot.m_contact_elements = ce;
             }
@@ -236,7 +236,7 @@ class SceneFactory::Impl
 
         Scene scene{Scene::default_config()};
         // 2) Contact tabular
-        scene.contact_tabular().build_from(*snapshot.m_contact_models,
+        scene.contact_tabular().build_from(*snapshot.m_models,
                                            snapshot.m_contact_elements);
 
 
@@ -302,7 +302,7 @@ class SceneFactory::Impl
             auto& objects_json = data["object_collection"];
             uipc::core::to_json(objects_json, commit.m_object_collection);
 
-            gac.create("contact_models", *commit.m_contact_models);
+            gac.create("contact_models", *commit.m_models);
 
             // geometry slots
             auto& geo_slots_json      = data["geometry_slots"];
@@ -435,7 +435,7 @@ class SceneFactory::Impl
                         commit.m_is_valid = false;
                         break;
                     }
-                    commit.m_contact_models =
+                    commit.m_models =
                         uipc::make_shared<geometry::AttributeCollectionCommit>(*contact_models);
                 }
 

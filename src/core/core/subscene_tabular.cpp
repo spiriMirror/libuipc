@@ -28,12 +28,12 @@ class SubsceneTabular::Impl
     {
         m_elements.reserve(64);
 
-        // create the contact models.
-        m_topo       = m_subscene_models.create<Vector2i>("topo");
-        m_is_enabled = m_subscene_models.create<IndexT>("is_enabled");
+        // create the subscene models.
+        m_topo       = m_models.create<Vector2i>("topo");
+        m_is_enabled = m_models.create<IndexT>("is_enabled");
 
-        // reserve the memory for contact models.
-        m_subscene_models.reserve(m_subscene_model_capacity);
+        // reserve the memory for subscene models.
+        m_models.reserve(m_model_capacity);
 
         auto default_element = create("default");
         insert(default_element, default_element, true, default_config());
@@ -56,48 +56,48 @@ class SubsceneTabular::Impl
     {
         Vector2i ids = {L.id(), R.id()};
 
-        // check if the contact element id is valid.
+        // check if the subscene element id is valid.
         UIPC_ASSERT(L.id() < current_element_id() && L.id() >= 0
                         && R.id() < current_element_id() && R.id() >= 0,
-                    "Invalid contact element id, id should be in [{},{}), your L={}, R={}.",
+                    "Invalid subscene element id, id should be in [{},{}), your L={}, R={}.",
                     0,
                     current_element_id(),
                     L.id(),
                     R.id());
 
         // check if the name is matched.
-        UIPC_ASSERT(m_subscene_elements[L.id()].name() == L.name()
-                        && m_subscene_elements[R.id()].name() == R.name(),
+        UIPC_ASSERT(m_elements[L.id()].name() == L.name()
+                        && m_elements[R.id()].name() == R.name(),
                     "Subscene element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
-                    "It seems the contact element and contact model don't come from the same SubsceneTabular.",
+                    "It seems the subscene element and subscene model don't come from the same SubsceneTabular.",
                     L.id(),
                     L.name(),
-                    m_subscene_elements[L.id()].name(),
+                    m_elements[L.id()].name(),
                     R.id(),
                     R.name(),
-                    m_subscene_elements[R.id()].name());
+                    m_elements[R.id()].name());
 
-        // ensure ids.x() < ids.y(), because the contact model is symmetric.
+        // ensure ids.x() < ids.y(), because the subscene model is symmetric.
         if(ids.x() > ids.y())
             std::swap(ids.x(), ids.y());
 
-        auto it = m_model_subscene_map.find(ids);
+        auto it = m_model_map.find(ids);
 
         IndexT index;
 
-        if(it != m_model_subscene_map.end())
+        if(it != m_model_map.end())
         {
             index = it->second;
             UIPC_WARN_WITH_LOCATION("Subscene model between {}[{}] and {}[{}] already exists, replace the old one.",
-                                    m_subscene_elements[L.id()].name(),
+                                    m_elements[L.id()].name(),
                                     L.id(),
-                                    m_subscene_elements[R.id()].name(),
+                                    m_elements[R.id()].name(),
                                     R.id());
         }
         else
         {
-            index                     = m_subscene_models.size();
-            m_model_subscene_map[ids] = index;
+            index            = m_models.size();
+            m_model_map[ids] = index;
 
             _append_subscene_models();
         }
@@ -139,12 +139,12 @@ class SubsceneTabular::Impl
 
     const geometry::AttributeCollection& subscene_models() const noexcept
     {
-        return m_subscene_models;
+        return m_models;
     }
 
     geometry::AttributeCollection& subscene_models() noexcept
     {
-        return m_subscene_models;
+        return m_models;
     }
 
     SizeT element_count() const noexcept { return m_elements.size(); }
@@ -152,25 +152,23 @@ class SubsceneTabular::Impl
     static Json default_config() noexcept { return Json::object(); }
 
     vector<SubsceneElement>       m_elements;
-    vector<SubsceneElement>       m_subscene_elements;
-    geometry::AttributeCollection m_subscene_models;
-    SizeT                         m_subscene_model_capacity = 1024;
+    geometry::AttributeCollection m_models;
+    SizeT                         m_model_capacity = 1024;
 
     mutable map<Vector2i, IndexT> m_model_map;
-    mutable map<Vector2i, IndexT> m_model_subscene_map;
 
     mutable S<geometry::AttributeSlot<Vector2i>> m_topo;
     mutable S<geometry::AttributeSlot<IndexT>>   m_is_enabled;
 
     void _append_subscene_models()
     {
-        auto new_size = m_subscene_models.size() + 1;
-        if(m_subscene_model_capacity < new_size)
+        auto new_size = m_models.size() + 1;
+        if(m_model_capacity < new_size)
         {
-            m_subscene_model_capacity *= 2;
-            m_subscene_models.reserve(m_subscene_model_capacity);
+            m_model_capacity *= 2;
+            m_models.reserve(m_model_capacity);
         }
-        m_subscene_models.resize(new_size);
+        m_models.resize(new_size);
     }
 
     void build_from(const geometry::AttributeCollection& ac, span<const SubsceneElement> ce)
@@ -178,10 +176,10 @@ class SubsceneTabular::Impl
         m_elements.clear();
         m_elements = vector<SubsceneElement>(ce.begin(), ce.end());
 
-        m_subscene_models = ac;
-        m_topo            = m_subscene_models.find<Vector2i>("topo");
+        m_models = ac;
+        m_topo   = m_models.find<Vector2i>("topo");
         UIPC_ASSERT(m_topo, "Subscene model topology is not found, please check the attribute collection.");
-        m_is_enabled = m_subscene_models.find<IndexT>("is_enabled");
+        m_is_enabled = m_models.find<IndexT>("is_enabled");
         UIPC_ASSERT(m_is_enabled, "Subscene model is_enabled is not found, please check the attribute collection.");
 
         m_model_map.clear();
@@ -199,10 +197,10 @@ class SubsceneTabular::Impl
         m_elements.clear();
         m_elements = vector<SubsceneElement>(ce.begin(), ce.end());
 
-        m_subscene_models.update_from(ac);
-        m_topo = m_subscene_models.find<Vector2i>("topo");
+        m_models.update_from(ac);
+        m_topo = m_models.find<Vector2i>("topo");
         UIPC_ASSERT(m_topo, "Subscene model topology is not found, please check the attribute collection.");
-        m_is_enabled = m_subscene_models.find<IndexT>("is_enabled");
+        m_is_enabled = m_models.find<IndexT>("is_enabled");
         UIPC_ASSERT(m_is_enabled, "Subscene model is_enabled is not found, please check the attribute collection.");
 
         auto topo_view = m_topo->view();

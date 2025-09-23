@@ -13,96 +13,6 @@
 
 namespace uipc::sanity_check
 {
-void ContactTabular::init(backend::SceneVisitor& scene)
-{
-    auto contact_models = scene.contact_tabular().contact_models();
-    auto elements       = scene.contact_tabular().element_count();
-
-    auto subscene_contact_model = scene.contact_tabular().subscene_contact_models();
-    auto subscene_elements = scene.contact_tabular().subscene_element_count();
-
-    auto attr_topo          = contact_models.find<Vector2i>("topo");
-    auto attr_resistance    = contact_models.find<Float>("resistance");
-    auto attr_friction_rate = contact_models.find<Float>("friction_rate");
-    auto attr_enabled       = contact_models.find<IndexT>("is_enabled");
-
-    auto attr_subscene_topo = subscene_contact_model.find<Vector2i>("topo");
-    auto attr_subscene_enabled = subscene_contact_model.find<IndexT>("is_enabled");
-
-    UIPC_ASSERT(attr_topo != nullptr, "topo is not found in contact tabular");
-    UIPC_ASSERT(attr_resistance != nullptr, "resistance is not found in contact tabular");
-    UIPC_ASSERT(attr_friction_rate != nullptr, "friction_rate is not found in contact tabular");
-    UIPC_ASSERT(attr_enabled != nullptr, "is_enabled is not found in contact tabular");
-    UIPC_ASSERT(attr_topo != nullptr, "subscene topo is not found in contact tabular");
-    UIPC_ASSERT(attr_enabled != nullptr, "subscene is_enabled is not found in contact tabular");
-
-    auto topo_view             = attr_topo->view();
-    auto resistance_view       = attr_resistance->view();
-    auto friction_rate_view    = attr_friction_rate->view();
-    auto enabled_view          = attr_enabled->view();
-    auto subscene_topo_view    = attr_subscene_topo->view();
-    auto subscene_enabled_view = attr_subscene_enabled->view();
-
-    auto default_model = scene.contact_tabular().default_model();
-
-    m_table.resize(elements * elements, default_model);
-    m_contact_element_count = elements;
-    for(auto&& [topo, resistance, friction_rate, enabled] :
-        zip(topo_view, resistance_view, friction_rate_view, enabled_view))
-    {
-        auto model = core::ContactModel{
-            topo, friction_rate, resistance, enabled ? true : false, Json::object()};
-
-        m_table[topo.x() * elements + topo.y()] = model;
-        m_table[topo.y() * elements + topo.x()] = model;
-    }
-
-    m_subscene_table.resize(subscene_elements * subscene_elements);
-    m_subscene_contact_element_count = subscene_elements;
-    for(auto&& [topo, enabled] : zip(subscene_topo_view, subscene_enabled_view))
-    {
-        auto model =
-            core::ContactModel{topo, 0, 0, enabled ? true : false, Json::object()};
-
-        m_subscene_table[topo.x() * subscene_elements + topo.y()] = model;
-        m_subscene_table[topo.y() * subscene_elements + topo.x()] = model;
-    }
-}
-
-const core::ContactModel& ContactTabular::at(IndexT i, IndexT j) const
-{
-    UIPC_ASSERT(i < m_contact_element_count && j < m_contact_element_count,
-                "Invalid contact element id, id should be in [{},{}), your i={}, j={}.",
-                0,
-                m_contact_element_count,
-                i,
-                j);
-
-    return m_table[i * m_contact_element_count + j];
-}
-
-const core::ContactModel& ContactTabular::subscene_at(IndexT i, IndexT j) const
-{
-    UIPC_ASSERT(i < m_subscene_contact_element_count && j < m_subscene_contact_element_count,
-                "Invalid subscene contact element id, id should be in [{},{}), your i={}, j={}.",
-                0,
-                m_subscene_contact_element_count,
-                i,
-                j);
-
-    return m_subscene_table[i * m_subscene_contact_element_count + j];
-}
-
-SizeT ContactTabular::element_count() const noexcept
-{
-    return m_contact_element_count;
-}
-
-SizeT ContactTabular::subscene_element_count() const noexcept
-{
-    return m_subscene_contact_element_count;
-}
-
 namespace detail
 {
     using namespace uipc::geometry;
@@ -348,8 +258,7 @@ namespace detail
                     }
 
                     auto vertex_subscene_contact_element_id =
-                        simplicial_complex->vertices().find<IndexT>(
-                            builtin::subscene_element_id);
+                        simplicial_complex->vertices().find<IndexT>(builtin::subscene_element_id);
 
                     // if vertex subscene contact_element_id does not exist, label all surface vertices with `meta` contact_element_id
                     if(!vertex_subscene_contact_element_id)
@@ -541,7 +450,7 @@ class Context::Impl
 {
   public:
     Impl(core::internal::Scene& s) noexcept
-        : m_scene(s)
+        : m_scene(s.shared_from_this())
     {
     }
 
@@ -549,10 +458,9 @@ class Context::Impl
 
     void prepare()
     {
-        auto scene_visitor = backend::SceneVisitor{m_scene};
-        m_contact_tabular.init(scene_visitor);
-
         build_geo_id_to_object_id();
+
+        auto scene_visitor = backend::SceneVisitor{*m_scene};
 
         detail::create_basic_sanity_check_attributes(scene_visitor.geometries(),
                                                      m_geo_id_to_object_id);
@@ -566,21 +474,21 @@ class Context::Impl
 
     void destroy()
     {
-        auto scene_visitor = backend::SceneVisitor{m_scene};
+        auto scene_visitor = backend::SceneVisitor{*m_scene};
         detail::destory_sanity_check_attributes(scene_visitor);
     }
 
     void build_geo_id_to_object_id() const noexcept
     {
-        auto scene_visitor = backend::SceneVisitor{m_scene};
-
-        auto N = m_scene.objects().size();
+        auto        scene_visitor = backend::SceneVisitor{*m_scene};
+        core::Scene scene         = scene_visitor.get();
+        auto        N             = scene.objects().size();
 
         auto& map = m_geo_id_to_object_id;
 
         for(IndexT objI = 0; objI < N; ++objI)
         {
-            auto obj = m_scene.objects().find(objI);
+            auto obj = scene.objects().find(objI);
             if(obj)
             {
                 auto geo_ids = obj->geometries().ids();
@@ -597,7 +505,7 @@ class Context::Impl
         if(m_scene_simplicial_surface)
             return *m_scene_simplicial_surface;
 
-        auto scene_visitor = backend::SceneVisitor{m_scene};
+        auto scene_visitor = backend::SceneVisitor{*m_scene};
 
         m_scene_simplicial_surface = uipc::make_unique<geometry::SimplicialComplex>();
 
@@ -614,22 +522,20 @@ class Context::Impl
         return *m_scene_simplicial_surface;
     }
 
-    void init_contact_tabular(ContactTabular& contact_tabular) const
+    const core::ContactTabular& contact_tabular() const noexcept
     {
-        auto scene_visitor = backend::SceneVisitor{m_scene};
-        contact_tabular.init(scene_visitor);
+        return m_scene->contact_tabular();
     }
 
-    const ContactTabular& contact_tabular() const noexcept
+    const core::SubsceneTabular& subscene_tabular() const noexcept
     {
-        return m_contact_tabular;
+        return m_scene->subscene_tabular();
     }
 
   private:
-    core::internal::Scene&                 m_scene;
+    S<core::internal::Scene>               m_scene;
     mutable U<geometry::SimplicialComplex> m_scene_simplicial_surface;
     mutable unordered_map<IndexT, IndexT>  m_geo_id_to_object_id;
-    ContactTabular                         m_contact_tabular;
 };
 
 Context::Context(SanityCheckerCollection& c, core::internal::Scene& s) noexcept
@@ -655,9 +561,14 @@ const geometry::SimplicialComplex& Context::scene_simplicial_surface() const noe
     return m_impl->scene_simplicial_surface();
 }
 
-const ContactTabular& Context::contact_tabular() const noexcept
+const core::ContactTabular& Context::contact_tabular() const noexcept
 {
     return m_impl->contact_tabular();
+}
+
+const core::SubsceneTabular& Context::subscene_tabular() const noexcept
+{
+    return m_impl->subscene_tabular();
 }
 
 U64 Context::get_id() const noexcept

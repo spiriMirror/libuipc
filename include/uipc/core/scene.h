@@ -132,7 +132,8 @@ class UIPC_CORE_API Scene final
     using CConfigAttributes = ConfigAttributesT<true>;
 
     explicit Scene(const Json& config = default_config());
-
+    // Allow create a core::Scene from a core::internal::Scene
+    explicit Scene(S<internal::Scene> scene) noexcept;
 
     Scene(const Scene&) = delete;
     Scene(Scene&&)      = default;
@@ -227,8 +228,6 @@ class UIPC_CORE_API Scene final
     void update_from(const SceneSnapshotCommit& snapshot);
 
   private:
-    // Allow create a core::Scene from a core::internal::Scene
-    Scene(S<internal::Scene> scene) noexcept;
     S<internal::Scene> m_internal;
 };
 }  // namespace uipc::core

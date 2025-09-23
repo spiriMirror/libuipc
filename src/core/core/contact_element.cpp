@@ -32,19 +32,6 @@ S<geometry::AttributeSlot<IndexT>> ContactElement::apply_to(geometry::Geometry& 
     return slot;
 }
 
-S<geometry::AttributeSlot<IndexT>> ContactElement::subscene_append(geometry::Geometry& geo) const
-{
-    auto slot = geo.meta().find<IndexT>(builtin::subscene_element_id);
-    if(!slot)
-    {
-        slot = geo.meta().create<IndexT>(builtin::subscene_element_id, 0);
-    }
-    auto view    = geometry::view(*slot);
-    view.front() = id();
-
-    return slot;
-}
-
 void to_json(Json& j, const ContactElement& element)
 {
     j["id"]   = element.id();
