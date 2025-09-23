@@ -44,7 +44,7 @@ TEST_CASE("42_abd_fem_subscene", "[abd_fem]")
         auto default_element = scene.contact_tabular().default_element();
         auto subscene_a      = scene.subscene_tabular().create("subscene_a");
         auto subscene_b      = scene.subscene_tabular().create("subscene_b");
-        scene.subscene_tabular().insert(subscene_a, subscene_b, false);
+        //scene.subscene_tabular().insert(subscene_a, subscene_b, false);
 
         // create object
         auto object    = scene.objects().create("cubes");

@@ -125,16 +125,24 @@ class ContactTabular::Impl
             std::swap(ids.x(), ids.y());
 
         auto it = m_model_map.find(ids);
-        return it != m_model_map.end() ? it->second : 0;
+        return it != m_model_map.end() ? it->second : -1;
     }
 
     ContactModel at(SizeT i, SizeT j) const
     {
-        return ContactModel{Vector2i{i, j},
-                            view(*m_friction_rates)[index_at(i, j)],
-                            view(*m_resistances)[index_at(i, j)],
-                            view(*m_is_enabled)[index_at(i, j)] != 0,
-                            Json::object()};
+        auto idx = index_at(i, j);
+
+        // UIPC-SPEC:
+        // If the contact model between two contact elements is not defined,
+        // the default contact model will be used.
+        if(idx < 0)
+            idx = 0;
+
+        auto friction_rate = m_friction_rates->view()[idx];
+        auto resistance    = m_resistances->view()[idx];
+        bool enable        = m_is_enabled->view()[idx];
+
+        return ContactModel{Vector2i{i, j}, friction_rate, resistance, enable, Json::object()};
     }
 
     void default_model(Float friction_rate, Float resistance, bool enable, const Json& config) noexcept

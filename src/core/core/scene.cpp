@@ -27,6 +27,7 @@ Json Scene::default_config() noexcept
     auto& newton = config["newton"];
     {
         newton["max_iter"] = 1024;
+        newton["min_iter"] = 1;
 
         newton["use_adaptive_tol"] = false;
 

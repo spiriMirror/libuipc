@@ -55,6 +55,7 @@ void SimEngine::init_scene()
 
     m_newton_velocity_tol = info.find<Float>("newton/velocity_tol");
     m_newton_max_iter     = info.find<IndexT>("newton/max_iter");
+    m_newton_min_iter     = info.find<IndexT>("newton/min_iter");
     m_ccd_tol             = info.find<Float>("newton/ccd_tol");
     m_strict_mode         = info.find<IndexT>("extras/strict_mode/enable");
 

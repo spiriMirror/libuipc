@@ -118,14 +118,28 @@ class SubsceneTabular::Impl
             std::swap(ids.x(), ids.y());
 
         auto it = m_model_map.find(ids);
-        return it != m_model_map.end() ? it->second : 0;
+        return it != m_model_map.end() ? it->second : -1;
     }
 
     SubsceneModel at(SizeT i, SizeT j) const
     {
-        return SubsceneModel{Vector2i{i, j},
-                             view(*m_is_enabled)[index_at(i, j)] != 0,
-                             Json::object()};
+        auto idx    = index_at(i, j);
+        bool enable = false;
+
+        // UIPC-SPEC:
+        // if set, use the stored value,
+        // if not set, the mask matrix is Identity Matrix
+        if(idx >= 0)
+        {
+            // if found, return the stored value
+            enable = m_is_enabled->view()[idx];
+        }
+        else
+        {
+            // if not found, obey the spec
+            enable = (i == j);
+        }
+        return SubsceneModel{Vector2i{i, j}, enable, Json::object()};
     }
 
     void default_model(bool enable, const Json& config) noexcept

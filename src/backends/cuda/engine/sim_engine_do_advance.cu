@@ -152,6 +152,34 @@ void SimEngine::do_advance()
         return true;
     };
 
+    auto converge_check = [&](SizeT newton_iter) -> bool
+    {
+        if(m_dump_surface->view()[0])
+        {
+            dump_global_surface(fmt::format("dump_surface.{}.{}", m_current_frame, newton_iter));
+        }
+
+        if(newton_iter < m_newton_min_iter->view()[0])
+            return false;
+
+        NewtonToleranceManager::ResultInfo result_info;
+        result_info.frame(m_current_frame);
+        result_info.newton_iter(newton_iter);
+        m_newton_tolerance_manager->check(result_info);
+
+        if(!result_info.converged())
+            return false;
+
+        // ccd alpha should close to 1.0
+        if(ccd_alpha < m_ccd_tol->view()[0])
+            return false;
+
+        if(!animation_reach_target())
+            return false;
+
+        return true;
+    };
+
     auto update_diff_parm = [this]()
     {
         if(m_global_diff_sim_manager)
@@ -221,6 +249,7 @@ void SimEngine::do_advance()
             m_newton_tolerance_manager->pre_newton(m_current_frame);
 
             auto   newton_max_iter = m_newton_max_iter->view()[0];
+            auto   newton_min_iter = m_newton_min_iter->view()[0];
             IndexT newton_iter     = 0;
             for(; newton_iter < newton_max_iter; ++newton_iter)
             {
@@ -251,28 +280,11 @@ void SimEngine::do_advance()
 
 
                 // 6) Check Termination Condition
-                bool converged = false;
-                {
-                    NewtonToleranceManager::ResultInfo result_info;
-                    result_info.frame(m_current_frame);
-                    result_info.newton_iter(newton_iter);
-                    m_newton_tolerance_manager->check(result_info);
+                bool converged = converge_check(newton_iter);
 
-                    converged = result_info.converged();
+                if(converged)
+                    break;
 
-                    if(m_dump_surface->view()[0])
-                    {
-                        dump_global_surface(fmt::format(
-                            "dump_surface.{}.{}", m_current_frame, newton_iter));
-                    }
-
-                    if(converged  // check convergence
-                       && ccd_alpha >= m_ccd_tol->view()[0]  // check ccd tolerance
-                       && animation_reach_target())  // check animation target
-                    {
-                        break;
-                    }
-                }
 
                 // 7) Begin Line Search
                 m_state = SimEngineState::LineSearch;
@@ -352,9 +364,9 @@ void SimEngine::do_advance()
             }
 
 
-            if(newton_iter > newton_max_iter)
+            if(newton_iter >= newton_max_iter)
             {
-                spdlog::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
+                spdlog::warn("Newton Iteration Exits with Max Iteration Count: {} (Frame={})",
                              newton_max_iter,
                              m_current_frame);
 
@@ -362,6 +374,13 @@ void SimEngine::do_advance()
                 {
                     throw SimEngineException("StrictMode: Newton Iteration Exits with Max Iteration");
                 }
+            }
+            else
+            {
+                spdlog::info("Newton Iteration Converged with Iteration Count: {}, Bound: [{}, {}]",
+                             newton_iter,
+                             newton_min_iter,
+                             newton_max_iter);
             }
         }
 

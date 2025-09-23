@@ -109,14 +109,16 @@ void GlobalContactManager::Impl::_build_contact_tabular(WorldVisitor& world)
 
     auto N = world.scene().contact_tabular().element_count();
 
-    // default turn on the contact between two same types
-    h_contact_mask_tabular.resize(N * N, 1);
+    // if no contact model is defined, then take the default one
+    // so it can be on or off, depending on the default_model setting
+    h_contact_mask_tabular.resize(N * N, enabled_view[0]);
 
     auto mask_map = Eigen::Map<MaskMatrix>(h_contact_mask_tabular.data(), N, N);
 
     h_contact_tabular.resize(
         N * N, ContactCoeff{.kappa = resistance_view[0], .mu = friction_rate_view[0]});
 
+    // set the defined contact model
     for(auto&& [ids, kappa, mu, is_enabled] :
         zip(topo_view, resistance_view, friction_rate_view, enabled_view))
     {
@@ -150,16 +152,16 @@ void GlobalContactManager::Impl::_build_subscene_tabular(WorldVisitor& world)
     UIPC_ASSERT(topo != nullptr, "subscene topo is not found in contact tabular");
     UIPC_ASSERT(is_enabled != nullptr, "subscene is_enabled is not found in contact tabular");
 
-    auto topo_view   = topo->view();
-    auto enable_view = is_enabled->view();
-    auto SN          = world.scene().subscene_tabular().element_count();
+    auto topo_view    = topo->view();
+    auto enabled_view = is_enabled->view();
+    auto SN           = world.scene().subscene_tabular().element_count();
 
     h_subcene_mask_tabular.resize(SN * SN);
     auto mask_map = Eigen::Map<MaskMatrix>(h_subcene_mask_tabular.data(), SN, SN);
     // default turn off the contact between two different subscenes
     mask_map.setIdentity();  // enable self-scene-contact
 
-    for(auto&& [ids, is_enabled] : zip(topo_view, enable_view))
+    for(auto&& [ids, is_enabled] : zip(topo_view, enabled_view))
     {
         mask_map(ids.x(), ids.y()) = is_enabled;
         mask_map(ids.y(), ids.x()) = is_enabled;
