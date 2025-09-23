@@ -34,10 +34,10 @@ S<geometry::AttributeSlot<IndexT>> ContactElement::apply_to(geometry::Geometry& 
 
 S<geometry::AttributeSlot<IndexT>> ContactElement::subscene_append(geometry::Geometry& geo) const
 {
-    auto slot = geo.meta().find<IndexT>(builtin::contact_subscene_element_id);
+    auto slot = geo.meta().find<IndexT>(builtin::subscene_element_id);
     if(!slot)
     {
-        slot = geo.meta().create<IndexT>(builtin::contact_subscene_element_id, 0);
+        slot = geo.meta().create<IndexT>(builtin::subscene_element_id, 0);
     }
     auto view    = geometry::view(*slot);
     view.front() = id();

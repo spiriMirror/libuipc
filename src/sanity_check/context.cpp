@@ -305,7 +305,7 @@ namespace detail
                 auto contact_element_id =
                     simplicial_complex->meta().find<IndexT>(builtin::contact_element_id);
                 auto subscene_contact_element_id =
-                    simplicial_complex->meta().find<IndexT>(builtin::contact_subscene_element_id);
+                    simplicial_complex->meta().find<IndexT>(builtin::subscene_element_id);
                 auto v_is_surf =
                     simplicial_complex->vertices().find<IndexT>(builtin::is_surf);
 
@@ -349,7 +349,7 @@ namespace detail
 
                     auto vertex_subscene_contact_element_id =
                         simplicial_complex->vertices().find<IndexT>(
-                            builtin::contact_subscene_element_id);
+                            builtin::subscene_element_id);
 
                     // if vertex subscene contact_element_id does not exist, label all surface vertices with `meta` contact_element_id
                     if(!vertex_subscene_contact_element_id)

@@ -70,17 +70,16 @@ muda::CBuffer2DView<IndexT> GlobalContactManager::subscene_contact_mask_tabular(
 void GlobalContactManager::Impl::init(WorldVisitor& world)
 {
     // 1) init tabular
-    auto contact_models = world.scene().contact_tabular().contact_models();
-    auto subscene_contact_models =
-        world.scene().contact_tabular().subscene_contact_models();
+    auto contact_models  = world.scene().contact_tabular().contact_models();
+    auto subscene_models = world.scene().subscene_tabular().subscene_models();
 
     auto attr_topo          = contact_models.find<Vector2i>("topo");
     auto attr_resistance    = contact_models.find<Float>("resistance");
     auto attr_friction_rate = contact_models.find<Float>("friction_rate");
     auto attr_enabled       = contact_models.find<IndexT>("is_enabled");
 
-    auto attr_subscene_topo = subscene_contact_models.find<Vector2i>("topo");
-    auto attr_subscene_enabled = subscene_contact_models.find<IndexT>("is_enabled");
+    auto attr_subscene_topo    = subscene_models.find<Vector2i>("topo");
+    auto attr_subscene_enabled = subscene_models.find<IndexT>("is_enabled");
 
     UIPC_ASSERT(attr_topo != nullptr, "topo is not found in contact tabular");
     UIPC_ASSERT(attr_resistance != nullptr, "resistance is not found in contact tabular");
@@ -99,7 +98,7 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
     auto subscene_enable_view = attr_subscene_enabled->view();
 
     auto N  = world.scene().contact_tabular().element_count();
-    auto SN = world.scene().contact_tabular().subscene_element_count();
+    auto SN = world.scene().contact_tabular().element_count();
 
     h_contact_tabular.resize(
         N * N, ContactCoeff{.kappa = resistance_view[0], .mu = friction_rate_view[0]});

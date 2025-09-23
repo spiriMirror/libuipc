@@ -239,7 +239,7 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
             auto HCid = attr_cid ? attr_cid->view()[0] : 0;
 
             auto attr_scid =
-                halfplane->meta().find<IndexT>(builtin::contact_subscene_element_id);
+                halfplane->meta().find<IndexT>(builtin::subscene_element_id);
             auto HSCid = attr_scid ? attr_scid->view()[0] : 0;
 
 

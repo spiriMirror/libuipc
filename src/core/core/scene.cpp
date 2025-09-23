@@ -126,6 +126,16 @@ const ContactTabular& Scene::contact_tabular() const noexcept
     return m_internal->contact_tabular();
 }
 
+SubsceneTabular& Scene::subscene_tabular() noexcept
+{
+    return m_internal->subscene_tabular();
+}
+
+const SubsceneTabular& Scene::subscene_tabular() const noexcept
+{
+    return m_internal->subscene_tabular();
+}
+
 ConstitutionTabular& Scene::constitution_tabular() noexcept
 {
     return m_internal->constitution_tabular();

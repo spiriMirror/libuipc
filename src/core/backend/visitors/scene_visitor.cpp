@@ -90,6 +90,16 @@ core::ContactTabular& SceneVisitor::contact_tabular() noexcept
     return m_scene.contact_tabular();
 }
 
+const core::SubsceneTabular& SceneVisitor::subscene_tabular() const noexcept
+{
+    return m_scene.subscene_tabular();
+}
+
+core::SubsceneTabular& SceneVisitor::subscene_tabular() noexcept
+{
+    return m_scene.subscene_tabular();
+}
+
 const DiffSimVisitor& SceneVisitor::diff_sim() const noexcept
 {
     return m_diff_sim_visitor;

@@ -1,5 +1,6 @@
 #pragma once
 #include <uipc/core/contact_tabular.h>
+#include <uipc/core/subscene_tabular.h>
 #include <uipc/core/constitution_tabular.h>
 #include <uipc/core/object.h>
 #include <uipc/core/object_collection.h>
@@ -202,6 +203,9 @@ class UIPC_CORE_API Scene final
     ContactTabular&       contact_tabular() noexcept;
     const ContactTabular& contact_tabular() const noexcept;
 
+    SubsceneTabular&       subscene_tabular() noexcept;
+    const SubsceneTabular& subscene_tabular() const noexcept;
+
     ConstitutionTabular&       constitution_tabular() noexcept;
     const ConstitutionTabular& constitution_tabular() const noexcept;
 
@@ -225,7 +229,7 @@ class UIPC_CORE_API Scene final
   private:
     // Allow create a core::Scene from a core::internal::Scene
     Scene(S<internal::Scene> scene) noexcept;
-    S<core::internal::Scene> m_internal;
+    S<internal::Scene> m_internal;
 };
 }  // namespace uipc::core
 

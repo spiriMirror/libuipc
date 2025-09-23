@@ -41,7 +41,7 @@ class ContactTabular::Impl
         m_contact_models.reserve(m_contact_model_capacity);
         m_subscene_contact_models.reserve(m_contact_model_capacity);
 
-        auto default_element = create("default");
+        auto default_element          = create("default");
         auto default_subscene_element = create_subscene("default");
         insert(default_element, default_element, 0.5, 1.0_GPa, true, default_config());
         subscene_insert(default_subscene_element, default_subscene_element, true, default_config());
@@ -135,10 +135,7 @@ class ContactTabular::Impl
     }
 
 
-    IndexT subscene_insert(const ContactElement& L,
-                  const ContactElement& R,
-                  bool                  enable,
-                  const Json&           config)
+    IndexT subscene_insert(const ContactElement& L, const ContactElement& R, bool enable, const Json& config)
     {
         Vector2i ids = {L.id(), R.id()};
 
@@ -182,18 +179,17 @@ class ContactTabular::Impl
         }
         else
         {
-            index            = m_subscene_contact_models.size();
+            index                     = m_subscene_contact_models.size();
             m_model_subscene_map[ids] = index;
 
             _append_subscene_contact_models();
         }
 
-        view(*m_subscene_topo)[index] = ids;
-        view(*m_subscene_is_enabled)[index]     = enable;
+        view(*m_subscene_topo)[index]       = ids;
+        view(*m_subscene_is_enabled)[index] = enable;
 
         return index;
     }
-
 
 
     IndexT current_element_id() const noexcept { return m_elements.size(); }
@@ -233,7 +229,10 @@ class ContactTabular::Impl
 
     ContactElement default_element() noexcept { return m_elements.front(); }
 
-    ContactElement default_subscene_element() noexcept { return m_subscene_elements.front(); }
+    ContactElement default_subscene_element() noexcept
+    {
+        return m_subscene_elements.front();
+    }
 
     const geometry::AttributeCollection& contact_models() const noexcept
     {
@@ -256,7 +255,10 @@ class ContactTabular::Impl
     }
 
     SizeT element_count() const noexcept { return m_elements.size(); }
-    SizeT subscene_element_count() const noexcept { return m_subscene_elements.size(); }
+    SizeT subscene_element_count() const noexcept
+    {
+        return m_subscene_elements.size();
+    }
 
     static Json default_config() noexcept { return Json::object(); }
 
@@ -276,7 +278,7 @@ class ContactTabular::Impl
 
     mutable S<geometry::AttributeSlot<Vector2i>> m_subscene_topo;
     mutable S<geometry::AttributeSlot<IndexT>>   m_subscene_is_enabled;
-    void _append_contact_models()
+    void                                         _append_contact_models()
     {
         auto new_size = m_contact_models.size() + 1;
         if(m_contact_model_capacity < new_size)
@@ -359,11 +361,6 @@ ContactElement ContactTabular::create(std::string_view name) noexcept
     return m_impl->create(name);
 }
 
-ContactElement ContactTabular::create_subscene(std::string_view name) noexcept
-{
-    return m_impl->create_subscene(name);
-}
-
 IndexT ContactTabular::insert(const ContactElement& L,
                               const ContactElement& R,
                               Float                 friction_rate,
@@ -372,14 +369,6 @@ IndexT ContactTabular::insert(const ContactElement& L,
                               const Json&           config)
 {
     return m_impl->insert(L, R, friction_rate, resistance, enable, config);
-}
-
-IndexT ContactTabular::subscene_insert(const ContactElement& L,
-                              const ContactElement& R,
-                              bool                  enable,
-                              const Json&           config)
-{
-    return m_impl->subscene_insert(L, R, enable, config);
 }
 
 ContactModel ContactTabular::at(SizeT i, SizeT j) const
@@ -400,11 +389,6 @@ ContactElement ContactTabular::default_element() noexcept
     return m_impl->default_element();
 }
 
-ContactElement ContactTabular::default_subscene_element() noexcept
-{
-    return m_impl->default_subscene_element();
-}
-
 ContactModel ContactTabular::default_model() const noexcept
 {
     return m_impl->default_model();
@@ -420,16 +404,6 @@ CContactModelCollection ContactTabular::contact_models() const noexcept
     return m_impl->contact_models();
 }
 
-ContactModelCollection ContactTabular::subscene_contact_models() noexcept
-{
-    return m_impl->subscene_contact_models();
-}
-
-CContactModelCollection ContactTabular::subscene_contact_models() const noexcept
-{
-    return m_impl->subscene_contact_models();
-}
-
 geometry::AttributeCollection& ContactTabular::internal_contact_models() const noexcept
 {
     return m_impl->contact_models();
@@ -443,11 +417,6 @@ span<ContactElement> ContactTabular::contact_elements() const noexcept
 SizeT ContactTabular::element_count() const noexcept
 {
     return m_impl->element_count();
-}
-
-SizeT ContactTabular::subscene_element_count() const noexcept
-{
-    return m_impl->subscene_element_count();
 }
 
 Json ContactTabular::default_config() noexcept
