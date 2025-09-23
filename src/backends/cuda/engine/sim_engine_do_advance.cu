@@ -152,15 +152,12 @@ void SimEngine::do_advance()
         return true;
     };
 
-    auto converge_check = [&](SizeT newton_iter) -> bool
+    auto convergence_check = [&](SizeT newton_iter) -> bool
     {
         if(m_dump_surface->view()[0])
         {
             dump_global_surface(fmt::format("dump_surface.{}.{}", m_current_frame, newton_iter));
         }
-
-        if(newton_iter < m_newton_min_iter->view()[0])
-            return false;
 
         NewtonToleranceManager::ResultInfo result_info;
         result_info.frame(m_current_frame);
@@ -186,6 +183,43 @@ void SimEngine::do_advance()
         {
             Timer timer{"Update Diff Parm"};
             m_global_diff_sim_manager->update();
+        }
+    };
+
+    auto check_line_search_iter = [this](SizeT iter)
+    {
+        if(iter >= m_line_searcher->max_iter())
+        {
+            spdlog::warn("Line Search Exits with Max Iteration: {} (Frame={})",
+                         m_line_searcher->max_iter(),
+                         m_current_frame);
+
+            if(m_strict_mode->view()[0])
+            {
+                throw SimEngineException("StrictMode: Line Search Exits with Max Iteration");
+            }
+        }
+    };
+
+    auto check_newton_iter = [this](SizeT iter)
+    {
+        if(iter >= m_newton_max_iter->view()[0])
+        {
+            spdlog::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
+                         m_newton_max_iter->view()[0],
+                         m_current_frame);
+
+            if(m_strict_mode->view()[0])
+            {
+                throw SimEngineException("StrictMode: Newton Iteration Exits with Max Iteration");
+            }
+        }
+        else
+        {
+            spdlog::info("Newton Iteration Converged with Iteration Count: {}, Bound: [{}, {}]",
+                         iter,
+                         m_newton_min_iter->view()[0],
+                         m_newton_max_iter->view()[0]);
         }
     };
 
@@ -280,9 +314,9 @@ void SimEngine::do_advance()
 
 
                 // 6) Check Termination Condition
-                bool converged = converge_check(newton_iter);
-
-                if(converged)
+                bool converged  = convergence_check(newton_iter);
+                bool terminated = converged && (newton_iter >= newton_min_iter);
+                if(terminated)
                     break;
 
 
@@ -314,44 +348,36 @@ void SimEngine::do_advance()
                     Float E  = compute_energy(alpha);
                     Float E1 = E;
 
-                    SizeT line_search_iter = 0;
-                    while(line_search_iter < m_line_searcher->max_iter())
+                    if(!converged)
                     {
-                        Timer timer{"Line Search Iteration"};
-
-                        bool energy_decrease = E <= E0;  // Check Energy Decrease
-
-                        // TODO: Inversion Check (Not Implemented Yet)
-                        bool no_inversion = true;
-
-                        bool success = energy_decrease && no_inversion;
-
-                        if(success)
-                            break;
-
-                        // If not success, then shrink alpha
-                        alpha /= 2;
-                        E = compute_energy(alpha);
-
-                        line_search_iter++;
-                    }
-
-                    if(line_search_iter >= m_line_searcher->max_iter())
-                    {
-                        spdlog::warn(
-                            "Line Search Exits with Max Iteration: {} (Frame={}, Newton={})\n"
-                            "E/E0: {}, E1/E0: {}, E0:{}",
-                            m_line_searcher->max_iter(),
-                            m_current_frame,
-                            newton_iter,
-                            E / E0,
-                            E1 / E0,
-                            E0);
-
-                        if(m_strict_mode)
+                        SizeT line_search_iter = 0;
+                        while(line_search_iter < m_line_searcher->max_iter())
                         {
-                            throw SimEngineException("StrictMode: Line Search Exits with Max Iteration");
+                            Timer timer{"Line Search Iteration"};
+
+                            // Check Energy Decrease
+                            // TODO: maybe better condition like Wolfe condition/Armijo condition in the future
+                            bool energy_decrease = (E <= E0);
+
+                            // Check Inversion
+                            // TODO: Inversion check if needed
+                            bool no_inversion = true;
+
+                            bool success = energy_decrease && no_inversion;
+
+                            if(success)
+                                break;
+
+                            // If not success, then shrink alpha
+                            alpha /= 2;
+                            E = compute_energy(alpha);
+
+                            line_search_iter++;
                         }
+
+                        // Check Line Search Iteration
+                        // report warnings or throw exceptions if needed
+                        check_line_search_iter(line_search_iter);
                     }
                 }
             }
@@ -363,25 +389,9 @@ void SimEngine::do_advance()
                 m_time_integrator_manager->update_state();
             }
 
-
-            if(newton_iter >= newton_max_iter)
-            {
-                spdlog::warn("Newton Iteration Exits with Max Iteration Count: {} (Frame={})",
-                             newton_max_iter,
-                             m_current_frame);
-
-                if(m_strict_mode)
-                {
-                    throw SimEngineException("StrictMode: Newton Iteration Exits with Max Iteration");
-                }
-            }
-            else
-            {
-                spdlog::info("Newton Iteration Converged with Iteration Count: {}, Bound: [{}, {}]",
-                             newton_iter,
-                             newton_min_iter,
-                             newton_max_iter);
-            }
+            // Check Newton Iteration
+            // report warnings or throw exceptions if needed
+            check_newton_iter(newton_iter);
         }
 
         spdlog::info("<<< End Frame: {}", m_current_frame);
