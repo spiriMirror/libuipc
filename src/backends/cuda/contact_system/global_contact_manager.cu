@@ -150,18 +150,13 @@ void GlobalContactManager::Impl::_build_subscene_tabular(WorldVisitor& world)
     UIPC_ASSERT(topo != nullptr, "subscene topo is not found in contact tabular");
     UIPC_ASSERT(is_enabled != nullptr, "subscene is_enabled is not found in contact tabular");
 
-
     auto topo_view   = topo->view();
     auto enable_view = is_enabled->view();
+    auto SN          = world.scene().subscene_tabular().element_count();
 
-
-    auto SN = world.scene().subscene_tabular().element_count();
-
-    // default turn off the contact between two different subscenes
-    h_subcene_mask_tabular.resize(SN * SN, 0);
-
+    h_subcene_mask_tabular.resize(SN * SN);
     auto mask_map = Eigen::Map<MaskMatrix>(h_subcene_mask_tabular.data(), SN, SN);
-
+    // default turn off the contact between two different subscenes
     mask_map.setIdentity();  // enable self-scene-contact
 
     for(auto&& [ids, is_enabled] : zip(topo_view, enable_view))
