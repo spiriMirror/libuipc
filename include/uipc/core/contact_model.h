@@ -24,7 +24,7 @@ class UIPC_CORE_API ContactModel
     Vector2i m_ids;
     Float    m_friction_rate;
     Float    m_resistance;
-    bool     m_enabled;
+    bool     m_is_enabled;
     Json     m_config;
 };
 

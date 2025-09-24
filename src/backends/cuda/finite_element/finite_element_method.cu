@@ -781,7 +781,7 @@ To avoid this warning, please apply the transform to the positions mannally. htt
                 }
 
                 auto vert_subscene_ceid =
-                    sc->vertices().find<IndexT>(builtin::contact_subscene_element_id);
+                    sc->vertices().find<IndexT>(builtin::subscene_element_id);
                 if(vert_subscene_ceid)
                 {
                     auto subscene_ceid_view = vert_subscene_ceid->view();
@@ -794,7 +794,7 @@ To avoid this warning, please apply the transform to the positions mannally. htt
                 else
                 {
                     auto subscene_ceid =
-                        sc->meta().find<IndexT>(builtin::contact_subscene_element_id);
+                        sc->meta().find<IndexT>(builtin::subscene_element_id);
 
                     if(subscene_ceid)
                     {

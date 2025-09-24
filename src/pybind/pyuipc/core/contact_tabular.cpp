@@ -33,7 +33,6 @@ PyContactTabular::PyContactTabular(py::module& m)
         class_ContactElement.def("id", &ContactElement::id);
         class_ContactElement.def("name", &ContactElement::name);
         class_ContactElement.def("apply_to", &ContactElement::apply_to);
-        class_ContactElement.def("subscene_append", &ContactElement::subscene_append);
     }
 
     {
@@ -65,6 +64,11 @@ PyContactTabular::PyContactTabular(py::module& m)
                                          [](ContactModelCollection& self,
                                             std::string_view name) -> S<uipc::geometry::IAttributeSlot>
                                          { return self.find(name); });
+
+        class_ContactModelCollection.def(
+            "__repr__",
+            [](const ContactModelCollection& self) -> std::string
+            { return fmt::format("{}", self.to_json().dump(4)); });
     }
 
     {
@@ -72,8 +76,6 @@ PyContactTabular::PyContactTabular(py::module& m)
 
         // Elements:
         class_ContactTabular.def("create", &ContactTabular::create, py::arg("name") = "");
-
-        class_ContactTabular.def("create_subscene", &ContactTabular::create_subscene, py::arg("name") = "");
 
         class_ContactTabular.def("default_element",
                                  &ContactTabular::default_element,
@@ -90,14 +92,6 @@ PyContactTabular::PyContactTabular(py::module& m)
                                  py::arg("resistance"),
                                  py::arg("enable") = true,
                                  py::arg("config") = Json::object());
-
-        class_ContactTabular.def("subscene_insert",
-                                 &ContactTabular::subscene_insert,
-                                 py::arg("L"),
-                                 py::arg("R"),
-                                 py::arg("enable") = true,
-                                 py::arg("config") = Json::object());
-
 
         class_ContactTabular.def(
             "default_model",

@@ -32,6 +32,8 @@ class GlobalContactManager final : public SimSystem
     {
       public:
         void  init(WorldVisitor& world);
+        void  _build_contact_tabular(WorldVisitor& world);
+        void  _build_subscene_tabular(WorldVisitor& world);
         void  compute_d_hat();
         void  compute_adaptive_kappa();
         Float compute_cfl_condition();
@@ -44,9 +46,9 @@ class GlobalContactManager final : public SimSystem
         vector<ContactCoeff>               h_contact_tabular;
         muda::DeviceBuffer2D<ContactCoeff> contact_tabular;
         vector<IndexT>                     h_contact_mask_tabular;
-        vector<IndexT>                     h_contact_mask_tabular_subscene;
+        vector<IndexT>                     h_subcene_mask_tabular;
         muda::DeviceBuffer2D<IndexT>       contact_mask_tabular;
-        muda::DeviceBuffer2D<IndexT>       contact_mask_tabular_subscene;
+        muda::DeviceBuffer2D<IndexT>       subscene_mask_tabular;
         Float                              reserve_ratio = 1.1;
 
         Float d_hat        = 0.0;
@@ -72,7 +74,7 @@ class GlobalContactManager final : public SimSystem
 
     muda::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
     muda::CBuffer2DView<IndexT>       contact_mask_tabular() const noexcept;
-    muda::CBuffer2DView<IndexT> subscene_contact_mask_tabular() const noexcept;
+    muda::CBuffer2DView<IndexT>       subscene_mask_tabular() const noexcept;
 
 
   protected:

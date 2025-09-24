@@ -90,6 +90,16 @@ core::ContactTabular& SceneVisitor::contact_tabular() noexcept
     return m_scene.contact_tabular();
 }
 
+const core::SubsceneTabular& SceneVisitor::subscene_tabular() const noexcept
+{
+    return m_scene.subscene_tabular();
+}
+
+core::SubsceneTabular& SceneVisitor::subscene_tabular() noexcept
+{
+    return m_scene.subscene_tabular();
+}
+
 const DiffSimVisitor& SceneVisitor::diff_sim() const noexcept
 {
     return m_diff_sim_visitor;
@@ -100,7 +110,7 @@ DiffSimVisitor& SceneVisitor::diff_sim() noexcept
     return m_diff_sim_visitor;
 }
 
-core::Scene uipc::backend::SceneVisitor::get() noexcept
+core::Scene uipc::backend::SceneVisitor::get() const noexcept
 {
     return core::Scene{m_scene.shared_from_this()};
 }

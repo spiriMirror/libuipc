@@ -3,6 +3,7 @@
 #include <uipc/common/string.h>
 #include <uipc/common/json.h>
 #include <uipc/geometry/geometry.h>
+
 namespace uipc::core
 {
 class UIPC_CORE_API ContactElement
@@ -23,7 +24,7 @@ class UIPC_CORE_API ContactElement
     friend void from_json(const Json& j, ContactElement& element);
 
     S<geometry::AttributeSlot<IndexT>> apply_to(geometry::Geometry& geo) const;
-    S<geometry::AttributeSlot<IndexT>> subscene_append(geometry::Geometry& geo) const;
+
   private:
     IndexT m_id = -1;
     string m_name;

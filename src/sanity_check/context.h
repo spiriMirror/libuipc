@@ -11,28 +11,6 @@ namespace uipc::sanity_check
 {
 using uipc::core::SanityCheckResult;
 
-class ContactTabular
-{
-  public:
-    ContactTabular() noexcept = default;
-    void                      init(backend::SceneVisitor& s);
-    const core::ContactModel& at(IndexT i, IndexT j) const;
-    const core::ContactModel& subscene_at(IndexT i, IndexT j) const;
-    SizeT                     element_count() const noexcept;
-    SizeT                     subscene_element_count() const noexcept;
-
-    // delete copy constructor
-    ContactTabular(const ContactTabular&) = delete;
-    // delete copy assignment
-    ContactTabular& operator=(const ContactTabular&) = delete;
-
-  private:
-    vector<core::ContactModel> m_table;
-    vector<core::ContactModel> m_subscene_table;
-    SizeT                      m_contact_element_count = 0;
-    SizeT                      m_subscene_contact_element_count = 0;
-};
-
 class Context final : public SanityChecker
 {
   public:
@@ -40,7 +18,8 @@ class Context final : public SanityChecker
     virtual ~Context() override;
 
     const geometry::SimplicialComplex& scene_simplicial_surface() const noexcept;
-    const ContactTabular& contact_tabular() const noexcept;
+    const core::ContactTabular&  contact_tabular() const noexcept;
+    const core::SubsceneTabular& subscene_tabular() const noexcept;
 
   private:
     friend class SanityCheckerCollection;

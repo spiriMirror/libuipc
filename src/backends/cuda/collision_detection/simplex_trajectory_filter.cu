@@ -211,9 +211,9 @@ muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_element_ids
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
-muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_contact_element_ids() const noexcept
+muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_element_ids() const noexcept
 {
-    return m_impl->global_vertex_manager->subscene_contact_element_ids();
+    return m_impl->global_vertex_manager->subscene_element_ids();
 }
 
 muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_mask_tabular() const noexcept
@@ -221,9 +221,9 @@ muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_mask_tabu
     return m_impl->global_contact_manager->contact_mask_tabular();
 }
 
-muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_contact_mask_tabular() const noexcept
+muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_mask_tabular() const noexcept
 {
-    return m_impl->global_contact_manager->subscene_contact_mask_tabular();
+    return m_impl->global_contact_manager->subscene_mask_tabular();
 }
 
 muda::CBufferView<Vector4i> SimplexTrajectoryFilter::PTs() const noexcept

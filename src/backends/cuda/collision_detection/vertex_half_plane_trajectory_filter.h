@@ -34,9 +34,9 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         muda::CBufferView<Vector3>  positions() const noexcept;
         muda::CBufferView<Float>    thicknesses() const noexcept;
         muda::CBufferView<IndexT>   contact_element_ids() const noexcept;
-        muda::CBufferView<IndexT>   subscene_contact_element_ids() const noexcept;
+        muda::CBufferView<IndexT>   subscene_element_ids() const noexcept;
         muda::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
-        muda::CBuffer2DView<IndexT> subscene_contact_mask_tabular() const noexcept;
+        muda::CBuffer2DView<IndexT> subscene_mask_tabular() const noexcept;
         muda::CBufferView<IndexT>   surf_vertices() const noexcept;
 
       private:

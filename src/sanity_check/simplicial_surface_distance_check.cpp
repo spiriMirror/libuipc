@@ -160,7 +160,8 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
         const geometry::SimplicialComplex& scene_surface =
             context->scene_simplicial_surface();
 
-        const ContactTabular& contact_tabular = context->contact_tabular();
+        auto& contact_tabular  = context->contact_tabular();
+        auto& subscene_tabular = context->subscene_tabular();
 
         auto Vs = scene_surface.vertices().size() ? scene_surface.positions().view() :
                                                     span<const Vector3>{};
@@ -334,7 +335,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 }
 
                 // 3) if the contact model is not enabled, don't consider it
-                if(!need_subscene_contact(contact_table, SL, SR))
+                if(!need_contact(subscene_tabular, SL, SR))
                     return;
 
                 if(!need_contact(contact_table, L, R))
@@ -394,7 +395,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
 
 
                 // 2) if the contact model is not enabled, don't consider it
-                if(!need_subscene_contact(contact_table, SCIdL, SCIdRs))
+                if(!need_contact(subscene_tabular, SCIdL, SCIdRs))
                     return;
 
                 if(!need_contact(contact_table, CIdL, CIdRs))
@@ -458,7 +459,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 }
 
                 // 3) if the contact model is not enabled, don't consider it
-                if(!need_subscene_contact(contact_table, SCIdL, SCIdRs))
+                if(!need_contact(subscene_tabular, SCIdL, SCIdRs))
                     return;
 
                 if(!need_contact(contact_table, CIdL, CIdRs))
@@ -529,7 +530,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 }
 
                 // 3) if the contact model is not enabled, don't consider it
-                if(!need_subscene_contact(contact_table, SCIdLs, SCIdRs))
+                if(!need_contact(subscene_tabular, SCIdLs, SCIdRs))
                     return;
 
                 if(!need_contact(contact_table, CIdLs, CIdRs))
