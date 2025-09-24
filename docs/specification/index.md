@@ -118,7 +118,19 @@ and create contact model by:
 ### Default Rule
 
 1. If $C_{ij}$ is not defined(`insert()`) before simulation, the simulator regards $C_{ij} = C_{00}$
-2. $C_{0,0}$ is always defined, users are allowed to modify the default model.
+2. Default model $C_{00}$ is always defined, users are allowed to modify the default model by:
+
+    === "C++"
+    
+        ```cpp
+        contact_tabular.default_model(0.5, 1.0_GPa, true);
+        ```
+    
+    === "Python"
+    
+        ```python
+        contact_tabular.default_model(0.5, 1.0 * GPa, True)
+        ```
 
 ## Subscene Tabular
 
@@ -171,6 +183,17 @@ and create subscene model by:
         \end{cases}
     \end{aligned}
     $$
-2. $S_{0,0}$ (default model) is always defined, users are allowed to modify the default model.
+2. Default model $S_{00}$ is always defined, users are allowed to modify the default model by:
+
+    === "C++"
+
+        ```cpp
+        subscene_tabular.default_model(true);
+        ```
+    === "Python"
+     
+        ```python
+        subscene_tabular.default_model(True)
+        ```
 
 Note that the default rule 1 is different from the contact tabular, because normally objects in the same subscene are allowed to interact, while objects in different subscenes are not, the matrix of $S_{ij}$ most of time looks like an identity matrix. We make the most common case as the default rule to reduce the burden of users.
