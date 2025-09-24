@@ -27,6 +27,7 @@ Json Scene::default_config() noexcept
     auto& newton = config["newton"];
     {
         newton["max_iter"] = 1024;
+        newton["min_iter"] = 1;
 
         newton["use_adaptive_tol"] = false;
 
@@ -124,6 +125,16 @@ ContactTabular& Scene::contact_tabular() noexcept
 const ContactTabular& Scene::contact_tabular() const noexcept
 {
     return m_internal->contact_tabular();
+}
+
+SubsceneTabular& Scene::subscene_tabular() noexcept
+{
+    return m_internal->subscene_tabular();
+}
+
+const SubsceneTabular& Scene::subscene_tabular() const noexcept
+{
+    return m_internal->subscene_tabular();
 }
 
 ConstitutionTabular& Scene::constitution_tabular() noexcept

@@ -1,6 +1,7 @@
 #pragma once
 #include <uipc/core/contact_tabular.h>
 #include <uipc/core/constitution_tabular.h>
+#include <uipc/core/subscene_tabular.h>
 #include <uipc/core/object.h>
 #include <uipc/core/object_collection.h>
 #include <uipc/core/animator.h>
@@ -42,6 +43,8 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
     bool  is_pending() const noexcept { return m_pending; }
     auto& contact_tabular() const noexcept { return m_contact_tabular; }
     auto& contact_tabular() noexcept { return m_contact_tabular; }
+    auto& subscene_tabular() const noexcept { return m_subscene_tabular; }
+    auto& subscene_tabular() noexcept { return m_subscene_tabular; }
     auto& constitution_tabular() const noexcept
     {
         return m_constitution_tabular;
@@ -67,6 +70,7 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
 
     geometry::AttributeCollection m_config;
     ContactTabular                m_contact_tabular;
+    SubsceneTabular               m_subscene_tabular;
     ConstitutionTabular           m_constitution_tabular;
     ObjectCollection              m_objects;
     Animator                      m_animator;

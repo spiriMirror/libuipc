@@ -55,10 +55,10 @@ UIPC_BUILTIN_ATTRIBUTE(aim_transform);
 UIPC_BUILTIN_ATTRIBUTE(contact_element_id);
 
 /**
- * @brief `contact_subscene_element_id` <IndexT> attribute on **meta**
+ * @brief `subscene_element_id` <IndexT> attribute on **meta**
  */
 
-UIPC_BUILTIN_ATTRIBUTE(contact_subscene_element_id);
+UIPC_BUILTIN_ATTRIBUTE(subscene_element_id);
 
 /**
  * @brief `d_hat` <Float> attribute on **meta**, indicates mesh-wise d_hat

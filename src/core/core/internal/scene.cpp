@@ -62,22 +62,38 @@ Float Scene::dt() const noexcept
 }
 
 template <typename T>
-void create_and_set(geometry::AttributeCollection& coll, std::string_view key, const T& value)
+void create_and_set(geometry::AttributeCollection& coll,
+                    std::string_view               key,
+                    const T&                       value,
+                    const T&                       default_value = T{0})
 {
     auto attr = coll.find<T>(key);
     if(!attr)
-        attr = coll.create<T>(key);
+        attr = coll.create<T>(key, default_value);
     view(*attr)[0] = value;
 }
 
-// For boolean values converted to IndexT
-template <>
-void create_and_set(geometry::AttributeCollection& coll, std::string_view key, const bool& value)
+template <typename T, int M, int N>
+void create_and_set(geometry::AttributeCollection& coll,
+                    std::string_view               key,
+                    const Matrix<T, M, N>&         value,
+                    const Matrix<T, M, N>& default_value = Matrix<T, M, N>::Zero())
 {
-    auto attr = coll.find<IndexT>(key);
+    auto attr = coll.find<Matrix<T, M, N>>(key);
     if(!attr)
-        attr = coll.create<IndexT>(key);
-    view(*attr)[0] = value ? 1 : 0;
+        attr = coll.create<Matrix<T, M, N>>(key, default_value);
+    view(*attr)[0] = value;
+}
+
+void create_and_set(geometry::AttributeCollection& coll,
+                    std::string_view               key,
+                    const std::string&             value,
+                    const std::string& default_value = std::string{""})
+{
+    auto attr = coll.find<std::string>(key);
+    if(!attr)
+        attr = coll.create<std::string>(key, default_value);
+    view(*attr)[0] = value;
 }
 
 void Scene::build_config(const Json& config)
@@ -105,7 +121,8 @@ void Scene::build_config(const Json& config)
         // integrator/type
         create_and_set(m_config,
                        "integrator/type",
-                       config["integrator"]["type"].get<std::string>());
+                       config["integrator"]["type"].get<std::string>(),
+                       std::string{""});
     }
 
     // newton
@@ -113,6 +130,8 @@ void Scene::build_config(const Json& config)
         auto& newton = config["newton"];
         // newton/max_iter
         create_and_set(m_config, "newton/max_iter", newton["max_iter"].get<IndexT>());
+
+        create_and_set(m_config, "newton/min_iter", newton["min_iter"].get<IndexT>());
 
         // newton/use_adaptive_tol
         create_and_set(m_config,
@@ -152,7 +171,8 @@ void Scene::build_config(const Json& config)
         // line_search/report_energy
         create_and_set(m_config,
                        "line_search/report_energy",
-                       b2i(line_search["report_energy"].get<bool>()));
+                       b2i(line_search["report_energy"].get<bool>()),
+                       0);
     }
 
     // contact
@@ -164,7 +184,8 @@ void Scene::build_config(const Json& config)
         // contact/friction/enable
         create_and_set(m_config,
                        "contact/friction/enable",
-                       b2i(contact["friction"]["enable"].get<bool>()));
+                       b2i(contact["friction"]["enable"].get<bool>()),
+                       0);
 
         // contact/constitution
         create_and_set(m_config,

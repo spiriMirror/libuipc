@@ -128,7 +128,8 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
         const geometry::SimplicialComplex& scene_surface =
             context->scene_simplicial_surface();
 
-        const ContactTabular& contact_tabular = context->contact_tabular();
+        auto& contact_tabular  = context->contact_tabular();
+        auto& subscene_tabular = context->subscene_tabular();
 
         auto Vs = scene_surface.vertices().size() ? scene_surface.positions().view() :
                                                     span<const Vector3>{};
@@ -246,7 +247,7 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                 Vector3i SCidFs = {SCIds[F[0]], SCIds[F[1]], SCIds[F[2]]};
 
                 // 3) if subscene contact is not enabled between two subscene, skip it
-                if(!need_subscene_contact(contact_tabular, SCidEs, SCidFs))
+                if(!need_contact(subscene_tabular, SCidEs, SCidFs))
                     return;
 
 

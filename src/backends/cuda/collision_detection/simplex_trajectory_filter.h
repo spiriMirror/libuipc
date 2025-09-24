@@ -43,9 +43,9 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         muda::CBufferView<Float>    thicknesses() const noexcept;
         muda::CBufferView<IndexT>   dimensions() const noexcept;
         muda::CBufferView<IndexT>   contact_element_ids() const noexcept;
-        muda::CBufferView<IndexT>   subscene_contact_element_ids() const noexcept;
+        muda::CBufferView<IndexT>   subscene_element_ids() const noexcept;
         muda::CBuffer2DView<IndexT> contact_mask_tabular() const noexcept;
-        muda::CBuffer2DView<IndexT> subscene_contact_mask_tabular() const noexcept;
+        muda::CBuffer2DView<IndexT> subscene_mask_tabular() const noexcept;
         // Body Attributes
 
         /**

@@ -117,7 +117,7 @@ class GlobalVertexManager final : public SimSystem
     /**
      * @brief Indicate the contact element id of the vertices.
      */
-    muda::CBufferView<IndexT> subscene_contact_element_ids() const noexcept;
+    muda::CBufferView<IndexT> subscene_element_ids() const noexcept;
     /**
      * @brief The displacements of the vertices (after solving the linear system).
      * 
