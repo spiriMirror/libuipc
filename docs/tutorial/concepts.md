@@ -121,6 +121,7 @@ To simulate the contact behavior of the object, we need to create a contact mode
     ```
 
 Now we can create a wooden cube object in the scene.
+
 === "C++"
 
     ```cpp
