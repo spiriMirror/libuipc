@@ -202,7 +202,7 @@ MUDA_GENERIC void analytical_edge_edge_pFpx(const Eigen::Vector<T, 3>& e0,
                                                    const Eigen::Vector<T, 3>& e3,
                                                    T result[12][9])
 {
-    details::g_PT(
+    details::pFpx_ee(
         e0[0], e0[1], e0[2], e1[0], e1[1], e1[2], e2[0], e2[1], e2[2], e3[0], e3[1], e3[2], result);
 }
 
