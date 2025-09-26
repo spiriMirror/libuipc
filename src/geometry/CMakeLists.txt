@@ -1,6 +1,7 @@
 find_package(libigl REQUIRED)
 find_package(TBB REQUIRED)
 
+
 add_library(uipc_geometry SHARED)
 add_library(uipc::geometry ALIAS uipc_geometry)
 
@@ -15,6 +16,10 @@ target_link_libraries(uipc_geometry PUBLIC
     octree
     TBB::tbb
 )
+
+if(UIPC_WITH_VDB_SUPPORT)
+    target_link_libraries(uipc_geometry PRIVATE uipc::vdb)
+endif()
 
 target_compile_definitions(uipc_geometry PRIVATE UIPC_GEOMETRY_EXPORT_DLL=1) # export dll
 
