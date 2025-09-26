@@ -20,7 +20,9 @@ option(UIPC_BUILD_EXAMPLES "Build examples" ON)
 option(UIPC_BUILD_TESTS "Build tests" ON)
 option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
 option(UIPC_DEV_MODE "Enable developer mode" OFF)
-option(UIPC_WITH_USD_SUPPORT "Build with Universal Scene Description support" OFF)
+option(UIPC_WITH_USD_SUPPORT "Build with Universal Scene Description (USD) support" OFF)
+option(UIPC_WITH_VDB_SUPPORT "Build with Volumetric DataBase (VDB) support" OFF)
+
 set(UIPC_PYTHON_EXECUTABLE_PATH "" CACHE PATH "Python executable path")
 
 # =========================================================================

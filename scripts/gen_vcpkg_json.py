@@ -115,6 +115,12 @@ def gen_vcpkg_json(args):
             'name': 'usd',
             'version>=': '25.5.1'
         })
+    if is_enabled(args.with_vdb_support):
+        deps.append({
+            'name': 'openvdb',
+            'version>=': '12.0.1',
+            'features': ['nanovdb']
+        })
 
 def print_deps():
     str_names = []
@@ -130,6 +136,7 @@ if __name__ == '__main__':
     parser.add_argument('--build_gui', type=str, default=False, help='Build GUI dependencies.')
     parser.add_argument('--dev_mode', type=str, default=False, help='Enable development mode.')
     parser.add_argument('--with_usd_support', type=str, default=False, help='Enable USD support.')
+    parser.add_argument('--with_vdb_support', type=str, default=False, help='Enable VDB support.')
     
     args = parser.parse_args()
     print(f'[libuipc] Generating vcpkg.json with args:')

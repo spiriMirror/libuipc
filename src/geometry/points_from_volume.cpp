@@ -11,62 +11,77 @@
 #include <uipc/geometry/utils/label_triangle_orient.h>
 #include <uipc/geometry/utils/factory.h>
 #include <uipc/geometry/utils/flip_inward_triangles.h>
+#if UIPC_WITH_VDB_SUPPORT
+#include "../vdb/points_from_volume.h"
+#endif
 
 namespace uipc::geometry
 {
-SimplicialComplex scan_trimesh(const SimplicialComplex& sc, Float resolution)
+namespace detail
 {
-    SimplicialComplex R;
+    SimplicialComplex scan_trimesh(const SimplicialComplex& sc, Float resolution)
+    {
+        SimplicialComplex R;
 
-    MatrixX         V;
-    Eigen::MatrixXi F;
-    V.resize(sc.vertices().size(), 3);
-    F.resize(sc.triangles().size(), 3);
-    auto V_span = sc.positions().view();
-    auto F_span = sc.triangles().topo().view();
+        MatrixX         V;
+        Eigen::MatrixXi F;
+        V.resize(sc.vertices().size(), 3);
+        F.resize(sc.triangles().size(), 3);
+        auto V_span = sc.positions().view();
+        auto F_span = sc.triangles().topo().view();
 
-    for(auto [i, value] : enumerate(V_span))
-        V.row(i) = value;
-    for(auto [i, value] : enumerate(F_span))
-        F.row(i) = value;
+        for(auto [i, value] : enumerate(V_span))
+            V.row(i) = value;
+        for(auto [i, value] : enumerate(F_span))
+            F.row(i) = value;
 
-    // 1. compute bounding box with padding
-    Vector3 min_corner = V.colwise().minCoeff().array() - resolution / 2;
-    Vector3 max_corner = V.colwise().maxCoeff().array() + resolution / 2;
+        // 1. compute bounding box with padding
+        Vector3 min_corner = V.colwise().minCoeff().array() - resolution / 2;
+        Vector3 max_corner = V.colwise().maxCoeff().array() + resolution / 2;
 
-    // 2. compute number of voxels in each dimension
-    auto nx = static_cast<size_t>((max_corner.x() - min_corner.x()) / resolution) + 1;
-    auto ny = static_cast<size_t>((max_corner.y() - min_corner.y()) / resolution) + 1;
-    auto nz = static_cast<SizeT>((max_corner.z() - min_corner.z()) / resolution) + 1;
+        // 2. compute number of voxels in each dimension
+        auto nx = static_cast<size_t>((max_corner.x() - min_corner.x()) / resolution) + 1;
+        auto ny = static_cast<size_t>((max_corner.y() - min_corner.y()) / resolution) + 1;
+        auto nz = static_cast<SizeT>((max_corner.z() - min_corner.z()) / resolution) + 1;
 
-    SizeT voxel_count = nx * ny * nz;
+        SizeT voxel_count = nx * ny * nz;
 
-    // 3. parallel for loop to generate points
-    tbb::concurrent_vector<Vector3> inside_points;
-    inside_points.reserve(voxel_count);
-    tbb::parallel_for(tbb::blocked_range<size_t>(0, voxel_count),
-                      [&](const tbb::blocked_range<size_t>& r)
-                      {
-                          for(SizeT i = r.begin(); i < r.end(); ++i)
+        // 3. parallel for loop to generate points
+        tbb::concurrent_vector<Vector3> inside_points;
+        inside_points.reserve(voxel_count);
+        tbb::parallel_for(tbb::blocked_range<size_t>(0, voxel_count),
+                          [&](const tbb::blocked_range<size_t>& r)
                           {
-                              Eigen::MatrixXd Q(1, 3);
-                              SizeT           ix = i % nx;
-                              SizeT           iy = (i / nx) % ny;
-                              SizeT           iz = i / (nx * ny);
-                              Q(0, 0) = min_corner.x() + ix * resolution;
-                              Q(0, 1) = min_corner.y() + iy * resolution;
-                              Q(0, 2) = min_corner.z() + iz * resolution;
-                              Eigen::VectorXd wn;
-                              igl::winding_number(V, F, Q, wn);
-                              if(wn[0] > 0.5)
+                              for(SizeT i = r.begin(); i < r.end(); ++i)
                               {
-                                  inside_points.push_back(Q.row(0));
+                                  Eigen::MatrixXd Q(1, 3);
+                                  SizeT           ix = i % nx;
+                                  SizeT           iy = (i / nx) % ny;
+                                  SizeT           iz = i / (nx * ny);
+                                  Q(0, 0) = min_corner.x() + ix * resolution;
+                                  Q(0, 1) = min_corner.y() + iy * resolution;
+                                  Q(0, 2) = min_corner.z() + iz * resolution;
+                                  Eigen::VectorXd wn;
+                                  igl::winding_number(V, F, Q, wn);
+                                  if(wn[0] > 0.5)
+                                  {
+                                      inside_points.push_back(Q.row(0));
+                                  }
                               }
-                          }
-                      });
+                          });
 
-    std::vector<Vector3> vertex_indices{inside_points.begin(), inside_points.end()};
-    return pointcloud(vertex_indices);
+        std::vector<Vector3> vertex_indices{inside_points.begin(), inside_points.end()};
+        return pointcloud(vertex_indices);
+    }
+}  // namespace detail
+
+SimplicialComplex mesh_to_point_cloud(const SimplicialComplex& sc, Float resolution)
+{
+#if UIPC_WITH_VDB_SUPPORT
+    return uipc::vdb::mesh_to_point_cloud(sc, resolution);
+#else
+    return detail::scan_trimesh(sc, resolution);
+#endif
 }
 
 SimplicialComplex points_from_volume(const SimplicialComplex& sc, Float resolution)
@@ -78,7 +93,8 @@ SimplicialComplex points_from_volume(const SimplicialComplex& sc, Float resoluti
     {
         UIPC_ASSERT(is_trimesh_closed(sc),
                     "points_from_volume: The input 2D simplicial complex must be a closed manifold.");
-        return scan_trimesh(sc, resolution);
+
+        return mesh_to_point_cloud(sc, resolution);
     }
 
     if(sc.dim() == 3)
@@ -88,7 +104,7 @@ SimplicialComplex points_from_volume(const SimplicialComplex& sc, Float resoluti
         label_triangle_orient(tmp_sc);
         auto surface  = extract_surface(tmp_sc);
         auto oriented = flip_inward_triangles(surface);
-        return scan_trimesh(oriented, resolution);
+        return mesh_to_point_cloud(oriented, resolution);
     }
 
     // avoid compiler warning

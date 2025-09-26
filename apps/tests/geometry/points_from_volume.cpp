@@ -10,6 +10,7 @@ TEST_CASE("points_from_volume", "[points]")
 {
     SimplicialComplexIO io;
     auto                output_path = AssetDir::output_path(__FILE__);
+
     SECTION("cube")
     {
         auto mesh = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
@@ -20,7 +21,7 @@ TEST_CASE("points_from_volume", "[points]")
     SECTION("bunny0")
     {
         auto mesh = io.read_msh(fmt::format("{}bunny0.msh", AssetDir::tetmesh_path()));
-        auto pc = points_from_volume(mesh, 0.1);
+        auto pc = points_from_volume(mesh, 0.03);
         io.write(fmt::format("{}/points_from_volume.bunny0.obj", output_path), pc);
     }
 }
