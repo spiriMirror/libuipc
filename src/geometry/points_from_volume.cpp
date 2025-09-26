@@ -12,7 +12,7 @@
 #include <uipc/geometry/utils/factory.h>
 #include <uipc/geometry/utils/flip_inward_triangles.h>
 #if UIPC_WITH_VDB_SUPPORT
-#include "../vdb/points_from_volume.h"
+#include <uipc/vdb/points_from_volume.h>
 #endif
 
 namespace uipc::geometry
@@ -78,7 +78,7 @@ namespace detail
 SimplicialComplex mesh_to_point_cloud(const SimplicialComplex& sc, Float resolution)
 {
 #if UIPC_WITH_VDB_SUPPORT
-    return uipc::vdb::mesh_to_point_cloud(sc, resolution);
+    return uipc::vdb::points_from_volume(sc, resolution);
 #else
     return detail::scan_trimesh(sc, resolution);
 #endif

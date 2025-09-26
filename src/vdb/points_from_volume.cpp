@@ -1,8 +1,7 @@
-#include <points_from_volume.h>
+#include <uipc/vdb/points_from_volume.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/builtin/attribute_name.h>
 #include <openvdb/openvdb.h>
-#include <openvdb/tools/VolumeToMesh.h>
 #include <openvdb/tools/MeshToVolume.h>
 
 namespace uipc::vdb
@@ -26,7 +25,7 @@ openvdb::DoubleGrid::Ptr make_grid(const std::vector<openvdb::Vec3s>& points,
         /*interiorBandWidth=*/std::numeric_limits<Float>::max());
 }
 
-SimplicialComplex mesh_to_point_cloud(const SimplicialComplex& sc, Float resolution)
+SimplicialComplex points_from_volume(const SimplicialComplex& sc, Float resolution)
 {
     std::vector<openvdb::Vec3s> points;
     std::vector<openvdb::Vec3I> triangles;
@@ -44,7 +43,6 @@ SimplicialComplex mesh_to_point_cloud(const SimplicialComplex& sc, Float resolut
 
     auto grid = make_grid(points, triangles, resolution);
 
-    // copy all voxels to a vector
     SimplicialComplex R;
     auto voxel_size_attr      = R.meta().create<Float>("voxel_size", 0.0);
     view(*voxel_size_attr)[0] = resolution;

@@ -1,3 +1,4 @@
+cmake_policy(SET CMP0167 OLD)
 find_package(OpenVDB REQUIRED)
 
 # isolated vdb to a shared library
