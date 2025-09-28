@@ -121,6 +121,6 @@ PyUtils::PyUtils(py::module& m)
 
     m.def("compute_mesh_d_hat", &compute_mesh_d_hat, py::arg("sc"), py::arg("max_d_hat"));
 
-    m.def("points_from_volume", &points_from_volume, py::arg("sc"), py::arg("resolution"));
+    m.def("points_from_volume", &points_from_volume, py::arg("sc"), py::arg("resolution") = 0.01);
 }
 }  // namespace pyuipc::geometry
