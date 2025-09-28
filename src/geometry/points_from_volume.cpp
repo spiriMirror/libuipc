@@ -52,12 +52,12 @@ namespace detail
         tbb::parallel_for(tbb::blocked_range<size_t>(0, voxel_count),
                           [&](const tbb::blocked_range<size_t>& r)
                           {
-                              for(SizeT i = r.begin(); i < r.end(); ++i)
+                              for(size_t i = r.begin(); i < r.end(); ++i)
                               {
-                                  Eigen::MatrixXd Q(1, 3);
-                                  SizeT           ix = i % nx;
-                                  SizeT           iy = (i / nx) % ny;
-                                  SizeT           iz = i / (nx * ny);
+                                  Eigen::Matrix<Float, 1, 3> Q;
+                                  size_t          ix = i % nx;
+                                  size_t          iy = (i / nx) % ny;
+                                  size_t          iz = i / (nx * ny);
                                   Q(0, 0) = min_corner.x() + ix * resolution;
                                   Q(0, 1) = min_corner.y() + iy * resolution;
                                   Q(0, 2) = min_corner.z() + iz * resolution;
