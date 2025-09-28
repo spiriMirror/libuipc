@@ -42,7 +42,7 @@ namespace detail
         // 2. compute number of voxels in each dimension
         auto nx = static_cast<size_t>((max_corner.x() - min_corner.x()) / resolution) + 1;
         auto ny = static_cast<size_t>((max_corner.y() - min_corner.y()) / resolution) + 1;
-        auto nz = static_cast<SizeT>((max_corner.z() - min_corner.z()) / resolution) + 1;
+        auto nz = static_cast<size_t>((max_corner.z() - min_corner.z()) / resolution) + 1;
 
         SizeT voxel_count = nx * ny * nz;
 
