@@ -17,3 +17,4 @@
 #include <uipc/geometry/utils/is_trimesh_closed.h>
 #include <uipc/geometry/utils/constitution_type.h>
 #include <uipc/geometry/utils/compute_mesh_d_hat.h>
+#include <uipc/geometry/utils/points_from_volume.h>
