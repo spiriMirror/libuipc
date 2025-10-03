@@ -57,7 +57,7 @@ jobs:
 
       - name: Xmake configure
         run: |
-          xrepo env -v -b cuda "xmake config --yes --github_actions=y"
+          xrepo env -v -b -y cuda "xmake config --yes --github_actions=y"
 
       - name: Build libuipc
         run: |
