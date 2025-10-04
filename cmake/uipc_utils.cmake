@@ -51,6 +51,7 @@ function(uipc_show_options)
     message(STATUS "    * UIPC_BUILD_TESTS: ${UIPC_BUILD_TESTS}")
     message(STATUS "    * UIPC_BUILD_BENCHMARKS: ${UIPC_BUILD_BENCHMARKS}")
     message(STATUS "    * UIPC_WITH_USD_SUPPORT: ${UIPC_WITH_USD_SUPPORT}")
+    message(STATUS "    * UIPC_WITH_VDB_SUPPORT: ${UIPC_WITH_VDB_SUPPORT}")
     message(STATUS "    * UIPC_PYTHON_EXECUTABLE_PATH: ${UIPC_PYTHON_EXECUTABLE_PATH}")
 
     message(STATUS "Backend Options:")
