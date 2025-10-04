@@ -56,6 +56,12 @@ jobs:
           actions-cache-key: ${{ matrix.os }}
 
       - name: Xmake configure
+        if: matrix.os == 'ubuntu-24.04'
+        run: |
+          xmake config --yes --github_actions=y
+
+      - name: Xmake configure
+        if: matrix.os == 'windows-2025'
         run: |
           xrepo env -v -b -y cuda "xmake config --yes --github_actions=y"
 
