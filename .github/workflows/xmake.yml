@@ -63,7 +63,7 @@ jobs:
       - name: Xmake configure
         if: matrix.os == 'windows-2025'
         run: |
-          xrepo env -v -b -y cuda "xmake config --yes --github_actions=y"
+          xrepo env -y -v -b cuda "xmake config --yes --github_actions=y"
 
       - name: Build libuipc
         run: |
