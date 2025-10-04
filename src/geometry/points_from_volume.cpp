@@ -42,7 +42,7 @@ namespace detail
         // 2. compute number of voxels in each dimension
         auto nx = static_cast<size_t>((max_corner.x() - min_corner.x()) / resolution) + 1;
         auto ny = static_cast<size_t>((max_corner.y() - min_corner.y()) / resolution) + 1;
-        auto nz = static_cast<SizeT>((max_corner.z() - min_corner.z()) / resolution) + 1;
+        auto nz = static_cast<size_t>((max_corner.z() - min_corner.z()) / resolution) + 1;
 
         SizeT voxel_count = nx * ny * nz;
 
@@ -52,12 +52,12 @@ namespace detail
         tbb::parallel_for(tbb::blocked_range<size_t>(0, voxel_count),
                           [&](const tbb::blocked_range<size_t>& r)
                           {
-                              for(SizeT i = r.begin(); i < r.end(); ++i)
+                              for(size_t i = r.begin(); i < r.end(); ++i)
                               {
-                                  Eigen::MatrixXd Q(1, 3);
-                                  SizeT           ix = i % nx;
-                                  SizeT           iy = (i / nx) % ny;
-                                  SizeT           iz = i / (nx * ny);
+                                  Eigen::Matrix<Float, 1, 3> Q;
+                                  size_t          ix = i % nx;
+                                  size_t          iy = (i / nx) % ny;
+                                  size_t          iz = i / (nx * ny);
                                   Q(0, 0) = min_corner.x() + ix * resolution;
                                   Q(0, 1) = min_corner.y() + iy * resolution;
                                   Q(0, 2) = min_corner.z() + iz * resolution;
