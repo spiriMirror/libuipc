@@ -160,7 +160,6 @@ void Spmv::rbk_spmv(Float                           a,
                 auto lane_id            = thread_id_in_block & (warp_size - 1);
 
                 int rest = A.triplet_count() - blockIdx.x * block_dim;
-                int valid_count_in_block = rest > block_dim ? block_dim : rest;
 
                 __shared__ union
                 {
@@ -228,8 +227,7 @@ void Spmv::rbk_spmv(Float                           a,
                     }
                 }
 
-                flags.flags =
-                    WarpReduceInt(temp_storage_int[warp_id])
+                flags.flags = WarpReduceInt(temp_storage_int[warp_id])
                                   .HeadSegmentedReduce(flags.flags,
                                                        flags.is_head,
                                                        [](uint32_t a, uint32_t b)
@@ -259,10 +257,11 @@ void Spmv::rbk_spmv(Float                           a,
                 flags.is_head = b2i(flags.is_head && flags.is_valid);
 
                 flags.b2i();
-                int is_head_mask = detail::bit_operation::WARP_BALLOT(flags.is_head, warp_mask);
-                uint32_t offset  = fns(is_head_mask, 0, lane_id + 1);
+                int is_head_mask =
+                    detail::bit_operation::WARP_BALLOT(flags.is_head, warp_mask);
+                uint32_t offset = fns(is_head_mask, 0, lane_id + 1);
 
-                int valid_bit    = (offset != ~0u);
+                int valid_bit = (offset != ~0u);
                 int shuffle_mask = detail::bit_operation::WARP_BALLOT(valid_bit, warp_mask);
 
                 i = cub::ShuffleIndex<32>(i, offset, shuffle_mask);
@@ -335,7 +334,6 @@ void Spmv::rbk_sym_spmv(Float                           a,
                 auto lane_id            = thread_id_in_block & (warp_size - 1);
 
                 int rest = A.triplet_count() - blockIdx.x * block_dim;
-                int valid_count_in_block = rest > block_dim ? block_dim : rest;
 
                 __shared__ union
                 {
@@ -344,7 +342,6 @@ void Spmv::rbk_sym_spmv(Float                           a,
                 };
 
                 int     prev_i = -1;
-                int     next_i = -1;
                 int     i      = -1;
                 Flags   flags;
                 Vector3 vec;
@@ -357,13 +354,6 @@ void Spmv::rbk_sym_spmv(Float                           a,
                 {
                     auto prev_triplet = A(global_thread_id - 1);
                     prev_i            = prev_triplet.row_index;
-                }
-
-                // set the next row index
-                if(global_thread_id < A.triplet_count() - 1 /* && global_thread_id>=0 */)
-                {
-                    auto next_triplet = A(global_thread_id + 1);
-                    next_i            = next_triplet.row_index;
                 }
 
                 if(global_thread_id < A.triplet_count())
@@ -402,8 +392,7 @@ void Spmv::rbk_sym_spmv(Float                           a,
 
 
                 // ----------------------------------- warp reduce ----------------------------------------------
-                flags.flags =
-                    WarpReduceInt(temp_storage_int[warp_id])
+                flags.flags = WarpReduceInt(temp_storage_int[warp_id])
                                   .HeadSegmentedReduce(flags.flags,
                                                        flags.is_head,
                                                        [](uint32_t a, uint32_t b)

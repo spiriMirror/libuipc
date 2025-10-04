@@ -279,7 +279,6 @@ void SimEngine::do_advance()
             // 4. Nonlinear-Newton Iteration
             Float box_size = vertex_bounding_box.diagonal().norm();
             Float tol      = m_newton_scene_tol * box_size;
-            Float res0     = 0.0;
             m_newton_tolerance_manager->pre_newton(m_current_frame);
 
             auto   newton_max_iter = m_newton_max_iter->view()[0];
@@ -345,8 +344,7 @@ void SimEngine::do_advance()
 
                     // * Step Forward => x = x_0 + alpha * dx
                     // Compute Test Energy => E
-                    Float E  = compute_energy(alpha);
-                    Float E1 = E;
+                    Float E = compute_energy(alpha);
 
                     if(!converged)
                     {

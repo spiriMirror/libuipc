@@ -30,5 +30,5 @@ bin/
 .cache/
 .clangd
 .idea/
-
+.vscode/
 

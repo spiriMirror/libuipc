@@ -261,8 +261,8 @@ void AffineBodyDynamics::Impl::_build_geo_infos(WorldVisitor& world)
 
     std::ranges::transform(geo_infos,
                            geo_body_counts.begin(),
-                           [](const GeoInfo& info) -> SizeT
-                           { return info.body_count; });
+                           [](const GeoInfo& info) -> IndexT
+                           { return static_cast<IndexT>(info.body_count); });
 
     geo_body_offsets_counts.scan();
 
