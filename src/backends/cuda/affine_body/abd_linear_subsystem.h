@@ -41,7 +41,7 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         friend class ABDLinearSubsystem;
 
         Impl*  m_impl  = nullptr;
-        IndexT m_index = ~0ull;
+        IndexT m_index = ~0;
     };
 
     class Impl
