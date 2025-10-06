@@ -24,7 +24,7 @@ AnimatorVisitor WorldVisitor::animator() noexcept
     return AnimatorVisitor{m_world.m_scene->animator()};
 }
 
-core::World WorldVisitor::get() noexcept
+core::World WorldVisitor::get() const noexcept
 {
     return core::World{m_world.shared_from_this()};
 }

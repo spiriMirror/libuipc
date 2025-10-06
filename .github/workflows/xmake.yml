@@ -12,6 +12,8 @@ on:
       - 'README.md'
       - 'docs/**'
       - '.github/workflows/cmake.yml'
+      - '**/CMakeLists.txt'
+      - CMakePresets.json
 
 jobs:
   build:
@@ -35,6 +37,7 @@ jobs:
           remove-codeql: 'true'
 
       - name: Setup cuda
+        if: matrix.os == 'ubuntu-24.04'
         uses: Jimver/cuda-toolkit@v0.2.20
         id: cuda-toolkit
         with:
@@ -53,11 +56,17 @@ jobs:
           actions-cache-key: ${{ matrix.os }}
 
       - name: Xmake configure
+        if: matrix.os == 'ubuntu-24.04'
         run: |
           xmake config --yes --github_actions=y
 
+      - name: Xmake configure
+        if: matrix.os == 'windows-2025'
+        run: |
+          xrepo env -y -v -b cuda "xmake config --yes --github_actions=y"
+
       - name: Build libuipc
         run: |
-          xmake build geometry
+          xmake build uipc_geometry
           xmake build --jobs=4 cuda
           xmake build --all

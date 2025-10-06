@@ -7,7 +7,8 @@ REGISTER_SIM_SYSTEM(TimeIntegratorManager);
 
 void TimeIntegratorManager::do_build()
 {
-    m_impl.dt = world().scene().info()["dt"];
+    auto dt_attr = world().scene().config().find<Float>("dt");
+    m_impl.dt    = dt_attr->view()[0];
 }
 
 void TimeIntegratorManager::init()

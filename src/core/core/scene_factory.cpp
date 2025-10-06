@@ -20,9 +20,12 @@ namespace uipc::core
 //      },
 //      __data__:
 //      {
-//          config:{ ... },
-//
 //          contact_tabular:
+//          {
+//              elements:{}
+//          }
+//
+//          constitution_tabular:
 //          {
 //              elements:{}
 //          }
@@ -76,7 +79,9 @@ class SceneFactory::Impl
 
         // contact models
         {
+            ga.create("config", *snapshot.m_config);
             ga.create("contact_models", *snapshot.m_contact_models);
+            ga.create("subscene_models", *snapshot.m_subscene_models);
         }
 
         data["geometry_atlas"] = ga.to_json();
@@ -93,13 +98,18 @@ class SceneFactory::Impl
         }
         auto& data = j[builtin::__data__];
         {
-            data["config"] = snapshot.m_config;
             // contact_tabular
             auto& contact_tabular               = data["contact_tabular"];
             contact_tabular["contact_elements"] = snapshot.m_contact_elements;
+
+            // subscene_tabular
+            auto& subscene_tabular = data["subscene_tabular"];
+            subscene_tabular["subscene_elements"] = snapshot.m_subscene_elements;
+
             // constitution_tabular
             // don't need to store constitution tabular
             // this will be recovered from geometries
+
             // objects
             auto& objects_json = data["object_collection"];
             uipc::core::to_json(objects_json, snapshot.m_object_collection);
@@ -107,7 +117,7 @@ class SceneFactory::Impl
             // - geometry slots
             // - rest geometry slots
             // - contact models
-            //
+            // - subscene models
             // - geometry atlas
             build_geometry_atlas_from_scene_snapshot(snapshot, data, ga);
         }
@@ -126,7 +136,7 @@ class SceneFactory::Impl
         auto& meta = *meta_it;
         if(meta["type"] != UIPC_TO_STRING(SceneSnapshot))
         {
-            UIPC_WARN_WITH_LOCATION("Invalid type in __meta__, expected `Scene`");
+            UIPC_WARN_WITH_LOCATION("Invalid type in __meta__, expected `SceneSnapshot`");
             return snapshot;
         }
         auto data_it = j.find(builtin::__data__);
@@ -137,20 +147,25 @@ class SceneFactory::Impl
         }
         auto& data = *data_it;
 
-        // 1) Config
-        {
-            auto config = Scene::default_config();
-            // merge default config with the one in json
-            // if same key, json config will override default config
-            config.merge_patch(data["config"]);
-            snapshot.m_config = config;
-        }
-
-        // 2) Build geometry atlas
+        // 1) Build geometry atlas
         GeometryAtlas ga;
         {
             auto& geometry_atlas_json = data["geometry_atlas"];
             ga.from_json(geometry_atlas_json);
+        }
+
+        // 2) Retrieve config
+        {
+            auto config = ga.find("config");
+            if(config)
+            {
+                snapshot.m_config =
+                    uipc::make_shared<geometry::AttributeCollection>(*config);
+            }
+            else
+            {
+                UIPC_WARN_WITH_LOCATION("Config not found in geometry atlas");
+            }
         }
 
         // 3) Retrieve contact tabular
@@ -185,13 +200,45 @@ class SceneFactory::Impl
             }
         }
 
-        // 4) Retrieve objects
+        // 4) Retrieve subscene tabular
+        {
+            auto&                   subscene_tabular = data["subscene_tabular"];
+            vector<SubsceneElement> se;
+            auto element_it = subscene_tabular.find("subscene_elements");
+            if(element_it != subscene_tabular.end())
+            {
+                auto& elements = *element_it;
+                if(elements.is_array())
+                {
+                    se = elements.get<vector<SubsceneElement>>();
+                }
+                else
+                {
+                    UIPC_WARN_WITH_LOCATION("subscene_elements is not an array");
+                }
+            }
+            else
+            {
+                UIPC_WARN_WITH_LOCATION("Can not find `subscene_elements` in subscene_tabular");
+            }
+
+            // subscene models
+            auto subscene_models = ga.find("subscene_models");
+            if(subscene_models && !se.empty())
+            {
+                snapshot.m_subscene_models =
+                    uipc::make_shared<geometry::AttributeCollection>(*subscene_models);
+                snapshot.m_subscene_elements = se;
+            }
+        }
+
+        // 5) Retrieve objects
         {
             auto& objects_json = data["object_collection"];
             uipc::core::from_json(objects_json, snapshot.m_object_collection);
         }
 
-        // 5) Recover geometry slots & rest geometry slots
+        // 6) Recover geometry slots & rest geometry slots
         {
             auto& geometry_slots_json      = data["geometry_slots"];
             auto& rest_geometry_slots_json = data["rest_geometry_slots"];
@@ -230,14 +277,17 @@ class SceneFactory::Impl
         geometry::GeometryFactory gf;
 
         // 1) Config
-        Scene scene{snapshot.m_config};
+        Scene scene;
+        scene.config().build_from(*snapshot.m_config);
+
         // 2) Contact tabular
         scene.contact_tabular().build_from(*snapshot.m_contact_models,
                                            snapshot.m_contact_elements);
+        // 3) Subscene tabular
+        scene.subscene_tabular().build_from(*snapshot.m_subscene_models,
+                                            snapshot.m_subscene_elements);
 
-
-        // 3) Geometry
-        // 4) Rest Geometry
+        // 4) Geometry and rest geometry
         {
             auto build_geometries =
                 [&gf, &scene](const unordered_map<IndexT, S<geometry::Geometry>>& geometries,
@@ -285,18 +335,26 @@ class SceneFactory::Impl
         }
         auto& data = j[builtin::__data__];
         {
-            data["config"] = commit.m_config;
+            // config
+            gac.create("config", *commit.m_config);
+
             // contact_tabular
             auto& contact_tabular               = data["contact_tabular"];
             contact_tabular["contact_elements"] = commit.m_contact_elements;
+            gac.create("contact_models", *commit.m_contact_models);
+
+            // subscene_tabular
+            auto& subscene_tabular                = data["subscene_tabular"];
+            subscene_tabular["subscene_elements"] = commit.m_subscene_elements;
+            gac.create("subscene_models", *commit.m_subscene_models);
+
             // constitution_tabular
             // don't need to store constitution tabular
             // this will be recovered from geometries
+
             // objects
             auto& objects_json = data["object_collection"];
             uipc::core::to_json(objects_json, commit.m_object_collection);
-
-            gac.create("contact_models", *commit.m_contact_models);
 
             // geometry slots
             auto& geo_slots_json      = data["geometry_slots"];
@@ -358,25 +416,8 @@ class SceneFactory::Impl
 
                 auto& data = *data_it;
 
-                // 1) Config
-                {
-                    auto config_it = data.find("config");
-                    if(config_it == data.end())
-                    {
-                        UIPC_WARN_WITH_LOCATION("Can not find `config` in json");
-                        commit.m_is_valid = false;
-                        break;
-                    }
 
-                    auto config = Scene::default_config();
-                    // merge default config with the one in json
-                    // if same key, json config will override default config
-
-                    config.merge_patch(data["config"]);
-                    commit.m_config = config;
-                }
-
-                // 2) Build geometry atlas commit
+                // 1) Build geometry atlas commit
                 {
                     auto geometry_atlas_it = data.find("geometry_atlas");
                     if(geometry_atlas_it == data.end())
@@ -390,6 +431,18 @@ class SceneFactory::Impl
                     gac.from_json(geometry_atlas_json);
                 }
 
+                // 2) Retrieve config
+                {
+                    auto config = gac.find("config");
+                    if(!config)
+                    {
+                        UIPC_WARN_WITH_LOCATION("Config not found in geometry atlas");
+                        commit.m_is_valid = false;
+                        break;
+                    }
+                    commit.m_config =
+                        uipc::make_shared<geometry::AttributeCollectionCommit>(*config);
+                }
 
                 // 3) Build object collection commit
                 {
@@ -403,6 +456,7 @@ class SceneFactory::Impl
                     auto& objects_json = *object_collection_it;
                     uipc::core::from_json(objects_json, commit.m_object_collection);
                 }
+
 
                 // 4) Retrieve contact tabular
                 {
@@ -437,6 +491,38 @@ class SceneFactory::Impl
                         uipc::make_shared<geometry::AttributeCollectionCommit>(*contact_models);
                 }
 
+                // 5) Retrieve subscene tabular
+                {
+                    auto subscene_tabular_it = data.find("subscene_tabular");
+                    if(subscene_tabular_it == data.end())
+                    {
+                        UIPC_WARN_WITH_LOCATION("Can not find `subscene_tabular` in json");
+                        commit.m_is_valid = false;
+                        break;
+                    }
+
+                    auto& subscene_tabular = *subscene_tabular_it;
+                    auto subscene_element_it = subscene_tabular.find("subscene_elements");
+                    if(subscene_element_it == subscene_tabular.end())
+                    {
+                        UIPC_WARN_WITH_LOCATION("Can not find `subscene_elements` in subscene_tabular");
+                        commit.m_is_valid = false;
+                        break;
+                    }
+
+                    auto& subscene_element = *subscene_element_it;
+                    commit.m_subscene_elements =
+                        subscene_element.get<vector<SubsceneElement>>();
+                    auto subscene_models = gac.find("subscene_models");
+                    if(!subscene_models)
+                    {
+                        UIPC_WARN_WITH_LOCATION("Subscene models not found in geometry atlas");
+                        commit.m_is_valid = false;
+                        break;
+                    }
+                    commit.m_subscene_models =
+                        uipc::make_shared<geometry::AttributeCollectionCommit>(*subscene_models);
+                }
 
                 // 5) Recover geometry slots & rest geometry slots
                 auto& geometry_slots_json      = data["geometry_slots"];
@@ -486,7 +572,6 @@ class SceneFactory::Impl
                         break;
                     }
                 }
-
             } while(0);
         }
         catch(const std::exception& e)
@@ -494,6 +579,11 @@ class SceneFactory::Impl
             UIPC_WARN_WITH_LOCATION("Failed to parse SceneSnapshotCommit from json: {}",
                                     e.what());
             commit.m_is_valid = false;
+        }
+
+        if(!commit.m_is_valid)
+        {
+            UIPC_WARN_WITH_LOCATION("Invalid SceneSnapshotCommit json");
         }
 
         return commit;

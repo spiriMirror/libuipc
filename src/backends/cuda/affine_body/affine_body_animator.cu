@@ -12,7 +12,8 @@ void AffineBodyAnimator::do_build(BuildInfo& info)
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
     m_impl.global_animator      = &require<GlobalAnimator>();
-    m_impl.dt                   = world().scene().info()["dt"].get<Float>();
+    auto dt_attr                = world().scene().config().find<Float>("dt");
+    m_impl.dt                   = dt_attr->view()[0];
 }
 
 void AffineBodyAnimator::add_constraint(AffineBodyConstraint* constraint)
@@ -161,10 +162,6 @@ void AffineBodyAnimator::Impl::step()
         FilteredInfo info{this, constraint->m_index};
         constraint->step(info);
     }
-
-    SizeT H12x12_count = 0;
-    SizeT G12_count    = 0;
-    SizeT E_count      = 0;
 
     span<IndexT> constraint_energy_counts = constraint_energy_offsets_counts.counts();
     span<IndexT> constraint_gradient_counts = constraint_gradient_offsets_counts.counts();

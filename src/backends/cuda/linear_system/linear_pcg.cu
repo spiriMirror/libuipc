@@ -10,8 +10,9 @@ void LinearPCG::do_build(BuildInfo& info)
     auto& global_linear_system = require<GlobalLinearSystem>();
 
     // TODO: get info from the scene, now we just use the default value
-    max_iter_ratio  = 2;
-    global_tol_rate = world().scene().info()["linear_system"]["tol_rate"];
+    max_iter_ratio = 2;
+    auto tol_rate_attr = world().scene().config().find<Float>("linear_system/tol_rate");
+    global_tol_rate = tol_rate_attr->view()[0];
     // spdlog::info("LinearPCG: max_iter_ratio = {}, tol_rate = {}", max_iter_ratio, global_tol_rate);
 }
 

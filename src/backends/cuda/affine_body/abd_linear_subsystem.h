@@ -1,7 +1,7 @@
 #pragma once
 #include <linear_system/diag_linear_subsystem.h>
 #include <affine_body/affine_body_dynamics.h>
-#include <affine_body/abd_contact_receiver.h>
+#include <affine_body/abd_dytopo_effect_receiver.h>
 #include <affine_body/affine_body_vertex_reporter.h>
 #include <affine_body/matrix_converter.h>
 #include <utils/offset_count_collection.h>
@@ -41,7 +41,7 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         friend class ABDLinearSubsystem;
 
         Impl*  m_impl  = nullptr;
-        IndexT m_index = ~0ull;
+        IndexT m_index = ~0;
     };
 
     class Impl
@@ -59,8 +59,7 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 
         SimSystemSlot<AffineBodyDynamics>       affine_body_dynamics;
         AffineBodyDynamics::Impl&               abd() const noexcept;
-        SimSystemSlot<ABDContactReceiver>       abd_contact_receiver;
-        ABDContactReceiver::Impl&               contact() const noexcept;
+        SimSystemSlot<ABDDyTopoEffectReceiver>  dytopo_effect_receiver;
         SimSystemSlot<AffineBodyVertexReporter> affine_body_vertex_reporter;
 
         Float reserve_ratio = 1.5;

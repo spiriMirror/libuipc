@@ -6,7 +6,7 @@
 #include <urdf_parser/urdf_parser.h>
 #include <filesystem>
 #include <Eigen/Geometry>
-#include <magic_enum.hpp>
+#include <uipc/common/magic_enum.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/zip.h>
 #include <uipc/geometry/utils/label_surface.h>

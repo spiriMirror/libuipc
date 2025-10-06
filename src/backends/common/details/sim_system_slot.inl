@@ -40,6 +40,12 @@ SimSystemSlot<T>::SimSystemSlot(T& subsystem) noexcept
 }
 
 template <typename T>
+SimSystemSlot<T>::SimSystemSlot(T* subsystem) noexcept
+    : m_subsystem(subsystem)
+{
+}
+
+template <typename T>
 T* SimSystemSlot<T>::view() const noexcept
 {
     lazy_init();

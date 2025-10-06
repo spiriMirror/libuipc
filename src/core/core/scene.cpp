@@ -27,6 +27,7 @@ Json Scene::default_config() noexcept
     auto& newton = config["newton"];
     {
         newton["max_iter"] = 1024;
+        newton["min_iter"] = 1;
 
         newton["use_adaptive_tol"] = false;
 
@@ -104,14 +105,14 @@ Scene::Scene(S<internal::Scene> scene) noexcept
 {
 }
 
-const Json& Scene::config() const noexcept
+Scene::CConfigAttributes Scene::config() const noexcept
 {
-    return m_internal->config();
+    return CConfigAttributes{m_internal->config()};
 }
 
-Json& Scene::config() noexcept
+Scene::ConfigAttributes Scene::config() noexcept
 {
-    return m_internal->config();
+    return ConfigAttributes{m_internal->config()};
 }
 
 Scene::~Scene() = default;
@@ -124,6 +125,16 @@ ContactTabular& Scene::contact_tabular() noexcept
 const ContactTabular& Scene::contact_tabular() const noexcept
 {
     return m_internal->contact_tabular();
+}
+
+SubsceneTabular& Scene::subscene_tabular() noexcept
+{
+    return m_internal->subscene_tabular();
+}
+
+const SubsceneTabular& Scene::subscene_tabular() const noexcept
+{
+    return m_internal->subscene_tabular();
 }
 
 ConstitutionTabular& Scene::constitution_tabular() noexcept
@@ -168,7 +179,9 @@ const Animator& Scene::animator() const
 DiffSim& Scene::diff_sim()
 {
     // automatically enable diff_sim
-    m_internal->config()["diff_sim"]["enable"] = true;
+    auto diff_sim_enable = m_internal->config().find<IndexT>("diff_sim/enable");
+    UIPC_ASSERT(diff_sim_enable, "Scene config must have a 'diff_sim/enable' attribute.");
+    geometry::view(*diff_sim_enable)[0] = 1;
     return m_internal->diff_sim();
 }
 
@@ -308,7 +321,8 @@ namespace fmt
 appender fmt::formatter<uipc::core::Scene>::format(const uipc::core::Scene& c,
                                                    format_context& ctx) const
 {
-    fmt::format_to(ctx.out(), "{}", c.m_internal->objects());
+    fmt::format_to(ctx.out(), "config:\n{}", c.m_internal->config());
+    fmt::format_to(ctx.out(), "\n{}", c.m_internal->objects());
     fmt::format_to(ctx.out(), "\n{}", c.m_internal->animator());
     return ctx.out();
 }

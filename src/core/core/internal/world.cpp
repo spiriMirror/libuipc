@@ -189,8 +189,9 @@ void World::sanity_check(Scene& s)
 {
     auto engine = lock(m_engine);
 
-    auto& config = s.config();
-    if(config["sanity_check"]["enable"].get<bool>() == true)
+    auto& config                   = s.config();
+    auto  sanity_check_enable_attr = config.find<IndexT>("sanity_check/enable");
+    if(sanity_check_enable_attr->view()[0])
     {
         auto result = s.sanity_checker().check(engine->workspace());
 

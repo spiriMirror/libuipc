@@ -13,7 +13,8 @@ REGISTER_SIM_SYSTEM(GlobalVertexManager);
 
 void GlobalVertexManager::do_build()
 {
-    m_impl.default_d_hat = world().scene().info()["contact"]["d_hat"].get<Float>();
+    auto d_hat = world().scene().config().find<Float>("contact/d_hat");
+    m_impl.default_d_hat = d_hat->view()[0];
 }
 
 void GlobalVertexManager::Impl::init()
@@ -356,7 +357,7 @@ muda::CBufferView<IndexT> GlobalVertexManager::contact_element_ids() const noexc
     return m_impl.contact_element_ids;
 }
 
-muda::CBufferView<IndexT> GlobalVertexManager::subscene_contact_element_ids() const noexcept
+muda::CBufferView<IndexT> GlobalVertexManager::subscene_element_ids() const noexcept
 {
     return m_impl.contact_subscene_element_ids;
 }

@@ -5,10 +5,15 @@
 namespace uipc::core
 {
 SceneSnapshot::SceneSnapshot(const Scene& scene)
-    : m_config(scene.config())
 {
     m_contact_models = uipc::make_shared<geometry::AttributeCollection>(
         scene.contact_tabular().internal_contact_models());
+
+    m_subscene_models = uipc::make_shared<geometry::AttributeCollection>(
+        scene.subscene_tabular().internal_subscene_models());
+
+    m_config =
+        uipc::make_shared<geometry::AttributeCollection>(scene.m_internal->config());
 
     auto& internal_scene = *scene.m_internal;
     UIPC_ASSERT(internal_scene.geometries().pending_create_slots().size() == 0
@@ -21,9 +26,17 @@ SceneSnapshot::SceneSnapshot(const Scene& scene)
 )");
 
     // retrieve contact elements
-    auto span = scene.contact_tabular().contact_elements();
-    m_contact_elements.resize(span.size());
-    std::ranges::copy(span, m_contact_elements.begin());
+    {
+        auto span = scene.contact_tabular().contact_elements();
+        m_contact_elements.resize(span.size());
+        std::ranges::copy(span, m_contact_elements.begin());
+    }
+    // retrieve subscene elements
+    {
+        auto span = scene.subscene_tabular().subscene_elements();
+        m_subscene_elements.resize(span.size());
+        std::ranges::copy(span, m_subscene_elements.begin());
+    }
 
     // retrieve constitution elements
     auto& objects       = internal_scene.objects();
@@ -51,12 +64,17 @@ SceneSnapshot::SceneSnapshot(const Scene& scene)
 }
 
 SceneSnapshotCommit::SceneSnapshotCommit(const SceneSnapshot& dst, const SceneSnapshot& src)
-    : m_contact_models(uipc::make_shared<geometry::AttributeCollectionCommit>(
-        *dst.m_contact_models - *src.m_contact_models))
+    : m_config{uipc::make_shared<geometry::AttributeCollectionCommit>(
+        *dst.m_config - *src.m_config)}
+    , m_contact_models{uipc::make_shared<geometry::AttributeCollectionCommit>(
+          *dst.m_contact_models - *src.m_contact_models)}
+    , m_subscene_models{uipc::make_shared<geometry::AttributeCollectionCommit>(
+          *dst.m_subscene_models - *src.m_subscene_models)}
 {
-    m_config            = dst.m_config;
     m_object_collection = dst.m_object_collection;
+
     m_contact_elements  = dst.m_contact_elements;
+    m_subscene_elements = dst.m_subscene_elements;
 
     auto setup = [&dst, &src](unordered_map<IndexT, S<geometry::GeometryCommit>>& gcs)
     {

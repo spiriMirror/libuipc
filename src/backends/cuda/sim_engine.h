@@ -11,6 +11,7 @@ class GlobalVertexManager;
 class GlobalSimpicialSurfaceManager;
 class GlobalBodyManager;
 class GlobalContactManager;
+class GlobalDyTopoEffectManager;
 class GlobalTrajectoryFilter;
 
 class TimeIntegratorManager;
@@ -70,9 +71,10 @@ class SimEngine final : public backend::SimEngine
 
     GlobalVertexManager* m_global_vertex_manager = nullptr;
     GlobalSimpicialSurfaceManager* m_global_simplicial_surface_manager = nullptr;
-    GlobalBodyManager*      m_global_body_manager      = nullptr;
-    GlobalContactManager*   m_global_contact_manager   = nullptr;
-    GlobalTrajectoryFilter* m_global_trajectory_filter = nullptr;
+    GlobalBodyManager*         m_global_body_manager          = nullptr;
+    GlobalContactManager*      m_global_contact_manager       = nullptr;
+    GlobalDyTopoEffectManager* m_global_dytopo_effect_manager = nullptr;
+    GlobalTrajectoryFilter*    m_global_trajectory_filter     = nullptr;
 
     // Newton Solver Systems
     TimeIntegratorManager*  m_time_integrator_manager  = nullptr;
@@ -89,13 +91,20 @@ class SimEngine final : public backend::SimEngine
     //ABDDiffSimManager*           m_abd_diff_sim_manager           = nullptr;
     FiniteElementMethod* m_finite_element_method = nullptr;
 
-    Float m_newton_velocity_tol = 0.01;
-    Float m_newton_scene_tol    = 0.01;
-    SizeT m_newton_max_iter     = 1000;
-    SizeT m_current_frame       = 0;
-    bool  m_friction_enabled    = false;
-    SizeT m_last_solved_frame   = 0;
-    bool  m_strict_mode         = false;
-    Float m_ccd_tol             = 1;
+
+    bool  m_friction_enabled  = false;
+    SizeT m_last_solved_frame = 0;
+    SizeT m_current_frame     = 0;
+    Float m_newton_scene_tol  = 0.01;
+
+    template <typename T>
+    using CAS = S<const geometry::AttributeSlot<T>>;
+
+    CAS<Float>  m_newton_velocity_tol;
+    CAS<IndexT> m_newton_max_iter;
+    CAS<IndexT> m_newton_min_iter;
+    CAS<IndexT> m_strict_mode;
+    CAS<Float>  m_ccd_tol;
+    CAS<IndexT> m_dump_surface;
 };
 }  // namespace uipc::backend::cuda

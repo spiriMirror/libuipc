@@ -151,10 +151,10 @@ class AffineBodyDynamics : public SimSystem
     {
       public:
         ComputeGradientHessianInfo(muda::BufferView<Vector12>    gradient,
-                                   muda::BufferView<Matrix12x12> hessian,
+                                   muda::BufferView<Matrix12x12> hessians,
                                    Float                         dt)
             : m_gradients(gradient)
-            , m_hessians(hessian)
+            , m_hessians(hessians)
             , m_dt(dt)
         {
         }

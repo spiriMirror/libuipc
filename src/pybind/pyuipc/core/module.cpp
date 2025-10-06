@@ -13,6 +13,7 @@
 #include <pyuipc/core/sanity_checker.h>
 #include <pyuipc/core/feature_collection.h>
 #include <pyuipc/core/contact_system_feature.h>
+#include <pyuipc/core/subscene_tabular.h>
 
 namespace pyuipc::core
 {
@@ -26,7 +27,8 @@ PyModule::PyModule(py::module& m)
 
     PyObject{m};
 
-    PyContactTabular{m}; 
+    PyContactTabular{m};
+    PySubsceneTabular{m};
     PyConstitutionTabular{m};
 
     PyAnimator{m};

@@ -7,26 +7,6 @@ ContactSystemFeature::ContactSystemFeature(S<ContactSystemFeatureOverrider> over
 {
 }
 
-void ContactSystemFeature::compute_contact()
-{
-    m_impl->do_compute_contact();
-}
-
-void ContactSystemFeature::contact_energy(geometry::Geometry& energy_geo)
-{
-    m_impl->get_contact_energy(energy_geo);
-}
-
-void ContactSystemFeature::contact_gradient(geometry::Geometry& vert_grad)
-{
-    m_impl->get_contact_gradient(vert_grad);
-}
-
-void ContactSystemFeature::contact_hessian(geometry::Geometry& vert_hess)
-{
-    m_impl->get_contact_hessian(vert_hess);
-}
-
 void ContactSystemFeature::contact_energy(std::string_view prim_type, geometry::Geometry& prims)
 {
     m_impl->get_contact_energy(prim_type, prims);

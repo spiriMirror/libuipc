@@ -129,9 +129,9 @@ muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_ele
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
-muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_contact_element_ids() const noexcept
+muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_element_ids() const noexcept
 {
-    return m_impl->global_vertex_manager->subscene_contact_element_ids();
+    return m_impl->global_vertex_manager->subscene_element_ids();
 }
 
 muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_mask_tabular() const noexcept
@@ -139,9 +139,9 @@ muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_m
     return m_impl->global_contact_manager->contact_mask_tabular();
 }
 
-muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_contact_mask_tabular() const noexcept
+muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_mask_tabular() const noexcept
 {
-    return m_impl->global_contact_manager->subscene_contact_mask_tabular();
+    return m_impl->global_contact_manager->subscene_mask_tabular();
 }
 
 muda::CBufferView<Float> VertexHalfPlaneTrajectoryFilter::BaseInfo::thicknesses() const noexcept

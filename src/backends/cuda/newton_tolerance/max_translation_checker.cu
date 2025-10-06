@@ -17,10 +17,12 @@ class MaxTranslationChecker : public NewtonToleranceChecker
 
     void do_build(BuildInfo& info) override
     {
-        vertex_manager            = require<GlobalVertexManager>();
-        auto& config              = world().scene().info();
-        Float dt                  = config["dt"];
-        Float newton_velocity_tol = config["newton"]["velocity_tol"];
+        vertex_manager = require<GlobalVertexManager>();
+        auto& config   = world().scene().config();
+        auto  dt_attr  = config.find<Float>("dt");
+        Float dt       = dt_attr->view()[0];
+        auto newton_velocity_tol_attr = config.find<Float>("newton/velocity_tol");
+        Float newton_velocity_tol = newton_velocity_tol_attr->view()[0];
 
         abs_tol = newton_velocity_tol * dt;
     }

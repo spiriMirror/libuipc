@@ -129,7 +129,7 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
         return (stretchS * stretch_energy + shearS * shear_energy);
     }
 
-    inline UIPC_GENERIC void dEdF(Matrix<Float, 3, 2>        R,
+    inline UIPC_GENERIC void dEdF(Matrix<Float, 3, 2>&        R,
                                   const Matrix<Float, 3, 2>& F,                               
                                   const Vector2&             anisotropic_a,
                                   const Vector2&             anisotropic_b,
