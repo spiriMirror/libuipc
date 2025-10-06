@@ -196,4 +196,4 @@ and create subscene model by:
         subscene_tabular.default_model(True)
         ```
 
-Note that the default rule 1 is different from the contact tabular, because normally objects in the same subscene are allowed to interact, while objects in different subscenes are not, the matrix of $S_{ij}$ most of time looks like an identity matrix. We make the most common case as the default rule to reduce the burden of users.
+Note that **the default rule 1 is different from the contact tabular**, because normally objects in the same subscene are allowed to interact, while objects in different subscenes are not, the matrix of $S_{ij}$ most of time looks like an identity matrix. We make the most common case as the default rule to reduce the burden of users.
