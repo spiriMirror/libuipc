@@ -5,7 +5,7 @@ import os
 VCPKG_TAG = '2025.7.25'
 VCPKG_BASE_LINE = 'dd3097e305afa53f7b4312371f62058d2e665320'
 
-SPIRI_VCPKG_BASE_LINE = 'c34f15fe5867f61cb83309fd053da6b47eca0af9'
+SPIRI_VCPKG_BASE_LINE = '8043849983962d748974dfbcecf2b66c0468958f'
 
 # vcpkg.json
 base_vcpkg_json = {
@@ -67,7 +67,7 @@ base_vcpkg_json = {
         },
         {
             'name': 'muda',
-            'version>=': '2025.10.3'
+            'version>=': '2025.10.3#1'
         }
     ],
     
