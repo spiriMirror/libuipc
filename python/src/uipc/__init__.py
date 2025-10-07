@@ -4,7 +4,8 @@ import pathlib
 import json
 
 this_file_dir = os.path.dirname(__file__)
-if os.name not in ['nt', 'posix']:
+# support windows, linux, macos
+if os.name not in ['nt', 'posix', 'darwin']:
     raise Exception('Unsupported platform: ' + os.name)
 
 sys.path.append(this_file_dir + '/modules/Release/bin')

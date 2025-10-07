@@ -48,7 +48,7 @@ void VertexHalfPlaneTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::F
     FilterActiveInfo this_info{&m_impl};
     do_filter_active(this_info);
 
-    spdlog::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
+    log::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
 }
 
 void VertexHalfPlaneTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)

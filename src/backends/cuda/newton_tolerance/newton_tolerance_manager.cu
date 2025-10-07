@@ -72,7 +72,7 @@ void NewtonToleranceManager::check(ResultInfo& info)
         }
     }
 
-    spdlog::info(
+    log::info(
         R"(>> Newton Tolerance Checker
 ============================= [{}] Frame {} Newton Iteration {} ============================{}
 --------------------------------------------------------------------------------------------)",

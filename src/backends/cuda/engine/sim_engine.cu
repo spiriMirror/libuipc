@@ -30,7 +30,7 @@ SimEngine::SimEngine(EngineCreateInfo* info)
     {
         using namespace muda;
 
-        spdlog::info("Initializing Cuda Backend...");
+        log::info("Initializing Cuda Backend...");
 
         auto device_id = info->config["gpu"]["device"].get<IndexT>();
 
@@ -47,9 +47,9 @@ SimEngine::SimEngine(EngineCreateInfo* info)
 
         cudaDeviceProp prop;
         checkCudaErrors(cudaGetDeviceProperties(&prop, device_id));
-        spdlog::info("Device: [{}] {}", device_id, prop.name);
-        spdlog::info("Compute Capability: {}.{}", prop.major, prop.minor);
-        spdlog::info("Total Global Memory: {} MB", prop.totalGlobalMem / 1024 / 1024);
+        log::info("Device: [{}] {}", device_id, prop.name);
+        log::info("Compute Capability: {}.{}", prop.major, prop.minor);
+        log::info("Total Global Memory: {} MB", prop.totalGlobalMem / 1024 / 1024);
 
         Timer::set_sync_func([] { muda::wait_device(); });
 
@@ -59,11 +59,11 @@ SimEngine::SimEngine(EngineCreateInfo* info)
         // if in debug mode, sync all the time to check for errors
         muda::Debug::debug_sync_all(true);
 #endif
-        spdlog::info("Cuda Backend Init Success.");
+        log::info("Cuda Backend Init Success.");
     }
     catch(const SimEngineException& e)
     {
-        spdlog::error("Cuda Backend Init Failed: {}", e.what());
+        log::error("Cuda Backend Init Failed: {}", e.what());
         status().push_back(core::EngineStatus::error(e.what()));
     }
 }
@@ -75,7 +75,7 @@ SimEngine::~SimEngine()
     // remove the sync callback
     muda::Debug::set_sync_callback(nullptr);
 
-    spdlog::info("Cuda Backend Shutdown Success.");
+    log::info("Cuda Backend Shutdown Success.");
 }
 
 SimEngineState SimEngine::state() const noexcept
@@ -139,7 +139,7 @@ void SimEngine::dump_global_surface(std::string_view name)
     for(auto& edge : edges)
         file << fmt::format("l {} {}\n", edge.x() + 1, edge.y() + 1);
 
-    spdlog::info("Dumped global surface to {}", file_path);
+    log::info("Dumped global surface to {}", file_path);
 }
 }  // namespace uipc::backend::cuda
 

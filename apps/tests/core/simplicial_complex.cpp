@@ -193,7 +193,7 @@ TEST_CASE("geometry_commit", "[simplicial_complex]")
     auto pos_view = view(mesh.positions());
     std::ranges::transform(pos_view,
                            pos_view.begin(),
-                           [](auto& p) { return p + Vector3{1.0, 1.0, 1.0}; });
+                           [](auto& p)->Vector3 { return p + Vector3{1.0, 1.0, 1.0}; });
 
     REQUIRE(mesh_copy.positions().last_modified() < mesh.positions().last_modified());
 

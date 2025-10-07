@@ -31,7 +31,7 @@ void World::init(internal::Scene& s)
 
     if(!m_valid)
     {
-        spdlog::error("World is not valid, skipping init.");
+        log::error("World is not valid, skipping init.");
         return;
     }
     m_scene = s.shared_from_this();
@@ -43,7 +43,7 @@ void World::init(internal::Scene& s)
 
     if(engine->status().has_error())
     {
-        spdlog::error("Engine has error after init, world becomes invalid.");
+        log::error("Engine has error after init, world becomes invalid.");
         m_valid = false;
     }
 }
@@ -52,7 +52,7 @@ void World::advance()
 {
     if(!m_valid)
     {
-        spdlog::error("World is not valid, skipping advance.");
+        log::error("World is not valid, skipping advance.");
         return;
     }
 
@@ -62,7 +62,7 @@ void World::advance()
 
     if(engine->status().has_error())
     {
-        spdlog::error("Engine has error after advance, world becomes invalid.");
+        log::error("Engine has error after advance, world becomes invalid.");
         m_valid = false;
     }
 }
@@ -71,7 +71,7 @@ void World::sync()
 {
     if(!m_valid)
     {
-        spdlog::error("World is not valid, skipping sync.");
+        log::error("World is not valid, skipping sync.");
         return;
     }
 
@@ -81,7 +81,7 @@ void World::sync()
 
     if(engine->status().has_error())
     {
-        spdlog::error("Engine has error after sync, world becomes invalid.");
+        log::error("Engine has error after sync, world becomes invalid.");
         m_valid = false;
     }
 }
@@ -90,7 +90,7 @@ void World::retrieve()
 {
     if(!m_valid)
     {
-        spdlog::error("World is not valid, skipping retrieve.");
+        log::error("World is not valid, skipping retrieve.");
         return;
     }
 
@@ -100,7 +100,7 @@ void World::retrieve()
 
     if(engine->status().has_error())
     {
-        spdlog::error("Engine has error after retrieve, world becomes invalid.");
+        log::error("Engine has error after retrieve, world becomes invalid.");
         m_valid = false;
     }
 }
@@ -109,7 +109,7 @@ bool World::dump()
 {
     if(!m_valid)
     {
-        spdlog::error("World is not valid, skipping dump.");
+        log::error("World is not valid, skipping dump.");
         return false;
     }
 
@@ -119,7 +119,7 @@ bool World::dump()
     bool has_error = engine->status().has_error();
     if(has_error)
     {
-        spdlog::error("Engine has error after dump, world becomes invalid.");
+        log::error("Engine has error after dump, world becomes invalid.");
         m_valid = false;
     }
 
@@ -130,13 +130,13 @@ bool World::recover(SizeT aim_frame)
 {
     if(!m_scene)
     {
-        spdlog::warn("Scene has not been set, skipping recover. Hint: you may call World::init() first.");
+        log::warn("Scene has not been set, skipping recover. Hint: you may call World::init() first.");
         return false;
     }
 
     if(!m_valid)
     {
-        spdlog::error("World is not valid, skipping recover.");
+        log::error("World is not valid, skipping recover.");
         return false;
     }
 
@@ -147,7 +147,7 @@ bool World::recover(SizeT aim_frame)
 
     if(has_error)
     {
-        spdlog::error("Engine has error after recover, world becomes invalid.");
+        log::error("Engine has error after recover, world becomes invalid.");
         m_valid = false;
     }
 
@@ -173,7 +173,7 @@ SizeT World::frame() const
 
     if(!m_valid)
     {
-        spdlog::error("World is not valid, frame set to 0.");
+        log::error("World is not valid, frame set to 0.");
         return 0;
     }
     return engine->frame();

@@ -287,7 +287,7 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                     auto SelfCollL = SelfCollision[InstIdL];
                     auto SelfCollR = SelfCollision[InstIdR];
 
-                    spdlog::error(
+                    log::error(
                         "Intersection detected between Edge({},{}) in Geometry({}) "
                         "Instance({}) Object[{}] and Triangle({},{},{}) in "
                         "Geometry({}) Instance({}) Object[{}], SelfColl({},{})",

@@ -111,7 +111,7 @@ void SceneIO::write_surface_obj(std::string_view filename)
     io.write_obj(path.string(), merged_surface);
 
     auto abs_path = fs::absolute(path).string();
-    spdlog::info("Scene surface with Faces({}), Edges({}), Vertices({}) written to {}",
+    log::info("Scene surface with Faces({}), Edges({}), Vertices({}) written to {}",
                  merged_surface.triangles().size(),
                  merged_surface.edges().size(),
                  merged_surface.vertices().size(),

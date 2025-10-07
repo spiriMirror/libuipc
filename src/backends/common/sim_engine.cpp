@@ -44,14 +44,14 @@ void SimEngine::dump_system_info() const
 {
     namespace fs = std::filesystem;
 
-    spdlog::debug("Built systems:\n{}", m_system_collection);
+    log::debug("Built systems:\n{}", m_system_collection);
 
     fs::path p = fs::absolute(fs::path{workspace()} / "systems.json");
     {
         std::ofstream ofs(p);
         ofs << to_json().dump(4);
     }
-    spdlog::info("System info dumped to {}", p.string());
+    log::info("System info dumped to {}", p.string());
 }
 
 std::string SimEngine::dump_path(std::string_view _file_) const noexcept
@@ -184,7 +184,7 @@ bool SimEngine::do_dump()
         }
         catch(std::exception e)
         {
-            spdlog::error("Failed to write to dump file. Reason: {}", e.what());
+            log::error("Failed to write to dump file. Reason: {}", e.what());
             success = false;
         }
 
@@ -199,7 +199,7 @@ bool SimEngine::do_dump()
         }
         catch(std::exception e)
         {
-            spdlog::error("Failed to dump engine. Reason: {}", e.what());
+            log::error("Failed to dump engine. Reason: {}", e.what());
             success = false;
         }
 
@@ -217,7 +217,7 @@ bool SimEngine::do_dump()
 
         if(!all_success)
         {
-            spdlog::error("Failed to dump system [{}]", system->name());
+            log::error("Failed to dump system [{}]", system->name());
             break;
         }
     }
@@ -253,7 +253,7 @@ bool SimEngine::do_recover(SizeT dst_frame)
             }
             else
             {
-                spdlog::info("No dump files found, so skip recovery.");
+                log::info("No dump files found, so skip recovery.");
                 return false;
             }
         }
@@ -266,7 +266,7 @@ bool SimEngine::do_recover(SizeT dst_frame)
         std::ifstream ifs(dump_file_path);
         if(!ifs)
         {
-            spdlog::info("No dump file {} found, so skip recovery.", dump_file_path);
+            log::info("No dump file {} found, so skip recovery.", dump_file_path);
             return false;
         }
 
@@ -275,7 +275,7 @@ bool SimEngine::do_recover(SizeT dst_frame)
             std::ifstream ifs(dump_file_path);
             if(!ifs)
             {
-                spdlog::info("No dump file {} found, so skip recovery.", dump_file_path);
+                log::info("No dump file {} found, so skip recovery.", dump_file_path);
                 return false;
             }
             ifs >> j;
@@ -292,24 +292,24 @@ bool SimEngine::do_recover(SizeT dst_frame)
         catch(std::exception e)
         {
             has_error = true;
-            spdlog::info("Failed to retrieve data from state.json when recovering, so skip. Reason: {}",
+            log::info("Failed to retrieve data from state.json when recovering, so skip. Reason: {}",
                          e.what());
         }
         if(has_error)
         {
-            spdlog::info("Failed to recover from dump file {}, so skip recovery.", dump_file_path);
+            log::info("Failed to recover from dump file {}, so skip recovery.", dump_file_path);
             return false;
         }
         if(check_frame != try_recover_frame)
         {
-            spdlog::info("Frame mismatch when recovering, so skip recovery. try={}, record={}",
+            log::info("Frame mismatch when recovering, so skip recovery. try={}, record={}",
                          try_recover_frame,
                          check_frame);
             return false;
         }
         if(check_backend_name != backend_name)
         {
-            spdlog::info("Backend name mismatch when recovering, so skip recovery. try={}, record={}",
+            log::info("Backend name mismatch when recovering, so skip recovery. try={}, record={}",
                          backend_name,
                          check_backend_name);
             return false;
@@ -325,7 +325,7 @@ bool SimEngine::do_recover(SizeT dst_frame)
         all_success &= this->do_try_recover(engine_recover_info);
         if(!all_success)
         {
-            spdlog::warn("Try recovering engine fails, so skip recovery.");
+            log::warn("Try recovering engine fails, so skip recovery.");
         }
         else
         {
@@ -335,7 +335,7 @@ bool SimEngine::do_recover(SizeT dst_frame)
 
                 if(!all_success)
                 {
-                    spdlog::warn("Try recovering system [{}] fails, so skip recovery.",
+                    log::warn("Try recovering system [{}] fails, so skip recovery.",
                                  system->name());
                     break;
                 }
@@ -358,7 +358,7 @@ bool SimEngine::do_recover(SizeT dst_frame)
 
     if(all_success)
     {
-        spdlog::info("Successfully recovered to frame {}", try_recover_frame);
+        log::info("Successfully recovered to frame {}", try_recover_frame);
     }
 
     return all_success;

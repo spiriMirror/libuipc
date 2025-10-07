@@ -78,7 +78,7 @@ void FiniteElementExtraConstitution::Impl::init(U64 uid, backend::WorldVisitor& 
                     if(extra_uid == uid)
                     {
                         geo_slot_indices.push_back(geoI);
-                        // spdlog::info("Extra constitution {} found in geometry slot {}", uid, I);
+                        // log::info("Extra constitution {} found in geometry slot {}", uid, I);
                         break;
                     }
                 }

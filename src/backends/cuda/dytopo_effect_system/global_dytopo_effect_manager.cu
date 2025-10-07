@@ -95,7 +95,7 @@ void GlobalDyTopoEffectManager::Impl::_assemble()
         reporter->report_gradient_hessian_extent(info);
         reporter_gradient_counts[i] = info.m_gradient_count;
         reporter_hessian_counts[i]  = info.m_hessian_count;
-        spdlog::info("<{}> DyTopo Grad3 count: {}, DyTopo Hess3x3 count: {}",
+        log::info("<{}> DyTopo Grad3 count: {}, DyTopo Hess3x3 count: {}",
                      reporter->name(),
                      info.m_gradient_count,
                      info.m_hessian_count);

@@ -270,7 +270,7 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
 
     if(total_dof == 0 || total_triplet == 0) [[unlikely]]
     {
-        spdlog::warn("The global linear system is empty, skip *assembling, *solving and *solution distributing phase.");
+        log::warn("The global linear system is empty, skip *assembling, *solving and *solution distributing phase.");
         return false;
     }
 
@@ -351,7 +351,7 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
                     .submatrix(int2{r_blocked_dof_offset, l_blocked_dof_offset},
                                int2{r_blocked_dof_count, l_blocked_dof_count});
 
-            // spdlog::info("rl_offset: {}, lr_offset: {}", rl_triplet_offset, lr_triplet_offset);
+            // log::info("rl_offset: {}, lr_offset: {}", rl_triplet_offset, lr_triplet_offset);
 
             off_diag_subsystem->assemble(info);
         }
@@ -382,7 +382,7 @@ void GlobalLinearSystem::Impl::solve_linear_system()
         info.m_b = b.cview();
         info.m_x = x.view();
         iterative_solver->solve(info);
-        spdlog::info("Iterative linear solver iteration count: {}", info.m_iter_count);
+        log::info("Iterative linear solver iteration count: {}", info.m_iter_count);
     }
 }
 
