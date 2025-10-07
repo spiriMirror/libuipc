@@ -86,7 +86,7 @@ void SimEngine::do_advance()
             cfl_alpha = m_global_contact_manager->compute_cfl_condition();
             if(cfl_alpha < alpha)
             {
-                log::info("CFL Filter: {} < {}", cfl_alpha, alpha);
+                logger::info("CFL Filter: {} < {}", cfl_alpha, alpha);
                 return cfl_alpha;
             }
         }
@@ -102,7 +102,7 @@ void SimEngine::do_advance()
             ccd_alpha = m_global_trajectory_filter->filter_toi(alpha);
             if(ccd_alpha < alpha)
             {
-                log::info("CCD Filter: {} < {}", ccd_alpha, alpha);
+                logger::info("CCD Filter: {} < {}", ccd_alpha, alpha);
                 return ccd_alpha;
             }
         }
@@ -139,7 +139,7 @@ void SimEngine::do_advance()
         if(m_global_animator)
         {
             m_global_animator->compute_substep_ratio(newton_iter);
-            log::info("Animation Substep Ratio: {}", m_global_animator->substep_ratio());
+            logger::info("Animation Substep Ratio: {}", m_global_animator->substep_ratio());
         }
     };
 
@@ -190,7 +190,7 @@ void SimEngine::do_advance()
     {
         if(iter >= m_line_searcher->max_iter())
         {
-            log::warn("Line Search Exits with Max Iteration: {} (Frame={})",
+            logger::warn("Line Search Exits with Max Iteration: {} (Frame={})",
                          m_line_searcher->max_iter(),
                          m_current_frame);
 
@@ -205,7 +205,7 @@ void SimEngine::do_advance()
     {
         if(iter >= m_newton_max_iter->view()[0])
         {
-            log::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
+            logger::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
                          m_newton_max_iter->view()[0],
                          m_current_frame);
 
@@ -216,7 +216,7 @@ void SimEngine::do_advance()
         }
         else
         {
-            log::info("Newton Iteration Converged with Iteration Count: {}, Bound: [{}, {}]",
+            logger::info("Newton Iteration Converged with Iteration Count: {}, Bound: [{}, {}]",
                          iter,
                          m_newton_min_iter->view()[0],
                          m_newton_max_iter->view()[0]);
@@ -236,7 +236,7 @@ void SimEngine::do_advance()
 
         ++m_current_frame;
 
-        log::info(R"(>>> Begin Frame: {})", m_current_frame);
+        logger::info(R"(>>> Begin Frame: {})", m_current_frame);
 
         // Rebuild Scene
         {
@@ -334,7 +334,7 @@ void SimEngine::do_advance()
 
                     // Compute Current Energy => E_0
                     Float E0 = m_line_searcher->compute_energy(true);  // initial energy
-                    // log::info("Initial Energy: {}", E0);
+                    // logger::info("Initial Energy: {}", E0);
 
                     // CCD filter
                     alpha = filter_toi(alpha);
@@ -392,7 +392,7 @@ void SimEngine::do_advance()
             check_newton_iter(newton_iter);
         }
 
-        log::info("<<< End Frame: {}", m_current_frame);
+        logger::info("<<< End Frame: {}", m_current_frame);
     };
 
     try
@@ -402,7 +402,7 @@ void SimEngine::do_advance()
     }
     catch(const SimEngineException& e)
     {
-        log::error("Engine Advance Error: {}", e.what());
+        logger::error("Engine Advance Error: {}", e.what());
         status().push_back(core::EngineStatus::error(e.what()));
     }
 }

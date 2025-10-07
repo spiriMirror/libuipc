@@ -20,7 +20,7 @@ static void clear()
     auto        this_output_path = AssetDir::output_path(__FILE__);
     auto        dump_path        = fmt::format("{}/dump/", this_output_path);
     auto        count            = fs::remove_all(dump_path);
-    log::info("Remove {} entries in {}", count, dump_path);
+    Logger::current_logger().info("Remove {} entries in {}", count, dump_path);
 }
 
 static void run(int I)

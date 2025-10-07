@@ -6,6 +6,6 @@ REGISTER_SIM_SYSTEM(NoneSimSystem);
 
 void NoneSimSystem::do_build()
 {
-    log::info("[NoneEngine] NoneSimSystem call do_build()");
+    logger::info("[NoneEngine] NoneSimSystem call do_build()");
 }
 }  // namespace uipc::backend::none

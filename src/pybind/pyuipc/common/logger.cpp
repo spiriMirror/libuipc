@@ -18,6 +18,6 @@ PyLogger::PyLogger(py::module& m)
 
     class_Logger.def_static("set_level",
                             [](spdlog::level::level_enum level)
-                            { uipc::log::set_level(level); });
+                            { uipc::logger::set_level(level); });
 }
 }  // namespace pyuipc

@@ -59,7 +59,7 @@ SanityCheckResult SanityChecker::check(std::string_view workspace)
 
     if(!creator)
     {
-        log::error("Can't find [sanity_check]'s sanity checker creator, so we skip sanity check.");
+        logger::error("Can't find [sanity_check]'s sanity checker creator, so we skip sanity check.");
         return SanityCheckResult::Error;
     }
 
@@ -68,7 +68,7 @@ SanityCheckResult SanityChecker::check(std::string_view workspace)
 
     if(!destroyer)
     {
-        log::error("Can't find [sanity_check]'s sanity checker destroyer, so we skip sanity check.");
+        logger::error("Can't find [sanity_check]'s sanity checker destroyer, so we skip sanity check.");
         return SanityCheckResult::Error;
     }
 
@@ -103,7 +103,7 @@ SanityCheckResult SanityChecker::check(std::string_view workspace)
         }
     }
 
-    log::info("SanityCheck Summary: {} errors, {} warns, {} infos",
+    logger::info("SanityCheck Summary: {} errors, {} warns, {} infos",
                  m_errors.messages().size(),
                  m_warns.messages().size(),
                  m_infos.messages().size());
@@ -126,7 +126,7 @@ void SanityChecker::report()
             fmt::format_to(std::back_inserter(buffer), "  - {}: <{}>\n", name, geo->type());
         }
         buffer.pop_back();  // remove the last '\n'
-        log::error(buffer);
+        logger::error(buffer);
         buffer.clear();
     }
 
@@ -139,7 +139,7 @@ void SanityChecker::report()
             fmt::format_to(std::back_inserter(buffer), "  - {}: <{}>\n", name, geo->type());
         }
         buffer.pop_back();  // remove the last '\n'
-        log::warn(buffer);
+        logger::warn(buffer);
         buffer.clear();
     }
 
@@ -152,7 +152,7 @@ void SanityChecker::report()
             fmt::format_to(std::back_inserter(buffer), "  - {}: <{}>\n", name, geo->type());
         }
         buffer.pop_back();  // remove the last '\n'
-        log::info(buffer);
+        logger::info(buffer);
         buffer.clear();
     }
 }

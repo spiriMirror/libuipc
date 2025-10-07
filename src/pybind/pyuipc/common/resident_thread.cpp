@@ -31,7 +31,7 @@ PyResidentThread::PyResidentThread(py::module& m)
                     }
                     catch(const std::exception& e)
                     {
-                        log::error("Exception in ResidentThread:", e.what());
+                        logger::error("Exception in ResidentThread:", e.what());
                     }
                 });
         },

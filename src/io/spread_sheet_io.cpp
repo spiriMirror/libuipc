@@ -27,7 +27,7 @@ void SpreadSheetIO::write_json(std::string_view geo_name, const Geometry& geo) c
     }
 
     auto abs_file = fs::absolute(file);
-    log::info("Write spreadsheet(.json) to {}", abs_file.string());
+    logger::info("Write spreadsheet(.json) to {}", abs_file.string());
 }
 
 void SpreadSheetIO::write_json(const Geometry& geo) const
@@ -121,7 +121,7 @@ void SpreadSheetIO::write_csv(std::string_view geo_name, const Geometry& geo) co
     }
 
     auto abs_folder = fs::absolute(folder);
-    log::info("Write spreadsheets(.csv) to {}", abs_folder.string());
+    logger::info("Write spreadsheets(.csv) to {}", abs_folder.string());
 }
 
 void SpreadSheetIO::write_csv(const Geometry& geo) const

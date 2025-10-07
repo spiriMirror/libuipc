@@ -12,7 +12,7 @@ void SimEngine::do_sync()
     }
     catch(const SimEngineException& e)
     {
-        log::error("SimEngine Sync Error: {}", e.what());
+        logger::error("SimEngine Sync Error: {}", e.what());
         status().push_back(core::EngineStatus::error(e.what()));
     }
 }

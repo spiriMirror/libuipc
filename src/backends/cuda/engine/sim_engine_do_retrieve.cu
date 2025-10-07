@@ -10,7 +10,7 @@ void SimEngine::do_retrieve()
     }
     catch(const SimEngineException& e)
     {
-        log::error("SimEngine Retrieve Error: {}", e.what());
+        logger::error("SimEngine Retrieve Error: {}", e.what());
         status().push_back(core::EngineStatus::error(e.what()));
     }
 }

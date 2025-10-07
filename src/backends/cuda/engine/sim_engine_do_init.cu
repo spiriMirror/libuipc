@@ -125,7 +125,7 @@ void SimEngine::do_init(InitInfo& info)
     }
     catch(const SimEngineException& e)
     {
-        log::error("SimEngine init error: {}", e.what());
+        logger::error("SimEngine init error: {}", e.what());
         status().push_back(core::EngineStatus::error(e.what()));
     }
 }

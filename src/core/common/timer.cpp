@@ -67,7 +67,7 @@ void Timer::report(std::ostream& o)
 {
     if(!GlobalTimer::current())
     {
-        log::warn("No timing information to report.");
+        logger::warn("No timing information to report.");
         return;
     }
 
@@ -79,7 +79,7 @@ Json Timer::report_as_json()
 {
     if(!GlobalTimer::current())
     {
-        log::warn("No timing information to report.");
+        logger::warn("No timing information to report.");
         return Json::object();
     }
     Json json = GlobalTimer::current()->report_merged_as_json();

@@ -50,7 +50,7 @@ void SimSystemCollection::cleanup_invalid_systems()
             if(!dep->is_valid())
             {
                 deps_valid = false;
-                log::debug("[{}] will be removed, because its dep [{}] is invalid",
+                logger::debug("[{}] will be removed, because its dep [{}] is invalid",
                               ss->name(),
                               dep->name());
                 break;
@@ -92,7 +92,7 @@ void SimSystemCollection::build_systems()
         catch(SimSystemException& e)
         {
             s->set_invalid();
-            log::debug("[{}] shutdown, reason: {}", s->name(), e.what());
+            logger::debug("[{}] shutdown, reason: {}", s->name(), e.what());
         }
     }
 

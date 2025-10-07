@@ -8,7 +8,7 @@ namespace uipc::backend
 {
 void ISimSystem::build()
 {
-    //log::info("Building system: {}", name());
+    //logger::info("Building system: {}", name());
     do_build();
 }
 

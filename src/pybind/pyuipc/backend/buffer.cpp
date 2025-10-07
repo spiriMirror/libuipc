@@ -22,7 +22,7 @@ PyBuffer::PyBuffer(py::module& m)
                                   }
                                   catch(const std::exception& e)
                                   {
-                                      log::error(PYUIPC_MSG("Error in resize_func: {}",
+                                      logger::error(PYUIPC_MSG("Error in resize_func: {}",
                                                                e.what()));
                                   }
                               },
@@ -35,7 +35,7 @@ PyBuffer::PyBuffer(py::module& m)
                                   }
                                   catch(const std::exception& e)
                                   {
-                                      log::error(PYUIPC_MSG("Error in get_buffer_view_func: {}",
+                                      logger::error(PYUIPC_MSG("Error in get_buffer_view_func: {}",
                                                                e.what()));
                                   }
                                   return bv;

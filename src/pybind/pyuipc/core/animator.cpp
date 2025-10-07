@@ -57,7 +57,7 @@ PyAnimator::PyAnimator(py::module& m)
                                            }
                                            catch(const std::exception& e)
                                            {
-                                               log::error("Python Animation Script Error in Object [{}]({}):\n{}",
+                                               logger::error("Python Animation Script Error in Object [{}]({}):\n{}",
                                                              info.object().name(),
                                                              info.object().id(),
                                                              e.what());

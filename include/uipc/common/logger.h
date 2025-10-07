@@ -71,7 +71,7 @@ class UIPC_CORE_API Logger
 };
 }  // namespace uipc
 
-namespace uipc::log
+namespace uipc::logger
 {
 using spdlog::level::level_enum;
 // short-cut

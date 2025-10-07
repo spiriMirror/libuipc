@@ -390,7 +390,7 @@ void SimplicialComplexIO::write_obj(std::string_view file_name, const Simplicial
 
     if(Vs.size() == 0)
     {
-        log::warn("No vertices found in the simplicial complex. Writing an empty .obj file.");
+        logger::warn("No vertices found in the simplicial complex. Writing an empty .obj file.");
     }
 
     auto Es = sc.edges().size() > 0 ? sc.edges().topo().view() : span<const Vector2i>{};
@@ -494,7 +494,7 @@ void SimplicialComplexIO::write_msh(std::string_view file_name, const Simplicial
 
     if(Vs.size() == 0)
     {
-        log::warn("No vertices found in the simplicial complex. Writing an empty .msh file.");
+        logger::warn("No vertices found in the simplicial complex. Writing an empty .msh file.");
     }
 
     fmt::println(fp,
@@ -523,7 +523,7 @@ $EndMeshFormat
                                                span<const Vector4i>{};
         if(Ts.size() == 0)
         {
-            log::warn("No tetrahedra found in the simplicial complex. Writing only vertices.");
+            logger::warn("No tetrahedra found in the simplicial complex. Writing only vertices.");
         }
 
         fmt::println(fp, "{}", Ts.size());
@@ -549,7 +549,7 @@ $EndMeshFormat
 
         if(Fs.size() == 0)
         {
-            log::warn("No triangles found in the simplicial complex 2D. Writing only vertices.");
+            logger::warn("No triangles found in the simplicial complex 2D. Writing only vertices.");
         }
 
         fmt::println(fp, "{}", Fs.size());
@@ -574,7 +574,7 @@ $EndMeshFormat
 
         if(Es.size() == 0)
         {
-            log::warn("No edges found in the simplicial complex 1D. Writing only vertices.");
+            logger::warn("No edges found in the simplicial complex 1D. Writing only vertices.");
         }
 
         fmt::println(fp, "{}", Es.size());

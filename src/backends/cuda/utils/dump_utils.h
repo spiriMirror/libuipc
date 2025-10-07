@@ -114,7 +114,7 @@ class BufferDump
         std::ofstream ofs(std::string{path}, std::ios::binary);
         if(!ofs.is_open())
         {
-            log::warn("Failed to open file {} when dumping buffer", path);
+            logger::warn("Failed to open file {} when dumping buffer", path);
             return false;
         }
 
@@ -136,7 +136,7 @@ class BufferDump
         std::ifstream ifs(std::string{path}, std::ios::binary);
         if(!ifs.is_open())
         {
-            log::warn("Failed to open file {} when loading buffer", path);
+            logger::warn("Failed to open file {} when loading buffer", path);
             return false;
         }
 
@@ -145,7 +145,7 @@ class BufferDump
         ifs.read((char*)&magic, sizeof(magic));
         if(magic != magic_number)
         {
-            log::warn("Magic number mismatch when loading buffer, invalid dump.");
+            logger::warn("Magic number mismatch when loading buffer, invalid dump.");
             return false;
         }
 
