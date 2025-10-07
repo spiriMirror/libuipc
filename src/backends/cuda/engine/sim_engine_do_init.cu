@@ -31,7 +31,7 @@ void SimEngine::build()
     m_global_linear_system     = &require<GlobalLinearSystem>();
     m_newton_tolerance_manager = &require<NewtonToleranceManager>();
 
-    m_global_simplicial_surface_manager = find<GlobalSimpicialSurfaceManager>();
+    m_global_simplicial_surface_manager = find<GlobalSimplicialSurfaceManager>();
     m_global_dytopo_effect_manager      = find<GlobalDyTopoEffectManager>();
     m_global_contact_manager            = find<GlobalContactManager>();
     m_global_trajectory_filter          = find<GlobalTrajectoryFilter>();

@@ -5,7 +5,7 @@ namespace uipc::backend::cuda
 void SimplexTrajectoryFilter::do_build()
 {
     m_impl.global_vertex_manager = require<GlobalVertexManager>();
-    m_impl.global_simplicial_surface_manager = require<GlobalSimpicialSurfaceManager>();
+    m_impl.global_simplicial_surface_manager = require<GlobalSimplicialSurfaceManager>();
     m_impl.global_contact_manager  = require<GlobalContactManager>();
     m_impl.global_body_manager     = require<GlobalBodyManager>();
     auto& global_trajectory_filter = require<GlobalTrajectoryFilter>();
