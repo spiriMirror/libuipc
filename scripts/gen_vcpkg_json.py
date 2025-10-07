@@ -64,10 +64,6 @@ base_vcpkg_json = {
         {
             'name':'cpptrace',
             'version>=': '0.8.3'
-        },
-        {
-            'name': 'muda',
-            'version>=': '2025.10.3#1'
         }
     ],
     
@@ -147,6 +143,11 @@ def gen_vcpkg_json(args):
             'version>=': '12.0.1',
             'features': ['nanovdb']
         })
+    if is_enabled(args.with_cuda_backend):
+        deps.append({
+            'name': 'muda',
+            'version>=': '2025.10.3#1'
+        })
 
 def print_deps():
     str_names = []
@@ -215,6 +216,8 @@ if __name__ == '__main__':
     parser.add_argument('--dev_mode', type=str, default=False, help='Enable development mode.')
     parser.add_argument('--with_usd_support', type=str, default=False, help='Enable USD support.')
     parser.add_argument('--with_vdb_support', type=str, default=False, help='Enable VDB support.')
+    # backends
+    parser.add_argument('--with_cuda_backend', type=str, default=False, help='Enable CUDA backend support.')
     args = parser.parse_args()
 
     print_basic_info(args)
