@@ -16,7 +16,7 @@ class BinaryDistribution(Distribution):
 
 
 class BuildPyCommand(build_py):
-    """Custom build command that handles dependency copying and RPATH fixes."""
+    """Custom build command that handles dependency copying."""
 
     def run(self):
         # Run the standard build first
@@ -24,7 +24,6 @@ class BuildPyCommand(build_py):
 
         # Perform post-build operations
         self.copy_dependencies()
-        self.fix_rpath()
 
     def copy_dependencies(self):
         """Copy vcpkg dependencies and shared libraries to modules directory."""
@@ -127,36 +126,6 @@ class BuildPyCommand(build_py):
 
         if copied_count == 0:
             print("WARNING: No shared libraries found to copy")
-
-    def fix_rpath(self):
-        """Fix RPATH for shared libraries on Linux."""
-        if platform.system() != "Linux":
-            print("INFO: RPATH fix only needed on Linux, skipping")
-            return
-
-        print("Fixing RPATH for shared libraries...")
-
-        # Find all .so files in the build directory
-        fixed_count = 0
-        for so_file in Path(self.build_lib).rglob("*.so*"):
-            if so_file.is_file() and not so_file.is_symlink():
-                try:
-                    subprocess.run([
-                        "patchelf", "--set-rpath", "$ORIGIN", str(so_file)
-                    ], check=True, capture_output=True)
-                    print(f"  Fixed RPATH for {so_file.name}")
-                    fixed_count += 1
-                except subprocess.CalledProcessError as e:
-                    print(f"  WARNING: Failed to fix RPATH for {so_file.name}: {e}")
-                except FileNotFoundError:
-                    print("  WARNING: patchelf not found, skipping RPATH fix")
-                    print("     Install patchelf: sudo apt install patchelf")
-                    break
-
-        if fixed_count > 0:
-            print(f"Fixed RPATH for {fixed_count} libraries")
-        else:
-            print("INFO: No libraries needed RPATH fixing")
 
 
 setup(
