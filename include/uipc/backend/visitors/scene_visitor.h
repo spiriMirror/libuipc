@@ -30,7 +30,7 @@ class UIPC_CORE_API SceneVisitor
     SceneVisitor(const SceneVisitor&)            = delete;
     SceneVisitor(SceneVisitor&&)                 = default;
     SceneVisitor& operator=(const SceneVisitor&) = delete;
-    SceneVisitor& operator=(SceneVisitor&&)      = default;
+    SceneVisitor& operator=(SceneVisitor&&)      = delete;
 
     void begin_pending() noexcept;
     void solve_pending() noexcept;

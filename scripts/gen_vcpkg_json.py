@@ -5,7 +5,7 @@ import os
 VCPKG_TAG = '2025.7.25'
 VCPKG_BASE_LINE = 'dd3097e305afa53f7b4312371f62058d2e665320'
 
-SPIRI_VCPKG_BASE_LINE = '8043849983962d748974dfbcecf2b66c0468958f'
+SPIRI_VCPKG_BASE_LINE = 'b92d4be959340db684afe5960b79dd258fe42be3'
 
 # vcpkg.json
 base_vcpkg_json = {
@@ -64,6 +64,10 @@ base_vcpkg_json = {
         {
             'name':'cpptrace',
             'version>=': '0.8.3'
+        },
+        {
+            'name':'octree',
+            'version>=': '2025.10.7'
         }
     ],
     
@@ -95,7 +99,7 @@ base_vcpkg_configuration = {
             'reference': 'master',
             'baseline': SPIRI_VCPKG_BASE_LINE,
             'packages': [
-                'muda'
+                'muda', 'octree'
             ]
         }
     ]

@@ -32,8 +32,6 @@ S<GeometrySlot> GeometrySlotT<SimplicialComplex>::do_clone() const
 {
     return uipc::make_shared<GeometrySlotT<SimplicialComplex>>(id(), m_simplicial_complex);
 }
-
-template class UIPC_CORE_API GeometrySlotT<SimplicialComplex>;
 }  // namespace uipc::geometry
 
 namespace std
