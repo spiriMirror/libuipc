@@ -13,9 +13,9 @@ class SimplicialSurfaceReporter : public SimSystem
       public:
     };
 
-    using SurfaceInitInfo  = GlobalSimpicialSurfaceManager::SurfaceInitInfo;
-    using SurfaceCountInfo = GlobalSimpicialSurfaceManager::SurfaceCountInfo;
-    using SurfaceAttributeInfo = GlobalSimpicialSurfaceManager::SurfaceAttributeInfo;
+    using SurfaceInitInfo  = GlobalSimplicialSurfaceManager::SurfaceInitInfo;
+    using SurfaceCountInfo = GlobalSimplicialSurfaceManager::SurfaceCountInfo;
+    using SurfaceAttributeInfo = GlobalSimplicialSurfaceManager::SurfaceAttributeInfo;
 
   protected:
     virtual void do_build(BuildInfo& info)                        = 0;
@@ -24,14 +24,14 @@ class SimplicialSurfaceReporter : public SimSystem
     virtual void do_report_attributes(SurfaceAttributeInfo& info) = 0;
 
   private:
-    friend class GlobalSimpicialSurfaceManager;
+    friend class GlobalSimplicialSurfaceManager;
     virtual void do_build() final override;
 
     void init(SurfaceInitInfo& info);
     void report_count(SurfaceCountInfo& info);
     void report_attributes(SurfaceAttributeInfo& info);
 
-    friend class GlobalSimpicialSurfaceManager;
+    friend class GlobalSimplicialSurfaceManager;
     SizeT m_index = ~0ull;
 };
 }  // namespace uipc::backend::cuda
