@@ -4,7 +4,7 @@
 namespace uipc::geometry
 {
 template <>
-class GeometrySlotT<SimplicialComplex> : public GeometrySlot
+class UIPC_CORE_API GeometrySlotT<SimplicialComplex> : public GeometrySlot
 {
   public:
     GeometrySlotT(IndexT id, const SimplicialComplex& simplicial_complex) noexcept;

@@ -54,14 +54,7 @@ def copy_python_source_code(src_dir, bin_dir):
             shutil.copy(src, dst)
 
 def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
-    shared_lib_ext = ''
-    if os.name == 'posix':
-        shared_lib_ext = '.so'
-    elif os.name == 'nt': # windows
-        shared_lib_ext = '.dll'
-    else:
-        raise Exception('Unsupported OS')
-    
+    shared_lib_exts = ['.so', '.dylib', '.dll']
     target_dir = binary_dir / 'python' / 'src' / 'uipc' / 'modules' / config / 'bin'
     shared_lib_dir = binary_dir / config / 'bin'
     
@@ -75,11 +68,12 @@ def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
     shutil.copy(pyuipc_lib, target_dir)
 
     for file in os.listdir(shared_lib_dir):
-        if file.endswith(shared_lib_ext):
+        file = str(file)
+        if file.endswith(tuple(shared_lib_exts)):
             print(f'Copying {file}')
             full_path_file = shared_lib_dir / file
             shutil.copy(full_path_file, target_dir)
-    
+
     return target_dir
 
 def generate_stub(target_dir):

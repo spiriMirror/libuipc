@@ -57,7 +57,7 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
                 auto&& [mu, lambda] = mu_and_lambda;
                 h_kappas[vI]        = mu;
                 h_lambdas[vI]       = lambda;
-                h_strainRates[vI]    = 100;
+                h_strainRates[vI]   = 100;
             });
 
         kappas.resize(N);
@@ -78,41 +78,45 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [mus        = kappas.cviewer().name("mus"),
-                    lambdas    = lambdas.cviewer().name("lambdas"),
-                    strainRates    = strainRates.cviewer().name("strainRates"),
-                    rest_areas = info.rest_areas().viewer().name("rest_area"),
+                   [mus         = kappas.cviewer().name("mus"),
+                    lambdas     = lambdas.cviewer().name("lambdas"),
+                    strainRates = strainRates.cviewer().name("strainRates"),
+                    rest_areas  = info.rest_areas().viewer().name("rest_area"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     energies = info.energies().viewer().name("energies"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_bars  = info.x_bars().viewer().name("x_bars"),
-                    dt      = info.dt()] __device__(int I)
+                    indices  = info.indices().viewer().name("indices"),
+                    xs       = info.xs().viewer().name("xs"),
+                    x_bars   = info.x_bars().viewer().name("x_bars"),
+                    dt       = info.dt()] __device__(int I)
                    {
                        Vector9  X;
                        Vector3i idx = indices(I);
                        for(int i = 0; i < 3; ++i)
                            X.segment<3>(3 * i) = xs(idx(i));
 
-                       Matrix2x2 IB = BWS::Dm2x2(x_bars(idx(0)), x_bars(idx(1)), x_bars(idx(2)));
+                       Matrix2x2 IB =
+                           BWS::Dm2x2(x_bars(idx(0)), x_bars(idx(1)), x_bars(idx(2)));
                        IB = muda::eigen::inverse(IB);
 
                        if constexpr(RUNTIME_CHECK)
                        {
-                           Matrix2x2 A = BWS::Dm2x2(X.segment<3>(0), X.segment<3>(3), X.segment<3>(6));
+                           Matrix2x2 A = BWS::Dm2x2(X.segment<3>(0),
+                                                    X.segment<3>(3),
+                                                    X.segment<3>(6));
 
                            Float detA = A.determinant();
                        }
 
-                       Float mu        = mus(I);
-                       Float lambda    = lambdas(I);
+                       Float mu         = mus(I);
+                       Float lambda     = lambdas(I);
                        Float strainRate = strainRates(I);
-                       Float rest_area = rest_areas(I);
+                       Float rest_area  = rest_areas(I);
                        Float thickness = triangle_thickness(thicknesses(idx(0)),
                                                             thicknesses(idx(1)),
                                                             thicknesses(idx(2)));
 
-                       Matrix<Float, 3, 2> Ds = BWS::Ds3x2(X.segment<3>(0), X.segment<3>(3), X.segment<3>(6));
+                       Matrix<Float, 3, 2> Ds =
+                           BWS::Ds3x2(X.segment<3>(0), X.segment<3>(3), X.segment<3>(6));
                        Matrix<Float, 3, 2> F = Ds * IB;
 
                        Vector2 anisotropic_a = Vector2(1, 0);
@@ -131,15 +135,15 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.indices().size(),
-                   [mus     = kappas.cviewer().name("mus"),
-                    lambdas = lambdas.cviewer().name("lambdas"),
+                   [mus         = kappas.cviewer().name("mus"),
+                    lambdas     = lambdas.cviewer().name("lambdas"),
                     strainRates = strainRates.cviewer().name("strainRates"),
-                    indices = info.indices().viewer().name("indices"),
-                    xs      = info.xs().viewer().name("xs"),
-                    x_bars  = info.x_bars().viewer().name("x_bars"),
+                    indices     = info.indices().viewer().name("indices"),
+                    xs          = info.xs().viewer().name("xs"),
+                    x_bars      = info.x_bars().viewer().name("x_bars"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    G3s        = info.gradients().viewer().name("gradient"),
-                    H3x3s      = info.hessians().viewer().name("hessian"),
+                    G3s        = info.gradients().viewer().name("gradients"),
+                    H3x3s      = info.hessians().viewer().name("hessians"),
                     rest_areas = info.rest_areas().viewer().name("volumes"),
                     dt         = info.dt()] __device__(int I) mutable
                    {
@@ -161,10 +165,10 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
                            Float detA = A.determinant();
                        }
 
-                       Float mu        = mus(I);
-                       Float lambda    = lambdas(I);
+                       Float mu         = mus(I);
+                       Float lambda     = lambdas(I);
                        Float strainRate = strainRates(I);
-                       Float rest_area = rest_areas(I);
+                       Float rest_area  = rest_areas(I);
                        Float thickness = triangle_thickness(thicknesses(idx(0)),
                                                             thicknesses(idx(1)),
                                                             thicknesses(idx(2)));
@@ -194,7 +198,7 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
                        Matrix6x6 ddEddF;
                        BWS::ddEddF(ddEddF, F, anisotropic_a, anisotropic_b, mu, lambda, strainRate);
                        ddEddF *= Vdt2;
-                       
+
                        Matrix9x9 H = dFdx.transpose() * ddEddF * dFdx;
                        TripletMatrixAssembler TMA{H3x3s};
                        TMA.block<3, 3>(I * 3 * 3).write(idx, H);

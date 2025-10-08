@@ -107,7 +107,7 @@ Float LineSearcher::compute_energy(bool is_initial)
         }
 
         m_report_stream << "-------------------------------------------------------------------------------";
-        spdlog::info(m_report_stream.str());
+        logger::info(m_report_stream.str());
         m_report_stream.str("");
     }
 

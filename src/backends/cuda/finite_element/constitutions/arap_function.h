@@ -26,7 +26,7 @@ namespace sym::arap_3d
 
     // Function to compute the gradient of the ARAP energy
     template <typename T>
-    __host__ __device__ void dEdF(Eigen::Vector<T, 9>&          gradient,
+    __host__ __device__ void dEdF(Eigen::Vector<T, 9>&          gradients,
                                   const T&                      kappa,
                                   const T&                      v,
                                   const Eigen::Matrix<T, 3, 3>& F)
@@ -41,9 +41,9 @@ namespace sym::arap_3d
 
         T kv = kappa * v;
 
-        gradient.segment<3>(0) = kv * dPsi_dF.col(0);
-        gradient.segment<3>(3) = kv * dPsi_dF.col(1);
-        gradient.segment<3>(6) = kv * dPsi_dF.col(2);
+        gradients.segment<3>(0) = kv * dPsi_dF.col(0);
+        gradients.segment<3>(3) = kv * dPsi_dF.col(1);
+        gradients.segment<3>(6) = kv * dPsi_dF.col(2);
     }
 
     // Function to flatten a matrix into a vector
@@ -100,13 +100,13 @@ namespace sym::arap_3d
 
     // Function to compute the Hessian of the ARAP energy
     template <typename T>
-    __host__ __device__ void ddEddF(Eigen::Matrix<T, 9, 9>&       hessian,
+    __host__ __device__ void ddEddF(Eigen::Matrix<T, 9, 9>&       hessians,
                                     const T&                      kappa,
                                     const T&                      v,
                                     const Eigen::Matrix<T, 3, 3>& F)
     {
-        ARAP_Hessian(hessian, F);
-        hessian *= kappa * v;
+        ARAP_Hessian(hessians, F);
+        hessians *= kappa * v;
     }
 }  // namespace sym::arap_3d
 }  // namespace uipc::backend::cuda

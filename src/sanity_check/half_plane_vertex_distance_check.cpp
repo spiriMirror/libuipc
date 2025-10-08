@@ -167,7 +167,8 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
         const geometry::SimplicialComplex& scene_surface =
             context->scene_simplicial_surface();
 
-        const ContactTabular& contact_tabular = context->contact_tabular();
+        auto& contact_tabular  = context->contact_tabular();
+        auto& subscene_tabular = context->subscene_tabular();
 
         auto Vs = scene_surface.vertices().size() ? scene_surface.positions().view() :
                                                     span<const Vector3>{};
@@ -238,8 +239,7 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
             auto attr_cid = halfplane->meta().find<IndexT>(builtin::contact_element_id);
             auto HCid = attr_cid ? attr_cid->view()[0] : 0;
 
-            auto attr_scid =
-                halfplane->meta().find<IndexT>(builtin::contact_subscene_element_id);
+            auto attr_scid = halfplane->meta().find<IndexT>(builtin::subscene_element_id);
             auto HSCid = attr_scid ? attr_scid->view()[0] : 0;
 
 
@@ -250,7 +250,7 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
 
                 for(auto vI : range(Vs.size()))
                 {
-                    const auto& SCM = contact_table.subscene_at(HSCid, SCIds[vI]);
+                    const auto& SCM = subscene_tabular.at(HSCid, SCIds[vI]);
 
                     if(!SCM.is_enabled())  // if unenabled, skip
                         continue;

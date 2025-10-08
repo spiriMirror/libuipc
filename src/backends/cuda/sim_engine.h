@@ -8,9 +8,10 @@
 namespace uipc::backend::cuda
 {
 class GlobalVertexManager;
-class GlobalSimpicialSurfaceManager;
+class GlobalSimplicialSurfaceManager;
 class GlobalBodyManager;
 class GlobalContactManager;
+class GlobalDyTopoEffectManager;
 class GlobalTrajectoryFilter;
 
 class TimeIntegratorManager;
@@ -69,10 +70,11 @@ class SimEngine final : public backend::SimEngine
     // Aware Top Systems
 
     GlobalVertexManager* m_global_vertex_manager = nullptr;
-    GlobalSimpicialSurfaceManager* m_global_simplicial_surface_manager = nullptr;
-    GlobalBodyManager*      m_global_body_manager      = nullptr;
-    GlobalContactManager*   m_global_contact_manager   = nullptr;
-    GlobalTrajectoryFilter* m_global_trajectory_filter = nullptr;
+    GlobalSimplicialSurfaceManager* m_global_simplicial_surface_manager = nullptr;
+    GlobalBodyManager*         m_global_body_manager          = nullptr;
+    GlobalContactManager*      m_global_contact_manager       = nullptr;
+    GlobalDyTopoEffectManager* m_global_dytopo_effect_manager = nullptr;
+    GlobalTrajectoryFilter*    m_global_trajectory_filter     = nullptr;
 
     // Newton Solver Systems
     TimeIntegratorManager*  m_time_integrator_manager  = nullptr;
@@ -100,6 +102,7 @@ class SimEngine final : public backend::SimEngine
 
     CAS<Float>  m_newton_velocity_tol;
     CAS<IndexT> m_newton_max_iter;
+    CAS<IndexT> m_newton_min_iter;
     CAS<IndexT> m_strict_mode;
     CAS<Float>  m_ccd_tol;
     CAS<IndexT> m_dump_surface;

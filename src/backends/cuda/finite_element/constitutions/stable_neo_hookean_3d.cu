@@ -119,8 +119,8 @@ class StableNeoHookean3D final : public FEM3DConstitution
                     indices = info.indices().viewer().name("indices"),
                     xs      = info.xs().viewer().name("xs"),
                     Dm_invs = info.Dm_invs().viewer().name("Dm_invs"),
-                    G3s     = info.gradients().viewer().name("gradient"),
-                    H3x3s   = info.hessians().viewer().name("hessian"),
+                    G3s     = info.gradients().viewer().name("gradients"),
+                    H3x3s   = info.hessians().viewer().name("hessians"),
                     volumes = info.rest_volumes().viewer().name("volumes"),
                     dt      = info.dt()] __device__(int I) mutable
                    {
@@ -142,7 +142,7 @@ class StableNeoHookean3D final : public FEM3DConstitution
 
                        auto Vdt2 = volumes(I) * dt * dt;
 
-                       Matrix3x3   dEdF;
+                       Matrix3x3 dEdF;
                        Matrix9x9 ddEddF;
                        SNH::dEdVecF(dEdF, mu, lambda, F);
                        SNH::ddEddVecF(ddEddF, mu, lambda, F);

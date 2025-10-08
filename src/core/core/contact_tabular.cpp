@@ -29,22 +29,16 @@ class ContactTabular::Impl
         m_elements.reserve(64);
 
         // create the contact models.
-        m_topo           = m_contact_models.create<Vector2i>("topo");
-        m_friction_rates = m_contact_models.create<Float>("friction_rate");
-        m_resistances    = m_contact_models.create<Float>("resistance");
-        m_is_enabled     = m_contact_models.create<IndexT>("is_enabled");
-
-        m_subscene_topo = m_subscene_contact_models.create<Vector2i>("topo");
-        m_subscene_is_enabled = m_subscene_contact_models.create<IndexT>("is_enabled");
+        m_topo           = m_models.create<Vector2i>("topo");
+        m_friction_rates = m_models.create<Float>("friction_rate");
+        m_resistances    = m_models.create<Float>("resistance");
+        m_is_enabled     = m_models.create<IndexT>("is_enabled");
 
         // reserve the memory for contact models.
-        m_contact_models.reserve(m_contact_model_capacity);
-        m_subscene_contact_models.reserve(m_contact_model_capacity);
+        m_models.reserve(m_model_capacity);
 
         auto default_element = create("default");
-        auto default_subscene_element = create_subscene("default");
         insert(default_element, default_element, 0.5, 1.0_GPa, true, default_config());
-        subscene_insert(default_subscene_element, default_subscene_element, true, default_config());
     }
 
     ContactElement create(std::string_view name) noexcept
@@ -57,18 +51,6 @@ class ContactTabular::Impl
         m_elements.push_back(ContactElement(id, name_str));
 
         return m_elements.back();
-    }
-
-    ContactElement create_subscene(std::string_view name) noexcept
-    {
-        auto   id = current_subscene_element_id();
-        string name_str{name};
-        if(name_str.empty())
-            name_str = fmt::format("_{}", id);
-
-        m_subscene_elements.push_back(ContactElement(id, name_str));
-
-        return m_subscene_elements.back();
     }
 
     IndexT insert(const ContactElement& L,
@@ -120,7 +102,7 @@ class ContactTabular::Impl
         }
         else
         {
-            index            = m_contact_models.size();
+            index            = m_models.size();
             m_model_map[ids] = index;
 
             _append_contact_models();
@@ -134,74 +116,7 @@ class ContactTabular::Impl
         return index;
     }
 
-
-    IndexT subscene_insert(const ContactElement& L,
-                  const ContactElement& R,
-                  bool                  enable,
-                  const Json&           config)
-    {
-        Vector2i ids = {L.id(), R.id()};
-
-        // check if the contact element id is valid.
-        UIPC_ASSERT(L.id() < current_subscene_element_id() && L.id() >= 0
-                        && R.id() < current_subscene_element_id() && R.id() >= 0,
-                    "Invalid contact element id, id should be in [{},{}), your L={}, R={}.",
-                    0,
-                    current_subscene_element_id(),
-                    L.id(),
-                    R.id());
-
-        // check if the name is matched.
-        UIPC_ASSERT(m_subscene_elements[L.id()].name() == L.name()
-                        && m_subscene_elements[R.id()].name() == R.name(),
-                    "Contact element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
-                    "It seems the contact element and contact model don't come from the same ContactTabular.",
-                    L.id(),
-                    L.name(),
-                    m_subscene_elements[L.id()].name(),
-                    R.id(),
-                    R.name(),
-                    m_subscene_elements[R.id()].name());
-
-        // ensure ids.x() < ids.y(), because the contact model is symmetric.
-        if(ids.x() > ids.y())
-            std::swap(ids.x(), ids.y());
-
-        auto it = m_model_subscene_map.find(ids);
-
-        IndexT index;
-
-        if(it != m_model_subscene_map.end())
-        {
-            index = it->second;
-            UIPC_WARN_WITH_LOCATION("Contact model between {}[{}] and {}[{}] already exists, replace the old one.",
-                                    m_subscene_elements[L.id()].name(),
-                                    L.id(),
-                                    m_subscene_elements[R.id()].name(),
-                                    R.id());
-        }
-        else
-        {
-            index            = m_subscene_contact_models.size();
-            m_model_subscene_map[ids] = index;
-
-            _append_subscene_contact_models();
-        }
-
-        view(*m_subscene_topo)[index] = ids;
-        view(*m_subscene_is_enabled)[index]     = enable;
-
-        return index;
-    }
-
-
-
     IndexT current_element_id() const noexcept { return m_elements.size(); }
-
-    IndexT current_subscene_element_id() const noexcept
-    {
-        return m_subscene_elements.size();
-    }
 
     IndexT index_at(SizeT i, SizeT j) const
     {
@@ -210,16 +125,24 @@ class ContactTabular::Impl
             std::swap(ids.x(), ids.y());
 
         auto it = m_model_map.find(ids);
-        return it != m_model_map.end() ? it->second : 0;
+        return it != m_model_map.end() ? it->second : -1;
     }
 
     ContactModel at(SizeT i, SizeT j) const
     {
-        return ContactModel{Vector2i{i, j},
-                            view(*m_friction_rates)[index_at(i, j)],
-                            view(*m_resistances)[index_at(i, j)],
-                            view(*m_is_enabled)[index_at(i, j)] != 0,
-                            Json::object()};
+        auto idx = index_at(i, j);
+
+        // UIPC-SPEC:
+        // If the contact model between two contact elements is not defined,
+        // the default contact model will be used.
+        if(idx < 0)
+            idx = 0;
+
+        auto friction_rate = m_friction_rates->view()[idx];
+        auto resistance    = m_resistances->view()[idx];
+        bool enable        = m_is_enabled->view()[idx];
+
+        return ContactModel{Vector2i{i, j}, friction_rate, resistance, enable, Json::object()};
     }
 
     void default_model(Float friction_rate, Float resistance, bool enable, const Json& config) noexcept
@@ -233,69 +156,43 @@ class ContactTabular::Impl
 
     ContactElement default_element() noexcept { return m_elements.front(); }
 
-    ContactElement default_subscene_element() noexcept { return m_subscene_elements.front(); }
 
     const geometry::AttributeCollection& contact_models() const noexcept
     {
-        return m_contact_models;
+        return m_models;
     }
 
     geometry::AttributeCollection& contact_models() noexcept
     {
-        return m_contact_models;
+        return m_models;
     }
 
-    const geometry::AttributeCollection& subscene_contact_models() const noexcept
-    {
-        return m_subscene_contact_models;
-    }
-
-    geometry::AttributeCollection& subscene_contact_models() noexcept
-    {
-        return m_subscene_contact_models;
-    }
 
     SizeT element_count() const noexcept { return m_elements.size(); }
-    SizeT subscene_element_count() const noexcept { return m_subscene_elements.size(); }
+
 
     static Json default_config() noexcept { return Json::object(); }
 
     vector<ContactElement>        m_elements;
-    vector<ContactElement>        m_subscene_elements;
-    geometry::AttributeCollection m_contact_models;
-    geometry::AttributeCollection m_subscene_contact_models;
-    SizeT                         m_contact_model_capacity = 1024;
+    geometry::AttributeCollection m_models;
+    SizeT                         m_model_capacity = 1024;
 
     mutable map<Vector2i, IndexT> m_model_map;
-    mutable map<Vector2i, IndexT> m_model_subscene_map;
 
     mutable S<geometry::AttributeSlot<Vector2i>> m_topo;
     mutable S<geometry::AttributeSlot<Float>>    m_friction_rates;
     mutable S<geometry::AttributeSlot<Float>>    m_resistances;
     mutable S<geometry::AttributeSlot<IndexT>>   m_is_enabled;
 
-    mutable S<geometry::AttributeSlot<Vector2i>> m_subscene_topo;
-    mutable S<geometry::AttributeSlot<IndexT>>   m_subscene_is_enabled;
     void _append_contact_models()
     {
-        auto new_size = m_contact_models.size() + 1;
-        if(m_contact_model_capacity < new_size)
+        auto new_size = m_models.size() + 1;
+        if(m_model_capacity < new_size)
         {
-            m_contact_model_capacity *= 2;
-            m_contact_models.reserve(m_contact_model_capacity);
+            m_model_capacity *= 2;
+            m_models.reserve(m_model_capacity);
         }
-        m_contact_models.resize(new_size);
-    }
-
-    void _append_subscene_contact_models()
-    {
-        auto new_size = m_subscene_contact_models.size() + 1;
-        if(m_contact_model_capacity < new_size)
-        {
-            m_contact_model_capacity *= 2;
-            m_subscene_contact_models.reserve(m_contact_model_capacity);
-        }
-        m_subscene_contact_models.resize(new_size);
+        m_models.resize(new_size);
     }
 
     void build_from(const geometry::AttributeCollection& ac, span<const ContactElement> ce)
@@ -303,14 +200,14 @@ class ContactTabular::Impl
         m_elements.clear();
         m_elements = vector<ContactElement>(ce.begin(), ce.end());
 
-        m_contact_models = ac;
-        m_topo           = m_contact_models.find<Vector2i>("topo");
+        m_models = ac;
+        m_topo   = m_models.find<Vector2i>("topo");
         UIPC_ASSERT(m_topo, "Contact model topology is not found, please check the attribute collection.");
-        m_friction_rates = m_contact_models.find<Float>("friction_rate");
+        m_friction_rates = m_models.find<Float>("friction_rate");
         UIPC_ASSERT(m_friction_rates, "Contact model friction rates is not found, please check the attribute collection.");
-        m_resistances = m_contact_models.find<Float>("resistance");
+        m_resistances = m_models.find<Float>("resistance");
         UIPC_ASSERT(m_resistances, "Contact model resistances is not found, please check the attribute collection.");
-        m_is_enabled = m_contact_models.find<IndexT>("is_enabled");
+        m_is_enabled = m_models.find<IndexT>("is_enabled");
         UIPC_ASSERT(m_is_enabled, "Contact model is_enabled is not found, please check the attribute collection.");
 
         m_model_map.clear();
@@ -328,14 +225,14 @@ class ContactTabular::Impl
         m_elements.clear();
         m_elements = vector<ContactElement>(ce.begin(), ce.end());
 
-        m_contact_models.update_from(ac);
-        m_topo = m_contact_models.find<Vector2i>("topo");
+        m_models.update_from(ac);
+        m_topo = m_models.find<Vector2i>("topo");
         UIPC_ASSERT(m_topo, "Contact model topology is not found, please check the attribute collection.");
-        m_friction_rates = m_contact_models.find<Float>("friction_rate");
+        m_friction_rates = m_models.find<Float>("friction_rate");
         UIPC_ASSERT(m_friction_rates, "Contact model friction rates is not found, please check the attribute collection.");
-        m_resistances = m_contact_models.find<Float>("resistance");
+        m_resistances = m_models.find<Float>("resistance");
         UIPC_ASSERT(m_resistances, "Contact model resistances is not found, please check the attribute collection.");
-        m_is_enabled = m_contact_models.find<IndexT>("is_enabled");
+        m_is_enabled = m_models.find<IndexT>("is_enabled");
         UIPC_ASSERT(m_is_enabled, "Contact model is_enabled is not found, please check the attribute collection.");
 
         auto topo_view = m_topo->view();
@@ -359,11 +256,6 @@ ContactElement ContactTabular::create(std::string_view name) noexcept
     return m_impl->create(name);
 }
 
-ContactElement ContactTabular::create_subscene(std::string_view name) noexcept
-{
-    return m_impl->create_subscene(name);
-}
-
 IndexT ContactTabular::insert(const ContactElement& L,
                               const ContactElement& R,
                               Float                 friction_rate,
@@ -372,14 +264,6 @@ IndexT ContactTabular::insert(const ContactElement& L,
                               const Json&           config)
 {
     return m_impl->insert(L, R, friction_rate, resistance, enable, config);
-}
-
-IndexT ContactTabular::subscene_insert(const ContactElement& L,
-                              const ContactElement& R,
-                              bool                  enable,
-                              const Json&           config)
-{
-    return m_impl->subscene_insert(L, R, enable, config);
 }
 
 ContactModel ContactTabular::at(SizeT i, SizeT j) const
@@ -400,11 +284,6 @@ ContactElement ContactTabular::default_element() noexcept
     return m_impl->default_element();
 }
 
-ContactElement ContactTabular::default_subscene_element() noexcept
-{
-    return m_impl->default_subscene_element();
-}
-
 ContactModel ContactTabular::default_model() const noexcept
 {
     return m_impl->default_model();
@@ -420,16 +299,6 @@ CContactModelCollection ContactTabular::contact_models() const noexcept
     return m_impl->contact_models();
 }
 
-ContactModelCollection ContactTabular::subscene_contact_models() noexcept
-{
-    return m_impl->subscene_contact_models();
-}
-
-CContactModelCollection ContactTabular::subscene_contact_models() const noexcept
-{
-    return m_impl->subscene_contact_models();
-}
-
 geometry::AttributeCollection& ContactTabular::internal_contact_models() const noexcept
 {
     return m_impl->contact_models();
@@ -443,11 +312,6 @@ span<ContactElement> ContactTabular::contact_elements() const noexcept
 SizeT ContactTabular::element_count() const noexcept
 {
     return m_impl->element_count();
-}
-
-SizeT ContactTabular::subscene_element_count() const noexcept
-{
-    return m_impl->subscene_element_count();
 }
 
 Json ContactTabular::default_config() noexcept

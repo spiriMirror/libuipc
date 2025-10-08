@@ -261,8 +261,8 @@ void AffineBodyDynamics::Impl::_build_geo_infos(WorldVisitor& world)
 
     std::ranges::transform(geo_infos,
                            geo_body_counts.begin(),
-                           [](const GeoInfo& info) -> SizeT
-                           { return info.body_count; });
+                           [](const GeoInfo& info) -> IndexT
+                           { return static_cast<IndexT>(info.body_count); });
 
     geo_body_offsets_counts.scan();
 
@@ -416,13 +416,13 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                     sc.vertices().find<IndexT>(builtin::contact_element_id);
 
                 auto vert_contact_subscene_element_id =
-                    sc.vertices().find<IndexT>(builtin::contact_subscene_element_id);
+                    sc.vertices().find<IndexT>(builtin::subscene_element_id);
 
                 auto contact_element_id =
                     sc.meta().find<IndexT>(builtin::contact_element_id);
 
-                auto contact_subscene_element_id =
-                    sc.meta().find<IndexT>(builtin::contact_subscene_element_id);
+                auto subscene_element_id =
+                    sc.meta().find<IndexT>(builtin::subscene_element_id);
 
                 for(auto i : range(body_count))
                 {
@@ -476,10 +476,10 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                     }
                     else
                     {
-                        if(contact_subscene_element_id)
+                        if(subscene_element_id)
                         {
                             auto contact_subscene_element_id_view =
-                                contact_subscene_element_id->view();
+                                subscene_element_id->view();
                             std::ranges::fill(v2sc_span,
                                               contact_subscene_element_id_view.front());
                         }

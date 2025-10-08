@@ -4,16 +4,15 @@
 namespace uipc::sanity_check
 {
 template <int M, int N>
-bool need_contact(const ContactTabular&    contact_table,
-                  const Vector<IndexT, M>& CIdLs,
-                  const Vector<IndexT, N>& CIdRs)
+bool need_contact(const core::ContactTabular& contact_table,
+                  const Vector<IndexT, M>&    CIdLs,
+                  const Vector<IndexT, N>&    CIdRs)
 {
     for(auto& L : CIdLs)
     {
         for(auto& R : CIdRs)
         {
             const core::ContactModel& model = contact_table.at(L, R);
-
             if(!model.is_enabled())
                 return false;
         }
@@ -23,16 +22,15 @@ bool need_contact(const ContactTabular&    contact_table,
 }
 
 template <int M, int N>
-bool need_subscene_contact(const ContactTabular&    contact_table,
-                  const Vector<IndexT, M>& CIdLs,
-                  const Vector<IndexT, N>& CIdRs)
+bool need_contact(const core::SubsceneTabular& subscene_table,
+                  const Vector<IndexT, M>&     CIdLs,
+                  const Vector<IndexT, N>&     CIdRs)
 {
     for(auto& L : CIdLs)
     {
         for(auto& R : CIdRs)
         {
-            const core::ContactModel& model = contact_table.subscene_at(L, R);
-
+            core::SubsceneModel model = subscene_table.at(L, R);
             if(!model.is_enabled())
                 return false;
         }
@@ -41,27 +39,26 @@ bool need_subscene_contact(const ContactTabular&    contact_table,
     return true;
 }
 
-inline bool need_contact(const ContactTabular& contact_table, IndexT CIdL, IndexT CIdR)
+inline bool need_contact(const core::ContactTabular& contact_table, IndexT CIdL, IndexT CIdR)
 {
-    const core::ContactModel& model = contact_table.at(CIdL, CIdR);
+    core::ContactModel model = contact_table.at(CIdL, CIdR);
     return model.is_enabled();
 }
 
-inline bool need_subscene_contact(const ContactTabular& contact_table, IndexT CIdL, IndexT CIdR)
+inline bool need_contact(const core::SubsceneTabular& subscene_table, IndexT CIdL, IndexT CIdR)
 {
-    const core::ContactModel& model = contact_table.subscene_at(CIdL, CIdR);
+    core::SubsceneModel model = subscene_table.at(CIdL, CIdR);
     return model.is_enabled();
 }
 
 template <int N>
-inline bool need_contact(const ContactTabular&    contact_table,
-                         IndexT                   CIdL,
-                         const Vector<IndexT, N>& CIdRs)
+inline bool need_contact(const core::ContactTabular& contact_table,
+                         IndexT                      CIdL,
+                         const Vector<IndexT, N>&    CIdRs)
 {
     for(auto& R : CIdRs)
     {
-        const core::ContactModel& model = contact_table.at(CIdL, R);
-
+        core::ContactModel model = contact_table.at(CIdL, R);
         if(!model.is_enabled())
             return false;
     }
@@ -70,14 +67,13 @@ inline bool need_contact(const ContactTabular&    contact_table,
 }
 
 template <int N>
-inline bool need_subscene_contact(const ContactTabular&    contact_table,
-                         IndexT                   CIdL,
-                         const Vector<IndexT, N>& CIdRs)
+inline bool need_contact(const core::SubsceneTabular& subscene_table,
+                         IndexT                       CIdL,
+                         const Vector<IndexT, N>&     CIdRs)
 {
     for(auto& R : CIdRs)
     {
-        const core::ContactModel& model = contact_table.subscene_at(CIdL, R);
-
+        core::SubsceneModel model = subscene_table.at(CIdL, R);
         if(!model.is_enabled())
             return false;
     }
