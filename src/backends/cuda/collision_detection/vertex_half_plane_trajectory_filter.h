@@ -88,7 +88,7 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
         void label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info);
 
         GlobalVertexManager* global_vertex_manager = nullptr;
-        GlobalSimpicialSurfaceManager* global_simplicial_surface_manager = nullptr;
+        GlobalSimplicialSurfaceManager* global_simplicial_surface_manager = nullptr;
         GlobalContactManager*    global_contact_manager     = nullptr;
         HalfPlane*               half_plane                 = nullptr;
         HalfPlaneVertexReporter* half_plane_vertex_reporter = nullptr;

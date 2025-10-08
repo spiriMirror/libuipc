@@ -1,13 +1,6 @@
-[submodule "external/muda"]
-	path = external/muda
-	url = https://github.com/spiriMirror/muda.git
-	branch = cuda-13.0-compatibility
 [submodule "scripts/SymEigen"]
 	path = scripts/SymEigen
 	url = https://github.com/MuGdxy/SymEigen.git
 [submodule "external/tetgen"]
 	path = external/tetgen
 	url = https://github.com/spiriMirror/tetgen.git
-[submodule "external/octree/Octree"]
-	path = external/octree/Octree
-	url = https://github.com/attcs/Octree.git

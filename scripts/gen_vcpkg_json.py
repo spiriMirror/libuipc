@@ -2,14 +2,16 @@ import json
 import argparse
 import os
 
-VCPKG_BASE_LINE = 'dd3097e305afa53f7b4312371f62058d2e665320'
 VCPKG_TAG = '2025.7.25'
+VCPKG_BASE_LINE = 'dd3097e305afa53f7b4312371f62058d2e665320'
 
+SPIRI_VCPKG_BASE_LINE = '8c3d3d8087ef50dd0cef06af0d657d3fef6eda4f'
+
+# vcpkg.json
 base_vcpkg_json = {
     'name': 'libuipc',
     'version': '0.0.1',
     'description': 'A Modern C++20 Library of Unified Incremental Potential Contact.',
-    'builtin-baseline': VCPKG_BASE_LINE,
     'dependencies': [
         {
             'name': 'eigen3',
@@ -62,6 +64,10 @@ base_vcpkg_json = {
         {
             'name':'cpptrace',
             'version>=': '0.8.3'
+        },
+        {
+            'name':'octree',
+            'version>=': '2025.10.7'
         }
     ],
     
@@ -79,7 +85,25 @@ base_vcpkg_json = {
     ]
 }
 
-deps = base_vcpkg_json['dependencies']
+# vcpkg-configuration.json
+base_vcpkg_configuration = {
+    'default-registry': {
+        'kind': 'git',
+        'baseline': VCPKG_BASE_LINE,
+        'repository': 'https://github.com/microsoft/vcpkg'
+    },
+    'registries': [
+        {
+            'kind': 'git',
+            'repository': 'https://github.com/spiriMirror/vcpkg',
+            'reference': 'master',
+            'baseline': SPIRI_VCPKG_BASE_LINE,
+            'packages': [
+                'muda', 'octree'
+            ]
+        }
+    ]
+}
 
 def is_enabled(arg):
     ARG = str(arg).upper()
@@ -89,6 +113,8 @@ def is_enabled(arg):
         return False
 
 def gen_vcpkg_json(args):
+    deps = base_vcpkg_json['dependencies']
+    
     if is_enabled(args.build_gui):
         deps.append({
             'name': 'imgui',
@@ -121,29 +147,34 @@ def gen_vcpkg_json(args):
             'version>=': '12.0.1',
             'features': ['nanovdb']
         })
+    if is_enabled(args.with_cuda_backend):
+        deps.append({
+            'name': 'muda',
+            'version>=': '2025.10.3#1'
+        })
 
 def print_deps():
     str_names = []
+    deps = base_vcpkg_json['dependencies']
     for dep in deps:
         s = '    * ' + dep['name'] + ' [' + dep['version>='] + ']'
         str_names.append(s)
     str_names = '\n'.join(str_names)
     print(f'[libuipc] Writing vcpkg.json with dependencies:\n{str_names}')
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Generate vcpkg.json for libuipc.')
-    parser.add_argument('output_dir', type=str, help='Output file path.')
-    parser.add_argument('--build_gui', type=str, default=False, help='Build GUI dependencies.')
-    parser.add_argument('--dev_mode', type=str, default=False, help='Enable development mode.')
-    parser.add_argument('--with_usd_support', type=str, default=False, help='Enable USD support.')
-    parser.add_argument('--with_vdb_support', type=str, default=False, help='Enable VDB support.')
-    
-    args = parser.parse_args()
-    print(f'[libuipc] Generating vcpkg.json with args:')
+def print_basic_info(args):
+    print('[libuipc] Generating vcpkg manifest with args:')
     for K,V in vars(args).items():
         print(f'    * {K}: {V}')
     print('[libuipc] Vcpkg Tag:', VCPKG_TAG)
-    
+
+def write_vcpkg_configuration(args):
+    config_path = f'{args.output_dir}/vcpkg-configuration.json'
+    with open(config_path, 'w') as f:
+        json.dump(base_vcpkg_configuration, f, indent=4)
+    print(f'[libuipc] Generated vcpkg-configuration.json at:\n    {config_path}')
+
+def write_vcpkg_json(args):
     json_path = f'{args.output_dir}/vcpkg.json'
     
     gen_vcpkg_json(args)
@@ -161,25 +192,42 @@ if __name__ == '__main__':
     
     with open(json_path, 'w') as f:
         json.dump(base_vcpkg_json, f, indent=4)
-    
+        
     if is_new:
         print(f'[libuipc] Generated vcpkg.json at:\n    {json_path}')
         print_deps()
-        exit(1)
+        return 1
     
     if changed:
         print(f'[libuipc] vcpkg.json content has changed, overwriting:\n    {json_path}')
         print_deps()
-        exit(1)
+        return 1
         
     if is_dev_mode:
         print(f'[libuipc] vcpkg.json content is unchanged, skipping:\n    {json_path}')
         print_deps()
-        exit(0)
+        return 0
     
     print('[libuipc] User mode always try to install dependencies. '
           'If you want to skip, please define `-DUIPC_DEV_MODE=ON` when configuring CMake.')
     print_deps()
-    exit(1)
+    return 1
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Generate vcpkg.json for libuipc.')
+    parser.add_argument('output_dir', type=str, help='Output file path.')
+    parser.add_argument('--build_gui', type=str, default=False, help='Build GUI dependencies.')
+    parser.add_argument('--dev_mode', type=str, default=False, help='Enable development mode.')
+    parser.add_argument('--with_usd_support', type=str, default=False, help='Enable USD support.')
+    parser.add_argument('--with_vdb_support', type=str, default=False, help='Enable VDB support.')
+    # backends
+    parser.add_argument('--with_cuda_backend', type=str, default=False, help='Enable CUDA backend support.')
+    args = parser.parse_args()
+
+    print_basic_info(args)
     
+    write_vcpkg_configuration(args)
     
+    ret_code = write_vcpkg_json(args)
+    
+    exit(ret_code)

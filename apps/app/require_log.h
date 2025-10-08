@@ -1,5 +1,5 @@
 #pragma once
-#include <spdlog/spdlog.h>
+#include <uipc/common/logger.h>
 #include <spdlog/sinks/base_sink.h>
 #include <uipc/common/list.h>
 #include <mutex>
@@ -25,10 +25,9 @@ class CaptureSink : public spdlog::sinks::base_sink<std::mutex>
     friend class RequireLog;
     static std::shared_ptr<CaptureSink> instance();
     // a test logger that uses the CaptureSink
-    static std::shared_ptr<spdlog::logger> test_logger();
-    list<LogMsg>                      m_msg;
+    static Logger& test_logger();
+    list<LogMsg>  m_msg;
 };
-
 
 template <spdlog::level::level_enum Level>
 class RequireLog
@@ -43,11 +42,8 @@ class RequireLog
 
   public:
     RequireLog(::std::function<void()> check, Type type);
-
+    
     bool success = false;
-
-  private:
-    std::shared_ptr<spdlog::logger> m_last_logger;
 };
 
 }  // namespace uipc::test

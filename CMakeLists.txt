@@ -28,7 +28,14 @@ set(UIPC_PYTHON_EXECUTABLE_PATH "" CACHE PATH "Python executable path")
 # =========================================================================
 # Backend Options
 # =========================================================================
-option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ON)
+# if MAC OS, disable CUDA backend
+if(APPLE)
+    set(CUDA_BACKEND_ON OFF)
+else()
+    set(CUDA_BACKEND_ON ON)
+endif()
+option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ${CUDA_BACKEND_ON})
+
 
 # =========================================================================
 # Show Logo and Options

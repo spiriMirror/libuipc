@@ -86,7 +86,7 @@ void SimEngine::do_advance()
             cfl_alpha = m_global_contact_manager->compute_cfl_condition();
             if(cfl_alpha < alpha)
             {
-                spdlog::info("CFL Filter: {} < {}", cfl_alpha, alpha);
+                logger::info("CFL Filter: {} < {}", cfl_alpha, alpha);
                 return cfl_alpha;
             }
         }
@@ -102,7 +102,7 @@ void SimEngine::do_advance()
             ccd_alpha = m_global_trajectory_filter->filter_toi(alpha);
             if(ccd_alpha < alpha)
             {
-                spdlog::info("CCD Filter: {} < {}", ccd_alpha, alpha);
+                logger::info("CCD Filter: {} < {}", ccd_alpha, alpha);
                 return ccd_alpha;
             }
         }
@@ -139,7 +139,7 @@ void SimEngine::do_advance()
         if(m_global_animator)
         {
             m_global_animator->compute_substep_ratio(newton_iter);
-            spdlog::info("Animation Substep Ratio: {}", m_global_animator->substep_ratio());
+            logger::info("Animation Substep Ratio: {}", m_global_animator->substep_ratio());
         }
     };
 
@@ -190,7 +190,7 @@ void SimEngine::do_advance()
     {
         if(iter >= m_line_searcher->max_iter())
         {
-            spdlog::warn("Line Search Exits with Max Iteration: {} (Frame={})",
+            logger::warn("Line Search Exits with Max Iteration: {} (Frame={})",
                          m_line_searcher->max_iter(),
                          m_current_frame);
 
@@ -205,7 +205,7 @@ void SimEngine::do_advance()
     {
         if(iter >= m_newton_max_iter->view()[0])
         {
-            spdlog::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
+            logger::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
                          m_newton_max_iter->view()[0],
                          m_current_frame);
 
@@ -216,7 +216,7 @@ void SimEngine::do_advance()
         }
         else
         {
-            spdlog::info("Newton Iteration Converged with Iteration Count: {}, Bound: [{}, {}]",
+            logger::info("Newton Iteration Converged with Iteration Count: {}, Bound: [{}, {}]",
                          iter,
                          m_newton_min_iter->view()[0],
                          m_newton_max_iter->view()[0]);
@@ -236,7 +236,7 @@ void SimEngine::do_advance()
 
         ++m_current_frame;
 
-        spdlog::info(R"(>>> Begin Frame: {})", m_current_frame);
+        logger::info(R"(>>> Begin Frame: {})", m_current_frame);
 
         // Rebuild Scene
         {
@@ -279,7 +279,6 @@ void SimEngine::do_advance()
             // 4. Nonlinear-Newton Iteration
             Float box_size = vertex_bounding_box.diagonal().norm();
             Float tol      = m_newton_scene_tol * box_size;
-            Float res0     = 0.0;
             m_newton_tolerance_manager->pre_newton(m_current_frame);
 
             auto   newton_max_iter = m_newton_max_iter->view()[0];
@@ -335,7 +334,7 @@ void SimEngine::do_advance()
 
                     // Compute Current Energy => E_0
                     Float E0 = m_line_searcher->compute_energy(true);  // initial energy
-                    // spdlog::info("Initial Energy: {}", E0);
+                    // logger::info("Initial Energy: {}", E0);
 
                     // CCD filter
                     alpha = filter_toi(alpha);
@@ -345,8 +344,7 @@ void SimEngine::do_advance()
 
                     // * Step Forward => x = x_0 + alpha * dx
                     // Compute Test Energy => E
-                    Float E  = compute_energy(alpha);
-                    Float E1 = E;
+                    Float E = compute_energy(alpha);
 
                     if(!converged)
                     {
@@ -394,7 +392,7 @@ void SimEngine::do_advance()
             check_newton_iter(newton_iter);
         }
 
-        spdlog::info("<<< End Frame: {}", m_current_frame);
+        logger::info("<<< End Frame: {}", m_current_frame);
     };
 
     try
@@ -404,7 +402,7 @@ void SimEngine::do_advance()
     }
     catch(const SimEngineException& e)
     {
-        spdlog::error("Engine Advance Error: {}", e.what());
+        logger::error("Engine Advance Error: {}", e.what());
         status().push_back(core::EngineStatus::error(e.what()));
     }
 }

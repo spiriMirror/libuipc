@@ -1,6 +1,6 @@
 find_package(libigl REQUIRED)
 find_package(TBB REQUIRED)
-
+find_package(Octree CONFIG REQUIRED)
 
 add_library(uipc_geometry SHARED)
 add_library(uipc::geometry ALIAS uipc_geometry)
@@ -13,7 +13,7 @@ target_link_libraries(uipc_geometry PUBLIC
     uipc::core
     igl::igl_core
     tetgen
-    octree
+    Octree::Octree
     TBB::tbb
 )
 

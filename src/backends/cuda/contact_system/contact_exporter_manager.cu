@@ -27,7 +27,7 @@ void ContactExporterManager::init()
         auto it        = m_exporter_map.find(prim_type);
         if(it != m_exporter_map.end())
         {
-            spdlog::warn("Contact exporter for primitive type '{}'<{}> already exists, overwriting with <{}>.",
+            logger::warn("Contact exporter for primitive type '{}'<{}> already exists, overwriting with <{}>.",
                          prim_type,
                          it->second->name(),
                          exporter->name());
@@ -93,7 +93,7 @@ ContactExporter* ContactExporterManager::find_exporter(std::string_view prim_typ
     }
     else
     {
-        spdlog::warn(R"(Contact exporter for primitive type '{}' not found
+        logger::warn(R"(Contact exporter for primitive type '{}' not found
 Supported types are: [{}])",
                      prim_type,
                      fmt::join(m_contact_prim_types, ", "));

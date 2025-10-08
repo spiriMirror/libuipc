@@ -62,8 +62,6 @@ S<GeometrySlot> GeometrySlotT<Geometry>::do_clone() const
 {
     return uipc::make_shared<GeometrySlotT<Geometry>>(id(), m_geometry);
 }
-
-template class UIPC_CORE_API GeometrySlotT<Geometry>;
 }  // namespace uipc::geometry
 
 namespace std

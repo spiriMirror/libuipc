@@ -226,7 +226,7 @@ Json Engine::default_config()
         std::ifstream ifs{config_path};
         if(!ifs)
         {
-            spdlog::warn("Load default config file [{}] failed, fallback to default config.",
+            logger::warn("Load default config file [{}] failed, fallback to default config.",
                          config_path);
         }
         else
@@ -235,12 +235,12 @@ Json Engine::default_config()
             {
                 j                = Json::parse(ifs);
                 override_default = true;
-                spdlog::info("Override default config using config file [{}] successfully.",
+                logger::info("Override default config using config file [{}] successfully.",
                              config_path);
             }
             catch(const std::exception& e)
             {
-                spdlog::warn("Load default config file [{}] failed: {}, rollback to default config.",
+                logger::warn("Load default config file [{}] failed: {}, rollback to default config.",
                              config_path,
                              e.what());
             }

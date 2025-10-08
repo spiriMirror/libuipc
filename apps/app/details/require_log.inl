@@ -9,11 +9,10 @@ RequireLog<Level>::RequireLog(::std::function<void()> check, Type type)
     auto sinks       = CaptureSink::instance();
     auto test_logger = CaptureSink::test_logger();
 
-    m_last_logger = spdlog::default_logger();
-
-    spdlog::set_default_logger(test_logger);
+    auto last_logger = Logger::current_logger();
+    Logger::current_logger(test_logger);
     check();
-    spdlog::set_default_logger(m_last_logger);
+    Logger::current_logger(last_logger);
 
     if(type == Type::Once)
     {

@@ -8,20 +8,20 @@ S<AttributeSlot<Float>> compute_mesh_d_hat(SimplicialComplex& R, Float max_d_hat
 {
     if(R.dim() == 0)
     {
-        spdlog::warn("Can't compute proper d_hat on a point cloud, skip.");
+        Logger::current_logger().warn("Can't compute proper d_hat on a point cloud, skip.");
         return nullptr;
     }
 
     if(R.edges().size() == 0)
     {
-        spdlog::warn("Can't compute proper d_hat on a mesh without edges, skip.");
+        Logger::current_logger().warn("Can't compute proper d_hat on a mesh without edges, skip.");
         return nullptr;
     }
 
     auto edge_is_surf = R.edges().find<IndexT>(builtin::is_surf);
     if(!edge_is_surf)
     {
-        spdlog::warn("Can't compute proper d_hat on a mesh without `is_surf` attribute, did you forget to call `label_surface()`?");
+        Logger::current_logger().warn("Can't compute proper d_hat on a mesh without `is_surf` attribute, did you forget to call `label_surface()`?");
         return nullptr;
     }
 
@@ -31,7 +31,7 @@ S<AttributeSlot<Float>> compute_mesh_d_hat(SimplicialComplex& R, Float max_d_hat
                             [](IndexT is_surf) { return is_surf > 0; });
     if(!any_surf)
     {
-        spdlog::warn("Can't compute proper d_hat on a mesh without surface edge, skip.");
+        Logger::current_logger().warn("Can't compute proper d_hat on a mesh without surface edge, skip.");
         return nullptr;
     }
 
