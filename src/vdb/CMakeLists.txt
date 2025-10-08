@@ -19,7 +19,7 @@ target_link_libraries(uipc_vdb PRIVATE
 
 if(APPLE)
     # OpenVDB built with blosc support but vcpkg doesn't link it automatically for static libs
-    find_package(blosc REQUIRED)
+    find_package(blosc CONFIG REQUIRED)
     target_link_libraries(uipc_vdb PRIVATE blosc_static)
     # Suppress duplicate library warnings by setting linker flags
     target_link_options(uipc_vdb PRIVATE "LINKER:-no_warn_duplicate_libraries")
