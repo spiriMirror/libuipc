@@ -145,7 +145,7 @@ def gen_vcpkg_json(args):
         deps.append({
             'name': 'openvdb',
             'version>=': '12.0.1',
-            'features': ['nanovdb']
+            'features': ["nanovdb"] if is_enabled(args.with_cuda_backend) else []
         })
     if is_enabled(args.with_cuda_backend):
         deps.append({

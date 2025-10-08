@@ -21,8 +21,6 @@ void compute_mesh_d_hat_test()
 
     auto d_hat = compute_mesh_d_hat(tet);
 
-    logger::info("compute_mesh_d_hat: d_hat={}", d_hat->view()[0]);
-
     REQUIRE(d_hat->view()[0] == 1.0);
 }
 
@@ -36,8 +34,6 @@ void compute_mesh_d_hat_test(std::string_view mesh)
 
     REQUIRE(d_hat);
     REQUIRE(d_hat->view()[0] <= 1.0);
-
-    logger::info("d_hat={}, mesh={}", d_hat->view()[0], mesh);
 }
 
 TEST_CASE("compute_mesh_d_hat", "[d_hat]")
