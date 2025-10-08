@@ -5,7 +5,7 @@ namespace uipc::backend::cuda
 void VertexHalfPlaneTrajectoryFilter::do_build()
 {
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
-    m_impl.global_simplicial_surface_manager = &require<GlobalSimpicialSurfaceManager>();
+    m_impl.global_simplicial_surface_manager = &require<GlobalSimplicialSurfaceManager>();
     m_impl.global_contact_manager     = &require<GlobalContactManager>();
     m_impl.half_plane                 = &require<HalfPlane>();
     m_impl.half_plane_vertex_reporter = &require<HalfPlaneVertexReporter>();
@@ -48,7 +48,7 @@ void VertexHalfPlaneTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::F
     FilterActiveInfo this_info{&m_impl};
     do_filter_active(this_info);
 
-    spdlog::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
+    logger::info("VertexHalfPlaneTrajectoryFilter PHs: {}.", m_impl.PHs.size());
 }
 
 void VertexHalfPlaneTrajectoryFilter::do_filter_toi(GlobalTrajectoryFilter::FilterTOIInfo& info)
@@ -129,9 +129,9 @@ muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_ele
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
-muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_contact_element_ids() const noexcept
+muda::CBufferView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_element_ids() const noexcept
 {
-    return m_impl->global_vertex_manager->subscene_contact_element_ids();
+    return m_impl->global_vertex_manager->subscene_element_ids();
 }
 
 muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_mask_tabular() const noexcept
@@ -139,9 +139,9 @@ muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::contact_m
     return m_impl->global_contact_manager->contact_mask_tabular();
 }
 
-muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_contact_mask_tabular() const noexcept
+muda::CBuffer2DView<IndexT> VertexHalfPlaneTrajectoryFilter::BaseInfo::subscene_mask_tabular() const noexcept
 {
-    return m_impl->global_contact_manager->subscene_contact_mask_tabular();
+    return m_impl->global_contact_manager->subscene_mask_tabular();
 }
 
 muda::CBufferView<Float> VertexHalfPlaneTrajectoryFilter::BaseInfo::thicknesses() const noexcept

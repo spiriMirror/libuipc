@@ -36,7 +36,7 @@ namespace sym::abd_arap
 
     // Function to compute the gradient of the ARAP energy
     template <typename T>
-    __host__ __device__ void dEdq(Eigen::Vector<T, 9>&        gradient,
+    __host__ __device__ void dEdq(Eigen::Vector<T, 9>&        gradients,
                                   const T&                    kappa,
                                   const Eigen::Vector<T, 12>& q)
     {
@@ -54,7 +54,7 @@ namespace sym::abd_arap
         {
             for(int j = 0; j < 3; ++j)
             {
-                gradient(i * 3 + j) = kappa * dPsi_dF(i, j);
+                gradients(i * 3 + j) = kappa * dPsi_dF(i, j);
             }
         }
     }
@@ -112,14 +112,14 @@ namespace sym::abd_arap
     }
     // Function to compute the Hessian of the ARAP energy
     template <typename T>
-    __host__ __device__ void ddEddq(Eigen::Matrix<T, 9, 9>&     hessian,
+    __host__ __device__ void ddEddq(Eigen::Matrix<T, 9, 9>&     hessians,
                                     const T&                    kappa,
                                     const Eigen::Vector<T, 12>& q)
     {
         Eigen::Matrix<T, 3, 3> F;
         extractF(F, q);
-        ARAP_Hessian(hessian, F);
-        hessian *= kappa;
+        ARAP_Hessian(hessians, F);
+        hessians *= kappa;
     }
 
 }  // namespace sym::abd_arap

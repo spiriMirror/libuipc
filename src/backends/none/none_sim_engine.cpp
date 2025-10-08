@@ -8,8 +8,8 @@ namespace uipc::backend::none
 NoneSimEngine::NoneSimEngine(EngineCreateInfo* info)
     : SimEngine(info)
 {
-    spdlog::info("[NoneEngine] Constructor called.");
-    spdlog::info(R"(Hello, this is the NoneEngine from libuipc backends.
+    logger::info("[NoneEngine] Constructor called.");
+    logger::info(R"(Hello, this is the NoneEngine from libuipc backends.
 This engine does nothing, but helps to do the checking of the engine interface.
 And it is a good place to print out some debug information during the life cycle of the engine.
 )");
@@ -17,7 +17,7 @@ And it is a good place to print out some debug information during the life cycle
 
 void NoneSimEngine::do_init(InitInfo& info)
 {
-    spdlog::info("[NoneEngine] do_init() called.");
+    logger::info("[NoneEngine] do_init() called.");
 
     build_systems();
 
@@ -29,22 +29,22 @@ void NoneSimEngine::do_init(InitInfo& info)
 void NoneSimEngine::do_advance()
 {
     m_frame++;
-    spdlog::info("[NoneEngine] do_advance() called.");
+    logger::info("[NoneEngine] do_advance() called.");
 }
 
 void NoneSimEngine::do_sync()
 {
-    spdlog::info("[NoneEngine] do_sync() called.");
+    logger::info("[NoneEngine] do_sync() called.");
 }
 
 void NoneSimEngine::do_retrieve()
 {
-    spdlog::info("[NoneEngine] do_receive() called.");
+    logger::info("[NoneEngine] do_receive() called.");
 }
 
 NoneSimEngine::~NoneSimEngine()
 {
-    spdlog::info("[NoneEngine] Destructor called.");
+    logger::info("[NoneEngine] Destructor called.");
 }
 
 

@@ -63,7 +63,7 @@ class ARAP final : public AffineBodyConstitution
         auto body_count = info.qs().size();
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(body_count,
                    [shape_energies = info.energies().viewer().name("energies"),
                     qs             = info.qs().cviewer().name("qs"),
@@ -92,7 +92,7 @@ class ARAP final : public AffineBodyConstitution
         auto N = info.qs().size();
 
         ParallelFor()
-            .kernel_name(__FUNCTION__)
+            .file_line(__FILE__, __LINE__)
             .apply(N,
                    [qs      = info.qs().cviewer().name("qs"),
                     volumes = info.volumes().cviewer().name("volumes"),

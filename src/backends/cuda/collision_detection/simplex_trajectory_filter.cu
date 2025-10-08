@@ -5,7 +5,7 @@ namespace uipc::backend::cuda
 void SimplexTrajectoryFilter::do_build()
 {
     m_impl.global_vertex_manager = require<GlobalVertexManager>();
-    m_impl.global_simplicial_surface_manager = require<GlobalSimpicialSurfaceManager>();
+    m_impl.global_simplicial_surface_manager = require<GlobalSimplicialSurfaceManager>();
     m_impl.global_contact_manager  = require<GlobalContactManager>();
     m_impl.global_body_manager     = require<GlobalBodyManager>();
     auto& global_trajectory_filter = require<GlobalTrajectoryFilter>();
@@ -94,7 +94,7 @@ void SimplexTrajectoryFilter::do_filter_active(GlobalTrajectoryFilter::FilterAct
     FilterActiveInfo this_info{&m_impl};
     do_filter_active(this_info);
 
-    spdlog::info("SimplexTrajectoryFilter PTs: {}, EEs: {}, PEs: {}, PPs: {}",
+    logger::info("SimplexTrajectoryFilter PTs: {}, EEs: {}, PEs: {}, PPs: {}",
                  m_impl.PTs.size(),
                  m_impl.EEs.size(),
                  m_impl.PEs.size(),
@@ -128,7 +128,7 @@ void SimplexTrajectoryFilter::Impl::record_friction_candidates(
     loose_resize(friction_PP, PPs.size());
     friction_PP.view().copy_from(PPs);
 
-    spdlog::info("SimplexTrajectoryFilter Friction PT: {}, EE: {}, PE: {}, PP: {}",
+    logger::info("SimplexTrajectoryFilter Friction PT: {}, EE: {}, PE: {}, PP: {}",
                  friction_PT.size(),
                  friction_EE.size(),
                  friction_PE.size(),
@@ -211,9 +211,9 @@ muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_element_ids
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
-muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_contact_element_ids() const noexcept
+muda::CBufferView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_element_ids() const noexcept
 {
-    return m_impl->global_vertex_manager->subscene_contact_element_ids();
+    return m_impl->global_vertex_manager->subscene_element_ids();
 }
 
 muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_mask_tabular() const noexcept
@@ -221,9 +221,9 @@ muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::contact_mask_tabu
     return m_impl->global_contact_manager->contact_mask_tabular();
 }
 
-muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_contact_mask_tabular() const noexcept
+muda::CBuffer2DView<IndexT> SimplexTrajectoryFilter::BaseInfo::subscene_mask_tabular() const noexcept
 {
-    return m_impl->global_contact_manager->subscene_contact_mask_tabular();
+    return m_impl->global_contact_manager->subscene_mask_tabular();
 }
 
 muda::CBufferView<Vector4i> SimplexTrajectoryFilter::PTs() const noexcept

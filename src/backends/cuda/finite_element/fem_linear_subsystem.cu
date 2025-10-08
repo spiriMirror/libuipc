@@ -21,13 +21,8 @@ void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
     auto dt_attr      = world().scene().config().find<Float>("dt");
     m_impl.dt         = dt_attr->view()[0];
 
-    auto contact = find<FEMContactReceiver>();
-    if(contact)
-        m_impl.fem_contact_receiver = *contact;
-    auto animator = find<FiniteElementAnimator>();
-    if(animator)
-        m_impl.finite_element_animator = *animator;
-
+    m_impl.dytopo_effect_receiver  = find<FEMDyTopoEffectReceiver>();
+    m_impl.finite_element_animator = find<FiniteElementAnimator>();
     m_impl.converter.reserve_ratio(1.1);
 }
 
@@ -76,11 +71,11 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     energy_producer_hessian_count  = fem().energy_producer_total_hessian_count;
     auto hessian_block_count       = energy_producer_hessian_count;
 
-    if(fem_contact_receiver)  // if contact enabled
+    if(dytopo_effect_receiver)  // if dytopo_effect enabled
     {
-        contact_hessian_offset = hessian_block_count;
-        contact_hessian_count  = contact().contact_hessian.triplet_count();
-        hessian_block_count += contact_hessian_count;
+        dytopo_effect_hessian_offset = hessian_block_count;
+        dytopo_effect_hessian_count = dytopo_effect_receiver->hessians().triplet_count();
+        hessian_block_count += dytopo_effect_hessian_count;
     }
 
     if(finite_element_animator)
@@ -102,14 +97,14 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 {
     // 0) record dof info
     auto frame = sim_engine->frame();
-    fem().set_dof_info(frame, info.gradient().offset(), info.gradient().size());
+    fem().set_dof_info(frame, info.gradients().offset(), info.gradients().size());
 
     // 1) Clear Gradient
-    info.gradient().buffer_view().fill(0);
+    info.gradients().buffer_view().fill(0);
 
     // 2) Assemble Gradient and Hessian
     _assemble_producers(info);
-    _assemble_contact(info);
+    _assemble_dytopo_effect(info);
     _assemble_animation(info);
 
     using namespace muda;
@@ -119,20 +114,20 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
         .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
                [is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
-                gradient = info.gradient().viewer().name("gradient")] __device__(int i) mutable
+                gradients = info.gradients().viewer().name("gradients")] __device__(int i) mutable
                {
                    if(is_fixed(i))
                    {
-                       gradient.segment<3>(i * 3).as_eigen().setZero();
+                       gradients.segment<3>(i * 3).as_eigen().setZero();
                    }
                });
 
     // 4) Clear Fixed Vertex hessian
     ParallelFor()
         .file_line(__FILE__, __LINE__)
-        .apply(info.hessian().triplet_count(),
+        .apply(info.hessians().triplet_count(),
                [is_fixed = fem().is_fixed.cviewer().name("is_fixed"),
-                hessians = info.hessian().viewer().name("hessians")] __device__(int I) mutable
+                hessians = info.hessians().viewer().name("hessians")] __device__(int I) mutable
                {
                    auto&& [i, j, H3] = hessians(I).read();
 
@@ -148,8 +143,8 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo& info)
 {
     FiniteElementEnergyProducer::AssemblyInfo assembly_info;
-    assembly_info.hessians = info.hessian().subview(energy_producer_hessian_offset,
-                                                    energy_producer_hessian_count);
+    assembly_info.hessians = info.hessians().subview(energy_producer_hessian_offset,
+                                                     energy_producer_hessian_count);
     assembly_info.dt = dt;
 
     for(auto& producer : fem().energy_producers)
@@ -164,7 +159,7 @@ void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo&
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(producer_gradients.doublet_count(),
-               [dst_gradient = info.gradient().viewer().name("dst_gradient"),
+               [dst_gradient = info.gradients().viewer().name("dst_gradient"),
                 src_gradient = producer_gradients.viewer().name("src_gradient")] __device__(int I) mutable
                {
                    auto&& [i, G3] = src_gradient(I);
@@ -172,50 +167,53 @@ void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo&
                });
 }
 
-void FEMLinearSubsystem::Impl::_assemble_contact(GlobalLinearSystem::DiagInfo& info)
+void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(GlobalLinearSystem::DiagInfo& info)
 {
     using namespace muda;
 
-    if(fem_contact_receiver)  //  if contact enabled
+    if(dytopo_effect_receiver)  //  if dytopo_effect enabled
     {
-        auto contact_gradient_count = contact().contact_gradient.doublet_count();
+        auto dytopo_effect_gradient_count =
+            dytopo_effect_receiver->gradients().doublet_count();
 
-        // 1) Assemble Contact Gradient to Gradient
-        if(contact_gradient_count)
+        // 1) Assemble DyTopoEffect Gradient to Gradient
+        if(dytopo_effect_gradient_count)
         {
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(contact_gradient_count,
-                       [contact_gradient = contact().contact_gradient.cviewer().name("contact_gradient"),
-                        gradient = info.gradient().viewer().name("gradient"),
+                .apply(dytopo_effect_gradient_count,
+                       [dytopo_effect_gradient =
+                            dytopo_effect_receiver->gradients().cviewer().name("dytopo_effect_gradient"),
+                        gradients = info.gradients().viewer().name("gradients"),
                         vertex_offset = finite_element_vertex_reporter->vertex_offset(),
                         is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
                        {
-                           const auto& [g_i, G3] = contact_gradient(I);
+                           const auto& [g_i, G3] = dytopo_effect_gradient(I);
                            auto i = g_i - vertex_offset;  // from global to local
-                           gradient.segment<3>(i * 3).atomic_add(G3);
+                           gradients.segment<3>(i * 3).atomic_add(G3);
                        });
         }
 
-        // 2) Assemble Contact Hessian to Hessian
-        if(contact_hessian_count)
+        // 2) Assemble DyTopoEffect Hessian to Hessian
+        if(dytopo_effect_hessian_count)
         {
-            auto dst_H3x3s =
-                info.hessian().subview(contact_hessian_offset, contact_hessian_count);
+            auto dst_H3x3s = info.hessians().subview(dytopo_effect_hessian_offset,
+                                                     dytopo_effect_hessian_count);
 
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(contact_hessian_count,
-                       [contact_hessian = contact().contact_hessian.cviewer().name("contact_hessian"),
-                        hessian = dst_H3x3s.viewer().name("hessian"),
+                .apply(dytopo_effect_hessian_count,
+                       [dytopo_effect_hessian =
+                            dytopo_effect_receiver->hessians().cviewer().name("dytopo_effect_hessian"),
+                        hessians = dst_H3x3s.viewer().name("hessians"),
                         vertex_offset =
                             finite_element_vertex_reporter->vertex_offset()] __device__(int I) mutable
                        {
-                           const auto& [g_i, g_j, H3] = contact_hessian(I);
-                           auto i                     = g_i - vertex_offset;
-                           auto j                     = g_j - vertex_offset;
+                           const auto& [g_i, g_j, H3] = dytopo_effect_hessian(I);
+                           auto i = g_i - vertex_offset;
+                           auto j = g_j - vertex_offset;
 
-                           hessian(I).write(i, j, H3);
+                           hessians(I).write(i, j, H3);
                        });
         }
     }
@@ -226,8 +224,8 @@ void FEMLinearSubsystem::Impl::_assemble_animation(GlobalLinearSystem::DiagInfo&
     using namespace muda;
     if(finite_element_animator)
     {
-        auto hessians = info.hessian().subview(animator_hessian_offset, animator_hessian_count);
-        FiniteElementAnimator::AssembleInfo this_info{info.gradient(), hessians, dt};
+        auto hessians = info.hessians().subview(animator_hessian_offset, animator_hessian_count);
+        FiniteElementAnimator::AssembleInfo this_info{info.gradients(), hessians, dt};
         finite_element_animator->assemble(this_info);
     }
 }
@@ -243,7 +241,7 @@ void FEMLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
 
     auto dxs = fem().dxs.view();
     ParallelFor()
-        .kernel_name(__FUNCTION__)
+        .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
                [dxs = dxs.viewer().name("dxs"),
                 result = info.solution().viewer().name("result")] __device__(int i) mutable

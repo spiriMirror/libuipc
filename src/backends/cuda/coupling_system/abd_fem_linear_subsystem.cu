@@ -1,6 +1,6 @@
 #include <linear_system/off_diag_linear_subsystem.h>
-#include <coupling_system/abd_fem_contact_receiver.h>
-#include <coupling_system/fem_abd_contact_receiver.h>
+#include <coupling_system/abd_fem_dytopo_effect_receiver.h>
+#include <coupling_system/fem_abd_dytopo_effect_receiver.h>
 #include <affine_body/abd_linear_subsystem.h>
 #include <finite_element/fem_linear_subsystem.h>
 #include <linear_system/global_linear_system.h>
@@ -19,8 +19,8 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
 
     SimSystemSlot<GlobalLinearSystem> global_linear_system;
 
-    SimSystemSlot<ABDFEMContactReceiver> abd_fem_contact_receiver;
-    SimSystemSlot<FEMABDContactReceiver> fem_abd_contact_receiver;
+    SimSystemSlot<ABDFEMDyTopoEffectReceiver> abd_fem_dytopo_effect_receiver;
+    SimSystemSlot<FEMABDDyTopoEffectReceiver> fem_abd_dytopo_effect_receiver;
 
     SimSystemSlot<ABDLinearSubsystem> abd_linear_subsystem;
     SimSystemSlot<FEMLinearSubsystem> fem_linear_subsystem;
@@ -35,8 +35,8 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
     {
         global_linear_system = require<GlobalLinearSystem>();
 
-        abd_fem_contact_receiver = require<ABDFEMContactReceiver>();
-        fem_abd_contact_receiver = require<FEMABDContactReceiver>();
+        abd_fem_dytopo_effect_receiver = require<ABDFEMDyTopoEffectReceiver>();
+        fem_abd_dytopo_effect_receiver = require<FEMABDDyTopoEffectReceiver>();
 
         abd_linear_subsystem = require<ABDLinearSubsystem>();
         fem_linear_subsystem = require<FEMLinearSubsystem>();
@@ -52,20 +52,20 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
 
     virtual void report_extent(GlobalLinearSystem::OffDiagExtentInfo& info) override
     {
-        if(!abd_fem_contact_receiver || !fem_abd_contact_receiver)
+        if(!abd_fem_dytopo_effect_receiver || !fem_abd_dytopo_effect_receiver)
         {
             info.extent(0, 0);
             return;
         }
 
         // ABD-FEM Hessian: H12x3
-        auto abd_fem_contact_count =
-            abd_fem_contact_receiver->contact_hessian().triplet_count();
-        auto abd_fem_H3x3_count = abd_fem_contact_count * 4;
+        auto abd_fem_dytopo_effect_count =
+            abd_fem_dytopo_effect_receiver->hessians().triplet_count();
+        auto abd_fem_H3x3_count = abd_fem_dytopo_effect_count * 4;
         // FEM-ABD Hessian: H3x12
-        auto fem_abd_contact_count =
-            fem_abd_contact_receiver->contact_hessian().triplet_count();
-        auto fem_abd_H3x3_count = fem_abd_contact_count * 4;
+        auto fem_abd_dytopo_effect_count =
+            fem_abd_dytopo_effect_receiver->hessians().triplet_count();
+        auto fem_abd_H3x3_count = fem_abd_dytopo_effect_count * 4;
 
         info.extent(abd_fem_H3x3_count, fem_abd_H3x3_count);
     }
@@ -74,16 +74,16 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
     {
         using namespace muda;
 
-        auto count = fem_abd_contact_receiver->contact_hessian().triplet_count();
+        auto count = fem_abd_dytopo_effect_receiver->hessians().triplet_count();
 
-        UIPC_ASSERT(fem_abd_contact_receiver->contact_hessian().triplet_count()
-                        == abd_fem_contact_receiver->contact_hessian().triplet_count(),
-                    "ABDFEMLinearSubsystem: contact count mismatch");
+        UIPC_ASSERT(fem_abd_dytopo_effect_receiver->hessians().triplet_count()
+                        == abd_fem_dytopo_effect_receiver->hessians().triplet_count(),
+                    "ABDFEMLinearSubsystem: dytopo_effect count mismatch");
 
         if(count > 0)
         {
             ParallelFor()
-                .kernel_name(__FUNCTION__)
+                .file_line(__FILE__, __LINE__)
                 .apply(
                     count,
                     [v2b = affine_body_dynamics->v2b().viewer().name("v2b"),
@@ -94,10 +94,10 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
                          finite_element_method->is_fixed().viewer().name("vertex_is_fixed"),
                      L = info.lr_hessian().viewer().name("L"),
                      R = info.rl_hessian().viewer().name("R"),
-                     abd_fem_contact =
-                         abd_fem_contact_receiver->contact_hessian().viewer().name("abd_fem_contact"),
-                     fem_abd_contact =
-                         fem_abd_contact_receiver->contact_hessian().viewer().name("fem_abd_contact"),
+                     abd_fem_dytopo_effect =
+                         abd_fem_dytopo_effect_receiver->hessians().viewer().name("abd_fem_dytopo_effect"),
+                     fem_abd_dytopo_effect =
+                         fem_abd_dytopo_effect_receiver->hessians().viewer().name("fem_abd_dytopo_effect"),
                      abd_point_offset = affine_body_vertex_reporter->vertex_offset(),
                      fem_point_offset =
                          finite_element_vertex_reporter->vertex_offset()] __device__(int I) mutable
@@ -105,7 +105,7 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
                         // 1. ABD-FEM
                         {
                             // global vertex indices
-                            auto&& [gI_abd_v, gJ_fem_v, H3x3] = abd_fem_contact(I);
+                            auto&& [gI_abd_v, gJ_fem_v, H3x3] = abd_fem_dytopo_effect(I);
 
                             // cout << "gI_abd:" << gI_abd_v << " gJ_fem:" << gJ_fem_v << "\n";
 
@@ -134,7 +134,7 @@ class ABDFEMLinearSubsystem final : public OffDiagLinearSubsystem
                         // 2. FEM-ABD
                         {
                             // global vertex indices
-                            auto&& [gI_fem_v, gJ_abd_v, H3x3] = fem_abd_contact(I);
+                            auto&& [gI_fem_v, gJ_abd_v, H3x3] = fem_abd_dytopo_effect(I);
 
                             // cout << "gI_fem:" << gI_fem_v << " gJ_abd:" << gJ_abd_v << "\n";
 

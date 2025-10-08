@@ -9,15 +9,6 @@ namespace uipc::core
 class UIPC_CORE_API ContactSystemFeatureOverrider
 {
   public:
-    virtual void do_compute_contact() = 0;
-
-    virtual void get_contact_energy(geometry::Geometry& energy_geo) = 0;
-
-    virtual void get_contact_gradient(geometry::Geometry& vert_grad) = 0;
-
-    virtual void get_contact_hessian(geometry::Geometry& vert_hess) = 0;
-
-
     virtual void get_contact_energy(std::string_view    prim_type,
                                     geometry::Geometry& energy_geo) = 0;
 
@@ -37,29 +28,6 @@ class UIPC_CORE_API ContactSystemFeature final : public Feature
     constexpr static std::string_view FeatureName = "contact_system";
 
     ContactSystemFeature(S<ContactSystemFeatureOverrider> overrider);
-
-    void compute_contact();
-
-    /**
-     * @brief return the contact energy of the system.
-     * 
-     * @param energy_geo
-     */
-    void contact_energy(geometry::Geometry& energy_geo);
-
-    /**
-     * @brief return all contact gradients for the vertices in the system.
-     * 
-     * @param vert_grad
-     */
-    void contact_gradient(geometry::Geometry& vert_grad);
-
-    /**
-     * @brief return all contact hessians for the vertices in the system.
-     * 
-     * @param vert_hess
-     */
-    void contact_hessian(geometry::Geometry& vert_hess);
 
     void contact_energy(std::string_view prim_type, geometry::Geometry& energy);
 

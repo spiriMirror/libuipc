@@ -1,0 +1,19 @@
+#pragma once
+#include <type_define.h>
+
+namespace uipc::backend::cuda::analyticalBarrier
+{
+
+
+template <class T>
+MUDA_GENERIC void analytical_parallel_point_point_pFpx(const Eigen::Vector<T, 3>& e0,
+                                                       const Eigen::Vector<T, 3>& e2,
+                                                       const Eigen::Vector<T, 3>& e1,
+                                                       const Eigen::Vector<T, 3>& e3,
+                                                       T d_hatSqrt,
+                                                       T result[12][9]);
+
+
+}
+
+#include "details/pFpx_parallel_PP_contact.inl"

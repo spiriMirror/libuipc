@@ -2,8 +2,6 @@
 
 This document, referred to as the "Libuipc Specification" defines the behavior of the library.
 
-[TOC]
-
 ## Coordinates
 
 The `libuipc` uses 3D coordinates to represent points in space. The coordinates are represented as a tuple of three real numbers `(x, y, z)` with units in meters. The convention used is the right-handed coordinate system.
@@ -77,3 +75,125 @@ The surface direction of a positive volume tetrahedron is always outward.
     <img src="../media/tetrahedron_orient.png" alt="Tetrahedron Orientation" width="50%" />
 </p>
 
+## Contact Tabular
+
+The contact behaviour of two contact element is defined by the tuple $C = (\kappa, \mu, f)$, where $\kappa \in (0, +\infty)$ is the restitution coefficient, $\mu \in [0,1]$ is the friction coefficient, and $f \in \{0,1\}$ is the enable flag. If $f=1$, the two contact elements are allowed to contact with each other, otherwise not.
+
+$C$ is called a **Contact Model**.
+
+The contact tabular is a matrix-like structure $C_{ij}$.
+
+The users create contact elements by:
+
+=== "C++"
+
+    ```cpp
+    auto& contact_tabular = scene.contact_tabular();
+    auto& ce1 = contact_tabular.create("#1");
+    auto& ce2 = contact_tabular.create("#2"); 
+    ```
+
+=== "Python"
+
+    ```python
+    contact_tabular = scene.contact_tabular()
+    ce1 = contact_tabular.create("#1")
+    ce2 = contact_tabular.create("#2")
+    ```
+
+and create contact model by:
+
+=== "C++"
+
+    ```cpp
+    contact_tabular.insert(ce1, ce2, 0.5, 1.0_GPa, true);
+    ```
+
+=== "Python"
+
+    ```python
+    contact_tabular.insert(ce1, ce2, 0.5, 1.0 * GPa, True)
+    ```
+
+### Default Rule
+
+1. If $C_{ij}$ is not defined(`insert()`) before simulation, the simulator regards $C_{ij} = C_{00}$
+2. Default model $C_{00}$ is always defined, users are allowed to modify the default model by:
+
+    === "C++"
+    
+        ```cpp
+        contact_tabular.default_model(0.5, 1.0_GPa, true);
+        ```
+    
+    === "Python"
+    
+        ```python
+        contact_tabular.default_model(0.5, 1.0 * GPa, True)
+        ```
+
+## Subscene Tabular
+
+The inter-subscene behaviour of two subscenes is defined by the tuple $S = (f)$, where $f \in \{0,1\}$ is the enable flag, if $f=1$, the objects in subscenes $S_i$ and $S_j$ are allowed to interact, otherwise not.
+
+$S$ is called a **Subscene Model**.
+
+The subscene tabular is a matrix-like structure $S_{ij}$.
+
+The users create subscenes by:
+
+=== "C++"
+
+    ```cpp
+    auto& subscene_tabular = scene.subscene_tabular();
+    auto& ss1 = subscene_tabular.create("#1");
+    auto& ss2 = subscene_tabular.create("#2"); 
+    ```
+
+=== "Python"
+
+    ```python
+    subscene_tabular = scene.subscene_tabular()
+    ss1 = subscene_tabular.create("#1")
+    ss2 = subscene_tabular.create("#2")
+    ```
+
+and create subscene model by:
+
+=== "C++"
+
+    ```cpp
+    subscene_tabular.insert(ss1, ss2, true);
+    ```
+=== "Python"
+
+    ```python
+    subscene_tabular.insert(ss1, ss2, True)
+    ```
+
+### Default Rule
+
+1. If $S_{ij} = (f_{ij})$ is not defined(`insert()`) before simulation, the simulator regards:
+    $$
+    \begin{aligned}\notag
+    f_{ij} = 
+        \begin{cases}
+        1, & \text{if } i=j \newline
+        0, & \text{if } i \neq j
+        \end{cases}
+    \end{aligned}
+    $$
+2. Default model $S_{00}$ is always defined, users are allowed to modify the default model by:
+
+    === "C++"
+
+        ```cpp
+        subscene_tabular.default_model(true);
+        ```
+    === "Python"
+     
+        ```python
+        subscene_tabular.default_model(True)
+        ```
+
+Note that **the default rule 1 is different from the contact tabular**, because normally objects in the same subscene are allowed to interact, while objects in different subscenes are not, the matrix of $S_{ij}$ most of time looks like an identity matrix. We make the most common case as the default rule to reduce the burden of users.

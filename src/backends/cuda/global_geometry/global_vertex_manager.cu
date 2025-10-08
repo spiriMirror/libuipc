@@ -357,7 +357,7 @@ muda::CBufferView<IndexT> GlobalVertexManager::contact_element_ids() const noexc
     return m_impl.contact_element_ids;
 }
 
-muda::CBufferView<IndexT> GlobalVertexManager::subscene_contact_element_ids() const noexcept
+muda::CBufferView<IndexT> GlobalVertexManager::subscene_element_ids() const noexcept
 {
     return m_impl.contact_subscene_element_ids;
 }

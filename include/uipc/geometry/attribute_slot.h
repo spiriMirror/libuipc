@@ -136,8 +136,8 @@ class AttributeSlot final : public IAttributeSlot
 
     virtual std::string_view get_name() const noexcept override;
     virtual bool             get_allow_destroy() const noexcept override;
-    virtual bool             get_is_evolving() const noexcept;
-    virtual void             set_is_evolving(bool v) noexcept;
+    virtual bool             get_is_evolving() const noexcept override;
+    virtual void             set_is_evolving(bool v) noexcept override;
 
     virtual IAttribute&       get_attribute() noexcept override;
     virtual const IAttribute& get_attribute() const noexcept override;
@@ -150,7 +150,7 @@ class AttributeSlot final : public IAttributeSlot
                                              bool allow_destroy) const override;
     virtual void do_share_from(const IAttributeSlot& other) noexcept override;
     virtual TimePoint get_last_modified() const noexcept override;
-    virtual void      set_last_modified(const TimePoint& pt) noexcept;
+    virtual void      set_last_modified(const TimePoint& pt) noexcept override;
 
     TimePoint       m_last_modified;
     std::string     m_name;

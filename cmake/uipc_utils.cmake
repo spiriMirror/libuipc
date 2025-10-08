@@ -51,6 +51,7 @@ function(uipc_show_options)
     message(STATUS "    * UIPC_BUILD_TESTS: ${UIPC_BUILD_TESTS}")
     message(STATUS "    * UIPC_BUILD_BENCHMARKS: ${UIPC_BUILD_BENCHMARKS}")
     message(STATUS "    * UIPC_WITH_USD_SUPPORT: ${UIPC_WITH_USD_SUPPORT}")
+    message(STATUS "    * UIPC_WITH_VDB_SUPPORT: ${UIPC_WITH_VDB_SUPPORT}")
     message(STATUS "    * UIPC_PYTHON_EXECUTABLE_PATH: ${UIPC_PYTHON_EXECUTABLE_PATH}")
 
     message(STATUS "Backend Options:")
@@ -99,6 +100,8 @@ function(uipc_config_vcpkg_install)
         "--build_gui=${UIPC_BUILD_GUI}" # pass the UIPC_BUILD_GUI as argument
         "--dev_mode=${UIPC_DEV_MODE}" # pass the UIPC_DEV_MODE as argument
         "--with_usd_support=${UIPC_WITH_USD_SUPPORT}" # pass the UIPC_WITH_USD_SUPPORT as argument
+        "--with_vdb_support=${UIPC_WITH_VDB_SUPPORT}" # pass the UIPC_WITH_VDB_SUPPORT as argument
+        "--with_cuda_backend=${UIPC_WITH_CUDA_BACKEND}" # pass the UIPC_WITH_CUDA_BACKEND as argument
         RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
     )
 

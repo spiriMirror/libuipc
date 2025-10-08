@@ -29,11 +29,10 @@ void FastSegmentalReduce<BlockSize, WarpSize>::reduce(CBufferView<int> offset,
 
     using Matrix = Eigen::Matrix<T, M, N>;
 
-    auto                   size       = in.size();
-    constexpr int          warp_size  = WarpSize;
-    constexpr unsigned int warp_mask  = ~0u;
-    constexpr int          block_dim  = BlockSize;
-    constexpr int          warp_count = block_dim / warp_size;
+    auto          size       = in.size();
+    constexpr int warp_size  = WarpSize;
+    constexpr int block_dim  = BlockSize;
+    constexpr int warp_count = block_dim / warp_size;
 
     BufferLaunch(this->stream()).fill<Matrix>(out, Matrix::Zero().eval());
 
@@ -147,11 +146,10 @@ void FastSegmentalReduce<BlockSize, WarpSize>::reduce(CBufferView<int> offset,
 
     using ValueT = T;
 
-    auto                   size       = in.size();
-    constexpr int          warp_size  = WarpSize;
-    constexpr unsigned int warp_mask  = ~0u;
-    constexpr int          block_dim  = BlockSize;
-    constexpr int          warp_count = block_dim / warp_size;
+    auto          size       = in.size();
+    constexpr int warp_size  = WarpSize;
+    constexpr int block_dim  = BlockSize;
+    constexpr int warp_count = block_dim / warp_size;
 
     BufferLaunch(this->stream()).fill<ValueT>(out, ValueT{0});
 

@@ -112,6 +112,11 @@ PyScene::PyScene(py::module& m)
         py::return_value_policy::reference_internal);
 
     class_Scene.def(
+        "subscene_tabular",
+        [](Scene& self) -> SubsceneTabular& { return self.subscene_tabular(); },
+        py::return_value_policy::reference_internal);
+
+    class_Scene.def(
         "constitution_tabular",
         [](Scene& self) -> ConstitutionTabular&
         { return self.constitution_tabular(); },

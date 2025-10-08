@@ -21,9 +21,7 @@ void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
     auto attr = world().scene().config().find<Float>("dt");
     m_impl.dt = attr->view()[0];
 
-    auto contact = find<ABDContactReceiver>();
-    if(contact)
-        m_impl.abd_contact_receiver = *contact;
+    m_impl.dytopo_effect_receiver = find<ABDDyTopoEffectReceiver>();
 }
 
 void ABDLinearSubsystem::Impl::init()
@@ -87,10 +85,11 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
         // body hessian: kinetic + shape
         SizeT body_hessian_count = abd().body_id_to_shape_hessian.size();
 
-        // contact hessian: contact hessian
-        SizeT contact_hessian_count = 0;
-        if(abd_contact_receiver)
-            contact_hessian_count = contact().contact_hessian.triplet_count();
+        // dytopo_effect hessian: dytopo_effect hessian
+        SizeT dytopo_effect_hessian_count = 0;
+        if(dytopo_effect_receiver)
+            dytopo_effect_hessian_count =
+                dytopo_effect_receiver->hessians().triplet_count();
 
         // other hessian
         auto reporter_view = reporters.view();
@@ -116,7 +115,7 @@ void ABDLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
         reporter_hessians.resize_triplets(reporter_hessian_offsets_counts.total_count());
 
         H12x12_count = reporter_hessian_offsets_counts.total_count()
-                       + body_hessian_count + contact_hessian_count;
+                       + body_hessian_count + dytopo_effect_hessian_count;
     }
 
     auto H3x3_count = H12x12_count * M12x12_to_M3x3;
@@ -158,8 +157,8 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                     shape_gradient = abd().body_id_to_shape_gradient.cviewer().name("shape_gradient"),
                     kinetic_gradient =
                         abd().body_id_to_kinetic_gradient.cviewer().name("kinetic_gradient"),
-                    gradient = info.gradient().viewer().name("gradient"),
-                    cout     = KernelCout::viewer()] __device__(int i) mutable
+                    gradients = info.gradients().viewer().name("gradients"),
+                    cout      = KernelCout::viewer()] __device__(int i) mutable
                    {
                        Vector12 src;
 
@@ -172,12 +171,12 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                            src.setZero();  // if fixed, set to zero
                        }
 
-                       gradient.segment<12>(i * 12) = src;
+                       gradients.segment<12>(i * 12) = src;
                    });
 
         auto body_count = abd().body_id_to_shape_hessian.size();
         auto H3x3_count = body_count * 16;
-        auto body_H3x3  = info.hessian().subview(offset, H3x3_count);
+        auto body_H3x3  = info.hessians().subview(offset, H3x3_count);
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
@@ -211,28 +210,30 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
         offset += H3x3_count;
     }
 
-    // 2) Contact
+    // 2) Dynamic Topology Effect
     {
         auto  vertex_offset = affine_body_vertex_reporter->vertex_offset();
-        SizeT contact_gradient_count = 0;
-        if(abd_contact_receiver)
+        SizeT dytopo_effect_gradient_count = 0;
+        if(dytopo_effect_receiver)
         {
-            contact_gradient_count = contact().contact_gradient.doublet_count();
+            dytopo_effect_gradient_count =
+                dytopo_effect_receiver->gradients().doublet_count();
         }
 
-        if(contact_gradient_count)
+        if(dytopo_effect_gradient_count)
         {
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(contact_gradient_count,
-                       [contact_gradient = contact().contact_gradient.cviewer().name("contact_gradient"),
-                        gradient = info.gradient().viewer().name("gradient"),
+                .apply(dytopo_effect_gradient_count,
+                       [dytopo_effect_gradient =
+                            dytopo_effect_receiver->gradients().cviewer().name("dytopo_effect_gradient"),
+                        gradients = info.gradients().viewer().name("gradients"),
                         v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
                         Js  = abd().vertex_id_to_J.cviewer().name("Js"),
                         is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
                         vertex_offset = vertex_offset] __device__(int I) mutable
                        {
-                           const auto& [g_i, G3] = contact_gradient(I);
+                           const auto& [g_i, G3] = dytopo_effect_gradient(I);
 
                            auto i      = g_i - vertex_offset;
                            auto body_i = v2b(i);
@@ -245,32 +246,34 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                            else
                            {
                                Vector12 G12 = J_i.T() * G3;
-                               gradient.segment<12>(body_i * 12).atomic_add(G12);
+                               gradients.segment<12>(body_i * 12).atomic_add(G12);
                            }
                        });
         }
 
-        SizeT contact_hessian_count = 0;
-        if(abd_contact_receiver)
-            contact_hessian_count = contact().contact_hessian.triplet_count();
+        SizeT dytopo_effect_hessian_count = 0;
+        if(dytopo_effect_receiver)
+            dytopo_effect_hessian_count =
+                dytopo_effect_receiver->hessians().triplet_count();
 
-        auto H3x3_count   = contact_hessian_count * 16;
-        auto contact_H3x3 = info.hessian().subview(offset, H3x3_count);
+        auto H3x3_count         = dytopo_effect_hessian_count * 16;
+        auto dytopo_effect_H3x3 = info.hessians().subview(offset, H3x3_count);
 
-        if(contact_hessian_count)
+        if(dytopo_effect_hessian_count)
         {
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(contact_hessian_count,
-                       [contact_hessian = contact().contact_hessian.cviewer().name("contact_hessian"),
-                        dst = contact_H3x3.viewer().name("dst_hessian"),
+                .apply(dytopo_effect_hessian_count,
+                       [dytopo_effect_hessian =
+                            dytopo_effect_receiver->hessians().cviewer().name("dytopo_effect_hessian"),
+                        dst = dytopo_effect_H3x3.viewer().name("dst_hessian"),
                         v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
                         Js  = abd().vertex_id_to_J.cviewer().name("Js"),
                         is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
                         diag_hessian = abd().diag_hessian.viewer().name("diag_hessian"),
                         vertex_offset = vertex_offset] __device__(int I) mutable
                        {
-                           const auto& [g_i, g_j, H3x3] = contact_hessian(I);
+                           const auto& [g_i, g_j, H3x3] = dytopo_effect_hessian(I);
 
                            auto i = g_i - vertex_offset;
                            auto j = g_j - vertex_offset;
@@ -324,7 +327,7 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(reporter_gradients.doublet_count(),
-                       [dst = info.gradient().viewer().name("dst_gradient"),
+                       [dst = info.gradients().viewer().name("dst_gradient"),
                         src = reporter_gradients.cviewer().name("src_gradient"),
                         is_fixed = abd().body_id_to_is_fixed.cviewer().name(
                             "is_fixed")] __device__(int I) mutable
@@ -345,7 +348,7 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
         if(reporter_hessians.triplet_count())
         {
             // get rest
-            auto H3x3s = info.hessian().subview(offset);
+            auto H3x3s = info.hessians().subview(offset);
 
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
@@ -385,9 +388,9 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
     }
 
     // 3) Check the size
-    UIPC_ASSERT(offset == info.hessian().triplet_count(),
+    UIPC_ASSERT(offset == info.hessians().triplet_count(),
                 "Hessian size mismatch: expected {}, got {}",
-                info.hessian().triplet_count(),
+                info.hessians().triplet_count(),
                 offset);
 }
 
@@ -489,10 +492,5 @@ void ABDLinearSubsystem::ReportExtentInfo::hessian_count(SizeT size)
 AffineBodyDynamics::Impl& ABDLinearSubsystem::Impl::abd() const noexcept
 {
     return affine_body_dynamics->m_impl;
-}
-
-ABDContactReceiver::Impl& ABDLinearSubsystem::Impl::contact() const noexcept
-{
-    return abd_contact_receiver->m_impl;
 }
 }  // namespace uipc::backend::cuda

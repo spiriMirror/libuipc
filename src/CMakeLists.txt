@@ -1,3 +1,11 @@
+if(UIPC_WITH_USD_SUPPORT)
+    add_subdirectory(usd)
+endif()
+    
+if(UIPC_WITH_VDB_SUPPORT)
+    add_subdirectory(vdb)
+endif()
+
 add_subdirectory(core)
 
 add_subdirectory(geometry)
@@ -28,10 +36,7 @@ target_link_libraries(uipc_uipc INTERFACE
 )
 
 if(UIPC_BUILD_PYBIND)
-    # py
     add_subdirectory(pybind)
 endif()
-
-
 
 
