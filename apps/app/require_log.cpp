@@ -1,3 +1,4 @@
+#include "uipc/common/logger.h"
 #include <app/require_log.h>
 
 namespace uipc::test
@@ -16,9 +17,9 @@ std::shared_ptr<CaptureSink> CaptureSink::instance()
     return sink;
 }
 
-std::shared_ptr<spdlog::logger> CaptureSink::test_logger()
+Logger& CaptureSink::test_logger()
 {
-    static auto logger = std::make_shared<spdlog::logger>("test_logger", instance());
+    static auto logger = Logger::create_console_logger("test_logger", instance());
     return logger;
 }
 }  // namespace uipc

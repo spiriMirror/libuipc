@@ -14,7 +14,7 @@ int main()
     using namespace uipc::constitution;
     namespace fs = std::filesystem;
 
-    spdlog::set_level(spdlog::level::info);
+    Logger::set_level(spdlog::level::info);
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
     auto        this_output_path = AssetDir::output_path(__FILE__);
