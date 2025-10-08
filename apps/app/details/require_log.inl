@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <fmt/printf.h>
 #include <fmt/color.h>
 namespace uipc::test

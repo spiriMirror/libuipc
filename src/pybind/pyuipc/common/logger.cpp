@@ -19,5 +19,23 @@ PyLogger::PyLogger(py::module& m)
     class_Logger.def_static("set_level",
                             [](spdlog::level::level_enum level)
                             { uipc::logger::set_level(level); });
+
+    class_Logger.def_static("set_pattern",
+                            [](std::string_view pattern)
+                            { uipc::logger::set_pattern(pattern); });
+
+    class_Logger.def_static(
+        "debug", [](std::string_view msg) { uipc::logger::debug(msg); });
+    class_Logger.def_static("info",
+                            [](std::string_view msg) { uipc::logger::info(msg); });
+    class_Logger.def_static("warn",
+                            [](std::string_view msg) { uipc::logger::warn(msg); });
+    class_Logger.def_static(
+        "error", [](std::string_view msg) { uipc::logger::error(msg); });
+    class_Logger.def_static(
+        "critical", [](std::string_view msg) { uipc::logger::critical(msg); });
+    class_Logger.def_static("log",
+                            [](spdlog::level::level_enum level, std::string_view msg)
+                            { uipc::logger::log(level, msg); });
 }
 }  // namespace pyuipc

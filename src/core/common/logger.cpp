@@ -1,3 +1,4 @@
+#include <fmt/core.h>
 #include <spdlog/common.h>
 #include <uipc/common/logger.h>
 #include <spdlog/spdlog.h>
@@ -8,18 +9,20 @@ namespace uipc
 class Logger::Impl
 {
   public:
-    Impl(std::string_view logger_name = "uipc", spdlog::sink_ptr sink_ptr = nullptr)
+    Impl(std::string_view logger_name = "", spdlog::sink_ptr sink_ptr = nullptr)
     {
-        if(sink_ptr == nullptr)
+        // try find existing logger
+        m_logger = spdlog::get(std::string(logger_name));
+        if(!m_logger)  // not found, create a new one
         {
-            m_logger = spdlog::stdout_color_mt(std::string(logger_name));
-        }
-        else
-        {
+            if(!sink_ptr)
+            {
+                sink_ptr = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+            }
             m_logger = std::make_shared<spdlog::logger>(std::string(logger_name), sink_ptr);
+            m_logger->set_level(spdlog::level::info);
             spdlog::register_logger(m_logger);
         }
-        m_logger->set_level(spdlog::level::info);
     }
 
     void log(spdlog::level::level_enum level, std::string_view msg)
@@ -41,7 +44,7 @@ class Logger::Impl
 
     static Logger& current_logger_instance()
     {
-        static Logger logger = Logger::create_console_logger();
+        static Logger logger = Logger::create_console_logger("");
         return logger;
     }
 };

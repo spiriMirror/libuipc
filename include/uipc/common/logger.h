@@ -14,8 +14,8 @@ class UIPC_CORE_API Logger
   public:
     static void set_level(spdlog::level::level_enum level);
 
-    static Logger create_console_logger(std::string_view logger_name = "uipc",
-                                        spdlog::sink_ptr sink_ptr    = nullptr);
+    static Logger create_console_logger(std::string_view logger_name,
+                                        spdlog::sink_ptr sink_ptr = nullptr);
 
     static void set_pattern(std::string_view pattern);
 
@@ -49,7 +49,7 @@ class UIPC_CORE_API Logger
         _critical(fmt::format(fmt::runtime(fmt), std::forward<Args>(args)...));
     }
 
-    template <typename ... Args>
+    template <typename... Args>
     void log(spdlog::level::level_enum level, std::string_view fmt, Args&&... args)
     {
         _log(level, fmt::format(fmt::runtime(fmt), std::forward<Args>(args)...));
@@ -115,9 +115,9 @@ inline void critical(std::string_view fmt, Args&&... args)
     Logger::current_logger().critical(fmt, std::forward<Args>(args)...);
 }
 
-template <typename ... Args>
+template <typename... Args>
 inline void log(spdlog::level::level_enum level, std::string_view fmt, Args&&... args)
 {
     Logger::current_logger().log(level, fmt, std::forward<Args>(args)...);
 }
-}
+}  // namespace uipc::logger

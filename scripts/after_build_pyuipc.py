@@ -68,11 +68,12 @@ def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
     shutil.copy(pyuipc_lib, target_dir)
 
     for file in os.listdir(shared_lib_dir):
-        for shared_lib_ext in shared_lib_exts:
-            if file.endswith(shared_lib_ext):
-                print(f'Copying {file}')
-                full_path_file = shared_lib_dir / file
-                shutil.copy(full_path_file, target_dir)
+        file = str(file)
+        if file.endswith(tuple(shared_lib_exts)):
+            print(f'Copying {file}')
+            full_path_file = shared_lib_dir / file
+            shutil.copy(full_path_file, target_dir)
+
     return target_dir
 
 def generate_stub(target_dir):

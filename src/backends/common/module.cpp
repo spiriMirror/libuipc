@@ -1,7 +1,6 @@
 #include <backends/common/module.h>
 #include <memory_resource>
 #include <uipc/common/log.h>
-#include <filesystem>
 #include <uipc/backend/module_init_info.h>
 
 void uipc_init_module(UIPCModuleInitInfo* info)
