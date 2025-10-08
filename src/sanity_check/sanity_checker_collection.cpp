@@ -42,7 +42,7 @@ void SanityCheckerCollection::build(core::internal::Scene& s)
         }
         catch(const SanityCheckerException& e)
         {
-            spdlog::debug("[{}] shutdown, reason: {}", entry->name(), e.what());
+            logger::debug("[{}] shutdown, reason: {}", entry->name(), e.what());
         }
     }
 

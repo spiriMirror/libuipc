@@ -308,10 +308,10 @@ class UrdfIO::Impl
         std::map<std::string, urdf::LinkSharedPtr>&  links  = model->links_;
         std::map<std::string, urdf::JointSharedPtr>& joints = model->joints_;
 
-        spdlog::info(URDFIO_INFO "Model name: {}", model->name_);
-        spdlog::info(URDFIO_INFO "Number of links: {}", links.size());
-        spdlog::info(URDFIO_INFO "Number of joints: {}", joints.size());
-        spdlog::info(URDFIO_INFO "Processing links and joints...");
+        logger::info(URDFIO_INFO "Model name: {}", model->name_);
+        logger::info(URDFIO_INFO "Number of links: {}", links.size());
+        logger::info(URDFIO_INFO "Number of joints: {}", joints.size());
+        logger::info(URDFIO_INFO "Processing links and joints...");
 
         // 1) Load link meshes
         auto& link_geo_slots     = ctrl->link_geo_slots;
@@ -321,7 +321,7 @@ class UrdfIO::Impl
         for(const auto& [name, link] : links)
         {
             // Process each link
-            spdlog::info(URDFIO_INFO "- Link: {}", name);
+            logger::info(URDFIO_INFO "- Link: {}", name);
             if(!check_link(link))
                 continue;
 
@@ -372,20 +372,20 @@ class UrdfIO::Impl
     {
         if(link->collision == nullptr)
         {
-            spdlog::info(URDFIO_INFO "> Link has no collision geometry, skip.");
+            logger::info(URDFIO_INFO "> Link has no collision geometry, skip.");
             return false;
         }
 
         if(link->collision->geometry == nullptr)
         {
-            spdlog::info(URDFIO_INFO "> Link has no geometry, skip.");
+            logger::info(URDFIO_INFO "> Link has no geometry, skip.");
             return false;
         }
 
         auto link_type = link->collision->geometry->type;
         if(link_type != urdf::Geometry::MESH)
         {
-            spdlog::info(URDFIO_INFO "> Link type {} is not supported yet, skip.",
+            logger::info(URDFIO_INFO "> Link type {} is not supported yet, skip.",
                          magic_enum::enum_name(link_type));
             return false;
         }
@@ -394,13 +394,13 @@ class UrdfIO::Impl
 
         if(mesh == nullptr)
         {
-            spdlog::info(URDFIO_INFO "> Link mesh is null, skip.");
+            logger::info(URDFIO_INFO "> Link mesh is null, skip.");
             return false;
         }
 
         if(mesh->filename.empty())
         {
-            spdlog::info(URDFIO_INFO "> Link mesh filename is empty, skip.");
+            logger::info(URDFIO_INFO "> Link mesh filename is empty, skip.");
             return false;
         }
 
@@ -432,7 +432,7 @@ class UrdfIO::Impl
         Matrix4x4 F = t.matrix();
 
         geometry::SimplicialComplexIO sio{F};
-        spdlog::info(URDFIO_INFO "Loading mesh file: {}", f);
+        logger::info(URDFIO_INFO "Loading mesh file: {}", f);
         geometry::SimplicialComplex sc = sio.read(f);
 
         geometry::label_surface(sc);
@@ -469,7 +469,7 @@ class UrdfIO::Impl
             if(joint->type == urdf::Joint::REVOLUTE)
             {
                 auto& R = revolute_joint_infos[joint->name];
-                spdlog::info("Revolute Joint: {}", joint->name);
+                logger::info("Revolute Joint: {}", joint->name);
 
                 R.local_axis = Vector3{joint->axis.x, joint->axis.y, joint->axis.z};
                 R.angle = 0.0;
@@ -494,7 +494,7 @@ class UrdfIO::Impl
             else if(joint->type == urdf::Joint::FIXED)
             {
                 auto& F = fixed_joint_infos[joint->name];
-                spdlog::info("Fixed Joint: {}", joint->name);
+                logger::info("Fixed Joint: {}", joint->name);
             }
             else
             {
