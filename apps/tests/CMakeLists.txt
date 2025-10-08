@@ -7,7 +7,6 @@ function(uipc_add_test name)
     add_executable(${name} ${ARGN})
     target_link_libraries(${name} PRIVATE
         app
-        Catch2::Catch2 
         Catch2::Catch2WithMain)
     set_property(TARGET ${name} PROPERTY FOLDER "apps/tests")
     set_target_properties(${name} PROPERTIES OUTPUT_NAME "uipc_test_${name}")

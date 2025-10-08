@@ -8,7 +8,6 @@ function(uipc_add_benchmark name)
     target_link_libraries(${name} PRIVATE 
         uipc::uipc
         app
-        Catch2::Catch2
         Catch2::Catch2WithMain)
 
     set_property(TARGET ${name} PROPERTY FOLDER "apps/benchmarks")

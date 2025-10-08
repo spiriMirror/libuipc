@@ -8,7 +8,7 @@
 namespace uipc::backend::cuda
 {
 class GlobalVertexManager;
-class GlobalSimpicialSurfaceManager;
+class GlobalSimplicialSurfaceManager;
 class GlobalBodyManager;
 class GlobalContactManager;
 class GlobalDyTopoEffectManager;
@@ -70,7 +70,7 @@ class SimEngine final : public backend::SimEngine
     // Aware Top Systems
 
     GlobalVertexManager* m_global_vertex_manager = nullptr;
-    GlobalSimpicialSurfaceManager* m_global_simplicial_surface_manager = nullptr;
+    GlobalSimplicialSurfaceManager* m_global_simplicial_surface_manager = nullptr;
     GlobalBodyManager*         m_global_body_manager          = nullptr;
     GlobalContactManager*      m_global_contact_manager       = nullptr;
     GlobalDyTopoEffectManager* m_global_dytopo_effect_manager = nullptr;

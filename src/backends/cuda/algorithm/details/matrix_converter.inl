@@ -55,8 +55,8 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
                 ij_hash     = ij_hash_input.viewer().name("ij_hash"),
                 sort_index = sort_index_input.viewer().name("sort_index")] __device__(int i) mutable
                {
-                   ij_hash(i) =
-                       (uint64_t{row_indices(i)} << 32) + uint64_t{col_indices(i)};
+                   ij_hash(i) = (static_cast<uint64_t>(row_indices(i)) << 32)
+                                + static_cast<uint64_t>(col_indices(i));
                    sort_index(i) = i;
                });
 
@@ -78,8 +78,8 @@ void MatrixConverter<T, N>::_radix_sort_indices_and_blocks(
                 ij_pairs = ij_pairs.viewer().name("ij_pairs")] __device__(int i) mutable
                {
                    auto hash      = ij_hash(i);
-                   auto row_index = int{hash >> 32};
-                   auto col_index = int{hash & 0xFFFFFFFF};
+                   auto row_index = static_cast<int>(hash >> 32);
+                   auto col_index = static_cast<int>(hash & 0xFFFFFFFF);
                    ij_pairs(i).x  = row_index;
                    ij_pairs(i).y  = col_index;
                });
