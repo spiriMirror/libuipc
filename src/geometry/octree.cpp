@@ -13,7 +13,7 @@ namespace uipc::geometry
 {
 class Octree::Impl
 {
-    using OctreeBox = OrthoTree::EigenAdaptor::EigenOrthoTreeBox<Float, 3, 2>;
+    using OctreeBox = OrthoTree::EigenAdaptor::EigenOrthoTreeBox<Float, 3>;
 
   public:
     void build(span<const AABB> aabbs)

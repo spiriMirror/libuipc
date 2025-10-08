@@ -109,7 +109,7 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         void label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info);
 
         SimSystemSlot<GlobalVertexManager> global_vertex_manager;
-        SimSystemSlot<GlobalSimpicialSurfaceManager> global_simplicial_surface_manager;
+        SimSystemSlot<GlobalSimplicialSurfaceManager> global_simplicial_surface_manager;
         SimSystemSlot<GlobalContactManager> global_contact_manager;
         SimSystemSlot<GlobalBodyManager>    global_body_manager;
 

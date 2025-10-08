@@ -494,15 +494,22 @@ void FiniteElementMethod::Impl::_build_base_constitution_infos()
                            unordered_map<U64, SizeT> uid_to_index)
     {
         infos.resize(constitutions.size());
-        vector<SizeT> vertex_counts(infos.size(), 0);
-        vector<SizeT> primitive_counts(infos.size(), 0);
-        vector<SizeT> geometry_counts(infos.size(), 0);
+
+        OffsetCountCollection<SizeT> vertex_offsets_counts;
+        vertex_offsets_counts.resize(infos.size());
+        OffsetCountCollection<SizeT> primitive_offsets_counts;
+        primitive_offsets_counts.resize(infos.size());
+        OffsetCountCollection<SizeT> geometry_offsets_counts;
+        geometry_offsets_counts.resize(infos.size());
+
+        auto vertex_counts    = vertex_offsets_counts.counts();
+        auto primitive_counts = primitive_offsets_counts.counts();
+        auto geometry_counts  = geometry_offsets_counts.counts();
 
         const auto& dim_info = dim_infos[dim];
 
         auto geo_info_subspan =
             span{geo_infos}.subspan(dim_info.geo_info_offset, dim_info.geo_info_count);
-
 
         for(auto&& geo_info : geo_info_subspan)
         {
@@ -512,33 +519,16 @@ void FiniteElementMethod::Impl::_build_base_constitution_infos()
             primitive_counts[index] += geo_info.primitive_count;
         }
 
-        vector<SizeT> vertex_offsets(infos.size(), 0);
-        vector<SizeT> primitive_offsets(infos.size(), 0);
-        vector<SizeT> geometry_offsets(infos.size(), 0);
-
         SizeT dim_geo_offset    = dim_info.geo_info_offset;
-        SizeT dim_vertex_offset = 0;
+        SizeT dim_vertex_offset = dim_info.vertex_offset;
 
-        if(geo_infos.size() > dim_geo_offset)
-        {
-            const auto& begin_geo         = geo_infos[dim_geo_offset];
-            SizeT       dim_vertex_offset = begin_geo.vertex_offset;
-        }
+        vertex_offsets_counts.scan(dim_vertex_offset);
+        primitive_offsets_counts.scan(0);
+        geometry_offsets_counts.scan(dim_geo_offset);
 
-        std::exclusive_scan(vertex_counts.begin(),
-                            vertex_counts.end(),
-                            vertex_offsets.begin(),
-                            dim_vertex_offset);
-
-        std::exclusive_scan(primitive_counts.begin(),
-                            primitive_counts.end(),
-                            primitive_offsets.begin(),
-                            0);
-
-        std::exclusive_scan(geometry_counts.begin(),
-                            geometry_counts.end(),
-                            geometry_offsets.begin(),
-                            dim_geo_offset);
+        auto vertex_offsets    = vertex_offsets_counts.offsets();
+        auto primitive_offsets = primitive_offsets_counts.offsets();
+        auto geometry_offsets  = geometry_offsets_counts.offsets();
 
         for(auto&& [i, info] : enumerate(infos))
         {
@@ -681,7 +671,7 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
 
                     transview[0].setIdentity();
 
-                    spdlog::warn(R"(FEM Geometry ID={} has non-identity transform. The transform is applied to the positions and reset to identity.
+                    logger::warn(R"(FEM Geometry ID={} has non-identity transform. The transform is applied to the positions and reset to identity.
 To avoid this warning, please apply the transform to the positions mannally. https://github.com/spiriMirror/libuipc/issues/152)");
                 }
 

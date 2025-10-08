@@ -7,41 +7,41 @@
 
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(GlobalSimpicialSurfaceManager);
+REGISTER_SIM_SYSTEM(GlobalSimplicialSurfaceManager);
 
-void GlobalSimpicialSurfaceManager::add_reporter(SimplicialSurfaceReporter* reporter) noexcept
+void GlobalSimplicialSurfaceManager::add_reporter(SimplicialSurfaceReporter* reporter) noexcept
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
     m_impl.reporters.register_subsystem(*reporter);
 }
 
-muda::CBufferView<IndexT> GlobalSimpicialSurfaceManager::codim_vertices() const noexcept
+muda::CBufferView<IndexT> GlobalSimplicialSurfaceManager::codim_vertices() const noexcept
 {
     return m_impl.codim_vertices;
 }
 
-muda::CBufferView<IndexT> GlobalSimpicialSurfaceManager::surf_vertices() const noexcept
+muda::CBufferView<IndexT> GlobalSimplicialSurfaceManager::surf_vertices() const noexcept
 {
     return m_impl.surf_vertices;
 }
 
-muda::CBufferView<Vector2i> GlobalSimpicialSurfaceManager::surf_edges() const noexcept
+muda::CBufferView<Vector2i> GlobalSimplicialSurfaceManager::surf_edges() const noexcept
 {
     return m_impl.surf_edges;
 }
 
-muda::CBufferView<Vector3i> GlobalSimpicialSurfaceManager::surf_triangles() const noexcept
+muda::CBufferView<Vector3i> GlobalSimplicialSurfaceManager::surf_triangles() const noexcept
 {
     return m_impl.surf_triangles;
 }
 
-void GlobalSimpicialSurfaceManager::do_build()
+void GlobalSimplicialSurfaceManager::do_build()
 {
     m_impl.global_vertex_manager = find<GlobalVertexManager>();
 }
 
-void GlobalSimpicialSurfaceManager::Impl::init()
+void GlobalSimplicialSurfaceManager::Impl::init()
 {
     auto reporter_view = reporters.view();
 
@@ -126,7 +126,7 @@ void GlobalSimpicialSurfaceManager::Impl::init()
     _collect_codim_vertices();
 }
 
-void GlobalSimpicialSurfaceManager::Impl::_collect_codim_vertices()
+void GlobalSimplicialSurfaceManager::Impl::_collect_codim_vertices()
 {
     using namespace muda;
     auto dim = global_vertex_manager->dimensions();
@@ -154,56 +154,56 @@ void GlobalSimpicialSurfaceManager::Impl::_collect_codim_vertices()
     codim_vertices.resize(count);
 }
 
-void GlobalSimpicialSurfaceManager::init()
+void GlobalSimplicialSurfaceManager::init()
 {
     m_impl.init();
 }
 
-void GlobalSimpicialSurfaceManager::rebuild()
+void GlobalSimplicialSurfaceManager::rebuild()
 {
     UIPC_ASSERT(false, "Not implemented yet");
 }
 
-muda::BufferView<IndexT> GlobalSimpicialSurfaceManager::SurfaceAttributeInfo::surf_vertices() noexcept
+muda::BufferView<IndexT> GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::surf_vertices() noexcept
 {
     const auto& info = reporter_info();
     return m_impl->surf_vertices.view(info.surf_vertex_offset, info.surf_vertex_count);
 }
 
-muda::BufferView<Vector2i> GlobalSimpicialSurfaceManager::SurfaceAttributeInfo::surf_edges() noexcept
+muda::BufferView<Vector2i> GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::surf_edges() noexcept
 {
     const auto& info = reporter_info();
     return m_impl->surf_edges.view(info.surf_edge_offset, info.surf_edge_count);
 }
 
-muda::BufferView<Vector3i> GlobalSimpicialSurfaceManager::SurfaceAttributeInfo::surf_triangles() noexcept
+muda::BufferView<Vector3i> GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::surf_triangles() noexcept
 {
     const auto& info = reporter_info();
     return m_impl->surf_triangles.view(info.surf_triangle_offset, info.surf_triangle_count);
 }
 
-auto GlobalSimpicialSurfaceManager::SurfaceAttributeInfo::reporter_info() const noexcept
+auto GlobalSimplicialSurfaceManager::SurfaceAttributeInfo::reporter_info() const noexcept
     -> const ReporterInfo&
 {
     return m_impl->reporter_infos[m_index];
 }
 
-void GlobalSimpicialSurfaceManager::SurfaceCountInfo::surf_vertex_count(SizeT count) noexcept
+void GlobalSimplicialSurfaceManager::SurfaceCountInfo::surf_vertex_count(SizeT count) noexcept
 {
     m_surf_vertex_count = count;
 }
 
-void GlobalSimpicialSurfaceManager::SurfaceCountInfo::surf_edge_count(SizeT count) noexcept
+void GlobalSimplicialSurfaceManager::SurfaceCountInfo::surf_edge_count(SizeT count) noexcept
 {
     m_surf_edge_count = count;
 }
 
-void GlobalSimpicialSurfaceManager::SurfaceCountInfo::surf_triangle_count(SizeT count) noexcept
+void GlobalSimplicialSurfaceManager::SurfaceCountInfo::surf_triangle_count(SizeT count) noexcept
 {
     m_surf_triangle_count = count;
 }
 
-void GlobalSimpicialSurfaceManager::SurfaceCountInfo::changable(bool value) noexcept
+void GlobalSimplicialSurfaceManager::SurfaceCountInfo::changable(bool value) noexcept
 {
     m_changable = value;
 }

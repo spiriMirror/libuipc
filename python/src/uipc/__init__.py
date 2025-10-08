@@ -4,8 +4,9 @@ import pathlib
 import json
 
 this_file_dir = os.path.dirname(__file__)
-if os.name not in ['nt', 'posix']:
-    raise Exception('Unsupported platform: ' + os.name)
+# support windows, linux, macos
+if sys.platform not in ['win32', 'linux', 'darwin']:
+    raise Exception('Unsupported platform: ' + sys.platform)
 
 sys.path.append(this_file_dir + '/modules/Release/bin')
 sys.path.append(this_file_dir + '/modules/RelWithDebInfo/bin')

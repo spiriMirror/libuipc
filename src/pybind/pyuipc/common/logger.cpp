@@ -1,20 +1,11 @@
 #include <pyuipc/common/logger.h>
-#include <uipc/common/log.h>
-
-namespace uipc
-{
-// dummy class just for python binding
-class Logger
-{
-};
-}  // namespace uipc
+#include <uipc/common/logger.h>
 
 namespace pyuipc
 {
-using namespace uipc;
 PyLogger::PyLogger(py::module& m)
 {
-    auto class_Logger = py::class_<Logger>(m, "Logger");
+    auto class_Logger = py::class_<uipc::Logger>(m, "Logger");
     auto enum_LoggerLevel = py::enum_<spdlog::level::level_enum>(class_Logger, "Level");
 
     enum_LoggerLevel.value("Trace", spdlog::level::trace)
@@ -27,6 +18,24 @@ PyLogger::PyLogger(py::module& m)
 
     class_Logger.def_static("set_level",
                             [](spdlog::level::level_enum level)
-                            { spdlog::set_level(level); });
+                            { uipc::logger::set_level(level); });
+
+    class_Logger.def_static("set_pattern",
+                            [](std::string_view pattern)
+                            { uipc::logger::set_pattern(pattern); });
+
+    class_Logger.def_static(
+        "debug", [](std::string_view msg) { uipc::logger::debug(msg); });
+    class_Logger.def_static("info",
+                            [](std::string_view msg) { uipc::logger::info(msg); });
+    class_Logger.def_static("warn",
+                            [](std::string_view msg) { uipc::logger::warn(msg); });
+    class_Logger.def_static(
+        "error", [](std::string_view msg) { uipc::logger::error(msg); });
+    class_Logger.def_static(
+        "critical", [](std::string_view msg) { uipc::logger::critical(msg); });
+    class_Logger.def_static("log",
+                            [](spdlog::level::level_enum level, std::string_view msg)
+                            { uipc::logger::log(level, msg); });
 }
 }  // namespace pyuipc
