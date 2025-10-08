@@ -11,10 +11,19 @@ target_compile_features(uipc_vdb PUBLIC cxx_std_20)
 target_compile_definitions(uipc_vdb INTERFACE UIPC_WITH_VDB_SUPPORT=1) # indicate vdb is enabled
 target_compile_definitions(uipc_vdb PRIVATE UIPC_VDB_EXPORT_DLL=1) # export dll
 target_include_directories(uipc_vdb PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
 target_link_libraries(uipc_vdb PRIVATE
     uipc::core
     OpenVDB::openvdb
 )
+
+if(APPLE)
+    # OpenVDB built with blosc support but vcpkg doesn't link it automatically for static libs
+    find_package(blosc REQUIRED)
+    target_link_libraries(uipc_vdb PRIVATE blosc_static)
+    # Suppress duplicate library warnings by setting linker flags
+    target_link_options(uipc_vdb PRIVATE "LINKER:-no_warn_duplicate_libraries")
+endif()
 
 uipc_target_set_output_directory(uipc_vdb)
 uipc_target_set_rpath(uipc_vdb)
