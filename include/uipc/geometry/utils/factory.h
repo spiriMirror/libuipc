@@ -13,6 +13,7 @@ namespace uipc::geometry
  */
 UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex tetmesh(span<const Vector3> Vs,
                                                           span<const Vector4i> Ts);
+
 /**
  * @brief Create a simplicial complex from a triangle mesh.
  * 
@@ -42,6 +43,7 @@ UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex trimesh(span<const Vector3> Vs
  */
 UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex linemesh(span<const Vector3> Vs,
                                                            span<const Vector2i> Es);
+
 /**
  * @brief Create a simplicial complex from a point cloud.
  * 
