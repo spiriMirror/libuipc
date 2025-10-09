@@ -1,6 +1,7 @@
 find_package(libigl REQUIRED)
 find_package(TBB REQUIRED)
 find_package(Octree CONFIG REQUIRED)
+find_package(ftetwild CONFIG REQUIRED)
 
 add_library(uipc_geometry SHARED)
 add_library(uipc::geometry ALIAS uipc_geometry)
@@ -15,6 +16,7 @@ target_link_libraries(uipc_geometry PUBLIC
     tetgen
     Octree::Octree
     TBB::tbb
+    ftetwild::ftetwild
 )
 
 if(UIPC_WITH_VDB_SUPPORT)
