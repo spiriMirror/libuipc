@@ -5,7 +5,7 @@ import os
 VCPKG_TAG = '2025.7.25'
 VCPKG_BASE_LINE = 'dd3097e305afa53f7b4312371f62058d2e665320'
 
-SPIRI_VCPKG_BASE_LINE = '8c3d3d8087ef50dd0cef06af0d657d3fef6eda4f'
+SPIRI_VCPKG_BASE_LINE = '5746b9da3f413f34b5afb1ca1a091d47f9b5178f'
 
 # vcpkg.json
 base_vcpkg_json = {
@@ -145,7 +145,7 @@ def gen_vcpkg_json(args):
         deps.append({
             'name': 'openvdb',
             'version>=': '12.0.1',
-            'features': ['nanovdb']
+            'features': ["nanovdb"] if is_enabled(args.with_cuda_backend) else []
         })
     if is_enabled(args.with_cuda_backend):
         deps.append({
