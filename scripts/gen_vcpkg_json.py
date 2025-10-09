@@ -5,7 +5,7 @@ import os
 VCPKG_TAG = '2025.7.25'
 VCPKG_BASE_LINE = 'dd3097e305afa53f7b4312371f62058d2e665320'
 
-SPIRI_VCPKG_BASE_LINE = '27d097d8e0b7bd18e4a6b2bfa4bd3b0346de9d86'
+SPIRI_VCPKG_BASE_LINE = 'ac46dbed3e322345bc805467e4834c780bb1ab6e'
 
 # vcpkg.json
 base_vcpkg_json = {
