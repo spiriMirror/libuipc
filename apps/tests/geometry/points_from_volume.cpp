@@ -6,7 +6,7 @@ using namespace uipc;
 using namespace uipc::geometry;
 
 
-TEST_CASE("points_from_volume", "[points]")
+TEST_CASE("points_from_volume_with_vdb", "[points]")
 {
     SimplicialComplexIO io;
     auto                output_path = AssetDir::output_path(__FILE__);
@@ -18,8 +18,8 @@ TEST_CASE("points_from_volume", "[points]")
         io.write(fmt::format("{}/points_from_volume.cube.obj", output_path), pc);
     }
 
-#ifndef __APPLE__
-    // takes too long time on Mac
+
+#if UIPC_TEST_WITH_VDB_SUPPORT
     SECTION("bunny0")
     {
         auto mesh = io.read_msh(fmt::format("{}bunny0.msh", AssetDir::tetmesh_path()));
