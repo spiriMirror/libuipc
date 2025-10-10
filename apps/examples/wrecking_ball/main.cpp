@@ -2,7 +2,6 @@
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
-#include <filesystem>
 #include <fstream>
 #include <numbers>
 
@@ -12,9 +11,8 @@ int main()
     using namespace uipc::core;
     using namespace uipc::geometry;
     using namespace uipc::constitution;
-    namespace fs = std::filesystem;
 
-    Logger::set_level(spdlog::level::info);
+    logger::set_level(Logger::Level::info);
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
     auto        this_output_path = AssetDir::output_path(__FILE__);
