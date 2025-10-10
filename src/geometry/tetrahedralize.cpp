@@ -11,7 +11,7 @@ SimplicialComplex tetrahedralize(const SimplicialComplex& sc,
 {
     ftetwild::Parameters params;
     params.ideal_edge_length_rel(ideal_edge_length_ratio);
-    params.log_level(1);
+    params.log_level(static_cast<int>(logger::get_level()));
 
     ftetwild::FtetWild tetwild;
 
