@@ -2,7 +2,6 @@
 #include <uipc/geometry/utils/closure.h>
 #include <uipc/builtin/attribute_name.h>
 #include <ftetwild/ftetwild.h>
-#include <uipc/geometry/utils/closure.h>
 
 namespace uipc::geometry
 {

@@ -16,5 +16,8 @@ TEST_CASE("tetrahedralize", "[tetrahedralize]")
     label_triangle_orient(tet_cube);
     auto out  = flip_inward_triangles(tet_cube);
     auto surf = extract_surface(out);
+
+    CHECK(surf.vertices().size() > 0);
+    CHECK(surf.triangles().size() > 0);
     io.write(fmt::format("{}/tet_cube.obj", output_path), surf);
 }
