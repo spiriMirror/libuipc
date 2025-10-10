@@ -68,10 +68,6 @@ base_vcpkg_json = {
         {
             'name':'octree',
             'version>=': '2025.10.7'
-        },
-        {
-            'name':'ftetwild',
-            'version>=': '2025.10.8'
         }
     ],
     

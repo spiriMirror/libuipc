@@ -91,18 +91,6 @@ PyUtils::PyUtils(py::module& m)
         py::arg("sc"));
 
     m.def(
-        "tetrahedralize",
-        [](const SimplicialComplex& simplicial_complex,
-           Float                    ideal_edge_length_ratio,
-           const Json&              options) -> SimplicialComplex
-        {
-            return tetrahedralize(simplicial_complex, ideal_edge_length_ratio, options);
-        },
-        py::arg("simplicial_complex"),
-        py::arg("ideal_edge_length_ratio") = 0.05,
-        py::arg("options")                 = Json::object());
-
-    m.def(
         "optimal_transform",
         [](py::array_t<const Float> S, py::array_t<const Float> D)
         {
