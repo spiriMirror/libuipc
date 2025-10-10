@@ -80,7 +80,7 @@ namespace uipc::logger
 {
 UIPC_CORE_API void set_level(Logger::Level level);
 
-Logger::Level get_level();
+UIPC_CORE_API Logger::Level get_level();
 
 UIPC_CORE_API void set_pattern(std::string_view pattern);
 
