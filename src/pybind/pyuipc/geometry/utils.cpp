@@ -91,13 +91,6 @@ PyUtils::PyUtils(py::module& m)
         py::arg("sc"));
 
     m.def(
-        "tetrahedralize",
-        [](const SimplicialComplex& simplicial_complex, const Json& options) -> SimplicialComplex
-        { return tetrahedralize(simplicial_complex, options); },
-        py::arg("simplicial_complex"),
-        py::arg("options") = Json::object());
-
-    m.def(
         "optimal_transform",
         [](py::array_t<const Float> S, py::array_t<const Float> D)
         {

@@ -25,15 +25,14 @@ class Logger::Impl
         }
     }
 
-    void log(spdlog::level::level_enum level, std::string_view msg)
+    void log(Logger::Level level, std::string_view msg)
     {
         m_logger->log(level, msg);
     }
 
-    void set_level(spdlog::level::level_enum level)
-    {
-        m_logger->set_level(level);
-    }
+    void set_level(Logger::Level level) { m_logger->set_level(level); }
+
+    Logger::Level get_level() const { return m_logger->level(); }
 
     void set_pattern(std::string_view pattern)
     {
@@ -52,12 +51,17 @@ class Logger::Impl
 
 void Logger::set_level(spdlog::level::level_enum level)
 {
-    Impl::current_logger_instance().m_impl->set_level(level);
+    m_impl->set_level(level);
+}
+
+spdlog::level::level_enum Logger::get_level() const
+{
+    return m_impl->get_level();
 }
 
 void Logger::set_pattern(std::string_view pattern)
 {
-    Impl::current_logger_instance().m_impl->set_pattern(pattern);
+    m_impl->set_pattern(pattern);
 }
 
 Logger Logger::create_console_logger(std::string_view logger_name, spdlog::sink_ptr sink_ptr)
@@ -107,3 +111,21 @@ void Logger::_log(spdlog::level::level_enum level, std::string_view msg)
     m_impl->log(level, msg);
 }
 }  // namespace uipc
+
+namespace uipc::logger
+{
+void set_pattern(std::string_view pattern)
+{
+    Logger::current_logger().set_pattern(pattern);
+}
+
+void set_level(Logger::Level level)
+{
+    Logger::current_logger().set_level(level);
+}
+
+Logger::Level get_level()
+{
+    return Logger::current_logger().get_level();
+}
+}  // namespace uipc::logger

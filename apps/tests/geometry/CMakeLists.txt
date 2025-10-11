@@ -1,2 +1,5 @@
 file(GLOB SOURCE "*.cpp" "*.h")
 uipc_add_test(geometry ${SOURCE})
+if(UIPC_WITH_VDB_SUPPORT)
+    target_compile_definitions(geometry PRIVATE UIPC_TEST_WITH_VDB_SUPPORT=1)
+endif()
