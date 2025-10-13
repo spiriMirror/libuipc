@@ -8,4 +8,4 @@ class PyModule
   public:
     PyModule(py::module& m);
 };
-}  // namespace pyuipc::geometry
+}  // namespace pyuipc::usd
