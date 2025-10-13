@@ -77,8 +77,6 @@ def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
 
     return target_dir
 
-import_usd = True
-
 def generate_stub(target_dir):
     optional_import.EnabledModules.report()
     PACKAGE_NAME = 'pyuipc'
