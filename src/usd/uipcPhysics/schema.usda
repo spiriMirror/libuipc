@@ -1,0 +1,40 @@
+#usda 1.0
+(
+    subLayers = [
+        @usdGeom/schema.usda@
+    ]
+)
+
+over "GLOBAL" (
+    customData = {
+    string libraryName = "uipcPhysics"
+    string libraryPath = "uipcPhysics"
+    bool useLiteralIdentifier = 0
+    dictionary libraryTokens = {
+    }
+    }
+)
+{
+
+}
+
+class PhysicsScene "PhysicsScene"
+(
+    customData = {
+        string className = "Scene"
+    }
+    doc = """General physics simulation properties, required for simulation."""
+
+    inherits = </Typed>
+)
+{
+    vector3f physics:gravity = (0.0, 0.0, 0.0) (
+        customData = {
+            string apiName = "gravity"
+        }
+        displayName = "Gravity"
+        doc = """Gravity vector. The direction of this vector defines the
+        direction of gravity. The magnitude of this vector defines the strength
+        of gravity."""
+    )
+}
