@@ -5,7 +5,7 @@ import os
 VCPKG_TAG = '2025.7.25'
 VCPKG_BASE_LINE = 'dd3097e305afa53f7b4312371f62058d2e665320'
 
-SPIRI_VCPKG_BASE_LINE = '270127dbda4bf37c994fe7477c25c6f3992de99b'
+SPIRI_VCPKG_BASE_LINE = '7a5a8167ff2159564076a3e0f4b025695e9df91e'
 
 # vcpkg.json
 base_vcpkg_json = {
@@ -99,7 +99,7 @@ base_vcpkg_configuration = {
             'reference': 'master',
             'baseline': SPIRI_VCPKG_BASE_LINE,
             'packages': [
-                'muda', 'octree', 'ftetwild'
+                'muda', 'octree', 'ftetwild', 'pxr-boost-python'
             ]
         }
     ]
@@ -114,6 +114,7 @@ def is_enabled(arg):
 
 def gen_vcpkg_json(args):
     deps = base_vcpkg_json['dependencies']
+    overrides = base_vcpkg_json['overrides']
     
     if is_enabled(args.build_gui):
         deps.append({
@@ -139,6 +140,10 @@ def gen_vcpkg_json(args):
     if is_enabled(args.with_usd_support):
         deps.append({
             'name': 'usd',
+            'version>=': '25.5.1'
+        })
+        deps.append({
+            'name': 'pxr-boost-python',
             'version>=': '25.5.1'
         })
     if is_enabled(args.with_vdb_support):
