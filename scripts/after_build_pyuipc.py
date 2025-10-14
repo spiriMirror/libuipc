@@ -6,6 +6,7 @@ import argparse as ap
 import pathlib
 from mypy import stubgen
 import subprocess as sp
+import optional_import # help stubgen to detect optional modules' api
 
 def flush_info():
     sys.stdout.flush()
@@ -77,6 +78,7 @@ def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
     return target_dir
 
 def generate_stub(target_dir):
+    optional_import.EnabledModules.report()
     PACKAGE_NAME = 'pyuipc'
     typings_dir = binary_dir / 'python' / 'src'
     
