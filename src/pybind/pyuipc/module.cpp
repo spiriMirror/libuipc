@@ -20,6 +20,8 @@
 #include <pyuipc/core/feature.h>
 #include <pyuipc/common/resident_thread.h>
 
+#include <pyuipc/usd/module.h>
+
 using namespace uipc;
 
 namespace pyuipc
@@ -44,6 +46,7 @@ PYBIND11_MODULE(pyuipc, m)
     auto core         = m.def_submodule("core");
     auto backend      = m.def_submodule("backend");
     auto builtin      = m.def_submodule("builtin");
+    auto usd          = m.def_submodule("usd");
 
     // pyuipc
     m.doc() = "Libuipc Python Binding";
@@ -100,4 +103,7 @@ PYBIND11_MODULE(pyuipc, m)
 
     // pyuipc.builtin
     pyuipc::builtin::PyModule{builtin};
+
+    // pyuipc.usd
+    pyuipc::usd::PyModule{usd};
 }
