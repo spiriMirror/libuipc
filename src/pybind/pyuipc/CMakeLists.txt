@@ -21,6 +21,10 @@ add_subdirectory(backend)
 add_subdirectory(builtin)
 add_subdirectory(diff_sim)
 
+if (UIPC_WITH_USD_SUPPORT)
+    add_subdirectory(usd)
+endif()
+
 # Setup IDE
 get_target_property(SOURCES pyuipc SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
