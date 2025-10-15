@@ -8,7 +8,7 @@
 over "GLOBAL" (
     customData = {
     string libraryName = "uipcPhysics"
-    string libraryPath = "uipcPhysics"
+    string libraryPath = "."
     bool useLiteralIdentifier = 0
     dictionary libraryTokens = {
     }

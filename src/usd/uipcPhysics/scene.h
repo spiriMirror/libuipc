@@ -10,11 +10,11 @@
 /// \file uipcPhysics/scene.h
 
 #include "pxr/pxr.h"
-#include "uipcPhysics/api.h"
+#include "./api.h"
 #include "pxr/usd/usd/typed.h"
 #include "pxr/usd/usd/prim.h"
 #include "pxr/usd/usd/stage.h"
-#include "uipcPhysics/tokens.h"
+#include "./tokens.h"
 
 #include "pxr/base/vt/value.h"
 

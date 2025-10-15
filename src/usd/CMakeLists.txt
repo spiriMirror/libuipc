@@ -1,6 +1,4 @@
 find_package(pxr REQUIRED CONFIG)
-# print pxr version
-message(STATUS "Found USD ${pxr_VERSION}")
 
 add_library(uipc_usd SHARED)
 add_library(uipc::usd ALIAS uipc_usd)
@@ -20,6 +18,7 @@ target_link_libraries(uipc_usd PUBLIC
 )
 
 target_compile_definitions(uipc_usd PRIVATE UIPC_USD_EXPORT_DLL=1) # export dll
+target_compile_definitions(uipc_usd PRIVATE UIPCPHYSICS_EXPORTS=1) # export dll for usdPhysics
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_usd PRIVATE ${SOURCES})
