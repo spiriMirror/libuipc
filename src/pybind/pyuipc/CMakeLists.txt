@@ -22,6 +22,7 @@ add_subdirectory(builtin)
 add_subdirectory(diff_sim)
 
 if (UIPC_WITH_USD_SUPPORT)
+    target_compile_definitions(pyuipc PRIVATE "UIPC_WITH_USD_SUPPORT=1")
     add_subdirectory(usd)
 endif()
 

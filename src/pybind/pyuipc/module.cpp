@@ -19,8 +19,9 @@
 #include <pyuipc/backend/buffer.h>
 #include <pyuipc/core/feature.h>
 #include <pyuipc/common/resident_thread.h>
-
+#if UIPC_WITH_USD_SUPPORT
 #include <pyuipc/usd/module.h>
+#endif
 
 using namespace uipc;
 
@@ -105,5 +106,7 @@ PYBIND11_MODULE(pyuipc, m)
     pyuipc::builtin::PyModule{builtin};
 
     // pyuipc.usd
+#if UIPC_WITH_USD_SUPPORT
     pyuipc::usd::PyModule{usd};
+#endif
 }
