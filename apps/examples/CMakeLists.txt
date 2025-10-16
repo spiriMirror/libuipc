@@ -1,3 +1,4 @@
 add_subdirectory(hello_affine_body)
 add_subdirectory(hello_simplicial_complex)
 add_subdirectory(wrecking_ball)
+add_subdirectory(usd)

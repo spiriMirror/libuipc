@@ -18,23 +18,48 @@ over "GLOBAL" (
 
 }
 
-class PhysicsScene "PhysicsScene"
+class "ConstitutionAPI"
 (
     customData = {
-        string className = "Scene"
+        string className = "ConstitutionAPI"
     }
-    doc = """General physics simulation properties, required for simulation."""
+    doc = """Applies physics body attributes to any UsdGeomXformable prim and
+    marks that prim to be driven by a simulation. """
 
-    inherits = </Typed>
+    inherits = </APISchemaBase>
+    
 )
 {
-    vector3f physics:gravity = (0.0, 0.0, 0.0) (
+    uint64 uipc:constitution_uid = 0 (
         customData = {
-            string apiName = "gravity"
+            string apiName = "constitution_uid"
         }
-        displayName = "Gravity"
-        doc = """Gravity vector. The direction of this vector defines the
-        direction of gravity. The magnitude of this vector defines the strength
-        of gravity."""
+        displayName = "Constitution UID"
+        doc = """The unique identifier for the physics constitution associated
+        with this prim."""
+    )
+}
+
+class "AffineBodyAPI"
+(
+    customData = {
+        string className = "AffineBodyAPI"
+    }
+    doc = """Applies affine body attributes to any UsdGeomXformable prim and
+    marks that prim to be driven by a simulation. """
+
+    inherits = </APISchemaBase>
+
+    prepend apiSchemas = ["ConstitutionAPI"]
+)
+{
+    # override the constitution_uid to 1
+    uint64 uipc:constitution_uid = 1 (
+        customData = {
+            string apiName = "constitution_uid"
+        }
+        displayName = "Constitution UID"
+        doc = """The unique identifier for the physics constitution associated
+        with this prim."""
     )
 }

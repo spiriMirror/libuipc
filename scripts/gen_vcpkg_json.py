@@ -142,9 +142,17 @@ def gen_vcpkg_json(args):
             'name': 'usd',
             'version>=': '25.5.1'
         })
+        overrides.append({
+            'name': 'usd',
+            'version': '25.5.1'
+        })
         deps.append({
             'name': 'pxr-boost-python',
             'version>=': '25.5.1'
+        })
+        overrides.append({
+            'name': 'pxr-boost-python',
+            'version': '25.5.1'
         })
     if is_enabled(args.with_vdb_support):
         deps.append({

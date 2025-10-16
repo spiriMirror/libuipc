@@ -41,18 +41,22 @@ PXR_NAMESPACE_OPEN_SCOPE
 /// Use UipcPhysicsTokens like so:
 ///
 /// \code
-///     gprim.GetMyTokenValuedAttr().Set(UipcPhysicsTokens->physicsGravity);
+///     gprim.GetMyTokenValuedAttr().Set(UipcPhysicsTokens->uipcConstitution_uid);
 /// \endcode
 struct UipcPhysicsTokensType {
     UIPCPHYSICS_API UipcPhysicsTokensType();
-    /// \brief "physics:gravity"
+    /// \brief "uipc:constitution_uid"
     /// 
-    /// UipcPhysicsScene
-    const TfToken physicsGravity;
-    /// \brief "PhysicsScene"
+    /// UipcPhysicsConstitutionAPI, UipcPhysicsAffineBodyAPI
+    const TfToken uipcConstitution_uid;
+    /// \brief "AffineBodyAPI"
     /// 
-    /// Schema identifer and family for UipcPhysicsScene
-    const TfToken PhysicsScene;
+    /// Schema identifer and family for UipcPhysicsAffineBodyAPI
+    const TfToken AffineBodyAPI;
+    /// \brief "ConstitutionAPI"
+    /// 
+    /// Schema identifer and family for UipcPhysicsConstitutionAPI
+    const TfToken ConstitutionAPI;
     /// A vector of all of the tokens listed above.
     const std::vector<TfToken> allTokens;
 };

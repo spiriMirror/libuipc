@@ -9,11 +9,13 @@
 PXR_NAMESPACE_OPEN_SCOPE
 
 UipcPhysicsTokensType::UipcPhysicsTokensType() :
-    physicsGravity("physics:gravity", TfToken::Immortal),
-    PhysicsScene("PhysicsScene", TfToken::Immortal),
+    uipcConstitution_uid("uipc:constitution_uid", TfToken::Immortal),
+    AffineBodyAPI("AffineBodyAPI", TfToken::Immortal),
+    ConstitutionAPI("ConstitutionAPI", TfToken::Immortal),
     allTokens({
-        physicsGravity,
-        PhysicsScene
+        uipcConstitution_uid,
+        AffineBodyAPI,
+        ConstitutionAPI
     })
 {
 }

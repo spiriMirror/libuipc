@@ -116,7 +116,6 @@ function(uipc_config_vcpkg_install)
     endif()
     # message(STATUS "VCPKG_MANIFEST_INSTALL: ${VCPKG_MANIFEST_INSTALL}")
 
-    set(VCPKG_INSTALLED_DIR "")
     if(UIPC_USING_LOCAL_VCPKG)
         set(VCPKG_INSTALLED_DIR "${CMAKE_BINARY_DIR}/vcpkg_installed")
     else()
@@ -140,7 +139,6 @@ endfunction()
 # -----------------------------------------------------------------------------------------
 function(uipc_target_set_output_directory target_name)
     if(WIN32) # if on windows, set the output directory with different configurations
-        
         set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
         set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
         set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
@@ -226,10 +224,55 @@ file(TO_CMAKE_PATH "${python_dir}" python_dir)
 
 endfunction()
 
-# -----------------------------------------------------------------------------------------
-# 
-# --
 
 function(uipc_target_set_rpath target_name)
-    set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "$ORIGIN")
+    if(APPLE)
+        # macOS: @executable_path
+        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "@executable_path")
+        set_target_properties(${target_name} PROPERTIES BUILD_RPATH "@executable_path")
+    elseif(UNIX)
+        # Linux and other Unix systems use $ORIGIN
+        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "$ORIGIN")
+        set_target_properties(${target_name} PROPERTIES BUILD_RPATH "$ORIGIN")
+    elseif(WIN32)
+        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "$ORIGIN")
+        set_target_properties(${target_name} PROPERTIES BUILD_RPATH "$ORIGIN")
+    endif()
 endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Add Vcpkg Shared Library PATH to the executable target
+# -----------------------------------------------------------------------------------------
+
+function(uipc_executable_add_vcpkg_rpath target_name)
+    set(BASIC_RPATH "")
+    if(APPLE)
+        set(BASIC_RPATH "@executable_path")
+    elseif(UNIX)
+        set(BASIC_RPATH "$ORIGIN")
+    elseif(WIN32)
+        set(BASIC_RPATH "$ORIGIN")
+    endif()
+    set(VCPKG_RPATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+    set(RELEASE_RPATH "${BASIC_RPATH};${VCPKG_RPATH}/lib;${VCPKG_RPATH}/bin")
+    set(DEBUG_RPATH "${BASIC_RPATH};${VCPKG_RPATH}/debug/lib;${VCPKG_RPATH}/debug/bin")
+    if(UNIX)
+        if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+            set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "${DEBUG_RPATH}")
+            set_target_properties(${target_name} PROPERTIES BUILD_RPATH "${DEBUG_RPATH}")
+        else()
+            set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "${RELEASE_RPATH}")
+            set_target_properties(${target_name} PROPERTIES BUILD_RPATH "${RELEASE_RPATH}")
+        endif()
+    elseif(WIN32)
+        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH $<$<CONFIG:Debug>:${DEBUG_RPATH}>)
+        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH $<$<CONFIG:Release>:${RELEASE_RPATH}>)
+        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH $<$<CONFIG:RelWithDebInfo>:${RELEASE_RPATH}>)
+        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH $<$<CONFIG:MinSizeRel>:${RELEASE_RPATH}>)
+        set_target_properties(${target_name} PROPERTIES BUILD_RPATH $<$<CONFIG:Debug>:${DEBUG_RPATH}>)
+        set_target_properties(${target_name} PROPERTIES BUILD_RPATH $<$<CONFIG:Release>:${RELEASE_RPATH}>)
+        set_target_properties(${target_name} PROPERTIES BUILD_RPATH $<$<CONFIG:RelWithDebInfo>:${RELEASE_RPATH}>)
+        set_target_properties(${target_name} PROPERTIES BUILD_RPATH $<$<CONFIG:MinSizeRel>:${RELEASE_RPATH}>)
+    endif()
+endfunction()
+

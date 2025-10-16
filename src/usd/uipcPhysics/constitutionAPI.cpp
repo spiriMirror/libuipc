@@ -4,7 +4,7 @@
 // Licensed under the terms set forth in the LICENSE.txt file available at
 // https://openusd.org/license.
 //
-#include "./scene.h"
+#include "./constitutionAPI.h"
 #include "pxr/usd/usd/schemaRegistry.h"
 #include "pxr/usd/usd/typed.h"
 
@@ -16,64 +16,63 @@ PXR_NAMESPACE_OPEN_SCOPE
 // Register the schema with the TfType system.
 TF_REGISTRY_FUNCTION(TfType)
 {
-    TfType::Define<UipcPhysicsScene,
-        TfType::Bases< UsdTyped > >();
+    TfType::Define<UipcPhysicsConstitutionAPI,
+        TfType::Bases< UsdAPISchemaBase > >();
     
-    // Register the usd prim typename as an alias under UsdSchemaBase. This
-    // enables one to call
-    // TfType::Find<UsdSchemaBase>().FindDerivedByName("PhysicsScene")
-    // to find TfType<UipcPhysicsScene>, which is how IsA queries are
-    // answered.
-    TfType::AddAlias<UsdSchemaBase, UipcPhysicsScene>("PhysicsScene");
 }
 
 /* virtual */
-UipcPhysicsScene::~UipcPhysicsScene()
+UipcPhysicsConstitutionAPI::~UipcPhysicsConstitutionAPI()
 {
 }
 
 /* static */
-UipcPhysicsScene
-UipcPhysicsScene::Get(const UsdStagePtr &stage, const SdfPath &path)
+UipcPhysicsConstitutionAPI
+UipcPhysicsConstitutionAPI::Get(const UsdStagePtr &stage, const SdfPath &path)
 {
     if (!stage) {
         TF_CODING_ERROR("Invalid stage");
-        return UipcPhysicsScene();
+        return UipcPhysicsConstitutionAPI();
     }
-    return UipcPhysicsScene(stage->GetPrimAtPath(path));
+    return UipcPhysicsConstitutionAPI(stage->GetPrimAtPath(path));
+}
+
+
+/* virtual */
+UsdSchemaKind UipcPhysicsConstitutionAPI::_GetSchemaKind() const
+{
+    return UipcPhysicsConstitutionAPI::schemaKind;
 }
 
 /* static */
-UipcPhysicsScene
-UipcPhysicsScene::Define(
-    const UsdStagePtr &stage, const SdfPath &path)
+bool
+UipcPhysicsConstitutionAPI::CanApply(
+    const UsdPrim &prim, std::string *whyNot)
 {
-    static TfToken usdPrimTypeName("PhysicsScene");
-    if (!stage) {
-        TF_CODING_ERROR("Invalid stage");
-        return UipcPhysicsScene();
-    }
-    return UipcPhysicsScene(
-        stage->DefinePrim(path, usdPrimTypeName));
+    return prim.CanApplyAPI<UipcPhysicsConstitutionAPI>(whyNot);
 }
 
-/* virtual */
-UsdSchemaKind UipcPhysicsScene::_GetSchemaKind() const
+/* static */
+UipcPhysicsConstitutionAPI
+UipcPhysicsConstitutionAPI::Apply(const UsdPrim &prim)
 {
-    return UipcPhysicsScene::schemaKind;
+    if (prim.ApplyAPI<UipcPhysicsConstitutionAPI>()) {
+        return UipcPhysicsConstitutionAPI(prim);
+    }
+    return UipcPhysicsConstitutionAPI();
 }
 
 /* static */
 const TfType &
-UipcPhysicsScene::_GetStaticTfType()
+UipcPhysicsConstitutionAPI::_GetStaticTfType()
 {
-    static TfType tfType = TfType::Find<UipcPhysicsScene>();
+    static TfType tfType = TfType::Find<UipcPhysicsConstitutionAPI>();
     return tfType;
 }
 
 /* static */
 bool 
-UipcPhysicsScene::_IsTypedSchema()
+UipcPhysicsConstitutionAPI::_IsTypedSchema()
 {
     static bool isTyped = _GetStaticTfType().IsA<UsdTyped>();
     return isTyped;
@@ -81,22 +80,22 @@ UipcPhysicsScene::_IsTypedSchema()
 
 /* virtual */
 const TfType &
-UipcPhysicsScene::_GetTfType() const
+UipcPhysicsConstitutionAPI::_GetTfType() const
 {
     return _GetStaticTfType();
 }
 
 UsdAttribute
-UipcPhysicsScene::GetGravityAttr() const
+UipcPhysicsConstitutionAPI::GetConstitution_uidAttr() const
 {
-    return GetPrim().GetAttribute(UipcPhysicsTokens->physicsGravity);
+    return GetPrim().GetAttribute(UipcPhysicsTokens->uipcConstitution_uid);
 }
 
 UsdAttribute
-UipcPhysicsScene::CreateGravityAttr(VtValue const &defaultValue, bool writeSparsely) const
+UipcPhysicsConstitutionAPI::CreateConstitution_uidAttr(VtValue const &defaultValue, bool writeSparsely) const
 {
-    return UsdSchemaBase::_CreateAttr(UipcPhysicsTokens->physicsGravity,
-                       SdfValueTypeNames->Vector3f,
+    return UsdSchemaBase::_CreateAttr(UipcPhysicsTokens->uipcConstitution_uid,
+                       SdfValueTypeNames->UInt64,
                        /* custom = */ false,
                        SdfVariabilityVarying,
                        defaultValue,
@@ -117,14 +116,14 @@ _ConcatenateAttributeNames(const TfTokenVector& left,const TfTokenVector& right)
 
 /*static*/
 const TfTokenVector&
-UipcPhysicsScene::GetSchemaAttributeNames(bool includeInherited)
+UipcPhysicsConstitutionAPI::GetSchemaAttributeNames(bool includeInherited)
 {
     static TfTokenVector localNames = {
-        UipcPhysicsTokens->physicsGravity,
+        UipcPhysicsTokens->uipcConstitution_uid,
     };
     static TfTokenVector allNames =
         _ConcatenateAttributeNames(
-            UsdTyped::GetSchemaAttributeNames(true),
+            UsdAPISchemaBase::GetSchemaAttributeNames(true),
             localNames);
 
     if (includeInherited)

@@ -11,10 +11,12 @@ uipc_target_add_include_files(uipc_geometry)
 
 target_link_libraries(uipc_geometry PUBLIC 
     uipc::core
+)
+
+target_link_libraries(uipc_geometry PRIVATE 
     igl::igl_core
     Octree::Octree
-    TBB::tbb
-)
+    TBB::tbb)
 
 if(UIPC_WITH_VDB_SUPPORT)
     target_link_libraries(uipc_geometry PRIVATE uipc::vdb)

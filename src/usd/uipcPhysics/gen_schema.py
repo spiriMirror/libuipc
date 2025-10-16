@@ -25,6 +25,16 @@ def gen_schema():
     ]
     print(f'Generating USD schema from {schema_path} to {folder}')
     sp.run(cmd, check=True)
+    
+    # substitute PATH in plugInfo
+    plug_info_path = folder / 'plugInfo.json'
+    with plug_info_path.open('r') as f:
+        plug_info = f.read()
+    plug_info = plug_info.replace('@PLUG_INFO_LIBRARY_PATH@', '.')
+    plug_info = plug_info.replace('@PLUG_INFO_RESOURCE_PATH@', '.')
+    plug_info = plug_info.replace('@PLUG_INFO_ROOT@', '.')
+    with plug_info_path.open('w') as f:
+        f.write(plug_info)
 
 def remove_wrapper():
     # remove the generated file start with "wrap"
@@ -34,19 +44,19 @@ def remove_wrapper():
             print(f'Removing generated wrapper file {file}')
             file.unlink()
 
-def copy_headers():
+def move_headers():
     root = uipc_root_dir()
     dst = root / 'include' / 'uipc' / 'usd' / 'uipcPhysics'
-    src = this_folder() / 'uipcPhysics'
+    src = this_folder()
     header_files = list(src.glob('*.h'))
     for file in header_files:
-        print(f'Copying {file} to {dst}')
+        print(f'Moving {file} to {dst}')
         shutil.move(file, dst / file.name)
 
 def main():
     gen_schema()
     remove_wrapper()
-    copy_headers()
+    move_headers()
 
 if __name__ == '__main__':
     main()
