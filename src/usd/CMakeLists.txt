@@ -1,4 +1,6 @@
 find_package(pxr REQUIRED CONFIG)
+# print pxr version
+message(STATUS "Found USD ${pxr_VERSION}")
 
 add_library(uipc_usd SHARED)
 add_library(uipc::usd ALIAS uipc_usd)
