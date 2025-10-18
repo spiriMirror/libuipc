@@ -126,33 +126,34 @@ Please install the package manually by running:
         sys.exit(1)
 
 if __name__ == '__main__':
-    args = ap.ArgumentParser(description='Copy the release directory to the project directory')
-    args.add_argument('--target', help='target pyuipc shared library', required=True)
-    args.add_argument('--binary_dir', help='CMAKE_BINARY_DIR', required=True)
-    args.add_argument('--config', help='$<CONFIG>', required=True)
-    args.add_argument('--build_type', help='CMAKE_BUILD_TYPE', required=True)
-    args = args.parse_args()
+    # args = ap.ArgumentParser(description='Copy the release directory to the project directory')
+    # args.add_argument('--target', help='target pyuipc shared library', required=True)
+    # args.add_argument('--binary_dir', help='CMAKE_BINARY_DIR', required=True)
+    # args.add_argument('--config', help='$<CONFIG>', required=True)
+    # args.add_argument('--build_type', help='CMAKE_BUILD_TYPE', required=True)
+    # args = args.parse_args()
     
-    print(f'config($<CONFIG>): {args.config} | build_type(CMAKE_BUILD_TYPE): {args.build_type}')
+    # print(f'config($<CONFIG>): {args.config} | build_type(CMAKE_BUILD_TYPE): {args.build_type}')
     
-    pyuipc_lib = args.target
-    binary_dir = pathlib.Path(args.binary_dir)
-    proj_dir = pathlib.Path(project_dir.project_dir())
+    # pyuipc_lib = args.target
+    # binary_dir = pathlib.Path(args.binary_dir)
+    # proj_dir = pathlib.Path(project_dir.project_dir())
     
-    print(f'Copying package code to the target directory:')
-    copy_python_source_code(proj_dir / 'python', binary_dir / 'python')
-    flush_info()
+    # print(f'Copying package code to the target directory:')
+    # copy_python_source_code(proj_dir / 'python', binary_dir / 'python')
+    # flush_info()
     
-    config = get_config(args.config, args.build_type)
+    # config = get_config(args.config, args.build_type)
     
-    print(f'Copying shared libraries to the target directory:')
-    target_dir = copy_shared_libs(binary_dir, pyuipc_lib)
-    flush_info()
+    # print(f'Copying shared libraries to the target directory:')
+    # target_dir = copy_shared_libs(binary_dir, pyuipc_lib)
+    # flush_info()
     
-    print(f'Generating stubs:')
-    generate_stub(target_dir)
-    flush_info()
+    # print(f'Generating stubs:')
+    # generate_stub(target_dir)
+    # flush_info()
     
-    print(f'Installing the package to Python Environment: {sys.executable}')
-    install_package(binary_dir)
-    flush_info()
+    # print(f'Installing the package to Python Environment: {sys.executable}')
+    # install_package(binary_dir)
+    # flush_info()
+    pass
