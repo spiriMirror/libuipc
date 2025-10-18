@@ -8,7 +8,7 @@ target_sources(${app_name} PRIVATE "main.cpp")
 uipc_target_set_output_directory(${app_name})
 
 find_package(pxr REQUIRED CONFIG)
-target_compile_features(${app_name} PUBLIC cxx_std_17)
+target_compile_features(${app_name} PUBLIC cxx_std_20)
 
 target_link_libraries(${app_name} PRIVATE 
     usd
