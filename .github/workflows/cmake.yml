@@ -46,6 +46,7 @@ jobs:
         run: |
           sudo apt update
           sudo apt install ninja-build
+          sudo apt install pkg-config
 
       - name: Setup ninja
         if: matrix.os == 'windows-2022'

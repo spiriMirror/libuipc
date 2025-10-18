@@ -1,6 +1,11 @@
 import shutil
+import sys
 import pathlib as pl
 import subprocess as sp
+import pxr
+
+def pxr_package_dir():
+    return pl.Path(pxr.__file__).parent.resolve()
 
 def this_folder():
     return pl.Path(__file__).parent.resolve()

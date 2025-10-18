@@ -11,7 +11,8 @@ using namespace uipc;
 
 TEST_CASE("affine_body_api", "[usd]")
 {
-    auto stage = pxr::UsdStage::CreateNew("Hello.usda");
+    auto stage = pxr::UsdStage::CreateInMemory();
+    REQUIRE(stage);
     auto prim  = pxr::UsdGeomXform::Define(stage, pxr::SdfPath("/Cube"));
     auto api = usd::AffineBodyAPI::Apply(prim.GetPrim());
     auto attr = api.GetConstitution_uidAttr();

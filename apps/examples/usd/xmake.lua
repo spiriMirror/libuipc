@@ -1,5 +1,5 @@
-target("wrecking_ball")
+target("usd_app")
     set_kind("binary")
     set_group("apps/examples")
     add_files("main.cpp")
-    add_deps("app","cuda")
+    add_deps("app")

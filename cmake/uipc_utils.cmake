@@ -224,7 +224,9 @@ file(TO_CMAKE_PATH "${python_dir}" python_dir)
 
 endfunction()
 
-
+# -----------------------------------------------------------------------------------------
+# Set RPATH for the target
+# -----------------------------------------------------------------------------------------
 function(uipc_target_set_rpath target_name)
     if(APPLE)
         # macOS: @executable_path
@@ -234,45 +236,35 @@ function(uipc_target_set_rpath target_name)
         # Linux and other Unix systems use $ORIGIN
         set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "$ORIGIN")
         set_target_properties(${target_name} PROPERTIES BUILD_RPATH "$ORIGIN")
-    elseif(WIN32)
-        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "$ORIGIN")
-        set_target_properties(${target_name} PROPERTIES BUILD_RPATH "$ORIGIN")
     endif()
 endfunction()
+
 
 # -----------------------------------------------------------------------------------------
 # Add Vcpkg Shared Library PATH to the executable target
 # -----------------------------------------------------------------------------------------
-
 function(uipc_executable_add_vcpkg_rpath target_name)
     set(BASIC_RPATH "")
     if(APPLE)
         set(BASIC_RPATH "@executable_path")
     elseif(UNIX)
         set(BASIC_RPATH "$ORIGIN")
-    elseif(WIN32)
-        set(BASIC_RPATH "$ORIGIN")
     endif()
+
     set(VCPKG_RPATH "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
     set(RELEASE_RPATH "${BASIC_RPATH};${VCPKG_RPATH}/lib;${VCPKG_RPATH}/bin")
     set(DEBUG_RPATH "${BASIC_RPATH};${VCPKG_RPATH}/debug/lib;${VCPKG_RPATH}/debug/bin")
-    if(UNIX)
-        if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-            set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "${DEBUG_RPATH}")
-            set_target_properties(${target_name} PROPERTIES BUILD_RPATH "${DEBUG_RPATH}")
-        else()
-            set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "${RELEASE_RPATH}")
-            set_target_properties(${target_name} PROPERTIES BUILD_RPATH "${RELEASE_RPATH}")
-        endif()
-    elseif(WIN32)
-        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH $<$<CONFIG:Debug>:${DEBUG_RPATH}>)
-        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH $<$<CONFIG:Release>:${RELEASE_RPATH}>)
-        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH $<$<CONFIG:RelWithDebInfo>:${RELEASE_RPATH}>)
-        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH $<$<CONFIG:MinSizeRel>:${RELEASE_RPATH}>)
-        set_target_properties(${target_name} PROPERTIES BUILD_RPATH $<$<CONFIG:Debug>:${DEBUG_RPATH}>)
-        set_target_properties(${target_name} PROPERTIES BUILD_RPATH $<$<CONFIG:Release>:${RELEASE_RPATH}>)
-        set_target_properties(${target_name} PROPERTIES BUILD_RPATH $<$<CONFIG:RelWithDebInfo>:${RELEASE_RPATH}>)
-        set_target_properties(${target_name} PROPERTIES BUILD_RPATH $<$<CONFIG:MinSizeRel>:${RELEASE_RPATH}>)
+
+    if(NOT WIN32)
+        set(INSTALL_RPATH_GENEX "$<IF:$<CONFIG:Debug>,${DEBUG_RPATH},${RELEASE_RPATH}>")
+        set(BUILD_RPATH_GENEX "$<IF:$<CONFIG:Debug>,${DEBUG_RPATH},${RELEASE_RPATH}>")
+        set_target_properties(${target_name} PROPERTIES
+            INSTALL_RPATH "${INSTALL_RPATH_GENEX}"
+            BUILD_RPATH "${BUILD_RPATH_GENEX}"
+        )
     endif()
+    # For Windows, RPATH is not a standard mechanism. The most reliable way to ensure
+    # DLLs are found is to copy them to the executable's directory, which can be
+    # done with a post-build command. This function will not set RPATH for Windows.
 endfunction()
 

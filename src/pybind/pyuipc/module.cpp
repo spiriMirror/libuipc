@@ -23,10 +23,6 @@
 #include <pyuipc/usd/module.h>
 #endif
 
-#include <pyuipc/usd/module.h>
-
-using namespace uipc;
-
 namespace pyuipc
 {
 static py::module* g_top_module = nullptr;
@@ -40,6 +36,8 @@ py::module& top_module()
 
 PYBIND11_MODULE(pyuipc, m)
 {
+    using namespace uipc;
+
     pyuipc::g_top_module = &m;
 
     auto unit         = m.def_submodule("unit");
