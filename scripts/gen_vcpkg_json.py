@@ -81,6 +81,11 @@ base_vcpkg_json = {
         {
             'name': 'spdlog',
             'version': '1.12.0',
+        },
+        # fix libigl version
+        {
+            'name': 'libigl',
+            'version': '2.5.0'
         }
     ]
 }
@@ -107,7 +112,7 @@ base_vcpkg_configuration = {
 
 def is_enabled(arg):
     ARG = str(arg).upper()
-    if ARG == 'ON' or ARG == '1':
+    if ARG == 'ON' or ARG == '1' or ARG == 'TRUE':
         return True
     else:
         return False
