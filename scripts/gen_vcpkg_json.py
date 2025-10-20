@@ -23,7 +23,7 @@ base_vcpkg_json = {
         },
         {
             'name': 'libigl',
-            'version>=': '2.5.0'
+            'version>=': '2.6.0'
         },
         {
             'name': 'spdlog',
@@ -85,7 +85,7 @@ base_vcpkg_json = {
         # fix libigl version
         {
             'name': 'libigl',
-            'version': '2.5.0'
+            'version': '2.6.0'
         }
     ]
 }
