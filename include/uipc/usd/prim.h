@@ -1,11 +1,11 @@
 #pragma once
-#include <uipc/common/type_define.h>
+#include <uipc/usd/dllexport.h>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/geometry/geometry.h>
 
 namespace uipc::usd
 {
-class Prim
+class UIPC_USD_API Prim
 {
   public:
     S<geometry::Geometry> to_geometry();

@@ -15,8 +15,8 @@ void Prim::from_geometry(geometry::Geometry& geo)
     UIPC_ASSERT(false, "NOT IMPLEMENTED");
 }
 
-Prim::Prim(S<Impl> impl):
-    m_impl{std::move(impl)}
+Prim::Prim(S<Impl> impl)
+    : m_impl{std::move(impl)}
 {
 }
 }  // namespace uipc::usd

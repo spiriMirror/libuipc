@@ -24,6 +24,8 @@ Prim Stage::get_prim_at_path(std::string_view path) const
     return Prim{uipc::make_shared<Prim::Impl>(std::move(usdPrim))};
 }
 
+Stage::~Stage() = default;
+
 Stage::Stage(S<Impl> impl)
     : m_impl(std::move(impl))
 {

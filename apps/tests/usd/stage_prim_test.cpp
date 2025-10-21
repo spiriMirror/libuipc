@@ -11,7 +11,7 @@ auto build_stage()
     using namespace pxr;
     auto output_path = AssetDir::output_path(__FILE__);
     auto usd_path = fmt::format("{}/HelloStage.usd", output_path);
-    auto usd_stage = UsdStage::CreateNew(usd_path);
+    auto usd_stage = UsdStage::CreateInMemory();
     auto cube = UsdGeomXform::Define(usd_stage, SdfPath("/Cube"));
     usd_stage->Save();
     return usd_path;

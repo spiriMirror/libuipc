@@ -3,12 +3,12 @@
 
 namespace uipc::usd
 {
-class Stage
+class UIPC_USD_API Stage
 {
   public:
-    UIPC_USD_API static Stage open(std::string_view path);
+    static Stage open(std::string_view path);
     Prim         get_prim_at_path(std::string_view path) const;
-
+    ~Stage();
   private:
     class Impl;
     explicit Stage(S<Impl> impl);
