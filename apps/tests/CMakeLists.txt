@@ -33,3 +33,7 @@ if(UIPC_BUILD_GUI)
     uipc_warning("This version C++ GUI is not finished yet, waiting for contributions.")
     # add_subdirectory(gui)
 endif()
+
+if(UIPC_WITH_USD_SUPPORT)
+    add_subdirectory(usd)
+endif()
