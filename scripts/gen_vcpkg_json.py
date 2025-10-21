@@ -23,7 +23,7 @@ base_vcpkg_json = {
         },
         {
             'name': 'libigl',
-            'version>=': '2.5.0'
+            'version>=': '2.6.0'
         },
         {
             'name': 'spdlog',
@@ -140,10 +140,6 @@ def gen_vcpkg_json(args):
     if is_enabled(args.with_usd_support):
         deps.append({
             'name': 'usd',
-            'version>=': '25.5.1'
-        })
-        deps.append({
-            'name': 'pxr-boost-python',
             'version>=': '25.5.1'
         })
     if is_enabled(args.with_vdb_support):
