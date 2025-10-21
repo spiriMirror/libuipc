@@ -13,7 +13,9 @@ target_link_libraries(uipc_usd PUBLIC
     uipc::core
     uipc::geometry)
 
-target_link_libraries(uipc_usd PUBLIC
+# According to issue: https://github.com/spiriMirror/libuipc/issues/201
+# We must make the usd dependencies PRIVATE
+target_link_libraries(uipc_usd PRIVATE
    usd
    usdGeom
    usdPhysics

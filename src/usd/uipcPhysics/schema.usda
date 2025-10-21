@@ -10,6 +10,7 @@ over "GLOBAL" (
     string libraryName = "uipcPhysics"
     string libraryPath = "uipcPhysics"
     bool useLiteralIdentifier = 0
+    bool skipCodeGeneration = true    
     dictionary libraryTokens = {
     }
     }
