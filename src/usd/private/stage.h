@@ -1,4 +1,5 @@
 #pragma once
+#include <uipc/usd/stage.h>
 #include <pxr/usd/usd/stage.h>
 #include <private/prim.h>
 
