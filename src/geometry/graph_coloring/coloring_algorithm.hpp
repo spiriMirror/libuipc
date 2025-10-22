@@ -42,14 +42,15 @@ class GraphColor
     void build(SizeT                       node_count,
                std::span<const NodeIndexT> Ni,  //
                std::span<const NodeIndexT> Nj);
+
     void solve();
 
-    std::span<const NodeIndexT>  node_adjacency(NodeIndexT node);
+    std::span<const NodeIndexT>  node_adjacency(NodeIndexT node) const;
     SizeT                        num_node() const;
     SizeT                        num_color();
     std::span<const ColorIndexT> colors() const;
     bool                         is_colored();
-    bool                         is_valid();
+    bool                         is_valid() const;
     /* Print functions */
     void report_coloring();
 

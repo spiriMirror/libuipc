@@ -1,10 +1,12 @@
 #include "coloring_algorithm.hpp"
 #include <uipc/common/log.h>
+#include <uipc/common/range.h>
 #include <algorithm>
 #include <numeric>
 #include <iostream>
 #include <ranges>
 #include <span>
+
 
 namespace GraphColoring
 {
@@ -20,6 +22,9 @@ void GraphColor::build(SizeT                       node_count,
                        std::span<const NodeIndexT> Nj)
 {
     m_row_offsets.resize(node_count + 1);
+    std::ranges::fill(m_row_offsets, 0);
+    vector<SizeT> row_counts(node_count);
+    m_graph_colors.resize(node_count);
     // sort edges by i
     SizeT                                          edge_count = Ni.size();
     std::vector<std::pair<NodeIndexT, NodeIndexT>> edges(edge_count);
@@ -45,30 +50,40 @@ void GraphColor::build(SizeT                       node_count,
 
     // build row offsets
     for(auto&& i : edges | std::views::keys)
-        m_row_offsets[i + 1]++;
+        m_row_offsets[i]++;
 
     // prefix sum
-    std::partial_sum(m_row_offsets.begin(), m_row_offsets.end(), m_row_offsets.begin());
+    std::exclusive_scan(
+        m_row_offsets.begin(), m_row_offsets.end(), m_row_offsets.begin(), 0);
 
     // build col indices
     m_col_indices.resize(edges.size());
-    for(auto&& edge : edges)
+    for(const auto node : uipc::range(node_count))
     {
-        const auto row_offset     = m_row_offsets[edge.first]++;
-        m_col_indices[row_offset] = edge.second;
+        const auto row_offset = m_row_offsets[node];
+        const auto next_row_offset   = m_row_offsets[node + 1];
+        auto adj = std::span{m_col_indices}.subspan(row_offset, next_row_offset - row_offset);
+        auto edge_span = std::span{edges}.subspan(row_offset, adj.size());
+        std::ranges::transform(edge_span,
+                               adj.begin(),
+                               [](const auto& edge) { return edge.second; });
     }
 }
 
-std::span<const NodeIndexT> GraphColor::node_adjacency(NodeIndexT node)
+std::span<const NodeIndexT> GraphColor::node_adjacency(NodeIndexT node) const
 {
+    UIPC_ASSERT(node < num_node(),
+                "Node index out of bounds, num_node = {}, yours {}.",
+                num_node(),
+                node);
     const auto row_offset = m_row_offsets[node];
-    const auto next_row   = m_row_offsets[node + 1];
-    return std::span{m_col_indices}.subspan(row_offset, next_row);
+    const auto next_row_offset   = m_row_offsets[node + 1];
+    return std::span{m_col_indices}.subspan(row_offset, next_row_offset - row_offset);
 }
 
 SizeT GraphColor::num_node() const
 {
-    return m_row_offsets.size();
+    return m_row_offsets.size() - 1;
 }
 
 std::span<ColorIndexT> GraphColor::node_colors()
@@ -87,9 +102,9 @@ void GraphColor::solve()
 }
 
 // Checks that no two adjacent nodes have the same color
-bool GraphColor::is_valid()
+bool GraphColor::is_valid() const
 {
-    const std::span<const ColorIndexT> color_span = node_colors();
+    const std::span<const ColorIndexT> color_span = colors();
     if(color_span.empty() || num_node() != color_span.size())
     {
         return false;

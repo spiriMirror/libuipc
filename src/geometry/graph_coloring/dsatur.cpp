@@ -4,7 +4,6 @@
 #include <uipc/common/enumerate.h>
 #include <algorithm>
 #include <iostream>
-#include <limits.h>
 #include <unordered_set>
 
 namespace GraphColoring
@@ -33,21 +32,20 @@ void Dsatur::do_solve()
     SizeT      degree          = 0;
 
     // find maximal degree vertex to color first and color with 0
-
     for(NodeIndexT i = 0; i < NumNode; ++i)
     {
-        if(auto adj = this->node_adjacency(i); adj.size() >= degree)
+        if(auto adjs = this->node_adjacency(i); adjs.size() >= degree)
         {
-            degree          = adj.size();
+            degree          = adjs.size();
             max_degree_node = i;
         }
     }
+    node_color[max_degree_node] = 0;
 
     // Create saturation_level so that we can see which graph nodes have the
     // highest saturation without having to scan through the entire graph
     // each time
     std::vector<int> saturation_level;
-
     // Add all nodes and set their saturation level to 0
     saturation_level.resize(NumNode);
     std::ranges::fill(saturation_level, 0);
@@ -60,8 +58,8 @@ void Dsatur::do_solve()
         saturation_level[Nj] += 1;
     }
 
-    //Set the saturation level of the already completed node to -infinity so
-    //that it is not chosen and recolored
+    // Set the saturation level of the already completed node to -infinity so
+    // that it is not chosen and recolored
     saturation_level[max_degree_node] = MinInt;
 
     //Populate the todo list with the rest of the vertices that need to be colored
@@ -88,7 +86,7 @@ void Dsatur::do_solve()
         saturation_colors.resize(saturation_node_adj.size());
         std::ranges::transform(saturation_node_adj,
                                saturation_colors.begin(),
-                               [node_color](const NodeIndexT neighbor)
+                               [&node_color](const NodeIndexT neighbor)
                                { return node_color[neighbor]; });
 
         // Find the lowest color that is not being used by any of the most saturated
