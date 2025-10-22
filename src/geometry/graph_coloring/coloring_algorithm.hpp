@@ -10,7 +10,7 @@ namespace GraphColoring
 using std::map;
 using std::string;
 using std::vector;
-using NodeIndexT  = uint64_t;
+using NodeIndexT  = int64_t;
 using ColorIndexT = int64_t;
 using SizeT       = uint64_t;
 
