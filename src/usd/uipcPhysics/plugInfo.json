@@ -23,7 +23,7 @@
             "Name": "uipcPhysics", 
             "ResourcePath": "@PLUG_INFO_RESOURCE_PATH@", 
             "Root": "@PLUG_INFO_ROOT@", 
-            "Type": "library"
+            "Type": "resource"
         }
     ]
 }

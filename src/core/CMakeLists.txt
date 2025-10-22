@@ -57,11 +57,12 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     target_link_libraries(uipc_core PRIVATE dl)
 endif()
 
-# if MSVC, define /bigobj
 if(MSVC)
+    # define /bigobj
     target_compile_options(uipc_core PRIVATE "/bigobj")
+    # nominmax to avoid conflicts on `min/max` macros on Windows
+    target_compile_definitions(uipc_core PUBLIC NOMINMAX)
 endif()
-
 # ------------------------------------------------------------------------------
 # add the files in the subdirectories to the target uipc
 # so ensure that the uipc target is created before adding the subdirectories

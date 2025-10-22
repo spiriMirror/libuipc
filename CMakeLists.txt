@@ -24,8 +24,12 @@ option(UIPC_WITH_USD_SUPPORT "Build with Universal Scene Description (USD) suppo
 option(UIPC_WITH_VDB_SUPPORT "Build with Volumetric DataBase (VDB) support" OFF)
 
 set(UIPC_PYTHON_EXECUTABLE_PATH "" CACHE PATH "Python executable path")
+set(UIPC_USD_INSTALL_DIR "" CACHE PATH
+        "USD installation directory: the folder that contains pxrConfig.cmake, e.g. ~/Software/Usd")
+if(NOT "${UIPC_USD_INSTALL_DIR}" STREQUAL "")
+    set(UIPC_WITH_USD_SUPPORT ON)
+endif()
 
-# =========================================================================
 # Backend Options
 # =========================================================================
 # if MAC OS, disable CUDA backend

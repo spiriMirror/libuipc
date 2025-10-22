@@ -32,3 +32,7 @@ bin/
 .idea/
 .vscode/
 
+# clion
+cmake-build-*/
+
+
