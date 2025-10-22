@@ -9,7 +9,7 @@ target_include_directories(uipc_geometry PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 uipc_target_add_include_files(uipc_geometry)
 
-target_link_libraries(uipc_geometry PUBLIC 
+target_link_libraries(uipc_geometry PRIVATE 
     uipc::core
     igl::igl_core
     Octree::Octree
