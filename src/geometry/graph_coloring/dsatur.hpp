@@ -1,9 +1,5 @@
 #pragma once
 #include "coloring_algorithm.hpp"
-#include <vector>
-#include <fmt/ranges.h>
-
-using GraphColoring::GraphColor;
 
 namespace GraphColoring
 {

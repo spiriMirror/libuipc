@@ -3,28 +3,14 @@
 #include <uipc/common/range.h>
 #include <uipc/common/enumerate.h>
 #include <algorithm>
-#include <iostream>
 #include <unordered_set>
 #include <set>
 
 namespace GraphColoring
 {
-using std::cerr;
-using std::cout;
-using std::endl;
-using std::ifstream;
-using std::map;
-using std::ofstream;
-using std::ostringstream;
-using std::set;
-using std::string;
-using std::vector;
-
 // ref: https://www.geeksforgeeks.org/dsa/dsatur-algorithm-for-graph-coloring/
 // A C++ program to implement the DSatur algorithm for graph
 // coloring
-
-using namespace std;
 
 // Struct to store information
 // on each uncoloured vertex
@@ -45,7 +31,8 @@ class MaxSatOp
         // saturation degree, then
         // degree in the subgraph,
         // then vertex label
-        return tie(lhs.sat, lhs.deg, lhs.vertex) > tie(rhs.sat, rhs.deg, rhs.vertex);
+        return std::tie(lhs.sat, lhs.deg, lhs.vertex)
+               > std::tie(rhs.sat, rhs.deg, rhs.vertex);
     }
 };
 
@@ -54,6 +41,9 @@ class MaxSatOp
 // prints the assignment of colors
 void Dsatur::do_solve()
 {
+    using std::set;
+    using std::span;
+
     // Output: node colors
     auto node_colors = this->node_colors();
 

@@ -75,7 +75,7 @@ void check_attr(const SimplicialComplex& sc)
     // 3. color_count == max(color) + 1
     auto       color_view       = graph_color->view();
     const auto color_count_view = graph_color_count->view();
-    const auto count            = std::ranges::max(color_view) + 1;
+    const auto count = color_view.empty() ? 0 : std::ranges::max(color_view) + 1;
     if constexpr(PrintColor)
     {
         fmt::println("color count: {};", count);

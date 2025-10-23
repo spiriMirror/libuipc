@@ -23,7 +23,6 @@ void GraphColor::build(SizeT                       node_count,
 {
     m_row_offsets.resize(node_count + 1);
     std::ranges::fill(m_row_offsets, 0);
-    vector<SizeT> row_counts(node_count);
     m_graph_colors.resize(node_count);
     // sort edges by i
     SizeT                                          edge_count = Ni.size();
@@ -60,8 +59,8 @@ void GraphColor::build(SizeT                       node_count,
     m_col_indices.resize(edges.size());
     for(const auto node : uipc::range(node_count))
     {
-        const auto row_offset = m_row_offsets[node];
-        const auto next_row_offset   = m_row_offsets[node + 1];
+        const auto row_offset      = m_row_offsets[node];
+        const auto next_row_offset = m_row_offsets[node + 1];
         auto adj = std::span{m_col_indices}.subspan(row_offset, next_row_offset - row_offset);
         auto edge_span = std::span{edges}.subspan(row_offset, adj.size());
         std::ranges::transform(edge_span,
@@ -76,8 +75,8 @@ std::span<const NodeIndexT> GraphColor::node_adjacency(NodeIndexT node) const
                 "Node index out of bounds, num_node = {}, yours {}.",
                 num_node(),
                 node);
-    const auto row_offset = m_row_offsets[node];
-    const auto next_row_offset   = m_row_offsets[node + 1];
+    const auto row_offset      = m_row_offsets[node];
+    const auto next_row_offset = m_row_offsets[node + 1];
     return std::span{m_col_indices}.subspan(row_offset, next_row_offset - row_offset);
 }
 
@@ -122,20 +121,14 @@ bool GraphColor::is_valid() const
     return true;
 }
 
-// Used to print the color of each node in the graph
-void GraphColor::report_coloring()
+SizeT GraphColor::num_color() const
 {
-    const auto color_span = node_colors();
-    std::cout << "Graph Coloring Result: " << endl;
-    std::cout << "Node Count: " << num_node() << endl;
-    std::cout << "Color Count: " << num_color() << endl;
-    for(NodeIndexT i = 0; i < color_span.size(); ++i)
-        std::cout << "Node " << i << ": Color " << color_span[i] << endl;
-}
-
-SizeT GraphColor::num_color()
-{
-    return std::ranges::max(node_colors()) + 1;
+    const auto color_span = colors();
+    if(color_span.empty())
+    {
+        return 0;
+    }
+    return std::ranges::max(color_span) + 1;
 }
 
 bool GraphColor::is_colored()
