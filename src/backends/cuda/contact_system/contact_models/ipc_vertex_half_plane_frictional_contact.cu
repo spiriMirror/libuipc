@@ -91,8 +91,7 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                         plane_normals = half_plane->normals().viewer().name("plane_normals"),
                         table = info.contact_tabular().viewer().name("contact_tabular"),
                         contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                        half_plane_contact_ids =
-                            half_plane->contact_ids().viewer().name("half_plane_contact_ids"),
+                        half_plane_contact_ids = half_plane->contact_ids().viewer().name("half_plane_contact_ids"),
                         Ps = info.positions().viewer().name("Ps"),
                         prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                         thicknesses = info.thicknesses().viewer().name("thicknesses"),
