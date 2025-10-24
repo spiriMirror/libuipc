@@ -51,12 +51,14 @@ class HalfPlane : public SimSystem
 
 
         vector<IndexT>  h_contact_ids;
+        vector<IndexT>  h_subscene_ids;
         vector<Vector3> h_normals;
         vector<Vector3> h_positions;
 
         muda::DeviceBuffer<Vector3> normals;
         muda::DeviceBuffer<Vector3> positions;
         muda::DeviceBuffer<IndexT>  contact_ids;
+        //muda::DeviceBuffer<IndexT>  subscene_ids;
     };
 
     muda::CBufferView<Vector3> normals() const;

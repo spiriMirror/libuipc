@@ -161,14 +161,6 @@ void GlobalContactManager::Impl::_build_subscene_tabular(WorldVisitor& world)
     // default turn off the contact between two different subscenes
     mask_map.setIdentity();  // enable self-scene-contact
 
-    // contact with the ground is enabled by default, with the ground identified as subscene element 0
-    for(int ii = 0; ii < SN; ii++)
-    {
-        mask_map(ii, 0) = enabled_view[0];
-        mask_map(0, ii) = enabled_view[0];
-    }
-
-
     for(auto&& [ids, is_enabled] : zip(topo_view, enabled_view))
     {
         mask_map(ids.x(), ids.y()) = is_enabled;
