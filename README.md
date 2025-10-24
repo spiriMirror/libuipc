@@ -10,8 +10,6 @@ Documentation: ➡️ https://spirimirror.github.io/libuipc-doc/
 
 Samples: ➡️ https://github.com/spiriMirror/libuipc-samples/
 
-Discussion: ➡️ https://github.com/spiriMirror/libuipc/discussions
-
 
 ![teaser](docs/media/teaser.png)
 
