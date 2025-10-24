@@ -61,12 +61,11 @@ We are **actively** developing Libuipc and will continue to add more features an
 - User Scriptable Animation Control
 - Fully Differentiable Simulation (Diff-Sim Coming Soon)
 
-## News
+## Document Guidance
 
-**2025-5-23**: [StiffGIPC](https://dl.acm.org/doi/10.1145/3735126) will be presented at Siggraph 2025, and Libuipc v1.0.0 will be released soon!
-
-**2024-11-25**: Libuipc v0.9.0 (Alpha) is published! We are excited to share our work with the community. This is a preview version, if you have any feedback or suggestions, please feel free to contact us! [Issues](https://github.com/spiriMirror/libuipc/issues) and [PRs](https://github.com/spiriMirror/libuipc/pulls) are welcome!
-
+- [Build & Install](./build_install/index.md): Instructions to build and install Libuipc on different platforms.
+- [Tutorial](./tutorial/index.md): Learn the basic concepts and how to use Libuipc step by step.
+- [Specification](./specification/index.md): Detailed definition and explanation of the design and behaviour of Libuipc.
 
 ## Citation
 

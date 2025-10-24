@@ -6,9 +6,9 @@ Both C++ and Python API are provided!
 
 Website: ➡️ https://spirimirror.github.io/libuipc-web/
 
-Samples: ➡️ https://github.com/spiriMirror/libuipc-samples/
+Documentation: ➡️ https://spirimirror.github.io/libuipc-doc/
 
-Discussion: ➡️ https://github.com/spiriMirror/libuipc/discussions
+Samples: ➡️ https://github.com/spiriMirror/libuipc-samples/
 
 
 ![teaser](docs/media/teaser.png)

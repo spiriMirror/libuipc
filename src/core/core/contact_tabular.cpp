@@ -46,7 +46,7 @@ class ContactTabular::Impl
         auto   id = current_element_id();
         string name_str{name};
         if(name_str.empty())
-            name_str = fmt::format("_{}", id);
+            name_str = fmt::format("#{}", id);
 
         m_elements.push_back(ContactElement(id, name_str));
 
