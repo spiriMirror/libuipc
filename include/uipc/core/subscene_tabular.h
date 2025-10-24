@@ -17,6 +17,8 @@ class SubsceneTabularVisitor;
 
 namespace uipc::core
 {
+// Specification:
+// https://spirimirror.github.io/libuipc-doc/specification/#subscene-tabular
 class UIPC_CORE_API SubsceneTabular final
 {
     friend class uipc::backend::SubsceneTabularVisitor;
@@ -33,17 +35,14 @@ class UIPC_CORE_API SubsceneTabular final
 
     SubsceneElement create(std::string_view name = "") noexcept;
 
+    SubsceneElement default_element() const noexcept;
+
     IndexT insert(const SubsceneElement& L,
                   const SubsceneElement& R,
                   bool                   enable = false,
                   const Json&            config = default_config());
 
-    SubsceneModel at(SizeT i, SizeT j) const;
-
-    void default_model(bool enable, const Json& config = default_config()) noexcept;
-
-    SubsceneElement default_element() noexcept;
-    SubsceneModel   default_model() const noexcept;
+    SubsceneModel at(IndexT i, IndexT j) const;
 
     SubsceneModelCollection  subscene_models() noexcept;
     CSubsceneModelCollection subscene_models() const noexcept;

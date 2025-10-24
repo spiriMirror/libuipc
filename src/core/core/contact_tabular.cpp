@@ -93,12 +93,8 @@ class ContactTabular::Impl
 
         if(it != m_model_map.end())
         {
+            // replace the existing contact model
             index = it->second;
-            UIPC_WARN_WITH_LOCATION("Contact model between {}[{}] and {}[{}] already exists, replace the old one.",
-                                    m_elements[L.id()].name(),
-                                    L.id(),
-                                    m_elements[R.id()].name(),
-                                    R.id());
         }
         else
         {
@@ -116,9 +112,12 @@ class ContactTabular::Impl
         return index;
     }
 
-    IndexT current_element_id() const noexcept { return m_elements.size(); }
+    IndexT current_element_id() const noexcept
+    {
+        return static_cast<IndexT>(m_elements.size());
+    }
 
-    IndexT index_at(SizeT i, SizeT j) const
+    IndexT index_at(IndexT i, IndexT j) const
     {
         Vector2i ids{i, j};
         if(ids.x() > ids.y())
@@ -128,7 +127,7 @@ class ContactTabular::Impl
         return it != m_model_map.end() ? it->second : -1;
     }
 
-    ContactModel at(SizeT i, SizeT j) const
+    ContactModel at(IndexT i, IndexT j) const
     {
         auto idx = index_at(i, j);
 
@@ -266,7 +265,7 @@ IndexT ContactTabular::insert(const ContactElement& L,
     return m_impl->insert(L, R, friction_rate, resistance, enable, config);
 }
 
-ContactModel ContactTabular::at(SizeT i, SizeT j) const
+ContactModel ContactTabular::at(IndexT i, IndexT j) const
 {
     return m_impl->at(i, j);
 }

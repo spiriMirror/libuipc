@@ -25,7 +25,8 @@ void FiniteElementVertexReporter::Impl::report_attributes(VertexAttributeInfo& i
     using namespace muda;
 
     info.contact_element_ids().copy_from(fem().h_vertex_contact_element_ids.data());
-    info.contact_subscene_element_ids().copy_from(fem().h_vertex_subscene_contact_element_ids.data());
+    info.subscene_element_ids().copy_from(
+        fem().h_vertex_subscene_contact_element_ids.data());
 
     info.dimensions().copy_from(fem().h_dimensions.data());
     info.thicknesses().copy_from(fem().thicknesses);

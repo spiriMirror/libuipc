@@ -49,21 +49,18 @@ class HalfPlane : public SimSystem
         vector<ImplicitGeometry*>     geos;
         OffsetCountCollection<IndexT> geo_vertex_offset_count;
 
+        vector<IndexT> h_contact_ids;
+        vector<IndexT> h_subscene_ids;
 
-        vector<IndexT>  h_contact_ids;
-        vector<IndexT>  h_subscene_ids;
         vector<Vector3> h_normals;
         vector<Vector3> h_positions;
 
         muda::DeviceBuffer<Vector3> normals;
         muda::DeviceBuffer<Vector3> positions;
-        muda::DeviceBuffer<IndexT>  contact_ids;
-        //muda::DeviceBuffer<IndexT>  subscene_ids;
     };
 
     muda::CBufferView<Vector3> normals() const;
     muda::CBufferView<Vector3> positions() const;
-    muda::CBufferView<IndexT>  contact_ids() const;
 
     span<const GeoInfo> geo_infos() const noexcept { return m_impl.geo_infos; }
 
