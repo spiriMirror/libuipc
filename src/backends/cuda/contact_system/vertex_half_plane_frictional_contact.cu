@@ -19,6 +19,7 @@ void VertexHalfPlaneFrictionalContact::do_build(ContactReporter::BuildInfo& info
     m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
     m_impl.global_contact_manager   = require<GlobalContactManager>();
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
+    m_impl.vertex_reporter          = require<HalfPlaneVertexReporter>();
     m_impl.dt                       = dt_attr->view()[0];
 
     BuildInfo this_info;
@@ -112,6 +113,11 @@ muda::CBufferView<IndexT> VertexHalfPlaneFrictionalContact::BaseInfo::contact_el
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
+muda::CBufferView<IndexT> VertexHalfPlaneFrictionalContact::BaseInfo::subscene_element_ids() const
+{
+    return m_impl->global_vertex_manager->subscene_element_ids();
+}
+
 Float VertexHalfPlaneFrictionalContact::BaseInfo::d_hat() const
 {
     return m_impl->global_contact_manager->d_hat();
@@ -130,6 +136,11 @@ Float VertexHalfPlaneFrictionalContact::BaseInfo::dt() const
 Float VertexHalfPlaneFrictionalContact::BaseInfo::eps_velocity() const
 {
     return m_impl->global_contact_manager->eps_velocity();
+}
+
+IndexT VertexHalfPlaneFrictionalContact::BaseInfo::half_plane_vertex_offset() const
+{
+    return m_impl->vertex_reporter->vertex_offset();
 }
 
 muda::BufferView<Float> VertexHalfPlaneFrictionalContact::EnergyInfo::energies() const noexcept

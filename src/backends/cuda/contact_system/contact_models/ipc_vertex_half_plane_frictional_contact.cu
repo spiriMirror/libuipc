@@ -40,13 +40,13 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                     plane_normals = half_plane->normals().viewer().name("plane_normals"),
                     table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                    half_plane_contact_ids = half_plane->contact_ids().viewer().name("half_plane_contact_ids"),
                     Ps      = info.positions().viewer().name("Ps"),
                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     eps_v  = info.eps_velocity(),
                     d_hats = info.d_hats().viewer().name("d_hats"),
-                    dt     = info.dt()] __device__(int I) mutable
+                    half_plane_vertex_offset = info.half_plane_vertex_offset(),
+                    dt = info.dt()] __device__(int I) mutable
                    {
                        Vector2i PH = PHs(I);
 
@@ -61,7 +61,7 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                        Float d_hat = d_hats(vI);
 
                        ContactCoeff coeff =
-                           table(contact_ids(vI), half_plane_contact_ids(HI));
+                           table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset));
                        Float kt2 = coeff.kappa * dt * dt;
                        Float mu  = coeff.mu;
 
@@ -91,13 +91,13 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                         plane_normals = half_plane->normals().viewer().name("plane_normals"),
                         table = info.contact_tabular().viewer().name("contact_tabular"),
                         contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                        half_plane_contact_ids = half_plane->contact_ids().viewer().name("half_plane_contact_ids"),
                         Ps = info.positions().viewer().name("Ps"),
                         prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
                         thicknesses = info.thicknesses().viewer().name("thicknesses"),
                         eps_v  = info.eps_velocity(),
                         d_hats = info.d_hats().viewer().name("d_hats"),
-                        dt     = info.dt()] __device__(int I) mutable
+                        half_plane_vertex_offset = info.half_plane_vertex_offset(),
+                        dt = info.dt()] __device__(int I) mutable
                        {
                            Vector2i PH = PHs(I);
 
@@ -112,7 +112,8 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                            Float d_hat = d_hats(vI);
 
                            ContactCoeff coeff =
-                               table(contact_ids(vI), half_plane_contact_ids(HI));
+                               table(contact_ids(vI),
+                                     contact_ids(HI + half_plane_vertex_offset));
                            Float kt2 = coeff.kappa * dt * dt;
                            Float mu  = coeff.mu;
 
@@ -126,8 +127,8 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
 
                            cuda::make_spd(H);
 
-                           Grad(I).write(PH(0), G);
-                           Hess(I).write(PH(0), PH(0), H);
+                           Grad(I).write(vI, G);
+                           Hess(I).write(vI, vI, H);
                        });
         }
     }

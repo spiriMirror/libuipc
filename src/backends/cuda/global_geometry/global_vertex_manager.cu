@@ -47,7 +47,7 @@ void GlobalVertexManager::Impl::init()
     rest_positions.resize(total_count);
     safe_positions.resize(total_count);
     contact_element_ids.resize(total_count, 0);
-    contact_subscene_element_ids.resize(total_count, 0);
+    subscene_element_ids.resize(total_count, 0);
     thicknesses.resize(total_count, 0.0);
     dimensions.resize(total_count, 3);  // default 3D
     displacements.resize(total_count, Vector3::Zero());
@@ -246,9 +246,9 @@ muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::contact_eleme
     return m_impl->subview(m_impl->contact_element_ids, m_index);
 }
 
-muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::contact_subscene_element_ids() const noexcept
+muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::subscene_element_ids() const noexcept
 {
-    return m_impl->subview(m_impl->contact_subscene_element_ids, m_index);
+    return m_impl->subview(m_impl->subscene_element_ids, m_index);
 }
 
 muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::body_ids() const noexcept
@@ -359,7 +359,7 @@ muda::CBufferView<IndexT> GlobalVertexManager::contact_element_ids() const noexc
 
 muda::CBufferView<IndexT> GlobalVertexManager::subscene_element_ids() const noexcept
 {
-    return m_impl.contact_subscene_element_ids;
+    return m_impl.subscene_element_ids;
 }
 
 muda::CBufferView<Vector3> GlobalVertexManager::displacements() const noexcept

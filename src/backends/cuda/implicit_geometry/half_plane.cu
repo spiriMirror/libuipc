@@ -99,20 +99,17 @@ void HalfPlane::Impl::_build_geometry()
 
     for(auto&& i : range(instance_count))
     {
-        auto G           = I2G[i];
-        h_contact_ids[i] = geo_to_contact_id[G];
+        auto G            = I2G[i];
+        h_contact_ids[i]  = geo_to_contact_id[G];
         h_subscene_ids[i] = geo_to_subscene_id[G];
     }
 
     positions.resize(h_positions.size());
     normals.resize(h_normals.size());
-    contact_ids.resize(h_contact_ids.size());
-    //subscene_ids.resize(h_subscene_ids.size());
 
     positions.view().copy_from(h_positions.data());
     normals.view().copy_from(h_normals.data());
-    contact_ids.view().copy_from(h_contact_ids.data());
-    //subscene_ids.view().copy_from(h_subscene_ids.data());
+
     // compute vertex offsets for each geometry
     geo_vertex_offset_count.resize(geo_infos.size());
     {
@@ -143,9 +140,5 @@ muda::CBufferView<Vector3> HalfPlane::normals() const
 muda::CBufferView<Vector3> HalfPlane::positions() const
 {
     return m_impl.positions;
-}
-muda::CBufferView<IndexT> HalfPlane::contact_ids() const
-{
-    return m_impl.contact_ids;
 }
 }  // namespace uipc::backend::cuda

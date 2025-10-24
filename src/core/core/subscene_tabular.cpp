@@ -51,6 +51,10 @@ class SubsceneTabular::Impl
         return m_elements.back();
     }
 
+    SubsceneElement default_element() const noexcept
+    {
+        return m_elements.front();
+    }
 
     IndexT insert(const SubsceneElement& L, const SubsceneElement& R, bool enable, const Json& config)
     {
@@ -87,12 +91,8 @@ class SubsceneTabular::Impl
 
         if(it != m_model_map.end())
         {
+            // replace the existing one.
             index = it->second;
-            UIPC_WARN_WITH_LOCATION("Subscene model between {}[{}] and {}[{}] already exists, replace the old one.",
-                                    m_elements[L.id()].name(),
-                                    L.id(),
-                                    m_elements[R.id()].name(),
-                                    R.id());
         }
         else
         {
@@ -108,10 +108,9 @@ class SubsceneTabular::Impl
         return index;
     }
 
-
     IndexT current_element_id() const noexcept { return m_elements.size(); }
 
-    IndexT index_at(SizeT i, SizeT j) const
+    IndexT index_at(IndexT i, IndexT j) const
     {
         Vector2i ids{i, j};
         if(ids.x() > ids.y())
@@ -121,35 +120,24 @@ class SubsceneTabular::Impl
         return it != m_model_map.end() ? it->second : -1;
     }
 
-    SubsceneModel at(SizeT i, SizeT j) const
+    SubsceneModel at(IndexT i, IndexT j) const
     {
         auto idx    = index_at(i, j);
         bool enable = false;
 
-        // UIPC-SPEC:
-        // if set, use the stored value,
-        // if not set, the mask matrix is Identity Matrix
+        // According to Specification:
+        // If set, use the stored value,
+        // If not set, the mask matrix is Identity Matrix
         if(idx >= 0)
         {
-            // if found, return the stored value
             enable = m_is_enabled->view()[idx];
         }
         else
         {
-            // if not found, obey the spec
             enable = (i == j);
         }
         return SubsceneModel{Vector2i{i, j}, enable, Json::object()};
     }
-
-    void default_model(bool enable, const Json& config) noexcept
-    {
-        view(*m_is_enabled)[0] = enable;
-    }
-
-    SubsceneModel default_model() const noexcept { return at(0, 0); }
-
-    SubsceneElement default_element() noexcept { return m_elements.front(); }
 
     const geometry::AttributeCollection& subscene_models() const noexcept
     {
@@ -238,6 +226,11 @@ SubsceneElement SubsceneTabular::create(std::string_view name) noexcept
     return m_impl->create(name);
 }
 
+SubsceneElement SubsceneTabular::default_element() const noexcept
+{
+    return m_impl->default_element();
+}
+
 IndexT SubsceneTabular::insert(const SubsceneElement& L,
                                const SubsceneElement& R,
                                bool                   enable,
@@ -246,25 +239,9 @@ IndexT SubsceneTabular::insert(const SubsceneElement& L,
     return m_impl->insert(L, R, enable, config);
 }
 
-SubsceneModel SubsceneTabular::at(SizeT i, SizeT j) const
+SubsceneModel SubsceneTabular::at(IndexT i, IndexT j) const
 {
     return m_impl->at(i, j);
-}
-
-void SubsceneTabular::default_model(bool enable, const Json& config) noexcept
-{
-    m_impl->default_model(enable, config);
-}
-
-SubsceneElement SubsceneTabular::default_element() noexcept
-{
-    return m_impl->default_element();
-}
-
-
-SubsceneModel SubsceneTabular::default_model() const noexcept
-{
-    return m_impl->default_model();
 }
 
 SubsceneModelCollection SubsceneTabular::subscene_models() noexcept
