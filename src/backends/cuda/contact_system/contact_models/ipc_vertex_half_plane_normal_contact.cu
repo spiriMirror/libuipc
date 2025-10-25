@@ -112,7 +112,7 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
                            sym::ipc_vertex_half_contact::PH_barrier_gradient_hessian(
                                G, H, kt2, d_hat, thickness, v, P, N);
 
-                           cuda::make_spd(H);
+                           //cuda::make_spd(H);
 
                            Grad(I).write(vI, G);
                            Hess(I).write(vI, vI, H);
