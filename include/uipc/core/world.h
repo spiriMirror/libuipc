@@ -37,6 +37,7 @@ class UIPC_CORE_API World final
     void retrieve();
     bool dump();
     bool recover(SizeT aim_frame = ~0ull);
+    bool write_vertex_pos_to_sim(span<const Vector3> positions, IndexT global_vertex_offset, IndexT local_vertex_offset, SizeT vertex_count, string system_name);
     bool is_valid() const;
 
     SizeT frame() const;

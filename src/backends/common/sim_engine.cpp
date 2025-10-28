@@ -3,8 +3,10 @@
 #include <backends/common/module.h>
 #include <filesystem>
 #include <fstream>
+ #include <string_view>
 #include <uipc/backend/engine_create_info.h>
 #include <backends/common/backend_path_tool.h>
+ #include <iostream>
 
 namespace uipc::backend
 {
@@ -363,4 +365,38 @@ bool SimEngine::do_recover(SizeT dst_frame)
 
     return all_success;
 }
+ 
+ bool SimEngine::do_write_vertex_pos_to_sim(span<const Vector3> positions, IndexT global_vertex_offset, IndexT local_vertex_offset, SizeT vertex_count, string system_name)
+ {
+     // std::cout << "SimEngine: do write_vertex_pos test " << "\n";
+ 
+     // auto global_vertex_manager = find<cuda::GlobalVertexManager>();
+     // 2. let subsystems update vertex pos
+     bool all_success = true;
+ 
+     //! weird workaround, cause I couldnt get find<GlobalVertexManager> to work (would ofc be better if we could use the system directly)
+     for(auto system : systems())
+     { 
+         std::string_view sys_name = system -> get_name();
+         if(sys_name == "uipc::backend::cuda::GlobalVertexManager")
+         {
+             all_success &= system->do_write_vertex_pos_to_sim(positions, global_vertex_offset, vertex_count);
+         }else if (sys_name == system_name) {
+             all_success &= system->do_write_vertex_pos_to_sim(positions, local_vertex_offset, vertex_count);
+         }//else if (sys_name == "uipc::backend::cuda::FiniteElementMethod" && sys_name == system_name) {
+         // all_success &= system->do_write_vertex_pos_to_sim(positions, local_vertex_offset, vertex_count);
+         // } else if (sys_name == "uipc::backend::cuda::AffineBodyDynamics" && sys_name == system_name) {
+         // all_success &= system->do_write_vertex_pos_to_sim(positions, local_vertex_offset, vertex_count);
+         // }
+ 
+ 
+         if(!all_success)
+         {
+             spdlog::error("Failed to dump system [{}]", system->name());
+             break;
+         }
+     }
+ 
+     return all_success;
+ }
 }  // namespace uipc::backend

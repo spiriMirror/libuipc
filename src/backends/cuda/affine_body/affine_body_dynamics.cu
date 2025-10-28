@@ -4,6 +4,8 @@
 #include <fstream>
 #include <algorithm>
 
+ #include <iostream>
+ 
 #include <affine_body/affine_body_constitution.h>
 #include <Eigen/Dense>
 #include <uipc/common/enumerate.h>
@@ -77,6 +79,12 @@ void AffineBodyDynamics::do_clear_recover(RecoverInfo& info)
 {
     m_impl.clear_recover(info);
 }
+
+ bool AffineBodyDynamics::do_write_vertex_pos_to_sim(span<const Vector3> positions, IndexT vertex_offset, SizeT vertex_count)
+ {
+     return m_impl.write_vertex_pos_to_sim(positions, vertex_offset, vertex_count);
+ }
+ 
 
 IndexT AffineBodyDynamics::dof_offset(SizeT frame) const
 {
@@ -846,6 +854,37 @@ void AffineBodyDynamics::Impl::clear_recover(RecoverInfo& info)
     dump_q_v.clean_up();
     dump_q_prev.clean_up();
 }
+ 
+ //TODO just give over a transformation matrix for `reset`?
+ //TODO do it in batches instead of single call per obj
+ bool AffineBodyDynamics::Impl::write_vertex_pos_to_sim(span<const Vector3> positions, IndexT vertex_offset, SizeT vertex_count)
+ {
+     // const auto& scene = this->world().scene();
+     // auto geo_slots = scene.geometries();
+ 
+     //TODO I probably should write a new method for this? / a different method, cause we dont really update vertex positions here
+ 
+     std::cout << "write_vertex_pos_to_sim ABD: " <<"\n";
+ 
+     std::cout << "vertex_offset " << vertex_offset << "\n";
+     std::cout << "vertex_count " << vertex_count << "\n";
+ 
+     // setup default q
+     Matrix4x4 identity_trans = Transform::Identity().matrix();
+     vector<Vector12> q = {transform_to_q(identity_trans)};
+ 
+     // buffer.resize(byte_buffer.size() / sizeof(T));
+     // not really vertex offset -> its actually `bodyI`
+     body_id_to_q.view(vertex_offset, 1).copy_from(span{q}.data());
+     body_id_to_q_prev.view(vertex_offset, 1).copy_from(span{q}.data());
+ 
+     vector<Vector12> vel = {Vector12::Zero()};
+     body_id_to_q_v.view(vertex_offset, 1).copy_from(span{vel}.data());
+ 
+     return true;
+ }
+ 
+ 
 }  // namespace uipc::backend::cuda
 
 namespace uipc::backend::cuda

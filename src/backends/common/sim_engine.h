@@ -98,6 +98,10 @@ class SimEngine : public core::IEngine
     virtual void do_apply_recover(RecoverInfo&) = 0;
     virtual void do_clear_recover(RecoverInfo&) = 0;
 
+    // virtual bool do_write_vertex_pos_to_sim(span<const Vector3> positions, span<const IndexT> geo_slot_indices) = 0;
+    virtual bool do_write_vertex_pos_to_sim(span<const Vector3> positions, IndexT global_vertex_offset, IndexT local_vertex_offset, SizeT vertex_count, string system_name) final override;
+   
+
     span<ISimSystem* const>  systems() noexcept;
     core::FeatureCollection& features() noexcept;
 
@@ -105,6 +109,7 @@ class SimEngine : public core::IEngine
     virtual void do_init(core::internal::World& v) final override;
     virtual bool do_recover(SizeT dst_frame) final override;
     virtual bool do_dump() final override;
+   
     ISimSystem*  find_system(ISimSystem* ptr);
     ISimSystem*  require_system(ISimSystem* ptr);
     virtual core::EngineStatusCollection&  get_status() final override;

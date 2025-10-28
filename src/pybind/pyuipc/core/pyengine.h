@@ -17,6 +17,7 @@ class PyIEngine : public uipc::core::IEngine
     virtual Json                                do_to_json() const override = 0;
     virtual bool                                do_dump()          override = 0;
     virtual bool                                do_recover(SizeT dst_frame) override = 0;
+    virtual bool do_write_vertex_pos_to_sim(span<const Vector3> positions, IndexT global_vertex_offset, IndexT local_vertex_offset, SizeT vertex_count, string system_name) override = 0;
     virtual SizeT                               get_frame() const           override = 0;
     virtual uipc::core::EngineStatusCollection& get_status()                override = 0;
     virtual const uipc::core::FeatureCollection& get_features() const       override = 0;
@@ -68,6 +69,11 @@ class PyIEngine_ : public PyIEngine
     virtual bool do_recover(SizeT dst_frame) override
     {
         PYBIND11_OVERRIDE_PURE(bool, PyIEngine_, do_recover, dst_frame);
+    };
+
+    virtual bool do_write_vertex_pos_to_sim(span<const Vector3> positions, IndexT global_vertex_offset, IndexT local_vertex_offset, SizeT vertex_count, string system_name) override
+    {
+        PYBIND11_OVERRIDE_PURE(bool, PyIEngine_, do_write_vertex_pos_to_sim, positions, global_vertex_offset, local_vertex_offset, vertex_count, system_name);
     };
 
     virtual SizeT get_frame() const override

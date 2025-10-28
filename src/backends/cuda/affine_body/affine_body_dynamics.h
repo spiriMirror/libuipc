@@ -178,6 +178,9 @@ class AffineBodyDynamics : public SimSystem
     virtual void do_apply_recover(RecoverInfo& info) override;
     virtual void do_clear_recover(RecoverInfo& info) override;
 
+    virtual bool do_write_vertex_pos_to_sim(span<const Vector3> positions, IndexT vertex_offset, SizeT vertex_count);
+   
+
   public:
     class Impl
     {
@@ -202,6 +205,9 @@ class AffineBodyDynamics : public SimSystem
         bool try_recover(RecoverInfo& info);
         void apply_recover(RecoverInfo& info);
         void clear_recover(RecoverInfo& info);
+
+        bool write_vertex_pos_to_sim(span<const Vector3> positions, IndexT vertex_offset, SizeT vertex_count);
+   
 
         template <typename ViewGetterF, typename ForEachF>
         static void _for_each(span<S<geometry::GeometrySlot>> geo_slots,

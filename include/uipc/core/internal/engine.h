@@ -44,6 +44,7 @@ class UIPC_CORE_API Engine final : public std::enable_shared_from_this<Engine>
     void  retrieve();
     bool  dump();
     bool  recover(SizeT dst_frame);
+    bool write_vertex_pos_to_sim(span<const Vector3> positions, IndexT global_vertex_offset, IndexT local_vertex_offset, SizeT vertex_count, string system_name);
     SizeT frame() const;
 
     U<Impl> m_impl;

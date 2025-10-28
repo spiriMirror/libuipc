@@ -77,6 +77,12 @@ void ISimSystem::clear_recover(RecoverInfo& info)
     do_clear_recover(info);
 }
 
+ bool ISimSystem::write_vertex_pos_to_sim(span<const Vector3> positions, IndexT vertex_offset, SizeT vertex_count)
+ {
+     return true;
+ }
+ 
+
 bool ISimSystem::do_dump(DumpInfo&)
 {
     return true;
@@ -90,6 +96,12 @@ bool ISimSystem::do_try_recover(RecoverInfo&)
 void ISimSystem::do_apply_recover(RecoverInfo&) {}
 
 void ISimSystem::do_clear_recover(RecoverInfo&) {}
+
+ bool ISimSystem::do_write_vertex_pos_to_sim(span<const Vector3> positions, IndexT vertex_offset, SizeT vertex_count)
+ {
+     return true;
+ }
+ 
 
 ISimSystem::BaseInfo::BaseInfo(SizeT frame, std::string_view workspace, const Json& config) noexcept
     : m_frame(frame)

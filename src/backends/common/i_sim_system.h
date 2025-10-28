@@ -76,6 +76,12 @@ class ISimSystem
 	 */
     void clear_recover(RecoverInfo&);
 
+    /**
+     * @brief Overwrites vertex positions in the system.
+     * 
+     * E.g. used for resetting objects.
+     */
+    bool write_vertex_pos_to_sim(span<const Vector3> positions, IndexT vertex_offset, SizeT vertex_count); 
 
   protected:
     virtual void             do_build()       = 0;
@@ -84,6 +90,9 @@ class ISimSystem
     virtual bool             do_try_recover(RecoverInfo&);
     virtual void             do_apply_recover(RecoverInfo&);
     virtual void             do_clear_recover(RecoverInfo&);
+
+    virtual bool do_write_vertex_pos_to_sim(span<const Vector3> positions, IndexT vertex_offset, SizeT vertex_count);
+ 
 
   private:
     friend class SimEngine;

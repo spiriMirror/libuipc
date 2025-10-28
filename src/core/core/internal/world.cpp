@@ -162,6 +162,12 @@ bool World::recover(SizeT aim_frame)
     return success && !has_error;
 }
 
+bool World::write_vertex_pos_to_sim(span<const Vector3> positions, IndexT global_vertex_offset, IndexT local_vertex_offset, SizeT vertex_count, string system_name)
+{
+    auto engine = lock(m_engine);
+    return engine->write_vertex_pos_to_sim(positions, global_vertex_offset, local_vertex_offset, vertex_count, system_name);
+}
+
 bool World::is_valid() const
 {
     return m_valid;
