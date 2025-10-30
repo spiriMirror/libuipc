@@ -42,7 +42,7 @@ class GlobalVertexManager final : public SimSystem
         muda::BufferView<IndexT>  dimensions() const noexcept;
         muda::BufferView<Vector3> positions() const noexcept;
         muda::BufferView<IndexT>  contact_element_ids() const noexcept;
-        muda::BufferView<IndexT>  contact_subscene_element_ids() const noexcept;
+        muda::BufferView<IndexT>  subscene_element_ids() const noexcept;
         muda::BufferView<IndexT>  body_ids() const noexcept;
         // vert-wise d_hat
         muda::BufferView<Float> d_hats() const noexcept;
@@ -182,7 +182,7 @@ class GlobalVertexManager final : public SimSystem
         muda::DeviceBuffer<Vector3> safe_positions;
         muda::DeviceBuffer<Float>   thicknesses;
         muda::DeviceBuffer<IndexT>  contact_element_ids;
-        muda::DeviceBuffer<IndexT>  contact_subscene_element_ids;
+        muda::DeviceBuffer<IndexT>  subscene_element_ids;
         muda::DeviceBuffer<Vector3> displacements;
         muda::DeviceBuffer<Float>   displacement_norms;
 

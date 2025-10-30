@@ -41,7 +41,7 @@ void HalfPlaneVertexReporter::Impl::report_attributes(GlobalVertexManager::Verte
                });
 
     info.contact_element_ids().copy_from(half_plane->m_impl.h_contact_ids.data());
-    info.contact_subscene_element_ids().copy_from(half_plane->m_impl.h_subscene_ids.data());
+    info.subscene_element_ids().copy_from(half_plane->m_impl.h_subscene_ids.data());
 }
 
 void HalfPlaneVertexReporter::Impl::report_displacements(GlobalVertexManager::VertexDisplacementInfo& info)
