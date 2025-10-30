@@ -5,7 +5,8 @@ namespace uipc::backend::cuda
 void VertexHalfPlaneTrajectoryFilter::do_build()
 {
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
-    m_impl.global_simplicial_surface_manager = &require<GlobalSimplicialSurfaceManager>();
+    m_impl.global_simplicial_surface_manager =
+        &require<GlobalSimplicialSurfaceManager>();
     m_impl.global_contact_manager     = &require<GlobalContactManager>();
     m_impl.half_plane                 = &require<HalfPlane>();
     m_impl.half_plane_vertex_reporter = &require<HalfPlaneVertexReporter>();
@@ -104,7 +105,7 @@ Float VertexHalfPlaneTrajectoryFilter::DetectInfo::alpha() const noexcept
     return m_alpha;
 }
 
-IndexT VertexHalfPlaneTrajectoryFilter::BaseInfo::plane_vertex_global_offset() const noexcept
+IndexT VertexHalfPlaneTrajectoryFilter::BaseInfo::half_plane_vertex_offset() const noexcept
 {
     return m_impl->half_plane_vertex_reporter->vertex_offset();
 }

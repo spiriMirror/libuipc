@@ -88,8 +88,12 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
 
 using MaskMatrix = Eigen::Matrix<IndexT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
 
+
 void GlobalContactManager::Impl::_build_contact_tabular(WorldVisitor& world)
 {
+    // Specification:
+    // https://spirimirror.github.io/libuipc-doc/specification/#contact-tabular
+
     auto contact_models = world.scene().contact_tabular().contact_models();
 
     auto attr_topo          = contact_models.find<Vector2i>("topo");
@@ -143,6 +147,9 @@ void GlobalContactManager::Impl::_build_contact_tabular(WorldVisitor& world)
 
 void GlobalContactManager::Impl::_build_subscene_tabular(WorldVisitor& world)
 {
+    // Specification:
+    // https://spirimirror.github.io/libuipc-doc/specification/#subscene-tabular
+
     auto subscene_models = world.scene().subscene_tabular().subscene_models();
 
     auto topo       = subscene_models.find<Vector2i>("topo");
@@ -158,8 +165,11 @@ void GlobalContactManager::Impl::_build_subscene_tabular(WorldVisitor& world)
 
     h_subcene_mask_tabular.resize(SN * SN);
     auto mask_map = Eigen::Map<MaskMatrix>(h_subcene_mask_tabular.data(), SN, SN);
-    // default turn off the contact between two different subscenes
-    mask_map.setIdentity();  // enable self-scene-contact
+
+    // According to Specification:
+    // 1. default turn off the contact between two different subscenes
+    // 2. enable self-scene-contact
+    mask_map.setIdentity();
 
     for(auto&& [ids, is_enabled] : zip(topo_view, enabled_view))
     {

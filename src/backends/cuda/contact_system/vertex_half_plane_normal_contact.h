@@ -2,6 +2,7 @@
 #include <contact_system/contact_reporter.h>
 #include <line_search/line_searcher.h>
 #include <contact_system/contact_coeff.h>
+#include <implicit_geometry/half_plane_vertex_reporter.h>
 
 namespace uipc::backend::cuda
 {
@@ -31,10 +32,12 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         muda::CBufferView<Vector3>        rest_positions() const;
         muda::CBufferView<Float>          thicknesses() const;
         muda::CBufferView<IndexT>         contact_element_ids() const;
+        muda::CBufferView<IndexT>         subscene_element_ids() const;
         Float                             d_hat() const;
         muda::CBufferView<Float>          d_hats() const;
         Float                             dt() const;
         Float                             eps_velocity() const;
+        IndexT                            half_plane_vertex_offset() const;
 
       private:
         friend class VertexHalfPlaneNormalContact;
@@ -88,6 +91,7 @@ class VertexHalfPlaneNormalContact : public ContactReporter
         SimSystemSlot<GlobalContactManager>   global_contact_manager;
         SimSystemSlot<GlobalVertexManager>    global_vertex_manager;
         SimSystemSlot<VertexHalfPlaneTrajectoryFilter> veretx_half_plane_trajectory_filter;
+        SimSystemSlot<HalfPlaneVertexReporter> vertex_reporter;
 
         SizeT PH_count = 0;
         Float dt       = 0.0;
