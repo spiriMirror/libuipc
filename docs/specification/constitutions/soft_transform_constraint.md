@@ -39,8 +39,8 @@ The soft transform constraint energy has the form of "Kinetic" defined as
 
 $$
 \mathbf{\eta} = \begin{bmatrix}
-\eta_p \otimes \mathbf{I}_{3\times3} & \mathbf{0}_{3\times 12} \\
-\mathbf{0}_{12\times 3} & \eta_a \otimes \mathbf{I}_{9\times9}
+\eta_p \otimes \mathbf{I}_{3\times3} & \mathbf{0}_{3\times 9} \\
+\mathbf{0}_{9\times 3} & \eta_a \otimes \mathbf{I}_{9\times9}
 \end{bmatrix}  
 $$
 
