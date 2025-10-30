@@ -41,10 +41,22 @@ TEST_CASE("42_abd_fem_subscene", "[abd_fem]")
         AffineBodyConstitution abd;
 
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
-        auto default_element = scene.contact_tabular().default_element();
-        auto subscene_a      = scene.subscene_tabular().create("subscene_a");
-        auto subscene_b      = scene.subscene_tabular().create("subscene_b");
-        //scene.subscene_tabular().insert(subscene_a, subscene_b, false);
+        auto& subscene_tabular = scene.subscene_tabular();
+        auto  default_element  = subscene_tabular.default_element();
+        auto  subscene_a       = subscene_tabular.create("subscene_a");
+        auto  subscene_b       = subscene_tabular.create("subscene_b");
+
+        // let subscene_a/b be able to interact with the default subscene
+        subscene_tabular.insert(default_element, subscene_a, true);
+        subscene_tabular.insert(default_element, subscene_b, true);
+
+        auto modelaa = subscene_tabular.at(subscene_a.id(), subscene_a.id());
+        REQUIRE(modelaa.is_enabled());
+        auto modelbb = subscene_tabular.at(subscene_b.id(), subscene_b.id());
+        REQUIRE(modelbb.is_enabled());
+        auto modelab = subscene_tabular.at(subscene_a.id(), subscene_b.id());
+        REQUIRE(!modelab.is_enabled());
+
 
         // create object
         auto object    = scene.objects().create("cubes");
@@ -62,6 +74,10 @@ TEST_CASE("42_abd_fem_subscene", "[abd_fem]")
 
         abd.apply_to(mesh_b, 1.0_MPa);
         subscene_b.apply_to(mesh_b);
+        auto      trans_view = view(mesh_b.transforms());
+        Transform t          = Transform::Identity();
+        t.translate(Vector3{0.5, 0, 0.5});  // move a little bit
+        trans_view[0] = t.matrix();
 
         object->geometries().create(mesh_a);
         object->geometries().create(mesh_b);

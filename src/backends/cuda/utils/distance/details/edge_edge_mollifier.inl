@@ -501,7 +501,7 @@ MUDA_GENERIC void edge_edge_mollifier_threshold(const Eigen::Vector<T, 3>& ea0_r
                                                 const Eigen::Vector<T, 3>& eb1_rest,
                                                 T& eps_x)
 {
-    edge_edge_mollifier_threshold(ea0_rest, ea1_rest, eb0_rest, eb1_rest, 1.0e-3, eps_x);
+    edge_edge_mollifier_threshold(ea0_rest, ea1_rest, eb0_rest, eb1_rest, -1, eps_x);//simply cancel the mollifier to avoid discontinues bug. need further revision
 }
 
 template <typename T>

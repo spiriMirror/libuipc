@@ -55,7 +55,8 @@ void AffineBodyVertexReporter::Impl::report_attributes(VertexAttributeInfo& info
     { muda::BufferLaunch().copy<T>(dst, src.data()); };
 
     async_copy(span{abd().h_vertex_id_to_contact_element_id}, info.contact_element_ids());
-    async_copy(span{abd().h_vertex_id_to_subscene_contact_element_id}, info.contact_subscene_element_ids());
+    async_copy(span{abd().h_vertex_id_to_subscene_contact_element_id},
+               info.subscene_element_ids());
     async_copy(span{abd().h_vertex_id_to_d_hat}, info.d_hats());
 }
 

@@ -10,6 +10,7 @@ void VertexHalfPlaneNormalContact::do_build(ContactReporter::BuildInfo& info)
     m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
     m_impl.global_contact_manager   = require<GlobalContactManager>();
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
+    m_impl.vertex_reporter          = require<HalfPlaneVertexReporter>();
     auto dt_attr = world().scene().config().find<Float>("dt");
     m_impl.dt    = dt_attr->view()[0];
 
@@ -105,6 +106,12 @@ muda::CBufferView<IndexT> VertexHalfPlaneNormalContact::BaseInfo::contact_elemen
     return m_impl->global_vertex_manager->contact_element_ids();
 }
 
+
+muda::CBufferView<IndexT> VertexHalfPlaneNormalContact::BaseInfo::subscene_element_ids() const
+{
+    return m_impl->global_vertex_manager->subscene_element_ids();
+}
+
 Float VertexHalfPlaneNormalContact::BaseInfo::d_hat() const
 {
     return m_impl->global_contact_manager->d_hat();
@@ -123,6 +130,11 @@ Float VertexHalfPlaneNormalContact::BaseInfo::dt() const
 Float VertexHalfPlaneNormalContact::BaseInfo::eps_velocity() const
 {
     return m_impl->global_contact_manager->eps_velocity();
+}
+
+IndexT VertexHalfPlaneNormalContact::BaseInfo::half_plane_vertex_offset() const
+{
+    return m_impl->vertex_reporter->vertex_offset();
 }
 
 muda::BufferView<Float> VertexHalfPlaneNormalContact::EnergyInfo::energies() const noexcept

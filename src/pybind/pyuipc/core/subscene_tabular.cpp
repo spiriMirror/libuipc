@@ -88,20 +88,6 @@ PySubsceneTabular::PySubsceneTabular(py::module& m)
                                   py::arg("enable") = false,
                                   py::arg("config") = Json::object());
 
-
-        class_SubsceneTabular.def(
-            "default_model",
-            [](SubsceneTabular& self, bool enable, const Json& config)
-            { self.default_model(enable, config); },
-            py::arg("enable") = true,
-            py::arg("config") = Json::object());
-
-        class_SubsceneTabular.def(
-            "default_model",
-            [](SubsceneTabular& self) -> SubsceneModel
-            { return self.default_model(); },
-            py::return_value_policy::move);
-
         class_SubsceneTabular.def(
             "at",
             [](SubsceneTabular& self, IndexT i, IndexT j) -> SubsceneModel
