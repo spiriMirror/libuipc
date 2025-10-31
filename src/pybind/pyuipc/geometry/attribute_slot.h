@@ -8,4 +8,4 @@ class PyAttributeSlot
   public:
     PyAttributeSlot(py::module& m);
 };
-}  // namespace pyuipc
+}  // namespace pyuipc::geometry
