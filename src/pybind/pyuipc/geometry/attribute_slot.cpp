@@ -2,6 +2,8 @@
 #include <uipc/geometry/attribute_slot.h>
 #include <pyuipc/as_numpy.h>
 #include <pybind11/stl.h>
+#include <sstream>
+
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
@@ -66,7 +68,18 @@ void def_class_StringSpan(py::module& m)
 
     class_StringSpan.def("__repr__",
                          [](span<T>& v)
-                         { return fmt::format("[{}]", fmt::join(v, ",")); });
+                         {
+                             std::ostringstream oss;
+                             oss << "[";
+                             for(size_t i = 0; i < v.size(); ++i)
+                             {
+                                 if(i > 0)
+                                     oss << ",";
+                                 oss << v[i];
+                             }
+                             oss << "]";
+                             return oss.str();
+                         });
 }
 
 
