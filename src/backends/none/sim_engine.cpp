@@ -9,11 +9,11 @@ namespace uipc::backend::none
 SimEngine::SimEngine(EngineCreateInfo* info)
     : backend::SimEngine{info}
 {
-    logger::info("[NoneEngine] Constructor called.");
+    LogPatternGuard guard("None");
+    logger::info("Constructor called.");
     logger::info(R"(Hello, this is the NoneEngine from libuipc backends.
 This engine does nothing, but helps to do the checking of the engine interface.
-And it is a good place to print out some debug information during the life cycle of the engine.
-)");
+And it is a good place to print out some debug information during the life cycle of the engine.)");
 }
 
 void SimEngine::do_init(InitInfo& info)
