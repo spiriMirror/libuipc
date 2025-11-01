@@ -20,7 +20,7 @@ jobs:
       matrix:
         os: [ubuntu-22.04, windows-2022]
         python: ['3.11', '3.12', '3.13']
-        cuda: ['12.6']
+        cuda: ['12.6.0']
 
     concurrency:
       group: ${{ github.ref }}-build-wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.cuda }}
