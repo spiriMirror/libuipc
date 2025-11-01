@@ -56,7 +56,14 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
     using TetrahedronAttributes  = SimplicialComplexAttributes<false, 3>;
     using CTetrahedronAttributes = SimplicialComplexAttributes<true, 3>;
 
-    SimplicialComplex();
+    class CreateInfo
+    {
+      public:
+        bool create_position  = true;
+        bool create_transform = true;
+    };
+
+    explicit SimplicialComplex(const CreateInfo& info = CreateInfo{});
 
 
     SimplicialComplex(const SimplicialComplex& o);
@@ -146,6 +153,7 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
     S<AttributeCollection> m_edge_attributes;
     S<AttributeCollection> m_triangle_attributes;
     S<AttributeCollection> m_tetrahedron_attributes;
+    void                   _create(const CreateInfo& info);
 };
 }  // namespace uipc::geometry
 
