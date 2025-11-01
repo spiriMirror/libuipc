@@ -18,7 +18,7 @@ dependencies = [
     "numpy"
 ]
 requires-python = ">=3.10,<3.14"
-description = "A Cross-Platform Modern C++20 Library of Unified Incremental Potential Contact (CUDA 12.4+ required)"
+description = "A Cross-Platform Modern C++20 Library of Unified Incremental Potential Contact (CUDA 12.6+ required)"
 keywords = ["ipc", "computer graphics", "physics simulation", "cuda", "fem", "contact"]
 classifiers = [
     "Development Status :: 4 - Beta",
