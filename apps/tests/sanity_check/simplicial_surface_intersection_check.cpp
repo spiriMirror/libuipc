@@ -51,7 +51,7 @@ void test_init_surf_intersection_check(std::string_view            name,
         REQUIRE_HAS_ERROR(world.init(scene));
         REQUIRE(!world.is_valid());
 
-        auto& msg  = scene.sanity_checker().errors().at(1);
+        auto& msg  = world.sanity_checker().errors().at(1);
         auto& mesh = msg->geometries().at("intersected_mesh");
         auto  sc   = mesh->as<SimplicialComplex>();
         REQUIRE(sc->edges().size() > 0);
