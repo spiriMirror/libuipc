@@ -59,6 +59,7 @@ class UIPC_CORE_API SimplicialComplex : public Geometry
     class CreateInfo
     {
       public:
+        CreateInfo() {}
         bool create_position  = true;
         bool create_transform = true;
     };
