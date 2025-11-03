@@ -1,5 +1,6 @@
 #include <uipc/core/finite_element_state_accessor_feature.h>
 #include <uipc/builtin/attribute_name.h>
+
 namespace uipc::core
 {
 // A default implementation
@@ -32,13 +33,13 @@ FiniteElementStateAccessorFeature::FiniteElementStateAccessorFeature(
     UIPC_ASSERT(m_impl, "FiniteElementStateAccessorFeatureOverrider must not be null.");
 }
 
-SizeT FiniteElementStateAccessorFeature::vertex_count()
+SizeT FiniteElementStateAccessorFeature::vertex_count() const
 {
     return m_impl->get_vertex_count();
 }
 
 geometry::SimplicialComplex FiniteElementStateAccessorFeature::create_geometry(IndexT vertex_offset,
-                                                                               SizeT vertex_count)
+                                                                               SizeT vertex_count) const
 {
     auto total_vert_num = this->vertex_count();
     UIPC_ASSERT(vertex_offset <= total_vert_num,
