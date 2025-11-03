@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04, windows-2022]
-        python: ['3.11', '3.12']
+        python: ['3.11', '3.12', '3.13']
         cuda: ['12.6.0']
 
     concurrency:
@@ -358,9 +358,9 @@ jobs:
           packages-dir: wheelhouse/
           verbose: true
 
-      - name: Publish to PyPI
-        if: success()
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
-          packages-dir: wheelhouse/
+#      - name: Publish to PyPI
+#        if: success()
+#        uses: pypa/gh-action-pypi-publish@release/v1
+#        with:
+#          password: ${{ secrets.PYPI_API_TOKEN }}
+#          packages-dir: wheelhouse/
