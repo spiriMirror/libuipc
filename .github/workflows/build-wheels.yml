@@ -1,0 +1,366 @@
+name: Build Wheels
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - 'support-pypi'  # Temporary: for testing
+  pull_request:
+    paths:
+      - 'python/**'
+      - '.github/workflows/build-wheels.yml'
+  workflow_dispatch:
+
+jobs:
+  build_wheels:
+    name: Build wheels on ${{ matrix.os }} (Python ${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+        python: ['3.11', '3.12']
+        cuda: ['12.6.0']
+
+    concurrency:
+      group: ${{ github.ref }}-build-wheels-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.cuda }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Maximize build space
+        if: matrix.os == 'ubuntu-22.04'
+        uses: AdityaGarg8/remove-unwanted-software@v4.1
+        with:
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup CUDA ${{ matrix.cuda }}
+        uses: Jimver/cuda-toolkit@v0.2.24
+        id: cuda-toolkit
+        with:
+          cuda: ${{ matrix.cuda }}
+          method: 'local'
+          use-local-cache: true
+          log-file-suffix: '${{ matrix.os }}-py${{ matrix.python }}-cuda${{ matrix.cuda }}.txt'
+
+      - name: Setup Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Setup ninja and patchelf
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt update
+          sudo apt install ninja-build patchelf
+
+      - name: Setup ninja
+        if: matrix.os == 'windows-2022'
+        uses: seanmiddleditch/gha-setup-ninja@master
+
+      - name: Setup msvc sysroot for cmake
+        if: matrix.os == 'windows-2022'
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ${{ github.job }}-${{ matrix.os }}-${{ matrix.python }}-${{ matrix.cuda }}
+          max-size: 2G
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install Python build dependencies
+        run: uv pip install build wheel setuptools --system
+
+      - name: Setup vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Toolchain/vcpkg
+            ${{ github.workspace }}/build/vcpkg_installed
+          key: vcpkg-${{ matrix.os }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ matrix.os }}-
+
+      - name: Cache CMake build
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/CMakeCache.txt
+            build/cmake_install.cmake
+            build/CMakeFiles
+            build/*.ninja
+            build/vcpkg_installed
+          key: cmake-config-${{ matrix.os }}-${{ matrix.python }}-cuda${{ matrix.cuda }}-${{ hashFiles('**/CMakeLists.txt', '**/vcpkg.json') }}
+          restore-keys: |
+            cmake-config-${{ matrix.os }}-${{ matrix.python }}-
+            cmake-config-${{ matrix.os }}-
+
+
+      - name: Setup vcpkg
+        run: |
+          # Create Toolchain directory
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            mkdir -p ~/Toolchain
+            cd ~/Toolchain
+            if [ ! -d "vcpkg" ]; then
+              git clone https://github.com/microsoft/vcpkg.git
+            fi
+            cd vcpkg
+            git pull
+            ./bootstrap-vcpkg.sh
+            echo "CMAKE_TOOLCHAIN_FILE=$HOME/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+          else
+            mkdir -p ~/Toolchain
+            cd ~/Toolchain
+            if [ ! -d "vcpkg" ]; then
+              git clone https://github.com/microsoft/vcpkg.git
+            fi
+            cd vcpkg
+            git pull
+            ./bootstrap-vcpkg.bat
+            echo "CMAKE_TOOLCHAIN_FILE=$HOME/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+          fi
+        shell: bash
+
+      - name: Configure CMake
+        run: |
+          # Set Python executable path based on OS
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            PYTHON_PATH="${{ env.pythonLocation }}/bin/python"
+            
+            # Set CUDA compiler path for Linux
+            CUDA_VERSION="${{ matrix.cuda }}"
+            CUDA_MAJOR=$(echo $CUDA_VERSION | cut -d. -f1)
+            CUDA_MINOR=$(echo $CUDA_VERSION | cut -d. -f2)
+            CUDA_PATH="/usr/local/cuda-${CUDA_MAJOR}.${CUDA_MINOR}"
+            
+            # Check if CUDA is installed and set compiler
+            if [ -f "$CUDA_PATH/bin/nvcc" ]; then
+              export CMAKE_CUDA_COMPILER="$CUDA_PATH/bin/nvcc"
+              export CUDACXX="$CUDA_PATH/bin/nvcc"
+            elif [ -f "/usr/local/cuda/bin/nvcc" ]; then
+              export CMAKE_CUDA_COMPILER="/usr/local/cuda/bin/nvcc"
+              export CUDACXX="/usr/local/cuda/bin/nvcc"
+            else
+              echo "ERROR: CUDA compiler not found in expected locations"
+              find /usr/local -name "nvcc" 2>/dev/null || echo "nvcc not found"
+              exit 1
+            fi
+            
+            echo "Using CUDA compiler: $CMAKE_CUDA_COMPILER"
+          else
+            PYTHON_PATH="${{ env.pythonLocation }}/python.exe"
+          fi
+          
+
+          cmake -S . -B build \
+            -G Ninja \
+            -DUIPC_BUILD_PYBIND=ON \
+            -DUIPC_BUILD_EXAMPLES=OFF \
+            -DUIPC_BUILD_TESTS=OFF \
+            -DUIPC_BUILD_GUI=OFF \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DUIPC_PYTHON_EXECUTABLE_PATH="$PYTHON_PATH" \
+            -DCMAKE_TOOLCHAIN_FILE="${{ env.CMAKE_TOOLCHAIN_FILE }}" \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
+            -DUIPC_GITHUB_ACTIONS=ON
+        shell: bash
+
+      - name: Build LibUIPC
+        run: |
+          cmake --build build --config Release --parallel 4
+
+      - name: Debug build directories
+        run: |
+          echo "Current directory: $(pwd)"
+          echo "Build directory structure:"
+          if [ "${{ matrix.os }}" = "ubuntu-22.04" ]; then
+            find build -type f -name "*.so" -o -name "*.pyd" -o -name "*.dll" 2>/dev/null | head -20 || echo "No shared libraries found"
+            find build -name "*pyuipc*" 2>/dev/null | head -10 || echo "No pyuipc files found"
+            ls -la build/ 2>/dev/null || echo "Build directory not found"
+          else
+            # Windows commands using bash-compatible tools
+            find build -name "*.dll" -o -name "*.pyd" 2>/dev/null | head -20 || echo "No shared libraries found"
+            find build -name "*pyuipc*" 2>/dev/null | head -10 || echo "No pyuipc files found"
+            ls build/ 2>/dev/null || echo "Build directory not found"
+          fi
+        shell: bash
+
+      - name: Build Python wheel
+        working-directory: python
+        run: |
+          echo "Building base wheel (will create full and lite variants during repair)..."
+          
+          # Use the properly built Python package from build/python
+          echo "Using pre-built Python package from after_build_pyuipc.py script"
+          
+          # Check what was created by the build script
+          echo "Build directory python package:"
+          find ../build/python -name "*.so" -o -name "*.pyd" -o -name "*.dll" | head -10
+          
+          # Copy the entire pre-built python package
+          cp -r ../build/python/* . 2>/dev/null || true
+          
+          # Verify the structure
+          echo "Package structure:"
+          find src/uipc -name "*pyuipc*" 2>/dev/null | head -5 || echo "No pyuipc files found"
+          find src/uipc -name "modules" -type d 2>/dev/null || echo "No modules directory found"
+          
+          # Build wheel from the properly prepared package
+          uv build --wheel
+        shell: bash
+
+      - name: Repair wheels for PyPI compatibility (create both variants)
+        if: matrix.os == 'ubuntu-22.04'
+        working-directory: python
+        run: |
+          uv pip install auditwheel --system
+          echo "Repairing wheels for PyPI compatibility (creating both full and lite variants)..."
+          
+          # Create directories for both variants
+          mkdir -p wheelhouse-full wheelhouse-lite dist-final
+          
+          for wheel in dist/*.whl; do
+            echo ""
+            echo "Processing $(basename $wheel)..."
+            
+            # Create full variant (include all CUDA libraries)
+            echo "  Creating full variant: pyuipc-full"
+            auditwheel repair "$wheel" -w wheelhouse-full/
+            
+            # Create lite variant (exclude CUDA libraries)  
+            echo "  Creating lite variant: pyuipc"
+            auditwheel repair "$wheel" \
+            --exclude '*libcublas*' \
+            --exclude '*libcudart*' \
+            --exclude '*libcusparse*' \
+            --exclude '*libcusolver*' \
+            --exclude '*libnvJitLink*' \
+            -w wheelhouse-lite/
+            
+            # Properly rename full variant wheel with internal metadata
+            for repaired in wheelhouse-full/*.whl; do
+              echo "  Renaming full variant wheel metadata..."
+              TEMP_DIR="temp-rename-$(basename $repaired .whl)"
+              mkdir -p "$TEMP_DIR"
+              cd "$TEMP_DIR"
+              
+              # Extract wheel
+              unzip -q "../$repaired"
+              
+              # Rename .dist-info directory
+              mv pyuipc-*.dist-info pyuipc_full-0.9.0.dist-info
+              
+              # Update METADATA file
+              for meta in pyuipc_full-*.dist-info/METADATA; do
+                sed -i 's/Name: pyuipc$/Name: pyuipc-full/' "$meta"
+              done
+              
+              # Create new wheel
+              FINAL_NAME=$(echo "$(basename $repaired)" | sed 's/pyuipc-/pyuipc_full-/')
+              zip -r "../dist-final/$FINAL_NAME" .
+              
+              cd ..
+              rm -rf "$TEMP_DIR"
+            done
+            
+            # Move lite wheel to final directory
+            mv wheelhouse-lite/*.whl dist-final/
+            
+            # Clear wheelhouse directories for next iteration
+            rm -rf wheelhouse-full/* wheelhouse-lite/*
+          done
+          
+          # Replace original dist with final variants
+          rm -rf dist wheelhouse-full wheelhouse-lite
+          mv dist-final dist
+          
+          echo "Wheel repair completed (both variants created)"
+          ls -la dist/
+        shell: bash
+
+      - name: Prepare Windows wheels (lite variant only)
+        if: matrix.os == 'windows-2022'
+        working-directory: python
+        run: |
+          echo "Windows wheels prepared (lite variant only - no CUDA libraries included)"
+          echo "Using original wheel as pyuipc (lite)"
+          ls dist/ 2>/dev/null || dir dist
+        shell: bash
+
+      - name: Test wheel installation
+        working-directory: python
+        run: |
+          # Install wheel to system Python
+          uv pip install --force-reinstall dist/*.whl --system
+
+          # Test the installation using system Python (not uv run)
+          python ../scripts/test_wheel.py
+
+          # Run info script if it exists
+          if [ -f "uipc_info.py" ]; then
+            python uipc_info.py
+          fi
+        shell: bash
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-py${{ matrix.python }}-cuda${{ matrix.cuda }}-${{ github.run_id }}
+          path: python/dist/*.whl
+          retention-days: 7
+
+  upload_pypi:
+    name: Upload to PyPI
+    needs: [build_wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: Move wheels to single directory
+        run: |
+          mkdir -p wheelhouse wheelhouse-full
+          # Move lite variants to main wheelhouse (for PyPI upload)
+          find dist -name "pyuipc-*.whl" -exec mv {} wheelhouse/ \;
+          # Move full variants to separate directory (too large for PyPI)
+          find dist -name "pyuipc_full-*.whl" -exec mv {} wheelhouse-full/ \;
+          
+          echo "Lite variants for PyPI upload:"
+          ls -lah wheelhouse/
+          echo "Full variants (kept as artifacts only):"
+          ls -lah wheelhouse-full/
+
+      - name: Publish to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: wheelhouse/
+          verbose: true
+
+      - name: Publish to PyPI
+        if: success()
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          packages-dir: wheelhouse/
