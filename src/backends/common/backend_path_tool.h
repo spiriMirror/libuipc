@@ -50,15 +50,9 @@ class BackendPathTool
      */
     Path workspace(std::string_view _file_, std::string_view prefix = "") const noexcept;
 
-    static constexpr std::string_view backend_name() noexcept
-    {
-        return UIPC_BACKEND_NAME;
-    }
+    static std::string_view backend_name() noexcept;
 
-    static constexpr std::string_view backend_source_dir() noexcept
-    {
-        return UIPC_BACKEND_DIR;
-    }
+    static std::string_view backend_source_dir() noexcept;
 
   private:
     std::string m_workspace;

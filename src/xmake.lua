@@ -26,6 +26,10 @@ target("uipc_io")
     add_headerfiles(path.join(os.projectdir(), "include/uipc/io/*.h"))
     add_deps("uipc_geometry")
     add_packages("urdfdom")
+    -- undef far near on windows to avoid conflicts
+    if is_plat("windows") then
+        add_defines("_UIPC_IO_UNDEF_FAR_NEAR")
+    end
 
 target("uipc_sanity_check")
     add_rules("component")

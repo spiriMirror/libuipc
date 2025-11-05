@@ -26,7 +26,6 @@ imgui.ini
 .polyscope.ini
 
 bin/
-.xmake/
 .cache/
 .clangd
 .idea/
@@ -34,5 +33,10 @@ bin/
 
 # clion
 cmake-build-*/
+
+# xmake
+.xmake/
+vsxmake/
+vsxmake*/
 
 

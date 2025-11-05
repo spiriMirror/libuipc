@@ -1,9 +1,10 @@
+#include <urdf_parser/urdf_parser.h>
+
 #include <uipc/io/urdf_io.h>
 #include <uipc/io/simplicial_complex_io.h>
 #include <uipc/geometry/simplicial_complex_slot.h>
 #include <uipc/geometry/implicit_geometry_slot.h>
 #include <uipc/geometry/implicit_geometry.h>
-#include <urdf_parser/urdf_parser.h>
 #include <filesystem>
 #include <Eigen/Geometry>
 #include <uipc/common/magic_enum.h>
@@ -443,7 +444,7 @@ class UrdfIO::Impl
         auto urdf_name = sc.meta().create<std::string>("urdf/name", "none");
         view(*urdf_name)[0] = link->name;
 
-        auto name = sc.meta().create<std::string>("name", "none");
+        auto name      = sc.meta().create<std::string>("name", "none");
         view(*name)[0] = link->name;
 
         auto urdf_filename = sc.meta().create<std::string>("urdf/filename", "");
@@ -509,7 +510,7 @@ class UrdfIO::Impl
                         joint->name);
 
             Matrix4x4 t = to_affine(joint->parent_to_joint_origin_transform);
-            auto& base_joint_info = joint_infos[joint->name];
+            auto&     base_joint_info = joint_infos[joint->name];
 
             base_joint_info.local_trans = t;  // local transform of the joint
             base_joint_info.current_local_trans = t;  // current local transform of the joint

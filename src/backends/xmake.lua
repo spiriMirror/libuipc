@@ -1,6 +1,12 @@
-if get_config("backend") == "cuda" then
+if has_config("backend_cuda") then
     includes("cuda")
 end
+
+target("backend_common")
+    add_files("common/**.cpp")
+    add_headerfiles("common/**.h", "common/**.inl")
+    add_includedirs(os.scriptdir(), {public = true})
+    add_deps("uipc_core", {public = true})
 
 target("none")
     add_rules("backend")
@@ -14,10 +20,9 @@ rule("backend")
         target:set("basename", "uipc_backend_" .. target:name())
 
         target:set("kind", "shared")
-        target:add("files", path.join(os.scriptdir(), "common/*.cpp"))
-        target:add("headefiles", "common/*.h", "common/details/*.inl")
+        target:add("files", path.join(os.scriptdir(), "base_source/*.cpp"))
+
         target:add("includedirs",
-            path.directory(os.scriptdir()),
             path.join(os.scriptdir(), target:name())
         )
 
@@ -28,5 +33,5 @@ rule("backend")
             format(format_string, "UIPC_BACKEND_NAME", target:name())
         )
 
-        target:add("deps", "uipc_core")
+        target:add("deps", "backend_common", {public = false})
     end)

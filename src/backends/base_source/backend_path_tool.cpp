@@ -21,7 +21,7 @@ auto BackendPathTool::relative(std::string_view _file_,
     Path file_path{_file_};
 
     Path backends_dir = backend_source_dir();
-    
+
     if constexpr(uipc::RUNTIME_CHECK)
     {
         auto [left, right] = std::mismatch(file_path.begin(),
@@ -63,5 +63,15 @@ auto BackendPathTool::workspace(std::string_view _file_,
         fs::create_directories(file_output_path);
 
     return (file_output_path / "");
+}
+
+std::string_view BackendPathTool::backend_name() noexcept
+{
+    return UIPC_BACKEND_NAME;
+}
+
+std::string_view BackendPathTool::backend_source_dir() noexcept
+{
+    return UIPC_BACKEND_DIR;
 }
 }  // namespace uipc::backend
