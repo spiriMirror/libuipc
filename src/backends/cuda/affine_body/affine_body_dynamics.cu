@@ -24,6 +24,7 @@
 
 #include <utils/offset_count_collection.h>
 #include <affine_body/affine_body_kinetic.h>
+#include <affine_body/affine_body_state_accessor_feature.h>
 
 namespace uipc::backend
 {
@@ -53,6 +54,14 @@ void AffineBodyDynamics::do_build()
     auto& config         = world().scene().config();
     auto  d_hat_attr     = config.find<Float>("contact/d_hat");
     m_impl.default_d_hat = d_hat_attr->view()[0];
+
+    {
+        // Register the AffineBodyStateAccessorFeature
+        auto overrider = std::make_shared<AffineBodyStateAccessorFeatureOverrider>(this);
+        auto feature = std::make_shared<core::AffineBodyStateAccessorFeature>(overrider);
+        features().insert(feature);
+    }
+
 
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });

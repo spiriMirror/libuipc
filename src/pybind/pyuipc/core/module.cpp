@@ -19,7 +19,6 @@ namespace pyuipc::core
 {
 PyModule::PyModule(py::module& m)
 {
-
     PyFeatureCollection{m};
     PyContactSystemFeature{m};
 
