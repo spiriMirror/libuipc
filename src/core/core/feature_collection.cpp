@@ -21,6 +21,11 @@ void FeatureCollection::insert(std::string_view name, S<IFeature> feature)
     m_features[std::string{name}] = feature;
 }
 
+bool FeatureCollection::contains(std::string_view name) const
+{
+    return m_features.find(std::string{name}) != m_features.end();
+}
+
 Json FeatureCollection::to_json() const
 {
     Json j = Json::array();

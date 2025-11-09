@@ -22,8 +22,19 @@ class VertexReporter : public SimSystem
     IndexT vertex_count() const noexcept { return m_vertex_count; }
 
   protected:
-    virtual void do_build(BuildInfo& info)                           = 0;
+    virtual void do_build(BuildInfo& info) = 0;
+    /**
+     * @brief Report the number of vertices managed by this reporter
+     * 
+     * Called only once in initialization phase.
+     */
     virtual void do_report_count(VertexCountInfo& vertex_count_info) = 0;
+    /**
+     * @brief Report the attributes of vertices managed by this reporter
+     * 
+     * Called every time before simulation step, including initialization phase.
+     * 
+     */
     virtual void do_report_attributes(VertexAttributeInfo& vertex_attribute_info) = 0;
     virtual void do_report_displacements(VertexDisplacementInfo& vertex_displacement_info) = 0;
 

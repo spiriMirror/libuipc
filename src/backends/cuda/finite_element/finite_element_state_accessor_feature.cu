@@ -1,18 +1,20 @@
 #include <finite_element/finite_element_state_accessor_feature.h>
 #include <finite_element/finite_element_method.h>
+#include <finite_element/finite_element_vertex_reporter.h>
 #include <uipc/builtin/attribute_name.h>
 
 namespace uipc::backend::cuda
 {
-FiniteElementStateAccessorFeatureOverrider::FiniteElementStateAccessorFeatureOverrider(FiniteElementMethod* fem)
+FiniteElementStateAccessorFeatureOverrider::FiniteElementStateAccessorFeatureOverrider(
+    FiniteElementMethod& fem, FiniteElementVertexReporter& vertex_reporter)
     : m_fem{fem}
+    , m_vertex_reporter{vertex_reporter}
 {
-    UIPC_ASSERT(fem, "FiniteElementMethod cannot be null");
 }
 
 SizeT FiniteElementStateAccessorFeatureOverrider::get_vertex_count()
 {
-    return m_fem->xs().size();
+    return m_fem.xs().size();
 }
 
 void FiniteElementStateAccessorFeatureOverrider::do_copy_from(const geometry::SimplicialComplex& state_geo)
@@ -27,8 +29,9 @@ void FiniteElementStateAccessorFeatureOverrider::do_copy_from(const geometry::Si
     auto pos = state_geo.vertices().find<Vector3>(builtin::position);
     if(pos)
     {
-        auto pos_view  = pos->view();
-        auto x_subview = m_fem->m_impl.xs.view(v_offset, v_count);
+        auto pos_view       = pos->view();
+        auto x_subview      = m_fem.m_impl.xs.view(v_offset, v_count);
+        auto x_prev_subview = m_fem.m_impl.x_prevs.view(v_offset, v_count);
         x_subview.copy_from(pos_view.data());
     }
 
@@ -37,9 +40,12 @@ void FiniteElementStateAccessorFeatureOverrider::do_copy_from(const geometry::Si
     if(vel)
     {
         auto vel_view  = vel->view();
-        auto v_subview = m_fem->m_impl.vs.view(v_offset, v_count);
+        auto v_subview = m_fem.m_impl.vs.view(v_offset, v_count);
         v_subview.copy_from(vel_view.data());
     }
+
+    // request the vertex reporter to update attributes
+    m_vertex_reporter.request_attribute_update();
 }
 
 void FiniteElementStateAccessorFeatureOverrider::do_copy_to(geometry::SimplicialComplex& state_geo)
@@ -54,7 +60,7 @@ void FiniteElementStateAccessorFeatureOverrider::do_copy_to(geometry::Simplicial
     if(pos)
     {
         auto pos_view  = view(*pos);
-        auto x_subview = m_fem->m_impl.xs.view(v_offset, v_count);
+        auto x_subview = m_fem.m_impl.xs.view(v_offset, v_count);
         x_subview.copy_to(pos_view.data());
     }
 
@@ -63,7 +69,7 @@ void FiniteElementStateAccessorFeatureOverrider::do_copy_to(geometry::Simplicial
     if(vel)
     {
         auto vel_view  = view(*vel);
-        auto v_subview = m_fem->m_impl.vs.view(v_offset, v_count);
+        auto v_subview = m_fem.m_impl.vs.view(v_offset, v_count);
         v_subview.copy_to(vel_view.data());
     }
 }

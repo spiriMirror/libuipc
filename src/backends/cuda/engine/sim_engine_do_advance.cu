@@ -261,15 +261,14 @@ void SimEngine::do_advance()
         // Simulation:
         {
             Timer timer{"Simulation"};
-            // 1. Adaptive Parameter Calculation
-            AABB vertex_bounding_box =
-                m_global_vertex_manager->compute_vertex_bounding_box();
+            // 1. Record Friction Candidates at the beginning of the frame
+            record_friction_candidates();
+            m_global_vertex_manager->update_attributes();
+            m_global_vertex_manager->record_prev_positions();
+
+            // 2. Adaptive Parameter Calculation
             detect_dcd_candidates();
             compute_adaptive_kappa();
-
-            // 2. Record Friction Candidates at the beginning of the frame
-            record_friction_candidates();
-            m_global_vertex_manager->record_prev_positions();
 
             // 3. Predict Motion => x_tilde = x + v * dt
             m_state = SimEngineState::PredictMotion;
@@ -277,8 +276,6 @@ void SimEngine::do_advance()
             step_animation();
 
             // 4. Nonlinear-Newton Iteration
-            Float box_size = vertex_bounding_box.diagonal().norm();
-            Float tol      = m_newton_scene_tol * box_size;
             m_newton_tolerance_manager->pre_newton(m_current_frame);
 
             auto   newton_max_iter = m_newton_max_iter->view()[0];
@@ -291,14 +288,18 @@ void SimEngine::do_advance()
                 // 1) Compute animation substep ratio
                 compute_animation_substep_ratio(newton_iter);
 
+
                 // 2) Build Collision Pairs
                 if(newton_iter > 0)
                     detect_dcd_candidates();
 
+
                 // 3) Compute Dynamic Topo Effect Gradient and Hessian => G:Vector3, H:Matrix3x3
-                //    Including Contact Effect
+                //    - Contact Effect
+                //    - Other DyTopo Effects
                 m_state = SimEngineState::ComputeDyTopoEffect;
                 compute_dytopo_effect();
+
 
                 // 4) Solve Global Linear System => dx = A^-1 * b
                 m_state = SimEngineState::SolveGlobalLinearSystem;
@@ -334,7 +335,6 @@ void SimEngine::do_advance()
 
                     // Compute Current Energy => E_0
                     Float E0 = m_line_searcher->compute_energy(true);  // initial energy
-                    // logger::info("Initial Energy: {}", E0);
 
                     // CCD filter
                     alpha = filter_toi(alpha);
@@ -398,7 +398,6 @@ void SimEngine::do_advance()
     try
     {
         pipeline();
-        m_last_solved_frame = m_current_frame;
     }
     catch(const SimEngineException& e)
     {

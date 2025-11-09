@@ -15,12 +15,17 @@ void FiniteElementVertexReporter::do_build(BuildInfo& info)
     m_impl.body_reporter         = &require<FiniteElementBodyReporter>();
 }
 
+void FiniteElementVertexReporter::request_attribute_update() noexcept
+{
+    m_impl.need_update_attributes = true;
+}
+
 void FiniteElementVertexReporter::Impl::report_count(VertexCountInfo& info)
 {
     info.count(fem().xs.size());
 }
 
-void FiniteElementVertexReporter::Impl::report_attributes(VertexAttributeInfo& info)
+void FiniteElementVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
 {
     using namespace muda;
 
@@ -54,10 +59,13 @@ void FiniteElementVertexReporter::Impl::report_attributes(VertexAttributeInfo& i
                });
 }
 
+void FiniteElementVertexReporter::Impl::update_attributes(VertexAttributeInfo& info)
+{
+    info.positions().copy_from(fem().xs);
+}
+
 void FiniteElementVertexReporter::Impl::report_displacements(VertexDisplacementInfo& info)
 {
-    using namespace muda;
-
     info.displacements().copy_from(fem().dxs);
 }
 
@@ -65,28 +73,40 @@ void FiniteElementVertexReporter::do_report_count(VertexCountInfo& info)
 {
     m_impl.report_count(info);
 }
+
 void FiniteElementVertexReporter::do_report_attributes(VertexAttributeInfo& info)
 {
-    m_impl.report_attributes(info);
+    if(info.frame() == 0)
+    {
+        auto global_offset = info.coindices().offset();
 
-    auto global_offset = info.coindices().offset();
+        auto geo_slots = world().scene().geometries();
 
-    auto geo_slots = world().scene().geometries();
-
-    // add global vertex offset attribute
-    m_impl.finite_element_method->for_each(  //
-        geo_slots,
-        [&](const FiniteElementMethod::ForEachInfo& I, geometry::SimplicialComplex& sc)
-        {
-            auto gvo = sc.meta().find<IndexT>(builtin::global_vertex_offset);
-            if(!gvo)
+        // add global vertex offset attribute
+        m_impl.finite_element_method->for_each(  //
+            geo_slots,
+            [&](const FiniteElementMethod::ForEachInfo& I, geometry::SimplicialComplex& sc)
             {
-                gvo = sc.meta().create<IndexT>(builtin::global_vertex_offset);
-            }
+                auto gvo = sc.meta().find<IndexT>(builtin::global_vertex_offset);
+                if(!gvo)
+                {
+                    gvo = sc.meta().create<IndexT>(builtin::global_vertex_offset);
+                }
 
-            // [global-vertex-offset] = [vertex-offset-in-fem-system] + [fem-system-vertex-offset]
-            view(*gvo)[0] = I.geo_info().vertex_offset + global_offset;
-        });
+                // [global-vertex-offset] = [vertex-offset-in-fem-system] + [fem-system-vertex-offset]
+                view(*gvo)[0] = I.geo_info().vertex_offset + global_offset;
+            });
+
+        m_impl.init_attributes(info);
+    }
+    else
+    {
+        if(m_impl.need_update_attributes)
+        {
+            m_impl.update_attributes(info);
+            m_impl.need_update_attributes = false;
+        }
+    }
 }
 
 void FiniteElementVertexReporter::do_report_displacements(VertexDisplacementInfo& info)

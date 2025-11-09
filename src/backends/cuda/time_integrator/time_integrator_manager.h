@@ -20,7 +20,7 @@ class TimeIntegratorManager final : public SimSystem
         Float m_dt;
     };
 
-    class UpdateStateInfo
+    class UpdateVelocityInfo
     {
       public:
         auto dt() const noexcept { return m_dt; };

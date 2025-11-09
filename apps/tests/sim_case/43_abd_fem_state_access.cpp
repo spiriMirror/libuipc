@@ -8,7 +8,7 @@
 #include <uipc/core/affine_body_state_accessor_feature.h>
 #include <uipc/core/finite_element_state_accessor_feature.h>
 
-TEST_CASE("43_abd_fem_state_access", "[abd]")
+TEST_CASE("43_abd_fem_state_access", "[abd_fem]")
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -58,13 +58,13 @@ TEST_CASE("43_abd_fem_state_access", "[abd]")
     abd.apply_to(mesh_b, 1.0_MPa);
     auto      trans_view = view(mesh_b.transforms());
     Transform t          = Transform::Identity();
-    t.translate(Vector3{0.0, 1.0, 0.0});  // move a little bit
+    t.translate(Vector3{0.0, 1.2, 0.0});  // move a little bit
     trans_view[0] = t.matrix();
 
     object->geometries().create(mesh_a);
     object->geometries().create(mesh_b);
 
-    auto g = ground(-1.2);
+    auto g = ground(-0.6);
     object->geometries().create(g);
 
 
@@ -94,15 +94,19 @@ TEST_CASE("43_abd_fem_state_access", "[abd]")
 
     while(world.frame() < 100)
     {
-        if(world.frame() == 50)
+        if(world.frame() == 40)
         {
             abd_accessor->copy_to(abd_state);
             fem_accessor->copy_to(fem_state);
 
-            // set to initial position / transform
+            // modify using initial position / transform
             auto pos_view      = view(fem_state.positions());
             auto init_pos_view = mesh_a.positions().view();
-            std::ranges::copy(init_pos_view, pos_view.begin());
+            std::ranges::transform(init_pos_view,
+                                   pos_view.begin(),
+                                   [](const Vector3& v) -> Vector3 {
+                                       return v + Vector3{0.2, 0.0, 0.2};
+                                   });
 
             auto trans_view      = view(abd_state.transforms());
             auto init_trans_view = mesh_b.transforms().view();
@@ -111,6 +115,11 @@ TEST_CASE("43_abd_fem_state_access", "[abd]")
             // apply modified state back
             abd_accessor->copy_from(abd_state);
             fem_accessor->copy_from(fem_state);
+
+            world.retrieve();
+            sio.write_surface(
+                fmt::format("{}user_set{}.obj", this_output_path, world.frame()));
+            REQUIRE(world.sanity_checker().check() == SanityCheckResult::Success);
         }
 
         world.advance();

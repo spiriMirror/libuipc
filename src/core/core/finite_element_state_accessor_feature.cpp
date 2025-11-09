@@ -38,8 +38,8 @@ SizeT FiniteElementStateAccessorFeature::vertex_count() const
     return m_impl->get_vertex_count();
 }
 
-geometry::SimplicialComplex FiniteElementStateAccessorFeature::create_geometry(IndexT vertex_offset,
-                                                                               SizeT vertex_count) const
+geometry::SimplicialComplex FiniteElementStateAccessorFeature::create_geometry(
+    IndexT vertex_offset, SizeT vertex_count) const
 {
     auto total_vert_num = this->vertex_count();
     UIPC_ASSERT(vertex_offset <= total_vert_num,

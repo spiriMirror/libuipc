@@ -7,16 +7,20 @@ namespace uipc::core
 class UIPC_CORE_API FiniteElementStateAccessorFeatureOverrider
 {
   public:
-    FiniteElementStateAccessorFeatureOverrider()          = default;
     virtual ~FiniteElementStateAccessorFeatureOverrider() = default;
 
     virtual SizeT                       get_vertex_count() = 0;
     virtual geometry::SimplicialComplex do_create_geometry(IndexT vertex_offset,
                                                            SizeT  vertex_count);
     virtual void do_copy_from(const geometry::SimplicialComplex& state_geo) = 0;
-    virtual void do_copy_to(geometry::SimplicialComplex& state_geo)   = 0;
+    virtual void do_copy_to(geometry::SimplicialComplex& state_geo)         = 0;
 };
 
+/**
+ * @brief Feature to access finite element state data.
+ * 
+ * https://github.com/spiriMirror/libuipc/discussions/232
+ */
 class UIPC_CORE_API FiniteElementStateAccessorFeature final : public Feature
 {
   public:
@@ -36,7 +40,7 @@ class UIPC_CORE_API FiniteElementStateAccessorFeature final : public Feature
      * @param vertex_count The number of vertices to include, if vertex_count == ~0ull, all vertices from vertex_offset to the end will be included.
      */
     geometry::SimplicialComplex create_geometry(IndexT vertex_offset = 0,
-                                                SizeT  vertex_count  = ~0ull) const;
+                                                SizeT vertex_count = ~0ull) const;
 
     /**
      * @brief Copy finite element state data from the given geometry.

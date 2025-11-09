@@ -3,6 +3,7 @@
 #include <uipc/common/range.h>
 #include <muda/cub/device/device_reduce.h>
 #include <global_geometry/vertex_reporter.h>
+#include <sim_engine.h>
 
 /*************************************************************************************************
 * Core Implementation
@@ -59,7 +60,11 @@ void GlobalVertexManager::Impl::init()
     //    so that each reporter can write to its own subview
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
     {
-        VertexAttributeInfo attributes{this, i};
+        VertexAttributeInfo attributes{
+            this,
+            i,
+            0  // frame = 0 for initialization
+        };
         R->report_attributes(attributes);
     }
 
@@ -69,6 +74,17 @@ void GlobalVertexManager::Impl::init()
 
     // 6) Other initializations
     axis_max_disp = 0.0;
+}
+
+void GlobalVertexManager::Impl::update_attributes(SizeT frame)
+{
+    auto vertex_reporter_view = vertex_reporters.view();
+
+    for(auto&& [i, R] : enumerate(vertex_reporter_view))
+    {
+        VertexAttributeInfo attributes{this, i, frame};
+        R->report_attributes(attributes);
+    }
 }
 
 void GlobalVertexManager::Impl::rebuild()
@@ -210,9 +226,10 @@ void GlobalVertexManager::VertexCountInfo::changeable(bool is_changable) noexcep
     m_changable = is_changable;
 }
 
-GlobalVertexManager::VertexAttributeInfo::VertexAttributeInfo(Impl* impl, SizeT index) noexcept
+GlobalVertexManager::VertexAttributeInfo::VertexAttributeInfo(Impl* impl, SizeT index, SizeT frame) noexcept
     : m_impl(impl)
     , m_index(index)
+    , m_frame(frame)
 {
 }
 
@@ -261,6 +278,11 @@ muda::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::d_hats() const
     return m_impl->subview(m_impl->d_hats, m_index);  // Assuming d_hats are stored in thicknesses
 }
 
+SizeT GlobalVertexManager::VertexAttributeInfo::frame() const noexcept
+{
+    return m_frame;
+}
+
 GlobalVertexManager::VertexDisplacementInfo::VertexDisplacementInfo(Impl* impl, SizeT index) noexcept
     : m_impl(impl)
     , m_index(index)
@@ -300,6 +322,11 @@ void GlobalVertexManager::do_clear_recover(RecoverInfo& info)
 void GlobalVertexManager::init()
 {
     m_impl.init();
+}
+
+void GlobalVertexManager::update_attributes()
+{
+    m_impl.update_attributes(engine().frame());
 }
 
 void GlobalVertexManager::rebuild()

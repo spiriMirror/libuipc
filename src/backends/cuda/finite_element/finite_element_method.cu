@@ -68,14 +68,6 @@ void FiniteElementMethod::do_build()
     m_impl.default_d_hat = scene.config().find<Float>("contact/d_hat")->view()[0];
     m_impl.global_vertex_manager = &require<GlobalVertexManager>();
 
-    {
-        // Register the FiniteElementStateAccessorFeature
-        auto overrider =
-            std::make_shared<FiniteElementStateAccessorFeatureOverrider>(this);
-        auto feature = std::make_shared<core::FiniteElementStateAccessorFeature>(overrider);
-        features().insert(feature);
-    }
-
     // Register the action to write the scene
     on_write_scene([this] { m_impl.write_scene(world()); });
 }

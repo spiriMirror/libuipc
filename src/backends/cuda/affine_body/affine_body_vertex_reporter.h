@@ -13,13 +13,21 @@ class AffineBodyVertexReporter final : public VertexReporter
     {
       public:
         void report_count(VertexCountInfo& info);
-        void report_attributes(VertexAttributeInfo& info);
+
+        void init_attributes(VertexAttributeInfo& info);
+        void update_attributes(VertexAttributeInfo& info);
+
         void report_displacements(VertexDisplacementInfo& info);
 
         AffineBodyDynamics*       affine_body_dynamics;
         AffineBodyBodyReporter*   body_reporter = nullptr;
         AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
+
+        bool need_update_attributes = false;
     };
+
+    // Request to update vertex attributes before next simulation step
+    void request_attribute_update() noexcept;
 
   protected:
     virtual void do_build(BuildInfo& info) override;

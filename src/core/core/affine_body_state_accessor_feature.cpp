@@ -36,7 +36,8 @@ SizeT AffineBodyStateAccessorFeature::body_count() const
 }
 
 geometry::SimplicialComplex AffineBodyStateAccessorFeature::create_geometry(IndexT body_offset,
-                                                                             SizeT body_count) {
+                                                                            SizeT body_count)
+{
     auto total_body_num = this->body_count();
     UIPC_ASSERT(body_offset <= total_body_num,
                 "body_offset ({}) must not be larger than total body number ({})",
@@ -49,15 +50,18 @@ geometry::SimplicialComplex AffineBodyStateAccessorFeature::create_geometry(Inde
     return m_impl->do_create_geometry(body_offset, body_count);
 }
 
-void AffineBodyStateAccessorFeature::copy_from(const geometry::SimplicialComplex& state_geo) const {
+void AffineBodyStateAccessorFeature::copy_from(const geometry::SimplicialComplex& state_geo) const
+{
     m_impl->do_copy_from(state_geo);
 }
 
-void AffineBodyStateAccessorFeature::copy_to(geometry::SimplicialComplex& state_geo) const {
+void AffineBodyStateAccessorFeature::copy_to(geometry::SimplicialComplex& state_geo) const
+{
     m_impl->do_copy_to(state_geo);
 }
 
-std::string_view AffineBodyStateAccessorFeature::get_name() const {
+std::string_view AffineBodyStateAccessorFeature::get_name() const
+{
     return FeatureName;
 }
 }  // namespace uipc::core

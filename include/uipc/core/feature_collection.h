@@ -20,6 +20,14 @@ class UIPC_CORE_API FeatureCollection final
 
     void insert(std::string_view name, S<IFeature> feature);
 
+    bool contains(std::string_view name) const;
+
+    template <std::derived_from<IFeature> T>
+    bool contains() const
+    {
+        return contains(T::FeatureName);
+    }
+
     template <std::derived_from<IFeature> T>
     void insert(S<T> feature)
     {
