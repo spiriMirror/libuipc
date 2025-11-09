@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools >= 61.0"]
+requires = ["setuptools >= 61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -15,11 +15,27 @@ readme = "README.md"
 license = {file = "LICENSE"}
 version = "0.9.0"
 dependencies = [
-    "numpy", "polyscope==2.3.0"
+    "numpy", "polyscope>=2.5.0, <3.0.0"
 ]
-requires-python = ">=3.10"
-description = ""
-keywords = ["ipc", "computer graphics", "physics simulation"]
+requires-python = ">=3.10, <3.14"
+description = "A Cross-Platform Modern C++20 Library of Unified Incremental Potential Contact (CUDA 12.6+ required)"
+keywords = ["ipc", "computer graphics", "physics simulation", "cuda", "fem", "contact"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+]
 
 [project.urls]
 Homepage = "https://spirimirror.github.io/libuipc-doc/"
@@ -33,7 +49,7 @@ dev = ["pytest"]
 where = ["src", "typings"]
 
 [tool.setuptools.package-data]
-"*" = ["*.dll", "*.so", "*.dylib", "*.pyd", "*.pyi"]
+"*" = ["*.dll", "*.so*", "*.dylib", "*.pyd", "*.pyi"]
 
 [tool.pytest.ini_options]
 addopts = ["-s"]
