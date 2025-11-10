@@ -43,7 +43,7 @@ TEST_CASE("43_abd_fem_state_access", "[abd_fem]")
     AffineBodyConstitution abd;
 
     // create object
-    auto object    = scene.objects().create("cubes");
+    auto object    = scene.objects().create("objects");
     auto base_mesh = io.read(fmt::format("{}cube.msh", tetmesh_dir));
 
     label_surface(base_mesh);

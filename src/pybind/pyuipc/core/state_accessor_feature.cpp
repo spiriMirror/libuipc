@@ -26,6 +26,9 @@ PyStateAccessorFeature::PyStateAccessorFeature(py::module& m)
     class_FiniteElementStateAccessorFeature.def(
         "copy_to", &FiniteElementStateAccessorFeature::copy_to, py::arg("state_geo"));
 
+    class_FiniteElementStateAccessorFeature.attr("FeatureName") =
+        FiniteElementStateAccessorFeature::FeatureName;
+
 
     auto class_AffineBodyStateAccessorFeature =
         py::class_<AffineBodyStateAccessorFeature, IFeature, S<AffineBodyStateAccessorFeature>>(
@@ -45,5 +48,8 @@ PyStateAccessorFeature::PyStateAccessorFeature(py::module& m)
 
     class_AffineBodyStateAccessorFeature.def(
         "copy_to", &AffineBodyStateAccessorFeature::copy_to, py::arg("state_geo"));
+
+    class_AffineBodyStateAccessorFeature.attr("FeatureName") =
+        AffineBodyStateAccessorFeature::FeatureName;
 }
 }  // namespace pyuipc::core
