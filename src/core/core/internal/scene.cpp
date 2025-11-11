@@ -5,7 +5,6 @@ namespace uipc::core::internal
 {
 Scene::Scene(const Json& config) noexcept
     : m_animator{*this}
-    , m_sanity_checker(*this)
 {
     build_config(config);
 }
@@ -16,6 +15,7 @@ void Scene::init(internal::World& world) noexcept
 
     m_constitution_tabular.init(*this);
 
+    // If differentiable simulation is enabled initialize it
     auto diff_sim_enable = m_config.find<IndexT>("diff_sim/enable");
     if(diff_sim_enable->view()[0])
     {
@@ -247,5 +247,5 @@ void Scene::build_config(const Json& config)
     }
 }
 
-Scene::~Scene() {}
+Scene::~Scene() = default;
 }  // namespace uipc::core::internal

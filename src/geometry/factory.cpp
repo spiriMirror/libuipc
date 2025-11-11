@@ -7,10 +7,10 @@ namespace uipc::geometry
 {
 namespace detail
 {
-    static void create_vertices(SimplicialComplex& sc, span<const Vector3> Vs)
+    static void build_vertices(SimplicialComplex& sc, span<const Vector3> Vs)
     {
         sc.vertices().resize(Vs.size());
-        auto pos = sc.vertices().create<Vector3>(builtin::position, Vector3::Zero(), false);
+        auto pos      = sc.vertices().find<Vector3>(builtin::position);
         auto pos_view = view(*pos);
         std::ranges::copy(Vs, pos_view.begin());
     }
@@ -26,7 +26,7 @@ SimplicialComplex tetmesh(span<const Vector3> Vs, span<const Vector4i> Ts)
     auto topo_view = view(*topo);
     std::ranges::copy(Ts, topo_view.begin());
 
-    detail::create_vertices(sc, Vs);
+    detail::build_vertices(sc, Vs);
 
     return facet_closure(sc);
 }
@@ -42,7 +42,7 @@ SimplicialComplex trimesh(span<const Vector3> Vs, span<const Vector3i> Fs)
     std::ranges::copy(Fs, topo_view.begin());
 
 
-    detail::create_vertices(sc, Vs);
+    detail::build_vertices(sc, Vs);
 
     return facet_closure(sc);
 }
@@ -70,7 +70,7 @@ SimplicialComplex linemesh(span<const Vector3> Vs, span<const Vector2i> Es)
     auto topo_view = view(*topo);
     std::ranges::copy(Es, topo_view.begin());
 
-    detail::create_vertices(sc, Vs);
+    detail::build_vertices(sc, Vs);
 
     return facet_closure(sc);
 }
@@ -79,7 +79,7 @@ SimplicialComplex pointcloud(span<const Vector3> Vs)
 {
     SimplicialComplex sc;
 
-    detail::create_vertices(sc, Vs);
+    detail::build_vertices(sc, Vs);
 
     return sc;
 }

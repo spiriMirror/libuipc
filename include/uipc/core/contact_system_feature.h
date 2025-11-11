@@ -25,7 +25,7 @@ class UIPC_CORE_API ContactSystemFeatureOverrider
 class UIPC_CORE_API ContactSystemFeature final : public Feature
 {
   public:
-    constexpr static std::string_view FeatureName = "contact_system";
+    constexpr static std::string_view FeatureName = "core/contact_system";
 
     ContactSystemFeature(S<ContactSystemFeatureOverrider> overrider);
 
@@ -44,7 +44,7 @@ class UIPC_CORE_API ContactSystemFeature final : public Feature
     vector<std::string> contact_primitive_types() const;
 
   private:
-    virtual std::string_view         get_name() const final override;
+    virtual std::string_view         get_name() const override;
     S<ContactSystemFeatureOverrider> m_impl;
 };
 }  // namespace uipc::core

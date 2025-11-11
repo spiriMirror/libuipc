@@ -13,10 +13,10 @@ class Scene;
 class UIPC_CORE_API SanityChecker final
 {
   public:
-    SanityChecker(internal::Scene& scene);
+    SanityChecker(internal::Scene& scene, std::string_view workspace);
     ~SanityChecker();
 
-    SanityCheckResult check(std::string_view workspace);
+    SanityCheckResult check();
     void              report();
 
     const unordered_map<U64, S<SanityCheckMessage>>& errors() const;
@@ -31,5 +31,6 @@ class UIPC_CORE_API SanityChecker final
     core::SanityCheckMessageCollection m_infos;
 
     internal::Scene& m_scene;
+    std::string      m_workspace;
 };
 }  // namespace uipc::core

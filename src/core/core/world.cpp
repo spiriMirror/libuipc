@@ -68,4 +68,14 @@ const FeatureCollection& World::features() const
 {
     return m_internal->features();
 }
+
+SanityChecker& World::sanity_checker()
+{
+    return m_internal->sanity_checker();
+}
+
+const SanityChecker& World::sanity_checker() const
+{
+    return m_internal->sanity_checker();
+}
 }  // namespace uipc::core

@@ -14,7 +14,8 @@ class FiniteElementVertexReporter final : public VertexReporter
     {
       public:
         void report_count(VertexCountInfo& info);
-        void report_attributes(VertexAttributeInfo& info);
+        void init_attributes(VertexAttributeInfo& info);
+        void update_attributes(VertexAttributeInfo& info);
         void report_displacements(VertexDisplacementInfo& info);
 
         FiniteElementMethod*       finite_element_method;
@@ -23,7 +24,12 @@ class FiniteElementVertexReporter final : public VertexReporter
             return finite_element_method->m_impl;
         }
         FiniteElementBodyReporter* body_reporter = nullptr;
+
+        bool need_update_attributes = false;
     };
+
+    // Request to update vertex attributes before next simulation step
+    void request_attribute_update() noexcept;
 
   protected:
     virtual void do_build(BuildInfo& info) override;

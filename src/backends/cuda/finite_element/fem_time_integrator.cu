@@ -22,9 +22,9 @@ void FEMTimeIntegrator::do_predict_dof(TimeIntegrator::PredictDofInfo& info)
     do_predict_dof(this_info);
 }
 
-void FEMTimeIntegrator::do_update_state(TimeIntegrator::UpdateStateInfo& info)
+void FEMTimeIntegrator::do_update_state(TimeIntegrator::UpdateVelocityInfo& info)
 {
-    UpdateStateInfo this_info{&m_impl, &info};
+    UpdateVelocityInfo this_info{&m_impl, &info};
     do_update_state(this_info);
 }
 }  // namespace uipc::backend::cuda

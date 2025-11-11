@@ -3,6 +3,7 @@
 #include <context.h>
 #include <spdlog/spdlog.h>
 #include <filesystem>
+
 namespace uipc::sanity_check
 {
 SanityCheckerCollection::SanityCheckerCollection(std::string_view workspace) noexcept
@@ -15,7 +16,7 @@ SanityCheckerCollection::SanityCheckerCollection(std::string_view workspace) noe
     m_workspace = path.string();
 }
 
-SanityCheckerCollection::~SanityCheckerCollection() {}
+SanityCheckerCollection::~SanityCheckerCollection() = default;
 
 std::string_view SanityCheckerCollection::workspace() const noexcept
 {

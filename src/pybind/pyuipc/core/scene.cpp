@@ -166,11 +166,6 @@ PyScene::PyScene(py::module& m)
         [](Scene& self) -> DiffSim& { return self.diff_sim(); },
         py::return_value_policy::reference_internal);
 
-    class_Scene.def(
-        "sanity_checker",
-        [](Scene& self) -> SanityChecker& { return self.sanity_checker(); },
-        py::return_value_policy::reference_internal);
-
     class_Scene.def("__repr__",
                     [](const Scene& self) { return fmt::format("{}", self); });
 }

@@ -41,14 +41,15 @@ static S<dylib> load_sanity_check_module()
     return m_cache;
 }
 
-SanityChecker::SanityChecker(internal::Scene& scene)
+SanityChecker::SanityChecker(internal::Scene& scene, std::string_view workspace)
     : m_scene{scene}
+    , m_workspace{workspace}
 {
 }
 
 SanityChecker::~SanityChecker() {}
 
-SanityCheckResult SanityChecker::check(std::string_view workspace)
+SanityCheckResult SanityChecker::check()
 {
     clear();
 
@@ -73,7 +74,7 @@ SanityCheckResult SanityChecker::check(std::string_view workspace)
     }
 
     SanityCheckerCollectionCreateInfo info;
-    info.workspace = workspace;
+    info.workspace = m_workspace;
 
     ISanityCheckerCollection* sanity_checkers = creator(&info);
     sanity_checkers->build(m_scene);

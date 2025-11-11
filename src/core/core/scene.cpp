@@ -190,16 +190,6 @@ const DiffSim& Scene::diff_sim() const
     return m_internal->diff_sim();
 }
 
-SanityChecker& Scene::sanity_checker()
-{
-    return m_internal->sanity_checker();
-}
-
-const SanityChecker& Scene::sanity_checker() const
-{
-    return m_internal->sanity_checker();
-}
-
 void Scene::update_from(const SceneSnapshotCommit& snapshot)
 {
     m_internal->update_from(snapshot);

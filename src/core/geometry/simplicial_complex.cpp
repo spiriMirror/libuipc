@@ -7,7 +7,7 @@
 
 namespace uipc::geometry
 {
-SimplicialComplex::SimplicialComplex()
+SimplicialComplex::SimplicialComplex(const CreateInfo& info)
     : Geometry()
 {
     UIPC_ASSERT(find("meta") && find("instances"),
@@ -19,15 +19,26 @@ SimplicialComplex::SimplicialComplex()
     m_triangle_attributes    = create("triangles");
     m_tetrahedron_attributes = create("tetrahedra");
 
-    // Don't create positions attribute here: some algorithms just **share** the positions attribute.
+    if(info.create_position)
+    {
+        // Create a default position attribute.
+        auto verts = m_vertex_attributes;
+        auto pos   = verts->create<Vector3>(builtin::position,
+                                          Vector3::Zero(),  // default zero
+                                          false  // don't allow destroy
+        );
+    }
 
-    // Create a default transform attribute.
-    auto      instances = find("instances");  // in base class
-    Matrix4x4 I         = Transform::Identity().matrix();
-    auto      trans     = instances->create<Matrix4x4>(builtin::transform,
-                                              I,  // default identity
-                                              false  // don't allow destroy
-    );
+    if(info.create_transform)
+    {
+        // Create a default transform attribute.
+        auto      instances = find("instances");  // in base class
+        Matrix4x4 I         = Transform::Identity().matrix();
+        auto      trans     = instances->create<Matrix4x4>(builtin::transform,
+                                                  I,  // default identity
+                                                  false  // don't allow destroy
+        );
+    }
 }
 
 SimplicialComplex::SimplicialComplex(const SimplicialComplex& o)
@@ -104,6 +115,9 @@ S<IGeometry> SimplicialComplex::do_clone() const
 {
     return uipc::make_shared<SimplicialComplex>(*this);
 }
+
+void SimplicialComplex::_create(const CreateInfo& info) {}
+
 
 IndexT SimplicialComplex::dim() const noexcept
 {

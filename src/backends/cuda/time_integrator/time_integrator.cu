@@ -23,7 +23,7 @@ void TimeIntegrator::predict_dof(PredictDofInfo& info)
     do_predict_dof(info);
 }
 
-void TimeIntegrator::update_state(UpdateStateInfo& info)
+void TimeIntegrator::update_state(UpdateVelocityInfo& info)
 {
     do_update_state(info);
 }
