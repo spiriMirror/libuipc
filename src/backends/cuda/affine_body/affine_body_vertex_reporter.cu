@@ -13,18 +13,22 @@ void AffineBodyVertexReporter::do_build(BuildInfo& info)
     m_impl.body_reporter        = &require<AffineBodyBodyReporter>();
 }
 
+void AffineBodyVertexReporter::request_attribute_update() noexcept
+{
+    m_impl.need_update_attributes = true;
+}
+
 void AffineBodyVertexReporter::Impl::report_count(VertexCountInfo& info)
 {
-    // TODO: now we just report all the affine body vertices
-    // later we may extract the surface vertices and report them
     info.count(abd().h_vertex_id_to_J.size());
 }
 
-void AffineBodyVertexReporter::Impl::report_attributes(VertexAttributeInfo& info)
+void AffineBodyVertexReporter::Impl::init_attributes(VertexAttributeInfo& info)
 {
     using namespace muda;
-    // fill the coindices for later use
-    auto N = info.coindices().size();
+
+    auto N = info.positions().size();
+
 
     UIPC_ASSERT(body_reporter->body_offset() >= 0,
                 "AffineBodyBodyReporter is not ready, body_offset={}, lifecycle issue?",
@@ -60,6 +64,29 @@ void AffineBodyVertexReporter::Impl::report_attributes(VertexAttributeInfo& info
     async_copy(span{abd().h_vertex_id_to_d_hat}, info.d_hats());
 }
 
+void AffineBodyVertexReporter::Impl::update_attributes(VertexAttributeInfo& info)
+{
+    using namespace muda;
+
+    auto N = info.positions().size();
+
+    // only update positions
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(N,
+               [coindices = info.coindices().viewer().name("coindices"),
+                src_pos   = abd().vertex_id_to_J.cviewer().name("src_pos"),
+                dst_pos   = info.positions().viewer().name("dst_pos"),
+                v2b       = abd().vertex_id_to_body_id.cviewer().name("v2b"),
+                qs = abd().body_id_to_q.cviewer().name("qs")] __device__(int i) mutable
+               {
+                   coindices(i)        = i;
+                   auto        body_id = v2b(i);
+                   const auto& q       = qs(body_id);
+                   dst_pos(i)          = src_pos(i).point_x(q);
+               });
+}
+
 void AffineBodyVertexReporter::Impl::report_displacements(VertexDisplacementInfo& info)
 {
     using namespace muda;
@@ -85,29 +112,40 @@ void AffineBodyVertexReporter::do_report_count(VertexCountInfo& info)
 {
     m_impl.report_count(info);
 }
+
 void AffineBodyVertexReporter::do_report_attributes(VertexAttributeInfo& info)
 {
-    m_impl.report_attributes(info);
+    if(info.frame() == 0)
+    {
+        auto global_offset = info.coindices().offset();
 
+        auto geo_slots = world().scene().geometries();
 
-    auto global_offset = info.coindices().offset();
-
-    auto geo_slots = world().scene().geometries();
-
-    // add global vertex offset attribute
-    m_impl.affine_body_dynamics->for_each(  //
-        geo_slots,
-        [&](const AffineBodyDynamics::ForEachInfo& I, geometry::SimplicialComplex& sc)
-        {
-            auto gvo = sc.meta().find<IndexT>(builtin::global_vertex_offset);
-            if(!gvo)
+        // add global vertex offset attribute
+        m_impl.affine_body_dynamics->for_each(  //
+            geo_slots,
+            [&](const AffineBodyDynamics::ForEachInfo& I, geometry::SimplicialComplex& sc)
             {
-                gvo = sc.meta().create<IndexT>(builtin::global_vertex_offset);
-            }
+                auto gvo = sc.meta().find<IndexT>(builtin::global_vertex_offset);
+                if(!gvo)
+                {
+                    gvo = sc.meta().create<IndexT>(builtin::global_vertex_offset);
+                }
 
-            // [global-vertex-offset] = [vertex-offset-in-abd-system] + [abd-system-vertex-offset]
-            view(*gvo)[0] = I.geo_info().vertex_offset + global_offset;
-        });
+                // [global-vertex-offset] = [vertex-offset-in-abd-system] + [abd-system-vertex-offset]
+                view(*gvo)[0] = I.geo_info().vertex_offset + global_offset;
+            });
+
+        m_impl.init_attributes(info);
+    }
+    else
+    {
+        if(m_impl.need_update_attributes)
+        {
+            m_impl.update_attributes(info);
+            m_impl.need_update_attributes = false;
+        }
+    }
 }
 
 void AffineBodyVertexReporter::do_report_displacements(VertexDisplacementInfo& info)

@@ -21,8 +21,6 @@ class GeometryFriend<uipc::core::DiffSim>
 
 namespace uipc::core
 {
-
-
 class DiffSim::Impl
 {
   public:
@@ -44,10 +42,11 @@ class DiffSim::Impl
                 vector<std::string> attribute_names = collection.names();
                 std::string_view    prefix          = "diff/";
 
-                auto e = std::ranges::remove_if(
-                    attribute_names,
-                    [prefix](const std::string& name)
-                    { return name.find(prefix) == std::string::npos; });
+                auto e = std::ranges::remove_if(attribute_names,
+                                                [prefix](const std::string& name) {
+                                                    return name.find(prefix)
+                                                           == std::string::npos;
+                                                });
 
                 attribute_names.erase(e.begin(), e.end());
 

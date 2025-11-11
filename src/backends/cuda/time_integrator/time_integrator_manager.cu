@@ -35,7 +35,7 @@ void TimeIntegratorManager::update_state()
     // Update the state for each time integrator
     for(auto& integrator : m_impl.time_integrators.view())
     {
-        UpdateStateInfo info;
+        UpdateVelocityInfo info;
         info.m_dt = m_impl.dt;
         integrator->update_state(info);
     }

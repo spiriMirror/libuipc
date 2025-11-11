@@ -461,6 +461,8 @@ class FiniteElementMethod final : public SimSystem
     friend class FEMAdjointMethodReplayer;
     friend class FEMTimeIntegrator;
 
+    friend class FiniteElementStateAccessorFeatureOverrider;
+
     friend class SimEngine;
     void init();  // only be called by SimEngine
 

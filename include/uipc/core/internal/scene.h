@@ -28,13 +28,18 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
 
     ~Scene();
 
+    // Lifecycle
+
     void init(internal::World& world) noexcept;
-
     void begin_pending() noexcept;
-
     void solve_pending() noexcept;
 
+
+    // IO
+
     void update_from(const SceneSnapshotCommit& commit);
+
+    // Getter & Setter
 
     auto& config() const noexcept { return m_config; }
     auto& config() noexcept { return m_config; }
@@ -61,8 +66,6 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
     auto& geometries() noexcept { return m_geometries; }
     auto& rest_geometries() const noexcept { return m_rest_geometries; }
     auto& rest_geometries() noexcept { return m_rest_geometries; }
-    auto& sanity_checker() const noexcept { return m_sanity_checker; }
-    auto& sanity_checker() noexcept { return m_sanity_checker; }
 
 
   private:
@@ -79,7 +82,6 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
 
     geometry::GeometryCollection m_geometries;
     geometry::GeometryCollection m_rest_geometries;
-    SanityChecker                m_sanity_checker;
 
     bool m_started = false;
     bool m_pending = false;

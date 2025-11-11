@@ -24,6 +24,7 @@
 
 #include <utils/offset_count_collection.h>
 #include <affine_body/affine_body_kinetic.h>
+#include <affine_body/affine_body_vertex_reporter.h>
 
 namespace uipc::backend
 {

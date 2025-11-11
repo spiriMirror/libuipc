@@ -87,15 +87,19 @@ class FEMTimeIntegrator : public TimeIntegrator
 
         auto dt() const noexcept { return base_info->dt(); }
 
+        auto x_prevs() const noexcept
+        {
+            return m_impl->finite_element_method->m_impl.x_prevs.view();
+        }
 
       private:
         TimeIntegrator::PredictDofInfo* base_info = nullptr;
     };
 
-    class UpdateStateInfo : public BaseInfo
+    class UpdateVelocityInfo : public BaseInfo
     {
       public:
-        UpdateStateInfo(Impl* impl, TimeIntegrator::UpdateStateInfo* base_info)
+        UpdateVelocityInfo(Impl* impl, TimeIntegrator::UpdateVelocityInfo* base_info)
             : BaseInfo(impl)
             , base_info(base_info)
         {
@@ -103,34 +107,29 @@ class FEMTimeIntegrator : public TimeIntegrator
 
         auto dt() const noexcept { return base_info->dt(); }
 
-        auto x_prevs() noexcept
-        {
-            return m_impl->finite_element_method->m_impl.x_prevs.view();
-        }
-
         auto vs() noexcept
         {
             return m_impl->finite_element_method->m_impl.vs.view();
         }
 
       private:
-        TimeIntegrator::UpdateStateInfo* base_info = nullptr;
+        TimeIntegrator::UpdateVelocityInfo* base_info = nullptr;
     };
 
 
   protected:
     virtual void do_build(BuildInfo& info) = 0;
 
-    virtual void do_init(InitInfo& info)                = 0;
-    virtual void do_predict_dof(PredictDofInfo& info)   = 0;
-    virtual void do_update_state(UpdateStateInfo& info) = 0;
+    virtual void do_init(InitInfo& info)                   = 0;
+    virtual void do_predict_dof(PredictDofInfo& info)      = 0;
+    virtual void do_update_state(UpdateVelocityInfo& info) = 0;
 
   private:
     void do_build(TimeIntegrator::BuildInfo& info) override;
 
     void do_init(TimeIntegrator::InitInfo& info) override;
     void do_predict_dof(TimeIntegrator::PredictDofInfo& info) override;
-    void do_update_state(TimeIntegrator::UpdateStateInfo& info) override;
+    void do_update_state(TimeIntegrator::UpdateVelocityInfo& info) override;
 
     Impl m_impl;
 };
