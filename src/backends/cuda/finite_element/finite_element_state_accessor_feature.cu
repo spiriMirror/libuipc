@@ -29,9 +29,8 @@ void FiniteElementStateAccessorFeatureOverrider::do_copy_from(const geometry::Si
     auto pos = state_geo.vertices().find<Vector3>(builtin::position);
     if(pos)
     {
-        auto pos_view       = pos->view();
-        auto x_subview      = m_fem.m_impl.xs.view(v_offset, v_count);
-        auto x_prev_subview = m_fem.m_impl.x_prevs.view(v_offset, v_count);
+        auto pos_view  = pos->view();
+        auto x_subview = m_fem.m_impl.xs.view(v_offset, v_count);
         x_subview.copy_from(pos_view.data());
     }
 
