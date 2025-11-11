@@ -1,4 +1,5 @@
 #pragma once
+#include <uipc/core/sanity_checker.h>
 #include <uipc/core/internal/scene.h>
 #include <uipc/core/internal/engine.h>
 #include <uipc/core/feature_collection.h>
@@ -25,11 +26,16 @@ class UIPC_CORE_API World final : public std::enable_shared_from_this<World>
 
     const FeatureCollection& features() const;
 
+    SanityChecker&       sanity_checker();
+    const SanityChecker& sanity_checker() const;
+
+
   private:
     S<internal::Scene> m_scene = nullptr;
     // MUST NOT be a shared_ptr to avoid circular reference
     W<internal::Engine> m_engine;
+    S<SanityChecker>    m_sanity_checker;
     bool                m_valid = true;
-    void                sanity_check(Scene& s);
+    void                _sanity_check();
 };
 }  // namespace uipc::core::internal

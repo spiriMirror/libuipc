@@ -5,11 +5,11 @@
 namespace uipc::backend::none
 {
 class NoneSimSystem;
-class NoneSimEngine final : public SimEngine
+class SimEngine final : public backend::SimEngine
 {
   public:
-    NoneSimEngine(EngineCreateInfo*);
-    ~NoneSimEngine();
+    SimEngine(EngineCreateInfo*);
+    ~SimEngine();
 
   private:
     void         do_init(InitInfo&) override;

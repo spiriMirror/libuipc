@@ -26,16 +26,20 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
             .apply(info.qs().size(),
                    [is_fixed   = info.is_fixed().cviewer().name("is_fixed"),
                     is_dynamic = info.is_dynamic().cviewer().name("is_dynamic"),
-                    q_prevs    = info.q_prevs().cviewer().name("q_prev"),
+                    qs         = info.qs().cviewer().name("qs"),
+                    q_prevs    = info.q_prevs().viewer().name("q_prev"),
                     q_vs       = info.q_vs().cviewer().name("q_velocities"),
                     q_tildes   = info.q_tildes().viewer().name("q_tilde"),
                     affine_gravity = info.gravities().cviewer().name("affine_gravity"),
                     dt   = info.dt(),
                     cout = KernelCout::viewer()] __device__(int i) mutable
                    {
+                       // record previous q
                        auto& q_prev = q_prevs(i);
-                       auto& q_v    = q_vs(i);
-                       auto& g      = affine_gravity(i);
+                       q_prev       = qs(i);
+
+                       auto& q_v = q_vs(i);
+                       auto& g   = affine_gravity(i);
 
                        // 0) fixed: q_tilde = q_prev;
                        Vector12 q_tilde = q_prev;
@@ -56,7 +60,7 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
                    });
     }
 
-    virtual void do_update_state(UpdateStateInfo& info) override
+    virtual void do_update_state(UpdateVelocityInfo& info) override
     {
         using namespace muda;
         ParallelFor()
@@ -64,7 +68,7 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
             .apply(info.qs().size(),
                    [qs      = info.qs().cviewer().name("qs"),
                     q_vs    = info.q_vs().viewer().name("q_vs"),
-                    q_prevs = info.q_prevs().viewer().name("q_prevs"),
+                    q_prevs = info.q_prevs().cviewer().name("q_prevs"),
                     dt      = info.dt()] __device__(int i) mutable
                    {
                        auto& q_v    = q_vs(i);
@@ -73,8 +77,6 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
                        const auto& q = qs(i);
 
                        q_v = (q - q_prev) * (1.0 / dt);
-
-                       q_prev = q;
                    })
             .wait();
     }

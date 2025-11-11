@@ -25,14 +25,18 @@ class FEMBDF1Integrator final : public FEMTimeIntegrator
             .apply(info.xs().size(),
                    [is_fixed   = info.is_fixed().cviewer().name("fixed"),
                     is_dynamic = info.is_dynamic().cviewer().name("is_dynamic"),
-                    x_prevs    = info.x_prevs().cviewer().name("x_prevs"),
+                    x_prevs    = info.x_prevs().viewer().name("x_prevs"),
+                    xs         = info.xs().cviewer().name("xs"),
                     vs         = info.vs().cviewer().name("vs"),
                     x_tildes   = info.x_tildes().viewer().name("x_tildes"),
                     gravities  = info.gravities().cviewer().name("gravities"),
                     dt         = info.dt()] __device__(int i) mutable
                    {
-                       const Vector3& x_prev = x_prevs(i);
-                       const Vector3& v      = vs(i);
+                       // record previous position
+                       Vector3& x_prev = x_prevs(i);
+                       x_prev          = xs(i);
+
+                       const Vector3& v = vs(i);
 
                        // 0) fixed: x_tilde = x_prev
                        Vector3 x_tilde = x_prev;
@@ -55,7 +59,7 @@ class FEMBDF1Integrator final : public FEMTimeIntegrator
                    });
     }
 
-    virtual void do_update_state(UpdateStateInfo& info) override
+    virtual void do_update_state(UpdateVelocityInfo& info) override
     {
         using namespace muda;
 
@@ -64,16 +68,14 @@ class FEMBDF1Integrator final : public FEMTimeIntegrator
             .apply(info.xs().size(),
                    [xs      = info.xs().cviewer().name("xs"),
                     vs      = info.vs().viewer().name("vs"),
-                    x_prevs = info.x_prevs().viewer().name("x_prevs"),
+                    x_prevs = info.x_prevs().cviewer().name("x_prevs"),
                     dt      = info.dt()] __device__(int i) mutable
                    {
                        Vector3&       v      = vs(i);
-                       Vector3&       x_prev = x_prevs(i);
+                       const Vector3& x_prev = x_prevs(i);
                        const Vector3& x      = xs(i);
 
                        v = (x - x_prev) * (1.0 / dt);
-
-                       x_prev = x;
                    });
     }
 };

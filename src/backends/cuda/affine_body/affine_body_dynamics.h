@@ -526,6 +526,7 @@ class AffineBodyDynamics : public SimSystem
 
     friend class AffineBodyKineticDiffParmReporter;
     friend class ABDTimeIntegrator;
+    friend class AffineBodyStateAccessorFeatureOverrider;
 
     void add_reporter(AffineBodyKineticDiffParmReporter* reporter);
 

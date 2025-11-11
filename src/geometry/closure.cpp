@@ -128,7 +128,9 @@ SimplicialComplex facet_closure(const SimplicialComplex& O)
 {
     check_facet_closure_input(O);
 
-    SimplicialComplex R;
+    SimplicialComplex::CreateInfo create_info;
+    create_info.create_position = false;  // we will share the position attribute
+    SimplicialComplex R{create_info};
 
     // share vertices
     R.vertices().resize(O.vertices().size());

@@ -146,4 +146,25 @@ UIPC_GENERIC Vector12 transform_to_q(const Matrix4x4& trans)
 
     return q;
 }
+
+UIPC_GENERIC Matrix4x4 q_v_to_transform_v(const Vector12& q)
+{
+    Matrix4x4 trans;
+    // translation
+    trans.block<3, 1>(0, 3) = q.segment<3>(0);
+    // rotation
+    trans.block<1, 3>(0, 0) = q.segment<3>(3).transpose();
+    trans.block<1, 3>(1, 0) = q.segment<3>(6).transpose();
+    trans.block<1, 3>(2, 0) = q.segment<3>(9).transpose();
+
+    // last row fill zero
+    trans.row(3) = Vector4::Zero();
+    return trans;
+}
+
+UIPC_GENERIC Vector12 transform_v_to_q_v(const Matrix4x4& transform_v)
+{
+    // the same to transform_to_q
+    return transform_to_q(transform_v);
+}
 }  // namespace uipc::backend::cuda

@@ -6,7 +6,6 @@
 #include <uipc/core/object_collection.h>
 #include <uipc/core/animator.h>
 #include <uipc/core/diff_sim.h>
-#include <uipc/core/sanity_checker.h>
 #include <uipc/geometry/attribute_collection.h>
 
 namespace uipc::core::internal
@@ -234,9 +233,6 @@ class UIPC_CORE_API Scene final
 
     DiffSim&       diff_sim();
     const DiffSim& diff_sim() const;
-
-    SanityChecker&       sanity_checker();
-    const SanityChecker& sanity_checker() const;
 
     void update_from(const SceneSnapshotCommit& snapshot);
 

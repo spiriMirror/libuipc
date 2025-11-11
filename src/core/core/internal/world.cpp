@@ -24,21 +24,32 @@ World::World(internal::Engine& e) noexcept
 
 void World::init(internal::Scene& s)
 {
+    // 1. Record Scene Pointer
     if(m_scene)
         return;
+    m_scene = s.shared_from_this();
 
-    sanity_check(s);
+    auto engine = lock(m_engine);
 
+    // 2. Sanity Check Before Init
+    // initialize sanity checker
+    m_sanity_checker = uipc::make_shared<SanityChecker>(s, engine->workspace());
+    auto& config     = m_scene->config();
+    auto  sanity_check_enable_attr = config.find<IndexT>("sanity_check/enable");
+    if(sanity_check_enable_attr->view()[0])
+    {
+        _sanity_check();
+    }
     if(!m_valid)
     {
         logger::error("World is not valid, skipping init.");
         return;
     }
-    m_scene = s.shared_from_this();
+
+    // 3. Init Scene
     m_scene->init(*this);
 
-    auto engine = lock(m_engine);
-
+    // 4. Init Engine
     engine->init(*this);
 
     if(engine->status().has_error())
@@ -185,22 +196,25 @@ const FeatureCollection& World::features() const
     return engine->features();
 }
 
-void World::sanity_check(Scene& s)
+SanityChecker& World::sanity_checker()
 {
-    auto engine = lock(m_engine);
+    UIPC_ASSERT(m_sanity_checker, "SanityChecker is not initialized. You should call World::init() first.");
+    return *m_sanity_checker;
+}
 
-    auto& config                   = s.config();
-    auto  sanity_check_enable_attr = config.find<IndexT>("sanity_check/enable");
-    if(sanity_check_enable_attr->view()[0])
-    {
-        auto result = s.sanity_checker().check(engine->workspace());
+const SanityChecker& World::sanity_checker() const
+{
+    UIPC_ASSERT(m_sanity_checker, "SanityChecker is not initialized. You should call World::init() first.");
+    return *m_sanity_checker;
+}
 
-        if(result != SanityCheckResult::Success)
-        {
-            s.sanity_checker().report();
-        }
-
-        m_valid = (result == SanityCheckResult::Success);
-    }
+void World::_sanity_check()
+{
+    auto  engine         = lock(m_engine);
+    auto& sanity_checker = *m_sanity_checker;
+    auto  result         = sanity_checker.check();
+    if(result != SanityCheckResult::Success)
+        sanity_checker.report();
+    m_valid = (result == SanityCheckResult::Success);
 }
 }  // namespace uipc::core::internal

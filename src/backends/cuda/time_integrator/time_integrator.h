@@ -7,8 +7,8 @@ namespace uipc::backend::cuda
 class TimeIntegrator : public SimSystem
 {
   public:
-    using PredictDofInfo  = TimeIntegratorManager::PredictDofInfo;
-    using UpdateStateInfo = TimeIntegratorManager::UpdateStateInfo;
+    using PredictDofInfo     = TimeIntegratorManager::PredictDofInfo;
+    using UpdateVelocityInfo = TimeIntegratorManager::UpdateVelocityInfo;
 
     using SimSystem::SimSystem;
 
@@ -23,16 +23,16 @@ class TimeIntegrator : public SimSystem
     };
 
   protected:
-    virtual void do_init(InitInfo& info)                = 0;
-    virtual void do_build(BuildInfo& info)              = 0;
-    virtual void do_predict_dof(PredictDofInfo& info)   = 0;
-    virtual void do_update_state(UpdateStateInfo& info) = 0;
+    virtual void do_init(InitInfo& info)                   = 0;
+    virtual void do_build(BuildInfo& info)                 = 0;
+    virtual void do_predict_dof(PredictDofInfo& info)      = 0;
+    virtual void do_update_state(UpdateVelocityInfo& info) = 0;
 
   private:
     friend class TimeIntegratorManager;
     void do_build() override final;
     void init();
     void predict_dof(PredictDofInfo&);
-    void update_state(UpdateStateInfo&);
+    void update_state(UpdateVelocityInfo&);
 };
 }  // namespace uipc::backend::cuda
