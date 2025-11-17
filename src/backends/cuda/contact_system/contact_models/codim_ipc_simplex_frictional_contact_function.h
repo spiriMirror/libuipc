@@ -340,7 +340,7 @@ namespace sym::codim_ipc_contact
         H = J.transpose() * H2x2 * J;
     }
 
-    inline __device__ Float PE_friction_basis(
+    inline __device__ void PE_friction_basis(
         // out
         Float&               f,
         Float&               eta,
@@ -471,7 +471,7 @@ namespace sym::codim_ipc_contact
         H = J.transpose() * H2x2 * J;
     }
 
-    inline __device__ Float PP_friction_basis(
+    inline __device__ void PP_friction_basis(
         // out
         Float&               f,
         Matrix<Float, 3, 2>& basis,
