@@ -7,97 +7,136 @@
 
 namespace uipc::core
 {
+geometry::AttributeCollection default_scene_config() noexcept
+{
+    geometry::AttributeCollection config;
+    config.resize(1);
+    config.create("dt", Float{0.01});
+    config.create("gravity", Vector3{0.0, -9.8, 0.0});
+
+    config.create("cfl/enable", IndexT{0});
+
+    config.create("integrator/type", std::string{"bdf1"});
+
+    config.create("newton/max_iter", IndexT{1024});
+    config.create("newton/min_iter", IndexT{1});
+    config.create("newton/use_adaptive_tol", IndexT{0});
+    config.create("newton/velocity_tol", Float{0.05_m / 1.0_s});
+    config.create("newton/ccd_tol", Float{1.0});
+    config.create("newton/transrate_tol", Float{0.1 / 1.0_s});
+
+    config.create("linear_system/tol_rate", Float{1e-3});
+    config.create("linear_system/solver", std::string{"linear_pcg"});
+    config.create("line_search/max_iter", IndexT{8});
+    config.create("line_search/report_energy", IndexT{0});
+
+    config.create("contact/enable", IndexT{1});
+    config.create("contact/friction/enable", IndexT{1});
+    config.create("contact/constitution", std::string{"ipc"});
+    config.create("contact/d_hat", Float{0.01});
+    config.create("contact/eps_velocity", Float{0.01_m / 1.0_s});
+
+    config.create("collision_detection/method", std::string{"linear_bvh"});
+
+    config.create("sanity_check/enable", IndexT{1});
+    config.create("sanity_check/mode", std::string{"normal"});
+
+    // recovery removed
+
+    config.create("diff_sim/enable", IndexT{0});
+
+    config.create("extras/debug/dump_surface", IndexT{0});
+    config.create("extras/strict_mode/enable", IndexT{0});
+
+    return config;
+}
+
+Json& nested_json(Json& j, const std::string_view path)
+{
+    size_t pos      = 0;
+    size_t next_pos = 0;
+    Json*  current  = &j;
+    while(next_pos != std::string_view::npos)
+    {
+        next_pos = path.find('/', pos);
+        auto key = path.substr(pos, next_pos - pos);
+        if(current->find(key) == current->end())
+        {
+            (*current)[key] = Json::object();
+        }
+        current = &(*current)[key];
+        pos     = next_pos + 1;
+    }
+    return *current;
+}
+
+Json to_config_json(const geometry::AttributeCollection& config)
+{
+    Json j;
+    auto names = config.names();
+
+    for(auto& name : names)
+    {
+        auto attr = config.find(name);
+        UIPC_ASSERT(attr != nullptr, "Attribute '{}' not found in config.", name);
+        auto& sub_json = nested_json(j, name);
+        sub_json       = attr->to_json(0);
+    }
+    return j;
+}
+
+const Json* find_nested_json(const Json& j, const std::string_view path)
+{
+    size_t      pos      = 0;
+    size_t      next_pos = 0;
+    const Json* current  = &j;
+    while(next_pos != std::string_view::npos)
+    {
+        next_pos = path.find('/', pos);
+        auto key = path.substr(pos, next_pos - pos);
+        auto it  = current->find(key);
+        if(it == current->end())
+        {
+            return nullptr;
+        }
+        current = &(*it);
+        pos     = next_pos + 1;
+    }
+    return current;
+}
+
+void from_config_json(geometry::AttributeCollection& config, const Json& j)
+{
+    auto names = config.names();
+    for(auto& name : names)
+    {
+        auto attr = config.find(name);
+        UIPC_ASSERT(attr != nullptr, "Attribute '{}' not found in config.", name);
+        auto sub_json = find_nested_json(const_cast<Json&>(j), name);
+        if(sub_json != nullptr)
+        {
+            // wrap it in an array to use from_json_array
+            Json wrapper_array = Json::array();
+            wrapper_array.push_back(*sub_json);
+            attr->from_json_array(wrapper_array);
+        }
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Scene
 // ----------------------------------------------------------------------------
 Json Scene::default_config() noexcept
 {
-    Json config;
-    config["dt"]      = 0.01;
-    config["gravity"] = Vector3{0.0, -9.8, 0.0};
-
-
-    config["cfl"]["enable"] = false;
-
-    auto& integrator = config["integrator"];
-    {
-        integrator["type"] = "bdf1";  // bdf1
-    }
-
-    auto& newton = config["newton"];
-    {
-        newton["max_iter"] = 1024;
-        newton["min_iter"] = 1;
-
-        newton["use_adaptive_tol"] = false;
-
-        // convergence tolerance
-        // 1) max dx <= velocity_tol * dt
-        newton["velocity_tol"] = 0.05_m / 1.0_s;
-        // 2) ccd_toi >= ccd_tol
-        newton["ccd_tol"] = 1.0;
-        // 3) max dF <=  dF <= transform_tol * dt
-        newton["transrate_tol"] = 0.1 / 1.0_s;  // 10%/s change in transform
-    }
-
-    auto& linear_system = config["linear_system"];
-    {
-        linear_system["tol_rate"] = 1e-3;
-        linear_system["solver"]   = "linear_pcg";
-    }
-
-    auto& line_search = config["line_search"];
-    {
-        line_search["max_iter"]      = 8;
-        line_search["report_energy"] = false;
-    }
-
-    auto& contact = config["contact"];
-    {
-        contact["enable"]             = true;
-        contact["friction"]["enable"] = true;
-        contact["constitution"]       = "ipc";
-        contact["d_hat"]              = 0.01;
-        contact["eps_velocity"]       = 0.01_m / 1.0_s;
-    }
-
-    auto& collision_detection = config["collision_detection"];
-    {
-        collision_detection["method"] = "linear_bvh";
-    }
-
-    auto& sanity_check = config["sanity_check"];
-    {
-        sanity_check["enable"] = true;
-
-        // normal: automatically export mesh to workspace
-        // quiet: do not export mesh
-        sanity_check["mode"] = "normal";
-    }
-
-    auto& recovery = config["recovery"] = Json::object();
-    {
-        // now just empty
-    }
-
-    auto& diff_sim = config["diff_sim"] = Json::object();
-    {
-        diff_sim["enable"] = false;
-    }
-
-    // something that is unofficial
-    auto& extras = config["extras"] = Json::object();
-    {
-        extras["debug"]["dump_surface"] = false;
-        extras["strict_mode"]["enable"] = false;
-    }
-
-    return config;
+    return to_config_json(default_scene_config());
 }
 
-Scene::Scene(const Json& config)
-    : m_internal(uipc::make_shared<internal::Scene>(config))
+Scene::Scene(const Json& j)
+    : m_internal()
 {
+    auto config = default_scene_config();
+    from_config_json(config, j);
+    m_internal = uipc::make_shared<internal::Scene>(config);
 }
 
 Scene::Scene(S<internal::Scene> scene) noexcept
