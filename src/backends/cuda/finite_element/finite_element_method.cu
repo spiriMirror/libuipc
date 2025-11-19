@@ -667,13 +667,14 @@ void FiniteElementMethod::Impl::_build_on_host(WorldVisitor& world)
                     auto      posview = view(sc->positions());
                     std::ranges::transform(posview,
                                            posview.begin(),
-                                           [&](const Vector3& p)
+                                           [&](const Vector3& p) -> Vector3
                                            { return t * p; });
 
                     transview[0].setIdentity();
 
                     logger::warn(R"(FEM Geometry ID={} has non-identity transform. The transform is applied to the positions and reset to identity.
-To avoid this warning, please apply the transform to the positions mannally. https://github.com/spiriMirror/libuipc/issues/152)");
+To avoid this warning, please apply the transform to the positions mannally. https://github.com/spiriMirror/libuipc/issues/152)",
+                                 geo_slot->id());
                 }
 
                 auto pos_view = sc->positions().view();
