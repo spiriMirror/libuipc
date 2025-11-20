@@ -37,6 +37,17 @@ Json IAttributeSlot::to_json() const
     return j;
 }
 
+Json IAttributeSlot::to_json(SizeT i) const
+{
+    return attribute().to_json(i);
+}
+
+void IAttributeSlot::from_json_array(const Json& j) noexcept
+{
+    rw_access();
+    attribute().from_json_array(j);
+}
+
 bool IAttributeSlot::is_evolving() const noexcept
 {
     return get_is_evolving();
