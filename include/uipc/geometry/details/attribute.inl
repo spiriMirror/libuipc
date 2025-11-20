@@ -118,7 +118,15 @@ template <typename T>
 void Attribute<T>::do_from_json_array(const Json& j) noexcept
 {
     UIPC_ASSERT(j.is_array(), "To create an Attribute from json array, this json must be an array");
-    m_values = j.get<vector<T>>();
+    try
+    {
+        m_values = j.get<vector<T>>();
+    }
+    catch(const Json::exception& e)
+    {
+        UIPC_WARN_WITH_LOCATION("Failed to deserialize attribute from json array: {}",
+                                e.what());
+    }
 }
 
 template <typename T>
