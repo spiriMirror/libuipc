@@ -183,8 +183,8 @@ void FiniteElementMethod::Impl::_classify_base_constitutions()
                   auto   uidb = b->uid();
                   auto   dima = a->dim();
                   auto   dimb = b->dim();
-                  DimUID uid_dim_a{dima, uida};
-                  DimUID uid_dim_b{dimb, uidb};
+                  DimUID uid_dim_a{dima, static_cast<IndexT>(uida)};
+                  DimUID uid_dim_b{dimb, static_cast<IndexT>(uidb)};
                   return uid_dim_a < uid_dim_b;
               });
 
@@ -349,12 +349,14 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
         std::transform(geo_infos.begin(),
                        geo_infos.end(),
                        vertex_counts.begin(),
-                       [](const GeoInfo& info) { return info.vertex_count; });
+                       [](const GeoInfo& info)
+                       { return static_cast<IndexT>(info.vertex_count); });
 
         std::transform(geo_infos.begin(),
                        geo_infos.end(),
                        primitive_counts.begin(),
-                       [](const GeoInfo& info) { return info.primitive_count; });
+                       [](const GeoInfo& info)
+                       { return static_cast<IndexT>(info.primitive_count); });
 
         vertex_offsets_counts.scan();
 

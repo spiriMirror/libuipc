@@ -5,6 +5,10 @@
 #include <uipc/core/internal/scene.h>
 #include <uipc/core/scene_snapshot.h>
 
+// local include
+// for default_scene_config, to_config_json, from_config_json
+#include "scene_default_config.h"
+
 namespace uipc::core
 {
 // ----------------------------------------------------------------------------
@@ -12,92 +16,14 @@ namespace uipc::core
 // ----------------------------------------------------------------------------
 Json Scene::default_config() noexcept
 {
-    Json config;
-    config["dt"]      = 0.01;
-    config["gravity"] = Vector3{0.0, -9.8, 0.0};
-
-
-    config["cfl"]["enable"] = false;
-
-    auto& integrator = config["integrator"];
-    {
-        integrator["type"] = "bdf1";  // bdf1
-    }
-
-    auto& newton = config["newton"];
-    {
-        newton["max_iter"] = 1024;
-        newton["min_iter"] = 1;
-
-        newton["use_adaptive_tol"] = false;
-
-        // convergence tolerance
-        // 1) max dx <= velocity_tol * dt
-        newton["velocity_tol"] = 0.05_m / 1.0_s;
-        // 2) ccd_toi >= ccd_tol
-        newton["ccd_tol"] = 1.0;
-        // 3) max dF <=  dF <= transform_tol * dt
-        newton["transrate_tol"] = 0.1 / 1.0_s;  // 10%/s change in transform
-    }
-
-    auto& linear_system = config["linear_system"];
-    {
-        linear_system["tol_rate"] = 1e-3;
-        linear_system["solver"]   = "linear_pcg";
-    }
-
-    auto& line_search = config["line_search"];
-    {
-        line_search["max_iter"]      = 8;
-        line_search["report_energy"] = false;
-    }
-
-    auto& contact = config["contact"];
-    {
-        contact["enable"]             = true;
-        contact["friction"]["enable"] = true;
-        contact["constitution"]       = "ipc";
-        contact["d_hat"]              = 0.01;
-        contact["eps_velocity"]       = 0.01_m / 1.0_s;
-    }
-
-    auto& collision_detection = config["collision_detection"];
-    {
-        collision_detection["method"] = "linear_bvh";
-    }
-
-    auto& sanity_check = config["sanity_check"];
-    {
-        sanity_check["enable"] = true;
-
-        // normal: automatically export mesh to workspace
-        // quiet: do not export mesh
-        sanity_check["mode"] = "normal";
-    }
-
-    auto& recovery = config["recovery"] = Json::object();
-    {
-        // now just empty
-    }
-
-    auto& diff_sim = config["diff_sim"] = Json::object();
-    {
-        diff_sim["enable"] = false;
-    }
-
-    // something that is unofficial
-    auto& extras = config["extras"] = Json::object();
-    {
-        extras["debug"]["dump_surface"] = false;
-        extras["strict_mode"]["enable"] = false;
-    }
-
-    return config;
+    return to_config_json(default_scene_config());
 }
 
-Scene::Scene(const Json& config)
-    : m_internal(uipc::make_shared<internal::Scene>(config))
+Scene::Scene(const Json& j)
 {
+    geometry::AttributeCollection config = default_scene_config();
+    from_config_json(config, j);
+    m_internal = uipc::make_shared<internal::Scene>(config);
 }
 
 Scene::Scene(S<internal::Scene> scene) noexcept
