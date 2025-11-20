@@ -1,0 +1,121 @@
+#include "scene_default_config.h"
+#include <uipc/common/unit.h>
+
+namespace uipc::core
+{
+geometry::AttributeCollection default_scene_config() noexcept
+{
+    geometry::AttributeCollection config;
+    config.resize(1);
+    config.create("dt", Float{0.01});
+    config.create("gravity", Vector3{0.0, -9.8, 0.0});
+
+    config.create("cfl/enable", IndexT{0});
+
+    config.create("integrator/type", std::string{"bdf1"});
+
+    config.create("newton/max_iter", IndexT{1024});
+    config.create("newton/min_iter", IndexT{1});
+    config.create("newton/use_adaptive_tol", IndexT{0});
+    config.create("newton/velocity_tol", Float{0.05_m / 1.0_s});
+    config.create("newton/ccd_tol", Float{1.0});
+    config.create("newton/transrate_tol", Float{0.1 / 1.0_s});
+
+    config.create("linear_system/tol_rate", Float{1e-3});
+    config.create("linear_system/solver", std::string{"linear_pcg"});
+    config.create("line_search/max_iter", IndexT{8});
+    config.create("line_search/report_energy", IndexT{0});
+
+    config.create("contact/enable", IndexT{1});
+    config.create("contact/friction/enable", IndexT{1});
+    config.create("contact/constitution", std::string{"ipc"});
+    config.create("contact/d_hat", Float{0.01});
+    config.create("contact/eps_velocity", Float{0.01_m / 1.0_s});
+
+    config.create("collision_detection/method", std::string{"linear_bvh"});
+
+    config.create("sanity_check/enable", IndexT{1});
+    config.create("sanity_check/mode", std::string{"normal"});
+
+    // recovery removed
+
+    config.create("diff_sim/enable", IndexT{0});
+
+    config.create("extras/debug/dump_surface", IndexT{0});
+    config.create("extras/strict_mode/enable", IndexT{0});
+
+    return config;
+}
+
+Json& nested_json(Json& j, const std::string_view path)
+{
+    size_t pos      = 0;
+    size_t next_pos = 0;
+    Json*  current  = &j;
+    while(next_pos != std::string_view::npos)
+    {
+        next_pos = path.find('/', pos);
+        auto key = path.substr(pos, next_pos - pos);
+        if(current->find(key) == current->end())
+        {
+            (*current)[key] = Json::object();
+        }
+        current = &(*current)[key];
+        pos     = next_pos + 1;
+    }
+    return *current;
+}
+
+Json to_config_json(const geometry::AttributeCollection& config)
+{
+    Json j;
+    auto names = config.names();
+
+    for(auto& name : names)
+    {
+        auto attr = config.find(name);
+        UIPC_ASSERT(attr != nullptr, "Attribute '{}' not found in config.", name);
+        auto& sub_json = nested_json(j, name);
+        sub_json       = attr->to_json(0);
+    }
+    return j;
+}
+
+const Json* find_nested_json(const Json& j, const std::string_view path)
+{
+    size_t      pos      = 0;
+    size_t      next_pos = 0;
+    const Json* current  = &j;
+    while(next_pos != std::string_view::npos)
+    {
+        next_pos = path.find('/', pos);
+        auto key = path.substr(pos, next_pos - pos);
+        auto it  = current->find(key);
+        if(it == current->end())
+        {
+            return nullptr;
+        }
+        current = &(*it);
+        pos     = next_pos + 1;
+    }
+    return current;
+}
+
+void from_config_json(geometry::AttributeCollection& config, const Json& j)
+{
+    auto names = config.names();
+    for(auto& name : names)
+    {
+        auto attr = config.find(name);
+        UIPC_ASSERT(attr != nullptr, "Attribute '{}' not found in config.", name);
+        auto sub_json = find_nested_json(const_cast<Json&>(j), name);
+        if(sub_json != nullptr)
+        {
+            // wrap it in an array to use from_json_array
+            Json wrapper_array = Json::array();
+            wrapper_array.push_back(*sub_json);
+            attr->from_json_array(wrapper_array);
+        }
+    }
+}
+}
