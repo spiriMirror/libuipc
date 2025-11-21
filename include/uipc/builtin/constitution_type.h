@@ -8,6 +8,8 @@ constexpr std::string_view FiniteElement = "FiniteElement";
 
 constexpr std::string_view Constraint = "Constraint";
 
+constexpr std::string_view ExtraConstitution = "ExtraConstitution";
+
 constexpr std::string_view InterAffineBody = "InterAffineBody";
 constexpr std::string_view InterPrimitive  = "InterPrimitive";
 }  // namespace uipc::builtin

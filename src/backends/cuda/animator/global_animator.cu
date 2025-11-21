@@ -13,7 +13,12 @@ class backend::SimSystemCreator<cuda::GlobalAnimator>
     {
         auto  scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
         auto& types = scene.constitution_tabular().types();
-        if(types.find(std::string{builtin::Constraint}) == types.end())
+
+        // Create GlobalAnimator if there are Constraints OR ExtraConstitutions that need animator support
+        bool has_constraint          = types.find(std::string{builtin::Constraint}) != types.end();
+        bool has_extra_constitution = types.find(std::string{builtin::ExtraConstitution}) != types.end();
+
+        if(!has_constraint && !has_extra_constitution)
         {
             return nullptr;
         }

@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include <affine_body/affine_body_constitution.h>
+#include <affine_body/affine_body_extra_constitution.h>
 #include <Eigen/Dense>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
@@ -97,6 +98,12 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
     m_impl.constitutions.register_subsystem(*constitution);
 }
 
+void AffineBodyDynamics::add_extra_constitution(AffineBodyExtraConstitution* constitution)
+{
+    check_state(SimEngineState::BuildSystems, "add_extra_constitution()");
+    m_impl.extra_constitutions.register_subsystem(*constitution);
+}
+
 void AffineBodyDynamics::add_kinetic(AffineBodyKinetic* kinetic)
 {
     check_state(SimEngineState::BuildSystems, "add_kinetic()");
@@ -123,11 +130,12 @@ void AffineBodyDynamics::Impl::init(WorldVisitor& world)
     _build_constitutions(world);
     _build_geo_infos(world);
     _setup_geometry_attributes(world);
-
     _build_geometry_on_host(world);
     _build_geometry_on_device(world);
 
     _distribute_geo_infos();
+
+    _init_extra_constitutions();
 
     _init_diff_reporters();
 }
@@ -751,6 +759,14 @@ void AffineBodyDynamics::Impl::_init_dof_info()
     // frame 0 is not used, just fill 0
     frame_to_dof_offset.push_back(0);
     frame_to_dof_count.push_back(0);
+}
+
+void AffineBodyDynamics::Impl::_init_extra_constitutions()
+{
+    for(auto&& c : extra_constitutions.view())
+    {
+        c->init();
+    }
 }
 
 void AffineBodyDynamics::Impl::_init_diff_reporters()

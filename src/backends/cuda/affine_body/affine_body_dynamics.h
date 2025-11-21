@@ -10,6 +10,7 @@
 namespace uipc::backend::cuda
 {
 class AffineBodyConstitution;
+class AffineBodyExtraConstitution;
 class AffineBodyDiffParmReporter;
 class AffineBodyDiffDofReporter;
 class AffineBodyKineticDiffParmReporter;
@@ -194,6 +195,7 @@ class AffineBodyDynamics : public SimSystem
         void _download_geometry_to_host();
 
         void _init_dof_info();
+        void _init_extra_constitutions();
         void _init_diff_reporters();
 
         void write_scene(WorldVisitor& world);
@@ -416,6 +418,9 @@ class AffineBodyDynamics : public SimSystem
          */
         IndexT dof_count(SizeT frame) const;
 
+        // Extra constitutions - placed at end to avoid changing memory layout of existing members
+        SimSystemSlotCollection<AffineBodyExtraConstitution> extra_constitutions;
+
       private:
         vector<IndexT> frame_to_dof_offset;
         vector<IndexT> frame_to_dof_count;
@@ -501,6 +506,9 @@ class AffineBodyDynamics : public SimSystem
   private:
     friend class AffineBodyConstitution;
     void add_constitution(AffineBodyConstitution* constitution);  // only be called by AffineBodyConstitution
+
+    friend class AffineBodyExtraConstitution;
+    void add_extra_constitution(AffineBodyExtraConstitution* constitution);  // only be called by AffineBodyExtraConstitution
 
     friend class AffineBodyKinetic;
     void add_kinetic(AffineBodyKinetic* kinetic);  // only be called by AffineBodyKinetic
