@@ -29,46 +29,20 @@ class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         muda::DeviceBuffer<AABB> edge_aabbs;
         muda::DeviceBuffer<AABB> triangle_aabbs;
 
+        using ThisBVH = AtomicCountingLBVH;
+
         // CodimP count always less or equal to AllP count.
-        AtomicCountingLBVH              lbvh_CodimP;
-        AtomicCountingLBVH::QueryBuffer candidate_AllP_CodimP_pairs;
+        ThisBVH              lbvh_CodimP;
+        ThisBVH::QueryBuffer candidate_AllP_CodimP_pairs;
 
         // Used to detect CodimP-AllE, and AllE-AllE pairs.
-        AtomicCountingLBVH              lbvh_E;
-        AtomicCountingLBVH::QueryBuffer candidate_CodimP_AllE_pairs;
-        AtomicCountingLBVH::QueryBuffer candidate_AllE_AllE_pairs;
+        ThisBVH              lbvh_E;
+        ThisBVH::QueryBuffer candidate_CodimP_AllE_pairs;
+        ThisBVH::QueryBuffer candidate_AllE_AllE_pairs;
 
         // Used to detect AllP-AllT pairs.
-        AtomicCountingLBVH              lbvh_T;
-        AtomicCountingLBVH::QueryBuffer candidate_AllP_AllT_pairs;
-
-
-        //AtomicCountingLBVH         lbvh_PP;
-        //muda::BufferView<Vector2i> candidate_PP_pairs;
-
-        //AtomicCountingLBVH lbvh_PE;
-        //// codimP-allE pairs
-        //muda::BufferView<Vector2i> candidate_PE_pairs;
-        //AtomicCountingLBVH         lbvh_PT;
-        //// allP-allT pairs
-        //muda::BufferView<Vector2i> candidate_PT_pairs;
-        //AtomicCountingLBVH         lbvh_EE;
-        //// allE-allE pairs
-        //muda::BufferView<Vector2i> candidate_EE_pairs;
-
-
-        /****************************************************
-        *                   Narrow Phase
-        ****************************************************/
-
-        //muda::DeviceBuffer<IndexT> PT_active_flags;
-        //muda::DeviceBuffer<IndexT> PT_active_offsets;
-        //muda::DeviceBuffer<IndexT> EE_active_flags;
-        //muda::DeviceBuffer<IndexT> EE_active_offsets;
-        //muda::DeviceBuffer<IndexT> PE_active_flags;
-        //muda::DeviceBuffer<IndexT> PE_active_offsets;
-        //muda::DeviceBuffer<IndexT> PP_active_flags;
-        //muda::DeviceBuffer<IndexT> PP_active_offsets;
+        ThisBVH              lbvh_T;
+        ThisBVH::QueryBuffer candidate_AllP_AllT_pairs;
 
         muda::DeviceVar<IndexT> selected_PT_count;
         muda::DeviceVar<IndexT> selected_EE_count;

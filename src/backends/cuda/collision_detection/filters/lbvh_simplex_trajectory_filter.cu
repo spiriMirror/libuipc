@@ -82,9 +82,9 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                        Vector3     pos_t = pos + dxs(vI) * alpha;
 
                        AABB aabb;
-                       aabb.extend(pos).extend(pos_t);
+                       aabb.extend(pos.cast<float>()).extend(pos_t.cast<float>());
 
-                       Float expand = d_hat_expansion + thickness;
+                       float expand = d_hat_expansion + thickness;
 
                        aabb.min().array() -= expand;
                        aabb.max().array() += expand;
@@ -113,9 +113,9 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                    Vector3     pos_t = pos + dxs(vI) * alpha;
 
                    AABB aabb;
-                   aabb.extend(pos).extend(pos_t);
+                   aabb.extend(pos.cast<float>()).extend(pos_t.cast<float>());
 
-                   Float expand = d_hat_expansion + thickness;
+                   float expand = d_hat_expansion + thickness;
 
                    aabb.min().array() -= expand;
                    aabb.max().array() += expand;
@@ -151,9 +151,12 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
                    AABB aabb;
 
-                   aabb.extend(pos0).extend(pos1).extend(pos0_t).extend(pos1_t);
+                   aabb.extend(pos0.cast<float>())
+                       .extend(pos1.cast<float>())
+                       .extend(pos0_t.cast<float>())
+                       .extend(pos1_t.cast<float>());
 
-                   Float expand = d_hat_expansion + thickness;
+                   float expand = d_hat_expansion + thickness;
 
                    aabb.min().array() -= expand;
                    aabb.max().array() += expand;
@@ -189,14 +192,14 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
                    AABB aabb;
 
-                   aabb.extend(pos0)
-                       .extend(pos1)
-                       .extend(pos2)
-                       .extend(pos0_t)
-                       .extend(pos1_t)
-                       .extend(pos2_t);
+                   aabb.extend(pos0.cast<float>())
+                       .extend(pos1.cast<float>())
+                       .extend(pos2.cast<float>())
+                       .extend(pos0_t.cast<float>())
+                       .extend(pos1_t.cast<float>())
+                       .extend(pos2_t.cast<float>());
 
-                   Float expand = d_hat_expansion + thickness;
+                   float expand = d_hat_expansion + thickness;
 
                    aabb.min().array() -= expand;
                    aabb.max().array() += expand;
