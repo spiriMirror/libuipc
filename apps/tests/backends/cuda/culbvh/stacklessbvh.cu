@@ -940,21 +940,10 @@ namespace LBVHKernels
             {
                 while(st != -1)
                 {
-                    asm volatile(
-                        "{\n\t"
-                        "ld.global.v4.u32 {%0, %1, %2, %3}, [%8];\n\t"
-                        "ld.global.v4.u32 {%4, %5, %6, %7}, [%8+16];\n\t"
-                        "}\n\t"
-                        : "=r"(node.lc),
-                          "=r"(node.escape),
-                          "=r"(reinterpret_cast<int&>(node.bound.min.x)),
-                          "=r"(reinterpret_cast<int&>(node.bound.min.y)),
-                          "=r"(reinterpret_cast<int&>(node.bound.min.z)),
-                          "=r"(reinterpret_cast<int&>(node.bound.max.x)),
-                          "=r"(reinterpret_cast<int&>(node.bound.max.y)),
-                          "=r"(reinterpret_cast<int&>(node.bound.max.z))
-                        : "l"(&_nodes[st])  // Load bvhNodeV1 from global memory
-                    );
+                    node.lc     = _nodes[st].lc;
+                    node.escape = _nodes[st].escape;
+                    node.bound  = _nodes[st].bound;
+
                     //node = _nodes[st];
                     if(node.bound.intersects(bv))
                     {
@@ -1266,13 +1255,17 @@ size_t LBVHStackless::queryOther(aabb* devicePtr, size_t size)
     const int numQuery = size;
 
     LBVHKernels::calcMaxBVFromBox<<<(numQuery + 255) / 256, 256>>>(numQuery, devicePtr, d_querySceneBox);
+    checkCudaErrors(cudaDeviceSynchronize());
 
     LBVHKernels::calcMCsFromBox<<<(numQuery + 255) / 256, 256>>>(
         numQuery, devicePtr, d_querySceneBox, d_queryMtCode);
+    checkCudaErrors(cudaDeviceSynchronize());
 
     thrust::sequence(thrust::device, d_querySortedId, d_querySortedId + numQuery);
+    checkCudaErrors(cudaDeviceSynchronize());
 
     thrust::sort_by_key(thrust::device, d_queryMtCode, d_queryMtCode + numQuery, d_querySortedId);
+    checkCudaErrors(cudaDeviceSynchronize());
 
     if(type == 0)
     {
@@ -1287,6 +1280,7 @@ size_t LBVHStackless::queryOther(aabb* devicePtr, size_t size)
             d_cpNum,
             d_cpRes,
             max_cpNum);
+        checkCudaErrors(cudaDeviceSynchronize());
     }
     else
     {
@@ -1300,9 +1294,10 @@ size_t LBVHStackless::queryOther(aabb* devicePtr, size_t size)
             d_cpNum,
             d_cpRes,
             max_cpNum);
+        checkCudaErrors(cudaDeviceSynchronize());
     }
     cudaMemcpy((void*)&h_cpNum, d_cpNum, sizeof(int), cudaMemcpyDeviceToHost);
-    checkCudaErrors(cudaGetLastError());
+    checkCudaErrors(cudaDeviceSynchronize());
 
     printf("Total number of collisions: %d\n", h_cpNum);
 

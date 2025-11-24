@@ -15,13 +15,24 @@
 
 namespace uipc::backend::cuda
 {
+/**
+ * @brief Friend class to access private members of StacklessBVH (for internal use only)
+ */
+template <typename T>
+class StacklessBVHFriend;
+
+/**
+ * @brief Stackless Bounding Volume Hierarchy for AABB overlap detection
+ */
 class StacklessBVH
 {
   public:
+    template <typename T>
+    friend class StacklessBVHFriend;
+
     class Config
     {
       public:
-        bool  quat_node     = true;
         Float reserve_ratio = 1.5f;
     };
 
@@ -30,7 +41,7 @@ class StacklessBVH
       public:
         QueryBuffer()
         {
-            m_pairs.resize(4 * 1024);  // initial capacity
+            m_pairs.resize(50 * 1024);  // initial capacity
         }
         auto  view() const noexcept { return m_pairs.view(0, m_size); }
         void  reserve(size_t size) { m_pairs.resize(size); }
@@ -38,7 +49,7 @@ class StacklessBVH
         auto  viewer() const noexcept { return view().viewer(); }
 
 
-      private:
+      public:
         friend class StacklessBVH;
         SizeT                        m_size = 0;
         muda::DeviceBuffer<Vector2i> m_pairs;
@@ -251,80 +262,41 @@ MUDA_GENERIC MUDA_INLINE bool lessThan(const int3& a, const int3& b)
 
 MUDA_INLINE void calcMaxBVFromBox(int size, const aabb* box, aabb* _bv)
 {
+    auto numQuery = size;
+    auto GridDim  = (numQuery + 255) / 256;
+    auto BlockDim = 256;
+
     using namespace muda;
 
-    ParallelFor().apply(
-        size,
-        [size, box = box, _bv = _bv] __device__(int idx)
-        {
-            int warpTid = threadIdx.x % 32;
-            int warpId  = (threadIdx.x >> 5);
-            int warpNum;
-
-            if(idx == 0)
+    Launch(GridDim, BlockDim)
+        .apply(
+            [size, box = box, _bv = _bv] __device__()
             {
-                _bv[0] = aabb();
-            }
+                int idx     = blockIdx.x * blockDim.x + threadIdx.x;
+                int warpTid = threadIdx.x % 32;
+                int warpId  = (threadIdx.x >> 5);
+                int warpNum;
+                if(idx >= size)
+                    return;
+                if(idx == 0)
+                {
+                    _bv[0] = aabb();
+                }
 
-            __shared__ aabb aabbData[K_THREADS >> 5];
+                __shared__ aabb aabbData[K_THREADS >> 5];
 
-            aabb temp = box[idx];
-            __syncthreads();
+                aabb temp = box[idx];
+                __syncthreads();
 
-            // Extract values for warp shuffle
-            float tempMinX = temp.min().x();
-            float tempMinY = temp.min().y();
-            float tempMinZ = temp.min().z();
-            float tempMaxX = temp.max().x();
-            float tempMaxY = temp.max().y();
-            float tempMaxZ = temp.max().z();
+                // Extract values for warp shuffle
+                float tempMinX = temp.min().x();
+                float tempMinY = temp.min().y();
+                float tempMinZ = temp.min().z();
+                float tempMaxX = temp.max().x();
+                float tempMaxY = temp.max().y();
+                float tempMaxZ = temp.max().z();
 
-            for(int i = 1; i < 32; i = (i << 1))
-            {
-                float otherMinX = __shfl_down_sync(0xffffffff, tempMinX, i);
-                float otherMinY = __shfl_down_sync(0xffffffff, tempMinY, i);
-                float otherMinZ = __shfl_down_sync(0xffffffff, tempMinZ, i);
-                float otherMaxX = __shfl_down_sync(0xffffffff, tempMaxX, i);
-                float otherMaxY = __shfl_down_sync(0xffffffff, tempMaxY, i);
-                float otherMaxZ = __shfl_down_sync(0xffffffff, tempMaxZ, i);
-                tempMinX        = __mm_min(tempMinX, otherMinX);
-                tempMinY        = __mm_min(tempMinY, otherMinY);
-                tempMinZ        = __mm_min(tempMinZ, otherMinZ);
-                tempMaxX        = __mm_max(tempMaxX, otherMaxX);
-                tempMaxY        = __mm_max(tempMaxY, otherMaxY);
-                tempMaxZ        = __mm_max(tempMaxZ, otherMaxZ);
-            }
-
-            if(blockIdx.x == gridDim.x - 1)
-            {
-                warpNum = ((size - blockIdx.x * blockDim.x + 31) >> 5);
-            }
-            else
-            {
-                warpNum = ((blockDim.x) >> 5);
-            }
-
-            if(warpTid == 0)
-            {
-                // Reconstruct AABB from reduced values
-                aabbData[warpId].min() = Eigen::Vector3f(tempMinX, tempMinY, tempMinZ);
-                aabbData[warpId].max() = Eigen::Vector3f(tempMaxX, tempMaxY, tempMaxZ);
-            }
-            __syncthreads();
-            if(threadIdx.x >= warpNum)
-                return;
-
-            if(warpNum > 1)
-            {
-                temp     = aabbData[threadIdx.x];
-                tempMinX = temp.min().x();
-                tempMinY = temp.min().y();
-                tempMinZ = temp.min().z();
-                tempMaxX = temp.max().x();
-                tempMaxY = temp.max().y();
-                tempMaxZ = temp.max().z();
-
-                for(int i = 1; i < warpNum; i = (i << 1))
+                for(int i = 1; i < 32; i = (i << 1))
                 {
                     float otherMinX = __shfl_down_sync(0xffffffff, tempMinX, i);
                     float otherMinY = __shfl_down_sync(0xffffffff, tempMinY, i);
@@ -339,21 +311,66 @@ MUDA_INLINE void calcMaxBVFromBox(int size, const aabb* box, aabb* _bv)
                     tempMaxY        = __mm_max(tempMaxY, otherMaxY);
                     tempMaxZ        = __mm_max(tempMaxZ, otherMaxZ);
                 }
-            }
 
-            if(threadIdx.x == 0)
-            {
-                // Use data() to get pointer to underlying array for atomic operations
-                float* ptrLowerBound = _bv[0].min().data();
-                float* ptrUpperBound = _bv[0].max().data();
-                atomicMinf(ptrLowerBound, tempMinX);
-                atomicMinf(ptrLowerBound + 1, tempMinY);
-                atomicMinf(ptrLowerBound + 2, tempMinZ);
-                atomicMaxf(ptrUpperBound, tempMaxX);
-                atomicMaxf(ptrUpperBound + 1, tempMaxY);
-                atomicMaxf(ptrUpperBound + 2, tempMaxZ);
-            }
-        });
+                if(blockIdx.x == gridDim.x - 1)
+                {
+                    warpNum = ((size - blockIdx.x * blockDim.x + 31) >> 5);
+                }
+                else
+                {
+                    warpNum = ((blockDim.x) >> 5);
+                }
+
+                if(warpTid == 0)
+                {
+                    // Reconstruct AABB from reduced values
+                    aabbData[warpId].min() = Eigen::Vector3f(tempMinX, tempMinY, tempMinZ);
+                    aabbData[warpId].max() = Eigen::Vector3f(tempMaxX, tempMaxY, tempMaxZ);
+                }
+                __syncthreads();
+                if(threadIdx.x >= warpNum)
+                    return;
+
+                if(warpNum > 1)
+                {
+                    temp     = aabbData[threadIdx.x];
+                    tempMinX = temp.min().x();
+                    tempMinY = temp.min().y();
+                    tempMinZ = temp.min().z();
+                    tempMaxX = temp.max().x();
+                    tempMaxY = temp.max().y();
+                    tempMaxZ = temp.max().z();
+
+                    for(int i = 1; i < warpNum; i = (i << 1))
+                    {
+                        float otherMinX = __shfl_down_sync(0xffffffff, tempMinX, i);
+                        float otherMinY = __shfl_down_sync(0xffffffff, tempMinY, i);
+                        float otherMinZ = __shfl_down_sync(0xffffffff, tempMinZ, i);
+                        float otherMaxX = __shfl_down_sync(0xffffffff, tempMaxX, i);
+                        float otherMaxY = __shfl_down_sync(0xffffffff, tempMaxY, i);
+                        float otherMaxZ = __shfl_down_sync(0xffffffff, tempMaxZ, i);
+                        tempMinX = __mm_min(tempMinX, otherMinX);
+                        tempMinY = __mm_min(tempMinY, otherMinY);
+                        tempMinZ = __mm_min(tempMinZ, otherMinZ);
+                        tempMaxX = __mm_max(tempMaxX, otherMaxX);
+                        tempMaxY = __mm_max(tempMaxY, otherMaxY);
+                        tempMaxZ = __mm_max(tempMaxZ, otherMaxZ);
+                    }
+                }
+
+                if(threadIdx.x == 0)
+                {
+                    // Use data() to get pointer to underlying array for atomic operations
+                    float* ptrLowerBound = _bv[0].min().data();
+                    float* ptrUpperBound = _bv[0].max().data();
+                    atomicMinf(ptrLowerBound, tempMinX);
+                    atomicMinf(ptrLowerBound + 1, tempMinY);
+                    atomicMinf(ptrLowerBound + 2, tempMinZ);
+                    atomicMaxf(ptrUpperBound, tempMaxX);
+                    atomicMaxf(ptrUpperBound + 1, tempMaxY);
+                    atomicMaxf(ptrUpperBound + 2, tempMaxZ);
+                }
+            });
 }
 
 MUDA_INLINE void calcMCsFromBox(int size, const aabb* box, aabb* scene, uint* codes)
@@ -534,102 +551,6 @@ MUDA_INLINE void buildIntNodes(int       size,
             });
 }
 
-__global__ void kbuildIntNodes(int       size,
-                               uint32_t* _depths,
-                               int*      _lvs_lca,
-                               int*      _lvs_metric,
-                               uint32_t* _lvs_par,
-                               uint32_t* _lvs_mark,
-                               aabb*     _lvs_box,
-                               int*      _tks_rc,
-                               int*      _tks_lc,
-                               int*      _tks_range_y,
-                               int*      _tks_range_x,
-                               uint32_t* _tks_mark,
-                               aabb*     _tks_box,
-                               uint32_t* _flag,
-                               int*      _tks_par)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(idx >= size)
-        return;
-    //_tks_range_x[idx] = -1;
-    //__syncthreads();
-
-
-    _lvs_lca[idx] = -1, _depths[idx] = 0;
-    int  l = idx - 1, r = idx;  ///< (l, r]
-    bool mark;
-    if(l >= 0)
-        mark = _lvs_metric[l] < _lvs_metric[r];  //determine direction
-    else
-        mark = false;
-    int cur = mark ? l : r;
-
-    //if (cur == 254)printf("%d  %d  %d  %d  %d\n", idx, mark, _lvs_metric[l], _lvs_metric[r], cur);
-    _lvs_par[idx] = cur;
-    if(mark)
-        _tks_rc[cur] = idx, _tks_range_y[cur]                 = idx,
-        atomicOr(&_tks_mark[cur], 0x00000002), _lvs_mark[idx] = 0x00000007;
-    else
-        _tks_lc[cur] = idx, _tks_range_x[cur]                 = idx,
-        atomicOr(&_tks_mark[cur], 0x00000001), _lvs_mark[idx] = 0x00000003;
-
-    //__threadfence();
-    while(atomicAdd(&_flag[cur], 1) == 1)
-    {
-        //_tks.update(cur, _lvs);	/// Update
-        //_tks.refit(cur, _lvs);	/// Refit
-        int      chl       = _tks_lc[cur];
-        int      chr       = _tks_rc[cur];
-        uint32_t temp_mark = _tks_mark[cur];
-        if(temp_mark & 1)
-        {
-            _tks_box[cur] = _lvs_box[chl];
-        }
-        else
-        {
-            _tks_box[cur] = _tks_box[chl];
-        }
-        if(temp_mark & 2)
-        {
-            _tks_box[cur].extend(_lvs_box[chr]);
-        }
-        else
-        {
-            _tks_box[cur].extend(_tks_box[chr]);
-        }
-
-        _tks_mark[cur] &= 0x00000007;
-        //if (idx < 10) printf("%d   %d\n", idx, _tks_mark[cur]);
-        //if (_tks_range_x[cur] == 0) printf("cur:%d  %d  %d   %d   %d\n", cur, _tks_range_x[252], _tks_range_y[252], _tks_lc[252], _tks_rc[252]);
-        l = _tks_range_x[cur] - 1, r = _tks_range_y[cur];
-        _lvs_lca[l + 1] = cur /*, _tks.rcd(cur) = ++_lvs.rcl(r)*/, _depths[l + 1]++;
-        if(l >= 0)
-            mark = _lvs_metric[l] < _lvs_metric[r];  ///< true when right child, false otherwise
-        else
-            mark = false;
-
-        if(l + 1 == 0 && r == size - 1)
-        {
-            _tks_par[cur] = -1;
-            _tks_mark[cur] &= 0xFFFFFFFB;
-            break;
-        }
-
-        int par       = mark ? l : r;
-        _tks_par[cur] = par;
-        if(mark)
-            _tks_rc[par] = cur, _tks_range_y[par] = r,
-            atomicAnd(&_tks_mark[par], 0xFFFFFFFD), _tks_mark[cur] |= 0x00000004;
-        else
-            _tks_lc[par] = cur, _tks_range_x[par] = l + 1,
-            atomicAnd(&_tks_mark[par], 0xFFFFFFFE), _tks_mark[cur] &= 0xFFFFFFFB;
-        __threadfence();
-        cur = par;
-    }
-}
-
 MUDA_INLINE void calcIntNodeOrders(
     int size, int* _tks_lc, int* _lcas, uint32_t* _depths, uint32_t* _offsets, int* _tkMap)
 {
@@ -667,13 +588,6 @@ MUDA_INLINE void updateBvhExtNodeLinks(int size, const int* _mapTable, int* _lca
                             else
                                 _lcas[idx] = idx << 1 | 1;
                         });
-}
-
-MUDA_INLINE void setEscape(int* _lcas, int index)
-{
-    using namespace muda;
-
-    Launch().apply([=] __device__() { _lcas[index] = -1; });
 }
 
 MUDA_INLINE void reorderNode(int            intSize,
@@ -870,7 +784,7 @@ MUDA_GENERIC MUDA_INLINE Vector2i to_eigen(int2 v)
     return Vector2i{v.x, v.y};
 }
 
-MUDA_GENERIC MUDA_INLINE int2 make_collision_pair(int a, int b)
+MUDA_GENERIC MUDA_INLINE int2 make_ordered_pair(int a, int b)
 {
     if(a < b)
         return int2{a, b};
@@ -878,6 +792,7 @@ MUDA_GENERIC MUDA_INLINE int2 make_collision_pair(int a, int b)
         return int2{b, a};
     //return int2{a, b};
 }
+
 
 MUDA_GENERIC MUDA_INLINE void SafeCopyTo(int2* sharedRes,
                                          int   totalResInBlock,
@@ -906,247 +821,6 @@ MUDA_GENERIC MUDA_INLINE void SafeCopyTo(int2* sharedRes,
     if(offset < CopyCount)
         globalRes[globalIdx + offset] = to_eigen(sharedRes[offset]);
 }
-
-template <typename Pred>
-MUDA_INLINE void quantilizedStacklessCDSharedSelf(Pred              pred,
-                                                  uint              Size,
-                                                  const aabb*       _box,
-                                                  const int         intSize,
-                                                  const int*        _lvs_idx,
-                                                  const aabb*       scene,
-                                                  const ulonglong2* _nodes,
-                                                  int*              resCounter,
-                                                  Vector2i*         res,
-                                                  const int         maxRes)
-{
-    using namespace muda;
-
-    auto numQuery = Size;
-    auto GridDim  = (numQuery + 255) / 256;
-    auto BlockDim = 256;
-
-    Launch(GridDim, BlockDim)
-        .apply(
-            [=] __device__()
-            {
-                int  tid      = blockIdx.x * blockDim.x + threadIdx.x;
-                bool active   = tid < Size;
-                auto sceneMin = scene[0].min();
-                auto sceneMax = scene[0].max();
-                float3 origin = make_float3(sceneMin.x(), sceneMin.y(), sceneMin.z());
-                float3 delta =
-                    make_float3(sceneMax.x(), sceneMax.y(), sceneMax.z()) - origin;
-                delta /= aabbRes;
-                int     idx;
-                intAABB bv;
-                if(active)
-                {
-                    idx = _lvs_idx[tid];
-                    bv.convertFrom(_box[idx], origin, delta);
-                }
-
-                __shared__ int2 sharedRes[MAX_RES_PER_BLOCK];
-                __shared__ int sharedCounter;  // How many results are cached in shared memory
-                __shared__ int sharedGlobalIdx;  // Where to write in global memory
-                if(threadIdx.x == 0)
-                    sharedCounter = 0;
-
-                int  st = 0;
-                uint lc;
-                uint escape;
-                while(true)
-                {
-                    __syncthreads();
-                    if(active)
-                    {
-                        while(st != MaxIndex)
-                        {
-                            ulonglong2 node = _nodes[st];
-                            lc              = node.x >> offset3;
-                            escape          = node.y >> offset3;
-
-                            if(overlapsLonglong2int(node, bv)  // bounding volume overlap
-                            )
-                            {
-                                if(lc == MaxIndex)
-                                {
-                                    if(tid < st - intSize)
-                                    {
-                                        auto pair =
-                                            make_collision_pair(idx, _lvs_idx[st - intSize]);
-                                        if(pred(pair.x, pair.y))  // user defined predicate
-                                        {
-                                            int sIdx = atomicAdd(&sharedCounter, 1);
-                                            if(sIdx >= MAX_RES_PER_BLOCK)
-                                            {
-                                                break;
-                                            }
-                                            sharedRes[sIdx] = pair;
-                                        }
-                                    }
-
-                                    st = escape;
-                                }
-                                else
-                                {
-                                    st = lc;
-                                }
-                            }
-                            else
-                            {
-                                st = escape;
-                            }
-                        }
-                    }
-                    // Flush whatever we have
-                    __syncthreads();
-                    int totalResInBlock = min(sharedCounter, MAX_RES_PER_BLOCK);
-
-                    if(threadIdx.x == 0)
-                    {
-                        // This Block Starts writing at sharedGlobalIdx
-                        sharedGlobalIdx = atomicAdd(resCounter, totalResInBlock);
-                    }
-
-                    __syncthreads();
-
-                    // Make sure we dont write out of bounds
-                    const int globalIdx = sharedGlobalIdx;
-
-                    if(threadIdx.x == 0)
-                        sharedCounter = 0;
-
-                    // if there is at least one element empty
-                    // it means we have found all collisions for this block
-                    bool done = totalResInBlock < MAX_RES_PER_BLOCK;
-
-                    SafeCopyTo(sharedRes, totalResInBlock, res, globalIdx, maxRes);
-
-                    if(done)
-                        break;
-                }
-            });
-}
-
-template <typename Pred>
-MUDA_INLINE void quantilizedStacklessCDSharedOther(Pred              pred,
-                                                   uint              Size,
-                                                   const aabb*       _box,
-                                                   const int*        sortedIdx,
-                                                   const int         intSize,
-                                                   const int*        _lvs_idx,
-                                                   const aabb*       scene,
-                                                   const ulonglong2* _nodes,
-                                                   int*              resCounter,
-                                                   Vector2i*         res,
-                                                   const int         maxRes)
-{
-    using namespace muda;
-
-    auto numQuery = Size;
-    auto GridDim  = (numQuery + 255) / 256;
-    auto BlockDim = 256;
-
-    Launch(GridDim, BlockDim)
-        .apply(
-            [=] __device__()
-            {
-                int  tid      = blockIdx.x * blockDim.x + threadIdx.x;
-                bool active   = tid < Size;
-                auto sceneMin = scene[0].min();
-                auto sceneMax = scene[0].max();
-                float3 origin = make_float3(sceneMin.x(), sceneMin.y(), sceneMin.z());
-                float3 delta =
-                    make_float3(sceneMax.x(), sceneMax.y(), sceneMax.z()) - origin;
-
-                delta /= aabbRes;
-                int     idx;
-                intAABB bv;
-                if(active)
-                {
-                    idx = sortedIdx[tid];
-                    bv.convertFrom(_box[idx], origin, delta);
-                }
-
-                __shared__ int2 sharedRes[MAX_RES_PER_BLOCK];
-                __shared__ int sharedCounter;  // How many results are cached in shared memory
-                __shared__ int sharedGlobalIdx;  // Where to write in global memory
-                if(threadIdx.x == 0)
-                    sharedCounter = 0;
-
-                int  st = 0;
-                uint lc;
-                uint escape;
-                bool done = false;
-                while(!done)
-                {
-                    __syncthreads();
-                    if(active)
-                    {
-                        while(st != MaxIndex)
-                        {
-                            ulonglong2 node = _nodes[st];
-                            lc              = node.x >> offset3;
-                            escape          = node.y >> offset3;
-
-                            if(overlapsLonglong2int(node, bv))  // bounding volume overlap
-                            {
-                                if(lc == MaxIndex)
-                                {
-                                    auto pair =
-                                        make_collision_pair(idx, _lvs_idx[st - intSize]);
-                                    if(pred(pair.x, pair.y))  // user defined predicate
-                                    {
-                                        int sIdx = atomicAdd(&sharedCounter, 1);
-                                        if(sIdx >= MAX_RES_PER_BLOCK)
-                                        {
-                                            break;
-                                        }
-                                        sharedRes[sIdx] = pair;
-                                    }
-                                    st = escape;
-                                }
-                                else
-                                {
-                                    st = lc;
-                                }
-                            }
-                            else
-                            {
-                                st = escape;
-                            }
-                        }
-                    }
-                    // Flush whatever we have
-                    __syncthreads();
-                    int totalResInBlock = min(sharedCounter, MAX_RES_PER_BLOCK);
-
-                    if(threadIdx.x == 0)
-                    {
-                        // This Block Starts writing at sharedGlobalIdx
-                        sharedGlobalIdx = atomicAdd(resCounter, totalResInBlock);
-                    }
-
-                    __syncthreads();
-
-                    // Make sure we dont write out of bounds
-                    const int globalIdx = sharedGlobalIdx;
-
-                    if(threadIdx.x == 0)
-                        sharedCounter = 0;
-
-                    // if there is at least one element empty
-                    // it means we have found all collisions for this block
-                    bool done = totalResInBlock < MAX_RES_PER_BLOCK;
-
-                    SafeCopyTo(sharedRes, totalResInBlock, res, globalIdx, maxRes);
-
-                    if(done)
-                        break;
-                }
-            });
-}
-
 
 template <typename Pred>
 MUDA_INLINE void StacklessCDSharedSelf(Pred                 pred,
@@ -1187,7 +861,10 @@ MUDA_INLINE void StacklessCDSharedSelf(Pred                 pred,
 
                 int           st = 0;
                 stacklessnode node;
-                while(true)
+
+                const int MaxIter = 1000;
+                int       iter    = 0;
+                for(; iter < 1000; iter++)
                 {
                     __syncthreads();
                     if(active)
@@ -1206,7 +883,7 @@ MUDA_INLINE void StacklessCDSharedSelf(Pred                 pred,
                                     if(tid < st - intSize)
                                     {
                                         auto pair =
-                                            make_collision_pair(idx, _lvs_idx[st - intSize]);
+                                            make_ordered_pair(idx, _lvs_idx[st - intSize]);
                                         if(pred(pair.x, pair.y))
                                         {
                                             int sIdx = atomicAdd(&sharedCounter, 1);
@@ -1233,6 +910,7 @@ MUDA_INLINE void StacklessCDSharedSelf(Pred                 pred,
                     }
                     // Flush whatever we have
                     __syncthreads();
+                    __threadfence();
                     int totalResInBlock = min(sharedCounter, MAX_RES_PER_BLOCK);
 
                     if(threadIdx.x == 0)
@@ -1257,8 +935,163 @@ MUDA_INLINE void StacklessCDSharedSelf(Pred                 pred,
 
                     if(done)
                         break;
+
+                    if(iter >= MaxIter - 3)
+                    {
+                        auto max_res_per_block = MAX_RES_PER_BLOCK;
+                        MUDA_KERNEL_PRINT("[%d] Exceeded max iteration in stackless traversal, totalResInBlock=%d, MAX_RES_PER_BLOCK=%d\n",
+                                          iter,
+                                          totalResInBlock,
+                                          max_res_per_block);
+                    }
+                    if(iter == MaxIter - 1)
+                    {
+                        MUDA_ASSERT(false, "Exceeded max iteration in stackless traversal");
+                    }
                 }
             });
+}
+
+template <typename Pred>
+__global__ void KStacklessCDSharedSelf(Pred                 pred,
+                                       uint                 Size,
+                                       const aabb*          _box,
+                                       const int*           sortedIdx,
+                                       const int            intSize,
+                                       const int*           _lvs_idx,
+                                       const stacklessnode* _nodes,
+                                       int*                 resCounter,
+                                       Vector2i*            res,
+                                       const int            maxRes)
+
+{
+    int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
+    bool active = tid < Size;
+    int  idx;
+    aabb bv;
+    if(active)
+    {
+        idx = sortedIdx[tid];
+        bv  = _box[idx];
+    }
+
+    __shared__ int2 sharedRes[MAX_RES_PER_BLOCK];
+    __shared__ int sharedCounter;  // How many results are cached in shared memory
+    __shared__ int sharedGlobalIdx;  // Where to write in global memory
+    if(threadIdx.x == 0)
+        sharedCounter = 0;
+
+    int           st = 0;
+    stacklessnode node;
+    const int     MaxIter = intSize * 2 + 1;
+    int           iter    = 0;
+    for(; iter < 1000; iter++)
+    {
+        __syncthreads();
+        __threadfence();
+        if(active)
+        {
+
+            auto inner_I = 0;
+            for(; inner_I < MaxIter; inner_I++)
+            {
+                if(st == -1)
+                    break;
+
+                node.lc     = _nodes[st].lc;
+                node.escape = _nodes[st].escape;
+                node.bound  = _nodes[st].bound;
+
+                //node = _nodes[st];
+                if(node.bound.intersects(bv))
+                {
+                    if(node.lc == -1)
+                    {
+                        auto pair = int2{idx, _lvs_idx[st - intSize]};
+                        if(pred(pair.x, pair.y))
+                        {
+                            int sIdx = atomicAdd(&sharedCounter, 1);
+
+                            if(sIdx >= MAX_RES_PER_BLOCK)
+                            {
+                                break;
+                            }
+
+                            sharedRes[sIdx] = pair;
+                        }
+
+                        st = node.escape;
+                    }
+                    else
+                    {
+                        st = node.lc;
+                    }
+                }
+                else
+                {
+                    st = node.escape;
+                }
+
+                if(inner_I >= MaxIter - 10)
+                {
+                    MUDA_KERNEL_PRINT("[%d][%d] Exceeded max iteration in stackless traversal, st=%d, node.lc=%d, node.escape=%d\n",
+                                      iter,
+                                      inner_I,
+                                      st,
+                                      node.lc,
+                                      node.escape);
+                }
+            }
+            if(inner_I == MaxIter)
+            {
+                MUDA_ASSERT(false, "Exceeded max iteration in stackless traversal, %d", inner_I);
+            }
+        }
+        // Flush whatever we have
+        __syncthreads();
+        __threadfence();
+        int totalResInBlock = min(sharedCounter, MAX_RES_PER_BLOCK);
+
+        if(threadIdx.x == 0)
+        {
+            // This Block Starts writing at sharedGlobalIdx
+            sharedGlobalIdx = atomicAdd(resCounter, totalResInBlock);
+        }
+
+        __syncthreads();
+        __threadfence();
+
+        // Make sure we dont write out of bounds
+        const int globalIdx = sharedGlobalIdx;
+
+        if(threadIdx.x == 0)
+            sharedCounter = 0;
+
+        __syncthreads();
+
+        // if there is at least one element empty
+        // it means we have found all collisions for this block
+        bool done = totalResInBlock < MAX_RES_PER_BLOCK;
+
+        SafeCopyTo(sharedRes, totalResInBlock, res, globalIdx, maxRes);
+
+        if(done)
+            break;
+
+
+        if(iter >= MaxIter - 3)
+        {
+            auto max_res_per_block = MAX_RES_PER_BLOCK;
+            MUDA_KERNEL_PRINT("[%d] Exceeded max iteration in stackless traversal, totalResInBlock=%d, MAX_RES_PER_BLOCK=%d\n",
+                              iter,
+                              totalResInBlock,
+                              max_res_per_block);
+        }
+        if(iter == MaxIter - 1)
+        {
+            MUDA_ASSERT(false, "Exceeded max iteration in stackless traversal");
+        }
+    }
 }
 
 template <typename Pred>
@@ -1279,99 +1112,8 @@ MUDA_INLINE void StacklessCDSharedOther(Pred                 pred,
     auto GridDim  = (numQuery + 255) / 256;
     auto BlockDim = 256;
 
-    Launch(GridDim, BlockDim)
-        .apply(
-            [=] __device__()
-            {
-                int  tid    = blockIdx.x * blockDim.x + threadIdx.x;
-                bool active = tid < Size;
-                int  idx;
-                aabb bv;
-                if(active)
-                {
-                    idx = _lvs_idx[tid];
-                    bv  = _box[idx];
-                }
-
-                __shared__ int2 sharedRes[MAX_RES_PER_BLOCK];
-                __shared__ int sharedCounter;  // How many results are cached in shared memory
-                __shared__ int sharedGlobalIdx;  // Where to write in global memory
-                if(threadIdx.x == 0)
-                    sharedCounter = 0;
-
-                int           st = 0;
-                stacklessnode node;
-                while(true)
-                {
-                    __syncthreads();
-                    if(active)
-                    {
-                        while(st != -1)
-                        {
-                            node.lc     = _nodes[st].lc;
-                            node.escape = _nodes[st].escape;
-                            node.bound  = _nodes[st].bound;
-                            //node = _nodes[st];
-                            if(node.bound.intersects(bv))
-                            {
-                                if(node.lc == -1)
-                                {
-                                    if(tid < st - intSize)
-                                    {
-                                        auto pair =
-                                            make_collision_pair(idx, _lvs_idx[st - intSize]);
-                                        if(pred(pair.x, pair.y))
-                                        {
-                                            int sIdx = atomicAdd(&sharedCounter, 1);
-                                            if(sIdx >= MAX_RES_PER_BLOCK)
-                                            {
-                                                break;
-                                            }
-
-                                            sharedRes[sIdx] = pair;
-                                        }
-                                    }
-                                    st = node.escape;
-                                }
-                                else
-                                {
-                                    st = node.lc;
-                                }
-                            }
-                            else
-                            {
-                                st = node.escape;
-                            }
-                        }
-                    }
-                    // Flush whatever we have
-                    __syncthreads();
-                    int totalResInBlock = min(sharedCounter, MAX_RES_PER_BLOCK);
-
-                    if(threadIdx.x == 0)
-                    {
-                        // This Block Starts writing at sharedGlobalIdx
-                        sharedGlobalIdx = atomicAdd(resCounter, totalResInBlock);
-                    }
-
-                    __syncthreads();
-
-                    // Make sure we dont write out of bounds
-                    const int globalIdx = sharedGlobalIdx;
-
-                    if(threadIdx.x == 0)
-                        sharedCounter = 0;
-
-                    // if there is at least one element empty
-                    // it means we have found all collisions for this block
-                    bool done = totalResInBlock < MAX_RES_PER_BLOCK;
-
-                    SafeCopyTo(sharedRes, totalResInBlock, res, globalIdx, maxRes);
-
-                    if(done)
-                        break;
-                }
-            });
+    KStacklessCDSharedSelf<<<GridDim, BlockDim>>>(
+        pred, Size, _box, sortedIdx, intSize, _lvs_idx, _nodes, resCounter, res, maxRes);
 }
 }  // namespace uipc::culbvh
 
@@ -1410,15 +1152,7 @@ inline void StacklessBVH::build(muda::CBufferView<AABB> aabbs)
     d_int_range_y.resize(numInternalNodes);
     d_int_mark.resize(numInternalNodes);
     d_int_aabb.resize(numInternalNodes);
-
-    if(m_config.quat_node)
-    {
-        d_quantNode.resize(numNodes);
-    }
-    else
-    {
-        d_nodes.resize(numNodes);
-    }
+    d_nodes.resize(numNodes);
 
 
     // Initialize flags to 0
@@ -1468,23 +1202,6 @@ inline void StacklessBVH::build(muda::CBufferView<AABB> aabbs)
                           thrust::raw_pointer_cast(d_int_aabb.data()),
                           thrust::raw_pointer_cast(d_flags.data()),
                           thrust::raw_pointer_cast(d_int_par.data()));
-
-    //culbvh::kbuildIntNodes<<<(numObjs + 255) / 256, 256>>>(
-    //    numObjs,
-    //    thrust::raw_pointer_cast(d_count.data()),
-    //    thrust::raw_pointer_cast(d_ext_lca.data()),
-    //    thrust::raw_pointer_cast(d_metric.data()),
-    //    thrust::raw_pointer_cast(d_ext_par.data()),
-    //    thrust::raw_pointer_cast(d_ext_mark.data()),
-    //    thrust::raw_pointer_cast(d_ext_aabb.data()),
-    //    thrust::raw_pointer_cast(d_int_rc.data()),
-    //    thrust::raw_pointer_cast(d_int_lc.data()),
-    //    thrust::raw_pointer_cast(d_int_range_y.data()),
-    //    thrust::raw_pointer_cast(d_int_range_x.data()),
-    //    thrust::raw_pointer_cast(d_int_mark.data()),
-    //    thrust::raw_pointer_cast(d_int_aabb.data()),
-    //    thrust::raw_pointer_cast(d_flags.data()),
-    //    thrust::raw_pointer_cast(d_int_par.data()));
 
     thrust::exclusive_scan(
         thrust::device, d_count.begin(), d_count.end(), d_offsetTable.begin());
@@ -1618,6 +1335,12 @@ inline void StacklessBVH::QueryBuffer::build(muda::CBufferView<AABB> aabbs)
 template <std::invocable<IndexT, IndexT> Pred>
 void StacklessBVH::query(muda::CBufferView<AABB> aabbs, Pred callback, QueryBuffer& qbuffer)
 {
+    if(aabbs.size() == 0)
+    {
+        qbuffer.m_size = 0;
+        return;
+    }
+
     using namespace muda;
     qbuffer.build(aabbs);
 
@@ -1652,6 +1375,7 @@ void StacklessBVH::query(muda::CBufferView<AABB> aabbs, Pred callback, QueryBuff
         }
         else
         {
+            muda::wait_device();
             culbvh::StacklessCDSharedOther(callback,
                                            numQuery,
                                            devicePtr,
@@ -1676,6 +1400,7 @@ void StacklessBVH::query(muda::CBufferView<AABB> aabbs, Pred callback, QueryBuff
         do_query();
     }
 
+    UIPC_ASSERT(h_cp_num >= 0, "fatal error");
     qbuffer.m_size = h_cp_num;
 }
 }  // namespace uipc::backend::cuda

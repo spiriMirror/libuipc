@@ -10,6 +10,19 @@
 #include <uipc/common/zip.h>
 #include <utils/primitive_d_hat.h>
 
+
+template <typename T>
+void write_data(std::string file, thrust::device_vector<T>& data)
+{
+    thrust::host_vector<T> h_data = data;
+    std::ofstream          ofs(file);
+    for(int i = 0; i < h_data.size(); ++i)
+    {
+        ofs << h_data[i] << std::endl;
+    }
+    ofs.close();
+}
+
 namespace uipc::backend::cuda
 {
 constexpr bool PrintDebugInfo = false;
@@ -41,6 +54,8 @@ void LBVHSimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
     m_impl.filter_toi(info);
 }
 
+static std::vector<StacklessBVH::Node> last_nodes;
+
 void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 {
     using namespace muda;
@@ -52,6 +67,10 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     auto Vs      = info.surf_vertices();
     auto Es      = info.surf_edges();
     auto Fs      = info.surf_triangles();
+
+    //lbvh_E      = {};
+    //lbvh_T      = {};
+    //lbvh_CodimP = {};
 
     point_aabbs.resize(Vs.size());
     triangle_aabbs.resize(Fs.size());
@@ -278,6 +297,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
         }
 
         // Use CodimP to query AllE
+        if(codimVs.size())
         {
             muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
             lbvh_E.query(
@@ -424,6 +444,48 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
     // Use AllP to query AllT
     {
+        // bool is_same = true;
+
+        //if(last_nodes.size() == 0)
+        //{
+        //    last_nodes.resize(lbvh_T.d_nodes.size());
+        //    thrust::copy(lbvh_T.d_nodes.begin(),
+        //                 lbvh_T.d_nodes.end(),
+        //                 last_nodes.begin());
+        //}
+        //else
+        //{
+        //    std::vector<StacklessBVH::Node> current_nodes(lbvh_T.d_nodes.size());
+        //    thrust::copy(lbvh_T.d_nodes.begin(),
+        //                 lbvh_T.d_nodes.end(),
+        //                 current_nodes.begin());
+
+
+        //    for(int i = 0; i < current_nodes.size(); ++i)
+        //    {
+        //        auto& current_node = current_nodes[i];
+        //        auto& last_node    = last_nodes[i];
+        //        auto  all_eq       = current_node.lc == last_node.lc
+        //                      && current_node.escape == last_node.escape
+        //                      && current_node.bound.min() == last_node.bound.min()
+        //                      && current_node.bound.max() == last_node.bound.max();
+        //        if(!all_eq)
+        //        {
+        //            std::cout
+        //                << "nodes changed [" << i << "]"
+        //                << "lc:" << last_node.lc << "->" << current_node.lc << ", "
+        //                << "escape:" << last_node.escape << "->"
+        //                << current_node.escape << ", "
+        //                << "bound.min:" << last_node.bound.min().transpose()
+        //                << "->" << current_node.bound.min().transpose() << ", "
+        //                << "bound.max:" << last_node.bound.max().transpose() << "->"
+        //                << current_node.bound.max().transpose() << std::endl;
+        //            is_same = false;
+        //        }
+        //    }
+        //}
+
+
         muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
         lbvh_T.query(
             point_aabbs,
@@ -498,6 +560,13 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 return true;
             },
             candidate_AllP_AllT_pairs);
+
+        // thrust::copy(lbvh_T.d_nodes.begin(), lbvh_T.d_nodes.end(), last_nodes.begin());
+
+        //if(!is_same)
+        //{
+        //    std::abort();
+        //}
     }
 }
 

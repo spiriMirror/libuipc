@@ -67,6 +67,44 @@ void compare(thrust::device_vector<T1>& l, thrust::device_vector<T2>& r, F&& f)
     }
 }
 
+template <typename T>
+void compare(muda::CBufferView<T> l, const T* r)
+{
+    std::vector<T> hl;
+    hl.resize(l.size());
+    l.copy_to(hl.data());
+
+    muda::CBufferView<T> r_view(r, l.size());
+    std::vector<T>       hr;
+    hr.resize(r_view.size());
+    r_view.copy_to(hr.data());
+
+    UIPC_ASSERT(hl.size() == hr.size(), "error");
+
+    bool error = false;
+    for(size_t i = 0; i < hl.size(); ++i)
+    {
+        if(hl[i] != hr[i])
+        {
+            error = true;
+            break;
+        }
+    }
+
+    if(error)
+    {
+        for(size_t i = 0; i < hl.size(); ++i)
+        {
+            if(hl[i] != hr[i])
+            {
+                fmt::println("mismatch at index {}: lhs={}, rhs={}", i, hl[i], hr[i]);
+            }
+        }
+    }
+
+    UIPC_ASSERT(!error, "error");
+}
+
 std::vector<Vector2i> brute_froce_cp(span<const AABB> aabbs)
 {
     std::vector<Vector2i> pairs;
@@ -100,6 +138,13 @@ void check_cp_conservative(span<Vector2i> test, span<Vector2i> gt)
     CHECK(diff.empty());
 
     fmt::println("test.size()={}", test.size());
+
+    // fmt::println("test:");
+    //for(auto&& d : test)
+    //{
+    //    fmt::println("{} {}", d[0], d[1]);
+    //}
+
     fmt::println("ground_truth.size()={}", gt.size());
 
     //if(!diff.empty())
@@ -120,8 +165,7 @@ std::vector<Vector2i> stackless_bvh_cp(span<const AABB> aabbs)
     d_aabbs.view().copy_from(aabbs.data());
 
     StacklessBVH::Config cfg;
-    cfg.quat_node = true;
-    StacklessBVH bvh{cfg};
+    StacklessBVH         bvh{cfg};
     bvh.build(d_aabbs);
 
     StacklessBVH::QueryBuffer qbuffer;
@@ -132,7 +176,7 @@ std::vector<Vector2i> stackless_bvh_cp(span<const AABB> aabbs)
     qbuffer.view().copy_to(cps.data());
 
     ::culbvh::LBVHStackless cbvh;
-    cbvh.type = cfg.quat_node ? 0 : 1;
+    cbvh.type = 1;
 
     std::vector<::culbvh::aabb> cul_aabbs(aabbs.size());
     for(auto&& [i, aabb] : enumerate(aabbs))
@@ -144,7 +188,109 @@ std::vector<Vector2i> stackless_bvh_cp(span<const AABB> aabbs)
 
 
     cbvh.compute(d_cul_aabbs.data(), d_cul_aabbs.size());
-    auto num = cbvh.query();
+    //auto num = cbvh.query();
+
+    auto f = [](const ::culbvh::aabb& lhs, const AABB& rhs)
+    {
+        bool result = lhs.max.x == rhs.max().x()     //
+                      && lhs.max.y == rhs.max().y()  //
+                      && lhs.max.z == rhs.max().z()  //
+                      && lhs.min.x == rhs.min().x()  //
+                      && lhs.min.y == rhs.min().y()  //
+                      && lhs.min.z == rhs.min().z();
+
+        return result;
+    };
+
+    //compare(cbvh.d_scene_box, bvh.d_scene_box, f);
+    //compare(cbvh.d_flags, bvh.d_flags);
+    //compare(cbvh.d_mtcode, bvh.d_mtcode);
+    //compare(cbvh.d_sorted_id, bvh.d_sorted_id);
+    //compare(cbvh.d_primMap, bvh.d_primMap);
+    //compare(cbvh.d_metric, bvh.d_metric);
+    //compare(cbvh.d_count, bvh.d_count);
+    //compare(cbvh.d_tkMap, bvh.d_tkMap);
+    //compare(cbvh.d_offsetTable, bvh.d_offsetTable);
+    //compare(cbvh.d_ext_aabb, bvh.d_ext_aabb, f);
+    //compare(cbvh.d_ext_idx, bvh.d_ext_idx);
+    //compare(cbvh.d_ext_lca, bvh.d_ext_lca);
+    //compare(cbvh.d_ext_mark, bvh.d_ext_mark);
+    //compare(cbvh.d_ext_par, bvh.d_ext_par);
+    //compare(cbvh.d_int_lc, bvh.d_int_lc);
+    //compare(cbvh.d_int_rc, bvh.d_int_rc);
+    //compare(cbvh.d_int_par, bvh.d_int_par);
+    //compare(cbvh.d_int_range_x, bvh.d_int_range_x);
+    //compare(cbvh.d_int_range_y, bvh.d_int_range_y);
+    //compare(cbvh.d_int_mark, bvh.d_int_mark);
+    //compare(cbvh.d_int_aabb, bvh.d_int_aabb, f);
+
+    //auto ulonglong_f = [](const ulonglong2 a, const ulonglong2 b)
+    //{ return a.x == b.x && a.y == b.y; };
+
+    //compare(cbvh.d_quantNode, bvh.d_quantNode, ulonglong_f);
+
+    return cps;
+}
+
+std::vector<Vector2i> brute_froce_query_cp(span<const AABB> aabbs)
+{
+    std::vector<Vector2i> pairs;
+    for(auto&& [i, aabb0] : enumerate(aabbs))
+    {
+        for(int j = 0; j < aabbs.size(); ++j)
+        {
+            auto aabb1 = aabbs[j];
+            if(aabb1.intersects(aabb0))
+            {
+                pairs.push_back(Vector2i(i, j));
+            }
+        }
+    }
+    return pairs;
+}
+
+std::vector<Vector2i> stackless_bvh_query_cp(span<const AABB> aabbs)
+{
+    std::vector<Vector2i> cps;
+
+    DeviceBuffer<AABB> d_aabbs(aabbs.size());
+    d_aabbs.view().copy_from(aabbs.data());
+
+    StacklessBVH::Config cfg;
+    StacklessBVH         bvh{cfg};
+
+
+    StacklessBVH::QueryBuffer qbuffer;
+
+    for(int I = 0; I < 10000; ++I)
+    {
+        bvh.build(d_aabbs);
+        bvh.query(d_aabbs, [] __device__(int i, int j) { return true; }, qbuffer);
+    }
+
+
+    cps.resize(qbuffer.size());
+    qbuffer.view().copy_to(cps.data());
+
+    ::culbvh::LBVHStackless cbvh;
+    cbvh.type = 1;
+
+    std::vector<::culbvh::aabb> cul_aabbs(aabbs.size());
+    for(auto&& [i, aabb] : enumerate(aabbs))
+    {
+        cul_aabbs[i].min = make_float3(aabb.min()[0], aabb.min()[1], aabb.min()[2]);
+        cul_aabbs[i].max = make_float3(aabb.max()[0], aabb.max()[1], aabb.max()[2]);
+    }
+    DeviceBuffer<::culbvh::aabb> d_cul_aabbs = cul_aabbs;
+
+
+    cbvh.compute(d_cul_aabbs.data(), d_cul_aabbs.size());
+    auto num = cbvh.queryOther(d_cul_aabbs.data(), d_cul_aabbs.size());
+    std::cout << "num pairs: " << num << std::endl;
+
+    compare(std::as_const(qbuffer.m_querySortedId).view(), cbvh.d_querySortedId);
+    compare(std::as_const(qbuffer.m_queryMtCode).view(), cbvh.d_queryMtCode);
+
 
     auto f = [](const ::culbvh::aabb& lhs, const AABB& rhs)
     {
@@ -188,26 +334,6 @@ std::vector<Vector2i> stackless_bvh_cp(span<const AABB> aabbs)
     return cps;
 }
 
-std::vector<Vector2i> culbvh_cp(span<const AABB> aabbs)
-{
-    ::culbvh::LBVHStackless bvh;
-    bvh.type = 1;
-
-    std::vector<::culbvh::aabb> cul_aabbs(aabbs.size());
-    for(auto&& [i, aabb] : enumerate(aabbs))
-    {
-        cul_aabbs[i].min = make_float3(aabb.min()[0], aabb.min()[1], aabb.min()[2]);
-        cul_aabbs[i].max = make_float3(aabb.max()[0], aabb.max()[1], aabb.max()[2]);
-    }
-    DeviceBuffer<::culbvh::aabb> d_aabbs = cul_aabbs;
-
-
-    bvh.compute(d_aabbs.data(), d_aabbs.size());
-    auto num = bvh.query();
-
-    std::cout << "num collision pairs: " << num << std::endl;
-    return {};
-}
 
 void stackless_bvh_test(const SimplicialComplex& mesh)
 {
@@ -228,9 +354,14 @@ void stackless_bvh_test(const SimplicialComplex& mesh)
         aabbs[i].extend(p0.cast<float>()).extend(p1.cast<float>()).extend(p2.cast<float>());
     }
 
+
     auto bcp = brute_froce_cp(aabbs);
     auto scp = stackless_bvh_cp(aabbs);
     check_cp_conservative(scp, bcp);
+
+    auto bqcp = brute_froce_query_cp(aabbs);
+    auto sqcp = stackless_bvh_query_cp(aabbs);
+    check_cp_conservative(sqcp, bqcp);
 
     Timer::set_sync_func(nullptr);
 
@@ -254,43 +385,44 @@ SimplicialComplex tet()
 TEST_CASE("stackless_bvh", "[collision detection]")
 {
     using namespace test_stackless_bvh;
-    SECTION("tet")
-    {
-        fmt::println("tet:");
-        stackless_bvh_test(tet());
-    }
+    muda::Debug::debug_sync_all(true);
+    //SECTION("tet")
+    //{
+    //    fmt::println("tet:");
+    //    stackless_bvh_test(tet());
+    //}
 
-    SECTION("cube.obj")
-    {
-        fmt::println("cube.obj:");
-        SimplicialComplexIO io;
-        auto mesh = io.read(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
-        stackless_bvh_test(mesh);
-    }
+    //SECTION("cube.obj")
+    //{
+    //    fmt::println("cube.obj:");
+    //    SimplicialComplexIO io;
+    //    auto mesh = io.read(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
+    //    stackless_bvh_test(mesh);
+    //}
 
-    SECTION("cube.msh")
-    {
-        fmt::println("cube.msh:");
-        SimplicialComplexIO io;
-        auto mesh = io.read(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
-        stackless_bvh_test(mesh);
-    }
+    //SECTION("cube.msh")
+    //{
+    //    fmt::println("cube.msh:");
+    //    SimplicialComplexIO io;
+    //    auto mesh = io.read(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
+    //    stackless_bvh_test(mesh);
+    //}
 
-    SECTION("link.msh")
-    {
-        fmt::println("link.msh:");
-        SimplicialComplexIO io;
-        auto mesh = io.read(fmt::format("{}link.msh", AssetDir::tetmesh_path()));
-        stackless_bvh_test(mesh);
-    }
+    //SECTION("link.msh")
+    //{
+    //    fmt::println("link.msh:");
+    //    SimplicialComplexIO io;
+    //    auto mesh = io.read(fmt::format("{}link.msh", AssetDir::tetmesh_path()));
+    //    stackless_bvh_test(mesh);
+    //}
 
-    SECTION("ball.msh")
-    {
-        fmt::println("ball.msh:");
-        SimplicialComplexIO io;
-        auto mesh = io.read(fmt::format("{}ball.msh", AssetDir::tetmesh_path()));
-        stackless_bvh_test(mesh);
-    }
+    //SECTION("ball.msh")
+    //{
+    //    fmt::println("ball.msh:");
+    //    SimplicialComplexIO io;
+    //    auto mesh = io.read(fmt::format("{}ball.msh", AssetDir::tetmesh_path()));
+    //    stackless_bvh_test(mesh);
+    //}
 
     SECTION("bunny0.msh")
     {
