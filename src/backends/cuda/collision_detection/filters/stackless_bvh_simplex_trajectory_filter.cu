@@ -1,4 +1,4 @@
-#include <collision_detection/filters/lbvh_simplex_trajectory_filter.h>
+#include <collision_detection/filters/stackless_bvh_simplex_trajectory_filter.h>
 #include <muda/cub/device/device_select.h>
 #include <muda/ext/eigen/log_proxy.h>
 #include <sim_engine.h>
@@ -14,34 +14,36 @@ namespace uipc::backend::cuda
 {
 constexpr bool PrintDebugInfo = false;
 
-REGISTER_SIM_SYSTEM(LBVHSimplexTrajectoryFilter);
+REGISTER_SIM_SYSTEM(StacklessBVHSimplexTrajectoryFilter);
 
-void LBVHSimplexTrajectoryFilter::do_build(BuildInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::do_build(BuildInfo& info)
 {
     auto& config = world().scene().config();
     auto  method = config.find<std::string>("collision_detection/method");
-    if(method->view()[0] != "linear_bvh")
+    if(method->view()[0] != "stackless_bvh")
     {
-        throw SimSystemException("Linear BVH unused");
+        throw SimSystemException("Stackless BVH unused");
     }
 }
 
-void LBVHSimplexTrajectoryFilter::do_detect(DetectInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::do_detect(DetectInfo& info)
 {
     m_impl.detect(info);
 }
 
-void LBVHSimplexTrajectoryFilter::do_filter_active(FilterActiveInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::do_filter_active(FilterActiveInfo& info)
 {
     m_impl.filter_active(info);
 }
 
-void LBVHSimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
 {
     m_impl.filter_toi(info);
 }
 
-void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
+static std::vector<StacklessBVH::Node> last_nodes;
+
+void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 {
     using namespace muda;
 
@@ -555,7 +557,7 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     }
 }
 
-void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
 {
     using namespace muda;
 
@@ -998,7 +1000,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
     }
 }
 
-void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 {
     using namespace muda;
 

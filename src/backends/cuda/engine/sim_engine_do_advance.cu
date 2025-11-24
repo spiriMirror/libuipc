@@ -258,12 +258,6 @@ void SimEngine::do_advance()
             update_diff_parm();
         }
 
-
-        if(true)
-        {
-            detect_dcd_candidates();
-        }
-        // else
         // Simulation:
         {
             Timer timer{"Simulation"};

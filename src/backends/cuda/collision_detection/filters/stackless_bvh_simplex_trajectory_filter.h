@@ -3,12 +3,12 @@
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/global_contact_manager.h>
-#include <collision_detection/atomic_counting_lbvh.h>
+#include <collision_detection/stackless_bvh.h>
 #include <collision_detection/simplex_trajectory_filter.h>
 
 namespace uipc::backend::cuda
 {
-class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
+class StacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
 {
   public:
     using SimplexTrajectoryFilter::SimplexTrajectoryFilter;
@@ -29,7 +29,7 @@ class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         muda::DeviceBuffer<AABB> edge_aabbs;
         muda::DeviceBuffer<AABB> triangle_aabbs;
 
-        using ThisBVH = AtomicCountingLBVH;
+        using ThisBVH = StacklessBVH;
 
         // CodimP count always less or equal to AllP count.
         ThisBVH              lbvh_CodimP;

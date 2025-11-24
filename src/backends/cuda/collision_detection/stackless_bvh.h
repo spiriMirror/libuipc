@@ -1221,32 +1221,15 @@ inline void StacklessBVH::build(muda::CBufferView<AABB> aabbs)
                                   thrust::raw_pointer_cast(d_ext_lca.data()),
                                   thrust::raw_pointer_cast(d_ext_par.data()));
 
-    if(m_config.quat_node)
-    {
-
-        culbvh::reorderQuantilizedNode(numInternalNodes,
-                                       thrust::raw_pointer_cast(d_tkMap.data()),
-                                       thrust::raw_pointer_cast(d_ext_lca.data()),
-                                       thrust::raw_pointer_cast(d_ext_aabb.data()),
-                                       thrust::raw_pointer_cast(d_int_lc.data()),
-                                       thrust::raw_pointer_cast(d_int_mark.data()),
-                                       thrust::raw_pointer_cast(d_int_range_y.data()),
-                                       thrust::raw_pointer_cast(d_int_aabb.data()),
-                                       thrust::raw_pointer_cast(d_scene_box.data()),
-                                       thrust::raw_pointer_cast(d_quantNode.data()));
-    }
-    else
-    {
-        culbvh::reorderNode(numInternalNodes,
-                            thrust::raw_pointer_cast(d_tkMap.data()),
-                            thrust::raw_pointer_cast(d_ext_lca.data()),
-                            thrust::raw_pointer_cast(d_ext_aabb.data()),
-                            thrust::raw_pointer_cast(d_int_lc.data()),
-                            thrust::raw_pointer_cast(d_int_mark.data()),
-                            thrust::raw_pointer_cast(d_int_range_y.data()),
-                            thrust::raw_pointer_cast(d_int_aabb.data()),
-                            thrust::raw_pointer_cast(d_nodes.data()));
-    }
+    culbvh::reorderNode(numInternalNodes,
+                        thrust::raw_pointer_cast(d_tkMap.data()),
+                        thrust::raw_pointer_cast(d_ext_lca.data()),
+                        thrust::raw_pointer_cast(d_ext_aabb.data()),
+                        thrust::raw_pointer_cast(d_int_lc.data()),
+                        thrust::raw_pointer_cast(d_int_mark.data()),
+                        thrust::raw_pointer_cast(d_int_range_y.data()),
+                        thrust::raw_pointer_cast(d_int_aabb.data()),
+                        thrust::raw_pointer_cast(d_nodes.data()));
 }
 
 template <std::invocable<IndexT, IndexT> Pred>
@@ -1266,33 +1249,15 @@ void StacklessBVH::detect(Pred callback, QueryBuffer& qbuffer)
         // clear counter
         BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
 
-        if(m_config.quat_node)
-        {
-            culbvh::quantilizedStacklessCDSharedSelf(
-                callback,
-                numQuery,
-                thrust::raw_pointer_cast(d_objs),
-                numObjs - 1,
-                thrust::raw_pointer_cast(d_ext_idx.data()),
-                thrust::raw_pointer_cast(d_scene_box.data()),
-                thrust::raw_pointer_cast(d_quantNode.data()),
-                d_cpNum,
-                d_cpRes,
-                max_cpNum);
-        }
-        else
-        {
-
-            culbvh::StacklessCDSharedSelf(callback,
-                                          numQuery,
-                                          thrust::raw_pointer_cast(d_objs),
-                                          numObjs - 1,
-                                          thrust::raw_pointer_cast(d_ext_idx.data()),
-                                          thrust::raw_pointer_cast(d_nodes.data()),
-                                          d_cpNum,
-                                          d_cpRes,
-                                          max_cpNum);
-        }
+        culbvh::StacklessCDSharedSelf(callback,
+                                      numQuery,
+                                      thrust::raw_pointer_cast(d_objs),
+                                      numObjs - 1,
+                                      thrust::raw_pointer_cast(d_ext_idx.data()),
+                                      thrust::raw_pointer_cast(d_nodes.data()),
+                                      d_cpNum,
+                                      d_cpRes,
+                                      max_cpNum);
     };
 
     do_query();
@@ -1358,35 +1323,16 @@ void StacklessBVH::query(muda::CBufferView<AABB> aabbs, Pred callback, QueryBuff
         // clear counter
         BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
 
-        if(m_config.quat_node)
-        {
-            culbvh::quantilizedStacklessCDSharedOther(
-                callback,
-                numQuery,
-                devicePtr,
-                d_querySortedId,
-                numObjs - 1,
-                thrust::raw_pointer_cast(d_ext_idx.data()),
-                thrust::raw_pointer_cast(d_scene_box.data()),
-                thrust::raw_pointer_cast(d_quantNode.data()),
-                d_cpNum,
-                d_cpRes,
-                max_cpNum);
-        }
-        else
-        {
-            muda::wait_device();
-            culbvh::StacklessCDSharedOther(callback,
-                                           numQuery,
-                                           devicePtr,
-                                           d_querySortedId,
-                                           numObjs - 1,
-                                           thrust::raw_pointer_cast(d_ext_idx.data()),
-                                           thrust::raw_pointer_cast(d_nodes.data()),
-                                           d_cpNum,
-                                           d_cpRes,
-                                           max_cpNum);
-        }
+        culbvh::StacklessCDSharedOther(callback,
+                                       numQuery,
+                                       devicePtr,
+                                       d_querySortedId,
+                                       numObjs - 1,
+                                       thrust::raw_pointer_cast(d_ext_idx.data()),
+                                       thrust::raw_pointer_cast(d_nodes.data()),
+                                       d_cpNum,
+                                       d_cpRes,
+                                       max_cpNum);
     };
 
     do_query();
