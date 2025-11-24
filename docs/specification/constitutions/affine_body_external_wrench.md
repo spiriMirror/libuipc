@@ -1,10 +1,10 @@
 # External Wrench for Affine Body
 
-**ExternalWrenchABD** is a user-defined constitution that applies external 12D generalized forces (wrenches) to affine body instances.
+**AffineBodyExternalWrench** is a user-defined constitution that applies external 12D generalized forces (wrenches) to affine body instances.
 
 ## UID
 
-- **UID**: `0x100000000` (2^32) - User-defined constitution range
+- **UID**: `666`
 
 ## Description
 
@@ -84,10 +84,10 @@ Flattened: $\text{vec}(\dot{\mathbf{S}}) = [0, 0, \omega_y, 0, 0, 0, -\omega_y, 
 ### C++
 
 ```cpp
-#include <uipc/constitution/external_wrench_abd.h>
+#include <uipc/constitution/affine_body_external_wrench.h>
 
 // Create constitution
-auto ext_wrench = uipc::constitution::ExternalWrenchABD();
+auto ext_wrench = uipc::constitution::AffineBodyExternalWrench();
 scene.constitution_tabular().insert(ext_wrench);
 
 // Apply translational force only
@@ -106,11 +106,11 @@ ext_wrench.apply_to(cube, wrench);
 ### Python
 
 ```python
-from uipc.constitution import ExternalWrenchABD
+from uipc.constitution import AffineBodyExternalWrench
 import numpy as np
 
 # Create constitution
-ext_wrench = ExternalWrenchABD()
+ext_wrench = AffineBodyExternalWrench()
 scene.constitution_tabular().insert(ext_wrench)
 
 # Apply translational force only
@@ -163,7 +163,7 @@ scene.animator().insert(object, animate_wrench)
 ## Example
 
 See the test cases:
-- C++: [apps/tests/sim_case/external_wrench_abd_test.cpp](../../../apps/tests/sim_case/external_wrench_abd_test.cpp)
-- Python: [python/tests/test_external_wrench_abd.py](../../../python/tests/test_external_wrench_abd.py)
+- C++: [apps/tests/sim_case/affine_body_external_wrench_test.cpp](../../../apps/tests/sim_case/affine_body_external_wrench_test.cpp)
+- Python: [python/tests/test_affine_body_external_wrench.py](../../../python/tests/test_affine_body_external_wrench.py)
 
 Both tests demonstrate a cube with combined orbital motion (translational force) and spinning motion (shape velocity derivative).

@@ -2,14 +2,14 @@
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
-#include <uipc/constitution/external_wrench_abd.h>
+#include <uipc/constitution/affine_body_external_wrench.h>
 #include <uipc/geometry/utils/flip_inward_triangles.h>
 #include <uipc/geometry/utils/label_surface.h>
 #include <uipc/geometry/utils/label_triangle_orient.h>
 #include <filesystem>
 #include <fstream>
 
-TEST_CASE("external_wrench_abd_test", "[abd][external_wrench]")
+TEST_CASE("affine_body_external_wrench_test", "[abd][external_wrench]")
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -38,8 +38,8 @@ TEST_CASE("external_wrench_abd_test", "[abd][external_wrench]")
     Scene scene{config};
     {
         // Create constitutions
-        AffineBodyConstitution abd;
-        ExternalWrenchABD      ext_wrench;
+        AffineBodyConstitution    abd;
+        AffineBodyExternalWrench ext_wrench;
         scene.constitution_tabular().insert(abd);
         scene.constitution_tabular().insert(ext_wrench);
 

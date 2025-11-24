@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# @file test_external_wrench_abd.py
-# @brief Test for ExternalWrenchABD constitution
+# @file test_affine_body_external_wrench.py
+# @brief Test for AffineBodyExternalWrench constitution
 # @author User-defined
 # @date 2025-01-19
 
@@ -16,7 +16,7 @@ from uipc.geometry import SimplicialComplex, SimplicialComplexIO
 from uipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
 from uipc.geometry import ground
 from uipc import view
-from uipc.constitution import AffineBodyConstitution, ExternalWrenchABD
+from uipc.constitution import AffineBodyConstitution, AffineBodyExternalWrench
 from asset import AssetDir
 
 
@@ -31,7 +31,7 @@ run = False
 
 
 @pytest.mark.example
-def test_external_wrench_abd():
+def test_affine_body_external_wrench():
     Logger.set_level(Logger.Level.Info)
     workspace = AssetDir.output_path(__file__)
     engine = Engine("cuda", workspace)
@@ -43,7 +43,7 @@ def test_external_wrench_abd():
 
     # Create constitutions
     abd = AffineBodyConstitution()
-    ext_wrench = ExternalWrenchABD()
+    ext_wrench = AffineBodyExternalWrench()
 
     scene.constitution_tabular().insert(abd)
     scene.constitution_tabular().insert(ext_wrench)
@@ -191,4 +191,4 @@ def test_external_wrench_abd():
 
 
 if __name__ == "__main__":
-    test_external_wrench_abd()
+    test_affine_body_external_wrench()

@@ -1,4 +1,4 @@
-#include <uipc/constitution/external_wrench_abd.h>
+#include <uipc/constitution/affine_body_external_wrench.h>
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/builtin/constitution_type.h>
 #include <uipc/builtin/attribute_name.h>
@@ -7,26 +7,26 @@
 
 namespace uipc::constitution
 {
-static constexpr U64 ConstitutionUID = 0x100000000ull;  // 2^32
+static constexpr U64 ConstitutionUID = 666;
 
 REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
     list<UIDInfo> uids;
     uids.push_back(UIDInfo{.uid  = ConstitutionUID,
-                           .name = "ExternalWrenchABD",
+                           .name = "AffineBodyExternalWrench",
                            .type = string{builtin::ExtraConstitution}});
     return uids;
 }
 
-ExternalWrenchABD::ExternalWrenchABD(const Json& config)
+AffineBodyExternalWrench::AffineBodyExternalWrench(const Json& config)
 {
     m_config = config;
 }
 
-ExternalWrenchABD::~ExternalWrenchABD() = default;
+AffineBodyExternalWrench::~AffineBodyExternalWrench() = default;
 
-void ExternalWrenchABD::apply_to(geometry::SimplicialComplex& sc, const Vector12& wrench)
+void AffineBodyExternalWrench::apply_to(geometry::SimplicialComplex& sc, const Vector12& wrench)
 {
     // Add to extra_constitution_uids (similar to FiniteElementExtraConstitution)
     auto uids = sc.meta().find<VectorXu64>(builtin::extra_constitution_uids);
@@ -51,19 +51,19 @@ void ExternalWrenchABD::apply_to(geometry::SimplicialComplex& sc, const Vector12
     std::ranges::fill(external_wrench_view, wrench);
 }
 
-void ExternalWrenchABD::apply_to(geometry::SimplicialComplex& sc, const Vector3& force)
+void AffineBodyExternalWrench::apply_to(geometry::SimplicialComplex& sc, const Vector3& force)
 {
     Vector12 wrench = Vector12::Zero();
     wrench.segment<3>(0) = force;  // Only translational force
     apply_to(sc, wrench);
 }
 
-Json ExternalWrenchABD::default_config()
+Json AffineBodyExternalWrench::default_config()
 {
     return Json::object();
 }
 
-U64 ExternalWrenchABD::get_uid() const noexcept
+U64 AffineBodyExternalWrench::get_uid() const noexcept
 {
     return ConstitutionUID;
 }

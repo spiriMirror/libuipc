@@ -6,11 +6,10 @@
 
 namespace uipc::backend::cuda
 {
-class ExternalWrenchABD final : public AffineBodyExtraConstitution
+class AffineBodyExternalWrench final : public AffineBodyExtraConstitution
 {
   public:
-    // Use user-defined UID range: 2^32 to 2^64-1
-    static constexpr U64 ConstitutionUID = 0x100000000ull;  // 2^32
+    static constexpr U64 ConstitutionUID = 666;
 
     using AffineBodyExtraConstitution::AffineBodyExtraConstitution;
 
@@ -145,5 +144,5 @@ class ExternalWrenchABD final : public AffineBodyExtraConstitution
     }
 };
 
-REGISTER_SIM_SYSTEM(ExternalWrenchABD);
+REGISTER_SIM_SYSTEM(AffineBodyExternalWrench);
 }  // namespace uipc::backend::cuda

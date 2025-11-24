@@ -5,13 +5,13 @@
 
 namespace uipc::constitution
 {
-class UIPC_CONSTITUTION_API ExternalWrenchABD final : public IConstitution
+class UIPC_CONSTITUTION_API AffineBodyExternalWrench final : public IConstitution
 {
     using Base = IConstitution;
 
   public:
-    ExternalWrenchABD(const Json& config = default_config());
-    ~ExternalWrenchABD();
+    AffineBodyExternalWrench(const Json& config = default_config());
+    ~AffineBodyExternalWrench();
 
     /**
      * @brief Apply external wrench (generalized force) to affine body instances
