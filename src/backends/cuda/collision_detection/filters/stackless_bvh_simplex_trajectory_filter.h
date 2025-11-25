@@ -4,6 +4,7 @@
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/global_contact_manager.h>
 #include <collision_detection/stackless_bvh.h>
+#include <collision_detection/atomic_counting_lbvh.h>
 #include <collision_detection/simplex_trajectory_filter.h>
 
 namespace uipc::backend::cuda
@@ -30,6 +31,10 @@ class StacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         muda::DeviceBuffer<AABB> triangle_aabbs;
 
         using ThisBVH = StacklessBVH;
+        using TestBVH = AtomicCountingLBVH;
+
+        //using ThisBVH = AtomicCountingLBVH;
+        //using TestBVH = StacklessBVH;
 
         // CodimP count always less or equal to AllP count.
         ThisBVH              lbvh_CodimP;
@@ -40,9 +45,17 @@ class StacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         ThisBVH::QueryBuffer candidate_CodimP_AllE_pairs;
         ThisBVH::QueryBuffer candidate_AllE_AllE_pairs;
 
+        //TestBVH              t_lbvh_E;
+        //TestBVH::QueryBuffer t_candidate_CodimP_AllE_pairs;
+        //TestBVH::QueryBuffer t_candidate_AllE_AllE_pairs;
+
         // Used to detect AllP-AllT pairs.
         ThisBVH              lbvh_T;
         ThisBVH::QueryBuffer candidate_AllP_AllT_pairs;
+
+        //TestBVH              t_lbvh_T;
+        //TestBVH::QueryBuffer t_candidate_AllP_AllT_pairs;
+
 
         muda::DeviceVar<IndexT> selected_PT_count;
         muda::DeviceVar<IndexT> selected_EE_count;

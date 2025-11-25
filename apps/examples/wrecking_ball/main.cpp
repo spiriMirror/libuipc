@@ -30,6 +30,7 @@ int main()
     config["contact"]["enable"]             = true;
     config["contact"]["d_hat"]              = 0.01;
     config["line_search"]["max_iter"]       = 8;
+    config["collision_detection"]["method"] = "stackless_bvh";
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));

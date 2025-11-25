@@ -213,7 +213,9 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                });
 
     lbvh_E.build(edge_aabbs);
+    //t_lbvh_E.build(edge_aabbs);
     lbvh_T.build(triangle_aabbs);
+    //t_lbvh_T.build(triangle_aabbs);
 
     if(codimVs.size() > 0)
     {
@@ -284,7 +286,6 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
         }
 
         // Use CodimP to query AllE
-        if(codimVs.size())
         {
             muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
             lbvh_E.query(
@@ -353,6 +354,8 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 candidate_CodimP_AllE_pairs);
         }
     }
+
+    // muda::wait_device();
 
     // Use AllE to query AllE
     {
@@ -427,6 +430,129 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 return true;
             },
             candidate_AllE_AllE_pairs);
+
+        //muda::wait_device();
+
+        //t_lbvh_E.detect(
+        //    [Es          = Es.viewer().name("Es"),
+        //     Ps          = Ps.viewer().name("Ps"),
+        //     dxs         = dxs.viewer().name("dxs"),
+        //     thicknesses = info.thicknesses().viewer().name("thicknesses"),
+        //     contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+        //     contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+        //     subscene_element_ids = info.subscene_element_ids().viewer().name("subscene_element_ids"),
+        //     subscene_mask_tabular = info.subscene_mask_tabular().viewer().name("subscene_mask_tabular"),
+        //     v2b = info.v2b().viewer().name("v2b"),
+        //     body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
+        //     d_hats = info.d_hats().viewer().name("d_hats"),
+        //     alpha  = alpha] __device__(IndexT i, IndexT j)
+        //    {
+        //        const auto& E0 = Es(i);
+        //        const auto& E1 = Es(j);
+
+        //        Vector4i cids = {contact_element_ids(E0[0]),
+        //                         contact_element_ids(E0[1]),
+        //                         contact_element_ids(E1[0]),
+        //                         contact_element_ids(E1[1])};
+
+        //        Vector4i scids = {subscene_element_ids(E0[0]),
+        //                          subscene_element_ids(E0[1]),
+        //                          subscene_element_ids(E1[0]),
+        //                          subscene_element_ids(E1[1])};
+
+        //        // discard if the contact is disabled
+        //        if(!allow_EE_contact(subscene_mask_tabular, scids))
+        //            return false;
+        //        if(!allow_EE_contact(contact_mask_tabular, cids))
+        //            return false;
+
+        //        // discard if the edges share same vertex
+        //        if(E0[0] == E1[0] || E0[0] == E1[1] || E0[1] == E1[0] || E0[1] == E1[1])
+        //            return false;
+
+        //        auto body_i = v2b(E0[0]);
+        //        auto body_j = v2b(E1[0]);
+        //        if(body_i == body_j && !body_self_collision(body_i))
+        //            return false;  // skip self-collision for the same body
+
+
+        //        Vector3 E0_0  = Ps(E0[0]);
+        //        Vector3 E0_1  = Ps(E0[1]);
+        //        Vector3 dE0_0 = alpha * dxs(E0[0]);
+        //        Vector3 dE0_1 = alpha * dxs(E0[1]);
+
+        //        Vector3 E1_0  = Ps(E1[0]);
+        //        Vector3 E1_1  = Ps(E1[1]);
+        //        Vector3 dE1_0 = alpha * dxs(E1[0]);
+        //        Vector3 dE1_1 = alpha * dxs(E1[1]);
+
+        //        Float thickness = EE_thickness(thicknesses(E0[0]),
+        //                                       thicknesses(E0[1]),
+        //                                       thicknesses(E1[0]),
+        //                                       thicknesses(E1[1]));
+
+        //        Float d_hat =
+        //            EE_d_hat(d_hats(E0[0]), d_hats(E0[1]), d_hats(E1[0]), d_hats(E1[1]));
+
+        //        Float expand = d_hat + thickness;
+
+        //        if(!distance::edge_edge_ccd_broadphase(
+        //               E0_0, E0_1, E1_0, E1_1, dE0_0, dE0_1, dE1_0, dE1_1, expand))
+        //            return false;
+
+        //        return true;
+        //    },
+        //    t_candidate_AllE_AllE_pairs);
+
+        //bool same_size =
+        //    (candidate_AllE_AllE_pairs.size() == t_candidate_AllE_AllE_pairs.size());
+        //if(!same_size)
+        //{
+        //    logger::error("StacklessBVHSimplexTrajectoryFilter: LBVH and T-LBVH edge-edge candidate pair counts differ: {} vs {}",
+        //                  candidate_AllE_AllE_pairs.size(),
+        //                  t_candidate_AllE_AllE_pairs.size());
+        //}
+        //else
+        //{
+        //    std::vector<Vector2i> h_this;
+        //    h_this.resize(candidate_AllE_AllE_pairs.size());
+        //    candidate_AllE_AllE_pairs.view().copy_to(h_this.data());
+
+        //    std::vector<Vector2i> h_that;
+        //    h_that.resize(t_candidate_AllE_AllE_pairs.size());
+        //    t_candidate_AllE_AllE_pairs.view().copy_to(h_that.data());
+
+        //    std::ranges::sort(h_this,
+        //                      [](const Vector2i& a, const Vector2i& b)
+        //                      {
+        //                          if(a[0] != b[0])
+        //                              return a[0] < b[0];
+        //                          return a[1] < b[1];
+        //                      });
+
+        //    std::ranges::sort(h_that,
+        //                      [](const Vector2i& a, const Vector2i& b)
+        //                      {
+        //                          if(a[0] != b[0])
+        //                              return a[0] < b[0];
+        //                          return a[1] < b[1];
+        //                      });
+
+        //    bool all_equal = true;
+        //    for(size_t i = 0; i < h_this.size(); ++i)
+        //    {
+        //        if(h_this[i] != h_that[i])
+        //        {
+        //            all_equal = false;
+        //            logger::error("StacklessBVHSimplexTrajectoryFilter: LBVH and T-LBVH edge-edge candidate pair [{}] differ: ({}, {}) vs ({}, {})",
+        //                          i,
+        //                          h_this[i][0],
+        //                          h_this[i][1],
+        //                          h_that[i][0],
+        //                          h_that[i][1]);
+        //        }
+        //    }
+        //}
     }
 
     // Use AllP to query AllT
@@ -547,6 +673,126 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 return true;
             },
             candidate_AllP_AllT_pairs);
+
+        //t_lbvh_T.query(
+        //    point_aabbs,
+        //    [Vs          = Vs.viewer().name("Vs"),
+        //     Fs          = Fs.viewer().name("Fs"),
+        //     Ps          = Ps.viewer().name("Ps"),
+        //     dxs         = dxs.viewer().name("dxs"),
+        //     thicknesses = info.thicknesses().viewer().name("thicknesses"),
+        //     contact_element_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+        //     contact_mask_tabular = info.contact_mask_tabular().viewer().name("contact_mask_tabular"),
+        //     subscene_element_ids = info.subscene_element_ids().viewer().name("subscene_element_ids"),
+        //     subscene_mask_tabular = info.subscene_mask_tabular().viewer().name("subscene_mask_tabular"),
+        //     v2b = info.v2b().viewer().name("v2b"),
+        //     body_self_collision = info.body_self_collision().viewer().name("body_self_collision"),
+        //     d_hats = info.d_hats().viewer().name("d_hats"),
+        //     alpha  = alpha] __device__(IndexT i, IndexT j)
+        //    {
+        //        auto V = Vs(i);
+        //        auto F = Fs(j);
+
+        //        Vector4i cids = {contact_element_ids(V),
+        //                         contact_element_ids(F[0]),
+        //                         contact_element_ids(F[1]),
+        //                         contact_element_ids(F[2])};
+
+        //        Vector4i scids = {subscene_element_ids(V),
+        //                          subscene_element_ids(F[0]),
+        //                          subscene_element_ids(F[1]),
+        //                          subscene_element_ids(F[2])};
+
+        //        // discard if the contact is disabled
+        //        if(!allow_PT_contact(subscene_mask_tabular, scids))
+        //            return false;
+        //        if(!allow_PT_contact(contact_mask_tabular, cids))
+        //            return false;
+
+        //        // discard if the point is on the triangle
+        //        if(F[0] == V || F[1] == V || F[2] == V)
+        //            return false;
+
+        //        auto body_i = v2b(V);
+        //        auto body_j = v2b(F[0]);
+        //        // skip self-collision for the same body if self collision off
+        //        if(body_i == body_j && !body_self_collision(body_i))
+        //            return false;
+
+
+        //        Vector3 P  = Ps(V);
+        //        Vector3 dP = alpha * dxs(V);
+
+        //        Vector3 F0 = Ps(F[0]);
+        //        Vector3 F1 = Ps(F[1]);
+        //        Vector3 F2 = Ps(F[2]);
+
+        //        Vector3 dF0 = alpha * dxs(F[0]);
+        //        Vector3 dF1 = alpha * dxs(F[1]);
+        //        Vector3 dF2 = alpha * dxs(F[2]);
+
+        //        Float thickness = PT_thickness(thicknesses(V),
+        //                                       thicknesses(F[0]),
+        //                                       thicknesses(F[1]),
+        //                                       thicknesses(F[2]));
+
+        //        Float d_hat =
+        //            PT_d_hat(d_hats(V), d_hats(F[0]), d_hats(F[1]), d_hats(F[2]));
+
+        //        Float expand = d_hat + thickness;
+
+        //        if(!distance::point_triangle_ccd_broadphase(P, F0, F1, F2, dP, dF0, dF1, dF2, expand))
+        //            return false;
+
+        //        return true;
+        //    },
+        //    t_candidate_AllP_AllT_pairs);
+
+        //bool same_size =
+        //    t_candidate_AllP_AllT_pairs.size() == candidate_AllP_AllT_pairs.size();
+        //if(!same_size)
+        //{
+        //    logger::error("why different size test={} vs this={}",
+        //                  t_candidate_AllP_AllT_pairs.size(),
+        //                  candidate_AllP_AllT_pairs.size());
+        //}
+        //else
+        //{
+        //    std::vector<Vector2i> h_this;
+        //    h_this.resize(candidate_AllP_AllT_pairs.size());
+        //    candidate_AllP_AllT_pairs.view().copy_to(h_this.data());
+        //    std::vector<Vector2i> h_that;
+        //    h_that.resize(t_candidate_AllP_AllT_pairs.size());
+        //    t_candidate_AllP_AllT_pairs.view().copy_to(h_that.data());
+        //    std::ranges::sort(h_this,
+        //                      [](const Vector2i& a, const Vector2i& b)
+        //                      {
+        //                          if(a[0] != b[0])
+        //                              return a[0] < b[0];
+        //                          return a[1] < b[1];
+        //                      });
+        //    std::ranges::sort(h_that,
+        //                      [](const Vector2i& a, const Vector2i& b)
+        //                      {
+        //                          if(a[0] != b[0])
+        //                              return a[0] < b[0];
+        //                          return a[1] < b[1];
+        //                      });
+        //    bool all_equal = true;
+        //    for(size_t i = 0; i < h_this.size(); ++i)
+        //    {
+        //        if(h_this[i] != h_that[i])
+        //        {
+        //            all_equal = false;
+        //            logger::error("StacklessBVHSimplexTrajectoryFilter: LBVH and T-LBVH point-triangle candidate pair [{}] differ: ({}, {}) vs ({}, {})",
+        //                          i,
+        //                          h_this[i][0],
+        //                          h_this[i][1],
+        //                          h_that[i][0],
+        //                          h_that[i][1]);
+        //        }
+        //    }
+        //}
 
         // thrust::copy(lbvh_T.d_nodes.begin(), lbvh_T.d_nodes.end(), last_nodes.begin());
 
