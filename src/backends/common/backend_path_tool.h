@@ -57,7 +57,16 @@ class BackendPathTool
 
     static constexpr std::string_view backend_source_dir() noexcept
     {
-        return UIPC_BACKEND_DIR;
+        // Return the backend source directory, removing "common/" if present at the end
+        constexpr auto full_path  = std::string_view(__FILE__, std::string_view(__FILE__).find_last_of("/\\"));
+        constexpr auto last_sep   = full_path.find_last_of("/\\");
+        constexpr auto dir_path   = full_path.substr(0, last_sep);
+        // If dir_path ends with "/common" or "\\common", remove it
+        constexpr auto common_pos = dir_path.rfind("/common");
+        if constexpr (common_pos != std::string_view::npos && common_pos == dir_path.size() - 7)
+            return dir_path.substr(0, common_pos);
+        else
+            return dir_path;
     }
 
   private:
