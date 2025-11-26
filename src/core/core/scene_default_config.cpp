@@ -47,23 +47,28 @@ geometry::AttributeCollection default_scene_config() noexcept
     return config;
 }
 
-Json& nested_json(Json& j, const std::string_view path)
+static Json& nested_json(Json& j, const std::string_view path)
 {
-    size_t pos      = 0;
-    size_t next_pos = 0;
-    Json*  current  = &j;
-    while(next_pos != std::string_view::npos)
+    size_t pos     = 0;
+    Json*  current = &j;
+    while(true)
     {
-        next_pos = path.find('/', pos);
-        auto key = path.substr(pos, next_pos - pos);
-        if(current->find(key) == current->end())
+        size_t next_pos = path.find('/', pos);
+        auto   key      = path.substr(pos, next_pos - pos);
+
+        if(next_pos == std::string_view::npos)
         {
-            (*current)[key] = Json::object();
+            return (*current)[key];
         }
-        current = &(*current)[key];
+
+        auto& child = (*current)[key];
+        if(!child.is_object())
+        {
+            child = Json::object();
+        }
+        current = &child;
         pos     = next_pos + 1;
     }
-    return *current;
 }
 
 Json to_config_json(const geometry::AttributeCollection& config)
@@ -81,24 +86,34 @@ Json to_config_json(const geometry::AttributeCollection& config)
     return j;
 }
 
-const Json* find_nested_json(const Json& j, const std::string_view path)
+static const Json* find_nested_json(const Json& j, const std::string_view path)
 {
-    size_t      pos      = 0;
-    size_t      next_pos = 0;
-    const Json* current  = &j;
-    while(next_pos != std::string_view::npos)
+    size_t      pos     = 0;
+    const Json* current = &j;
+    while(true)
     {
-        next_pos = path.find('/', pos);
-        auto key = path.substr(pos, next_pos - pos);
-        auto it  = current->find(key);
+        size_t next_pos = path.find('/', pos);
+        auto   key      = path.substr(pos, next_pos - pos);
+
+        if(!current->is_object())
+        {
+            return nullptr;
+        }
+
+        auto it = current->find(key);
         if(it == current->end())
         {
             return nullptr;
         }
+
+        if(next_pos == std::string_view::npos)
+        {
+            return &(*it);
+        }
+
         current = &(*it);
         pos     = next_pos + 1;
     }
-    return current;
 }
 
 void from_config_json(geometry::AttributeCollection& config, const Json& j)
@@ -108,7 +123,7 @@ void from_config_json(geometry::AttributeCollection& config, const Json& j)
     {
         auto attr = config.find(name);
         UIPC_ASSERT(attr != nullptr, "Attribute '{}' not found in config.", name);
-        auto sub_json = find_nested_json(const_cast<Json&>(j), name);
+        auto sub_json = find_nested_json(j, name);
         if(sub_json != nullptr)
         {
             // wrap it in an array to use from_json_array
@@ -118,4 +133,4 @@ void from_config_json(geometry::AttributeCollection& config, const Json& j)
         }
     }
 }
-}
+}  // namespace uipc::core
