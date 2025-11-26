@@ -1,5 +1,4 @@
 #include <cuda_device/builtin.h>
-#include <collision_detection/culbvh/vector_type_t.h>
 #include <muda/launch.h>
 
 namespace uipc::culbvh
@@ -116,6 +115,11 @@ MUDA_GENERIC MUDA_INLINE int2 make_ordered_pair(int a, int b)
         return int2{b, a};
 }
 
+MUDA_GENERIC MUDA_INLINE float3 operator-(const float3& v0, const float3& v1)
+{
+    return make_float3(v0.x - v1.x, v0.y - v1.y, v0.z - v1.z);
+}
+
 MUDA_GENERIC MUDA_INLINE void SafeCopyTo(int2* sharedRes,
                                          int   totalResInBlock,
 
@@ -128,7 +132,7 @@ MUDA_GENERIC MUDA_INLINE void SafeCopyTo(int2* sharedRes,
     )
         return;
 
-    auto CopyCount = min(totalResInBlock, maxRes - globalIdx);
+    auto CopyCount = std::min(totalResInBlock, maxRes - globalIdx);
 
     // Copy full blocks
     int fullBlocks = (CopyCount - 1) / (int)blockDim.x;
@@ -376,8 +380,6 @@ MUDA_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
                 if(idx >= size)
                     return;
-                //_tks_range_x[idx] = -1;
-                //__syncthreads();
 
                 _lvs_lca(idx) = -1, _depths(idx) = 0;
                 int  l = idx - 1, r = idx;  ///< (l, r]
@@ -388,7 +390,6 @@ MUDA_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
                     mark = false;
                 int cur = mark ? l : r;
 
-                //if (cur == 254)printf("%d  %d  %d  %d  %d\n", idx, mark, _lvs_metric[l], _lvs_metric[r], cur);
                 _lvs_par(idx) = cur;
                 if(mark)
                 {
@@ -644,7 +645,6 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
     buildIntNodes(numObjs);
 
     thrust::exclusive_scan(null_stream, count.begin(), count.end(), offsetTable.begin());
-
 
     calcIntNodeOrders(numObjs);
 

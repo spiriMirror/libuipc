@@ -9,13 +9,11 @@
 #include <muda/viewer/viewer_base.h>
 #include <uipc/uipc.h>
 #include <uipc/common/timer.h>
-#include "culbvh/stacklessbvh.cuh"
 
 using namespace muda;
 using namespace uipc;
 using namespace uipc::geometry;
 using namespace uipc::backend::cuda;
-
 
 namespace test_stackless_bvh
 {
@@ -138,23 +136,16 @@ void check_cp_conservative(span<Vector2i> test, span<Vector2i> gt)
     CHECK(diff.empty());
 
     fmt::println("test.size()={}", test.size());
-
-    // fmt::println("test:");
-    //for(auto&& d : test)
-    //{
-    //    fmt::println("{} {}", d[0], d[1]);
-    //}
-
     fmt::println("ground_truth.size()={}", gt.size());
 
-    //if(!diff.empty())
-    //{
-    //    fmt::println("diff:");
-    //    for(auto&& d : diff)
-    //    {
-    //        fmt::println("{} {}", d[0], d[1]);
-    //    }
-    //}
+    if(!diff.empty())
+    {
+        fmt::println("diff:");
+        for(auto&& d : diff)
+        {
+            fmt::println("{} {}", d[0], d[1]);
+        }
+    }
 }
 
 std::vector<Vector2i> stackless_bvh_cp(span<const AABB> aabbs)
@@ -164,70 +155,28 @@ std::vector<Vector2i> stackless_bvh_cp(span<const AABB> aabbs)
     DeviceBuffer<AABB> d_aabbs(aabbs.size());
     d_aabbs.view().copy_from(aabbs.data());
 
-    StacklessBVH::Config cfg;
-    StacklessBVH         bvh{cfg};
-    bvh.build(d_aabbs);
+
+    StacklessBVH bvh;
+    {
+        Timer timer("build bvh");
+        bvh.build(d_aabbs);
+    }
+
 
     StacklessBVH::QueryBuffer qbuffer;
     qbuffer.reserve(1024);
-    bvh.detect([] __device__(int i, int j) { return true; }, qbuffer);
+    {
+        Timer timer("unlucky detect cp");
+        bvh.detect([] __device__(int i, int j) { return true; }, qbuffer);
+    }
+
+    {
+        Timer timer("lucky detect cp");
+        bvh.detect([] __device__(int i, int j) { return true; }, qbuffer);
+    }
 
     cps.resize(qbuffer.size());
     qbuffer.view().copy_to(cps.data());
-
-    ::culbvh::LBVHStackless cbvh;
-    cbvh.type = 1;
-
-    std::vector<::culbvh::aabb> cul_aabbs(aabbs.size());
-    for(auto&& [i, aabb] : enumerate(aabbs))
-    {
-        cul_aabbs[i].min = make_float3(aabb.min()[0], aabb.min()[1], aabb.min()[2]);
-        cul_aabbs[i].max = make_float3(aabb.max()[0], aabb.max()[1], aabb.max()[2]);
-    }
-    DeviceBuffer<::culbvh::aabb> d_cul_aabbs = cul_aabbs;
-
-
-    cbvh.compute(d_cul_aabbs.data(), d_cul_aabbs.size());
-    //auto num = cbvh.query();
-
-    auto f = [](const ::culbvh::aabb& lhs, const AABB& rhs)
-    {
-        bool result = lhs.max.x == rhs.max().x()     //
-                      && lhs.max.y == rhs.max().y()  //
-                      && lhs.max.z == rhs.max().z()  //
-                      && lhs.min.x == rhs.min().x()  //
-                      && lhs.min.y == rhs.min().y()  //
-                      && lhs.min.z == rhs.min().z();
-
-        return result;
-    };
-
-    //compare(cbvh.d_scene_box, bvh.d_scene_box, f);
-    //compare(cbvh.d_flags, bvh.d_flags);
-    //compare(cbvh.d_mtcode, bvh.d_mtcode);
-    //compare(cbvh.d_sorted_id, bvh.d_sorted_id);
-    //compare(cbvh.d_primMap, bvh.d_primMap);
-    //compare(cbvh.d_metric, bvh.d_metric);
-    //compare(cbvh.d_count, bvh.d_count);
-    //compare(cbvh.d_tkMap, bvh.d_tkMap);
-    //compare(cbvh.d_offsetTable, bvh.d_offsetTable);
-    //compare(cbvh.d_ext_aabb, bvh.d_ext_aabb, f);
-    //compare(cbvh.d_ext_idx, bvh.d_ext_idx);
-    //compare(cbvh.d_ext_lca, bvh.d_ext_lca);
-    //compare(cbvh.d_ext_mark, bvh.d_ext_mark);
-    //compare(cbvh.d_ext_par, bvh.d_ext_par);
-    //compare(cbvh.d_int_lc, bvh.d_int_lc);
-    //compare(cbvh.d_int_rc, bvh.d_int_rc);
-    //compare(cbvh.d_int_par, bvh.d_int_par);
-    //compare(cbvh.d_int_range_x, bvh.d_int_range_x);
-    //compare(cbvh.d_int_range_y, bvh.d_int_range_y);
-    //compare(cbvh.d_int_mark, bvh.d_int_mark);
-    //compare(cbvh.d_int_aabb, bvh.d_int_aabb, f);
-
-    //auto ulonglong_f = [](const ulonglong2 a, const ulonglong2 b)
-    //{ return a.x == b.x && a.y == b.y; };
-
-    //compare(cbvh.d_quantNode, bvh.d_quantNode, ulonglong_f);
 
     return cps;
 }
@@ -256,84 +205,29 @@ std::vector<Vector2i> stackless_bvh_query_cp(span<const AABB> aabbs)
     DeviceBuffer<AABB> d_aabbs(aabbs.size());
     d_aabbs.view().copy_from(aabbs.data());
 
-    StacklessBVH::Config cfg;
-    StacklessBVH         bvh{cfg};
+    StacklessBVH bvh;
+    {
+        Timer timer("build bvh");
+        bvh.build(d_aabbs);
+    }
 
 
     StacklessBVH::QueryBuffer qbuffer;
-
-    for(int I = 0; I < 10000; ++I)
     {
-        bvh.build(d_aabbs);
+        Timer timer("unlucky query cp");
         bvh.query(d_aabbs, [] __device__(int i, int j) { return true; }, qbuffer);
     }
 
+    {
+        Timer timer("lucky query cp");
+        bvh.query(d_aabbs, [] __device__(int i, int j) { return true; }, qbuffer);
+    }
 
     cps.resize(qbuffer.size());
     qbuffer.view().copy_to(cps.data());
 
-    ::culbvh::LBVHStackless cbvh;
-    cbvh.type = 1;
-
-    std::vector<::culbvh::aabb> cul_aabbs(aabbs.size());
-    for(auto&& [i, aabb] : enumerate(aabbs))
-    {
-        cul_aabbs[i].min = make_float3(aabb.min()[0], aabb.min()[1], aabb.min()[2]);
-        cul_aabbs[i].max = make_float3(aabb.max()[0], aabb.max()[1], aabb.max()[2]);
-    }
-    DeviceBuffer<::culbvh::aabb> d_cul_aabbs = cul_aabbs;
-
-
-    cbvh.compute(d_cul_aabbs.data(), d_cul_aabbs.size());
-    auto num = cbvh.queryOther(d_cul_aabbs.data(), d_cul_aabbs.size());
-    std::cout << "num pairs: " << num << std::endl;
-
-    compare(std::as_const(qbuffer.m_querySortedId).view(), cbvh.d_querySortedId);
-    compare(std::as_const(qbuffer.m_queryMtCode).view(), cbvh.d_queryMtCode);
-
-
-    auto f = [](const ::culbvh::aabb& lhs, const AABB& rhs)
-    {
-        bool result = lhs.max.x == rhs.max().x()     //
-                      && lhs.max.y == rhs.max().y()  //
-                      && lhs.max.z == rhs.max().z()  //
-                      && lhs.min.x == rhs.min().x()  //
-                      && lhs.min.y == rhs.min().y()  //
-                      && lhs.min.z == rhs.min().z();
-
-        return result;
-    };
-
-    compare(cbvh.d_scene_box, bvh.d_scene_box, f);
-    compare(cbvh.d_flags, bvh.d_flags);
-    compare(cbvh.d_mtcode, bvh.d_mtcode);
-    compare(cbvh.d_sorted_id, bvh.d_sorted_id);
-    compare(cbvh.d_primMap, bvh.d_primMap);
-    compare(cbvh.d_metric, bvh.d_metric);
-    compare(cbvh.d_count, bvh.d_count);
-    compare(cbvh.d_tkMap, bvh.d_tkMap);
-    compare(cbvh.d_offsetTable, bvh.d_offsetTable);
-    compare(cbvh.d_ext_aabb, bvh.d_ext_aabb, f);
-    compare(cbvh.d_ext_idx, bvh.d_ext_idx);
-    compare(cbvh.d_ext_lca, bvh.d_ext_lca);
-    compare(cbvh.d_ext_mark, bvh.d_ext_mark);
-    compare(cbvh.d_ext_par, bvh.d_ext_par);
-    compare(cbvh.d_int_lc, bvh.d_int_lc);
-    compare(cbvh.d_int_rc, bvh.d_int_rc);
-    compare(cbvh.d_int_par, bvh.d_int_par);
-    compare(cbvh.d_int_range_x, bvh.d_int_range_x);
-    compare(cbvh.d_int_range_y, bvh.d_int_range_y);
-    compare(cbvh.d_int_mark, bvh.d_int_mark);
-    compare(cbvh.d_int_aabb, bvh.d_int_aabb, f);
-
-    auto ulonglong_f = [](const ulonglong2 a, const ulonglong2 b)
-    { return a.x == b.x && a.y == b.y; };
-
-    compare(cbvh.d_quantNode, bvh.d_quantNode, ulonglong_f);
-
     return cps;
 }
-
 
 void stackless_bvh_test(const SimplicialComplex& mesh)
 {
@@ -354,7 +248,6 @@ void stackless_bvh_test(const SimplicialComplex& mesh)
         aabbs[i].extend(p0.cast<float>()).extend(p1.cast<float>()).extend(p2.cast<float>());
     }
 
-
     auto bcp = brute_froce_cp(aabbs);
     auto scp = stackless_bvh_cp(aabbs);
     check_cp_conservative(scp, bcp);
@@ -364,10 +257,8 @@ void stackless_bvh_test(const SimplicialComplex& mesh)
     check_cp_conservative(sqcp, bqcp);
 
     Timer::set_sync_func(nullptr);
-
     Timer::report();
 }
-
 
 SimplicialComplex tet()
 {
@@ -385,44 +276,44 @@ SimplicialComplex tet()
 TEST_CASE("stackless_bvh", "[collision detection]")
 {
     using namespace test_stackless_bvh;
-    muda::Debug::debug_sync_all(true);
-    //SECTION("tet")
-    //{
-    //    fmt::println("tet:");
-    //    stackless_bvh_test(tet());
-    //}
 
-    //SECTION("cube.obj")
-    //{
-    //    fmt::println("cube.obj:");
-    //    SimplicialComplexIO io;
-    //    auto mesh = io.read(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
-    //    stackless_bvh_test(mesh);
-    //}
+    SECTION("tet")
+    {
+        fmt::println("tet:");
+        stackless_bvh_test(tet());
+    }
 
-    //SECTION("cube.msh")
-    //{
-    //    fmt::println("cube.msh:");
-    //    SimplicialComplexIO io;
-    //    auto mesh = io.read(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
-    //    stackless_bvh_test(mesh);
-    //}
+    SECTION("cube.obj")
+    {
+        fmt::println("cube.obj:");
+        SimplicialComplexIO io;
+        auto mesh = io.read(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
+        stackless_bvh_test(mesh);
+    }
 
-    //SECTION("link.msh")
-    //{
-    //    fmt::println("link.msh:");
-    //    SimplicialComplexIO io;
-    //    auto mesh = io.read(fmt::format("{}link.msh", AssetDir::tetmesh_path()));
-    //    stackless_bvh_test(mesh);
-    //}
+    SECTION("cube.msh")
+    {
+        fmt::println("cube.msh:");
+        SimplicialComplexIO io;
+        auto mesh = io.read(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
+        stackless_bvh_test(mesh);
+    }
 
-    //SECTION("ball.msh")
-    //{
-    //    fmt::println("ball.msh:");
-    //    SimplicialComplexIO io;
-    //    auto mesh = io.read(fmt::format("{}ball.msh", AssetDir::tetmesh_path()));
-    //    stackless_bvh_test(mesh);
-    //}
+    SECTION("link.msh")
+    {
+        fmt::println("link.msh:");
+        SimplicialComplexIO io;
+        auto mesh = io.read(fmt::format("{}link.msh", AssetDir::tetmesh_path()));
+        stackless_bvh_test(mesh);
+    }
+
+    SECTION("ball.msh")
+    {
+        fmt::println("ball.msh:");
+        SimplicialComplexIO io;
+        auto mesh = io.read(fmt::format("{}ball.msh", AssetDir::tetmesh_path()));
+        stackless_bvh_test(mesh);
+    }
 
     SECTION("bunny0.msh")
     {

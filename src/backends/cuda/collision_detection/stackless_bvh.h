@@ -157,10 +157,9 @@ class StacklessBVH
 
 
         muda::CBufferView<AABB> objs;  // external AABBs, should be kept valid
-
-        muda::DeviceVar<AABB>        scene_box;  ///< external bounding boxes
+        muda::DeviceVar<AABB>   scene_box;  // external bounding boxes
         muda::DeviceVector<uint32_t> flags;
-        muda::DeviceVector<uint32_t> mtcode;  ///< external morton codes
+        muda::DeviceVector<uint32_t> mtcode;  // external morton codes
         muda::DeviceVector<int32_t>  sorted_id;
         muda::DeviceVector<int32_t>  primMap;
         muda::DeviceVector<int>      metric;
