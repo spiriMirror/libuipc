@@ -33,6 +33,7 @@ package("muda")
 
     add_urls("https://github.com/MuGdxy/muda.git")
 
+    add_versions("2025.11.24", "8f9e17d8e76a658df3b6ffeeffbbc9ac47ac54bf")
     add_versions("2025.02.28", "ff8558b8842247787545353e7d370ae376f212c5")
     add_versions("2025.02.01", "008b6fdd48e6ffa7bcaf79943beb24f940d8da93")
 
