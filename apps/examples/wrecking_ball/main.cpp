@@ -184,19 +184,13 @@ int main()
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
     world.dump();
 
-    //while(world.frame() < 1000)
-    //{
-    //    world.advance();
-    //    world.retrieve();
-    //    world.dump();
-    //    //sio.write_surface(
-    //    //    fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
-    //    // fmt::println("frame: {}", world.frame());
-    //}
-
-    world.recover(527);
-    while(true)
+    while(world.frame() < 1000)
     {
         world.advance();
+        world.retrieve();
+        world.dump();
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+        fmt::println("frame: {}", world.frame());
     }
 }
