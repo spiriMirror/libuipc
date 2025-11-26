@@ -41,8 +41,6 @@ void StacklessBVHSimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
     m_impl.filter_toi(info);
 }
 
-static std::vector<StacklessBVH::Node> last_nodes;
-
 void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 {
     using namespace muda;
