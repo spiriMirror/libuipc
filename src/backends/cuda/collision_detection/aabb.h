@@ -4,5 +4,6 @@
 
 namespace uipc::backend::cuda
 {
-using AABB = Eigen::AlignedBox<Float, 3>;
+// float based AABB
+using AABB = Eigen::AlignedBox<float, 3>;
 }  // namespace uipc::backend::cuda

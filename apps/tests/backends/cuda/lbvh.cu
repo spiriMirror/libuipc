@@ -8,12 +8,15 @@
 #include <muda/viewer/viewer_base.h>
 #include <uipc/uipc.h>
 #include <uipc/common/timer.h>
+#include <algorithm>
 
 using namespace muda;
 using namespace uipc;
 using namespace uipc::geometry;
 using namespace uipc::backend::cuda;
 
+namespace test_lbvh
+{
 // check if two trees are the same
 void tree_consistency_test(const DeviceBuffer<LinearBVHNode>& d_a,
                            const DeviceBuffer<LinearBVHNode>& d_b,
@@ -69,14 +72,13 @@ void tree_consistency_test(const DeviceBuffer<LinearBVHNode>& d_a,
     }
 
     {
-        auto it = std::mismatch(a_AABB.begin(),
-                                a_AABB.end(),
-                                b_AABB.begin(),
-                                b_AABB.end(),
-                                [](const auto& lhs, const auto& rhs) {
-                                    return lhs.min() == rhs.min()
-                                           && lhs.max() == rhs.max();
-                                });
+        auto it = std::mismatch(
+            a_AABB.begin(),
+            a_AABB.end(),
+            b_AABB.begin(),
+            b_AABB.end(),
+            [](const auto& lhs, const auto& rhs)
+            { return lhs.min() == rhs.min() && lhs.max() == rhs.max(); });
 
         CHECK(it.first == a_AABB.end());
         CHECK(it.second == b_AABB.end());
@@ -94,37 +96,37 @@ void tree_consistency_test(const DeviceBuffer<LinearBVHNode>& d_a,
                       << "aabb=(" << s_aabb.min().transpose() << ", "
                       << s_aabb.max().transpose() << ")" << std::endl;
 
-            it = std::mismatch(++it.first,
-                               a_AABB.end(),
-                               ++it.second,
-                               b_AABB.end(),
-                               [](const auto& lhs, const auto& rhs) {
-                                   return lhs.min() == rhs.min()
-                                          && lhs.max() == rhs.max();
-                               });
+            it = std::mismatch(
+                ++it.first,
+                a_AABB.end(),
+                ++it.second,
+                b_AABB.end(),
+                [](const auto& lhs, const auto& rhs)
+                { return lhs.min() == rhs.min() && lhs.max() == rhs.max(); });
         }
     }
 }
 
 // check if the test result is conservative (i.e., no false negative)
-void check_cp_conservative(span<Vector2i> test, span<Vector2i> gd)
+void check_cp_conservative(span<Vector2i> test, span<Vector2i> gt)
 {
     auto compare = [](const Vector2i& lhs, const Vector2i& rhs)
     { return lhs[0] < rhs[0] || (lhs[0] == rhs[0] && lhs[1] < rhs[1]); };
 
     std::ranges::sort(test, compare);
-    std::ranges::sort(gd, compare);
+    std::ranges::sort(gt, compare);
 
     std::list<Vector2i> diff;
     std::set_difference(
-        test.begin(), test.end(), gd.begin(), gd.end(), std::back_inserter(diff), compare);
+        gt.begin(), gt.end(), test.begin(), test.end(), std::back_inserter(diff), compare);
 
     CHECK(diff.empty());
 
+    fmt::println("test.size()={}", test.size());
+    fmt::println("ground_truth.size()={}", gt.size());
+
     if(!diff.empty())
     {
-        fmt::println("test.size()={}", test.size());
-        fmt::println("ground_truth.size()={}", gd.size());
         fmt::println("diff:");
         for(auto&& d : diff)
         {
@@ -132,7 +134,6 @@ void check_cp_conservative(span<Vector2i> test, span<Vector2i> gd)
         }
     }
 }
-
 
 std::vector<Vector2i> two_step_lbvh_cp(span<const LinearBVHAABB> aabbs)
 {
@@ -313,25 +314,6 @@ std::vector<Vector2i> two_step_lbvh_cp(span<const LinearBVHAABB> aabbs)
     std::vector<Vector2i> pairs_host;
     pairs.copy_to(pairs_host);
 
-    //std::vector<LinearBVHAABB> aabbs_host(aabbs.size());
-    //LinearBVHVisitor(lbvh).aabbs().copy_to(aabbs_host.data());
-    //for(auto&& [i, aabb] : enumerate(aabbs_host))
-    //{
-    //    std::cout << "[" << aabb.min().transpose() << "],"
-    //              << "[" << aabb.max().transpose() << "]" << std::endl;
-    //}
-
-    //std::vector<LinearBVHNode> nodes_host(2 * aabbs.size() - 1);
-    //LinearBVHVisitor(lbvh).nodes().copy_to(nodes_host.data());
-    //for(auto&& [i, node] : enumerate(nodes_host))
-    //{
-    //    std::cout << "node=" << i << "[" << aabbs_host[i].min().transpose() << "],"
-    //              << "[" << aabbs_host[i].max().transpose() << "]"
-    //              << ", parent=" << node.parent_idx
-    //              << ", left=" << node.left_idx << ", right=" << node.right_idx
-    //              << ", obj=" << node.object_idx << std::endl;
-    //}
-
     return pairs_host;
 }
 
@@ -370,7 +352,7 @@ std::vector<Vector2i> lbvh_query_point(span<const LinearBVHAABB> aabbs)
         .apply(aabbs.size(),
                [points = points.viewer().name("points"),
                 aabbs = d_aabbs.viewer().name("aabbs")] __device__(int i) mutable
-               { points(i) = aabbs(i).center(); });
+               { points(i) = aabbs(i).center().cast<Float>(); });
 
     ParallelFor()
         .kernel_name("LinearBVHTest::Query")
@@ -428,14 +410,18 @@ std::vector<Vector2i> brute_froce_query_point(span<const LinearBVHAABB> aabbs)
 
     std::vector<Vector3> points(aabbs.size());
 
-    std::ranges::transform(
-        aabbs, points.begin(), [](const auto& aabb) { return aabb.center(); });
+    std::ranges::transform(aabbs,
+                           points.begin(),
+                           [](const auto& aabb)
+                           {
+                               return Eigen::Vector3f{aabb.center()}.cast<Float>();
+                           });
 
     for(auto&& [i, point0] : enumerate(points))
     {
         for(auto&& [j, aabb] : enumerate(aabbs))
         {
-            if(aabb.contains(point0))
+            if(aabb.contains(point0.cast<float>()))
             {
                 pairs.push_back(Vector2i(i, j));
             }
@@ -457,7 +443,6 @@ std::vector<Vector2i> adaptive_lbvh_cp(span<const LinearBVHAABB> aabbs)
     // prepare size with aabbs.size()
     pairs.resize(aabbs.size());
     fmt::println("adaptive_lbvh, prepared_size={}", pairs.size());
-
 
     {
         Timer timer{"adaptive_lbvh"};
@@ -548,6 +533,7 @@ std::vector<Vector2i> adaptive_lbvh_cp(span<const LinearBVHAABB> aabbs)
 
 void lbvh_test(const SimplicialComplex& mesh)
 {
+    Timer::enable_all();
     Timer::set_sync_func([]() { muda::wait_device(); });
 
     std::cout << "num_aabb=" << mesh.triangles().size() << std::endl;
@@ -561,7 +547,7 @@ void lbvh_test(const SimplicialComplex& mesh)
         auto p0 = pos_view[tri[0]];
         auto p1 = pos_view[tri[1]];
         auto p2 = pos_view[tri[2]];
-        aabbs[i].extend(p0).extend(p1).extend(p2);
+        aabbs[i].extend(p0.cast<float>()).extend(p1.cast<float>()).extend(p2.cast<float>());
     }
 
     auto lbvh_pairs = two_step_lbvh_cp(aabbs);
@@ -578,13 +564,12 @@ void lbvh_test(const SimplicialComplex& mesh)
 
     Timer::set_sync_func(nullptr);
 
-    GlobalTimer::current()->print_timings();
-    GlobalTimer::current()->clear();
+    Timer::report();
 }
 
 SimplicialComplex tet()
 {
-    std::vector           Vs = {Vector3{0.0, 0.0, 0.0},
+    std::vector<Vector3>  Vs = {Vector3{0.0, 0.0, 0.0},
                                 Vector3{1.0, 0.0, 0.0},
                                 Vector3{0.0, 1.0, 0.0},
                                 Vector3{0.0, 0.0, 1.0}};
@@ -592,10 +577,12 @@ SimplicialComplex tet()
 
     return tetmesh(Vs, Ts);
 }
+}  // namespace test_lbvh
 
 
 TEST_CASE("lbvh", "[collision detection]")
 {
+    using namespace test_lbvh;
     SECTION("tet")
     {
         fmt::println("tet:");

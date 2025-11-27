@@ -1,4 +1,5 @@
 #include <collision_detection/atomic_counting_lbvh.h>
+#include "stackless_bvh.h"
 
 namespace uipc::backend::cuda
 {

@@ -9,6 +9,11 @@
 #include <algorithm/fast_segmental_reduce.h>
 #include <muda/cub/device/device_partition.h>
 
+constexpr bool operator==(const int2& l, const int2& r)
+{
+    return l.x == r.x && l.y == r.y;
+}
+
 namespace uipc::backend::cuda
 {
 template <typename T, int N>

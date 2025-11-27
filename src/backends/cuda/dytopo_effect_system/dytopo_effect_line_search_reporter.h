@@ -22,7 +22,7 @@ class DyTopoEffectLineSearchReporter final : public LineSearchReporter
 
         muda::DeviceVar<Float>    energy;
         muda::DeviceBuffer<Float> energies;
-        SizeT                     reserve_ratio = 1.5;
+        Float                     reserve_ratio = 1.5;
 
         template <typename T>
         void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)
