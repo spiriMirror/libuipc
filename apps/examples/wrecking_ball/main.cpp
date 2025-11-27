@@ -30,6 +30,7 @@ int main()
     config["contact"]["enable"]             = true;
     config["contact"]["d_hat"]              = 0.01;
     config["line_search"]["max_iter"]       = 8;
+    config["collision_detection"]["method"] = "stackless_bvh";
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -181,16 +182,15 @@ int main()
     world.init(scene);
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
-
-    // world.recover();
+    world.dump();
 
     while(world.frame() < 1000)
     {
         world.advance();
         world.retrieve();
-        //world.dump();
+        world.dump();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
-        // fmt::println("frame: {}", world.frame());
+        fmt::println("frame: {}", world.frame());
     }
 }
