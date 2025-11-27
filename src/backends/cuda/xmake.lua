@@ -1,4 +1,4 @@
-add_requires("muda 5b177ad0f450183914300ee55e481bf01c673d5d")
+add_requires("muda 8f9e17d8e76a658df3b6ffeeffbbc9ac47ac54bf")
 
 target("cuda")
     add_rules("backend")
@@ -32,9 +32,6 @@ package("muda")
     set_license("Apache-2.0")
 
     add_urls("https://github.com/MuGdxy/muda.git")
-
-    add_versions("2025.02.28", "ff8558b8842247787545353e7d370ae376f212c5")
-    add_versions("2025.02.01", "008b6fdd48e6ffa7bcaf79943beb24f940d8da93")
 
     set_policy("package.install_locally", true)
 

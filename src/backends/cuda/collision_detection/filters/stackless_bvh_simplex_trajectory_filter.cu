@@ -1,4 +1,4 @@
-#include <collision_detection/filters/lbvh_simplex_trajectory_filter.h>
+#include <collision_detection/filters/stackless_bvh_simplex_trajectory_filter.h>
 #include <muda/cub/device/device_select.h>
 #include <muda/ext/eigen/log_proxy.h>
 #include <sim_engine.h>
@@ -14,34 +14,34 @@ namespace uipc::backend::cuda
 {
 constexpr bool PrintDebugInfo = false;
 
-REGISTER_SIM_SYSTEM(LBVHSimplexTrajectoryFilter);
+REGISTER_SIM_SYSTEM(StacklessBVHSimplexTrajectoryFilter);
 
-void LBVHSimplexTrajectoryFilter::do_build(BuildInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::do_build(BuildInfo& info)
 {
     auto& config = world().scene().config();
     auto  method = config.find<std::string>("collision_detection/method");
-    if(method->view()[0] != "linear_bvh")
+    if(method->view()[0] != "stackless_bvh")
     {
-        throw SimSystemException("Linear BVH unused");
+        throw SimSystemException("Stackless BVH unused");
     }
 }
 
-void LBVHSimplexTrajectoryFilter::do_detect(DetectInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::do_detect(DetectInfo& info)
 {
     m_impl.detect(info);
 }
 
-void LBVHSimplexTrajectoryFilter::do_filter_active(FilterActiveInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::do_filter_active(FilterActiveInfo& info)
 {
     m_impl.filter_active(info);
 }
 
-void LBVHSimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
 {
     m_impl.filter_toi(info);
 }
 
-void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 {
     using namespace muda;
 
@@ -282,7 +282,6 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
         }
 
         // Use CodimP to query AllE
-        if(codimVs.size())
         {
             muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
             lbvh_E.query(
@@ -429,48 +428,6 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 
     // Use AllP to query AllT
     {
-        // bool is_same = true;
-
-        //if(last_nodes.size() == 0)
-        //{
-        //    last_nodes.resize(lbvh_T.d_nodes.size());
-        //    thrust::copy(lbvh_T.d_nodes.begin(),
-        //                 lbvh_T.d_nodes.end(),
-        //                 last_nodes.begin());
-        //}
-        //else
-        //{
-        //    std::vector<StacklessBVH::Node> current_nodes(lbvh_T.d_nodes.size());
-        //    thrust::copy(lbvh_T.d_nodes.begin(),
-        //                 lbvh_T.d_nodes.end(),
-        //                 current_nodes.begin());
-
-
-        //    for(int i = 0; i < current_nodes.size(); ++i)
-        //    {
-        //        auto& current_node = current_nodes[i];
-        //        auto& last_node    = last_nodes[i];
-        //        auto  all_eq       = current_node.lc == last_node.lc
-        //                      && current_node.escape == last_node.escape
-        //                      && current_node.bound.min() == last_node.bound.min()
-        //                      && current_node.bound.max() == last_node.bound.max();
-        //        if(!all_eq)
-        //        {
-        //            std::cout
-        //                << "nodes changed [" << i << "]"
-        //                << "lc:" << last_node.lc << "->" << current_node.lc << ", "
-        //                << "escape:" << last_node.escape << "->"
-        //                << current_node.escape << ", "
-        //                << "bound.min:" << last_node.bound.min().transpose()
-        //                << "->" << current_node.bound.min().transpose() << ", "
-        //                << "bound.max:" << last_node.bound.max().transpose() << "->"
-        //                << current_node.bound.max().transpose() << std::endl;
-        //            is_same = false;
-        //        }
-        //    }
-        //}
-
-
         muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
         lbvh_T.query(
             point_aabbs,
@@ -545,17 +502,10 @@ void LBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
                 return true;
             },
             candidate_AllP_AllT_pairs);
-
-        // thrust::copy(lbvh_T.d_nodes.begin(), lbvh_T.d_nodes.end(), last_nodes.begin());
-
-        //if(!is_same)
-        //{
-        //    std::abort();
-        //}
     }
 }
 
-void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
 {
     using namespace muda;
 
@@ -998,7 +948,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
     }
 }
 
-void LBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
+void StacklessBVHSimplexTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 {
     using namespace muda;
 

@@ -8,7 +8,7 @@ enable_language(CUDA)
 
 uipc_info("CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
 
-find_package(muda CONFIG REQUIRED)
+# find_package(muda CONFIG REQUIRED)
 
 # ------------------------------------------------------------------------------
 # CUDA Backend
@@ -27,7 +27,7 @@ target_link_libraries(cuda PUBLIC
 
 # add CCCL include directory for CUDA 13.0 compatibility
 if(CUDAToolkit_VERSION_MAJOR GREATER_EQUAL 13)
-    target_include_directories(cuda PRIVATE ${CUDAToolkit_INCLUDE_DIRS}/cccl)
+    target_include_directories(cuda PUBLIC ${CUDAToolkit_INCLUDE_DIRS}/cccl)
 endif()
 
 target_compile_features(cuda PUBLIC cxx_std_20)

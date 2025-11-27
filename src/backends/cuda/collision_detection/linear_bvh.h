@@ -1,4 +1,4 @@
-/*****************************************************************//**
+/*****************************************************************/ /**
  * \file   linear_bvh.h
  * \brief  The LinearBVH class and its viewer class.
  * 
@@ -32,7 +32,7 @@ namespace detail
       private:
         friend MUDA_GENERIC bool operator==(const LinearBVHMortonIndex& lhs,
                                             const LinearBVHMortonIndex& rhs) noexcept;
-        uint64_t    m_morton_index = 0;
+        uint64_t                 m_morton_index = 0;
     };
 
     MUDA_GENERIC bool operator==(const LinearBVHMortonIndex& lhs,
@@ -113,7 +113,7 @@ class LinearBVHViewer : public muda::ViewerBase<true>
         return this->query(
             q,
             [](const LinearBVHAABB& node, const Vector3& q)
-            { return node.contains(q); },
+            { return node.contains(q.cast<float>()); },
             stack,
             stack_num,
             callback);

@@ -185,7 +185,7 @@ MUDA_INLINE MUDA_GENERIC std::uint32_t expand_bits(std::uint32_t v) noexcept
     return v;
 }
 
-MUDA_INLINE MUDA_GENERIC std::uint32_t morton_code(Vector3 xyz) noexcept
+MUDA_INLINE MUDA_GENERIC std::uint32_t morton_code(Eigen::Vector3f xyz) noexcept
 {
     xyz = xyz.cwiseMin(1.0).cwiseMax(0.0);
     const std::uint32_t xx = expand_bits(static_cast<std::uint32_t>(xyz.x() * 1024.0));
@@ -345,15 +345,15 @@ MUDA_INLINE void build_internal_aabbs(size_t num_objects,
                        // to avoid cache coherency problem, we must use atomic operation.
                        auto atomic_fetch = [](LinearBVHAABB& aabb) -> LinearBVHAABB
                        {
-                           Vector3       zero  = Vector3::Zero();
-                           LinearBVHAABB aabb_ = aabb;
+                           Eigen::Vector3f zero  = Eigen::Vector3f::Zero();
+                           LinearBVHAABB   aabb_ = aabb;
 
                            // without atomic_thread_fence, this loop may be infinite.
                            while(aabb_.isEmpty())
                            {
-                               Vector3 min_ = eigen::atomic_add(aabb.min(), zero);
-                               Vector3 max_ = eigen::atomic_add(aabb.max(), zero);
-                               aabb_ = LinearBVHAABB{min_, max_};
+                               auto min_ = eigen::atomic_add(aabb.min(), zero);
+                               auto max_ = eigen::atomic_add(aabb.max(), zero);
+                               aabb_     = LinearBVHAABB{min_, max_};
                            };
 
                            return aabb_;
@@ -421,8 +421,8 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
                 aabbs    = aabbs.viewer().name("filled_aabbs"),
                 mortons = m_mortons.viewer().name("mortons")] __device__(int i) mutable
                {
-                   auto&   aabb = aabbs(i);
-                   Vector3 p    = aabb.center();
+                   auto&           aabb = aabbs(i);
+                   Eigen::Vector3f p    = aabb.center();
 
                    MUDA_ASSERT(aabbs(i).volume() >= 0,
                                "Invalid AABB(%d), Max(%f,%f,%f) < Min(%f,%f,%f)",
@@ -464,7 +464,7 @@ MUDA_INLINE void LinearBVH::build(muda::CBufferView<LinearBVHAABB> aabbs, muda::
                 mortons   = m_sorted_mortons.viewer().name("mortons"),
                 indices = m_new_to_old.viewer().name("indices")] __device__(int i) mutable
                {
-                   uint32_t idx = i;
+                   uint32_t    idx = i;
                    MortonIndex morton{mortons(i), idx};
                    morton64s(i) = morton;
                });
