@@ -1,7 +1,7 @@
 #pragma once
 #include <type_define.h>
+#include <muda/buffer/device_var.h>
 #include <muda/buffer/device_buffer.h>
-#include <cub/device/device_run_length_encode.cuh>
 #include <muda/ext/linear_system/device_doublet_vector.h>
 #include <muda/ext/linear_system/device_bcoo_vector.h>
 #include <muda/ext/linear_system/device_triplet_matrix.h>

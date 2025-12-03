@@ -1,10 +1,12 @@
 #pragma once
 #include <sim_system.h>
+#include <utils/offset_count_collection.h>
 #include <optional>
 
 namespace uipc::backend::cuda
 {
 class LineSearchReporter;
+
 class LineSearcher : public SimSystem
 {
   public:
