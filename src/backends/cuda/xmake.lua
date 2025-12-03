@@ -1,4 +1,4 @@
-add_requires("muda 8f9e17d8e76a658df3b6ffeeffbbc9ac47ac54bf")
+add_requires("muda d3e7f85a13e74e2613147b8d6728487766d08416")
 
 target("cuda")
     add_rules("backend")
