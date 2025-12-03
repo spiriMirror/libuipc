@@ -9,13 +9,14 @@
 #include <algorithm/fast_segmental_reduce.h>
 #include <muda/cub/device/device_partition.h>
 
+
+namespace uipc::backend::cuda
+{
 constexpr bool operator==(const int2& l, const int2& r)
 {
     return l.x == r.x && l.y == r.y;
 }
 
-namespace uipc::backend::cuda
-{
 template <typename T, int N>
 void MatrixConverter<T, N>::convert(const muda::DeviceTripletMatrix<T, N>& from,
                                     muda::DeviceBCOOMatrix<T, N>&          to)
