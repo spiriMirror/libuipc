@@ -9,14 +9,12 @@ import numpy as np
 import polyscope as ps
 import polyscope.imgui as psim
 from uipc import Logger
-from uipc import Matrix4x4, Vector3
+from uipc import Matrix4x4
 from uipc import Engine, World, Scene, SceneIO, Animation
-from uipc.backend import SceneVisitor
 from uipc.geometry import SimplicialComplex, SimplicialComplexIO
 from uipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
-from uipc.geometry import ground
 from uipc import view
-from uipc.constitution import AffineBodyConstitution, AffineBodyExternalWrench
+from uipc.constitution import AffineBodyConstitution, AffineBodyExternalForce
 from asset import AssetDir
 
 
@@ -43,7 +41,7 @@ def test_affine_body_external_wrench():
 
     # Create constitutions
     abd = AffineBodyConstitution()
-    ext_wrench = AffineBodyExternalWrench()
+    ext_wrench = AffineBodyExternalForce()
 
     scene.constitution_tabular().insert(abd)
     scene.constitution_tabular().insert(ext_wrench)
@@ -85,12 +83,8 @@ def test_affine_body_external_wrench():
         Apply a 12D wrench with both translational force and rotational component.
         The cube will orbit around the origin while also spinning around its own Y axis.
         """
-        print(f"========== ANIMATOR CALLED: Frame {info.frame()} ==========")
-
         geo_slots = info.geo_slots()
         time = info.dt() * info.frame()
-
-        print(f"  Time: {time:.2f}s, dt: {info.dt():.4f}s, num_geos: {len(geo_slots)}")
 
         # Rotation parameters (reduced for stability)
         orbit_speed = 0.2  # rad/s - speed of orbital motion
@@ -119,29 +113,31 @@ def test_affine_body_external_wrench():
             if geo is None:
                 continue
 
-            # Find external_wrench attribute
-            wrench_attr = geo.instances().find("external_wrench")
+            # Find external_force attribute (renamed from external_wrench)
+            force_attr = geo.instances().find("external_force")
+            is_constrained_attr = geo.instances().find("is_constrained")
 
-            if wrench_attr is None:
+            if force_attr is None or is_constrained_attr is None:
                 continue
 
-            # Create Vector12 wrench:
+            # Create Vector12 force:
             # [0:3] = linear force (orbital motion)
-            # [3:12] = shape velocity derivative (spinning motion)
-            wrench_v12 = np.zeros(12)
-            wrench_v12[0:3] = force_3d
-            wrench_v12[3:12] = shape_vel_derivative
+            # [3:12] = affine force (spinning motion)
+            force_v12 = np.zeros(12)
+            force_v12[0:3] = force_3d
+            force_v12[3:12] = shape_vel_derivative
 
-            # Update the wrench (reshape to match attribute shape)
-            view(wrench_attr)[:] = wrench_v12.reshape(-1, 1)
+            # Update the force (reshape to match attribute shape)
+            view(force_attr)[:] = force_v12.reshape(-1, 1)
+            
+            # Enable constraint (must be set to 1 each frame for force to apply)
+            view(is_constrained_attr)[:] = 1
 
             # Debug output every 50 frames
-            if info.frame() % 50 == 0 and i == 0:
-                print(f"Frame {info.frame()}: Force = [{force_3d[0]:.2f}, {force_3d[1]:.2f}, {force_3d[2]:.2f}] N, Spin = {omega_y:.2f}")
+            # if info.frame() % 50 == 0 and i == 0:
+            print(f"Frame {info.frame()}: Force = [{force_3d[0]:.2f}, {force_3d[1]:.2f}, {force_3d[2]:.2f}] N, Spin = {omega_y:.2f}")
 
-    print("Registering animator...")
     scene.animator().insert(cube_object, animate_rotating_force)
-    print("Animator registered successfully")
 
     sio = SceneIO(scene)
     world.init(scene)

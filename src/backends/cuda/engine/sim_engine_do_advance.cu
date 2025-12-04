@@ -8,6 +8,7 @@
 #include <line_search/line_searcher.h>
 #include <linear_system/global_linear_system.h>
 #include <animator/global_animator.h>
+#include <affine_body/global_external_force_manager.h>
 #include <diff_sim/global_diff_sim_manager.h>
 #include <newton_tolerance/newton_tolerance_manager.h>
 #include <time_integrator/time_integrator_manager.h>
@@ -129,6 +130,13 @@ void SimEngine::do_advance()
         {
             Timer timer{"Step Animation"};
             m_global_animator->step();
+        }
+
+        // NEW LIFECYCLE: Update external forces AFTER animator step
+        if(m_global_external_force_manager)
+        {
+            Timer timer{"Step External Forces"};
+            m_global_external_force_manager->step();
         }
     };
 

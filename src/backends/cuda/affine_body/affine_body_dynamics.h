@@ -360,6 +360,12 @@ class AffineBodyDynamics : public SimSystem
 
         DeviceBuffer<Vector12> body_id_to_abd_gravity;
 
+        //tex: $$ \mathbf{F}_{ext,i} $$ raw external forces (12D generalized forces) per body, set by constraints
+        DeviceBuffer<Vector12> body_id_to_external_force_raw;
+
+        //tex: $$ \mathbf{a}_{ext,i} = \mathbf{M}^{-1} \mathbf{F}_{ext,i} $$ external acceleration per body, computed by reporter
+        DeviceBuffer<Vector12> body_id_to_external_force;
+
         DeviceBuffer<IndexT> body_id_to_is_fixed;    // Body IsFixed
         DeviceBuffer<IndexT> body_id_to_is_dynamic;  // Body IsKinematic
 
@@ -466,6 +472,26 @@ class AffineBodyDynamics : public SimSystem
         return m_impl.body_id_to_abd_gravity.view();
     }
 
+    auto body_external_forces_raw() noexcept
+    {
+        return m_impl.body_id_to_external_force_raw.view();
+    }
+
+    auto body_external_forces_raw() const noexcept
+    {
+        return muda::CBufferView<Vector12>{m_impl.body_id_to_external_force_raw.view()};
+    }
+
+    auto body_external_forces() noexcept
+    {
+        return m_impl.body_id_to_external_force.view();
+    }
+
+    auto body_external_forces() const noexcept
+    {
+        return muda::CBufferView<Vector12>{m_impl.body_id_to_external_force.view()};
+    }
+
     auto body_is_fixed() const noexcept
     {
         return m_impl.body_id_to_is_fixed.view();
@@ -535,6 +561,7 @@ class AffineBodyDynamics : public SimSystem
     friend class AffineBodyKineticDiffParmReporter;
     friend class ABDTimeIntegrator;
     friend class AffineBodyStateAccessorFeatureOverrider;
+    friend class AffineBodyExternalForceReporter;
 
     void add_reporter(AffineBodyKineticDiffParmReporter* reporter);
 

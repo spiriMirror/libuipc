@@ -20,7 +20,7 @@
 #include <pyuipc/constitution/affine_body_revolute_joint.h>
 #include <pyuipc/constitution/inter_primitive_constitution.h>
 #include <pyuipc/constitution/soft_vertex_stitch.h>
-#include <pyuipc/constitution/affine_body_external_wrench.h>
+#include <pyuipc/constitution/affine_body_external_force.h>
 
 namespace pyuipc::constitution
 {
@@ -34,7 +34,7 @@ PyModule::PyModule(py::module& m)
     PyAffineBodyConstitution{m};
     PyInterAffineBodyConstitution{m};
     PyAffineBodyRevoluteJoint{m};
-    PyAffineBodyExternalWrench{m};
+    PyAffineBodyExternalForce{m};
 
     // Finite Element Constitutions
     PyFiniteElementConstitution{m};

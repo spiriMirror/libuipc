@@ -18,6 +18,7 @@ class TimeIntegratorManager;
 class LineSearcher;
 class GlobalLinearSystem;
 class GlobalAnimator;
+class GlobalExternalForceManager;
 class GlobalDiffSimManager;
 class AffineBodyDynamics;
 class FiniteElementMethod;
@@ -82,8 +83,9 @@ class SimEngine final : public backend::SimEngine
     GlobalLinearSystem*     m_global_linear_system     = nullptr;
     NewtonToleranceManager* m_newton_tolerance_manager = nullptr;
 
-    GlobalAnimator*       m_global_animator         = nullptr;
-    GlobalDiffSimManager* m_global_diff_sim_manager = nullptr;
+    GlobalAnimator*              m_global_animator               = nullptr;
+    GlobalExternalForceManager*  m_global_external_force_manager = nullptr;
+    GlobalDiffSimManager*        m_global_diff_sim_manager       = nullptr;
     //GlobalDiffContactManager*    m_global_diff_contact_manager    = nullptr;
     //GlobalAdjointMethodReplayer* m_global_adjoint_method_replayer = nullptr;
     AffineBodyDynamics* m_affine_body_dynamics = nullptr;
