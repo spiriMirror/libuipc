@@ -171,7 +171,7 @@ AABB GlobalVertexManager::Impl::compute_vertex_bounding_box()
     min_pos_host = min_pos;
     max_pos_host = max_pos;
 
-    vertex_bounding_box = AABB{min_pos_host, max_pos_host};
+    vertex_bounding_box = AABB{min_pos_host.cast<float>(), max_pos_host.cast<float>()};
     return vertex_bounding_box;
 }
 }  // namespace uipc::backend::cuda

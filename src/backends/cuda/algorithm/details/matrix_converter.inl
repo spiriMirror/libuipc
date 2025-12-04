@@ -1,4 +1,3 @@
-#include <algorithm/matrix_converter.h>
 #include <muda/cub/device/device_merge_sort.h>
 #include <muda/cub/device/device_scan.h>
 #include <muda/cub/device/device_radix_sort.h>
@@ -8,6 +7,7 @@
 #include <uipc/common/timer.h>
 #include <algorithm/fast_segmental_reduce.h>
 #include <muda/cub/device/device_partition.h>
+#include <muda/cub/device/device_run_length_encode.h>
 
 namespace uipc::backend::cuda
 {
@@ -283,7 +283,7 @@ void MatrixConverter<T, N>::_calculate_block_offsets(const muda::DeviceBCOOMatri
     //Timer timer{__FUNCTION__};
 
     using namespace muda;
-    to.reshape(from.block_rows(), from.block_cols());
+    to.reshape(from.rows(), from.cols());
 
 
     auto dst_row_offsets = to.row_offsets();
@@ -593,7 +593,7 @@ void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
     auto& partition_index_input = sort_index_input;
     auto& partition_index       = sort_index;
     auto& selected_count        = count;
-    auto  diag_count            = from.block_rows();
+    auto  diag_count            = from.rows();
 
 
     loose_resize(flags, sym_size);
@@ -624,7 +624,7 @@ void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
 
     auto general_bcoo_size = 2 * (sym_size - diag_count) + diag_count;
 
-    to.resize(from.block_rows(), from.block_cols(), general_bcoo_size);
+    to.resize(from.rows(), from.cols(), general_bcoo_size);
 
     // copy blocks and ij
     // in this sequence:
@@ -642,12 +642,12 @@ void MatrixConverter<T, N>::sym2ge(const muda::DeviceBCOOMatrix<T, N>& from,
                    auto index = partition_index(i);
                    auto f     = from(index);
                    // diag + upper
-                   to(i).write(f.row_index, f.col_index, f.block_value);
+                   to(i).write(f.row_index, f.col_index, f.value);
                    if(i >= diag_count)
                    {
                        // lower
                        to(i + sym_size - diag_count)
-                           .write(f.col_index, f.row_index, f.block_value.transpose());
+                           .write(f.col_index, f.row_index, f.value.transpose());
                    }
                });
 

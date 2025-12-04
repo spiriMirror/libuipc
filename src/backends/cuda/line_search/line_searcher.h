@@ -5,6 +5,7 @@
 namespace uipc::backend::cuda
 {
 class LineSearchReporter;
+
 class LineSearcher : public SimSystem
 {
   public:

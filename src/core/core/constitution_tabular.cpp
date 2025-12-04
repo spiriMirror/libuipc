@@ -54,20 +54,39 @@ class ConstitutionTabular::Impl
 
         for(auto&& geo : geos)
         {
-            auto constitution_uid =
-                geo->geometry().meta().find<U64>(builtin::constitution_uid);
-            auto constraint_uid = geo->geometry().meta().find<U64>(builtin::constraint_uid);
-            auto extra_constitution_uids =
-                geo->geometry().meta().find<VectorXu64>(builtin::extra_constitution_uids);
-            if(constitution_uid)
-                insert(constitution_uid->view().front());
-            if(constraint_uid)
-                insert(constraint_uid->view().front());
-            if(extra_constitution_uids)
+            // 1. Base Constitution UID
             {
-                const auto& uids = extra_constitution_uids->view().front();
-                for(auto uid : uids)
-                    insert(uid);
+                auto constitution_uid =
+                    geo->geometry().meta().find<U64>(builtin::constitution_uid);
+
+                if(constitution_uid)
+                    insert(constitution_uid->view().front());
+            }
+
+            // 2. Extra Constitution UIDs
+            {
+                auto extra_constitution_uids =
+                    geo->geometry().meta().find<VectorXu64>(builtin::extra_constitution_uids);
+
+                if(extra_constitution_uids)
+                {
+                    const auto& uids = extra_constitution_uids->view().front();
+                    for(auto uid : uids)
+                        insert(uid);
+                }
+            }
+
+            // 3. Constraint UIDs
+            {
+                auto constraint_uids =
+                    geo->geometry().meta().find<VectorXu64>(builtin::constraint_uids);
+
+                if(constraint_uids)
+                {
+                    const auto& uids = constraint_uids->view().front();
+                    for(auto uid : uids)
+                        insert(uid);
+                }
             }
         }
     }

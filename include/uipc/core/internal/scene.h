@@ -24,7 +24,7 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
     friend class core::Scene;
 
   public:
-    Scene(const Json& config) noexcept;
+    Scene(const geometry::AttributeCollection& config) noexcept;
 
     ~Scene();
 

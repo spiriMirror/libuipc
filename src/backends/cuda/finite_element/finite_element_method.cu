@@ -183,8 +183,8 @@ void FiniteElementMethod::Impl::_classify_base_constitutions()
                   auto   uidb = b->uid();
                   auto   dima = a->dim();
                   auto   dimb = b->dim();
-                  DimUID uid_dim_a{dima, uida};
-                  DimUID uid_dim_b{dimb, uidb};
+                  DimUID uid_dim_a{dima, static_cast<IndexT>(uida)};
+                  DimUID uid_dim_b{dimb, static_cast<IndexT>(uidb)};
                   return uid_dim_a < uid_dim_b;
               });
 
@@ -349,12 +349,14 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
         std::transform(geo_infos.begin(),
                        geo_infos.end(),
                        vertex_counts.begin(),
-                       [](const GeoInfo& info) { return info.vertex_count; });
+                       [](const GeoInfo& info)
+                       { return static_cast<IndexT>(info.vertex_count); });
 
         std::transform(geo_infos.begin(),
                        geo_infos.end(),
                        primitive_counts.begin(),
-                       [](const GeoInfo& info) { return info.primitive_count; });
+                       [](const GeoInfo& info)
+                       { return static_cast<IndexT>(info.primitive_count); });
 
         vertex_offsets_counts.scan();
 
@@ -817,7 +819,6 @@ To avoid this warning, please apply the transform to the positions mannally. htt
             {  // 7) setup vertex is_fixed
 
                 auto is_fixed = sc->vertices().find<IndexT>(builtin::is_fixed);
-                auto constraint_uid = sc->meta().find<U64>(builtin::constraint_uid);
 
                 auto dst_is_fixed_span =
                     span{h_vertex_is_fixed}.subspan(info.vertex_offset, info.vertex_count);
