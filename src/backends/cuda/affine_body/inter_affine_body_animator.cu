@@ -63,15 +63,19 @@ void InterAffineBodyAnimator::Impl::init(backend::WorldVisitor& world)
     {
         auto  geo_slot = geo_slots[info.geo_slot_index];
         auto& geo      = geo_slot->geometry();
-        auto  uid      = geo.meta().find<U64>(builtin::constraint_uid);
-        if(uid)
+        auto  uids     = geo.meta().find<VectorXu64>(builtin::constraint_uids);
+        if(uids)
         {
-            auto uid_value = uid->view().front();
-            auto it        = uid_to_constraint_index.find(uid_value);
-            UIPC_ASSERT(it != uid_to_constraint_index.end(),
-                        "InterAffineBodyAnimator: Constraint uid not found");
-            auto index = it->second;
-            anim_geo_info_buffer[index].push_back(info);
+            auto uid_values = uids->view().front();
+            for(auto uid_value : uid_values)
+            {
+                auto it = uid_to_constraint_index.find(uid_value);
+                UIPC_ASSERT(it != uid_to_constraint_index.end(),
+                            "InterAffineBodyAnimator: No responsible backend SimSystem registered for constraint uid {}",
+                            uid_value);
+                auto index = it->second;
+                anim_geo_info_buffer[index].push_back(info);
+            }
         }
     }
 

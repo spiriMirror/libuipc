@@ -36,7 +36,6 @@ class LineSearchReporter : public SimSystem
     void         compute_energy(LineSearcher::EnergyInfo& info);
     void         init();
 
-    SizeT        m_index = ~0ull;
+    SizeT m_index = ~0ull;
 };
-
 }  // namespace uipc::backend::cuda

@@ -8,9 +8,11 @@
 # add_subdirectory(my_lib)    # include the submodule cmake project
 # set_target_properties(my_lib PROPERTIES FOLDER "external") # optional, organize in IDEs
 
-uipc_init_submodule(muda)
-add_subdirectory(muda)
-
-add_library(muda::muda ALIAS muda)
-set_target_properties(muda PROPERTIES FOLDER "external")
-
+if (UIPC_WITH_CUDA_BACKEND)
+    uipc_init_submodule(muda)
+    # Turn off example builds in muda
+    set(MUDA_BUILD_EXAMPLE OFF CACHE BOOL "Build muda example" FORCE)
+    add_subdirectory(muda)
+    add_library(muda::muda ALIAS muda)
+    set_target_properties(muda PROPERTIES FOLDER "external")
+endif()

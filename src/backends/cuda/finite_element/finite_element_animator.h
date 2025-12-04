@@ -2,6 +2,7 @@
 #include <animator/animator.h>
 #include <finite_element/finite_element_method.h>
 #include <line_search/line_searcher.h>
+#include <utils/offset_count_collection.h>
 #include <muda/ext/linear_system/device_dense_vector.h>
 #include <muda/ext/linear_system/device_doublet_vector.h>
 #include <muda/ext/linear_system/device_triplet_matrix.h>
@@ -28,10 +29,6 @@ class FiniteElementAnimator final : public Animator
         }
 
         span<const AnimatedGeoInfo> anim_geo_infos() const;
-
-        SizeT anim_vertex_count() const noexcept;
-
-        span<const IndexT> anim_indices() const;
 
         template <typename ForEach, typename ViewGetter>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
@@ -144,28 +141,19 @@ class FiniteElementAnimator final : public Animator
         SimSystemSlotCollection<FiniteElementConstraint> constraints;
         unordered_map<U64, SizeT> uid_to_constraint_index;
 
-        vector<AnimatedGeoInfo> anim_geo_infos;
-        vector<SizeT>           constraint_geo_info_offsets;
-        vector<SizeT>           constraint_geo_info_counts;
-
-        vector<SizeT> constraint_vertex_counts;
-        vector<SizeT> constraint_vertex_offsets;
-
-        vector<IndexT> anim_indices;
+        vector<AnimatedGeoInfo>       anim_geo_infos;
+        OffsetCountCollection<IndexT> constraint_geo_info_offsets_counts;
 
         // Constraints
         muda::DeviceVar<Float> constraint_energy;  // Constraint Energy
         muda::DeviceBuffer<Float> constraint_energies;  // Constraint Energy Per Element
-        vector<SizeT> constraint_energy_offsets;
-        vector<SizeT> constraint_energy_counts;
-
         muda::DeviceDoubletVector<Float, 3> constraint_gradient;  // Constraint Gradient Per Vertex
-        vector<SizeT> constraint_gradient_offsets;
-        vector<SizeT> constraint_gradient_counts;
-
         muda::DeviceTripletMatrix<Float, 3> constraint_hessian;  // Constraint Hessian Per Vertex
-        vector<SizeT> constraint_hessian_offsets;
-        vector<SizeT> constraint_hessian_counts;
+
+
+        OffsetCountCollection<IndexT> constraint_energy_offsets_counts;
+        OffsetCountCollection<IndexT> constraint_gradient_offsets_counts;
+        OffsetCountCollection<IndexT> constraint_hessian_offsets_counts;
     };
 
   private:
