@@ -144,7 +144,7 @@ class InterAffineBodyAnimator final : public Animator
 
   private:
     friend class InterAffineBodyConstraint;
-    void add_constraint(InterAffineBodyConstraint* constraint);  // only be called by AffinieElementConstraint
+    void add_constraint(InterAffineBodyConstraint* constraint);  // only be called by AffineBodyConstraint
 
     friend class InterAffineBodyAnimatorLineSearchSubreporter;
     void compute_energy(ABDLineSearchReporter::EnergyInfo& info);  // only be called by AffineBodyAnimatorLineSearchSubreporter
