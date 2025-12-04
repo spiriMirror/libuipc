@@ -4,6 +4,7 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <utils/offset_count_collection.h>
 
+
 namespace uipc::backend::cuda
 {
 class ABDLineSearchSubreporter;

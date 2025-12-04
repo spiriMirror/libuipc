@@ -30,16 +30,6 @@ class SoftTransformConstraint final : public AffineBodyConstraint
 
     void do_init(AffineBodyAnimator::FilteredInfo& info) override
     {
-        auto count = info.anim_body_count();
-
-        // reserve memory
-        h_constrained_bodies.reserve(count);
-        h_aim_transforms.reserve(count);
-        h_strength_ratios.reserve(count);
-        constrained_bodies.reserve(count);
-        aim_transforms.reserve(count);
-        strength_ratios.reserve(count);
-
         do_step(info);  // do the same thing as do_step
     }
 

@@ -819,7 +819,6 @@ To avoid this warning, please apply the transform to the positions mannally. htt
             {  // 7) setup vertex is_fixed
 
                 auto is_fixed = sc->vertices().find<IndexT>(builtin::is_fixed);
-                auto constraint_uid = sc->meta().find<U64>(builtin::constraint_uid);
 
                 auto dst_is_fixed_span =
                     span{h_vertex_is_fixed}.subspan(info.vertex_offset, info.vertex_count);

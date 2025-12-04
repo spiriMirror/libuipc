@@ -55,97 +55,52 @@ void AffineBodyAnimator::Impl::init(backend::WorldVisitor& world)
 
     auto  geo_slots = world.scene().geometries();
     auto& geo_infos = affine_body_dynamics->m_impl.geo_infos;
+    vector<list<AnimatedGeoInfo>> anim_geo_info_buffer;
+    anim_geo_info_buffer.resize(constraint_view.size());
 
     for(auto& info : geo_infos)
     {
         auto  geo_slot = geo_slots[info.geo_slot_index];
         auto& geo      = geo_slot->geometry();
-        auto  uid      = geo.meta().find<U64>(builtin::constraint_uid);
-        if(uid)
+        auto  uids     = geo.meta().find<VectorXu64>(builtin::constraint_uids);
+
+        if(uids)
         {
-            auto uid_value = uid->view().front();
-            auto it        = uid_to_constraint_index.find(uid_value);
-            UIPC_ASSERT(it != uid_to_constraint_index.end(),
-                        "AffineBodyAnimator: Constraint uid not found");
-            auto index = it->second;
-            constraint_geo_info_counts[index]++;
-        }
-    }
-
-    constraint_geo_info_offsets_counts.scan();
-
-    auto total_anim_geo_info_count = constraint_geo_info_offsets_counts.total_count();
-    anim_geo_infos.resize(total_anim_geo_info_count);
-
-    span<const IndexT> constraint_geo_info_offsets =
-        constraint_geo_info_offsets_counts.offsets();
-
-    vector<SizeT> anim_geo_info_counter(constraint_view.size(), 0);
-
-    for(auto& info : geo_infos)
-    {
-        auto  geo_slot = geo_slots[info.geo_slot_index];
-        auto& geo      = geo_slot->geometry();
-        auto  uid      = geo.meta().find<U64>(builtin::constraint_uid);
-        if(uid)
-        {
-            auto uid_value = uid->view().front();
-            auto it        = uid_to_constraint_index.find(uid_value);
-            UIPC_ASSERT(it != uid_to_constraint_index.end(),
-                        "Constraint: Constraint uid not found");
-            auto index = it->second;
-            auto offset =
-                constraint_geo_info_offsets[index] + anim_geo_info_counter[index];
-            anim_geo_infos[offset] = info;
-            anim_geo_info_counter[index]++;
-        }
-    }
-
-    vector<list<IndexT>> constraint_body_indices(constraint_view.size());
-    for(auto& c : constraint_view)
-    {
-        auto constraint_geo_infos =
-            span{anim_geo_infos}.subspan(constraint_geo_info_offsets[c->m_index],
-                                         constraint_geo_info_counts[c->m_index]);
-
-        auto& body_indices = constraint_body_indices[c->m_index];
-
-        for(auto& info : constraint_geo_infos)
-        {
-            for(auto i = 0; i < info.body_count; i++)
+            const auto& uid_values = uids->view().front();
+            for(auto&& uid_value : uid_values)
             {
-                body_indices.push_back(info.body_offset + i);
+                auto it = uid_to_constraint_index.find(uid_value);
+                UIPC_ASSERT(it != uid_to_constraint_index.end(),
+                            "AffineBodyAnimator: No responsible backend SimSystem registered for constraint uid {}",
+                            uid_value);
+                auto index = it->second;
+                anim_geo_info_buffer[index].push_back(info);
             }
         }
     }
 
-    constraint_body_offsets_counts.resize(constraint_view.size());
-    span<IndexT> constraint_body_counts = constraint_body_offsets_counts.counts();
+    // fill in the counts
+    std::ranges::transform(anim_geo_info_buffer,
+                           constraint_geo_info_counts.begin(),
+                           [](const auto& infos)
+                           { return static_cast<IndexT>(infos.size()); });
 
-    std::ranges::transform(constraint_body_indices,
-                           constraint_body_counts.begin(),
-                           [](const auto& indices) { return indices.size(); });
+    // scan to get offsets and total count
+    constraint_geo_info_offsets_counts.scan();
 
-    constraint_body_offsets_counts.scan();
+    auto total_anim_geo_info_count = constraint_geo_info_offsets_counts.total_count();
+    anim_geo_infos.reserve(total_anim_geo_info_count);
 
-    auto total_body_count = constraint_body_offsets_counts.total_count();
-    anim_body_indices.resize(total_body_count);
-
-    span<const IndexT> constraint_body_offsets = constraint_body_offsets_counts.offsets();
-    // expand the body indices
-    for(auto&& [i, indices] : enumerate(constraint_body_indices))
+    for(auto& infos : anim_geo_info_buffer)
     {
-        auto offset = constraint_body_offsets[i];
-        for(auto&& [j, index] : enumerate(indices))
+        for(auto& info : infos)
         {
-            anim_body_indices[offset + j] = index;
+            anim_geo_infos.push_back(info);
         }
     }
 
-    anim_body_indices.resize(total_body_count);
-
     // initialize the constraints
-    for(auto constraint : constraints.view())
+    for(auto constraint : constraint_view)
     {
         FilteredInfo info{this, constraint->m_index};
         constraint->init(info);
@@ -216,17 +171,6 @@ auto AffineBodyAnimator::FilteredInfo::anim_geo_infos() const noexcept
     auto [offset, count] = m_impl->constraint_geo_info_offsets_counts[m_index];
 
     return span<const AnimatedGeoInfo>{m_impl->anim_geo_infos}.subspan(offset, count);
-}
-
-SizeT AffineBodyAnimator::FilteredInfo::anim_body_count() const noexcept
-{
-    return m_impl->constraint_body_offsets_counts.counts()[m_index];
-}
-
-span<const IndexT> AffineBodyAnimator::FilteredInfo::anim_body_indices() const noexcept
-{
-    auto [offset, count] = m_impl->constraint_body_offsets_counts[m_index];
-    return span{m_impl->anim_body_indices}.subspan(offset, count);
 }
 
 Float AffineBodyAnimator::BaseInfo::substep_ratio() const noexcept

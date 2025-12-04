@@ -1,5 +1,5 @@
 #pragma once
-#include <uipc/common/type_define.h>
+#include <type_define.h>
 #include <uipc/common/vector.h>
 #include <uipc/common/span.h>
 

@@ -24,16 +24,6 @@ class SoftPositionConstraint final : public FiniteElementConstraint
 
     void do_init(FiniteElementAnimator::FilteredInfo& info) override
     {
-        auto count = info.anim_vertex_count();
-
-        // reserve memory
-        h_constrained_vertices.reserve(count);
-        h_aim_positions.reserve(count);
-        h_strength_ratios.reserve(count);
-        constrained_vertices.reserve(count);
-        aim_positions.reserve(count);
-        strength_ratios.reserve(count);
-
         do_step(info);  // do the same thing as do_step
     }
 
