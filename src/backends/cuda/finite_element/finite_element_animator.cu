@@ -61,98 +61,53 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
         constraint->m_index          = i;
     }
 
-    // +1 for total count
-    constraint_geo_info_counts.resize(constraint_view.size() + 1, 0);
-    constraint_geo_info_offsets.resize(constraint_view.size() + 1, 0);
+    constraint_geo_info_offsets_counts.resize(constraint_view.size());
 
     auto        geo_slots = world.scene().geometries();
     const auto& geo_infos = finite_element_method->m_impl.geo_infos;
 
-    for(auto& info : geo_infos)
-    {
-        auto  geo_slot = geo_slots[info.geo_slot_index];
-        auto& geo      = geo_slot->geometry();
-        auto  uid      = geo.meta().find<U64>(builtin::constraint_uid);
-        if(uid)
-        {
-            auto uid_value = uid->view().front();
-            auto it        = uid_to_constraint_index.find(uid_value);
-            UIPC_ASSERT(it != uid_to_constraint_index.end(),
-                        "FiniteElementAnimator: Constraint uid not found");
-            auto index = it->second;
-            constraint_geo_info_counts[index]++;
-        }
-    }
-
-    std::exclusive_scan(constraint_geo_info_counts.begin(),
-                        constraint_geo_info_counts.end(),
-                        constraint_geo_info_offsets.begin(),
-                        0);
-
-    auto total_anim_geo_info = constraint_geo_info_offsets.back();
-    anim_geo_infos.resize(total_anim_geo_info);
-
-    vector<SizeT> anim_geo_info_counter(constraint_view.size(), 0);
+    vector<list<AnimatedGeoInfo>> constraint_geo_info_buffer(constraint_view.size());
+    span<IndexT> constraint_geo_info_counts = constraint_geo_info_offsets_counts.counts();
 
     for(auto& info : geo_infos)
     {
         auto  geo_slot = geo_slots[info.geo_slot_index];
         auto& geo      = geo_slot->geometry();
-        auto  uid      = geo.meta().find<U64>(builtin::constraint_uid);
-        if(uid)
+        auto  uids     = geo.meta().find<VectorXu64>(builtin::constraint_uids);
+        if(uids)
         {
-            auto uid_value = uid->view().front();
-            auto it        = uid_to_constraint_index.find(uid_value);
-            UIPC_ASSERT(it != uid_to_constraint_index.end(),
-                        "Constraint: Constraint uid not found");
-            auto index = it->second;
-            auto offset =
-                constraint_geo_info_offsets[index] + anim_geo_info_counter[index];
-            anim_geo_infos[offset] = info;
-            anim_geo_info_counter[index]++;
-        }
-    }
+            const auto& uid_values = uids->view().front();
 
-    vector<list<IndexT>> constraint_vertex_indices(constraint_view.size());
-    for(auto& c : constraint_view)
-    {
-        auto constraint_geo_infos =
-            span{anim_geo_infos}.subspan(constraint_geo_info_offsets[c->m_index],
-                                         constraint_geo_info_counts[c->m_index]);
-
-        auto& indices = constraint_vertex_indices[c->m_index];
-
-        for(auto& info : constraint_geo_infos)
-        {
-            for(int i = 0; i < info.vertex_count; i++)
+            for(auto&& uid_value : uid_values)
             {
-                indices.push_back(info.vertex_offset + i);
+                auto it = uid_to_constraint_index.find(uid_value);
+                UIPC_ASSERT(it != uid_to_constraint_index.end(),
+                            "FiniteElementAnimator: No responsible backend SimSystem registered for constraint uid {}",
+                            uid_value);
+                auto index = it->second;
+                constraint_geo_info_buffer[index].push_back(info);
             }
         }
     }
 
-    constraint_vertex_counts.resize(constraint_view.size() + 1, 0);
-    constraint_vertex_offsets.resize(constraint_view.size() + 1, 0);
+    // fill the counts
+    std::ranges::transform(constraint_geo_info_buffer,
+                           constraint_geo_info_counts.begin(),
+                           [](const auto& infos)
+                           { return static_cast<IndexT>(infos.size()); });
 
-    std::ranges::transform(constraint_vertex_indices,
-                           constraint_vertex_counts.begin(),
-                           [](const auto& indices) { return indices.size(); });
 
-    std::exclusive_scan(constraint_vertex_counts.begin(),
-                        constraint_vertex_counts.end(),
-                        constraint_vertex_offsets.begin(),
-                        0);
+    // scan to get offsets and total count
+    constraint_geo_info_offsets_counts.scan();
 
-    auto total_vertex_count = constraint_vertex_offsets.back();
-    anim_indices.resize(total_vertex_count);
+    auto total_anim_geo_info = constraint_geo_info_offsets_counts.total_count();
+    anim_geo_infos.reserve(total_anim_geo_info);
 
-    // expand the indices
-    for(auto&& [i, indices] : enumerate(constraint_vertex_indices))
+    for(auto& infos : constraint_geo_info_buffer)
     {
-        auto offset = constraint_vertex_offsets[i];
-        for(auto& index : indices)
+        for(auto& info : infos)
         {
-            anim_indices[offset++] = index;
+            anim_geo_infos.push_back(info);
         }
     }
 
@@ -163,18 +118,14 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
         constraint->init(info);
     }
 
-    // reserve offsets and counts for constraints (+1 for total count)
-    constraint_energy_offsets.resize(constraint_view.size() + 1, 0);
-    constraint_energy_counts.resize(constraint_view.size() + 1, 0);
-    constraint_gradient_offsets.resize(constraint_view.size() + 1, 0);
-    constraint_gradient_counts.resize(constraint_view.size() + 1, 0);
-    constraint_hessian_offsets.resize(constraint_view.size() + 1, 0);
-    constraint_hessian_counts.resize(constraint_view.size() + 1, 0);
+    constraint_energy_offsets_counts.resize(constraint_view.size());
+    constraint_gradient_offsets_counts.resize(constraint_view.size());
+    constraint_hessian_offsets_counts.resize(constraint_view.size());
 }
 
 void FiniteElementAnimator::report_extent(ExtentInfo& info)
 {
-    info.hessian_block_count = m_impl.constraint_hessian_offsets.back();
+    info.hessian_block_count = m_impl.constraint_hessian_offsets_counts.total_count();
 }
 
 void FiniteElementAnimator::Impl::step()
@@ -185,14 +136,11 @@ void FiniteElementAnimator::Impl::step()
         constraint->step(info);
     }
 
-    SizeT H3x3_count = 0;
-    SizeT G3_count   = 0;
-    SizeT E_count    = 0;
 
     // clear the last element
-    constraint_energy_counts.back()   = 0;
-    constraint_gradient_counts.back() = 0;
-    constraint_hessian_counts.back()  = 0;
+    span<IndexT> constraint_energy_counts = constraint_energy_offsets_counts.counts();
+    span<IndexT> constraint_gradient_counts = constraint_gradient_offsets_counts.counts();
+    span<IndexT> constraint_hessian_counts = constraint_hessian_offsets_counts.counts();
 
     for(auto&& [i, constraint] : enumerate(constraints.view()))
     {
@@ -205,26 +153,13 @@ void FiniteElementAnimator::Impl::step()
     }
 
     // update the offsets
-    std::exclusive_scan(constraint_energy_counts.begin(),
-                        constraint_energy_counts.end(),
-                        constraint_energy_offsets.begin(),
-                        0);
+    constraint_energy_offsets_counts.scan();
+    constraint_gradient_offsets_counts.scan();
+    constraint_hessian_offsets_counts.scan();
 
-    E_count = constraint_energy_offsets.back();
-
-    std::exclusive_scan(constraint_gradient_counts.begin(),
-                        constraint_gradient_counts.end(),
-                        constraint_gradient_offsets.begin(),
-                        0);
-
-    G3_count = constraint_gradient_offsets.back();
-
-    std::exclusive_scan(constraint_hessian_counts.begin(),
-                        constraint_hessian_counts.end(),
-                        constraint_hessian_offsets.begin(),
-                        0);
-
-    H3x3_count = constraint_hessian_offsets.back();
+    SizeT E_count    = constraint_energy_offsets_counts.total_count();
+    SizeT G3_count   = constraint_gradient_offsets_counts.total_count();
+    SizeT H3x3_count = constraint_hessian_offsets_counts.total_count();
 
     // resize the buffers
     IndexT vertex_count = finite_element_method->xs().size();
@@ -278,21 +213,8 @@ Float FiniteElementAnimator::compute_energy(LineSearcher::EnergyInfo& info)
 
 auto FiniteElementAnimator::FilteredInfo::anim_geo_infos() const -> span<const AnimatedGeoInfo>
 {
-    return span<const AnimatedGeoInfo>{m_impl->anim_geo_infos}.subspan(
-        m_impl->constraint_geo_info_offsets[m_index],
-        m_impl->constraint_geo_info_counts[m_index]);
-}
-
-SizeT FiniteElementAnimator::FilteredInfo::anim_vertex_count() const noexcept
-{
-    return m_impl->constraint_vertex_counts[m_index];
-}
-
-span<const IndexT> FiniteElementAnimator::FilteredInfo::anim_indices() const
-{
-    auto offset = m_impl->constraint_vertex_offsets[m_index];
-    auto count  = m_impl->constraint_vertex_counts[m_index];
-    return span{m_impl->anim_indices}.subspan(offset, count);
+    auto [offset, count] = m_impl->constraint_geo_info_offsets_counts[m_index];
+    return span<const AnimatedGeoInfo>{m_impl->anim_geo_infos}.subspan(offset, count);
 }
 
 Float FiniteElementAnimator::BaseInfo::substep_ratio() const noexcept
@@ -322,15 +244,13 @@ muda::CBufferView<IndexT> FiniteElementAnimator::BaseInfo::is_fixed() const noex
 
 muda::BufferView<Float> FiniteElementAnimator::ComputeEnergyInfo::energies() const noexcept
 {
-    auto offset = m_impl->constraint_energy_offsets[m_index];
-    auto count  = m_impl->constraint_energy_counts[m_index];
+    auto [offset, count] = m_impl->constraint_energy_offsets_counts[m_index];
     return m_impl->constraint_energies.view(offset, count);
 }
 
 muda::DoubletVectorView<Float, 3> FiniteElementAnimator::ComputeGradientHessianInfo::gradients() const noexcept
 {
-    auto offset = m_impl->constraint_gradient_offsets[m_index];
-    auto count  = m_impl->constraint_gradient_counts[m_index];
+    auto [offset, count] = m_impl->constraint_gradient_offsets_counts[m_index];
     return m_impl->constraint_gradient.view().subview(offset, count);
 }
 

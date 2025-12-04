@@ -34,10 +34,6 @@ class AffineBodyAnimator final : public Animator
 
         span<const AnimatedGeoInfo> anim_geo_infos() const noexcept;
 
-        span<const IndexT> anim_body_indices() const noexcept;
-
-        SizeT anim_body_count() const noexcept;
-
         template <typename ViewGetterF, typename ForEachF>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                       ViewGetterF&&                   getter,
@@ -139,14 +135,8 @@ class AffineBodyAnimator final : public Animator
         SimSystemSlotCollection<AffineBodyConstraint> constraints;
         unordered_map<U64, SizeT>                     uid_to_constraint_index;
 
-        vector<AnimatedGeoInfo> anim_geo_infos;
-        vector<IndexT>          anim_body_indices;
-
+        vector<AnimatedGeoInfo>       anim_geo_infos;
         OffsetCountCollection<IndexT> constraint_geo_info_offsets_counts;
-
-        OffsetCountCollection<IndexT> constraint_body_offsets_counts;
-
-        // Constraints
 
         OffsetCountCollection<IndexT> constraint_energy_offsets_counts;
         OffsetCountCollection<IndexT> constraint_gradient_offsets_counts;
