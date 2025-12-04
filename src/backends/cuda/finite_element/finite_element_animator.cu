@@ -157,9 +157,9 @@ void FiniteElementAnimator::Impl::step()
     constraint_gradient_offsets_counts.scan();
     constraint_hessian_offsets_counts.scan();
 
-    SizeT H3x3_count = constraint_energy_offsets_counts.total_count();
+    SizeT E_count    = constraint_energy_offsets_counts.total_count();
     SizeT G3_count   = constraint_gradient_offsets_counts.total_count();
-    SizeT E_count    = constraint_hessian_offsets_counts.total_count();
+    SizeT H3x3_count = constraint_hessian_offsets_counts.total_count();
 
     // resize the buffers
     IndexT vertex_count = finite_element_method->xs().size();

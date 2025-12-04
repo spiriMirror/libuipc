@@ -143,7 +143,6 @@ class FiniteElementAnimator final : public Animator
 
         vector<AnimatedGeoInfo>       anim_geo_infos;
         OffsetCountCollection<IndexT> constraint_geo_info_offsets_counts;
-        vector<IndexT>                anim_indices;
 
         // Constraints
         muda::DeviceVar<Float> constraint_energy;  // Constraint Energy

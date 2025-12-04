@@ -14,7 +14,5 @@ if (UIPC_WITH_CUDA_BACKEND)
     set(MUDA_BUILD_EXAMPLE OFF CACHE BOOL "Build muda example" FORCE)
     add_subdirectory(muda)
     add_library(muda::muda ALIAS muda)
+    set_target_properties(muda PROPERTIES FOLDER "external")
 endif()
-
-set_target_properties(muda PROPERTIES FOLDER "external")
-
