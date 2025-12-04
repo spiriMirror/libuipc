@@ -1,10 +1,26 @@
 #pragma once
 #include <type_define.h>
+#include <muda/buffer/device_var.h>
 #include <muda/buffer/device_buffer.h>
-#include <muda/ext/linear_system/matrix_format_converter.h>
+#include <muda/ext/linear_system/device_doublet_vector.h>
+#include <muda/ext/linear_system/device_bcoo_vector.h>
+#include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <muda/ext/linear_system/device_bcoo_matrix.h>
+#include <muda/ext/linear_system/device_bsr_matrix.h>
 
 namespace uipc::backend::cuda
 {
+struct MatrixConverterIntPair
+{
+    int x;
+    int y;
+};
+
+constexpr bool operator==(const MatrixConverterIntPair& l, const MatrixConverterIntPair& r)
+{
+    return l.x == r.x && l.y == r.y;
+}
+
 template <typename T, int N>
 class MatrixConverter
 {
@@ -23,8 +39,8 @@ class MatrixConverter
 
     muda::DeviceBuffer<int> offsets;
 
-    muda::DeviceBuffer<int2> ij_pairs;
-    muda::DeviceBuffer<int2> unique_ij_pairs;
+    muda::DeviceBuffer<MatrixConverterIntPair> ij_pairs;
+    muda::DeviceBuffer<MatrixConverterIntPair> unique_ij_pairs;
 
     muda::DeviceBuffer<uint64_t> ij_hash_input;
     muda::DeviceBuffer<uint64_t> ij_hash;

@@ -5,7 +5,7 @@ void InterAffineBodyAnimator::FilteredInfo::for_each(span<S<geometry::GeometrySl
                                                      ForEachGeometry&& for_every_geometry)
 {
     InterAffineBodyConstitutionManager::_for_each(
-        geo_slots, this->m_impl->anim_geo_infos, std::forward<ForEachGeometry>(for_every_geometry));
+        geo_slots, this->anim_inter_geo_infos(), std::forward<ForEachGeometry>(for_every_geometry));
 }
 
 }  // namespace uipc::backend::cuda
