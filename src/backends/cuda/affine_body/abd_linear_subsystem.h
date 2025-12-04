@@ -3,7 +3,6 @@
 #include <affine_body/affine_body_dynamics.h>
 #include <affine_body/abd_dytopo_effect_receiver.h>
 #include <affine_body/affine_body_vertex_reporter.h>
-#include <affine_body/matrix_converter.h>
 #include <utils/offset_count_collection.h>
 
 namespace uipc::backend::cuda
