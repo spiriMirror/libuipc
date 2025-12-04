@@ -1,5 +1,5 @@
 enable_language(CUDA)
-file(GLOB SOURCE "*.cpp" "*.h" "*.cu" ".inl")
+file(GLOB_RECURSE SOURCE "*.cpp" "*.h" "*.cu" ".inl")
 uipc_add_test(backend_cuda ${SOURCE})
 target_link_libraries(backend_cuda PRIVATE uipc::backend::cuda)
 

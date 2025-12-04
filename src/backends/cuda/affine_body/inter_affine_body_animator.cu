@@ -55,29 +55,50 @@ void InterAffineBodyAnimator::Impl::init(backend::WorldVisitor& world)
 
     auto  geo_slots       = world.scene().geometries();
     auto& inter_geo_infos = manager->m_impl.inter_geo_infos;
-    list<AnimatedInterGeoInfo> anim_geo_info_buffer;
+    vector<list<AnimatedInterGeoInfo>> anim_geo_info_buffer;
+    anim_geo_info_buffer.resize(constraint_view.size());
 
+    // filter-out the geo infos for each constraint
     for(auto& info : inter_geo_infos)
     {
         auto  geo_slot = geo_slots[info.geo_slot_index];
         auto& geo      = geo_slot->geometry();
-        auto  uid      = geo.meta().find<U64>(builtin::constraint_uid);
-        if(uid)
+        auto  uids     = geo.meta().find<VectorXu64>(builtin::constraint_uids);
+        if(uids)
         {
-            auto uid_value = uid->view().front();
-            auto it        = uid_to_constraint_index.find(uid_value);
-            UIPC_ASSERT(it != uid_to_constraint_index.end(),
-                        "InterAffineBodyAnimator: Constraint uid not found");
-            auto index = it->second;
-            constraint_geo_info_counts[index]++;
-            anim_geo_info_buffer.push_back(info);
+            auto uid_values = uids->view().front();
+            for(auto uid_value : uid_values)
+            {
+                auto it = uid_to_constraint_index.find(uid_value);
+                UIPC_ASSERT(it != uid_to_constraint_index.end(),
+                            "InterAffineBodyAnimator: No responsible backend SimSystem registered for constraint uid {}",
+                            uid_value);
+                auto index = it->second;
+                anim_geo_info_buffer[index].push_back(info);
+            }
         }
     }
-    anim_geo_infos.resize(anim_geo_info_buffer.size());
-    std::ranges::move(anim_geo_info_buffer, anim_geo_infos.begin());
+
+    // count the geo infos for each constraint
+    std::ranges::transform(anim_geo_info_buffer,
+                           constraint_geo_info_counts.begin(),
+                           [](const list<AnimatedInterGeoInfo>& infos)
+                           { return static_cast<IndexT>(infos.size()); });
 
     // get offset
     constraint_geo_info_offsets_counts.scan();
+
+    auto total_count = constraint_geo_info_offsets_counts.total_count();
+    anim_geo_infos.reserve(total_count);
+
+    // copy the geo infos to the flatten buffer
+    for(auto&& infos : anim_geo_info_buffer)
+    {
+        for(auto& info : infos)
+        {
+            anim_geo_infos.push_back(info);
+        }
+    }
 
     // initialize the constraints
     for(auto constraint : constraints.view())

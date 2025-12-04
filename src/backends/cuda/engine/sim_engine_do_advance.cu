@@ -261,6 +261,7 @@ void SimEngine::do_advance()
         // Simulation:
         {
             Timer timer{"Simulation"};
+
             // 1. Record Friction Candidates at the beginning of the frame
             record_friction_candidates();
             m_global_vertex_manager->update_attributes();
@@ -272,8 +273,11 @@ void SimEngine::do_advance()
 
             // 3. Predict Motion => x_tilde = x + v * dt
             m_state = SimEngineState::PredictMotion;
-            m_time_integrator_manager->predict_dof();
+            // MUST step animation before predicting dof
+            // some animation may provide information for DOF prediction
             step_animation();
+            m_time_integrator_manager->predict_dof();
+
 
             // 4. Nonlinear-Newton Iteration
             m_newton_tolerance_manager->pre_newton(m_current_frame);
