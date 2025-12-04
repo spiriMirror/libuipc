@@ -123,7 +123,7 @@ def animate_force(info: Animation.UpdateInfo):
 
     force12 = np.zeros(12)
     force12[0:3] = force
-    force12[5] = 0.01   # affine force
+    force12[5] = 0.01   # f_a13
     force12[9] = -0.01
 
     # Update force attribute
