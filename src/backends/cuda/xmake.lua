@@ -23,6 +23,14 @@ target("cuda")
     )
 
     add_deps("uipc_geometry")
+    on_load(function(target)
+        if target:is_plat('windows') then
+            target:add('defines', '__NV_NO_HOST_COMPILER_CHECK', {public = true})
+            target:add('cuflags', '-allow-unsupported-compiler', {public = true})
+            target:set('toolchains', 'msvc')
+        end
+        target:set('toolchains', 'cuda')
+    end)
     add_packages("muda")
 
 package("muda")
