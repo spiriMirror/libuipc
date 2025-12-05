@@ -16,7 +16,8 @@ from uipc import Engine, World, Scene, SceneIO
 from uipc.geometry import SimplicialComplex, SimplicialComplexIO
 from uipc.geometry import SpreadSheetIO
 from uipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
-from uipc.geometry import ground, view
+from uipc.geometry import ground
+import uipc.view as view
 from uipc.constitution import StableNeoHookean, AffineBodyConstitution, ElasticModuli
 
 from asset import AssetDir
