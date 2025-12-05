@@ -12,11 +12,12 @@ import polyscope as ps
 import polyscope.imgui as psim
 from uipc import Logger
 from uipc import Matrix4x4
+from uipc import view
 from uipc import Engine, World, Scene, SceneIO
 from uipc.geometry import SimplicialComplex, SimplicialComplexIO
 from uipc.geometry import SpreadSheetIO
 from uipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
-from uipc.geometry import ground, view
+from uipc.geometry import ground
 from uipc.constitution import StableNeoHookean, AffineBodyConstitution, ElasticModuli
 
 from asset import AssetDir
