@@ -597,6 +597,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
         auto    gravity_attr = scene.config().find<Vector3>("gravity");
         Vector3 gravity      = gravity_attr->view()[0];
         h_body_id_to_abd_gravity.resize(abd_body_count, Vector12::Zero());
+        body_id_to_external_force.resize(abd_body_count);
+        body_id_to_external_force_acc.resize(abd_body_count);
         for_each(geo_slots,
                  [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
                  {
