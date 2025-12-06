@@ -7,18 +7,16 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-static void bind_affine_body_external_force(py::module& m)
+PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
 {
-    using namespace uipc;
+    auto class_AffineBodyExternalBodyForce =
+        py::class_<AffineBodyExternalBodyForce, IConstitution>(m, "AffineBodyExternalBodyForce");
 
-    auto class_affine_body_external_force =
-        py::class_<AffineBodyExternalForce, IConstitution>(m, "AffineBodyExternalForce");
-
-    class_affine_body_external_force.def(py::init<>())
+    class_AffineBodyExternalBodyForce.def(py::init<>())
         .def(py::init<const Json&>(), py::arg("config"))
         .def("apply_to",
              py::overload_cast<geometry::SimplicialComplex&, const Vector12&>(
-                 &AffineBodyExternalForce::apply_to),
+                 &AffineBodyExternalBodyForce::apply_to),
              py::arg("sc"),
              py::arg("force"),
              R"(Apply external force (12D generalized force) to affine body instances.
@@ -30,7 +28,7 @@ static void bind_affine_body_external_force(py::module& m)
              )")
         .def("apply_to",
              py::overload_cast<geometry::SimplicialComplex&, const Vector3&>(
-                 &AffineBodyExternalForce::apply_to),
+                 &AffineBodyExternalBodyForce::apply_to),
              py::arg("sc"),
              py::arg("force"),
              R"(Apply external translational force to affine body instances.
@@ -39,11 +37,6 @@ static void bind_affine_body_external_force(py::module& m)
                  sc: SimplicialComplex representing affine body geometry
                  force: 3D translational force vector (affine force = 0)
              )")
-        .def_static("default_config", &AffineBodyExternalForce::default_config);
-}
-
-PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
-{
-    bind_affine_body_external_force(m);
+        .def_static("default_config", &AffineBodyExternalBodyForce::default_config);
 }
 }  // namespace pyuipc::constitution

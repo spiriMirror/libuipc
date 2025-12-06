@@ -10,7 +10,7 @@ void AffineBodyExternalForceReporter::do_build()
 
     // Register with AffineBodyExternalForceManager
     auto& manager = require<AffineBodyExternalForceManager>();
-    manager.register_subreporter(this);
+    manager.register_reporter(this);
 }
 
 U64 AffineBodyExternalForceReporter::uid() const noexcept
@@ -23,8 +23,8 @@ void AffineBodyExternalForceReporter::init()
     do_init();
 }
 
-void AffineBodyExternalForceReporter::step()
+void AffineBodyExternalForceReporter::step(ExternalForceInfo& info)
 {
-    do_step();
+    do_step(info);
 }
 }  // namespace uipc::backend::cuda
