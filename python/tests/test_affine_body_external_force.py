@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-# @file test_affine_body_external_wrench.py
-# @brief Test for AffineBodyExternalWrench constitution
+# @file test_affine_body_external_force.py
+# @brief Test for AffineBodyExternalforce constitution
 # @author User-defined
 # @date 2025-01-19
 
@@ -14,7 +14,7 @@ from uipc import Engine, World, Scene, SceneIO, Animation
 from uipc.geometry import SimplicialComplex, SimplicialComplexIO
 from uipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
 from uipc import view
-from uipc.constitution import AffineBodyConstitution, AffineBodyExternalForce
+from uipc.constitution import AffineBodyConstitution, AffineBodyExternalBodyForce
 from asset import AssetDir
 
 
@@ -29,7 +29,7 @@ run = False
 
 
 @pytest.mark.example
-def test_affine_body_external_wrench():
+def test_affine_body_external_force():
     Logger.set_level(Logger.Level.Info)
     workspace = AssetDir.output_path(__file__)
     engine = Engine("cuda", workspace)
@@ -41,10 +41,7 @@ def test_affine_body_external_wrench():
 
     # Create constitutions
     abd = AffineBodyConstitution()
-    ext_wrench = AffineBodyExternalForce()
-
-    scene.constitution_tabular().insert(abd)
-    scene.constitution_tabular().insert(ext_wrench)
+    ext_force = AffineBodyExternalBodyForce()
 
     # Setup contact
     scene.contact_tabular().default_model(0.5, 1e9)
@@ -63,9 +60,9 @@ def test_affine_body_external_wrench():
     # Apply constitutions
     abd.apply_to(cube, 1e8)  # stiffness
 
-    # Apply external wrench - initially zero, will be controlled by animator
-    initial_wrench = np.zeros(12)  # Vector12: [fx, fy, fz, dS/dt (9 components)]
-    ext_wrench.apply_to(cube, initial_wrench)
+    # Apply external force - initially zero, will be controlled by animator
+    initial_force = np.zeros(12)  # Vector12: [fx, fy, fz, dS/dt (9 components)]
+    ext_force.apply_to(cube, initial_force)
 
     default_element.apply_to(cube)
 
@@ -77,10 +74,10 @@ def test_affine_body_external_wrench():
     view(cube.transforms())[0] = trans
     cube_object.geometries().create(cube)
 
-    # Add animator to control wrench for combined orbital and spinning motion
+    # Add animator to control force for combined orbital and spinning motion
     def animate_rotating_force(info: Animation.UpdateInfo):
         """
-        Apply a 12D wrench with both translational force and rotational component.
+        Apply a 12D force with both translational force and rotational component.
         The cube will orbit around the origin while also spinning around its own Y axis.
         """
         geo_slots = info.geo_slots()
@@ -113,7 +110,7 @@ def test_affine_body_external_wrench():
             if geo is None:
                 continue
 
-            # Find external_force attribute (renamed from external_wrench)
+            # Find external_force attribute (renamed from external_force)
             force_attr = geo.instances().find("external_force")
             is_constrained_attr = geo.instances().find("is_constrained")
 
@@ -187,4 +184,4 @@ def test_affine_body_external_wrench():
 
 
 if __name__ == "__main__":
-    test_affine_body_external_wrench()
+    test_affine_body_external_force()

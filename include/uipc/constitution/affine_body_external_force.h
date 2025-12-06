@@ -5,13 +5,13 @@
 
 namespace uipc::constitution
 {
-class UIPC_CONSTITUTION_API AffineBodyExternalForce final : public IConstitution
+class UIPC_CONSTITUTION_API AffineBodyExternalBodyForce final : public IConstitution
 {
     using Base = IConstitution;
 
   public:
-    AffineBodyExternalForce(const Json& config = default_config());
-    ~AffineBodyExternalForce();
+    AffineBodyExternalBodyForce(const Json& config = default_config());
+    ~AffineBodyExternalBodyForce();
 
     /**
      * @brief Apply external force (12D generalized force) to affine body instances
