@@ -1,6 +1,6 @@
 #include <sim_engine.h>
 #include <animator/global_animator.h>
-#include <affine_body/global_external_force_manager.h>
+#include <external_force/global_external_force_manager.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <dytopo_effect_system/global_dytopo_effect_manager.h>
 #include <contact_system/global_contact_manager.h>

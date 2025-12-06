@@ -43,17 +43,7 @@ class ExternalForceConstraint final : public AffineBodyConstraint
 
     void do_step(AffineBodyAnimator::FilteredInfo& info) override
     {
-        // Clear external forces buffer
-        auto external_forces = affine_body_dynamics->body_external_forces();
-
-        using namespace muda;
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(external_forces.size(),
-                   [forces = external_forces.viewer().name("forces")] __device__(int i) mutable
-                   {
-                       forces(i).setZero();
-                   });
+        // Note: External force buffer is cleared by AffineBodyExternalForceManager before constraints run
 
         // Clear host buffers
         h_forces.clear();
@@ -91,6 +81,8 @@ class ExternalForceConstraint final : public AffineBodyConstraint
         // Copy from host to device
         if(!h_forces.empty())
         {
+            auto external_forces = affine_body_dynamics->body_external_forces();
+
             // Scatter copy: for each (force, body_id) pair, write to external_forces[body_id]
             muda::DeviceBuffer<Vector12> d_forces(h_forces.size());
             muda::DeviceBuffer<IndexT>   d_body_ids(h_body_ids.size());
@@ -98,6 +90,7 @@ class ExternalForceConstraint final : public AffineBodyConstraint
             d_forces.view().copy_from(h_forces.data());
             d_body_ids.view().copy_from(h_body_ids.data());
 
+            using namespace muda;
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(h_forces.size(),

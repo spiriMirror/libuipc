@@ -1,16 +1,16 @@
 #include <affine_body/affine_body_external_force_reporter.h>
-#include <affine_body/global_external_force_manager.h>
+#include <affine_body/affine_body_external_force_manager.h>
 
 namespace uipc::backend::cuda
 {
 void AffineBodyExternalForceReporter::do_build()
 {
-    auto& manager = require<GlobalExternalForceManager>();
-
     BuildInfo info;
     do_build(info);
 
-    manager.register_reporter(this);
+    // Register with AffineBodyExternalForceManager
+    auto& manager = require<AffineBodyExternalForceManager>();
+    manager.register_subreporter(this);
 }
 
 U64 AffineBodyExternalForceReporter::uid() const noexcept

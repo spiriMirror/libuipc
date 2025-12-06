@@ -3,13 +3,17 @@
 
 namespace uipc::backend::cuda
 {
-class GlobalExternalForceManager;
+class AffineBodyExternalForceManager;
 
 /**
- * @brief Base class for external force reporters
+ * @brief Base class for affine body external force reporters
  *
  * Reporters are responsible for computing M^{-1} * F (acceleration from force)
  * and updating body_id_to_external_force_acc in AffineBodyDynamics.
+ *
+ * Specific implementations:
+ * - AffineBodyExternalBodyForce: Applies force directly to body
+ * - AffineBodyExternalVertexForce (future): Applies force to vertices, sums to body
  *
  * Lifecycle:
  * - do_init(): Called once during initialization
@@ -34,11 +38,11 @@ class AffineBodyExternalForceReporter : public SimSystem
     virtual void do_step()                 = 0;
 
   private:
-    friend class GlobalExternalForceManager;
+    friend class AffineBodyExternalForceManager;
     virtual void do_build() override final;
 
-    void init();
-    void step();
+    void init();  // only be called by AffineBodyExternalForceManager
+    void step();  // only be called by AffineBodyExternalForceManager
 
     SizeT m_index = ~0ull;
 };

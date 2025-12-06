@@ -4,12 +4,15 @@
 namespace uipc::backend::cuda
 {
 /**
- * @brief Reporter that computes M^{-1} * F for external forces
+ * @brief Computes M^{-1} * F for external forces applied to affine bodies
  *
  * This reporter reads forces from body_id_to_external_force (set by constraints)
  * and computes the acceleration M^{-1} * F, storing it in body_id_to_external_force_acc.
+ *
+ * This is the "body force" implementation - forces are applied directly to bodies.
+ * Future implementations like AffineBodyExternalVertexForce may apply forces to vertices.
  */
-class ABDExternalForceReporter final : public AffineBodyExternalForceReporter
+class AffineBodyExternalBodyForce final : public AffineBodyExternalForceReporter
 {
   public:
     static constexpr U64 UID = 666;  // Same UID as ExternalForceConstraint
@@ -59,5 +62,5 @@ class ABDExternalForceReporter final : public AffineBodyExternalForceReporter
     }
 };
 
-REGISTER_SIM_SYSTEM(ABDExternalForceReporter);
+REGISTER_SIM_SYSTEM(AffineBodyExternalBodyForce);
 }  // namespace uipc::backend::cuda
