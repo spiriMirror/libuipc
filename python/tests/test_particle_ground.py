@@ -35,7 +35,7 @@ def test_particle_ground():
     scene = Scene(config)
 
     pt = Particle()
-    scene.constitution_tabular().insert(pt)
+    
     scene.contact_tabular().default_model(0.5, 1e9)
     default_element = scene.contact_tabular().default_element()
 

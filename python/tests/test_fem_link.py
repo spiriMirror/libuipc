@@ -34,7 +34,7 @@ def test_fem_link():
     scene = Scene(config)
 
     snk = StableNeoHookean()
-    scene.constitution_tabular().insert(snk)
+    
     scene.contact_tabular().default_model(0.5, 1e9)
     default_element = scene.contact_tabular().default_element()
 
