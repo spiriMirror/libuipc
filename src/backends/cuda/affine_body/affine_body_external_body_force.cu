@@ -1,6 +1,7 @@
 #include <affine_body/affine_body_external_force_reporter.h>
 #include <affine_body/constraints/affine_body_external_body_force_constraint.h>
 #include <affine_body/affine_body_dynamics.h>
+#include <muda/ext/eigen/atomic.h>
 
 namespace uipc::backend::cuda
 {
@@ -50,7 +51,7 @@ class AffineBodyExternalBodyForce final : public AffineBodyExternalForceReporter
                    {
                        // Scatter add the external forces to the corresponding bodies
                        auto body_id = body_ids(i);
-                       forces(body_id) += body_forces(i);
+                       eigen::atomic_add(forces(body_id), body_forces(i));
                    });
     }
 };
