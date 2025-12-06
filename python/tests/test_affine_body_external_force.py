@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # @file test_affine_body_external_force.py
-# @brief Test for AffineBodyExternalforce constitution
+# @brief Test for AffineBodyExternalBodyForce constitution
 # @author User-defined
 # @date 2025-01-19
 
