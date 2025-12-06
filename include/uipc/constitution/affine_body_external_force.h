@@ -5,24 +5,24 @@
 
 namespace uipc::constitution
 {
-class UIPC_CONSTITUTION_API AffineBodyExternalWrench final : public IConstitution
+class UIPC_CONSTITUTION_API AffineBodyExternalForce final : public IConstitution
 {
     using Base = IConstitution;
 
   public:
-    AffineBodyExternalWrench(const Json& config = default_config());
-    ~AffineBodyExternalWrench();
+    AffineBodyExternalForce(const Json& config = default_config());
+    ~AffineBodyExternalForce();
 
     /**
-     * @brief Apply external wrench (generalized force) to affine body instances
+     * @brief Apply external force (12D generalized force) to affine body instances
      * @param sc SimplicialComplex representing affine body geometry
-     * @param wrench 12D generalized force vector: [fx, fy, fz, dS11/dt, dS12/dt, ..., dS33/dt]
-     *               where f is the 3D translational force and dS/dt is the flattened shape velocity derivative (9D)
+     * @param force 12D generalized force vector: [fx, fy, fz, f_a11, f_a12, f_a13, f_a21, f_a22, f_a23, f_a31, f_a32, f_a33]
+     *              where f is the 3D translational force and f_a is the 9D affine force
      */
-    void apply_to(geometry::SimplicialComplex& sc, const Vector12& wrench);
+    void apply_to(geometry::SimplicialComplex& sc, const Vector12& force);
 
     /**
-     * @brief Apply external force to affine body instances (only translational force, shape velocity derivative = 0)
+     * @brief Apply external translational force to affine body instances (only translational force, affine force = 0)
      * @param sc SimplicialComplex representing affine body geometry
      * @param force 3D translational force vector
      */

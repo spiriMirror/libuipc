@@ -1,5 +1,6 @@
 #include <sim_engine.h>
 #include <animator/global_animator.h>
+#include <external_force/global_external_force_manager.h>
 #include <collision_detection/global_trajectory_filter.h>
 #include <dytopo_effect_system/global_dytopo_effect_manager.h>
 #include <contact_system/global_contact_manager.h>
@@ -36,6 +37,7 @@ void SimEngine::build()
     m_global_contact_manager            = find<GlobalContactManager>();
     m_global_trajectory_filter          = find<GlobalTrajectoryFilter>();
     m_global_animator                   = find<GlobalAnimator>();
+    m_global_external_force_manager     = find<GlobalExternalForceManager>();
     m_global_diff_sim_manager           = find<GlobalDiffSimManager>();
 
     m_affine_body_dynamics = find<AffineBodyDynamics>();
@@ -88,6 +90,8 @@ void SimEngine::init_scene()
             m_global_contact_manager->init();
         if(m_global_animator)
             m_global_animator->init();
+        if(m_global_external_force_manager)
+            m_global_external_force_manager->init();
 
         m_line_searcher->init();
         m_global_linear_system->init();
