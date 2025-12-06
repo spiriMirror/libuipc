@@ -472,24 +472,14 @@ class AffineBodyDynamics : public SimSystem
         return m_impl.body_id_to_abd_gravity.view();
     }
 
-    auto body_external_forces() noexcept
+    auto body_external_forces() const noexcept
     {
         return m_impl.body_id_to_external_force.view();
     }
 
-    auto body_external_forces() const noexcept
-    {
-        return muda::CBufferView<Vector12>{m_impl.body_id_to_external_force.view()};
-    }
-
-    auto body_external_force_accs() noexcept
-    {
-        return m_impl.body_id_to_external_force_acc.view();
-    }
-
     auto body_external_force_accs() const noexcept
     {
-        return muda::CBufferView<Vector12>{m_impl.body_id_to_external_force_acc.view()};
+        return m_impl.body_id_to_external_force_acc.view();
     }
 
     auto body_is_fixed() const noexcept
@@ -561,7 +551,7 @@ class AffineBodyDynamics : public SimSystem
     friend class AffineBodyKineticDiffParmReporter;
     friend class ABDTimeIntegrator;
     friend class AffineBodyStateAccessorFeatureOverrider;
-    friend class AffineBodyExternalForceReporter;
+    friend class AffineBodyExternalForceManager;
 
     void add_reporter(AffineBodyKineticDiffParmReporter* reporter);
 

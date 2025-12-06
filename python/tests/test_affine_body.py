@@ -31,7 +31,7 @@ def test_affine_body():
     scene = Scene(config)
 
     abd = AffineBodyConstitution()
-    scene.constitution_tabular().insert(abd)
+    
     scene.contact_tabular().default_model(0.5, 1e9)
     default_element = scene.contact_tabular().default_element()
 

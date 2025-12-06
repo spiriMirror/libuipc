@@ -19,14 +19,15 @@ REGISTER_CONSTITUTION_UIDS()
     return uids;
 }
 
-AffineBodyExternalForce::AffineBodyExternalForce(const Json& config)
+AffineBodyExternalBodyForce::AffineBodyExternalBodyForce(const Json& config)
 {
     m_config = config;
 }
 
-AffineBodyExternalForce::~AffineBodyExternalForce() = default;
+AffineBodyExternalBodyForce::~AffineBodyExternalBodyForce() = default;
 
-void AffineBodyExternalForce::apply_to(geometry::SimplicialComplex& sc, const Vector12& force)
+void AffineBodyExternalBodyForce::apply_to(geometry::SimplicialComplex& sc,
+                                           const Vector12&              force)
 {
     // Add to constraint_uids (new constraint-based architecture)
     auto uids = sc.meta().find<VectorXu64>(builtin::constraint_uids);
@@ -47,30 +48,31 @@ void AffineBodyExternalForce::apply_to(geometry::SimplicialComplex& sc, const Ve
         is_constrained_attr = sc.instances().create<IndexT>(builtin::is_constrained, 0);
     }
 
-    // Create external_force attribute (renamed from external_wrench)
+    // Create external_force attribute
     auto external_force_attr = sc.instances().find<Vector12>("external_force");
     if(!external_force_attr)
     {
-        external_force_attr = sc.instances().create<Vector12>("external_force", Vector12::Zero());
+        external_force_attr =
+            sc.instances().create<Vector12>("external_force", Vector12::Zero());
     }
 
     auto external_force_view = view(*external_force_attr);
     std::ranges::fill(external_force_view, force);
 }
 
-void AffineBodyExternalForce::apply_to(geometry::SimplicialComplex& sc, const Vector3& force)
+void AffineBodyExternalBodyForce::apply_to(geometry::SimplicialComplex& sc, const Vector3& force)
 {
-    Vector12 force12 = Vector12::Zero();
+    Vector12 force12      = Vector12::Zero();
     force12.segment<3>(0) = force;  // Only translational force
     apply_to(sc, force12);
 }
 
-Json AffineBodyExternalForce::default_config()
+Json AffineBodyExternalBodyForce::default_config()
 {
     return Json::object();
 }
 
-U64 AffineBodyExternalForce::get_uid() const noexcept
+U64 AffineBodyExternalBodyForce::get_uid() const noexcept
 {
     return ConstitutionUID;
 }

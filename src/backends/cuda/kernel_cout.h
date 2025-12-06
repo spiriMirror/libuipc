@@ -1,5 +1,7 @@
 #pragma once
 #include <muda/logger.h>
+#include <muda/ext/eigen/log_proxy.h>
+
 /*****************************************************************/ /**
  * \file   kernel_cout.h
  * \brief  Remove the original implementation, because of NVCC unstablity
