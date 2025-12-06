@@ -110,7 +110,7 @@ def test_affine_body_external_force():
             if geo is None:
                 continue
 
-            # Find external_force attribute (renamed from external_force)
+            # Find the "external_force" attribute
             force_attr = geo.instances().find("external_force")
             is_constrained_attr = geo.instances().find("is_constrained")
 
