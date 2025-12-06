@@ -6,8 +6,8 @@ namespace uipc::backend::cuda
 /**
  * @brief Reporter that computes M^{-1} * F for external forces
  *
- * This reporter reads raw forces from body_id_to_external_force_raw (set by constraints)
- * and computes the acceleration M^{-1} * F, storing it in body_id_to_external_force.
+ * This reporter reads forces from body_id_to_external_force (set by constraints)
+ * and computes the acceleration M^{-1} * F, storing it in body_id_to_external_force_acc.
  */
 class ABDExternalForceReporter final : public AffineBodyExternalForceReporter
 {
@@ -33,28 +33,28 @@ class ABDExternalForceReporter final : public AffineBodyExternalForceReporter
 
     void do_step() override
     {
-        // At this point, constraints have already updated body_id_to_external_force_raw
-        // Now we compute M^{-1} * F and store in body_id_to_external_force
+        // At this point, constraints have already updated body_id_to_external_force
+        // Now we compute M^{-1} * F and store in body_id_to_external_force_acc
 
-        auto forces_raw = affine_body_dynamics->body_external_forces_raw();
         auto forces     = affine_body_dynamics->body_external_forces();
+        auto force_accs = affine_body_dynamics->body_external_force_accs();
         auto masses_inv = affine_body_dynamics->body_mass_invs();
 
-        SizeT body_count = forces_raw.size();
+        SizeT body_count = forces.size();
 
         using namespace muda;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_count,
-                   [forces_raw = forces_raw.cviewer().name("forces_raw"),
-                    forces     = forces.viewer().name("forces"),
+                   [forces     = forces.cviewer().name("forces"),
+                    force_accs = force_accs.viewer().name("force_accs"),
                     masses_inv = masses_inv.cviewer().name("masses_inv")] __device__(int i) mutable
                    {
-                       const auto& F     = forces_raw(i);
+                       const auto& F     = forces(i);
                        const auto& M_inv = masses_inv(i);
 
                        // Compute acceleration: a = M^{-1} * F (like gravity)
-                       forces(i) = M_inv * F;
+                       force_accs(i) = M_inv * F;
                    });
     }
 };

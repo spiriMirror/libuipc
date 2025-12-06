@@ -72,9 +72,9 @@ class ABDTimeIntegrator : public TimeIntegrator
             return m_impl->affine_body_dynamics->body_gravities();
         }
 
-        auto external_forces() const noexcept
+        auto external_force_accs() const noexcept
         {
-            return m_impl->affine_body_dynamics->body_external_forces();
+            return m_impl->affine_body_dynamics->body_external_force_accs();
         }
 
       protected:

@@ -14,13 +14,13 @@ class AffineBodyExternalForceReporter;
  *
  * Lifecycle:
  * 1. GlobalAnimator::step()
- *    └─> Constraints read external_force from geometries and store to body_id_to_external_force_raw
+ *    └─> Constraints read external_force from geometries and store to body_id_to_external_force
  *
  * 2. GlobalExternalForceManager::step() [NEW LIFECYCLE!]
- *    └─> Reporters compute M^{-1} * F and update body_id_to_external_force
+ *    └─> Reporters compute M^{-1} * F and update body_id_to_external_force_acc
  *
  * 3. ABDTimeIntegrator::do_predict_dof()
- *    └─> Uses body_id_to_external_force (acceleration)
+ *    └─> Uses body_id_to_external_force_acc (acceleration)
  */
 class GlobalExternalForceManager final : public SimSystem
 {

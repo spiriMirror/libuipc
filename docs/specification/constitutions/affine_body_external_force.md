@@ -29,15 +29,15 @@ Each frame:
 1. GlobalAnimator::step()
    └─ ExternalForceConstraint::do_step()
       - Reads "external_force" attribute
-      - Stores to body_id_to_external_force_raw
+      - Stores to body_id_to_external_force
 
 2. GlobalExternalForceManager::step()
    └─ ABDExternalForceReporter::do_step()
       - Computes M^{-1} * F (acceleration)
-      - Updates body_id_to_external_force
+      - Updates body_id_to_external_force_acc
 
 3. ABDTimeIntegrator::do_predict_dof()
-   - Uses: q_tilde = q_prev + q_v*dt + (gravity + external_force)*dt^2
+   - Uses: q_tilde = q_prev + q_v*dt + (gravity + external_force_acc)*dt^2
 ```
 
 ## Force Formulation

@@ -1,4 +1,4 @@
-#include <pyuipc/pyuipc.h>
+#include <pyuipc/constitution/affine_body_external_force.h>
 #include <uipc/constitution/affine_body_external_force.h>
 #include <pyuipc/as_numpy.h>
 #include <pybind11/eigen.h>
@@ -7,7 +7,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-void bind_affine_body_external_force(py::module& m)
+static void bind_affine_body_external_force(py::module& m)
 {
     using namespace uipc;
 
@@ -40,5 +40,10 @@ void bind_affine_body_external_force(py::module& m)
                  force: 3D translational force vector (affine force = 0)
              )")
         .def_static("default_config", &AffineBodyExternalForce::default_config);
+}
+
+PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
+{
+    bind_affine_body_external_force(m);
 }
 }  // namespace pyuipc::constitution

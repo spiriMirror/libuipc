@@ -31,7 +31,7 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
                     q_vs       = info.q_vs().cviewer().name("q_velocities"),
                     q_tildes   = info.q_tildes().viewer().name("q_tilde"),
                     affine_gravity = info.gravities().cviewer().name("affine_gravity"),
-                    external_forces = info.external_forces().cviewer().name("external_forces"),
+                    external_force_accs = info.external_force_accs().cviewer().name("external_force_accs"),
                     dt   = info.dt(),
                     cout = KernelCout::viewer()] __device__(int i) mutable
                    {
@@ -41,17 +41,17 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
 
                        auto& q_v    = q_vs(i);
                        auto& g      = affine_gravity(i);
-                       auto& f_ext  = external_forces(i);
+                       auto& f_ext_acc  = external_force_accs(i);
 
                        // 0) fixed: q_tilde = q_prev;
                        Vector12 q_tilde = q_prev;
 
                        if(!is_fixed(i))
                        {
-                           // 1) static problem: q_tilde = q_prev + (g + f_ext) * dt * dt;
-                           q_tilde += (g + f_ext) * dt * dt;
+                           // 1) static problem: q_tilde = q_prev + (g + f_ext_acc) * dt * dt;
+                           q_tilde += (g + f_ext_acc) * dt * dt;
 
-                           // 2) dynamic problem q_tilde = q_prev + q_v * dt + (g + f_ext) * dt * dt;
+                           // 2) dynamic problem q_tilde = q_prev + q_v * dt + (g + f_ext_acc) * dt * dt;
                            if(is_dynamic(i))
                            {
                                q_tilde += q_v * dt;

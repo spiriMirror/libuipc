@@ -9,11 +9,11 @@ class GlobalExternalForceManager;
  * @brief Base class for external force reporters
  *
  * Reporters are responsible for computing M^{-1} * F (acceleration from force)
- * and updating body_id_to_external_force in AffineBodyDynamics.
+ * and updating body_id_to_external_force_acc in AffineBodyDynamics.
  *
  * Lifecycle:
  * - do_init(): Called once during initialization
- * - do_step(): Called every frame AFTER constraints have updated body_id_to_external_force_raw
+ * - do_step(): Called every frame AFTER constraints have updated body_id_to_external_force
  */
 class AffineBodyExternalForceReporter : public SimSystem
 {

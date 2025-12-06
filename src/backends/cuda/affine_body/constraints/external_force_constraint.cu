@@ -10,7 +10,7 @@ namespace uipc::backend::cuda
  * @brief Constraint that reads external forces from geometry attributes
  *
  * This constraint reads "external_force" attributes from geometries
- * and stores them to body_id_to_external_force_raw (raw force data).
+ * and stores them to body_id_to_external_force.
  *
  * The actual computation of M^{-1} * F (acceleration) is done by ABDExternalForceReporter
  * in the GlobalExternalForceManager lifecycle phase (after animator step).
@@ -44,13 +44,13 @@ class ExternalForceConstraint final : public AffineBodyConstraint
     void do_step(AffineBodyAnimator::FilteredInfo& info) override
     {
         // Clear external forces buffer
-        auto external_forces_raw = affine_body_dynamics->body_external_forces_raw();
+        auto external_forces = affine_body_dynamics->body_external_forces();
 
         using namespace muda;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(external_forces_raw.size(),
-                   [forces = external_forces_raw.viewer().name("forces")] __device__(int i) mutable
+            .apply(external_forces.size(),
+                   [forces = external_forces.viewer().name("forces")] __device__(int i) mutable
                    {
                        forces(i).setZero();
                    });
@@ -91,7 +91,7 @@ class ExternalForceConstraint final : public AffineBodyConstraint
         // Copy from host to device
         if(!h_forces.empty())
         {
-            // Scatter copy: for each (force, body_id) pair, write to external_forces_raw[body_id]
+            // Scatter copy: for each (force, body_id) pair, write to external_forces[body_id]
             muda::DeviceBuffer<Vector12> d_forces(h_forces.size());
             muda::DeviceBuffer<IndexT>   d_body_ids(h_body_ids.size());
 
@@ -101,7 +101,7 @@ class ExternalForceConstraint final : public AffineBodyConstraint
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(h_forces.size(),
-                       [forces_dst = external_forces_raw.viewer().name("dst"),
+                       [forces_dst = external_forces.viewer().name("dst"),
                         forces_src = d_forces.cviewer().name("src"),
                         body_ids   = d_body_ids.cviewer().name("ids")] __device__(int i) mutable
                        {
