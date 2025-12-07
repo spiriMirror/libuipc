@@ -108,7 +108,7 @@ def generate_stub(target_dir):
         verbose=True,
         quiet=False,
         export_less=False,
-        include_docstrings=False
+        include_docstrings=True
     )
     
     try:

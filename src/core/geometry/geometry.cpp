@@ -1,4 +1,5 @@
 #include <uipc/geometry/geometry.h>
+#include <uipc/common/log.h>
 #include <Eigen/Geometry>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/zip.h>
@@ -86,10 +87,27 @@ auto Geometry::instances() const -> CInstanceAttributes
     return CInstanceAttributes{*m_intances};
 }
 
+S<AttributeCollection> Geometry::operator[](std::string_view name)
+{
+    auto ac = find(name);
+    if(!ac)
+        ac = create(name);
+    return ac;
+}
+
+S<const AttributeCollection> Geometry::operator[](std::string_view name) const
+{
+    return find(name);
+}
+
 S<AttributeCollection> Geometry::create(std::string_view name)
 {
-    auto ret = uipc::make_shared<AttributeCollection>();
-    m_attribute_collections[std::string{name}] = ret;
+    auto s_name = std::string{name};
+    UIPC_ASSERT(!m_attribute_collections.contains(s_name),
+                "Attribute collection with name '{}' already exists.",
+                s_name);
+    auto ret                        = uipc::make_shared<AttributeCollection>();
+    m_attribute_collections[s_name] = ret;
     return ret;
 }
 
