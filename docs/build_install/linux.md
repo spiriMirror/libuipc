@@ -23,13 +23,6 @@ cd vcpkg
 ./bootstrap-vcpkg.sh
 ```
 
-The simplest way to let CMake detect Vcpkg is to set the **System Environment Variable** `CMAKE_TOOLCHAIN_FILE` to `~/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake`
-
-```shell
-# Write in ~/.bashrc
-export CMAKE_TOOLCHAIN_FILE="$HOME/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake"
-```
-
 ## Clone Libuipc
 
 Clone the repository with the following command:
@@ -44,17 +37,26 @@ We **recommend** using conda environments to build the project on Linux.
 
 ```shell
 conda env create -f conda/env.yaml
+conda activate uipc_env
 ```
 
-Cuda-12.4.0 requires driver version >= 550.54.14 (https://docs.nvidia.com/deploy/cuda-compatibility/index.html#use-the-right-compat-package), check your nvidia driver version with the following command.
+Please make sure your **Nvidia driver** is compatible with the installed Cuda version.
+
+https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html
+
+You can check your nvidia driver version with the following command.
 
 ```shell
 nvidia-smi
 ```
 
-## Other Environment
+You can set the `CMAKE_TOOLCHAIN_FILE` environment variable in the conda environment with the following command:
 
-If you don't want to use conda, you can manually install `CMake 3.26`, `GCC 11.4`, `Cuda 12.4` and `Python >=3.11` with your favorite package manager.
+```shell
+conda env config vars set CMAKE_TOOLCHAIN_FILE=~/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake
+```
+
+It's **important** to set the environment variable in the conda environment, so that CMake can find the Vcpkg toolchain file when building the project.
 
 ## Build Libuipc
 
@@ -62,8 +64,8 @@ Build the project with the following commands.
 
 ```shell
 conda activate uipc_env
-cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild;
-cmake -S ../libuipc -DUIPC_BUILD_PYBIND=1 -DCMAKE_BUILD_TYPE=<Release/RelWithDebInfo> 
+cd libuipc; mkdir build; cd build
+cmake -S .. -DUIPC_BUILD_PYBIND=1 -DCMAKE_BUILD_TYPE=<Release/RelWithDebInfo> 
 cmake --build . -j8
 ```
 
@@ -72,7 +74,7 @@ cmake --build . -j8
 
 ## Run Project
 
-Just run the executable files in `CMakeBuild/<Release/RelWithDebInfo>/bin` folder.
+Just run the executable files in `build/<Release/RelWithDebInfo>/bin` folder.
 
 ## Install Pyuipc
 
@@ -81,7 +83,7 @@ With `UIPC_BUILD_PYBIND` option set to `ON`, the Python binding will be **built*
 If some **errors** occur during the installation, you can try to **manually** install the Python binding.
 
 ```shell
-cd CMakeBuild/python
+cd build/python
 pip install .
 ```
 
@@ -95,3 +97,12 @@ python uipc_info.py
 ```
 
 More samples are at [Pyuipc Samples](https://github.com/spiriMirror/libuipc-samples).
+
+## Install in Any Python Venv
+
+If you want to install the Pyuipc to any Python Venv (like [uv](https://docs.astral.sh/uv/)) after build, you can use the following command:
+
+```shell
+cmake -S .. -DUIPC_BUILD_PYBIND=1 -DUIPC_PYTHON_EXECUTABLE_PATH=<YOUR_PYTHON_EXECUTABLE_PATH> -DCMAKE_BUILD_TYPE=<Release/RelWithDebInfo>
+cmake --build .  -j8
+```
