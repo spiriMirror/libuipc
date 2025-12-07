@@ -48,13 +48,13 @@ Returns:
         { return linemesh(as_span_of<Vector3>(Vs), as_span_of<Vector2i>(Es)); },
         py::arg("Vs"),
         py::arg("Fs"),
+        py::arg("Es"),
         R"(Create a line mesh from vertices and edges.
 Args:
     Vs: Array of vertex positions (Nx3).
-    Fs: Array of edge indices (Mx2).
+    Es: Array of edge indices (Mx2).
 Returns:
     SimplicialComplex: Line mesh.)");
-
     m.def(
         "pointcloud",
         [](py::array_t<Float> Vs) { return pointcloud(as_span_of<Vector3>(Vs)); },
