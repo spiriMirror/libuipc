@@ -51,8 +51,8 @@ On Windows, you can use the `CMake-GUI` to **configure** the project and **gener
 Or, you can use the following commands to build the project.
 
 ```shell
-cd libuipc; cd ..; mkdir CMakeBuild; cd CMakeBuild
-cmake -S ../libuipc -DUIPC_BUILD_PYBIND=1 
+cd libuipc; mkdir build; cd build
+cmake -S .. -DUIPC_BUILD_PYBIND=1
 cmake --build . --config <Release/RelWithDebInfo> -j8
 ```
 
@@ -61,7 +61,7 @@ cmake --build . --config <Release/RelWithDebInfo> -j8
 
 ## Run Project
 
-Just run the executable files in `CMakeBuild/<Release/RelWithDebInfo>/bin` folder.
+Just run the executable files in `build/<Release/RelWithDebInfo>/bin` folder.
 
 ## Install Pyuipc 
 
@@ -70,28 +70,26 @@ With `UIPC_BUILD_PYBIND` option set to `ON`, the Python binding will be **built*
 If some **errors** occur during the installation, you can try to **manually** install the Python binding.
 
 ```shell
-cd CMakeBuild/python
+cd build/python
 pip install .
 ```
 
-### Conda Environment (Optional)
+## Conda Environment (Alternative)
 
-If you want to install the Python binding in a Conda environment, you should additionally specify the Python executable path of the Conda environment.
-
-First, create a Conda environment with Python >=3.11
-```shell
-conda create -n uipc_env python=3.11
-```
-
-!!!NOTE
-    **Don't** activate the Conda environment when compiling Libuipc.
-    On Windows it's hard to compile with MSVC/NVCC in conda environment, so we build the C++ part in the system environment and install the Python binding in the conda environment.
+Create and activate a conda environment with the following command:
 
 ```shell
-cmake -S ../libuipc -DUIPC_BUILD_PYBIND=1 -DUIPC_PYTHON_EXECUTABLE_PATH=<PYTHON_EXE_IN_CONDA_ENV>
-cmake --build . --config <Release/RelWithDebInfo> -j8
+conda env create -f conda/env.yaml
+conda activate uipc_env
 ```
-For example, the `<PYTHON_EXE_IN_CONDA_ENV>` may be  `C:\Users\<UserName>\anaconda3\envs\uipc_env\python.exe`
+
+Setup the `CMAKE_TOOLCHAIN_FILE` environment variable in the conda environment:
+
+```shell
+conda env config vars set CMAKE_TOOLCHAIN_FILE=~/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake
+```
+
+Then, you can build the project with the same commands as above in the conda environment.
 
 ## Check Installation
 
@@ -104,6 +102,11 @@ python uipc_info.py
 
 More samples are at [Pyuipc Samples](https://github.com/spiriMirror/libuipc-samples).
 
+## Install in Any Python Venv
 
+If you want to install the Pyuipc to any Python Venv (like [uv](https://docs.astral.sh/uv/)) after build, you can use the following command:
 
-
+```shell
+cmake -S .. -DUIPC_BUILD_PYBIND=1 -DUIPC_PYTHON_EXECUTABLE_PATH=<YOUR_PYTHON_EXECUTABLE_PATH>
+cmake --build . --config <Release/RelWithDebInfo> -j8
+```
