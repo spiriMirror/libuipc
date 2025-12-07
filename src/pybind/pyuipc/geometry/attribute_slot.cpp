@@ -16,11 +16,20 @@ void def_attribute_slot(py::module& m, std::string name)
 
     class_AttributeSlotT.def("view",
                              [](AttributeSlot<T>& self)
-                             { return as_numpy(self.view(), py::cast(self)); });
+                             { return as_numpy(self.view(), py::cast(self)); },
+                             R"(Get a numpy array view of the attribute data.
+Returns:
+    numpy.ndarray: Array view of attribute data.)");
 
     top_module().def("view",
                      [](AttributeSlot<T>& self)
-                     { return as_numpy(view(self), py::cast(self)); });
+                     { return as_numpy(view(self), py::cast(self)); },
+                     py::arg("slot"),
+                     R"(Get a numpy array view of an attribute slot.
+Args:
+    slot: AttributeSlot to view.
+Returns:
+    numpy.ndarray: Array view of attribute data.)");
 
     //m.def("view",
     //      [](AttributeSlot<T>& self)
@@ -94,12 +103,21 @@ void def_attribute_slot_string(py::module& m)
         py::class_<AttributeSlot<std::string>, IAttributeSlot, S<AttributeSlot<std::string>>>(
             m, "AttributeSlotString");
     class_AttributeSlotString.def(
-        "view", [](AttributeSlot<std::string>& self) { return self.view(); });
+        "view", [](AttributeSlot<std::string>& self) { return self.view(); },
+        R"(Get a view of the string attribute data.
+Returns:
+    StringSpan: View of string attribute data.)");
 
     //m.def("view", [](AttributeSlot<std::string>& self) { return view(self); });
 
     top_module().def("view",
-                     [](AttributeSlot<std::string>& self) { return view(self); });
+                     [](AttributeSlot<std::string>& self) { return view(self); },
+                     py::arg("slot"),
+                     R"(Get a view of a string attribute slot.
+Args:
+    slot: AttributeSlotString to view.
+Returns:
+    StringSpan: View of string attribute data.)");
 }
 
 #define DEF_ATTRIBUTE_SLOT(T) def_attribute_slot<T>(m, "AttributeSlot" #T)
@@ -107,14 +125,33 @@ void def_attribute_slot_string(py::module& m)
 PyAttributeSlot::PyAttributeSlot(py::module& m)
 {
     auto class_IAttributeSlot =
-        py::class_<IAttributeSlot, S<IAttributeSlot>>(m, "IAttributeSlot");
-    class_IAttributeSlot.def("name", &IAttributeSlot::name)
-        .def("type_name", &IAttributeSlot::type_name)
-        .def("allow_destroy", &IAttributeSlot::allow_destroy)
-        .def("is_shared", &IAttributeSlot::is_shared)
-        .def("size", &IAttributeSlot::size)
+        py::class_<IAttributeSlot, S<IAttributeSlot>>(m, "IAttributeSlot",
+                                                       R"(IAttributeSlot interface for attribute slots.)");
+    class_IAttributeSlot.def("name", &IAttributeSlot::name,
+                            R"(Get the attribute name.
+Returns:
+    str: Attribute name.)")
+        .def("type_name", &IAttributeSlot::type_name,
+             R"(Get the attribute type name.
+Returns:
+    str: Type name.)")
+        .def("allow_destroy", &IAttributeSlot::allow_destroy,
+             R"(Check if the attribute can be destroyed.
+Returns:
+    bool: True if destroyable, False otherwise.)")
+        .def("is_shared", &IAttributeSlot::is_shared,
+             R"(Check if the attribute is shared.
+Returns:
+    bool: True if shared, False otherwise.)")
+        .def("size", &IAttributeSlot::size,
+             R"(Get the size of the attribute.
+Returns:
+    int: Number of elements.)")
         // view pure virtual
-        .def("view", [](IAttributeSlot& self) -> py::array { return py::none(); });
+        .def("view", [](IAttributeSlot& self) -> py::array { return py::none(); },
+             R"(Get a view of the attribute data (virtual method, returns None for base class).
+Returns:
+    numpy.ndarray or None: Array view if available, None otherwise.)");
 
 
     // String span
