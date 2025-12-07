@@ -7,6 +7,7 @@ using namespace uipc::constitution;
 PyInterPrimitiveConstitution::PyInterPrimitiveConstitution(py::module& m)
 {
     auto class_InterPrimitiveConstitution =
-        py::class_<InterPrimitiveConstitution, IConstitution>(m, "InterPrimitiveConstitution");
+        py::class_<InterPrimitiveConstitution, IConstitution>(m, "InterPrimitiveConstitution",
+                                                               R"(InterPrimitiveConstitution base class for constitutions between primitives (e.g., stitching).)");
 }
 }  // namespace pyuipc::constitution
