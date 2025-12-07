@@ -218,18 +218,15 @@ class UIPC_CORE_API Geometry : public IGeometry
         /**
          * @sa AttributeCollection::resize
          */
-        void resize(size_t size) &&
-            requires(!IsConst);
+        void resize(size_t size) && requires(!IsConst);
         /**
          * @sa AttributeCollection::reserve
          */
-        void reserve(size_t size) &&
-            requires(!IsConst);
+        void reserve(size_t size) && requires(!IsConst);
         /**
          * @sa AttributeCollection::clear
          */
-        void clear() &&
-            requires(!IsConst);
+        void clear() && requires(!IsConst);
         /**
          * @sa AttributeCollection::size
          */
@@ -238,8 +235,7 @@ class UIPC_CORE_API Geometry : public IGeometry
         /**
          * @sa AttributeCollection::destroy
          */
-        void destroy(std::string_view name) &&
-            requires(!IsConst);
+        void destroy(std::string_view name) && requires(!IsConst);
 
         /**
          * @brief Find an attribute by type and name, if the attribute does not exist, return nullptr.
@@ -299,8 +295,7 @@ class UIPC_CORE_API Geometry : public IGeometry
      * 
      * @return The meta attributes of the geometries. 
      */
-    [[nodiscard]] MetaAttributes meta();
-
+    [[nodiscard]] MetaAttributes  meta();
     [[nodiscard]] CMetaAttributes meta() const;
 
 
@@ -309,20 +304,53 @@ class UIPC_CORE_API Geometry : public IGeometry
      * 
      * @return  The instance attributes of the geometries.
      */
-    [[nodiscard]] InstanceAttributes instances();
-
+    [[nodiscard]] InstanceAttributes  instances();
     [[nodiscard]] CInstanceAttributes instances() const;
 
     template <std::derived_from<Geometry> T>
     [[nodiscard]] T* as();
-
     template <std::derived_from<Geometry> T>
     [[nodiscard]] const T* as() const;
 
+
+    /**
+     * @brief Get the attribute collection with the given name.
+     * 
+     * If the attribute collection does not exist, create a new one.
+     * 
+     * @param name The name of the attribute collection.
+     * @return The attribute collection with the given name.
+     */
+    S<AttributeCollection> operator[](std::string_view name);
+
+    /**
+     * @brief Get the attribute collection with the given name.
+     * 
+     * If the attribute collection does not exist, return nullptr.
+     * 
+     * @param name The name of the attribute collection.
+     * @return The attribute collection with the given name.
+     */
+    S<const AttributeCollection> operator[](std::string_view name) const;
+
   protected:
-    S<AttributeCollection>       create(std::string_view name);
-    S<const AttributeCollection> find(std::string_view name) const;
-    S<AttributeCollection>       find(std::string_view name);
+    /**
+     * @brief Create a new attribute collection with the given name.
+     * 
+     * @param name The name of the attribute collection.
+     * @return The created attribute collection.
+     */
+    S<AttributeCollection> create(std::string_view name);
+
+    /**
+     * @brief Find the attribute collection with the given name.
+     * 
+     * @param name The name of the attribute collection.
+     * @return The attribute collection with the given name.
+     * @return nullptr if the attribute collection with the given name does not exist.
+     */
+    [[nodiscard]] S<const AttributeCollection> find(std::string_view name) const;
+    [[nodiscard]] S<AttributeCollection> find(std::string_view name);
 
     virtual Json do_to_json() const override;
     virtual void do_collect_attribute_collections(vector<std::string>& names,

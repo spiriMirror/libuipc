@@ -47,7 +47,6 @@ Returns:
         [](py::array_t<Float> Vs, py::array_t<IndexT> Es)
         { return linemesh(as_span_of<Vector3>(Vs), as_span_of<Vector2i>(Es)); },
         py::arg("Vs"),
-        py::arg("Fs"),
         py::arg("Es"),
         R"(Create a line mesh from vertices and edges.
 Args:
