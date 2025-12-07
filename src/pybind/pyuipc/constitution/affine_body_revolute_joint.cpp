@@ -9,14 +9,21 @@ using namespace uipc::constitution;
 PyAffineBodyRevoluteJoint::PyAffineBodyRevoluteJoint(py::module& m)
 {
     auto class_AffineBodyRevoluteJoint =
-        py::class_<AffineBodyRevoluteJoint, InterAffineBodyConstitution>(m, "AffineBodyRevoluteJoint");
+        py::class_<AffineBodyRevoluteJoint, InterAffineBodyConstitution>(m, "AffineBodyRevoluteJoint",
+                                                                          R"(AffineBodyRevoluteJoint constitution for revolute (hinge) joints between affine bodies.)");
 
     class_AffineBodyRevoluteJoint.def(py::init<const Json&>(),
                                       py::arg("config") =
-                                          AffineBodyRevoluteJoint::default_config());
+                                          AffineBodyRevoluteJoint::default_config(),
+                                      R"(Create an AffineBodyRevoluteJoint.
+Args:
+    config: Configuration dictionary (optional, uses default if not provided).)");
 
     class_AffineBodyRevoluteJoint.def_static("default_config",
-                                             &AffineBodyRevoluteJoint::default_config);
+                                             &AffineBodyRevoluteJoint::default_config,
+                                             R"(Get the default AffineBodyRevoluteJoint configuration.
+Returns:
+    dict: Default configuration dictionary.)");
 
     class_AffineBodyRevoluteJoint.def(
         "apply_to",

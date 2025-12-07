@@ -37,6 +37,9 @@ PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
                  sc: SimplicialComplex representing affine body geometry
                  force: 3D translational force vector (affine force = 0)
              )")
-        .def_static("default_config", &AffineBodyExternalBodyForce::default_config);
+        .def_static("default_config", &AffineBodyExternalBodyForce::default_config,
+                   R"(Get the default configuration.
+Returns:
+    dict: Default configuration dictionary.)");
 }
 }  // namespace pyuipc::constitution
