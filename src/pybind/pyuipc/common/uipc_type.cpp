@@ -47,12 +47,28 @@ void def_scalar(py::module& m, const char* name)
     using Ty = Type<T>;
     using VT = typename ValueType<T>::type;
 
-    auto class_Scalar = py::class_<Ty>(m, name);
+    auto class_Scalar = py::class_<Ty>(m, name,
+                                       R"(Type wrapper for scalar values.)");
 
-    class_Scalar.def_static("Zero", []() { return VT{0}; });
-    class_Scalar.def_static("One", []() { return VT{1}; });
-    class_Scalar.def_static("Value", [](VT value) { return value; });
-    class_Scalar.def_static("size_bytes", []() { return sizeof(VT); });
+    class_Scalar.def_static("Zero", []() { return VT{0}; },
+                           R"(Get zero value.
+Returns:
+    Scalar: Zero value.)");
+    class_Scalar.def_static("One", []() { return VT{1}; },
+                           R"(Get one value.
+Returns:
+    Scalar: One value.)");
+    class_Scalar.def_static("Value", [](VT value) { return value; },
+                           py::arg("value"),
+                           R"(Create a scalar value.
+Args:
+    value: Scalar value.
+Returns:
+    Scalar: The value.)");
+    class_Scalar.def_static("size_bytes", []() { return sizeof(VT); },
+                           R"(Get the size in bytes.
+Returns:
+    int: Size in bytes.)");
 }
 
 template <typename T, int M, int N>
@@ -62,9 +78,13 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
 
     // derived from numpy array
 
-    auto class_Matrix = py::class_<Ty>(m, name);
+    auto class_Matrix = py::class_<Ty>(m, name,
+                                       R"(Type wrapper for matrix values.)");
 
-    class_Matrix.def_static("shape", []() { return std::make_tuple(M, N); });
+    class_Matrix.def_static("shape", []() { return std::make_tuple(M, N); },
+                           R"(Get the matrix shape.
+Returns:
+    tuple: (rows, cols) shape tuple.)");
 
     // return numpy array zeros
     class_Matrix.def_static("Zero",
@@ -73,7 +93,10 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                 Eigen::Matrix<T, M, N> mat =
                                     Eigen::Matrix<T, M, N>::Zero();
                                 return as_numpy(mat);
-                            });
+                            },
+                            R"(Create a zero matrix.
+Returns:
+    numpy.ndarray: Zero matrix.)");
 
     class_Matrix.def_static("Ones",
                             []()
@@ -81,7 +104,10 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                 Eigen::Matrix<T, M, N> mat =
                                     Eigen::Matrix<T, M, N>::Ones();
                                 return as_numpy(mat);
-                            });
+                            },
+                            R"(Create a matrix of ones.
+Returns:
+    numpy.ndarray: Matrix filled with ones.)");
 
     class_Matrix.def_static("Identity",
                             []()
@@ -89,7 +115,10 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                 Eigen::Matrix<T, M, N> mat =
                                     Eigen::Matrix<T, M, N>::Identity();
                                 return as_numpy(mat);
-                            });
+                            },
+                            R"(Create an identity matrix (only for square matrices).
+Returns:
+    numpy.ndarray: Identity matrix.)");
 
     class_Matrix.def_static("Random",
                             []()
@@ -97,12 +126,21 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                 Eigen::Matrix<T, M, N> mat =
                                     Eigen::Matrix<T, M, N>::Random();
                                 return as_numpy(mat);
-                            });
+                            },
+                            R"(Create a random matrix.
+Returns:
+    numpy.ndarray: Random matrix.)");
 
     class_Matrix.def_static("Values",
                             [](py::array_t<T> value) {
                                 return as_numpy(to_matrix<Eigen::Matrix<T, M, N>>(value));
-                            });
+                            },
+                            py::arg("value"),
+                            R"(Create a matrix from a numpy array.
+Args:
+    value: Numpy array to convert.
+Returns:
+    numpy.ndarray: Matrix.)");
 
     if constexpr(N == 1)
     {
@@ -112,7 +150,17 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                     Eigen::Matrix<T, M, N> mat =
                                         Eigen::Matrix<T, M, N>::LinSpaced(start, end, n);
                                     return as_numpy(mat);
-                                });
+                                },
+                                py::arg("start"),
+                                py::arg("end"),
+                                py::arg("n"),
+                                R"(Create a linearly spaced vector.
+Args:
+    start: Start value.
+    end: End value.
+    n: Number of points.
+Returns:
+    numpy.ndarray: Linearly spaced vector.)");
 
         class_Matrix.def_static("LinSpaced",
                                 [](T start, T end)
@@ -120,7 +168,15 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                     Eigen::Matrix<T, M, N> mat =
                                         Eigen::Matrix<T, M, N>::LinSpaced(start, end);
                                     return as_numpy(mat);
-                                });
+                                },
+                                py::arg("start"),
+                                py::arg("end"),
+                                R"(Create a linearly spaced vector (size M).
+Args:
+    start: Start value.
+    end: End value.
+Returns:
+    numpy.ndarray: Linearly spaced vector.)");
 
         class_Matrix.def_static("LinSpaced",
                                 [](T start, T end, T step)
@@ -128,7 +184,17 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                     Eigen::Matrix<T, M, N> mat =
                                         Eigen::Matrix<T, M, N>::LinSpaced(start, end, step);
                                     return as_numpy(mat);
-                                });
+                                },
+                                py::arg("start"),
+                                py::arg("end"),
+                                py::arg("step"),
+                                R"(Create a linearly spaced vector with step size.
+Args:
+    start: Start value.
+    end: End value.
+    step: Step size.
+Returns:
+    numpy.ndarray: Linearly spaced vector.)");
 
         class_Matrix.def_static(
             "Unit",
@@ -142,7 +208,13 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
 
                 Eigen::Matrix<T, M, N> mat = Eigen::Matrix<T, M, N>::Unit(i);
                 return as_numpy(mat);
-            });
+            },
+            py::arg("i"),
+            R"(Create a unit vector with 1 at index i.
+Args:
+    i: Index of the unit element (0-based).
+Returns:
+    numpy.ndarray: Unit vector.)");
 
         if constexpr(M >= 1)
         {
@@ -152,7 +224,10 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                         Eigen::Matrix<T, M, N> mat =
                                             Eigen::Matrix<T, M, N>::UnitX();
                                         return as_numpy(mat);
-                                    });
+                                    },
+                                    R"(Create a unit vector in X direction.
+Returns:
+    numpy.ndarray: Unit X vector.)");
         }
 
         if constexpr(M >= 2)
@@ -163,7 +238,10 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                         Eigen::Matrix<T, M, N> mat =
                                             Eigen::Matrix<T, M, N>::UnitY();
                                         return as_numpy(mat);
-                                    });
+                                    },
+                                    R"(Create a unit vector in Y direction.
+Returns:
+    numpy.ndarray: Unit Y vector.)");
         }
 
         if constexpr(M >= 3)
@@ -174,7 +252,10 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                         Eigen::Matrix<T, M, N> mat =
                                             Eigen::Matrix<T, M, N>::UnitZ();
                                         return as_numpy(mat);
-                                    });
+                                    },
+                                    R"(Create a unit vector in Z direction.
+Returns:
+    numpy.ndarray: Unit Z vector.)");
         }
 
         if constexpr(M >= 4)
@@ -185,7 +266,10 @@ void def_matrix(py::module& m, Eigen::Matrix<T, M, N>, const char* name)
                                         Eigen::Matrix<T, M, N> mat =
                                             Eigen::Matrix<T, M, N>::UnitW();
                                         return as_numpy(mat);
-                                    });
+                                    },
+                                    R"(Create a unit vector in W direction.
+Returns:
+    numpy.ndarray: Unit W vector.)");
         }
     }
 }

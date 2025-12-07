@@ -33,17 +33,31 @@ static py::list list_of_sc(const vector<SimplicialComplex>& simplicial_complexes
 
 PyUtils::PyUtils(py::module& m)
 {
-    m.def("label_surface", &label_surface, py::arg("sc"));
+    m.def("label_surface", &label_surface, py::arg("sc"),
+          R"(Label surface elements in a simplicial complex.
+Args:
+    sc: SimplicialComplex to label.)");
 
-    m.def("label_triangle_orient", &label_triangle_orient, py::arg("sc"));
+    m.def("label_triangle_orient", &label_triangle_orient, py::arg("sc"),
+          R"(Label triangle orientations in a simplicial complex.
+Args:
+    sc: SimplicialComplex to label.)");
 
-    m.def("flip_inward_triangles", &flip_inward_triangles, py::arg("sc"));
+    m.def("flip_inward_triangles", &flip_inward_triangles, py::arg("sc"),
+          R"(Flip inward-facing triangles to face outward.
+Args:
+    sc: SimplicialComplex to modify.)");
 
     m.def(
         "extract_surface",
         [](const SimplicialComplex& simplicial_complex)
         { return extract_surface(simplicial_complex); },
-        py::arg("sc"));
+        py::arg("sc"),
+        R"(Extract surface from a simplicial complex.
+Args:
+    sc: SimplicialComplex to extract surface from.
+Returns:
+    SimplicialComplex: Surface mesh.)");
 
     m.def(
         "extract_surface",
@@ -52,7 +66,12 @@ PyUtils::PyUtils(py::module& m)
             auto simplicial_complexes = vector_of_sc(list_of_sc);
             return extract_surface(simplicial_complexes);
         },
-        py::arg("sc"));
+        py::arg("sc"),
+        R"(Extract surface from multiple simplicial complexes.
+Args:
+    sc: List of SimplicialComplex objects.
+Returns:
+    SimplicialComplex: Combined surface mesh.)");
 
     m.def(
         "merge",
@@ -61,7 +80,12 @@ PyUtils::PyUtils(py::module& m)
             auto simplicial_complexes = vector_of_sc(list_of_sc);
             return merge(simplicial_complexes);
         },
-        py::arg("sc_list"));
+        py::arg("sc_list"),
+        R"(Merge multiple simplicial complexes into one.
+Args:
+    sc_list: List of SimplicialComplex objects to merge.
+Returns:
+    SimplicialComplex: Merged simplicial complex.)");
 
     m.def(
         "apply_transform",
@@ -71,14 +95,30 @@ PyUtils::PyUtils(py::module& m)
             auto list = list_of_sc(scs);
             return list;
         },
-        py::arg("sc"));
+        py::arg("sc"),
+        R"(Apply transforms to a simplicial complex, splitting into multiple complexes.
+Args:
+    sc: SimplicialComplex with transforms.
+Returns:
+    list: List of transformed SimplicialComplex objects.)");
 
-    m.def("facet_closure", &facet_closure, py::arg("sc"));
+    m.def("facet_closure", &facet_closure, py::arg("sc"),
+          R"(Compute the facet closure of a simplicial complex.
+Args:
+    sc: SimplicialComplex to compute closure for.
+Returns:
+    SimplicialComplex: Facet closure.)");
 
 
-    m.def("label_connected_vertices", &label_connected_vertices, py::arg("sc"));
+    m.def("label_connected_vertices", &label_connected_vertices, py::arg("sc"),
+          R"(Label connected components of vertices.
+Args:
+    sc: SimplicialComplex to label.)");
 
-    m.def("label_region", &label_region, py::arg("sc"));
+    m.def("label_region", &label_region, py::arg("sc"),
+          R"(Label regions in a simplicial complex.
+Args:
+    sc: SimplicialComplex to label.)");
 
     m.def(
         "apply_region",
@@ -88,7 +128,12 @@ PyUtils::PyUtils(py::module& m)
             auto list = list_of_sc(scs);
             return list;
         },
-        py::arg("sc"));
+        py::arg("sc"),
+        R"(Split a simplicial complex by regions.
+Args:
+    sc: SimplicialComplex with region labels.
+Returns:
+    list: List of SimplicialComplex objects, one per region.)");
 
     m.def(
         "optimal_transform",
@@ -99,21 +144,55 @@ PyUtils::PyUtils(py::module& m)
             return as_numpy(optimal_transform(S_, D_));
         },
         py::arg("src"),
-        py::arg("dst"));
+        py::arg("dst"),
+        R"(Compute optimal transform between two point sets.
+Args:
+    src: Source points (Nx3 array).
+    dst: Destination points (Nx3 array).
+Returns:
+    numpy.ndarray: 4x4 transformation matrix.)");
 
     m.def(
         "optimal_transform",
         [](const SimplicialComplex& S, const SimplicialComplex& D)
         { return as_numpy(optimal_transform(S, D)); },
         py::arg("src"),
-        py::arg("dst"));
+        py::arg("dst"),
+        R"(Compute optimal transform between two simplicial complexes.
+Args:
+    src: Source SimplicialComplex.
+    dst: Destination SimplicialComplex.
+Returns:
+    numpy.ndarray: 4x4 transformation matrix.)");
 
-    m.def("is_trimesh_closed", &is_trimesh_closed, py::arg("sc"));
+    m.def("is_trimesh_closed", &is_trimesh_closed, py::arg("sc"),
+          R"(Check if a triangular mesh is closed (watertight).
+Args:
+    sc: SimplicialComplex to check.
+Returns:
+    bool: True if closed, False otherwise.)");
 
-    m.def("constitution_type", &constitution_type, py::arg("geo"));
+    m.def("constitution_type", &constitution_type, py::arg("geo"),
+          R"(Get the constitution type for a geometry.
+Args:
+    geo: Geometry to check.
+Returns:
+    str: Constitution type name.)");
 
-    m.def("compute_mesh_d_hat", &compute_mesh_d_hat, py::arg("sc"), py::arg("max_d_hat"));
+    m.def("compute_mesh_d_hat", &compute_mesh_d_hat, py::arg("sc"), py::arg("max_d_hat"),
+          R"(Compute mesh d_hat (characteristic length) parameter.
+Args:
+    sc: SimplicialComplex to compute for.
+    max_d_hat: Maximum d_hat value.
+Returns:
+    float: Computed d_hat value.)");
 
-    m.def("points_from_volume", &points_from_volume, py::arg("sc"), py::arg("resolution") = 0.01);
+    m.def("points_from_volume", &points_from_volume, py::arg("sc"), py::arg("resolution") = 0.01,
+          R"(Generate points from a volume mesh.
+Args:
+    sc: SimplicialComplex (volume mesh).
+    resolution: Point sampling resolution (default: 0.01).
+Returns:
+    SimplicialComplex: Point cloud.)");
 }
 }  // namespace pyuipc::geometry

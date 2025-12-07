@@ -48,7 +48,14 @@ Args:
     resize_func f:(int)->None: Function to resize the buffer.
     get_buffer_view_func f:()->BufferView: Function to retrieve the buffer view.)");
 
-    class_Buffer.def("resize", &Buffer::resize);
-    class_Buffer.def("view", &Buffer::view);
+    class_Buffer.def("resize", &Buffer::resize,
+                     py::arg("size"),
+                     R"(Resize the buffer.
+Args:
+    size: New size in elements.)");
+    class_Buffer.def("view", &Buffer::view,
+                     R"(Get a view of the buffer.
+Returns:
+    BufferView: View of the buffer.)");
 }
 }  // namespace pyuipc::backend
