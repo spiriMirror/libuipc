@@ -99,7 +99,8 @@ base_vcpkg_configuration = {
             'reference': 'master',
             'baseline': SPIRI_VCPKG_BASE_LINE,
             'packages': [
-                'muda', 'octree', 'ftetwild', 'pxr-boost-python'
+                # 'muda', 'pxr-boost-python',
+                'octree', 'ftetwild', 
             ]
         }
     ]
@@ -137,11 +138,12 @@ def gen_vcpkg_json(args):
             'name': 'bgfx',
             'version>=': '1.127.8725-469'
         })
-    # if is_enabled(args.with_usd_support):
-    #     deps.append({
-    #         'name': 'usd',
-    #         'version>=': '25.5.1'
-    #     })
+    if is_enabled(args.with_usd_support):
+        # deps.append({
+        #     'name': 'usd',
+        #     'version>=': '25.5.1'
+        # })
+        pass
     if is_enabled(args.with_vdb_support):
         deps.append({
             'name': 'openvdb',
@@ -149,10 +151,11 @@ def gen_vcpkg_json(args):
             'features': ["nanovdb"] if is_enabled(args.with_cuda_backend) else []
         })
     if is_enabled(args.with_cuda_backend):
-        deps.append({
-            'name': 'muda',
-            'version>=': '2025.10.9'
-        })
+        # deps.append({
+        #     'name': 'muda',
+        #     'version>=': '2025.10.9'
+        # })
+        pass
 
 def print_deps():
     str_names = []
