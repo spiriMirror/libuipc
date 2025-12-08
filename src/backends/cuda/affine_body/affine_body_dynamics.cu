@@ -5,7 +5,6 @@
 #include <algorithm>
 
 #include <affine_body/affine_body_constitution.h>
-#include <affine_body/affine_body_extra_constitution.h>
 #include <Eigen/Dense>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
@@ -98,12 +97,6 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
     m_impl.constitutions.register_subsystem(*constitution);
 }
 
-void AffineBodyDynamics::add_extra_constitution(AffineBodyExtraConstitution* constitution)
-{
-    check_state(SimEngineState::BuildSystems, "add_extra_constitution()");
-    m_impl.extra_constitutions.register_subsystem(*constitution);
-}
-
 void AffineBodyDynamics::add_kinetic(AffineBodyKinetic* kinetic)
 {
     check_state(SimEngineState::BuildSystems, "add_kinetic()");
@@ -134,9 +127,6 @@ void AffineBodyDynamics::Impl::init(WorldVisitor& world)
     _build_geometry_on_device(world);
 
     _distribute_geo_infos();
-
-    _init_extra_constitutions();
-
     _init_diff_reporters();
 }
 
@@ -651,26 +641,32 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     {
         h_body_id_to_is_fixed.resize(abd_body_count, 0);
         h_body_id_to_is_dynamic.resize(abd_body_count, 1);
+        h_body_id_to_external_kinetic.resize(abd_body_count, 0);
         for_each(
             geo_slots,
             [](geometry::SimplicialComplex& sc)
             {
                 auto is_fixed = sc.instances().find<IndexT>(builtin::is_fixed);
                 auto is_dynamic = sc.instances().find<IndexT>(builtin::is_dynamic);
+                auto external_kinetic =
+                    sc.instances().find<IndexT>(builtin::external_kinetic);
 
                 UIPC_ASSERT(is_fixed, "The is_fixed attribute is not found in the affine body geometry, why can it happen?");
                 UIPC_ASSERT(is_dynamic, "The is_dynamic attribute is not found in the affine body geometry, why can it happen?");
-
-                return zip(is_fixed->view(), is_dynamic->view());
+                UIPC_ASSERT(external_kinetic, "The is_external_kinetic attribute is not found in the affine body geometry, why can it happen?");
+                return zip(is_fixed->view(),
+                           is_dynamic->view(),
+                           external_kinetic->view());
             },
             [&](const ForEachInfo& I, auto&& data)
             {
-                auto&& [fixed, dynamic] = data;
+                auto&& [fixed, dynamic, external_kinetic] = data;
 
                 auto bodyI = I.global_index();
 
-                h_body_id_to_is_fixed[bodyI]   = fixed;
-                h_body_id_to_is_dynamic[bodyI] = dynamic;
+                h_body_id_to_is_fixed[bodyI]         = fixed;
+                h_body_id_to_is_dynamic[bodyI]       = dynamic;
+                h_body_id_to_external_kinetic[bodyI] = external_kinetic;
             });
     }
 
@@ -698,6 +694,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_copy(span{h_body_id_to_abd_gravity}, body_id_to_abd_gravity);
     async_copy(span{h_body_id_to_is_fixed}, body_id_to_is_fixed);
     async_copy(span{h_body_id_to_is_dynamic}, body_id_to_is_dynamic);
+    async_copy(span{h_body_id_to_external_kinetic}, body_id_to_external_kinetic);
 
     auto async_transfer = []<typename T>(const muda::DeviceBuffer<T>& src,
                                          muda::DeviceBuffer<T>&       dst)
@@ -761,14 +758,6 @@ void AffineBodyDynamics::Impl::_init_dof_info()
     // frame 0 is not used, just fill 0
     frame_to_dof_offset.push_back(0);
     frame_to_dof_count.push_back(0);
-}
-
-void AffineBodyDynamics::Impl::_init_extra_constitutions()
-{
-    for(auto&& c : extra_constitutions.view())
-    {
-        c->init();
-    }
 }
 
 void AffineBodyDynamics::Impl::_init_diff_reporters()

@@ -10,7 +10,6 @@
 namespace uipc::backend::cuda
 {
 class AffineBodyConstitution;
-class AffineBodyExtraConstitution;
 class AffineBodyDiffParmReporter;
 class AffineBodyDiffDofReporter;
 class AffineBodyKineticDiffParmReporter;
@@ -195,7 +194,6 @@ class AffineBodyDynamics : public SimSystem
         void _download_geometry_to_host();
 
         void _init_dof_info();
-        void _init_extra_constitutions();
         void _init_diff_reporters();
 
         void write_scene(WorldVisitor& world);
@@ -270,6 +268,7 @@ class AffineBodyDynamics : public SimSystem
         vector<Vector12>            h_body_id_to_abd_gravity;
         vector<IndexT>              h_body_id_to_is_fixed;
         vector<IndexT>              h_body_id_to_is_dynamic;
+        vector<IndexT>              h_body_id_to_external_kinetic;
         vector<Float>               h_constitution_shape_energy;
 
         /******************************************************************************
@@ -366,8 +365,9 @@ class AffineBodyDynamics : public SimSystem
         //tex: $$ \mathbf{a}_{ext,i} = \mathbf{M}^{-1} \mathbf{F}_{ext,i} $$ external acceleration per body, computed by reporter
         DeviceBuffer<Vector12> body_id_to_external_force_acc;
 
-        DeviceBuffer<IndexT> body_id_to_is_fixed;    // Body IsFixed
-        DeviceBuffer<IndexT> body_id_to_is_dynamic;  // Body IsKinematic
+        DeviceBuffer<IndexT> body_id_to_is_fixed;          // Body IsFixed
+        DeviceBuffer<IndexT> body_id_to_is_dynamic;        // Body IsKinematic
+        DeviceBuffer<IndexT> body_id_to_external_kinetic;  // Body IsExternalKinetic
 
         //tex: $$K_i$$ kinetic energy per body
         DeviceBuffer<Float> body_id_to_kinetic_energy;
@@ -424,9 +424,6 @@ class AffineBodyDynamics : public SimSystem
          */
         IndexT dof_count(SizeT frame) const;
 
-        // Extra constitutions - placed at end to avoid changing memory layout of existing members
-        SimSystemSlotCollection<AffineBodyExtraConstitution> extra_constitutions;
-
       private:
         vector<IndexT> frame_to_dof_offset;
         vector<IndexT> frame_to_dof_count;
@@ -437,59 +434,107 @@ class AffineBodyDynamics : public SimSystem
      * @brief affine body local vertex id to ABD Jacobi matrix
      */
     auto Js() const noexcept { return m_impl.vertex_id_to_J.view(); }
+
     /**
      * @brief affine body local vertex id to body id
      */
     auto v2b() const noexcept { return m_impl.vertex_id_to_body_id.view(); }
 
+    /**
+     * @brief return dof `q` of the body
+     */
     auto qs() const noexcept { return m_impl.body_id_to_q.view(); }
 
+    /**
+     * @brief return the delta dof `dq` of the body
+     */
     auto dqs() const noexcept { return m_impl.body_id_to_dq.view(); }
 
+    /**
+     * @brief return the predicted dof `q_tilde` of the body
+     */
     auto q_tildes() const noexcept { return m_impl.body_id_to_q_tilde.view(); }
 
+    /**
+     * @brief return the previous dof `q_prev` of the body
+     */
     auto q_prevs() const noexcept { return m_impl.body_id_to_q_prev.view(); }
 
+    /**
+     * @brief return the velocity `q_v` of the body
+     */
     auto q_vs() const noexcept { return m_impl.body_id_to_q_v.view(); }
 
+    /**
+     * @brief return the volume of the body
+     */
     auto body_volumes() const noexcept
     {
         return m_impl.body_id_to_volume.view();
     }
 
+    /**
+     * @brief return the mass matrix of the body
+     */
     auto body_masses() const noexcept
     {
         return m_impl.body_id_to_abd_mass.view();
     }
 
+    /**
+     * @brief return the inverse mass matrix of the body
+     */
     auto body_mass_invs() const noexcept
     {
         return m_impl.body_id_to_abd_mass_inv.view();
     }
 
+    /**
+     * @brief return the gravity acceleration applied on the body
+     */
     auto body_gravities() const noexcept
     {
         return m_impl.body_id_to_abd_gravity.view();
     }
 
+    /**
+     * @brief return the external force applied on the body
+     */
     auto body_external_forces() const noexcept
     {
         return m_impl.body_id_to_external_force.view();
     }
 
+    /**
+     * @brief return the external acceleration applied on the body
+     */
     auto body_external_force_accs() const noexcept
     {
         return m_impl.body_id_to_external_force_acc.view();
     }
 
+    /**
+     * @brief return whether the body is fixed
+     */
     auto body_is_fixed() const noexcept
     {
         return m_impl.body_id_to_is_fixed.view();
     }
 
+    /**
+     * @brief return whether the body is dynamic, consider velocity
+     */
     auto body_is_dynamic() const noexcept
     {
         return m_impl.body_id_to_is_dynamic.view();
+    }
+
+    /**
+     * @brief return whether the body is controlled by external kinetic data
+     */
+    auto body_external_kinetic() const noexcept
+    {
+        return m_impl.body_id_to_external_kinetic.view();
     }
 
     /**
@@ -505,6 +550,7 @@ class AffineBodyDynamics : public SimSystem
      * @brief return the frame-local dof offset of ABD at the given frame.
      */
     IndexT dof_offset(SizeT frame) const;
+
     /**
      * @brief return the frame-local dof count of ABD at the given frame.
      */
@@ -515,16 +561,12 @@ class AffineBodyDynamics : public SimSystem
      */
     template <typename ViewGetterF, typename ForEachF>
     void for_each(span<S<geometry::GeometrySlot>> geo_slots, ViewGetterF&& getter, ForEachF&& for_each);
-
     template <typename ForEachGeometry>
     void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_every_geometry);
 
   private:
     friend class AffineBodyConstitution;
     void add_constitution(AffineBodyConstitution* constitution);  // only be called by AffineBodyConstitution
-
-    friend class AffineBodyExtraConstitution;
-    void add_extra_constitution(AffineBodyExtraConstitution* constitution);  // only be called by AffineBodyExtraConstitution
 
     friend class AffineBodyKinetic;
     void add_kinetic(AffineBodyKinetic* kinetic);  // only be called by AffineBodyKinetic

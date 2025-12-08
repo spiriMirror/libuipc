@@ -9,7 +9,6 @@
 #include <affine_body/abd_linear_subsystem_reporter.h>
 #include <affine_body/affine_body_kinetic.h>
 #include <affine_body/affine_body_constitution.h>
-#include <affine_body/affine_body_extra_constitution.h>
 
 namespace uipc::backend::cuda
 {
@@ -149,15 +148,6 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                 dt};
 
             cst->compute_gradient_hessian(this_info);
-        }
-
-        // Collect Extra Constitutions (directly accumulate to shape gradient/hessian)
-        for(auto&& [i, extra_cst] : enumerate(abd().extra_constitutions.view()))
-        {
-            extra_cst->compute_gradient_hessian(abd(),
-                                                dt,
-                                                abd().body_id_to_shape_gradient.view(),
-                                                abd().body_id_to_shape_hessian.view());
         }
 
         ParallelFor()
