@@ -80,9 +80,13 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     if(!is_fixed)
         is_fixed = sc.instances().create<IndexT>(builtin::is_fixed, 0);
 
-    auto is_kinematic = sc.instances().find<IndexT>(builtin::is_dynamic);
-    if(!is_kinematic)
-        is_kinematic = sc.instances().create<IndexT>(builtin::is_dynamic, 1);
+    auto is_dynamic = sc.instances().find<IndexT>(builtin::is_dynamic);
+    if(!is_dynamic)
+        is_dynamic = sc.instances().create<IndexT>(builtin::is_dynamic, 1);
+
+    auto external_kinetic = sc.instances().find<IndexT>(builtin::external_kinetic);
+    if(!external_kinetic)
+        external_kinetic = sc.instances().create<IndexT>(builtin::external_kinetic, 0);
 
     auto velocity = sc.instances().find<Matrix4x4>(builtin::velocity);
     if(!velocity)
