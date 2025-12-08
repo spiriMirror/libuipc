@@ -61,29 +61,5 @@ Float Scene::dt() const noexcept
     return dt_attr->view()[0];
 }
 
-template <typename T>
-void create_and_set(geometry::AttributeCollection& coll,
-                    std::string_view               key,
-                    const T&                       value,
-                    const T&                       default_value = T{0})
-{
-    auto attr = coll.find<T>(key);
-    if(!attr)
-        attr = coll.create<T>(key, default_value);
-    view(*attr)[0] = value;
-}
-
-template <typename T, int M, int N>
-void create_and_set(geometry::AttributeCollection& coll,
-                    std::string_view               key,
-                    const Matrix<T, M, N>&         value,
-                    const Matrix<T, M, N>& default_value = Matrix<T, M, N>::Zero())
-{
-    auto attr = coll.find<Matrix<T, M, N>>(key);
-    if(!attr)
-        attr = coll.create<Matrix<T, M, N>>(key, default_value);
-    view(*attr)[0] = value;
-}
-
 Scene::~Scene() = default;
 }  // namespace uipc::core::internal
