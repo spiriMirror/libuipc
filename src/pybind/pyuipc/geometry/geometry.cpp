@@ -289,7 +289,7 @@ Returns:
         py::arg("name"),
         R"(Get an attribute collection by name.
 Returns:
-    AttributeCollection: Attribute collection with the given name，if not found, create a new one.)");
+    AttributeCollection: Attribute collection with the given name, if not found, create a new one.)");
 
     def_method(m, class_MetaAttributes);
 
