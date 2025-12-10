@@ -1,6 +1,5 @@
 #include <affine_body/affine_body_animator.h>
 #include <affine_body/affine_body_constraint.h>
-#include <affine_body/affine_body_extra_constitution.h>
 #include <uipc/builtin/attribute_name.h>
 #include <muda/cub/device/device_reduce.h>
 #include <affine_body/abd_line_search_reporter.h>
@@ -118,12 +117,6 @@ void AffineBodyAnimator::Impl::step()
     {
         FilteredInfo info{this, constraint->m_index};
         constraint->step(info);
-    }
-
-    // Step extra constitutions
-    for(auto&& extra_cst : affine_body_dynamics->m_impl.extra_constitutions.view())
-    {
-        extra_cst->step();
     }
 
     span<IndexT> constraint_energy_counts = constraint_energy_offsets_counts.counts();
