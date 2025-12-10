@@ -69,8 +69,6 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
 
 
   private:
-    void build_config(const Json& config);
-
     geometry::AttributeCollection m_config;
     ContactTabular                m_contact_tabular;
     SubsceneTabular               m_subscene_tabular;
