@@ -48,7 +48,7 @@ $$
 \Psi = \frac{1}{2} \left( \mathbf{q} - \hat{\mathbf{q}} \right)^T \mathbf{\eta} \mathbf{M} \left( \mathbf{q} - \hat{\mathbf{q}} \right),
 $$
 
-where $\hat{\mathbf{q}}$ is the target state, $\mathbf{M}$ is the mass matrix of the affine body, $\eta_p \in (0,+\inf)$ is the position constraint strength ratio, and $\eta_a \in (0,+\inf)$ is the affine (or rotation if not so rigorous) constraint strength ratio.
+where $\hat{\mathbf{q}}$ is the target state, $\mathbf{M}$ is the mass matrix of the affine body, $\eta_p \in (0,+\infty)$ is the position constraint strength ratio, and $\eta_a \in (0,+\infty)$ is the affine (or rotation if not so rigorous) constraint strength ratio.
 
 The reason we use strength ratio is that the mass matrix $\mathbf{M}$ already contains the mass and inertia information, so that users only need to care about how strong the constraint is compared to the mass and inertia of the body, which is more intuitive.
 
