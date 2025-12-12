@@ -153,8 +153,7 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
                        // energy = 1/2 * kappa * (||x0 - x2||^2 + ||x1 - x3||^2)
 
                        Es(I) = kappa / 2 * (E0 + E1);
-                   })
-            .wait();
+                   });
     }
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
@@ -246,8 +245,7 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
                                     Js[3].x_bar());
                            H12x12s(4 * I + 3).write(bids(1), bids(1), H_jj);
                        }
-                   })
-            .wait();
+                   });
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }

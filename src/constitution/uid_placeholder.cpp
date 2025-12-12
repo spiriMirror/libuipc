@@ -9,10 +9,6 @@ REGISTER_CONSTITUTION_UIDS()
     using namespace uipc::builtin;
     list<UIDInfo> uids;
 
-    uids.push_back(UIDInfo{.uid  = 20,
-                           .name = "AffineBodyPrismaticJoint",
-                           .type = string{builtin::InterAffineBody}});
-
     uids.push_back(UIDInfo{.uid  = 21,
                            .name = "AffineBodyDrivingPrismaticJoint",
                            .type = string{builtin::Constraint}});
