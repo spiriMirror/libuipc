@@ -11,10 +11,18 @@ class UIPC_CORE_API UIDRegister
     const UIDInfo& find(U64 uid) const;
     bool           exists(U64 uid) const;
     Json           to_json() const noexcept;
+
   private:
     unordered_map<U64, UIDInfo> m_uid_to_info;
 
   protected:
-    void create(const UIDInfo& info);
+    class CreatorInfo
+    {
+      public:
+        std::string_view file = "no-file-info";
+        int              line = -1;
+    };
+
+    void create(const UIDInfo& info, const CreatorInfo& creator = CreatorInfo{});
 };
 }  // namespace uipc::builtin::details

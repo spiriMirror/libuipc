@@ -7,7 +7,27 @@ namespace uipc::builtin
 class UIPC_CORE_API ImplicitGeometryUIDAutoRegister
 {
   public:
-    using Creator = std::function<list<UIDInfo>()>;
+    class Creator
+    {
+      public:
+        Creator(std::function<list<UIDInfo>()> creator, std::string_view file, int line) noexcept
+            : m_creator{std::move(creator)}
+            , m_file{file}
+            , m_line{line}
+        {
+        }
+
+        list<UIDInfo> operator()() const { return m_creator(); }
+
+        std::string_view file() const noexcept { return m_file; }
+        int              line() const noexcept { return m_line; }
+
+      private:
+        std::function<list<UIDInfo>()> m_creator;
+        std::string_view               m_file;
+        int                            m_line = 0;
+    };
+
     ImplicitGeometryUIDAutoRegister(Creator creator) noexcept;
 
   private:
@@ -21,14 +41,24 @@ class UIPC_CORE_API ImplicitGeometryUIDAutoRegister
     {                                                                                                     \
         static ::uipc::list<::uipc::builtin::UIDInfo> ImplicitGeometryUIDAutoRegisterFunction##counter(); \
         static ::uipc::builtin::ImplicitGeometryUIDAutoRegister ImplicitGeometryUIDAutoRegister##counter{ \
-            ImplicitGeometryUIDAutoRegisterFunction##counter};                                            \
+            ::uipc::builtin::ImplicitGeometryUIDAutoRegister::Creator{                                    \
+                ImplicitGeometryUIDAutoRegisterFunction##counter, __FILE__, __LINE__}};                   \
     }                                                                                                     \
     static ::uipc::list<::uipc::builtin::UIDInfo> auto_register::ImplicitGeometryUIDAutoRegisterFunction##counter()
 
 /**
  * @brief Register ImplicitGeometryUIDs.
+ * 
+ * Example:
+ * 
+ * ```c++
+ *  REGISTER_IMPLICIT_GEOMETRY_UIDS()
+ *  {
+ *      using namespace uipc::builtin;
+ *      list<UIDInfo> uids;
+ *      return uids;
+ *  }
+ * ```
  */
 #define REGISTER_IMPLICIT_GEOMETRY_UIDS(...)                                   \
     REGISTER_IMPLICIT_GEOMETRY_UIDS_INTERNAL(__COUNTER__)
-
-//
