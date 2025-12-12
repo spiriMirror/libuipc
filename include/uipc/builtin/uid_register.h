@@ -23,6 +23,6 @@ class UIPC_CORE_API UIDRegister
         int              line = -1;
     };
 
-    void create(const UIDInfo& info, const CreatorInfo& creator = CreatorInfo{});
+    void create(const UIDInfo& info, const CreatorInfo& creator);
 };
 }  // namespace uipc::builtin::details
