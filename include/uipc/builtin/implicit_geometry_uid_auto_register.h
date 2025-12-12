@@ -7,26 +7,7 @@ namespace uipc::builtin
 class UIPC_CORE_API ImplicitGeometryUIDAutoRegister
 {
   public:
-    class Creator
-    {
-      public:
-        Creator(std::function<list<UIDInfo>()> creator, std::string_view file, int line) noexcept
-            : m_creator{std::move(creator)}
-            , m_file{file}
-            , m_line{line}
-        {
-        }
-
-        list<UIDInfo> operator()() const { return m_creator(); }
-
-        std::string_view file() const noexcept { return m_file; }
-        int              line() const noexcept { return m_line; }
-
-      private:
-        std::function<list<UIDInfo>()> m_creator;
-        std::string_view               m_file;
-        int                            m_line = 0;
-    };
+    using Creator = UIDInfoCreator;
 
     ImplicitGeometryUIDAutoRegister(Creator creator) noexcept;
 
