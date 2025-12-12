@@ -30,7 +30,7 @@ struct UIPC_CORE_API UIDInfo
     Json to_json() const noexcept;
 };
 
-class UIDInfoCreator
+class UIPC_CORE_API UIDInfoCreator
 {
   public:
     UIDInfoCreator(std::function<list<UIDInfo>()> creator, std::string_view file, int line) noexcept;
