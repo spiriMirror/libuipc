@@ -7,7 +7,8 @@ namespace uipc::builtin
 class UIPC_CORE_API ImplicitGeometryUIDAutoRegister
 {
   public:
-    using Creator = std::function<list<UIDInfo>()>;
+    using Creator = UIDInfoCreator;
+
     ImplicitGeometryUIDAutoRegister(Creator creator) noexcept;
 
   private:
@@ -21,14 +22,24 @@ class UIPC_CORE_API ImplicitGeometryUIDAutoRegister
     {                                                                                                     \
         static ::uipc::list<::uipc::builtin::UIDInfo> ImplicitGeometryUIDAutoRegisterFunction##counter(); \
         static ::uipc::builtin::ImplicitGeometryUIDAutoRegister ImplicitGeometryUIDAutoRegister##counter{ \
-            ImplicitGeometryUIDAutoRegisterFunction##counter};                                            \
+            ::uipc::builtin::ImplicitGeometryUIDAutoRegister::Creator{                                    \
+                ImplicitGeometryUIDAutoRegisterFunction##counter, __FILE__, __LINE__}};                   \
     }                                                                                                     \
     static ::uipc::list<::uipc::builtin::UIDInfo> auto_register::ImplicitGeometryUIDAutoRegisterFunction##counter()
 
 /**
  * @brief Register ImplicitGeometryUIDs.
+ * 
+ * Example:
+ * 
+ * ```c++
+ *  REGISTER_IMPLICIT_GEOMETRY_UIDS()
+ *  {
+ *      using namespace uipc::builtin;
+ *      list<UIDInfo> uids;
+ *      return uids;
+ *  }
+ * ```
  */
 #define REGISTER_IMPLICIT_GEOMETRY_UIDS(...)                                   \
     REGISTER_IMPLICIT_GEOMETRY_UIDS_INTERNAL(__COUNTER__)
-
-//
