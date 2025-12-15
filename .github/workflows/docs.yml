@@ -16,12 +16,22 @@ on:
       - 'docs/**'
       - 'mkdocs*.yml'
       - '.github/workflows/docs.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs*.yml'
+      - '.github/workflows/docs.yml'
   workflow_dispatch: # Allow manual triggering
 
 jobs:
   deploy-docs:
     runs-on: ubuntu-latest
-    if: github.event.repository.fork == false
+    if: |
+      (github.event_name == 'push' && github.event.repository.fork == false) ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false) ||
+      github.event_name == 'workflow_dispatch'
     
     permissions:
       contents: write # Required to push to libuipc-doc repository
@@ -52,6 +62,7 @@ jobs:
           python scripts/build_docs.py -o site
 
       - name: Checkout libuipc-doc repository
+        if: github.event_name == 'push'
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/libuipc-doc
@@ -60,11 +71,13 @@ jobs:
           fetch-depth: 0
 
       - name: Configure Git
+        if: github.event_name == 'push'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Copy built documentation
+        if: github.event_name == 'push'
         run: |
           cd libuipc-doc
           # Remove old docs
@@ -73,6 +86,7 @@ jobs:
           cp -r ../site/* docs/
 
       - name: Commit and push changes
+        if: github.event_name == 'push'
         run: |
           cd libuipc-doc
           git add -A
