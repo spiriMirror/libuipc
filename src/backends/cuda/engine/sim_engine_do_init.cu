@@ -16,6 +16,7 @@
 #include <affine_body/inter_affine_body_constitution_manager.h>
 #include <newton_tolerance/newton_tolerance_manager.h>
 #include <time_integrator/time_integrator_manager.h>
+#include <active_set_system/global_active_set_manager.h>
 
 namespace uipc::backend::cuda
 {
@@ -39,6 +40,7 @@ void SimEngine::build()
     m_global_animator                   = find<GlobalAnimator>();
     m_global_external_force_manager     = find<GlobalExternalForceManager>();
     m_global_diff_sim_manager           = find<GlobalDiffSimManager>();
+    m_global_active_set_manager         = find<GlobalActiveSetManager>();
 
     m_affine_body_dynamics = find<AffineBodyDynamics>();
     m_inter_affine_body_constitution_manager =
@@ -92,6 +94,8 @@ void SimEngine::init_scene()
             m_global_animator->init();
         if(m_global_external_force_manager)
             m_global_external_force_manager->init();
+        if (m_global_active_set_manager)
+            m_global_active_set_manager->init();
 
         m_line_searcher->init();
         m_global_linear_system->init();

@@ -13,6 +13,7 @@ class GlobalBodyManager;
 class GlobalContactManager;
 class GlobalDyTopoEffectManager;
 class GlobalTrajectoryFilter;
+class GlobalActiveSetManager;
 
 class TimeIntegratorManager;
 class LineSearcher;
@@ -51,6 +52,8 @@ class SimEngine final : public backend::SimEngine
     virtual void do_apply_recover(RecoverInfo&) override;
     virtual void do_clear_recover(RecoverInfo&) override;
 
+    void advance_IPC();
+    void advance_AL();
     void build();
     void init_scene();
     void dump_global_surface(std::string_view name);
@@ -76,6 +79,7 @@ class SimEngine final : public backend::SimEngine
     GlobalContactManager*      m_global_contact_manager       = nullptr;
     GlobalDyTopoEffectManager* m_global_dytopo_effect_manager = nullptr;
     GlobalTrajectoryFilter*    m_global_trajectory_filter     = nullptr;
+    GlobalActiveSetManager*    m_global_active_set_manager    = nullptr;
 
     // Newton Solver Systems
     TimeIntegratorManager*  m_time_integrator_manager  = nullptr;

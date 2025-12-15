@@ -14,5 +14,7 @@ enum class SimEngineState
     SolveGlobalLinearSystem,
     LineSearch,
     UpdateVelocity,
+    AdvanceNonPenetrate,
+    RecoverNonPenetrate,
 };
 }

@@ -565,5 +565,5 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
     }
 };
 
-REGISTER_SIM_SYSTEM(IPCSimplexNormalContact);
+// REGISTER_SIM_SYSTEM(IPCSimplexNormalContact);
 }  // namespace uipc::backend::cuda

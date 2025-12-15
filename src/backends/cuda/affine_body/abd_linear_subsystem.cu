@@ -444,6 +444,11 @@ void ABDLinearSubsystem::do_retrieve_solution(GlobalLinearSystem::SolutionInfo& 
     m_impl.retrieve_solution(info);
 }
 
+Float ABDLinearSubsystem::do_diag_norm(GlobalLinearSystem::DiagNormInfo &info) {
+    UIPC_ASSERT(false, "Not implemented");
+    return 0.0;
+}
+
 void ABDLinearSubsystem::add_reporter(ABDLinearSubsystemReporter* reporter)
 {
     UIPC_ASSERT(reporter, "reporter cannot be null");

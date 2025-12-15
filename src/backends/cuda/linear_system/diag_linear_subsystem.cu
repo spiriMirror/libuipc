@@ -43,4 +43,8 @@ void DiagLinearSubsystem::retrieve_solution(GlobalLinearSystem::SolutionInfo& in
 {
     do_retrieve_solution(info);
 }
+
+Float DiagLinearSubsystem::diag_norm(GlobalLinearSystem::DiagNormInfo &info) {
+    return do_diag_norm(info);
+}
 }  // namespace uipc::backend::cuda
