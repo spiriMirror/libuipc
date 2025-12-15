@@ -79,6 +79,11 @@ void GlobalLinearSystem::solve()
     m_impl.distribute_solution();
 }
 
+Float GlobalLinearSystem::diag_norm() {
+    m_impl.build_linear_system();
+    return m_impl.diag_norm();
+}
+
 void GlobalLinearSystem::Impl::init()
 {
     auto diag_subsystem_view = diag_subsystems.view();
@@ -463,6 +468,18 @@ bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> 
 
     return std::ranges::all_of(accuracy_statisfied_flags,
                                [](bool flag) { return flag; });
+}
+
+Float GlobalLinearSystem::Impl::diag_norm() {
+    Float norm = 0;
+
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems.view()))
+    {
+        DiagNormInfo info(this, diag_subsystem->m_index);
+        norm = max(norm, diag_subsystem->diag_norm(info));
+    }
+
+    return norm;
 }
 
 void GlobalLinearSystem::DiagExtentInfo::extent(SizeT hessian_block_count, SizeT dof_count) noexcept

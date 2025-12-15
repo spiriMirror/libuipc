@@ -169,6 +169,8 @@ class GlobalLinearSystem : public SimSystem
         SizeT m_index;
     };
 
+    using DiagNormInfo = LocalPreconditionerAssemblyInfo;
+
     class ApplyPreconditionerInfo
     {
       public:
@@ -305,6 +307,8 @@ class GlobalLinearSystem : public SimSystem
         void spmv(Float a, muda::CDenseVectorView<Float> x, Float b, muda::DenseVectorView<Float> y);
 
         bool accuracy_statisfied(muda::DenseVectorView<Float> r);
+
+        Float diag_norm();
     };
 
     void dump_linear_system(std::string_view filename);
@@ -335,6 +339,9 @@ class GlobalLinearSystem : public SimSystem
 
     // only be called by SimEngine::do_advance()
     void solve();
+
+    // only be called by SimEngine::do_advance()
+    Float diag_norm();
 
     Impl m_impl;
 };

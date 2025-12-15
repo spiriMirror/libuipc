@@ -34,6 +34,8 @@ class DiagLinearSubsystem : public SimSystem
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info)  = 0;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) = 0;
 
+    virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) = 0;
+
   private:
     friend class GlobalLinearSystem;
     virtual void do_build() final override;
@@ -48,6 +50,7 @@ class DiagLinearSubsystem : public SimSystem
     void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
     void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
+    Float diag_norm(GlobalLinearSystem::DiagNormInfo& info);
 
     SizeT m_index = ~0ull;
 };
