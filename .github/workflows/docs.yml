@@ -15,7 +15,7 @@ on:
     paths:
       - 'docs/**'
       - 'mkdocs*.yml'
-      - '.github/workflows/deploy-docs.yml'
+      - '.github/workflows/docs.yml'
   workflow_dispatch: # Allow manual triggering
 
 jobs:
