@@ -4,6 +4,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <utils/offset_count_collection.h>
 #include <utils/make_spd.h>
+#include <uipc/common/enumerate.h>
 
 namespace uipc::backend::cuda
 {
@@ -58,12 +59,16 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
 
                 auto sc = geo.as<geometry::SimplicialComplex>();
 
-                auto links = sc->edges().find<Vector2i>("links");
-                UIPC_ASSERT(links, "AffineBodyPrismaticJoint: Geometry must have 'links' attribute on `edges`");
-                auto links_view = links->view();
+                auto geo_ids = sc->edges().find<Vector2i>("geo_ids");
+                UIPC_ASSERT(geo_ids, "AffineBodyPrismaticJoint: Geometry must have 'geo_ids' attribute on `edges`");
+                auto geo_ids_view = geo_ids->view();
+
+                auto inst_ids = sc->edges().find<Vector2i>("inst_ids");
+                UIPC_ASSERT(inst_ids, "AffineBodyPrismaticJoint: Geometry must have 'inst_ids' attribute on `edges`");
+                auto inst_ids_view = inst_ids->view();
 
                 auto strength_ratio = sc->edges().find<Float>("strength_ratio");
-                UIPC_ASSERT(strength_ratio, "AffineBodyPrismaticJoint: Geometry must have 'strength_ratios' attribute on `edges`");
+                UIPC_ASSERT(strength_ratio, "AffineBodyPrismaticJoint: Geometry must have 'strength_ratio' attribute on `edges`");
                 auto strength_ratio_view = strength_ratio->view();
 
                 auto Normal = [&](const Vector3& W) -> Vector3
@@ -80,25 +85,33 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
 
                 auto Es = sc->edges().topo().view();
                 auto Ps = sc->positions().view();
-                for(auto&& [e, link] : zip(Es, links_view))
+                for(auto&& [i, e] : enumerate(Es))
                 {
                     Vector3 P0 = Ps[e[0]];
                     Vector3 P1 = Ps[e[1]];
                     UIPC_ASSERT((P0 - P1).squaredNorm() > 0,
                                 "AffineBodyPrismaticJoint: Edge positions must not be too close");
 
-                    Vector2i body_ids = {info.body_id(link(0)), info.body_id(link(1))};
+                    Vector2i geo_id = geo_ids_view[i];
+                    Vector2i inst_id = inst_ids_view[i];
+
+                    Vector2i body_ids = {info.body_id(geo_id(0), inst_id(0)), info.body_id(geo_id(1), inst_id(1))};
                     body_ids_list.push_back(body_ids);
 
-                    auto left_sc  = info.body_geo(geo_slots, link(0));
-                    auto right_sc = info.body_geo(geo_slots, link(1));
-                    UIPC_ASSERT(left_sc->instances().size() == 1,
-                                "AffineBodyPrismaticJoint: Left body must have exactly one instance");
-                    UIPC_ASSERT(right_sc->instances().size() == 1,
-                                "AffineBodyPrismaticJoint: Right body must have exactly one instance");
+                    auto left_sc  = info.body_geo(geo_slots, geo_id(0));
+                    auto right_sc = info.body_geo(geo_slots, geo_id(1));
 
-                    Transform LT{left_sc->transforms().view()[0]};
-                    Transform RT{right_sc->transforms().view()[0]};
+                    UIPC_ASSERT(inst_id(0) >= 0 && inst_id(0) < static_cast<IndexT>(left_sc->instances().size()),
+                                "AffineBodyPrismaticJoint: Left instance ID {} is out of range [0, {})",
+                                inst_id(0),
+                                left_sc->instances().size());
+                    UIPC_ASSERT(inst_id(1) >= 0 && inst_id(1) < static_cast<IndexT>(right_sc->instances().size()),
+                                "AffineBodyPrismaticJoint: Right instance ID {} is out of range [0, {})",
+                                inst_id(1),
+                                right_sc->instances().size());
+
+                    Transform LT{left_sc->transforms().view()[inst_id(0)]};
+                    Transform RT{right_sc->transforms().view()[inst_id(1)]};
 
                     Vector3 tangent   = (P1 - P0).normalized();
                     Vector3 normal    = Normal(tangent);

@@ -1,5 +1,5 @@
 #include <Eigen/Dense>
-#include <uipc/geometry/utils/compute_instance_volume.h>
+#include <uipc/geometry/utils/compute_mesh_volume.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/utils/is_trimesh_closed.h>
@@ -65,12 +65,8 @@ static Float compute_trimesh_volume(const SimplicialComplex& R)
 }
 
 
-UIPC_GEOMETRY_API S<AttributeSlot<Float>> compute_instance_volume(SimplicialComplex& R)
+UIPC_GEOMETRY_API Float compute_mesh_volume(SimplicialComplex& R)
 {
-    auto inst_volume = R.instances().find<Float>("volume");
-    if(!inst_volume)
-        inst_volume = R.instances().create<Float>("volume");
-
     Float volume = 0.0;
 
     if(R.dim() == 3)
@@ -88,9 +84,6 @@ UIPC_GEOMETRY_API S<AttributeSlot<Float>> compute_instance_volume(SimplicialComp
         UIPC_ASSERT(false, "Only tetmesh and closed trimesh are supported.");
     }
 
-    auto inst_volume_view = view(*inst_volume);
-    std::ranges::fill(inst_volume_view, volume);
-
-    return inst_volume;
+    return volume;
 }
 }  // namespace uipc::geometry

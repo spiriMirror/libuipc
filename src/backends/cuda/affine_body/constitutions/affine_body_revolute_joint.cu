@@ -2,6 +2,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <affine_body/inter_affine_body_constraint.h>
 #include <affine_body/constitutions/affine_body_revolute_joint_function.h>
+#include <uipc/common/enumerate.h>
 
 namespace uipc::backend::cuda
 {
@@ -39,19 +40,25 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
 
         info.for_each(
             geo_slots,
-            [&](geometry::Geometry& geo)
+            [&](const InterAffineBodyConstitutionManager::ForEachInfo& I, geometry::Geometry& geo)
             {
                 auto uid = geo.meta().find<U64>(builtin::constitution_uid);
                 U64  uid_value = uid->view()[0];
                 UIPC_ASSERT(uid_value == ConstitutionUID,
                             "AffineBodyRevoluteJoint: Geometry constitution UID mismatch");
 
+                auto joint_geo_id = I.geo_info().geo_id;
+
                 auto sc = geo.as<geometry::SimplicialComplex>();
                 UIPC_ASSERT(sc, "AffineBodyRevoluteJoint: Geometry must be a simplicial complex");
 
-                auto links = sc->edges().find<Vector2i>("links");
-                UIPC_ASSERT(links, "AffineBodyRevoluteJoint: Geometry must have 'links' attribute on `edges`");
-                auto links_view = links->view();
+                auto geo_ids = sc->edges().find<Vector2i>("geo_ids");
+                UIPC_ASSERT(geo_ids, "AffineBodyRevoluteJoint: Geometry must have 'geo_ids' attribute on `edges`");
+                auto geo_ids_view = geo_ids->view();
+
+                auto inst_ids = sc->edges().find<Vector2i>("inst_ids");
+                UIPC_ASSERT(inst_ids, "AffineBodyRevoluteJoint: Geometry must have 'inst_ids' attribute on `edges`");
+                auto inst_ids_view = inst_ids->view();
 
                 auto strength_ratio = sc->edges().find<Float>("strength_ratio");
                 UIPC_ASSERT(strength_ratio, "AffineBodyRevoluteJoint: Geometry must have 'strength_ratio' attribute on `edges`");
@@ -59,23 +66,58 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
 
                 auto Es = sc->edges().topo().view();
                 auto Ps = sc->positions().view();
-                for(auto&& [e, link] : zip(Es, links_view))
+                for(auto&& [i, e] : enumerate(Es))
                 {
-                    Vector3 P0 = Ps[e[0]];
-                    Vector3 P1 = Ps[e[1]];
+                    Vector2i geo_id  = geo_ids_view[i];
+                    Vector2i inst_id = inst_ids_view[i];
 
-                    Vector2i body_ids = {info.body_id(link(0)), info.body_id(link(1))};
+                    Vector3 P0  = Ps[e[0]];
+                    Vector3 P1  = Ps[e[1]];
+                    Vector3 mid = (P0 + P1) / 2;
+                    Vector3 Dir = (P1 - P0);
+
+                    UIPC_ASSERT(Dir.norm() > 1e-12,
+                                R"(AffineBodyRevoluteJoint: Edge with zero length detected,
+Joint GeometryID = {},
+LinkGeoIDs       = ({}, {}),
+LinkInstIDs      = ({}, {}),
+Edge             = ({}, {}))",
+                                joint_geo_id,
+                                geo_id(0),
+                                geo_id(1),
+                                inst_id(0),
+                                inst_id(1),
+                                e(0),
+                                e(1));
+
+                    Vector3 HalfAxis = Dir.normalized() / 2;
+
+                    // Re-define P0 and P1 to be symmetric around the mid-point
+                    P0 = mid - HalfAxis;
+                    P1 = mid + HalfAxis;
+
+                    Vector2i body_ids = {info.body_id(geo_id(0), inst_id(0)),
+                                         info.body_id(geo_id(1), inst_id(1))};
                     body_ids_list.push_back(body_ids);
 
-                    auto left_sc  = info.body_geo(geo_slots, link(0));
-                    auto right_sc = info.body_geo(geo_slots, link(1));
-                    UIPC_ASSERT(left_sc->instances().size() == 1,
-                                "AffineBodyRevoluteJoint: Left body must have exactly one instance");
-                    UIPC_ASSERT(right_sc->instances().size() == 1,
-                                "AffineBodyRevoluteJoint: Right body must have exactly one instance");
+                    auto left_sc  = info.body_geo(geo_slots, geo_id(0));
+                    auto right_sc = info.body_geo(geo_slots, geo_id(1));
 
-                    Transform LT{left_sc->transforms().view()[0]};
-                    Transform RT{right_sc->transforms().view()[0]};
+                    UIPC_ASSERT(inst_id(0) >= 0
+                                    && inst_id(0) < static_cast<IndexT>(
+                                           left_sc->instances().size()),
+                                "AffineBodyRevoluteJoint: Left instance ID {} is out of range [0, {})",
+                                inst_id(0),
+                                left_sc->instances().size());
+                    UIPC_ASSERT(inst_id(1) >= 0
+                                    && inst_id(1) < static_cast<IndexT>(
+                                           right_sc->instances().size()),
+                                "AffineBodyRevoluteJoint: Right instance ID {} is out of range [0, {})",
+                                inst_id(1),
+                                right_sc->instances().size());
+
+                    Transform LT{left_sc->transforms().view()[inst_id(0)]};
+                    Transform RT{right_sc->transforms().view()[inst_id(1)]};
 
                     Vector12 rest_pos;
                     rest_pos.segment<3>(0) = LT.inverse() * P0;  // x0_bar

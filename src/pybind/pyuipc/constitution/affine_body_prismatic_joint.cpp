@@ -1,36 +1,36 @@
-#include <pyuipc/constitution/affine_body_revolute_joint.h>
-#include <uipc/constitution/affine_body_revolute_joint.h>
+#include <pyuipc/constitution/affine_body_prismatic_joint.h>
+#include <uipc/constitution/affine_body_prismatic_joint.h>
 #include <uipc/constitution/constitution.h>
 #include <pyuipc/common/json.h>
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyRevoluteJoint::PyAffineBodyRevoluteJoint(py::module& m)
+PyAffineBodyPrismaticJoint::PyAffineBodyPrismaticJoint(py::module& m)
 {
-    auto class_AffineBodyRevoluteJoint =
-        py::class_<AffineBodyRevoluteJoint, InterAffineBodyConstitution>(m, "AffineBodyRevoluteJoint",
-                                                                          R"(AffineBodyRevoluteJoint constitution for revolute (hinge) joints between affine bodies.)");
+    auto class_AffineBodyPrismaticJoint =
+        py::class_<AffineBodyPrismaticJoint, InterAffineBodyConstitution>(m, "AffineBodyPrismaticJoint",
+                                                                          R"(AffineBodyPrismaticJoint constitution for prismatic (sliding) joints between affine bodies.)");
 
-    class_AffineBodyRevoluteJoint.def(py::init<const Json&>(),
+    class_AffineBodyPrismaticJoint.def(py::init<const Json&>(),
                                       py::arg("config") =
-                                          AffineBodyRevoluteJoint::default_config(),
-                                      R"(Create an AffineBodyRevoluteJoint.
+                                          AffineBodyPrismaticJoint::default_config(),
+                                      R"(Create an AffineBodyPrismaticJoint.
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
 
-    class_AffineBodyRevoluteJoint.def_static("default_config",
-                                             &AffineBodyRevoluteJoint::default_config,
-                                             R"(Get the default AffineBodyRevoluteJoint configuration.
+    class_AffineBodyPrismaticJoint.def_static("default_config",
+                                             &AffineBodyPrismaticJoint::default_config,
+                                             R"(Get the default AffineBodyPrismaticJoint configuration.
 Returns:
     dict: Default configuration dictionary.)");
 
     // Deprecated API
-    class_AffineBodyRevoluteJoint.def(
+    class_AffineBodyPrismaticJoint.def(
         "apply_to",
-        [](AffineBodyRevoluteJoint& self, geometry::SimplicialComplex& edges, py::list geo_slot_tuples, Float strength_ratio)
+        [](AffineBodyPrismaticJoint& self, geometry::SimplicialComplex& edges, py::list geo_slot_tuples, Float strength_ratio)
         {
-            vector<AffineBodyRevoluteJoint::SlotTuple> geo_slots;
+            vector<AffineBodyPrismaticJoint::SlotTuple> geo_slots;
             geo_slots.reserve(geo_slot_tuples.size());
             for(auto item : geo_slot_tuples)
             {
@@ -38,7 +38,7 @@ Returns:
                 {
                     throw std::invalid_argument("geo_slot_tuples must be a list of tuples");
                 }
-                geo_slots.push_back(py::cast<AffineBodyRevoluteJoint::SlotTuple>(item));
+                geo_slots.push_back(py::cast<AffineBodyPrismaticJoint::SlotTuple>(item));
             }
             self.apply_to(edges, geo_slots, strength_ratio);
         },
@@ -51,9 +51,9 @@ geo_slot_tuples: A list of tuples, each containing two SimplicialComplexSlot obj
 strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB))"));
 
     // New API - Single instance mode
-    class_AffineBodyRevoluteJoint.def(
+    class_AffineBodyPrismaticJoint.def(
         "apply_to",
-        [](AffineBodyRevoluteJoint& self, 
+        [](AffineBodyPrismaticJoint& self, 
            geometry::SimplicialComplex& edges, 
            py::list l_geo_slots, 
            py::list r_geo_slots, 
@@ -85,9 +85,9 @@ r_geo_slots: List of right geometry slots for each joint.
 strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joints.)"));
 
     // New API - Multi-instance mode
-    class_AffineBodyRevoluteJoint.def(
+    class_AffineBodyPrismaticJoint.def(
         "apply_to",
-        [](AffineBodyRevoluteJoint& self, 
+        [](AffineBodyPrismaticJoint& self, 
            geometry::SimplicialComplex& edges, 
            py::list l_geo_slots, 
            py::list l_instance_id, 
@@ -147,3 +147,4 @@ r_instance_id: List of instance IDs for right geometries.
 strength_ratio: List of strength ratios for each joint (one per edge).)"));
 }
 }  // namespace pyuipc::constitution
+

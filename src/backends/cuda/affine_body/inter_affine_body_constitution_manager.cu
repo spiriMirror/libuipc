@@ -248,6 +248,17 @@ IndexT cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT ge
     return info.body_offset;
 }
 
+IndexT cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT geo_id, IndexT instance_id) const noexcept
+{
+    const auto& info = geo_info(geo_id);
+    UIPC_ASSERT(instance_id >= 0 && instance_id < static_cast<IndexT>(info.body_count),
+                "Instance ID {} is out of range [0, {}) for geometry {}",
+                instance_id,
+                info.body_count,
+                geo_id);
+    return info.body_offset + instance_id;
+}
+
 geometry::SimplicialComplex* cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_geo(
     span<S<geometry::GeometrySlot>> geo_slots, IndexT geo_id) const noexcept
 {
