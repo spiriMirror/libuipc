@@ -252,6 +252,36 @@ void FEMLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
                });
 }
 
+Float FEMLinearSubsystem::Impl::diag_norm(GlobalLinearSystem::DiagNormInfo &info) {
+    diag_blocks_norm.resize(finite_element_method->xs().size());
+
+    muda::ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(info.A().triplet_count(), [
+            triplet = info.A().cviewer().name("triplet"),
+            diag_blocks_norm = diag_blocks_norm.viewer().name("diag_blocks_norm"),
+            fem_segment_offset = info.dof_offset() / 3,
+            fem_segment_count = info.dof_count() / 3
+        ] __device__(int I) mutable {
+            auto &&[g_i, g_j, H3x3] = triplet(I);
+
+            IndexT i = g_i - fem_segment_offset;
+            IndexT j = g_j - fem_segment_offset;
+
+            if (i >= fem_segment_count || j >= fem_segment_count) return;
+            if (i == j) {
+                auto a = abs(H3x3(0, 0));
+                auto b = abs(H3x3(1, 1));
+                auto c = abs(H3x3(2, 2));
+                diag_blocks_norm(i) = max(max(a, b), c);
+            }
+        });
+
+    muda::DeviceReduce().Max(diag_blocks_norm.data(), reduced_diag_norm.data(), diag_blocks_norm.size());
+
+    return reduced_diag_norm;
+}
+
 void FEMLinearSubsystem::do_report_extent(GlobalLinearSystem::DiagExtentInfo& info)
 {
     m_impl.report_extent(info);
@@ -280,6 +310,10 @@ void FEMLinearSubsystem::do_report_init_extent(GlobalLinearSystem::InitDofExtent
 void FEMLinearSubsystem::do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info)
 {
     m_impl.receive_init_dof_info(world(), info);
+}
+
+Float FEMLinearSubsystem::do_diag_norm(GlobalLinearSystem::DiagNormInfo &info) {
+    return m_impl.diag_norm(info);
 }
 
 }  // namespace uipc::backend::cuda

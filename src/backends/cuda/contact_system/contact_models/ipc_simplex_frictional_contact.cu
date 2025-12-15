@@ -583,5 +583,5 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 };
 
 
-REGISTER_SIM_SYSTEM(IPCSimplexFrictionalContact);
+// REGISTER_SIM_SYSTEM(IPCSimplexFrictionalContact);
 }  // namespace uipc::backend::cuda

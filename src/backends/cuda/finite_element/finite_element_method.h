@@ -449,6 +449,7 @@ class FiniteElementMethod final : public SimSystem
 
     friend class FEMLinearSubsystem;
     friend class FEMLineSearchReporter;
+    friend class FEMActiveSetReporter;
     friend class FEMGradientHessianComputer;
 
     friend class FiniteElementAnimator;
