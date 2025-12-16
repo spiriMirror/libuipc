@@ -49,7 +49,7 @@ $$
 to be symmetric, we consider both $\hat{\mathbf{b}}$ and $\hat{\mathbf{n}}$ in the definition. And we can derive the angle $\theta$ as:
 
 $$
-\delta\theta = \arctan \left(\tan \left(\theta - \theta^t \right)\right) = \arctan \frac{\sin\theta^t \cos\theta - \cos\theta^t \sin\theta}{\cos\theta^t \cos\theta + \sin\theta^t \sin\theta},
+\delta\theta = \arctan \left(\tan \left(\theta - \theta^t \right)\right) = \arctan \frac{\sin\theta \cos\theta^t - \cos\theta \sin\theta^t}{\cos\theta \cos\theta^t + \sin\theta \sin\theta^t},
 $$
 
 where $\theta^t$ is the joint angle at previous time step, the $\sin\theta^t$ and $\cos\theta^t$ can be calculated using the previous frame vectors $\hat{\mathbf{b}}^t$ and $\hat{\mathbf{n}}^t$s.
