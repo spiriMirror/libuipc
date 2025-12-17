@@ -1,4 +1,5 @@
 #pragma once
+#pragma once
 #include <uipc/constitution/inter_affine_body_constitution.h>
 #include <uipc/geometry/simplicial_complex_slot.h>
 
