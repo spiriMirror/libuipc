@@ -33,7 +33,12 @@ class InterAffineBodyAnimator final : public Animator
         }
 
         span<const AnimatedInterGeoInfo> anim_inter_geo_infos() const noexcept;
-
+        span<const AffineBodyDynamics::GeoInfo> geo_infos() const noexcept;
+        const AffineBodyDynamics::GeoInfo& geo_info(IndexT geo_id) const noexcept;
+        IndexT body_id(IndexT geo_id) const noexcept;
+        IndexT body_id(IndexT geo_id, IndexT instance_id) const noexcept;
+        geometry::SimplicialComplex* body_geo(span<S<geometry::GeometrySlot>> geo_slots,
+                                              IndexT geo_id) const noexcept;
         template <typename ForEachGeometry>
         void for_each(span<S<geometry::GeometrySlot>> geo_slots,
                       ForEachGeometry&&               for_every_geometry);

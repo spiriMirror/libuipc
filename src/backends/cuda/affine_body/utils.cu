@@ -167,4 +167,16 @@ UIPC_GENERIC Vector12 transform_v_to_q_v(const Matrix4x4& transform_v)
     // the same to transform_to_q
     return transform_to_q(transform_v);
 }
+
+UIPC_GENERIC void orthonormal_basis(Vector3& t, Vector3& n, Vector3& b)
+{
+    t                   = t.normalized();
+    Vector3 test_vector = Vector3::UnitX();
+    if(std::abs(t.dot(test_vector)) > 0.9)
+    {
+        test_vector = Vector3::UnitY();
+    }
+    n = t.cross(test_vector).normalized();
+    b = t.cross(n).normalized();
+}
 }  // namespace uipc::backend::cuda

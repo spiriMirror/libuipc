@@ -229,8 +229,7 @@ span<const AffineBodyDynamics::GeoInfo> InterAffineBodyConstitutionManager::Filt
     return m_impl->affine_body_dynamics->m_impl.geo_infos;
 }
 
-const AffineBodyDynamics::GeoInfo& cuda::InterAffineBodyConstitutionManager::FilteredInfo::geo_info(
-    IndexT geo_id) const noexcept
+const AffineBodyDynamics::GeoInfo& InterAffineBodyConstitutionManager::FilteredInfo::geo_info(IndexT geo_id) const noexcept
 {
     auto& gid_to_ginfo_index = m_impl->affine_body_dynamics->m_impl.geo_id_to_geo_info_index;
     auto it = gid_to_ginfo_index.find(geo_id);
@@ -241,14 +240,15 @@ const AffineBodyDynamics::GeoInfo& cuda::InterAffineBodyConstitutionManager::Fil
     return m_impl->affine_body_dynamics->m_impl.geo_infos[geo_info_index];
 }
 
-IndexT cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT geo_id) const noexcept
+IndexT InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT geo_id) const noexcept
 {
     const auto& info = geo_info(geo_id);
     UIPC_ASSERT(info.body_count == 1, "Body count in geometry must be 1");
     return info.body_offset;
 }
 
-IndexT cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT geo_id, IndexT instance_id) const noexcept
+IndexT InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT geo_id,
+                                                                       IndexT instance_id) const noexcept
 {
     const auto& info = geo_info(geo_id);
     UIPC_ASSERT(instance_id >= 0 && instance_id < static_cast<IndexT>(info.body_count),
@@ -259,7 +259,7 @@ IndexT cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT ge
     return info.body_offset + instance_id;
 }
 
-geometry::SimplicialComplex* cuda::InterAffineBodyConstitutionManager::FilteredInfo::body_geo(
+geometry::SimplicialComplex* InterAffineBodyConstitutionManager::FilteredInfo::body_geo(
     span<S<geometry::GeometrySlot>> geo_slots, IndexT geo_id) const noexcept
 {
     const auto& info = geo_info(geo_id);
