@@ -22,6 +22,8 @@ class InterAffineBodyAnimator final : public Animator
     class Impl;
 
     using AnimatedInterGeoInfo = InterAffineBodyConstitutionManager::InterGeoInfo;
+    using ForEachInfo  = InterAffineBodyConstitutionManager::ForEachInfo;
+    using InterGeoInfo = InterAffineBodyConstitutionManager::InterGeoInfo;
 
     class FilteredInfo
     {
@@ -40,8 +42,12 @@ class InterAffineBodyAnimator final : public Animator
         geometry::SimplicialComplex* body_geo(span<S<geometry::GeometrySlot>> geo_slots,
                                               IndexT geo_id) const noexcept;
         template <typename ForEachGeometry>
-        void for_each(span<S<geometry::GeometrySlot>> geo_slots,
-                      ForEachGeometry&&               for_every_geometry);
+        void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_every_geometry)
+        {
+            InterAffineBodyAnimator::_for_each(geo_slots,
+                                               this->anim_inter_geo_infos(),
+                                               std::forward<ForEachGeometry>(for_every_geometry));
+        }
 
       private:
         Impl* m_impl  = nullptr;
@@ -147,6 +153,14 @@ class InterAffineBodyAnimator final : public Animator
         OffsetCountCollection<IndexT> constraint_hessian_offsets_counts;
     };
 
+    template <typename ForEachGeometry>
+    static void _for_each(span<S<geometry::GeometrySlot>> geo_slots,
+                          span<const InterGeoInfo>        geo_infos,
+                          ForEachGeometry&&               for_every_geometry)
+    {
+        InterAffineBodyConstitutionManager::_for_each(geo_slots, geo_infos, for_every_geometry);
+    }
+
   private:
     friend class InterAffineBodyConstraint;
     void add_constraint(InterAffineBodyConstraint* constraint);  // only be called by AffineBodyConstraint
@@ -164,5 +178,3 @@ class InterAffineBodyAnimator final : public Animator
     virtual void do_build(BuildInfo& info) override;
 };
 }  // namespace uipc::backend::cuda
-
-#include "details/inter_affine_body_animator.inl"

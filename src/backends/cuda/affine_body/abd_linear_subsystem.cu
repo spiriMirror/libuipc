@@ -154,6 +154,8 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
             .file_line(__FILE__, __LINE__)
             .apply(abd().body_count(),
                    [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+                    is_external_kinetic =
+                        abd().body_id_to_external_kinetic.cviewer().name("external_kinetic"),
                     shape_gradient = abd().body_id_to_shape_gradient.cviewer().name("shape_gradient"),
                     kinetic_gradient =
                         abd().body_id_to_kinetic_gradient.cviewer().name("kinetic_gradient"),
@@ -162,13 +164,19 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                    {
                        Vector12 src;
 
-                       if(!is_fixed(i))  // if not fixed, add kinetic and shape gradients
+                       if(is_fixed(i))
                        {
-                           src = kinetic_gradient(i) + shape_gradient(i);
+                           src.setZero();  // if fixed, set to zero
                        }
                        else
                        {
-                           src.setZero();  // if fixed, set to zero
+                           src = shape_gradient(i);
+
+                           // if not external kinetic, add kinetic gradient
+                           if(!is_external_kinetic(i)) [[likely]]
+                           {
+                               src += kinetic_gradient(i);
+                           }
                        }
 
                        gradients.segment<12>(i * 12) = src;
@@ -183,19 +191,31 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
             .apply(body_count,
                    [dst = body_H3x3.viewer().name("dst_hessian"),
                     is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+                    is_external_kinetic =
+                        abd().body_id_to_external_kinetic.cviewer().name("external_kinetic"),
                     shape_hessian = abd().body_id_to_shape_hessian.cviewer().name("src_hessian"),
                     kinetic_hessian = abd().body_id_to_kinetic_hessian.cviewer().name("kinetic_hessian"),
                     diag_hessian = abd().diag_hessian.viewer().name(
                         "diag_hessian")] __device__(int I) mutable
                    {
                        TripletMatrixUnpacker MA{dst};
+                       Matrix12x12           src;
 
-                       // Fill kinetic hessian to avoid singularity
-                       Matrix12x12 src = kinetic_hessian(I);
-
-                       if(!is_fixed(I))  // if not fixed, add shape hessian
+                       if(is_fixed(I))
                        {
-                           src += shape_hessian(I);
+                           // Fill kinetic hessian to avoid singularity
+                           src = kinetic_hessian(I);
+                       }
+                       else
+                       {
+                           // if not fixed, fill shape hessian
+                           src = shape_hessian(I);
+
+                           // if not external kinetic, add kinetic gradient
+                           if(!is_external_kinetic(I)) [[likely]]
+                           {
+                               src += kinetic_hessian(I);
+                           }
                        }
 
                        MA.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)
@@ -415,7 +435,6 @@ void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
                });
 }
 }  // namespace uipc::backend::cuda
-
 
 namespace uipc::backend::cuda
 {

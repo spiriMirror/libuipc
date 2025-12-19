@@ -7,6 +7,7 @@
 #include <uipc/constitution/external_articulation_constraint.h>
 #include <filesystem>
 #include <fstream>
+#include <numbers>
 
 TEST_CASE("46_external_articulation_constraint", "[abd]")
 {
@@ -21,10 +22,10 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config                            = Scene::default_config();
-    config["gravity"]                      = Vector3{0.0, -9.8, 0.0};
-    config["contact"]["enable"]            = true;
-    config["line_search"]["report_energy"] = true;
+    auto config                 = Scene::default_config();
+    config["gravity"]           = Vector3{0.0, -9.8, 0.0};
+    config["contact"]["enable"] = true;
+    //config["line_search"]["report_energy"] = true;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));
@@ -64,6 +65,11 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
             auto is_fixed = left_mesh.instances().find<IndexT>(builtin::is_fixed);
             view(*is_fixed)[0] = 0;  // instance 0 not fixed
             view(*is_fixed)[1] = 0;  // instance 1 not fixed
+
+            auto external_kinetic =
+                left_mesh.instances().find<IndexT>(builtin::external_kinetic);
+            view(*external_kinetic)[0] = 1;  // enable external kinetic for instance 0
+            view(*external_kinetic)[1] = 1;  // enable external kinetic for instance 1
         }
         auto [left_geo_slot, left_rest_geo_slot] =
             left_link->geometries().create(left_mesh);
@@ -82,6 +88,11 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
             auto is_fixed = right_mesh.instances().find<IndexT>(builtin::is_fixed);
             view(*is_fixed)[0] = 1;  // fix instance 0
             view(*is_fixed)[1] = 1;  // fix instance 1
+
+            auto external_kinetic =
+                right_mesh.instances().find<IndexT>(builtin::external_kinetic);
+            view(*external_kinetic)[0] = 1;  // enable external kinetic for instance 0
+            view(*external_kinetic)[1] = 1;  // enable external kinetic for instance 1
         }
         auto [right_geo_slot, right_rest_geo_slot] =
             right_link->geometries().create(right_mesh);
@@ -107,20 +118,60 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
 
         abrj.apply_to(joint_mesh, l_geo_slots, l_instance_id, r_geo_slots, r_instance_id, strength_ratios);
 
-        auto articulation_object = scene.objects().create("articulation");
-        auto [joint_mesh_slot, _] = articulation_object->geometries().create(joint_mesh);
+        auto joint_object = scene.objects().create("joint_object");
+        auto [joint_mesh_slot, _] = joint_object->geometries().create(joint_mesh);
 
         ExternalArticulationConstraint eac;
-        vector<S<const GeometrySlot>>  joint_geos = {joint_mesh_slot};
-        vector<IndexT>                 indices    = {0, 1};
+        {
+            vector<S<const GeometrySlot>> joint_geos = {joint_mesh_slot};
+            vector<IndexT>                indices    = {0};
+            auto articulation = eac.create_geometry(joint_geos, indices);
+            auto mass = articulation["joint_joint"]->find<Float>("mass");
+            REQUIRE(mass);
+            auto mass_view = view(*mass);
+            mass_view[0]   = 1e4;
 
-        auto articulation = eac.create_geometry(joint_geos, indices);
-        auto mass         = articulation["joint_joint"]->find<Float>("mass");
-        REQUIRE(mass);
-        auto mass_view = view(*mass);
-        std::ranges::fill(mass_view, 1e4);
+            auto articulation_object = scene.objects().create("articulation_object_1");
+            articulation_object->geometries().create(articulation);
 
-        articulation_object->geometries().create(articulation);
+            scene.animator().insert(*articulation_object,
+                                    [](Animation::UpdateInfo& info)
+                                    {
+                                        Float dt        = info.dt();
+                                        auto  geo_slots = info.geo_slots();
+                                        auto& geo = geo_slots[0]->geometry();
+
+                                        auto delta_theta_tilde =
+                                            geo["joint"]->find<Float>("delta_theta_tilde");
+
+                                        auto delta_theta_view = view(*delta_theta_tilde);
+                                        delta_theta_view[0] = -std::numbers::pi / 6 * dt;
+                                    });
+        }
+
+        {
+            vector<S<const GeometrySlot>> joint_geos = {joint_mesh_slot};
+            vector<IndexT>                indices    = {1};
+            auto articulation = eac.create_geometry(joint_geos, indices);
+            auto mass = articulation["joint_joint"]->find<Float>("mass");
+            REQUIRE(mass);
+            auto mass_view = view(*mass);
+            mass_view[0]   = 1e4;
+            auto articulation_object = scene.objects().create("articulation_object_2");
+            articulation_object->geometries().create(articulation);
+
+            scene.animator().insert(*articulation_object,
+                                    [](Animation::UpdateInfo& info)
+                                    {
+                                        Float dt        = info.dt();
+                                        auto  geo_slots = info.geo_slots();
+                                        auto& geo = geo_slots[0]->geometry();
+                                        auto  delta_theta_tilde =
+                                            geo["joint"]->find<Float>("delta_theta_tilde");
+                                        auto delta_theta_view = view(*delta_theta_tilde);
+                                        delta_theta_view[0] = std::numbers::pi / 6 * dt;
+                                    });
+        }
     }
 
     world.init(scene);

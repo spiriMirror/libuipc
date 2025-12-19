@@ -9,32 +9,67 @@
 #include <utils/matrix_assembler.h>
 #include <utils/matrix_unpacker.h>
 #include <utils/make_spd.h>
+#include <time_integrator/time_integrator.h>
 
 namespace uipc::backend::cuda
 {
-UIPC_GENERIC Vector2i joint_joint_id_to_ij(IndexT joint_joint_id,
-                                           const muda::CDense1D<IndexT>& joint_joint_id_to_art_id,
-                                           const muda::CDense1D<IndexT>& art_joint_offsets,
-                                           const muda::CDense1D<IndexT>& art_joint_counts)
+/**
+ * @brief ExternalArticulationConstituion
+ * 
+ * Define an empty constitution for ExternalArticulationConstraint, 
+ * because Constraint should be associated with a Constitution in UIPC design.
+ * 
+ * The actual constitutions are based on
+ * - AffineBodyRevoluteJointConstitution (UID=18)
+ * - AffineBodyPrismaticJointConstitution (UID=20)
+ * 
+ */
+class ExternalArticulationConstituion final : public InterAffineBodyConstitution
 {
-    auto art_id = joint_joint_id_to_art_id(joint_joint_id);
-    auto offset = art_joint_offsets(art_id);
-    auto count  = art_joint_counts(art_id);
+  public:
+    static constexpr U64 ConstitutionUID = 23ull;
 
-    auto local_id = joint_joint_id - offset;
-    auto index_i  = local_id / count;
-    auto index_j  = local_id - index_i * count;
-    return Vector2i{IndexT(index_i), IndexT(index_j)};
-}
+    static constexpr U64 RevoluteJointConstitutionUID  = 18ull;
+    static constexpr U64 PrismaticJointConstitutionUID = 20ull;
+
+    using InterAffineBodyConstitution::InterAffineBodyConstitution;
+
+    void do_build(BuildInfo& info) override {}
+
+    void do_init(FilteredInfo& info) override {}
+
+    void do_report_energy_extent(EnergyExtentInfo& info) override
+    {
+        info.energy_count(0);
+    }
+
+    void do_compute_energy(ComputeEnergyInfo& info) override
+    {
+        // no energy
+    }
+
+    void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
+    {
+        info.gradient_segment_count(0);
+        info.hessian_block_count(0);
+    }
+
+    void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
+    {
+        // no gradient and hessian
+    }
+
+    U64 get_uid() const noexcept override { return ConstitutionUID; }
+};
+
+REGISTER_SIM_SYSTEM(ExternalArticulationConstituion);
 
 // Ref: libuipc/scripts/symbol_calculation/external_articulation_constraint.ipynb
 class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 {
-    static constexpr U64 ConstitutionUID             = 23ull;
-    static constexpr U64 RevoluteJointConstraintUID  = 18ull;
-    static constexpr U64 PrismaticJointConstraintUID = 20ull;
-
   public:
+    static constexpr U64 ConstraintUID = 24ull;
+
     using InterAffineBodyConstraint::InterAffineBodyConstraint;
 
 
@@ -50,6 +85,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
     OffsetCountCollection<IndexT> h_art_joint_joint_offsets_counts;
     vector<IndexT>                h_joint_joint_id_to_art_id;
+    vector<Vector2i>              h_joint_joint_id_to_joint_ij;
     vector<Float>                 h_joint_joint_id_to_mass;
 
     muda::DeviceBuffer<IndexT>   art_joint_offsets;
@@ -60,10 +96,10 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
     muda::DeviceBuffer<Float>    joint_id_to_delta_theta;
     muda::DeviceBuffer<Float>    joint_id_to_delta_theta_tilde;
 
-    muda::DeviceBuffer<IndexT> art_joint_joint_offsets;
-    muda::DeviceBuffer<IndexT> art_joint_joint_counts;
-    muda::DeviceBuffer<IndexT> joint_joint_id_to_art_id;
-    muda::DeviceBuffer<Float>  joint_joint_id_to_mass;
+    muda::DeviceBuffer<IndexT>   art_joint_joint_offsets;
+    muda::DeviceBuffer<IndexT>   art_joint_joint_counts;
+    muda::DeviceBuffer<Vector2i> joint_joint_id_to_joint_ij;
+    muda::DeviceBuffer<Float>    joint_joint_id_to_mass;
 
     vector<Vector6> h_joint_id_to_L_basis;
     vector<Vector6> h_joint_id_to_R_basis;
@@ -77,7 +113,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
     void do_build(BuildInfo& info) override {}
 
-    U64 get_uid() const noexcept override { return ConstitutionUID; }
+    U64 get_uid() const noexcept override { return ConstraintUID; }
 
     auto get_revolute_basis(const geometry::SimplicialComplex* L,
                             IndexT                             L_inst_id,
@@ -134,9 +170,9 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         UIPC_ASSERT(uid_attr, "ExternalArticulationConstraint: 'constitution_uid' meta attribute not found in joint geometry");
 
         U64 uid_value = uid_attr->view()[0];
-        UIPC_ASSERT(uid_value == RevoluteJointConstraintUID,
+        UIPC_ASSERT(uid_value == ExternalArticulationConstituion::RevoluteJointConstitutionUID,
                     "ExternalArticulationConstraint: Now only support RevoluteJointConstraint (UID={}), but found joint with UID {}",
-                    RevoluteJointConstraintUID,
+                    ExternalArticulationConstituion::RevoluteJointConstitutionUID,
                     uid_value);
 
         auto joint_geo_ids  = joint_mesh->edges().find<Vector2i>("geo_ids");
@@ -170,18 +206,12 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         auto art_count = info.anim_inter_geo_infos().size();
 
         h_art_joint_offsets_counts.resize(art_count);
+        h_art_joint_joint_offsets_counts.resize(art_count);
 
         info.for_each(
             geo_slots,
             [&](const InterAffineBodyConstitutionManager::ForEachInfo& I, geometry::Geometry& geo)
             {
-                auto uid = geo.meta().find<U64>(builtin::constitution_uid);
-                U64  uid_value = uid->view()[0];
-                UIPC_ASSERT(uid_value == ConstitutionUID,
-                            "ExternalArticulationConstraint: Geometry constitution UID mismatch, {} expected, {} found",
-                            ConstitutionUID,
-                            uid_value);
-
                 auto joint_collection = geo["joint"];
                 UIPC_ASSERT(joint_collection, "ExternalArticulationConstraint: 'joint' attribute collection not found in geometry");
 
@@ -235,6 +265,16 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                 for(auto&& m : mass_view)
                 {
                     h_joint_joint_id_to_mass.push_back(m);
+                    h_joint_joint_id_to_art_id.push_back(I.index());
+                }
+
+                auto n_joint = joint_collection->size();
+                for(IndexT i = 0; i < n_joint; ++i)
+                {
+                    for(IndexT j = 0; j < n_joint; ++j)
+                    {
+                        h_joint_joint_id_to_joint_ij.push_back(Vector2i{i, j});
+                    }
                 }
 
                 // theta_tilde and mass will change in each step, so we just prepare the slots here
@@ -244,6 +284,14 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
             });
 
         h_art_joint_offsets_counts.scan();
+        // shift the joint_ij by joint offsets
+        for(auto&& [I, ij] : enumerate(h_joint_joint_id_to_joint_ij))
+        {
+            auto art_id   = h_joint_joint_id_to_art_id[I];
+            auto j_offset = h_art_joint_offsets_counts.offsets()[art_id];
+            ij += Vector2i{j_offset, j_offset};
+        }
+
         h_art_joint_joint_offsets_counts.scan();
 
 
@@ -288,7 +336,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         joint_id_to_G_theta.resize(n_joint);
 
         // Joint-Joint Info
-        auto h_art_mass_offsets = h_art_joint_counts;
+        auto h_art_mass_offsets = h_art_joint_joint_offsets_counts.offsets();
         art_joint_joint_offsets.resize(h_art_mass_offsets.size());
         art_joint_joint_offsets.view().copy_from(h_art_mass_offsets.data());
 
@@ -298,6 +346,9 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
         joint_joint_id_to_mass.resize(h_joint_joint_id_to_mass.size());
         joint_joint_id_to_mass.view().copy_from(h_joint_joint_id_to_mass.data());
+
+        joint_joint_id_to_joint_ij.resize(h_joint_joint_id_to_joint_ij.size());
+        joint_joint_id_to_joint_ij.view().copy_from(h_joint_joint_id_to_joint_ij.data());
     }
 
     void do_step(InterAffineBodyAnimator::FilteredInfo& info) override
@@ -332,15 +383,13 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                    span<const Float>{h_joint_id_to_delta_theta_tilde});
     }
 
-    // m_ij ->
-
     void do_report_extent(InterAffineBodyAnimator::ReportExtentInfo& info) override
     {
         auto e_count = joint_joint_id_to_mass.size();
         info.energy_count(e_count);
-        auto g_count = 0;  // TODO
+        auto g_count = joint_id_to_art_id.size() * 2;
         info.gradient_segment_count(g_count);
-        auto h_count = 0;  // TODO
+        auto h_count = joint_joint_id_to_mass.size() * 4;
         info.hessian_block_count(h_count);
     }
 
@@ -356,9 +405,14 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                 joint_joint_id_to_mass.size(),
                 [energies = info.energies().viewer().name("energies"),
                  joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer().name("masses"),
-                 joint_id_to_art_id = joint_id_to_art_id.cviewer().name("joint_id_to_art_id"),
+                 joint_joint_id_to_joint_ij =
+                     joint_joint_id_to_joint_ij.cviewer().name("joint_joint_id_to_joint_ij"),
+
+                 art_joint_joint_offsets = art_joint_joint_offsets.cviewer().name("art_joint_joint_offsets"),
+                 art_joint_joint_counts = art_joint_joint_counts.cviewer().name("art_joint_joint_counts"),
                  art_joint_offsets = art_joint_offsets.cviewer().name("art_joint_offsets"),
                  art_joint_counts = art_joint_counts.cviewer().name("art_joint_counts"),
+
                  joint_id_to_delta_theta = joint_id_to_delta_theta.cviewer().name("joint_id_to_delta_theta"),
                  joint_id_to_delta_theta_tilde =
                      joint_id_to_delta_theta_tilde.cviewer().name("joint_id_to_delta_theta_tilde"),
@@ -372,8 +426,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                 {
                     Float m_ij = joint_joint_id_to_mass(I);
 
-                    Vector2i ij = joint_joint_id_to_ij(
-                        I, joint_id_to_art_id, art_joint_offsets, art_joint_counts);
+                    Vector2i ij = joint_joint_id_to_joint_ij(I);
 
                     auto compute_delta_theta = [&](IndexT joint_id) -> Float
                     {
@@ -412,6 +465,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
     void do_compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info) override
     {
         using namespace muda;
+        namespace ERJ = sym::external_revolute_joint_constraint;
 
         // Compute G^theta
         FastSegmentalReduce()
@@ -420,28 +474,60 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                 joint_joint_id_to_mass.size(),
                 joint_id_to_G_theta.view(),
                 [joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer().name("masses"),
-                 joint_id_to_art_id = joint_id_to_art_id.cviewer().name("joint_id_to_art_id"),
+                 joint_joint_id_to_joint_ij =
+                     joint_joint_id_to_joint_ij.cviewer().name("joint_joint_id_to_joint_ij"),
+                 art_joint_joint_offsets = art_joint_joint_offsets.cviewer().name("art_joint_joint_offsets"),
+                 art_joint_joint_counts = art_joint_joint_counts.cviewer().name("art_joint_joint_counts"),
                  art_joint_offsets = art_joint_offsets.cviewer().name("art_joint_offsets"),
                  art_joint_counts = art_joint_counts.cviewer().name(
                      "art_joint_counts")] __device__(IndexT I) -> IndexT
                 {
-                    Vector2i ij = joint_joint_id_to_ij(
-                        I, joint_id_to_art_id, art_joint_offsets, art_joint_counts);
+                    Vector2i ij = joint_joint_id_to_joint_ij(I);
+
                     return ij[0];
                 },
                 [joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer().name("masses"),
-                 joint_id_to_art_id = joint_id_to_art_id.cviewer().name("joint_id_to_art_id"),
+                 joint_joint_id_to_joint_ij =
+                     joint_joint_id_to_joint_ij.cviewer().name("joint_joint_id_to_joint_ij"),
+                 art_joint_joint_offsets = art_joint_joint_offsets.cviewer().name("art_joint_joint_offsets"),
+                 art_joint_joint_counts = art_joint_joint_counts.cviewer().name("art_joint_joint_counts"),
                  art_joint_offsets = art_joint_offsets.cviewer().name("art_joint_offsets"),
-                 art_joint_counts = art_joint_counts.cviewer().name(
-                     "art_joint_counts")] __device__(IndexT I) -> Float
+                 art_joint_counts = art_joint_counts.cviewer().name("art_joint_counts"),
+                 joint_id_to_L_basis = joint_id_to_L_basis.cviewer().name("joint_id_to_L_basis"),
+                 joint_id_to_R_basis = joint_id_to_R_basis.cviewer().name("joint_id_to_R_basis"),
+                 joint_id_to_body_ids = joint_id_to_body_ids.cviewer().name("joint_id_to_body_ids"),
+                 joint_id_to_delta_theta_tilde =
+                     joint_id_to_delta_theta_tilde.cviewer().name("joint_id_to_delta_theta_tilde"),
+                 qs = info.qs().viewer().name("qs"),
+                 q_prevs = info.q_prevs().viewer().name("q_prevs")] __device__(IndexT I) -> Float
                 {
-                    Vector2i ij = joint_joint_id_to_ij(
-                        I, joint_id_to_art_id, art_joint_offsets, art_joint_counts);
-                    Float m_ij = joint_joint_id_to_mass(I);
-                    return m_ij;
+                    Vector2i ij   = joint_joint_id_to_joint_ij(I);
+                    Float    m_ij = joint_joint_id_to_mass(I);
+
+                    auto joint_id = ij[1];
+
+                    Vector6  L_basis  = joint_id_to_L_basis(joint_id);
+                    Vector6  R_basis  = joint_id_to_R_basis(joint_id);
+                    Vector2i body_ids = joint_id_to_body_ids(joint_id);
+
+                    const Vector12& qk      = qs(body_ids[0]);
+                    const Vector12& ql      = qs(body_ids[1]);
+                    const Vector12& q_prevk = q_prevs(body_ids[0]);
+                    const Vector12& q_prevl = q_prevs(body_ids[1]);
+
+                    Vector12 F;
+                    ERJ::F<Float>(F, L_basis, qk, R_basis, ql);
+                    Vector12 F_t;
+                    ERJ::F<Float>(F_t, L_basis, q_prevk, R_basis, q_prevl);
+
+                    Float delta_theta_j;
+                    ERJ::DeltaTheta(delta_theta_j, F, F_t);
+
+                    Float delta_theta_tilde_j = joint_id_to_delta_theta_tilde(joint_id);
+
+                    return m_ij * (delta_theta_j - delta_theta_tilde_j);
                 });
 
-        namespace ERJ = sym::external_revolute_joint_constraint;
 
         // Compute Gradient
         ParallelFor()
@@ -481,8 +567,10 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                     Vector12 dDeltaTheta_dF;
                     ERJ::dDeltaTheta_dF(dDeltaTheta_dF, F, F_t);
 
+                    Vector12 GF = G_theta * dDeltaTheta_dF;
+
                     Vector<Float, 24> G24;
-                    ERJ::JT_G<Float>(G24, dDeltaTheta_dF, basis_k, basis_l);
+                    ERJ::JT_G<Float>(G24, GF, basis_k, basis_l);
 
                     DoubletVectorAssembler DVA{gradients};
 
@@ -490,19 +578,24 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                 });
 
         // Compute Hessian
-
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(
                 joint_joint_id_to_mass.size(),
                 [hessians = info.hessians().viewer().name("hessians"),
+
                  joint_id_to_G_theta = joint_id_to_G_theta.cviewer().name("joint_id_to_G_theta"),
                  joint_id_to_body_ids = joint_id_to_body_ids.cviewer().name("joint_id_to_body_ids"),
                  joint_id_to_delta_theta = joint_id_to_delta_theta.cviewer().name("delta_theta"),
                  joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer().name("masses"),
-                 joint_id_to_art_id = joint_id_to_art_id.cviewer().name("joint_id_to_art_id"),
+                 joint_joint_id_to_joint_ij =
+                     joint_joint_id_to_joint_ij.cviewer().name("joint_joint_id_to_joint_ij"),
+
+                 art_joint_joint_offsets = art_joint_joint_offsets.cviewer().name("art_joint_joint_offsets"),
+                 art_joint_joint_counts = art_joint_joint_counts.cviewer().name("art_joint_joint_counts"),
                  art_joint_offsets = art_joint_offsets.cviewer().name("art_joint_offsets"),
                  art_joint_counts = art_joint_counts.cviewer().name("art_joint_counts"),
+
                  joint_id_to_delta_theta_tilde =
                      joint_id_to_delta_theta_tilde.cviewer().name("joint_id_to_delta_theta_tilde"),
                  joint_id_to_L_basis = joint_id_to_L_basis.cviewer().name("joint_id_to_L_basis"),
@@ -511,10 +604,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                  q_prevs = info.q_prevs().viewer().name("q_prevs")] __device__(IndexT joint_joint_I) mutable
                 {
                     Float    m_ij = joint_joint_id_to_mass(joint_joint_I);
-                    Vector2i ij   = joint_joint_id_to_ij(joint_joint_I,
-                                                       joint_id_to_art_id,
-                                                       art_joint_offsets,
-                                                       art_joint_counts);
+                    Vector2i ij   = joint_joint_id_to_joint_ij(joint_joint_I);
 
 
                     auto compute_F_F_t = [&](IndexT joint_id, Vector12& F, Vector12& F_t)
@@ -537,7 +627,6 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                     compute_F_F_t(ij[0], Fi, Fi_t);
                     compute_F_F_t(ij[1], Fj, Fj_t);
 
-
                     Vector12 dDeltaTheta_dFi, dDeltaTheta_dFj;
                     ERJ::dDeltaTheta_dF(dDeltaTheta_dFi, Fi, Fi_t);
                     ERJ::dDeltaTheta_dF(dDeltaTheta_dFj, Fj, Fj_t);
@@ -546,11 +635,13 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
                     if(ij[0] == ij[1])
                     {
-                        auto        i         = ij[0];
-                        Float       G_theta_i = joint_id_to_G_theta(i);
+                        auto  i         = ij[0];
+                        Float G_theta_i = joint_id_to_G_theta(i);
+
                         Matrix12x12 ddDeltaTheta_ddF;
                         ERJ::ddDeltaTheta_ddF(ddDeltaTheta_ddF, Fi, Fi_t);
-                        HF += ddDeltaTheta_ddF;
+
+                        HF += G_theta_i * ddDeltaTheta_ddF;
                     }
 
                     make_spd(HF);
@@ -572,5 +663,124 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                     TMA.block<2, 2>(joint_joint_I * 4).write(body_ids_i, body_ids_j, H24x24);
                 });
     }
+
+    void write_scene()
+    {
+        auto geo_slots = world().scene().geometries();
+
+        joint_id_to_delta_theta.copy_to(h_joint_id_to_delta_theta);
+
+        this->for_each(
+            geo_slots,
+            [&](InterAffineBodyConstitutionManager::ForEachInfo& I_info, geometry::Geometry& geo)
+            {
+                auto joint_collection = geo["joint"];
+                auto delta_theta = joint_collection->find<Float>("delta_theta");
+
+                if(delta_theta)
+                {
+                    auto delta_theta_view = view(*delta_theta);
+                    auto [offset, count] = h_art_joint_offsets_counts[I_info.index()];
+                    std::ranges::copy(span{h_joint_id_to_delta_theta}.subspan(offset, count),
+                                      delta_theta_view.begin());
+                }
+            });
+    }
+
+    BufferDump dump_delta_theta;
+
+    bool do_dump(DumpInfo& info) override
+    {
+        auto path  = info.dump_path(__FILE__);
+        auto frame = info.frame();
+
+        return dump_delta_theta.dump(fmt::format("{}current_angle.{}", path, frame),
+                                     joint_id_to_delta_theta);
+    }
+
+    bool do_try_recover(RecoverInfo& info) override
+    {
+        auto path  = info.dump_path(__FILE__);
+        auto frame = info.frame();
+
+        return dump_delta_theta.load(fmt::format("{}current_angle.{}", path, frame));
+    }
+
+    void do_apply_recover(RecoverInfo& info) override
+    {
+        dump_delta_theta.apply_to(joint_id_to_delta_theta);
+    }
+
+    void do_clear_recover(RecoverInfo& info) override
+    {
+        dump_delta_theta.clean_up();
+    }
 };
+
+REGISTER_SIM_SYSTEM(ExternalArticulationConstraint);
+
+class ExternalArticulationConstraintTimeIntegrator final : public TimeIntegrator
+{
+  public:
+    using TimeIntegrator::TimeIntegrator;
+
+    SimSystemSlot<ExternalArticulationConstraint> constraint;
+    SimSystemSlot<AffineBodyDynamics>             affine_body_dynamics;
+
+    void do_build(BuildInfo& info) override
+    {
+        constraint           = require<ExternalArticulationConstraint>();
+        affine_body_dynamics = require<AffineBodyDynamics>();
+    }
+
+    void do_init(InitInfo& info) override {}
+
+    void do_predict_dof(PredictDofInfo& info) override
+    {
+        // No thing
+    }
+
+    void do_update_state(UpdateVelocityInfo& info) override
+    {
+        using namespace muda;
+        namespace ERJ = sym::external_revolute_joint_constraint;
+
+        // Compute delta_theta
+        auto& c   = constraint;
+        auto& abd = affine_body_dynamics;
+
+        ParallelFor()
+            .file_line(__FILE__, __LINE__)
+            .apply(c->joint_id_to_delta_theta.size(),
+                   [joint_id_to_delta_theta =
+                        c->joint_id_to_delta_theta.viewer().name("joint_id_to_delta_theta"),
+                    joint_id_to_body_ids = c->joint_id_to_body_ids.cviewer().name("joint_id_to_body_ids"),
+                    joint_id_to_L_basis = c->joint_id_to_L_basis.cviewer().name("joint_id_to_L_basis"),
+                    joint_id_to_R_basis = c->joint_id_to_R_basis.cviewer().name("joint_id_to_R_basis"),
+                    qs = abd->qs().viewer().name("qs"),
+                    q_prevs = abd->q_prevs().viewer().name("q_prevs")] __device__(IndexT jointI) mutable
+                   {
+                       Vector6  L_basis  = joint_id_to_L_basis(jointI);
+                       Vector6  R_basis  = joint_id_to_R_basis(jointI);
+                       Vector2i body_ids = joint_id_to_body_ids(jointI);
+
+                       const Vector12& qk      = qs(body_ids[0]);
+                       const Vector12& ql      = qs(body_ids[1]);
+                       const Vector12& q_prevk = q_prevs(body_ids[0]);
+                       const Vector12& q_prevl = q_prevs(body_ids[1]);
+
+                       Vector12 F;
+                       ERJ::F<Float>(F, L_basis, qk, R_basis, ql);
+                       Vector12 F_t;
+                       ERJ::F<Float>(F_t, L_basis, q_prevk, R_basis, q_prevl);
+
+                       Float delta_theta;
+                       ERJ::DeltaTheta(delta_theta, F, F_t);
+
+                       joint_id_to_delta_theta(jointI) = delta_theta;
+                   });
+    }
+};
+
+REGISTER_SIM_SYSTEM(ExternalArticulationConstraintTimeIntegrator);
 }  // namespace uipc::backend::cuda

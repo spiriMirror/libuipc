@@ -36,7 +36,7 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
     BufferLaunch(this->stream()).fill<ValueT>(out, ValueT{0});
 
     int block_count = (size + block_dim - 1) / block_dim;
-    Launch(block_count, block_dim)
+    Launch(block_count, block_dim, 0, this->stream())
         .file_line(__FILE__, __LINE__)
         .apply(
             [out          = out.viewer().name("out"),
@@ -47,7 +47,6 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
             {
                 using WarpReduceInt = cub::WarpReduce<int, warp_size>;
                 using WarpReduceT   = cub::WarpReduce<T, warp_size>;
-
 
                 __shared__ union
                 {
@@ -79,6 +78,7 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
 
                 if(global_thread_id < in_size)
                 {
+                    i              = get_key_op(global_thread_id);
                     value          = get_value_op(global_thread_id);
                     flags.is_valid = 1;
                 }
@@ -165,7 +165,7 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
     BufferLaunch(this->stream()).fill<Matrix>(out, Matrix::Zero().eval());
 
     int block_count = (size + block_dim - 1) / block_dim;
-    Launch(block_count, block_dim)
+    Launch(block_count, block_dim, 0, this->stream())
         .kernel_name("segmental_reduce")
         .apply(
             [out          = out.viewer().name("out"),
@@ -176,7 +176,6 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
             {
                 using WarpReduceInt = cub::WarpReduce<int, warp_size>;
                 using WarpReduceT   = cub::WarpReduce<T, warp_size>;
-
 
                 __shared__ union
                 {
@@ -198,7 +197,6 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
 
                 if(global_thread_id > 0 && global_thread_id < in_size)
                 {
-
                     prev_i = get_key_op(global_thread_id - 1);
                 }
 

@@ -5,7 +5,8 @@
 
 namespace uipc::constitution
 {
-constexpr U64 ExternalArticulationConstraintUID = 23;
+constexpr U64 ExternalArticulationConstitutionUID = 23;
+constexpr U64 ExternalArticulationConstraintUID   = 24;
 
 REGISTER_CONSTITUTION_UIDS()
 {
@@ -14,6 +15,10 @@ REGISTER_CONSTITUTION_UIDS()
     uids.push_back(UIDInfo{.uid  = ExternalArticulationConstraintUID,
                            .name = "ExternalArticulationConstraint",
                            .type = string{builtin::Constraint}});
+
+    uids.push_back(UIDInfo{.uid  = ExternalArticulationConstitutionUID,
+                           .name = "ExternalArticulationConstitution",
+                           .type = string{builtin::InterAffineBody}});
     return uids;
 };
 
@@ -40,6 +45,13 @@ geometry::Geometry ExternalArticulationConstraint::create_geometry(
     span<S<const geometry::GeometrySlot>> joint_geos, span<IndexT> indices) const
 {
     geometry::Geometry R;
+
+    // This is a dummy constitution UID
+    // Only used to support the association between Constraint and Constitution
+    auto cuid           = R.meta().create<U64>(builtin::constitution_uid, 0);
+    view(*cuid).front() = ExternalArticulationConstitutionUID;
+
+    Base::apply_to(R);  // Fill Constraint UID
 
     UIPC_ASSERT(joint_geos.size() == indices.size(),
                 "Selected joints size must match joint geometry size.");

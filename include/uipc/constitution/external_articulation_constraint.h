@@ -1,15 +1,14 @@
 #pragma once
 #pragma once
 #include <uipc/common/type_define.h>
-#include <uipc/constitution/constitution.h>
+#include <uipc/constitution/constraint.h>
 #include <uipc/geometry/geometry_slot.h>
-#include <uipc/geometry/simplicial_complex.h>
 
 namespace uipc::constitution
 {
-class UIPC_CONSTITUTION_API ExternalArticulationConstraint final : public IConstitution
+class UIPC_CONSTITUTION_API ExternalArticulationConstraint final : public Constraint
 {
-    using Base = IConstitution;
+    using Base = Constraint;
 
   public:
     ExternalArticulationConstraint(const Json& config = default_config()) noexcept;
