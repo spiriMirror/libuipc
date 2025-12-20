@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <fstream>
 #include <numbers>
+#include <uipc/geometry/utils/affine_body/transform.h>
 
 TEST_CASE("46_external_articulation_constraint", "[abd]")
 {
@@ -66,6 +67,13 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
             view(*is_fixed)[0] = 0;  // instance 0 not fixed
             view(*is_fixed)[1] = 0;  // instance 1 not fixed
 
+            auto ref_dof_prev = left_mesh.instances().create<Vector12>("ref_dof_prev");
+            auto ref_dof_prev_view = view(*ref_dof_prev);
+            auto transform_view    = left_mesh.transforms().view();
+            std::ranges::transform(transform_view,
+                                   ref_dof_prev_view.begin(),
+                                   affine_body::transform_to_q);
+
             auto external_kinetic =
                 left_mesh.instances().find<IndexT>(builtin::external_kinetic);
             view(*external_kinetic)[0] = 1;  // enable external kinetic for instance 0
@@ -73,6 +81,19 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
         }
         auto [left_geo_slot, left_rest_geo_slot] =
             left_link->geometries().create(left_mesh);
+
+        scene.animator().insert(
+            *left_link,
+            [&](Animation::UpdateInfo& info)
+            {
+                auto geo = info.geo_slots()[0]->geometry().as<SimplicialComplex>();
+                auto ref_dof_prev = geo->instances().find<Vector12>("ref_dof_prev");
+                auto ref_dof_prev_view = view(*ref_dof_prev);
+                auto transform_view    = geo->transforms().view();
+                std::ranges::transform(transform_view,
+                                       ref_dof_prev_view.begin(),
+                                       affine_body::transform_to_q);
+            });
 
         SimplicialComplex right_mesh = abd_mesh;
         {
@@ -96,6 +117,7 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
         }
         auto [right_geo_slot, right_rest_geo_slot] =
             right_link->geometries().create(right_mesh);
+
 
         AffineBodyRevoluteJoint abrj;
 
