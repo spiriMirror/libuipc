@@ -66,7 +66,6 @@ class ExternalArticulationConstituion final : public InterAffineBodyConstitution
 
 REGISTER_SIM_SYSTEM(ExternalArticulationConstituion);
 
-
 class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 {
   public:
@@ -167,6 +166,41 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         return std::tuple{L_bn_bar, R_bn_bar};
     }
 
+    static auto get_prismatic_basis(const geometry::SimplicialComplex* L,
+                                    IndexT L_inst_id,
+                                    const geometry::SimplicialComplex* R,
+                                    IndexT R_inst_id,
+                                    const geometry::SimplicialComplex* joint_mesh,
+                                    IndexT joint_index)
+    {
+        auto topo_view = joint_mesh->edges().topo().view();
+        auto pos_view  = joint_mesh->positions().view();
+
+        Vector2i e = topo_view[joint_index];
+        Vector3  t = pos_view[e[1]] - pos_view[e[0]];
+        t          = t.normalized();
+        Vector3 c  = pos_view[e[0]];
+
+        auto compute_ct_bar = [&](const geometry::SimplicialComplex* geo, IndexT inst_id) -> Vector6
+        {
+            UIPC_ASSERT(geo, "ExternalArticulationConstraint: Geometry is null when computing bn_bar");
+
+            const Matrix4x4& trans = geo->transforms().view()[inst_id];
+            Transform        T{trans};
+
+            Matrix3x3 InvRot = T.rotation().inverse();
+            Vector6   bn_bar;
+            bn_bar.segment<3>(0) = T.inverse() * c;
+            bn_bar.segment<3>(3) = InvRot * t;
+            return bn_bar;
+        };
+
+        Vector6 L_ct_bar = compute_ct_bar(L, L_inst_id);
+        Vector6 R_ct_bar = compute_ct_bar(R, R_inst_id);
+
+        return std::tuple{L_ct_bar, R_ct_bar};
+    }
+
     auto get_ref_q_prev(const geometry::SimplicialComplex* geo, IndexT inst_id, IndexT body_id)
     {
         IndexT ref_q_prev_id = -1;
@@ -211,10 +245,14 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         UIPC_ASSERT(uid_attr, "ExternalArticulationConstraint: 'constitution_uid' meta attribute not found in joint geometry");
 
         U64 uid_value = uid_attr->view()[0];
-        UIPC_ASSERT(uid_value == ExternalArticulationConstituion::RevoluteJointConstitutionUID,
-                    "ExternalArticulationConstraint: Now only support RevoluteJointConstraint (UID={}), but found joint with UID {}",
+        UIPC_ASSERT(uid_value == ExternalArticulationConstituion::RevoluteJointConstitutionUID
+                        || uid_value == ExternalArticulationConstituion::PrismaticJointConstitutionUID,
+                    "ExternalArticulationConstraint: Now only support RevoluteJointConstraint (UID={}) and PrismaticJointConstraint (UID={}), but found joint with UID {}",
                     ExternalArticulationConstituion::RevoluteJointConstitutionUID,
+                    ExternalArticulationConstituion::PrismaticJointConstitutionUID,
                     uid_value);
+
+        h_joint_id_to_uid.push_back(uid_value);
 
         // 1. Get Joint's two Links
         auto joint_geo_ids  = joint_mesh->edges().find<Vector2i>("geo_ids");
@@ -229,14 +267,24 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
             info.body_id(geo_id[0], inst_id[0]),
             info.body_id(geo_id[1], inst_id[1]),
         };
+        h_joint_id_to_body_ids.push_back(body_id);
 
         auto L_link_geo = info.body_geo(geo_slots, geo_id[0]);
         auto R_link_geo = info.body_geo(geo_slots, geo_id[1]);
 
-        auto [L_basis, R_basis] = get_revolute_basis(
-            L_link_geo, inst_id[0], R_link_geo, inst_id[1], joint_mesh, index);
+        Vector6 L_basis, R_basis;
 
-        h_joint_id_to_body_ids.push_back(body_id);
+        if(uid_value == ExternalArticulationConstituion::RevoluteJointConstitutionUID)
+        {
+            std::tie(L_basis, R_basis) = get_revolute_basis(
+                L_link_geo, inst_id[0], R_link_geo, inst_id[1], joint_mesh, index);
+        }
+        else if(uid_value == ExternalArticulationConstituion::PrismaticJointConstitutionUID)
+        {
+            std::tie(L_basis, R_basis) = get_prismatic_basis(
+                L_link_geo, inst_id[0], R_link_geo, inst_id[1], joint_mesh, index);
+        }
+
         h_joint_id_to_L_basis.push_back(L_basis);
         h_joint_id_to_R_basis.push_back(R_basis);
 
@@ -465,6 +513,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         using namespace muda;
 
         namespace ERJ = sym::external_revolute_joint_constraint;
+        namespace EPJ = sym::external_prismatic_joint_constraint;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
@@ -485,25 +534,28 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                  joint_id_to_delta_theta_tilde =
                      joint_id_to_delta_theta_tilde.cviewer().name("joint_id_to_delta_theta_tilde"),
                  joint_id_to_body_ids = joint_id_to_body_ids.cviewer().name("joint_id_to_body_ids"),
-
-
                  joint_id_to_L_basis = joint_id_to_L_basis.cviewer().name("joint_id_to_L_basis"),
                  joint_id_to_R_basis = joint_id_to_R_basis.cviewer().name("joint_id_to_R_basis"),
+                 joint_id_to_uid = joint_id_to_uid.cviewer().name("joint_id_to_uid"),
+
                  qs      = info.qs().viewer().name("qs"),
                  q_prevs = info.q_prevs().viewer().name("q_prevs"),
 
                  joint_id_to_ref_q_prev_ids =
                      joint_id_to_ref_q_prev_ids.cviewer().name("joint_id_to_ref_q_prev_ids"),
-                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs")] __device__(IndexT I) mutable
-                {
-                    Float m_ij = joint_joint_id_to_mass(I);
+                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs"),
 
-                    Vector2i ij = joint_joint_id_to_joint_ij(I);
+                 PrismaticUID = ExternalArticulationConstituion::PrismaticJointConstitutionUID,
+                 RevoluteUID =
+                     ExternalArticulationConstituion::RevoluteJointConstitutionUID] __device__(IndexT I) mutable
+                {
+                    Float    m_ij = joint_joint_id_to_mass(I);
+                    Vector2i ij   = joint_joint_id_to_joint_ij(I);
 
                     auto compute_delta_theta = [&](IndexT joint_id) -> Float
                     {
-                        Vector6  L_basis  = joint_id_to_L_basis(joint_id);
-                        Vector6  R_basis  = joint_id_to_R_basis(joint_id);
+                        Vector6  basis_k  = joint_id_to_L_basis(joint_id);
+                        Vector6  basis_l  = joint_id_to_R_basis(joint_id);
                         Vector2i body_ids = joint_id_to_body_ids(joint_id);
 
                         const Vector12& qk = qs(body_ids[0]);
@@ -520,13 +572,27 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                                                       ref_q_prevs(ref_q_prev_ids[1]) :
                                                       q_prevs(body_ids[1]);
 
-                        Vector12 F;
-                        ERJ::F<Float>(F, L_basis, qk, R_basis, ql);
-                        Vector12 F_t;
-                        ERJ::F<Float>(F_t, L_basis, q_prevk, R_basis, q_prevl);
+                        U64 joint_uid = joint_id_to_uid(joint_id);
 
                         Float delta_theta;
-                        ERJ::DeltaTheta(delta_theta, F, F_t);
+
+                        if(joint_uid == RevoluteUID)
+                        {
+                            ERJ::DeltaTheta(delta_theta, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                        }
+                        else if(joint_uid == PrismaticUID)
+                        {
+                            EPJ::DeltaTheta(delta_theta, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                        }
+                        else
+                        {
+                            MUDA_ASSERT(false,
+                                        "ExternalArticulationConstraint: Unknown joint UID {}",
+                                        joint_uid);
+                            // should not reach here
+                            delta_theta = 0.0f;
+                        }
+
 
                         return delta_theta;
                     };
@@ -547,6 +613,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
     {
         using namespace muda;
         namespace ERJ = sym::external_revolute_joint_constraint;
+        namespace EPJ = sym::external_prismatic_joint_constraint;
 
         // Compute G^theta
         FastSegmentalReduce()
@@ -554,18 +621,11 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
             .reduce(
                 joint_joint_id_to_mass.size(),
                 joint_id_to_G_theta.view(),
-                [joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer().name("masses"),
-                 joint_joint_id_to_joint_ij =
-                     joint_joint_id_to_joint_ij.cviewer().name("joint_joint_id_to_joint_ij"),
-                 art_joint_joint_offsets =
-                     art_id_to_joint_joint_offsets.cviewer().name("art_joint_joint_offsets"),
-                 art_joint_joint_counts = art_id_to_joint_joint_counts.cviewer().name("art_joint_joint_counts"),
-                 art_joint_offsets = art_id_to_joint_offsets.cviewer().name("art_joint_offsets"),
-                 art_joint_counts = art_id_to_joint_counts.cviewer().name(
-                     "art_joint_counts")] __device__(IndexT I) -> IndexT
+                [joint_joint_id_to_joint_ij =
+                     joint_joint_id_to_joint_ij.cviewer().name(
+                         "joint_joint_id_to_joint_ij")] __device__(IndexT I) -> IndexT
                 {
                     Vector2i ij = joint_joint_id_to_joint_ij(I);
-
                     return ij[0];
                 },
                 [joint_joint_id_to_mass = joint_joint_id_to_mass.cviewer().name("masses"),
@@ -581,20 +641,25 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                  joint_id_to_body_ids = joint_id_to_body_ids.cviewer().name("joint_id_to_body_ids"),
                  joint_id_to_delta_theta_tilde =
                      joint_id_to_delta_theta_tilde.cviewer().name("joint_id_to_delta_theta_tilde"),
+
                  qs      = info.qs().viewer().name("qs"),
                  q_prevs = info.q_prevs().viewer().name("q_prevs"),
                  joint_id_to_ref_q_prev_ids =
                      joint_id_to_ref_q_prev_ids.cviewer().name("joint_id_to_ref_q_prev_ids"),
-                 ref_q_prevs = ref_q_prevs.viewer().name(
-                     "ref_q_prevs")] __device__(IndexT joint_jointI) -> Float
+                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs"),
+
+                 joint_id_to_uid = joint_id_to_uid.cviewer().name("joint_id_to_uid"),
+                 RevoluteUID = ExternalArticulationConstituion::RevoluteJointConstitutionUID,
+                 PrismaticUID =
+                     ExternalArticulationConstituion::PrismaticJointConstitutionUID] __device__(IndexT joint_jointI) -> Float
                 {
                     Vector2i ij   = joint_joint_id_to_joint_ij(joint_jointI);
                     Float    m_ij = joint_joint_id_to_mass(joint_jointI);
 
                     auto joint_id = ij[1];
 
-                    Vector6  L_basis  = joint_id_to_L_basis(joint_id);
-                    Vector6  R_basis  = joint_id_to_R_basis(joint_id);
+                    Vector6  basis_k  = joint_id_to_L_basis(joint_id);
+                    Vector6  basis_l  = joint_id_to_R_basis(joint_id);
                     Vector2i body_ids = joint_id_to_body_ids(joint_id);
 
                     const Vector12& qk = qs(body_ids[0]);
@@ -610,13 +675,25 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                                                   ref_q_prevs(ref_q_prev_ids[1]) :
                                                   q_prevs(body_ids[1]);
 
-                    Vector12 F;
-                    ERJ::F<Float>(F, L_basis, qk, R_basis, ql);
-                    Vector12 F_t;
-                    ERJ::F<Float>(F_t, L_basis, q_prevk, R_basis, q_prevl);
+                    U64 joint_uid = joint_id_to_uid(joint_id);
 
                     Float delta_theta_j;
-                    ERJ::DeltaTheta(delta_theta_j, F, F_t);
+
+                    if(joint_uid == RevoluteUID)
+                    {
+                        ERJ::DeltaTheta<Float>(
+                            delta_theta_j, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                    }
+                    else if(joint_uid == PrismaticUID)
+                    {
+                        EPJ::DeltaTheta<Float>(
+                            delta_theta_j, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                    }
+                    else
+                    {
+                        // should not reach here
+                        delta_theta_j = 0.0f;
+                    }
 
                     Float delta_theta_tilde_j = joint_id_to_delta_theta_tilde(joint_id);
 
@@ -645,7 +722,12 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                  q_prevs = info.q_prevs().viewer().name("q_prevs"),
                  joint_id_to_ref_q_prev_ids =
                      joint_id_to_ref_q_prev_ids.cviewer().name("joint_id_to_ref_q_prev_ids"),
-                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs")] __device__(IndexT jointI) mutable
+                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs"),
+
+                 joint_id_to_uid = joint_id_to_uid.cviewer().name("joint_id_to_uid"),
+                 RevoluteUID = ExternalArticulationConstituion::RevoluteJointConstitutionUID,
+                 PrismaticUID =
+                     ExternalArticulationConstituion::PrismaticJointConstitutionUID] __device__(IndexT jointI) mutable
                 {
                     Float    G_theta  = joint_id_to_G_theta(jointI);
                     Vector2i body_ids = joint_id_to_body_ids(jointI);
@@ -665,18 +747,26 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                                                   ref_q_prevs(ref_q_prev_ids[1]) :
                                                   q_prevs(body_ids[1]);
 
-                    Vector12 F;
-                    ERJ::F<Float>(F, basis_k, qk, basis_l, ql);
-                    Vector12 F_t;
-                    ERJ::F<Float>(F_t, basis_k, q_prevk, basis_l, q_prevl);
-
-                    Vector12 dDeltaTheta_dF;
-                    ERJ::dDeltaTheta_dF(dDeltaTheta_dF, F, F_t);
-
-                    Vector12 GF = G_theta * dDeltaTheta_dF;
+                    auto joint_uid = joint_id_to_uid(jointI);
 
                     Vector<Float, 24> G24;
-                    ERJ::JT_G<Float>(G24, GF, basis_k, basis_l);
+                    if(joint_uid == RevoluteUID)
+                    {
+                        ERJ::dDeltaTheta_dQ(G24, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                    }
+                    else if(joint_uid == PrismaticUID)
+                    {
+                        EPJ::dDeltaTheta_dQ(G24, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                    }
+                    else
+                    {
+                        MUDA_ASSERT(false,
+                                    "ExternalArticulationConstraint: Unknown joint UID {}",
+                                    joint_uid);
+                        G24.setZero();
+                    }
+
+                    G24 *= G_theta;
 
                     DoubletVectorAssembler DVA{gradients};
 
@@ -711,23 +801,75 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                  q_prevs = info.q_prevs().viewer().name("q_prevs"),
                  joint_id_to_ref_q_prev_ids =
                      joint_id_to_ref_q_prev_ids.cviewer().name("joint_id_to_ref_q_prev_ids"),
-                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs")] __device__(IndexT joint_joint_I) mutable
+                 ref_q_prevs = ref_q_prevs.viewer().name("ref_q_prevs"),
+                 joint_id_to_uid = joint_id_to_uid.cviewer().name("joint_id_to_uid"),
+                 RevoluteUID = ExternalArticulationConstituion::RevoluteJointConstitutionUID,
+                 PrismaticUID =
+                     ExternalArticulationConstituion::PrismaticJointConstitutionUID] __device__(IndexT joint_joint_I) mutable
                 {
                     Float    m_ij = joint_joint_id_to_mass(joint_joint_I);
                     Vector2i ij   = joint_joint_id_to_joint_ij(joint_joint_I);
 
-
-                    auto compute_F_F_t = [&](IndexT joint_id, Vector12& F, Vector12& F_t)
+                    auto compute_dDeltaTheta_dQ = [&](IndexT joint_id) -> Vector<Float, 24>
                     {
-                        Vector6  basis_k  = joint_id_to_L_basis(joint_id);
-                        Vector6  basis_l  = joint_id_to_R_basis(joint_id);
-                        Vector2i body_ids = joint_id_to_body_ids(joint_id);
+                        U64 joint_uid = joint_id_to_uid(joint_id);
+
+                        Vector6  basis_k   = joint_id_to_L_basis(joint_id);
+                        Vector6  basis_l   = joint_id_to_R_basis(joint_id);
+                        Vector2i body_ids  = joint_id_to_body_ids(joint_id);
+                        const Vector12& qk = qs(body_ids[0]);
+                        const Vector12& ql = qs(body_ids[1]);
+                        const Vector2i& ref_q_prev_ids =
+                            joint_id_to_ref_q_prev_ids(joint_id);
+                        const Vector12& q_prevk = ref_q_prev_ids[0] >= 0 ?
+                                                      ref_q_prevs(ref_q_prev_ids[0]) :
+                                                      q_prevs(body_ids[0]);
+                        const Vector12& q_prevl = ref_q_prev_ids[1] >= 0 ?
+                                                      ref_q_prevs(ref_q_prev_ids[1]) :
+                                                      q_prevs(body_ids[1]);
+
+                        Vector<Float, 24> dDeltaTheta_dQ;
+
+                        U64 uid = joint_id_to_uid(joint_id);
+                        if(uid == RevoluteUID)
+                        {
+                            ERJ::dDeltaTheta_dQ(
+                                dDeltaTheta_dQ, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                        }
+                        else if(uid == PrismaticUID)
+                        {
+                            EPJ::dDeltaTheta_dQ(
+                                dDeltaTheta_dQ, basis_k, qk, q_prevk, basis_l, ql, q_prevl);
+                        }
+                        else
+                        {
+                            MUDA_ASSERT(false, "ExternalArticulationConstraint: Unknown joint UID {}", uid);
+                            dDeltaTheta_dQ.setZero();
+                        }
+                        return dDeltaTheta_dQ;
+                    };
+
+                    Vector<Float, 24> dDeltaTheta_dQ_i = compute_dDeltaTheta_dQ(ij[0]);
+                    Vector<Float, 24> dDeltaTheta_dQ_j = compute_dDeltaTheta_dQ(ij[1]);
+
+
+                    Matrix<Float, 24, 24> H24x24 =
+                        dDeltaTheta_dQ_i * m_ij * dDeltaTheta_dQ_j.transpose();
+
+                    if(ij[0] == ij[1])
+                    {
+                        auto i = ij[0];
+
+                        U64 joint_uid = joint_id_to_uid(i);
+
+                        Vector6  basis_k  = joint_id_to_L_basis(i);
+                        Vector6  basis_l  = joint_id_to_R_basis(i);
+                        Vector2i body_ids = joint_id_to_body_ids(i);
 
                         const Vector12& qk = qs(body_ids[0]);
                         const Vector12& ql = qs(body_ids[1]);
 
-                        const Vector2i& ref_q_prev_ids =
-                            joint_id_to_ref_q_prev_ids(joint_id);
+                        const Vector2i& ref_q_prev_ids = joint_id_to_ref_q_prev_ids(i);
 
                         const Vector12& q_prevk = ref_q_prev_ids[0] >= 0 ?
                                                       ref_q_prevs(ref_q_prev_ids[0]) :
@@ -737,42 +879,39 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                                                       ref_q_prevs(ref_q_prev_ids[1]) :
                                                       q_prevs(body_ids[1]);
 
-                        ERJ::F<Float>(F, basis_k, qk, basis_l, ql);
-                        ERJ::F<Float>(F_t, basis_k, q_prevk, basis_l, q_prevl);
-                    };
-
-                    Vector12 Fi, Fi_t, Fj, Fj_t;
-
-                    compute_F_F_t(ij[0], Fi, Fi_t);
-                    compute_F_F_t(ij[1], Fj, Fj_t);
-
-                    Vector12 dDeltaTheta_dFi, dDeltaTheta_dFj;
-                    ERJ::dDeltaTheta_dF(dDeltaTheta_dFi, Fi, Fi_t);
-                    ERJ::dDeltaTheta_dF(dDeltaTheta_dFj, Fj, Fj_t);
-
-                    Matrix12x12 HF = dDeltaTheta_dFi * m_ij * dDeltaTheta_dFj.transpose();
-
-                    if(ij[0] == ij[1])
-                    {
-                        auto  i         = ij[0];
                         Float G_theta_i = joint_id_to_G_theta(i);
 
-                        Matrix12x12 ddDeltaTheta_ddF;
-                        ERJ::ddDeltaTheta_ddF(ddDeltaTheta_ddF, Fi, Fi_t);
+                        Vector<Float, 12>     F, F_t;
+                        Matrix<Float, 24, 24> JT_H_J;
+                        if(joint_uid == RevoluteUID)
+                        {
+                            ERJ::F<Float>(F, basis_k, qk, basis_l, ql);
+                            ERJ::F<Float>(F_t, basis_k, q_prevk, basis_l, q_prevl);
+                            Matrix12x12 ddDeltaTheta_ddF;
+                            ERJ::ddDeltaTheta_ddF(ddDeltaTheta_ddF, F, F_t);
+                            Matrix12x12 HF = G_theta_i * ddDeltaTheta_ddF;
+                            make_spd(HF);
+                            ERJ::JT_H_J(JT_H_J, HF, basis_k, basis_l, basis_k, basis_l);
+                        }
+                        else if(joint_uid == PrismaticUID)
+                        {
+                            EPJ::F<Float>(F, basis_k, qk, basis_l, ql);
+                            EPJ::F<Float>(F_t, basis_k, q_prevk, basis_l, q_prevl);
+                            Matrix12x12 ddDeltaTheta_ddF;
+                            EPJ::ddDeltaTheta_ddF(ddDeltaTheta_ddF, F, F_t);
+                            Matrix12x12 HF = G_theta_i * ddDeltaTheta_ddF;
+                            make_spd(HF);
+                            EPJ::JT_H_J(JT_H_J, HF, basis_k, basis_l, basis_k, basis_l);
+                        }
+                        else
+                        {
+                            MUDA_ASSERT(false,
+                                        "ExternalArticulationConstraint: Unknown joint UID {}",
+                                        joint_uid);
+                        }
 
-                        HF += G_theta_i * ddDeltaTheta_ddF;
+                        H24x24 += JT_H_J;
                     }
-
-                    make_spd(HF);
-
-                    Matrix<Float, 24, 24> H24x24;
-
-                    const Vector6& basis_k = joint_id_to_L_basis(ij[0]);
-                    const Vector6& basis_l = joint_id_to_R_basis(ij[0]);
-                    const Vector6& basis_m = joint_id_to_L_basis(ij[1]);
-                    const Vector6& basis_n = joint_id_to_R_basis(ij[1]);
-
-                    ERJ::JT_H_J<Float>(H24x24, HF, basis_k, basis_l, basis_m, basis_n);
 
                     Vector2i body_ids_i = joint_id_to_body_ids(ij[0]);
                     Vector2i body_ids_j = joint_id_to_body_ids(ij[1]);
@@ -864,6 +1003,7 @@ class ExternalArticulationConstraintTimeIntegrator final : public TimeIntegrator
     {
         using namespace muda;
         namespace ERJ = sym::external_revolute_joint_constraint;
+        namespace EPJ = sym::external_prismatic_joint_constraint;
 
         // Compute delta_theta
         auto& c   = constraint;
@@ -881,7 +1021,11 @@ class ExternalArticulationConstraintTimeIntegrator final : public TimeIntegrator
                  q_prevs = abd->q_prevs().viewer().name("q_prevs"),
                  joint_id_to_ref_q_prev_ids =
                      c->joint_id_to_ref_q_prev_ids.cviewer().name("joint_id_to_ref_q_prev_ids"),
-                 ref_q_prevs = c->ref_q_prevs.viewer().name("ref_q_prevs")] __device__(IndexT jointI) mutable
+                 ref_q_prevs = c->ref_q_prevs.viewer().name("ref_q_prevs"),
+                 joint_id_to_uid = c->joint_id_to_uid.cviewer().name("joint_id_to_uid"),
+                 RevoluteUID = ExternalArticulationConstituion::RevoluteJointConstitutionUID,
+                 PrismaticUID =
+                     ExternalArticulationConstituion::PrismaticJointConstitutionUID] __device__(IndexT jointI) mutable
                 {
                     Vector6  L_basis  = joint_id_to_L_basis(jointI);
                     Vector6  R_basis  = joint_id_to_R_basis(jointI);
@@ -900,14 +1044,26 @@ class ExternalArticulationConstraintTimeIntegrator final : public TimeIntegrator
                                                   ref_q_prevs(ref_q_prev_ids[1]) :
                                                   q_prevs(body_ids[1]);
 
-
-                    Vector12 F;
-                    ERJ::F<Float>(F, L_basis, qk, R_basis, ql);
-                    Vector12 F_t;
-                    ERJ::F<Float>(F_t, L_basis, q_prevk, R_basis, q_prevl);
-
+                    auto  joint_uid = joint_id_to_uid(jointI);
                     Float delta_theta;
-                    ERJ::DeltaTheta(delta_theta, F, F_t);
+                    if(joint_uid == RevoluteUID)
+                    {
+                        ERJ::DeltaTheta<Float>(
+                            delta_theta, L_basis, qk, q_prevk, R_basis, ql, q_prevl);
+                    }
+                    else if(joint_uid == PrismaticUID)
+                    {
+                        EPJ::DeltaTheta<Float>(
+                            delta_theta, L_basis, qk, q_prevk, R_basis, ql, q_prevl);
+                    }
+                    else
+                    {
+                        MUDA_ASSERT(false,
+                                    "ExternalArticulationConstraint: Unknown joint UID {}",
+                                    joint_uid);
+                        // should not reach here
+                        delta_theta = 0.0f;
+                    }
 
                     joint_id_to_delta_theta(jointI) = delta_theta;
                 });

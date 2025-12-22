@@ -2,6 +2,7 @@
 #include <app/asset_dir.h>
 #include <app/require_log.h>
 #include <uipc/uipc.h>
+#include <uipc/common/timer.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/affine_body_revolute_joint.h>
 #include <uipc/constitution/external_articulation_constraint.h>
@@ -17,7 +18,10 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
     using namespace uipc::core;
     using namespace uipc::constitution;
     using namespace uipc::core;
-    namespace fs          = std::filesystem;
+    namespace fs = std::filesystem;
+
+    Timer::enable_all();
+
     auto this_output_path = AssetDir::output_path(__FILE__);
 
     Engine engine{"cuda", this_output_path};
@@ -209,4 +213,6 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     }
+
+    Timer::report();
 }
