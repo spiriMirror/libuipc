@@ -369,6 +369,8 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                 {
                     for(IndexT j = 0; j < n_joint; ++j)
                     {
+                        // i must go slower than j
+                        // so that the `fast_segmental_reduce` can work correctly in gradient/hessian computation
                         h_joint_joint_id_to_joint_ij.push_back(Vector2i{i, j});
                     }
                 }
