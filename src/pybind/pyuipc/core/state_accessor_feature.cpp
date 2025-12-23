@@ -10,12 +10,13 @@ PyStateAccessorFeature::PyStateAccessorFeature(py::module& m)
 {
     auto class_FiniteElementStateAccessorFeature =
         py::class_<FiniteElementStateAccessorFeature, IFeature, S<FiniteElementStateAccessorFeature>>(
-            m, "FiniteElementStateAccessorFeature",
+            m,
+            "FiniteElementStateAccessorFeature",
             R"(Feature for accessing finite element simulation state (vertex positions, velocities, etc.).)");
 
-    class_FiniteElementStateAccessorFeature.def(
-        "vertex_count", &FiniteElementStateAccessorFeature::vertex_count,
-        R"(Get the number of vertices.
+    class_FiniteElementStateAccessorFeature.def("vertex_count",
+                                                &FiniteElementStateAccessorFeature::vertex_count,
+                                                R"(Get the number of vertices.
 Returns:
     int: Number of vertices.)");
 
@@ -30,15 +31,17 @@ Args:
 Returns:
     Geometry: Geometry created from state data.)");
 
-    class_FiniteElementStateAccessorFeature.def(
-        "copy_from", &FiniteElementStateAccessorFeature::copy_from, py::arg("state_geo"),
-        R"(Copy state from geometry.
+    class_FiniteElementStateAccessorFeature.def("copy_from",
+                                                &FiniteElementStateAccessorFeature::copy_from,
+                                                py::arg("state_geo"),
+                                                R"(Copy state from geometry.
 Args:
     state_geo: Geometry containing state data to copy from.)");
 
-    class_FiniteElementStateAccessorFeature.def(
-        "copy_to", &FiniteElementStateAccessorFeature::copy_to, py::arg("state_geo"),
-        R"(Copy state to geometry.
+    class_FiniteElementStateAccessorFeature.def("copy_to",
+                                                &FiniteElementStateAccessorFeature::copy_to,
+                                                py::arg("state_geo"),
+                                                R"(Copy state to geometry.
 Args:
     state_geo: Geometry to copy state data to.)");
 
@@ -48,7 +51,8 @@ Args:
 
     auto class_AffineBodyStateAccessorFeature =
         py::class_<AffineBodyStateAccessorFeature, IFeature, S<AffineBodyStateAccessorFeature>>(
-            m, "AffineBodyStateAccessorFeature",
+            m,
+            "AffineBodyStateAccessorFeature",
             R"(Feature for accessing affine body simulation state (body transforms, velocities, etc.).)");
 
     class_AffineBodyStateAccessorFeature.def("body_count",
@@ -75,9 +79,10 @@ Returns:
 Args:
     state_geo: Geometry containing state data to copy from.)");
 
-    class_AffineBodyStateAccessorFeature.def(
-        "copy_to", &AffineBodyStateAccessorFeature::copy_to, py::arg("state_geo"),
-        R"(Copy state to geometry.
+    class_AffineBodyStateAccessorFeature.def("copy_to",
+                                             &AffineBodyStateAccessorFeature::copy_to,
+                                             py::arg("state_geo"),
+                                             R"(Copy state to geometry.
 Args:
     state_geo: Geometry to copy state data to.)");
 

@@ -7,9 +7,8 @@ namespace pyuipc::constitution
 using namespace uipc::constitution;
 PyNeoHookeanShell::PyNeoHookeanShell(py::module& m)
 {
-    auto class_NeoHookeanShell =
-        py::class_<NeoHookeanShell, FiniteElementConstitution>(m, "NeoHookeanShell",
-                                                                R"(NeoHookeanShell constitution for neo-Hookean shell material.)");
+    auto class_NeoHookeanShell = py::class_<NeoHookeanShell, FiniteElementConstitution>(
+        m, "NeoHookeanShell", R"(NeoHookeanShell constitution for neo-Hookean shell material.)");
 
     class_NeoHookeanShell.def(py::init<const Json&>(),
                               py::arg("config") = NeoHookeanShell::default_config(),
@@ -17,8 +16,9 @@ PyNeoHookeanShell::PyNeoHookeanShell(py::module& m)
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
 
-    class_NeoHookeanShell.def_static("default_config", &NeoHookeanShell::default_config,
-                                    R"(Get the default NeoHookeanShell configuration.
+    class_NeoHookeanShell.def_static("default_config",
+                                     &NeoHookeanShell::default_config,
+                                     R"(Get the default NeoHookeanShell configuration.
 Returns:
     dict: Default configuration dictionary.)");
 

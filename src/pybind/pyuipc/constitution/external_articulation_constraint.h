@@ -3,9 +3,9 @@
 
 namespace pyuipc::constitution
 {
-class PySoftTransformConstraint
+class PyExternalArticulationConstraint
 {
   public:
-    PySoftTransformConstraint(py::module& m);
+    PyExternalArticulationConstraint(py::module& m);
 };
 }  // namespace pyuipc::constitution

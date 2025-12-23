@@ -9,19 +9,19 @@ using namespace uipc::constitution;
 PyAffineBodyPrismaticJoint::PyAffineBodyPrismaticJoint(py::module& m)
 {
     auto class_AffineBodyPrismaticJoint =
-        py::class_<AffineBodyPrismaticJoint, InterAffineBodyConstitution>(m, "AffineBodyPrismaticJoint",
-                                                                          R"(AffineBodyPrismaticJoint constitution for prismatic (sliding) joints between affine bodies.)");
+        py::class_<AffineBodyPrismaticJoint, InterAffineBodyConstitution>(
+            m, "AffineBodyPrismaticJoint", R"(AffineBodyPrismaticJoint constitution for prismatic (sliding) joints between affine bodies.)");
 
     class_AffineBodyPrismaticJoint.def(py::init<const Json&>(),
-                                      py::arg("config") =
-                                          AffineBodyPrismaticJoint::default_config(),
-                                      R"(Create an AffineBodyPrismaticJoint.
+                                       py::arg("config") =
+                                           AffineBodyPrismaticJoint::default_config(),
+                                       R"(Create an AffineBodyPrismaticJoint.
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
 
     class_AffineBodyPrismaticJoint.def_static("default_config",
-                                             &AffineBodyPrismaticJoint::default_config,
-                                             R"(Get the default AffineBodyPrismaticJoint configuration.
+                                              &AffineBodyPrismaticJoint::default_config,
+                                              R"(Get the default AffineBodyPrismaticJoint configuration.
 Returns:
     dict: Default configuration dictionary.)");
 
@@ -53,17 +53,17 @@ strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB))"));
     // New API - Single instance mode
     class_AffineBodyPrismaticJoint.def(
         "apply_to",
-        [](AffineBodyPrismaticJoint& self, 
-           geometry::SimplicialComplex& edges, 
-           py::list l_geo_slots, 
-           py::list r_geo_slots, 
-           Float strength_ratio)
+        [](AffineBodyPrismaticJoint&    self,
+           geometry::SimplicialComplex& edges,
+           py::list                     l_geo_slots,
+           py::list                     r_geo_slots,
+           Float                        strength_ratio)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;
             l_slots.reserve(l_geo_slots.size());
             r_slots.reserve(r_geo_slots.size());
-            
+
             for(auto item : l_geo_slots)
             {
                 l_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
@@ -87,26 +87,26 @@ strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joi
     // New API - Multi-instance mode
     class_AffineBodyPrismaticJoint.def(
         "apply_to",
-        [](AffineBodyPrismaticJoint& self, 
-           geometry::SimplicialComplex& edges, 
-           py::list l_geo_slots, 
-           py::list l_instance_id, 
-           py::list r_geo_slots, 
-           py::list r_instance_id, 
-           py::list strength_ratio)
+        [](AffineBodyPrismaticJoint&    self,
+           geometry::SimplicialComplex& edges,
+           py::list                     l_geo_slots,
+           py::list                     l_instance_id,
+           py::list                     r_geo_slots,
+           py::list                     r_instance_id,
+           py::list                     strength_ratio)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
-            vector<IndexT> l_instances;
+            vector<IndexT>                             l_instances;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;
-            vector<IndexT> r_instances;
-            vector<Float> strength_ratios;
-            
+            vector<IndexT>                             r_instances;
+            vector<Float>                              strength_ratios;
+
             l_slots.reserve(l_geo_slots.size());
             l_instances.reserve(l_instance_id.size());
             r_slots.reserve(r_geo_slots.size());
             r_instances.reserve(r_instance_id.size());
             strength_ratios.reserve(strength_ratio.size());
-            
+
             for(auto item : l_geo_slots)
             {
                 l_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
@@ -127,9 +127,11 @@ strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joi
             {
                 strength_ratios.push_back(py::cast<Float>(item));
             }
-            self.apply_to(edges, 
-                          span{l_slots}, span{l_instances},
-                          span{r_slots}, span{r_instances},
+            self.apply_to(edges,
+                          span{l_slots},
+                          span{l_instances},
+                          span{r_slots},
+                          span{r_instances},
                           span{strength_ratios});
         },
         py::arg("sc"),
@@ -147,4 +149,3 @@ r_instance_id: List of instance IDs for right geometries.
 strength_ratio: List of strength ratios for each joint (one per edge).)"));
 }
 }  // namespace pyuipc::constitution
-

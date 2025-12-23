@@ -8,8 +8,8 @@ PySimplicialComplexSlot::PySimplicialComplexSlot(py::module& m)
 
 {
     auto class_SimplicialComplexSlot =
-        py::class_<SimplicialComplexSlot, GeometrySlot, S<SimplicialComplexSlot>>(m, "SimplicialComplexSlot",
-                                                                                   R"(SimplicialComplexSlot class representing a slot containing a simplicial complex.)");
+        py::class_<SimplicialComplexSlot, GeometrySlot, S<SimplicialComplexSlot>>(
+            m, "SimplicialComplexSlot", R"(SimplicialComplexSlot class representing a slot containing a simplicial complex.)");
 
     class_SimplicialComplexSlot.def(
         "geometry",

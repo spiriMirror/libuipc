@@ -8,9 +8,8 @@ using namespace uipc::constitution;
 
 PyAffineBodyConstitution::PyAffineBodyConstitution(py::module& m)
 {
-    auto class_AffineBodyConstitution =
-        py::class_<AffineBodyConstitution, IConstitution>(m, "AffineBodyConstitution",
-                                                            R"(AffineBodyConstitution for rigid body simulation with affine transformations.)");
+    auto class_AffineBodyConstitution = py::class_<AffineBodyConstitution, IConstitution>(
+        m, "AffineBodyConstitution", R"(AffineBodyConstitution for rigid body simulation with affine transformations.)");
 
     class_AffineBodyConstitution.def(py::init<const Json&>(),
                                      py::arg("config") =

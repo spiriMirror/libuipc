@@ -6,8 +6,8 @@ using namespace uipc::geometry;
 PyImplicitGeometrySlot::PyImplicitGeometrySlot(py::module& m)
 {
     auto class_ImplicitGeometrySlot =
-        py::class_<ImplicitGeometrySlot, GeometrySlot, S<ImplicitGeometrySlot>>(m, "ImplicitGeometrySlot",
-                                                                                 R"(ImplicitGeometrySlot class representing a slot containing an implicit geometry.)");
+        py::class_<ImplicitGeometrySlot, GeometrySlot, S<ImplicitGeometrySlot>>(
+            m, "ImplicitGeometrySlot", R"(ImplicitGeometrySlot class representing a slot containing an implicit geometry.)");
 
     class_ImplicitGeometrySlot.def(
         "geometry",

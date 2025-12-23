@@ -3,9 +3,10 @@
 
 namespace pyuipc::geometry
 {
-class PyFactory
+class PyAffineBody
 {
   public:
-    PyFactory(py::module& m);
+    PyAffineBody(py::module& m);
 };
 }  // namespace pyuipc::geometry
+

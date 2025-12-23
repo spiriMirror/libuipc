@@ -9,9 +9,8 @@ using namespace uipc::constitution;
 
 PySoftVertexStitch::PySoftVertexStitch(py::module& m)
 {
-    auto class_SoftVertexStitch =
-        py::class_<SoftVertexStitch, InterPrimitiveConstitution>(m, "SoftVertexStitch",
-                                                                 R"(SoftVertexStitch constitution for stitching vertices between geometries with soft constraints.)");
+    auto class_SoftVertexStitch = py::class_<SoftVertexStitch, InterPrimitiveConstitution>(
+        m, "SoftVertexStitch", R"(SoftVertexStitch constitution for stitching vertices between geometries with soft constraints.)");
 
     class_SoftVertexStitch.def(py::init<const Json&>(),
                                py::arg("config") = SoftVertexStitch::default_config(),
@@ -19,8 +18,9 @@ PySoftVertexStitch::PySoftVertexStitch(py::module& m)
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
 
-    class_SoftVertexStitch.def_static("default_config", &SoftVertexStitch::default_config,
-                                     R"(Get the default SoftVertexStitch configuration.
+    class_SoftVertexStitch.def_static("default_config",
+                                      &SoftVertexStitch::default_config,
+                                      R"(Get the default SoftVertexStitch configuration.
 Returns:
     dict: Default configuration dictionary.)");
 

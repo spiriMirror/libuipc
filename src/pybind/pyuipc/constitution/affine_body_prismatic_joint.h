@@ -9,4 +9,3 @@ class PyAffineBodyPrismaticJoint
     PyAffineBodyPrismaticJoint(py::module& m);
 };
 }  // namespace pyuipc::constitution
-

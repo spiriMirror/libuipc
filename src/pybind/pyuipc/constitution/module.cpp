@@ -22,6 +22,7 @@
 #include <pyuipc/constitution/inter_primitive_constitution.h>
 #include <pyuipc/constitution/soft_vertex_stitch.h>
 #include <pyuipc/constitution/affine_body_external_force.h>
+#include <pyuipc/constitution/external_articulation_constraint.h>
 
 namespace pyuipc::constitution
 {
@@ -60,5 +61,6 @@ PyModule::PyModule(py::module& m)
     // Constraints
     PySoftPositionConstraint{m};
     PySoftTransformConstraint{m};
+    PyExternalArticulationConstraint{m};
 }
 }  // namespace pyuipc::constitution
