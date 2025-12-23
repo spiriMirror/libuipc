@@ -309,6 +309,108 @@ class TripletMatrixAssembler
         IndexT                  m_I;
     };
 
+    template <int N>
+        requires(N >= 1)
+    class ProxyRangeHalf
+    {
+      public:
+        struct UpperLR
+        {
+            IndexT L;
+            IndexT R;
+        };
+
+        using BlockMatrix = Eigen::Matrix<T, N * BlockDim, N * BlockDim>;
+        MUDA_GENERIC ProxyRangeHalf(TripletMatrixAssembler& assembler, IndexT I)
+            : m_assembler(assembler)
+            , m_I(I)
+        {
+            MUDA_ASSERT(I + (N * (N + 1)) / 2 <= m_assembler.m_triplet.triplet_count(),
+                        "Triplet out of range, I = %d, Count=%d * %d / 2, total=%d. %s(%d)",
+                        I,
+                        N,
+                        N,
+                        m_assembler.m_triplet.triplet_count(),
+                        m_assembler.m_triplet.kernel_file(),
+                        m_assembler.m_triplet.kernel_line());
+        }
+
+        /**
+         * @brief Only write to the upper triangular part of the global matrix. (not the submatrix)
+         */
+        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices, const BlockMatrix& value)
+        {
+            IndexT offset = m_I;
+            for(IndexT ii = 0; ii < N; ++ii)
+            {
+                for(IndexT jj = ii; jj < N; ++jj)
+                {
+
+                    auto [L, R] = upper_LR(indices, ii, jj);
+
+                    ElementMatrix H =
+                        value.template block<BlockDim, BlockDim>(L * BlockDim, R * BlockDim);
+                    m_assembler.m_triplet(offset++).write(indices(L), indices(R), H);
+                }
+            }
+        }
+
+        /**
+         * @brief Only write to the upper triangular part of the global matrix. (not the submatrix)
+         * 
+         * Constraints: if either side is ignored, write zero.
+         */
+        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
+                                const Eigen::Vector<int8_t, N>  ignore,
+                                const BlockMatrix&              value)
+        {
+            IndexT offset = m_I;
+            for(IndexT ii = 0; ii < N; ++ii)
+            {
+                for(IndexT jj = ii; jj < N; ++jj)
+                {
+                    auto [L, R] = upper_LR(indices, ii, jj);
+
+                    ElementMatrix H;
+                    if(ignore(L) || ignore(R))
+                    {
+                        H.setZero();
+                    }
+                    else
+                    {
+                        H = value.template block<BlockDim, BlockDim>(L * BlockDim, R * BlockDim);
+                    }
+                    m_assembler.m_triplet(offset++).write(indices(L), indices(R), H);
+                }
+            }
+        }
+
+      private:
+        MUDA_GENERIC UpperLR upper_LR(const Eigen::Vector<IndexT, N>& indices,
+                                      const IndexT&                   I,
+                                      const IndexT&                   J)
+        {
+            auto    submatrix_offset = m_assembler.m_triplet.submatrix_offset();
+            UpperLR ret;
+            // keep it in upper triangular in the global matrix (not the submatrix)
+            if(indices(I) + submatrix_offset.x < indices(J) + submatrix_offset.y)
+            {
+                ret.L = I;
+                ret.R = J;
+            }
+            else
+            {
+                ret.L = J;
+                ret.R = I;
+            }
+            return ret;
+        }
+
+        TripletMatrixAssembler& m_assembler;
+        IndexT                  m_I;
+    };
+
+
     /** 
      * @brief Take a range of [I, I + N * N) from the triplets.
      */
@@ -317,6 +419,15 @@ class TripletMatrixAssembler
         requires(M == N)
     {
         return ProxyRange<N>(*this, I);
+    }
+
+    /** 
+     * @brief Take a range of [I, I + N * (N + 1) / 2) from the triplets.
+     */
+    template <int N>
+    MUDA_GENERIC ProxyRangeHalf<N> half_block(IndexT I)
+    {
+        return ProxyRangeHalf<N>(*this, I);
     }
 
     /** 

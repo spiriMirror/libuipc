@@ -99,8 +99,9 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
 
     virtual void do_report_extent(ReportExtentInfo& info) override
     {
-        info.energy_count(hinges.size());  // Each hinge has 1 energy
-        info.stencil_dim(3);               // Each hinge has 3 vertices
+        info.energy_count(hinges.size());           // Each hinge has 1 energy
+        info.gradient_count(hinges.size() * 3);     // Each hinge has 3 vertices
+        info.hessian_count(hinges.size() * 3 * 3);  // Each hinge has 3 vertices
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
