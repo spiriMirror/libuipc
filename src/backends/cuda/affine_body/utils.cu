@@ -1,4 +1,5 @@
 #include <affine_body/utils.h>
+#include <Eigen/Geometry>
 
 namespace uipc::backend::cuda
 {
