@@ -182,7 +182,7 @@ TEST_CASE("47_external_articulation_multijoints", "[abd]")
         fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     REQUIRE(world.is_valid());
 
-    while(world.frame() < 100)
+    while(world.frame() < 240)
     {
         world.advance();
         world.retrieve();

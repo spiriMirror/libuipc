@@ -336,7 +336,11 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                             "ExternalArticulationConstraint: 'joint_joint' attribute collection not found in geometry");
                 UIPC_ASSERT(joint_joint_collection->size()
                                 == joint_collection->size() * joint_collection->size(),
-                            "ExternalArticulationConstraint: 'joint_joint' collection size mismatch");
+                            "ExternalArticulationConstraint: 'joint_joint' collection size mismatch, expected {} * {} = {}, got {}",
+                            joint_collection->size(),
+                            joint_collection->size(),
+                            joint_collection->size() * joint_collection->size(),
+                            joint_joint_collection->size());
 
                 auto mass = joint_joint_collection->find<Float>("mass");
                 UIPC_ASSERT(mass, "ExternalArticulationConstraint: 'mass' attribute not found in joint_joint collection");
