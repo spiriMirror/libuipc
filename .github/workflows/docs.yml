@@ -17,6 +17,7 @@ on:
       - 'mkdocs*.yml'
       - '.github/workflows/docs.yml'
   pull_request:
+    types: [opened, synchronize, closed]
     branches:
       - main
     paths:
