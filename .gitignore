@@ -38,3 +38,6 @@ cmake-build-*/
 
 # vsxmake
 vsxmake*/
+
+# macOS
+.DS_Store

@@ -7,7 +7,7 @@ namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
 
-void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
+void def_create(py::class_<AttributeCollection, S<AttributeCollection>>& class_AttributeCollection)
 {
     class_AttributeCollection
         // I32
@@ -202,12 +202,13 @@ Args:
 Returns:
     AttributeSlot: Created attribute slot.)")
         // String
-        .def("create",
-             [](AttributeCollection& self, std::string_view name, std::string_view str)
-             { return self.create<std::string>(name, std::string{str}); },
-             py::arg("name"),
-             py::arg("value"),
-             R"(Create a string attribute.
+        .def(
+            "create",
+            [](AttributeCollection& self, std::string_view name, std::string_view str)
+            { return self.create<std::string>(name, std::string{str}); },
+            py::arg("name"),
+            py::arg("value"),
+            R"(Create a string attribute.
 Args:
     name: Attribute name.
     value: String value.
@@ -217,9 +218,8 @@ Returns:
 
 PyAttributeCollection::PyAttributeCollection(py::module& m)
 {
-    auto class_AttributeCollection =
-        py::class_<AttributeCollection>(m, "AttributeCollection",
-                                        R"(AttributeCollection class for managing collections of attributes (scalars, vectors, matrices, strings).)");
+    auto class_AttributeCollection = py::class_<AttributeCollection, S<AttributeCollection>>(
+        m, "AttributeCollection", R"(AttributeCollection class for managing collections of attributes (scalars, vectors, matrices, strings).)");
 
     def_create(class_AttributeCollection);
 
@@ -234,53 +234,58 @@ Args:
     name: New name for the shared attribute.
     slot: Attribute slot to share.)");
 
-    class_AttributeCollection.def("destroy", &AttributeCollection::destroy,
+    class_AttributeCollection.def("destroy",
+                                  &AttributeCollection::destroy,
                                   py::arg("name"),
                                   R"(Destroy an attribute by name.
 Args:
     name: Attribute name to destroy.)");
 
-    class_AttributeCollection.def("find",
-                                  [](AttributeCollection& self,
-                                     std::string_view name) -> S<IAttributeSlot>
-                                  { return self.find(name); },
-                                  py::arg("name"),
-                                  R"(Find an attribute by name.
+    class_AttributeCollection.def(
+        "find",
+        [](AttributeCollection& self, std::string_view name) -> S<IAttributeSlot>
+        { return self.find(name); },
+        py::arg("name"),
+        R"(Find an attribute by name.
 Args:
     name: Attribute name.
 Returns:
     AttributeSlot or None: Attribute slot if found, None otherwise.)");
 
-    class_AttributeCollection.def("resize", &AttributeCollection::resize,
+    class_AttributeCollection.def("resize",
+                                  &AttributeCollection::resize,
                                   py::arg("size"),
                                   R"(Resize all attributes to the specified size.
 Args:
     size: New size for all attributes.)");
 
-    class_AttributeCollection.def("clear", &AttributeCollection::clear,
-                                  R"(Clear all attributes.)");
+    class_AttributeCollection.def("clear", &AttributeCollection::clear, R"(Clear all attributes.)");
 
-    class_AttributeCollection.def("size", &AttributeCollection::size,
+    class_AttributeCollection.def("size",
+                                  &AttributeCollection::size,
                                   R"(Get the size of attributes.
 Returns:
     int: Size of attributes.)");
 
-    class_AttributeCollection.def("reserve", &AttributeCollection::reserve,
+    class_AttributeCollection.def("reserve",
+                                  &AttributeCollection::reserve,
                                   py::arg("size"),
                                   R"(Reserve capacity for attributes.
 Args:
     size: Capacity to reserve.)");
 
-    class_AttributeCollection.def("attribute_count", &AttributeCollection::attribute_count,
+    class_AttributeCollection.def("attribute_count",
+                                  &AttributeCollection::attribute_count,
                                   R"(Get the number of attributes.
 Returns:
     int: Number of attributes.)");
 
-    class_AttributeCollection.def("reorder",
-                                  [](AttributeCollection& self, py::array_t<SizeT> arr)
-                                  { self.reorder(as_span<SizeT>(arr)); },
-                                  py::arg("indices"),
-                                  R"(Reorder attributes according to the given indices.
+    class_AttributeCollection.def(
+        "reorder",
+        [](AttributeCollection& self, py::array_t<SizeT> arr)
+        { self.reorder(as_span<SizeT>(arr)); },
+        py::arg("indices"),
+        R"(Reorder attributes according to the given indices.
 Args:
     indices: Array of new indices for reordering.)");
 }

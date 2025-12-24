@@ -58,19 +58,23 @@ PYBIND11_MODULE(pyuipc, m)
 
     // # Workaround for MSVC Release Config
     // # Manually Convert Python Dict to Json
-    m.def("init", [](py::dict dict) { uipc::init(pyjson::to_json(dict)); },
-         py::arg("dict"),
-         R"(Initialize the libuipc library with the given configuration.
+    m.def(
+        "init",
+        [](py::dict dict) { uipc::init(pyjson::to_json(dict)); },
+        py::arg("dict"),
+        R"(Initialize the libuipc library with the given configuration.
 Args:
     dict: Configuration dictionary containing library settings.)");
 
-    m.def("default_config", &uipc::default_config,
-         R"(Get the default configuration for libuipc.
+    m.def("default_config",
+          &uipc::default_config,
+          R"(Get the default configuration for libuipc.
 Returns:
     dict: Default configuration dictionary.)");
 
-    m.def("config", &uipc::config,
-         R"(Get the current configuration of libuipc.
+    m.def("config",
+          &uipc::config,
+          R"(Get the current configuration of libuipc.
 Returns:
     dict: Current configuration dictionary.)");
 

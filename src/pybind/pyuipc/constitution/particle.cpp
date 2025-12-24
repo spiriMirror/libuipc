@@ -7,8 +7,8 @@ namespace pyuipc::constitution
 using namespace uipc::constitution;
 PyParticle::PyParticle(py::module& m)
 {
-    auto class_Particle = py::class_<Particle, FiniteElementConstitution>(m, "Particle",
-                                                                           R"(Particle constitution for point-mass simulation.)");
+    auto class_Particle = py::class_<Particle, FiniteElementConstitution>(
+        m, "Particle", R"(Particle constitution for point-mass simulation.)");
 
     class_Particle.def(py::init<const Json&>(),
                        py::arg("config") = Particle::default_config(),
@@ -16,8 +16,9 @@ PyParticle::PyParticle(py::module& m)
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
 
-    class_Particle.def_static("default_config", &Particle::default_config,
-                             R"(Get the default Particle configuration.
+    class_Particle.def_static("default_config",
+                              &Particle::default_config,
+                              R"(Get the default Particle configuration.
 Returns:
     dict: Default configuration dictionary.)");
 

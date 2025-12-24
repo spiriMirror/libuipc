@@ -62,6 +62,10 @@ if(MSVC)
     target_compile_options(uipc_core PRIVATE "/bigobj")
     # nominmax to avoid conflicts on `min/max` macros on Windows
     target_compile_definitions(uipc_core PUBLIC NOMINMAX)
+    # set MSVC runtime library on Windows always /MD or /MDd
+    set_target_properties(uipc_core PROPERTIES
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL"
+    )
 endif()
 # ------------------------------------------------------------------------------
 # add the files in the subdirectories to the target uipc

@@ -8,4 +8,4 @@ class PySoftTransformConstraint
   public:
     PySoftTransformConstraint(py::module& m);
 };
-}  // namespace pyuipc
+}  // namespace pyuipc::constitution
