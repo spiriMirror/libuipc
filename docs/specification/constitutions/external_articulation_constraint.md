@@ -11,7 +11,7 @@ $$
 K = \frac{1}{2}\left( \delta\boldsymbol{\theta}(\mathbf{q}, \mathbf{q}^t) - \tilde{\delta\boldsymbol{\theta}} \right)^T \mathbf{M}^t \left(\delta\boldsymbol{\theta}(\mathbf{q}, \mathbf{q}^t) -\tilde{\delta\boldsymbol{\theta}} \right)
 $$
 
-where $\mathbf{q}_{12n}$ is the DOF of $n$ affine bodies in the, $\delta\boldsymbol{\theta}_{m}$ is the variational DOF of $m$ Joints, $\tilde{\delta\boldsymbol{\theta}}$ is the predicted variational joint DOF , $\mathbf{M}^t$ is the **Effective Mass** on the articulation DOF, which is a $m \times m$ dense matrix. The $\mathbf{M}^t$ with $t$ denotes that it is the effective mass at previous time step, indicating that it is a constant during the current time step's optimization.
+where $\mathbf{q}_{12n}$ is the DOF of $n$ affine bodies, $\delta\boldsymbol{\theta}_{m}$ is the variational DOF of $m$ Joints, $\tilde{\delta\boldsymbol{\theta}}$ is the predicted variational joint DOF , $\mathbf{M}^t$ is the **Effective Mass** on the articulation DOF, which is a $m \times m$ dense matrix. The $\mathbf{M}^t$ with $t$ denotes that it is the effective mass at previous time step, indicating that it is a constant during the current time step's optimization.
 
 It's **users' responsibility** to pass the $\mathbf{M}^t$ and $\tilde{\delta\boldsymbol{\theta}}$ to the `ExternalArticulationConstraint` through the `libuipc` animator callback function. The details of computing $\mathbf{M}^t$ and $\tilde{\delta\boldsymbol{\theta}}$ are out of scope of this document, as they depend on the specific articulation system being modeled. Some recommended references for computing these terms include:
 
