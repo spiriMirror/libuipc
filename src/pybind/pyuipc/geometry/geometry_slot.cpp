@@ -5,10 +5,12 @@ namespace pyuipc::geometry
 using namespace uipc::geometry;
 PyGeometrySlot::PyGeometrySlot(py::module& m)
 {
-    auto class_GeometrySlot = py::class_<GeometrySlot, S<GeometrySlot>>(m, "GeometrySlot",
-                                                                          R"(GeometrySlot class representing a slot containing a geometry.)");
-    class_GeometrySlot.def("id", [](GeometrySlot& self) { return self.id(); },
-                          R"(Get the geometry slot ID.
+    auto class_GeometrySlot = py::class_<GeometrySlot, S<GeometrySlot>>(
+        m, "GeometrySlot", R"(GeometrySlot class representing a slot containing a geometry.)");
+    class_GeometrySlot.def(
+        "id",
+        [](GeometrySlot& self) { return self.id(); },
+        R"(Get the geometry slot ID.
 Returns:
     int: Geometry slot ID.)");
     class_GeometrySlot.def(

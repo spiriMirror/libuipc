@@ -7,9 +7,8 @@ namespace pyuipc::constitution
 using namespace uipc::constitution;
 PyStableNeoHookean::PyStableNeoHookean(py::module& m)
 {
-    auto class_StableNeoHookean =
-        py::class_<StableNeoHookean, FiniteElementConstitution>(m, "StableNeoHookean",
-                                                                 R"(StableNeoHookean constitution for stable neo-Hookean hyperelastic material.)");
+    auto class_StableNeoHookean = py::class_<StableNeoHookean, FiniteElementConstitution>(
+        m, "StableNeoHookean", R"(StableNeoHookean constitution for stable neo-Hookean hyperelastic material.)");
 
     class_StableNeoHookean.def(py::init<const Json&>(),
                                py::arg("config") = StableNeoHookean::default_config(),
@@ -17,8 +16,9 @@ PyStableNeoHookean::PyStableNeoHookean(py::module& m)
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
 
-    class_StableNeoHookean.def_static("default_config", &StableNeoHookean::default_config,
-                                     R"(Get the default StableNeoHookean configuration.
+    class_StableNeoHookean.def_static("default_config",
+                                      &StableNeoHookean::default_config,
+                                      R"(Get the default StableNeoHookean configuration.
 Returns:
     dict: Default configuration dictionary.)");
 

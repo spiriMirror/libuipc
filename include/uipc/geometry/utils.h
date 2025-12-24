@@ -11,7 +11,7 @@
 #include <uipc/geometry/utils/label_connected_vertices.h>
 #include <uipc/geometry/utils/label_region.h>
 #include <uipc/geometry/utils/apply_region.h>
-#include <uipc/geometry/utils/compute_instance_volume.h>
+#include <uipc/geometry/utils/compute_mesh_volume.h>
 #include <uipc/geometry/utils/optimal_transform.h>
 #include <uipc/geometry/utils/is_trimesh_closed.h>
 #include <uipc/geometry/utils/constitution_type.h>

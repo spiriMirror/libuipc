@@ -7,3 +7,6 @@ def project_dir():
 
 def backend_source_dir(backend_name:str):
     return project_dir() / 'src' / 'backends' / backend_name
+
+def project_relative_path(absolute_path:pl.Path):
+    return absolute_path.relative_to(project_dir())

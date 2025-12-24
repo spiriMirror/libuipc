@@ -6,8 +6,8 @@ namespace pyuipc::core
 using namespace uipc::core;
 PyFeatureCollection::PyFeatureCollection(py::module& m)
 {
-    auto class_FeatureCollection = py::class_<FeatureCollection>(m, "FeatureCollection",
-                                                                  R"(FeatureCollection class managing engine features.)");
+    auto class_FeatureCollection = py::class_<FeatureCollection>(
+        m, "FeatureCollection", R"(FeatureCollection class managing engine features.)");
     class_FeatureCollection.def(
         "find",
         [](FeatureCollection& self, std::string_view name) -> S<IFeature>
@@ -36,14 +36,15 @@ Args:
 Returns:
     Feature or None: Feature if found, None otherwise.)");
 
-    class_FeatureCollection.def("to_json", &FeatureCollection::to_json,
+    class_FeatureCollection.def("to_json",
+                                &FeatureCollection::to_json,
                                 R"(Convert feature collection to JSON.
 Returns:
     dict: JSON representation of the feature collection.)");
-    class_FeatureCollection.def("__repr__",
-                                [&](const FeatureCollection& self)
-                                { return self.to_json().dump(4); },
-                                R"(String representation of the feature collection.
+    class_FeatureCollection.def(
+        "__repr__",
+        [&](const FeatureCollection& self) { return self.to_json().dump(4); },
+        R"(String representation of the feature collection.
 Returns:
     str: Formatted JSON string.)");
 }

@@ -19,6 +19,8 @@ REGISTER_CONSTITUTION_UIDS()
     return uids;
 }
 
+
+
 AffineBodyExternalBodyForce::AffineBodyExternalBodyForce(const Json& config)
 {
     m_config = config;
