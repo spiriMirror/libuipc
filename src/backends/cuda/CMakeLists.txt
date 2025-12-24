@@ -1,3 +1,5 @@
+message("=> IN CUDA BACKEND CMAKE LISTS")
+
 if(UIPC_GITHUB_ACTIONS)
     set(CMAKE_CUDA_ARCHITECTURES 75)
 else()
@@ -13,6 +15,8 @@ uipc_info("CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
 # ------------------------------------------------------------------------------
 # CUDA Backend
 # ------------------------------------------------------------------------------
+
+message("=> ADD CUDA BACKEND TARGET")
 
 uipc_add_backend(cuda)
 
@@ -52,3 +56,5 @@ target_sources(cuda PRIVATE ${SOURCES})
 # ------------------------------------------------------------------------------
 file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.hpp" "*.cpp" "*.cu" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
+
+message("=> ADD CUDA BACKEND END-----------------------------------")

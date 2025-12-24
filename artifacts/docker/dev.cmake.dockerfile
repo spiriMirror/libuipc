@@ -64,6 +64,7 @@ ENV PATH="/home/developer/conda/bin:${PATH}"
 # =============================================================================
 # Following the installation method from docs/build_install/linux.md
 # Install to /home/developer/Toolchain/vcpkg
+# Use BuildKit cache mount to cache vcpkg built packages
 RUN --mount=type=cache,target=/home/developer/.cache/vcpkg \
     mkdir -p /home/developer/Toolchain && \
     chown developer:developer /home/developer/Toolchain && \
@@ -114,7 +115,8 @@ RUN --mount=type=cache,target=/home/developer/conda/pkgs \
         conda install -n uipc_env -y -c conda-forge pkgconfig && \
         conda clean -y --tarballs"
 
-# Set CMAKE_TOOLCHAIN_FILE in conda environment (as per docs)
+# Set CMAKE_TOOLCHAIN_FILE in conda environment dont need to set it in bashrc
+ARG CMAKE_TOOLCHAIN_FILE="/home/developer/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake"
 # This is important so CMake can find the Vcpkg toolchain file
 RUN su developer -c "source /home/developer/conda/etc/profile.d/conda.sh && \
     conda activate uipc_env && \
