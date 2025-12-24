@@ -82,5 +82,5 @@ $$
 K = \frac{1}{2}\left( \delta\boldsymbol{\theta}(\mathbf{q}, \mathbf{q}^t_{ref}) - \tilde{\delta\boldsymbol{\theta}} \right)^T \mathbf{M}^t \left(\delta\boldsymbol{\theta}(\mathbf{q}, \mathbf{q}^t_{ref}) -\tilde{\delta\boldsymbol{\theta}} \right)
 $$
 
-where $\mathbf{q}^t_{ref}$ is the previous DOF of the affine body calculated from the external system. Users are responsible for providing and update the `ref_dof_prev` attribute on the affine body instance.
+where $\mathbf{q}^t_{ref}$ is the previous DOF of the affine body calculated from the external system. Users are responsible for providing and updating the `ref_dof_prev` attribute on the affine body instance.
 
