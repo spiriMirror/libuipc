@@ -11,7 +11,7 @@ $$
 K = \frac{1}{2}\left( \delta\boldsymbol{\theta}(\mathbf{q}, \mathbf{q}^t) - \tilde{\delta\boldsymbol{\theta}} \right)^T \mathbf{M}^t \left(\delta\boldsymbol{\theta}(\mathbf{q}, \mathbf{q}^t) -\tilde{\delta\boldsymbol{\theta}} \right)
 $$
 
-where $\mathbf{q}_{12n}$ is the DOF of $n$ affine bodies in the, $\delta\boldsymbol{\theta}_{m}$ is the variational DOF of $m$ Joints, $\tilde{\delta\boldsymbol{\theta}}$ is the predicted variational joint DOF , $\mathbf{M}^t$ is the **Effective Mass** on the articulation DOF, which is a $m \times m$ dense matrix. The $\mathbf{M}^t$ with $t$ denotes that it is the effective mass at previous time step, indicating that it is a constant during the current time step's optimization.
+where $\mathbf{q}_{12n}$ is the DOF of $n$ affine bodies, $\delta\boldsymbol{\theta}_{m}$ is the variational DOF of $m$ Joints, $\tilde{\delta\boldsymbol{\theta}}$ is the predicted variational joint DOF , $\mathbf{M}^t$ is the **Effective Mass** on the articulation DOF, which is a $m \times m$ dense matrix. The $\mathbf{M}^t$ with $t$ denotes that it is the effective mass at previous time step, indicating that it is a constant during the current time step's optimization.
 
 It's **users' responsibility** to pass the $\mathbf{M}^t$ and $\tilde{\delta\boldsymbol{\theta}}$ to the `ExternalArticulationConstraint` through the `libuipc` animator callback function. The details of computing $\mathbf{M}^t$ and $\tilde{\delta\boldsymbol{\theta}}$ are out of scope of this document, as they depend on the specific articulation system being modeled. Some recommended references for computing these terms include:
 
@@ -74,7 +74,7 @@ where $\theta^t$ is the joint translation at previous time step, can be calculat
 
 ## Reference Previous DOF
 
-To prevent a uncontrollable drift of motion without motion synchronization between the external system and the IPC system, we support the input of `ref_dof_prev` attribute on the affine body instance. The `ref_dof_prev` attribute is a vector of 12 elements ([Affine Body DOF](./affine_body.md)), representing the previous DOF of the affine body. If this attribute is provided, the `ExternalArticulationConstraint` will use it to synchronize the motion between the external system and the IPC system based on the previous state from the external system.
+To prevent an uncontrollable drift of motion without motion synchronization between the external system and the IPC system, we support the input of `ref_dof_prev` attribute on the affine body instance. The `ref_dof_prev` attribute is a vector of 12 elements ([Affine Body DOF](./affine_body.md)), representing the previous DOF of the affine body. If this attribute is provided, the `ExternalArticulationConstraint` will use it to synchronize the motion between the external system and the IPC system based on the previous state from the external system.
 
 Thus the formula for the variational joint DOF is:
 
@@ -82,5 +82,5 @@ $$
 K = \frac{1}{2}\left( \delta\boldsymbol{\theta}(\mathbf{q}, \mathbf{q}^t_{ref}) - \tilde{\delta\boldsymbol{\theta}} \right)^T \mathbf{M}^t \left(\delta\boldsymbol{\theta}(\mathbf{q}, \mathbf{q}^t_{ref}) -\tilde{\delta\boldsymbol{\theta}} \right)
 $$
 
-where $\mathbf{q}^t_{ref}$ is the previous DOF of the affine body calculated from the external system. Users are responsible for providing and update the `ref_dof_prev` attribute on the affine body instance.
+where $\mathbf{q}^t_{ref}$ is the previous DOF of the affine body calculated from the external system. Users are responsible for providing and updating the `ref_dof_prev` attribute on the affine body instance.
 

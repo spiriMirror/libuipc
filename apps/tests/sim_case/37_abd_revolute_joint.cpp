@@ -1,4 +1,4 @@
-#include <catch2/catch_all.hpp>
+#include <app/catch2.h>
 #include <app/asset_dir.h>
 #include <app/require_log.h>
 #include <uipc/uipc.h>

@@ -13,6 +13,7 @@ on:
       - 'docs/**'
       - '.github/workflows/xmake.yml'
       - '**/xmake.lua'
+      - '.github/workflows/docs.yml'
 
 jobs:
   build:
