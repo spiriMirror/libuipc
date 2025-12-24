@@ -19,7 +19,7 @@ template <typename InputIt, typename OutputIt, typename OutputCountIt, typename 
         // able to assign value from input to output
         *out_unique = *in_first;
         // out_counts must be a iterator to integral type
-        std::integral<typename std::iterator_traits<OutputCountIt>::value_type>;
+        requires std::integral<typename std::iterator_traits<OutputCountIt>::value_type>;
         // able to assign value to out_counts
         *out_counts = 0;
         // able to compare two values
