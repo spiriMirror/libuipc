@@ -8,4 +8,4 @@ class PySoftPositionConstraint
   public:
     PySoftPositionConstraint(py::module& m);
 };
-}  // namespace pyuipc
+}  // namespace pyuipc::constitution

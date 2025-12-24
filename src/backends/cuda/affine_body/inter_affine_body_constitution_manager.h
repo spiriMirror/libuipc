@@ -51,6 +51,7 @@ class InterAffineBodyConstitutionManager final : public SimSystem
         span<const AffineBodyDynamics::GeoInfo> geo_infos() const noexcept;
         const AffineBodyDynamics::GeoInfo& geo_info(IndexT geo_id) const noexcept;
         IndexT body_id(IndexT geo_id) const noexcept;
+        IndexT body_id(IndexT geo_id, IndexT instance_id) const noexcept;
         geometry::SimplicialComplex* body_geo(span<S<geometry::GeometrySlot>> geo_slots,
                                               IndexT geo_id) const noexcept;
         template <typename ForEachGeometry>

@@ -158,7 +158,10 @@ UIPC_BUILTIN_ATTRIBUTE(is_dynamic);
 UIPC_BUILTIN_ATTRIBUTE(external_kinetic);
 
 /**
- * @brief `volume` <Float> attribute on **vertices**.
+ * @brief `volume` <Float> attribute on **vertices** or **meta**.
+ * 
+ * - vertex volume: the volume associated with each vertex.
+ * - meta volume: the total volume of the geometry.
  */
 UIPC_BUILTIN_ATTRIBUTE(volume);
 

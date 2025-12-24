@@ -159,8 +159,6 @@ void Spmv::rbk_spmv(Float                           a,
                 auto warp_id            = thread_id_in_block / warp_size;
                 auto lane_id            = thread_id_in_block & (warp_size - 1);
 
-                int rest = A.triplet_count() - blockIdx.x * block_dim;
-
                 __shared__ union
                 {
                     typename WarpReduceInt::TempStorage temp_storage_int[block_dim / warp_size];
@@ -332,8 +330,6 @@ void Spmv::rbk_sym_spmv(Float                           a,
                 auto thread_id_in_block = threadIdx.x;
                 auto warp_id            = thread_id_in_block / warp_size;
                 auto lane_id            = thread_id_in_block & (warp_size - 1);
-
-                int rest = A.triplet_count() - blockIdx.x * block_dim;
 
                 __shared__ union
                 {

@@ -7,8 +7,7 @@ namespace pyuipc::backend
 using namespace uipc::backend;
 PyDiffSimVisitor::PyDiffSimVisitor(py::module& m)
 {
-    py::class_<DiffSimVisitor>(m, "DiffSimVisitor",
-                               R"(DiffSimVisitor class for accessing differential simulator data from backend.)")
+    py::class_<DiffSimVisitor>(m, "DiffSimVisitor", R"(DiffSimVisitor class for accessing differential simulator data from backend.)")
         .def(
             "parameters",
             [](DiffSimVisitor& self) -> diff_sim::ParameterCollection&
