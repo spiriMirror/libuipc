@@ -13,6 +13,7 @@ on:
       - 'docs/**'
       - '.github/workflows/cmake.yml'
       - '**/CMakeLists.txt'
+      - '.github/workflows/docs.yml'
       - CMakePresets.json
 
 jobs:
