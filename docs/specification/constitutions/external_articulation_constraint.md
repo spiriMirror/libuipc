@@ -74,7 +74,7 @@ where $\theta^t$ is the joint translation at previous time step, can be calculat
 
 ## Reference Previous DOF
 
-To prevent a uncontrollable drift of motion without motion synchronization between the external system and the IPC system, we support the input of `ref_dof_prev` attribute on the affine body instance. The `ref_dof_prev` attribute is a vector of 12 elements ([Affine Body DOF](./affine_body.md)), representing the previous DOF of the affine body. If this attribute is provided, the `ExternalArticulationConstraint` will use it to synchronize the motion between the external system and the IPC system based on the previous state from the external system.
+To prevent an uncontrollable drift of motion without motion synchronization between the external system and the IPC system, we support the input of `ref_dof_prev` attribute on the affine body instance. The `ref_dof_prev` attribute is a vector of 12 elements ([Affine Body DOF](./affine_body.md)), representing the previous DOF of the affine body. If this attribute is provided, the `ExternalArticulationConstraint` will use it to synchronize the motion between the external system and the IPC system based on the previous state from the external system.
 
 Thus the formula for the variational joint DOF is:
 
