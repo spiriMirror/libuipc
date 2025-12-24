@@ -62,7 +62,9 @@ jobs:
           python scripts/build_docs.py -o site
 
       - name: Checkout libuipc-doc repository
-        if: github.event_name == 'push'
+        if: |
+          (github.event_name == 'push') ||
+          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/libuipc-doc
@@ -71,13 +73,17 @@ jobs:
           fetch-depth: 0
 
       - name: Configure Git
-        if: github.event_name == 'push'
+        if: |
+          (github.event_name == 'push') ||
+          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Copy built documentation
-        if: github.event_name == 'push'
+        if: |
+          (github.event_name == 'push') ||
+          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
         run: |
           cd libuipc-doc
           # Remove old docs
@@ -86,10 +92,20 @@ jobs:
           cp -r ../site/* docs/
 
       - name: Commit and push changes
-        if: github.event_name == 'push'
+        if: |
+          (github.event_name == 'push') ||
+          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
         run: |
           cd libuipc-doc
           git add -A
-          git diff --staged --quiet || git commit -m "Deploy documentation from libuipc@${{ github.sha }}"
-          git push
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              git commit -m "Deploy documentation from PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+            else
+              git commit -m "Deploy documentation from libuipc@${{ github.sha }}"
+            fi
+            git push
+          fi
 
