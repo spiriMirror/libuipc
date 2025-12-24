@@ -1,0 +1,111 @@
+# This workflow automatically builds and deploys documentation to the libuipc-doc repository
+# when docs/ directory, mkdocs*.yml files, or this workflow file is updated in the main branch.
+#
+# Setup required:
+# 1. Create a Personal Access Token (PAT) with 'repo' scope in GitHub Settings > Developer settings > Personal access tokens
+# 2. Add the token as a secret named 'DOCS_DEPLOY_TOKEN' in the libuipc repository settings
+# 3. Ensure the libuipc-doc repository exists under the same GitHub organization/user
+
+name: Deploy Documentation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs*.yml'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs*.yml'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch: # Allow manual triggering
+
+jobs:
+  deploy-docs:
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'push' && github.event.repository.fork == false) ||
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false) ||
+      github.event_name == 'workflow_dispatch'
+    
+    permissions:
+      contents: write # Required to push to libuipc-doc repository
+    
+    steps:
+      - name: Checkout libuipc repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Doxygen
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Install mkdocs and dependencies
+        run: |
+          pip install mkdocs mkdocs-material mkdocs-literate-nav mkdoxy mkdocs-video
+
+      - name: Build documentation
+        run: |
+          python scripts/build_docs.py -o site
+
+      - name: Checkout libuipc-doc repository
+        if: |
+          (github.event_name == 'push') ||
+          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/libuipc-doc
+          token: ${{ secrets.DOCS_DEPLOY_TOKEN }}
+          path: libuipc-doc
+          fetch-depth: 0
+
+      - name: Configure Git
+        if: |
+          (github.event_name == 'push') ||
+          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Copy built documentation
+        if: |
+          (github.event_name == 'push') ||
+          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+        run: |
+          cd libuipc-doc
+          # Remove old docs
+          rm -rf docs/*
+          # Copy new docs
+          cp -r ../site/* docs/
+
+      - name: Commit and push changes
+        if: |
+          (github.event_name == 'push') ||
+          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+        run: |
+          cd libuipc-doc
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              git commit -m "Deploy documentation from PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+            else
+              git commit -m "Deploy documentation from libuipc@${{ github.sha }}"
+            fi
+            git push
+          fi
+
