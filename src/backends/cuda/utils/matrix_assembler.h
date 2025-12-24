@@ -228,24 +228,8 @@ class TripletMatrixAssembler
         }
 
 
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices, const BlockMatrix& value)
-            requires(N > 1)
-        {
-            IndexT offset = m_I;
-            for(IndexT ii = 0; ii < N; ++ii)
-            {
-                for(IndexT jj = 0; jj < N; ++jj)
-                {
-                    ElementMatrix H =
-                        value.template block<BlockDim, BlockDim>(ii * BlockDim, jj * BlockDim);
-
-                    m_assembler.m_triplet(offset++).write(indices(ii), indices(jj), H);
-                }
-            }
-        }
-
-        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
-                                const Eigen::Vector<IndexT, N>& ignore,
+        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& l_indices,
+                                const Eigen::Vector<IndexT, N>& r_indices,
                                 const BlockMatrix&              value)
             requires(N > 1)
         {
@@ -256,12 +240,51 @@ class TripletMatrixAssembler
                 {
                     ElementMatrix H =
                         value.template block<BlockDim, BlockDim>(ii * BlockDim, jj * BlockDim);
-                    if(ignore(ii) || ignore(jj))
-                        H.setZero();
 
-                    m_assembler.m_triplet(offset++).write(indices(ii), indices(jj), H);
+                    m_assembler.m_triplet(offset++).write(l_indices(ii), r_indices(jj), H);
                 }
             }
+        }
+
+        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& l_indices,
+                                const Eigen::Vector<int8_t, N>& l_ignore,
+                                const Eigen::Vector<IndexT, N>& r_indices,
+                                const Eigen::Vector<int8_t, N>& r_ignore,
+                                const BlockMatrix&              value)
+            requires(N > 1)
+        {
+            IndexT offset = m_I;
+            for(IndexT ii = 0; ii < N; ++ii)
+            {
+                for(IndexT jj = 0; jj < N; ++jj)
+                {
+                    ElementMatrix H;
+                    if(l_ignore(ii) || r_ignore(jj))
+                        H.setZero();
+                    else
+                        H = value.template block<BlockDim, BlockDim>(ii * BlockDim,
+                                                                     jj * BlockDim);
+
+
+                    m_assembler.m_triplet(offset++).write(l_indices(ii), r_indices(jj), H);
+                }
+            }
+        }
+
+
+        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices, const BlockMatrix& value)
+            requires(N > 1)
+        {
+            write(indices, indices, value);
+        }
+
+
+        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& indices,
+                                const Eigen::Vector<int8_t, N>  ignore,
+                                const BlockMatrix&              value)
+            requires(N > 1)
+        {
+            write(indices, ignore, indices, ignore, value);
         }
 
         MUDA_GENERIC void write(IndexT indices, const ElementMatrix& value)

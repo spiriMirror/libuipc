@@ -6,8 +6,8 @@ namespace pyuipc::core
 using namespace uipc::core;
 PyDiffSim::PyDiffSim(py::module& m)
 {
-    auto class_DiffSim = py::class_<DiffSim>(m, "DiffSim",
-                                             R"(DiffSim class for differential simulation parameters and state.)");
+    auto class_DiffSim = py::class_<DiffSim>(
+        m, "DiffSim", R"(DiffSim class for differential simulation parameters and state.)");
 
     class_DiffSim.def(
         "parameters",

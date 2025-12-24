@@ -7,16 +7,18 @@ namespace pyuipc::constitution
 using namespace uipc::constitution;
 PyEmpty::PyEmpty(py::module& m)
 {
-    auto class_Particle = py::class_<Empty, FiniteElementConstitution>(m, "Empty",
-                                                                        R"(Empty constitution (no material properties, used for mass-only elements).)");
+    auto class_Particle = py::class_<Empty, FiniteElementConstitution>(
+        m, "Empty", R"(Empty constitution (no material properties, used for mass-only elements).)");
 
-    class_Particle.def(py::init<const Json&>(), py::arg("config") = Empty::default_config(),
+    class_Particle.def(py::init<const Json&>(),
+                       py::arg("config") = Empty::default_config(),
                        R"(Create an Empty constitution.
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
 
-    class_Particle.def_static("default_config", &Empty::default_config,
-                             R"(Get the default Empty configuration.
+    class_Particle.def_static("default_config",
+                              &Empty::default_config,
+                              R"(Get the default Empty configuration.
 Returns:
     dict: Default configuration dictionary.)");
 

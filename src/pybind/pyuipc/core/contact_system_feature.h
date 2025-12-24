@@ -8,4 +8,4 @@ class PyContactSystemFeature
   public:
     PyContactSystemFeature(py::module& m);
 };
-}  // namespace pyuipc::diff_sim
+}  // namespace pyuipc::core
