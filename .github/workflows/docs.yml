@@ -17,7 +17,6 @@ on:
       - 'mkdocs*.yml'
       - '.github/workflows/docs.yml'
   pull_request:
-    types: [opened, synchronize, closed]
     branches:
       - main
     paths:
@@ -64,8 +63,7 @@ jobs:
 
       - name: Checkout libuipc-doc repository
         if: |
-          (github.event_name == 'push') ||
-          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+          (github.event_name == 'push')
         uses: actions/checkout@v4
         with:
           repository: ${{ github.repository_owner }}/libuipc-doc
@@ -75,16 +73,14 @@ jobs:
 
       - name: Configure Git
         if: |
-          (github.event_name == 'push') ||
-          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+          (github.event_name == 'push')
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Copy built documentation
         if: |
-          (github.event_name == 'push') ||
-          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+          (github.event_name == 'push')
         run: |
           cd libuipc-doc
           # Remove old docs
@@ -94,8 +90,7 @@ jobs:
 
       - name: Commit and push changes
         if: |
-          (github.event_name == 'push') ||
-          (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+          (github.event_name == 'push')
         run: |
           cd libuipc-doc
           git add -A
