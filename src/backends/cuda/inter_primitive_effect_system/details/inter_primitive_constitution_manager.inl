@@ -24,7 +24,7 @@ void InterPrimitiveConstitutionManager::_for_each(span<S<geometry::GeometrySlot>
         }
         else
         {
-            static_assert(false, "Invalid ForEachGeometry");
+            static_assert(always_false_v<ForEachGeometry>, "Invalid ForEachGeometry");
         }
     }
 }
@@ -36,4 +36,4 @@ void InterPrimitiveConstitutionManager::FilteredInfo::for_each(
     InterPrimitiveConstitutionManager::_for_each(
         geo_slots, this->inter_geo_infos(), std::forward<ForEachGeometry>(for_every_geometry));
 }
-}
+}  // namespace uipc::backend::cuda

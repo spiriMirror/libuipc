@@ -32,7 +32,7 @@ void InterAffineBodyConstitutionManager::_for_each(span<S<geometry::GeometrySlot
         }
         else
         {
-            static_assert(false, "Invalid ForEachGeometry");
+            static_assert(always_false_v<ForEachGeometry>, "Invalid ForEachGeometry");
         }
     }
 }

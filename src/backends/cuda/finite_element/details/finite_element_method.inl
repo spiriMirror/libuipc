@@ -29,7 +29,7 @@ void FiniteElementMethod::_for_each(span<const GeoInfo>             geo_infos,
         }
         else
         {
-            static_assert(false, "Invalid ForEachGeometry");
+            static_assert(always_false_v<ForEachGeometry>, "Invalid ForEachGeometry");
         }
     }
 }
