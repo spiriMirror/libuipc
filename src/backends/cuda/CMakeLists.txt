@@ -13,7 +13,6 @@ uipc_info("CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
 # ------------------------------------------------------------------------------
 # CUDA Backend
 # ------------------------------------------------------------------------------
-
 uipc_add_backend(cuda)
 
 # basic setup

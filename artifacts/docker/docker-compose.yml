@@ -1,0 +1,70 @@
+services:
+  # Empty Development Environment
+  # Fast to build and start, but no project build support.
+  dev-empty-conda:
+    build:
+      context: ../..
+      dockerfile: artifacts/docker/dev.conda.dockerfile
+    image: libuipc-dev:empty-conda
+    pull_policy: build
+    container_name: libuipc-dev-empty-conda
+    volumes:
+      - ../../:/home/developer/libuipc
+    working_dir: /home/developer/libuipc
+    stdin_open: true
+    tty: true
+    command: ["bash"]
+
+  dev-cmake-cu128:
+    build:
+      context: ../..
+      dockerfile: artifacts/docker/dev.cmake.dockerfile
+      args:
+        CUDA_VERSION: 12.8.1
+        UBUNTU_VERSION: 24.04
+        CMAKE_CUDA_ARCHITECTURES: 89
+        CMAKE_BUILD_TYPE: RelWithDebInfo
+        BUILD_PROJECT: "false"
+    image: libuipc-dev:cmake-cu128
+    pull_policy: build
+    container_name: libuipc-dev-cmake-cu128
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ../../:/home/developer/libuipc
+    working_dir: /home/developer/libuipc
+    stdin_open: true
+    tty: true
+    command: ["bash"]
+  
+  dev-cmake-cu130:
+    build:
+      context: ../..
+      dockerfile: artifacts/docker/dev.cmake.dockerfile
+      args:
+        CUDA_VERSION: 13.0.0
+        UBUNTU_VERSION: 24.04
+        CMAKE_CUDA_ARCHITECTURES: 89
+        CMAKE_BUILD_TYPE: RelWithDebInfo
+        BUILD_PROJECT: "false"
+    image: libuipc-dev:cmake-cu130
+    pull_policy: build
+    container_name: libuipc-dev-cmake-cu130
+    runtime: nvidia
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
+    volumes:
+      - ../../:/home/developer/libuipc
+    working_dir: /home/developer/libuipc
+    stdin_open: true
+    tty: true
+    command: ["bash"]
+
+  # later support:
+  # - dev-xmake-cu128
+  # - dev-xmake-cu130
+
+
