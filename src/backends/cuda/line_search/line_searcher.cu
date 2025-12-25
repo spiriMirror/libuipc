@@ -2,6 +2,7 @@
 #include <uipc/common/enumerate.h>
 #include <uipc/common/zip.h>
 #include <line_search/line_search_reporter.h>
+#include <uipc/common/timer.h>
 
 namespace uipc::backend::cuda
 {
@@ -54,6 +55,8 @@ void LineSearcher::step_forward(Float alpha)
 
 Float LineSearcher::compute_energy(bool is_initial)
 {
+    Timer timer{"Compute Energy"};
+
     auto reporter_energyes = span{m_energy_values}.subspan(0, m_reporters.view().size());
 
     for(auto&& [E, R] : zip(reporter_energyes, m_reporters.view()))

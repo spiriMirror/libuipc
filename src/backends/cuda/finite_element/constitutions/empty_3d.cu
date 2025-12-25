@@ -23,7 +23,8 @@ class Empty3D final : public FEM3DConstitution
     virtual void do_report_extent(ReportExtentInfo& info)
     {
         info.energy_count(0);
-        info.stencil_dim(4);
+        info.gradient_count(0);
+        info.hessian_count(0);
     }
 
     virtual void do_build(BuildInfo& info) override

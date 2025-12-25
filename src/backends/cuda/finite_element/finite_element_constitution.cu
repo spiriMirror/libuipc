@@ -39,7 +39,12 @@ void FiniteElementConstitution::do_report_extent(ReportExtentInfo& info)
 {
     auto& c_info = constitution_info();
     info.energy_count(c_info.primitive_count);
-    info.stencil_dim(dim() + 1);
+    auto stencil_size = dim() + 1;
+    info.gradient_count(c_info.primitive_count * stencil_size);
+
+    // Basically, we assemble full hessian for each element
+    // user can override this function to report less hessian entries
+    info.hessian_count(c_info.primitive_count * stencil_size * stencil_size);
 }
 
 const FiniteElementMethod::DimInfo& FiniteElementConstitution::dim_info() const noexcept
@@ -61,7 +66,8 @@ const FiniteElementMethod::ConstitutionInfo& FiniteElementConstitution::constitu
             return fem().fem_3d_constitution_infos[m_index_in_dim];
         default:
             UIPC_ASSERT(false, "Invalid Dim {}D", dim());
-            break;
+            // dummy return to suppress compiler warning
+            return fem().fem_3d_constitution_infos[m_index_in_dim];
     }
 }
 
