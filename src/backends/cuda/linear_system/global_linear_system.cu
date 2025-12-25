@@ -6,6 +6,7 @@
 #include <linear_system/global_preconditioner.h>
 #include <linear_system/local_preconditioner.h>
 #include <fstream>
+#include <sim_engine.h>
 
 namespace uipc::backend::cuda
 {
@@ -71,10 +72,14 @@ void GlobalLinearSystem::do_build() {}
 
 void GlobalLinearSystem::solve()
 {
+
     m_impl.build_linear_system();
     // if the system is empty, skip the following steps
     if(m_impl.empty_system) [[unlikely]]
         return;
+    logger::info("GlobalLinearSystem has {} DoFs, Unique Triplet Count: {}",
+                 m_impl.b.size(),
+                 m_impl.bcoo_A.triplet_count());
     m_impl.solve_linear_system();
     m_impl.distribute_solution();
 }

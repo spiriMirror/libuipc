@@ -84,6 +84,7 @@ void SimEngine::do_advance()
     {
         if(m_global_contact_manager)
         {
+            Timer timer{"Compute CFL Condition"};
             cfl_alpha = m_global_contact_manager->compute_cfl_condition();
             if(cfl_alpha < alpha)
             {
