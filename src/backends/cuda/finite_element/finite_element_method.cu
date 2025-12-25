@@ -183,8 +183,8 @@ void FiniteElementMethod::Impl::_classify_base_constitutions()
                   auto   uidb = b->uid();
                   auto   dima = a->dim();
                   auto   dimb = b->dim();
-                  DimUID uid_dim_a{static_cast<SizeT>(dima), uida};
-                  DimUID uid_dim_b{static_cast<SizeT>(dimb), uidb};
+                  DimUID uid_dim_a{dima, uida};
+                  DimUID uid_dim_b{dimb, uidb};
                   return uid_dim_a < uid_dim_b;
               });
 

@@ -14,19 +14,26 @@ class NeoHookeanShell2D final : public Codim2DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64 ConstitutionUID = 11;
+    static constexpr U64   ConstitutionUID   = 11;
+    static constexpr SizeT half_hessian_size = 3 * (3 + 1) / 2;
 
     using Codim2DConstitution::Codim2DConstitution;
 
     vector<Float> h_kappas;
     vector<Float> h_lambdas;
 
-    muda::DeviceBuffer<Float> kappas;
-    muda::DeviceBuffer<Float> lambdas;
+    muda::DeviceBuffer<Float>     kappas;
+    muda::DeviceBuffer<Float>     lambdas;
+    muda::DeviceBuffer<Matrix2x2> inv_B_matrices;
+
+    SimSystemSlot<FiniteElementMethod> fem;
 
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
-    virtual void do_build(BuildInfo& info) override {}
+    virtual void do_build(BuildInfo& info) override
+    {
+        fem = require<FiniteElementMethod>();
+    }
 
     virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
@@ -62,6 +69,41 @@ class NeoHookeanShell2D final : public Codim2DConstitution
 
         lambdas.resize(N);
         lambdas.view().copy_from(h_lambdas.data());
+
+        auto& cinfo       = info.constitution_info();
+        auto  prim_offset = cinfo.primitive_offset;
+        auto  prim_count  = cinfo.primitive_count;
+        auto  prims       = fem->codim_2ds().subview(prim_offset, prim_count);
+        auto  x_bars      = fem->x_bars();
+
+        inv_B_matrices.resize(N);
+
+        // Precompute inverse of rest shape matrix for each triangle
+        using namespace muda;
+        namespace NH = sym::shell_neo_hookean_2d;
+        ParallelFor()
+            .file_line(__FILE__, __LINE__)
+            .apply(N,
+                   [prims  = prims.viewer().name("prims"),
+                    x_bars = x_bars.viewer().name("x_bars"),
+                    inv_B_mats = inv_B_matrices.viewer().name("inv_B_mats")] __device__(int I)
+                   {
+                       Vector9  X_bar;
+                       Vector3i idx = prims(I);
+                       for(int i = 0; i < 3; ++i)
+                           X_bar.segment<3>(3 * i) = x_bars(idx(i));
+                       Matrix2x2 B;
+                       NH::A(B, X_bar);
+
+                       inv_B_mats(I) = muda::eigen::inverse(B);
+                   });
+    }
+
+    virtual void do_report_extent(ReportExtentInfo& info) override
+    {
+        info.energy_count(kappas.size());
+        info.gradient_count(kappas.size() * 3);
+        info.hessian_count(kappas.size() * half_hessian_size);
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
@@ -80,27 +122,15 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                     indices  = info.indices().viewer().name("indices"),
                     xs       = info.xs().viewer().name("xs"),
                     x_bars   = info.x_bars().viewer().name("x_bars"),
+                    IBs      = inv_B_matrices.cviewer().name("IBs"),
                     dt       = info.dt()] __device__(int I)
                    {
-                       Vector9  X;
-                       Vector3i idx = indices(I);
+                       Vector9          X;
+                       Vector3i         idx = indices(I);
+                       const Matrix2x2& IB  = IBs(I);
                        for(int i = 0; i < 3; ++i)
                            X.segment<3>(3 * i) = xs(idx(i));
 
-                       Vector9 X_bar;
-                       for(int i = 0; i < 3; ++i)
-                           X_bar.segment<3>(3 * i) = x_bars(idx(i));
-
-                       Matrix2x2 IB;
-                       NH::A(IB, X_bar);
-                       IB = muda::eigen::inverse(IB);
-
-                       if constexpr(RUNTIME_CHECK)
-                       {
-                           Matrix2x2 A;
-                           NH::A(A, X);
-                           Float detA = A.determinant();
-                       }
 
                        Float mu        = mus(I);
                        Float lambda    = lambdas(I);
@@ -108,7 +138,6 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                        Float thickness = triangle_thickness(thicknesses(idx(0)),
                                                             thicknesses(idx(1)),
                                                             thicknesses(idx(2)));
-
                        Float E;
                        NH::E(E, mu, lambda, X, IB);
                        energies(I) = E * rest_area * thickness * dt * dt;
@@ -127,25 +156,20 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                     lambdas = lambdas.cviewer().name("lambdas"),
                     indices = info.indices().viewer().name("indices"),
                     xs      = info.xs().viewer().name("xs"),
-                    x_bars  = info.x_bars().viewer().name("x_bars"),
+                    IBs     = inv_B_matrices.cviewer().name("IBs"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
                     G3s        = info.gradients().viewer().name("gradients"),
                     H3x3s      = info.hessians().viewer().name("hessians"),
                     rest_areas = info.rest_areas().viewer().name("volumes"),
-                    dt         = info.dt()] __device__(int I) mutable
+                    dt         = info.dt(),
+                    half_hessian_size = half_hessian_size] __device__(int I) mutable
                    {
                        Vector9  X;
                        Vector3i idx = indices(I);
                        for(int i = 0; i < 3; ++i)
                            X.segment<3>(3 * i) = xs(idx(i));
 
-                       Vector9 X_bar;
-                       for(int i = 0; i < 3; ++i)
-                           X_bar.segment<3>(3 * i) = x_bars(idx(i));
-
-                       Matrix2x2 IB;
-                       NH::A(IB, X_bar);
-                       IB = muda::eigen::inverse(IB);
+                       Matrix2x2 IB = IBs(I);
 
                        Float mu        = mus(I);
                        Float lambda    = lambdas(I);
@@ -167,7 +191,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                        H *= Vdt2;
                        make_spd(H);
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.block<3, 3>(I * 3 * 3).write(idx, H);
+                       TMA.half_block<3>(I * half_hessian_size).write(idx, H);
                    });
     }
 };

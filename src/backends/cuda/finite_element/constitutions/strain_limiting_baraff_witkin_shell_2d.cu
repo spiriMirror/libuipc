@@ -13,7 +13,8 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64 ConstitutionUID = 819;
+    static constexpr U64   ConstitutionUID   = 819;
+    static constexpr SizeT half_hessian_size = 3 * (3 + 1) / 2;
 
     using Codim2DConstitution::Codim2DConstitution;
 
@@ -24,6 +25,7 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
     muda::DeviceBuffer<Float> kappas;
     muda::DeviceBuffer<Float> lambdas;
     muda::DeviceBuffer<Float> strainRates;
+
 
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
@@ -68,6 +70,13 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 
         strainRates.resize(N);
         strainRates.view().copy_from(h_strainRates.data());
+    }
+
+    virtual void do_report_extent(ReportExtentInfo& info)
+    {
+        info.energy_count(h_kappas.size());
+        info.gradient_count(h_kappas.size() * 3);
+        info.hessian_count(h_kappas.size() * half_hessian_size);
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
@@ -145,7 +154,8 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
                     G3s        = info.gradients().viewer().name("gradients"),
                     H3x3s      = info.hessians().viewer().name("hessians"),
                     rest_areas = info.rest_areas().viewer().name("volumes"),
-                    dt         = info.dt()] __device__(int I) mutable
+                    dt         = info.dt(),
+                    half_hessian_size = half_hessian_size] __device__(int I) mutable
                    {
                        Vector9  X;
                        Vector3i idx = indices(I);
@@ -201,7 +211,7 @@ class StrianLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 
                        Matrix9x9 H = dFdx.transpose() * ddEddF * dFdx;
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.block<3, 3>(I * 3 * 3).write(idx, H);
+                       TMA.half_block<3>(I * half_hessian_size).write(idx, H);
                    });
     }
 };

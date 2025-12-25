@@ -15,13 +15,9 @@ void FiniteElementEnergyProducer::collect_extent_info()
     ReportExtentInfo info;
     do_report_extent(info);
 
-    SizeT N = info.m_energy_count;
-    SizeT D = info.m_stencil_dim;
-
-    m_impl.stencil_dim    = D;
-    m_impl.energy_count   = N;
-    m_impl.gradient_count = N * D;
-    m_impl.hessian_count  = N * D * D;
+    m_impl.energy_count   = info.m_energy_count;
+    m_impl.gradient_count = info.m_gradient_count;
+    m_impl.hessian_count  = info.m_hessian_count;
 }
 
 void FiniteElementEnergyProducer::compute_energy(LineSearcher::EnergyInfo& info)
@@ -51,8 +47,13 @@ void FiniteElementEnergyProducer::ReportExtentInfo::energy_count(SizeT count) no
     m_energy_count = count;
 }
 
-void FiniteElementEnergyProducer::ReportExtentInfo::stencil_dim(SizeT dim) noexcept
+void FiniteElementEnergyProducer::ReportExtentInfo::gradient_count(SizeT count) noexcept
 {
-    m_stencil_dim = dim;
+    m_gradient_count = count;
+}
+
+void FiniteElementEnergyProducer::ReportExtentInfo::hessian_count(SizeT count) noexcept
+{
+    m_hessian_count = count;
 }
 }  // namespace uipc::backend::cuda
