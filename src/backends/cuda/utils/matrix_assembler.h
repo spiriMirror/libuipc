@@ -390,7 +390,11 @@ class TripletMatrixAssembler
                                       const IndexT&                   I,
                                       const IndexT&                   J)
         {
-            auto    submatrix_offset = m_assembler.m_triplet.submatrix_offset();
+            auto submatrix_offset = m_assembler.m_triplet.submatrix_offset();
+            MUDA_ASSERT(submatrix_offset.x == submatrix_offset.y,
+                        "Symmetric assembly requires a square submatrix view, but your submatrix offset.x=%d, submatrix_offset.y=%d",
+                        submatrix_offset.x,
+                        submatrix_offset.y);
             UpperLR ret;
             // keep it in upper triangular in the global matrix (not the submatrix)
             if(indices(I) + submatrix_offset.x < indices(J) + submatrix_offset.y)
