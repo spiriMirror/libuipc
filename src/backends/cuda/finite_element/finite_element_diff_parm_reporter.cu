@@ -37,7 +37,7 @@ IndexT FiniteElementDiffParmReporter::DiffParmInfo::dof_count(SizeT frame) const
 
 muda::TripletMatrixView<Float, 1> FiniteElementDiffParmReporter::DiffParmInfo::pGpP() const
 {
-    IndexT IF = IndexT{frame()};
+    IndexT IF = static_cast<IndexT>(frame());
 
     auto pGpP = m_global_info.pGpP();
 

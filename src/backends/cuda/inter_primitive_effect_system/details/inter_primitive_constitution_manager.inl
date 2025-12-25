@@ -24,7 +24,7 @@ void InterPrimitiveConstitutionManager::_for_each(span<S<geometry::GeometrySlot>
         }
         else
         {
-            static_assert("Invalid ForEachGeometry");
+            static_assert(false, "Invalid ForEachGeometry");
         }
     }
 }

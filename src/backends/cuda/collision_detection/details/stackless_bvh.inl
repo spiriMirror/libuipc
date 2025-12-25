@@ -7,9 +7,12 @@ using aabb          = uipc::backend::cuda::AABB;
 using stacklessnode = uipc::backend::cuda::StacklessBVH::Node;
 using Vector2i      = uipc::Vector2i;
 
-using uint                       = uint32_t;
-using ullint                     = unsigned long long int;
-constexpr int K_THREADS          = 256;
+using uint   = uint32_t;
+using ullint = unsigned long long int;
+
+constexpr int K_THREADS = 256;
+constexpr int K_WARPS   = K_THREADS >> 5;
+
 constexpr int K_REDUCTION_LAYER  = 5;
 constexpr int K_REDUCTION_NUM    = 1 << K_REDUCTION_LAYER;
 constexpr int K_REDUCTION_MODULO = K_REDUCTION_NUM - 1;
@@ -26,6 +29,27 @@ constexpr uint   MaxIndex  = 0xFFFFFFFFFFFFFFFFu >> offset3;
 
 constexpr uint MAX_CD_NUM_PER_VERT = 64;
 constexpr int  MAX_RES_PER_BLOCK   = 1024;
+
+struct PlainAABB
+{
+    float3 _min, _max;
+};
+
+MUDA_GENERIC MUDA_INLINE PlainAABB toPlainAABB(const aabb& box)
+{
+    PlainAABB res;
+    res._min = make_float3(box.min().x(), box.min().y(), box.min().z());
+    res._max = make_float3(box.max().x(), box.max().y(), box.max().z());
+    return res;
+}
+
+MUDA_GENERIC MUDA_INLINE aabb fromPlainAABB(const PlainAABB& box)
+{
+    aabb aabb;
+    aabb.min() = Vector<float, 3>(box._min.x, box._min.y, box._min.z);
+    aabb.max() = Vector<float, 3>(box._max.x, box._max.y, box._max.z);
+    return aabb;
+}
 
 struct intAABB
 {
@@ -158,8 +182,8 @@ MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aa
     using namespace culbvh;
 
     auto numQuery = aabbs.size();
-    auto GridDim  = (numQuery + 255) / 256;
-    auto BlockDim = 256;
+    auto BlockDim = K_THREADS;
+    auto GridDim  = (numQuery + BlockDim - 1) / BlockDim;
 
     using namespace muda;
 
@@ -181,18 +205,18 @@ MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aa
                     *_bv = AABB();
                 }
 
-                __shared__ AABB aabbData[K_THREADS >> 5];
+                __shared__ PlainAABB aabbData[K_WARPS];
 
-                AABB temp = box(idx);
+                PlainAABB temp = toPlainAABB(box(idx));
                 __syncthreads();
 
                 // Extract values for warp shuffle
-                float tempMinX = temp.min().x();
-                float tempMinY = temp.min().y();
-                float tempMinZ = temp.min().z();
-                float tempMaxX = temp.max().x();
-                float tempMaxY = temp.max().y();
-                float tempMaxZ = temp.max().z();
+                float tempMinX = temp._min.x;
+                float tempMinY = temp._min.y;
+                float tempMinZ = temp._min.z;
+                float tempMaxX = temp._max.x;
+                float tempMaxY = temp._max.y;
+                float tempMaxZ = temp._max.z;
 
                 for(int i = 1; i < 32; i = (i << 1))
                 {
@@ -222,8 +246,8 @@ MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aa
                 if(warpTid == 0)
                 {
                     // Reconstruct AABB from reduced values
-                    aabbData[warpId].min() = Eigen::Vector3f(tempMinX, tempMinY, tempMinZ);
-                    aabbData[warpId].max() = Eigen::Vector3f(tempMaxX, tempMaxY, tempMaxZ);
+                    aabbData[warpId]._min = make_float3(tempMinX, tempMinY, tempMinZ);
+                    aabbData[warpId]._max = make_float3(tempMaxX, tempMaxY, tempMaxZ);
                 }
                 __syncthreads();
                 if(threadIdx.x >= warpNum)
@@ -232,12 +256,12 @@ MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aa
                 if(warpNum > 1)
                 {
                     temp     = aabbData[threadIdx.x];
-                    tempMinX = temp.min().x();
-                    tempMinY = temp.min().y();
-                    tempMinZ = temp.min().z();
-                    tempMaxX = temp.max().x();
-                    tempMaxY = temp.max().y();
-                    tempMaxZ = temp.max().z();
+                    tempMinX = temp._min.x;
+                    tempMinY = temp._min.y;
+                    tempMinZ = temp._min.z;
+                    tempMaxX = temp._max.x;
+                    tempMaxY = temp._max.y;
+                    tempMaxZ = temp._max.z;
 
                     for(int i = 1; i < warpNum; i = (i << 1))
                     {
@@ -665,8 +689,8 @@ void StacklessBVH::Impl::StacklessCDSharedSelf(Pred               pred,
 
     auto numQuery = static_cast<int>(ext_aabb.size());
     auto numObjs  = numQuery;
-    auto GridDim  = (numQuery + 255) / 256;
-    auto BlockDim = 256;
+    auto BlockDim = K_THREADS;
+    auto GridDim  = (numQuery + BlockDim - 1) / BlockDim;
 
     Launch(GridDim, BlockDim)
         .apply(
@@ -801,8 +825,9 @@ void StacklessBVH::Impl::StacklessCDSharedOther(Pred pred,
 
     auto numQuery = static_cast<int>(query_aabbs.size());
     auto numObjs  = static_cast<int>(ext_aabb.size());
-    auto GridDim  = (numQuery + 255) / 256;
-    auto BlockDim = 256;
+    auto BlockDim = K_THREADS;
+    auto GridDim  = (numQuery + BlockDim - 1) / BlockDim;
+
 
     Launch(GridDim, BlockDim)
         .apply(

@@ -75,7 +75,7 @@ void AffineBodyDynamics::Impl::_for_each(span<S<geometry::GeometrySlot>> geo_slo
         }
         else
         {
-            static_assert("Invalid ForEachGeometry");
+            static_assert(false, "Invalid ForEachGeometry");
         }
     }
 }

@@ -66,7 +66,8 @@ const FiniteElementMethod::ConstitutionInfo& FiniteElementConstitution::constitu
             return fem().fem_3d_constitution_infos[m_index_in_dim];
         default:
             UIPC_ASSERT(false, "Invalid Dim {}D", dim());
-            break;
+            // dummy return to suppress compiler warning
+            return fem().fem_3d_constitution_infos[m_index_in_dim];
     }
 }
 
