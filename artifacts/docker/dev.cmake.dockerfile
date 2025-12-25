@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     bzip2 \
     && rm -rf /var/lib/apt/lists/*
 
+
 # Set gcc-13 as default (Ubuntu 24.04 default)
 RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 && \
     update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-13 100
@@ -36,10 +37,20 @@ RUN update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 100 && \
 # =============================================================================
 # Create non-root user
 # =============================================================================
-# Create user with UID 1001
+# Create user with UID 1000
 # This avoids privilege warnings when mounting volumes from host
-RUN groupadd -r developer -g 1001 && \
-    useradd -r -u 1001 -g developer -m -s /bin/bash developer && \
+# Using UID 1000 to match common default user IDs on Linux systems
+# Remove existing user/group with UID/GID 1000 if they exist, then create developer user
+RUN if getent passwd 1000 > /dev/null 2>&1; then \
+        EXISTING_USER=$(getent passwd 1000 | cut -d: -f1); \
+        userdel -r $EXISTING_USER 2>/dev/null || true; \
+    fi && \
+    if getent group 1000 > /dev/null 2>&1; then \
+        EXISTING_GROUP=$(getent group 1000 | cut -d: -f1); \
+        groupdel $EXISTING_GROUP 2>/dev/null || true; \
+    fi && \
+    groupadd -r developer -g 1000 && \
+    useradd -r -u 1000 -g developer -m -s /bin/bash developer && \
     mkdir -p /home/developer && \
     chown -R developer:developer /home/developer
 
@@ -54,8 +65,8 @@ RUN --mount=type=cache,target=/tmp/.cache/wget \
         wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O "$INSTALLER"; \
     fi && \
     chmod +x "$INSTALLER" && \
-    su developer -c "bash \"$INSTALLER\" -b -p /home/developer/conda" && \
-    su developer -c "/home/developer/conda/bin/conda clean -afy"
+    runuser -u developer -- bash "$INSTALLER" -b -p /home/developer/conda && \
+    runuser -u developer -- /home/developer/conda/bin/conda clean -afy
 
 ENV PATH="/home/developer/conda/bin:${PATH}"
 
@@ -68,17 +79,17 @@ ENV PATH="/home/developer/conda/bin:${PATH}"
 RUN --mount=type=cache,target=/home/developer/.cache/vcpkg \
     mkdir -p /home/developer/Toolchain && \
     chown developer:developer /home/developer/Toolchain && \
-    su developer -c "cd /home/developer/Toolchain && \
+    runuser -u developer -- bash -c "cd /home/developer/Toolchain && \
         git clone https://github.com/microsoft/vcpkg.git && \
         cd vcpkg && \
         bash bootstrap-vcpkg.sh"
 
 # Verify vcpkg installation
-RUN su developer -c "/home/developer/Toolchain/vcpkg/vcpkg version"
+RUN runuser -u developer -- /home/developer/Toolchain/vcpkg/vcpkg version
 
 # Set up vcpkg cache directories (will be mounted as cache in build step)
 # Downloads, buildtrees, and packages are cached to speed up builds
-RUN su developer -c "mkdir -p /home/developer/Toolchain/vcpkg/downloads /home/developer/Toolchain/vcpkg/buildtrees /home/developer/Toolchain/vcpkg/packages"
+RUN runuser -u developer -- mkdir -p /home/developer/Toolchain/vcpkg/downloads /home/developer/Toolchain/vcpkg/buildtrees /home/developer/Toolchain/vcpkg/packages
 
 # =============================================================================
 # Set up project directory
@@ -96,7 +107,7 @@ WORKDIR /home/developer/libuipc
 # All operations run as developer user
 
 # Accept conda Terms of Service (required for non-interactive builds)
-RUN su developer -c "source /home/developer/conda/etc/profile.d/conda.sh && \
+RUN runuser -u developer -- bash -c "source /home/developer/conda/etc/profile.d/conda.sh && \
     conda config --set always_yes yes && \
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
     conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r"
@@ -107,7 +118,7 @@ RUN su developer -c "source /home/developer/conda/etc/profile.d/conda.sh && \
 RUN --mount=type=cache,target=/home/developer/conda/pkgs \
     CUDA_TOOLKIT_VERSION=${CUDA_VERSION} && \
     echo "Creating conda environment with CUDA toolkit ${CUDA_TOOLKIT_VERSION}..." && \
-    su developer -c "source /home/developer/conda/etc/profile.d/conda.sh && \
+    runuser -u developer -- bash -c "source /home/developer/conda/etc/profile.d/conda.sh && \
         conda create -n uipc_env -y \
             python=3.11 \
             cmake=3.26 \
@@ -118,7 +129,7 @@ RUN --mount=type=cache,target=/home/developer/conda/pkgs \
 # Set CMAKE_TOOLCHAIN_FILE in conda environment dont need to set it in bashrc
 ARG CMAKE_TOOLCHAIN_FILE="/home/developer/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake"
 # This is important so CMake can find the Vcpkg toolchain file
-RUN su developer -c "source /home/developer/conda/etc/profile.d/conda.sh && \
+RUN runuser -u developer -- bash -c "source /home/developer/conda/etc/profile.d/conda.sh && \
     conda activate uipc_env && \
     conda env config vars set CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}"
 
@@ -133,7 +144,7 @@ RUN --mount=type=cache,target=/home/developer/Toolchain/vcpkg/downloads \
     --mount=type=cache,target=/home/developer/Toolchain/vcpkg/packages \
     if [ "$BUILD_PROJECT" = "true" ]; then \
     echo "Building libuipc with CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}..." && \
-    su developer -c "source /home/developer/conda/etc/profile.d/conda.sh && \
+    runuser -u developer -- bash -c "source /home/developer/conda/etc/profile.d/conda.sh && \
         conda activate uipc_env && \
         export CMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE} && \
         cd /home/developer/libuipc && \
@@ -156,7 +167,7 @@ ENV LD_LIBRARY_PATH="/home/developer/libuipc/build/Release/bin:/home/developer/l
 # =============================================================================
 # Set Git config globally to handle Windows/Linux differences
 # This applies to any Git repository mounted at runtime
-RUN su developer -c "git config --global core.fileMode false && \
+RUN runuser -u developer -- bash -c "git config --global core.fileMode false && \
     git config --global core.autocrlf input && \
     git config --global core.eol lf && \
     git config --global init.defaultBranch main && \
@@ -165,23 +176,31 @@ RUN su developer -c "git config --global core.fileMode false && \
 # Create .bashrc to ensure conda is activated in interactive shells
 # Ensure home directory and .bashrc have correct permissions
 RUN chmod 755 /home/developer && \
-    su developer -c "echo 'source /home/developer/conda/etc/profile.d/conda.sh && \
+    runuser -u developer -- bash -c "echo 'source /home/developer/conda/etc/profile.d/conda.sh && \
     conda activate uipc_env' > /home/developer/.bashrc" && \
     chown developer:developer /home/developer/.bashrc && \
     chmod 644 /home/developer/.bashrc
 
 WORKDIR /home/developer/libuipc
 
-# Entrypoint script - make it robust to handle permission issues
+# =============================================================================
+# Entrypoint script - simple wrapper for login shell
+# =============================================================================
+# Simple entrypoint that just ensures we use a login shell for conda initialization
 RUN echo '#!/bin/bash\n\
-if [ -f /home/developer/.bashrc ] && [ -r /home/developer/.bashrc ]; then\n\
-    source /home/developer/.bashrc\n\
-fi\n\
-exec "$@"' > /entrypoint.sh && \
-    chmod +x /entrypoint.sh && \
-    chown developer:developer /entrypoint.sh
+set -e\n\
+# Execute command with login shell (for conda initialization)\n\
+# Use +m flag to disable job control and suppress warnings\n\
+if [ $# -eq 0 ]; then\n\
+    # No arguments, just start login shell\n\
+    exec bash -l +m\n\
+else\n\
+    # Execute command with login shell\n\
+    exec bash -l +m -c "$*"\n\
+fi' > /entrypoint.sh && \
+    chmod +x /entrypoint.sh
 
-# Switch to non-root user
+# Run as developer user (non-root approach)
 USER developer
 
 ENTRYPOINT ["/entrypoint.sh"]
