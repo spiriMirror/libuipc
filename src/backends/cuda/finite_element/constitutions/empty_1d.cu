@@ -15,7 +15,8 @@ class Empty1D final : public Codim1DConstitution
     virtual void do_report_extent(ReportExtentInfo& info)
     {
         info.energy_count(0);
-        info.stencil_dim(2);
+        info.gradient_count(0);
+        info.hessian_count(0);
     }
 
     virtual void do_build(BuildInfo& info) override

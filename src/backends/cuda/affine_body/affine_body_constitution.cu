@@ -12,7 +12,6 @@ void AffineBodyConstitution::do_build()
 {
     m_impl.affine_body_dynamics = require<AffineBodyDynamics>();
 
-
     auto scene = world().scene();
     // Check if we have the Affine Body Constitution
     auto uids = scene.constitution_tabular().uids();

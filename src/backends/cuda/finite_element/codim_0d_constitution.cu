@@ -11,8 +11,10 @@ void Codim0DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
 void Codim0DConstitution::do_report_extent(ReportExtentInfo& info)
 {
     auto& c_info = constitution_info();
-    info.energy_count(0);  // not need to create any elastic energy
-    info.stencil_dim(dim() + 1);
+    // not need to create any elastic energy
+    info.energy_count(0);
+    info.gradient_count(0);
+    info.hessian_count(0);
 }
 
 IndexT Codim0DConstitution::get_dim() const noexcept
