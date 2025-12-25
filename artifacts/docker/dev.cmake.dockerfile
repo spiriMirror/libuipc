@@ -126,7 +126,7 @@ RUN --mount=type=cache,target=/home/developer/conda/pkgs \
         conda install -n uipc_env -y -c conda-forge pkgconfig && \
         conda clean -y --tarballs"
 
-# Set CMAKE_TOOLCHAIN_FILE in conda environment dont need to set it in bashrc
+# Set CMAKE_TOOLCHAIN_FILE in conda environment (don't need to set it in bashrc)
 ARG CMAKE_TOOLCHAIN_FILE="/home/developer/Toolchain/vcpkg/scripts/buildsystems/vcpkg.cmake"
 # This is important so CMake can find the Vcpkg toolchain file
 RUN runuser -u developer -- bash -c "source /home/developer/conda/etc/profile.d/conda.sh && \
@@ -187,18 +187,9 @@ WORKDIR /home/developer/libuipc
 # Entrypoint script - simple wrapper for login shell
 # =============================================================================
 # Simple entrypoint that just ensures we use a login shell for conda initialization
-RUN echo '#!/bin/bash\n\
-set -e\n\
-# Execute command with login shell (for conda initialization)\n\
-# Use +m flag to disable job control and suppress warnings\n\
-if [ $# -eq 0 ]; then\n\
-    # No arguments, just start login shell\n\
-    exec bash -l +m\n\
-else\n\
-    # Execute command with login shell\n\
-    exec bash -l +m -c "$*"\n\
-fi' > /entrypoint.sh && \
-    chmod +x /entrypoint.sh
+# Copy entrypoint script (must be done before switching to developer user)
+COPY artifacts/docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Run as developer user (non-root approach)
 USER developer

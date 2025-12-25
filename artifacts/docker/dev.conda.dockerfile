@@ -76,18 +76,9 @@ RUN mkdir -p /home/developer/libuipc && \
 # Entrypoint script - simple wrapper for login shell
 # =============================================================================
 # Simple entrypoint that just ensures we use a login shell for conda initialization
-RUN echo '#!/bin/bash\n\
-set -e\n\
-# Execute command with login shell (for conda initialization)\n\
-# Use +m flag to disable job control and suppress warnings\n\
-if [ $# -eq 0 ]; then\n\
-    # No arguments, just start login shell\n\
-    exec bash -l +m\n\
-else\n\
-    # Execute command with login shell\n\
-    exec bash -l +m -c "$*"\n\
-fi' > /entrypoint.sh && \
-    chmod +x /entrypoint.sh
+# Copy entrypoint script (must be done before switching to developer user)
+COPY artifacts/docker/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
 # Run as developer user (non-root approach)
 USER developer

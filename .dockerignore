@@ -1,0 +1,74 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Build artifacts
+build/
+**/build/
+**/cmake-build-*/
+**/RelWithDebInfo/
+**/Release/
+**/Debug/
+**/bin/
+**/lib/
+**/vcpkg_installed/
+**/.xmake/
+**/.cache/
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
+CMakeLists.txt.user
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+*.egg
+
+# Documentation build
+site/
+docs/_build/
+
+# Test outputs
+Testing/
+CTestTestfile.cmake
+*.gcov
+*.gcda
+*.gcno
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Docker files (don't need to copy into container)
+**/Dockerfile*
+**/docker-compose*.yml
+**/.dockerignore
+
+# External dependencies (will be cloned/built inside container)
+external/
+
+# Assets (if not needed for build)
+assets/
+
+# Scripts (if not needed for build)
+scripts/
+
+# CI/CD
+.github/
+
+# Logs
+*.log
+

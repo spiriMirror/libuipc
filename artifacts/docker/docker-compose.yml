@@ -13,31 +13,7 @@ services:
     working_dir: /home/developer/libuipc
     stdin_open: true
     tty: true
-    command: ["/entrypoint.sh", "bash"]
-
-  dev-cmake:
-    build:
-      context: ../..
-      dockerfile: artifacts/docker/dev.cmake.dockerfile
-      args:
-        CUDA_VERSION: 12.8.1
-        UBUNTU_VERSION: 24.04
-        CMAKE_CUDA_ARCHITECTURES: 89
-        CMAKE_BUILD_TYPE: RelWithDebInfo
-        BUILD_PROJECT: "false"
-    image: libuipc-dev:cmake
-    pull_policy: build
-    container_name: libuipc-dev-cmake
-    runtime: nvidia
-    environment:
-      - NVIDIA_VISIBLE_DEVICES=all
-      - NVIDIA_DRIVER_CAPABILITIES=compute,utility
-    volumes:
-      - ../../:/home/developer/libuipc
-    working_dir: /home/developer/libuipc
-    stdin_open: true
-    tty: true
-    command: ["/entrypoint.sh", "bash"]
+    command: ["bash"]
 
   dev-cmake-cu128:
     build:
@@ -61,7 +37,7 @@ services:
     working_dir: /home/developer/libuipc
     stdin_open: true
     tty: true
-    command: ["/entrypoint.sh", "bash"]
+    command: ["bash"]
   
   dev-cmake-cu130:
     build:
@@ -85,7 +61,7 @@ services:
     working_dir: /home/developer/libuipc
     stdin_open: true
     tty: true
-    command: ["/entrypoint.sh", "bash"]
+    command: ["bash"]
 
   # later support:
   # - dev-xmake-cu128
