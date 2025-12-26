@@ -313,20 +313,21 @@ void Spmv::rbk_sym_spmv(Float                           a,
     constexpr int block_dim   = 256;
     int           block_count = (A.triplet_count() + block_dim - 1) / block_dim;
 
-    muda::Launch(block_count, block_dim)
+    muda::ParallelFor(block_count, block_dim)
         .file_line(__FILE__, __LINE__)
         .apply(
+            A.triplet_count(),
             [a = a,
              A = A.viewer().name("A"),
              x = x.viewer().name("x"),
              b = b,
-             y = y.viewer().name("y")] __device__() mutable
+             y = y.viewer().name("y")] __device__(int idx) mutable
             {
                 using WarpReduceInt   = cub::WarpReduce<int, warp_size>;
                 using WarpReduceFloat = cub::WarpReduce<Float, warp_size>;
                 using WarpScanInt     = cub::WarpScan<int>;
 
-                auto global_thread_id   = blockDim.x * blockIdx.x + threadIdx.x;
+                auto global_thread_id   = idx;
                 auto thread_id_in_block = threadIdx.x;
                 auto warp_id            = thread_id_in_block / warp_size;
                 auto lane_id            = thread_id_in_block & (warp_size - 1);
@@ -346,13 +347,13 @@ void Spmv::rbk_sym_spmv(Float                           a,
                 flags.is_cross_warp = 0;
 
                 // set the previous row index
-                if(global_thread_id > 0 && global_thread_id < A.triplet_count())
+                if(global_thread_id > 0)
                 {
                     auto prev_triplet = A(global_thread_id - 1);
                     prev_i            = prev_triplet.row_index;
                 }
 
-                if(global_thread_id < A.triplet_count())
+                //if(global_thread_id < A.triplet_count())
                 {
                     auto Triplet = A(global_thread_id);
                     i            = Triplet.row_index;
@@ -370,12 +371,12 @@ void Spmv::rbk_sym_spmv(Float                           a,
                         y.segment<N>(j * N).atomic_add(vec_);
                     }
                 }
-                else
+                /*else
                 {
                     i = -1;
                     vec.setZero();
                     flags.is_valid = 0;
-                }
+                }*/
 
                 if(lane_id == 0)
                 {
@@ -388,11 +389,11 @@ void Spmv::rbk_sym_spmv(Float                           a,
 
 
                 // ----------------------------------- warp reduce ----------------------------------------------
-                flags.flags = WarpReduceInt(temp_storage_int[warp_id])
-                                  .HeadSegmentedReduce(flags.flags,
-                                                       flags.is_head,
-                                                       [](uint32_t a, uint32_t b)
-                                                       { return a + b; });
+                //flags.flags = WarpReduceInt(temp_storage_int[warp_id])
+                //                  .HeadSegmentedReduce(flags.flags,
+                //                                       flags.is_head,
+                //                                       [](uint32_t a, uint32_t b)
+                //                                       { return a + b; });
 
                 vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
                               .HeadSegmentedReduce(vec.x(),
@@ -414,7 +415,7 @@ void Spmv::rbk_sym_spmv(Float                           a,
                 // ----------------------------------- warp reduce -----------------------------------------------
 
 
-                if(flags.is_head && flags.is_valid)
+                if(flags.is_head/* && flags.is_valid*/)
                 {
                     auto seg_y  = y.segment<N>(i * N);
                     auto result = a * vec;
