@@ -348,8 +348,11 @@ class TripletMatrixAssembler
 
                     auto [L, R] = upper_LR(indices, ii, jj);
 
-                    ElementMatrix H =
-                        value.template block<BlockDim, BlockDim>(L * BlockDim, R * BlockDim);
+                    ElementMatrix H;
+
+
+                    H = value.template block<BlockDim, BlockDim>(L * BlockDim, R * BlockDim);
+
                     m_assembler.m_triplet(offset++).write(indices(L), indices(R), H);
                 }
             }

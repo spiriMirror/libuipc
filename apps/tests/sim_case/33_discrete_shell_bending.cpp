@@ -65,7 +65,7 @@ TEST_CASE("33_discrete_shell_bending", "[fem]")
 
         label_surface(mesh);
 
-        auto parm = ElasticModuli::youngs_poisson(10.0_MPa, 0.49);
+        auto parm = ElasticModuli2D::youngs_poisson(10.0_MPa, 0.49);
         nhs.apply_to(mesh, parm);
         dsb.apply_to(mesh, 5.0_kPa);
         default_contact.apply_to(mesh);

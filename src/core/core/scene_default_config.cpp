@@ -41,11 +41,12 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("sanity_check/enable", IndexT{1});
     config.create("sanity_check/mode", std::string{"normal"});
 
-    // recovery removed
-
     config.create("diff_sim/enable", IndexT{0});
 
     config.create("extras/debug/dump_surface", IndexT{0});
+    config.create("extras/debug/dump_linear_system", IndexT{0});
+    config.create("extras/debug/dump_linear_pcg", IndexT{0});
+
     config.create("extras/strict_mode/enable", IndexT{0});
 
     return config;

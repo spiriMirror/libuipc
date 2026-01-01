@@ -39,12 +39,15 @@ class SimEngine final : public backend::SimEngine
 
     SimEngineState state() const noexcept;
 
+    SizeT newton_iter() const noexcept;
+
   private:
     virtual void  do_init(InitInfo& info) override;
     virtual void  do_advance() override;
     virtual void  do_sync() override;
     virtual void  do_retrieve() override;
     virtual SizeT get_frame() const override;
+
 
     virtual bool do_dump(DumpInfo&) override;
     virtual bool do_try_recover(RecoverInfo&) override;
@@ -83,9 +86,9 @@ class SimEngine final : public backend::SimEngine
     GlobalLinearSystem*     m_global_linear_system     = nullptr;
     NewtonToleranceManager* m_newton_tolerance_manager = nullptr;
 
-    GlobalAnimator*              m_global_animator               = nullptr;
-    GlobalExternalForceManager*  m_global_external_force_manager = nullptr;
-    GlobalDiffSimManager*        m_global_diff_sim_manager       = nullptr;
+    GlobalAnimator*             m_global_animator               = nullptr;
+    GlobalExternalForceManager* m_global_external_force_manager = nullptr;
+    GlobalDiffSimManager*       m_global_diff_sim_manager       = nullptr;
     //GlobalDiffContactManager*    m_global_diff_contact_manager    = nullptr;
     //GlobalAdjointMethodReplayer* m_global_adjoint_method_replayer = nullptr;
     AffineBodyDynamics* m_affine_body_dynamics = nullptr;
@@ -96,6 +99,7 @@ class SimEngine final : public backend::SimEngine
 
     bool  m_friction_enabled = false;
     SizeT m_current_frame    = 0;
+    SizeT m_newton_iter      = 0;
     Float m_newton_scene_tol = 0.01;
 
     template <typename T>

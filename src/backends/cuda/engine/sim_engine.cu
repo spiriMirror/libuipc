@@ -2,15 +2,12 @@
 #include <uipc/common/log.h>
 #include <muda/muda.h>
 #include <kernel_cout.h>
-#include <sim_engine_device_common.h>
 #include <backends/common/module.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
-#include <fstream>
 #include <uipc/common/timer.h>
 #include <backends/common/backend_path_tool.h>
 #include <uipc/backend/engine_create_info.h>
-#include <future>
 
 namespace uipc::backend::cuda
 {
@@ -172,5 +169,10 @@ void SimEngine::do_clear_recover(RecoverInfo& info)
 SizeT SimEngine::get_frame() const
 {
     return m_current_frame;
+}
+
+SizeT SimEngine::newton_iter() const noexcept
+{
+    return m_newton_iter;
 }
 }  // namespace uipc::backend::cuda
