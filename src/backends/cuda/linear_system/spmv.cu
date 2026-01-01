@@ -4,6 +4,9 @@
 #include <cub/warp/warp_scan.cuh>
 #include <cub/util_math.cuh>
 #include <cuda_device/bit_operation.h>
+#include <cuda_device/builtin.h>
+#include <Eigen/Sparse>
+
 namespace uipc::backend::cuda
 {
 void Spmv::sym_spmv(Float                           a,
@@ -102,16 +105,6 @@ struct Flags
         is_valid      = is_valid ? 1 : 0;
     }
 };
-
-// find ths n-th set bit in mask, starting from base
-__device__ __forceinline__ unsigned fns(unsigned mask, unsigned base, int offset)
-{
-#ifdef __CUDA_ARCH__
-    return __fns(mask, base, offset);
-#endif
-    // unreachable, just for suppress warning
-    [[unreachable]] return 0;
-}
 
 void Spmv::rbk_spmv(Float                           a,
                     muda::CBCOOMatrixView<Float, 3> A,
@@ -257,7 +250,7 @@ void Spmv::rbk_spmv(Float                           a,
                 flags.b2i();
                 int is_head_mask =
                     detail::bit_operation::WARP_BALLOT(flags.is_head, warp_mask);
-                uint32_t offset = fns(is_head_mask, 0, lane_id + 1);
+                uint32_t offset = __fns(is_head_mask, 0, lane_id + 1);
 
                 int valid_bit = (offset != ~0u);
                 int shuffle_mask = detail::bit_operation::WARP_BALLOT(valid_bit, warp_mask);
@@ -313,116 +306,191 @@ void Spmv::rbk_sym_spmv(Float                           a,
     constexpr int block_dim   = 256;
     int           block_count = (A.triplet_count() + block_dim - 1) / block_dim;
 
-    muda::Launch(block_count, block_dim)
+    muda::ParallelFor(block_count, block_dim)
         .file_line(__FILE__, __LINE__)
-        .apply(
-            [a = a,
-             A = A.viewer().name("A"),
-             x = x.viewer().name("x"),
-             b = b,
-             y = y.viewer().name("y")] __device__() mutable
+        .apply(A.triplet_count(),
+               [a = a,
+                A = A.viewer().name("A"),
+                x = x.viewer().name("x"),
+                b = b,
+                y = y.viewer().name("y")] __device__(int idx) mutable
+               {
+                   using WarpReduceInt   = cub::WarpReduce<int, warp_size>;
+                   using WarpReduceFloat = cub::WarpReduce<Float, warp_size>;
+                   using WarpScanInt     = cub::WarpScan<int>;
+
+                   auto global_thread_id   = idx;
+                   auto thread_id_in_block = threadIdx.x;
+                   auto warp_id            = thread_id_in_block / warp_size;
+                   auto lane_id = thread_id_in_block & (warp_size - 1);
+
+                   __shared__ union
+                   {
+                       typename WarpReduceInt::TempStorage temp_storage_int[block_dim / warp_size];
+                       typename WarpReduceFloat::TempStorage temp_storage_float[block_dim / warp_size];
+                   };
+
+                   int     prev_i = -1;
+                   int     i      = -1;
+                   Flags   flags;
+                   Vector3 vec;
+
+                   // In symmtric version, we don't need to check the cross warp
+                   flags.is_cross_warp = 0;
+
+                   // set the previous row index
+                   if(global_thread_id > 0)
+                   {
+                       auto prev_triplet = A(global_thread_id - 1);
+                       prev_i            = prev_triplet.row_index;
+                   }
+
+                   {
+                       auto Triplet = A(global_thread_id);
+                       i            = Triplet.row_index;
+                       auto j       = Triplet.col_index;
+
+                       vec = Triplet.value * x.segment<N>(j * N).as_eigen();
+
+                       flags.is_valid = 1;
+
+                       if(i != j)  // process lower triangle
+                       {
+                           Vector3 vec_ = a * Triplet.value.transpose()
+                                          * x.segment<N>(i * N).as_eigen();
+
+                           y.segment<N>(j * N).atomic_add(vec_);
+                       }
+                   }
+
+                   if(lane_id == 0)
+                   {
+                       flags.is_head = 1;
+                   }
+                   else
+                   {
+                       flags.is_head = b2i(prev_i != i);  // must be 1 or 0, or the result is undefined
+                   }
+
+
+                   // ----------------------------------- warp reduce ----------------------------------------------
+                   vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
+                                 .HeadSegmentedReduce(vec.x(),
+                                                      flags.is_head,
+                                                      [](Float a, Float b)
+                                                      { return a + b; });
+
+                   vec.y() = WarpReduceFloat(temp_storage_float[warp_id])
+                                 .HeadSegmentedReduce(vec.y(),
+                                                      flags.is_head,
+                                                      [](Float a, Float b)
+                                                      { return a + b; });
+
+                   vec.z() = WarpReduceFloat(temp_storage_float[warp_id])
+                                 .HeadSegmentedReduce(vec.z(),
+                                                      flags.is_head,
+                                                      [](Float a, Float b)
+                                                      { return a + b; });
+                   // ----------------------------------- warp reduce -----------------------------------------------
+
+
+                   if(flags.is_head)
+                   {
+                       auto seg_y  = y.segment<N>(i * N);
+                       auto result = a * vec;
+
+                       // Must use atomic add!
+                       // Because the same row may be processed by different warps
+                       seg_y.atomic_add(result.eval());
+                   }
+               });
+}
+
+void Spmv::cpu_sym_spmv(Float                           a,
+                        muda::CBCOOMatrixView<Float, 3> A_view,
+                        muda::CDenseVectorView<Float>   x,
+                        Float                           b,
+                        muda::DenseVectorView<Float>    y)
+{
+    using BlockMatrix      = Matrix3x3;
+    constexpr int BlockDim = 3;
+
+    // Get matrix dimensions
+    int total_block_rows  = A_view.total_rows();
+    int total_block_cols  = A_view.total_cols();
+    int total_scalar_rows = total_block_rows * BlockDim;
+    int total_scalar_cols = total_block_cols * BlockDim;
+
+    // Copy triplet data from device to host
+    std::vector<int>         row_indices_host(A_view.triplet_count());
+    std::vector<int>         col_indices_host(A_view.triplet_count());
+    std::vector<BlockMatrix> values_host(A_view.triplet_count());
+
+    A_view.row_indices().copy_to(row_indices_host.data());
+    A_view.col_indices().copy_to(col_indices_host.data());
+    A_view.values().copy_to(values_host.data());
+
+    // Build Eigen SparseMatrix from symmetric block-sparse representation
+    std::vector<Eigen::Triplet<Float>> triplets;
+    triplets.reserve(A_view.triplet_count() * BlockDim * BlockDim * 2);  // Reserve for symmetric expansion
+
+    for(size_t t = 0; t < A_view.triplet_count(); ++t)
+    {
+        int                block_i = row_indices_host[t];
+        int                block_j = col_indices_host[t];
+        const BlockMatrix& block   = values_host[t];
+
+        // Convert block indices to scalar indices
+        int scalar_i_base = block_i * BlockDim;
+        int scalar_j_base = block_j * BlockDim;
+
+        // Add all entries from the block (upper triangular part)
+        for(int bi = 0; bi < BlockDim; ++bi)
+        {
+            for(int bj = 0; bj < BlockDim; ++bj)
             {
-                using WarpReduceInt   = cub::WarpReduce<int, warp_size>;
-                using WarpReduceFloat = cub::WarpReduce<Float, warp_size>;
-                using WarpScanInt     = cub::WarpScan<int>;
+                Float value    = block(bi, bj);
+                int   scalar_i = scalar_i_base + bi;
+                int   scalar_j = scalar_j_base + bj;
 
-                auto global_thread_id   = blockDim.x * blockIdx.x + threadIdx.x;
-                auto thread_id_in_block = threadIdx.x;
-                auto warp_id            = thread_id_in_block / warp_size;
-                auto lane_id            = thread_id_in_block & (warp_size - 1);
+                triplets.emplace_back(scalar_i, scalar_j, value);
+            }
+        }
 
-                __shared__ union
+        // Since matrix is symmetric at block level, also add transpose block (lower triangular part)
+        if(block_i != block_j)
+        {
+            BlockMatrix block_transpose = block.transpose();
+            for(int bi = 0; bi < BlockDim; ++bi)
+            {
+                for(int bj = 0; bj < BlockDim; ++bj)
                 {
-                    typename WarpReduceInt::TempStorage temp_storage_int[block_dim / warp_size];
-                    typename WarpReduceFloat::TempStorage temp_storage_float[block_dim / warp_size];
-                };
+                    Float value  = block_transpose(bi, bj);
+                    int scalar_i = scalar_j_base + bi;  // Swapped base indices
+                    int scalar_j = scalar_i_base + bj;
 
-                int     prev_i = -1;
-                int     i      = -1;
-                Flags   flags;
-                Vector3 vec;
-
-                // In symmtric version, we don't need to check the cross warp
-                flags.is_cross_warp = 0;
-
-                // set the previous row index
-                if(global_thread_id > 0 && global_thread_id < A.triplet_count())
-                {
-                    auto prev_triplet = A(global_thread_id - 1);
-                    prev_i            = prev_triplet.row_index;
+                    triplets.emplace_back(scalar_i, scalar_j, value);
                 }
+            }
+        }
+    }
 
-                if(global_thread_id < A.triplet_count())
-                {
-                    auto Triplet = A(global_thread_id);
-                    i            = Triplet.row_index;
-                    auto j       = Triplet.col_index;
+    // Build Eigen SparseMatrix
+    Eigen::SparseMatrix<Float> A_sparse(total_scalar_rows, total_scalar_cols);
+    A_sparse.setFromTriplets(triplets.begin(), triplets.end());
+    A_sparse.makeCompressed();
 
-                    vec = Triplet.value * x.segment<N>(j * N).as_eigen();
+    // Copy vectors from device to host
+    Eigen::VectorX<Float> x_host(x.size());
+    Eigen::VectorX<Float> y_host(y.size());
 
-                    flags.is_valid = 1;
+    x.buffer_view().copy_to(x_host.data());
+    y.buffer_view().copy_to(y_host.data());
 
-                    if(i != j)  // process lower triangle
-                    {
-                        Vector3 vec_ = a * Triplet.value.transpose()
-                                       * x.segment<N>(i * N).as_eigen();
+    // Compute y = a * A * x + b * y using Eigen sparse matrix-vector multiplication
+    y_host = a * A_sparse * x_host + b * y_host;
 
-                        y.segment<N>(j * N).atomic_add(vec_);
-                    }
-                }
-                else
-                {
-                    i = -1;
-                    vec.setZero();
-                    flags.is_valid = 0;
-                }
-
-                if(lane_id == 0)
-                {
-                    flags.is_head = 1;
-                }
-                else
-                {
-                    flags.is_head = b2i(prev_i != i);  // must be 1 or 0, or the result is undefined
-                }
-
-
-                // ----------------------------------- warp reduce ----------------------------------------------
-                flags.flags = WarpReduceInt(temp_storage_int[warp_id])
-                                  .HeadSegmentedReduce(flags.flags,
-                                                       flags.is_head,
-                                                       [](uint32_t a, uint32_t b)
-                                                       { return a + b; });
-
-                vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
-                              .HeadSegmentedReduce(vec.x(),
-                                                   flags.is_head,
-                                                   [](Float a, Float b)
-                                                   { return a + b; });
-
-                vec.y() = WarpReduceFloat(temp_storage_float[warp_id])
-                              .HeadSegmentedReduce(vec.y(),
-                                                   flags.is_head,
-                                                   [](Float a, Float b)
-                                                   { return a + b; });
-
-                vec.z() = WarpReduceFloat(temp_storage_float[warp_id])
-                              .HeadSegmentedReduce(vec.z(),
-                                                   flags.is_head,
-                                                   [](Float a, Float b)
-                                                   { return a + b; });
-                // ----------------------------------- warp reduce -----------------------------------------------
-
-
-                if(flags.is_head && flags.is_valid)
-                {
-                    auto seg_y  = y.segment<N>(i * N);
-                    auto result = a * vec;
-
-                    // Must use atomic add!
-                    // Because the same row may be processed by different warps
-                    seg_y.atomic_add(result.eval());
-                }
-            });
+    // Copy result back to device
+    y.buffer_view().copy_from(y_host.data());
 }
 }  // namespace uipc::backend::cuda

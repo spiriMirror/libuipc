@@ -62,7 +62,7 @@ TEST_CASE("19_shell_fixed_point", "[fem]")
 
         label_surface(mesh);
 
-        auto parm = ElasticModuli::youngs_poisson(10.0_MPa, 0.49);
+        auto parm = ElasticModuli2D::youngs_poisson(10.0_MPa, 0.49);
         nhs.apply_to(mesh, parm);
         default_contact.apply_to(mesh);
 

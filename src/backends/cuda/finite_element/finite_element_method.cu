@@ -717,6 +717,10 @@ To avoid this warning, please apply the transform to the positions mannally. htt
                                              vertex_mass_density->view() :
                                              meta_mass_density->view();
 
+                auto vert_mass = sc->vertices().find<Float>("mass");
+                auto mass_view = vert_mass ? vert_mass->view() : span<const Float>{};
+
+
                 auto dst_mass_span =
                     span{h_masses}.subspan(info.vertex_offset, info.vertex_count);
                 UIPC_ASSERT(volume_view.size() == dst_mass_span.size(), "mass size mismatching");
@@ -724,9 +728,16 @@ To avoid this warning, please apply the transform to the positions mannally. htt
 
                 for(auto&& [i, dst_vert_mass] : enumerate(dst_mass_span))
                 {
-                    auto density  = vertex_mass_density ? mass_density_view[i] :
-                                                          mass_density_view[0];
-                    dst_vert_mass = density * volume_view[i];
+                    if(vert_mass)
+                    {
+                        dst_vert_mass = mass_view[i];  // high priority
+                    }
+                    else
+                    {
+                        auto density = vertex_mass_density ? mass_density_view[i] :
+                                                             mass_density_view[0];
+                        dst_vert_mass = density * volume_view[i];
+                    }
                 }
             }
 

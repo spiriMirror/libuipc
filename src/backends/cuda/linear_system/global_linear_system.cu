@@ -7,80 +7,85 @@
 #include <linear_system/local_preconditioner.h>
 #include <fstream>
 #include <sim_engine.h>
+#include <backends/common/backend_path_tool.h>
+#include <Eigen/Sparse>
+#include <utils/matrix_market.h>
 
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(GlobalLinearSystem);
-
-void GlobalLinearSystem::dump_linear_system(std::string_view filename)
-{
-    {
-        auto& A = m_impl.debug_A;
-        m_impl.ctx.convert(m_impl.bcoo_A, A);
-        Eigen::MatrixX<Float> mat;
-        A.copy_to(mat);
-
-        auto A_file = fmt::format("{}.A.csv", filename);
-
-        std::ofstream file(A_file);
-        // dump as .csv file
-        for(int i = 0; i < mat.rows(); ++i)
-        {
-            for(int j = 0; j < mat.cols(); ++j)
-            {
-                file << mat(i, j) << ",";
-            }
-            file << "\n";
-        }
-    }
-
-    {
-        Eigen::VectorX<Float> b;
-        m_impl.b.copy_to(b);
-
-        auto b_file = fmt::format("{}.b.csv", filename);
-
-        std::ofstream file(b_file);
-        // dump as .csv file
-        for(int i = 0; i < b.size(); ++i)
-        {
-            file << b(i) << "\n";
-        }
-    }
-
-    {
-        Eigen::VectorX<Float> x;
-        m_impl.x.copy_to(x);
-
-        auto x_file = fmt::format("{}.x.csv", filename);
-
-        std::ofstream file(x_file);
-        // dump as .csv file
-        for(int i = 0; i < x.size(); ++i)
-        {
-            file << x(i) << "\n";
-        }
-    }
-}
 
 SizeT GlobalLinearSystem::dof_count() const
 {
     return m_impl.b.size();
 }
 
-void GlobalLinearSystem::do_build() {}
+void GlobalLinearSystem::do_build()
+{
+    auto dump_linear_system_attr =
+        world().scene().config().find<IndexT>("extras/debug/dump_linear_system");
+
+    m_impl.need_debug_dump =
+        dump_linear_system_attr ? dump_linear_system_attr->view()[0] : false;
+
+    auto path_tool         = BackendPathTool(workspace());
+    m_impl.debug_dump_path = path_tool.workspace(__FILE__, "debug").string();
+
+    if(m_impl.need_debug_dump) [[unlikely]]
+    {
+        logger::critical("GlobalLinearSystem: debug dump is enabled, performance will be degraded, dump path: {}",
+                         m_impl.debug_dump_path);
+    }
+}
+
+void GlobalLinearSystem::_dump_A_b()
+{
+    auto path_tool   = BackendPathTool(workspace());
+    auto output_path = path_tool.workspace(__FILE__, "debug");
+    export_matrix_market(fmt::format("{}/A.{}.{}.mtx",
+                                     output_path.string(),
+                                     engine().frame(),
+                                     engine().newton_iter()),
+                         m_impl.bcoo_A.cview());
+    export_vector_market(fmt::format("{}/b.{}.{}.mtx",
+                                     output_path.string(),
+                                     engine().frame(),
+                                     engine().newton_iter()),
+                         m_impl.b.cview());
+}
+
+void GlobalLinearSystem::_dump_x()
+{
+    auto path_tool   = BackendPathTool(workspace());
+    auto output_path = path_tool.workspace(__FILE__, "debug");
+    export_vector_market(fmt::format("{}/x.{}.{}.mtx",
+                                     output_path.string(),
+                                     engine().frame(),
+                                     engine().newton_iter()),
+                         m_impl.x.cview());
+}
+
 
 void GlobalLinearSystem::solve()
 {
 
     m_impl.build_linear_system();
-    // if the system is empty, skip the following steps
+
     if(m_impl.empty_system) [[unlikely]]
         return;
+        
     logger::info("GlobalLinearSystem has {} DoFs, Unique Triplet Count: {}",
                  m_impl.b.size(),
                  m_impl.bcoo_A.triplet_count());
+
+    if(m_impl.need_debug_dump) [[unlikely]]
+        _dump_A_b();
+
     m_impl.solve_linear_system();
+
+    if(m_impl.need_debug_dump) [[unlikely]]
+        _dump_x();
+
     m_impl.distribute_solution();
 }
 
@@ -180,10 +185,12 @@ void GlobalLinearSystem::Impl::build_linear_system()
 {
     Timer timer{"Build Linear System"};
     empty_system = !_update_subsystem_extent();
-    // if empty, skip the following steps
-    if(empty_system) [[unlikely]]
-        return;
 
+    if(empty_system) [[unlikely]]
+    {
+        logger::warn("The global linear system is empty, skip *assembling, *solving and *solution distributing phase.");
+        return;
+    }
 
     _assemble_linear_system();
 
@@ -191,6 +198,10 @@ void GlobalLinearSystem::Impl::build_linear_system()
     converter.convert(triplet_A, bcoo_A);
 
     _assemble_preconditioner();
+
+    logger::info("GlobalLinearSystem has {} DoFs, Unique Triplet Count: {}",
+                 b.size(),
+                 bcoo_A.triplet_count());
 }
 
 bool GlobalLinearSystem::Impl::_update_subsystem_extent()
@@ -275,7 +286,6 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
 
     if(total_dof == 0 || total_triplet == 0) [[unlikely]]
     {
-        logger::warn("The global linear system is empty, skip *assembling, *solving and *solution distributing phase.");
         return false;
     }
 
@@ -285,7 +295,14 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
 void GlobalLinearSystem::Impl::_assemble_linear_system()
 {
     auto HA = triplet_A.view();
-    auto B  = b.view();
+
+    // Clear and invalidate previous values
+    triplet_A.values().fill(Matrix3x3::Zero());
+    triplet_A.row_indices().fill(-1);
+    triplet_A.col_indices().fill(-1);
+
+    auto B = b.view();
+    B.buffer_view().fill(0.0);
 
     auto diag_subsystem_view     = diag_subsystems.view();
     auto off_diag_subsystem_view = off_diag_subsystems.view();
@@ -433,6 +450,7 @@ void GlobalLinearSystem::Impl::apply_preconditioner(muda::DenseVectorView<Float>
 
     if(!global_preconditioner)
     {
+        // For diag subsystems without local preconditioner, just copy r to z
         for(auto i : no_precond_diag_subsystem_indices)
         {
             auto offset = diag_dof_offsets[i];
@@ -450,6 +468,10 @@ void GlobalLinearSystem::Impl::spmv(Float                         a,
                                     muda::DenseVectorView<Float>  y)
 {
     spmver.rbk_sym_spmv(a, bcoo_A.cview(), x, b, y);
+
+    // Just some debug options
+    //  * spmver.sym_spmv(a, bcoo_A.cview(), x, b, y);      // Slightly slower
+    //  * spmver.cpu_sym_spmv(a, bcoo_A.cview(), x, b, y);  // Much slower
 }
 
 bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> r)

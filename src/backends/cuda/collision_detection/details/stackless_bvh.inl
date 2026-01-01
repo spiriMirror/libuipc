@@ -385,13 +385,15 @@ MUDA_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
     Launch(GridDim, BlockDim)
         .file_line(__FILE__, __LINE__)
         .apply(
-            [size         = size,
-             _depths      = count.viewer().name("_depths"),
-             _lvs_lca     = ext_lca.viewer().name("_lvs_lca"),
-             _lvs_metric  = metric.viewer().name("_lvs_metric"),
-             _lvs_par     = ext_par.viewer().name("_lvs_par"),
-             _lvs_mark    = ext_mark.viewer().name("_lvs_mark"),
-             _lvs_box     = ext_aabb.viewer().name("_lvs_box"),
+            [size = size,
+             // leaf nodes
+             _depths     = count.viewer().name("_depths"),
+             _lvs_lca    = ext_lca.viewer().name("_lvs_lca"),
+             _lvs_metric = metric.viewer().name("_lvs_metric"),
+             _lvs_par    = ext_par.viewer().name("_lvs_par"),
+             _lvs_mark   = ext_mark.viewer().name("_lvs_mark"),
+             _lvs_box    = ext_aabb.viewer().name("_lvs_box"),
+             // internal nodes
              _tks_rc      = int_rc.viewer().name("_tks_rc"),
              _tks_lc      = int_lc.viewer().name("_tks_lc"),
              _tks_range_y = int_range_y.viewer().name("_tks_range_y"),
@@ -415,6 +417,13 @@ MUDA_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
                 int cur = mark ? l : r;
 
                 _lvs_par(idx) = cur;
+
+
+                if(_flag.total_size() == 0)
+                    // when we only have 1 external node
+                    // there is no internal node to build
+                    return;
+
                 if(mark)
                 {
                     _tks_rc(cur)      = idx;
@@ -530,6 +539,9 @@ MUDA_INLINE void StacklessBVH::Impl::updateBvhExtNodeLinks(int size)
 {
     using namespace muda;
 
+    if(flags.size() == 0)  // no internal nodes, thus no need to update
+        return;
+
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(size,
@@ -555,13 +567,16 @@ MUDA_INLINE void StacklessBVH::Impl::reorderNode(int intSize)
         .file_line(__FILE__, __LINE__)
         .apply(intSize + 1,
                [intSize,
+                // leaf nodes
+                _lvs_lca = ext_lca.viewer().name("_lvs_lca"),
+                _lvs_box = ext_aabb.viewer().name("_lvs_box"),
+                // internal nodes
                 _tkMap           = tkMap.viewer().name("_tkMap"),
-                _lvs_lca         = ext_lca.viewer().name("_lvs_lca"),
-                _lvs_box         = ext_aabb.viewer().name("_lvs_box"),
                 _unorderedTks_lc = int_lc.viewer().name("_unorderedTks_lc"),
                 _unorderedTks_mark = int_mark.viewer().name("_unorderedTks_mark"),
                 _unorderedTks_rangey = int_range_y.viewer().name("_unorderedTks_rangey"),
                 _unorderedTks_box = int_aabb.viewer().name("_unorderedTks_box"),
+                // total nodes
                 _nodes = nodes.viewer().name("_nodes")] __device__(int idx)
                {
                    stacklessnode Node;
@@ -615,10 +630,13 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
     objs         = aabbs;
     auto numObjs = aabbs.size();
 
+    if(aabbs.size() == 0)
+        return;
+
     const unsigned int numInternalNodes = numObjs - 1;  // Total number of internal nodes
     const unsigned int numNodes = numObjs * 2 - 1;  // Total number of nodes
 
-    flags.resize(numInternalNodes);
+
     mtcode.resize(numObjs);
     sorted_id.resize(numObjs);
     primMap.resize(numObjs);
@@ -633,7 +651,7 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
     offsetTable.resize(numObjs);
     count.resize(numObjs);
 
-
+    flags.resize(numInternalNodes);
     int_lc.resize(numInternalNodes);
     int_rc.resize(numInternalNodes);
     int_par.resize(numInternalNodes);
@@ -641,6 +659,7 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
     int_range_y.resize(numInternalNodes);
     int_mark.resize(numInternalNodes);
     int_aabb.resize(numInternalNodes);
+
     nodes.resize(numNodes);
 
 
@@ -659,7 +678,6 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
     thrust::sequence(null_stream, sorted_id.begin(), sorted_id.end());
     thrust::sort_by_key(null_stream, mtcode.begin(), mtcode.end(), sorted_id.begin());
 
-
     calcInverseMapping();
 
     buildPrimitivesFromBox(aabbs);
@@ -672,6 +690,7 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
 
     calcIntNodeOrders(numObjs);
 
+    // fill the last ext_lca to -1
     thrust::fill(null_stream, ext_lca.begin() + numObjs, ext_lca.begin() + numObjs + 1, -1);
 
     updateBvhExtNodeLinks(numObjs);
@@ -1018,7 +1037,7 @@ inline void StacklessBVH::QueryBuffer::build(muda::CBufferView<AABB> aabbs)
 template <std::invocable<IndexT, IndexT> Pred>
 void StacklessBVH::query(muda::CBufferView<AABB> aabbs, Pred callback, QueryBuffer& qbuffer)
 {
-    if(aabbs.size() == 0)
+    if(aabbs.size() == 0 || m_impl.objs.size() == 0)
     {
         qbuffer.m_size = 0;
         return;
