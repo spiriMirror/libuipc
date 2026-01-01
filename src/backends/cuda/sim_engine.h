@@ -95,6 +95,7 @@ class SimEngine final : public backend::SimEngine
 
 
     bool  m_friction_enabled = false;
+    bool  m_semi_implicit_enabled = true;
     SizeT m_current_frame    = 0;
     Float m_newton_scene_tol = 0.01;
 

@@ -334,7 +334,7 @@ void Spmv::rbk_sym_spmv(Float                           a,
 
                 __shared__ union
                 {
-                    typename WarpReduceInt::TempStorage temp_storage_int[block_dim / warp_size];
+                    //typename WarpReduceInt::TempStorage temp_storage_int[block_dim / warp_size];
                     typename WarpReduceFloat::TempStorage temp_storage_float[block_dim / warp_size];
                 };
 

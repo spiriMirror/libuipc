@@ -301,6 +301,8 @@ void SimEngine::do_advance()
             auto   newton_max_iter = m_newton_max_iter->view()[0];
             auto   newton_min_iter = m_newton_min_iter->view()[0];
             IndexT newton_iter     = 0;
+            Float beta            = 1;
+            int    Kmin            = 2;
             for(; newton_iter < newton_max_iter; ++newton_iter)
             {
                 Timer timer{"Newton Iteration"};
@@ -393,9 +395,23 @@ void SimEngine::do_advance()
                             line_search_iter++;
                         }
 
+
                         // Check Line Search Iteration
                         // report warnings or throw exceptions if needed
                         check_line_search_iter(line_search_iter);
+                    }
+
+                    if(newton_iter + 1 >= Kmin)
+                    {
+                        beta = (1 - alpha) * beta;
+                    }
+                    else
+                    {
+                        beta = beta;
+                    }
+                    if(m_semi_implicit_enabled && beta <= 1e-3)
+                    {
+                        break;
                     }
                 }
             }
