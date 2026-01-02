@@ -350,6 +350,7 @@ class TripletMatrixAssembler
 
                     ElementMatrix H =
                         value.template block<BlockDim, BlockDim>(L * BlockDim, R * BlockDim);
+                    
                     m_assembler.m_triplet(offset++).write(indices(L), indices(R), H);
                 }
             }

@@ -352,6 +352,7 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     }
 
     // Use AllE to query AllE
+    if(Es.size() > 0)
     {
         muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
         lbvh_E.detect(
@@ -427,6 +428,7 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     }
 
     // Use AllP to query AllT
+    if(Fs.size() > 0)
     {
         muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
         lbvh_T.query(

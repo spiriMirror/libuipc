@@ -1,5 +1,5 @@
 #include <app/asset_dir.h>
-#include <app/test_common.h>
+#include <app/app.h>
 #include <tiny_gltf.h>
 #include <uipc/io/gltf_io.h>
 

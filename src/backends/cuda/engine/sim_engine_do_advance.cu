@@ -320,6 +320,7 @@ void SimEngine::do_advance()
             for(; newton_iter < newton_max_iter; ++newton_iter)
             {
                 Timer timer{"Newton Iteration"};
+                m_newton_iter = newton_iter;
 
                 // 1) Compute animation substep ratio
                 compute_animation_substep_ratio(newton_iter);
@@ -350,8 +351,7 @@ void SimEngine::do_advance()
 
 
                 // 6) Check Termination Condition
-                bool converged  = convergence_check(newton_iter);
-                bool terminated = converged && (newton_iter >= newton_min_iter);
+                bool converged = convergence_check(newton_iter);
 
                 // 7) Begin Line Search
                 m_state = SimEngineState::LineSearch;
@@ -375,11 +375,15 @@ void SimEngine::do_advance()
                     // CFL Condition
                     alpha = cfl_condition(alpha);
 
-                    // * Step Forward => x = x_0 + alpha * dx
-                    // Compute Test Energy => E
+                    // Compute Test Energy:
+                    //  * Step Forward => x = x_0 + alpha * dx
+                    //  * Compute New Energy => E
                     Float E = compute_energy(alpha);
 
+                    // Line Search Iteration
                     if(!converged)
+                    //  * Reason of only line search when `!converged`
+                    //    to prevent numerical energy (fake-) increase caused by tiny dx
                     {
                         SizeT line_search_iter = 0;
                         while(line_search_iter < m_line_searcher->max_iter())
@@ -411,10 +415,11 @@ void SimEngine::do_advance()
                         // report warnings or throw exceptions if needed
                         check_line_search_iter(line_search_iter);
                     }
-
-                    if(terminated)
-                        break;
                 }
+
+                bool terminated = converged && (newton_iter >= newton_min_iter);
+                if(terminated)
+                    break;
             }
 
             // 5. Update Velocity => v = (x - x_0) / dt

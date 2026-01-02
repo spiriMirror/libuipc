@@ -305,9 +305,11 @@ class GlobalLinearSystem : public SimSystem
         void spmv(Float a, muda::CDenseVectorView<Float> x, Float b, muda::DenseVectorView<Float> y);
 
         bool accuracy_statisfied(muda::DenseVectorView<Float> r);
-    };
 
-    void dump_linear_system(std::string_view filename);
+
+        bool        need_debug_dump = false;
+        std::string debug_dump_path;
+    };
 
     SizeT dof_count() const;
 
@@ -337,5 +339,9 @@ class GlobalLinearSystem : public SimSystem
     void solve();
 
     Impl m_impl;
+
+    // local debug dump functions
+    void _dump_A_b();
+    void _dump_x();
 };
 }  // namespace uipc::backend::cuda

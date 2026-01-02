@@ -39,12 +39,15 @@ class SimEngine final : public backend::SimEngine
 
     SimEngineState state() const noexcept;
 
+    SizeT newton_iter() const noexcept;
+
   private:
     virtual void  do_init(InitInfo& info) override;
     virtual void  do_advance() override;
     virtual void  do_sync() override;
     virtual void  do_retrieve() override;
     virtual SizeT get_frame() const override;
+
 
     virtual bool do_dump(DumpInfo&) override;
     virtual bool do_try_recover(RecoverInfo&) override;
@@ -93,12 +96,14 @@ class SimEngine final : public backend::SimEngine
     //ABDDiffSimManager*           m_abd_diff_sim_manager           = nullptr;
     FiniteElementMethod* m_finite_element_method = nullptr;
 
+    SizeT m_current_frame = 0;
+    SizeT m_newton_iter   = 0;
 
-    bool  m_friction_enabled       = false;
     bool  m_semi_implicit_enabled  = true;
     Float m_semi_implicit_beta_tol = 1e-3;
-    SizeT m_current_frame          = 0;
     Float m_newton_scene_tol       = 0.01;
+
+    bool m_friction_enabled = false;
 
     template <typename T>
     using CAS = S<const geometry::AttributeSlot<T>>;

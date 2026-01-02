@@ -1,9 +1,8 @@
 #include <app/app.h>
 #include <uipc/uipc.h>
-#include <uipc/constitution/stable_neo_hookean.h>
-#include <uipc/constitution/arap.h>
+#include <uipc/constitution/empty.h>
 
-TEST_CASE("17_fem_multi_constituion", "[fem]")
+TEST_CASE("48_empty", "[fem]")
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -22,51 +21,41 @@ TEST_CASE("17_fem_multi_constituion", "[fem]")
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["max_iter"]       = 8;
-    config["linear_system"]["tol_rate"]     = 1e-3;
-    config["line_search"]["report_energy"]  = true;
+    config["newton"]["velocity_tol"]        = 0.05;
     test::Scene::dump_config(config, output_path);
-
-    SimplicialComplexIO io;
 
     Scene scene{config};
     {
         // create constitution and contact model
-        StableNeoHookean snh;
-        ARAP             arap;
-
-        scene.contact_tabular().default_model(0.5, 1.0_GPa);
-        auto default_element = scene.contact_tabular().default_element();
+        Empty empty;
+        auto  default_contact = scene.contact_tabular().default_element();
 
         // create object
-        auto object = scene.objects().create("tets");
+        auto object = scene.objects().create("empty");
 
-        vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
-        vector<Vector3>  Vs = {Vector3{0, 0, 1},
-                               Vector3{0, -1, 0},
-                               Vector3{-std::sqrt(3) / 2, 0, -0.5},
-                               Vector3{std::sqrt(3) / 2, 0, -0.5}};
 
-        auto mesh = tetmesh(Vs, Ts);
-
-        label_surface(mesh);
-        label_triangle_orient(mesh);
-
-        auto mesh2 = mesh;
-        auto pos_v = view(mesh2.positions());
-
-        for(auto& p : pos_v)
+        constexpr int   n = 10;
+        vector<Vector3> Vs(n);
+        for(int i = 0; i < n; i++)
         {
-            p.y() += 1.2;
+            Vs[i] = Vector3::UnitZ() * i;
         }
 
-        auto parm = ElasticModuli::youngs_poisson(10.0_kPa, 0.49);
-        snh.apply_to(mesh, parm);
-        arap.apply_to(mesh2, 1.0_MPa);
+        std::transform(Vs.begin(),
+                       Vs.end(),
+                       Vs.begin(),
+                       [&](const Vector3& v)
+                       { return v * 0.05 + Vector3::UnitY() * 0.2; });
 
+        auto mesh = pointcloud(Vs);
+
+        label_surface(mesh);
+
+        empty.apply_to(mesh);
+        default_contact.apply_to(mesh);
         object->geometries().create(mesh);
-        object->geometries().create(mesh2);
 
-        auto g = ground(-1.2);
+        auto g = ground(0.0);
         object->geometries().create(g);
     }
 
@@ -76,7 +65,7 @@ TEST_CASE("17_fem_multi_constituion", "[fem]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
 
-    while(world.frame() < 300)
+    while(world.frame() < 100)
     {
         world.advance();
         REQUIRE(world.is_valid());
