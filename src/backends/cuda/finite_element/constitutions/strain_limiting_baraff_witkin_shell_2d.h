@@ -116,7 +116,6 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
     {
         Float I6 = anisotropic_a.transpose() * F.transpose() * F * anisotropic_b;
         Float shear_energy = I6 * I6;
-        // stretchS /= strainRate;
 
         Float I5u = (F * anisotropic_a).norm();
         Float I5v = (F * anisotropic_b).norm();
@@ -149,8 +148,6 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
                                   Float                      shearS,
                                   Float                      strainRate)
     {
-        // stretchS /= strainRate;
-
         Float I6 = anisotropic_a.transpose() * F.transpose() * F * anisotropic_b;
         Eigen::Matrix<Float, 3, 2> stretch_pk1, shear_pk1;
 
@@ -187,9 +184,6 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
                                     Float                       shearS,
                                     Float                       strainRate)
     {
-
-        // stretchS /= strainRate;
-
         Eigen::Matrix<Float, 6, 6> H_stretc = Eigen::Matrix<Float, 6, 6>::Zero();
         {
             Float I5u = (F * anisotropic_a).transpose() * F * anisotropic_a;
