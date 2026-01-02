@@ -21,7 +21,7 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("newton/ccd_tol", Float{1.0});
     config.create("newton/transrate_tol", Float{0.1 / 1.0_s});
 
-    config.create("newton/semi_implicit/enable", IndexT{0});
+    config.create("newton/semi_implicit/enable", IndexT{1});
     config.create("newton/semi_implicit/beta_tol", Float{1e-3});
 
     config.create("linear_system/tol_rate", Float{1e-3});
