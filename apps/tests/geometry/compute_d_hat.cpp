@@ -1,5 +1,5 @@
 #include <algorithm>
-#include <app/test_common.h>
+#include <app/app.h>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/geometry/utils/compute_mesh_d_hat.h>

@@ -1,4 +1,4 @@
-#include <app/test_common.h>
+#include <app/app.h>
 #include <uipc/common/algorithm/run_length_encode.h>
 
 using namespace uipc;
