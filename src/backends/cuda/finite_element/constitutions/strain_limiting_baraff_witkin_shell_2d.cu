@@ -113,13 +113,6 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
         info.hessian_count(h_mus.size() * half_hessian_size);
     }
 
-    virtual void do_report_extent(ReportExtentInfo& info)
-    {
-        info.energy_count(h_kappas.size());
-        info.gradient_count(h_kappas.size() * 3);
-        info.hessian_count(h_kappas.size() * half_hessian_size);
-    }
-
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         using namespace muda;

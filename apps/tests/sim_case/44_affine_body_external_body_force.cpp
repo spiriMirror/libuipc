@@ -1,13 +1,10 @@
-#include <app/catch2.h>
-#include <app/asset_dir.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/affine_body_external_force.h>
 #include <uipc/geometry/utils/flip_inward_triangles.h>
 #include <uipc/geometry/utils/label_surface.h>
 #include <uipc/geometry/utils/label_triangle_orient.h>
-#include <filesystem>
-#include <fstream>
 
 TEST_CASE("44_affine_body_external_body_force", "[abd][external_force]")
 {
@@ -19,21 +16,16 @@ TEST_CASE("44_affine_body_external_body_force", "[abd][external_force]")
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path = AssetDir::output_path(__FILE__);
+    auto        output_path = AssetDir::output_path(__FILE__);
 
-    Engine engine{"cuda", this_output_path};
+    Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config = Scene::default_config();
-
+    auto config                 = test::Scene::default_config();
     // Disable built-in gravity since we're using external force
     config["gravity"]           = Vector3{0, 0, 0};
     config["contact"]["enable"] = true;
-
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
     {
@@ -135,15 +127,17 @@ TEST_CASE("44_affine_body_external_body_force", "[abd][external_force]")
     }
 
     world.init(scene);
+    REQUIRE(world.is_valid());
 
     SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
 
     while(world.frame() < 100)
     {
         world.advance();
+        REQUIRE(world.is_valid());
         world.retrieve();
         sio.write_surface(
-            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }

@@ -143,7 +143,10 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                                                             thicknesses(idx(2)));
                        Float E;
                        NH::E(E, lambda, mu, X, IB);
-                       energies(I) = E * rest_area * thickness * dt * dt;
+
+                       // thickness is one-sided so we multiply by 2
+                       Float Vdt2 = rest_area * 2 * thickness * dt * dt;
+                       energies(I) = E * Vdt2;
                    });
     }
 
@@ -181,7 +184,8 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                                                             thicknesses(idx(1)),
                                                             thicknesses(idx(2)));
 
-                       Float Vdt2 = rest_area * thickness * dt * dt;
+                       // thickness is one-sided so we multiply by 2
+                       Float Vdt2 = rest_area * 2 * thickness * dt * dt;
 
                        Vector9 G;
                        NH::dEdX(G, lambda, mu, X, IB);

@@ -1,11 +1,8 @@
-#include <app/catch2.h>
-#include <app/asset_dir.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/stable_neo_hookean.h>
 #include <uipc/constitution/arap.h>
 #include <uipc/constitution/affine_body_constitution.h>
-#include <filesystem>
-#include <fstream>
 
 static void clear()
 {
@@ -17,8 +14,8 @@ static void clear()
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path = AssetDir::output_path(__FILE__);
-    auto        dump_path        = fmt::format("{}/dump/", this_output_path);
+    auto        output_path = AssetDir::output_path(__FILE__);
+    auto        dump_path        = fmt::format("{}/dump/", output_path);
     auto        count            = fs::remove_all(dump_path);
     Logger::current_logger().info("Remove {} entries in {}", count, dump_path);
 }
@@ -39,13 +36,12 @@ static void run(int I)
 
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path = AssetDir::output_path(__FILE__);
+    auto        output_path = AssetDir::output_path(__FILE__);
 
-
-    Engine engine{"cuda", this_output_path};
+    Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config = Scene::default_config();
+    auto config = test::Scene::default_config();
 
     config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["enable"]             = true;
@@ -57,11 +53,7 @@ static void run(int I)
     {
         config["recovery"]["frame"] = RecoverFrame;
     }
-
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, output_path);
 
     SimplicialComplexIO io;
 
@@ -120,9 +112,10 @@ static void run(int I)
 
     world.init(scene);
     REQUIRE(world.is_valid());
+
     SceneIO sio{scene};
     sio.write_surface(
-        fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+        fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
 
 
     if(I == 0)
@@ -150,8 +143,9 @@ static void run(int I)
         world.retrieve();
         if(I == 0)  // only dump in the first run
             world.dump();
+        REQUIRE(world.is_valid());
         sio.write_surface(
-            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }
 

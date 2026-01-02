@@ -415,9 +415,6 @@ void SimEngine::do_advance()
                         // report warnings or throw exceptions if needed
                         check_line_search_iter(line_search_iter);
                     }
-
-                    if(terminated)
-                        break;
                 }
 
                 bool terminated = converged && (newton_iter >= newton_min_iter);
