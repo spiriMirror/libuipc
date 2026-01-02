@@ -47,5 +47,48 @@ Returns:
              R"(Get the second Lame parameter (mu, shear modulus).
 Returns:
     float: Second Lame parameter.)");
+
+
+    py::class_<ElasticModuli2D>(m, "ElasticModuli2D", R"(ElasticModuli2D class for codim 2D elastic material parameters (Lame parameters).)")
+        .def_static("lame",
+                    &ElasticModuli2D::lame,
+                    py::arg("lambda_"),
+                    py::arg("mu"),
+                    R"(Create 2D elastic moduli from Lame parameters.
+Args:
+    lambda_: First Lame parameter.
+    mu: Second Lame parameter (shear modulus).
+Returns:
+    ElasticModuli2D: 2D Elastic moduli object.)")
+        .def_static("youngs_shear",
+                    &ElasticModuli2D::youngs_shear,
+                    py::arg("E"),
+                    py::arg("G"),
+                    R"(Create 2D elastic moduli from Young's modulus and shear modulus.
+Args:
+    E: Young's modulus.
+    G: Shear modulus.
+Returns:
+    ElasticModuli2D: 2D Elastic moduli object.)")
+        .def_static("youngs_poisson",
+                    &ElasticModuli2D::youngs_poisson,
+                    py::arg("E"),
+                    py::arg("nu"),
+                    R"(Create 2D elastic moduli from Young's modulus and Poisson's ratio.
+Args:
+    E: Young's modulus.
+    nu: Poisson's ratio.
+Returns:
+    ElasticModuli2D: 2D Elastic moduli object.)")
+        .def("lambda_",
+             &ElasticModuli2D::lambda,
+             R"(Get the first Lame parameter (lambda).
+Returns:
+    float: First Lame parameter.)")
+        .def("mu",
+             &ElasticModuli2D::mu,
+             R"(Get the second Lame parameter (mu, shear modulus).
+Returns:
+    float: Second Lame parameter.)");
 }
 }  // namespace pyuipc::constitution

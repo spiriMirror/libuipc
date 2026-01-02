@@ -59,6 +59,7 @@ void SimEngine::init_scene()
     m_newton_max_iter     = info.find<IndexT>("newton/max_iter");
     m_newton_min_iter     = info.find<IndexT>("newton/min_iter");
     m_ccd_tol             = info.find<Float>("newton/ccd_tol");
+
     m_semi_implicit_enabled =
         info.find<IndexT>("newton/semi_implicit/enable")->view()[0];
     m_semi_implicit_beta_tol =

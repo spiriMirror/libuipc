@@ -1,11 +1,7 @@
-#include <app/catch2.h>
-#include <app/asset_dir.h>
-#include <app/require_log.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/stable_neo_hookean.h>
-#include <filesystem>
-#include <fstream>
 
 TEST_CASE("36_no_surf_but_contact_on", "[abd]")
 {
@@ -16,19 +12,15 @@ TEST_CASE("36_no_surf_but_contact_on", "[abd]")
     using namespace uipc::core;
     namespace fs = std::filesystem;
 
-    auto this_output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(__FILE__);
 
-    Engine engine{"cuda", this_output_path};
+    Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config                 = Scene::default_config();
+    auto config                 = test::Scene::default_config();
     config["gravity"]           = Vector3{0, -9.8, 0};
     config["contact"]["enable"] = true;
-
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
     {
@@ -63,14 +55,15 @@ TEST_CASE("36_no_surf_but_contact_on", "[abd]")
     SceneIO sio{scene};
 
     REQUIRE_HAS_WARN(
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0)));
+        sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0)));
 
 
     while(world.frame() < 50)
     {
         world.advance();
+        REQUIRE(world.is_valid());
         world.retrieve();
         REQUIRE_HAS_WARN(sio.write_surface(
-            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame())));
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame())));
     }
 }

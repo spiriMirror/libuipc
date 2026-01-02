@@ -1,5 +1,5 @@
 #include <type_define.h>  // to use Eigen in CUDA
-#include <app/test_common.h>
+#include <app/app.h>
 #include <app/asset_dir.h>
 #include <collision_detection/linear_bvh.h>
 #include <uipc/geometry.h>

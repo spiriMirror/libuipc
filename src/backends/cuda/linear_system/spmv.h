@@ -5,6 +5,7 @@
 #include <muda/ext/linear_system/bsr_matrix_view.h>
 #include <muda/ext/linear_system/dense_vector_view.h>
 #include <muda/ext/linear_system/device_dense_vector.h>
+
 namespace uipc::backend::cuda
 {
 // calculate y = a * A * x + b * y
@@ -27,6 +28,14 @@ class Spmv
 
     // reduce by key symmtric spmv
     void rbk_sym_spmv(Float                           a,
+                      muda::CBCOOMatrixView<Float, 3> A,
+                      muda::CDenseVectorView<Float>   x,
+                      Float                           b,
+                      muda::DenseVectorView<Float>    y);
+
+    // debug fallback cpu spmv
+    // very slow, only for debug
+    void cpu_sym_spmv(Float                           a,
                       muda::CBCOOMatrixView<Float, 3> A,
                       muda::CDenseVectorView<Float>   x,
                       Float                           b,

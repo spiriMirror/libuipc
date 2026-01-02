@@ -1,11 +1,7 @@
-#include <app/catch2.h>
-#include <app/asset_dir.h>
-#include <app/require_log.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/affine_body_revolute_joint.h>
-#include <filesystem>
-#include <fstream>
 
 TEST_CASE("37_abd_revolute_joint", "[abd]")
 {
@@ -16,19 +12,15 @@ TEST_CASE("37_abd_revolute_joint", "[abd]")
     using namespace uipc::core;
     namespace fs = std::filesystem;
 
-    auto this_output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(__FILE__);
 
-    Engine engine{"cuda", this_output_path};
+    Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config                 = Scene::default_config();
+    auto config                 = test::Scene::default_config();
     config["gravity"]           = Vector3{0, -9.8, 0};
     config["contact"]["enable"] = true;
-
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
     {
@@ -111,17 +103,18 @@ TEST_CASE("37_abd_revolute_joint", "[abd]")
     }
 
     world.init(scene);
-    SceneIO sio{scene};
-    sio.write_surface(
-        fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     REQUIRE(world.is_valid());
 
+    SceneIO sio{scene};
+    sio.write_surface(
+        fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
 
     while(world.frame() < 100)
     {
         world.advance();
+        REQUIRE(world.is_valid());
         world.retrieve();
         sio.write_surface(
-            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }

@@ -1,11 +1,8 @@
-#include <app/catch2.h>
-#include <app/asset_dir.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/stable_neo_hookean.h>
 #include <uipc/constitution/arap.h>
 #include <uipc/constitution/affine_body_constitution.h>
-#include <filesystem>
-#include <fstream>
 
 TEST_CASE("38_global_vertex_offset", "[abd_fem]")
 {
@@ -16,24 +13,18 @@ TEST_CASE("38_global_vertex_offset", "[abd_fem]")
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path = AssetDir::output_path(__FILE__);
+    auto        output_path = AssetDir::output_path(__FILE__);
 
-
-    Engine engine{"cuda", this_output_path};
+    Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config = Scene::default_config();
-
+    auto config                             = test::Scene::default_config();
     config["gravity"]                      = Vector3{0, -9.8, 0};
     config["contact"]["enable"]            = false;
     config["line_search"]["max_iter"]      = 8;
     config["linear_system"]["tol_rate"]    = 1e-3;
     config["line_search"]["report_energy"] = true;
-
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, output_path);
 
     SimplicialComplexIO io;
 
