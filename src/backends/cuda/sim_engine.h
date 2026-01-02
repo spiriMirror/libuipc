@@ -83,9 +83,9 @@ class SimEngine final : public backend::SimEngine
     GlobalLinearSystem*     m_global_linear_system     = nullptr;
     NewtonToleranceManager* m_newton_tolerance_manager = nullptr;
 
-    GlobalAnimator*              m_global_animator               = nullptr;
-    GlobalExternalForceManager*  m_global_external_force_manager = nullptr;
-    GlobalDiffSimManager*        m_global_diff_sim_manager       = nullptr;
+    GlobalAnimator*             m_global_animator               = nullptr;
+    GlobalExternalForceManager* m_global_external_force_manager = nullptr;
+    GlobalDiffSimManager*       m_global_diff_sim_manager       = nullptr;
     //GlobalDiffContactManager*    m_global_diff_contact_manager    = nullptr;
     //GlobalAdjointMethodReplayer* m_global_adjoint_method_replayer = nullptr;
     AffineBodyDynamics* m_affine_body_dynamics = nullptr;
@@ -94,10 +94,11 @@ class SimEngine final : public backend::SimEngine
     FiniteElementMethod* m_finite_element_method = nullptr;
 
 
-    bool  m_friction_enabled = false;
-    bool  m_semi_implicit_enabled = true;
-    SizeT m_current_frame    = 0;
-    Float m_newton_scene_tol = 0.01;
+    bool  m_friction_enabled       = false;
+    bool  m_semi_implicit_enabled  = true;
+    Float m_semi_implicit_beta_tol = 1e-3;
+    SizeT m_current_frame          = 0;
+    Float m_newton_scene_tol       = 0.01;
 
     template <typename T>
     using CAS = S<const geometry::AttributeSlot<T>>;
