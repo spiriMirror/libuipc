@@ -46,7 +46,7 @@ inline void EP_to_lame(Float E, Float poission, Float& lambda, Float& mu)
     mu     = E / (2 * (1 + poission));
 }
 
-inline void EG_to_lame_2D(Float E, Float G, Float& lambda, Float& mu, Float& possion)
+inline void EG_to_lame_2D(Float E, Float G, Float& lambda, Float& mu, Float& poisson)
 {
     lambda  = 2 * G * (E - 2 * G) / (4 * G - E);
     mu      = G;
