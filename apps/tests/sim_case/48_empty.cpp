@@ -18,7 +18,7 @@ TEST_CASE("48_empty", "[fem]")
 
     auto config                             = test::Scene::default_config();
     config["gravity"]                       = Vector3{0, -9.8, 0};
-    config["contact"]["enable"]             = false;
+    config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["max_iter"]       = 8;
     config["newton"]["velocity_tol"]        = 0.05;
@@ -34,7 +34,7 @@ TEST_CASE("48_empty", "[fem]")
         auto object = scene.objects().create("empty");
 
 
-        constexpr int   n = 1;
+        constexpr int   n = 10;
         vector<Vector3> Vs(n);
         for(int i = 0; i < n; i++)
         {

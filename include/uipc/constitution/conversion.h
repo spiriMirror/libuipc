@@ -50,12 +50,12 @@ inline void EG_to_lame_2D(Float E, Float G, Float& lambda, Float& mu, Float& poi
 {
     lambda  = 2 * G * (E - 2 * G) / (4 * G - E);
     mu      = G;
-    possion = E / (2 * G) - 1;
+    poisson = E / (2 * G) - 1;
 }
 
-inline void EP_to_lame_2D(Float E, Float poission, Float& lambda, Float& mu)
+inline void EP_to_lame_2D(Float E, Float poisson, Float& lambda, Float& mu)
 {
-    lambda = E * poission / ((1 + poission) * (1 - poission));
-    mu     = E / (2 * (1 + poission));
+    lambda = E * poisson / ((1 + poisson) * (1 - poisson));
+    mu     = E / (2 * (1 + poisson));
 }
 }  // namespace uipc::constitution
