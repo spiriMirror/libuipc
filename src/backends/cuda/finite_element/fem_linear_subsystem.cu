@@ -135,9 +135,10 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                    {
                        if(i != j)
                            hessians(I).write(i, j, Matrix3x3::Zero());
+                       else
+                           hessians(I).write(i, j, Matrix3x3::Identity());
                    }
-               })
-        .wait();
+               });
 }
 
 void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo& info)
@@ -160,9 +161,15 @@ void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo&
         .file_line(__FILE__, __LINE__)
         .apply(producer_gradients.doublet_count(),
                [dst_gradient = info.gradients().viewer().name("dst_gradient"),
-                src_gradient = producer_gradients.viewer().name("src_gradient")] __device__(int I) mutable
+                src_gradient = producer_gradients.viewer().name("src_gradient"),
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
                {
                    auto&& [i, G3] = src_gradient(I);
+
+                   // to reduce atomic add count, we just skip the fixed vertex here
+                   if(is_fixed(i))
+                       return;
+
                    dst_gradient.segment<3>(i * 3).atomic_add(G3);
                });
 }
@@ -190,6 +197,12 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(GlobalLinearSystem::DiagI
                        {
                            const auto& [g_i, G3] = dytopo_effect_gradient(I);
                            auto i = g_i - vertex_offset;  // from global to local
+
+                           // though in final phase we will filter out all the fixed vertex gradient,
+                           // here we just filter it to reduce the count of atomic add
+                           if(is_fixed(i))
+                               return;
+
                            gradients.segment<3>(i * 3).atomic_add(G3);
                        });
         }
@@ -206,13 +219,12 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(GlobalLinearSystem::DiagI
                        [dytopo_effect_hessian =
                             dytopo_effect_receiver->hessians().cviewer().name("dytopo_effect_hessian"),
                         hessians = dst_H3x3s.viewer().name("hessians"),
-                        vertex_offset =
-                            finite_element_vertex_reporter->vertex_offset()] __device__(int I) mutable
+                        vertex_offset = finite_element_vertex_reporter->vertex_offset(),
+                        is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
                        {
                            const auto& [g_i, g_j, H3] = dytopo_effect_hessian(I);
                            auto i = g_i - vertex_offset;
                            auto j = g_j - vertex_offset;
-
                            hessians(I).write(i, j, H3);
                        });
         }
@@ -243,8 +255,9 @@ void FEMLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
-               [dxs = dxs.viewer().name("dxs"),
-                result = info.solution().viewer().name("result")] __device__(int i) mutable
+               [dxs    = dxs.viewer().name("dxs"),
+                result = info.solution().viewer().name("result"),
+                cout   = KernelCout::viewer()] __device__(int i) mutable
                {
                    dxs(i) = -result.segment<3>(i * 3).as_eigen();
 

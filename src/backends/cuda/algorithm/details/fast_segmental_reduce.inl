@@ -3,12 +3,6 @@
 
 namespace muda
 {
-//constexpr int BlockSize = 128;
-//constexpr int WarpSize  = 32;
-//using T                 = float;
-//constexpr int M         = 3;
-//constexpr int N         = 3;
-
 namespace details::fast_segmental_reduce
 {
     __host__ __device__ constexpr int b2i(bool b)
@@ -121,7 +115,7 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
                     }
                     else
                     {
-                        out(i) = value;
+                       out(i) = value;
                     }
                 }
             });
@@ -256,7 +250,7 @@ FastSegmentalReduce<BlockSize, WarpSize>& FastSegmentalReduce<BlockSize, WarpSiz
                     }
                     else
                     {
-                        out(i) = value;
+                       out(i) = value;
                     }
                 }
             });

@@ -1,6 +1,9 @@
 #include <linear_system/linear_pcg.h>
 #include <sim_engine.h>
 #include <linear_system/global_linear_system.h>
+#include <cuda_device/builtin.h>
+#include <utils/matrix_market.h>
+#include <backends/common/backend_path_tool.h>
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(LinearPCG);
@@ -11,9 +14,28 @@ void LinearPCG::do_build(BuildInfo& info)
 
     // TODO: get info from the scene, now we just use the default value
     max_iter_ratio = 2;
-    auto tol_rate_attr = world().scene().config().find<Float>("linear_system/tol_rate");
-    global_tol_rate = tol_rate_attr->view()[0];
-    // logger::info("LinearPCG: max_iter_ratio = {}, tol_rate = {}", max_iter_ratio, global_tol_rate);
+
+    auto& config = world().scene().config();
+
+    auto tol_rate_attr = config.find<Float>("linear_system/tol_rate");
+    global_tol_rate    = tol_rate_attr->view()[0];
+
+    auto dump_attr  = config.find<IndexT>("extras/debug/dump_linear_pcg");
+    need_debug_dump = dump_attr ? dump_attr->view()[0] : false;
+
+    logger::info("LinearPCG: max_iter_ratio = {}, tol_rate = {}, debug_dump = {}",
+                 max_iter_ratio,
+                 global_tol_rate,
+                 need_debug_dump);
+
+    auto path_tool  = BackendPathTool(workspace());
+    debug_dump_path = path_tool.workspace(__FILE__, "debug").string();
+
+    if(need_debug_dump) [[unlikely]]
+    {
+        logger::critical("LinearPCG: debug dump is enabled, performance will be degraded, dump path: {}",
+                         debug_dump_path);
+    }
 }
 
 void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
@@ -38,13 +60,108 @@ void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
     r.resize(N);
     Ap.resize(N);
 
+    r0 = r;
+
     auto iter = pcg(x, b, max_iter_ratio * b.size());
 
     info.iter_count(iter);
 }
 
+void LinearPCG::dump_r_z(SizeT k)
+{
+
+    auto path_tool   = BackendPathTool(workspace());
+    auto output_path = path_tool.workspace(__FILE__, "debug");
+    export_vector_market(fmt::format("{}/pcg_r.{}.{}.{}.mtx",
+                                     output_path.string(),
+                                     engine().frame(),
+                                     engine().newton_iter(),
+                                     k),
+                         r.cview());
+    export_vector_market(fmt::format("{}/pcg_z.{}.{}.{}.mtx",
+                                     output_path.string(),
+                                     engine().frame(),
+                                     engine().newton_iter(),
+                                     k),
+                         z.cview());
+}
+
+void LinearPCG::dump_p_Ap(SizeT k)
+{
+    auto path_tool   = BackendPathTool(workspace());
+    auto output_path = path_tool.workspace(__FILE__, "debug");
+    export_vector_market(fmt::format("{}/pcg_p.{}.{}.{}.mtx",
+                                     output_path.string(),
+                                     engine().frame(),
+                                     engine().newton_iter(),
+                                     k),
+                         p.cview());
+    export_vector_market(fmt::format("{}/pcg_Ap.{}.{}.{}.mtx",
+                                     output_path.string(),
+                                     engine().frame(),
+                                     engine().newton_iter(),
+                                     k),
+                         Ap.cview());
+}
+
+void LinearPCG::check_rz_nan_inf(SizeT k)
+{
+    auto rz = ctx().dot(r.cview(), z.cview());
+    if(std::isnan(rz) || !std::isfinite(rz))
+    {
+        auto norm_r = ctx().norm(r.cview());
+        auto norm_z = ctx().norm(z.cview());
+        UIPC_ASSERT(!std::isnan(rz) && std::isfinite(rz),
+                    "Frame {}, Newton: {}, Iteration {}: Residual is {}, norm(r) = {}, norm(z) = {}",
+                    engine().frame(),
+                    engine().newton_iter(),
+                    k,
+                    rz,
+                    norm_r,
+                    norm_z);
+    }
+}
+
+void update_xr(Float                         alpha,
+               muda::DenseVectorView<Float>  x,
+               muda::CDenseVectorView<Float> p,
+               muda::DenseVectorView<Float>  r,
+               muda::CDenseVectorView<Float> Ap)
+{
+    using namespace muda;
+
+    // Fused update of x and r for better performance
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(r.size(),
+               [alpha = alpha,
+                x     = x.viewer().name("x"),
+                p     = p.cviewer().name("p"),
+                r     = r.viewer().name("r"),
+                Ap    = Ap.cviewer().name("Ap")] __device__(int i) mutable
+               {
+                   x(i) += alpha * p(i);
+                   r(i) -= alpha * Ap(i);
+               });
+}
+
+void update_p(muda::DenseVectorView<Float> p, muda::CDenseVectorView<Float> z, Float beta)
+{
+    using namespace muda;
+
+    // Simple axpby
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(p.size(),
+               [p = p.viewer().name("p"), z = z.cviewer().name("z"), beta = beta] __device__(
+                   int i) mutable { p(i) = z(i) + beta * p(i); });
+}
+
 SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Float> b, SizeT max_iter)
 {
+    auto path_tool   = BackendPathTool(workspace());
+    auto output_path = path_tool.workspace(__FILE__, "debug");
+
     SizeT k = 0;
     // r = b - A * x
     {
@@ -56,10 +173,13 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         //spmv(-1.0, x.as_const(), 1.0, r.view());
     }
 
-    Float alpha, beta, rz, rz0;
+    Float alpha, beta, rz, abs_rz0;
 
     // z = P * r (apply preconditioner)
     apply_preconditioner(z, r);
+
+    if(need_debug_dump) [[unlikely]]
+        dump_r_z(k);
 
     // p = z
     p = z;
@@ -67,73 +187,48 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
     // init rz
     // rz = r^T * z
     rz = ctx().dot(r.cview(), z.cview());
+    check_rz_nan_inf(k);
 
-    rz0 = std::abs(rz);
-
-    if constexpr(RUNTIME_CHECK)
-    {
-        if(std::isnan(rz0) || !std::isfinite(rz0))
-        {
-            auto norm_r = ctx().norm(r.cview());
-            auto norm_z = ctx().norm(z.cview());
-
-            UIPC_ASSERT(!std::isnan(rz0) && std::isfinite(rz0),
-                        "Init Residual is {}, norm(r) = {}, norm(z) = {}",
-                        rz0,
-                        norm_r,
-                        norm_z);
-        }
-    }
+    abs_rz0 = std::abs(rz);
 
     // check convergence
-    if(accuracy_statisfied(r) && rz0 == Float{0.0})
+    if(accuracy_statisfied(r) && abs_rz0 == Float{0.0})
         return 0;
 
     for(k = 1; k < max_iter; ++k)
     {
         spmv(p.cview(), Ap.view());
 
-        // alpha = rz / dot(p.cview(), Ap.cview());
+        if(need_debug_dump) [[unlikely]]
+            dump_p_Ap(k);
+
+        // alpha = rz / p^T * Ap
         alpha = rz / ctx().dot(p.cview(), Ap.cview());
 
         // x = x + alpha * p
-        ctx().axpby(alpha, p.cview(), Float{1}, x);
-
         // r = r - alpha * Ap
-        ctx().axpby(-alpha, Ap.cview(), Float{1}, r.view());
+        update_xr(alpha, x, p.cview(), r.view(), Ap.cview());
 
         // z = P * r (apply preconditioner)
         apply_preconditioner(z, r);
 
-        // rz_new = r^T * z
-        // rz_new = dot(r.cview(), z.cview());
-        Float rz_new = ctx().dot(r.cview(), z.cview());
+        if(need_debug_dump) [[unlikely]]
+            dump_r_z(k);
 
-        if constexpr(RUNTIME_CHECK)
-        {
-            if(std::isnan(rz_new) || !std::isfinite(rz_new))
-            {
-                auto norm_r = ctx().norm(r.cview());
-                auto norm_z = ctx().norm(z.cview());
-                UIPC_ASSERT(!std::isnan(rz_new) && std::isfinite(rz_new),
-                            "Residual is {}, norm(r) = {}, norm(z) = {}",
-                            rz_new,
-                            norm_r,
-                            norm_z);
-            }
-        }
+        // rz_new = r^T * z
+        Float rz_new = ctx().dot(r.cview(), z.cview());
+        check_rz_nan_inf(k);
 
         // check convergence
-        if(accuracy_statisfied(r) && std::abs(rz_new) <= global_tol_rate * rz0)
+        if(accuracy_statisfied(r) && std::abs(rz_new) <= global_tol_rate * abs_rz0)
             break;
 
         // beta = rz_new / rz
         beta = rz_new / rz;
 
         // p = z + beta * p
-        ctx().axpby(Float{1}, z.cview(), beta, p.view());
+        update_p(p.view(), z.cview(), beta);
 
-        // update rz
         rz = rz_new;
     }
 

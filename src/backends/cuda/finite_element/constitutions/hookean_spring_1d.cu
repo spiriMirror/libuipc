@@ -104,12 +104,11 @@ class HookeanSpring1D final : public Codim1DConstitution
                     kappas = kappas.cviewer().name("kappas"),
                     rest_lengths = info.rest_lengths().viewer().name("rest_lengths"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    indices  = info.indices().viewer().name("indices"),
-                    xs       = info.xs().viewer().name("xs"),
-                    x_bars   = info.x_bars().viewer().name("x_bars"),
-                    is_fixed = info.is_fixed().viewer().name("is_fixed"),
-                    dt       = info.dt(),
-                    Pi       = std::numbers::pi] __device__(int I) mutable
+                    indices = info.indices().viewer().name("indices"),
+                    xs      = info.xs().viewer().name("xs"),
+                    x_bars  = info.x_bars().viewer().name("x_bars"),
+                    dt      = info.dt(),
+                    Pi      = std::numbers::pi] __device__(int I) mutable
                    {
                        Vector6  X;
                        Vector2i idx = indices(I);
@@ -123,20 +122,18 @@ class HookeanSpring1D final : public Codim1DConstitution
 
                        Float Vdt2 = L0 * r * r * Pi * dt * dt;
 
-                       Vector2i ignore = {is_fixed(idx(0)), is_fixed(idx(1))};
-
                        Vector6 G;
                        NS::dEdX(G, kappa, X, L0);
                        G *= Vdt2;
                        DoubletVectorAssembler VA{G3s};
-                       VA.segment<2>(I * 2).write(idx, ignore, G);
+                       VA.segment<2>(I * 2).write(idx, G);
 
                        Matrix6x6 H;
                        NS::ddEddX(H, kappa, X, L0);
                        H *= Vdt2;
                        make_spd(H);
                        TripletMatrixAssembler MA{H3x3s};
-                       MA.block<2, 2>(I * 2 * 2).write(idx, ignore, H);
+                       MA.block<2, 2>(I * 2 * 2).write(idx, H);
                    });
     }
 };

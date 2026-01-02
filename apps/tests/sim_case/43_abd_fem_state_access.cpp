@@ -1,10 +1,7 @@
-#include <app/catch2.h>
-#include <app/asset_dir.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/stable_neo_hookean.h>
-#include <filesystem>
-#include <fstream>
 #include <uipc/core/affine_body_state_accessor_feature.h>
 #include <uipc/core/finite_element_state_accessor_feature.h>
 
@@ -17,22 +14,16 @@ TEST_CASE("43_abd_fem_state_access", "[abd_fem]")
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path = AssetDir::output_path(__FILE__);
+    auto        output_path = AssetDir::output_path(__FILE__);
 
-
-    Engine engine{"cuda", this_output_path};
+    Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config = Scene::default_config();
-
+    auto config                             = test::Scene::default_config();
     config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
-
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, output_path);
 
     SimplicialComplexIO io;
 
@@ -90,7 +81,7 @@ TEST_CASE("43_abd_fem_state_access", "[abd_fem]")
     REQUIRE(abd_accessor->body_count() == mesh_b.instances().size());
 
     SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
 
     while(world.frame() < 100)
     {
@@ -118,13 +109,14 @@ TEST_CASE("43_abd_fem_state_access", "[abd_fem]")
 
             world.retrieve();
             sio.write_surface(
-                fmt::format("{}user_set{}.obj", this_output_path, world.frame()));
+                fmt::format("{}user_set{}.obj", output_path, world.frame()));
             REQUIRE(world.sanity_checker().check() == SanityCheckResult::Success);
         }
 
         world.advance();
+        REQUIRE(world.is_valid());
         world.retrieve();
         sio.write_surface(
-            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }
