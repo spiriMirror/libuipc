@@ -1014,7 +1014,7 @@ void FiniteElementMethod::Impl::_build_on_device()
                    const Vector3&  x3  = x_bars(tet[3]);
 
                    Dm9x9_inv(i) = fem::Dm_inv(x0, x1, x2, x3);
-                   Float V      = fem::Ds(x0, x1, x2, x3).determinant();
+                   Float V      = fem::Ds(x0, x1, x2, x3).determinant() / 6.0;
                    MUDA_ASSERT(V > 0.0,
                                "Negative volume tetrahedron (%d, %d, %d, %d)",
                                tet[0],

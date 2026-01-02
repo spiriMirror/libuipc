@@ -33,12 +33,12 @@ void SimEngine::build()
     m_newton_tolerance_manager = &require<NewtonToleranceManager>();
 
     m_global_simplicial_surface_manager = find<GlobalSimplicialSurfaceManager>();
-    m_global_dytopo_effect_manager      = find<GlobalDyTopoEffectManager>();
-    m_global_contact_manager            = find<GlobalContactManager>();
-    m_global_trajectory_filter          = find<GlobalTrajectoryFilter>();
-    m_global_animator                   = find<GlobalAnimator>();
-    m_global_external_force_manager     = find<GlobalExternalForceManager>();
-    m_global_diff_sim_manager           = find<GlobalDiffSimManager>();
+    m_global_dytopo_effect_manager  = find<GlobalDyTopoEffectManager>();
+    m_global_contact_manager        = find<GlobalContactManager>();
+    m_global_trajectory_filter      = find<GlobalTrajectoryFilter>();
+    m_global_animator               = find<GlobalAnimator>();
+    m_global_external_force_manager = find<GlobalExternalForceManager>();
+    m_global_diff_sim_manager       = find<GlobalDiffSimManager>();
 
     m_affine_body_dynamics = find<AffineBodyDynamics>();
     m_inter_affine_body_constitution_manager =
@@ -59,9 +59,15 @@ void SimEngine::init_scene()
     m_newton_max_iter     = info.find<IndexT>("newton/max_iter");
     m_newton_min_iter     = info.find<IndexT>("newton/min_iter");
     m_ccd_tol             = info.find<Float>("newton/ccd_tol");
-    m_strict_mode         = info.find<IndexT>("extras/strict_mode/enable");
+    m_semi_implicit_enabled =
+        info.find<IndexT>("newton/semi_implicit/enable")->view()[0];
+    m_semi_implicit_beta_tol =
+        info.find<Float>("newton/semi_implicit/beta_tol")->view()[0];
+
+    m_strict_mode = info.find<IndexT>("extras/strict_mode/enable");
 
     m_friction_enabled = info.find<IndexT>("contact/friction/enable")->view()[0];
+
     Vector3 gravity = info.find<Vector3>("gravity")->view()[0];
 
 

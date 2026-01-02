@@ -96,11 +96,12 @@ class SimEngine final : public backend::SimEngine
     //ABDDiffSimManager*           m_abd_diff_sim_manager           = nullptr;
     FiniteElementMethod* m_finite_element_method = nullptr;
 
-
-    bool  m_friction_enabled = false;
     SizeT m_current_frame    = 0;
     SizeT m_newton_iter      = 0;
-    Float m_newton_scene_tol = 0.01;
+
+    bool  m_semi_implicit_enabled  = true;
+    Float m_semi_implicit_beta_tol = 1e-3;
+    Float m_newton_scene_tol       = 0.01;
 
     template <typename T>
     using CAS = S<const geometry::AttributeSlot<T>>;
