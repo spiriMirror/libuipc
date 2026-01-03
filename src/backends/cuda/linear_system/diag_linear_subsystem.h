@@ -22,6 +22,7 @@ class DiagLinearSubsystem : public SimSystem
     };
 
     U64    uid() const noexcept;
+
     IndexT dof_offset() const noexcept;
     IndexT dof_count() const noexcept;
 

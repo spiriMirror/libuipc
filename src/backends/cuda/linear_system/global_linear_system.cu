@@ -96,7 +96,7 @@ void GlobalLinearSystem::Impl::init()
     // Sort the diag subsystems by their UIDs to ensure the order is consistent
     // ref: https://github.com/spiriMirror/libuipc/issues/271
     std::ranges::sort(diag_subsystem_view,
-                      [](const auto& a, const auto& b)
+                      [](const DiagLinearSubsystem* a, const DiagLinearSubsystem* b)
                       { return a->uid() < b->uid(); });
 
     // - Init all diag subsystems
