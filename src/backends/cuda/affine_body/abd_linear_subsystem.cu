@@ -14,6 +14,9 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(ABDLinearSubsystem);
 
+// ref: https://github.com/spiriMirror/libuipc/issues/271
+constexpr U64 ABDLinearSubsystemUID = 0ull;
+
 void ABDLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo& info)
 {
     m_impl.affine_body_dynamics        = require<AffineBodyDynamics>();
@@ -461,6 +464,11 @@ void ABDLinearSubsystem::do_accuracy_check(GlobalLinearSystem::AccuracyInfo& inf
 void ABDLinearSubsystem::do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info)
 {
     m_impl.retrieve_solution(info);
+}
+
+U64 ABDLinearSubsystem::get_uid() const noexcept
+{
+    return ABDLinearSubsystemUID;
 }
 
 void ABDLinearSubsystem::add_reporter(ABDLinearSubsystemReporter* reporter)

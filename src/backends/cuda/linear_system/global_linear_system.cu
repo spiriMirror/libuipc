@@ -68,12 +68,11 @@ void GlobalLinearSystem::_dump_x()
 
 void GlobalLinearSystem::solve()
 {
-
     m_impl.build_linear_system();
 
     if(m_impl.empty_system) [[unlikely]]
         return;
-        
+
     logger::info("GlobalLinearSystem has {} DoFs, Unique Triplet Count: {}",
                  m_impl.b.size(),
                  m_impl.bcoo_A.triplet_count());
@@ -91,15 +90,28 @@ void GlobalLinearSystem::solve()
 
 void GlobalLinearSystem::Impl::init()
 {
+    // 0) Prepare Subsystems
     auto diag_subsystem_view = diag_subsystems.view();
-    // init all diag subsystems
+
+    // Sort the diag subsystems by their UIDs to ensure the order is consistent
+    // ref: https://github.com/spiriMirror/libuipc/issues/271
+    std::ranges::sort(diag_subsystem_view,
+                      [](const auto& a, const auto& b)
+                      { return a->uid() < b->uid(); });
+
+    // - Init all diag subsystems
     for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
     {
         diag_subsystem->init();
     }
-
     auto off_diag_subsystem_view = off_diag_subsystems.view();
-
+    std::ranges::sort(off_diag_subsystem_view,
+                      [](const auto& a, const auto& b) -> bool
+                      {
+                          return a->m_l->uid() < b->m_l->uid()
+                                 || (a->m_l->uid() == b->m_l->uid()
+                                     && a->m_r->uid() < b->m_r->uid());
+                      });
 
     // 1) Record Diag and OffDiag Subsystems
     auto total_count = diag_subsystem_view.size() + off_diag_subsystem_view.size();
@@ -110,6 +122,7 @@ void GlobalLinearSystem::Impl::init()
     auto off_diag_span = span{subsystem_infos}.subspan(diag_subsystem_view.size(),
                                                        off_diag_subsystem_view.size());
     {
+        // Diag System Always Go First
         auto offset = 0;
         for(auto i : range(diag_span.size()))
         {
@@ -121,6 +134,7 @@ void GlobalLinearSystem::Impl::init()
             diag_subsystem_view[i]->m_index = index;
         }
 
+        // Off Diag System Always After Diag System
         offset += diag_subsystem_view.size();
         for(auto i : range(off_diag_span.size()))
         {

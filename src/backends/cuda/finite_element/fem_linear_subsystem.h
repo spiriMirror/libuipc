@@ -69,6 +69,7 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) override;
     virtual void do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info) override;
     virtual void do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info) override;
+    virtual U64 get_uid() const noexcept override;
 
     Impl m_impl;
 };
