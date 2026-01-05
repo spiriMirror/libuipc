@@ -8,7 +8,7 @@ template <typename T, int BlockDim>
 class TripletMatrixUnpacker
 {
   public:
-    MUDA_GENERIC TripletMatrixUnpacker(muda::TripletMatrixViewer<T, BlockDim>& triplet)
+    MUDA_GENERIC TripletMatrixUnpacker(const muda::TripletMatrixViewer<T, BlockDim>& triplet)
         : m_triplet(triplet)
     {
     }
@@ -18,7 +18,7 @@ class TripletMatrixUnpacker
     class ProxyRange
     {
       public:
-        MUDA_GENERIC ProxyRange(TripletMatrixUnpacker& unpacker, IndexT I)
+        MUDA_GENERIC ProxyRange(const TripletMatrixUnpacker& unpacker, IndexT I)
             : m_unpacker(unpacker)
             , m_I(I)
         {
@@ -82,8 +82,8 @@ class TripletMatrixUnpacker
 
 
       private:
-        TripletMatrixUnpacker& m_unpacker;
-        IndexT                 m_I;
+        const TripletMatrixUnpacker& m_unpacker;
+        IndexT                       m_I;
     };
 
     template <int N>
@@ -100,7 +100,7 @@ class TripletMatrixUnpacker
         };
 
         using BlockMatrix = Eigen::Matrix<T, N * BlockDim, N * BlockDim>;
-        MUDA_GENERIC ProxyRangeHalf(TripletMatrixUnpacker& unpacker, IndexT I)
+        MUDA_GENERIC ProxyRangeHalf(const TripletMatrixUnpacker& unpacker, IndexT I)
             : m_unpacker(unpacker)
             , m_I(I)
         {
@@ -167,8 +167,8 @@ class TripletMatrixUnpacker
             return ret;
         }
 
-        TripletMatrixUnpacker& m_unpacker;
-        IndexT                 m_I;
+        const TripletMatrixUnpacker& m_unpacker;
+        IndexT                       m_I;
     };
 
     /** 
@@ -204,11 +204,11 @@ class TripletMatrixUnpacker
     }
 
   private:
-    muda::TripletMatrixViewer<T, BlockDim>& m_triplet;
+    const muda::TripletMatrixViewer<T, BlockDim>& m_triplet;
 };
 
 // CTAD
 template <typename T, int BlockDim>
-TripletMatrixUnpacker(muda::TripletMatrixViewer<T, BlockDim>&)
+TripletMatrixUnpacker(const muda::TripletMatrixViewer<T, BlockDim>&)
     -> TripletMatrixUnpacker<T, BlockDim>;
 }  // namespace uipc::backend::cuda

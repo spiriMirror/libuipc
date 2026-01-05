@@ -34,7 +34,7 @@ template <typename T>
 class DenseVectorAssembler
 {
   public:
-    MUDA_GENERIC DenseVectorAssembler(muda::DenseVectorViewer<T>& dense)
+    MUDA_GENERIC DenseVectorAssembler(const muda::DenseVectorViewer<T>& dense)
         : m_dense(dense)
     {
     }
@@ -81,12 +81,12 @@ class DenseVectorAssembler
     }
 
   private:
-    muda::DenseVectorViewer<T>& m_dense;
+    const muda::DenseVectorViewer<T>& m_dense;
 };
 
 // CTAD
 template <typename T>
-DenseVectorAssembler(muda::DenseVectorViewer<T>&) -> DenseVectorAssembler<T>;
+DenseVectorAssembler(const muda::DenseVectorViewer<T>&) -> DenseVectorAssembler<T>;
 
 template <typename T, int SegmentDim>
 class DoubletVectorAssembler
@@ -94,7 +94,7 @@ class DoubletVectorAssembler
   public:
     using ElementVector = Eigen::Matrix<T, SegmentDim, 1>;
 
-    MUDA_GENERIC DoubletVectorAssembler(muda::DoubletVectorViewer<T, SegmentDim>& doublet)
+    MUDA_GENERIC DoubletVectorAssembler(const muda::DoubletVectorViewer<T, SegmentDim>& doublet)
         : m_doublet(doublet)
     {
     }
@@ -162,8 +162,8 @@ class DoubletVectorAssembler
         }
 
       private:
-        DoubletVectorAssembler& m_assembler;
-        IndexT                  m_I;
+        const DoubletVectorAssembler& m_assembler;
+        IndexT                        m_I;
     };
 
 
@@ -185,7 +185,7 @@ class DoubletVectorAssembler
     }
 
   private:
-    muda::DoubletVectorViewer<T, SegmentDim>& m_doublet;
+    const muda::DoubletVectorViewer<T, SegmentDim>& m_doublet;
 };
 
 // CTAD
@@ -305,8 +305,8 @@ class TripletMatrixAssembler
         }
 
       private:
-        TripletMatrixAssembler& m_assembler;
-        IndexT                  m_I;
+        const TripletMatrixAssembler& m_assembler;
+        IndexT                        m_I;
     };
 
     template <int N>
@@ -321,7 +321,7 @@ class TripletMatrixAssembler
         };
 
         using BlockMatrix = Eigen::Matrix<T, N * BlockDim, N * BlockDim>;
-        MUDA_GENERIC ProxyRangeHalf(TripletMatrixAssembler& assembler, IndexT I)
+        MUDA_GENERIC ProxyRangeHalf(const TripletMatrixAssembler& assembler, IndexT I)
             : m_assembler(assembler)
             , m_I(I)
         {
@@ -350,7 +350,7 @@ class TripletMatrixAssembler
 
                     ElementMatrix H =
                         value.template block<BlockDim, BlockDim>(L * BlockDim, R * BlockDim);
-                    
+
                     m_assembler.m_triplet(offset++).write(indices(L), indices(R), H);
                 }
             }
@@ -411,8 +411,8 @@ class TripletMatrixAssembler
             return ret;
         }
 
-        TripletMatrixAssembler& m_assembler;
-        IndexT                  m_I;
+        const TripletMatrixAssembler& m_assembler;
+        IndexT                        m_I;
     };
 
 
@@ -444,11 +444,11 @@ class TripletMatrixAssembler
     }
 
   private:
-    muda::TripletMatrixViewer<T, BlockDim>& m_triplet;
+    const muda::TripletMatrixViewer<T, BlockDim>& m_triplet;
 };
 
 // CTAD
 template <typename T, int BlockDim>
-TripletMatrixAssembler(muda::TripletMatrixViewer<T, BlockDim>&)
+TripletMatrixAssembler(const muda::TripletMatrixViewer<T, BlockDim>&)
     -> TripletMatrixAssembler<T, BlockDim>;
 }  // namespace uipc::backend::cuda

@@ -306,86 +306,83 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
             // ref: https://github.com/spiriMirror/libuipc/issues/272
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(dytopo_effect_hessian_count,
-                       [dytopo_effect_hessian =
-                            dytopo_effect_receiver->hessians().cviewer().name("dytopo_effect_hessian"),
-                        dst = dytopo_effect_H3x3.viewer().name("dst_hessian"),
-                        v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
-                        Js  = abd().vertex_id_to_J.cviewer().name("Js"),
-                        is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
-                        diag_hessian = abd().diag_hessian.viewer().name("diag_hessian"),
-                        vertex_offset = vertex_offset] __device__(int I) mutable
-                       {
-                           const auto& [g_i, g_j, H3x3] = dytopo_effect_hessian(I);
+                .apply(
+                    dytopo_effect_hessian_count,
+                    [dytopo_effect_hessian =
+                         dytopo_effect_receiver->hessians().cviewer().name("dytopo_effect_hessian"),
+                     dst = dytopo_effect_H3x3.viewer().name("dst_hessian"),
+                     v2b = abd().vertex_id_to_body_id.cviewer().name("v2b"),
+                     Js  = abd().vertex_id_to_J.cviewer().name("Js"),
+                     is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+                     diag_hessian = abd().diag_hessian.viewer().name("diag_hessian"),
+                     vertex_offset = vertex_offset] __device__(int I) mutable
+                    {
+                        const auto& [g_i, g_j, H3x3] = dytopo_effect_hessian(I);
 
-                           auto i = g_i - vertex_offset;
-                           auto j = g_j - vertex_offset;
+                        auto i = g_i - vertex_offset;
+                        auto j = g_j - vertex_offset;
 
-                           auto body_i = v2b(i);
-                           auto body_j = v2b(j);
+                        auto body_i = v2b(i);
+                        auto body_j = v2b(j);
 
-                           auto& J_i = Js(i);
-                           auto& J_j = Js(j);
+                        auto& J_i = Js(i);
+                        auto& J_j = Js(j);
 
-                           Matrix12x12 H12x12;
+                        Matrix12x12 H12x12;
 
-                           // We know half contact hessian i <= j
-                           // but we don't know body_i and body_j order
-                           // so test and swap if necessary
-                           IndexT L = body_i;
-                           IndexT R = body_j;
-                           if(body_i > body_j)
-                           {
-                               L = body_j;
-                               R = body_i;
-                           }
+                        // We know half contact hessian i <= j
+                        // but we don't know body_i and body_j order
+                        // so test and swap if necessary
+                        IndexT L = body_i;
+                        IndexT R = body_j;
+                        if(body_i > body_j)
+                        {
+                            L = body_j;
+                            R = body_i;
+                        }
 
-                           // Fill diagonal hessian for diag-inv preconditioner
-                           // TODO: Maybe later we can move it to a separate kernel for readability
-                           if(body_i == body_j)
-                           {
-                               eigen::atomic_add(diag_hessian(body_i), H12x12);
-                           }
+                        if(is_fixed(body_i) || is_fixed(body_j))
+                        {
+                            H12x12.setZero();
+                        }
+                        else
+                        {
+                            if(body_i < body_j)
+                            {
+                                H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
+                            }
+                            else if(body_i > body_j)
+                            {
+                                H12x12 = ABDJacobi::JT_H_J(J_j.T(), H3x3.transpose(), J_i);
+                            }
+                            else  // body_i == body_j
+                            {
+                                // Two vertices from the same body
+                                if(i != j)
+                                {
+                                    H12x12 =
+                                        ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j)
+                                        + ABDJacobi::JT_H_J(J_j.T(), H3x3.transpose(), J_i);
+                                }
+                                else  // i == j
+                                {
+                                    H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
+                                }
 
-                           if(is_fixed(body_i) || is_fixed(body_j))
-                           {
-                               H12x12.setZero();
-                           }
-                           else
-                           {
-                               if(body_i < body_j)
-                               {
-                                   H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
-                               }
-                               else if(body_i > body_j)
-                               {
-                                   H12x12 = ABDJacobi::JT_H_J(J_j.T(), H3x3.transpose(), J_i);
-                               }
-                               else  // body_i == body_j
-                               {
-                                   // two vertices from the same body
-                                   if(i != j)
-                                   {
-                                       H12x12 =
-                                           ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j)
-                                           + ABDJacobi::JT_H_J(J_j.T(), H3x3.transpose(), J_i);
-                                   }
-                                   else  // i == j
-                                   {
-                                       H12x12 = ABDJacobi::JT_H_J(J_i.T(), H3x3, J_j);
-                                   }
+                                // Fill diagonal hessian for diag-inv preconditioner
+                                eigen::atomic_add(diag_hessian(body_i), H12x12);
 
-                                   // since body_i == body_j, we only fill the upper triangle part
-                                   zero_out_lower(H12x12);
-                               }
-                           }
+                                // Since body_i == body_j, we only fill the upper triangle part
+                                zero_out_lower(H12x12);
+                            }
+                        }
 
-                           TripletMatrixUnpacker MU{dst};
-                           MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*16, (I+1)*16)
-                               .write(L * 4,  // begin row
-                                      R * 4,  // begin col
-                                      H12x12);
-                       });
+                        TripletMatrixUnpacker MU{dst};
+                        MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*16, (I+1)*16)
+                            .write(L * 4,          // begin row
+                                   R * 4,          // begin col
+                                   H12x12);
+                    });
         }
 
         offset += H3x3_count;

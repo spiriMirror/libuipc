@@ -13,18 +13,25 @@ class ARAP3D final : public FEM3DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64 ConstitutionUID = 9;
+    static constexpr U64   ConstitutionUID = 9;
+    static constexpr SizeT HalfHessianSize = 4 * (4 + 1) / 2;
 
     using FEM3DConstitution::FEM3DConstitution;
 
     vector<Float> h_kappas;
-    vector<Float> h_lambdas;
 
     muda::DeviceBuffer<Float> kappas;
 
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
+
+    virtual void do_report_extent(ReportExtentInfo& info)
+    {
+        info.energy_count(kappas.size());
+        info.gradient_count(kappas.size() * 4);
+        info.hessian_count(kappas.size() * HalfHessianSize);
+    }
 
     virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
@@ -131,7 +138,7 @@ class ARAP3D final : public FEM3DConstitution
 
 
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.block<4, 4>(I * 4 * 4).write(tet, H12x12);
+                       TMA.half_block<4>(I * HalfHessianSize).write(tet, H12x12);
                    });
     }
 };

@@ -25,7 +25,8 @@ namespace uipc::backend::cuda
 {
 class DiscreteShellBending final : public FiniteElementExtraConstitution
 {
-    static constexpr U64 DiscreteShellBendingUID = 17;
+    static constexpr U64   DiscreteShellBendingUID = 17;
+    static constexpr SizeT HalfHessianSize         = 4 * (4 + 1) / 2;
     using Base = FiniteElementExtraConstitution;
 
   public:
@@ -284,7 +285,7 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
                        make_spd(H12x12);
 
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.block<4, 4>(I * 4 * 4).write(stencil, H12x12);
+                       TMA.half_block<4>(I * HalfHessianSize).write(stencil, H12x12);
                    });
     }
 };

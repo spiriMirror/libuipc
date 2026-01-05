@@ -1,12 +1,15 @@
 #include <inter_primitive_effect_system/inter_primitive_constitution.h>
 #include <uipc/builtin/attribute_name.h>
+#include <utils/matrix_assembler.h>
 
 namespace uipc::backend::cuda
 {
 class SoftVertexStitch : public InterPrimitiveConstitution
 {
   public:
-    static constexpr U64 ConstitutionUID = 22;
+    static constexpr U64   ConstitutionUID = 22;
+    static constexpr SizeT StencilSize     = 2;
+    static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
     using InterPrimitiveConstitution::InterPrimitiveConstitution;
 
@@ -121,8 +124,8 @@ class SoftVertexStitch : public InterPrimitiveConstitution
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
     {
-        info.gradient_segment_count(2 * topos.size());
-        info.hessian_block_count(4 * topos.size());
+        info.gradient_segment_count(StencilSize * topos.size());
+        info.hessian_block_count(HalfHessianSize * topos.size());
     }
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
@@ -148,15 +151,16 @@ class SoftVertexStitch : public InterPrimitiveConstitution
 
                        Vector3   G = Kt2 * dX;
                        Matrix3x3 H = Kt2 * Matrix3x3::Identity();
+
                        // gradient
                        G3s(2 * I + 0).write(PP[0], G);
                        G3s(2 * I + 1).write(PP[1], -G);
 
+
                        // hessian
                        H3x3s(4 * I + 0).write(PP[0], PP[0], H);
                        H3x3s(4 * I + 1).write(PP[0], PP[1], -H);
-                       H3x3s(4 * I + 2).write(PP[1], PP[0], -H);
-                       H3x3s(4 * I + 3).write(PP[1], PP[1], H);
+                       H3x3s(4 * I + 2).write(PP[1], PP[1], H);
                    });
     }
 };
