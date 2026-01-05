@@ -26,7 +26,7 @@ Returns:
                                &StableNeoHookean::apply_to,
                                py::arg("sc"),
                                py::arg("moduli") =
-                                   ElasticModuli::youngs_poisson(20.0_kPa, 0.49),
+                                   ElasticModuli::youngs_poisson(120.0_kPa, 0.49),
                                py::arg("mass_density") = 1.0e3,
                                R"(Apply StableNeoHookean constitution to a simplicial complex.
 Args:

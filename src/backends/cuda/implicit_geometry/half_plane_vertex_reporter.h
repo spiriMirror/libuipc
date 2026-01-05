@@ -29,6 +29,7 @@ class HalfPlaneVertexReporter : public VertexReporter
     void do_report_count(GlobalVertexManager::VertexCountInfo& vertex_count_info) override;
     void do_report_attributes(GlobalVertexManager::VertexAttributeInfo& vertex_attribute_info) override;
     void do_report_displacements(GlobalVertexManager::VertexDisplacementInfo& vertex_displacement_info) override;
+    virtual U64 get_uid() const noexcept override;
 
     Impl m_impl;
 };
