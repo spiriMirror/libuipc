@@ -200,7 +200,7 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
     {
         info.energy_count(stencils.size());        // Each quad has 1 energy
         info.gradient_count(stencils.size() * 4);  // Each quad has 4 vertices
-        info.hessian_count(stencils.size() * 4 * 4);  // Each quad has 4x4 hessian block
+        info.hessian_count(stencils.size() * HalfHessianSize);  // Each quad has 4x4 hessian block
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
