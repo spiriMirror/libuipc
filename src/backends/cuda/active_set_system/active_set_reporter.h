@@ -7,7 +7,7 @@ namespace uipc::backend::cuda {
 class ActiveSetReporter : public SimSystem {
 public:
     using SimSystem::SimSystem;
-    using NonPenetratePositionsInfo = GlobalActiveSetManager::NonPenetratePositionsInfo;
+    using NonPenetratePositionsInfo = GlobalActiveSetManager::NonPenetratePositionInfo;
 
     class BuildInfo {};
 
