@@ -8,13 +8,14 @@ enum class SimEngineState
     BuildSystems,
     InitScene,
     RebuildScene,
-    PredictMotion,
-    ComputeDyTopoEffect,
-    // ComputeGradientHessian,
-    SolveGlobalLinearSystem,
-    LineSearch,
-    UpdateVelocity,
-    AdvanceNonPenetrate,
-    RecoverNonPenetrate,
+
+    PredictMotion,            // Common
+    ComputeDyTopoEffect,      // Common
+    SolveGlobalLinearSystem,  // Common
+    LineSearch,               // Common
+    UpdateVelocity,           // Common
+
+    AdvanceNonPenetrate,  // AL-IPC
+    RecoverNonPenetrate,  // AL-IPC
 };
 }
