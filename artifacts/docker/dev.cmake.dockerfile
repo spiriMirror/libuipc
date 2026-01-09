@@ -162,17 +162,6 @@ RUN --mount=type=cache,target=/home/developer/Toolchain/vcpkg/downloads \
 # Note: CMAKE_BUILD_TYPE is an ARG, so we'll set this in the entrypoint or use a default
 ENV LD_LIBRARY_PATH="/home/developer/libuipc/build/Release/bin:/home/developer/libuipc/build/RelWithDebInfo/bin:/home/developer/libuipc/build/Debug/bin:${LD_LIBRARY_PATH}"
 
-# =============================================================================
-# Configure Git for Windows volume mounts (build time)
-# =============================================================================
-# Set Git config globally to handle Windows/Linux differences
-# This applies to any Git repository mounted at runtime
-RUN runuser -u developer -- bash -c "git config --global core.fileMode false && \
-    git config --global core.autocrlf input && \
-    git config --global core.eol lf && \
-    git config --global init.defaultBranch main && \
-    git config --global --add safe.directory /home/developer/libuipc || true"
-
 # Create .bashrc to ensure conda is activated in interactive shells
 # Ensure home directory and .bashrc have correct permissions
 RUN chmod 755 /home/developer && \
