@@ -11,6 +11,7 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
 {
   public:
     using InterAffineBodyConstitution::InterAffineBodyConstitution;
+    static constexpr SizeT HalfHessianSize = 2 * (2 + 1) / 2;
 
     SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
 
@@ -201,7 +202,7 @@ Edge             = ({}, {}))",
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
     {
         info.gradient_segment_count(2 * body_ids.size());  // each joint has 2 * Vector12 gradients
-        info.hessian_block_count(4 * body_ids.size());  // each joint has 2 * 2 * Matrix12x12 hessians
+        info.hessian_block_count(HalfHessianSize * body_ids.size());  // each joint has HalfHessianSize * Matrix12x12 hessians
     }
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
@@ -210,84 +211,90 @@ Edge             = ({}, {}))",
         namespace RJ = sym::affine_body_revolute_joint;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_positions = rest_positions.cviewer().name("rest_positions"),
-                    strength_ratio = strength_ratio.cviewer().name("strength_ratio"),
-                    body_masses = info.body_masses().viewer().name("body_masses"),
-                    qs   = info.qs().viewer().name("qs"),
-                    G12s = info.gradients().viewer().name("G12s"),
-                    H12x12s = info.hessians().viewer().name("H12x12s")] __device__(int I)
-                   {
-                       Vector2i        bids  = body_ids(I);
-                       const Vector12& X_bar = rest_positions(I);
+            .apply(
+                body_ids.size(),
+                [body_ids = body_ids.cviewer().name("body_ids"),
+                 rest_positions = rest_positions.cviewer().name("rest_positions"),
+                 strength_ratio = strength_ratio.cviewer().name("strength_ratio"),
+                 body_masses = info.body_masses().viewer().name("body_masses"),
+                 qs          = info.qs().viewer().name("qs"),
+                 G12s        = info.gradients().viewer().name("G12s"),
+                 H12x12s = info.hessians().viewer().name("H12x12s")] __device__(int I)
+                {
+                    Vector2i        bids  = body_ids(I);
+                    const Vector12& X_bar = rest_positions(I);
 
-                       Vector12 q_i = qs(bids(0));
-                       Vector12 q_j = qs(bids(1));
+                    Vector12 q_i = qs(bids(0));
+                    Vector12 q_j = qs(bids(1));
 
-                       ABDJacobi Js[4] = {ABDJacobi{X_bar.segment<3>(0)},
-                                          ABDJacobi{X_bar.segment<3>(3)},
-                                          ABDJacobi{X_bar.segment<3>(6)},
-                                          ABDJacobi{X_bar.segment<3>(9)}};
+                    ABDJacobi Js[4] = {ABDJacobi{X_bar.segment<3>(0)},
+                                       ABDJacobi{X_bar.segment<3>(3)},
+                                       ABDJacobi{X_bar.segment<3>(6)},
+                                       ABDJacobi{X_bar.segment<3>(9)}};
 
-                       Vector12 X;
-                       X.segment<3>(0) = Js[0].point_x(q_i);
-                       X.segment<3>(3) = Js[1].point_x(q_i);
+                    Vector12 X;
+                    X.segment<3>(0) = Js[0].point_x(q_i);
+                    X.segment<3>(3) = Js[1].point_x(q_i);
 
-                       X.segment<3>(6) = Js[2].point_x(q_j);
-                       X.segment<3>(9) = Js[3].point_x(q_j);
+                    X.segment<3>(6) = Js[2].point_x(q_j);
+                    X.segment<3>(9) = Js[3].point_x(q_j);
 
-                       Vector3 D02 = Js[0].point_x(q_i) - Js[2].point_x(q_j);
-                       Vector3 D13 = Js[1].point_x(q_i) - Js[3].point_x(q_j);
-                       Float   K   = strength_ratio(I)
-                                 * (body_masses(bids(0)).mass()
-                                    + body_masses(bids(1)).mass());
+                    Vector3 D02 = Js[0].point_x(q_i) - Js[2].point_x(q_j);
+                    Vector3 D13 = Js[1].point_x(q_i) - Js[3].point_x(q_j);
+                    Float   K =
+                        strength_ratio(I)
+                        * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
-                       // Fill Body Gradient:
-                       {
-                           // G = 0.5 * kappa * (J0^T * (x0 - x2) + J1^T * (x1 - x3))
-                           Vector12 G_i = K * (Js[0].T() * D02 + Js[1].T() * D13);
-                           G12s(2 * I + 0).write(bids(0), G_i);
-                       }
-                       {
-                           // G = 0.5 * kappa * (J2^T * (x2 - x0) + J3^T * (x3 - x1))
-                           Vector12 G_j = K * (Js[2].T() * (-D02) + Js[3].T() * (-D13));
-                           G12s(2 * I + 1).write(bids(1), G_j);
-                       }
+                    // Fill Body Gradient:
+                    {
+                        // G = 0.5 * kappa * (J0^T * (x0 - x2) + J1^T * (x1 - x3))
+                        Vector12 G_i = K * (Js[0].T() * D02 + Js[1].T() * D13);
+                        G12s(2 * I + 0).write(bids(0), G_i);
+                    }
+                    {
+                        // G = 0.5 * kappa * (J2^T * (x2 - x0) + J3^T * (x3 - x1))
+                        Vector12 G_j = K * (Js[2].T() * (-D02) + Js[3].T() * (-D13));
+                        G12s(2 * I + 1).write(bids(1), G_j);
+                    }
 
-                       // Fill Body Hessian:
-                       {
-                           Matrix12x12 H_ii;
-                           RJ::Hess(H_ii,
-                                    K,
-                                    Js[0].x_bar(),
-                                    Js[0].x_bar(),
-                                    Js[1].x_bar(),
-                                    Js[1].x_bar());
-                           H12x12s(4 * I + 0).write(bids(0), bids(0), H_ii);
-                       }
-                       {
-                           Matrix12x12 H_ij;
-                           RJ::Hess(H_ij,
-                                    -K,
-                                    Js[0].x_bar(),
-                                    Js[2].x_bar(),
-                                    Js[1].x_bar(),
-                                    Js[3].x_bar());
-                           H12x12s(4 * I + 1).write(bids(0), bids(1), H_ij);
-                           H12x12s(4 * I + 2).write(bids(1), bids(0), H_ij.transpose());
-                       }
-                       {
-                           Matrix12x12 H_jj;
-                           RJ::Hess(H_jj,
-                                    K,
-                                    Js[2].x_bar(),
-                                    Js[2].x_bar(),
-                                    Js[3].x_bar(),
-                                    Js[3].x_bar());
-                           H12x12s(4 * I + 3).write(bids(1), bids(1), H_jj);
-                       }
-                   });
+                    // Fill Body Hessian:
+                    {
+                        Matrix12x12 H_ii;
+                        RJ::Hess(H_ii,
+                                 K,
+                                 Js[0].x_bar(),
+                                 Js[0].x_bar(),
+                                 Js[1].x_bar(),
+                                 Js[1].x_bar());
+                        H12x12s(HalfHessianSize * I + 0).write(bids(0), bids(0), H_ii);
+                    }
+                    {
+                        Matrix12x12 H;
+                        Vector2i    lr = bids;
+                        RJ::Hess(H,
+                                 -K,
+                                 Js[0].x_bar(),
+                                 Js[2].x_bar(),
+                                 Js[1].x_bar(),
+                                 Js[3].x_bar());
+                        if(bids(0) > bids(1))
+                        {
+                            H.transposeInPlace();
+                            lr = Vector2i{bids(1), bids(0)};
+                        }
+                        H12x12s(HalfHessianSize * I + 1).write(lr(0), lr(1), H);
+                    }
+                    {
+                        Matrix12x12 H_jj;
+                        RJ::Hess(H_jj,
+                                 K,
+                                 Js[2].x_bar(),
+                                 Js[2].x_bar(),
+                                 Js[3].x_bar(),
+                                 Js[3].x_bar());
+                        H12x12s(HalfHessianSize * I + 2).write(bids(1), bids(1), H_jj);
+                    }
+                });
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }

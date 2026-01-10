@@ -450,18 +450,21 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 
                            if(has_fixed)
                            {
-                               H12x12.setZero();  // zero out hessian for fixed bodies
-                           }
-                           else if(body_i == body_j)
-                           {
-                               // since body_i == body_j, we only fill the upper triangle part
-                               zero_out_lower(H12x12);
-                           }
-                           else if(body_i > body_j)
-                           {
-                               // only fill upper triangle part
-                               // ignore lower triangle part
+                               // Zero out hessian for fixed bodies
                                H12x12.setZero();
+                           }
+                           else
+                           {
+                               if(body_i == body_j)
+                               {
+                                   // Since body_i == body_j, we only fill the upper triangle part
+                                   zero_out_lower(H12x12);
+                               }
+                               else if(body_i > body_j)
+                               {
+                                   // If all the reporters only report upper triangle part, this branch should not be hit
+                                   H12x12.setZero();
+                               }
                            }
 
                            MU.block<4, 4>(I * 4 * 4)  // triplet range of [I*4*4, (I+1)*4*4)

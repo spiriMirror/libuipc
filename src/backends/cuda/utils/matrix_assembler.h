@@ -358,6 +358,29 @@ class TripletMatrixAssembler
 
         /**
          * @brief Only write to the upper triangular part of the global matrix. (not the submatrix)
+         */
+        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& l_indices,
+                                const Eigen::Vector<IndexT, N>& r_indices,
+                                const BlockMatrix&              value)
+        {
+            IndexT offset = m_I;
+            for(IndexT ii = 0; ii < N; ++ii)
+            {
+                for(IndexT jj = ii; jj < N; ++jj)
+                {
+
+                    auto [L, R] = upper_LR(l_indices, r_indices, ii, jj);
+
+                    ElementMatrix H =
+                        value.template block<BlockDim, BlockDim>(L * BlockDim, R * BlockDim);
+
+                    m_assembler.m_triplet(offset++).write(l_indices(L), r_indices(R), H);
+                }
+            }
+        }
+
+        /**
+         * @brief Only write to the upper triangular part of the global matrix. (not the submatrix)
          * 
          * Constraints: if either side is ignored, write zero.
          */
@@ -391,6 +414,14 @@ class TripletMatrixAssembler
                                       const IndexT&                   I,
                                       const IndexT&                   J)
         {
+            return upper_LR(indices, indices, I, J);
+        }
+
+        MUDA_GENERIC UpperLR upper_LR(const Eigen::Vector<IndexT, N>& l_indices,
+                                      const Eigen::Vector<IndexT, N>& r_indices,
+                                      const IndexT&                   I,
+                                      const IndexT&                   J)
+        {
             auto submatrix_offset = m_assembler.m_triplet.submatrix_offset();
             MUDA_ASSERT(submatrix_offset.x == submatrix_offset.y,
                         "Symmetric assembly requires a square submatrix view, but your submatrix offset.x=%d, submatrix_offset.y=%d",
@@ -398,7 +429,8 @@ class TripletMatrixAssembler
                         submatrix_offset.y);
             UpperLR ret;
             // keep it in upper triangular in the global matrix (not the submatrix)
-            if(indices(I) + submatrix_offset.x < indices(J) + submatrix_offset.y)
+            if(l_indices(I) + submatrix_offset.x
+               < r_indices(J) + submatrix_offset.y)
             {
                 ret.L = I;
                 ret.R = J;
