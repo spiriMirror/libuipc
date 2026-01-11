@@ -92,7 +92,10 @@ void SimplexFrictionalContact::do_report_gradient_hessian_extent(GlobalContactMa
 
     // expand to hessian3x3 and graident3
     SizeT contact_gradient_count = 4 * count_4 + 3 * count_3 + 2 * count_2;
-    SizeT contact_hessian_count = (4 * 4) * count_4 + (3 * 3) * count_3 + (2 * 2) * count_2;
+    SizeT contact_hessian_count = PTHalfHessianSize * m_impl.PT_count
+                                  + EEHalfHessianSize * m_impl.EE_count
+                                  + PEHalfHessianSize * m_impl.PE_count
+                                  + PPHalfHessianSize * m_impl.PP_count;
 
     info.gradient_count(contact_gradient_count);
     info.hessian_count(contact_hessian_count);
@@ -127,21 +130,25 @@ void SimplexFrictionalContact::do_assemble(GlobalContactManager::GradientHessian
     // hessian
     {
         IndexT offset = 0;
-        this_info.m_PT_hessians = info.hessians().subview(offset, m_impl.PT_count * 16);
+        this_info.m_PT_hessians =
+            info.hessians().subview(offset, m_impl.PT_count * PTHalfHessianSize);
         m_impl.PT_hessians = this_info.m_PT_hessians;
-        offset += m_impl.PT_count * 16;
+        offset += m_impl.PT_count * PTHalfHessianSize;
 
-        this_info.m_EE_hessians = info.hessians().subview(offset, m_impl.EE_count * 16);
+        this_info.m_EE_hessians =
+            info.hessians().subview(offset, m_impl.EE_count * EEHalfHessianSize);
         m_impl.EE_hessians = this_info.m_EE_hessians;
-        offset += m_impl.EE_count * 16;
+        offset += m_impl.EE_count * EEHalfHessianSize;
 
-        this_info.m_PE_hessians = info.hessians().subview(offset, m_impl.PE_count * 9);
+        this_info.m_PE_hessians =
+            info.hessians().subview(offset, m_impl.PE_count * PEHalfHessianSize);
         m_impl.PE_hessians = this_info.m_PE_hessians;
-        offset += m_impl.PE_count * 9;
+        offset += m_impl.PE_count * PEHalfHessianSize;
 
-        this_info.m_PP_hessians = info.hessians().subview(offset, m_impl.PP_count * 4);
+        this_info.m_PP_hessians =
+            info.hessians().subview(offset, m_impl.PP_count * PPHalfHessianSize);
         m_impl.PP_hessians = this_info.m_PP_hessians;
-        offset += m_impl.PP_count * 4;
+        offset += m_impl.PP_count * PPHalfHessianSize;
 
         UIPC_ASSERT(offset == info.hessians().triplet_count(), "size mismatch");
     }

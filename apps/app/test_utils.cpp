@@ -8,7 +8,7 @@ namespace uipc::test
 Json Scene::default_config()
 {
     Json config = uipc::core::Scene::default_config();
-    config["extras"]["restrict_mode"]["enable"] = true;
+    config["extras"]["strict_mode"]["enable"] = true;
     return config;
 }
 

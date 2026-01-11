@@ -69,7 +69,8 @@ REGISTER_SIM_SYSTEM(ExternalArticulationConstituion);
 class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 {
   public:
-    static constexpr U64 ConstraintUID = 24ull;
+    static constexpr U64   ConstraintUID   = 24ull;
+    static constexpr SizeT HalfHessianSize = 2 * (2 + 1) / 2;
 
     using InterAffineBodyConstraint::InterAffineBodyConstraint;
 
@@ -513,7 +514,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         info.energy_count(e_count);
         auto g_count = joint_id_to_art_id.size() * 2;
         info.gradient_segment_count(g_count);
-        auto h_count = joint_joint_id_to_mass.size() * 4;
+        auto h_count = joint_joint_id_to_mass.size() * HalfHessianSize;
         info.hessian_block_count(h_count);
     }
 
@@ -927,7 +928,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
                     TripletMatrixAssembler TMA{hessians};
 
-                    TMA.block<2, 2>(joint_joint_I * 4).write(body_ids_i, body_ids_j, H24x24);
+                    TMA.half_block<2>(joint_joint_I * HalfHessianSize).write(body_ids_i, body_ids_j, H24x24);
                 });
     }
 

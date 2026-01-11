@@ -15,7 +15,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
   public:
     // Constitution UID by libuipc specification
     static constexpr U64   ConstitutionUID   = 819;
-    static constexpr SizeT half_hessian_size = 3 * (3 + 1) / 2;
+    static constexpr SizeT HalfHessianSize = 3 * (3 + 1) / 2;
 
     using Codim2DConstitution::Codim2DConstitution;
 
@@ -110,7 +110,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
     {
         info.energy_count(h_mus.size());
         info.gradient_count(h_mus.size() * 3);
-        info.hessian_count(h_mus.size() * half_hessian_size);
+        info.hessian_count(h_mus.size() * HalfHessianSize);
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
@@ -182,7 +182,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
                     rest_areas = info.rest_areas().viewer().name("volumes"),
                     dt         = info.dt(),
                     IBs        = inv_B_matrices.cviewer().name("IBs"),
-                    half_hessian_size = half_hessian_size] __device__(int I) mutable
+                    half_hessian_size = HalfHessianSize] __device__(int I) mutable
                    {
                        Vector9  X;
                        Vector3i idx = indices(I);

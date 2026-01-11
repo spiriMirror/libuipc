@@ -68,12 +68,11 @@ void GlobalLinearSystem::_dump_x()
 
 void GlobalLinearSystem::solve()
 {
-
     m_impl.build_linear_system();
 
     if(m_impl.empty_system) [[unlikely]]
         return;
-        
+
     logger::info("GlobalLinearSystem has {} DoFs, Unique Triplet Count: {}",
                  m_impl.b.size(),
                  m_impl.bcoo_A.triplet_count());
@@ -91,22 +90,30 @@ void GlobalLinearSystem::solve()
 
 void GlobalLinearSystem::Impl::init()
 {
-    auto diag_subsystem_view = diag_subsystems.view();
-    // init all diag subsystems
-    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
-    {
-        diag_subsystem->init();
-    }
+    // 1) Init all diag subsystems and off-diag subsystems
 
+    auto diag_subsystem_view     = diag_subsystems.view();
     auto off_diag_subsystem_view = off_diag_subsystems.view();
 
+    {
+        // Sort the diag subsystems by their UIDs to ensure the order is consistent
+        // ref: https://github.com/spiriMirror/libuipc/issues/271
+        std::ranges::sort(diag_subsystem_view,
+                          [](const DiagLinearSubsystem* a, const DiagLinearSubsystem* b)
+                          { return a->uid() < b->uid(); });
+        std::ranges::sort(off_diag_subsystem_view,
+                          [](const OffDiagLinearSubsystem* a,
+                             const OffDiagLinearSubsystem* b) -> bool
+                          { return a->uid() < b->uid(); });
+    }
 
-    // 1) Record Diag and OffDiag Subsystems
+
     auto total_count = diag_subsystem_view.size() + off_diag_subsystem_view.size();
     subsystem_infos.resize(total_count);
-    // put the diag subsystems in the front
+
+    // Diag System Always Go First
     auto diag_span = span{subsystem_infos}.subspan(0, diag_subsystem_view.size());
-    // then the off diag subsystems
+    // Off Diag System Always After Diag System
     auto off_diag_span = span{subsystem_infos}.subspan(diag_subsystem_view.size(),
                                                        off_diag_subsystem_view.size());
     {
@@ -129,10 +136,16 @@ void GlobalLinearSystem::Impl::init()
             dst_off_diag.local_index = i;
             dst_off_diag.index       = offset + i;
         }
+
+        for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
+            diag_subsystem->init();
+
+        for(auto&& [i, off_diag_subsystem] : enumerate(off_diag_subsystem_view))
+            off_diag_subsystem->init();
     }
 
+
     // 2) DoF Offsets/Counts
-    accuracy_statisfied_flags.resize(diag_subsystem_view.size());
     {
         diag_dof_offsets_counts.resize(diag_subsystem_view.size());
         auto diag_dof_counts = diag_dof_offsets_counts.counts();
@@ -152,6 +165,7 @@ void GlobalLinearSystem::Impl::init()
             diag_subsystem->receive_init_dof_info(info);
         }
     }
+    accuracy_statisfied_flags.resize(diag_subsystem_view.size());
 
     // 3) Triplet Offsets/Counts
     subsystem_triplet_offsets_counts.resize(total_count);
@@ -163,14 +177,10 @@ void GlobalLinearSystem::Impl::init()
 
     for(auto precond : local_preconditioner_view)
     {
-        precond->init();
-    }
-
-    for(auto precond : local_preconditioner_view)
-    {
         auto index = precond->m_subsystem->m_index;
         diag_span[index].has_local_preconditioner = true;
     }
+
     no_precond_diag_subsystem_indices.reserve(diag_span.size());
     for(auto&& [i, diag_info] : enumerate(diag_span))
     {
@@ -178,6 +188,11 @@ void GlobalLinearSystem::Impl::init()
         {
             no_precond_diag_subsystem_indices.push_back(i);
         }
+    }
+
+    for(auto precond : local_preconditioner_view)
+    {
+        precond->init();
     }
 }
 
@@ -517,11 +532,13 @@ auto GlobalLinearSystem::AssemblyInfo::storage_type() const -> HessianStorageTyp
 {
     return HessianStorageType::Symmetric;
 }
+
 SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_offset() const
 {
     auto diag_dof_offsets = m_impl->diag_dof_offsets_counts.offsets();
     return diag_dof_offsets[m_index];
 }
+
 SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_count() const
 {
     auto diag_dof_counts = m_impl->diag_dof_offsets_counts.counts();
