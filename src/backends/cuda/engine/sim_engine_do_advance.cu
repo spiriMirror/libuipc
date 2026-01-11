@@ -220,9 +220,10 @@ void SimEngine::do_advance()
     {
         if(iter >= m_line_searcher->max_iter())
         {
-            logger::warn("Line Search Exits with Max Iteration: {} (Frame={})",
+            logger::warn("Line Search Exits with Max Iteration: {} (Frame={}, Newton={})",
                          m_line_searcher->max_iter(),
-                         m_current_frame);
+                         m_current_frame,
+                         m_newton_iter);
 
             if(m_strict_mode->view()[0])
             {
