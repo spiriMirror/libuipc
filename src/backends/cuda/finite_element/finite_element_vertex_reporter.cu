@@ -9,6 +9,8 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FiniteElementVertexReporter);
 
+constexpr static U64 FiniteElementVertexReporterUID = 1;
+
 void FiniteElementVertexReporter::do_build(BuildInfo& info)
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
@@ -112,5 +114,10 @@ void FiniteElementVertexReporter::do_report_attributes(VertexAttributeInfo& info
 void FiniteElementVertexReporter::do_report_displacements(VertexDisplacementInfo& info)
 {
     m_impl.report_displacements(info);
+}
+
+U64 FiniteElementVertexReporter::get_uid() const noexcept
+{
+    return FiniteElementVertexReporterUID;
 }
 }  // namespace uipc::backend::cuda

@@ -34,7 +34,7 @@ template <typename T>
 class DenseVectorAssembler
 {
   public:
-    MUDA_GENERIC DenseVectorAssembler(muda::DenseVectorViewer<T>& dense)
+    MUDA_GENERIC DenseVectorAssembler(const muda::DenseVectorViewer<T>& dense)
         : m_dense(dense)
     {
     }
@@ -81,12 +81,12 @@ class DenseVectorAssembler
     }
 
   private:
-    muda::DenseVectorViewer<T>& m_dense;
+    const muda::DenseVectorViewer<T>& m_dense;
 };
 
 // CTAD
 template <typename T>
-DenseVectorAssembler(muda::DenseVectorViewer<T>&) -> DenseVectorAssembler<T>;
+DenseVectorAssembler(const muda::DenseVectorViewer<T>&) -> DenseVectorAssembler<T>;
 
 template <typename T, int SegmentDim>
 class DoubletVectorAssembler
@@ -94,7 +94,7 @@ class DoubletVectorAssembler
   public:
     using ElementVector = Eigen::Matrix<T, SegmentDim, 1>;
 
-    MUDA_GENERIC DoubletVectorAssembler(muda::DoubletVectorViewer<T, SegmentDim>& doublet)
+    MUDA_GENERIC DoubletVectorAssembler(const muda::DoubletVectorViewer<T, SegmentDim>& doublet)
         : m_doublet(doublet)
     {
     }
@@ -162,8 +162,8 @@ class DoubletVectorAssembler
         }
 
       private:
-        DoubletVectorAssembler& m_assembler;
-        IndexT                  m_I;
+        const DoubletVectorAssembler& m_assembler;
+        IndexT                        m_I;
     };
 
 
@@ -185,7 +185,7 @@ class DoubletVectorAssembler
     }
 
   private:
-    muda::DoubletVectorViewer<T, SegmentDim>& m_doublet;
+    const muda::DoubletVectorViewer<T, SegmentDim>& m_doublet;
 };
 
 // CTAD
@@ -305,8 +305,8 @@ class TripletMatrixAssembler
         }
 
       private:
-        TripletMatrixAssembler& m_assembler;
-        IndexT                  m_I;
+        const TripletMatrixAssembler& m_assembler;
+        IndexT                        m_I;
     };
 
     template <int N>
@@ -321,7 +321,7 @@ class TripletMatrixAssembler
         };
 
         using BlockMatrix = Eigen::Matrix<T, N * BlockDim, N * BlockDim>;
-        MUDA_GENERIC ProxyRangeHalf(TripletMatrixAssembler& assembler, IndexT I)
+        MUDA_GENERIC ProxyRangeHalf(const TripletMatrixAssembler& assembler, IndexT I)
             : m_assembler(assembler)
             , m_I(I)
         {
@@ -350,8 +350,31 @@ class TripletMatrixAssembler
 
                     ElementMatrix H =
                         value.template block<BlockDim, BlockDim>(L * BlockDim, R * BlockDim);
-                    
+
                     m_assembler.m_triplet(offset++).write(indices(L), indices(R), H);
+                }
+            }
+        }
+
+        /**
+         * @brief Only write to the upper triangular part of the global matrix. (not the submatrix)
+         */
+        MUDA_GENERIC void write(const Eigen::Vector<IndexT, N>& l_indices,
+                                const Eigen::Vector<IndexT, N>& r_indices,
+                                const BlockMatrix&              value)
+        {
+            IndexT offset = m_I;
+            for(IndexT ii = 0; ii < N; ++ii)
+            {
+                for(IndexT jj = ii; jj < N; ++jj)
+                {
+
+                    auto [L, R] = upper_LR(l_indices, r_indices, ii, jj);
+
+                    ElementMatrix H =
+                        value.template block<BlockDim, BlockDim>(L * BlockDim, R * BlockDim);
+
+                    m_assembler.m_triplet(offset++).write(l_indices(L), r_indices(R), H);
                 }
             }
         }
@@ -391,6 +414,14 @@ class TripletMatrixAssembler
                                       const IndexT&                   I,
                                       const IndexT&                   J)
         {
+            return upper_LR(indices, indices, I, J);
+        }
+
+        MUDA_GENERIC UpperLR upper_LR(const Eigen::Vector<IndexT, N>& l_indices,
+                                      const Eigen::Vector<IndexT, N>& r_indices,
+                                      const IndexT&                   I,
+                                      const IndexT&                   J)
+        {
             auto submatrix_offset = m_assembler.m_triplet.submatrix_offset();
             MUDA_ASSERT(submatrix_offset.x == submatrix_offset.y,
                         "Symmetric assembly requires a square submatrix view, but your submatrix offset.x=%d, submatrix_offset.y=%d",
@@ -398,7 +429,8 @@ class TripletMatrixAssembler
                         submatrix_offset.y);
             UpperLR ret;
             // keep it in upper triangular in the global matrix (not the submatrix)
-            if(indices(I) + submatrix_offset.x < indices(J) + submatrix_offset.y)
+            if(l_indices(I) + submatrix_offset.x
+               < r_indices(J) + submatrix_offset.y)
             {
                 ret.L = I;
                 ret.R = J;
@@ -411,8 +443,8 @@ class TripletMatrixAssembler
             return ret;
         }
 
-        TripletMatrixAssembler& m_assembler;
-        IndexT                  m_I;
+        const TripletMatrixAssembler& m_assembler;
+        IndexT                        m_I;
     };
 
 
@@ -444,11 +476,11 @@ class TripletMatrixAssembler
     }
 
   private:
-    muda::TripletMatrixViewer<T, BlockDim>& m_triplet;
+    const muda::TripletMatrixViewer<T, BlockDim>& m_triplet;
 };
 
 // CTAD
 template <typename T, int BlockDim>
-TripletMatrixAssembler(muda::TripletMatrixViewer<T, BlockDim>&)
+TripletMatrixAssembler(const muda::TripletMatrixViewer<T, BlockDim>&)
     -> TripletMatrixAssembler<T, BlockDim>;
 }  // namespace uipc::backend::cuda

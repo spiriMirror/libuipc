@@ -12,12 +12,13 @@
 
 namespace uipc::backend::cuda
 {
-// Constitution UID by libuipc specification
-static constexpr U64 ConstitutionUID = 12ull;
-
 class HookeanSpring1D final : public Codim1DConstitution
 {
   public:
+    // Constitution UID by libuipc specification
+    static constexpr U64   ConstitutionUID = 12ull;
+    static constexpr SizeT HalfHessianSize = 2 * (2 + 1) / 2;
+
     using Codim1DConstitution::Codim1DConstitution;
 
     vector<Float>             h_kappas;
@@ -26,6 +27,13 @@ class HookeanSpring1D final : public Codim1DConstitution
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
+
+    virtual void do_report_extent(ReportExtentInfo& info) override
+    {
+        info.energy_count(kappas.size());
+        info.gradient_count(kappas.size() * 2);
+        info.hessian_count(kappas.size() * HalfHessianSize);
+    }
 
     virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
@@ -133,7 +141,7 @@ class HookeanSpring1D final : public Codim1DConstitution
                        H *= Vdt2;
                        make_spd(H);
                        TripletMatrixAssembler MA{H3x3s};
-                       MA.block<2, 2>(I * 2 * 2).write(idx, H);
+                       MA.half_block<2>(I * HalfHessianSize).write(idx, H);
                    });
     }
 };
