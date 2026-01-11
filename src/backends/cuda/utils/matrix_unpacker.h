@@ -175,13 +175,13 @@ class TripletMatrixUnpacker
      * @brief Take a range of [I, I + M * N) from the triplets.
      */
     template <int M, int N>
-    MUDA_GENERIC ProxyRange<M, N> block(IndexT I)
+    MUDA_GENERIC ProxyRange<M, N> block(IndexT I) const
     {
         return ProxyRange<M, N>(*this, I);
     }
 
     template <int N>
-    MUDA_GENERIC ProxyRangeHalf<N> half_block(IndexT I)
+    MUDA_GENERIC ProxyRangeHalf<N> half_block(IndexT I) const
     {
         return ProxyRangeHalf<N>(*this, I);
     }
@@ -190,7 +190,7 @@ class TripletMatrixUnpacker
      * @brief Take a range of [I, I + N) from the triplets.
      */
     template <int N>
-    MUDA_GENERIC ProxyRange<N, 1> segment(IndexT I)
+    MUDA_GENERIC ProxyRange<N, 1> segment(IndexT I) const
     {
         return ProxyRange<N, 1>(*this, I);
     }
@@ -198,7 +198,7 @@ class TripletMatrixUnpacker
     /** 
      * @brief Take a range of [I, I + 1) from the triplets.
      */
-    MUDA_GENERIC ProxyRange<1, 1> operator()(IndexT I)
+    MUDA_GENERIC ProxyRange<1, 1> operator()(IndexT I) const
     {
         return ProxyRange<1, 1>(*this, I);
     }
