@@ -7,6 +7,8 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(HalfPlaneVertexReporter);
 
+constexpr U64 HalfPlaneVertexReporterUID = 2;
+
 void HalfPlaneVertexReporter::do_build(BuildInfo& info)
 {
     m_impl.half_plane    = &require<HalfPlane>();
@@ -83,5 +85,10 @@ void HalfPlaneVertexReporter::do_report_attributes(GlobalVertexManager::VertexAt
 void HalfPlaneVertexReporter::do_report_displacements(GlobalVertexManager::VertexDisplacementInfo& info)
 {
     m_impl.report_displacements(info);
+}
+
+U64 HalfPlaneVertexReporter::get_uid() const noexcept
+{
+    return HalfPlaneVertexReporterUID;
 }
 }  // namespace uipc::backend::cuda

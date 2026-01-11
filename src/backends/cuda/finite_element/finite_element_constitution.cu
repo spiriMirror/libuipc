@@ -35,18 +35,6 @@ void FiniteElementConstitution::do_build(FiniteElementEnergyProducer::BuildInfo&
     m_finite_element_method->add_constitution(this);
 }
 
-void FiniteElementConstitution::do_report_extent(ReportExtentInfo& info)
-{
-    auto& c_info = constitution_info();
-    info.energy_count(c_info.primitive_count);
-    auto stencil_size = dim() + 1;
-    info.gradient_count(c_info.primitive_count * stencil_size);
-
-    // Basically, we assemble full hessian for each element
-    // user can override this function to report less hessian entries
-    info.hessian_count(c_info.primitive_count * stencil_size * stencil_size);
-}
-
 const FiniteElementMethod::DimInfo& FiniteElementConstitution::dim_info() const noexcept
 {
     return fem().dim_infos[m_index_in_dim];

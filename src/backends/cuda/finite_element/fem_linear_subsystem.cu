@@ -13,6 +13,14 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FEMLinearSubsystem);
 
+// ref: https://github.com/spiriMirror/libuipc/issues/271
+constexpr U64 FEMLinearSubsystemUID = 1ull;
+
+U64 FEMLinearSubsystem::get_uid() const noexcept
+{
+    return FEMLinearSubsystemUID;
+}
+
 void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
 {
     m_impl.finite_element_method = require<FiniteElementMethod>();
@@ -294,5 +302,4 @@ void FEMLinearSubsystem::do_receive_init_dof_info(GlobalLinearSystem::InitDofInf
 {
     m_impl.receive_init_dof_info(world(), info);
 }
-
 }  // namespace uipc::backend::cuda

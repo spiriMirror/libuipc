@@ -23,6 +23,12 @@ void GlobalVertexManager::Impl::init()
     auto vertex_reporter_view = vertex_reporters.view();
 
     // 1) Setup index for each vertex reporter
+
+    // ref: https://github.com/spiriMirror/libuipc/issues/271
+    // Sort by uid to ensure the order is consistent
+    std::ranges::sort(vertex_reporter_view,
+                      [](const VertexReporter* l, const VertexReporter* r)
+                      { return l->uid() < r->uid(); });
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
         R->m_index = i;
 

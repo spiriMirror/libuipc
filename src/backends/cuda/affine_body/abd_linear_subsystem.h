@@ -85,6 +85,8 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) override;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) override;
 
+    virtual U64 get_uid() const noexcept override;
+
     friend class ABDLinearSubsystemReporter;
     void add_reporter(ABDLinearSubsystemReporter* reporter);  // only be called by ABDLinearSubsystemReporter
 

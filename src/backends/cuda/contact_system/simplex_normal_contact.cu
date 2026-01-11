@@ -79,13 +79,16 @@ void SimplexNormalContact::do_report_gradient_hessian_extent(GlobalContactManage
     m_impl.PE_count = filter->PEs().size();
     m_impl.PP_count = filter->PPs().size();
 
-    auto count_4 = (m_impl.PT_count + m_impl.EE_count);
-    auto count_3 = m_impl.PE_count;
-    auto count_2 = m_impl.PP_count;
+    auto pt_count = m_impl.PT_count;
+    auto ee_count = m_impl.EE_count;
+    auto pe_count = m_impl.PE_count;
+    auto pp_count = m_impl.PP_count;
 
-    // expand to hessian3x3 and graident3
-    SizeT contact_gradient_count = 4 * count_4 + 3 * count_3 + 2 * count_2;
-    SizeT contact_hessian_count = (4 * 4) * count_4 + (3 * 3) * count_3 + (2 * 2) * count_2;
+    SizeT contact_gradient_count =
+        pt_count * 4 + ee_count * 4 + pe_count * 3 + pp_count * 2;
+    SizeT contact_hessian_count =
+        pt_count * PTHalfHessianSize + ee_count * EEHalfHessianSize
+        + pe_count * PEHalfHessianSize + pp_count * PPHalfHessianSize;
 
     info.gradient_count(contact_gradient_count);
     info.hessian_count(contact_hessian_count);
@@ -119,21 +122,25 @@ void SimplexNormalContact::do_assemble(GlobalContactManager::GradientHessianInfo
     // hessian
     {
         IndexT offset = 0;
-        this_info.m_PT_hessians = info.hessians().subview(offset, m_impl.PT_count * 16);
+        this_info.m_PT_hessians =
+            info.hessians().subview(offset, m_impl.PT_count * PTHalfHessianSize);
         m_impl.PT_hessians = this_info.m_PT_hessians;
-        offset += m_impl.PT_count * 16;
+        offset += m_impl.PT_count * PTHalfHessianSize;
 
-        this_info.m_EE_hessians = info.hessians().subview(offset, m_impl.EE_count * 16);
+        this_info.m_EE_hessians =
+            info.hessians().subview(offset, m_impl.EE_count * EEHalfHessianSize);
         m_impl.EE_hessians = this_info.m_EE_hessians;
-        offset += m_impl.EE_count * 16;
+        offset += m_impl.EE_count * EEHalfHessianSize;
 
-        this_info.m_PE_hessians = info.hessians().subview(offset, m_impl.PE_count * 9);
+        this_info.m_PE_hessians =
+            info.hessians().subview(offset, m_impl.PE_count * PEHalfHessianSize);
         m_impl.PE_hessians = this_info.m_PE_hessians;
-        offset += m_impl.PE_count * 9;
+        offset += m_impl.PE_count * PEHalfHessianSize;
 
-        this_info.m_PP_hessians = info.hessians().subview(offset, m_impl.PP_count * 4);
+        this_info.m_PP_hessians =
+            info.hessians().subview(offset, m_impl.PP_count * PPHalfHessianSize);
         m_impl.PP_hessians = this_info.m_PP_hessians;
-        offset += m_impl.PP_count * 4;
+        offset += m_impl.PP_count * PPHalfHessianSize;
 
         UIPC_ASSERT(offset == info.hessians().triplet_count(), "size mismatch");
     }

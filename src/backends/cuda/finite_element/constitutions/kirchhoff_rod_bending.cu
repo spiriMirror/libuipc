@@ -10,7 +10,8 @@ namespace uipc::backend::cuda
 {
 class KirchhoffRodBending final : public FiniteElementExtraConstitution
 {
-    static constexpr U64 KirchhoffRodBendingUID = 15;
+    static constexpr U64   KirchhoffRodBendingUID = 15;
+    static constexpr SizeT HalfHessianSize        = 3 * (3 + 1) / 2;
     using Base = FiniteElementExtraConstitution;
 
   public:
@@ -99,9 +100,9 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
 
     virtual void do_report_extent(ReportExtentInfo& info) override
     {
-        info.energy_count(hinges.size());           // Each hinge has 1 energy
-        info.gradient_count(hinges.size() * 3);     // Each hinge has 3 vertices
-        info.hessian_count(hinges.size() * 3 * 3);  // Each hinge has 3 vertices
+        info.energy_count(hinges.size());        // Each hinge has 1 energy
+        info.gradient_count(hinges.size() * 3);  // Each hinge has 3 vertices
+        info.hessian_count(hinges.size() * HalfHessianSize);
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
@@ -196,7 +197,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                        H *= dt2;
                        make_spd(H);
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.block<3, 3>(I * 3 * 3).write(hinge, H);
+                       TMA.half_block<3>(I * HalfHessianSize).write(hinge, H);
                    });
     }
 };

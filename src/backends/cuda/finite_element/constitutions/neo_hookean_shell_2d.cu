@@ -15,7 +15,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
   public:
     // Constitution UID by libuipc specification
     static constexpr U64   ConstitutionUID   = 11;
-    static constexpr SizeT half_hessian_size = 3 * (3 + 1) / 2;
+    static constexpr SizeT HalfHessianSize = 3 * (3 + 1) / 2;
 
     using Codim2DConstitution::Codim2DConstitution;
 
@@ -106,7 +106,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
     {
         info.energy_count(mus.size());
         info.gradient_count(mus.size() * 3);
-        info.hessian_count(mus.size() * half_hessian_size);
+        info.hessian_count(mus.size() * HalfHessianSize);
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
@@ -168,7 +168,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                     H3x3s      = info.hessians().viewer().name("hessians"),
                     rest_areas = info.rest_areas().viewer().name("volumes"),
                     dt         = info.dt(),
-                    half_hessian_size = half_hessian_size] __device__(int I) mutable
+                    half_hessian_size = HalfHessianSize] __device__(int I) mutable
                    {
                        Vector9  X;
                        Vector3i idx = indices(I);

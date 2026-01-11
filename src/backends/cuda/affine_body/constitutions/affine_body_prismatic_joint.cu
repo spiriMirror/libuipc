@@ -12,9 +12,10 @@ namespace uipc::backend::cuda
 class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
 {
   public:
-    static constexpr U64 ConstitutionUID = 20;
-
+    static constexpr U64   ConstitutionUID = 20;
+    static constexpr SizeT HalfHessianSize = 2 * (2 + 1) / 2;
     using InterAffineBodyConstitution::InterAffineBodyConstitution;
+
 
     SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
 
@@ -248,7 +249,7 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
     {
         info.gradient_segment_count(2 * body_ids.size());  // each joint has 2 * Vector12 gradients
-        info.hessian_block_count(4 * body_ids.size());  // each joint has 2 * 2 * Matrix12x12 hessians
+        info.hessian_block_count(HalfHessianSize * body_ids.size());  // each joint has HalfHessianSize * Matrix12x12 hessians
     }
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
@@ -354,7 +355,7 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
                        Matrix24x24 H = J01T_H01_J01 + ddE23ddQ;
 
                        TripletMatrixAssembler TMA{H12x12s};
-                       TMA.block<2, 2>(4 * I).write(indices, H);
+                       TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
                    });
     };
 

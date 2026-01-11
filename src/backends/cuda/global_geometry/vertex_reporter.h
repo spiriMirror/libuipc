@@ -18,6 +18,8 @@ class VertexReporter : public SimSystem
       public:
     };
 
+
+    U64    uid() const noexcept;
     IndexT vertex_offset() const noexcept { return m_vertex_offset; }
     IndexT vertex_count() const noexcept { return m_vertex_count; }
 
@@ -37,6 +39,7 @@ class VertexReporter : public SimSystem
      */
     virtual void do_report_attributes(VertexAttributeInfo& vertex_attribute_info) = 0;
     virtual void do_report_displacements(VertexDisplacementInfo& vertex_displacement_info) = 0;
+    virtual U64 get_uid() const noexcept = 0;
 
   private:
     friend class GlobalVertexManager;
