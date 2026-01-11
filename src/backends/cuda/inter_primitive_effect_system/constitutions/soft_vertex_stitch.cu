@@ -158,9 +158,9 @@ class SoftVertexStitch : public InterPrimitiveConstitution
 
 
                        // hessian
-                       H3x3s(4 * I + 0).write(PP[0], PP[0], H);
-                       H3x3s(4 * I + 1).write(PP[0], PP[1], -H);
-                       H3x3s(4 * I + 2).write(PP[1], PP[1], H);
+                       H3x3s(HalfHessianSize * I + 0).write(PP[0], PP[0], H);
+                       H3x3s(HalfHessianSize * I + 1).write(PP[0], PP[1], -H);
+                       H3x3s(HalfHessianSize * I + 2).write(PP[1], PP[1], H);
                    });
     }
 };
