@@ -1,5 +1,5 @@
 #include <contact_system/al_simplex_normal_contact.h>
-#include <contact_system/al_simplex_normal_contact_function.h>
+#include <contact_system/al_contact_function.h>
 #include <utils/matrix_assembler.h>
 
 namespace uipc::backend::cuda {

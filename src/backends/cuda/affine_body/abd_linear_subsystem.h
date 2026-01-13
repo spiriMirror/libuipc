@@ -56,6 +56,8 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
+        Float diag_norm();
+
         SimSystemSlot<AffineBodyDynamics>       affine_body_dynamics;
         AffineBodyDynamics::Impl&               abd() const noexcept;
         SimSystemSlot<ABDDyTopoEffectReceiver>  dytopo_effect_receiver;
@@ -69,6 +71,8 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 
         muda::DeviceTripletMatrix<Float, 12, 12> reporter_hessians;
         muda::DeviceDoubletVector<Float, 12>     reporter_gradients;
+        muda::DeviceBuffer<Float>           diag_blocks_norm;
+        muda::DeviceVar<Float>              reduced_diag_norm;
 
         Float dt = 0.0f;  // time step, used in assemble
     };

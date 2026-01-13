@@ -136,5 +136,5 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
     HalfPlane* half_plane = nullptr;
 };
 
-REGISTER_SIM_SYSTEM(IPCVertexHalfPlaneFrictionalContact);
+// REGISTER_SIM_SYSTEM(IPCVertexHalfPlaneFrictionalContact);
 }  // namespace uipc::backend::cuda

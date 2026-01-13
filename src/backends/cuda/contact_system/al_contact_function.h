@@ -26,5 +26,19 @@ namespace sym::al_simplex_contact {
         H = scale * d_grad * d_grad.transpose();
     }
 
+    inline __device__ Float half_plane_penalty_energy(Float scale, Float d0, const Vector3 &d_grad, const Vector3 &P0) {
+        Float d = d0;
+        d += d_grad.dot(P0);
+        return 0.5 * scale * d * d;
+    }
+
+    inline __device__ void half_plane_penalty_gradient_hessian(Float scale, Float d0, const Vector3 &d_grad,
+                                                    const Vector3 &P, Vector3 &G, Matrix3x3 &H) {
+        Float d = d0;
+        d += d_grad.dot(P);
+        G = scale * d * d_grad;
+        H = scale * d_grad * d_grad.transpose();
+    }
+
 }
 }

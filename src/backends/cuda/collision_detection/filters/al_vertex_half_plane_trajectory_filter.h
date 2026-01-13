@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-class EasyVertexHalfPlaneTrajectoryFilter final : public VertexHalfPlaneTrajectoryFilter
+class ALVertexHalfPlaneTrajectoryFilter final : public VertexHalfPlaneTrajectoryFilter
 {
   public:
     using VertexHalfPlaneTrajectoryFilter::VertexHalfPlaneTrajectoryFilter;
