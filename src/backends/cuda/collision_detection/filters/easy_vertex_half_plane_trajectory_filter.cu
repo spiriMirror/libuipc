@@ -5,9 +5,17 @@
 
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(EasyVertexHalfPlaneTrajectoryFilter);
+// REGISTER_SIM_SYSTEM(EasyVertexHalfPlaneTrajectoryFilter);
 
 constexpr bool PrintDebugInfo = false;
+
+muda::CBufferView<Vector2i> EasyVertexHalfPlaneTrajectoryFilter::candidate_PHs() const noexcept {
+    return m_impl.PHs;
+}
+
+muda::CBufferView<Float> EasyVertexHalfPlaneTrajectoryFilter::toi_PHs() const noexcept {
+    return m_impl.tois;
+}
 
 void EasyVertexHalfPlaneTrajectoryFilter::do_detect(DetectInfo& info)
 {
@@ -149,8 +157,6 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
                 alpha = info.alpha(),
                 eta] __device__(int i) mutable
                {
-                   Float min_toi = 1.1f;  // large enough
-
                    for(int j = 0; j < half_plane_positions.total_size(); ++j)
                    {
                        IndexT vI = surf_vertices(i);

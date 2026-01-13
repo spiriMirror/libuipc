@@ -35,8 +35,17 @@ public:
         SimSystemSlot<GlobalTrajectoryFilter> global_trajectory_filter;
         SimSystemSlot<SimplexTrajectoryFilter> simplex_trajectory_filter;
         SimSystemSlot<VertexHalfPlaneTrajectoryFilter> vertex_half_plane_trajectory_filter;
+        SimSystemSlot<HalfPlane> half_plane;
 
         SimSystemSlotCollection<ActiveSetReporter> active_set_reporters;
+
+        muda::DeviceBuffer<Vector2i> PH_idx;
+        muda::DeviceBuffer<Float> PH_lambda;
+        muda::DeviceBuffer<int> PH_cnt;
+
+        muda::DeviceBuffer<int> PHs;
+        muda::DeviceBuffer<Float> PH_d0, PH_slack;
+        muda::DeviceBuffer<Vector3> PH_d_grad;
 
         muda::DeviceBuffer<Vector2i> PT_idx;
         muda::DeviceBuffer<Float> PT_lambda;
@@ -90,6 +99,12 @@ public:
         void recover_non_penetrate_positions();
         void advance_non_penetrate_positions(Float alpha);
     };
+
+    muda::CBufferView<int>            PHs() const;
+    muda::CBufferView<Float>          PH_d0() const;
+    muda::CBufferView<Vector3>        PH_d_grad() const;
+    muda::CBufferView<Float>          PH_lambda() const;
+    muda::CBufferView<int>            PH_cnt() const;
 
     muda::CBufferView<Vector4i>       PTs() const;
     muda::CBufferView<Float>          PT_d0() const;

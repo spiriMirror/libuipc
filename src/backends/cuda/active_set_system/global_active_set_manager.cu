@@ -3,6 +3,7 @@
 #include <utils/codim_thickness.h>
 #include <utils/primitive_d_hat.h>
 #include <utils/distance/distance_flagged.h>
+#include <contact_system/contact_models/sym/vertex_half_plane_distance.inl>
 #include <sim_engine.h>
 
 namespace uipc::backend::cuda {
@@ -100,6 +101,8 @@ void GlobalActiveSetManager::Impl::update_active_set() {
         loose_resize(lambda, N);
         loose_resize(cnt, N);
 
+        total_count = 0;
+
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(N, [
@@ -140,17 +143,27 @@ void GlobalActiveSetManager::Impl::update_active_set() {
         cnt.resize(N1);
     };
 
-    auto old_PT_size = PT_idx.size(), old_EE_size = EE_idx.size();
+    auto old_PH_size = PH_idx.size(), old_PT_size = PT_idx.size(), old_EE_size = EE_idx.size();
 
-    merge(PT_idx, PT_lambda, PT_cnt,
-        simplex_trajectory_filter->candidate_PTs(),
-        simplex_trajectory_filter->toi_PTs());
+    if (vertex_half_plane_trajectory_filter) {
+        merge(PH_idx, PH_lambda, PH_cnt,
+            vertex_half_plane_trajectory_filter->candidate_PHs(),
+            vertex_half_plane_trajectory_filter->toi_PHs());
+    }
 
-    merge(EE_idx, EE_lambda, EE_cnt,
-        simplex_trajectory_filter->candidate_EEs(),
-        simplex_trajectory_filter->toi_EEs());
+    if (simplex_trajectory_filter) {
+        merge(PT_idx, PT_lambda, PT_cnt,
+            simplex_trajectory_filter->candidate_PTs(),
+            simplex_trajectory_filter->toi_PTs());
 
-    logger::info("Active set update: {} + {} -> {} + {}", old_PT_size, old_EE_size, PT_idx.size(), EE_idx.size());
+        merge(EE_idx, EE_lambda, EE_cnt,
+            simplex_trajectory_filter->candidate_EEs(),
+            simplex_trajectory_filter->toi_EEs());
+    }
+
+    logger::info("Active set update: {} + {} + {} -> {} + {} + {}",
+                 old_PH_size, old_PT_size, old_EE_size,
+                 PH_idx.size(), PT_idx.size(), EE_idx.size());
 }
 
 void GlobalActiveSetManager::Impl::linearize_constraints() {
@@ -162,6 +175,10 @@ void GlobalActiveSetManager::Impl::linearize_constraints() {
     auto edges = global_simplicial_surface_manager->surf_edges();
     auto tris = global_simplicial_surface_manager->surf_triangles();
 
+    loose_resize(PHs, PH_idx.size());
+    loose_resize(PH_d0, PH_idx.size());
+    loose_resize(PH_d_grad, PH_idx.size());
+
     loose_resize(PTs, PT_idx.size());
     loose_resize(PT_d0, PT_idx.size());
     loose_resize(PT_d_grad, PT_idx.size());
@@ -170,11 +187,46 @@ void GlobalActiveSetManager::Impl::linearize_constraints() {
     loose_resize(EE_d0, EE_idx.size());
     loose_resize(EE_d_grad, EE_idx.size());
 
+    if (vertex_half_plane_trajectory_filter) {
+        ParallelFor().file_line(__FILE__, __LINE__).apply(PH_idx.size(), [
+            thicknesses = thicknesses.cviewer().name("thicknesses"),
+            d_hats = d_hats.cviewer().name("d_hats"),
+            PH_idx = PH_idx.cviewer().name("PH_idx"),
+            x = x.cviewer().name("x"),
+            plane_positions = half_plane->positions().cviewer().name("plane_positions"),
+            plane_normals = half_plane->normals().cviewer().name("plane_normals"),
+            PHs = PHs.viewer().name("PHs"),
+            d0 = PH_d0.viewer().name("d0"),
+            d_grad = PH_d_grad.viewer().name("d_grad")
+        ] __device__ (int idx) mutable {
+            int vI = PH_idx(idx)[0], hI = PH_idx(idx)[1];
+
+            PHs(idx) = vI;
+
+            const auto &P = x(vI);
+            const auto &hP = plane_positions(hI);
+            const auto &hN = plane_normals(hI);
+
+            Float thickness = thicknesses(vI);
+            Float d_hat = d_hats(vI);
+
+            Float D;
+            HalfPlaneD(D, P, hP, hN);
+            D = sqrt(D);
+
+            Vector3 GradD = hN;
+            d_grad(idx) = GradD;
+
+            D -= GradD.dot(P);
+
+            d0(idx) = D - thickness - d_hat;
+        });
+    }
+
     ParallelFor().file_line(__FILE__, __LINE__).apply(PT_idx.size(), [
         thicknesses = thicknesses.cviewer().name("thicknesses"),
         d_hats = d_hats.cviewer().name("d_hats"),
         PT_idx = PT_idx.cviewer().name("PT_idx"),
-        PT_lambda = PT_lambda.cviewer().name("PT_lambda"),
         vs = vs.cviewer().name("vs"),
         tris = tris.cviewer().name("tris"),
         x = x.cviewer().name("x"),
@@ -223,7 +275,6 @@ void GlobalActiveSetManager::Impl::linearize_constraints() {
         thicknesses = thicknesses.cviewer().name("thicknesses"),
         d_hats = d_hats.cviewer().name("d_hats"),
         EE_idx = EE_idx.cviewer().name("EE_idx"),
-        EE_lambda = EE_lambda.cviewer().name("EE_lambda"),
         edges = edges.cviewer().name("edges"),
         x = x.cviewer().name("pos"),
         EEs = EEs.viewer().name("EEs"),
@@ -272,8 +323,30 @@ void GlobalActiveSetManager::Impl::update_slack() {
     using namespace muda;
     auto hat_x = global_vertex_manager->positions();
 
+    loose_resize(PH_slack, PHs.size());
     loose_resize(PT_slack, PTs.size());
     loose_resize(EE_slack, EEs.size());
+
+    if (vertex_half_plane_trajectory_filter) {
+        ParallelFor().file_line(__FILE__, __LINE__).apply(PHs.size(), [
+            mu = mu,
+            PHs = PHs.cviewer().name("PHs"),
+            hat_x = hat_x.cviewer().name("hat_x"),
+            PH_d_grad = PH_d_grad.cviewer().name("PH_d_grad"),
+            PH_lambda = PH_lambda.cviewer().name("PH_lambda"),
+            d0 = PH_d0.viewer().name("d0"),
+            slack = PH_slack.viewer().name("slack")
+        ] __device__ (int idx) mutable {
+            auto PH = PHs(idx);
+            auto d_grad = PH_d_grad(idx);
+            auto d = d0(idx), lambda = PH_lambda(idx), d_shift = 0.0;
+            d_shift += d_grad.dot(hat_x(PH));
+            if (d + d_shift - lambda / mu > 0) slack(idx) = d + d_shift - lambda / mu;
+            else slack(idx) = 0;
+            d -= slack(idx) + lambda / mu;
+            d0(idx) = d;
+        });
+    }
 
     ParallelFor().file_line(__FILE__, __LINE__).apply(PTs.size(), [
         mu = mu,
@@ -323,6 +396,33 @@ void GlobalActiveSetManager::Impl::update_slack() {
 void GlobalActiveSetManager::Impl::update_lambda() {
     using namespace muda;
     auto hat_x = global_vertex_manager->positions();
+
+    if (vertex_half_plane_trajectory_filter) {
+        ParallelFor().file_line(__FILE__, __LINE__).apply(PHs.size(), [
+            mu = mu,
+            PHs = PHs.cviewer().name("PHs"),
+            hat_x = hat_x.cviewer().name("hat_x"),
+            PH_d_grad = PH_d_grad.cviewer().name("PH_d_grad"),
+            d0 = PH_d0.cviewer().name("d0"),
+            slack = PH_slack.cviewer().name("slack"),
+            PH_lambda = PH_lambda.viewer().name("PH_lambda"),
+            PH_cnt = PH_cnt.viewer().name("PH_cnt")
+        ] __device__ (int idx) mutable {
+            auto vI = PHs(idx);
+            auto d_grad = PH_d_grad(idx);
+            auto d = d0(idx), &lambda = PH_lambda(idx), d_shift = 0.0;
+            auto &cnt = PH_cnt(idx);
+            d_shift += d_grad.dot(hat_x(vI));
+            d += slack(idx) + lambda / mu;
+            if (d + d_shift - lambda / mu > 0) {
+                lambda = 0;
+                cnt += 1;
+            } else {
+                lambda -= (d+d_shift) * mu;
+                cnt = 0;
+            }
+        });
+    }
 
     ParallelFor().file_line(__FILE__, __LINE__).apply(PTs.size(), [
         mu = mu,
@@ -386,6 +486,9 @@ void GlobalActiveSetManager::Impl::record_non_penetrate_positions() {
     if (non_penetrate_positions.size() != hat_x.size())
         non_penetrate_positions.resize(hat_x.size());
     muda::BufferLaunch().copy<Vector3>(non_penetrate_positions.view(), std::as_const(hat_x));
+    for(auto&& [i, R] : enumerate(active_set_reporters.view())) {
+        R->record_non_penetrate_state();
+    }
 }
 
 void GlobalActiveSetManager::Impl::recover_non_penetrate_positions() {
@@ -407,6 +510,29 @@ void GlobalActiveSetManager::Impl::advance_non_penetrate_positions(Float alpha) 
                alpha = alpha] __device__(int i) mutable {
                    x(i) = x(i) + (hat_x(i) - x(i)) * alpha;
                });
+    for(auto&& [i, R] : enumerate(active_set_reporters.view())) {
+        R->advance_non_penetrate_state(alpha);
+    }
+}
+
+muda::CBufferView<int> GlobalActiveSetManager::PHs() const {
+    return m_impl.PHs.view();
+}
+
+muda::CBufferView<Float> GlobalActiveSetManager::PH_d0() const {
+    return m_impl.PH_d0.view();
+}
+
+muda::CBufferView<Vector3> GlobalActiveSetManager::PH_d_grad() const {
+    return m_impl.PH_d_grad.view();
+}
+
+muda::CBufferView<Float> GlobalActiveSetManager::PH_lambda() const {
+    return m_impl.PH_lambda.view();
+}
+
+muda::CBufferView<int> GlobalActiveSetManager::PH_cnt() const {
+    return m_impl.PH_cnt.view();
 }
 
 muda::CBufferView<Vector4i> GlobalActiveSetManager::PTs() const {
@@ -475,6 +601,7 @@ void GlobalActiveSetManager::do_build() {
     m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
     m_impl.global_vertex_manager = require<GlobalVertexManager>();
     m_impl.global_simplicial_surface_manager = require<GlobalSimplicialSurfaceManager>();
+    m_impl.half_plane = find<HalfPlane>();
 
     on_init_scene(
         [this]

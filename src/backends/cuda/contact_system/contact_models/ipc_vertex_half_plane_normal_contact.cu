@@ -123,5 +123,5 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
     HalfPlane* half_plane = nullptr;
 };
 
-REGISTER_SIM_SYSTEM(IPCVertexHalfPlaneNormalContact);
+// REGISTER_SIM_SYSTEM(IPCVertexHalfPlaneNormalContact);
 }  // namespace uipc::backend::cuda

@@ -414,6 +414,25 @@ void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
                    dq(i) = -x.segment<12>(i * 12).as_eigen();
                });
 }
+
+Float ABDLinearSubsystem::Impl::diag_norm() {
+    auto diag_hess = abd().diag_hessian.view();
+    diag_blocks_norm.resize(diag_hess.size() * 12);
+    muda::ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(diag_hess.size(), [
+            diag_hess = diag_hess.cviewer().name("diag_hess"),
+            diag_blocks_norm = diag_blocks_norm.viewer().name("diag_blocks_norm")
+        ] __device__ (int idx) mutable {
+            for (int i = 0; i < 12; i++)
+                diag_blocks_norm(idx*12+i) = abs(diag_hess(idx)(i, i));
+        });
+
+    muda::DeviceReduce().Max(diag_blocks_norm.data(), reduced_diag_norm.data(), diag_blocks_norm.size());
+
+    return reduced_diag_norm;
+}
+
 }  // namespace uipc::backend::cuda
 
 
@@ -445,8 +464,7 @@ void ABDLinearSubsystem::do_retrieve_solution(GlobalLinearSystem::SolutionInfo& 
 }
 
 Float ABDLinearSubsystem::do_diag_norm(GlobalLinearSystem::DiagNormInfo &info) {
-    UIPC_ASSERT(false, "Not implemented");
-    return 0.0;
+    return m_impl.diag_norm();
 }
 
 void ABDLinearSubsystem::add_reporter(ABDLinearSubsystemReporter* reporter)

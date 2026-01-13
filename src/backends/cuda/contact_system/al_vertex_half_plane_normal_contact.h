@@ -6,7 +6,7 @@
 #include <active_set_system/global_active_set_manager.h>
 
 namespace uipc::backend::cuda {
-    class ALSimplexNormalContact : public ContactReporter {
+    class ALVertexHalfPlaneNormalContact : public ContactReporter {
     public:
         using ContactReporter::ContactReporter;
 
