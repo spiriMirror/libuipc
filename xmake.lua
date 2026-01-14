@@ -22,7 +22,7 @@ set_languages("c++20")
 
 if is_plat("windows") then
     add_cxflags("/FC")
-    add_cxflags("/wd4068", "/wd4068")
+    add_cxflags("/wd4068")
 else
     add_cxflags("-fmacro-prefix-map==" .. os.projectdir(), {force = true})
 end

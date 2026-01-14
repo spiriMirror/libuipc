@@ -29,14 +29,16 @@ Returns:
         [](SoftVertexStitch&                  self,
            const SoftVertexStitch::SlotTuple& aim_geo_slots,
            const py::array_t<Float>&          stitched_vert_ids,
-           Float                              kappa)
+           Float                              kappa,
+           Float                              rest_length)
         {
             return self.create_geometry(
-                aim_geo_slots, as_span_of<const Vector2i>(stitched_vert_ids), kappa);
+                aim_geo_slots, as_span_of<const Vector2i>(stitched_vert_ids), kappa, rest_length);
         },
         py::arg("aim_geo_slots"),
         py::arg("stitched_vert_ids"),
-        py::arg("kappa") = Float{1e6},
+        py::arg("kappa")       = Float{1e6},
+        py::arg("rest_length") = Float{0.0},
         R"(Create geometry for vertex stitching.
 Args:
     aim_geo_slots: Tuple of geometry slots to stitch.
@@ -51,17 +53,20 @@ Returns:
            const SoftVertexStitch::SlotTuple&           aim_geo_slots,
            const py::array_t<Float>&                    stitched_vert_ids,
            const SoftVertexStitch::ContactElementTuple& contact_elements,
-           Float                                        kappa)
+           Float                                        kappa,
+           Float                                        rest_length)
         {
             return self.create_geometry(aim_geo_slots,
                                         as_span_of<const Vector2i>(stitched_vert_ids),
                                         contact_elements,
-                                        kappa);
+                                        kappa,
+                                        rest_length);
         },
         py::arg("aim_geo_slots"),
         py::arg("stitched_vert_ids"),
         py::arg("contact_elements"),
-        py::arg("kappa") = Float{1e6},
+        py::arg("kappa")       = Float{1e6},
+        py::arg("rest_length") = Float{0.0},
         R"(Create geometry for vertex stitching with contact elements.
 Args:
     aim_geo_slots: Tuple of geometry slots to stitch.
