@@ -201,7 +201,7 @@ class TripletMatrixAssembler
     using ElementMatrix = Eigen::Matrix<T, BlockDim, BlockDim>;
 
 
-    MUDA_GENERIC TripletMatrixAssembler(muda::TripletMatrixViewer<T, BlockDim>& triplet)
+    MUDA_GENERIC TripletMatrixAssembler(const muda::TripletMatrixViewer<T, BlockDim>& triplet)
         : m_triplet(triplet)
     {
     }

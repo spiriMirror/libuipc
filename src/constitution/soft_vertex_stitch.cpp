@@ -26,7 +26,8 @@ SoftVertexStitch::SoftVertexStitch(const Json& config)
 
 geometry::Geometry SoftVertexStitch::create_geometry(const SlotTuple& aim_geo_slots,
                                                      span<const Vector2i> stitched_vert_ids,
-                                                     Float kappa_v) const
+                                                     Float kappa_v,
+                                                     Float rest_length_v) const
 {
     geometry::Geometry geo;
 
@@ -54,6 +55,10 @@ geometry::Geometry SoftVertexStitch::create_geometry(const SlotTuple& aim_geo_sl
     auto kappa      = geo.instances().create<Float>("kappa");
     auto kappa_view = view(*kappa);
     std::ranges::fill(kappa_view, kappa_v);
+
+    auto rest_length      = geo.instances().create<Float>("rest_length");
+    auto rest_length_view = view(*rest_length);
+    std::ranges::fill(rest_length_view, rest_length_v);
 
     return geo;
 }
@@ -94,9 +99,10 @@ static auto find_or_create_vert_ce(geometry::SimplicialComplex& geo)
 geometry::Geometry SoftVertexStitch::create_geometry(const SlotTuple& aim_geo_slots,
                                                      span<const Vector2i> stitched_vert_ids,
                                                      const ContactElementTuple& contact_elements,
-                                                     Float kappa) const
+                                                     Float kappa,
+                                                     Float rest_length) const
 {
-    auto geo = create_geometry(aim_geo_slots, stitched_vert_ids, kappa);
+    auto geo = create_geometry(aim_geo_slots, stitched_vert_ids, kappa, rest_length);
 
     auto slots = tuple2array(aim_geo_slots);
     auto ces   = tuple2array(contact_elements);
