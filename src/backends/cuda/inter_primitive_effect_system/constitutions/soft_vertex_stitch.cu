@@ -167,22 +167,6 @@ class SoftVertexStitch : public InterPrimitiveConstitution
                     H3x3s        = info.hessians().viewer().name("H3x3s"),
                     dt           = info.dt()] __device__(int I)
                    {
-                       //    const Vector2i& PP  = topos(I);
-                       //    Float           Kt2 = kappas(I) * dt * dt;
-                       //    Vector3         dX  = xs(PP[0]) - xs(PP[1]);
-
-                       //    Vector3   G = Kt2 * dX;
-                       //    Matrix3x3 H = Kt2 * Matrix3x3::Identity();
-
-                       //    // gradient
-                       //    G3s(2 * I + 0).write(PP[0], G);
-                       //    G3s(2 * I + 1).write(PP[1], -G);
-
-
-                       //    // hessian
-                       //    H3x3s(HalfHessianSize * I + 0).write(PP[0], PP[0], H);
-                       //    H3x3s(HalfHessianSize * I + 1).write(PP[0], PP[1], -H);
-                       //    H3x3s(HalfHessianSize * I + 2).write(PP[1], PP[1], H);
                        Vector6         X;
                        const Vector2i& PP = topos(I);
                        for(int i = 0; i < 2; ++i)
