@@ -439,7 +439,7 @@ void SimEngine::advance_AL()
 
     auto linearize_constraints = [this]
     {
-        if (m_global_active_set_manager)
+        if(m_global_active_set_manager)
         {
             Timer timer{"Linearize Contact Constraints"};
             m_global_active_set_manager->linearize_constraints();
@@ -449,7 +449,7 @@ void SimEngine::advance_AL()
 
     auto recover_non_penetrate_positions = [this]
     {
-        if (m_global_active_set_manager)
+        if(m_global_active_set_manager)
         {
             Timer timer{"Recover to Non-Penetrating Positions"};
             m_global_active_set_manager->recover_non_penetrate_positions();
@@ -495,11 +495,13 @@ void SimEngine::advance_AL()
 
     auto compute_adaptive_mu = [this]
     {
-        if (m_global_active_set_manager) {
+        if(m_global_active_set_manager)
+        {
             m_global_active_set_manager->disable();
             if(m_global_dytopo_effect_manager)
                 m_global_dytopo_effect_manager->compute_dytopo_effect();
-            Float mu = m_global_linear_system->diag_norm() * m_global_active_set_manager->mu_scale();
+            Float mu = m_global_linear_system->diag_norm()
+                       * m_global_active_set_manager->mu_scale();
             m_global_active_set_manager->set_mu(mu);
             m_global_active_set_manager->enable();
         }
@@ -612,7 +614,8 @@ void SimEngine::advance_AL()
         // if(!animation_reach_target())
         //     return false;
 
-        if (m_global_active_set_manager && beta < 1.0 - m_global_active_set_manager->toi_threshold())
+        if(m_global_active_set_manager
+           && beta < 1.0 - m_global_active_set_manager->toi_threshold())
             return false;
 
         return true;
@@ -732,7 +735,7 @@ void SimEngine::advance_AL()
 
                 // 2) Linearize contact constraints
 
-                if (m_global_active_set_manager)
+                if(m_global_active_set_manager)
                     linearize_constraints();
 
                 // 3) Compute Dynamic Topo Effect Gradient and Hessian => G:Vector3, H:Matrix3x3
@@ -821,20 +824,22 @@ void SimEngine::advance_AL()
                 m_state = SimEngineState::AdvanceNonPenetrate;
                 {
                     Timer timer{"Advance Non-Penetrating Positions"};
-                    if (m_global_active_set_manager) {
+                    if(m_global_active_set_manager)
+                    {
                         Timer timer{"Update Lambda"};
                         m_global_active_set_manager->update_lambda();
                     }
                     m_global_vertex_manager->prepare_AL_CCD();
                     detect_trajectory_candidates(alpha);
                     alpha = filter_toi(1.0);
-                    if (m_global_active_set_manager) {
+                    if(m_global_active_set_manager)
+                    {
                         Timer timer{"Update Active Set"};
                         m_global_active_set_manager->update_active_set();
                     }
                     m_global_vertex_manager->post_AL_CCD();
                     m_global_active_set_manager->advance_non_penetrate_positions(alpha);
-                    beta = beta + (1-beta) * alpha;
+                    beta = beta + (1 - beta) * alpha;
                 }
             }
 
@@ -869,7 +874,8 @@ void SimEngine::advance_AL()
     }
 }
 
-void SimEngine::do_advance() {
+void SimEngine::do_advance()
+{
     // TODO: select pipeline
     advance_AL();
 }
