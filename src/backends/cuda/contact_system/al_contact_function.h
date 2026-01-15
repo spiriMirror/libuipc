@@ -1,10 +1,18 @@
 #pragma once
 #include <type_define.h>
 
-namespace uipc::backend::cuda {
-namespace sym::al_simplex_contact {
-    inline __device__ Float penalty_energy(Float scale, Float d0, const Vector12 &d_grad,
-                                           const Vector3 &P0, const Vector3 &P1, const Vector3 &P2, const Vector3 &P3) {
+namespace uipc::backend::cuda
+{
+namespace sym::al_simplex_contact
+{
+    inline UIPC_GENERIC Float penalty_energy(Float           scale,
+                                             Float           d0,
+                                             const Vector12& d_grad,
+                                             const Vector3&  P0,
+                                             const Vector3&  P1,
+                                             const Vector3&  P2,
+                                             const Vector3&  P3)
+    {
         Float d = d0;
         d += d_grad.segment<3>(0).dot(P0);
         d += d_grad.segment<3>(3).dot(P1);
@@ -13,10 +21,16 @@ namespace sym::al_simplex_contact {
         return 0.5 * scale * d * d;
     }
 
-    inline __device__ void penalty_gradient_hessian(Float scale, Float d0, const Vector12 &d_grad,
-                                                    const Vector3 &P0, const Vector3 &P1,
-                                                    const Vector3 &P2, const Vector3 &P3,
-                                                    Vector12 &G, Matrix12x12 &H) {
+    inline UIPC_GENERIC void penalty_gradient_hessian(Float           scale,
+                                                      Float           d0,
+                                                      const Vector12& d_grad,
+                                                      const Vector3&  P0,
+                                                      const Vector3&  P1,
+                                                      const Vector3&  P2,
+                                                      const Vector3&  P3,
+                                                      Vector12&       G,
+                                                      Matrix12x12&    H)
+    {
         Float d = d0;
         d += d_grad.segment<3>(0).dot(P0);
         d += d_grad.segment<3>(3).dot(P1);
@@ -26,19 +40,24 @@ namespace sym::al_simplex_contact {
         H = scale * d_grad * d_grad.transpose();
     }
 
-    inline __device__ Float half_plane_penalty_energy(Float scale, Float d0, const Vector3 &d_grad, const Vector3 &P0) {
+    inline UIPC_GENERIC Float half_plane_penalty_energy(Float          scale,
+                                                        Float          d0,
+                                                        const Vector3& d_grad,
+                                                        const Vector3& P0)
+    {
         Float d = d0;
         d += d_grad.dot(P0);
         return 0.5 * scale * d * d;
     }
 
-    inline __device__ void half_plane_penalty_gradient_hessian(Float scale, Float d0, const Vector3 &d_grad,
-                                                    const Vector3 &P, Vector3 &G, Matrix3x3 &H) {
+    inline UIPC_GENERIC void half_plane_penalty_gradient_hessian(
+        Float scale, Float d0, const Vector3& d_grad, const Vector3& P, Vector3& G, Matrix3x3& H)
+    {
         Float d = d0;
         d += d_grad.dot(P);
         G = scale * d * d_grad;
         H = scale * d_grad * d_grad.transpose();
     }
 
-}
-}
+}  // namespace sym::al_simplex_contact
+}  // namespace uipc::backend::cuda

@@ -17,6 +17,8 @@
 #include <newton_tolerance/newton_tolerance_manager.h>
 #include <time_integrator/time_integrator_manager.h>
 #include <active_set_system/global_active_set_manager.h>
+#include <pipeline/ipc_pipeline_flag.h>
+#include <pipeline/al_ipc_pipeline_flag.h>
 
 namespace uipc::backend::cuda
 {
@@ -69,6 +71,22 @@ void SimEngine::init_scene()
 
     m_friction_enabled = info.find<IndexT>("contact/friction/enable")->view()[0];
     Vector3 gravity = info.find<Vector3>("gravity")->view()[0];
+
+    auto alipc = find<ALIPCPipelineFlag>();
+    auto ipc   = find<IPCPipelineFlag>();
+    if(alipc)
+    {
+        logger::info("Pipeline: Augmented Lagrangian IPC");
+        m_pipeline_type = PipelineType::AugmentedLagrangian;
+    }
+    else if(ipc)
+    {
+        m_pipeline_type = PipelineType::Basic;
+    }
+    else
+    {
+        throw SimEngineException("No valid pipeline flag found in the scene!");
+    }
 
 
     // 1. Before Common Scene Initialization

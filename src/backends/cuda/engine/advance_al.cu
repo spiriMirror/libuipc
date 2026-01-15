@@ -407,8 +407,7 @@ void SimEngine::advance_AL()
 
                     // Setup Displacements for CCD
                     m_global_vertex_manager->prepare_AL_CCD();
-                    // should be 1.0 here
-                    detect_trajectory_candidates(1.0);
+                    detect_trajectory_candidates(alpha);
                     alpha = filter_toi(1.0);
                     m_global_active_set_manager->update_active_set();
                     m_global_vertex_manager->post_AL_CCD();
