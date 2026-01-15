@@ -28,13 +28,11 @@ class ALVertexHalfPlaneTrajectoryFilter final : public VertexHalfPlaneTrajectory
     };
 
     virtual muda::CBufferView<Vector2i> candidate_PHs() const noexcept override;
-    virtual muda::CBufferView<Float> toi_PHs() const noexcept override;
+    virtual muda::CBufferView<Float>    toi_PHs() const noexcept override;
 
   private:
-    Impl m_impl;
-
-    // Inherited via VertexHalfPlaneTrajectoryFilter
-
+    Impl         m_impl;
+    virtual void do_build(BuildInfo& info) override;
     virtual void do_detect(DetectInfo& info) override;
     virtual void do_filter_active(FilterActiveInfo& info) override;
     virtual void do_filter_toi(FilterTOIInfo& info) override;

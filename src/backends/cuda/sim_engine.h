@@ -52,8 +52,16 @@ class SimEngine final : public backend::SimEngine
     virtual void do_apply_recover(RecoverInfo&) override;
     virtual void do_clear_recover(RecoverInfo&) override;
 
-    void advance_IPC();
+    enum class PipelineType
+    {
+        Basic = 0,
+        AugmentedLagrangian
+    };
+    // basic pipeline
+    void advance();
+    // augmented lagrangian pipeline
     void advance_AL();
+
     void build();
     void init_scene();
     void dump_global_surface(std::string_view name);
@@ -82,14 +90,15 @@ class SimEngine final : public backend::SimEngine
     GlobalActiveSetManager*    m_global_active_set_manager    = nullptr;
 
     // Newton Solver Systems
+
     TimeIntegratorManager*  m_time_integrator_manager  = nullptr;
     LineSearcher*           m_line_searcher            = nullptr;
     GlobalLinearSystem*     m_global_linear_system     = nullptr;
     NewtonToleranceManager* m_newton_tolerance_manager = nullptr;
 
-    GlobalAnimator*              m_global_animator               = nullptr;
-    GlobalExternalForceManager*  m_global_external_force_manager = nullptr;
-    GlobalDiffSimManager*        m_global_diff_sim_manager       = nullptr;
+    GlobalAnimator*             m_global_animator               = nullptr;
+    GlobalExternalForceManager* m_global_external_force_manager = nullptr;
+    GlobalDiffSimManager*       m_global_diff_sim_manager       = nullptr;
     //GlobalDiffContactManager*    m_global_diff_contact_manager    = nullptr;
     //GlobalAdjointMethodReplayer* m_global_adjoint_method_replayer = nullptr;
     AffineBodyDynamics* m_affine_body_dynamics = nullptr;
@@ -111,5 +120,7 @@ class SimEngine final : public backend::SimEngine
     CAS<IndexT> m_strict_mode;
     CAS<Float>  m_ccd_tol;
     CAS<IndexT> m_dump_surface;
+
+    PipelineType m_pipeline_type = PipelineType::Basic;
 };
 }  // namespace uipc::backend::cuda

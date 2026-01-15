@@ -2,7 +2,6 @@
 #include <uipc/common/log.h>
 #include <muda/muda.h>
 #include <kernel_cout.h>
-#include <sim_engine_device_common.h>
 #include <backends/common/module.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>

@@ -113,14 +113,14 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
     muda::CBufferView<Vector2i> friction_PHs() noexcept;
 
     virtual muda::CBufferView<Vector2i> candidate_PHs() const noexcept = 0;
-    virtual muda::CBufferView<Float> toi_PHs() const noexcept = 0;
+    virtual muda::CBufferView<Float>    toi_PHs() const noexcept       = 0;
 
   protected:
     virtual void do_detect(DetectInfo& info)              = 0;
     virtual void do_filter_active(FilterActiveInfo& info) = 0;
     virtual void do_filter_toi(FilterTOIInfo& info)       = 0;
 
-    virtual void do_build(BuildInfo& info){};
+    virtual void do_build(BuildInfo& info) = 0;
 
   private:
     Impl         m_impl;

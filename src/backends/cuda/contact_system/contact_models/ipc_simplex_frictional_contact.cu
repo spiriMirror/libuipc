@@ -5,7 +5,7 @@
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
 #include <utils/primitive_d_hat.h>
-
+#include <pipeline/ipc_pipeline_flag.h>
 
 namespace uipc::backend::cuda
 {
@@ -16,6 +16,8 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
     virtual void do_build(BuildInfo& info) override
     {
+        require<IPCPipelineFlag>();
+
         auto constitution =
             world().scene().config().find<std::string>("contact/constitution");
         if(constitution->view()[0] != "ipc")
@@ -583,5 +585,5 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 };
 
 
-// REGISTER_SIM_SYSTEM(IPCSimplexFrictionalContact);
+REGISTER_SIM_SYSTEM(IPCSimplexFrictionalContact);
 }  // namespace uipc::backend::cuda

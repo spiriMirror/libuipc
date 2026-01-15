@@ -2,12 +2,18 @@
 #include <muda/cub/device/device_reduce.h>
 #include <kernel_cout.h>
 #include <utils/codim_thickness.h>
+#include <pipeline/al_ipc_pipeline_flag.h>
 
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(ALVertexHalfPlaneTrajectoryFilter);
 
 constexpr bool PrintDebugInfo = false;
+
+void ALVertexHalfPlaneTrajectoryFilter::do_build(BuildInfo& info)
+{
+    require<ALIPCPipelineFlag>();
+}
 
 muda::CBufferView<Vector2i> ALVertexHalfPlaneTrajectoryFilter::candidate_PHs() const noexcept
 {
