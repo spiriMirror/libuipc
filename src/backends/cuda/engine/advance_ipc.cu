@@ -16,7 +16,7 @@
 
 namespace uipc::backend::cuda
 {
-void SimEngine::advance_IPC()
+void SimEngine::advance()
 {
     Float alpha     = 1.0;
     Float ccd_alpha = 1.0;

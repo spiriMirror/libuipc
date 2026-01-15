@@ -26,6 +26,8 @@ void SimEngine::build()
     build_systems();
 
     // 2) find those engine-aware topo systems
+
+    // Basic Pipeline Systems
     m_global_vertex_manager    = &require<GlobalVertexManager>();
     m_global_body_manager      = &require<GlobalBodyManager>();
     m_time_integrator_manager  = &require<TimeIntegratorManager>();
@@ -34,18 +36,20 @@ void SimEngine::build()
     m_newton_tolerance_manager = &require<NewtonToleranceManager>();
 
     m_global_simplicial_surface_manager = find<GlobalSimplicialSurfaceManager>();
-    m_global_dytopo_effect_manager      = find<GlobalDyTopoEffectManager>();
-    m_global_contact_manager            = find<GlobalContactManager>();
-    m_global_trajectory_filter          = find<GlobalTrajectoryFilter>();
-    m_global_animator                   = find<GlobalAnimator>();
-    m_global_external_force_manager     = find<GlobalExternalForceManager>();
-    m_global_diff_sim_manager           = find<GlobalDiffSimManager>();
-    m_global_active_set_manager         = find<GlobalActiveSetManager>();
+    m_global_dytopo_effect_manager  = find<GlobalDyTopoEffectManager>();
+    m_global_contact_manager        = find<GlobalContactManager>();
+    m_global_trajectory_filter      = find<GlobalTrajectoryFilter>();
+    m_global_animator               = find<GlobalAnimator>();
+    m_global_external_force_manager = find<GlobalExternalForceManager>();
+    m_global_diff_sim_manager       = find<GlobalDiffSimManager>();
 
     m_affine_body_dynamics = find<AffineBodyDynamics>();
     m_inter_affine_body_constitution_manager =
         find<InterAffineBodyConstitutionManager>();
     m_finite_element_method = find<FiniteElementMethod>();
+
+    // Augmented Lagrangian Pipeline Systems
+    m_global_active_set_manager = find<GlobalActiveSetManager>();
 
 
     // 3) dump system info
@@ -94,14 +98,12 @@ void SimEngine::init_scene()
             m_global_animator->init();
         if(m_global_external_force_manager)
             m_global_external_force_manager->init();
-        if (m_global_active_set_manager)
+        if(m_global_active_set_manager)
             m_global_active_set_manager->init();
 
         m_line_searcher->init();
         m_global_linear_system->init();
-
         m_time_integrator_manager->init();
-
         m_newton_tolerance_manager->init();
     }
 

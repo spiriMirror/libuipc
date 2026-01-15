@@ -2,12 +2,18 @@
 #include <muda/cub/device/device_reduce.h>
 #include <kernel_cout.h>
 #include <utils/codim_thickness.h>
+#include <pipeline/ipc_pipeline_flag.h>
 
 namespace uipc::backend::cuda
 {
-// REGISTER_SIM_SYSTEM(EasyVertexHalfPlaneTrajectoryFilter);
+REGISTER_SIM_SYSTEM(EasyVertexHalfPlaneTrajectoryFilter);
 
 constexpr bool PrintDebugInfo = false;
+
+void EasyVertexHalfPlaneTrajectoryFilter::do_build(BuildInfo& info)
+{
+    require<IPCPipelineFlag>();
+}
 
 muda::CBufferView<Vector2i> EasyVertexHalfPlaneTrajectoryFilter::candidate_PHs() const noexcept
 {

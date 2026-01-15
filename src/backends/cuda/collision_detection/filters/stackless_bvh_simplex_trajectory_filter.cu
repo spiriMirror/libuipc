@@ -16,33 +16,6 @@ constexpr bool PrintDebugInfo = false;
 
 REGISTER_SIM_SYSTEM(StacklessBVHSimplexTrajectoryFilter);
 
-muda::CBufferView<Vector2i> StacklessBVHSimplexTrajectoryFilter::candidate_PTs() const noexcept {
-    return m_impl.candidate_AllP_AllT_pairs.view();
-}
-
-muda::CBufferView<Vector2i> StacklessBVHSimplexTrajectoryFilter::candidate_EEs() const noexcept {
-    return m_impl.candidate_AllE_AllE_pairs.view();
-}
-
-muda::CBufferView<Float> StacklessBVHSimplexTrajectoryFilter::toi_PTs() const noexcept {
-    auto offset = 0;
-    offset += m_impl.candidate_AllP_CodimP_pairs.size();
-    offset += m_impl.candidate_CodimP_AllE_pairs.size();
-    auto PT_tois = m_impl.tois.view(offset,
-        m_impl.candidate_AllP_AllT_pairs.size());
-    return PT_tois;
-}
-
-muda::CBufferView<Float> StacklessBVHSimplexTrajectoryFilter::toi_EEs() const noexcept {
-    auto offset = 0;
-    offset += m_impl.candidate_AllP_CodimP_pairs.size();
-    offset += m_impl.candidate_CodimP_AllE_pairs.size();
-    offset += m_impl.candidate_AllP_AllT_pairs.size();
-    auto EE_tois = m_impl.tois.view(offset,
-        m_impl.candidate_AllE_AllE_pairs.size());
-    return EE_tois;
-}
-
 void StacklessBVHSimplexTrajectoryFilter::do_build(BuildInfo& info)
 {
     auto& config = world().scene().config();

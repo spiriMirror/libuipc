@@ -4,40 +4,30 @@
 #include <utils/primitive_d_hat.h>
 #include <utils/distance/distance_flagged.h>
 #include <contact_system/contact_models/sym/vertex_half_plane_distance.inl>
-#include <sim_engine.h>
-
-namespace uipc::backend
-{
-template <>
-class SimSystemCreator<cuda::GlobalActiveSetManager>
-{
-  public:
-    static U<cuda::GlobalActiveSetManager> create(cuda::SimEngine& engine)
-    {
-        auto contact_enable_attr =
-            engine.world().scene().config().find<IndexT>("contact/enable");
-
-        bool contact_enable = contact_enable_attr->view()[0] != 0;
-
-        auto contact_constitution =
-            engine.world().scene().config().find<std::string>("contact/constitution");
-
-        bool use_al_ipc = contact_enable && contact_constitution->view()[0] == "al-ipc";
-
-        if(contact_enable && use_al_ipc)
-        {
-            return make_unique<cuda::GlobalActiveSetManager>(engine);
-        }
-
-        return nullptr;
-    }
-};
-}  // namespace uipc::backend
+#include <pipeline/al_ipc_pipeline_flag.h>
 
 namespace uipc::backend::cuda
 {
-
 REGISTER_SIM_SYSTEM(GlobalActiveSetManager);
+
+void GlobalActiveSetManager::do_build()
+{
+    require<ALIPCPipelineFlag>();
+
+    m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
+    m_impl.global_vertex_manager    = require<GlobalVertexManager>();
+    m_impl.global_simplicial_surface_manager = require<GlobalSimplicialSurfaceManager>();
+    m_impl.half_plane = find<HalfPlane>();
+
+    on_init_scene(
+        [this]
+        {
+            m_impl.simplex_trajectory_filter =
+                m_impl.global_trajectory_filter->find<SimplexTrajectoryFilter>();
+            m_impl.vertex_half_plane_trajectory_filter =
+                m_impl.global_trajectory_filter->find<VertexHalfPlaneTrajectoryFilter>();
+        });
+}
 
 void GlobalActiveSetManager::Impl::filter_active()
 {
@@ -407,7 +397,7 @@ void GlobalActiveSetManager::Impl::update_slack()
             .apply(PHs.size(),
                    [mu        = mu,
                     PHs       = PHs.cviewer().name("PHs"),
-                    hat_x     = hat_x.cviewer().name("hat_x"),
+                    x_hat     = x_hat.cviewer().name("x_hat"),
                     PH_d_grad = PH_d_grad.cviewer().name("PH_d_grad"),
                     PH_lambda = PH_lambda.cviewer().name("PH_lambda"),
                     d0        = PH_d0.viewer().name("d0"),
@@ -416,7 +406,7 @@ void GlobalActiveSetManager::Impl::update_slack()
                        auto PH     = PHs(idx);
                        auto d_grad = PH_d_grad(idx);
                        auto d = d0(idx), lambda = PH_lambda(idx), d_shift = 0.0;
-                       d_shift += d_grad.dot(hat_x(PH));
+                       d_shift += d_grad.dot(x_hat(PH));
                        if(d + d_shift - lambda / mu > 0)
                            slack(idx) = d + d_shift - lambda / mu;
                        else
@@ -431,7 +421,7 @@ void GlobalActiveSetManager::Impl::update_slack()
         .apply(PTs.size(),
                [mu        = mu,
                 PTs       = PTs.cviewer().name("PTs"),
-                hat_x     = hat_x.cviewer().name("hat_x"),
+                x_hat     = x_hat.cviewer().name("x_hat"),
                 PT_d_grad = PT_d_grad.cviewer().name("PT_d_grad"),
                 PT_lambda = PT_lambda.cviewer().name("PT_lambda"),
                 d0        = PT_d0.viewer().name("d0"),
@@ -440,10 +430,10 @@ void GlobalActiveSetManager::Impl::update_slack()
                    auto PT     = PTs(idx);
                    auto d_grad = PT_d_grad(idx);
                    auto d = d0(idx), lambda = PT_lambda(idx), d_shift = 0.0;
-                   d_shift += d_grad.segment<3>(0).dot(hat_x(PT(0)));
-                   d_shift += d_grad.segment<3>(3).dot(hat_x(PT(1)));
-                   d_shift += d_grad.segment<3>(6).dot(hat_x(PT(2)));
-                   d_shift += d_grad.segment<3>(9).dot(hat_x(PT(3)));
+                   d_shift += d_grad.segment<3>(0).dot(x_hat(PT(0)));
+                   d_shift += d_grad.segment<3>(3).dot(x_hat(PT(1)));
+                   d_shift += d_grad.segment<3>(6).dot(x_hat(PT(2)));
+                   d_shift += d_grad.segment<3>(9).dot(x_hat(PT(3)));
                    if(d + d_shift - lambda / mu > 0)
                        slack(idx) = d + d_shift - lambda / mu;
                    else
@@ -457,7 +447,7 @@ void GlobalActiveSetManager::Impl::update_slack()
         .apply(EEs.size(),
                [mu        = mu,
                 EEs       = EEs.cviewer().name("EEs"),
-                hat_x     = hat_x.cviewer().name("hat_x"),
+                x_hat     = x_hat.cviewer().name("x_hat"),
                 EE_d_grad = EE_d_grad.cviewer().name("EE_d_grad"),
                 EE_lambda = EE_lambda.cviewer().name("EE_lambda"),
                 d0        = EE_d0.viewer().name("d0"),
@@ -466,10 +456,10 @@ void GlobalActiveSetManager::Impl::update_slack()
                    auto EE     = EEs(idx);
                    auto d_grad = EE_d_grad(idx);
                    auto d = d0(idx), lambda = EE_lambda(idx), d_shift = 0.0;
-                   d_shift += d_grad.segment<3>(0).dot(hat_x(EE(0)));
-                   d_shift += d_grad.segment<3>(3).dot(hat_x(EE(1)));
-                   d_shift += d_grad.segment<3>(6).dot(hat_x(EE(2)));
-                   d_shift += d_grad.segment<3>(9).dot(hat_x(EE(3)));
+                   d_shift += d_grad.segment<3>(0).dot(x_hat(EE(0)));
+                   d_shift += d_grad.segment<3>(3).dot(x_hat(EE(1)));
+                   d_shift += d_grad.segment<3>(6).dot(x_hat(EE(2)));
+                   d_shift += d_grad.segment<3>(9).dot(x_hat(EE(3)));
                    if(d + d_shift - lambda / mu > 0)
                        slack(idx) = d + d_shift - lambda / mu;
                    else
@@ -482,7 +472,7 @@ void GlobalActiveSetManager::Impl::update_slack()
 void GlobalActiveSetManager::Impl::update_lambda()
 {
     using namespace muda;
-    auto hat_x = global_vertex_manager->positions();
+    auto x_hat = global_vertex_manager->positions();
 
     if(vertex_half_plane_trajectory_filter)
     {
@@ -491,7 +481,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
             .apply(PHs.size(),
                    [mu        = mu,
                     PHs       = PHs.cviewer().name("PHs"),
-                    hat_x     = hat_x.cviewer().name("hat_x"),
+                    x_hat     = x_hat.cviewer().name("x_hat"),
                     PH_d_grad = PH_d_grad.cviewer().name("PH_d_grad"),
                     d0        = PH_d0.cviewer().name("d0"),
                     slack     = PH_slack.cviewer().name("slack"),
@@ -502,7 +492,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
                        auto d_grad = PH_d_grad(idx);
                        auto d = d0(idx), &lambda = PH_lambda(idx), d_shift = 0.0;
                        auto& cnt = PH_cnt(idx);
-                       d_shift += d_grad.dot(hat_x(vI));
+                       d_shift += d_grad.dot(x_hat(vI));
                        d += slack(idx) + lambda / mu;
                        if(d + d_shift - lambda / mu > 0)
                        {
@@ -522,7 +512,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
         .apply(PTs.size(),
                [mu        = mu,
                 PTs       = PTs.cviewer().name("PTs"),
-                hat_x     = hat_x.cviewer().name("hat_x"),
+                x_hat     = x_hat.cviewer().name("x_hat"),
                 PT_d_grad = PT_d_grad.cviewer().name("PT_d_grad"),
                 d0        = PT_d0.cviewer().name("d0"),
                 slack     = PT_slack.cviewer().name("slack"),
@@ -533,10 +523,10 @@ void GlobalActiveSetManager::Impl::update_lambda()
                    auto  d_grad = PT_d_grad(idx);
                    auto  d = d0(idx), &lambda = PT_lambda(idx), d_shift = 0.0;
                    auto& cnt = PT_cnt(idx);
-                   d_shift += d_grad.segment<3>(0).dot(hat_x(PT(0)));
-                   d_shift += d_grad.segment<3>(3).dot(hat_x(PT(1)));
-                   d_shift += d_grad.segment<3>(6).dot(hat_x(PT(2)));
-                   d_shift += d_grad.segment<3>(9).dot(hat_x(PT(3)));
+                   d_shift += d_grad.segment<3>(0).dot(x_hat(PT(0)));
+                   d_shift += d_grad.segment<3>(3).dot(x_hat(PT(1)));
+                   d_shift += d_grad.segment<3>(6).dot(x_hat(PT(2)));
+                   d_shift += d_grad.segment<3>(9).dot(x_hat(PT(3)));
                    d += slack(idx) + lambda / mu;
                    if(d + d_shift - lambda / mu > 0)
                    {
@@ -555,7 +545,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
         .apply(EEs.size(),
                [mu        = mu,
                 EEs       = EEs.cviewer().name("EEs"),
-                hat_x     = hat_x.cviewer().name("hat_x"),
+                x_hat     = x_hat.cviewer().name("x_hat"),
                 EE_d_grad = EE_d_grad.cviewer().name("EE_d_grad"),
                 d0        = EE_d0.cviewer().name("d0"),
                 slack     = EE_slack.cviewer().name("slack"),
@@ -566,10 +556,10 @@ void GlobalActiveSetManager::Impl::update_lambda()
                    auto  d_grad = EE_d_grad(idx);
                    auto  d = d0(idx), &lambda = EE_lambda(idx), d_shift = 0.0;
                    auto& cnt = EE_cnt(idx);
-                   d_shift += d_grad.segment<3>(0).dot(hat_x(EE(0)));
-                   d_shift += d_grad.segment<3>(3).dot(hat_x(EE(1)));
-                   d_shift += d_grad.segment<3>(6).dot(hat_x(EE(2)));
-                   d_shift += d_grad.segment<3>(9).dot(hat_x(EE(3)));
+                   d_shift += d_grad.segment<3>(0).dot(x_hat(EE(0)));
+                   d_shift += d_grad.segment<3>(3).dot(x_hat(EE(1)));
+                   d_shift += d_grad.segment<3>(6).dot(x_hat(EE(2)));
+                   d_shift += d_grad.segment<3>(9).dot(x_hat(EE(3)));
                    d += slack(idx) + lambda / mu;
                    if(d + d_shift - lambda / mu > 0)
                    {
@@ -586,10 +576,10 @@ void GlobalActiveSetManager::Impl::update_lambda()
 
 void GlobalActiveSetManager::Impl::record_non_penetrate_positions()
 {
-    auto hat_x = global_vertex_manager->positions();
-    if(non_penetrate_positions.size() != hat_x.size())
-        non_penetrate_positions.resize(hat_x.size());
-    muda::BufferLaunch().copy<Vector3>(non_penetrate_positions.view(), std::as_const(hat_x));
+    auto x_hat = global_vertex_manager->positions();
+    if(non_penetrate_positions.size() != x_hat.size())
+        non_penetrate_positions.resize(x_hat.size());
+    muda::BufferLaunch().copy<Vector3>(non_penetrate_positions.view(), std::as_const(x_hat));
     for(auto&& [i, R] : enumerate(active_set_reporters.view()))
     {
         R->record_non_penetrate_state();
@@ -609,14 +599,14 @@ void GlobalActiveSetManager::Impl::recover_non_penetrate_positions()
 
 void GlobalActiveSetManager::Impl::advance_non_penetrate_positions(Float alpha)
 {
-    auto hat_x = global_vertex_manager->positions();
+    auto x_hat = global_vertex_manager->positions();
     muda::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(non_penetrate_positions.size(),
                [x     = non_penetrate_positions.viewer().name("x"),
-                hat_x = hat_x.cviewer().name("hat_x"),
+                x_hat = x_hat.cviewer().name("x_hat"),
                 alpha = alpha] __device__(int i) mutable
-               { x(i) = x(i) + (hat_x(i) - x(i)) * alpha; });
+               { x(i) = x(i) + (x_hat(i) - x(i)) * alpha; });
     for(auto&& [i, R] : enumerate(active_set_reporters.view()))
     {
         R->advance_non_penetrate_state(alpha);
@@ -723,34 +713,16 @@ Float GlobalActiveSetManager::toi_threshold() const
     return m_impl.toi_threshold;
 }
 
-void GlobalActiveSetManager::do_build()
-{
-    const auto& config = world().scene().config();
-
-    m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
-    m_impl.global_vertex_manager    = require<GlobalVertexManager>();
-    m_impl.global_simplicial_surface_manager = require<GlobalSimplicialSurfaceManager>();
-    m_impl.half_plane = find<HalfPlane>();
-
-    on_init_scene(
-        [this]
-        {
-            m_impl.simplex_trajectory_filter =
-                m_impl.global_trajectory_filter->find<SimplexTrajectoryFilter>();
-            m_impl.vertex_half_plane_trajectory_filter =
-                m_impl.global_trajectory_filter->find<VertexHalfPlaneTrajectoryFilter>();
-        });
-}
-
-GlobalActiveSetManager::NonPenetratePositionsInfo::NonPenetratePositionsInfo(
-    Impl* impl, SizeT offset, SizeT count) noexcept
+GlobalActiveSetManager::NonPenetratePositionInfo::NonPenetratePositionInfo(Impl* impl,
+                                                                           SizeT offset,
+                                                                           SizeT count) noexcept
     : m_impl(impl)
     , m_offset(offset)
     , m_count(count)
 {
 }
 
-muda::BufferView<Vector3> GlobalActiveSetManager::NonPenetratePositionsInfo::non_penetrate_positions() const noexcept
+muda::BufferView<Vector3> GlobalActiveSetManager::NonPenetratePositionInfo::non_penetrate_positions() const noexcept
 {
     return m_impl->non_penetrate_positions.view(m_offset, m_count);
 }
@@ -824,7 +796,7 @@ bool GlobalActiveSetManager::is_enabled() const
     return m_impl.energy_enabled;
 }
 
-void GlobalActiveSetManager::set_mu(Float mu)
+void GlobalActiveSetManager::mu(Float mu)
 {
     m_impl.mu = mu;
 }
