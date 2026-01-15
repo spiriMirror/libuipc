@@ -394,7 +394,7 @@ void GlobalActiveSetManager::Impl::linearize_constraints()
 void GlobalActiveSetManager::Impl::update_slack()
 {
     using namespace muda;
-    auto hat_x = global_vertex_manager->positions();
+    auto x_hat = global_vertex_manager->positions();
 
     loose_resize(PH_slack, PHs.size());
     loose_resize(PT_slack, PTs.size());
@@ -602,7 +602,7 @@ void GlobalActiveSetManager::Impl::recover_non_penetrate_positions()
     {
         IndexT offset = 0, count = 0;
         R->report_vertex_offset_count(offset, count);
-        NonPenetratePositionsInfo info(this, offset, count);
+        NonPenetratePositionInfo info(this, offset, count);
         R->recover_non_penetrate(info);
     }
 }
@@ -834,5 +834,4 @@ void GlobalActiveSetManager::add_reporter(ActiveSetReporter* reporter)
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     m_impl.active_set_reporters.register_subsystem(*reporter);
 }
-
 }  // namespace uipc::backend::cuda
