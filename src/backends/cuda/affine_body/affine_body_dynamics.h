@@ -576,6 +576,7 @@ class AffineBodyDynamics : public SimSystem
     friend class AffinebodySurfaceReporter;
     friend class AffineBodyBodyReporter;
     friend class InterAffineBodyConstitutionManager;
+    friend class ABDActiveSetReporter;
 
     friend class ABDLinearSubsystem;
     friend class ABDLineSearchReporter;

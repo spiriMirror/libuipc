@@ -14,8 +14,23 @@ TEST_CASE("8_abd_multi_contact_model", "[abd]")
     using namespace uipc::core;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path = AssetDir::output_path(__FILE__);
 
+    std::string this_output_path;
+    std::string contact_constitution;
+
+    SECTION("ipc")
+    {
+        this_output_path =
+            fmt::format("{}ipc/", AssetDir::output_path(__FILE__));
+        contact_constitution = "ipc";
+    };
+
+    SECTION("al-ipc")
+    {
+        this_output_path =
+            fmt::format("{}al-ipc/", AssetDir::output_path(__FILE__));
+        contact_constitution = "al-ipc";
+    };
 
     Engine engine{"cuda", this_output_path};
     World  world{engine};
@@ -23,6 +38,7 @@ TEST_CASE("8_abd_multi_contact_model", "[abd]")
     auto config                             = Scene::default_config();
     config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["friction"]["enable"] = false;
+    config["contact"]["constitution"]       = contact_constitution;
 
     {  // dump config
         std::ofstream ofs(fmt::format("{}config.json", this_output_path));

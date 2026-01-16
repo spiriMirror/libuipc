@@ -68,6 +68,7 @@ class StacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         muda::DeviceBuffer<Float> tois;  // PP, PE, PT, EE
     };
 
+
   private:
     Impl m_impl;
 
@@ -75,5 +76,10 @@ class StacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
     virtual void do_detect(DetectInfo& info) override final;
     virtual void do_filter_active(FilterActiveInfo& info) override final;
     virtual void do_filter_toi(FilterTOIInfo& info) override final;
+
+    virtual muda::CBufferView<Vector2i> candidate_PTs() const noexcept override;
+    virtual muda::CBufferView<Vector2i> candidate_EEs() const noexcept override;
+    virtual muda::CBufferView<Float>    toi_PTs() const noexcept override;
+    virtual muda::CBufferView<Float>    toi_EEs() const noexcept override;
 };
 }  // namespace uipc::backend::cuda

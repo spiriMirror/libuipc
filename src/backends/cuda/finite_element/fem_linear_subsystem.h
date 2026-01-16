@@ -28,6 +28,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
+        Float diag_norm(GlobalLinearSystem::DiagNormInfo& info);
+
         SimEngine* sim_engine = nullptr;
 
         SimSystemSlot<FiniteElementMethod> finite_element_method;
@@ -58,6 +60,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         MatrixConverter<Float, 3>           converter;
         muda::DeviceTripletMatrix<Float, 3> triplet_A;
         muda::DeviceBCOOMatrix<Float, 3>    bcoo_A;
+        muda::DeviceBuffer<Float>           diag_blocks_norm;
+        muda::DeviceVar<Float>              reduced_diag_norm;
     };
 
   private:
@@ -69,6 +73,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) override;
     virtual void do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info) override;
     virtual void do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info) override;
+
+    virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) override;
 
     Impl m_impl;
 };
