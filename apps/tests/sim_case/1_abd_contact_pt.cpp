@@ -18,12 +18,11 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     std::string this_output_path;
     std::string contact_constitution;
 
-
-    //SECTION("ipc")
-    //{
-    //    this_output_path = fmt::format("{}ipc/", AssetDir::output_path(__FILE__));
-    //    contact_constitution = "ipc";
-    //};
+    SECTION("ipc")
+    {
+        this_output_path = fmt::format("{}ipc/", AssetDir::output_path(__FILE__));
+        contact_constitution = "ipc";
+    };
 
     SECTION("al-ipc")
     {
@@ -39,7 +38,6 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["report_energy"]  = true;
     config["contact"]["constitution"]       = contact_constitution;
-    config["extras"]["debug"]["dump_surface"] = true;
 
 
     {  // dump config
