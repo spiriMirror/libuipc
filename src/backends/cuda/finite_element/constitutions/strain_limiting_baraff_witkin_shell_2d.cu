@@ -15,7 +15,8 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
   public:
     // Constitution UID by libuipc specification
     static constexpr U64   ConstitutionUID   = 819;
-    static constexpr SizeT HalfHessianSize = 3 * (3 + 1) / 2;
+    static constexpr SizeT StencilSize     = 3;
+    static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
     using Codim2DConstitution::Codim2DConstitution;
 
@@ -109,7 +110,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
     virtual void do_report_extent(ReportExtentInfo& info)
     {
         info.energy_count(h_mus.size());
-        info.gradient_count(h_mus.size() * 3);
+        info.gradient_count(h_mus.size() * StencilSize);
         info.hessian_count(h_mus.size() * HalfHessianSize);
     }
 
@@ -222,7 +223,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 
                        G *= Vdt2;
                        DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<3>(I * 3).write(idx, G);
+                       DVA.segment<StencilSize>(I * StencilSize).write(idx, G);
 
 
                        Matrix6x6 ddEddF;
@@ -233,7 +234,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
                        Matrix9x9 H = dFdx.transpose() * ddEddF * dFdx;
 
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.half_block<3>(I * half_hessian_size).write(idx, H);
+                       TMA.half_block<StencilSize>(I * half_hessian_size).write(idx, H);
                    });
     }
 };

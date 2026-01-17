@@ -71,9 +71,6 @@ void FEMLinearSubsystem::Impl::receive_init_dof_info(WorldVisitor& w,
 
 void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
 {
-    UIPC_ASSERT(info.storage_type() == GlobalLinearSystem::HessianStorageType::Full,
-                "Now only support Full Hessian");
-
     // 1) Hessian Count
     energy_producer_hessian_offset = 0;
     energy_producer_hessian_count  = fem().energy_producer_total_hessian_count;

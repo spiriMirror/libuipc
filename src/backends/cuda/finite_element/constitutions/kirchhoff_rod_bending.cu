@@ -11,7 +11,8 @@ namespace uipc::backend::cuda
 class KirchhoffRodBending final : public FiniteElementExtraConstitution
 {
     static constexpr U64   KirchhoffRodBendingUID = 15;
-    static constexpr SizeT HalfHessianSize        = 3 * (3 + 1) / 2;
+    static constexpr SizeT StencilSize            = 3;
+    static constexpr SizeT HalfHessianSize        = StencilSize * (StencilSize + 1) / 2;
     using Base = FiniteElementExtraConstitution;
 
   public:
@@ -101,7 +102,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
     virtual void do_report_extent(ReportExtentInfo& info) override
     {
         info.energy_count(hinges.size());        // Each hinge has 1 energy
-        info.gradient_count(hinges.size() * 3);  // Each hinge has 3 vertices
+        info.gradient_count(hinges.size() * StencilSize);  // Each hinge has 3 vertices
         info.hessian_count(hinges.size() * HalfHessianSize);
     }
 
@@ -189,7 +190,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                        KRB::dEdX(G, k, X, L0, r, Pi);
                        G *= dt2;
                        DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<3>(I * 3).write(hinge, G);
+                       DVA.segment<StencilSize>(I * StencilSize).write(hinge, G);
 
                        Matrix9x9 H;
                        KRB::ddEddX(H, k, X, L0, r, Pi);
@@ -197,7 +198,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                        H *= dt2;
                        make_spd(H);
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.half_block<3>(I * HalfHessianSize).write(hinge, H);
+                       TMA.half_block<StencilSize>(I * HalfHessianSize).write(hinge, H);
                    });
     }
 };

@@ -2,6 +2,7 @@
 #include <cmath>
 #include <type_traits>
 #include <Eigen/Eigen>
+#include <type_define.h>
 
 namespace uipc::backend::cuda
 {
@@ -33,17 +34,17 @@ namespace math
             computeConventional(a, b);
         }
 
-        constexpr void setIdentity() noexcept
+        UIPC_GENERIC constexpr void setIdentity() noexcept
         {
             c = T(1);
             s = T(0);
         }
 
         // transpose of 2D rotation flips sign of s
-        constexpr void transposeInPlace() noexcept { s = -s; }
+        UIPC_GENERIC constexpr void transposeInPlace() noexcept { s = -s; }
 
         // Conventional: [c -s; s c] * [a; b] = [*; 0]
-        constexpr void computeConventional(const T a, const T b)
+        UIPC_GENERIC constexpr void computeConventional(const T a, const T b)
         {
             const T d = a * a + b * b;
             c         = T(1);
@@ -57,7 +58,7 @@ namespace math
         }
 
         // Unconventional: [c -s; s c] * [a; b] = [0; *]
-        constexpr void computeUnconventional(const T a, const T b)
+        UIPC_GENERIC constexpr void computeUnconventional(const T a, const T b)
         {
             const T d = a * a + b * b;
             c         = T(0);
@@ -72,7 +73,7 @@ namespace math
 
         // Fill an identity and insert this 2x2 rotation into (rowi,rowk) block
         template <typename Mat>
-        constexpr void fill(Eigen::MatrixBase<Mat>& R) const
+        UIPC_GENERIC constexpr void fill(Eigen::MatrixBase<Mat>& R) const
         {
             //static_assert(Mat::RowsAtCompileTime == Mat::ColsAtCompileTime,
             //              "square matrix required");
@@ -85,7 +86,7 @@ namespace math
 
         // Row rotation: A <- G^T A; acts on rows rowi,rowk
         template <typename Mat>
-        constexpr void rowRotation(Eigen::MatrixBase<Mat>& A) const
+        UIPC_GENERIC constexpr void rowRotation(Eigen::MatrixBase<Mat>& A) const
         {
             //using std::swap;
             const int ncols = int(A.cols());
@@ -101,7 +102,7 @@ namespace math
 
         // Column rotation: A <- A G; acts on cols rowi,rowk
         template <typename Mat>
-        constexpr void columnRotation(Eigen::MatrixBase<Mat>& A) const
+        UIPC_GENERIC constexpr void columnRotation(Eigen::MatrixBase<Mat>& A) const
         {
             const int nrows = int(A.rows());
             for(int i = 0; i < nrows; ++i)
@@ -114,7 +115,7 @@ namespace math
         }
 
         // Compose rotations acting on the same pair (rowi,rowk)
-        constexpr void operator*=(const GivensRotation<T>& R) noexcept
+        UIPC_GENERIC constexpr void operator*=(const GivensRotation<T>& R) noexcept
         {
             const T new_c = c * R.c - s * R.s;
             const T new_s = s * R.c + c * R.s;
@@ -122,7 +123,7 @@ namespace math
             s             = new_s;
         }
 
-        constexpr GivensRotation<T> operator*(const GivensRotation<T>& R) const noexcept
+        UIPC_GENERIC constexpr GivensRotation<T> operator*(const GivensRotation<T>& R) const noexcept
         {
             GivensRotation<T> out{*this};
             out *= R;
@@ -143,7 +144,7 @@ namespace math
  * U and V are accumulated so that U * H_original * V^T = H_bidiag
  */
     template <typename MatH, typename MatU, typename MatV>
-    constexpr void zero_chasing(Eigen::MatrixBase<MatH>& H,
+    UIPC_GENERIC constexpr void zero_chasing(Eigen::MatrixBase<MatH>& H,
                                 Eigen::MatrixBase<MatU>& U,
                                 Eigen::MatrixBase<MatV>& V)
     {
@@ -192,7 +193,7 @@ namespace math
  *     0 0 * ]
  */
     template <typename MatH, typename MatU, typename MatV>
-    constexpr void upper_bidiagonalize(Eigen::MatrixBase<MatH>& H,
+    UIPC_GENERIC constexpr void upper_bidiagonalize(Eigen::MatrixBase<MatH>& H,
                                        Eigen::MatrixBase<MatU>& U,
                                        Eigen::MatrixBase<MatV>& V)
     {

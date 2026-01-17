@@ -15,7 +15,8 @@ class NeoHookeanShell2D final : public Codim2DConstitution
   public:
     // Constitution UID by libuipc specification
     static constexpr U64   ConstitutionUID   = 11;
-    static constexpr SizeT HalfHessianSize = 3 * (3 + 1) / 2;
+    static constexpr SizeT StencilSize     = 3;
+    static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
     using Codim2DConstitution::Codim2DConstitution;
 
@@ -105,7 +106,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
     virtual void do_report_extent(ReportExtentInfo& info) override
     {
         info.energy_count(mus.size());
-        info.gradient_count(mus.size() * 3);
+        info.gradient_count(mus.size() * StencilSize);
         info.hessian_count(mus.size() * HalfHessianSize);
     }
 
@@ -191,7 +192,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                        NH::dEdX(G, lambda, mu, X, IB);
                        G *= Vdt2;
                        DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<3>(I * 3).write(idx, G);
+                       DVA.segment<StencilSize>(I * StencilSize).write(idx, G);
 
                        Matrix9x9 H;
                        NH::ddEddX(H, lambda, mu, X, IB);
@@ -199,7 +200,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                        H *= Vdt2;
 
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.half_block<3>(I * half_hessian_size).write(idx, H);
+                       TMA.half_block<StencilSize>(I * half_hessian_size).write(idx, H);
                    });
     }
 };

@@ -36,7 +36,6 @@ class ARAP3D final : public FEM3DConstitution
 
     virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
-
         using ForEachInfo = FiniteElementMethod::ForEachInfo;
 
         auto geo_slots = world().scene().geometries();
@@ -135,11 +134,10 @@ class ARAP3D final : public FEM3DConstitution
                        Matrix12x12 H12x12 = dFdx.transpose() * ddEddF * dFdx;
 
                        DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<4>(I * StencilSize).write(tet, G12);
-
+                       DVA.segment<StencilSize>(I * StencilSize).write(tet, G12);
 
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.half_block<4>(I * HalfHessianSize).write(tet, H12x12);
+                       TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H12x12);
                    });
     }
 };
