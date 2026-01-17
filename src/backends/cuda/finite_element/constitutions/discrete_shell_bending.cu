@@ -26,7 +26,8 @@ namespace uipc::backend::cuda
 class DiscreteShellBending final : public FiniteElementExtraConstitution
 {
     static constexpr U64   DiscreteShellBendingUID = 17;
-    static constexpr SizeT HalfHessianSize         = 4 * (4 + 1) / 2;
+    static constexpr SizeT StencilSize             = 4;
+    static constexpr SizeT HalfHessianSize         = StencilSize * (StencilSize + 1) / 2;
     using Base = FiniteElementExtraConstitution;
 
   public:
@@ -199,7 +200,7 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
     virtual void do_report_extent(ReportExtentInfo& info) override
     {
         info.energy_count(stencils.size());        // Each quad has 1 energy
-        info.gradient_count(stencils.size() * 4);  // Each quad has 4 vertices
+        info.gradient_count(stencils.size() * StencilSize);  // Each quad has 4 vertices
         info.hessian_count(stencils.size() * HalfHessianSize);  // Each quad has 4x4 hessian block
     }
 
@@ -278,14 +279,14 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
                        DSB::dEdx(G12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
                        G12 *= Vdt2;
                        DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<4>(I * 4).write(stencil, G12);
+                       DVA.segment<StencilSize>(I * StencilSize).write(stencil, G12);
 
                        DSB::ddEddx(H12x12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
                        H12x12 *= Vdt2;
                        make_spd(H12x12);
 
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.half_block<4>(I * HalfHessianSize).write(stencil, H12x12);
+                       TMA.half_block<StencilSize>(I * HalfHessianSize).write(stencil, H12x12);
                    });
     }
 };

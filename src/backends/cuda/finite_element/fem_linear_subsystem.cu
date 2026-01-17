@@ -71,9 +71,6 @@ void FEMLinearSubsystem::Impl::receive_init_dof_info(WorldVisitor& w,
 
 void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
 {
-    UIPC_ASSERT(info.storage_type() == GlobalLinearSystem::HessianStorageType::Full,
-                "Now only support Full Hessian");
-
     // 1) Hessian Count
     energy_producer_hessian_offset = 0;
     energy_producer_hessian_count  = fem().energy_producer_total_hessian_count;
@@ -147,10 +144,6 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                            hessians(I).write(i, j, Matrix3x3::Identity());
                    }
                });
-
-    fmt::println("FEM Linear Subsystem Assemble Done: Gradient Size: {}, Hessian Triplet Count: {}",
-                info.gradients().size(),
-                info.hessians().triplet_count());
 }
 
 void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo& info)

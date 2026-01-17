@@ -15,12 +15,6 @@ namespace math
     }
 
     template <typename T>
-    UIPC_GENERIC constexpr T abd(T& a)
-    {
-        return a > 0 ? a : -a;
-    }
-
-    template <typename T>
     UIPC_GENERIC constexpr void polar_decomposition(const Eigen::Matrix<T, 2, 2>& A,
                                        Eigen::Matrix<T, 2, 2>&       S,
                                        GivensRotation<T>&            R) noexcept
@@ -240,7 +234,7 @@ namespace math
                                            + beta[0] * beta[0] + beta[1] * beta[1]),
                            (T)1);
 
-        while(abd(alpha[0]) > tol && abs(alpha[1]) > tol && abs(alpha[2]) > tol
+        while(abs(alpha[0]) > tol && abs(alpha[1]) > tol && abs(alpha[2]) > tol
               && abs(beta[0]) > tol && abs(beta[1]) > tol)
         {
             auto mu = wilkinson_shift(alpha[1] * alpha[1] + beta[0] * beta[0],

@@ -17,7 +17,8 @@ class HookeanSpring1D final : public Codim1DConstitution
   public:
     // Constitution UID by libuipc specification
     static constexpr U64   ConstitutionUID = 12ull;
-    static constexpr SizeT HalfHessianSize = 2 * (2 + 1) / 2;
+    static constexpr SizeT StencilSize     = 2;
+    static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
     using Codim1DConstitution::Codim1DConstitution;
 
@@ -31,7 +32,7 @@ class HookeanSpring1D final : public Codim1DConstitution
     virtual void do_report_extent(ReportExtentInfo& info) override
     {
         info.energy_count(kappas.size());
-        info.gradient_count(kappas.size() * 2);
+        info.gradient_count(kappas.size() * StencilSize);
         info.hessian_count(kappas.size() * HalfHessianSize);
     }
 
@@ -134,14 +135,14 @@ class HookeanSpring1D final : public Codim1DConstitution
                        NS::dEdX(G, kappa, X, L0);
                        G *= Vdt2;
                        DoubletVectorAssembler VA{G3s};
-                       VA.segment<2>(I * 2).write(idx, G);
+                       VA.segment<StencilSize>(I * StencilSize).write(idx, G);
 
                        Matrix6x6 H;
                        NS::ddEddX(H, kappa, X, L0);
                        H *= Vdt2;
                        make_spd(H);
                        TripletMatrixAssembler MA{H3x3s};
-                       MA.half_block<2>(I * HalfHessianSize).write(idx, H);
+                       MA.half_block<StencilSize>(I * HalfHessianSize).write(idx, H);
                    });
     }
 };

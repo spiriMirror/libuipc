@@ -14,7 +14,8 @@ class ARAP3D final : public FEM3DConstitution
   public:
     // Constitution UID by libuipc specification
     static constexpr U64   ConstitutionUID = 9;
-    static constexpr SizeT HalfHessianSize = 4 * (4 + 1) / 2;
+    static constexpr SizeT StencilSize     = 4;
+    static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
     using FEM3DConstitution::FEM3DConstitution;
 
@@ -29,7 +30,7 @@ class ARAP3D final : public FEM3DConstitution
     virtual void do_report_extent(ReportExtentInfo& info) override
     {
         info.energy_count(kappas.size());
-        info.gradient_count(kappas.size() * 4);
+        info.gradient_count(kappas.size() * StencilSize);
         info.hessian_count(kappas.size() * HalfHessianSize);
     }
 
@@ -133,10 +134,10 @@ class ARAP3D final : public FEM3DConstitution
                        Matrix12x12 H12x12 = dFdx.transpose() * ddEddF * dFdx;
 
                        DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<4>(I * 4).write(tet, G12);
+                       DVA.segment<StencilSize>(I * StencilSize).write(tet, G12);
 
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.half_block<4>(I * HalfHessianSize).write(tet, H12x12);
+                       TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H12x12);
                    });
     }
 };
