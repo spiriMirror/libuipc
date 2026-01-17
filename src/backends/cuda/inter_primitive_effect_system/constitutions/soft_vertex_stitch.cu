@@ -177,13 +177,13 @@ class SoftVertexStitch : public InterPrimitiveConstitution
                        Vector6 G;
                        SVS::dEdX(G, Kt2, X, L0);
                        DoubletVectorAssembler VA{G3s};
-                       VA.segment<2>(I * 2).write(PP, G);
+                       VA.segment<StencilSize>(I * StencilSize).write(PP, G);
 
                        Matrix6x6 H;
                        SVS::ddEddX(H, Kt2, X, L0);
                        make_spd(H);
                        TripletMatrixAssembler MA{H3x3s};
-                       MA.block<2, 2>(I * HalfHessianSize).write(PP, H);
+                       MA.half_block<StencilSize>(I * HalfHessianSize).write(PP, H);
                    });
     }
 };
