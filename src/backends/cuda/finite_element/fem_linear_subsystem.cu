@@ -147,6 +147,10 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                            hessians(I).write(i, j, Matrix3x3::Identity());
                    }
                });
+
+    fmt::println("FEM Linear Subsystem Assemble Done: Gradient Size: {}, Hessian Triplet Count: {}",
+                info.gradients().size(),
+                info.hessians().triplet_count());
 }
 
 void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo& info)

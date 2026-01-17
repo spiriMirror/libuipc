@@ -40,6 +40,7 @@ set_target_properties(cuda PROPERTIES
 )
 
 target_compile_options(cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: --diag-suppress=27,174,221,997,1388,1394,1866>)
+target_compile_options(cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: --expt-relaxed-constexpr>)
 
 # all files in this directory
 file(GLOB_RECURSE SOURCES "*.cu" "*.h" "*.hpp" "*.cpp" "*.inl")
