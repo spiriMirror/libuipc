@@ -50,3 +50,14 @@ rule("clangd")
             file:close()
         end
     end)
+
+rule("abs_file")
+    on_config(function (target)
+        if is_plat("windows") then
+            target:add("cxxflags", "/FC", {force = true, public = true})
+        elseif is_plat("linux", "macosx") then
+            local source_dir = path.directory(target:sourcefile())
+            local macro_flag = format("-fmacro-prefix-map=%s=%s", source_dir, source_dir)
+            target:add("cxxflags", macro_flag, {public = true})
+        end
+    end)

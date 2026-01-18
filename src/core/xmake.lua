@@ -12,6 +12,7 @@ else
 end
 
 target("uipc_core")
+    add_rules("abs_file")
     add_rules("component")
     add_files("**.cpp")
     add_headerfiles(
