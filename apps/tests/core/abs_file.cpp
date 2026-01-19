@@ -5,7 +5,7 @@ TEST_CASE("abs_file", "[core]")
 {
     // Check if __FILE__ is absolute
     std::filesystem::path file_path(__FILE__);
-    
+
     // The __FILE__ macro should expand to an absolute path
     REQUIRE(file_path.is_absolute());
     
