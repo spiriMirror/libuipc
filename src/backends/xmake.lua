@@ -15,7 +15,7 @@ rule("backend")
 
         target:set("kind", "shared")
         target:add("files", path.join(os.scriptdir(), "common/*.cpp"))
-        target:add("headefiles", "common/*.h", "common/details/*.inl")
+        target:add("headerfiles", "common/*.h", "common/details/*.inl")
         target:add("includedirs",
             path.directory(os.scriptdir()),
             path.join(os.scriptdir(), target:name())
