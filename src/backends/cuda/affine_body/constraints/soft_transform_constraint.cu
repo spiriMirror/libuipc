@@ -133,8 +133,6 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                            M.block<9, 9>(3, 3) *= rotation_strength;
 
                            E = 0.5 * dq.transpose() * M * dq;
-
-                           print("SoftTransformConstraint: body %d, energy = %f\n", i, E);
                        }
                    });
     }

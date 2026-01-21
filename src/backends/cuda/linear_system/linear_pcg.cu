@@ -70,7 +70,7 @@ void LinearPCG::dump_r_z(SizeT k)
                                      k);
 
     export_vector_market(output_path_r, r.cview());
-    logger::critical("Dumped PCG r to {}", output_path_r);
+    logger::info("Dumped PCG r to {}", output_path_r);
 
     auto output_path_z = fmt::format("{}z.{}.{}.{}.mtx",
                                      output_path.string(),
@@ -85,7 +85,7 @@ void LinearPCG::dump_r_z(SizeT k)
                                      k),
                          z.cview());
 
-    logger::critical("Dumped PCG z to {}", output_path_z);
+    logger::info("Dumped PCG z to {}", output_path_z);
 }
 
 void LinearPCG::dump_p_Ap(SizeT k)
@@ -100,7 +100,7 @@ void LinearPCG::dump_p_Ap(SizeT k)
                                      k);
 
     export_vector_market(output_path_p, p.cview());
-    logger::critical("Dumped PCG p to {}", output_path_p);
+    logger::info("Dumped PCG p to {}", output_path_p);
 
     auto output_path_Ap = fmt::format("{}Ap.{}.{}.{}.mtx",
                                       output_folder.string(),
@@ -108,7 +108,7 @@ void LinearPCG::dump_p_Ap(SizeT k)
                                       engine().newton_iter(),
                                       k);
     export_vector_market(output_path_Ap, Ap.cview());
-    logger::critical("Dumped PCG Ap to {}", output_path_Ap);
+    logger::info("Dumped PCG Ap to {}", output_path_Ap);
 }
 
 void LinearPCG::check_rz_nan_inf(SizeT k)

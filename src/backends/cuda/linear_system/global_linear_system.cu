@@ -38,14 +38,14 @@ void GlobalLinearSystem::_dump_A_b()
                                      engine().frame(),
                                      engine().newton_iter());
     export_matrix_market(output_path_A, m_impl.bcoo_A.cview());
-    logger::critical("Dumped global linear system matrix A to {}", output_path_A);
+    logger::info("Dumped global linear system matrix A to {}", output_path_A);
 
     auto output_path_b = fmt::format("{}/b.{}.{}.mtx",
                                      output_folder.string(),
                                      engine().frame(),
                                      engine().newton_iter());
     export_vector_market(output_path_b, m_impl.b.cview());
-    logger::critical("Dumped global linear system vector b to {}", output_path_b);
+    logger::info("Dumped global linear system vector b to {}", output_path_b);
 }
 
 void GlobalLinearSystem::_dump_x()

@@ -137,7 +137,7 @@ void SimEngine::dump_global_surface()
     for(auto& edge : edges)
         file << fmt::format("l {} {}\n", edge.x() + 1, edge.y() + 1);
 
-    logger::critical("Dumped global surface to {}", file_path);
+    logger::info("Dumped global surface to {}", file_path);
 }
 }  // namespace uipc::backend::cuda
 

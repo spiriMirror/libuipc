@@ -43,7 +43,6 @@ class AffineBodyBDF1Kinetic final : public AffineBodyKinetic
                            const auto& M       = masses(i);
                            Vector12    dq      = q - q_tilde;
                            K                   = 0.5 * dq.dot(M * dq);
-                           print("Body %d: Kinetic Energy = %f\n", i, K);
                        }
                    });
     }
