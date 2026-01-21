@@ -10,6 +10,7 @@
 #include <utils/matrix_unpacker.h>
 #include <utils/make_spd.h>
 #include <time_integrator/time_integrator.h>
+#include <kernel_cout.h>
 
 // Ref: libuipc/scripts/symbol_calculation/external_articulation_constraint.ipynb
 
