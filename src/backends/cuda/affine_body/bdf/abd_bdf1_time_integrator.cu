@@ -30,15 +30,15 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
                     q_tildes   = info.q_tildes().viewer().name("q_tilde"),
                     affine_gravity = info.gravities().cviewer().name("affine_gravity"),
                     external_force_accs = info.external_force_accs().cviewer().name("external_force_accs"),
-                    dt   = info.dt()] __device__(int i) mutable
+                    dt = info.dt()] __device__(int i) mutable
                    {
                        // record previous q
                        auto& q_prev = q_prevs(i);
                        q_prev       = qs(i);
 
-                       auto& q_v    = q_vs(i);
-                       auto& g      = affine_gravity(i);
-                       auto& f_ext_acc  = external_force_accs(i);
+                       auto& q_v       = q_vs(i);
+                       auto& g         = affine_gravity(i);
+                       auto& f_ext_acc = external_force_accs(i);
 
                        // 0) fixed: q_tilde = q_prev;
                        Vector12 q_tilde = q_prev;
@@ -76,8 +76,7 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
                        const auto& q = qs(i);
 
                        q_v = (q - q_prev) * (1.0 / dt);
-                   })
-            .wait();
+                   });
     }
 };
 

@@ -40,6 +40,7 @@ class SimEngine final : public backend::SimEngine
     SimEngineState state() const noexcept;
 
     SizeT newton_iter() const noexcept;
+    SizeT line_search_iter() const noexcept;
 
   private:
     virtual void  do_init(InitInfo& info) override;
@@ -56,7 +57,7 @@ class SimEngine final : public backend::SimEngine
 
     void build();
     void init_scene();
-    void dump_global_surface(std::string_view name);
+    void dump_global_surface();
 
     std::stringstream m_string_stream;
     SimEngineState    m_state = SimEngineState::None;
@@ -96,8 +97,9 @@ class SimEngine final : public backend::SimEngine
     //ABDDiffSimManager*           m_abd_diff_sim_manager           = nullptr;
     FiniteElementMethod* m_finite_element_method = nullptr;
 
-    SizeT m_current_frame = 0;
-    SizeT m_newton_iter   = 0;
+    SizeT m_current_frame    = 0;
+    SizeT m_newton_iter      = 0;
+    SizeT m_line_search_iter = 0;
 
     bool  m_semi_implicit_enabled  = true;
     Float m_semi_implicit_beta_tol = 1e-3;

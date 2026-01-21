@@ -27,15 +27,6 @@ void LinearPCG::do_build(BuildInfo& info)
                  max_iter_ratio,
                  global_tol_rate,
                  need_debug_dump);
-
-    auto path_tool  = BackendPathTool(workspace());
-    debug_dump_path = path_tool.workspace(__FILE__, "debug").string();
-
-    if(need_debug_dump) [[unlikely]]
-    {
-        logger::critical("LinearPCG: debug dump is enabled, performance will be degraded, dump path: {}",
-                         debug_dump_path);
-    }
 }
 
 void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
@@ -70,38 +61,54 @@ void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
 void LinearPCG::dump_r_z(SizeT k)
 {
 
-    auto path_tool   = BackendPathTool(workspace());
-    auto output_path = path_tool.workspace(__FILE__, "debug");
-    export_vector_market(fmt::format("{}/pcg_r.{}.{}.{}.mtx",
+    auto path_tool     = BackendPathTool(workspace());
+    auto output_path   = path_tool.workspace(__FILE__, "debug");
+    auto output_path_r = fmt::format("{}r.{}.{}.{}.mtx",
                                      output_path.string(),
                                      engine().frame(),
                                      engine().newton_iter(),
-                                     k),
-                         r.cview());
-    export_vector_market(fmt::format("{}/pcg_z.{}.{}.{}.mtx",
+                                     k);
+
+    export_vector_market(output_path_r, r.cview());
+    logger::info("Dumped PCG r to {}", output_path_r);
+
+    auto output_path_z = fmt::format("{}z.{}.{}.{}.mtx",
+                                     output_path.string(),
+                                     engine().frame(),
+                                     engine().newton_iter(),
+                                     k);
+
+    export_vector_market(fmt::format("{}z.{}.{}.{}.mtx",
                                      output_path.string(),
                                      engine().frame(),
                                      engine().newton_iter(),
                                      k),
                          z.cview());
+
+    logger::info("Dumped PCG z to {}", output_path_z);
 }
 
 void LinearPCG::dump_p_Ap(SizeT k)
 {
-    auto path_tool   = BackendPathTool(workspace());
-    auto output_path = path_tool.workspace(__FILE__, "debug");
-    export_vector_market(fmt::format("{}/pcg_p.{}.{}.{}.mtx",
-                                     output_path.string(),
+    auto path_tool     = BackendPathTool(workspace());
+    auto output_folder = path_tool.workspace(__FILE__, "debug");
+
+    auto output_path_p = fmt::format("{}p.{}.{}.{}.mtx",
+                                     output_folder.string(),
                                      engine().frame(),
                                      engine().newton_iter(),
-                                     k),
-                         p.cview());
-    export_vector_market(fmt::format("{}/pcg_Ap.{}.{}.{}.mtx",
-                                     output_path.string(),
-                                     engine().frame(),
-                                     engine().newton_iter(),
-                                     k),
-                         Ap.cview());
+                                     k);
+
+    export_vector_market(output_path_p, p.cview());
+    logger::info("Dumped PCG p to {}", output_path_p);
+
+    auto output_path_Ap = fmt::format("{}Ap.{}.{}.{}.mtx",
+                                      output_folder.string(),
+                                      engine().frame(),
+                                      engine().newton_iter(),
+                                      k);
+    export_vector_market(output_path_Ap, Ap.cview());
+    logger::info("Dumped PCG Ap to {}", output_path_Ap);
 }
 
 void LinearPCG::check_rz_nan_inf(SizeT k)
@@ -159,9 +166,6 @@ void update_p(muda::DenseVectorView<Float> p, muda::CDenseVectorView<Float> z, F
 
 SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Float> b, SizeT max_iter)
 {
-    auto path_tool   = BackendPathTool(workspace());
-    auto output_path = path_tool.workspace(__FILE__, "debug");
-
     SizeT k = 0;
     // r = b - A * x
     {
