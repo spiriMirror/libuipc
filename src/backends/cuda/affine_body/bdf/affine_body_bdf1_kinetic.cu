@@ -23,15 +23,16 @@ class AffineBodyBDF1Kinetic final : public AffineBodyKinetic
             .apply(info.qs().size(),
                    [is_fixed   = info.is_fixed().cviewer().name("is_fixed"),
                     is_dynamic = info.is_dynamic().cviewer().name("is_dynamic"),
-                    qs         = info.qs().cviewer().name("qs"),
-                    q_prevs    = info.q_prevs().cviewer().name("q_tildes"),
-                    q_tildes   = info.q_tildes().cviewer().name("q_tildes"),
-                    gravities  = info.gravities().cviewer().name("gravities"),
-                    masses     = info.masses().cviewer().name("masses"),
+                    ext_kinetic = info.external_kinetic().cviewer().name("ext_kinetic"),
+                    qs        = info.qs().cviewer().name("qs"),
+                    q_prevs   = info.q_prevs().cviewer().name("q_tildes"),
+                    q_tildes  = info.q_tildes().cviewer().name("q_tildes"),
+                    gravities = info.gravities().cviewer().name("gravities"),
+                    masses    = info.masses().cviewer().name("masses"),
                     Ks = info.energies().viewer().name("kinetic_energy")] __device__(int i) mutable
                    {
                        auto& K = Ks(i);
-                       if(is_fixed(i))
+                       if(is_fixed(i) || ext_kinetic(i))
                        {
                            K = 0.0;
                        }
@@ -42,6 +43,7 @@ class AffineBodyBDF1Kinetic final : public AffineBodyKinetic
                            const auto& M       = masses(i);
                            Vector12    dq      = q - q_tilde;
                            K                   = 0.5 * dq.dot(M * dq);
+                           print("Body %d: Kinetic Energy = %f\n", i, K);
                        }
                    });
     }

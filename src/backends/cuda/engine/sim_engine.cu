@@ -98,22 +98,23 @@ void SimEngine::event_write_scene()
         action();
 }
 
-void SimEngine::dump_global_surface(std::string_view name)
+void SimEngine::dump_global_surface()
 {
     BackendPathTool tool{workspace()};
-    auto file_path = fmt::format("{}/{}.obj", tool.workspace().string(), name);
+    auto            output_folder = tool.workspace(__FILE__, "debug");
+    auto            file_path = fmt::format("{}global_surface.{}.{}.{}.obj",
+                                 output_folder.string(),
+                                 frame(),
+                                 newton_iter(),
+                                 line_search_iter());
 
     std::vector<Vector3> positions;
     std::vector<Vector3> disps;
 
-    auto src_ps = m_global_vertex_manager->prev_positions();
-    auto disp   = m_global_vertex_manager->displacements();
+    auto src_ps = m_global_vertex_manager->positions();
+
     positions.resize(src_ps.size());
     src_ps.copy_to(positions.data());
-    disps.resize(disp.size());
-    disp.copy_to(disps.data());
-
-    std::ranges::transform(positions, disps, positions.begin(), std::plus<>());
 
     std::vector<Vector2i> edges;
     auto src_es = m_global_simplicial_surface_manager->surf_edges();
@@ -136,7 +137,7 @@ void SimEngine::dump_global_surface(std::string_view name)
     for(auto& edge : edges)
         file << fmt::format("l {} {}\n", edge.x() + 1, edge.y() + 1);
 
-    logger::info("Dumped global surface to {}", file_path);
+    logger::critical("Dumped global surface to {}", file_path);
 }
 }  // namespace uipc::backend::cuda
 
@@ -174,5 +175,10 @@ SizeT SimEngine::get_frame() const
 SizeT SimEngine::newton_iter() const noexcept
 {
     return m_newton_iter;
+}
+
+SizeT SimEngine::line_search_iter() const noexcept
+{
+    return m_line_search_iter;
 }
 }  // namespace uipc::backend::cuda

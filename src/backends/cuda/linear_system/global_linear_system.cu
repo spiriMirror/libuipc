@@ -27,31 +27,25 @@ void GlobalLinearSystem::do_build()
 
     m_impl.need_debug_dump =
         dump_linear_system_attr ? dump_linear_system_attr->view()[0] : false;
-
-    auto path_tool         = BackendPathTool(workspace());
-    m_impl.debug_dump_path = path_tool.workspace(__FILE__, "debug").string();
-
-    if(m_impl.need_debug_dump) [[unlikely]]
-    {
-        logger::critical("GlobalLinearSystem: debug dump is enabled, performance will be degraded, dump path: {}",
-                         m_impl.debug_dump_path);
-    }
 }
 
 void GlobalLinearSystem::_dump_A_b()
 {
-    auto path_tool   = BackendPathTool(workspace());
-    auto output_path = path_tool.workspace(__FILE__, "debug");
-    export_matrix_market(fmt::format("{}/A.{}.{}.mtx",
-                                     output_path.string(),
+    auto path_tool     = BackendPathTool(workspace());
+    auto output_folder = path_tool.workspace(__FILE__, "debug");
+    auto output_path_A = fmt::format("{}/A.{}.{}.mtx",
+                                     output_folder.string(),
                                      engine().frame(),
-                                     engine().newton_iter()),
-                         m_impl.bcoo_A.cview());
-    export_vector_market(fmt::format("{}/b.{}.{}.mtx",
-                                     output_path.string(),
+                                     engine().newton_iter());
+    export_matrix_market(output_path_A, m_impl.bcoo_A.cview());
+    logger::critical("Dumped global linear system matrix A to {}", output_path_A);
+
+    auto output_path_b = fmt::format("{}/b.{}.{}.mtx",
+                                     output_folder.string(),
                                      engine().frame(),
-                                     engine().newton_iter()),
-                         m_impl.b.cview());
+                                     engine().newton_iter());
+    export_vector_market(output_path_b, m_impl.b.cview());
+    logger::critical("Dumped global linear system vector b to {}", output_path_b);
 }
 
 void GlobalLinearSystem::_dump_x()

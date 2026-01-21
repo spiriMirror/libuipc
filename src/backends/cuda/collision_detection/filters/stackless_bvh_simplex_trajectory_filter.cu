@@ -845,8 +845,7 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
                             break;
                         }
                     }
-                })
-            .wait();
+                });
 
         temp_PP_offset += N_EEs;
         temp_PE_offset += N_EEs;
