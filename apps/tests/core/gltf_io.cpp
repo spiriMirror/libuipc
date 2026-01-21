@@ -7,6 +7,6 @@ using namespace uipc;
 
 TEST_CASE("gltf_io", "[util]")
 {
-    auto path = AssetDir::output_path(__FILE__);
+    auto path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
     REQUIRE(test_gltf(path) == 0);
 }

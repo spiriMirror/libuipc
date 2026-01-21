@@ -14,7 +14,7 @@ TEST_CASE("spreadsheet_simple", "[io]")
     label_surface(mesh);
     label_triangle_orient(mesh);
 
-    SpreadSheetIO sio{AssetDir::output_path(__FILE__)};
+    SpreadSheetIO sio{AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE)};
     // dump to csv
     sio.write_csv("spreadsheet", mesh);
     // dump to json

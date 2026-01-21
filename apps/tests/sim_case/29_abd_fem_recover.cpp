@@ -14,7 +14,7 @@ static void clear()
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        output_path = AssetDir::output_path(__FILE__);
+    auto        output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
     auto        dump_path        = fmt::format("{}/dump/", output_path);
     auto        count            = fs::remove_all(dump_path);
     Logger::current_logger().info("Remove {} entries in {}", count, dump_path);
@@ -36,7 +36,7 @@ static void run(int I)
 
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        output_path = AssetDir::output_path(__FILE__);
+    auto        output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Engine engine{"cuda", output_path};
     World  world{engine};
@@ -161,3 +161,4 @@ TEST_CASE("29_abd_fem_recover", "[abd_fem]")
         run(I);
     }
 }
+

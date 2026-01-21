@@ -323,3 +323,4 @@ TEST_CASE("stackless_bvh", "[collision detection]")
         stackless_bvh_test(mesh);
     }
 }
+

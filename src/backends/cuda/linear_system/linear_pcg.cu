@@ -29,7 +29,7 @@ void LinearPCG::do_build(BuildInfo& info)
                  need_debug_dump);
 
     auto path_tool  = BackendPathTool(workspace());
-    debug_dump_path = path_tool.workspace(__FILE__, "debug").string();
+    debug_dump_path = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug").string();
 
     if(need_debug_dump) [[unlikely]]
     {
@@ -71,7 +71,7 @@ void LinearPCG::dump_r_z(SizeT k)
 {
 
     auto path_tool   = BackendPathTool(workspace());
-    auto output_path = path_tool.workspace(__FILE__, "debug");
+    auto output_path = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
     export_vector_market(fmt::format("{}/pcg_r.{}.{}.{}.mtx",
                                      output_path.string(),
                                      engine().frame(),
@@ -89,7 +89,7 @@ void LinearPCG::dump_r_z(SizeT k)
 void LinearPCG::dump_p_Ap(SizeT k)
 {
     auto path_tool   = BackendPathTool(workspace());
-    auto output_path = path_tool.workspace(__FILE__, "debug");
+    auto output_path = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
     export_vector_market(fmt::format("{}/pcg_p.{}.{}.{}.mtx",
                                      output_path.string(),
                                      engine().frame(),
@@ -160,7 +160,7 @@ void update_p(muda::DenseVectorView<Float> p, muda::CDenseVectorView<Float> z, F
 SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Float> b, SizeT max_iter)
 {
     auto path_tool   = BackendPathTool(workspace());
-    auto output_path = path_tool.workspace(__FILE__, "debug");
+    auto output_path = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
 
     SizeT k = 0;
     // r = b - A * x

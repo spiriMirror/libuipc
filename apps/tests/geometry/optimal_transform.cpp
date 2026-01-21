@@ -61,3 +61,4 @@ TEST_CASE("optimal_transform_mesh", "[optimal_transform]")
     optimal_transform_mesh_test(fmt::format("{}/ball.msh", tetmesh_path));
     optimal_transform_mesh_test(fmt::format("{}/link.msh", tetmesh_path));
 }
+

@@ -47,14 +47,15 @@ TEST_CASE("scene_io", "[scene]")
 
     SceneIO scene_io{scene};
 
-    scene_io.write_surface(fmt::format("{}scene.obj", AssetDir::output_path(__FILE__)));
-    scene_io.save(fmt::format("{}scene.json", AssetDir::output_path(__FILE__)));
+    scene_io.write_surface(fmt::format("{}scene.obj", AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE)));
+    scene_io.save(fmt::format("{}scene.json", AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE)));
 
     auto scene_loaded =
-        SceneIO::load(fmt::format("{}scene.json", AssetDir::output_path(__FILE__)));
+        SceneIO::load(fmt::format("{}scene.json", AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE)));
 
     auto object_loaded = scene_loaded.objects().find(0);
     REQUIRE(object_loaded->name() == object->name());
     auto objects_found = scene_loaded.objects().find("objects");
     REQUIRE(objects_found.size() == 1);
 }
+

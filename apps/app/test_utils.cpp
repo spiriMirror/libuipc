@@ -20,3 +20,4 @@ void Scene::dump_config(const Json& config, std::string_view workspace)
     logger::info("Scene Config dumped to {}", filename);
 }
 }  // namespace uipc::test
+

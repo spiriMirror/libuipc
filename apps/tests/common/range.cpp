@@ -22,3 +22,4 @@ TEST_CASE("range", "[range]")
 
     REQUIRE(v == expected);
 }
+

@@ -14,19 +14,12 @@ option("backend_cuda", {default = true, description = "Build with CUDA backend"}
 option("python_version", {default = "3.11.x", description = "Specify python version"})
 option("python_system", {default = false, description = "Use system python"})
 
+
 includes("src", "apps", "xmake/*.lua")
 
-add_rules("mode.release", "mode.debug", "mode.releasedbg")
+add_rules("mode.release", "mode.debug", "mode.releasedbg", "uipc.basic")
 
 set_languages("c++20")
-
--- using absolute file path in macro definition
-if is_plat("windows") then
-    add_cxflags("/FC")
-    add_cxflags("/wd4068")
-else
-    add_cxflags("-fmacro-prefix-map==" .. os.projectdir() .. "/", {force = true})
-end
 
 if is_plat("linux") then
     add_rpathdirs("$ORIGIN")

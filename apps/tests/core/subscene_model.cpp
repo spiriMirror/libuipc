@@ -39,3 +39,4 @@ TEST_CASE("subscene_model", "[subscene_model]")
     REQUIRE(default_element.name() == "default");
     REQUIRE(mesh2.meta().find<IndexT>(builtin::subscene_element_id)->view().front() == 0);
 }
+

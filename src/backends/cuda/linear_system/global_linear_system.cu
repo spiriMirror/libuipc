@@ -29,7 +29,8 @@ void GlobalLinearSystem::do_build()
         dump_linear_system_attr ? dump_linear_system_attr->view()[0] : false;
 
     auto path_tool         = BackendPathTool(workspace());
-    m_impl.debug_dump_path = path_tool.workspace(__FILE__, "debug").string();
+    m_impl.debug_dump_path =
+        path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug").string();
 
     if(m_impl.need_debug_dump) [[unlikely]]
     {
@@ -41,7 +42,7 @@ void GlobalLinearSystem::do_build()
 void GlobalLinearSystem::_dump_A_b()
 {
     auto path_tool   = BackendPathTool(workspace());
-    auto output_path = path_tool.workspace(__FILE__, "debug");
+    auto output_path = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
     export_matrix_market(fmt::format("{}/A.{}.{}.mtx",
                                      output_path.string(),
                                      engine().frame(),
@@ -57,7 +58,7 @@ void GlobalLinearSystem::_dump_A_b()
 void GlobalLinearSystem::_dump_x()
 {
     auto path_tool   = BackendPathTool(workspace());
-    auto output_path = path_tool.workspace(__FILE__, "debug");
+    auto output_path = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
     export_vector_market(fmt::format("{}/x.{}.{}.mtx",
                                      output_path.string(),
                                      engine().frame(),

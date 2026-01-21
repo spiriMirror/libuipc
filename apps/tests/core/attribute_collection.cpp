@@ -94,3 +94,4 @@ TEST_CASE("attribute_collection", "[geometry]")
         REQUIRE(pos->last_modified() > vel->last_modified());
     }
 }
+

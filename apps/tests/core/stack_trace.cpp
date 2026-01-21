@@ -23,3 +23,4 @@ TEST_CASE(".stack_trace", "[.stack_trace]")
 {
     stackB();
 }
+

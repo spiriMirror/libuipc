@@ -38,3 +38,5 @@ add_subdirectory(implicit_geometries)
 add_subdirectory(affine_body)
 add_subdirectory(bvh)
 add_subdirectory(graph_coloring)
+
+uipc_target_set_relative_source_file(uipc_geometry)

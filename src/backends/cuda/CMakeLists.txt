@@ -48,6 +48,7 @@ target_compile_options(cuda PRIVATE
 file(GLOB_RECURSE SOURCES "*.cu" "*.h" "*.hpp" "*.cpp" "*.inl")
 
 target_sources(cuda PRIVATE ${SOURCES})
+uipc_target_set_relative_source_file(cuda)
 
 # ------------------------------------------------------------------------------
 # setup source group for the IDE
