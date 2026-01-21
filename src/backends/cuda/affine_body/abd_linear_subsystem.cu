@@ -177,8 +177,7 @@ void ABDLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                     shape_gradient = abd().body_id_to_shape_gradient.cviewer().name("shape_gradient"),
                     kinetic_gradient =
                         abd().body_id_to_kinetic_gradient.cviewer().name("kinetic_gradient"),
-                    gradients = info.gradients().viewer().name("gradients"),
-                    cout      = KernelCout::viewer()] __device__(int i) mutable
+                    gradients = info.gradients().viewer().name("gradients")] __device__(int i) mutable
                    {
                        Vector12 src;
 

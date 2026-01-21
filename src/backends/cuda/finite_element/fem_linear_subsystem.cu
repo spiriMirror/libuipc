@@ -260,14 +260,9 @@ void FEMLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(fem().xs.size(),
-               [dxs    = dxs.viewer().name("dxs"),
-                result = info.solution().viewer().name("result"),
-                cout   = KernelCout::viewer()] __device__(int i) mutable
-               {
-                   dxs(i) = -result.segment<3>(i * 3).as_eigen();
-
-                   // cout << "solution dx(" << i << "):" << dxs(i).transpose().eval() << "\n";
-               });
+               [dxs = dxs.viewer().name("dxs"),
+                result = info.solution().viewer().name("result")] __device__(int i) mutable
+               { dxs(i) = -result.segment<3>(i * 3).as_eigen(); });
 }
 
 void FEMLinearSubsystem::do_report_extent(GlobalLinearSystem::DiagExtentInfo& info)
