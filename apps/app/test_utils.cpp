@@ -9,6 +9,7 @@ Json Scene::default_config()
 {
     Json config = uipc::core::Scene::default_config();
     config["extras"]["strict_mode"]["enable"] = true;
+    config["newton"]["max_iter"]              = 1024;
     return config;
 }
 

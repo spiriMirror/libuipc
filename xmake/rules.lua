@@ -57,12 +57,14 @@ rule("uipc.basic")
         local uipc_project_dir = path.directory(os.scriptdir())
         target:add("defines", format("UIPC_PROJECT_DIR=R\"(%s)\"", path.unix(uipc_project_dir)))
 
-        -- Add UIPC_RELATIVE_SOURCE_FILE define for each source file
-        -- Ref: https://github.com/spiriMirror/libuipc/issues/288
+        -- -- Add UIPC_RELATIVE_SOURCE_FILE define for each source file
+        -- -- Ref: https://github.com/spiriMirror/libuipc/issues/288
         for _, file in ipairs(target:sourcefiles()) do
             local rel = path.unix(file)
-            target:add("defines",
-                       format("UIPC_RELATIVE_SOURCE_FILE=R\"(%s)\"", rel),
-                       {files = file})
+            local fileconfig = target:fileconfig(file) or {}
+            local defines = fileconfig.defines or {}
+            table.insert(defines, format("UIPC_RELATIVE_SOURCE_FILE=R\"(%s)\"", rel))
+            fileconfig.defines = defines
+            target:fileconfig_set(file, fileconfig)
         end
     end)
