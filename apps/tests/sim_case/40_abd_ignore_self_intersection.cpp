@@ -12,7 +12,7 @@ TEST_CASE("40_abd_ignore_self_intersection", "[abd]")
     namespace fs = std::filesystem;
 
     std::string trimesh_dir{AssetDir::trimesh_path()};
-    auto        output_path = AssetDir::output_path(__FILE__);
+    auto        output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Engine engine{"cuda", output_path};
     World  world{engine};

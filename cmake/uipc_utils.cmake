@@ -183,6 +183,38 @@ function(uipc_target_add_include_files target_name)
     source_group(TREE "${INCLUDE_DIR}" PREFIX "include" FILES ${INCLUDE_FILES})
 endfunction()
 
+# -----------------------------------------------------------------------------------------
+# Set UIPC_RELATIVE_SOURCE_FILE for each source of a target
+# -----------------------------------------------------------------------------------------
+function(uipc_target_set_relative_source_file target_name)
+    # Ref: https://github.com/spiriMirror/libuipc/issues/288
+    get_target_property(TARGET_SOURCES ${target_name} SOURCES)
+    if(NOT TARGET_SOURCES)
+        return()
+    endif()
+    foreach(source IN LISTS TARGET_SOURCES)
+        if(source MATCHES "\\$<")
+            continue()
+        endif()
+        if(IS_ABSOLUTE "${source}")
+            set(ABS_SOURCE "${source}")
+        else()
+            cmake_path(ABSOLUTE_PATH source
+                       BASE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
+                       OUTPUT_VARIABLE ABS_SOURCE)
+        endif()
+        cmake_path(RELATIVE_PATH ABS_SOURCE
+                   BASE_DIRECTORY "${PROJECT_SOURCE_DIR}"
+                   OUTPUT_VARIABLE RELATIVE_PATH)
+        set_property(SOURCE "${source}" APPEND PROPERTY
+                     COMPILE_DEFINITIONS "UIPC_RELATIVE_SOURCE_FILE=R\"(${RELATIVE_PATH})\"")
+    endforeach()
+endfunction()
+
+
+# -----------------------------------------------------------------------------------------
+# Initialize a submodule
+# -----------------------------------------------------------------------------------------
 function(uipc_init_submodule target)
     if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${target}")
         uipc_error("Can not find submodule ${target} in ${CMAKE_CURRENT_SOURCE_DIR}, why?")

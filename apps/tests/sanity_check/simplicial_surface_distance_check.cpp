@@ -17,7 +17,7 @@ void test_init_surf_distance_check(std::string_view            name,
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
     auto        this_output_path =
-        AssetDir::output_path(__FILE__) + fmt::format("/{}-{}", name, trans.size());
+        AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE) + fmt::format("/{}-{}", name, trans.size());
 
     Engine engine{"none", this_output_path};
     World  world{engine};
@@ -133,3 +133,4 @@ TEST_CASE("simplicial_surface_distance", "[init_surface]")
             name, path, thickness, span{transforms}.subspan<0, 1>());
     }
 }
+

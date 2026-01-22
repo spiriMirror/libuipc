@@ -40,3 +40,4 @@ TEST_CASE("compute_volume", "[volume]")
     // With the correct orientation, the volume should be the same as the tetrahedralized ball
     REQUIRE(Catch::Approx(surf_ball_volume).epsilon(1e-6) == tet_ball_volume);
 }
+
