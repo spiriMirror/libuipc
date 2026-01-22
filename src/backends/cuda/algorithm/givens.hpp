@@ -18,8 +18,8 @@ namespace math
         T   c{T(1)};
         T   s{T(0)};
 
-        constexpr GivensRotation() noexcept = default;
-        constexpr GivensRotation(int rowi_in, int rowk_in) noexcept
+        UIPC_GENERIC constexpr GivensRotation() noexcept = default;
+        UIPC_GENERIC constexpr GivensRotation(int rowi_in, int rowk_in) noexcept
             : rowi{rowi_in}
             , rowk{rowk_in}
             , c{T(1)}
@@ -27,7 +27,7 @@ namespace math
         {
         }
 
-        constexpr GivensRotation(T a, T b, int rowi_in, int rowk_in) noexcept
+        UIPC_GENERIC constexpr GivensRotation(T a, T b, int rowi_in, int rowk_in) noexcept
             : rowi{rowi_in}
             , rowk{rowk_in}
         {

@@ -26,6 +26,8 @@ if (UIPC_WITH_USD_SUPPORT)
     add_subdirectory(usd)
 endif()
 
+uipc_target_set_relative_source_file(pyuipc)
+
 # Setup IDE
 get_target_property(SOURCES pyuipc SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})

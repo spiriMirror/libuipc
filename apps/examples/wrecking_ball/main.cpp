@@ -17,8 +17,8 @@ int main()
     logger::set_level(spdlog::level::info);
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path = AssetDir::output_path(__FILE__);
-    auto        this_folder      = AssetDir::folder(__FILE__);
+    auto        this_output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
+    auto        this_folder      = AssetDir::folder(UIPC_RELATIVE_SOURCE_FILE);
 
 
     Engine engine{"cuda", this_output_path};

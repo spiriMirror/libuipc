@@ -13,7 +13,7 @@ TEST_CASE("28_fem_periodically_pressed_tet", "[animation]")
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        output_path = AssetDir::output_path(__FILE__);
+    auto        output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Engine engine{"cuda", output_path};
     World  world{engine};

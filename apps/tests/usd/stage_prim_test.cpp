@@ -9,7 +9,7 @@ using namespace uipc;
 auto build_stage()
 {
     using namespace pxr;
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
     auto usd_path    = fmt::format("{}/HelloStage.usda", output_path);
     auto usd_stage   = UsdStage::CreateNew(usd_path);
     auto cube        = UsdGeomXform::Define(usd_stage, SdfPath("/Cube"));
@@ -22,3 +22,4 @@ TEST_CASE("stage_prim", "[usd]")
     auto usd_path = build_stage();
     auto stage    = usd::Stage::open(usd_path);
 }
+

@@ -962,7 +962,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
     bool do_dump(DumpInfo& info) override
     {
-        auto path  = info.dump_path(__FILE__);
+        auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
         auto frame = info.frame();
 
         return dump_delta_theta.dump(fmt::format("{}delta_theta.{}", path, frame),
@@ -971,7 +971,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
     bool do_try_recover(RecoverInfo& info) override
     {
-        auto path  = info.dump_path(__FILE__);
+        auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
         auto frame = info.frame();
 
         return dump_delta_theta.load(fmt::format("{}delta_theta.{}", path, frame));

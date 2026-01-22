@@ -19,7 +19,7 @@ TEST_CASE("47_external_articulation_multijoints", "[abd]")
 
     Timer::enable_all();
 
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Engine engine{"cuda", output_path};
     World  world{engine};

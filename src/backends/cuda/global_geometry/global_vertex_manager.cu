@@ -187,7 +187,7 @@ namespace uipc::backend::cuda
 {
 bool GlobalVertexManager::Impl::dump(DumpInfo& info)
 {
-    auto path  = info.dump_path(__FILE__);
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
     return dump_positions.dump(fmt::format("{}positions.{}", path, frame), positions)  //
@@ -197,7 +197,7 @@ bool GlobalVertexManager::Impl::dump(DumpInfo& info)
 
 bool GlobalVertexManager::Impl::try_recover(RecoverInfo& info)
 {
-    auto path = info.dump_path(__FILE__);
+    auto path = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     return dump_positions.load(fmt::format("{}positions.{}", path, info.frame()))  //
            && dump_prev_positions.load(
                fmt::format("{}prev_positions.{}", path, info.frame()));

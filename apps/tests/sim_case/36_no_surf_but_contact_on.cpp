@@ -12,7 +12,7 @@ TEST_CASE("36_no_surf_but_contact_on", "[abd]")
     using namespace uipc::core;
     namespace fs = std::filesystem;
 
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Engine engine{"cuda", output_path};
     World  world{engine};

@@ -62,7 +62,7 @@ void LinearPCG::dump_r_z(SizeT k)
 {
 
     auto path_tool     = BackendPathTool(workspace());
-    auto output_path   = path_tool.workspace(__FILE__, "debug");
+    auto output_path   = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
     auto output_path_r = fmt::format("{}r.{}.{}.{}.mtx",
                                      output_path.string(),
                                      engine().frame(),
@@ -91,7 +91,7 @@ void LinearPCG::dump_r_z(SizeT k)
 void LinearPCG::dump_p_Ap(SizeT k)
 {
     auto path_tool     = BackendPathTool(workspace());
-    auto output_folder = path_tool.workspace(__FILE__, "debug");
+    auto output_folder = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
 
     auto output_path_p = fmt::format("{}p.{}.{}.{}.mtx",
                                      output_folder.string(),
