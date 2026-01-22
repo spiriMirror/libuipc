@@ -49,10 +49,6 @@ static void run(int I)
     config["line_search"]["max_iter"]       = 8;
     config["linear_system"]["tol_rate"]     = 1e-3;
     config["line_search"]["report_energy"]  = false;
-    if(I == 2)  // recover at specified frame when running the third time
-    {
-        config["recovery"]["frame"] = RecoverFrame;
-    }
     test::Scene::dump_config(config, output_path);
 
     SimplicialComplexIO io;

@@ -39,12 +39,12 @@ std::string_view AssetDir::output_path()
     return UIPC_OUTPUT_PATH;
 }
 
-std::string AssetDir::output_path(const char* uipc_relative_source_file)                                                                                                                                                                                                                                                                                                                            
+std::string AssetDir::output_path(const char* uipc_relative_source_file)
 {
     fs::path _output_path{UIPC_OUTPUT_PATH};
     fs::path file_path{uipc_relative_source_file};
-    fs::path     project_dir{UIPC_PROJECT_DIR};
-    auto     apps_path    = project_dir / "apps";
+    fs::path project_dir{UIPC_PROJECT_DIR};
+    auto     apps_path = project_dir / "apps";
     UIPC_ASSERT(file_path.is_relative(),
                 "UIPC_RELATIVE_SOURCE_FILE must be relative, got {}",
                 file_path.string());
@@ -65,6 +65,4 @@ std::string AssetDir::folder(const std::string& _file_)
     fs::path file_path{_file_};
     return (file_path.parent_path() / "").string();
 }
-
 }  // namespace uipc
-
