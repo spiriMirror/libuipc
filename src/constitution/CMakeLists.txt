@@ -10,6 +10,7 @@ uipc_target_set_rpath(uipc_constitution)
 
 file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_constitution PRIVATE ${SOURCES})
+uipc_target_set_relative_source_file(uipc_constitution)
 
 # ------------------------------------------------------------------------------
 # setup source group for the IDE

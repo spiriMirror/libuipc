@@ -1168,7 +1168,7 @@ namespace uipc::backend::cuda
 {
 bool FiniteElementMethod::Impl::dump(DumpInfo& info)
 {
-    auto path  = info.dump_path(__FILE__);
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
     return dump_xs.dump(fmt::format("{}q.{}", path, frame), xs)       //
@@ -1178,7 +1178,7 @@ bool FiniteElementMethod::Impl::dump(DumpInfo& info)
 
 bool FiniteElementMethod::Impl::try_recover(RecoverInfo& info)
 {
-    auto path  = info.dump_path(__FILE__);
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
     return dump_xs.load(fmt::format("{}q.{}", path, frame))                //

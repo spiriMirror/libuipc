@@ -9,3 +9,4 @@ TEST_CASE("scene_io", "[serializer]")
     using namespace uipc::geometry;
     using namespace uipc::constitution;
 }
+

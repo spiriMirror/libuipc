@@ -17,6 +17,7 @@ target_link_libraries(uipc_io PRIVATE
 
 file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_io PRIVATE ${SOURCES})
+uipc_target_set_relative_source_file(uipc_io)
 
 uipc_target_set_output_directory(uipc_io)
 uipc_target_set_rpath(uipc_io)

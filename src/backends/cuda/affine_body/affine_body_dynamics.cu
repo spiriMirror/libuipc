@@ -819,7 +819,7 @@ namespace uipc::backend::cuda
 {
 bool AffineBodyDynamics::Impl::dump(DumpInfo& info)
 {
-    auto path  = info.dump_path(__FILE__);
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
     return dump_q.dump(fmt::format("{}q.{}", path, frame), body_id_to_q)  //
@@ -829,7 +829,7 @@ bool AffineBodyDynamics::Impl::dump(DumpInfo& info)
 
 bool AffineBodyDynamics::Impl::try_recover(RecoverInfo& info)
 {
-    auto path  = info.dump_path(__FILE__);
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
     return dump_q.load(fmt::format("{}q.{}", path, frame))                //

@@ -91,3 +91,4 @@ TEST_CASE("affine_body_quantity", "[abd]")
     affine_body_quantity_test("link");
     affine_body_quantity_test("bunny0");
 }
+

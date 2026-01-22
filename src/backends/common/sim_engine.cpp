@@ -163,7 +163,7 @@ static bool find_max_dump_frame(std::string_view path, SizeT& max_frame)
 
 bool SimEngine::do_dump()
 {
-    auto path = dump_path(__FILE__);
+    auto path = dump_path(UIPC_RELATIVE_SOURCE_FILE);
 
     BackendPathTool tool{workspace()};
     auto            current_frame = frame();
@@ -235,7 +235,7 @@ void SimEngine::do_init(core::internal::World& w)
 
 bool SimEngine::do_recover(SizeT dst_frame)
 {
-    auto            path = dump_path(__FILE__);
+    auto            path = dump_path(UIPC_RELATIVE_SOURCE_FILE);
     BackendPathTool tool{workspace()};
 
     SizeT try_recover_frame = dst_frame;

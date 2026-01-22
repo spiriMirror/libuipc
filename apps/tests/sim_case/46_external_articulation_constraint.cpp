@@ -18,7 +18,7 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
 
     Timer::enable_all();
 
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Engine engine{"cuda", output_path};
     World  world{engine};

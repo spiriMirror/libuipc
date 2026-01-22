@@ -11,7 +11,7 @@ TEST_CASE("45_abd_prismatic_joint", "[abd]")
     using namespace uipc::constitution;
     using namespace uipc::core;
     namespace fs          = std::filesystem;
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Engine engine{"cuda", output_path};
     World  world{engine};

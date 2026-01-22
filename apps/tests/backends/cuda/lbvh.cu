@@ -629,3 +629,4 @@ TEST_CASE("lbvh", "[collision detection]")
         lbvh_test(mesh);
     }
 }
+

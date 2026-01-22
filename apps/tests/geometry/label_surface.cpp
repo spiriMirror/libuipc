@@ -23,3 +23,4 @@ TEST_CASE("label_surface", "[surface]")
     REQUIRE(std::ranges::any_of(f_is_surf_view, [](auto s) -> bool { return s; }));
     REQUIRE(std::ranges::any_of(f_is_surf_view, [](auto s) -> bool { return !s; }));
 }
+

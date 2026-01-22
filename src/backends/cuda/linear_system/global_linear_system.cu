@@ -32,15 +32,15 @@ void GlobalLinearSystem::do_build()
 void GlobalLinearSystem::_dump_A_b()
 {
     auto path_tool     = BackendPathTool(workspace());
-    auto output_folder = path_tool.workspace(__FILE__, "debug");
-    auto output_path_A = fmt::format("{}/A.{}.{}.mtx",
+    auto output_folder = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
+    auto output_path_A = fmt::format("{}A.{}.{}.mtx",
                                      output_folder.string(),
                                      engine().frame(),
                                      engine().newton_iter());
     export_matrix_market(output_path_A, m_impl.bcoo_A.cview());
     logger::info("Dumped global linear system matrix A to {}", output_path_A);
 
-    auto output_path_b = fmt::format("{}/b.{}.{}.mtx",
+    auto output_path_b = fmt::format("{}b.{}.{}.mtx",
                                      output_folder.string(),
                                      engine().frame(),
                                      engine().newton_iter());
@@ -51,9 +51,9 @@ void GlobalLinearSystem::_dump_A_b()
 void GlobalLinearSystem::_dump_x()
 {
     auto path_tool   = BackendPathTool(workspace());
-    auto output_path = path_tool.workspace(__FILE__, "debug");
-    export_vector_market(fmt::format("{}/x.{}.{}.mtx",
-                                     output_path.string(),
+    auto output_folder = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
+    export_vector_market(fmt::format("{}x.{}.{}.mtx",
+                                     output_folder.string(),
                                      engine().frame(),
                                      engine().newton_iter()),
                          m_impl.x.cview());
