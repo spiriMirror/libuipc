@@ -147,7 +147,7 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
             auto mass = articulation["joint_joint"]->find<Float>("mass");
             REQUIRE(mass);
             auto mass_view = view(*mass);
-            mass_view[0]   = 1e4;
+            mass_view[0]   = 64;
 
             auto articulation_object = scene.objects().create("articulation_object_1");
             articulation_object->geometries().create(articulation);
@@ -174,7 +174,7 @@ TEST_CASE("46_external_articulation_constraint", "[abd]")
             auto mass = articulation["joint_joint"]->find<Float>("mass");
             REQUIRE(mass);
             auto mass_view = view(*mass);
-            mass_view[0]   = 1e4;
+            mass_view[0]   = 64;
             auto articulation_object = scene.objects().create("articulation_object_2");
             articulation_object->geometries().create(articulation);
 

@@ -144,9 +144,9 @@ TEST_CASE("47_external_articulation_multijoints", "[abd]")
             REQUIRE(mass);
             auto mass_view = view(*mass);
             Eigen::Map<MatrixX> mass_mat = Eigen::Map<MatrixX>(mass_view.data(), 2, 2);
-            mass_mat       = MatrixX::Identity(2, 2) * 1e4;
-            mass_mat(0, 1) = 5e3;
-            mass_mat(1, 0) = 5e3;
+            mass_mat       = MatrixX::Identity(2, 2) * 64;
+            mass_mat(0, 1) = 8;
+            mass_mat(1, 0) = 8;
 
             auto articulation_object = scene.objects().create("articulation_object");
             articulation_object->geometries().create(articulation);
