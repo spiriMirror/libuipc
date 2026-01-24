@@ -1,4 +1,4 @@
-set_xmakever("2.9.8")
+set_xmakever("3.0.5")
 
 option("gui", {default = false})
 option("pybind", {default = false, description = "Build pyuipc"})
