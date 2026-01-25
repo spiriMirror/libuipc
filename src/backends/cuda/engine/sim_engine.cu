@@ -101,7 +101,7 @@ void SimEngine::event_write_scene()
 void SimEngine::dump_global_surface()
 {
     BackendPathTool tool{workspace()};
-    auto            output_folder = tool.workspace(__FILE__, "debug");
+    auto            output_folder = tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
     auto            file_path = fmt::format("{}global_surface.{}.{}.{}.obj",
                                  output_folder.string(),
                                  frame(),
