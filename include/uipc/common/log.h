@@ -4,12 +4,12 @@
 #include <uipc/common/config.h>
 #include <uipc/common/abort.h>
 
-
 #define UIPC_LOG_WITH_LOCATION(level, ...)                                     \
+    do                                                                         \
     {                                                                          \
         ::uipc::string msg = ::fmt::format(__VA_ARGS__);                       \
-        ::uipc::logger::log((level), "{} {}({})", msg, __FILE__, __LINE__);       \
-    }
+        ::uipc::logger::log((level), "{} {}({})", msg, __FILE__, __LINE__);    \
+    } while(0);
 
 #define UIPC_INFO_WITH_LOCATION(...)                                           \
     UIPC_LOG_WITH_LOCATION(spdlog::level::info, __VA_ARGS__)
@@ -20,14 +20,15 @@
 #define UIPC_ERROR_WITH_LOCATION(...)                                          \
     UIPC_LOG_WITH_LOCATION(spdlog::level::err, __VA_ARGS__)
 
-#define UIPC_ASSERT(condition, ...)                                                            \
-    {                                                                                          \
-        if(!(condition))                                                                       \
-        {                                                                                      \
-            ::uipc::string msg = ::fmt::format(__VA_ARGS__);                                   \
-            ::uipc::string assert_msg =                                                        \
-                ::fmt::format("Assertion " #condition " failed. {}", msg);                     \
+#define UIPC_ASSERT(condition, ...)                                                               \
+    do                                                                                            \
+    {                                                                                             \
+        if(!(condition))                                                                          \
+        {                                                                                         \
+            ::uipc::string msg = ::fmt::format(__VA_ARGS__);                                      \
+            ::uipc::string assert_msg =                                                           \
+                ::fmt::format("Assertion " #condition " failed. {}", msg);                        \
             ::uipc::logger::log(spdlog::level::err, "{} {}({})", assert_msg, __FILE__, __LINE__); \
-            ::uipc::abort();                                                                   \
-        }                                                                                      \
-    }
+            ::uipc::abort();                                                                      \
+        }                                                                                         \
+    } while(0);
