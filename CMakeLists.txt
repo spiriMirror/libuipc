@@ -19,6 +19,7 @@ option(UIPC_BUILD_PYBIND "Build pyuipc" OFF)
 option(UIPC_BUILD_EXAMPLES "Build examples" ON)
 option(UIPC_BUILD_TESTS "Build tests" ON)
 option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
+option(UIPC_CI_BUILD_WHEEL "CI wheel build mode for Python post-build helper" OFF)
 option(UIPC_DEV_MODE "Enable developer mode" OFF)
 option(UIPC_WITH_USD_SUPPORT "Build with Universal Scene Description (USD) support" OFF)
 option(UIPC_WITH_VDB_SUPPORT "Build with Volumetric DataBase (VDB) support" OFF)
@@ -35,8 +36,9 @@ if(APPLE)
 else()
     set(CUDA_BACKEND_ON ON)
 endif()
-option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ${CUDA_BACKEND_ON})
 
+option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ${CUDA_BACKEND_ON})
+set(UIPC_CI_CUDA_ARCHITECTURES "" CACHE STRING "CI CUDA architectures (e.g. 75,89)")
 
 # =========================================================================
 # Show Logo and Options

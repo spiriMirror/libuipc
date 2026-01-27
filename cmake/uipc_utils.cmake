@@ -114,9 +114,6 @@ function(uipc_config_vcpkg_install)
     else()
         set(VCPKG_MANIFEST_INSTALL OFF CACHE BOOL "" FORCE)
     endif()
-    if(UIPC_GITHUB_ACTIONS)
-        set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)
-    endif()
     # message(STATUS "VCPKG_MANIFEST_INSTALL: ${VCPKG_MANIFEST_INSTALL}")
 
     set(VCPKG_INSTALLED_DIR "")
@@ -233,23 +230,48 @@ function(uipc_init_submodule target)
 endfunction()
 
 # -----------------------------------------------------------------------------------------
-# Require a python module, if not found, try to install it with pip
+# Require pip module, if not found, try to install it
 # -----------------------------------------------------------------------------------------
-function(uipc_require_python_module python_dir module_name)
-
-file(TO_CMAKE_PATH "${python_dir}" python_dir)
-    uipc_info("Check python module [${module_name}] with [${python_dir}]")
-
+function(uipc_require_pip_ensure python_dir)
     execute_process(COMMAND ${python_dir}
-        "-c" "import ${module_name}"
+        "-c" "import pip"
         RESULT_VARIABLE CMD_RESULT
         OUTPUT_QUIET
     )
 
     if (NOT CMD_RESULT EQUAL 0)
+        uipc_info("pip not available, trying ensurepip...")
+        execute_process(COMMAND ${python_dir} "-m" "ensurepip" "--upgrade"
+            RESULT_VARIABLE ENSUREPIP_RESULT)
+        if (NOT ENSUREPIP_RESULT EQUAL 0)
+            uipc_error("Python [${python_dir}] failed to bootstrap pip. Please install pip manually.")
+        endif()
+    endif()
+endfunction()
+
+
+
+
+# -----------------------------------------------------------------------------------------
+# Require a python module, if not found, try to install it with pip
+# -----------------------------------------------------------------------------------------
+function(uipc_require_python_module python_dir module_name)
+    uipc_require_pip_ensure(${python_dir})
+
+    file(TO_CMAKE_PATH "${python_dir}" python_dir)
+    uipc_info("Check python module [${module_name}] with [${python_dir}]")
+
+    # check if the module is installed
+    execute_process(COMMAND ${python_dir}
+        "-c" "import ${module_name}"
+        RESULT_VARIABLE CMD_RESULT
+        OUTPUT_QUIET
+    )
+    
+    if (NOT CMD_RESULT EQUAL 0)
         uipc_info("${module_name} not found, try installing ${module_name}...")
         execute_process(COMMAND ${python_dir} "-m" "pip" "install" "${module_name}"
-        RESULT_VARIABLE INSTALL_RESULT)
+            RESULT_VARIABLE INSTALL_RESULT)
         if (NOT INSTALL_RESULT EQUAL 0)
             uipc_error("Python [${python_dir}] failed to install [${module_name}], please install it manually.")
         else()
@@ -258,7 +280,6 @@ file(TO_CMAKE_PATH "${python_dir}" python_dir)
     else()
         uipc_info("[${module_name}] found with [${python_dir}].")
     endif()
-
 endfunction()
 
 # -----------------------------------------------------------------------------------------

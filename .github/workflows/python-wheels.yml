@@ -1,0 +1,125 @@
+name: Build Python Wheels
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-wheels:
+    name: Build Python Wheels (${{ matrix.OS }} | ${{ matrix.CUDA_TAG }})
+    strategy:
+      fail-fast: false
+      matrix:
+        OS: ["ubuntu-24.04", "windows-2022"]
+        CUDA_TAG: ["cu128", "cu130"]
+        include:
+          - CUDA_TAG: cu128
+            CUDA_VERSION: "12.8.1"
+            CUDA_ARCH: "89"
+          - CUDA_TAG: cu130
+            CUDA_VERSION: "13.0.0"
+            CUDA_ARCH: "89"
+
+    runs-on: ${{ matrix.OS }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          show-progress: true
+          submodules: true
+
+      - name: Generate vcpkg manifest
+        run: |
+          mkdir build
+          python scripts/gen_vcpkg_json.py build
+
+      - name: Setup cuda
+        uses: Jimver/cuda-toolkit@v0.2.20
+        id: cuda-toolkit
+        with:
+          cuda: "${{ matrix.CUDA_VERSION }}"
+
+      - name: Set wheel version (Linux)
+        if: matrix.OS == 'ubuntu-24.04'
+        run: |
+          VERSION=$(python - <<'PY'
+          import pathlib, tomllib
+          data = tomllib.loads(pathlib.Path("python/pyproject.toml").read_bytes())
+          print(data["project"]["version"])
+          PY
+          )
+          echo "SKBUILD_PROJECT_VERSION=${VERSION}+${{ matrix.CUDA_TAG }}" >> "$GITHUB_ENV"
+
+      - name: Set wheel version (Windows)
+        if: matrix.OS == 'windows-2022'
+        shell: pwsh
+        run: |
+          $version = (python - <<'PY'
+          import pathlib, tomllib
+          data = tomllib.loads(pathlib.Path("python/pyproject.toml").read_bytes())
+          print(data["project"]["version"])
+          PY
+          )
+          "SKBUILD_PROJECT_VERSION=$version+${{ matrix.CUDA_TAG }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Set parallelism (Linux)
+        if: matrix.OS == 'ubuntu-24.04'
+        run: |
+          echo "CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)" >> "$GITHUB_ENV"
+          echo "VCPKG_MAX_CONCURRENCY=$(nproc)" >> "$GITHUB_ENV"
+
+      - name: Set parallelism (Windows)
+        if: matrix.OS == 'windows-2022'
+        shell: pwsh
+        run: |
+          "CMAKE_BUILD_PARALLEL_LEVEL=$env:NUMBER_OF_PROCESSORS" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "VCPKG_MAX_CONCURRENCY=$env:NUMBER_OF_PROCESSORS" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Setup vcpkg
+        id: vcpkg
+        uses: johnwason/vcpkg-action@v6
+        with:
+          manifest-dir: "${{ github.workspace }}/build"
+          triplet: ${{ matrix.OS == 'windows-2022' && 'x64-windows-release' || 'x64-linux' }}
+          cache-key: ${{ matrix.OS }}
+          revision: master
+          token: ${{ github.token }}
+          github-binarycache: true
+          fetch-depth: '0'
+
+      - name: Set cibuildwheel env (Linux)
+        if: matrix.OS == 'ubuntu-24.04'
+        run: |
+          echo "CIBW_ENVIRONMENT_LINUX=SKBUILD_CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-linux;-DUIPC_PYTHON_EXECUTABLE_PATH={python};-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }} CMAKE_BUILD_PARALLEL_LEVEL=$CMAKE_BUILD_PARALLEL_LEVEL VCPKG_MAX_CONCURRENCY=$VCPKG_MAX_CONCURRENCY SKBUILD_PROJECT_VERSION=$SKBUILD_PROJECT_VERSION UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}" >> "$GITHUB_ENV"
+
+      - name: Set cibuildwheel env (Windows)
+        if: matrix.OS == 'windows-2022'
+        shell: pwsh
+        run: |
+          "CIBW_ENVIRONMENT_WINDOWS=SKBUILD_CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-windows-release;-DUIPC_PYTHON_EXECUTABLE_PATH={python};-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }} CMAKE_BUILD_PARALLEL_LEVEL=$env:CMAKE_BUILD_PARALLEL_LEVEL VCPKG_MAX_CONCURRENCY=$env:VCPKG_MAX_CONCURRENCY SKBUILD_PROJECT_VERSION=$env:SKBUILD_PROJECT_VERSION UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.1.0
+        env:
+          CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
+        with:
+          package-dir: python
+          output-dir: wheelhouse
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheelhouse-${{ matrix.OS }}-${{ matrix.CUDA_TAG }}
+          path: wheelhouse/*.whl

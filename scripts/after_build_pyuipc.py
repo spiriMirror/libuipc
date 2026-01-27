@@ -77,10 +77,13 @@ def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
 
     return target_dir
 
-def generate_stub(target_dir):
+def generate_stub(target_dir, output_dir=None):
     optional_import.EnabledModules.report()
     PACKAGE_NAME = 'pyuipc'
-    typings_dir = binary_dir / 'python' / 'src'
+    if output_dir:
+        typings_dir = pathlib.Path(output_dir)
+    else:
+        typings_dir = binary_dir / 'python' / 'src'
     
     # clear the typings directory
     typings_folder = typings_dir / PACKAGE_NAME
@@ -111,6 +114,7 @@ def generate_stub(target_dir):
         include_docstrings=True
     )
     
+    typings_dir.mkdir(parents=True, exist_ok=True)
     try:
         stubgen.generate_stubs(options)
     except Exception as e:
@@ -131,6 +135,8 @@ if __name__ == '__main__':
     args.add_argument('--binary_dir', help='CMAKE_BINARY_DIR', required=True)
     args.add_argument('--config', help='$<CONFIG>', required=True)
     args.add_argument('--build_type', help='CMAKE_BUILD_TYPE', required=True)
+    args.add_argument('--skip-install', action='store_true', help='Skip pip install step')
+    args.add_argument('--stub-output', default='', help='Override stub output directory')
     args = args.parse_args()
     
     print(f'config($<CONFIG>): {args.config} | build_type(CMAKE_BUILD_TYPE): {args.build_type}')
@@ -150,9 +156,11 @@ if __name__ == '__main__':
     flush_info()
     
     print(f'Generating stubs:')
-    generate_stub(target_dir)
+    stub_output = args.stub_output if args.stub_output else None
+    generate_stub(target_dir, stub_output)
     flush_info()
     
-    print(f'Installing the package to Python Environment: {sys.executable}')
-    install_package(binary_dir)
-    flush_info()
+    if not args.skip_install:
+        print(f'Installing the package to Python Environment: {sys.executable}')
+        install_package(binary_dir)
+        flush_info()

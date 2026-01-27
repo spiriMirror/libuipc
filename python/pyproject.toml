@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools >= 61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.10.0"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyuipc"
@@ -45,11 +45,28 @@ Issues = "https://github.com/spiriMirror/libuipc/issues"
 gui = ["polyscope"]
 dev = ["pytest"]
 
-[tool.setuptools.packages.find]
-where = ["src", "typings"]
+[tool.scikit-build]
+cmake.source-dir = ".."
+cmake.build-type = "Release"
+cmake.args = [
+    "-DUIPC_BUILD_PYBIND=1",
+    "-DUIPC_BUILD_EXAMPLES=OFF",
+    "-DUIPC_BUILD_TESTS=OFF",
+    "-DUIPC_BUILD_BENCHMARKS=OFF",
+    "-DUIPC_CI_BUILD_WHEEL=ON",
+]
+build-dir = "build/{wheel_tag}"
+wheel.packages = ["uipc"]
 
-[tool.setuptools.package-data]
-"*" = ["*.dll", "*.so*", "*.dylib", "*.pyd", "*.pyi"]
+[tool.scikit-build.sdist]
+include = [
+    "../CMakeLists.txt",
+    "../CMakePresets.json",
+    "../cmake/**",
+    "../external/**",
+    "../scripts/**",
+    "../src/**",
+]
 
 [tool.pytest.ini_options]
 addopts = ["-s"]
@@ -59,4 +76,3 @@ markers = [
     "typing: mark a test as requiring type checking",
     "example: mark a test as an example",
 ]
-

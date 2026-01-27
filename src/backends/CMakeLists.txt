@@ -36,6 +36,7 @@ function(uipc_add_backend name)
     uipc_target_set_output_directory(${name})
     uipc_target_set_rpath(${name})
     add_dependencies(uipc_backends ${name})
+    set_property(GLOBAL APPEND PROPERTY UIPC_BACKEND_TARGETS ${name})
 
     # folder for IDE
     set_target_properties(${name} PROPERTIES FOLDER "uipc-backends")
@@ -50,6 +51,17 @@ add_subdirectory(none)
 
 if(UIPC_WITH_CUDA_BACKEND)
     add_subdirectory(cuda)
+endif()
+
+if(UIPC_BUILD_PYBIND)
+    get_property(UIPC_BACKEND_TARGETS GLOBAL PROPERTY UIPC_BACKEND_TARGETS)
+    if(UIPC_BACKEND_TARGETS)
+        install(TARGETS ${UIPC_BACKEND_TARGETS}
+            RUNTIME DESTINATION .
+            LIBRARY DESTINATION .
+            ARCHIVE DESTINATION .
+        )
+    endif()
 endif()
 
 
