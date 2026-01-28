@@ -15,21 +15,21 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  build-wheels:
-    name: Build Python Wheels (Windows | CUDA 12.8 | Python 3.11)
-    runs-on: windows-2022
+  cuda-cmake-check:
+    name: CUDA CMake Check (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2022
+          - ubuntu-22.04
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-          submodules: true
-
-      - name: Setup Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
 
       - name: Setup CUDA 12.8
         uses: Jimver/cuda-toolkit@v0.2.30
@@ -42,51 +42,14 @@ jobs:
           echo "CUDA_PATH: $CUDA_PATH"
           nvcc --version
 
-      - name: Generate vcpkg.json
+      - name: CMake configure (find CUDAToolkit)
         shell: bash
         run: |
-          mkdir -p build
-          python scripts/gen_vcpkg_json.py build --with_cuda_backend=ON
-
-      - name: Setup vcpkg
-        uses: johnwason/vcpkg-action@v6
-        with:
-          manifest-dir: ${{ github.workspace }}/build
-          triplet: x64-windows-release
-          cache-key: windows-2022
-          revision: master
-          token: ${{ github.token }}
-          github-binarycache: true
-
-      - name: Set wheel version
-        shell: bash
-        run: |
-          VERSION=$(python - <<'PY'
-          import pathlib, tomllib
-          data = tomllib.loads(pathlib.Path("python/pyproject.toml").read_text())
-          print(data["project"]["version"])
-          PY
-          )
-          echo "SKBUILD_PROJECT_VERSION=${VERSION}+cu128" >> "$GITHUB_ENV"
-
-      - name: Build wheel
-        shell: bash
-        env:
-          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
-        run: |
-          pip install build
-          cd python
-          python -m build --wheel \
-            -C cmake.args="-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
-            -C cmake.args="-DVCPKG_TARGET_TRIPLET=x64-windows-release" \
-            -C cmake.args="-DVCPKG_MANIFEST_MODE=OFF" \
-            -C cmake.args="-DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg/installed" \
-            -C cmake.args="-DUIPC_USING_LOCAL_VCPKG=OFF" \
-            -C cmake.args="-DUIPC_CI_BUILD_WHEEL=ON" \
-            -C cmake.args="-DUIPC_CI_CUDA_ARCHITECTURES=89"
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheelhouse-windows-cu128
-          path: python/dist/*.whl
+          mkdir -p "${{ github.workspace }}/cuda-check"
+          cat > "${{ github.workspace }}/cuda-check/CMakeLists.txt" <<'CMAKE'
+          cmake_minimum_required(VERSION 3.20)
+          project(cuda_check LANGUAGES CXX CUDA)
+          find_package(CUDAToolkit REQUIRED)
+          message(STATUS "CUDAToolkit_VERSION=${CUDAToolkit_VERSION}")
+          CMAKE
+          cmake -S "${{ github.workspace }}/cuda-check" -B "${{ github.workspace }}/build/cuda-check"

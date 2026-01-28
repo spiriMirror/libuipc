@@ -21,7 +21,7 @@
                 "UIPC_BUILD_EXAMPLES": "ON",
                 "UIPC_BUILD_TESTS": "ON",
                 "UIPC_BUILD_BENCHMARKS": "ON",
-                "UIPC_DEV_MODE": "ON",
+                "UIPC_DEV_MODE": "OFF",
                 "UIPC_WITH_CUDA_BACKEND": "ON",
                 "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
             }
@@ -42,10 +42,10 @@
             }
         },
         {
-            "name": "pybind-release",
-            "displayName": "Config Pybind Release",
-            "description": "Release build with Python bindings enabled",
-            "inherits": "release",
+            "name": "pybind-base",
+            "hidden": true,
+            "displayName": "base Pybind Configuration",
+            "description": "Common settings for Python bindings builds",
             "cacheVariables": {
                 "UIPC_BUILD_PYBIND": "ON",
                 "UIPC_BUILD_EXAMPLES": "OFF",
@@ -55,16 +55,19 @@
             }
         },
         {
+            "name": "pybind-release",
+            "displayName": "Config Pybind Release",
+            "description": "Release build with Python bindings enabled",
+            "inherits": ["release", "pybind-base"],
+            "cacheVariables": {}
+        },
+        {
             "name": "pybind-dev",
             "displayName": "Config Pybind Dev",
             "description": "RelWithDebInfo build with Python bindings enabled",
-            "inherits": "config-base",
+            "inherits": ["config-base", "pybind-base"],
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "UIPC_BUILD_PYBIND": "ON",
-                "UIPC_BUILD_EXAMPLES": "OFF",
-                "UIPC_BUILD_TESTS": "OFF",
-                "UIPC_BUILD_BENCHMARKS": "OFF",
                 "UIPC_PYTHON_POST_BUILD": "ON",
                 "UIPC_PYTHON_EXECUTABLE_PATH": "$env{PYTHON}"
             }

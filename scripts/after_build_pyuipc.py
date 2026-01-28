@@ -56,7 +56,7 @@ def copy_python_source_code(src_dir, bin_dir):
 
 def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
     shared_lib_exts = ['.so', '.dylib', '.dll']
-    target_dir = binary_dir / 'python' / 'src' / 'uipc' / 'modules' / config / 'bin'
+    target_dir = binary_dir / 'python' / 'src' / 'uipc' / '_native' / config / 'bin'
     shared_lib_dir = binary_dir / config / 'bin'
     
     if not os.path.exists(target_dir):

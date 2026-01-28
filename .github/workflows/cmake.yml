@@ -66,13 +66,15 @@ jobs:
         env:
           VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
         run: |
-          cmake --preset release
+          mkdir -p "${{ github.workspace }}/build"
+          python scripts/gen_vcpkg_json.py "${{ github.workspace }}/build" --with_cuda_backend=ON
 
       - name: Setup vcpkg
         id: vcpkg
         uses: johnwason/vcpkg-action@v6
         with:
           manifest-dir: "${{ github.workspace }}/build"
+          
           triplet: ${{ matrix.os == 'windows-2022' && 'x64-windows-release' || 'x64-linux' }}
           cache-key: ${{ matrix.os }}
           revision: master
