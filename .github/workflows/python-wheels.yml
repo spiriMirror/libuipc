@@ -36,16 +36,12 @@ jobs:
         id: cuda-toolkit
         with:
           cuda: "12.8.1"
-          log-file-suffix: 'windows-cu128.txt'
 
       - name: Verify CUDA installation
         shell: bash
         run: |
-          echo "=== CUDA Environment ==="
           echo "CUDA_PATH: $CUDA_PATH"
-          echo "=== nvcc version ==="
           nvcc --version
-          echo "=== CUDA installation verified ==="
 
       - name: Set wheel version
         shell: bash
@@ -57,47 +53,10 @@ jobs:
           PY
           )
           echo "SKBUILD_PROJECT_VERSION=${VERSION}+cu128" >> "$GITHUB_ENV"
-          echo "Wheel version: ${VERSION}+cu128"
 
-      - name: Generate vcpkg.json
-        continue-on-error: true
-        env:
-          VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
-        run: cmake --preset release
-
-      - name: Setup vcpkg
-        id: vcpkg
-        uses: johnwason/vcpkg-action@v6
-        with:
-          manifest-dir: "${{ github.workspace }}/build"
-          triplet: x64-windows-release
-          cache-key: windows-2022
-          revision: master
-          token: ${{ github.token }}
-          github-binarycache: true
-          fetch-depth: '0'
-
-      - name: Build wheel with pip
+      - name: Build wheel
         shell: bash
-        env:
-          VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
         run: |
-          echo "=== Installing build dependencies ==="
-          pip install build scikit-build-core
-
-          echo "=== Building wheel ==="
+          pip install build
           cd python
-          python -m build --wheel \
-            -C cmake.args="-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
-            -C cmake.args="-DVCPKG_TARGET_TRIPLET=x64-windows-release" \
-            -C cmake.args="-DVCPKG_MANIFEST_MODE=OFF" \
-            -C cmake.args="-DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg/installed" \
-            -C cmake.args="-DUIPC_USING_LOCAL_VCPKG=OFF" \
-            -C cmake.args="-DUIPC_CI_BUILD_WHEEL=ON" \
-            -C cmake.args="-DUIPC_CI_CUDA_ARCHITECTURES=89"
-
-      - name: Upload wheels
-        uses: actions/upload-artifact@v4
-        with:
-          name: wheelhouse-windows-cu128
-          path: python/dist/*.whl
+          python -m build --wheel
