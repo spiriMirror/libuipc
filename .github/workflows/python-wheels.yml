@@ -48,20 +48,12 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY"
           df -h
 
-      - name: Setup cuda
-        uses: Jimver/cuda-toolkit@v0.2.30
-        id: cuda-toolkit
-        with:
-          cuda: "${{ matrix.CUDA_VERSION }}"
-          linux-local-args: '["--toolkit"]'
-          log-file-suffix: '${{ matrix.OS }}-${{ matrix.CUDA_TAG }}.txt'
-
       - name: Set wheel version (Linux)
         if: matrix.OS == 'ubuntu-24.04'
         run: |
           VERSION=$(python - <<'PY'
           import pathlib, tomllib
-          data = tomllib.loads(pathlib.Path("python/pyproject.toml").read_bytes())
+          data = tomllib.loads(pathlib.Path("python/pyproject.toml").read_text())
           print(data["project"]["version"])
           PY
           )
@@ -73,11 +65,19 @@ jobs:
         run: |
           $version = (python - <<'PY'
           import pathlib, tomllib
-          data = tomllib.loads(pathlib.Path("python/pyproject.toml").read_bytes())
+          data = tomllib.loads(pathlib.Path("python/pyproject.toml").read_text())
           print(data["project"]["version"])
           PY
           )
           "SKBUILD_PROJECT_VERSION=$version+${{ matrix.CUDA_TAG }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+      
+      - name: Setup cuda
+        uses: Jimver/cuda-toolkit@v0.2.30
+        id: cuda-toolkit
+        with:
+          cuda: "${{ matrix.CUDA_VERSION }}"
+          linux-local-args: '["--toolkit"]'
+          log-file-suffix: '${{ matrix.OS }}-${{ matrix.CUDA_TAG }}.txt'
 
       - name: Setup vcpkg
         id: vcpkg
