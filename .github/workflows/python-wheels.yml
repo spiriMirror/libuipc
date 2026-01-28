@@ -108,6 +108,8 @@ jobs:
           # Linux: clone and bootstrap vcpkg inside the manylinux container
           # This ensures packages are built from source and are manylinux-compatible
           CIBW_BEFORE_ALL_LINUX: |
+            echo "=== Installing vcpkg dependencies ==="
+            yum install -y zip unzip tar curl perl-IPC-Cmd
             echo "=== Cloning vcpkg ==="
             git clone https://github.com/microsoft/vcpkg.git /opt/vcpkg
             cd /opt/vcpkg && git checkout 2025.01.13
