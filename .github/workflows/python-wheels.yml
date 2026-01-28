@@ -106,20 +106,24 @@ jobs:
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
 
           # Linux: clone and bootstrap vcpkg inside the manylinux container
-          # This ensures packages are built from source and are manylinux-compatible
+          # Pre-install packages so CMake can find them (VCPKG_MANIFEST_MODE=OFF)
           CIBW_BEFORE_ALL_LINUX: |
-            echo "=== Installing vcpkg dependencies ==="
-            yum install -y zip unzip tar curl perl-IPC-Cmd
+            echo "=== Installing system dependencies ==="
+            yum install -y zip unzip tar curl perl-IPC-Cmd ninja-build
             echo "=== Cloning vcpkg ==="
             git clone https://github.com/microsoft/vcpkg.git /opt/vcpkg
             cd /opt/vcpkg && git checkout 2025.01.13
             echo "=== Bootstrapping vcpkg ==="
             /opt/vcpkg/bootstrap-vcpkg.sh
+            echo "=== Generating vcpkg manifest ==="
+            cd /project && python3 scripts/gen_vcpkg_json.py /opt/vcpkg --with_cuda_backend=ON
+            echo "=== Installing vcpkg packages ==="
+            /opt/vcpkg/vcpkg install --triplet x64-linux --x-manifest-root=/opt/vcpkg
             echo "=== vcpkg ready ==="
 
           CIBW_ENVIRONMENT_LINUX: >-
             VCPKG_ROOT=/opt/vcpkg
-            SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-linux;-DUIPC_PYTHON_EXECUTABLE_PATH={python};-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}'
+            SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-linux;-DVCPKG_MANIFEST_MODE=OFF;-DVCPKG_INSTALLED_DIR=/opt/vcpkg/installed;-DUIPC_PYTHON_EXECUTABLE_PATH={python};-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}'
             SKBUILD_PROJECT_VERSION=${{ env.SKBUILD_PROJECT_VERSION }}
             UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}
 
