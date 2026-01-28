@@ -33,7 +33,6 @@ jobs:
 
       - name: Setup CUDA 12.8
         uses: Jimver/cuda-toolkit@v0.2.30
-        id: cuda-toolkit
         with:
           cuda: "12.8.1"
 
@@ -42,6 +41,19 @@ jobs:
         run: |
           echo "CUDA_PATH: $CUDA_PATH"
           nvcc --version
+
+      - name: Generate vcpkg.json
+        run: python scripts/gen_vcpkg_json.py build --with_cuda_backend=ON
+
+      - name: Setup vcpkg
+        uses: johnwason/vcpkg-action@v6
+        with:
+          manifest-dir: build
+          triplet: x64-windows-release
+          cache-key: windows-2022
+          revision: master
+          token: ${{ github.token }}
+          github-binarycache: true
 
       - name: Set wheel version
         shell: bash
@@ -56,7 +68,22 @@ jobs:
 
       - name: Build wheel
         shell: bash
+        env:
+          VCPKG_ROOT: ${{ github.workspace }}/vcpkg
         run: |
           pip install build
           cd python
-          python -m build --wheel
+          python -m build --wheel \
+            -C cmake.args="-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" \
+            -C cmake.args="-DVCPKG_TARGET_TRIPLET=x64-windows-release" \
+            -C cmake.args="-DVCPKG_MANIFEST_MODE=OFF" \
+            -C cmake.args="-DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg/installed" \
+            -C cmake.args="-DUIPC_USING_LOCAL_VCPKG=OFF" \
+            -C cmake.args="-DUIPC_CI_BUILD_WHEEL=ON" \
+            -C cmake.args="-DUIPC_CI_CUDA_ARCHITECTURES=89"
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheelhouse-windows-cu128
+          path: python/dist/*.whl
