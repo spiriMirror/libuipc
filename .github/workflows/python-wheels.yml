@@ -51,7 +51,7 @@ jobs:
       - name: Set wheel version (Linux)
         if: matrix.OS == 'ubuntu-24.04'
         run: |
-          VERSION=$(python - <<'PY'
+          VERSION=$(python3 - <<'PY'
           import pathlib, tomllib
           data = tomllib.loads(pathlib.Path("python/pyproject.toml").read_text())
           print(data["project"]["version"])
@@ -70,7 +70,7 @@ jobs:
           PY
           )
           echo "SKBUILD_PROJECT_VERSION=${VERSION}+${{ matrix.CUDA_TAG }}" >> "$GITHUB_ENV"
-      
+
       - name: Setup cuda
         uses: Jimver/cuda-toolkit@v0.2.30
         id: cuda-toolkit
@@ -79,39 +79,55 @@ jobs:
           linux-local-args: '["--toolkit"]'
           log-file-suffix: '${{ matrix.OS }}-${{ matrix.CUDA_TAG }}.txt'
 
-      - name: Generate vcpkg.json
+      # Windows: pre-install vcpkg packages on host (no Docker)
+      - name: Generate vcpkg.json (Windows)
+        if: matrix.OS == 'windows-2022'
         continue-on-error: true
         env:
           VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
         run: cmake --preset release
 
-      - name: Setup vcpkg
+      - name: Setup vcpkg (Windows)
+        if: matrix.OS == 'windows-2022'
         id: vcpkg
         uses: johnwason/vcpkg-action@v6
         with:
           manifest-dir: "${{ github.workspace }}/build"
-          triplet: ${{ matrix.OS == 'windows-2022' && 'x64-windows-release' || 'x64-linux' }}
-          cache-key: ${{ matrix.OS }}
+          triplet: x64-windows-release
+          cache-key: windows-2022
           revision: master
           token: ${{ github.token }}
           github-binarycache: true
           fetch-depth: '0'
 
-      - name: Set cibuildwheel env (Linux)
-        if: matrix.OS == 'ubuntu-24.04'
-        run: |
-          echo "CIBW_ENVIRONMENT_LINUX=SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-linux;-DUIPC_PYTHON_EXECUTABLE_PATH={python};-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}' SKBUILD_PROJECT_VERSION=${{ env.SKBUILD_PROJECT_VERSION }} UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}" >> "$GITHUB_ENV"
-
-      - name: Set cibuildwheel env (Windows)
-        if: matrix.OS == 'windows-2022'
-        shell: bash
-        run: |
-          echo "CIBW_ENVIRONMENT_WINDOWS=SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-windows-release;-DUIPC_PYTHON_EXECUTABLE_PATH={python};-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}' SKBUILD_PROJECT_VERSION=${{ env.SKBUILD_PROJECT_VERSION }} UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}" >> "$GITHUB_ENV"
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.1.0
         env:
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
+
+          # Linux: clone and bootstrap vcpkg inside the manylinux container
+          # This ensures packages are built from source and are manylinux-compatible
+          CIBW_BEFORE_ALL_LINUX: |
+            echo "=== Cloning vcpkg ==="
+            git clone https://github.com/microsoft/vcpkg.git /opt/vcpkg
+            cd /opt/vcpkg && git checkout 2025.01.13
+            echo "=== Bootstrapping vcpkg ==="
+            /opt/vcpkg/bootstrap-vcpkg.sh
+            echo "=== vcpkg ready ==="
+
+          CIBW_ENVIRONMENT_LINUX: >-
+            VCPKG_ROOT=/opt/vcpkg
+            SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-linux;-DUIPC_PYTHON_EXECUTABLE_PATH={python};-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}'
+            SKBUILD_PROJECT_VERSION=${{ env.SKBUILD_PROJECT_VERSION }}
+            UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}
+
+          # Windows: use pre-installed vcpkg packages (no Docker, direct host access)
+          CIBW_ENVIRONMENT_WINDOWS: >-
+            VCPKG_ROOT=${{ github.workspace }}/vcpkg
+            SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-windows-release;-DVCPKG_MANIFEST_MODE=OFF;-DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg/installed;-DUIPC_PYTHON_EXECUTABLE_PATH={python};-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}'
+            SKBUILD_PROJECT_VERSION=${{ env.SKBUILD_PROJECT_VERSION }}
+            UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}
+
         with:
           package-dir: python
           output-dir: wheelhouse
