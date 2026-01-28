@@ -195,19 +195,21 @@ class SceneGUI:
         if N is None:
             return
         
-        normal = N.view()[0]
+        normal = N.view()[0].flatten()
+        point = P.view()[0].flatten()
         
-        normal = normal.flatten()
+        #print(normal)
         if np.allclose(normal, [0, 1, 0]):
             ps.set_up_dir("y_up")
+            height = point[1]
         elif np.allclose(normal, [1, 0, 0]):
             ps.set_up_dir("x_up")
+            height = point[0]
         elif np.allclose(normal, [0, 0, 1]):
             ps.set_up_dir("z_up")
+            height = point[2]
         else:
             return
-        
-        height = float(P.view()[0][1][0])
         ps.set_ground_plane_height(height)
 
     def update(self):
