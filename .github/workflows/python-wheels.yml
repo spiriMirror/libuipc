@@ -131,14 +131,14 @@ jobs:
 
           CIBW_ENVIRONMENT_LINUX: >-
             VCPKG_ROOT=/opt/vcpkg
-            SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-linux;-DVCPKG_MANIFEST_MODE=OFF;-DVCPKG_INSTALLED_DIR=/opt/vcpkg/installed;-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}'
+            SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-linux;-DVCPKG_MANIFEST_MODE=OFF;-DVCPKG_INSTALLED_DIR=/opt/vcpkg/installed;-DUIPC_USING_LOCAL_VCPKG=OFF;-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}'
             SKBUILD_PROJECT_VERSION=${{ env.SKBUILD_PROJECT_VERSION }}
             UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}
 
           # Windows: use pre-installed vcpkg packages (no Docker, direct host access)
           CIBW_ENVIRONMENT_WINDOWS: >-
             VCPKG_ROOT=${{ github.workspace }}/vcpkg
-            SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-windows-release;-DVCPKG_MANIFEST_MODE=OFF;-DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg/installed;-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}'
+            SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-windows-release;-DVCPKG_MANIFEST_MODE=OFF;-DVCPKG_INSTALLED_DIR=${{ github.workspace }}/vcpkg/installed;-DUIPC_USING_LOCAL_VCPKG=OFF;-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}'
             SKBUILD_PROJECT_VERSION=${{ env.SKBUILD_PROJECT_VERSION }}
             UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}
 
