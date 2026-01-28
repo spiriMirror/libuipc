@@ -37,10 +37,10 @@ jobs:
           remove-codeql: 'true'
 
       - name: Setup cuda
-        uses: Jimver/cuda-toolkit@v0.2.30
+        uses: Jimver/cuda-toolkit@v0.2.20
         id: cuda-toolkit
         with:
-          cuda: '12.8.1'
+          cuda: '12.6.3'
 
       - name: Setup ninja
         if: matrix.os == 'ubuntu-22.04'
@@ -84,5 +84,5 @@ jobs:
         env:
           VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
         run: |
-          cmake --preset ci-release -DUIPC_CI_CUDA_ARCHITECTURES=89
+          cmake --preset ci-release -DUIPC_CI_CUDA_ARCHITECTURE=89
           cmake --build --preset ci-release --parallel 4

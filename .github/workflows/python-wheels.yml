@@ -40,11 +40,21 @@ jobs:
           show-progress: true
           submodules: true
 
+      - name: Free up disk space (Linux)
+        if: matrix.OS == 'ubuntu-24.04'
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /opt/ghc
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          df -h
+
       - name: Setup cuda
         uses: Jimver/cuda-toolkit@v0.2.30
         id: cuda-toolkit
         with:
           cuda: "${{ matrix.CUDA_VERSION }}"
+          linux-local-args: '["--toolkit"]'
+          log-file-suffix: '${{ matrix.OS }}-${{ matrix.CUDA_TAG }}.txt'
 
       - name: Set wheel version (Linux)
         if: matrix.OS == 'ubuntu-24.04'
@@ -68,19 +78,6 @@ jobs:
           PY
           )
           "SKBUILD_PROJECT_VERSION=$version+${{ matrix.CUDA_TAG }}" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: Set parallelism (Linux)
-        if: matrix.OS == 'ubuntu-24.04'
-        run: |
-          echo "CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)" >> "$GITHUB_ENV"
-          echo "VCPKG_MAX_CONCURRENCY=$(nproc)" >> "$GITHUB_ENV"
-
-      - name: Set parallelism (Windows)
-        if: matrix.OS == 'windows-2022'
-        shell: pwsh
-        run: |
-          "CMAKE_BUILD_PARALLEL_LEVEL=$env:NUMBER_OF_PROCESSORS" | Out-File -FilePath $env:GITHUB_ENV -Append
-          "VCPKG_MAX_CONCURRENCY=$env:NUMBER_OF_PROCESSORS" | Out-File -FilePath $env:GITHUB_ENV -Append
 
       - name: Setup vcpkg
         id: vcpkg
