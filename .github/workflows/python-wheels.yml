@@ -79,6 +79,12 @@ jobs:
           linux-local-args: '["--toolkit"]'
           log-file-suffix: '${{ matrix.OS }}-${{ matrix.CUDA_TAG }}.txt'
 
+      - name: Generate vcpkg.json
+        continue-on-error: true
+        env:
+          VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
+        run: cmake --preset release
+
       - name: Setup vcpkg
         id: vcpkg
         uses: johnwason/vcpkg-action@v6
