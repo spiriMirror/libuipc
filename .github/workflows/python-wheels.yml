@@ -26,9 +26,11 @@ jobs:
           - CUDA_TAG: cu128
             CUDA_VERSION: "12.8.1"
             CUDA_ARCH: "89"
+            CUDA_PATH: "/usr/local/cuda-12.8"
           - CUDA_TAG: cu130
             CUDA_VERSION: "13.0.0"
             CUDA_ARCH: "89"
+            CUDA_PATH: "/usr/local/cuda-13.0"
 
     runs-on: ${{ matrix.OS }}
 
@@ -104,6 +106,9 @@ jobs:
         uses: pypa/cibuildwheel@v3.1.0
         env:
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
+          CIBW_CONTAINER_ENGINE_ARGS: >-
+            -v ${{ matrix.CUDA_PATH }}:${{ matrix.CUDA_PATH }}
+            -v /usr/local/cuda:/usr/local/cuda
 
           # Linux: clone and bootstrap vcpkg inside the manylinux container
           # Pre-install packages so CMake can find them (VCPKG_MANIFEST_MODE=OFF)
@@ -123,6 +128,10 @@ jobs:
 
           CIBW_ENVIRONMENT_LINUX: >-
             VCPKG_ROOT=/opt/vcpkg
+            CUDAToolkit_ROOT=${{ matrix.CUDA_PATH }}
+            CMAKE_CUDA_COMPILER=${{ matrix.CUDA_PATH }}/bin/nvcc
+            PATH=${{ matrix.CUDA_PATH }}/bin:$PATH
+            LD_LIBRARY_PATH=${{ matrix.CUDA_PATH }}/lib64:$LD_LIBRARY_PATH
             SKBUILD_CMAKE_ARGS='-DCMAKE_TOOLCHAIN_FILE=/opt/vcpkg/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-linux;-DVCPKG_MANIFEST_MODE=OFF;-DVCPKG_INSTALLED_DIR=/opt/vcpkg/installed;-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}'
             SKBUILD_PROJECT_VERSION=${{ env.SKBUILD_PROJECT_VERSION }}
             UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}
