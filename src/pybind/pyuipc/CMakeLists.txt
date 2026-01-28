@@ -35,7 +35,32 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
 uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH} "mypy")
 uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH}  "numpy")
 
-# after build pyuipc, call the script to copy the dependent shared libraries to python package
+# Install pyuipc into the wheel staging directory.
+install(TARGETS pyuipc
+    RUNTIME DESTINATION .
+    LIBRARY DESTINATION .
+    ARCHIVE DESTINATION .
+)
+
+# Install vcpkg runtime dependencies alongside the extension.
+if(WIN32)
+    install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/"
+        DESTINATION .
+        FILES_MATCHING PATTERN "*.dll"
+    )
+else()
+    install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/"
+        DESTINATION .
+        FILES_MATCHING PATTERN "*.so*" PATTERN "*.dylib"
+    )
+    install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/"
+        DESTINATION .
+        FILES_MATCHING PATTERN "*.so*" PATTERN "*.dylib"
+    )
+endif()
+
+# After build pyuipc, call the script to copy the dependent shared libraries to python package.
+set(UIPC_PYTHON_STUB_OUTPUT_DIR "${CMAKE_BINARY_DIR}/python/src")
 add_custom_command(TARGET pyuipc POST_BUILD
     COMMAND ${UIPC_PYTHON_EXECUTABLE_PATH} 
     ARGS
@@ -44,7 +69,13 @@ add_custom_command(TARGET pyuipc POST_BUILD
     "--binary_dir=${CMAKE_BINARY_DIR}"
     "--config=$<CONFIG>"
     "--build_type=${CMAKE_BUILD_TYPE}"
+    "--stub-output=${UIPC_PYTHON_STUB_OUTPUT_DIR}"
+    $<$<BOOL:${UIPC_CI_BUILD_WHEEL}>:--skip-install>
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     COMMENT "Copying pyuipc dependent shared libraries to python package"
+)
+install(DIRECTORY "${UIPC_PYTHON_STUB_OUTPUT_DIR}/pyuipc/"
+    DESTINATION pyuipc
+    FILES_MATCHING PATTERN "*.pyi"
 )
 

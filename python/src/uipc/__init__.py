@@ -8,10 +8,10 @@ this_file_dir = os.path.dirname(__file__)
 if sys.platform not in ['win32', 'linux', 'darwin']:
     raise Exception('Unsupported platform: ' + sys.platform)
 
-sys.path.append(this_file_dir + '/modules/Release/bin')
-sys.path.append(this_file_dir + '/modules/RelWithDebInfo/bin')
-sys.path.append(this_file_dir + '/modules/releasedbg')
-sys.path.append(this_file_dir + '/modules/release')
+sys.path.append(this_file_dir + '/_native/Release/bin')
+sys.path.append(this_file_dir + '/_native/RelWithDebInfo/bin')
+sys.path.append(this_file_dir + '/_native/releasedbg')
+sys.path.append(this_file_dir + '/_native/release')
 
 import pyuipc
 

@@ -9,6 +9,11 @@
 # set_target_properties(my_lib PROPERTIES FOLDER "external") # optional, organize in IDEs
 
 if (UIPC_WITH_CUDA_BACKEND)
+    if(DEFINED UIPC_CI_CUDA_ARCHITECTURES AND NOT "${UIPC_CI_CUDA_ARCHITECTURES}" STREQUAL "")
+        set(CMAKE_CUDA_ARCHITECTURES "${UIPC_CI_CUDA_ARCHITECTURES}")
+    else()
+        set(CMAKE_CUDA_ARCHITECTURES "native")
+    endif()
     uipc_init_submodule(muda)
     # Turn off example builds in muda
     set(MUDA_BUILD_EXAMPLE OFF CACHE BOOL "Build muda example" FORCE)

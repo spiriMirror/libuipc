@@ -105,17 +105,22 @@ function(uipc_config_vcpkg_install)
         "--with_usd_support=${UIPC_WITH_USD_SUPPORT}" # pass the UIPC_WITH_USD_SUPPORT as argument
         "--with_vdb_support=${UIPC_WITH_VDB_SUPPORT}" # pass the UIPC_WITH_VDB_SUPPORT as argument
         "--with_cuda_backend=${UIPC_WITH_CUDA_BACKEND}" # pass the UIPC_WITH_CUDA_BACKEND as argument
-        RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
+        OUTPUT_VARIABLE VCPKG_JSON_GENERATE_OUTPUT
+        RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT
+        ECHO_OUTPUT_VARIABLE # also print output to console
     )
 
-    # set VCPKG_MANIFEST_INSTALL option to control the vcpkg install
-    if(VCPKG_JSON_GENERATE_RESULT)
+    # check if the script ran successfully (exit code 0)
+    if(NOT VCPKG_JSON_GENERATE_RESULT EQUAL 0)
+        uipc_error("gen_vcpkg_json.py failed with exit code ${VCPKG_JSON_GENERATE_RESULT}")
+    endif()
+
+    # parse the output to determine if vcpkg install is needed
+    # the script outputs "VCPKG_MANIFEST_CHANGED=1" or "VCPKG_MANIFEST_CHANGED=0"
+    if(VCPKG_JSON_GENERATE_OUTPUT MATCHES "VCPKG_MANIFEST_CHANGED=1")
         set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)
     else()
         set(VCPKG_MANIFEST_INSTALL OFF CACHE BOOL "" FORCE)
-    endif()
-    if(UIPC_GITHUB_ACTIONS)
-        set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)
     endif()
     # message(STATUS "VCPKG_MANIFEST_INSTALL: ${VCPKG_MANIFEST_INSTALL}")
 
@@ -233,23 +238,48 @@ function(uipc_init_submodule target)
 endfunction()
 
 # -----------------------------------------------------------------------------------------
-# Require a python module, if not found, try to install it with pip
+# Require pip module, if not found, try to install it
 # -----------------------------------------------------------------------------------------
-function(uipc_require_python_module python_dir module_name)
-
-file(TO_CMAKE_PATH "${python_dir}" python_dir)
-    uipc_info("Check python module [${module_name}] with [${python_dir}]")
-
+function(uipc_require_pip_ensure python_dir)
     execute_process(COMMAND ${python_dir}
-        "-c" "import ${module_name}"
+        "-c" "import pip"
         RESULT_VARIABLE CMD_RESULT
         OUTPUT_QUIET
     )
 
     if (NOT CMD_RESULT EQUAL 0)
+        uipc_info("pip not available, trying ensurepip...")
+        execute_process(COMMAND ${python_dir} "-m" "ensurepip" "--upgrade"
+            RESULT_VARIABLE ENSUREPIP_RESULT)
+        if (NOT ENSUREPIP_RESULT EQUAL 0)
+            uipc_error("Python [${python_dir}] failed to bootstrap pip. Please install pip manually.")
+        endif()
+    endif()
+endfunction()
+
+
+
+
+# -----------------------------------------------------------------------------------------
+# Require a python module, if not found, try to install it with pip
+# -----------------------------------------------------------------------------------------
+function(uipc_require_python_module python_dir module_name)
+    uipc_require_pip_ensure(${python_dir})
+
+    file(TO_CMAKE_PATH "${python_dir}" python_dir)
+    uipc_info("Check python module [${module_name}] with [${python_dir}]")
+
+    # check if the module is installed
+    execute_process(COMMAND ${python_dir}
+        "-c" "import ${module_name}"
+        RESULT_VARIABLE CMD_RESULT
+        OUTPUT_QUIET
+    )
+    
+    if (NOT CMD_RESULT EQUAL 0)
         uipc_info("${module_name} not found, try installing ${module_name}...")
         execute_process(COMMAND ${python_dir} "-m" "pip" "install" "${module_name}"
-        RESULT_VARIABLE INSTALL_RESULT)
+            RESULT_VARIABLE INSTALL_RESULT)
         if (NOT INSTALL_RESULT EQUAL 0)
             uipc_error("Python [${python_dir}] failed to install [${module_name}], please install it manually.")
         else()
@@ -258,7 +288,6 @@ file(TO_CMAKE_PATH "${python_dir}" python_dir)
     else()
         uipc_info("[${module_name}] found with [${python_dir}].")
     endif()
-
 endfunction()
 
 # -----------------------------------------------------------------------------------------

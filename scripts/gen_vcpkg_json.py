@@ -251,13 +251,16 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     print_basic_info(args)
-    
+
     config_change = write_vcpkg_configuration(args)
-    
+
     deps_change = write_vcpkg_json(args)
 
-    ret_code = 0
+    # Output a parseable marker for CMake to read
+    # Exit code 0 means success (CI-friendly), CMake parses the output to determine if install is needed
     if config_change or deps_change:
-        ret_code = 1
-    
-    exit(ret_code)
+        print('[libuipc] VCPKG_MANIFEST_CHANGED=1')
+    else:
+        print('[libuipc] VCPKG_MANIFEST_CHANGED=0')
+
+    exit(0)
