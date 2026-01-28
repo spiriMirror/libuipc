@@ -43,7 +43,10 @@ jobs:
           nvcc --version
 
       - name: Generate vcpkg.json
-        run: python scripts/gen_vcpkg_json.py build --with_cuda_backend=ON
+        shell: bash
+        run: |
+          mkdir -p build
+          python scripts/gen_vcpkg_json.py build --with_cuda_backend=ON
 
       - name: Setup vcpkg
         uses: johnwason/vcpkg-action@v6
