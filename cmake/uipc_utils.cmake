@@ -105,11 +105,19 @@ function(uipc_config_vcpkg_install)
         "--with_usd_support=${UIPC_WITH_USD_SUPPORT}" # pass the UIPC_WITH_USD_SUPPORT as argument
         "--with_vdb_support=${UIPC_WITH_VDB_SUPPORT}" # pass the UIPC_WITH_VDB_SUPPORT as argument
         "--with_cuda_backend=${UIPC_WITH_CUDA_BACKEND}" # pass the UIPC_WITH_CUDA_BACKEND as argument
-        RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
+        OUTPUT_VARIABLE VCPKG_JSON_GENERATE_OUTPUT
+        RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT
+        ECHO_OUTPUT_VARIABLE # also print output to console
     )
 
-    # set VCPKG_MANIFEST_INSTALL option to control the vcpkg install
-    if(VCPKG_JSON_GENERATE_RESULT)
+    # check if the script ran successfully (exit code 0)
+    if(NOT VCPKG_JSON_GENERATE_RESULT EQUAL 0)
+        uipc_error("gen_vcpkg_json.py failed with exit code ${VCPKG_JSON_GENERATE_RESULT}")
+    endif()
+
+    # parse the output to determine if vcpkg install is needed
+    # the script outputs "VCPKG_MANIFEST_CHANGED=1" or "VCPKG_MANIFEST_CHANGED=0"
+    if(VCPKG_JSON_GENERATE_OUTPUT MATCHES "VCPKG_MANIFEST_CHANGED=1")
         set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)
     else()
         set(VCPKG_MANIFEST_INSTALL OFF CACHE BOOL "" FORCE)
