@@ -51,7 +51,7 @@ jobs:
       - name: Setup vcpkg
         uses: johnwason/vcpkg-action@v6
         with:
-          manifest-dir: build
+          manifest-dir: ${{ github.workspace }}/build
           triplet: x64-windows-release
           cache-key: windows-2022
           revision: master
