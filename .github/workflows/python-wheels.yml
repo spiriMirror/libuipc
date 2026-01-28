@@ -40,11 +40,6 @@ jobs:
           show-progress: true
           submodules: true
 
-      - name: Generate vcpkg manifest
-        run: |
-          mkdir build
-          python scripts/gen_vcpkg_json.py build
-
       - name: Setup cuda
         uses: Jimver/cuda-toolkit@v0.2.20
         id: cuda-toolkit
