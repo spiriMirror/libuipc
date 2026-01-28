@@ -61,15 +61,15 @@ jobs:
 
       - name: Set wheel version (Windows)
         if: matrix.OS == 'windows-2022'
-        shell: pwsh
+        shell: bash
         run: |
-          $version = (python - <<'PY'
+          VERSION=$(python - <<'PY'
           import pathlib, tomllib
           data = tomllib.loads(pathlib.Path("python/pyproject.toml").read_text())
           print(data["project"]["version"])
           PY
           )
-          "SKBUILD_PROJECT_VERSION=$version+${{ matrix.CUDA_TAG }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "SKBUILD_PROJECT_VERSION=${VERSION}+${{ matrix.CUDA_TAG }}" >> "$GITHUB_ENV"
       
       - name: Setup cuda
         uses: Jimver/cuda-toolkit@v0.2.30
@@ -98,9 +98,9 @@ jobs:
 
       - name: Set cibuildwheel env (Windows)
         if: matrix.OS == 'windows-2022'
-        shell: pwsh
+        shell: bash
         run: |
-          "CIBW_ENVIRONMENT_WINDOWS=SKBUILD_CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-windows-release;-DUIPC_PYTHON_EXECUTABLE_PATH={python};-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }} CMAKE_BUILD_PARALLEL_LEVEL=$env:CMAKE_BUILD_PARALLEL_LEVEL VCPKG_MAX_CONCURRENCY=$env:VCPKG_MAX_CONCURRENCY SKBUILD_PROJECT_VERSION=$env:SKBUILD_PROJECT_VERSION UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CIBW_ENVIRONMENT_WINDOWS=SKBUILD_CMAKE_ARGS=-DCMAKE_TOOLCHAIN_FILE=$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake;-DVCPKG_TARGET_TRIPLET=x64-windows-release;-DUIPC_PYTHON_EXECUTABLE_PATH={python};-DUIPC_CI_BUILD_WHEEL=ON;-DUIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }} CMAKE_BUILD_PARALLEL_LEVEL=$CMAKE_BUILD_PARALLEL_LEVEL VCPKG_MAX_CONCURRENCY=$VCPKG_MAX_CONCURRENCY SKBUILD_PROJECT_VERSION=$SKBUILD_PROJECT_VERSION UIPC_CI_CUDA_ARCHITECTURES=${{ matrix.CUDA_ARCH }}" >> "$GITHUB_ENV"
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.1.0
