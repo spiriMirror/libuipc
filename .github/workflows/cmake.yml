@@ -63,7 +63,7 @@ jobs:
 
       - name: Generate vcpkg.json
         run: |
-          mkdir -p "${{ github.workspace }}/build"
+          cmake -E make_directory "${{ github.workspace }}/build"
           python scripts/gen_vcpkg_json.py "${{ github.workspace }}/build" --with_cuda_backend=ON
 
       - name: Setup vcpkg
@@ -82,5 +82,5 @@ jobs:
         env:
           CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
         run: |
-          cmake --preset ci-release -DUIPC_CUDA_ARCHITECTURE=89
-          cmake --build --preset ci-release --parallel 4
+          cmake -S ${{ github.workspace }} -B ${{ github.workspace }}/build --preset ci-release -DUIPC_CUDA_ARCHITECTURES=89
+          cmake --build ${{ github.workspace }}/build --preset ci-release --parallel 4

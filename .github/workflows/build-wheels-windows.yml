@@ -35,7 +35,7 @@ jobs:
 
       - name: Generate vcpkg.json
         run: |
-          mkdir -p "${{ github.workspace }}/build"
+          cmake -E make_directory "${{ github.workspace }}/build"
           python scripts/gen_vcpkg_json.py "${{ github.workspace }}/build" --with_cuda_backend=ON
 
       - name: Setup vcpkg
@@ -50,21 +50,18 @@ jobs:
           github-binarycache: true
           fetch-depth: "0"
 
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v3.3.1
-
       - name: Setup CUDA ${{ matrix.cuda}}
         uses: Jimver/cuda-toolkit@v0.2.30
         with:
           cuda: "${{ matrix.cuda }}"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.1.0
+        uses: pypa/cibuildwheel@v3.3.1
         env:
           CIBW_BUILD: "cp311-*"
-          CIBW_BUILD_DIR: "${{ github.workspace }}/build/$"
+          CIBW_BUILD_DIR: "${{ github.workspace }}/build/"
           CIBW_ENVIRONMENT: >
             CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
-        
         with:
+          package-dir: python
           output-dir: build/wheelhouse
