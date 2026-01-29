@@ -37,36 +37,26 @@ uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH}  "numpy")
 
 # After build pyuipc, call the script to copy the dependent shared libraries to python package.
 set(UIPC_PYTHON_STUB_OUTPUT_DIR "${CMAKE_BINARY_DIR}/python/src")
-
-if(NOT UIPC_BUILD_PYTHON_WHEEL)
-    add_custom_command(TARGET pyuipc POST_BUILD
-        COMMAND ${UIPC_PYTHON_EXECUTABLE_PATH} 
-        ARGS
-        "${PROJECT_SOURCE_DIR}/scripts/after_build_pyuipc.py"
-        "--target=$<TARGET_FILE:pyuipc>"
-        "--binary_dir=${CMAKE_BINARY_DIR}"
-        "--config=$<CONFIG>"
-        "--build_type=${CMAKE_BUILD_TYPE}"
-        "--stub-output=${UIPC_PYTHON_STUB_OUTPUT_DIR}"
-        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-        COMMENT "Copying pyuipc dependent shared libraries to python package"
-    )
+set(SCRIPT  "")
+if(UIPC_BUILD_PYTHON_WHEEL)
+    set(SCRIPT "generate_stubs")
 else()
-    add_custom_command(TARGET pyuipc POST_BUILD
-        COMMAND ${UIPC_PYTHON_EXECUTABLE_PATH} 
-        ARGS
-        "${PROJECT_SOURCE_DIR}/scripts/generate_stubs.py"
-        "--target-dir=${CMAKE_BINARY_DIR}/python/src/uipc"
-        "--output-dir=${UIPC_PYTHON_STUB_OUTPUT_DIR}"
-        WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-        COMMENT "Generating stubs for pyuipc"
-    )
-    install(DIRECTORY "${UIPC_PYTHON_STUB_OUTPUT_DIR}/pyuipc/"
-        DESTINATION pyuipc
-        FILES_MATCHING PATTERN "*.pyi"
-    )
+    set(SCRIPT "after_build_pyuipc")
 endif()
 
+add_custom_command(
+    TARGET pyuipc POST_BUILD
+    COMMAND ${UIPC_PYTHON_EXECUTABLE_PATH} 
+    ARGS
+    "${PROJECT_SOURCE_DIR}/scripts/${SCRIPT}.py"
+    "--target=$<TARGET_FILE:pyuipc>"
+    "--binary_dir=${CMAKE_BINARY_DIR}"
+    "--config=$<CONFIG>"
+    "--build_type=${CMAKE_BUILD_TYPE}"
+    "--stub_output=${UIPC_PYTHON_STUB_OUTPUT_DIR}"
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+    COMMENT "Copying pyuipc dependent shared libraries to python package"
+)
 
 # ------------------------------------------------------------------------------
 # Install targets

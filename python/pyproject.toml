@@ -65,6 +65,7 @@ markers = [
 
 [tool.cibuildwheel]
 build-frontend = "build[uv]"
+skip = "*-win32" # CUDA doesn't support 32-bit on Windows
 
 [tool.scikit-build]
 build.verbose = true
