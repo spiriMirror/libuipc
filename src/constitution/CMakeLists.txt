@@ -17,3 +17,8 @@ uipc_target_set_relative_source_file(uipc_constitution)
 # ------------------------------------------------------------------------------
 file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
+
+# ------------------------------------------------------------------------------
+# Install targets
+# ------------------------------------------------------------------------------
+uipc_install_target(uipc_constitution)

@@ -4,9 +4,8 @@ import shutil
 import project_dir
 import argparse as ap
 import pathlib
-from mypy import stubgen
 import subprocess as sp
-import optional_import # help stubgen to detect optional modules' api
+import generate_stubs as gen_stubs
 
 def flush_info():
     sys.stdout.flush()
@@ -54,7 +53,7 @@ def copy_python_source_code(src_dir, bin_dir):
         else:
             shutil.copy(src, dst)
 
-def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
+def copy_shared_libs(binary_dir, pyuipc_lib, config)->pathlib.Path:
     shared_lib_exts = ['.so', '.dylib', '.dll']
     target_dir = binary_dir / 'python' / 'src' / 'uipc' / '_native' / config / 'bin'
     shared_lib_dir = binary_dir / config / 'bin'
@@ -77,49 +76,11 @@ def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
 
     return target_dir
 
-def generate_stub(target_dir, output_dir=None):
-    optional_import.EnabledModules.report()
-    PACKAGE_NAME = 'pyuipc'
-    if output_dir:
-        typings_dir = pathlib.Path(output_dir)
-    else:
-        typings_dir = binary_dir / 'python' / 'src'
-    
-    # clear the typings directory
-    typings_folder = typings_dir / PACKAGE_NAME
-    print(f'Clear typings directory: {typings_folder}')
-    shutil.rmtree(typings_folder, ignore_errors=True)
+def generate_stubs(target_dir, stub_output):
+    success = gen_stubs.generate_stubs(target_dir, stub_output)
+    if not success:
+        raise Exception('Failed to generate stubs')
 
-    # generate the stubs
-    print(f'Try generating stubs to {typings_dir}')
-    sys.path.append(str(target_dir))
-    
-    options = stubgen.Options(
-        pyversion=sys.version_info[:2],
-        no_import=False,
-        inspect=True,
-        doc_dir='',
-        search_path=[str(target_dir)],
-        interpreter=sys.executable,
-        parse_only=False,
-        ignore_errors=False,
-        include_private=False,
-        output_dir=str(typings_dir),
-        modules=[],
-        packages=[PACKAGE_NAME],
-        files=[],
-        verbose=True,
-        quiet=False,
-        export_less=False,
-        include_docstrings=True
-    )
-    
-    typings_dir.mkdir(parents=True, exist_ok=True)
-    try:
-        stubgen.generate_stubs(options)
-    except Exception as e:
-        print(f'Error generating stubs: {e}')
-        sys.exit(1)
 
 def install_package(binary_dir):
     ret = sp.check_call([sys.executable, '-m', 'pip', 'install', f'{binary_dir}/python'])
@@ -135,8 +96,6 @@ if __name__ == '__main__':
     args.add_argument('--binary_dir', help='CMAKE_BINARY_DIR', required=True)
     args.add_argument('--config', help='$<CONFIG>', required=True)
     args.add_argument('--build_type', help='CMAKE_BUILD_TYPE', required=True)
-    args.add_argument('--skip-install', action='store_true', help='Skip pip install step')
-    args.add_argument('--stub-output', default='', help='Override stub output directory')
     args = args.parse_args()
     
     print(f'config($<CONFIG>): {args.config} | build_type(CMAKE_BUILD_TYPE): {args.build_type}')
@@ -152,15 +111,9 @@ if __name__ == '__main__':
     config = get_config(args.config, args.build_type)
     
     print(f'Copying shared libraries to the target directory:')
-    target_dir = copy_shared_libs(binary_dir, pyuipc_lib)
+    target_dir = copy_shared_libs(binary_dir, pyuipc_lib, config)
     flush_info()
     
     print(f'Generating stubs:')
-    stub_output = args.stub_output if args.stub_output else None
-    generate_stub(target_dir, stub_output)
+    generate_stubs(target_dir, args.stub_output)
     flush_info()
-    
-    if not args.skip_install:
-        print(f'Installing the package to Python Environment: {sys.executable}')
-        install_package(binary_dir)
-        flush_info()

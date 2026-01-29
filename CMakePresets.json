@@ -38,6 +38,7 @@
             "inherits": "ci-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
+                "UIPC_BUILD_PYTHON_WHEEL": "ON",
                 "UIPC_BUILD_PYBIND": "ON"
             }
         }

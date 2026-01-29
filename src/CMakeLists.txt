@@ -43,25 +43,4 @@ if(UIPC_BUILD_PYBIND)
     add_subdirectory(pybind)
 endif()
 
-if(UIPC_BUILD_PYBIND)
-    set(UIPC_RUNTIME_TARGETS
-        uipc_core
-        uipc_geometry
-        uipc_constitution
-        uipc_io
-        uipc_sanity_check
-    )
-    if(UIPC_WITH_USD_SUPPORT)
-        list(APPEND UIPC_RUNTIME_TARGETS uipc_usd)
-    endif()
-    if(UIPC_WITH_VDB_SUPPORT)
-        list(APPEND UIPC_RUNTIME_TARGETS uipc_vdb)
-    endif()
-    install(TARGETS ${UIPC_RUNTIME_TARGETS}
-        RUNTIME DESTINATION .
-        LIBRARY DESTINATION .
-        ARCHIVE DESTINATION .
-    )
-endif()
-
 
