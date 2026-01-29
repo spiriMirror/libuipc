@@ -7,49 +7,38 @@
     },
     "configurePresets": [
         {
-            "name": "config-base",
+            "name": "ci-base",
             "hidden": true,
             "displayName": "base Configuration",
             "description": "Default build using Ninja generator",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "UIPC_USING_LOCAL_VCPKG": "ON",
                 "UIPC_BUILD_GUI": "OFF",
                 "UIPC_BUILD_PYBIND": "OFF",
-                "UIPC_BUILD_TORCH_EXTENSION": "OFF",
                 "UIPC_BUILD_EXAMPLES": "ON",
                 "UIPC_BUILD_TESTS": "ON",
                 "UIPC_BUILD_BENCHMARKS": "ON",
-                "UIPC_DEV_MODE": "ON",
-                "UIPC_WITH_CUDA_BACKEND": "ON",
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                "UIPC_DEV_MODE": "OFF",
+                "UIPC_WITH_CUDA_BACKEND": "ON"
             }
         },
         {
             "name": "ci-release",
             "displayName": "Generate vcpkg.json",
-            "inherits": "config-base",
-            "cacheVariables": {
-                "UIPC_GITHUB_ACTIONS": "ON"
-            }
-        },
-        {
-            "name": "release",
-            "displayName": "Config Release",
-            "description": "Sets release build type",
-            "inherits": "config-base",
+            "inherits": "ci-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
         },
         {
-            "name": "debug",
-            "displayName": "Config Debug",
-            "description": "Sets debug build type",
-            "inherits": "config-base",
+            "name": "ci-build-wheel",
+            "displayName": "Config Pybind Release",
+            "description": "Release build with Python bindings enabled",
+            "inherits": "ci-base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
+                "CMAKE_BUILD_TYPE": "Release",
+                "UIPC_BUILD_PYBIND": "ON"
             }
         }
     ],
@@ -59,12 +48,8 @@
             "configurePreset": "ci-release"
         },
         {
-            "name": "release",
-            "configurePreset": "release"
-        },
-        {
-            "name": "debug",
-            "configurePreset": "debug"
+            "name": "ci-build-wheel",
+            "configurePreset": "ci-build-wheel"
         }
     ]
 }

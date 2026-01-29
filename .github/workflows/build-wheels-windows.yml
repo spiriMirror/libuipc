@@ -1,0 +1,71 @@
+name: Windows Build Python Wheels 
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-wheels:
+    name: Build Wheels ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2022
+        cuda:
+          - 12.8.1
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+    
+      - name: Set up Python
+        uses: actions/setup-python@v5
+
+      - name: Install a specific version
+        uses: eifinger/setup-uv@v1
+        with:
+          version: 'latest'
+
+      - name: Generate vcpkg.json
+        run: |
+          cmake -E make_directory "${{ github.workspace }}/build"
+          python scripts/gen_vcpkg_json.py "${{ github.workspace }}/build" --with_cuda_backend=ON
+
+      - name: Setup vcpkg
+        id: vcpkg
+        uses: johnwason/vcpkg-action@v6
+        with:
+          manifest-dir: "${{ github.workspace }}/build"
+          triplet: ${{ matrix.os == 'windows-2022' && 'x64-windows-release' }}
+          cache-key: ${{ matrix.os }}
+          revision: master
+          token: ${{ github.token }}
+          github-binarycache: true
+          fetch-depth: "0"
+
+      - name: Setup CUDA ${{ matrix.cuda}}
+        uses: Jimver/cuda-toolkit@v0.2.30
+        with:
+          cuda: "${{ matrix.cuda }}"
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.3.1
+        env:
+          CIBW_BUILD: "cp313-*"
+          CIBW_ENVIRONMENT: >
+            CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+        with:
+          package-dir: python
+          output-dir: "${{ github.workspace }}/build/wheelhouse"
