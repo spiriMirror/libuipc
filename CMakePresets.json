@@ -7,12 +7,11 @@
     },
     "configurePresets": [
         {
-            "name": "config-base",
+            "name": "ci-base",
             "hidden": true,
             "displayName": "base Configuration",
             "description": "Default build using Ninja generator",
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/build",
             "cacheVariables": {
                 "UIPC_USING_LOCAL_VCPKG": "ON",
                 "UIPC_BUILD_GUI": "OFF",
@@ -22,99 +21,25 @@
                 "UIPC_BUILD_TESTS": "ON",
                 "UIPC_BUILD_BENCHMARKS": "ON",
                 "UIPC_DEV_MODE": "OFF",
-                "UIPC_WITH_CUDA_BACKEND": "ON",
-                "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+                "UIPC_WITH_CUDA_BACKEND": "ON"
             }
         },
         {
             "name": "ci-release",
             "displayName": "Generate vcpkg.json",
-            "inherits": "config-base",
-            "cacheVariables": {}
-        },
-        {
-            "name": "release",
-            "displayName": "Config Release",
-            "description": "Sets release build type",
-            "inherits": "config-base",
+            "inherits": "ci-base",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release"
             }
         },
         {
-            "name": "pybind-base",
-            "hidden": true,
-            "displayName": "base Pybind Configuration",
-            "description": "Common settings for Python bindings builds",
-            "cacheVariables": {
-                "UIPC_BUILD_PYBIND": "ON",
-                "UIPC_BUILD_EXAMPLES": "OFF",
-                "UIPC_BUILD_TESTS": "OFF",
-                "UIPC_BUILD_BENCHMARKS": "OFF",
-                "UIPC_PYTHON_EXECUTABLE_PATH": "$env{PYTHON}"
-            }
-        },
-        {
-            "name": "pybind-release",
+            "name": "ci-build-wheel",
             "displayName": "Config Pybind Release",
             "description": "Release build with Python bindings enabled",
-            "inherits": ["release", "pybind-base"],
-            "cacheVariables": {}
-        },
-        {
-            "name": "pybind-dev",
-            "displayName": "Config Pybind Dev",
-            "description": "RelWithDebInfo build with Python bindings enabled",
-            "inherits": ["config-base", "pybind-base"],
+            "inherits": "ci-base",
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-                "UIPC_PYTHON_POST_BUILD": "ON",
-                "UIPC_PYTHON_EXECUTABLE_PATH": "$env{PYTHON}"
-            }
-        },
-        {
-            "name": "pybind-release-linux",
-            "displayName": "Config Pybind Release (Linux)",
-            "description": "Release build with Python bindings enabled (Linux)",
-            "inherits": "pybind-release",
-            "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x64-linux"
-            }
-        },
-        {
-            "name": "pybind-release-windows",
-            "displayName": "Config Pybind Release (Windows)",
-            "description": "Release build with Python bindings enabled (Windows)",
-            "inherits": "pybind-release",
-            "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x64-windows-release"
-            }
-        },
-        {
-            "name": "pybind-dev-linux",
-            "displayName": "Config Pybind Dev (Linux)",
-            "description": "RelWithDebInfo build with Python bindings enabled (Linux)",
-            "inherits": "pybind-dev",
-            "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x64-linux"
-            }
-        },
-        {
-            "name": "pybind-dev-windows",
-            "displayName": "Config Pybind Dev (Windows)",
-            "description": "RelWithDebInfo build with Python bindings enabled (Windows)",
-            "inherits": "pybind-dev",
-            "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x64-windows-release"
-            }
-        },
-        {
-            "name": "debug",
-            "displayName": "Config Debug",
-            "description": "Sets debug build type",
-            "inherits": "config-base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug"
+                "CMAKE_BUILD_TYPE": "Release",
+                "UIPC_BUILD_PYBIND": "ON"
             }
         }
     ],
@@ -124,36 +49,8 @@
             "configurePreset": "ci-release"
         },
         {
-            "name": "release",
-            "configurePreset": "release"
-        },
-        {
-            "name": "pybind-release",
-            "configurePreset": "pybind-release"
-        },
-        {
-            "name": "pybind-dev",
-            "configurePreset": "pybind-dev"
-        },
-        {
-            "name": "pybind-release-linux",
-            "configurePreset": "pybind-release-linux"
-        },
-        {
-            "name": "pybind-release-windows",
-            "configurePreset": "pybind-release-windows"
-        },
-        {
-            "name": "pybind-dev-linux",
-            "configurePreset": "pybind-dev-linux"
-        },
-        {
-            "name": "pybind-dev-windows",
-            "configurePreset": "pybind-dev-windows"
-        },
-        {
-            "name": "debug",
-            "configurePreset": "debug"
+            "name": "ci-build-wheel",
+            "configurePreset": "ci-build-wheel"
         }
     ]
 }

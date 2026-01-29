@@ -16,10 +16,10 @@ set(UIPC_VERSION_PATCH 0)
 option(UIPC_USING_LOCAL_VCPKG "Using local vcpkg" ON)
 option(UIPC_BUILD_GUI "Build GUI, turn it off if you're server only" OFF)
 option(UIPC_BUILD_PYBIND "Build pyuipc" OFF)
+option(UIPC_BUILD_PYTHON_WHEEL "Wheel build mode for Python post-build helper" OFF)
 option(UIPC_BUILD_EXAMPLES "Build examples" ON)
 option(UIPC_BUILD_TESTS "Build tests" ON)
 option(UIPC_BUILD_BENCHMARKS "Build benchmarks" ON)
-option(UIPC_CI_BUILD_WHEEL "CI wheel build mode for Python post-build helper" OFF)
 option(UIPC_DEV_MODE "Enable developer mode" OFF)
 option(UIPC_WITH_USD_SUPPORT "Build with Universal Scene Description (USD) support" OFF)
 option(UIPC_WITH_VDB_SUPPORT "Build with Volumetric DataBase (VDB) support" OFF)
@@ -38,7 +38,7 @@ else()
 endif()
 
 option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ${CUDA_BACKEND_ON})
-set(UIPC_CI_CUDA_ARCHITECTURES "" CACHE STRING "CI CUDA architectures (e.g. 75,89)")
+set(UIPC_CUDA_ARCHITECTURES "native" CACHE STRING "Setup CUDA architectures (e.g. \"75,89\" or \"native\")")
 
 # =========================================================================
 # Show Logo and Options

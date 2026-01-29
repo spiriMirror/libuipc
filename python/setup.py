@@ -59,7 +59,7 @@ class BuildPyCommand(build_py):
 
     def _find_build_config(self):
         """Find the build configuration directory."""
-        possible_configs = ["Release", "RelWithDebInfo", "Debug"]
+        possible_configs = ["Release", "RelWithDebInfo"]
 
         # Look for build directories relative to python directory
         build_dirs = [

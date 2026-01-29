@@ -59,6 +59,16 @@ function(uipc_show_options)
 
     message(STATUS "Backend Options:")
     message(STATUS "    * UIPC_WITH_CUDA_BACKEND: ${UIPC_WITH_CUDA_BACKEND}")
+    message(STATUS "    * UIPC_CUDA_ARCHITECTURES: ${UIPC_CUDA_ARCHITECTURES}")
+    
+    uipc_info("Details:")
+    message(STATUS "PROJECT_SOURCE_DIR: ${PROJECT_SOURCE_DIR}")
+    message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
+    message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+    message(STATUS "CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
+    message(STATUS "VCPKG_MANIFEST_DIR: ${VCPKG_MANIFEST_DIR}")
+    message(STATUS "VCPKG_INSTALLED_DIR: ${VCPKG_INSTALLED_DIR}")
+    message(STATUS "VCPKG_TARGET_TRIPLET: ${VCPKG_TARGET_TRIPLET}")
 endfunction()
 
 # -----------------------------------------------------------------------------------------
@@ -94,7 +104,6 @@ function(uipc_config_vcpkg_install)
         "Details: https://spirimirror.github.io/libuipc-doc/build_install/")
     endif()
     file(TO_CMAKE_PATH "${CMAKE_TOOLCHAIN_FILE}" CMAKE_TOOLCHAIN_FILE)
-    uipc_info("CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
     uipc_find_python_executable_path()
     # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
     execute_process(
@@ -148,7 +157,6 @@ endfunction()
 # -----------------------------------------------------------------------------------------
 function(uipc_target_set_output_directory target_name)
     if(WIN32) # if on windows, set the output directory with different configurations
-        
         set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
         set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
         set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")

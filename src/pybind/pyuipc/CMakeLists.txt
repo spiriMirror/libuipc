@@ -70,7 +70,7 @@ add_custom_command(TARGET pyuipc POST_BUILD
     "--config=$<CONFIG>"
     "--build_type=${CMAKE_BUILD_TYPE}"
     "--stub-output=${UIPC_PYTHON_STUB_OUTPUT_DIR}"
-    $<$<BOOL:${UIPC_CI_BUILD_WHEEL}>:--skip-install>
+    $<$<BOOL:${UIPC_BUILD_PYTHON_WHEEL}>:--skip-install>
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     COMMENT "Copying pyuipc dependent shared libraries to python package"
 )

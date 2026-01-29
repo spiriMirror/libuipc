@@ -4,22 +4,30 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyuipc"
-authors = [
-    {name = "Zihang Zhu", email = "paradise_craftsman@hotmail.com"},
-]
-maintainers = [
-    {name = "Zihang Zhu",email = "paradise_craftsman@hotmail.com"},
-    {name = "Lu Xinyu", email = "lxy819469559@gmail.com"}
-]
-readme = "README.md"
-license = {file = "LICENSE"}
 version = "0.9.0"
+# requires-python = ">=3.10, <3.14"
+requires-python = ">=3.13, <3.14" # For test
 dependencies = [
     "numpy", "polyscope>=2.5.0, <3.0.0"
 ]
-requires-python = ">=3.10, <3.14"
+
+authors = [
+    {name = "Zihang Zhu", email = "paradise_craftsman@hotmail.com"},
+    {name = "MuGdxy", email = "lxy819469559@gmail.com"}
+]
+
+maintainers = [
+    {name = "MuGdxy", email = "lxy819469559@gmail.com"}
+]
+
+readme = "README.md"
+
+license = {file = "LICENSE"}
+
 description = "A Cross-Platform Modern C++20 Library of Unified Incremental Potential Contact (CUDA 12.6+ required)"
+
 keywords = ["ipc", "computer graphics", "physics simulation", "cuda", "fem", "contact"]
+
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -45,29 +53,6 @@ Issues = "https://github.com/spiriMirror/libuipc/issues"
 gui = ["polyscope"]
 dev = ["pytest"]
 
-[tool.scikit-build]
-cmake.source-dir = ".."
-cmake.build-type = "Release"
-cmake.args = [
-    "-DUIPC_BUILD_PYBIND=1",
-    "-DUIPC_BUILD_EXAMPLES=OFF",
-    "-DUIPC_BUILD_TESTS=OFF",
-    "-DUIPC_BUILD_BENCHMARKS=OFF",
-    "-DUIPC_CI_BUILD_WHEEL=ON",
-]
-build-dir = "build/{wheel_tag}"
-wheel.packages = ["uipc"]
-
-[tool.scikit-build.sdist]
-include = [
-    "../CMakeLists.txt",
-    "../CMakePresets.json",
-    "../cmake/**",
-    "../external/**",
-    "../scripts/**",
-    "../src/**",
-]
-
 [tool.pytest.ini_options]
 addopts = ["-s"]
 markers = [
@@ -76,3 +61,23 @@ markers = [
     "typing: mark a test as requiring type checking",
     "example: mark a test as an example",
 ]
+
+[tool.cibuildwheel]
+build-frontend = "build[uv]"
+
+[tool.scikit-build]
+build.verbose = true
+
+[tool.scikit-build.cmake]
+build-type = "Release"
+source-dir = ".."
+targets = ["pyuipc"]
+
+[tool.scikit-build.cmake.define]
+UIPC_CUDA_ARCHITECTURES = "89"
+UIPC_BUILD_PYBIND = "ON"
+UIPC_BUILD_EXAMPLES = "OFF"
+UIPC_BUILD_TESTS = "OFF"
+UIPC_BUILD_BENCHMARKS = "OFF"
+UIPC_BUILD_PYTHON_WHEEL = "ON"
+UIPC_WITH_CUDA_BACKEND = "OFF"
