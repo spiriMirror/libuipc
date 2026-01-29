@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  cuda-cmake-check:
-    name: CUDA CMake Check ${{ matrix.os }}
+  build-wheels:
+    name: Build Wheels ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -59,9 +59,9 @@ jobs:
         uses: pypa/cibuildwheel@v3.3.1
         env:
           CIBW_BUILD: "cp311-*"
-          CIBW_BUILD_DIR: "${{ github.workspace }}/build/"
+          CIBW_BUILD_DIR: "${{ github.workspace }}/build"
           CIBW_ENVIRONMENT: >
             CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
         with:
           package-dir: python
-          output-dir: build/wheelhouse
+          output-dir: "${{ github.workspace }}/build/wheelhouse"
