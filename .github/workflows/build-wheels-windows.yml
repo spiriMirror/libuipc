@@ -58,8 +58,7 @@ jobs:
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1
         env:
-          CIBW_BUILD: "cp311-*"
-          CIBW_BUILD_DIR: "${{ github.workspace }}/build"
+          CIBW_BUILD: "cp313-*"
           CIBW_ENVIRONMENT: >
             CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
         with:
