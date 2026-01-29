@@ -34,9 +34,6 @@ jobs:
         uses: actions/setup-python@v5
 
       - name: Generate vcpkg.json
-        continue-on-error: true
-        env:
-          VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
         run: |
           mkdir -p "${{ github.workspace }}/build"
           python scripts/gen_vcpkg_json.py "${{ github.workspace }}/build" --with_cuda_backend=ON
@@ -46,7 +43,12 @@ jobs:
         uses: johnwason/vcpkg-action@v6
         with:
           manifest-dir: "${{ github.workspace }}/build"
-          triplet: x64-windows
+          triplet: ${{ matrix.os == 'windows-2022' && 'x64-windows-release' }}
+          cache-key: ${{ matrix.os }}
+          revision: master
+          token: ${{ github.token }}
+          github-binarycache: true
+          fetch-depth: "0"
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.1

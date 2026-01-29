@@ -3,17 +3,17 @@ name: cmake
 on:
   pull_request:
     branches:
-      - 'main'
+      - "main"
     paths-ignore:
-      - '.clang-format'
-      - '.clangd'
-      - '.gitignore'
-      - 'LICENSE'
-      - 'README.md'
-      - 'docs/**'
-      - '.github/workflows/xmake.yml'
-      - '**/xmake.lua'
-      - '.github/workflows/docs.yml'
+      - ".clang-format"
+      - ".clangd"
+      - ".gitignore"
+      - "LICENSE"
+      - "README.md"
+      - "docs/**"
+      - ".github/workflows/xmake.yml"
+      - "**/xmake.lua"
+      - ".github/workflows/docs.yml"
 
 jobs:
   build:
@@ -24,23 +24,23 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     concurrency:
-        group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-cmake-${{ matrix.os }}
-        cancel-in-progress: true
+      group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-cmake-${{ matrix.os }}
+      cancel-in-progress: true
 
     steps:
       - name: Maximize build space
         if: matrix.os == 'ubuntu-22.04'
         uses: AdityaGarg8/remove-unwanted-software@v4.1
         with:
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
+          remove-android: "true"
+          remove-haskell: "true"
+          remove-codeql: "true"
 
       - name: Setup cuda
         uses: Jimver/cuda-toolkit@v0.2.20
         id: cuda-toolkit
         with:
-          cuda: '12.6.3'
+          cuda: "12.6.3"
 
       - name: Setup ninja
         if: matrix.os == 'ubuntu-22.04'
@@ -62,9 +62,6 @@ jobs:
           submodules: true
 
       - name: Generate vcpkg.json
-        continue-on-error: true
-        env:
-          VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
         run: |
           mkdir -p "${{ github.workspace }}/build"
           python scripts/gen_vcpkg_json.py "${{ github.workspace }}/build" --with_cuda_backend=ON
@@ -74,17 +71,16 @@ jobs:
         uses: johnwason/vcpkg-action@v6
         with:
           manifest-dir: "${{ github.workspace }}/build"
-          
           triplet: ${{ matrix.os == 'windows-2022' && 'x64-windows-release' || 'x64-linux' }}
           cache-key: ${{ matrix.os }}
           revision: master
           token: ${{ github.token }}
           github-binarycache: true
-          fetch-depth: '0'
+          fetch-depth: "0"
 
       - name: Build libuipc
         env:
-          VCPKG_ROOT: "${{ github.workspace }}/vcpkg"
+          CMAKE_TOOLCHAIN_FILE: "${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
         run: |
-          cmake --preset ci-release -DUIPC_CI_CUDA_ARCHITECTURE=89
+          cmake --preset ci-release -DUIPC_CUDA_ARCHITECTURE=89
           cmake --build --preset ci-release --parallel 4
