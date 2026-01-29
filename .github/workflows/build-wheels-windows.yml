@@ -33,6 +33,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
 
+      - name: Install a specific version
+        uses: eifinger/setup-uv@v1
+        with:
+          version: 'latest'
+
       - name: Generate vcpkg.json
         run: |
           cmake -E make_directory "${{ github.workspace }}/build"
