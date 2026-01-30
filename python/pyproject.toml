@@ -1,6 +1,7 @@
 # Development purpose only.
 # When UIPC_BUILD_PYBIND is ON, the libuipc/python will be copied to CMAKE Build Directory.
 # After pyuipc is built, this pyproject.toml will help create a wheel package for testing.
+# NOTE: this pyproject.toml won't trigger any cmake build process.
 
 [build-system]
 requires = ["setuptools >= 61.0", "wheel"]
