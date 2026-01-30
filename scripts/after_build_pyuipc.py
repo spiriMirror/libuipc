@@ -4,19 +4,48 @@ import shutil
 import project_dir
 import argparse as ap
 import pathlib
+from mypy import stubgen
 import subprocess as sp
-import generate_stubs as gen_stubs
-import build_utils
+import optional_import # help stubgen to detect optional modules' api
+
+def is_option_on(option: str):
+    # convert the option to uppercase
+    option = option.upper()
+    return option == 'ON' or option == 'TRUE' or option == '1' or option == 'YES' or option == 'Y'
 
 def flush_info():
     sys.stdout.flush()
     sys.stderr.flush()
 
+def get_config(config: str, build_type: str):
+    ret_config = ''
+    
+    if config != '' and build_type != '' and config != build_type:
+        print(f'''Configuration and build type do not match, config={config}, build_type={build_type}.
+This may be caused by the incorrect build command.
+For Windows:
+    cmake -S <source_dir>
+    cmake --build <build_dir> --config <Release/RelWithDebInfo>
+For Linux:
+    cmake -S <source_dir> -DCMAKE_BUILD_TYPE=<Release/RelWithDebInfo>
+    cmake --build <build_dir>
+Ref: https://stackoverflow.com/questions/19024259/how-to-change-the-build-type-to-release-mode-in-cmake''')
+        raise Exception('Configuration and build type do not match')
+
+    if config == 'Debug' or build_type == 'Debug':
+        raise Exception('Debug configuration is not supported, please use RelWithDebInfo or Release')
+    
+    if build_type == '' and config == '':
+        ret_config = 'Release'
+    else:
+        ret_config = build_type if build_type != '' else config
+    
+    return ret_config
+
 def copy_python_source_code(src_dir, bin_dir):
     paths = [
         'src/',
         'pyproject.toml',
-        'setup.py'
     ]
     
     # copy the folders and files to the target directory
@@ -29,9 +58,9 @@ def copy_python_source_code(src_dir, bin_dir):
         else:
             shutil.copy(src, dst)
 
-def copy_shared_libs(binary_dir, pyuipc_lib, config)->pathlib.Path:
+def copy_shared_libs(binary_dir, pyuipc_lib)->pathlib.Path:
     shared_lib_exts = ['.so', '.dylib', '.dll']
-    target_dir = build_utils.get_pyuipc_target_dir(binary_dir, config)
+    target_dir = binary_dir / 'python' / 'src' / 'uipc' / 'modules' / config / 'bin'
     shared_lib_dir = binary_dir / config / 'bin'
     
     if not os.path.exists(target_dir):
@@ -52,10 +81,45 @@ def copy_shared_libs(binary_dir, pyuipc_lib, config)->pathlib.Path:
 
     return target_dir
 
-def generate_stubs(target_dir, stub_output):
-    success = gen_stubs.generate_stubs(target_dir, stub_output)
-    if not success:
-        raise Exception('Failed to generate stubs')
+def generate_stubs(target_dir, binary_dir, stub_output):
+    optional_import.EnabledModules.report()
+    PACKAGE_NAME = 'pyuipc'
+    typings_dir = pathlib.Path(stub_output)
+    
+    # clear the typings directory
+    typings_folder = typings_dir / PACKAGE_NAME
+    print(f'Clear typings directory: {typings_folder}')
+    shutil.rmtree(typings_folder, ignore_errors=True)
+
+    # generate the stubs
+    print(f'Try generating stubs to {typings_dir}')
+    sys.path.append(str(target_dir))
+    
+    options = stubgen.Options(
+        pyversion=sys.version_info[:2],
+        no_import=False,
+        inspect=True,
+        doc_dir='',
+        search_path=[str(target_dir)],
+        interpreter=sys.executable,
+        parse_only=False,
+        ignore_errors=False,
+        include_private=False,
+        output_dir=str(typings_dir),
+        modules=[],
+        packages=[PACKAGE_NAME],
+        files=[],
+        verbose=True,
+        quiet=False,
+        export_less=False,
+        include_docstrings=True
+    )
+    
+    try:
+        stubgen.generate_stubs(options)
+    except Exception as e:
+        print(f'Error generating stubs: {e}')
+        sys.exit(1)
 
 def install_package(binary_dir):
     ret = sp.check_call([sys.executable, '-m', 'pip', 'install', f'{binary_dir}/python'])
@@ -71,6 +135,7 @@ if __name__ == '__main__':
     args.add_argument('--binary_dir', help='CMAKE_BINARY_DIR', required=True)
     args.add_argument('--config', help='$<CONFIG>', required=True)
     args.add_argument('--build_type', help='CMAKE_BUILD_TYPE', required=True)
+    args.add_argument('--build_wheel', help='UIPC_BUILD_PYTHON_WHEEL', required=True)
     args.add_argument('--stub_output', help='output directory for stubs', required=True)
     args = args.parse_args()
     
@@ -84,16 +149,17 @@ if __name__ == '__main__':
     copy_python_source_code(proj_dir / 'python', binary_dir / 'python')
     flush_info()
     
-    config = build_utils.get_config(args.config, args.build_type)
+    config = get_config(args.config, args.build_type)
     
     print(f'Copying shared libraries to the target directory:')
-    target_dir = copy_shared_libs(binary_dir, pyuipc_lib, config)
-    flush_info()
-    
-    print(f'Generating stubs:')
-    generate_stubs(target_dir, args.stub_output)
+    target_dir = copy_shared_libs(binary_dir, pyuipc_lib)
     flush_info()
 
-    print(f'Installing the package:')
-    install_package(binary_dir)
+    print(f'Generating stubs:')
+    generate_stubs(target_dir, binary_dir, args.stub_output)
     flush_info()
+    
+    if not is_option_on(args.build_wheel):
+        print(f'Installing the package to Python Environment: {sys.executable}')
+        install_package(binary_dir)
+        flush_info()

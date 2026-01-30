@@ -65,7 +65,7 @@ jobs:
         env:
           CIBW_BUILD: "cp313-*"
           CIBW_ENVIRONMENT: >
-            CMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake
+            CMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
         with:
           package-dir: python
           output-dir: "${{ github.workspace }}/build/wheelhouse"

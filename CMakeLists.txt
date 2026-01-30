@@ -44,7 +44,7 @@ set(UIPC_CUDA_ARCHITECTURES "native" CACHE STRING "Setup CUDA architectures (e.g
 # =========================================================================
 set(UIPC_INSTALL_DIR "." CACHE PATH "Install directory, default is current directory")
 if(SKBUILD)
-    set(UIPC_INSTALL_DIR "uipc/_native")
+    set(UIPC_INSTALL_DIR "uipc/modules")
     set(UIPC_BUILD_PYTHON_WHEEL ON)
 endif()
 

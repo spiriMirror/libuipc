@@ -39,7 +39,7 @@ Ref: https://stackoverflow.com/questions/19024259/how-to-change-the-build-type-t
     return ret_config
 
 def get_pyuipc_target_dir(binary_dir: str, config: str)->str:
-    target_dir = pathlib.Path(binary_dir) / 'python' / 'src' / 'uipc' / '_native' / config / 'bin'
+    target_dir = pathlib.Path(binary_dir) / 'python' / 'src' / 'uipc' / 'modules' / config / 'bin'
     if not target_dir.exists():
         target_dir.mkdir(parents=True, exist_ok=True)
         print(f'Create target directory {str(target_dir)}')

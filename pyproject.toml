@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools >= 61.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["scikit-build-core>=0.10.0"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "pyuipc"
@@ -52,12 +52,6 @@ Issues = "https://github.com/spiriMirror/libuipc/issues"
 gui = ["polyscope"]
 dev = ["pytest"]
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-"*" = ["*.dll", "*.so*", "*.dylib", "*.pyd", "*.pyi"]
-
 [tool.pytest.ini_options]
 addopts = ["-s"]
 markers = [
@@ -66,3 +60,24 @@ markers = [
     "typing: mark a test as requiring type checking",
     "example: mark a test as an example",
 ]
+
+[tool.cibuildwheel]
+build-frontend = "build[uv]"
+skip = "*-win32"
+
+[tool.scikit-build]
+minimum-version = "build-system.requires"
+wheel.packages = ["python/src/uipc"]
+
+[tool.scikit-build.cmake]
+build-type = "Release"
+source-dir = "."
+
+[tool.scikit-build.cmake.define]
+UIPC_CUDA_ARCHITECTURES = "89"
+UIPC_BUILD_PYBIND = "ON"
+UIPC_BUILD_EXAMPLES = "OFF"
+UIPC_BUILD_TESTS = "OFF"
+UIPC_BUILD_BENCHMARKS = "OFF"
+UIPC_BUILD_PYTHON_WHEEL = "ON"
+UIPC_WITH_CUDA_BACKEND = "ON"
