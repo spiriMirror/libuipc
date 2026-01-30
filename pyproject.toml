@@ -66,6 +66,7 @@ build-frontend = "build[uv]"
 skip = "*-win32"
 
 [tool.scikit-build]
+build.verbose = true
 minimum-version = "build-system.requires"
 wheel.packages = ["python/src/uipc"]
 
