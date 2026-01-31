@@ -27,6 +27,12 @@ jobs:
           - 12.8.1
 
     steps:
+      - name: Convert Windows Path to Unix Path
+        shell: bash
+        run: |
+          UNIX_PATH=$(echo "${{ github.workspace }}" | tr '\\' '/')
+          echo "UIPC_WORKSPACE=$UNIX_PATH" >> $GITHUB_ENV
+
       - name: Checkout code
         uses: actions/checkout@v5
     
@@ -40,14 +46,14 @@ jobs:
 
       - name: Generate vcpkg.json
         run: |
-          cmake -E make_directory "${{ github.workspace }}/build"
-          python scripts/gen_vcpkg_json.py "${{ github.workspace }}/build" --with_cuda_backend=ON
+          cmake -E make_directory "${{ env.UIPC_WORKSPACE }}/build"
+          python scripts/gen_vcpkg_json.py "${{ env.UIPC_WORKSPACE }}/build" --with_cuda_backend=ON
 
       - name: Setup vcpkg
         id: vcpkg
         uses: johnwason/vcpkg-action@v6
         with:
-          manifest-dir: "${{ github.workspace }}/build"
+          manifest-dir: "${{ env.UIPC_WORKSPACE }}/build"
           triplet: ${{ matrix.os == 'windows-2022' && 'x64-windows-release' }}
           cache-key: ${{ matrix.os }}
           revision: master
@@ -65,7 +71,7 @@ jobs:
         env:
           CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
           CIBW_ENVIRONMENT: >
-            CMAKE_TOOLCHAIN_FILE="${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            CMAKE_TOOLCHAIN_FILE="${{ env.UIPC_WORKSPACE }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
         with:
-          package-dir: "${{ github.workspace }}"
-          output-dir: "${{ github.workspace }}/build/wheelhouse"
+          package-dir: "${{ env.UIPC_WORKSPACE }}"
+          output-dir: "${{ env.UIPC_WORKSPACE }}/build/wheelhouse"
