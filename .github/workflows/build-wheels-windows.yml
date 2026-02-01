@@ -16,10 +16,10 @@ concurrency:
 
 jobs:
   build-wheels:
-    name: Build Wheels ${{ matrix.python-version }}-${{ matrix.os }}-${{ matrix.cuda }}
+    name: Build Wheels ${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
     runs-on: ${{ matrix.os }}
     concurrency:
-      group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-build-wheels-${{ matrix.os }}-${{ matrix.cuda }}-${{ matrix.python-version }}
+      group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-build-wheels-${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
       cancel-in-progress: true
     strategy:
       fail-fast: false
