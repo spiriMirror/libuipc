@@ -46,6 +46,7 @@ function(uipc_show_options)
     message(STATUS "    * UIPC_DEV_MODE: ${UIPC_DEV_MODE}")
     message(STATUS "    * UIPC_BUILD_GUI: ${UIPC_BUILD_GUI}")
     message(STATUS "    * UIPC_BUILD_PYBIND: ${UIPC_BUILD_PYBIND}")
+    message(STATUS "    * UIPC_BUILD_PYTHON_WHEEL: ${UIPC_BUILD_PYTHON_WHEEL}")
     message(STATUS "    * UIPC_USING_LOCAL_VCPKG: ${UIPC_USING_LOCAL_VCPKG}")
     message(STATUS "    * UIPC_BUILD_EXAMPLES: ${UIPC_BUILD_EXAMPLES}")
     message(STATUS "    * UIPC_BUILD_TESTS: ${UIPC_BUILD_TESTS}")
@@ -298,6 +299,18 @@ endfunction()
 
 
 # -----------------------------------------------------------------------------------------
+# Install headers
+# -----------------------------------------------------------------------------------------
+function(uipc_install_headers)
+    if(NOT UIPC_BUILD_PYTHON_WHEEL)
+    install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
+        DESTINATION ${UIPC_INSTALL_DIR}/include
+        FILES_MATCHING
+        PATTERN "*.*")
+    endif()
+endfunction()
+
+# -----------------------------------------------------------------------------------------
 # Install a target
 # -----------------------------------------------------------------------------------------
 function(uipc_install_target target_name)
@@ -308,12 +321,18 @@ function(uipc_install_target target_name)
         endif()
     endif()
 
-    install(TARGETS ${target_name}
-        RUNTIME DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/bin"
-        LIBRARY DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/bin"
-        ARCHIVE DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/lib"
-    )
-    
+    if(NOT UIPC_BUILD_PYTHON_WHEEL)
+        # C++ package install logic
+        install(TARGETS ${target_name}
+            RUNTIME DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/bin"
+            LIBRARY DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/bin"
+            ARCHIVE DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/lib")
+    else()
+        install(TARGETS ${target_name}
+            RUNTIME DESTINATION "${UIPC_INSTALL_DIR}/pyuipc"
+            LIBRARY DESTINATION "${UIPC_INSTALL_DIR}/pyuipc"
+            ARCHIVE DESTINATION EXCLUDE_FROM_ALL)
+    endif()
 endfunction()
 
 # -----------------------------------------------------------------------------------------
@@ -334,20 +353,44 @@ function(uipc_install_vcpkg_runtime)
         endif()
     endif()
     
+    set(INSTALL_DESTINATION "")
+    if(NOT UIPC_BUILD_PYTHON_WHEEL)
+        set(INSTALL_DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}")
+    else()
+        set(INSTALL_DESTINATION "${UIPC_INSTALL_DIR}/pyuipc")
+    endif()
+
     # Install runtime dependencies from vcpkg_installed
     # Check all possible directories (bin, lib, debug/bin, debug/lib) on all platforms
     if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin")
         install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/"
-            DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/bin"
+            DESTINATION "${INSTALL_DESTINATION}"
             FILES_MATCHING PATTERN "*.*"
         )
     endif()
-    
-    if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin")
-        install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin/"
-            DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/bin"
-            FILES_MATCHING PATTERN "*.*"
-        )
+
+    if(NOT UIPC_BUILD_PYTHON_WHEEL)
+        # C++ package install logic
+        if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+            install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/"
+                DESTINATION "${INSTALL_DESTINATION}/lib"
+                FILES_MATCHING PATTERN "*.*"
+            )
+        endif()
+        
+        if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib")
+            install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/"
+                DESTINATION "${INSTALL_DESTINATION}/debug/lib"
+                FILES_MATCHING PATTERN "*.*"
+            )
+        endif()
+
+        if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin")
+            install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin/"
+                DESTINATION "${INSTALL_DESTINATION}/debug/bin"
+                FILES_MATCHING PATTERN "*.*"
+            )
+        endif()
     endif()
 endfunction()
 

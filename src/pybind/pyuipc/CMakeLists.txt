@@ -36,13 +36,14 @@ uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH} "mypy")
 uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH}  "numpy")
 
 # After build pyuipc, call the script to copy the dependent shared libraries to python package.
-set(UIPC_PYTHON_STUB_OUTPUT_DIR "${CMAKE_BINARY_DIR}/python/src/")
+set(UIPC_PYTHON_STUB_OUTPUT_DIR "${CMAKE_BINARY_DIR}/python/src/uipc/_native")
 add_custom_command(
     TARGET pyuipc POST_BUILD
     COMMAND ${UIPC_PYTHON_EXECUTABLE_PATH} 
     ARGS
     "${PROJECT_SOURCE_DIR}/scripts/after_build_pyuipc.py"
     "--target=$<TARGET_FILE:pyuipc>"
+    "--project_dir=${PROJECT_SOURCE_DIR}"
     "--binary_dir=${CMAKE_BINARY_DIR}"
     "--config=$<CONFIG>"
     "--build_type=${CMAKE_BUILD_TYPE}"
@@ -54,7 +55,7 @@ add_custom_command(
 
 if(UIPC_BUILD_PYTHON_WHEEL)
     install(DIRECTORY "${UIPC_PYTHON_STUB_OUTPUT_DIR}/pyuipc"
-        DESTINATION "."
+        DESTINATION "${UIPC_INSTALL_DIR}/pyuipc"
         FILES_MATCHING PATTERN "*.pyi"
     )
 endif()

@@ -43,9 +43,16 @@ set(UIPC_CUDA_ARCHITECTURES "native" CACHE STRING "Setup CUDA architectures (e.g
 # Install Options
 # =========================================================================
 set(UIPC_INSTALL_DIR "." CACHE PATH "Install directory, default is current directory")
-if(SKBUILD)
-    set(UIPC_INSTALL_DIR "uipc/modules")
+if(DEFINED SKBUILD)
+    if(NOT SKBUILD EQUAL 2)
+        uipc_error("MUST use scikit-build-core(2), but got ${SKBUILD}")
+    endif()
+    set(UIPC_INSTALL_DIR "uipc/_native")
     set(UIPC_BUILD_PYTHON_WHEEL ON)
+endif()
+
+if(UIPC_BUILD_PYTHON_WHEEL)
+    set(UIPC_BUILD_PYBIND ON)
 endif()
 
 # =========================================================================
@@ -76,3 +83,6 @@ add_subdirectory(src)
 
 # apps
 add_subdirectory(apps)
+
+# install headers (libuipc/include)
+uipc_install_headers()

@@ -1,1 +1,0 @@
-from pyuipc.geometry import *
