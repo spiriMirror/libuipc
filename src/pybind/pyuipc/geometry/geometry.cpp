@@ -1,6 +1,5 @@
 #include <pyuipc/geometry/geometry.h>
 #include <uipc/geometry/geometry.h>
-#include <pyuipc/common/json.h>
 #include <uipc/geometry/attribute_friend.h>
 
 namespace uipc::geometry

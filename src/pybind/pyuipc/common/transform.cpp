@@ -1,7 +1,6 @@
 #include <pyuipc/common/transform.h>
 #include <Eigen/Geometry>
 #include <uipc/common/type_define.h>
-#include <pyuipc/as_numpy.h>
 
 namespace pyuipc
 {
@@ -356,7 +355,7 @@ Returns:
     numpy.ndarray: Transformed vector(s).)");
 
     class_Transform.def("inverse",
-                        &Transform::inverse,
+                        [](const Transform& self) -> Transform { return self.inverse(); },
                         R"(Get the inverse transform.
 Returns:
     Transform: Inverse transformation matrix.)");

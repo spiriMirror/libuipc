@@ -1,6 +1,5 @@
 #include <pyuipc/geometry/geometry_atlas.h>
 #include <uipc/geometry/geometry_atlas.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::geometry
 {

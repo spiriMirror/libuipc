@@ -3,7 +3,7 @@ import sys
 import shutil
 import argparse as ap
 import pathlib
-from mypy import stubgen
+import pybind11_stubgen as stubgen
 import subprocess as sp
 import optional_import # help stubgen to detect optional modules' api
 
@@ -77,7 +77,7 @@ def copy_python_source_code(proj_dir, bin_dir):
 
 def copy_shared_libs(config:str, binary_dir:pathlib.Path, pyuipc_lib:pathlib.Path)->pathlib.Path:
     shared_lib_dir = binary_dir / config / 'bin' # src
-    target_dir = binary_dir / 'python' / 'src' / 'uipc' / '_native' / 'pyuipc' # dst
+    target_dir = binary_dir / 'python' / 'src' / 'uipc' / '_native' # dst
     
     if not os.path.exists(target_dir):
         os.makedirs(target_dir)
@@ -96,10 +96,11 @@ def copy_shared_libs(config:str, binary_dir:pathlib.Path, pyuipc_lib:pathlib.Pat
 
     return target_dir
 
-def generate_stubs(target_dir, stub_output):
+def generate_uipc_stubs(binary_dir):
     optional_import.EnabledModules.report()
-    PACKAGE_NAME = 'pyuipc'
-    typings_dir = pathlib.Path(stub_output)
+    PACKAGE_NAME = 'uipc'
+
+    typings_dir = binary_dir / 'python' / 'src'
     
     # clear the .pyi files in the typings directory
     typings_folder = typings_dir / PACKAGE_NAME
@@ -109,35 +110,27 @@ def generate_stubs(target_dir, stub_output):
 
     # generate the stubs
     print(f'Try generating stubs to {typings_dir}')
-    sys.path.append(str(target_dir))
+    sys.path.append(str(typings_dir))
     
-    options = stubgen.Options(
-        pyversion=sys.version_info[:2],
-        no_import=False,
-        inspect=True,
-        doc_dir='',
-        search_path=[str(target_dir)],
-        interpreter=sys.executable,
-        parse_only=False,
-        ignore_errors=False,
-        include_private=False,
-        output_dir=str(typings_dir),
-        modules=[],
-        packages=[PACKAGE_NAME],
-        files=[],
-        verbose=True,
-        quiet=False,
-        export_less=False,
-        include_docstrings=True
-    )
-
     flush_info()
     
+    args = ['-o', str(typings_dir), PACKAGE_NAME, "--ignore-unresolved-names","json"]
+
     try:
-        stubgen.generate_stubs(options)
+        stubgen.main(args)
     except Exception as e:
         print(f'Error generating stubs: {e}')
         sys.exit(1)
+
+def uninstall_package():
+    # check if the package is installed
+    ret = sp.run([sys.executable, '-m', 'pip', 'show', 'pyuipc'], capture_output=True, text=True)
+    if ret.returncode == 0:
+        print(f'Uninstalling the old package:')
+        ret = sp.check_call([sys.executable, '-m', 'pip', 'uninstall', '-y', 'pyuipc'])
+        if ret != 0:
+            print(f'Error uninstalling package: {ret}')
+            sys.exit(1)
 
 def install_package(binary_dir):
     ret = sp.check_call([sys.executable, '-m', 'pip', 'install', f'{binary_dir}/python'])
@@ -155,7 +148,6 @@ if __name__ == '__main__':
     args.add_argument('--config', help='$<CONFIG>', required=True)
     args.add_argument('--build_type', help='CMAKE_BUILD_TYPE', required=True)
     args.add_argument('--build_wheel', help='UIPC_BUILD_PYTHON_WHEEL', required=True)
-    args.add_argument('--stub_output', help='output directory for stubs', required=True)
     args = args.parse_args()
 
     print(f'config($<CONFIG>): {args.config} | build_type(CMAKE_BUILD_TYPE): {args.build_type}')
@@ -163,6 +155,10 @@ if __name__ == '__main__':
     pyuipc_lib = pathlib.Path(args.target)
     binary_dir = pathlib.Path(args.binary_dir)
     proj_dir = pathlib.Path(args.project_dir)
+
+    # clean up the old package, avoid polluting the stub generation
+    print(f'Cleaning up the old package:')
+    uninstall_package()
 
     print(f'Clearing binary python directory: {binary_dir}')
     clear_binary_python_dir(binary_dir)
@@ -178,7 +174,7 @@ if __name__ == '__main__':
     flush_info()
 
     print(f'Generating stubs:')
-    generate_stubs(target_dir, args.stub_output)
+    generate_uipc_stubs(binary_dir)
     flush_info()
     
     if not is_option_on(args.build_wheel):

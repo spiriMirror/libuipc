@@ -1,6 +1,5 @@
 #include <pyuipc/geometry/attribute_collection.h>
 #include <uipc/geometry/attribute_collection.h>
-#include <pyuipc/as_numpy.h>
 #include <uipc/common/type_traits.h>
 #include <pybind11/numpy.h>
 namespace pyuipc::geometry

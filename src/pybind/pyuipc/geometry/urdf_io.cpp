@@ -1,7 +1,5 @@
 #include <pyuipc/geometry/urdf_io.h>
 #include <uipc/io/urdf_io.h>
-#include <pyuipc/as_numpy.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::geometry
 {
@@ -78,7 +76,7 @@ Args:
     object: Object to populate with URDF data.
     urdf_path: Path to the URDF file.
 Returns:
-    UrdfController: Controller for the loaded URDF model.)");
+    Controller for the loaded URDF model.)");
     class_UrdfIO.def_static("default_config",
                             &UrdfIO::default_config,
                             R"(Get the default UrdfIO configuration.

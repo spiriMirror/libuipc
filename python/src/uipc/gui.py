@@ -1,5 +1,5 @@
 import polyscope as ps
-from . import Scene, SceneIO
+from uipc import Scene, SceneIO
 from uipc import builtin
 from uipc import core
 from uipc.backend import SceneVisitor

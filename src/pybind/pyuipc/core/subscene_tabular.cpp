@@ -1,7 +1,7 @@
 #include <pyuipc/core/subscene_tabular.h>
 #include <uipc/core/subscene_tabular.h>
-#include <pyuipc/common/json.h>
 #include <pyuipc/geometry/attribute_creator.h>
+#include <pyuipc/as_numpy.h>
 
 namespace uipc::geometry
 {
@@ -57,10 +57,10 @@ Args:
         auto class_SubsceneModel = py::class_<SubsceneModel>(
             m, "SubsceneModel", R"(SubsceneModel class representing subscene parameters between two elements.)");
         class_SubsceneModel.def("topo",
-                                &SubsceneModel::topo,
-                                R"(Get the topology type.
+                                [](const SubsceneModel& self) { return as_numpy(self.topo()); },
+                                R"(Get the topology IDs.
 Returns:
-    str: Topology type string.)");
+    numpy.ndarray: Array of two integers representing the topology IDs.)");
         class_SubsceneModel.def("is_enabled",
                                 &SubsceneModel::is_enabled,
                                 R"(Check if the subscene model is enabled.

@@ -1,7 +1,5 @@
 #include <pyuipc/constitution/soft_transform_constraint.h>
 #include <uipc/constitution/soft_transform_constraint.h>
-#include <pyuipc/common/json.h>
-#include <pyuipc/as_numpy.h>
 
 namespace pyuipc::constitution
 {

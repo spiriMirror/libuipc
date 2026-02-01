@@ -1,6 +1,5 @@
 #include <pyuipc/geometry/attribute_slot.h>
 #include <uipc/geometry/attribute_slot.h>
-#include <pyuipc/as_numpy.h>
 #include <pybind11/stl.h>
 #include <sstream>
 

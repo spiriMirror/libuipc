@@ -1,6 +1,5 @@
 #include <pyuipc/common/uipc_type.h>
 #include <uipc/common/type_define.h>
-#include <pyuipc/as_numpy.h>
 
 namespace pyuipc
 {

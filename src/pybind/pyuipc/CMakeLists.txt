@@ -32,11 +32,10 @@ uipc_target_set_relative_source_file(pyuipc)
 get_target_property(SOURCES pyuipc SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
 
-uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH} "mypy")
+uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH} "pybind11_stubgen")
 uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH}  "numpy")
 
 # After build pyuipc, call the script to copy the dependent shared libraries to python package.
-set(UIPC_PYTHON_STUB_OUTPUT_DIR "${CMAKE_BINARY_DIR}/python/src/uipc/_native")
 add_custom_command(
     TARGET pyuipc POST_BUILD
     COMMAND ${UIPC_PYTHON_EXECUTABLE_PATH} 
@@ -48,14 +47,15 @@ add_custom_command(
     "--config=$<CONFIG>"
     "--build_type=${CMAKE_BUILD_TYPE}"
     "--build_wheel=${UIPC_BUILD_PYTHON_WHEEL}"
-    "--stub_output=${UIPC_PYTHON_STUB_OUTPUT_DIR}"
     WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
     COMMENT "Generating type stubs for pyuipc package"
 )
 
 if(UIPC_BUILD_PYTHON_WHEEL)
-    install(DIRECTORY "${UIPC_PYTHON_STUB_OUTPUT_DIR}/pyuipc"
-        DESTINATION "${UIPC_INSTALL_DIR}/pyuipc"
+    # UIPC_INSTALL_DIR is "uipc/_native"
+    # Copy stubs to the install directory
+    install(DIRECTORY "${CMAKE_BINARY_DIR}/python/src/"
+        DESTINATION "${UIPC_INSTALL_DIR}/../.."
         FILES_MATCHING PATTERN "*.pyi"
     )
 endif()

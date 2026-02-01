@@ -64,6 +64,7 @@ function(uipc_show_options)
     
     message(STATUS "Details:")
     message(STATUS "SKBUILD: ${SKBUILD}")
+    message(STATUS "UIPC_INSTALL_DIR: ${UIPC_INSTALL_DIR}")
     message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
     message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
     message(STATUS "CMAKE_BUILD_PARALLEL_LEVEL: $ENV{CMAKE_BUILD_PARALLEL_LEVEL}")
@@ -329,8 +330,8 @@ function(uipc_install_target target_name)
             ARCHIVE DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/lib")
     else()
         install(TARGETS ${target_name}
-            RUNTIME DESTINATION "${UIPC_INSTALL_DIR}/pyuipc"
-            LIBRARY DESTINATION "${UIPC_INSTALL_DIR}/pyuipc"
+            RUNTIME DESTINATION "${UIPC_INSTALL_DIR}"
+            LIBRARY DESTINATION "${UIPC_INSTALL_DIR}"
             ARCHIVE DESTINATION EXCLUDE_FROM_ALL)
     endif()
 endfunction()
@@ -357,7 +358,7 @@ function(uipc_install_vcpkg_runtime)
     if(NOT UIPC_BUILD_PYTHON_WHEEL)
         set(INSTALL_DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}")
     else()
-        set(INSTALL_DESTINATION "${UIPC_INSTALL_DIR}/pyuipc")
+        set(INSTALL_DESTINATION "${UIPC_INSTALL_DIR}")
     endif()
 
     # Install runtime dependencies from vcpkg_installed
