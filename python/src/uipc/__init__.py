@@ -19,3 +19,4 @@ init()
 
 # import all pyuipc modules
 from ._native.pyuipc import *
+__version__ = pyuipc.__version__
