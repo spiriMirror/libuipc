@@ -107,12 +107,14 @@ class FiniteElementEnergyProducer : public SimSystem
     virtual void do_build() override final;
     void         collect_extent_info();
     void         compute_energy(LineSearcher::EnergyInfo& info);
+
     class AssemblyInfo
     {
       public:
         muda::TripletMatrixView<Float, 3> hessians;
         Float                             dt;
     };
+
     void assemble_gradient_hessian(AssemblyInfo& info);
 
     Impl m_impl;

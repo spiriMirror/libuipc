@@ -1,11 +1,12 @@
 #include <contact_system/global_contact_manager.h>
-#include <collision_detection/global_trajectory_filter.h>
 #include <sim_engine.h>
 #include <contact_system/contact_reporter.h>
 #include <uipc/common/enumerate.h>
 #include <kernel_cout.h>
 #include <uipc/common/unit.h>
 #include <uipc/common/zip.h>
+#include <collision_detection/global_trajectory_filter.h>
+#include <contact_system/adaptive_contact_parameter_reporter.h>
 
 namespace uipc::backend
 {
@@ -79,6 +80,10 @@ void GlobalContactManager::Impl::init(WorldVisitor& world)
         R->init();
     for(auto&& [i, R] : enumerate(contact_reporter_view))
         R->m_index = i;
+    if(adaptive_contact_parameter_reporter)
+    {
+        adaptive_contact_parameter_reporter->init();
+    }
 }
 
 using MaskMatrix = Eigen::Matrix<IndexT, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
@@ -229,14 +234,9 @@ Float GlobalContactManager::Impl::compute_cfl_condition()
 
 namespace uipc::backend::cuda
 {
-void GlobalContactManager::compute_d_hat()
+muda::Buffer2DView<ContactCoeff> GlobalContactManager::AdaptiveParameterInfo::contact_tabular() const noexcept
 {
-    m_impl.compute_d_hat();
-}
-
-void GlobalContactManager::compute_adaptive_kappa()
-{
-    m_impl.compute_adaptive_kappa();
+    return m_impl->contact_tabular.view();
 }
 
 Float GlobalContactManager::compute_cfl_condition()
@@ -249,14 +249,25 @@ void GlobalContactManager::init()
     m_impl.init(world());
 }
 
+void GlobalContactManager::compute_adaptive_parameters()
+{
+    if(m_impl.adaptive_contact_parameter_reporter)
+        return;
+
+    auto info = AdaptiveParameterInfo(&m_impl);
+    m_impl.adaptive_contact_parameter_reporter->compute_parameters(info);
+}
+
 Float GlobalContactManager::d_hat() const
 {
     return m_impl.d_hat;
 }
+
 Float GlobalContactManager::eps_velocity() const
 {
     return m_impl.eps_velocity;
 }
+
 bool GlobalContactManager::cfl_enabled() const
 {
     return m_impl.cfl_enabled;
@@ -267,6 +278,16 @@ void GlobalContactManager::add_reporter(ContactReporter* reporter)
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
     m_impl.contact_reporters.register_subsystem(*reporter);
+}
+
+void GlobalContactManager::add_reporter(AdaptiveContactParameterReporter* reporter)
+{
+    check_state(SimEngineState::BuildSystems, "add_reporter()");
+    UIPC_ASSERT(!m_impl.adaptive_contact_parameter_reporter,
+                "AdaptiveContactParameterReporter is already registered, name: {}",
+                m_impl.adaptive_contact_parameter_reporter->name());
+    UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
+    m_impl.adaptive_contact_parameter_reporter.register_subsystem(*reporter);
 }
 
 muda::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept

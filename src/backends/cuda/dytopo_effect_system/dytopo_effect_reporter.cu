@@ -29,6 +29,11 @@ void DyTopoEffectReporter::report_energy_extent(GlobalDyTopoEffectManager::Energ
 void DyTopoEffectReporter::report_gradient_hessian_extent(GlobalDyTopoEffectManager::GradientHessianExtentInfo& info)
 {
     do_report_gradient_hessian_extent(info);
+
+    UIPC_ASSERT(!(info.gradient_only() && info.m_hessian_count == 0),
+                "When gradient_only is true, hessian_count must be 0, but {} provide hessian count={}",
+                name(),
+                info.m_hessian_count);
 }
 
 void DyTopoEffectReporter::assemble(GlobalDyTopoEffectManager::GradientHessianInfo& info)

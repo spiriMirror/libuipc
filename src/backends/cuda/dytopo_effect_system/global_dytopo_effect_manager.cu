@@ -6,6 +6,7 @@
 #include <kernel_cout.h>
 #include <uipc/common/unit.h>
 #include <uipc/common/zip.h>
+#include <energy_component_flags.h>
 
 namespace uipc::backend
 {
@@ -75,24 +76,35 @@ void GlobalDyTopoEffectManager::Impl::init(WorldVisitor& world)
     classified_dytopo_effect_hessians.resize(dytopo_effect_receiver_view.size());
 }
 
-void GlobalDyTopoEffectManager::Impl::compute_dytopo_effect()
+void GlobalDyTopoEffectManager::Impl::compute_dytopo_effect(ComputeDyTopoEffectInfo& info)
 {
-    _assemble();
+    _assemble(info);
     _convert_matrix();
-    _distribute();
+    _distribute(info);
 }
 
-void GlobalDyTopoEffectManager::Impl::_assemble()
+void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
 {
     auto vertex_count = global_vertex_manager->positions().size();
 
     auto reporter_gradient_counts = reporter_gradient_offsets_counts.counts();
     auto reporter_hessian_counts  = reporter_hessian_offsets_counts.counts();
 
+    logger::info("DyTopo Effect Assembly: GradientOnly={}, ComponentFlags={}",
+                 info.m_gradient_only,
+                 magic_enum::enum_flags_name(info.m_component_flags));
+
     for(auto&& [i, reporter] : enumerate(dytopo_effect_reporters.view()))
     {
+        reporter_gradient_counts[i] = 0;
+        reporter_hessian_counts[i]  = 0;
+
+        if(reporter->component_flags() != info.m_component_flags)
+            continue;
+
         GradientHessianExtentInfo info;
         reporter->report_gradient_hessian_extent(info);
+
         reporter_gradient_counts[i] = info.m_gradient_count;
         reporter_hessian_counts[i]  = info.m_hessian_count;
         logger::info("<{}> DyTopo Grad3 count: {}, DyTopo Hess3x3 count: {}",
@@ -119,9 +131,11 @@ void GlobalDyTopoEffectManager::Impl::_assemble()
     // collect
     for(auto&& [i, reporter] : enumerate(dytopo_effect_reporters.view()))
     {
+        if(reporter->component_flags() != info.m_component_flags)
+            continue;
+
         auto [g_offset, g_count] = reporter_gradient_offsets_counts[i];
         auto [h_offset, h_count] = reporter_hessian_offsets_counts[i];
-
 
         GradientHessianInfo info;
 
@@ -139,7 +153,7 @@ void GlobalDyTopoEffectManager::Impl::_convert_matrix()
     matrix_converter.convert(collected_dytopo_effect_gradient, sorted_dytopo_effect_gradient);
 }
 
-void GlobalDyTopoEffectManager::Impl::_distribute()
+void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
 {
     using namespace muda;
 
@@ -147,8 +161,8 @@ void GlobalDyTopoEffectManager::Impl::_distribute()
 
     for(auto&& [i, receiver] : enumerate(dytopo_effect_receivers.view()))
     {
-        DyTopoClassifyInfo info;
-        receiver->report(info);
+        DyTopoClassifyInfo classify_info;
+        receiver->report(classify_info);
 
         auto& classified_gradients = classified_dytopo_effect_gradients[i];
         classified_gradients.reshape(vertex_count);
@@ -156,7 +170,7 @@ void GlobalDyTopoEffectManager::Impl::_distribute()
         classified_hessians.reshape(vertex_count, vertex_count);
 
         // 1) report gradient
-        if(info.is_diag())
+        if(classify_info.is_diag())
         {
             const auto N = sorted_dytopo_effect_gradient.doublet_count();
 
@@ -171,16 +185,13 @@ void GlobalDyTopoEffectManager::Impl::_distribute()
                     [gradient_range = gradient_range.viewer().name("gradient_range"),
                      dytopo_effect_gradient =
                          std::as_const(sorted_dytopo_effect_gradient).viewer().name("dytopo_effect_gradient"),
-                     range = info.gradient_i_range()] __device__(int I) mutable
+                     range = classify_info.gradient_i_range()] __device__(int I) mutable
                     {
                         auto in_range = [](int i, const Vector2i& range)
                         { return i >= range.x() && i < range.y(); };
 
                         auto&& [i, G]      = dytopo_effect_gradient(I);
                         bool this_in_range = in_range(i, range);
-
-                        //cout << "I: " << I << ", i: " << i << ", G: " << G
-                        //     << ", in_range: " << this_in_range << "\n";
 
                         if(!this_in_range)
                         {
@@ -236,8 +247,11 @@ void GlobalDyTopoEffectManager::Impl::_distribute()
             }
         }
 
+        if(info.m_gradient_only)
+            continue;
+
         // 2) report hessian
-        if(!info.is_empty())
+        if(!classify_info.is_empty())
         {
             const auto N = sorted_dytopo_effect_hessian.triplet_count();
 
@@ -255,8 +269,8 @@ void GlobalDyTopoEffectManager::Impl::_distribute()
                          VarView<IndexT>{selected_hessian.data() + N}.viewer().name("last"),
                      dytopo_effect_hessian =
                          sorted_dytopo_effect_hessian.cviewer().name("dytopo_effect_hessian"),
-                     i_range = info.hessian_i_range(),
-                     j_range = info.hessian_j_range()] __device__(int I) mutable
+                     i_range = classify_info.hessian_i_range(),
+                     j_range = classify_info.hessian_j_range()] __device__(int I) mutable
                     {
                         auto&& [i, j, H] = dytopo_effect_hessian(I);
 
@@ -294,8 +308,8 @@ void GlobalDyTopoEffectManager::Impl::_distribute()
                             dytopo_effect_hessian =
                                 sorted_dytopo_effect_hessian.cviewer().name("dytopo_effect_hessian"),
                             classified_hessian = classified_hessians.viewer().name("classified_hessian"),
-                            i_range = info.hessian_i_range(),
-                            j_range = info.hessian_j_range()] __device__(int I) mutable
+                            i_range = classify_info.hessian_i_range(),
+                            j_range = classify_info.hessian_j_range()] __device__(int I) mutable
                            {
                                if(selected_hessian(I))
                                {
@@ -346,16 +360,36 @@ void GlobalDyTopoEffectManager::init()
     m_impl.init(world());
 }
 
+void GlobalDyTopoEffectManager::compute_dytopo_effect(ComputeDyTopoEffectInfo& info)
+{
+    m_impl.compute_dytopo_effect(info);
+}
+
 void GlobalDyTopoEffectManager::compute_dytopo_effect()
 {
-    m_impl.compute_dytopo_effect();
+    ComputeDyTopoEffectInfo info;
+    m_impl.compute_dytopo_effect(info);
 }
 
 void GlobalDyTopoEffectManager::add_reporter(DyTopoEffectReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
+    auto flag = reporter->component_flags();
+    UIPC_ASSERT(is_valid_flag(flag),
+                "reporter component_flags() is not valid single flag, it's {}",
+                magic_enum::enum_flags_name(flag));
     m_impl.dytopo_effect_reporters.register_subsystem(*reporter);
+
+    // classify into contact / non-contact
+    if(reporter->component_flags() == EnergyComponentFlags::Contact)
+    {
+        m_impl.contact_reporters.register_subsystem(*reporter);
+    }
+    else
+    {
+        m_impl.non_contact_reporters.register_subsystem(*reporter);
+    }
 }
 
 void GlobalDyTopoEffectManager::add_receiver(DyTopoEffectReceiver* receiver)

@@ -1,17 +1,17 @@
 #pragma once
 #include <sim_system.h>
 #include <utils/offset_count_collection.h>
-#include <contact_system/contact_reporter.h>
+#include <dytopo_effect_system/dytopo_effect_reporter.h>
 #include <uipc/geometry/simplicial_complex_slot.h>
 
 namespace uipc::backend::cuda
 {
 class InterPrimitiveConstitution;
 
-class InterPrimitiveConstitutionManager final : public ContactReporter
+class InterPrimitiveConstitutionManager final : public DyTopoEffectReporter
 {
   public:
-    using ContactReporter::ContactReporter;
+    using DyTopoEffectReporter::DyTopoEffectReporter;
 
     class Impl;
 
@@ -143,8 +143,8 @@ class InterPrimitiveConstitutionManager final : public ContactReporter
     {
       public:
         void init(SceneVisitor& scene);
-        void compute_energy(GlobalContactManager::EnergyInfo& info);
-        void compute_gradient_hessian(GlobalContactManager::GradientHessianInfo& info);
+        void compute_energy(GlobalDyTopoEffectManager::EnergyInfo& info);
+        void compute_gradient_hessian(GlobalDyTopoEffectManager::GradientHessianInfo& info);
 
         Float dt = 0.0;
 
@@ -162,17 +162,23 @@ class InterPrimitiveConstitutionManager final : public ContactReporter
 
   private:
     friend class SimEngine;
-    virtual void do_build(ContactReporter::BuildInfo& info) override;
+    virtual void do_build(DyTopoEffectReporter::BuildInfo& info) override;
 
-    void do_init(ContactReporter::InitInfo& info) override;
+    void do_init(DyTopoEffectReporter::InitInfo& info) override;
 
     friend class InterPrimitiveConstitution;
     void add_constitution(InterPrimitiveConstitution* constitution) noexcept;
 
-    void do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info) override final;
-    void do_report_gradient_hessian_extent(GlobalContactManager::GradientHessianExtentInfo& info) override final;
-    void do_assemble(GlobalContactManager::GradientHessianInfo& info) override;
-    void do_compute_energy(GlobalContactManager::EnergyInfo& info) override;
+    void do_report_energy_extent(GlobalDyTopoEffectManager::EnergyExtentInfo& info) override final;
+    void do_report_gradient_hessian_extent(
+        GlobalDyTopoEffectManager::GradientHessianExtentInfo& info) override final;
+    void do_assemble(GlobalDyTopoEffectManager::GradientHessianInfo& info) override;
+    void do_compute_energy(GlobalDyTopoEffectManager::EnergyInfo& info) override;
+
+    virtual EnergyComponentFlags component_flags() override final
+    {
+        return EnergyComponentFlags::Complement;
+    }
 
     Impl m_impl;
 

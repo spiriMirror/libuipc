@@ -12,6 +12,7 @@ namespace uipc::backend::cuda
 class ContactReporter;
 class ContactReceiver;
 class GlobalTrajectoryFilter;
+class AdaptiveContactParameterReporter;
 
 class GlobalContactManager final : public SimSystem
 {
@@ -27,6 +28,22 @@ class GlobalContactManager final : public SimSystem
     using EnergyExtentInfo = GlobalDyTopoEffectManager::EnergyExtentInfo;
 
     using EnergyInfo = GlobalDyTopoEffectManager::EnergyInfo;
+
+    class Impl;
+
+    class AdaptiveParameterInfo
+    {
+      public:
+        AdaptiveParameterInfo(Impl* impl) noexcept
+            : m_impl(impl)
+        {
+        }
+
+        muda::Buffer2DView<ContactCoeff> contact_tabular() const noexcept;
+
+      private:
+        Impl* m_impl;
+    };
 
     class Impl
     {
@@ -66,6 +83,7 @@ class GlobalContactManager final : public SimSystem
 
         SimSystemSlotCollection<ContactReporter> contact_reporters;
         SimSystemSlotCollection<ContactReceiver> contact_receivers;
+        SimSystemSlot<AdaptiveContactParameterReporter> adaptive_contact_parameter_reporter;
     };
 
     Float d_hat() const;
@@ -88,12 +106,15 @@ class GlobalContactManager final : public SimSystem
 
     void init();
 
-    void  compute_d_hat();
-    void  compute_adaptive_kappa();
+    void compute_adaptive_parameters();
+
     Float compute_cfl_condition();
 
     friend class ContactReporter;
     void add_reporter(ContactReporter* reporter);
+
+    friend class AdaptiveContactParameterReporter;
+    void add_reporter(AdaptiveContactParameterReporter* reporter);
 
     Impl m_impl;
 };

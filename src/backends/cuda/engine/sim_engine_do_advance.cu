@@ -62,11 +62,10 @@ void SimEngine::do_advance()
         }
     };
 
-    auto compute_adaptive_kappa = [this]
+    auto compute_adaptive_contact_parameters = [this]
     {
-        // TODO: now no effect
         if(m_global_contact_manager)
-            m_global_contact_manager->compute_adaptive_kappa();
+            m_global_contact_manager->compute_adaptive_parameters();
     };
 
     auto compute_dytopo_effect = [this]
@@ -301,7 +300,7 @@ void SimEngine::do_advance()
 
             // 2. Adaptive Parameter Calculation
             detect_dcd_candidates();
-            compute_adaptive_kappa();
+            compute_adaptive_contact_parameters();
 
             // 3. Predict Motion => x_tilde = x + v * dt
             m_state = SimEngineState::PredictMotion;

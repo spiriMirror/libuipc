@@ -8,6 +8,7 @@
 #include <finite_element/finite_element_extra_constitution.h>
 #include <sim_engine.h>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/common/flag.h>
 
 namespace uipc::backend::cuda
 {
@@ -100,6 +101,11 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
 
 void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
 {
+    bool has_contact =
+        has_flags(info.component_flags(), GlobalLinearSystem::ComponentFlags::Contact);
+    bool has_complement =
+        has_flags(info.component_flags(), GlobalLinearSystem::ComponentFlags::Complement);
+
     // 0) record dof info
     auto frame = sim_engine->frame();
     fem().set_dof_info(frame, info.gradients().offset(), info.gradients().size());
@@ -108,7 +114,11 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
     info.gradients().buffer_view().fill(0);
 
     // 2) Assemble Gradient and Hessian
-    _assemble_producers(info);
+    if (has_complement)
+    {
+        _assemble_producers(info);
+    }
+    
     _assemble_dytopo_effect(info);
     _assemble_animation(info);
 

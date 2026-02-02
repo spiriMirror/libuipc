@@ -28,7 +28,7 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(InterPrimitiveConstitutionManager);
 
-void InterPrimitiveConstitutionManager::do_build(ContactReporter::BuildInfo&)
+void InterPrimitiveConstitutionManager::do_build(DyTopoEffectReporter::BuildInfo&)
 {
     auto dt_attr                 = world().scene().config().find<Float>("dt");
     m_impl.dt                    = dt_attr->view()[0];
@@ -106,7 +106,7 @@ void InterPrimitiveConstitutionManager::Impl::init(SceneVisitor& scene)
     constitution_hessian_offsets_counts.resize(constitution_view.size());
 }
 
-void InterPrimitiveConstitutionManager::Impl::compute_energy(GlobalContactManager::EnergyInfo& info)
+void InterPrimitiveConstitutionManager::Impl::compute_energy(GlobalDyTopoEffectManager::EnergyInfo& info)
 {
     auto constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
@@ -117,7 +117,7 @@ void InterPrimitiveConstitutionManager::Impl::compute_energy(GlobalContactManage
 }
 
 void InterPrimitiveConstitutionManager::Impl::compute_gradient_hessian(
-    GlobalContactManager::GradientHessianInfo& info)
+    GlobalDyTopoEffectManager::GradientHessianInfo& info)
 {
     auto constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
@@ -127,7 +127,7 @@ void InterPrimitiveConstitutionManager::Impl::compute_gradient_hessian(
     }
 }
 
-void InterPrimitiveConstitutionManager::do_init(ContactReporter::InitInfo& info)
+void InterPrimitiveConstitutionManager::do_init(DyTopoEffectReporter::InitInfo& info)
 {
     auto scene = world().scene();
     m_impl.init(scene);
@@ -141,7 +141,7 @@ void InterPrimitiveConstitutionManager::add_constitution(InterPrimitiveConstitut
 }
 
 void InterPrimitiveConstitutionManager::do_report_gradient_hessian_extent(
-    GlobalContactManager::GradientHessianExtentInfo& info)
+    GlobalDyTopoEffectManager::GradientHessianExtentInfo& info)
 {
     auto constitution_view = m_impl.constitutions.view();
     // gradient and hessian counts
@@ -165,17 +165,17 @@ void InterPrimitiveConstitutionManager::do_report_gradient_hessian_extent(
     }
 }
 
-void InterPrimitiveConstitutionManager::do_assemble(GlobalContactManager::GradientHessianInfo& info)
+void InterPrimitiveConstitutionManager::do_assemble(GlobalDyTopoEffectManager::GradientHessianInfo& info)
 {
     m_impl.compute_gradient_hessian(info);
 }
 
-void InterPrimitiveConstitutionManager::do_compute_energy(GlobalContactManager::EnergyInfo& info)
+void InterPrimitiveConstitutionManager::do_compute_energy(GlobalDyTopoEffectManager::EnergyInfo& info)
 {
     m_impl.compute_energy(info);
 }
 
-void InterPrimitiveConstitutionManager::do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info)
+void InterPrimitiveConstitutionManager::do_report_energy_extent(GlobalDyTopoEffectManager::EnergyExtentInfo& info)
 {
     auto constitution_view = m_impl.constitutions.view();
 
