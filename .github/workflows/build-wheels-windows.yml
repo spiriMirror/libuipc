@@ -16,10 +16,10 @@ concurrency:
 
 jobs:
   build-wheels:
-    name: Build Wheels ${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
+    name: Build Wheel ${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
     runs-on: ${{ matrix.os }}
     concurrency:
-      group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-build-wheels-${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
+      group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-build-wheel-${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
       cancel-in-progress: true
     strategy:
       fail-fast: false
@@ -88,5 +88,5 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.python-version }}-${{ matrix.os }}-${{ matrix.cuda }}
+          name: pyuipc-${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
           path: "${{ env.UIPC_WORKSPACE }}/build/wheelhouse/*.whl"
