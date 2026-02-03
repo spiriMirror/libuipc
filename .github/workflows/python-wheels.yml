@@ -106,6 +106,7 @@ jobs:
         with:
           name: pyuipc-${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
           path: "${{ env.WORKSPACE }}/build/wheelhouse/*.whl"
+          overwrite: true
 
   publish-test-pypi:
     name: Publish to Test PyPI
