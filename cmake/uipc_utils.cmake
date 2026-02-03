@@ -72,6 +72,17 @@ function(uipc_show_options)
 endfunction()
 
 # -----------------------------------------------------------------------------------------
+# Parse the version string into major, minor, and patch
+# -----------------------------------------------------------------------------------------
+function(uipc_parse_version VERSION_STRING MAJOR MINOR PATCH)
+    string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _ ${VERSION_STRING})
+    set(${MAJOR} ${CMAKE_MATCH_1})
+    set(${MINOR} ${CMAKE_MATCH_2})
+    set(${PATCH} ${CMAKE_MATCH_3})
+    return(PROPAGATE ${MAJOR} ${MINOR} ${PATCH})
+endfunction()
+
+# -----------------------------------------------------------------------------------------
 # Full path of the python executable
 # -----------------------------------------------------------------------------------------
 function(uipc_find_python_executable_path)

@@ -6,9 +6,12 @@ include(cmake/uipc_utils.cmake)
 # =========================================================================
 # Project Version
 # =========================================================================
-set(UIPC_VERSION_MAJOR 0)
-set(UIPC_VERSION_MINOR 9)
-set(UIPC_VERSION_PATCH 0)
+if(DEFINED SKBUILD_PROJECT_VERSION)
+   set(UIPC_VERSION ${SKBUILD_PROJECT_VERSION})
+else()
+    set(UIPC_VERSION "0.9.0")
+endif()
+uipc_parse_version(${UIPC_VERSION} UIPC_VERSION_MAJOR UIPC_VERSION_MINOR UIPC_VERSION_PATCH)
 
 # =========================================================================
 # Project Options
@@ -70,7 +73,7 @@ uipc_config_vcpkg_install()
 #
 # =========================================================================
 
-project(uipc)
+project(uipc VERSION ${UIPC_VERSION})
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON) # Generate compile_commands.json
