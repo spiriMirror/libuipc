@@ -19,8 +19,7 @@ concurrency:
 jobs:
   build-wheels:
     name: Build Wheel ${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
-    # This job runs on ALL triggers: PRs, pushes to main, test- tags, and releases
-    # No 'if' condition means it always runs when the workflow is triggered
+    # This job runs on ALL triggers: PRs, pushes to main, tags, and releases
     runs-on: ${{ matrix.os }}
     concurrency:
       group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-build-wheel-${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
