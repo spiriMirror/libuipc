@@ -1,6 +1,5 @@
 #include <pyuipc/geometry/attribute_io.h>
 #include <uipc/io/attribute_io.h>
-#include <pyuipc/as_numpy.h>
 #include <Eigen/Geometry>
 
 namespace pyuipc::geometry

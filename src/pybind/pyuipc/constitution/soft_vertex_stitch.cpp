@@ -1,8 +1,6 @@
 #include <pyuipc/constitution/soft_vertex_stitch.h>
 #include <uipc/constitution/soft_vertex_stitch.h>
 #include <uipc/constitution/constitution.h>
-#include <pyuipc/common/json.h>
-#include <pyuipc/as_numpy.h>
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
@@ -71,9 +69,9 @@ Returns:
 Args:
     aim_geo_slots: Tuple of geometry slots to stitch.
     stitched_vert_ids: Array of vertex ID pairs [geometry0_vert, geometry1_vert] to stitch.
-    contact_elements: Tuple of contact elements.
+    contact_elements: Tuple of two contact element objects.
     kappa: Stitching stiffness (default: 1e6).
 Returns:
-    Geometry: Created stitching geometry.)");
+    Created stitching geometry.)");
 };
 }  // namespace pyuipc::constitution

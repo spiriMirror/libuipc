@@ -23,18 +23,8 @@ namespace pyuipc::geometry
 {
 PyModule::PyModule(py::module& m)
 {
-    PyAttributeSlot{m};
-    PyAttributeCollection{m};
-
-    PyGeometry{m};
-    PyImplicitGeometry{m};
-    PySimplicialComplex{m};
-
-    PyGeometryAtlas{m};
-
-    PyGeometrySlot{m};
-    PyImplicitGeometrySlot{m};
-    PySimplicialComplexSlot{m};
+    // Data structures are exported early in main module
+    // Only utils/IO functions are exported here (after core module)
 
     PyFactory{m};
 

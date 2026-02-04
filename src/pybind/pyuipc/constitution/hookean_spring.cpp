@@ -1,6 +1,5 @@
 #include <pyuipc/constitution/hookean_spring.h>
 #include <uipc/constitution/hookean_spring.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::constitution
 {

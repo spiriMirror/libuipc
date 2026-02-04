@@ -1,0 +1,214 @@
+name: Build Python Wheels 
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  pull_request:
+    branches:
+      - main
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build-wheels:
+    name: Build Wheel ${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
+    # This job runs on ALL triggers: PRs, pushes to main, tags, and releases
+    runs-on: ${{ matrix.os }}
+    concurrency:
+      group: ${{ github.ref }}-${{ github.base_ref }}-${{ github.head_ref }}-build-wheel-${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - windows-2022
+          - ubuntu-22.04
+        cuda:
+          - 12.8.1
+        python-version:
+          - "cp310"
+          - "cp311"
+          - "cp312"
+          - "cp313"
+    timeout-minutes: 360
+
+    steps:
+      - name: Maximize build space
+        if: matrix.os == 'ubuntu-22.04'
+        uses: AdityaGarg8/remove-unwanted-software@v4.1
+        with:
+          remove-android: "true"
+          remove-haskell: "true"
+          remove-codeql: "true"
+
+      - name: Set workspace path
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" == "windows-2022" ]; then
+            UNIX_PATH=$(echo "${{ github.workspace }}" | tr '\\' '/')
+            echo "WORKSPACE=$UNIX_PATH" >> $GITHUB_ENV
+          else
+            echo "WORKSPACE=${{ github.workspace }}" >> $GITHUB_ENV
+          fi
+
+      - name: Checkout code
+        uses: actions/checkout@v5
+    
+      - name: Set up Python
+        uses: actions/setup-python@v5
+
+      - name: Install a specific version
+        uses: eifinger/setup-uv@v1
+        with:
+          version: 'latest'
+
+      - name: Generate vcpkg.json
+        run: |
+          cmake -E make_directory "${{ env.WORKSPACE }}/build"
+          python scripts/gen_vcpkg_json.py "${{ env.WORKSPACE }}/build" --with_cuda_backend=ON
+
+      - name: Setup vcpkg (Windows)
+        if: matrix.os == 'windows-2022'
+        id: vcpkg
+        uses: johnwason/vcpkg-action@v6
+        with:
+          manifest-dir: "${{ env.WORKSPACE }}/build"
+          triplet: x64-windows-release
+          cache-key: ${{ matrix.os }}
+          revision: master
+          token: ${{ github.token }}
+          github-binarycache: true
+          fetch-depth: "0"
+
+      - name: Setup CUDA ${{ matrix.cuda}}
+        # Only on windows, linux needs cuda in container
+        if: matrix.os == 'windows-2022'
+        uses: Jimver/cuda-toolkit@v0.2.30
+        with:
+          cuda: "${{ matrix.cuda }}"
+          log-file-suffix: '${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}-${{ github.run_attempt }}.txt'
+
+      - name: Windows Build wheels
+        uses: pypa/cibuildwheel@v3.3.1
+        if: matrix.os == 'windows-2022'
+        env:
+          CIBW_BUILD: "${{ matrix.python-version }}-*"
+          # Relative path to vcpkg, to avoid linux container path issues
+          CIBW_ENVIRONMENT: >
+            CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
+        with:
+          package-dir: "${{ env.WORKSPACE }}"
+          output-dir: "${{ env.WORKSPACE }}/build/wheelhouse"
+        
+        # CUDA Version Trim
+        # x.y.z -> x.y
+      - name: CUDA Version Trim
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          CUDA_VERSION_MAJOR_MINOR=$(echo "${{ matrix.cuda }}" | cut -d '.' -f 1-2)
+          echo "CUDA_VERSION_MAJOR_MINOR=${CUDA_VERSION_MAJOR_MINOR}" >> $GITHUB_ENV
+
+      - name: Linux Build wheels
+        uses: pypa/cibuildwheel@v3.3.1
+        if: matrix.os == 'ubuntu-22.04'
+        env:
+          CIBW_BUILD: "${{ matrix.python-version }}-manylinux*"
+          CIBW_SKIP: "${{ matrix.python-version }}-musllinux*"
+          # Use CUDA-enabled manylinux image from https://github.com/ameli/manylinux-cuda
+          # Available images: sameli/manylinux_2_34_x86_64_cuda_12.8
+          CIBW_MANYLINUX_X86_64_IMAGE: "sameli/manylinux_2_34_x86_64_cuda_${{ env.CUDA_VERSION_MAJOR_MINOR }}"
+          # Set up vcpkg inside the container before any builds
+          # Clone vcpkg, bootstrap it, and install dependencies from vcpkg.json
+          CIBW_BEFORE_ALL: >
+            yum install -y git curl zip unzip tar gzip &&
+            cd /project &&
+            if [ ! -d vcpkg ]; then
+              git clone https://github.com/microsoft/vcpkg.git &&
+              cd vcpkg &&
+              ./bootstrap-vcpkg.sh -disableMetrics;
+            fi
+          # Reduce parallelism to avoid OOM (exit code 137)
+          CIBW_ENVIRONMENT: >
+            CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
+            CMAKE_BUILD_PARALLEL_LEVEL="3"
+        with:
+          package-dir: "."
+          output-dir: "build/wheelhouse"
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: pyuipc-${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}
+          path: "${{ env.WORKSPACE }}/build/wheelhouse/*.whl"
+          overwrite: true
+
+  publish-test-pypi:
+    name: Publish to Test PyPI
+    runs-on: ubuntu-latest
+    needs: build-wheels
+    if: github.event_name == 'release' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v[0-9]+.[0-9]+.[0-9]+'))
+    permissions:
+      id-token: write  # Required for trusted publishing (OIDC)
+      contents: read   # Required to read repository contents
+    environment:
+      name: test-pypi
+      url: https://test.pypi.org/p/pyuipc
+    
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pyuipc-*
+          merge-multiple: true
+          path: wheelhouse
+
+      - name: Publish to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+          packages-dir: wheelhouse
+          print-hash: true
+          skip-existing: true
+          verify-metadata: true
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    needs: publish-test-pypi
+    if: github.event_name == 'release'
+    permissions:
+      id-token: write  # Required for trusted publishing (OIDC)
+      contents: read   # Required to read repository contents
+    environment:
+      name: pypi
+      url: https://pypi.org/p/pyuipc
+    steps:
+      - name: Download all wheels
+        uses: actions/download-artifact@v4
+        with:
+          pattern: pyuipc-*
+          merge-multiple: true
+          path: wheelhouse
+
+      - name: List downloaded wheels
+        run: |
+          echo "Downloaded wheels:"
+          find wheelhouse -name "*.whl" -type f || echo "No wheels found in wheelhouse/"
+          ls -la wheelhouse/ || true
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://pypi.org/legacy/
+          packages-dir: wheelhouse
+          print-hash: true
+          skip-existing: true
+          verify-metadata: true
+          attestations: true

@@ -2,7 +2,6 @@ find_package(Eigen3 REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(fmt CONFIG REQUIRED)
-
 find_package(cppitertools CONFIG REQUIRED)
 find_package(magic_enum CONFIG REQUIRED)
 find_path(DYLIB_INCLUDE_DIRS "dylib.hpp")
@@ -93,7 +92,10 @@ uipc_target_set_rpath(uipc_core)
 file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
 
-
+# ------------------------------------------------------------------------------
+# Install targets
+# ------------------------------------------------------------------------------
+uipc_install_target(uipc_core)
 
 
 

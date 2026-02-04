@@ -1,8 +1,6 @@
 #include <pyuipc/core/scene.h>
 #include <uipc/core/scene.h>
-#include <pyuipc/common/json.h>
 #include <uipc/geometry/geometry.h>
-#include <pyuipc/common/json.h>
 #include <uipc/geometry/attribute_friend.h>
 
 namespace uipc::geometry

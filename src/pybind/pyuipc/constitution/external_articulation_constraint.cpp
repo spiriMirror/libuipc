@@ -1,6 +1,5 @@
 #include <pyuipc/constitution/external_articulation_constraint.h>
 #include <uipc/constitution/external_articulation_constraint.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::constitution
 {

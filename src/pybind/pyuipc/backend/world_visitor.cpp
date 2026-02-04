@@ -22,9 +22,9 @@ Returns:
     SceneVisitor: Scene visitor.)");
     class_WorldVisitor.def("animator",
                            &WorldVisitor::animator,
-                           R"(Get the animator.
+                           R"(Get the animator visitor.
 Returns:
-    Animator: Reference to animator.)");
+    AnimatorVisitor: Animator visitor.)");
     class_WorldVisitor.def("get",
                            &WorldVisitor::get,
                            py::return_value_policy::move,

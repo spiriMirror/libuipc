@@ -1,7 +1,5 @@
 #include <pyuipc/geometry/utils.h>
 #include <uipc/geometry/utils.h>
-#include <pyuipc/as_numpy.h>
-#include <pyuipc/common/json.h>
 #include <Eigen/Geometry>
 
 namespace pyuipc::geometry
