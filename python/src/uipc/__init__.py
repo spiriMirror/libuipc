@@ -1,19 +1,5 @@
-import sys
-import os 
 import pathlib
-import json
-
-this_file_dir = os.path.dirname(__file__)
-# support windows, linux, macos
-if sys.platform not in ['win32', 'linux', 'darwin']:
-    raise Exception('Unsupported platform: ' + sys.platform)
-
-sys.path.append(this_file_dir + '/modules/Release/bin')
-sys.path.append(this_file_dir + '/modules/RelWithDebInfo/bin')
-sys.path.append(this_file_dir + '/modules/releasedbg')
-sys.path.append(this_file_dir + '/modules/release')
-
-import pyuipc
+from ._native import pyuipc
 
 def init():
     if pyuipc.__file__ is None:
@@ -31,5 +17,6 @@ def init():
 
 init()
 
-from pyuipc import *
+# import all pyuipc modules
+from ._native.pyuipc import *
 __version__ = pyuipc.__version__

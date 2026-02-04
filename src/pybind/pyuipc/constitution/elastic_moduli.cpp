@@ -46,7 +46,13 @@ Returns:
              &ElasticModuli::mu,
              R"(Get the second Lame parameter (mu, shear modulus).
 Returns:
-    float: Second Lame parameter.)");
+    float: Second Lame parameter.)")
+        .def("__repr__",
+             [](const ElasticModuli& self)
+             {
+                 return fmt::format("ElasticModuli(lambda_={}, mu={})", self.lambda(), self.mu());
+             },
+             R"(String representation of elastic moduli.)");
 
 
     py::class_<ElasticModuli2D>(m, "ElasticModuli2D", R"(ElasticModuli2D class for codim 2D elastic material parameters (Lame parameters).)")
@@ -89,6 +95,12 @@ Returns:
              &ElasticModuli2D::mu,
              R"(Get the second Lame parameter (mu, shear modulus).
 Returns:
-    float: Second Lame parameter.)");
+    float: Second Lame parameter.)")
+        .def("__repr__",
+             [](const ElasticModuli2D& self)
+             {
+                 return fmt::format("ElasticModuli2D(lambda_={}, mu={})", self.lambda(), self.mu());
+             },
+             R"(String representation of 2D elastic moduli.)");
 }
 }  // namespace pyuipc::constitution

@@ -1,7 +1,7 @@
 #include <pyuipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/constitution.h>
-#include <pyuipc/common/json.h>
+
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;

@@ -1,6 +1,5 @@
 #include <pyuipc/constitution/soft_position_constraint.h>
 #include <uipc/constitution/soft_position_constraint.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::constitution
 {

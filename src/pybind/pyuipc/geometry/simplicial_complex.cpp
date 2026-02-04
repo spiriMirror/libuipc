@@ -3,8 +3,6 @@
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/geometry/geometry.h>
 #include <uipc/geometry/attribute_friend.h>
-#include <pyuipc/as_numpy.h>
-#include <pyuipc/common/json.h>
 #include <pyuipc/geometry/attribute_creator.h>
 namespace uipc::geometry
 {

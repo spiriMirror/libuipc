@@ -1,8 +1,6 @@
 #include <pyuipc/backend/scene_visitor.h>
 #include <uipc/backend/visitors/scene_visitor.h>
 #include <uipc/core/scene.h>
-#include <pyuipc/common/json.h>
-#include <pyuipc/as_numpy.h>
 #include <pyuipc/common/span.h>
 
 namespace pyuipc::backend

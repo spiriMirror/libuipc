@@ -1,7 +1,6 @@
 #include <pyuipc/constitution/discrete_shell_bending.h>
 #include <uipc/constitution/finite_element_extra_constitution.h>
 #include <uipc/constitution/discrete_shell_bending.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::constitution
 {

@@ -1,6 +1,5 @@
 #include <pyuipc/constitution/particle.h>
 #include <uipc/constitution/particle.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::constitution
 {

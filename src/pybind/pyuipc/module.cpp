@@ -1,4 +1,3 @@
-#include <pyuipc/common/json.h>
 #include <pyuipc/pyuipc.h>
 #include <uipc/common/uipc.h>
 #include <uipc/common/log.h>
@@ -18,6 +17,17 @@
 #include <pyuipc/backend/buffer_view.h>
 #include <pyuipc/backend/buffer.h>
 #include <pyuipc/core/feature.h>
+#include <pyuipc/constitution/constitution.h>
+#include <pyuipc/geometry/attribute_slot.h>
+#include <pyuipc/geometry/attribute_collection.h>
+#include <pyuipc/geometry/geometry.h>
+#include <pyuipc/geometry/implicit_geometry.h>
+#include <pyuipc/geometry/simplicial_complex.h>
+#include <pyuipc/geometry/geometry_atlas.h>
+#include <pyuipc/geometry/geometry_slot.h>
+#include <pyuipc/geometry/implicit_geometry_slot.h>
+#include <pyuipc/geometry/simplicial_complex_slot.h>
+#include <pyuipc/diff_sim/parameter_collection.h>
 #include <pyuipc/common/resident_thread.h>
 #if UIPC_WITH_USD_SUPPORT
 #include <pyuipc/usd/module.h>
@@ -56,11 +66,9 @@ PYBIND11_MODULE(pyuipc, m)
     m.attr("__version__") =
         fmt::format("{}.{}.{}", UIPC_VERSION_MAJOR, UIPC_VERSION_MINOR, UIPC_VERSION_PATCH);
 
-    // # Workaround for MSVC Release Config
-    // # Manually Convert Python Dict to Json
     m.def(
         "init",
-        [](py::dict dict) { uipc::init(pyjson::to_json(dict)); },
+        &uipc::init,
         py::arg("dict"),
         R"(Initialize the libuipc library with the given configuration.
 Args:
@@ -85,16 +93,30 @@ Returns:
     pyuipc::PyTimer{m};
     pyuipc::PyResidentThread{m};
 
-    // early expose buffer view
+    // Early Expose Data Structures
+    pyuipc::core::PyFeature{core};
     pyuipc::backend::PyBufferView{backend};
     pyuipc::backend::PyBuffer{backend};
-    // early expose feature
-    pyuipc::core::PyFeature{core};
+    pyuipc::constitution::PyConstitution{constitution};
+    pyuipc::geometry::PyAttributeSlot{geometry};
+    pyuipc::geometry::PyAttributeCollection{geometry};
+    pyuipc::geometry::PyGeometry{geometry};
+    pyuipc::geometry::PyImplicitGeometry{geometry};
+    pyuipc::geometry::PySimplicialComplex{geometry};
+    pyuipc::geometry::PyGeometryAtlas{geometry};
+    pyuipc::geometry::PyGeometrySlot{geometry};
+    pyuipc::geometry::PyImplicitGeometrySlot{geometry};
+    pyuipc::geometry::PySimplicialComplexSlot{geometry};
+    // early expose diff_sim data structures
+    pyuipc::diff_sim::PyParameterCollection{diff_sim};
 
     // pyuipc.unit
     pyuipc::PyUnit{unit};
 
-    // pyuipc.geometry
+    // pyuipc.core (must be before geometry utils as they depend on core types)
+    pyuipc::core::PyModule{core};
+
+    // pyuipc.geometry (utils/IO only, data structures exported early)
     pyuipc::geometry::PyModule{geometry};
 
     // pyuipc.constitution
@@ -102,9 +124,6 @@ Returns:
 
     // pyuipc::diff_sim
     pyuipc::diff_sim::PyModule{diff_sim};
-
-    // pyuipc.core
-    pyuipc::core::PyModule{core};
 
     // expose core classes to top level
     m.attr("Engine")    = core.attr("Engine");

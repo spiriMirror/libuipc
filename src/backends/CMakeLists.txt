@@ -32,14 +32,18 @@ function(uipc_add_backend name)
     target_compile_features(${name} PRIVATE cxx_std_20)
     set_target_properties(${name} PROPERTIES OUTPUT_NAME "uipc_backend_${name}")
     
-    
+    # set some properties for the target
     uipc_target_set_output_directory(${name})
     uipc_target_set_rpath(${name})
     add_dependencies(uipc_backends ${name})
+    set_property(GLOBAL APPEND PROPERTY UIPC_BACKEND_TARGETS ${name})
 
     # folder for IDE
     set_target_properties(${name} PROPERTIES FOLDER "uipc-backends")
     target_sources(${name} PRIVATE ${BACKEND_COMMON_SOURCES})
+
+    # install the target
+    uipc_install_target(${name})
 endfunction()
 
 
@@ -51,7 +55,6 @@ add_subdirectory(none)
 if(UIPC_WITH_CUDA_BACKEND)
     add_subdirectory(cuda)
 endif()
-
 
 
 
