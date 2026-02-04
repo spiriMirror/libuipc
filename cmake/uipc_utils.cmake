@@ -383,13 +383,19 @@ function(uipc_install_vcpkg_runtime)
 
     # For Python wheels, also install .so files from lib/ directory
     # These are needed for auditwheel to bundle dependencies
+    # Only install actual shared libraries, exclude debug symbols and static libs
     if(UIPC_BUILD_PYTHON_WHEEL AND EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
         install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/"
             DESTINATION "${INSTALL_DESTINATION}"
             FILES_MATCHING 
-            PATTERN "*.so*"
+            PATTERN "*.so"
+            PATTERN "*.so.[0-9]*"
             PATTERN "*.dylib"
             PATTERN "*.dll"
+            # Exclude debug symbols, static libs, and other unnecessary files
+            PATTERN "*.so.debug" EXCLUDE
+            PATTERN "*.a" EXCLUDE
+            PATTERN "*.pdb" EXCLUDE
         )
     endif()
 
