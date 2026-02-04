@@ -143,24 +143,6 @@ jobs:
               cd /project &&
               /project/vcpkg/vcpkg install --triplet x64-linux;
             fi
-          # Install zip in container before build (if not already installed)
-          CIBW_BEFORE_BUILD: "yum install -y zip unzip || apt-get update && apt-get install -y zip unzip || true"
-          # Configure auditwheel to find vcpkg libraries
-          # Libraries are now in /project/vcpkg/installed/x64-linux/lib
-          # Also exclude CUDA libraries as they're system libraries
-          CIBW_REPAIR_WHEEL_COMMAND: >
-            export LD_LIBRARY_PATH="/project/vcpkg/installed/x64-linux/lib:/project/vcpkg/installed/x64-linux/debug/lib:$LD_LIBRARY_PATH" &&
-            auditwheel repair -w {dest_dir} {wheel} 
-              --exclude libcuda.so 
-              --exclude libcudart.so 
-              --exclude libcublas.so 
-              --exclude libcurand.so 
-              --exclude libcusolver.so 
-              --exclude libcusparse.so 
-              --exclude libcufft.so 
-              --exclude libnvrtc.so
-              --exclude libnvidia-ml.so
-              --exclude libnvToolsExt.so
           # Reduce parallelism to avoid OOM (exit code 137)
           CIBW_ENVIRONMENT: >
             CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
