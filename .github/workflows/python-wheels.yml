@@ -103,6 +103,7 @@ jobs:
           # Relative path to vcpkg, to avoid linux container path issues
           CIBW_ENVIRONMENT: >
             CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
+            CMAKE_BUILD_PARALLEL_LEVEL="3"
         with:
           package-dir: "${{ env.WORKSPACE }}"
           output-dir: "${{ env.WORKSPACE }}/build/wheelhouse"
