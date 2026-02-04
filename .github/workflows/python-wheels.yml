@@ -133,15 +133,6 @@ jobs:
               git clone https://github.com/microsoft/vcpkg.git &&
               cd vcpkg &&
               ./bootstrap-vcpkg.sh -disableMetrics;
-            fi &&
-            # Copy vcpkg.json to project root if it's in build/ directory
-            if [ -f /project/build/vcpkg.json ] && [ ! -f /project/vcpkg.json ]; then
-              cp /project/build/vcpkg.json /project/vcpkg.json;
-            fi &&
-            # Install dependencies using manifest mode (vcpkg auto-detects vcpkg.json in current dir)
-            if [ -f /project/vcpkg.json ]; then
-              cd /project &&
-              /project/vcpkg/vcpkg install --triplet x64-linux;
             fi
           # Reduce parallelism to avoid OOM (exit code 137)
           CIBW_ENVIRONMENT: >
