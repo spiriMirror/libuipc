@@ -381,6 +381,18 @@ function(uipc_install_vcpkg_runtime)
         )
     endif()
 
+    # For Python wheels, also install .so files from lib/ directory
+    # These are needed for auditwheel to bundle dependencies
+    if(UIPC_BUILD_PYTHON_WHEEL AND EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+        install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/"
+            DESTINATION "${INSTALL_DESTINATION}"
+            FILES_MATCHING 
+            PATTERN "*.so*"
+            PATTERN "*.dylib"
+            PATTERN "*.dll"
+        )
+    endif()
+
     if(NOT UIPC_BUILD_PYTHON_WHEEL)
         # C++ package install logic
         if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")

@@ -74,12 +74,13 @@ jobs:
           cmake -E make_directory "${{ env.WORKSPACE }}/build"
           python scripts/gen_vcpkg_json.py "${{ env.WORKSPACE }}/build" --with_cuda_backend=ON
 
-      - name: Setup vcpkg
+      - name: Setup vcpkg (Windows)
+        if: matrix.os == 'windows-2022'
         id: vcpkg
         uses: johnwason/vcpkg-action@v6
         with:
           manifest-dir: "${{ env.WORKSPACE }}/build"
-          triplet: ${{ matrix.os == 'windows-2022' && 'x64-windows-release' || 'x64-linux' }}
+          triplet: x64-windows-release
           cache-key: ${{ matrix.os }}
           revision: master
           token: ${{ github.token }}
@@ -123,8 +124,16 @@ jobs:
           # Use CUDA-enabled manylinux image from https://github.com/ameli/manylinux-cuda
           # Available images: sameli/manylinux_2_34_x86_64_cuda_12.8
           CIBW_MANYLINUX_X86_64_IMAGE: "sameli/manylinux_2_34_x86_64_cuda_${{ env.CUDA_VERSION_MAJOR_MINOR }}"
-          # Install zip in container before build
-          CIBW_BEFORE_BUILD: "yum install -y zip unzip || apt-get update && apt-get install -y zip unzip || true"
+          # Set up vcpkg inside the container before any builds
+          # Clone vcpkg, bootstrap it, and install dependencies from vcpkg.json
+          CIBW_BEFORE_ALL: >
+            yum install -y git curl zip unzip tar gzip
+            cd /project &&
+            if [ ! -d vcpkg ]; then
+              git clone https://github.com/microsoft/vcpkg.git &&
+              cd vcpkg &&
+              ./bootstrap-vcpkg.sh -disableMetrics;
+            fi
           # Reduce parallelism to avoid OOM (exit code 137)
           CIBW_ENVIRONMENT: >
             CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
