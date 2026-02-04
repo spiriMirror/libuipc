@@ -13,6 +13,37 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
   public:
     using DiagLinearSubsystem::DiagLinearSubsystem;
 
+    muda::CBufferView<Matrix12x12> diag_hessian() const noexcept
+    {
+        return m_impl.diag_hessian.view();
+    }
+
+    class ComputeGradientHessianInfo
+    {
+      public:
+        ComputeGradientHessianInfo(bool                          gradient_only,
+                                   muda::BufferView<Vector12>    gradient,
+                                   muda::BufferView<Matrix12x12> hessians,
+                                   Float                         dt) noexcept
+            : m_gradient_only(gradient_only)
+            , m_gradients(gradient)
+            , m_hessians(hessians)
+            , m_dt(dt)
+        {
+        }
+
+        auto gradient_only() const noexcept { return m_gradient_only; }
+        auto hessians() const noexcept { return m_hessians; }
+        auto gradients() const noexcept { return m_gradients; }
+        auto dt() const noexcept { return m_dt; }
+
+      private:
+        bool                          m_gradient_only = false;
+        muda::BufferView<Matrix12x12> m_hessians;
+        muda::BufferView<Vector12>    m_gradients;
+        Float                         m_dt = 0.0;
+    };
+
     class ReportExtentInfo
     {
       public:
@@ -53,6 +84,9 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         void receive_init_dof_info(WorldVisitor& w, GlobalLinearSystem::InitDofInfo& info);
 
         void assemble(GlobalLinearSystem::DiagInfo& info);
+        void _assemble_kinetic_shape(IndexT& offset, GlobalLinearSystem::DiagInfo& info);
+        void _assemble_dytopo_effect(IndexT& offset, GlobalLinearSystem::DiagInfo& info);
+        void _assemble_other_reporters(IndexT& offset, GlobalLinearSystem::DiagInfo& info);
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
@@ -69,6 +103,15 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 
         muda::DeviceTripletMatrix<Float, 12, 12> reporter_hessians;
         muda::DeviceDoubletVector<Float, 12>     reporter_gradients;
+
+        // intermediate gradient/hessian buffers for kinetic/shape
+        muda::DeviceBuffer<Matrix12x12> body_id_to_shape_hessian;
+        muda::DeviceBuffer<Vector12>    body_id_to_shape_gradient;
+        muda::DeviceBuffer<Matrix12x12> body_id_to_kinetic_hessian;
+        muda::DeviceBuffer<Vector12>    body_id_to_kinetic_gradient;
+
+        // diag hessian for preconditioner
+        muda::DeviceBuffer<Matrix12x12> diag_hessian;
 
         Float dt = 0.0f;  // time step, used in assemble
     };

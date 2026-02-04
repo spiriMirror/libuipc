@@ -140,11 +140,11 @@ void InterAffineBodyAnimator::Impl::step()
     constraint_hessian_offsets_counts.scan();
 }
 
-void InterAffineBodyAnimator::compute_energy(ABDLineSearchReporter::EnergyInfo& info)
+void InterAffineBodyAnimator::compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info)
 {
     for(auto constraint : m_impl.constraints.view())
     {
-        EnergyInfo this_info{&m_impl, constraint->m_index, m_impl.dt, info.energies()};
+        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, m_impl.dt, info.energies()};
         constraint->compute_energy(this_info);
     }
 }
@@ -231,7 +231,7 @@ muda::CBufferView<IndexT> InterAffineBodyAnimator::BaseInfo::is_fixed() const no
     return m_impl->affine_body_dynamics->body_is_fixed();
 }
 
-muda::BufferView<Float> InterAffineBodyAnimator::EnergyInfo::energies() const noexcept
+muda::BufferView<Float> InterAffineBodyAnimator::ComputeEnergyInfo::energies() const noexcept
 {
     auto [offset, count] = m_impl->constraint_energy_offsets_counts[m_index];
     return m_energies.subview(offset, count);
@@ -314,14 +314,14 @@ class InterAffineBodyAnimatorLineSearchSubreporter final : public ABDLineSearchS
 
     virtual void do_init(InitInfo& info) override {}
 
-    virtual void do_report_extent(ExtentInfo& info) override
+    virtual void do_report_extent(ReportExtentInfo& info) override
     {
         SizeT energy_count =
             animator->m_impl.constraint_energy_offsets_counts.total_count();
         info.energy_count(energy_count);
     }
 
-    virtual void do_report_energy(EnergyInfo& info) override
+    virtual void do_report_energy(ComputeEnergyInfo& info) override
     {
         animator->compute_energy(info);
     }

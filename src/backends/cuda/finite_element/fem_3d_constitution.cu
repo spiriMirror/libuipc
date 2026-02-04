@@ -8,14 +8,14 @@ void FEM3DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
     do_build(this_info);
 }
 
-void FEM3DConstitution::do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info)
+void FEM3DConstitution::do_compute_energy(FiniteElementConstitution::ComputeEnergyInfo& info)
 {
     FEM3DConstitution::ComputeEnergyInfo this_info{
         this, m_index_in_dim, info.dt(), info.energies()};
     do_compute_energy(this_info);
 }
 
-void FEM3DConstitution::do_compute_gradient_hessian(FiniteElementEnergyProducer::ComputeGradientHessianInfo& info)
+void FEM3DConstitution::do_compute_gradient_hessian(FiniteElementConstitution::ComputeGradientHessianInfo& info)
 {
     FEM3DConstitution::ComputeGradientHessianInfo this_info{
         this, m_index_in_dim, info.dt(), info.gradients(), info.hessians()};

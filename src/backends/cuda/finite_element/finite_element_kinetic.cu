@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-void FiniteElementKinetic::do_build(FiniteElementEnergyProducer::BuildInfo& info)
+void FiniteElementKinetic::do_build()
 {
     m_impl.finite_element_method = require<FiniteElementMethod>();
 
@@ -13,21 +13,14 @@ void FiniteElementKinetic::do_build(FiniteElementEnergyProducer::BuildInfo& info
     m_impl.finite_element_method->add_kinetic(this);
 }
 
-void FiniteElementKinetic::do_report_extent(ReportExtentInfo& info)
-{
-    auto vert_count = m_impl.finite_element_method->xs().size();
-    info.energy_count(vert_count);
-    info.gradient_count(vert_count);
-    info.hessian_count(vert_count);
-}
-
-void FiniteElementKinetic::do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info)
+void FiniteElementKinetic::compute_energy(FEMLineSearchReporter::ComputeEnergyInfo& info)
 {
     ComputeEnergyInfo this_info{&m_impl, &info};
     do_compute_energy(this_info);
 }
 
-void FiniteElementKinetic::do_compute_gradient_hessian(FiniteElementEnergyProducer::ComputeGradientHessianInfo& info)
+void FiniteElementKinetic::compute_gradient_hessian(
+    FEMLinearSubsystem::ComputeGradientHessianInfo& info)
 {
     ComputeGradientHessianInfo this_info{&m_impl, &info};
     do_compute_gradient_hessian(this_info);

@@ -500,13 +500,17 @@ bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> 
 void GlobalLinearSystem::Impl::compute_gradient(ComputeGradientInfo& info)
 {
     auto diag_subsystem_view = diag_subsystems.view();
+    
+    // report extent first
     for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
     {
         DiagExtentInfo diag_info;
-        diag_info.m_gradient_only = true;
+        diag_info.m_gradient_only   = true;
+        diag_info.m_component_flags = info.m_flags;
         diag_subsystem->report_extent(diag_info);
     }
 
+    // assemble gradient
     for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
     {
         DiagInfo diag_info{this};

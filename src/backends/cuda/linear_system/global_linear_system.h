@@ -63,14 +63,16 @@ class GlobalLinearSystem : public SimSystem
     class DiagExtentInfo
     {
       public:
-        bool gradient_only() const { return m_gradient_only; }
+        bool           gradient_only() const { return m_gradient_only; }
+        ComponentFlags component_flags() const { return m_component_flags; }
         void extent(SizeT hessian_block_count, SizeT dof_count) noexcept;
 
       private:
         friend class Impl;
-        SizeT m_dof_count     = 0;
-        SizeT m_block_count   = 0;
-        bool  m_gradient_only = false;
+        ComponentFlags m_component_flags = ComponentFlags::All;
+        SizeT          m_dof_count       = 0;
+        SizeT          m_block_count     = 0;
+        bool           m_gradient_only   = false;
     };
 
     class ComputeGradientInfo
@@ -212,7 +214,7 @@ class GlobalLinearSystem : public SimSystem
 
         CDenseVectorView r() const { return m_r; }
 
-        void statisfied(bool statisfied) { m_statisfied = statisfied; }
+        void satisfied(bool statisfied) { m_statisfied = statisfied; }
 
       private:
         friend class Impl;

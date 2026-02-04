@@ -1,12 +1,15 @@
 #pragma once
-#include <finite_element/finite_element_energy_producer.h>
+#include <sim_system.h>
+#include <finite_element/finite_element_method.h>
+#include <finite_element/fem_line_search_reporter.h>
+#include <finite_element/fem_linear_subsystem.h>
 
 namespace uipc::backend::cuda
 {
-class FiniteElementKinetic : public FiniteElementEnergyProducer
+class FiniteElementKinetic : public SimSystem
 {
   public:
-    using FiniteElementEnergyProducer::FiniteElementEnergyProducer;
+    using SimSystem::SimSystem;
 
     class Impl
     {
@@ -48,10 +51,12 @@ class FiniteElementKinetic : public FiniteElementEnergyProducer
         {
             return m_impl->finite_element_method->x_tildes();
         }
+
         auto x_prevs() const noexcept
         {
             return m_impl->finite_element_method->x_prevs();
         }
+
         auto masses() const noexcept
         {
             return m_impl->finite_element_method->masses();
@@ -65,7 +70,7 @@ class FiniteElementKinetic : public FiniteElementEnergyProducer
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl, FiniteElementEnergyProducer::ComputeEnergyInfo* base_info) noexcept
+        ComputeEnergyInfo(Impl* impl, FEMLineSearchReporter::ComputeEnergyInfo* base_info) noexcept
             : BaseInfo(impl)
             , base_info(base_info)
         {
@@ -75,14 +80,14 @@ class FiniteElementKinetic : public FiniteElementEnergyProducer
         auto dt() const noexcept { return base_info->dt(); }
 
       private:
-        FiniteElementEnergyProducer::ComputeEnergyInfo* base_info = nullptr;
+        FEMLineSearchReporter::ComputeEnergyInfo* base_info = nullptr;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
         ComputeGradientHessianInfo(Impl* impl,
-                                   FiniteElementEnergyProducer::ComputeGradientHessianInfo* base_info) noexcept
+                                   FEMLinearSubsystem::ComputeGradientHessianInfo* base_info) noexcept
             : BaseInfo(impl)
             , base_info(base_info)
         {
@@ -93,21 +98,22 @@ class FiniteElementKinetic : public FiniteElementEnergyProducer
         auto dt() const noexcept { return base_info->dt(); }
 
       private:
-        FiniteElementEnergyProducer::ComputeGradientHessianInfo* base_info = nullptr;
+        FEMLinearSubsystem::ComputeGradientHessianInfo* base_info = nullptr;
     };
 
   protected:
-    virtual void do_build(BuildInfo& info) = 0;
-    virtual void do_report_extent(FiniteElementEnergyProducer::ReportExtentInfo& info) override;
+    virtual void do_build(BuildInfo& info)                  = 0;
     virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
 
-
   private:
-    virtual void do_build(FiniteElementEnergyProducer::BuildInfo& info) override;
-    virtual void do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info) override;
-    virtual void do_compute_gradient_hessian(
-        FiniteElementEnergyProducer::ComputeGradientHessianInfo& info) override;
+    virtual void do_build() override final;
+
+    friend class FEMLineSearchReporter;
+    void compute_energy(FEMLineSearchReporter::ComputeEnergyInfo& info);
+
+    friend class FEMLinearSubsystem;
+    void compute_gradient_hessian(FEMLinearSubsystem::ComputeGradientHessianInfo& info);
 
     Impl m_impl;
 };

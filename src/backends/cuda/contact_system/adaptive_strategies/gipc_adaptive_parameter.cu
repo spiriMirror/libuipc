@@ -79,9 +79,9 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
             dytopo_effect_info.component_flags(flags);
             dytopo_effect_info.gradient_only(true);
             dytopo_effect_manager->compute_dytopo_effect(dytopo_effect_info);
+
             // 2. Compute the gradient
             GlobalLinearSystem::ComputeGradientInfo grad_info;
-
             grad_info.buffer_view(gradient);
             grad_info.flags(flags);
             linear_system->compute_gradient(grad_info);

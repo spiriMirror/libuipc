@@ -6,6 +6,8 @@
 #include <muda/ext/linear_system/device_dense_vector.h>
 #include <muda/ext/linear_system/device_doublet_vector.h>
 #include <muda/ext/linear_system/device_triplet_matrix.h>
+#include <finite_element/fem_linear_subsystem_reporter.h>
+#include <finite_element/fem_line_search_subreporter.h>
 
 namespace uipc::backend::cuda
 {
@@ -65,8 +67,16 @@ class FiniteElementAnimator final : public Animator
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        using BaseInfo::BaseInfo;
+        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, muda::BufferView<Float> energies)
+            : BaseInfo(impl, index, dt)
+            , m_energies(energies)
+        {
+        }
+
         muda::BufferView<Float> energies() const noexcept;
+
+      private:
+        muda::BufferView<Float> m_energies;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
@@ -75,15 +85,18 @@ class FiniteElementAnimator final : public Animator
         ComputeGradientHessianInfo(Impl*                             impl,
                                    SizeT                             index,
                                    Float                             dt,
+                                   muda::DoubletVectorView<Float, 3> gradients,
                                    muda::TripletMatrixView<Float, 3> hessians)
             : BaseInfo(impl, index, dt)
+            , m_gradients(gradients)
             , m_hessians(hessians)
         {
         }
         muda::DoubletVectorView<Float, 3> gradients() const noexcept;
-        auto hessians() const noexcept { return m_hessians; }
+        muda::TripletMatrixView<Float, 3> hessians() const noexcept;
 
       private:
+        muda::DoubletVectorView<Float, 3> m_gradients;
         muda::TripletMatrixView<Float, 3> m_hessians;
     };
 
@@ -101,28 +114,6 @@ class FiniteElementAnimator final : public Animator
         SizeT m_energy_count           = 0;
     };
 
-    class AssembleInfo
-    {
-      public:
-        AssembleInfo(muda::DenseVectorView<Float>      gradients,
-                     muda::TripletMatrixView<Float, 3> hessians,
-                     Float                             dt)
-            : m_gradients(gradients)
-            , m_hessians(hessians)
-            , m_dt(dt)
-        {
-        }
-
-        auto  gradients() const noexcept { return m_gradients; }
-        auto  hessians() const noexcept { return m_hessians; }
-        Float dt() const noexcept { return m_dt; }
-
-      private:
-        muda::DenseVectorView<Float>      m_gradients;
-        muda::TripletMatrixView<Float, 3> m_hessians;
-        Float                             m_dt = 0.0;
-    };
-
     class Impl
     {
       public:
@@ -135,21 +126,12 @@ class FiniteElementAnimator final : public Animator
             return finite_element_method->m_impl;
         }
 
-        void assemble(AssembleInfo& info);
-
         GlobalAnimator* global_animator = nullptr;
         SimSystemSlotCollection<FiniteElementConstraint> constraints;
         unordered_map<U64, SizeT> uid_to_constraint_index;
 
         vector<AnimatedGeoInfo>       anim_geo_infos;
         OffsetCountCollection<IndexT> constraint_geo_info_offsets_counts;
-
-        // Constraints
-        muda::DeviceVar<Float> constraint_energy;  // Constraint Energy
-        muda::DeviceBuffer<Float> constraint_energies;  // Constraint Energy Per Element
-        muda::DeviceDoubletVector<Float, 3> constraint_gradient;  // Constraint Gradient Per Vertex
-        muda::DeviceTripletMatrix<Float, 3> constraint_hessian;  // Constraint Hessian Per Vertex
-
 
         OffsetCountCollection<IndexT> constraint_energy_offsets_counts;
         OffsetCountCollection<IndexT> constraint_gradient_offsets_counts;
@@ -160,17 +142,11 @@ class FiniteElementAnimator final : public Animator
     friend class FiniteElementConstraint;
     void add_constraint(FiniteElementConstraint* constraint);  // only be called by FiniteElementConstraint
 
-    friend class FEMLineSearchReporter;
-    Float compute_energy(LineSearcher::EnergyInfo& info);  // only be called by FEMLineSearchReporter
+    friend class FiniteElementAnimatorLineSearchSubreporter;
+    void compute_energy(FEMLineSearchSubreporter::EnergyInfo& info);  // only be called by FiniteElementAnimatorLineSearchSubreporter
 
-    friend class FEMLinearSubsystem;
-    class ExtentInfo
-    {
-      public:
-        SizeT hessian_block_count;
-    };
-    void report_extent(ExtentInfo& info);  // only be called by FEMLinearSubsystem
-    void assemble(AssembleInfo& info);  // only be called by FEMLinearSubsystem
+    friend class FiniteElementAnimatorLinearSubsystemReporter;
+    void assemble(FEMLinearSubsystemReporter::AssembleInfo& info);  // only be called by FEMLinearSubsystem
 
     Impl m_impl;
 

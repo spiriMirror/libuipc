@@ -18,7 +18,7 @@ void FiniteElementConstitution::init()
     do_init(info);
 }
 
-void FiniteElementConstitution::do_build(FiniteElementEnergyProducer::BuildInfo& info)
+void FiniteElementConstitution::do_build()
 {
     m_finite_element_method = &require<FiniteElementMethod>();
 
@@ -33,6 +33,21 @@ void FiniteElementConstitution::do_build(FiniteElementEnergyProducer::BuildInfo&
     do_build(this_info);
 
     m_finite_element_method->add_constitution(this);
+}
+
+void FiniteElementConstitution::report_extent(ReportExtentInfo& info)
+{
+    do_report_extent(info);
+}
+
+void FiniteElementConstitution::compute_energy(ComputeEnergyInfo& info)
+{
+    do_compute_energy(info);
+}
+
+void FiniteElementConstitution::compute_gradient_hessian(ComputeGradientHessianInfo& info)
+{
+    do_compute_gradient_hessian(info);
 }
 
 const FiniteElementMethod::DimInfo& FiniteElementConstitution::dim_info() const noexcept

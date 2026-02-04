@@ -86,9 +86,9 @@ class Codim2DConstitution : public FiniteElementConstitution
   private:
     friend class FiniteElementMethod;
     virtual void do_build(FiniteElementConstitution::BuildInfo& info) override final;
-    virtual void do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info) override final;
+    virtual void do_compute_energy(FiniteElementConstitution::ComputeEnergyInfo& info) override final;
     virtual void do_compute_gradient_hessian(
-        FiniteElementEnergyProducer::ComputeGradientHessianInfo& info) override final;
+        FiniteElementConstitution::ComputeGradientHessianInfo& info) override final;
     virtual IndexT get_dim() const noexcept override final;
 };
 }  // namespace uipc::backend::cuda

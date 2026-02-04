@@ -38,9 +38,6 @@ class FEMDiagPreconditioner : public LocalPreconditioner
     {
         using namespace muda;
 
-        UIPC_ASSERT(info.storage_type() == GlobalLinearSystem::HessianStorageType::Symmetric,
-                    "Now only support Symmetric Hessian");
-
         diag_inv.resize(finite_element_method->xs().size());
 
         // 1) collect diagonal blocks

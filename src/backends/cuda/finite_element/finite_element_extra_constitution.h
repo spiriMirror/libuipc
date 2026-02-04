@@ -1,14 +1,17 @@
 #pragma once
 #include <sim_system.h>
 #include <finite_element/finite_element_method.h>
-#include <finite_element/finite_element_energy_producer.h>
+#include <finite_element/finite_element_elastics.h>
+#include <muda/buffer.h>
+#include <muda/ext/linear_system/device_doublet_vector.h>
+#include <muda/ext/linear_system/device_triplet_matrix.h>
 
 namespace uipc::backend::cuda
 {
-class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
+class FiniteElementExtraConstitution : public SimSystem
 {
   public:
-    using FiniteElementEnergyProducer::FiniteElementEnergyProducer;
+    using SimSystem::SimSystem;
 
     class Impl
     {
@@ -27,6 +30,10 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
     {
       public:
     };
+
+    using ReportExtentInfo  = FiniteElementElastics::ReportExtentInfo;
+    using ComputeEnergyInfo = FiniteElementElastics::ComputeEnergyInfo;
+    using ComputeGradientHessianInfo = FiniteElementElastics::ComputeGradientHessianInfo;
 
     class FilteredInfo
     {
@@ -57,7 +64,7 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
     class BaseInfo
     {
       public:
-        BaseInfo(FiniteElementMethod::Impl* impl, Float dt)
+        BaseInfo(FiniteElementElastics::Impl* impl, Float dt)
             : m_impl(impl)
             , m_dt(dt)
         {
@@ -71,44 +78,8 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
         muda::CBufferView<Float>   thicknesses() const noexcept;
 
       protected:
-        FiniteElementMethod::Impl* m_impl = nullptr;
-        Float                      m_dt;
-    };
-
-    class ComputeEnergyInfo : public BaseInfo
-    {
-      public:
-        ComputeEnergyInfo(FiniteElementMethod::Impl* impl, Float dt, muda::BufferView<Float> energies)
-            : BaseInfo(impl, dt)
-            , m_energies(energies)
-        {
-        }
-
-        auto energies() const noexcept { return m_energies; }
-
-      private:
-        muda::BufferView<Float> m_energies;
-    };
-
-    class ComputeGradientHessianInfo : public BaseInfo
-    {
-      public:
-        ComputeGradientHessianInfo(FiniteElementMethod::Impl*        impl,
-                                   Float                             dt,
-                                   muda::DoubletVectorView<Float, 3> gradients,
-                                   muda::TripletMatrixView<Float, 3> hessians)
-            : BaseInfo(impl, dt)
-            , m_gradients(gradients)
-            , m_hessians(hessians)
-        {
-        }
-
-        auto gradients() const noexcept { return m_gradients; }
-        auto hessians() const noexcept { return m_hessians; }
-
-      private:
-        muda::DoubletVectorView<Float, 3> m_gradients;
-        muda::TripletMatrixView<Float, 3> m_hessians;
+        FiniteElementElastics::Impl* m_impl = nullptr;
+        Float                        m_dt;
     };
 
     U64 uid() const noexcept;
@@ -125,15 +96,21 @@ class FiniteElementExtraConstitution : public FiniteElementEnergyProducer
     span<const FiniteElementMethod::GeoInfo> geo_infos() const noexcept;
 
   private:
+    friend class FiniteElementConstitutionLinearSubsystemReporter;
+    friend class FiniteElementConstitutionLineSearchSubreporter;
+
     friend class FiniteElementMethod;
     void init();  // only be called by FiniteElementMethod
-    virtual void do_build(FiniteElementEnergyProducer::BuildInfo& info) override final;
-    friend class FEMLineSearchReporter;
-    virtual void do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info) override final;
-    friend class FEMGradientHessianComputer;
-    virtual void do_compute_gradient_hessian(
-        FiniteElementEnergyProducer::ComputeGradientHessianInfo& info) override final;
-    Impl m_impl;
+
+    virtual void do_build() override final;
+
+    friend class FiniteElementElastics;
+    void report_extent(ReportExtentInfo& info);
+    void compute_energy(ComputeEnergyInfo& info);
+    void compute_gradient_hessian(ComputeGradientHessianInfo& info);
+
+    Impl  m_impl;
+    SizeT m_index = 0;
 };
 }  // namespace uipc::backend::cuda
 

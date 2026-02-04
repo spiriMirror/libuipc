@@ -99,7 +99,7 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
         reporter_gradient_counts[i] = 0;
         reporter_hessian_counts[i]  = 0;
 
-        if(reporter->component_flags() != info.m_component_flags)
+        if(!has_flags(info.m_component_flags, reporter->component_flags()))
             continue;
 
         GradientHessianExtentInfo info;
@@ -131,7 +131,7 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
     // collect
     for(auto&& [i, reporter] : enumerate(dytopo_effect_reporters.view()))
     {
-        if(reporter->component_flags() != info.m_component_flags)
+        if(!has_flags(info.m_component_flags, reporter->component_flags()))
             continue;
 
         auto [g_offset, g_count] = reporter_gradient_offsets_counts[i];

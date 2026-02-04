@@ -71,10 +71,10 @@ class AffineBodyAnimator final : public Animator
         Float m_dt    = 0.0;
     };
 
-    class EnergyInfo : public BaseInfo
+    class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        EnergyInfo(Impl* impl, SizeT index, Float dt, muda::BufferView<Float> energy)
+        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, muda::BufferView<Float> energy)
             : BaseInfo(impl, index, dt)
             , m_energies(energy)
         {
@@ -145,10 +145,10 @@ class AffineBodyAnimator final : public Animator
 
   private:
     friend class AffineBodyConstraint;
-    void add_constraint(AffineBodyConstraint* constraint);  // only be called by AffinieElementConstraint
+    void add_constraint(AffineBodyConstraint* constraint);  // only be called by AffineBodyConstraint
 
     friend class AffineBodyAnimatorLineSearchSubreporter;
-    void compute_energy(ABDLineSearchReporter::EnergyInfo& info);  // only be called by AffineBodyAnimatorLineSearchSubreporter
+    void compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info);  // only be called by AffineBodyAnimatorLineSearchSubreporter
 
     friend class AffineBodyAnimatorLinearSubsystemReporter;
     void compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info);  // only be called by AffineBodyAnimatorLinearSubsystemReporter

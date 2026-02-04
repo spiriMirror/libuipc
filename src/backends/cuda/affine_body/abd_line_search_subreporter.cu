@@ -18,12 +18,12 @@ void ABDLineSearchSubreporter::init()
     InitInfo info;
     do_init(info);
 }
-void ABDLineSearchSubreporter::report_extent(ExtentInfo& info)
+void ABDLineSearchSubreporter::report_extent(ReportExtentInfo& info)
 {
     do_report_extent(info);
 }
 
-void ABDLineSearchSubreporter::report_energy(EnergyInfo& info)
+void ABDLineSearchSubreporter::report_energy(ComputeEnergyInfo& info)
 {
     do_report_energy(info);
 }

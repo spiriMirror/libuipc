@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-void FiniteElementExtraConstitution::do_build(FiniteElementEnergyProducer::BuildInfo& info)
+void FiniteElementExtraConstitution::do_build()
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
 
@@ -34,24 +34,26 @@ span<const FiniteElementMethod::GeoInfo> FiniteElementExtraConstitution::geo_inf
 void FiniteElementExtraConstitution::init()
 {
     m_impl.init(uid(), world());
+    m_index = m_impl.fem().extra_constitution_uid_to_index[uid()];
 
     // let the subclass do the rest of the initialization
     FilteredInfo info{&m_impl};
     do_init(info);
 }
 
-void FiniteElementExtraConstitution::do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info)
+void FiniteElementExtraConstitution::report_extent(ReportExtentInfo& info)
 {
-    ComputeEnergyInfo this_info{&m_impl.fem(), info.dt(), info.energies()};
-    do_compute_energy(this_info);
+    do_report_extent(info);
 }
 
-void FiniteElementExtraConstitution::do_compute_gradient_hessian(
-    FiniteElementEnergyProducer::ComputeGradientHessianInfo& info)
+void FiniteElementExtraConstitution::compute_energy(ComputeEnergyInfo& info)
 {
-    ComputeGradientHessianInfo this_info{
-        &m_impl.fem(), info.dt(), info.gradients(), info.hessians()};
-    do_compute_gradient_hessian(this_info);
+    do_compute_energy(info);
+}
+
+void FiniteElementExtraConstitution::compute_gradient_hessian(ComputeGradientHessianInfo& info)
+{
+    do_compute_gradient_hessian(info);
 }
 
 void FiniteElementExtraConstitution::Impl::init(U64 uid, backend::WorldVisitor& world)
@@ -100,17 +102,17 @@ Float FiniteElementExtraConstitution::BaseInfo::dt() const noexcept
 
 muda::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::xs() const noexcept
 {
-    return m_impl->xs.view();
+    return m_impl->finite_element_method->xs();
 }
 
 muda::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::x_bars() const noexcept
 {
-    return m_impl->x_bars.view();
+    return m_impl->finite_element_method->x_bars();
 }
 
 muda::CBufferView<Float> FiniteElementExtraConstitution::BaseInfo::thicknesses() const noexcept
 {
-    return m_impl->thicknesses.view();
+    return m_impl->finite_element_method->thicknesses();
 }
 
 span<const FiniteElementMethod::GeoInfo> FiniteElementExtraConstitution::FilteredInfo::geo_infos() const noexcept
@@ -131,5 +133,20 @@ span<const Vector3> FiniteElementExtraConstitution::FilteredInfo::rest_positions
 span<const Float> FiniteElementExtraConstitution::FilteredInfo::thicknesses() noexcept
 {
     return m_impl->fem().h_thicknesses;
+}
+
+void FiniteElementExtraConstitution::ReportExtentInfo::energy_count(SizeT count) noexcept
+{
+    m_energy_count = count;
+}
+
+void FiniteElementExtraConstitution::ReportExtentInfo::gradient_count(SizeT count) noexcept
+{
+    m_gradient_count = count;
+}
+
+void FiniteElementExtraConstitution::ReportExtentInfo::hessian_count(SizeT count) noexcept
+{
+    m_hessian_count = count;
 }
 }  // namespace uipc::backend::cuda
