@@ -2,7 +2,6 @@
 #include <uipc/core/constitution_tabular.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <pybind11/stl.h>
-#include <pyuipc/as_numpy.h>
 namespace pyuipc::core
 {
 using namespace uipc::core;

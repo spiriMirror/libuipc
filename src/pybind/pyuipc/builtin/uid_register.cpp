@@ -1,6 +1,5 @@
 #include <pyuipc/builtin/uid_register.h>
 #include <uipc/builtin/uid_register.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::builtin
 {
@@ -11,11 +10,12 @@ PyUIDRegister::PyUIDRegister(py::module& m)
         .def("find",
              &details::UIDRegister::find,
              py::arg("uid"),
+             py::return_value_policy::reference_internal,
              R"(Find a UID in the register.
 Args:
     uid: UID to find.
 Returns:
-    str or None: Name associated with UID if found, None otherwise.)")
+    UIDInfo: UID information if found.)")
         .def("exists",
              &details::UIDRegister::exists,
              py::arg("uid"),

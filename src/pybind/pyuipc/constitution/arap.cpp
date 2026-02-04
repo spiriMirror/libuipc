@@ -1,6 +1,5 @@
 #include <pyuipc/constitution/arap.h>
 #include <uipc/constitution/arap.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::constitution
 {

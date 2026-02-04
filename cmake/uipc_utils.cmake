@@ -46,6 +46,7 @@ function(uipc_show_options)
     message(STATUS "    * UIPC_DEV_MODE: ${UIPC_DEV_MODE}")
     message(STATUS "    * UIPC_BUILD_GUI: ${UIPC_BUILD_GUI}")
     message(STATUS "    * UIPC_BUILD_PYBIND: ${UIPC_BUILD_PYBIND}")
+    message(STATUS "    * UIPC_BUILD_PYTHON_WHEEL: ${UIPC_BUILD_PYTHON_WHEEL}")
     message(STATUS "    * UIPC_USING_LOCAL_VCPKG: ${UIPC_USING_LOCAL_VCPKG}")
     message(STATUS "    * UIPC_BUILD_EXAMPLES: ${UIPC_BUILD_EXAMPLES}")
     message(STATUS "    * UIPC_BUILD_TESTS: ${UIPC_BUILD_TESTS}")
@@ -59,6 +60,26 @@ function(uipc_show_options)
 
     message(STATUS "Backend Options:")
     message(STATUS "    * UIPC_WITH_CUDA_BACKEND: ${UIPC_WITH_CUDA_BACKEND}")
+    message(STATUS "    * UIPC_CUDA_ARCHITECTURES: ${UIPC_CUDA_ARCHITECTURES}")
+    
+    message(STATUS "Details:")
+    message(STATUS "SKBUILD: ${SKBUILD}")
+    message(STATUS "UIPC_INSTALL_DIR: ${UIPC_INSTALL_DIR}")
+    message(STATUS "CMAKE_BINARY_DIR: ${CMAKE_BINARY_DIR}")
+    message(STATUS "CMAKE_BUILD_TYPE: ${CMAKE_BUILD_TYPE}")
+    message(STATUS "CMAKE_BUILD_PARALLEL_LEVEL: $ENV{CMAKE_BUILD_PARALLEL_LEVEL}")
+    message(STATUS "CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Parse the version string into major, minor, and patch
+# -----------------------------------------------------------------------------------------
+function(uipc_parse_version VERSION_STRING MAJOR MINOR PATCH)
+    string(REGEX MATCH "([0-9]+)\\.([0-9]+)\\.([0-9]+)" _ ${VERSION_STRING})
+    set(${MAJOR} ${CMAKE_MATCH_1})
+    set(${MINOR} ${CMAKE_MATCH_2})
+    set(${PATCH} ${CMAKE_MATCH_3})
+    return(PROPAGATE ${MAJOR} ${MINOR} ${PATCH})
 endfunction()
 
 # -----------------------------------------------------------------------------------------
@@ -94,7 +115,6 @@ function(uipc_config_vcpkg_install)
         "Details: https://spirimirror.github.io/libuipc-doc/build_install/")
     endif()
     file(TO_CMAKE_PATH "${CMAKE_TOOLCHAIN_FILE}" CMAKE_TOOLCHAIN_FILE)
-    uipc_info("CMAKE_TOOLCHAIN_FILE: ${CMAKE_TOOLCHAIN_FILE}")
     uipc_find_python_executable_path()
     # call python script to generate vcpkg.json, pass the CMAKE_BINARY_DIR as argument
     execute_process(
@@ -105,17 +125,22 @@ function(uipc_config_vcpkg_install)
         "--with_usd_support=${UIPC_WITH_USD_SUPPORT}" # pass the UIPC_WITH_USD_SUPPORT as argument
         "--with_vdb_support=${UIPC_WITH_VDB_SUPPORT}" # pass the UIPC_WITH_VDB_SUPPORT as argument
         "--with_cuda_backend=${UIPC_WITH_CUDA_BACKEND}" # pass the UIPC_WITH_CUDA_BACKEND as argument
-        RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT # return code 1 for need install, 0 for no need install
+        OUTPUT_VARIABLE VCPKG_JSON_GENERATE_OUTPUT
+        RESULT_VARIABLE VCPKG_JSON_GENERATE_RESULT
+        ECHO_OUTPUT_VARIABLE # also print output to console
     )
 
-    # set VCPKG_MANIFEST_INSTALL option to control the vcpkg install
-    if(VCPKG_JSON_GENERATE_RESULT)
+    # check if the script ran successfully (exit code 0)
+    if(NOT VCPKG_JSON_GENERATE_RESULT EQUAL 0)
+        uipc_error("gen_vcpkg_json.py failed with exit code ${VCPKG_JSON_GENERATE_RESULT}")
+    endif()
+
+    # parse the output to determine if vcpkg install is needed
+    # the script outputs "VCPKG_MANIFEST_CHANGED=1" or "VCPKG_MANIFEST_CHANGED=0"
+    if(VCPKG_JSON_GENERATE_OUTPUT MATCHES "VCPKG_MANIFEST_CHANGED=1")
         set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)
     else()
         set(VCPKG_MANIFEST_INSTALL OFF CACHE BOOL "" FORCE)
-    endif()
-    if(UIPC_GITHUB_ACTIONS)
-        set(VCPKG_MANIFEST_INSTALL ON CACHE BOOL "" FORCE)
     endif()
     # message(STATUS "VCPKG_MANIFEST_INSTALL: ${VCPKG_MANIFEST_INSTALL}")
 
@@ -143,7 +168,6 @@ endfunction()
 # -----------------------------------------------------------------------------------------
 function(uipc_target_set_output_directory target_name)
     if(WIN32) # if on windows, set the output directory with different configurations
-        
         set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_DEBUG "${CMAKE_BINARY_DIR}/Debug/bin")
         set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELEASE "${CMAKE_BINARY_DIR}/Release/bin")
         set_target_properties(${target_name} PROPERTIES RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin")
@@ -233,23 +257,48 @@ function(uipc_init_submodule target)
 endfunction()
 
 # -----------------------------------------------------------------------------------------
-# Require a python module, if not found, try to install it with pip
+# Require pip module, if not found, try to install it
 # -----------------------------------------------------------------------------------------
-function(uipc_require_python_module python_dir module_name)
-
-file(TO_CMAKE_PATH "${python_dir}" python_dir)
-    uipc_info("Check python module [${module_name}] with [${python_dir}]")
-
+function(uipc_require_pip_ensure python_dir)
     execute_process(COMMAND ${python_dir}
-        "-c" "import ${module_name}"
+        "-c" "import pip"
         RESULT_VARIABLE CMD_RESULT
         OUTPUT_QUIET
     )
 
     if (NOT CMD_RESULT EQUAL 0)
+        uipc_info("pip not available, trying ensurepip...")
+        execute_process(COMMAND ${python_dir} "-m" "ensurepip" "--upgrade"
+            RESULT_VARIABLE ENSUREPIP_RESULT)
+        if (NOT ENSUREPIP_RESULT EQUAL 0)
+            uipc_error("Python [${python_dir}] failed to bootstrap pip. Please install pip manually.")
+        endif()
+    endif()
+endfunction()
+
+
+
+
+# -----------------------------------------------------------------------------------------
+# Require a python module, if not found, try to install it with pip
+# -----------------------------------------------------------------------------------------
+function(uipc_require_python_module python_dir module_name)
+    uipc_require_pip_ensure(${python_dir})
+
+    file(TO_CMAKE_PATH "${python_dir}" python_dir)
+    uipc_info("Check python module [${module_name}] with [${python_dir}]")
+
+    # check if the module is installed
+    execute_process(COMMAND ${python_dir}
+        "-c" "import ${module_name}"
+        RESULT_VARIABLE CMD_RESULT
+        OUTPUT_QUIET
+    )
+    
+    if (NOT CMD_RESULT EQUAL 0)
         uipc_info("${module_name} not found, try installing ${module_name}...")
         execute_process(COMMAND ${python_dir} "-m" "pip" "install" "${module_name}"
-        RESULT_VARIABLE INSTALL_RESULT)
+            RESULT_VARIABLE INSTALL_RESULT)
         if (NOT INSTALL_RESULT EQUAL 0)
             uipc_error("Python [${python_dir}] failed to install [${module_name}], please install it manually.")
         else()
@@ -258,7 +307,115 @@ file(TO_CMAKE_PATH "${python_dir}" python_dir)
     else()
         uipc_info("[${module_name}] found with [${python_dir}].")
     endif()
+endfunction()
 
+
+# -----------------------------------------------------------------------------------------
+# Install headers
+# -----------------------------------------------------------------------------------------
+function(uipc_install_headers)
+    if(NOT UIPC_BUILD_PYTHON_WHEEL)
+    install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/
+        DESTINATION ${UIPC_INSTALL_DIR}/include
+        FILES_MATCHING
+        PATTERN "*.*")
+    endif()
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Install a target
+# -----------------------------------------------------------------------------------------
+function(uipc_install_target target_name)
+    set(CONFIG_DIR "$<CONFIG>")
+    if(NOT WIN32)
+        if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+            set(CONFIG_DIR "Release")
+        endif()
+    endif()
+
+    if(NOT UIPC_BUILD_PYTHON_WHEEL)
+        # C++ package install logic
+        install(TARGETS ${target_name}
+            RUNTIME DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/bin"
+            LIBRARY DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/bin"
+            ARCHIVE DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}/lib")
+    else()
+        install(TARGETS ${target_name}
+            RUNTIME DESTINATION "${UIPC_INSTALL_DIR}"
+            LIBRARY DESTINATION "${UIPC_INSTALL_DIR}"
+            ARCHIVE DESTINATION EXCLUDE_FROM_ALL)
+    endif()
+endfunction()
+
+# -----------------------------------------------------------------------------------------
+# Install all vcpkg runtime dependencies (DLLs/shared libraries) to UIPC_INSTALL_DIR
+# This installs all DLLs from vcpkg_installed/bin and lib directories
+# -----------------------------------------------------------------------------------------
+function(uipc_install_vcpkg_runtime)
+    if(NOT DEFINED VCPKG_INSTALLED_DIR OR NOT DEFINED VCPKG_TARGET_TRIPLET)
+        uipc_error("VCPKG_INSTALLED_DIR or VCPKG_TARGET_TRIPLET is not defined")
+    endif()
+    
+    set(CONFIG_DIR "$<CONFIG>")
+    if(NOT WIN32)
+        if("${CMAKE_BUILD_TYPE}" STREQUAL "")
+            set(CONFIG_DIR "Release")
+        else()
+            set(CONFIG_DIR "${CMAKE_BUILD_TYPE}")
+        endif()
+    endif()
+    
+    set(INSTALL_DESTINATION "")
+    if(NOT UIPC_BUILD_PYTHON_WHEEL)
+        set(INSTALL_DESTINATION "${UIPC_INSTALL_DIR}/${CONFIG_DIR}")
+    else()
+        set(INSTALL_DESTINATION "${UIPC_INSTALL_DIR}")
+    endif()
+
+    # Install runtime dependencies from vcpkg_installed
+    # Check all possible directories (bin, lib, debug/bin, debug/lib) on all platforms
+    if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin")
+        install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin/"
+            DESTINATION "${INSTALL_DESTINATION}"
+            FILES_MATCHING PATTERN "*.*"
+        )
+    endif()
+
+    # For Python wheels, also install .so files from lib/ directory
+    # These are needed for auditwheel to bundle dependencies
+    if(UIPC_BUILD_PYTHON_WHEEL AND EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+        install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/"
+            DESTINATION "${INSTALL_DESTINATION}"
+            FILES_MATCHING 
+            PATTERN "*.so*"
+            PATTERN "*.dylib"
+            PATTERN "*.dll"
+        )
+    endif()
+
+    if(NOT UIPC_BUILD_PYTHON_WHEEL)
+        # C++ package install logic
+        if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib")
+            install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/lib/"
+                DESTINATION "${INSTALL_DESTINATION}/lib"
+                FILES_MATCHING PATTERN "*.*"
+            )
+        endif()
+        
+        if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib")
+            install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/lib/"
+                DESTINATION "${INSTALL_DESTINATION}/debug/lib"
+                FILES_MATCHING PATTERN "*.*"
+            )
+        endif()
+
+        if(EXISTS "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin")
+            install(DIRECTORY "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/debug/bin/"
+                DESTINATION "${INSTALL_DESTINATION}/debug/bin"
+                FILES_MATCHING PATTERN "*.*"
+            )
+        endif()
+    endif()
 endfunction()
 
 # -----------------------------------------------------------------------------------------

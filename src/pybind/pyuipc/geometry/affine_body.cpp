@@ -1,5 +1,4 @@
 #include <pyuipc/geometry/affine_body.h>
-#include <pyuipc/as_numpy.h>
 #include <uipc/geometry/utils/affine_body/transform.h>
 #include <uipc/geometry/utils/affine_body/compute_body_force.h>
 #include <uipc/geometry/utils/affine_body/compute_dyadic_mass.h>

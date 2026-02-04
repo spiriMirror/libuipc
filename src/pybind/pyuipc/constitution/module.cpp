@@ -28,7 +28,7 @@ namespace pyuipc::constitution
 {
 PyModule::PyModule(py::module& m)
 {
-    PyConstitution{m};
+    // PyConstitution is exported early in main module
     PyConstraint{m};
     PyElasticModuli{m};
 

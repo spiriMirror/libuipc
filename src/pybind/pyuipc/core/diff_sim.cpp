@@ -4,6 +4,7 @@
 namespace pyuipc::core
 {
 using namespace uipc::core;
+using namespace uipc::diff_sim;
 PyDiffSim::PyDiffSim(py::module& m)
 {
     auto class_DiffSim = py::class_<DiffSim>(
@@ -11,11 +12,11 @@ PyDiffSim::PyDiffSim(py::module& m)
 
     class_DiffSim.def(
         "parameters",
-        [](DiffSim& self) -> uipc::diff_sim::ParameterCollection&
+        [](DiffSim& self) -> ParameterCollection&
         { return self.parameters(); },
         py::return_value_policy::reference_internal,
         R"(Get the parameter collection.
 Returns:
-    ParameterCollection: Reference to the parameter collection.)");
+    Reference to the parameter collection.)");
 }
 }  // namespace pyuipc::core

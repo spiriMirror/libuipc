@@ -1,6 +1,5 @@
 #include <pyuipc/constitution/affine_body_external_force.h>
 #include <uipc/constitution/affine_body_external_force.h>
-#include <pyuipc/as_numpy.h>
 #include <pybind11/eigen.h>
 
 namespace pyuipc::constitution
@@ -12,7 +11,7 @@ PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
     auto class_AffineBodyExternalBodyForce =
         py::class_<AffineBodyExternalBodyForce, IConstitution>(m, "AffineBodyExternalBodyForce");
 
-    class_AffineBodyExternalBodyForce.def(py::init<>())
+    class_AffineBodyExternalBodyForce
         .def(py::init<const Json&>(), py::arg("config"))
         .def("apply_to",
              py::overload_cast<geometry::SimplicialComplex&, const Vector12&>(

@@ -1,6 +1,5 @@
 #include <pyuipc/core/engine.h>
 #include <uipc/core/engine.h>
-#include <pyuipc/common/json.h>
 #include <uipc/core/world.h>
 #include <pyuipc/core/pyengine.h>
 
@@ -13,12 +12,24 @@ PyEngine::PyEngine(py::module& m)
     auto class_EngineStatus = py::class_<EngineStatus, S<EngineStatus>>(
         m, "EngineStatus", R"(Engine status message indicating info, warning, or error.)");
 
+    // define enum first
+    auto enum_Type = py::enum_<EngineStatus::Type>(class_EngineStatus, "Type", R"(Engine status type enumeration.)")
+        .value("None", EngineStatus::Type::None)
+        .value("Info", EngineStatus::Type::Info)
+        .value("Warning", EngineStatus::Type::Warning)
+        .value("Error", EngineStatus::Type::Error)
+        .export_values();
+
     class_EngineStatus
         .def("type",
-             &EngineStatus::type,
+             [](const EngineStatus& self)
+             {
+                 auto type_val = self.type();
+                 return type_val;
+             },
              R"(Get the status type.
 Returns:
-    Type: Status type (None, Info, Warning, or Error).)")
+    Status type enumeration (None, Info, Warning, or Error).)")
         .def("what",
              &EngineStatus::what,
              R"(Get the status message.
@@ -49,14 +60,6 @@ Args:
 Returns:
     EngineStatus: Error status object.)");
 
-    // define enum
-    py::enum_<EngineStatus::Type>(class_EngineStatus, "Type", R"(Engine status type enumeration.)")
-        .value("None", EngineStatus::Type::None)
-        .value("Info", EngineStatus::Type::Info)
-        .value("Warning", EngineStatus::Type::Warning)
-        .value("Error", EngineStatus::Type::Error)
-        .export_values();
-
     auto class_EngineStatusCollection =
         py::class_<EngineStatusCollection, S<EngineStatusCollection>>(
             m, "EngineStatusCollection", R"(Collection of engine status messages.)");
@@ -83,53 +86,6 @@ Returns:
 
     auto class_IEngine =
         py::class_<IEngine, S<IEngine>>(m, "IEngine", R"(Interface for engine implementations.)");
-
-    auto class_PyIEngine = py::class_<PyIEngine, PyIEngine_, IEngine, S<PyIEngine>>(
-        m, "PyIEngine", R"(Python-implementable engine interface.)");
-
-    class_PyIEngine.def("do_init", [](PyIEngine& self) { self.do_init(); }, R"(Initialize the engine.)");
-
-    class_PyIEngine.def(py::init<>(), R"(Create a new PyIEngine instance.)");
-
-    class_PyIEngine
-        .def("do_advance", &PyIEngine::do_advance, R"(Advance the simulation by one step.)")
-        .def("do_sync", &PyIEngine::do_sync, R"(Synchronize engine state.)")
-        .def("do_retrieve", &PyIEngine::do_retrieve, R"(Retrieve engine state.)")
-        .def("do_to_json",
-             &PyIEngine::do_to_json,
-             R"(Convert engine state to JSON.
-Returns:
-    dict: JSON representation of engine state.)")
-        .def("do_dump", &PyIEngine::do_dump, R"(Dump engine state.)")
-        .def("do_recover",
-             &PyIEngine::do_recover,
-             py::arg("dst_frame"),
-             R"(Recover engine state to a specific frame.
-Args:
-    dst_frame: Target frame number.)")
-        .def("get_frame",
-             &PyIEngine::get_frame,
-             R"(Get the current frame number.
-Returns:
-    int: Current frame number.)")
-        .def("status",
-             &PyIEngine::get_status,
-             py::return_value_policy::reference_internal,
-             R"(Get engine status collection.
-Returns:
-    EngineStatusCollection: Reference to status collection.)")
-        .def("features",
-             &PyIEngine::get_features,
-             py::return_value_policy::reference_internal,
-             R"(Get engine features.
-Returns:
-    FeatureCollection: Reference to feature collection.)")
-        .def("world",
-             &PyIEngine::world,
-             py::return_value_policy::reference_internal,
-             R"(Get the world.
-Returns:
-    World: Reference to the world.)");
 
 
     auto class_Engine = py::class_<Engine, S<Engine>>(
@@ -181,5 +137,59 @@ Returns:
                             R"(Get the default engine configuration.
 Returns:
     dict: Default configuration dictionary.)");
+}
+
+PyPyIEngine::PyPyIEngine(py::module& m)
+{
+    auto class_PyIEngine = py::class_<PyIEngine, PyIEngine_, IEngine, S<PyIEngine>>(
+        m, "PyIEngine", R"(Python-implementable engine interface.)");
+
+    class_PyIEngine.def("do_init", [](PyIEngine& self) { self.do_init(); }, R"(Initialize the engine.)");
+
+    class_PyIEngine.def(py::init<>(), R"(Create a new PyIEngine instance.)");
+
+    class_PyIEngine
+        .def("do_advance", &PyIEngine::do_advance, R"(Advance the simulation by one step.)")
+        .def("do_sync", &PyIEngine::do_sync, R"(Synchronize engine state.)")
+        .def("do_retrieve", &PyIEngine::do_retrieve, R"(Retrieve engine state.)")
+        .def("do_to_json",
+             &PyIEngine::do_to_json,
+             R"(Convert engine state to JSON.
+Returns:
+    dict: JSON representation of engine state.)")
+        .def("do_dump", &PyIEngine::do_dump, R"(Dump engine state.)")
+        .def("do_recover",
+             &PyIEngine::do_recover,
+             py::arg("dst_frame"),
+             R"(Recover engine state to a specific frame.
+Args:
+    dst_frame: Target frame number.)")
+        .def("get_frame",
+             &PyIEngine::get_frame,
+             R"(Get the current frame number.
+Returns:
+    int: Current frame number.)")
+        .def("status",
+             &PyIEngine::get_status,
+             py::return_value_policy::reference_internal,
+             R"(Get engine status collection.
+Returns:
+    EngineStatusCollection: Reference to status collection.)")
+        .def("features",
+             &PyIEngine::get_features,
+             py::return_value_policy::reference_internal,
+             R"(Get engine features.
+Returns:
+    FeatureCollection: Reference to feature collection.)")
+        .def("world",
+             [](const PyIEngine& self)
+             {
+                 auto world_val = self.world();
+                 return world_val;
+             },
+             py::return_value_policy::reference_internal,
+             R"(Get the world.
+Returns:
+    Reference to the world object.)");
 }
 }  // namespace pyuipc::core

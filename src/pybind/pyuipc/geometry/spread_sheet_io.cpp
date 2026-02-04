@@ -1,7 +1,6 @@
 #include <pyuipc/geometry/spread_sheet_io.h>
 #include <uipc/io/simplicial_complex_io.h>
 #include <uipc/io/spread_sheet_io.h>
-#include <pyuipc/as_numpy.h>
 #include <Eigen/Geometry>
 
 namespace pyuipc::geometry

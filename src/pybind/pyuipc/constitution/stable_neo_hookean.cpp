@@ -1,10 +1,10 @@
 #include <pyuipc/constitution/stable_neo_hookean.h>
 #include <uipc/constitution/stable_neo_hookean.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
+using namespace uipc::geometry;
 PyStableNeoHookean::PyStableNeoHookean(py::module& m)
 {
     auto class_StableNeoHookean = py::class_<StableNeoHookean, FiniteElementConstitution>(
@@ -23,7 +23,11 @@ Returns:
     dict: Default configuration dictionary.)");
 
     class_StableNeoHookean.def("apply_to",
-                               &StableNeoHookean::apply_to,
+                               [](StableNeoHookean& self,
+                                  SimplicialComplex& sc,
+                                  const ElasticModuli& moduli,
+                                  Float mass_density)
+                               { self.apply_to(sc, moduli, mass_density); },
                                py::arg("sc"),
                                py::arg("moduli") =
                                    ElasticModuli::youngs_poisson(120.0_kPa, 0.49),
@@ -31,7 +35,7 @@ Returns:
                                R"(Apply StableNeoHookean constitution to a simplicial complex.
 Args:
     sc: SimplicialComplex to apply to.
-    moduli: Elastic moduli (default: Young's modulus 20.0 kPa, Poisson's ratio 0.49).
+    moduli: ElasticModuli (default: Young's modulus 120.0 kPa, Poisson's ratio 0.49).
     mass_density: Mass density (default: 1000.0).)");
 }
 }  // namespace pyuipc::constitution

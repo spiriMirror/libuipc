@@ -1,1 +1,1 @@
-from pyuipc.geometry import *
+from uipc._native.pyuipc.geometry import *

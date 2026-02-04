@@ -1,6 +1,5 @@
 #include <pyuipc/constitution/empty.h>
 #include <uipc/constitution/empty.h>
-#include <pyuipc/common/json.h>
 
 namespace pyuipc::constitution
 {

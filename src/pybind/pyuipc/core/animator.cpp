@@ -1,6 +1,5 @@
 #include <pyuipc/core/animator.h>
 #include <uipc/core/animator.h>
-#include <pyuipc/as_numpy.h>
 
 namespace pyuipc::core
 {

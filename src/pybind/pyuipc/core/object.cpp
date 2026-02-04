@@ -1,5 +1,4 @@
 #include <pyuipc/core/object.h>
-#include <pyuipc/as_numpy.h>
 #include <uipc/geometry/simplicial_complex_slot.h>
 #include <uipc/geometry/implicit_geometry_slot.h>
 #include <uipc/core/object.h>

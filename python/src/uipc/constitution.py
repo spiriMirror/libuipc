@@ -1,1 +1,1 @@
-from pyuipc.constitution import *
+from uipc._native.pyuipc.constitution import *

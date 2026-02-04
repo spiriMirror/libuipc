@@ -1,7 +1,7 @@
 #include <pyuipc/core/contact_tabular.h>
 #include <uipc/core/contact_tabular.h>
-#include <pyuipc/common/json.h>
 #include <pyuipc/geometry/attribute_creator.h>
+#include <pyuipc/as_numpy.h>
 
 namespace uipc::geometry
 {
@@ -57,10 +57,10 @@ Args:
         auto class_ContactModel = py::class_<ContactModel>(
             m, "ContactModel", R"(ContactModel class representing contact parameters between two elements.)");
         class_ContactModel.def("topo",
-                               &ContactModel::topo,
-                               R"(Get the topology type.
+                               [](const ContactModel& self) { return as_numpy(self.topo()); },
+                               R"(Get the topology IDs.
 Returns:
-    str: Topology type string.)");
+    numpy.ndarray: Array of two integers representing the topology IDs.)");
         class_ContactModel.def("friction_rate",
                                &ContactModel::friction_rate,
                                R"(Get the friction rate.

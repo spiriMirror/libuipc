@@ -1,6 +1,5 @@
 #include <pyuipc/diff_sim/parameter_collection.h>
 #include <uipc/diff_sim/parameter_collection.h>
-#include <pyuipc/as_numpy.h>
 
 namespace pyuipc::diff_sim
 {
