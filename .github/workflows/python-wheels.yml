@@ -95,8 +95,9 @@ jobs:
         uses: pypa/cibuildwheel@v3.3.1
         env:
           CIBW_BUILD: "${{ matrix.python-version }}-*"
+          # Relative path to vcpkg, to avoid linux container path issues
           CIBW_ENVIRONMENT: >
-            CMAKE_TOOLCHAIN_FILE="${{ env.WORKSPACE }}/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
         with:
           package-dir: "${{ env.WORKSPACE }}"
           output-dir: "${{ env.WORKSPACE }}/build/wheelhouse"
