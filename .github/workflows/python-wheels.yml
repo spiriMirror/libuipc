@@ -123,8 +123,12 @@ jobs:
           # Use CUDA-enabled manylinux image from https://github.com/ameli/manylinux-cuda
           # Available images: sameli/manylinux_2_34_x86_64_cuda_12.8
           CIBW_MANYLINUX_X86_64_IMAGE: "sameli/manylinux_2_34_x86_64_cuda_${{ env.CUDA_VERSION_MAJOR_MINOR }}"
+          # Install zip in container before build
+          CIBW_BEFORE_BUILD: "yum install -y zip unzip || apt-get update && apt-get install -y zip unzip || true"
+          # Reduce parallelism to avoid OOM (exit code 137)
           CIBW_ENVIRONMENT: >
             CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
+            CMAKE_BUILD_PARALLEL_LEVEL="3"
         with:
           package-dir: "."
           output-dir: "build/wheelhouse"
