@@ -87,12 +87,16 @@ jobs:
           fetch-depth: "0"
 
       - name: Setup CUDA ${{ matrix.cuda}}
+        # Only on windows, linux needs cuda in container
+        if: matrix.os == 'windows-2022'
         uses: Jimver/cuda-toolkit@v0.2.30
         with:
           cuda: "${{ matrix.cuda }}"
+          log-file-suffix: '${{ matrix.python-version }}-${{ matrix.os }}-cu${{ matrix.cuda }}-${{ github.run_attempt }}.txt'
 
-      - name: Build wheels
+      - name: Windows Build wheels
         uses: pypa/cibuildwheel@v3.3.1
+        if: matrix.os == 'windows-2022'
         env:
           CIBW_BUILD: "${{ matrix.python-version }}-*"
           # Relative path to vcpkg, to avoid linux container path issues
@@ -101,6 +105,29 @@ jobs:
         with:
           package-dir: "${{ env.WORKSPACE }}"
           output-dir: "${{ env.WORKSPACE }}/build/wheelhouse"
+        
+        # CUDA Version Trim
+        # x.y.z -> x.y
+      - name: CUDA Version Trim
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          CUDA_VERSION_MAJOR_MINOR=$(echo "${{ matrix.cuda }}" | cut -d '.' -f 1-2)
+          echo "CUDA_VERSION_MAJOR_MINOR=${CUDA_VERSION_MAJOR_MINOR}" >> $GITHUB_ENV
+
+      - name: Linux Build wheels
+        uses: pypa/cibuildwheel@v3.3.1
+        if: matrix.os == 'ubuntu-22.04'
+        env:
+          CIBW_BUILD: "${{ matrix.python-version }}-manylinux*"
+          CIBW_SKIP: "${{ matrix.python-version }}-musllinux*"
+          # Use CUDA-enabled manylinux image from https://github.com/ameli/manylinux-cuda
+          # Available images: sameli/manylinux_2_34_x86_64_cuda_12.8
+          CIBW_MANYLINUX_X86_64_IMAGE: "sameli/manylinux_2_34_x86_64_cuda_${{ env.CUDA_VERSION_MAJOR_MINOR }}"
+          CIBW_ENVIRONMENT: >
+            CMAKE_TOOLCHAIN_FILE="vcpkg/scripts/buildsystems/vcpkg.cmake"
+        with:
+          package-dir: "."
+          output-dir: "build/wheelhouse"
 
       - name: Upload wheels
         uses: actions/upload-artifact@v4
