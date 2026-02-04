@@ -63,7 +63,32 @@ markers = [
 
 [tool.cibuildwheel]
 build-frontend = "build[uv]"
-skip = "*-win32"
+skip = ["*-win32", "-musllinux*"]
+
+[tool.cibuildwheel.linux]
+# Exclude all CUDA shared libraries from wheel repair
+# Patterns match both hash-suffixed (libcuda-*.so.*) and non-hash (libcuda.so*) versions
+repair-wheel-command = """
+auditwheel repair -w {dest_dir} {wheel} \\
+  --exclude libcuda* \\
+  --exclude libcudart* \\
+  --exclude libcublas* \\
+  --exclude libcublasLt* \\
+  --exclude libcurand* \\
+  --exclude libcusolver* \\
+  --exclude libcusparse* \\
+  --exclude libcufft* \\
+  --exclude libnvrtc* \\
+  --exclude libnvidia-ml* \\
+  --exclude libnvToolsExt* \\
+  --exclude libnvJitLink* \\
+  --exclude libcudnn* \\
+  --exclude libnvjpeg* \\
+  --exclude libnpp* \\
+  --exclude libnvblas* \\
+  --exclude libnvgraph* \\
+  --exclude libcusolverMg*
+"""
 
 [tool.scikit-build]
 build.verbose = true
