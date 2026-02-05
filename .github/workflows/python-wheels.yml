@@ -224,4 +224,3 @@ jobs:
           print-hash: true
           skip-existing: true
           verify-metadata: true
-          attestations: true
