@@ -66,10 +66,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
     {
         auto vertex_count = fem().xs.size();
         kinetic_energies.resize(vertex_count);
-        FEMLineSearchReporter::ComputeEnergyInfo kinetic_info;
-        kinetic_info.m_energies = kinetic_energies.view();
-        kinetic_info.m_dt       = info.dt();
-
+        auto kinetic_info = ComputeEnergyInfo{kinetic_energies.view(), info.dt()};
         finite_element_kinetic->compute_energy(kinetic_info);
 
         DeviceReduce().Sum(kinetic_energies.data(),
@@ -83,7 +80,7 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
         span<IndexT> counts        = reporter_energy_offsets_counts.counts();
         for(auto&& [i, R] : enumerate(reporter_view))
         {
-            ExtentInfo this_info;
+            ReportExtentInfo this_info;
             R->report_extent(this_info);
             counts[i] = this_info.m_energy_count;
         }
@@ -93,11 +90,10 @@ void FEMLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo
 
         for(auto&& [i, R] : enumerate(reporter_view))
         {
-            ComputeEnergyInfo this_info;
             auto [offset, count] = reporter_energy_offsets_counts[i];
-            this_info.m_energies = reporter_energies.view(offset, count);
-            this_info.m_dt       = info.dt();
-            R->report_energy(this_info);
+            auto this_info =
+                ComputeEnergyInfo{reporter_energies.view(offset, count), info.dt()};
+            R->compute_energy(this_info);
         }
 
         DeviceReduce().Sum(reporter_energies.data(),

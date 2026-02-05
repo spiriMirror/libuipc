@@ -143,7 +143,7 @@ class FiniteElementAnimator final : public Animator
     void add_constraint(FiniteElementConstraint* constraint);  // only be called by FiniteElementConstraint
 
     friend class FiniteElementAnimatorLineSearchSubreporter;
-    void compute_energy(FEMLineSearchSubreporter::EnergyInfo& info);  // only be called by FiniteElementAnimatorLineSearchSubreporter
+    void compute_energy(FEMLineSearchSubreporter::ComputeEnergyInfo& info);  // only be called by FiniteElementAnimatorLineSearchSubreporter
 
     friend class FiniteElementAnimatorLinearSubsystemReporter;
     void assemble(FEMLinearSubsystemReporter::AssembleInfo& info);  // only be called by FEMLinearSubsystem

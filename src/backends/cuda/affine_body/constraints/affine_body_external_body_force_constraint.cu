@@ -90,13 +90,13 @@ void AffineBodyExternalBodyForceConstraint::do_report_extent(AffineBodyAnimator:
     info.hessian_block_count(0);
 }
 
-void AffineBodyExternalBodyForceConstraint::do_compute_energy(AffineBodyAnimator::EnergyInfo& info)
+void AffineBodyExternalBodyForceConstraint::do_compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info)
 {
     // No energy computation
 }
 
 void AffineBodyExternalBodyForceConstraint::do_compute_gradient_hessian(
-    AffineBodyAnimator::GradientHessianInfo& info)
+    AffineBodyAnimator::ComputeGradientHessianInfo& info)
 {
     // No gradient/hessian computation
 }

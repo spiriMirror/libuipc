@@ -1,5 +1,6 @@
 #pragma once
 #include <concepts>
+#include <magic_enum/magic_enum.hpp>
 #include <magic_enum/magic_enum_flags.hpp>
 
 namespace uipc

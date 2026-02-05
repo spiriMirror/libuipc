@@ -25,7 +25,7 @@ class ABDLineSearchSubreporter : public SimSystem
     virtual void do_build(BuildInfo& info)                 = 0;
     virtual void do_init(InitInfo& info)                   = 0;
     virtual void do_report_extent(ReportExtentInfo& info)  = 0;
-    virtual void do_report_energy(ComputeEnergyInfo& info) = 0;
+    virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
 
   private:
     virtual void do_build() override final;

@@ -13,12 +13,21 @@ enum class EnergyComponentFlags : uint32_t
     Complement = 1 << 1,
     All        = Contact | Complement
 };
-}
 
-// Add specialization to customize namespace to mark the enum as a flag type
-// This enables functionality like combined name generation like "Contact|Complement"
+/**
+ * @brief Get the string representation of EnergyComponentFlags
+ * 
+ * A wrapper around magic_enum::enum_flags_name, on NVCC we can't use:
+ * magic_enum::enum_flags_name(flags) directly due to compilation issues.
+ */
+std::string enum_flags_name(EnergyComponentFlags flags);
+}  // namespace uipc::backend::cuda
+
+namespace magic_enum::customize
+{
 template <>
-struct magic_enum::customize::enum_range<uipc::backend::cuda::EnergyComponentFlags>
+struct enum_range<uipc::backend::cuda::EnergyComponentFlags>
 {
     static constexpr bool is_flags = true;
 };
+}  // namespace magic_enum::customize

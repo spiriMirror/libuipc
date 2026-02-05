@@ -149,8 +149,8 @@ class InterAffineBodyConstitutionManager final : public SimSystem
     {
       public:
         void init(SceneVisitor& scene);
-        void report_energy_extent(ABDLineSearchReporter::ExtentInfo& info);
-        void compute_energy(ABDLineSearchReporter::EnergyInfo& info);
+        void report_energy_extent(ABDLineSearchReporter::ReportExtentInfo& info);
+        void compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info);
         void report_gradient_hessian_extent(ABDLinearSubsystem::ReportExtentInfo& info);
         void compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info);
 

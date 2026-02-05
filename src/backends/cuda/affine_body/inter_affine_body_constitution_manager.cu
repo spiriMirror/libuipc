@@ -110,7 +110,7 @@ void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
     constitution_hessian_offsets_counts.resize(constitution_view.size());
 }
 
-void InterAffineBodyConstitutionManager::Impl::report_energy_extent(ABDLineSearchReporter::ExtentInfo& info)
+void InterAffineBodyConstitutionManager::Impl::report_energy_extent(ABDLineSearchReporter::ReportExtentInfo& info)
 {
     auto constitution_view = constitutions.view();
 
@@ -127,7 +127,7 @@ void InterAffineBodyConstitutionManager::Impl::report_energy_extent(ABDLineSearc
     info.energy_count(constitution_energy_offsets_counts.total_count());
 }
 
-void InterAffineBodyConstitutionManager::Impl::compute_energy(ABDLineSearchReporter::EnergyInfo& info)
+void InterAffineBodyConstitutionManager::Impl::compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info)
 {
     auto constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
@@ -248,7 +248,7 @@ IndexT InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT geo_id) 
 }
 
 IndexT InterAffineBodyConstitutionManager::FilteredInfo::body_id(IndexT geo_id,
-                                                                       IndexT instance_id) const noexcept
+                                                                 IndexT instance_id) const noexcept
 {
     const auto& info = geo_info(geo_id);
     UIPC_ASSERT(instance_id >= 0 && instance_id < static_cast<IndexT>(info.body_count),
@@ -329,6 +329,7 @@ class InterAffineBodyConstitutionLineSearchSubreporter final : public ABDLineSea
 {
   public:
     using ABDLineSearchSubreporter::ABDLineSearchSubreporter;
+
     SimSystemSlot<InterAffineBodyConstitutionManager> manager;
 
     virtual void do_build(BuildInfo& info) override
@@ -338,12 +339,12 @@ class InterAffineBodyConstitutionLineSearchSubreporter final : public ABDLineSea
 
     virtual void do_init(InitInfo& info) override {}
 
-    virtual void do_report_extent(ExtentInfo& info) override
+    virtual void do_report_extent(ReportExtentInfo& info) override
     {
         manager->m_impl.report_energy_extent(info);
     }
 
-    virtual void do_report_energy(EnergyInfo& info)
+    virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         manager->m_impl.compute_energy(info);
     }

@@ -79,11 +79,13 @@ class FiniteElementElastics final : public SimSystem
             auto [offset, count] = m_impl->constitution_gradient_offsets_counts[m_index];
             return m_gradients.subview(offset, count);
         }
+
         auto hessians() const noexcept
         {
             auto [offset, count] = m_impl->constitution_hessian_offsets_counts[m_index];
             return m_hessians.subview(offset, count);
         }
+        
         auto dt() const noexcept { return m_dt; }
 
       private:

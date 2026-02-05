@@ -92,7 +92,7 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
 
     logger::info("DyTopo Effect Assembly: GradientOnly={}, ComponentFlags={}",
                  info.m_gradient_only,
-                 magic_enum::enum_flags_name(info.m_component_flags));
+                 enum_flags_name(info.m_component_flags));
 
     for(auto&& [i, reporter] : enumerate(dytopo_effect_reporters.view()))
     {
@@ -378,7 +378,7 @@ void GlobalDyTopoEffectManager::add_reporter(DyTopoEffectReporter* reporter)
     auto flag = reporter->component_flags();
     UIPC_ASSERT(is_valid_flag(flag),
                 "reporter component_flags() is not valid single flag, it's {}",
-                magic_enum::enum_flags_name(flag));
+                enum_flags_name(flag));
     m_impl.dytopo_effect_reporters.register_subsystem(*reporter);
 
     // classify into contact / non-contact

@@ -46,14 +46,16 @@ void FiniteElementExtraConstitution::report_extent(ReportExtentInfo& info)
     do_report_extent(info);
 }
 
-void FiniteElementExtraConstitution::compute_energy(ComputeEnergyInfo& info)
+void FiniteElementExtraConstitution::compute_energy(FiniteElementElastics::ComputeEnergyInfo& info)
 {
-    do_compute_energy(info);
+    auto this_info = ComputeEnergyInfo{&m_impl, &info, info.dt()};
+    do_compute_energy(this_info);
 }
 
-void FiniteElementExtraConstitution::compute_gradient_hessian(ComputeGradientHessianInfo& info)
+void FiniteElementExtraConstitution::compute_gradient_hessian(FiniteElementElastics::ComputeGradientHessianInfo& info)
 {
-    do_compute_gradient_hessian(info);
+    auto this_info = ComputeGradientHessianInfo{&m_impl, &info, info.dt()};
+    do_compute_gradient_hessian(this_info);
 }
 
 void FiniteElementExtraConstitution::Impl::init(U64 uid, backend::WorldVisitor& world)
@@ -133,20 +135,5 @@ span<const Vector3> FiniteElementExtraConstitution::FilteredInfo::rest_positions
 span<const Float> FiniteElementExtraConstitution::FilteredInfo::thicknesses() noexcept
 {
     return m_impl->fem().h_thicknesses;
-}
-
-void FiniteElementExtraConstitution::ReportExtentInfo::energy_count(SizeT count) noexcept
-{
-    m_energy_count = count;
-}
-
-void FiniteElementExtraConstitution::ReportExtentInfo::gradient_count(SizeT count) noexcept
-{
-    m_gradient_count = count;
-}
-
-void FiniteElementExtraConstitution::ReportExtentInfo::hessian_count(SizeT count) noexcept
-{
-    m_hessian_count = count;
 }
 }  // namespace uipc::backend::cuda

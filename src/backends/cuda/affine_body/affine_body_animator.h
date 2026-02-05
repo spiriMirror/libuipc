@@ -86,10 +86,10 @@ class AffineBodyAnimator final : public Animator
         muda::BufferView<Float> m_energies;
     };
 
-    class GradientHessianInfo : public BaseInfo
+    class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        GradientHessianInfo(Impl*                              impl,
+        ComputeGradientHessianInfo(Impl*                              impl,
                             SizeT                              index,
                             Float                              dt,
                             muda::DoubletVectorView<Float, 12> gradients,

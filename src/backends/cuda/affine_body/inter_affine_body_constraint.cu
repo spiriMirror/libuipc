@@ -45,7 +45,7 @@ void InterAffineBodyConstraint::report_extent(InterAffineBodyAnimator::ReportExt
     do_report_extent(info);
 }
 
-void InterAffineBodyConstraint::compute_energy(InterAffineBodyAnimator::EnergyInfo& info)
+void InterAffineBodyConstraint::compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info)
 {
     do_compute_energy(info);
 }

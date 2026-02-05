@@ -69,7 +69,7 @@ void DiagLinearSubsystem::assemble(GlobalLinearSystem::DiagInfo& info)
     UIPC_ASSERT(info.gradient_only()
                     || info.component_flags() == GlobalLinearSystem::ComponentFlags::All,
                 "Limitation: When info.gradient_only()==false, info.component_flags() must be GlobalLinearSystem::ComponentFlags::All (got {})",
-                magic_enum::enum_flags_name(info.component_flags()));
+                enum_flags_name(info.component_flags()));
 
     do_assemble(info);
 }

@@ -31,9 +31,7 @@ class FiniteElementExtraConstitution : public SimSystem
       public:
     };
 
-    using ReportExtentInfo  = FiniteElementElastics::ReportExtentInfo;
-    using ComputeEnergyInfo = FiniteElementElastics::ComputeEnergyInfo;
-    using ComputeGradientHessianInfo = FiniteElementElastics::ComputeGradientHessianInfo;
+    using ReportExtentInfo = FiniteElementElastics::ReportExtentInfo;
 
     class FilteredInfo
     {
@@ -64,7 +62,7 @@ class FiniteElementExtraConstitution : public SimSystem
     class BaseInfo
     {
       public:
-        BaseInfo(FiniteElementElastics::Impl* impl, Float dt)
+        BaseInfo(Impl* impl, Float dt)
             : m_impl(impl)
             , m_dt(dt)
         {
@@ -78,8 +76,41 @@ class FiniteElementExtraConstitution : public SimSystem
         muda::CBufferView<Float>   thicknesses() const noexcept;
 
       protected:
-        FiniteElementElastics::Impl* m_impl = nullptr;
-        Float                        m_dt;
+        Impl* m_impl = nullptr;
+        Float m_dt;
+    };
+
+    class ComputeEnergyInfo : public BaseInfo
+    {
+      public:
+        ComputeEnergyInfo(Impl* impl, FiniteElementElastics::ComputeEnergyInfo* base_info, Float dt)
+            : BaseInfo(impl, dt)
+            , base_info(base_info)
+        {
+        }
+
+        auto energies() const noexcept { return base_info->energies(); }
+
+      private:
+        FiniteElementElastics::ComputeEnergyInfo* base_info = nullptr;
+    };
+
+    class ComputeGradientHessianInfo : public BaseInfo
+    {
+      public:
+        ComputeGradientHessianInfo(Impl* impl,
+                                   FiniteElementElastics::ComputeGradientHessianInfo* base_info,
+                                   Float dt)
+            : BaseInfo(impl, dt)
+            , base_info(base_info)
+        {
+        }
+
+        auto gradients() const noexcept { return base_info->gradients(); }
+        auto hessians() const noexcept { return base_info->hessians(); }
+
+      private:
+        FiniteElementElastics::ComputeGradientHessianInfo* base_info = nullptr;
     };
 
     U64 uid() const noexcept;
@@ -106,8 +137,8 @@ class FiniteElementExtraConstitution : public SimSystem
 
     friend class FiniteElementElastics;
     void report_extent(ReportExtentInfo& info);
-    void compute_energy(ComputeEnergyInfo& info);
-    void compute_gradient_hessian(ComputeGradientHessianInfo& info);
+    void compute_energy(FiniteElementElastics::ComputeEnergyInfo& info);
+    void compute_gradient_hessian(FiniteElementElastics::ComputeGradientHessianInfo& info);
 
     Impl  m_impl;
     SizeT m_index = 0;

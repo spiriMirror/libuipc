@@ -519,7 +519,7 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         info.hessian_block_count(h_count);
     }
 
-    void do_compute_energy(InterAffineBodyAnimator::EnergyInfo& info) override
+    void do_compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info) override
     {
         using namespace muda;
 

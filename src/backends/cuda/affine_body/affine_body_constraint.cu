@@ -39,12 +39,12 @@ void AffineBodyConstraint::report_extent(AffineBodyAnimator::ReportExtentInfo& i
     do_report_extent(info);
 }
 
-void AffineBodyConstraint::compute_energy(AffineBodyAnimator::EnergyInfo& info)
+void AffineBodyConstraint::compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info)
 {
     do_compute_energy(info);
 }
 
-void AffineBodyConstraint::compute_gradient_hessian(AffineBodyAnimator::GradientHessianInfo& info)
+void AffineBodyConstraint::compute_gradient_hessian(AffineBodyAnimator::ComputeGradientHessianInfo& info)
 {
     do_compute_gradient_hessian(info);
 }

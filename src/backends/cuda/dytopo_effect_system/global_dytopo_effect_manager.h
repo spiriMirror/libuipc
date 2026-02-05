@@ -1,5 +1,6 @@
 #pragma once
 #include <sim_system.h>
+#include <energy_component_flags.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <muda/ext/linear_system.h>
 #include <utils/offset_count_collection.h>

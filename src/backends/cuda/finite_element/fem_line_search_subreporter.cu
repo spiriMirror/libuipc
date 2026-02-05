@@ -19,13 +19,13 @@ void FEMLineSearchSubreporter::init()
     do_init(info);
 }
 
-void FEMLineSearchSubreporter::report_extent(ExtentInfo& info)
+void FEMLineSearchSubreporter::report_extent(ReportExtentInfo& info)
 {
     do_report_extent(info);
 }
 
-void FEMLineSearchSubreporter::report_energy(EnergyInfo& info)
+void FEMLineSearchSubreporter::compute_energy(ComputeEnergyInfo& info)
 {
-    do_report_energy(info);
+    do_compute_energy(info);
 }
 }  // namespace uipc::backend::cuda

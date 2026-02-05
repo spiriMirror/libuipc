@@ -61,7 +61,7 @@ void FiniteElementElastics::Impl::assemble(FEMLinearSubsystem::AssembleInfo& inf
 
     for(auto&& [I, c] : enumerate(constitutions))
     {
-        FiniteElementConstitution::ComputeGradientHessianInfo this_info{
+        ComputeGradientHessianInfo this_info{
             this, I, info.dt(), info.gradients(), info.hessians()};
 
         c->compute_gradient_hessian(this_info);
@@ -70,7 +70,7 @@ void FiniteElementElastics::Impl::assemble(FEMLinearSubsystem::AssembleInfo& inf
 
     for(auto&& [I, c] : enumerate(extras))
     {
-        FiniteElementExtraConstitution::ComputeGradientHessianInfo this_info{
+        ComputeGradientHessianInfo this_info{
             this, offset + I, info.dt(), info.gradients(), info.hessians()};
         c->compute_gradient_hessian(this_info);
     }
@@ -82,22 +82,20 @@ void FiniteElementElastics::Impl::assemble(FEMLinearSubsystem::AssembleInfo& inf
                 constitutions.size() + extras.size());
 }
 
-void FiniteElementElastics::Impl::compute_energy(FEMLineSearchReporter::EnergyInfo& info)
+void FiniteElementElastics::Impl::compute_energy(FEMLineSearchReporter::ComputeEnergyInfo& info)
 {
     auto constitutions = fem().constitutions.view();
     auto extras        = fem().extra_constitutions.view();
     auto offset        = 0;
     for(auto&& [I, c] : enumerate(constitutions))
     {
-        FiniteElementConstitution::ComputeEnergyInfo this_info{
-            this, I, info.dt(), info.energies()};
+        ComputeEnergyInfo this_info{this, I, info.dt(), info.energies()};
         c->compute_energy(this_info);
     }
     offset += constitutions.size();
     for(auto&& [I, c] : enumerate(extras))
     {
-        FiniteElementExtraConstitution::ComputeEnergyInfo this_info{
-            this, offset + I, info.dt(), info.energies()};
+        ComputeEnergyInfo this_info{this, offset + I, info.dt(), info.energies()};
         c->compute_energy(this_info);
     }
     offset += extras.size();
@@ -156,13 +154,16 @@ class FiniteElementElasticsLineSearchSubreporter final : public FEMLineSearchSub
 
     virtual void do_init(InitInfo& info) override {}
 
-    virtual void do_report_extent(ExtentInfo& info) override
+    virtual void do_report_extent(ReportExtentInfo& info) override
     {
         auto energy_count = el().constitution_energy_offsets_counts.total_count();
         info.energy_count(energy_count);
     }
 
-    virtual void do_report_energy(EnergyInfo& info) override {}
+    virtual void do_compute_energy(ComputeEnergyInfo& info) override
+    {
+        el().compute_energy(info);
+    }
 };
 
 REGISTER_SIM_SYSTEM(FiniteElementElasticsLineSearchSubreporter);

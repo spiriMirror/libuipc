@@ -25,7 +25,7 @@ void LineSearchReporter::step_forward(LineSearcher::StepInfo& info)
     do_step_forward(info);
 }
 
-void LineSearchReporter::compute_energy(LineSearcher::EnergyInfo& info)
+void LineSearchReporter::compute_energy(LineSearcher::ComputeEnergyInfo& info)
 {
     do_compute_energy(info);
 }

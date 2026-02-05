@@ -14,7 +14,7 @@ class FEMLineSearchReporter final : public LineSearchReporter
   public:
     using LineSearchReporter::LineSearchReporter;
 
-    class ExtentInfo
+    class ReportExtentInfo
     {
       public:
         void energy_count(SizeT count) { m_energy_count = count; }
@@ -27,6 +27,12 @@ class FEMLineSearchReporter final : public LineSearchReporter
     class ComputeEnergyInfo
     {
       public:
+        ComputeEnergyInfo(muda::BufferView<Float> energies, Float dt)
+            : m_energies(energies)
+            , m_dt(dt)
+        {
+        }
+
         muda::BufferView<Float> energies() const { return m_energies; }
         Float                   dt() const noexcept { return m_dt; }
 

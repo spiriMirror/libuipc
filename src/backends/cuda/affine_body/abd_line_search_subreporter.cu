@@ -23,8 +23,8 @@ void ABDLineSearchSubreporter::report_extent(ReportExtentInfo& info)
     do_report_extent(info);
 }
 
-void ABDLineSearchSubreporter::report_energy(ComputeEnergyInfo& info)
+void ABDLineSearchSubreporter::compute_energy(ComputeEnergyInfo& info)
 {
-    do_report_energy(info);
+    do_compute_energy(info);
 }
 }  // namespace uipc::backend::cuda

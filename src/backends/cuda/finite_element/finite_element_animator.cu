@@ -278,7 +278,7 @@ class FiniteElementAnimatorLineSearchSubreporter final : public FEMLineSearchSub
         info.energy_count(energy_count);
     }
 
-    virtual void do_report_energy(ComputeEnergyInfo& info) override
+    virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         animator->compute_energy(info);
     }

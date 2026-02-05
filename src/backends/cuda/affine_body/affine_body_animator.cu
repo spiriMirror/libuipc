@@ -152,7 +152,7 @@ void AffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::AssembleIn
 {
     for(auto constraint : m_impl.constraints.view())
     {
-        GradientHessianInfo this_info{
+        ComputeGradientHessianInfo this_info{
             &m_impl, constraint->m_index, m_impl.dt, info.gradients(), info.hessians()};
         constraint->compute_gradient_hessian(this_info);
     }
@@ -197,13 +197,13 @@ muda::BufferView<Float> AffineBodyAnimator::ComputeEnergyInfo::energies() const 
     return m_energies.subview(offset, count);
 }
 
-muda::DoubletVectorView<Float, 12> AffineBodyAnimator::GradientHessianInfo::gradients() const noexcept
+muda::DoubletVectorView<Float, 12> AffineBodyAnimator::ComputeGradientHessianInfo::gradients() const noexcept
 {
     auto [offset, count] = m_impl->constraint_gradient_offsets_counts[m_index];
     return m_gradients.subview(offset, count);
 }
 
-muda::TripletMatrixView<Float, 12> AffineBodyAnimator::GradientHessianInfo::hessians() const noexcept
+muda::TripletMatrixView<Float, 12> AffineBodyAnimator::ComputeGradientHessianInfo::hessians() const noexcept
 {
     auto [offset, count] = m_impl->constraint_hessian_offsets_counts[m_index];
     return m_hessians.subview(offset, count);
@@ -281,7 +281,7 @@ class AffineBodyAnimatorLineSearchSubreporter final : public ABDLineSearchSubrep
         info.energy_count(energy_count);
     }
 
-    virtual void do_report_energy(ComputeEnergyInfo& info) override
+    virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         animator->compute_energy(info);
     }

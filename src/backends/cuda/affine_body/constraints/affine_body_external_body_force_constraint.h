@@ -39,8 +39,8 @@ class AffineBodyExternalBodyForceConstraint final : public AffineBodyConstraint
     virtual void do_init(AffineBodyAnimator::FilteredInfo& info) override;
     virtual void do_step(AffineBodyAnimator::FilteredInfo& info) override;
     virtual void do_report_extent(AffineBodyAnimator::ReportExtentInfo& info) override;
-    virtual void do_compute_energy(AffineBodyAnimator::EnergyInfo& info) override;
-    virtual void do_compute_gradient_hessian(AffineBodyAnimator::GradientHessianInfo& info) override;
+    virtual void do_compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info) override;
+    virtual void do_compute_gradient_hessian(AffineBodyAnimator::ComputeGradientHessianInfo& info) override;
 
     Impl m_impl;
 };
