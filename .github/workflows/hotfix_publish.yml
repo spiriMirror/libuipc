@@ -1,0 +1,31 @@
+name: Manual Hotfix Upload
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'The Run ID of the failed 2-hour build'
+        required: true
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Download Artifacts from previous run
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.inputs.run_id }} # Uses artifacts from the old run
+          pattern: pyuipc-*
+          merge-multiple: true
+          path: wheelhouse
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # No repository-url needed (fixes the 413 error)
+          packages-dir: wheelhouse
+          skip-existing: true
+          attestations: true 
