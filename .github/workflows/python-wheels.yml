@@ -6,11 +6,23 @@ on:
       - main
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+    paths-ignore:
+      - ".clang-format"
+      - ".clangd"
+      - ".gitignore"
+      - "LICENSE"
+      - "README.md"
+      - "docs/**"
+      - "**/xmake.lua"
+      - ".github/workflows/xmake.yml"
+      - ".github/workflows/docs.yml"
+      - ".github/workflows/cmake.yml"
   pull_request:
     branches:
       - main
   release:
     types: [published]
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref }}
