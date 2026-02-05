@@ -11,9 +11,10 @@ on:
       - "LICENSE"
       - "README.md"
       - "docs/**"
-      - ".github/workflows/xmake.yml"
       - "**/xmake.lua"
+      - ".github/workflows/xmake.yml"
       - ".github/workflows/docs.yml"
+      - ".github/workflows/python-wheels.yml"
 
 jobs:
   build:
