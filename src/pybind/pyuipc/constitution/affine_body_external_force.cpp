@@ -12,7 +12,7 @@ PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
         py::class_<AffineBodyExternalBodyForce, IConstitution>(m, "AffineBodyExternalBodyForce");
 
     class_AffineBodyExternalBodyForce
-        .def(py::init<const Json&>(), py::arg("config"))
+        .def(py::init<const Json&>(), py::arg("config")=AffineBodyExternalBodyForce::default_config())
         .def("apply_to",
              py::overload_cast<geometry::SimplicialComplex&, const Vector12&>(
                  &AffineBodyExternalBodyForce::apply_to),
