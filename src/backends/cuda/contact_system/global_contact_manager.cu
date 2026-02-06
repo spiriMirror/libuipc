@@ -138,8 +138,10 @@ void GlobalContactManager::Impl::_build_contact_tabular(WorldVisitor& world)
         mask_map(ids.y(), ids.x()) = is_enabled;
     }
 
-    contact_tabular.resize(muda::Extent2D{N, N});
-    contact_tabular.view().copy_from(h_contact_tabular.data());
+    contact_tabular = std::make_shared<muda::DeviceBuffer2D<ContactCoeff>>();
+
+    contact_tabular->resize(muda::Extent2D{N, N});
+    contact_tabular->view().copy_from(h_contact_tabular.data());
 
     contact_mask_tabular.resize(muda::Extent2D{N, N});
     contact_mask_tabular.view().copy_from(h_contact_mask_tabular.data());
@@ -236,7 +238,13 @@ namespace uipc::backend::cuda
 {
 muda::Buffer2DView<ContactCoeff> GlobalContactManager::AdaptiveParameterInfo::contact_tabular() const noexcept
 {
-    return m_impl->contact_tabular.view();
+    return m_impl->contact_tabular->view();
+}
+
+S<muda::DeviceBuffer2D<ContactCoeff>> GlobalContactManager::AdaptiveParameterInfo::exchange_contact_tabular(
+    S<muda::DeviceBuffer2D<ContactCoeff>> new_buffer) const noexcept
+{
+    return std::exchange(m_impl->contact_tabular, new_buffer);
 }
 
 Float GlobalContactManager::compute_cfl_condition()
@@ -292,6 +300,6 @@ void GlobalContactManager::add_reporter(AdaptiveContactParameterReporter* report
 
 muda::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept
 {
-    return m_impl.contact_tabular;
+    return m_impl.contact_tabular->view();
 }
 }  // namespace uipc::backend::cuda

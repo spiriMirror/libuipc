@@ -65,7 +65,7 @@ class GlobalLinearSystem : public SimSystem
       public:
         bool           gradient_only() const { return m_gradient_only; }
         ComponentFlags component_flags() const { return m_component_flags; }
-        void extent(SizeT hessian_block_count, SizeT dof_count) noexcept;
+        void extent(SizeT hessian_count, SizeT dof_count) noexcept;
 
       private:
         friend class Impl;
@@ -337,6 +337,8 @@ class GlobalLinearSystem : public SimSystem
      * The size of the gradient buffer should be equal to `dof_count()`.
      */
     void compute_gradient(ComputeGradientInfo& info);
+
+    muda::LinearSystemContext& ctx() noexcept { return m_impl.ctx; }
 
   protected:
     void do_build() override;

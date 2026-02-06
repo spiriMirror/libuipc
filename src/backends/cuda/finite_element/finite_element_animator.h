@@ -86,32 +86,39 @@ class FiniteElementAnimator final : public Animator
                                    SizeT                             index,
                                    Float                             dt,
                                    muda::DoubletVectorView<Float, 3> gradients,
-                                   muda::TripletMatrixView<Float, 3> hessians)
+                                   muda::TripletMatrixView<Float, 3> hessians,
+                                   bool                              gradient_only)
             : BaseInfo(impl, index, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
+            , m_gradient_only(gradient_only)
         {
         }
         muda::DoubletVectorView<Float, 3> gradients() const noexcept;
         muda::TripletMatrixView<Float, 3> hessians() const noexcept;
+        bool                              gradient_only() const noexcept;
 
       private:
         muda::DoubletVectorView<Float, 3> m_gradients;
         muda::TripletMatrixView<Float, 3> m_hessians;
+        bool                              m_gradient_only = false;
     };
 
     class ReportExtentInfo
     {
       public:
-        void hessian_block_count(SizeT count) noexcept;
-        void gradient_segment_count(SizeT count) noexcept;
+        void hessian_count(SizeT count) noexcept;
+        void gradient_count(SizeT count) noexcept;
         void energy_count(SizeT count) noexcept;
+        bool gradient_only() const noexcept { return m_gradient_only; }
 
       private:
         friend class FiniteElementAnimator;
+        friend class FiniteElementConstraint;
         SizeT m_hessian_block_count    = 0;
         SizeT m_gradient_segment_count = 0;
         SizeT m_energy_count           = 0;
+        bool  m_gradient_only          = false;
     };
 
     class Impl

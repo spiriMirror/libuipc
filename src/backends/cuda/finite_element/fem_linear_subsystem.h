@@ -18,20 +18,24 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
     class ComputeGradientHessianInfo
     {
       public:
-        ComputeGradientHessianInfo(muda::DoubletVectorView<Float, 3> gradients,
+        ComputeGradientHessianInfo(bool                                gradient_only,
+                                   muda::DoubletVectorView<Float, 3>    gradients,
                                    muda::TripletMatrixView<Float, 3, 3> hessians,
-                                   Float dt) noexcept
-            : m_gradients(gradients)
+                                   Float                               dt) noexcept
+            : m_gradient_only(gradient_only)
+            , m_gradients(gradients)
             , m_hessians(hessians)
             , m_dt(dt)
         {
         }
 
+        auto gradient_only() const noexcept { return m_gradient_only; }
         auto gradients() const noexcept { return m_gradients; }
         auto hessians() const noexcept { return m_hessians; }
         auto dt() const noexcept { return m_dt; }
 
       private:
+        bool                                m_gradient_only = false;
         muda::DoubletVectorView<Float, 3>    m_gradients;
         muda::TripletMatrixView<Float, 3, 3> m_hessians;
         Float                                m_dt = 0.0;
@@ -44,11 +48,14 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         void gradient_count(SizeT size);
         // TripletMatrix3x3 count
         void hessian_count(SizeT size);
+        bool gradient_only() const noexcept { return m_gradient_only; }
 
       private:
         friend class FEMLinearSubsystem;
+        friend class FEMLinearSubsystemReporter;
         SizeT m_gradient_count = 0;
         SizeT m_hessian_count  = 0;
+        bool  m_gradient_only  = false;
     };
 
     class Impl;
@@ -56,23 +63,29 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
     class AssembleInfo
     {
       public:
-        AssembleInfo(Impl* impl, IndexT index, muda::TripletMatrixView<Float, 3, 3> hessians) noexcept
+        AssembleInfo(Impl*                                impl,
+                     IndexT                               index,
+                     muda::TripletMatrixView<Float, 3, 3> hessians,
+                     bool                                 gradient_only) noexcept
             : m_impl(impl)
             , m_index(index)
             , m_hessians(hessians)
+            , m_gradient_only(gradient_only)
         {
         }
 
         muda::DoubletVectorView<Float, 3>    gradients() const;
         muda::TripletMatrixView<Float, 3, 3> hessians() const;
         Float                                dt() const noexcept;
+        bool                                 gradient_only() const noexcept;
 
       private:
         friend class FEMLinearSubsystem;
 
-        Impl*                                m_impl  = nullptr;
-        IndexT                               m_index = ~0;
+        Impl*                                m_impl          = nullptr;
+        IndexT                               m_index         = ~0;
         muda::TripletMatrixView<Float, 3, 3> m_hessians;
+        bool                                 m_gradient_only = false;
     };
 
     class Impl

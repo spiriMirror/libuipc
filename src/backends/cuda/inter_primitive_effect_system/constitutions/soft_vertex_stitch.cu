@@ -144,8 +144,12 @@ class SoftVertexStitch : public InterPrimitiveConstitution
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
     {
-        info.gradient_segment_count(StencilSize * topos.size());
-        info.hessian_block_count(HalfHessianSize * topos.size());
+        info.gradient_count(StencilSize * topos.size());
+
+        if(info.gradient_only())
+            return;
+
+        info.hessian_count(HalfHessianSize * topos.size());
     }
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
@@ -159,13 +163,14 @@ class SoftVertexStitch : public InterPrimitiveConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(topos.size(),
-                   [topos        = topos.cviewer().name("topos"),
-                    xs           = info.positions().cviewer().name("xs"),
-                    kappas       = kappas.cviewer().name("kappas"),
-                    rest_lengths = rest_lengths.cviewer().name("rest_lengths"),
-                    G3s          = info.gradients().viewer().name("Gs"),
-                    H3x3s        = info.hessians().viewer().name("H3x3s"),
-                    dt           = info.dt()] __device__(int I)
+                   [topos         = topos.cviewer().name("topos"),
+                    xs            = info.positions().cviewer().name("xs"),
+                    kappas        = kappas.cviewer().name("kappas"),
+                    rest_lengths  = rest_lengths.cviewer().name("rest_lengths"),
+                    G3s           = info.gradients().viewer().name("Gs"),
+                    H3x3s         = info.hessians().viewer().name("H3x3s"),
+                    dt            = info.dt(),
+                    gradient_only = info.gradient_only()] __device__(int I)
                    {
                        Vector6         X;
                        const Vector2i& PP = topos(I);
@@ -178,6 +183,9 @@ class SoftVertexStitch : public InterPrimitiveConstitution
                        SVS::dEdX(G, Kt2, X, L0);
                        DoubletVectorAssembler VA{G3s};
                        VA.segment<StencilSize>(I * StencilSize).write(PP, G);
+
+                       if(gradient_only)
+                           return;
 
                        Matrix6x6 H;
                        SVS::ddEddX(H, Kt2, X, L0);

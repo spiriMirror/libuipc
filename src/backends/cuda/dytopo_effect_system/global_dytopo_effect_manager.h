@@ -38,6 +38,7 @@ class GlobalDyTopoEffectManager final : public SimSystem
     class GradientHessianInfo
     {
       public:
+        bool gradient_only() const noexcept { return m_gradient_only; }
         muda::DoubletVectorView<Float, 3> gradients() const noexcept
         {
             return m_gradients;
@@ -50,6 +51,7 @@ class GlobalDyTopoEffectManager final : public SimSystem
 
       private:
         friend class Impl;
+        bool                              m_gradient_only = false;
         muda::DoubletVectorView<Float, 3> m_gradients;
         muda::TripletMatrixView<Float, 3> m_hessians;
     };

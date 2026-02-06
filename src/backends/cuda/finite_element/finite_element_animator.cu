@@ -27,7 +27,12 @@ void FiniteElementAnimator::assemble(FEMLinearSubsystemReporter::AssembleInfo& i
     for(auto constraint : m_impl.constraints.view())
     {
         ComputeGradientHessianInfo this_info{
-            &m_impl, constraint->m_index, info.dt(), info.gradients(), info.hessians()};
+            &m_impl,
+            constraint->m_index,
+            info.dt(),
+            info.gradients(),
+            info.hessians(),
+            info.gradient_only()};
         constraint->compute_gradient_hessian(this_info);
     }
 }
@@ -209,11 +214,16 @@ muda::TripletMatrixView<Float, 3> FiniteElementAnimator::ComputeGradientHessianI
     return m_hessians.subview(offset, count);
 }
 
-void FiniteElementAnimator::ReportExtentInfo::hessian_block_count(SizeT count) noexcept
+bool FiniteElementAnimator::ComputeGradientHessianInfo::gradient_only() const noexcept
+{
+    return m_gradient_only;
+}
+
+void FiniteElementAnimator::ReportExtentInfo::hessian_count(SizeT count) noexcept
 {
     m_hessian_block_count = count;
 }
-void FiniteElementAnimator::ReportExtentInfo::gradient_segment_count(SizeT count) noexcept
+void FiniteElementAnimator::ReportExtentInfo::gradient_count(SizeT count) noexcept
 {
     m_gradient_segment_count = count;
 }
@@ -241,13 +251,15 @@ class FiniteElementAnimatorLinearSubsystemReporter final : public FEMLinearSubsy
 
     virtual void do_report_extent(ReportExtentInfo& info) override
     {
-        SizeT gradient_segment_count =
+        SizeT gradient_count =
             animator->m_impl.constraint_gradient_offsets_counts.total_count();
-        info.gradient_count(gradient_segment_count);
+        info.gradient_count(gradient_count);
 
-        SizeT hessian_block_count =
-            animator->m_impl.constraint_hessian_offsets_counts.total_count();
-        info.hessian_count(hessian_block_count);
+        SizeT hessian_count = 0;
+        if(!info.gradient_only())
+            hessian_count =
+                animator->m_impl.constraint_hessian_offsets_counts.total_count();
+        info.hessian_count(hessian_count);
     }
 
     virtual void do_assemble(AssembleInfo& info) override

@@ -154,7 +154,12 @@ void InterAffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::Assem
     for(auto constraint : m_impl.constraints.view())
     {
         GradientHessianInfo this_info{
-            &m_impl, constraint->m_index, m_impl.dt, info.gradients(), info.hessians()};
+            &m_impl,
+            constraint->m_index,
+            m_impl.dt,
+            info.gradients(),
+            info.hessians(),
+            info.gradient_only()};
         constraint->compute_gradient_hessian(this_info);
     }
 }
@@ -249,12 +254,17 @@ muda::TripletMatrixView<Float, 12> InterAffineBodyAnimator::GradientHessianInfo:
     return m_hessians.subview(offset, count);
 }
 
-void InterAffineBodyAnimator::ReportExtentInfo::hessian_block_count(SizeT count) noexcept
+bool InterAffineBodyAnimator::GradientHessianInfo::gradient_only() const noexcept
+{
+    return m_gradient_only;
+}
+
+void InterAffineBodyAnimator::ReportExtentInfo::hessian_count(SizeT count) noexcept
 {
     m_hessian_block_count = count;
 }
 
-void InterAffineBodyAnimator::ReportExtentInfo::gradient_segment_count(SizeT count) noexcept
+void InterAffineBodyAnimator::ReportExtentInfo::gradient_count(SizeT count) noexcept
 {
     m_gradient_segment_count = count;
 }
@@ -287,7 +297,8 @@ class InterAffineBodyAnimatorLinearSubsystemReporter final : public ABDLinearSub
 
         gradient_count =
             animator->m_impl.constraint_gradient_offsets_counts.total_count();
-        hessian_count = animator->m_impl.constraint_hessian_offsets_counts.total_count();
+        if(!info.gradient_only())
+            hessian_count = animator->m_impl.constraint_hessian_offsets_counts.total_count();
 
         info.gradient_count(gradient_count);
         info.hessian_count(hessian_count);

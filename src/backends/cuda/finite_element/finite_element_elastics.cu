@@ -66,7 +66,7 @@ void FiniteElementElastics::Impl::assemble(FEMLinearSubsystem::AssembleInfo& inf
     for(auto&& [I, c] : enumerate(constitutions))
     {
         ComputeGradientHessianInfo this_info{
-            this, I, info.dt(), info.gradients(), info.hessians()};
+            this, I, info.gradient_only(), info.dt(), info.gradients(), info.hessians()};
 
         c->compute_gradient_hessian(this_info);
     }
@@ -74,8 +74,12 @@ void FiniteElementElastics::Impl::assemble(FEMLinearSubsystem::AssembleInfo& inf
 
     for(auto&& [I, c] : enumerate(extras))
     {
-        ComputeGradientHessianInfo this_info{
-            this, offset + I, info.dt(), info.gradients(), info.hessians()};
+        ComputeGradientHessianInfo this_info{this,
+                                             offset + I,
+                                             info.gradient_only(),
+                                             info.dt(),
+                                             info.gradients(),
+                                             info.hessians()};
         c->compute_gradient_hessian(this_info);
     }
     offset += extras.size();
@@ -130,7 +134,9 @@ class FiniteElementElasticsLinearSubsystemReporter final : public FEMLinearSubsy
     {
         auto grad_count = el().constitution_gradient_offsets_counts.total_count();
         info.gradient_count(grad_count);
-        auto hess_count = el().constitution_hessian_offsets_counts.total_count();
+        SizeT hess_count = 0;
+        if(!info.gradient_only())
+            hess_count = el().constitution_hessian_offsets_counts.total_count();
         info.hessian_count(hess_count);
     }
 

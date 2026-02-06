@@ -18,7 +18,7 @@ void Codim1DConstitution::do_compute_energy(FiniteElementConstitution::ComputeEn
 void Codim1DConstitution::do_compute_gradient_hessian(FiniteElementConstitution::ComputeGradientHessianInfo& info)
 {
     ComputeGradientHessianInfo this_info{
-        this, m_index_in_dim, info.dt(), info.gradients(), info.hessians()};
+        this, m_index_in_dim, info.gradient_only(), info.dt(), info.gradients(), info.hessians()};
     do_compute_gradient_hessian(this_info);
 }
 

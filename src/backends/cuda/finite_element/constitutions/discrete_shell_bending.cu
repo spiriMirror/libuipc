@@ -27,7 +27,7 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
 {
     static constexpr U64   DiscreteShellBendingUID = 17;
     static constexpr SizeT StencilSize             = 4;
-    static constexpr SizeT HalfHessianSize         = StencilSize * (StencilSize + 1) / 2;
+    static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
     using Base = FiniteElementExtraConstitution;
 
   public:
@@ -199,9 +199,13 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
 
     virtual void do_report_extent(ReportExtentInfo& info) override
     {
-        info.energy_count(stencils.size());        // Each quad has 1 energy
+        info.energy_count(stencils.size());  // Each quad has 1 energy
         info.gradient_count(stencils.size() * StencilSize);  // Each quad has 4 vertices
-        info.hessian_count(stencils.size() * HalfHessianSize);  // Each quad has 4x4 hessian block
+
+        if(info.gradient_only())
+            return;
+
+        info.hessian_count(stencils.size() * HalfHessianSize);
     }
 
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
@@ -257,7 +261,8 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
                     xs     = info.xs().viewer().name("xs"),
                     G3s    = info.gradients().viewer().name("gradients"),
                     H3x3s  = info.hessians().viewer().name("hessians"),
-                    dt     = info.dt()] __device__(int I) mutable
+                    dt     = info.dt(),
+                    gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
                        Vector4i stencil   = stencils(I);
                        Float    kappa     = bending_stiffnesses(I);
@@ -280,6 +285,9 @@ class DiscreteShellBending final : public FiniteElementExtraConstitution
                        G12 *= Vdt2;
                        DoubletVectorAssembler DVA{G3s};
                        DVA.segment<StencilSize>(I * StencilSize).write(stencil, G12);
+
+                       if(gradient_only)
+                           return;
 
                        DSB::ddEddx(H12x12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
                        H12x12 *= Vdt2;

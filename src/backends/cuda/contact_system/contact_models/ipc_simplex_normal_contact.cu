@@ -286,78 +286,99 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
             // Compute Point-Triangle Gradient and Hessian
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(info.PTs().size(),
-                       [table = info.contact_tabular().viewer().name("contact_tabular"),
-                        contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                        PTs = info.PTs().viewer().name("PTs"),
-                        Gs  = info.PT_gradients().viewer().name("Gs"),
-                        Hs  = info.PT_hessians().viewer().name("Hs"),
-                        Ps  = info.positions().viewer().name("Ps"),
-                        thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                        d_hats = info.d_hats().viewer().name("d_hats"),
-                        dt     = info.dt()] __device__(int i) mutable
-                       {
-                           Vector4i PT = PTs(i);
+                .apply(
+                    info.PTs().size(),
+                    [gradient_only = info.gradient_only(),
+                     table = info.contact_tabular().viewer().name("contact_tabular"),
+                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+                     PTs = info.PTs().viewer().name("PTs"),
+                     Gs  = info.PT_gradients().viewer().name("Gs"),
+                     Hs  = info.PT_hessians().viewer().name("Hs"),
+                     Ps  = info.positions().viewer().name("Ps"),
+                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                     d_hats = info.d_hats().viewer().name("d_hats"),
+                     dt     = info.dt(),
+                     cout   = KernelCout::viewer()] __device__(int i) mutable
+                    {
+                        Vector4i PT = PTs(i);
 
-                           Vector4i cids = {contact_ids(PT[0]),
-                                            contact_ids(PT[1]),
-                                            contact_ids(PT[2]),
-                                            contact_ids(PT[3])};
-                           Float    kt2  = PT_kappa(table, cids) * dt * dt;
-
-
-                           const auto& P  = Ps(PT[0]);
-                           const auto& T0 = Ps(PT[1]);
-                           const auto& T1 = Ps(PT[2]);
-                           const auto& T2 = Ps(PT[3]);
+                        Vector4i cids = {contact_ids(PT[0]),
+                                         contact_ids(PT[1]),
+                                         contact_ids(PT[2]),
+                                         contact_ids(PT[3])};
+                        Float    kt2  = PT_kappa(table, cids) * dt * dt;
 
 
-                           Float thickness = PT_thickness(thicknesses(PT(0)),
-                                                          thicknesses(PT(1)),
-                                                          thicknesses(PT(2)),
-                                                          thicknesses(PT(3)));
-
-                           Float d_hat = PT_d_hat(d_hats(PT(0)),
-                                                  d_hats(PT(1)),
-                                                  d_hats(PT(2)),
-                                                  d_hats(PT(3)));
-
-                           Vector4i flag =
-                               distance::point_triangle_distance_flag(P, T0, T1, T2);
-
-                           if constexpr(RUNTIME_CHECK)
-                           {
-                               Float D;
-                               distance::point_triangle_distance2(flag, P, T0, T1, T2, D);
-
-                               Vector2 range = D_range(thickness, d_hat);
-
-                               MUDA_ASSERT(is_active_D(range, D),
-                                           "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
-                                           PT(0),
-                                           PT(1),
-                                           PT(2),
-                                           PT(3),
-                                           D,
-                                           range(0),
-                                           range(1));
-                           }
-
-                           Vector12    G;
-                           Matrix12x12 H;
-
-                           PT_barrier_gradient_hessian(
-                               G, H, flag, kt2, d_hat, thickness, P, T0, T1, T2);
-
-                           make_spd(H);
+                        const auto& P  = Ps(PT[0]);
+                        const auto& T0 = Ps(PT[1]);
+                        const auto& T1 = Ps(PT[2]);
+                        const auto& T2 = Ps(PT[3]);
 
 
-                           DoubletVectorAssembler DVA{Gs};
-                           DVA.segment<4>(i * 4).write(PT, G);
+                        Float thickness = PT_thickness(thicknesses(PT(0)),
+                                                       thicknesses(PT(1)),
+                                                       thicknesses(PT(2)),
+                                                       thicknesses(PT(3)));
 
-                           TripletMatrixAssembler TMA{Hs};
-                           TMA.half_block<4>(i * PTHalfHessianSize).write(PT, H);
-                       });
+                        Float d_hat = PT_d_hat(
+                            d_hats(PT(0)), d_hats(PT(1)), d_hats(PT(2)), d_hats(PT(3)));
+
+                        Vector4i flag =
+                            distance::point_triangle_distance_flag(P, T0, T1, T2);
+
+                        if constexpr(RUNTIME_CHECK)
+                        {
+                            Float D;
+                            distance::point_triangle_distance2(flag, P, T0, T1, T2, D);
+
+                            Vector2 range = D_range(thickness, d_hat);
+
+                            MUDA_ASSERT(is_active_D(range, D),
+                                        "PT[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+                                        PT(0),
+                                        PT(1),
+                                        PT(2),
+                                        PT(3),
+                                        D,
+                                        range(0),
+                                        range(1));
+                        }
+
+                        Vector12 G;
+                        if(gradient_only)
+                        {
+                            Float D;
+                            distance::point_triangle_distance2(flag, P, T0, T1, T2, D);
+
+                            Matrix12x12 H;
+                            PT_barrier_gradient_hessian(
+                                G, H, flag, kt2, d_hat, thickness, P, T0, T1, T2);
+
+                            Vector12 new_G;
+                            PT_barrier_gradient(
+                                new_G, flag, kt2, d_hat, thickness, P, T0, T1, T2);
+
+
+                            // PT_barrier_gradient(G, flag, kt2, d_hat, thickness, P, T0, T1, T2);
+                            DoubletVectorAssembler DVA{Gs};
+                            DVA.segment<4>(i * 4).write(PT, G);
+
+                            //cout << "G:" << G.transpose().eval() << "\n"
+                            //     << "d:" << sqrt(D) << "\n"
+                            //     << "new_G:" << new_G.transpose().eval() << "\n";
+                        }
+                        else
+                        {
+                            Matrix12x12 H;
+                            PT_barrier_gradient_hessian(
+                                G, H, flag, kt2, d_hat, thickness, P, T0, T1, T2);
+                            make_spd(H);
+                            DoubletVectorAssembler DVA{Gs};
+                            DVA.segment<4>(i * 4).write(PT, G);
+                            TripletMatrixAssembler TMA{Hs};
+                            TMA.half_block<4>(i * PTHalfHessianSize).write(PT, H);
+                        }
+                    });
         }
 
 
@@ -366,7 +387,8 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
             .file_line(__FILE__, __LINE__)
             .apply(
                 info.EEs().size(),
-                [table = info.contact_tabular().viewer().name("contact_tabular"),
+                [gradient_only = info.gradient_only(),
+                 table = info.contact_tabular().viewer().name("contact_tabular"),
                  contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                  EEs         = info.EEs().viewer().name("EEs"),
                  Gs          = info.EE_gradients().viewer().name("Gs"),
@@ -423,25 +445,34 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                     range(1));
                     }
 
-                    Vector12    G;
-                    Matrix12x12 H;
-                    mollified_EE_barrier_gradient_hessian(
-                        G, H, flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
+                    Vector12 G;
+                    if(gradient_only)
+                    {
+                        mollified_EE_barrier_gradient(
+                            G, flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
+                        DoubletVectorAssembler DVA{Gs};
+                        DVA.segment<4>(i * 4).write(EE, G);
+                    }
+                    else
+                    {
+                        Matrix12x12 H;
+                        mollified_EE_barrier_gradient_hessian(
+                            G, H, flag, kt2, d_hat, thickness, t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, E0, E1, E2, E3);
 
-                    make_spd(H);
-
-                    DoubletVectorAssembler DVA{Gs};
-                    DVA.segment<4>(i * 4).write(EE, G);
-
-                    TripletMatrixAssembler TMA{Hs};
-                    TMA.half_block<4>(i * EEHalfHessianSize).write(EE, H);
+                        make_spd(H);
+                        DoubletVectorAssembler DVA{Gs};
+                        DVA.segment<4>(i * 4).write(EE, G);
+                        TripletMatrixAssembler TMA{Hs};
+                        TMA.half_block<4>(i * EEHalfHessianSize).write(EE, H);
+                    }
                 });
 
         // Compute Point-Edge Gradient and Hessian
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.PEs().size(),
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
+                   [gradient_only = info.gradient_only(),
+                    table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                     PEs     = info.PEs().viewer().name("PEs"),
                     Gs      = info.PE_gradients().viewer().name("Gs"),
@@ -489,26 +520,32 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       Vector9   G;
-                       Matrix9x9 H;
-
-                       PE_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P, E0, E1);
-
-                       make_spd(H);
-
-
-                       DoubletVectorAssembler DVA{Gs};
-                       DVA.segment<3>(i * 3).write(PE, G);
-
-                       TripletMatrixAssembler TMA{Hs};
-                       TMA.half_block<3>(i * PEHalfHessianSize).write(PE, H);
+                       Vector9 G;
+                       if(gradient_only)
+                       {
+                           PE_barrier_gradient(G, flag, kt2, d_hat, thickness, P, E0, E1);
+                           DoubletVectorAssembler DVA{Gs};
+                           DVA.segment<3>(i * 3).write(PE, G);
+                       }
+                       else
+                       {
+                           Matrix9x9 H;
+                           PE_barrier_gradient_hessian(
+                               G, H, flag, kt2, d_hat, thickness, P, E0, E1);
+                           make_spd(H);
+                           DoubletVectorAssembler DVA{Gs};
+                           DVA.segment<3>(i * 3).write(PE, G);
+                           TripletMatrixAssembler TMA{Hs};
+                           TMA.half_block<3>(i * PEHalfHessianSize).write(PE, H);
+                       }
                    });
 
         // Compute Point-Point Gradient and Hessian
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.PPs().size(),
-                   [table = info.contact_tabular().viewer().name("contact_tabular"),
+                   [gradient_only = info.gradient_only(),
+                    table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                     PPs = info.PPs().viewer().name("PPs"),
                     Gs  = info.PP_gradients().viewer().name("Gs"),
@@ -549,18 +586,23 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                                        range(1));
                        }
 
-                       Vector6   G;
-                       Matrix6x6 H;
-
-                       PP_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P0, P1);
-
-                       make_spd(H);
-
-                       DoubletVectorAssembler DVA{Gs};
-                       DVA.segment<2>(i * 2).write(PP, G);
-
-                       TripletMatrixAssembler TMA{Hs};
-                       TMA.half_block<2>(i * PPHalfHessianSize).write(PP, H);
+                       Vector6 G;
+                       if(gradient_only)
+                       {
+                           PP_barrier_gradient(G, flag, kt2, d_hat, thickness, P0, P1);
+                           DoubletVectorAssembler DVA{Gs};
+                           DVA.segment<2>(i * 2).write(PP, G);
+                       }
+                       else
+                       {
+                           Matrix6x6 H;
+                           PP_barrier_gradient_hessian(G, H, flag, kt2, d_hat, thickness, P0, P1);
+                           make_spd(H);
+                           DoubletVectorAssembler DVA{Gs};
+                           DVA.segment<2>(i * 2).write(PP, G);
+                           TripletMatrixAssembler TMA{Hs};
+                           TMA.half_block<2>(i * PPHalfHessianSize).write(PP, H);
+                       }
                    });
     }
 };

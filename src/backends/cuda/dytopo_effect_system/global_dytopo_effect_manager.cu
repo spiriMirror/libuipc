@@ -89,6 +89,7 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
 
     auto reporter_gradient_counts = reporter_gradient_offsets_counts.counts();
     auto reporter_hessian_counts  = reporter_hessian_offsets_counts.counts();
+    bool gradient_only            = info.m_gradient_only;
 
     logger::info("DyTopo Effect Assembly: GradientOnly={}, ComponentFlags={}",
                  info.m_gradient_only,
@@ -102,15 +103,16 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
         if(!has_flags(info.m_component_flags, reporter->component_flags()))
             continue;
 
-        GradientHessianExtentInfo info;
-        reporter->report_gradient_hessian_extent(info);
+        GradientHessianExtentInfo extent_info;
+        extent_info.m_gradient_only = gradient_only;
+        reporter->report_gradient_hessian_extent(extent_info);
 
-        reporter_gradient_counts[i] = info.m_gradient_count;
-        reporter_hessian_counts[i]  = info.m_hessian_count;
+        reporter_gradient_counts[i] = extent_info.m_gradient_count;
+        reporter_hessian_counts[i] = gradient_only ? 0 : extent_info.m_hessian_count;
         logger::info("<{}> DyTopo Grad3 count: {}, DyTopo Hess3x3 count: {}",
                      reporter->name(),
-                     info.m_gradient_count,
-                     info.m_hessian_count);
+                     extent_info.m_gradient_count,
+                     extent_info.m_hessian_count);
     }
 
     // scan
@@ -138,6 +140,7 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
         auto [h_offset, h_count] = reporter_hessian_offsets_counts[i];
 
         GradientHessianInfo info;
+        info.m_gradient_only = gradient_only;
 
         info.m_gradients =
             collected_dytopo_effect_gradient.view().subview(g_offset, g_count);
@@ -247,11 +250,8 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
             }
         }
 
-        if(info.m_gradient_only)
-            continue;
-
         // 2) report hessian
-        if(!classify_info.is_empty())
+        if(!info.m_gradient_only && !classify_info.is_empty())
         {
             const auto N = sorted_dytopo_effect_hessian.triplet_count();
 
@@ -320,14 +320,15 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
                                }
                            });
             }
-
-            ClassifiedDyTopoEffectInfo classified_info;
-
-            classified_info.m_gradients = classified_gradients.view();
-            classified_info.m_hessians  = classified_hessians.view();
-
-            receiver->receive(classified_info);
         }
+
+
+        ClassifiedDyTopoEffectInfo classified_info;
+
+        classified_info.m_gradients = classified_gradients.view();
+        classified_info.m_hessians  = classified_hessians.view();
+
+        receiver->receive(classified_info);
     }
 }
 

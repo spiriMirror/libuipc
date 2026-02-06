@@ -80,6 +80,7 @@ class AffineBodyConstitution : public SimSystem
         {
         }
 
+        auto gradient_only() const noexcept { return base_info->gradient_only(); }
         auto gradients() const noexcept { return base_info->gradients(); }
         auto hessians() const noexcept { return base_info->hessians(); }
         auto dt() const noexcept { return base_info->dt(); }

@@ -81,53 +81,60 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
         {
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
-                .apply(info.friction_PHs().size(),
-                       [Grad = info.gradients().viewer().name("Grad"),
-                        Hess = info.hessians().viewer().name("Hess"),
-                        PHs  = info.friction_PHs().viewer().name("PHs"),
-                        plane_positions = half_plane->positions().viewer().name("plane_positions"),
-                        plane_normals = half_plane->normals().viewer().name("plane_normals"),
-                        table = info.contact_tabular().viewer().name("contact_tabular"),
-                        contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
-                        Ps = info.positions().viewer().name("Ps"),
-                        prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
-                        thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                        eps_v  = info.eps_velocity(),
-                        d_hats = info.d_hats().viewer().name("d_hats"),
-                        half_plane_vertex_offset = info.half_plane_vertex_offset(),
-                        dt = info.dt()] __device__(int I) mutable
-                       {
-                           Vector2i PH = PHs(I);
+                .apply(
+                    info.friction_PHs().size(),
+                    [gradient_only = info.gradient_only(),
+                     Grad          = info.gradients().viewer().name("Grad"),
+                     Hess          = info.hessians().viewer().name("Hess"),
+                     PHs           = info.friction_PHs().viewer().name("PHs"),
+                     plane_positions = half_plane->positions().viewer().name("plane_positions"),
+                     plane_normals = half_plane->normals().viewer().name("plane_normals"),
+                     table = info.contact_tabular().viewer().name("contact_tabular"),
+                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
+                     Ps      = info.positions().viewer().name("Ps"),
+                     prev_Ps = info.prev_positions().viewer().name("prev_Ps"),
+                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                     eps_v  = info.eps_velocity(),
+                     d_hats = info.d_hats().viewer().name("d_hats"),
+                     half_plane_vertex_offset = info.half_plane_vertex_offset(),
+                     dt = info.dt()] __device__(int I) mutable
+                    {
+                        Vector2i PH = PHs(I);
 
-                           IndexT vI = PH(0);
-                           IndexT HI = PH(1);
+                        IndexT vI = PH(0);
+                        IndexT HI = PH(1);
 
-                           Vector3 v      = Ps(vI);
-                           Vector3 prev_v = prev_Ps(vI);
-                           Vector3 P      = plane_positions(HI);
-                           Vector3 N      = plane_normals(HI);
+                        Vector3 v      = Ps(vI);
+                        Vector3 prev_v = prev_Ps(vI);
+                        Vector3 P      = plane_positions(HI);
+                        Vector3 N      = plane_normals(HI);
 
-                           Float d_hat = d_hats(vI);
+                        Float d_hat = d_hats(vI);
 
-                           ContactCoeff coeff =
-                               table(contact_ids(vI),
-                                     contact_ids(HI + half_plane_vertex_offset));
-                           Float kt2 = coeff.kappa * dt * dt;
-                           Float mu  = coeff.mu;
+                        ContactCoeff coeff =
+                            table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset));
+                        Float kt2 = coeff.kappa * dt * dt;
+                        Float mu  = coeff.mu;
 
-                           Float thickness = thicknesses(vI);
+                        Float thickness = thicknesses(vI);
 
-                           Vector3   G;
-                           Matrix3x3 H;
-
-                           PH_friction_gradient_hessian(
-                               G, H, kt2, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
-
-                           cuda::make_spd(H);
-
-                           Grad(I).write(vI, G);
-                           Hess(I).write(vI, vI, H);
-                       });
+                        Vector3 G;
+                        if(gradient_only)
+                        {
+                            PH_friction_gradient(
+                                G, kt2, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
+                            Grad(I).write(vI, G);
+                        }
+                        else
+                        {
+                            Matrix3x3 H;
+                            PH_friction_gradient_hessian(
+                                G, H, kt2, d_hat, thickness, mu, eps_v * dt, prev_v, v, P, N);
+                            cuda::make_spd(H);
+                            Grad(I).write(vI, G);
+                            Hess(I).write(vI, vI, H);
+                        }
+                    });
         }
     }
 

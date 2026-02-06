@@ -148,6 +148,7 @@ void InterAffineBodyConstitutionManager::Impl::report_gradient_hessian_extent(
     for(auto&& [i, c] : enumerate(constitution_view))
     {
         GradientHessianExtentInfo extent_info;
+        extent_info.m_gradient_only = info.gradient_only();
         c->report_gradient_hessian_extent(extent_info);
         gradient_counts[i] = extent_info.m_gradient_count;
         hessian_counts[i]  = extent_info.m_hessian_count;
@@ -165,7 +166,8 @@ void InterAffineBodyConstitutionManager::Impl::compute_gradient_hessian(ABDLinea
     auto constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
     {
-        GradientHessianInfo this_info{this, c->m_index, dt, info.gradients(), info.hessians()};
+        GradientHessianInfo this_info{
+            this, c->m_index, dt, info.gradients(), info.hessians(), info.gradient_only()};
         c->compute_gradient_hessian(this_info);
     }
 }
@@ -184,12 +186,12 @@ void InterAffineBodyConstitutionManager::add_constitution(InterAffineBodyConstit
     m_impl.constitutions.register_sim_system(*constitution);
 }
 
-void InterAffineBodyConstitutionManager::GradientHessianExtentInfo::hessian_block_count(SizeT count) noexcept
+void InterAffineBodyConstitutionManager::GradientHessianExtentInfo::hessian_count(SizeT count) noexcept
 {
     m_hessian_count = count;
 }
 
-void InterAffineBodyConstitutionManager::GradientHessianExtentInfo::gradient_segment_count(SizeT count) noexcept
+void InterAffineBodyConstitutionManager::GradientHessianExtentInfo::gradient_count(SizeT count) noexcept
 {
     m_gradient_count = count;
 }
@@ -215,6 +217,11 @@ muda::TripletMatrixView<Float, 12> InterAffineBodyConstitutionManager::GradientH
 {
     auto [offset, count] = m_impl->constitution_hessian_offsets_counts[m_index];
     return m_hessians.subview(offset, count);
+}
+
+bool InterAffineBodyConstitutionManager::GradientHessianInfo::gradient_only() const noexcept
+{
+    return m_gradient_only;
 }
 
 

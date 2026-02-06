@@ -87,6 +87,8 @@ void FEMLinearSubsystem::Impl::receive_init_dof_info(WorldVisitor& w,
 
 void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
 {
+    bool gradient_only = info.gradient_only();
+
     bool has_complement =
         has_flags(info.component_flags(), GlobalLinearSystem::ComponentFlags::Complement);
 
@@ -99,10 +101,9 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     {
         // Kinetic
         auto kinetic_grad_count = fem().xs.size();
-        auto kinetic_hess_count = fem().xs.size();
-
         grad_offset += kinetic_grad_count;
-        hess_offset += kinetic_hess_count;
+        if(!gradient_only)
+            hess_offset += fem().xs.size();
 
         // Reporters
         auto grad_counts = reporter_gradient_offsets_counts.counts();
@@ -111,6 +112,7 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
         for(auto& reporter : reporters.view())
         {
             ReportExtentInfo this_info;
+            this_info.m_gradient_only = gradient_only;
             reporter->report_extent(this_info);
             grad_counts[reporter->m_index] = this_info.m_gradient_count;
             hess_counts[reporter->m_index] = this_info.m_hessian_count;
@@ -135,6 +137,11 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     // 2) Gradient Count
     auto dof_count = fem().xs.size() * 3;
 
+    UIPC_ASSERT(!(gradient_only && !hess_offset == 0),
+                "When gradient_only is true, hessian_offset must be 0, yours {}.\n"
+                "Ref: https://github.com/spiriMirror/libuipc/issues/295",
+                hess_offset);
+
     info.extent(hess_offset, dof_count);
 }
 
@@ -146,9 +153,6 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
     auto frame = sim_engine->frame();
     fem().set_dof_info(frame, info.gradients().offset(), info.gradients().size());
 
-    bool has_complement =
-        has_flags(info.component_flags(), GlobalLinearSystem::ComponentFlags::Complement);
-
     // 1) Prepare Gradient Buffer
     kinetic_gradients.resize_doublets(fem().xs.size());
     kinetic_gradients.reshape(fem().xs.size());
@@ -158,6 +162,9 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
     info.gradients().buffer_view().fill(0);
 
     // 2) Assemble Gradient and Hessian
+    bool has_complement =
+        has_flags(info.component_flags(), GlobalLinearSystem::ComponentFlags::Complement);
+
     IndexT hess_offset = 0;
     if(has_complement)
     {
@@ -190,6 +197,9 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                    }
                });
 
+    if(info.gradient_only())
+        return;
+
     // 4) Clear Fixed Vertex hessian
     ParallelFor()
         .file_line(__FILE__, __LINE__)
@@ -215,13 +225,14 @@ void FEMLinearSubsystem::Impl::_assemble_kinetic(IndexT& hess_offset,
 {
     using namespace muda;
 
-    IndexT hess_count = fem().xs.size();
+    IndexT hess_count = info.gradient_only() ? 0 : fem().xs.size();
     IndexT grad_count = fem().xs.size();
 
     auto gradient_view = kinetic_gradients.view();
     auto hessian_view  = info.hessians().subview(hess_offset, hess_count);
 
-    FEMLinearSubsystem::ComputeGradientHessianInfo kinetic_info{gradient_view, hessian_view, dt};
+    FEMLinearSubsystem::ComputeGradientHessianInfo kinetic_info{
+        info.gradient_only(), gradient_view, hessian_view, dt};
     kinetic->compute_gradient_hessian(kinetic_info);
 
     ParallelFor()
@@ -245,14 +256,15 @@ void FEMLinearSubsystem::Impl::_assemble_reporters(IndexT& hess_offset,
 {
     using namespace muda;
     auto grad_count = reporter_gradient_offsets_counts.total_count();
-    auto hess_count = reporter_hessian_offsets_counts.total_count();
+    auto hess_count =
+        info.gradient_only() ? 0 : reporter_hessian_offsets_counts.total_count();
 
     // Let reporters assemble their gradient and hessian
     auto reporter_gradient_view = reporter_gradients.view();
     auto reporter_hessian_view = info.hessians().subview(hess_offset, hess_count);
     for(auto& R : reporters.view())
     {
-        AssembleInfo assemble_info{this, R->m_index, reporter_hessian_view};
+        AssembleInfo assemble_info{this, R->m_index, reporter_hessian_view, info.gradient_only()};
         R->assemble(assemble_info);
     }
 
@@ -302,6 +314,9 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& hess_offset,
                        gradients.segment<3>(i * 3).atomic_add(G3);
                    });
     }
+
+    if(info.gradient_only())
+        return;
 
     // Need to update hess_offset, we are assembling to the global hessian buffer
     auto hess_count = dytopo_effect_receiver->hessians().triplet_count();
@@ -405,6 +420,11 @@ muda::TripletMatrixView<Float, 3, 3> FEMLinearSubsystem::AssembleInfo::hessians(
 Float FEMLinearSubsystem::AssembleInfo::dt() const noexcept
 {
     return m_impl->dt;
+}
+
+bool FEMLinearSubsystem::AssembleInfo::gradient_only() const noexcept
+{
+    return m_gradient_only;
 }
 
 void FEMLinearSubsystem::ReportExtentInfo::gradient_count(SizeT size)

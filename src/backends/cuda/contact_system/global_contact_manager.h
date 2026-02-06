@@ -41,6 +41,9 @@ class GlobalContactManager final : public SimSystem
 
         muda::Buffer2DView<ContactCoeff> contact_tabular() const noexcept;
 
+        S<muda::DeviceBuffer2D<ContactCoeff>> exchange_contact_tabular(
+            S<muda::DeviceBuffer2D<ContactCoeff>> new_buffer) const noexcept;
+
       private:
         Impl* m_impl;
     };
@@ -60,13 +63,14 @@ class GlobalContactManager final : public SimSystem
 
         bool cfl_enabled = false;
 
-        vector<ContactCoeff>               h_contact_tabular;
-        muda::DeviceBuffer2D<ContactCoeff> contact_tabular;
-        vector<IndexT>                     h_contact_mask_tabular;
-        vector<IndexT>                     h_subcene_mask_tabular;
-        muda::DeviceBuffer2D<IndexT>       contact_mask_tabular;
-        muda::DeviceBuffer2D<IndexT>       subscene_mask_tabular;
-        Float                              reserve_ratio = 1.1;
+        S<muda::DeviceBuffer2D<ContactCoeff>> contact_tabular;
+
+        vector<ContactCoeff>         h_contact_tabular;
+        vector<IndexT>               h_contact_mask_tabular;
+        vector<IndexT>               h_subcene_mask_tabular;
+        muda::DeviceBuffer2D<IndexT> contact_mask_tabular;
+        muda::DeviceBuffer2D<IndexT> subscene_mask_tabular;
+        Float                        reserve_ratio = 1.1;
 
         Float d_hat        = 0.0;
         Float kappa        = 0.0;

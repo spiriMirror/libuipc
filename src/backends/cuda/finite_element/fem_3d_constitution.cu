@@ -18,7 +18,7 @@ void FEM3DConstitution::do_compute_energy(FiniteElementConstitution::ComputeEner
 void FEM3DConstitution::do_compute_gradient_hessian(FiniteElementConstitution::ComputeGradientHessianInfo& info)
 {
     FEM3DConstitution::ComputeGradientHessianInfo this_info{
-        this, m_index_in_dim, info.dt(), info.gradients(), info.hessians()};
+        this, m_index_in_dim, info.gradient_only(), info.dt(), info.gradients(), info.hessians()};
     do_compute_gradient_hessian(this_info);
 }
 

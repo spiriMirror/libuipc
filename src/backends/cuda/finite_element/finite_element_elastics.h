@@ -24,13 +24,17 @@ class FiniteElementElastics final : public SimSystem
         void energy_count(SizeT count) noexcept { m_energy_count = count; }
         void gradient_count(SizeT count) noexcept { m_gradient_count = count; }
         void hessian_count(SizeT count) noexcept { m_hessian_count = count; }
+        bool gradient_only() const noexcept { return m_gradient_only; }
 
       private:
         friend class FiniteElementElastics;
+        friend class FiniteElementConstitution;
+        friend class FiniteElementExtraConstitution;
 
         SizeT m_energy_count   = 0;
         SizeT m_gradient_count = 0;
         SizeT m_hessian_count  = 0;
+        bool  m_gradient_only  = false;
     };
 
     class ComputeEnergyInfo
@@ -63,17 +67,20 @@ class FiniteElementElastics final : public SimSystem
       public:
         ComputeGradientHessianInfo(Impl*                             impl,
                                    SizeT                             index,
+                                   bool                              gradient_only,
                                    Float                             dt,
                                    muda::DoubletVectorView<Float, 3> gradients,
                                    muda::TripletMatrixView<Float, 3> hessians)
             : m_impl(impl)
             , m_index(index)
+            , m_gradient_only(gradient_only)
             , m_dt(dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
         {
         }
 
+        auto gradient_only() const noexcept { return m_gradient_only; }
         auto gradients() const noexcept
         {
             auto [offset, count] = m_impl->constitution_gradient_offsets_counts[m_index];
@@ -89,9 +96,10 @@ class FiniteElementElastics final : public SimSystem
         auto dt() const noexcept { return m_dt; }
 
       private:
-        Impl*                             m_impl  = nullptr;
-        SizeT                             m_index = 0;
-        Float                             m_dt    = 0.0;
+        Impl*                             m_impl          = nullptr;
+        SizeT                             m_index         = 0;
+        bool                              m_gradient_only = false;
+        Float                             m_dt            = 0.0;
         muda::DoubletVectorView<Float, 3> m_gradients;
         muda::TripletMatrixView<Float, 3> m_hessians;
     };

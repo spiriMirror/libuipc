@@ -17,7 +17,7 @@ REGISTER_SIM_SYSTEM(GlobalLinearSystem);
 
 SizeT GlobalLinearSystem::dof_count() const
 {
-    return m_impl.b.size();
+    return m_impl.diag_dof_offsets_counts.total_count();
 }
 
 void GlobalLinearSystem::do_build()
@@ -500,7 +500,7 @@ bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> 
 void GlobalLinearSystem::Impl::compute_gradient(ComputeGradientInfo& info)
 {
     auto diag_subsystem_view = diag_subsystems.view();
-    
+
     // report extent first
     for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
     {
@@ -523,16 +523,15 @@ void GlobalLinearSystem::Impl::compute_gradient(ComputeGradientInfo& info)
     }
 }
 
-void GlobalLinearSystem::DiagExtentInfo::extent(SizeT hessian_block_count, SizeT dof_count) noexcept
+void GlobalLinearSystem::DiagExtentInfo::extent(SizeT hessian_count, SizeT dof_count) noexcept
 {
-    if(m_gradient_only)
-    {
-        UIPC_ASSERT(hessian_block_count == 0,
-                    "When m_gradient_only is true, hessian_block_count must be 0, yours {}.",
-                    hessian_block_count);
-    }
 
-    m_block_count = hessian_block_count;
+    UIPC_ASSERT(!(m_gradient_only && hessian_count != 0),
+                "When gradient_only is true, hessian_count must be 0, yours {}.",
+                hessian_count);
+
+
+    m_block_count = hessian_count;
     UIPC_ASSERT(dof_count % DoFBlockSize == 0,
                 "dof_count must be multiple of {}, yours {}.",
                 DoFBlockSize,

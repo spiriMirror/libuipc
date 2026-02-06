@@ -17,10 +17,12 @@ class FEMLineSearchReporter final : public LineSearchReporter
     {
       public:
         void energy_count(SizeT count) { m_energy_count = count; }
+        bool gradient_only() const noexcept { return m_gradient_only; }
 
       private:
         friend class FEMLineSearchReporter;
-        SizeT m_energy_count = 0;
+        SizeT m_energy_count  = 0;
+        bool  m_gradient_only = false;
     };
 
     class ComputeEnergyInfo
