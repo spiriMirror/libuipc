@@ -1,0 +1,7 @@
+target('uipc_rbc')
+set_kind("binary")
+add_files("**.cpp")
+add_rules("uipc_deps")
+set_languages("c++20")
+add_cxflags('/utf-8', {tools = {'clang_cl', 'cl'}})
+target_end()
