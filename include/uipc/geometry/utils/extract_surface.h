@@ -9,7 +9,7 @@ namespace uipc::geometry
  * @param src The tetrahedral mesh.
  * @return SimplicialComplex The surface of the tetrahedral mesh.
  */
-UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex extract_surface(const SimplicialComplex& src);
+[[nodiscard]] UIPC_GEOMETRY_API SimplicialComplex extract_surface(const SimplicialComplex& src);
 
 /**
  * @brief Extract the surface of a list of tetrahedral meshes and merge them into one.
@@ -19,5 +19,5 @@ UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex extract_surface(const Simplici
  * @param complexes The list of tetrahedral meshes.
  * @return SimplicialComplex The surface of the tetrahedral meshes.
  */
-UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex extract_surface(span<const SimplicialComplex*> complexes);
+[[nodiscard]] UIPC_GEOMETRY_API SimplicialComplex extract_surface(span<const SimplicialComplex*> complexes);
 }  // namespace uipc::geometry

@@ -12,5 +12,5 @@ namespace uipc::geometry
  * 3) the input 1D linemesh can only have edges.
  * 4) the input 0D pointcloud can only have vertices.
  */
-UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex facet_closure(const SimplicialComplex& complex);
+[[nodiscard]] UIPC_GEOMETRY_API SimplicialComplex facet_closure(const SimplicialComplex& complex);
 }  // namespace uipc::geometry

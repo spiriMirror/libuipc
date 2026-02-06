@@ -3,5 +3,5 @@
 
 namespace uipc::geometry
 {
-UIPC_GEOMETRY_API [[nodiscard]] std::string constitution_type(const Geometry& geo);
+[[nodiscard]] UIPC_GEOMETRY_API std::string constitution_type(const Geometry& geo);
 }

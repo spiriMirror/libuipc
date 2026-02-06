@@ -11,5 +11,5 @@ namespace uipc::geometry
  * 
  * @return SimplicialComplex the simplicial complex with the orientation of the triangles flipped.
  */
-UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex flip_inward_triangles(const SimplicialComplex& sc);
+[[nodiscard]] UIPC_GEOMETRY_API SimplicialComplex flip_inward_triangles(const SimplicialComplex& sc);
 }  // namespace uipc::geometry

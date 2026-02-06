@@ -11,5 +11,5 @@ namespace uipc::geometry
  * 
  * @return vector<SimplicialComplex> the transformed simplicial complexes.
  */
-UIPC_GEOMETRY_API [[nodiscard]] vector<SimplicialComplex> apply_transform(const SimplicialComplex& complex);
+[[nodiscard]] UIPC_GEOMETRY_API vector<SimplicialComplex> apply_transform(const SimplicialComplex& complex);
 }  // namespace uipc::geometry

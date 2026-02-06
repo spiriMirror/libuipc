@@ -11,7 +11,7 @@ namespace uipc::geometry
  * @param Vs The vertex positions of the tetrahedral mesh
  * @param Ts The tetrahedra of the tetrahedral mesh
  */
-UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex tetmesh(span<const Vector3> Vs,
+[[nodiscard]] UIPC_GEOMETRY_API SimplicialComplex tetmesh(span<const Vector3> Vs,
                                                           span<const Vector4i> Ts);
 
 /**
@@ -21,7 +21,7 @@ UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex tetmesh(span<const Vector3> Vs
  * @param Fs The triangles of the triangle mesh
  * @return SimplicialComplex 
  */
-UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex trimesh(span<const Vector3> Vs,
+[[nodiscard]] UIPC_GEOMETRY_API SimplicialComplex trimesh(span<const Vector3> Vs,
                                                           span<const Vector3i> Fs);
 
 /**
@@ -31,7 +31,7 @@ UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex trimesh(span<const Vector3> Vs
  * @param Fs The quads of the quad mesh
  * @return SimplicialComplex 
  */
-UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex trimesh(span<const Vector3> Vs,
+[[nodiscard]] UIPC_GEOMETRY_API SimplicialComplex trimesh(span<const Vector3> Vs,
                                                           span<const Vector4i> Fs);
 
 /**
@@ -41,7 +41,7 @@ UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex trimesh(span<const Vector3> Vs
  * @param Es The edges of the line mesh
  * @return SimplicialComplex 
  */
-UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex linemesh(span<const Vector3> Vs,
+[[nodiscard]] UIPC_GEOMETRY_API SimplicialComplex linemesh(span<const Vector3> Vs,
                                                            span<const Vector2i> Es);
 
 /**
@@ -50,7 +50,7 @@ UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex linemesh(span<const Vector3> V
  * @param Vs The vertex positions of the point cloud
  * @return SimplicialComplex 
  */
-UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex pointcloud(span<const Vector3> Vs);
+[[nodiscard]] UIPC_GEOMETRY_API SimplicialComplex pointcloud(span<const Vector3> Vs);
 
 
 /**
@@ -58,7 +58,7 @@ UIPC_GEOMETRY_API [[nodiscard]] SimplicialComplex pointcloud(span<const Vector3>
  * 
  * @param height The height of the ground plane
  */
-UIPC_GEOMETRY_API [[nodiscard]] ImplicitGeometry halfplane(
+[[nodiscard]] UIPC_GEOMETRY_API ImplicitGeometry halfplane(
     const Vector3& P = Vector3::Zero(), const Vector3& N = Vector3::UnitY());
 
 /**
@@ -66,6 +66,6 @@ UIPC_GEOMETRY_API [[nodiscard]] ImplicitGeometry halfplane(
  * 
  * @param height The height of the ground plane
  */
-UIPC_GEOMETRY_API [[nodiscard]] ImplicitGeometry ground(Float height = 0.0,
+[[nodiscard]] UIPC_GEOMETRY_API ImplicitGeometry ground(Float height = 0.0,
                                                         const Vector3& N = Vector3::UnitY());
 }  // namespace uipc::geometry
