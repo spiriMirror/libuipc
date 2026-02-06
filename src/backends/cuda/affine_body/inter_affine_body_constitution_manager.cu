@@ -181,7 +181,7 @@ void InterAffineBodyConstitutionManager::add_constitution(InterAffineBodyConstit
 {
     UIPC_ASSERT(constitution != nullptr, "Constitution must not be null");
     check_state(SimEngineState::BuildSystems, "add_constitution");
-    m_impl.constitutions.register_subsystem(*constitution);
+    m_impl.constitutions.register_sim_system(*constitution);
 }
 
 void InterAffineBodyConstitutionManager::GradientHessianExtentInfo::hessian_block_count(SizeT count) noexcept

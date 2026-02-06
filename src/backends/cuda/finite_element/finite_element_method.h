@@ -175,7 +175,6 @@ class FiniteElementMethod final : public SimSystem
 
         SimSystemSlot<GlobalVertexManager> global_vertex_manager;
 
-        SimSystemSlot<FiniteElementKinetic>                kinetic;
         SimSystemSlot<FiniteElementElastics>               elastics;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
         SimSystemSlotCollection<FiniteElementExtraConstitution> extra_constitutions;
@@ -394,9 +393,6 @@ class FiniteElementMethod final : public SimSystem
 
     friend class SimEngine;
     void init();  // only be called by SimEngine
-
-    friend class FiniteElementKinetic;
-    void add_kinetic(FiniteElementKinetic* constitution);  // only called by FiniteElementKinetic
 
     friend class FiniteElementElastics;
     void add_elastics(FiniteElementElastics* elastics);

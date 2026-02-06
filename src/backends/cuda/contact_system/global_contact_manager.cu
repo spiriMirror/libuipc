@@ -251,7 +251,7 @@ void GlobalContactManager::init()
 
 void GlobalContactManager::compute_adaptive_parameters()
 {
-    if(m_impl.adaptive_contact_parameter_reporter)
+    if(!m_impl.adaptive_contact_parameter_reporter)
         return;
 
     auto info = AdaptiveParameterInfo(&m_impl);
@@ -277,7 +277,7 @@ void GlobalContactManager::add_reporter(ContactReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
-    m_impl.contact_reporters.register_subsystem(*reporter);
+    m_impl.contact_reporters.register_sim_system(*reporter);
 }
 
 void GlobalContactManager::add_reporter(AdaptiveContactParameterReporter* reporter)
@@ -287,7 +287,7 @@ void GlobalContactManager::add_reporter(AdaptiveContactParameterReporter* report
                 "AdaptiveContactParameterReporter is already registered, name: {}",
                 m_impl.adaptive_contact_parameter_reporter->name());
     UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
-    m_impl.adaptive_contact_parameter_reporter.register_subsystem(*reporter);
+    m_impl.adaptive_contact_parameter_reporter.register_sim_system(*reporter);
 }
 
 muda::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const noexcept

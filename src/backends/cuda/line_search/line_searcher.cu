@@ -101,7 +101,7 @@ void LineSearcher::add_reporter(LineSearchReporter* reporter)
 {
     UIPC_ASSERT(reporter, "reporter is nullptr");
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_reporters.register_subsystem(*reporter);
+    m_reporters.register_sim_system(*reporter);
 }
 
 LineSearcher::ComputeEnergyInfo::ComputeEnergyInfo(LineSearcher* impl) noexcept

@@ -13,7 +13,7 @@ void GlobalExternalForceManager::do_build()
 void GlobalExternalForceManager::register_reporter(ExternalForceReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "register_reporter");
-    m_reporters.register_subsystem(*reporter);
+    m_reporters.register_sim_system(*reporter);
 }
 
 void GlobalExternalForceManager::init()

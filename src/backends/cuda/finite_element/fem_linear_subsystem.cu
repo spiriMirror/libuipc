@@ -28,10 +28,9 @@ void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
 {
     m_impl.finite_element_method = require<FiniteElementMethod>();
     m_impl.finite_element_vertex_reporter = require<FiniteElementVertexReporter>();
-    m_impl.finite_element_kinetic = require<FiniteElementKinetic>();
-    m_impl.sim_engine             = &engine();
-    auto dt_attr                  = world().scene().config().find<Float>("dt");
-    m_impl.dt                     = dt_attr->view()[0];
+    m_impl.sim_engine = &engine();
+    auto dt_attr      = world().scene().config().find<Float>("dt");
+    m_impl.dt         = dt_attr->view()[0];
 
     m_impl.dytopo_effect_receiver = find<FEMDyTopoEffectReceiver>();
 }
@@ -102,6 +101,9 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
         auto kinetic_grad_count = fem().xs.size();
         auto kinetic_hess_count = fem().xs.size();
 
+        grad_offset += kinetic_grad_count;
+        hess_offset += kinetic_hess_count;
+
         // Reporters
         auto grad_counts = reporter_gradient_offsets_counts.counts();
         auto hess_counts = reporter_hessian_offsets_counts.counts();
@@ -114,23 +116,24 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
             hess_counts[reporter->m_index] = this_info.m_hessian_count;
         }
 
-        // consider the Kinetic, so scan init=grad_offset
         // [KineticG ... | OtherG ... ]
-        reporter_gradient_offsets_counts.scan(kinetic_grad_count);
         // [KineticH ... | OtherH ... ]
-        reporter_hessian_offsets_counts.scan(kinetic_hess_count);
 
-        hess_offset = reporter_hessian_offsets_counts.total_count();
-        grad_offset = reporter_gradient_offsets_counts.total_count();
+        reporter_gradient_offsets_counts.scan();
+        reporter_hessian_offsets_counts.scan();
+
+        grad_offset += reporter_gradient_offsets_counts.total_count();
+        hess_offset += reporter_hessian_offsets_counts.total_count();
     }
 
     if(dytopo_effect_receiver)  // if dytopo_effect enabled
     {
+        grad_offset += dytopo_effect_receiver->gradients().doublet_count();
         hess_offset += dytopo_effect_receiver->hessians().triplet_count();
     }
 
     // 2) Gradient Count
-    auto dof_count = fem().dxs.size() * 3;
+    auto dof_count = fem().xs.size() * 3;
 
     info.extent(hess_offset, dof_count);
 }
@@ -147,42 +150,26 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
         has_flags(info.component_flags(), GlobalLinearSystem::ComponentFlags::Complement);
 
     // 1) Prepare Gradient Buffer
+    kinetic_gradients.resize_doublets(fem().xs.size());
+    kinetic_gradients.reshape(fem().xs.size());
     loose_resize_entries(reporter_gradients, reporter_gradient_offsets_counts.total_count());
+    reporter_gradients.reshape(fem().xs.size());
+
     info.gradients().buffer_view().fill(0);
 
     // 2) Assemble Gradient and Hessian
-    IndexT grad_offset = 0;
     IndexT hess_offset = 0;
     if(has_complement)
     {
-        _assemble_kinetic(grad_offset, hess_offset, info);
-        _assemble_reporters(grad_offset, hess_offset, info);
-
-        // 3) From Doublet Gradient Buffer to Dense Gradient Buffer
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(reporter_gradients.doublet_count(),
-                   [dst = info.gradients().viewer().name("dst_gradient"),
-                    src = reporter_gradients.cviewer().name("src_gradient"),
-                    is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
-                   {
-                       auto&& [i, G3] = src(I);
-                       if(is_fixed(i))
-                           return;
-                       dst.segment<3>(i * 3).atomic_add(G3);
-                   });
+        _assemble_kinetic(hess_offset, info);
+        _assemble_reporters(hess_offset, info);
     }
 
     if(dytopo_effect_receiver)  // if dytopo_effect enabled
     {
         // DyTopo System will decide the `component_flags` itself
-        _assemble_dytopo_effect(grad_offset, hess_offset, info);
+        _assemble_dytopo_effect(hess_offset, info);
     }
-
-    UIPC_ASSERT(grad_offset == reporter_gradients.doublet_count(),
-                "Gradient offset mismatch expected {}, got {}",
-                reporter_gradients.doublet_count(),
-                grad_offset);
 
     UIPC_ASSERT(hess_offset == info.hessians().triplet_count(),
                 "Hessian offset mismatch expected {}, got {}",
@@ -222,30 +209,8 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                });
 }
 
-void FEMLinearSubsystem::Impl::_assemble_reporters(IndexT& grad_offset,
-                                                   IndexT& hess_offset,
-                                                   GlobalLinearSystem::DiagInfo& info)
-{
-    using namespace muda;
-    auto grad_count = reporter_gradient_offsets_counts.total_count();
-    auto hess_count = reporter_hessian_offsets_counts.total_count();
 
-    // Let reporters assemble their gradient and hessian
-    auto reporter_gradient_view = reporter_gradients.view().subview(grad_offset, grad_count);
-    auto reporter_hessian_view = info.hessians().subview(hess_offset, hess_count);
-    for(auto& R : reporters.view())
-    {
-        AssembleInfo assemble_info{this, R->m_index, reporter_hessian_view};
-        R->assemble(assemble_info);
-    }
-
-    // offset update
-    grad_offset += grad_count;
-    hess_offset += hess_count;
-}
-
-void FEMLinearSubsystem::Impl::_assemble_kinetic(IndexT& grad_offset,
-                                                 IndexT& hess_offset,
+void FEMLinearSubsystem::Impl::_assemble_kinetic(IndexT& hess_offset,
                                                  GlobalLinearSystem::DiagInfo& info)
 {
     using namespace muda;
@@ -253,18 +218,62 @@ void FEMLinearSubsystem::Impl::_assemble_kinetic(IndexT& grad_offset,
     IndexT hess_count = fem().xs.size();
     IndexT grad_count = fem().xs.size();
 
-    auto gradient_view = reporter_gradients.view().subview(grad_offset, grad_count);
-    auto hessian_view = info.hessians().subview(hess_offset, hess_count);
+    auto gradient_view = kinetic_gradients.view();
+    auto hessian_view  = info.hessians().subview(hess_offset, hess_count);
 
     FEMLinearSubsystem::ComputeGradientHessianInfo kinetic_info{gradient_view, hessian_view, dt};
-    finite_element_kinetic->compute_gradient_hessian(kinetic_info);
+    kinetic->compute_gradient_hessian(kinetic_info);
 
-    grad_offset += grad_count;
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(kinetic_gradients.doublet_count(),
+               [dst = info.gradients().viewer().name("dst_gradient"),
+                src = kinetic_gradients.cviewer().name("src_gradient"),
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               {
+                   auto&& [i, G3] = src(I);
+                   if(is_fixed(i))
+                       return;
+                   dst.segment<3>(i * 3).atomic_add(G3);
+               });
+
     hess_offset += hess_count;
 }
 
-void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& grad_offset,
-                                                       IndexT& hess_offset,
+void FEMLinearSubsystem::Impl::_assemble_reporters(IndexT& hess_offset,
+                                                   GlobalLinearSystem::DiagInfo& info)
+{
+    using namespace muda;
+    auto grad_count = reporter_gradient_offsets_counts.total_count();
+    auto hess_count = reporter_hessian_offsets_counts.total_count();
+
+    // Let reporters assemble their gradient and hessian
+    auto reporter_gradient_view = reporter_gradients.view();
+    auto reporter_hessian_view = info.hessians().subview(hess_offset, hess_count);
+    for(auto& R : reporters.view())
+    {
+        AssembleInfo assemble_info{this, R->m_index, reporter_hessian_view};
+        R->assemble(assemble_info);
+    }
+
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(reporter_gradients.doublet_count(),
+               [dst = info.gradients().viewer().name("dst_gradient"),
+                src = reporter_gradients.cviewer().name("src_gradient"),
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               {
+                   auto&& [i, G3] = src(I);
+                   if(is_fixed(i))
+                       return;
+                   dst.segment<3>(i * 3).atomic_add(G3);
+               });
+
+    // offset update
+    hess_offset += hess_count;
+}
+
+void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& hess_offset,
                                                        GlobalLinearSystem::DiagInfo& info)
 {
     using namespace muda;
@@ -296,7 +305,6 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& grad_offset,
 
     // Need to update hess_offset, we are assembling to the global hessian buffer
     auto hess_count = dytopo_effect_receiver->hessians().triplet_count();
-    hess_offset += hess_count;
 
     // 2) Assemble DyTopoEffect Hessian to Hessian
     if(hess_count)
@@ -320,6 +328,8 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(IndexT& grad_offset,
                        hessians(I).write(i, j, H3);
                    });
     }
+
+    hess_offset += hess_count;
 }
 
 void FEMLinearSubsystem::Impl::accuracy_check(GlobalLinearSystem::AccuracyInfo& info)
@@ -380,13 +390,6 @@ void FEMLinearSubsystem::do_receive_init_dof_info(GlobalLinearSystem::InitDofInf
     m_impl.receive_init_dof_info(world(), info);
 }
 
-void FEMLinearSubsystem::add_reporter(FEMLinearSubsystemReporter* reporter)
-{
-    UIPC_ASSERT(reporter, "reporter cannot be null");
-    check_state(SimEngineState::BuildSystems, "add_reporter");
-    m_impl.reporters.register_subsystem(*reporter);
-}
-
 muda::DoubletVectorView<Float, 3> FEMLinearSubsystem::AssembleInfo::gradients() const
 {
     auto [offset, count] = m_impl->reporter_gradient_offsets_counts[m_index];
@@ -412,5 +415,19 @@ void FEMLinearSubsystem::ReportExtentInfo::gradient_count(SizeT size)
 void FEMLinearSubsystem::ReportExtentInfo::hessian_count(SizeT size)
 {
     m_hessian_count = size;
+}
+
+void FEMLinearSubsystem::add_reporter(FEMLinearSubsystemReporter* reporter)
+{
+    UIPC_ASSERT(reporter, "reporter cannot be null");
+    check_state(SimEngineState::BuildSystems, "add_reporter");
+    m_impl.reporters.register_sim_system(*reporter);
+}
+
+void FEMLinearSubsystem::add_kinetic(FiniteElementKinetic* kinetic)
+{
+    UIPC_ASSERT(kinetic, "kinetic cannot be null");
+    check_state(SimEngineState::BuildSystems, "add_kinetic");
+    m_impl.kinetic.register_sim_system(*kinetic);
 }
 }  // namespace uipc::backend::cuda

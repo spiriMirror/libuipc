@@ -50,6 +50,10 @@ void FiniteElementElastics::init()
     offset += extras.size();
 
     UIPC_ASSERT(offset == N, "offset mismatching, offset = {}, expected = {}", offset, N);
+
+    m_impl.constitution_energy_offsets_counts.scan();
+    m_impl.constitution_gradient_offsets_counts.scan();
+    m_impl.constitution_hessian_offsets_counts.scan();
 }
 
 void FiniteElementElastics::Impl::assemble(FEMLinearSubsystem::AssembleInfo& info)

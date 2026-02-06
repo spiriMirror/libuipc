@@ -94,13 +94,13 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
     check_state(SimEngineState::BuildSystems, "add_constitution()");
     // set the temp index, later we will sort constitution by uid
     // and reset the index
-    m_impl.constitutions.register_subsystem(*constitution);
+    m_impl.constitutions.register_sim_system(*constitution);
 }
 
 void AffineBodyDynamics::add_kinetic(AffineBodyKinetic* kinetic)
 {
     check_state(SimEngineState::BuildSystems, "add_kinetic()");
-    m_impl.kinetic.register_subsystem(*kinetic);
+    m_impl.kinetic.register_sim_system(*kinetic);
 }
 
 void AffineBodyDynamics::add_reporter(AffineBodyKineticDiffParmReporter* reporter)
@@ -108,7 +108,7 @@ void AffineBodyDynamics::add_reporter(AffineBodyKineticDiffParmReporter* reporte
     UIPC_ASSERT(false, "NOT IMPL IN THIS VERSION");
 
     //check_state(SimEngineState::BuildSystems, "add_reporter()");
-    //m_impl.diff_parm_reporter.register_subsystem(*reporter);
+    //m_impl.diff_parm_reporter.register_sim_system(*reporter);
 }
 
 void AffineBodyDynamics::init()

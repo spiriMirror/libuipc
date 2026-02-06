@@ -18,8 +18,7 @@ void FEMLineSearchReporter::do_init(InitInfo& info)
 
 void FEMLineSearchReporter::do_build(LineSearchReporter::BuildInfo& info)
 {
-    m_impl.finite_element_method  = require<FiniteElementMethod>();
-    m_impl.finite_element_kinetic = require<FiniteElementKinetic>();
+    m_impl.finite_element_method = require<FiniteElementMethod>();
 }
 
 void FEMLineSearchReporter::do_record_start_point(LineSearcher::RecordInfo& info)
@@ -125,6 +124,13 @@ void FEMLineSearchReporter::add_reporter(FEMLineSearchSubreporter* reporter)
 {
     UIPC_ASSERT(reporter, "reporter is null");
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_impl.reporters.register_subsystem(*reporter);
+    m_impl.reporters.register_sim_system(*reporter);
+}
+
+void FEMLineSearchReporter::add_kinetic(FiniteElementKinetic* kinetic)
+{
+    UIPC_ASSERT(kinetic, "kinetic is null");
+    check_state(SimEngineState::BuildSystems, "add_kinetic()");
+    m_impl.finite_element_kinetic.register_sim_system(*kinetic);
 }
 }  // namespace uipc::backend::cuda

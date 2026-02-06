@@ -15,8 +15,6 @@
 #include <sim_engine.h>
 #include <utils/offset_count_collection.h>
 
-// kinetic
-#include <finite_element/finite_element_kinetic.h>
 // elastics
 #include <finite_element/finite_element_elastics.h>
 // constitutions
@@ -87,43 +85,37 @@ IndexT FiniteElementMethod::dof_count(SizeT frame) const noexcept
 void FiniteElementMethod::add_elastics(FiniteElementElastics* elastics)
 {
     check_state(SimEngineState::BuildSystems, "add_elastics()");
-    m_impl.elastics.register_subsystem(*elastics);
+    m_impl.elastics.register_sim_system(*elastics);
 }
 
 void FiniteElementMethod::add_constitution(FiniteElementConstitution* constitution)
 {
     check_state(SimEngineState::BuildSystems, "add_constitution()");
-    m_impl.constitutions.register_subsystem(*constitution);
+    m_impl.constitutions.register_sim_system(*constitution);
 }
 
 void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* constitution)
 {
     check_state(SimEngineState::BuildSystems, "add_constitution()");
-    m_impl.extra_constitutions.register_subsystem(*constitution);
-}
-
-void FiniteElementMethod::add_kinetic(FiniteElementKinetic* constitution)
-{
-    check_state(SimEngineState::BuildSystems, "add_constitution()");
-    m_impl.kinetic.register_subsystem(*constitution);
+    m_impl.extra_constitutions.register_sim_system(*constitution);
 }
 
 void FiniteElementMethod::add_reporter(FiniteElementConstitutionDiffParmReporter* reporter)
 {
     //check_state(SimEngineState::BuildSystems, "add_reporter()");
-    //m_impl.constitution_diff_parm_reporters.register_subsystem(*reporter);
+    //m_impl.constitution_diff_parm_reporters.register_sim_system(*reporter);
 }
 
 void FiniteElementMethod::add_reporter(FiniteElementExtraConstitutionDiffParmReporter* reporter)
 {
     //check_state(SimEngineState::BuildSystems, "add_reporter()");
-    //m_impl.extra_constitution_diff_parm_reporters.register_subsystem(*reporter);
+    //m_impl.extra_constitution_diff_parm_reporters.register_sim_system(*reporter);
 }
 
 void FiniteElementMethod::add_kinetic_reporter(FiniteElementDiffParmReporter* reporter)
 {
     //check_state(SimEngineState::BuildSystems, "add_reporter()");
-    //m_impl.kinetic_diff_parm_reporter.register_subsystem(*reporter);
+    //m_impl.kinetic_diff_parm_reporter.register_sim_system(*reporter);
 }
 
 void FiniteElementMethod::init()

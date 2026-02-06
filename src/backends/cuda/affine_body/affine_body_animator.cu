@@ -18,7 +18,7 @@ void AffineBodyAnimator::do_build(BuildInfo& info)
 
 void AffineBodyAnimator::add_constraint(AffineBodyConstraint* constraint)
 {
-    m_impl.constraints.register_subsystem(*constraint);
+    m_impl.constraints.register_sim_system(*constraint);
 }
 
 void AffineBodyAnimator::do_init()

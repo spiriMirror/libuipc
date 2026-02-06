@@ -2,7 +2,7 @@
 #include <uipc/uipc.h>
 #include <uipc/constitution/empty.h>
 
-TEST_CASE("48_empty", "[fem]")
+TEST_CASE("49_adaptive_kappa", "[fem]")
 {
     using namespace uipc;
     using namespace uipc::core;

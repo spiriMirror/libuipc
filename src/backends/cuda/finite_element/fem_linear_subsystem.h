@@ -32,7 +32,7 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         auto dt() const noexcept { return m_dt; }
 
       private:
-        muda::DoubletVectorView<Float, 3>     m_gradients;
+        muda::DoubletVectorView<Float, 3>    m_gradients;
         muda::TripletMatrixView<Float, 3, 3> m_hessians;
         Float                                m_dt = 0.0;
     };
@@ -85,15 +85,9 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         void report_extent(GlobalLinearSystem::DiagExtentInfo& info);
 
         void assemble(GlobalLinearSystem::DiagInfo& info);
-        void _assemble_kinetic(IndexT&                       grad_offset,
-                               IndexT&                       hess_offset,
-                               GlobalLinearSystem::DiagInfo& info);
-        void _assemble_reporters(IndexT&                       grad_offset,
-                                 IndexT&                       hess_offset,
-                                 GlobalLinearSystem::DiagInfo& info);
-        void _assemble_dytopo_effect(IndexT&                       grad_offset,
-                                     IndexT&                       hess_offset,
-                                     GlobalLinearSystem::DiagInfo& info);
+        void _assemble_kinetic(IndexT& hess_offset, GlobalLinearSystem::DiagInfo& info);
+        void _assemble_reporters(IndexT& hess_offset, GlobalLinearSystem::DiagInfo& info);
+        void _assemble_dytopo_effect(IndexT& hess_offset, GlobalLinearSystem::DiagInfo& info);
 
 
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
@@ -109,9 +103,10 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
 
         SimSystemSlot<FiniteElementVertexReporter> finite_element_vertex_reporter;
 
-        SimSystemSlot<FiniteElementKinetic> finite_element_kinetic;
         SimSystemSlot<FEMDyTopoEffectReceiver> dytopo_effect_receiver;
         SimSystemSlotCollection<FEMLinearSubsystemReporter> reporters;
+
+        SimSystemSlot<FiniteElementKinetic> kinetic;
 
 
         Float dt            = 0.0;
@@ -120,6 +115,7 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         OffsetCountCollection<IndexT> reporter_gradient_offsets_counts;
         OffsetCountCollection<IndexT> reporter_hessian_offsets_counts;
 
+        muda::DeviceDoubletVector<Float, 3> kinetic_gradients;
         muda::DeviceDoubletVector<Float, 3> reporter_gradients;
 
         void loose_resize_entries(muda::DeviceDoubletVector<Float, 3>& v, SizeT size);
@@ -138,6 +134,9 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
 
     friend class FEMLinearSubsystemReporter;
     void add_reporter(FEMLinearSubsystemReporter* reporter);
+
+    friend class FiniteElementKinetic;
+    void add_kinetic(FiniteElementKinetic* kinetic);
 
     Impl m_impl;
 };

@@ -585,34 +585,34 @@ void GlobalLinearSystem::add_subsystem(DiagLinearSubsystem* subsystem)
 {
     check_state(SimEngineState::BuildSystems, "add_subsystem()");
     UIPC_ASSERT(subsystem != nullptr, "The subsystem should not be nullptr.");
-    m_impl.diag_subsystems.register_subsystem(*subsystem);
+    m_impl.diag_subsystems.register_sim_system(*subsystem);
 }
 
 void GlobalLinearSystem::add_subsystem(OffDiagLinearSubsystem* subsystem)
 {
     check_state(SimEngineState::BuildSystems, "add_subsystem()");
-    m_impl.off_diag_subsystems.register_subsystem(*subsystem);
+    m_impl.off_diag_subsystems.register_sim_system(*subsystem);
 }
 
 void GlobalLinearSystem::add_solver(IterativeSolver* solver)
 {
     check_state(SimEngineState::BuildSystems, "add_solver()");
     UIPC_ASSERT(solver != nullptr, "The solver should not be nullptr.");
-    m_impl.iterative_solver.register_subsystem(*solver);
+    m_impl.iterative_solver.register_sim_system(*solver);
 }
 
 void GlobalLinearSystem::add_preconditioner(LocalPreconditioner* preconditioner)
 {
     check_state(SimEngineState::BuildSystems, "add_preconditioner()");
     UIPC_ASSERT(preconditioner != nullptr, "The preconditioner should not be nullptr.");
-    m_impl.local_preconditioners.register_subsystem(*preconditioner);
+    m_impl.local_preconditioners.register_sim_system(*preconditioner);
 }
 
 void GlobalLinearSystem::add_preconditioner(GlobalPreconditioner* preconditioner)
 {
     check_state(SimEngineState::BuildSystems, "add_preconditioner()");
     UIPC_ASSERT(preconditioner != nullptr, "The preconditioner should not be nullptr.");
-    m_impl.global_preconditioner.register_subsystem(*preconditioner);
+    m_impl.global_preconditioner.register_sim_system(*preconditioner);
 }
 
 void GlobalLinearSystem::init()

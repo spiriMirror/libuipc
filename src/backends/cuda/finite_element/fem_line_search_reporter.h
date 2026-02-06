@@ -3,7 +3,6 @@
 #include <line_search/line_search_reporter.h>
 #include <finite_element/finite_element_method.h>
 #include <utils/offset_count_collection.h>
-#include <finite_element/finite_element_method.h>
 
 namespace uipc::backend::cuda
 {
@@ -79,5 +78,8 @@ class FEMLineSearchReporter final : public LineSearchReporter
 
     friend class FEMLineSearchSubreporter;
     void add_reporter(FEMLineSearchSubreporter* reporter);
+
+    friend class FiniteElementKinetic;
+    void add_kinetic(FiniteElementKinetic* kinetic);
 };
 }  // namespace uipc::backend::cuda

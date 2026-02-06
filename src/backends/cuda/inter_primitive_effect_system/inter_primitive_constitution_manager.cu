@@ -137,7 +137,7 @@ void InterPrimitiveConstitutionManager::add_constitution(InterPrimitiveConstitut
 {
     UIPC_ASSERT(constitution != nullptr, "Constitution must not be null");
     check_state(SimEngineState::BuildSystems, "add_constitution");
-    m_impl.constitutions.register_subsystem(*constitution);
+    m_impl.constitutions.register_sim_system(*constitution);
 }
 
 void InterPrimitiveConstitutionManager::do_report_gradient_hessian_extent(

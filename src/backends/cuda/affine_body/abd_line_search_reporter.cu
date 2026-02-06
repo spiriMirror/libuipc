@@ -176,6 +176,6 @@ void ABDLineSearchReporter::add_reporter(ABDLineSearchSubreporter* reporter)
 {
     UIPC_ASSERT(reporter, "reporter is null");
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_impl.reporters.register_subsystem(*reporter);
+    m_impl.reporters.register_sim_system(*reporter);
 }
 }  // namespace uipc::backend::cuda

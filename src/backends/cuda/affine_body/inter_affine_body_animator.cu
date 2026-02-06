@@ -19,7 +19,7 @@ void InterAffineBodyAnimator::do_build(BuildInfo& info)
 
 void InterAffineBodyAnimator::add_constraint(InterAffineBodyConstraint* constraint)
 {
-    m_impl.constraints.register_subsystem(*constraint);
+    m_impl.constraints.register_sim_system(*constraint);
 }
 
 void InterAffineBodyAnimator::do_init()

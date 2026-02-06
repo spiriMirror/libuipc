@@ -379,16 +379,16 @@ void GlobalDyTopoEffectManager::add_reporter(DyTopoEffectReporter* reporter)
     UIPC_ASSERT(is_valid_flag(flag),
                 "reporter component_flags() is not valid single flag, it's {}",
                 enum_flags_name(flag));
-    m_impl.dytopo_effect_reporters.register_subsystem(*reporter);
+    m_impl.dytopo_effect_reporters.register_sim_system(*reporter);
 
     // classify into contact / non-contact
     if(reporter->component_flags() == EnergyComponentFlags::Contact)
     {
-        m_impl.contact_reporters.register_subsystem(*reporter);
+        m_impl.contact_reporters.register_sim_system(*reporter);
     }
     else
     {
-        m_impl.non_contact_reporters.register_subsystem(*reporter);
+        m_impl.non_contact_reporters.register_sim_system(*reporter);
     }
 }
 
@@ -396,6 +396,6 @@ void GlobalDyTopoEffectManager::add_receiver(DyTopoEffectReceiver* receiver)
 {
     check_state(SimEngineState::BuildSystems, "add_receiver()");
     UIPC_ASSERT(receiver != nullptr, "receiver is nullptr");
-    m_impl.dytopo_effect_receivers.register_subsystem(*receiver);
+    m_impl.dytopo_effect_receivers.register_sim_system(*receiver);
 }
 }  // namespace uipc::backend::cuda

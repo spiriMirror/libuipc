@@ -18,7 +18,7 @@ void FiniteElementAnimator::do_build(BuildInfo& info)
 
 void FiniteElementAnimator::add_constraint(FiniteElementConstraint* constraint)
 {
-    m_impl.constraints.register_subsystem(*constraint);
+    m_impl.constraints.register_sim_system(*constraint);
 }
 
 void FiniteElementAnimator::assemble(FEMLinearSubsystemReporter::AssembleInfo& info)
