@@ -65,10 +65,10 @@ class FiniteElementElastics final : public SimSystem
     class ComputeGradientHessianInfo
     {
       public:
-        ComputeGradientHessianInfo(Impl*                             impl,
-                                   SizeT                             index,
-                                   bool                              gradient_only,
-                                   Float                             dt,
+        ComputeGradientHessianInfo(Impl* impl,
+                                   SizeT index,
+                                   bool  gradient_only,
+                                   Float dt,
                                    muda::DoubletVectorView<Float, 3> gradients,
                                    muda::TripletMatrixView<Float, 3> hessians)
             : m_impl(impl)
@@ -81,18 +81,9 @@ class FiniteElementElastics final : public SimSystem
         }
 
         auto gradient_only() const noexcept { return m_gradient_only; }
-        auto gradients() const noexcept
-        {
-            auto [offset, count] = m_impl->constitution_gradient_offsets_counts[m_index];
-            return m_gradients.subview(offset, count);
-        }
+        muda::DoubletVectorView<Float, 3> gradients() const noexcept;
+        muda::TripletMatrixView<Float, 3> hessians() const noexcept;
 
-        auto hessians() const noexcept
-        {
-            auto [offset, count] = m_impl->constitution_hessian_offsets_counts[m_index];
-            return m_hessians.subview(offset, count);
-        }
-        
         auto dt() const noexcept { return m_dt; }
 
       private:

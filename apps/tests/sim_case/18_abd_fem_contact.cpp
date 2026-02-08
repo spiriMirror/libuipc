@@ -48,7 +48,7 @@ TEST_CASE("18_abd_fem_contact", "[abd_fem]")
 
         SimplicialComplex upper_mesh = lower_mesh;
 
-        auto parm = ElasticModuli::youngs_poisson(60.0_kPa, 0.49);
+        auto parm = ElasticModuli::youngs_poisson(120.0_kPa, 0.49);
         snh.apply_to(lower_mesh, parm);
         abd.apply_to(upper_mesh, 1.0_MPa);
 

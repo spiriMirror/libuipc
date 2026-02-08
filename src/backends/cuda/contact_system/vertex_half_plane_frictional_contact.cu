@@ -37,12 +37,15 @@ void VertexHalfPlaneFrictionalContact::do_report_gradient_hessian_extent(
     GlobalContactManager::GradientHessianExtentInfo& info)
 {
     auto& filter = m_impl.veretx_half_plane_trajectory_filter;
-    bool  gradient_only = info.gradient_only();
 
     SizeT count = filter->friction_PHs().size();
 
     info.gradient_count(count);
-    info.hessian_count(gradient_only ? 0 : count);
+
+    if(info.gradient_only())
+        return;
+
+    info.hessian_count(count);
 }
 
 void VertexHalfPlaneFrictionalContact::do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info)
@@ -73,16 +76,8 @@ void VertexHalfPlaneFrictionalContact::do_assemble(GlobalContactManager::Gradien
 
     this_info.m_gradients = info.gradients();
     m_impl.gradients      = this_info.m_gradients;
-    if(info.gradient_only())
-    {
-        this_info.m_hessians = {};
-        m_impl.hessians      = {};
-    }
-    else
-    {
-        this_info.m_hessians = info.hessians();
-        m_impl.hessians      = this_info.m_hessians;
-    }
+    this_info.m_hessians  = info.hessians();
+    m_impl.hessians       = this_info.m_hessians;
 
     // let subclass to fill in the data
     do_assemble(this_info);

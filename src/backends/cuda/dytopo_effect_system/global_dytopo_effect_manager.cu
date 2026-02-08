@@ -85,6 +85,8 @@ void GlobalDyTopoEffectManager::Impl::compute_dytopo_effect(ComputeDyTopoEffectI
 
 void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
 {
+    Timer timer{"Assemble Dytopo Effect"};
+
     auto vertex_count = global_vertex_manager->positions().size();
 
     auto reporter_gradient_counts = reporter_gradient_offsets_counts.counts();
@@ -152,12 +154,16 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
 
 void GlobalDyTopoEffectManager::Impl::_convert_matrix()
 {
+    Timer timer{"Convert Dytopo Matrix"};
+
     matrix_converter.convert(collected_dytopo_effect_hessian, sorted_dytopo_effect_hessian);
     matrix_converter.convert(collected_dytopo_effect_gradient, sorted_dytopo_effect_gradient);
 }
 
 void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
 {
+    Timer timer{"Distribute Dytopo Effect"};
+
     using namespace muda;
 
     auto vertex_count = global_vertex_manager->positions().size();
@@ -167,6 +173,8 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
         DyTopoClassifyInfo classify_info;
         receiver->report(classify_info);
 
+
+        ClassifiedDyTopoEffectInfo classified_info;
         auto& classified_gradients = classified_dytopo_effect_gradients[i];
         classified_gradients.reshape(vertex_count);
         auto& classified_hessians = classified_dytopo_effect_hessians[i];
@@ -248,6 +256,8 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
                                classified_gradient(I).write(i, G);
                            });
             }
+
+            classified_info.m_gradients = classified_gradients.view();
         }
 
         // 2) report hessian
@@ -320,13 +330,9 @@ void GlobalDyTopoEffectManager::Impl::_distribute(ComputeDyTopoEffectInfo& info)
                                }
                            });
             }
+
+            classified_info.m_hessians = classified_hessians.view();
         }
-
-
-        ClassifiedDyTopoEffectInfo classified_info;
-
-        classified_info.m_gradients = classified_gradients.view();
-        classified_info.m_hessians  = classified_hessians.view();
 
         receiver->receive(classified_info);
     }

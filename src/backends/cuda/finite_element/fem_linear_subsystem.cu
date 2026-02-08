@@ -116,6 +116,11 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
             reporter->report_extent(this_info);
             grad_counts[reporter->m_index] = this_info.m_gradient_count;
             hess_counts[reporter->m_index] = this_info.m_hessian_count;
+
+            UIPC_ASSERT(!(gradient_only && !this_info.m_hessian_count == 0),
+                        "When gradient_only is true, hessian_offset must be 0, yours {}.\n"
+                        "Ref: https://github.com/spiriMirror/libuipc/issues/295",
+                        this_info.m_hessian_count);
         }
 
         // [KineticG ... | OtherG ... ]
@@ -132,6 +137,12 @@ void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo&
     {
         grad_offset += dytopo_effect_receiver->gradients().doublet_count();
         hess_offset += dytopo_effect_receiver->hessians().triplet_count();
+
+        UIPC_ASSERT(!(gradient_only
+                      && !dytopo_effect_receiver->hessians().triplet_count() == 0),
+                    "When gradient_only is true, hessian_offset must be 0, yours {}.\n"
+                    "Ref: https://github.com/spiriMirror/libuipc/issues/295",
+                    dytopo_effect_receiver->hessians().triplet_count());
     }
 
     // 2) Gradient Count

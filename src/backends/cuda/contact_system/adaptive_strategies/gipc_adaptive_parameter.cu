@@ -26,19 +26,24 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
     S<muda::DeviceBuffer2D<ContactCoeff>> test_contact_tabular;
 
     Float test_d_hat      = 0.0;
-    Float min_kappa_coeff = 1e6;
+    Float min_kappa_coeff = 1e9;
     // We'd like the d not to be smaller than 1e-5 * test_d_hat
     Float min_d_ratio = 1e-5;
     Float dt          = 0.0;
 
+    Float min_kappa = 0.0;
+    Float max_kappa = 0.0;
+
     void do_build(BuildInfo& info) override
     {
         auto scene = world().scene();
-        auto kappas = scene.contact_tabular().contact_models().find<Float>("resistance");
-        auto kappa_view = kappas->view();
-        auto min_kappa  = std::ranges::min(kappa_view);
-        if(min_kappa >= 0.0)
-            throw SimSystemException{"No Adaptive Kappa is needed"};
+        {
+            auto kappas = scene.contact_tabular().contact_models().find<Float>("resistance");
+            auto kappa_view      = kappas->view();
+            auto found_min_kappa = std::ranges::min(kappa_view);
+            if(found_min_kappa >= 0.0)
+                throw SimSystemException{"No Adaptive Kappa is needed"};
+        }
 
         contact_manager       = require<GlobalContactManager>();
         vertex_manager        = require<GlobalVertexManager>();
@@ -46,6 +51,8 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
         linear_system         = require<GlobalLinearSystem>();
         dytopo_effect_manager = require<GlobalDyTopoEffectManager>();
         dt                    = scene.config().find<Float>("dt")->view()[0];
+        min_kappa = scene.config().find<Float>("contact/adaptive/min_kappa")->view()[0];
+        max_kappa = scene.config().find<Float>("contact/adaptive/max_kappa")->view()[0];
     }
 
 
@@ -171,8 +178,8 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
         // test with kappa=1.0 and thickness=0.0
         ddKappaBarrierddD(Hb, 1.0, test_D, test_DHat, 0.0);
 
-        auto min_kappa = min_kappa_coeff / (4.0 * test_D * Hb);
-        auto max_kappa = 100.0 * min_kappa;
+        //auto min_kappa = min_kappa_coeff / (4.0 * test_D * Hb);
+        //auto max_kappa = 1e6 * min_kappa;
 
         auto choice = std::clamp(proj_kappa, min_kappa, max_kappa);
 
