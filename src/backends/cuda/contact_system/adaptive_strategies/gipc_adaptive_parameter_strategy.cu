@@ -11,7 +11,7 @@
 namespace uipc::backend::cuda
 {
 // ref: https://github.com/KemengHuang/Stiff-GIPC
-class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
+class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
 {
   public:
     using AdaptiveContactParameterReporter::AdaptiveContactParameterReporter;
@@ -22,17 +22,14 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
     SimSystemSlot<GlobalLinearSystem>             linear_system;
     SimSystemSlot<GlobalDyTopoEffectManager>      dytopo_effect_manager;
 
+    std::vector<IndexT>                   h_adaptive_kappa_index;
     muda::DeviceBuffer<Vector2i>          adaptive_topos;
     S<muda::DeviceBuffer2D<ContactCoeff>> test_contact_tabular;
 
-    Float test_d_hat      = 0.0;
-    Float min_kappa_coeff = 1e9;
-    // We'd like the d not to be smaller than 1e-5 * test_d_hat
-    Float min_d_ratio = 1e-5;
-    Float dt          = 0.0;
-
-    Float min_kappa = 0.0;
-    Float max_kappa = 0.0;
+    Float min_kappa  = 0.0;
+    Float init_kappa = 0.0;
+    Float max_kappa  = 0.0;
+    Float new_kappa  = 0.0;
 
     void do_build(BuildInfo& info) override
     {
@@ -42,7 +39,7 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
             auto kappa_view      = kappas->view();
             auto found_min_kappa = std::ranges::min(kappa_view);
             if(found_min_kappa >= 0.0)
-                throw SimSystemException{"No Adaptive Kappa is needed"};
+                throw SimSystemException{"No Adaptive Kappa is detected"};
         }
 
         contact_manager       = require<GlobalContactManager>();
@@ -50,9 +47,13 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
         surface_manager       = require<GlobalSimplicialSurfaceManager>();
         linear_system         = require<GlobalLinearSystem>();
         dytopo_effect_manager = require<GlobalDyTopoEffectManager>();
-        dt                    = scene.config().find<Float>("dt")->view()[0];
+
         min_kappa = scene.config().find<Float>("contact/adaptive/min_kappa")->view()[0];
+        init_kappa =
+            scene.config().find<Float>("contact/adaptive/init_kappa")->view()[0];
         max_kappa = scene.config().find<Float>("contact/adaptive/max_kappa")->view()[0];
+
+        on_write_scene([this] { write_scene(); });
     }
 
 
@@ -69,12 +70,16 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
 
         std::vector<Vector2i> h_adaptive_topos;
         h_adaptive_topos.reserve(topos->size());
+        h_adaptive_kappa_index.reserve(topos->size());
 
         // copy if a contact model is adaptive
         for(auto [i, topo] : uipc::enumerate(topo_view))
         {
             if(kappa_view[i] < 0.0)
+            {
                 h_adaptive_topos.push_back(topo);
+                h_adaptive_kappa_index.push_back(i);
+            }
         }
 
         adaptive_topos.copy_from(h_adaptive_topos);
@@ -105,11 +110,9 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
                        coefR.kappa    = 1.0;
                    });
 
-        auto             d_hats = vertex_manager->d_hats();
-        DeviceVar<Float> min_d_hat;
-        DeviceReduce().Min(d_hats.data(), min_d_hat.data(), d_hats.size());
-
-        test_d_hat = min_d_hat;  // use the minimum d_hat as the test d_hat
+        //auto             d_hats = vertex_manager->d_hats();
+        //DeviceVar<Float> min_d_hat;
+        //DeviceReduce().Min(d_hats.data(), min_d_hat.data(), d_hats.size());
     }
 
     muda::DeviceDenseVector<Float> contact_gradient;
@@ -168,30 +171,21 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
         Float contact2 = ctx.dot(contact_gradient.cview(), contact_gradient.cview());
         Float proj = ctx.dot(contact_gradient.cview(), non_contact_gradient.cview());
 
-        Float proj_kappa = (contact2 == 0.0) ? 0.0 : -proj / contact2;  // no contact contribution
-        proj_kappa = std::max<Float>(0.0, proj_kappa);  // ensure non-negative
+        // 1. No contact contribution -> keep initial kappa
+        Float proj_kappa = (contact2 == 0.0) ? init_kappa : -proj / contact2;
 
-        auto test_DHat = test_d_hat * test_d_hat;
-        auto test_D    = min_d_ratio * min_d_ratio * test_DHat;
+        // 2. Clamp to [min_kappa, max_kappa]
+        new_kappa = std::clamp(proj_kappa, min_kappa, max_kappa);
 
-        Float Hb;
-        // test with kappa=1.0 and thickness=0.0
-        ddKappaBarrierddD(Hb, 1.0, test_D, test_DHat, 0.0);
-
-        //auto min_kappa = min_kappa_coeff / (4.0 * test_D * Hb);
-        //auto max_kappa = 1e6 * min_kappa;
-
-        auto choice = std::clamp(proj_kappa, min_kappa, max_kappa);
-
-
-        logger::info(R"(Adaptive Contact Parameter: > Kappa = {}
-* ProjKappa = {}, Contact^2 = {}, Contact.NonContact = {}
-* MinKappa = {}, MaxKappa = {})",
-                     choice,
+        logger::info(R"(Adaptive Contact Parameter: > Kappa = {:e}
+* ProjKappa = {:e}, Contact^2 = {:e}, Contact.NonContact = {:e}
+* MinKappa = {:e}, InitKappa={:e}, MaxKappa = {:e})",
+                     new_kappa,
                      proj_kappa,
                      contact2,
                      proj,
                      min_kappa,
+                     init_kappa,
                      max_kappa);
 
         ParallelFor()
@@ -199,17 +193,28 @@ class GIPCAdaptiveParameterReporter : public AdaptiveContactParameterReporter
             .apply(adaptive_topos.size(),
                    [adaptive_topos = adaptive_topos.viewer().name("adaptive_topos"),
                     contact_tabular = info.contact_tabular().viewer().name("contact_tabular"),
-                    newKappa = choice] __device__(IndexT I) mutable
+                    new_kappa = new_kappa] __device__(IndexT I) mutable
                    {
                        Vector2i topo  = adaptive_topos(I);
                        auto&    coefL = contact_tabular(topo.x(), topo.y());
                        auto&    coefR = contact_tabular(topo.y(), topo.x());
 
-                       coefL.kappa = newKappa;
-                       coefR.kappa = newKappa;
+                       coefL.kappa = new_kappa;
+                       coefR.kappa = new_kappa;
                    });
+    }
+
+    vector<Float> h_kappas;
+
+    void write_scene()
+    {
+        auto scene = world().scene();
+        auto kappa = scene.contact_tabular().contact_models().find<Float>("resistance");
+        auto kappa_view = view(*kappa);
+        for(auto index : h_adaptive_kappa_index)
+            kappa_view[index] = new_kappa;
     }
 };
 
-REGISTER_SIM_SYSTEM(GIPCAdaptiveParameterReporter);
+REGISTER_SIM_SYSTEM(GIPCAdaptiveParameterStrategy);
 }  // namespace uipc::backend::cuda
