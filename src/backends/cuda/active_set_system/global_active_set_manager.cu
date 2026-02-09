@@ -1,4 +1,5 @@
 #include <active_set_system/global_active_set_manager.h>
+#include <utils/distance/edge_edge_mollifier.h>
 #include <active_set_system/active_set_reporter.h>
 #include <utils/codim_thickness.h>
 #include <utils/primitive_d_hat.h>
@@ -341,7 +342,11 @@ void GlobalActiveSetManager::Impl::linearize_constraints()
                 x           = x.cviewer().name("pos"),
                 EEs         = EEs.viewer().name("EEs"),
                 d0          = EE_d0.viewer().name("d0"),
-                d_grad = EE_d_grad.viewer().name("d_grad")] __device__(int idx) mutable
+                d_grad      = EE_d_grad.viewer().name("d_grad"),
+                lambda      = EE_lambda.viewer().name("lambda"),
+                cnt         = EE_cnt.viewer().name("cnt"),
+                large_cnt   = static_cast<int>(
+                    floor(log(1e-20) / log(decay_factor)))] __device__(int idx) mutable
                {
                    Vector2i e0 = edges(EE_idx(idx)[0]), e1 = edges(EE_idx(idx)[1]);
                    Vector4i EE(e0[0], e0[1], e1[0], e1[1]);
@@ -352,6 +357,14 @@ void GlobalActiveSetManager::Impl::linearize_constraints()
                    const auto& E1 = x(EE(1));
                    const auto& E2 = x(EE(2));
                    const auto& E3 = x(EE(3));
+
+                   Float eps_x;
+                   distance::edge_edge_mollifier_threshold(E0, E1, E2, E3, 1e-6, eps_x);
+                   if(distance::need_mollify(E0, E1, E2, E3, eps_x))
+                   {
+                       cnt(idx)    = large_cnt;
+                       lambda(idx) = 0;
+                   }
 
                    Float thickness = EE_thickness(thicknesses(EE(0)),
                                                   thicknesses(EE(1)),
@@ -574,6 +587,24 @@ void GlobalActiveSetManager::Impl::update_lambda()
                });
 }
 
+void GlobalActiveSetManager::Impl::update_friction()
+{
+    PTs_friction.resize(PTs.size());
+    PT_lambda_friction.resize(PTs.size());
+    muda::BufferLaunch().copy<Vector4i>(PTs_friction.view(), std::as_const(PTs));
+    muda::BufferLaunch().copy<Float>(PT_lambda_friction.view(), std::as_const(PT_lambda));
+
+    EEs_friction.resize(EEs.size());
+    EE_lambda_friction.resize(EEs.size());
+    muda::BufferLaunch().copy<Vector4i>(EEs_friction.view(), std::as_const(EEs));
+    muda::BufferLaunch().copy<Float>(EE_lambda_friction.view(), std::as_const(EE_lambda));
+
+    PHs_friction.resize(PHs.size());
+    PH_lambda_friction.resize(PHs.size());
+    muda::BufferLaunch().copy<Vector2i>(PHs_friction.view(), std::as_const(PH_idx));
+    muda::BufferLaunch().copy<Float>(PH_lambda_friction.view(), std::as_const(PH_lambda));
+}
+
 void GlobalActiveSetManager::Impl::record_non_penetrate_positions()
 {
     auto x_hat = global_vertex_manager->positions();
@@ -638,6 +669,16 @@ muda::CBufferView<int> GlobalActiveSetManager::PH_cnt() const
     return m_impl.PH_cnt.view();
 }
 
+muda::CBufferView<Vector2i> GlobalActiveSetManager::PHs_friction() const
+{
+    return m_impl.PHs_friction.view();
+}
+
+muda::CBufferView<Float> GlobalActiveSetManager::PH_lambda_friction() const
+{
+    return m_impl.PH_lambda_friction.view();
+}
+
 muda::CBufferView<Vector4i> GlobalActiveSetManager::PTs() const
 {
     return m_impl.PTs.view();
@@ -663,6 +704,16 @@ muda::CBufferView<int> GlobalActiveSetManager::PT_cnt() const
     return m_impl.PT_cnt.view();
 }
 
+muda::CBufferView<Vector4i> GlobalActiveSetManager::PTs_friction() const
+{
+    return m_impl.PTs_friction.view();
+}
+
+muda::CBufferView<Float> GlobalActiveSetManager::PT_lambda_friction() const
+{
+    return m_impl.PT_lambda_friction.view();
+}
+
 muda::CBufferView<Vector4i> GlobalActiveSetManager::EEs() const
 {
     return m_impl.EEs.view();
@@ -686,6 +737,16 @@ muda::CBufferView<Float> GlobalActiveSetManager::EE_lambda() const
 muda::CBufferView<int> GlobalActiveSetManager::EE_cnt() const
 {
     return m_impl.EE_cnt.view();
+}
+
+muda::CBufferView<Vector4i> GlobalActiveSetManager::EEs_friction() const
+{
+    return m_impl.EEs_friction.view();
+}
+
+muda::CBufferView<Float> GlobalActiveSetManager::EE_lambda_friction() const
+{
+    return m_impl.EE_lambda_friction.view();
 }
 
 muda::CBufferView<Vector3> GlobalActiveSetManager::non_penetrate_positions() const
@@ -730,7 +791,7 @@ muda::BufferView<Vector3> GlobalActiveSetManager::NonPenetratePositionInfo::non_
 void GlobalActiveSetManager::Impl::init(WorldVisitor& world)
 {
     mu             = 0.0;
-    mu_scale       = 0.1;
+    mu_scale       = 0.01;
     decay_factor   = 0.5;
     toi_threshold  = 0.001;
     energy_enabled = true;
@@ -764,6 +825,11 @@ void GlobalActiveSetManager::update_slack()
 void GlobalActiveSetManager::update_lambda()
 {
     m_impl.update_lambda();
+}
+
+void GlobalActiveSetManager::update_friction()
+{
+    m_impl.update_friction();
 }
 
 void GlobalActiveSetManager::record_non_penetrate_positions()

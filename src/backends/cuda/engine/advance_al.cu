@@ -77,9 +77,10 @@ void SimEngine::advance_AL()
 
     auto record_friction_candidates = [this]
     {
-        if(m_global_trajectory_filter && m_friction_enabled)
+        if(m_global_active_set_manager && m_friction_enabled)
         {
-            m_global_trajectory_filter->record_friction_candidates();
+            m_global_active_set_manager->linearize_constraints();
+            m_global_active_set_manager->update_friction();
         }
     };
 
