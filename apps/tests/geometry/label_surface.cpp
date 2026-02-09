@@ -1,4 +1,4 @@
-#include <app/test_common.h>
+#include <app/app.h>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 
@@ -23,3 +23,4 @@ TEST_CASE("label_surface", "[surface]")
     REQUIRE(std::ranges::any_of(f_is_surf_view, [](auto s) -> bool { return s; }));
     REQUIRE(std::ranges::any_of(f_is_surf_view, [](auto s) -> bool { return !s; }));
 }
+

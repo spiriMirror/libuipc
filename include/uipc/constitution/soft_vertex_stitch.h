@@ -26,14 +26,16 @@ class UIPC_CONSTITUTION_API SoftVertexStitch final : public InterPrimitiveConsti
      */
     geometry::Geometry create_geometry(const SlotTuple&     aim_geo_slots,
                                        span<const Vector2i> stitched_vert_ids,
-                                       Float                kappa = 1e6) const;
+                                       Float                kappa = 1e6,
+                                       Float rest_length          = 0.0) const;
+
 
     geometry::Geometry create_geometry(const SlotTuple&     aim_geo_slots,
                                        span<const Vector2i> stitched_vert_ids,
                                        const ContactElementTuple& contact_elements,
-                                       Float kappa = 1e6) const;
-
-    static Json default_config();
+                                       Float kappa       = 1e6,
+                                       Float rest_length = 0.0) const;
+    static Json        default_config();
 
   private:
     U64  get_uid() const noexcept override;

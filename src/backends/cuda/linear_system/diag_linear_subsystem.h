@@ -21,9 +21,13 @@ class DiagLinearSubsystem : public SimSystem
       public:
     };
 
+    U64 uid() const noexcept;
+
+    IndexT dof_offset() const noexcept;
+    IndexT dof_count() const noexcept;
+
   protected:
     virtual void do_build(BuildInfo& info);
-
     virtual void do_init(InitInfo& info) = 0;
 
     virtual void do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info) = 0;
@@ -35,6 +39,7 @@ class DiagLinearSubsystem : public SimSystem
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) = 0;
 
     virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) = 0;
+    virtual U64   get_uid() const noexcept                             = 0;
 
   private:
     friend class GlobalLinearSystem;
@@ -53,5 +58,7 @@ class DiagLinearSubsystem : public SimSystem
     Float diag_norm(GlobalLinearSystem::DiagNormInfo& info);
 
     SizeT m_index = ~0ull;
+
+    SimSystemSlot<GlobalLinearSystem> m_global_linear_system;
 };
 }  // namespace uipc::backend::cuda

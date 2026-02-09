@@ -2,7 +2,14 @@
 
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(FEMABDDyTopoEffectReceiver);
+// ref:
+// - https://github.com/spiriMirror/libuipc/issues/271
+// - https://github.com/spiriMirror/libuipc/issues/272
+//
+// Half Contact Hessian Strategy:
+// Because ABD uid = 0, FEM uid = 1, no need to collect FEM-ABD Hessian (there is no such hessian stored).
+// 
+// REGISTER_SIM_SYSTEM(FEMABDDyTopoEffectReceiver);
 
 void FEMABDDyTopoEffectReceiver::do_build(BuildInfo& info)
 {

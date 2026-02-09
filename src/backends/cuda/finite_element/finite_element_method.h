@@ -44,8 +44,8 @@ class FiniteElementMethod final : public SimSystem
     class DimUID
     {
       public:
-        SizeT dim = ~0ull;
-        U64   uid = ~0ull;
+        IndexT dim = -1;
+        U64    uid = ~0ull;
     };
 
     class GeoInfo

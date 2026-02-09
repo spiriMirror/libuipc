@@ -1,9 +1,6 @@
-#include <catch2/catch_all.hpp>
-#include <app/asset_dir.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
-#include <filesystem>
-#include <fstream>
 
 TEST_CASE("1_abd_contact_pt", "[abd]")
 {
@@ -11,6 +8,7 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     using namespace uipc::core;
     using namespace uipc::geometry;
     using namespace uipc::constitution;
+
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
@@ -33,7 +31,7 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config                             = Scene::default_config();
+    auto config                             = test::Scene::default_config();
     config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["report_energy"]  = true;
@@ -49,7 +47,6 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     {
         // create constitution and contact model
         AffineBodyConstitution abd;
-        scene.constitution_tabular().insert(abd);
         scene.contact_tabular().default_model(0.5, 1.0_GPa);
         auto default_contact = scene.contact_tabular().default_element();
 
@@ -134,10 +131,15 @@ TEST_CASE("1_abd_contact_pt", "[abd]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
-    for(int i = world.frame(); i < 50; i++)
+    SceneIO sio{scene};
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
+
+    while(world.frame() < 50)
     {
         world.advance();
+        REQUIRE(world.is_valid());
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }

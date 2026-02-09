@@ -1,6 +1,5 @@
 #include <pyuipc/constitution/affine_body_external_force.h>
 #include <uipc/constitution/affine_body_external_force.h>
-#include <pyuipc/as_numpy.h>
 #include <pybind11/eigen.h>
 
 namespace pyuipc::constitution
@@ -12,8 +11,9 @@ PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
     auto class_AffineBodyExternalBodyForce =
         py::class_<AffineBodyExternalBodyForce, IConstitution>(m, "AffineBodyExternalBodyForce");
 
-    class_AffineBodyExternalBodyForce.def(py::init<>())
-        .def(py::init<const Json&>(), py::arg("config"))
+    class_AffineBodyExternalBodyForce
+        .def(py::init<const Json&>(),
+             py::arg("config") = AffineBodyExternalBodyForce::default_config())
         .def("apply_to",
              py::overload_cast<geometry::SimplicialComplex&, const Vector12&>(
                  &AffineBodyExternalBodyForce::apply_to),
@@ -37,8 +37,9 @@ PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
                  sc: SimplicialComplex representing affine body geometry
                  force: 3D translational force vector (affine force = 0)
              )")
-        .def_static("default_config", &AffineBodyExternalBodyForce::default_config,
-                   R"(Get the default configuration.
+        .def_static("default_config",
+                    &AffineBodyExternalBodyForce::default_config,
+                    R"(Get the default configuration.
 Returns:
     dict: Default configuration dictionary.)");
 }

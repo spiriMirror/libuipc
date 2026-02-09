@@ -7,6 +7,8 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(AffineBodyVertexReporter);
 
+constexpr static U64 AffineBodyVertexReporterUID = 0;
+
 void AffineBodyVertexReporter::do_build(BuildInfo& info)
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
@@ -151,5 +153,10 @@ void AffineBodyVertexReporter::do_report_attributes(VertexAttributeInfo& info)
 void AffineBodyVertexReporter::do_report_displacements(VertexDisplacementInfo& info)
 {
     m_impl.report_displacements(info);
+}
+
+U64 AffineBodyVertexReporter::get_uid() const noexcept
+{
+    return AffineBodyVertexReporterUID;
 }
 }  // namespace uipc::backend::cuda

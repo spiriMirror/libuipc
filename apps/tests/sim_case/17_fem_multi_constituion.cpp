@@ -1,10 +1,7 @@
-#include <catch2/catch_all.hpp>
-#include <app/asset_dir.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/stable_neo_hookean.h>
 #include <uipc/constitution/arap.h>
-#include <filesystem>
-#include <fstream>
 
 TEST_CASE("17_fem_multi_constituion", "[fem]")
 {
@@ -21,23 +18,20 @@ TEST_CASE("17_fem_multi_constituion", "[fem]")
 
     SECTION("ipc")
     {
-        this_output_path =
-            fmt::format("{}ipc/", AssetDir::output_path(__FILE__));
+        this_output_path = fmt::format("{}ipc/", AssetDir::output_path(__FILE__));
         contact_constitution = "ipc";
     };
 
     SECTION("al-ipc")
     {
-        this_output_path =
-            fmt::format("{}al-ipc/", AssetDir::output_path(__FILE__));
+        this_output_path = fmt::format("{}al-ipc/", AssetDir::output_path(__FILE__));
         contact_constitution = "al-ipc";
     };
 
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config = Scene::default_config();
-
+    auto config                             = test::Scene::default_config();
     config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
@@ -45,11 +39,7 @@ TEST_CASE("17_fem_multi_constituion", "[fem]")
     config["line_search"]["max_iter"]       = 8;
     config["linear_system"]["tol_rate"]     = 1e-3;
     config["line_search"]["report_energy"]  = true;
-
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, output_path);
 
     SimplicialComplexIO io;
 
@@ -97,14 +87,16 @@ TEST_CASE("17_fem_multi_constituion", "[fem]")
 
     world.init(scene);
     REQUIRE(world.is_valid());
+
     SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
 
     while(world.frame() < 300)
     {
         world.advance();
+        REQUIRE(world.is_valid());
         world.retrieve();
         sio.write_surface(
-            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }

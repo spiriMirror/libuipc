@@ -67,9 +67,16 @@ void SimEngine::init_scene()
     m_newton_max_iter     = info.find<IndexT>("newton/max_iter");
     m_newton_min_iter     = info.find<IndexT>("newton/min_iter");
     m_ccd_tol             = info.find<Float>("newton/ccd_tol");
-    m_strict_mode         = info.find<IndexT>("extras/strict_mode/enable");
+
+    m_semi_implicit_enabled =
+        info.find<IndexT>("newton/semi_implicit/enable")->view()[0];
+    m_semi_implicit_beta_tol =
+        info.find<Float>("newton/semi_implicit/beta_tol")->view()[0];
+
+    m_strict_mode = info.find<IndexT>("extras/strict_mode/enable");
 
     m_friction_enabled = info.find<IndexT>("contact/friction/enable")->view()[0];
+
     Vector3 gravity = info.find<Vector3>("gravity")->view()[0];
 
     auto alipc = find<ALIPCPipelineFlag>();

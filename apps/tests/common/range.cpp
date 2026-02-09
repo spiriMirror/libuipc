@@ -1,4 +1,4 @@
-#include <app/test_common.h>
+#include <app/app.h>
 #include <uipc/common/range.h>
 #include <algorithm>
 #include <numeric>
@@ -22,3 +22,4 @@ TEST_CASE("range", "[range]")
 
     REQUIRE(v == expected);
 }
+

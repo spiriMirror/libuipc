@@ -3,8 +3,8 @@
 
 namespace uipc::backend::cuda
 {
-namespace sym::shell_neo_hookean_2d
+namespace sym::neo_hookean_shell_2d
 {
-#include "sym/shell_neo_hookean_2d.inl"
+#include "sym/neo_hookean_shell_2d.inl"
 }
 }  // namespace uipc::backend::cuda

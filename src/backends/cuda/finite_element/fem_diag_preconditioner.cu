@@ -10,80 +10,6 @@
 
 namespace uipc::backend::cuda
 {
-namespace detail
-{
-    template <IndexT N>
-    __device__ void fill_diag_hessian(muda::Dense1D<Matrix<Float, N, N>>& diagNxN,
-                                      const Matrix3x3& H3x3,
-                                      IndexT           local_i3,
-                                      IndexT           local_j3)
-    {
-        constexpr IndexT M = N / 3;
-
-        MUDA_ASSERT(local_j3 >= local_i3,
-                    "dim_local_j3 should be greater than or equal to dim_local_i3, but dim_local_i3 = %d, dim_local_j3 = %d",
-                    local_i3,
-                    local_j3);
-
-        MUDA_ASSERT(local_j3 - local_i3 < M,
-                    "dim_local_j3 - dim_local_i3 should be less than %d, but dim_local_i3 = %d, dim_local_j3 = %d",
-                    M,
-                    local_i3,
-                    local_j3);
-
-        auto diagNxN_index    = local_i3 / M;
-        auto diag_NxN_index_M = diagNxN_index * M;
-
-        // get i,j offset in diag local matrix
-        auto i_N = local_i3 - diag_NxN_index_M;
-        auto j_N = local_j3 - diag_NxN_index_M;
-
-        Matrix<Float, N, N>& H_NxN = diagNxN(diagNxN_index);
-
-        // DANGER:
-        // Don't use H_NxN.block<3,3>(i_N * 3, j_N * 3, 3) = H3x3,
-        // the block operation write more than 3x3 elements
-        // which will cause race condition.
-        // so we need to write element by element
-
-        if(i_N == j_N)  // diag
-        {
-            for(IndexT i = 0; i < 3; ++i)
-            {
-                for(IndexT j = 0; j < 3; ++j)
-                {
-                    muda::atomic_add(&H_NxN(i_N * 3 + i, j_N * 3 + j), H3x3(i, j));
-                }
-            }
-        }
-        else  // off-diag (consider the symmetry)
-        {
-            for(IndexT i = 0; i < 3; ++i)
-            {
-                for(IndexT j = 0; j < 3; ++j)
-                {
-                    muda::atomic_add(&H_NxN(i_N * 3 + i, j_N * 3 + j), H3x3(i, j));
-                    muda::atomic_add(&H_NxN(j_N * 3 + j, i_N * 3 + i), H3x3(i, j));
-                }
-            }
-        }
-    }
-
-    __device__ void fill_diag_hessian(muda::Dense1D<Matrix<Float, 3, 3>>& diagNxN,
-                                      const Matrix3x3& H3x3,
-                                      IndexT           dim_local_i3,
-                                      IndexT           dim_local_j3)
-    {
-        MUDA_ASSERT(dim_local_i3 == dim_local_j3,
-                    "dim_local_i3 should be equal to dim_local_j3, but dim_local_i3 = %d, dim_local_j3 = %d",
-                    dim_local_i3,
-                    dim_local_j3);
-
-        diagNxN(dim_local_i3) = H3x3;
-    }
-}  // namespace detail
-
-
 class FEMDiagPreconditioner : public LocalPreconditioner
 {
   public:
@@ -132,18 +58,15 @@ class FEMDiagPreconditioner : public LocalPreconditioner
                        IndexT j = g_j - fem_segment_offset;
 
                        if(i >= fem_segment_count || j >= fem_segment_count)
+                       {
                            return;
+                       }
 
                        if(i == j)
-                           detail::fill_diag_hessian(diag_inv, H3x3, i, j);
+                       {
+                           diag_inv(i) = eigen::inverse(H3x3);
+                       }
                    });
-
-        // 2) compute inverse of diagonal blocks
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(diag_inv.size(),
-                   [diag_inv = diag_inv.viewer().name("fem_3d_diag_inv")] __device__(int i) mutable
-                   { diag_inv(i) = muda::eigen::inverse(diag_inv(i)); });
     }
 
     virtual void do_apply(GlobalLinearSystem::ApplyPreconditionerInfo& info) override

@@ -68,8 +68,6 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                        Float kt2 = coeff.kappa * dt * dt;
                        Float mu  = coeff.mu;
 
-                       Float D_hat = d_hat * d_hat;
-
                        Float thickness = thicknesses(vI);
 
                        Es(I) = PH_friction_energy(

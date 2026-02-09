@@ -1,9 +1,6 @@
-#include <catch2/catch_all.hpp>
-#include <app/asset_dir.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/stable_neo_hookean.h>
-#include <filesystem>
-#include <fstream>
 
 TEST_CASE("16_fem_3d_scaling", "[fem]")
 {
@@ -20,34 +17,27 @@ TEST_CASE("16_fem_3d_scaling", "[fem]")
 
     SECTION("ipc")
     {
-        this_output_path =
-            fmt::format("{}ipc/", AssetDir::output_path(__FILE__));
+        this_output_path = fmt::format("{}ipc/", AssetDir::output_path(__FILE__));
         contact_constitution = "ipc";
     };
 
     SECTION("al-ipc")
     {
-        this_output_path =
-            fmt::format("{}al-ipc/", AssetDir::output_path(__FILE__));
+        this_output_path = fmt::format("{}al-ipc/", AssetDir::output_path(__FILE__));
         contact_constitution = "al-ipc";
     };
 
     Engine engine{"cuda", this_output_path};
     World  world{engine};
 
-    auto config = Scene::default_config();
-
+    auto config                             = test::Scene::default_config();
     config["gravity"]                       = Vector3{0, 0, 0};
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
     config["contact"]["constitution"]       = contact_constitution;
     config["line_search"]["max_iter"]       = 8;
     config["linear_system"]["tol_rate"]     = 1e-3;
-
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, output_path);
 
     SimplicialComplexIO io;
 
@@ -55,7 +45,6 @@ TEST_CASE("16_fem_3d_scaling", "[fem]")
     {
         // create constitution and contact model
         StableNeoHookean snh;
-        scene.constitution_tabular().insert(snh);
 
         // create object
         auto object = scene.objects().create("tets");
@@ -89,14 +78,18 @@ TEST_CASE("16_fem_3d_scaling", "[fem]")
         object->geometries().create(mesh, rest_mesh);
     }
 
-    world.init(scene); REQUIRE(world.is_valid());
-    SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
+    world.init(scene);
+    REQUIRE(world.is_valid());
 
-    for(int i = 1; i < 200; i++)
+    SceneIO sio{scene};
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
+
+    while(world.frame() < 200)
     {
         world.advance();
+        REQUIRE(world.is_valid());
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }

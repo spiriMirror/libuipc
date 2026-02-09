@@ -12,12 +12,14 @@
 
 namespace uipc::backend::cuda
 {
-// Constitution UID by libuipc specification
-static constexpr U64 ConstitutionUID = 12ull;
-
 class HookeanSpring1D final : public Codim1DConstitution
 {
   public:
+    // Constitution UID by libuipc specification
+    static constexpr U64   ConstitutionUID = 12ull;
+    static constexpr SizeT StencilSize     = 2;
+    static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
+
     using Codim1DConstitution::Codim1DConstitution;
 
     vector<Float>             h_kappas;
@@ -26,6 +28,13 @@ class HookeanSpring1D final : public Codim1DConstitution
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
+
+    virtual void do_report_extent(ReportExtentInfo& info) override
+    {
+        info.energy_count(kappas.size());
+        info.gradient_count(kappas.size() * StencilSize);
+        info.hessian_count(kappas.size() * HalfHessianSize);
+    }
 
     virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
@@ -104,12 +113,11 @@ class HookeanSpring1D final : public Codim1DConstitution
                     kappas = kappas.cviewer().name("kappas"),
                     rest_lengths = info.rest_lengths().viewer().name("rest_lengths"),
                     thicknesses = info.thicknesses().viewer().name("thicknesses"),
-                    indices  = info.indices().viewer().name("indices"),
-                    xs       = info.xs().viewer().name("xs"),
-                    x_bars   = info.x_bars().viewer().name("x_bars"),
-                    is_fixed = info.is_fixed().viewer().name("is_fixed"),
-                    dt       = info.dt(),
-                    Pi       = std::numbers::pi] __device__(int I) mutable
+                    indices = info.indices().viewer().name("indices"),
+                    xs      = info.xs().viewer().name("xs"),
+                    x_bars  = info.x_bars().viewer().name("x_bars"),
+                    dt      = info.dt(),
+                    Pi      = std::numbers::pi] __device__(int I) mutable
                    {
                        Vector6  X;
                        Vector2i idx = indices(I);
@@ -123,20 +131,18 @@ class HookeanSpring1D final : public Codim1DConstitution
 
                        Float Vdt2 = L0 * r * r * Pi * dt * dt;
 
-                       Vector2i ignore = {is_fixed(idx(0)), is_fixed(idx(1))};
-
                        Vector6 G;
                        NS::dEdX(G, kappa, X, L0);
                        G *= Vdt2;
                        DoubletVectorAssembler VA{G3s};
-                       VA.segment<2>(I * 2).write(idx, ignore, G);
+                       VA.segment<StencilSize>(I * StencilSize).write(idx, G);
 
                        Matrix6x6 H;
                        NS::ddEddX(H, kappa, X, L0);
                        H *= Vdt2;
                        make_spd(H);
                        TripletMatrixAssembler MA{H3x3s};
-                       MA.block<2, 2>(I * 2 * 2).write(idx, ignore, H);
+                       MA.half_block<StencilSize>(I * HalfHessianSize).write(idx, H);
                    });
     }
 };

@@ -5,12 +5,12 @@ namespace uipc::constitution
 {
 Constraint::Constraint() noexcept {}
 
-void Constraint::apply_to(geometry::SimplicialComplex& sc) const
+void Constraint::apply_to(geometry::Geometry& geo) const
 {
-    auto uids = sc.meta().find<VectorXu64>(builtin::constraint_uids);
+    auto uids = geo.meta().find<VectorXu64>(builtin::constraint_uids);
     if(!uids)
     {
-        uids = sc.meta().create<VectorXu64>(builtin::constraint_uids);
+        uids = geo.meta().create<VectorXu64>(builtin::constraint_uids);
     }
 
     // add uid

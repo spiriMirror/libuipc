@@ -1,4 +1,4 @@
-#include <app/test_common.h>
+#include <app/app.h>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 
@@ -9,7 +9,7 @@ TEST_CASE("apply_region", "[connected_components]")
 {
     SimplicialComplexIO io;
     auto cube = io.read(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     {
         SimplicialComplex mesh = cube;
@@ -108,3 +108,4 @@ TEST_CASE("apply_region", "[connected_components]")
         io.write(fmt::format("{}apart_mesh_1.obj", output_path), apart_meshes[1]);
     }
 }
+

@@ -24,6 +24,6 @@ TEST_CASE("trimesh", "[factory]")
     auto sc = trimesh(Vs, Fs);
 
     SimplicialComplexIO io;
-    auto                output_path = AssetDir::output_path(__FILE__);
+    auto                output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
     io.write_obj(fmt::format("{}quad.obj", output_path), sc);
 }

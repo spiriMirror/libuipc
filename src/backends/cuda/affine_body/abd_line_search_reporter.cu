@@ -61,6 +61,24 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
         AffineBodyDynamics::ComputeEnergyInfo this_info{abd().body_id_to_kinetic_energy,
                                                         info.dt()};
         abd().kinetic->compute_energy(this_info);
+
+        using namespace muda;
+
+        // Zero out the kinetic energy of fixed bodies and bodies with external kinetic
+        ParallelFor()
+            .file_line(__FILE__, __LINE__)
+            .apply(abd().abd_body_count,
+                   [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
+                    external_kinetic =
+                        abd().body_id_to_external_kinetic.cviewer().name("external_kinetic"),
+                    kinetic_energy = abd().body_id_to_kinetic_energy.viewer().name(
+                        "kinetic_energy")] __device__(int i) mutable
+                   {
+                       if(is_fixed(i) || external_kinetic(i))
+                       {
+                           kinetic_energy(i) = 0.0;
+                       }
+                   });
     }
 
 

@@ -8,4 +8,4 @@ class PySimplicialComplex
   public:
     PySimplicialComplex(py::module& m);
 };
-}  // namespace pyuipc
+}  // namespace pyuipc::geometry

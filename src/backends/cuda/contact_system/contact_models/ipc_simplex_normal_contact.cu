@@ -359,7 +359,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                            DVA.segment<4>(i * 4).write(PT, G);
 
                            TripletMatrixAssembler TMA{Hs};
-                           TMA.block<4, 4>(i * 4 * 4).write(PT, H);
+                           TMA.half_block<4>(i * PTHalfHessianSize).write(PT, H);
                        });
         }
 
@@ -437,7 +437,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     DVA.segment<4>(i * 4).write(EE, G);
 
                     TripletMatrixAssembler TMA{Hs};
-                    TMA.block<4, 4>(i * 4 * 4).write(EE, H);
+                    TMA.half_block<4>(i * EEHalfHessianSize).write(EE, H);
                 });
 
         // Compute Point-Edge Gradient and Hessian
@@ -504,7 +504,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        DVA.segment<3>(i * 3).write(PE, G);
 
                        TripletMatrixAssembler TMA{Hs};
-                       TMA.block<3, 3>(i * 3 * 3).write(PE, H);
+                       TMA.half_block<3>(i * PEHalfHessianSize).write(PE, H);
                    });
 
         // Compute Point-Point Gradient and Hessian
@@ -563,7 +563,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                        DVA.segment<2>(i * 2).write(PP, G);
 
                        TripletMatrixAssembler TMA{Hs};
-                       TMA.block<2, 2>(i * 2 * 2).write(PP, H);
+                       TMA.half_block<2>(i * PPHalfHessianSize).write(PP, H);
                    });
     }
 };

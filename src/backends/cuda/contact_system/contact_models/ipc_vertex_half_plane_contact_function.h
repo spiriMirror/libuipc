@@ -104,17 +104,17 @@ namespace sym::ipc_vertex_half_contact
         return friction_energy(mu, f, eps_vh, tan_dV);
     }
 
-    inline __device__ Float PH_friction_gradient_hessian(Vector3&   G,
-                                                         Matrix3x3& H,
-                                                         Float      kappa,
-                                                         Float      d_hat,
-                                                         Float      thickness,
-                                                         Float      mu,
-                                                         Float      eps_vh,
-                                                         const Vector3& prev_v,
-                                                         const Vector3& v,
-                                                         const Vector3& P,
-                                                         const Vector3& N)
+    inline __device__ void PH_friction_gradient_hessian(Vector3&   G,
+                                                        Matrix3x3& H,
+                                                        Float      kappa,
+                                                        Float      d_hat,
+                                                        Float      thickness,
+                                                        Float      mu,
+                                                        Float      eps_vh,
+                                                        const Vector3& prev_v,
+                                                        const Vector3& v,
+                                                        const Vector3& P,
+                                                        const Vector3& N)
     {
         using namespace codim_ipc_contact;
 
