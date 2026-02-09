@@ -45,12 +45,15 @@ class GlobalActiveSetManager final : public SimSystem
         SimSystemSlotCollection<ActiveSetReporter> active_set_reporters;
 
         muda::DeviceBuffer<Vector2i> PH_idx;
-        muda::DeviceBuffer<Float> PH_lambda;
-        muda::DeviceBuffer<int> PH_cnt;
+        muda::DeviceBuffer<Float>    PH_lambda;
+        muda::DeviceBuffer<int>      PH_cnt;
 
-        muda::DeviceBuffer<int> PHs;
-        muda::DeviceBuffer<Float> PH_d0, PH_slack;
+        muda::DeviceBuffer<int>     PHs;
+        muda::DeviceBuffer<Float>   PH_d0, PH_slack;
         muda::DeviceBuffer<Vector3> PH_d_grad;
+
+        muda::DeviceBuffer<Vector2i> PHs_friction;
+        muda::DeviceBuffer<Float>    PH_lambda_friction;
 
         muda::DeviceBuffer<Vector2i> PT_idx;
         muda::DeviceBuffer<Float>    PT_lambda;
@@ -60,6 +63,9 @@ class GlobalActiveSetManager final : public SimSystem
         muda::DeviceBuffer<Float>    PT_d0, PT_slack;
         muda::DeviceBuffer<Vector12> PT_d_grad;
 
+        muda::DeviceBuffer<Vector4i> PTs_friction;
+        muda::DeviceBuffer<Float>    PT_lambda_friction;
+
         muda::DeviceBuffer<Vector2i> EE_idx;
         muda::DeviceBuffer<Float>    EE_lambda;
         muda::DeviceBuffer<int>      EE_cnt;
@@ -67,6 +73,9 @@ class GlobalActiveSetManager final : public SimSystem
         muda::DeviceBuffer<Vector4i> EEs;
         muda::DeviceBuffer<Float>    EE_d0, EE_slack;
         muda::DeviceBuffer<Vector12> EE_d_grad;
+
+        muda::DeviceBuffer<Vector4i> EEs_friction;
+        muda::DeviceBuffer<Float>    EE_lambda_friction;
 
         muda::DeviceBuffer<int64_t>  ij_hash_input;
         muda::DeviceBuffer<int64_t>  ij_hash;
@@ -99,29 +108,36 @@ class GlobalActiveSetManager final : public SimSystem
         void linearize_constraints();
         void update_slack();
         void update_lambda();
+        void update_friction();
 
         void record_non_penetrate_positions();
         void recover_non_penetrate_positions();
         void advance_non_penetrate_positions(Float alpha);
     };
 
-    muda::CBufferView<int>            PHs() const;
-    muda::CBufferView<Float>          PH_d0() const;
-    muda::CBufferView<Vector3>        PH_d_grad() const;
-    muda::CBufferView<Float>          PH_lambda() const;
-    muda::CBufferView<int>            PH_cnt() const;
+    muda::CBufferView<int>      PHs() const;
+    muda::CBufferView<Float>    PH_d0() const;
+    muda::CBufferView<Vector3>  PH_d_grad() const;
+    muda::CBufferView<Float>    PH_lambda() const;
+    muda::CBufferView<int>      PH_cnt() const;
+    muda::CBufferView<Vector2i> PHs_friction() const;
+    muda::CBufferView<Float>    PH_lambda_friction() const;
 
-    muda::CBufferView<Vector4i>       PTs() const;
-    muda::CBufferView<Float>          PT_d0() const;
-    muda::CBufferView<Vector12>       PT_d_grad() const;
-    muda::CBufferView<Float>          PT_lambda() const;
-    muda::CBufferView<int>            PT_cnt() const;
+    muda::CBufferView<Vector4i> PTs() const;
+    muda::CBufferView<Float>    PT_d0() const;
+    muda::CBufferView<Vector12> PT_d_grad() const;
+    muda::CBufferView<Float>    PT_lambda() const;
+    muda::CBufferView<int>      PT_cnt() const;
+    muda::CBufferView<Vector4i> PTs_friction() const;
+    muda::CBufferView<Float>    PT_lambda_friction() const;
 
     muda::CBufferView<Vector4i> EEs() const;
     muda::CBufferView<Float>    EE_d0() const;
     muda::CBufferView<Vector12> EE_d_grad() const;
     muda::CBufferView<Float>    EE_lambda() const;
     muda::CBufferView<int>      EE_cnt() const;
+    muda::CBufferView<Vector4i> EEs_friction() const;
+    muda::CBufferView<Float>    EE_lambda_friction() const;
 
     muda::CBufferView<Vector3> non_penetrate_positions() const;
 
@@ -144,6 +160,7 @@ class GlobalActiveSetManager final : public SimSystem
     void linearize_constraints();
     void update_slack();
     void update_lambda();
+    void update_friction();
     void record_non_penetrate_positions();
     void recover_non_penetrate_positions();
     void advance_non_penetrate_positions(Float alpha);

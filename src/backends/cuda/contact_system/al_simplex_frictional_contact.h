@@ -7,7 +7,7 @@
 
 namespace uipc::backend::cuda
 {
-class ALVertexHalfPlaneNormalContact : public ContactReporter
+class ALSimplexFrictionalContact : public ContactReporter
 {
   public:
     using ContactReporter::ContactReporter;
@@ -19,6 +19,8 @@ class ALVertexHalfPlaneNormalContact : public ContactReporter
         SimSystemSlot<GlobalVertexManager>            global_vertex_manager;
         SimSystemSlot<GlobalSimplicialSurfaceManager> global_surf_manager;
         SimSystemSlot<GlobalActiveSetManager>         global_active_set_manager;
+
+        Float dt;
 
         void do_compute_energy(GlobalContactManager::EnergyInfo& info);
         void do_assemble(GlobalContactManager::GradientHessianInfo& info);
