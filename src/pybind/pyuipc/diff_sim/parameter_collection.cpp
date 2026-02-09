@@ -1,6 +1,5 @@
 #include <pyuipc/diff_sim/parameter_collection.h>
 #include <uipc/diff_sim/parameter_collection.h>
-#include <pyuipc/as_numpy.h>
 
 namespace pyuipc::diff_sim
 {
@@ -8,9 +7,8 @@ using namespace uipc::diff_sim;
 
 PyParameterCollection::PyParameterCollection(py::module& m)
 {
-    auto class_ParameterCollection =
-        py::class_<ParameterCollection>(m, "ParameterCollection",
-                                         R"(ParameterCollection class for managing simulation parameters.)");
+    auto class_ParameterCollection = py::class_<ParameterCollection>(
+        m, "ParameterCollection", R"(ParameterCollection class for managing simulation parameters.)");
 
     class_ParameterCollection.def("resize",
                                   &ParameterCollection::resize,
@@ -21,14 +19,15 @@ Args:
     N: New size.
     default_value: Default value for new parameters (default: 0.0).)");
 
-    class_ParameterCollection.def("broadcast", &ParameterCollection::broadcast,
-                                   R"(Broadcast parameter values across all instances.)");
+    class_ParameterCollection.def("broadcast",
+                                  &ParameterCollection::broadcast,
+                                  R"(Broadcast parameter values across all instances.)");
 
-    class_ParameterCollection.def("view",
-                                  [](ParameterCollection& self) {
-                                      return as_numpy(self.view(), py::cast(self));
-                                  },
-                                  R"(Get a view of the parameters as a numpy array.
+    class_ParameterCollection.def(
+        "view",
+        [](ParameterCollection& self)
+        { return as_numpy(self.view(), py::cast(self)); },
+        R"(Get a view of the parameters as a numpy array.
 Returns:
     numpy.ndarray: Array view of parameters.)");
 

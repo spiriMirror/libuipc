@@ -15,25 +15,16 @@
 #include <pyuipc/geometry/simplicial_complex_io.h>
 #include <pyuipc/geometry/spread_sheet_io.h>
 
-#include <pyuipc/geometry//urdf_io.h>
+#include <pyuipc/geometry/urdf_io.h>
 #include <pyuipc/geometry/utils.h>
+#include <pyuipc/geometry/affine_body.h>
 
 namespace pyuipc::geometry
 {
 PyModule::PyModule(py::module& m)
 {
-    PyAttributeSlot{m};
-    PyAttributeCollection{m};
-
-    PyGeometry{m};
-    PyImplicitGeometry{m};
-    PySimplicialComplex{m};
-
-    PyGeometryAtlas{m};
-
-    PyGeometrySlot{m};
-    PyImplicitGeometrySlot{m};
-    PySimplicialComplexSlot{m};
+    // Data structures are exported early in main module
+    // Only utils/IO functions are exported here (after core module)
 
     PyFactory{m};
 
@@ -42,5 +33,9 @@ PyModule::PyModule(py::module& m)
     PySpreadSheetIO{m};
     PyUrdfIO{m};
     PyUtils{m};
+
+    // pyuipc.geometry.affine_body
+    auto affine_body = m.def_submodule("affine_body");
+    PyAffineBody{affine_body};
 }
 }  // namespace pyuipc::geometry

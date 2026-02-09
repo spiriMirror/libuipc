@@ -1,7 +1,7 @@
 #include <pyuipc/core/subscene_tabular.h>
 #include <uipc/core/subscene_tabular.h>
-#include <pyuipc/common/json.h>
 #include <pyuipc/geometry/attribute_creator.h>
+#include <pyuipc/as_numpy.h>
 
 namespace uipc::geometry
 {
@@ -26,8 +26,8 @@ using namespace uipc::core;
 PySubsceneTabular::PySubsceneTabular(py::module& m)
 {
     {
-        auto class_SubsceneElement = py::class_<SubsceneElement>(m, "SubsceneElement",
-                                                                   R"(SubsceneElement class representing a subscene element (object or geometry).)");
+        auto class_SubsceneElement = py::class_<SubsceneElement>(
+            m, "SubsceneElement", R"(SubsceneElement class representing a subscene element (object or geometry).)");
         class_SubsceneElement.def(py::init<IndexT, std::string_view>(),
                                   py::arg("id"),
                                   py::arg("name"),
@@ -35,43 +35,48 @@ PySubsceneTabular::PySubsceneTabular(py::module& m)
 Args:
     id: Element ID.
     name: Element name.)");
-        class_SubsceneElement.def("id", &SubsceneElement::id,
+        class_SubsceneElement.def("id",
+                                  &SubsceneElement::id,
                                   R"(Get the element ID.
 Returns:
     int: Element ID.)");
-        class_SubsceneElement.def("name", &SubsceneElement::name,
-                                 R"(Get the element name.
+        class_SubsceneElement.def("name",
+                                  &SubsceneElement::name,
+                                  R"(Get the element name.
 Returns:
     str: Element name.)");
-        class_SubsceneElement.def("apply_to", &SubsceneElement::apply_to,
-                                 py::arg("object"),
-                                 R"(Apply this subscene element to an object.
+        class_SubsceneElement.def("apply_to",
+                                  &SubsceneElement::apply_to,
+                                  py::arg("object"),
+                                  R"(Apply this subscene element to an object.
 Args:
     object: Object to apply to.)");
     }
 
     {
-        auto class_SubsceneModel = py::class_<SubsceneModel>(m, "SubsceneModel",
-                                                              R"(SubsceneModel class representing subscene parameters between two elements.)");
-        class_SubsceneModel.def("topo", &SubsceneModel::topo,
-                               R"(Get the topology type.
+        auto class_SubsceneModel = py::class_<SubsceneModel>(
+            m, "SubsceneModel", R"(SubsceneModel class representing subscene parameters between two elements.)");
+        class_SubsceneModel.def("topo",
+                                [](const SubsceneModel& self) { return as_numpy(self.topo()); },
+                                R"(Get the topology IDs.
 Returns:
-    str: Topology type string.)");
-        class_SubsceneModel.def("is_enabled", &SubsceneModel::is_enabled,
-                               R"(Check if the subscene model is enabled.
+    numpy.ndarray: Array of two integers representing the topology IDs.)");
+        class_SubsceneModel.def("is_enabled",
+                                &SubsceneModel::is_enabled,
+                                R"(Check if the subscene model is enabled.
 Returns:
     bool: True if enabled, False otherwise.)");
-        class_SubsceneModel.def("config", &SubsceneModel::config,
-                               R"(Get the configuration dictionary.
+        class_SubsceneModel.def("config",
+                                &SubsceneModel::config,
+                                R"(Get the configuration dictionary.
 Returns:
     dict: Configuration dictionary.)");
     }
 
 
     {
-        auto class_SubsceneModelCollection =
-            py::class_<SubsceneModelCollection>(m, "SubsceneModelCollection",
-                                                 R"(Collection of subscene models with attributes.)");
+        auto class_SubsceneModelCollection = py::class_<SubsceneModelCollection>(
+            m, "SubsceneModelCollection", R"(Collection of subscene models with attributes.)");
 
         using Accessor = uipc::geometry::AttributeFriend<PySubsceneTabular>;
 
@@ -90,12 +95,12 @@ Args:
 Returns:
     AttributeSlot: Created attribute slot.)");
 
-        class_SubsceneModelCollection.def("find",
-                                          [](SubsceneModelCollection& self,
-                                             std::string_view name) -> S<uipc::geometry::IAttributeSlot>
-                                          { return self.find(name); },
-                                          py::arg("name"),
-                                          R"(Find a subscene model attribute by name.
+        class_SubsceneModelCollection.def(
+            "find",
+            [](SubsceneModelCollection& self, std::string_view name) -> S<uipc::geometry::IAttributeSlot>
+            { return self.find(name); },
+            py::arg("name"),
+            R"(Find a subscene model attribute by name.
 Args:
     name: Attribute name.
 Returns:
@@ -110,12 +115,14 @@ Returns:
     }
 
     {
-        auto class_SubsceneTabular = py::class_<SubsceneTabular>(m, "SubsceneTabular",
-                                                                  R"(SubsceneTabular class managing subscene elements and subscene models between them.)");
+        auto class_SubsceneTabular = py::class_<SubsceneTabular>(
+            m, "SubsceneTabular", R"(SubsceneTabular class managing subscene elements and subscene models between them.)");
 
         // Elements:
-        class_SubsceneTabular.def("create", &SubsceneTabular::create, py::arg("name") = "",
-                                 R"(Create a new subscene element.
+        class_SubsceneTabular.def("create",
+                                  &SubsceneTabular::create,
+                                  py::arg("name") = "",
+                                  R"(Create a new subscene element.
 Args:
     name: Element name (optional).
 Returns:
@@ -128,8 +135,9 @@ Returns:
 Returns:
     SubsceneElement: Reference to default element.)");
 
-        class_SubsceneTabular.def("element_count", &SubsceneTabular::element_count,
-                                 R"(Get the number of subscene elements.
+        class_SubsceneTabular.def("element_count",
+                                  &SubsceneTabular::element_count,
+                                  R"(Get the number of subscene elements.
 Returns:
     int: Number of elements.)");
 

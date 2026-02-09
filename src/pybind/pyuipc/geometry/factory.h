@@ -8,4 +8,4 @@ class PyFactory
   public:
     PyFactory(py::module& m);
 };
-}  // namespace pyuipc
+}  // namespace pyuipc::geometry

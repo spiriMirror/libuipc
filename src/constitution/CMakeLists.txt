@@ -10,9 +10,15 @@ uipc_target_set_rpath(uipc_constitution)
 
 file(GLOB SOURCES "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_constitution PRIVATE ${SOURCES})
+uipc_target_set_relative_source_file(uipc_constitution)
 
 # ------------------------------------------------------------------------------
 # setup source group for the IDE
 # ------------------------------------------------------------------------------
 file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
+
+# ------------------------------------------------------------------------------
+# Install targets
+# ------------------------------------------------------------------------------
+uipc_install_target(uipc_constitution)

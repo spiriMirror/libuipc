@@ -13,6 +13,7 @@ on:
       - 'docs/**'
       - '.github/workflows/cmake.yml'
       - '**/CMakeLists.txt'
+      - '.github/workflows/docs.yml'
       - CMakePresets.json
 
 jobs:
@@ -38,10 +39,10 @@ jobs:
 
       - name: Setup cuda
         if: matrix.os == 'ubuntu-24.04'
-        uses: Jimver/cuda-toolkit@v0.2.20
+        uses: Jimver/cuda-toolkit@v0.2.30
         id: cuda-toolkit
         with:
-          cuda: '12.6.3'
+          cuda: '12.8.1'
 
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -51,7 +52,7 @@ jobs:
       - name: Setup xmake
         uses: xmake-io/github-action-setup-xmake@v1
         with:
-          xmake-version: branch@master
+          xmake-version: 3.0.5
           actions-cache-folder: '.xmake-cache'
           actions-cache-key: ${{ matrix.os }}
 
@@ -68,5 +69,5 @@ jobs:
       - name: Build libuipc
         run: |
           xmake build uipc_geometry
-          xmake build --jobs=4 cuda
+          xmake build --jobs=3 cuda
           xmake build --all

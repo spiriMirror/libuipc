@@ -42,6 +42,8 @@ PyModule::PyModule(py::module& m)
     PySceneFactory{m};
     PyWorld{m};
 
+    PyPyIEngine{m};
+
     PySceneIO{m};
 }
 }  // namespace pyuipc::core

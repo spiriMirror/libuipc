@@ -1,4 +1,4 @@
-#include <app/test_common.h>
+#include <app/app.h>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/backend/visitors/scene_visitor.h>
@@ -275,7 +275,7 @@ TEST_CASE("scene_commit", "[scene]")
     using namespace uipc::core;
     using namespace uipc::geometry;
 
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Scene               scene;
     SimplicialComplexIO io;
@@ -333,7 +333,7 @@ TEST_CASE("scene_commit_empty", "[scene]")
     using namespace uipc::core;
     using namespace uipc::geometry;
 
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Scene               scene;
     SimplicialComplexIO io;

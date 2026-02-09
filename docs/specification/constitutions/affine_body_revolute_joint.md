@@ -1,6 +1,6 @@
 # Affine Body Revolute Joint
 
-Literature References:
+References:
 
 [A unified newton barrier method for multibody dynamics](https://dl.acm.org/doi/pdf/10.1145/3528223.3530076)
 
@@ -29,7 +29,7 @@ intuitively $\mathbf{J}^0$ and $\mathbf{J}^1$ tell the local coordinates of the 
 The energy function for the **Affine Body Revolute Joint** is defined as:
 
 $$
-E = K \cdot \left( 
+E = \frac{K}{2} \cdot \left( 
     \| \mathbf{J}^0_i \mathbf{q}_i - \mathbf{J}^0_j \mathbf{q}_j \|^2
     +
     \| \mathbf{J}^1_i \mathbf{q}_i - \mathbf{J}^1_j \mathbf{q}_j \|^2

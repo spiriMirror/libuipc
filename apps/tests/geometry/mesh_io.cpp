@@ -56,7 +56,7 @@ TEST_CASE("read_ply", "[io]")
 
 TEST_CASE("write_msh", "[io]")
 {
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     SimplicialComplexIO io;
     auto mesh = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
@@ -69,7 +69,7 @@ TEST_CASE("write_msh", "[io]")
 
 TEST_CASE("write_obj", "[io]")
 {
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     SimplicialComplexIO io;
     auto mesh = io.read_obj(fmt::format("{}cube.obj", AssetDir::trimesh_path()));

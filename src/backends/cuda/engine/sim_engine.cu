@@ -5,11 +5,9 @@
 #include <backends/common/module.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
-#include <fstream>
 #include <uipc/common/timer.h>
 #include <backends/common/backend_path_tool.h>
 #include <uipc/backend/engine_create_info.h>
-#include <future>
 
 namespace uipc::backend::cuda
 {
@@ -100,22 +98,23 @@ void SimEngine::event_write_scene()
         action();
 }
 
-void SimEngine::dump_global_surface(std::string_view name)
+void SimEngine::dump_global_surface()
 {
     BackendPathTool tool{workspace()};
-    auto file_path = fmt::format("{}/{}.obj", tool.workspace().string(), name);
+    auto            output_folder = tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
+    auto            file_path = fmt::format("{}global_surface.{}.{}.{}.obj",
+                                 output_folder.string(),
+                                 frame(),
+                                 newton_iter(),
+                                 line_search_iter());
 
     std::vector<Vector3> positions;
     std::vector<Vector3> disps;
 
-    auto src_ps = m_global_vertex_manager->prev_positions();
-    auto disp   = m_global_vertex_manager->displacements();
+    auto src_ps = m_global_vertex_manager->positions();
+
     positions.resize(src_ps.size());
     src_ps.copy_to(positions.data());
-    disps.resize(disp.size());
-    disp.copy_to(disps.data());
-
-    std::ranges::transform(positions, disps, positions.begin(), std::plus<>());
 
     std::vector<Vector2i> edges;
     auto src_es = m_global_simplicial_surface_manager->surf_edges();
@@ -171,5 +170,15 @@ void SimEngine::do_clear_recover(RecoverInfo& info)
 SizeT SimEngine::get_frame() const
 {
     return m_current_frame;
+}
+
+SizeT SimEngine::newton_iter() const noexcept
+{
+    return m_newton_iter;
+}
+
+SizeT SimEngine::line_search_iter() const noexcept
+{
+    return m_line_search_iter;
 }
 }  // namespace uipc::backend::cuda

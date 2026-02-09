@@ -13,6 +13,14 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FEMLinearSubsystem);
 
+// ref: https://github.com/spiriMirror/libuipc/issues/271
+constexpr U64 FEMLinearSubsystemUID = 1ull;
+
+U64 FEMLinearSubsystem::get_uid() const noexcept
+{
+    return FEMLinearSubsystemUID;
+}
+
 void FEMLinearSubsystem::do_build(DiagLinearSubsystem::BuildInfo&)
 {
     m_impl.finite_element_method = require<FiniteElementMethod>();
@@ -63,9 +71,6 @@ void FEMLinearSubsystem::Impl::receive_init_dof_info(WorldVisitor& w,
 
 void FEMLinearSubsystem::Impl::report_extent(GlobalLinearSystem::DiagExtentInfo& info)
 {
-    UIPC_ASSERT(info.storage_type() == GlobalLinearSystem::HessianStorageType::Full,
-                "Now only support Full Hessian");
-
     // 1) Hessian Count
     energy_producer_hessian_offset = 0;
     energy_producer_hessian_count  = fem().energy_producer_total_hessian_count;
@@ -135,9 +140,10 @@ void FEMLinearSubsystem::Impl::assemble(GlobalLinearSystem::DiagInfo& info)
                    {
                        if(i != j)
                            hessians(I).write(i, j, Matrix3x3::Zero());
+                       else
+                           hessians(I).write(i, j, Matrix3x3::Identity());
                    }
-               })
-        .wait();
+               });
 }
 
 void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo& info)
@@ -160,9 +166,15 @@ void FEMLinearSubsystem::Impl::_assemble_producers(GlobalLinearSystem::DiagInfo&
         .file_line(__FILE__, __LINE__)
         .apply(producer_gradients.doublet_count(),
                [dst_gradient = info.gradients().viewer().name("dst_gradient"),
-                src_gradient = producer_gradients.viewer().name("src_gradient")] __device__(int I) mutable
+                src_gradient = producer_gradients.viewer().name("src_gradient"),
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
                {
                    auto&& [i, G3] = src_gradient(I);
+
+                   // to reduce atomic add count, we just skip the fixed vertex here
+                   if(is_fixed(i))
+                       return;
+
                    dst_gradient.segment<3>(i * 3).atomic_add(G3);
                });
 }
@@ -190,6 +202,12 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(GlobalLinearSystem::DiagI
                        {
                            const auto& [g_i, G3] = dytopo_effect_gradient(I);
                            auto i = g_i - vertex_offset;  // from global to local
+
+                           // though in final phase we will filter out all the fixed vertex gradient,
+                           // here we just filter it to reduce the count of atomic add
+                           if(is_fixed(i))
+                               return;
+
                            gradients.segment<3>(i * 3).atomic_add(G3);
                        });
         }
@@ -206,13 +224,12 @@ void FEMLinearSubsystem::Impl::_assemble_dytopo_effect(GlobalLinearSystem::DiagI
                        [dytopo_effect_hessian =
                             dytopo_effect_receiver->hessians().cviewer().name("dytopo_effect_hessian"),
                         hessians = dst_H3x3s.viewer().name("hessians"),
-                        vertex_offset =
-                            finite_element_vertex_reporter->vertex_offset()] __device__(int I) mutable
+                        vertex_offset = finite_element_vertex_reporter->vertex_offset(),
+                        is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
                        {
                            const auto& [g_i, g_j, H3] = dytopo_effect_hessian(I);
                            auto i = g_i - vertex_offset;
                            auto j = g_j - vertex_offset;
-
                            hessians(I).write(i, j, H3);
                        });
         }
@@ -245,39 +262,40 @@ void FEMLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
         .apply(fem().xs.size(),
                [dxs = dxs.viewer().name("dxs"),
                 result = info.solution().viewer().name("result")] __device__(int i) mutable
-               {
-                   dxs(i) = -result.segment<3>(i * 3).as_eigen();
-
-                   // cout << "solution dx(" << i << "):" << dxs(i).transpose().eval() << "\n";
-               });
+               { dxs(i) = -result.segment<3>(i * 3).as_eigen(); });
 }
 
-Float FEMLinearSubsystem::Impl::diag_norm(GlobalLinearSystem::DiagNormInfo &info) {
+Float FEMLinearSubsystem::Impl::diag_norm(GlobalLinearSystem::DiagNormInfo& info)
+{
     diag_blocks_norm.resize(finite_element_method->xs().size());
 
     muda::ParallelFor()
         .file_line(__FILE__, __LINE__)
-        .apply(info.A().triplet_count(), [
-            triplet = info.A().cviewer().name("triplet"),
-            diag_blocks_norm = diag_blocks_norm.viewer().name("diag_blocks_norm"),
-            fem_segment_offset = info.dof_offset() / 3,
-            fem_segment_count = info.dof_count() / 3
-        ] __device__(int I) mutable {
-            auto &&[g_i, g_j, H3x3] = triplet(I);
+        .apply(info.A().triplet_count(),
+               [triplet = info.A().cviewer().name("triplet"),
+                diag_blocks_norm = diag_blocks_norm.viewer().name("diag_blocks_norm"),
+                fem_segment_offset = info.dof_offset() / 3,
+                fem_segment_count = info.dof_count() / 3] __device__(int I) mutable
+               {
+                   auto&& [g_i, g_j, H3x3] = triplet(I);
 
-            IndexT i = g_i - fem_segment_offset;
-            IndexT j = g_j - fem_segment_offset;
+                   IndexT i = g_i - fem_segment_offset;
+                   IndexT j = g_j - fem_segment_offset;
 
-            if (i >= fem_segment_count || j >= fem_segment_count) return;
-            if (i == j) {
-                auto a = abs(H3x3(0, 0));
-                auto b = abs(H3x3(1, 1));
-                auto c = abs(H3x3(2, 2));
-                diag_blocks_norm(i) = max(max(a, b), c);
-            }
-        });
+                   if(i >= fem_segment_count || j >= fem_segment_count)
+                       return;
+                   if(i == j)
+                   {
+                       auto a              = abs(H3x3(0, 0));
+                       auto b              = abs(H3x3(1, 1));
+                       auto c              = abs(H3x3(2, 2));
+                       diag_blocks_norm(i) = max(max(a, b), c);
+                   }
+               });
 
-    muda::DeviceReduce().Max(diag_blocks_norm.data(), reduced_diag_norm.data(), diag_blocks_norm.size());
+    muda::DeviceReduce().Max(diag_blocks_norm.data(),
+                             reduced_diag_norm.data(),
+                             diag_blocks_norm.size());
 
     return reduced_diag_norm;
 }
@@ -312,7 +330,8 @@ void FEMLinearSubsystem::do_receive_init_dof_info(GlobalLinearSystem::InitDofInf
     m_impl.receive_init_dof_info(world(), info);
 }
 
-Float FEMLinearSubsystem::do_diag_norm(GlobalLinearSystem::DiagNormInfo &info) {
+Float FEMLinearSubsystem::do_diag_norm(GlobalLinearSystem::DiagNormInfo& info)
+{
     return m_impl.diag_norm(info);
 }
 

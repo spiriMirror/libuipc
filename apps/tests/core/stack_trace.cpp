@@ -1,4 +1,4 @@
-#include <app/test_common.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <numeric>
 #include <cpptrace/cpptrace.hpp>
@@ -23,3 +23,4 @@ TEST_CASE(".stack_trace", "[.stack_trace]")
 {
     stackB();
 }
+

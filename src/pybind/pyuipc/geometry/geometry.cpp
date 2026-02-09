@@ -1,6 +1,5 @@
 #include <pyuipc/geometry/geometry.h>
 #include <uipc/geometry/geometry.h>
-#include <pyuipc/common/json.h>
 #include <uipc/geometry/attribute_friend.h>
 
 namespace uipc::geometry
@@ -285,11 +284,13 @@ Returns:
 
     class_Geometry.def(
         "__getitem__",
-        [](Geometry& self, std::string_view name) { return self[name]; },
+        [](Geometry& self, std::string_view name) -> S<AttributeCollection>
+        { return self[name]; },
         py::arg("name"),
         R"(Get an attribute collection by name.
 Returns:
-    AttributeCollection: Attribute collection with the given name, if not found, create a new one.)");
+    AttributeCollection: Attribute collection with the given name, if not found, create a new one.)",
+        py::return_value_policy::copy);
 
     def_method(m, class_MetaAttributes);
 

@@ -1,1 +1,1 @@
-from pyuipc.builtin import *
+from uipc._native.pyuipc.builtin import *

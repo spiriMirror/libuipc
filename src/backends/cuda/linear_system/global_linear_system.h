@@ -311,38 +311,45 @@ class GlobalLinearSystem : public SimSystem
         Float diag_norm();
     };
 
-    void dump_linear_system(std::string_view filename);
 
-    SizeT dof_count() const;
+    bool        need_debug_dump = false;
+    std::string debug_dump_path;
+};
 
-  protected:
-    void do_build() override;
+SizeT dof_count() const;
 
-  private:
-    friend class SimEngine;
-    friend class IterativeSolver;
-    friend class DiagLinearSubsystem;
-    friend class OffDiagLinearSubsystem;
-    friend class LocalPreconditioner;
-    friend class GlobalPreconditioner;
-    friend class GlobalDiffSimManager;
-    friend class CurrentFrameDiffDofReporter;
+protected:
+void do_build() override;
 
-    void add_subsystem(DiagLinearSubsystem* subsystem);
-    void add_subsystem(OffDiagLinearSubsystem* subsystem);
-    void add_solver(IterativeSolver* solver);
-    void add_preconditioner(LocalPreconditioner* preconditioner);
-    void add_preconditioner(GlobalPreconditioner* preconditioner);
+private:
+friend class SimEngine;
+friend class IterativeSolver;
+friend class DiagLinearSubsystem;
+friend class OffDiagLinearSubsystem;
+friend class LocalPreconditioner;
+friend class GlobalPreconditioner;
+friend class GlobalDiffSimManager;
+friend class CurrentFrameDiffDofReporter;
 
-    // only be called by SimEngine::do_init();
-    void init();
+void add_subsystem(DiagLinearSubsystem* subsystem);
+void add_subsystem(OffDiagLinearSubsystem* subsystem);
+void add_solver(IterativeSolver* solver);
+void add_preconditioner(LocalPreconditioner* preconditioner);
+void add_preconditioner(GlobalPreconditioner* preconditioner);
 
-    // only be called by SimEngine::do_advance()
-    void solve();
+// only be called by SimEngine::do_init();
+void init();
 
-    // only be called by SimEngine::do_advance()
-    Float diag_norm();
+// only be called by SimEngine::do_advance()
+void solve();
 
-    Impl m_impl;
+// only be called by SimEngine::do_advance()
+Float diag_norm();
+
+Impl m_impl;
+
+// local debug dump functions
+void _dump_A_b();
+void _dump_x();
 };
 }  // namespace uipc::backend::cuda

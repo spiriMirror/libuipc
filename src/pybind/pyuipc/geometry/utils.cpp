@@ -1,8 +1,6 @@
 #include <pyuipc/geometry/utils.h>
-#include <pyuipc/as_numpy.h>
-#include <pyuipc/common/json.h>
-#include <Eigen/Geometry>
 #include <uipc/geometry/utils.h>
+#include <Eigen/Geometry>
 
 namespace pyuipc::geometry
 {
@@ -33,17 +31,23 @@ static py::list list_of_sc(const vector<SimplicialComplex>& simplicial_complexes
 
 PyUtils::PyUtils(py::module& m)
 {
-    m.def("label_surface", &label_surface, py::arg("sc"),
+    m.def("label_surface",
+          &label_surface,
+          py::arg("sc"),
           R"(Label surface elements in a simplicial complex.
 Args:
     sc: SimplicialComplex to label.)");
 
-    m.def("label_triangle_orient", &label_triangle_orient, py::arg("sc"),
+    m.def("label_triangle_orient",
+          &label_triangle_orient,
+          py::arg("sc"),
           R"(Label triangle orientations in a simplicial complex.
 Args:
     sc: SimplicialComplex to label.)");
 
-    m.def("flip_inward_triangles", &flip_inward_triangles, py::arg("sc"),
+    m.def("flip_inward_triangles",
+          &flip_inward_triangles,
+          py::arg("sc"),
           R"(Flip inward-facing triangles to face outward.
 Args:
     sc: SimplicialComplex to modify.)");
@@ -102,7 +106,9 @@ Args:
 Returns:
     list: List of transformed SimplicialComplex objects.)");
 
-    m.def("facet_closure", &facet_closure, py::arg("sc"),
+    m.def("facet_closure",
+          &facet_closure,
+          py::arg("sc"),
           R"(Compute the facet closure of a simplicial complex.
 Args:
     sc: SimplicialComplex to compute closure for.
@@ -110,12 +116,16 @@ Returns:
     SimplicialComplex: Facet closure.)");
 
 
-    m.def("label_connected_vertices", &label_connected_vertices, py::arg("sc"),
+    m.def("label_connected_vertices",
+          &label_connected_vertices,
+          py::arg("sc"),
           R"(Label connected components of vertices.
 Args:
     sc: SimplicialComplex to label.)");
 
-    m.def("label_region", &label_region, py::arg("sc"),
+    m.def("label_region",
+          &label_region,
+          py::arg("sc"),
           R"(Label regions in a simplicial complex.
 Args:
     sc: SimplicialComplex to label.)");
@@ -165,21 +175,28 @@ Args:
 Returns:
     numpy.ndarray: 4x4 transformation matrix.)");
 
-    m.def("is_trimesh_closed", &is_trimesh_closed, py::arg("sc"),
+    m.def("is_trimesh_closed",
+          &is_trimesh_closed,
+          py::arg("sc"),
           R"(Check if a triangular mesh is closed (watertight).
 Args:
     sc: SimplicialComplex to check.
 Returns:
     bool: True if closed, False otherwise.)");
 
-    m.def("constitution_type", &constitution_type, py::arg("geo"),
+    m.def("constitution_type",
+          &constitution_type,
+          py::arg("geo"),
           R"(Get the constitution type for a geometry.
 Args:
     geo: Geometry to check.
 Returns:
     str: Constitution type name.)");
 
-    m.def("compute_mesh_d_hat", &compute_mesh_d_hat, py::arg("sc"), py::arg("max_d_hat"),
+    m.def("compute_mesh_d_hat",
+          &compute_mesh_d_hat,
+          py::arg("sc"),
+          py::arg("max_d_hat"),
           R"(Compute mesh d_hat (characteristic length) parameter.
 Args:
     sc: SimplicialComplex to compute for.
@@ -187,7 +204,10 @@ Args:
 Returns:
     float: Computed d_hat value.)");
 
-    m.def("points_from_volume", &points_from_volume, py::arg("sc"), py::arg("resolution") = 0.01,
+    m.def("points_from_volume",
+          &points_from_volume,
+          py::arg("sc"),
+          py::arg("resolution") = 0.01,
           R"(Generate points from a volume mesh.
 Args:
     sc: SimplicialComplex (volume mesh).

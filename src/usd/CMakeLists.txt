@@ -28,6 +28,7 @@ target_compile_definitions(uipc_usd PRIVATE UIPC_USD_EXPORT_DLL=1) # export dll
 
 file(GLOB_RECURSE SOURCES "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_usd PRIVATE ${SOURCES})
+uipc_target_set_relative_source_file(uipc_usd)
 
 uipc_target_set_output_directory(uipc_usd)
 uipc_target_set_rpath(uipc_usd)
@@ -37,3 +38,8 @@ uipc_target_set_rpath(uipc_usd)
 # ------------------------------------------------------------------------------
 file(GLOB_RECURSE SOURCE_GROUP_FILES "*.h" "*.cpp" "*.inl")
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/.." FILES ${SOURCE_GROUP_FILES})
+
+# ------------------------------------------------------------------------------
+# Install targets
+# ------------------------------------------------------------------------------
+uipc_install_target(uipc_usd)

@@ -1,5 +1,5 @@
 import polyscope as ps
-from . import Scene, SceneIO
+from uipc import Scene, SceneIO
 from uipc import builtin
 from uipc import core
 from uipc.backend import SceneVisitor
@@ -194,13 +194,10 @@ class SceneGUI:
             return
         if N is None:
             return
-        height = P.view()[0][1]
+        
         normal = N.view()[0]
-        #if (normal != np.array([0, 1, 0])).all():
-            #return
         
         normal = normal.flatten()
-        #print(normal)
         if np.allclose(normal, [0, 1, 0]):
             ps.set_up_dir("y_up")
         elif np.allclose(normal, [1, 0, 0]):
@@ -209,6 +206,8 @@ class SceneGUI:
             ps.set_up_dir("z_up")
         else:
             return
+        
+        height = float(P.view()[0][1][0])
         ps.set_ground_plane_height(height)
 
     def update(self):

@@ -42,14 +42,32 @@ class FastSegmentalReduce : public LaunchBase<FastSegmentalReduce<BlockSize, War
     // dst = [0, 1, 1, 2, 2, 2]
     // in  = [1, 1, 1, 1, 1, 1]
     // out = [1, 2, 3]
-    template <typename T, int M, int N, typename ReduceOp = cuda::std::plus<T>>
-    void reduce(CBufferView<int>                    dst,
-                CBufferView<Eigen::Matrix<T, M, N>> in,
-                BufferView<Eigen::Matrix<T, M, N>>  out,
-                ReduceOp                            op = ReduceOp{});
-
     template <typename T, typename ReduceOp = cuda::std::plus<T>>
-    void reduce(CBufferView<int> dst, CBufferView<T> in, BufferView<T> out, ReduceOp op = ReduceOp{});
+    FastSegmentalReduce& reduce(CBufferView<int> dst,
+                                CBufferView<T>   in,
+                                BufferView<T>    out,
+                                ReduceOp         op = ReduceOp{});
+
+    template <typename T, typename GetKeyOp, typename GetValueOp, typename ReduceOp = cuda::std::plus<T>>
+    FastSegmentalReduce& reduce(size_t        in_size,
+                                BufferView<T> out,
+                                GetKeyOp      get_key_op,
+                                GetValueOp    get_value_op,
+                                ReduceOp      op = ReduceOp{});
+
+
+    template <typename T, int M, int N, typename ReduceOp = cuda::std::plus<T>>
+    FastSegmentalReduce& reduce(CBufferView<int>                    dst,
+                                CBufferView<Eigen::Matrix<T, M, N>> in,
+                                BufferView<Eigen::Matrix<T, M, N>>  out,
+                                ReduceOp op = ReduceOp{});
+
+    template <typename T, int M, int N, typename GetKeyOp, typename GetValueOp, typename ReduceOp = cuda::std::plus<T>>
+    FastSegmentalReduce& reduce(size_t                             in_size,
+                                BufferView<Eigen::Matrix<T, M, N>> out,
+                                GetKeyOp                           get_key_op,
+                                GetValueOp                         get_value_op,
+                                ReduceOp op = ReduceOp{});
 };
 }  // namespace muda
 

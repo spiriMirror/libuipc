@@ -1,10 +1,7 @@
-#include <catch2/catch_all.hpp>
-#include <app/asset_dir.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/soft_transform_constraint.h>
-#include <filesystem>
-#include <fstream>
 #include <numbers>
 
 TEST_CASE("25_abd_animated_rotation", "[animation]")
@@ -16,25 +13,19 @@ TEST_CASE("25_abd_animated_rotation", "[animation]")
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path = AssetDir::output_path(__FILE__);
+    auto        output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
-
-    Engine engine{"cuda", this_output_path};
+    Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config = Scene::default_config();
-
-    Float dt                            = 0.01;
-    config["gravity"]                   = Vector3{0, -9.8, 0};
-    config["contact"]["enable"]         = true;  // disable contact
+    auto config                 = test::Scene::default_config();
+    Float dt                    = 0.01;
+    config["gravity"]           = Vector3{0, -9.8, 0};
+    config["contact"]["enable"] = true;  // disable contact
     config["line_search"]["max_iter"]   = 8;
     config["linear_system"]["tol_rate"] = 1e-3;
     config["dt"]                        = dt;
-
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, output_path);
 
     SimplicialComplexIO io;
 
@@ -86,14 +77,18 @@ TEST_CASE("25_abd_animated_rotation", "[animation]")
                     });
 
 
-    world.init(scene); REQUIRE(world.is_valid());
-    SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
+    world.init(scene);
+    REQUIRE(world.is_valid());
 
-    for(int i = 1; i < 360; i++)
+    SceneIO sio{scene};
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
+
+    while(world.frame() < 360)
     {
         world.advance();
+        REQUIRE(world.is_valid());
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }
