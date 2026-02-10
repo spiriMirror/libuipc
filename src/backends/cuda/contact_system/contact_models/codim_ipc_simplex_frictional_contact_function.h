@@ -201,6 +201,55 @@ namespace sym::codim_ipc_contact
         H = J.transpose() * H2x2 * J;
     }
 
+    inline __device__ void PT_friction_gradient(Vector12&    G,
+                                                Float        kappa,
+                                                Float        d_hat,
+                                                Float        thickness,
+                                                Float        mu,
+                                                Float        eps_vh,
+                                                const Vector3& prev_P,
+                                                const Vector3& prev_T0,
+                                                const Vector3& prev_T1,
+                                                const Vector3& prev_T2,
+                                                const Vector3& P,
+                                                const Vector3& T0,
+                                                const Vector3& T1,
+                                                const Vector3& T2)
+    {
+        using namespace friction;
+
+        Float               f;
+        Vector2             beta;
+        Matrix<Float, 3, 2> basis;
+        Vector2             tan_rel_dx;
+
+        PT_friction_basis(
+            // out
+            f,
+            beta,
+            basis,
+            tan_rel_dx,
+            // in
+            kappa,
+            d_hat,
+            thickness,
+            prev_P,
+            prev_T0,
+            prev_T1,
+            prev_T2,
+            P,
+            T0,
+            T1,
+            T2);
+
+        Matrix<Float, 2, 12> J;
+        point_triangle_jacobi(basis, beta, J);
+
+        Vector2 G2;
+        friction_gradient(G2, mu, f, eps_vh, tan_rel_dx);
+        G = J.transpose() * G2;
+    }
+
 
     inline __device__ void EE_friction_basis(
         // out
@@ -340,6 +389,55 @@ namespace sym::codim_ipc_contact
         H = J.transpose() * H2x2 * J;
     }
 
+    inline __device__ void EE_friction_gradient(Vector12&    G,
+                                                Float        kappa,
+                                                Float        d_hat,
+                                                Float        thickness,
+                                                Float        mu,
+                                                Float        eps_vh,
+                                                const Vector3& prev_Ea0,
+                                                const Vector3& prev_Ea1,
+                                                const Vector3& prev_Eb0,
+                                                const Vector3& prev_Eb1,
+                                                const Vector3& Ea0,
+                                                const Vector3& Ea1,
+                                                const Vector3& Eb0,
+                                                const Vector3& Eb1)
+    {
+        using namespace friction;
+
+        Float               f;
+        Vector2             gamma;
+        Matrix<Float, 3, 2> basis;
+        Vector2             tan_rel_dx;
+
+        EE_friction_basis(
+            // out
+            f,
+            gamma,
+            basis,
+            tan_rel_dx,
+            // in
+            kappa,
+            d_hat,
+            thickness,
+            prev_Ea0,
+            prev_Ea1,
+            prev_Eb0,
+            prev_Eb1,
+            Ea0,
+            Ea1,
+            Eb0,
+            Eb1);
+
+        Matrix<Float, 2, 12> J;
+        edge_edge_jacobi(basis, gamma, J);
+
+        Vector2 G2;
+        friction_gradient(G2, mu, f, eps_vh, tan_rel_dx);
+        G = J.transpose() * G2;
+    }
+
     inline __device__ void PE_friction_basis(
         // out
         Float&               f,
@@ -471,6 +569,51 @@ namespace sym::codim_ipc_contact
         H = J.transpose() * H2x2 * J;
     }
 
+    inline __device__ void PE_friction_gradient(Vector9&   G,
+                                                Float      kappa,
+                                                Float      d_hat,
+                                                Float      thickness,
+                                                Float      mu,
+                                                Float      eps_vh,
+                                                const Vector3& prev_P,
+                                                const Vector3& prev_E0,
+                                                const Vector3& prev_E1,
+                                                const Vector3& P,
+                                                const Vector3& E0,
+                                                const Vector3& E1)
+    {
+        using namespace friction;
+
+        Float               f;
+        Float               eta;
+        Matrix<Float, 3, 2> basis;
+        Vector2             tan_rel_dx;
+
+        PE_friction_basis(
+            // out
+            f,
+            eta,
+            basis,
+            tan_rel_dx,
+            // in
+            kappa,
+            d_hat,
+            thickness,
+            prev_P,
+            prev_E0,
+            prev_E1,
+            P,
+            E0,
+            E1);
+
+        Matrix<Float, 2, 9> J;
+        point_edge_jacobi(basis, eta, J);
+
+        Vector2 G2;
+        friction_gradient(G2, mu, f, eps_vh, tan_rel_dx);
+        G = J.transpose() * G2;
+    }
+
     inline __device__ void PP_friction_basis(
         // out
         Float&               f,
@@ -583,6 +726,45 @@ namespace sym::codim_ipc_contact
         Matrix2x2 H2x2;
         friction_hessian(H2x2, mu, f, eps_vh, tan_rel_dx);
         H = J.transpose() * H2x2 * J;
+    }
+
+    inline __device__ void PP_friction_gradient(Vector6&   G,
+                                                Float      kappa,
+                                                Float      d_hat,
+                                                Float      thickness,
+                                                Float      mu,
+                                                Float      eps_vh,
+                                                const Vector3& prev_P0,
+                                                const Vector3& prev_P1,
+                                                const Vector3& P0,
+                                                const Vector3& P1)
+    {
+        using namespace friction;
+
+        Float               f;
+        Matrix<Float, 3, 2> basis;
+        Vector2             tan_rel_dx;
+
+        PP_friction_basis(
+            // out
+            f,
+            basis,
+            tan_rel_dx,
+            // in
+            kappa,
+            d_hat,
+            thickness,
+            prev_P0,
+            prev_P1,
+            P0,
+            P1);
+
+        Matrix<Float, 2, 6> J;
+        point_point_jacobi(basis, J);
+
+        Vector2 G2;
+        friction_gradient(G2, mu, f, eps_vh, tan_rel_dx);
+        G = J.transpose() * G2;
     }
 
 }  // namespace sym::codim_ipc_contact

@@ -38,6 +38,12 @@ void InterPrimitiveConstitution::compute_energy(ComputeEnergyInfo& info)
 void InterPrimitiveConstitution::report_gradient_hessian_extent(GradientHessianExtentInfo& info)
 {
     do_report_gradient_hessian_extent(info);
+
+    UIPC_ASSERT(!(info.gradient_only() && info.m_hessian_count != 0),
+                "When gradient_only is true, hessian_count must be 0, but {} provides hessian count={}.\n"
+                "Ref: https://github.com/spiriMirror/libuipc/issues/295",
+                name(),
+                info.m_hessian_count);
 }
 
 void InterPrimitiveConstitution::compute_gradient_hessian(ComputeGradientHessianInfo& info)

@@ -23,7 +23,7 @@ void NewtonToleranceManager::add_checker(NewtonToleranceChecker* checker)
 {
     check_state(SimEngineState::BuildSystems, "add_checker()");
     UIPC_ASSERT(checker, "Cannot add null NewtonToleranceChecker");
-    m_impl.tolerance_checkers.register_subsystem(*checker);
+    m_impl.tolerance_checkers.register_sim_system(*checker);
 }
 
 void NewtonToleranceManager::init()

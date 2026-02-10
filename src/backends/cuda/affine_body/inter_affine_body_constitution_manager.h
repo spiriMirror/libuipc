@@ -107,30 +107,37 @@ class InterAffineBodyConstitutionManager final : public SimSystem
                             IndexT                             index,
                             Float                              dt,
                             muda::DoubletVectorView<Float, 12> gradients,
-                            muda::TripletMatrixView<Float, 12> hessians)
+                            muda::TripletMatrixView<Float, 12> hessians,
+                            bool                               gradient_only)
             : BaseInfo(impl, index, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
+            , m_gradient_only(gradient_only)
         {
         }
 
         muda::DoubletVectorView<Float, 12> gradients() const noexcept;
         muda::TripletMatrixView<Float, 12> hessians() const noexcept;
+        bool                               gradient_only() const noexcept;
 
       private:
         friend class InterAffineBodyConstitutionManager;
         muda::DoubletVectorView<Float, 12> m_gradients;
         muda::TripletMatrixView<Float, 12> m_hessians;
+        bool                               m_gradient_only = false;
     };
 
     class GradientHessianExtentInfo
     {
       public:
-        void hessian_block_count(SizeT count) noexcept;
-        void gradient_segment_count(SizeT count) noexcept;
+        bool gradient_only() const noexcept { return m_gradient_only; }
+        void hessian_count(SizeT count) noexcept;
+        void gradient_count(SizeT count) noexcept;
 
       private:
+        friend class InterAffineBodyConstitution;
         friend class InterAffineBodyConstitutionManager;
+        bool  m_gradient_only  = false;
         SizeT m_hessian_count  = 0;
         SizeT m_gradient_count = 0;
     };
@@ -149,8 +156,8 @@ class InterAffineBodyConstitutionManager final : public SimSystem
     {
       public:
         void init(SceneVisitor& scene);
-        void report_energy_extent(ABDLineSearchReporter::ExtentInfo& info);
-        void compute_energy(ABDLineSearchReporter::EnergyInfo& info);
+        void report_energy_extent(ABDLineSearchReporter::ReportExtentInfo& info);
+        void compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info);
         void report_gradient_hessian_extent(ABDLinearSubsystem::ReportExtentInfo& info);
         void compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info);
 

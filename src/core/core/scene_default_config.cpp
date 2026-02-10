@@ -33,6 +33,9 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("contact/friction/enable", IndexT{1});
     config.create("contact/constitution", std::string{"ipc"});
     config.create("contact/d_hat", Float{0.01});
+    config.create("contact/adaptive/min_kappa", Float{100.0_MPa});
+    config.create("contact/adaptive/init_kappa", Float{1.0_GPa});
+    config.create("contact/adaptive/max_kappa", Float{100.0_GPa});
     config.create("contact/eps_velocity", Float{0.01_m / 1.0_s});
 
     // default:
