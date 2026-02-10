@@ -303,13 +303,16 @@ void SimEngine::advance_AL()
                 m_global_active_set_manager->filter_active();
             }
 
-            // 2. Adaptive Parameter Calculation
-            compute_adaptive_mu();
-
-            // 3. Predict Motion => x_tilde = x + v * dt
+            // 2. Predict Motion => x_tilde = x + v * dt
             m_state = SimEngineState::PredictMotion;
-            m_time_integrator_manager->predict_dof();
+            // MUST step animation before predicting dof (following basic IPC pattern)
+            // and before compute_adaptive_mu to ensure constraints report extents
             step_animation();
+            m_time_integrator_manager->predict_dof();
+
+            // 3. Adaptive Parameter Calculation
+            // Now safe to call compute_adaptive_mu->diag_norm() after step_animation
+            compute_adaptive_mu();
 
             // 4. Nonlinear-Newton Iteration
             m_newton_tolerance_manager->pre_newton(m_current_frame);
