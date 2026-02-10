@@ -53,7 +53,6 @@ class LineSearcher : public SimSystem
     Float compute_energy(bool is_initial);  // only be called by SimEngine
 
     SimSystemSlotCollection<LineSearchReporter> m_reporters;
-    list<std::string>                           m_energy_reporter_names;
 
     vector<Float>     m_energy_values;
     bool              m_report_energy = false;
