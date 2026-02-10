@@ -187,7 +187,7 @@ void SimEngine::advance_AL()
     {
         if(m_dump_surface->view()[0])
         {
-            dump_global_surface(fmt::format("dump_surface.{}.{}", m_current_frame, newton_iter));
+            dump_global_surface();
         }
 
         NewtonToleranceManager::ResultInfo result_info;

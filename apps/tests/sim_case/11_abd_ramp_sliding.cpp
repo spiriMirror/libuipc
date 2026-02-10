@@ -19,13 +19,15 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
 
     SECTION("ipc")
     {
-        this_output_path = fmt::format("{}ipc/", AssetDir::output_path(__FILE__));
+        this_output_path =
+            fmt::format("{}ipc/", AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE));
         contact_constitution = "ipc";
     };
 
     SECTION("al-ipc")
     {
-        this_output_path = fmt::format("{}al-ipc/", AssetDir::output_path(__FILE__));
+        this_output_path =
+            fmt::format("{}al-ipc/", AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE));
         contact_constitution = "al-ipc";
     };
 
@@ -37,10 +39,8 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
     config["contact"]["friction"]["enable"] = true;
     config["contact"]["constitution"]       = contact_constitution;
 
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, this_output_path);
+
 
     Scene scene{config};
     {
@@ -136,7 +136,7 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
     REQUIRE(world.is_valid());
 
     SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
     while(world.frame() < 200)
     {
@@ -144,6 +144,6 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
         REQUIRE(world.is_valid());
         world.retrieve();
         sio.write_surface(
-            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
+            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     }
 }
