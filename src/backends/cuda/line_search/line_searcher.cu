@@ -23,7 +23,7 @@ void LineSearcher::init()
     auto dt_attr = scene.config().find<Float>("dt");
     m_dt         = dt_attr->view()[0];
 
-    m_energy_values.resize(m_reporters.view().size() + m_energy_reporters.view().size(), 0);
+    m_energy_values.resize(m_reporters.view().size(), 0);
 
     auto reporter_view = m_reporters.view();
 
@@ -61,7 +61,7 @@ Float LineSearcher::compute_energy(bool is_initial)
 
     for(auto&& [E, R] : zip(reporter_energyes, m_reporters.view()))
     {
-        EnergyInfo info{this};
+        ComputeEnergyInfo info{this};
         info.m_is_initial = is_initial;
         R->compute_energy(info);
         UIPC_ASSERT(info.m_energy.has_value(),
@@ -73,19 +73,6 @@ Float LineSearcher::compute_energy(bool is_initial)
 
     auto energy_reporter_energyes =
         span{m_energy_values}.subspan(m_reporters.view().size());
-
-    for(auto&& [E, ER, name] :
-        zip(energy_reporter_energyes, m_energy_reporters.view(), m_energy_reporter_names))
-    {
-        EnergyInfo info{this};
-        info.m_is_initial = is_initial;
-        ER(info);
-        UIPC_ASSERT(info.m_energy.has_value(),
-                    "Energy[{}] not set by reporter, did you forget to call energy()?",
-                    name);
-        E = info.m_energy.value();
-        UIPC_ASSERT(!std::isnan(E) && std::isfinite(E), "Energy [{}] is {}", name, E);
-    }
 
     Float total_energy =
         std::accumulate(m_energy_values.begin(), m_energy_values.end(), 0.0);
@@ -102,13 +89,6 @@ Float LineSearcher::compute_energy(bool is_initial)
         {
             m_report_stream << "  > " << R->name() << "=" << value << "\n";
         }
-
-        for(auto&& [ER, value, name] :
-            zip(m_energy_reporters.view(), energy_reporter_energyes, m_energy_reporter_names))
-        {
-            m_report_stream << "  * " << name << "=" << value << "\n";
-        }
-
         m_report_stream << "-------------------------------------------------------------------------------";
         logger::info(m_report_stream.str());
         m_report_stream.str("");
@@ -121,34 +101,25 @@ void LineSearcher::add_reporter(LineSearchReporter* reporter)
 {
     UIPC_ASSERT(reporter, "reporter is nullptr");
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_reporters.register_subsystem(*reporter);
+    m_reporters.register_sim_system(*reporter);
 }
 
-void LineSearcher::add_reporter(SimSystem&       system,
-                                std::string_view energy_name,
-                                std::function<void(EnergyInfo)>&& energy_reporter)
-{
-    check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_energy_reporters.register_action(system, std::move(energy_reporter));
-    m_energy_reporter_names.push_back(std::string{energy_name});
-}
-
-LineSearcher::EnergyInfo::EnergyInfo(LineSearcher* impl) noexcept
+LineSearcher::ComputeEnergyInfo::ComputeEnergyInfo(LineSearcher* impl) noexcept
     : m_impl(impl)
 {
 }
 
-Float LineSearcher::EnergyInfo::dt() noexcept
+Float LineSearcher::ComputeEnergyInfo::dt() noexcept
 {
     return m_impl->m_dt;
 }
 
-void LineSearcher::EnergyInfo::energy(Float e) noexcept
+void LineSearcher::ComputeEnergyInfo::energy(Float e) noexcept
 {
     m_energy = e;
 }
 
-bool LineSearcher::EnergyInfo::is_initial() noexcept
+bool LineSearcher::ComputeEnergyInfo::is_initial() noexcept
 {
     return m_is_initial;
 }
@@ -157,5 +128,4 @@ SizeT LineSearcher::max_iter() const noexcept
 {
     return m_max_iter;
 }
-
 }  // namespace uipc::backend::cuda

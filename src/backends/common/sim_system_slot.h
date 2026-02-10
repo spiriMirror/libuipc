@@ -18,7 +18,7 @@ class SimSystemSlot
     SimSystemSlot& operator=(const SimSystemSlot&) noexcept = default;
     SimSystemSlot& operator=(SimSystemSlot&&) noexcept      = default;
 
-    void              register_subsystem(T& subsystem);
+    void              register_sim_system(T& subsystem);
     SimSystemSlot<T>& operator=(T& subsystem) noexcept;
     SimSystemSlot<T>& operator=(T* subsystem) noexcept;
 
@@ -34,14 +34,14 @@ class SimSystemSlot
     SimSystemSlot(T* subsystem) noexcept;
 
     void       lazy_init() const;
-    mutable T* m_subsystem = nullptr;
+    mutable T* m_sim_system = nullptr;
 };
 
 template <typename T>
 class SimSystemSlotCollection
 {
   public:
-    void register_subsystem(T& subsystem);
+    void register_sim_system(T& subsystem);
 
     span<T* const> view() const noexcept;
     span<T*>       view() noexcept;
@@ -50,8 +50,8 @@ class SimSystemSlotCollection
     SimSystemSlot<U> find() const noexcept;
 
   private:
-    mutable list<T*>   m_subsystem_buffer;
-    mutable vector<T*> m_subsystems;
+    mutable list<T*>   m_sim_system_buffer;
+    mutable vector<T*> m_sim_systems;
     mutable bool       built = false;
 
     void lazy_init() const noexcept;

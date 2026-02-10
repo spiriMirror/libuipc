@@ -47,7 +47,6 @@ class FiniteElementBDF1Kinetic final : public FiniteElementKinetic
     {
         using namespace muda;
 
-        // Kinetic
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.xs().size(),
@@ -56,14 +55,14 @@ class FiniteElementBDF1Kinetic final : public FiniteElementKinetic
                     x_tildes = info.x_tildes().viewer().name("x_tildes"),
                     masses   = info.masses().cviewer().name("masses"),
                     G3s      = info.gradients().viewer().name("G3s"),
-                    H3x3s = info.hessians().viewer().name("H3x3s")] __device__(int i) mutable
+                    H3x3s    = info.hessians().viewer().name("H3x3s"),
+                    gradient_only = info.gradient_only()] __device__(int i) mutable
                    {
                        auto& m       = masses(i);
                        auto& x       = xs(i);
                        auto& x_tilde = x_tildes(i);
 
-                       Vector3   G;
-                       Matrix3x3 H;
+                       Vector3 G;
 
                        if(is_fixed(i))  // fixed
                        {
@@ -74,9 +73,12 @@ class FiniteElementBDF1Kinetic final : public FiniteElementKinetic
                            G = m * (x - x_tilde);
                        }
 
-                       H = masses(i) * Matrix3x3::Identity();
-
                        G3s(i).write(i, G);
+
+                       if(gradient_only)
+                           return;
+
+                       Matrix3x3 H = masses(i) * Matrix3x3::Identity();
                        H3x3s(i).write(i, i, H);
                    });
     }

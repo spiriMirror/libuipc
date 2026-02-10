@@ -12,16 +12,14 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
   public:
     using LocalPreconditioner::LocalPreconditioner;
 
-    AffineBodyDynamics*       affine_body_dynamics = nullptr;
-    AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
+    ABDLinearSubsystem* abd_linear_subsystem = nullptr;
 
     muda::DeviceBuffer<Matrix12x12> diag_inv;
 
     virtual void do_build(BuildInfo& info) override
     {
         auto& global_linear_system = require<GlobalLinearSystem>();
-        auto  abd_linear_subsystem = &require<ABDLinearSubsystem>();
-        affine_body_dynamics       = &require<AffineBodyDynamics>();
+        abd_linear_subsystem       = &require<ABDLinearSubsystem>();
 
         info.connect(abd_linear_subsystem);
     }
@@ -32,12 +30,13 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
     {
         using namespace muda;
 
-        diag_inv.resize(abd().diag_hessian.size());
+        auto diag_hessian = abd_linear_subsystem->diag_hessian();
+        diag_inv.resize(diag_hessian.size());
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(diag_inv.size(),
-                   [diag_hessian = abd().diag_hessian.viewer().name("diag_hessian"),
+                   [diag_hessian = diag_hessian.viewer().name("diag_hessian"),
                     diag_inv = diag_inv.viewer().name("diag_inv")] __device__(int i) mutable
                    { diag_inv(i) = muda::eigen::inverse(diag_hessian(i)); });
     }

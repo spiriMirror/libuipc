@@ -14,13 +14,13 @@ void AffineBodyKinetic::do_build()
 
 }
 
-void AffineBodyKinetic::compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info)
+void AffineBodyKinetic::compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info)
 {
     ComputeEnergyInfo this_info{&m_impl, &info};
     do_compute_energy(this_info);
 }
 
-void AffineBodyKinetic::compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info)
+void AffineBodyKinetic::compute_gradient_hessian(ABDLinearSubsystem::ComputeGradientHessianInfo& info)
 {
     ComputeGradientHessianInfo this_info{&m_impl, &info};
     do_compute_gradient_hessian(this_info);

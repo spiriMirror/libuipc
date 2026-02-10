@@ -80,6 +80,7 @@ void SimplexFrictionalContact::do_compute_energy(GlobalContactManager::EnergyInf
 void SimplexFrictionalContact::do_report_gradient_hessian_extent(GlobalContactManager::GradientHessianExtentInfo& info)
 {
     auto& filter = m_impl.simplex_trajectory_filter;
+    bool  gradient_only = info.gradient_only();
 
     m_impl.PT_count = filter->friction_PTs().size();
     m_impl.EE_count = filter->friction_EEs().size();
@@ -98,13 +99,14 @@ void SimplexFrictionalContact::do_report_gradient_hessian_extent(GlobalContactMa
                                   + PPHalfHessianSize * m_impl.PP_count;
 
     info.gradient_count(contact_gradient_count);
-    info.hessian_count(contact_hessian_count);
+    info.hessian_count(gradient_only ? 0 : contact_hessian_count);
 }
 
 
 void SimplexFrictionalContact::do_assemble(GlobalContactManager::GradientHessianInfo& info)
 {
     ContactInfo this_info{&m_impl};
+    this_info.m_gradient_only = info.gradient_only();
     // gradient
     {
         IndexT offset = 0;
@@ -129,28 +131,43 @@ void SimplexFrictionalContact::do_assemble(GlobalContactManager::GradientHessian
 
     // hessian
     {
-        IndexT offset = 0;
-        this_info.m_PT_hessians =
-            info.hessians().subview(offset, m_impl.PT_count * PTHalfHessianSize);
-        m_impl.PT_hessians = this_info.m_PT_hessians;
-        offset += m_impl.PT_count * PTHalfHessianSize;
+        if(info.gradient_only())
+        {
+            this_info.m_PT_hessians = {};
+            this_info.m_EE_hessians = {};
+            this_info.m_PE_hessians = {};
+            this_info.m_PP_hessians = {};
 
-        this_info.m_EE_hessians =
-            info.hessians().subview(offset, m_impl.EE_count * EEHalfHessianSize);
-        m_impl.EE_hessians = this_info.m_EE_hessians;
-        offset += m_impl.EE_count * EEHalfHessianSize;
+            m_impl.PT_hessians = {};
+            m_impl.EE_hessians = {};
+            m_impl.PE_hessians = {};
+            m_impl.PP_hessians = {};
+        }
+        else
+        {
+            IndexT offset = 0;
+            this_info.m_PT_hessians =
+                info.hessians().subview(offset, m_impl.PT_count * PTHalfHessianSize);
+            m_impl.PT_hessians = this_info.m_PT_hessians;
+            offset += m_impl.PT_count * PTHalfHessianSize;
 
-        this_info.m_PE_hessians =
-            info.hessians().subview(offset, m_impl.PE_count * PEHalfHessianSize);
-        m_impl.PE_hessians = this_info.m_PE_hessians;
-        offset += m_impl.PE_count * PEHalfHessianSize;
+            this_info.m_EE_hessians =
+                info.hessians().subview(offset, m_impl.EE_count * EEHalfHessianSize);
+            m_impl.EE_hessians = this_info.m_EE_hessians;
+            offset += m_impl.EE_count * EEHalfHessianSize;
 
-        this_info.m_PP_hessians =
-            info.hessians().subview(offset, m_impl.PP_count * PPHalfHessianSize);
-        m_impl.PP_hessians = this_info.m_PP_hessians;
-        offset += m_impl.PP_count * PPHalfHessianSize;
+            this_info.m_PE_hessians =
+                info.hessians().subview(offset, m_impl.PE_count * PEHalfHessianSize);
+            m_impl.PE_hessians = this_info.m_PE_hessians;
+            offset += m_impl.PE_count * PEHalfHessianSize;
 
-        UIPC_ASSERT(offset == info.hessians().triplet_count(), "size mismatch");
+            this_info.m_PP_hessians =
+                info.hessians().subview(offset, m_impl.PP_count * PPHalfHessianSize);
+            m_impl.PP_hessians = this_info.m_PP_hessians;
+            offset += m_impl.PP_count * PPHalfHessianSize;
+
+            UIPC_ASSERT(offset == info.hessians().triplet_count(), "size mismatch");
+        }
     }
 
     // let subclass to fill in the data

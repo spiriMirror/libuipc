@@ -17,7 +17,7 @@ REGISTER_SIM_SYSTEM(GlobalLinearSystem);
 
 SizeT GlobalLinearSystem::dof_count() const
 {
-    return m_impl.b.size();
+    return m_impl.diag_dof_offsets_counts.total_count();
 }
 
 void GlobalLinearSystem::do_build()
@@ -31,7 +31,7 @@ void GlobalLinearSystem::do_build()
 
 void GlobalLinearSystem::_dump_A_b()
 {
-    auto path_tool     = BackendPathTool(workspace());
+    auto path_tool = BackendPathTool(workspace());
     auto output_folder = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
     auto output_path_A = fmt::format("{}A.{}.{}.mtx",
                                      output_folder.string(),
@@ -50,7 +50,7 @@ void GlobalLinearSystem::_dump_A_b()
 
 void GlobalLinearSystem::_dump_x()
 {
-    auto path_tool   = BackendPathTool(workspace());
+    auto path_tool = BackendPathTool(workspace());
     auto output_folder = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
     export_vector_market(fmt::format("{}x.{}.{}.mtx",
                                      output_folder.string(),
@@ -233,7 +233,6 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
             auto           triplet_i      = subsystem_info.index;
             auto&          diag_subsystem = diag_subsystem_view[dof_i];
             DiagExtentInfo info;
-            info.m_storage_type = HessianStorageType::Full;
             diag_subsystem->report_extent(info);
 
             dof_count_changed |= diag_dof_counts[dof_i] != info.m_dof_count;
@@ -248,7 +247,6 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
             auto triplet_i = subsystem_info.index;
             auto& off_diag_subsystem = off_diag_subsystem_view[subsystem_info.local_index];
             OffDiagExtentInfo info;
-            info.m_storage_type = HessianStorageType::Full;
             off_diag_subsystem->report_extent(info);
 
             auto total_block_count = info.m_lr_block_count + info.m_rl_block_count;
@@ -339,10 +337,9 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
 
             DiagInfo info{this};
 
-            info.m_index        = triplet_i;
-            info.m_storage_type = HessianStorageType::Full;
-            info.m_gradients    = B.subview(dof_offset, dof_count);
-            info.m_hessians = HA.subview(subsystem_triplet_offsets[triplet_i],
+            info.m_index     = triplet_i;
+            info.m_gradients = B.subview(dof_offset, dof_count);
+            info.m_hessians  = HA.subview(subsystem_triplet_offsets[triplet_i],
                                          subsystem_triplet_counts[triplet_i])
                                   .submatrix(ij_offset, ij_count);
 
@@ -369,8 +366,7 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
             auto rl_triplet_count  = off_diag_lr_triplet_counts[local_index].y;
 
             OffDiagInfo info{this};
-            info.m_index        = triplet_i;
-            info.m_storage_type = HessianStorageType::Full;
+            info.m_index = triplet_i;
 
             info.m_lr_hessian =
                 HA.subview(lr_triplet_offset, lr_triplet_count)
@@ -501,9 +497,41 @@ bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> 
                                [](bool flag) { return flag; });
 }
 
-void GlobalLinearSystem::DiagExtentInfo::extent(SizeT hessian_block_count, SizeT dof_count) noexcept
+void GlobalLinearSystem::Impl::compute_gradient(ComputeGradientInfo& info)
 {
-    m_block_count = hessian_block_count;
+    auto diag_subsystem_view = diag_subsystems.view();
+
+    // report extent first
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
+    {
+        DiagExtentInfo diag_info;
+        diag_info.m_gradient_only   = true;
+        diag_info.m_component_flags = info.m_flags;
+        diag_subsystem->report_extent(diag_info);
+    }
+
+    // assemble gradient
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystem_view))
+    {
+        DiagInfo diag_info{this};
+        diag_info.m_index         = diag_subsystem->m_index;
+        diag_info.m_gradients     = info.m_gradients;
+        diag_info.m_hessians      = TripletMatrixView{};  // Empty Hessian View
+        diag_info.m_gradient_only = true;
+        diag_info.m_component_flags = info.m_flags;
+        diag_subsystem->assemble(diag_info);
+    }
+}
+
+void GlobalLinearSystem::DiagExtentInfo::extent(SizeT hessian_count, SizeT dof_count) noexcept
+{
+
+    UIPC_ASSERT(!(m_gradient_only && hessian_count != 0),
+                "When gradient_only is true, hessian_count must be 0, yours {}.",
+                hessian_count);
+
+
+    m_block_count = hessian_count;
     UIPC_ASSERT(dof_count % DoFBlockSize == 0,
                 "dof_count must be multiple of {}, yours {}.",
                 DoFBlockSize,
@@ -522,11 +550,6 @@ auto GlobalLinearSystem::AssemblyInfo::A() const -> CBCOOMatrixView
     return m_impl->bcoo_A.cview();
 }
 
-auto GlobalLinearSystem::AssemblyInfo::storage_type() const -> HessianStorageType
-{
-    return HessianStorageType::Symmetric;
-}
-
 SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_offset() const
 {
     auto diag_dof_offsets = m_impl->diag_dof_offsets_counts.offsets();
@@ -538,42 +561,57 @@ SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_count() const
     auto diag_dof_counts = m_impl->diag_dof_offsets_counts.counts();
     return diag_dof_counts[m_index];
 }
+
+void GlobalLinearSystem::compute_gradient(ComputeGradientInfo& info)
+{
+    m_impl.compute_gradient(info);
+}
 }  // namespace uipc::backend::cuda
 
 namespace uipc::backend::cuda
 {
+void GlobalLinearSystem::ComputeGradientInfo::buffer_view(muda::DenseVectorView<Float> grad) noexcept
+{
+    m_gradients = grad;
+}
+
+void GlobalLinearSystem::ComputeGradientInfo::flags(ComponentFlags flags) noexcept
+{
+    m_flags = flags;
+}
+
 void GlobalLinearSystem::add_subsystem(DiagLinearSubsystem* subsystem)
 {
     check_state(SimEngineState::BuildSystems, "add_subsystem()");
     UIPC_ASSERT(subsystem != nullptr, "The subsystem should not be nullptr.");
-    m_impl.diag_subsystems.register_subsystem(*subsystem);
+    m_impl.diag_subsystems.register_sim_system(*subsystem);
 }
 
 void GlobalLinearSystem::add_subsystem(OffDiagLinearSubsystem* subsystem)
 {
     check_state(SimEngineState::BuildSystems, "add_subsystem()");
-    m_impl.off_diag_subsystems.register_subsystem(*subsystem);
+    m_impl.off_diag_subsystems.register_sim_system(*subsystem);
 }
 
 void GlobalLinearSystem::add_solver(IterativeSolver* solver)
 {
     check_state(SimEngineState::BuildSystems, "add_solver()");
     UIPC_ASSERT(solver != nullptr, "The solver should not be nullptr.");
-    m_impl.iterative_solver.register_subsystem(*solver);
+    m_impl.iterative_solver.register_sim_system(*solver);
 }
 
 void GlobalLinearSystem::add_preconditioner(LocalPreconditioner* preconditioner)
 {
     check_state(SimEngineState::BuildSystems, "add_preconditioner()");
     UIPC_ASSERT(preconditioner != nullptr, "The preconditioner should not be nullptr.");
-    m_impl.local_preconditioners.register_subsystem(*preconditioner);
+    m_impl.local_preconditioners.register_sim_system(*preconditioner);
 }
 
 void GlobalLinearSystem::add_preconditioner(GlobalPreconditioner* preconditioner)
 {
     check_state(SimEngineState::BuildSystems, "add_preconditioner()");
     UIPC_ASSERT(preconditioner != nullptr, "The preconditioner should not be nullptr.");
-    m_impl.global_preconditioner.register_subsystem(*preconditioner);
+    m_impl.global_preconditioner.register_sim_system(*preconditioner);
 }
 
 void GlobalLinearSystem::init()
