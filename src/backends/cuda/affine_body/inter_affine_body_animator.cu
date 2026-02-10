@@ -166,6 +166,46 @@ span<const InterAffineBodyAnimator::AnimatedInterGeoInfo> InterAffineBodyAnimato
     return span<const AnimatedInterGeoInfo>{m_impl->anim_geo_infos}.subspan(offset, count);
 }
 
+const AffineBodyDynamics::GeoInfo& InterAffineBodyAnimator::FilteredInfo::geo_info(IndexT geo_id) const noexcept
+{
+    auto& gid_to_ginfo_index = m_impl->affine_body_dynamics->m_impl.geo_id_to_geo_info_index;
+    auto it = gid_to_ginfo_index.find(geo_id);
+    UIPC_ASSERT(it != gid_to_ginfo_index.end(),
+                "Geometry ID {} does not have any affine body constitution",
+                geo_id);
+    auto geo_info_index = it->second;
+    return m_impl->affine_body_dynamics->m_impl.geo_infos[geo_info_index];
+}
+
+IndexT InterAffineBodyAnimator::FilteredInfo::body_id(IndexT geo_id) const noexcept
+{
+    const auto& info = geo_info(geo_id);
+    UIPC_ASSERT(info.body_count == 1, "Body count in geometry must be 1");
+    return info.body_offset;
+}
+
+IndexT InterAffineBodyAnimator::FilteredInfo::body_id(IndexT geo_id, IndexT instance_id) const noexcept
+{
+    const auto& info = geo_info(geo_id);
+    UIPC_ASSERT(instance_id >= 0 && instance_id < static_cast<IndexT>(info.body_count),
+                "Instance ID {} is out of range [0, {}) for geometry {}",
+                instance_id,
+                info.body_count,
+                geo_id);
+    return info.body_offset + instance_id;
+}
+
+geometry::SimplicialComplex* InterAffineBodyAnimator::FilteredInfo::body_geo(
+    span<S<geometry::GeometrySlot>> geo_slots, IndexT geo_id) const noexcept
+{
+    const auto& info = geo_info(geo_id);
+    UIPC_ASSERT(info.geo_slot_index < geo_slots.size(),
+                "Geometry slot index {} out of range for geo slots size {}, why can it happen?",
+                info.geo_slot_index,
+                geo_slots.size());
+    return geo_slots[info.geo_slot_index]->geometry().as<geometry::SimplicialComplex>();
+}
+
 Float InterAffineBodyAnimator::BaseInfo::substep_ratio() const noexcept
 {
     return m_impl->global_animator->substep_ratio();

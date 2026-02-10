@@ -13,6 +13,7 @@ class GlobalBodyManager;
 class GlobalContactManager;
 class GlobalDyTopoEffectManager;
 class GlobalTrajectoryFilter;
+class GlobalActiveSetManager;
 
 class TimeIntegratorManager;
 class LineSearcher;
@@ -39,6 +40,9 @@ class SimEngine final : public backend::SimEngine
 
     SimEngineState state() const noexcept;
 
+    SizeT newton_iter() const noexcept;
+    SizeT line_search_iter() const noexcept;
+
   private:
     virtual void  do_init(InitInfo& info) override;
     virtual void  do_advance() override;
@@ -46,14 +50,25 @@ class SimEngine final : public backend::SimEngine
     virtual void  do_retrieve() override;
     virtual SizeT get_frame() const override;
 
+
     virtual bool do_dump(DumpInfo&) override;
     virtual bool do_try_recover(RecoverInfo&) override;
     virtual void do_apply_recover(RecoverInfo&) override;
     virtual void do_clear_recover(RecoverInfo&) override;
 
+    enum class PipelineType
+    {
+        Basic = 0,
+        AugmentedLagrangian
+    };
+    // basic pipeline
+    void advance();
+    // augmented lagrangian pipeline
+    void advance_AL();
+
     void build();
     void init_scene();
-    void dump_global_surface(std::string_view name);
+    void dump_global_surface();
 
     std::stringstream m_string_stream;
     SimEngineState    m_state = SimEngineState::None;
@@ -76,16 +91,18 @@ class SimEngine final : public backend::SimEngine
     GlobalContactManager*      m_global_contact_manager       = nullptr;
     GlobalDyTopoEffectManager* m_global_dytopo_effect_manager = nullptr;
     GlobalTrajectoryFilter*    m_global_trajectory_filter     = nullptr;
+    GlobalActiveSetManager*    m_global_active_set_manager    = nullptr;
 
     // Newton Solver Systems
+
     TimeIntegratorManager*  m_time_integrator_manager  = nullptr;
     LineSearcher*           m_line_searcher            = nullptr;
     GlobalLinearSystem*     m_global_linear_system     = nullptr;
     NewtonToleranceManager* m_newton_tolerance_manager = nullptr;
 
-    GlobalAnimator*              m_global_animator               = nullptr;
-    GlobalExternalForceManager*  m_global_external_force_manager = nullptr;
-    GlobalDiffSimManager*        m_global_diff_sim_manager       = nullptr;
+    GlobalAnimator*             m_global_animator               = nullptr;
+    GlobalExternalForceManager* m_global_external_force_manager = nullptr;
+    GlobalDiffSimManager*       m_global_diff_sim_manager       = nullptr;
     //GlobalDiffContactManager*    m_global_diff_contact_manager    = nullptr;
     //GlobalAdjointMethodReplayer* m_global_adjoint_method_replayer = nullptr;
     AffineBodyDynamics* m_affine_body_dynamics = nullptr;
@@ -93,10 +110,15 @@ class SimEngine final : public backend::SimEngine
     //ABDDiffSimManager*           m_abd_diff_sim_manager           = nullptr;
     FiniteElementMethod* m_finite_element_method = nullptr;
 
-
-    bool  m_friction_enabled = false;
     SizeT m_current_frame    = 0;
-    Float m_newton_scene_tol = 0.01;
+    SizeT m_newton_iter      = 0;
+    SizeT m_line_search_iter = 0;
+
+    bool  m_semi_implicit_enabled  = true;
+    Float m_semi_implicit_beta_tol = 1e-3;
+    Float m_newton_scene_tol       = 0.01;
+
+    bool m_friction_enabled = false;
 
     template <typename T>
     using CAS = S<const geometry::AttributeSlot<T>>;
@@ -107,5 +129,7 @@ class SimEngine final : public backend::SimEngine
     CAS<IndexT> m_strict_mode;
     CAS<Float>  m_ccd_tol;
     CAS<IndexT> m_dump_surface;
+
+    PipelineType m_pipeline_type = PipelineType::Basic;
 };
 }  // namespace uipc::backend::cuda

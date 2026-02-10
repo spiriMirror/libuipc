@@ -36,29 +36,41 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
         Vector3 v02 = x2 - x0;
         // compute uv coordinates by rotating each triangle normal to (0, 1, 0)
         Vector3 normal = v01.cross(v02).normalized();
-        Vector3 target = Vector3(0, 1, 0);
+        Vector3 target = Vector3(0, 0, 1);
 
-        Vector3 vec      = normal.cross(target);
-        Float           cos      = normal.dot(target);
+        Vector3   vec      = normal.cross(target);
+        Float     cos      = normal.dot(target);
         Matrix3x3 rotation = Matrix3x3::Identity();
-        Matrix3x3 cross_vec;
 
-        cross_vec << 0, -vec.z(), vec.y(),  //
-            vec.z(), 0, -vec.x(),           //
-            -vec.y(), vec.x(), 0;
+        if(cos + 1 == 0)
+        {
+            rotation(0, 0) = -1;
+            rotation(1, 1) = -1;
+        }
+        else
+        {
+            Matrix3x3 cross_vec;
 
-        rotation += cross_vec + cross_vec * cross_vec / (1 + cos);
+            cross_vec << 0, -vec.z(), vec.y(),  //
+                vec.z(), 0, -vec.x(),           //
+                -vec.y(), vec.x(), 0;
+
+            rotation += cross_vec + cross_vec * cross_vec / (1 + cos);
+        }
 
         Vector3 rotate_uv0 = rotation * x0;
         Vector3 rotate_uv1 = rotation * x1;
         Vector3 rotate_uv2 = rotation * x2;
 
-        auto      uv0 = Vector2(rotate_uv0.x(), rotate_uv0.z());
-        auto      uv1 = Vector2(rotate_uv1.x(), rotate_uv1.z());
-        auto      uv2 = Vector2(rotate_uv2.x(), rotate_uv2.z());
+        auto uv0 = Vector2(rotate_uv0.x(), rotate_uv0.y());
+        auto uv1 = Vector2(rotate_uv1.x(), rotate_uv1.y());
+        auto uv2 = Vector2(rotate_uv2.x(), rotate_uv2.y());
+
+
         Matrix2x2 M;
         M.col(0) = uv1 - uv0;
         M.col(1) = uv2 - uv0;
+
         return M;
     }
 
@@ -78,7 +90,7 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
             dfdx(i, i)     = -s0;
             dfdx(i + 3, i) = -s1;
         }
-        
+
         for(int i = 0; i < 3; i++)
         {
             dfdx(i, i + 3)     = d0;
@@ -95,7 +107,6 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
     }
 
 
-
     inline UIPC_GENERIC Float E(const Matrix<Float, 3, 2>& F,
                                 const Vector2&             anisotropic_a,
                                 const Vector2&             anisotropic_b,
@@ -105,7 +116,6 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
     {
         Float I6 = anisotropic_a.transpose() * F.transpose() * F * anisotropic_b;
         Float shear_energy = I6 * I6;
-        stretchS /= strainRate;
 
         Float I5u = (F * anisotropic_a).norm();
         Float I5v = (F * anisotropic_b).norm();
@@ -126,18 +136,18 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
         Float stretch_energy =
             std::pow(I5u - 1, 2) + ucoeff * strainRate * std::pow(I5u - 1, 3)
             + std::pow(I5v - 1, 2) + vcoeff * strainRate * std::pow(I5v - 1, 3);
+
         return (stretchS * stretch_energy + shearS * shear_energy);
     }
 
-    inline UIPC_GENERIC void dEdF(Matrix<Float, 3, 2>&        R,
-                                  const Matrix<Float, 3, 2>& F,                               
+    inline UIPC_GENERIC void dEdF(Matrix<Float, 3, 2>&       R,
+                                  const Matrix<Float, 3, 2>& F,
                                   const Vector2&             anisotropic_a,
                                   const Vector2&             anisotropic_b,
                                   Float                      stretchS,
                                   Float                      shearS,
                                   Float                      strainRate)
     {
-        stretchS /= strainRate;
         Float I6 = anisotropic_a.transpose() * F.transpose() * F * anisotropic_b;
         Eigen::Matrix<Float, 3, 2> stretch_pk1, shear_pk1;
 
@@ -159,8 +169,9 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
         }
 
 
-        stretch_pk1 = ucoeff * Float{2} * F * anisotropic_a * anisotropic_a.transpose()
-                      + vcoeff * Float{2} * F * anisotropic_b * anisotropic_b.transpose();
+        stretch_pk1 =
+            ucoeff * Float{2} * F * anisotropic_a * anisotropic_a.transpose()
+            + vcoeff * Float{2} * F * anisotropic_b * anisotropic_b.transpose();
 
         R = (stretchS * stretch_pk1 + shearS * shear_pk1);
     }
@@ -173,13 +184,8 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
                                     Float                       shearS,
                                     Float                       strainRate)
     {
-
-        stretchS /= strainRate;
-
-        Eigen::Matrix<Float, 6, 6> final_H = Eigen::Matrix<Float, 6, 6>::Zero();
+        Eigen::Matrix<Float, 6, 6> H_stretc = Eigen::Matrix<Float, 6, 6>::Zero();
         {
-            Eigen::Matrix<Float, 6, 6> H;
-            H.setZero();
             Float I5u = (F * anisotropic_a).transpose() * F * anisotropic_a;
             Float I5v = (F * anisotropic_b).transpose() * F * anisotropic_b;
             Float invSqrtI5u = Float{1} / sqrt(I5u);
@@ -189,46 +195,52 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
             Float sqrtI5v = sqrt(I5v);
 
             if(sqrtI5u > 1)
-                H(0, 0) = H(1, 1) = H(2, 2) =
+            {
+                H_stretc(0, 0) = H_stretc(1, 1) = H_stretc(2, 2) =
                     2
                     * (((sqrtI5u - 1) * (3 * sqrtI5u * strainRate - 3 * strainRate + 2))
                        / (2 * sqrtI5u));
+            }
             if(sqrtI5v > 1)
-                H(3, 3) = H(4, 4) = H(5, 5) =
+            {
+                H_stretc(3, 3) = H_stretc(4, 4) = H_stretc(5, 5) =
                     2
                     * (((sqrtI5v - 1) * (3 * sqrtI5v * strainRate - 3 * strainRate + 2))
                        / (2 * sqrtI5v));
+            }
+
             auto fu = F.col(0).normalized();
             auto fv = F.col(1).normalized();
 
             Float uCoeff = (sqrtI5u > Float{1.0}) ?
                                (3 * I5u * strainRate - 3 * strainRate + 2) / (sqrt(I5u)) :
                                2.0;
+
             Float vCoeff = (sqrtI5v > Float{1.0}) ?
                                (3 * I5v * strainRate - 3 * strainRate + 2) / (sqrt(I5v)) :
                                Float{2.0};
 
 
-            H.block<3, 3>(0, 0) += uCoeff * (fu * fu.transpose());
-            H.block<3, 3>(3, 3) += vCoeff * (fv * fv.transpose());
-
-            final_H += stretchS * H;
+            H_stretc.block<3, 3>(0, 0) += uCoeff * (fu * fu.transpose());
+            H_stretc.block<3, 3>(3, 3) += vCoeff * (fv * fv.transpose());
         }
+
+        Eigen::Matrix<Float, 6, 6> H_shear = Eigen::Matrix<Float, 6, 6>::Zero();
         {
-            Eigen::Matrix<Float, 6, 6> H_shear;
-            H_shear.setZero();
             Eigen::Matrix<Float, 6, 6> H = Eigen::Matrix<Float, 6, 6>::Zero();
             H(3, 0) = H(4, 1) = H(5, 2) = H(0, 3) = H(1, 4) = H(2, 5) = 1.0;
             Float I6 = anisotropic_a.transpose() * F.transpose() * F * anisotropic_b;
-            Float signI6 = (I6 >= 0) ? 1.0 : -1.0;
-            auto  g      = F
-                     * (anisotropic_a * anisotropic_b.transpose()
-                        + anisotropic_b * anisotropic_a.transpose());
-            Eigen::Matrix<Float, 6, 1> vec_g = Eigen::Matrix<Float, 6, 1>::Zero();
+            Float                      signI6 = (I6 >= 0) ? 1.0 : -1.0;
+            Eigen::Matrix<Float, 3, 2> g =
+                F
+                * (anisotropic_a * anisotropic_b.transpose()
+                   + anisotropic_b * anisotropic_a.transpose());
 
-            vec_g.block(0, 0, 3, 1) = g.col(0);
-            vec_g.block(3, 0, 3, 1) = g.col(1);
-            Float I2                = F.squaredNorm();
+            Eigen::Vector<Float, 6> vec_g = Eigen::Vector<Float, 6>::Zero();
+            vec_g.segment<3>(0)           = g.col(0);
+            vec_g.segment<3>(3)           = g.col(1);
+
+            Float I2      = F.squaredNorm();
             Float lambda0 = 0.5 * (I2 + sqrt(I2 * I2 + 12.0 * I6 * I6));
             Eigen::Matrix<Float, 6, 1> q0 =
                 (I6 * H * vec_g + lambda0 * vec_g).normalized();
@@ -239,9 +251,9 @@ namespace sym::strainlimiting_baraff_witkin_shell_2d
             H_shear      = fabs(I6) * (T - (Tq * Tq.transpose()) / normTq)
                       + lambda0 * (q0 * q0.transpose());
             H_shear *= 2;
-            final_H += shearS * H_shear;
         }
-        R = final_H;
+
+        R = stretchS * H_stretc + shearS * H_shear;
     }
 }  // namespace sym::strainlimiting_baraff_witkin_shell_2d
 }  // namespace uipc::backend::cuda

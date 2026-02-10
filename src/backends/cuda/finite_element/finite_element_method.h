@@ -44,8 +44,8 @@ class FiniteElementMethod final : public SimSystem
     class DimUID
     {
       public:
-        SizeT dim = ~0ull;
-        U64   uid = ~0ull;
+        IndexT dim = -1;
+        U64    uid = ~0ull;
     };
 
     class GeoInfo
@@ -449,6 +449,7 @@ class FiniteElementMethod final : public SimSystem
 
     friend class FEMLinearSubsystem;
     friend class FEMLineSearchReporter;
+    friend class FEMActiveSetReporter;
     friend class FEMGradientHessianComputer;
 
     friend class FiniteElementAnimator;

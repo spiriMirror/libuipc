@@ -10,6 +10,7 @@ add_library(uipc::gui ALIAS uipc_gui)
 # ------------------------------------------------------------------------------
 file(GLOB SOURCE "*.cpp" "*.h" "details/*.inl")
 target_sources(uipc_gui PRIVATE ${SOURCE})
+uipc_target_set_relative_source_file(uipc_gui)
 
 # ------------------------------------------------------------------------------
 # link libraries

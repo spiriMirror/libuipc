@@ -1,1 +1,1 @@
-from pyuipc.backend import *
+from uipc._native.pyuipc.backend import *

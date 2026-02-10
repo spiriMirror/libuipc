@@ -1,4 +1,4 @@
-#include <app/test_common.h>
+#include <app/app.h>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 #include <uipc/geometry/utils/compute_vertex_volume.h>
@@ -91,3 +91,4 @@ TEST_CASE("affine_body_quantity", "[abd]")
     affine_body_quantity_test("link");
     affine_body_quantity_test("bunny0");
 }
+

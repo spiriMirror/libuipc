@@ -67,7 +67,7 @@ using signature_t = typename signature<Sig>::type;
 
 
 template <typename MatrixT>
-class is_matrix : public std::false_type
+struct is_matrix : std::false_type
 {
 };
 
@@ -75,8 +75,15 @@ template <typename MatrixT>
 inline constexpr bool is_matrix_v = is_matrix<MatrixT>::value;
 
 template <typename Scalar, int Rows, int Cols, int Options, int MaxRows, int MaxCols>
-class is_matrix<Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>>
-    : public std::true_type
+struct is_matrix<Eigen::Matrix<Scalar, Rows, Cols, Options, MaxRows, MaxCols>> : std::true_type
 {
 };
+
+template <typename T>
+struct always_false : std::false_type
+{
+};
+
+template <typename T>
+inline constexpr bool always_false_v = always_false<T>::value;
 }  // namespace uipc

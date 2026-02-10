@@ -29,7 +29,7 @@ void HalfPlane::_for_each(span<S<geometry::GeometrySlot>> geo_slots,
         }
         else
         {
-            static_assert("Invalid ForEachGeometry");
+            static_assert(always_false_v<ForEachGeometry>, "Invalid ForEachGeometry");
         }
     }
 }

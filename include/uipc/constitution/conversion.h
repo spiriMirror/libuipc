@@ -1,12 +1,12 @@
 #pragma once
 #include <uipc/common/type_define.h>
 
+// ref: https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
+
 namespace uipc::constitution
 {
 inline void EG_to_lame(Float E, Float G, Float& lambda, Float& mu, Float& poisson)
 {
-    // ref: https://en.wikipedia.org/wiki/Lam%C3%A9_parameters
-
     //tex: $\mu = G$
     mu = G;
     //tex: $\lambda = \frac{G(E-2 G)}{3 G-E}$
@@ -44,5 +44,18 @@ inline void EP_to_lame(Float E, Float poission, Float& lambda, Float& mu)
 {
     lambda = E * poission / (1 + poission) / (1 - 2 * poission);
     mu     = E / (2 * (1 + poission));
+}
+
+inline void EG_to_lame_2D(Float E, Float G, Float& lambda, Float& mu, Float& poisson)
+{
+    lambda  = 2 * G * (E - 2 * G) / (4 * G - E);
+    mu      = G;
+    poisson = E / (2 * G) - 1;
+}
+
+inline void EP_to_lame_2D(Float E, Float poisson, Float& lambda, Float& mu)
+{
+    lambda = E * poisson / ((1 + poisson) * (1 - poisson));
+    mu     = E / (2 * (1 + poisson));
 }
 }  // namespace uipc::constitution

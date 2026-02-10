@@ -1,0 +1,114 @@
+[build-system]
+requires = ["scikit-build-core>=0.10.0", "setuptools-scm>=8.0.0"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "pyuipc"
+dynamic = ["version"]
+requires-python = ">=3.10, <3.14"
+
+dependencies = [
+    "numpy", 
+    "polyscope>=2.5.0, <3.0.0"
+]
+
+authors = [
+    {name = "Zihang Zhu", email = "paradise_craftsman@hotmail.com"},
+    {name = "MuGdxy", email = "lxy819469559@gmail.com"}
+]
+
+maintainers = [
+    {name = "MuGdxy", email = "lxy819469559@gmail.com"}
+]
+
+readme = "README.md"
+license = {file = "LICENSE"}
+description = "A Cross-Platform Modern C++20 Library of Unified Incremental Potential Contact (CUDA 12.6+ required)"
+
+keywords = ["ipc", "computer graphics", "physics simulation", "cuda", "fem", "contact"]
+
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: C++",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+]
+
+[project.urls]
+Homepage = "https://spirimirror.github.io/libuipc-doc/"
+Issues = "https://github.com/spiriMirror/libuipc/issues"
+
+[project.optional-dependencies]
+gui = ["polyscope"]
+dev = ["pytest"]
+
+[tool.pytest.ini_options]
+addopts = ["-s"]
+markers = [
+    "basic: mark a test as basic",
+    "gui: mark a test as requiring GUI",
+    "typing: mark a test as requiring type checking",
+    "example: mark a test as an example",
+]
+
+[tool.cibuildwheel]
+build-frontend = "build[uv]"
+skip = ["*-win32", "-musllinux*"]
+
+[tool.cibuildwheel.linux]
+# Exclude all CUDA shared libraries from wheel repair
+# Patterns match both hash-suffixed (libcuda-*.so.*) and non-hash (libcuda.so*) versions
+repair-wheel-command = """
+auditwheel repair -w {dest_dir} {wheel} \\
+  --exclude libcuda* \\
+  --exclude libcudart* \\
+  --exclude libcublas* \\
+  --exclude libcublasLt* \\
+  --exclude libcurand* \\
+  --exclude libcusolver* \\
+  --exclude libcusparse* \\
+  --exclude libcufft* \\
+  --exclude libnvrtc* \\
+  --exclude libnvidia-ml* \\
+  --exclude libnvToolsExt* \\
+  --exclude libnvJitLink* \\
+  --exclude libcudnn* \\
+  --exclude libnvjpeg* \\
+  --exclude libnpp* \\
+  --exclude libnvblas* \\
+  --exclude libnvgraph* \\
+  --exclude libcusolverMg*
+"""
+
+[tool.scikit-build]
+build.verbose = true
+metadata.version.provider = "scikit_build_core.metadata.setuptools_scm"
+minimum-version = "build-system.requires"
+wheel.packages = ["python/src/uipc"]
+
+[tool.scikit-build.cmake]
+build-type = "Release"
+source-dir = "."
+
+[tool.scikit-build.cmake.define]
+UIPC_CUDA_ARCHITECTURES = "89"
+UIPC_BUILD_PYBIND = "ON"
+UIPC_BUILD_EXAMPLES = "OFF"
+UIPC_BUILD_TESTS = "OFF"
+UIPC_BUILD_BENCHMARKS = "OFF"
+UIPC_BUILD_PYTHON_WHEEL = "ON"
+UIPC_WITH_CUDA_BACKEND = "ON"
+
+[tool.setuptools_scm]
+local_scheme = "no-local-version"
+version_scheme = "release-branch-semver"

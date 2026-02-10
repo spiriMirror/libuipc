@@ -1,6 +1,5 @@
 #include <pyuipc/geometry/factory.h>
 #include <uipc/geometry/utils/factory.h>
-#include <pyuipc/as_numpy.h>
 
 namespace pyuipc::geometry
 {

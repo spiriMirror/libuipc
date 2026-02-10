@@ -16,12 +16,19 @@ ConstitutionUIDCollection::ConstitutionUIDCollection()
     for(auto& C : creators)
     {
         list<UIDInfo> uid_infos = C();
+        CreatorInfo   creator_info;
+        creator_info.file = C.file();
+        creator_info.line = C.line();
+
         for(auto& uid : uid_infos)
         {
-            create(uid);
             UIPC_ASSERT(!uid.type.empty(),
-                        "ConstitutionUIDCollection: Constitution type is empty for UID: {}",
-                        uid.uid);
+                        "ConstitutionUIDCollection: Constitution type is empty for UID: {}, creator: {}({})",
+                        uid.uid,
+                        creator_info.file,
+                        creator_info.line);
+
+            create(uid, creator_info);
         }
     }
 }

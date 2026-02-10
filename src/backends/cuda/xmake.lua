@@ -13,8 +13,10 @@ target("cuda")
     else
         add_cugencodes("native")
     end
-    add_cuflags("/wd4819", {tools = "cl"})
-    add_cuflags("--diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,550", {force = true})
+    add_cuflags("--diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,550,221", {force = true})
+    add_cuflags("--expt-relaxed-constexpr")
+    add_cuflags("--extended-lambda")
+    
     add_links(
         "cudart",
         "cublas",
@@ -27,6 +29,8 @@ target("cuda")
         if target:is_plat('windows') then
             target:add('defines', '__NV_NO_HOST_COMPILER_CHECK', {public = true})
             target:add('cuflags', '-allow-unsupported-compiler', {public = true})
+            -- Suppress MSVC C4819 for host compilation of CUDA sources.
+            target:add('cuflags', '-Xcompiler=/wd4819', {public = true})
             target:set('toolchains', 'msvc')
         end
         target:set('toolchains', 'cuda')

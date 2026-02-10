@@ -7,7 +7,22 @@ A Cross-Platform Modern C++20 **Lib**rary of **U**nified **I**ncremental **P**ot
 - Libuipc:
     - [Windows](./windows.md)
     - [Linux](./linux.md)
-    - [Linux-Docker](./linux_docker.md)
+    - [Docker](./docker.md)
+    - [XMake](./xmake.md)
 
 - Libuipc Documentation:
     - [Build Document](./build_docs.md)
+
+## PyPI 
+
+> **Note:** The PyPI wheel is currently under development and may have problems. Use with caution.
+
+Limitations:
+
+- Only supports Windows/Ubuntu22.04
+- Only supports CUDA 12.8
+- Only supports Python 3.10-3.13
+
+```bash
+pip install pyuipc
+```

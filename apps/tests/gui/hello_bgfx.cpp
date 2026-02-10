@@ -76,3 +76,4 @@ TEST_CASE("hello_bgfx", "[bgfx]")
     bgfx::shutdown();
     glfwTerminate();
 }
+

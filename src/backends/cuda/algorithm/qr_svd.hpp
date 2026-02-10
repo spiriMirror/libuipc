@@ -1,13 +1,13 @@
 #pragma once
-#include "givens.hpp"
+#include <algorithm/givens.hpp>
+#include <type_define.h>
+
 namespace uipc::backend::cuda
 {
-
 namespace math
 {
-
     template <typename T>
-    constexpr void swap(T& a, T& b)
+    UIPC_GENERIC constexpr void swap(T& a, T& b)
     {
         auto s = a;
         a      = b;
@@ -15,13 +15,7 @@ namespace math
     }
 
     template <typename T>
-    constexpr T abd(T& a)
-    {
-        return a > 0 ? a : -a;
-    }
-
-    template <typename T>
-    constexpr void polar_decomposition(const Eigen::Matrix<T, 2, 2>& A,
+    UIPC_GENERIC constexpr void polar_decomposition(const Eigen::Matrix<T, 2, 2>& A,
                                        Eigen::Matrix<T, 2, 2>&       S,
                                        GivensRotation<T>&            R) noexcept
     {
@@ -42,7 +36,7 @@ namespace math
     }
 
     template <typename T>
-    constexpr void qr_svd2x2(const Eigen::Matrix<T, 2, 2>& A,
+    UIPC_GENERIC constexpr void qr_svd2x2(const Eigen::Matrix<T, 2, 2>& A,
                              Eigen::Matrix<T, 2, 1>&       S,
                              GivensRotation<T>&            U,
                              GivensRotation<T>&            V) noexcept
@@ -96,7 +90,7 @@ namespace math
     }
 
     template <typename T>
-    constexpr T wilkinson_shift(const T a1, const T b1, const T a2) noexcept
+    UIPC_GENERIC constexpr T wilkinson_shift(const T a1, const T b1, const T a2) noexcept
     {
         T d  = (T)0.5 * (a1 - a2);
         T bs = b1 * b1;
@@ -105,14 +99,14 @@ namespace math
     }
 
     template <typename T>
-    constexpr void flip_sign(int j, Eigen::Matrix<T, 3, 3>& U, Eigen::Matrix<T, 3, 1>& S) noexcept
+    UIPC_GENERIC constexpr void flip_sign(int j, Eigen::Matrix<T, 3, 3>& U, Eigen::Matrix<T, 3, 1>& S) noexcept
     {
         S(j)     = -S(j);
         U.col(j) = -U.col(j);
     }
 
     template <int t, typename T>
-    constexpr void sort_sigma(Eigen::Matrix<T, 3, 3>& U,
+    UIPC_GENERIC constexpr void sort_sigma(Eigen::Matrix<T, 3, 3>& U,
                               Eigen::Matrix<T, 3, 1>& sigma,
                               Eigen::Matrix<T, 3, 3>& V) noexcept
     {
@@ -189,7 +183,7 @@ namespace math
     }
 
     template <int t, typename T>
-    constexpr void process(Eigen::Matrix<T, 3, 3>& B,
+    UIPC_GENERIC constexpr void process(Eigen::Matrix<T, 3, 3>& B,
                            Eigen::Matrix<T, 3, 3>& U,
                            Eigen::Matrix<T, 3, 1>& S,
                            Eigen::Matrix<T, 3, 3>& V) noexcept
@@ -214,7 +208,7 @@ namespace math
 
 
     template <typename T>
-    constexpr void qr_svd(const Eigen::Matrix<T, 3, 3>& A,
+    UIPC_GENERIC constexpr void qr_svd(const Eigen::Matrix<T, 3, 3>& A,
                           Eigen::Matrix<T, 3, 1>&       S,
                           Eigen::Matrix<T, 3, 3>&       U,
                           Eigen::Matrix<T, 3, 3>&       V) noexcept
@@ -240,7 +234,7 @@ namespace math
                                            + beta[0] * beta[0] + beta[1] * beta[1]),
                            (T)1);
 
-        while(abd(alpha[0]) > tol && abs(alpha[1]) > tol && abs(alpha[2]) > tol
+        while(abs(alpha[0]) > tol && abs(alpha[1]) > tol && abs(alpha[2]) > tol
               && abs(beta[0]) > tol && abs(beta[1]) > tol)
         {
             auto mu = wilkinson_shift(alpha[1] * alpha[1] + beta[0] * beta[0],

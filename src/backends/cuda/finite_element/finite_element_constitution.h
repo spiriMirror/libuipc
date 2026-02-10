@@ -22,8 +22,7 @@ class FiniteElementConstitution : public FiniteElementEnergyProducer
     virtual U64    get_uid() const noexcept = 0;
     virtual IndexT get_dim() const noexcept = 0;
 
-    virtual void do_build(BuildInfo& info) = 0;
-    virtual void do_report_extent(ReportExtentInfo& info);
+    virtual void do_build(BuildInfo& info)                        = 0;
     virtual void do_init(FiniteElementMethod::FilteredInfo& info) = 0;
     const FiniteElementMethod::DimInfo& dim_info() const noexcept;
     const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;

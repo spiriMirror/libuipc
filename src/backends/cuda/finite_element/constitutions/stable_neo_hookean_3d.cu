@@ -14,7 +14,9 @@ class StableNeoHookean3D final : public FEM3DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64 ConstitutionUID = 10;
+    static constexpr U64   ConstitutionUID = 10;
+    static constexpr SizeT StencilSize     = 4;
+    static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
     using FEM3DConstitution::FEM3DConstitution;
 
@@ -27,6 +29,13 @@ class StableNeoHookean3D final : public FEM3DConstitution
     virtual U64 get_uid() const noexcept override { return ConstitutionUID; }
 
     virtual void do_build(BuildInfo& info) override {}
+
+    virtual void do_report_extent(ReportExtentInfo& info) override
+    {
+        info.energy_count(mus.size());
+        info.gradient_count(mus.size() * StencilSize);
+        info.hessian_count(mus.size() * HalfHessianSize);
+    }
 
     virtual void do_init(FiniteElementMethod::FilteredInfo& info) override
     {
@@ -158,10 +167,10 @@ class StableNeoHookean3D final : public FEM3DConstitution
                        Matrix12x12 H    = dFdx.transpose() * ddEddF * dFdx;
 
                        DoubletVectorAssembler DVA{G3s};
-                       DVA.segment<4>(I * 4).write(tet, G);
+                       DVA.segment<StencilSize>(I * StencilSize).write(tet, G);
 
                        TripletMatrixAssembler TMA{H3x3s};
-                       TMA.block<4, 4>(I * 4 * 4).write(tet, H);
+                       TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H);
                    });
     }
 };

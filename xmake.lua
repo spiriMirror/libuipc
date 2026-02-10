@@ -1,4 +1,4 @@
-set_xmakever("2.9.8")
+set_xmakever("3.0.5")
 
 option("gui", {default = false})
 option("pybind", {default = false, description = "Build pyuipc"})
@@ -9,23 +9,17 @@ option("benchmarks", {default = false})
 option("dev", {default = true, description = "Enable developer mode"})
 option("github_actions", {default = false})
 
-option("backend", {default = "cuda", description = "Build with CUDA backend"})
+option("backend_cuda", {default = true, description = "Build with CUDA backend"})
 
 option("python_version", {default = "3.11.x", description = "Specify python version"})
 option("python_system", {default = false, description = "Use system python"})
 
+
 includes("src", "apps", "xmake/*.lua")
 
-add_rules("mode.release", "mode.debug", "mode.releasedbg")
+add_rules("mode.release", "mode.debug", "mode.releasedbg", "uipc.basic")
 
 set_languages("c++20")
-
-if is_plat("windows") then
-    add_cxflags("/FC")
-    add_cxflags("/wd4068", "/wd4068")
-else
-    add_cxflags("-fmacro-prefix-map==" .. os.projectdir(), {force = true})
-end
 
 if is_plat("linux") then
     add_rpathdirs("$ORIGIN")

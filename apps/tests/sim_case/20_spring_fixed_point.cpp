@@ -1,9 +1,6 @@
-#include <catch2/catch_all.hpp>
-#include <app/asset_dir.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/hookean_spring.h>
-#include <filesystem>
-#include <fstream>
 
 TEST_CASE("20_spring_fixed_point", "[fem]")
 {
@@ -14,32 +11,25 @@ TEST_CASE("20_spring_fixed_point", "[fem]")
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path = AssetDir::output_path(__FILE__);
+    auto        output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
-
-    Engine engine{"cuda", this_output_path};
+    Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config                             = Scene::default_config();
+    auto config                             = test::Scene::default_config();
     config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
     config["line_search"]["report_energy"]  = true;
-
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
     {
-        // create constitution and contact model
         HookeanSpring hs;
-        scene.constitution_tabular().insert(hs);
         auto default_contact = scene.contact_tabular().default_element();
 
         // create object
-        auto object = scene.objects().create("shell");
+        auto object = scene.objects().create("spring");
 
 
         constexpr int   n = 15;
@@ -65,7 +55,7 @@ TEST_CASE("20_spring_fixed_point", "[fem]")
 
         label_surface(mesh);
 
-        hs.apply_to(mesh, 40.0_MPa);
+        hs.apply_to(mesh, 4.0_kPa);
         default_contact.apply_to(mesh);
 
         auto is_fixed        = mesh.vertices().find<IndexT>(builtin::is_fixed);
@@ -81,13 +71,16 @@ TEST_CASE("20_spring_fixed_point", "[fem]")
 
     world.init(scene);
     REQUIRE(world.is_valid());
-    SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
-    for(int i = 1; i < 100; i++)
+    SceneIO sio{scene};
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
+
+    while(world.frame() < 100)
     {
         world.advance();
+        REQUIRE(world.is_valid());
         world.retrieve();
-        sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, i));
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }

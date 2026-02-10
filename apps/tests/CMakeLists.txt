@@ -6,18 +6,19 @@ find_package(Catch2 CONFIG REQUIRED)
 function(uipc_executable_as_test name)
     target_link_libraries(${name} PRIVATE
             app
+            uipc::uipc
+            uipc::backend::none
             Catch2::Catch2WithMain)
     set_property(TARGET ${name} PROPERTY FOLDER "apps/tests")
     set_target_properties(${name} PROPERTIES OUTPUT_NAME "uipc_test_${name}")
     uipc_target_add_include_files(${name})
-    # add a dependency to the backends, so that the backends can be updated before the tests are run
-    uipc_target_add_backend_dependency(${name})
     # set the output directory to keep the binary files in the same directory
     uipc_target_set_output_directory(${name})
 endfunction()
 
 function(uipc_add_test name)
     add_executable(${name} ${ARGN})
+    uipc_target_set_relative_source_file(${name})
     uipc_executable_as_test(${name})
 endfunction()
 

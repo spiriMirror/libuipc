@@ -14,4 +14,6 @@ UIPC_GENERIC Vector12  transform_to_q(const Matrix4x4& transform);
 
 UIPC_GENERIC Matrix4x4 q_v_to_transform_v(const Vector12& q);
 UIPC_GENERIC Vector12  transform_v_to_q_v(const Matrix4x4& transform_v);
+
+UIPC_GENERIC void orthonormal_basis(Vector3& t, Vector3& n, Vector3& b);
 }  // namespace uipc::backend::cuda

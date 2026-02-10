@@ -18,7 +18,7 @@ TEST_CASE("scene_factory", "[serialization]")
     SimplicialComplexIO io;
     auto mesh = io.read_obj(fmt::format("{}cube.obj", AssetDir::trimesh_path()));
 
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Scene scene;
 

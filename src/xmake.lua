@@ -36,5 +36,5 @@ target("uipc_sanity_check")
 
 rule("uipc_deps")
     on_load(function (target)
-        target:add("deps","uipc_core", "uipc_geometry", "uipc_io","uipc_constitution","uipc_sanity_check")
+        target:add("deps","uipc_core", "uipc_geometry", "uipc_io","uipc_constitution","uipc_sanity_check", "none")
     end)

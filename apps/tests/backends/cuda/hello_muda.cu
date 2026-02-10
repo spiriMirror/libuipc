@@ -1,6 +1,6 @@
 #include <muda/ext/eigen/eigen_core_cxx20.h> // to use Eigen in CUDA
 
-#include <app/test_common.h>
+#include <app/app.h>
 #include <muda/buffer/device_buffer.h>
 
 void hello_muda()
@@ -35,3 +35,4 @@ TEST_CASE("hello_muda", "[muda]")
 {
     hello_muda();
 }
+

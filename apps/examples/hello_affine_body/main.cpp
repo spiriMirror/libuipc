@@ -79,7 +79,7 @@ int main()
 
     SceneIO sio{scene};
 
-    auto this_output_path = AssetDir::output_path(__FILE__);
+    auto this_output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 

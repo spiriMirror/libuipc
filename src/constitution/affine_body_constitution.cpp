@@ -2,7 +2,7 @@
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/builtin/constitution_type.h>
-#include <uipc/geometry/utils/compute_instance_volume.h>
+#include <uipc/geometry/utils/compute_mesh_volume.h>
 
 namespace uipc::constitution
 {
@@ -103,20 +103,20 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     auto kappa_view = geometry::view(*kappa_attr);
     std::ranges::fill(kappa_view, kappa);
 
-    auto volumes = geometry::compute_instance_volume(sc);
-
-    auto volume_view = volumes->view();
+    auto volume = geometry::compute_mesh_volume(sc);
 
     if constexpr(uipc::RUNTIME_CHECK)
     {
-        for(auto [i, v] : enumerate(volume_view))
-        {
-            UIPC_ASSERT(v > 0, "Volume of instance ({}) is negative ({}), which is not allowed.", i, v);
-        }
+        UIPC_ASSERT(volume > 0, "Volume of the mesh is negative ({}), which is not allowed.", volume);
     }
 
-    auto meta_mass = sc.meta().find<Float>(builtin::mass_density);
+    auto meta_volume = sc.meta().find<Float>(builtin::volume);
+    if(!meta_volume)
+        meta_volume = sc.meta().create<Float>(builtin::volume, volume);
+    else
+        geometry::view(*meta_volume).front() = volume;
 
+    auto meta_mass = sc.meta().find<Float>(builtin::mass_density);
     if(!meta_mass)
         meta_mass = sc.meta().create<Float>(builtin::mass_density, mass_density);
     else

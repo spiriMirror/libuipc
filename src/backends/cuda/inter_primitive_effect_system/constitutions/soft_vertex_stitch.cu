@@ -1,12 +1,17 @@
 #include <inter_primitive_effect_system/inter_primitive_constitution.h>
+#include <inter_primitive_effect_system/constitutions/soft_vertex_stitch_function.h>
 #include <uipc/builtin/attribute_name.h>
+#include <utils/matrix_assembler.h>
+#include <utils/make_spd.h>
 
 namespace uipc::backend::cuda
 {
 class SoftVertexStitch : public InterPrimitiveConstitution
 {
   public:
-    static constexpr U64 ConstitutionUID = 22;
+    static constexpr U64   ConstitutionUID = 22;
+    static constexpr SizeT StencilSize     = 2;
+    static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
     using InterPrimitiveConstitution::InterPrimitiveConstitution;
 
@@ -16,9 +21,11 @@ class SoftVertexStitch : public InterPrimitiveConstitution
 
     muda::DeviceBuffer<Vector2i> topos;
     muda::DeviceBuffer<Float>    kappas;
+    muda::DeviceBuffer<Float>    rest_lengths;
 
     vector<Vector2i> h_topos;
     vector<Float>    h_kappas;
+    vector<Float>    h_rest_lengths;
 
     muda::CBufferView<Float>              energies;
     muda::CDoubletVectorView<Float, 3>    gradients;
@@ -28,6 +35,7 @@ class SoftVertexStitch : public InterPrimitiveConstitution
     {
         list<Vector2i> topo_buffer;
         list<Float>    kappa_buffer;
+        list<Float>    rest_length_buffer;
 
         auto geo_slots    = world().scene().geometries();
         using ForEachInfo = InterPrimitiveConstitutionManager::ForEachInfo;
@@ -41,7 +49,8 @@ class SoftVertexStitch : public InterPrimitiveConstitution
                 UIPC_ASSERT(geo_ids, "SoftVertexStitch requires attribute `geo_ids` on meta()");
                 auto kappa = geo.instances().find<Float>("kappa");
                 UIPC_ASSERT(kappa, "SoftVertexStitch requires attribute `kappa` on instances()");
-
+                auto rest_length = geo.instances().find<Float>("rest_length");
+                UIPC_ASSERT(rest_length, "SoftVertexStitch requires attribute `rest_length` on instances()");
                 Vector2i ids = geo_ids->view()[0];
 
                 auto l_slot = info.geo_slot(ids[0]);
@@ -82,6 +91,13 @@ class SoftVertexStitch : public InterPrimitiveConstitution
                 {
                     kappa_buffer.push_back(kappa);
                 }
+
+                auto rest_length_view = rest_length->view();
+                for(auto rl : rest_length_view)
+                {
+                    UIPC_ASSERT(rl >= 0, "rest_length must be non-negative");
+                    rest_length_buffer.push_back(rl);
+                }
             });
 
         h_topos.resize(topo_buffer.size());
@@ -91,6 +107,10 @@ class SoftVertexStitch : public InterPrimitiveConstitution
         h_kappas.resize(kappa_buffer.size());
         std::ranges::move(kappa_buffer, h_kappas.begin());
         kappas.copy_from(h_kappas);
+
+        h_rest_lengths.resize(rest_length_buffer.size());
+        std::ranges::move(rest_length_buffer, h_rest_lengths.begin());
+        rest_lengths.copy_from(h_rest_lengths);
     }
 
     void do_report_energy_extent(EnergyExtentInfo& info) override
@@ -107,27 +127,31 @@ class SoftVertexStitch : public InterPrimitiveConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(topos.size(),
-                   [topos  = topos.cviewer().name("topos"),
-                    xs     = info.positions().cviewer().name("xs"),
-                    kappas = kappas.cviewer().name("kappas"),
-                    Es     = info.energies().viewer().name("Es"),
-                    dt     = info.dt()] __device__(int I)
+                   [topos        = topos.cviewer().name("topos"),
+                    xs           = info.positions().cviewer().name("xs"),
+                    kappas       = kappas.cviewer().name("kappas"),
+                    rest_lengths = rest_lengths.cviewer().name("rest_lengths"),
+                    Es           = info.energies().viewer().name("Es"),
+                    dt           = info.dt()] __device__(int I)
                    {
-                       const Vector2i& PP  = topos(I);
-                       Float           Kt2 = kappas(I) * dt * dt;
-                       Es(I) = 0.5 * Kt2 * (xs(PP[0]) - xs(PP[1])).squaredNorm();
+                       const Vector2i& PP   = topos(I);
+                       Float           Kt2  = kappas(I) * dt * dt;
+                       Float           dist = (xs(PP[0]) - xs(PP[1])).norm();
+                       Float           diff = dist - rest_lengths(I);
+                       Es(I)                = 0.5 * Kt2 * diff * diff;
                    });
     }
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
     {
-        info.gradient_segment_count(2 * topos.size());
-        info.hessian_block_count(4 * topos.size());
+        info.gradient_segment_count(StencilSize * topos.size());
+        info.hessian_block_count(HalfHessianSize * topos.size());
     }
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
+        namespace SVS = sym::soft_vertex_stitch;
 
         gradients = info.gradients();
         hessians  = info.hessians();
@@ -135,28 +159,31 @@ class SoftVertexStitch : public InterPrimitiveConstitution
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(topos.size(),
-                   [topos  = topos.cviewer().name("topos"),
-                    xs     = info.positions().cviewer().name("xs"),
-                    kappas = kappas.cviewer().name("kappas"),
-                    G3s    = info.gradients().viewer().name("Gs"),
-                    H3x3s  = info.hessians().viewer().name("H3x3s"),
-                    dt     = info.dt()] __device__(int I)
+                   [topos        = topos.cviewer().name("topos"),
+                    xs           = info.positions().cviewer().name("xs"),
+                    kappas       = kappas.cviewer().name("kappas"),
+                    rest_lengths = rest_lengths.cviewer().name("rest_lengths"),
+                    G3s          = info.gradients().viewer().name("Gs"),
+                    H3x3s        = info.hessians().viewer().name("H3x3s"),
+                    dt           = info.dt()] __device__(int I)
                    {
-                       const Vector2i& PP  = topos(I);
-                       Float           Kt2 = kappas(I) * dt * dt;
-                       Vector3         dX  = xs(PP[0]) - xs(PP[1]);
+                       Vector6         X;
+                       const Vector2i& PP = topos(I);
+                       for(int i = 0; i < 2; ++i)
+                           X.segment<3>(3 * i) = xs(PP[i]);
 
-                       Vector3   G = Kt2 * dX;
-                       Matrix3x3 H = Kt2 * Matrix3x3::Identity();
-                       // gradient
-                       G3s(2 * I + 0).write(PP[0], G);
-                       G3s(2 * I + 1).write(PP[1], -G);
+                       Float   L0  = rest_lengths(I);
+                       Float   Kt2 = kappas(I) * dt * dt;
+                       Vector6 G;
+                       SVS::dEdX(G, Kt2, X, L0);
+                       DoubletVectorAssembler VA{G3s};
+                       VA.segment<StencilSize>(I * StencilSize).write(PP, G);
 
-                       // hessian
-                       H3x3s(4 * I + 0).write(PP[0], PP[0], H);
-                       H3x3s(4 * I + 1).write(PP[0], PP[1], -H);
-                       H3x3s(4 * I + 2).write(PP[1], PP[0], -H);
-                       H3x3s(4 * I + 3).write(PP[1], PP[1], H);
+                       Matrix6x6 H;
+                       SVS::ddEddX(H, Kt2, X, L0);
+                       make_spd(H);
+                       TripletMatrixAssembler MA{H3x3s};
+                       MA.half_block<StencilSize>(I * HalfHessianSize).write(PP, H);
                    });
     }
 };

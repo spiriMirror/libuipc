@@ -44,6 +44,9 @@ class ABDJacobi  // for every point
         return (*this) * q;
     };
 
+    // without translation, only rotation and scaling
+    MUDA_GENERIC Vector3 vec_x(const Vector12& q) const;
+
     MUDA_GENERIC Matrix3x12 to_mat() const;
 
     MUDA_GENERIC ABDJacobiT T() const { return ABDJacobiT(*this); }
@@ -107,7 +110,20 @@ class ABDJacobiStack3 : public ABDJacobiStack<3>
     }
 };
 
-
+class ABDJacobiStack4 : public ABDJacobiStack<4>
+{
+  public:
+    MUDA_GENERIC ABDJacobiStack4(const ABDJacobi& j1,
+                                 const ABDJacobi& j2,
+                                 const ABDJacobi& j3,
+                                 const ABDJacobi& j4)
+    {
+        m_jacobis[0] = &j1;
+        m_jacobis[1] = &j2;
+        m_jacobis[2] = &j3;
+        m_jacobis[3] = &j4;
+    }
+};
 //tex:
 // $$
 //\mathbf{g}^{\text{Affine}}_k = \sum_{i\in \mathscr{C}_k \cap \mathscr{A}}

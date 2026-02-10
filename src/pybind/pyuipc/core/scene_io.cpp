@@ -1,5 +1,4 @@
 #include <pyuipc/core/scene_io.h>
-#include <pyuipc/common/json.h>
 #include <uipc/io/scene_io.h>
 #include <uipc/core/scene_snapshot.h>
 
@@ -8,14 +7,17 @@ namespace pyuipc::core
 using namespace uipc::core;
 PySceneIO::PySceneIO(py::module& m)
 {
-    auto class_SceneIO = py::class_<SceneIO>(m, "SceneIO",
-                                              R"(SceneIO class for loading and saving scenes to/from files and JSON.)");
-    class_SceneIO.def(py::init<Scene&>(), py::arg("scene"),
-                     R"(Create a SceneIO instance for a scene.
+    auto class_SceneIO = py::class_<SceneIO>(
+        m, "SceneIO", R"(SceneIO class for loading and saving scenes to/from files and JSON.)");
+    class_SceneIO.def(py::init<Scene&>(),
+                      py::arg("scene"),
+                      R"(Create a SceneIO instance for a scene.
 Args:
     scene: Scene to perform I/O operations on.)");
-    class_SceneIO.def("write_surface", &SceneIO::write_surface, py::arg("filename"),
-                     R"(Write surface geometry to a file.
+    class_SceneIO.def("write_surface",
+                      &SceneIO::write_surface,
+                      py::arg("filename"),
+                      R"(Write surface geometry to a file.
 Args:
     filename: Output file path.)");
     class_SceneIO.def(
@@ -37,16 +39,21 @@ Args:
 Returns:
     Scene: Loaded scene.)");
     class_SceneIO.def(
-        "save", [](SceneIO& self, std::string_view file) { self.save(file); }, py::arg("filename"),
+        "save",
+        [](SceneIO& self, std::string_view file) { self.save(file); },
+        py::arg("filename"),
         R"(Save the scene to a file.
 Args:
     filename: Output file path.)");
-    class_SceneIO.def("to_json", &SceneIO::to_json,
-                     R"(Convert scene to JSON representation.
+    class_SceneIO.def("to_json",
+                      &SceneIO::to_json,
+                      R"(Convert scene to JSON representation.
 Returns:
     dict: JSON representation of the scene.)");
-    class_SceneIO.def_static("from_json", &SceneIO::from_json, py::arg("json"),
-                            R"(Create a scene from JSON.
+    class_SceneIO.def_static("from_json",
+                             &SceneIO::from_json,
+                             py::arg("json"),
+                             R"(Create a scene from JSON.
 Args:
     json: JSON dictionary representing the scene.
 Returns:

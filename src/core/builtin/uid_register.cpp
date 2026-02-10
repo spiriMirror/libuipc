@@ -3,15 +3,17 @@
 
 namespace uipc::builtin::details
 {
-void UIDRegister::create(const UIDInfo& info)
+void UIDRegister::create(const UIDInfo& info, const CreatorInfo& creator)
 {
     auto it = m_uid_to_info.find(info.uid);
     UIPC_ASSERT(it == m_uid_to_info.end(),
-                "UID {} already exists, name={}, yours UID {}, name={}",
+                "UID {} already exists, name={}, yours UID {}, name={}, creator: {}({})",
                 it->second.uid,
                 it->second.name,
                 info.uid,
-                info.name);
+                info.name,
+                creator.file,
+                creator.line);
     m_uid_to_info[info.uid] = info;
 }
 

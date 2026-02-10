@@ -1,19 +1,33 @@
-# The xmake building system
+# XMake
 
-UPDATE 2024-12-14
+## Prerequisites
 
-- currently maintained in `xmake` branch
-- build `xmake`
-- contact @sailing-innocent for support
+The following dependencies are required to build the project.
 
-## Current Issues
+| Name                                                | Version      | Usage           | Import         |
+| --------------------------------------------------- | ------------ | --------------- | -------------- |
+| [Python](https://www.python.org/downloads/)         | >=3.11       | build system    | system install |
+| [Cuda](https://developer.nvidia.com/cuda-downloads) | >=12.4       | GPU programming | system install |
 
-- fmt support: https://github.com/spiriMirror/libuipc/issues/52
-- different heading style between cmake and xmake: https://github.com/spiriMirror/libuipc/issues/51
+## Build Project
 
-## Basic Q & A
+Clone the repository with the following command:
+
+```shell
+git clone https://github.com/spiriMirror/libuipc.git
+```
+
+Then, you can use the following commands to build the project.
+
+```shell
+cd libuipc
+xmake
+```
+
+## Troubleshooting
 
 ### out of memory
 
-- xmake use a lot of process for parallel compilation in order to accelerate the compilation task. However, nvcc will consume a lot of memory, thus will eventually cause an OOM
-- Solution:  set the multi-process manurally, e.g. `xmake -j8` to set 8 parallel compilation jobs
+Xmake uses a lot of process for parallel compilation in order to accelerate the compilation task. However, nvcc will consume a lot of memory, thus will eventually cause an OOM
+
+✅ Set the multi-process manurally, e.g. `xmake -j8` to set 8 parallel compilation jobs

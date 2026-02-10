@@ -15,7 +15,7 @@ int main()
 
     SimplicialComplex mesh = tetmesh(Vs, Ts);
 
-    SpreadSheetIO       ssio{AssetDir::output_path(__FILE__)};
+    SpreadSheetIO       ssio{AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE)};
     SimplicialComplexIO io;
 
     // 1) dump the original geometry
@@ -31,7 +31,7 @@ int main()
     auto unoriented_surface = extract_surface(mesh);
     ssio.write_json("3_unoriented_surface", unoriented_surface);
     ssio.write_csv("3_unoriented_surface", unoriented_surface);
-    io.write(AssetDir::output_path(__FILE__) + "2_unoriented_surface.obj", unoriented_surface);
+    io.write(AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE) + "2_unoriented_surface.obj", unoriented_surface);
 
     // 4) label the triangle orientation
     label_triangle_orient(mesh);
@@ -42,5 +42,5 @@ int main()
     auto surface = extract_surface(mesh);
     ssio.write_json("5_oriented_surface", surface);
     ssio.write_csv("5_oriented_surface", surface);
-    io.write(AssetDir::output_path(__FILE__) + "5_oriented_surface.obj", surface);
+    io.write(AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE) + "5_oriented_surface.obj", surface);
 }

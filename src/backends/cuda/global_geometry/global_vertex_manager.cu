@@ -1,4 +1,5 @@
 #include <global_geometry/global_vertex_manager.h>
+#include <active_set_system/global_active_set_manager.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
 #include <muda/cub/device/device_reduce.h>
@@ -16,6 +17,8 @@ void GlobalVertexManager::do_build()
 {
     auto d_hat = world().scene().config().find<Float>("contact/d_hat");
     m_impl.default_d_hat = d_hat->view()[0];
+
+    m_impl.global_active_set_manager = find<GlobalActiveSetManager>();
 }
 
 void GlobalVertexManager::Impl::init()
@@ -23,6 +26,12 @@ void GlobalVertexManager::Impl::init()
     auto vertex_reporter_view = vertex_reporters.view();
 
     // 1) Setup index for each vertex reporter
+
+    // ref: https://github.com/spiriMirror/libuipc/issues/271
+    // Sort by uid to ensure the order is consistent
+    std::ranges::sort(vertex_reporter_view,
+                      [](const VertexReporter* l, const VertexReporter* r)
+                      { return l->uid() < r->uid(); });
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
         R->m_index = i;
 
@@ -121,6 +130,37 @@ void GlobalVertexManager::Impl::collect_vertex_displacements()
     }
 }
 
+void GlobalVertexManager::Impl::prepare_AL_CCD() {
+    UIPC_ASSERT(global_active_set_manager, "GlobalActiveSetManager not enabled");
+    auto non_penetrate_positions = global_active_set_manager->non_penetrate_positions();
+    auto& tmp_pos = safe_positions;
+    UIPC_ASSERT(non_penetrate_positions.size() == positions.size(), "Non-penetrate size not equal");
+    muda::ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(positions.size(),
+               [pos      = positions.viewer().name("pos"),
+               tmp_pos = tmp_pos.viewer().name("tmp_pos"),
+               disp     = displacements.viewer().name("disp"),
+               non_penetrate_pos = non_penetrate_positions.viewer().name("non_penetrate_pos")] __device__(int i) mutable {
+                   disp(i) = pos(i) - non_penetrate_pos(i);
+                   tmp_pos(i) = pos(i);
+                   pos(i) = non_penetrate_pos(i);
+               });
+}
+
+void GlobalVertexManager::Impl::post_AL_CCD() {
+    auto& tmp_pos = safe_positions;
+    muda::BufferLaunch().copy<Vector3>(positions.view(), std::as_const(tmp_pos).view());
+}
+
+void GlobalVertexManager::Impl::recover_non_penetrate() {
+    using namespace muda;
+    UIPC_ASSERT(global_active_set_manager, "GlobalActiveSetManager not enabled");
+    auto non_penetrate_positions = global_active_set_manager->non_penetrate_positions();
+    UIPC_ASSERT(non_penetrate_positions.size() == positions.size(), "Non-penetrate size not equal");
+    BufferLaunch().copy<Vector3>(positions.view(), non_penetrate_positions);
+}
+
 void GlobalVertexManager::Impl::record_prev_positions()
 {
     using namespace muda;
@@ -181,7 +221,7 @@ namespace uipc::backend::cuda
 {
 bool GlobalVertexManager::Impl::dump(DumpInfo& info)
 {
-    auto path  = info.dump_path(__FILE__);
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
     return dump_positions.dump(fmt::format("{}positions.{}", path, frame), positions)  //
@@ -191,7 +231,7 @@ bool GlobalVertexManager::Impl::dump(DumpInfo& info)
 
 bool GlobalVertexManager::Impl::try_recover(RecoverInfo& info)
 {
-    auto path = info.dump_path(__FILE__);
+    auto path = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     return dump_positions.load(fmt::format("{}positions.{}", path, info.frame()))  //
            && dump_prev_positions.load(
                fmt::format("{}prev_positions.{}", path, info.frame()));
@@ -417,6 +457,18 @@ void GlobalVertexManager::step_forward(Float alpha)
 void GlobalVertexManager::record_start_point()
 {
     m_impl.record_start_point();
+}
+
+void GlobalVertexManager::prepare_AL_CCD() {
+    m_impl.prepare_AL_CCD();
+}
+
+void GlobalVertexManager::post_AL_CCD() {
+    m_impl.post_AL_CCD();
+}
+
+void GlobalVertexManager::recover_non_penetrate() {
+    m_impl.recover_non_penetrate();
 }
 
 muda::CBufferView<IndexT> GlobalVertexManager::dimensions() const noexcept

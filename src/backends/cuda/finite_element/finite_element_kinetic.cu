@@ -17,7 +17,8 @@ void FiniteElementKinetic::do_report_extent(ReportExtentInfo& info)
 {
     auto vert_count = m_impl.finite_element_method->xs().size();
     info.energy_count(vert_count);
-    info.stencil_dim(1);
+    info.gradient_count(vert_count);
+    info.hessian_count(vert_count);
 }
 
 void FiniteElementKinetic::do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info)

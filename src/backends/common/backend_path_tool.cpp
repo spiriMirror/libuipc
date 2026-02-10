@@ -13,50 +13,19 @@ auto BackendPathTool::workspace() const noexcept -> Path
     return m_workspace;
 }
 
-auto BackendPathTool::relative(std::string_view _file_,
-                               bool with_backend_name) const noexcept -> Path
-{
-    namespace fs = std::filesystem;
-
-    Path file_path{_file_};
-
-    Path backends_dir = backend_source_dir();
-    
-    if constexpr(uipc::RUNTIME_CHECK)
-    {
-        auto [left, right] = std::mismatch(file_path.begin(),
-                                           file_path.end(),
-                                           backends_dir.begin(),
-                                           backends_dir.end());
-
-        UIPC_ASSERT(right == backends_dir.end(),
-                    "The file path {} is not in the backends directory {}",
-                    file_path.string(),
-                    backends_dir.string());
-
-        auto rel   = fs::relative(file_path, backends_dir);
-        Path first = *rel.begin();
-        UIPC_ASSERT(first == "common" || first == backend_name(),
-                    "The first folder in the relative path [{}] is not the backend name [{}] or [common], why can it happen?",
-                    first.string(),
-                    backend_name());
-    }
-
-    if(with_backend_name)
-        backends_dir /= backend_name();
-
-    return fs::relative(file_path, backends_dir);
-}
-
-auto BackendPathTool::workspace(std::string_view _file_,
+auto BackendPathTool::workspace(std::string_view uipc_relative_source_file,
                                 std::string_view prefix) const noexcept -> Path
 {
     namespace fs = std::filesystem;
 
-    Path file_path{_file_};
-    Path out_path = fs::absolute(Path{m_workspace} / prefix);
-
-    Path file_output_path = out_path / relative(_file_, false);
+    Path file_path{uipc_relative_source_file};
+    UIPC_ASSERT(file_path.is_relative(),
+                "UIPC_RELATIVE_SOURCE_FILE must be relative, got {}",
+                file_path.string());
+    Path backend_source_dir{UIPC_BACKEND_DIR};
+    Path abs_file_path = Path{UIPC_PROJECT_DIR} / file_path;
+    Path relative_to_backend_source_dir = fs::relative(abs_file_path, backend_source_dir);
+    Path file_output_path = Path{m_workspace} / Path{prefix} / relative_to_backend_source_dir;
 
     // create all the intermediate directories if they don't exist
     if(!fs::exists(file_output_path))

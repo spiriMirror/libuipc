@@ -35,4 +35,9 @@ void VertexReporter::report_displacements(GlobalVertexManager::VertexDisplacemen
 {
     do_report_displacements(info);
 }
+
+U64 VertexReporter::uid() const noexcept
+{
+    return get_uid();
+}
 }  // namespace uipc::backend::cuda

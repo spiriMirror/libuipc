@@ -17,4 +17,17 @@ void OffDiagLinearSubsystem::do_build()
 
     global_linear_system.add_subsystem(this);
 }
+
+void OffDiagLinearSubsystem::init()
+{
+    InitInfo info;
+    do_init(info);
+}
+
+void OffDiagLinearSubsystem::do_init(InitInfo& info) {}
+
+std::tuple<U64, U64> OffDiagLinearSubsystem::uid() const noexcept
+{
+    return std::make_tuple(m_l->uid(), m_r->uid());
+}
 }  // namespace uipc::backend::cuda

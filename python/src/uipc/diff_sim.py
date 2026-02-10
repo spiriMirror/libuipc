@@ -1,1 +1,1 @@
-from pyuipc.diff_sim import *
+from uipc._native.pyuipc.diff_sim import *

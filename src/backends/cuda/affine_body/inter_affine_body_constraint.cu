@@ -2,6 +2,12 @@
 
 namespace uipc::backend::cuda
 {
+span<const InterAffineBodyAnimator::AnimatedInterGeoInfo> InterAffineBodyConstraint::animated_inter_geo_info() const noexcept
+{
+    auto [offset, count] = m_animator->m_impl.constraint_geo_info_offsets_counts[m_index];
+    return span{m_animator->m_impl.anim_geo_infos}.subspan(offset, count);
+}
+
 void InterAffineBodyConstraint::do_build()
 {
     auto all_uids = world().scene().constitution_tabular().uids();
@@ -11,12 +17,12 @@ void InterAffineBodyConstraint::do_build()
             fmt::format("{} requires Constraint UID={}", name(), uid()));
     }
 
-    auto& affine_body_animator = require<InterAffineBodyAnimator>();
+    m_animator = require<InterAffineBodyAnimator>();
 
     BuildInfo info;
     do_build(info);
 
-    affine_body_animator.add_constraint(this);
+    m_animator->add_constraint(this);
 }
 
 U64 InterAffineBodyConstraint::uid() const noexcept

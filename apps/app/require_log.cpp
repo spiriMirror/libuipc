@@ -23,3 +23,4 @@ Logger& CaptureSink::test_logger()
     return logger;
 }
 }  // namespace uipc
+

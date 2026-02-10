@@ -28,3 +28,4 @@ TEST_CASE("abd", "[constitution]")
     // this name is important for the AffineBodyConstitution
     REQUIRE(kappa->name() == "kappa");
 }
+

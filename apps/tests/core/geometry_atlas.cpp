@@ -27,7 +27,7 @@ TEST_CASE("geometry_atlas", "[serialization]")
     atlas.create(mesh);
     atlas.create(mesh_copy);
 
-    auto output_path = AssetDir::output_path(__FILE__);
+    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
     auto output_file = fmt::format("{}/geometry_atlas.json", output_path);
 
 
@@ -80,7 +80,7 @@ TEST_CASE("geometry_atlas_commit", "[serialization]")
 
     // Write the json to a file
     {
-        auto output_path = AssetDir::output_path(__FILE__);
+        auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
         auto output_file = fmt::format("{}/geometry_atlas_commit.json", output_path);
 
         std::ofstream ofs(output_file);
@@ -116,3 +116,4 @@ TEST_CASE("geometry_atlas_commit", "[serialization]")
         REQUIRE(instances2_it->second->attribute_collection().size() == 2);
     }
 }
+

@@ -1,4 +1,4 @@
-#include <app/test_common.h>
+#include <app/app.h>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 
@@ -9,7 +9,7 @@ using namespace uipc::geometry;
 TEST_CASE("points_from_volume_with_vdb", "[points]")
 {
     SimplicialComplexIO io;
-    auto                output_path = AssetDir::output_path(__FILE__);
+    auto                output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     SECTION("cube")
     {
@@ -28,3 +28,4 @@ TEST_CASE("points_from_volume_with_vdb", "[points]")
     }
 #endif
 }
+

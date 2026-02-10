@@ -18,12 +18,7 @@ class SimSystemCreator<cuda::GlobalContactManager>
         auto contact_enable_attr =
             engine.world().scene().config().find<IndexT>("contact/enable");
         bool contact_enable = contact_enable_attr->view()[0] != 0;
-
-        auto& types = engine.world().scene().constitution_tabular().types();
-        bool  has_inter_primitive_constitution =
-            types.find(std::string{builtin::InterPrimitive}) != types.end();
-
-        if(contact_enable || has_inter_primitive_constitution)
+        if(contact_enable)
             return make_unique<cuda::GlobalContactManager>(engine);
         return nullptr;
     }

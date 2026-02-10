@@ -20,4 +20,21 @@ class UIPC_CONSTITUTION_API ElasticModuli
     Float m_lambda;
     Float m_mu;
 };
+
+class UIPC_CONSTITUTION_API ElasticModuli2D
+{
+  public:
+    static ElasticModuli2D lame(Float lambda, Float mu) noexcept;
+    static ElasticModuli2D youngs_shear(Float E, Float G) noexcept;
+    static ElasticModuli2D youngs_poisson(Float E, Float nu);
+
+    auto lambda() const noexcept { return m_lambda; }
+    auto mu() const noexcept { return m_mu; }
+
+  private:
+    ElasticModuli2D() = default;
+    ElasticModuli2D(Float lambda, Float mu) noexcept;
+    Float m_lambda;
+    Float m_mu;
+};
 }  // namespace uipc::constitution

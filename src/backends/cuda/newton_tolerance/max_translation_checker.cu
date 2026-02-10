@@ -41,9 +41,7 @@ class MaxTranslationChecker : public NewtonToleranceChecker
         if(newton_iter == 0)
             res0 = res;  // record the initial residual
 
-        rel_tol = res == 0.0 ? 0.0 : res / res0;
-
-        auto converged = res <= abs_tol || rel_tol <= 0.001;
+        auto converged = res <= abs_tol;
 
         info.converged(converged);
     }

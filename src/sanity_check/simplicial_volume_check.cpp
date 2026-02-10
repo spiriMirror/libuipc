@@ -83,11 +83,10 @@ class SimplicialVolumeCheck final : public SanityChecker
             else if(uid_info.type == builtin::AffineBody)
             {
 
-                auto volume      = sc->instances().find<Float>(builtin::volume);
-                auto volume_view = volume->view();
-                auto min_elem =
-                    std::min_element(volume_view.begin(), volume_view.end());
-                if(*min_elem <= 0.0)
+                auto volume      = sc->meta().find<Float>(builtin::volume);
+                auto volume_view = volume->view().front();
+
+                if(volume_view <= 0.0)
                 {
                     invalid_geo_ids.push_back(gid);
                     invalid_obj_ids.push_back(oid);

@@ -9,17 +9,17 @@ namespace pyuipc::core
 class PyIEngine : public uipc::core::IEngine
 {
   public:
-    PyIEngine()                                                    = default;
-    virtual void                                do_init()          = 0;
-    virtual void                                do_advance()       override = 0;
-    virtual void                                do_sync()          override = 0;
-    virtual void                                do_retrieve()      override = 0;
-    virtual Json                                do_to_json() const override = 0;
-    virtual bool                                do_dump()          override = 0;
-    virtual bool                                do_recover(SizeT dst_frame) override = 0;
-    virtual SizeT                               get_frame() const           override = 0;
-    virtual uipc::core::EngineStatusCollection& get_status()                override = 0;
-    virtual const uipc::core::FeatureCollection& get_features() const       override = 0;
+    PyIEngine()                                                       = default;
+    virtual void  do_init()                                           = 0;
+    virtual void  do_advance() override                               = 0;
+    virtual void  do_sync() override                                  = 0;
+    virtual void  do_retrieve() override                              = 0;
+    virtual Json  do_to_json() const override                         = 0;
+    virtual bool  do_dump() override                                  = 0;
+    virtual bool  do_recover(SizeT dst_frame) override                = 0;
+    virtual SizeT get_frame() const override                          = 0;
+    virtual uipc::core::EngineStatusCollection& get_status() override = 0;
+    virtual const uipc::core::FeatureCollection& get_features() const override = 0;
     S<uipc::core::World> world() const { return m_world; }
 
   private:

@@ -67,6 +67,11 @@ class LBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         muda::DeviceBuffer<Float> tois;  // PP, PE, PT, EE
     };
 
+  virtual muda::CBufferView<Vector2i> candidate_PTs() const noexcept override;
+  virtual muda::CBufferView<Vector2i> candidate_EEs() const noexcept override;
+  virtual muda::CBufferView<Float> toi_PTs() const noexcept override;
+  virtual muda::CBufferView<Float> toi_EEs() const noexcept override;
+
   private:
     Impl m_impl;
 

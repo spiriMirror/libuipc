@@ -21,27 +21,36 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("newton/ccd_tol", Float{1.0});
     config.create("newton/transrate_tol", Float{0.1 / 1.0_s});
 
+    config.create("newton/semi_implicit/enable", IndexT{0});
+    config.create("newton/semi_implicit/beta_tol", Float{1e-3});
+
     config.create("linear_system/tol_rate", Float{1e-3});
     config.create("linear_system/solver", std::string{"linear_pcg"});
     config.create("line_search/max_iter", IndexT{8});
     config.create("line_search/report_energy", IndexT{0});
 
     config.create("contact/enable", IndexT{1});
+    config.create("contact/constitution", std::string{"ipc"});  // options: std::string{"al-ipc"}
+
     config.create("contact/friction/enable", IndexT{1});
-    config.create("contact/constitution", std::string{"ipc"});
     config.create("contact/d_hat", Float{0.01});
     config.create("contact/eps_velocity", Float{0.01_m / 1.0_s});
 
-    config.create("collision_detection/method", std::string{"linear_bvh"});
+    // default:
+    //  - stackless_bvh
+    // or:
+    //  - linear_bvh (slower)
+    config.create("collision_detection/method", std::string{"stackless_bvh"});
 
     config.create("sanity_check/enable", IndexT{1});
     config.create("sanity_check/mode", std::string{"normal"});
 
-    // recovery removed
-
     config.create("diff_sim/enable", IndexT{0});
 
     config.create("extras/debug/dump_surface", IndexT{0});
+    config.create("extras/debug/dump_linear_system", IndexT{0});
+    config.create("extras/debug/dump_linear_pcg", IndexT{0});
+
     config.create("extras/strict_mode/enable", IndexT{0});
 
     return config;

@@ -542,16 +542,12 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          uipc::geometry::affine_body::compute_dyadic_mass(
                              sc, rho_view[0], m, m_x_bar, m_x_bar_x_bar);
                          geo_mass = ABDJacobiDyadicMass::from_dyadic_mass(m, m_x_bar, m_x_bar_x_bar);
-
-                         //std::cout << "mass: \n"
-                         //          << geo_mass.to_mat() << std::endl;
                      }
 
-                     auto volume = sc.instances().find<Float>(builtin::volume);
-                     UIPC_ASSERT(volume, "The `volume` attribute is not found in the affine body instance, why can it happen?");
+                     auto volume = sc.meta().find<Float>(builtin::volume);
+                     UIPC_ASSERT(volume, "The `volume` attribute is not found in the affine body meta, why can it happen?");
 
-                     auto volume_view = volume->view();
-                     //std::cout << "volume: " << volume_view[0] << std::endl;
+                     auto volume_v = volume->view().front();
 
                      auto self_collision = sc.meta().find<IndexT>(builtin::self_collision);
                      UIPC_ASSERT(self_collision, "The `self_collision` attribute is not found in the affine body `meta`, why can it happen?");
@@ -564,7 +560,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          // mass
                          h_body_id_to_abd_mass[body_id] = geo_mass;
                          // volume
-                         h_body_id_to_volume[body_id] = volume_view[i];
+                         h_body_id_to_volume[body_id] = volume_v;
                          // dim
                          h_body_id_to_dim[body_id] = sc.dim();
                          // self_collision
@@ -823,7 +819,7 @@ namespace uipc::backend::cuda
 {
 bool AffineBodyDynamics::Impl::dump(DumpInfo& info)
 {
-    auto path  = info.dump_path(__FILE__);
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
     return dump_q.dump(fmt::format("{}q.{}", path, frame), body_id_to_q)  //
@@ -833,7 +829,7 @@ bool AffineBodyDynamics::Impl::dump(DumpInfo& info)
 
 bool AffineBodyDynamics::Impl::try_recover(RecoverInfo& info)
 {
-    auto path  = info.dump_path(__FILE__);
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
     return dump_q.load(fmt::format("{}q.{}", path, frame))                //

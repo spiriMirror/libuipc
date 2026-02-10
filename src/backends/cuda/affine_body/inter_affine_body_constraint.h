@@ -25,6 +25,17 @@ class InterAffineBodyConstraint : public SimSystem
     virtual void do_compute_energy(InterAffineBodyAnimator::EnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info) = 0;
 
+
+    template <typename ForEachGeometry>
+    void for_each(span<S<geometry::GeometrySlot>> geo_slots, ForEachGeometry&& for_every_geometry)
+    {
+        InterAffineBodyAnimator::_for_each(geo_slots,
+                                           animated_inter_geo_info(),
+                                           std::forward<ForEachGeometry>(for_every_geometry));
+    }
+
+    span<const InterAffineBodyAnimator::AnimatedInterGeoInfo> animated_inter_geo_info() const noexcept;
+
   private:
     friend class InterAffineBodyAnimator;
     virtual void do_build() override final;
@@ -35,6 +46,7 @@ class InterAffineBodyConstraint : public SimSystem
     void compute_energy(InterAffineBodyAnimator::EnergyInfo& info);
     void compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info);
 
-    SizeT m_index = ~0ull;
+    SizeT                                  m_index = ~0ull;
+    SimSystemSlot<InterAffineBodyAnimator> m_animator;
 };
 }  // namespace uipc::backend::cuda

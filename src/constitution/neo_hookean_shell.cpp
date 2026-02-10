@@ -21,7 +21,7 @@ NeoHookeanShell::NeoHookeanShell(const Json& config) noexcept
 }
 
 void NeoHookeanShell::apply_to(geometry::SimplicialComplex& sc,
-                               const ElasticModuli&         moduli,
+                               const ElasticModuli2D&       moduli,
                                Float                        mass_density,
                                Float                        thickness) const
 {

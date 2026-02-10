@@ -1,0 +1,1 @@
+This folder contains the native code for the pyuipc package.

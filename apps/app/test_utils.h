@@ -17,7 +17,11 @@ class Scene
 {
   public:
     static Json default_config();
+    static void dump_config(const Json& config, std::string_view workspace);
 };
+
+
 }  // namespace uipc::test
 
 #define UNUSED ::uipc::test::unused +
+

@@ -18,9 +18,7 @@ template <typename InputIt, typename OutputIt, typename OutputCountIt, typename 
     requires requires(InputIt in_first, InputIt in_last, OutputIt out_unique, OutputCountIt out_counts, Pred p) {
         // able to assign value from input to output
         *out_unique = *in_first;
-        // out_counts must be a iterator to integral type
-        std::integral<typename std::iterator_traits<OutputCountIt>::value_type>;
-        // able to assign value to out_counts
+        // able to assign integral value to out_counts
         *out_counts = 0;
         // able to compare two values
         {

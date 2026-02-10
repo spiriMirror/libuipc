@@ -40,19 +40,17 @@ class FiniteElementEnergyProducer : public SimSystem
          * @brief Set the number of element energy
          */
         void energy_count(SizeT count) noexcept;
-        /**
-         * @brief Set the stencil dimension
-         *
-         *  stencil_dim = N means the element contains N vertices, so
-         *  the gradient has size 3 * N, and the hessian has size (3 * N) * (3 * N)
-         * 
-         */
-        void stencil_dim(SizeT dim) noexcept;
+
+        void gradient_count(SizeT count) noexcept;
+
+        void hessian_count(SizeT count) noexcept;
 
       private:
         friend class FiniteElementEnergyProducer;
-        SizeT m_energy_count = 0;
-        SizeT m_stencil_dim  = 0;
+
+        SizeT m_energy_count   = 0;
+        SizeT m_gradient_count = 0;
+        SizeT m_hessian_count  = 0;
     };
 
     class ComputeEnergyInfo

@@ -24,4 +24,28 @@ Json UIDInfo::to_json() const noexcept
     j["extras"]      = extras;
     return j;
 }
+
+UIDInfoCreator::UIDInfoCreator(std::function<list<UIDInfo>()> creator,
+                               std::string_view               file,
+                               int                            line) noexcept
+    : m_creator{std::move(creator)}
+    , m_file{file}
+    , m_line{line}
+{
+}
+
+list<UIDInfo> UIDInfoCreator::operator()() const
+{
+    return m_creator();
+}
+
+std::string_view UIDInfoCreator::file() const noexcept
+{
+    return m_file;
+}
+
+int UIDInfoCreator::line() const noexcept
+{
+    return m_line;
+}
 }  // namespace uipc::builtin

@@ -116,7 +116,7 @@ void label_surface(SimplicialComplex& R)
                           std::back_inserter(unique_triangles),
                           std::back_inserter(counts),
                           [](const Vector4i& a, const Vector4i& b)
-                          { return a.segment<3>(0) == b.segment<3>(0); });
+                          { return a[0] == b[0] && a[1] == b[1] && a[2] == b[2]; });
 
     // Principle:
     // if a triangle is unique in the separated triangles, it is a surface triangle
@@ -219,7 +219,7 @@ void label_surface(SimplicialComplex& R)
                           std::back_inserter(unique_edges),
                           std::back_inserter(counts_edges),
                           [](const Vector3i& a, const Vector3i& b)
-                          { return a.segment<2>(0) == b.segment<2>(0); });
+                          { return a[0] == b[0] && a[1] == b[1]; });
 
     // exclusive scan to get the offsets, then we can use offset[i] to find the start index of the i-th unique edge
     vector<IndexT> offsets_edges(unique_edges.size());

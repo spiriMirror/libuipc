@@ -1,4 +1,4 @@
-#include <app/test_common.h>
+#include <app/app.h>
 #include <app/asset_dir.h>
 #include <uipc/uipc.h>
 
@@ -7,7 +7,7 @@ using namespace uipc::geometry;
 
 TEST_CASE("extract_surface", "[surface]")
 {
-    auto this_output_path = AssetDir::output_path(__FILE__);
+    auto this_output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     {
         vector<Vector3>  Vs = {Vector3{0.0, 0.0, 0.0},
@@ -52,3 +52,4 @@ TEST_CASE("extract_surface", "[surface]")
         io.write_obj(fmt::format("{}cube_flipped_surf.obj", this_output_path), surface_flipped);
     }
 }
+

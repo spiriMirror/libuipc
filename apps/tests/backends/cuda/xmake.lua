@@ -1,6 +1,7 @@
 target("backend_cuda")
     set_group("tests")
     add_rules("uipc_test")
+    add_deps("cuda")
     add_files("**.cu")
     if has_config("dev") then
         add_rules("clangd")

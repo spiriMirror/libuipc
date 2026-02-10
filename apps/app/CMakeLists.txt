@@ -9,3 +9,4 @@ set_property(TARGET app PROPERTY FOLDER "apps")
 
 file(GLOB SOURCE "*.cpp" "*.h")
 target_sources(app PRIVATE ${SOURCE})
+uipc_target_set_relative_source_file(app)

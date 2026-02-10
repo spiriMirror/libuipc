@@ -6,6 +6,7 @@
 #include <contact_system/global_contact_manager.h>
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
 #include <utils/make_spd.h>
+#include <pipeline/ipc_pipeline_flag.h>
 
 namespace uipc::backend::cuda
 {
@@ -16,6 +17,8 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
 
     virtual void do_build(BuildInfo& info) override
     {
+        require<IPCPipelineFlag>();
+        
         auto constitution =
             world().scene().config().find<std::string>("contact/constitution");
         if(constitution->view()[0] != "ipc")
@@ -64,8 +67,6 @@ class IPCVertexHalfPlaneFrictionalContact final : public VertexHalfPlaneFriction
                            table(contact_ids(vI), contact_ids(HI + half_plane_vertex_offset));
                        Float kt2 = coeff.kappa * dt * dt;
                        Float mu  = coeff.mu;
-
-                       Float D_hat = d_hat * d_hat;
 
                        Float thickness = thicknesses(vI);
 

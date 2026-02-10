@@ -1,5 +1,6 @@
 #pragma once
-#include <pyuipc/pyuipc.h>
+#include <pyuipc/exception.h>
+#include <pybind11/pybind11.h>
 #include <pybind11/numpy.h>
 #include <uipc/common/span.h>
 #include <uipc/common/log.h>

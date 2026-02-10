@@ -8,4 +8,4 @@ class PyGeometry
   public:
     PyGeometry(py::module& m);
 };
-}  // namespace pyuipc
+}  // namespace pyuipc::geometry

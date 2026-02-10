@@ -1,4 +1,4 @@
-#include <app/test_common.h>
+#include <app/app.h>
 #include <uipc/common/algorithm/run_length_encode.h>
 
 using namespace uipc;
@@ -32,3 +32,4 @@ TEST_CASE("run_length_encode", "[algorithm]")
     REQUIRE(output == std::vector<int>{1, 2, 3, 4, 5});
     REQUIRE(counts == std::vector<int>{1, 1, 1, 1, 1});
 }
+

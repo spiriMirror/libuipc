@@ -14,7 +14,7 @@ void test_half_plane_vertex_distance_check(std::string_view name, std::string_vi
     using namespace uipc::constitution;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto this_output_path = AssetDir::output_path(__FILE__) + fmt::format("/{}", name);
+    auto this_output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE) + fmt::format("/{}", name);
 
     Engine engine{"none", this_output_path};
     World  world{engine};

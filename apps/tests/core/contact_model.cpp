@@ -45,3 +45,4 @@ TEST_CASE("contact_model", "[contact_model]")
     REQUIRE(default_element.name() == "default");
     REQUIRE(mesh2.meta().find<IndexT>(builtin::contact_element_id)->view().front() == 0);
 }
+

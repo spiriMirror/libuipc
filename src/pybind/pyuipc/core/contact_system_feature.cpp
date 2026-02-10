@@ -8,8 +8,8 @@ using namespace uipc::core;
 PyContactSystemFeature::PyContactSystemFeature(py::module& m)
 {
     auto class_ContactSystemFeature =
-        py::class_<ContactSystemFeature, IFeature, S<ContactSystemFeature>>(m, "ContactSystemFeature",
-                                                                             R"(Feature for computing contact energy, gradients, and Hessians.)");
+        py::class_<ContactSystemFeature, IFeature, S<ContactSystemFeature>>(
+            m, "ContactSystemFeature", R"(Feature for computing contact energy, gradients, and Hessians.)");
 
     class_ContactSystemFeature.def(
         "contact_energy",

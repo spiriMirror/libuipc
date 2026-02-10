@@ -1,19 +1,10 @@
-if(UIPC_GITHUB_ACTIONS)
-    set(CMAKE_CUDA_ARCHITECTURES 75)
-else()
-    set(CMAKE_CUDA_ARCHITECTURES "native")
-endif()
-
+set(CMAKE_CUDA_ARCHITECTURES ${UIPC_CUDA_ARCHITECTURES})
+uipc_info("CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}.")
 enable_language(CUDA)
-
-uipc_info("CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
-
-# find_package(muda CONFIG REQUIRED)
 
 # ------------------------------------------------------------------------------
 # CUDA Backend
 # ------------------------------------------------------------------------------
-
 uipc_add_backend(cuda)
 
 # basic setup
@@ -35,17 +26,21 @@ target_include_directories(cuda PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 set_target_properties(cuda PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
     CUDA_RESOLVE_DEVICE_SYMBOLS ON
-    CUDA_ARCHITECTURES ${CMAKE_CUDA_ARCHITECTURES}
+    CUDA_ARCHITECTURES ${UIPC_CUDA_ARCHITECTURES}
     CUDA_STANDARD_REQUIRED ON
     CUDA_STANDARD 20
 )
 
-target_compile_options(cuda PRIVATE $<$<COMPILE_LANGUAGE:CUDA>: --diag-suppress=27,174,997,1388,1394,1866>)
+target_compile_options(cuda PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>: --diag-suppress=27,174,221,997,1388,1394,1866>
+    $<$<COMPILE_LANGUAGE:CUDA>: --expt-relaxed-constexpr>
+)
 
 # all files in this directory
 file(GLOB_RECURSE SOURCES "*.cu" "*.h" "*.hpp" "*.cpp" "*.inl")
 
 target_sources(cuda PRIVATE ${SOURCES})
+uipc_target_set_relative_source_file(cuda)
 
 # ------------------------------------------------------------------------------
 # setup source group for the IDE

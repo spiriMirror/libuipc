@@ -183,8 +183,8 @@ void FiniteElementMethod::Impl::_classify_base_constitutions()
                   auto   uidb = b->uid();
                   auto   dima = a->dim();
                   auto   dimb = b->dim();
-                  DimUID uid_dim_a{dima, static_cast<IndexT>(uida)};
-                  DimUID uid_dim_b{dimb, static_cast<IndexT>(uidb)};
+                  DimUID uid_dim_a{dima, uida};
+                  DimUID uid_dim_b{dimb, uidb};
                   return uid_dim_a < uid_dim_b;
               });
 
@@ -717,6 +717,10 @@ To avoid this warning, please apply the transform to the positions mannally. htt
                                              vertex_mass_density->view() :
                                              meta_mass_density->view();
 
+                auto vert_mass = sc->vertices().find<Float>("mass");
+                auto mass_view = vert_mass ? vert_mass->view() : span<const Float>{};
+
+
                 auto dst_mass_span =
                     span{h_masses}.subspan(info.vertex_offset, info.vertex_count);
                 UIPC_ASSERT(volume_view.size() == dst_mass_span.size(), "mass size mismatching");
@@ -724,9 +728,16 @@ To avoid this warning, please apply the transform to the positions mannally. htt
 
                 for(auto&& [i, dst_vert_mass] : enumerate(dst_mass_span))
                 {
-                    auto density  = vertex_mass_density ? mass_density_view[i] :
-                                                          mass_density_view[0];
-                    dst_vert_mass = density * volume_view[i];
+                    if(vert_mass)
+                    {
+                        dst_vert_mass = mass_view[i];  // high priority
+                    }
+                    else
+                    {
+                        auto density = vertex_mass_density ? mass_density_view[i] :
+                                                             mass_density_view[0];
+                        dst_vert_mass = density * volume_view[i];
+                    }
                 }
             }
 
@@ -1003,7 +1014,7 @@ void FiniteElementMethod::Impl::_build_on_device()
                    const Vector3&  x3  = x_bars(tet[3]);
 
                    Dm9x9_inv(i) = fem::Dm_inv(x0, x1, x2, x3);
-                   Float V      = fem::Ds(x0, x1, x2, x3).determinant();
+                   Float V      = fem::Ds(x0, x1, x2, x3).determinant() / 6.0;
                    MUDA_ASSERT(V > 0.0,
                                "Negative volume tetrahedron (%d, %d, %d, %d)",
                                tet[0],
@@ -1157,7 +1168,7 @@ namespace uipc::backend::cuda
 {
 bool FiniteElementMethod::Impl::dump(DumpInfo& info)
 {
-    auto path  = info.dump_path(__FILE__);
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
     return dump_xs.dump(fmt::format("{}q.{}", path, frame), xs)       //
@@ -1167,7 +1178,7 @@ bool FiniteElementMethod::Impl::dump(DumpInfo& info)
 
 bool FiniteElementMethod::Impl::try_recover(RecoverInfo& info)
 {
-    auto path  = info.dump_path(__FILE__);
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
     auto frame = info.frame();
 
     return dump_xs.load(fmt::format("{}q.{}", path, frame))                //

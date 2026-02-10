@@ -35,13 +35,6 @@ void FiniteElementConstitution::do_build(FiniteElementEnergyProducer::BuildInfo&
     m_finite_element_method->add_constitution(this);
 }
 
-void FiniteElementConstitution::do_report_extent(ReportExtentInfo& info)
-{
-    auto& c_info = constitution_info();
-    info.energy_count(c_info.primitive_count);
-    info.stencil_dim(dim() + 1);
-}
-
 const FiniteElementMethod::DimInfo& FiniteElementConstitution::dim_info() const noexcept
 {
     return fem().dim_infos[m_index_in_dim];
@@ -61,7 +54,8 @@ const FiniteElementMethod::ConstitutionInfo& FiniteElementConstitution::constitu
             return fem().fem_3d_constitution_infos[m_index_in_dim];
         default:
             UIPC_ASSERT(false, "Invalid Dim {}D", dim());
-            break;
+            // dummy return to suppress compiler warning
+            return fem().fem_3d_constitution_infos[m_index_in_dim];
     }
 }
 

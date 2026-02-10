@@ -22,6 +22,16 @@ MUDA_GENERIC Vector3 operator*(const ABDJacobi& j, const Vector12& q)
     return Vector3{x.dot(a1), x.dot(a2), x.dot(a3)} + t;
 }
 
+// no translation component
+MUDA_GENERIC Vector3 ABDJacobi::vec_x(const Vector12& q) const
+{
+    const auto& a1 = q.segment<3>(3);
+    const auto& a2 = q.segment<3>(6);
+    const auto& a3 = q.segment<3>(9);
+    const auto& x  = m_x_bar;
+    return Vector3{x.dot(a1), x.dot(a2), x.dot(a3)};
+}
+
 //tex:
 //$$
 //\left[\begin{array}{ccc|ccc:ccc:ccc}

@@ -26,15 +26,24 @@ class OffDiagLinearSubsystem : public SimSystem
         DiagLinearSubsystem* m_diag_r = nullptr;
     };
 
+    class InitInfo
+    {
+      public:
+    };
+
+    std::tuple<U64, U64> uid() const noexcept;
+
   protected:
     virtual void report_extent(GlobalLinearSystem::OffDiagExtentInfo& info) = 0;
     virtual void assemble(GlobalLinearSystem::OffDiagInfo&)                 = 0;
     virtual void do_build(BuildInfo& info)                                  = 0;
+    virtual void do_init(InitInfo& info);
 
   private:
     friend class GlobalLinearSystem;
     DiagLinearSubsystem* m_l = nullptr;
     DiagLinearSubsystem* m_r = nullptr;
     virtual void         do_build() final override;
+    void                 init();  // only be called by GlobalLinearSystem
 };
 }  // namespace uipc::backend::cuda

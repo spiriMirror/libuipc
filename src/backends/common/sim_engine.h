@@ -71,7 +71,7 @@ class SimEngine : public core::IEngine
     /**
      * @brief Return the path of the dump file.
      * 
-     * @param _file_ Should always be __FILE__, __FILE__ should be a the backend c++ sources file.
+     * @param _file_ Should be UIPC_RELATIVE_SOURCE_FILE or __FILE__ from backend sources.
      */
     std::string dump_path(std::string_view _file_) const noexcept;
 
