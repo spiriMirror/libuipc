@@ -523,6 +523,10 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
     {
         using namespace muda;
 
+        // Early return if no joints
+        if(joint_id_to_art_id.size() == 0)
+            return;
+
         namespace ERJ = sym::external_revolute_joint_constraint;
         namespace EPJ = sym::external_prismatic_joint_constraint;
 
@@ -625,6 +629,10 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         using namespace muda;
         namespace ERJ = sym::external_revolute_joint_constraint;
         namespace EPJ = sym::external_prismatic_joint_constraint;
+
+        // Early return if no joints
+        if(joint_id_to_art_id.size() == 0)
+            return;
 
         // Compute G^theta
         FastSegmentalReduce()
