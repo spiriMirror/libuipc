@@ -1,33 +1,32 @@
 #include <finite_element/finite_element_kinetic.h>
 #include <finite_element/finite_element_diff_dof_reporter.h>
+#include <finite_element/fem_linear_subsystem.h>
+#include <finite_element/fem_line_search_reporter.h>
 
 namespace uipc::backend::cuda
 {
-void FiniteElementKinetic::do_build(FiniteElementEnergyProducer::BuildInfo& info)
+void FiniteElementKinetic::do_build()
 {
+    // provide fem data for solving
     m_impl.finite_element_method = require<FiniteElementMethod>();
+
+    auto& linear_system = require<FEMLinearSubsystem>();
+    auto& line_searcher = require<FEMLineSearchReporter>();
 
     BuildInfo this_info;
     do_build(this_info);
 
-    m_impl.finite_element_method->add_kinetic(this);
+    line_searcher.add_kinetic(this);
+    linear_system.add_kinetic(this);
 }
 
-void FiniteElementKinetic::do_report_extent(ReportExtentInfo& info)
-{
-    auto vert_count = m_impl.finite_element_method->xs().size();
-    info.energy_count(vert_count);
-    info.gradient_count(vert_count);
-    info.hessian_count(vert_count);
-}
-
-void FiniteElementKinetic::do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info)
+void FiniteElementKinetic::compute_energy(FEMLineSearchReporter::ComputeEnergyInfo& info)
 {
     ComputeEnergyInfo this_info{&m_impl, &info};
     do_compute_energy(this_info);
 }
 
-void FiniteElementKinetic::do_compute_gradient_hessian(FiniteElementEnergyProducer::ComputeGradientHessianInfo& info)
+void FiniteElementKinetic::compute_gradient_hessian(FEMLinearSubsystem::ComputeGradientHessianInfo& info)
 {
     ComputeGradientHessianInfo this_info{&m_impl, &info};
     do_compute_gradient_hessian(this_info);

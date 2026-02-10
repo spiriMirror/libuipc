@@ -88,11 +88,11 @@ class SoftTransformConstraint final : public AffineBodyConstraint
     void do_report_extent(AffineBodyAnimator::ReportExtentInfo& info) override
     {
         info.energy_count(h_constrained_bodies.size());
-        info.gradient_segment_count(h_constrained_bodies.size());
-        info.hessian_block_count(h_constrained_bodies.size());
+        info.gradient_count(h_constrained_bodies.size());
+        info.hessian_count(h_constrained_bodies.size());
     }
 
-    void do_compute_energy(AffineBodyAnimator::EnergyInfo& info) override
+    void do_compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info) override
     {
         using namespace muda;
 
@@ -137,7 +137,7 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                    });
     }
 
-    void do_compute_gradient_hessian(AffineBodyAnimator::GradientHessianInfo& info) override
+    void do_compute_gradient_hessian(AffineBodyAnimator::ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
 
@@ -153,17 +153,16 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                     body_masses = info.body_masses().viewer().name("body_masses"),
                     gradients = info.gradients().viewer().name("gradients"),
                     hessians  = info.hessians().viewer().name("hessians"),
-                    is_fixed = info.is_fixed().viewer().name("is_fixed")] __device__(int I) mutable
+                    is_fixed  = info.is_fixed().viewer().name("is_fixed"),
+                    gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
                        auto i = indices(I);
 
-                       Vector12    G;
-                       Matrix12x12 H;
+                       Vector12 G;
 
                        if(is_fixed(i))
                        {
                            G.setZero();
-                           H.setZero();
                        }
                        else
                        {
@@ -182,10 +181,27 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                            M.block<9, 9>(3, 3) *= rotation_strength;
 
                            G = M * dq;
-                           H = M;
                        }
 
                        gradients(I).write(i, G);
+
+
+                       if(gradient_only)
+                           return;
+
+                       Matrix12x12 H;
+                       if(is_fixed(i))
+                           H.setZero();
+                       else
+                           H = body_masses(i).to_mat();
+
+                       if(!is_fixed(i))
+                       {
+                           Vector2 s = strength_ratios(I);
+                           H.block<3, 3>(0, 0) *= s(0);
+                           H.block<9, 9>(3, 3) *= s(1);
+                       }
+
                        hessians(I).write(i, i, H);
                    });
     }

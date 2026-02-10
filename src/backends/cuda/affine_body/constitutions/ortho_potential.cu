@@ -79,7 +79,8 @@ class OrthoPotential final : public AffineBodyConstitution
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        auto N = info.qs().size();
+        auto N             = info.qs().size();
+        auto gradient_only = info.gradient_only();
 
         namespace AOP = sym::abd_ortho_potential;
 
@@ -91,7 +92,8 @@ class OrthoPotential final : public AffineBodyConstitution
                     gradients = info.gradients().viewer().name("shape_gradients"),
                     body_hessian = info.hessians().viewer().name("shape_hessian"),
                     kappas = kappas.cviewer().name("kappas"),
-                    dt     = info.dt()] __device__(int i) mutable
+                    dt     = info.dt(),
+                    gradient_only] __device__(int i) mutable
                    {
                        Matrix12x12 H = Matrix12x12::Zero();
                        Vector12    G = Vector12::Zero();
@@ -104,17 +106,18 @@ class OrthoPotential final : public AffineBodyConstitution
 
                        Vector9 G9;
                        AOP::dEdq(G9, kappa, q);
+                       G.segment<9>(3) = G9 * Vdt2;
+                       gradients(i)    = G;
+
+                       if(gradient_only)
+                           return;
 
                        Matrix9x9 H9x9;
                        AOP::ddEddq(H9x9, kappa, q);
-
                        make_spd(H9x9);
 
                        H.block<9, 9>(3, 3) = H9x9 * Vdt2;
-                       G.segment<9>(3)     = G9 * Vdt2;
-
-                       gradients(i)    = G;
-                       body_hessian(i) = H;
+                       body_hessian(i)     = H;
                    });
     }
 };

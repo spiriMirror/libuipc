@@ -22,8 +22,8 @@ class AffineBodyConstraint : public SimSystem
     virtual void do_init(AffineBodyAnimator::FilteredInfo& info) = 0;
     virtual void do_step(AffineBodyAnimator::FilteredInfo& info) = 0;
     virtual void do_report_extent(AffineBodyAnimator::ReportExtentInfo& info) = 0;
-    virtual void do_compute_energy(AffineBodyAnimator::EnergyInfo& info) = 0;
-    virtual void do_compute_gradient_hessian(AffineBodyAnimator::GradientHessianInfo& info) = 0;
+    virtual void do_compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info) = 0;
+    virtual void do_compute_gradient_hessian(AffineBodyAnimator::ComputeGradientHessianInfo& info) = 0;
 
   private:
     friend class AffineBodyAnimator;
@@ -32,8 +32,8 @@ class AffineBodyConstraint : public SimSystem
     void init(AffineBodyAnimator::FilteredInfo& info);
     void step(AffineBodyAnimator::FilteredInfo& info);
     void report_extent(AffineBodyAnimator::ReportExtentInfo& info);
-    void compute_energy(AffineBodyAnimator::EnergyInfo& info);
-    void compute_gradient_hessian(AffineBodyAnimator::GradientHessianInfo& info);
+    void compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info);
+    void compute_gradient_hessian(AffineBodyAnimator::ComputeGradientHessianInfo& info);
 
     SizeT m_index = ~0ull;
 };

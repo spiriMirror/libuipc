@@ -188,13 +188,13 @@ void GlobalDiffSimManager::update()
 void GlobalDiffSimManager::add_reporter(DiffDofReporter* subsystem)
 {
     UIPC_ASSERT(subsystem != nullptr, "subsystem is nullptr");
-    m_impl.diff_dof_reporters.register_subsystem(*subsystem);
+    m_impl.diff_dof_reporters.register_sim_system(*subsystem);
 }
 
 void GlobalDiffSimManager::add_reporter(DiffParmReporter* subsystem)
 {
     UIPC_ASSERT(subsystem != nullptr, "subsystem is nullptr");
-    m_impl.diff_parm_reporters.register_subsystem(*subsystem);
+    m_impl.diff_parm_reporters.register_sim_system(*subsystem);
 }
 
 muda::TripletMatrixView<Float, 1> GlobalDiffSimManager::DiffParmInfo::pGpP() const

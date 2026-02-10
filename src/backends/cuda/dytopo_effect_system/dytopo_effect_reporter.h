@@ -1,6 +1,7 @@
 #pragma once
 #include <sim_system.h>
 #include <dytopo_effect_system/global_dytopo_effect_manager.h>
+#include <energy_component_flags.h>
 
 namespace uipc::backend::cuda
 {
@@ -35,6 +36,7 @@ class DyTopoEffectReporter : public SimSystem
         GlobalDyTopoEffectManager::GradientHessianExtentInfo& info) = 0;
     virtual void do_assemble(GlobalDyTopoEffectManager::GradientHessianInfo& info) = 0;
     virtual void do_compute_energy(GlobalDyTopoEffectManager::EnergyInfo& info) = 0;
+    virtual EnergyComponentFlags component_flags() = 0;
 
   private:
     friend class GlobalDyTopoEffectManager;

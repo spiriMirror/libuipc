@@ -128,48 +128,6 @@ class AffineBodyDynamics : public SimSystem
         Impl* m_impl               = nullptr;
     };
 
-    class ComputeEnergyInfo
-    {
-      public:
-        ComputeEnergyInfo(muda::BufferView<Float> energies, Float dt) noexcept
-            : m_energies(energies)
-            , m_dt(dt)
-        {
-        }
-
-        auto dt() const noexcept { return m_dt; }
-
-        auto energies() const noexcept { return m_energies; }
-
-      private:
-        friend class Impl;
-        muda::BufferView<Float> m_energies;
-        Float                   m_dt = 0.0;
-    };
-
-    class ComputeGradientHessianInfo
-    {
-      public:
-        ComputeGradientHessianInfo(muda::BufferView<Vector12>    gradient,
-                                   muda::BufferView<Matrix12x12> hessians,
-                                   Float                         dt)
-            : m_gradients(gradient)
-            , m_hessians(hessians)
-            , m_dt(dt)
-        {
-        }
-
-        auto hessians() const noexcept { return m_hessians; }
-        auto gradients() const noexcept { return m_gradients; }
-        auto dt() const noexcept { return m_dt; }
-
-      private:
-        friend class Impl;
-        muda::BufferView<Matrix12x12> m_hessians;
-        muda::BufferView<Vector12>    m_gradients;
-        Float                         m_dt = 0.0;
-    };
-
   protected:
     virtual void do_build() override;
 
@@ -269,7 +227,6 @@ class AffineBodyDynamics : public SimSystem
         vector<IndexT>              h_body_id_to_is_fixed;
         vector<IndexT>              h_body_id_to_is_dynamic;
         vector<IndexT>              h_body_id_to_external_kinetic;
-        vector<Float>               h_constitution_shape_energy;
 
         /******************************************************************************
         *                        abd vertex attributes
@@ -368,29 +325,6 @@ class AffineBodyDynamics : public SimSystem
         DeviceBuffer<IndexT> body_id_to_is_fixed;          // Body IsFixed
         DeviceBuffer<IndexT> body_id_to_is_dynamic;        // Body IsKinematic
         DeviceBuffer<IndexT> body_id_to_external_kinetic;  // Body IsExternalKinetic
-
-        //tex: $$K_i$$ kinetic energy per body
-        DeviceBuffer<Float> body_id_to_kinetic_energy;
-
-        //tex: $$K$$
-        DeviceVar<Float> abd_kinetic_energy;
-
-        //tex: $$E$$
-        DeviceBuffer<Float> body_id_to_shape_energy;
-        DeviceVar<Float>    abd_shape_energy;
-
-        //tex: $$ \mathbf{H}_{ii} $$
-        DeviceBuffer<Matrix12x12> body_id_to_shape_hessian;
-        //tex: $$ \mathbf{g}_{i} $$
-        DeviceBuffer<Vector12> body_id_to_shape_gradient;
-
-        //tex: $$ \mathbf{M}_{ii} $$
-        DeviceBuffer<Matrix12x12> body_id_to_kinetic_hessian;
-        //tex: $$ \mathbf{g}_{i} $$
-        DeviceBuffer<Vector12> body_id_to_kinetic_gradient;
-
-        //tex: diag hessian consider contact
-        DeviceBuffer<Matrix12x12> diag_hessian;
 
         template <typename T>
         muda::BufferView<T> subview(DeviceBuffer<T>& body_id_to_values,
