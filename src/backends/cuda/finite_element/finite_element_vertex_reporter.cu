@@ -64,6 +64,10 @@ void FiniteElementVertexReporter::Impl::init_attributes(VertexAttributeInfo& inf
 void FiniteElementVertexReporter::Impl::update_attributes(VertexAttributeInfo& info)
 {
     info.positions().copy_from(fem().xs);
+
+    // This update will ruin the friction force computed in previous step, so we need to discard it.
+    // ref: https://github.com/spiriMirror/libuipc/issues/303
+    info.require_discard_friction();
 }
 
 void FiniteElementVertexReporter::Impl::report_displacements(VertexDisplacementInfo& info)

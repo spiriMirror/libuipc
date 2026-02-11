@@ -303,8 +303,4 @@ muda::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const 
     return m_impl.contact_tabular->view();
 }
 
-void GlobalContactManager::require_discard_friction()
-{
-    m_impl.should_discard_friction_candidates = true;
-}
 }  // namespace uipc::backend::cuda

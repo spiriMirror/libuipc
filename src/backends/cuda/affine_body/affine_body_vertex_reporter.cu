@@ -87,6 +87,10 @@ void AffineBodyVertexReporter::Impl::update_attributes(VertexAttributeInfo& info
                    const auto& q       = qs(body_id);
                    dst_pos(i)          = src_pos(i).point_x(q);
                });
+
+    // This update will ruin the friction force computed in previous step, so we need to discard it.
+    // ref: https://github.com/spiriMirror/libuipc/issues/303
+    info.require_discard_friction();
 }
 
 void AffineBodyVertexReporter::Impl::report_displacements(VertexDisplacementInfo& info)

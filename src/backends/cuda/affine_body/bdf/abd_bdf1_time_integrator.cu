@@ -1,5 +1,6 @@
 #include <affine_body/abd_time_integrator.h>
 #include <time_integrator/bdf1_flag.h>
+#include <kernel_cout.h>
 
 namespace uipc::backend::cuda
 {
@@ -30,7 +31,8 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
                     q_tildes   = info.q_tildes().viewer().name("q_tilde"),
                     affine_gravity = info.gravities().cviewer().name("affine_gravity"),
                     external_force_accs = info.external_force_accs().cviewer().name("external_force_accs"),
-                    dt = info.dt()] __device__(int i) mutable
+                    dt   = info.dt(),
+                    cout = KernelCout::viewer()] __device__(int i) mutable
                    {
                        // record previous q
                        auto& q_prev = q_prevs(i);
@@ -56,6 +58,10 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
                        }
 
                        q_tildes(i) = q_tilde;
+
+                       cout << "q_tilde[" << i
+                            << "] = " << q_tildes(i).transpose().eval() << "\n";
+                       cout << "q_v[" << i << "] = " << q_vs(i).transpose().eval() << "\n";
                    });
     }
 
