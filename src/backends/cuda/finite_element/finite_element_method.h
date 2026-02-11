@@ -3,8 +3,6 @@
 #include <muda/buffer.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <global_geometry/global_vertex_manager.h>
-#include <muda/ext/linear_system/device_doublet_vector.h>
-#include <muda/ext/linear_system/device_triplet_matrix.h>
 #include <backends/cuda/utils/dump_utils.h>
 
 namespace uipc::backend::cuda
@@ -13,10 +11,10 @@ class FiniteElementVertexReporter;
 class FiniteElementSurfaceReporter;
 class FiniteElementBodyReporter;
 
-class FiniteElementEnergyProducer;
+class FiniteElementKinetic;
+class FiniteElementElastics;
 class FiniteElementConstitution;
 class FiniteElementExtraConstitution;
-class FiniteElementKinetic;
 
 class FEM3DConstitution;
 class Codim2DConstitution;
@@ -151,65 +149,6 @@ class FiniteElementMethod final : public SimSystem
         IndexT m_dim          = -1;
     };
 
-    class ComputeEnergyInfo
-    {
-      public:
-        ComputeEnergyInfo(Impl* impl, SizeT consitution_index, Float dt) noexcept
-            : m_impl(impl)
-            , m_consitution_index(consitution_index)
-            , m_dt(dt)
-        {
-        }
-
-        Float dt() const noexcept;
-
-      private:
-        friend class Impl;
-        SizeT m_consitution_index = ~0ull;
-        Impl* m_impl              = nullptr;
-        Float m_dt                = 0.0;
-    };
-
-    class ComputeGradientHessianInfo
-    {
-      public:
-        ComputeGradientHessianInfo(Float dt) noexcept;
-
-        auto dt() const noexcept { return m_dt; }
-
-      private:
-        friend class Impl;
-        Float m_dt = 0.0;
-    };
-
-    class ComputeExtraEnergyInfo
-    {
-      public:
-        ComputeExtraEnergyInfo(Float dt) noexcept
-            : m_dt(dt)
-        {
-        }
-        auto dt() const noexcept { return m_dt; }
-
-      private:
-        Float m_dt = 0.0;
-    };
-
-    class ComputeExtraGradientHessianInfo
-    {
-      public:
-        ComputeExtraGradientHessianInfo(Float dt) noexcept
-            : m_dt(dt)
-        {
-        }
-
-        auto dt() const noexcept { return m_dt; }
-
-      private:
-        friend class Impl;
-        Float m_dt = 0.0;
-    };
-
     class Impl
     {
       public:
@@ -222,10 +161,8 @@ class FiniteElementMethod final : public SimSystem
         void _build_on_host(WorldVisitor& world);
         void _build_on_device();
         void _download_geometry_to_host();
-        void _init_base_constitution();
+        void _init_base_constitutions();
         void _init_extra_constitutions();
-        void _init_energy_producers();
-
         void _init_diff_reporters();
 
         void write_scene(WorldVisitor& world);
@@ -236,13 +173,14 @@ class FiniteElementMethod final : public SimSystem
 
         // Forward Simulation:
 
-        GlobalVertexManager* global_vertex_manager = nullptr;
+        SimSystemSlot<GlobalVertexManager> global_vertex_manager;
+
+        SimSystemSlot<FiniteElementElastics>               elastics;
         SimSystemSlotCollection<FiniteElementConstitution> constitutions;
         SimSystemSlotCollection<FiniteElementExtraConstitution> extra_constitutions;
-        SimSystemSlot<FiniteElementKinetic>  kinetic;
-        vector<FiniteElementEnergyProducer*> energy_producers;
 
         // Differentiable Simulation Systems:
+
         SimSystemSlot<FiniteElementDiffParmReporter> kinetic_diff_parm_reporter;
         SimSystemSlotCollection<FiniteElementConstitutionDiffParmReporter> constitution_diff_parm_reporters;
         SimSystemSlotCollection<FiniteElementExtraConstitutionDiffParmReporter> extra_constitution_diff_parm_reporters;
@@ -274,6 +212,7 @@ class FiniteElementMethod final : public SimSystem
         vector<ConstitutionInfo>   fem_3d_constitution_infos;
 
         unordered_map<U64, SizeT> extra_constitution_uid_to_index;
+
 
         // Simulation Data:
 
@@ -345,14 +284,6 @@ class FiniteElementMethod final : public SimSystem
         muda::DeviceBuffer<Matrix3x3> Dm3x3_invs;
 
 
-        // Energy Producer:
-
-        muda::DeviceVar<Float> energy_producer_energy;  // Energy Producer Energy
-        muda::DeviceBuffer<Float> energy_producer_energies;  // Energy Producer Energies
-        muda::DeviceDoubletVector<Float, 3> energy_producer_gradients;  // Energy Producer Gradient
-        SizeT energy_producer_total_hessian_count = 0;
-
-
         // Dump:
 
         BufferDump dump_xs;       // Positions
@@ -372,7 +303,6 @@ class FiniteElementMethod final : public SimSystem
 
 
   public:
-    // public data accessors:
     auto codim_0ds() const noexcept { return m_impl.codim_0ds.view(); }
     auto codim_1ds() const noexcept { return m_impl.codim_1ds.view(); }
     auto codim_2ds() const noexcept { return m_impl.codim_2ds.view(); }
@@ -449,12 +379,10 @@ class FiniteElementMethod final : public SimSystem
 
     friend class FEMLinearSubsystem;
     friend class FEMLineSearchReporter;
-    friend class FEMGradientHessianComputer;
+
 
     friend class FiniteElementAnimator;
     friend class FEMDiagPreconditioner;
-
-    friend class FiniteElementEnergyProducer;
 
     friend class FiniteElementDiffDofReporter;
     friend class FiniteElementKineticDiffParmReporter;
@@ -466,12 +394,13 @@ class FiniteElementMethod final : public SimSystem
     friend class SimEngine;
     void init();  // only be called by SimEngine
 
+    friend class FiniteElementElastics;
+    void add_elastics(FiniteElementElastics* elastics);
     friend class FiniteElementConstitution;
     void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution
     friend class FiniteElementExtraConstitution;
     void add_constitution(FiniteElementExtraConstitution* constitution);  // only called by FiniteElementExtraConstitution
-    friend class FiniteElementKinetic;
-    void add_kinetic(FiniteElementKinetic* constitution);  // only called by FiniteElementKinetic
+
 
     friend class FiniteElementConstitutionDiffParmReporter;
     void add_reporter(FiniteElementConstitutionDiffParmReporter* reporter);  // only called by FiniteElementConstitutionDiffParmReporter
@@ -483,6 +412,7 @@ class FiniteElementMethod final : public SimSystem
 
 
     // Internal:
+
     template <typename ForEach, typename ViewGetter>
     static void _for_each(span<const GeoInfo>             geo_infos,
                           span<S<geometry::GeometrySlot>> geo_slots,

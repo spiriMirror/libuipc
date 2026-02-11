@@ -62,11 +62,10 @@ void SimEngine::do_advance()
         }
     };
 
-    auto compute_adaptive_kappa = [this]
+    auto compute_adaptive_contact_parameters = [this]
     {
-        // TODO: now no effect
         if(m_global_contact_manager)
-            m_global_contact_manager->compute_adaptive_kappa();
+            m_global_contact_manager->compute_adaptive_parameters();
     };
 
     auto compute_dytopo_effect = [this]
@@ -298,18 +297,20 @@ void SimEngine::do_advance()
             record_friction_candidates();
             m_global_vertex_manager->update_attributes();
             m_global_vertex_manager->record_prev_positions();
+            AABB bbox = m_global_vertex_manager->compute_vertex_bounding_box();
 
-            // 2. Adaptive Parameter Calculation
-            detect_dcd_candidates();
-            compute_adaptive_kappa();
 
-            // 3. Predict Motion => x_tilde = x + v * dt
+            // 2. Predict Motion => x_tilde = x + v * dt
             m_state = SimEngineState::PredictMotion;
             // MUST step animation before predicting dof
             // some animation may provide information for DOF prediction
             step_animation();
             m_time_integrator_manager->predict_dof();
 
+
+            // 3. Adaptive Parameter Calculation
+            detect_dcd_candidates();
+            compute_adaptive_contact_parameters();
 
             // 4. Nonlinear-Newton Iteration
             m_newton_tolerance_manager->pre_newton(m_current_frame);

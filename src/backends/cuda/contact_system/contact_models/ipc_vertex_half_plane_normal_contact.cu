@@ -75,7 +75,8 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(info.PHs().size(),
-                       [Grad = info.gradients().viewer().name("Grad"),
+                       [gradient_only = info.gradient_only(),
+                        Grad = info.gradients().viewer().name("Grad"),
                         Hess = info.hessians().viewer().name("Hess"),
                         PHs  = info.PHs().viewer().name("PHs"),
                         plane_positions = half_plane->positions().viewer().name("plane_positions"),
@@ -107,15 +108,20 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
                            Float thickness = thicknesses(vI);
 
                            Vector3   G;
-                           Matrix3x3 H;
-
-                           sym::ipc_vertex_half_contact::PH_barrier_gradient_hessian(
-                               G, H, kt2, d_hat, thickness, v, P, N);
-
-                           //cuda::make_spd(H);
-
-                           Grad(I).write(vI, G);
-                           Hess(I).write(vI, vI, H);
+                           if(gradient_only)
+                           {
+                               sym::ipc_vertex_half_contact::PH_barrier_gradient(
+                                   G, kt2, d_hat, thickness, v, P, N);
+                               Grad(I).write(vI, G);
+                           }
+                           else
+                           {
+                               Matrix3x3 H;
+                               sym::ipc_vertex_half_contact::PH_barrier_gradient_hessian(
+                                   G, H, kt2, d_hat, thickness, v, P, N);
+                               Grad(I).write(vI, G);
+                               Hess(I).write(vI, vI, H);
+                           }
                        });
         }
     }

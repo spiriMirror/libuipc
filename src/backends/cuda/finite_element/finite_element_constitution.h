@@ -1,19 +1,26 @@
 #pragma once
 #include <sim_system.h>
 #include <finite_element/finite_element_method.h>
-#include <finite_element/finite_element_energy_producer.h>
+#include <finite_element/finite_element_elastics.h>
+#include <muda/buffer.h>
+#include <muda/ext/linear_system/device_doublet_vector.h>
+#include <muda/ext/linear_system/device_triplet_matrix.h>
 
 namespace uipc::backend::cuda
 {
-class FiniteElementConstitution : public FiniteElementEnergyProducer
+class FiniteElementConstitution : public SimSystem
 {
   public:
-    using FiniteElementEnergyProducer::FiniteElementEnergyProducer;
+    using SimSystem::SimSystem;
 
     class BuildInfo
     {
       public:
     };
+
+    using ReportExtentInfo  = FiniteElementElastics::ReportExtentInfo;
+    using ComputeEnergyInfo = FiniteElementElastics::ComputeEnergyInfo;
+    using ComputeGradientHessianInfo = FiniteElementElastics::ComputeGradientHessianInfo;
 
     U64    uid() const noexcept;
     IndexT dim() const noexcept;
@@ -24,6 +31,9 @@ class FiniteElementConstitution : public FiniteElementEnergyProducer
 
     virtual void do_build(BuildInfo& info)                        = 0;
     virtual void do_init(FiniteElementMethod::FilteredInfo& info) = 0;
+    virtual void do_report_extent(ReportExtentInfo& info)         = 0;
+    virtual void do_compute_energy(ComputeEnergyInfo& info)       = 0;
+    virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
     const FiniteElementMethod::DimInfo& dim_info() const noexcept;
     const FiniteElementMethod::ConstitutionInfo& constitution_info() const noexcept;
 
@@ -33,10 +43,18 @@ class FiniteElementConstitution : public FiniteElementEnergyProducer
     friend class Codim2DConstitution;
     friend class FEM3DConstitution;
     friend class FiniteElementMethod;
-    friend class FiniteElementConstitutionDiffParmReporter;
+    friend class FiniteElementElastics;
 
-    void         init();  // only be called by FiniteElementMethod
-    virtual void do_build(FiniteElementEnergyProducer::BuildInfo& info) final;
+    friend class FiniteElementConstitutionDiffParmReporter;
+    friend class FiniteElementConstitutionLinearSubsystemReporter;
+    friend class FiniteElementConstitutionLineSearchSubreporter;
+
+    void init();  // only be called by FiniteElementMethod
+
+    virtual void do_build() override final;
+    void         report_extent(ReportExtentInfo& info);
+    void         compute_energy(ComputeEnergyInfo& info);
+    void         compute_gradient_hessian(ComputeGradientHessianInfo& info);
 
     SizeT                      m_index                 = 0;
     SizeT                      m_index_in_dim          = 0;

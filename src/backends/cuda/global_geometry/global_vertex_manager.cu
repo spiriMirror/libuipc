@@ -101,7 +101,7 @@ void GlobalVertexManager::Impl::rebuild()
 void GlobalVertexManager::add_reporter(VertexReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_impl.vertex_reporters.register_subsystem(*reporter);
+    m_impl.vertex_reporters.register_sim_system(*reporter);
 }
 
 void GlobalVertexManager::Impl::step_forward(Float alpha)

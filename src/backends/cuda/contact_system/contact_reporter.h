@@ -34,8 +34,13 @@ class ContactReporter : public DyTopoEffectReporter
 
   private:
     friend class GlobalContactManager;
-    void  init();  // only be called by GlobalContactManager
-    void  do_build(DyTopoEffectReporter::BuildInfo&) final override;
+    void         init();  // only be called by GlobalContactManager
+    virtual void do_build(DyTopoEffectReporter::BuildInfo&) final override;
+
+    virtual EnergyComponentFlags component_flags() final override
+    {
+        return EnergyComponentFlags::Contact;
+    }
     SizeT m_index = ~0ull;
     Impl  m_impl;
 };

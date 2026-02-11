@@ -40,7 +40,7 @@ void GlobalTrajectoryFilter::add_filter(TrajectoryFilter* filter)
 {
     check_state(SimEngineState::BuildSystems, "add_filter()");
     UIPC_ASSERT(filter != nullptr, "Input TrajectoryFilter is nullptr.");
-    m_impl.filters.register_subsystem(*filter);
+    m_impl.filters.register_sim_system(*filter);
 }
 
 void GlobalTrajectoryFilter::Impl::init()

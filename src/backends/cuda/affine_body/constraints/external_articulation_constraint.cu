@@ -53,8 +53,8 @@ class ExternalArticulationConstituion final : public InterAffineBodyConstitution
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
     {
-        info.gradient_segment_count(0);
-        info.hessian_block_count(0);
+        info.gradient_count(0);
+        info.hessian_count(0);
     }
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
@@ -514,12 +514,12 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         auto e_count = joint_joint_id_to_mass.size();
         info.energy_count(e_count);
         auto g_count = joint_id_to_art_id.size() * 2;
-        info.gradient_segment_count(g_count);
+        info.gradient_count(g_count);
         auto h_count = joint_joint_id_to_mass.size() * HalfHessianSize;
-        info.hessian_block_count(h_count);
+        info.hessian_count(h_count);
     }
 
-    void do_compute_energy(InterAffineBodyAnimator::EnergyInfo& info) override
+    void do_compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info) override
     {
         using namespace muda;
 
@@ -783,6 +783,9 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
                     DVA.segment<2>(jointI * 2).write(body_ids, G24);
                 });
+
+        if(info.gradient_only())
+            return;
 
         // Compute Hessian
         ParallelFor()

@@ -60,6 +60,7 @@ class SimplexFrictionalContact : public ContactReporter
         auto friction_PE_hessians() const noexcept { return m_PE_hessians; }
         auto friction_PP_gradients() const noexcept { return m_PP_gradients; }
         auto friction_PP_hessians() const noexcept { return m_PP_hessians; }
+        bool gradient_only() const noexcept { return m_gradient_only; }
 
       private:
         friend class SimplexFrictionalContact;
@@ -74,6 +75,7 @@ class SimplexFrictionalContact : public ContactReporter
 
         muda::DoubletVectorView<Float, 3> m_PP_gradients;
         muda::TripletMatrixView<Float, 3> m_PP_hessians;
+        bool                              m_gradient_only = false;
     };
 
 
