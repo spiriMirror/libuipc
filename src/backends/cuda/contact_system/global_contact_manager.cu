@@ -302,4 +302,5 @@ muda::CBuffer2DView<ContactCoeff> GlobalContactManager::contact_tabular() const 
 {
     return m_impl.contact_tabular->view();
 }
+
 }  // namespace uipc::backend::cuda

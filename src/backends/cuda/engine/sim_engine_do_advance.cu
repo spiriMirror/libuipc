@@ -293,11 +293,13 @@ void SimEngine::do_advance()
         {
             Timer timer{"Simulation"};
 
-            // 1. Record Friction Candidates at the beginning of the frame
-            record_friction_candidates();
+            // 0. Process External Changes
             m_global_vertex_manager->update_attributes();
-            m_global_vertex_manager->record_prev_positions();
             AABB bbox = m_global_vertex_manager->compute_vertex_bounding_box();
+
+            // 1. Record Friction Candidates at the beginning of the frame
+            m_global_vertex_manager->record_prev_positions();
+            record_friction_candidates();
 
 
             // 2. Predict Motion => x_tilde = x + v * dt
