@@ -17,7 +17,7 @@ void AffineBodyVertexReporter::do_build(BuildInfo& info)
 
 void AffineBodyVertexReporter::request_attribute_update() noexcept
 {
-    m_impl.need_update_attributes = true;
+    m_impl.require_update_attributes = true;
 }
 
 void AffineBodyVertexReporter::Impl::report_count(VertexCountInfo& info)
@@ -142,10 +142,10 @@ void AffineBodyVertexReporter::do_report_attributes(VertexAttributeInfo& info)
     }
     else
     {
-        if(m_impl.need_update_attributes)
+        if(m_impl.require_update_attributes)
         {
             m_impl.update_attributes(info);
-            m_impl.need_update_attributes = false;
+            m_impl.require_update_attributes = false;
         }
     }
 }

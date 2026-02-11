@@ -19,7 +19,7 @@ void FiniteElementVertexReporter::do_build(BuildInfo& info)
 
 void FiniteElementVertexReporter::request_attribute_update() noexcept
 {
-    m_impl.need_update_attributes = true;
+    m_impl.require_update_attributes = true;
 }
 
 void FiniteElementVertexReporter::Impl::report_count(VertexCountInfo& info)
@@ -103,10 +103,10 @@ void FiniteElementVertexReporter::do_report_attributes(VertexAttributeInfo& info
     }
     else
     {
-        if(m_impl.need_update_attributes)
+        if(m_impl.require_update_attributes)
         {
             m_impl.update_attributes(info);
-            m_impl.need_update_attributes = false;
+            m_impl.require_update_attributes = false;
         }
     }
 }

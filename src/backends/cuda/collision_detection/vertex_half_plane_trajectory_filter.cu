@@ -169,4 +169,9 @@ muda::VarView<Float> VertexHalfPlaneTrajectoryFilter::FilterTOIInfo::toi() noexc
 {
     return m_toi;
 }
+
+void VertexHalfPlaneTrajectoryFilter::do_clear_friction_candidates()
+{
+    m_impl.friction_PHs.resize(0);
+}
 }  // namespace uipc::backend::cuda

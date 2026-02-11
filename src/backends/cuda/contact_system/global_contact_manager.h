@@ -56,6 +56,8 @@ class GlobalContactManager final : public SimSystem
         Float dt           = 0.0;
         Float eps_velocity = 0.0;
 
+        bool should_discard_friction_candidates = false;
+
         /***********************************************************************
         *                     Global Vertex Contact Info                       *
         ***********************************************************************/
@@ -75,6 +77,8 @@ class GlobalContactManager final : public SimSystem
     muda::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
     muda::CBuffer2DView<IndexT>       contact_mask_tabular() const noexcept;
     muda::CBuffer2DView<IndexT>       subscene_mask_tabular() const noexcept;
+
+    void require_discard_friction();
 
 
   protected:

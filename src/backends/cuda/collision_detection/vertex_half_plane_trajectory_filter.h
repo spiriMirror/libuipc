@@ -129,5 +129,6 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
     virtual void do_record_friction_candidates(
         GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info) override final;
     virtual void do_label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info) override final;
+    virtual void do_clear_friction_candidates() override final;
 };
 }  // namespace uipc::backend::cuda

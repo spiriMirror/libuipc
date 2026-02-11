@@ -105,6 +105,7 @@ class GlobalTrajectoryFilter final : public SimSystem
     void  record_friction_candidates();  // only called by SimEngine
     friend class GlobalContactManager;
     void label_active_vertices();  // only called by GlobalContactManager
+    void clear_friction_candidates();   // called by GlobalContactManager
 
     Impl m_impl;
 };

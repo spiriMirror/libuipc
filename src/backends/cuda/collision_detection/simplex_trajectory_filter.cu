@@ -295,4 +295,12 @@ muda::VarView<Float> SimplexTrajectoryFilter::FilterTOIInfo::toi() noexcept
 {
     return m_toi;
 }
+
+void SimplexTrajectoryFilter::do_clear_friction_candidates()
+{
+    m_impl.friction_PT.resize(0);
+    m_impl.friction_EE.resize(0);
+    m_impl.friction_PE.resize(0);
+    m_impl.friction_PP.resize(0);
+}
 }  // namespace uipc::backend::cuda

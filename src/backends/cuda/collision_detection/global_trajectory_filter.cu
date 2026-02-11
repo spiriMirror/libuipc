@@ -108,6 +108,13 @@ Float GlobalTrajectoryFilter::filter_toi(Float alpha)
 
 void GlobalTrajectoryFilter::record_friction_candidates()
 {
+    // Check if friction candidates should be discarded before recording new ones
+    if(m_impl.global_contact_manager && m_impl.global_contact_manager->m_impl.should_discard_friction_candidates)
+    {
+        clear_friction_candidates();
+        m_impl.global_contact_manager->m_impl.should_discard_friction_candidates = false;
+    }
+
     for(auto filter : m_impl.filters.view())
     {
         RecordFrictionCandidatesInfo info;
@@ -121,6 +128,14 @@ void GlobalTrajectoryFilter::label_active_vertices()
     {
         LabelActiveVerticesInfo info(&m_impl);
         filter->label_active_vertices(info);
+    }
+}
+
+void GlobalTrajectoryFilter::clear_friction_candidates()
+{
+    for(auto filter : m_impl.filters.view())
+    {
+        filter->clear_friction_candidates();
     }
 }
 
