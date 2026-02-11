@@ -5,6 +5,7 @@
 #include <contact_system/global_contact_manager.h>
 #include <muda/buffer/device_buffer.h>
 #include <implicit_geometry/half_plane.h>
+#include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -61,6 +62,9 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
       public:
         using BaseInfo::BaseInfo;
 
+        /**
+         * @brief Candidate vertex-half-plane pairs.
+         */
         void PHs(muda::CBufferView<Vector2i> Ps) noexcept;
     };
 
@@ -86,6 +90,10 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
       public:
         void record_friction_candidates(GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info);
         void label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info);
+        bool dump(DumpInfo& info);
+        bool try_recover(RecoverInfo& info);
+        void apply_recover(RecoverInfo& info);
+        void clear_recover(RecoverInfo& info);
 
         GlobalVertexManager* global_vertex_manager = nullptr;
         GlobalSimplicialSurfaceManager* global_simplicial_surface_manager = nullptr;
@@ -95,8 +103,11 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
 
         muda::CBufferView<Vector2i>  PHs;
         muda::DeviceBuffer<Vector2i> friction_PHs;
+        muda::DeviceBuffer<Vector2i> recovered_PHs;
 
         Float reserve_ratio = 1.1;
+
+        BufferDump dump_PHs;
 
         template <typename T>
         void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)
@@ -118,6 +129,10 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
     virtual void do_filter_toi(FilterTOIInfo& info)       = 0;
 
     virtual void do_build(BuildInfo& info){};
+    virtual bool do_dump(DumpInfo& info) override;
+    virtual bool do_try_recover(RecoverInfo& info) override;
+    virtual void do_apply_recover(RecoverInfo& info) override;
+    virtual void do_clear_recover(RecoverInfo& info) override;
 
   private:
     Impl         m_impl;
@@ -129,5 +144,6 @@ class VertexHalfPlaneTrajectoryFilter : public TrajectoryFilter
     virtual void do_record_friction_candidates(
         GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info) override final;
     virtual void do_label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info) override final;
+    virtual void do_clear_friction_candidates() override final;
 };
 }  // namespace uipc::backend::cuda

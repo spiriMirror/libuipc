@@ -6,6 +6,7 @@
 #include <global_geometry/global_body_manager.h>
 #include <contact_system/global_contact_manager.h>
 #include <muda/buffer/device_buffer.h>
+#include <utils/dump_utils.h>
 
 namespace uipc::backend::cuda
 {
@@ -84,9 +85,21 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
       public:
         using BaseInfo::BaseInfo;
 
+        /**
+         * @brief Candidate point-triangle pairs.
+         */
         void PTs(muda::CBufferView<Vector4i> PTs) noexcept;
+        /**
+         * @brief Candidate edge-edge pairs.
+         */
         void EEs(muda::CBufferView<Vector4i> EEs) noexcept;
+        /**
+         * @brief Candidate point-edge pairs.
+         */
         void PEs(muda::CBufferView<Vector3i> PEs) noexcept;
+        /**
+         * @brief Candidate point-point pairs.
+         */
         void PPs(muda::CBufferView<Vector2i> PPs) noexcept;
     };
 
@@ -107,6 +120,10 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
       public:
         void record_friction_candidates(GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info);
         void label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info);
+        bool dump(DumpInfo& info);
+        bool try_recover(RecoverInfo& info);
+        void apply_recover(RecoverInfo& info);
+        void clear_recover(RecoverInfo& info);
 
         SimSystemSlot<GlobalVertexManager> global_vertex_manager;
         SimSystemSlot<GlobalSimplicialSurfaceManager> global_simplicial_surface_manager;
@@ -123,7 +140,17 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
         muda::DeviceBuffer<Vector3i> friction_PE;
         muda::DeviceBuffer<Vector2i> friction_PP;
 
+        muda::DeviceBuffer<Vector4i> recovered_PT;
+        muda::DeviceBuffer<Vector4i> recovered_EE;
+        muda::DeviceBuffer<Vector3i> recovered_PE;
+        muda::DeviceBuffer<Vector2i> recovered_PP;
+
         Float reserve_ratio = 1.1;
+
+        BufferDump dump_PTs;
+        BufferDump dump_EEs;
+        BufferDump dump_PEs;
+        BufferDump dump_PPs;
 
         template <typename T>
         void loose_resize(muda::DeviceBuffer<T>& buffer, SizeT size)
@@ -151,6 +178,10 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
     virtual void do_detect(DetectInfo& info)              = 0;
     virtual void do_filter_active(FilterActiveInfo& info) = 0;
     virtual void do_filter_toi(FilterTOIInfo& info)       = 0;
+    virtual bool do_dump(DumpInfo& info) override;
+    virtual bool do_try_recover(RecoverInfo& info) override;
+    virtual void do_apply_recover(RecoverInfo& info) override;
+    virtual void do_clear_recover(RecoverInfo& info) override;
 
   private:
     friend class GlobalDCDFilter;
@@ -164,5 +195,6 @@ class SimplexTrajectoryFilter : public TrajectoryFilter
     virtual void do_record_friction_candidates(
         GlobalTrajectoryFilter::RecordFrictionCandidatesInfo& info) override final;
     virtual void do_label_active_vertices(GlobalTrajectoryFilter::LabelActiveVerticesInfo& info) final override;
+    virtual void do_clear_friction_candidates() override final;
 };
 }  // namespace uipc::backend::cuda

@@ -4,6 +4,7 @@
 #include <muda/cub/device/device_reduce.h>
 #include <global_geometry/vertex_reporter.h>
 #include <sim_engine.h>
+#include <collision_detection/global_trajectory_filter.h>
 
 /*************************************************************************************************
 * Core Implementation
@@ -15,7 +16,8 @@ REGISTER_SIM_SYSTEM(GlobalVertexManager);
 void GlobalVertexManager::do_build()
 {
     auto d_hat = world().scene().config().find<Float>("contact/d_hat");
-    m_impl.default_d_hat = d_hat->view()[0];
+    m_impl.default_d_hat            = d_hat->view()[0];
+    m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
 }
 
 void GlobalVertexManager::Impl::init()
@@ -282,6 +284,14 @@ muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::body_ids() co
 muda::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::d_hats() const noexcept
 {
     return m_impl->subview(m_impl->d_hats, m_index);  // Assuming d_hats are stored in thicknesses
+}
+
+void GlobalVertexManager::VertexAttributeInfo::require_discard_friction() const noexcept
+{
+    // If the vertex attributes are updated in a way that will ruin the friction computation
+    // we need to discard the friction information in the global trajectory filter.
+    // ref: https://github.com/spiriMirror/libuipc/issues/303
+    m_impl->global_trajectory_filter->require_discard_friction();
 }
 
 SizeT GlobalVertexManager::VertexAttributeInfo::frame() const noexcept
