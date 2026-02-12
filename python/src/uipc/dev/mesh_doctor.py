@@ -46,8 +46,8 @@ class MeshDoctor:
                 
                 from uipc.geometry import SimplicialComplexIO
                 io = SimplicialComplexIO()
-                base_mesh_path = f'{self.workspace}/base_mesh.obj'
-                open_edges_path = f'{self.workspace}/open_edges.obj'
+                base_mesh_path = os.path.join(self.workspace, 'base_mesh.obj')
+                open_edges_path = os.path.join(self.workspace, 'open_edges.obj')
                 io.write(base_mesh_path, mesh)
                 io.write(open_edges_path, open_edges_mesh)
                 uipc.Logger.info(f'Written base mesh to: {base_mesh_path}')
