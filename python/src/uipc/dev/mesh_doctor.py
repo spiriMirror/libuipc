@@ -18,9 +18,9 @@ class MeshDoctor:
                 ps.init()
     
     def check_mesh(self, constitution:IConstitution, mesh:SimplicialComplex):
-        if constitution.type() == 'AffineBody':
+        if constitution.type() == uipc.builtin.AffineBody:
             return self.check_affine_body(constitution, mesh)
-        elif constitution.type() == 'FiniteElement':
+        elif constitution.type() == uipc.builtin.FiniteElement:
             # TODO: Implement finite element mesh check
             return True
         else:
