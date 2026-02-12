@@ -3,6 +3,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <muda/cub/device/device_reduce.h>
 #include <affine_body/abd_line_search_reporter.h>
+#include <utils/report_extent_check.h>
 
 namespace uipc::backend::cuda
 {
@@ -152,13 +153,12 @@ void AffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::AssembleIn
 {
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeGradientHessianInfo this_info{
-            &m_impl,
-            constraint->m_index,
-            m_impl.dt,
-            info.gradients(),
-            info.hessians(),
-            info.gradient_only()};
+        ComputeGradientHessianInfo this_info{&m_impl,
+                                             constraint->m_index,
+                                             m_impl.dt,
+                                             info.gradients(),
+                                             info.hessians(),
+                                             info.gradient_only()};
         constraint->compute_gradient_hessian(this_info);
     }
 }
@@ -233,6 +233,11 @@ void AffineBodyAnimator::ReportExtentInfo::energy_count(SizeT count) noexcept
 {
     m_energy_count = count;
 }
+
+void AffineBodyAnimator::ReportExtentInfo::check(std::string_view name) const
+{
+    check_report_extent(m_gradient_only_checked, m_gradient_only, m_hessian_block_count, name);
+}
 }  // namespace uipc::backend::cuda
 
 namespace uipc::backend::cuda
@@ -258,7 +263,8 @@ class AffineBodyAnimatorLinearSubsystemReporter final : public ABDLinearSubsyste
         gradient_count =
             animator->m_impl.constraint_gradient_offsets_counts.total_count();
         if(!info.gradient_only())
-            hessian_count = animator->m_impl.constraint_hessian_offsets_counts.total_count();
+            hessian_count =
+                animator->m_impl.constraint_hessian_offsets_counts.total_count();
 
         info.gradient_count(gradient_count);
         info.hessian_count(hessian_count);
