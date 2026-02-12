@@ -3,6 +3,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <muda/cub/device/device_reduce.h>
 #include <affine_body/abd_line_search_reporter.h>
+#include <utils/report_extent_check.h>
 
 namespace uipc::backend::cuda
 {
@@ -272,6 +273,11 @@ void InterAffineBodyAnimator::ReportExtentInfo::gradient_count(SizeT count) noex
 void InterAffineBodyAnimator::ReportExtentInfo::energy_count(SizeT count) noexcept
 {
     m_energy_count = count;
+}
+
+void InterAffineBodyAnimator::ReportExtentInfo::check(std::string_view name) const
+{
+    check_report_extent(m_gradient_only_checked, m_gradient_only, m_hessian_block_count, name);
 }
 }  // namespace uipc::backend::cuda
 

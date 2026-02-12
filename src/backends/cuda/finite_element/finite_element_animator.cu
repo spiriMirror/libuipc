@@ -3,6 +3,7 @@
 #include <finite_element/fem_line_search_subreporter.h>
 #include <finite_element/fem_linear_subsystem_reporter.h>
 #include <uipc/builtin/attribute_name.h>
+#include <utils/report_extent_check.h>
 #include <uipc/common/enumerate.h>
 #include <muda/cub/device/device_reduce.h>
 
@@ -230,6 +231,11 @@ void FiniteElementAnimator::ReportExtentInfo::gradient_count(SizeT count) noexce
 void FiniteElementAnimator::ReportExtentInfo::energy_count(SizeT count) noexcept
 {
     m_energy_count = count;
+}
+
+void FiniteElementAnimator::ReportExtentInfo::check(std::string_view name) const
+{
+    check_report_extent(m_gradient_only_checked, m_gradient_only, m_hessian_block_count, name);
 }
 }  // namespace uipc::backend::cuda
 

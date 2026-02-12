@@ -515,6 +515,10 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         info.energy_count(e_count);
         auto g_count = joint_id_to_art_id.size() * 2;
         info.gradient_count(g_count);
+
+        if(info.gradient_only())
+            return;
+
         auto h_count = joint_joint_id_to_mass.size() * HalfHessianSize;
         info.hessian_count(h_count);
     }
