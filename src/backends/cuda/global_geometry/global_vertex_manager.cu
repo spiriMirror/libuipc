@@ -17,7 +17,7 @@ void GlobalVertexManager::do_build()
 {
     auto d_hat = world().scene().config().find<Float>("contact/d_hat");
     m_impl.default_d_hat            = d_hat->view()[0];
-    m_impl.global_trajectory_filter = require<GlobalTrajectoryFilter>();
+    m_impl.global_trajectory_filter = find<GlobalTrajectoryFilter>();
 }
 
 void GlobalVertexManager::Impl::init()
@@ -291,7 +291,8 @@ void GlobalVertexManager::VertexAttributeInfo::require_discard_friction() const 
     // If the vertex attributes are updated in a way that will ruin the friction computation
     // we need to discard the friction information in the global trajectory filter.
     // ref: https://github.com/spiriMirror/libuipc/issues/303
-    m_impl->global_trajectory_filter->require_discard_friction();
+    if(m_impl->global_trajectory_filter)
+        m_impl->global_trajectory_filter->require_discard_friction();
 }
 
 SizeT GlobalVertexManager::VertexAttributeInfo::frame() const noexcept

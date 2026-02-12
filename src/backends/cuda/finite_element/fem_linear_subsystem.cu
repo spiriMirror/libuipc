@@ -11,6 +11,7 @@
 #include <finite_element/fem_dytopo_effect_receiver.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/flag.h>
+#include <utils/report_extent_check.h>
 
 namespace uipc::backend::cuda
 {
@@ -446,6 +447,11 @@ void FEMLinearSubsystem::ReportExtentInfo::gradient_count(SizeT size)
 void FEMLinearSubsystem::ReportExtentInfo::hessian_count(SizeT size)
 {
     m_hessian_count = size;
+}
+
+void FEMLinearSubsystem::ReportExtentInfo::check(std::string_view name) const
+{
+    check_report_extent(m_gradient_only_checked, m_gradient_only, m_hessian_count, name);
 }
 
 void FEMLinearSubsystem::add_reporter(FEMLinearSubsystemReporter* reporter)

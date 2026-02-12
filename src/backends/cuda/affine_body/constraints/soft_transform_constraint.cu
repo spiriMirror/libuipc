@@ -89,6 +89,9 @@ class SoftTransformConstraint final : public AffineBodyConstraint
     {
         info.energy_count(h_constrained_bodies.size());
         info.gradient_count(h_constrained_bodies.size());
+        if(info.gradient_only())
+            return;
+
         info.hessian_count(h_constrained_bodies.size());
     }
 

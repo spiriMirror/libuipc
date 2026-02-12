@@ -22,6 +22,7 @@ void FEMLinearSubsystemReporter::init()
 void FEMLinearSubsystemReporter::report_extent(ReportExtentInfo& info)
 {
     do_report_extent(info);
+    info.check(name());
 
     UIPC_ASSERT(!(info.gradient_only() && info.m_hessian_count != 0),
                 "When gradient_only is true, hessian_count must be 0, but {} provides hessian count={}.\n"

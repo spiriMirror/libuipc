@@ -24,7 +24,12 @@ class FiniteElementElastics final : public SimSystem
         void energy_count(SizeT count) noexcept { m_energy_count = count; }
         void gradient_count(SizeT count) noexcept { m_gradient_count = count; }
         void hessian_count(SizeT count) noexcept { m_hessian_count = count; }
-        bool gradient_only() const noexcept { return m_gradient_only; }
+        bool gradient_only() const noexcept
+        {
+            m_gradient_only_checked = true;
+            return m_gradient_only;
+        }
+        void check(std::string_view name) const;
 
       private:
         friend class FiniteElementElastics;
@@ -35,6 +40,7 @@ class FiniteElementElastics final : public SimSystem
         SizeT m_gradient_count = 0;
         SizeT m_hessian_count  = 0;
         bool  m_gradient_only  = false;
+        mutable bool m_gradient_only_checked = false;
     };
 
     class ComputeEnergyInfo
