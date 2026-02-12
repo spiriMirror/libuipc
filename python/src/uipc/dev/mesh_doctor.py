@@ -79,7 +79,7 @@ class MeshDoctor:
             return linemesh(positions, empty_edges)
         
         positions = np.array(pos_view, dtype=np.float32).reshape(-1, 3)
-        open_edges = np.array([edge_view[i] for i in open_edge_indices], dtype=np.int32).reshape(-1, 2)
+        open_edges = np.array(edge_view[open_edge_indices], dtype=np.int32).reshape(-1, 2)
         return linemesh(positions, open_edges)
     
     def _visualize_open_edges(self, mesh:SimplicialComplex, open_edges_mesh:SimplicialComplex):
