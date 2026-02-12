@@ -124,7 +124,12 @@ class InterAffineBodyAnimator final : public Animator
         void hessian_count(SizeT count) noexcept;
         void gradient_count(SizeT count) noexcept;
         void energy_count(SizeT count) noexcept;
-        bool gradient_only() const noexcept { return m_gradient_only; }
+        bool gradient_only() const noexcept
+        {
+            m_gradient_only_checked = true;
+            return m_gradient_only;
+        }
+        void check(std::string_view name) const;
 
       private:
         friend class InterAffineBodyAnimator;
@@ -133,6 +138,7 @@ class InterAffineBodyAnimator final : public Animator
         SizeT m_gradient_segment_count = 0;
         SizeT m_energy_count           = 0;
         bool  m_gradient_only          = false;
+        mutable bool m_gradient_only_checked = false;
     };
 
     class Impl

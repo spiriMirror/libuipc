@@ -34,6 +34,7 @@ void FiniteElementConstraint::step(FiniteElementAnimator::FilteredInfo& info)
 void FiniteElementConstraint::report_extent(FiniteElementAnimator::ReportExtentInfo& info)
 {
     do_report_extent(info);
+    info.check(name());
 
     UIPC_ASSERT(!(info.gradient_only() && info.m_hessian_block_count != 0),
                 "When gradient_only is true, hessian_count must be 0, but {} provides hessian count={}.\n"

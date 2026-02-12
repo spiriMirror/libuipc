@@ -51,7 +51,12 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         void gradient_count(SizeT size);
         // TripletMatrix12x12 count
         void hessian_count(SizeT size);
-        bool gradient_only() const noexcept { return m_gradient_only; }
+        bool gradient_only() const noexcept
+        {
+            m_gradient_only_checked = true;
+            return m_gradient_only;
+        }
+        void check(std::string_view name) const;
 
       private:
         friend class ABDLinearSubsystem;
@@ -59,6 +64,7 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
         SizeT m_gradient_count = 0;
         SizeT m_hessian_count  = 0;
         bool  m_gradient_only  = false;
+        mutable bool m_gradient_only_checked = false;
     };
 
     class Impl;

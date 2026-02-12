@@ -202,6 +202,9 @@ Edge             = ({}, {}))",
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
     {
         info.gradient_count(2 * body_ids.size());  // each joint has 2 * Vector12 gradients
+        if(info.gradient_only())
+            return;
+
         info.hessian_count(HalfHessianSize * body_ids.size());  // each joint has HalfHessianSize * Matrix12x12 hessians
     }
 

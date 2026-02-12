@@ -3,10 +3,16 @@
 #include <finite_element/finite_element_extra_constitution.h>
 #include <finite_element/fem_linear_subsystem_reporter.h>
 #include <finite_element/fem_line_search_subreporter.h>
+#include <utils/report_extent_check.h>
 
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FiniteElementElastics);
+
+void FiniteElementElastics::ReportExtentInfo::check(std::string_view name) const
+{
+    check_report_extent(m_gradient_only_checked, m_gradient_only, m_hessian_count, name);
+}
 
 void FiniteElementElastics::do_build()
 {

@@ -9,6 +9,7 @@
 #include <affine_body/abd_linear_subsystem_reporter.h>
 #include <affine_body/affine_body_kinetic.h>
 #include <affine_body/affine_body_constitution.h>
+#include <utils/report_extent_check.h>
 
 namespace uipc::backend::cuda
 {
@@ -640,6 +641,11 @@ void ABDLinearSubsystem::ReportExtentInfo::gradient_count(SizeT size)
 void ABDLinearSubsystem::ReportExtentInfo::hessian_count(SizeT size)
 {
     m_hessian_count = size;
+}
+
+void ABDLinearSubsystem::ReportExtentInfo::check(std::string_view name) const
+{
+    check_report_extent(m_gradient_only_checked, m_gradient_only, m_hessian_count, name);
 }
 
 AffineBodyDynamics::Impl& ABDLinearSubsystem::Impl::abd() const noexcept
