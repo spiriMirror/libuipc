@@ -130,6 +130,17 @@ Args:
 Args:
     sc: SimplicialComplex to label.)");
 
+    m.def("label_open_edge",
+          &label_open_edge,
+          py::arg("sc"),
+          R"(Label open edges in a trimesh.
+An edge is considered open if it is shared by exactly 1 triangle.
+An edge shared by 2 triangles is a normal closed edge.
+Args:
+    sc: SimplicialComplex to label.
+Returns:
+    AttributeSlot: The `is_open` attribute slot on edges (1 = open, 0 = closed).)");
+
     m.def(
         "apply_region",
         [](const SimplicialComplex& simplicial_complex) -> py::list

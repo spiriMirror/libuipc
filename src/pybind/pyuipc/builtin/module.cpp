@@ -5,6 +5,8 @@
 #include <pyuipc/builtin/implicit_geometry_uid_collection.h>
 #include <pyuipc/builtin/attribute_name.h>
 #include <pyuipc/builtin/constants.h>
+#include <pyuipc/builtin/geometry_type.h>
+#include <pyuipc/builtin/constitution_type.h>
 
 namespace pyuipc::builtin
 {
@@ -12,6 +14,8 @@ PyModule::PyModule(py::module& m)
 {
     PyAttributeName{m};
     PyConstants{m};
+    PyGeometryType{m};
+    PyConstitutionType{m};
 
     PyUIDInfo{m};
     PyUIDRegister{m};
