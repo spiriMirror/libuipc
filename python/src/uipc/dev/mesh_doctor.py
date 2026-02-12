@@ -100,7 +100,7 @@ class MeshDoctor:
         
         used_vertices = np.unique(edges.flatten())
         vertex_remap = {old_idx: new_idx for new_idx, old_idx in enumerate(used_vertices)}
-        positions = np.array([pos_view[v] for v in used_vertices], dtype=np.float32).reshape(-1, 3)
+        positions = np.array(pos_view[used_vertices], dtype=np.float32).reshape(-1, 3)
         remapped_edges = np.array([[vertex_remap[v0], vertex_remap[v1]] for v0, v1 in edges], dtype=np.int32).reshape(-1, 2)
         
         edges_name = 'Open Edges'
