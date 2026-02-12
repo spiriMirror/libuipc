@@ -3,11 +3,10 @@ import uipc
 import polyscope as ps
 from polyscope import imgui
 import os
-
-from uipc.constitution import IConstitution
-from uipc.geometry import SimplicialComplex
-
 import argparse as ap
+
+from uipc.constitution import IConstitution, AffineBodyConstitution
+from uipc.geometry import SimplicialComplex, SimplicialComplexIO, linemesh, label_open_edge
 
 class MeshDoctor:
     def __init__(self, workspace: str, with_gui: bool = False):
@@ -27,8 +26,6 @@ class MeshDoctor:
             raise ValueError(f'Unsupported constitution type: {constitution.type()}')
     
     def check_affine_body(self, constitution:IConstitution, mesh:SimplicialComplex):
-        from uipc.geometry import is_trimesh_closed, label_open_edge
-        
         uipc.Logger.info(f'Checking affine body mesh: {mesh}')
         
         success = True
@@ -44,7 +41,6 @@ class MeshDoctor:
                 
                 open_edges_mesh = self._extract_open_edges_mesh(mesh, is_open_view)
                 
-                from uipc.geometry import SimplicialComplexIO
                 io = SimplicialComplexIO()
                 base_mesh_path = os.path.join(self.workspace, 'base_mesh.obj')
                 open_edges_path = os.path.join(self.workspace, 'open_edges.obj')
@@ -67,8 +63,6 @@ class MeshDoctor:
     
     def _extract_open_edges_mesh(self, mesh:SimplicialComplex, is_open_view) -> SimplicialComplex:
         '''Extract open edges into a separate mesh, keeping all vertices'''
-        from uipc.geometry import linemesh
-        
         pos_view = mesh.positions().view()
         edge_view = mesh.edges().topo().view()
         open_edge_indices = np.where(is_open_view == 1)[0]
@@ -84,8 +78,6 @@ class MeshDoctor:
     
     def _visualize_open_edges(self, mesh:SimplicialComplex, open_edges_mesh:SimplicialComplex):
         '''Visualize open edges in polyscope, extracting only vertices referenced by open edges'''
-        import polyscope as ps
-        
         mesh_name = 'Affine Body Mesh'
         ps_mesh = ps.register_surface_mesh(
             mesh_name,
@@ -132,13 +124,11 @@ if __name__ == '__main__':
     doctor = MeshDoctor(workspace, with_gui=args.gui)
     
     # Load the mesh
-    from uipc.geometry import SimplicialComplexIO
     io = SimplicialComplexIO()
     mesh = io.read(args.mesh)
     
     # Create constitution based on flag
     if args.abd:
-        from uipc.constitution import AffineBodyConstitution
         constitution = AffineBodyConstitution()
     else:
         raise ValueError('Please specify a constitution type (e.g., --abd for AffineBodyConstitution)')

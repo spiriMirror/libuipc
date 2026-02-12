@@ -1,9 +1,20 @@
 #include <uipc/geometry/utils/label_open_edge.h>
 #include <uipc/common/enumerate.h>
-#include <map>
+#include <uipc/common/unordered_map.h>
 
 namespace uipc::geometry
 {
+// Hash function for Vector2i
+struct Vector2iHash
+{
+    std::size_t operator()(const Vector2i& v) const
+    {
+        std::size_t h1 = std::hash<int>()(v[0]);
+        std::size_t h2 = std::hash<int>()(v[1]);
+        return h1 ^ (h2 << 1);
+    }
+};
+
 UIPC_GEOMETRY_API S<AttributeSlot<IndexT>> label_open_edge(SimplicialComplex& R)
 {
     UIPC_ASSERT(R.dim() == 2, "Only 2D SimplicialComplex is supported.");
@@ -19,14 +30,8 @@ UIPC_GEOMETRY_API S<AttributeSlot<IndexT>> label_open_edge(SimplicialComplex& R)
         return e;
     };
 
-    // Comparator for Vector2i edges (lexicographic order)
-    auto compare_edge = [](const Vector2i& a, const Vector2i& b)
-    {
-        return a[0] < b[0] || (a[0] == b[0] && a[1] < b[1]);
-    };
-
     // Create a map from normalized edge to edge index
-    std::map<Vector2i, IndexT, decltype(compare_edge)> edge_to_index(compare_edge);
+    uipc::unordered_map<Vector2i, IndexT, Vector2iHash> edge_to_index;
     for(auto&& [i, e] : enumerate(edge_view))
     {
         Vector2i normalized = normalize_edge(e);
@@ -34,7 +39,7 @@ UIPC_GEOMETRY_API S<AttributeSlot<IndexT>> label_open_edge(SimplicialComplex& R)
     }
 
     // Count how many times each edge appears in triangles
-    std::map<Vector2i, int, decltype(compare_edge)> edge_count(compare_edge);
+    uipc::unordered_map<Vector2i, int, Vector2iHash> edge_count;
 
     for(auto&& [i, t] : enumerate(tri_view))
     {
