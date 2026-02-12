@@ -2,10 +2,12 @@ import numpy as np
 import uipc
 import polyscope as ps
 from polyscope import imgui
+import os
 
 from uipc.constitution import IConstitution
 from uipc.geometry import SimplicialComplex
-from uipc import builtin
+
+import argparse as ap
 
 class MeshDoctor:
     def __init__(self, workspace: str, with_gui: bool = False):
@@ -110,3 +112,41 @@ class MeshDoctor:
             color=[1.0, 0.0, 0.0]
         )
         ps_edges.set_enabled(True)
+
+if __name__ == '__main__':
+    parser = ap.ArgumentParser(description='Mesh doctor utility for checking mesh validity')
+    parser.add_argument('mesh', type=str, help='Path to the mesh file to check')
+    parser.add_argument('--workspace', type=str, default=None, 
+                        help='Workspace directory for output files (default: current working directory)')
+    parser.add_argument('--abd', action='store_true', 
+                        help='Use AffineBodyConstitution for checking')
+    parser.add_argument('--gui', action='store_true',
+                        help='Enable GUI visualization')
+    
+    args = parser.parse_args()
+    
+    # Set workspace to current directory if not provided
+    workspace = args.workspace if args.workspace else os.getcwd()
+    
+    # Create MeshDoctor
+    doctor = MeshDoctor(workspace, with_gui=args.gui)
+    
+    # Load the mesh
+    from uipc.geometry import SimplicialComplexIO
+    io = SimplicialComplexIO()
+    mesh = io.read(args.mesh)
+    
+    # Create constitution based on flag
+    if args.abd:
+        from uipc.constitution import AffineBodyConstitution
+        constitution = AffineBodyConstitution()
+    else:
+        raise ValueError('Please specify a constitution type (e.g., --abd for AffineBodyConstitution)')
+    
+    # Check the mesh
+    is_valid = doctor.check_mesh(constitution, mesh)
+    
+    if is_valid:
+        uipc.Logger.info("Mesh check passed!")
+    else:
+        uipc.Logger.error("Mesh check failed! See visualization for details.")
