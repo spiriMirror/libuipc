@@ -12,15 +12,15 @@ Build the project first using the [build command](./build.md). Test binaries are
 
 ```powershell
 cd <cmake-binary-directory>/<configuration>/bin
-./uipc_test_<name>.exe
+./uipc_test_<name>
 ```
 
-Test binary names follow the pattern `uipc_test_<name>` where `<name>` matches the CMake target name in `apps/tests/`.
+Test binary names follow the pattern `uipc_test_<name>` where `<name>` matches the CMake target name in `apps/tests/`. On Windows, the executable will have an `.exe` extension.
 
 ## Run a Specific Test Case
 
 ```powershell
-./uipc_test_<name>.exe "<test-case-name>"
+./uipc_test_<name> "<test-case-name>"
 ```
 
 ## Run Tests Matching a Tag
@@ -28,13 +28,13 @@ Test binary names follow the pattern `uipc_test_<name>` where `<name>` matches t
 Catch2 tags are used to group tests (e.g., `[geometry]`, `[core]`):
 
 ```powershell
-./uipc_test_<name>.exe [geometry]
+./uipc_test_<name> [geometry]
 ```
 
 ## Adjust Log Level
 
 ```powershell
-./uipc_test_<name>.exe --log-level <level>
+./uipc_test_<name> --log-level <level>
 ```
 
 Levels: `trace`, `debug`, `info`, `warn`, `error`, `critical`, `off`.
@@ -42,7 +42,7 @@ Levels: `trace`, `debug`, `info`, `warn`, `error`, `critical`, `off`.
 ## List Available Tests
 
 ```powershell
-./uipc_test_<name>.exe --list-tests
+./uipc_test_<name> --list-tests
 ```
 
 ## Test Organization

@@ -72,7 +72,7 @@ Overview of the main directories and important files in the repository.
 - `backends/` - Backend implementations (`common/`, `cuda/`, `none/`).
   - `common/` - Common utilities for all backends.
   - `cuda/` - CUDA backend with CUDA kernels.
-  - `none/` - A empty backend that does nothing, as a template for creating a new backend or checking the basic functionality.
+  - `none/` - An empty backend that does nothing, as a template for creating a new backend or checking the basic functionality.
 - `constitution/` - Physical constitution implementations.
 - `core/` - Core engine systems and modules.
 - `geometry/` - Geometry algorithms and data types.
