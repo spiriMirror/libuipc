@@ -7,9 +7,9 @@ REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
     list<UIDInfo> uids;
-    uids.push_back(UIDInfo{.uid  = 700,
+    uids.push_back(UIDInfo{.uid  = 670,
                            .name = "AffineBodyRevoluteJointLimit",
-                           .type = string{builtin::Constraint}});
+                           .type = string{builtin::InterAffineBody}});
     return uids;
 }
 }  // namespace uipc::constitution

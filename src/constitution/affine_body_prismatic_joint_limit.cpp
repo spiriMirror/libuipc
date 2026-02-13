@@ -9,7 +9,7 @@ REGISTER_CONSTITUTION_UIDS()
     list<UIDInfo> uids;
     uids.push_back(UIDInfo{.uid  = 669,
                            .name = "AffineBodyPrismaticJointLimit",
-                           .type = string{builtin::Constraint}});
+                           .type = string{builtin::InterAffineBody}});
     return uids;
 }
 }  // namespace uipc::constitution
