@@ -35,7 +35,7 @@ Returns:
            Float thickness)
         { self.apply_to(sc, moduli, mass_density, thickness); },
         py::arg("sc"),
-        py::arg("moduli")       = ElasticModuli::youngs_poisson(1.0_MPa, 0.49),
+        py::arg("moduli")       = ElasticModuli2D::youngs_poisson(1.0_MPa, 0.49),
         py::arg("mass_density") = 2.0e2,
         py::arg("thickness")    = 0.001_m,
         R"(Apply StrainLimitingBaraffWitkinShell constitution to a simplicial complex.
