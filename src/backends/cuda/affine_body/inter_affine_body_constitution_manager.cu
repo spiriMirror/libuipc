@@ -4,6 +4,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <affine_body/abd_line_search_subreporter.h>
 #include <affine_body/abd_linear_subsystem_reporter.h>
+#include <uipc/common/set.h>
 
 namespace uipc::backend
 {
@@ -55,6 +56,8 @@ void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
 
     constitution_geo_info_offsets_counts.resize(constitution_view.size());
     auto geo_slots = scene.geometries();
+    inter_geo_infos.clear();
+    constitution_inter_geo_infos.clear();
     inter_geo_infos.reserve(geo_slots.size());
 
     span<IndexT> constitution_geo_info_counts =
@@ -63,24 +66,54 @@ void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
     for(auto&& [i, slot] : enumerate(geo_slots))
     {
         auto& geo = slot->geometry();
-        auto  uid = geo.meta().find<U64>(builtin::constitution_uid);
-        if(!uid)
-            continue;
+        auto  base_uid = geo.meta().find<U64>(builtin::constitution_uid);
 
-        U64 uid_value = uid->view()[0];
-        if(!uid_to_index.contains(uid_value))
-            continue;
+        if(base_uid)
+        {
+            U64 uid_value = base_uid->view()[0];
+            if(uid_to_index.contains(uid_value))
+            {
+                InterGeoInfo geo_info;
+                geo_info.geo_slot_index   = i;
+                geo_info.geo_id           = slot->id();
+                geo_info.constitution_uid = uid_value;
+                inter_geo_infos.push_back(geo_info);
+            }
+        }
 
-        InterGeoInfo geo_info;
-        geo_info.geo_slot_index   = i;
-        geo_info.geo_id           = slot->id();
-        geo_info.constitution_uid = uid_value;
-        constitution_geo_info_counts[uid_to_index[uid_value]]++;
-        inter_geo_infos.push_back(geo_info);
+        set<U64> constitution_uids;
+        if(base_uid)
+            constitution_uids.insert(base_uid->view()[0]);
+
+        auto extra_uids = geo.meta().find<VectorXu64>(builtin::extra_constitution_uids);
+        if(extra_uids)
+        {
+            for(auto uid : extra_uids->view().front())
+                constitution_uids.insert(uid);
+        }
+
+        for(auto uid_value : constitution_uids)
+        {
+            auto it = uid_to_index.find(uid_value);
+            if(it == uid_to_index.end())
+                continue;
+
+            InterGeoInfo geo_info;
+            geo_info.geo_slot_index   = i;
+            geo_info.geo_id           = slot->id();
+            geo_info.constitution_uid = uid_value;
+            constitution_geo_info_counts[it->second]++;
+            constitution_inter_geo_infos.push_back(geo_info);
+        }
     }
 
-    // stable sort by constitution uid to ensure that geometries from the same constitution are grouped together
+    // Keep the legacy ordering for animator/constraint pipeline.
     std::ranges::stable_sort(inter_geo_infos,
+                             [](const InterGeoInfo& a, const InterGeoInfo& b)
+                             { return a.constitution_uid < b.constitution_uid; });
+
+    // Stable sort by constitution uid to ensure geometries from the same constitution are grouped together.
+    std::ranges::stable_sort(constitution_inter_geo_infos,
                              [](const InterGeoInfo& a, const InterGeoInfo& b)
                              { return a.constitution_uid < b.constitution_uid; });
 
@@ -91,10 +124,10 @@ void InterAffineBodyConstitutionManager::Impl::init(SceneVisitor& scene)
     // to get a subspan for each constitution
 
     UIPC_ASSERT(constitution_geo_info_offsets_counts.total_count()
-                    == inter_geo_infos.size(),
+                    == constitution_inter_geo_infos.size(),
                 "Mismatch in geometry count for constitutions: expected {}, found {}",
                 constitution_geo_info_offsets_counts.total_count(),
-                inter_geo_infos.size());
+                constitution_inter_geo_infos.size());
 
 
     // count geometries
@@ -228,7 +261,7 @@ bool InterAffineBodyConstitutionManager::GradientHessianInfo::gradient_only() co
 span<const InterAffineBodyConstitutionManager::InterGeoInfo> InterAffineBodyConstitutionManager::FilteredInfo::inter_geo_infos() const noexcept
 {
     auto [offset, count] = m_impl->constitution_geo_info_offsets_counts[m_index];
-    return span{m_impl->inter_geo_infos}.subspan(offset, count);
+    return span{m_impl->constitution_inter_geo_infos}.subspan(offset, count);
 }
 
 span<const AffineBodyDynamics::GeoInfo> InterAffineBodyConstitutionManager::FilteredInfo::geo_infos() const noexcept
