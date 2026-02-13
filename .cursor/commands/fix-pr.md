@@ -35,6 +35,13 @@ gh pr view <PR_NUMBER> --comments > output/.cursor/pr_comments.txt
 
 Analyze all review comments and identify what needs to change.
 
+
+Check the PR status, if there is a conflict, you need to resolve it first.
+
+```bash
+gh pr status --conflict-status
+```
+
 ## 4. Plan & Implement Fixes
 
 Switch to **plan mode**. Address each review comment, then implement the fixes.
