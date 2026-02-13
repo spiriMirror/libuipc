@@ -47,6 +47,9 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
         Vector2i e = topo_view[joint_index];
         Vector3  t = pos_view[e[1]] - pos_view[e[0]];
+        UIPC_ASSERT(t.squaredNorm() > 0.0,
+                    "AffineBodyRevoluteJointLimit: joint edge {} has zero length; cannot compute revolute basis",
+                    joint_index);
         Vector3  n;
         Vector3  b;
         orthonormal_basis(t, n, b);

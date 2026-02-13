@@ -47,6 +47,9 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
 
         Vector2i e = topo_view[joint_index];
         Vector3  t = pos_view[e[1]] - pos_view[e[0]];
+        UIPC_ASSERT(t.squaredNorm() > 0.0,
+                    "AffineBodyPrismaticJointLimit: joint edge {} has zero length; cannot compute prismatic basis",
+                    joint_index);
         t          = t.normalized();
         Vector3 c  = pos_view[e[0]];
 

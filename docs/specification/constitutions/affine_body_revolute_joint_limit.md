@@ -2,10 +2,12 @@
 
 ## #670 AffineBodyRevoluteJointLimit
 
-`AffineBodyRevoluteJointLimit` is an **InterAffineBody extra constitution** for
-`AffineBodyRevoluteJoint` (`UID=18`).
+This constitution is an **InterAffineBody extra constitution** defined on a
+revolute-joint geometry. It contributes a unilateral cubic penalty to the
+relative angular coordinate.
 
-It adds a unilateral cubic penalty on the revolute joint angle:
+Let $x$ be the revolute angle (unit: rad), with lower/upper bounds $l, u$ and
+penalty coefficient $s$:
 
 $$
 E(x)=
@@ -16,63 +18,65 @@ s(l-x)^3, & x<l
 \end{cases}
 $$
 
-where:
-- $l$ is lower angle limit,
-- $u$ is upper angle limit,
-- $s$ is `strength`.
+Interpretation of each term:
+- $x$: current relative revolute angle around the joint axis.
+- $l$: admissible lower angle bound.
+- $u$: admissible upper angle bound.
+- $s$: penalty strength (energy scale).
 
-To avoid directly optimizing inverse trigonometric angle recovery, the angle is represented by:
+The angle is represented in incremental form:
 
 $$
-x = \theta_0 + \delta
+x = \theta_0 + \delta,
 $$
-
 $$
 \theta_0 = \Delta \Theta(\mathbf{q}^{t-1}, \mathbf{q}_{ref}), \quad
-\delta = \Delta \Theta(\mathbf{q}, \mathbf{q}^{t-1})
+\delta = \Delta \Theta(\mathbf{q}, \mathbf{q}^{t-1}),
 $$
 
-where $\mathbf{q}_{ref}$ is reference pose captured at initialization.
+where:
+- $\mathbf{q}$ is the current affine-body DOF,
+- $\mathbf{q}^{t-1}$ is the previous-step DOF,
+- $\mathbf{q}_{ref}$ is the reference DOF captured at initialization.
 
-For revolute joint, $x$ is in radians.
+This avoids direct optimization over inverse-trigonometric reconstruction of the
+absolute angle and follows the same delta-theta idea used by external articulation.
 
-## Apply Order
+First and second derivatives with respect to $x$:
 
-You must apply base revolute joint first, then apply limit:
+$$
+\frac{dE}{dx}=
+\begin{cases}
+0, & l \le x \le u \\
+3s(x-u)^2, & x>u \\
+-3s(l-x)^2, & x<l
+\end{cases}
+$$
 
-1. `AffineBodyRevoluteJoint.apply_to(...)`
-2. `AffineBodyRevoluteJointLimit.apply_to(...)`
+$$
+\frac{d^2E}{dx^2}=
+\begin{cases}
+0, & l \le x \le u \\
+6s(x-u), & x>u \\
+6s(l-x), & x<l
+\end{cases}
+$$
 
-If base joint is missing (or not `UID=18`), `apply_to` asserts.
+Boundary points ($x=l$ or $x=u$) are treated as in-range; energy and derivatives
+are zero there.
+
+## Conceptual Requirement
+
+This limit term is meaningful only on a geometry that already represents a
+revolute joint relation (base joint UID = 18). The limit augments that base
+relation as an extra constitution term.
 
 ## Stored Attributes
 
-On joint edges:
+Per joint edge:
 - `limit/lower`
 - `limit/upper`
 - `limit/strength`
 
-And limit UID (`670`) is inserted into:
-- `meta.extra_constitution_uids`
-
-## API
-
-C++:
-
-```cpp
-AffineBodyRevoluteJointLimit limit;
-limit.apply_to(joint_mesh, lower, upper, strength);
-```
-
-Python:
-
-```python
-limit = AffineBodyRevoluteJointLimit()
-limit.apply_to(joint_mesh, lower, upper, strength)
-```
-
-## Notes
-
-- Inside `[lower, upper]`, energy/gradient/Hessian are zero.
-- At boundaries (`x==lower` or `x==upper`), value and derivatives are zero.
-- `strength` is used directly as energy coefficient.
+Geometry metadata:
+- extra constitution UID `670` in `meta.extra_constitution_uids`.

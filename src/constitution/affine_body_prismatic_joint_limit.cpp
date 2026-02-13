@@ -4,14 +4,15 @@
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/log.h>
+#include <string_view>
 
 namespace uipc::constitution
 {
-static constexpr U64  ConstitutionUID     = 669;
-static constexpr U64  PrismaticJointUID   = 20;
-static constexpr char LimitLowerName[]    = "limit/lower";
-static constexpr char LimitUpperName[]    = "limit/upper";
-static constexpr char LimitStrengthName[] = "limit/strength";
+static constexpr U64              ConstitutionUID   = 669;
+static constexpr U64              PrismaticJointUID = 20;
+static constexpr std::string_view LimitLowerName    = "limit/lower";
+static constexpr std::string_view LimitUpperName    = "limit/upper";
+static constexpr std::string_view LimitStrengthName = "limit/strength";
 
 REGISTER_CONSTITUTION_UIDS()
 {

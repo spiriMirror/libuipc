@@ -33,7 +33,7 @@ Args:
         py::arg("sc"),
         py::arg("lower"),
         py::arg("upper"),
-        py::arg("strength") = 1.0f,
+        py::arg("strength") = Float{1},
         R"(Apply scalar lower/upper/strength to all joint edges.)");
 
     class_AffineBodyRevoluteJointLimit.def(

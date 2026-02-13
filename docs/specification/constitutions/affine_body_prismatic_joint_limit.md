@@ -2,10 +2,12 @@
 
 ## #669 AffineBodyPrismaticJointLimit
 
-`AffineBodyPrismaticJointLimit` is an **InterAffineBody extra constitution** for
-`AffineBodyPrismaticJoint` (`UID=20`).
+This constitution is an **InterAffineBody extra constitution** defined on a
+prismatic-joint geometry. It contributes a unilateral cubic barrier-like penalty
+to the joint scalar coordinate.
 
-It adds a unilateral cubic penalty on the prismatic joint value:
+The coordinate is denoted by $x$ (unit: length), with lower/upper bounds
+$l, u$ and penalty coefficient $s$:
 
 $$
 E(x)=
@@ -16,61 +18,65 @@ s(l-x)^3, & x<l
 \end{cases}
 $$
 
-where:
-- $l$ is lower limit,
-- $u$ is upper limit,
-- $s$ is `strength`.
+Interpretation of each term:
+- $x$: current prismatic relative coordinate of the joint.
+- $l$: admissible lower bound.
+- $u$: admissible upper bound.
+- $s$: penalty strength (energy scale).
 
-During optimization, the joint value uses the same delta formulation as external articulation:
+The scalar coordinate is evaluated in incremental form:
 
 $$
-x = \theta_0 + \delta
+x = \theta_0 + \delta,
 $$
-
 $$
 \theta_0 = \Delta \Theta(\mathbf{q}^{t-1}, \mathbf{q}_{ref}), \quad
-\delta = \Delta \Theta(\mathbf{q}, \mathbf{q}^{t-1})
+\delta = \Delta \Theta(\mathbf{q}, \mathbf{q}^{t-1}),
 $$
 
-For prismatic joint, $x$ has length unit.
+where:
+- $\mathbf{q}$ is the current affine-body DOF,
+- $\mathbf{q}^{t-1}$ is the previous-step DOF,
+- $\mathbf{q}_{ref}$ is the reference DOF captured at initialization.
 
-## Apply Order
+So $\theta_0$ measures accumulated offset from the reference state, and
+$\delta$ is the optimization-time increment in the current step.
 
-You must apply base prismatic joint first, then apply limit:
+First and second derivatives with respect to $x$:
 
-1. `AffineBodyPrismaticJoint.apply_to(...)`
-2. `AffineBodyPrismaticJointLimit.apply_to(...)`
+$$
+\frac{dE}{dx}=
+\begin{cases}
+0, & l \le x \le u \\
+3s(x-u)^2, & x>u \\
+-3s(l-x)^2, & x<l
+\end{cases}
+$$
 
-If base joint is missing (or not `UID=20`), `apply_to` asserts.
+$$
+\frac{d^2E}{dx^2}=
+\begin{cases}
+0, & l \le x \le u \\
+6s(x-u), & x>u \\
+6s(l-x), & x<l
+\end{cases}
+$$
+
+Boundary points ($x=l$ or $x=u$) are treated as in-range; energy and derivatives
+are zero there.
+
+## Conceptual Requirement
+
+This limit term is meaningful only on a geometry that already represents a
+prismatic joint relation (base joint UID = 20). The limit does not replace that
+base relation; it augments it as an extra constitution term.
 
 ## Stored Attributes
 
-On joint edges:
+Per joint edge:
 - `limit/lower`
 - `limit/upper`
 - `limit/strength`
 
-And limit UID (`669`) is inserted into:
-- `meta.extra_constitution_uids`
-
-## API
-
-C++:
-
-```cpp
-AffineBodyPrismaticJointLimit limit;
-limit.apply_to(joint_mesh, lower, upper, strength);
-```
-
-Python:
-
-```python
-limit = AffineBodyPrismaticJointLimit()
-limit.apply_to(joint_mesh, lower, upper, strength)
-```
-
-## Notes
-
-- Inside `[lower, upper]`, energy/gradient/Hessian are zero.
-- At boundaries (`x==lower` or `x==upper`), value and derivatives are zero.
-- `strength` is used directly as energy coefficient.
+Geometry metadata:
+- extra constitution UID `669` in `meta.extra_constitution_uids`.
