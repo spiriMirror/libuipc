@@ -12,19 +12,19 @@ Run [format command](./format.md) on all changed C++ files before staging.
 
 ### 2. Stage Changes
 
-```powershell
+```bash
 git add <files>
 ```
 
 Or stage all changes:
 
-```powershell
+```bash
 git add -A
 ```
 
 Review what's staged:
 
-```powershell
+```bash
 git diff --cached --stat
 ```
 
@@ -32,29 +32,29 @@ git diff --cached --stat
 
 Use a temp file to avoid shell escaping issues (`output/` is gitignored):
 
-```powershell
-New-Item -ItemType Directory -Force -Path output/.cursor | Out-Null
+```bash
+mkdir -p output/.cursor
 ```
 
 Write the commit message to `output/.cursor/commit_msg.txt` following the [commit convention](../rules/commit-convention.mdc).
 
 ### 4. Commit
 
-```powershell
+```bash
 git commit -F output/.cursor/commit_msg.txt
-Remove-Item output/.cursor/commit_msg.txt
+rm -r output/.cursor
 ```
 
 ### 5. Push (only if user explicitly requests)
 
 Only push when the user says "push", "commit and push", or similar. Otherwise, stop after step 4.
 
-```powershell
+```bash
 git push
 ```
 
 If the branch has no upstream yet:
 
-```powershell
+```bash
 git push -u origin HEAD
 ```
