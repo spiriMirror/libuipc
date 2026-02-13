@@ -8,18 +8,18 @@ Format C++ code using the `.clang-format` file in the project root.
 
 Format only the files changed relative to `main`:
 
-```powershell
-git diff --name-only --diff-filter=ACMR main -- '*.h' '*.hpp' '*.cpp' '*.inl' '*.cu' '*.cuh' | ForEach-Object { clang-format -i $_ }
+```bash
+git diff --name-only --diff-filter=ACMR main -- '*.h' '*.hpp' '*.cpp' '*.inl' '*.cu' '*.cuh' | xargs -r clang-format -i
 ```
 
 ## Format a Specific File
 
-```powershell
+```bash
 clang-format -i <file>
 ```
 
 ## Format All C++ Files in a Directory
 
-```powershell
-Get-ChildItem -Recurse -Include *.h,*.hpp,*.cpp,*.inl,*.cu,*.cuh <directory> | ForEach-Object { clang-format -i $_.FullName }
+```bash
+find <directory> -type f \( -name '*.h' -o -name '*.hpp' -o -name '*.cpp' -o -name '*.inl' -o -name '*.cu' -o -name '*.cuh' \) -exec clang-format -i {} +
 ```

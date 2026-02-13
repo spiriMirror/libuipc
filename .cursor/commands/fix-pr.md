@@ -28,8 +28,8 @@ gh pr view <PR_NUMBER> --comments
 
 If the output is too long, store it in a temporary file for reference (`output/` is gitignored):
 
-```powershell
-New-Item -ItemType Directory -Force -Path output/.cursor | Out-Null
+```bash
+mkdir -p output/.cursor
 gh pr view <PR_NUMBER> --comments > output/.cursor/pr_comments.txt
 ```
 
@@ -55,6 +55,6 @@ Use the [commit command](./commit.md) to format, commit, and push.
 
 The PR will update automatically. Clean up any temporary files:
 
-```powershell
-Remove-Item output/.cursor -Recurse -Force -ErrorAction SilentlyContinue
+```bash
+rm -rf output/.cursor
 ```
