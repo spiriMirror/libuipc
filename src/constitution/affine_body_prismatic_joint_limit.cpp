@@ -7,11 +7,11 @@
 
 namespace uipc::constitution
 {
-static constexpr U64 ConstitutionUID            = 669;
-static constexpr U64 PrismaticJointUID          = 20;
-static constexpr char LimitLowerName[]          = "limit/lower";
-static constexpr char LimitUpperName[]          = "limit/upper";
-static constexpr char LimitStrengthName[]       = "limit/strength";
+static constexpr U64  ConstitutionUID     = 669;
+static constexpr U64  PrismaticJointUID   = 20;
+static constexpr char LimitLowerName[]    = "limit/lower";
+static constexpr char LimitUpperName[]    = "limit/upper";
+static constexpr char LimitStrengthName[] = "limit/strength";
 
 REGISTER_CONSTITUTION_UIDS()
 {
@@ -38,9 +38,9 @@ Json AffineBodyPrismaticJointLimit::default_config()
 void AffineBodyPrismaticJointLimit::apply_to(geometry::SimplicialComplex& sc,
                                              Float                        lower,
                                              Float                        upper,
-                                             Float                        strength)
+                                             Float strength)
 {
-    auto edge_count = sc.edges().size();
+    auto          edge_count = sc.edges().size();
     vector<Float> lowers(edge_count, lower);
     vector<Float> uppers(edge_count, upper);
     vector<Float> strengths(edge_count, strength);
@@ -48,9 +48,9 @@ void AffineBodyPrismaticJointLimit::apply_to(geometry::SimplicialComplex& sc,
 }
 
 void AffineBodyPrismaticJointLimit::apply_to(geometry::SimplicialComplex& sc,
-                                             span<Float>                  lowers,
-                                             span<Float>                  uppers,
-                                             span<Float>                  strengths)
+                                             span<Float> lowers,
+                                             span<Float> uppers,
+                                             span<Float> strengths)
 {
     UIPC_ASSERT(sc.dim() == 1,
                 "AffineBodyPrismaticJointLimit can only be applied to 1D simplicial complex (linemesh), but got {}D",
