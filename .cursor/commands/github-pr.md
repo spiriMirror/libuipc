@@ -11,7 +11,7 @@ Follow the [commit convention](../rules/commit-convention.mdc) for all commit me
 1. **Prepare branch**
    - Ensure all changes are committed using the convention above
    - Format code with [format command](./format.md)
-   - Push branch to remote: `git push -u origin HEAD`
+   - Push branch to remote: `git push -u $(git remote | head -1) HEAD`
    - Verify branch is up to date with main
 
 2. **Create PR**
@@ -21,16 +21,19 @@ Follow the [commit convention](../rules/commit-convention.mdc) for all commit me
    ```bash
    # Write description to temp file (output/ is gitignored)
    mkdir -p output/.cursor
-   # Write the PR body in markdown to the temp file
    cat > output/.cursor/pr_body.md << 'EOF'
    ## Summary
    ...
    EOF
-   # Create the PR using the temp file
-   gh pr create --title "<type>(<scope>): <summary>" --body-file output/.cursor/pr_body.md --base main
+   
+   # Create the PR - always target upstream repository
+   gh pr create --title "<type>(<scope>): <summary>" --body-file output/.cursor/pr_body.md --base main --repo spiriMirror/libuipc
+   
    # Clean up
    rm -r output/.cursor
    ```
+
+   **Note:** Always use `--repo spiriMirror/libuipc` to create PRs against the upstream repository (works with forks).
 
 3. **PR description should include**
    - Summary of changes and motivation

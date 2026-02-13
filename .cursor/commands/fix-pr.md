@@ -9,13 +9,15 @@ Fix a pull request based on review feedback comments.
 If no PR number is provided, list and ask the developer to pick:
 
 ```bash
-gh pr list
+gh pr list --repo spiriMirror/libuipc
 ```
+
+**Note:** Always use `--repo spiriMirror/libuipc` to reference the upstream repository (works with forks).
 
 ## 2. Checkout the PR Branch
 
 ```bash
-gh pr checkout <PR_NUMBER>
+gh pr checkout <PR_NUMBER> --repo spiriMirror/libuipc
 ```
 
 Or the developer may already be on their own branch for the PR (e.g., from a forked repository).
@@ -23,23 +25,22 @@ Or the developer may already be on their own branch for the PR (e.g., from a for
 ## 3. Read Review Comments
 
 ```bash
-gh pr view <PR_NUMBER> --comments
+gh pr view <PR_NUMBER> --comments --repo spiriMirror/libuipc
 ```
 
 If the output is too long, store it in a temporary file for reference (`output/` is gitignored):
 
 ```bash
 mkdir -p output/.cursor
-gh pr view <PR_NUMBER> --comments > output/.cursor/pr_comments.txt
+gh pr view <PR_NUMBER> --comments --repo spiriMirror/libuipc > output/.cursor/pr_comments.txt
 ```
 
 Analyze all review comments and identify what needs to change.
 
-
-Check the PR status, if there is a conflict, you need to resolve it first.
+Check the PR status, if there is a conflict, you need to resolve it first:
 
 ```bash
-gh pr status --conflict-status
+gh pr status --conflict-status --repo spiriMirror/libuipc
 ```
 
 ## 4. Plan & Implement Fixes
