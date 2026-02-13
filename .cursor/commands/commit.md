@@ -42,7 +42,7 @@ Write the commit message to `output/.cursor/commit_msg.txt` following the [commi
 
 ```bash
 git commit -F output/.cursor/commit_msg.txt
-rm output/.cursor/commit_msg.txt
+rm -r output/.cursor
 ```
 
 ### 5. Push (only if user explicitly requests)

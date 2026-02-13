@@ -8,13 +8,13 @@ Fix a pull request based on review feedback comments.
 
 If no PR number is provided, list and ask the developer to pick:
 
-```
+```bash
 gh pr list
 ```
 
 ## 2. Checkout the PR Branch
 
-```
+```bash
 gh pr checkout <PR_NUMBER>
 ```
 
@@ -22,7 +22,7 @@ Or the developer may already be on their own branch for the PR (e.g., from a for
 
 ## 3. Read Review Comments
 
-```
+```bash
 gh pr view <PR_NUMBER> --comments
 ```
 

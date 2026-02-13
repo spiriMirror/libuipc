@@ -9,7 +9,7 @@ Format C++ code using the `.clang-format` file in the project root.
 Format only the files changed relative to `main`:
 
 ```bash
-git diff --name-only --diff-filter=ACMR main -- '*.h' '*.hpp' '*.cpp' '*.inl' '*.cu' '*.cuh' | xargs -r clang-format -i
+git diff --name-only --diff-filter=ACMR main -- '*.h' '*.hpp' '*.cpp' '*.inl' '*.cu' '*.cuh' | xargs clang-format -i
 ```
 
 ## Format a Specific File

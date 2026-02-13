@@ -29,7 +29,7 @@ Follow the [commit convention](../rules/commit-convention.mdc) for all commit me
    # Create the PR using the temp file
    gh pr create --title "<type>(<scope>): <summary>" --body-file output/.cursor/pr_body.md --base main
    # Clean up
-   rm output/.cursor/pr_body.md
+   rm -r output/.cursor
    ```
 
 3. **PR description should include**

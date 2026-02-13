@@ -4,7 +4,7 @@
 
 If no issue number is provided, list and ask the developer to pick:
 
-```
+```bash
 gh issue list
 gh issue view <ISSUE_NUMBER>
 ```
@@ -13,7 +13,7 @@ Determine the issue type: bug fix, feature, performance, refactor, docs, or test
 
 ## 2. Create a Branch
 
-```
+```bash
 git checkout -b fix/issue-<ISSUE_NUMBER>
 ```
 

@@ -28,7 +28,7 @@ Test binary names follow the pattern `uipc_test_<name>` where `<name>` matches t
 Catch2 tags are used to group tests (e.g., `[geometry]`, `[core]`):
 
 ```bash
-./uipc_test_<name> [geometry]
+./uipc_test_<name> '[geometry]'
 ```
 
 ## Adjust Log Level
