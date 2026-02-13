@@ -36,15 +36,7 @@ Use a temp file to avoid shell escaping issues (`output/` is gitignored):
 New-Item -ItemType Directory -Force -Path output/.cursor | Out-Null
 ```
 
-Write the commit message to `output/.cursor/commit_msg.txt` following the [conventional commit convention](./github-pr.md):
-
-```
-<type>(<scope>): <short summary>
-
-<optional body - explain what and why>
-
-<optional footer - e.g. Fixes #123>
-```
+Write the commit message to `output/.cursor/commit_msg.txt` following the [commit convention](../rules/commit-convention.mdc).
 
 ### 4. Commit
 
