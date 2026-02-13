@@ -10,7 +10,7 @@ Build the project first using the [build command](./build.md). Test binaries are
 
 ## Run All Tests in a Binary
 
-```powershell
+```bash
 cd <cmake-binary-directory>/<configuration>/bin
 ./uipc_test_<name>
 ```
@@ -19,7 +19,7 @@ Test binary names follow the pattern `uipc_test_<name>` where `<name>` matches t
 
 ## Run a Specific Test Case
 
-```powershell
+```bash
 ./uipc_test_<name> "<test-case-name>"
 ```
 
@@ -27,13 +27,13 @@ Test binary names follow the pattern `uipc_test_<name>` where `<name>` matches t
 
 Catch2 tags are used to group tests (e.g., `[geometry]`, `[core]`):
 
-```powershell
-./uipc_test_<name> [geometry]
+```bash
+./uipc_test_<name> '[geometry]'
 ```
 
 ## Adjust Log Level
 
-```powershell
+```bash
 ./uipc_test_<name> --log-level <level>
 ```
 
@@ -41,7 +41,7 @@ Levels: `trace`, `debug`, `info`, `warn`, `error`, `critical`, `off`.
 
 ## List Available Tests
 
-```powershell
+```bash
 ./uipc_test_<name> --list-tests
 ```
 

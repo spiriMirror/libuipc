@@ -6,7 +6,7 @@ Always **configure then build** from the cmake binary directory. Skipping config
 
 **NOTE**: Developers may not always use the `build/` directory as the cmake binary directory. It may be `<project-root>/../CMakeBuild/`, or follow the CLion convention `<project-root>/cmake-build-<configuration>`. Check the project structure and find the correct build directory before running commands.
 
-```powershell
+```bash
 cd <cmake-binary-directory>
 cmake -S <project-root> -DCMAKE_BUILD_TYPE=<TYPE> [OPTIONS]
 cmake --build . --config <TYPE> -j<N>
@@ -26,7 +26,7 @@ cmake --build . --config <TYPE> -j<N>
 
 ## Build a Specific Target
 
-```powershell
+```bash
 cmake --build . --target <TARGET_NAME> --config <TYPE> -j<N>
 ```
 

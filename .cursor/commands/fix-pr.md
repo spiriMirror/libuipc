@@ -8,13 +8,13 @@ Fix a pull request based on review feedback comments.
 
 If no PR number is provided, list and ask the developer to pick:
 
-```
+```bash
 gh pr list
 ```
 
 ## 2. Checkout the PR Branch
 
-```
+```bash
 gh pr checkout <PR_NUMBER>
 ```
 
@@ -22,18 +22,25 @@ Or the developer may already be on their own branch for the PR (e.g., from a for
 
 ## 3. Read Review Comments
 
-```
+```bash
 gh pr view <PR_NUMBER> --comments
 ```
 
 If the output is too long, store it in a temporary file for reference (`output/` is gitignored):
 
-```powershell
-New-Item -ItemType Directory -Force -Path output/.cursor | Out-Null
+```bash
+mkdir -p output/.cursor
 gh pr view <PR_NUMBER> --comments > output/.cursor/pr_comments.txt
 ```
 
 Analyze all review comments and identify what needs to change.
+
+
+Check the PR status, if there is a conflict, you need to resolve it first.
+
+```bash
+gh pr status --conflict-status
+```
 
 ## 4. Plan & Implement Fixes
 
@@ -55,6 +62,6 @@ Use the [commit command](./commit.md) to format, commit, and push.
 
 The PR will update automatically. Clean up any temporary files:
 
-```powershell
-Remove-Item output/.cursor -Recurse -Force -ErrorAction SilentlyContinue
+```bash
+rm -rf output/.cursor
 ```
