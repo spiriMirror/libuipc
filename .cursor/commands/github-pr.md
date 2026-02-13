@@ -11,7 +11,11 @@ Follow the [commit convention](../rules/commit-convention.mdc) for all commit me
 1. **Prepare branch**
    - Ensure all changes are committed using the convention above
    - Format code with [format command](./format.md)
-   - Push branch to remote: `git push -u $(git remote | head -1) HEAD`
+   - Push branch to remote:
+     ```bash
+     # Use 'origin' remote (most common), or specify a different remote if needed
+     git push -u origin HEAD
+     ```
    - Verify branch is up to date with main
 
 2. **Create PR**
