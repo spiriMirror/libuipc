@@ -5,9 +5,11 @@
 If no issue number is provided, list and ask the developer to pick:
 
 ```bash
-gh issue list
-gh issue view <ISSUE_NUMBER>
+gh issue list --repo spiriMirror/libuipc
+gh issue view <ISSUE_NUMBER> --repo spiriMirror/libuipc
 ```
+
+**Note:** Always use `--repo spiriMirror/libuipc` to reference the upstream repository (works with forks). See [repository-setup.mdc](../rules/repository-setup.mdc) for details.
 
 Determine the issue type: bug fix, feature, performance, refactor, docs, or test improvement.
 
