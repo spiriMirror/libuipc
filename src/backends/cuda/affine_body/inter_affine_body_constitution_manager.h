@@ -167,7 +167,10 @@ class InterAffineBodyConstitutionManager final : public SimSystem
         SimSystemSlotCollection<InterAffineBodyConstitution> constitutions;
         unordered_map<U64, IndexT>                           uid_to_index;
 
+        // Base-constitution geometry infos used by animator/constraint pipeline.
         vector<InterGeoInfo>          inter_geo_infos;
+        // Base + extra constitution geometry infos used by constitution filtering.
+        vector<InterGeoInfo>          constitution_inter_geo_infos;
         OffsetCountCollection<IndexT> constitution_geo_info_offsets_counts;
 
         OffsetCountCollection<IndexT> constitution_energy_offsets_counts;

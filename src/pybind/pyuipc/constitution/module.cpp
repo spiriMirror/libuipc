@@ -12,6 +12,7 @@
 #include <pyuipc/constitution/constraint.h>
 #include <pyuipc/constitution/soft_position_constraint.h>
 #include <pyuipc/constitution/finite_element_extra_constitution.h>
+#include <pyuipc/constitution/inter_affine_body_extra_constitution.h>
 #include <pyuipc/constitution/kirchhoff_rod_bending.h>
 #include <pyuipc/constitution/soft_transform_constraint.h>
 #include <pyuipc/constitution/discrete_shell_bending.h>
@@ -19,6 +20,8 @@
 #include <pyuipc/constitution/inter_affine_body_constitution.h>
 #include <pyuipc/constitution/affine_body_revolute_joint.h>
 #include <pyuipc/constitution/affine_body_prismatic_joint.h>
+#include <pyuipc/constitution/affine_body_revolute_joint_limit.h>
+#include <pyuipc/constitution/affine_body_prismatic_joint_limit.h>
 #include <pyuipc/constitution/inter_primitive_constitution.h>
 #include <pyuipc/constitution/soft_vertex_stitch.h>
 #include <pyuipc/constitution/affine_body_external_force.h>
@@ -35,8 +38,11 @@ PyModule::PyModule(py::module& m)
     // Affine Body Constitutions
     PyAffineBodyConstitution{m};
     PyInterAffineBodyConstitution{m};
+    PyInterAffineBodyExtraConstitution{m};
     PyAffineBodyRevoluteJoint{m};
     PyAffineBodyPrismaticJoint{m};
+    PyAffineBodyRevoluteJointLimit{m};
+    PyAffineBodyPrismaticJointLimit{m};
     PyAffineBodyExternalForce{m};
 
     // Finite Element Constitutions
