@@ -1,8 +1,8 @@
-# Commit & Push
+# Commit
 
 ## Overview
 
-Create a well-formatted, conventional commit and push it to the remote.
+Create a well-formatted, conventional commit locally. **Do NOT push unless the user explicitly asks to push.**
 
 ## Steps
 
@@ -45,7 +45,9 @@ git commit -F output/.cursor/commit_msg.txt
 Remove-Item output/.cursor/commit_msg.txt
 ```
 
-### 5. Push
+### 5. Push (only if user explicitly requests)
+
+Only push when the user says "push", "commit and push", or similar. Otherwise, stop after step 4.
 
 ```powershell
 git push
