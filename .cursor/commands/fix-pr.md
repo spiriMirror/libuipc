@@ -26,10 +26,11 @@ Or the developer may already be on their own branch for the PR (e.g., from a for
 gh pr view <PR_NUMBER> --comments
 ```
 
-If the output is too long, store it in a temporary file for reference:
+If the output is too long, store it in a temporary file for reference (`output/` is gitignored):
 
 ```powershell
-gh pr view <PR_NUMBER> --comments > pr_comments.tmp
+New-Item -ItemType Directory -Force -Path output/.cursor | Out-Null
+gh pr view <PR_NUMBER> --comments > output/.cursor/pr_comments.txt
 ```
 
 Analyze all review comments and identify what needs to change.
@@ -40,24 +41,20 @@ Switch to **plan mode**. Address each review comment, then implement the fixes.
 
 Build with the [build command](./build.md).
 
-## 5. Format
+## 5. Test
 
-Run [format command](./format.md) on all changed C++ files before committing.
-
-## 6. Test
-
-Follow the same test procedure as [fix-issue step 5](./fix-issue.md#5-test):
+Follow the same test procedure as [fix-issue step 4](./fix-issue.md):
 
 - Run relevant tests to verify the fix. See [run-tests command](./run-tests.md).
 - Add new tests if the feedback requires new coverage.
 - **Do NOT modify existing tests** to make a fix pass.
 
-## 7. Commit & Push
+## 6. Commit & Push
 
-Commit using the [conventional commit convention](./github-pr.md#commit-convention). Then push:
+Use the [commit command](./commit.md) to format, commit, and push.
 
+The PR will update automatically. Clean up any temporary files:
+
+```powershell
+Remove-Item output/.cursor -Recurse -Force -ErrorAction SilentlyContinue
 ```
-git push
-```
-
-The PR will update automatically. Clean up any temporary files created in step 3.

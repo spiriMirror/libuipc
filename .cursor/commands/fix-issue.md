@@ -25,11 +25,7 @@ Switch to **plan mode**. Analyze the issue, identify root cause, then implement 
 
 Build with the [build command](./build.md).
 
-## 4. Format
-
-Run [format command](./format.md) on all changed C++ files before committing.
-
-## 5. Test
+## 4. Test
 
 - Test binaries are in `<cmake-binary-directory>/<configuration>/bin/`.
 - Tests source code is in `apps/tests/`.
@@ -43,6 +39,10 @@ Rules:
 - Tests must be independent of each other.
 - Tests must cover the bug / feature.
 - **Do NOT modify existing tests** to make a fix pass. If a test itself is wrong, fix it separately and flag it to the developer for review.
+
+## 5. Commit
+
+Use the [commit command](./commit.md) to format, commit, and push.
 
 ## 6. Review & PR
 

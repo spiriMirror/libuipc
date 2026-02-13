@@ -52,8 +52,21 @@ docs: update build instructions
    - Verify branch is up to date with main
 
 2. **Create PR**
+
+   Write the PR description to a temp file first to avoid shell escaping issues:
+
    ```powershell
-   gh pr create --title "<type>(<scope>): <summary>" --body "<description>" --base main
+   # Write description to temp file (output/ is gitignored)
+   New-Item -ItemType Directory -Force -Path output/.cursor | Out-Null
+   # Write the PR body in markdown to the temp file
+   Set-Content -Path output/.cursor/pr_body.md -Value @"
+   ## Summary
+   ...
+   "@
+   # Create the PR using the temp file
+   gh pr create --title "<type>(<scope>): <summary>" --body-file output/.cursor/pr_body.md --base main
+   # Clean up
+   Remove-Item output/.cursor/pr_body.md
    ```
 
 3. **PR description should include**
