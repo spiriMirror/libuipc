@@ -48,13 +48,13 @@ where:
 - Always provide both C++ and Python using tabs:
   ```markdown
   === "C++"
-      ```cpp
+      \`\`\`cpp
       // code
-      ```
+      \`\`\`
   === "Python"
-      ```python
+      \`\`\`python
       # code
-      ```
+      \`\`\`
   ```
 - Include complete, runnable examples with imports
 - Start high-level, progress to details
@@ -65,15 +65,15 @@ where:
 **Example:**
 ```markdown
 === "C++"
-    ```cpp
+    \`\`\`cpp
     using namespace uipc::core;
     Scene scene;
-    ```
+    \`\`\`
 === "Python"
-    ```python
+    \`\`\`python
     from uipc.core import *
     scene = Scene()
-    ```
+    \`\`\`
 ```
 
 ## Reference Documents (`docs/specification/*_uid.md`)
@@ -110,9 +110,9 @@ where:
 |------|---------|-------|--------|
 | [CMake](https://cmake.org/) | >=3.26 | build system | system install |
 
-```shell
+\`\`\`shell
 git clone https://github.com/microsoft/vcpkg.git
-```
+\`\`\`
 ```
 
 ## General Rules

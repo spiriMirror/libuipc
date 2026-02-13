@@ -22,7 +22,7 @@ Push a new tag to the upstream repository. Optionally create a GitHub release.
 3. **Create and push tag**
    ```bash
    git tag <TAG>
-   git push origin <TAG>
+   git push origin refs/tags/<TAG>
    ```
 
 4. **Create release (if requested)**
