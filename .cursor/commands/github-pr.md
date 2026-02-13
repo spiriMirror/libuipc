@@ -18,18 +18,18 @@ Follow the [commit convention](../rules/commit-convention.mdc) for all commit me
 
    Write the PR description to a temp file first to avoid shell escaping issues:
 
-   ```powershell
+   ```bash
    # Write description to temp file (output/ is gitignored)
-   New-Item -ItemType Directory -Force -Path output/.cursor | Out-Null
+   mkdir -p output/.cursor
    # Write the PR body in markdown to the temp file
-   Set-Content -Path output/.cursor/pr_body.md -Value @"
+   cat > output/.cursor/pr_body.md << 'EOF'
    ## Summary
    ...
-   "@
+   EOF
    # Create the PR using the temp file
    gh pr create --title "<type>(<scope>): <summary>" --body-file output/.cursor/pr_body.md --base main
    # Clean up
-   Remove-Item output/.cursor/pr_body.md
+   rm -r output/.cursor
    ```
 
 3. **PR description should include**
