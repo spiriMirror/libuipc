@@ -9,6 +9,7 @@ on:
     paths-ignore:
       - ".clang-format"
       - ".clangd"
+      - ".cursor/**"
       - ".gitignore"
       - "LICENSE"
       - "README.md"
