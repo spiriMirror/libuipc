@@ -1,0 +1,135 @@
+---
+description: Documentation style guide and rules for creating documentation
+alwaysApply: false
+---
+
+# Document Rules
+
+Documentation style varies by type. Follow these principles for consistency.
+
+## Specification Documents (`docs/specification/`)
+
+**Purpose:** Formal mathematical reference for constitutions, geometries, and core concepts.
+
+**Rules:**
+- Use LaTeX math (`$$` for display, `$` for inline) extensively
+- Define all variables after formulas
+- Prefer math over code examples
+- Structure: Definition → State Variables → Formulations → Energy Functions
+- Use numbered sections: `## #12 Hookean Spring`
+- Reference academic papers when applicable
+- Include parameter ranges: "$100MPa \le \kappa \le 100GPa$"
+- Explain notation: "where $\|\cdot\|_F$ is the Frobenius norm"
+- Cross-reference: `[link text](./file.md)`
+- Include diagrams (SVG): `![Description](./media/figure.svg)`
+
+**Example:**
+```markdown
+# Hookean Spring
+
+**Hookean Spring** is a constitutive model for simulating linear elastic springs.
+
+## #12 Hookean Spring
+
+$$
+E = \frac{\kappa}{2} \epsilon^2 = \frac{\kappa}{2} \left(\frac{L - L_0}{L_0}\right)^2
+$$
+
+where:
+- $\kappa$ is the spring constant
+- $L_0$ is the rest length
+```
+
+## Tutorial Documents (`docs/tutorial/`)
+
+**Purpose:** User-friendly guides with code examples.
+
+**Rules:**
+- Always provide both C++ and Python using tabs:
+  ```markdown
+  === "C++"
+      \`\`\`cpp
+      // code
+      \`\`\`
+  === "Python"
+      \`\`\`python
+      # code
+      \`\`\`
+  ```
+- Include complete, runnable examples with imports
+- Start high-level, progress to details
+- Use diagrams: `![description](./media/file.svg)`
+- Include step-by-step workflows
+- Use tables for structured data
+
+**Example:**
+```markdown
+=== "C++"
+    \`\`\`cpp
+    using namespace uipc::core;
+    Scene scene;
+    \`\`\`
+=== "Python"
+    \`\`\`python
+    from uipc.core import *
+    scene = Scene()
+    \`\`\`
+```
+
+## Reference Documents (`docs/specification/*_uid.md`)
+
+**Purpose:** Technical reference for identifiers and ranges.
+
+**Rules:**
+- Define identifier ranges clearly
+- Distinguish official vs. user-defined ranges
+- List all official identifiers
+- Cross-reference to detailed specs
+
+**Example:**
+```markdown
+# Constitution UID
+
+64-bit unsigned integer. Official range: $[0, 2^{32}-1]$. User-defined: $[2^{32}, 2^{64}-1]$.
+```
+
+## Build/Install Documents (`docs/build_install/`)
+
+**Purpose:** Step-by-step build instructions.
+
+**Rules:**
+- Use prerequisites table with versions and links
+- Number steps clearly
+- Include verification commands
+- Use shell tags: `shell`, `bash`, `powershell`
+- Show copy-pasteable commands
+
+**Example:**
+```markdown
+| Name | Version | Usage | Import |
+|------|---------|-------|--------|
+| [CMake](https://cmake.org/) | >=3.26 | build system | system install |
+
+\`\`\`shell
+git clone https://github.com/microsoft/vcpkg.git
+\`\`\`
+```
+
+## General Rules
+
+- **Math:** `$$` for display, `$` for inline. Define variables after formulas. Use bold for vectors: $\mathbf{x}$
+- **Code:** Appropriate language tags. Complete, runnable examples. C++/Python tabs in tutorials
+- **Links:** Relative paths `[text](./file.md)`. Link to related docs and external resources
+- **Media:** Store in `media/` subdirectories. Use SVG. Reference: `![Description](./media/file.svg)`
+- **Tables:** Markdown tables with headers for structured data
+- **Headers:** `#` title, `##` sections, `###` subsections
+
+## Checklist
+
+- [ ] Formulas use LaTeX, variables defined
+- [ ] Code examples complete and runnable
+- [ ] Cross-references use relative paths
+- [ ] Images exist and are referenced
+- [ ] Tables formatted correctly
+- [ ] Document type principles followed
+- [ ] No ambiguity in technical descriptions
