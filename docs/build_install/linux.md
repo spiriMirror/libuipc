@@ -106,3 +106,40 @@ If you want to install the Pyuipc to any Python Venv (like [uv](https://docs.ast
 cmake -S .. -DUIPC_BUILD_PYBIND=1 -DUIPC_PYTHON_EXECUTABLE_PATH=<YOUR_PYTHON_EXECUTABLE_PATH> -DCMAKE_BUILD_TYPE=<Release/RelWithDebInfo>
 cmake --build .  -j8
 ```
+
+## Editable Install for Development
+
+For development, you can install Pyuipc in editable mode using `pip install -e`, which allows you to make changes to the Python code without reinstalling. The C++ extensions will be built and cached for faster rebuilds.
+
+### Default Installation
+
+```shell
+pip install -e .
+```
+
+This will use the default build directory `build/{wheel_tag}` where `{wheel_tag}` is based on your platform and Python version.
+
+### Specifying a Custom Build Directory
+
+You can specify a custom build directory to reuse an existing CMake build or control cache location:
+
+```shell
+pip install -e . --config-settings=build-dir=build/Release
+```
+
+Or use `build` for a simpler path:
+
+```shell
+pip install -e . --config-settings=build-dir=build
+```
+
+### In-Place Editable Mode
+
+For the fastest iteration during development, you can use in-place mode which builds directly in your source tree:
+
+```shell
+pip install -e . --config-settings=editable.mode=inplace
+```
+
+!!!NOTE
+    The build directory configuration enables incremental builds, significantly speeding up rebuilds when you modify C++ code. This is especially important for CUDA compilation which can be time-consuming.
