@@ -1,9 +1,13 @@
 #include <affine_body/inter_affine_body_constitution.h>
-#include <affine_body/constraints/external_articulation_constraint_function.h>
 #include <affine_body/utils.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/enumerate.h>
 #include <utils/matrix_assembler.h>
+
+namespace uipc::backend::cuda::sym::affine_body_revolute_joint_limit
+{
+#include <affine_body/constitutions/sym/affine_body_revolute_joint_limit.inl>
+}
 
 namespace uipc::backend::cuda
 {
@@ -184,7 +188,7 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
     void do_compute_energy(ComputeEnergyInfo& info) override
     {
         using namespace muda;
-        namespace ERJ = sym::external_revolute_joint_constraint;
+        namespace ERJ = sym::affine_body_revolute_joint_limit;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(
@@ -252,7 +256,7 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        namespace ERJ = sym::external_revolute_joint_constraint;
+        namespace ERJ = sym::affine_body_revolute_joint_limit;
         auto gradient_only = info.gradient_only();
 
         ParallelFor()

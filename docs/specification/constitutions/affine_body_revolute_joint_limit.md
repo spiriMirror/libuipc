@@ -39,6 +39,30 @@ where:
 - $\mathbf{q}^{t-1}$ is the previous-step DOF,
 - $\mathbf{q}_{ref}$ is the reference DOF captured at initialization.
 
+For revolute joints, the increment operator $\Delta\Theta(\cdot,\cdot)$ is
+computed with an `atan2` form. Given two states $a,b$, define
+
+$$
+\Delta\Theta(\mathbf{q}_a,\mathbf{q}_b)
+=
+\operatorname{atan2}
+\left(
+\sin\theta_a\cos\theta_b-\cos\theta_a\sin\theta_b,\;
+\cos\theta_a\cos\theta_b+\sin\theta_a\sin\theta_b
+\right),
+$$
+
+with
+
+$$
+\cos\theta=\frac{\hat{\mathbf{b}}_i\cdot\hat{\mathbf{b}}_j+\hat{\mathbf{n}}_i\cdot\hat{\mathbf{n}}_j}{2},
+\quad
+\sin\theta=\frac{\hat{\mathbf{n}}_i\cdot\hat{\mathbf{b}}_j-\hat{\mathbf{b}}_i\cdot\hat{\mathbf{n}}_j}{2}.
+$$
+
+This yields the principal-angle branch in $(-\pi,\pi]$, so the limit supports
+full $\pm 180^\circ$ angular span.
+
 This avoids direct optimization over inverse-trigonometric reconstruction of the
 absolute angle and follows the same delta-theta idea used by external articulation.
 
