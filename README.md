@@ -48,6 +48,8 @@ We are **actively** developing Libuipc and will continue to add more features an
 
 ## News
 
+**2026-2-13**: Libuipc now supports [Cursor](https://www.cursor.com/) AI-assisted development! Check out `.cursor/` for built-in commands (build, test, commit, PR workflows) and rules (C++ style, project structure, commit conventions).
+
 **2026-2-7**: UIPC now supports PyPI install with `pip install pyuipc`. For the early test version, we support Win/Linux, Python 3.10–3.13 with CUDA 12.8.
 
 **2025-11-01**: The prototype implementation of Libuipc has been open-sourced ([source code](https://github.com/KemengHuang/Stiff-GIPC)) and serves as the performance benchmark for comparisons with our paper.
