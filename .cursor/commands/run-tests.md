@@ -45,6 +45,24 @@ Levels: `trace`, `debug`, `info`, `warn`, `error`, `critical`, `off`.
 ./uipc_test_<name> --list-tests
 ```
 
+## Python tests (pytest)
+
+Python tests live under `python/tests/`. Run them with the project venv after installing pyuipc (e.g. `uv pip install -e .` or a CMake build that installs into the venv).
+
+To avoid uv re-syncing (and rebuilding) the project every time, use `--no-sync`:
+
+```bash
+uv run --no-sync pytest python/tests
+```
+
+Or run pytest from the venv directly:
+
+```bash
+.venv/bin/pytest python/tests
+```
+
+Without `--no-sync`, `uv run` syncs the environment first, which (re)builds and installs pyuipc from source.
+
 ## Test Organization
 
 | Directory | Area |

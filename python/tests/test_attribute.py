@@ -5,7 +5,7 @@ from uipc.geometry import tetmesh
 from uipc import view
 
 @pytest.mark.basic 
-def test_attrib():
+def test_attribute():
     Vs = np.array([
         [1,0,0],
         [0,1,0],
@@ -17,11 +17,9 @@ def test_attrib():
     sc = tetmesh(Vs, Ts)
 
     name_attr = sc.instances().create("name", "MyString")
-    print("name_attr:\n", name_attr.view())
-    # get python attribute of name_attr
     v = view(name_attr)
     v[0] = "hello"
-    print("name_attr:\n", name_attr.view())
+    assert name_attr.view()[0] == "hello", "write then read back instance string attribute"
 
     sc.instances().resize(10)
-    print("name_attr:\n", name_attr.view())
+    assert len(name_attr.view()) == 10, "resize(10) must grow instance attribute to 10 entries"
