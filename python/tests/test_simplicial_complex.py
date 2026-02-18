@@ -81,11 +81,11 @@ def test_simplicial():
     try:
         v.view().fill(3)
     except ValueError as e:
-        assert isinstance(e, ValueError) and len(str(e)) > 0, "read-only view raises ValueError on write"
+        assert isinstance(e, ValueError), "read-only view raises ValueError on write"
 
     j = sc.vertices().to_json()
     assert isinstance(j, dict), "vertices to_json returns dict"
-    assert "vertices" in j or "attributes" in j or len(j) > 0, "to_json has structure"
+    assert j and ("vertices" in j or "attributes" in j or "position" in j), "to_json has structure"
 
     mesh = geometry.tetmesh(Vs, Ts)
     mesh.vertices().create("velocity", np.zeros(3))

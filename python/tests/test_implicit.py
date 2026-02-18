@@ -8,9 +8,9 @@ def test_implicit():
     ig = geometry.ImplicitGeometry()
     j = ig.to_json()
     assert isinstance(j, dict), "ImplicitGeometry to_json returns dict"
-    assert "type" in j or len(j) >= 0, "ImplicitGeometry has JSON representation"
+    assert "type" in j or "meta" in j or not j, "ImplicitGeometry has JSON representation (type, meta, or empty)"
 
     ig = geometry.ground()
     j = ig.to_json()
     assert isinstance(j, dict), "ground to_json returns dict"
-    assert "type" in j or "height" in j or len(j) >= 0, "ground geometry has JSON representation"
+    assert "type" in j or "height" in j or "meta" in j, "ground geometry has JSON representation"
