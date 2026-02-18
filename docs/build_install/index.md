@@ -9,7 +9,6 @@ A Cross-Platform Modern C++20 **Lib**rary of **U**nified **I**ncremental **P**ot
     - [Linux](./linux.md)
     - [Docker](./docker.md)
     - [XMake](./xmake.md)
-
 - Libuipc Documentation:
     - [Build Document](./build_docs.md)
 
@@ -26,3 +25,7 @@ Limitations:
 ```bash
 pip install pyuipc
 ```
+
+## Development Build
+
+- [Development in UV](./dev_in_uv.md)
