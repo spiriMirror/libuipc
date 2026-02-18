@@ -30,6 +30,23 @@ cmake --build . --config <TYPE> -j<N>
 cmake --build . --target <TARGET_NAME> --config <TYPE> -j<N>
 ```
 
+## Build Using Pip (For Development)
+
+To prevent rebuilding c++ codebase every time you run the tests, you can build the project and install the Python package in editable mode.
+
+Build the project and install the Python package in editable mode.
+
+```bash
+uv pip install -e . --config-settings=build-dir=build
+```
+
+Run the tests:
+
+```bash
+uv run --no-sync pytest python/tests
+```
+
 ## Reference
 
 See [docs/build_install/](../../docs/build_install/) for full build & install guides.
+

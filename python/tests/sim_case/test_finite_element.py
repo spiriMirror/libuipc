@@ -5,6 +5,7 @@ import os
 import pathlib
 import polyscope as ps
 import polyscope.imgui as psim
+from conftest import skip_cuda_on_macos, skip_cuda_on_macos_reason
 import uipc
 from uipc import Logger
 from uipc import Engine, World, Scene, SceneIO
@@ -25,6 +26,7 @@ def process_surface(sc: SimplicialComplex):
     return sc
 
 run = False
+@pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 @pytest.mark.example 
 def test_finite_element():
     Logger.set_level(Logger.Level.Warn)
@@ -35,8 +37,6 @@ def test_finite_element():
     world = World(engine)
 
     config = Scene.default_config()
-    print(config)
-
     scene = Scene(config)
 
     snk = StableNeoHookean()

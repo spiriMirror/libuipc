@@ -10,6 +10,7 @@ import numpy as np
 import pytest 
 import polyscope as ps
 import polyscope.imgui as psim
+from conftest import skip_cuda_on_macos, skip_cuda_on_macos_reason
 from uipc import Logger
 from uipc import Matrix4x4
 from uipc import view
@@ -30,6 +31,7 @@ def process_surface(sc: SimplicialComplex):
     return sc
 
 run = False
+@pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 @pytest.mark.example
 def test_abd_fem():
     Logger.set_level(Logger.Level.Info)
@@ -37,7 +39,6 @@ def test_abd_fem():
     engine = Engine("cuda", workspace)
     world = World(engine)
     config = Scene.default_config()
-    print(config)
     scene = Scene(config)
 
     snk = StableNeoHookean()

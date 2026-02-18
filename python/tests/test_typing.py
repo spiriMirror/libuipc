@@ -1,6 +1,5 @@
 import pytest 
-import numpy as np 
-import uipc
+import numpy as np
 from uipc import Float, Vector3
 
 @pytest.mark.typing 
