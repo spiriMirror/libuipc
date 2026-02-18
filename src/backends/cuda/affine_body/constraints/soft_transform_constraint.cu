@@ -174,10 +174,12 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                        auto i = indices(I);
 
                        Vector12 G;
+                       Matrix12x12 M;
 
                        if(is_fixed(i))
                        {
                            G.setZero();
+                           M.setZero();
                        }
                        else
                        {
@@ -187,9 +189,7 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                            Vector12 dq = q - q_aim;
                            Vector2  s  = strength_ratios(I);
 
-                           Matrix12x12 M =
-                               compute_constraint_mass(body_masses(i), s(0), s(1));
-
+                           M = compute_constraint_mass(body_masses(i), s(0), s(1));
                            G = M * dq;
                        }
 
@@ -198,18 +198,7 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                        if(gradient_only)
                            return;
 
-                       Matrix12x12 H;
-                       if(is_fixed(i))
-                       {
-                           H.setZero();
-                       }
-                       else
-                       {
-                           Vector2 s = strength_ratios(I);
-                           H = compute_constraint_mass(body_masses(i), s(0), s(1));
-                       }
-
-                       hessians(I).write(i, i, H);
+                       hessians(I).write(i, i, M);
                    });
     }
 };
