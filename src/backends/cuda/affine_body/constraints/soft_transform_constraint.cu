@@ -173,23 +173,43 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                    {
                        auto i = indices(I);
 
-                       Vector12 q      = qs(i);
-                       Vector12 q_prev = q_prevs(i);
-                       Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
-                       Vector12 dq = q - q_aim;
-                       Vector2  s  = strength_ratios(I);
+                       Vector12 G;
 
-                       Matrix12x12 M =
-                           compute_constraint_mass(body_masses(i), s(0), s(1));
+                       if(is_fixed(i))
+                       {
+                           G.setZero();
+                       }
+                       else
+                       {
+                           Vector12 q      = qs(i);
+                           Vector12 q_prev = q_prevs(i);
+                           Vector12 q_aim = lerp(q_prev, aim_transforms(I), substep_ratio);
+                           Vector12 dq = q - q_aim;
+                           Vector2  s  = strength_ratios(I);
 
-                       Vector12 G = M * dq;
+                           Matrix12x12 M =
+                               compute_constraint_mass(body_masses(i), s(0), s(1));
+
+                           G = M * dq;
+                       }
 
                        gradients(I).write(i, G);
 
                        if(gradient_only)
                            return;
 
-                       hessians(I).write(i, i, M);
+                       Matrix12x12 H;
+                       if(is_fixed(i))
+                       {
+                           H.setZero();
+                       }
+                       else
+                       {
+                           Vector2 s = strength_ratios(I);
+                           H = compute_constraint_mass(body_masses(i), s(0), s(1));
+                       }
+
+                       hessians(I).write(i, i, H);
                    });
     }
 };
