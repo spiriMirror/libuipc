@@ -54,8 +54,8 @@ $$
 \begin{aligned}
 C_0 &= (\mathbf{c}_j - \mathbf{c}_i) \times \hat{\mathbf{t}}_i &= \mathbf{0} \\
 C_1 &= (\mathbf{c}_i - \mathbf{c}_j) \times \hat{\mathbf{t}}_j &= \mathbf{0} \\
-C_2 &= \hat{\mathbf{n}}_i - \hat{\mathbf{n}}_j &= 0 \\
-C_3 &= \hat{\mathbf{b}}_i - \hat{\mathbf{b}}_j &= 0
+C_2 &= \hat{\mathbf{n}}_i - \hat{\mathbf{n}}_j &= \mathbf{0} \\
+C_3 &= \hat{\mathbf{b}}_i - \hat{\mathbf{b}}_j &= \mathbf{0}
 \end{aligned}
 $$
 
