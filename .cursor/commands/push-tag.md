@@ -14,7 +14,7 @@ Push a new tag to the upstream repository. Optionally create a GitHub release.
 
 2. **Determine tag version**
    ```bash
-   gh tag list --repo spiriMirror/libuipc
+   git tag --list
    ```
    - If user provides a tag: validate it doesn't exist and is greater than latest
    - If no tag provided: auto-increment patch version (e.g., `v1.2.3` → `v1.2.4`)
