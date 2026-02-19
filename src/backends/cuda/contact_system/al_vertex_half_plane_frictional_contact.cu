@@ -44,8 +44,13 @@ void ALVertexHalfPlaneFrictionalContact::do_report_gradient_hessian_extent(
         return;
     }
 
-    info.gradient_count(active_set->PHs_friction().size());
-    info.hessian_count(active_set->PHs_friction().size());
+    SizeT count = active_set->PHs_friction().size();
+    info.gradient_count(count);
+
+    if(info.gradient_only())
+        return;
+
+    info.hessian_count(count);
 }
 
 void ALVertexHalfPlaneFrictionalContact::Impl::do_compute_energy(GlobalContactManager::EnergyInfo& info)
@@ -129,6 +134,7 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_assemble(GlobalContactManager:
                 prev_x = prev_x.cviewer().name("prev_x"),
                 plane_positions = half_plane->positions().viewer().name("plane_positions"),
                 plane_normals = half_plane->normals().viewer().name("plane_normals"),
+                gradient_only = info.gradient_only(),
                 Gs = PH_grad.viewer().name("Gs"),
                 Hs = PH_hess.viewer().name("Hs")] __device__(int idx) mutable
                {
@@ -147,7 +153,10 @@ void ALVertexHalfPlaneFrictionalContact::Impl::do_assemble(GlobalContactManager:
                        G, H, mu, eps_v * dt, normal_force, x(vI), prev_x(vI), N);
 
                    Gs(idx).write(vI, G);
-                   Hs(idx).write(vI, vI, H);
+                   if(!gradient_only)
+                   {
+                       Hs(idx).write(vI, vI, H);
+                   }
                });
 }
 

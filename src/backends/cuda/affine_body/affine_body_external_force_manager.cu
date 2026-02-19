@@ -14,7 +14,7 @@ void AffineBodyExternalForceManager::do_build(BuildInfo& info)
 void AffineBodyExternalForceManager::register_reporter(AffineBodyExternalForceReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "register_reporter");
-    m_impl.m_reporters.register_subsystem(*reporter);
+    m_impl.m_reporters.register_sim_system(*reporter);
 }
 
 void AffineBodyExternalForceManager::Impl::clear()

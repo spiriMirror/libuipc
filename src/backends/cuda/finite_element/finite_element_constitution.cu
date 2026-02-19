@@ -18,7 +18,7 @@ void FiniteElementConstitution::init()
     do_init(info);
 }
 
-void FiniteElementConstitution::do_build(FiniteElementEnergyProducer::BuildInfo& info)
+void FiniteElementConstitution::do_build()
 {
     m_finite_element_method = &require<FiniteElementMethod>();
 
@@ -33,6 +33,28 @@ void FiniteElementConstitution::do_build(FiniteElementEnergyProducer::BuildInfo&
     do_build(this_info);
 
     m_finite_element_method->add_constitution(this);
+}
+
+void FiniteElementConstitution::report_extent(ReportExtentInfo& info)
+{
+    do_report_extent(info);
+    info.check(name());
+
+    UIPC_ASSERT(!(info.gradient_only() && info.m_hessian_count != 0),
+                "When gradient_only is true, hessian_count must be 0, but {} provides hessian count={}.\n"
+                "Ref: https://github.com/spiriMirror/libuipc/issues/295",
+                name(),
+                info.m_hessian_count);
+}
+
+void FiniteElementConstitution::compute_energy(ComputeEnergyInfo& info)
+{
+    do_compute_energy(info);
+}
+
+void FiniteElementConstitution::compute_gradient_hessian(ComputeGradientHessianInfo& info)
+{
+    do_compute_gradient_hessian(info);
 }
 
 const FiniteElementMethod::DimInfo& FiniteElementConstitution::dim_info() const noexcept

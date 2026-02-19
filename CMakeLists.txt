@@ -33,15 +33,15 @@ set(UIPC_USD_INSTALL_DIR "" CACHE PATH
 
 # Backend Options
 # =========================================================================
+option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ON)
 # if MAC OS, disable CUDA backend
 if(APPLE)
-    set(CUDA_BACKEND_ON OFF)
-else()
-    set(CUDA_BACKEND_ON ON)
+    # Force OFF
+    set(UIPC_WITH_CUDA_BACKEND OFF CACHE BOOL "Build with CUDA backend" FORCE)
 endif()
 
-option(UIPC_WITH_CUDA_BACKEND "Build with CUDA backend" ${CUDA_BACKEND_ON})
 set(UIPC_CUDA_ARCHITECTURES "native" CACHE STRING "Setup CUDA architectures (e.g. \"75,89\" or \"native\")")
+
 
 # Install Options
 # =========================================================================

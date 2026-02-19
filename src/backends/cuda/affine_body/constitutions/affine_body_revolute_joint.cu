@@ -201,14 +201,18 @@ Edge             = ({}, {}))",
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
     {
-        info.gradient_segment_count(2 * body_ids.size());  // each joint has 2 * Vector12 gradients
-        info.hessian_block_count(HalfHessianSize * body_ids.size());  // each joint has HalfHessianSize * Matrix12x12 hessians
+        info.gradient_count(2 * body_ids.size());  // each joint has 2 * Vector12 gradients
+        if(info.gradient_only())
+            return;
+
+        info.hessian_count(HalfHessianSize * body_ids.size());  // each joint has HalfHessianSize * Matrix12x12 hessians
     }
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
         namespace RJ = sym::affine_body_revolute_joint;
+        auto gradient_only = info.gradient_only();
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(
@@ -219,7 +223,8 @@ Edge             = ({}, {}))",
                  body_masses = info.body_masses().viewer().name("body_masses"),
                  qs          = info.qs().viewer().name("qs"),
                  G12s        = info.gradients().viewer().name("G12s"),
-                 H12x12s = info.hessians().viewer().name("H12x12s")] __device__(int I)
+                 H12x12s = info.hessians().viewer().name("H12x12s"),
+                 gradient_only] __device__(int I)
                 {
                     Vector2i        bids  = body_ids(I);
                     const Vector12& X_bar = rest_positions(I);
@@ -258,41 +263,44 @@ Edge             = ({}, {}))",
                     }
 
                     // Fill Body Hessian:
+                    if(!gradient_only)
                     {
-                        Matrix12x12 H_ii;
-                        RJ::Hess(H_ii,
-                                 K,
-                                 Js[0].x_bar(),
-                                 Js[0].x_bar(),
-                                 Js[1].x_bar(),
-                                 Js[1].x_bar());
-                        H12x12s(HalfHessianSize * I + 0).write(bids(0), bids(0), H_ii);
-                    }
-                    {
-                        Matrix12x12 H;
-                        Vector2i    lr = bids;
-                        RJ::Hess(H,
-                                 -K,
-                                 Js[0].x_bar(),
-                                 Js[2].x_bar(),
-                                 Js[1].x_bar(),
-                                 Js[3].x_bar());
-                        if(bids(0) > bids(1))
                         {
-                            H.transposeInPlace();
-                            lr = Vector2i{bids(1), bids(0)};
+                            Matrix12x12 H_ii;
+                            RJ::Hess(H_ii,
+                                     K,
+                                     Js[0].x_bar(),
+                                     Js[0].x_bar(),
+                                     Js[1].x_bar(),
+                                     Js[1].x_bar());
+                            H12x12s(HalfHessianSize * I + 0).write(bids(0), bids(0), H_ii);
                         }
-                        H12x12s(HalfHessianSize * I + 1).write(lr(0), lr(1), H);
-                    }
-                    {
-                        Matrix12x12 H_jj;
-                        RJ::Hess(H_jj,
-                                 K,
-                                 Js[2].x_bar(),
-                                 Js[2].x_bar(),
-                                 Js[3].x_bar(),
-                                 Js[3].x_bar());
-                        H12x12s(HalfHessianSize * I + 2).write(bids(1), bids(1), H_jj);
+                        {
+                            Matrix12x12 H;
+                            Vector2i    lr = bids;
+                            RJ::Hess(H,
+                                     -K,
+                                     Js[0].x_bar(),
+                                     Js[2].x_bar(),
+                                     Js[1].x_bar(),
+                                     Js[3].x_bar());
+                            if(bids(0) > bids(1))
+                            {
+                                H.transposeInPlace();
+                                lr = Vector2i{bids(1), bids(0)};
+                            }
+                            H12x12s(HalfHessianSize * I + 1).write(lr(0), lr(1), H);
+                        }
+                        {
+                            Matrix12x12 H_jj;
+                            RJ::Hess(H_jj,
+                                     K,
+                                     Js[2].x_bar(),
+                                     Js[2].x_bar(),
+                                     Js[3].x_bar(),
+                                     Js[3].x_bar());
+                            H12x12s(HalfHessianSize * I + 2).write(bids(1), bids(1), H_jj);
+                        }
                     }
                 });
     }

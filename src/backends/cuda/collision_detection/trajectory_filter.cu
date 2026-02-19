@@ -26,4 +26,9 @@ void TrajectoryFilter::label_active_vertices(GlobalTrajectoryFilter::LabelActive
 {
     do_label_active_vertices(info);
 }
+
+void TrajectoryFilter::clear_friction_candidates()
+{
+    do_clear_friction_candidates();
+}
 }  // namespace uipc::backend::cuda

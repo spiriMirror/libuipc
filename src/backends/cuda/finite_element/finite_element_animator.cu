@@ -1,6 +1,9 @@
 #include <finite_element/finite_element_animator.h>
 #include <finite_element/finite_element_constraint.h>
+#include <finite_element/fem_line_search_subreporter.h>
+#include <finite_element/fem_linear_subsystem_reporter.h>
 #include <uipc/builtin/attribute_name.h>
+#include <utils/report_extent_check.h>
 #include <uipc/common/enumerate.h>
 #include <muda/cub/device/device_reduce.h>
 
@@ -16,21 +19,23 @@ void FiniteElementAnimator::do_build(BuildInfo& info)
 
 void FiniteElementAnimator::add_constraint(FiniteElementConstraint* constraint)
 {
-    m_impl.constraints.register_subsystem(*constraint);
+    m_impl.constraints.register_sim_system(*constraint);
 }
 
-void FiniteElementAnimator::assemble(AssembleInfo& info)
+void FiniteElementAnimator::assemble(FEMLinearSubsystemReporter::AssembleInfo& info)
 {
     // compute the gradient and hessian
     for(auto constraint : m_impl.constraints.view())
     {
         ComputeGradientHessianInfo this_info{
-            &m_impl, constraint->m_index, info.dt(), info.hessians()};
+            &m_impl,
+            constraint->m_index,
+            info.dt(),
+            info.gradients(),
+            info.hessians(),
+            info.gradient_only()};
         constraint->compute_gradient_hessian(this_info);
     }
-
-    // assemble the gradient and hessian
-    m_impl.assemble(info);
 }
 
 void FiniteElementAnimator::do_init()
@@ -123,11 +128,6 @@ void FiniteElementAnimator::Impl::init(backend::WorldVisitor& world)
     constraint_hessian_offsets_counts.resize(constraint_view.size());
 }
 
-void FiniteElementAnimator::report_extent(ExtentInfo& info)
-{
-    info.hessian_block_count = m_impl.constraint_hessian_offsets_counts.total_count();
-}
-
 void FiniteElementAnimator::Impl::step()
 {
     for(auto constraint : constraints.view())
@@ -136,8 +136,6 @@ void FiniteElementAnimator::Impl::step()
         constraint->step(info);
     }
 
-
-    // clear the last element
     span<IndexT> constraint_energy_counts = constraint_energy_offsets_counts.counts();
     span<IndexT> constraint_gradient_counts = constraint_gradient_offsets_counts.counts();
     span<IndexT> constraint_hessian_counts = constraint_hessian_offsets_counts.counts();
@@ -156,59 +154,16 @@ void FiniteElementAnimator::Impl::step()
     constraint_energy_offsets_counts.scan();
     constraint_gradient_offsets_counts.scan();
     constraint_hessian_offsets_counts.scan();
-
-    SizeT E_count    = constraint_energy_offsets_counts.total_count();
-    SizeT G3_count   = constraint_gradient_offsets_counts.total_count();
-    SizeT H3x3_count = constraint_hessian_offsets_counts.total_count();
-
-    // resize the buffers
-    IndexT vertex_count = finite_element_method->xs().size();
-    constraint_energies.resize(E_count);
-    constraint_gradient.resize(vertex_count, G3_count);
-    constraint_hessian.resize(vertex_count, vertex_count, H3x3_count);
 }
 
-void FiniteElementAnimator::Impl::assemble(AssembleInfo& info)
-{
-    using namespace muda;
-
-    // only need to setup gradient (from doublet vector to dense vector)
-    ParallelFor()
-        .file_line(__FILE__, __LINE__)
-        .apply(constraint_gradient.doublet_count(),
-               [anim_gradients = std::as_const(constraint_gradient).viewer().name("aim_gradients"),
-                gradients = info.gradients().viewer().name("gradients"),
-                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
-               {
-                   const auto& [i, G3] = anim_gradients(I);
-                   if(is_fixed(i))
-                   {
-                       //
-                   }
-                   else
-                   {
-                       gradients.segment<3>(i * 3).atomic_add(G3);
-                   }
-               });
-}
-
-Float FiniteElementAnimator::compute_energy(LineSearcher::EnergyInfo& info)
+void FiniteElementAnimator::compute_energy(FEMLineSearchSubreporter::ComputeEnergyInfo& info)
 {
     using namespace muda;
     for(auto constraint : m_impl.constraints.view())
     {
-        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, info.dt()};
+        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, info.dt(), info.energies()};
         constraint->compute_energy(this_info);
     }
-
-    DeviceReduce().Sum(m_impl.constraint_energies.data(),
-                       m_impl.constraint_energy.data(),
-                       m_impl.constraint_energies.size());
-
-    // copy back to host
-    Float E = m_impl.constraint_energy;
-
-    return E;
 }
 
 auto FiniteElementAnimator::FilteredInfo::anim_geo_infos() const -> span<const AnimatedGeoInfo>
@@ -245,20 +200,31 @@ muda::CBufferView<IndexT> FiniteElementAnimator::BaseInfo::is_fixed() const noex
 muda::BufferView<Float> FiniteElementAnimator::ComputeEnergyInfo::energies() const noexcept
 {
     auto [offset, count] = m_impl->constraint_energy_offsets_counts[m_index];
-    return m_impl->constraint_energies.view(offset, count);
+    return m_energies.subview(offset, count);
 }
 
 muda::DoubletVectorView<Float, 3> FiniteElementAnimator::ComputeGradientHessianInfo::gradients() const noexcept
 {
     auto [offset, count] = m_impl->constraint_gradient_offsets_counts[m_index];
-    return m_impl->constraint_gradient.view().subview(offset, count);
+    return m_gradients.subview(offset, count);
 }
 
-void FiniteElementAnimator::ReportExtentInfo::hessian_block_count(SizeT count) noexcept
+muda::TripletMatrixView<Float, 3> FiniteElementAnimator::ComputeGradientHessianInfo::hessians() const noexcept
+{
+    auto [offset, count] = m_impl->constraint_hessian_offsets_counts[m_index];
+    return m_hessians.subview(offset, count);
+}
+
+bool FiniteElementAnimator::ComputeGradientHessianInfo::gradient_only() const noexcept
+{
+    return m_gradient_only;
+}
+
+void FiniteElementAnimator::ReportExtentInfo::hessian_count(SizeT count) noexcept
 {
     m_hessian_block_count = count;
 }
-void FiniteElementAnimator::ReportExtentInfo::gradient_segment_count(SizeT count) noexcept
+void FiniteElementAnimator::ReportExtentInfo::gradient_count(SizeT count) noexcept
 {
     m_gradient_segment_count = count;
 }
@@ -266,4 +232,75 @@ void FiniteElementAnimator::ReportExtentInfo::energy_count(SizeT count) noexcept
 {
     m_energy_count = count;
 }
+
+void FiniteElementAnimator::ReportExtentInfo::check(std::string_view name) const
+{
+    check_report_extent(m_gradient_only_checked, m_gradient_only, m_hessian_block_count, name);
+}
+}  // namespace uipc::backend::cuda
+
+namespace uipc::backend::cuda
+{
+class FiniteElementAnimatorLinearSubsystemReporter final : public FEMLinearSubsystemReporter
+{
+  public:
+    using FEMLinearSubsystemReporter::FEMLinearSubsystemReporter;
+
+    SimSystemSlot<FiniteElementAnimator> animator;
+
+    virtual void do_build(BuildInfo& info) override
+    {
+        animator = require<FiniteElementAnimator>();
+    }
+
+    virtual void do_init(InitInfo& info) override {}
+
+    virtual void do_report_extent(ReportExtentInfo& info) override
+    {
+        SizeT gradient_count =
+            animator->m_impl.constraint_gradient_offsets_counts.total_count();
+        info.gradient_count(gradient_count);
+
+        SizeT hessian_count = 0;
+        if(!info.gradient_only())
+            hessian_count =
+                animator->m_impl.constraint_hessian_offsets_counts.total_count();
+        info.hessian_count(hessian_count);
+    }
+
+    virtual void do_assemble(AssembleInfo& info) override
+    {
+        animator->assemble(info);
+    }
+};
+
+REGISTER_SIM_SYSTEM(FiniteElementAnimatorLinearSubsystemReporter);
+
+class FiniteElementAnimatorLineSearchSubreporter final : public FEMLineSearchSubreporter
+{
+  public:
+    using FEMLineSearchSubreporter::FEMLineSearchSubreporter;
+    SimSystemSlot<FiniteElementAnimator> animator;
+
+    virtual void do_build(BuildInfo& info) override
+    {
+        animator = require<FiniteElementAnimator>();
+    }
+
+    virtual void do_init(InitInfo& info) override {}
+
+    virtual void do_report_extent(ReportExtentInfo& info) override
+    {
+        SizeT energy_count =
+            animator->m_impl.constraint_energy_offsets_counts.total_count();
+        info.energy_count(energy_count);
+    }
+
+    virtual void do_compute_energy(ComputeEnergyInfo& info) override
+    {
+        animator->compute_energy(info);
+    }
+};
+
+REGISTER_SIM_SYSTEM(FiniteElementAnimatorLineSearchSubreporter);
 }  // namespace uipc::backend::cuda

@@ -54,7 +54,7 @@ void ALVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
     PHs.resize(info.surf_vertices().size() * info.plane_positions().size());
 
     // TODO: just hard code the slackness for now
-    constexpr Float eta = 0.01;
+    constexpr Float eta = 0.001;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)

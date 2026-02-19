@@ -12,6 +12,7 @@ namespace uipc::backend::cuda
 class ContactReporter;
 class ContactReceiver;
 class GlobalTrajectoryFilter;
+class AdaptiveContactParameterReporter;
 
 class GlobalContactManager final : public SimSystem
 {
@@ -28,6 +29,25 @@ class GlobalContactManager final : public SimSystem
 
     using EnergyInfo = GlobalDyTopoEffectManager::EnergyInfo;
 
+    class Impl;
+
+    class AdaptiveParameterInfo
+    {
+      public:
+        AdaptiveParameterInfo(Impl* impl) noexcept
+            : m_impl(impl)
+        {
+        }
+
+        muda::Buffer2DView<ContactCoeff> contact_tabular() const noexcept;
+
+        S<muda::DeviceBuffer2D<ContactCoeff>> exchange_contact_tabular(
+            S<muda::DeviceBuffer2D<ContactCoeff>> new_buffer) const noexcept;
+
+      private:
+        Impl* m_impl;
+    };
+
     class Impl
     {
       public:
@@ -43,18 +63,20 @@ class GlobalContactManager final : public SimSystem
 
         bool cfl_enabled = false;
 
-        vector<ContactCoeff>               h_contact_tabular;
-        muda::DeviceBuffer2D<ContactCoeff> contact_tabular;
-        vector<IndexT>                     h_contact_mask_tabular;
-        vector<IndexT>                     h_subcene_mask_tabular;
-        muda::DeviceBuffer2D<IndexT>       contact_mask_tabular;
-        muda::DeviceBuffer2D<IndexT>       subscene_mask_tabular;
-        Float                              reserve_ratio = 1.1;
+        S<muda::DeviceBuffer2D<ContactCoeff>> contact_tabular;
+
+        vector<ContactCoeff>         h_contact_tabular;
+        vector<IndexT>               h_contact_mask_tabular;
+        vector<IndexT>               h_subcene_mask_tabular;
+        muda::DeviceBuffer2D<IndexT> contact_mask_tabular;
+        muda::DeviceBuffer2D<IndexT> subscene_mask_tabular;
+        Float                        reserve_ratio = 1.1;
 
         Float d_hat        = 0.0;
         Float kappa        = 0.0;
         Float dt           = 0.0;
         Float eps_velocity = 0.0;
+
 
         /***********************************************************************
         *                     Global Vertex Contact Info                       *
@@ -66,6 +88,7 @@ class GlobalContactManager final : public SimSystem
 
         SimSystemSlotCollection<ContactReporter> contact_reporters;
         SimSystemSlotCollection<ContactReceiver> contact_receivers;
+        SimSystemSlot<AdaptiveContactParameterReporter> adaptive_contact_parameter_reporter;
     };
 
     Float d_hat() const;
@@ -75,6 +98,7 @@ class GlobalContactManager final : public SimSystem
     muda::CBuffer2DView<ContactCoeff> contact_tabular() const noexcept;
     muda::CBuffer2DView<IndexT>       contact_mask_tabular() const noexcept;
     muda::CBuffer2DView<IndexT>       subscene_mask_tabular() const noexcept;
+
 
 
   protected:
@@ -88,12 +112,15 @@ class GlobalContactManager final : public SimSystem
 
     void init();
 
-    void  compute_d_hat();
-    void  compute_adaptive_kappa();
+    void compute_adaptive_parameters();
+
     Float compute_cfl_condition();
 
     friend class ContactReporter;
     void add_reporter(ContactReporter* reporter);
+
+    friend class AdaptiveContactParameterReporter;
+    void add_reporter(AdaptiveContactParameterReporter* reporter);
 
     Impl m_impl;
 };

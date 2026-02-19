@@ -35,6 +35,7 @@ TEST_CASE("14_fem_3d_ground_contact", "[fem]")
 
     auto config                             = test::Scene::default_config();
     config["gravity"]                       = Vector3{0, -9.8, 0};
+    config["d_hat"]                         = 0.01;
     config["contact"]["enable"]             = true;
     config["contact"]["friction"]["enable"] = false;
     config["contact"]["constitution"]       = contact_constitution;

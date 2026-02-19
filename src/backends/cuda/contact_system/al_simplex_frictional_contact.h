@@ -11,6 +11,8 @@ class ALSimplexFrictionalContact : public ContactReporter
 {
   public:
     using ContactReporter::ContactReporter;
+    constexpr static SizeT PTHalfHessianSize = 4 * (4 + 1) / 2;  // 4 vertices, symmetric matrix
+    constexpr static SizeT EEHalfHessianSize = 4 * (4 + 1) / 2;  // 4 vertices, symmetric matrix
 
     class Impl
     {

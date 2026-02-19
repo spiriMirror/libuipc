@@ -3,7 +3,7 @@
 
 namespace uipc::backend::cuda
 {
-void FiniteElementExtraConstitution::do_build(FiniteElementEnergyProducer::BuildInfo& info)
+void FiniteElementExtraConstitution::do_build()
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
 
@@ -34,23 +34,34 @@ span<const FiniteElementMethod::GeoInfo> FiniteElementExtraConstitution::geo_inf
 void FiniteElementExtraConstitution::init()
 {
     m_impl.init(uid(), world());
+    m_index = m_impl.fem().extra_constitution_uid_to_index[uid()];
 
     // let the subclass do the rest of the initialization
     FilteredInfo info{&m_impl};
     do_init(info);
 }
 
-void FiniteElementExtraConstitution::do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info)
+void FiniteElementExtraConstitution::report_extent(ReportExtentInfo& info)
 {
-    ComputeEnergyInfo this_info{&m_impl.fem(), info.dt(), info.energies()};
+    do_report_extent(info);
+    info.check(name());
+
+    UIPC_ASSERT(!(info.gradient_only() && info.m_hessian_count != 0),
+                "When gradient_only is true, hessian_count must be 0, but {} provides hessian count={}.\n"
+                "Ref: https://github.com/spiriMirror/libuipc/issues/295",
+                name(),
+                info.m_hessian_count);
+}
+
+void FiniteElementExtraConstitution::compute_energy(FiniteElementElastics::ComputeEnergyInfo& info)
+{
+    auto this_info = ComputeEnergyInfo{&m_impl, &info, info.dt()};
     do_compute_energy(this_info);
 }
 
-void FiniteElementExtraConstitution::do_compute_gradient_hessian(
-    FiniteElementEnergyProducer::ComputeGradientHessianInfo& info)
+void FiniteElementExtraConstitution::compute_gradient_hessian(FiniteElementElastics::ComputeGradientHessianInfo& info)
 {
-    ComputeGradientHessianInfo this_info{
-        &m_impl.fem(), info.dt(), info.gradients(), info.hessians()};
+    auto this_info = ComputeGradientHessianInfo{&m_impl, &info, info.dt()};
     do_compute_gradient_hessian(this_info);
 }
 
@@ -100,17 +111,17 @@ Float FiniteElementExtraConstitution::BaseInfo::dt() const noexcept
 
 muda::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::xs() const noexcept
 {
-    return m_impl->xs.view();
+    return m_impl->finite_element_method->xs();
 }
 
 muda::CBufferView<Vector3> FiniteElementExtraConstitution::BaseInfo::x_bars() const noexcept
 {
-    return m_impl->x_bars.view();
+    return m_impl->finite_element_method->x_bars();
 }
 
 muda::CBufferView<Float> FiniteElementExtraConstitution::BaseInfo::thicknesses() const noexcept
 {
-    return m_impl->thicknesses.view();
+    return m_impl->finite_element_method->thicknesses();
 }
 
 span<const FiniteElementMethod::GeoInfo> FiniteElementExtraConstitution::FilteredInfo::geo_infos() const noexcept

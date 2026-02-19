@@ -40,7 +40,7 @@ void GlobalTrajectoryFilter::add_filter(TrajectoryFilter* filter)
 {
     check_state(SimEngineState::BuildSystems, "add_filter()");
     UIPC_ASSERT(filter != nullptr, "Input TrajectoryFilter is nullptr.");
-    m_impl.filters.register_subsystem(*filter);
+    m_impl.filters.register_sim_system(*filter);
 }
 
 void GlobalTrajectoryFilter::Impl::init()
@@ -108,6 +108,17 @@ Float GlobalTrajectoryFilter::filter_toi(Float alpha)
 
 void GlobalTrajectoryFilter::record_friction_candidates()
 {
+    // Check if friction candidates should be discarded before recording new ones
+    // ref: https://github.com/spiriMirror/libuipc/issues/303
+    if(m_impl.should_discard_friction_candidates)
+    {
+        clear_friction_candidates();
+        m_impl.should_discard_friction_candidates = false;
+        // No need to record friction candidates if they are discarded
+        // Just early return
+        return;
+    }
+
     for(auto filter : m_impl.filters.view())
     {
         RecordFrictionCandidatesInfo info;
@@ -124,8 +135,27 @@ void GlobalTrajectoryFilter::label_active_vertices()
     }
 }
 
+void GlobalTrajectoryFilter::clear_friction_candidates()
+{
+    for(auto filter : m_impl.filters.view())
+    {
+        filter->clear_friction_candidates();
+    }
+}
+
+void GlobalTrajectoryFilter::require_discard_friction()
+{
+    m_impl.should_discard_friction_candidates = true;
+}
+
 muda::BufferView<IndexT> GlobalTrajectoryFilter::LabelActiveVerticesInfo::vert_is_active() const noexcept
 {
     return m_impl->global_contact_manager->m_impl.vert_is_active_contact.view();
+}
+
+void GlobalTrajectoryFilter::do_apply_recover(RecoverInfo& info)
+{
+    // Friction candidates are already recovered, no need to discard them.
+    m_impl.should_discard_friction_candidates = false;
 }
 }  // namespace uipc::backend::cuda

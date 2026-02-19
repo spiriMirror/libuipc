@@ -13,7 +13,7 @@ void GlobalSimplicialSurfaceManager::add_reporter(SimplicialSurfaceReporter* rep
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     UIPC_ASSERT(reporter != nullptr, "reporter is nullptr");
-    m_impl.reporters.register_subsystem(*reporter);
+    m_impl.reporters.register_sim_system(*reporter);
 }
 
 muda::CBufferView<IndexT> GlobalSimplicialSurfaceManager::codim_vertices() const noexcept

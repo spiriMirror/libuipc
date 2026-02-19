@@ -870,6 +870,6 @@ void GlobalActiveSetManager::mu(Float mu)
 void GlobalActiveSetManager::add_reporter(ActiveSetReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_impl.active_set_reporters.register_subsystem(*reporter);
+    m_impl.active_set_reporters.register_sim_system(*reporter);
 }
 }  // namespace uipc::backend::cuda
