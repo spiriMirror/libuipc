@@ -52,14 +52,20 @@ void ABDLineSearchReporter::Impl::step_forward(LineSearcher::StepInfo& info)
                });
 }
 
-void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
+void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::ComputeEnergyInfo& info)
 {
     using namespace muda;
 
+    auto body_count = abd().body_count();
+
     // Compute kinetic energy
     {
-        AffineBodyDynamics::ComputeEnergyInfo this_info{abd().body_id_to_kinetic_energy,
-                                                        info.dt()};
+        body_id_to_kinetic_energy.resize(body_count);
+
+        ABDLineSearchReporter::ComputeEnergyInfo this_info;
+        this_info.m_energies = body_id_to_kinetic_energy.view();
+        this_info.m_dt       = info.dt();
+
         abd().kinetic->compute_energy(this_info);
 
         using namespace muda;
@@ -71,7 +77,7 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                    [is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed"),
                     external_kinetic =
                         abd().body_id_to_external_kinetic.cviewer().name("external_kinetic"),
-                    kinetic_energy = abd().body_id_to_kinetic_energy.viewer().name(
+                    kinetic_energy = body_id_to_kinetic_energy.viewer().name(
                         "kinetic_energy")] __device__(int i) mutable
                    {
                        if(is_fixed(i) || external_kinetic(i))
@@ -79,56 +85,66 @@ void ABDLineSearchReporter::Impl::compute_energy(LineSearcher::EnergyInfo& info)
                            kinetic_energy(i) = 0.0;
                        }
                    });
+
+        // Sum up the kinetic energy
+        DeviceReduce().Sum(body_id_to_kinetic_energy.data(),
+                           abd_kinetic_energy.data(),
+                           body_id_to_kinetic_energy.size());
     }
 
-
-    // Sum up the kinetic energy
-    DeviceReduce().Sum(abd().body_id_to_kinetic_energy.data(),
-                       abd().abd_kinetic_energy.data(),
-                       abd().body_id_to_kinetic_energy.size());
-
-    // Distribute the computation of shape energy to each constitution
-    for(auto&& [i, cst] : enumerate(abd().constitutions.view()))
+    // Compute shape energy
     {
-        auto shape_energy = abd().subview(abd().body_id_to_shape_energy, cst->m_index);
+        body_id_to_shape_energy.resize(body_count);
 
-        AffineBodyDynamics::ComputeEnergyInfo this_info{shape_energy, info.dt()};
-        cst->compute_energy(this_info);
+        // Distribute the computation of shape energy to each constitution
+        for(auto&& [i, cst] : enumerate(abd().constitutions.view()))
+        {
+            auto shape_energy = abd().subview(body_id_to_shape_energy, cst->m_index);
+
+            ABDLineSearchReporter::ComputeEnergyInfo this_info;
+            this_info.m_energies = shape_energy;
+            this_info.m_dt       = info.dt();
+            cst->compute_energy(this_info);
+        }
+
+        // Sum up the shape energy
+        DeviceReduce().Sum(body_id_to_shape_energy.data(),
+                           abd_shape_energy.data(),
+                           body_id_to_shape_energy.size());
     }
 
-    // Sum up the shape energy
-    DeviceReduce().Sum(abd().body_id_to_shape_energy.data(),
-                       abd().abd_shape_energy.data(),
-                       abd().body_id_to_shape_energy.size());
-
-    // Collect the energy from all reporters
-    auto         reporter_view = reporters.view();
-    span<IndexT> counts        = reporter_energy_offsets_counts.counts();
-    for(auto&& [i, R] : enumerate(reporter_view))
+    // Collect the energy from other reporters
     {
-        ExtentInfo info;
-        R->report_extent(info);
-        counts[i] = info.m_energy_count;
-    }
-    reporter_energy_offsets_counts.scan();
-    reporter_energies.resize(reporter_energy_offsets_counts.total_count());
+        auto         reporter_view = reporters.view();
+        span<IndexT> counts        = reporter_energy_offsets_counts.counts();
+        for(auto&& [i, R] : enumerate(reporter_view))
+        {
+            ReportExtentInfo this_info;
+            R->report_extent(this_info);
+            counts[i] = this_info.m_energy_count;
+        }
 
-    for(auto&& [i, R] : enumerate(reporter_view))
-    {
-        EnergyInfo info;
-        auto [offset, count] = reporter_energy_offsets_counts[i];
-        info.m_energies      = reporter_energies.view(offset, count);
-        R->report_energy(info);
-    }
+        reporter_energy_offsets_counts.scan();
+        reporter_energies.resize(reporter_energy_offsets_counts.total_count());
 
-    // Compute the total energy from all reporters
-    DeviceReduce().Sum(reporter_energies.data(),
-                       total_reporter_energy.data(),
-                       reporter_energies.size());
+        for(auto&& [i, R] : enumerate(reporter_view))
+        {
+            ComputeEnergyInfo this_info;
+            auto [offset, count] = reporter_energy_offsets_counts[i];
+            this_info.m_energies = reporter_energies.view(offset, count);
+            this_info.m_dt       = info.dt();
+            R->compute_energy(this_info);
+        }
+
+        // Compute the total energy from all reporters
+        DeviceReduce().Sum(reporter_energies.data(),
+                           total_reporter_energy.data(),
+                           reporter_energies.size());
+    }
 
     // Copy from device to host
-    Float K       = abd().abd_kinetic_energy;
-    Float shape_E = abd().abd_shape_energy;
+    Float K       = abd_kinetic_energy;
+    Float shape_E = abd_shape_energy;
     Float other_E = total_reporter_energy;
 
     Float E = K + shape_E + other_E;
@@ -151,7 +167,7 @@ void ABDLineSearchReporter::do_step_forward(LineSearcher::StepInfo& info)
     m_impl.step_forward(info);
 }
 
-void ABDLineSearchReporter::do_compute_energy(LineSearcher::EnergyInfo& info)
+void ABDLineSearchReporter::do_compute_energy(LineSearcher::ComputeEnergyInfo& info)
 {
     m_impl.compute_energy(info);
 }
@@ -160,6 +176,6 @@ void ABDLineSearchReporter::add_reporter(ABDLineSearchSubreporter* reporter)
 {
     UIPC_ASSERT(reporter, "reporter is null");
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_impl.reporters.register_subsystem(*reporter);
+    m_impl.reporters.register_sim_system(*reporter);
 }
 }  // namespace uipc::backend::cuda

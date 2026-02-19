@@ -1,6 +1,8 @@
 #pragma once
 #include <sim_system.h>
 #include <affine_body/affine_body_dynamics.h>
+#include <affine_body/abd_line_search_reporter.h>
+#include <affine_body/abd_linear_subsystem.h>
 
 namespace uipc::backend::cuda
 {
@@ -53,7 +55,7 @@ class AffineBodyConstitution : public SimSystem
     class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        ComputeEnergyInfo(Impl* impl, IndexT index, AffineBodyDynamics::ComputeEnergyInfo* base_info) noexcept
+        ComputeEnergyInfo(Impl* impl, IndexT index, ABDLineSearchReporter::ComputeEnergyInfo* base_info) noexcept
             : BaseInfo(impl, index)
             , base_info(base_info)
         {
@@ -64,7 +66,7 @@ class AffineBodyConstitution : public SimSystem
         auto dt() const noexcept { return base_info->dt(); }
 
       private:
-        AffineBodyDynamics::ComputeEnergyInfo* base_info = nullptr;
+        ABDLineSearchReporter::ComputeEnergyInfo* base_info = nullptr;
     };
 
     class ComputeGradientHessianInfo : public BaseInfo
@@ -72,18 +74,19 @@ class AffineBodyConstitution : public SimSystem
       public:
         ComputeGradientHessianInfo(Impl*  impl,
                                    IndexT index,
-                                   AffineBodyDynamics::ComputeGradientHessianInfo* base_info) noexcept
+                                   ABDLinearSubsystem::ComputeGradientHessianInfo* base_info) noexcept
             : BaseInfo(impl, index)
             , base_info(base_info)
         {
         }
 
+        auto gradient_only() const noexcept { return base_info->gradient_only(); }
         auto gradients() const noexcept { return base_info->gradients(); }
         auto hessians() const noexcept { return base_info->hessians(); }
         auto dt() const noexcept { return base_info->dt(); }
 
       private:
-        AffineBodyDynamics::ComputeGradientHessianInfo* base_info = nullptr;
+        ABDLinearSubsystem::ComputeGradientHessianInfo* base_info = nullptr;
     };
 
   protected:
@@ -101,8 +104,8 @@ class AffineBodyConstitution : public SimSystem
     virtual void do_build() override final;
 
     void init(AffineBodyDynamics::FilteredInfo& info);
-    void compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info);
-    void compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info);
+    void compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info);
+    void compute_gradient_hessian(ABDLinearSubsystem::ComputeGradientHessianInfo& info);
 
     IndexT m_index = -1;
     Impl   m_impl;

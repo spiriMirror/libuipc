@@ -22,7 +22,7 @@ class InterAffineBodyConstraint : public SimSystem
     virtual void do_init(InterAffineBodyAnimator::FilteredInfo& info) = 0;
     virtual void do_step(InterAffineBodyAnimator::FilteredInfo& info) = 0;
     virtual void do_report_extent(InterAffineBodyAnimator::ReportExtentInfo& info) = 0;
-    virtual void do_compute_energy(InterAffineBodyAnimator::EnergyInfo& info) = 0;
+    virtual void do_compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info) = 0;
 
 
@@ -43,7 +43,7 @@ class InterAffineBodyConstraint : public SimSystem
     void init(InterAffineBodyAnimator::FilteredInfo& info);
     void step(InterAffineBodyAnimator::FilteredInfo& info);
     void report_extent(InterAffineBodyAnimator::ReportExtentInfo& info);
-    void compute_energy(InterAffineBodyAnimator::EnergyInfo& info);
+    void compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info);
     void compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info);
 
     SizeT                                  m_index = ~0ull;

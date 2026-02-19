@@ -71,10 +71,10 @@ class AffineBodyAnimator final : public Animator
         Float m_dt    = 0.0;
     };
 
-    class EnergyInfo : public BaseInfo
+    class ComputeEnergyInfo : public BaseInfo
     {
       public:
-        EnergyInfo(Impl* impl, SizeT index, Float dt, muda::BufferView<Float> energy)
+        ComputeEnergyInfo(Impl* impl, SizeT index, Float dt, muda::BufferView<Float> energy)
             : BaseInfo(impl, index, dt)
             , m_energies(energy)
         {
@@ -86,40 +86,53 @@ class AffineBodyAnimator final : public Animator
         muda::BufferView<Float> m_energies;
     };
 
-    class GradientHessianInfo : public BaseInfo
+    class ComputeGradientHessianInfo : public BaseInfo
     {
       public:
-        GradientHessianInfo(Impl*                              impl,
+        ComputeGradientHessianInfo(Impl*                              impl,
                             SizeT                              index,
                             Float                              dt,
                             muda::DoubletVectorView<Float, 12> gradients,
-                            muda::TripletMatrixView<Float, 12> hessians)
+                            muda::TripletMatrixView<Float, 12> hessians,
+                            bool                               gradient_only)
             : BaseInfo(impl, index, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
+            , m_gradient_only(gradient_only)
         {
         }
         muda::DoubletVectorView<Float, 12> gradients() const noexcept;
         muda::TripletMatrixView<Float, 12> hessians() const noexcept;
+        bool                               gradient_only() const noexcept;
 
       private:
         friend class AffineBodyAnimator;
         muda::DoubletVectorView<Float, 12> m_gradients;
         muda::TripletMatrixView<Float, 12> m_hessians;
+        bool                               m_gradient_only = false;
     };
 
     class ReportExtentInfo
     {
       public:
-        void hessian_block_count(SizeT count) noexcept;
-        void gradient_segment_count(SizeT count) noexcept;
+        void hessian_count(SizeT count) noexcept;
+        void gradient_count(SizeT count) noexcept;
         void energy_count(SizeT count) noexcept;
+        bool gradient_only() const noexcept
+        {
+            m_gradient_only_checked = true;
+            return m_gradient_only;
+        }
+        void check(std::string_view name) const;
 
       private:
         friend class AffineBodyAnimator;
+        friend class AffineBodyConstraint;
         SizeT m_hessian_block_count    = 0;
         SizeT m_gradient_segment_count = 0;
         SizeT m_energy_count           = 0;
+        bool  m_gradient_only          = false;
+        mutable bool m_gradient_only_checked = false;
     };
 
     class Impl
@@ -145,10 +158,10 @@ class AffineBodyAnimator final : public Animator
 
   private:
     friend class AffineBodyConstraint;
-    void add_constraint(AffineBodyConstraint* constraint);  // only be called by AffinieElementConstraint
+    void add_constraint(AffineBodyConstraint* constraint);  // only be called by AffineBodyConstraint
 
     friend class AffineBodyAnimatorLineSearchSubreporter;
-    void compute_energy(ABDLineSearchReporter::EnergyInfo& info);  // only be called by AffineBodyAnimatorLineSearchSubreporter
+    void compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info);  // only be called by AffineBodyAnimatorLineSearchSubreporter
 
     friend class AffineBodyAnimatorLinearSubsystemReporter;
     void compute_gradient_hessian(ABDLinearSubsystem::AssembleInfo& info);  // only be called by AffineBodyAnimatorLinearSubsystemReporter

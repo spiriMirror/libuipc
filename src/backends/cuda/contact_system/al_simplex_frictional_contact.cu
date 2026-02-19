@@ -42,10 +42,16 @@ void ALSimplexFrictionalContact::do_report_gradient_hessian_extent(
         return;
     }
 
-    info.gradient_count(
-        4 * (active_set->PTs_friction().size() + active_set->EEs_friction().size()));
-    info.hessian_count(
-        16 * (active_set->PTs_friction().size() + active_set->EEs_friction().size()));
+    bool gradient_only = info.gradient_only();
+    auto pt_count = active_set->PTs_friction().size();
+    auto ee_count = active_set->EEs_friction().size();
+
+    SizeT contact_gradient_count = 4 * (pt_count + ee_count);
+    SizeT contact_hessian_count =
+        pt_count * PTHalfHessianSize + ee_count * EEHalfHessianSize;
+
+    info.gradient_count(contact_gradient_count);
+    info.hessian_count(gradient_only ? 0 : contact_hessian_count);
 }
 
 void ALSimplexFrictionalContact::Impl::do_compute_energy(GlobalContactManager::EnergyInfo& info)
@@ -157,8 +163,18 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
     auto EE_size = active_set->EEs_friction().size();
     auto PT_grad = info.gradients().subview(0, PT_size * 4);
     auto EE_grad = info.gradients().subview(PT_size * 4, EE_size * 4);
-    auto PT_hess = info.hessians().subview(0, PT_size * 16);
-    auto EE_hess = info.hessians().subview(PT_size * 16, EE_size * 16);
+    
+    decltype(info.hessians().subview(0, 0)) PT_hess, EE_hess;
+    if(info.gradient_only())
+    {
+        PT_hess = {};
+        EE_hess = {};
+    }
+    else
+    {
+        PT_hess = info.hessians().subview(0, PT_size * PTHalfHessianSize);
+        EE_hess = info.hessians().subview(PT_size * PTHalfHessianSize, EE_size * EEHalfHessianSize);
+    }
 
     auto x         = global_vertex_manager->positions();
     auto prev_x    = global_vertex_manager->prev_positions();
@@ -180,6 +196,7 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
                 lambda = PT_lambda.cviewer().name("lambda"),
                 x      = x.cviewer().name("x"),
                 prev_x = prev_x.cviewer().name("prev_x"),
+                gradient_only = info.gradient_only(),
                 Gs     = PT_grad.viewer().name("Gs"),
                 Hs = PT_hess.viewer().name("Hs")] __device__(int idx) mutable
                {
@@ -211,8 +228,11 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
                    DoubletVectorAssembler DVA{Gs};
                    DVA.segment<4>(idx * 4).write(PT, G);
 
-                   TripletMatrixAssembler TMA{Hs};
-                   TMA.block<4, 4>(idx * 16).write(PT, H);
+                   if(!gradient_only)
+                   {
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.half_block<4>(idx * PTHalfHessianSize).write(PT, H);
+                   }
                });
 
     ParallelFor()
@@ -228,6 +248,7 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
                 x      = x.cviewer().name("x"),
                 rest_x = rest_x.viewer().name("rest_x"),
                 prev_x = prev_x.cviewer().name("prev_x"),
+                gradient_only = info.gradient_only(),
                 Gs     = EE_grad.viewer().name("Gs"),
                 Hs = EE_hess.viewer().name("Hs")] __device__(int idx) mutable
                {
@@ -269,8 +290,11 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
                        DoubletVectorAssembler DVA{Gs};
                        DVA.segment<4>(idx * 4).write(EE, G);
 
-                       TripletMatrixAssembler TMA{Hs};
-                       TMA.block<4, 4>(idx * 16).write(EE, H);
+                       if(!gradient_only)
+                       {
+                           TripletMatrixAssembler TMA{Hs};
+                           TMA.half_block<4>(idx * EEHalfHessianSize).write(EE, H);
+                       }
                    }
                });
 }

@@ -81,7 +81,7 @@ void ContactExporterManager::add_exporter(ContactExporter* exporter)
 {
     UIPC_ASSERT(exporter, "Exporter must not be null");
     check_state(SimEngineState::BuildSystems, "add_exporter");
-    m_contact_exporters.register_subsystem(*exporter);
+    m_contact_exporters.register_sim_system(*exporter);
 }
 
 ContactExporter* ContactExporterManager::find_exporter(std::string_view prim_type) const

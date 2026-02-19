@@ -8,8 +8,8 @@ class ABDLineSearchSubreporter : public SimSystem
 {
   public:
     using SimSystem::SimSystem;
-    using ExtentInfo = ABDLineSearchReporter::ExtentInfo;
-    using EnergyInfo = ABDLineSearchReporter::EnergyInfo;
+    using ReportExtentInfo  = ABDLineSearchReporter::ReportExtentInfo;
+    using ComputeEnergyInfo = ABDLineSearchReporter::ComputeEnergyInfo;
 
     class BuildInfo
     {
@@ -22,10 +22,10 @@ class ABDLineSearchSubreporter : public SimSystem
     };
 
   protected:
-    virtual void do_build(BuildInfo& info)          = 0;
-    virtual void do_init(InitInfo& info)            = 0;
-    virtual void do_report_extent(ExtentInfo& info) = 0;
-    virtual void do_report_energy(EnergyInfo& info) = 0;
+    virtual void do_build(BuildInfo& info)                 = 0;
+    virtual void do_init(InitInfo& info)                   = 0;
+    virtual void do_report_extent(ReportExtentInfo& info)  = 0;
+    virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
 
   private:
     virtual void do_build() override final;
@@ -33,8 +33,8 @@ class ABDLineSearchSubreporter : public SimSystem
     friend class ABDLineSearchReporter;
     void init();
 
-    void report_extent(ExtentInfo& info);
-    void report_energy(EnergyInfo& info);
+    void report_extent(ReportExtentInfo& info);
+    void compute_energy(ComputeEnergyInfo& info);
 
     IndexT m_index = -1;
 };

@@ -20,4 +20,6 @@
 | 22  | SoftVertexStitch                                                        | Soft Vertex Stitch Constitutions                  |
 | 23  | [ExternalArticulationConstraint](./external_articulation_constraint.md) | External Articulation Constraint Constitutions    |
 | 666 | [AffineBodyExternalForce](./affine_body_external_force.md)              | Affine Body External Force Constitutions          |
+| 669 | [AffineBodyPrismaticJointLimit](./affine_body_prismatic_joint_limit.md) | Affine Body Prismatic Joint Limit Constitutions   |
+| 670 | [AffineBodyRevoluteJointLimit](./affine_body_revolute_joint_limit.md)   | Affine Body Revolute Joint Limit Constitutions    |
 | 819 | StrainLimitingBaraffWitkinShell                                         | Strain Limiting Baraff-Witkin Shell Constitutions |

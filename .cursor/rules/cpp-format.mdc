@@ -1,0 +1,23 @@
+---
+globs: "*.h,*.hpp,*.cpp,*.inl,*.cu,*.cuh"
+---
+
+# C++ Format Rules
+
+## Overview
+
+All C++ code must conform to the [.clang-format](mdc:.clang-format) in the project root. Run `clang-format` before committing.
+
+## Key Style Points
+
+When writing or editing C++ code, follow these rules so output is close to clang-format without a manual reformat:
+
+- **Indentation**: 4 spaces, no tabs.
+- **Column limit**: 80 characters.
+- **Braces**: Allman style — opening brace on its own line for classes, structs, functions, control statements, namespaces, enums, unions, lambdas, catch, and else.
+- **Pointer alignment**: Left (`int* p`, not `int *p`).
+- **No space before parentheses**: `if(cond)`, `for(...)`, `func()` — not `if (cond)`.
+- **Namespace indentation**: Inner namespaces are indented; use `namespace uipc::module { }` style.
+- **One parameter per line** when they don't fit: `BinPackArguments: false`, `BinPackParameters: false`.
+- **Include sorting**: Disabled (`SortIncludes: false`) — keep the existing include order.
+- **Header guards**: Use `#pragma once`.

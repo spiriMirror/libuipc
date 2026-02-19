@@ -1,10 +1,9 @@
-#include <catch2/catch_all.hpp>
-#include <app/asset_dir.h>
+#include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
-#include <filesystem>
 #include <fstream>
 #include <numbers>
+#include <uipc/builtin/constants.h>
 
 int main()
 {
@@ -17,8 +16,8 @@ int main()
     logger::set_level(spdlog::level::info);
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        this_output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
-    auto        this_folder      = AssetDir::folder(UIPC_RELATIVE_SOURCE_FILE);
+    auto this_output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
+    auto this_folder      = AssetDir::folder(UIPC_RELATIVE_SOURCE_FILE);
 
 
     Engine engine{"cuda", this_output_path};
@@ -32,10 +31,7 @@ int main()
     config["line_search"]["max_iter"]       = 8;
     config["collision_detection"]["method"] = "stackless_bvh";
 
-    {  // dump config
-        std::ofstream ofs(fmt::format("{}config.json", this_output_path));
-        ofs << config.dump(4);
-    }
+    test::Scene::dump_config(config, this_output_path);
 
 
     Scene scene{config};
@@ -45,7 +41,6 @@ int main()
             std::ifstream ifs(fmt::format("{}wrecking_ball.json", this_folder));
             ifs >> wrecking_ball_scene;
         }
-
 
         // create constitution and contact model
         AffineBodyConstitution abd;

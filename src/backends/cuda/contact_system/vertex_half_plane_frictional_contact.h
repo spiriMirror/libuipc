@@ -53,12 +53,14 @@ class VertexHalfPlaneFrictionalContact : public ContactReporter
 
         auto gradients() const noexcept { return m_gradients; }
         auto hessians() const noexcept { return m_hessians; }
+        bool gradient_only() const noexcept { return m_gradient_only; }
 
       private:
         friend class VertexHalfPlaneFrictionalContact;
 
         muda::DoubletVectorView<Float, 3> m_gradients;
         muda::TripletMatrixView<Float, 3> m_hessians;
+        bool                              m_gradient_only = false;
     };
 
     class BuildInfo

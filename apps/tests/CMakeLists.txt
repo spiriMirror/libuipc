@@ -8,7 +8,7 @@ function(uipc_executable_as_test name)
             app
             uipc::uipc
             uipc::backend::none
-            Catch2::Catch2WithMain)
+            Catch2::Catch2)
     set_property(TARGET ${name} PROPERTY FOLDER "apps/tests")
     set_target_properties(${name} PROPERTIES OUTPUT_NAME "uipc_test_${name}")
     uipc_target_add_include_files(${name})
@@ -16,8 +16,10 @@ function(uipc_executable_as_test name)
     uipc_target_set_output_directory(${name})
 endfunction()
 
+set(UIPC_TEST_MAIN ${CMAKE_CURRENT_LIST_DIR}/catch_main.cpp)
+
 function(uipc_add_test name)
-    add_executable(${name} ${ARGN})
+    add_executable(${name} ${UIPC_TEST_MAIN} ${ARGN})
     uipc_target_set_relative_source_file(${name})
     uipc_executable_as_test(${name})
 endfunction()

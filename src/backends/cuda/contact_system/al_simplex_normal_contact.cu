@@ -36,8 +36,16 @@ void ALSimplexNormalContact::do_report_gradient_hessian_extent(GlobalContactMana
         return;
     }
 
-    info.gradient_count(4 * (active_set->PTs().size() + active_set->EEs().size()));
-    info.hessian_count(16 * (active_set->PTs().size() + active_set->EEs().size()));
+    bool gradient_only = info.gradient_only();
+    auto pt_count = active_set->PTs().size();
+    auto ee_count = active_set->EEs().size();
+
+    SizeT contact_gradient_count = 4 * (pt_count + ee_count);
+    SizeT contact_hessian_count =
+        pt_count * PTHalfHessianSize + ee_count * EEHalfHessianSize;
+
+    info.gradient_count(contact_gradient_count);
+    info.hessian_count(gradient_only ? 0 : contact_hessian_count);
 }
 
 void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::EnergyInfo& info)
@@ -117,8 +125,18 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
     auto PT_size = active_set->PTs().size(), EE_size = active_set->EEs().size();
     auto PT_grad = info.gradients().subview(0, PT_size * 4);
     auto EE_grad = info.gradients().subview(PT_size * 4, EE_size * 4);
-    auto PT_hess = info.hessians().subview(0, PT_size * 16);
-    auto EE_hess = info.hessians().subview(PT_size * 16, EE_size * 16);
+    
+    decltype(info.hessians().subview(0, 0)) PT_hess, EE_hess;
+    if(info.gradient_only())
+    {
+        PT_hess = {};
+        EE_hess = {};
+    }
+    else
+    {
+        PT_hess = info.hessians().subview(0, PT_size * PTHalfHessianSize);
+        EE_hess = info.hessians().subview(PT_size * PTHalfHessianSize, EE_size * EEHalfHessianSize);
+    }
 
     auto x   = global_vertex_manager->positions();
     auto PTs = active_set->PTs(), EEs = active_set->EEs();
@@ -130,15 +148,16 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PT_size,
-               [mu     = active_set->mu(),
-                decay  = active_set->decay_factor(),
-                PTs    = PTs.cviewer().name("PTs"),
-                cnt    = PT_cnt.cviewer().name("cnt"),
-                d0     = PT_d0.cviewer().name("d0"),
-                d_grad = PT_d_grad.cviewer().name("d_grad"),
-                x      = x.cviewer().name("x"),
-                Gs     = PT_grad.viewer().name("Gs"),
-                Hs = PT_hess.viewer().name("Hs")] __device__(int idx) mutable
+               [mu          = active_set->mu(),
+                decay       = active_set->decay_factor(),
+                PTs         = PTs.cviewer().name("PTs"),
+                cnt         = PT_cnt.cviewer().name("cnt"),
+                d0          = PT_d0.cviewer().name("d0"),
+                d_grad      = PT_d_grad.cviewer().name("d_grad"),
+                x           = x.cviewer().name("x"),
+                gradient_only = info.gradient_only(),
+                Gs          = PT_grad.viewer().name("Gs"),
+                Hs          = PT_hess.viewer().name("Hs")] __device__(int idx) mutable
                {
                    auto        PT = PTs(idx);
                    Vector12    G;
@@ -156,22 +175,26 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
                    DoubletVectorAssembler DVA{Gs};
                    DVA.segment<4>(idx * 4).write(PT, G);
 
-                   TripletMatrixAssembler TMA{Hs};
-                   TMA.block<4, 4>(idx * 16).write(PT, H);
+                   if(!gradient_only)
+                   {
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.half_block<4>(idx * PTHalfHessianSize).write(PT, H);
+                   }
                });
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(EE_size,
-               [mu     = active_set->mu(),
-                decay  = active_set->decay_factor(),
-                EEs    = EEs.cviewer().name("EEs"),
-                cnt    = EE_cnt.cviewer().name("cnt"),
-                d0     = EE_d0.cviewer().name("d0"),
-                d_grad = EE_d_grad.cviewer().name("d_grad"),
-                x      = x.cviewer().name("x"),
-                Gs     = EE_grad.viewer().name("Gs"),
-                Hs = EE_hess.viewer().name("Hs")] __device__(int idx) mutable
+               [mu          = active_set->mu(),
+                decay       = active_set->decay_factor(),
+                EEs         = EEs.cviewer().name("EEs"),
+                cnt         = EE_cnt.cviewer().name("cnt"),
+                d0          = EE_d0.cviewer().name("d0"),
+                d_grad      = EE_d_grad.cviewer().name("d_grad"),
+                x           = x.cviewer().name("x"),
+                gradient_only = info.gradient_only(),
+                Gs          = EE_grad.viewer().name("Gs"),
+                Hs          = EE_hess.viewer().name("Hs")] __device__(int idx) mutable
                {
                    auto        EE = EEs(idx);
                    Vector12    G;
@@ -189,8 +212,11 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
                    DoubletVectorAssembler DVA{Gs};
                    DVA.segment<4>(idx * 4).write(EE, G);
 
-                   TripletMatrixAssembler TMA{Hs};
-                   TMA.block<4, 4>(idx * 16).write(EE, H);
+                   if(!gradient_only)
+                   {
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.half_block<4>(idx * EEHalfHessianSize).write(EE, H);
+                   }
                });
 }
 

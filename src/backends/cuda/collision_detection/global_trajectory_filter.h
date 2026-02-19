@@ -79,6 +79,7 @@ class GlobalTrajectoryFilter final : public SimSystem
         SimSystemSlotCollection<TrajectoryFilter> filters;
         SimSystemSlot<GlobalContactManager>       global_contact_manager;
         bool                                      friction_enabled = false;
+        bool should_discard_friction_candidates                    = false;
 
 
         muda::DeviceBuffer<Float> tois;
@@ -92,9 +93,11 @@ class GlobalTrajectoryFilter final : public SimSystem
     }
 
     void add_filter(TrajectoryFilter* filter);
+    void require_discard_friction();
 
   private:
     virtual void do_build() override final;
+    virtual void do_apply_recover(RecoverInfo& info) override final;
 
     friend class SimEngine;
     friend class ContactExporterManager;
@@ -104,7 +107,8 @@ class GlobalTrajectoryFilter final : public SimSystem
     Float filter_toi(Float alpha);       // only called by SimEngine
     void  record_friction_candidates();  // only called by SimEngine
     friend class GlobalContactManager;
-    void label_active_vertices();  // only called by GlobalContactManager
+    void label_active_vertices();      // only called by GlobalContactManager
+    void clear_friction_candidates();  // called by GlobalContactManager
 
     Impl m_impl;
 };

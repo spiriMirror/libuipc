@@ -172,6 +172,31 @@ namespace sym::codim_ipc_simplex_contact
         H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
     }
 
+    inline __device__ void PT_barrier_gradient(Vector12&       G,
+                                               const Vector4i& flag,
+                                               Float           kappa,
+                                               Float           d_hat,
+                                               Float           thickness,
+                                               const Vector3&  P,
+                                               const Vector3&  T0,
+                                               const Vector3&  T1,
+                                               const Vector3&  T2)
+    {
+        using namespace codim_ipc_contact;
+        using namespace distance;
+
+        Float D;
+        point_triangle_distance2(flag, P, T0, T1, T2, D);
+
+        Vector12 GradD;
+        point_triangle_distance2_gradient(flag, P, T0, T1, T2, GradD);
+
+        Float dBdD;
+        dKappaBarrierdD(dBdD, kappa, D, d_hat, thickness);
+
+        G = dBdD * GradD;
+    }
+
 
     inline __device__ Float mollified_EE_barrier_energy(const Vector4i& flag,
                                                         Float           kappa,
@@ -279,6 +304,49 @@ namespace sym::codim_ipc_simplex_contact
         H = Hessek * B + Gradek * GradB.transpose() + GradB * Gradek.transpose() + ek * HessB;
     }
 
+    inline __device__ void mollified_EE_barrier_gradient(Vector12&       G,
+                                                         const Vector4i& flag,
+                                                         Float           kappa,
+                                                         Float           d_hat,
+                                                         Float           thickness,
+                                                         const Vector3&  t0_Ea0,
+                                                         const Vector3&  t0_Ea1,
+                                                         const Vector3&  t0_Eb0,
+                                                         const Vector3&  t0_Eb1,
+                                                         const Vector3&  Ea0,
+                                                         const Vector3&  Ea1,
+                                                         const Vector3&  Eb0,
+                                                         const Vector3&  Eb1)
+    {
+        using namespace codim_ipc_contact;
+        using namespace distance;
+
+        Float D;
+        edge_edge_distance2(flag, Ea0, Ea1, Eb0, Eb1, D);
+
+        Vector12 GradD;
+        edge_edge_distance2_gradient(flag, Ea0, Ea1, Eb0, Eb1, GradD);
+
+        Float B;
+        KappaBarrier(B, kappa, D, d_hat, thickness);
+
+        Float dBdD;
+        dKappaBarrierdD(dBdD, kappa, D, d_hat, thickness);
+
+        Vector12 GradB = dBdD * GradD;
+
+        Float eps_x;
+        edge_edge_mollifier_threshold(t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, eps_x);
+
+        Float ek;
+        edge_edge_mollifier(Ea0, Ea1, Eb0, Eb1, eps_x, ek);
+
+        Vector12 Gradek;
+        edge_edge_mollifier_gradient(Ea0, Ea1, Eb0, Eb1, eps_x, Gradek);
+
+        G = Gradek * B + ek * GradB;
+    }
+
     inline __device__ Float PE_barrier_energy(const Vector3i& flag,
                                               Float           kappa,
                                               Float           d_hat,
@@ -337,6 +405,30 @@ namespace sym::codim_ipc_simplex_contact
         H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
     }
 
+    inline __device__ void PE_barrier_gradient(Vector9&        G,
+                                               const Vector3i& flag,
+                                               Float           kappa,
+                                               Float           d_hat,
+                                               Float           thickness,
+                                               const Vector3&  P,
+                                               const Vector3&  E0,
+                                               const Vector3&  E1)
+    {
+        using namespace codim_ipc_contact;
+        using namespace distance;
+
+        Float D = 0.0;
+        point_edge_distance2(flag, P, E0, E1, D);
+
+        Vector9 GradD;
+        point_edge_distance2_gradient(flag, P, E0, E1, GradD);
+
+        Float dBdD;
+        dKappaBarrierdD(dBdD, kappa, D, d_hat, thickness);
+
+        G = dBdD * GradD;
+    }
+
     inline __device__ Float PP_barrier_energy(const Vector2i& flag,
                                               Float           kappa,
                                               Float           d_hat,
@@ -391,6 +483,29 @@ namespace sym::codim_ipc_simplex_contact
         // H = \frac{\partial^2 B}{\partial D^2} \frac{\partial D}{\partial x} \frac{\partial D}{\partial x}^T + \frac{\partial B}{\partial D} \frac{\partial^2 D}{\partial x^2}
         //$$
         H = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
+    }
+
+    inline __device__ void PP_barrier_gradient(Vector6&        G,
+                                               const Vector2i& flag,
+                                               Float           kappa,
+                                               Float           d_hat,
+                                               Float           thickness,
+                                               const Vector3&  P0,
+                                               const Vector3&  P1)
+    {
+        using namespace codim_ipc_contact;
+        using namespace distance;
+
+        Float D = 0.0;
+        point_point_distance2(flag, P0, P1, D);
+
+        Vector6 GradD;
+        point_point_distance2_gradient(flag, P0, P1, GradD);
+
+        Float dBdD;
+        dKappaBarrierdD(dBdD, kappa, D, d_hat, thickness);
+
+        G = dBdD * GradD;
     }
 }  // namespace sym::codim_ipc_simplex_contact
 }  // namespace uipc::backend::cuda

@@ -6,6 +6,19 @@
 
 namespace uipc::backend::cuda
 {
+inline UIPC_GENERIC Matrix12x12 compute_constraint_mass(const ABDJacobiDyadicMass& mass,
+                                                        Float translation_strength,
+                                                        Float rotation_strength)
+{
+    Matrix12x12 M = mass.to_mat();
+    Float cross_term_strength = std::sqrt(translation_strength * rotation_strength);
+    M.block<3, 3>(0, 0) *= translation_strength;
+    M.block<3, 9>(0, 3) *= cross_term_strength;
+    M.block<9, 3>(3, 0) *= cross_term_strength;
+    M.block<9, 9>(3, 3) *= rotation_strength;
+    return M;
+}
+
 class SoftTransformConstraint final : public AffineBodyConstraint
 {
     static constexpr U64 SoftTransformConstraintUID = 16ull;
@@ -72,6 +85,10 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                     Vector12 q = transform_to_q(aim_transform);
                     h_aim_transforms.push_back(q);
                     h_strength_ratios.push_back(strength_ratio);
+                    UIPC_ASSERT(strength_ratio(0) >= 0.0 && strength_ratio(1) >= 0.0,
+                                "Strength ratios must be non-negative, but got ({}, {})",
+                                strength_ratio(0),
+                                strength_ratio(1));
                 }
             });
 
@@ -88,11 +105,14 @@ class SoftTransformConstraint final : public AffineBodyConstraint
     void do_report_extent(AffineBodyAnimator::ReportExtentInfo& info) override
     {
         info.energy_count(h_constrained_bodies.size());
-        info.gradient_segment_count(h_constrained_bodies.size());
-        info.hessian_block_count(h_constrained_bodies.size());
+        info.gradient_count(h_constrained_bodies.size());
+        if(info.gradient_only())
+            return;
+
+        info.hessian_count(h_constrained_bodies.size());
     }
 
-    void do_compute_energy(AffineBodyAnimator::EnergyInfo& info) override
+    void do_compute_energy(AffineBodyAnimator::ComputeEnergyInfo& info) override
     {
         using namespace muda;
 
@@ -124,20 +144,15 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                            Vector12 dq = q - q_aim;
                            Vector2  s  = strength_ratios(I);
 
-                           Float translation_strength = s(0);
-                           Float rotation_strength    = s(1);
-
-                           Matrix12x12 M = body_masses(i).to_mat();
-
-                           M.block<3, 3>(0, 0) *= translation_strength;
-                           M.block<9, 9>(3, 3) *= rotation_strength;
+                           Matrix12x12 M =
+                               compute_constraint_mass(body_masses(i), s(0), s(1));
 
                            E = 0.5 * dq.transpose() * M * dq;
                        }
                    });
     }
 
-    void do_compute_gradient_hessian(AffineBodyAnimator::GradientHessianInfo& info) override
+    void do_compute_gradient_hessian(AffineBodyAnimator::ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
 
@@ -153,17 +168,18 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                     body_masses = info.body_masses().viewer().name("body_masses"),
                     gradients = info.gradients().viewer().name("gradients"),
                     hessians  = info.hessians().viewer().name("hessians"),
-                    is_fixed = info.is_fixed().viewer().name("is_fixed")] __device__(int I) mutable
+                    is_fixed  = info.is_fixed().viewer().name("is_fixed"),
+                    gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
                        auto i = indices(I);
 
-                       Vector12    G;
-                       Matrix12x12 H;
+                       Vector12 G;
+                       Matrix12x12 M;
 
                        if(is_fixed(i))
                        {
                            G.setZero();
-                           H.setZero();
+                           M.setZero();
                        }
                        else
                        {
@@ -173,20 +189,16 @@ class SoftTransformConstraint final : public AffineBodyConstraint
                            Vector12 dq = q - q_aim;
                            Vector2  s  = strength_ratios(I);
 
-                           Float translation_strength = s(0);
-                           Float rotation_strength    = s(1);
-
-                           Matrix12x12 M = body_masses(i).to_mat();
-
-                           M.block<3, 3>(0, 0) *= translation_strength;
-                           M.block<9, 9>(3, 3) *= rotation_strength;
-
+                           M = compute_constraint_mass(body_masses(i), s(0), s(1));
                            G = M * dq;
-                           H = M;
                        }
 
                        gradients(I).write(i, G);
-                       hessians(I).write(i, i, H);
+
+                       if(gradient_only)
+                           return;
+
+                       hessians(I).write(i, i, M);
                    });
     }
 };

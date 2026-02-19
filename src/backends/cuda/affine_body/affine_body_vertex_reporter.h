@@ -23,7 +23,7 @@ class AffineBodyVertexReporter final : public VertexReporter
         AffineBodyBodyReporter*   body_reporter = nullptr;
         AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
 
-        bool need_update_attributes = false;
+        bool require_update_attributes = false;
     };
 
     // Request to update vertex attributes before next simulation step

@@ -11,6 +11,7 @@ $$
 $$
 
 where:
+
 - $\mathbf{F}_{ext} \in \mathbb{R}^{12}$ is the generalized force vector
 - $\mathbf{M} \in \mathbb{R}^{12 \times 12}$ is the affine body mass matrix
 - $\mathbf{a}_{ext} \in \mathbb{R}^{12}$ is the resulting acceleration
@@ -22,6 +23,7 @@ $$
 $$
 
 where:
+
 - $\mathbf{f} \in \mathbb{R}^3$ is the translational force
 - $\mathbf{f}_a \in \mathbb{R}^{9}$ is the affine force (flattened 3x3 matrix)
 

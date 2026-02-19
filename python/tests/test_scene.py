@@ -1,17 +1,8 @@
 import numpy as np
-import uipc
-from uipc import Logger
-from uipc import Engine, World, Scene, SceneIO
-from uipc import Matrix4x4
-from uipc import view
-from uipc.geometry import SimplicialComplex, SimplicialComplexIO
-from uipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
+import pytest
+
+from uipc import Scene
 from uipc.geometry import ground, tetmesh
-from uipc.constitution import StableNeoHookean, ElasticModuli
-from asset import AssetDir
-
-
-import pytest 
 
 @pytest.mark.basic 
 def test_scene():
@@ -24,7 +15,6 @@ def test_scene():
     Ts = np.array([[0,1,2,3]])
     tet = tetmesh(Vs, Ts)
 
-
     obj = scene.objects().create("obj")
 
     g = ground()
@@ -32,16 +22,19 @@ def test_scene():
 
     obj.geometries().create(tet)
 
-    print(geo.geometry().to_json())
-    print(rest_geo.geometry().to_json())
+    geo_json = geo.geometry().to_json()
+    rest_json = rest_geo.geometry().to_json()
+    assert isinstance(geo_json, dict) and isinstance(rest_json, dict), "geometry to_json returns dict"
 
     find_geo, find_rest_geo = scene.geometries().find(geo.id())
-    print(find_geo.id())
-    print(find_rest_geo.id())
-    assert find_geo.id() == find_rest_geo.id()
+    assert find_geo.id() == find_rest_geo.id(), "find by id returns same geo and rest_geo id"
+    assert find_geo.id() == geo.id(), "found geometry id matches created geometry id"
 
-    print(obj.geometries().ids())
+    ids = obj.geometries().ids()
+    assert len(ids) == 2, "object has two geometries (ground + tet)"
+    assert geo.id() in ids, "created ground geometry id is in object's geometry ids"
 
-    print(scene.objects().find(obj.id()))
+    found_obj = scene.objects().find(obj.id())
+    assert found_obj is not None, "object exists before destroy"
     scene.objects().destroy(obj.id())
-    print(scene.objects().find(obj.id()))
+    assert scene.objects().find(obj.id()) is None, "object is gone after destroy"

@@ -429,9 +429,10 @@ endfunction()
 # -----------------------------------------------------------------------------------------
 function(uipc_target_set_rpath target_name)
     if(APPLE)
-        # macOS: @executable_path
-        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "@executable_path")
-        set_target_properties(${target_name} PROPERTIES BUILD_RPATH "@executable_path")
+        # Python extension is loaded from site-packages/uipc/_native/; dylibs live next to the .so.
+        # Use @loader_path so the loader finds them there, not next to the Python executable.
+        set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "@loader_path")
+        set_target_properties(${target_name} PROPERTIES BUILD_RPATH "@loader_path")
     elseif(UNIX)
         # Linux and other Unix systems use $ORIGIN
         set_target_properties(${target_name} PROPERTIES INSTALL_RPATH "$ORIGIN")

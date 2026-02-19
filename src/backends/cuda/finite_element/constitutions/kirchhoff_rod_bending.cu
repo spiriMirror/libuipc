@@ -12,7 +12,7 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
 {
     static constexpr U64   KirchhoffRodBendingUID = 15;
     static constexpr SizeT StencilSize            = 3;
-    static constexpr SizeT HalfHessianSize        = StencilSize * (StencilSize + 1) / 2;
+    static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
     using Base = FiniteElementExtraConstitution;
 
   public:
@@ -101,8 +101,12 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
 
     virtual void do_report_extent(ReportExtentInfo& info) override
     {
-        info.energy_count(hinges.size());        // Each hinge has 1 energy
+        info.energy_count(hinges.size());  // Each hinge has 1 energy
         info.gradient_count(hinges.size() * StencilSize);  // Each hinge has 3 vertices
+
+        if(info.gradient_only())
+            return;
+
         info.hessian_count(hinges.size() * HalfHessianSize);
     }
 
@@ -166,7 +170,8 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                     G3s         = info.gradients().viewer().name("gradients"),
                     H3x3s       = info.hessians().viewer().name("hessians"),
                     dt          = info.dt(),
-                    Pi] __device__(int I) mutable
+                    Pi,
+                    gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
                        Vector3i hinge = hinges(I);
                        Float    k     = bending_stiffnesses(I);
@@ -191,6 +196,9 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                        G *= dt2;
                        DoubletVectorAssembler DVA{G3s};
                        DVA.segment<StencilSize>(I * StencilSize).write(hinge, G);
+
+                       if(gradient_only)
+                           return;
 
                        Matrix9x9 H;
                        KRB::ddEddX(H, k, X, L0, r, Pi);

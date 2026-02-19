@@ -295,4 +295,77 @@ muda::VarView<Float> SimplexTrajectoryFilter::FilterTOIInfo::toi() noexcept
 {
     return m_toi;
 }
+
+void SimplexTrajectoryFilter::do_clear_friction_candidates()
+{
+    m_impl.friction_PT.resize(0);
+    m_impl.friction_EE.resize(0);
+    m_impl.friction_PE.resize(0);
+    m_impl.friction_PP.resize(0);
+}
+
+bool SimplexTrajectoryFilter::Impl::dump(DumpInfo& info)
+{
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
+    auto frame = info.frame();
+
+    return dump_PTs.dump(fmt::format("{}PTs.{}", path, frame), PTs)      //
+           && dump_EEs.dump(fmt::format("{}EEs.{}", path, frame), EEs)   //
+           && dump_PEs.dump(fmt::format("{}PEs.{}", path, frame), PEs)   //
+           && dump_PPs.dump(fmt::format("{}PPs.{}", path, frame), PPs);  //
+}
+
+bool SimplexTrajectoryFilter::Impl::try_recover(RecoverInfo& info)
+{
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
+    auto frame = info.frame();
+
+    return dump_PTs.load(fmt::format("{}PTs.{}", path, frame))      //
+           && dump_EEs.load(fmt::format("{}EEs.{}", path, frame))   //
+           && dump_PEs.load(fmt::format("{}PEs.{}", path, frame))   //
+           && dump_PPs.load(fmt::format("{}PPs.{}", path, frame));  //
+}
+
+void SimplexTrajectoryFilter::Impl::apply_recover(RecoverInfo& info)
+{
+    dump_PTs.apply_to(recovered_PT);
+    dump_EEs.apply_to(recovered_EE);
+    dump_PEs.apply_to(recovered_PE);
+    dump_PPs.apply_to(recovered_PP);
+
+    // temporary switch to the recovered PHs, which will be used
+    // in the record_friction_candidates() function to recover the friction candidates.
+    PTs = recovered_PT.view();
+    EEs = recovered_EE.view();
+    PEs = recovered_PE.view();
+    PPs = recovered_PP.view();
+}
+
+void SimplexTrajectoryFilter::Impl::clear_recover(RecoverInfo& info)
+{
+    dump_PTs.clean_up();
+    dump_EEs.clean_up();
+    dump_PEs.clean_up();
+    dump_PPs.clean_up();
+}
+
+bool SimplexTrajectoryFilter::do_dump(DumpInfo& info)
+{
+    return m_impl.dump(info);
+}
+
+bool SimplexTrajectoryFilter::do_try_recover(RecoverInfo& info)
+{
+    return m_impl.try_recover(info);
+}
+
+void SimplexTrajectoryFilter::do_apply_recover(RecoverInfo& info)
+{
+    m_impl.apply_recover(info);
+}
+
+void SimplexTrajectoryFilter::do_clear_recover(RecoverInfo& info)
+{
+    m_impl.clear_recover(info);
+}
 }  // namespace uipc::backend::cuda

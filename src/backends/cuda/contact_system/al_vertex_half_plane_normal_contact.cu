@@ -37,8 +37,13 @@ void ALVertexHalfPlaneNormalContact::do_report_gradient_hessian_extent(
         return;
     }
 
-    info.gradient_count(active_set->PHs().size());
-    info.hessian_count(active_set->PHs().size());
+    SizeT count = active_set->PHs().size();
+    info.gradient_count(count);
+
+    if(info.gradient_only())
+        return;
+
+    info.hessian_count(count);
 }
 
 void ALVertexHalfPlaneNormalContact::Impl::do_compute_energy(GlobalContactManager::EnergyInfo& info)
@@ -99,15 +104,16 @@ void ALVertexHalfPlaneNormalContact::Impl::do_assemble(GlobalContactManager::Gra
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PH_size,
-               [mu     = active_set->mu(),
-                decay  = active_set->decay_factor(),
-                PHs    = PHs.cviewer().name("PHs"),
-                cnt    = PH_cnt.cviewer().name("cnt"),
-                d0     = PH_d0.cviewer().name("d0"),
-                d_grad = PH_d_grad.cviewer().name("d_grad"),
-                x      = x.cviewer().name("x"),
-                Gs     = PH_grad.viewer().name("Gs"),
-                Hs = PH_hess.viewer().name("Hs")] __device__(int idx) mutable
+               [mu          = active_set->mu(),
+                decay       = active_set->decay_factor(),
+                PHs         = PHs.cviewer().name("PHs"),
+                cnt         = PH_cnt.cviewer().name("cnt"),
+                d0          = PH_d0.cviewer().name("d0"),
+                d_grad      = PH_d_grad.cviewer().name("d_grad"),
+                x           = x.cviewer().name("x"),
+                gradient_only = info.gradient_only(),
+                Gs          = PH_grad.viewer().name("Gs"),
+                Hs          = PH_hess.viewer().name("Hs")] __device__(int idx) mutable
                {
                    auto      vI = PHs(idx);
                    Vector3   G;
@@ -116,7 +122,10 @@ void ALVertexHalfPlaneNormalContact::Impl::do_assemble(GlobalContactManager::Gra
                        pow(decay, cnt(idx)) * mu, d0(idx), d_grad(idx), x(vI), G, H);
 
                    Gs(idx).write(vI, G);
-                   Hs(idx).write(vI, vI, H);
+                   if(!gradient_only)
+                   {
+                       Hs(idx).write(vI, vI, H);
+                   }
                });
 }
 

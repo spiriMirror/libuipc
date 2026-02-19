@@ -94,13 +94,13 @@ void AffineBodyDynamics::add_constitution(AffineBodyConstitution* constitution)
     check_state(SimEngineState::BuildSystems, "add_constitution()");
     // set the temp index, later we will sort constitution by uid
     // and reset the index
-    m_impl.constitutions.register_subsystem(*constitution);
+    m_impl.constitutions.register_sim_system(*constitution);
 }
 
 void AffineBodyDynamics::add_kinetic(AffineBodyKinetic* kinetic)
 {
     check_state(SimEngineState::BuildSystems, "add_kinetic()");
-    m_impl.kinetic.register_subsystem(*kinetic);
+    m_impl.kinetic.register_sim_system(*kinetic);
 }
 
 void AffineBodyDynamics::add_reporter(AffineBodyKineticDiffParmReporter* reporter)
@@ -108,7 +108,7 @@ void AffineBodyDynamics::add_reporter(AffineBodyKineticDiffParmReporter* reporte
     UIPC_ASSERT(false, "NOT IMPL IN THIS VERSION");
 
     //check_state(SimEngineState::BuildSystems, "add_reporter()");
-    //m_impl.diff_parm_reporter.register_subsystem(*reporter);
+    //m_impl.diff_parm_reporter.register_sim_system(*reporter);
 }
 
 void AffineBodyDynamics::init()
@@ -665,10 +665,6 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                 h_body_id_to_external_kinetic[bodyI] = external_kinetic;
             });
     }
-
-
-    // 8) Energy per constitution
-    h_constitution_shape_energy.resize(constitution_view.size(), 0.0);
 }
 
 void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
@@ -710,17 +706,6 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     };
 
     async_resize(body_id_to_dq, abd_body_count, Vector12::Zero().eval());
-
-    // setup body kinetic energy buffer
-    async_resize(body_id_to_kinetic_energy, abd_body_count, Float{0});
-    async_resize(body_id_to_shape_energy, abd_body_count, Float{0});
-
-    // setup hessian and gradient buffers
-    async_resize(diag_hessian, abd_body_count, Matrix12x12::Zero().eval());
-    async_resize(body_id_to_shape_gradient, abd_body_count, Vector12::Zero().eval());
-    async_resize(body_id_to_shape_hessian, abd_body_count, Matrix12x12::Zero().eval());
-    async_resize(body_id_to_kinetic_gradient, abd_body_count, Vector12::Zero().eval());
-    async_resize(body_id_to_kinetic_hessian, abd_body_count, Matrix12x12::Zero().eval());
 
     muda::wait_stream(nullptr);
 }

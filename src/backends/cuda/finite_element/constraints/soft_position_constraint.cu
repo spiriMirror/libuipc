@@ -82,8 +82,12 @@ class SoftPositionConstraint final : public FiniteElementConstraint
     void do_report_extent(FiniteElementAnimator::ReportExtentInfo& info) override
     {
         info.energy_count(h_constrained_vertices.size());
-        info.gradient_segment_count(h_constrained_vertices.size());
-        info.hessian_block_count(h_constrained_vertices.size());
+        info.gradient_count(h_constrained_vertices.size());
+
+        if(info.gradient_only())
+            return;
+
+        info.hessian_count(h_constrained_vertices.size());
     }
 
     void do_compute_energy(FiniteElementAnimator::ComputeEnergyInfo& info) override
@@ -140,30 +144,37 @@ class SoftPositionConstraint final : public FiniteElementConstraint
                     masses    = info.masses().viewer().name("masses"),
                     gradients = info.gradients().viewer().name("gradients"),
                     hessians  = info.hessians().viewer().name("hessians"),
-                    is_fixed = info.is_fixed().viewer().name("is_fixed")] __device__(int I) mutable
+                    is_fixed  = info.is_fixed().viewer().name("is_fixed"),
+                    gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
-                       auto      i = indices(I);
-                       Vector3   G;
-                       Matrix3x3 H;
+                       auto    i = indices(I);
+                       Vector3 G;
+                       Float   m = 0.0;
+                       Float   s = 0.0;
                        if(is_fixed(i))
                        {
                            G = Vector3::Zero();
-                           H = Matrix3x3::Zero();
                        }
                        else
                        {
                            Vector3 x      = xs(i);
                            Vector3 x_prev = x_prevs(i);
                            Vector3 aim_x = lerp(x_prev, aim_positions(I), substep_ratio);
-                           Float   m  = masses(i);
-                           Float   s  = strength_ratio(I);
+                           m          = masses(i);
+                           s          = strength_ratio(I);
                            Vector3 dx = x - aim_x;
 
                            G = s * m * dx;
-                           H = s * m * Matrix3x3::Identity();
                        }
 
                        gradients(I).write(i, G);
+
+                       if(gradient_only)
+                           return;
+
+                       Matrix3x3 H = s * m * Matrix3x3::Identity();
+                       if(is_fixed(i))
+                           H = Matrix3x3::Zero();
                        hessians(I).write(i, i, H);
                    });
     }

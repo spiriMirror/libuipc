@@ -28,7 +28,7 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(InterPrimitiveConstitutionManager);
 
-void InterPrimitiveConstitutionManager::do_build(ContactReporter::BuildInfo&)
+void InterPrimitiveConstitutionManager::do_build(DyTopoEffectReporter::BuildInfo&)
 {
     auto dt_attr                 = world().scene().config().find<Float>("dt");
     m_impl.dt                    = dt_attr->view()[0];
@@ -106,7 +106,7 @@ void InterPrimitiveConstitutionManager::Impl::init(SceneVisitor& scene)
     constitution_hessian_offsets_counts.resize(constitution_view.size());
 }
 
-void InterPrimitiveConstitutionManager::Impl::compute_energy(GlobalContactManager::EnergyInfo& info)
+void InterPrimitiveConstitutionManager::Impl::compute_energy(GlobalDyTopoEffectManager::EnergyInfo& info)
 {
     auto constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
@@ -117,17 +117,18 @@ void InterPrimitiveConstitutionManager::Impl::compute_energy(GlobalContactManage
 }
 
 void InterPrimitiveConstitutionManager::Impl::compute_gradient_hessian(
-    GlobalContactManager::GradientHessianInfo& info)
+    GlobalDyTopoEffectManager::GradientHessianInfo& info)
 {
     auto constitution_view = constitutions.view();
     for(auto&& [i, c] : enumerate(constitution_view))
     {
-        GradientHessianInfo this_info{this, c->m_index, dt, info.gradients(), info.hessians()};
+        GradientHessianInfo this_info{
+            this, c->m_index, info.gradient_only(), dt, info.gradients(), info.hessians()};
         c->compute_gradient_hessian(this_info);
     }
 }
 
-void InterPrimitiveConstitutionManager::do_init(ContactReporter::InitInfo& info)
+void InterPrimitiveConstitutionManager::do_init(DyTopoEffectReporter::InitInfo& info)
 {
     auto scene = world().scene();
     m_impl.init(scene);
@@ -137,13 +138,14 @@ void InterPrimitiveConstitutionManager::add_constitution(InterPrimitiveConstitut
 {
     UIPC_ASSERT(constitution != nullptr, "Constitution must not be null");
     check_state(SimEngineState::BuildSystems, "add_constitution");
-    m_impl.constitutions.register_subsystem(*constitution);
+    m_impl.constitutions.register_sim_system(*constitution);
 }
 
 void InterPrimitiveConstitutionManager::do_report_gradient_hessian_extent(
-    GlobalContactManager::GradientHessianExtentInfo& info)
+    GlobalDyTopoEffectManager::GradientHessianExtentInfo& info)
 {
     auto constitution_view = m_impl.constitutions.view();
+    bool gradient_only     = info.gradient_only();
     // gradient and hessian counts
     {
         auto gradient_counts = m_impl.constitution_gradient_offsets_counts.counts();
@@ -152,30 +154,36 @@ void InterPrimitiveConstitutionManager::do_report_gradient_hessian_extent(
         for(auto&& [i, c] : enumerate(constitution_view))
         {
             GradientHessianExtentInfo extent_info;
+            extent_info.m_gradient_only = gradient_only;
             c->report_gradient_hessian_extent(extent_info);
             gradient_counts[i] = extent_info.m_gradient_count;
-            hessian_counts[i]  = extent_info.m_hessian_count;
+            UIPC_ASSERT(!(gradient_only && extent_info.m_hessian_count != 0),
+                        "When gradient_only is true, hessian_count must be 0, but {} provides hessian count={}",
+                        c->name(),
+                        extent_info.m_hessian_count);
+            hessian_counts[i] = gradient_only ? 0 : extent_info.m_hessian_count;
         }
 
         m_impl.constitution_gradient_offsets_counts.scan();
         m_impl.constitution_hessian_offsets_counts.scan();
 
         info.gradient_count(m_impl.constitution_gradient_offsets_counts.total_count());
-        info.hessian_count(m_impl.constitution_hessian_offsets_counts.total_count());
+        info.hessian_count(
+            gradient_only ? 0 : m_impl.constitution_hessian_offsets_counts.total_count());
     }
 }
 
-void InterPrimitiveConstitutionManager::do_assemble(GlobalContactManager::GradientHessianInfo& info)
+void InterPrimitiveConstitutionManager::do_assemble(GlobalDyTopoEffectManager::GradientHessianInfo& info)
 {
     m_impl.compute_gradient_hessian(info);
 }
 
-void InterPrimitiveConstitutionManager::do_compute_energy(GlobalContactManager::EnergyInfo& info)
+void InterPrimitiveConstitutionManager::do_compute_energy(GlobalDyTopoEffectManager::EnergyInfo& info)
 {
     m_impl.compute_energy(info);
 }
 
-void InterPrimitiveConstitutionManager::do_report_energy_extent(GlobalContactManager::EnergyExtentInfo& info)
+void InterPrimitiveConstitutionManager::do_report_energy_extent(GlobalDyTopoEffectManager::EnergyExtentInfo& info)
 {
     auto constitution_view = m_impl.constitutions.view();
 
@@ -211,6 +219,11 @@ muda::TripletMatrixView<Float, 3> InterPrimitiveConstitutionManager::GradientHes
     return m_hessians.subview(offset, count);
 }
 
+bool InterPrimitiveConstitutionManager::GradientHessianInfo::gradient_only() const noexcept
+{
+    return m_gradient_only;
+}
+
 span<const InterPrimitiveConstitutionManager::InterGeoInfo> InterPrimitiveConstitutionManager::FilteredInfo::inter_geo_infos() const noexcept
 {
     auto [offset, count] = m_impl->constitution_geo_info_offsets_counts[m_index];
@@ -237,12 +250,12 @@ Float InterPrimitiveConstitutionManager::BaseInfo::dt() const noexcept
     return m_impl->dt;
 }
 
-void InterPrimitiveConstitutionManager::GradientHessianExtentInfo::hessian_block_count(SizeT count) noexcept
+void InterPrimitiveConstitutionManager::GradientHessianExtentInfo::hessian_count(SizeT count) noexcept
 {
     m_hessian_count = count;
 }
 
-void InterPrimitiveConstitutionManager::GradientHessianExtentInfo::gradient_segment_count(SizeT count) noexcept
+void InterPrimitiveConstitutionManager::GradientHessianExtentInfo::gradient_count(SizeT count) noexcept
 {
     m_gradient_count = count;
 }

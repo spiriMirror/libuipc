@@ -8,17 +8,17 @@ void Codim1DConstitution::do_build(FiniteElementConstitution::BuildInfo& info)
     do_build(this_info);
 }
 
-void Codim1DConstitution::do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info)
+void Codim1DConstitution::do_compute_energy(FiniteElementConstitution::ComputeEnergyInfo& info)
 {
     Codim1DConstitution::ComputeEnergyInfo this_info{
         this, m_index_in_dim, info.dt(), info.energies()};
     do_compute_energy(this_info);
 }
 
-void Codim1DConstitution::do_compute_gradient_hessian(FiniteElementEnergyProducer::ComputeGradientHessianInfo& info)
+void Codim1DConstitution::do_compute_gradient_hessian(FiniteElementConstitution::ComputeGradientHessianInfo& info)
 {
     ComputeGradientHessianInfo this_info{
-        this, m_index_in_dim, info.dt(), info.gradients(), info.hessians()};
+        this, m_index_in_dim, info.gradient_only(), info.dt(), info.gradients(), info.hessians()};
     do_compute_gradient_hessian(this_info);
 }
 

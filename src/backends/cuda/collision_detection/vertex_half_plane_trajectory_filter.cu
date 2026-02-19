@@ -169,4 +169,58 @@ muda::VarView<Float> VertexHalfPlaneTrajectoryFilter::FilterTOIInfo::toi() noexc
 {
     return m_toi;
 }
+
+void VertexHalfPlaneTrajectoryFilter::do_clear_friction_candidates()
+{
+    m_impl.friction_PHs.resize(0);
+}
+
+bool VertexHalfPlaneTrajectoryFilter::Impl::dump(DumpInfo& info)
+{
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
+    auto frame = info.frame();
+
+    return dump_PHs.dump(fmt::format("{}PHs.{}", path, frame), PHs);
+}
+
+bool VertexHalfPlaneTrajectoryFilter::Impl::try_recover(RecoverInfo& info)
+{
+    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
+    auto frame = info.frame();
+
+    return dump_PHs.load(fmt::format("{}PHs.{}", path, frame));
+}
+
+void VertexHalfPlaneTrajectoryFilter::Impl::apply_recover(RecoverInfo& info)
+{
+    dump_PHs.apply_to(recovered_PHs);
+    // temporary switch to the recovered PHs, which will be used 
+    // in the record_friction_candidates() function to recover the friction candidates.
+    PHs = recovered_PHs.view();
+}
+
+void VertexHalfPlaneTrajectoryFilter::Impl::clear_recover(RecoverInfo& info)
+{
+    dump_PHs.clean_up();
+}
+
+bool VertexHalfPlaneTrajectoryFilter::do_dump(DumpInfo& info)
+{
+    return m_impl.dump(info);
+}
+
+bool VertexHalfPlaneTrajectoryFilter::do_try_recover(RecoverInfo& info)
+{
+    return m_impl.try_recover(info);
+}
+
+void VertexHalfPlaneTrajectoryFilter::do_apply_recover(RecoverInfo& info)
+{
+    m_impl.apply_recover(info);
+}
+
+void VertexHalfPlaneTrajectoryFilter::do_clear_recover(RecoverInfo& info)
+{
+    m_impl.clear_recover(info);
+}
 }  // namespace uipc::backend::cuda

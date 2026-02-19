@@ -25,7 +25,7 @@ class FiniteElementVertexReporter final : public VertexReporter
         }
         FiniteElementBodyReporter* body_reporter = nullptr;
 
-        bool need_update_attributes = false;
+        bool require_update_attributes = false;
     };
 
     // Request to update vertex attributes before next simulation step

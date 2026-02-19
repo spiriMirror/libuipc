@@ -61,6 +61,7 @@ class SimEngine final : public backend::SimEngine
         Basic = 0,
         AugmentedLagrangian
     };
+
     // basic pipeline
     void advance();
     // augmented lagrangian pipeline

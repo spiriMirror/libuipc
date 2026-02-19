@@ -30,7 +30,7 @@ class ABDBDF1Integrator final : public ABDTimeIntegrator
                     q_tildes   = info.q_tildes().viewer().name("q_tilde"),
                     affine_gravity = info.gravities().cviewer().name("affine_gravity"),
                     external_force_accs = info.external_force_accs().cviewer().name("external_force_accs"),
-                    dt = info.dt()] __device__(int i) mutable
+                    dt   = info.dt()] __device__(int i) mutable
                    {
                        // record previous q
                        auto& q_prev = q_prevs(i);

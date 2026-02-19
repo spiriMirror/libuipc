@@ -45,6 +45,6 @@ void TimeIntegratorManager::add_integrator(TimeIntegrator* integrator)
 {
     UIPC_ASSERT(integrator != nullptr, "Integrator cannot be null.");
     check_state(SimEngineState::BuildSystems, "add_integrator()");
-    m_impl.time_integrators.register_subsystem(*integrator);
+    m_impl.time_integrators.register_sim_system(*integrator);
 }
 }  // namespace uipc::backend::cuda

@@ -61,6 +61,7 @@ class SimplexNormalContact : public ContactReporter
         auto PE_hessians() const noexcept { return m_PE_hessians; }
         auto PP_gradients() const noexcept { return m_PP_gradients; }
         auto PP_hessians() const noexcept { return m_PP_hessians; }
+        bool gradient_only() const noexcept { return m_gradient_only; }
 
       private:
         friend class SimplexNormalContact;
@@ -75,6 +76,7 @@ class SimplexNormalContact : public ContactReporter
 
         muda::DoubletVectorView<Float, 3> m_PP_gradients;
         muda::TripletMatrixView<Float, 3> m_PP_hessians;
+        bool                              m_gradient_only = false;
     };
 
     class BuildInfo

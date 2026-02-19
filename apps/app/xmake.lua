@@ -1,4 +1,4 @@
-add_requires("catch2")
+add_requires("catch2", {configs = {main = false}})
 target("app")
     set_kind("static")
     set_group("apps")

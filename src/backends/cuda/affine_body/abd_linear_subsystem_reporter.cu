@@ -22,6 +22,7 @@ void ABDLinearSubsystemReporter::init()
 void ABDLinearSubsystemReporter::report_extent(ReportExtentInfo& info)
 {
     do_report_extent(info);
+    info.check(name());
 }
 
 void ABDLinearSubsystemReporter::assemble(AssembleInfo& info)

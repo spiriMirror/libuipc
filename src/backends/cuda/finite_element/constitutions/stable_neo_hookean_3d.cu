@@ -34,6 +34,10 @@ class StableNeoHookean3D final : public FEM3DConstitution
     {
         info.energy_count(mus.size());
         info.gradient_count(mus.size() * StencilSize);
+
+        if(info.gradient_only())
+            return;
+
         info.hessian_count(mus.size() * HalfHessianSize);
     }
 
@@ -118,7 +122,8 @@ class StableNeoHookean3D final : public FEM3DConstitution
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        namespace SNH = sym::stable_neo_hookean_3d;
+        namespace SNH      = sym::stable_neo_hookean_3d;
+        auto gradient_only = info.gradient_only();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
@@ -131,7 +136,8 @@ class StableNeoHookean3D final : public FEM3DConstitution
                     G3s     = info.gradients().viewer().name("gradients"),
                     H3x3s   = info.hessians().viewer().name("hessians"),
                     volumes = info.rest_volumes().viewer().name("volumes"),
-                    dt      = info.dt()] __device__(int I) mutable
+                    dt      = info.dt(),
+                    gradient_only] __device__(int I) mutable
                    {
                        const Vector4i&  tet    = indices(I);
                        const Matrix3x3& Dm_inv = Dm_invs(I);
@@ -152,23 +158,24 @@ class StableNeoHookean3D final : public FEM3DConstitution
                        auto Vdt2 = volumes(I) * dt * dt;
 
                        Matrix3x3 dEdF;
-                       Matrix9x9 ddEddF;
                        SNH::dEdVecF(dEdF, mu, lambda, F);
-                       SNH::ddEddVecF(ddEddF, mu, lambda, F);
-
                        auto VecdEdF = flatten(dEdF);
-
                        VecdEdF *= Vdt2;
-                       ddEddF *= Vdt2;
 
-                       make_spd(ddEddF);
-                       Matrix9x12  dFdx = fem::dFdx(Dm_inv);
-                       Vector12    G    = dFdx.transpose() * VecdEdF;
-                       Matrix12x12 H    = dFdx.transpose() * ddEddF * dFdx;
+                       Matrix9x12 dFdx = fem::dFdx(Dm_inv);
+                       Vector12   G    = dFdx.transpose() * VecdEdF;
 
                        DoubletVectorAssembler DVA{G3s};
                        DVA.segment<StencilSize>(I * StencilSize).write(tet, G);
 
+                       if(gradient_only)
+                           return;
+
+                       Matrix9x9 ddEddF;
+                       SNH::ddEddVecF(ddEddF, mu, lambda, F);
+                       ddEddF *= Vdt2;
+                       make_spd(ddEddF);
+                       Matrix12x12 H = dFdx.transpose() * ddEddF * dFdx;
                        TripletMatrixAssembler TMA{H3x3s};
                        TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H);
                    });

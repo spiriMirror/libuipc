@@ -3,6 +3,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <muda/cub/device/device_reduce.h>
 #include <affine_body/abd_line_search_reporter.h>
+#include <utils/report_extent_check.h>
 
 namespace uipc::backend::cuda
 {
@@ -19,7 +20,7 @@ void InterAffineBodyAnimator::do_build(BuildInfo& info)
 
 void InterAffineBodyAnimator::add_constraint(InterAffineBodyConstraint* constraint)
 {
-    m_impl.constraints.register_subsystem(*constraint);
+    m_impl.constraints.register_sim_system(*constraint);
 }
 
 void InterAffineBodyAnimator::do_init()
@@ -140,11 +141,11 @@ void InterAffineBodyAnimator::Impl::step()
     constraint_hessian_offsets_counts.scan();
 }
 
-void InterAffineBodyAnimator::compute_energy(ABDLineSearchReporter::EnergyInfo& info)
+void InterAffineBodyAnimator::compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info)
 {
     for(auto constraint : m_impl.constraints.view())
     {
-        EnergyInfo this_info{&m_impl, constraint->m_index, m_impl.dt, info.energies()};
+        ComputeEnergyInfo this_info{&m_impl, constraint->m_index, m_impl.dt, info.energies()};
         constraint->compute_energy(this_info);
     }
 }
@@ -154,7 +155,12 @@ void InterAffineBodyAnimator::compute_gradient_hessian(ABDLinearSubsystem::Assem
     for(auto constraint : m_impl.constraints.view())
     {
         GradientHessianInfo this_info{
-            &m_impl, constraint->m_index, m_impl.dt, info.gradients(), info.hessians()};
+            &m_impl,
+            constraint->m_index,
+            m_impl.dt,
+            info.gradients(),
+            info.hessians(),
+            info.gradient_only()};
         constraint->compute_gradient_hessian(this_info);
     }
 }
@@ -231,7 +237,7 @@ muda::CBufferView<IndexT> InterAffineBodyAnimator::BaseInfo::is_fixed() const no
     return m_impl->affine_body_dynamics->body_is_fixed();
 }
 
-muda::BufferView<Float> InterAffineBodyAnimator::EnergyInfo::energies() const noexcept
+muda::BufferView<Float> InterAffineBodyAnimator::ComputeEnergyInfo::energies() const noexcept
 {
     auto [offset, count] = m_impl->constraint_energy_offsets_counts[m_index];
     return m_energies.subview(offset, count);
@@ -249,12 +255,17 @@ muda::TripletMatrixView<Float, 12> InterAffineBodyAnimator::GradientHessianInfo:
     return m_hessians.subview(offset, count);
 }
 
-void InterAffineBodyAnimator::ReportExtentInfo::hessian_block_count(SizeT count) noexcept
+bool InterAffineBodyAnimator::GradientHessianInfo::gradient_only() const noexcept
+{
+    return m_gradient_only;
+}
+
+void InterAffineBodyAnimator::ReportExtentInfo::hessian_count(SizeT count) noexcept
 {
     m_hessian_block_count = count;
 }
 
-void InterAffineBodyAnimator::ReportExtentInfo::gradient_segment_count(SizeT count) noexcept
+void InterAffineBodyAnimator::ReportExtentInfo::gradient_count(SizeT count) noexcept
 {
     m_gradient_segment_count = count;
 }
@@ -262,6 +273,11 @@ void InterAffineBodyAnimator::ReportExtentInfo::gradient_segment_count(SizeT cou
 void InterAffineBodyAnimator::ReportExtentInfo::energy_count(SizeT count) noexcept
 {
     m_energy_count = count;
+}
+
+void InterAffineBodyAnimator::ReportExtentInfo::check(std::string_view name) const
+{
+    check_report_extent(m_gradient_only_checked, m_gradient_only, m_hessian_block_count, name);
 }
 }  // namespace uipc::backend::cuda
 
@@ -287,7 +303,8 @@ class InterAffineBodyAnimatorLinearSubsystemReporter final : public ABDLinearSub
 
         gradient_count =
             animator->m_impl.constraint_gradient_offsets_counts.total_count();
-        hessian_count = animator->m_impl.constraint_hessian_offsets_counts.total_count();
+        if(!info.gradient_only())
+            hessian_count = animator->m_impl.constraint_hessian_offsets_counts.total_count();
 
         info.gradient_count(gradient_count);
         info.hessian_count(hessian_count);
@@ -314,14 +331,14 @@ class InterAffineBodyAnimatorLineSearchSubreporter final : public ABDLineSearchS
 
     virtual void do_init(InitInfo& info) override {}
 
-    virtual void do_report_extent(ExtentInfo& info) override
+    virtual void do_report_extent(ReportExtentInfo& info) override
     {
         SizeT energy_count =
             animator->m_impl.constraint_energy_offsets_counts.total_count();
         info.energy_count(energy_count);
     }
 
-    virtual void do_report_energy(EnergyInfo& info) override
+    virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         animator->compute_energy(info);
     }

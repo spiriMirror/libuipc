@@ -248,14 +248,19 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
     {
-        info.gradient_segment_count(2 * body_ids.size());  // each joint has 2 * Vector12 gradients
-        info.hessian_block_count(HalfHessianSize * body_ids.size());  // each joint has HalfHessianSize * Matrix12x12 hessians
+        info.gradient_count(2 * body_ids.size());  // each joint has 2 * Vector12 gradients
+
+        if(info.gradient_only())
+            return;
+
+        info.hessian_count(HalfHessianSize * body_ids.size());  // each joint has HalfHessianSize * Matrix12x12 hessians
     }
 
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        namespace PJ = sym::affine_body_prismatic_joint;
+        namespace PJ       = sym::affine_body_prismatic_joint;
+        auto gradient_only = info.gradient_only();
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(body_ids.size(),
@@ -266,9 +271,10 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
                     rest_bs  = rest_bs.cviewer().name("rest_bs"),
                     strength_ratio = strength_ratios.cviewer().name("strength_ratio"),
                     body_masses = info.body_masses().cviewer().name("body_masses"),
-                    qs   = info.qs().viewer().name("qs"),
-                    G12s = info.gradients().viewer().name("G12s"),
-                    H12x12s = info.hessians().viewer().name("H12x12s")] __device__(int I) mutable
+                    qs      = info.qs().viewer().name("qs"),
+                    G12s    = info.gradients().viewer().name("G12s"),
+                    H12x12s = info.hessians().viewer().name("H12x12s"),
+                    gradient_only] __device__(int I) mutable
                    {
                        Vector2i bids = body_ids(I);
 
@@ -325,37 +331,40 @@ class AffineBodyPrismaticJoint final : public InterAffineBodyConstitution
                        Vector2i               indices = {bids(0), bids(1)};
                        DVA.segment<2>(2 * I).write(indices, G);
 
-                       // Get Hessian based on Frame F01
-                       Matrix9x9 H01;
-                       PJ::ddE01ddF01(H01, kappa, F01);
+                       if(!gradient_only)
+                       {
+                           // Get Hessian based on Frame F01
+                           Matrix9x9 H01;
+                           PJ::ddE01ddF01(H01, kappa, F01);
 
-                       // Ensure H01 is SPD
-                       make_spd(H01);
+                           // Ensure H01 is SPD
+                           make_spd(H01);
 
-                       Matrix24x24 J01T_H01_J01;
-                       PJ::J01T_H01_J01<Float>(J01T_H01_J01,
-                                               H01,
-                                               rest_c.segment<3>(0),   // ci_bar
-                                               rest_t.segment<3>(0),   // ti_bar
-                                               rest_c.segment<3>(3),   // cj_bar
-                                               rest_t.segment<3>(3));  // tj_bar
+                           Matrix24x24 J01T_H01_J01;
+                           PJ::J01T_H01_J01<Float>(J01T_H01_J01,
+                                                   H01,
+                                                   rest_c.segment<3>(0),  // ci_bar
+                                                   rest_t.segment<3>(0),  // ti_bar
+                                                   rest_c.segment<3>(3),  // cj_bar
+                                                   rest_t.segment<3>(3));  // tj_bar
 
-                       // Get Hessian based on [qi,qj] directly
-                       Matrix24x24 ddE23ddQ;
-                       PJ::ddE23ddQ<Float>(ddE23ddQ,
-                                           kappa,
-                                           rest_n.segment<3>(0),  // ni_bar
-                                           rest_b.segment<3>(0),  // bi_bar
-                                           qi,                    // qi
-                                           rest_n.segment<3>(3),  // nj_bar
-                                           rest_b.segment<3>(3),  // bj_bar
-                                           qj                     // qj
-                       );
+                           // Get Hessian based on [qi,qj] directly
+                           Matrix24x24 ddE23ddQ;
+                           PJ::ddE23ddQ<Float>(ddE23ddQ,
+                                               kappa,
+                                               rest_n.segment<3>(0),  // ni_bar
+                                               rest_b.segment<3>(0),  // bi_bar
+                                               qi,                    // qi
+                                               rest_n.segment<3>(3),  // nj_bar
+                                               rest_b.segment<3>(3),  // bj_bar
+                                               qj                     // qj
+                           );
 
-                       Matrix24x24 H = J01T_H01_J01 + ddE23ddQ;
+                           Matrix24x24 H = J01T_H01_J01 + ddE23ddQ;
 
-                       TripletMatrixAssembler TMA{H12x12s};
-                       TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
+                           TripletMatrixAssembler TMA{H12x12s};
+                           TMA.half_block<2>(HalfHessianSize * I).write(indices, H);
+                       }
                    });
     };
 

@@ -37,13 +37,3 @@ class ImplicitGeometryUIDInfo(UIDInfo):
     def __init__(self):
         super().__init__(builtin.ImplicitGeometryUIDCollection.instance().to_json())
 
-if __name__ == '__main__':
-    CInfo = ConstitutionUIDInfo()
-    print(CInfo)
-    print(f'First available UID: {CInfo.first_available_uid(100)}')
-    print(f'Check UID 100 available: {CInfo.check_uid_available(100)}')
-
-    IInfo = ImplicitGeometryUIDInfo()
-    print(IInfo)
-    print(f'First available UID: {IInfo.first_available_uid(100)}')
-    print(f'Check UID 100 available: {IInfo.check_uid_available(100)}')

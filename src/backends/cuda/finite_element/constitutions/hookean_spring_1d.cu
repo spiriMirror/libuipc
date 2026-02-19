@@ -33,6 +33,10 @@ class HookeanSpring1D final : public Codim1DConstitution
     {
         info.energy_count(kappas.size());
         info.gradient_count(kappas.size() * StencilSize);
+
+        if(info.gradient_only())
+            return;
+
         info.hessian_count(kappas.size() * HalfHessianSize);
     }
 
@@ -103,7 +107,8 @@ class HookeanSpring1D final : public Codim1DConstitution
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        namespace NS = sym::hookean_spring_1d;
+        namespace NS       = sym::hookean_spring_1d;
+        auto gradient_only = info.gradient_only();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
@@ -117,7 +122,8 @@ class HookeanSpring1D final : public Codim1DConstitution
                     xs      = info.xs().viewer().name("xs"),
                     x_bars  = info.x_bars().viewer().name("x_bars"),
                     dt      = info.dt(),
-                    Pi      = std::numbers::pi] __device__(int I) mutable
+                    Pi      = std::numbers::pi,
+                    gradient_only] __device__(int I) mutable
                    {
                        Vector6  X;
                        Vector2i idx = indices(I);
@@ -137,12 +143,15 @@ class HookeanSpring1D final : public Codim1DConstitution
                        DoubletVectorAssembler VA{G3s};
                        VA.segment<StencilSize>(I * StencilSize).write(idx, G);
 
-                       Matrix6x6 H;
-                       NS::ddEddX(H, kappa, X, L0);
-                       H *= Vdt2;
-                       make_spd(H);
-                       TripletMatrixAssembler MA{H3x3s};
-                       MA.half_block<StencilSize>(I * HalfHessianSize).write(idx, H);
+                       if(!gradient_only)
+                       {
+                           Matrix6x6 H;
+                           NS::ddEddX(H, kappa, X, L0);
+                           H *= Vdt2;
+                           make_spd(H);
+                           TripletMatrixAssembler MA{H3x3s};
+                           MA.half_block<StencilSize>(I * HalfHessianSize).write(idx, H);
+                       }
                    });
     }
 };

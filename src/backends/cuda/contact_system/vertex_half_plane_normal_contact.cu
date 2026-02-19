@@ -54,6 +54,10 @@ void VertexHalfPlaneNormalContact::do_report_gradient_hessian_extent(
     SizeT count = filter->PHs().size();
 
     info.gradient_count(count);
+
+    if(info.gradient_only())
+        return;
+
     info.hessian_count(count);
 }
 
@@ -61,6 +65,7 @@ void VertexHalfPlaneNormalContact::do_report_gradient_hessian_extent(
 void VertexHalfPlaneNormalContact::do_assemble(GlobalContactManager::GradientHessianInfo& info)
 {
     ContactInfo this_info{&m_impl};
+    this_info.m_gradient_only = info.gradient_only();
 
     this_info.m_gradients = info.gradients();
     m_impl.gradients      = this_info.m_gradients;

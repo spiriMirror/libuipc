@@ -89,7 +89,8 @@ class ARAP final : public AffineBodyConstitution
         using namespace muda;
         namespace abd_arap = sym::abd_arap;
 
-        auto N = info.qs().size();
+        auto N             = info.qs().size();
+        auto gradient_only = info.gradient_only();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
@@ -99,7 +100,8 @@ class ARAP final : public AffineBodyConstitution
                     gradients = info.gradients().viewer().name("shape_gradients"),
                     hessians = info.hessians().viewer().name("shape_hessian"),
                     kappas   = kappas.cviewer().name("kappas"),
-                    dt       = info.dt()] __device__(int i) mutable
+                    dt       = info.dt(),
+                    gradient_only] __device__(int i) mutable
                    {
                        Matrix12x12 H = Matrix12x12::Zero();
                        Vector12    G = Vector12::Zero();
@@ -112,15 +114,17 @@ class ARAP final : public AffineBodyConstitution
 
                        Vector9 G9;
                        abd_arap::dEdq(G9, kappa, q);
+                       G.segment<9>(3) = G9 * Vdt2;
+                       gradients(i)    = G;
+
+                       if(gradient_only)
+                           return;
 
                        Matrix9x9 H9x9;
                        abd_arap::ddEddq(H9x9, kappa, q);
-
                        H.block<9, 9>(3, 3) = H9x9 * Vdt2;
-                       G.segment<9>(3)     = G9 * Vdt2;
 
-                       gradients(i) = G;
-                       hessians(i)  = H;
+                       hessians(i) = H;
                    });
     }
 };

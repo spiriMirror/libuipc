@@ -31,6 +31,8 @@ class ARAP3D final : public FEM3DConstitution
     {
         info.energy_count(kappas.size());
         info.gradient_count(kappas.size() * StencilSize);
+        if(info.gradient_only())
+            return;
         info.hessian_count(kappas.size() * HalfHessianSize);
     }
 
@@ -107,7 +109,8 @@ class ARAP3D final : public FEM3DConstitution
                     G3s     = info.gradients().viewer().name("gradients"),
                     H3x3s   = info.hessians().viewer().name("hessians"),
                     volumes = info.rest_volumes().viewer().name("volumes"),
-                    dt      = info.dt()] __device__(int I) mutable
+                    dt      = info.dt(),
+                    gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
                        const Vector4i&  tet    = indices(I);
                        const Matrix3x3& Dm_inv = Dm_invs(I);
@@ -122,20 +125,22 @@ class ARAP3D final : public FEM3DConstitution
                        auto kt2 = kappas(I) * dt * dt;
                        auto v   = volumes(I);
 
-                       Vector9   dEdF;
-                       Matrix9x9 ddEddF;
+                       Vector9 dEdF;
                        ARAP::dEdF(dEdF, kt2, v, F);
-                       ARAP::ddEddF(ddEddF, kt2, v, F);
 
-                       make_spd(ddEddF);
-
-                       Matrix9x12  dFdx   = fem::dFdx(Dm_inv);
-                       Vector12    G12    = dFdx.transpose() * dEdF;
-                       Matrix12x12 H12x12 = dFdx.transpose() * ddEddF * dFdx;
+                       Matrix9x12 dFdx = fem::dFdx(Dm_inv);
+                       Vector12   G12  = dFdx.transpose() * dEdF;
 
                        DoubletVectorAssembler DVA{G3s};
                        DVA.segment<StencilSize>(I * StencilSize).write(tet, G12);
 
+                       if(gradient_only)
+                           return;
+
+                       Matrix9x9 ddEddF;
+                       ARAP::ddEddF(ddEddF, kt2, v, F);
+                       make_spd(ddEddF);
+                       Matrix12x12 H12x12 = dFdx.transpose() * ddEddF * dFdx;
                        TripletMatrixAssembler TMA{H3x3s};
                        TMA.half_block<StencilSize>(I * HalfHessianSize).write(tet, H12x12);
                    });

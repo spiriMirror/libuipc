@@ -1,5 +1,6 @@
 #pragma once
 #include <sim_system.h>
+#include <energy_component_flags.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <muda/ext/linear_system.h>
 #include <utils/offset_count_collection.h>
@@ -21,18 +22,23 @@ class GlobalDyTopoEffectManager final : public SimSystem
     class GradientHessianExtentInfo
     {
       public:
+        bool gradient_only() const { return m_gradient_only; }
         void gradient_count(SizeT count) noexcept { m_gradient_count = count; }
         void hessian_count(SizeT count) noexcept { m_hessian_count = count; }
 
       private:
         friend class Impl;
-        SizeT m_gradient_count;
-        SizeT m_hessian_count;
+        friend class DyTopoEffectReporter;
+
+        bool  m_gradient_only  = false;
+        SizeT m_gradient_count = 0;
+        SizeT m_hessian_count  = 0;
     };
 
     class GradientHessianInfo
     {
       public:
+        bool gradient_only() const noexcept { return m_gradient_only; }
         muda::DoubletVectorView<Float, 3> gradients() const noexcept
         {
             return m_gradients;
@@ -45,6 +51,7 @@ class GlobalDyTopoEffectManager final : public SimSystem
 
       private:
         friend class Impl;
+        bool                              m_gradient_only = false;
         muda::DoubletVectorView<Float, 3> m_gradients;
         muda::TripletMatrixView<Float, 3> m_hessians;
     };
@@ -92,14 +99,29 @@ class GlobalDyTopoEffectManager final : public SimSystem
         muda::CTripletMatrixView<Float, 3> m_hessians;
     };
 
+    class ComputeDyTopoEffectInfo
+    {
+      public:
+        void gradient_only(bool v) noexcept { m_gradient_only = v; }
+        void component_flags(EnergyComponentFlags v) noexcept
+        {
+            m_component_flags = v;
+        }
+
+      private:
+        friend class Impl;
+        bool                 m_gradient_only   = false;
+        EnergyComponentFlags m_component_flags = EnergyComponentFlags::All;
+    };
+
     class Impl
     {
       public:
         void init(WorldVisitor& world);
-        void compute_dytopo_effect();
-        void _assemble();
+        void compute_dytopo_effect(ComputeDyTopoEffectInfo& info);
+        void _assemble(ComputeDyTopoEffectInfo& info);
         void _convert_matrix();
-        void _distribute();
+        void _distribute(ComputeDyTopoEffectInfo& info);
 
         SimSystemSlot<GlobalVertexManager> global_vertex_manager;
 
@@ -111,6 +133,8 @@ class GlobalDyTopoEffectManager final : public SimSystem
         ***********************************************************************/
 
         SimSystemSlotCollection<DyTopoEffectReporter> dytopo_effect_reporters;
+        SimSystemSlotCollection<DyTopoEffectReporter> contact_reporters;
+        SimSystemSlotCollection<DyTopoEffectReporter> non_contact_reporters;
 
         OffsetCountCollection<IndexT> reporter_energy_offsets_counts;
         OffsetCountCollection<IndexT> reporter_gradient_offsets_counts;
@@ -152,14 +176,17 @@ class GlobalDyTopoEffectManager final : public SimSystem
     muda::CBCOOVectorView<Float, 3> gradients() const noexcept;
     muda::CBCOOMatrixView<Float, 3> hessians() const noexcept;
 
+    void compute_dytopo_effect(ComputeDyTopoEffectInfo& info);
+
   protected:
     virtual void do_build() override;
 
   private:
-    friend class SimEngine;
     friend class DyTopoEffectLineSearchReporter;
-
     void init();
+
+    friend class SimEngine;
+    // only be called by SimEngine
     void compute_dytopo_effect();
 
     friend class DyTopoEffectReporter;

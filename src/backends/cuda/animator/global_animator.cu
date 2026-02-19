@@ -76,6 +76,6 @@ void GlobalAnimator::compute_substep_ratio(SizeT newton_iter)
 
 void GlobalAnimator::register_animator(Animator* animator)
 {
-    m_animators.register_subsystem(*animator);
+    m_animators.register_sim_system(*animator);
 }
 }  // namespace uipc::backend::cuda

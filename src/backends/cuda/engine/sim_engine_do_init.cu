@@ -113,6 +113,9 @@ void SimEngine::init_scene()
     // 3. After Common Scene Initialization
     // 3.1 Forwards
     {
+        // * dof initialization
+        m_global_linear_system->init();
+
         m_global_vertex_manager->init();
         m_global_simplicial_surface_manager->init();
         if(m_global_dytopo_effect_manager)

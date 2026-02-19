@@ -5,7 +5,7 @@ template <typename F>
 void SimActionCollection<F>::register_action(SimActionT&& action)
 {
     UIPC_ASSERT(action.is_building(),
-                "`register_subsystem()` can only be called when the SimEngine builds system.");
+                "`register_sim_system()` can only be called when the SimEngine builds system.");
     if(action.is_valid())
         m_action_buffer.push_back(std::move(action));
 }

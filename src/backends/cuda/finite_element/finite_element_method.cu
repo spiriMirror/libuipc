@@ -15,8 +15,8 @@
 #include <sim_engine.h>
 #include <utils/offset_count_collection.h>
 
-// kinetic
-#include <finite_element/finite_element_kinetic.h>
+// elastics
+#include <finite_element/finite_element_elastics.h>
 // constitutions
 #include <finite_element/fem_3d_constitution.h>
 #include <finite_element/codim_2d_constitution.h>
@@ -82,40 +82,40 @@ IndexT FiniteElementMethod::dof_count(SizeT frame) const noexcept
     return m_impl.dof_count(frame);
 }
 
+void FiniteElementMethod::add_elastics(FiniteElementElastics* elastics)
+{
+    check_state(SimEngineState::BuildSystems, "add_elastics()");
+    m_impl.elastics.register_sim_system(*elastics);
+}
+
 void FiniteElementMethod::add_constitution(FiniteElementConstitution* constitution)
 {
     check_state(SimEngineState::BuildSystems, "add_constitution()");
-    m_impl.constitutions.register_subsystem(*constitution);
+    m_impl.constitutions.register_sim_system(*constitution);
 }
 
 void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* constitution)
 {
     check_state(SimEngineState::BuildSystems, "add_constitution()");
-    m_impl.extra_constitutions.register_subsystem(*constitution);
-}
-
-void FiniteElementMethod::add_kinetic(FiniteElementKinetic* constitution)
-{
-    check_state(SimEngineState::BuildSystems, "add_constitution()");
-    m_impl.kinetic.register_subsystem(*constitution);
+    m_impl.extra_constitutions.register_sim_system(*constitution);
 }
 
 void FiniteElementMethod::add_reporter(FiniteElementConstitutionDiffParmReporter* reporter)
 {
     //check_state(SimEngineState::BuildSystems, "add_reporter()");
-    //m_impl.constitution_diff_parm_reporters.register_subsystem(*reporter);
+    //m_impl.constitution_diff_parm_reporters.register_sim_system(*reporter);
 }
 
 void FiniteElementMethod::add_reporter(FiniteElementExtraConstitutionDiffParmReporter* reporter)
 {
     //check_state(SimEngineState::BuildSystems, "add_reporter()");
-    //m_impl.extra_constitution_diff_parm_reporters.register_subsystem(*reporter);
+    //m_impl.extra_constitution_diff_parm_reporters.register_sim_system(*reporter);
 }
 
 void FiniteElementMethod::add_kinetic_reporter(FiniteElementDiffParmReporter* reporter)
 {
     //check_state(SimEngineState::BuildSystems, "add_reporter()");
-    //m_impl.kinetic_diff_parm_reporter.register_subsystem(*reporter);
+    //m_impl.kinetic_diff_parm_reporter.register_sim_system(*reporter);
 }
 
 void FiniteElementMethod::init()
@@ -155,9 +155,10 @@ void FiniteElementMethod::Impl::init(WorldVisitor& world)
     _build_on_device();
 
     // 2) Init event
-    _init_base_constitution();
+    _init_base_constitutions();
     _init_extra_constitutions();
-    _init_energy_producers();
+    elastics->init();
+
     _init_diff_reporters();
 }
 
@@ -1025,7 +1026,7 @@ void FiniteElementMethod::Impl::_build_on_device()
                });
 }
 
-void FiniteElementMethod::Impl::_init_base_constitution()
+void FiniteElementMethod::Impl::_init_base_constitutions()
 {
     for(auto&& [i, c] : enumerate(codim_0d_constitutions))
     {
@@ -1056,59 +1057,6 @@ void FiniteElementMethod::Impl::_init_extra_constitutions()
         auto uid = c->uid();
         extra_constitution_uid_to_index.insert({uid, i});
     }
-}
-
-void FiniteElementMethod::Impl::_init_energy_producers()
-{
-    auto constitution_view       = constitutions.view();
-    auto extra_constitution_view = extra_constitutions.view();
-    SizeT N = constitution_view.size() + extra_constitution_view.size() + 1 /*Kinetic*/;
-    energy_producers.reserve(N);
-    energy_producers.push_back(kinetic.view());
-    std::ranges::copy(constitution_view, std::back_inserter(energy_producers));
-    std::ranges::copy(extra_constitution_view, std::back_inserter(energy_producers));
-
-    // +1 for total count
-    vector<SizeT> energy_counts(N + 1, 0);
-    vector<SizeT> energy_offsets(N + 1, 0);
-    vector<SizeT> gradient_counts(N + 1, 0);
-    vector<SizeT> gradient_offsets(N + 1, 0);
-    vector<SizeT> hessian_counts(N + 1, 0);
-    vector<SizeT> hessian_offsets(N + 1, 0);
-
-    for(auto&& [i, c] : enumerate(energy_producers))
-    {
-        c->collect_extent_info();
-    }
-
-    for(auto&& [i, c] : enumerate(energy_producers))
-    {
-        energy_counts[i]   = c->m_impl.energy_count;
-        gradient_counts[i] = c->m_impl.gradient_count;
-        hessian_counts[i]  = c->m_impl.hessian_count;
-    }
-
-    std::exclusive_scan(
-        energy_counts.begin(), energy_counts.end(), energy_offsets.begin(), 0);
-    std::exclusive_scan(
-        gradient_counts.begin(), gradient_counts.end(), gradient_offsets.begin(), 0);
-    std::exclusive_scan(
-        hessian_counts.begin(), hessian_counts.end(), hessian_offsets.begin(), 0);
-
-    for(auto&& [i, c] : enumerate(energy_producers))
-    {
-        c->m_impl.energy_offset   = energy_offsets[i];
-        c->m_impl.gradient_offset = gradient_offsets[i];
-        c->m_impl.hessian_offset  = hessian_offsets[i];
-    }
-
-    auto vertex_count   = xs.size();
-    auto energy_count   = energy_offsets.back();
-    auto gradient_count = gradient_offsets.back();
-
-    energy_producer_energies.resize(energy_count);
-    energy_producer_gradients.resize(vertex_count, gradient_count);
-    energy_producer_total_hessian_count = hessian_offsets.back();
 }
 
 void FiniteElementMethod::Impl::_download_geometry_to_host()
@@ -1145,27 +1093,9 @@ void FiniteElementMethod::Impl::write_scene(WorldVisitor& world)
         // In the future, we may need to write back the topology if the topology is modified
     }
 }
-}  // namespace uipc::backend::cuda
-
-
-// Info:
-namespace uipc::backend::cuda
-{
-Float FiniteElementMethod::ComputeEnergyInfo::dt() const noexcept
-{
-    return m_dt;
-}
-
-FiniteElementMethod::ComputeGradientHessianInfo::ComputeGradientHessianInfo(Float dt) noexcept
-    : m_dt(dt)
-{
-}
-}  // namespace uipc::backend::cuda
-
 
 // Dump & Recover:
-namespace uipc::backend::cuda
-{
+
 bool FiniteElementMethod::Impl::dump(DumpInfo& info)
 {
     auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
@@ -1228,7 +1158,6 @@ auto FiniteElementMethod::FilteredInfo::geo_infos() const noexcept -> span<const
     auto info = this->constitution_info();
     return span{m_impl->geo_infos}.subspan(info.geo_info_offset, info.geo_info_count);
 }
-
 
 auto FiniteElementMethod::FilteredInfo::constitution_info() const noexcept
     -> const ConstitutionInfo&

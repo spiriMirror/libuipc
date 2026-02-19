@@ -47,16 +47,6 @@ void SimEngine::advance_AL()
         }
     };
 
-    auto detect_dcd_candidates = [this]
-    {
-        if(m_global_trajectory_filter)
-        {
-            Timer timer{"Detect DCD Candidates"};
-            m_global_trajectory_filter->detect(0.0);
-            m_global_trajectory_filter->filter_active();
-        }
-    };
-
     auto detect_trajectory_candidates = [this](Float alpha)
     {
         if(m_global_trajectory_filter)

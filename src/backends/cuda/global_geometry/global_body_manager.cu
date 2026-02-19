@@ -72,7 +72,7 @@ void GlobalBodyManager::add_reporter(BodyReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     UIPC_ASSERT(reporter != nullptr, "reporter must not be null");
-    m_impl.body_reporters.register_subsystem(*reporter);
+    m_impl.body_reporters.register_sim_system(*reporter);
 }
 
 muda::CBufferView<IndexT> GlobalBodyManager::coindices() const noexcept

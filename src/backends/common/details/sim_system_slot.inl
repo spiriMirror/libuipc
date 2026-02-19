@@ -1,47 +1,46 @@
 #include <uipc/common/demangle.h>
-#include "sim_system_slot.h"
 
 namespace uipc::backend
 {
 template <typename T>
-void SimSystemSlot<T>::register_subsystem(T& subsystem)
+void SimSystemSlot<T>::register_sim_system(T& sim_system)
 {
-    static_assert(std::is_base_of_v<ISimSystem, T>, "T must be derived from Subsystem");
+    static_assert(std::is_base_of_v<ISimSystem, T>, "T must be derived from sim_system");
 
-    if(subsystem.is_valid())
-        m_subsystem = &subsystem;
+    if(sim_system.is_valid())
+        m_sim_system = &sim_system;
 }
 
 template <typename T>
-SimSystemSlot<T>& SimSystemSlot<T>::operator=(T& subsystem) noexcept
+SimSystemSlot<T>& SimSystemSlot<T>::operator=(T& sim_system) noexcept
 {
-    register_subsystem(subsystem);
+    register_sim_system(sim_system);
     return *this;
 }
 
 template <typename T>
-SimSystemSlot<T>& SimSystemSlot<T>::operator=(T* subsystem) noexcept
+SimSystemSlot<T>& SimSystemSlot<T>::operator=(T* sim_system) noexcept
 {
-    if(subsystem)
+    if(sim_system)
     {
-        register_subsystem(*subsystem);
+        register_sim_system(*sim_system);
     }
     else
     {
-        m_subsystem = nullptr;  // reset to nullptr if subsystem is null
+        m_sim_system = nullptr;  // reset to nullptr if sim_system is null
     }
     return *this;
 }
 
 template <typename T>
-SimSystemSlot<T>::SimSystemSlot(T& subsystem) noexcept
-    : m_subsystem(&subsystem)
+SimSystemSlot<T>::SimSystemSlot(T& sim_system) noexcept
+    : m_sim_system(&sim_system)
 {
 }
 
 template <typename T>
-SimSystemSlot<T>::SimSystemSlot(T* subsystem) noexcept
-    : m_subsystem(subsystem)
+SimSystemSlot<T>::SimSystemSlot(T* sim_system) noexcept
+    : m_sim_system(sim_system)
 {
 }
 
@@ -49,7 +48,7 @@ template <typename T>
 T* SimSystemSlot<T>::view() const noexcept
 {
     lazy_init();
-    return m_subsystem;
+    return m_sim_system;
 }
 
 template <typename T>
@@ -67,63 +66,63 @@ SimSystemSlot<T>::operator bool() const noexcept
 template <typename T>
 void SimSystemSlot<T>::lazy_init() const
 {
-    if(m_subsystem)
+    if(m_sim_system)
     {
-        // if the subsystem is not valid, set it to nullptr
-        m_subsystem = m_subsystem->is_valid() ? m_subsystem : nullptr;
+        // if the sim_system is not valid, set it to nullptr
+        m_sim_system = m_sim_system->is_valid() ? m_sim_system : nullptr;
     }
 }
 
 template <typename T>
-void SimSystemSlotCollection<T>::register_subsystem(T& subsystem)
+void SimSystemSlotCollection<T>::register_sim_system(T& sim_system)
 {
-    static_assert(std::is_base_of_v<ISimSystem, T>, "T must be derived from Subsystem");
+    static_assert(std::is_base_of_v<ISimSystem, T>, "T must be derived from sim_system");
 
     built = false;
-    if(subsystem.is_valid())
-        m_subsystem_buffer.push_back(&subsystem);
+    if(sim_system.is_valid())
+        m_sim_system_buffer.push_back(&sim_system);
 }
 
 template <typename T>
 span<T* const> SimSystemSlotCollection<T>::view() const noexcept
 {
     lazy_init();
-    return m_subsystems;
+    return m_sim_systems;
 }
 
 template <typename T>
 span<T*> SimSystemSlotCollection<T>::view() noexcept
 {
     lazy_init();
-    return m_subsystems;
+    return m_sim_systems;
 }
 
 
 template <typename T>
 void SimSystemSlotCollection<T>::lazy_init() const noexcept
 {
-    // accessing of the subsystems is only allowed after all `do_build()` called;
+    // accessing of the sim_systems is only allowed after all `do_build()` called;
     if(!built)
     {
-        static_assert(std::is_base_of_v<ISimSystem, T>, "T must be derived from Subsystem");
-        std::erase_if(m_subsystem_buffer,
-                      [](T* subsystem) { return !subsystem->is_valid(); });
+        static_assert(std::is_base_of_v<ISimSystem, T>, "T must be derived from sim_system");
+        std::erase_if(m_sim_system_buffer,
+                      [](T* sim_system) { return !sim_system->is_valid(); });
 
         if constexpr(uipc::RUNTIME_CHECK)
         {
             bool not_building =
-                std::ranges::all_of(m_subsystem_buffer,
-                                    [](T* subsystem)
-                                    { return !subsystem->is_building(); });
+                std::ranges::all_of(m_sim_system_buffer,
+                                    [](T* sim_system)
+                                    { return !sim_system->is_building(); });
 
             UIPC_ASSERT(not_building,
                         "SimSystemSlotCollection<{}>::lazy_init() should be called after building",
                         uipc::demangle<T>());
         }
 
-        m_subsystems.reserve(m_subsystem_buffer.size());
-        std::ranges::move(m_subsystem_buffer, std::back_inserter(m_subsystems));
-        m_subsystem_buffer.clear();
+        m_sim_systems.reserve(m_sim_system_buffer.size());
+        std::ranges::move(m_sim_system_buffer, std::back_inserter(m_sim_systems));
+        m_sim_system_buffer.clear();
         built = true;
     }
 }
@@ -136,13 +135,13 @@ SimSystemSlot<U> SimSystemSlotCollection<T>::find() const noexcept
 
     if(!built)
     {
-        for(T* subsystem : m_subsystem_buffer)
+        for(T* sim_system : m_sim_system_buffer)
         {
 
-            UIPC_ASSERT(!subsystem->is_building(),
-                        "`find()` can't be called while subsystems are being built");
+            UIPC_ASSERT(!sim_system->is_building(),
+                        "`find()` can't be called while sim_systems are being built");
 
-            if(auto casted = dynamic_cast<U*>(subsystem))
+            if(auto casted = dynamic_cast<U*>(sim_system))
             {
                 return SimSystemSlot<U>{*casted};
             }
@@ -150,12 +149,12 @@ SimSystemSlot<U> SimSystemSlotCollection<T>::find() const noexcept
     }
     else
     {
-        for(T* subsystem : m_subsystems)
+        for(T* sim_system : m_sim_systems)
         {
-            UIPC_ASSERT(!subsystem->is_building(),
-                        "`find()` can't be called while subsystems are being built");
+            UIPC_ASSERT(!sim_system->is_building(),
+                        "`find()` can't be called while sim_systems are being built");
 
-            if(auto casted = dynamic_cast<U*>(subsystem))
+            if(auto casted = dynamic_cast<U*>(sim_system))
             {
                 return SimSystemSlot<U>{*casted};
             }

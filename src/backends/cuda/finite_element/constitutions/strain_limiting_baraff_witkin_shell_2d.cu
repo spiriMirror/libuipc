@@ -14,7 +14,7 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64   ConstitutionUID   = 819;
+    static constexpr U64   ConstitutionUID = 819;
     static constexpr SizeT StencilSize     = 3;
     static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
@@ -111,6 +111,10 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
     {
         info.energy_count(h_mus.size());
         info.gradient_count(h_mus.size() * StencilSize);
+
+        if(info.gradient_only())
+            return;
+
         info.hessian_count(h_mus.size() * HalfHessianSize);
     }
 
@@ -183,7 +187,8 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
                     rest_areas = info.rest_areas().viewer().name("volumes"),
                     dt         = info.dt(),
                     IBs        = inv_B_matrices.cviewer().name("IBs"),
-                    half_hessian_size = HalfHessianSize] __device__(int I) mutable
+                    half_hessian_size = HalfHessianSize,
+                    gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
                        Vector9  X;
                        Vector3i idx = indices(I);
@@ -225,6 +230,8 @@ class StrainLimitingBaraffWitkinShell2D final : public Codim2DConstitution
                        DoubletVectorAssembler DVA{G3s};
                        DVA.segment<StencilSize>(I * StencilSize).write(idx, G);
 
+                       if(gradient_only)
+                           return;
 
                        Matrix6x6 ddEddF;
                        BWS::ddEddF(ddEddF, F, anisotropic_a, anisotropic_b, lambda, mu, strain_rate);

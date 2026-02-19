@@ -31,13 +31,13 @@ void AffineBodyConstitution::init(AffineBodyDynamics::FilteredInfo& info)
     return do_init(info);
 }
 
-void AffineBodyConstitution::compute_energy(AffineBodyDynamics::ComputeEnergyInfo& info)
+void AffineBodyConstitution::compute_energy(ABDLineSearchReporter::ComputeEnergyInfo& info)
 {
     ComputeEnergyInfo this_info{&m_impl, m_index, &info};
     return do_compute_energy(this_info);
 }
 
-void AffineBodyConstitution::compute_gradient_hessian(AffineBodyDynamics::ComputeGradientHessianInfo& info)
+void AffineBodyConstitution::compute_gradient_hessian(ABDLinearSubsystem::ComputeGradientHessianInfo& info)
 {
     ComputeGradientHessianInfo this_info{&m_impl, m_index, &info};
     return do_compute_gradient_hessian(this_info);

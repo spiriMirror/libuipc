@@ -54,12 +54,14 @@ class VertexHalfPlaneNormalContact : public ContactReporter
 
         auto gradients() const noexcept { return m_gradients; }
         auto hessians() const noexcept { return m_hessians; }
+        auto gradient_only() const noexcept { return m_gradient_only; }
 
       private:
         friend class VertexHalfPlaneNormalContact;
 
         muda::DoubletVectorView<Float, 3> m_gradients;
         muda::TripletMatrixView<Float, 3> m_hessians;
+        bool                              m_gradient_only = false;
     };
 
     class BuildInfo

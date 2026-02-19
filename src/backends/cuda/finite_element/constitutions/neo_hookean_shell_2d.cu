@@ -14,7 +14,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
 {
   public:
     // Constitution UID by libuipc specification
-    static constexpr U64   ConstitutionUID   = 11;
+    static constexpr U64   ConstitutionUID = 11;
     static constexpr SizeT StencilSize     = 3;
     static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 
@@ -107,6 +107,10 @@ class NeoHookeanShell2D final : public Codim2DConstitution
     {
         info.energy_count(mus.size());
         info.gradient_count(mus.size() * StencilSize);
+
+        if(info.gradient_only())
+            return;
+
         info.hessian_count(mus.size() * HalfHessianSize);
     }
 
@@ -146,7 +150,7 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                        NH::E(E, lambda, mu, X, IB);
 
                        // thickness is one-sided so we multiply by 2
-                       Float Vdt2 = rest_area * 2 * thickness * dt * dt;
+                       Float Vdt2  = rest_area * 2 * thickness * dt * dt;
                        energies(I) = E * Vdt2;
                    });
     }
@@ -169,7 +173,8 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                     H3x3s      = info.hessians().viewer().name("hessians"),
                     rest_areas = info.rest_areas().viewer().name("volumes"),
                     dt         = info.dt(),
-                    half_hessian_size = HalfHessianSize] __device__(int I) mutable
+                    half_hessian_size = HalfHessianSize,
+                    gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
                        Vector9  X;
                        Vector3i idx = indices(I);
@@ -193,6 +198,9 @@ class NeoHookeanShell2D final : public Codim2DConstitution
                        G *= Vdt2;
                        DoubletVectorAssembler DVA{G3s};
                        DVA.segment<StencilSize>(I * StencilSize).write(idx, G);
+
+                       if(gradient_only)
+                           return;
 
                        Matrix9x9 H;
                        NH::ddEddX(H, lambda, mu, X, IB);

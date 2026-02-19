@@ -1,0 +1,25 @@
+---
+description: Guide for setting up repository remotes when working with forks
+alwaysApply: false
+---
+
+# Repository Setup for Forks
+
+When working with a forked repository, GitHub CLI (`gh`) commands may fail to find issues and PRs because they default to the fork's repository instead of the upstream repository.
+
+## Setup
+
+Add the upstream repository as a remote (you can name it anything, `upstream` is conventional):
+
+```bash
+git remote add upstream https://github.com/spiriMirror/libuipc
+```
+
+## How Commands Work
+
+All Cursor commands use `--repo spiriMirror/libuipc` to reference the upstream repository, ensuring they work correctly in:
+- The upstream repository
+- A forked repository  
+- A repository with custom remote names
+
+This ensures issues and PRs are always referenced from the upstream repository where they actually exist.

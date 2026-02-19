@@ -1,6 +1,7 @@
 #include <affine_body/affine_body_kinetic.h>
 #include <time_integrator/bdf1_flag.h>
 #include <muda/ext/eigen/evd.h>
+#include <kernel_cout.h>
 
 namespace uipc::backend::cuda
 {
@@ -61,24 +62,32 @@ class AffineBodyBDF1Kinetic final : public AffineBodyKinetic
                     q_tildes   = info.q_tildes().cviewer().name("q_tildes"),
                     gravities  = info.gravities().cviewer().name("gravities"),
                     masses     = info.masses().cviewer().name("masses"),
-                    m_hessians = info.hessians().viewer().name("hessians"),
+                    hessians   = info.hessians().viewer().name("hessians"),
                     gradients  = info.gradients().viewer().name("gradients"),
-                    dt         = info.dt()] __device__(int i) mutable
+                    dt         = info.dt(),
+                    gradient_only = info.gradient_only(),
+                    cout = KernelCout::viewer()] __device__(int i) mutable
                    {
                        const auto& q       = qs(i);
                        const auto& q_prev  = q_prevs(i);
                        const auto& q_tilde = q_tildes(i);
-                       auto&       H       = m_hessians(i);
                        auto&       G       = gradients(i);
                        const auto& M       = masses(i);
 
                        G = M * (q - q_tilde);
-                       H = M.to_mat();
+
 
                        if(is_fixed(i))
                        {
                            G = Vector12::Zero();
                        }
+
+                       // cout << "KG(" << i << "): " << G.transpose().eval() << "\n";
+
+                       if(gradient_only)
+                           return;
+
+                       hessians(i) = M.to_mat();
                    });
     }
 };

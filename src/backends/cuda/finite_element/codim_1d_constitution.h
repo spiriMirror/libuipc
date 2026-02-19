@@ -61,21 +61,25 @@ class Codim1DConstitution : public FiniteElementConstitution
       public:
         ComputeGradientHessianInfo(Codim1DConstitution* impl,
                                    SizeT                index_in_dim,
+                                   bool                 gradient_only,
                                    Float                dt,
                                    muda::DoubletVectorView<Float, 3> gradients,
                                    muda::TripletMatrixView<Float, 3> hessians)
             : BaseInfo(impl, index_in_dim, dt)
             , m_gradients(gradients)
             , m_hessians(hessians)
+            , m_gradient_only(gradient_only)
         {
         }
 
         auto gradients() const noexcept { return m_gradients; }
         auto hessians() const noexcept { return m_hessians; }
+        auto gradient_only() const noexcept { return m_gradient_only; }
 
       private:
         muda::DoubletVectorView<Float, 3> m_gradients;
         muda::TripletMatrixView<Float, 3> m_hessians;
+        bool                              m_gradient_only = false;
     };
 
   protected:
@@ -85,9 +89,9 @@ class Codim1DConstitution : public FiniteElementConstitution
 
   private:
     virtual void do_build(FiniteElementConstitution::BuildInfo& info) override final;
-    virtual void do_compute_energy(FiniteElementEnergyProducer::ComputeEnergyInfo& info) override final;
+    virtual void do_compute_energy(FiniteElementConstitution::ComputeEnergyInfo& info) override final;
     virtual void do_compute_gradient_hessian(
-        FiniteElementEnergyProducer::ComputeGradientHessianInfo& info) override final;
+        FiniteElementConstitution::ComputeGradientHessianInfo& info) override final;
 
     virtual IndexT get_dim() const noexcept override final;
 };

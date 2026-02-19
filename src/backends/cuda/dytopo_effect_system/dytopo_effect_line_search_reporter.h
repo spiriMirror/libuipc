@@ -41,7 +41,7 @@ class DyTopoEffectLineSearchReporter final : public LineSearchReporter
   private:
     virtual void do_init(LineSearchReporter::InitInfo& info) override;
     virtual void do_build(LineSearchReporter::BuildInfo& info) override;
-    virtual void do_compute_energy(LineSearcher::EnergyInfo& info) override;
+    virtual void do_compute_energy(LineSearcher::ComputeEnergyInfo& info) override;
 
     Impl m_impl;
 };
