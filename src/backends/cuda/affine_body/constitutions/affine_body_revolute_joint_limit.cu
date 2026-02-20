@@ -1,4 +1,5 @@
 #include <affine_body/inter_affine_body_constitution.h>
+#include <affine_body/constitutions/joint_limit_penalty.h>
 #include <affine_body/utils.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/enumerate.h>
@@ -229,16 +230,10 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                     Float strength = strengths(I);
 
                     Float E = 0.0f;
-                    if(x > upper)
-                    {
-                        Float d = x - upper;
-                        E       = strength * d * d * d;
-                    }
-                    else if(x < lower)
-                    {
-                        Float d = lower - x;
-                        E       = strength * d * d * d;
-                    }
+                    Float dE_dx   = 0.0f;
+                    Float d2E_dx2 = 0.0f;
+                    joint_limit::eval_penalty<Float>(
+                        x, lower, upper, strength, E, dE_dx, d2E_dx2);
 
                     Es(I) = E;
                 });
@@ -302,19 +297,9 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
 
                     Float dE_dx   = 0.0f;
                     Float d2E_dx2 = 0.0f;
-
-                    if(x > upper)
-                    {
-                        Float d = x - upper;
-                        dE_dx   = 3.0f * strength * d * d;
-                        d2E_dx2 = 6.0f * strength * d;
-                    }
-                    else if(x < lower)
-                    {
-                        Float d = lower - x;
-                        dE_dx   = -3.0f * strength * d * d;
-                        d2E_dx2 = 6.0f * strength * d;
-                    }
+                    Float E        = 0.0f;
+                    joint_limit::eval_penalty<Float>(
+                        x, lower, upper, strength, E, dE_dx, d2E_dx2);
 
                     Vector24 dx_dq;
                     ERJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);
