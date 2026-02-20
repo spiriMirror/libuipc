@@ -2,13 +2,13 @@ import pytest
 import numpy as np
 import polyscope as ps
 import polyscope.imgui as psim
-from uipc import Logger
-from uipc import Matrix4x4
-from uipc import Engine, World, Scene, SceneIO
+
+from conftest import skip_cuda_on_macos, skip_cuda_on_macos_reason
+from uipc import Engine, World, Scene, SceneIO, Logger, Matrix4x4, view
 from uipc.geometry import SimplicialComplex, SimplicialComplexIO
 from uipc.geometry import SpreadSheetIO
 from uipc.geometry import label_surface, label_triangle_orient, flip_inward_triangles
-from uipc.geometry import ground, view
+from uipc.geometry import ground
 from uipc.constitution import AffineBodyConstitution
 from asset import AssetDir
 
@@ -20,6 +20,7 @@ def process_surface(sc: SimplicialComplex):
 
 run = False 
 
+@pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 @pytest.mark.example
 def test_affine_body():
     Logger.set_level(Logger.Level.Info)
@@ -27,7 +28,6 @@ def test_affine_body():
     engine = Engine("cuda", workspace)
     world = World(engine)
     config = Scene.default_config()
-    print(config)
     scene = Scene(config)
 
     abd = AffineBodyConstitution()

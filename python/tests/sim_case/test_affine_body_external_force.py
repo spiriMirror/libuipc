@@ -1,13 +1,9 @@
-# -*- coding: utf-8 -*-
-# @file test_affine_body_external_force.py
-# @brief Test for AffineBodyExternalBodyForce constitution
-# @author User-defined
-# @date 2025-01-19
-
 import pytest
 import numpy as np
 import polyscope as ps
 import polyscope.imgui as psim
+
+from conftest import skip_cuda_on_macos, skip_cuda_on_macos_reason
 from uipc import Logger
 from uipc import Matrix4x4
 from uipc import Engine, World, Scene, SceneIO, Animation
@@ -24,10 +20,9 @@ def process_surface(sc: SimplicialComplex):
     sc = flip_inward_triangles(sc)
     return sc
 
-
 run = False
 
-
+@pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 @pytest.mark.example
 def test_affine_body_external_force():
     Logger.set_level(Logger.Level.Info)
@@ -36,7 +31,6 @@ def test_affine_body_external_force():
     world = World(engine)
     config = Scene.default_config()
     config['gravity'] = [[0], [0], [0]]
-    print(config)
     scene = Scene(config)
 
     # Create constitutions
@@ -130,9 +124,8 @@ def test_affine_body_external_force():
             # Enable constraint (must be set to 1 each frame for force to apply)
             view(is_constrained_attr)[:] = 1
 
-            # Debug output every 50 frames
-            # if info.frame() % 50 == 0 and i == 0:
-            print(f"Frame {info.frame()}: Force = [{force_3d[0]:.2f}, {force_3d[1]:.2f}, {force_3d[2]:.2f}] N, Spin = {omega_y:.2f}")
+            assert info.frame() >= 0
+            assert force_3d.shape == (3,) and len(shape_vel_derivative) == 9
 
     scene.animator().insert(cube_object, animate_rotating_force)
 
@@ -180,7 +173,7 @@ def test_affine_body_external_force():
             world.dump()
 
             if frame % 10 == 0:
-                print(f"Frame {world.frame()} completed")
+                assert world.frame() == frame + 1
 
 
 if __name__ == "__main__":

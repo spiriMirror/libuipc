@@ -31,7 +31,11 @@ function(uipc_add_backend name)
     target_compile_definitions(${name} PRIVATE UIPC_BACKEND_EXPORT_DLL=1)
     target_compile_features(${name} PRIVATE cxx_std_20)
     set_target_properties(${name} PROPERTIES OUTPUT_NAME "uipc_backend_${name}")
-    
+    # Loader (dylib.hpp) expects lib<name>.dylib on macOS; MODULE default is .so
+    if(APPLE)
+        set_target_properties(${name} PROPERTIES SUFFIX ".dylib")
+    endif()
+
     # set some properties for the target
     uipc_target_set_output_directory(${name})
     uipc_target_set_rpath(${name})

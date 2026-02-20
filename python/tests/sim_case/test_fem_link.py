@@ -1,4 +1,5 @@
 import pytest 
+from conftest import skip_cuda_on_macos, skip_cuda_on_macos_reason
 import uipc
 from uipc import Logger
 from uipc import Engine, World, Scene, SceneIO
@@ -18,6 +19,7 @@ def process_surface(sc: SimplicialComplex):
     sc = flip_inward_triangles(sc)
     return sc
 
+@pytest.mark.skipif(skip_cuda_on_macos, reason=skip_cuda_on_macos_reason)
 @pytest.mark.example
 def test_fem_link():
     Logger.set_level(Logger.Level.Info)
@@ -29,8 +31,6 @@ def test_fem_link():
 
     config = Scene.default_config()
     config['contact']['d_hat'] = 0.005
-    print(config)
-
     scene = Scene(config)
 
     snk = StableNeoHookean()
