@@ -161,6 +161,11 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                     h_l_basis.push_back(lb);
                     h_r_basis.push_back(rb);
                     h_ref_qs.push_back(ref);
+                    UIPC_ASSERT(lower_view[i] <= upper_view[i],
+                                "AffineBodyPrismaticJointLimit: requires `limit/lower <= limit/upper` on edge {}, but got lower={} upper={}",
+                                i,
+                                lower_view[i],
+                                upper_view[i]);
                     h_lowers.push_back(lower_view[i]);
                     h_uppers.push_back(upper_view[i]);
                     h_strengths.push_back(strength_view[i]);
@@ -213,22 +218,20 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                     Vector12 q_refk  = ref_q.segment<12>(0);
                     Vector12 q_refl  = ref_q.segment<12>(12);
 
-                    Float theta0 = 0.0f;
-                    EPJ::DeltaTheta<Float>(theta0, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
+                    Float theta_prev = 0.0f;
+                    EPJ::DeltaTheta<Float>(
+                        theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
 
                     Float delta = 0.0f;
                     EPJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
 
-                    Float x        = theta0 + delta;
+                    Float x        = theta_prev + delta;
                     Float lower    = lowers(I);
                     Float upper    = uppers(I);
                     Float strength = strengths(I);
 
-                    Float E = 0.0f;
-                    Float dE_dx   = 0.0f;
-                    Float d2E_dx2 = 0.0f;
-                    joint_limit::eval_penalty<Float>(
-                        x, lower, upper, strength, E, dE_dx, d2E_dx2);
+                    Float E = joint_limit::eval_penalty_energy<Float>(
+                        x, lower, upper, strength);
 
                     Es(I) = E;
                 });
@@ -279,22 +282,22 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                     Vector12 q_refk  = ref_q.segment<12>(0);
                     Vector12 q_refl  = ref_q.segment<12>(12);
 
-                    Float theta0 = 0.0f;
-                    EPJ::DeltaTheta<Float>(theta0, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
+                    Float theta_prev = 0.0f;
+                    EPJ::DeltaTheta<Float>(
+                        theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
 
                     Float delta = 0.0f;
                     EPJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
 
-                    Float x        = theta0 + delta;
+                    Float x        = theta_prev + delta;
                     Float lower    = lowers(I);
                     Float upper    = uppers(I);
                     Float strength = strengths(I);
 
                     Float dE_dx   = 0.0f;
                     Float d2E_dx2 = 0.0f;
-                    Float E        = 0.0f;
-                    joint_limit::eval_penalty<Float>(
-                        x, lower, upper, strength, E, dE_dx, d2E_dx2);
+                    joint_limit::eval_penalty_derivatives<Float>(
+                        x, lower, upper, strength, dE_dx, d2E_dx2);
 
                     Vector24 dx_dq;
                     EPJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);

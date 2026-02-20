@@ -11,11 +11,11 @@ joint coordinate.
 The prismatic coordinate is evaluated in incremental form:
 
 $$
-x=\theta_0+\delta,
+x=\theta^t+\delta,
 $$
 
 $$
-\theta_0=\Delta\Theta(\mathbf{q}^{t-1},\mathbf{q}_{ref}), \quad
+\theta^t=\Delta\Theta(\mathbf{q}^{t-1},\mathbf{q}_{ref}), \quad
 \delta=\Delta\Theta(\mathbf{q},\mathbf{q}^{t-1}).
 $$
 
@@ -23,6 +23,7 @@ Here:
 - $\mathbf{q}$ is the current affine-body DOF.
 - $\mathbf{q}^{t-1}$ is the previous-step DOF.
 - $\mathbf{q}_{ref}$ is the reference DOF captured at initialization.
+- $\theta^t$ is the accumulated prismatic coordinate from the previous step.
 
 The joint axis direction is defined by edge order `p0 -> p1`, i.e. $+\hat{\mathbf{t}}$.
 
