@@ -5,6 +5,7 @@
     - [Linux](build_install/linux.md)
     - [Linux-Docker](build_install/docker.md)
     - [Build Docs](build_install/build_docs.md)
+    - [Dev in UV](build_install/dev_in_uv.md)
 - [Tutorial](tutorial/index.md)
     - [Geometry](tutorial/geometry.md)
     - [Concepts](tutorial/concepts.md)

@@ -49,3 +49,8 @@ where:
 
 The energy penalizes deviations of the dihedral angle from its rest value, scaled by the edge length and inversely by the average height, which accounts for the local geometry of the shell element.
 
+## Attributes
+
+On `edges`:
+
+- `bending_stiffness`: $\kappa$ in the energy above

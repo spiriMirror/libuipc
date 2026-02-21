@@ -22,3 +22,10 @@ where $J = \det(F)$, $I_c = \|F\|_F^2$, $\alpha = 1 + \frac{3\mu}{4\lambda}$.
 
 
 In continuum mechanics, $F$ is called the deformation gradient, $\lambda$ and $\mu$ are the Lamé parameters. $I_c$ is the first invariant of the right Cauchy-Green deformation tensor $C = \|F\|_F^2$, $\|\cdot\|_F$ is the [Frobenius norm](https://en.wikipedia.org/wiki/Matrix_norm).
+
+## Attributes
+
+On `tetrahedra`:
+
+- `mu`: $\mu$ in the energy above
+- `lambda`: $\lambda$ in the energy above
