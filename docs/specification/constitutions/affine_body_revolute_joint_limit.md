@@ -3,48 +3,38 @@
 ## #670 AffineBodyRevoluteJointLimit
 
 This constitution is an **InterAffineBody extra constitution** defined on a
-revolute-joint geometry. It contributes a unilateral cubic penalty to the
-relative angular coordinate.
+revolute-joint geometry. It adds a unilateral cubic penalty to the relative
+joint angle.
 
-Let $x$ be the revolute angle (unit: rad), with lower/upper bounds $l, u$ and
-penalty coefficient $s$:
+## Meaning of `x` 
 
-$$
-E(x)=
-\begin{cases}
-0, & l \le x \le u \\
-s(x-u)^3, & x>u \\
-s(l-x)^3, & x<l
-\end{cases}
-$$
-
-Interpretation of each term:
-- $x$: current relative revolute angle around the joint axis.
-- $l$: admissible lower angle bound.
-- $u$: admissible upper angle bound.
-- $s$: penalty strength (energy scale).
-
-The angle is represented in incremental form:
+The revolute coordinate is evaluated in incremental form:
 
 $$
-x = \theta_0 + \delta,
-$$
-$$
-\theta_0 = \Delta \Theta(\mathbf{q}^{t-1}, \mathbf{q}_{ref}), \quad
-\delta = \Delta \Theta(\mathbf{q}, \mathbf{q}^{t-1}),
+x=\theta^t+\delta,
 $$
 
-where:
-- $\mathbf{q}$ is the current affine-body DOF,
-- $\mathbf{q}^{t-1}$ is the previous-step DOF,
+$$
+\theta^t=\Delta\Theta(\mathbf{q}^{t-1},\mathbf{q}_{ref}), \quad
+\delta=\Delta\Theta(\mathbf{q},\mathbf{q}^{t-1}).
+$$
+
+Here:
+- $\mathbf{q}$ is the current affine-body DOF.
+- $\mathbf{q}^{t-1}$ is the previous-step DOF.
 - $\mathbf{q}_{ref}$ is the reference DOF captured at initialization.
+- $\theta^t$ is the accumulated revolute angle from the previous step.
 
-For revolute joints, the increment operator $\Delta\Theta(\cdot,\cdot)$ is
-computed with an `atan2` form. Given two states $a,b$, define
+The joint axis direction is defined by edge order `p0 -> p1`, i.e. $+\hat{\mathbf{t}}$.
+
+- $x=0$: current relative revolute angle equals the reference angle.
+- $x>0$: positive rotation around $+\hat{\mathbf{t}}$ (right-hand rule; counterclockwise when viewed along $+\hat{\mathbf{t}}$).
+- $x<0$: negative rotation around $+\hat{\mathbf{t}}$ (clockwise when viewed along $+\hat{\mathbf{t}}$).
+
+For revolute joints:
 
 $$
-\Delta\Theta(\mathbf{q}_a,\mathbf{q}_b)
-=
+\Delta\Theta(\mathbf{q}_a,\mathbf{q}_b)=
 \operatorname{atan2}
 \left(
 \sin\theta_a\cos\theta_b-\cos\theta_a\sin\theta_b,\;
@@ -52,42 +42,45 @@ $$
 \right),
 $$
 
-with
-
 $$
 \cos\theta=\frac{\hat{\mathbf{b}}_i\cdot\hat{\mathbf{b}}_j+\hat{\mathbf{n}}_i\cdot\hat{\mathbf{n}}_j}{2},
 \quad
 \sin\theta=\frac{\hat{\mathbf{n}}_i\cdot\hat{\mathbf{b}}_j-\hat{\mathbf{b}}_i\cdot\hat{\mathbf{n}}_j}{2}.
 $$
 
-This yields the principal-angle branch in $(-\pi,\pi]$, so the limit supports
-full $\pm 180^\circ$ angular span.
+The sign of $x$ follows the sign of $\sin\theta$ under this convention.
+The angle branch is $(-\pi,\pi]$.
 
-This avoids direct optimization over inverse-trigonometric reconstruction of the
-absolute angle and follows the same delta-theta idea used by external articulation.
+## Energy
 
-First and second derivatives with respect to $x$:
+Let $l,u$ be lower/upper limits and $s$ be `limit/strength`.
+
+For normal range width ($u>l$):
 
 $$
-\frac{dE}{dx}=
+E(x)=
 \begin{cases}
 0, & l \le x \le u \\
-3s(x-u)^2, & x>u \\
--3s(l-x)^2, & x<l
+s\left(\frac{x-u}{u-l}\right)^3, & x>u \\
+s\left(\frac{l-x}{u-l}\right)^3, & x<l
 \end{cases}
 $$
 
+The normalized gaps are dimensionless, so changing $(l,u)$ does not require
+retuning $s$ just because the interval width changed.
+
+For degenerate limit ($u=l$), use fallback cubic:
+
 $$
-\frac{d^2E}{dx^2}=
+E(x)=s|x-l|^3=
 \begin{cases}
-0, & l \le x \le u \\
-6s(x-u), & x>u \\
-6s(l-x), & x<l
+s(x-l)^3, & x>l \\
+0, & x=l \\
+s(l-x)^3, & x<l
 \end{cases}
 $$
 
-Boundary points ($x=l$ or $x=u$) are treated as in-range; energy and derivatives
-are zero there.
+Boundary points are treated as in-range.
 
 ## Conceptual Requirement
 
