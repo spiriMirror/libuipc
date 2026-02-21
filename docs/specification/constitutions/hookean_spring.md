@@ -47,3 +47,9 @@ where:
 - $L_0$ is the rest length of the spring
 
 - $\mathbf{d}$ is the current displacement vector between the two particles
+
+## Attributes
+
+On `edges`:
+
+- `kappa`: $\kappa$ in the energy above
