@@ -45,3 +45,8 @@ where $\mathbf{q}^t$, is the previous state vector at time $t$, $\mathbf{v}^t$ i
 
 Users are allowed to modify the external force $\mathbf{F}_{ext}$ using the `uipc` Animator System interface during the simulation.
 
+## Attributes
+
+On `instances`:
+
+- `external_force`: $\mathbf{F}_{ext}$ in the formulae above
