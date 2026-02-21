@@ -59,18 +59,23 @@ TEST_CASE("52_abd_revolute_joint_limit", "[abd]")
     }
     auto [right_geo_slot, right_rest_geo_slot] = right_link->geometries().create(right_mesh);
 
-    vector<Vector2i> Es = {{0, 1}};
-    vector<Vector3> Vs = {Vector3{0.0, 0.0, -0.3}, Vector3{0.0, 0.0, 0.3}};
+    vector<Vector2i> Es = {{0, 1}, {2, 3}};
+    vector<Vector3> Vs = {
+        Vector3{0.0, 0.0, -0.3},
+        Vector3{0.0, 0.0, 0.3},
+        Vector3{0.2, 0.0, -0.3},
+        Vector3{0.2, 0.0, 0.3},
+    };
     auto joint_mesh = linemesh(Vs, Es);
     label_surface(joint_mesh);
 
     AffineBodyRevoluteJoint revolute_joint;
     {
-        vector<S<SimplicialComplexSlot>> l_geo_slots = {left_geo_slot};
-        vector<IndexT> l_instance_id = {0};
-        vector<S<SimplicialComplexSlot>> r_geo_slots = {right_geo_slot};
-        vector<IndexT> r_instance_id = {0};
-        vector<Float> strength_ratios = {100.0};
+        vector<S<SimplicialComplexSlot>> l_geo_slots = {left_geo_slot, left_geo_slot};
+        vector<IndexT> l_instance_id                 = {0, 0};
+        vector<S<SimplicialComplexSlot>> r_geo_slots = {right_geo_slot, right_geo_slot};
+        vector<IndexT> r_instance_id                 = {0, 0};
+        vector<Float>  strength_ratios               = {100.0, 100.0};
 
         revolute_joint.apply_to(joint_mesh,
                                 span{l_geo_slots},
@@ -81,7 +86,10 @@ TEST_CASE("52_abd_revolute_joint_limit", "[abd]")
     }
 
     AffineBodyRevoluteJointLimit revolute_limit;
-    revolute_limit.apply_to(joint_mesh, -0.25f, 0.25f, 50.0f);
+    vector<Float>                lowers    = {-0.25f, 0.3f};
+    vector<Float>                uppers    = {0.25f, 0.3f};
+    vector<Float>                strengths = {50.0f, 50.0f};
+    revolute_limit.apply_to(joint_mesh, span{lowers}, span{uppers}, span{strengths});
 
     auto joints = scene.objects().create("revolute_joint");
     joints->geometries().create(joint_mesh);
