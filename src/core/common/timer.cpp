@@ -1,6 +1,7 @@
 #include <uipc/common/timer.h>
 #include <uipc/common/log.h>
 #include <fmt/ranges.h>
+#include <cmath>
 
 namespace uipc::details
 {
@@ -302,14 +303,23 @@ void GlobalTimer::merge_timers()
                 new_merged_timer->parent_name      = "";
                 m_merge_root                       = new_merged_timer.get();
             }
-            new_merged_timer->duration = timer->duration.count();
-            new_merged_timer->count    = 1;
-            new_merged_timer->depth    = timer->depth;
+            new_merged_timer->duration     = timer->duration.count();
+            new_merged_timer->count        = 1;
+            new_merged_timer->depth        = timer->depth;
+            new_merged_timer->min_duration = timer->duration.count();
+            new_merged_timer->max_duration = timer->duration.count();
+            new_merged_timer->m2           = 0.0;
         }
         else
         {
-            iter->second->duration += timer->duration.count();
+            double x        = timer->duration.count();
+            double old_mean = iter->second->duration / iter->second->count;
+            iter->second->duration += x;
             iter->second->count++;
+            double new_mean = iter->second->duration / iter->second->count;
+            iter->second->m2 += (x - old_mean) * (x - new_mean);
+            iter->second->min_duration = std::min(iter->second->min_duration, x);
+            iter->second->max_duration = std::max(iter->second->max_duration, x);
         }
     }
 
@@ -351,13 +361,30 @@ void GlobalTimer::_print_merged_timings(std::ostream&      o,
 
     if(depth == 0)
     {
-        o << std::setw(precision + 3) << std::right << "Time Cost"
-          << " | " << std::setw(precision) << std::right << "Total Count" << std::endl;
+        o << std::setw(precision + 3) << std::right << "Total (ms)"
+          << " | " << std::setw(precision) << std::right << "Avg (ms)"
+          << " | " << std::setw(precision) << std::right << "Min (ms)"
+          << " | " << std::setw(precision) << std::right << "Max (ms)"
+          << " | " << std::setw(precision) << std::right << "Std Dev (ms)"
+          << " | " << std::setw(precision) << std::right << "Count" << std::endl;
     }
     else
     {
+        double avg    = timer->duration / timer->count;
+        double stddev = (timer->count > 1) ? std::sqrt(timer->m2 / (timer->count - 1)) : 0.0;
+        double min_d  = (timer->count > 0) ? timer->min_duration : 0.0;
+        double max_d  = timer->max_duration;
+
         o << std::setw(precision) << std::right << std::setprecision(precision)
           << timer->duration * 1000 << " ms";
+        o << " | " << std::setw(precision) << std::right << std::setprecision(precision)
+          << avg * 1000 << " ms";
+        o << " | " << std::setw(precision) << std::right << std::setprecision(precision)
+          << min_d * 1000 << " ms";
+        o << " | " << std::setw(precision) << std::right << std::setprecision(precision)
+          << max_d * 1000 << " ms";
+        o << " | " << std::setw(precision) << std::right << std::setprecision(precision)
+          << stddev * 1000 << " ms";
         o << " | " << std::setw(precision) << std::right << timer->count << std::endl;
     }
 
@@ -370,9 +397,17 @@ void GlobalTimer::_print_merged_timings(std::ostream&      o,
 
 void GlobalTimer::_traverse_merge_timers(Json& j, const MergeResult* timer)
 {
+    double avg    = (timer->count > 0) ? timer->duration / timer->count : 0.0;
+    double stddev = (timer->count > 1) ? std::sqrt(timer->m2 / (timer->count - 1)) : 0.0;
+    double min_d  = (timer->count > 0) ? timer->min_duration : 0.0;
+
     j["name"]     = timer->name;
     j["duration"] = timer->duration;
     j["count"]    = timer->count;
+    j["avg"]      = avg;
+    j["min"]      = min_d;
+    j["max"]      = timer->max_duration;
+    j["stddev"]   = stddev;
     j["children"] = Json::array();
     j["parent"]   = timer->parent_full_name;
     for(auto& child : timer->children)

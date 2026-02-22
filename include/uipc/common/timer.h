@@ -2,6 +2,7 @@
 #include <chrono>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <uipc/common/vector.h>
 #include <uipc/common/smart_pointer.h>
 #include <uipc/common/stack.h>
@@ -116,6 +117,11 @@ class UIPC_CORE_API GlobalTimer
         std::list<MergeResult*> children;
 
         size_t depth = 0;
+
+        // Statistical fields (computed via Welford's online algorithm)
+        double min_duration = std::numeric_limits<double>::max();
+        double max_duration = 0.0;
+        double m2           = 0.0;  // sum of squared differences from the running mean
     };
 
     unordered_map<string, U<MergeResult>> m_merge_timers;
