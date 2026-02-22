@@ -9,7 +9,7 @@ using namespace uipc::core;
 PyStateAccessorFeature::PyStateAccessorFeature(py::module_& m)
 {
     auto class_FiniteElementStateAccessorFeature =
-        py::class_<FiniteElementStateAccessorFeature, IFeature, S<FiniteElementStateAccessorFeature>>(
+        py::class_<FiniteElementStateAccessorFeature, IFeature>(
             m,
             "FiniteElementStateAccessorFeature",
             R"(Feature for accessing finite element simulation state (vertex positions, velocities, etc.).)");
@@ -50,7 +50,7 @@ Args:
 
 
     auto class_AffineBodyStateAccessorFeature =
-        py::class_<AffineBodyStateAccessorFeature, IFeature, S<AffineBodyStateAccessorFeature>>(
+        py::class_<AffineBodyStateAccessorFeature, IFeature>(
             m,
             "AffineBodyStateAccessorFeature",
             R"(Feature for accessing affine body simulation state (body transforms, velocities, etc.).)");

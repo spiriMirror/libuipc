@@ -130,7 +130,7 @@ PySimplicialComplex::PySimplicialComplex(py::module_& m)
     // Class Def
 
     auto class_SimplicialComplex =
-        py::class_<SimplicialComplex, Geometry, S<SimplicialComplex>>(
+        py::class_<SimplicialComplex, Geometry>(
             m, "SimplicialComplex", R"(SimplicialComplex class representing a simplicial complex (mesh) with vertices, edges, triangles, and tetrahedra.)");
 
 

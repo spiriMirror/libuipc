@@ -114,7 +114,7 @@ using namespace uipc::geometry;
 PyScene::PyScene(py::module_& m)
 {
     // def class
-    auto class_Scene = py::class_<Scene, S<Scene>>(
+    auto class_Scene = py::class_<Scene>(
         m, "Scene", R"(Scene class representing a simulation scene containing objects, geometries, and constitutions.)");
     auto class_Objects = py::class_<Scene::Objects>(
         class_Scene, "Objects", R"(Collection of objects in the scene.)");

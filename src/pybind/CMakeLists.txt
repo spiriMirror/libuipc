@@ -14,6 +14,7 @@ set(CMAKE_PREFIX_PATH "${NANOBIND_CMAKE_PREFIX_PATH};${CMAKE_PREFIX_PATH}")
 
 # find python for nanobind
 # specify the python executable to use
+set(Python_EXECUTABLE ${UIPC_PYTHON_EXECUTABLE_PATH})
 set(Python3_EXECUTABLE ${UIPC_PYTHON_EXECUTABLE_PATH})
 # find the package
 find_package(nanobind CONFIG REQUIRED QUIET)

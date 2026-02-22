@@ -21,7 +21,7 @@ Returns:
 
     class_FeatureCollection.def(
         "find",
-        [](FeatureCollection& self, py::type t) -> S<IFeature>
+        [](FeatureCollection& self, py::type_object t) -> S<IFeature>
         {
             PYUIPC_ASSERT(!t.attr("FeatureName").is_none(), "Type must be IFeature");
             auto s = py::cast<std::string>(t.attr("FeatureName"));
