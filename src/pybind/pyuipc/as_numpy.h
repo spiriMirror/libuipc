@@ -12,24 +12,12 @@ namespace py = nanobind;
 using namespace uipc;
 
 // Convenience type aliases for numpy arrays
+// NpArray<T>       → writable numpy array wrapping C++ data (zero-copy, T is non-const)
+// NpArray<const T> → read-only numpy array wrapping C++ data (zero-copy, T is const)
 template <typename T>
 using NpArray = py::ndarray<py::numpy, T>;
 
-using ssize_t = int64_t;
-
-// Helper: create an owned numpy array (allocates new memory)
-template <typename T>
-NpArray<T> make_numpy(const std::vector<size_t>& shape)
-{
-    size_t total = 1;
-    for(auto s : shape)
-        total *= s;
-    T* data = new T[total]();
-    py::capsule owner(data, [](void* p) noexcept { delete[] static_cast<T*>(p); });
-    return NpArray<T>(data, shape.size(), shape.data(), owner);
-}
-
-// ---- span<T> → numpy array (shares memory with Python handle as owner) ----
+// ---- span<T> → numpy array (zero-copy view, shares memory with Python handle as owner) ----
 
 template <typename T>
 NpArray<T> as_numpy(const span<T>& s, py::handle obj)
@@ -47,14 +35,13 @@ span<T> as_span(NpArray<T> arr)
     return span<T>(arr.data(), arr.size());
 }
 
-// ---- span<Eigen::Matrix> → numpy array (3D: N×M×N) ----
+// ---- span<Eigen::Matrix> → numpy array (zero-copy 3D view: N×Rows×Cols) ----
 
-template <typename T, int M, int N, int Options>
-NpArray<T> as_numpy(const span<const Eigen::Matrix<T, M, N, Options>>& v, py::handle obj)
-    requires(M > 0 && N > 0)
+namespace detail
 {
-    size_t shape[3] = {v.size(), (size_t)M, (size_t)N};
-    int64_t strides[3];
+template <typename T, int M, int N, int Options>
+inline void eigen_matrix_strides(int64_t* strides) noexcept
+{
     using Matrix = Eigen::Matrix<T, M, N, Options>;
     constexpr bool rowMajor = Matrix::Flags & Eigen::RowMajorBit;
     if(rowMajor)
@@ -69,16 +56,29 @@ NpArray<T> as_numpy(const span<const Eigen::Matrix<T, M, N, Options>>& v, py::ha
         strides[1] = (int64_t)sizeof(T);
         strides[2] = (int64_t)(M * sizeof(T));
     }
-    return NpArray<T>(const_cast<T*>(reinterpret_cast<const T*>(v.data())),
-                      3, shape, obj, strides);
+}
+}  // namespace detail
+
+template <typename T, int M, int N, int Options>
+NpArray<const T> as_numpy(const span<const Eigen::Matrix<T, M, N, Options>>& v, py::handle obj)
+    requires(M > 0 && N > 0)
+{
+    size_t shape[3] = {v.size(), (size_t)M, (size_t)N};
+    int64_t strides[3];
+    detail::eigen_matrix_strides<T, M, N, Options>(strides);
+    return NpArray<const T>(const_cast<T*>(reinterpret_cast<const T*>(v.data())),
+                            3, shape, obj, strides);
 }
 
 template <typename T, int M, int N, int Options>
 NpArray<T> as_numpy(const span<Eigen::Matrix<T, M, N, Options>>& v, py::handle obj)
     requires(M > 0 && N > 0)
 {
-    using Matrix = Eigen::Matrix<T, M, N, Options>;
-    return as_numpy(span<const Eigen::Matrix<T, M, N, Options>>(v.data(), v.size()), obj);
+    size_t shape[3] = {v.size(), (size_t)M, (size_t)N};
+    int64_t strides[3];
+    detail::eigen_matrix_strides<T, M, N, Options>(strides);
+    return NpArray<T>(const_cast<T*>(reinterpret_cast<const T*>(v.data())),
+                      3, shape, obj, strides);
 }
 
 // ---- as_span_of: ndarray → span<MatrixT> ----
@@ -167,7 +167,7 @@ bool is_span_of(NpArray<typename MatrixT::Scalar> arr)
     return true;
 }
 
-// ---- Single Eigen::Matrix → owned numpy array ----
+// ---- Single Eigen::Matrix → owned numpy array (copies data) ----
 
 template <typename T, int M, int N, int Options>
 NpArray<T> as_numpy(const Eigen::Matrix<T, M, N, Options>& m)

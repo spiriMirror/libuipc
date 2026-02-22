@@ -71,10 +71,6 @@ Returns:
         "insert",
         [](Animator& self, Object& obj, py::callable callable)
         {
-            if(!py::isinstance<py::callable>(callable))
-            {
-                throw py::type_error("The second argument must be a callable");
-            }
             self.insert(obj,
                         [callable](Animation::UpdateInfo& info)
                         {

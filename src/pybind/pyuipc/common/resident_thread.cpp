@@ -20,8 +20,6 @@ PyResidentThread::PyResidentThread(py::module_& m)
         "post",
         [](ResidentThread& self, py::callable func)
         {
-            // func must be a callable object with no arguments
-            PYUIPC_ASSERT(py::isinstance<py::callable>(func), "func must be a callable object");
             return self.post(
                 [func]()
                 {

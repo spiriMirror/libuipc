@@ -8,6 +8,20 @@ namespace pyuipc::geometry
 using namespace uipc::geometry;
 using namespace uipc::geometry::affine_body;
 
+// Helper: allocate an owned output numpy array (nanobind equivalent of py::array_t<T>(shape))
+template <typename T>
+static NpArray<T> alloc_numpy(std::initializer_list<size_t> dims)
+{
+    size_t total = 1;
+    for(auto d : dims)
+        total *= d;
+    auto owned = std::make_unique<T[]>(total);
+    T*   data  = owned.release();
+    py::capsule owner(data, [](void* p) noexcept { delete[] static_cast<T*>(p); });
+    std::vector<size_t> shape(dims);
+    return NpArray<T>(data, shape.size(), shape.data(), owner);
+}
+
 PyAffineBody::PyAffineBody(py::module_& m)
 {
     // Transform functions (single and batched)
@@ -25,7 +39,7 @@ PyAffineBody::PyAffineBody(py::module_& m)
                                                  q.shape(1)));
                 }
                 auto q_span          = as_span_of<const Vector12>(q);
-                auto result          = make_numpy<Float>({(size_t)q.shape(0), 4, 4});
+                auto result          = alloc_numpy<Float>({(size_t)q.shape(0), 4, 4});
                 auto result_span     = as_span_of<Matrix4x4>(result);
                 std::ranges::transform(q_span, result_span.begin(), q_to_transform);
                 return result;
@@ -69,7 +83,7 @@ Returns:
                 }
                 auto   trans_span  = as_span_of<const Matrix4x4>(trans);
                 size_t N           = (size_t)trans.shape(0);
-                auto   result      = make_numpy<Float>({N, 12, 1});
+                auto   result      = alloc_numpy<Float>({N, 12, 1});
                 Float* result_ptr  = result.data();
                 for(size_t i = 0; i < N; i++)
                 {
@@ -117,7 +131,7 @@ Returns:
                                                  q.shape(1)));
                 }
                 auto q_span      = as_span_of<const Vector12>(q);
-                auto result      = make_numpy<Float>({(size_t)q.shape(0), 4, 4});
+                auto result      = alloc_numpy<Float>({(size_t)q.shape(0), 4, 4});
                 auto result_span = as_span_of<Matrix4x4>(result);
                 std::ranges::transform(q_span, result_span.begin(), q_v_to_transform_v);
                 return result;
@@ -162,7 +176,7 @@ Returns:
                 }
                 auto   transform_v_span = as_span_of<const Matrix4x4>(transform_v);
                 size_t N                = (size_t)transform_v.shape(0);
-                auto   result           = make_numpy<Float>({N, 12, 1});
+                auto   result           = alloc_numpy<Float>({N, 12, 1});
                 Float* result_ptr       = result.data();
                 for(size_t i = 0; i < N; i++)
                 {
