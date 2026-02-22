@@ -6,6 +6,6 @@ namespace pyuipc::core
 class PyWorld
 {
   public:
-    PyWorld(py::module& m);
+    PyWorld(py::module_& m);
 };
 }  // namespace pyuipc::core

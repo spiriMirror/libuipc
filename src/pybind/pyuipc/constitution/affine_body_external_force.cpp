@@ -1,12 +1,11 @@
 #include <pyuipc/constitution/affine_body_external_force.h>
 #include <uipc/constitution/affine_body_external_force.h>
-#include <pybind11/eigen.h>
 
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
+PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module_& m)
 {
     auto class_AffineBodyExternalBodyForce =
         py::class_<AffineBodyExternalBodyForce, IConstitution>(m, "AffineBodyExternalBodyForce");
@@ -15,7 +14,8 @@ PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
         .def(py::init<const Json&>(),
              py::arg("config") = AffineBodyExternalBodyForce::default_config())
         .def("apply_to",
-             py::overload_cast<geometry::SimplicialComplex&, const Vector12&>(
+             static_cast<void (AffineBodyExternalBodyForce::*)(geometry::SimplicialComplex&,
+                                                               const Vector12&)>(
                  &AffineBodyExternalBodyForce::apply_to),
              py::arg("sc"),
              py::arg("force"),
@@ -27,7 +27,8 @@ PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
                         where f is 3D translational force and f_a is 9D affine force
              )")
         .def("apply_to",
-             py::overload_cast<geometry::SimplicialComplex&, const Vector3&>(
+             static_cast<void (AffineBodyExternalBodyForce::*)(geometry::SimplicialComplex&,
+                                                               const Vector3&)>(
                  &AffineBodyExternalBodyForce::apply_to),
              py::arg("sc"),
              py::arg("force"),

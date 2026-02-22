@@ -5,7 +5,7 @@ namespace pyuipc::diff_sim
 {
 using namespace uipc::diff_sim;
 
-PyParameterCollection::PyParameterCollection(py::module& m)
+PyParameterCollection::PyParameterCollection(py::module_& m)
 {
     auto class_ParameterCollection = py::class_<ParameterCollection>(
         m, "ParameterCollection", R"(ParameterCollection class for managing simulation parameters.)");

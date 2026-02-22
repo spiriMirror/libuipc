@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PySoftTransformConstraint::PySoftTransformConstraint(py::module& m)
+PySoftTransformConstraint::PySoftTransformConstraint(py::module_& m)
 {
     auto class_SoftTransformConstraint = py::class_<SoftTransformConstraint, Constraint>(
         m, "SoftTransformConstraint", R"(SoftTransformConstraint for constraining affine transforms with soft (penalty-based) constraints.)");
@@ -17,7 +17,7 @@ Args:
     config: Configuration dictionary (optional, uses default if not provided).)")
         .def(
             "apply_to",
-            [](SoftTransformConstraint& self, geometry::SimplicialComplex& sc, py::array_t<Float> strength_rate)
+            [](SoftTransformConstraint& self, geometry::SimplicialComplex& sc, NpArray<Float> strength_rate)
             { self.apply_to(sc, to_matrix<Vector2>(strength_rate)); },
             py::arg("sc"),
             py::arg("strength_rate") = as_numpy(Vector2{100.0, 100}),
@@ -45,7 +45,7 @@ Args:
             [](RotatingMotor&               self,
                geometry::SimplicialComplex& sc,
                Float                        strength,
-               py::array_t<Float>           motor_axis,
+               NpArray<Float>           motor_axis,
                Float                        motor_rot_vel)
             {
                 self.apply_to(sc, strength, to_matrix<Vector3>(motor_axis), motor_rot_vel);
@@ -88,7 +88,7 @@ Args:
             [](LinearMotor&                 self,
                geometry::SimplicialComplex& sc,
                Float                        strength,
-               py::array_t<Float>           motor_axis,
+               NpArray<Float>           motor_axis,
                Float                        motor_vel)
             {
                 self.apply_to(sc, strength, to_matrix<Vector3>(motor_axis), motor_vel);

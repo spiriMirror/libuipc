@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyHookeanSpring::PyHookeanSpring(py::module& m)
+PyHookeanSpring::PyHookeanSpring(py::module_& m)
 {
     auto class_HookeanSpring = py::class_<HookeanSpring, FiniteElementConstitution>(
         m, "HookeanSpring", R"(HookeanSpring constitution for linear elastic spring behavior.)");

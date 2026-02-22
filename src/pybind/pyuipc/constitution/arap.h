@@ -6,6 +6,6 @@ namespace pyuipc::constitution
 class PyARAP
 {
   public:
-    PyARAP(py::module& m);
+    PyARAP(py::module_& m);
 };
 }  // namespace pyuipc::constitution

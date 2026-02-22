@@ -6,6 +6,6 @@ namespace pyuipc::geometry
 class PyGeometry
 {
   public:
-    PyGeometry(py::module& m);
+    PyGeometry(py::module_& m);
 };
 }  // namespace pyuipc::geometry

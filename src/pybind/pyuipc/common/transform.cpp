@@ -5,7 +5,7 @@
 namespace pyuipc
 {
 using namespace uipc;
-PyTransform::PyTransform(py::module& m)
+PyTransform::PyTransform(py::module_& m)
 {
     using Quaternion = Eigen::Quaternion<Float>;
     using AngleAxis  = Eigen::AngleAxis<Float>;
@@ -23,7 +23,7 @@ Returns:
     Quaternion: Identity quaternion.)");
 
     class_Quaternion.def(py::init<>(
-                             [](py::array_t<Float> wxyz) -> Quaternion
+                             [](NpArray<Float> wxyz) -> Quaternion
                              {
                                  Vector4 v4 = to_matrix<Vector4>(wxyz);
                                  return Quaternion(v4[0], v4[1], v4[2], v4[3]);
@@ -84,7 +84,7 @@ Returns:
     AngleAxis: Identity angle-axis.)");
 
     class_AngleAxis.def(py::init<>(
-                            [](Float angle, py::array_t<Float> axis) -> AngleAxis
+                            [](Float angle, NpArray<Float> axis) -> AngleAxis
                             {
                                 Vector3 A = to_matrix<Vector3>(axis);
                                 return AngleAxis(angle, A.normalized());
@@ -171,7 +171,7 @@ Returns:
 
     // transform
     class_Transform.def(py::init<>(
-                            [](py::array_t<Float> m) -> Transform
+                            [](NpArray<Float> m) -> Transform
                             {
                                 Transform t = Transform::Identity();
                                 t.matrix()  = to_matrix<Matrix4x4>(m);
@@ -184,7 +184,7 @@ Args:
 
     class_Transform.def(
         "translate",
-        [](Transform& self, py::array_t<Float> v) -> Transform&
+        [](Transform& self, NpArray<Float> v) -> Transform&
         {
             Vector3 v3 = to_matrix<Vector3>(v);
             return self.translate(v3);
@@ -220,11 +220,11 @@ Returns:
 
     class_Transform.def(
         "scale",
-        [](Transform& self, py::array_t<Float> v) -> Transform&
+        [](Transform& self, NpArray<Float> v) -> Transform&
         {
             if(v.ndim() == 0)
             {
-                Float s = v.cast<Float>();
+                Float s = py::cast<Float>(v);
                 return self.scale(s);
             }
             else
@@ -251,7 +251,7 @@ Returns:
 
     class_Transform.def(
         "pretranslate",
-        [](Transform& self, py::array_t<Float> v) -> Transform&
+        [](Transform& self, NpArray<Float> v) -> Transform&
         {
             Vector3 v3 = to_matrix<Vector3>(v);
             return self.pretranslate(v3);
@@ -287,11 +287,11 @@ Returns:
 
     class_Transform.def(
         "prescale",
-        [](Transform& self, py::array_t<Float> v) -> Transform&
+        [](Transform& self, NpArray<Float> v) -> Transform&
         {
             if(v.ndim() == 0)
             {
-                Float s = v.cast<Float>();
+                Float s = py::cast<Float>(v);
                 return self.prescale(s);
             }
             else
@@ -320,7 +320,7 @@ Returns:
     Transform: Result of transform composition.)");
     class_Transform.def(
         "__mul__",
-        [](Transform& self, py::array_t<Float> v) -> py::array_t<Float>
+        [](Transform& self, NpArray<Float> v) -> NpArray<Float>
         {
             Vector3 v3 = to_matrix<Vector3>(v);
             return as_numpy(self * v3);
@@ -334,7 +334,7 @@ Returns:
 
     class_Transform.def(
         "apply_to",
-        [](Transform& self, py::array_t<Float> v) -> py::array_t<Float>
+        [](Transform& self, NpArray<Float> v) -> NpArray<Float>
         {
             if(v.ndim() >= 2)
             {

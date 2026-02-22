@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyFiniteElementExtraConstitution::PyFiniteElementExtraConstitution(py::module& m)
+PyFiniteElementExtraConstitution::PyFiniteElementExtraConstitution(py::module_& m)
 {
     auto class_FiniteElementExtraConstitution =
         py::class_<FiniteElementExtraConstitution, IConstitution>(

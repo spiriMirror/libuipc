@@ -36,43 +36,43 @@ class PyIEngine_ : public PyIEngine
 
     virtual void do_init() override
     {
-        PYBIND11_OVERRIDE_PURE(void, PyIEngine_, do_init);
+        NB_OVERRIDE_PURE(do_init);
     };
 
     virtual void do_advance() override
     {
-        PYBIND11_OVERRIDE_PURE(void, PyIEngine_, do_advance);
+        NB_OVERRIDE_PURE(do_advance);
     };
 
     virtual void do_sync() override
     {
-        PYBIND11_OVERRIDE_PURE(void, PyIEngine_, do_sync);
+        NB_OVERRIDE_PURE(do_sync);
     };
 
     virtual void do_retrieve() override
     {
-        PYBIND11_OVERRIDE_PURE(void, PyIEngine_, do_retrieve);
+        NB_OVERRIDE_PURE(do_retrieve);
     };
 
 
     virtual Json do_to_json() const override
     {
-        PYBIND11_OVERRIDE_PURE(Json, PyIEngine_, do_to_json);
+        NB_OVERRIDE_PURE(do_to_json);
     };
 
     virtual bool do_dump() override
     {
-        PYBIND11_OVERRIDE_PURE(bool, PyIEngine_, do_dump);
+        NB_OVERRIDE_PURE(do_dump);
     };
 
     virtual bool do_recover(SizeT dst_frame) override
     {
-        PYBIND11_OVERRIDE_PURE(bool, PyIEngine_, do_recover, dst_frame);
+        NB_OVERRIDE_PURE(do_recover, dst_frame);
     };
 
     virtual SizeT get_frame() const override
     {
-        PYBIND11_OVERRIDE_PURE(SizeT, PyIEngine_, get_frame);
+        NB_OVERRIDE_PURE(get_frame);
     };
 
     virtual uipc::core::EngineStatusCollection& get_status() override

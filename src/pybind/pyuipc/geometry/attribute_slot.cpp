@@ -1,6 +1,5 @@
 #include <pyuipc/geometry/attribute_slot.h>
 #include <uipc/geometry/attribute_slot.h>
-#include <pybind11/stl.h>
 #include <sstream>
 
 namespace pyuipc::geometry
@@ -8,7 +7,7 @@ namespace pyuipc::geometry
 using namespace uipc::geometry;
 
 template <typename T>
-void def_attribute_slot(py::module& m, std::string name)
+void def_attribute_slot(py::module_& m, std::string name)
 {
     auto class_AttributeSlotT =
         py::class_<AttributeSlot<T>, IAttributeSlot, S<AttributeSlot<T>>>(m, name.c_str());
@@ -38,7 +37,7 @@ Returns:
 }
 
 template <bool IsConst>
-void def_class_StringSpan(py::module& m)
+void def_class_StringSpan(py::module_& m)
 {
     using T    = std::conditional_t<IsConst, const std::string, std::string>;
     using LRef = std::add_lvalue_reference_t<T>;
@@ -51,14 +50,14 @@ void def_class_StringSpan(py::module& m)
         .def("__len__", [](span<T>& v) { return v.size(); })
         .def(
             "__iter__",
-            [](span<T>& v) { return py::make_iterator(v.begin(), v.end()); },
+            [](span<T>& v) { return py::make_iterator(py::type<span<T>>(), "iter", v.begin(), v.end()); },
             py::keep_alive<0, 1>())
         .def("__getitem__",
              [](span<T>& v, size_t i) -> LRef
              {
                  if(i >= v.size())
                  {
-                     throw py::index_error();
+                     throw py::index_error("index out of range");
                  }
                  return v[i];
              });
@@ -70,7 +69,7 @@ void def_class_StringSpan(py::module& m)
                              {
                                  if(i >= v.size())
                                  {
-                                     throw py::index_error();
+                                     throw py::index_error("index out of range");
                                  }
                                  v[i] = value;
                              });
@@ -93,7 +92,7 @@ void def_class_StringSpan(py::module& m)
 }
 
 
-void def_attribute_slot_string(py::module& m)
+void def_attribute_slot_string(py::module_& m)
 {
     // const
     def_class_StringSpan<true>(m);
@@ -125,7 +124,7 @@ Returns:
 
 #define DEF_ATTRIBUTE_SLOT(T) def_attribute_slot<T>(m, "AttributeSlot" #T)
 
-PyAttributeSlot::PyAttributeSlot(py::module& m)
+PyAttributeSlot::PyAttributeSlot(py::module_& m)
 {
     auto class_IAttributeSlot = py::class_<IAttributeSlot, S<IAttributeSlot>>(
         m, "IAttributeSlot", R"(IAttributeSlot interface for attribute slots.)");
@@ -158,7 +157,7 @@ Returns:
         // view pure virtual
         .def(
             "view",
-            [](IAttributeSlot& self) -> py::array { return py::none(); },
+            [](IAttributeSlot& self) -> py::object { return py::none(); },
             R"(Get a view of the attribute data (virtual method, returns None for base class).
 Returns:
     numpy.ndarray or None: Array view if available, None otherwise.)");

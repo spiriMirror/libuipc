@@ -3,7 +3,7 @@
 namespace pyuipc::core
 {
 using namespace uipc::core;
-PyFeatureCollection::PyFeatureCollection(py::module& m)
+PyFeatureCollection::PyFeatureCollection(py::module_& m)
 {
     auto class_FeatureCollection = py::class_<FeatureCollection>(
         m, "FeatureCollection", R"(FeatureCollection class managing engine features.)");
@@ -11,7 +11,7 @@ PyFeatureCollection::PyFeatureCollection(py::module& m)
         "find",
         [](FeatureCollection& self, std::string_view name) -> S<IFeature>
         { return self.find(name); },
-        py::return_value_policy::reference_internal,
+        py::rv_policy::reference_internal,
         py::arg("name"),
         R"(Find a feature by name.
 Args:
@@ -24,10 +24,10 @@ Returns:
         [](FeatureCollection& self, py::type t) -> S<IFeature>
         {
             PYUIPC_ASSERT(!t.attr("FeatureName").is_none(), "Type must be IFeature");
-            auto s = t.attr("FeatureName").cast<std::string>();
+            auto s = py::cast<std::string>(t.attr("FeatureName"));
             return self.find(s);
         },
-        py::return_value_policy::reference_internal,
+        py::rv_policy::reference_internal,
         py::arg("type"),
         R"(Find a feature by type.
 Args:

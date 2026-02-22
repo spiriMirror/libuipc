@@ -5,7 +5,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PySoftVertexStitch::PySoftVertexStitch(py::module& m)
+PySoftVertexStitch::PySoftVertexStitch(py::module_& m)
 {
     auto class_SoftVertexStitch = py::class_<SoftVertexStitch, InterPrimitiveConstitution>(
         m, "SoftVertexStitch", R"(SoftVertexStitch constitution for stitching vertices between geometries with soft constraints.)");
@@ -26,7 +26,7 @@ Returns:
         "create_geometry",
         [](SoftVertexStitch&                  self,
            const SoftVertexStitch::SlotTuple& aim_geo_slots,
-           const py::array_t<Float>&          stitched_vert_ids,
+           const NpArray<Float>&          stitched_vert_ids,
            Float                              kappa,
            Float                              rest_length)
         {
@@ -49,7 +49,7 @@ Returns:
         "create_geometry",
         [](SoftVertexStitch&                            self,
            const SoftVertexStitch::SlotTuple&           aim_geo_slots,
-           const py::array_t<Float>&                    stitched_vert_ids,
+           const NpArray<Float>&                    stitched_vert_ids,
            const SoftVertexStitch::ContactElementTuple& contact_elements,
            Float                                        kappa,
            Float                                        rest_length)

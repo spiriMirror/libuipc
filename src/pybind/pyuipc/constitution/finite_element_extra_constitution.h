@@ -6,6 +6,6 @@ namespace pyuipc::constitution
 class PyFiniteElementExtraConstitution
 {
   public:
-    PyFiniteElementExtraConstitution(py::module& m);
+    PyFiniteElementExtraConstitution(py::module_& m);
 };
 }  // namespace pyuipc::constitution

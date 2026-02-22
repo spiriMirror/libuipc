@@ -5,7 +5,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 using namespace uipc::geometry;
-PyStableNeoHookean::PyStableNeoHookean(py::module& m)
+PyStableNeoHookean::PyStableNeoHookean(py::module_& m)
 {
     auto class_StableNeoHookean = py::class_<StableNeoHookean, FiniteElementConstitution>(
         m, "StableNeoHookean", R"(StableNeoHookean constitution for stable neo-Hookean hyperelastic material.)");

@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyARAP::PyARAP(py::module& m)
+PyARAP::PyARAP(py::module_& m)
 {
     auto class_ARAP = py::class_<ARAP, FiniteElementConstitution>(
         m, "ARAP", R"(ARAP (As-Rigid-As-Possible) constitution for elastic deformation.)");

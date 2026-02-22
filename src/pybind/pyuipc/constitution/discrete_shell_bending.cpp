@@ -5,7 +5,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyDiscreteShellBending::PyDiscreteShellBending(py::module& m)
+PyDiscreteShellBending::PyDiscreteShellBending(py::module_& m)
 {
     auto class_DiscreteShellBending =
         py::class_<DiscreteShellBending, FiniteElementExtraConstitution>(

@@ -4,7 +4,7 @@
 namespace pyuipc::geometry
 {
 using namespace uipc::io;
-PyUrdfIO::PyUrdfIO(py::module& m)
+PyUrdfIO::PyUrdfIO(py::module_& m)
 {
     auto class_UrdfController = py::class_<UrdfController>(
         m, "UrdfController", R"(UrdfController class for controlling URDF robot models.)");
@@ -47,7 +47,7 @@ Returns:
                              R"(Synchronize visual mesh with current joint positions.)");
     class_UrdfController.def(
         "move_root",
-        [](const UrdfController& self, py::array_t<Float> xyz, py::array_t<Float> rpy)
+        [](const UrdfController& self, NpArray<Float> xyz, NpArray<Float> rpy)
         {
             auto v_xyz = to_matrix<Vector3>(xyz);
             auto v_rpy = to_matrix<Vector3>(rpy);

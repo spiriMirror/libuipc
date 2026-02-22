@@ -4,7 +4,7 @@
 
 namespace pyuipc::builtin
 {
-PyConstitutionType::PyConstitutionType(py::module& m)
+PyConstitutionType::PyConstitutionType(py::module_& m)
 {
     m.attr("AffineBody") = std::string(uipc::builtin::AffineBody);
     m.attr("FiniteElement") = std::string(uipc::builtin::FiniteElement);

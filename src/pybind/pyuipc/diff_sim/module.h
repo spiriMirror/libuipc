@@ -6,6 +6,6 @@ namespace pyuipc::diff_sim
 class PyModule
 {
   public:
-    PyModule(py::module& m);
+    PyModule(py::module_& m);
 };
 }  // namespace pyuipc::diff_sim

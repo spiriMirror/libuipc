@@ -7,7 +7,7 @@ namespace pyuipc::core
 {
 using namespace uipc::core;
 using namespace uipc::geometry;
-PyObject::PyObject(py::module& m)
+PyObject::PyObject(py::module_& m)
 {
     auto class_Object = py::class_<Object, S<Object>>(
         m, "Object", R"(Object class representing a simulation object containing geometries.)");
@@ -39,7 +39,7 @@ Returns:
     class_Object.def(
         "geometries",
         [](Object& self) { return self.geometries(); },
-        py::return_value_policy::move,
+        py::rv_policy::move,
         R"(Get the geometries collection.
 Returns:
     Geometries: Collection of geometries.)");

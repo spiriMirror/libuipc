@@ -6,7 +6,7 @@ namespace pyuipc::backend
 {
 using namespace uipc::backend;
 
-PyWorldVisitor::PyWorldVisitor(py::module& m)
+PyWorldVisitor::PyWorldVisitor(py::module_& m)
 {
     auto class_WorldVisitor = py::class_<WorldVisitor>(
         m, "WorldVisitor", R"(WorldVisitor class for accessing world data from backend.)");
@@ -27,7 +27,7 @@ Returns:
     AnimatorVisitor: Animator visitor.)");
     class_WorldVisitor.def("get",
                            &WorldVisitor::get,
-                           py::return_value_policy::move,
+                           py::rv_policy::move,
                            R"(Get the world.
 Returns:
     World: World object.)");

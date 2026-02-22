@@ -6,6 +6,6 @@ namespace pyuipc::core
 class PyModule
 {
   public:
-    PyModule(py::module& m);
+    PyModule(py::module_& m);
 };
 }  // namespace pyuipc::core

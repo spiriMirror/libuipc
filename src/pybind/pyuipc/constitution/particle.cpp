@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyParticle::PyParticle(py::module& m)
+PyParticle::PyParticle(py::module_& m)
 {
     auto class_Particle = py::class_<Particle, FiniteElementConstitution>(
         m, "Particle", R"(Particle constitution for point-mass simulation.)");

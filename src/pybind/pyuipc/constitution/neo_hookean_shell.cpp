@@ -5,7 +5,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 using namespace uipc::geometry;
-PyNeoHookeanShell::PyNeoHookeanShell(py::module& m)
+PyNeoHookeanShell::PyNeoHookeanShell(py::module_& m)
 {
     auto class_NeoHookeanShell = py::class_<NeoHookeanShell, FiniteElementConstitution>(
         m, "NeoHookeanShell", R"(NeoHookeanShell constitution for neo-Hookean shell material.)");

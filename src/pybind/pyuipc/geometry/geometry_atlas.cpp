@@ -5,7 +5,7 @@ namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
 
-PyGeometryAtlas::PyGeometryAtlas(py::module& m)
+PyGeometryAtlas::PyGeometryAtlas(py::module_& m)
 {
     auto class_GeometryAtlas = py::class_<GeometryAtlas>(
         m, "GeometryAtlas", R"(GeometryAtlas class for managing multiple geometries and attribute collections.)");

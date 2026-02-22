@@ -5,7 +5,7 @@
 namespace pyuipc::backend
 {
 using namespace uipc::backend;
-PyAnimatorVisitor::PyAnimatorVisitor(py::module& m)
+PyAnimatorVisitor::PyAnimatorVisitor(py::module_& m)
 {
     py::class_<AnimatorVisitor>(m, "AnimatorVisitor", R"(AnimatorVisitor class for accessing animator data from backend.)")
         .def(py::init<uipc::core::Animator&>(), py::arg("animator"), R"(Create an AnimatorVisitor for an animator.)")

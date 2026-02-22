@@ -6,6 +6,6 @@ namespace pyuipc::builtin
 class PyConstants
 {
   public:
-    PyConstants(py::module& m);
+    PyConstants(py::module_& m);
 };
 }  // namespace pyuipc::builtin
