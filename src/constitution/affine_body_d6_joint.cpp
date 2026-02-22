@@ -10,7 +10,7 @@ REGISTER_CONSTITUTION_UIDS()
     list<UIDInfo> uids;
     uids.push_back(UIDInfo{.uid  = ConstitutionUID,
                            .name = "AffineBodyD6Joint",
-                           .type = string{builtin::InterAffineBody}});
+                           .type = string{InterAffineBody}});
     return uids;
 }
 }  // namespace uipc::constitution

@@ -10,7 +10,7 @@ REGISTER_CONSTITUTION_UIDS()
     list<UIDInfo> uids;
     uids.push_back(UIDInfo{.uid  = ConstitutionUID,
                            .name = "AffineBodyDrivingSphericalJoint",
-                           .type = string{builtin::Constraint}});
+                           .type = string{Constraint}});
     return uids;
 }
 }  // namespace uipc::constitution

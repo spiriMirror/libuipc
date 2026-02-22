@@ -26,13 +26,13 @@
 | 21  | AffineBodyDrivingPrismaticJoint                                         | Affine Body Driving Prismatic Joint Constitutions |
 | 22  | SoftVertexStitch                                                        | Soft Vertex Stitch Constitutions                  |
 | 23  | [ExternalArticulationConstraint](./external_articulation_constraint.md) | External Articulation Constraint Constitutions    |
-| 25  | AffineBodyFixedJoint                                                    | Affine Body Fixed Joint Constitutions             |
-| 26  | AffineBodySphericalJoint                                                | Affine Body Spherical Joint Constitutions         |
-| 27  | AffineBodyDrivingSphericalJoint                                         | Affine Body Driving Spherical Joint Constitutions |
-| 28  | AffineBodyD6Joint                                                       | Affine Body D6 Joint Constitutions                |
+| 25  | AffineBodyFixedJoint                                                    | Affine Body Fixed Joint Constitutions (Reserved)             |
+| 26  | AffineBodySphericalJoint                                                | Affine Body Spherical Joint Constitutions (Reserved)         |
+| 27  | AffineBodyDrivingSphericalJoint                                         | Affine Body Driving Spherical Joint Constitutions (Reserved) |
+| 28  | AffineBodyD6Joint                                                       | Affine Body D6 Joint Constitutions (Reserved)                |
 | 666 | [AffineBodyExternalForce](./affine_body_external_force.md)              | Affine Body External Force Constitutions          |
-| 667 | AffineBodyPrismaticJointExternalForce                                   | Affine Body Prismatic Joint External Force Constitutions |
-| 668 | AffineBodyRevoluteJointExternalForce                                    | Affine Body Revolute Joint External Force Constitutions  |
+| 667 | AffineBodyPrismaticJointExternalForce                                   | Affine Body Prismatic Joint External Force Constitutions (Reserved) |
+| 668 | AffineBodyRevoluteJointExternalForce                                    | Affine Body Revolute Joint External Force Constitutions (Reserved)  |
 | 669 | [AffineBodyPrismaticJointLimit](./affine_body_prismatic_joint_limit.md) | Affine Body Prismatic Joint Limit Constitutions   |
 | 670 | [AffineBodyRevoluteJointLimit](./affine_body_revolute_joint_limit.md)   | Affine Body Revolute Joint Limit Constitutions    |
 | 819 | StrainLimitingBaraffWitkinShell                                         | Strain Limiting Baraff-Witkin Shell Constitutions |
