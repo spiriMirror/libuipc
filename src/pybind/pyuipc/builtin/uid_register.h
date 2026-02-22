@@ -6,6 +6,6 @@ namespace pyuipc::builtin
 class PyUIDRegister
 {
   public:
-    PyUIDRegister(py::module& m);
+    PyUIDRegister(py::module_& m);
 };
 }  // namespace pyuipc::builtin

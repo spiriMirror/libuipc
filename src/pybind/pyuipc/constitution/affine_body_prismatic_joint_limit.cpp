@@ -6,7 +6,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyPrismaticJointLimit::PyAffineBodyPrismaticJointLimit(py::module& m)
+PyAffineBodyPrismaticJointLimit::PyAffineBodyPrismaticJointLimit(py::module_& m)
 {
     auto class_AffineBodyPrismaticJointLimit =
         py::class_<AffineBodyPrismaticJointLimit, InterAffineBodyExtraConstitution>(
@@ -28,7 +28,8 @@ Args:
 
     class_AffineBodyPrismaticJointLimit.def(
         "apply_to",
-        py::overload_cast<geometry::SimplicialComplex&, Float, Float, Float>(
+        static_cast<void (AffineBodyPrismaticJointLimit::*)(
+            geometry::SimplicialComplex&, Float, Float, Float)>(
             &AffineBodyPrismaticJointLimit::apply_to),
         py::arg("sc"),
         py::arg("lower"),

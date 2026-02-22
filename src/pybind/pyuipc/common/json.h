@@ -6,17 +6,18 @@
 * The full license is in the file LICENSE, distributed with this software. *
 ****************************************************************************/
 
-#ifndef PYBIND11_JSON_HPP
-#define PYBIND11_JSON_HPP
+#ifndef NANOBIND_JSON_HPP
+#define NANOBIND_JSON_HPP
 
 #include <string>
 #include <vector>
 
 #include "nlohmann/json.hpp"
 
-#include "pybind11/pybind11.h"
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/string.h>
 
-namespace py = pybind11;
+namespace py = nanobind;
 namespace nl = nlohmann;
 
 namespace pyjson
@@ -45,14 +46,14 @@ inline py::object from_json(const nl::json& j)
     }
     else if(j.is_string())
     {
-        return py::str(j.get<std::string>());
+        return py::str(j.get<std::string>().c_str());
     }
     else if(j.is_array())
     {
-        py::list obj(j.size());
+        py::list obj;
         for(std::size_t i = 0; i < j.size(); i++)
         {
-            obj[i] = from_json(j[i]);
+            obj.append(from_json(j[i]));
         }
         return obj;
     }
@@ -61,7 +62,7 @@ inline py::object from_json(const nl::json& j)
         py::dict obj;
         for(nl::json::const_iterator it = j.cbegin(); it != j.cend(); ++it)
         {
-            obj[py::str(it.key())] = from_json(it.value());
+            obj[it.key().c_str()] = from_json(it.value());
         }
         return obj;
     }
@@ -75,47 +76,40 @@ inline nl::json to_json(const py::handle& obj)
     }
     if(py::isinstance<py::bool_>(obj))
     {
-        return obj.cast<bool>();
+        return py::cast<bool>(obj);
     }
     if(py::isinstance<py::int_>(obj))
     {
         try
         {
-            nl::json::number_integer_t s = obj.cast<nl::json::number_integer_t>();
-            if(py::int_(s).equal(obj))
-            {
-                return s;
-            }
+            nl::json::number_integer_t s = py::cast<nl::json::number_integer_t>(obj);
+            return s;
         }
         catch(...)
         {
         }
         try
         {
-            nl::json::number_unsigned_t u = obj.cast<nl::json::number_unsigned_t>();
-            if(py::int_(u).equal(obj))
-            {
-                return u;
-            }
+            nl::json::number_unsigned_t u = py::cast<nl::json::number_unsigned_t>(obj);
+            return u;
         }
         catch(...)
         {
         }
-        throw std::runtime_error("to_json received an integer out of range for both nl::json::number_integer_t and nl::json::number_unsigned_t type: "
-                                 + py::repr(obj).cast<std::string>());
+        throw std::runtime_error("to_json received an integer out of range for both nl::json::number_integer_t and nl::json::number_unsigned_t type");
     }
     if(py::isinstance<py::float_>(obj))
     {
-        return obj.cast<double>();
+        return py::cast<double>(obj);
     }
     if(py::isinstance<py::bytes>(obj))
     {
-        py::module base64 = py::module::import("base64");
-        return base64.attr("b64encode")(obj).attr("decode")("utf-8").cast<std::string>();
+        py::module_ base64 = py::module_::import_("base64");
+        return py::cast<std::string>(base64.attr("b64encode")(obj).attr("decode")("utf-8"));
     }
     if(py::isinstance<py::str>(obj))
     {
-        return obj.cast<std::string>();
+        return py::cast<std::string>(obj);
     }
     if(py::isinstance<py::tuple>(obj) || py::isinstance<py::list>(obj))
     {
@@ -131,78 +125,24 @@ inline nl::json to_json(const py::handle& obj)
         auto out = nl::json::object();
         for(const py::handle key : obj)
         {
-            out[py::str(key).cast<std::string>()] = to_json(obj[key]);
+            out[py::cast<std::string>(py::str(key))] = to_json(obj[key]);
         }
         return out;
     }
-    throw std::runtime_error("to_json not implemented for this type of object: "
-                             + py::repr(obj).cast<std::string>());
+    throw std::runtime_error("to_json not implemented for this type of object");
 }
 }  // namespace pyjson
 
-// nlohmann_json serializers
-namespace nlohmann
-{
-#define MAKE_NLJSON_SERIALIZER_DESERIALIZER(T)                                 \
-    template <>                                                                \
-    struct adl_serializer<T>                                                   \
-    {                                                                          \
-        inline static void to_json(json& j, const T& obj)                      \
-        {                                                                      \
-            j = pyjson::to_json(obj);                                          \
-        }                                                                      \
-                                                                               \
-        inline static T from_json(const json& j)                               \
-        {                                                                      \
-            return pyjson::from_json(j);                                       \
-        }                                                                      \
-    }
-
-#define MAKE_NLJSON_SERIALIZER_ONLY(T)                                         \
-    template <>                                                                \
-    struct adl_serializer<T>                                                   \
-    {                                                                          \
-        inline static void to_json(json& j, const T& obj)                      \
-        {                                                                      \
-            j = pyjson::to_json(obj);                                          \
-        }                                                                      \
-    }
-
-MAKE_NLJSON_SERIALIZER_DESERIALIZER(py::object);
-
-MAKE_NLJSON_SERIALIZER_DESERIALIZER(py::bool_);
-MAKE_NLJSON_SERIALIZER_DESERIALIZER(py::int_);
-MAKE_NLJSON_SERIALIZER_DESERIALIZER(py::float_);
-MAKE_NLJSON_SERIALIZER_DESERIALIZER(py::str);
-
-MAKE_NLJSON_SERIALIZER_DESERIALIZER(py::list);
-MAKE_NLJSON_SERIALIZER_DESERIALIZER(py::tuple);
-MAKE_NLJSON_SERIALIZER_DESERIALIZER(py::dict);
-
-MAKE_NLJSON_SERIALIZER_ONLY(py::handle);
-MAKE_NLJSON_SERIALIZER_ONLY(py::detail::item_accessor);
-MAKE_NLJSON_SERIALIZER_ONLY(py::detail::list_accessor);
-MAKE_NLJSON_SERIALIZER_ONLY(py::detail::tuple_accessor);
-MAKE_NLJSON_SERIALIZER_ONLY(py::detail::sequence_accessor);
-MAKE_NLJSON_SERIALIZER_ONLY(py::detail::str_attr_accessor);
-MAKE_NLJSON_SERIALIZER_ONLY(py::detail::obj_attr_accessor);
-
-#undef MAKE_NLJSON_SERIALIZER
-#undef MAKE_NLJSON_SERIALIZER_ONLY
-}  // namespace nlohmann
-
-// pybind11 caster
-namespace pybind11
-{
-namespace detail
+// nanobind caster
+namespace nanobind::detail
 {
     template <>
     struct type_caster<nl::json>
     {
       public:
-        PYBIND11_TYPE_CASTER(nl::json, _("json"));
+        NB_TYPE_CASTER(nl::json, const_name("object"));
 
-        bool load(handle src, bool)
+        bool from_python(handle src, uint8_t, cleanup_list*)
         {
             try
             {
@@ -215,13 +155,12 @@ namespace detail
             }
         }
 
-        static handle cast(nl::json src, return_value_policy /* policy */, handle /* parent */)
+        static handle from_cpp(nl::json src, rv_policy, cleanup_list*)
         {
             object obj = pyjson::from_json(src);
             return obj.release();
         }
     };
-}  // namespace detail
-}  // namespace pybind11
+}  // namespace nanobind::detail
 
 #endif

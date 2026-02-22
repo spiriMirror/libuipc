@@ -5,7 +5,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyInterAffineBodyExtraConstitution::PyInterAffineBodyExtraConstitution(py::module& m)
+PyInterAffineBodyExtraConstitution::PyInterAffineBodyExtraConstitution(py::module_& m)
 {
     auto class_InterAffineBodyExtraConstitution =
         py::class_<InterAffineBodyExtraConstitution, IConstitution>(

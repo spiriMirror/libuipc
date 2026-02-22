@@ -3,7 +3,7 @@
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
-PyGeometrySlot::PyGeometrySlot(py::module& m)
+PyGeometrySlot::PyGeometrySlot(py::module_& m)
 {
     auto class_GeometrySlot = py::class_<GeometrySlot, S<GeometrySlot>>(
         m, "GeometrySlot", R"(GeometrySlot class representing a slot containing a geometry.)");
@@ -16,7 +16,7 @@ Returns:
     class_GeometrySlot.def(
         "geometry",
         [](GeometrySlot& self) -> Geometry& { return self.geometry(); },
-        py::return_value_policy::reference_internal,
+        py::rv_policy::reference_internal,
         R"(Get the geometry in this slot.
 Returns:
     Geometry: Reference to the geometry.)");

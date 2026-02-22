@@ -1,11 +1,10 @@
 #include <pyuipc/core/sanity_checker.h>
 #include <uipc/core/sanity_checker.h>
-#include <pybind11/stl.h>
 
 namespace pyuipc::core
 {
 using namespace uipc::core;
-PySanityChecker::PySanityChecker(py::module& m)
+PySanityChecker::PySanityChecker(py::module_& m)
 {
     // define enum SanityCheckResult
     py::enum_<SanityCheckResult>(m, "SanityCheckResult", R"(Sanity check result enumeration.)")

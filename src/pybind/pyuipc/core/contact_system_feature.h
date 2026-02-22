@@ -6,6 +6,6 @@ namespace pyuipc::core
 class PyContactSystemFeature
 {
   public:
-    PyContactSystemFeature(py::module& m);
+    PyContactSystemFeature(py::module_& m);
 };
 }  // namespace pyuipc::core

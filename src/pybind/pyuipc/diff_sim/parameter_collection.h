@@ -6,6 +6,6 @@ namespace pyuipc::diff_sim
 class PyParameterCollection
 {
   public:
-    PyParameterCollection(py::module& m);
+    PyParameterCollection(py::module_& m);
 };
 }  // namespace pyuipc::diff_sim

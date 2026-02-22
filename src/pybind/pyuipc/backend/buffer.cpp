@@ -5,14 +5,14 @@
 namespace pyuipc::backend
 {
 using namespace uipc::backend;
-PyBuffer::PyBuffer(py::module& m)
+PyBuffer::PyBuffer(py::module_& m)
 {
     // allow add attributes to this class
     auto class_Buffer = py::class_<Buffer>(m, "Buffer", py::dynamic_attr());
 
     class_Buffer.def(
         py::init(
-            [](py::function resize_func, py::function get_buffer_view_func)
+            [](py::callable resize_func, py::callable get_buffer_view_func)
             {
                 return Buffer{[resize_func](SizeT size)
                               {

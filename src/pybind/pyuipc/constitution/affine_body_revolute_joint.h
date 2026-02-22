@@ -6,6 +6,6 @@ namespace pyuipc::constitution
 class PyAffineBodyRevoluteJoint
 {
   public:
-    PyAffineBodyRevoluteJoint(py::module& m);
+    PyAffineBodyRevoluteJoint(py::module_& m);
 };
 }  // namespace pyuipc::constitution

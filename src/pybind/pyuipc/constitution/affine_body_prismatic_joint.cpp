@@ -6,7 +6,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyPrismaticJoint::PyAffineBodyPrismaticJoint(py::module& m)
+PyAffineBodyPrismaticJoint::PyAffineBodyPrismaticJoint(py::module_& m)
 {
     auto class_AffineBodyPrismaticJoint =
         py::class_<AffineBodyPrismaticJoint, InterAffineBodyConstitution>(

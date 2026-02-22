@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyEmpty::PyEmpty(py::module& m)
+PyEmpty::PyEmpty(py::module_& m)
 {
     auto class_Particle = py::class_<Empty, FiniteElementConstitution>(
         m, "Empty", R"(Empty constitution (no material properties, used for mass-only elements).)");

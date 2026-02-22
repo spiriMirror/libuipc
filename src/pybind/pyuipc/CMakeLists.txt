@@ -1,12 +1,11 @@
 # Create an extension module
-pybind11_add_module(pyuipc)
+nanobind_add_module(pyuipc)
 target_compile_features(pyuipc PUBLIC cxx_std_20)
-target_link_libraries(pyuipc PUBLIC pybind11::module)
 target_link_libraries(pyuipc PUBLIC uipc::uipc)
 # ensure all backends are built before pyuipc
 add_dependencies(pyuipc uipc::backends)
 target_include_directories(pyuipc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../")
-target_compile_definitions(pyuipc PRIVATE "PYBIND11_DETAILED_ERROR_MESSAGES")
+target_compile_definitions(pyuipc PRIVATE "NB_DOMAIN=pyuipc")
 uipc_target_set_output_directory(pyuipc)
 uipc_target_set_rpath(pyuipc)
 
@@ -32,7 +31,7 @@ uipc_target_set_relative_source_file(pyuipc)
 get_target_property(SOURCES pyuipc SOURCES)
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES ${SOURCES})
 
-uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH} "pybind11_stubgen")
+uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH} "nanobind")
 uipc_require_python_module(${UIPC_PYTHON_EXECUTABLE_PATH}  "numpy")
 
 # After build pyuipc, call the script to copy the dependent shared libraries to python package.

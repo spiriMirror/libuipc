@@ -3,7 +3,7 @@
 namespace pyuipc::builtin
 {
 using namespace uipc::builtin;
-PyConstitutionUIDCollection::PyConstitutionUIDCollection(py::module& m)
+PyConstitutionUIDCollection::PyConstitutionUIDCollection(py::module_& m)
 {
     py::class_<ConstitutionUIDCollection, details::UIDRegister>(
         m, "ConstitutionUIDCollection", R"(Collection of constitution UIDs (unique identifiers for constitutions).)")

@@ -11,17 +11,17 @@
 namespace pyuipc
 {
 using namespace uipc;
-PyResidentThread::PyResidentThread(py::module& m)
+PyResidentThread::PyResidentThread(py::module_& m)
 {
     auto class_ResidentThread = py::class_<ResidentThread>(
         m, "ResidentThread", R"(Resident thread for executing Python callables in a separate thread.)");
     class_ResidentThread.def(py::init<>(), R"(Create a new resident thread.)");
     class_ResidentThread.def(
         "post",
-        [](ResidentThread& self, py::function func)
+        [](ResidentThread& self, py::callable func)
         {
             // func must be a callable object with no arguments
-            PYUIPC_ASSERT(py::isinstance<py::function>(func), "func must be a callable object");
+            PYUIPC_ASSERT(py::isinstance<py::callable>(func), "func must be a callable object");
             return self.post(
                 [func]()
                 {

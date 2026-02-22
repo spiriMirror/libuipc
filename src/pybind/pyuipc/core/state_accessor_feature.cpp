@@ -6,7 +6,7 @@ namespace pyuipc::core
 {
 using namespace uipc::core;
 
-PyStateAccessorFeature::PyStateAccessorFeature(py::module& m)
+PyStateAccessorFeature::PyStateAccessorFeature(py::module_& m)
 {
     auto class_FiniteElementStateAccessorFeature =
         py::class_<FiniteElementStateAccessorFeature, IFeature, S<FiniteElementStateAccessorFeature>>(

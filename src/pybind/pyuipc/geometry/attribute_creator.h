@@ -12,7 +12,7 @@ class AttributeCreator
                                                     std::string_view name,
                                                     py::object       object)
     {
-        auto pyobj = py::cast(a, py::return_value_policy::reference);
+        auto pyobj = py::cast(a, py::rv_policy::reference);
 
         // call the create method of the member object
         return py::cast<S<uipc::geometry::IAttributeSlot>>(

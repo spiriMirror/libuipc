@@ -5,7 +5,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 using namespace uipc::geometry;
-PyStrainLimitingBaraffWitkinShell::PyStrainLimitingBaraffWitkinShell(py::module& m)
+PyStrainLimitingBaraffWitkinShell::PyStrainLimitingBaraffWitkinShell(py::module_& m)
 {
     auto class_StrainLimitingBaraffWitkinShell =
         py::class_<StrainLimitingBaraffWitkinShell, FiniteElementConstitution>(

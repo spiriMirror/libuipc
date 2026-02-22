@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyConstitution::PyConstitution(py::module& m)
+PyConstitution::PyConstitution(py::module_& m)
 {
     auto class_IConstitution = py::class_<IConstitution>(
         m, "IConstitution", R"(IConstitution interface for all constitution types (material models and constraints).)");

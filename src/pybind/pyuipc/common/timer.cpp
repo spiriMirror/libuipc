@@ -4,7 +4,7 @@
 namespace pyuipc
 {
 using namespace uipc;
-PyTimer::PyTimer(py::module& m)
+PyTimer::PyTimer(py::module_& m)
 {
     auto class_Timer =
         py::class_<Timer>(m, "Timer", R"(Timer class for performance profiling and timing measurements.)");

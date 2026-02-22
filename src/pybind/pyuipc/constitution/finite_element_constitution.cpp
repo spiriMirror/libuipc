@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyFiniteElementConstitution::PyFiniteElementConstitution(py::module& m)
+PyFiniteElementConstitution::PyFiniteElementConstitution(py::module_& m)
 {
     auto class_FEMConstitution = py::class_<FiniteElementConstitution, IConstitution>(
         m, "FiniteElementConstitution", R"(FiniteElementConstitution base class for finite element material models.)");

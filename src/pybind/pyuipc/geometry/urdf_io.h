@@ -6,6 +6,6 @@ namespace pyuipc::geometry
 class PyUrdfIO
 {
   public:
-    PyUrdfIO(py::module& m);
+    PyUrdfIO(py::module_& m);
 };
 }  // namespace pyuipc::geometry

@@ -6,6 +6,6 @@ namespace pyuipc::constitution
 class PyAffineBodyExternalForce
 {
   public:
-    PyAffineBodyExternalForce(py::module& m);
+    PyAffineBodyExternalForce(py::module_& m);
 };
 }  // namespace pyuipc::constitution

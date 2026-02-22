@@ -7,7 +7,7 @@ namespace pyuipc::core
 {
 using namespace uipc::core;
 
-PyEngine::PyEngine(py::module& m)
+PyEngine::PyEngine(py::module_& m)
 {
     auto class_EngineStatus = py::class_<EngineStatus, S<EngineStatus>>(
         m, "EngineStatus", R"(Engine status message indicating info, warning, or error.)");
@@ -126,7 +126,7 @@ Returns:
     str: Workspace directory path.)");
     class_Engine.def("features",
                      &Engine::features,
-                     py::return_value_policy::reference_internal,
+                     py::rv_policy::reference_internal,
                      py::call_guard<py::gil_scoped_release>(),
                      R"(Get the feature collection.
 Returns:
@@ -139,7 +139,7 @@ Returns:
     dict: Default configuration dictionary.)");
 }
 
-PyPyIEngine::PyPyIEngine(py::module& m)
+PyPyIEngine::PyPyIEngine(py::module_& m)
 {
     auto class_PyIEngine = py::class_<PyIEngine, PyIEngine_, IEngine, S<PyIEngine>>(
         m, "PyIEngine", R"(Python-implementable engine interface.)");
@@ -171,13 +171,13 @@ Returns:
     int: Current frame number.)")
         .def("status",
              &PyIEngine::get_status,
-             py::return_value_policy::reference_internal,
+             py::rv_policy::reference_internal,
              R"(Get engine status collection.
 Returns:
     EngineStatusCollection: Reference to status collection.)")
         .def("features",
              &PyIEngine::get_features,
-             py::return_value_policy::reference_internal,
+             py::rv_policy::reference_internal,
              R"(Get engine features.
 Returns:
     FeatureCollection: Reference to feature collection.)")
@@ -187,7 +187,7 @@ Returns:
                  auto world_val = self.world();
                  return world_val;
              },
-             py::return_value_policy::reference_internal,
+             py::rv_policy::reference_internal,
              R"(Get the world.
 Returns:
     Reference to the world object.)");

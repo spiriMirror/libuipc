@@ -5,7 +5,7 @@ namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
 
-PyImplicitGeometry::PyImplicitGeometry(py::module& m)
+PyImplicitGeometry::PyImplicitGeometry(py::module_& m)
 {
     auto class_ImplicitGeometry =
         py::class_<ImplicitGeometry, Geometry, S<ImplicitGeometry>>(

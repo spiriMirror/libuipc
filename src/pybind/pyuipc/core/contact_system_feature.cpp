@@ -1,11 +1,10 @@
 #include <pyuipc/core/contact_system_feature.h>
 #include <uipc/core/contact_system_feature.h>
-#include <pybind11/stl.h>
 
 namespace pyuipc::core
 {
 using namespace uipc::core;
-PyContactSystemFeature::PyContactSystemFeature(py::module& m)
+PyContactSystemFeature::PyContactSystemFeature(py::module_& m)
 {
     auto class_ContactSystemFeature =
         py::class_<ContactSystemFeature, IFeature, S<ContactSystemFeature>>(

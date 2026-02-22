@@ -5,6 +5,6 @@ namespace pyuipc::constitution
 class PyDiscreteShellBending
 {
   public:
-    PyDiscreteShellBending(py::module& m);
+    PyDiscreteShellBending(py::module_& m);
 };
 }  // namespace pyuipc::constitution

@@ -6,7 +6,7 @@ namespace pyuipc::core
 class PyDiffSim
 {
   public:
-    PyDiffSim(py::module& m);
+    PyDiffSim(py::module_& m);
 };
 
 }  // namespace pyuipc::core

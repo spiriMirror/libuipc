@@ -6,6 +6,6 @@ namespace pyuipc::constitution
 class PyElasticModuli
 {
   public:
-    PyElasticModuli(py::module& m);
+    PyElasticModuli(py::module_& m);
 };
 }  // namespace pyuipc::constitution

@@ -6,6 +6,6 @@ namespace pyuipc::builtin
 class PyImplicitGeometryUIDCollection
 {
   public:
-    PyImplicitGeometryUIDCollection(py::module& m);
+    PyImplicitGeometryUIDCollection(py::module_& m);
 };
 }  // namespace pyuipc::builtin

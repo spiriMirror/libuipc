@@ -3,7 +3,6 @@ import sys
 import shutil
 import argparse as ap
 import pathlib
-import pybind11_stubgen as stubgen
 import subprocess as sp
 import optional_import # help stubgen to detect optional modules' api
 
@@ -108,16 +107,21 @@ def generate_uipc_stubs(binary_dir):
         print(f'Clear {file}')
         os.remove(file)
 
-    # generate the stubs
+    # generate the stubs using nanobind's built-in stubgen
     print(f'Try generating stubs to {typings_dir}')
     sys.path.append(str(typings_dir))
     
     flush_info()
     
-    args = ['-o', str(typings_dir), PACKAGE_NAME, "--ignore-unresolved-names","json"]
+    args = [sys.executable, '-m', 'nanobind.stubgen',
+            '-m', PACKAGE_NAME,
+            '-o', str(typings_dir)]
 
     try:
-        stubgen.main(args)
+        ret = sp.run(args, capture_output=False, text=True)
+        if ret.returncode != 0:
+            print(f'Error generating stubs: return code {ret.returncode}')
+            sys.exit(1)
     except Exception as e:
         print(f'Error generating stubs: {e}')
         sys.exit(1)

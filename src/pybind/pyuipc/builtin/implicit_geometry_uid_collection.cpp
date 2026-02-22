@@ -3,7 +3,7 @@
 namespace pyuipc::builtin
 {
 using namespace uipc::builtin;
-PyImplicitGeometryUIDCollection::PyImplicitGeometryUIDCollection(py::module& m)
+PyImplicitGeometryUIDCollection::PyImplicitGeometryUIDCollection(py::module_& m)
 {
     py::class_<ImplicitGeometryUIDCollection, details::UIDRegister>(
         m, "ImplicitGeometryUIDCollection", R"(Collection of implicit geometry UIDs (unique identifiers for implicit geometries).)")

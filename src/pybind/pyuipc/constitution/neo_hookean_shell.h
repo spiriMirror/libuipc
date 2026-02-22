@@ -5,6 +5,6 @@ namespace pyuipc::constitution
 class PyNeoHookeanShell
 {
   public:
-    PyNeoHookeanShell(py::module& m);
+    PyNeoHookeanShell(py::module_& m);
 };
 }  // namespace pyuipc::constitution

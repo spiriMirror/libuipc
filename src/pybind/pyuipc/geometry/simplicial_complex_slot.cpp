@@ -4,7 +4,7 @@
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
-PySimplicialComplexSlot::PySimplicialComplexSlot(py::module& m)
+PySimplicialComplexSlot::PySimplicialComplexSlot(py::module_& m)
 
 {
     auto class_SimplicialComplexSlot =
@@ -15,7 +15,7 @@ PySimplicialComplexSlot::PySimplicialComplexSlot(py::module& m)
         "geometry",
         [](SimplicialComplexSlot& self) -> SimplicialComplex&
         { return self.geometry(); },
-        py::return_value_policy::reference_internal,
+        py::rv_policy::reference_internal,
         R"(Get the simplicial complex in this slot.
 Returns:
     SimplicialComplex: Reference to the simplicial complex.)");

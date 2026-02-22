@@ -6,6 +6,6 @@ namespace pyuipc
 class PyLogger
 {
   public:
-    PyLogger(py::module& m);
+    PyLogger(py::module_& m);
 };
 }  // namespace pyuipc

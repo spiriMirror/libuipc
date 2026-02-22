@@ -5,7 +5,7 @@
 namespace pyuipc::core
 {
 using namespace uipc::core;
-PySceneIO::PySceneIO(py::module& m)
+PySceneIO::PySceneIO(py::module_& m)
 {
     auto class_SceneIO = py::class_<SceneIO>(
         m, "SceneIO", R"(SceneIO class for loading and saving scenes to/from files and JSON.)");

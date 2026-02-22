@@ -4,7 +4,7 @@
 
 namespace uipc::geometry
 {
-namespace py = pybind11;
+namespace py = nanobind;
 template <>
 class AttributeFriend<pyuipc::geometry::PyGeometry>
 {
@@ -34,7 +34,7 @@ class AttributeFriend<pyuipc::geometry::PyGeometry>
                                     py::object                object)
     {
         auto pyobj = py::cast(a.m_attributes,
-                              py::return_value_policy::reference_internal,  // member object is a reference in the parent object
+                              py::rv_policy::reference_internal,  // member object is a reference in the parent object
                               py::cast(a)  // parent object
         );
 
@@ -48,7 +48,7 @@ class AttributeFriend<pyuipc::geometry::PyGeometry>
                                     py::object                    object)
     {
         auto pyobj = py::cast(a.m_attributes,
-                              py::return_value_policy::reference_internal,  // member object is a reference in the parent object
+                              py::rv_policy::reference_internal,  // member object is a reference in the parent object
                               py::cast(a)  // parent object
         );
 
@@ -65,7 +65,7 @@ using namespace uipc::geometry;
 
 using Accessor = AttributeFriend<PyGeometry>;
 
-void def_method(py::module& m, py::class_<Geometry::InstanceAttributes>& class_Attribute)
+void def_method(py::module_& m, py::class_<Geometry::InstanceAttributes>& class_Attribute)
 {
     using Attributes = Geometry::InstanceAttributes;
 
@@ -147,7 +147,7 @@ Returns:
     dict: JSON representation of instance attributes.)");
 }
 
-void def_method(py::module& m, py::class_<Geometry::MetaAttributes>& class_Attribute)
+void def_method(py::module_& m, py::class_<Geometry::MetaAttributes>& class_Attribute)
 {
     using Attributes = Geometry::MetaAttributes;
 
@@ -216,7 +216,7 @@ namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
 
-PyGeometry::PyGeometry(py::module& m)
+PyGeometry::PyGeometry(py::module_& m)
 {
     // IGeometry:
     auto class_IGeometry =
@@ -290,7 +290,7 @@ Returns:
         R"(Get an attribute collection by name.
 Returns:
     AttributeCollection: Attribute collection with the given name, if not found, create a new one.)",
-        py::return_value_policy::copy);
+        py::rv_policy::copy);
 
     def_method(m, class_MetaAttributes);
 

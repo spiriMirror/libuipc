@@ -4,7 +4,7 @@
 namespace pyuipc::core
 {
 using namespace uipc::core;
-PyAnimator::PyAnimator(py::module& m)
+PyAnimator::PyAnimator(py::module_& m)
 {
     auto class_Animation =
         py::class_<Animation>(m, "Animation", R"(Animation class for managing object animations.)");
@@ -17,7 +17,7 @@ PyAnimator::PyAnimator(py::module& m)
     class_UpdateInfo
         .def("object",
              &Animation::UpdateInfo::object,
-             py::return_value_policy::reference_internal,
+             py::rv_policy::reference_internal,
              R"(Get the object being animated.
 Returns:
     Object: Reference to the object.)")
@@ -69,9 +69,9 @@ Returns:
         m, "Animator", R"(Animator class for managing object animations in a scene.)");
     class_Animator.def(
         "insert",
-        [](Animator& self, Object& obj, py::function callable)
+        [](Animator& self, Object& obj, py::callable callable)
         {
-            if(!py::isinstance<py::function>(callable))
+            if(!py::isinstance<py::callable>(callable))
             {
                 throw py::type_error("The second argument must be a callable");
             }

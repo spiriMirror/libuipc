@@ -12,7 +12,7 @@ static vector<const SimplicialComplex*> vector_of_sc(py::list list_of_sc)
 
     for(auto sc : list_of_sc)
     {
-        auto& simplicial_complex = sc.cast<const SimplicialComplex&>();
+        auto& simplicial_complex = py::cast<const SimplicialComplex&>(sc);
         simplicial_complexes.push_back(&simplicial_complex);
     }
 
@@ -29,7 +29,7 @@ static py::list list_of_sc(const vector<SimplicialComplex>& simplicial_complexes
     return list;
 }
 
-PyUtils::PyUtils(py::module& m)
+PyUtils::PyUtils(py::module_& m)
 {
     m.def("label_surface",
           &label_surface,
@@ -158,7 +158,7 @@ Returns:
 
     m.def(
         "optimal_transform",
-        [](py::array_t<const Float> S, py::array_t<const Float> D)
+        [](NpArray<const Float> S, NpArray<const Float> D)
         {
             auto S_ = as_span_of<const Vector3>(S);
             auto D_ = as_span_of<const Vector3>(D);
