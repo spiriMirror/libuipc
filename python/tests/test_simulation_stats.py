@@ -1,7 +1,7 @@
 """Tests for uipc.stats.SimulationStats.
 
 The tests exercise the pure-Python data processing logic (get_values,
-to_markdown) without requiring a real native uipc build or a display.
+to_markdown) without requiring the native uipc extension to be built or a display.
 They work by injecting pre-built timer-tree dictionaries directly into
 SimulationStats._frames, bypassing collect() which requires a live Timer.
 """
@@ -232,3 +232,45 @@ def test_to_markdown_na_for_missing():
     md = s.to_markdown(['Newton', 'NonExistent'], metric='count')
     data_row = md.strip().split('\n')[2]
     assert 'N/A' in data_row
+
+
+@pytest.mark.basic
+def test_get_values_invalid_metric():
+    """get_values() raises ValueError for an invalid metric."""
+    s = SimulationStats()
+    s._frames.append(_make_timer_data(0))
+    with pytest.raises(ValueError, match="metric must be"):
+        s.get_values('Newton', metric='invalid')
+
+
+@pytest.mark.basic
+def test_plot_invalid_metric():
+    """plot() raises ValueError for an invalid metric."""
+    s = SimulationStats()
+    s._frames.append(_make_timer_data(0))
+    with pytest.raises(ValueError, match="metric must be"):
+        s.plot('Newton', metric='invalid')
+
+
+@pytest.mark.basic
+def test_plot_invalid_kind():
+    """plot() raises ValueError for an invalid kind."""
+    s = SimulationStats()
+    s._frames.append(_make_timer_data(0))
+    with pytest.raises(ValueError, match="kind must be"):
+        s.plot('Newton', kind='invalid')
+
+
+@pytest.mark.basic
+def test_to_markdown_auto_keys_excludes_root():
+    """to_markdown(keys=None) auto-discovers keys and excludes the root node."""
+    s = SimulationStats()
+    for i in range(2):
+        s._frames.append(_make_timer_data(i))
+
+    md = s.to_markdown(keys=None, metric='count')
+    header = md.strip().split('\n')[0]
+    # Root timer name must not appear as a column
+    assert 'GlobalTimer' not in header
+    # Child timer names should be columns
+    assert 'Newton' in header
