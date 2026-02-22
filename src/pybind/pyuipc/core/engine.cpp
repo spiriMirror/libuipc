@@ -9,7 +9,7 @@ using namespace uipc::core;
 
 PyEngine::PyEngine(py::module_& m)
 {
-    auto class_EngineStatus = py::class_<EngineStatus, S<EngineStatus>>(
+    auto class_EngineStatus = py::class_<EngineStatus>(
         m, "EngineStatus", R"(Engine status message indicating info, warning, or error.)");
 
     // define enum first
@@ -61,7 +61,7 @@ Returns:
     EngineStatus: Error status object.)");
 
     auto class_EngineStatusCollection =
-        py::class_<EngineStatusCollection, S<EngineStatusCollection>>(
+        py::class_<EngineStatusCollection>(
             m, "EngineStatusCollection", R"(Collection of engine status messages.)");
 
     class_EngineStatusCollection.def(py::init<>(), R"(Create an empty status collection.)");
@@ -85,10 +85,10 @@ Returns:
     dict: JSON representation of the status collection.)");
 
     auto class_IEngine =
-        py::class_<IEngine, S<IEngine>>(m, "IEngine", R"(Interface for engine implementations.)");
+        py::class_<IEngine>(m, "IEngine", R"(Interface for engine implementations.)");
 
 
-    auto class_Engine = py::class_<Engine, S<Engine>>(
+    auto class_Engine = py::class_<Engine>(
         m, "Engine", R"(Engine class for running simulations with a specific backend.)");
     class_Engine.def(py::init<std::string_view, std::string_view, const Json&>(),
                      py::call_guard<py::gil_scoped_release>(),
@@ -141,7 +141,7 @@ Returns:
 
 PyPyIEngine::PyPyIEngine(py::module_& m)
 {
-    auto class_PyIEngine = py::class_<PyIEngine, PyIEngine_, IEngine, S<PyIEngine>>(
+    auto class_PyIEngine = py::class_<PyIEngine_, IEngine>(
         m, "PyIEngine", R"(Python-implementable engine interface.)");
 
     class_PyIEngine.def("do_init", [](PyIEngine& self) { self.do_init(); }, R"(Initialize the engine.)");

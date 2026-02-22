@@ -220,7 +220,7 @@ PyGeometry::PyGeometry(py::module_& m)
 {
     // IGeometry:
     auto class_IGeometry =
-        py::class_<IGeometry, S<IGeometry>>(m, "IGeometry", R"(Interface for geometry types.)");
+        py::class_<IGeometry>(m, "IGeometry", R"(Interface for geometry types.)");
 
     class_IGeometry.def("type",
                         &IGeometry::type,
@@ -243,7 +243,7 @@ Returns:
 
 
     // Geometry:
-    auto class_Geometry = py::class_<Geometry, IGeometry, S<Geometry>>(
+    auto class_Geometry = py::class_<Geometry, IGeometry>(
         m, "Geometry", R"(Geometry class representing geometric data with meta and instance attributes.)");
 
     class_Geometry.def(py::init<>(), R"(Create an empty geometry.)");

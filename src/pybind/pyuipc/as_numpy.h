@@ -230,11 +230,12 @@ MatrixT to_matrix(NpArray<typename MatrixT::Scalar> arr)
             throw PyException(PYUIPC_MSG("array must be 2D, yours={}", arr.ndim()));
         }
 
-        auto count = std::max(Rows, Cols);
-        auto* ptr  = arr.data();
+        auto count    = std::max(Rows, Cols);
+        auto* ptr     = arr.data();
+        int64_t stride = arr.stride(0) / (int64_t)sizeof(typename MatrixT::Scalar);
 
         for(int i = 0; i < count; i++)
-            m(i) = ptr[i];
+            m(i) = ptr[i * stride];
     }
     else if(arr.ndim() == 2)
     {
@@ -245,10 +246,12 @@ MatrixT to_matrix(NpArray<typename MatrixT::Scalar> arr)
                       arr.shape(0),
                       arr.shape(1));
 
-        auto* ptr = arr.data();
+        auto*   ptr        = arr.data();
+        int64_t row_stride = arr.stride(0) / (int64_t)sizeof(typename MatrixT::Scalar);
+        int64_t col_stride = arr.stride(1) / (int64_t)sizeof(typename MatrixT::Scalar);
         for(int i = 0; i < Rows; i++)
             for(int j = 0; j < Cols; j++)
-                m(i, j) = ptr[i * Cols + j];
+                m(i, j) = ptr[i * row_stride + j * col_stride];
     }
     else
     {

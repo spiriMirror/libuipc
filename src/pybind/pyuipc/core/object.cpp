@@ -9,7 +9,7 @@ using namespace uipc::core;
 using namespace uipc::geometry;
 PyObject::PyObject(py::module_& m)
 {
-    auto class_Object = py::class_<Object, S<Object>>(
+    auto class_Object = py::class_<Object>(
         m, "Object", R"(Object class representing a simulation object containing geometries.)");
 
     class_Object.def(

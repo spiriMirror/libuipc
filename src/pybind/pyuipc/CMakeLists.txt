@@ -1,11 +1,10 @@
 # Create an extension module
-nanobind_add_module(pyuipc)
+nanobind_add_module(pyuipc NB_DOMAIN pyuipc)
 target_compile_features(pyuipc PUBLIC cxx_std_20)
 target_link_libraries(pyuipc PUBLIC uipc::uipc)
 # ensure all backends are built before pyuipc
 add_dependencies(pyuipc uipc::backends)
 target_include_directories(pyuipc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../")
-target_compile_definitions(pyuipc PRIVATE "NB_DOMAIN=pyuipc")
 uipc_target_set_output_directory(pyuipc)
 uipc_target_set_rpath(pyuipc)
 

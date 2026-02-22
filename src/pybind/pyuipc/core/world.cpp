@@ -8,7 +8,7 @@ using namespace uipc::core;
 
 PyWorld::PyWorld(py::module_& m)
 {
-    auto class_World = py::class_<World, S<World>>(
+    auto class_World = py::class_<World>(
         m, "World", R"(World class representing the simulation world that manages scenes and simulation state.)");
 
     class_World.def(py::init<Engine&>(),

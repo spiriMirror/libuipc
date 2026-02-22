@@ -5,7 +5,7 @@ namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
 
-void def_create(py::class_<AttributeCollection, S<AttributeCollection>>& class_AttributeCollection)
+void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
 {
     class_AttributeCollection
         // I32
@@ -216,7 +216,7 @@ Returns:
 
 PyAttributeCollection::PyAttributeCollection(py::module_& m)
 {
-    auto class_AttributeCollection = py::class_<AttributeCollection, S<AttributeCollection>>(
+    auto class_AttributeCollection = py::class_<AttributeCollection>(
         m, "AttributeCollection", R"(AttributeCollection class for managing collections of attributes (scalars, vectors, matrices, strings).)");
 
     def_create(class_AttributeCollection);

@@ -10,7 +10,7 @@ template <typename T>
 void def_attribute_slot(py::module_& m, std::string name)
 {
     auto class_AttributeSlotT =
-        py::class_<AttributeSlot<T>, IAttributeSlot, S<AttributeSlot<T>>>(m, name.c_str());
+        py::class_<AttributeSlot<T>, IAttributeSlot>(m, name.c_str());
 
     class_AttributeSlotT.def(
         "view",
@@ -100,7 +100,7 @@ void def_attribute_slot_string(py::module_& m)
     def_class_StringSpan<false>(m);
 
     auto class_AttributeSlotString =
-        py::class_<AttributeSlot<std::string>, IAttributeSlot, S<AttributeSlot<std::string>>>(
+        py::class_<AttributeSlot<std::string>, IAttributeSlot>(
             m, "AttributeSlotString");
     class_AttributeSlotString.def(
         "view",
@@ -126,7 +126,7 @@ Returns:
 
 PyAttributeSlot::PyAttributeSlot(py::module_& m)
 {
-    auto class_IAttributeSlot = py::class_<IAttributeSlot, S<IAttributeSlot>>(
+    auto class_IAttributeSlot = py::class_<IAttributeSlot>(
         m, "IAttributeSlot", R"(IAttributeSlot interface for attribute slots.)");
     class_IAttributeSlot
         .def("name",
