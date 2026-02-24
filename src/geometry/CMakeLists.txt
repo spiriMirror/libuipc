@@ -1,6 +1,7 @@
 find_package(libigl REQUIRED)
 find_package(TBB REQUIRED)
 find_package(Octree CONFIG REQUIRED)
+find_package(metis CONFIG REQUIRED)
 
 add_library(uipc_geometry SHARED)
 add_library(uipc::geometry ALIAS uipc_geometry)
@@ -14,6 +15,7 @@ target_link_libraries(uipc_geometry PRIVATE
     igl::igl_core
     Octree::Octree
     TBB::tbb
+    metis
 )
 
 if(UIPC_WITH_VDB_SUPPORT)

@@ -383,6 +383,7 @@ class FiniteElementMethod final : public SimSystem
 
     friend class FiniteElementAnimator;
     friend class FEMDiagPreconditioner;
+    friend class FEMMASPreconditioner;
 
     friend class FiniteElementDiffDofReporter;
     friend class FiniteElementKineticDiffParmReporter;

@@ -7,6 +7,7 @@
 #include <global_geometry/global_vertex_manager.h>
 #include <kernel_cout.h>
 #include <muda/ext/eigen/log_proxy.h>
+#include <uipc/geometry/simplicial_complex.h>
 
 namespace uipc::backend::cuda
 {
@@ -27,6 +28,25 @@ class FEMDiagPreconditioner : public LocalPreconditioner
         global_linear_system        = &require<GlobalLinearSystem>();
         fem_linear_subsystem        = &require<FEMLinearSubsystem>();
         auto& global_vertex_manager = require<GlobalVertexManager>();
+
+        // If any geometry has mesh_part attribute, the MAS preconditioner
+        // will be used instead of this diagonal one.
+        auto geo_slots = world().scene().geometries();
+        for(SizeT i = 0; i < geo_slots.size(); i++)
+        {
+            auto& geo = geo_slots[i]->geometry();
+            auto* sc  = geo.as<geometry::SimplicialComplex>();
+            if(sc)
+            {
+                auto mesh_part = sc->vertices().find<IndexT>("mesh_part");
+                if(mesh_part)
+                {
+                    throw SimSystemException(
+                        "FEMDiagPreconditioner: mesh_part attribute found, "
+                        "deferring to FEMMASPreconditioner.");
+                }
+            }
+        }
 
         // This FEMDiagPreconditioner depends on FEMLinearSubsystem
         info.connect(fem_linear_subsystem);
