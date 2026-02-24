@@ -3,6 +3,271 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
+__all__ = ['create_profiler_heatmap', 'SimulationStats']
+
+
+class SimulationStats:
+    """Collect and analyse per-frame simulation performance statistics.
+
+    Typical usage::
+
+        import uipc
+        from uipc.stats import SimulationStats
+
+        uipc.Timer.enable_all()
+        stats = SimulationStats()
+
+        for i in range(num_frames):
+            world.advance()
+            world.retrieve()
+            stats.collect()
+
+        # Curve plot of Newton iteration count per frame
+        stats.plot('Newton', metric='count')
+
+        # Bar chart comparing multiple timers
+        stats.plot(['Newton', 'PCG'], metric='duration', kind='bar')
+
+        # Markdown table for documentation or logging
+        print(stats.to_markdown(['Newton', 'PCG'], metric='count'))
+
+        # Comprehensive multi-panel summary report
+        stats.summary_report()
+    """
+
+    def __init__(self):
+        # Each entry is the dict returned by uipc.Timer.report_as_json()
+        self._frames = []
+
+    def collect(self):
+        """Record timer statistics for the current frame.
+
+        Call this once per simulation step, after ``world.advance()`` and
+        ``world.retrieve()``.  Each call also resets the internal timer
+        counters so that successive calls capture individual-frame data.
+
+        :return: ``self`` (for optional method chaining).
+        """
+        import uipc
+        timer_data = uipc.Timer.report_as_json()
+        self._frames.append(timer_data)
+        return self
+
+    @property
+    def num_frames(self):
+        """Number of frames collected so far."""
+        return len(self._frames)
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _find_node(node, name):
+        """Depth-first search for a node with the given ``name``."""
+        if node.get('name') == name:
+            return node
+        for child in node.get('children', []):
+            result = SimulationStats._find_node(child, name)
+            if result is not None:
+                return result
+        return None
+
+    @staticmethod
+    def _collect_names(node, names=None):
+        """Recursively collect every timer name present in *node*."""
+        if names is None:
+            names = set()
+        n = node.get('name')
+        if n:
+            names.add(n)
+        for child in node.get('children', []):
+            SimulationStats._collect_names(child, names)
+        return names
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    def get_values(self, key, metric='duration'):
+        """Return per-frame values for a named timer.
+
+        :param key: Timer name to search for (e.g. ``'Newton'``, ``'PCG'``).
+        :param metric: ``'duration'`` (seconds) or ``'count'``.
+        :return: ``(frames, values)`` — two 1-D NumPy arrays of the same
+            length.  Frames where the timer was absent are omitted.
+        :raises ValueError: If *metric* is not ``'duration'`` or ``'count'``.
+        """
+        if metric not in ('duration', 'count'):
+            raise ValueError(f"metric must be 'duration' or 'count', got '{metric}'")
+        frames = []
+        values = []
+        for i, timer_data in enumerate(self._frames):
+            node = self._find_node(timer_data, key)
+            if node is not None:
+                frames.append(i)
+                values.append(node.get(metric, 0))
+        return np.array(frames, dtype=int), np.array(values, dtype=float)
+
+    def plot(self, keys, metric='duration', kind='line',
+             title=None, output_path=None):
+        """Plot per-frame timer values as a line or bar chart.
+
+        :param keys: A timer name (str) or list of timer names to plot.
+        :param metric: ``'duration'`` (seconds) or ``'count'``.
+        :param kind: ``'line'`` for a curve plot or ``'bar'`` for a grouped
+            bar chart.
+        :param title: Chart title.  Auto-generated when *None*.
+        :param output_path: File path to save the figure (passed to
+            :func:`matplotlib.pyplot.savefig`).  When *None* the figure is
+            shown interactively but not saved.
+        :return: The :class:`matplotlib.figure.Figure` object.
+        :raises ValueError: If *metric* or *kind* is invalid.
+        """
+        if metric not in ('duration', 'count'):
+            raise ValueError(f"metric must be 'duration' or 'count', got '{metric}'")
+        if kind not in ('line', 'bar'):
+            raise ValueError(f"kind must be 'line' or 'bar', got '{kind}'")
+        if isinstance(keys, str):
+            keys = [keys]
+
+        ylabel = 'Time (s)' if metric == 'duration' else 'Count'
+        num_keys = len(keys)
+
+        fig, ax = plt.subplots(figsize=(10, 5))
+        has_data = False
+        for idx, key in enumerate(keys):
+            frames, values = self.get_values(key, metric)
+            if len(frames) == 0:
+                Logger.warn(f"No data found for timer '{key}'")
+                continue
+            has_data = True
+            if kind == 'bar':
+                if num_keys > 1:
+                    total_width = 0.8
+                    bar_width = total_width / num_keys
+                    offset = (idx - (num_keys - 1) / 2.0) * bar_width
+                    positions = frames + offset
+                else:
+                    bar_width = 0.8
+                    positions = frames
+                ax.bar(positions, values, label=key, alpha=0.7, width=bar_width)
+            else:
+                ax.plot(frames, values, label=key, marker='o', markersize=3)
+
+        ax.set_xlabel('Frame')
+        ax.set_ylabel(ylabel)
+        ax.set_title(title or f'{", ".join(keys)} \u2014 {metric} per frame')
+        if has_data:
+            ax.legend()
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        if output_path:
+            plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        else:
+            plt.show()
+        return fig
+
+    def to_markdown(self, keys=None, metric='duration'):
+        """Export per-frame statistics as a Markdown table.
+
+        :param keys: Timer name(s) to include as columns.  When *None* all
+            timer names found in the collected data are used.
+        :param metric: ``'duration'`` (seconds) or ``'count'``.
+        :return: A Markdown-formatted table as a plain string.
+        """
+        if keys is None:
+            found = set()
+            root_names = {td.get('name', '') for td in self._frames}
+            for timer_data in self._frames:
+                SimulationStats._collect_names(timer_data, found)
+            # Remove the root node names (usually 'GlobalTimer')
+            keys = sorted(found - root_names)
+        elif isinstance(keys, str):
+            keys = [keys]
+
+        col_w = max((len(k) for k in keys), default=7)
+        col_w = max(col_w, 7)
+
+        header = '| Frame | ' + ' | '.join(k.ljust(col_w) for k in keys) + ' |'
+        sep = '|-------|' + '|'.join('-' * (col_w + 2) for _ in keys) + '|'
+        rows = [header, sep]
+
+        for i, timer_data in enumerate(self._frames):
+            cells = []
+            for key in keys:
+                node = self._find_node(timer_data, key)
+                if node is not None:
+                    val = node.get(metric, 0)
+                    text = f'{val:.4f}s' if metric == 'duration' else str(int(val))
+                else:
+                    text = 'N/A'
+                cells.append(text.ljust(col_w))
+            rows.append('| ' + str(i).ljust(5) + ' | ' + ' | '.join(cells) + ' |')
+
+        return '\n'.join(rows)
+
+    def summary_report(self, keys=None, output_path=None):
+        """Generate a comprehensive multi-panel performance summary.
+
+        Creates a grid of subplots with *duration* (top row) and *count*
+        (bottom row) for each requested timer key.
+
+        :param keys: Timer names to include.  Defaults to
+            ``['Newton', 'PCG', 'Line Search', 'Collision Detection']``.
+        :param output_path: File path to save the figure.
+        :return: The :class:`matplotlib.figure.Figure` object.
+        """
+        if keys is None:
+            keys = ['Newton', 'PCG', 'Line Search', 'Collision Detection']
+
+        if not keys:
+            Logger.warn("SimulationStats.summary_report called with no timer keys; "
+                        "creating empty summary figure.")
+            fig, ax = plt.subplots(1, 1, figsize=(5, 4))
+            ax.text(0.5, 0.5, 'No timer keys provided\nfor summary report',
+                    ha='center', va='center', transform=ax.transAxes,
+                    fontsize=12, color='gray')
+            ax.axis('off')
+            fig.suptitle('Simulation Performance Summary', fontsize=14, fontweight='bold')
+            plt.tight_layout()
+            if output_path:
+                plt.savefig(output_path, dpi=150, bbox_inches='tight')
+            else:
+                plt.show()
+            return fig
+
+        n = len(keys)
+        fig, axes = plt.subplots(2, n, figsize=(5 * n, 8), squeeze=False)
+
+        metrics = [('duration', 'Time (s)'), ('count', 'Count')]
+        for col, key in enumerate(keys):
+            for row, (metric, ylabel) in enumerate(metrics):
+                ax = axes[row][col]
+                frames, values = self.get_values(key, metric)
+                if len(frames) == 0:
+                    ax.text(0.5, 0.5, 'No data', ha='center', va='center',
+                            transform=ax.transAxes, fontsize=12, color='gray')
+                else:
+                    color = f'C{col}'
+                    ax.plot(frames, values, marker='o', markersize=3, color=color)
+                    ax.fill_between(frames, values, alpha=0.15, color=color)
+                ax.set_xlabel('Frame')
+                ax.set_ylabel(ylabel)
+                ax.set_title(f'{key} \u2014 {metric}')
+                ax.grid(True, alpha=0.3)
+
+        fig.suptitle('Simulation Performance Summary', fontsize=14, fontweight='bold')
+        plt.tight_layout()
+
+        if output_path:
+            plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        else:
+            plt.show()
+        return fig
+
+
 def create_profiler_heatmap(
     timer_data, output_path=None, max_depth=999, include_other=True
 ):
