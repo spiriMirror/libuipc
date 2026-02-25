@@ -29,23 +29,32 @@ class FEMDiagPreconditioner : public LocalPreconditioner
         fem_linear_subsystem        = &require<FEMLinearSubsystem>();
         auto& global_vertex_manager = require<GlobalVertexManager>();
 
-        // If any geometry has mesh_part attribute, the MAS preconditioner
-        // will be used instead of this diagonal one.
-        auto geo_slots = world().scene().geometries();
+        // If ALL FEM geometries have mesh_part, the MAS preconditioner takes over.
+        // Defer only when every FEM mesh is partitioned; otherwise stay active.
+        auto geo_slots     = world().scene().geometries();
+        bool has_any_fem   = false;
+        bool all_have_part = true;
         for(SizeT i = 0; i < geo_slots.size(); i++)
         {
             auto& geo = geo_slots[i]->geometry();
             auto* sc  = geo.as<geometry::SimplicialComplex>();
-            if(sc)
+            if(sc && sc->dim() >= 1)
             {
+                has_any_fem = true;
                 auto mesh_part = sc->vertices().find<IndexT>("mesh_part");
-                if(mesh_part)
+                if(!mesh_part)
                 {
-                    throw SimSystemException(
-                        "FEMDiagPreconditioner: mesh_part attribute found, "
-                        "deferring to FEMMASPreconditioner.");
+                    all_have_part = false;
+                    break;
                 }
             }
+        }
+
+        if(has_any_fem && all_have_part)
+        {
+            throw SimSystemException(
+                "FEMDiagPreconditioner: all FEM geometries have mesh_part, "
+                "deferring to FEMMASPreconditioner.");
         }
 
         // This FEMDiagPreconditioner depends on FEMLinearSubsystem

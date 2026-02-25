@@ -155,7 +155,7 @@ target_compile_options(${PROJECT_NAME}
   PUBLIC $<$<AND:$<OR:$<BOOL:${DEBUG}>,$<BOOL:${GDB}>>,$<BOOL:${HAVE_GDB_SUPPORT}>>:-g>)
 
 target_compile_options(${PROJECT_NAME}
-  PUBLIC $<$<NOT:$<OR:$<BOOL:${DEBUG}>,$<BOOL:${GDB}>>>:-O3>)
+  PUBLIC $<$<AND:$<NOT:$<OR:$<BOOL:${DEBUG}>,$<BOOL:${GDB}>>>,$<NOT:$<C_COMPILER_ID:MSVC>>>:-O3>)
 
 target_link_libraries(${PROJECT_NAME}
   PUBLIC $<$<BOOL:${OpenMP_C_FOUND}>:OpenMP::OpenMP_C>)

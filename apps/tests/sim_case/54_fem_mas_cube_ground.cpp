@@ -67,7 +67,7 @@ TEST_CASE("54_fem_mas_cube_ground", "[fem][mas]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
 
-    for(int i = 0; i < 20; i++)
+    while(world.frame() < 50)
     {
         world.advance();
         REQUIRE(world.is_valid());

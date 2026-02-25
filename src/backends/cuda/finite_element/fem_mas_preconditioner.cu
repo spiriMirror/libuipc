@@ -60,29 +60,32 @@ class FEMMASPreconditioner : public LocalPreconditioner
         fem_linear_subsystem        = &require<FEMLinearSubsystem>();
         auto& global_vertex_manager = require<GlobalVertexManager>();
 
-        // Check if any geometry has the mesh_part attribute
-        auto geo_slots      = world().scene().geometries();
-        bool found_partition = false;
+        // MAS requires ALL FEM geometries to have mesh_part attribute.
+        // If any FEM geometry is missing it, fall back to diagonal preconditioner.
+        auto geo_slots    = world().scene().geometries();
+        bool has_any_fem  = false;
+        bool all_have_part = true;
         for(SizeT i = 0; i < geo_slots.size(); i++)
         {
             auto& geo = geo_slots[i]->geometry();
             auto* sc  = geo.as<geometry::SimplicialComplex>();
-            if(sc)
+            if(sc && sc->dim() >= 1)  // skip implicit geometries (ground planes, etc.)
             {
+                has_any_fem = true;
                 auto mesh_part = sc->vertices().find<IndexT>("mesh_part");
-                if(mesh_part)
+                if(!mesh_part)
                 {
-                    found_partition = true;
+                    all_have_part = false;
                     break;
                 }
             }
         }
 
-        if(!found_partition)
+        if(!has_any_fem || !all_have_part)
         {
             throw SimSystemException(
-                "FEMMASPreconditioner: No 'mesh_part' attribute found. "
-                "Call mesh_partition() before world.init().");
+                "FEMMASPreconditioner: Not all FEM geometries have 'mesh_part' attribute. "
+                "Call mesh_partition() on every mesh before world.init().");
         }
 
         info.connect(fem_linear_subsystem);

@@ -62,7 +62,9 @@ typedef ptrdiff_t ssize_t;
 #define PTRDIFF_MAX  INT64_MAX
 #endif
 
-/* MSC does not have INFINITY defined */
+/* Ensure INFINITY from <math.h> is used if available (modern MSVC/UCRT) */
+#include <math.h>
+#include <float.h>
 #ifndef INFINITY
 #define INFINITY FLT_MAX
 #endif

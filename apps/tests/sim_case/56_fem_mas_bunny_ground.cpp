@@ -59,7 +59,7 @@ TEST_CASE("56_fem_mas_bunny_ground", "[fem][mas]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
 
-    for(int i = 0; i < 50; i++)
+    while(world.frame() < 50)
     {
         world.advance();
         REQUIRE(world.is_valid());
