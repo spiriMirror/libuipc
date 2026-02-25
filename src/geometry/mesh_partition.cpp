@@ -12,56 +12,47 @@ namespace uipc::geometry
 {
 constexpr std::string_view metis_part = "mesh_part";
 
-// Build the CSR adjacency graph (xadj, adjncy) from the simplicial complex topology.
+// Build vertex adjacency CSR from the highest-dimensional simplices
 static void build_adjacency(vector<idx_t>&           xadj,
                             vector<idx_t>&           adjncy,
                             SizeT                    vert_count,
                             const SimplicialComplex& sc)
 {
-    // Collect all edges from all simplex types
-    vector<std::set<IndexT>> neighbors(vert_count);
+    vector<std::set<idx_t>> neighbors(vert_count);
 
     auto add_edge = [&](IndexT a, IndexT b)
     {
-        if(a != b)
+        if(a != b && a >= 0 && b >= 0
+           && a < static_cast<IndexT>(vert_count)
+           && b < static_cast<IndexT>(vert_count))
         {
-            neighbors[a].insert(b);
-            neighbors[b].insert(a);
+            neighbors[a].insert(static_cast<idx_t>(b));
+            neighbors[b].insert(static_cast<idx_t>(a));
         }
     };
 
-    // From tetrahedra (dim=3): 6 edges per tet
-    if(sc.dim() >= 3 && sc.tetrahedra().size() > 0)
+    // Build from highest-dimensional simplices only
+    if(sc.dim() == 3 && sc.tetrahedra().size() > 0)
     {
         auto tet_view = sc.tetrahedra().topo().view();
         for(auto& tet : tet_view)
-        {
             for(int i = 0; i < 4; ++i)
                 for(int j = i + 1; j < 4; ++j)
                     add_edge(tet[i], tet[j]);
-        }
     }
-
-    // From triangles (dim=2): 3 edges per tri
-    if(sc.dim() >= 2 && sc.triangles().size() > 0)
+    else if(sc.dim() == 2 && sc.triangles().size() > 0)
     {
         auto tri_view = sc.triangles().topo().view();
         for(auto& tri : tri_view)
-        {
             for(int i = 0; i < 3; ++i)
                 for(int j = i + 1; j < 3; ++j)
                     add_edge(tri[i], tri[j]);
-        }
     }
-
-    // From edges (dim=1): 1 edge per element
-    if(sc.dim() >= 1 && sc.edges().size() > 0)
+    else if(sc.dim() == 1 && sc.edges().size() > 0)
     {
         auto edge_view = sc.edges().topo().view();
         for(auto& edge : edge_view)
-        {
             add_edge(edge[0], edge[1]);
-        }
     }
 
     // Build CSR format
@@ -72,7 +63,7 @@ static void build_adjacency(vector<idx_t>&           xadj,
     for(SizeT i = 0; i < vert_count; ++i)
     {
         for(auto n : neighbors[i])
-            adjncy.push_back(static_cast<idx_t>(n));
+            adjncy.push_back(n);
         xadj[i + 1] = static_cast<idx_t>(adjncy.size());
     }
 }
@@ -84,22 +75,22 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
     if(vert_count == 0)
         return;
 
-    auto  part_attr = sc.vertices().create<IndexT>(metis_part, -1);
-    auto  part_view = view(*part_attr);
+    auto part_attr = sc.vertices().create<IndexT>(metis_part, -1);
+    auto part_view = view(*part_attr);
 
-    // If the mesh is small enough, put all vertices in partition 0
+    // Small mesh: single partition
     if(vert_count <= part_max_size) [[unlikely]]
     {
         std::ranges::fill(part_view, 0);
         return;
     }
 
-    // Build adjacency graph from the simplicial complex
+    // Build adjacency graph
     vector<idx_t> xadj;
     vector<idx_t> adjncy;
     build_adjacency(xadj, adjncy, vert_count, sc);
 
-    // If no edges (point cloud), assign sequential partitions
+    // Point cloud fallback
     if(adjncy.empty())
     {
         for(SizeT i = 0; i < vert_count; ++i)
@@ -107,8 +98,8 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
         return;
     }
 
-    SizeT  block_size = part_max_size;
-    idx_t  n_parts    = static_cast<idx_t>((vert_count + block_size - 1) / block_size);
+    SizeT block_size = part_max_size;
+    idx_t n_parts    = static_cast<idx_t>((vert_count + block_size - 1) / block_size);
 
     if(n_parts <= 1)
     {
@@ -116,12 +107,13 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
         return;
     }
 
-    // Use a temporary buffer for METIS output (idx_t may differ from IndexT)
-    vector<idx_t> metis_part_result(vert_count);
+    // METIS partitioning
+    vector<idx_t> metis_result(vert_count, 0);
 
-    while(true)
+    bool success = false;
+    while(n_parts >= 2 && block_size >= 1)
     {
-        idx_t edge_cut;
+        idx_t edge_cut   = 0;
         idx_t n_weights  = 1;
         idx_t n_vertices = static_cast<idx_t>(vert_count);
 
@@ -129,38 +121,44 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
                                       &n_weights,
                                       xadj.data(),
                                       adjncy.data(),
-                                      nullptr,  // vwgt
-                                      nullptr,  // vsize
-                                      nullptr,  // adjwgt
+                                      nullptr,   // vwgt
+                                      nullptr,   // vsize
+                                      nullptr,   // adjwgt
                                       &n_parts,
-                                      nullptr,  // tpwgts
-                                      nullptr,  // ubvec
-                                      nullptr,  // options
+                                      nullptr,   // tpwgts
+                                      nullptr,   // ubvec
+                                      nullptr,   // options
                                       &edge_cut,
-                                      metis_part_result.data());
+                                      metis_result.data());
 
-        UIPC_ASSERT(ret == METIS_OK,
-                     "METIS_PartGraphKway failed with return code {}.",
-                     ret);
-
-        // Check if all partitions are within the size limit
-        vector<idx_t> part_sizes(n_parts, 0);
-        for(SizeT i = 0; i < vert_count; ++i)
-            part_sizes[metis_part_result[i]]++;
-
-        idx_t result_max_size = *std::ranges::max_element(part_sizes);
-
-        if(result_max_size <= static_cast<idx_t>(part_max_size))
+        if(ret != METIS_OK)
             break;
 
-        // Reduce effective block size and retry
+        // Verify partition sizes
+        vector<idx_t> part_sizes(n_parts, 0);
+        for(SizeT i = 0; i < vert_count; ++i)
+            part_sizes[metis_result[i]]++;
+
+        idx_t max_size = *std::ranges::max_element(part_sizes);
+        if(max_size <= static_cast<idx_t>(part_max_size))
+        {
+            success = true;
+            break;
+        }
+
         --block_size;
-        UIPC_ASSERT(block_size >= 1, "Unexpected block size during mesh partition, why can it happen?");
         n_parts = static_cast<idx_t>((vert_count + block_size - 1) / block_size);
     }
 
-    // Copy result to the attribute
+    // Sequential fallback
+    if(!success)
+    {
+        for(SizeT i = 0; i < vert_count; ++i)
+            metis_result[i] = static_cast<idx_t>(i / part_max_size);
+    }
+
+    // Write to attribute
     for(SizeT i = 0; i < vert_count; ++i)
-        part_view[i] = static_cast<IndexT>(metis_part_result[i]);
+        part_view[i] = static_cast<IndexT>(metis_result[i]);
 }
 }  // namespace uipc::geometry

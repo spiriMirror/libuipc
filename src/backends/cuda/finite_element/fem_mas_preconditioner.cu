@@ -12,6 +12,7 @@
 
 namespace uipc::backend::cuda
 {
+// Free function: NVCC on Windows forbids __device__ lambdas in static / internal-linkage functions
 void fill_identity_indices(muda::DeviceBuffer<uint32_t>& buf, int count)
 {
     using namespace muda;
@@ -20,7 +21,7 @@ void fill_identity_indices(muda::DeviceBuffer<uint32_t>& buf, int count)
         .file_line(__FILE__, __LINE__)
         .apply(count,
                [indices = buf.viewer().name("indices")] __device__(int i) mutable
-               { indices(i) = (uint32_t)i; });
+               { indices(i) = static_cast<uint32_t>(i); });
 }
 
 /**
@@ -49,9 +50,8 @@ class FEMMASPreconditioner : public LocalPreconditioner
     FEMLinearSubsystem*  fem_linear_subsystem  = nullptr;
 
     MASPreconditionerEngine engine;
-
-    // Host-side data built during init
-    bool m_has_partition = false;
+    bool                    m_has_partition = false;
+    muda::DeviceBuffer<uint32_t> sorted_indices;
 
     virtual void do_build(BuildInfo& info) override
     {
@@ -60,8 +60,8 @@ class FEMMASPreconditioner : public LocalPreconditioner
         fem_linear_subsystem        = &require<FEMLinearSubsystem>();
         auto& global_vertex_manager = require<GlobalVertexManager>();
 
-        // Check if any geometry has mesh_part attribute
-        auto geo_slots = world().scene().geometries();
+        // Check if any geometry has the mesh_part attribute
+        auto geo_slots      = world().scene().geometries();
         bool found_partition = false;
         for(SizeT i = 0; i < geo_slots.size(); i++)
         {
@@ -80,10 +80,9 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
         if(!found_partition)
         {
-            // No partition data found, this system won't activate
-            // The FEMDiagPreconditioner will handle preconditioning instead
-            throw SimSystemException("FEMMASPreconditioner: No 'mesh_part' attribute found. "
-                                     "Call mesh_partition() before world.init().");
+            throw SimSystemException(
+                "FEMMASPreconditioner: No 'mesh_part' attribute found. "
+                "Call mesh_partition() before world.init().");
         }
 
         info.connect(fem_linear_subsystem);
@@ -91,71 +90,63 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
     virtual void do_init(InitInfo& info) override
     {
-        auto& fem_impl = finite_element_method->m_impl;
+        auto& fem = finite_element_method->m_impl;
 
-        // Build neighbor list from element connectivity (on host)
-        SizeT vertNum = fem_impl.xs.size();
+        SizeT vert_num = fem.xs.size();
+        if(vert_num == 0)
+            return;
 
-        if(vertNum == 0) return;
+        // ---- 1. Build vertex adjacency from element connectivity ----
 
-        // 1. Collect vertex-to-vertex adjacency from elements
-        std::vector<std::set<unsigned int>> vertNeighbors(vertNum);
+        std::vector<std::set<unsigned int>> vert_neighbors(vert_num);
 
         auto add_edge = [&](IndexT a, IndexT b)
         {
             if(a != b && a >= 0 && b >= 0
-               && a < (IndexT)vertNum && b < (IndexT)vertNum)
+               && a < static_cast<IndexT>(vert_num)
+               && b < static_cast<IndexT>(vert_num))
             {
-                vertNeighbors[a].insert((unsigned int)b);
-                vertNeighbors[b].insert((unsigned int)a);
+                vert_neighbors[a].insert(static_cast<unsigned int>(b));
+                vert_neighbors[b].insert(static_cast<unsigned int>(a));
             }
         };
 
-        // From tetrahedra
-        for(auto& tet : fem_impl.h_tets)
-        {
+        for(auto& tet : fem.h_tets)
             for(int i = 0; i < 4; i++)
                 for(int j = i + 1; j < 4; j++)
                     add_edge(tet[i], tet[j]);
-        }
 
-        // From triangles
-        for(auto& tri : fem_impl.h_codim_2ds)
-        {
+        for(auto& tri : fem.h_codim_2ds)
             for(int i = 0; i < 3; i++)
                 for(int j = i + 1; j < 3; j++)
                     add_edge(tri[i], tri[j]);
-        }
 
-        // From edges
-        for(auto& edge : fem_impl.h_codim_1ds)
-        {
+        for(auto& edge : fem.h_codim_1ds)
             add_edge(edge[0], edge[1]);
-        }
 
-        // 2. Build CSR neighbor arrays
-        std::vector<unsigned int> neighborList;
-        std::vector<unsigned int> neighborStart(vertNum, 0);
-        std::vector<unsigned int> neighborNum(vertNum, 0);
+        // ---- 2. Build CSR neighbor arrays ----
 
-        for(SizeT i = 0; i < vertNum; i++)
+        std::vector<unsigned int> h_neighbor_list;
+        std::vector<unsigned int> h_neighbor_start(vert_num, 0);
+        std::vector<unsigned int> h_neighbor_num(vert_num, 0);
+
+        for(SizeT i = 0; i < vert_num; i++)
         {
-            neighborStart[i] = (unsigned int)neighborList.size();
-            neighborNum[i]   = (unsigned int)vertNeighbors[i].size();
-            for(auto n : vertNeighbors[i])
-                neighborList.push_back(n);
+            h_neighbor_start[i] = static_cast<unsigned int>(h_neighbor_list.size());
+            h_neighbor_num[i]   = static_cast<unsigned int>(vert_neighbors[i].size());
+            for(auto n : vert_neighbors[i])
+                h_neighbor_list.push_back(n);
         }
-        int totalNeighborNum = (int)neighborList.size();
 
-        // 3. Read mesh_part attribute from scene geometries and build partition mappings
-        //    Collect per-vertex partition IDs
-        std::vector<IndexT> partIds(vertNum, -1);
-        bool has_parts = false;
+        // ---- 3. Read mesh_part attribute and build partition mappings ----
+
+        std::vector<IndexT> part_ids(vert_num, -1);
+        bool                has_parts = false;
 
         auto geo_slots = world().scene().geometries();
-        for(auto& geoInfo : fem_impl.geo_infos)
+        for(auto& geo_info : fem.geo_infos)
         {
-            auto& geo_slot = geo_slots[geoInfo.geo_slot_index];
+            auto& geo_slot = geo_slots[geo_info.geo_slot_index];
             auto& geo      = geo_slot->geometry();
             auto* sc       = geo.as<geometry::SimplicialComplex>();
             if(!sc) continue;
@@ -165,10 +156,8 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
             has_parts      = true;
             auto part_view = mesh_part->view();
-            for(SizeT v = 0; v < geoInfo.vertex_count; v++)
-            {
-                partIds[geoInfo.vertex_offset + v] = part_view[v];
-            }
+            for(SizeT v = 0; v < geo_info.vertex_count; v++)
+                part_ids[geo_info.vertex_offset + v] = part_view[v];
         }
 
         if(!has_parts)
@@ -177,56 +166,51 @@ class FEMMASPreconditioner : public LocalPreconditioner
             return;
         }
 
-        // 4. Build partId_map_real and real_map_partId
-        //    Group vertices by partition, then lay them out in BANKSIZE-aligned blocks
+        // ---- 4. Build partition-ordered index mappings ----
 
-        // Find max partition ID
-        IndexT maxPartId = 0;
-        for(auto pid : partIds)
-            if(pid > maxPartId) maxPartId = pid;
+        IndexT max_part_id = 0;
+        for(auto pid : part_ids)
+            if(pid > max_part_id) max_part_id = pid;
 
-        // Group vertices by partition
-        std::vector<std::vector<int>> partBlocks(maxPartId + 1);
-        for(SizeT i = 0; i < vertNum; i++)
-        {
-            if(partIds[i] >= 0)
-                partBlocks[partIds[i]].push_back((int)i);
-        }
+        std::vector<std::vector<int>> part_blocks(max_part_id + 1);
+        for(SizeT i = 0; i < vert_num; i++)
+            if(part_ids[i] >= 0)
+                part_blocks[part_ids[i]].push_back(static_cast<int>(i));
 
-        // Build the partition-ordered mapping
         // Each partition block is padded to BANKSIZE alignment
-        int partMapSize = 0;
-        for(auto& block : partBlocks)
+        int part_map_size = 0;
+        for(auto& block : part_blocks)
         {
-            int paddedSize = ((int)block.size() + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
-            partMapSize += paddedSize;
+            int padded = (static_cast<int>(block.size()) + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+            part_map_size += padded;
         }
 
-        std::vector<int> h_partId_map_real(partMapSize, -1);
-        std::vector<int> h_real_map_partId(vertNum, -1);
+        std::vector<int> h_part_to_real(part_map_size, -1);
+        std::vector<int> h_real_to_part(vert_num, -1);
 
         int offset = 0;
-        for(auto& block : partBlocks)
+        for(auto& block : part_blocks)
         {
             for(SizeT i = 0; i < block.size(); i++)
             {
-                int realIdx = block[i];
-                h_partId_map_real[offset + i] = realIdx;
-                h_real_map_partId[realIdx]    = offset + (int)i;
+                int real_idx                  = block[i];
+                h_part_to_real[offset + (int)i] = real_idx;
+                h_real_to_part[real_idx]        = offset + static_cast<int>(i);
             }
-            int paddedSize = ((int)block.size() + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
-            offset += paddedSize;
+            int padded = (static_cast<int>(block.size()) + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+            offset += padded;
         }
 
-        // 5. Initialize the engine
-        engine.init_neighbor((int)vertNum,
-                             totalNeighborNum,
-                             partMapSize,
-                             neighborList,
-                             neighborStart,
-                             neighborNum,
-                             h_partId_map_real,
-                             h_real_map_partId);
+        // ---- 5. Initialize the engine ----
+
+        engine.init_neighbor(static_cast<int>(vert_num),
+                             static_cast<int>(h_neighbor_list.size()),
+                             part_map_size,
+                             h_neighbor_list,
+                             h_neighbor_start,
+                             h_neighbor_num,
+                             h_part_to_real,
+                             h_real_to_part);
 
         engine.init_matrix();
         m_has_partition = true;
@@ -234,43 +218,39 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
     virtual void do_assemble(GlobalLinearSystem::LocalPreconditionerAssemblyInfo& info) override
     {
-        if(!m_has_partition || !engine.is_initialized()) return;
-
-        using namespace muda;
+        if(!m_has_partition || !engine.is_initialized())
+            return;
 
         auto A          = info.A();
-        int  dof_offset = (int)info.dof_offset();
+        int  dof_offset = static_cast<int>(info.dof_offset());
 
-        // Extract raw pointers from the BCOO matrix views
-        auto  triplet_count = A.triplet_count();
-        auto  values_view   = A.values();
-        auto  row_view      = A.row_indices();
-        auto  col_view      = A.col_indices();
+        auto triplet_count = A.triplet_count();
+        auto values_view   = A.values();
+        auto row_view      = A.row_indices();
+        auto col_view      = A.col_indices();
 
-        auto* values  = (const Eigen::Matrix3d*)values_view.data();
-        auto* row_ids = (const int*)row_view.data();
-        auto* col_ids = (const int*)col_view.data();
+        auto* values  = reinterpret_cast<const Eigen::Matrix3d*>(values_view.data());
+        auto* row_ids = reinterpret_cast<const int*>(row_view.data());
+        auto* col_ids = reinterpret_cast<const int*>(col_view.data());
 
-        // Build identity indices (BCOO is already sorted/unique)
-        fill_identity_indices(m_sorted_indices, triplet_count);
+        fill_identity_indices(sorted_indices, triplet_count);
 
         engine.set_preconditioner(values,
                                   row_ids,
                                   col_ids,
-                                  (const uint32_t*)m_sorted_indices.data(),
-                                  dof_offset / 3,  // block offset
-                                  (int)triplet_count,
-                                  0);  // cpNum = 0 (no collision pairs for now)
+                                  reinterpret_cast<const uint32_t*>(sorted_indices.data()),
+                                  dof_offset / 3,
+                                  static_cast<int>(triplet_count),
+                                  0);
     }
 
     virtual void do_apply(GlobalLinearSystem::ApplyPreconditionerInfo& info) override
     {
-        if(!m_has_partition || !engine.is_initialized()) return;
+        if(!m_has_partition || !engine.is_initialized())
+            return;
 
         engine.apply(info.r(), info.z());
     }
-
-    muda::DeviceBuffer<uint32_t> m_sorted_indices;
 };
 
 REGISTER_SIM_SYSTEM(FEMMASPreconditioner);

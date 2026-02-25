@@ -68,14 +68,6 @@ base_vcpkg_json = {
         {
             'name':'octree',
             'version>=': '2025.10.7'
-        },
-        {
-            'name':'gklib',
-            'version>=': '2025-07-06#1'
-        },
-        {
-            'name':'metis',
-            'version>=': '2025-07-04#1'
         }
     ],
     

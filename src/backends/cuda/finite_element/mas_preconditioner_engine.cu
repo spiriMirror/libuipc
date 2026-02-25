@@ -3,14 +3,11 @@
 #include <muda/launch/parallel_for.h>
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>
-#include <cooperative_groups.h>
-#include <cooperative_groups/reduce.h>
 
 namespace uipc::backend::cuda
 {
-
 // ============================================================================
-// Constants
+// Local constants & type aliases
 // ============================================================================
 static constexpr int BANKSIZE          = MASPreconditionerEngine::BANKSIZE;
 static constexpr int DEFAULT_BLOCKSIZE = MASPreconditionerEngine::DEFAULT_BLOCKSIZE;
@@ -22,737 +19,129 @@ using ClusterMatrixSymF = MASPreconditionerEngine::ClusterMatrixSymF;
 using LevelTable        = MASPreconditionerEngine::LevelTable;
 using Int2              = MASPreconditionerEngine::Int2;
 
-// ============================================================================
-// Device helper: lane mask for bits less than laneIdx
-// ============================================================================
-__device__ unsigned int lanemask_lt(int laneIdx)
+// Device helper: bitmask with bits [0, lane_id) set
+MUDA_DEVICE unsigned int lanemask_lt(int lane_id)
 {
-    return (1U << laneIdx) - 1;
+    return (1U << lane_id) - 1;
+}
+
+// Symmetric upper-triangle index for a BANKSIZE x BANKSIZE block
+MUDA_DEVICE int sym_index(int row, int col)
+{
+    return BANKSIZE * row - row * (row + 1) / 2 + col;
 }
 
 // ============================================================================
-// Kernel: Build connect mask at level 0 (with partition reorder)
+// Phase 1: Initialization
 // ============================================================================
-__global__ void k_buildCML0(const unsigned int* __restrict__ neighborStart,
-                            unsigned int* __restrict__ neighborNum,
-                            unsigned int* __restrict__ neighborList,
-                            unsigned int* __restrict__ fineConnectedMsk,
-                            const int* __restrict__ partId_map_real,
-                            const int* __restrict__ real_map_partId,
-                            int number)
+
+void MASPreconditionerEngine::compute_num_levels(int vert_num)
 {
-    int tdx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(tdx >= number) return;
+    int n_level  = 1;
+    int level_sz = (vert_num + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
 
-    int warpId = tdx / BANKSIZE;
-    int laneId = tdx % BANKSIZE;
-    int idx    = partId_map_real[tdx];
-
-    if(idx >= 0)
+    while(level_sz > BANKSIZE)
     {
-        int          numNeighbor = neighborNum[idx];
-        unsigned int connectMsk  = (1U << laneId);
-        int          nk          = 0;
-        int          startId     = neighborStart[idx];
-
-        for(int i = 0; i < numNeighbor; i++)
-        {
-            int vIdConnected     = neighborList[startId + i];
-            int warpIdxConnected = real_map_partId[vIdConnected] / BANKSIZE;
-            if(warpId == warpIdxConnected)
-            {
-                unsigned int laneIdxConnected = real_map_partId[vIdConnected] % BANKSIZE;
-                connectMsk |= (1U << laneIdxConnected);
-            }
-            else
-            {
-                neighborList[startId + nk] = vIdConnected;
-                nk++;
-            }
-        }
-        neighborNum[idx]      = nk;
-        fineConnectedMsk[idx] = connectMsk;
+        level_sz /= BANKSIZE;
+        n_level++;
+        level_sz = (level_sz + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
     }
-}
-
-// ============================================================================
-// Kernel: Prepare prefix sum at level 0
-// ============================================================================
-__global__ void k_preparePrefixSumL0(int* __restrict__ prefixOriginal,
-                                     unsigned int* __restrict__ fineConnectedMsk,
-                                     const int* __restrict__ partId_map_real,
-                                     int number)
-{
-    int tdx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(tdx >= number) return;
-
-    int warpId      = tdx / BANKSIZE;
-    int localWarpId = threadIdx.x / BANKSIZE;
-    int laneId      = tdx % BANKSIZE;
-    int idx         = partId_map_real[tdx];
-
-    __shared__ unsigned int cacheMask[DEFAULT_BLOCKSIZE];
-    __shared__ int          prefixSum[DEFAULT_WARPNUM];
-
-    if(idx >= 0)
-    {
-        unsigned int connectMsk = fineConnectedMsk[idx];
-        if(laneId == 0) prefixSum[localWarpId] = 0;
-        cacheMask[threadIdx.x] = connectMsk;
-        unsigned int visited   = (1U << laneId);
-
-        while(connectMsk != ~0U)
-        {
-            unsigned int todo = visited ^ connectMsk;
-            if(!todo) break;
-            unsigned int nextVist = __ffs(todo) - 1;
-            visited |= (1U << nextVist);
-            connectMsk |= cacheMask[nextVist + localWarpId * BANKSIZE];
-        }
-
-        fineConnectedMsk[idx] = connectMsk;
-
-        unsigned int electedPrefix = __popc(connectMsk & lanemask_lt(laneId));
-        if(electedPrefix == 0) atomicAdd(prefixSum + localWarpId, 1);
-        if(laneId == 0) prefixOriginal[warpId] = prefixSum[localWarpId];
-    }
-}
-
-// ============================================================================
-// Kernel: Build level 1
-// ============================================================================
-__global__ void k_buildLevel1(Int2* __restrict__ levelSize,
-                              int* __restrict__ coarseSpaceTable,
-                              int* __restrict__ goingNext,
-                              const unsigned int* __restrict__ fineConnectedMsk,
-                              const int* __restrict__ prefixSumOriginal,
-                              const int* __restrict__ prefixOriginal,
-                              const int* __restrict__ partId_map_real,
-                              int number)
-{
-    int tdx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(tdx >= number) return;
-
-    int warpId      = tdx / BANKSIZE;
-    int localWarpId = threadIdx.x / BANKSIZE;
-    int laneId      = tdx % BANKSIZE;
-
-    __shared__ unsigned int electedMask[BANKSIZE];
-    __shared__ unsigned int lanePrefix[BANKSIZE * BANKSIZE];
-
-    if(laneId == 0) electedMask[localWarpId] = 0;
-
-    if(tdx == number - 1)
-    {
-        levelSize[1].x = prefixSumOriginal[warpId] + prefixOriginal[warpId];
-        levelSize[1].y = (number + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
-    }
-
-    int idx = partId_map_real[tdx];
-    if(idx >= 0)
-    {
-        unsigned int connMsk       = fineConnectedMsk[idx];
-        unsigned int electedPrefix = __popc(connMsk & lanemask_lt(laneId));
-        if(electedPrefix == 0) atomicOr(electedMask + localWarpId, (1U << laneId));
-
-        lanePrefix[threadIdx.x] = __popc(electedMask[localWarpId] & lanemask_lt(laneId));
-        lanePrefix[threadIdx.x] += prefixSumOriginal[warpId];
-
-        unsigned int elected_lane  = __ffs(connMsk) - 1;
-        unsigned int theLanePrefix = lanePrefix[elected_lane + BANKSIZE * localWarpId];
-
-        coarseSpaceTable[idx] = theLanePrefix;
-        goingNext[idx] = theLanePrefix + (number + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
-    }
-}
-
-// ============================================================================
-// Kernel: Build connect mask at level x
-// ============================================================================
-__global__ void k_buildConnectMaskLx(const unsigned int* __restrict__ neighborStart,
-                                     unsigned int* __restrict__ neighborNum,
-                                     unsigned int* __restrict__ neighborList,
-                                     const int* __restrict__ coarseSpaceTable,
-                                     unsigned int* __restrict__ nextConnectedMsk,
-                                     const unsigned int* __restrict__ fineConnectedMsk,
-                                     int level,
-                                     const int* __restrict__ partId_map_real,
-                                     int vertNum,
-                                     int number)
-{
-    int tdx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(tdx >= number) return;
-
-    int localWarpId = threadIdx.x / BANKSIZE;
-    int laneId      = tdx % BANKSIZE;
-    __shared__ int cacheMsk[DEFAULT_BLOCKSIZE];
-
-    int idx = partId_map_real[tdx];
-    if(idx >= 0)
-    {
-        unsigned int prefixMsk = fineConnectedMsk[idx];
-        unsigned int connMsk   = 0;
-        unsigned int coarseIdx = coarseSpaceTable[(level - 1) * vertNum + idx];
-        int          kn        = neighborNum[idx];
-        int          nk        = 0;
-        int          startId   = neighborStart[idx];
-
-        for(int i = 0; i < kn; i++)
-        {
-            unsigned int connect       = neighborList[startId + i];
-            unsigned int coarseConnect = coarseSpaceTable[(level - 1) * vertNum + connect];
-            if(coarseIdx / BANKSIZE == coarseConnect / BANKSIZE)
-            {
-                unsigned int off = coarseConnect % BANKSIZE;
-                connMsk |= (1U << off);
-            }
-            else
-            {
-                neighborList[startId + nk] = connect;
-                nk++;
-            }
-        }
-        neighborNum[idx] = nk;
-        cacheMsk[threadIdx.x] = 0;
-
-        if(__popc(prefixMsk) == BANKSIZE)
-        {
-            atomicOr(cacheMsk + localWarpId * BANKSIZE, (int)connMsk);
-            connMsk = (unsigned int)cacheMsk[localWarpId * BANKSIZE];
-        }
-        else
-        {
-            unsigned int electedLane = __ffs(prefixMsk) - 1;
-            if(connMsk)
-                atomicOr(cacheMsk + localWarpId * BANKSIZE + electedLane, (int)connMsk);
-            connMsk = (unsigned int)cacheMsk[localWarpId * BANKSIZE + electedLane];
-        }
-
-        unsigned int electedPrefix = __popc(prefixMsk & lanemask_lt(laneId));
-        if(connMsk && electedPrefix == 0)
-            atomicOr(nextConnectedMsk + coarseIdx, connMsk);
-    }
-}
-
-// ============================================================================
-// Kernel: Next level cluster
-// ============================================================================
-__global__ void k_nextLevelCluster(unsigned int* __restrict__ nextConnectedMsk,
-                                   unsigned int* __restrict__ nextPrefix,
-                                   int number)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(idx >= number) return;
-
-    int localWarpId = threadIdx.x / BANKSIZE;
-    int laneId      = idx % BANKSIZE;
-
-    __shared__ int          prefixSum[DEFAULT_WARPNUM];
-    __shared__ unsigned int cachedMsk[DEFAULT_BLOCKSIZE];
-
-    if(laneId == 0) prefixSum[localWarpId] = 0;
-
-    unsigned int connMsk = (1U << laneId);
-    connMsk |= nextConnectedMsk[idx];
-    cachedMsk[threadIdx.x] = connMsk;
-    unsigned int visited = (1U << laneId);
-
-    while(true)
-    {
-        unsigned int todo = visited ^ connMsk;
-        if(!todo) break;
-        unsigned int nextVisit = __ffs(todo) - 1;
-        visited |= (1U << nextVisit);
-        connMsk |= cachedMsk[nextVisit + localWarpId * BANKSIZE];
-    }
-
-    nextConnectedMsk[idx] = connMsk;
-    unsigned int electedPrefix = __popc(connMsk & lanemask_lt(laneId));
-    if(electedPrefix == 0) atomicAdd(prefixSum + localWarpId, 1);
-    if(laneId == 0) nextPrefix[idx / BANKSIZE] = prefixSum[localWarpId];
-}
-
-// ============================================================================
-// Kernel: Prefix sum at level x
-// ============================================================================
-__global__ void k_prefixSumLx(Int2* __restrict__ levelSize,
-                              unsigned int* __restrict__ nextPrefix,
-                              unsigned int* __restrict__ nextPrefixSum,
-                              unsigned int* __restrict__ nextConnectMsk,
-                              int* __restrict__ goingNext,
-                              int level, int levelBegin, int number)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(idx >= number) return;
-
-    int warpId      = idx / BANKSIZE;
-    int localWarpId = threadIdx.x / BANKSIZE;
-    int laneId      = idx % BANKSIZE;
-
-    __shared__ unsigned int electedMask[BANKSIZE];
-    __shared__ unsigned int lanePrefix[BANKSIZE * BANKSIZE];
-
-    if(laneId == 0) electedMask[localWarpId] = 0;
-
-    if(idx == number - 1)
-    {
-        levelSize[level + 1].x = nextPrefixSum[warpId] + nextPrefix[warpId];
-        levelSize[level + 1].y = levelBegin + (number + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
-    }
-
-    unsigned int connMsk = nextConnectMsk[idx];
-    unsigned int electedPrefix = __popc(connMsk & lanemask_lt(laneId));
-    if(electedPrefix == 0) atomicOr(electedMask + localWarpId, (1U << laneId));
-
-    lanePrefix[threadIdx.x] = __popc(electedMask[localWarpId] & lanemask_lt(laneId));
-    lanePrefix[threadIdx.x] += nextPrefixSum[warpId];
-
-    unsigned int elected_lane  = __ffs(connMsk) - 1;
-    unsigned int theLanePrefix = lanePrefix[elected_lane + BANKSIZE * localWarpId];
-
-    nextConnectMsk[idx] = theLanePrefix;
-    goingNext[idx + levelBegin] =
-        theLanePrefix + levelBegin + (number + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
-}
-
-// ============================================================================
-// Kernel: Compute next level
-// ============================================================================
-__global__ void k_computeNextLevel(int* __restrict__ coarseSpaceTable,
-                                   const unsigned int* __restrict__ nextConnectMsk,
-                                   int level, int number)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(idx >= number) return;
-    int next = coarseSpaceTable[(level - 1) * number + idx];
-    coarseSpaceTable[level * number + idx] = nextConnectMsk[next];
-}
-
-// ============================================================================
-// Kernel: Aggregation
-// ============================================================================
-__global__ void k_aggregationKernel(int* __restrict__ denseLevel,
-                                    LevelTable* __restrict__ coarseTable,
-                                    const int* __restrict__ goingNext,
-                                    int levelNum, int number)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(idx >= number) return;
-
-    int        currentId = idx;
-    LevelTable ctable;
-    for(int l = 0; l < levelNum - 1; l++)
-    {
-        int next      = goingNext[currentId];
-        currentId     = next;
-        ctable.index[l] = next;
-    }
-    coarseTable[idx] = ctable;
-}
-
-// ============================================================================
-// Kernel: Invert cluster matrix (Gauss-Jordan on 48x48 or smaller)
-// ============================================================================
-__global__ void k_invertClusterMatrix(ClusterMatrixSymF* __restrict__ preMatrix,
-                                      const ClusterMatrixSym* __restrict__ invMatrix,
-                                      int numbers)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(idx >= numbers) return;
-
-    int matId       = idx / (BANKSIZE * 3);
-    int i           = idx % (BANKSIZE * 3);
-    int block_matId = threadIdx.x / (BANKSIZE * 3);
-
-    __shared__ double sPMas[32 / BANKSIZE][BANKSIZE * 3][BANKSIZE * 3];
-    __shared__ double colm[32 / BANKSIZE][BANKSIZE * 3];
-
-    for(int j = 0; j < (BANKSIZE * 3); j++)
-    {
-        int rowId = j / 3;
-        int colId = i / 3;
-        int index = 0;
-        if(colId >= rowId)
-        {
-            index = BANKSIZE * rowId - rowId * (rowId + 1) / 2 + colId;
-            sPMas[block_matId][j][i] = invMatrix[matId].M[index](j % 3, i % 3);
-        }
-        else
-        {
-            index = BANKSIZE * colId - colId * (colId + 1) / 2 + rowId;
-            sPMas[block_matId][j][i] = invMatrix[matId].M[index](i % 3, j % 3);
-        }
-        if(i == j)
-        {
-            if(sPMas[block_matId][j][i] == 0.0)
-                sPMas[block_matId][j][i] = 1.0;
-        }
-    }
-
-    int    j = 0;
-    double rt;
-
-    while(j < (BANKSIZE * 3))
-    {
-        __syncthreads();
-        rt = sPMas[block_matId][j][j];
-        colm[block_matId][i] = sPMas[block_matId][i][j];
-        __syncthreads();
-
-        if(i == j)
-            sPMas[block_matId][i][j] = 1.0;
-        else
-            sPMas[block_matId][i][j] = 0.0;
-
-        __syncthreads();
-        sPMas[block_matId][j][i] /= rt;
-        __syncthreads();
-
-        for(int k = 0; k < (BANKSIZE * 3); k++)
-        {
-            if(k != j)
-            {
-                double rate = -colm[block_matId][k];
-                __syncthreads();
-                sPMas[block_matId][k][i] += rate * sPMas[block_matId][j][i];
-            }
-        }
-        j++;
-    }
-
-    __syncthreads();
-    if(i % 3 < 2)
-        sPMas[block_matId][i + 1][i] = sPMas[block_matId][i][i + 1];
-    else
-        sPMas[block_matId][i][i - 2] = sPMas[block_matId][i - 2][i];
-    __syncthreads();
-
-    for(int j = 0; j < (BANKSIZE * 3); j++)
-    {
-        int rowId = j / 3;
-        int colId = i / 3;
-        if(colId >= rowId)
-        {
-            int index = BANKSIZE * rowId - rowId * (rowId + 1) / 2 + colId;
-            preMatrix[matId].M[index](j % 3, i % 3) = (float)sPMas[block_matId][j][i];
-        }
-    }
-}
-
-// ============================================================================
-// Kernel: Build multi-level residual
-// ============================================================================
-__global__ void k_buildMultiLevelR(const double3* __restrict__ R,
-                                   Eigen::Vector3f* __restrict__ multiLR,
-                                   const int* __restrict__ goingNext,
-                                   const int* __restrict__ prefixOrigin,
-                                   const unsigned int* __restrict__ fineConnectMsk,
-                                   const int* __restrict__ partId_map_real,
-                                   int levelNum, int numbers)
-{
-    int pdx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(pdx >= numbers) return;
-
-    Eigen::Vector3f r;
-    int idx = partId_map_real[pdx];
-
-    if(idx >= 0)
-    {
-        r[0] = (float)R[idx].x;
-        r[1] = (float)R[idx].y;
-        r[2] = (float)R[idx].z;
-    }
-    else
-    {
-        r[0] = 0; r[1] = 0; r[2] = 0;
-    }
-
-    int laneId      = threadIdx.x % BANKSIZE;
-    int localWarpId = threadIdx.x / BANKSIZE;
-    int gwarpId     = pdx / BANKSIZE;
-
-    multiLR[pdx] = r;
-
-    __shared__ float c_sumResidual[DEFAULT_BLOCKSIZE * 3];
-    __shared__ int   prefixSum[DEFAULT_WARPNUM];
-
-    if(laneId == 0) prefixSum[localWarpId] = prefixOrigin[gwarpId];
-
-    if(idx >= 0)
-    {
-        unsigned int connectMsk = fineConnectMsk[idx];
-
-        if(prefixSum[localWarpId] == 1)
-        {
-            auto mask_val  = __activemask();
-            int  warpId    = threadIdx.x & 0x1f;
-            bool bBoundary = (laneId == 0) || (warpId == 0);
-
-            unsigned int mark     = __ballot_sync(mask_val, bBoundary);
-            mark                  = __brev(mark);
-            int          clzlen   = __clz(mark << (warpId + 1));
-            unsigned int interval = min(clzlen, 31 - warpId);
-
-            for(int iter = 1; iter < BANKSIZE; iter <<= 1)
-            {
-                float tmpx = __shfl_down_sync(mask_val, r[0], iter);
-                float tmpy = __shfl_down_sync(mask_val, r[1], iter);
-                float tmpz = __shfl_down_sync(mask_val, r[2], iter);
-                if(interval >= (unsigned int)iter)
-                {
-                    r[0] += tmpx; r[1] += tmpy; r[2] += tmpz;
-                }
-            }
-
-            if(bBoundary)
-            {
-                int level = 0;
-                while(level < levelNum - 1)
-                {
-                    level++;
-                    idx = goingNext[idx];
-                    atomicAdd(&(multiLR[idx][0]), r[0]);
-                    atomicAdd(&(multiLR[idx][1]), r[1]);
-                    atomicAdd(&(multiLR[idx][2]), r[2]);
-                }
-            }
-            return;
-        }
-        else
-        {
-            int elected_lane = __ffs(connectMsk) - 1;
-
-            c_sumResidual[threadIdx.x]                         = 0;
-            c_sumResidual[threadIdx.x + DEFAULT_BLOCKSIZE]     = 0;
-            c_sumResidual[threadIdx.x + 2 * DEFAULT_BLOCKSIZE] = 0;
-
-            atomicAdd(c_sumResidual + localWarpId * BANKSIZE + elected_lane, r[0]);
-            atomicAdd(c_sumResidual + localWarpId * BANKSIZE + elected_lane + DEFAULT_BLOCKSIZE, r[1]);
-            atomicAdd(c_sumResidual + localWarpId * BANKSIZE + elected_lane + 2 * DEFAULT_BLOCKSIZE, r[2]);
-
-            unsigned int electedPrefix = __popc(connectMsk & lanemask_lt(laneId));
-            if(electedPrefix == 0)
-            {
-                int level = 0;
-                while(level < levelNum - 1)
-                {
-                    level++;
-                    idx = goingNext[idx];
-                    atomicAdd(&(multiLR[idx][0]), c_sumResidual[threadIdx.x]);
-                    atomicAdd(&(multiLR[idx][1]), c_sumResidual[threadIdx.x + DEFAULT_BLOCKSIZE]);
-                    atomicAdd(&(multiLR[idx][2]), c_sumResidual[threadIdx.x + DEFAULT_BLOCKSIZE * 2]);
-                }
-            }
-        }
-    }
-}
-
-// ============================================================================
-// Kernel: Schwarz local solve (block3 variant)
-// ============================================================================
-__global__ void k_schwarzLocalXSym_block3(const ClusterMatrixSymF* __restrict__ Pred,
-                                          const Eigen::Vector3f* __restrict__ mR,
-                                          float3* __restrict__ mZ,
-                                          int number)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(idx >= number) return;
-
-    int hessianSize = BANKSIZE * BANKSIZE;
-    int Hid   = idx / hessianSize;
-    int lvrid = (idx % hessianSize) / BANKSIZE;
-    int lvcid = (idx % hessianSize) % BANKSIZE;
-
-    int vrid = Hid * BANKSIZE + lvrid;
-    int vcid = Hid * BANKSIZE + lvcid;
-
-    Eigen::Vector3f rdata;
-
-    __shared__ Eigen::Vector3f smR[BANKSIZE];
-
-    if(threadIdx.x < BANKSIZE)
-        smR[threadIdx.x] = mR[vcid];
-    __syncthreads();
-
-    if(vcid >= vrid)
-    {
-        int index = BANKSIZE * lvrid - lvrid * (lvrid + 1) / 2 + lvcid;
-        rdata = Pred[Hid].M[index] * smR[lvcid];
-    }
-    else
-    {
-        int index = BANKSIZE * lvcid - lvcid * (lvcid + 1) / 2 + lvrid;
-        rdata = Pred[Hid].M[index].transpose() * smR[lvcid];
-    }
-
-    int  warpId    = threadIdx.x & 0x1f;
-    int  landidx   = threadIdx.x % BANKSIZE;
-    bool bBoundary = (landidx == 0) || (warpId == 0);
-
-    unsigned int mark     = __ballot_sync(0xffffffff, bBoundary);
-    mark                  = __brev(mark);
-    int          clzlen   = __clz(mark << (warpId + 1));
-    unsigned int interval = min(clzlen, 31 - warpId);
-
-    int maxSize = min(32, BANKSIZE);
-    for(int iter = 1; iter < maxSize; iter <<= 1)
-    {
-        float tmpx = __shfl_down_sync(0xffffffff, rdata[0], iter);
-        float tmpy = __shfl_down_sync(0xffffffff, rdata[1], iter);
-        float tmpz = __shfl_down_sync(0xffffffff, rdata[2], iter);
-        if(interval >= (unsigned int)iter)
-        {
-            rdata[0] += tmpx; rdata[1] += tmpy; rdata[2] += tmpz;
-        }
-    }
-
-    if(bBoundary)
-    {
-        atomicAdd(&(mZ[vrid].x), rdata[0]);
-        atomicAdd(&(mZ[vrid].y), rdata[1]);
-        atomicAdd(&(mZ[vrid].z), rdata[2]);
-    }
-}
-
-// ============================================================================
-// Kernel: Collect final Z
-// ============================================================================
-__global__ void k_collectFinalZ(double3* __restrict__ Z,
-                                const float3* __restrict__ d_multiLevelZ,
-                                const LevelTable* __restrict__ coarseTable,
-                                const int* __restrict__ real_map_partId,
-                                int levelnum, int number)
-{
-    int idx = blockIdx.x * blockDim.x + threadIdx.x;
-    if(idx >= number) return;
-
-    int    rdx = real_map_partId[idx];
-    float3 cz;
-    cz.x = d_multiLevelZ[rdx].x;
-    cz.y = d_multiLevelZ[rdx].y;
-    cz.z = d_multiLevelZ[rdx].z;
-
-    LevelTable table   = coarseTable[idx];
-    const int* tablePtr = table.index;
-
-    for(int i = 1; i < levelnum; i++)
-    {
-        int now = tablePtr[i - 1];
-        cz.x += d_multiLevelZ[now].x;
-        cz.y += d_multiLevelZ[now].y;
-        cz.z += d_multiLevelZ[now].z;
-    }
-
-    Z[idx].x = (double)cz.x;
-    Z[idx].y = (double)cz.y;
-    Z[idx].z = (double)cz.z;
-}
-
-// ============================================================================
-// Host methods
-// ============================================================================
-
-void MASPreconditionerEngine::compute_num_levels(int vertNum)
-{
-    int nLevel  = 1;
-    int levelSz = (vertNum + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
-
-    while(levelSz > BANKSIZE)
-    {
-        levelSz /= BANKSIZE;
-        nLevel++;
-        levelSz = (levelSz + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
-    }
-    nLevel++;
-    m_levelnum = nLevel > MAX_LEVELS ? MAX_LEVELS : nLevel;
+    n_level++;
+    m_level_num = std::min(n_level, MAX_LEVELS);
 }
 
 void MASPreconditionerEngine::init_neighbor(
-    int                              vertNum,
-    int                              totalNeighborNum,
-    int                              partMapSize,
-    const std::vector<unsigned int>& h_neighborList,
-    const std::vector<unsigned int>& h_neighborStart,
-    const std::vector<unsigned int>& h_neighborNum,
-    const std::vector<int>&          h_partId_map_real,
-    const std::vector<int>&          h_real_map_partId)
+    int                              vert_num,
+    int                              total_neighbor_num,
+    int                              part_map_size,
+    const std::vector<unsigned int>& h_neighbor_list,
+    const std::vector<unsigned int>& h_neighbor_start,
+    const std::vector<unsigned int>& h_neighbor_num,
+    const std::vector<int>&          h_part_to_real,
+    const std::vector<int>&          h_real_to_part)
 {
-    if(vertNum < 1) return;
+    if(vert_num < 1)
+        return;
 
-    int maxNodes = partMapSize > vertNum ? partMapSize : vertNum;
-    compute_num_levels(maxNodes);
+    int max_nodes = std::max(part_map_size, vert_num);
+    compute_num_levels(max_nodes);
 
-    m_totalMapNodes = partMapSize;
-    m_totalNodes    = vertNum;
+    m_total_map_nodes = part_map_size;
+    m_total_nodes     = vert_num;
 
-    // Allocate hierarchy buffers
-    m_d_denseLevel.resize(vertNum);
-    m_d_real_map_partId.resize(vertNum);
-    m_d_coarseTable.resize(vertNum);
-    m_d_coarseSpaceTables.resize(vertNum * m_levelnum);
-    m_d_levelSize.resize(m_levelnum + 1);
-    m_d_goingNext.resize(vertNum * m_levelnum);
-    m_d_prefixOriginal.resize(vertNum);
-    m_d_nextPrefix.resize(vertNum);
-    m_d_nextPrefixSum.resize(vertNum);
-    m_d_prefixSumOriginal.resize(vertNum);
-    m_d_fineConnectMask.resize(vertNum);
-    m_d_nextConnectMask.resize(vertNum);
+    // Hierarchy buffers
+    dense_level.resize(vert_num);
+    real_to_part.resize(vert_num);
+    coarse_tables.resize(vert_num);
+    coarse_space_tables.resize(vert_num * m_level_num);
+    level_sizes.resize(m_level_num + 1);
+    going_next.resize(vert_num * m_level_num);
+    prefix_original.resize(vert_num);
+    next_prefixes.resize(vert_num);
+    next_prefix_sums.resize(vert_num);
+    prefix_sum_original.resize(vert_num);
+    fine_connect_masks.resize(vert_num);
+    next_connect_masks.resize(vert_num);
 
     // Neighbor buffers
-    m_neighborListSize = totalNeighborNum;
-    m_d_neighborList.resize(totalNeighborNum);
-    m_d_neighborStart.resize(vertNum);
-    m_d_neighborNum.resize(vertNum);
-    m_d_neighborListInit.resize(totalNeighborNum);
-    m_d_neighborNumInit.resize(vertNum);
+    m_neighbor_list_size = total_neighbor_num;
+    neighbor_lists.resize(total_neighbor_num);
+    neighbor_starts.resize(vert_num);
+    neighbor_nums.resize(vert_num);
+    neighbor_lists_init.resize(total_neighbor_num);
+    neighbor_nums_init.resize(vert_num);
 
     // Partition mappings
-    m_d_partId_map_real.resize(partMapSize);
+    part_to_real.resize(part_map_size);
 
     // Upload host data
-    m_d_neighborListInit.view().copy_from(h_neighborList.data());
-    m_d_neighborStart.view().copy_from(h_neighborStart.data());
-    m_d_neighborNumInit.view().copy_from(h_neighborNum.data());
-    m_d_partId_map_real.view().copy_from(h_partId_map_real.data());
-    m_d_real_map_partId.view().copy_from(h_real_map_partId.data());
+    neighbor_lists_init.view().copy_from(h_neighbor_list.data());
+    neighbor_starts.view().copy_from(h_neighbor_start.data());
+    neighbor_nums_init.view().copy_from(h_neighbor_num.data());
+    part_to_real.view().copy_from(h_part_to_real.data());
+    real_to_part.view().copy_from(h_real_to_part.data());
 }
 
 void MASPreconditionerEngine::init_matrix()
 {
-    if(m_totalNodes < 1) return;
+    if(m_total_nodes < 1)
+        return;
 
-    // Copy neighbor data for first use
-    m_d_neighborList.view().copy_from(m_d_neighborListInit.view());
-    m_d_neighborNum.view().copy_from(m_d_neighborNumInit.view());
+    // Restore neighbor data for initial hierarchy build
+    neighbor_lists.view().copy_from(neighbor_lists_init.view());
+    neighbor_nums.view().copy_from(neighbor_nums_init.view());
 
-    int totalCluster = (int)(reorder_realtime(0) * 1.05);
+    int total_cluster = static_cast<int>(reorder_realtime(0) * 1.05);
+    int num_blocks    = total_cluster / BANKSIZE;
 
-    int numClusterBlocks = totalCluster / BANKSIZE;
-    m_d_inverseMatMas.resize(numClusterBlocks);
-    m_d_precondMatMas.resize(numClusterBlocks);
-    m_d_multiLevelR.resize(totalCluster);
-    m_d_multiLevelZ.resize(totalCluster);
+    cluster_hessians.resize(num_blocks);
+    cluster_inverses.resize(num_blocks);
+    multi_level_R.resize(total_cluster);
+    multi_level_Z.resize(total_cluster);
 
     m_initialized = true;
 }
 
-int MASPreconditionerEngine::reorder_realtime(int cpNum)
+// ============================================================================
+// Hierarchy building
+// ============================================================================
+
+int MASPreconditionerEngine::reorder_realtime(int cp_num)
 {
-    m_d_levelSize.fill(Int2{0, 0});
+    level_sizes.fill(Int2{0, 0});
 
     build_connect_mask_L0();
     prepare_prefix_sum_L0();
     build_level1();
 
-    for(int level = 1; level < m_levelnum; level++)
+    for(int level = 1; level < m_level_num; level++)
     {
-        m_d_nextConnectMask.fill(0);
+        next_connect_masks.fill(0u);
         build_connect_mask_Lx(level);
 
-        // Copy level size to host
-        cudaMemcpy(&m_h_clevelSize,
-                   m_d_levelSize.data() + level,
+        // Copy level size to host for next-level sizing
+        cudaMemcpy(&m_h_level_size,
+                   level_sizes.data() + level,
                    sizeof(Int2),
                    cudaMemcpyDeviceToHost);
 
@@ -761,143 +150,451 @@ int MASPreconditionerEngine::reorder_realtime(int cpNum)
         compute_next_level(level);
     }
 
-    cudaMemcpy(&m_h_clevelSize,
-               m_d_levelSize.data() + m_levelnum,
+    cudaMemcpy(&m_h_level_size,
+               level_sizes.data() + m_level_num,
                sizeof(Int2),
                cudaMemcpyDeviceToHost);
 
-    m_totalNumberClusters = m_h_clevelSize.y;
+    m_total_num_clusters = m_h_level_size.y;
     aggregation_kernel();
 
-    return m_totalNumberClusters;
+    return m_total_num_clusters;
 }
 
+// ---------------------------------------------------------------------------
+// Build connectivity mask at level 0 (fine level)
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::build_connect_mask_L0()
 {
-    int number = m_totalMapNodes;
-    if(number < 1) return;
-    int blockSize = DEFAULT_BLOCKSIZE;
-    int numBlocks = (number + blockSize - 1) / blockSize;
-    k_buildCML0<<<numBlocks, blockSize>>>(
-        m_d_neighborStart.data(),
-        m_d_neighborNum.data(),
-        m_d_neighborList.data(),
-        m_d_fineConnectMask.data(),
-        m_d_partId_map_real.data(),
-        m_d_real_map_partId.data(),
-        number);
+    using namespace muda;
+    int N = m_total_map_nodes;
+    if(N < 1)
+        return;
+
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(N,
+               [neighbor_start    = neighbor_starts.data(),
+                neighbor_num      = neighbor_nums.data(),
+                neighbor_list     = neighbor_lists.data(),
+                fine_connect_mask = fine_connect_masks.data(),
+                part_to_real      = part_to_real.cviewer().name("part_to_real"),
+                real_to_part      = real_to_part.cviewer().name("real_to_part")]
+               __device__(int tid) mutable
+               {
+                   int bank_id = tid / BANKSIZE;
+                   int lane_id = tid % BANKSIZE;
+                   int idx     = part_to_real(tid);
+
+                   if(idx < 0)
+                       return;
+
+                   int          num_nbr     = neighbor_num[idx];
+                   unsigned int connect_msk = (1U << lane_id);
+                   int          nk          = 0;
+                   int          start_id    = neighbor_start[idx];
+
+                   for(int i = 0; i < num_nbr; i++)
+                   {
+                       int nbr_id        = neighbor_list[start_id + i];
+                       int nbr_bank_id   = real_to_part(nbr_id) / BANKSIZE;
+                       if(bank_id == nbr_bank_id)
+                       {
+                           unsigned int nbr_lane = real_to_part(nbr_id) % BANKSIZE;
+                           connect_msk |= (1U << nbr_lane);
+                       }
+                       else
+                       {
+                           neighbor_list[start_id + nk] = nbr_id;
+                           nk++;
+                       }
+                   }
+                   neighbor_num[idx]      = nk;
+                   fine_connect_mask[idx]  = connect_msk;
+               });
 }
 
+// ---------------------------------------------------------------------------
+// Prepare prefix sum at level 0 (uses shared memory)
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::prepare_prefix_sum_L0()
 {
-    int number = m_totalMapNodes;
-    if(number < 1) return;
-    int blockSize = DEFAULT_BLOCKSIZE;
-    int numBlocks = (number + blockSize - 1) / blockSize;
-    k_preparePrefixSumL0<<<numBlocks, blockSize>>>(
-        m_d_prefixOriginal.data(),
-        m_d_fineConnectMask.data(),
-        m_d_partId_map_real.data(),
-        number);
+    using namespace muda;
+    int N = m_total_map_nodes;
+    if(N < 1)
+        return;
+
+    int block_size = DEFAULT_BLOCKSIZE;
+    int num_blocks = (N + block_size - 1) / block_size;
+
+    Launch(num_blocks, block_size)
+        .apply(
+            [fine_connect_mask = fine_connect_masks.data(),
+             prefix_orig       = prefix_original.data(),
+             part_to_real      = part_to_real.cviewer().name("part_to_real"),
+             N] __device__() mutable
+            {
+                int tid = blockIdx.x * blockDim.x + threadIdx.x;
+                if(tid >= N) return;
+
+                int warp_id       = tid / BANKSIZE;
+                int local_warp_id = threadIdx.x / BANKSIZE;
+                int lane_id       = tid % BANKSIZE;
+                int idx           = part_to_real(tid);
+
+                __shared__ unsigned int cache_mask[DEFAULT_BLOCKSIZE];
+                __shared__ int          prefix_sum[DEFAULT_WARPNUM];
+
+                if(idx >= 0)
+                {
+                    unsigned int connect_msk = fine_connect_mask[idx];
+                    if(lane_id == 0)
+                        prefix_sum[local_warp_id] = 0;
+                    cache_mask[threadIdx.x] = connect_msk;
+                    unsigned int visited = (1U << lane_id);
+
+                    // Flood-fill connectivity within the bank via shared memory
+                    while(connect_msk != ~0U)
+                    {
+                        unsigned int todo = visited ^ connect_msk;
+                        if(!todo) break;
+                        unsigned int next_visit = __ffs(todo) - 1;
+                        visited |= (1U << next_visit);
+                        connect_msk |= cache_mask[next_visit + local_warp_id * BANKSIZE];
+                    }
+
+                    fine_connect_mask[idx] = connect_msk;
+
+                    unsigned int elected_prefix = __popc(connect_msk & lanemask_lt(lane_id));
+                    if(elected_prefix == 0)
+                        atomicAdd(prefix_sum + local_warp_id, 1);
+                    if(lane_id == 0)
+                        prefix_orig[warp_id] = prefix_sum[local_warp_id];
+                }
+            });
 }
 
+// ---------------------------------------------------------------------------
+// Build coarse level 1 from prefix sums
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::build_level1()
 {
-    int number = m_totalMapNodes;
-    if(number < 1) return;
-    int blockSize = BANKSIZE * BANKSIZE;
-    int numBlocks = (number + blockSize - 1) / blockSize;
-    int warpNum   = (number + BANKSIZE - 1) / BANKSIZE;
+    using namespace muda;
+    int N = m_total_map_nodes;
+    if(N < 1)
+        return;
 
-    thrust::exclusive_scan(thrust::device_ptr<int>(m_d_prefixOriginal.data()),
-                           thrust::device_ptr<int>(m_d_prefixOriginal.data()) + warpNum,
-                           thrust::device_ptr<int>(m_d_prefixSumOriginal.data()));
+    int block_size = BANKSIZE * BANKSIZE;
+    int num_blocks = (N + block_size - 1) / block_size;
+    int warp_num   = (N + BANKSIZE - 1) / BANKSIZE;
 
-    k_buildLevel1<<<numBlocks, blockSize>>>(
-        m_d_levelSize.data(),
-        m_d_coarseSpaceTables.data(),
-        m_d_goingNext.data(),
-        m_d_fineConnectMask.data(),
-        m_d_prefixSumOriginal.data(),
-        m_d_prefixOriginal.data(),
-        m_d_partId_map_real.data(),
-        number);
+    thrust::exclusive_scan(thrust::device_ptr<int>(prefix_original.data()),
+                           thrust::device_ptr<int>(prefix_original.data()) + warp_num,
+                           thrust::device_ptr<int>(prefix_sum_original.data()));
+
+    Launch(num_blocks, block_size)
+        .apply(
+            [level_size        = level_sizes.data(),
+             coarse_table      = coarse_space_tables.data(),
+             going_next_ptr    = going_next.data(),
+             fine_connect_mask = fine_connect_masks.data(),
+             prefix_sum_orig   = prefix_sum_original.data(),
+             prefix_orig       = prefix_original.data(),
+             part_to_real      = part_to_real.cviewer().name("part_to_real"),
+             N] __device__() mutable
+            {
+                int tid = blockIdx.x * blockDim.x + threadIdx.x;
+                if(tid >= N) return;
+
+                int warp_id       = tid / BANKSIZE;
+                int local_warp_id = threadIdx.x / BANKSIZE;
+                int lane_id       = tid % BANKSIZE;
+
+                __shared__ unsigned int elected_mask[BANKSIZE];
+                __shared__ unsigned int lane_prefix[BANKSIZE * BANKSIZE];
+
+                if(lane_id == 0)
+                    elected_mask[local_warp_id] = 0;
+
+                if(tid == N - 1)
+                {
+                    level_size[1].x = prefix_sum_orig[warp_id] + prefix_orig[warp_id];
+                    level_size[1].y = (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+                }
+
+                int idx = part_to_real(tid);
+                if(idx >= 0)
+                {
+                    unsigned int conn_msk       = fine_connect_mask[idx];
+                    unsigned int elected_prefix = __popc(conn_msk & lanemask_lt(lane_id));
+                    if(elected_prefix == 0)
+                        atomicOr(elected_mask + local_warp_id, (1U << lane_id));
+
+                    lane_prefix[threadIdx.x] =
+                        __popc(elected_mask[local_warp_id] & lanemask_lt(lane_id));
+                    lane_prefix[threadIdx.x] += prefix_sum_orig[warp_id];
+
+                    unsigned int elected_lane   = __ffs(conn_msk) - 1;
+                    unsigned int the_lane_prefix =
+                        lane_prefix[elected_lane + BANKSIZE * local_warp_id];
+
+                    coarse_table[idx]    = the_lane_prefix;
+                    going_next_ptr[idx]  = the_lane_prefix
+                        + (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+                }
+            });
 }
 
+// ---------------------------------------------------------------------------
+// Build connectivity mask at level x (coarsened)
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::build_connect_mask_Lx(int level)
 {
-    int number = m_totalMapNodes;
-    if(number < 1) return;
-    int blockSize = DEFAULT_BLOCKSIZE;
-    int numBlocks = (number + blockSize - 1) / blockSize;
-    k_buildConnectMaskLx<<<numBlocks, blockSize>>>(
-        m_d_neighborStart.data(),
-        m_d_neighborNum.data(),
-        m_d_neighborList.data(),
-        m_d_coarseSpaceTables.data(),
-        m_d_nextConnectMask.data(),
-        m_d_fineConnectMask.data(),
-        level,
-        m_d_partId_map_real.data(),
-        m_totalNodes,
-        number);
+    using namespace muda;
+    int N = m_total_map_nodes;
+    if(N < 1) return;
+
+    int block_size = DEFAULT_BLOCKSIZE;
+    int num_blocks = (N + block_size - 1) / block_size;
+
+    Launch(num_blocks, block_size)
+        .apply(
+            [neighbor_start    = neighbor_starts.data(),
+             neighbor_num      = neighbor_nums.data(),
+             neighbor_list     = neighbor_lists.data(),
+             coarse_table      = coarse_space_tables.data(),
+             next_connect_mask = next_connect_masks.data(),
+             fine_connect_mask = fine_connect_masks.data(),
+             part_to_real      = part_to_real.cviewer().name("part_to_real"),
+             level, vert_num = m_total_nodes, N] __device__() mutable
+            {
+                int tid = blockIdx.x * blockDim.x + threadIdx.x;
+                if(tid >= N) return;
+
+                int local_warp_id = threadIdx.x / BANKSIZE;
+                int lane_id       = tid % BANKSIZE;
+
+                __shared__ int cache_msk[DEFAULT_BLOCKSIZE];
+
+                int idx = part_to_real(tid);
+                if(idx < 0) return;
+
+                unsigned int prefix_msk = fine_connect_mask[idx];
+                unsigned int conn_msk   = 0;
+                unsigned int coarse_idx = coarse_table[(level - 1) * vert_num + idx];
+                int kn       = neighbor_num[idx];
+                int nk       = 0;
+                int start_id = neighbor_start[idx];
+
+                for(int i = 0; i < kn; i++)
+                {
+                    unsigned int connect       = neighbor_list[start_id + i];
+                    unsigned int coarse_connect = coarse_table[(level - 1) * vert_num + connect];
+                    if(coarse_idx / BANKSIZE == coarse_connect / BANKSIZE)
+                    {
+                        conn_msk |= (1U << (coarse_connect % BANKSIZE));
+                    }
+                    else
+                    {
+                        neighbor_list[start_id + nk] = connect;
+                        nk++;
+                    }
+                }
+                neighbor_num[idx] = nk;
+                cache_msk[threadIdx.x] = 0;
+
+                if(__popc(prefix_msk) == BANKSIZE)
+                {
+                    atomicOr(cache_msk + local_warp_id * BANKSIZE, (int)conn_msk);
+                    conn_msk = (unsigned int)cache_msk[local_warp_id * BANKSIZE];
+                }
+                else
+                {
+                    unsigned int elected_lane = __ffs(prefix_msk) - 1;
+                    if(conn_msk)
+                        atomicOr(cache_msk + local_warp_id * BANKSIZE + elected_lane, (int)conn_msk);
+                    conn_msk = (unsigned int)cache_msk[local_warp_id * BANKSIZE + elected_lane];
+                }
+
+                unsigned int elected_prefix = __popc(prefix_msk & lanemask_lt(lane_id));
+                if(conn_msk && elected_prefix == 0)
+                    atomicOr(next_connect_mask + coarse_idx, conn_msk);
+            });
 }
 
+// ---------------------------------------------------------------------------
+// Cluster connectivity at next level
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::next_level_cluster(int level)
 {
-    int number = m_h_clevelSize.x;
-    if(number < 1) return;
-    int blockSize = DEFAULT_BLOCKSIZE;
-    int numBlocks = (number + blockSize - 1) / blockSize;
-    k_nextLevelCluster<<<numBlocks, blockSize>>>(
-        m_d_nextConnectMask.data(), m_d_nextPrefix.data(), number);
+    using namespace muda;
+    int N = m_h_level_size.x;
+    if(N < 1) return;
+
+    int block_size = DEFAULT_BLOCKSIZE;
+    int num_blocks = (N + block_size - 1) / block_size;
+
+    Launch(num_blocks, block_size)
+        .apply(
+            [next_connect_mask = next_connect_masks.data(),
+             next_prefix       = next_prefixes.data(),
+             N] __device__() mutable
+            {
+                int idx = blockIdx.x * blockDim.x + threadIdx.x;
+                if(idx >= N) return;
+
+                int local_warp_id = threadIdx.x / BANKSIZE;
+                int lane_id       = idx % BANKSIZE;
+
+                __shared__ int          prefix_sum_s[DEFAULT_WARPNUM];
+                __shared__ unsigned int cached_msk[DEFAULT_BLOCKSIZE];
+
+                if(lane_id == 0) prefix_sum_s[local_warp_id] = 0;
+
+                unsigned int conn_msk = (1U << lane_id) | next_connect_mask[idx];
+                cached_msk[threadIdx.x] = conn_msk;
+                unsigned int visited = (1U << lane_id);
+
+                while(true)
+                {
+                    unsigned int todo = visited ^ conn_msk;
+                    if(!todo) break;
+                    unsigned int next_visit = __ffs(todo) - 1;
+                    visited |= (1U << next_visit);
+                    conn_msk |= cached_msk[next_visit + local_warp_id * BANKSIZE];
+                }
+
+                next_connect_mask[idx] = conn_msk;
+                unsigned int elected_prefix = __popc(conn_msk & lanemask_lt(lane_id));
+                if(elected_prefix == 0)
+                    atomicAdd(prefix_sum_s + local_warp_id, 1);
+                if(lane_id == 0)
+                    next_prefix[idx / BANKSIZE] = prefix_sum_s[local_warp_id];
+            });
 }
 
+// ---------------------------------------------------------------------------
+// Prefix sum at level x
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::prefix_sum_Lx(int level)
 {
-    int number     = m_h_clevelSize.x;
-    if(number < 1) return;
-    int levelBegin = m_h_clevelSize.y;
-    int blockSize  = BANKSIZE * BANKSIZE;
-    int numBlocks  = (number + blockSize - 1) / blockSize;
-    int warpNum    = (number + BANKSIZE - 1) / BANKSIZE;
+    using namespace muda;
+    int N = m_h_level_size.x;
+    if(N < 1) return;
 
-    thrust::exclusive_scan(thrust::device_ptr<unsigned int>(m_d_nextPrefix.data()),
-                           thrust::device_ptr<unsigned int>(m_d_nextPrefix.data()) + warpNum,
-                           thrust::device_ptr<unsigned int>(m_d_nextPrefixSum.data()));
+    int level_begin = m_h_level_size.y;
+    int block_size  = BANKSIZE * BANKSIZE;
+    int num_blocks  = (N + block_size - 1) / block_size;
+    int warp_num    = (N + BANKSIZE - 1) / BANKSIZE;
 
-    k_prefixSumLx<<<numBlocks, blockSize>>>(
-        m_d_levelSize.data(),
-        m_d_nextPrefix.data(),
-        m_d_nextPrefixSum.data(),
-        m_d_nextConnectMask.data(),
-        m_d_goingNext.data(),
-        level, levelBegin, number);
+    thrust::exclusive_scan(
+        thrust::device_ptr<unsigned int>(next_prefixes.data()),
+        thrust::device_ptr<unsigned int>(next_prefixes.data()) + warp_num,
+        thrust::device_ptr<unsigned int>(next_prefix_sums.data()));
+
+    Launch(num_blocks, block_size)
+        .apply(
+            [level_size_ptr    = level_sizes.data(),
+             next_prefix       = next_prefixes.data(),
+             next_prefix_sum   = next_prefix_sums.data(),
+             next_connect_mask = next_connect_masks.data(),
+             going_next_ptr    = going_next.data(),
+             level, level_begin, N] __device__() mutable
+            {
+                int idx = blockIdx.x * blockDim.x + threadIdx.x;
+                if(idx >= N) return;
+
+                int warp_id       = idx / BANKSIZE;
+                int local_warp_id = threadIdx.x / BANKSIZE;
+                int lane_id       = idx % BANKSIZE;
+
+                __shared__ unsigned int elected_mask[BANKSIZE];
+                __shared__ unsigned int lane_prefix[BANKSIZE * BANKSIZE];
+
+                if(lane_id == 0)
+                    elected_mask[local_warp_id] = 0;
+
+                if(idx == N - 1)
+                {
+                    level_size_ptr[level + 1].x =
+                        next_prefix_sum[warp_id] + next_prefix[warp_id];
+                    level_size_ptr[level + 1].y =
+                        level_begin + (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+                }
+
+                unsigned int conn_msk       = next_connect_mask[idx];
+                unsigned int elected_prefix = __popc(conn_msk & lanemask_lt(lane_id));
+                if(elected_prefix == 0)
+                    atomicOr(elected_mask + local_warp_id, (1U << lane_id));
+
+                lane_prefix[threadIdx.x] =
+                    __popc(elected_mask[local_warp_id] & lanemask_lt(lane_id));
+                lane_prefix[threadIdx.x] += next_prefix_sum[warp_id];
+
+                unsigned int elected_lane    = __ffs(conn_msk) - 1;
+                unsigned int the_lane_prefix =
+                    lane_prefix[elected_lane + BANKSIZE * local_warp_id];
+
+                next_connect_mask[idx] = the_lane_prefix;
+                going_next_ptr[idx + level_begin] =
+                    the_lane_prefix + level_begin
+                    + (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+            });
 }
 
+// ---------------------------------------------------------------------------
+// Compute next coarsening level
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::compute_next_level(int level)
 {
-    int number = m_totalNodes;
-    if(number < 1) return;
-    int blockSize = DEFAULT_BLOCKSIZE;
-    int numBlocks = (number + blockSize - 1) / blockSize;
-    k_computeNextLevel<<<numBlocks, blockSize>>>(
-        m_d_coarseSpaceTables.data(), m_d_nextConnectMask.data(), level, number);
+    using namespace muda;
+    int N = m_total_nodes;
+    if(N < 1) return;
+
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(N,
+               [coarse_table      = coarse_space_tables.data(),
+                next_connect_mask = next_connect_masks.data(),
+                level, N] __device__(int idx) mutable
+               {
+                   int next = coarse_table[(level - 1) * N + idx];
+                   coarse_table[level * N + idx] = next_connect_mask[next];
+               });
 }
 
+// ---------------------------------------------------------------------------
+// Build per-node level traversal table
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::aggregation_kernel()
 {
-    int number = m_totalNodes;
-    if(number < 1) return;
-    int blockSize = DEFAULT_BLOCKSIZE;
-    int numBlocks = (number + blockSize - 1) / blockSize;
-    k_aggregationKernel<<<numBlocks, blockSize>>>(
-        m_d_denseLevel.data(), m_d_coarseTable.data(),
-        m_d_goingNext.data(), m_levelnum, number);
+    using namespace muda;
+    int N = m_total_nodes;
+    if(N < 1) return;
+
+    int level_num = m_level_num;
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(N,
+               [dense_level   = dense_level.data(),
+                coarse_table  = coarse_tables.viewer().name("coarse_table"),
+                going_next    = going_next.cviewer().name("going_next"),
+                level_num] __device__(int idx) mutable
+               {
+                   int        current_id = idx;
+                   LevelTable ctable;
+                   for(int l = 0; l < level_num - 1; l++)
+                   {
+                       int next        = going_next(current_id);
+                       current_id      = next;
+                       ctable.index[l] = next;
+                   }
+                   coarse_table(idx) = ctable;
+               });
 }
 
 // ============================================================================
-// Assemble preconditioner
+// Phase 2: Assemble preconditioner
 // ============================================================================
 
 void MASPreconditionerEngine::set_preconditioner(
@@ -907,47 +604,55 @@ void MASPreconditionerEngine::set_preconditioner(
     const uint32_t*        d_indices,
     int                    dof_offset,
     int                    triplet_num,
-    int                    cpNum)
+    int                    cp_num)
 {
-    if(m_totalNodes < 1) return;
+    if(m_total_nodes < 1)
+        return;
 
-    // Reset neighbor data for this iteration
-    m_d_neighborList.view().copy_from(m_d_neighborListInit.view());
-    m_d_neighborNum.view().copy_from(m_d_neighborNumInit.view());
+    // 1. Restore neighbor data for this iteration
+    neighbor_lists.view().copy_from(neighbor_lists_init.view());
+    neighbor_nums.view().copy_from(neighbor_nums_init.view());
 
-    reorder_realtime(cpNum);
+    // 2. Rebuild multi-level hierarchy
+    reorder_realtime(cp_num);
 
-    // Resize and zero out the cluster matrices
-    int numClusterBlocks = m_totalNumberClusters / BANKSIZE;
-    if(numClusterBlocks < 1) return;
+    // 3. Resize cluster matrices if needed
+    int num_cluster_blocks = m_total_num_clusters / BANKSIZE;
+    if(num_cluster_blocks < 1)
+        return;
 
-    if(numClusterBlocks > (int)m_d_inverseMatMas.size())
+    if(num_cluster_blocks > static_cast<int>(cluster_hessians.size()))
     {
-        m_d_inverseMatMas.resize(numClusterBlocks);
-        m_d_precondMatMas.resize(numClusterBlocks);
+        cluster_hessians.resize(num_cluster_blocks);
+        cluster_inverses.resize(num_cluster_blocks);
     }
 
-    // Ensure multi-level buffers are large enough
-    if(m_totalNumberClusters > (int)m_d_multiLevelR.size())
+    // Resize multi-level buffers if needed
+    if(m_total_num_clusters > static_cast<int>(multi_level_R.size()))
     {
-        m_d_multiLevelR.resize(m_totalNumberClusters);
-        m_d_multiLevelZ.resize(m_totalNumberClusters);
+        multi_level_R.resize(m_total_num_clusters);
+        multi_level_Z.resize(m_total_num_clusters);
     }
 
-    cudaMemset(m_d_inverseMatMas.data(), 0, numClusterBlocks * sizeof(ClusterMatrixSym));
+    // 4. Clear cluster Hessian matrices
+    // NOTE: cudaMemset is used here because muda::DeviceBuffer::fill
+    //       does not reliably zero-initialize large structs containing
+    //       Eigen matrices due to force_trivially_constructible.
+    cudaMemset(cluster_hessians.data(), 0,
+               num_cluster_blocks * sizeof(ClusterMatrixSym));
 
-    prepare_hessian_bcoo(d_triplet_values, d_row_ids, d_col_ids, d_indices, dof_offset, triplet_num);
+    // 5. Scatter BCOO Hessian blocks into cluster matrices
+    scatter_hessian_to_clusters(d_triplet_values, d_row_ids, d_col_ids,
+                                d_indices, dof_offset, triplet_num);
 
-    // Invert cluster matrices
-    int blockSize2 = 32 * 3;
-    int number2    = m_totalNumberClusters * 3;
-    if(number2 < 1) return;
-    int numBlocks2 = (number2 + blockSize2 - 1) / blockSize2;
-    k_invertClusterMatrix<<<numBlocks2, blockSize2>>>(
-        m_d_precondMatMas.data(), m_d_inverseMatMas.data(), number2);
+    // 6. Invert each cluster matrix (Gauss-Jordan)
+    invert_cluster_matrices();
 }
 
-void MASPreconditionerEngine::prepare_hessian_bcoo(
+// ---------------------------------------------------------------------------
+// Scatter BCOO Hessian entries into cluster-level dense matrices
+// ---------------------------------------------------------------------------
+void MASPreconditionerEngine::scatter_hessian_to_clusters(
     const Eigen::Matrix3d* d_triplet_values,
     const int*             d_row_ids,
     const int*             d_col_ids,
@@ -957,208 +662,204 @@ void MASPreconditionerEngine::prepare_hessian_bcoo(
 {
     using namespace muda;
 
-    // Scatter triplets into cluster matrices
+    // --- Pass 1: Place each 3x3 block at the finest level where both
+    //             row and col belong to the same cluster. ---
+
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(
             triplet_num,
-            [offset           = dof_offset,
-             levelNum         = m_levelnum,
-             goingNext        = m_d_goingNext.data(),
-             invMatrix        = m_d_inverseMatMas.data(),
-             real_map_partId  = m_d_real_map_partId.data(),
-             indices          = d_indices,
-             triplet_values   = d_triplet_values,
-             row_ids          = d_row_ids,
-             col_ids          = d_col_ids,
-             totalNodes       = m_totalNodes] __device__(int I) mutable
+            [offset         = dof_offset,
+             level_num      = m_level_num,
+             going_next     = going_next.data(),
+             cluster_hess   = cluster_hessians.data(),
+             real_to_part   = real_to_part.data(),
+             indices        = d_indices,
+             triplet_values = d_triplet_values,
+             row_ids        = d_row_ids,
+             col_ids        = d_col_ids,
+             total_nodes    = m_total_nodes] __device__(int I) mutable
             {
-                int  index         = indices[I];
-                auto vertRid_real  = row_ids[index];
-                auto vertCid_real  = col_ids[index];
-                auto H             = triplet_values[index];
+                int  index    = indices[I];
+                int  row_real = row_ids[index] - offset;
+                int  col_real = col_ids[index] - offset;
+                auto H        = triplet_values[index];
 
-                vertRid_real -= offset;
-                vertCid_real -= offset;
-
-                // Skip triplets outside the FEM DOF range
-                if(vertRid_real < 0 || vertRid_real >= totalNodes
-                   || vertCid_real < 0 || vertCid_real >= totalNodes)
+                // Skip triplets outside FEM DOF range
+                if(row_real < 0 || row_real >= total_nodes
+                   || col_real < 0 || col_real >= total_nodes)
                     return;
 
-                int vertCid = real_map_partId[vertCid_real];
-                int vertRid = real_map_partId[vertRid_real];
-                int cPid    = vertCid / BANKSIZE;
+                int vert_col = real_to_part[col_real];
+                int vert_row = real_to_part[row_real];
 
-                if(vertCid / BANKSIZE == vertRid / BANKSIZE)
+                if(vert_col / BANKSIZE == vert_row / BANKSIZE)
                 {
-                    if(vertCid >= vertRid)
+                    int cluster_id = vert_col / BANKSIZE;
+                    if(vert_col >= vert_row)
                     {
-                        int bvRid = vertRid % BANKSIZE;
-                        int bvCid = vertCid % BANKSIZE;
-                        int idx   = BANKSIZE * bvRid - bvRid * (bvRid + 1) / 2 + bvCid;
-                        invMatrix[cPid].M[idx] = H;
+                        int si = sym_index(vert_row % BANKSIZE, vert_col % BANKSIZE);
+                        cluster_hess[cluster_id].M[si] = H;
                     }
                     else
                     {
-                        // Partition reordering flipped the order;
-                        // store transpose in the symmetric upper-triangle position
-                        int bvRid = vertCid % BANKSIZE;
-                        int bvCid = vertRid % BANKSIZE;
-                        int idx   = BANKSIZE * bvRid - bvRid * (bvRid + 1) / 2 + bvCid;
-                        invMatrix[cPid].M[idx] = H.transpose();
+                        // Partition reorder flipped order; store transpose
+                        int si = sym_index(vert_col % BANKSIZE, vert_row % BANKSIZE);
+                        cluster_hess[cluster_id].M[si] = H.transpose();
                     }
                 }
                 else
                 {
+                    // Walk up levels until both nodes land in the same cluster
                     int level = 0;
-                    while(level < levelNum - 1)
+                    while(level < level_num - 1)
                     {
                         level++;
                         if(level == 1)
                         {
-                            vertCid = goingNext[vertCid_real];
-                            vertRid = goingNext[vertRid_real];
+                            vert_col = going_next[col_real];
+                            vert_row = going_next[row_real];
                         }
                         else
                         {
-                            vertCid = goingNext[vertCid];
-                            vertRid = goingNext[vertRid];
+                            vert_col = going_next[vert_col];
+                            vert_row = going_next[vert_row];
                         }
-                        cPid = vertCid / BANKSIZE;
 
-                        if(vertCid / BANKSIZE == vertRid / BANKSIZE)
+                        if(vert_col / BANKSIZE == vert_row / BANKSIZE)
                         {
-                            if(vertCid >= vertRid)
+                            int cluster_id = vert_col / BANKSIZE;
+                            if(vert_col >= vert_row)
                             {
-                                int bvRid = vertRid % BANKSIZE;
-                                int bvCid = vertCid % BANKSIZE;
-                                int idx   = BANKSIZE * bvRid - bvRid * (bvRid + 1) / 2 + bvCid;
+                                int si = sym_index(vert_row % BANKSIZE, vert_col % BANKSIZE);
                                 for(int i = 0; i < 3; i++)
                                     for(int j = 0; j < 3; j++)
                                     {
-                                        atomicAdd(&(invMatrix[cPid].M[idx](i, j)), H(i, j));
-                                        if(vertCid == vertRid)
-                                            atomicAdd(&(invMatrix[cPid].M[idx](i, j)), H(j, i));
+                                        atomicAdd(&(cluster_hess[cluster_id].M[si](i, j)), H(i, j));
+                                        if(vert_col == vert_row)
+                                            atomicAdd(&(cluster_hess[cluster_id].M[si](i, j)), H(j, i));
                                     }
                             }
                             else
                             {
-                                int bvRid = vertRid % BANKSIZE;
-                                int bvCid = vertCid % BANKSIZE;
-                                int idx   = BANKSIZE * bvCid - bvCid * (bvCid + 1) / 2 + bvRid;
+                                int si = sym_index(vert_col % BANKSIZE, vert_row % BANKSIZE);
                                 for(int i = 0; i < 3; i++)
                                     for(int j = 0; j < 3; j++)
-                                        atomicAdd(&(invMatrix[cPid].M[idx](i, j)), H(j, i));
+                                        atomicAdd(&(cluster_hess[cluster_id].M[si](i, j)), H(j, i));
                             }
+                            break;  // done for this triplet
                         }
                     }
                 }
             });
 
-    // Scatter diagonal blocks to coarser levels
-    int tripletNum = m_totalMapNodes * BANKSIZE;
-    if(tripletNum < 1) return;
-    int threadNum = BANKSIZE * BANKSIZE;
-    int blockNum  = (tripletNum + threadNum - 1) / threadNum;
+    // --- Pass 2: Scatter fine-level cluster matrices to coarser levels
+    //             using warp-reduction for contiguous partitions. ---
 
-    ParallelFor(blockNum, threadNum)
+    int total_entries = m_total_map_nodes * BANKSIZE;
+    if(total_entries < 1)
+        return;
+    int thread_num = BANKSIZE * BANKSIZE;
+    int block_num  = (total_entries + thread_num - 1) / thread_num;
+
+    ParallelFor(block_num, thread_num)
         .file_line(__FILE__, __LINE__)
         .apply(
-            tripletNum,
-            [levelNum        = m_levelnum,
-             goingNext       = m_d_goingNext.data(),
-             invMatrix       = m_d_inverseMatMas.data(),
-             partId_map_real = m_d_partId_map_real.data(),
-             fineConnectMsk  = m_d_fineConnectMask.data(),
-             prefix0         = m_d_prefixOriginal.data()] __device__(int idx) mutable
+            total_entries,
+            [level_num       = m_level_num,
+             going_next      = going_next.data(),
+             cluster_hess    = cluster_hessians.data(),
+             part_to_real    = part_to_real.data(),
+             fine_connect    = fine_connect_masks.data(),
+             prefix_orig     = prefix_original.data()] __device__(int idx) mutable
             {
-                int HSIZE = BANKSIZE * BANKSIZE;
-                int Hid   = idx / HSIZE;
-                int LMRid = (idx % HSIZE) / BANKSIZE;
-                int LMCid = (idx % HSIZE) % BANKSIZE;
+                int cluster_stride = BANKSIZE * BANKSIZE;
+                int cluster_id     = idx / cluster_stride;
+                int local_row      = (idx % cluster_stride) / BANKSIZE;
+                int local_col      = (idx % cluster_stride) % BANKSIZE;
 
-                int MRid = Hid * BANKSIZE + LMRid;
-                int MCid = Hid * BANKSIZE + LMCid;
+                int global_row = cluster_id * BANKSIZE + local_row;
+                int global_col = cluster_id * BANKSIZE + local_col;
 
-                int rdx = partId_map_real[MRid];
-                int cdx = partId_map_real[MCid];
+                int rdx = part_to_real[global_row];
+                int cdx = part_to_real[global_col];
 
                 __shared__ int prefix;
-                if(threadIdx.x == 0) prefix = prefix0[Hid];
+                if(threadIdx.x == 0)
+                    prefix = prefix_orig[cluster_id];
                 __syncthreads();
 
+                // Read the 3x3 block from the symmetric cluster matrix
                 Eigen::Matrix3d mat3;
-                if(LMCid >= LMRid)
+                if(local_col >= local_row)
                 {
-                    int index = BANKSIZE * LMRid - LMRid * (LMRid + 1) / 2 + LMCid;
-                    mat3 = invMatrix[Hid].M[index];
+                    int si = sym_index(local_row, local_col);
+                    mat3   = cluster_hess[cluster_id].M[si];
                 }
                 else
                 {
-                    int index = BANKSIZE * LMCid - LMCid * (LMCid + 1) / 2 + LMRid;
-                    mat3 = invMatrix[Hid].M[index].transpose();
+                    int si = sym_index(local_col, local_row);
+                    mat3   = cluster_hess[cluster_id].M[si].transpose();
                 }
 
-                if((rdx >= 0) && (cdx >= 0))
+                if(rdx < 0 || cdx < 0)
+                    return;
+
+                if(prefix == 1)
                 {
-                    if(prefix == 1)
+                    // Contiguous partition: warp-reduce the matrix
+                    int  warp_id    = threadIdx.x & 0x1f;
+                    bool is_boundary = (warp_id == 0) || (rdx < 0) || (cdx < 0);
+                    unsigned int mark = __ballot_sync(0xffffffff, is_boundary);
+                    mark = __brev(mark);
+                    int clz_len = __clz(mark << (warp_id + 1));
+                    unsigned int interval = min(clz_len, 31 - warp_id);
+
+                    for(int iter = 1; iter < 32; iter <<= 1)
                     {
-                        int  warpId    = threadIdx.x & 0x1f;
-                        bool bBoundary = (warpId == 0) || (rdx < 0) || (cdx < 0);
-                        unsigned int mark = __ballot_sync(0xffffffff, bBoundary);
-                        mark = __brev(mark);
-                        int clzlen       = __clz(mark << (warpId + 1));
-                        unsigned int interval = min(clzlen, 31 - warpId);
-
-                        for(int iter = 1; iter < 32; iter <<= 1)
-                        {
-                            Eigen::Matrix3d matTemp;
-                            for(int i = 0; i < 3; i++)
-                                for(int j = 0; j < 3; j++)
-                                    matTemp(i, j) = __shfl_down_sync(0xffffffff, mat3(i, j), iter);
-                            if(interval >= (unsigned int)iter)
-                                mat3 = mat3 + matTemp;
-                        }
-
-                        if(bBoundary)
-                        {
-                            int level  = 0;
-                            int nextId = goingNext[rdx];
-                            while(level < levelNum - 1)
-                            {
-                                level++;
-                                int cPid  = nextId / BANKSIZE;
-                                int bvRid = nextId % BANKSIZE;
-                                int bvCid = nextId % BANKSIZE;
-                                int index = BANKSIZE * bvRid - bvRid * (bvRid + 1) / 2 + bvCid;
-                                for(int i = 0; i < 3; i++)
-                                    for(int j = 0; j < 3; j++)
-                                        atomicAdd(&(invMatrix[cPid].M[index](i, j)), mat3(i, j));
-                                nextId = goingNext[nextId];
-                            }
-                        }
+                        Eigen::Matrix3d tmp;
+                        for(int i = 0; i < 3; i++)
+                            for(int j = 0; j < 3; j++)
+                                tmp(i, j) = __shfl_down_sync(0xffffffff, mat3(i, j), iter);
+                        if(interval >= (unsigned int)iter)
+                            mat3 = mat3 + tmp;
                     }
-                    else
+
+                    if(is_boundary)
                     {
-                        int level = 0;
-                        while(level < levelNum - 1)
+                        int level   = 0;
+                        int next_id = going_next[rdx];
+                        while(level < level_num - 1)
                         {
                             level++;
-                            rdx      = goingNext[rdx];
-                            cdx      = goingNext[cdx];
-                            int cPid = cdx / BANKSIZE;
-                            if(rdx / BANKSIZE == cdx / BANKSIZE)
+                            int cid     = next_id / BANKSIZE;
+                            int bv      = next_id % BANKSIZE;
+                            int si      = sym_index(bv, bv);
+                            for(int i = 0; i < 3; i++)
+                                for(int j = 0; j < 3; j++)
+                                    atomicAdd(&(cluster_hess[cid].M[si](i, j)), mat3(i, j));
+                            next_id = going_next[next_id];
+                        }
+                    }
+                }
+                else
+                {
+                    // Non-contiguous: per-entry scatter to coarser levels
+                    int level = 0;
+                    while(level < level_num - 1)
+                    {
+                        level++;
+                        rdx      = going_next[rdx];
+                        cdx      = going_next[cdx];
+                        int cid  = cdx / BANKSIZE;
+                        if(rdx / BANKSIZE == cdx / BANKSIZE)
+                        {
+                            if(cdx >= rdx)
                             {
-                                if(cdx >= rdx)
-                                {
-                                    int bvRid = rdx % BANKSIZE;
-                                    int bvCid = cdx % BANKSIZE;
-                                    int index = BANKSIZE * bvRid - bvRid * (bvRid + 1) / 2 + bvCid;
-                                    for(int i = 0; i < 3; i++)
-                                        for(int j = 0; j < 3; j++)
-                                            atomicAdd(&(invMatrix[cPid].M[index](i, j)), mat3(i, j));
-                                }
+                                int si = sym_index(rdx % BANKSIZE, cdx % BANKSIZE);
+                                for(int i = 0; i < 3; i++)
+                                    for(int j = 0; j < 3; j++)
+                                        atomicAdd(&(cluster_hess[cid].M[si](i, j)), mat3(i, j));
                             }
                         }
                     }
@@ -1166,78 +867,394 @@ void MASPreconditionerEngine::prepare_hessian_bcoo(
             });
 }
 
+// ---------------------------------------------------------------------------
+// Gauss-Jordan inversion of each 48x48 cluster matrix
+// ---------------------------------------------------------------------------
+void MASPreconditionerEngine::invert_cluster_matrices()
+{
+    using namespace muda;
+    int total_threads = m_total_num_clusters * 3;  // 48 threads per cluster
+    if(total_threads < 1)
+        return;
+
+    int block_size = 32 * 3;  // 96 threads = 2 clusters per block
+    int num_blocks = (total_threads + block_size - 1) / block_size;
+
+    Launch(num_blocks, block_size)
+        .apply(
+            [cluster_inv  = cluster_inverses.data(),
+             cluster_hess = cluster_hessians.data(),
+             total_threads] __device__() mutable
+            {
+                int idx = blockIdx.x * blockDim.x + threadIdx.x;
+                if(idx >= total_threads) return;
+
+                constexpr int MAT_DIM = BANKSIZE * 3;  // 48
+
+                int mat_id       = idx / MAT_DIM;
+                int col          = idx % MAT_DIM;  // this thread owns one column
+                int block_mat_id = threadIdx.x / MAT_DIM;
+
+                // Load the full symmetric matrix into shared memory
+                __shared__ double s_mat[32 / BANKSIZE][MAT_DIM][MAT_DIM];
+                __shared__ double s_col[32 / BANKSIZE][MAT_DIM];
+
+                for(int row = 0; row < MAT_DIM; row++)
+                {
+                    int node_row = row / 3;
+                    int node_col = col / 3;
+                    if(node_col >= node_row)
+                    {
+                        int si = sym_index(node_row, node_col);
+                        s_mat[block_mat_id][row][col] =
+                            cluster_hess[mat_id].M[si](row % 3, col % 3);
+                    }
+                    else
+                    {
+                        int si = sym_index(node_col, node_row);
+                        s_mat[block_mat_id][row][col] =
+                            cluster_hess[mat_id].M[si](col % 3, row % 3);
+                    }
+                    // Regularize: zero diagonal → identity (for padding nodes)
+                    if(row == col && s_mat[block_mat_id][row][col] == 0.0)
+                        s_mat[block_mat_id][row][col] = 1.0;
+                }
+
+                // Gauss-Jordan elimination (in-place inversion)
+                for(int pivot = 0; pivot < MAT_DIM; pivot++)
+                {
+                    __syncthreads();
+                    double pivot_val = s_mat[block_mat_id][pivot][pivot];
+                    s_col[block_mat_id][col] = s_mat[block_mat_id][col][pivot];
+                    __syncthreads();
+
+                    s_mat[block_mat_id][col == pivot ? col : col][pivot] =
+                        (col == pivot) ? 1.0 : 0.0;
+
+                    __syncthreads();
+                    s_mat[block_mat_id][pivot][col] /= pivot_val;
+                    __syncthreads();
+
+                    for(int row = 0; row < MAT_DIM; row++)
+                    {
+                        if(row != pivot)
+                        {
+                            double factor = -s_col[block_mat_id][row];
+                            __syncthreads();
+                            s_mat[block_mat_id][row][col] +=
+                                factor * s_mat[block_mat_id][pivot][col];
+                        }
+                    }
+                }
+                __syncthreads();
+
+                // Symmetrize the result
+                if(col % 3 < 2)
+                    s_mat[block_mat_id][col + 1][col] = s_mat[block_mat_id][col][col + 1];
+                else
+                    s_mat[block_mat_id][col][col - 2] = s_mat[block_mat_id][col - 2][col];
+                __syncthreads();
+
+                // Write result back as float (mixed precision)
+                for(int row = 0; row < MAT_DIM; row++)
+                {
+                    int node_row = row / 3;
+                    int node_col = col / 3;
+                    if(node_col >= node_row)
+                    {
+                        int si = sym_index(node_row, node_col);
+                        cluster_inv[mat_id].M[si](row % 3, col % 3) =
+                            static_cast<float>(s_mat[block_mat_id][row][col]);
+                    }
+                }
+            });
+}
+
 // ============================================================================
-// Apply preconditioning
+// Phase 3: Apply preconditioning  z = M^{-1} r
 // ============================================================================
 
+// ---------------------------------------------------------------------------
+// Restrict: accumulate residual R from fine to all coarser levels
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::build_multi_level_R(const double3* R)
 {
-    int number = m_totalMapNodes;
-    if(number < 1) return;
-    int blockSize = DEFAULT_BLOCKSIZE;
-    int numBlocks = (number + blockSize - 1) / blockSize;
-    k_buildMultiLevelR<<<numBlocks, blockSize>>>(
-        R,
-        m_d_multiLevelR.data(),
-        m_d_goingNext.data(),
-        m_d_prefixOriginal.data(),
-        m_d_fineConnectMask.data(),
-        m_d_partId_map_real.data(),
-        m_levelnum, number);
+    using namespace muda;
+    int N = m_total_map_nodes;
+    if(N < 1) return;
+
+    int block_size = DEFAULT_BLOCKSIZE;
+    int num_blocks = (N + block_size - 1) / block_size;
+
+    Launch(num_blocks, block_size)
+        .apply(
+            [R,
+             multi_lr      = multi_level_R.data(),
+             going_next    = going_next.data(),
+             prefix_orig   = prefix_original.data(),
+             fine_conn     = fine_connect_masks.data(),
+             part_to_real  = part_to_real.cviewer().name("part_to_real"),
+             level_num = m_level_num, N] __device__() mutable
+            {
+                int pdx = blockIdx.x * blockDim.x + threadIdx.x;
+                if(pdx >= N) return;
+
+                int idx = part_to_real(pdx);
+
+                Eigen::Vector3f r;
+                if(idx >= 0)
+                {
+                    r[0] = static_cast<float>(R[idx].x);
+                    r[1] = static_cast<float>(R[idx].y);
+                    r[2] = static_cast<float>(R[idx].z);
+                }
+                else
+                {
+                    r = Eigen::Vector3f::Zero();
+                }
+
+                int lane_id       = threadIdx.x % BANKSIZE;
+                int local_warp_id = threadIdx.x / BANKSIZE;
+                int global_warp   = pdx / BANKSIZE;
+
+                multi_lr[pdx] = r;
+
+                __shared__ float sum_residual[DEFAULT_BLOCKSIZE * 3];
+                __shared__ int   prefix_sum_s[DEFAULT_WARPNUM];
+
+                if(lane_id == 0)
+                    prefix_sum_s[local_warp_id] = prefix_orig[global_warp];
+
+                if(idx < 0) return;
+
+                unsigned int connect_msk = fine_conn[idx];
+
+                if(prefix_sum_s[local_warp_id] == 1)
+                {
+                    // Contiguous partition: use warp shuffle reduction
+                    auto mask_val   = __activemask();
+                    int  warp_id    = threadIdx.x & 0x1f;
+                    bool is_boundary = (lane_id == 0) || (warp_id == 0);
+
+                    unsigned int mark = __ballot_sync(mask_val, is_boundary);
+                    mark              = __brev(mark);
+                    int clz_len       = __clz(mark << (warp_id + 1));
+                    unsigned int interval = min(clz_len, 31 - warp_id);
+
+                    for(int s = 1; s < BANKSIZE; s <<= 1)
+                    {
+                        float tx = __shfl_down_sync(mask_val, r[0], s);
+                        float ty = __shfl_down_sync(mask_val, r[1], s);
+                        float tz = __shfl_down_sync(mask_val, r[2], s);
+                        if(interval >= (unsigned int)s)
+                        {
+                            r[0] += tx;
+                            r[1] += ty;
+                            r[2] += tz;
+                        }
+                    }
+
+                    if(is_boundary)
+                    {
+                        int cur = idx;
+                        for(int l = 0; l < level_num - 1; l++)
+                        {
+                            cur = going_next[cur];
+                            atomicAdd(&(multi_lr[cur][0]), r[0]);
+                            atomicAdd(&(multi_lr[cur][1]), r[1]);
+                            atomicAdd(&(multi_lr[cur][2]), r[2]);
+                        }
+                    }
+                }
+                else
+                {
+                    // Non-contiguous: accumulate via shared memory
+                    int elected_lane = __ffs(connect_msk) - 1;
+
+                    sum_residual[threadIdx.x]                         = 0;
+                    sum_residual[threadIdx.x + DEFAULT_BLOCKSIZE]     = 0;
+                    sum_residual[threadIdx.x + 2 * DEFAULT_BLOCKSIZE] = 0;
+
+                    atomicAdd(sum_residual + local_warp_id * BANKSIZE + elected_lane, r[0]);
+                    atomicAdd(sum_residual + local_warp_id * BANKSIZE + elected_lane + DEFAULT_BLOCKSIZE, r[1]);
+                    atomicAdd(sum_residual + local_warp_id * BANKSIZE + elected_lane + 2 * DEFAULT_BLOCKSIZE, r[2]);
+
+                    unsigned int elected_prefix = __popc(connect_msk & lanemask_lt(lane_id));
+                    if(elected_prefix == 0)
+                    {
+                        int cur = idx;
+                        for(int l = 0; l < level_num - 1; l++)
+                        {
+                            cur = going_next[cur];
+                            atomicAdd(&(multi_lr[cur][0]), sum_residual[threadIdx.x]);
+                            atomicAdd(&(multi_lr[cur][1]), sum_residual[threadIdx.x + DEFAULT_BLOCKSIZE]);
+                            atomicAdd(&(multi_lr[cur][2]), sum_residual[threadIdx.x + DEFAULT_BLOCKSIZE * 2]);
+                        }
+                    }
+                }
+            });
 }
 
+// ---------------------------------------------------------------------------
+// Local solve: Z = cluster_inverse * R at each level
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::schwarz_local_solve()
 {
-    int number = m_totalNumberClusters * BANKSIZE;
-    if(number < 1) return;
-    int blockSize = BANKSIZE * BANKSIZE;
-    int numBlocks = (number + blockSize - 1) / blockSize;
-    k_schwarzLocalXSym_block3<<<numBlocks, blockSize>>>(
-        m_d_precondMatMas.data(), m_d_multiLevelR.data(), m_d_multiLevelZ.data(), number);
+    using namespace muda;
+    int N = m_total_num_clusters * BANKSIZE;  // one thread per (cluster, node-pair)
+    if(N < 1) return;
+
+    int block_size = BANKSIZE * BANKSIZE;
+    int num_blocks = (N + block_size - 1) / block_size;
+
+    Launch(num_blocks, block_size)
+        .apply(
+            [cluster_inv = cluster_inverses.data(),
+             multi_lr    = multi_level_R.data(),
+             multi_lz    = multi_level_Z.data(),
+             N] __device__() mutable
+            {
+                int idx = blockIdx.x * blockDim.x + threadIdx.x;
+                if(idx >= N) return;
+
+                constexpr int cluster_stride = BANKSIZE * BANKSIZE;
+
+                int cluster_id = idx / cluster_stride;
+                int local_row  = (idx % cluster_stride) / BANKSIZE;
+                int local_col  = (idx % cluster_stride) % BANKSIZE;
+
+                int vert_row = cluster_id * BANKSIZE + local_row;
+                int vert_col = cluster_id * BANKSIZE + local_col;
+
+                // Load residual for this column node into shared memory
+                __shared__ Eigen::Vector3f s_R[BANKSIZE];
+                if(threadIdx.x < BANKSIZE)
+                    s_R[threadIdx.x] = multi_lr[vert_col];
+                __syncthreads();
+
+                // Multiply: result = inverse_block * R_col
+                Eigen::Vector3f result;
+                if(vert_col >= vert_row)
+                {
+                    int si = sym_index(local_row, local_col);
+                    result = cluster_inv[cluster_id].M[si] * s_R[local_col];
+                }
+                else
+                {
+                    int si = sym_index(local_col, local_row);
+                    result = cluster_inv[cluster_id].M[si].transpose() * s_R[local_col];
+                }
+
+                // Warp-reduce the partial products across columns
+                int  warp_id    = threadIdx.x & 0x1f;
+                int  land_idx   = threadIdx.x % BANKSIZE;
+                bool is_boundary = (land_idx == 0) || (warp_id == 0);
+
+                unsigned int mark = __ballot_sync(0xffffffff, is_boundary);
+                mark              = __brev(mark);
+                int clz_len       = __clz(mark << (warp_id + 1));
+                unsigned int interval = min(clz_len, 31 - warp_id);
+
+                int max_shfl = min(32, BANKSIZE);
+                for(int s = 1; s < max_shfl; s <<= 1)
+                {
+                    float tx = __shfl_down_sync(0xffffffff, result[0], s);
+                    float ty = __shfl_down_sync(0xffffffff, result[1], s);
+                    float tz = __shfl_down_sync(0xffffffff, result[2], s);
+                    if(interval >= (unsigned int)s)
+                    {
+                        result[0] += tx;
+                        result[1] += ty;
+                        result[2] += tz;
+                    }
+                }
+
+                if(is_boundary)
+                {
+                    atomicAdd(&(multi_lz[vert_row].x), result[0]);
+                    atomicAdd(&(multi_lz[vert_row].y), result[1]);
+                    atomicAdd(&(multi_lz[vert_row].z), result[2]);
+                }
+            });
 }
 
+// ---------------------------------------------------------------------------
+// Prolongate: sum Z contributions from all levels for each fine node
+// ---------------------------------------------------------------------------
 void MASPreconditionerEngine::collect_final_Z(double3* Z)
 {
-    int number = m_totalNodes;
-    if(number < 1) return;
-    int blockSize = DEFAULT_BLOCKSIZE;
-    int numBlocks = (number + blockSize - 1) / blockSize;
-    k_collectFinalZ<<<numBlocks, blockSize>>>(
-        Z, m_d_multiLevelZ.data(), m_d_coarseTable.data(),
-        m_d_real_map_partId.data(), m_levelnum, number);
+    using namespace muda;
+    int N = m_total_nodes;
+    if(N < 1) return;
+
+    int level_num = m_level_num;
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(N,
+               [Z,
+                multi_lz     = multi_level_Z.cviewer().name("multi_level_Z"),
+                coarse_table = coarse_tables.cviewer().name("coarse_table"),
+                real_to_part = real_to_part.cviewer().name("real_to_part"),
+                level_num] __device__(int idx) mutable
+               {
+                   int rdx = real_to_part(idx);
+
+                   // Start with the fine-level solution
+                   float3 cz = multi_lz(rdx);
+
+                   // Add contributions from all coarser levels
+                   LevelTable table = coarse_table(idx);
+                   for(int l = 1; l < level_num; l++)
+                   {
+                       int node = table.index[l - 1];
+                       float3 val = multi_lz(node);
+                       cz.x += val.x;
+                       cz.y += val.y;
+                       cz.z += val.z;
+                   }
+
+                   Z[idx].x = static_cast<double>(cz.x);
+                   Z[idx].y = static_cast<double>(cz.y);
+                   Z[idx].z = static_cast<double>(cz.z);
+               });
 }
+
+// ============================================================================
+// Apply: full preconditioning pipeline  z = M^{-1} r
+// ============================================================================
 
 void MASPreconditionerEngine::apply(muda::CDenseVectorView<Float> r,
                                     muda::DenseVectorView<Float>  z)
 {
-    if(m_totalNodes < 1) return;
+    if(m_total_nodes < 1)
+        return;
 
     // Ensure multi-level buffers cover all clusters
-    if(m_totalNumberClusters > (int)m_d_multiLevelR.size())
+    if(m_total_num_clusters > static_cast<int>(multi_level_R.size()))
     {
-        m_d_multiLevelR.resize(m_totalNumberClusters);
-        m_d_multiLevelZ.resize(m_totalNumberClusters);
+        multi_level_R.resize(m_total_num_clusters);
+        multi_level_Z.resize(m_total_num_clusters);
     }
 
     // Zero coarse-level residuals (beyond fine nodes)
-    if(m_totalNumberClusters > m_totalMapNodes)
+    if(m_total_num_clusters > m_total_map_nodes)
     {
-        cudaMemset(m_d_multiLevelR.data() + m_totalMapNodes,
-                   0,
-                   (m_totalNumberClusters - m_totalMapNodes) * sizeof(Eigen::Vector3f));
+        cudaMemset(multi_level_R.data() + m_total_map_nodes, 0,
+                   (m_total_num_clusters - m_total_map_nodes) * sizeof(Eigen::Vector3f));
     }
 
     // Zero all solution levels
-    cudaMemset(m_d_multiLevelZ.data(), 0, m_totalNumberClusters * sizeof(float3));
+    cudaMemset(multi_level_Z.data(), 0,
+               m_total_num_clusters * sizeof(float3));
 
-    // 1. Restrict residual down through levels
-    build_multi_level_R((const double3*)r.data());
+    // 1. Restrict: accumulate residual down through levels
+    build_multi_level_R(reinterpret_cast<const double3*>(r.data()));
 
-    // 2. Local block solve at each level
+    // 2. Local solve: Z = cluster_inverse * R at each level
     schwarz_local_solve();
 
-    // 3. Prolongate solution back up
-    collect_final_Z((double3*)z.data());
+    // 3. Prolongate: sum Z from all levels back to fine nodes
+    collect_final_Z(reinterpret_cast<double3*>(z.data()));
 }
 
 }  // namespace uipc::backend::cuda
