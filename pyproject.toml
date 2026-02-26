@@ -51,6 +51,7 @@ Issues = "https://github.com/spiriMirror/libuipc/issues"
 [project.optional-dependencies]
 gui = ["polyscope"]
 dev = ["pytest"]
+asset = ["huggingface_hub>=0.20.0"]
 
 [tool.pytest.ini_options]
 addopts = ["-s"]
