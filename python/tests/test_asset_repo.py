@@ -247,7 +247,7 @@ def test_import_error_when_hub_missing(monkeypatch):
     # the stub has been removed and the real package is not installed).
     def _failing_require():
         try:
-            import huggingface_hub  # noqa: F811
+            import huggingface_hub
             return huggingface_hub
         except ImportError:
             raise ImportError(

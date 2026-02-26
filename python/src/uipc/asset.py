@@ -45,7 +45,7 @@ def _require_huggingface_hub():
     """Import and return the *huggingface_hub* module, raising a clear error
     if it is not installed."""
     try:
-        import huggingface_hub  # noqa: F811
+        import huggingface_hub
         return huggingface_hub
     except ImportError:
         raise ImportError(
