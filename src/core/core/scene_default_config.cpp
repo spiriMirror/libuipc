@@ -1,4 +1,4 @@
-#include "scene_default_config.h"
+#include "_config.h"
 #include <uipc/common/unit.h>
 
 namespace uipc::core

@@ -29,32 +29,23 @@ class FEMDiagPreconditioner : public LocalPreconditioner
         fem_linear_subsystem        = &require<FEMLinearSubsystem>();
         auto& global_vertex_manager = require<GlobalVertexManager>();
 
-        // If ALL FEM geometries have mesh_part, the MAS preconditioner takes over.
-        // Defer only when every FEM mesh is partitioned; otherwise stay active.
-        auto geo_slots     = world().scene().geometries();
-        bool has_any_fem   = false;
-        bool all_have_part = true;
+        // If ANY FEM geometry has mesh_part, defer to FEMMASPreconditioner,
+        // which handles both partitioned (MAS) and unpartitioned (diag) vertices.
+        auto geo_slots = world().scene().geometries();
         for(SizeT i = 0; i < geo_slots.size(); i++)
         {
             auto& geo = geo_slots[i]->geometry();
             auto* sc  = geo.as<geometry::SimplicialComplex>();
             if(sc && sc->dim() >= 1)
             {
-                has_any_fem = true;
                 auto mesh_part = sc->vertices().find<IndexT>("mesh_part");
-                if(!mesh_part)
+                if(mesh_part)
                 {
-                    all_have_part = false;
-                    break;
+                    throw SimSystemException(
+                        "FEMDiagPreconditioner: mesh_part found, "
+                        "deferring to FEMMASPreconditioner.");
                 }
             }
-        }
-
-        if(has_any_fem && all_have_part)
-        {
-            throw SimSystemException(
-                "FEMDiagPreconditioner: all FEM geometries have mesh_part, "
-                "deferring to FEMMASPreconditioner.");
         }
 
         // This FEMDiagPreconditioner depends on FEMLinearSubsystem

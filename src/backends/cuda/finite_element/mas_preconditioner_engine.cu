@@ -1199,6 +1199,9 @@ void MASPreconditionerEngine::collect_final_Z(double3* Z)
                {
                    int rdx = real_to_part(idx);
 
+                   // Skip unpartitioned vertices (handled by diagonal fallback)
+                   if(rdx < 0) return;
+
                    // Start with the fine-level solution
                    float3 cz = multi_lz(rdx);
 
