@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_stable_neo_hookean.cpp.cpp\
+",
+    errdata = "stable_neo_hookean.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_scene_visitor.cpp.cpp\
+",
+    errdata = "scene_visitor.cpp\
+"
+}

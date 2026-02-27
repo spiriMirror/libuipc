@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_distance.cpp.cpp\
+",
+    errdata = "distance.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_Morton.cpp.cpp\
+",
+    errdata = "Morton.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_strain_limiting_baraff_witkin.cpp.cpp\
+",
+    errdata = "strain_limiting_baraff_witkin.cpp\
+"
+}

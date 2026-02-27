@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_timers.c.c\
+",
+    errdata = "timers.c\
+"
+}

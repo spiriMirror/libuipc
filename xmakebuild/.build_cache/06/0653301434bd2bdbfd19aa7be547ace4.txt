@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_diff_sim.cpp.cpp\
+",
+    errdata = "diff_sim.cpp\
+"
+}

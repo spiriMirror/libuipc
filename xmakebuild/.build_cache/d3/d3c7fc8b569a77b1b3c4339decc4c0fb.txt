@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_hookean_spring.cpp.cpp\
+",
+    errdata = "hookean_spring.cpp\
+"
+}

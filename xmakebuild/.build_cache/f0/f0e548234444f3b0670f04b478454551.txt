@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_label_surface.cpp.cpp\
+",
+    errdata = "label_surface.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_scene_default_config.cpp.cpp\
+",
+    errdata = "scene_default_config.cpp\
+"
+}

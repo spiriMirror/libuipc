@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_soft_vertex_stitch.cpp.cpp\
+",
+    errdata = "soft_vertex_stitch.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_tokenizer.c.c\
+",
+    errdata = "tokenizer.c\
+"
+}

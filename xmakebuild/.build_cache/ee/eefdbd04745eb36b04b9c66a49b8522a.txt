@@ -1,0 +1,23 @@
+{
+    outdata = "__cpp_coloring_algorithm.cpp.cpp\
+C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\include\\numeric(280): warning C4244: 'initializing': conversion from 'unsigned __int64' to 'int', possible loss of data\
+C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\include\\numeric(280): note: the template instantiation context (the oldest one first) is\
+src\\geometry\\graph_coloring\\coloring_algorithm.cpp(55): note: see reference to function template instantiation '_OutIt std::exclusive_scan<std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,std::_Vector_iterator<std::_Vector_val<std::_Simple_types<_Ty>>>,int>(const _InIt,const _InIt,const _OutIt,int)' being compiled\
+        with\
+        [\
+            _OutIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<GraphColoring::SizeT>>>,\
+            _Ty=GraphColoring::SizeT,\
+            _InIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<GraphColoring::SizeT>>>\
+        ]\
+C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\include\\numeric(299): note: see reference to function template instantiation '_OutIt std::exclusive_scan<_InIt,_OutIt,int,std::plus<void>>(const _InIt,const _InIt,_OutIt,_Ty,_BinOp)' being compiled\
+        with\
+        [\
+            _OutIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<GraphColoring::SizeT>>>,\
+            _InIt=std::_Vector_iterator<std::_Vector_val<std::_Simple_types<GraphColoring::SizeT>>>,\
+            _Ty=int,\
+            _BinOp=std::plus<void>\
+        ]\
+",
+    errdata = "coloring_algorithm.cpp\
+"
+}

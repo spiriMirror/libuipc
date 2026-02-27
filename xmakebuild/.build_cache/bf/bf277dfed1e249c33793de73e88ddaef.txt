@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_asset_dir.cpp.cpp\
+",
+    errdata = "asset_dir.cpp\
+"
+}

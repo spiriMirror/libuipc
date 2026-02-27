@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_i_sanity_checker.cpp.cpp\
+",
+    errdata = "i_sanity_checker.cpp\
+"
+}

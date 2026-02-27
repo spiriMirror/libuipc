@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_srefine.c.c\
+",
+    errdata = "srefine.c\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_backend_path_tool.cpp.cpp\
+",
+    errdata = "backend_path_tool.cpp\
+"
+}

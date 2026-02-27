@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_merge.cpp.cpp\
+",
+    errdata = "merge.cpp\
+"
+}

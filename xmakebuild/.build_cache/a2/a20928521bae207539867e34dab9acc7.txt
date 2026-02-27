@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_affine_body_prismatic_joint_limit.cpp.cpp\
+",
+    errdata = "affine_body_prismatic_joint_limit.cpp\
+"
+}

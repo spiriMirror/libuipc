@@ -1,0 +1,22 @@
+{
+    outdata = "__cpp_mesh_partition.cpp.cpp\
+",
+    errdata = "mesh_partition.cpp\
+external\\METIS\\include\\metis.h(71): warning C4005: 'PRId32': macro redefinition\
+C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt\\inttypes.h(116): note: see previous definition of 'PRId32'\
+external\\METIS\\include\\metis.h(72): warning C4005: 'PRId64': macro redefinition\
+C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt\\inttypes.h(117): note: see previous definition of 'PRId64'\
+external\\METIS\\include\\metis.h(73): warning C4005: 'SCNd32': macro redefinition\
+C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt\\inttypes.h(237): note: see previous definition of 'SCNd32'\
+external\\METIS\\include\\metis.h(74): warning C4005: 'SCNd64': macro redefinition\
+C:\\Program Files (x86)\\Windows Kits\\10\\include\\10.0.26100.0\\ucrt\\inttypes.h(238): note: see previous definition of 'SCNd64'\
+external\\METIS\\include\\metis.h(75): warning C4005: 'INT32_MIN': macro redefinition\
+C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\include\\stdint.h(51): note: see previous definition of 'INT32_MIN'\
+external\\METIS\\include\\metis.h(76): warning C4005: 'INT32_MAX': macro redefinition\
+C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\include\\stdint.h(55): note: see previous definition of 'INT32_MAX'\
+external\\METIS\\include\\metis.h(77): warning C4005: 'INT64_MIN': macro redefinition\
+C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\include\\stdint.h(52): note: see previous definition of 'INT64_MIN'\
+external\\METIS\\include\\metis.h(78): warning C4005: 'INT64_MAX': macro redefinition\
+C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\include\\stdint.h(56): note: see previous definition of 'INT64_MAX'\
+"
+}

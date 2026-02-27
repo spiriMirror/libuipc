@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_tiny_gltf_impl.cpp.cpp\
+",
+    errdata = "tiny_gltf_impl.cpp\
+"
+}

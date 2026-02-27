@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_uid_register.cpp.cpp\
+",
+    errdata = "uid_register.cpp\
+"
+}

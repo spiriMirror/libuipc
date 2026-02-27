@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_pqueue.c.c\
+",
+    errdata = "pqueue.c\
+"
+}

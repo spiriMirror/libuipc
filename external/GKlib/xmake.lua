@@ -16,7 +16,9 @@ target("GKlib")
         add_syslinks("m")
     end
     add_defines("NDEBUG", {public = true})
-    -- MSVC uses __declspec(thread) instead of __thread for TLS
     if is_plat("windows") then
+        -- MSVC uses __declspec(thread) instead of __thread for TLS
         add_defines("__thread=__declspec(thread)", {public = true})
+        -- Windows has no POSIX regex, use GKlib's built-in implementation
+        add_defines("USE_GKREGEX", {public = true})
     end

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_urdf_io.cpp.cpp\
+",
+    errdata = "urdf_io.cpp\
+"
+}

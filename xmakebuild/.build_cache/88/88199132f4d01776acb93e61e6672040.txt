@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_subscene_tabular_visitor.cpp.cpp\
+",
+    errdata = "subscene_tabular_visitor.cpp\
+"
+}

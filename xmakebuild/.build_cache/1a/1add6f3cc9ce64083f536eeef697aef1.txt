@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_BVH.cpp.cpp\
+",
+    errdata = "BVH.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_bucketsort.c.c\
+",
+    errdata = "bucketsort.c\
+"
+}

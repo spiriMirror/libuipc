@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_adjoint_method_feature.cpp.cpp\
+",
+    errdata = "adjoint_method_feature.cpp\
+"
+}

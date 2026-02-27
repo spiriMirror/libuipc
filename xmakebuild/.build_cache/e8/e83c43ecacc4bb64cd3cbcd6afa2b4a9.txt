@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_fortran.c.c\
+",
+    errdata = "fortran.c\
+"
+}

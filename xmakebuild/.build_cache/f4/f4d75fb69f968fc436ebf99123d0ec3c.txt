@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_octree.cpp.cpp\
+",
+    errdata = "octree.cpp\
+"
+}

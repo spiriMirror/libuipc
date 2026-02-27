@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_constraint.cpp.cpp\
+",
+    errdata = "constraint.cpp\
+"
+}

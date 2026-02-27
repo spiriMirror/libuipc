@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_mcore.c.c\
+",
+    errdata = "mcore.c\
+"
+}

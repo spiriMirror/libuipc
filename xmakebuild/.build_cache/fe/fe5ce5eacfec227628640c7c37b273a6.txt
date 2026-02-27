@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_sparse_coo_view.cpp.cpp\
+",
+    errdata = "sparse_coo_view.cpp\
+"
+}

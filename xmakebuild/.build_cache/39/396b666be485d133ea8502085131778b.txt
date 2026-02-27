@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_object_collection.cpp.cpp\
+",
+    errdata = "object_collection.cpp\
+"
+}

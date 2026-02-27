@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_random.c.c\
+",
+    errdata = "random.c\
+"
+}

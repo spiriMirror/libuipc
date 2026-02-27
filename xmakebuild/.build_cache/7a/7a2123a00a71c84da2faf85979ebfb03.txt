@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_getopt.c.c\
+",
+    errdata = "getopt.c\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_itemsets.c.c\
+",
+    errdata = "itemsets.c\
+"
+}

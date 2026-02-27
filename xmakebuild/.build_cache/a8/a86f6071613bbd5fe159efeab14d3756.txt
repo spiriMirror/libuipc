@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_constitution_type.cpp.cpp\
+",
+    errdata = "constitution_type.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_flip_inward_triangles.cpp.cpp\
+",
+    errdata = "flip_inward_triangles.cpp\
+"
+}

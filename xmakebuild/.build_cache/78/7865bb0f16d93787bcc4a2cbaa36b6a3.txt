@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_scene_snapshot.cpp.cpp\
+",
+    errdata = "scene_snapshot.cpp\
+"
+}

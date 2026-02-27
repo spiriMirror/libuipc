@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_attribute_type_export.cpp.cpp\
+",
+    errdata = "attribute_type_export.cpp\
+"
+}

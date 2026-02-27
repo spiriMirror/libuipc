@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_minconn.c.c\
+",
+    errdata = "minconn.c\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_optimal_transform.cpp.cpp\
+",
+    errdata = "optimal_transform.cpp\
+"
+}

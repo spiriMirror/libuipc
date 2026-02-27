@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_intersection.cpp.cpp\
+",
+    errdata = "intersection.cpp\
+"
+}

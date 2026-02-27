@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_compute_vertex_volume.cpp.cpp\
+",
+    errdata = "compute_vertex_volume.cpp\
+"
+}

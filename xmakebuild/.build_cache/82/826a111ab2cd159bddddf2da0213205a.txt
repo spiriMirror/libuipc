@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_baraff_witkin_shell.cpp.cpp\
+",
+    errdata = "baraff_witkin_shell.cpp\
+"
+}

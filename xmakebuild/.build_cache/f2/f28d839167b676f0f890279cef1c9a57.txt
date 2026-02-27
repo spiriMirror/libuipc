@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_inter_primitive_constitution.cpp.cpp\
+",
+    errdata = "inter_primitive_constitution.cpp\
+"
+}

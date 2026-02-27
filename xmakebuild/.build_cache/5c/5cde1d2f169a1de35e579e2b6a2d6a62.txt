@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_affine_body_driving_spherical_joint.cpp.cpp\
+",
+    errdata = "affine_body_driving_spherical_joint.cpp\
+"
+}

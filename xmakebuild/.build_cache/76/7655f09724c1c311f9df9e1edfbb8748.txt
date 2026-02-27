@@ -1,0 +1,6 @@
+{
+    outdata = "simplicial_surface_intersection_check.cpp\
+",
+    errdata = "simplicial_surface_intersection_check.cpp\
+"
+}

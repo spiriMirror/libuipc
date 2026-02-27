@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_ometis.c.c\
+",
+    errdata = "ometis.c\
+"
+}

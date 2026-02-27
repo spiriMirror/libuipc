@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_geometry_collection_commit.cpp.cpp\
+",
+    errdata = "geometry_collection_commit.cpp\
+"
+}

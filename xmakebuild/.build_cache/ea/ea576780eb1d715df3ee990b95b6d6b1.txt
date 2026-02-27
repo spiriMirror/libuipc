@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_engine.cpp.cpp\
+",
+    errdata = "engine.cpp\
+"
+}

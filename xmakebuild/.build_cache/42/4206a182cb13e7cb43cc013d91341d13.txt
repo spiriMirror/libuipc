@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_memory.c.c\
+",
+    errdata = "memory.c\
+"
+}

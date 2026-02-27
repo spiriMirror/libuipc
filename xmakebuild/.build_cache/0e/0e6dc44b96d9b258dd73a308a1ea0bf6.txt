@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_initpart.c.c\
+",
+    errdata = "initpart.c\
+"
+}

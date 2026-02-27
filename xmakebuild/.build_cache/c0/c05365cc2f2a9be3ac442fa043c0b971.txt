@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_shared_attribute_context.cpp.cpp\
+",
+    errdata = "shared_attribute_context.cpp\
+"
+}

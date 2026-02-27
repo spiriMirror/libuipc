@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_logger.cpp.cpp\
+",
+    errdata = "logger.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_adapt.c.c\
+",
+    errdata = "adapt.c\
+"
+}

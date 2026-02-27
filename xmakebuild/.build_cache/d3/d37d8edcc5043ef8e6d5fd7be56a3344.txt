@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_half_plane.cpp.cpp\
+",
+    errdata = "half_plane.cpp\
+"
+}

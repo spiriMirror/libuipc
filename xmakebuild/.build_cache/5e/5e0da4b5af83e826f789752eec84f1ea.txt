@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_sanity_check_message_visitor.cpp.cpp\
+",
+    errdata = "sanity_check_message_visitor.cpp\
+"
+}

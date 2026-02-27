@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_simplicial_complex_io.cpp.cpp\
+",
+    errdata = "simplicial_complex_io.cpp\
+"
+}

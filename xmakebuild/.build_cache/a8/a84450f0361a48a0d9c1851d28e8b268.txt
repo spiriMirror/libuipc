@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_constitution_tabular.cpp.cpp\
+",
+    errdata = "constitution_tabular.cpp\
+"
+}

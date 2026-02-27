@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_mesh.c.c\
+",
+    errdata = "mesh.c\
+"
+}

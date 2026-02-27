@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_kirchhoff_rod_bending.cpp.cpp\
+",
+    errdata = "kirchhoff_rod_bending.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_animation.cpp.cpp\
+",
+    errdata = "animation.cpp\
+"
+}

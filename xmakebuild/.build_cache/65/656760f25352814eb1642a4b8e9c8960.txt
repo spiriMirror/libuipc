@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_label_triangle_orient.cpp.cpp\
+",
+    errdata = "label_triangle_orient.cpp\
+"
+}

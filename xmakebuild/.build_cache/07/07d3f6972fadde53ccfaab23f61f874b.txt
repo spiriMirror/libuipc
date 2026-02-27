@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_compress.c.c\
+",
+    errdata = "compress.c\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_separator.c.c\
+",
+    errdata = "separator.c\
+"
+}

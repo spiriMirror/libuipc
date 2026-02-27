@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_kwayfm.c.c\
+",
+    errdata = "kwayfm.c\
+"
+}

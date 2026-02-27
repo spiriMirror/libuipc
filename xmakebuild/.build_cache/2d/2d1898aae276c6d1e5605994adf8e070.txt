@@ -1,0 +1,6 @@
+{
+    outdata = "simplicial_surface_distance_check.cpp\
+",
+    errdata = "simplicial_surface_distance_check.cpp\
+"
+}

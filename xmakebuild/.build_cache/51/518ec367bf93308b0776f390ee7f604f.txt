@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_dsatur.cpp.cpp\
+",
+    errdata = "dsatur.cpp\
+"
+}
