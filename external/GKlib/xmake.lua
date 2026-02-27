@@ -16,7 +16,7 @@ target("GKlib")
         add_syslinks("m")
     end
     add_defines("NDEBUG", {public = true})
-    -- suppress warnings from legacy C code
+    -- MSVC uses __declspec(thread) instead of __thread for TLS
     if is_plat("windows") then
-        add_cflags("/wd4005", "/wd4244", "/wd4267", "/wd4996")
+        add_defines("__thread=__declspec(thread)", {public = true})
     end
