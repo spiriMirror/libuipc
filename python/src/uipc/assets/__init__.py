@@ -19,7 +19,7 @@ Usage::
 import importlib.util
 import pathlib
 
-from huggingface_hub import HfApi, snapshot_download
+from huggingface_hub import HfApi, RepoFolder, snapshot_download
 from uipc import Scene, SceneIO
 from uipc.geometry import SimplicialComplex, SimplicialComplexIO
 
@@ -41,8 +41,7 @@ def list_assets(*, revision: str = 'main') -> list[str]:
     return sorted(
         e.path.removeprefix('assets/')
         for e in entries
-        if hasattr(e, 'type') and e.type == 'directory'
-        or not hasattr(e, 'type') and '/' not in e.path.removeprefix('assets/')
+        if isinstance(e, RepoFolder)
     )
 
 
@@ -110,7 +109,9 @@ def load(
     """Download an asset and apply it to a Scene.
 
     Downloads ``assets/<name>/`` from the HuggingFace dataset, imports
-    its ``scene.py``, and calls ``build_scene(scene)``.
+    its ``scene.py``, and calls ``build_scene(scene)``.  Each asset's
+    ``build_scene`` may modify ``scene.config()`` to set parameters
+    like ``dt`` or ``contact/d_hat``.
 
     Args:
         name: Asset name (e.g. ``'cube_ground'``).
@@ -198,23 +199,15 @@ def _auto_camera(scene: Scene, distance_factor: float) -> None:
         return
 
     pts = np.concatenate(all_pts, axis=0)
-    bbox_min = pts.min(axis=0)
-    bbox_max = pts.max(axis=0)
-    center = (bbox_min + bbox_max) * 0.5
-    diag = float(np.linalg.norm(bbox_max - bbox_min))
+    center = (pts.min(axis=0) + pts.max(axis=0)) * 0.5
+    diag = float(np.linalg.norm(pts.max(axis=0) - pts.min(axis=0)))
 
     if diag < 1e-12:
         return
 
     dist = diag * distance_factor
-
-    horiz = dist * np.cos(np.pi / 4)
-    vert = dist * np.sin(np.pi / 4)
-    offset = np.array([
-        vert / np.sqrt(2),
-        horiz,
-        vert / np.sqrt(2),
-    ])
-
-    camera_pos = center + offset
+    # 45-deg elevation, looking from the (+X, +Y, +Z) octant toward center
+    elevation = dist * np.sin(np.pi / 4)
+    ground = dist * np.cos(np.pi / 4) / np.sqrt(2)
+    camera_pos = center + np.array([ground, elevation, ground])
     ps.look_at(camera_pos.tolist(), center.tolist())
