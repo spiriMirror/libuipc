@@ -184,6 +184,7 @@ TEST_CASE("62_fem_mas_contact_aware_benchmark", "[fem][mas][benchmark]")
                      static_cast<double>(off_spmv_count) / on_spmv_count);
     }
 
-    // Contact-aware should not significantly increase SpMV count.
-    REQUIRE(on_spmv_count <= off_spmv_count * 1.05);
+    // Contact-aware should not significantly regress.
+    // Allow 5% tolerance since hierarchy changes can shift Newton convergence slightly.
+    REQUIRE(on_spmv_count <= static_cast<int>(off_spmv_count * 1.05));
 }

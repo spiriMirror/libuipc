@@ -117,6 +117,11 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
         idx_t n_weights  = 1;
         idx_t n_vertices = static_cast<idx_t>(vert_count);
 
+        // Use fixed seed for deterministic partitioning across runs
+        idx_t options[METIS_NOPTIONS];
+        METIS_SetDefaultOptions(options);
+        options[METIS_OPTION_SEED] = 0;
+
         int ret = METIS_PartGraphKway(&n_vertices,
                                       &n_weights,
                                       xadj.data(),
@@ -127,7 +132,7 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
                                       &n_parts,
                                       nullptr,   // tpwgts
                                       nullptr,   // ubvec
-                                      nullptr,   // options
+                                      options,
                                       &edge_cut,
                                       metis_result.data());
 
@@ -160,5 +165,41 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
     // Write to attribute
     for(SizeT i = 0; i < vert_count; ++i)
         part_view[i] = static_cast<IndexT>(metis_result[i]);
+
+    // Validate the partition result
+    {
+        // 1. All vertices must have a non-negative partition ID
+        for(SizeT i = 0; i < vert_count; ++i)
+        {
+            UIPC_ASSERT(part_view[i] >= 0,
+                         "mesh_partition: vertex {} has invalid partition ID {}.",
+                         i,
+                         part_view[i]);
+        }
+
+        // 2. No partition exceeds part_max_size
+        IndexT max_id = *std::ranges::max_element(part_view);
+        vector<SizeT> sizes(max_id + 1, 0);
+        for(SizeT i = 0; i < vert_count; ++i)
+            sizes[part_view[i]]++;
+
+        for(IndexT p = 0; p <= max_id; ++p)
+        {
+            UIPC_ASSERT(sizes[p] <= part_max_size,
+                         "mesh_partition: partition {} has {} vertices, exceeding the limit {}.",
+                         p,
+                         sizes[p],
+                         part_max_size);
+        }
+
+        // 3. No empty partitions (IDs should be contiguous 0..max)
+        for(IndexT p = 0; p <= max_id; ++p)
+        {
+            UIPC_ASSERT(sizes[p] > 0,
+                         "mesh_partition: partition {} is empty. "
+                         "Partition IDs should be contiguous from 0.",
+                         p);
+        }
+    }
 }
 }  // namespace uipc::geometry
