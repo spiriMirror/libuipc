@@ -132,9 +132,9 @@ int MASPreconditionerEngine::reorder_realtime(int cp_num)
 
     build_connect_mask_L0();
 
-    // Contact-aware: inject collision connectivity at fine level
-    if(m_collision_num > 0)
-        build_collision_connection(fine_connect_masks.data(), nullptr, -1, m_collision_num);
+    // Contact-aware: inject BCOO off-diagonal coupling at fine level
+    if(m_bcoo_triplet_num > 0)
+        build_hessian_connection(fine_connect_masks.data(), nullptr, -1);
 
     prepare_prefix_sum_L0();
     build_level1();
@@ -144,12 +144,11 @@ int MASPreconditionerEngine::reorder_realtime(int cp_num)
         next_connect_masks.fill(0u);
         build_connect_mask_Lx(level);
 
-        // Contact-aware: inject collision connectivity at coarser levels
-        if(m_collision_num > 0)
-            build_collision_connection(next_connect_masks.data(),
-                                      coarse_space_tables.data(),
-                                      level,
-                                      m_collision_num);
+        // Contact-aware: inject BCOO coupling at coarser levels
+        if(m_bcoo_triplet_num > 0)
+            build_hessian_connection(next_connect_masks.data(),
+                                    coarse_space_tables.data(),
+                                    level);
 
         // Copy level size to host for next-level sizing
         cudaMemcpy(&m_h_level_size,
@@ -606,104 +605,80 @@ void MASPreconditionerEngine::aggregation_kernel()
 }
 
 // ============================================================================
-// Collision connectivity (contact-aware MAS)
+// Contact-aware connectivity (from BCOO off-diagonal coupling)
 // ============================================================================
 
-void MASPreconditionerEngine::set_collision_pairs(const int* d_collision_pairs,
-                                                   int        num_pairs,
-                                                   int        node_offset)
+void MASPreconditionerEngine::set_hessian_coupling(const int* d_row_ids,
+                                                    const int* d_col_ids,
+                                                    int        triplet_num,
+                                                    int        dof_offset)
 {
-    m_collision_pairs       = d_collision_pairs;
-    m_collision_num         = num_pairs;
-    m_collision_node_offset = node_offset;
+    m_bcoo_row_ids     = d_row_ids;
+    m_bcoo_col_ids     = d_col_ids;
+    m_bcoo_triplet_num = triplet_num;
+    m_bcoo_dof_offset  = dof_offset;
 }
 
-void MASPreconditionerEngine::build_collision_connection(
+void MASPreconditionerEngine::build_hessian_connection(
     unsigned int* connection_mask,
     const int*    coarse_table,   // nullptr for L0
-    int           level,
-    int           cp_num)
+    int           level)
 {
     using namespace muda;
-    if(cp_num < 1) return;
+    if(m_bcoo_triplet_num < 1) return;
 
-    int block_size = DEFAULT_BLOCKSIZE;
-    int num_blocks = (cp_num + block_size - 1) / block_size;
-
-    // Each collision pair has 2-4 vertices (packed as int4).
-    // For each pair of vertices that map to the same bank (cluster),
-    // set the connectivity bit so they're grouped together.
-    Launch(num_blocks, block_size)
+    // For each off-diagonal (i,j) block in the BCOO matrix that falls within
+    // the FEM DOF range, set connectivity bits so i and j are grouped together.
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
         .apply(
+            m_bcoo_triplet_num,
             [connection_mask,
              coarse_table,
-             collision_pairs = m_collision_pairs,
-             real_to_part    = real_to_part.data(),
-             node_offset     = m_collision_node_offset,
-             vert_num        = m_total_nodes,
-             level,
-             cp_num] __device__() mutable
+             row_ids      = m_bcoo_row_ids,
+             col_ids      = m_bcoo_col_ids,
+             real_to_part = real_to_part.data(),
+             dof_offset   = m_bcoo_dof_offset,
+             vert_num     = m_total_nodes,
+             level] __device__(int idx) mutable
             {
-                int idx = blockIdx.x * blockDim.x + threadIdx.x;
-                if(idx >= cp_num) return;
+                int row = row_ids[idx] - dof_offset;
+                int col = col_ids[idx] - dof_offset;
 
-                // Read the collision pair (int4-packed: up to 4 vertex indices)
-                const int* pair = collision_pairs + idx * 4;
-                int verts[4] = {pair[0], pair[1], pair[2], pair[3]};
+                // Skip entries outside FEM range or diagonal entries
+                if(row < 0 || row >= vert_num || col < 0 || col >= vert_num)
+                    return;
+                if(row == col)
+                    return;
 
-                // Map each vertex to partition space
-                int cp_vid[4];
-                for(int i = 0; i < 4; i++)
+                // Map to partition space at the appropriate level
+                int a, b;
+                if(coarse_table)
                 {
-                    int v = verts[i];
-                    if(v >= 0)
-                    {
-                        v -= node_offset;
-                        if(v >= 0 && v < vert_num)
-                        {
-                            if(coarse_table)
-                                cp_vid[i] = coarse_table[(level - 1) * vert_num + v];
-                            else
-                                cp_vid[i] = real_to_part[v];
-                        }
-                        else
-                            cp_vid[i] = -1;
-                    }
-                    else
-                        cp_vid[i] = -1;
+                    a = coarse_table[(level - 1) * vert_num + row];
+                    b = coarse_table[(level - 1) * vert_num + col];
+                }
+                else
+                {
+                    a = real_to_part[row];
+                    b = real_to_part[col];
                 }
 
-                // For each pair of vertices in the same bank, set connectivity
-                for(int i = 0; i < 4; i++)
+                if(a < 0 || b < 0) return;
+
+                // If both vertices are in the same bank, set connectivity bits
+                if(a / BANKSIZE == b / BANKSIZE)
                 {
-                    for(int j = i + 1; j < 4; j++)
+                    if(coarse_table)
                     {
-                        int a = cp_vid[i];
-                        int b = cp_vid[j];
-
-                        if(a < 0 || b < 0 || a == b) continue;
-
-                        if(a / BANKSIZE == b / BANKSIZE)
-                        {
-                            unsigned int mask_a = (1U << (b % BANKSIZE));
-                            unsigned int mask_b = (1U << (a % BANKSIZE));
-
-                            if(coarse_table)
-                            {
-                                atomicOr(connection_mask + a, mask_a);
-                                atomicOr(connection_mask + b, mask_b);
-                            }
-                            else
-                            {
-                                // For L0: connection_mask is indexed by real vertex
-                                int real_a = verts[i] - node_offset;
-                                int real_b = verts[j] - node_offset;
-                                if(real_a >= 0 && real_a < vert_num)
-                                    atomicOr(connection_mask + real_a, mask_a);
-                                if(real_b >= 0 && real_b < vert_num)
-                                    atomicOr(connection_mask + real_b, mask_b);
-                            }
-                        }
+                        atomicOr(connection_mask + a, 1U << (b % BANKSIZE));
+                        atomicOr(connection_mask + b, 1U << (a % BANKSIZE));
+                    }
+                    else
+                    {
+                        // L0: connection_mask indexed by real vertex
+                        atomicOr(connection_mask + row, 1U << (b % BANKSIZE));
+                        atomicOr(connection_mask + col, 1U << (a % BANKSIZE));
                     }
                 }
             });

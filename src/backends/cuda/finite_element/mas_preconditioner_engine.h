@@ -103,18 +103,17 @@ class MASPreconditionerEngine
     void compute_next_level(int level);
     void aggregation_kernel();
 
-    // Collision connectivity (contact-aware MAS)
-    // Injects collision pair edges into the connectivity graph at each level.
-    // vertex indices are FEM-local (already offset-adjusted by caller).
-    void build_collision_connection(unsigned int* connection_mask,
-                                    const int*   coarse_table,   // nullptr for L0
-                                    int          level,
-                                    int          cp_num);
+    // Contact-aware connectivity: injects BCOO off-diagonal coupling
+    // into the hierarchy at each level.
+    void build_hessian_connection(unsigned int* connection_mask,
+                                  const int*   coarse_table,   // nullptr for L0
+                                  int          level);
 
-    // Set collision pair data (called before set_preconditioner)
-    void set_collision_pairs(const int* d_collision_pairs,  // flat int4-packed
-                             int        num_pairs,
-                             int        node_offset);
+    // Set BCOO coupling data for contact-aware hierarchy
+    void set_hessian_coupling(const int* d_row_ids,
+                              const int* d_col_ids,
+                              int        triplet_num,
+                              int        dof_offset);
 
     // Hessian assembly + inversion
     void scatter_hessian_to_clusters(const Eigen::Matrix3d* d_triplet_values,
@@ -172,9 +171,10 @@ class MASPreconditionerEngine
     muda::DeviceBuffer<Eigen::Vector3f> multi_level_R;
     muda::DeviceBuffer<float3>          multi_level_Z;
 
-    // ---- Collision pairs (for contact-aware MAS) ----
-    const int* m_collision_pairs = nullptr;  // device pointer, int4-packed, owned by caller
-    int        m_collision_num   = 0;
-    int        m_collision_node_offset = 0;
+    // ---- BCOO coupling data (for contact-aware MAS) ----
+    const int* m_bcoo_row_ids    = nullptr;  // device pointer, owned by caller
+    const int* m_bcoo_col_ids    = nullptr;
+    int        m_bcoo_triplet_num = 0;
+    int        m_bcoo_dof_offset  = 0;
 };
 }  // namespace uipc::backend::cuda
