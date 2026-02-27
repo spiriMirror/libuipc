@@ -157,7 +157,7 @@ class SimulationStats:
             pattern = merged.get(key)
             if pattern:
                 regex = re.compile(pattern)
-                match = next((n for n in available if regex.search(n)), None)
+                match = next((n for n in sorted(available) if regex.search(n)), None)
                 if match:
                     display = self.ALIAS_DISPLAY.get(key, key)
                     resolved.append(match)
@@ -240,6 +240,25 @@ class SimulationStats:
         fig, ax = plt.subplots(figsize=(10, 5))
         has_data = False
         ylabel = 'Count'
+        scale = 1.0
+
+        # For duration: determine a single consistent unit across all keys
+        if metric == 'duration':
+            all_vals = []
+            for k in keys:
+                _, v = self.get_values(k, 'duration')
+                if len(v) > 0:
+                    all_vals.append(v)
+            if all_vals:
+                combined = np.concatenate(all_vals)
+                _, ylabel = self._auto_time_unit(combined)
+                max_val = np.max(np.abs(combined))
+                if max_val > 0:
+                    if max_val < 1e-3:
+                        scale = 1e6
+                    elif max_val < 1.0:
+                        scale = 1e3
+
         for idx, key in enumerate(keys):
             frames, values = self.get_values(key, metric)
             if len(frames) == 0:
@@ -247,7 +266,7 @@ class SimulationStats:
                 continue
             has_data = True
             if metric == 'duration':
-                values, ylabel = self._auto_time_unit(values)
+                values = values * scale
             if kind == 'bar':
                 if num_keys > 1:
                     total_width = 0.8
@@ -330,103 +349,159 @@ class SimulationStats:
         """Draw a hierarchical sunburst chart onto *ax*."""
         if not timer_data.get('children'):
             return False
-        ld = {}; na = {}; li = []
-        ch = timer_data['children']
-        if not ch or not ch[0]:
+        level_data = {}
+        node_angles = {}
+        legend_items = []
+        children = timer_data['children']
+        if not children or not children[0]:
             return False
-        td = ch[0].get('duration', 0); fc = ch[0].get('count', 0)
-        if td == 0:
+        total_duration = children[0].get('duration', 0)
+        frame_count = children[0].get('count', 0)
+        if total_duration == 0:
             return False
-        def _cl(node, d=0, pn='root'):
-            if d > max_depth: return
-            nm = node.get('name', 'Unknown')
-            ld.setdefault(d, {})[nm] = {'name': nm, 'full_name': f'{pn} -> {nm}' if d > 0 else nm,
+
+        def collect_level(node, depth=0, parent_name='root'):
+            if depth > max_depth:
+                return
+            name = node.get('name', 'Unknown')
+            level_data.setdefault(depth, {})[name] = {
+                'name': name,
+                'full_name': f'{parent_name} -> {name}' if depth > 0 else name,
                 'duration': node.get('duration', 0), 'percentage': 0,
-                'parent': pn if d > 0 else None, 'count': node.get('count', 0)}
-            for c in node.get('children', []): _cl(c, d + 1, nm)
-        _cl(timer_data)
-        if not ld: return False
-        rw = 0.3; mod = max(ld.keys())
+                'parent': parent_name if depth > 0 else None,
+                'count': node.get('count', 0),
+            }
+            for child in node.get('children', []):
+                collect_level(child, depth + 1, name)
+
+        collect_level(timer_data)
+        if not level_data:
+            return False
+        ring_width = 0.3
+        max_depth_seen = max(level_data.keys())
+
         if include_other:
-            for d in sorted(ld.keys()):
-                if d == mod: continue
-                for pn, pd in ld[d].items():
-                    if 'other' in pn: continue
-                    cdur = sum(cd['duration'] for cd in ld.get(d+1, {}).values()
-                               if cd['parent'] == pn and 'other' not in pd['name'])
-                    cc = sum(1 for cd in ld.get(d+1, {}).values()
-                             if cd['parent'] == pn and 'other' not in pd['name'])
-                    if cc == 0: continue
-                    rem = pd['duration'] - cdur
-                    if rem > 1e-6:
-                        ld.setdefault(d+1, {})[f'{pn}_other'] = {
-                            'name': 'Other', 'full_name': f'{pn} -> Other',
-                            'duration': rem, 'percentage': (rem/td)*100,
-                            'parent': pn, 'count': 1, 'is_other': True}
-        for d, nodes in ld.items():
-            if d == 0: continue
-            ir = 0.25 + (mod - d) * rw
-            if d == 1:
-                si = list(nodes.values()); sz = [i['duration'] for i in si]
-                for i in si: i['percentage'] = (i['duration']/td)*100
-                w, _ = ax.pie(sz, labels=nodes, radius=ir+rw, startangle=90,
-                    counterclock=True, autopct=None,
-                    wedgeprops={'width': rw, 'edgecolor': 'white', 'linewidth': 0.5})
-                na[1] = {}
-                for i, (wg, it) in enumerate(zip(w, si)):
-                    na[1][it['name']] = (wg.theta1, wg.theta2)
-                    if not it.get('is_other', False):
-                        a = np.deg2rad((wg.theta2+wg.theta1)/2); r = ir+rw/2
-                        x, y = r*np.cos(a), r*np.sin(a)
-                    ax.text(x, y, f'{it["percentage"]:.2f}%', ha='center', va='center',
-                            fontsize=8, color='white', fontweight='bold')
-                    li.append((it['full_name'], it['percentage'], wg.get_facecolor()))
+            for depth in sorted(level_data.keys()):
+                if depth == max_depth_seen:
+                    continue
+                for parent_name, parent_data in level_data[depth].items():
+                    if 'other' in parent_name:
+                        continue
+                    child_dur = sum(
+                        cd['duration'] for cd in level_data.get(depth + 1, {}).values()
+                        if cd['parent'] == parent_name and 'other' not in parent_data['name'])
+                    child_count = sum(
+                        1 for cd in level_data.get(depth + 1, {}).values()
+                        if cd['parent'] == parent_name and 'other' not in parent_data['name'])
+                    if child_count == 0:
+                        continue
+                    remaining = parent_data['duration'] - child_dur
+                    if remaining > 1e-6:
+                        level_data.setdefault(depth + 1, {})[f'{parent_name}_other'] = {
+                            'name': 'Other',
+                            'full_name': f'{parent_name} -> Other',
+                            'duration': remaining,
+                            'percentage': (remaining / total_duration) * 100,
+                            'parent': parent_name, 'count': 1, 'is_other': True,
+                        }
+
+        for depth, nodes in level_data.items():
+            if depth == 0:
+                continue
+            inner_radius = 0.25 + (max_depth_seen - depth) * ring_width
+            if depth == 1:
+                sorted_items = list(nodes.values())
+                sizes = [item['duration'] for item in sorted_items]
+                for item in sorted_items:
+                    item['percentage'] = (item['duration'] / total_duration) * 100
+                wedges, _ = ax.pie(
+                    sizes, labels=nodes, radius=inner_radius + ring_width,
+                    startangle=90, counterclock=True, autopct=None,
+                    wedgeprops={'width': ring_width, 'edgecolor': 'white',
+                                'linewidth': 0.5})
+                node_angles[1] = {}
+                for idx, (wedge, item) in enumerate(zip(wedges, sorted_items)):
+                    node_angles[1][item['name']] = (wedge.theta1, wedge.theta2)
+                    if not item.get('is_other', False):
+                        ang = np.deg2rad((wedge.theta2 + wedge.theta1) / 2)
+                        radius = inner_radius + ring_width / 2
+                        x, y = radius * np.cos(ang), radius * np.sin(ang)
+                    ax.text(x, y, f'{item["percentage"]:.2f}%', ha='center',
+                            va='center', fontsize=8, color='white', fontweight='bold')
+                    legend_items.append((item['full_name'], item['percentage'],
+                                        wedge.get_facecolor()))
             else:
-                po = list(ld.get(d-1, {}).keys())
-                pgo = {p: [] for p in po}
-                for it in nodes.values():
-                    if it['parent'] in pgo: pgo[it['parent']].append(it)
-                si = []; 
-                for p in po: si.extend(pgo.get(p, []))
-                pg = {}
-                for it in si: pg.setdefault(it['parent'], []).append(it)
-                na[d] = {}
-                for par, gc in pg.items():
-                    if par not in ld.get(d-1, {}): continue
-                    for it in gc: it['percentage'] = (it['duration']/td)*100
-                    cs = [i['duration'] for i in gc]
-                    if par in na.get(d-1, {}):
-                        ps, pe = na[d-1][par]; pas = pe - ps
-                        w, _ = ax.pie(cs, labels=None, radius=ir+rw, startangle=90,
+                parent_order = list(level_data.get(depth - 1, {}).keys())
+                groups_ordered = {p: [] for p in parent_order}
+                for item in nodes.values():
+                    if item['parent'] in groups_ordered:
+                        groups_ordered[item['parent']].append(item)
+                sorted_items = []
+                for p in parent_order:
+                    sorted_items.extend(groups_ordered.get(p, []))
+                parent_groups = {}
+                for item in sorted_items:
+                    parent_groups.setdefault(item['parent'], []).append(item)
+                node_angles[depth] = {}
+                for parent, group_children in parent_groups.items():
+                    if parent not in level_data.get(depth - 1, {}):
+                        continue
+                    for item in group_children:
+                        item['percentage'] = (item['duration'] / total_duration) * 100
+                    child_sizes = [item['duration'] for item in group_children]
+                    if parent in node_angles.get(depth - 1, {}):
+                        p_start, p_end = node_angles[depth - 1][parent]
+                        p_angle = p_end - p_start
+                        wedges, _ = ax.pie(
+                            child_sizes, labels=None,
+                            radius=inner_radius + ring_width, startangle=90,
                             counterclock=True, autopct=None,
-                            wedgeprops={'width': rw, 'edgecolor': 'white', 'linewidth': 0.5})
-                        tcd = sum(cs); ca = ps
-                        for i, (wg, c) in enumerate(zip(w, cs)):
-                            t1 = ca; t2 = ca + pas*(c/tcd); ca = t2
-                            wg.set_theta1(t1); wg.set_theta2(t2)
-                            if i < len(gc): gc[i]['mapped_angles'] = (t1, t2)
+                            wedgeprops={'width': ring_width,
+                                        'edgecolor': 'white', 'linewidth': 0.5})
+                        total_child = sum(child_sizes)
+                        cur_angle = p_start
+                        for idx, (wedge, cs) in enumerate(zip(wedges, child_sizes)):
+                            t1 = cur_angle
+                            t2 = cur_angle + p_angle * (cs / total_child)
+                            cur_angle = t2
+                            wedge.set_theta1(t1)
+                            wedge.set_theta2(t2)
+                            if idx < len(group_children):
+                                group_children[idx]['mapped_angles'] = (t1, t2)
                     else:
-                        w, _ = ax.pie(cs, labels=None, radius=ir+rw, startangle=0,
+                        wedges, _ = ax.pie(
+                            child_sizes, labels=None,
+                            radius=inner_radius + ring_width, startangle=0,
                             counterclock=True, autopct=None,
-                            wedgeprops={'width': rw, 'edgecolor': 'white', 'linewidth': 0.5})
-                    for i, (wg, it) in enumerate(zip(w, gc)):
-                        na[d][it['name']] = (wg.theta1, wg.theta2)
-                        asz = wg.theta2 - wg.theta1
-                        if not it.get('is_other', False):
-                            a = np.deg2rad((wg.theta2+wg.theta1)/2); r = ir+rw/2
-                            x, y = r*np.cos(a), r*np.sin(a)
-                            if asz > 5:
-                                ax.text(x, y, f'{it["percentage"]:.2f}%', ha='center',
-                                        va='center', fontsize=8, color='white', fontweight='bold')
-                            li.append((it['full_name'], it['percentage'], wg.get_facecolor()))
-        ax.text(0, 0, f'{td:.3f}s', ha='center', va='center', fontsize=10, fontweight='bold',
-                bbox=dict(boxstyle='round,pad=0.3', fc='white', ec='gray', alpha=0.95))
+                            wedgeprops={'width': ring_width,
+                                        'edgecolor': 'white', 'linewidth': 0.5})
+                    for idx, (wedge, item) in enumerate(zip(wedges, group_children)):
+                        node_angles[depth][item['name']] = (wedge.theta1, wedge.theta2)
+                        angle_size = wedge.theta2 - wedge.theta1
+                        if not item.get('is_other', False):
+                            ang = np.deg2rad((wedge.theta2 + wedge.theta1) / 2)
+                            radius = inner_radius + ring_width / 2
+                            x, y = radius * np.cos(ang), radius * np.sin(ang)
+                            if angle_size > 5:
+                                ax.text(x, y, f'{item["percentage"]:.2f}%',
+                                        ha='center', va='center', fontsize=8,
+                                        color='white', fontweight='bold')
+                            legend_items.append((item['full_name'],
+                                                 item['percentage'],
+                                                 wedge.get_facecolor()))
+
+        ax.text(0, 0, f'{total_duration:.3f}s', ha='center', va='center',
+                fontsize=10, fontweight='bold',
+                bbox=dict(boxstyle='round,pad=0.3', fc='white', ec='gray',
+                          alpha=0.95))
         ax.set_aspect('equal')
-        li.sort(key=lambda x: x[1], reverse=True)
-        patches = [mpatches.Patch(label=f'{n} ({p:.2f}%)', color=c) for n, p, c in li]
-        ax.legend(handles=patches, loc='center left', bbox_to_anchor=(1.05, 0.5),
-                  fontsize=7, frameon=True, fancybox=True, shadow=True,
-                  title=f'Total: {td:.3f}s / {fc} frames')
+        legend_items.sort(key=lambda x: x[1], reverse=True)
+        patches = [mpatches.Patch(label=f'{n} ({p:.2f}%)', color=c)
+                   for n, p, c in legend_items]
+        ax.legend(handles=patches, loc='center left',
+                  bbox_to_anchor=(1.05, 0.5), fontsize=7, frameon=True,
+                  fancybox=True, shadow=True,
+                  title=f'Total: {total_duration:.3f}s / {frame_count} frames')
         return True
 
     def profiler_heatmap(self, frame_index=-1, output_path=None,
@@ -490,35 +565,37 @@ class SimulationStats:
         :param iterations: Maximum adjustment passes.
         :param pad: Multiplicative padding on extents.
         """
-        nodes = list(pos.keys())
+        node_list = list(pos.keys())
         for _ in range(iterations):
             moved = False
-            for i, a in enumerate(nodes):
-                ax, ay = pos[a]
-                aw, ah = sizes[a][0] * pad, sizes[a][1] * pad
-                for b in nodes[i + 1:]:
-                    bx, by = pos[b]
-                    bw, bh = sizes[b][0] * pad, sizes[b][1] * pad
-                    ox = (aw + bw) - abs(ax - bx)
-                    oy = (ah + bh) - abs(ay - by)
-                    if ox > 0 and oy > 0:
+            for i, node1 in enumerate(node_list):
+                x1, y1 = pos[node1]
+                hw1 = sizes[node1][0] * pad
+                hh1 = sizes[node1][1] * pad
+                for node2 in node_list[i + 1:]:
+                    x2, y2 = pos[node2]
+                    hw2 = sizes[node2][0] * pad
+                    hh2 = sizes[node2][1] * pad
+                    overlap_x = (hw1 + hw2) - abs(x1 - x2)
+                    overlap_y = (hh1 + hh2) - abs(y1 - y2)
+                    if overlap_x > 0 and overlap_y > 0:
                         # Push apart along the axis of least overlap
-                        if ox < oy:
-                            shift = ox / 2 + 0.001
-                            if ax < bx:
-                                pos[a] = (ax - shift, ay)
-                                pos[b] = (bx + shift, by)
+                        if overlap_x < overlap_y:
+                            shift = overlap_x / 2 + 0.001
+                            if x1 < x2:
+                                pos[node1] = (x1 - shift, y1)
+                                pos[node2] = (x2 + shift, y2)
                             else:
-                                pos[a] = (ax + shift, ay)
-                                pos[b] = (bx - shift, by)
+                                pos[node1] = (x1 + shift, y1)
+                                pos[node2] = (x2 - shift, y2)
                         else:
-                            shift = oy / 2 + 0.001
-                            if ay < by:
-                                pos[a] = (ax, ay - shift)
-                                pos[b] = (bx, by + shift)
+                            shift = overlap_y / 2 + 0.001
+                            if y1 < y2:
+                                pos[node1] = (x1, y1 - shift)
+                                pos[node2] = (x2, y2 + shift)
                             else:
-                                pos[a] = (ax, ay + shift)
-                                pos[b] = (bx, by - shift)
+                                pos[node1] = (x1, y1 + shift)
+                                pos[node2] = (x2, y2 - shift)
                         moved = True
             if not moved:
                 break
@@ -579,7 +656,7 @@ class SimulationStats:
         # -- Initial layout ---------------------------------------------------
         try:
             pos = nx.nx_agraph.graphviz_layout(G, prog='dot')
-        except Exception:
+        except (ImportError, ValueError):
             pos = nx.kamada_kawai_layout(G, scale=2.0)
 
         # -- Measure label sizes & remove overlaps ----------------------------
@@ -871,7 +948,7 @@ class SimulationStats:
             md_lines.append('')
             md_lines.append('Directed graph of backend system dependencies.  '
                             'Green nodes are **engine-aware**, blue nodes are '
-                            'internal.  Solid red arrows are strong '
+                            'internal.  Solid blue arrows are strong '
                             'dependencies, dashed grey arrows are weak '
                             'dependencies.')
             md_lines.append('')
