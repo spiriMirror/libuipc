@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_extract_surface.cpp.cpp\
+",
+    errdata = "extract_surface.cpp\
+"
+}

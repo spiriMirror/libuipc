@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_contact_element.cpp.cpp\
+",
+    errdata = "contact_element.cpp\
+"
+}

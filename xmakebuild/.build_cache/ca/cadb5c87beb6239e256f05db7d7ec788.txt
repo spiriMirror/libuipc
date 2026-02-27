@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_demangle.cpp.cpp\
+",
+    errdata = "demangle.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_attribute_collection.cpp.cpp\
+",
+    errdata = "attribute_collection.cpp\
+"
+}

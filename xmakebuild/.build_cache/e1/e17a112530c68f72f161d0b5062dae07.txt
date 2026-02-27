@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_uid_placeholder.cpp.cpp\
+",
+    errdata = "uid_placeholder.cpp\
+"
+}

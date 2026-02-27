@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_mesh_partition_check.cpp.cpp\
+",
+    errdata = "mesh_partition_check.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_abort.cpp.cpp\
+",
+    errdata = "abort.cpp\
+"
+}

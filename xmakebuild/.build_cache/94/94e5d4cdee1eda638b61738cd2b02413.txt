@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_coarsen.c.c\
+",
+    errdata = "coarsen.c\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "simplicial_volume_check.cpp\
+",
+    errdata = "simplicial_volume_check.cpp\
+"
+}

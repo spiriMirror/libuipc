@@ -1,0 +1,35 @@
+{
+    arch = "x64",
+    artifacts = {
+        installdir = [[D:\Project\ImplementMAS\libuipc\xmakebuild\.packages\m\muda\e01f9aab\10253c39aca14760ae4382272800b680]]
+    },
+    configs = {
+        debug = false,
+        pic = true,
+        runtimes = "MD",
+        shared = false
+    },
+    description = "μ-Cuda, COVER THE LAST MILE OF CUDA. With features: intellisense-friendly, structured launch, automatic cuda graph generation and updating.",
+    envs = { },
+    kind = "library",
+    license = "Apache-2.0",
+    mode = "release",
+    name = "muda",
+    pathenvs = {
+        "ACLOCAL_PATH",
+        "CMAKE_PREFIX_PATH",
+        "DYLD_LIBRARY_PATH",
+        "LD_LIBRARY_PATH",
+        "PATH",
+        "PKG_CONFIG_PATH",
+        "PYTHONPATH"
+    },
+    plat = "windows",
+    vars = {
+        cuflags = {
+            "--extended-lambda",
+            "--expt-relaxed-constexpr"
+        }
+    },
+    version = "e01f9aab"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_buffer_view.cpp.cpp\
+",
+    errdata = "buffer_view.cpp\
+"
+}

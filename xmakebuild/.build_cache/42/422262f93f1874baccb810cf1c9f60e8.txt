@@ -1,0 +1,30 @@
+{
+    outdata = "__cpp_label_graph_color.cpp.cpp\
+C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\include\\xutility(4991): warning C4244: '=': conversion from '_Ty' to '_Ty', possible loss of data\
+        with\
+        [\
+            _Ty=const GraphColoring::NodeIndexT\
+        ]\
+        and\
+        [\
+            _Ty=int\
+        ]\
+C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\include\\xutility(4991): note: the template instantiation context (the oldest one first) is\
+src\\geometry\\label_graph_color.cpp(36): note: see reference to function template instantiation 'std::ranges::in_out_result<std::_Span_iterator<_Ty>,std::_Span_iterator<int>> std::ranges::_Copy_fn::operator ()<std::span<_Ty,18446744073709551615>&,std::_Span_iterator<int>>(_Rng,_Out)' being compiled\
+        with\
+        [\
+            _Ty=const GraphColoring::NodeIndexT,\
+            _Rng=std::span<const GraphColoring::NodeIndexT,18446744073709551615> &,\
+            _Out=std::_Span_iterator<int>\
+        ]\
+C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\VC\\Tools\\MSVC\\14.44.35207\\include\\xutility(5019): note: see reference to function template instantiation 'std::ranges::in_out_result<const __int64 *,int *> std::ranges::_Copy_unchecked<const __int64*,const __int64*,int*>(_It,_Se,_Out)' being compiled\
+        with\
+        [\
+            _It=const __int64 *,\
+            _Se=const __int64 *,\
+            _Out=int *\
+        ]\
+",
+    errdata = "label_graph_color.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_frename.c.c\
+",
+    errdata = "frename.c\
+"
+}

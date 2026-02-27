@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_b64.c.c\
+",
+    errdata = "b64.c\
+"
+}

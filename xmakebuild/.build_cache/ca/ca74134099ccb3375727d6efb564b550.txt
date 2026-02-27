@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_mcutil.c.c\
+",
+    errdata = "mcutil.c\
+"
+}

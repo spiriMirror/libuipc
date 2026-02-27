@@ -10,6 +10,6 @@ target("uipc_geometry")
         "**.hpp"
     )
     add_defines()
-    add_deps("uipc_core")
+    add_deps("uipc_core", "metis")
     add_packages("octree", "tbb")
     add_packages("libigl", {public = true})

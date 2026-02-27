@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_spread_sheet_io.cpp.cpp\
+",
+    errdata = "spread_sheet_io.cpp\
+"
+}

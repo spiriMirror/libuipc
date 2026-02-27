@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_io.c.c\
+",
+    errdata = "io.c\
+"
+}

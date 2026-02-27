@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_world.cpp.cpp\
+",
+    errdata = "world.cpp\
+"
+}

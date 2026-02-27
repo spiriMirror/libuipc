@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_constitution_uid_auto_register.cpp.cpp\
+",
+    errdata = "constitution_uid_auto_register.cpp\
+"
+}

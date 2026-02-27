@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_blas.c.c\
+",
+    errdata = "blas.c\
+"
+}

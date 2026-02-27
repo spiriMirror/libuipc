@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_elastic_moduli.cpp.cpp\
+",
+    errdata = "elastic_moduli.cpp\
+"
+}

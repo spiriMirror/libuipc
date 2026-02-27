@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_compute_dyadic_mass.cpp.cpp\
+",
+    errdata = "compute_dyadic_mass.cpp\
+"
+}

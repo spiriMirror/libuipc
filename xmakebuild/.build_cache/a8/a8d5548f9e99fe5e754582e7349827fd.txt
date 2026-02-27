@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_seq.c.c\
+",
+    errdata = "seq.c\
+"
+}

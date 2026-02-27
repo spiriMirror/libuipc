@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_htable.c.c\
+",
+    errdata = "htable.c\
+"
+}

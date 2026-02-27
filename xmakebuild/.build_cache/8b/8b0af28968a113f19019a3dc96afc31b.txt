@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_geometry.cpp.cpp\
+",
+    errdata = "geometry.cpp\
+"
+}

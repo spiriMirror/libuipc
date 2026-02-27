@@ -1,0 +1,6 @@
+{
+    outdata = "sim_system_collection.cpp\
+",
+    errdata = "sim_system_collection.cpp\
+"
+}

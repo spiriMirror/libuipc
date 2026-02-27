@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_label_connected_vertices.cpp.cpp\
+",
+    errdata = "label_connected_vertices.cpp\
+"
+}

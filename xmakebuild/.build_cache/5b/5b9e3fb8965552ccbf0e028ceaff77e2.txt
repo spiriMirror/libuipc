@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_arap.cpp.cpp\
+",
+    errdata = "arap.cpp\
+"
+}

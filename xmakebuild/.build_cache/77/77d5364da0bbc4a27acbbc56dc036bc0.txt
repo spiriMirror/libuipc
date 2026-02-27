@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_log_pattern_guard.cpp.cpp\
+",
+    errdata = "log_pattern_guard.cpp\
+"
+}

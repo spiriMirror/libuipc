@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_is_trimesh_closed.cpp.cpp\
+",
+    errdata = "is_trimesh_closed.cpp\
+"
+}

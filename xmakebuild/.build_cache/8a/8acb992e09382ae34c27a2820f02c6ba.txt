@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_const_string_map.cpp.cpp\
+",
+    errdata = "const_string_map.cpp\
+"
+}

@@ -1,0 +1,6 @@
+{
+    outdata = "half_plane_vertex_distance_check.cpp\
+",
+    errdata = "half_plane_vertex_distance_check.cpp\
+"
+}

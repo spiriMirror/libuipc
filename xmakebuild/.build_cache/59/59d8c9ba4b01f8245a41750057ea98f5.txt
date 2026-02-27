@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_discrete_shell_bending.cpp.cpp\
+",
+    errdata = "discrete_shell_bending.cpp\
+"
+}

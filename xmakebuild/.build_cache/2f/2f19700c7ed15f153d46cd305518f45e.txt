@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_fm.c.c\
+",
+    errdata = "fm.c\
+"
+}

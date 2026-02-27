@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_gklib.c.c\
+",
+    errdata = "gklib.c\
+"
+}

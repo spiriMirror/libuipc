@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_soft_position_constraint.cpp.cpp\
+",
+    errdata = "soft_position_constraint.cpp\
+"
+}

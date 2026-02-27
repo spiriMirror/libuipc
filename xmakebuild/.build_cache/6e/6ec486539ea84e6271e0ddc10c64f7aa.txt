@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_mincover.c.c\
+",
+    errdata = "mincover.c\
+"
+}

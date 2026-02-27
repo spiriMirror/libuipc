@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_string.c.c\
+",
+    errdata = "string.c\
+"
+}

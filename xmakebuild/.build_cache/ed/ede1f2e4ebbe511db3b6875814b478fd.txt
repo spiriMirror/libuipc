@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_subscene_model.cpp.cpp\
+",
+    errdata = "subscene_model.cpp\
+"
+}

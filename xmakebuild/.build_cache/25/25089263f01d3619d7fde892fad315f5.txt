@@ -1,0 +1,6 @@
+{
+    outdata = "soft_transform_constraint.cpp\
+",
+    errdata = "soft_transform_constraint.cpp\
+"
+}

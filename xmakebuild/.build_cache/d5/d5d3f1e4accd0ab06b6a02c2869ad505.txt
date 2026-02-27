@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_scene_archieve.cpp.cpp\
+",
+    errdata = "scene_archieve.cpp\
+"
+}

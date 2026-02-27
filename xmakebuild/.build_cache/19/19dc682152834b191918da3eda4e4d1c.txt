@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_dllexport.cpp.cpp\
+",
+    errdata = "dllexport.cpp\
+"
+}

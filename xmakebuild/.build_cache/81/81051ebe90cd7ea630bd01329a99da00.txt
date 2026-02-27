@@ -1,0 +1,6 @@
+{
+    outdata = "module.cpp\
+",
+    errdata = "module.cpp\
+"
+}

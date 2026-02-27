@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_simplex_utils.cpp.cpp\
+",
+    errdata = "simplex_utils.cpp\
+"
+}

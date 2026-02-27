@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_wspace.c.c\
+",
+    errdata = "wspace.c\
+"
+}

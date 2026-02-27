@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_feature_collection.cpp.cpp\
+",
+    errdata = "feature_collection.cpp\
+"
+}

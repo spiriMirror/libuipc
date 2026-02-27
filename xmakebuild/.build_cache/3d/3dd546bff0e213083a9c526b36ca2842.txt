@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_evaluate.c.c\
+",
+    errdata = "evaluate.c\
+"
+}

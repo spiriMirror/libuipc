@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_contact_tabular_visitor.cpp.cpp\
+",
+    errdata = "contact_tabular_visitor.cpp\
+"
+}

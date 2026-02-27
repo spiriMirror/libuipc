@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_points_from_volume.cpp.cpp\
+",
+    errdata = "points_from_volume.cpp\
+"
+}

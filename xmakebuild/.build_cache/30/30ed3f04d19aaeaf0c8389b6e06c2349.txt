@@ -1,0 +1,6 @@
+{
+    outdata = "__cpp_label_region.cpp.cpp\
+",
+    errdata = "label_region.cpp\
+"
+}
