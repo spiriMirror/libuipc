@@ -94,6 +94,9 @@ TEST_CASE("51_abd_prismatic_joint_limit", "[abd]")
     auto joints = scene.objects().create("prismatic_joint");
     joints->geometries().create(joint_mesh);
 
+    SceneIO sio{scene};
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
+    
     world.init(scene);
     REQUIRE(world.is_valid());
 
@@ -101,5 +104,8 @@ TEST_CASE("51_abd_prismatic_joint_limit", "[abd]")
     {
         world.advance();
         REQUIRE(world.is_valid());
+        world.retrieve();
+        sio.write_surface(
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }

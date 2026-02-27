@@ -8,6 +8,12 @@
 # add_subdirectory(my_lib)    # include the submodule cmake project
 # set_target_properties(my_lib PROPERTIES FOLDER "external") # optional, organize in IDEs
 
+# GKlib + METIS (bundled from Stiff-GIPC for graph partitioning)
+add_subdirectory(GKlib)
+add_subdirectory(METIS)
+set_target_properties(GKlib PROPERTIES FOLDER "external")
+set_target_properties(metis PROPERTIES FOLDER "external")
+
 if (UIPC_WITH_CUDA_BACKEND)
     uipc_init_submodule(muda)
     # Turn off example builds in muda
