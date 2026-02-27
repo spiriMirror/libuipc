@@ -10,6 +10,7 @@
     - [Geometry](tutorial/geometry.md)
     - [Concepts](tutorial/concepts.md)
     - [Animation](tutorial/animation.md)
+    - [Performance Statistics](tutorial/performance_stats.md)
 - [Specification](specification/index.md)
     - [Constitution UID](specification/constitution_uid.md)
     - [Constitutions](specification/constitutions/)
