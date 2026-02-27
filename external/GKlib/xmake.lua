@@ -1,6 +1,8 @@
 target("GKlib")
     set_kind("static")
     set_languages("c11")
+    -- Need PIC since this static lib is linked into shared libraries
+    add_cflags("-fPIC", {tools = {"gcc", "clang"}})
     add_files("src/*.c")
     if is_plat("windows") then
         add_files("src/win32/adapt.c")

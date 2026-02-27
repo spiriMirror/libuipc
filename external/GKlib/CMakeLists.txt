@@ -34,6 +34,7 @@ option(SHARED "enable shared support" OFF)
 # LIBRARY configuration
 #-------------------------------------------------------------------------------
 add_library(${PROJECT_NAME} STATIC)
+set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 target_sources(${PROJECT_NAME}
   PRIVATE src/b64.c src/blas.c src/cache.c src/csr.c src/error.c src/evaluate.c
