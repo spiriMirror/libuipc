@@ -25,7 +25,42 @@ from uipc.geometry import SimplicialComplex, SimplicialComplexIO
 
 REPO_ID = 'MuGdxy/uipc-assets'
 
-__all__ = ['REPO_ID', 'list_assets', 'asset_path', 'read_mesh', 'load', 'show']
+__all__ = [
+    'REPO_ID', 'list_assets', 'asset_path', 'read_mesh',
+    'load', 'show', 'strip_constitutions',
+]
+
+_CONSTITUTION_META_ATTRS = [
+    'constitution_uid',
+    'extra_constitution_uids',
+    'constraint_uids',
+]
+
+
+def strip_constitutions(scene: Scene) -> None:
+    """Remove all constitution / constraint / contact metadata from scene geometries.
+
+    After calling this, the scene contains only raw geometry (positions,
+    topology, surface labels, transforms) with no physics attached.
+    Useful for re-assigning constitutions or geometry-only visualization.
+
+    Args:
+        scene: A :class:`uipc.Scene` whose geometries have already been
+               populated by ``build_scene`` or ``load``.
+    """
+    for obj_id in range(scene.objects().size()):
+        obj = scene.objects().find(obj_id)
+        if obj is None:
+            continue
+        for geo_id in obj.geometries().ids():
+            geo_slot, _ = scene.geometries().find(geo_id)
+            if geo_slot is None:
+                continue
+            geo = geo_slot.geometry()
+            meta = geo.meta()
+            for attr_name in _CONSTITUTION_META_ATTRS:
+                if meta.find(attr_name) is not None:
+                    meta.destroy(attr_name)
 
 
 def list_assets(*, revision: str = 'main') -> list[str]:
@@ -103,6 +138,7 @@ def load(
     name: str,
     scene: Scene,
     *,
+    geometry_only: bool = False,
     revision: str = 'main',
     cache_dir: str | None = None,
 ) -> None:
@@ -116,6 +152,8 @@ def load(
     Args:
         name: Asset name (e.g. ``'cube_ground'``).
         scene: A :class:`uipc.Scene` instance to populate.
+        geometry_only: If ``True``, strip all constitution / constraint /
+            contact metadata after building, leaving only raw geometry.
         revision: Git revision (branch, tag, or commit hash).
         cache_dir: Where to cache downloaded files.
     """
@@ -135,6 +173,9 @@ def load(
             f'Asset \'{name}\' scene.py must define a build_scene(scene) function'
         )
     mod.build_scene(scene)
+
+    if geometry_only:
+        strip_constitutions(scene)
 
 
 def show(
