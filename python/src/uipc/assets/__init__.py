@@ -16,38 +16,33 @@ Usage::
     load("cube_ground", scene)
 """
 
-from __future__ import annotations
-
 import importlib.util
 import pathlib
-from typing import TYPE_CHECKING
 
 from huggingface_hub import HfApi, snapshot_download
+from uipc import Scene, SceneIO
+from uipc.geometry import SimplicialComplex, SimplicialComplexIO
 
-if TYPE_CHECKING:
-    from uipc import Scene
-    from uipc.geometry import SimplicialComplex, SimplicialComplexIO
+REPO_ID = 'MuGdxy/uipc-assets'
 
-REPO_ID = "MuGdxy/uipc-assets"
-
-__all__ = ["REPO_ID", "list_assets", "asset_path", "read_mesh", "load", "show"]
+__all__ = ['REPO_ID', 'list_assets', 'asset_path', 'read_mesh', 'load', 'show']
 
 
-def list_assets(*, revision: str = "main") -> list[str]:
+def list_assets(*, revision: str = 'main') -> list[str]:
     """List all available asset names in the HuggingFace dataset.
 
     Returns:
-        Sorted list of asset names (e.g. ``["cube_ground", "fem_link_drop", ...]``).
+        Sorted list of asset names (e.g. ``['cube_ground', 'fem_link_drop', ...]``).
     """
     api = HfApi()
     entries = api.list_repo_tree(
-        REPO_ID, repo_type="dataset", path_in_repo="assets", revision=revision
+        REPO_ID, repo_type='dataset', path_in_repo='assets', revision=revision
     )
     return sorted(
-        e.path.removeprefix("assets/")
+        e.path.removeprefix('assets/')
         for e in entries
-        if hasattr(e, "type") and e.type == "directory"
-        or not hasattr(e, "type") and "/" not in e.path.removeprefix("assets/")
+        if hasattr(e, 'type') and e.type == 'directory'
+        or not hasattr(e, 'type') and '/' not in e.path.removeprefix('assets/')
     )
 
 
@@ -59,20 +54,20 @@ def read_mesh(io: SimplicialComplexIO, filepath: str | pathlib.Path) -> Simplici
 
     Args:
         io: A :class:`~uipc.geometry.SimplicialComplexIO` instance.
-        filepath: Path to the mesh file (e.g. ``ASSET_DIR / "cube.msh"``).
+        filepath: Path to the mesh file (e.g. ``ASSET_DIR / 'cube.msh'``).
 
     Returns:
         The loaded :class:`~uipc.geometry.SimplicialComplex`.
     """
     filepath = pathlib.Path(filepath)
     sc = io.read(str(filepath))
-    rel = f"assets/{filepath.parent.name}/{filepath.name}"
-    sc.meta().create("file", rel)
+    rel = f'assets/{filepath.parent.name}/{filepath.name}'
+    sc.meta().create('file', rel)
     return sc
 
 
 def asset_path(
-    name: str, *, revision: str = "main", cache_dir: str | None = None
+    name: str, *, revision: str = 'main', cache_dir: str | None = None
 ) -> pathlib.Path:
     """Download an asset by name from HuggingFace and return its local path.
 
@@ -80,7 +75,7 @@ def asset_path(
     *name* and *revision* return instantly.
 
     Args:
-        name: Asset name (e.g. ``"cube_ground"``).  Corresponds to
+        name: Asset name (e.g. ``'cube_ground'``).  Corresponds to
               ``assets/<name>/`` in the dataset repo.
         revision: Git revision (branch, tag, or commit hash).
         cache_dir: Where to cache downloaded files.  ``None`` uses the
@@ -91,16 +86,16 @@ def asset_path(
     """
     local_dir = snapshot_download(
         REPO_ID,
-        allow_patterns=[f"assets/{name}/**"],
+        allow_patterns=[f'assets/{name}/**'],
         revision=revision,
         cache_dir=cache_dir,
-        repo_type="dataset",
+        repo_type='dataset',
     )
-    result = pathlib.Path(local_dir) / "assets" / name
+    result = pathlib.Path(local_dir) / 'assets' / name
     if not result.is_dir():
         raise FileNotFoundError(
-            f"Asset '{name}' not found in {REPO_ID}.  "
-            f"Run list_assets() to see available names."
+            f'Asset \'{name}\' not found in {REPO_ID}.  '
+            f'Run list_assets() to see available names.'
         )
     return result
 
@@ -109,7 +104,7 @@ def load(
     name: str,
     scene: Scene,
     *,
-    revision: str = "main",
+    revision: str = 'main',
     cache_dir: str | None = None,
 ) -> None:
     """Download an asset and apply it to a Scene.
@@ -118,25 +113,25 @@ def load(
     its ``scene.py``, and calls ``build_scene(scene)``.
 
     Args:
-        name: Asset name (e.g. ``"cube_ground"``).
+        name: Asset name (e.g. ``'cube_ground'``).
         scene: A :class:`uipc.Scene` instance to populate.
         revision: Git revision (branch, tag, or commit hash).
         cache_dir: Where to cache downloaded files.
     """
     path = asset_path(name, revision=revision, cache_dir=cache_dir)
-    scene_file = path / "scene.py"
+    scene_file = path / 'scene.py'
     if not scene_file.exists():
         raise FileNotFoundError(
-            f"Asset '{name}' has no scene.py at {scene_file}"
+            f'Asset \'{name}\' has no scene.py at {scene_file}'
         )
 
-    spec = importlib.util.spec_from_file_location(f"uipc_asset_{name}", scene_file)
+    spec = importlib.util.spec_from_file_location(f'uipc_asset_{name}', scene_file)
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
 
-    if not hasattr(mod, "build_scene"):
+    if not hasattr(mod, 'build_scene'):
         raise AttributeError(
-            f"Asset '{name}' scene.py must define a build_scene(scene) function"
+            f'Asset \'{name}\' scene.py must define a build_scene(scene) function'
         )
     mod.build_scene(scene)
 
@@ -144,7 +139,7 @@ def load(
 def show(
     name: str,
     *,
-    revision: str = "main",
+    revision: str = 'main',
     cache_dir: str | None = None,
     distance_factor: float = 2.0,
 ) -> None:
@@ -153,14 +148,14 @@ def show(
     This is a convenience one-liner for quick visual inspection::
 
         from uipc.assets import show
-        show("cube_ground")
+        show('cube_ground')
 
     The camera is automatically positioned based on the scene bounding box:
     it looks at the center from a 45-degree elevation, pulled back by
     *distance_factor* times the bounding-box diagonal length.
 
     Args:
-        name: Asset name (e.g. ``"cube_ground"``).
+        name: Asset name (e.g. ``'cube_ground'``).
         revision: Git revision (branch, tag, or commit hash).
         cache_dir: Where to cache downloaded files.
         distance_factor: How far the camera sits relative to the bounding-box
@@ -168,13 +163,13 @@ def show(
     """
     import numpy as np
     import polyscope as ps
-    from uipc import Engine, World, Scene, SceneIO
+    from uipc import Engine, World
     from uipc.gui import SceneGUI
 
     scene = Scene(Scene.default_config())
     load(name, scene, revision=revision, cache_dir=cache_dir)
 
-    engine = Engine("none")
+    engine = Engine('none')
     world = World(engine)
     world.init(scene)
 
@@ -191,7 +186,6 @@ def _auto_camera(scene: Scene, distance_factor: float) -> None:
     """Position the camera looking down at 45 deg based on the scene bbox."""
     import numpy as np
     import polyscope as ps
-    from uipc import SceneIO
 
     sio = SceneIO(scene)
     all_pts: list[np.ndarray] = []
@@ -214,10 +208,8 @@ def _auto_camera(scene: Scene, distance_factor: float) -> None:
 
     dist = diag * distance_factor
 
-    # 45-degree elevation: offset equally in horizontal and vertical
-    # horizontal direction chosen as (-1, 0, -1) normalized in XZ
-    horiz = dist * np.cos(np.pi / 4)  # vertical component
-    vert = dist * np.sin(np.pi / 4)   # horizontal distance in XZ
+    horiz = dist * np.cos(np.pi / 4)
+    vert = dist * np.sin(np.pi / 4)
     offset = np.array([
         vert / np.sqrt(2),
         horiz,
