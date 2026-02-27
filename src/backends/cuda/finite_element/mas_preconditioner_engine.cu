@@ -131,6 +131,11 @@ int MASPreconditionerEngine::reorder_realtime(int cp_num)
     level_sizes.fill(Int2{0, 0});
 
     build_connect_mask_L0();
+
+    // Contact-aware: inject collision connectivity at fine level
+    if(m_collision_num > 0)
+        build_collision_connection(fine_connect_masks.data(), nullptr, -1, m_collision_num);
+
     prepare_prefix_sum_L0();
     build_level1();
 
@@ -138,6 +143,13 @@ int MASPreconditionerEngine::reorder_realtime(int cp_num)
     {
         next_connect_masks.fill(0u);
         build_connect_mask_Lx(level);
+
+        // Contact-aware: inject collision connectivity at coarser levels
+        if(m_collision_num > 0)
+            build_collision_connection(next_connect_masks.data(),
+                                      coarse_space_tables.data(),
+                                      level,
+                                      m_collision_num);
 
         // Copy level size to host for next-level sizing
         cudaMemcpy(&m_h_level_size,
@@ -591,6 +603,110 @@ void MASPreconditionerEngine::aggregation_kernel()
                    }
                    coarse_table(idx) = ctable;
                });
+}
+
+// ============================================================================
+// Collision connectivity (contact-aware MAS)
+// ============================================================================
+
+void MASPreconditionerEngine::set_collision_pairs(const int* d_collision_pairs,
+                                                   int        num_pairs,
+                                                   int        node_offset)
+{
+    m_collision_pairs       = d_collision_pairs;
+    m_collision_num         = num_pairs;
+    m_collision_node_offset = node_offset;
+}
+
+void MASPreconditionerEngine::build_collision_connection(
+    unsigned int* connection_mask,
+    const int*    coarse_table,   // nullptr for L0
+    int           level,
+    int           cp_num)
+{
+    using namespace muda;
+    if(cp_num < 1) return;
+
+    int block_size = DEFAULT_BLOCKSIZE;
+    int num_blocks = (cp_num + block_size - 1) / block_size;
+
+    // Each collision pair has 2-4 vertices (packed as int4).
+    // For each pair of vertices that map to the same bank (cluster),
+    // set the connectivity bit so they're grouped together.
+    Launch(num_blocks, block_size)
+        .apply(
+            [connection_mask,
+             coarse_table,
+             collision_pairs = m_collision_pairs,
+             real_to_part    = real_to_part.data(),
+             node_offset     = m_collision_node_offset,
+             vert_num        = m_total_nodes,
+             level,
+             cp_num] __device__() mutable
+            {
+                int idx = blockIdx.x * blockDim.x + threadIdx.x;
+                if(idx >= cp_num) return;
+
+                // Read the collision pair (int4-packed: up to 4 vertex indices)
+                const int* pair = collision_pairs + idx * 4;
+                int verts[4] = {pair[0], pair[1], pair[2], pair[3]};
+
+                // Map each vertex to partition space
+                int cp_vid[4];
+                for(int i = 0; i < 4; i++)
+                {
+                    int v = verts[i];
+                    if(v >= 0)
+                    {
+                        v -= node_offset;
+                        if(v >= 0 && v < vert_num)
+                        {
+                            if(coarse_table)
+                                cp_vid[i] = coarse_table[(level - 1) * vert_num + v];
+                            else
+                                cp_vid[i] = real_to_part[v];
+                        }
+                        else
+                            cp_vid[i] = -1;
+                    }
+                    else
+                        cp_vid[i] = -1;
+                }
+
+                // For each pair of vertices in the same bank, set connectivity
+                for(int i = 0; i < 4; i++)
+                {
+                    for(int j = i + 1; j < 4; j++)
+                    {
+                        int a = cp_vid[i];
+                        int b = cp_vid[j];
+
+                        if(a < 0 || b < 0 || a == b) continue;
+
+                        if(a / BANKSIZE == b / BANKSIZE)
+                        {
+                            unsigned int mask_a = (1U << (b % BANKSIZE));
+                            unsigned int mask_b = (1U << (a % BANKSIZE));
+
+                            if(coarse_table)
+                            {
+                                atomicOr(connection_mask + a, mask_a);
+                                atomicOr(connection_mask + b, mask_b);
+                            }
+                            else
+                            {
+                                // For L0: connection_mask is indexed by real vertex
+                                int real_a = verts[i] - node_offset;
+                                int real_b = verts[j] - node_offset;
+                                if(real_a >= 0 && real_a < vert_num)
+                                    atomicOr(connection_mask + real_a, mask_a);
+                                if(real_b >= 0 && real_b < vert_num)
+                                    atomicOr(connection_mask + real_b, mask_b);
+                            }
+                        }
+                    }
+                }
+            });
 }
 
 // ============================================================================

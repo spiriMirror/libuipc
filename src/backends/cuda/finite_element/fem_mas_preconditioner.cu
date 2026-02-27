@@ -6,6 +6,7 @@
 #include <finite_element/fem_linear_subsystem.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <finite_element/mas_preconditioner_engine.h>
+#include <collision_detection/simplex_trajectory_filter.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/common/log.h>
 #include <set>
@@ -56,6 +57,81 @@ void assemble_diag_inv_for_unpartitioned(
 
                    if(i == j && unpart(i) == 1)
                        diag(i) = eigen::inverse(H3x3);
+               });
+}
+
+// Pack PT (Vector4i), EE (Vector4i), PE (Vector3i), PP (Vector2i) into a flat
+// int4-packed buffer. Each entry is 4 ints: {v0, v1, v2, v3} with -1 for unused.
+void pack_collision_pairs(muda::DeviceBuffer<int>&        packed,
+                          muda::CBufferView<Vector4i>     PTs,
+                          muda::CBufferView<Vector4i>     EEs,
+                          muda::CBufferView<Vector3i>     PEs,
+                          muda::CBufferView<Vector2i>     PPs)
+{
+    using namespace muda;
+
+    SizeT total = PTs.size() + EEs.size() + PEs.size() + PPs.size();
+    packed.resize(total * 4);
+
+    if(total == 0) return;
+
+    int pt_offset = 0;
+    int ee_offset = static_cast<int>(PTs.size());
+    int pe_offset = ee_offset + static_cast<int>(EEs.size());
+    int pp_offset = pe_offset + static_cast<int>(PEs.size());
+
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(total,
+               [out      = packed.viewer().name("packed_pairs"),
+                pts      = PTs.data(),
+                ees      = EEs.data(),
+                pes      = PEs.data(),
+                pps      = PPs.data(),
+                pt_count = static_cast<int>(PTs.size()),
+                ee_count = static_cast<int>(EEs.size()),
+                pe_count = static_cast<int>(PEs.size()),
+                pp_count = static_cast<int>(PPs.size()),
+                pt_offset, ee_offset, pe_offset, pp_offset]
+               __device__(int i) mutable
+               {
+                   int base = i * 4;
+                   if(i < pt_offset + pt_count && i >= pt_offset)
+                   {
+                       // PT: 4 vertices
+                       auto pt = pts[i - pt_offset];
+                       out(base + 0) = pt[0];
+                       out(base + 1) = pt[1];
+                       out(base + 2) = pt[2];
+                       out(base + 3) = pt[3];
+                   }
+                   else if(i < ee_offset + ee_count && i >= ee_offset)
+                   {
+                       // EE: 4 vertices
+                       auto ee = ees[i - ee_offset];
+                       out(base + 0) = ee[0];
+                       out(base + 1) = ee[1];
+                       out(base + 2) = ee[2];
+                       out(base + 3) = ee[3];
+                   }
+                   else if(i < pe_offset + pe_count && i >= pe_offset)
+                   {
+                       // PE: 3 vertices
+                       auto pe = pes[i - pe_offset];
+                       out(base + 0) = pe[0];
+                       out(base + 1) = pe[1];
+                       out(base + 2) = pe[2];
+                       out(base + 3) = -1;
+                   }
+                   else if(i < pp_offset + pp_count && i >= pp_offset)
+                   {
+                       // PP: 2 vertices
+                       auto pp = pps[i - pp_offset];
+                       out(base + 0) = pp[0];
+                       out(base + 1) = pp[1];
+                       out(base + 2) = -1;
+                       out(base + 3) = -1;
+                   }
                });
 }
 
@@ -113,11 +189,16 @@ class FEMMASPreconditioner : public LocalPreconditioner
     MASPreconditionerEngine engine;
     bool                    m_has_partition       = false;
     bool                    m_has_unpartitioned   = false;
+    bool                    m_contact_aware       = false;
     muda::DeviceBuffer<uint32_t>  sorted_indices;
 
     // Diagonal fallback for unpartitioned vertices
     muda::DeviceBuffer<Matrix3x3> diag_inv;
     muda::DeviceBuffer<int>       unpartitioned_flags;  // 1 = unpartitioned, 0 = partitioned
+
+    // Contact-aware: collision pair data
+    SimplexTrajectoryFilter*  simplex_filter = nullptr;
+    muda::DeviceBuffer<int>   packed_collision_pairs;  // int4-packed
 
     virtual void do_build(BuildInfo& info) override
     {
@@ -150,6 +231,14 @@ class FEMMASPreconditioner : public LocalPreconditioner
             throw SimSystemException(
                 "FEMMASPreconditioner: No 'mesh_part' attribute found on any geometry.");
         }
+
+        // Contact-aware MAS: optionally inject collision pair connectivity
+        auto ca_attr = world().scene().config().find<IndexT>(
+            "linear_system/precond/mas/contact_aware");
+        m_contact_aware = ca_attr ? (ca_attr->view()[0] != 0) : true;
+
+        if(m_contact_aware)
+            simplex_filter = find<SimplexTrajectoryFilter>();
 
         info.connect(fem_linear_subsystem);
     }
@@ -343,6 +432,37 @@ class FEMMASPreconditioner : public LocalPreconditioner
         auto* row_ids = reinterpret_cast<const int*>(row_view.data());
         auto* col_ids = reinterpret_cast<const int*>(col_view.data());
 
+        // Contact-aware: pack collision pairs and pass to engine
+        int cp_num = 0;
+        if(m_contact_aware && simplex_filter)
+        {
+            auto PTs = simplex_filter->PTs();
+            auto EEs = simplex_filter->EEs();
+            auto PEs = simplex_filter->PEs();
+            auto PPs = simplex_filter->PPs();
+
+            cp_num = static_cast<int>(PTs.size() + EEs.size() + PEs.size() + PPs.size());
+
+            if(cp_num > 0)
+            {
+                pack_collision_pairs(packed_collision_pairs, PTs, EEs, PEs, PPs);
+
+                // The collision pairs use global vertex indices from GlobalVertexManager.
+                // The FEM DOF offset (in block coordinates) maps global -> FEM-local.
+                engine.set_collision_pairs(packed_collision_pairs.data(),
+                                           cp_num,
+                                           dof_offset / 3);
+            }
+            else
+            {
+                engine.set_collision_pairs(nullptr, 0, 0);
+            }
+        }
+        else
+        {
+            engine.set_collision_pairs(nullptr, 0, 0);
+        }
+
         // MAS assembly for partitioned vertices
         fill_identity_indices(sorted_indices, triplet_count);
         engine.set_preconditioner(values,
@@ -351,7 +471,7 @@ class FEMMASPreconditioner : public LocalPreconditioner
                                   reinterpret_cast<const uint32_t*>(sorted_indices.data()),
                                   dof_offset / 3,
                                   static_cast<int>(triplet_count),
-                                  0);
+                                  cp_num);
 
         // Diagonal fallback assembly for unpartitioned vertices
         if(m_has_unpartitioned)
