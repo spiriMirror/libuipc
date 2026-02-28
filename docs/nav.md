@@ -11,6 +11,7 @@
     - [Concepts](tutorial/concepts.md)
     - [Animation](tutorial/animation.md)
     - [Performance Statistics](tutorial/performance_stats.md)
+    - [Profiling](tutorial/profiling.md)
 - [Specification](specification/index.md)
     - [Constitution UID](specification/constitution_uid.md)
     - [Constitutions](specification/constitutions/)

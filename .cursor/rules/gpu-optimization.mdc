@@ -1,0 +1,324 @@
+---
+description: GPU optimization workflow using uipc.profile, uipc.profile.nsight, and Nsight Compute CLI. Use when profiling, optimizing, or benchmarking CUDA kernels.
+alwaysApply: false
+---
+
+# GPU Optimization Pipeline
+
+Workflow for profiling and optimizing CUDA kernels in libuipc using `uipc.profile` + `uipc.profile.nsight` + Nsight Compute CLI (`ncu`).
+
+For building and installing, see [build command](mdc:.cursor/commands/build.md).
+
+**Build type**: Always use `Release` for benchmarking and profiling. `Debug` is too slow; `RelWithDebInfo` adds debug info overhead that skews results.
+
+## Agent Rules
+
+- Do NOT read `.ncu-rep` files — they are binary, for Nsight Compute GUI only.
+- Do NOT benchmark or profile with `Debug` builds — results are meaningless.
+- Do NOT optimize kernels in stages that take <5% of total frame time.
+- Always read `timer_frames.json` for the actual timer hierarchy — it is dynamic and varies per scene/run.
+
+## CLI Commands
+
+```bash
+# List available benchmark scenes
+python -m uipc.cli.benchmark list
+
+# Run a benchmark (headless, timer-based); --scene accepts multiple names
+python -m uipc.cli.benchmark run --scene <scene> [<scene2> ...] --frames <N> --output <dir>
+
+# Profile with Nsight Compute (kernel-level GPU metrics)
+python -m uipc.cli.benchmark profile --scene <scene> --frames <N> --output <dir> --count <K> --skip <S> --ncu-set <set>
+
+# Analyze bottlenecks from a benchmark result directory
+python -m uipc.cli.benchmark analyze <result_dir> --ncu-csv <csv_path>
+
+# Compare two benchmark result directories
+python -m uipc.cli.benchmark compare <before_dir> <after_dir> --output <out_dir>
+```
+
+**`profile` flags:**
+- `--ncu-set default` — basic metrics (SM%, occupancy, registers). Use `full` for duration/memory but requires admin/root.
+- `--count <K>` — profile first K kernel launches.
+- `--skip <S>` — skip initial warmup/init kernels.
+- `--ncu-path <path>` — explicit path to `ncu` executable. Auto-detected via `NCU_PATH` env var, `PATH`, or default NVIDIA install locations.
+
+**Note**: The CLI `profile` defaults to `--ncu-set default`. The Python API `nsight.run()` defaults to `ncu_set='full'`. Be explicit to avoid confusion.
+
+## Agent Workflow
+
+### Step 1: Run Benchmark + Profile
+
+Run both `run` (for `SimulationStats` timer data) and `profile` (for Nsight Compute kernel metrics). Both are needed to make good optimization decisions.
+
+### Step 2: Read Both Reports
+
+**Benchmark report** (`report/report.md` from `run`):
+- Shows **wall-clock time** per simulation stage as a hierarchical tree (e.g., `Newton Iteration: 45%`, `Line Search: 30%`)
+- Tells you **which stages dominate total frame time** — this is where optimization has the most impact
+
+**Nsight Compute report** (`<scene>_report.md` / `<scene>_report.json` from `profile`):
+- Shows **per-kernel GPU metrics** (duration, SM%, occupancy, registers)
+- Tells you **which kernels are inefficient** and why (high register usage, low occupancy, memory-bound, etc.)
+
+| File | Source | What it tells you |
+|------|--------|-------------------|
+| `report/report.md` | `run` | Wall-clock time breakdown by stage — **what matters most** |
+| `timer_frames.json` | `run` | Per-frame timer tree as JSON — **source of truth for hierarchy** |
+| `<scene>_report.md` | `profile` | Kernel GPU metrics — **what's inefficient** |
+| `<scene>_report.json` | `profile` | Structured kernel data with `source_hint` and `optimization_hints` |
+| `<scene>.ncu-rep` | `profile` | Binary — do NOT read, for Nsight Compute GUI only |
+
+### Step 3: Cross-Reference to Prioritize
+
+**A kernel is worth optimizing only if it's both inefficient AND in a hot stage.**
+
+1. Read `timer_frames.json` or `report/report.md` to find which stages take the most wall-clock time (e.g., `Detect DCD Candidates: 40%`).
+2. Read the ncu report to find which kernels in those stages have bad metrics.
+3. Match kernel names to stages using the class/function names (e.g., `StacklessBVH::*` -> collision detection stage). Use the `source_hint` field in the JSON report.
+4. **Ignore** kernels with bad metrics in stages that take <5% of frame time — not worth optimizing.
+5. **Prioritize** kernels that are both in a hot stage AND have clear inefficiencies (high registers, low occupancy).
+
+### Step 4: Optimize
+
+1. Follow `source_hint` in the JSON report to find the CUDA source.
+2. Search for the kernel's class/method name in that directory.
+3. Read the `.cu` file and optimize the kernel.
+4. Rebuild with `Release` (see [build command](mdc:.cursor/commands/build.md)), re-benchmark, and compare.
+
+### Adding Finer-Grained Timers in C++
+
+If the benchmark report shows a hot stage but you need more detail to locate the bottleneck within it, add `Timer` scopes in the C++ source:
+
+```cpp
+#include <uipc/common/timer.h>
+
+void MySystem::do_something()
+{
+    {
+        Timer timer{"MySystem::phase_A"};
+        // ... GPU work ...
+    }
+    {
+        Timer timer{"MySystem::phase_B"};
+        // ... GPU work ...
+    }
+}
+```
+
+The `Timer` is scoped — it starts on construction and stops on destruction. Nested timers form a tree. The names appear in `timer_frames.json` and `report/report.md`, letting you drill down into which sub-phase of a hot stage is the actual bottleneck before running the more expensive `ncu` profiling.
+
+## Simulation Timer Hierarchy
+
+The timer tree is **dynamic** — it varies per run depending on which simulation features are active (contact, friction, animation, etc.). The actual tree for any run is stored in `timer_frames.json` (written by `run`). Always read that file for the real hierarchy.
+
+Below is a **representative example** with all features enabled, showing the typical nesting from [sim_engine_do_advance.cu](mdc:src/backends/cuda/engine/sim_engine_do_advance.cu), [global_linear_system.cu](mdc:src/backends/cuda/linear_system/global_linear_system.cu), and [linear_pcg.cu](mdc:src/backends/cuda/linear_system/linear_pcg.cu):
+
+```
+Pipeline                                    engine/
+├── Rebuild Scene                           engine/
+│   └── Update Diff Parm                    diff_sim/               (conditional)
+└── Simulation                              engine/
+    ├── Clear External Forces               external_force/         (conditional)
+    ├── Step Animation                      animator/               (conditional)
+    ├── Compute External Force Accel.       external_force/         (conditional)
+    ├── Detect DCD Candidates               collision_detection/    (conditional)
+    ├── Newton Iteration                    engine/                 (LOOP)
+    │   ├── Detect DCD Candidates           collision_detection/    (iter > 0)
+    │   ├── Compute DyTopo Effect           dytopo_effect_system/   (conditional)
+    │   │   ├── Assemble Dytopo Effect
+    │   │   ├── Convert Dytopo Matrix
+    │   │   └── Distribute Dytopo Effect
+    │   ├── Solve Global Linear System      linear_system/
+    │   │   ├── Build Linear System
+    │   │   └── Solve Linear System
+    │   │       └── PCG
+    │   │           ├── Apply Preconditioner
+    │   │           └── SpMV               (per PCG iteration)
+    │   └── Line Search                     line_search/
+    │       ├── Detect Trajectory Cand.     collision_detection/
+    │       ├── Compute Energy              line_search/            (initial E0)
+    │       ├── Filter CCD TOI              collision_detection/
+    │       ├── Compute CFL Condition       contact_system/
+    │       └── Line Search Iteration       line_search/            (LOOP)
+    │           ├── Filter Contact Cand.    collision_detection/
+    │           └── Compute Energy          line_search/
+    └── Update Velocity                     time_integrator/
+```
+
+Parent timer durations **include** their children. E.g., if `Newton Iteration` is 80% of frame time, `PCG` and `Line Search` durations are already counted inside that 80%.
+
+## Identifying muda Kernels in ncu Output
+
+UIPC uses the [muda](mdc:external/muda/src/muda/launch/parallel_for.h) library for CUDA kernel launches. All kernels are launched via `muda::ParallelFor().apply(N, lambda)` which compiles to `parallel_for_kernel<Lambda>`.
+
+**The lambda is NOT truly anonymous.** NVCC embeds the enclosing function in the demangled name:
+```
+parallel_for_kernel<StacklessBVH::calcExtNodeSplitMetrics()::lambda>
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                     This is the actual user code location
+```
+
+The `_shorten_kernel_name()` function in [nsight.py](mdc:python/src/uipc/profile/nsight.py) extracts this, producing readable names like:
+- `StacklessBVH::calcExtNodeSplitMetrics` — collision detection BVH builder
+- `ABDBDF1Integrator::do_predict_dof` — affine body time integrator
+- `AffineBodyExternalForceManager::step` — external force computation
+
+**Multiple lambdas in one function:** When a function has multiple `ParallelFor` calls, NVCC appends `(instance N)`. The tool preserves this as `#N`:
+```
+StacklessBVHSimplexTrajectoryFilter::detect#1  -- 1st ParallelFor().apply() in detect()
+StacklessBVHSimplexTrajectoryFilter::detect#2  -- 2nd ParallelFor().apply() in detect()
+```
+To find the exact lambda: search for `ParallelFor` in the source file, `#N` corresponds to the Nth `ParallelFor().apply()` call in source order.
+
+**Buffer operations** (`buffer::kernel_fill<int>`, etc.) are muda memory operations, usually not optimization targets.
+
+## Python API
+
+### Package layout
+
+```
+uipc.profile            — benchmark runner (timer-based, in-process)
+uipc.profile.nsight     — Nsight Compute profiler (kernel-level, ncu subprocess)
+```
+
+The primary input for both is a `World`. A `Scene` is also accepted as a convenience shortcut (a temporary Engine + World is created internally).
+
+### Setup
+
+```python
+from uipc import Scene, Engine, World
+from uipc.assets import load
+
+scene = Scene(Scene.default_config())
+load('cube_ground', scene)
+engine = Engine('cuda', 'my_workspace')
+world = World(engine)
+world.init(scene)
+```
+
+### `uipc.profile` — benchmark runner
+
+```python
+from uipc import profile
+
+# Simple: benchmark 10 frames from the world's current frame
+result = profile.run(world, num_frames=10, name='baseline', output_dir='bench')
+print(result['summary'])
+
+# Flexible: mix warmup and benchmarking
+with profile.session(world, name='baseline', output_dir='bench') as s:
+    s.advance(50)    # warmup 50 frames (no stats)
+    s.profile(10)    # benchmark 10 frames (collect stats)
+print(s.result['summary'])
+
+# Compare two saved benchmark directories
+md = profile.compare('bench/baseline', 'bench/optimized', output_dir='comparison')
+print(md)
+
+# Load a saved result for later analysis
+data = profile.load_result('bench/baseline')
+```
+
+### `uipc.profile.nsight` — Nsight Compute profiler
+
+```python
+from uipc.profile import nsight
+
+# Simple: profile 2 frames under ncu
+result = nsight.run(world, num_frames=2, name='cube_ground',
+                    output_dir='ncu_results', ncu_set='default')
+
+# Flexible: mix warmup and profiling
+with nsight.session(world, name='cube_ground') as s:
+    s.profile(10)    # profiles from world.frame()
+print(s.result)
+```
+
+When a `World` is passed, `nsight` automatically calls `world.dump()` and uses `world.recover()` in the subprocess for instant state restoration (no replay cost). The engine workspace is obtained via `WorldVisitor(world).engine().workspace()`.
+
+### `SimulationStats` visualization tools
+
+Available on the `stats` object in benchmark results (`result['stats']`):
+
+- `stats.profiler_heatmap()` — sunburst chart of timer breakdown
+- `stats.system_dependency_graph(workspace)` — directed graph of backend system dependencies
+- `stats.plot(keys, metric='duration')` — per-frame line/bar chart
+- `stats.to_markdown(keys)` — Markdown table of per-frame values
+
+## Key CUDA Kernel Directories
+
+All relative to `src/backends/cuda/`:
+
+- `finite_element/` — FEM constitutions, gradient/Hessian assembly
+- `affine_body/` — Affine body dynamics
+- `linear_system/` — PCG solver, SpMV, preconditioners
+- `collision_detection/` — BVH, trajectory filtering, DCD
+- `contact_system/` — Contact forces (IPC barrier)
+- `global_geometry/` — Vertex management, bounding boxes
+- `time_integrator/` — Time integration, velocity update
+- `dytopo_effect_system/` — Dynamic topology effects
+- `line_search/` — Line search energy evaluation
+- `external_force/` — External force computation
+- `animator/` — Animation stepping
+- `diff_sim/` — Differentiable simulation
+- `coupling_system/` — Multi-body coupling
+- `implicit_geometry/` — Implicit geometry representations
+- `inter_primitive_effect_system/` — Inter-primitive effects
+- `newton_tolerance/` — Newton convergence tolerance
+- `engine/` — Core pipeline orchestration
+- `utils/` — Shared utilities
+
+## Optimization Checklist
+
+When the bottleneck report identifies a hot kernel:
+
+1. **Memory-bound** (high Mem%, low SM%): Coalesced access, shared memory, reduce data movement.
+2. **Compute-bound** (high SM%, low Mem%): Algorithmic improvements, intrinsics.
+3. **Low occupancy**: Reduce register pressure (`__launch_bounds__`), adjust block size.
+4. **Many small launches**: Kernel fusion or batching via `muda::ParallelFor`.
+5. **High launch overhead**: Reduce host-device sync points.
+6. **High register count** (>64/thread): Simplify kernel logic, split into multiple passes, use `__launch_bounds__(blockSize, minBlocksPerSM)`.
+
+## Scenes
+
+Scenes are loaded from [HuggingFace: MuGdxy/uipc-assets](https://huggingface.co/datasets/MuGdxy/uipc-assets). Each asset has a `scene.py` with `build_scene(scene)`. The asset module is at [assets/__init__.py](mdc:python/src/uipc/assets/__init__.py).
+
+## Output Structure
+
+### Benchmark (`run`)
+```
+<output_dir>/<scene_name>/
+  benchmark.json         # metadata (name, wall_time, num_frames, summary)
+  timer_frames.json      # per-frame timer tree (JSON) — read this for hierarchy
+  workspace_<name>/      # engine workspace (contains systems.json)
+  report/
+    report.md            # summary with charts — AGENT: read this
+    profiler_heatmap.svg  # sunburst chart
+    system_deps.svg       # system dependency graph (if workspace exists)
+    *.svg                 # per-timer charts
+```
+
+### Nsight Compute (`profile`)
+```
+<output_dir>/
+  <scene>_report.md      # AGENT: read this — kernel hotspot table
+  <scene>_report.json    # AGENT: read this — structured metrics + source_hints
+  <scene>.ncu-rep        # binary — do NOT read
+  <scene>.csv            # raw CSV (already parsed into reports)
+```
+
+JSON report per kernel:
+```json
+{
+  "name": "StacklessBVH::calcExtNodeSplitMetrics",
+  "launches": 3,
+  "total_duration_ns": 123456.0,
+  "registers_per_thread": 40,
+  "avg_sm_pct": 100.0,
+  "avg_occupancy_pct": 48.0,
+  "source_hint": "src/backends/cuda/collision_detection/",
+  "optimization_hints": ["Low occupancy - consider reducing registers"],
+  "full_names": ["void muda::parallel_for_kernel<...>"]
+}
+```
