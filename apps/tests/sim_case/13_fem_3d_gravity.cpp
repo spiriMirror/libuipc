@@ -12,36 +12,17 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
+    auto        output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
-    std::string this_output_path;
-    std::string contact_constitution;
-
-    SECTION("ipc")
-    {
-        this_output_path =
-            fmt::format("{}ipc/", AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE));
-        contact_constitution = "ipc";
-    };
-
-    SECTION("al-ipc")
-    {
-        this_output_path =
-            fmt::format("{}al-ipc/", AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE));
-        contact_constitution = "al-ipc";
-    };
-
-    Engine engine{"cuda", this_output_path};
+    Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config = Scene::default_config();
-
-    config["gravity"]                   = Vector3{0, -9.8, 0};
-    config["contact"]["enable"]         = false;  // disable contact
-    config["contact"]["constitution"]   = contact_constitution;
+    auto config                 = test::Scene::default_config();
+    config["gravity"]           = Vector3{0, -9.8, 0};
+    config["contact"]["enable"] = false;  // disable contact
     config["line_search"]["max_iter"]   = 8;
     config["linear_system"]["tol_rate"] = 1e-3;
-
-    test::Scene::dump_config(config, this_output_path);
+    test::Scene::dump_config(config, output_path);
 
     SimplicialComplexIO io;
 
@@ -77,7 +58,7 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
     REQUIRE(world.is_valid());
 
     SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
 
     while(world.frame() < 200)
     {
@@ -85,6 +66,6 @@ TEST_CASE("13_fem_3d_gravity", "[fem]")
         REQUIRE(world.is_valid());
         world.retrieve();
         sio.write_surface(
-            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
+            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
 }

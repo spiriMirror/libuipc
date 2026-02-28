@@ -4,6 +4,7 @@
 #include <cuda_device/builtin.h>
 #include <utils/matrix_market.h>
 #include <backends/common/backend_path_tool.h>
+#include <uipc/common/timer.h>
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(LinearPCG);
@@ -166,6 +167,8 @@ void update_p(muda::DenseVectorView<Float> p, muda::CDenseVectorView<Float> z, F
 
 SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Float> b, SizeT max_iter)
 {
+    Timer pcg_timer{"PCG"};
+
     SizeT k = 0;
     // r = b - A * x
     {
@@ -180,7 +183,10 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
     Float alpha, beta, rz, abs_rz0;
 
     // z = P * r (apply preconditioner)
-    apply_preconditioner(z, r);
+    {
+        Timer timer{"Apply Preconditioner"};
+        apply_preconditioner(z, r);
+    }
 
     if(need_debug_dump) [[unlikely]]
         dump_r_z(k);
@@ -201,7 +207,10 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
 
     for(k = 1; k < max_iter; ++k)
     {
-        spmv(p.cview(), Ap.view());
+        {
+            Timer timer{"SpMV"};
+            spmv(p.cview(), Ap.view());
+        }
 
         if(need_debug_dump) [[unlikely]]
             dump_p_Ap(k);
@@ -214,7 +223,10 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         update_xr(alpha, x, p.cview(), r.view(), Ap.cview());
 
         // z = P * r (apply preconditioner)
-        apply_preconditioner(z, r);
+        {
+            Timer timer{"Apply Preconditioner"};
+            apply_preconditioner(z, r);
+        }
 
         if(need_debug_dump) [[unlikely]]
             dump_r_z(k);

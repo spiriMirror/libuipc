@@ -5,7 +5,6 @@
 #include <muda/cub/device/device_reduce.h>
 #include <global_geometry/vertex_reporter.h>
 #include <sim_engine.h>
-#include <collision_detection/global_trajectory_filter.h>
 
 /*************************************************************************************************
 * Core Implementation
@@ -19,9 +18,6 @@ void GlobalVertexManager::do_build()
     auto d_hat = world().scene().config().find<Float>("contact/d_hat");
     m_impl.default_d_hat = d_hat->view()[0];
 
-    // * Common
-    m_impl.global_trajectory_filter = find<GlobalTrajectoryFilter>();
-    // * AL-IPC
     m_impl.global_active_set_manager = find<GlobalActiveSetManager>();
 }
 
@@ -30,12 +26,6 @@ void GlobalVertexManager::Impl::init()
     auto vertex_reporter_view = vertex_reporters.view();
 
     // 1) Setup index for each vertex reporter
-
-    // ref: https://github.com/spiriMirror/libuipc/issues/271
-    // Sort by uid to ensure the order is consistent
-    std::ranges::sort(vertex_reporter_view,
-                      [](const VertexReporter* l, const VertexReporter* r)
-                      { return l->uid() < r->uid(); });
     for(auto&& [i, R] : enumerate(vertex_reporter_view))
         R->m_index = i;
 
@@ -108,7 +98,7 @@ void GlobalVertexManager::Impl::rebuild()
 void GlobalVertexManager::add_reporter(VertexReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
-    m_impl.vertex_reporters.register_sim_system(*reporter);
+    m_impl.vertex_reporters.register_subsystem(*reporter);
 }
 
 void GlobalVertexManager::Impl::step_forward(Float alpha)
@@ -225,7 +215,7 @@ namespace uipc::backend::cuda
 {
 bool GlobalVertexManager::Impl::dump(DumpInfo& info)
 {
-    auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
+    auto path  = info.dump_path(__FILE__);
     auto frame = info.frame();
 
     return dump_positions.dump(fmt::format("{}positions.{}", path, frame), positions)  //
@@ -235,7 +225,7 @@ bool GlobalVertexManager::Impl::dump(DumpInfo& info)
 
 bool GlobalVertexManager::Impl::try_recover(RecoverInfo& info)
 {
-    auto path = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
+    auto path = info.dump_path(__FILE__);
     return dump_positions.load(fmt::format("{}positions.{}", path, info.frame()))  //
            && dump_prev_positions.load(
                fmt::format("{}prev_positions.{}", path, info.frame()));
@@ -320,15 +310,6 @@ muda::BufferView<IndexT> GlobalVertexManager::VertexAttributeInfo::body_ids() co
 muda::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::d_hats() const noexcept
 {
     return m_impl->subview(m_impl->d_hats, m_index);  // Assuming d_hats are stored in thicknesses
-}
-
-void GlobalVertexManager::VertexAttributeInfo::require_discard_friction() const noexcept
-{
-    // If the vertex attributes are updated in a way that will ruin the friction computation
-    // we need to discard the friction information in the global trajectory filter.
-    // ref: https://github.com/spiriMirror/libuipc/issues/303
-    if(m_impl->global_trajectory_filter)
-        m_impl->global_trajectory_filter->require_discard_friction();
 }
 
 SizeT GlobalVertexManager::VertexAttributeInfo::frame() const noexcept

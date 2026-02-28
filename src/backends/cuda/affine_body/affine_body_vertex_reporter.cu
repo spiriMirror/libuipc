@@ -7,8 +7,6 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(AffineBodyVertexReporter);
 
-constexpr static U64 AffineBodyVertexReporterUID = 0;
-
 void AffineBodyVertexReporter::do_build(BuildInfo& info)
 {
     m_impl.affine_body_dynamics = &require<AffineBodyDynamics>();
@@ -17,7 +15,7 @@ void AffineBodyVertexReporter::do_build(BuildInfo& info)
 
 void AffineBodyVertexReporter::request_attribute_update() noexcept
 {
-    m_impl.require_update_attributes = true;
+    m_impl.need_update_attributes = true;
 }
 
 void AffineBodyVertexReporter::Impl::report_count(VertexCountInfo& info)
@@ -87,10 +85,6 @@ void AffineBodyVertexReporter::Impl::update_attributes(VertexAttributeInfo& info
                    const auto& q       = qs(body_id);
                    dst_pos(i)          = src_pos(i).point_x(q);
                });
-
-    // This update will ruin the friction force computed in previous step, so we need to discard it.
-    // ref: https://github.com/spiriMirror/libuipc/issues/303
-    info.require_discard_friction();
 }
 
 void AffineBodyVertexReporter::Impl::report_displacements(VertexDisplacementInfo& info)
@@ -146,10 +140,10 @@ void AffineBodyVertexReporter::do_report_attributes(VertexAttributeInfo& info)
     }
     else
     {
-        if(m_impl.require_update_attributes)
+        if(m_impl.need_update_attributes)
         {
             m_impl.update_attributes(info);
-            m_impl.require_update_attributes = false;
+            m_impl.need_update_attributes = false;
         }
     }
 }
@@ -157,10 +151,5 @@ void AffineBodyVertexReporter::do_report_attributes(VertexAttributeInfo& info)
 void AffineBodyVertexReporter::do_report_displacements(VertexDisplacementInfo& info)
 {
     m_impl.report_displacements(info);
-}
-
-U64 AffineBodyVertexReporter::get_uid() const noexcept
-{
-    return AffineBodyVertexReporterUID;
 }
 }  // namespace uipc::backend::cuda

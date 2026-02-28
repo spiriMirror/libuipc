@@ -59,3 +59,10 @@ where:
 - $J = \sqrt{\det(\mathbf{A}) \det(\bar{\mathbf{B}}^{-1})}$ is the determinant of the deformation
 
 - $\ln J = \frac{1}{2}\ln(\det(\mathbf{A}) \det(\bar{\mathbf{B}}^{-1}))$ is the logarithmic strain
+
+## Attributes
+
+On `triangles`:
+
+- `mu`: $\mu$ in the energy above
+- `lambda`: $\lambda$ in the energy above

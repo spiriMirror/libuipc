@@ -21,14 +21,6 @@ void FEMActiveSetReporter::do_recover_non_penetrate(NonPenetratePositionsInfo &i
     m_impl.recover_non_penetrate(info);
 }
 
-void FEMActiveSetReporter::do_record_non_penetrate_state() {
-    // Do nothing
-}
-
-void FEMActiveSetReporter::do_advance_non_penetrate_state(Float alpha) {
-    // Do nothing
-}
-
 REGISTER_SIM_SYSTEM(FEMActiveSetReporter);
 
 }

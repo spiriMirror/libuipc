@@ -6,7 +6,6 @@
 #include <utils/matrix_assembler.h>
 #include <utils/make_spd.h>
 #include <utils/primitive_d_hat.h>
-#include <pipeline/ipc_pipeline_flag.h>
 
 namespace uipc::backend::cuda
 {
@@ -17,8 +16,6 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
 
     virtual void do_build(BuildInfo& info) override
     {
-        require<IPCPipelineFlag>();
-
         auto constitution =
             world().scene().config().find<std::string>("contact/constitution");
         if(constitution->view()[0] != "ipc")
@@ -610,5 +607,5 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
     }
 };
 
-REGISTER_SIM_SYSTEM(IPCSimplexNormalContact);
+// REGISTER_SIM_SYSTEM(IPCSimplexNormalContact);
 }  // namespace uipc::backend::cuda

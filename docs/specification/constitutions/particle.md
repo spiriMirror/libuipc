@@ -11,4 +11,3 @@ Its deformation energy density is always zero:
 $$
 \Psi = 0
 $$
-

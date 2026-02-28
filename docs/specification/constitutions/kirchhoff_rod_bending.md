@@ -61,3 +61,8 @@ and:
 
 The energy penalizes deviations from the straight configuration, with the stiffness scaling with the fourth power of the rod radius, consistent with classical beam theory.
 
+## Attributes
+
+On `vertices`:
+
+- `bending_stiffness`: $k$ in the energy above

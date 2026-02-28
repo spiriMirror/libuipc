@@ -1,4 +1,5 @@
 #include <affine_body/inter_affine_body_constitution.h>
+#include <affine_body/constitutions/joint_limit_penalty.h>
 #include <affine_body/utils.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/enumerate.h>
@@ -165,6 +166,11 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                     h_l_basis.push_back(lb);
                     h_r_basis.push_back(rb);
                     h_ref_qs.push_back(ref);
+                    UIPC_ASSERT(lower_view[i] <= upper_view[i],
+                                "AffineBodyRevoluteJointLimit: requires `limit/lower <= limit/upper` on edge {}, but got lower={} upper={}",
+                                i,
+                                lower_view[i],
+                                upper_view[i]);
                     h_lowers.push_back(lower_view[i]);
                     h_uppers.push_back(upper_view[i]);
                     h_strengths.push_back(strength_view[i]);
@@ -217,28 +223,20 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                     Vector12 q_refk  = ref_q.segment<12>(0);
                     Vector12 q_refl  = ref_q.segment<12>(12);
 
-                    Float theta0 = 0.0f;
-                    ERJ::DeltaTheta<Float>(theta0, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
+                    Float theta_prev = 0.0f;
+                    ERJ::DeltaTheta<Float>(
+                        theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
 
                     Float delta = 0.0f;
                     ERJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
 
-                    Float x        = theta0 + delta;
+                    Float x        = theta_prev + delta;
                     Float lower    = lowers(I);
                     Float upper    = uppers(I);
                     Float strength = strengths(I);
 
-                    Float E = 0.0f;
-                    if(x > upper)
-                    {
-                        Float d = x - upper;
-                        E       = strength * d * d * d;
-                    }
-                    else if(x < lower)
-                    {
-                        Float d = lower - x;
-                        E       = strength * d * d * d;
-                    }
+                    Float E = joint_limit::eval_penalty_energy<Float>(
+                        x, lower, upper, strength);
 
                     Es(I) = E;
                 });
@@ -289,32 +287,22 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                     Vector12 q_refk  = ref_q.segment<12>(0);
                     Vector12 q_refl  = ref_q.segment<12>(12);
 
-                    Float theta0 = 0.0f;
-                    ERJ::DeltaTheta<Float>(theta0, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
+                    Float theta_prev = 0.0f;
+                    ERJ::DeltaTheta<Float>(
+                        theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
 
                     Float delta = 0.0f;
                     ERJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
 
-                    Float x        = theta0 + delta;
+                    Float x        = theta_prev + delta;
                     Float lower    = lowers(I);
                     Float upper    = uppers(I);
                     Float strength = strengths(I);
 
                     Float dE_dx   = 0.0f;
                     Float d2E_dx2 = 0.0f;
-
-                    if(x > upper)
-                    {
-                        Float d = x - upper;
-                        dE_dx   = 3.0f * strength * d * d;
-                        d2E_dx2 = 6.0f * strength * d;
-                    }
-                    else if(x < lower)
-                    {
-                        Float d = lower - x;
-                        dE_dx   = -3.0f * strength * d * d;
-                        d2E_dx2 = 6.0f * strength * d;
-                    }
+                    joint_limit::eval_penalty_derivatives<Float>(
+                        x, lower, upper, strength, dE_dx, d2E_dx2);
 
                     Vector24 dx_dq;
                     ERJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);

@@ -28,9 +28,9 @@ Supported DOF constraints include:
 - [Affine Body Revolute Joint](./affine_body_revolute_joint.md)
 - [Affine Body Prismatic Joint](./affine_body_prismatic_joint.md)
 
-![External Articulation Constraint](./media/external_articulation_constraint_fig1.drawio.svg)
+In [Revolute Joint](./affine_body_revolute_joint.md) case, $\hat{\mathbf{n}}$ is the normal vector perpendicular to the joint axis, $\hat{\mathbf{b}}$ is the binormal vector of the joint axis, and $\hat{\mathbf{t}}$ is the direction vector along the joint axis pointed into the figure.
 
-In revolute joint case,  $\hat{\mathbf{n}}$ is the normal vector perpendicular to the joint axis, $\hat{\mathbf{b}}$ is the binormal vector of the joint axis, and $\hat{\mathbf{t}}$ is the direction vector along the joint axis pointed into the figure.
+![Revolute joint axis $\hat{\mathbf{t}}$](./media/external_articulation_revolute_constraint_fig1.drawio.svg)
 
 The angle between two bodies around the joint axis is defined as:
 
@@ -54,7 +54,9 @@ $$
 
 where $\theta^t$ is the joint angle at previous time step, the $\sin\theta^t$ and $\cos\theta^t$ can be calculated using the previous frame vectors $\hat{\mathbf{b}}^t$ and $\hat{\mathbf{n}}^t$s.
 
-In prismatic joint case, the translation along the joint axis is defined as:
+In [Prismatic Joint](./affine_body_prismatic_joint.md) case, the translation along the joint axis is defined as:
+
+![Prismatic joint axis $\hat{\mathbf{t}}$](./media/external_articulation_prismatic_constraint_fig1.drawio.svg)
 
 $$
 \theta = \frac{
@@ -83,4 +85,17 @@ K = \frac{1}{2}\left( \delta\boldsymbol{\theta}(\mathbf{q}, \mathbf{q}^t_{ref}) 
 $$
 
 where $\mathbf{q}^t_{ref}$ is the previous DOF of the affine body calculated from the external system. Users are responsible for providing and updating the `ref_dof_prev` attribute on the affine body instance.
+
+## Attributes
+
+On the constraint geometry:
+
+On `joint`:
+
+- `delta_theta_tilde`: $\tilde{\delta\boldsymbol{\theta}}$ in the kinetic term above
+- `delta_theta`: $\delta\boldsymbol{\theta}$ in the kinetic term above
+
+On `joint_joint`:
+
+- `mass`: entries of $\mathbf{M}^t$ in the kinetic term above
 

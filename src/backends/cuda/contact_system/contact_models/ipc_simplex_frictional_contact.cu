@@ -5,7 +5,7 @@
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
 #include <utils/primitive_d_hat.h>
-#include <pipeline/ipc_pipeline_flag.h>
+
 
 namespace uipc::backend::cuda
 {
@@ -16,8 +16,6 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
     virtual void do_build(BuildInfo& info) override
     {
-        require<IPCPipelineFlag>();
-
         auto constitution =
             world().scene().config().find<std::string>("contact/constitution");
         if(constitution->view()[0] != "ipc")
@@ -286,8 +284,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.friction_PTs().size(),
-                   [gradient_only = info.gradient_only(),
-                    table = info.contact_tabular().viewer().name("contact_tabular"),
+                   [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                     PTs     = info.friction_PTs().viewer().name("PTs"),
                     Gs      = info.friction_PT_gradients().viewer().name("Gs"),
@@ -329,62 +326,41 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        Float d_hat = PT_d_hat(
                            d_hats(PT[0]), d_hats(PT[1]), d_hats(PT[2]), d_hats(PT[3]));
 
-                       Vector12 G;
-                       if(gradient_only)
-                       {
-                           PT_friction_gradient(G,
-                                                kt2,
-                                                d_hat,
-                                                thickness,
-                                                mu,
-                                                eps_v * dt,
-                                                // previous positions
-                                                prev_P,
-                                                prev_T0,
-                                                prev_T1,
-                                                prev_T2,
-                                                // current positions
-                                                P,
-                                                T0,
-                                                T1,
-                                                T2);
-                           DoubletVectorAssembler DVA{Gs};
-                           DVA.segment<4>(i * 4).write(PT, G);
-                       }
-                       else
-                       {
-                           Matrix12x12 H;
-                           PT_friction_gradient_hessian(G,
-                                                        H,
-                                                        kt2,
-                                                        d_hat,
-                                                        thickness,
-                                                        mu,
-                                                        eps_v * dt,
-                                                        // previous positions
-                                                        prev_P,
-                                                        prev_T0,
-                                                        prev_T1,
-                                                        prev_T2,
-                                                        // current positions
-                                                        P,
-                                                        T0,
-                                                        T1,
-                                                        T2);
-                           cuda::make_spd(H);
-                           DoubletVectorAssembler DVA{Gs};
-                           DVA.segment<4>(i * 4).write(PT, G);
-                           TripletMatrixAssembler TMA{Hs};
-                           TMA.half_block<4>(i * PTHalfHessianSize).write(PT, H);
-                       }
+                       Vector12    G;
+                       Matrix12x12 H;
+
+                       PT_friction_gradient_hessian(G,
+                                                    H,
+                                                    kt2,
+                                                    d_hat,
+                                                    thickness,
+                                                    mu,
+                                                    eps_v * dt,
+                                                    // previous positions
+                                                    prev_P,
+                                                    prev_T0,
+                                                    prev_T1,
+                                                    prev_T2,
+                                                    // current positions
+                                                    P,
+                                                    T0,
+                                                    T1,
+                                                    T2);
+
+                       cuda::make_spd(H);
+
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<4>(i * 4).write(PT, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<4, 4>(i * 4 * 4).write(PT, H);
                    });
 
         // Compute Edge-Edge Gradient and Hessian
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.friction_EEs().size(),
-                   [gradient_only = info.gradient_only(),
-                    table = info.contact_tabular().viewer().name("contact_tabular"),
+                   [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                     EEs     = info.friction_EEs().viewer().name("EEs"),
                     Gs      = info.friction_EE_gradients().viewer().name("Gs"),
@@ -435,81 +411,50 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        distance::edge_edge_mollifier_threshold(
                            rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, eps_x);
 
-                       Vector12 G;
+                       Vector12    G;
+                       Matrix12x12 H;
 
-                       bool mollified = distance::need_mollify(
-                           prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, eps_x);
-
-                       if(gradient_only)
+                       if(distance::need_mollify(prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, eps_x))
+                       // almost parallel, don't compute gradient and hessian
                        {
-                           if(mollified)
-                           {
-                               G.setZero();
-                           }
-                           else
-                           {
-                               EE_friction_gradient(G,
-                                                    kt2,
-                                                    d_hat,
-                                                    thickness,
-                                                    mu,
-                                                    eps_v * dt,
-                                                    // previous positions
-                                                    prev_Ea0,
-                                                    prev_Ea1,
-                                                    prev_Eb0,
-                                                    prev_Eb1,
-                                                    // current positions
-                                                    Ea0,
-                                                    Ea1,
-                                                    Eb0,
-                                                    Eb1);
-                           }
-                           DoubletVectorAssembler DVA{Gs};
-                           DVA.segment<4>(i * 4).write(EE, G);
+                           G.setZero();
+                           H.setZero();
                        }
                        else
                        {
-                           Matrix12x12 H;
-                           if(mollified)
-                           {
-                               G.setZero();
-                               H.setZero();
-                           }
-                           else
-                           {
-                               EE_friction_gradient_hessian(G,
-                                                            H,
-                                                            kt2,
-                                                            d_hat,
-                                                            thickness,
-                                                            mu,
-                                                            eps_v * dt,
-                                                            // previous positions
-                                                            prev_Ea0,
-                                                            prev_Ea1,
-                                                            prev_Eb0,
-                                                            prev_Eb1,
-                                                            // current positions
-                                                            Ea0,
-                                                            Ea1,
-                                                            Eb0,
-                                                            Eb1);
-                               cuda::make_spd(H);
-                           }
-                           DoubletVectorAssembler DVA{Gs};
-                           DVA.segment<4>(i * 4).write(EE, G);
-                           TripletMatrixAssembler TMA{Hs};
-                           TMA.half_block<4>(i * EEHalfHessianSize).write(EE, H);
+                           EE_friction_gradient_hessian(G,
+                                                        H,
+                                                        kt2,
+                                                        d_hat,
+                                                        thickness,
+                                                        mu,
+                                                        eps_v * dt,
+                                                        // previous positions
+                                                        prev_Ea0,
+                                                        prev_Ea1,
+                                                        prev_Eb0,
+                                                        prev_Eb1,
+                                                        // current positions
+                                                        Ea0,
+                                                        Ea1,
+                                                        Eb0,
+                                                        Eb1);
+
+                           cuda::make_spd(H);
                        }
+
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<4>(i * 4).write(EE, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<4, 4>(i * 4 * 4).write(EE, H);
                    });
 
         // Compute Point-Edge Gradient and Hessian
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.friction_PEs().size(),
-                   [gradient_only = info.gradient_only(),
-                    table = info.contact_tabular().viewer().name("contact_tabular"),
+                   [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                     PEs     = info.friction_PEs().viewer().name("PEs"),
                     Gs      = info.friction_PE_gradients().viewer().name("Gs"),
@@ -546,58 +491,39 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        Float d_hat =
                            PE_d_hat(d_hats(PE[0]), d_hats(PE[1]), d_hats(PE[2]));
 
-                       Vector9 G;
-                       if(gradient_only)
-                       {
-                           PE_friction_gradient(G,
-                                                kt2,
-                                                d_hat,
-                                                thickness,
-                                                mu,
-                                                eps_v * dt,
-                                                // previous positions
-                                                prev_P,
-                                                prev_E0,
-                                                prev_E1,
-                                                // current positions
-                                                P,
-                                                E0,
-                                                E1);
-                           DoubletVectorAssembler DVA{Gs};
-                           DVA.segment<3>(i * 3).write(PE, G);
-                       }
-                       else
-                       {
-                           Matrix9x9 H;
-                           PE_friction_gradient_hessian(G,
-                                                        H,
-                                                        kt2,
-                                                        d_hat,
-                                                        thickness,
-                                                        mu,
-                                                        eps_v * dt,
-                                                        // previous positions
-                                                        prev_P,
-                                                        prev_E0,
-                                                        prev_E1,
-                                                        // current positions
-                                                        P,
-                                                        E0,
-                                                        E1);
-                           cuda::make_spd(H);
-                           DoubletVectorAssembler DVA{Gs};
-                           DVA.segment<3>(i * 3).write(PE, G);
-                           TripletMatrixAssembler TMA{Hs};
-                           TMA.half_block<3>(i * PEHalfHessianSize).write(PE, H);
-                       }
+                       Vector9   G;
+                       Matrix9x9 H;
+
+                       PE_friction_gradient_hessian(G,
+                                                    H,
+                                                    kt2,
+                                                    d_hat,
+                                                    thickness,
+                                                    mu,
+                                                    eps_v * dt,
+                                                    // previous positions
+                                                    prev_P,
+                                                    prev_E0,
+                                                    prev_E1,
+                                                    // current positions
+                                                    P,
+                                                    E0,
+                                                    E1);
+
+                       cuda::make_spd(H);
+
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<3>(i * 3).write(PE, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<3, 3>(i * 3 * 3).write(PE, H);
                    });
 
         // Compute Point-Point Gradient and Hessian
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(info.friction_PPs().size(),
-                   [gradient_only = info.gradient_only(),
-                    table = info.contact_tabular().viewer().name("contact_tabular"),
+                   [table = info.contact_tabular().viewer().name("contact_tabular"),
                     contact_ids = info.contact_element_ids().viewer().name("contact_element_ids"),
                     PPs     = info.friction_PPs().viewer().name("PPs"),
                     Gs      = info.friction_PP_gradients().viewer().name("Gs"),
@@ -628,49 +554,34 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        Float d_hat = PP_d_hat(d_hats(PP[0]), d_hats(PP[1]));
 
 
-                       Vector6 G;
-                       if(gradient_only)
-                       {
-                           PP_friction_gradient(G,
-                                                kt2,
-                                                d_hat,
-                                                thickness,
-                                                mu,
-                                                eps_v * dt,
-                                                // previous positions
-                                                prev_P0,
-                                                prev_P1,
-                                                // current positions
-                                                P0,
-                                                P1);
-                           DoubletVectorAssembler DVA{Gs};
-                           DVA.segment<2>(i * 2).write(PP, G);
-                       }
-                       else
-                       {
-                           Matrix6x6 H;
-                           PP_friction_gradient_hessian(G,
-                                                        H,
-                                                        kt2,
-                                                        d_hat,
-                                                        thickness,
-                                                        mu,
-                                                        eps_v * dt,
-                                                        // previous positions
-                                                        prev_P0,
-                                                        prev_P1,
-                                                        // current positions
-                                                        P0,
-                                                        P1);
-                           cuda::make_spd(H);
-                           DoubletVectorAssembler DVA{Gs};
-                           DVA.segment<2>(i * 2).write(PP, G);
-                           TripletMatrixAssembler TMA{Hs};
-                           TMA.half_block<2>(i * PPHalfHessianSize).write(PP, H);
-                       }
+                       Vector6   G;
+                       Matrix6x6 H;
+
+                       PP_friction_gradient_hessian(G,
+                                                    H,
+                                                    kt2,
+                                                    d_hat,
+                                                    thickness,
+                                                    mu,
+                                                    eps_v * dt,
+                                                    // previous positions
+                                                    prev_P0,
+                                                    prev_P1,
+                                                    // current positions
+                                                    P0,
+                                                    P1);
+
+                       cuda::make_spd(H);
+
+                       DoubletVectorAssembler DVA{Gs};
+                       DVA.segment<2>(i * 2).write(PP, G);
+
+                       TripletMatrixAssembler TMA{Hs};
+                       TMA.block<2, 2>(i * 2 * 2).write(PP, H);
                    });
     }
 };
 
-REGISTER_SIM_SYSTEM(IPCSimplexFrictionalContact);
+
+// REGISTER_SIM_SYSTEM(IPCSimplexFrictionalContact);
 }  // namespace uipc::backend::cuda

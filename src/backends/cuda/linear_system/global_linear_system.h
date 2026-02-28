@@ -7,8 +7,6 @@
 #include <algorithm/matrix_converter.h>
 #include <linear_system/spmv.h>
 #include <utils/offset_count_collection.h>
-#include <energy_component_flags.h>
-
 namespace uipc::backend::cuda
 {
 // Define a simple POD to avoid constructing CUDA's built-in vector type with pmr allocators in host code
@@ -34,9 +32,14 @@ class GlobalLinearSystem : public SimSystem
     using CBCOOMatrixView   = muda::CBCOOMatrixView<Float, 3>;
     using DenseVectorView   = muda::DenseVectorView<Float>;
     using CDenseVectorView  = muda::CDenseVectorView<Float>;
-    using ComponentFlags    = EnergyComponentFlags;
 
     class Impl;
+
+    enum class HessianStorageType
+    {
+        Full      = 0,
+        Symmetric = 1
+    };
 
     class InitDofExtentInfo
     {
@@ -63,36 +66,14 @@ class GlobalLinearSystem : public SimSystem
     class DiagExtentInfo
     {
       public:
-        bool           gradient_only() const { return m_gradient_only; }
-        ComponentFlags component_flags() const { return m_component_flags; }
-        void extent(SizeT hessian_count, SizeT dof_count) noexcept;
+        HessianStorageType storage_type() { return m_storage_type; }
+        void extent(SizeT hessian_block_count, SizeT dof_count) noexcept;
 
       private:
         friend class Impl;
-        ComponentFlags m_component_flags = ComponentFlags::All;
-        SizeT          m_dof_count       = 0;
-        SizeT          m_block_count     = 0;
-        bool           m_gradient_only   = false;
-    };
-
-    class ComputeGradientInfo
-    {
-      public:
-        /**
-         * Output gradient vector view
-         */
-        void buffer_view(muda::DenseVectorView<Float> grad) noexcept;
-        /**
-         * Specify which component to be taken into account during gradient computation
-         * - Contact: only consider contact part
-         * - Complement: only consider non-contact part
-         */
-        void flags(ComponentFlags component) noexcept;
-
-      private:
-        friend class Impl;
-        muda::DenseVectorView<Float> m_gradients;
-        ComponentFlags               m_flags = ComponentFlags::All;
+        SizeT              m_dof_count    = 0;
+        SizeT              m_block_count  = 0;
+        HessianStorageType m_storage_type = HessianStorageType::Full;
     };
 
     class DiagInfo
@@ -103,31 +84,30 @@ class GlobalLinearSystem : public SimSystem
         {
         }
 
-        TripletMatrixView hessians() const { return m_hessians; }
-        DenseVectorView   gradients() const { return m_gradients; }
-        bool              gradient_only() const { return m_gradient_only; }
-        ComponentFlags    component_flags() const { return m_component_flags; }
+        HessianStorageType storage_type() { return m_storage_type; }
+        TripletMatrixView  hessians() { return m_hessians; }
+        DenseVectorView    gradients() { return m_gradients; }
 
       private:
         friend class Impl;
-        SizeT             m_index = ~0ull;
-        TripletMatrixView m_hessians;
-        DenseVectorView   m_gradients;
-        bool              m_gradient_only   = false;
-        ComponentFlags    m_component_flags = ComponentFlags::All;
-
-        Impl* m_impl = nullptr;
+        SizeT              m_index = ~0ull;
+        TripletMatrixView  m_hessians;
+        DenseVectorView    m_gradients;
+        HessianStorageType m_storage_type;
+        Impl*              m_impl = nullptr;
     };
 
     class OffDiagExtentInfo
     {
       public:
-        void extent(SizeT lr_hessian_block_count, SizeT rl_hessian_block_count) noexcept;
+        HessianStorageType storage_type() const { return m_storage_type; }
+        void extent(SizeT lr_hessian_block_count, SizeT rl_hassian_block_count) noexcept;
 
       private:
         friend class Impl;
-        SizeT m_lr_block_count = 0;
-        SizeT m_rl_block_count = 0;
+        SizeT              m_lr_block_count = 0;
+        SizeT              m_rl_block_count = 0;
+        HessianStorageType m_storage_type   = HessianStorageType::Full;
     };
 
     class OffDiagInfo
@@ -138,15 +118,17 @@ class GlobalLinearSystem : public SimSystem
         {
         }
 
-        TripletMatrixView lr_hessian() const { return m_lr_hessian; }
-        TripletMatrixView rl_hessian() const { return m_rl_hessian; }
+        HessianStorageType storage_type() const { return m_storage_type; }
+        TripletMatrixView  lr_hessian() const { return m_lr_hessian; }
+        TripletMatrixView  rl_hessian() const { return m_rl_hessian; }
 
       private:
         friend class Impl;
-        SizeT             m_index = ~0ull;
-        TripletMatrixView m_lr_hessian;
-        TripletMatrixView m_rl_hessian;
-        Impl*             m_impl = nullptr;
+        SizeT              m_index = ~0ull;
+        TripletMatrixView  m_lr_hessian;
+        TripletMatrixView  m_rl_hessian;
+        HessianStorageType m_storage_type;
+        Impl*              m_impl = nullptr;
     };
 
     class AssemblyInfo
@@ -157,7 +139,8 @@ class GlobalLinearSystem : public SimSystem
         {
         }
 
-        CBCOOMatrixView A() const;
+        CBCOOMatrixView    A() const;
+        HessianStorageType storage_type() const;
 
       protected:
         friend class Impl;
@@ -216,7 +199,7 @@ class GlobalLinearSystem : public SimSystem
 
         CDenseVectorView r() const { return m_r; }
 
-        void satisfied(bool statisfied) { m_statisfied = statisfied; }
+        void statisfied(bool statisfied) { m_statisfied = statisfied; }
 
       private:
         friend class Impl;
@@ -326,23 +309,11 @@ class GlobalLinearSystem : public SimSystem
         bool accuracy_statisfied(muda::DenseVectorView<Float> r);
 
         Float diag_norm();
-
-        void compute_gradient(ComputeGradientInfo& info);
-
-        bool        need_debug_dump = false;
-        std::string debug_dump_path;
     };
 
+    void dump_linear_system(std::string_view filename);
+
     SizeT dof_count() const;
-
-    /**
-     * @brief Interface to compute the gradient of the system.
-     * 
-     * The size of the gradient buffer should be equal to `dof_count()`.
-     */
-    void compute_gradient(ComputeGradientInfo& info);
-
-    muda::LinearSystemContext& ctx() noexcept { return m_impl.ctx; }
 
   protected:
     void do_build() override;
@@ -373,9 +344,5 @@ class GlobalLinearSystem : public SimSystem
     Float diag_norm();
 
     Impl m_impl;
-
-    // local debug dump functions
-    void _dump_A_b();
-    void _dump_x();
 };
 }  // namespace uipc::backend::cuda
