@@ -17,6 +17,11 @@ Engine::Engine(std::string_view backend_name,
 {
 }
 
+Engine::Engine(S<internal::Engine> e) noexcept
+    : m_internal{std::move(e)}
+{
+}
+
 Engine::~Engine() {}
 
 std::string_view Engine::backend_name() const noexcept

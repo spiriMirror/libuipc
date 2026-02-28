@@ -43,6 +43,9 @@ class UIPC_CORE_API Engine final
     Json                     to_json() const;
     static Json              default_config();
 
+    // Allow creating a core::Engine from a core::internal::Engine
+    Engine(S<internal::Engine> e) noexcept;
+
   private:
     friend class World;
     S<internal::Engine> m_internal;
