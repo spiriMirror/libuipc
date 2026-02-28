@@ -25,6 +25,12 @@ Returns:
                            R"(Get the animator visitor.
 Returns:
     AnimatorVisitor: Animator visitor.)");
+    class_WorldVisitor.def("engine",
+                           &WorldVisitor::engine,
+                           py::return_value_policy::move,
+                           R"(Get the engine associated with this world.
+Returns:
+    Engine: Engine object.)");
     class_WorldVisitor.def("get",
                            &WorldVisitor::get,
                            py::return_value_policy::move,
