@@ -36,6 +36,10 @@ def _load_stats_module():
             def warn(msg):
                 pass
 
+            @staticmethod
+            def info(msg):
+                pass
+
         stub.Logger = _Logger
         sys.modules['uipc'] = stub
 
@@ -274,3 +278,28 @@ def test_to_markdown_auto_keys_excludes_root():
     assert 'GlobalTimer' not in header
     # Child timer names should be columns
     assert 'Newton' in header
+
+
+@pytest.mark.basic
+def test_summary_report_total_time_first_plot():
+    """summary_report() includes 'Total Time Per Frame' as the first plot
+    after the heatmap section."""
+    import tempfile, os
+    s = SimulationStats()
+    for i in range(3):
+        s._frames.append(_make_timer_data(i))
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        report_path = s.summary_report(keys=['Newton'], output_dir=tmpdir)
+        md_text = report_path.read_text(encoding='utf-8')
+
+    # 'Total Time Per Frame' must appear before 'Per-Frame Statistics'
+    idx_total = md_text.find('Total Time Per Frame')
+    idx_per_frame = md_text.find('Per-Frame Statistics')
+    assert idx_total != -1, "'Total Time Per Frame' section missing from report"
+    assert idx_per_frame != -1, "'Per-Frame Statistics' section missing from report"
+    assert idx_total < idx_per_frame, (
+        "'Total Time Per Frame' must appear before 'Per-Frame Statistics'"
+    )
+    # The SVG file must be referenced in the markdown
+    assert 'total_time_per_frame.svg' in md_text
