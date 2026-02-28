@@ -570,13 +570,13 @@ def parse_ncu_csv(csv_path: str | pathlib.Path) -> list[dict[str, Any]]:
                 if duration_key:
                     unit_str = (row.get(duration_key) or '').strip().strip('"').lower()
                     # Map common unit strings to our internal unit
-                    if unit_str in ('ns', 'nanosecond', 'nanoseconds'):
+                    if unit_str in ('ns', 'nsec', 'nanosecond', 'nanoseconds'):
                         duration_unit = 'ns'
-                    elif unit_str in ('us', 'microsecond', 'microseconds', 'µs'):
+                    elif unit_str in ('us', 'usec', 'microsecond', 'microseconds', 'µs'):
                         duration_unit = 'us'
-                    elif unit_str in ('ms', 'millisecond', 'milliseconds'):
+                    elif unit_str in ('ms', 'msec', 'millisecond', 'milliseconds'):
                         duration_unit = 'ms'
-                    elif unit_str in ('s', 'second', 'seconds'):
+                    elif unit_str in ('s', 'sec', 'second', 'seconds'):
                         duration_unit = 's'
                     else:
                         # Default to nanoseconds if unknown

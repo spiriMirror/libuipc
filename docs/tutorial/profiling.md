@@ -235,7 +235,7 @@ print(result['summary'])
 # Generate full stats report
 result['stats'].summary_report(
     output_dir='bench/baseline/report',
-    workspace='workspace',
+    workspace=engine.workspace(),
 )
 
 # 3. Profile with Nsight Compute

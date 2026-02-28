@@ -119,6 +119,14 @@ class SimulationStats:
             SimulationStats._collect_names(child, names)
         return names
 
+    @property
+    def all_timer_names(self) -> set:
+        """Return all timer names found across all collected frames."""
+        names: set = set()
+        for frame_data in self._frames:
+            self._collect_names(frame_data, names)
+        return names
+
     def _resolve_keys(self, keys, aliases=None):
         """Resolve short alias keys to actual timer names found in data.
 

@@ -319,8 +319,13 @@ def load_result(result_dir: str) -> dict:
             stats = SimulationStats.__new__(SimulationStats)
             stats._frames = data['timer_frames']
             data['stats'] = stats
-        except Exception:
-            pass
+        except Exception as e:
+            import sys
+            print(
+                f"Warning: Could not reconstruct SimulationStats "
+                f"from result data: {e}",
+                file=sys.stderr,
+            )
 
     return data
 
@@ -388,12 +393,7 @@ def compare(
         lines.append('')
 
         # Collect all timer names from both
-        from uipc.stats import SimulationStats
-        all_names: set[str] = set()
-        for frame in b_stats._frames:
-            SimulationStats._collect_names(frame, all_names)
-        for frame in a_stats._frames:
-            SimulationStats._collect_names(frame, all_names)
+        all_names = b_stats.all_timer_names | a_stats.all_timer_names
 
         # Aggregate mean durations
         timer_deltas: list[tuple[str, float, float, float]] = []
