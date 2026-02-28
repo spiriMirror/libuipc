@@ -176,6 +176,7 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
             -DCMAKE_CUDA_COMPILER_LAUNCHER=ccache \
+            -DUIPC_CUDA_ARCHITECTURES=89 \
             -DUIPC_GITHUB_ACTIONS=ON
         shell: bash
 
