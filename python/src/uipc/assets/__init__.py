@@ -182,26 +182,33 @@ def run(
     name: str,
     backend: str = 'cuda',
     *,
+    gui: bool = True,
     workspace: str | None = None,
     revision: str = 'main',
     cache_dir: str | None = None,
+    distance_factor: float = 2.0,
 ) -> None:
     """Download an asset, build its scene, and run the simulation.
 
     A convenience one-liner for running a simulation::
 
         from uipc.assets import run
-        run('cube_ground')                    # CUDA backend, temp workspace
+        run('cube_ground')                    # CUDA backend with GUI
+        run('cube_ground', gui=False)         # headless
         run('cube_ground', 'none')            # None backend (sanity check only)
         run('cube_ground', workspace='out/')  # custom output directory
 
     Args:
         name: Asset name (e.g. ``'cube_ground'``).
         backend: Engine backend name (default ``'cuda'``).
+        gui: If ``True`` (default), open a Polyscope window to visualize
+             the simulation in real time.
         workspace: Directory for simulation output.  ``None`` uses a
                    temporary directory.
         revision: Git revision (branch, tag, or commit hash).
         cache_dir: Where to cache downloaded files.
+        distance_factor: How far the camera sits relative to the bounding-box
+                         diagonal (default ``2.0``).  Only used when *gui* is True.
     """
     import tempfile
     from uipc import Engine, World
@@ -219,10 +226,30 @@ def run(
     if not world.is_valid():
         raise RuntimeError(f"Scene '{name}' failed sanity check, world is not valid.")
 
-    while world.is_valid():
-        world.advance()
-        world.sync()
-        world.retrieve()
+    if gui:
+        import polyscope as ps
+        from uipc.gui import SceneGUI
+
+        ps.init()
+        scene_gui = SceneGUI(scene)
+        scene_gui.register()
+        scene_gui.set_edge_width(1.0)
+        _auto_camera(scene, distance_factor)
+
+        def _step():
+            if world.is_valid():
+                world.advance()
+                world.sync()
+                world.retrieve()
+                scene_gui.update()
+
+        ps.set_user_callback(_step)
+        ps.show()
+    else:
+        while world.is_valid():
+            world.advance()
+            world.sync()
+            world.retrieve()
 
 
 def show(
