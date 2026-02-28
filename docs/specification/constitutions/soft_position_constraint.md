@@ -22,3 +22,10 @@ The reason we use strength ratio is that the mass $m$ already contains the mass 
 
 Because the constraint is "SOFT", we don't allow a too-strong strength which will lead to numerical instability. Normally, $\eta$ is better in the range of $[0, 100]$.
 
+## Attributes
+
+On `vertices`:
+
+- `strength_ratio`: $\eta$ in the energy above
+- `aim_position`: $\hat{\mathbf{x}}$ in the energy above
+

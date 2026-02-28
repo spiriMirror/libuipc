@@ -381,7 +381,6 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     }
 
     // Use AllE to query AllE
-    if(Es.size() > 0)
     {
         muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
         lbvh_E.detect(
@@ -457,7 +456,6 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
     }
 
     // Use AllP to query AllT
-    if(Fs.size() > 0)
     {
         muda::KernelLabel label{__FUNCTION__, __FILE__, __LINE__};
         lbvh_T.query(
@@ -874,7 +872,8 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
                             break;
                         }
                     }
-                });
+                })
+            .wait();
 
         temp_PP_offset += N_EEs;
         temp_PE_offset += N_EEs;

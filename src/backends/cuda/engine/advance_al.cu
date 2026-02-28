@@ -47,6 +47,16 @@ void SimEngine::advance_AL()
         }
     };
 
+    auto detect_dcd_candidates = [this]
+    {
+        if(m_global_trajectory_filter)
+        {
+            Timer timer{"Detect DCD Candidates"};
+            m_global_trajectory_filter->detect(0.0);
+            m_global_trajectory_filter->filter_active();
+        }
+    };
+
     auto detect_trajectory_candidates = [this](Float alpha)
     {
         if(m_global_trajectory_filter)
@@ -67,10 +77,9 @@ void SimEngine::advance_AL()
 
     auto record_friction_candidates = [this]
     {
-        if(m_global_active_set_manager && m_friction_enabled)
+        if(m_global_trajectory_filter && m_friction_enabled)
         {
-            m_global_active_set_manager->linearize_constraints();
-            m_global_active_set_manager->update_friction();
+            m_global_trajectory_filter->record_friction_candidates();
         }
     };
 
@@ -177,7 +186,7 @@ void SimEngine::advance_AL()
     {
         if(m_dump_surface->view()[0])
         {
-            dump_global_surface();
+            dump_global_surface(fmt::format("dump_surface.{}.{}", m_current_frame, newton_iter));
         }
 
         NewtonToleranceManager::ResultInfo result_info;
@@ -293,16 +302,13 @@ void SimEngine::advance_AL()
                 m_global_active_set_manager->filter_active();
             }
 
-            // 2. Predict Motion => x_tilde = x + v * dt
-            m_state = SimEngineState::PredictMotion;
-            // MUST step animation before predicting dof (following basic IPC pattern)
-            // and before compute_adaptive_mu to ensure constraints report extents
-            step_animation();
-            m_time_integrator_manager->predict_dof();
-
-            // 3. Adaptive Parameter Calculation
-            // Now safe to call compute_adaptive_mu->diag_norm() after step_animation
+            // 2. Adaptive Parameter Calculation
             compute_adaptive_mu();
+
+            // 3. Predict Motion => x_tilde = x + v * dt
+            m_state = SimEngineState::PredictMotion;
+            m_time_integrator_manager->predict_dof();
+            step_animation();
 
             // 4. Nonlinear-Newton Iteration
             m_newton_tolerance_manager->pre_newton(m_current_frame);
@@ -401,7 +407,8 @@ void SimEngine::advance_AL()
 
                     // Setup Displacements for CCD
                     m_global_vertex_manager->prepare_AL_CCD();
-                    detect_trajectory_candidates(alpha);
+                    // should be 1.0 here
+                    detect_trajectory_candidates(1.0);
                     alpha = filter_toi(1.0);
                     m_global_active_set_manager->update_active_set();
                     m_global_vertex_manager->post_AL_CCD();

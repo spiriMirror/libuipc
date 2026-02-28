@@ -25,7 +25,7 @@ class FiniteElementVertexReporter final : public VertexReporter
         }
         FiniteElementBodyReporter* body_reporter = nullptr;
 
-        bool require_update_attributes = false;
+        bool need_update_attributes = false;
     };
 
     // Request to update vertex attributes before next simulation step
@@ -36,7 +36,6 @@ class FiniteElementVertexReporter final : public VertexReporter
     virtual void do_report_count(VertexCountInfo& info) override;
     virtual void do_report_attributes(VertexAttributeInfo& info) override;
     virtual void do_report_displacements(VertexDisplacementInfo& info) override;
-    virtual U64  get_uid() const noexcept override;
 
   private:
     Impl m_impl;

@@ -2,49 +2,81 @@
 
 ## #670 AffineBodyRevoluteJointLimit
 
-This constitution is an **InterAffineBody extra constitution** defined on a
-revolute-joint geometry. It contributes a unilateral cubic penalty to the
-relative angular coordinate.
+**Affine Body Revolute Joint Limit** restricts the rotation angle of a [Revolute Joint](./affine_body_revolute_joint.md) to a specified range. When the joint angle goes beyond the lower or upper bound, a cubic penalty is applied. It is an InterAffineBody extra constitution defined on revolute-joint geometry.
 
-Let $x$ be the revolute angle (unit: rad), with lower/upper bounds $l, u$ and
-penalty coefficient $s$:
+## Energy
+
+The limit adds an energy $E(x)$ where $x$ is the scalar joint angle (its exact meaning is given in [Meaning of $x$](#meaning-of-x)). Let $l,u$ be lower/upper limits and $s$ be `limit/strength`.
+
+For normal range width ($u>l$):
 
 $$
 E(x)=
 \begin{cases}
+s\left(\frac{x-u}{u-l}\right)^3, & x>u \\
 0, & l \le x \le u \\
-s(x-u)^3, & x>u \\
+s\left(\frac{l-x}{u-l}\right)^3, & x<l
+\end{cases}
+$$
+
+The normalized gaps are dimensionless, so changing $(l,u)$ does not require
+retuning $s$ just because the interval width changed.
+
+For degenerate limit ($u=l$), use fallback cubic:
+
+$$
+E(x)=s|x-l|^3=
+\begin{cases}
+s(x-l)^3, & x>l \\
+0, & x=l \\
 s(l-x)^3, & x<l
 \end{cases}
 $$
 
-Interpretation of each term:
-- $x$: current relative revolute angle around the joint axis.
-- $l$: admissible lower angle bound.
-- $u$: admissible upper angle bound.
-- $s$: penalty strength (energy scale).
+Boundary points are treated as in-range.
 
-The angle is represented in incremental form:
+## Meaning of $x$
+
+The revolute coordinate is evaluated in incremental form:
 
 $$
-x = \theta_0 + \delta,
-$$
-$$
-\theta_0 = \Delta \Theta(\mathbf{q}^{t-1}, \mathbf{q}_{ref}), \quad
-\delta = \Delta \Theta(\mathbf{q}, \mathbf{q}^{t-1}),
+x=\theta^t+\delta,
 $$
 
-where:
-- $\mathbf{q}$ is the current affine-body DOF,
-- $\mathbf{q}^{t-1}$ is the previous-step DOF,
+$$
+\theta^t=\Delta\Theta(\mathbf{q}^{t},\mathbf{q}_{ref}), \quad
+\delta=\Delta\Theta(\mathbf{q},\mathbf{q}^{t}).
+$$
+
+Here:
+
+- $\mathbf{q}$ is the current affine-body DOF.
+- $\mathbf{q}^{t}$ is the previous-time-step DOF.
 - $\mathbf{q}_{ref}$ is the reference DOF captured at initialization.
+- $\theta^t$ is the accumulated revolute angle from the previous step.
 
-For revolute joints, the increment operator $\Delta\Theta(\cdot,\cdot)$ is
-computed with an `atan2` form. Given two states $a,b$, define
+Note that $\mathbf{q}$ is the concatenation of the DOF of the two affine bodies connected by the prismatic joint.
 
 $$
-\Delta\Theta(\mathbf{q}_a,\mathbf{q}_b)
-=
+\mathbf{q} =
+\begin{bmatrix}
+\mathbf{q}_i \\
+\mathbf{q}_j
+\end{bmatrix},
+$$
+
+The [Revolute Joint](./affine_body_revolute_joint.md) geometry is represented as an edge with two endpoints. The joint axis direction is defined by the order of the two endpoints giving $+\hat{\mathbf{t}}$.
+
+![Revolute joint axis $\hat{\mathbf{t}}$](./media/external_articulation_revolute_constraint_fig1.drawio.svg)
+
+- $x=0$: current relative revolute angle equals the reference angle.
+- $x>0$: positive rotation around $+\hat{\mathbf{t}}$ (right-hand rule; counterclockwise when viewed along $+\hat{\mathbf{t}}$).
+- $x<0$: negative rotation around $+\hat{\mathbf{t}}$ (clockwise when viewed along $+\hat{\mathbf{t}}$).
+
+For [Revolute Joints](./affine_body_revolute_joint.md):
+
+$$
+\Delta\Theta(\mathbf{q}_a,\mathbf{q}_b)=
 \operatorname{atan2}
 \left(
 \sin\theta_a\cos\theta_b-\cos\theta_a\sin\theta_b,\;
@@ -52,55 +84,24 @@ $$
 \right),
 $$
 
-with
-
 $$
 \cos\theta=\frac{\hat{\mathbf{b}}_i\cdot\hat{\mathbf{b}}_j+\hat{\mathbf{n}}_i\cdot\hat{\mathbf{n}}_j}{2},
 \quad
 \sin\theta=\frac{\hat{\mathbf{n}}_i\cdot\hat{\mathbf{b}}_j-\hat{\mathbf{b}}_i\cdot\hat{\mathbf{n}}_j}{2}.
 $$
 
-This yields the principal-angle branch in $(-\pi,\pi]$, so the limit supports
-full $\pm 180^\circ$ angular span.
+The sign of $x$ follows the sign of $\sin\theta$ under this convention.
+The angle branch is $(-\pi,\pi]$.
 
-This avoids direct optimization over inverse-trigonometric reconstruction of the
-absolute angle and follows the same delta-theta idea used by external articulation.
-
-First and second derivatives with respect to $x$:
-
-$$
-\frac{dE}{dx}=
-\begin{cases}
-0, & l \le x \le u \\
-3s(x-u)^2, & x>u \\
--3s(l-x)^2, & x<l
-\end{cases}
-$$
-
-$$
-\frac{d^2E}{dx^2}=
-\begin{cases}
-0, & l \le x \le u \\
-6s(x-u), & x>u \\
-6s(l-x), & x<l
-\end{cases}
-$$
-
-Boundary points ($x=l$ or $x=u$) are treated as in-range; energy and derivatives
-are zero there.
-
-## Conceptual Requirement
+## Requirement
 
 This limit term is meaningful only on a geometry that already represents a
-revolute joint relation (base joint UID = 18). The limit augments that base
-relation as an extra constitution term.
+[Revolute Joint](./affine_body_revolute_joint.md) (UID=18). The limit augments that base relation as an extra constitution term.
 
-## Stored Attributes
+## Attributes
 
-Per joint edge:
-- `limit/lower`
-- `limit/upper`
-- `limit/strength`
+On `edges`:
 
-Geometry metadata:
-- extra constitution UID `670` in `meta.extra_constitution_uids`.
+- `limit/lower`: $l$ in the energy above
+- `limit/upper`: $u$ in the energy above
+- `limit/strength`: $s$ in the energy above

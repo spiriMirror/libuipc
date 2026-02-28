@@ -7,12 +7,9 @@ using aabb          = uipc::backend::cuda::AABB;
 using stacklessnode = uipc::backend::cuda::StacklessBVH::Node;
 using Vector2i      = uipc::Vector2i;
 
-using uint   = uint32_t;
-using ullint = unsigned long long int;
-
-constexpr int K_THREADS = 256;
-constexpr int K_WARPS   = K_THREADS >> 5;
-
+using uint                       = uint32_t;
+using ullint                     = unsigned long long int;
+constexpr int K_THREADS          = 256;
 constexpr int K_REDUCTION_LAYER  = 5;
 constexpr int K_REDUCTION_NUM    = 1 << K_REDUCTION_LAYER;
 constexpr int K_REDUCTION_MODULO = K_REDUCTION_NUM - 1;
@@ -29,27 +26,6 @@ constexpr uint   MaxIndex  = 0xFFFFFFFFFFFFFFFFu >> offset3;
 
 constexpr uint MAX_CD_NUM_PER_VERT = 64;
 constexpr int  MAX_RES_PER_BLOCK   = 1024;
-
-struct PlainAABB
-{
-    float3 _min, _max;
-};
-
-MUDA_GENERIC MUDA_INLINE PlainAABB toPlainAABB(const aabb& box)
-{
-    PlainAABB res;
-    res._min = make_float3(box.min().x(), box.min().y(), box.min().z());
-    res._max = make_float3(box.max().x(), box.max().y(), box.max().z());
-    return res;
-}
-
-MUDA_GENERIC MUDA_INLINE aabb fromPlainAABB(const PlainAABB& box)
-{
-    aabb aabb;
-    aabb.min() = Vector<float, 3>(box._min.x, box._min.y, box._min.z);
-    aabb.max() = Vector<float, 3>(box._max.x, box._max.y, box._max.z);
-    return aabb;
-}
 
 struct intAABB
 {
@@ -182,8 +158,8 @@ MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aa
     using namespace culbvh;
 
     auto numQuery = aabbs.size();
-    auto BlockDim = K_THREADS;
-    auto GridDim  = (numQuery + BlockDim - 1) / BlockDim;
+    auto GridDim  = (numQuery + 255) / 256;
+    auto BlockDim = 256;
 
     using namespace muda;
 
@@ -205,18 +181,18 @@ MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aa
                     *_bv = AABB();
                 }
 
-                __shared__ PlainAABB aabbData[K_WARPS];
+                __shared__ AABB aabbData[K_THREADS >> 5];
 
-                PlainAABB temp = toPlainAABB(box(idx));
+                AABB temp = box(idx);
                 __syncthreads();
 
                 // Extract values for warp shuffle
-                float tempMinX = temp._min.x;
-                float tempMinY = temp._min.y;
-                float tempMinZ = temp._min.z;
-                float tempMaxX = temp._max.x;
-                float tempMaxY = temp._max.y;
-                float tempMaxZ = temp._max.z;
+                float tempMinX = temp.min().x();
+                float tempMinY = temp.min().y();
+                float tempMinZ = temp.min().z();
+                float tempMaxX = temp.max().x();
+                float tempMaxY = temp.max().y();
+                float tempMaxZ = temp.max().z();
 
                 for(int i = 1; i < 32; i = (i << 1))
                 {
@@ -246,8 +222,8 @@ MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aa
                 if(warpTid == 0)
                 {
                     // Reconstruct AABB from reduced values
-                    aabbData[warpId]._min = make_float3(tempMinX, tempMinY, tempMinZ);
-                    aabbData[warpId]._max = make_float3(tempMaxX, tempMaxY, tempMaxZ);
+                    aabbData[warpId].min() = Eigen::Vector3f(tempMinX, tempMinY, tempMinZ);
+                    aabbData[warpId].max() = Eigen::Vector3f(tempMaxX, tempMaxY, tempMaxZ);
                 }
                 __syncthreads();
                 if(threadIdx.x >= warpNum)
@@ -256,12 +232,12 @@ MUDA_INLINE void StacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aa
                 if(warpNum > 1)
                 {
                     temp     = aabbData[threadIdx.x];
-                    tempMinX = temp._min.x;
-                    tempMinY = temp._min.y;
-                    tempMinZ = temp._min.z;
-                    tempMaxX = temp._max.x;
-                    tempMaxY = temp._max.y;
-                    tempMaxZ = temp._max.z;
+                    tempMinX = temp.min().x();
+                    tempMinY = temp.min().y();
+                    tempMinZ = temp.min().z();
+                    tempMaxX = temp.max().x();
+                    tempMaxY = temp.max().y();
+                    tempMaxZ = temp.max().z();
 
                     for(int i = 1; i < warpNum; i = (i << 1))
                     {
@@ -385,15 +361,13 @@ MUDA_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
     Launch(GridDim, BlockDim)
         .file_line(__FILE__, __LINE__)
         .apply(
-            [size = size,
-             // leaf nodes
-             _depths     = count.viewer().name("_depths"),
-             _lvs_lca    = ext_lca.viewer().name("_lvs_lca"),
-             _lvs_metric = metric.viewer().name("_lvs_metric"),
-             _lvs_par    = ext_par.viewer().name("_lvs_par"),
-             _lvs_mark   = ext_mark.viewer().name("_lvs_mark"),
-             _lvs_box    = ext_aabb.viewer().name("_lvs_box"),
-             // internal nodes
+            [size         = size,
+             _depths      = count.viewer().name("_depths"),
+             _lvs_lca     = ext_lca.viewer().name("_lvs_lca"),
+             _lvs_metric  = metric.viewer().name("_lvs_metric"),
+             _lvs_par     = ext_par.viewer().name("_lvs_par"),
+             _lvs_mark    = ext_mark.viewer().name("_lvs_mark"),
+             _lvs_box     = ext_aabb.viewer().name("_lvs_box"),
              _tks_rc      = int_rc.viewer().name("_tks_rc"),
              _tks_lc      = int_lc.viewer().name("_tks_lc"),
              _tks_range_y = int_range_y.viewer().name("_tks_range_y"),
@@ -417,13 +391,6 @@ MUDA_INLINE void StacklessBVH::Impl::buildIntNodes(int size)
                 int cur = mark ? l : r;
 
                 _lvs_par(idx) = cur;
-
-
-                if(_flag.total_size() == 0)
-                    // when we only have 1 external node
-                    // there is no internal node to build
-                    return;
-
                 if(mark)
                 {
                     _tks_rc(cur)      = idx;
@@ -539,9 +506,6 @@ MUDA_INLINE void StacklessBVH::Impl::updateBvhExtNodeLinks(int size)
 {
     using namespace muda;
 
-    if(flags.size() == 0)  // no internal nodes, thus no need to update
-        return;
-
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(size,
@@ -567,16 +531,13 @@ MUDA_INLINE void StacklessBVH::Impl::reorderNode(int intSize)
         .file_line(__FILE__, __LINE__)
         .apply(intSize + 1,
                [intSize,
-                // leaf nodes
-                _lvs_lca = ext_lca.viewer().name("_lvs_lca"),
-                _lvs_box = ext_aabb.viewer().name("_lvs_box"),
-                // internal nodes
                 _tkMap           = tkMap.viewer().name("_tkMap"),
+                _lvs_lca         = ext_lca.viewer().name("_lvs_lca"),
+                _lvs_box         = ext_aabb.viewer().name("_lvs_box"),
                 _unorderedTks_lc = int_lc.viewer().name("_unorderedTks_lc"),
                 _unorderedTks_mark = int_mark.viewer().name("_unorderedTks_mark"),
                 _unorderedTks_rangey = int_range_y.viewer().name("_unorderedTks_rangey"),
                 _unorderedTks_box = int_aabb.viewer().name("_unorderedTks_box"),
-                // total nodes
                 _nodes = nodes.viewer().name("_nodes")] __device__(int idx)
                {
                    stacklessnode Node;
@@ -630,13 +591,10 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
     objs         = aabbs;
     auto numObjs = aabbs.size();
 
-    if(aabbs.size() == 0)
-        return;
-
     const unsigned int numInternalNodes = numObjs - 1;  // Total number of internal nodes
     const unsigned int numNodes = numObjs * 2 - 1;  // Total number of nodes
 
-
+    flags.resize(numInternalNodes);
     mtcode.resize(numObjs);
     sorted_id.resize(numObjs);
     primMap.resize(numObjs);
@@ -651,7 +609,7 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
     offsetTable.resize(numObjs);
     count.resize(numObjs);
 
-    flags.resize(numInternalNodes);
+
     int_lc.resize(numInternalNodes);
     int_rc.resize(numInternalNodes);
     int_par.resize(numInternalNodes);
@@ -659,7 +617,6 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
     int_range_y.resize(numInternalNodes);
     int_mark.resize(numInternalNodes);
     int_aabb.resize(numInternalNodes);
-
     nodes.resize(numNodes);
 
 
@@ -678,6 +635,7 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
     thrust::sequence(null_stream, sorted_id.begin(), sorted_id.end());
     thrust::sort_by_key(null_stream, mtcode.begin(), mtcode.end(), sorted_id.begin());
 
+
     calcInverseMapping();
 
     buildPrimitivesFromBox(aabbs);
@@ -690,7 +648,6 @@ inline void StacklessBVH::Impl::build(muda::CBufferView<AABB> aabbs)
 
     calcIntNodeOrders(numObjs);
 
-    // fill the last ext_lca to -1
     thrust::fill(null_stream, ext_lca.begin() + numObjs, ext_lca.begin() + numObjs + 1, -1);
 
     updateBvhExtNodeLinks(numObjs);
@@ -708,8 +665,8 @@ void StacklessBVH::Impl::StacklessCDSharedSelf(Pred               pred,
 
     auto numQuery = static_cast<int>(ext_aabb.size());
     auto numObjs  = numQuery;
-    auto BlockDim = K_THREADS;
-    auto GridDim  = (numQuery + BlockDim - 1) / BlockDim;
+    auto GridDim  = (numQuery + 255) / 256;
+    auto BlockDim = 256;
 
     Launch(GridDim, BlockDim)
         .apply(
@@ -844,9 +801,8 @@ void StacklessBVH::Impl::StacklessCDSharedOther(Pred pred,
 
     auto numQuery = static_cast<int>(query_aabbs.size());
     auto numObjs  = static_cast<int>(ext_aabb.size());
-    auto BlockDim = K_THREADS;
-    auto GridDim  = (numQuery + BlockDim - 1) / BlockDim;
-
+    auto GridDim  = (numQuery + 255) / 256;
+    auto BlockDim = 256;
 
     Launch(GridDim, BlockDim)
         .apply(
@@ -1037,7 +993,7 @@ inline void StacklessBVH::QueryBuffer::build(muda::CBufferView<AABB> aabbs)
 template <std::invocable<IndexT, IndexT> Pred>
 void StacklessBVH::query(muda::CBufferView<AABB> aabbs, Pred callback, QueryBuffer& qbuffer)
 {
-    if(aabbs.size() == 0 || m_impl.objs.size() == 0)
+    if(aabbs.size() == 0)
     {
         qbuffer.m_size = 0;
         return;

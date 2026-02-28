@@ -10,7 +10,6 @@
 
 namespace uipc::backend::cuda
 {
-class GlobalTrajectoryFilter;
 class VertexReporter;
 class GlobalActiveSetManager;
 class GlobalVertexManager final : public SimSystem
@@ -49,11 +48,6 @@ class GlobalVertexManager final : public SimSystem
         muda::BufferView<IndexT>  body_ids() const noexcept;
         // vert-wise d_hat
         muda::BufferView<Float> d_hats() const noexcept;
-        /**
-         * @breif require discard friction, if this update will ruin the friction computation
-         * 
-         */
-        void require_discard_friction() const noexcept;
 
       private:
         friend class GlobalVertexManager;
@@ -213,7 +207,6 @@ class GlobalVertexManager final : public SimSystem
 
 
         SimSystemSlot<GlobalActiveSetManager> global_active_set_manager;
-        SimSystemSlot<GlobalTrajectoryFilter>   global_trajectory_filter;
         SimSystemSlotCollection<VertexReporter> vertex_reporters;
 
         OffsetCountCollection<IndexT> reporter_vertex_offsets_counts;

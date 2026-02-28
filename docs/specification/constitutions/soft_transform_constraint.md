@@ -64,3 +64,10 @@ The cross-terms use the geometric mean $\sqrt{\eta_p \eta_a}$ to maintain consis
 The reason we use strength ratio is that the mass matrix $\mathbf{M}$ already contains the mass and inertia information, so that users only need to care about how strong the constraint is compared to the mass and inertia of the body, which is more intuitive.
 
 Because the constraint is "SOFT", we don't allow a too-strong strength which will lead to numerical instability. Normally, $\eta_p$ and $\eta_a$ are better in the range of $[0, 100]$.
+
+## Attributes
+
+On `instances`:
+
+- `strength_ratio`: $(\eta_p, \eta_a)$ in the kinetic term
+- `aim_transform`: target $\tilde{\mathbf{q}}$ in the kinetic term

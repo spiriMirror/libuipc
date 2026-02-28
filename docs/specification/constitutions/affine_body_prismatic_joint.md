@@ -70,3 +70,9 @@ $$
 
 where $K$ is the stiffness constant of the joint, we choose $K=\gamma (m_i + m_j)$, where $\gamma$ is a **user defined** `strength_ratio` parameter, and $m_i$ and $m_j$ are the masses of the two affine bodies.
 
+## Attributes
+
+On the joint geometry (1D simplicial complex), on `edges`:
+
+- `strength_ratio`: $\gamma$ in $K = \gamma(m_i + m_j)$ above
+

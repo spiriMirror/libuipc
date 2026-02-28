@@ -124,4 +124,4 @@ $$
 V = \kappa \bar{v} \|\mathbf{A}-\mathbf{R}\|_F^2 = \kappa \bar{v} \|\mathbf{S}-\mathbf{I}\|_F^2
 $$
 
-where $\mathbf{R}\mathbf{S}$ is the polar decomposition of $\mathbf{A}$. 
+where $\mathbf{R}\mathbf{S}$ is the polar decomposition of $\mathbf{A}$. Each concrete Affine Body constitution documents only the attributes it introduces and how they map to its formulae.

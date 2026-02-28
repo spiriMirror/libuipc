@@ -9,6 +9,7 @@ pip install mkdocs mkdocs-material mkdocs-literate-nav mkdoxy mkdocs-video
 ```
 
 Turn on the local server:
+
 ```shell
 mkdocs serve
 ```

@@ -2,74 +2,204 @@
 #include <uipc/common/vector.h>
 #include <uipc/common/map.h>
 #include <uipc/common/range.h>
+#include <uipc/common/log.h>
+#include <metis.h>
+#include <set>
+#include <algorithm>
+#include <numeric>
 
 namespace uipc::geometry
 {
 constexpr std::string_view metis_part = "mesh_part";
 
+// Build vertex adjacency CSR from the highest-dimensional simplices
+static void build_adjacency(vector<idx_t>&           xadj,
+                            vector<idx_t>&           adjncy,
+                            SizeT                    vert_count,
+                            const SimplicialComplex& sc)
+{
+    vector<std::set<idx_t>> neighbors(vert_count);
+
+    auto add_edge = [&](IndexT a, IndexT b)
+    {
+        if(a != b && a >= 0 && b >= 0
+           && a < static_cast<IndexT>(vert_count)
+           && b < static_cast<IndexT>(vert_count))
+        {
+            neighbors[a].insert(static_cast<idx_t>(b));
+            neighbors[b].insert(static_cast<idx_t>(a));
+        }
+    };
+
+    // Build from highest-dimensional simplices only
+    if(sc.dim() == 3 && sc.tetrahedra().size() > 0)
+    {
+        auto tet_view = sc.tetrahedra().topo().view();
+        for(auto& tet : tet_view)
+            for(int i = 0; i < 4; ++i)
+                for(int j = i + 1; j < 4; ++j)
+                    add_edge(tet[i], tet[j]);
+    }
+    else if(sc.dim() == 2 && sc.triangles().size() > 0)
+    {
+        auto tri_view = sc.triangles().topo().view();
+        for(auto& tri : tri_view)
+            for(int i = 0; i < 3; ++i)
+                for(int j = i + 1; j < 3; ++j)
+                    add_edge(tri[i], tri[j]);
+    }
+    else if(sc.dim() == 1 && sc.edges().size() > 0)
+    {
+        auto edge_view = sc.edges().topo().view();
+        for(auto& edge : edge_view)
+            add_edge(edge[0], edge[1]);
+    }
+
+    // Build CSR format
+    xadj.resize(vert_count + 1);
+    adjncy.clear();
+
+    xadj[0] = 0;
+    for(SizeT i = 0; i < vert_count; ++i)
+    {
+        for(auto n : neighbors[i])
+            adjncy.push_back(n);
+        xadj[i + 1] = static_cast<idx_t>(adjncy.size());
+    }
+}
+
 void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
 {
-    //vector<IndexT> xadj;
-    //vector<IndexT> adjncy;
-    //vector<IndexT> adj_wgt;
+    SizeT vert_count = sc.vertices().size();
 
+    if(vert_count == 0)
+        return;
 
-    //SizeT        vert_count = sc.vertices().size();
-    //auto         part_attr  = sc.vertices().create<IndexT>(metis_part, -1);
-    //span<IndexT> part_view  = view(*part_attr);
+    auto part_attr = sc.vertices().create<IndexT>(metis_part, -1);
+    auto part_view = view(*part_attr);
 
-    //SizeT  block_size = part_max_size;
-    //IndexT n_parts    = (vert_count + block_size) / (block_size - 1);
+    // Small mesh: single partition
+    if(vert_count <= part_max_size) [[unlikely]]
+    {
+        std::ranges::fill(part_view, 0);
+        return;
+    }
 
-    //if(n_parts == 1) [[unlikely]]
-    //{
-    //    // no need to partition, all vertices in the same partition
-    //    std::ranges::fill(part_view, 0);
-    //    return;  // early return
-    //}
+    // Build adjacency graph
+    vector<idx_t> xadj;
+    vector<idx_t> adjncy;
+    build_adjacency(xadj, adjncy, vert_count, sc);
 
-    //build_xadj(xadj, adjncy, adj_wgt, vert_count, sc.tetrahedra().topo().view());
+    // Point cloud fallback
+    if(adjncy.empty())
+    {
+        for(SizeT i = 0; i < vert_count; ++i)
+            part_view[i] = static_cast<IndexT>(i / part_max_size);
+        return;
+    }
 
-    //std::vector<IndexT> part_sizes;
+    SizeT block_size = part_max_size;
+    idx_t n_parts    = static_cast<idx_t>((vert_count + block_size - 1) / block_size);
 
-    //while(true)
-    //{
-    //    idx_t egde_cut;
-    //    idx_t n_weights  = 1;
-    //    idx_t n_vertices = xadj.size() - 1;
+    if(n_parts <= 1)
+    {
+        std::ranges::fill(part_view, 0);
+        return;
+    }
 
-    //    int ret = METIS_PartGraphKway(&n_vertices,
-    //                                  &n_weights,
-    //                                  xadj.data(),
-    //                                  adjncy.data(),
-    //                                  nullptr,  // vwgt
-    //                                  nullptr,  // vsize
-    //                                  adj_wgt.data(),
-    //                                  &n_parts,
-    //                                  nullptr,    // tpwgts
-    //                                  nullptr,    // ubvec
-    //                                  nullptr,    // options
-    //                                  &egde_cut,  // edgecut
-    //                                  part_view.data());
+    // METIS partitioning
+    vector<idx_t> metis_result(vert_count, 0);
 
-    //    UIPC_ASSERT(ret == METIS_OK, "METIS_PartGraphKway failed.");
+    bool success = false;
+    while(n_parts >= 2 && block_size >= 1)
+    {
+        idx_t edge_cut   = 0;
+        idx_t n_weights  = 1;
+        idx_t n_vertices = static_cast<idx_t>(vert_count);
 
-    //    part_sizes.resize(n_parts);
-    //    for(auto i : range(n_vertices))
-    //        part_sizes[part_view[i]]++;
+        // Use fixed seed for deterministic partitioning across runs
+        idx_t options[METIS_NOPTIONS];
+        METIS_SetDefaultOptions(options);
+        options[METIS_OPTION_SEED] = 0;
 
-    //    IndexT result_max_size = *std::ranges::max_element(part_sizes);
+        int ret = METIS_PartGraphKway(&n_vertices,
+                                      &n_weights,
+                                      xadj.data(),
+                                      adjncy.data(),
+                                      nullptr,   // vwgt
+                                      nullptr,   // vsize
+                                      nullptr,   // adjwgt
+                                      &n_parts,
+                                      nullptr,   // tpwgts
+                                      nullptr,   // ubvec
+                                      options,
+                                      &edge_cut,
+                                      metis_result.data());
 
-    //    if(result_max_size <= part_max_size)  // the result is acceptable
-    //        break;
+        if(ret != METIS_OK)
+            break;
 
-    //    // otherwise, reduce the block size
-    //    --block_size;
+        // Verify partition sizes
+        vector<idx_t> part_sizes(n_parts, 0);
+        for(SizeT i = 0; i < vert_count; ++i)
+            part_sizes[metis_result[i]]++;
 
-    //    UIPC_ASSERT(block_size >= 1, "Unexpected block size, why can it happen?");
+        idx_t max_size = *std::ranges::max_element(part_sizes);
+        if(max_size <= static_cast<idx_t>(part_max_size))
+        {
+            success = true;
+            break;
+        }
 
-    //    // recalculate the n_parts
-    //    n_parts = (vert_count + block_size) / (block_size - 1);
-    //}
+        --block_size;
+        n_parts = static_cast<idx_t>((vert_count + block_size - 1) / block_size);
+    }
+
+    // Sequential fallback
+    if(!success)
+    {
+        for(SizeT i = 0; i < vert_count; ++i)
+            metis_result[i] = static_cast<idx_t>(i / part_max_size);
+    }
+
+    // Write to attribute
+    for(SizeT i = 0; i < vert_count; ++i)
+        part_view[i] = static_cast<IndexT>(metis_result[i]);
+
+    // Validate the partition result
+    {
+        // 1. All vertices must have a non-negative partition ID
+        for(SizeT i = 0; i < vert_count; ++i)
+        {
+            UIPC_ASSERT(part_view[i] >= 0,
+                         "mesh_partition: vertex {} has invalid partition ID {}.",
+                         i,
+                         part_view[i]);
+        }
+
+        // 2. No partition exceeds part_max_size
+        IndexT max_id = *std::ranges::max_element(part_view);
+        vector<SizeT> sizes(max_id + 1, 0);
+        for(SizeT i = 0; i < vert_count; ++i)
+            sizes[part_view[i]]++;
+
+        for(IndexT p = 0; p <= max_id; ++p)
+        {
+            UIPC_ASSERT(sizes[p] <= part_max_size,
+                         "mesh_partition: partition {} has {} vertices, exceeding the limit {}.",
+                         p,
+                         sizes[p],
+                         part_max_size);
+        }
+
+        // 3. No empty partitions (IDs should be contiguous 0..max)
+        for(IndexT p = 0; p <= max_id; ++p)
+        {
+            UIPC_ASSERT(sizes[p] > 0,
+                         "mesh_partition: partition {} is empty. "
+                         "Partition IDs should be contiguous from 0.",
+                         p);
+        }
+    }
 }
 }  // namespace uipc::geometry

@@ -23,8 +23,6 @@ protected:
     virtual void do_build(BuildInfo& info) override;
     virtual void do_report_vertex_offset_count(IndexT &offset, IndexT &count) override;
     virtual void do_recover_non_penetrate(NonPenetratePositionsInfo &info) override;
-    virtual void do_record_non_penetrate_state() override;
-    virtual void do_advance_non_penetrate_state(Float alpha) override;
 private:
     Impl m_impl;
 };

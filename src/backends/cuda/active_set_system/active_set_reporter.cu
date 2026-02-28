@@ -15,14 +15,6 @@ namespace uipc::backend::cuda {
         do_report_vertex_offset_count(offset, count);
     }
 
-    void ActiveSetReporter::record_non_penetrate_state() {
-        do_record_non_penetrate_state();
-    }
-
-    void ActiveSetReporter::advance_non_penetrate_state(Float alpha) {
-        do_advance_non_penetrate_state(alpha);
-    }
-
     void ActiveSetReporter::recover_non_penetrate(NonPenetratePositionsInfo &info) {
         do_recover_non_penetrate(info);
     }

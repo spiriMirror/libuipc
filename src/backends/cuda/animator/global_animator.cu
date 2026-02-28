@@ -14,11 +14,11 @@ class backend::SimSystemCreator<cuda::GlobalAnimator>
         auto  scene = dynamic_cast<cuda::SimEngine&>(engine).world().scene();
         auto& types = scene.constitution_tabular().types();
 
-        // Create GlobalAnimator if there are Constraints need animator support
-        bool has_constraint =
-            types.find(std::string{builtin::Constraint}) != types.end();
+        // Create GlobalAnimator if there are Constraints OR ExtraConstitutions that need animator support
+        bool has_constraint          = types.find(std::string{builtin::Constraint}) != types.end();
+        bool has_extra_constitution = types.find(std::string{builtin::ExtraConstitution}) != types.end();
 
-        if(!has_constraint)
+        if(!has_constraint && !has_extra_constitution)
         {
             return nullptr;
         }
@@ -76,6 +76,6 @@ void GlobalAnimator::compute_substep_ratio(SizeT newton_iter)
 
 void GlobalAnimator::register_animator(Animator* animator)
 {
-    m_animators.register_sim_system(*animator);
+    m_animators.register_subsystem(*animator);
 }
 }  // namespace uipc::backend::cuda

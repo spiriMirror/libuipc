@@ -13,3 +13,4 @@ By using Empty, the simulation:
 - **Behaves as expected**: The geometry follows the constraints exactly without elastic resistance
 
 This makes Empty ideal for scenarios where you want to input external animations via constraints while maintaining full control over the geometry's motion through the constraint system.
+

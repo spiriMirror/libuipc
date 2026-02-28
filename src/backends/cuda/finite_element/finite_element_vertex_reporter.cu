@@ -9,8 +9,6 @@ namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(FiniteElementVertexReporter);
 
-constexpr static U64 FiniteElementVertexReporterUID = 1;
-
 void FiniteElementVertexReporter::do_build(BuildInfo& info)
 {
     m_impl.finite_element_method = &require<FiniteElementMethod>();
@@ -19,7 +17,7 @@ void FiniteElementVertexReporter::do_build(BuildInfo& info)
 
 void FiniteElementVertexReporter::request_attribute_update() noexcept
 {
-    m_impl.require_update_attributes = true;
+    m_impl.need_update_attributes = true;
 }
 
 void FiniteElementVertexReporter::Impl::report_count(VertexCountInfo& info)
@@ -64,10 +62,6 @@ void FiniteElementVertexReporter::Impl::init_attributes(VertexAttributeInfo& inf
 void FiniteElementVertexReporter::Impl::update_attributes(VertexAttributeInfo& info)
 {
     info.positions().copy_from(fem().xs);
-
-    // This update will ruin the friction force computed in previous step, so we need to discard it.
-    // ref: https://github.com/spiriMirror/libuipc/issues/303
-    info.require_discard_friction();
 }
 
 void FiniteElementVertexReporter::Impl::report_displacements(VertexDisplacementInfo& info)
@@ -107,10 +101,10 @@ void FiniteElementVertexReporter::do_report_attributes(VertexAttributeInfo& info
     }
     else
     {
-        if(m_impl.require_update_attributes)
+        if(m_impl.need_update_attributes)
         {
             m_impl.update_attributes(info);
-            m_impl.require_update_attributes = false;
+            m_impl.need_update_attributes = false;
         }
     }
 }
@@ -118,10 +112,5 @@ void FiniteElementVertexReporter::do_report_attributes(VertexAttributeInfo& info
 void FiniteElementVertexReporter::do_report_displacements(VertexDisplacementInfo& info)
 {
     m_impl.report_displacements(info);
-}
-
-U64 FiniteElementVertexReporter::get_uid() const noexcept
-{
-    return FiniteElementVertexReporterUID;
 }
 }  // namespace uipc::backend::cuda
