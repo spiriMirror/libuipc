@@ -228,6 +228,7 @@ def run(
 
     if gui:
         import polyscope as ps
+        import polyscope.imgui as imgui
         from uipc.gui import SceneGUI
 
         ps.init()
@@ -236,14 +237,23 @@ def run(
         scene_gui.set_edge_width(1.0)
         _auto_camera(scene, distance_factor)
 
-        def _step():
-            if world.is_valid():
+        state = {'running': False, 'frame': 0}
+
+        def _callback():
+            changed, state['running'] = imgui.Checkbox(
+                'Run', state['running']
+            )
+            imgui.SameLine()
+            imgui.TextUnformatted(f"frame: {state['frame']}")
+
+            if state['running'] and world.is_valid():
                 world.advance()
                 world.sync()
                 world.retrieve()
                 scene_gui.update()
+                state['frame'] += 1
 
-        ps.set_user_callback(_step)
+        ps.set_user_callback(_callback)
         ps.show()
     else:
         while world.is_valid():
