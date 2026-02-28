@@ -120,7 +120,7 @@ def asset_path(
     """
     local_dir = snapshot_download(
         REPO_ID,
-        allow_patterns=[f'assets/{name}/**'],
+        allow_patterns=[f'assets/{name}/**', 'assets/_*.py'],
         revision=revision,
         cache_dir=cache_dir,
         repo_type='dataset',
