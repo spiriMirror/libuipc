@@ -27,7 +27,7 @@ REPO_ID = 'MuGdxy/uipc-assets'
 
 __all__ = [
     'REPO_ID', 'list_assets', 'asset_path', 'read_mesh',
-    'load', 'show', 'strip_constitutions',
+    'load', 'run', 'show', 'strip_constitutions',
 ]
 
 _CONSTITUTION_META_ATTRS = [
@@ -176,6 +176,53 @@ def load(
 
     if geometry_only:
         strip_constitutions(scene)
+
+
+def run(
+    name: str,
+    backend: str = 'cuda',
+    *,
+    workspace: str | None = None,
+    revision: str = 'main',
+    cache_dir: str | None = None,
+) -> None:
+    """Download an asset, build its scene, and run the simulation.
+
+    A convenience one-liner for running a simulation::
+
+        from uipc.assets import run
+        run('cube_ground')                    # CUDA backend, temp workspace
+        run('cube_ground', 'none')            # None backend (sanity check only)
+        run('cube_ground', workspace='out/')  # custom output directory
+
+    Args:
+        name: Asset name (e.g. ``'cube_ground'``).
+        backend: Engine backend name (default ``'cuda'``).
+        workspace: Directory for simulation output.  ``None`` uses a
+                   temporary directory.
+        revision: Git revision (branch, tag, or commit hash).
+        cache_dir: Where to cache downloaded files.
+    """
+    import tempfile
+    from uipc import Engine, World
+
+    scene = Scene(Scene.default_config())
+    load(name, scene, revision=revision, cache_dir=cache_dir)
+
+    if workspace is None:
+        workspace = tempfile.mkdtemp(prefix=f'uipc_{name}_')
+
+    engine = Engine(backend, workspace)
+    world = World(engine)
+    world.init(scene)
+
+    if not world.is_valid():
+        raise RuntimeError(f"Scene '{name}' failed sanity check, world is not valid.")
+
+    while world.is_valid():
+        world.advance()
+        world.sync()
+        world.retrieve()
 
 
 def show(
