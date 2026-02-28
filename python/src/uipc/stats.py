@@ -983,6 +983,49 @@ class SimulationStats:
             else:
                 self.profiler_heatmap()
 
+        # -- Total time per frame (first plot after heatmap) ------------------
+        total_file = 'total_time_per_frame.svg'
+        # The root timer name is consistent across all frames for a given
+        # simulation run; use the first available frame to determine it.
+        root_name = next(
+            (fd.get('name', '') for fd in self._frames if fd.get('name')), ''
+        )
+        frames_t, values_t = (
+            self.get_values(root_name, 'duration') if root_name
+            else (np.array([]), np.array([]))
+        )
+        has_total = len(frames_t) > 0
+
+        if has_total:
+            md_lines.append('## Total Time Per Frame')
+            md_lines.append('')
+            md_lines.append('Total simulation time per frame.')
+            md_lines.append('')
+            md_lines.append(f'![Total Time Per Frame]({total_file})')
+            md_lines.append('')
+
+            if save:
+                # color_index=0 → matplotlib C0 (first colour in cycle)
+                self._save_dual_axis_panel(root_name, 0,
+                                           str(out / total_file),
+                                           title='Total Time Per Frame')
+                plt.close('all')
+            else:
+                fig, ax_dur = plt.subplots(figsize=(8, 4))
+                values_scaled, dur_label = self._auto_time_unit(values_t)
+                ax_dur.plot(frames_t, values_scaled, marker='o', markersize=3,
+                            color='C0', label='Duration')
+                ax_dur.fill_between(frames_t, values_scaled, alpha=0.15,
+                                    color='C0')
+                ax_dur.set_xlabel('Frame')
+                ax_dur.xaxis.set_major_locator(MaxNLocator(integer=True))
+                ax_dur.set_ylabel(dur_label, color='C0')
+                ax_dur.tick_params(axis='y', labelcolor='C0')
+                ax_dur.set_title('Total Time Per Frame')
+                ax_dur.grid(True, alpha=0.3)
+                plt.tight_layout()
+                plt.show()
+
         # -- Per-key panels ---------------------------------------------------
         if keys:
             md_lines.append('## Per-Frame Statistics')
