@@ -15,8 +15,8 @@ namespace uipc::geometry
  * @param thickness The rod cross-section radius `r`.
  * @return The effective volume (= total length * pi * r^2).
  */
-UIPC_GEOMETRY_API Float compute_mesh_length(const SimplicialComplex& sc,
-                                            Float                    thickness);
+UIPC_GEOMETRY_API Float compute_rod_volume(const SimplicialComplex& sc,
+                                           Float                    thickness);
 }  // namespace uipc::geometry
 
 

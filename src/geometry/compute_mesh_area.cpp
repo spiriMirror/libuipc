@@ -4,8 +4,8 @@
 
 namespace uipc::geometry
 {
-UIPC_GEOMETRY_API Float compute_mesh_area(const SimplicialComplex& sc,
-                                          Float                    thickness)
+UIPC_GEOMETRY_API Float compute_shell_volume(const SimplicialComplex& sc,
+                                             Float                    thickness)
 {
     UIPC_ASSERT(sc.dim() == 2,
                 "compute_mesh_area requires a 2D simplicial complex (triangle mesh), got dim={}.",

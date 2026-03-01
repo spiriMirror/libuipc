@@ -19,7 +19,7 @@ void AffineBodyShell::apply_to(geometry::SimplicialComplex& sc,
                 sc.dim());
 
     // Compute effective volume = total area * 2r
-    Float volume = geometry::compute_mesh_area(sc, thickness);
+    Float volume = geometry::compute_shell_volume(sc, thickness);
 
     // Set common ABD attributes (constitution_uid, kappa, volume, mass_density, etc.)
     setup_abd_attributes(sc, kappa, mass_density, volume);

@@ -15,8 +15,8 @@ namespace uipc::geometry
  * @param thickness The shell thickness radius `r`.
  * @return The effective volume (= total area * 2r).
  */
-UIPC_GEOMETRY_API Float compute_mesh_area(const SimplicialComplex& sc,
-                                          Float                    thickness);
+UIPC_GEOMETRY_API Float compute_shell_volume(const SimplicialComplex& sc,
+                                             Float                    thickness);
 }  // namespace uipc::geometry
 
 

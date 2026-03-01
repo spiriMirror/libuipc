@@ -19,7 +19,7 @@ void AffineBodyRod::apply_to(geometry::SimplicialComplex& sc,
                 sc.dim());
 
     // Compute effective volume = total length * pi * r^2
-    Float volume = geometry::compute_mesh_length(sc, thickness);
+    Float volume = geometry::compute_rod_volume(sc, thickness);
 
     // Set common ABD attributes (constitution_uid, kappa, volume, mass_density, etc.)
     setup_abd_attributes(sc, kappa, mass_density, volume);

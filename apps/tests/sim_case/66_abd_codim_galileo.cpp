@@ -3,6 +3,7 @@
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/affine_body_shell.h>
 #include <uipc/constitution/affine_body_rod.h>
+#include <uipc/core/affine_body_state_accessor_feature.h>
 
 TEST_CASE("66_abd_codim_galileo", "[abd][codim]")
 {
@@ -104,6 +105,14 @@ TEST_CASE("66_abd_codim_galileo", "[abd][codim]")
     world.init(scene);
     REQUIRE(world.is_valid());
 
+    // Capture ABD transforms to verify the Galileo free-fall property:
+    // all three body types (3D tet, shell, rod) must fall at the same rate.
+    // Body order: 0=tet_3d, 1=shell, 2=rod  (creation order above)
+    auto abd_accessor = world.features().find<AffineBodyStateAccessorFeature>();
+    REQUIRE(abd_accessor != nullptr);
+    SimplicialComplex abd_state = abd_accessor->create_geometry();
+    abd_state.instances().create<Matrix4x4>(builtin::transform);
+
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
 
@@ -114,6 +123,24 @@ TEST_CASE("66_abd_codim_galileo", "[abd][codim]")
         world.retrieve();
         sio.write_surface(
             fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
+
+        // At frame 20 verify all three bodies have the same y-translation.
+        // The translation is the (row=1, col=3) entry of the 4x4 affine matrix.
+        if(world.frame() == 20)
+        {
+            abd_accessor->copy_to(abd_state);
+            auto trans_view = abd_state.transforms().view();
+            REQUIRE(trans_view.size() == 3);
+
+            Float y_tet   = trans_view[0](1, 3);
+            Float y_shell = trans_view[1](1, 3);
+            Float y_rod   = trans_view[2](1, 3);
+
+            // All bodies started at y = 1.0 and should have fallen the same amount.
+            REQUIRE(y_tet < 1.0);
+            REQUIRE(y_tet == Catch::Approx(y_shell).epsilon(1e-3));
+            REQUIRE(y_tet == Catch::Approx(y_rod).epsilon(1e-3));
+        }
     }
 }
 
