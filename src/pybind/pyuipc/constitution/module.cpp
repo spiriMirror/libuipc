@@ -9,6 +9,8 @@
 #include <pyuipc/constitution/strain_limiting_baraff_witkin.h>
 #include <pyuipc/constitution/stable_neo_hookean.h>
 #include <pyuipc/constitution/affine_body_constitution.h>
+#include <pyuipc/constitution/affine_body_shell.h>
+#include <pyuipc/constitution/affine_body_rod.h>
 #include <pyuipc/constitution/constraint.h>
 #include <pyuipc/constitution/soft_position_constraint.h>
 #include <pyuipc/constitution/finite_element_extra_constitution.h>
@@ -37,6 +39,8 @@ PyModule::PyModule(py::module& m)
 
     // Affine Body Constitutions
     PyAffineBodyConstitution{m};
+    PyAffineBodyShell{m};
+    PyAffineBodyRod{m};
     PyInterAffineBodyConstitution{m};
     PyInterAffineBodyExtraConstitution{m};
     PyAffineBodyRevoluteJoint{m};

@@ -186,11 +186,8 @@ class Engine::Impl
 
     ~Impl()
     {
-        if(!m_overrider)  // if no overrider, we need to destroy the engine
+        if(!m_overrider && m_deleter && m_engine)
         {
-            UIPC_ASSERT(m_deleter && m_engine, "Engine not initialized, why can it happen?");
-            // guard the destruction
-            LogPatternGuard guard{backend_name()};
             m_deleter(m_engine);
         }
     }
