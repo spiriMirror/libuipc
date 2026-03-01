@@ -97,40 +97,46 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
                  info.m_gradient_only,
                  enum_flags_name(info.m_component_flags));
 
-    for(auto&& [i, reporter] : enumerate(dytopo_effect_reporters.view()))
     {
-        reporter_gradient_counts[i] = 0;
-        reporter_hessian_counts[i]  = 0;
+        Timer timer{"Report Extent"};
+        for(auto&& [i, reporter] : enumerate(dytopo_effect_reporters.view()))
+        {
+            reporter_gradient_counts[i] = 0;
+            reporter_hessian_counts[i]  = 0;
 
-        if(!has_flags(info.m_component_flags, reporter->component_flags()))
-            continue;
+            if(!has_flags(info.m_component_flags, reporter->component_flags()))
+                continue;
 
-        GradientHessianExtentInfo extent_info;
-        extent_info.m_gradient_only = gradient_only;
-        reporter->report_gradient_hessian_extent(extent_info);
+            GradientHessianExtentInfo extent_info;
+            extent_info.m_gradient_only = gradient_only;
+            reporter->report_gradient_hessian_extent(extent_info);
 
-        reporter_gradient_counts[i] = extent_info.m_gradient_count;
-        reporter_hessian_counts[i] = gradient_only ? 0 : extent_info.m_hessian_count;
-        logger::info("<{}> DyTopo Grad3 count: {}, DyTopo Hess3x3 count: {}",
-                     reporter->name(),
-                     extent_info.m_gradient_count,
-                     extent_info.m_hessian_count);
+            reporter_gradient_counts[i] = extent_info.m_gradient_count;
+            reporter_hessian_counts[i] = gradient_only ? 0 : extent_info.m_hessian_count;
+            logger::info("<{}> DyTopo Grad3 count: {}, DyTopo Hess3x3 count: {}",
+                         reporter->name(),
+                         extent_info.m_gradient_count,
+                         extent_info.m_hessian_count);
+        }
     }
 
-    // scan
-    reporter_gradient_offsets_counts.scan();
-    reporter_hessian_offsets_counts.scan();
+    {
+        Timer timer{"Scan and Allocate"};
+        // scan
+        reporter_gradient_offsets_counts.scan();
+        reporter_hessian_offsets_counts.scan();
 
-    auto total_gradient_count = reporter_gradient_offsets_counts.total_count();
-    auto total_hessian_count  = reporter_hessian_offsets_counts.total_count();
+        auto total_gradient_count = reporter_gradient_offsets_counts.total_count();
+        auto total_hessian_count  = reporter_hessian_offsets_counts.total_count();
 
-    // allocate
-    loose_resize_entries(collected_dytopo_effect_gradient, total_gradient_count);
-    loose_resize_entries(sorted_dytopo_effect_gradient, total_gradient_count);
-    loose_resize_entries(collected_dytopo_effect_hessian, total_hessian_count);
-    loose_resize_entries(sorted_dytopo_effect_hessian, total_hessian_count);
-    collected_dytopo_effect_gradient.reshape(vertex_count);
-    collected_dytopo_effect_hessian.reshape(vertex_count, vertex_count);
+        // allocate
+        loose_resize_entries(collected_dytopo_effect_gradient, total_gradient_count);
+        loose_resize_entries(sorted_dytopo_effect_gradient, total_gradient_count);
+        loose_resize_entries(collected_dytopo_effect_hessian, total_hessian_count);
+        loose_resize_entries(sorted_dytopo_effect_hessian, total_hessian_count);
+        collected_dytopo_effect_gradient.reshape(vertex_count);
+        collected_dytopo_effect_hessian.reshape(vertex_count, vertex_count);
+    }
 
     // collect
     for(auto&& [i, reporter] : enumerate(dytopo_effect_reporters.view()))
@@ -148,7 +154,10 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
             collected_dytopo_effect_gradient.view().subview(g_offset, g_count);
         info.m_hessians = collected_dytopo_effect_hessian.view().subview(h_offset, h_count);
 
-        reporter->assemble(info);
+        {
+            Timer timer{reporter->name()};
+            reporter->assemble(info);
+        }
     }
 }
 
