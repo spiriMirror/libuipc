@@ -96,4 +96,8 @@ If you use **Libuipc** in your project, please cite our works:
 }
 ```
 
+## CREDIT
+
+This project builds upon the GPU IPC project, originally developed and continuously optimized by Dr. Kemeng Huang. The work is led by Dr. Kemeng Huang and Professor Taku Komura (The University of Hong Kong), in collaboration with Professor Minchen Li (Carnegie Mellon University). With comprehensive support from TransGP, the project involves the reconstruction and encapsulation of the original technology to enhance its usability and scalability across various application scenarios. We would also like to extend our sincere gratitude to the many contributors from the open-source community, with special thanks to Xinyu Lu, who initially worked with us during his time at TransGP and has continued to help maintain the project even after leaving.
+
 
