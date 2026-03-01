@@ -539,8 +539,26 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          Vector3   m_x_bar;
                          Matrix3x3 m_x_bar_x_bar;
 
-                         uipc::geometry::affine_body::compute_dyadic_mass(
-                             sc, rho_view[0], m, m_x_bar, m_x_bar_x_bar);
+                         auto is_codim_attr = sc.meta().find<IndexT>(builtin::is_codim);
+                         bool codim = is_codim_attr
+                                      && is_codim_attr->view()[0] == 1;
+
+                         if(codim)
+                         {
+                             auto thickness_attr =
+                                 sc.vertices().find<Float>(builtin::thickness);
+                             UIPC_ASSERT(thickness_attr,
+                                         "is_codim==1 but no thickness attribute found.");
+                             Float r = thickness_attr->view()[0];
+                             uipc::geometry::affine_body::compute_dyadic_mass(
+                                 sc, rho_view[0], r, m, m_x_bar, m_x_bar_x_bar);
+                         }
+                         else
+                         {
+                             uipc::geometry::affine_body::compute_dyadic_mass(
+                                 sc, rho_view[0], m, m_x_bar, m_x_bar_x_bar);
+                         }
+
                          geo_mass = ABDJacobiDyadicMass::from_dyadic_mass(m, m_x_bar, m_x_bar_x_bar);
                      }
 
@@ -609,15 +627,15 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
                      for(auto i : range(body_count))
                      {
-
                          Vector3 local_gravity = gravity_attr ? gravity_view[i] : gravity;
 
-                         Vector3 force_density = local_gravity * rho_view[0];
-
-                         Vector12 G =
-                             uipc::geometry::affine_body::compute_body_force(sc, force_density);
-
-                         // std::cout << "force: " << G.transpose() << std::endl;
+                         // force_density = rho * g_accel (N/m^3)
+                         // compute_body_force integrates this over the effective
+                         // 3D volume (tetmesh, closed trimesh, or codim slab/cylinder)
+                         // and returns the 12D generalized body force G.
+                         Vector3  force_density = local_gravity * rho_view[0];
+                         Vector12 G = uipc::geometry::affine_body::compute_body_force(
+                             sc, force_density);
 
                          Matrix12x12 abd_body_mass_inv =
                              h_body_id_to_abd_mass_inv[body_offset];
@@ -626,8 +644,6 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          auto body_id = body_offset + i;
 
                          h_body_id_to_abd_gravity[body_id] = g;
-
-                         // std::cout << "gravity: " << g.transpose() << std::endl;
                      }
                  });
     }

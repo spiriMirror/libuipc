@@ -33,7 +33,22 @@ class UIPC_CONSTITUTION_API AffineBodyConstitution : public IConstitution
     static Json default_config() noexcept;
 
   protected:
-    virtual U64              get_uid() const noexcept override;
+    virtual U64 get_uid() const noexcept override;
+
+    /**
+     * @brief Common ABD attribute setup without volume computation.
+     * 
+     * Sets constitution_uid, transforms, dof_offset, dof_count, is_fixed,
+     * is_dynamic, external_kinetic, velocity, self_collision, kappa,
+     * volume, and mass_density attributes.
+     * 
+     * Subclasses (AffineBodyShell, AffineBodyRod) call this with their
+     * own pre-computed volume instead of compute_mesh_volume().
+     */
+    void setup_abd_attributes(geometry::SimplicialComplex& sc,
+                              Float                        kappa,
+                              Float                        mass_density,
+                              Float                        volume) const;
 
   private:
     Json m_config;

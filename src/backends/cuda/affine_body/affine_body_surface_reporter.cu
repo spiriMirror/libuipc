@@ -234,26 +234,30 @@ void AffinebodySurfaceReporter::Impl::init(backend::WorldVisitor& world)
 
                     auto body_vertex_count = geo_info.vertex_count / body_count;
 
-                    for(auto i : range(body_count))
+                    // Skip triangle filling for codim bodies (dim < 2) that have no triangles.
+                    if(body_surf_triangle_count > 0)
                     {
-                        auto body_vertex_offset_in_global =
-                            geo_vertex_offset_in_global + i * body_vertex_count;
-
-                        auto surf_f = span{surf_triangles}.subspan(
-                            geo_surf_triangles_offsets[geoI]
-                                + i * surf_triangle_cache.size(),
-                            surf_triangle_cache.size());
-
                         auto Fs = sc.triangles().topo().view();
 
-                        std::ranges::transform(surf_triangle_cache,
-                                               surf_f.begin(),
-                                               [&](const IndexT& local_surf_tri_id) -> Vector3i
-                                               {
-                                                   auto tri = Fs[local_surf_tri_id];
-                                                   Vector3i ret = tri.array() + body_vertex_offset_in_global;
-                                                   return ret;
-                                               });
+                        for(auto i : range(body_count))
+                        {
+                            auto body_vertex_offset_in_global =
+                                geo_vertex_offset_in_global + i * body_vertex_count;
+
+                            auto surf_f = span{surf_triangles}.subspan(
+                                geo_surf_triangles_offsets[geoI]
+                                    + i * surf_triangle_cache.size(),
+                                surf_triangle_cache.size());
+
+                            std::ranges::transform(surf_triangle_cache,
+                                                   surf_f.begin(),
+                                                   [&](const IndexT& local_surf_tri_id) -> Vector3i
+                                                   {
+                                                       auto tri = Fs[local_surf_tri_id];
+                                                       Vector3i ret = tri.array() + body_vertex_offset_in_global;
+                                                       return ret;
+                                                   });
+                        }
                     }
                 }
 

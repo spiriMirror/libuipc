@@ -10,7 +10,7 @@
 | UID | Friendly Name                                                           | Description                                       |
 | --- | ----------------------------------------------------------------------- | ------------------------------------------------- |
 | 0   | [Empty](./empty.md)                                                     | Empty Constitution                                |
-| 1-8 | [AffineBody](./affine_body.md)                                          | Affine Body Constitutions                         |
+| 1-8 | [AffineBody](./affine_body.md)                                          | Affine Body Constitutions (3D, Shell, Rod)        |
 | 9   | [ARAP](./arap.md)                                                       | As-Rigid-As-Possible Constitutions                |
 | 10  | [StableNeoHookean](./stable_neo_hookean.md)                             | Stable Neo-Hookean Constitutions                  |
 | 11  | [NeoHookeanShell](./neo_hookean_shell.md)                               | Neo-Hookean Shell Constitutions                   |
