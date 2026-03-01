@@ -213,4 +213,13 @@ UIPC_BUILTIN_ATTRIBUTE(global_vertex_offset);
  * @brief `self_collision` <IndexT>[0,1] attribute on **meta** to indicate if the geometry needs self-collision detection.
  */
 UIPC_BUILTIN_ATTRIBUTE(self_collision);
+
+/**
+ * @brief `is_codim` <IndexT>[0,1] attribute on **meta**.
+ * Indicates if the geometry is a codimensional affine body (shell or rod).
+ * 
+ * 1) 0 means the geometry is a full 3D body (default).
+ * 2) 1 means the geometry is codimensional (open shell or rod).
+ */
+UIPC_BUILTIN_ATTRIBUTE(is_codim);
 #endif

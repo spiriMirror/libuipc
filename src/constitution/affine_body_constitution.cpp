@@ -57,7 +57,10 @@ U64 AffineBodyConstitution::get_uid() const noexcept
     return 1;
 }
 
-void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
+void AffineBodyConstitution::setup_abd_attributes(geometry::SimplicialComplex& sc,
+                                                   Float kappa,
+                                                   Float mass_density,
+                                                   Float volume) const
 {
     auto cuid = sc.meta().find<U64>(builtin::constitution_uid);
     if(!cuid)
@@ -103,11 +106,9 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     auto kappa_view = geometry::view(*kappa_attr);
     std::ranges::fill(kappa_view, kappa);
 
-    auto volume = geometry::compute_mesh_volume(sc);
-
     if constexpr(uipc::RUNTIME_CHECK)
     {
-        UIPC_ASSERT(volume > 0, "Volume of the mesh is negative ({}), which is not allowed.", volume);
+        UIPC_ASSERT(volume > 0, "Volume of the mesh is non-positive ({}), which is not allowed.", volume);
     }
 
     auto meta_volume = sc.meta().find<Float>(builtin::volume);
@@ -121,6 +122,12 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
         meta_mass = sc.meta().create<Float>(builtin::mass_density, mass_density);
     else
         geometry::view(*meta_mass).front() = mass_density;
+}
+
+void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
+{
+    auto volume = geometry::compute_mesh_volume(sc);
+    setup_abd_attributes(sc, kappa, mass_density, volume);
 }
 
 Json AffineBodyConstitution::default_config() noexcept

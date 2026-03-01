@@ -97,6 +97,28 @@ $$
 +\mathbf{p}
 $$
 
+## Shell (Codim 2D)
+
+Codim 2D variant of `AffineBodyConstitution` for triangle meshes (`dim == 2`).
+
+The shell is modelled as a uniform slab of full `thickness` $2r$, giving an effective volume per triangle $i$:
+
+$$\bar{v}_i = A_i \cdot 2r$$
+
+where $A_i$ is the triangle area and $r$ is the thickness radius.
+
+## Rod (Codim 1D)
+
+Codim 1D variant of `AffineBodyConstitution` for edge meshes (`dim == 1`).
+
+The rod is modelled as a cylinder of circular cross-section with `thickness` $r$, giving an effective volume per segment $i$:
+
+$$\bar{v}_i = L_i \cdot \pi r^2$$
+
+where $L_i$ is the segment length.
+
+---
+
 ## #1 OrthoPotential
 
 Formulation: [Affine body dynamics: fast, stable and intersection-free simulation of stiff materials](https://dl.acm.org/doi/10.1145/3528223.3530064) (eq. 7)
@@ -124,4 +146,4 @@ $$
 V = \kappa \bar{v} \|\mathbf{A}-\mathbf{R}\|_F^2 = \kappa \bar{v} \|\mathbf{S}-\mathbf{I}\|_F^2
 $$
 
-where $\mathbf{R}\mathbf{S}$ is the polar decomposition of $\mathbf{A}$. Each concrete Affine Body constitution documents only the attributes it introduces and how they map to its formulae.
+where $\mathbf{R}\mathbf{S}$ is the polar decomposition of $\mathbf{A}$. Each concrete Affine Body constitution documents only the attributes it introduces and how they map to its formulas.
