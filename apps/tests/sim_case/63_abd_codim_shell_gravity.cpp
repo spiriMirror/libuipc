@@ -25,7 +25,6 @@ TEST_CASE("63_abd_codim_shell_gravity", "[abd][codim]")
 
         auto object = scene.objects().create("shell");
 
-        // A small quad (two triangles) acting as a codim shell
         vector<Vector3> Vs = {
             Vector3{-0.5, 0, -0.5},
             Vector3{ 0.5, 0, -0.5},
@@ -41,14 +40,12 @@ TEST_CASE("63_abd_codim_shell_gravity", "[abd][codim]")
 
         mesh.instances().resize(2);
 
-        // Apply codim shell constitution: kappa, mass_density, thickness
         abd_shell.apply_to(mesh, 100.0_MPa, 1e3, 0.01);
 
         auto trans_view    = view(mesh.transforms());
         auto is_fixed      = mesh.instances().find<IndexT>(builtin::is_fixed);
         auto is_fixed_view = view(*is_fixed);
 
-        // Instance 0: free-falling shell
         {
             Transform t     = Transform::Identity();
             t.translation() = Vector3{0, 1.0, 0};
@@ -56,7 +53,6 @@ TEST_CASE("63_abd_codim_shell_gravity", "[abd][codim]")
             is_fixed_view[0] = 0;
         }
 
-        // Instance 1: fixed shell (reference)
         {
             Transform t     = Transform::Identity();
             t.translation() = Vector3{1.5, 1.0, 0};
