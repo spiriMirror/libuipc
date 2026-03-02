@@ -1,4 +1,5 @@
 from uipc import Logger
+import copy
 import os
 import re
 import json
@@ -512,12 +513,49 @@ class SimulationStats:
                   title=f'Total: {total_duration:.3f}s / {frame_count} frames')
         return True
 
-    def profiler_heatmap(self, frame_index=-1, output_path=None,
+    @staticmethod
+    def _merge_timer_trees(frames):
+        """Merge multiple per-frame timer trees into one by summing durations and counts.
+
+        :param frames: List of timer tree dicts (one per frame).
+        :return: A single merged timer tree dict.
+        """
+        if not frames:
+            return {}
+        if len(frames) == 1:
+            return frames[0]
+
+        def _merge_node(target, source):
+            target['duration'] = target.get('duration', 0) + source.get('duration', 0)
+            target['count'] = target.get('count', 0) + source.get('count', 0)
+            target_children = {c['name']: c for c in target.get('children', [])}
+            for src_child in source.get('children', []):
+                name = src_child['name']
+                if name in target_children:
+                    _merge_node(target_children[name], src_child)
+                else:
+                    target_children[name] = copy.deepcopy(src_child)
+            target['children'] = list(target_children.values())
+
+        merged = copy.deepcopy(frames[0])
+        for frame in frames[1:]:
+            _merge_node(merged, frame)
+        return merged
+
+    def profiler_heatmap(self, frame_index=None, output_path=None,
                          max_depth=999, include_other=True):
-        """Create a hierarchical sunburst chart from a collected frame.
+        """Create a hierarchical sunburst chart from collected frames.
+
+        When multiple frames have been collected and *frame_index* is not
+        specified, all frames are merged (durations and counts summed)
+        into a single aggregate heatmap.  When only one frame exists, or
+        a specific *frame_index* is given, that single frame is used.
 
         :param frame_index: Which frame's timer data to visualise.
-            Defaults to ``-1`` (the last collected frame).
+            When *None* (default), all frames are merged if more than one
+            frame was collected; otherwise the single frame is used.
+            Pass an integer to select a specific frame (e.g. ``0`` for
+            the first, ``-1`` for the last).
         :param output_path: File path to save the figure.  When *None*
             the figure is shown interactively.
         :param max_depth: Maximum depth of the hierarchy to include.
@@ -530,7 +568,13 @@ class SimulationStats:
             Logger.warn('No frames collected; cannot create profiler heatmap')
             return None
 
-        timer_data = self._frames[frame_index]
+        if frame_index is not None:
+            timer_data = self._frames[frame_index]
+        elif len(self._frames) > 1:
+            timer_data = self._merge_timer_trees(self._frames)
+        else:
+            timer_data = self._frames[0]
+
         fig, ax = plt.subplots(figsize=(15, 10))
         drawn = self._draw_profiler_heatmap(ax, timer_data, max_depth,
                                             include_other)
@@ -980,8 +1024,13 @@ class SimulationStats:
         if has_heatmap:
             md_lines.append('## Profiler Heatmap')
             md_lines.append('')
-            md_lines.append('Hierarchical time breakdown of the last '
-                            'collected frame (sunburst chart).')
+            if len(self._frames) > 1:
+                md_lines.append(f'Aggregated time breakdown across all '
+                                f'{len(self._frames)} collected frames '
+                                f'(sunburst chart).')
+            else:
+                md_lines.append('Hierarchical time breakdown of the '
+                                'collected frame (sunburst chart).')
             md_lines.append('')
             md_lines.append(f'![Profiler Heatmap]({heatmap_file})')
             md_lines.append('')
@@ -993,11 +1042,21 @@ class SimulationStats:
 
         # -- Total time per frame (first plot after heatmap) ------------------
         total_file = 'total_time_per_frame.svg'
-        # The root timer name is consistent across all frames for a given
-        # simulation run; use the first available frame to determine it.
-        root_name = next(
-            (fd.get('name', '') for fd in self._frames if fd.get('name')), ''
-        )
+        # The timer tree root is 'GlobalTimer' which has duration=0.
+        # The actual total frame time is in its first child (typically
+        # 'Pipeline').  Walk down to find the first child with a non-zero
+        # duration to use as the "total time" source.
+        root_name = ''
+        for fd in self._frames:
+            # Try the first child of the root (e.g. 'Pipeline')
+            children = fd.get('children', [])
+            if children and children[0].get('duration', 0) > 0:
+                root_name = children[0].get('name', '')
+                break
+            # Fallback: use root if it has duration
+            if fd.get('duration', 0) > 0:
+                root_name = fd.get('name', '')
+                break
         frames_t, values_t = (
             self.get_values(root_name, 'duration') if root_name
             else (np.array([]), np.array([]))
