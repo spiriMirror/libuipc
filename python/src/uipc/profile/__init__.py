@@ -202,9 +202,16 @@ def _execute_session(s: Session) -> dict:
 
     for op, n in s._steps:
         if op == 'advance':
-            for _ in range(n):
-                world.advance()
+            # Try to skip warmup via recover if dumps exist
+            target_frame = world.frame() + n
+            if world.recover(target_frame):
                 world.retrieve()
+            else:
+                # Fall back to simulating frame by frame
+                for _ in range(n):
+                    world.advance()
+                    world.retrieve()
+                    world.dump()
         elif op == 'profile':
             for _ in range(n):
                 world.advance()
