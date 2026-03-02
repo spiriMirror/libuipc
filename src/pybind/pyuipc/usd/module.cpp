@@ -1,6 +1,5 @@
 #include <fmt/core.h>
 #include <nanobind/nanobind.h>
-#include <nanobind/nanobind.h>
 #include <pyuipc/usd/module.h>
 
 namespace pyuipc::usd

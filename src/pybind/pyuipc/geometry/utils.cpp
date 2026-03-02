@@ -12,7 +12,7 @@ static vector<const SimplicialComplex*> vector_of_sc(py::list list_of_sc)
 
     for(auto sc : list_of_sc)
     {
-        auto& simplicial_complex = sc.cast<const SimplicialComplex&>();
+        auto& simplicial_complex = py::cast<const SimplicialComplex&>(sc);
         simplicial_complexes.push_back(&simplicial_complex);
     }
 

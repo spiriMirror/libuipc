@@ -21,10 +21,10 @@ Returns:
 
     class_FeatureCollection.def(
         "find",
-        [](FeatureCollection& self, py::type t) -> S<IFeature>
+        [](FeatureCollection& self, py::handle t) -> S<IFeature>
         {
             PYUIPC_ASSERT(!t.attr("FeatureName").is_none(), "Type must be IFeature");
-            auto s = t.attr("FeatureName").cast<std::string>();
+            auto s = py::cast<std::string>(t.attr("FeatureName"));
             return self.find(s);
         },
         py::rv_policy::reference_internal,

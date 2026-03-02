@@ -239,6 +239,26 @@ py::object as_numpy(Matrix<T, M, N, Options>& mat)
     return as_numpy(std::as_const(mat));
 }
 
+// Helper: map C++ types to numpy dtype strings
+template <typename T>
+constexpr const char* numpy_dtype_str()
+{
+    if constexpr(std::is_same_v<T, float>)
+        return "float32";
+    else if constexpr(std::is_same_v<T, double>)
+        return "float64";
+    else if constexpr(std::is_same_v<T, int32_t>)
+        return "int32";
+    else if constexpr(std::is_same_v<T, int64_t>)
+        return "int64";
+    else if constexpr(std::is_same_v<T, uint32_t>)
+        return "uint32";
+    else if constexpr(std::is_same_v<T, uint64_t>)
+        return "uint64";
+    else
+        static_assert(sizeof(T) == 0, "Unsupported numpy dtype");
+}
+
 // ============================================================================
 // Helper: create empty numpy array with given shape and dtype
 // ============================================================================
@@ -250,7 +270,7 @@ py::object make_numpy_empty(std::initializer_list<size_t> shape_init)
     py::list shape_list;
     for(auto s : shape_init)
         shape_list.append((int64_t)s);
-    return numpy.attr("empty")(shape_list, py::arg("dtype") = py::dtype<T>());
+    return numpy.attr("empty")(shape_list, py::arg("dtype") = numpy_dtype_str<T>());
 }
 
 // ============================================================================
