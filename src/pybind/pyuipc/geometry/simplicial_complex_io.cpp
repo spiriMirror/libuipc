@@ -14,14 +14,14 @@ PySimplicialComplexIO::PySimplicialComplexIO(py::module_& m)
     class_SimplicialComplexIO.def(py::init<>(), R"(Create a SimplicialComplexIO instance without pre-transform.)");
 
     class_SimplicialComplexIO.def(
-        py::init<>([](const Transform& pre_transform)
+        py::init([](const Transform& pre_transform)
                    { return SimplicialComplexIO(pre_transform); }),
         py::arg("pre_transform"),
         R"(Create a SimplicialComplexIO instance with a pre-transform.
 Args:
     pre_transform: Transform to apply before reading/writing.)");
 
-    class_SimplicialComplexIO.def(py::init<>(
+    class_SimplicialComplexIO.def(py::init(
                                       [](numpy_array<Float> pre_transform)
                                       {
                                           auto mat = to_matrix<Matrix4x4>(pre_transform);

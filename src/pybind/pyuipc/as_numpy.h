@@ -319,9 +319,10 @@ MatrixT to_matrix(numpy_array<typename MatrixT::Scalar> arr)
                       arr.shape(0),
                       arr.shape(1));
 
+        const auto* data = (const Scalar*)arr.data();
         for(int i = 0; i < Rows; i++)
             for(int j = 0; j < Cols; j++)
-                m(i, j) = arr(i, j);
+                m(i, j) = data[i * Cols + j];
     }
     else
     {

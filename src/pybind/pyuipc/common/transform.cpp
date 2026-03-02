@@ -22,7 +22,7 @@ PyTransform::PyTransform(py::module_& m)
 Returns:
     Quaternion: Identity quaternion.)");
 
-    class_Quaternion.def(py::init<>(
+    class_Quaternion.def(py::init(
                              [](numpy_array<Float> wxyz) -> Quaternion
                              {
                                  Vector4 v4 = to_matrix<Vector4>(wxyz);
@@ -68,7 +68,7 @@ Returns:
 Returns:
     Quaternion: Normalized quaternion.)");
 
-    class_Quaternion.def(py::init<>([](const AngleAxis& ax) -> Quaternion
+    class_Quaternion.def(py::init([](const AngleAxis& ax) -> Quaternion
                                     { return Quaternion(ax); }),
                          py::arg("angle_axis"),
                          R"(Create a quaternion from an AngleAxis.
@@ -83,7 +83,7 @@ Args:
 Returns:
     AngleAxis: Identity angle-axis.)");
 
-    class_AngleAxis.def(py::init<>(
+    class_AngleAxis.def(py::init(
                             [](Float angle, numpy_array<Float> axis) -> AngleAxis
                             {
                                 Vector3 A = to_matrix<Vector3>(axis);
@@ -96,7 +96,7 @@ Args:
     angle: Rotation angle in radians.
     axis: 3D axis vector (will be normalized).)");
 
-    class_AngleAxis.def(py::init<>([](const Quaternion& q) -> AngleAxis
+    class_AngleAxis.def(py::init([](const Quaternion& q) -> AngleAxis
                                    { return AngleAxis(q); }),
                         py::arg("quaternion"),
                         R"(Create an angle-axis from a quaternion.
@@ -170,7 +170,7 @@ Returns:
     numpy.ndarray: 4x4 transformation matrix.)");
 
     // transform
-    class_Transform.def(py::init<>(
+    class_Transform.def(py::init(
                             [](numpy_array<Float> m) -> Transform
                             {
                                 Transform t = Transform::Identity();
