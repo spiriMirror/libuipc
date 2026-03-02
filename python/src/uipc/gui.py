@@ -179,24 +179,28 @@ class SceneGUI:
     def _set_ground(self, ground_name):
         objs = self.scene.objects().find(ground_name)
         if len(objs) == 0:
+            ps.set_ground_plane_mode("none")
             return
+
         ground_obj:core.Object = objs[0]
         ids = ground_obj.geometries().ids()
         if len(ids) == 0:
+            ps.set_ground_plane_mode("none")
             return
+
         id = ids[0]
         geo_slot, rest_geo_slot = self.scene.geometries().find(id)
         if geo_slot is None:
+            ps.set_ground_plane_mode("none")
             return
+
         P = geo_slot.geometry().instances().find('P')
         N = geo_slot.geometry().instances().find('N')
-        if P is None:
+        if P is None or N is None:
+            ps.set_ground_plane_mode("none")
             return
-        if N is None:
-            return
-        
+
         normal = N.view()[0]
-        
         normal = normal.flatten()
         if np.allclose(normal, [0, 1, 0]):
             ps.set_up_dir("y_up")
@@ -205,9 +209,11 @@ class SceneGUI:
         elif np.allclose(normal, [0, 0, 1]):
             ps.set_up_dir("z_up")
         else:
+            ps.set_ground_plane_mode("none")
             return
-        
+
         height = float(P.view()[0][1][0])
+        ps.set_ground_plane_mode("shadow_only")
         ps.set_ground_plane_height(height)
 
     def update(self):
