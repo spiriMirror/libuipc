@@ -224,7 +224,7 @@ Returns:
         {
             if(v.ndim() == 0 || (v.ndim() == 1 && v.shape(0) == 1))
             {
-                Float s = *(Float*)v.data();
+                Float s = static_cast<const Float*>(v.data())[0];
                 return self.scale(s);
             }
             else
@@ -291,7 +291,7 @@ Returns:
         {
             if(v.ndim() == 0 || (v.ndim() == 1 && v.shape(0) == 1))
             {
-                Float s = *(Float*)v.data();
+                Float s = static_cast<const Float*>(v.data())[0];
                 return self.prescale(s);
             }
             else

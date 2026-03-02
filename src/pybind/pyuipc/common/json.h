@@ -134,7 +134,7 @@ inline nl::json to_json(const py::handle& obj)
         auto out = nl::json::object();
         for(const py::handle key : obj)
         {
-            out[py::cast<std::string>(py::str(key))] = to_json(obj[key]);
+            out[py::cast<std::string>(key)] = to_json(obj[key]);
         }
         return out;
     }
