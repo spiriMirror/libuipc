@@ -324,7 +324,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                     PP_Gs  = info.friction_PP_gradients().viewer().name("PP_Gs"),
                     PP_Hs  = info.friction_PP_hessians().viewer().name("PP_Hs"),
                     // offsets
-                    ee_offset, pe_offset, pp_offset] __device__(int idx) mutable
+                    ee_offset, pe_offset, pp_offset] __device__(IndexT idx) mutable
                    {
                        if(idx < ee_offset)
                        {

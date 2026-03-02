@@ -325,7 +325,7 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                     PP_Gs  = info.PP_gradients().viewer().name("PP_Gs"),
                     PP_Hs  = info.PP_hessians().viewer().name("PP_Hs"),
                     // offsets
-                    ee_offset, pe_offset, pp_offset] __device__(int idx) mutable
+                    ee_offset, pe_offset, pp_offset] __device__(IndexT idx) mutable
                    {
                        if(idx < ee_offset)
                        {
