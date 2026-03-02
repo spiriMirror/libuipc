@@ -158,7 +158,7 @@ namespace nlohmann
                                                                                \
         inline static T from_json(const json& j)                               \
         {                                                                      \
-            return pyjson::from_json(j);                                       \
+            return py::borrow<T>(pyjson::from_json(j));                        \
         }                                                                      \
     }
 
