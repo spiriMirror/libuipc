@@ -6,7 +6,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyConstitution::PyAffineBodyConstitution(py::module& m)
+PyAffineBodyConstitution::PyAffineBodyConstitution(py::module_& m)
 {
     auto class_AffineBodyConstitution = py::class_<AffineBodyConstitution, IConstitution>(
         m, "AffineBodyConstitution", R"(AffineBodyConstitution for rigid body simulation with affine transformations.)");

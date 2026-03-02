@@ -1,4 +1,4 @@
-add_requires("pybind11")
+add_requires("nanobind")
 
 target("pyuipc")
     add_rules("python.module")
@@ -13,7 +13,7 @@ target("pyuipc")
         "uipc_io",
         "uipc_sanity_check"
     )
-    add_packages("pybind11")
+    add_packages("nanobind")
     on_load(function (target)
         import("core.base.semver")
 

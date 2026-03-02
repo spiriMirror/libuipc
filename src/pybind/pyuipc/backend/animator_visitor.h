@@ -6,7 +6,7 @@ namespace pyuipc::backend
 class PyAnimatorVisitor
 {
   public:
-    PyAnimatorVisitor(py::module& m);
+    PyAnimatorVisitor(py::module_& m);
 };
 }  // namespace pyuipc::backend
 

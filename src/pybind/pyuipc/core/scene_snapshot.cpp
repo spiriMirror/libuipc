@@ -3,7 +3,7 @@
 namespace pyuipc::core
 {
 using namespace uipc::core;
-PySceneSnapshot::PySceneSnapshot(py::module& m)
+PySceneSnapshot::PySceneSnapshot(py::module_& m)
 {
     auto class_SceneSnapshot = py::class_<SceneSnapshot>(
         m, "SceneSnapshot", R"(SceneSnapshot class representing a snapshot of scene state.)");

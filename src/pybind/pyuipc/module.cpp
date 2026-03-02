@@ -37,16 +37,16 @@ using namespace uipc;
 
 namespace pyuipc
 {
-static py::module* g_top_module = nullptr;
+static py::module_* g_top_module = nullptr;
 
-py::module& top_module()
+py::module_& top_module()
 {
     PYUIPC_ASSERT(g_top_module != nullptr, "top module is not initialized");
     return *g_top_module;
 }
 }  // namespace pyuipc
 
-PYBIND11_MODULE(pyuipc, m)
+NB_MODULE(pyuipc, m)
 {
     pyuipc::g_top_module = &m;
 

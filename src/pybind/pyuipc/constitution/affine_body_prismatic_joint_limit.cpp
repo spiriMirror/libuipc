@@ -6,7 +6,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyPrismaticJointLimit::PyAffineBodyPrismaticJointLimit(py::module& m)
+PyAffineBodyPrismaticJointLimit::PyAffineBodyPrismaticJointLimit(py::module_& m)
 {
     auto class_AffineBodyPrismaticJointLimit =
         py::class_<AffineBodyPrismaticJointLimit, InterAffineBodyExtraConstitution>(

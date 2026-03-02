@@ -6,6 +6,6 @@ namespace pyuipc::core
 class PyObject
 {
   public:
-    PyObject(py::module& m);
+    PyObject(py::module_& m);
 };
 }  // namespace pyuipc::core

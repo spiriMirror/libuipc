@@ -1,12 +1,12 @@
 #include <pyuipc/constitution/affine_body_external_force.h>
 #include <uipc/constitution/affine_body_external_force.h>
-#include <pybind11/eigen.h>
+#include <nanobind/eigen/dense.h>
 
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module& m)
+PyAffineBodyExternalForce::PyAffineBodyExternalForce(py::module_& m)
 {
     auto class_AffineBodyExternalBodyForce =
         py::class_<AffineBodyExternalBodyForce, IConstitution>(m, "AffineBodyExternalBodyForce");

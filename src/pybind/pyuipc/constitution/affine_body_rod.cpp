@@ -6,7 +6,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyRod::PyAffineBodyRod(py::module& m)
+PyAffineBodyRod::PyAffineBodyRod(py::module_& m)
 {
     auto class_AffineBodyRod =
         py::class_<AffineBodyRod, AffineBodyConstitution>(

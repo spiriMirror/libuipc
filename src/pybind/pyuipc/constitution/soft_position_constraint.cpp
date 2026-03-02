@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PySoftPositionConstraint::PySoftPositionConstraint(py::module& m)
+PySoftPositionConstraint::PySoftPositionConstraint(py::module_& m)
 {
     auto class_SoftPositionConstraint = py::class_<SoftPositionConstraint, Constraint>(
         m, "SoftPositionConstraint", R"(SoftPositionConstraint for constraining vertex positions with soft (penalty-based) constraints.)");

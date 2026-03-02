@@ -6,6 +6,6 @@ namespace pyuipc::core
 class PyContactTabular
 {
   public:
-    PyContactTabular(py::module& m);
+    PyContactTabular(py::module_& m);
 };
 }  // namespace pyuipc::core

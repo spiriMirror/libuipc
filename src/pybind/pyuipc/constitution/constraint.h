@@ -6,6 +6,6 @@ namespace pyuipc::constitution
 class PyConstraint
 {
   public:
-    PyConstraint(py::module& m);
+    PyConstraint(py::module_& m);
 };
 }  // namespace pyuipc::constitution

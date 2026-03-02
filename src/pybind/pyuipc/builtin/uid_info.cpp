@@ -4,7 +4,7 @@
 namespace pyuipc::builtin
 {
 using namespace uipc::builtin;
-PyUIDInfo::PyUIDInfo(py::module& m)
+PyUIDInfo::PyUIDInfo(py::module_& m)
 {
     py::class_<UIDInfo>(m, "UIDInfo", R"(UIDInfo class containing information about a UID (unique identifier).)")
         .def_readwrite("uid", &UIDInfo::uid, R"(UID value.)")

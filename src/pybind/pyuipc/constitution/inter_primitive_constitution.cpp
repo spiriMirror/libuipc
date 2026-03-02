@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyInterPrimitiveConstitution::PyInterPrimitiveConstitution(py::module& m)
+PyInterPrimitiveConstitution::PyInterPrimitiveConstitution(py::module_& m)
 {
     auto class_InterPrimitiveConstitution =
         py::class_<InterPrimitiveConstitution, IConstitution>(
