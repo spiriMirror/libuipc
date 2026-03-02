@@ -43,4 +43,7 @@ vsxmake*/
 .DS_Store
 
 # venv
-.venv/_codeql_detected_source_root
+.venv/
+
+# codeql
+_codeql_detected_source_root
