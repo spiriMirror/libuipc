@@ -134,11 +134,20 @@ class SoftVertexStitch : public InterPrimitiveConstitution
                     Es           = info.energies().viewer().name("Es"),
                     dt           = info.dt()] __device__(int I)
                    {
-                       const Vector2i& PP   = topos(I);
-                       Float           Kt2  = kappas(I) * dt * dt;
-                       Float           dist = (xs(PP[0]) - xs(PP[1])).norm();
-                       Float           diff = dist - rest_lengths(I);
-                       Es(I)                = 0.5 * Kt2 * diff * diff;
+                       const Vector2i& PP  = topos(I);
+                       Float           Kt2 = kappas(I) * dt * dt;
+                       Float           L0  = rest_lengths(I);
+                       Vector3         dx  = xs(PP[0]) - xs(PP[1]);
+                       if(L0 == 0.0)
+                       {
+                           Es(I) = 0.5 * Kt2 * dx.squaredNorm();
+                       }
+                       else
+                       {
+                           Float dist = dx.norm();
+                           Float diff = dist - L0;
+                           Es(I)     = 0.5 * Kt2 * diff * diff;
+                       }
                    });
     }
 
@@ -177,18 +186,44 @@ class SoftVertexStitch : public InterPrimitiveConstitution
                        for(int i = 0; i < 2; ++i)
                            X.segment<3>(3 * i) = xs(PP[i]);
 
-                       Float   L0  = rest_lengths(I);
                        Float   Kt2 = kappas(I) * dt * dt;
-                       Vector6 G;
-                       SVS::dEdX(G, Kt2, X, L0);
+                       Float   L0  = rest_lengths(I);
+                       Vector3 dx  = X.head<3>() - X.tail<3>();
+
+                       Vector6   G;
+                       Matrix6x6 H;
+
+                       if(L0 == 0.0)
+                       {
+                           // Harmonic energy: E = 0.5 * k * ||dx||^2
+                           // G = k * [dx; -dx],  H = k * [[I,-I],[-I,I]]
+                           G.head<3>() = Kt2 * dx;
+                           G.tail<3>() = -Kt2 * dx;
+
+                           if(!gradient_only)
+                           {
+                               Matrix3x3 blk = Kt2 * Matrix3x3::Identity();
+                               H.block<3, 3>(0, 0) = blk;
+                               H.block<3, 3>(0, 3) = -blk;
+                               H.block<3, 3>(3, 0) = -blk;
+                               H.block<3, 3>(3, 3) = blk;
+                           }
+                       }
+                       else
+                       {
+                           SVS::dEdX(G, Kt2, X, L0);
+                           if(!gradient_only)
+                           {
+                               SVS::ddEddX(H, Kt2, X, L0);
+                           }
+                       }
+
                        DoubletVectorAssembler VA{G3s};
                        VA.segment<StencilSize>(I * StencilSize).write(PP, G);
 
                        if(gradient_only)
                            return;
 
-                       Matrix6x6 H;
-                       SVS::ddEddX(H, Kt2, X, L0);
                        make_spd(H);
                        TripletMatrixAssembler MA{H3x3s};
                        MA.half_block<StencilSize>(I * HalfHessianSize).write(PP, H);
