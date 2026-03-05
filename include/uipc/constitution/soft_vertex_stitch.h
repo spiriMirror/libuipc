@@ -23,6 +23,8 @@ class UIPC_CONSTITUTION_API SoftVertexStitch final : public InterPrimitiveConsti
      * @param stitched_vert_ids Each element is a pair of vertex ids, 
      *        the first one is from the first geometry, the second one is from the second geometry
      * @param kappa The stiffness of the stitch constraint
+     * @param rest_length The rest length of the spring. When 0 (default), the harmonic
+     *        energy E=0.5*k*||x-y||^2 is used, which has no singularity at zero distance.
      */
     geometry::Geometry create_geometry(const SlotTuple&     aim_geo_slots,
                                        span<const Vector2i> stitched_vert_ids,

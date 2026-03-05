@@ -138,8 +138,8 @@ TEST_CASE("66_abd_codim_galileo", "[abd][codim]")
 
             // All bodies started at y = 1.0 and should have fallen the same amount.
             REQUIRE(y_tet < 1.0);
-            REQUIRE(y_tet == Catch::Approx(y_shell).epsilon(1e-3));
-            REQUIRE(y_tet == Catch::Approx(y_rod).epsilon(1e-3));
+            REQUIRE(y_tet == Catch::Approx(y_shell));
+            REQUIRE(y_tet == Catch::Approx(y_rod));
         }
     }
 }
