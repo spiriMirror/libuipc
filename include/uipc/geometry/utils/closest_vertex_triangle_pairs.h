@@ -24,9 +24,10 @@ class Geometry;
  * @param group  If non-empty, name of IndexT attribute on vertices (vertex_mesh) and on triangles (triangle_mesh); only elements with value 1 are considered (0 = not selected). If empty, no filtering.
  * @return Geometry  Instances have topo Vector2i (vertex_index, triangle_index).
  */
-Geometry UIPC_GEOMETRY_API closest_vertex_triangle_pairs(const SimplicialComplex& vertex_mesh,
-                                                          const SimplicialComplex& triangle_mesh,
-                                                          Float                   max_distance,
-                                                          std::string_view        max_distance_attr = {},
-                                                          std::string_view        group            = {});
+Geometry UIPC_GEOMETRY_API
+closest_vertex_triangle_pairs(const SimplicialComplex& vertex_mesh,
+                              const SimplicialComplex& triangle_mesh,
+                              Float                    max_distance,
+                              std::string_view         max_distance_attr = {},
+                              std::string_view         group             = {});
 }  // namespace uipc::geometry

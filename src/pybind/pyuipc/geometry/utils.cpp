@@ -246,7 +246,7 @@ Args:
           py::arg("triangle_mesh"),
           py::arg("max_distance"),
           py::arg("max_distance_attr") = "",
-          py::arg("group")            = "",
+          py::arg("group")             = "",
           R"(Find vertex–triangle pairs between two meshes within max_distance.
 
 Args:

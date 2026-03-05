@@ -14,37 +14,37 @@ namespace uipc::geometry
 {
 namespace
 {
-using AABB = BVH::AABB;
+    using AABB = BVH::AABB;
 
-AABB triangle_aabb(span<const Vector3> positions, const Vector3i& tri)
-{
-    AABB box;
-    box.extend(positions[tri(0)]);
-    box.extend(positions[tri(1)]);
-    box.extend(positions[tri(2)]);
-    return box;
-}
+    AABB triangle_aabb(span<const Vector3> positions, const Vector3i& tri)
+    {
+        AABB box;
+        box.extend(positions[tri(0)]);
+        box.extend(positions[tri(1)]);
+        box.extend(positions[tri(2)]);
+        return box;
+    }
 
-AABB point_aabb(const Vector3& p, Float half_extent)
-{
-    AABB box;
-    box.extend(p - Vector3::Constant(half_extent));
-    box.extend(p + Vector3::Constant(half_extent));
-    return box;
-}
+    AABB point_aabb(const Vector3& p, Float half_extent)
+    {
+        AABB box;
+        box.extend(p - Vector3::Constant(half_extent));
+        box.extend(p + Vector3::Constant(half_extent));
+        return box;
+    }
 }  // namespace
 
 Geometry closest_vertex_triangle_pairs(const SimplicialComplex& vertex_mesh,
                                        const SimplicialComplex& triangle_mesh,
-                                       Float                   max_distance,
-                                       std::string_view        max_distance_attr,
-                                       std::string_view        group)
+                                       Float                    max_distance,
+                                       std::string_view max_distance_attr,
+                                       std::string_view group)
 {
-    const auto V_pos    = vertex_mesh.positions().view();
-    const auto tri_topo = triangle_mesh.triangles().topo().view();
-    const auto T_pos    = triangle_mesh.positions().view();
-    const SizeT nV      = V_pos.size();
-    const SizeT nTri   = tri_topo.size();
+    const auto  V_pos    = vertex_mesh.positions().view();
+    const auto  tri_topo = triangle_mesh.triangles().topo().view();
+    const auto  T_pos    = triangle_mesh.positions().view();
+    const SizeT nV       = V_pos.size();
+    const SizeT nTri     = tri_topo.size();
 
     std::optional<span<const Float>> per_vertex_max_d;
     if(!max_distance_attr.empty())
@@ -79,8 +79,9 @@ Geometry closest_vertex_triangle_pairs(const SimplicialComplex& vertex_mesh,
     vector<AABB> tri_aabbs;
     tri_aabbs.reserve(compact_to_orig_tri.size());
     std::ranges::transform(compact_to_orig_tri,
-                          std::back_inserter(tri_aabbs),
-                          [&](IndexT i) { return triangle_aabb(T_pos, tri_topo[i]); });
+                           std::back_inserter(tri_aabbs),
+                           [&](IndexT i)
+                           { return triangle_aabb(T_pos, tri_topo[i]); });
 
     if(tri_aabbs.empty())
     {
@@ -119,18 +120,20 @@ Geometry closest_vertex_triangle_pairs(const SimplicialComplex& vertex_mesh,
     vector<Vector2i> pairs;
     pairs.reserve(vert_orig.size() * 4);
 
-    bvh.query(query_aabbs, [&](IndexT query_idx, IndexT compact_tri_idx) {
-        const IndexT v   = vert_orig[query_idx];
-        const IndexT tri = compact_to_orig_tri[compact_tri_idx];
-        Float max_d      = per_vertex_max_d ? (*per_vertex_max_d)[v] : max_distance;
-        const Vector3& p = V_pos[v];
-        const Vector3& t0 = T_pos[tri_topo[tri](0)];
-        const Vector3& t1 = T_pos[tri_topo[tri](1)];
-        const Vector3& t2 = T_pos[tri_topo[tri](2)];
-        Float d2 = point_triangle_squared_distance(p, t0, t1, t2);
-        if(d2 <= max_d * max_d)
-            pairs.emplace_back(v, tri);
-    });
+    bvh.query(query_aabbs,
+              [&](IndexT query_idx, IndexT compact_tri_idx)
+              {
+                  const IndexT v   = vert_orig[query_idx];
+                  const IndexT tri = compact_to_orig_tri[compact_tri_idx];
+                  Float max_d = per_vertex_max_d ? (*per_vertex_max_d)[v] : max_distance;
+                  const Vector3& p  = V_pos[v];
+                  const Vector3& t0 = T_pos[tri_topo[tri](0)];
+                  const Vector3& t1 = T_pos[tri_topo[tri](1)];
+                  const Vector3& t2 = T_pos[tri_topo[tri](2)];
+                  Float d2 = point_triangle_squared_distance(p, t0, t1, t2);
+                  if(d2 <= max_d * max_d)
+                      pairs.emplace_back(v, tri);
+              });
 
     Geometry result;
     result.instances().resize(pairs.size());
