@@ -26,6 +26,7 @@
 #include <pyuipc/constitution/affine_body_prismatic_joint_limit.h>
 #include <pyuipc/constitution/inter_primitive_constitution.h>
 #include <pyuipc/constitution/soft_vertex_stitch.h>
+#include <pyuipc/constitution/soft_vertex_triangle_stitch.h>
 #include <pyuipc/constitution/affine_body_external_force.h>
 #include <pyuipc/constitution/external_articulation_constraint.h>
 
@@ -67,6 +68,7 @@ PyModule::PyModule(py::module& m)
     // Inter Primitive Constitutions
     PyInterPrimitiveConstitution{m};
     PySoftVertexStitch{m};
+    PySoftVertexTriangleStitch{m};
 
     // Constraints
     PySoftPositionConstraint{m};

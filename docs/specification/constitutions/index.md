@@ -30,6 +30,7 @@
 | 26  | AffineBodySphericalJoint                                                | Affine Body Spherical Joint Constitutions (Reserved)         |
 | 27  | AffineBodyDrivingSphericalJoint                                         | Affine Body Driving Spherical Joint Constitutions (Reserved) |
 | 28  | AffineBodyD6Joint                                                       | Affine Body D6 Joint Constitutions (Reserved)                |
+| 29  | SoftVertexTriangleStitch                                               | Inter-primitive: (vertex, triangle) pairs as tetrahedra with StableNeoHookean energy |
 | 666 | [AffineBodyExternalForce](./affine_body_external_force.md)              | Affine Body External Force Constitutions          |
 | 667 | AffineBodyPrismaticJointExternalForce                                   | Affine Body Prismatic Joint External Force Constitutions (Reserved) |
 | 668 | AffineBodyRevoluteJointExternalForce                                    | Affine Body Revolute Joint External Force Constitutions (Reserved)  |
