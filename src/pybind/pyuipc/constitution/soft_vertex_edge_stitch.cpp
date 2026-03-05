@@ -10,7 +10,7 @@ PySoftVertexEdgeStitch::PySoftVertexEdgeStitch(py::module& m)
 {
     auto class_SoftVertexEdgeStitch =
         py::class_<SoftVertexEdgeStitch, InterPrimitiveConstitution>(
-            m, "SoftVertexEdgeStitch", R"(SoftVertexEdgeStitch: (vertex, edge) pairs form triangles with NeoHookeanShell energy. UID 29.)");
+            m, "SoftVertexEdgeStitch", R"(SoftVertexEdgeStitch: (vertex, edge) pairs form triangles with StVK membrane energy. UID 29.)");
 
     class_SoftVertexEdgeStitch.def(py::init<const Json&>(),
                                    py::arg("config") = SoftVertexEdgeStitch::default_config(),
