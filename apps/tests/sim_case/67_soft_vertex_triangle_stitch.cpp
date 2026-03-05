@@ -51,7 +51,7 @@ TEST_CASE("67_soft_vertex_triangle_stitch", "[inter_primitive]")
     auto [tri_geo_slot, tri_rest_slot] = tri_obj->geometries().create(triangle_mesh);
 
     auto pairs_geo = closest_vertex_triangle_pairs(vertex_mesh, triangle_mesh, 1.0);
-    REQUIRE(pairs_geo.instances().size() >= 1);
+    REQUIRE(pairs_geo.instances().size() == 4);
 
     SoftVertexTriangleStitch stitch;
     auto                     stitch_geo =

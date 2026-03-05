@@ -48,7 +48,7 @@ TEST_CASE("68_soft_vertex_edge_stitch", "[inter_primitive]")
     auto [edge_geo_slot, edge_rest_slot] = edge_obj->geometries().create(edge_mesh);
 
     auto pairs_geo = closest_vertex_edge_pairs(vertex_mesh, edge_mesh, 1.0);
-    REQUIRE(pairs_geo.instances().size() >= 1);
+    REQUIRE(pairs_geo.instances().size() == 4);
 
     SoftVertexEdgeStitch stitch;
     auto                 stitch_geo =
