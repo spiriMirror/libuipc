@@ -530,33 +530,47 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
 
                      ABDJacobiDyadicMass geo_mass;
                      {
-                         auto rho = sc.meta().find<Float>(builtin::mass_density);
-                         UIPC_ASSERT(rho, "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
-
-                         auto rho_view = rho->view();
-
                          Float     m;
                          Vector3   m_x_bar;
                          Matrix3x3 m_x_bar_x_bar;
 
-                         auto is_codim_attr = sc.meta().find<IndexT>(builtin::is_codim);
-                         bool codim = is_codim_attr
-                                      && is_codim_attr->view()[0] == 1;
-
-                         if(codim)
+                         auto mass_override = sc.meta().find<Float>(builtin::abd_mass);
+                         if(mass_override)
                          {
-                             auto thickness_attr =
-                                 sc.vertices().find<Float>(builtin::thickness);
-                             UIPC_ASSERT(thickness_attr,
-                                         "is_codim==1 but no thickness attribute found.");
-                             Float r = thickness_attr->view()[0];
-                             uipc::geometry::affine_body::compute_dyadic_mass(
-                                 sc, rho_view[0], r, m, m_x_bar, m_x_bar_x_bar);
+                             auto mx  = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
+                             auto mxx = sc.meta().find<Matrix3x3>(builtin::abd_mass_x_bar_x_bar);
+                             UIPC_ASSERT(mx && mxx,
+                                         "abd_mass is set but abd_mass_x_bar or abd_mass_x_bar_x_bar is missing");
+                             m             = mass_override->view()[0];
+                             m_x_bar       = mx->view()[0];
+                             m_x_bar_x_bar = mxx->view()[0];
                          }
                          else
                          {
-                             uipc::geometry::affine_body::compute_dyadic_mass(
-                                 sc, rho_view[0], m, m_x_bar, m_x_bar_x_bar);
+                             auto rho = sc.meta().find<Float>(builtin::mass_density);
+                             UIPC_ASSERT(rho, "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
+
+                             auto rho_view = rho->view();
+
+                             auto is_codim_attr = sc.meta().find<IndexT>(builtin::is_codim);
+                             bool codim = is_codim_attr
+                                          && is_codim_attr->view()[0] == 1;
+
+                             if(codim)
+                             {
+                                 auto thickness_attr =
+                                     sc.vertices().find<Float>(builtin::thickness);
+                                 UIPC_ASSERT(thickness_attr,
+                                             "is_codim==1 but no thickness attribute found.");
+                                 Float r = thickness_attr->view()[0];
+                                 uipc::geometry::affine_body::compute_dyadic_mass(
+                                     sc, rho_view[0], r, m, m_x_bar, m_x_bar_x_bar);
+                             }
+                             else
+                             {
+                                 uipc::geometry::affine_body::compute_dyadic_mass(
+                                     sc, rho_view[0], m, m_x_bar, m_x_bar_x_bar);
+                             }
                          }
 
                          geo_mass = ABDJacobiDyadicMass::from_dyadic_mass(m, m_x_bar, m_x_bar_x_bar);
@@ -621,6 +635,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                      auto gravity_view = gravity_attr ? gravity_attr->view() :
                                                         span<const Vector3>{};
 
+                     auto mass_override = sc.meta().find<Float>(builtin::abd_mass);
+
                      auto rho = sc.meta().find<Float>(builtin::mass_density);
                      UIPC_ASSERT(rho, "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
                      auto rho_view = rho->view();
@@ -629,13 +645,23 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                      {
                          Vector3 local_gravity = gravity_attr ? gravity_view[i] : gravity;
 
-                         // force_density = rho * g_accel (N/m^3)
-                         // compute_body_force integrates this over the effective
-                         // 3D volume (tetmesh, closed trimesh, or codim slab/cylinder)
-                         // and returns the 12D generalized body force G.
-                         Vector3  force_density = local_gravity * rho_view[0];
-                         Vector12 G = uipc::geometry::affine_body::compute_body_force(
-                             sc, force_density);
+                         Vector12 G;
+                         if(mass_override)
+                         {
+                             auto    mx     = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
+                             Float   total_m = mass_override->view()[0];
+                             Vector3 mx_bar  = mx->view()[0];
+                             G.segment<3>(0) = total_m * local_gravity;
+                             G.segment<3>(3) = mx_bar(0) * local_gravity;
+                             G.segment<3>(6) = mx_bar(1) * local_gravity;
+                             G.segment<3>(9) = mx_bar(2) * local_gravity;
+                         }
+                         else
+                         {
+                             Vector3 force_density = local_gravity * rho_view[0];
+                             G = uipc::geometry::affine_body::compute_body_force(
+                                 sc, force_density);
+                         }
 
                          Matrix12x12 abd_body_mass_inv =
                              h_body_id_to_abd_mass_inv[body_offset];

@@ -130,6 +130,37 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     setup_abd_attributes(sc, kappa, mass_density, volume);
 }
 
+void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
+                                       Float                        kappa,
+                                       const Matrix12x12&           mass,
+                                       Float                        volume) const
+{
+    Float     m             = mass(0, 0);
+    Vector3   m_x_bar       = mass.block<3, 1>(3, 0);
+    Matrix3x3 m_x_bar_x_bar = mass.block<3, 3>(3, 3);
+    Float     mass_density   = m / volume;
+
+    setup_abd_attributes(sc, kappa, mass_density, volume);
+
+    auto a1 = sc.meta().find<Float>(builtin::abd_mass);
+    if(!a1)
+        a1 = sc.meta().create<Float>(builtin::abd_mass, m);
+    else
+        geometry::view(*a1).front() = m;
+
+    auto a2 = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
+    if(!a2)
+        a2 = sc.meta().create<Vector3>(builtin::abd_mass_x_bar, m_x_bar);
+    else
+        geometry::view(*a2).front() = m_x_bar;
+
+    auto a3 = sc.meta().find<Matrix3x3>(builtin::abd_mass_x_bar_x_bar);
+    if(!a3)
+        a3 = sc.meta().create<Matrix3x3>(builtin::abd_mass_x_bar_x_bar, m_x_bar_x_bar);
+    else
+        geometry::view(*a3).front() = m_x_bar_x_bar;
+}
+
 Json AffineBodyConstitution::default_config() noexcept
 {
     Json j    = Json::object();
