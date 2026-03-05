@@ -15,48 +15,61 @@ TEST_CASE("69_affine_body_from_rigid_body", "[abd]")
     Engine engine{"cuda", output_path};
     World  world{engine};
 
+    Float   dt = 0.01;
+    Vector3 gravity{0, -9.8, 0};
+
     auto config                 = test::Scene::default_config();
-    config["gravity"]           = Vector3{0, -9.8, 0};
+    config["gravity"]           = gravity;
     config["contact"]["enable"] = false;
+    config["dt"]                = dt;
     test::Scene::dump_config(config, output_path);
 
+    // Use c=(0,0,0) so the mass matrix is block-diagonal:
+    // translation DOFs decouple from affine DOFs,
+    // giving a clean free-fall check.
+    Float     mass   = 1000.0;
+    Vector3   com    = Vector3::Zero();
+    Matrix3x3 I_cm   = (mass / 6.0) * Matrix3x3::Identity();
+    Float     volume = 1.0;
+
+    Vector3 initial_pos = Vector3::UnitY() * 3.0;
+
     Scene scene{config};
-    {
-        AffineBodyConstitution abd;
 
-        auto object = scene.objects().create("empty_abd");
+    AffineBodyConstitution abd;
+    auto object = scene.objects().create("free_fall_abd");
 
-        // Unit cube rigid body properties:
-        //   mass = 1000 kg (rho=1000, a=1)
-        //   center of mass = (0.5, 0.5, 0.5)
-        //   I_cm = (m*a^2/6) * I_3
-        Float     mass = 1000.0;
-        Vector3   com{0.5, 0.5, 0.5};
-        Matrix3x3 I_cm = (mass / 6.0) * Matrix3x3::Identity();
-        Float     volume = 1.0;
+    Matrix12x12 M = affine_body::affine_body_from_rigid_body(mass, com, I_cm);
 
-        Matrix12x12 M = affine_body::affine_body_from_rigid_body(mass, com, I_cm);
+    auto mesh = pointcloud(span<const Vector3>{});
+    mesh.instances().resize(1);
 
-        // Empty mesh: 0 vertices, no collision geometry
-        auto mesh = pointcloud(span<const Vector3>{});
-        mesh.instances().resize(1);
+    abd.apply_to(mesh, 100.0_MPa, M, volume);
 
-        abd.apply_to(mesh, 100.0_MPa, M, volume);
+    auto trans_view    = view(mesh.transforms());
+    auto is_fixed_view = view(*mesh.instances().find<IndexT>(builtin::is_fixed));
 
-        auto trans_view    = view(mesh.transforms());
-        auto is_fixed      = mesh.instances().find<IndexT>(builtin::is_fixed);
-        auto is_fixed_view = view(*is_fixed);
+    Transform t     = Transform::Identity();
+    t.translation() = initial_pos;
+    trans_view[0]   = t.matrix();
+    is_fixed_view[0] = 0;
 
-        Transform t     = Transform::Identity();
-        t.translation() = Vector3::UnitY() * 3.0;
-        trans_view[0]   = t.matrix();
-        is_fixed_view[0] = 0;
-
-        object->geometries().create(mesh);
-    }
+    auto [geo_slot, rest_geo_slot] = object->geometries().create(mesh);
 
     world.init(scene);
     REQUIRE(world.is_valid());
+
+    world.advance();
+    REQUIRE(world.is_valid());
+    world.retrieve();
+
+    // After the first frame, the translation should be initial_pos + g * dt^2.
+    // With c=0 the mass matrix is block-diagonal, so translation is decoupled.
+    auto&     sc  = geo_slot->geometry();
+    Matrix4x4 T   = sc.transforms().view()[0];
+    Vector3   pos = T.block<3, 1>(0, 3);
+    Vector3   expected = initial_pos + gravity * dt * dt;
+    REQUIRE(pos.isApprox(expected, 1e-6));
 
     while(world.frame() < 20)
     {

@@ -648,13 +648,15 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                          Vector12 G;
                          if(mass_override)
                          {
-                             auto    mx     = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
+                             auto mx = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
+                             UIPC_ASSERT(mx,
+                                         "abd_mass is set but abd_mass_x_bar is missing");
                              Float   total_m = mass_override->view()[0];
                              Vector3 mx_bar  = mx->view()[0];
                              G.segment<3>(0) = total_m * local_gravity;
-                             G.segment<3>(3) = mx_bar(0) * local_gravity;
-                             G.segment<3>(6) = mx_bar(1) * local_gravity;
-                             G.segment<3>(9) = mx_bar(2) * local_gravity;
+                             G.segment<3>(3) = local_gravity(0) * mx_bar;
+                             G.segment<3>(6) = local_gravity(1) * mx_bar;
+                             G.segment<3>(9) = local_gravity(2) * mx_bar;
                          }
                          else
                          {

@@ -142,23 +142,19 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
 
     setup_abd_attributes(sc, kappa, mass_density, volume);
 
-    auto a1 = sc.meta().find<Float>(builtin::abd_mass);
-    if(!a1)
-        a1 = sc.meta().create<Float>(builtin::abd_mass, m);
-    else
-        geometry::view(*a1).front() = m;
+    auto create_or_update = [&](auto name, const auto& value)
+    {
+        using T  = std::decay_t<decltype(value)>;
+        auto attr = sc.meta().find<T>(name);
+        if(!attr)
+            sc.meta().create<T>(name, value);
+        else
+            geometry::view(*attr).front() = value;
+    };
 
-    auto a2 = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
-    if(!a2)
-        a2 = sc.meta().create<Vector3>(builtin::abd_mass_x_bar, m_x_bar);
-    else
-        geometry::view(*a2).front() = m_x_bar;
-
-    auto a3 = sc.meta().find<Matrix3x3>(builtin::abd_mass_x_bar_x_bar);
-    if(!a3)
-        a3 = sc.meta().create<Matrix3x3>(builtin::abd_mass_x_bar_x_bar, m_x_bar_x_bar);
-    else
-        geometry::view(*a3).front() = m_x_bar_x_bar;
+    create_or_update(builtin::abd_mass, m);
+    create_or_update(builtin::abd_mass_x_bar, m_x_bar);
+    create_or_update(builtin::abd_mass_x_bar_x_bar, m_x_bar_x_bar);
 }
 
 Json AffineBodyConstitution::default_config() noexcept
