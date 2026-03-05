@@ -114,20 +114,26 @@ void LinearPCG::dump_p_Ap(SizeT k)
 
 void LinearPCG::check_rz_nan_inf(SizeT k)
 {
-    auto rz = ctx().dot(r.cview(), z.cview());
-    if(std::isnan(rz) || !std::isfinite(rz))
-    {
-        auto norm_r = ctx().norm(r.cview());
-        auto norm_z = ctx().norm(z.cview());
-        UIPC_ASSERT(!std::isnan(rz) && std::isfinite(rz),
-                    "Frame {}, Newton: {}, Iteration {}: Residual is {}, norm(r) = {}, norm(z) = {}",
-                    engine().frame(),
-                    engine().newton_iter(),
-                    k,
-                    rz,
-                    norm_r,
-                    norm_z);
-    }
+    auto norm_r = ctx().norm(r.cview());
+    auto norm_z = ctx().norm(z.cview());
+    UIPC_ASSERT(!std::isnan(norm_r) && std::isfinite(norm_r),
+                "Frame {}, Newton: {}, Iteration {}: Residual (R) is NaN during PCG iteration. "
+                "This means the PCG iteration itself has a problem. "
+                "norm(r) = {}, norm(z) = {}",
+                engine().frame(),
+                engine().newton_iter(),
+                k,
+                norm_r,
+                norm_z);
+    UIPC_ASSERT(!std::isnan(norm_z) && std::isfinite(norm_z),
+                "Frame {}, Newton: {}, Iteration {}: Preconditioned residual (Z) is NaN during PCG iteration. "
+                "This means the PCG iteration itself has a problem. "
+                "norm(r) = {}, norm(z) = {}",
+                engine().frame(),
+                engine().newton_iter(),
+                k,
+                norm_r,
+                norm_z);
 }
 
 void update_xr(Float                         alpha,
@@ -180,12 +186,38 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         //spmv(-1.0, x.as_const(), 1.0, r.view());
     }
 
+    // Check initial residual r for NaN.
+    // NaN in the initial residual indicates something is wrong with the gradient assembling,
+    // meaning some gradient values are NaN.
+    {
+        auto norm_r = ctx().norm(r.cview());
+        UIPC_ASSERT(!std::isnan(norm_r) && std::isfinite(norm_r),
+                    "Frame {}, Newton: {}: Initial residual (R) is NaN. "
+                    "This indicates something is wrong with the gradient assembling, "
+                    "meaning some gradient values are NaN.",
+                    engine().frame(),
+                    engine().newton_iter());
+    }
+
     Float alpha, beta, rz, abs_rz0;
 
     // z = P * r (apply preconditioner)
     {
         Timer timer{"Apply Preconditioner"};
         apply_preconditioner(z, r);
+    }
+
+    // Check preconditioned residual z for NaN (R is already confirmed valid above).
+    // NaN in Z while R is valid indicates the preconditioner is failing,
+    // likely because the inverse matrix calculation failed.
+    {
+        auto norm_z = ctx().norm(z.cview());
+        UIPC_ASSERT(!std::isnan(norm_z) && std::isfinite(norm_z),
+                    "Frame {}, Newton: {}: Preconditioned residual (Z) is NaN while residual (R) is valid. "
+                    "This indicates the preconditioner is failing, "
+                    "likely because the inverse matrix calculation failed.",
+                    engine().frame(),
+                    engine().newton_iter());
     }
 
     if(need_debug_dump) [[unlikely]]
@@ -197,7 +229,6 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
     // init rz
     // rz = r^T * z
     rz = ctx().dot(r.cview(), z.cview());
-    check_rz_nan_inf(k);
 
     abs_rz0 = std::abs(rz);
 
