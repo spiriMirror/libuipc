@@ -61,7 +61,7 @@ TEST_CASE("rigid_to_affine_cube", "[abd][rigid]")
     // Inertia about CoM: I_cm = I^O - m*(|c|^2*I_3 - c*c^T)
     Matrix3x3 I_cm = I_origin - m_mesh * (c.squaredNorm() * Matrix3x3::Identity() - c * c.transpose());
 
-    Matrix12x12 M_rigid = affine_body::affine_body_from_rigid_body(m_mesh, c, I_cm);
+    Matrix12x12 M_rigid = affine_body::from_rigid_body(m_mesh, c, I_cm);
 
     REQUIRE(M_rigid.isApprox(M_mesh, 1e-6));
     check_spd_invertible(M_rigid);
@@ -83,7 +83,7 @@ TEST_CASE("rigid_to_affine_diagonal", "[abd][rigid]")
     I_cm(1, 1) = Iy;
     I_cm(2, 2) = Iz;
 
-    Matrix12x12 M = affine_body::affine_body_from_rigid_body(m, c, I_cm);
+    Matrix12x12 M = affine_body::from_rigid_body(m, c, I_cm);
 
     // When c = 0, m_x_bar = 0, so off-diagonal blocks vanish.
     // S = diag((-Ix+Iy+Iz)/2, (Ix-Iy+Iz)/2, (Ix+Iy-Iz)/2)

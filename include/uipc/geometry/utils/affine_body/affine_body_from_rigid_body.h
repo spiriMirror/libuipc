@@ -21,7 +21,7 @@ namespace uipc::geometry::affine_body
  * @param inertia_cm     3x3 inertia tensor about the center of mass.
  * @return The 12x12 ABD mass matrix.
  */
-UIPC_GEOMETRY_API Matrix12x12 affine_body_from_rigid_body(
+UIPC_GEOMETRY_API Matrix12x12 from_rigid_body(
     Float            mass,
     const Vector3&   center_of_mass,
     const Matrix3x3& inertia_cm);

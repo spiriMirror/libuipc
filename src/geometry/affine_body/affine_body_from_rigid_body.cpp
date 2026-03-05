@@ -36,7 +36,7 @@ UIPC_GEOMETRY_API Matrix12x12 build_abd_mass_matrix(Float             m,
     return M;
 }
 
-UIPC_GEOMETRY_API Matrix12x12 affine_body_from_rigid_body(
+UIPC_GEOMETRY_API Matrix12x12 from_rigid_body(
     Float            mass,
     const Vector3&   center_of_mass,
     const Matrix3x3& inertia_cm)

@@ -39,7 +39,7 @@ TEST_CASE("69_affine_body_from_rigid_body", "[abd]")
     AffineBodyConstitution abd;
     auto object = scene.objects().create("free_fall_abd");
 
-    Matrix12x12 M = affine_body::affine_body_from_rigid_body(mass, com, I_cm);
+    Matrix12x12 M = affine_body::from_rigid_body(mass, com, I_cm);
 
     auto mesh = pointcloud(span<const Vector3>{});
     mesh.instances().resize(1);
@@ -69,7 +69,7 @@ TEST_CASE("69_affine_body_from_rigid_body", "[abd]")
     Matrix4x4 T   = sc.transforms().view()[0];
     Vector3   pos = T.block<3, 1>(0, 3);
     Vector3   expected = initial_pos + gravity * dt * dt;
-    REQUIRE(pos.isApprox(expected, 1e-6));
+    REQUIRE(pos.isApprox(expected));
 
     while(world.frame() < 20)
     {
