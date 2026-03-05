@@ -9,10 +9,10 @@
 namespace uipc::constitution
 {
 /**
- * @brief Inter-primitive constitution: (vertex, triangle) pairs form tetrahedra with StableNeoHookean energy.
- * UID = 30.
+ * @brief Inter-primitive constitution: (vertex, edge) pairs form triangles with StVK membrane energy.
+ * UID = 29.
  */
-class UIPC_CONSTITUTION_API SoftVertexTriangleStitch final : public InterPrimitiveConstitution
+class UIPC_CONSTITUTION_API SoftVertexEdgeStitch final : public InterPrimitiveConstitution
 {
     using Base = InterPrimitiveConstitution;
 
@@ -20,28 +20,28 @@ class UIPC_CONSTITUTION_API SoftVertexTriangleStitch final : public InterPrimiti
     using SlotTuple =
         std::tuple<S<geometry::SimplicialComplexSlot>, S<geometry::SimplicialComplexSlot>>;
 
-    SoftVertexTriangleStitch(const Json& config = default_config());
+    SoftVertexEdgeStitch(const Json& config = default_config());
 
     /**
-     * @brief Create stitch geometry from explicit (vertex_index, triangle_index) pairs.
-     * When a tet is degenerate, rest vertex is offset by min_separate_distance (default 1 mm).
+     * @brief Create stitch geometry from explicit (vertex_index, edge_index) pairs.
      */
     geometry::Geometry create_geometry(
         const SlotTuple&     aim_geo_slots,
         const SlotTuple&     rest_geo_slots,
-        span<const Vector2i> stitched_vert_tri_ids,
-        const ElasticModuli& moduli = ElasticModuli::youngs_poisson(120.0_kPa, 0.49),
+        span<const Vector2i> stitched_vert_edge_ids,
+        const ElasticModuli2D& moduli = ElasticModuli2D::youngs_poisson(1.0_MPa, 0.49),
+        Float thickness             = 0.001,
         Float min_separate_distance = 0.001) const;
 
     /**
-     * @brief Create stitch geometry from the Geometry returned by closest_vertex_triangle_pairs.
-     * When a tet is degenerate, uses min_separate_distance (default 1 mm).
+     * @brief Create stitch geometry from the Geometry returned by closest_vertex_edge_pairs.
      */
     geometry::Geometry create_geometry(
         const SlotTuple&          aim_geo_slots,
         const SlotTuple&          rest_geo_slots,
         const geometry::Geometry& pair_geometry,
-        const ElasticModuli& moduli = ElasticModuli::youngs_poisson(120.0_kPa, 0.49),
+        const ElasticModuli2D& moduli = ElasticModuli2D::youngs_poisson(1.0_MPa, 0.49),
+        Float thickness             = 0.001,
         Float min_separate_distance = 0.001) const;
 
     static Json default_config();

@@ -12,7 +12,7 @@ namespace uipc::backend::cuda
 class SoftVertexTriangleStitch : public InterPrimitiveConstitution
 {
   public:
-    static constexpr U64   ConstitutionUID = 29;
+    static constexpr U64   ConstitutionUID = 30;
     static constexpr SizeT StencilSize     = 4;
     static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
 

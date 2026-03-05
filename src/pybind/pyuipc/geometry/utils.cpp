@@ -259,5 +259,21 @@ Args:
 Returns:
     Geometry: One instance per pair; each instance has topo (Vector2i) = (vertex_index, triangle_index).
     Compatible with SoftVertexTriangleStitch.create_geometry(..., pair_geometry, ...).)");
+
+    m.def("closest_vertex_edge_pairs",
+          &closest_vertex_edge_pairs,
+          py::arg("vertex_mesh"),
+          py::arg("edge_mesh"),
+          py::arg("max_distance"),
+          R"(Find vertex-edge pairs between two meshes within max_distance.
+
+Args:
+    vertex_mesh: SimplicialComplex providing vertices (point set).
+    edge_mesh: SimplicialComplex providing edges.
+    max_distance: Max point-edge distance; only pairs within this are returned.
+
+Returns:
+    Geometry: One instance per pair; each instance has topo (Vector2i) = (vertex_index, edge_index).
+    Compatible with SoftVertexEdgeStitch.create_geometry(..., pair_geometry, ...).)");
 }
 }  // namespace pyuipc::geometry

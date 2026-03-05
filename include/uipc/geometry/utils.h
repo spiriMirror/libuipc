@@ -20,3 +20,4 @@
 #include <uipc/geometry/utils/points_from_volume.h>
 #include <uipc/geometry/utils/mesh_partition.h>
 #include <uipc/geometry/utils/closest_vertex_triangle_pairs.h>
+#include <uipc/geometry/utils/closest_vertex_edge_pairs.h>

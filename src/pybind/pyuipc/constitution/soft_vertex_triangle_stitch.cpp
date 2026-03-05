@@ -10,7 +10,7 @@ PySoftVertexTriangleStitch::PySoftVertexTriangleStitch(py::module& m)
 {
     auto class_SoftVertexTriangleStitch =
         py::class_<SoftVertexTriangleStitch, InterPrimitiveConstitution>(
-            m, "SoftVertexTriangleStitch", R"(SoftVertexTriangleStitch: (vertex, triangle) pairs form tetrahedra with StableNeoHookean energy. UID 29.)");
+            m, "SoftVertexTriangleStitch", R"(SoftVertexTriangleStitch: (vertex, triangle) pairs form tetrahedra with StableNeoHookean energy. UID 30.)");
 
     class_SoftVertexTriangleStitch.def(
         py::init<const Json&>(),

@@ -7,7 +7,7 @@
 
 namespace uipc::constitution
 {
-static constexpr U64 ConstitutionUID = 29;
+static constexpr U64 ConstitutionUID = 30;
 
 REGISTER_CONSTITUTION_UIDS()
 {
