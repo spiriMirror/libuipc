@@ -1,0 +1,141 @@
+name: Merge PR and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'Pull request number to merge (e.g. 351)'
+        required: true
+        type: number
+      version_tag:
+        description: 'Version tag (e.g. v0.0.12). Leave empty to auto-increment patch version from latest tag.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate inputs
+        run: |
+          PR="${{ inputs.pr_number }}"
+          if ! echo "$PR" | grep -qE '^[1-9][0-9]*$'; then
+            echo "::error::pr_number must be a positive integer, got '$PR'"
+            exit 1
+          fi
+          TAG="${{ inputs.version_tag }}"
+          if [ -n "$TAG" ] && ! echo "$TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::version_tag must match pattern vX.Y.Z (e.g. v0.0.12)"
+            exit 1
+          fi
+
+      - name: Check PR CI status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Checking CI status for PR #${{ inputs.pr_number }}..."
+          PR_STATE=$(gh pr view ${{ inputs.pr_number }} --repo ${{ github.repository }} --json state -q .state)
+          if [ "$PR_STATE" = "MERGED" ]; then
+            echo "::error::PR #${{ inputs.pr_number }} is already merged"
+            exit 1
+          fi
+          if [ "$PR_STATE" = "CLOSED" ]; then
+            echo "::error::PR #${{ inputs.pr_number }} is closed"
+            exit 1
+          fi
+
+          # Verify all required checks have passed
+          CHECKS_JSON=$(gh pr checks ${{ inputs.pr_number }} --repo ${{ github.repository }} --json name,state,bucket)
+          if [ $? -ne 0 ]; then
+            echo "::error::Failed to fetch CI checks. Verify the PR number and permissions."
+            exit 1
+          fi
+
+          echo "CI checks:"
+          echo "$CHECKS_JSON" | jq -r '.[] | "  \(.name): \(.state)"'
+
+          PENDING=$(echo "$CHECKS_JSON" | jq '[.[] | select(.bucket == "pending")] | length')
+          FAILING=$(echo "$CHECKS_JSON" | jq '[.[] | select(.bucket == "fail")] | length')
+
+          if [ "$PENDING" -gt 0 ]; then
+            echo "::error::$PENDING check(s) are still pending. Wait for CI to finish before running this workflow."
+            exit 1
+          fi
+          if [ "$FAILING" -gt 0 ]; then
+            echo "::error::$FAILING check(s) have failed. Fix the failures before running this workflow."
+            exit 1
+          fi
+          echo "✅ All CI checks passed"
+
+      - name: Merge PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Merging PR #${{ inputs.pr_number }}..."
+          gh pr merge ${{ inputs.pr_number }} --repo ${{ github.repository }} --merge
+          echo "✅ PR #${{ inputs.pr_number }} merged"
+
+      - name: Checkout main after merge
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Determine version tag
+        id: version
+        run: |
+          if [ -n "${{ inputs.version_tag }}" ]; then
+            echo "tag=${{ inputs.version_tag }}" >> "$GITHUB_OUTPUT"
+            echo "Using provided tag: ${{ inputs.version_tag }}"
+          else
+            LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [ -z "$LATEST_TAG" ]; then
+              echo "No previous tags found, starting from v0.0.1"
+              NEW_TAG="v0.0.1"
+            else
+              echo "Latest tag: $LATEST_TAG"
+              if ! echo "$LATEST_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+                echo "::error::Latest tag '$LATEST_TAG' does not match vX.Y.Z pattern. Provide an explicit version_tag."
+                exit 1
+              fi
+              IFS='.' read -r MAJOR MINOR PATCH <<< "${LATEST_TAG#v}"
+              NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+            fi
+            echo "tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+            echo "Auto-incremented tag: $NEW_TAG"
+          fi
+
+      - name: Verify tag does not exist
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Tag $TAG already exists. Provide a different version_tag."
+            exit 1
+          fi
+          echo "Tag $TAG is available"
+
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.version.outputs.tag }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          echo "Creating tag $TAG on main..."
+          git tag "$TAG"
+          git push origin "$TAG"
+
+          echo "Creating GitHub Release $TAG..."
+          gh release create "$TAG" \
+            --repo "${{ github.repository }}" \
+            --title "$TAG" \
+            --generate-notes \
+            --latest
+
+          echo "✅ Release $TAG created: https://github.com/${{ github.repository }}/releases/tag/$TAG"
