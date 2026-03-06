@@ -39,6 +39,7 @@ class DiagLinearSubsystem : public SimSystem
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) = 0;
 
     virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) = 0;
+    virtual Float do_mass_norm(GlobalLinearSystem::DiagNormInfo& info) = 0;
     virtual U64   get_uid() const noexcept                             = 0;
 
   private:
@@ -56,6 +57,7 @@ class DiagLinearSubsystem : public SimSystem
     void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
     Float diag_norm(GlobalLinearSystem::DiagNormInfo& info);
+    Float mass_norm(GlobalLinearSystem::DiagNormInfo& info);
 
     SizeT m_index = ~0ull;
 

@@ -89,10 +89,28 @@ void SimEngine::advance_AL()
         if(m_global_active_set_manager)
         {
             m_global_active_set_manager->disable();
-            if(m_global_dytopo_effect_manager)
-                m_global_dytopo_effect_manager->compute_dytopo_effect();
-            Float mu = m_global_linear_system->diag_norm()
-                       * m_global_active_set_manager->mu_scale();
+
+            bool  use_diag_norm = true;
+            Float mu;
+
+            if(use_diag_norm)
+            {
+                if(m_global_dytopo_effect_manager)
+                    m_global_dytopo_effect_manager->compute_dytopo_effect();
+                mu = m_global_linear_system->diag_norm()
+                     * m_global_active_set_manager->mu_scale_hess();
+            }
+            else
+            {
+                // only calculate once
+                static Float mass_norm = -1;
+                Float dt = world().scene().config().find<Float>("dt")->view()[0];
+                if(mass_norm < 0)
+                    mass_norm = m_global_linear_system->mass_norm();
+                mu = mass_norm * m_global_active_set_manager->mu_scale_mass() * dt * dt;
+            }
+
+            logger::info("Adaptive mu: {}", mu);
             m_global_active_set_manager->mu(mu);
             m_global_active_set_manager->enable();
         }
@@ -190,10 +208,10 @@ void SimEngine::advance_AL()
             dump_global_surface();
         }
 
-        NewtonToleranceManager::ResultInfo result_info;
-        result_info.frame(m_current_frame);
-        result_info.newton_iter(newton_iter);
-        m_newton_tolerance_manager->check(result_info);
+        // NewtonToleranceManager::ResultInfo result_info;
+        // result_info.frame(m_current_frame);
+        // result_info.newton_iter(newton_iter);
+        // m_newton_tolerance_manager->check(result_info);
 
 
         if(!animation_reach_target())
@@ -300,7 +318,7 @@ void SimEngine::advance_AL()
             if(m_global_active_set_manager)
             {
                 m_global_active_set_manager->record_non_penetrate_positions();
-                m_global_active_set_manager->filter_active();
+                // m_global_active_set_manager->filter_active();
             }
 
             // 2. Predict Motion => x_tilde = x + v * dt
@@ -348,12 +366,7 @@ void SimEngine::advance_AL()
                 // 5) Collect Vertex Displacements Globally
                 m_global_vertex_manager->collect_vertex_displacements();
 
-
-                // 6) Check Termination Condition
-                bool converged  = convergence_check(newton_iter);
-                bool terminated = converged && (newton_iter >= newton_min_iter);
-
-                // 7) Begin Line Search
+                // 6) Begin Line Search
                 m_state = SimEngineState::LineSearch;
                 {
                     Timer timer{"Line Search"};
@@ -375,7 +388,6 @@ void SimEngine::advance_AL()
                     // Compute Test Energy => E
                     Float E = compute_energy(alpha);
 
-                    if(!converged)
                     {
                         SizeT line_search_iter = 0;
                         while(line_search_iter < m_line_searcher->max_iter())
@@ -402,7 +414,7 @@ void SimEngine::advance_AL()
                     }
                 }
 
-                // 8) CCD for AL contact
+                // 7) CCD for AL contact
                 m_state = SimEngineState::AdvanceNonPenetrate;
                 if(m_global_active_set_manager)
                 {
@@ -411,7 +423,7 @@ void SimEngine::advance_AL()
 
                     // Setup Displacements for CCD
                     m_global_vertex_manager->prepare_AL_CCD();
-                    detect_trajectory_candidates(alpha);
+                    detect_trajectory_candidates(1.0);
                     alpha = filter_toi(1.0);
                     m_global_active_set_manager->update_active_set();
                     m_global_vertex_manager->post_AL_CCD();
@@ -421,6 +433,9 @@ void SimEngine::advance_AL()
 
                 // Update alpha and beta for next iteration
                 beta = beta + (1 - beta) * alpha;
+
+                bool converged = convergence_check(newton_iter);
+                bool terminated = converged && newton_iter + 1 >= newton_min_iter;
 
                 if(terminated)
                     break;

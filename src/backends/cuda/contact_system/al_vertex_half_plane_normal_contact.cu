@@ -72,8 +72,9 @@ void ALVertexHalfPlaneNormalContact::Impl::do_compute_energy(GlobalContactManage
                 Es = PH_energies.viewer().name("Es")] __device__(int idx) mutable
                {
                    auto vI = PHs(idx);
+                   auto c  = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
                    Es(idx) = half_plane_penalty_energy(
-                       pow(decay, cnt(idx)) * mu, d0(idx), d_grad(idx), x(vI));
+                       pow(decay, c) * mu, d0(idx), d_grad(idx), x(vI));
                });
 }
 
@@ -112,8 +113,9 @@ void ALVertexHalfPlaneNormalContact::Impl::do_assemble(GlobalContactManager::Gra
                    auto      vI = PHs(idx);
                    Vector3   G;
                    Matrix3x3 H;
+                   auto c = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
                    half_plane_penalty_gradient_hessian(
-                       pow(decay, cnt(idx)) * mu, d0(idx), d_grad(idx), x(vI), G, H);
+                       pow(decay, c) * mu, d0(idx), d_grad(idx), x(vI), G, H);
 
                    Gs(idx).write(vI, G);
                    Hs(idx).write(vI, vI, H);

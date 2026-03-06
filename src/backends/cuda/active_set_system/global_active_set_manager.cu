@@ -38,9 +38,7 @@ void GlobalActiveSetManager::Impl::filter_active()
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(cnt.size(),
-                   [cnt       = cnt.viewer().name("cnt"),
-                    large_cnt = static_cast<int>(
-                        floor(log(1e-20) / log(decay_factor)))] __device__(int i) mutable
+                   [cnt = cnt.viewer().name("cnt"), large_cnt = 1 << 30] __device__(int i) mutable
                    {
                        if(cnt(i) >= 1)
                            cnt(i) = large_cnt;
@@ -79,10 +77,9 @@ void GlobalActiveSetManager::Impl::update_active_set()
                     cnt       = cnt.cviewer().name("cnt"),
                     ij_hash   = ij_hash_input.viewer().name("ij_hash"),
                     sort_idx  = sort_index_input.viewer().name("sort_idx"),
-                    threshold = static_cast<int>(
-                        floor(log(0.01) / log(decay_factor)))] __device__(int i) mutable
+                    threshold = 25] __device__(int i) mutable
                    {
-                       if(i < N0 && cnt(i) <= threshold)
+                       if(i < N0 && abs(cnt(i)) <= threshold)
                        {
                            ij_hash(i) = (static_cast<int64_t>(idx0(i)(0)) << 32)
                                         + static_cast<int64_t>(idx0(i)(1));
@@ -345,8 +342,7 @@ void GlobalActiveSetManager::Impl::linearize_constraints()
                 d_grad      = EE_d_grad.viewer().name("d_grad"),
                 lambda      = EE_lambda.viewer().name("lambda"),
                 cnt         = EE_cnt.viewer().name("cnt"),
-                large_cnt   = static_cast<int>(
-                    floor(log(1e-20) / log(decay_factor)))] __device__(int idx) mutable
+                large_cnt   = 1 << 30] __device__(int idx) mutable
                {
                    Vector2i e0 = edges(EE_idx(idx)[0]), e1 = edges(EE_idx(idx)[1]);
                    Vector4i EE(e0[0], e0[1], e1[0], e1[1]);
@@ -510,12 +506,18 @@ void GlobalActiveSetManager::Impl::update_lambda()
                        if(d + d_shift - lambda / mu > 0)
                        {
                            lambda = 0;
-                           cnt += 1;
+                           if(cnt >= 0)
+                               cnt++;
+                           else
+                               cnt--;
                        }
                        else
                        {
                            lambda -= (d + d_shift) * mu;
-                           cnt = 0;
+                           if(cnt == 0 || cnt > 5)
+                               cnt = 0;
+                           else
+                               cnt = -1;
                        }
                    });
     }
@@ -544,12 +546,18 @@ void GlobalActiveSetManager::Impl::update_lambda()
                    if(d + d_shift - lambda / mu > 0)
                    {
                        lambda = 0;
-                       cnt += 1;
+                       if(cnt >= 0)
+                           cnt++;
+                       else
+                           cnt--;
                    }
                    else
                    {
                        lambda -= (d + d_shift) * mu;
-                       cnt = 0;
+                       if(cnt == 0 || cnt > 5)
+                           cnt = 0;
+                       else
+                           cnt = -1;
                    }
                });
 
@@ -578,11 +586,18 @@ void GlobalActiveSetManager::Impl::update_lambda()
                    {
                        lambda = 0;
                        cnt += 1;
+                       if(cnt >= 0)
+                           cnt++;
+                       else
+                           cnt--;
                    }
                    else
                    {
                        lambda -= (d + d_shift) * mu;
-                       cnt = 0;
+                       if(cnt == 0 || cnt > 5)
+                           cnt = 0;
+                       else
+                           cnt = -1;
                    }
                });
 }
@@ -759,9 +774,14 @@ Float GlobalActiveSetManager::mu() const
     return m_impl.mu;
 }
 
-Float GlobalActiveSetManager::mu_scale() const
+Float GlobalActiveSetManager::mu_scale_hess() const
 {
-    return m_impl.mu_scale;
+    return m_impl.mu_scale_hess;
+}
+
+Float GlobalActiveSetManager::mu_scale_mass() const
+{
+    return m_impl.mu_scale_mass;
 }
 
 Float GlobalActiveSetManager::decay_factor() const
@@ -791,9 +811,10 @@ muda::BufferView<Vector3> GlobalActiveSetManager::NonPenetratePositionInfo::non_
 void GlobalActiveSetManager::Impl::init(WorldVisitor& world)
 {
     mu             = 0.0;
-    mu_scale       = 0.01;
-    decay_factor   = 0.5;
-    toi_threshold  = 0.001;
+    mu_scale_hess  = 0.01;
+    mu_scale_mass  = 5e6;
+    decay_factor   = 0.3;
+    toi_threshold  = 0.1;
     energy_enabled = true;
 }
 

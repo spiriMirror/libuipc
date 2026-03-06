@@ -29,6 +29,7 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
 
         Float diag_norm(GlobalLinearSystem::DiagNormInfo& info);
+        Float mass_norm(GlobalLinearSystem::DiagNormInfo& info);
 
         SimEngine* sim_engine = nullptr;
 
@@ -76,6 +77,7 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
     virtual U64 get_uid() const noexcept override;
 
     virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) override;
+    virtual Float do_mass_norm(GlobalLinearSystem::DiagNormInfo& info) override;
 
     Impl m_impl;
 };

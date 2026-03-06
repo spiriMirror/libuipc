@@ -507,23 +507,39 @@ void ABDLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
 Float ABDLinearSubsystem::Impl::diag_norm()
 {
     auto diag_hess = abd().diag_hessian.view();
-    diag_blocks_norm.resize(diag_hess.size() * 12);
+    block_norm.resize(diag_hess.size() * 12);
     muda::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(diag_hess.size(),
                [diag_hess        = diag_hess.cviewer().name("diag_hess"),
-                diag_blocks_norm = diag_blocks_norm.viewer().name(
-                    "diag_blocks_norm")] __device__(int idx) mutable
+                diag_blocks_norm = block_norm.viewer().name("diag_blocks_norm"),
+                is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed")] __device__(int idx) mutable
                {
                    for(int i = 0; i < 12; i++)
-                       diag_blocks_norm(idx * 12 + i) = abs(diag_hess(idx)(i, i));
+                       diag_blocks_norm(idx * 12 + i) =
+                           is_fixed(idx) ? 0 : abs(diag_hess(idx)(i, i));
                });
 
-    muda::DeviceReduce().Max(diag_blocks_norm.data(),
-                             reduced_diag_norm.data(),
-                             diag_blocks_norm.size());
+    muda::DeviceReduce().Max(block_norm.data(), reduced_norm.data(), block_norm.size());
 
-    return reduced_diag_norm;
+    return reduced_norm;
+}
+
+Float ABDLinearSubsystem::Impl::mass_norm()
+{
+    auto mass = abd().body_id_to_abd_mass.view();
+    block_norm.resize(mass.size());
+    muda::ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(mass.size(),
+               [mass       = mass.cviewer().name("diag_hess"),
+                block_norm = block_norm.viewer().name("diag_blocks_norm"),
+                is_fixed = abd().body_id_to_is_fixed.cviewer().name("is_fixed")] __device__(int idx) mutable
+               { block_norm(idx) = is_fixed(idx) ? 0 : mass(idx).mass(); });
+
+    muda::DeviceReduce().Max(block_norm.data(), reduced_norm.data(), block_norm.size());
+
+    return reduced_norm;
 }
 
 }  // namespace uipc::backend::cuda
@@ -559,6 +575,12 @@ Float ABDLinearSubsystem::do_diag_norm(GlobalLinearSystem::DiagNormInfo& info)
 {
     return m_impl.diag_norm();
 }
+
+Float ABDLinearSubsystem::do_mass_norm(GlobalLinearSystem::DiagNormInfo& info)
+{
+    return m_impl.mass_norm();
+}
+
 U64 ABDLinearSubsystem::get_uid() const noexcept
 {
     return ABDLinearSubsystemUID;

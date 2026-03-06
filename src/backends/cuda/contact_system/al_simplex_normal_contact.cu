@@ -73,7 +73,8 @@ void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::Energ
                 Es = PT_energies.viewer().name("Es")] __device__(int idx) mutable
                {
                    auto PT = PTs(idx);
-                   Es(idx) = penalty_energy(pow(decay, cnt(idx)) * mu,
+                   auto c  = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
+                   Es(idx) = penalty_energy(pow(decay, c) * mu,
                                             d0(idx),
                                             d_grad(idx),
                                             x(PT(0)),
@@ -95,7 +96,8 @@ void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::Energ
                 Es = EE_energies.viewer().name("Es")] __device__(int idx) mutable
                {
                    auto EE = EEs(idx);
-                   Es(idx) = penalty_energy(pow(decay, cnt(idx)) * mu,
+                   auto c  = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
+                   Es(idx) = penalty_energy(pow(decay, c) * mu,
                                             d0(idx),
                                             d_grad(idx),
                                             x(EE(0)),
@@ -143,7 +145,8 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
                    auto        PT = PTs(idx);
                    Vector12    G;
                    Matrix12x12 H;
-                   penalty_gradient_hessian(pow(decay, cnt(idx)) * mu,
+                   auto c = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
+                   penalty_gradient_hessian(pow(decay, c) * mu,
                                             d0(idx),
                                             d_grad(idx),
                                             x(PT(0)),
@@ -176,7 +179,8 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
                    auto        EE = EEs(idx);
                    Vector12    G;
                    Matrix12x12 H;
-                   penalty_gradient_hessian(pow(decay, cnt(idx)) * mu,
+                   auto c = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
+                   penalty_gradient_hessian(pow(decay, c) * mu,
                                             d0(idx),
                                             d_grad(idx),
                                             x(EE(0)),

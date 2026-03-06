@@ -31,7 +31,7 @@ void GlobalLinearSystem::do_build()
 
 void GlobalLinearSystem::_dump_A_b()
 {
-    auto path_tool     = BackendPathTool(workspace());
+    auto path_tool = BackendPathTool(workspace());
     auto output_folder = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
     auto output_path_A = fmt::format("{}A.{}.{}.mtx",
                                      output_folder.string(),
@@ -50,7 +50,7 @@ void GlobalLinearSystem::_dump_A_b()
 
 void GlobalLinearSystem::_dump_x()
 {
-    auto path_tool   = BackendPathTool(workspace());
+    auto path_tool = BackendPathTool(workspace());
     auto output_folder = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
     export_vector_market(fmt::format("{}x.{}.{}.mtx",
                                      output_folder.string(),
@@ -82,9 +82,16 @@ void GlobalLinearSystem::solve()
     m_impl.distribute_solution();
 }
 
-Float GlobalLinearSystem::diag_norm() {
+Float GlobalLinearSystem::diag_norm()
+{
     m_impl.build_linear_system();
     return m_impl.diag_norm();
+}
+
+Float GlobalLinearSystem::mass_norm()
+{
+    m_impl.build_linear_system();
+    return m_impl.mass_norm();
 }
 
 void GlobalLinearSystem::Impl::init()
@@ -506,13 +513,27 @@ bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> 
                                [](bool flag) { return flag; });
 }
 
-Float GlobalLinearSystem::Impl::diag_norm() {
+Float GlobalLinearSystem::Impl::diag_norm()
+{
     Float norm = 0;
 
     for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems.view()))
     {
         DiagNormInfo info(this, diag_subsystem->m_index);
         norm = max(norm, diag_subsystem->diag_norm(info));
+    }
+
+    return norm;
+}
+
+Float GlobalLinearSystem::Impl::mass_norm()
+{
+    Float norm = 0;
+
+    for(auto&& [i, diag_subsystem] : enumerate(diag_subsystems.view()))
+    {
+        DiagNormInfo info(this, diag_subsystem->m_index);
+        norm = max(norm, diag_subsystem->mass_norm(info));
     }
 
     return norm;

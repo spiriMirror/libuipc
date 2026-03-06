@@ -89,7 +89,8 @@ class GlobalActiveSetManager final : public SimSystem
 
         muda::DeviceBuffer<Vector3> non_penetrate_positions;
 
-        Float mu, decay_factor, mu_scale;
+        Float mu, decay_factor;
+        Float mu_scale_hess, mu_scale_mass;
         Float toi_threshold;
         bool  energy_enabled;
 
@@ -142,7 +143,8 @@ class GlobalActiveSetManager final : public SimSystem
     muda::CBufferView<Vector3> non_penetrate_positions() const;
 
     Float mu() const;
-    Float mu_scale() const;
+    Float mu_scale_hess() const;
+    Float mu_scale_mass() const;
     //tex: $\Gamma$
     Float decay_factor() const;
     Float toi_threshold() const;

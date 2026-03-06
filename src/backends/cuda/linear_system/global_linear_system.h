@@ -309,7 +309,7 @@ class GlobalLinearSystem : public SimSystem
         bool accuracy_statisfied(muda::DenseVectorView<Float> r);
 
         Float diag_norm();
-
+        Float mass_norm();
 
         bool        need_debug_dump = false;
         std::string debug_dump_path;
@@ -344,6 +344,7 @@ class GlobalLinearSystem : public SimSystem
 
     // only be called by SimEngine::do_advance()
     Float diag_norm();
+    Float mass_norm();
 
     Impl m_impl;
 
