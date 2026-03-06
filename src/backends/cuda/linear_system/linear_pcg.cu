@@ -108,11 +108,11 @@ void LinearPCG::dump_p_Ap(SizeT k)
 
 void LinearPCG::check_init_rz_nan_inf(Float rz)
 {
-    if(std::isnan(rz) || !std::isfinite(rz)) [[unlikely]]
+    if(!std::isfinite(rz)) [[unlikely]]
     {
         auto norm_r = ctx().norm(r.cview());
         auto norm_z = ctx().norm(z.cview());
-        bool r_bad  = std::isnan(norm_r) || !std::isfinite(norm_r);
+        bool r_bad  = !std::isfinite(norm_r);
         auto hint = r_bad ? "gradient assembling produced NaN values, likely due to error in formula implementation" :
                             "preconditioner failed, likely due to inverse matrix calculation failure";
         UIPC_ASSERT(false,
@@ -129,12 +129,12 @@ void LinearPCG::check_init_rz_nan_inf(Float rz)
 
 void LinearPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
 {
-    if(std::isnan(rz) || !std::isfinite(rz)) [[unlikely]]
+    if(!std::isfinite(rz)) [[unlikely]]
     {
         auto norm_r = ctx().norm(r.cview());
         auto norm_z = ctx().norm(z.cview());
-        bool r_ok   = !std::isnan(norm_r) && std::isfinite(norm_r);
-        bool z_bad  = std::isnan(norm_z) || !std::isfinite(norm_z);
+        bool r_ok   = std::isfinite(norm_r);
+        bool z_bad  = !std::isfinite(norm_z);
         auto hint = (r_ok && z_bad) ?
                         "preconditioner failed, likely due to inverse matrix calculation failure" :
                         "PCG iteration diverged";
