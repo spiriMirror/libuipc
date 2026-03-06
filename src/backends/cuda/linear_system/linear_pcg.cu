@@ -11,12 +11,19 @@ REGISTER_SIM_SYSTEM(LinearPCG);
 
 void LinearPCG::do_build(BuildInfo& info)
 {
+    auto& config = world().scene().config();
+
+    auto solver_attr = config.find<std::string>("linear_system/solver");
+    std::string solver_name = solver_attr ? solver_attr->view()[0] : std::string{"pcg"};
+    if(solver_name != "pcg")
+    {
+        throw SimSystemException("LinearPCG unused");
+    }
+
     auto& global_linear_system = require<GlobalLinearSystem>();
 
     // TODO: get info from the scene, now we just use the default value
     max_iter_ratio = 2;
-
-    auto& config = world().scene().config();
 
     auto tol_rate_attr = config.find<Float>("linear_system/tol_rate");
     global_tol_rate    = tol_rate_attr->view()[0];
