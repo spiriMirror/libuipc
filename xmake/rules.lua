@@ -7,7 +7,7 @@ rule("component")
         end
     end)
 
-local cuda_warnings = "--diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,55,221,27,1028,20208"
+local cuda_warnings = "--diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,55,221,1028,20208"
 
 rule("cuda_warning")
     on_config(function (target)

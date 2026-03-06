@@ -68,7 +68,7 @@ xpack("pyuipc")
             "--source_dir=" .. path.join(build_dir, "src"),
             "--output_dir=" .. path.join(build_dir, "src"),
             "--build_type=" .. config.get("mode"),
-        }, {setenvs = {["LD_LIBRARY_PATH"] = LD_LIBRARY_PATH}})
+        }, {setenvs = {["LD_LIBRARY_PATH"] = path.joinenv(LD_LIBRARY_PATH)}})
 
         -- Build .whl file
         local cuda_version = helper.get_cuda_version()

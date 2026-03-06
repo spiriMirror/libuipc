@@ -1,4 +1,5 @@
 import sys
+import shutil
 import argparse as ap
 import pathlib
 from mypy import stubgen
@@ -7,9 +8,10 @@ def generate_stub(source_dir, output_dir, build_type):
     PACKAGE_NAME = 'pyuipc'
     typings_dir = output_dir
 
-    # clear the typings directory
     typings_folder = typings_dir / PACKAGE_NAME
-    print(f'Clear typings directory: {typings_folder}')
+    if typings_folder.exists():
+        print(f'Clearing typings directory: {typings_folder}')
+        shutil.rmtree(typings_folder)
 
     target_dir = source_dir / 'uipc' / 'modules' / build_type
 
