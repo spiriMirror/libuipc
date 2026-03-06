@@ -58,11 +58,56 @@ void LinearPipePCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
     info.iter_count(iter);
 }
 
+// x += alpha * p,  r -= alpha * Ap
+static void pipe_update_xr(Float                         alpha,
+                            muda::DenseVectorView<Float>  x,
+                            muda::CDenseVectorView<Float> p,
+                            muda::DenseVectorView<Float>  r,
+                            muda::CDenseVectorView<Float> Ap)
+{
+    using namespace muda;
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(r.size(),
+               [alpha = alpha,
+                x     = x.viewer().name("x"),
+                r     = r.viewer().name("r"),
+                p     = p.cviewer().name("p"),
+                Ap    = Ap.cviewer().name("Ap")] __device__(int i) mutable
+               {
+                   x(i) += alpha * p(i);
+                   r(i) -= alpha * Ap(i);
+               });
+}
+
+// p = z + beta * p,  Ap = w + beta * Ap  (direction + look-ahead recurrence)
+static void pipe_update_p_Ap(Float                         beta,
+                              muda::DenseVectorView<Float>  p,
+                              muda::CDenseVectorView<Float> z,
+                              muda::DenseVectorView<Float>  Ap,
+                              muda::CDenseVectorView<Float> w)
+{
+    using namespace muda;
+    ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(p.size(),
+               [beta = beta,
+                p    = p.viewer().name("p"),
+                z    = z.cviewer().name("z"),
+                Ap   = Ap.viewer().name("Ap"),
+                w    = w.cviewer().name("w")] __device__(int i) mutable
+               {
+                   Float pi  = p(i);
+                   Float api = Ap(i);
+                   p(i)  = z(i) + beta * pi;
+                   Ap(i) = w(i) + beta * api;
+               });
+}
+
 SizeT LinearPipePCG::pipe_pcg(muda::DenseVectorView<Float> x,
                                muda::CDenseVectorView<Float> b,
                                SizeT                          max_iter)
 {
-    using namespace muda;
     Timer pipe_pcg_timer{"PipePCG"};
 
     SizeT k = 0;
@@ -102,20 +147,8 @@ SizeT LinearPipePCG::pipe_pcg(muda::DenseVectorView<Float> x,
         Float pAp   = ctx().dot(p.cview(), Ap.cview());
         Float alpha = rz / pAp;
 
-        // x += alpha * p
-        // r -= alpha * Ap
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(r.size(),
-                   [alpha = alpha,
-                    x     = x.viewer().name("x"),
-                    r     = r.viewer().name("r"),
-                    p     = p.cview().cviewer().name("p"),
-                    Ap    = Ap.cview().cviewer().name("Ap")] __device__(int i) mutable
-                   {
-                       x(i) += alpha * p(i);
-                       r(i) -= alpha * Ap(i);
-                   });
+        // x += alpha * p,  r -= alpha * Ap
+        pipe_update_xr(alpha, x, p.cview(), r.view(), Ap.cview());
 
         // z = P^{-1} * r_new  (pipelined: preconditioning before the dot)
         {
@@ -138,22 +171,8 @@ SizeT LinearPipePCG::pipe_pcg(muda::DenseVectorView<Float> x,
 
         Float beta = rz_new / rz;
 
-        // p  = z + beta * p
-        // Ap = w + beta * Ap   (recurrence: avoids a standalone SpMV next iteration)
-        ParallelFor()
-            .file_line(__FILE__, __LINE__)
-            .apply(r.size(),
-                   [beta = beta,
-                    p    = p.viewer().name("p"),
-                    z    = z.cview().cviewer().name("z"),
-                    Ap   = Ap.viewer().name("Ap"),
-                    w    = w.cview().cviewer().name("w")] __device__(int i) mutable
-                   {
-                       Float pi  = p(i);
-                       Float api = Ap(i);
-                       p(i)  = z(i) + beta * pi;
-                       Ap(i) = w(i) + beta * api;
-                   });
+        // p = z + beta * p,  Ap = w + beta * Ap
+        pipe_update_p_Ap(beta, p.view(), z.cview(), Ap.view(), w.cview());
 
         rz = rz_new;
     }
