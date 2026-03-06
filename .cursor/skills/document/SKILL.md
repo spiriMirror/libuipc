@@ -1,6 +1,6 @@
 ---
+name: document
 description: Documentation style guide and rules for creating documentation
-alwaysApply: false
 ---
 
 # Document Rules

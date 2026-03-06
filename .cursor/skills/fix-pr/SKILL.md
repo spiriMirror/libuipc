@@ -1,3 +1,9 @@
+---
+name: fix-pr
+description: Fix a pull request based on review feedback
+disable-model-invocation: true
+---
+
 # Fix PR
 
 ## Overview

@@ -1,8 +1,8 @@
 ---
+name: cursor-rules
 description: How to add or edit Cursor rules in our project
-globs:
-alwaysApply: false
 ---
+
 # Cursor Rules Location
 
 How to add new cursor rules to the project
@@ -50,4 +50,3 @@ Main content explaining the rule with markdown formatting.
 1. Step-by-step instructions
 2. Code examples
 3. Guidelines
-

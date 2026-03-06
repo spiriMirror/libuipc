@@ -1,6 +1,6 @@
 ---
+name: commit-convention
 description: Conventional commit message format and rules for this project
-alwaysApply: false
 ---
 
 # Commit Convention

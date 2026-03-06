@@ -1,3 +1,9 @@
+---
+name: commit
+description: Create a well-formatted conventional commit
+disable-model-invocation: true
+---
+
 # Commit
 
 ## Overview
