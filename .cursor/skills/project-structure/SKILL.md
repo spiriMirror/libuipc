@@ -1,6 +1,6 @@
 ---
+name: project-structure
 description: Overview of the main directories and important files in the repository. Use this to understand the project layout and find where code lives.
-alwaysApply: false
 ---
 
 # Project Structure Guide

@@ -1,6 +1,6 @@
 ---
+name: repository-setup
 description: Guide for setting up repository remotes when working with forks
-alwaysApply: false
 ---
 
 # Repository Setup for Forks

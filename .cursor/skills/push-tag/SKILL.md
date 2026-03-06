@@ -1,3 +1,9 @@
+---
+name: push-tag
+description: Push a version tag and optionally create a GitHub release
+disable-model-invocation: true
+---
+
 # Push Tag
 
 ## Overview

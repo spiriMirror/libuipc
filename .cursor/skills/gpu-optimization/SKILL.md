@@ -1,6 +1,6 @@
 ---
+name: gpu-optimization
 description: GPU optimization workflow using uipc.profile, uipc.profile.nsight, and Nsight Compute CLI. Use when profiling, optimizing, or benchmarking CUDA kernels.
-alwaysApply: false
 ---
 
 # GPU Optimization Pipeline

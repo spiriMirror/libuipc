@@ -1,3 +1,9 @@
+---
+name: run-tests
+description: Run C++ and Python tests
+disable-model-invocation: true
+---
+
 # Run Tests
 
 ## Overview

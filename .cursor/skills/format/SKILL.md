@@ -1,3 +1,9 @@
+---
+name: format
+description: Format C++ code using clang-format
+disable-model-invocation: true
+---
+
 # Format
 
 ## Overview

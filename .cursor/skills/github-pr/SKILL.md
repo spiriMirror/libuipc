@@ -1,3 +1,9 @@
+---
+name: github-pr
+description: Create a well-structured pull request with proper description
+disable-model-invocation: true
+---
+
 # Create PR
 
 ## Overview

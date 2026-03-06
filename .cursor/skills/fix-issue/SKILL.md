@@ -1,3 +1,9 @@
+---
+name: fix-issue
+description: Fix a GitHub issue with proper branch, testing, and PR workflow
+disable-model-invocation: true
+---
+
 # Fix Issue
 
 ## 1. Identify the Issue
