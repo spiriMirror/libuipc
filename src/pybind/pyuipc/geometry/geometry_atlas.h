@@ -6,6 +6,6 @@ namespace pyuipc::geometry
 class PyGeometryAtlas
 {
   public:
-    PyGeometryAtlas(py::module& m);
+    PyGeometryAtlas(py::module_& m);
 };
 }  // namespace pyuipc::geometry

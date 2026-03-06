@@ -6,7 +6,7 @@ namespace pyuipc::builtin
 class PyConstitutionType
 {
   public:
-    PyConstitutionType(py::module& m);
+    PyConstitutionType(py::module_& m);
 };
 }  // namespace pyuipc::builtin
 

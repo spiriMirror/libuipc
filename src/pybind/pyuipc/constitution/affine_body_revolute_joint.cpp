@@ -6,7 +6,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyRevoluteJoint::PyAffineBodyRevoluteJoint(py::module& m)
+PyAffineBodyRevoluteJoint::PyAffineBodyRevoluteJoint(py::module_& m)
 {
     auto class_AffineBodyRevoluteJoint =
         py::class_<AffineBodyRevoluteJoint, InterAffineBodyConstitution>(

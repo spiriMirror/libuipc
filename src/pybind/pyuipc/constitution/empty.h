@@ -5,6 +5,6 @@ namespace pyuipc::constitution
 class PyEmpty
 {
   public:
-    PyEmpty(py::module& m);
+    PyEmpty(py::module_& m);
 };
 }  // namespace pyuipc::constitution

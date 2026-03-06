@@ -6,7 +6,7 @@
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
-PySimplicialComplexIO::PySimplicialComplexIO(py::module& m)
+PySimplicialComplexIO::PySimplicialComplexIO(py::module_& m)
 {
     auto class_SimplicialComplexIO = py::class_<SimplicialComplexIO>(
         m, "SimplicialComplexIO", R"(SimplicialComplexIO class for reading and writing simplicial complexes to/from files.)");
@@ -14,19 +14,20 @@ PySimplicialComplexIO::PySimplicialComplexIO(py::module& m)
     class_SimplicialComplexIO.def(py::init<>(), R"(Create a SimplicialComplexIO instance without pre-transform.)");
 
     class_SimplicialComplexIO.def(
-        py::init<>([](const Transform& pre_transform)
-                   { return SimplicialComplexIO(pre_transform); }),
+        "__init__",
+        [](SimplicialComplexIO* self, const Transform& pre_transform)
+        { new(self) SimplicialComplexIO(pre_transform); },
         py::arg("pre_transform"),
         R"(Create a SimplicialComplexIO instance with a pre-transform.
 Args:
     pre_transform: Transform to apply before reading/writing.)");
 
-    class_SimplicialComplexIO.def(py::init<>(
-                                      [](py::array_t<Float> pre_transform)
-                                      {
-                                          auto mat = to_matrix<Matrix4x4>(pre_transform);
-                                          return SimplicialComplexIO(mat);
-                                      }),
+    class_SimplicialComplexIO.def("__init__",
+                                  [](SimplicialComplexIO* self, numpy_array<Float> pre_transform)
+                                  {
+                                      auto mat = to_matrix<Matrix4x4>(pre_transform);
+                                      new(self) SimplicialComplexIO(mat);
+                                  },
                                   py::arg("pre_transform"),
                                   R"(Create a SimplicialComplexIO instance with a pre-transform matrix.
 Args:

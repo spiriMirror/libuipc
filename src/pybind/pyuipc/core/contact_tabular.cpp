@@ -5,7 +5,7 @@
 
 namespace uipc::geometry
 {
-namespace py = pybind11;
+namespace py = nanobind;
 template <>
 class AttributeFriend<pyuipc::core::PyContactTabular>
 {
@@ -23,7 +23,7 @@ class AttributeFriend<pyuipc::core::PyContactTabular>
 namespace pyuipc::core
 {
 using namespace uipc::core;
-PyContactTabular::PyContactTabular(py::module& m)
+PyContactTabular::PyContactTabular(py::module_& m)
 {
     {
         auto class_ContactElement = py::class_<ContactElement>(
@@ -141,7 +141,7 @@ Returns:
 
         class_ContactTabular.def("default_element",
                                  &ContactTabular::default_element,
-                                 py::return_value_policy::reference_internal,
+                                 py::rv_policy::reference_internal,
                                  R"(Get the default contact element.
 Returns:
     ContactElement: Reference to default element.)");
@@ -189,7 +189,7 @@ Args:
             "default_model",
             [](ContactTabular& self) -> ContactModel
             { return self.default_model(); },
-            py::return_value_policy::move,
+            py::rv_policy::move,
             R"(Get the default contact model.
 Returns:
     ContactModel: Default contact model.)");
@@ -198,7 +198,7 @@ Returns:
             "at",
             [](ContactTabular& self, IndexT i, IndexT j) -> ContactModel
             { return self.at(i, j); },
-            py::return_value_policy::move,
+            py::rv_policy::move,
             py::arg("i"),
             py::arg("j"),
             R"(Get the contact model between two elements.
@@ -212,7 +212,7 @@ Returns:
             "contact_models",
             [](ContactTabular& self) -> ContactModelCollection
             { return self.contact_models(); },
-            py::return_value_policy::move,
+            py::rv_policy::move,
             R"(Get the contact model collection.
 Returns:
     ContactModelCollection: Collection of contact models.)");

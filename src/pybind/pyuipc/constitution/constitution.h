@@ -6,6 +6,6 @@ namespace pyuipc::constitution
 class PyConstitution
 {
   public:
-    PyConstitution(py::module& m);
+    PyConstitution(py::module_& m);
 };
 }  // namespace pyuipc::constitution

@@ -62,7 +62,7 @@ The codebase uses Data-Oriented Programming with an ECS-inspired RMR pattern for
 - `src/backends/` - Backend implementations loaded as dynamic modules
   - `cuda/` - GPU backend with CUDA kernels
   - `none/` - CPU reference implementation
-- `src/pybind/` - Python bindings via pybind11
+- `src/pybind/` - Python bindings via nanobind
 - `src/io/` - File I/O (obj, gltf, serialization)
 
 ### Key Classes

@@ -58,7 +58,7 @@ Overview of the main directories and important files in the repository.
 
 ### `python/`
 
-- `src/uipc/` - Pure python code to enhance the C++ pybind11 bindings.
+- `src/uipc/` - Pure python code to enhance the C++ nanobind bindings.
 - `tests/` - Python test suite.
 
 ### `scripts/`

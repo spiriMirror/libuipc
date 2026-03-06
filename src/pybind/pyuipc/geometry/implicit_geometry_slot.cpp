@@ -3,17 +3,17 @@
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
-PyImplicitGeometrySlot::PyImplicitGeometrySlot(py::module& m)
+PyImplicitGeometrySlot::PyImplicitGeometrySlot(py::module_& m)
 {
     auto class_ImplicitGeometrySlot =
-        py::class_<ImplicitGeometrySlot, GeometrySlot, S<ImplicitGeometrySlot>>(
+        py::class_<ImplicitGeometrySlot, GeometrySlot>(
             m, "ImplicitGeometrySlot", R"(ImplicitGeometrySlot class representing a slot containing an implicit geometry.)");
 
     class_ImplicitGeometrySlot.def(
         "geometry",
         [&](ImplicitGeometrySlot& self) -> ImplicitGeometry&
         { return self.geometry(); },
-        py::return_value_policy::reference_internal,
+        py::rv_policy::reference_internal,
         R"(Get the implicit geometry in this slot.
 Returns:
     ImplicitGeometry: Reference to the implicit geometry.)");

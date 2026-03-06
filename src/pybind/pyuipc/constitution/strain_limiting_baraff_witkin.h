@@ -5,6 +5,6 @@ namespace pyuipc::constitution
 class PyStrainLimitingBaraffWitkinShell
 {
   public:
-    PyStrainLimitingBaraffWitkinShell(py::module& m);
+    PyStrainLimitingBaraffWitkinShell(py::module_& m);
 };
 }  // namespace pyuipc::constitution

@@ -5,6 +5,6 @@ namespace pyuipc
 class PyUnit
 {
   public:
-    PyUnit(py::module& m);
+    PyUnit(py::module_& m);
 };
 }  // namespace pyuipc

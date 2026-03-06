@@ -10,7 +10,7 @@
 
 namespace pyuipc::builtin
 {
-PyModule::PyModule(py::module& m)
+PyModule::PyModule(py::module_& m)
 {
     PyAttributeName{m};
     PyConstants{m};
