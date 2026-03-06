@@ -13,7 +13,8 @@ target("cuda")
     else
         add_cugencodes("native")
     end
-    add_cuflags("--diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,550,221", {force = true})
+    add_rules("cuda_warning")
+    add_rules("cuda_no_host_compiler_check")    
     add_cuflags("--expt-relaxed-constexpr")
     add_cuflags("--extended-lambda")
     
