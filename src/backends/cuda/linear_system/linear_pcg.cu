@@ -62,22 +62,16 @@ void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
 void LinearPCG::dump_r_z(SizeT k)
 {
 
-    auto path_tool     = BackendPathTool(workspace());
-    auto output_path   = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
-    auto output_path_r = fmt::format("{}r.{}.{}.{}.mtx",
-                                     output_path.string(),
-                                     engine().frame(),
-                                     engine().newton_iter(),
-                                     k);
+    auto path_tool   = BackendPathTool(workspace());
+    auto output_path = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
+    auto output_path_r = fmt::format(
+        "{}r.{}.{}.{}.mtx", output_path.string(), engine().frame(), engine().newton_iter(), k);
 
     export_vector_market(output_path_r, r.cview());
     logger::info("Dumped PCG r to {}", output_path_r);
 
-    auto output_path_z = fmt::format("{}z.{}.{}.{}.mtx",
-                                     output_path.string(),
-                                     engine().frame(),
-                                     engine().newton_iter(),
-                                     k);
+    auto output_path_z = fmt::format(
+        "{}z.{}.{}.{}.mtx", output_path.string(), engine().frame(), engine().newton_iter(), k);
 
     export_vector_market(fmt::format("{}z.{}.{}.{}.mtx",
                                      output_path.string(),
@@ -91,7 +85,7 @@ void LinearPCG::dump_r_z(SizeT k)
 
 void LinearPCG::dump_p_Ap(SizeT k)
 {
-    auto path_tool     = BackendPathTool(workspace());
+    auto path_tool = BackendPathTool(workspace());
     auto output_folder = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
 
     auto output_path_p = fmt::format("{}p.{}.{}.{}.mtx",
@@ -112,21 +106,48 @@ void LinearPCG::dump_p_Ap(SizeT k)
     logger::info("Dumped PCG Ap to {}", output_path_Ap);
 }
 
-void LinearPCG::check_rz_nan_inf(SizeT k)
+void LinearPCG::check_init_rz_nan_inf(Float rz)
 {
-    auto rz = ctx().dot(r.cview(), z.cview());
-    if(std::isnan(rz) || !std::isfinite(rz))
+    if(std::isnan(rz) || !std::isfinite(rz)) [[unlikely]]
     {
         auto norm_r = ctx().norm(r.cview());
         auto norm_z = ctx().norm(z.cview());
-        UIPC_ASSERT(!std::isnan(rz) && std::isfinite(rz),
-                    "Frame {}, Newton: {}, Iteration {}: Residual is {}, norm(r) = {}, norm(z) = {}",
+        bool r_bad  = std::isnan(norm_r) || !std::isfinite(norm_r);
+        auto hint = r_bad ? "gradient assembling produced NaN values, likely due to error in formula implementation" :
+                            "preconditioner failed, likely due to inverse matrix calculation failure";
+        UIPC_ASSERT(false,
+                    "Frame {}, Newton {}, PCG Init: r^T*z = {}, norm(r) = {}, norm(z) = {}. "
+                    "Hint: {}.",
+                    engine().frame(),
+                    engine().newton_iter(),
+                    rz,
+                    norm_r,
+                    norm_z,
+                    hint);
+    }
+}
+
+void LinearPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
+{
+    if(std::isnan(rz) || !std::isfinite(rz)) [[unlikely]]
+    {
+        auto norm_r = ctx().norm(r.cview());
+        auto norm_z = ctx().norm(z.cview());
+        bool r_ok   = !std::isnan(norm_r) && std::isfinite(norm_r);
+        bool z_bad  = std::isnan(norm_z) || !std::isfinite(norm_z);
+        auto hint = (r_ok && z_bad) ?
+                        "preconditioner failed, likely due to inverse matrix calculation failure" :
+                        "PCG iteration diverged";
+        UIPC_ASSERT(false,
+                    "Frame {}, Newton {}, PCG Iter {}: r^T*z = {}, norm(r) = {}, norm(z) = {}. "
+                    "Hint: {}.",
                     engine().frame(),
                     engine().newton_iter(),
                     k,
                     rz,
                     norm_r,
-                    norm_z);
+                    norm_z,
+                    hint);
     }
 }
 
@@ -197,7 +218,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
     // init rz
     // rz = r^T * z
     rz = ctx().dot(r.cview(), z.cview());
-    check_rz_nan_inf(k);
+    check_init_rz_nan_inf(rz);
 
     abs_rz0 = std::abs(rz);
 
@@ -233,7 +254,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
 
         // rz_new = r^T * z
         Float rz_new = ctx().dot(r.cview(), z.cview());
-        check_rz_nan_inf(k);
+        check_iter_rz_nan_inf(rz_new, k);
 
         // check convergence
         if(accuracy_statisfied(r) && std::abs(rz_new) <= global_tol_rate * abs_rz0)
