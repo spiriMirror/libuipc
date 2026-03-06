@@ -4,7 +4,10 @@ the python binding for libuipc
 
 ## Build
 
-Build the wheel:
+
+### uv build
+
+Build the wheel manually (assumes native libraries are already built):
 
 ```bash 
 uv sync --no-dev
@@ -32,6 +35,16 @@ Set the Python interpreter explicitly if needed:
 PYTHON=/path/to/python cmake --preset pybind-dev
 cmake --build --preset pybind-dev
 ```
+
+### xmake pack (recommended)
+
+Build the wheel with xmake, which handles native compilation, dependency bundling, stub generation, and versioning automatically:
+
+```bash
+xmake pack pyuipc
+```
+
+The `.whl` file will be output to `build/xpack/pyuipc/`.
 
 ### Editable install
 

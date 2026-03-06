@@ -9,7 +9,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyuipc"
-version = "0.9.0"
+version = "0.12.0"
 requires-python = ">=3.10, <3.14"
 
 dependencies = [
@@ -20,19 +20,24 @@ dependencies = [
 ]
 
 authors = [
-    {name = "Zihang Zhu", email = "paradise_craftsman@hotmail.com"},
-    {name = "MuGdxy", email = "lxy819469559@gmail.com"}
+    { name = "Zihang Zhu", email = "paradise_craftsman@hotmail.com" },
+    { name = "MuGdxy", email = "lxy819469559@gmail.com" },
 ]
 
-maintainers = [
-    {name = "MuGdxy", email = "lxy819469559@gmail.com"}
-]
+maintainers = [{ name = "MuGdxy", email = "lxy819469559@gmail.com" }]
 
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 description = "A Cross-Platform Modern C++20 Library of Unified Incremental Potential Contact (CUDA 12.6+ required)"
 
-keywords = ["ipc", "computer graphics", "physics simulation", "cuda", "fem", "contact"]
+keywords = [
+    "ipc",
+    "computer graphics",
+    "physics simulation",
+    "cuda",
+    "fem",
+    "contact",
+]
 
 classifiers = [
     "Development Status :: 4 - Beta",
