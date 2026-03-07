@@ -213,7 +213,7 @@ class SceneGUI:
             return
 
         height = float(P.view()[0][1][0])
-        ps.set_ground_plane_mode("shadow_only")
+        ps.set_ground_plane_mode("tile_reflection")
         ps.set_ground_plane_height(height)
 
     def update(self):
