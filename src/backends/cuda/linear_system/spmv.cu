@@ -436,20 +436,23 @@ void Spmv::rbk_sym_spmv_dot(Float                           a,
     constexpr int block_dim   = 256;
     int           block_count = (A.triplet_count() + block_dim - 1) / block_dim;
 
-    muda::ParallelFor(block_count, block_dim)
+    int triplet_count = A.triplet_count();
+
+    muda::Launch(block_count, block_dim)
         .file_line(__FILE__, __LINE__)
-        .apply(A.triplet_count(),
+        .apply(
                [a     = a,
                 A     = A.viewer().name("A"),
                 x     = x.viewer().name("x"),
                 b     = b,
                 y     = y.viewer().name("y"),
-                d_dot = d_dot.data()] __device__(int idx) mutable
+                d_dot = d_dot.viewer().name("d_dot"),
+                triplet_count] __device__() mutable
                {
                    using WarpReduceInt   = cub::WarpReduce<int, warp_size>;
                    using WarpReduceFloat = cub::WarpReduce<Float, warp_size>;
 
-                   auto global_thread_id   = idx;
+                   auto global_thread_id   = blockDim.x * blockIdx.x + threadIdx.x;
                    auto thread_id_in_block = threadIdx.x;
                    auto warp_id            = thread_id_in_block / warp_size;
                    auto lane_id = thread_id_in_block & (warp_size - 1);
@@ -464,17 +467,21 @@ void Spmv::rbk_sym_spmv_dot(Float                           a,
                    int     i      = -1;
                    Flags   flags;
                    Vector3 vec;
+                   vec.setZero();
                    Float   dot_local = 0;
 
                    flags.is_cross_warp = 0;
+                   flags.is_valid      = 0;
+                   flags.is_head       = 0;
 
-                   if(global_thread_id > 0)
+                   if(global_thread_id < triplet_count)
                    {
-                       auto prev_triplet = A(global_thread_id - 1);
-                       prev_i            = prev_triplet.row_index;
-                   }
+                       if(global_thread_id > 0)
+                       {
+                           auto prev_triplet = A(global_thread_id - 1);
+                           prev_i            = prev_triplet.row_index;
+                       }
 
-                   {
                        auto Triplet = A(global_thread_id);
                        i            = Triplet.row_index;
                        auto j       = Triplet.col_index;
@@ -496,15 +503,11 @@ void Spmv::rbk_sym_spmv_dot(Float                           a,
                            Vector3 vec_ = a * Triplet.value.transpose() * x_i;
                            y.segment<N>(j * N).atomic_add(vec_);
                        }
-                   }
 
-                   if(lane_id == 0)
-                   {
-                       flags.is_head = 1;
-                   }
-                   else
-                   {
-                       flags.is_head = b2i(prev_i != i);
+                       if(lane_id == 0)
+                           flags.is_head = 1;
+                       else
+                           flags.is_head = b2i(prev_i != i);
                    }
 
                    vec.x() = WarpReduceFloat(temp_storage_float[warp_id])
@@ -525,18 +528,17 @@ void Spmv::rbk_sym_spmv_dot(Float                           a,
                                                       [](Float a, Float b)
                                                       { return a + b; });
 
-                   if(flags.is_head)
+                   if(flags.is_head && flags.is_valid)
                    {
                        auto seg_y  = y.segment<N>(i * N);
                        auto result = a * vec;
                        seg_y.atomic_add(result.eval());
                    }
 
-                   // Warp-level dot reduction (independent of row segmentation)
-                   for(int offset = warp_size / 2; offset > 0; offset /= 2)
-                       dot_local += __shfl_down_sync(0xFFFFFFFF, dot_local, offset);
+                   dot_local = WarpReduceFloat(temp_storage_float[warp_id])
+                                   .Sum(dot_local);
                    if(lane_id == 0)
-                       atomicAdd(d_dot, dot_local);
+                       atomicAdd(d_dot.data(), dot_local);
                });
 }
 

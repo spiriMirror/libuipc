@@ -14,8 +14,8 @@ void LinearPCG::do_build(BuildInfo& info)
     auto& config = world().scene().config();
 
     auto solver_attr = config.find<std::string>("linear_system/solver");
-    std::string solver_name = solver_attr ? solver_attr->view()[0] : std::string{"linear_pcg"};
-    if(solver_name != "linear_pcg")
+    UIPC_ASSERT(solver_attr, "linear_system/solver not found");
+    if(solver_attr->view()[0] != "linear_pcg")
     {
         throw SimSystemException("LinearPCG unused");
     }
@@ -26,10 +26,12 @@ void LinearPCG::do_build(BuildInfo& info)
     max_iter_ratio = 2;
 
     auto tol_rate_attr = config.find<Float>("linear_system/tol_rate");
+    UIPC_ASSERT(tol_rate_attr, "linear_system/tol_rate not found");
     global_tol_rate    = tol_rate_attr->view()[0];
 
     auto dump_attr  = config.find<IndexT>("extras/debug/dump_linear_pcg");
-    need_debug_dump = dump_attr ? dump_attr->view()[0] : false;
+    UIPC_ASSERT(dump_attr, "extras/debug/dump_linear_pcg not found");
+    need_debug_dump = dump_attr->view()[0];
 
     logger::info("LinearPCG: max_iter_ratio = {}, tol_rate = {}, debug_dump = {}",
                  max_iter_ratio,

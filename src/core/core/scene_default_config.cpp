@@ -25,7 +25,13 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("newton/semi_implicit/beta_tol", Float{1e-3});
 
     config.create("linear_system/tol_rate", Float{1e-3});
-    config.create("linear_system/solver", std::string{"linear_pcg"});
+
+    // default:
+    //  - fused_pcg
+    // or:
+    //  - linear_pcg (30% slower)
+    config.create("linear_system/solver", std::string{"fused_pcg"});
+
     config.create("linear_system/precond/mas/contact_aware", IndexT{1});
     config.create("line_search/max_iter", IndexT{8});
     config.create("line_search/report_energy", IndexT{0});
