@@ -26,9 +26,8 @@ Returns:
 
     class_AffineBodyConstitution.def(
         "apply_to",
-        static_cast<void (AffineBodyConstitution::*)(
-            geometry::SimplicialComplex&, Float, Float) const>(
-            &AffineBodyConstitution::apply_to),
+        [](const AffineBodyConstitution& self, geometry::SimplicialComplex& sc, Float kappa, Float mass_density)
+        { self.apply_to(sc, kappa, mass_density); },
         py::arg("sc"),
         py::arg("kappa"),
         py::arg("mass_density") = 1000.0,
@@ -40,9 +39,12 @@ Args:
 
     class_AffineBodyConstitution.def(
         "apply_to",
-        static_cast<void (AffineBodyConstitution::*)(
-            geometry::SimplicialComplex&, Float, const Matrix12x12&, Float) const>(
-            &AffineBodyConstitution::apply_to),
+        [](const AffineBodyConstitution& self,
+           geometry::SimplicialComplex&  sc,
+           Float                         kappa,
+           py::array_t<Float>            mass,
+           Float                         volume)
+        { self.apply_to(sc, kappa, to_matrix<Matrix12x12>(mass), volume); },
         py::arg("sc"),
         py::arg("kappa"),
         py::arg("mass"),
