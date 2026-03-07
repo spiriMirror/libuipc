@@ -25,6 +25,13 @@ void IterativeSolver::spmv(muda::CDenseVectorView<Float> x, muda::DenseVectorVie
     spmv(1.0, x, 0.0, y);
 }
 
+void IterativeSolver::spmv_dot(muda::CDenseVectorView<Float> x,
+                               muda::DenseVectorView<Float>  y,
+                               muda::VarView<Float>          d_dot)
+{
+    m_system->m_impl.spmv_dot(x, y, d_dot);
+}
+
 void IterativeSolver::apply_preconditioner(muda::DenseVectorView<Float>  z,
                                            muda::CDenseVectorView<Float> r)
 {

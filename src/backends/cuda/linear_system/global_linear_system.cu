@@ -403,14 +403,12 @@ void GlobalLinearSystem::Impl::_assemble_preconditioner()
 void GlobalLinearSystem::Impl::solve_linear_system()
 {
     Timer timer{"Solve Linear System"};
-    if(iterative_solver)
-    {
-        SolvingInfo info{this};
-        info.m_b = b.cview();
-        info.m_x = x.view();
-        iterative_solver->solve(info);
-        logger::info("Iterative linear solver iteration count: {}", info.m_iter_count);
-    }
+    UIPC_ASSERT(iterative_solver, "The iterative solver should not be nullptr.");
+    SolvingInfo info{this};
+    info.m_b = b.cview();
+    info.m_x = x.view();
+    iterative_solver->solve(info);
+    logger::info("Iterative linear solver iteration count: {}", info.m_iter_count);
 }
 
 void GlobalLinearSystem::Impl::distribute_solution()
@@ -477,6 +475,13 @@ void GlobalLinearSystem::Impl::spmv(Float                         a,
     // Just some debug options
     //  * spmver.sym_spmv(a, bcoo_A.cview(), x, b, y);      // Slightly slower
     //  * spmver.cpu_sym_spmv(a, bcoo_A.cview(), x, b, y);  // Much slower
+}
+
+void GlobalLinearSystem::Impl::spmv_dot(muda::CDenseVectorView<Float> x,
+                                        muda::DenseVectorView<Float>  y,
+                                        muda::VarView<Float>          d_dot)
+{
+    spmver.rbk_sym_spmv_dot(1.0, bcoo_A.cview(), x, 0.0, y, d_dot);
 }
 
 bool GlobalLinearSystem::Impl::accuracy_statisfied(muda::DenseVectorView<Float> r)

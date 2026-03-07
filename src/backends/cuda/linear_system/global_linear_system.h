@@ -320,6 +320,7 @@ class GlobalLinearSystem : public SimSystem
                                   muda::CDenseVectorView<Float> r);
 
         void spmv(Float a, muda::CDenseVectorView<Float> x, Float b, muda::DenseVectorView<Float> y);
+        void spmv_dot(muda::CDenseVectorView<Float> x, muda::DenseVectorView<Float> y, muda::VarView<Float> d_dot);
 
         bool accuracy_statisfied(muda::DenseVectorView<Float> r);
 

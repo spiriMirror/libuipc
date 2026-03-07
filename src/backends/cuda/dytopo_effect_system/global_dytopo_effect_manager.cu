@@ -154,10 +154,7 @@ void GlobalDyTopoEffectManager::Impl::_assemble(ComputeDyTopoEffectInfo& info)
             collected_dytopo_effect_gradient.view().subview(g_offset, g_count);
         info.m_hessians = collected_dytopo_effect_hessian.view().subview(h_offset, h_count);
 
-        {
-            Timer timer{reporter->name()};
-            reporter->assemble(info);
-        }
+        reporter->assemble(info);
     }
 }
 
