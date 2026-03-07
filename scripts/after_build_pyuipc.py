@@ -133,24 +133,30 @@ def uninstall_package():
             sys.exit(1)
 
 def install_package(binary_dir):
-    ret = sp.check_call([sys.executable, '-m', 'pip', 'install', f'{binary_dir}/python'])
+    package_dir = str(binary_dir / 'python')
+    ret = sp.check_call([sys.executable, '-m', 'pip', 'install', package_dir])
     if ret != 0:
         print(f'''Automatically installing the package failed.
 Please install the package manually by running:
-{sys.executable} -m pip install {binary_dir}/python''')
+{sys.executable} -m pip install {package_dir}''')
         sys.exit(1)
 
 if __name__ == '__main__':
+    # Force line-buffered stdout so output appears in correct order
+    # when run as a subprocess (e.g. from MSBuild POST_BUILD)
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(line_buffering=True)
+
     args = ap.ArgumentParser(description='Copy the release directory to the project directory')
     args.add_argument('--target', help='target pyuipc shared library', required=True)
     args.add_argument('--project_dir', help='project directory', required=True)
     args.add_argument('--binary_dir', help='CMAKE_BINARY_DIR', required=True)
-    args.add_argument('--config', help='$<CONFIG>', required=True)
+    args.add_argument('--config', help='CMake CONFIG generator expression value', required=True)
     args.add_argument('--build_type', help='CMAKE_BUILD_TYPE', required=True)
     args.add_argument('--build_wheel', help='UIPC_BUILD_PYTHON_WHEEL', required=True)
     args = args.parse_args()
 
-    print(f'config($<CONFIG>): {args.config} | build_type(CMAKE_BUILD_TYPE): {args.build_type}')
+    print(f'config: {args.config} | build_type: {args.build_type}')
 
     pyuipc_lib = pathlib.Path(args.target)
     binary_dir = pathlib.Path(args.binary_dir)
