@@ -137,20 +137,16 @@ class IPCSimplexNormalContact final : public SimplexNormalContact
                            Float D;
                            distance::edge_edge_distance2(flag, E0, E1, E2, E3, D);
                            Vector2 range = D_range(thickness, d_hat);
-
-                           MUDA_ASSERT(is_active_D(range, D),
-                                       "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f), [%d,%d,%d,%d]",
-                                       EE(0),
-                                       EE(1),
-                                       EE(2),
-                                       EE(3),
-                                       D,
-                                       range(0),
-                                       range(1),
-                                       flag(0),
-                                       flag(1),
-                                       flag(2),
-                                       flag(3));
+                           MUDA_ASSERT(
+                               is_active_D(range, D),
+                               "EE[%d,%d,%d,%d] d^2(%f) out of range, (%f,%f)",
+                               EE(0),
+                               EE(1),
+                               EE(2),
+                               EE(3),
+                               D,
+                               range(0),
+                               range(1));
                        }
 
 

@@ -563,6 +563,9 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                        distance::point_point_distance2(V0, V1, D);
 
 
+                       MUDA_ASSERT(D > range.x(),
+                            "Thickness Violated! D(%f) should be > D_range.x(%f)",
+                            D, range.x());
                        if(!is_active_D(range, D))
                            return;  // early return
 
@@ -616,7 +619,10 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                     Float D;
                     distance::point_edge_distance2(flag, Ps[0], Ps[1], Ps[2], D);
 
-                    if(!is_active_D(range, D))
+                    MUDA_ASSERT(D > range.x(),
+                            "Thickness Violated! D(%f) should be > D_range.x(%f)",
+                            D, range.x());
+                       if(!is_active_D(range, D))
                         return;  // early return
 
                     Vector3i offsets;
@@ -702,7 +708,10 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                     MUDA_ASSERT(
                         D > 0.0, "D=%f, V F = (%d,%d,%d,%d)", D, vIs(0), vIs(1), vIs(2), vIs(3));
 
-                    if(!is_active_D(range, D))
+                    MUDA_ASSERT(D > range.x(),
+                            "Thickness Violated! D(%f) should be > D_range.x(%f)",
+                            D, range.x());
+                       if(!is_active_D(range, D))
                         return;  // early return
 
                     Vector4i offsets;
@@ -792,7 +801,10 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                     Float D;
                     distance::edge_edge_distance2(flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
 
-                    if(!is_active_D(range, D))
+                    MUDA_ASSERT(D > range.x(),
+                            "Thickness Violated! D(%f) should be > D_range.x(%f)",
+                            D, range.x());
+                       if(!is_active_D(range, D))
                         return;  // early return
 
                     Float eps_x;
@@ -800,6 +812,7 @@ void LBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& info)
                                                             rest_positions(vIs(1)),
                                                             rest_positions(vIs(2)),
                                                             rest_positions(vIs(3)),
+                                                            static_cast<Float>(1e-3),
                                                             eps_x);
 
                     if(distance::need_mollify(Ps[0], Ps[1], Ps[2], Ps[3], eps_x))

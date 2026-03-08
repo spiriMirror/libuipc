@@ -106,16 +106,10 @@ inline MUDA_GENERIC Vector2 D_range(Float xi, Float d_hat)
 }
 
 /**
- * @brief check if D is active
+ * @brief check if D is in the active range [D_range.x(), D_range.y())
  */
 inline MUDA_GENERIC bool is_active_D(Vector2 D_range, Float D)
 {
-    MUDA_ASSERT(D > D_range.x(),
-                "Thickness Voilated! D(%f) should be larger than the lower bound of D_range (%f,%f)",
-                D,
-                D_range.x(),
-                D_range.y());
-
     return D_range.x() < D && D < D_range.y();
 }
 }  // namespace uipc::backend::cuda

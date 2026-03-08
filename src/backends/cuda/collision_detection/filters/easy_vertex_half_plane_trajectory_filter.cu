@@ -85,6 +85,9 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
 
                            auto range = D_range(thickness, d_hat);
 
+                           MUDA_ASSERT(D > range.x(),
+                                       "Thickness Violated! D(%f) should be > D_range.x(%f)",
+                                       D, range.x());
                            if(is_active_D(range, D))
                            {
                                auto last = atomic_add(num.data(), 1);

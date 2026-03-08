@@ -236,7 +236,17 @@ MUDA_GENERIC Vector<IndexT, 3> point_edge_distance_flag(const Eigen::Vector<T, 3
     F[0] = 1;
 
     Vector<T, 3> e     = e1 - e0;
-    auto         ratio = e.dot(p - e0) / e.squaredNorm();
+    T            e2    = e.squaredNorm();
+    if(e2 <= static_cast<T>(0.0))
+    {
+        // Degenerate edge -> fallback to point-point against the nearest endpoint.
+        T d0 = (p - e0).squaredNorm();
+        T d1 = (p - e1).squaredNorm();
+        F[1] = (d0 <= d1) ? 1 : 0;
+        F[2] = (d0 <= d1) ? 0 : 1;
+        return F;
+    }
+    auto ratio = e.dot(p - e0) / e2;
 
     F[1] = ratio < 1.0 ? 1 : 0;
     F[2] = ratio > 0.0 ? 1 : 0;
@@ -355,6 +365,7 @@ MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
                                               const Eigen::Vector<T, 3>& eb1)
 {
     Vector4i F = {1, 1, 1, 1};  // default EE
+    constexpr T kEeParallelRelTol = static_cast<T>(1e-12);
 
     Eigen::Vector<T, 3> u  = ea1 - ea0;
     Eigen::Vector<T, 3> v  = eb1 - eb0;
@@ -367,6 +378,95 @@ MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
     T                   D  = a * c - b * b;  // always >= 0
     T                   tD = D;  // tc = tN / tD, default tD = D >= 0
     T                   sN, tN;
+    T                   uxv2 = u.cross(v).squaredNorm();
+    bool                near_parallel = (uxv2 <= kEeParallelRelTol * a * c);
+
+    // For near-parallel/collinear edges, avoid the dim==4 EE branch (line-line
+    // distance). Evaluate typed point-edge candidates (PP/PE) and pick the
+    // minimum typed case, following the distance-type idea in C-IPC.
+    if(near_parallel)
+    {
+        T minD = 0;
+        {
+            auto pe_flag = point_edge_distance_flag(ea0, eb0, eb1);
+            if(pe_flag[1] && pe_flag[2])
+                point_edge_distance2(ea0, eb0, eb1, minD);
+            else if(pe_flag[1])
+                point_point_distance2(ea0, eb0, minD);
+            else
+                point_point_distance2(ea0, eb1, minD);
+            if(pe_flag[1] && pe_flag[2])       // PE: Ea0-Eb0Eb1
+                F = Vector4i{1, 0, 1, 1};
+            else if(pe_flag[1])                // PP: Ea0-Eb0
+                F = Vector4i{1, 0, 1, 0};
+            else                               // PP: Ea0-Eb1
+                F = Vector4i{1, 0, 0, 1};
+        }
+
+        {
+            auto pe_flag = point_edge_distance_flag(ea1, eb0, eb1);
+            T    d;
+            if(pe_flag[1] && pe_flag[2])
+                point_edge_distance2(ea1, eb0, eb1, d);
+            else if(pe_flag[1])
+                point_point_distance2(ea1, eb0, d);
+            else
+                point_point_distance2(ea1, eb1, d);
+            if(d < minD)
+            {
+                minD = d;
+                if(pe_flag[1] && pe_flag[2])   // PE: Ea1-Eb0Eb1
+                    F = Vector4i{0, 1, 1, 1};
+                else if(pe_flag[1])            // PP: Ea1-Eb0
+                    F = Vector4i{0, 1, 1, 0};
+                else                           // PP: Ea1-Eb1
+                    F = Vector4i{0, 1, 0, 1};
+            }
+        }
+
+        {
+            auto pe_flag = point_edge_distance_flag(eb0, ea0, ea1);
+            T    d;
+            if(pe_flag[1] && pe_flag[2])
+                point_edge_distance2(eb0, ea0, ea1, d);
+            else if(pe_flag[1])
+                point_point_distance2(eb0, ea0, d);
+            else
+                point_point_distance2(eb0, ea1, d);
+            if(d < minD)
+            {
+                minD = d;
+                if(pe_flag[1] && pe_flag[2])   // PE: Eb0-Ea0Ea1
+                    F = Vector4i{1, 1, 1, 0};
+                else if(pe_flag[1])            // PP: Eb0-Ea0
+                    F = Vector4i{1, 0, 1, 0};
+                else                           // PP: Eb0-Ea1
+                    F = Vector4i{0, 1, 1, 0};
+            }
+        }
+
+        {
+            auto pe_flag = point_edge_distance_flag(eb1, ea0, ea1);
+            T    d;
+            if(pe_flag[1] && pe_flag[2])
+                point_edge_distance2(eb1, ea0, ea1, d);
+            else if(pe_flag[1])
+                point_point_distance2(eb1, ea0, d);
+            else
+                point_point_distance2(eb1, ea1, d);
+            if(d < minD)
+            {
+                if(pe_flag[1] && pe_flag[2])   // PE: Eb1-Ea0Ea1
+                    F = Vector4i{1, 1, 0, 1};
+                else if(pe_flag[1])            // PP: Eb1-Ea0
+                    F = Vector4i{1, 0, 0, 1};
+                else                           // PP: Eb1-Ea1
+                    F = Vector4i{0, 1, 0, 1};
+            }
+        }
+
+        return F;
+    }
 
     // compute the line parameters of the two closest points
     sN = (b * e - c * d);

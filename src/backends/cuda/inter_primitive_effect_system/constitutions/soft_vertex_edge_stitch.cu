@@ -123,6 +123,10 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
 
                 auto rest0_pos    = l_rest_geo->positions().view();
                 auto rest1_pos    = r_rest_geo->positions().view();
+
+                Transform l_transform(l_rest_geo->transforms().view()[0]);
+                Transform r_transform(r_rest_geo->transforms().view()[0]);
+
                 auto topo_view    = topo->view();
                 auto mu_view      = mu_slot->view();
                 auto lambda_view  = lambda_slot->view();
@@ -134,14 +138,16 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
                 {
                     const Vector3i& t = topo_view[i];
                     IndexT  v_id = t(0), e0 = t(1), e1 = t(2);
-                    Vector3 x0 = rest0_pos[v_id];
-                    Vector3 x1 = rest1_pos[e0];
-                    Vector3 x2 = rest1_pos[e1];
+                    Vector3 x0 = l_transform * rest0_pos[v_id];
+                    Vector3 x1 = r_transform * rest1_pos[e0];
+                    Vector3 x2 = r_transform * rest1_pos[e1];
+
+                    constexpr Float geo_degeneracy_tol = 1e-12;
 
                     Float   d    = min_sep_view[i];
                     Vector3 edge = x2 - x1;
                     Float   edge_len = edge.norm();
-                    UIPC_ASSERT(edge_len >= 1e-20,
+                    UIPC_ASSERT(edge_len >= geo_degeneracy_tol,
                                 "SoftVertexEdgeStitch: edge ({},{}) is degenerate",
                                 e0, e1);
                     Vector3 edge_dir = edge / edge_len;
@@ -155,7 +161,7 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
 
                     if(ve_dist < d)
                     {
-                        if(ve_dist < 1e-20)
+                        if(ve_dist < geo_degeneracy_tol)
                         {
                             // collinear: pick arbitrary perpendicular
                             Vector3 arbitrary =

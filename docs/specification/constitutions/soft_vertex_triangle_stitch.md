@@ -62,13 +62,13 @@ where $V_0 = \frac{1}{6} |\det(\mathbf{D}_m)|$ is the rest volume of the tetrahe
 
 When the vertex $\bar{\mathbf{x}}_0$ is too close to the triangle plane $(\bar{\mathbf{x}}_1, \bar{\mathbf{x}}_2, \bar{\mathbf{x}}_3)$ in the rest configuration (signed distance $< d$, where $d$ is `min_separate_distance`):
 
-The rest vertex is placed at the triangle centroid plus $d$ along the outward triangle normal:
+The rest vertex is offset along the triangle normal to achieve exactly distance $d$, while preserving its lateral position on the triangle plane:
 
 $$
-\bar{\mathbf{x}}_0' = \frac{\bar{\mathbf{x}}_1 + \bar{\mathbf{x}}_2 + \bar{\mathbf{x}}_3}{3} + d \, \hat{\mathbf{n}}
+\bar{\mathbf{x}}_0' = \bar{\mathbf{x}}_0 + (\text{sign}(s) \cdot d - s) \, \hat{\mathbf{n}}
 $$
 
-where $\hat{\mathbf{n}}$ is the unit outward normal of the triangle, computed as:
+where $s = \hat{\mathbf{n}} \cdot (\bar{\mathbf{x}}_0 - \bar{\mathbf{x}}_1)$ is the signed distance, and $\hat{\mathbf{n}}$ is the unit triangle normal:
 
 $$
 \hat{\mathbf{n}} = \frac{(\bar{\mathbf{x}}_2 - \bar{\mathbf{x}}_1) \times (\bar{\mathbf{x}}_3 - \bar{\mathbf{x}}_1)}{\|(\bar{\mathbf{x}}_2 - \bar{\mathbf{x}}_1) \times (\bar{\mathbf{x}}_3 - \bar{\mathbf{x}}_1)\|}
