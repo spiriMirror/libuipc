@@ -220,7 +220,8 @@ namespace sym::codim_ipc_simplex_contact
         KappaBarrier(B, kappa, D, d_hat, thickness);
 
         Float eps_x;
-        edge_edge_mollifier_threshold(t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, eps_x);
+        edge_edge_mollifier_threshold(
+            t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, static_cast<Float>(1e-3), eps_x);
 
         Float ek;
         edge_edge_mollifier(Ea0, Ea1, Eb0, Eb1, eps_x, ek);
@@ -279,7 +280,8 @@ namespace sym::codim_ipc_simplex_contact
 
         //tex: $$ \epsilon_x $$
         Float eps_x;
-        edge_edge_mollifier_threshold(t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, eps_x);
+        edge_edge_mollifier_threshold(
+            t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, static_cast<Float>(1e-3), eps_x);
 
         //tex: $$ e_k $$
         Float ek;
@@ -336,7 +338,8 @@ namespace sym::codim_ipc_simplex_contact
         Vector12 GradB = dBdD * GradD;
 
         Float eps_x;
-        edge_edge_mollifier_threshold(t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, eps_x);
+        edge_edge_mollifier_threshold(
+            t0_Ea0, t0_Ea1, t0_Eb0, t0_Eb1, static_cast<Float>(1e-3), eps_x);
 
         Float ek;
         edge_edge_mollifier(Ea0, Ea1, Eb0, Eb1, eps_x, ek);

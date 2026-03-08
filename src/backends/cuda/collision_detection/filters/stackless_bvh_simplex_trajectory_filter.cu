@@ -9,10 +9,12 @@
 #include <utils/simplex_contact_mask_utils.h>
 #include <uipc/common/zip.h>
 #include <utils/primitive_d_hat.h>
+#include <cstdio>
 
 namespace uipc::backend::cuda
 {
 constexpr bool PrintDebugInfo = false;
+constexpr bool PrintKernelZeroDistance = false;
 
 REGISTER_SIM_SYSTEM(StacklessBVHSimplexTrajectoryFilter);
 
@@ -567,7 +569,32 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
                        Float D;
                        distance::point_point_distance2(V0, V1, D);
 
+                       if constexpr(PrintKernelZeroDistance)
+                       {
+                           if(D <= range.x())
+                           {
+                               printf("[SBVH][PP][low-dist] i=%d P=(%d,%d) D=%e range=(%e,%e) "
+                                      "thickness=%e d_hat=%e\n",
+                                      i,
+                                      P0,
+                                      P1,
+                                      D,
+                                      range.x(),
+                                      range.y(),
+                                      thickness,
+                                      d_hat);
+                           }
+                       }
 
+                       MUDA_ASSERT(D > range.x(),
+                                   "Thickness Violated! D(%f) should be > D_range.x(%f), "
+                                   "P=(%d,%d), thickness=%f, d_hat=%f",
+                                   D,
+                                   range.x(),
+                                   P0,
+                                   P1,
+                                   thickness,
+                                   d_hat);
                        if(!is_active_D(range, D))
                            return;  // early return
 
@@ -621,7 +648,41 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
                     Float D;
                     distance::point_edge_distance2(flag, Ps[0], Ps[1], Ps[2], D);
 
-                    if(!is_active_D(range, D))
+                    if constexpr(PrintKernelZeroDistance)
+                    {
+                        if(D <= range.x())
+                        {
+                            printf("[SBVH][PE][low-dist] i=%d V-E=(%d,%d,%d) flag=(%d,%d,%d) "
+                                   "D=%e range=(%e,%e) thickness=%e d_hat=%e\n",
+                                   i,
+                                   vIs(0),
+                                   vIs(1),
+                                   vIs(2),
+                                   flag(0),
+                                   flag(1),
+                                   flag(2),
+                                   D,
+                                   range.x(),
+                                   range.y(),
+                                   thickness,
+                                   d_hat);
+                        }
+                    }
+
+                    MUDA_ASSERT(D > range.x(),
+                                "Thickness Violated! D(%f) should be > D_range.x(%f), "
+                                "V-E=(%d,%d,%d), flag=(%d,%d,%d), thickness=%f, d_hat=%f",
+                                D,
+                                range.x(),
+                                vIs(0),
+                                vIs(1),
+                                vIs(2),
+                                flag(0),
+                                flag(1),
+                                flag(2),
+                                thickness,
+                                d_hat);
+                       if(!is_active_D(range, D))
                         return;  // early return
 
                     Vector3i offsets;
@@ -704,10 +765,48 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
                     Float D;
                     distance::point_triangle_distance2(flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
 
+                    if constexpr(PrintKernelZeroDistance)
+                    {
+                        if(D <= range.x())
+                        {
+                            printf("[SBVH][PT][low-dist] i=%d V-F=(%d,%d,%d,%d) "
+                                   "flag=(%d,%d,%d,%d) D=%e range=(%e,%e) thickness=%e d_hat=%e\n",
+                                   i,
+                                   vIs(0),
+                                   vIs(1),
+                                   vIs(2),
+                                   vIs(3),
+                                   flag(0),
+                                   flag(1),
+                                   flag(2),
+                                   flag(3),
+                                   D,
+                                   range.x(),
+                                   range.y(),
+                                   thickness,
+                                   d_hat);
+                        }
+                    }
+
                     MUDA_ASSERT(
                         D > 0.0, "D=%f, V F = (%d,%d,%d,%d)", D, vIs(0), vIs(1), vIs(2), vIs(3));
 
-                    if(!is_active_D(range, D))
+                    MUDA_ASSERT(D > range.x(),
+                                "Thickness Violated! D(%f) should be > D_range.x(%f), "
+                                "V-F=(%d,%d,%d,%d), flag=(%d,%d,%d,%d), thickness=%f, d_hat=%f",
+                                D,
+                                range.x(),
+                                vIs(0),
+                                vIs(1),
+                                vIs(2),
+                                vIs(3),
+                                flag(0),
+                                flag(1),
+                                flag(2),
+                                flag(3),
+                                thickness,
+                                d_hat);
+                       if(!is_active_D(range, D))
                         return;  // early return
 
                     Vector4i offsets;
@@ -797,7 +896,37 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
                     Float D;
                     distance::edge_edge_distance2(flag, Ps[0], Ps[1], Ps[2], Ps[3], D);
 
-                    if(!is_active_D(range, D))
+                    if constexpr(PrintKernelZeroDistance)
+                    {
+                        if(D <= range.x())
+                        {
+                            printf("[SBVH][EE][low-dist] i=%d E-E=(%d,%d,%d,%d) "
+                                   "flag=(%d,%d,%d,%d) D=%e range=(%e,%e) thickness=%e d_hat=%e\n",
+                                   i,
+                                   vIs(0),
+                                   vIs(1),
+                                   vIs(2),
+                                   vIs(3),
+                                   flag(0),
+                                   flag(1),
+                                   flag(2),
+                                   flag(3),
+                                   D,
+                                   range.x(),
+                                   range.y(),
+                                   thickness,
+                                   d_hat);
+                        }
+                    }
+                    // Corner case: exact/near-zero EE distance may appear for degenerate or
+                    // intersecting edge-edge candidates. Treat it as an active EE pair instead
+                    // of hard-aborting in the trajectory filter stage.
+                    if(D <= range.x())
+                    {
+                        EE = vIs;
+                        return;
+                    }
+                       if(!is_active_D(range, D))
                         return;  // early return
 
                     Float eps_x;
@@ -805,6 +934,7 @@ void StacklessBVHSimplexTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
                                                             rest_positions(vIs(1)),
                                                             rest_positions(vIs(2)),
                                                             rest_positions(vIs(3)),
+                                                            static_cast<Float>(1e-3),
                                                             eps_x);
 
                     if(distance::need_mollify(Ps[0], Ps[1], Ps[2], Ps[3], eps_x))

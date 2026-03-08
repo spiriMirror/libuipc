@@ -33,7 +33,6 @@ class LinearFusedPCG : public IterativeSolver
     muda::DeviceVar<Float> d_rz;
     muda::DeviceVar<Float> d_pAp;
     muda::DeviceVar<Float> d_rz_new;
-    muda::DeviceVar<int>   d_converged;
 
     Float max_iter_ratio  = 2.0;
     Float global_tol_rate = 1e-4;

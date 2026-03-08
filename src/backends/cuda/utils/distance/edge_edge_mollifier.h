@@ -2,18 +2,6 @@
 #include <type_define.h>
 namespace uipc::backend::cuda::distance
 {
-/**
- * @brief Compute the mollifier threshold for edge-edge
- * 
- * Default coeff = 1.0e-3.
- */
-template <typename T>
-MUDA_GENERIC void edge_edge_mollifier_threshold(const Eigen::Vector<T, 3>& ea0_rest,
-                                                const Eigen::Vector<T, 3>& ea1_rest,
-                                                const Eigen::Vector<T, 3>& eb0_rest,
-                                                const Eigen::Vector<T, 3>& eb1_rest,
-                                                T& eps_x);
-
 template <typename T>
 MUDA_GENERIC void edge_edge_mollifier_threshold(const Eigen::Vector<T, 3>& ea0_rest,
                                                 const Eigen::Vector<T, 3>& ea1_rest,

@@ -145,7 +145,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
 
                        Float eps_x;
                        distance::edge_edge_mollifier_threshold(
-                           rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, eps_x);
+                           rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, static_cast<Float>(1e-3), eps_x);
                        if(distance::need_mollify(prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, eps_x))
                        // almost parallel, don't compute energy
                        {
@@ -403,7 +403,8 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                                                   d_hats(EE[2]), d_hats(EE[3]));
 
                            Float eps_x;
-                           distance::edge_edge_mollifier_threshold(rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, eps_x);
+                           distance::edge_edge_mollifier_threshold(
+                               rest_Ea0, rest_Ea1, rest_Eb0, rest_Eb1, static_cast<Float>(1e-3), eps_x);
                            bool mollified = distance::need_mollify(prev_Ea0, prev_Ea1, prev_Eb0, prev_Eb1, eps_x);
 
                            Vector12 G;

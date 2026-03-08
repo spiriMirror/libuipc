@@ -110,6 +110,9 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                 auto rest0_pos = l_rest_geo->positions().view();
                 auto rest1_pos = r_rest_geo->positions().view();
 
+                Transform l_transform(l_rest_geo->transforms().view()[0]);
+                Transform r_transform(r_rest_geo->transforms().view()[0]);
+
                 auto min_sep_slot = geo.instances().find<Float>("min_separate_distance");
                 UIPC_ASSERT(min_sep_slot, "SoftVertexTriangleStitch requires per-instance attribute `min_separate_distance`");
                 auto min_sep_view = min_sep_slot->view();
@@ -123,16 +126,18 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                 {
                     const Vector4i& t = topo_view[i];
                     IndexT  v_id = t(0), tri0 = t(1), tri1 = t(2), tri2 = t(3);
-                    Vector3 x0 = rest0_pos[v_id];
-                    Vector3 x1 = rest1_pos[tri0];
-                    Vector3 x2 = rest1_pos[tri1];
-                    Vector3 x3 = rest1_pos[tri2];
+                    Vector3 x0 = l_transform * rest0_pos[v_id];
+                    Vector3 x1 = r_transform * rest1_pos[tri0];
+                    Vector3 x2 = r_transform * rest1_pos[tri1];
+                    Vector3 x3 = r_transform * rest1_pos[tri2];
 
                     Float   d  = min_sep_view[i];
                     Vector3 e1 = x2 - x1, e2 = x3 - x1;
                     Vector3 normal = e1.cross(e2);
+                    constexpr Float geo_degeneracy_tol = 1e-12;
+
                     Float   nrm    = normal.norm();
-                    UIPC_ASSERT(nrm >= 1e-20,
+                    UIPC_ASSERT(nrm >= geo_degeneracy_tol,
                                 "SoftVertexTriangleStitch: triangle ({},{},{}) is degenerate",
                                 tri0,
                                 tri1,
@@ -142,8 +147,8 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                     Float signed_dist = normal.dot(x0 - x1);
                     if(std::abs(signed_dist) < d)
                     {
-                        Vector3 centroid = (x1 + x2 + x3) / 3.0;
-                        x0               = centroid + d * normal;
+                        Float sign = (signed_dist >= 0) ? 1.0 : -1.0;
+                        x0         = x0 + (sign * d - signed_dist) * normal;
                     }
 
                     Matrix3x3 Dm;

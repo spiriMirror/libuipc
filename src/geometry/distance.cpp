@@ -195,8 +195,18 @@ namespace detail
         Vector<IndexT, 3> F;
         F[0] = 1;
 
-        Vector3 e     = e1 - e0;
-        auto    ratio = e.dot(p - e0) / e.squaredNorm();
+        Vector3 e  = e1 - e0;
+        Float   e2 = e.squaredNorm();
+        if(e2 <= 0.0)
+        {
+            // Degenerate edge -> fallback to point-point against the nearest endpoint.
+            Float d0 = (p - e0).squaredNorm();
+            Float d1 = (p - e1).squaredNorm();
+            F[1]     = (d0 <= d1) ? 1 : 0;
+            F[2]     = (d0 <= d1) ? 0 : 1;
+            return F;
+        }
+        auto ratio = e.dot(p - e0) / e2;
 
         F[1] = ratio < 1.0 ? 1 : 0;
         F[2] = ratio > 0.0 ? 1 : 0;
@@ -307,12 +317,43 @@ namespace detail
         return F;
     }
 
+    static void update_ee_near_parallel_candidate(const Vector3& p,
+                                                   const Vector3& s0,
+                                                   const Vector3& s1,
+                                                   Float&         minD,
+                                                   Vector4i&      F,
+                                                   const Vector4i& F_pe,
+                                                   const Vector4i& F_pp0,
+                                                   const Vector4i& F_pp1,
+                                                   bool            is_initial)
+    {
+        auto pe_flag = point_edge_distance_flag(p, s0, s1);
+        Float d;
+        if(pe_flag[1] && pe_flag[2])
+            point_edge_distance2(p, s0, s1, d);
+        else if(pe_flag[1])
+            point_point_distance2(p, s0, d);
+        else
+            point_point_distance2(p, s1, d);
+        if(is_initial || d < minD)
+        {
+            minD = d;
+            if(pe_flag[1] && pe_flag[2])
+                F = F_pe;
+            else if(pe_flag[1])
+                F = F_pp0;
+            else
+                F = F_pp1;
+        }
+    }
+
     static Vector4i edge_edge_distance_flag(const Vector3& ea0,
                                             const Vector3& ea1,
                                             const Vector3& eb0,
                                             const Vector3& eb1)
     {
         Vector4i F = {1, 1, 1, 1};  // default EE
+        constexpr Float kEeParallelRelTol = 1e-12;
 
         Vector3 u  = ea1 - ea0;
         Vector3 v  = eb1 - eb0;
@@ -325,6 +366,37 @@ namespace detail
         Float   D  = a * c - b * b;  // always >= 0
         Float   tD = D;              // tc = tN / tD, default tD = D >= 0
         Float   sN, tN;
+        Float   uxv2          = u.cross(v).squaredNorm();
+        bool    near_parallel = (uxv2 <= kEeParallelRelTol * a * c);
+
+        // For near-parallel/collinear edges, avoid the dim==4 EE branch (line-line
+        // distance). Evaluate typed point-edge candidates (PP/PE) and pick the
+        // minimum typed case, following the distance-type idea in C-IPC.
+        if(near_parallel)
+        {
+            Float minD = 0;
+            update_ee_near_parallel_candidate(ea0, eb0, eb1, minD, F,
+                                             Vector4i{1, 0, 1, 1},
+                                             Vector4i{1, 0, 1, 0},
+                                             Vector4i{1, 0, 0, 1},
+                                             true);
+            update_ee_near_parallel_candidate(ea1, eb0, eb1, minD, F,
+                                             Vector4i{0, 1, 1, 1},
+                                             Vector4i{0, 1, 1, 0},
+                                             Vector4i{0, 1, 0, 1},
+                                             false);
+            update_ee_near_parallel_candidate(eb0, ea0, ea1, minD, F,
+                                             Vector4i{1, 1, 1, 0},
+                                             Vector4i{1, 0, 1, 0},
+                                             Vector4i{0, 1, 1, 0},
+                                             false);
+            update_ee_near_parallel_candidate(eb1, ea0, ea1, minD, F,
+                                             Vector4i{1, 1, 0, 1},
+                                             Vector4i{1, 0, 0, 1},
+                                             Vector4i{0, 1, 0, 1},
+                                             false);
+            return F;
+        }
 
         // compute the line parameters of the two closest points
         sN = (b * e - c * d);
