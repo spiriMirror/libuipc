@@ -14,7 +14,7 @@
 namespace uipc::backend::cuda
 {
 constexpr bool PrintDebugInfo = false;
-constexpr bool PrintKernelZeroDistance = true;
+constexpr bool PrintKernelZeroDistance = false;
 
 REGISTER_SIM_SYSTEM(StacklessBVHSimplexTrajectoryFilter);
 
