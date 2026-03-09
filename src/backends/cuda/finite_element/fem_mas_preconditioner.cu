@@ -64,7 +64,7 @@ void apply_diag_inv_for_unpartitioned(
     const muda::DeviceBuffer<int>&       unpart_flags,
     muda::DenseVectorView<Float>         z,
     muda::CDenseVectorView<Float>        r,
-    muda::CVarView<int>                  converged,
+    muda::CVarView<IndexT>               converged,
     SizeT                                num_verts)
 {
     using namespace muda;

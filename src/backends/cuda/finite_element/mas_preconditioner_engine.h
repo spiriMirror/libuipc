@@ -84,7 +84,7 @@ class MASPreconditionerEngine
 
     void apply(muda::CDenseVectorView<Float> r,
                muda::DenseVectorView<Float>  z,
-               muda::CVarView<int>           converged);
+               muda::CVarView<IndexT>        converged);
 
     bool is_initialized() const { return m_initialized; }
 
@@ -128,10 +128,10 @@ class MASPreconditionerEngine
 
     // Preconditioning steps
     void build_multi_level_R(const double3* R,
-                             muda::CVarView<int> converged);
-    void schwarz_local_solve(muda::CVarView<int> converged);
+                             muda::CVarView<IndexT> converged);
+    void schwarz_local_solve(muda::CVarView<IndexT> converged);
     void collect_final_Z(double3* Z,
-                         muda::CVarView<int> converged);
+                         muda::CVarView<IndexT> converged);
 
   private:
     // ---- State ----

@@ -428,7 +428,7 @@ void GlobalLinearSystem::Impl::distribute_solution()
 
 void GlobalLinearSystem::Impl::apply_preconditioner(muda::DenseVectorView<Float> z,
                                                     muda::CDenseVectorView<Float> r,
-                                                    muda::CVarView<int>           converged)
+                                                    muda::CVarView<IndexT>        converged)
 {
     auto diag_dof_counts  = diag_dof_offsets_counts.counts();
     auto diag_dof_offsets = diag_dof_offsets_counts.offsets();

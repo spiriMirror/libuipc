@@ -149,7 +149,7 @@ void fused_dot(muda::CDenseVectorView<Float> x,
 // Same as linear_pcg update_xr: alpha = rz/pAp, x += alpha*p, r -= alpha*Ap. Alpha computed on device from d_rz, d_pAp.
 void fused_update_xr(muda::CVarView<Float>         d_rz,
                      muda::CVarView<Float>         d_pAp,
-                     muda::CVarView<int>           d_converged,
+                     muda::CVarView<IndexT>        d_converged,
                      muda::DenseVectorView<Float>  x,
                      muda::CDenseVectorView<Float> p,
                      muda::DenseVectorView<Float>  r,
@@ -180,7 +180,7 @@ void fused_update_xr(muda::CVarView<Float>         d_rz,
 // Convergence is guarded by d_converged.
 void fused_update_p(muda::CVarView<Float>         d_rz_new,
                     muda::CVarView<Float>         d_rz,
-                    muda::CVarView<int>           d_converged,
+                    muda::CVarView<IndexT>        d_converged,
                     muda::DenseVectorView<Float>  p,
                     muda::CDenseVectorView<Float> z)
 {
@@ -205,7 +205,7 @@ void fused_update_p(muda::CVarView<Float>         d_rz_new,
 // d_rz = d_rz_new when not converged (single-thread write).
 void fused_swap_rz(muda::CVarView<Float> d_rz_new,
                    muda::VarView<Float>  d_rz,
-                   muda::CVarView<int>   d_converged)
+                   muda::CVarView<IndexT> d_converged)
 {
     using namespace muda;
 
@@ -222,7 +222,9 @@ void fused_swap_rz(muda::CVarView<Float> d_rz_new,
             });
 }
 
-void fused_update_converged(muda::CVarView<Float> d_rz_new, muda::VarView<int> d_converged, Float rz_tol)
+void fused_update_converged(muda::CVarView<Float> d_rz_new,
+                            muda::VarView<IndexT> d_converged,
+                            Float                 rz_tol)
 {
     using namespace muda;
 
@@ -245,7 +247,7 @@ SizeT LinearFusedPCG::fused_pcg(muda::DenseVectorView<Float>  x,
     Timer pcg_timer{"FusedPCG"};
 
     SizeT k = 0;
-    cudaMemsetAsync(d_converged.data(), 0, sizeof(int));
+    d_converged = 0;
 
     // r = b - A*x, but x0 = 0 so r = b
     r.buffer_view().copy_from(b.buffer_view());

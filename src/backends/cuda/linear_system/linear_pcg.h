@@ -30,7 +30,7 @@ class LinearPCG : public IterativeSolver
     DeviceDenseVector r;   // residual
     DeviceDenseVector p;   // search direction
     DeviceDenseVector Ap;  // A*p
-    muda::DeviceVar<int> d_converged_false;
+    muda::DeviceVar<IndexT> d_converged_false;
 
     Float max_iter_ratio  = 2.0;
     Float global_tol_rate = 1e-4;

@@ -1069,7 +1069,7 @@ void MASPreconditionerEngine::invert_cluster_matrices()
 // Restrict: accumulate residual R from fine to all coarser levels
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::build_multi_level_R(const double3* R,
-                                                  muda::CVarView<int> converged)
+                                                  muda::CVarView<IndexT> converged)
 {
     using namespace muda;
     int N = m_total_map_nodes;
@@ -1193,7 +1193,7 @@ void MASPreconditionerEngine::build_multi_level_R(const double3* R,
 // ---------------------------------------------------------------------------
 // Local solve: Z = cluster_inverse * R at each level
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<int> converged)
+void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<IndexT> converged)
 {
     using namespace muda;
     int N = m_total_num_clusters * BANKSIZE;  // one thread per (cluster, node-pair)
@@ -1280,7 +1280,7 @@ void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<int> converged)
 // Prolongate: sum Z contributions from all levels for each fine node
 // ---------------------------------------------------------------------------
 void MASPreconditionerEngine::collect_final_Z(double3* Z,
-                                              muda::CVarView<int> converged)
+                                              muda::CVarView<IndexT> converged)
 {
     using namespace muda;
     int N = m_total_nodes;
@@ -1330,7 +1330,7 @@ void MASPreconditionerEngine::collect_final_Z(double3* Z,
 
 void MASPreconditionerEngine::apply(muda::CDenseVectorView<Float> r,
                                     muda::DenseVectorView<Float>  z,
-                                    muda::CVarView<int>           converged)
+                                    muda::CVarView<IndexT>        converged)
 {
     if(m_total_nodes < 1)
         return;
