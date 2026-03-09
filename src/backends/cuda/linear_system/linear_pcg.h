@@ -1,5 +1,6 @@
 #pragma once
 #include <linear_system/iterative_solver.h>
+#include <muda/buffer/device_var.h>
 
 namespace uipc::backend::cuda
 {
@@ -29,6 +30,7 @@ class LinearPCG : public IterativeSolver
     DeviceDenseVector r;   // residual
     DeviceDenseVector p;   // search direction
     DeviceDenseVector Ap;  // A*p
+    muda::DeviceVar<IndexT> d_converged_false;
 
     Float max_iter_ratio  = 2.0;
     Float global_tol_rate = 1e-4;

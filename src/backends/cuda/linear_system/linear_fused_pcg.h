@@ -21,18 +21,19 @@ class LinearFusedPCG : public IterativeSolver
   private:
     using DeviceDenseVector = muda::DeviceDenseVector<Float>;
 
-    SizeT fused_pcg(muda::DenseVectorView<Float>  x,
-                    muda::CDenseVectorView<Float> b,
-                    SizeT                         max_iter);
+    SizeT fused_pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Float> b, SizeT max_iter);
+    void check_init_rz_nan_inf(Float rz);
+    void check_iter_rz_nan_inf(Float rz, SizeT k);
 
     DeviceDenseVector r;
     DeviceDenseVector z;
     DeviceDenseVector p;
     DeviceDenseVector Ap;
 
-    muda::DeviceVar<Float> d_rz;
-    muda::DeviceVar<Float> d_pAp;
-    muda::DeviceVar<Float> d_rz_new;
+    muda::DeviceVar<Float>  d_rz;
+    muda::DeviceVar<Float>  d_pAp;
+    muda::DeviceVar<Float>  d_rz_new;
+    muda::DeviceVar<IndexT> d_converged;
 
     Float max_iter_ratio  = 2.0;
     Float global_tol_rate = 1e-4;

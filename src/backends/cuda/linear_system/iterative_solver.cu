@@ -33,9 +33,10 @@ void IterativeSolver::spmv_dot(muda::CDenseVectorView<Float> x,
 }
 
 void IterativeSolver::apply_preconditioner(muda::DenseVectorView<Float>  z,
-                                           muda::CDenseVectorView<Float> r)
+                                           muda::CDenseVectorView<Float> r,
+                                           muda::CVarView<IndexT>        converged)
 {
-    m_system->m_impl.apply_preconditioner(z, r);
+    m_system->m_impl.apply_preconditioner(z, r, converged);
 }
 
 bool IterativeSolver::accuracy_statisfied(muda::DenseVectorView<Float> r)

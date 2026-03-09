@@ -82,7 +82,9 @@ class MASPreconditionerEngine
 
     // ---- Phase 3: Apply preconditioning z = M^{-1} r (per PCG iteration) ----
 
-    void apply(muda::CDenseVectorView<Float> r, muda::DenseVectorView<Float> z);
+    void apply(muda::CDenseVectorView<Float> r,
+               muda::DenseVectorView<Float>  z,
+               muda::CVarView<IndexT>        converged);
 
     bool is_initialized() const { return m_initialized; }
 
@@ -125,9 +127,11 @@ class MASPreconditionerEngine
     void invert_cluster_matrices();
 
     // Preconditioning steps
-    void build_multi_level_R(const double3* R);
-    void schwarz_local_solve();
-    void collect_final_Z(double3* Z);
+    void build_multi_level_R(const double3* R,
+                             muda::CVarView<IndexT> converged);
+    void schwarz_local_solve(muda::CVarView<IndexT> converged);
+    void collect_final_Z(double3* Z,
+                         muda::CVarView<IndexT> converged);
 
   private:
     // ---- State ----
