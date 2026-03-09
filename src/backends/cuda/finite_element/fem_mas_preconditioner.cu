@@ -64,6 +64,7 @@ void apply_diag_inv_for_unpartitioned(
     const muda::DeviceBuffer<int>&       unpart_flags,
     muda::DenseVectorView<Float>         z,
     muda::CDenseVectorView<Float>        r,
+    muda::CVarView<int>                  converged,
     SizeT                                num_verts)
 {
     using namespace muda;
@@ -74,9 +75,12 @@ void apply_diag_inv_for_unpartitioned(
                [r_view = r.viewer().name("r"),
                 z_view = z.viewer().name("z"),
                 diag   = diag_inv.cviewer().name("diag_inv"),
-                unpart = unpart_flags.cviewer().name("unpart_flags")]
+                unpart = unpart_flags.cviewer().name("unpart_flags"),
+                converged = converged.cviewer().name("converged")]
                __device__(int i) mutable
                {
+                   if(*converged != 0)
+                       return;
                    if(unpart(i) == 1)
                    {
                        z_view.segment<3>(i * 3).as_eigen() =
@@ -390,15 +394,16 @@ class FEMMASPreconditioner : public LocalPreconditioner
             return;
 
         using namespace muda;
+        auto converged = info.converged();
 
         // MAS for partitioned vertices
-        engine.apply(info.r(), info.z());
+        engine.apply(info.r(), info.z(), converged);
 
         // Diagonal fallback for unpartitioned vertices
         if(m_has_unpartitioned)
         {
             apply_diag_inv_for_unpartitioned(
-                diag_inv, unpartitioned_flags, info.z(), info.r(),
+                diag_inv, unpartitioned_flags, info.z(), info.r(), converged,
                 diag_inv.size());
         }
     }

@@ -1068,7 +1068,8 @@ void MASPreconditionerEngine::invert_cluster_matrices()
 // ---------------------------------------------------------------------------
 // Restrict: accumulate residual R from fine to all coarser levels
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::build_multi_level_R(const double3* R)
+void MASPreconditionerEngine::build_multi_level_R(const double3* R,
+                                                  muda::CVarView<int> converged)
 {
     using namespace muda;
     int N = m_total_map_nodes;
@@ -1085,8 +1086,11 @@ void MASPreconditionerEngine::build_multi_level_R(const double3* R)
              prefix_orig   = prefix_original.data(),
              fine_conn     = fine_connect_masks.data(),
              part_to_real  = part_to_real.cviewer().name("part_to_real"),
+             converged     = converged.cviewer().name("converged"),
              level_num = m_level_num, N] __device__() mutable
             {
+                if(*converged != 0)
+                    return;
                 int pdx = blockIdx.x * blockDim.x + threadIdx.x;
                 if(pdx >= N) return;
 
@@ -1189,7 +1193,7 @@ void MASPreconditionerEngine::build_multi_level_R(const double3* R)
 // ---------------------------------------------------------------------------
 // Local solve: Z = cluster_inverse * R at each level
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::schwarz_local_solve()
+void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<int> converged)
 {
     using namespace muda;
     int N = m_total_num_clusters * BANKSIZE;  // one thread per (cluster, node-pair)
@@ -1203,8 +1207,11 @@ void MASPreconditionerEngine::schwarz_local_solve()
             [cluster_inv = cluster_inverses.data(),
              multi_lr    = multi_level_R.data(),
              multi_lz    = multi_level_Z.data(),
+             converged   = converged.cviewer().name("converged"),
              N] __device__() mutable
             {
+                if(*converged != 0)
+                    return;
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
                 if(idx >= N) return;
 
@@ -1272,7 +1279,8 @@ void MASPreconditionerEngine::schwarz_local_solve()
 // ---------------------------------------------------------------------------
 // Prolongate: sum Z contributions from all levels for each fine node
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::collect_final_Z(double3* Z)
+void MASPreconditionerEngine::collect_final_Z(double3* Z,
+                                              muda::CVarView<int> converged)
 {
     using namespace muda;
     int N = m_total_nodes;
@@ -1286,8 +1294,11 @@ void MASPreconditionerEngine::collect_final_Z(double3* Z)
                 multi_lz     = multi_level_Z.cviewer().name("multi_level_Z"),
                 coarse_table = coarse_tables.cviewer().name("coarse_table"),
                 real_to_part = real_to_part.cviewer().name("real_to_part"),
+                converged    = converged.cviewer().name("converged"),
                 level_num] __device__(int idx) mutable
                {
+                   if(*converged != 0)
+                       return;
                    int rdx = real_to_part(idx);
 
                    // Skip unpartitioned vertices (handled by diagonal fallback)
@@ -1318,7 +1329,8 @@ void MASPreconditionerEngine::collect_final_Z(double3* Z)
 // ============================================================================
 
 void MASPreconditionerEngine::apply(muda::CDenseVectorView<Float> r,
-                                    muda::DenseVectorView<Float>  z)
+                                    muda::DenseVectorView<Float>  z,
+                                    muda::CVarView<int>           converged)
 {
     if(m_total_nodes < 1)
         return;
@@ -1342,13 +1354,13 @@ void MASPreconditionerEngine::apply(muda::CDenseVectorView<Float> r,
                m_total_num_clusters * sizeof(float3));
 
     // 1. Restrict: accumulate residual down through levels
-    build_multi_level_R(reinterpret_cast<const double3*>(r.data()));
+    build_multi_level_R(reinterpret_cast<const double3*>(r.data()), converged);
 
     // 2. Local solve: Z = cluster_inverse * R at each level
-    schwarz_local_solve();
+    schwarz_local_solve(converged);
 
     // 3. Prolongate: sum Z from all levels back to fine nodes
-    collect_final_Z(reinterpret_cast<double3*>(z.data()));
+    collect_final_Z(reinterpret_cast<double3*>(z.data()), converged);
 }
 
 }  // namespace uipc::backend::cuda
