@@ -160,13 +160,13 @@ void fused_update_xr(muda::CVarView<Float>         d_rz,
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(r.size(),
-               [d_rz  = d_rz.cviewer().name("d_rz"),
-                d_pAp = d_pAp.cviewer().name("d_pAp"),
+               [d_rz        = d_rz.cviewer().name("d_rz"),
+                d_pAp       = d_pAp.cviewer().name("d_pAp"),
                 d_converged = d_converged.cviewer().name("d_converged"),
-                x     = x.viewer().name("x"),
-                p     = p.cviewer().name("p"),
-                r     = r.viewer().name("r"),
-                Ap    = Ap.cviewer().name("Ap")] __device__(int i) mutable
+                x           = x.viewer().name("x"),
+                p           = p.cviewer().name("p"),
+                r           = r.viewer().name("r"),
+                Ap          = Ap.cviewer().name("Ap")] __device__(int i) mutable
                {
                    if(*d_converged != 0)
                        return;
@@ -176,48 +176,50 @@ void fused_update_xr(muda::CVarView<Float>         d_rz,
                });
 }
 
-// Same as linear_pcg update_p: beta = rz_new/rz, p = z + beta*p. Beta computed on device. Skip update when converged (|rz_new| <= rz_tol).
+// Same as linear_pcg update_p: beta = rz_new/rz, p = z + beta*p.
+// Convergence is guarded by d_converged.
 void fused_update_p(muda::CVarView<Float>         d_rz_new,
                     muda::CVarView<Float>         d_rz,
+                    muda::CVarView<int>           d_converged,
                     muda::DenseVectorView<Float>  p,
-                    muda::CDenseVectorView<Float> z,
-                    Float                         rz_tol)
+                    muda::CDenseVectorView<Float> z)
 {
     using namespace muda;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(p.size(),
-               [d_rz_new = d_rz_new.cviewer().name("d_rz_new"),
-                d_rz     = d_rz.cviewer().name("d_rz"),
-                p        = p.viewer().name("p"),
-                z        = z.cviewer().name("z"),
-                rz_tol] __device__(int i) mutable
+               [d_rz_new    = d_rz_new.cviewer().name("d_rz_new"),
+                d_rz        = d_rz.cviewer().name("d_rz"),
+                d_converged = d_converged.cviewer().name("d_converged"),
+                p           = p.viewer().name("p"),
+                z           = z.cviewer().name("z")] __device__(int i) mutable
                {
-                   Float rz_new = *d_rz_new;
-                   if(abs(rz_new) <= rz_tol)
+                   if(*d_converged != 0)
                        return;
-                   Float beta = rz_new / *d_rz;
+                   Float beta = *d_rz_new / *d_rz;
                    p(i)       = z(i) + beta * p(i);
                });
 }
 
 // d_rz = d_rz_new when not converged (single-thread write).
-void fused_swap_rz(muda::CVarView<Float> d_rz_new, muda::VarView<Float> d_rz, Float rz_tol)
+void fused_swap_rz(muda::CVarView<Float> d_rz_new,
+                   muda::VarView<Float>  d_rz,
+                   muda::CVarView<int>   d_converged)
 {
     using namespace muda;
 
-    ParallelFor()
+    Launch()
         .file_line(__FILE__, __LINE__)
-        .apply(1,
-               [d_rz_new = d_rz_new.cviewer().name("d_rz_new"),
-                d_rz     = d_rz.viewer().name("d_rz"),
-                rz_tol] __device__(int) mutable
-               {
-                   Float rz_new = *d_rz_new;
-                   if(abs(rz_new) > rz_tol)
-                       *d_rz = rz_new;
-               });
+        .apply(
+            [d_rz_new = d_rz_new.cviewer().name("d_rz_new"),
+             d_rz     = d_rz.viewer().name("d_rz"),
+             d_converged = d_converged.cviewer().name("d_converged")] __device__() mutable
+            {
+                if(*d_converged != 0)
+                    return;
+                *d_rz = *d_rz_new;
+            });
 }
 
 void fused_update_converged(muda::CVarView<Float> d_rz_new, muda::VarView<int> d_converged, Float rz_tol)
@@ -278,13 +280,8 @@ SizeT LinearFusedPCG::fused_pcg(muda::DenseVectorView<Float>  x,
         }
 
         // alpha = rz / pAp,  x += alpha * p,  r -= alpha * Ap
-        fused_update_xr(d_rz.view(),
-                        d_pAp.view(),
-                        d_converged.view(),
-                        x,
-                        p.cview(),
-                        r.view(),
-                        Ap.cview());
+        fused_update_xr(
+            d_rz.view(), d_pAp.view(), d_converged.view(), x, p.cview(), r.view(), Ap.cview());
 
         // z = P^{-1} * r
         {
@@ -307,8 +304,8 @@ SizeT LinearFusedPCG::fused_pcg(muda::DenseVectorView<Float>  x,
         }
 
         // p = z + beta * p (skip when abs(rz_new) <= rz_tol), then rz = rz_new.
-        fused_update_p(d_rz_new.view(), d_rz.view(), p.view(), z.cview(), rz_tol);
-        fused_swap_rz(d_rz_new.view(), d_rz.view(), rz_tol);
+        fused_update_p(d_rz_new.view(), d_rz.view(), d_converged.view(), p.view(), z.cview());
+        fused_swap_rz(d_rz_new.view(), d_rz.view(), d_converged.view());
     }
 
     return k;
