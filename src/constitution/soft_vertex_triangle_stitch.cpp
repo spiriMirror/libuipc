@@ -61,12 +61,12 @@ static void validate_stitched_vert_tri_ids(const SoftVertexTriangleStitch::SlotT
                 rest_tri_slot->geometry().instances().size());
 
     const auto vert_count = aim_v_slot->geometry().vertices().size();
-    const auto tri_count  = rest_tri_slot->geometry().triangles().size();
+    const auto tri_count  = aim_tri_slot->geometry().triangles().size();
 
     for(auto&& [pair_idx, pair] : enumerate(stitched_vert_tri_ids))
     {
-        auto v_id   = pair(0);
-        auto tri_id = pair(1);
+        auto v_id   = pair.x();
+        auto tri_id = pair.y();
 
         UIPC_ASSERT(v_id >= 0 && v_id < vert_count,
                     "SoftVertexTriangleStitch pair[{}].x={} out of range [0, {}) for first geometry slot id {}.",

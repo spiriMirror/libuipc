@@ -44,8 +44,8 @@ static void validate_stitch_pairs(const SoftVertexStitch::SlotTuple& aim_geo_slo
 
     for(auto&& [pair_idx, pair] : enumerate(stitched_vert_ids))
     {
-        auto i = pair[0];
-        auto j = pair[1];
+        auto i = pair.x();
+        auto j = pair.y();
 
         UIPC_ASSERT(i >= 0 && i < l_vert_count,
                     "SoftVertexStitch pair[{}].x={} out of range [0, {}) for first geometry slot id {}.",

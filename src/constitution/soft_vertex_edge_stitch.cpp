@@ -61,12 +61,12 @@ static void validate_stitched_vert_edge_ids(const SoftVertexEdgeStitch::SlotTupl
                 rest_edge_slot->geometry().instances().size());
 
     const auto vert_count = aim_v_slot->geometry().vertices().size();
-    const auto edge_count = rest_edge_slot->geometry().edges().size();
+    const auto edge_count = aim_edge_slot->geometry().edges().size();
 
     for(auto&& [pair_idx, pair] : enumerate(stitched_vert_edge_ids))
     {
-        auto v_id    = pair(0);
-        auto edge_id = pair(1);
+        auto v_id    = pair.x();
+        auto edge_id = pair.y();
 
         UIPC_ASSERT(v_id >= 0 && v_id < vert_count,
                     "SoftVertexEdgeStitch pair[{}].x={} out of range [0, {}) for first geometry slot id {}.",
