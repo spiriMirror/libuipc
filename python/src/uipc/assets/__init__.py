@@ -11,7 +11,7 @@ Usage::
     print(list_assets())
 
     # See what's available (local)
-    print(list_assets(local_dir='path/to/uipc-assets/assets'))
+    print(list_assets(local_repo='path/to/uipc-assets'))
 
     # Get the local path (downloads on first call, cached afterwards)
     path = asset_path("cube_ground")
@@ -27,7 +27,7 @@ Usage::
     show("cube_ground", backend="cuda")  # preload and run simulation
 
     # Work with a local assets directory
-    show(local_dir='path/to/uipc-assets/assets')
+    show(local_repo='path/to/uipc-assets')
 """
 
 import importlib.util
@@ -80,25 +80,25 @@ def strip_constitutions(scene: Scene) -> None:
 def list_assets(
     *,
     revision: str = 'main',
-    local_dir: str | pathlib.Path | None = None,
+    local_repo: str | pathlib.Path | None = None,
 ) -> list[str]:
     """List all available asset names.
 
-    When *local_dir* is given, scans that directory for sub-directories
+    When *local_repo* is given, scans that directory's ``assets``
+    sub-directory for asset folders
     containing a ``scene.py`` file.  Otherwise queries the HuggingFace
     dataset.
 
     Args:
         revision: Git revision (only used for remote assets).
-        local_dir: Path to a local assets directory (e.g.
-            ``'uipc-assets/assets'``).  Each immediate sub-directory that
-            contains a ``scene.py`` is treated as an asset.
+        local_repo: Path to local asset repo root (e.g. ``'uipc-assets'``).
+            Assets are discovered under ``local_repo / 'assets'``.
 
     Returns:
         Sorted list of asset names (e.g. ``['cube_ground', 'fem_link_drop', ...]``).
     """
-    if local_dir is not None:
-        root = pathlib.Path(local_dir)
+    root = _resolve_local_assets_dir(local_repo=local_repo)
+    if root is not None:
         if not root.is_dir():
             raise FileNotFoundError(f'Local assets directory not found: {root}')
         return sorted(
@@ -143,28 +143,30 @@ def asset_path(
     *,
     revision: str = 'main',
     cache_dir: str | None = None,
-    local_dir: str | pathlib.Path | None = None,
+    local_repo: str | pathlib.Path | None = None,
 ) -> pathlib.Path:
     """Return the local path to an asset directory.
 
-    When *local_dir* is given, returns ``local_dir / name`` directly.
+    When *local_repo* is given, returns ``local_repo / 'assets' / name`` directly.
     Otherwise downloads from HuggingFace (cached by ``huggingface_hub``).
 
     Args:
         name: Asset name (e.g. ``'cube_ground'``).
         revision: Git revision (only used for remote assets).
         cache_dir: Where to cache downloaded files (remote only).
-        local_dir: Path to a local assets directory.  When set, no
-            network access is performed.
+        local_repo: Path to local asset repo root. When set, assets are
+            loaded from ``local_repo / 'assets'`` and no network access is
+            performed.
 
     Returns:
         :class:`~pathlib.Path` to the asset directory.
     """
-    if local_dir is not None:
-        result = pathlib.Path(local_dir) / name
+    local_assets_dir = _resolve_local_assets_dir(local_repo=local_repo)
+    if local_assets_dir is not None:
+        result = local_assets_dir / name
         if not result.is_dir():
             raise FileNotFoundError(
-                f'Asset \'{name}\' not found in local directory {local_dir}.'
+                f"Asset '{name}' not found in local path {local_assets_dir}."
             )
         return result
 
@@ -191,7 +193,7 @@ def load(
     geometry_only: bool = False,
     revision: str = 'main',
     cache_dir: str | None = None,
-    local_dir: str | pathlib.Path | None = None,
+    local_repo: str | pathlib.Path | None = None,
 ) -> None:
     """Download (or locate locally) an asset and apply it to a Scene.
 
@@ -206,11 +208,16 @@ def load(
             contact metadata after building, leaving only raw geometry.
         revision: Git revision (only used for remote assets).
         cache_dir: Where to cache downloaded files (remote only).
-        local_dir: Path to a local assets directory.  When set, no
-            network access is performed.
+        local_repo: Path to local asset repo root. When set, assets are
+            loaded from ``local_repo / 'assets'`` and no network access is
+            performed.
     """
-    path = asset_path(name, revision=revision, cache_dir=cache_dir,
-                      local_dir=local_dir)
+    path = asset_path(
+        name,
+        revision=revision,
+        cache_dir=cache_dir,
+        local_repo=local_repo,
+    )
     scene_file = path / 'scene.py'
     if not scene_file.exists():
         raise FileNotFoundError(
@@ -417,7 +424,7 @@ def show(
     workspace: str | None = None,
     revision: str = 'main',
     cache_dir: str | None = None,
-    local_dir: str | pathlib.Path | None = None,
+    local_repo: str | pathlib.Path | None = None,
     distance_factor: float = 2.0,
 ) -> None:
     """Display and optionally simulate a UIPC asset in a Polyscope window.
@@ -436,7 +443,7 @@ def show(
         show('cube_ground')                  # preload one scene
         show('cube_ground', backend='cuda')  # preload + live simulation
         show(backend='cuda')                 # browse, simulate what you pick
-        show(local_dir='uipc-assets/assets') # browse local assets
+        show(local_repo='uipc-assets')       # browse local assets
 
     Args:
         name: Optional asset name to preload (e.g. ``'cube_ground'``).
@@ -449,8 +456,8 @@ def show(
             temporary directory.
         revision: Git revision (only used for remote assets).
         cache_dir: Where to cache downloaded files (remote only).
-        local_dir: Path to a local assets directory.  When set, assets
-            are loaded from disk without any network access.
+        local_repo: Path to local asset repo root. Assets are loaded from
+            ``local_repo / 'assets'`` without network access.
         distance_factor: How far the camera sits relative to the bounding-box
             diagonal (default ``2.0``).
     """
@@ -468,8 +475,13 @@ def show(
                 'Headless mode (gui=False) requires a scene name.'
             )
         scene = Scene(Scene.default_config())
-        load(name, scene, revision=revision, cache_dir=cache_dir,
-             local_dir=local_dir)
+        load(
+            name,
+            scene,
+            revision=revision,
+            cache_dir=cache_dir,
+            local_repo=local_repo,
+        )
         ws = workspace or tempfile.mkdtemp(prefix=f'uipc_{name}_')
         engine = Engine(backend, ws)
         world = World(engine)
@@ -511,8 +523,13 @@ def show(
             ps.remove_all_structures()
 
             scene = Scene(Scene.default_config())
-            load(asset_name, scene, revision=revision, cache_dir=cache_dir,
-                 local_dir=local_dir)
+            load(
+                asset_name,
+                scene,
+                revision=revision,
+                cache_dir=cache_dir,
+                local_repo=local_repo,
+            )
 
             if is_simulation:
                 ws = workspace or tempfile.mkdtemp(
@@ -545,7 +562,10 @@ def show(
     # ── helper: fetch asset list in a background thread ───────────
     def _fetch_assets() -> None:
         try:
-            names = list_assets(revision=revision, local_dir=local_dir)
+            names = list_assets(
+                revision=revision,
+                local_repo=local_repo,
+            )
             state['asset_names'] = names
             # Pre-select the currently loaded scene, if any.
             if state['current_name'] and state['current_name'] in names:
@@ -691,3 +711,13 @@ def _auto_camera(scene: Scene, distance_factor: float) -> None:
     ground = dist * np.cos(np.pi / 4) / np.sqrt(2)
     camera_pos = center + np.array([ground, elevation, ground])
     ps.look_at(camera_pos.tolist(), center.tolist())
+
+
+def _resolve_local_assets_dir(
+    *,
+    local_repo: str | pathlib.Path | None,
+) -> pathlib.Path | None:
+    """Resolve local assets root directory from local_repo input."""
+    if local_repo is not None:
+        return pathlib.Path(local_repo) / 'assets'
+    return None
