@@ -75,13 +75,13 @@ void MASPreconditionerEngine::init_neighbor(
     coarse_tables.resize(vert_num);
     coarse_space_tables.resize(vert_num * m_level_num);
     level_sizes.resize(m_level_num + 1);
-    going_next.resize(vert_num * m_level_num);
-    prefix_original.resize(vert_num);
-    next_prefixes.resize(vert_num);
-    next_prefix_sums.resize(vert_num);
-    prefix_sum_original.resize(vert_num);
-    fine_connect_masks.resize(vert_num);
-    next_connect_masks.resize(vert_num);
+    going_next.resize(max_nodes * m_level_num);
+    prefix_original.resize(max_nodes);
+    next_prefixes.resize(max_nodes);
+    next_prefix_sums.resize(max_nodes);
+    prefix_sum_original.resize(max_nodes);
+    fine_connect_masks.resize(max_nodes);
+    next_connect_masks.resize(max_nodes);
 
     // Neighbor buffers
     m_neighbor_list_size = total_neighbor_num;
@@ -129,6 +129,7 @@ void MASPreconditionerEngine::init_matrix()
 int MASPreconditionerEngine::reorder_realtime(int cp_num)
 {
     level_sizes.fill(Int2{0, 0});
+    coarse_space_tables.fill(-1);
 
     build_connect_mask_L0();
 
@@ -207,11 +208,17 @@ void MASPreconditionerEngine::build_connect_mask_L0()
 
                    for(int i = 0; i < num_nbr; i++)
                    {
-                       int nbr_id        = neighbor_list[start_id + i];
-                       int nbr_bank_id   = real_to_part(nbr_id) / BANKSIZE;
+                       int nbr_id      = neighbor_list[start_id + i];
+                       int nbr_part_id = real_to_part(nbr_id);
+                       if(nbr_part_id < 0)
+                       {
+                           // Neighbor is unpartitioned, handled by diagonal fallback.
+                           continue;
+                       }
+                       int nbr_bank_id = nbr_part_id / BANKSIZE;
                        if(bank_id == nbr_bank_id)
                        {
-                           unsigned int nbr_lane = real_to_part(nbr_id) % BANKSIZE;
+                           unsigned int nbr_lane = nbr_part_id % BANKSIZE;
                            connect_msk |= (1U << nbr_lane);
                        }
                        else
@@ -373,8 +380,9 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
             [neighbor_start    = neighbor_starts.data(),
              neighbor_num      = neighbor_nums.data(),
              neighbor_list     = neighbor_lists.data(),
-             coarse_table      = coarse_space_tables.data(),
-             next_connect_mask = next_connect_masks.data(),
+             coarse_table      = coarse_space_tables.viewer().name("coarse_space_tables"),
+             next_connect_mask = next_connect_masks.viewer().name("next_connect_masks"),
+             next_connect_raw  = next_connect_masks.data(),
              fine_connect_mask = fine_connect_masks.data(),
              part_to_real      = part_to_real.cviewer().name("part_to_real"),
              level, vert_num = m_total_nodes, N] __device__() mutable
@@ -392,7 +400,12 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
 
                 unsigned int prefix_msk = fine_connect_mask[idx];
                 unsigned int conn_msk   = 0;
-                unsigned int coarse_idx = coarse_table[(level - 1) * vert_num + idx];
+                int coarse_idx = coarse_table((level - 1) * vert_num + idx);
+                if(coarse_idx < 0 || coarse_idx >= N)
+                {
+                    // Invalid coarse index (likely from unpartitioned propagation), skip.
+                    return;
+                }
                 int kn       = neighbor_num[idx];
                 int nk       = 0;
                 int start_id = neighbor_start[idx];
@@ -400,7 +413,13 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
                 for(int i = 0; i < kn; i++)
                 {
                     unsigned int connect       = neighbor_list[start_id + i];
-                    unsigned int coarse_connect = coarse_table[(level - 1) * vert_num + connect];
+                    int coarse_connect = coarse_table((level - 1) * vert_num + connect);
+                    if(coarse_connect < 0 || coarse_connect >= N)
+                    {
+                        neighbor_list[start_id + nk] = connect;
+                        nk++;
+                        continue;
+                    }
                     if(coarse_idx / BANKSIZE == coarse_connect / BANKSIZE)
                     {
                         conn_msk |= (1U << (coarse_connect % BANKSIZE));
@@ -429,7 +448,7 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
 
                 unsigned int elected_prefix = __popc(prefix_msk & lanemask_lt(lane_id));
                 if(conn_msk && elected_prefix == 0)
-                    atomicOr(next_connect_mask + coarse_idx, conn_msk);
+                    atomicOr(next_connect_raw + coarse_idx, conn_msk);
             });
 }
 
@@ -565,12 +584,17 @@ void MASPreconditionerEngine::compute_next_level(int level)
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [coarse_table      = coarse_space_tables.data(),
-                next_connect_mask = next_connect_masks.data(),
+               [coarse_table      = coarse_space_tables.viewer().name("coarse_space_tables"),
+                next_connect_mask = next_connect_masks.cviewer().name("next_connect_masks"),
                 level, N] __device__(int idx) mutable
                {
-                   int next = coarse_table[(level - 1) * N + idx];
-                   coarse_table[level * N + idx] = next_connect_mask[next];
+                   int next = coarse_table((level - 1) * N + idx);
+                   if(next < 0 || next >= N)
+                   {
+                       coarse_table(level * N + idx) = -1;
+                       return;
+                   }
+                   coarse_table(level * N + idx) = next_connect_mask(next);
                });
 }
 
@@ -637,9 +661,10 @@ void MASPreconditionerEngine::build_hessian_connection(
              coarse_table,
              row_ids      = m_bcoo_row_ids,
              col_ids      = m_bcoo_col_ids,
-             real_to_part = real_to_part.data(),
+             real_to_part = real_to_part.cviewer().name("real_to_part"),
              dof_offset   = m_bcoo_dof_offset,
              vert_num     = m_total_nodes,
+             map_num      = m_total_map_nodes,
              level] __device__(int idx) mutable
             {
                 int row = row_ids[idx] - dof_offset;
@@ -660,11 +685,14 @@ void MASPreconditionerEngine::build_hessian_connection(
                 }
                 else
                 {
-                    a = real_to_part[row];
-                    b = real_to_part[col];
+                    a = real_to_part(row);
+                    b = real_to_part(col);
                 }
 
                 if(a < 0 || b < 0) return;
+
+                // Guard mapping index before bank/lane operations.
+                if(a >= map_num || b >= map_num) return;
 
                 // If both vertices are in the same bank, set connectivity bits
                 if(a / BANKSIZE == b / BANKSIZE)
@@ -762,9 +790,10 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
             triplet_num,
             [offset         = dof_offset,
              level_num      = m_level_num,
-             going_next     = going_next.data(),
+             going_next     = going_next.cviewer().name("going_next"),
              cluster_hess   = cluster_hessians.data(),
-             real_to_part   = real_to_part.data(),
+             real_to_part   = real_to_part.cviewer().name("real_to_part"),
+             cluster_blocks = static_cast<int>(cluster_hessians.size()),
              indices        = d_indices,
              triplet_values = d_triplet_values,
              row_ids        = d_row_ids,
@@ -781,12 +810,18 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
                    || col_real < 0 || col_real >= total_nodes)
                     return;
 
-                int vert_col = real_to_part[col_real];
-                int vert_row = real_to_part[row_real];
+                int vert_col = real_to_part(col_real);
+                int vert_row = real_to_part(row_real);
+
+                // Unpartitioned vertices are solved by diagonal fallback, not MAS.
+                if(vert_col < 0 || vert_row < 0)
+                    return;
 
                 if(vert_col / BANKSIZE == vert_row / BANKSIZE)
                 {
                     int cluster_id = vert_col / BANKSIZE;
+                    if(cluster_id < 0 || cluster_id >= cluster_blocks)
+                        return;
                     if(vert_col >= vert_row)
                     {
                         int si = sym_index(vert_row % BANKSIZE, vert_col % BANKSIZE);
@@ -808,18 +843,22 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
                         level++;
                         if(level == 1)
                         {
-                            vert_col = going_next[col_real];
-                            vert_row = going_next[row_real];
+                            vert_col = going_next(col_real);
+                            vert_row = going_next(row_real);
                         }
                         else
                         {
-                            vert_col = going_next[vert_col];
-                            vert_row = going_next[vert_row];
+                            vert_col = going_next(vert_col);
+                            vert_row = going_next(vert_row);
                         }
+                        if(vert_col < 0 || vert_row < 0)
+                            return;
 
                         if(vert_col / BANKSIZE == vert_row / BANKSIZE)
                         {
                             int cluster_id = vert_col / BANKSIZE;
+                            if(cluster_id < 0 || cluster_id >= cluster_blocks)
+                                return;
                             if(vert_col >= vert_row)
                             {
                                 int si = sym_index(vert_row % BANKSIZE, vert_col % BANKSIZE);
@@ -858,11 +897,14 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
         .apply(
             total_entries,
             [level_num       = m_level_num,
-             going_next      = going_next.data(),
+             going_next      = going_next.cviewer().name("going_next"),
              cluster_hess    = cluster_hessians.data(),
-             part_to_real    = part_to_real.data(),
-             fine_connect    = fine_connect_masks.data(),
-             prefix_orig     = prefix_original.data()] __device__(int idx) mutable
+             part_to_real    = part_to_real.cviewer().name("part_to_real"),
+             fine_connect    = fine_connect_masks.cviewer().name("fine_connect_masks"),
+             prefix_orig     = prefix_original.cviewer().name("prefix_original"),
+             cluster_blocks  = static_cast<int>(cluster_hessians.size()),
+             map_nodes       = m_total_map_nodes]
+            __device__(int idx) mutable
             {
                 int cluster_stride = BANKSIZE * BANKSIZE;
                 int cluster_id     = idx / cluster_stride;
@@ -871,13 +913,15 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
 
                 int global_row = cluster_id * BANKSIZE + local_row;
                 int global_col = cluster_id * BANKSIZE + local_col;
+                if(global_row >= map_nodes || global_col >= map_nodes)
+                    return;
 
-                int rdx = part_to_real[global_row];
-                int cdx = part_to_real[global_col];
+                int rdx = part_to_real(global_row);
+                int cdx = part_to_real(global_col);
 
                 __shared__ int prefix;
                 if(threadIdx.x == 0)
-                    prefix = prefix_orig[cluster_id];
+                    prefix = prefix_orig(cluster_id);
                 __syncthreads();
 
                 // Read the 3x3 block from the symmetric cluster matrix
@@ -919,17 +963,23 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
                     if(is_boundary)
                     {
                         int level   = 0;
-                        int next_id = going_next[rdx];
+                        int next_id = going_next(rdx);
+                        if(next_id < 0)
+                            return;
                         while(level < level_num - 1)
                         {
                             level++;
                             int cid     = next_id / BANKSIZE;
+                            if(cid < 0 || cid >= cluster_blocks)
+                                return;
                             int bv      = next_id % BANKSIZE;
                             int si      = sym_index(bv, bv);
                             for(int i = 0; i < 3; i++)
                                 for(int j = 0; j < 3; j++)
                                     atomicAdd(&(cluster_hess[cid].M[si](i, j)), mat3(i, j));
-                            next_id = going_next[next_id];
+                            next_id = going_next(next_id);
+                            if(next_id < 0)
+                                return;
                         }
                     }
                 }
@@ -940,9 +990,13 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
                     while(level < level_num - 1)
                     {
                         level++;
-                        rdx      = going_next[rdx];
-                        cdx      = going_next[cdx];
+                        rdx      = going_next(rdx);
+                        cdx      = going_next(cdx);
+                        if(rdx < 0 || cdx < 0)
+                            return;
                         int cid  = cdx / BANKSIZE;
+                        if(cid < 0 || cid >= cluster_blocks)
+                            return;
                         if(rdx / BANKSIZE == cdx / BANKSIZE)
                         {
                             if(cdx >= rdx)

@@ -34,6 +34,7 @@ add_subdirectory(core)
 add_subdirectory(common)
 add_subdirectory(backends)
 add_subdirectory(sim_case)
+add_subdirectory(regression)
 add_subdirectory(sanity_check)
 
 if(UIPC_BUILD_GUI)

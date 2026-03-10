@@ -319,6 +319,41 @@ class FEMMASPreconditioner : public LocalPreconditioner
             offset += padded;
         }
 
+        // Validate mappings to avoid out-of-range indices in MAS kernels.
+        for(SizeT i = 0; i < vert_num; ++i)
+        {
+            auto pid = part_ids[i];
+            if(pid < 0)
+            {
+                UIPC_ASSERT(h_real_to_part[i] == -1,
+                            "MAS: unpartitioned vertex {} must map to -1, got {}.",
+                            i,
+                            h_real_to_part[i]);
+            }
+            else
+            {
+                UIPC_ASSERT(h_real_to_part[i] >= 0
+                                && h_real_to_part[i] < part_map_size,
+                            "MAS: real_to_part[{}]={} out of range [0, {}).",
+                            i,
+                            h_real_to_part[i],
+                            part_map_size);
+            }
+        }
+
+        for(int i = 0; i < part_map_size; ++i)
+        {
+            int rid = h_part_to_real[i];
+            if(rid >= 0)
+            {
+                UIPC_ASSERT(rid < static_cast<int>(vert_num),
+                            "MAS: part_to_real[{}]={} out of range [0, {}).",
+                            i,
+                            rid,
+                            vert_num);
+            }
+        }
+
         // ---- 5. Initialize the engine ----
 
         engine.init_neighbor(static_cast<int>(vert_num),
