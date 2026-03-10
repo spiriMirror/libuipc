@@ -38,6 +38,11 @@ TEST_CASE("11_abd_ramp_sliding", "[abd]")
     config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["friction"]["enable"] = true;
     config["contact"]["constitution"]       = contact_constitution;
+    if(contact_constitution == "al-ipc")
+    {
+        config["contact"]["al-ipc"]["mu_scale"] = 1e4;
+        config["newton"]["min_iter"]            = 5;
+    }
 
     test::Scene::dump_config(config, this_output_path);
 

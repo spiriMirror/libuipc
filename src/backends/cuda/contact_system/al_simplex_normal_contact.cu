@@ -37,7 +37,7 @@ void ALSimplexNormalContact::do_report_gradient_hessian_extent(GlobalContactMana
     }
 
     info.gradient_count(4 * (active_set->PTs().size() + active_set->EEs().size()));
-    info.hessian_count(16 * (active_set->PTs().size() + active_set->EEs().size()));
+    info.hessian_count(10 * (active_set->PTs().size() + active_set->EEs().size()));
 }
 
 void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::EnergyInfo& info)
@@ -119,8 +119,8 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
     auto PT_size = active_set->PTs().size(), EE_size = active_set->EEs().size();
     auto PT_grad = info.gradients().subview(0, PT_size * 4);
     auto EE_grad = info.gradients().subview(PT_size * 4, EE_size * 4);
-    auto PT_hess = info.hessians().subview(0, PT_size * 16);
-    auto EE_hess = info.hessians().subview(PT_size * 16, EE_size * 16);
+    auto PT_hess = info.hessians().subview(0, PT_size * 10);
+    auto EE_hess = info.hessians().subview(PT_size * 10, EE_size * 10);
 
     auto x   = global_vertex_manager->positions();
     auto PTs = active_set->PTs(), EEs = active_set->EEs();
@@ -160,7 +160,7 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
                    DVA.segment<4>(idx * 4).write(PT, G);
 
                    TripletMatrixAssembler TMA{Hs};
-                   TMA.block<4, 4>(idx * 16).write(PT, H);
+                   TMA.half_block<4>(idx * 10).write(PT, H);
                });
 
     ParallelFor()
@@ -194,7 +194,7 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
                    DVA.segment<4>(idx * 4).write(EE, G);
 
                    TripletMatrixAssembler TMA{Hs};
-                   TMA.block<4, 4>(idx * 16).write(EE, H);
+                   TMA.half_block<4>(idx * 10).write(EE, H);
                });
 }
 

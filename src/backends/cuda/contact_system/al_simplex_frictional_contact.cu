@@ -45,7 +45,7 @@ void ALSimplexFrictionalContact::do_report_gradient_hessian_extent(
     info.gradient_count(
         4 * (active_set->PTs_friction().size() + active_set->EEs_friction().size()));
     info.hessian_count(
-        16 * (active_set->PTs_friction().size() + active_set->EEs_friction().size()));
+        10 * (active_set->PTs_friction().size() + active_set->EEs_friction().size()));
 }
 
 void ALSimplexFrictionalContact::Impl::do_compute_energy(GlobalContactManager::EnergyInfo& info)
@@ -212,7 +212,7 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
                    DVA.segment<4>(idx * 4).write(PT, G);
 
                    TripletMatrixAssembler TMA{Hs};
-                   TMA.block<4, 4>(idx * 16).write(PT, H);
+                   TMA.half_block<4>(idx * 10).write(PT, H);
                });
 
     ParallelFor()
@@ -270,7 +270,7 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
                        DVA.segment<4>(idx * 4).write(EE, G);
 
                        TripletMatrixAssembler TMA{Hs};
-                       TMA.block<4, 4>(idx * 16).write(EE, H);
+                       TMA.half_block<4>(idx * 10).write(EE, H);
                    }
                });
 }

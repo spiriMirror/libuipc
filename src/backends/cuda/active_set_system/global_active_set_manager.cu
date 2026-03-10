@@ -514,7 +514,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
                        else
                        {
                            lambda -= (d + d_shift) * mu;
-                           if(cnt == 0 || cnt > 5)
+                           if(cnt == 0 || cnt > 0)
                                cnt = 0;
                            else
                                cnt = -1;
@@ -554,7 +554,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
                    else
                    {
                        lambda -= (d + d_shift) * mu;
-                       if(cnt == 0 || cnt > 5)
+                       if(cnt == 0 || cnt > 0)
                            cnt = 0;
                        else
                            cnt = -1;
@@ -594,7 +594,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
                    else
                    {
                        lambda -= (d + d_shift) * mu;
-                       if(cnt == 0 || cnt > 5)
+                       if(cnt == 0 || cnt > 0)
                            cnt = 0;
                        else
                            cnt = -1;
@@ -810,11 +810,13 @@ muda::BufferView<Vector3> GlobalActiveSetManager::NonPenetratePositionInfo::non_
 
 void GlobalActiveSetManager::Impl::init(WorldVisitor& world)
 {
-    mu             = 0.0;
-    mu_scale_hess  = 0.01;
-    mu_scale_mass  = 5e6;
-    decay_factor   = 0.3;
-    toi_threshold  = 0.1;
+    auto config   = world.scene().config();
+    mu            = 0.0;
+    mu_scale_hess = 0.01;
+    mu_scale_mass = config.find<Float>("contact/al-ipc/mu_scale")->view()[0];
+    // mu_scale_mass  = 1e4;
+    decay_factor = config.find<Float>("contact/al-ipc/decay_factor")->view()[0];
+    toi_threshold = config.find<Float>("contact/al-ipc/toi_threshold")->view()[0];
     energy_enabled = true;
 }
 

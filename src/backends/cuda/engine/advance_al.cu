@@ -90,7 +90,7 @@ void SimEngine::advance_AL()
         {
             m_global_active_set_manager->disable();
 
-            bool  use_diag_norm = true;
+            bool  use_diag_norm = false;
             Float mu;
 
             if(use_diag_norm)
@@ -102,11 +102,8 @@ void SimEngine::advance_AL()
             }
             else
             {
-                // only calculate once
-                static Float mass_norm = -1;
                 Float dt = world().scene().config().find<Float>("dt")->view()[0];
-                if(mass_norm < 0)
-                    mass_norm = m_global_linear_system->mass_norm();
+                Float mass_norm = m_global_linear_system->mass_norm();
                 mu = mass_norm * m_global_active_set_manager->mu_scale_mass() * dt * dt;
             }
 
@@ -362,6 +359,9 @@ void SimEngine::advance_AL()
                     m_global_linear_system->solve();
                 }
 
+                NewtonToleranceManager::ResultInfo result_info;
+                m_newton_tolerance_manager->check(result_info);
+                bool newton_converged = result_info.converged();
 
                 // 5) Collect Vertex Displacements Globally
                 m_global_vertex_manager->collect_vertex_displacements();
@@ -396,10 +396,12 @@ void SimEngine::advance_AL()
 
                             // Check Energy Decrease
                             // TODO: maybe better condition like Wolfe condition/Armijo condition in the future
-                            bool success = (E <= E0);
+                            bool success = E <= E0 + 1e-12 || newton_converged;
 
                             if(success)
                                 break;
+
+                            logger::info("debug {} > {}", E, E0);
 
                             // If not success, then shrink alpha
                             alpha /= 2;
@@ -435,7 +437,8 @@ void SimEngine::advance_AL()
                 beta = beta + (1 - beta) * alpha;
 
                 bool converged = convergence_check(newton_iter);
-                bool terminated = converged && newton_iter + 1 >= newton_min_iter;
+                bool terminated =
+                    converged && (newton_iter + 1 >= newton_min_iter || newton_converged);
 
                 if(terminated)
                     break;
