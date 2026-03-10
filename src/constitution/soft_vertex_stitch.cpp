@@ -2,6 +2,7 @@
 #include <uipc/builtin/constitution_uid_auto_register.h>
 #include <uipc/builtin/constitution_type.h>
 #include <uipc/builtin/attribute_name.h>
+#include <uipc/common/enumerate.h>
 
 
 namespace uipc::constitution
@@ -24,11 +25,50 @@ SoftVertexStitch::SoftVertexStitch(const Json& config)
     m_config = config;
 }
 
+static void validate_stitch_pairs(const SoftVertexStitch::SlotTuple& aim_geo_slots,
+                                  span<const Vector2i>               stitched_vert_ids)
+{
+    auto&& [l, r] = aim_geo_slots;
+    UIPC_ASSERT(l, "The first geometry slot is null.");
+    UIPC_ASSERT(r, "The second geometry slot is null.");
+
+    UIPC_ASSERT(l->geometry().instances().size() == 1,
+                "SoftVertexStitch expects the first geometry to have exactly one instance, found {}.",
+                l->geometry().instances().size());
+    UIPC_ASSERT(r->geometry().instances().size() == 1,
+                "SoftVertexStitch expects the second geometry to have exactly one instance, found {}.",
+                r->geometry().instances().size());
+
+    auto l_vert_count = l->geometry().vertices().size();
+    auto r_vert_count = r->geometry().vertices().size();
+
+    for(auto&& [pair_idx, pair] : enumerate(stitched_vert_ids))
+    {
+        auto i = pair[0];
+        auto j = pair[1];
+
+        UIPC_ASSERT(i >= 0 && i < l_vert_count,
+                    "SoftVertexStitch pair[{}].x={} out of range [0, {}) for first geometry slot id {}.",
+                    pair_idx,
+                    i,
+                    l_vert_count,
+                    l->id());
+        UIPC_ASSERT(j >= 0 && j < r_vert_count,
+                    "SoftVertexStitch pair[{}].y={} out of range [0, {}) for second geometry slot id {}.",
+                    pair_idx,
+                    j,
+                    r_vert_count,
+                    r->id());
+    }
+}
+
 geometry::Geometry SoftVertexStitch::create_geometry(const SlotTuple& aim_geo_slots,
                                                      span<const Vector2i> stitched_vert_ids,
                                                      Float kappa_v,
                                                      Float rest_length_v) const
 {
+    validate_stitch_pairs(aim_geo_slots, stitched_vert_ids);
+
     geometry::Geometry geo;
 
     auto uids      = geo.meta().create<U64>(builtin::constitution_uid);
@@ -37,12 +77,6 @@ geometry::Geometry SoftVertexStitch::create_geometry(const SlotTuple& aim_geo_sl
     auto geo_ids = geo.meta().create<Vector2i>("geo_ids");
     {
         auto&& [l, r] = aim_geo_slots;
-        UIPC_ASSERT(l->geometry().instances().size() == 1,
-                    "stitch must have exactly one instance, found {} instances",
-                    l->geometry().instances().size());
-        UIPC_ASSERT(r->geometry().instances().size() == 1,
-                    "Link must have exactly one instance, found {} instances",
-                    r->geometry().instances().size());
         view(*geo_ids)[0] = Vector2i{l->id(), r->id()};
     }
 
@@ -121,13 +155,6 @@ geometry::Geometry SoftVertexStitch::create_geometry(const SlotTuple& aim_geo_sl
         for(auto&& v_id_pair : stitched_vert_ids)
         {
             auto v_id = v_id_pair[i];
-
-            UIPC_ASSERT(v_id >= 0 && v_id < this_geo.vertices().size(),
-                        "Stitched vertex id {} out of range [0, {}) in Geometry({}). Please check the stitched vertex ids and the geometry slots.\n",
-                        v_id,
-                        this_geo.vertices().size(),
-                        slot->id());
-
             vert_ce_view[v_id] = this_ce.id();
         }
     }
