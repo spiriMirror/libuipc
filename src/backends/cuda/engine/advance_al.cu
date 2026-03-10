@@ -401,8 +401,6 @@ void SimEngine::advance_AL()
                             if(success)
                                 break;
 
-                            logger::info("debug {} > {}", E, E0);
-
                             // If not success, then shrink alpha
                             alpha /= 2;
                             E = compute_energy(alpha);
