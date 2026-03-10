@@ -3,6 +3,7 @@
 #include <uipc/builtin/constitution_type.h>
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/attribute_friend.h>
+#include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
 
 namespace uipc::constitution
@@ -33,6 +34,54 @@ static geometry::Geometry create_geometry_impl(const SoftVertexTriangleStitch::S
                                                Float mu,
                                                Float lambda,
                                                Float min_separate_distance);
+
+static void validate_stitched_vert_tri_ids(const SoftVertexTriangleStitch::SlotTuple& aim_geo_slots,
+                                           const SoftVertexTriangleStitch::SlotTuple& rest_geo_slots,
+                                           span<const Vector2i> stitched_vert_tri_ids)
+{
+    auto&& [aim_v_slot, aim_tri_slot] = aim_geo_slots;
+    auto&& [rest_v_slot, rest_tri_slot] = rest_geo_slots;
+
+    UIPC_ASSERT(aim_v_slot, "SoftVertexTriangleStitch: first aim slot is null.");
+    UIPC_ASSERT(aim_tri_slot, "SoftVertexTriangleStitch: second aim slot is null.");
+    UIPC_ASSERT(rest_v_slot, "SoftVertexTriangleStitch: first rest slot is null.");
+    UIPC_ASSERT(rest_tri_slot, "SoftVertexTriangleStitch: second rest slot is null.");
+
+    UIPC_ASSERT(aim_v_slot->geometry().instances().size() == 1,
+                "SoftVertexTriangleStitch expects first aim geometry to have exactly one instance, found {}.",
+                aim_v_slot->geometry().instances().size());
+    UIPC_ASSERT(aim_tri_slot->geometry().instances().size() == 1,
+                "SoftVertexTriangleStitch expects second aim geometry to have exactly one instance, found {}.",
+                aim_tri_slot->geometry().instances().size());
+    UIPC_ASSERT(rest_v_slot->geometry().instances().size() == 1,
+                "SoftVertexTriangleStitch expects first rest geometry to have exactly one instance, found {}.",
+                rest_v_slot->geometry().instances().size());
+    UIPC_ASSERT(rest_tri_slot->geometry().instances().size() == 1,
+                "SoftVertexTriangleStitch expects second rest geometry to have exactly one instance, found {}.",
+                rest_tri_slot->geometry().instances().size());
+
+    const auto vert_count = aim_v_slot->geometry().vertices().size();
+    const auto tri_count  = aim_tri_slot->geometry().triangles().size();
+
+    for(auto&& [pair_idx, pair] : enumerate(stitched_vert_tri_ids))
+    {
+        auto v_id   = pair.x();
+        auto tri_id = pair.y();
+
+        UIPC_ASSERT(v_id >= 0 && v_id < vert_count,
+                    "SoftVertexTriangleStitch pair[{}].x={} out of range [0, {}) for first geometry slot id {}.",
+                    pair_idx,
+                    v_id,
+                    vert_count,
+                    aim_v_slot->id());
+        UIPC_ASSERT(tri_id >= 0 && tri_id < tri_count,
+                    "SoftVertexTriangleStitch pair[{}].y={} out of range [0, {}) for second geometry slot id {}.",
+                    pair_idx,
+                    tri_id,
+                    tri_count,
+                    aim_tri_slot->id());
+    }
+}
 
 
 geometry::Geometry SoftVertexTriangleStitch::create_geometry(const SlotTuple& aim_geo_slots,
@@ -70,6 +119,8 @@ static geometry::Geometry create_geometry_impl(const SoftVertexTriangleStitch::S
                                                Float lambda,
                                                Float min_separate_distance)
 {
+    validate_stitched_vert_tri_ids(aim_geo_slots, rest_geo_slots, stitched_vert_tri_ids);
+
     geometry::Geometry geo;
 
     auto uids      = geo.meta().create<U64>(builtin::constitution_uid);
@@ -78,12 +129,6 @@ static geometry::Geometry create_geometry_impl(const SoftVertexTriangleStitch::S
     auto geo_ids = geo.meta().create<Vector2i>("geo_ids");
     {
         auto&& [l, r] = aim_geo_slots;
-        UIPC_ASSERT(l->geometry().instances().size() == 1,
-                    "stitch must have exactly one instance, found {} instances",
-                    l->geometry().instances().size());
-        UIPC_ASSERT(r->geometry().instances().size() == 1,
-                    "stitch must have exactly one instance, found {} instances",
-                    r->geometry().instances().size());
         view(*geo_ids)[0] = Vector2i{l->id(), r->id()};
     }
 
