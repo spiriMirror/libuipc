@@ -1,0 +1,5 @@
+target("regression")
+    set_group("tests")
+    add_rules("uipc_test")
+    add_deps("cuda")
+    add_files("*.cpp")
