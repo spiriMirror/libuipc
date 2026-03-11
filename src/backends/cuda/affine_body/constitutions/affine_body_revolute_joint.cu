@@ -1,3 +1,4 @@
+#include <numbers>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
 #include <time_integrator/time_integrator.h>
@@ -6,7 +7,6 @@
 #include <affine_body/inter_affine_body_constraint.h>
 #include <affine_body/constitutions/affine_body_revolute_joint_function.h>
 #include <uipc/common/enumerate.h>
-
 namespace uipc::backend::cuda
 {
 class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
