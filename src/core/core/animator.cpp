@@ -1,5 +1,6 @@
 #include <uipc/core/animator.h>
 #include <uipc/common/log.h>
+#include <algorithm>
 namespace uipc::core
 {
 void Animator::substep(SizeT n) noexcept
@@ -11,6 +12,28 @@ void Animator::substep(SizeT n) noexcept
 SizeT Animator::substep() const noexcept
 {
     return m_substep;
+}
+
+SizeT Animator::animation_count() const noexcept
+{
+    return m_animations.size();
+}
+
+bool Animator::has_animation(IndexT id) const noexcept
+{
+    return m_animations.find(id) != m_animations.end();
+}
+
+vector<IndexT> Animator::animation_ids() const
+{
+    vector<IndexT> ids;
+    ids.reserve(m_animations.size());
+    for(const auto& [id, _] : m_animations)
+    {
+        ids.push_back(id);
+    }
+    std::sort(ids.begin(), ids.end());
+    return ids;
 }
 
 void Animator::insert(Object& obj, Animation::ActionOnUpdate&& on_update)
