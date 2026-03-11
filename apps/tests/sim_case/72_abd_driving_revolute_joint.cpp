@@ -4,7 +4,7 @@
 #include <uipc/constitution/affine_body_revolute_joint.h>
 #include <uipc/constitution/affine_body_driving_revolute_joint.h>
 
-TEST_CASE("71_abd_driving_revolute_joint", "[abd joint]")
+TEST_CASE("72_abd_driving_revolute_joint", "[abd joint]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
@@ -108,6 +108,7 @@ TEST_CASE("71_abd_driving_revolute_joint", "[abd joint]")
 
         auto to_degrees = [](auto radians)
         { return radians * (180.0 / std::numbers::pi); };
+        
         scene.animator().insert(
             *revolute_joints,
             [=](Animation::UpdateInfo& info)

@@ -724,47 +724,47 @@ Edge             = ({}, {}))",
                     body_masses = info.body_masses().cviewer().name("body_masses"),
                     Es = info.energies().viewer().name("Es")] __device__(int I)
                    {
-                       //    Vector2i bids        = body_ids(I);
-                       //    auto     constrained = is_constrained(I);
-                       //    // disable driving effect
-                       //    if(constrained == 0)
-                       //    {
-                       //        Es(I) = 0.0;
-                       //        return;
-                       //    }
+                       Vector2i bids        = body_ids(I);
+                       auto     constrained = is_constrained(I);
+                       // disable driving effect
+                       if(constrained == 0)
+                       {
+                           Es(I) = 0.0;
+                           return;
+                       }
 
-                       //    auto  passive = is_passive(I);
-                       //    Float kappa   = strength_ratios(I)
-                       //                  * (body_masses(bids(0)).mass()
-                       //                     + body_masses(bids(1)).mass());
-                       //    auto aim_angle = aim_angles(I);
-                       //    if(passive == 1)
-                       //    {
-                       //        // resist external forces passively
-                       //        aim_angle = current_angles(I);
-                       //    }
+                       auto  passive = is_passive(I);
+                       Float kappa   = strength_ratios(I)
+                                     * (body_masses(bids(0)).mass()
+                                        + body_masses(bids(1)).mass());
+                       auto aim_angle = aim_angles(I);
+                       if(passive == 1)
+                       {
+                           // resist external forces passively
+                           aim_angle = current_angles(I);
+                       }
 
-                       //    // mapping [min_angle, max_angle] to [min-init_angle, max-init_angle]
-                       //    Float theta_tilde = aim_angle - init_angles(I);
+                       // mapping [min_angle, max_angle] to [min+init_angle, max+init_angle]
+                       Float theta_tilde = aim_angle + init_angles(I);
 
-                       //    Vector12 q_i        = qs(bids(0));
-                       //    Vector12 q_j        = qs(bids(1));
-                       //    Vector6  axis_bar   = rest_axis(I);
-                       //    Vector6  normal_bar = rest_normals(I);
+                       Vector12 q_i        = qs(bids(0));
+                       Vector12 q_j        = qs(bids(1));
+                       Vector6  axis_bar   = rest_axis(I);
+                       Vector6  normal_bar = rest_normals(I);
 
-                       //    Vector12 F01_q;
-                       //    DRJ::F01_q<Float>(F01_q,
-                       //                      axis_bar.segment<3>(0),
-                       //                      normal_bar.segment<3>(0),
-                       //                      q_i,
-                       //                      axis_bar.segment<3>(3),
-                       //                      normal_bar.segment<3>(3),
-                       //                      q_j);
+                       Vector12 F01_q;
+                       DRJ::F01_q<Float>(F01_q,
+                                         axis_bar.segment<3>(0),
+                                         normal_bar.segment<3>(0),
+                                         q_i,
+                                         axis_bar.segment<3>(3),
+                                         normal_bar.segment<3>(3),
+                                         q_j);
 
-                       //    // E = 1/2 * kappa * (sin(theta) cos(theta_tilde) - cos(theta) sin(theta_tilde))^2
-                       //    Float E;
-                       //    DRJ::E(E, kappa, F01_q, theta_tilde);
-                       //    Es(I) = E;
+                       // E = 1/2 * kappa * (sin(theta) cos(theta_tilde) - cos(theta) sin(theta_tilde))^2
+                       Float E;
+                       DRJ::E(E, kappa, F01_q, theta_tilde);
+                       Es(I) = E;
                    });
     };
 
@@ -961,7 +961,7 @@ class AffineBodyDrivingRevoluteJointTimeIntegrator : public TimeIntegrator
                        DRJ::currAngle<Float>(curr_angle, F01_q);
 
 
-                       Float total_angle = curr_angle + init_angles(I);
+                       Float total_angle = curr_angle - init_angles(I);
                        // map to [-pi, pi]
                        auto map2range = [=](Float angle) -> Float
                        {

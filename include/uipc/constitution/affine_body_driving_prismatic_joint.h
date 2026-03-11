@@ -4,17 +4,17 @@
 
 namespace uipc::constitution
 {
-class UIPC_CONSTITUTION_API AffineBodyDrivingRevoluteJoint final : public Constraint
+class UIPC_CONSTITUTION_API AffineBodyDrivingPrismaticJoint final : public Constraint
 {
     using Base = Constraint;
 
   public:
-    AffineBodyDrivingRevoluteJoint(const Json& config = default_config());
+    AffineBodyDrivingPrismaticJoint(const Json& config = default_config());
 
-    ~AffineBodyDrivingRevoluteJoint() override;
+    ~AffineBodyDrivingPrismaticJoint() override;
 
     /**
-     * @brief Apply driving revolute joint to edges connecting affine bodies (single-instance mode).
+     * @brief Apply driving prismatic joint to edges connecting affine bodies (single-instance mode).
      * 
      * This method assumes each geometry has exactly one instance (instance 0).
      * All joints use the same strength ratio.
@@ -26,7 +26,7 @@ class UIPC_CONSTITUTION_API AffineBodyDrivingRevoluteJoint final : public Constr
 
 
     /**
-     * @brief Apply driving revolute joint to edges connecting affine bodies (multi-instance mode).
+     * @brief Apply driving prismatic joint to edges connecting affine bodies (multi-instance mode).
      * 
      * This method supports geometries with multiple instances. Each joint can specify
      * which instance of each geometry to connect, and can have its own strength ratio.
