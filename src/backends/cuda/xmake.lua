@@ -1,4 +1,4 @@
-add_requires("muda e01f9aabae4ed0dd91cf332af8e8fad435b9cced")
+add_requires("muda 09f8a0beca898b5325c7b0c1e4cf67ea4781f3b9",{system = false,configs = {with_check = true}})
 
 target("cuda")
     add_rules("backend")
@@ -48,8 +48,17 @@ package("muda")
 
     set_policy("package.install_locally", true)
 
-    add_cuflags("--extended-lambda", "--expt-relaxed-constexpr")
+    add_configs("with_check", {description = "Enable muda check", default = true})
+    add_configs("with_compute_graph", {description = "Enable muda compute graph", default = false})
+
+    add_cuflags("--extended-lambda", "--expt-relaxed-constexpr","-rdc=true",{public = true})
+
 
     on_install(function (package)
+        local check_val = package:config("with_check") and "1" or "0"
+        package:add('defines', 'MUDA_CHECK_ON=' .. check_val, {public = true})
+        local compute_graph_val = package:config("with_compute_graph") and "1" or "0"
+        package:add('defines', 'MUDA_COMPUTE_GRAPH_ON=' .. compute_graph_val, {public = true})
+        
         os.cp("src/muda", package:installdir("include"))
     end)
