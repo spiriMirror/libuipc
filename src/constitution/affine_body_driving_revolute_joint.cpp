@@ -34,7 +34,7 @@ void AffineBodyDrivingRevoluteJoint::apply_to(geometry::SimplicialComplex& sc,
                                               span<Float> strength_ratio)
 {
     UIPC_ASSERT(sc.dim() == 1,
-                "AffineBodyDrivingRevoluteJoint can only be applied to 1D simplicial complex (linemesh), "
+                "AffineBodyDrvingPrismaticJoint can only be applied to 1D simplicial complex (linemesh), "
                 "but got {}D",
                 sc.dim());
 
