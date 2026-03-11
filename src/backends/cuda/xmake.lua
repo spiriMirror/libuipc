@@ -37,28 +37,3 @@ target("cuda")
         target:set('toolchains', 'cuda')
     end)
     add_packages("muda")
-
-package("muda")
-    set_kind("library", {headeronly = true})
-    set_homepage("https://mugdxy.github.io/muda-doc")
-    set_description("μ-Cuda, COVER THE LAST MILE OF CUDA. With features: intellisense-friendly, structured launch, automatic cuda graph generation and updating.")
-    set_license("Apache-2.0")
-
-    add_urls("https://github.com/MuGdxy/muda.git")
-
-    set_policy("package.install_locally", true)
-
-    add_configs("with_check", {description = "Enable muda check", default = true})
-    add_configs("with_compute_graph", {description = "Enable muda compute graph", default = false})
-
-    add_cuflags("--extended-lambda", "--expt-relaxed-constexpr","-rdc=true",{public = true})
-
-
-    on_install(function (package)
-        local check_val = package:config("with_check") and "1" or "0"
-        package:add('defines', 'MUDA_CHECK_ON=' .. check_val, {public = true})
-        local compute_graph_val = package:config("with_compute_graph") and "1" or "0"
-        package:add('defines', 'MUDA_COMPUTE_GRAPH_ON=' .. compute_graph_val, {public = true})
-        
-        os.cp("src/muda", package:installdir("include"))
-    end)
