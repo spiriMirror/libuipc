@@ -31,6 +31,7 @@
 #include <pyuipc/constitution/soft_vertex_edge_stitch.h>
 #include <pyuipc/constitution/soft_vertex_triangle_stitch.h>
 #include <pyuipc/constitution/affine_body_external_force.h>
+#include <pyuipc/constitution/affine_body_prismatic_joint_external_force.h>
 #include <pyuipc/constitution/external_articulation_constraint.h>
 
 namespace pyuipc::constitution
@@ -54,6 +55,7 @@ PyModule::PyModule(py::module& m)
     PyAffineBodyRevoluteJointLimit{m};
     PyAffineBodyPrismaticJointLimit{m};
     PyAffineBodyExternalForce{m};
+    PyAffineBodyPrismaticJointExternalForce{m};
 
     // Finite Element Constitutions
     PyFiniteElementConstitution{m};

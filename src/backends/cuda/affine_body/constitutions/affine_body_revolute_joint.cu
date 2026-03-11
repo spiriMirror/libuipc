@@ -431,8 +431,8 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
                 UIPC_ASSERT(inst_ids, "AffineBodyDrivingRevoluteJoint: Geometry must have 'inst_ids' attribute on `edges`");
                 auto inst_ids_view = inst_ids->view();
 
-                auto is_constrained = sc->edges().find<IndexT>(builtin::is_constrained);
-                UIPC_ASSERT(is_constrained, "AffineBodyDrivingRevoluteJoint: Geometry must have 'is_constrained' attribute on `edges`");
+                auto is_constrained = sc->edges().find<IndexT>("driving/is_constrained");
+                UIPC_ASSERT(is_constrained, "AffineBodyDrivingRevoluteJoint: Geometry must have 'driving/is_constrained' attribute on `edges`");
                 auto is_constrained_view = is_constrained->view();
                 std::ranges::copy(is_constrained_view,
                                   std::back_inserter(is_constrained_list));
@@ -609,8 +609,8 @@ Edge             = ({}, {}))",
                             sc->edges().size(),
                             count);
 
-                auto is_constrained = sc->edges().find<IndexT>(builtin::is_constrained);
-                UIPC_ASSERT(is_constrained, "AffineBodyDrivingRevoluteJoint: Geometry must have 'is_constrained' attribute on `edges`");
+                auto is_constrained = sc->edges().find<IndexT>("driving/is_constrained");
+                UIPC_ASSERT(is_constrained, "AffineBodyDrivingRevoluteJoint: Geometry must have 'driving/is_constrained' attribute on `edges`");
                 {
                     auto is_constrained_view = is_constrained->view();
                     auto dst = span{h_is_constrained}.subspan(offset, count);
