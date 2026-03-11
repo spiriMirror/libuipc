@@ -474,35 +474,35 @@ class AffineBodyDrivingPrismaticJoint : public InterAffineBodyConstraint
                 }
                 // get simplicial complex
                 auto sc = geo.as<geometry::SimplicialComplex>();
-                UIPC_ASSERT(sc, "AffineBodyDrivingRevoluteJoint geometry must be SimplicialComplex");
+                UIPC_ASSERT(sc, "AffineBodyDrivingPrismaticJoint geometry must be SimplicialComplex");
 
                 h_geo_joint_offsets_counts.counts()[joint_offset] = sc->edges().size();
                 UIPC_ASSERT(h_geo_joint_offsets_counts.counts()[joint_offset] > 0,
-                            "AffineBodyDrivingRevoluteJoint: Geometry must have at least one edge");
+                            "AffineBodyDrivingPrismaticJoint: Geometry must have at least one edge");
 
                 // get geo_ids and inst_ids
                 auto geo_ids = sc->edges().find<Vector2i>("geo_ids");
-                UIPC_ASSERT(geo_ids, "AffineBodyDrivingRevoluteJoint geometry must have 'geo_ids' attribute on `edges`");
+                UIPC_ASSERT(geo_ids, "AffineBodyDrivingPrismaticJoint geometry must have 'geo_ids' attribute on `edges`");
                 auto geo_ids_view = geo_ids->view();
 
                 auto inst_ids = sc->edges().find<Vector2i>("inst_ids");
-                UIPC_ASSERT(inst_ids, "AffineBodyDrivingRevoluteJoint: Geometry must have 'inst_ids' attribute on `edges`");
+                UIPC_ASSERT(inst_ids, "AffineBodyDrivingPrismaticJoint: Geometry must have 'inst_ids' attribute on `edges`");
                 auto inst_ids_view = inst_ids->view();
 
                 auto is_constrained = sc->edges().find<IndexT>(builtin::is_constrained);
-                UIPC_ASSERT(is_constrained, "AffineBodyDrivingRevoluteJoint: Geometry must have 'is_constrained' attribute on `edges`");
+                UIPC_ASSERT(is_constrained, "AffineBodyDrivingPrismaticJoint: Geometry must have 'is_constrained' attribute on `edges`");
                 auto is_constrained_view = is_constrained->view();
                 std::ranges::copy(is_constrained_view,
                                   std::back_inserter(is_constrained_list));
 
                 auto strength_ratios = sc->edges().find<Float>("driving/strength_ratio");
-                UIPC_ASSERT(strength_ratios, "AffineBodyDrivingRevoluteJoint: Geometry must have 'driving/strength_ratio' attribute on `edges`")
+                UIPC_ASSERT(strength_ratios, "AffineBodyDrivingPrismaticJoint: Geometry must have 'driving/strength_ratio' attribute on `edges`")
                 auto strength_ratios_view = strength_ratios->view();
                 std::ranges::copy(strength_ratios_view,
                                   std::back_inserter(strength_ratios_list));
 
                 auto is_passive = sc->edges().find<IndexT>("is_passive");
-                UIPC_ASSERT(is_passive, "AffineBodyDrivingRevoluteJoint: Geometry must have 'is_passive' attribute on `edges`")
+                UIPC_ASSERT(is_passive, "AffineBodyDrivingPrismaticJoint: Geometry must have 'is_passive' attribute on `edges`")
                 auto is_passive_view = is_passive->view();
                 std::ranges::copy(is_passive_view, std::back_inserter(is_passive_list));
 
@@ -705,7 +705,7 @@ Edge             = ({}, {}))",
             [&](geometry::Geometry& geo)
             {
                 auto sc = geo.as<geometry::SimplicialComplex>();
-                UIPC_ASSERT(sc, "AffineBodyDrivingRevoluteJoint: Geometry must be a simplicial complex");
+                UIPC_ASSERT(sc, "AffineBodyDrivingPrismaticJoint: Geometry must be a simplicial complex");
 
                 auto distance = sc->edges().find<Float>("distance");
 
@@ -714,7 +714,7 @@ Edge             = ({}, {}))",
                     auto distance_view = view(*distance);
                     auto [offset, count] = h_geo_joint_offsets_counts[geo_joint_index];
                     UIPC_ASSERT(distance_view.size() == count,
-                                "AffineBodyDrivingRevoluteJoint: angle attribute size {} mismatch with joint count {}",
+                                "AffineBodyDrivingPrismaticJoint: distance attribute size {} mismatch with joint count {}",
                                 distance_view.size(),
                                 count);
 

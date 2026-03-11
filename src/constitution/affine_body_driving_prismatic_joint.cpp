@@ -6,6 +6,8 @@
 namespace uipc::constitution
 {
 static constexpr U64 ConstitutionUID = 21;
+
+static constexpr std::string_view DrivingStrengthName = "driving/strength_ratio";
 REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
@@ -31,67 +33,71 @@ void AffineBodyDrivingPrismaticJoint::apply_to(geometry::SimplicialComplex& sc, 
 }
 
 
-void AffineBodyDrivingPrismaticJoint::apply_to(geometry::SimplicialComplex& edges,
+void AffineBodyDrivingPrismaticJoint::apply_to(geometry::SimplicialComplex& sc,
                                                span<Float> strength_ratio)
 {
-    UIPC_ASSERT(edges.dim() == 1,
-                "AffineBodyDrvingPrismaticJoint can only be applied to 1D simplicial complex (linemesh), "
+    UIPC_ASSERT(sc.dim() == 1,
+                "AffineBodyDrivingPrismaticJoint can only be applied to 1D simplicial complex (linemesh), "
                 "but got {}D",
-                edges.dim());
+                sc.dim());
 
-    auto size = edges.edges().size();
+    auto size = sc.edges().size();
+    UIPC_ASSERT(strength_ratio.size() == size,
+                "Strength ratio size mismatch: expected {}, got {}",
+                size,
+                strength_ratio.size());
 
-    Base::apply_to(edges);
+    Base::apply_to(sc);
 
-    auto uid = edges.meta().find<U64>(builtin::constitution_uid);
+    auto uid = sc.meta().find<U64>(builtin::constitution_uid);
     UIPC_ASSERT(uid && uid->view()[0] == 20,  // UID of AffineBodyPrismaticJoint
                 "Simplicial complex does not have constitution uid. "
                 "Please apply an AffineBodyPrismaticJoint before applying AffineBodyDrivingPrismaticJoint");
 
-    auto is_constrained = edges.edges().find<IndexT>(builtin::is_constrained);
+    auto is_constrained = sc.edges().find<IndexT>(builtin::is_constrained);
     if(!is_constrained)
     {
-        is_constrained = edges.edges().create<IndexT>(builtin::is_constrained, 0);
+        is_constrained = sc.edges().create<IndexT>(builtin::is_constrained, 0);
     }
     auto is_constrained_view = view(*is_constrained);
     std::ranges::fill(is_constrained_view, 0);
 
-    auto is_passive = edges.edges().find<IndexT>("is_passive");
+    auto is_passive = sc.edges().find<IndexT>("is_passive");
     if(!is_passive)
     {
-        is_passive = edges.edges().create<IndexT>("is_passive", 0);
+        is_passive = sc.edges().create<IndexT>("is_passive", 0);
     }
     auto is_passive_view = view(*is_passive);
     std::ranges::fill(is_passive_view, 0);
 
-    auto strength_ratio_attr = edges.edges().find<Float>("driving/strength_ratio");
+    auto strength_ratio_attr = sc.edges().find<Float>(DrivingStrengthName);
     if(!strength_ratio_attr)
     {
-        strength_ratio_attr = edges.edges().create<Float>("driving/strength_ratio", 0.0);
+        strength_ratio_attr = sc.edges().create<Float>(DrivingStrengthName, 0.0);
     }
     auto strength_ratio_view = view(*strength_ratio_attr);
     std::ranges::copy(strength_ratio, strength_ratio_view.begin());
 
-    auto distance = edges.edges().find<Float>("distance");
+    auto distance = sc.edges().find<Float>("distance");
     if(!distance)
     {
-        distance = edges.edges().create<Float>("distance", 0.0);
+        distance = sc.edges().create<Float>("distance", 0.0);
     }
     auto distance_view = view(*distance);
     std::ranges::fill(distance_view, 0.0);
 
-    auto init_distances = edges.edges().find<Float>("init_distance");
+    auto init_distances = sc.edges().find<Float>("init_distance");
     if(!init_distances)
     {
-        init_distances = edges.edges().create<Float>("init_distance", 0);
+        init_distances = sc.edges().create<Float>("init_distance", 0);
     }
     auto init_distances_view = view(*init_distances);
     std::ranges::fill(init_distances_view, 0);
 
-    auto aim_distances = edges.edges().find<Float>("aim_distance");
+    auto aim_distances = sc.edges().find<Float>("aim_distance");
     if(!aim_distances)
     {
-        aim_distances = edges.edges().create<Float>("aim_distance", 0);
+        aim_distances = sc.edges().create<Float>("aim_distance", 0);
     }
     auto aim_distances_view = view(*aim_distances);
     std::ranges::fill(aim_distances_view, 0);

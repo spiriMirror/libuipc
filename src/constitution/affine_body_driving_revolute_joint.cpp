@@ -6,6 +6,7 @@
 namespace uipc::constitution
 {
 static constexpr U64 ConstitutionUID = 19;
+static constexpr std::string_view DrivingStrengthName = "driving/strength_ratio";
 REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
@@ -33,10 +34,15 @@ void AffineBodyDrivingRevoluteJoint::apply_to(geometry::SimplicialComplex& sc,
                                               span<Float> strength_ratio)
 {
     UIPC_ASSERT(sc.dim() == 1,
-                "AffineBodyDrvingPrismaticJoint can only be applied to 1D simplicial complex (linemesh), "
+                "AffineBodyDrivingRevoluteJoint can only be applied to 1D simplicial complex (linemesh), "
                 "but got {}D",
                 sc.dim());
 
+    auto size = sc.edges().size();
+    UIPC_ASSERT(strength_ratio.size() == size,
+                "Strength ratio size mismatch: expected {}, got {}",
+                size,
+                strength_ratio.size());
     Base::apply_to(sc);
 
     auto uid = sc.meta().find<U64>(builtin::constitution_uid);
@@ -60,10 +66,10 @@ void AffineBodyDrivingRevoluteJoint::apply_to(geometry::SimplicialComplex& sc,
     auto is_passive_view = view(*is_passive);
     std::ranges::fill(is_passive_view, 0);
 
-    auto strength_ratio_attr = sc.edges().find<Float>("driving/strength_ratio");
+    auto strength_ratio_attr = sc.edges().find<Float>(DrivingStrengthName);
     if(!strength_ratio_attr)
     {
-        strength_ratio_attr = sc.edges().create<Float>("driving/strength_ratio", 0.0);
+        strength_ratio_attr = sc.edges().create<Float>(DrivingStrengthName, 0.0);
     }
     auto strength_ratio_view = view(*strength_ratio_attr);
     std::ranges::copy(strength_ratio, strength_ratio_view.begin());

@@ -818,7 +818,7 @@ Edge             = ({}, {}))",
                         aim_angle = current_angles(I);
                     }
 
-                    auto theta_tilde = aim_angle - init_angles(I);
+                    auto theta_tilde = aim_angle + init_angles(I);
 
                     Vector12 q_i = qs(bids(0));
                     Vector12 q_j = qs(bids(1));
