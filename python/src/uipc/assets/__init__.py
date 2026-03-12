@@ -1,11 +1,17 @@
 """Download and load UIPC simulation assets from the HuggingFace dataset.
 
+Supports both remote assets (downloaded from HuggingFace) and local asset
+directories for development and testing.
+
 Usage::
 
-    from uipc.assets import list_assets, asset_path, load
+    from uipc.assets import list_assets, asset_path, load, show
 
-    # See what's available
+    # See what's available (remote)
     print(list_assets())
+
+    # See what's available (local)
+    print(list_assets(local_repo='path/to/uipc-assets'))
 
     # Get the local path (downloads on first call, cached afterwards)
     path = asset_path("cube_ground")
@@ -14,6 +20,14 @@ Usage::
     from uipc import Scene
     scene = Scene(Scene.default_config())
     load("cube_ground", scene)
+
+    # Interactive viewer with asset selector
+    show()                               # browse and pick any asset
+    show("cube_ground")                  # preload a scene (geometry only)
+    show("cube_ground", backend="cuda")  # preload and run simulation
+
+    # Work with a local assets directory
+    show(local_repo='path/to/uipc-assets')
 """
 
 import importlib.util
@@ -27,7 +41,7 @@ REPO_ID = 'MuGdxy/uipc-assets'
 
 __all__ = [
     'REPO_ID', 'list_assets', 'asset_path', 'read_mesh',
-    'load', 'run', 'show', 'strip_constitutions',
+    'load', 'show', 'strip_constitutions',
 ]
 
 _CONSTITUTION_META_ATTRS = [
@@ -63,12 +77,36 @@ def strip_constitutions(scene: Scene) -> None:
                     meta.destroy(attr_name)
 
 
-def list_assets(*, revision: str = 'main') -> list[str]:
-    """List all available asset names in the HuggingFace dataset.
+def list_assets(
+    *,
+    revision: str = 'main',
+    local_repo: str | pathlib.Path | None = None,
+) -> list[str]:
+    """List all available asset names.
+
+    When *local_repo* is given, scans that directory's ``assets``
+    sub-directory for asset folders
+    containing a ``scene.py`` file.  Otherwise queries the HuggingFace
+    dataset.
+
+    Args:
+        revision: Git revision (only used for remote assets).
+        local_repo: Path to local asset repo root (e.g. ``'uipc-assets'``).
+            Assets are discovered under ``local_repo / 'assets'``.
 
     Returns:
         Sorted list of asset names (e.g. ``['cube_ground', 'fem_link_drop', ...]``).
     """
+    root = _resolve_local_assets_dir(local_repo=local_repo)
+    if root is not None:
+        if not root.is_dir():
+            raise FileNotFoundError(f'Local assets directory not found: {root}')
+        return sorted(
+            d.name
+            for d in root.iterdir()
+            if d.is_dir() and (d / 'scene.py').exists()
+        )
+
     api = HfApi()
     entries = api.list_repo_tree(
         REPO_ID, repo_type='dataset', path_in_repo='assets', revision=revision
@@ -101,31 +139,45 @@ def read_mesh(io: SimplicialComplexIO, filepath: str | pathlib.Path) -> Simplici
 
 
 def asset_path(
-    name: str, *, revision: str = 'main', cache_dir: str | None = None
+    name: str,
+    *,
+    revision: str = 'main',
+    cache_dir: str | None = None,
+    local_repo: str | pathlib.Path | None = None,
 ) -> pathlib.Path:
-    """Download an asset by name from HuggingFace and return its local path.
+    """Return the local path to an asset directory.
 
-    The result is cached by ``huggingface_hub``; subsequent calls with the same
-    *name* and *revision* return instantly.
+    When *local_repo* is given, returns ``local_repo / 'assets' / name`` directly.
+    Otherwise downloads from HuggingFace (cached by ``huggingface_hub``).
 
     Args:
-        name: Asset name (e.g. ``'cube_ground'``).  Corresponds to
-              ``assets/<name>/`` in the dataset repo.
-        revision: Git revision (branch, tag, or commit hash).
-        cache_dir: Where to cache downloaded files.  ``None`` uses the
-                   default HuggingFace cache directory.
+        name: Asset name (e.g. ``'cube_ground'``).
+        revision: Git revision (only used for remote assets).
+        cache_dir: Where to cache downloaded files (remote only).
+        local_repo: Path to local asset repo root. When set, assets are
+            loaded from ``local_repo / 'assets'`` and no network access is
+            performed.
 
     Returns:
-        :class:`~pathlib.Path` to the downloaded asset directory.
+        :class:`~pathlib.Path` to the asset directory.
     """
-    local_dir = snapshot_download(
+    local_assets_dir = _resolve_local_assets_dir(local_repo=local_repo)
+    if local_assets_dir is not None:
+        result = local_assets_dir / name
+        if not result.is_dir():
+            raise FileNotFoundError(
+                f"Asset '{name}' not found in local path {local_assets_dir}."
+            )
+        return result
+
+    dl = snapshot_download(
         REPO_ID,
         allow_patterns=[f'assets/{name}/**', 'assets/_*.py'],
         revision=revision,
         cache_dir=cache_dir,
         repo_type='dataset',
     )
-    result = pathlib.Path(local_dir) / 'assets' / name
+    result = pathlib.Path(dl) / 'assets' / name
     if not result.is_dir():
         raise FileNotFoundError(
             f'Asset \'{name}\' not found in {REPO_ID}.  '
@@ -141,23 +193,31 @@ def load(
     geometry_only: bool = False,
     revision: str = 'main',
     cache_dir: str | None = None,
+    local_repo: str | pathlib.Path | None = None,
 ) -> None:
-    """Download an asset and apply it to a Scene.
+    """Download (or locate locally) an asset and apply it to a Scene.
 
-    Downloads ``assets/<name>/`` from the HuggingFace dataset, imports
-    its ``scene.py``, and calls ``build_scene(scene)``.  Each asset's
-    ``build_scene`` may modify ``scene.config()`` to set parameters
-    like ``dt`` or ``contact/d_hat``.
+    Imports the asset's ``scene.py`` and calls ``build_scene(scene)``.
+    Each asset's ``build_scene`` may modify ``scene.config()`` to set
+    parameters like ``dt`` or ``contact/d_hat``.
 
     Args:
         name: Asset name (e.g. ``'cube_ground'``).
         scene: A :class:`uipc.Scene` instance to populate.
         geometry_only: If ``True``, strip all constitution / constraint /
             contact metadata after building, leaving only raw geometry.
-        revision: Git revision (branch, tag, or commit hash).
-        cache_dir: Where to cache downloaded files.
+        revision: Git revision (only used for remote assets).
+        cache_dir: Where to cache downloaded files (remote only).
+        local_repo: Path to local asset repo root. When set, assets are
+            loaded from ``local_repo / 'assets'`` and no network access is
+            performed.
     """
-    path = asset_path(name, revision=revision, cache_dir=cache_dir)
+    path = asset_path(
+        name,
+        revision=revision,
+        cache_dir=cache_dir,
+        local_repo=local_repo,
+    )
     scene_file = path / 'scene.py'
     if not scene_file.exists():
         raise FileNotFoundError(
@@ -178,133 +238,333 @@ def load(
         strip_constitutions(scene)
 
 
-def run(
-    name: str,
-    backend: str = 'cuda',
+def show(
+    name: str | None = None,
+    backend: str = 'none',
     *,
     gui: bool = True,
     workspace: str | None = None,
     revision: str = 'main',
     cache_dir: str | None = None,
+    local_repo: str | pathlib.Path | None = None,
     distance_factor: float = 2.0,
 ) -> None:
-    """Download an asset, build its scene, and run the simulation.
+    """Display and optionally simulate a UIPC asset in a Polyscope window.
 
-    A convenience one-liner for running a simulation::
+    Opens an interactive viewer with a collapsable **Asset Selector** panel
+    that lists every available asset. You can pick any scene and hot-load it
+    without restarting. Once loaded, the GUI shows the source directory and
+    ``scene.py`` path for the current scene, and supports exporting the scene
+    snapshot from a native save dialog. When *backend* is a real engine
+    (e.g. ``'cuda'``), a **Run / Pause** control is shown as well.
 
-        from uipc.assets import run
-        run('cube_ground')                    # CUDA backend with GUI
-        run('cube_ground', gui=False)         # headless
-        run('cube_ground', 'none')            # None backend (sanity check only)
-        run('cube_ground', workspace='out/')  # custom output directory
+    Supports both remote assets (from HuggingFace) and local asset
+    directories for development::
+
+        from uipc.assets import show
+
+        show()                               # browse remote assets
+        show('cube_ground')                  # preload one scene
+        show('cube_ground', backend='cuda')  # preload + live simulation
+        show(backend='cuda')                 # browse, simulate what you pick
+        show(local_repo='uipc-assets')       # browse local assets
 
     Args:
-        name: Asset name (e.g. ``'cube_ground'``).
-        backend: Engine backend name (default ``'cuda'``).
-        gui: If ``True`` (default), open a Polyscope window to visualize
-             the simulation in real time.
+        name: Optional asset name to preload (e.g. ``'cube_ground'``).
+            If ``None``, the viewer opens empty and you pick from the list.
+        backend: Engine backend (default ``'none'`` for geometry-only preview,
+            ``'cuda'`` for live simulation).
+        gui: If ``True`` (default), open a Polyscope window.
+            If ``False`` with a real backend, run headlessly.
         workspace: Directory for simulation output.  ``None`` uses a
-                   temporary directory.
-        revision: Git revision (branch, tag, or commit hash).
-        cache_dir: Where to cache downloaded files.
+            temporary directory.
+        revision: Git revision (only used for remote assets).
+        cache_dir: Where to cache downloaded files (remote only).
+        local_repo: Path to local asset repo root. Assets are loaded from
+            ``local_repo / 'assets'`` without network access.
         distance_factor: How far the camera sits relative to the bounding-box
-                         diagonal (default ``2.0``).  Only used when *gui* is True.
+            diagonal (default ``2.0``).
     """
     import tempfile
+    import threading
+
     from uipc import Engine, World
 
-    scene = Scene(Scene.default_config())
-    load(name, scene, revision=revision, cache_dir=cache_dir)
+    is_simulation = (backend != 'none')
 
-    if workspace is None:
-        workspace = tempfile.mkdtemp(prefix=f'uipc_{name}_')
+    # ── headless mode (gui=False with a real backend) ──────────────
+    if not gui:
+        if name is None:
+            raise ValueError(
+                'Headless mode (gui=False) requires a scene name.'
+            )
+        scene = Scene(Scene.default_config())
+        load(
+            name,
+            scene,
+            revision=revision,
+            cache_dir=cache_dir,
+            local_repo=local_repo,
+        )
+        ws = workspace or tempfile.mkdtemp(prefix=f'uipc_{name}_')
+        engine = Engine(backend, ws)
+        world = World(engine)
+        world.init(scene)
+        if not world.is_valid():
+            raise RuntimeError(
+                f"Scene '{name}' failed sanity check, world is not valid."
+            )
+        while world.is_valid():
+            world.advance()
+            world.sync()
+            world.retrieve()
+        return
 
-    engine = Engine(backend, workspace)
-    world = World(engine)
-    world.init(scene)
+    # ── GUI mode ───────────────────────────────────────────────────
+    import polyscope as ps
+    import polyscope.imgui as imgui
+    from uipc.gui import SceneGUI
 
-    if not world.is_valid():
-        raise RuntimeError(f"Scene '{name}' failed sanity check, world is not valid.")
+    # Mutable state shared with the ImGui callback.
+    state = {
+        'scene': None,
+        'engine': None,
+        'world': None,
+        'scene_gui': None,
+        'current_name': None,
+        'running': False,
+        'frame': 0,
+        'selected_idx': 0,
+        'asset_names': None,   # None = not yet fetched
+        'fetching': False,
+        'source_dir': '',
+        'scene_file': '',
+        'status': '',
+        'error': '',
+    }
 
-    if gui:
-        import polyscope as ps
-        import polyscope.imgui as imgui
-        from uipc.gui import SceneGUI
+    # ── helper: (re-)load a scene into Polyscope ──────────────────
+    def _load_scene(asset_name: str) -> None:
+        try:
+            ps.remove_all_structures()
 
-        ps.init()
-        scene_gui = SceneGUI(scene)
-        scene_gui.register()
-        scene_gui.set_edge_width(1.0)
-        _auto_camera(scene, distance_factor)
+            scene = Scene(Scene.default_config())
+            source_dir = asset_path(
+                asset_name,
+                revision=revision,
+                cache_dir=cache_dir,
+                local_repo=local_repo,
+            )
+            scene_file = source_dir / 'scene.py'
+            load(
+                asset_name,
+                scene,
+                revision=revision,
+                cache_dir=cache_dir,
+                local_repo=local_repo,
+            )
 
-        state = {'running': False, 'frame': 0}
+            if is_simulation:
+                ws = workspace or tempfile.mkdtemp(
+                    prefix=f'uipc_{asset_name}_'
+                )
+                engine = Engine(backend, ws)
+            else:
+                engine = Engine('none')
+            world = World(engine)
+            world.init(scene)
 
-        def _callback():
-            changed, state['running'] = imgui.Checkbox(
+            scene_gui = SceneGUI(scene, surf_type='split')
+            scene_gui.register()
+            scene_gui.set_edge_width(1.0)
+            _auto_camera(scene, distance_factor)
+
+            state['scene'] = scene
+            state['engine'] = engine
+            state['world'] = world
+            state['scene_gui'] = scene_gui
+            state['current_name'] = asset_name
+            state['running'] = False
+            state['frame'] = 0
+            state['source_dir'] = str(source_dir.resolve())
+            state['scene_file'] = str(scene_file.resolve())
+            state['status'] = f'Loaded: {asset_name}'
+            state['error'] = ''
+        except Exception as exc:
+            state['error'] = str(exc)
+            state['status'] = f'Error loading {asset_name}'
+
+    # ── helper: fetch asset list in a background thread ───────────
+    def _fetch_assets() -> None:
+        try:
+            names = list_assets(
+                revision=revision,
+                local_repo=local_repo,
+            )
+            state['asset_names'] = names
+            # Pre-select the currently loaded scene, if any.
+            if state['current_name'] and state['current_name'] in names:
+                state['selected_idx'] = names.index(state['current_name'])
+        except Exception as exc:
+            state['asset_names'] = []
+            state['error'] = f'Failed to fetch asset list: {exc}'
+        finally:
+            state['fetching'] = False
+
+    def _pick_save_path(asset_name: str, source_dir: str) -> pathlib.Path | None:
+        """Open a native file-save dialog and return selected path."""
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+        except Exception as exc:
+            raise RuntimeError(
+                f'Native file dialog is unavailable: {exc}'
+            ) from exc
+
+        initial_dir = source_dir or str(pathlib.Path.cwd())
+        initial_file = f'{asset_name}.json'
+
+        root = tk.Tk()
+        root.withdraw()
+        root.attributes('-topmost', True)
+        try:
+            chosen = filedialog.asksaveasfilename(
+                title='Save Scene',
+                defaultextension='.json',
+                filetypes=[
+                    ('JSON file', '*.json'),
+                    ('BSON file', '*.bson'),
+                    ('All files', '*.*'),
+                ],
+                initialdir=initial_dir,
+                initialfile=initial_file,
+            )
+        finally:
+            root.destroy()
+
+        if not chosen:
+            return None
+        return pathlib.Path(chosen)
+
+    # ── ImGui callback ────────────────────────────────────────────
+    def _callback() -> None:
+        names = state['asset_names']
+
+        # Kick off the background fetch once.
+        if names is None and not state['fetching']:
+            state['fetching'] = True
+            threading.Thread(target=_fetch_assets, daemon=True).start()
+
+        # ---- Asset Selector section ----
+        if imgui.CollapsingHeader('Asset Selector'):
+            if state['fetching']:
+                imgui.TextUnformatted('Fetching asset list...')
+            elif names is not None and len(names) > 0:
+                # Scrollable list of assets.
+                line_h = imgui.GetTextLineHeightWithSpacing()
+                list_h = min(len(names), 15) * line_h
+                if imgui.BeginListBox('##assets', (0.0, list_h)):
+                    for i, n in enumerate(names):
+                        is_cur = (i == state['selected_idx'])
+                        if imgui.Selectable(n, selected=is_cur):
+                            state['selected_idx'] = i
+                    imgui.EndListBox()
+
+                # Read-only text box showing the selected name (user can copy).
+                sel = names[state['selected_idx']]
+                imgui.InputText(
+                    '##selected',
+                    sel,
+                    imgui.ImGuiInputTextFlags_ReadOnly,
+                )
+
+                if imgui.Button('Load'):
+                    state['status'] = f'Loading {sel}...'
+                    _load_scene(sel)
+            elif names is not None:
+                imgui.TextUnformatted('No assets found.')
+
+        # Status / error feedback.
+        if state['status']:
+            imgui.TextUnformatted(state['status'])
+        if state['error']:
+            imgui.TextColored((1.0, 0.4, 0.4, 1.0), state['error'])
+
+        # ---- Scene Parameters section ----
+        if state['scene'] is not None:
+            def _on_save_scene() -> None:
+                try:
+                    save_path = _pick_save_path(
+                        state['current_name'],
+                        state['source_dir'],
+                    )
+                    if save_path is not None:
+                        sio = SceneIO(state['scene'])
+                        sio.save(str(save_path))
+                        state['status'] = f'Saved scene: {save_path}'
+                        state['error'] = ''
+                    else:
+                        state['status'] = 'Save canceled.'
+                except Exception as exc:
+                    state['error'] = f'Failed to save scene: {exc}'
+
+            imgui.Separator()
+            state['scene_gui'].show(
+                imgui,
+                current_name=state['current_name'],
+                source_dir=state['source_dir'],
+                scene_file=state['scene_file'],
+                on_save_scene=_on_save_scene,
+            )
+
+            # Re-init world with updated parameters
+            if is_simulation and state['world'] is not None:
+                if imgui.Button('Re-init'):
+                    try:
+                        scene = state['scene']
+                        ws = workspace or tempfile.mkdtemp(
+                            prefix=f'uipc_{state["current_name"]}_'
+                        )
+                        engine = Engine(backend, ws)
+                        world = World(engine)
+                        world.init(scene)
+                        ps.remove_all_structures()
+                        scene_gui = SceneGUI(scene, surf_type='split')
+                        scene_gui.register()
+                        scene_gui.set_edge_width(1.0)
+                        state['engine'] = engine
+                        state['world'] = world
+                        state['scene_gui'] = scene_gui
+                        state['running'] = False
+                        state['frame'] = 0
+                        state['status'] = f'Re-init: {state["current_name"]}'
+                        state['error'] = ''
+                    except Exception as exc:
+                        state['error'] = str(exc)
+
+        # ---- Simulation controls (only for real backends) ----
+        if is_simulation and state['world'] is not None:
+            imgui.Separator()
+            _, state['running'] = imgui.Checkbox(
                 'Run', state['running']
             )
             imgui.SameLine()
             imgui.TextUnformatted(f"frame: {state['frame']}")
 
-            if state['running'] and world.is_valid():
-                world.advance()
-                world.sync()
-                world.retrieve()
-                scene_gui.update()
+            if state['running'] and state['world'].is_valid():
+                state['world'].advance()
+                state['world'].sync()
+                state['world'].retrieve()
+                state['scene_gui'].update()
                 state['frame'] += 1
 
-        ps.set_user_callback(_callback)
-        ps.show()
-    else:
-        while world.is_valid():
-            world.advance()
-            world.sync()
-            world.retrieve()
-
-
-def show(
-    name: str,
-    *,
-    revision: str = 'main',
-    cache_dir: str | None = None,
-    distance_factor: float = 2.0,
-) -> None:
-    """Download an asset, build its scene, and display it in a Polyscope window.
-
-    This is a convenience one-liner for quick visual inspection::
-
-        from uipc.assets import show
-        show('cube_ground')
-
-    The camera is automatically positioned based on the scene bounding box:
-    it looks at the center from a 45-degree elevation, pulled back by
-    *distance_factor* times the bounding-box diagonal length.
-
-    Args:
-        name: Asset name (e.g. ``'cube_ground'``).
-        revision: Git revision (branch, tag, or commit hash).
-        cache_dir: Where to cache downloaded files.
-        distance_factor: How far the camera sits relative to the bounding-box
-                         diagonal (default ``2.0``).
-    """
-    import numpy as np
-    import polyscope as ps
-    from uipc import Engine, World
-    from uipc.gui import SceneGUI
-
-    scene = Scene(Scene.default_config())
-    load(name, scene, revision=revision, cache_dir=cache_dir)
-
-    engine = Engine('none')
-    world = World(engine)
-    world.init(scene)
-
+    # ── Initialise Polyscope and (optionally) preload a scene ─────
     ps.init()
-    gui = SceneGUI(scene)
-    gui.register()
-    gui.set_edge_width(1.0)
 
-    _auto_camera(scene, distance_factor)
+    if name is not None:
+        _load_scene(name)
+
+    ps.set_user_callback(_callback)
     ps.show()
 
 
@@ -336,3 +596,13 @@ def _auto_camera(scene: Scene, distance_factor: float) -> None:
     ground = dist * np.cos(np.pi / 4) / np.sqrt(2)
     camera_pos = center + np.array([ground, elevation, ground])
     ps.look_at(camera_pos.tolist(), center.tolist())
+
+
+def _resolve_local_assets_dir(
+    *,
+    local_repo: str | pathlib.Path | None,
+) -> pathlib.Path | None:
+    """Resolve local assets root directory from local_repo input."""
+    if local_repo is not None:
+        return pathlib.Path(local_repo) / 'assets'
+    return None

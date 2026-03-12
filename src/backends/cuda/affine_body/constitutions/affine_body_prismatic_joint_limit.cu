@@ -37,11 +37,11 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
     muda::DeviceBuffer<Float>    strengths;
 
     static auto get_prismatic_basis(const geometry::SimplicialComplex* L,
-                                    IndexT                             L_inst_id,
+                                    IndexT L_inst_id,
                                     const geometry::SimplicialComplex* R,
-                                    IndexT                             R_inst_id,
+                                    IndexT R_inst_id,
                                     const geometry::SimplicialComplex* joint_mesh,
-                                    IndexT                             joint_index)
+                                    IndexT joint_index)
     {
         auto topo_view = joint_mesh->edges().topo().view();
         auto pos_view  = joint_mesh->positions().view();
@@ -51,8 +51,8 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
         UIPC_ASSERT(t.squaredNorm() > 0.0,
                     "AffineBodyPrismaticJointLimit: joint edge {} has zero length; cannot compute prismatic basis",
                     joint_index);
-        t          = t.normalized();
-        Vector3 c  = pos_view[e[0]];
+        t         = t.normalized();
+        Vector3 c = pos_view[e[0]];
 
         auto compute_ct_bar = [&](const geometry::SimplicialComplex* geo, IndexT inst_id) -> Vector6
         {
@@ -99,28 +99,23 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                 UIPC_ASSERT(sc, "AffineBodyPrismaticJointLimit geometry must be SimplicialComplex");
 
                 auto geo_ids_attr = sc->edges().find<Vector2i>("geo_ids");
-                UIPC_ASSERT(geo_ids_attr,
-                            "AffineBodyPrismaticJointLimit requires `geo_ids` attribute on edges");
+                UIPC_ASSERT(geo_ids_attr, "AffineBodyPrismaticJointLimit requires `geo_ids` attribute on edges");
                 auto geo_ids = geo_ids_attr->view();
 
                 auto inst_ids_attr = sc->edges().find<Vector2i>("inst_ids");
-                UIPC_ASSERT(inst_ids_attr,
-                            "AffineBodyPrismaticJointLimit requires `inst_ids` attribute on edges");
+                UIPC_ASSERT(inst_ids_attr, "AffineBodyPrismaticJointLimit requires `inst_ids` attribute on edges");
                 auto inst_ids = inst_ids_attr->view();
 
                 auto lower_attr = sc->edges().find<Float>("limit/lower");
-                UIPC_ASSERT(lower_attr,
-                            "AffineBodyPrismaticJointLimit requires `limit/lower` attribute on edges");
+                UIPC_ASSERT(lower_attr, "AffineBodyPrismaticJointLimit requires `limit/lower` attribute on edges");
                 auto lower_view = lower_attr->view();
 
                 auto upper_attr = sc->edges().find<Float>("limit/upper");
-                UIPC_ASSERT(upper_attr,
-                            "AffineBodyPrismaticJointLimit requires `limit/upper` attribute on edges");
+                UIPC_ASSERT(upper_attr, "AffineBodyPrismaticJointLimit requires `limit/upper` attribute on edges");
                 auto upper_view = upper_attr->view();
 
                 auto strength_attr = sc->edges().find<Float>("limit/strength");
-                UIPC_ASSERT(strength_attr,
-                            "AffineBodyPrismaticJointLimit requires `limit/strength` attribute on edges");
+                UIPC_ASSERT(strength_attr, "AffineBodyPrismaticJointLimit requires `limit/strength` attribute on edges");
                 auto strength_view = strength_attr->view();
 
                 auto edges = sc->edges().topo().view();
@@ -133,12 +128,14 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                     auto* right_sc = info.body_geo(geo_slots, geo_id[1]);
 
                     UIPC_ASSERT(inst_id[0] >= 0
-                                    && inst_id[0] < static_cast<IndexT>(left_sc->instances().size()),
+                                    && inst_id[0] < static_cast<IndexT>(
+                                           left_sc->instances().size()),
                                 "AffineBodyPrismaticJointLimit: left instance ID {} out of range [0, {})",
                                 inst_id[0],
                                 left_sc->instances().size());
                     UIPC_ASSERT(inst_id[1] >= 0
-                                    && inst_id[1] < static_cast<IndexT>(right_sc->instances().size()),
+                                    && inst_id[1] < static_cast<IndexT>(
+                                           right_sc->instances().size()),
                                 "AffineBodyPrismaticJointLimit: right instance ID {} out of range [0, {})",
                                 inst_id[1],
                                 right_sc->instances().size());
@@ -192,49 +189,46 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
         namespace EPJ = sym::external_prismatic_joint_constraint;
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(
-                body_ids.size(),
-                [body_ids = body_ids.cviewer().name("body_ids"),
-                 l_basis = l_basis.cviewer().name("l_basis"),
-                 r_basis = r_basis.cviewer().name("r_basis"),
-                 ref_qs  = ref_qs.cviewer().name("ref_qs"),
-                 lowers = lowers.cviewer().name("lowers"),
-                 uppers = uppers.cviewer().name("uppers"),
-                 strengths = strengths.cviewer().name("strengths"),
-                 qs      = info.qs().cviewer().name("qs"),
-                 q_prevs = info.q_prevs().cviewer().name("q_prevs"),
-                 Es      = info.energies().viewer().name("Es")] __device__(int I)
-                {
-                    Vector2i bid = body_ids(I);
+            .apply(body_ids.size(),
+                   [body_ids  = body_ids.cviewer().name("body_ids"),
+                    l_basis   = l_basis.cviewer().name("l_basis"),
+                    r_basis   = r_basis.cviewer().name("r_basis"),
+                    ref_qs    = ref_qs.cviewer().name("ref_qs"),
+                    lowers    = lowers.cviewer().name("lowers"),
+                    uppers    = uppers.cviewer().name("uppers"),
+                    strengths = strengths.cviewer().name("strengths"),
+                    qs        = info.qs().cviewer().name("qs"),
+                    q_prevs   = info.q_prevs().cviewer().name("q_prevs"),
+                    Es = info.energies().viewer().name("Es")] __device__(int I)
+                   {
+                       Vector2i bid = body_ids(I);
 
-                    Vector6  lb = l_basis(I);
-                    Vector6  rb = r_basis(I);
-                    Vector24 ref_q = ref_qs(I);
+                       Vector6  lb    = l_basis(I);
+                       Vector6  rb    = r_basis(I);
+                       Vector24 ref_q = ref_qs(I);
 
-                    Vector12 qk      = qs(bid[0]);
-                    Vector12 ql      = qs(bid[1]);
-                    Vector12 q_prevk = q_prevs(bid[0]);
-                    Vector12 q_prevl = q_prevs(bid[1]);
-                    Vector12 q_refk  = ref_q.segment<12>(0);
-                    Vector12 q_refl  = ref_q.segment<12>(12);
+                       Vector12 qk      = qs(bid[0]);
+                       Vector12 ql      = qs(bid[1]);
+                       Vector12 q_prevk = q_prevs(bid[0]);
+                       Vector12 q_prevl = q_prevs(bid[1]);
+                       Vector12 q_refk  = ref_q.segment<12>(0);
+                       Vector12 q_refl  = ref_q.segment<12>(12);
 
-                    Float theta_prev = 0.0f;
-                    EPJ::DeltaTheta<Float>(
-                        theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
+                       Float theta_prev = 0.0f;
+                       EPJ::DeltaTheta<Float>(theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
 
-                    Float delta = 0.0f;
-                    EPJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
+                       Float delta = 0.0f;
+                       EPJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
 
-                    Float x        = theta_prev + delta;
-                    Float lower    = lowers(I);
-                    Float upper    = uppers(I);
-                    Float strength = strengths(I);
+                       Float x        = theta_prev + delta;
+                       Float lower    = lowers(I);
+                       Float upper    = uppers(I);
+                       Float strength = strengths(I);
 
-                    Float E = joint_limit::eval_penalty_energy<Float>(
-                        x, lower, upper, strength);
+                       Float E = joint_limit::eval_penalty_energy<Float>(x, lower, upper, strength);
 
-                    Es(I) = E;
-                });
+                       Es(I) = E;
+                   });
     }
 
     void do_report_gradient_hessian_extent(GradientHessianExtentInfo& info) override
@@ -249,88 +243,86 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        namespace EPJ = sym::external_prismatic_joint_constraint;
+        namespace EPJ      = sym::external_prismatic_joint_constraint;
         auto gradient_only = info.gradient_only();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(
-                body_ids.size(),
-                [body_ids = body_ids.cviewer().name("body_ids"),
-                 l_basis = l_basis.cviewer().name("l_basis"),
-                 r_basis = r_basis.cviewer().name("r_basis"),
-                 ref_qs  = ref_qs.cviewer().name("ref_qs"),
-                 lowers = lowers.cviewer().name("lowers"),
-                 uppers = uppers.cviewer().name("uppers"),
-                 strengths = strengths.cviewer().name("strengths"),
-                 qs      = info.qs().cviewer().name("qs"),
-                 q_prevs = info.q_prevs().cviewer().name("q_prevs"),
-                 G12s    = info.gradients().viewer().name("G12s"),
-                 H12x12s = info.hessians().viewer().name("H12x12s"),
-                 gradient_only] __device__(int I) mutable
-                {
-                    Vector2i bid = body_ids(I);
+            .apply(body_ids.size(),
+                   [body_ids  = body_ids.cviewer().name("body_ids"),
+                    l_basis   = l_basis.cviewer().name("l_basis"),
+                    r_basis   = r_basis.cviewer().name("r_basis"),
+                    ref_qs    = ref_qs.cviewer().name("ref_qs"),
+                    lowers    = lowers.cviewer().name("lowers"),
+                    uppers    = uppers.cviewer().name("uppers"),
+                    strengths = strengths.cviewer().name("strengths"),
+                    qs        = info.qs().cviewer().name("qs"),
+                    q_prevs   = info.q_prevs().cviewer().name("q_prevs"),
+                    G12s      = info.gradients().viewer().name("G12s"),
+                    H12x12s   = info.hessians().viewer().name("H12x12s"),
+                    gradient_only] __device__(int I) mutable
+                   {
+                       Vector2i bid = body_ids(I);
 
-                    Vector6  lb = l_basis(I);
-                    Vector6  rb = r_basis(I);
-                    Vector24 ref_q = ref_qs(I);
+                       Vector6  lb    = l_basis(I);
+                       Vector6  rb    = r_basis(I);
+                       Vector24 ref_q = ref_qs(I);
 
-                    Vector12 qk      = qs(bid[0]);
-                    Vector12 ql      = qs(bid[1]);
-                    Vector12 q_prevk = q_prevs(bid[0]);
-                    Vector12 q_prevl = q_prevs(bid[1]);
-                    Vector12 q_refk  = ref_q.segment<12>(0);
-                    Vector12 q_refl  = ref_q.segment<12>(12);
+                       Vector12 qk      = qs(bid[0]);
+                       Vector12 ql      = qs(bid[1]);
+                       Vector12 q_prevk = q_prevs(bid[0]);
+                       Vector12 q_prevl = q_prevs(bid[1]);
+                       Vector12 q_refk  = ref_q.segment<12>(0);
+                       Vector12 q_refl  = ref_q.segment<12>(12);
 
-                    Float theta_prev = 0.0f;
-                    EPJ::DeltaTheta<Float>(
-                        theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
+                       Float theta_prev = 0.0f;
+                       EPJ::DeltaTheta<Float>(theta_prev, lb, q_prevk, q_refk, rb, q_prevl, q_refl);
 
-                    Float delta = 0.0f;
-                    EPJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
+                       Float delta = 0.0f;
+                       EPJ::DeltaTheta<Float>(delta, lb, qk, q_prevk, rb, ql, q_prevl);
 
-                    Float x        = theta_prev + delta;
-                    Float lower    = lowers(I);
-                    Float upper    = uppers(I);
-                    Float strength = strengths(I);
+                       Float x        = theta_prev + delta;
+                       Float lower    = lowers(I);
+                       Float upper    = uppers(I);
+                       Float strength = strengths(I);
 
-                    Float dE_dx   = 0.0f;
-                    Float d2E_dx2 = 0.0f;
-                    joint_limit::eval_penalty_derivatives<Float>(
-                        x, lower, upper, strength, dE_dx, d2E_dx2);
+                       Float dE_dx   = 0.0f;
+                       Float d2E_dx2 = 0.0f;
+                       joint_limit::eval_penalty_derivatives<Float>(
+                           x, lower, upper, strength, dE_dx, d2E_dx2);
 
-                    Vector24 dx_dq;
-                    EPJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);
+                       Vector24 dx_dq;
+                       EPJ::dDeltaTheta_dQ<Float>(dx_dq, lb, qk, q_prevk, rb, ql, q_prevl);
 
-                    Vector24 G = dE_dx * dx_dq;
-                    DoubletVectorAssembler DVA{G12s};
-                    DVA.segment<2>(2 * I).write(bid, G);
+                       Vector24               G = dE_dx * dx_dq;
+                       DoubletVectorAssembler DVA{G12s};
+                       DVA.segment<2>(2 * I).write(bid, G);
 
-                    if(gradient_only)
-                        return;
+                       if(gradient_only)
+                           return;
 
-                    Matrix24x24 H = d2E_dx2 * (dx_dq * dx_dq.transpose());
+                       Matrix24x24 H = d2E_dx2 * (dx_dq * dx_dq.transpose());
 
-                    if(dE_dx != 0.0f)
-                    {
-                        Vector12 F;
-                        Vector12 F_prev;
-                        EPJ::F<Float>(F, lb, qk, rb, ql);
-                        EPJ::F<Float>(F_prev, lb, q_prevk, rb, q_prevl);
+                       if(dE_dx != 0.0f)
+                       {
+                           Vector12 F;
+                           Vector12 F_prev;
+                           EPJ::F<Float>(F, lb, qk, rb, ql);
+                           EPJ::F<Float>(F_prev, lb, q_prevk, rb, q_prevl);
 
-                        Matrix12x12 ddx_ddF;
-                        EPJ::ddDeltaTheta_ddF(ddx_ddF, F, F_prev);
+                           Matrix12x12 ddx_ddF;
+                           EPJ::ddDeltaTheta_ddF(ddx_ddF, F, F_prev);
 
-                        Matrix12x12 H_F = dE_dx * ddx_ddF;
+                           Matrix12x12 H_F = dE_dx * ddx_ddF;
 
-                        Matrix24x24 JT_H_J;
-                        EPJ::JT_H_J<Float>(JT_H_J, H_F, lb, rb, lb, rb);
-                        H += JT_H_J;
-                    }
+                           Matrix24x24 JT_H_J;
+                           EPJ::JT_H_J<Float>(JT_H_J, H_F, lb, rb, lb, rb);
+                           H += JT_H_J;
+                       }
 
-                    TripletMatrixAssembler TMA{H12x12s};
-                    TMA.half_block<2>(HalfHessianSize * I).write(bid, H);
-                });
+                       TripletMatrixAssembler TMA{H12x12s};
+                       TMA.half_block<2>(HalfHessianSize * I).write(bid, H);
+                   });
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }

@@ -11,18 +11,27 @@ REGISTER_SIM_SYSTEM(LinearPCG);
 
 void LinearPCG::do_build(BuildInfo& info)
 {
+    auto& config = world().scene().config();
+
+    auto solver_attr = config.find<std::string>("linear_system/solver");
+    UIPC_ASSERT(solver_attr, "linear_system/solver not found");
+    if(solver_attr->view()[0] != "linear_pcg")
+    {
+        throw SimSystemException("LinearPCG unused");
+    }
+
     auto& global_linear_system = require<GlobalLinearSystem>();
 
     // TODO: get info from the scene, now we just use the default value
     max_iter_ratio = 2;
 
-    auto& config = world().scene().config();
-
     auto tol_rate_attr = config.find<Float>("linear_system/tol_rate");
+    UIPC_ASSERT(tol_rate_attr, "linear_system/tol_rate not found");
     global_tol_rate    = tol_rate_attr->view()[0];
 
     auto dump_attr  = config.find<IndexT>("extras/debug/dump_linear_pcg");
-    need_debug_dump = dump_attr ? dump_attr->view()[0] : false;
+    UIPC_ASSERT(dump_attr, "extras/debug/dump_linear_pcg not found");
+    need_debug_dump = dump_attr->view()[0];
 
     logger::info("LinearPCG: max_iter_ratio = {}, tol_rate = {}, debug_dump = {}",
                  max_iter_ratio,
@@ -51,6 +60,7 @@ void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
     p.resize(N);
     r.resize(N);
     Ap.resize(N);
+    d_converged_false = 0;
 
     r0 = r;
 
@@ -112,21 +122,48 @@ void LinearPCG::dump_p_Ap(SizeT k)
     logger::info("Dumped PCG Ap to {}", output_path_Ap);
 }
 
-void LinearPCG::check_rz_nan_inf(SizeT k)
+void LinearPCG::check_init_rz_nan_inf(Float rz)
 {
-    auto rz = ctx().dot(r.cview(), z.cview());
-    if(std::isnan(rz) || !std::isfinite(rz))
+    if(!std::isfinite(rz)) [[unlikely]]
     {
         auto norm_r = ctx().norm(r.cview());
         auto norm_z = ctx().norm(z.cview());
-        UIPC_ASSERT(!std::isnan(rz) && std::isfinite(rz),
-                    "Frame {}, Newton: {}, Iteration {}: Residual is {}, norm(r) = {}, norm(z) = {}",
+        bool r_bad  = !std::isfinite(norm_r);
+        auto hint = r_bad ? "gradient assembling produced NaN values, likely due to error in formula implementation" :
+                            "preconditioner failed, likely due to inverse matrix calculation failure";
+        UIPC_ASSERT(false,
+                    "Frame {}, Newton {}, PCG Init: r^T*z = {}, norm(r) = {}, norm(z) = {}. "
+                    "Hint: {}.",
+                    engine().frame(),
+                    engine().newton_iter(),
+                    rz,
+                    norm_r,
+                    norm_z,
+                    hint);
+    }
+}
+
+void LinearPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
+{
+    if(!std::isfinite(rz)) [[unlikely]]
+    {
+        auto norm_r = ctx().norm(r.cview());
+        auto norm_z = ctx().norm(z.cview());
+        bool r_ok   = std::isfinite(norm_r);
+        bool z_bad  = !std::isfinite(norm_z);
+        auto hint = (r_ok && z_bad) ?
+                        "preconditioner failed, likely due to inverse matrix calculation failure" :
+                        "PCG iteration diverged";
+        UIPC_ASSERT(false,
+                    "Frame {}, Newton {}, PCG Iter {}: r^T*z = {}, norm(r) = {}, norm(z) = {}. "
+                    "Hint: {}.",
                     engine().frame(),
                     engine().newton_iter(),
                     k,
                     rz,
                     norm_r,
-                    norm_z);
+                    norm_z,
+                    hint);
     }
 }
 
@@ -185,7 +222,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
     // z = P * r (apply preconditioner)
     {
         Timer timer{"Apply Preconditioner"};
-        apply_preconditioner(z, r);
+        apply_preconditioner(z, r, d_converged_false.view());
     }
 
     if(need_debug_dump) [[unlikely]]
@@ -197,7 +234,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
     // init rz
     // rz = r^T * z
     rz = ctx().dot(r.cview(), z.cview());
-    check_rz_nan_inf(k);
+    check_init_rz_nan_inf(rz);
 
     abs_rz0 = std::abs(rz);
 
@@ -225,7 +262,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
         // z = P * r (apply preconditioner)
         {
             Timer timer{"Apply Preconditioner"};
-            apply_preconditioner(z, r);
+            apply_preconditioner(z, r, d_converged_false.view());
         }
 
         if(need_debug_dump) [[unlikely]]
@@ -233,7 +270,7 @@ SizeT LinearPCG::pcg(muda::DenseVectorView<Float> x, muda::CDenseVectorView<Floa
 
         // rz_new = r^T * z
         Float rz_new = ctx().dot(r.cview(), z.cview());
-        check_rz_nan_inf(k);
+        check_iter_rz_nan_inf(rz_new, k);
 
         // check convergence
         if(accuracy_statisfied(r) && std::abs(rz_new) <= global_tol_rate * abs_rz0)

@@ -2,6 +2,7 @@
 #include <uipc/geometry/utils/affine_body/transform.h>
 #include <uipc/geometry/utils/affine_body/compute_body_force.h>
 #include <uipc/geometry/utils/affine_body/compute_dyadic_mass.h>
+#include <uipc/geometry/utils/affine_body/affine_body_from_rigid_body.h>
 
 namespace pyuipc::geometry
 {
@@ -239,5 +240,45 @@ Returns:
         - m: The total mass (float).
         - m_x_bar: The total mass times the center of mass (3D vector).
         - m_x_bar_x_bar: The total mass times the center of mass times the center of mass transpose (3x3 matrix).)");
+
+    m.def(
+        "from_rigid_body",
+        [](Float mass, py::array_t<Float> center_of_mass, py::array_t<Float> inertia_cm)
+            -> py::array_t<Float>
+        {
+            auto c   = to_matrix<Vector3>(center_of_mass);
+            auto I   = to_matrix<Matrix3x3>(inertia_cm);
+            return as_numpy(from_rigid_body(mass, c, I));
+        },
+        py::arg("mass"),
+        py::arg("center_of_mass"),
+        py::arg("inertia_cm"),
+        R"(Build the 12x12 ABD mass matrix from rigid body quantities.
+Args:
+    mass: Total mass of the rigid body.
+    center_of_mass: Center of mass in the reference configuration (3D vector).
+    inertia_cm: 3x3 inertia tensor about the center of mass.
+Returns:
+    numpy.ndarray: 12x12 ABD mass matrix.)");
+
+    m.def(
+        "build_abd_mass_matrix",
+        [](Float m, py::array_t<Float> m_x_bar, py::array_t<Float> m_x_bar_x_bar)
+            -> py::array_t<Float>
+        {
+            auto mx  = to_matrix<Vector3>(m_x_bar);
+            auto mxx = to_matrix<Matrix3x3>(m_x_bar_x_bar);
+            return as_numpy(build_abd_mass_matrix(m, mx, mxx));
+        },
+        py::arg("m"),
+        py::arg("m_x_bar"),
+        py::arg("m_x_bar_x_bar"),
+        R"(Build the 12x12 ABD mass matrix from dyadic mass components.
+Args:
+    m: Total mass.
+    m_x_bar: First moment of mass (m * center_of_mass), 3D vector.
+    m_x_bar_x_bar: Second moment of mass tensor S, 3x3 matrix.
+Returns:
+    numpy.ndarray: 12x12 ABD mass matrix.)");
 }
 }  // namespace pyuipc::geometry

@@ -5,6 +5,7 @@
 #include <muda/ext/linear_system/bsr_matrix_view.h>
 #include <muda/ext/linear_system/dense_vector_view.h>
 #include <muda/ext/linear_system/device_dense_vector.h>
+#include <muda/buffer/var_view.h>
 
 namespace uipc::backend::cuda
 {
@@ -32,6 +33,15 @@ class Spmv
                       muda::CDenseVectorView<Float>   x,
                       Float                           b,
                       muda::DenseVectorView<Float>    y);
+
+    // reduce by key symmetric spmv with fused dot product
+    // computes y = a * A * x  AND  d_dot = x^T * (a * A * x) in a single pass
+    void rbk_sym_spmv_dot(Float                           a,
+                          muda::CBCOOMatrixView<Float, 3> A,
+                          muda::CDenseVectorView<Float>   x,
+                          Float                           b,
+                          muda::DenseVectorView<Float>    y,
+                          muda::VarView<Float>            d_dot);
 
     // debug fallback cpu spmv
     // very slow, only for debug

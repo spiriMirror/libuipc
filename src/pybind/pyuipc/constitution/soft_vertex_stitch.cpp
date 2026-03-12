@@ -42,6 +42,8 @@ Args:
     aim_geo_slots: Tuple of geometry slots to stitch.
     stitched_vert_ids: Array of vertex ID pairs [geometry0_vert, geometry1_vert] to stitch.
     kappa: Stitching stiffness (default: 1e6).
+    rest_length: Rest length of the spring (default: 0.0). When 0, the singularity-free
+        harmonic energy E=0.5*k*||x-y||^2 is used.
 Returns:
     Geometry: Created stitching geometry.)");
 
@@ -71,6 +73,8 @@ Args:
     stitched_vert_ids: Array of vertex ID pairs [geometry0_vert, geometry1_vert] to stitch.
     contact_elements: Tuple of two contact element objects.
     kappa: Stitching stiffness (default: 1e6).
+    rest_length: Rest length of the spring (default: 0.0). When 0, the singularity-free
+        harmonic energy E=0.5*k*||x-y||^2 is used.
 Returns:
     Created stitching geometry.)");
 };

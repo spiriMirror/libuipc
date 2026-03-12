@@ -185,25 +185,28 @@ void AffinebodySurfaceReporter::Impl::init(backend::WorldVisitor& world)
 
                     auto body_vertex_count = geo_info.vertex_count / body_count;
 
-                    for(auto i : range(body_count))
+                    if(body_surf_edge_count > 0)
                     {
-                        auto body_vertex_offset_in_global =
-                            geo_vertex_offset_in_global + i * body_vertex_count;
-
-                        auto surf_e = span{surf_edges}.subspan(
-                            geo_surf_edges_offsets[geoI] + i * surf_edge_cache.size(),
-                            surf_edge_cache.size());
-
                         auto Es = sc.edges().topo().view();
 
-                        std::ranges::transform(surf_edge_cache,
-                                               surf_e.begin(),
-                                               [&](const IndexT& local_surf_edge_id) -> Vector2i
-                                               {
-                                                   auto edge = Es[local_surf_edge_id];
-                                                   Vector2i ret = edge.array() + body_vertex_offset_in_global;
-                                                   return ret;
-                                               });
+                        for(auto i : range(body_count))
+                        {
+                            auto body_vertex_offset_in_global =
+                                geo_vertex_offset_in_global + i * body_vertex_count;
+
+                            auto surf_e = span{surf_edges}.subspan(
+                                geo_surf_edges_offsets[geoI] + i * surf_edge_cache.size(),
+                                surf_edge_cache.size());
+
+                            std::ranges::transform(surf_edge_cache,
+                                                   surf_e.begin(),
+                                                   [&](const IndexT& local_surf_edge_id) -> Vector2i
+                                                   {
+                                                       auto edge = Es[local_surf_edge_id];
+                                                       Vector2i ret = edge.array() + body_vertex_offset_in_global;
+                                                       return ret;
+                                                   });
+                        }
                     }
                 }
 

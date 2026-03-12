@@ -196,11 +196,13 @@ class GlobalLinearSystem : public SimSystem
 
         DenseVectorView  z() { return m_z; }
         CDenseVectorView r() { return m_r; }
+        muda::CVarView<IndexT> converged() const { return m_converged; }
 
       private:
         friend class Impl;
         DenseVectorView  m_z;
         CDenseVectorView m_r;
+        muda::CVarView<IndexT> m_converged{};
         Impl*            m_impl = nullptr;
     };
 
@@ -317,9 +319,11 @@ class GlobalLinearSystem : public SimSystem
         bool empty_system = true;
 
         void apply_preconditioner(muda::DenseVectorView<Float>  z,
-                                  muda::CDenseVectorView<Float> r);
+                                  muda::CDenseVectorView<Float> r,
+                                  muda::CVarView<IndexT>        converged);
 
         void spmv(Float a, muda::CDenseVectorView<Float> x, Float b, muda::DenseVectorView<Float> y);
+        void spmv_dot(muda::CDenseVectorView<Float> x, muda::DenseVectorView<Float> y, muda::VarView<Float> d_dot);
 
         bool accuracy_statisfied(muda::DenseVectorView<Float> r);
 

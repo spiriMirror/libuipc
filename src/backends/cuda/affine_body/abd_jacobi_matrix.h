@@ -214,6 +214,14 @@ class ABDJacobiDyadicMass
 
     MUDA_GENERIC double mass() const { return m_mass; }
 
+    /**
+     * @brief Inertia tensor about center of mass (3x3).
+     * Derived from second moment about origin: I_cm = I^O - m(|c|^2 I_3 - c c^T),
+     * I^O = tr(S) I_3 - S, with c = m_x_bar/m and S = m_x_bar_x_bar.
+     * Returns zero matrix if mass is zero.
+     */
+    MUDA_GENERIC Matrix3x3 inertia_tensor_cm() const;
+
     static MUDA_GENERIC auto zero() { return ABDJacobiDyadicMass{}; }
 
     static MUDA_DEVICE ABDJacobiDyadicMass atomic_add(ABDJacobiDyadicMass& dst,

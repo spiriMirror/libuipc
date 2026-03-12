@@ -58,9 +58,9 @@ U64 AffineBodyConstitution::get_uid() const noexcept
 }
 
 void AffineBodyConstitution::setup_abd_attributes(geometry::SimplicialComplex& sc,
-                                                   Float kappa,
-                                                   Float mass_density,
-                                                   Float volume) const
+                                                  Float kappa,
+                                                  Float mass_density,
+                                                  Float volume) const
 {
     auto cuid = sc.meta().find<U64>(builtin::constitution_uid);
     if(!cuid)
@@ -108,7 +108,9 @@ void AffineBodyConstitution::setup_abd_attributes(geometry::SimplicialComplex& s
 
     if constexpr(uipc::RUNTIME_CHECK)
     {
-        UIPC_ASSERT(volume > 0, "Volume of the mesh is non-positive ({}), which is not allowed.", volume);
+        UIPC_ASSERT(volume > 0,
+                    "Volume of the mesh is non-positive ({}), which is not allowed.",
+                    volume);
     }
 
     auto meta_volume = sc.meta().find<Float>(builtin::volume);
@@ -122,12 +124,50 @@ void AffineBodyConstitution::setup_abd_attributes(geometry::SimplicialComplex& s
         meta_mass = sc.meta().create<Float>(builtin::mass_density, mass_density);
     else
         geometry::view(*meta_mass).front() = mass_density;
+
+    auto total_mass = sc.instances().find<Float>(builtin::total_mass);
+    if(!total_mass)
+        total_mass = sc.instances().create<Float>(builtin::total_mass, 0.0);
+    else
+        geometry::view(*total_mass).front() = 0.0;
+
+    auto inertia_tensor = sc.instances().find<Matrix3x3>(builtin::inertia_tensor);
+    if(!inertia_tensor)
+        inertia_tensor = sc.instances().create<Matrix3x3>(builtin::inertia_tensor,
+                                                          Matrix3x3::Zero());
 }
 
 void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
 {
     auto volume = geometry::compute_mesh_volume(sc);
     setup_abd_attributes(sc, kappa, mass_density, volume);
+}
+
+void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
+                                      Float                        kappa,
+                                      const Matrix12x12&           mass,
+                                      Float                        volume) const
+{
+    Float     m             = mass(0, 0);
+    Vector3   m_x_bar       = mass.block<3, 1>(3, 0);
+    Matrix3x3 m_x_bar_x_bar = mass.block<3, 3>(3, 3);
+    Float     mass_density  = m / volume;
+
+    setup_abd_attributes(sc, kappa, mass_density, volume);
+
+    auto create_or_update = [&](auto name, const auto& value)
+    {
+        using T   = std::decay_t<decltype(value)>;
+        auto attr = sc.meta().find<T>(name);
+        if(!attr)
+            sc.meta().create<T>(name, value);
+        else
+            geometry::view(*attr).front() = value;
+    };
+
+    create_or_update(builtin::abd_mass, m);
+    create_or_update(builtin::abd_mass_x_bar, m_x_bar);
+    create_or_update(builtin::abd_mass_x_bar_x_bar, m_x_bar_x_bar);
 }
 
 Json AffineBodyConstitution::default_config() noexcept

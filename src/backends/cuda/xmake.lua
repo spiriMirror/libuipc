@@ -1,4 +1,4 @@
-add_requires("muda e01f9aabae4ed0dd91cf332af8e8fad435b9cced")
+add_requires("muda 09f8a0beca898b5325c7b0c1e4cf67ea4781f3b9",{system = false,configs = {with_check = true}})
 
 target("cuda")
     add_rules("backend")
@@ -13,7 +13,8 @@ target("cuda")
     else
         add_cugencodes("native")
     end
-    add_cuflags("--diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,550,221", {force = true})
+    add_rules("cuda_warning")
+    add_rules("cuda_no_host_compiler_check")    
     add_cuflags("--expt-relaxed-constexpr")
     add_cuflags("--extended-lambda")
     
@@ -36,19 +37,3 @@ target("cuda")
         target:set('toolchains', 'cuda')
     end)
     add_packages("muda")
-
-package("muda")
-    set_kind("library", {headeronly = true})
-    set_homepage("https://mugdxy.github.io/muda-doc")
-    set_description("μ-Cuda, COVER THE LAST MILE OF CUDA. With features: intellisense-friendly, structured launch, automatic cuda graph generation and updating.")
-    set_license("Apache-2.0")
-
-    add_urls("https://github.com/MuGdxy/muda.git")
-
-    set_policy("package.install_locally", true)
-
-    add_cuflags("--extended-lambda", "--expt-relaxed-constexpr")
-
-    on_install(function (package)
-        os.cp("src/muda", package:installdir("include"))
-    end)

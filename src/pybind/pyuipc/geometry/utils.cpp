@@ -239,5 +239,41 @@ Args:
     sc: SimplicialComplex to partition.
     part_max_size: Maximum number of vertices per partition (default: 16).
 )");
+
+    m.def("closest_vertex_triangle_pairs",
+          &closest_vertex_triangle_pairs,
+          py::arg("vertex_mesh"),
+          py::arg("triangle_mesh"),
+          py::arg("max_distance"),
+          py::arg("max_distance_attr") = "",
+          py::arg("group")             = "",
+          R"(Find vertex–triangle pairs between two meshes within max_distance.
+
+Args:
+    vertex_mesh: SimplicialComplex providing vertices (point set).
+    triangle_mesh: SimplicialComplex providing triangles.
+    max_distance: Max point–triangle distance; only pairs within this are returned.
+    max_distance_attr: Optional vertex Float attribute name for per-vertex max distance.
+    group: Optional IndexT attribute name on vertices/triangles; only value 1 is selected.
+
+Returns:
+    Geometry: One instance per pair; each instance has topo (Vector2i) = (vertex_index, triangle_index).
+    Compatible with SoftVertexTriangleStitch.create_geometry(..., pair_geometry, ...).)");
+
+    m.def("closest_vertex_edge_pairs",
+          &closest_vertex_edge_pairs,
+          py::arg("vertex_mesh"),
+          py::arg("edge_mesh"),
+          py::arg("max_distance"),
+          R"(Find vertex-edge pairs between two meshes within max_distance.
+
+Args:
+    vertex_mesh: SimplicialComplex providing vertices (point set).
+    edge_mesh: SimplicialComplex providing edges.
+    max_distance: Max point-edge distance; only pairs within this are returned.
+
+Returns:
+    Geometry: One instance per pair; each instance has topo (Vector2i) = (vertex_index, edge_index).
+    Compatible with SoftVertexEdgeStitch.create_geometry(..., pair_geometry, ...).)");
 }
 }  // namespace pyuipc::geometry

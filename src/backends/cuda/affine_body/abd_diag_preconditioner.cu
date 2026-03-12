@@ -44,14 +44,18 @@ class ABDDiagPreconditioner final : public LocalPreconditioner
     virtual void do_apply(GlobalLinearSystem::ApplyPreconditionerInfo& info) override
     {
         using namespace muda;
+        auto converged = info.converged();
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(diag_inv.size(),
                    [r = info.r().viewer().name("r"),
                     z = info.z().viewer().name("z"),
+                    converged = converged.cviewer().name("converged"),
                     diag_inv = diag_inv.viewer().name("diag_inv")] __device__(int i) mutable
                    {
+                       if(*converged != 0)
+                           return;
                        z.segment<12>(i * 12).as_eigen() =
                            diag_inv(i) * r.segment<12>(i * 12).as_eigen();
                    });

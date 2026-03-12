@@ -27,8 +27,10 @@ class IterativeSolver : public SimSystem
 
     void spmv(Float a, muda::CDenseVectorView<Float> x, Float b, muda::DenseVectorView<Float> y);
     void spmv(muda::CDenseVectorView<Float> x, muda::DenseVectorView<Float> y);
+    void spmv_dot(muda::CDenseVectorView<Float> x, muda::DenseVectorView<Float> y, muda::VarView<Float> d_dot);
     void apply_preconditioner(muda::DenseVectorView<Float>  z,
-                              muda::CDenseVectorView<Float> r);
+                              muda::CDenseVectorView<Float> r,
+                              muda::CVarView<IndexT>        converged);
     bool accuracy_statisfied(muda::DenseVectorView<Float> r);
     muda::LinearSystemContext& ctx() const;
 

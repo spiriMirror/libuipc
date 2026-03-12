@@ -6,7 +6,22 @@ rule("component")
             target:add("defines", format("%s_EXPORT_DLL", target:name():upper()))
         end
     end)
-    
+
+local cuda_warnings = "--diag-suppress=20012,1388,27,174,1394,997,1866,69,177,554,20014,2361,20011,940,55,221,1028,20208"
+
+rule("cuda_warning")
+    on_config(function (target)
+        target:add("cuflags", cuda_warnings, {force = true})
+    end)
+
+rule("cuda_no_host_compiler_check")
+    on_config(function (target)
+        if target:is_plat("windows") then
+            target:add("defines", "__NV_NO_HOST_COMPILER_CHECK")
+            target:add("cuflags", "-allow-unsupported-compiler",{public = true})
+        end
+    end)
+
 rule("clangd")
     on_config(function (target)
         local clangd_config_file = path.join(os.projectdir(), ".clangd")
@@ -22,6 +37,8 @@ rule("clangd")
             "-ccbin*",
             "--extended-lambda",
             "--expt-relaxed-constexpr",
+            "--allow-unsupported-compiler",
+            cuda_warnings,
         }
 
         local add_flags = {

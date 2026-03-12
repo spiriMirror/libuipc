@@ -222,4 +222,37 @@ UIPC_BUILTIN_ATTRIBUTE(self_collision);
  * 2) 1 means the geometry is codimensional (open shell or rod).
  */
 UIPC_BUILTIN_ATTRIBUTE(is_codim);
+
+/**
+ * @brief `abd_mass` <Float> attribute on **meta**.
+ * Override for the total mass used in the ABD mass matrix.
+ * When present, the backend skips mesh-based dyadic mass computation.
+ */
+UIPC_BUILTIN_ATTRIBUTE(abd_mass);
+
+/**
+ * @brief `abd_mass_x_bar` <Vector3> attribute on **meta**.
+ * Override for the first moment of mass (m * center_of_mass).
+ * Must be set together with `abd_mass` and `abd_mass_x_bar_x_bar`.
+ */
+UIPC_BUILTIN_ATTRIBUTE(abd_mass_x_bar);
+
+/**
+ * @brief `abd_mass_x_bar_x_bar` <Matrix3x3> attribute on **meta**.
+ * Override for the second moment of mass tensor S.
+ * Must be set together with `abd_mass` and `abd_mass_x_bar`.
+ */
+UIPC_BUILTIN_ATTRIBUTE(abd_mass_x_bar_x_bar);
+
+/**
+ * @brief `total_mass` <Float> attribute on **instances**.
+ * Total mass of the affine body (per body). Filled by state accessor copy_to when present.
+ */
+UIPC_BUILTIN_ATTRIBUTE(total_mass);
+
+/**
+ * @brief `inertia_tensor` <Matrix3x3> attribute on **instances**.
+ * 3x3 inertia tensor about center of mass (per body). Filled by state accessor copy_to when present.
+ */
+UIPC_BUILTIN_ATTRIBUTE(inertia_tensor);
 #endif

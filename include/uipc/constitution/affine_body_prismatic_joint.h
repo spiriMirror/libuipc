@@ -17,20 +17,6 @@ class UIPC_CONSTITUTION_API AffineBodyPrismaticJoint final : public InterAffineB
     virtual ~AffineBodyPrismaticJoint();
 
     /**
-     * @brief Deprecated: Apply prismatic joint to edges connecting affine bodies.
-     * 
-     * This method is deprecated. Use the new apply_to methods with instance IDs for multi-instance support.
-     * 
-     * @param edges The simplicial complex containing the edges representing the joints.
-     * @param geo_slots Pairs of geometry slots representing the connected bodies.
-     * @param strength_ratio The strength ratio of the joint constraint (default: 100).
-     */
-    // Deprecated: Use the new apply_to method with instance IDs for multi-instance support
-    void apply_to(geometry::SimplicialComplex& edges,
-                  span<SlotTuple>              geo_slots,
-                  Float                        strength_ratio = Float{100});
-    
-    /**
      * @brief Apply prismatic joint to edges connecting affine bodies (single-instance mode).
      * 
      * This method assumes each geometry has exactly one instance (instance 0).
@@ -41,10 +27,10 @@ class UIPC_CONSTITUTION_API AffineBodyPrismaticJoint final : public InterAffineB
      * @param r_geo_slots Right geometry slots for each joint.
      * @param strength_ratio The strength ratio of the joint constraint applied to all joints (default: 100).
      */
-    void apply_to(geometry::SimplicialComplex& edges,
+    void apply_to(geometry::SimplicialComplex&             edges,
                   span<S<geometry::SimplicialComplexSlot>> l_geo_slots,
                   span<S<geometry::SimplicialComplexSlot>> r_geo_slots,
-                  Float                                  strength_ratio = Float{100});
+                  Float strength_ratio = Float{100});
 
     /**
      * @brief Apply prismatic joint to edges connecting affine bodies (multi-instance mode).
@@ -59,12 +45,12 @@ class UIPC_CONSTITUTION_API AffineBodyPrismaticJoint final : public InterAffineB
      * @param r_instance_id Instance IDs for the right geometries (must be in range [0, instances().size())).
      * @param strength_ratio The strength ratio for each joint (one per edge).
      */
-    void apply_to(geometry::SimplicialComplex& edges,
+    void apply_to(geometry::SimplicialComplex&             edges,
                   span<S<geometry::SimplicialComplexSlot>> l_geo_slots,
-                  span<IndexT>                           l_instance_id,
+                  span<IndexT>                             l_instance_id,
                   span<S<geometry::SimplicialComplexSlot>> r_geo_slots,
-                  span<IndexT>                           r_instance_id,
-                  span<Float>                            strength_ratio);
+                  span<IndexT>                             r_instance_id,
+                  span<Float>                              strength_ratio);
 
   private:
     virtual U64 get_uid() const noexcept override;
