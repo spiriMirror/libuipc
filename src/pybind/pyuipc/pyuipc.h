@@ -1,5 +1,6 @@
 #pragma once
 #include <nanobind/nanobind.h>
+#include <nanobind/trampoline.h>
 #include <nanobind/stl/shared_ptr.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/string_view.h>

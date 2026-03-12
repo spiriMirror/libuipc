@@ -100,7 +100,7 @@ Args:
     backend_name: Name of the backend to use (e.g., 'cuda', 'none').
     workspace: Workspace directory path (default: './').
     config: Configuration dictionary (optional, uses default if not provided).)");
-    class_Engine.def(py::init<std::string_view, std::string_view, const Json&>(),
+    class_Engine.def(py::init<std::string_view, S<IEngine>, std::string_view, const Json&>(),
                      py::call_guard<py::gil_scoped_release>(),
                      py::arg("backend_name"),
                      py::arg("overrider"),
