@@ -13,6 +13,7 @@ REGISTER_SIM_SYSTEM(AffineBodyRevoluteJointExternalBodyForceConstraint);
 void AffineBodyRevoluteJointExternalBodyForceConstraint::do_build(BuildInfo& info)
 {
     require<AffineBodyDynamics>();
+    on_write_scene([this]() { write_scene(); });
 }
 
 U64 AffineBodyRevoluteJointExternalBodyForceConstraint::get_uid() const noexcept
@@ -21,10 +22,11 @@ U64 AffineBodyRevoluteJointExternalBodyForceConstraint::get_uid() const noexcept
 }
 
 static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
-                               auto& geo_slots,
-                               vector<Float>& h_torques,
+                               auto&                                  geo_slots,
+                               vector<Float>&                         h_torques,
                                vector<Vector2i>& h_body_ids,
-                               vector<Vector12>& h_rest_positions)
+                               vector<Vector12>& h_rest_positions,
+                               vector<Float>&    h_init_angles)
 {
     info.for_each(
         geo_slots,
@@ -48,6 +50,8 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
             auto external_torque = sc->edges().find<Float>("external_torque");
             UIPC_ASSERT(external_torque, "AffineBodyRevoluteJointExternalBodyForceConstraint: Geometry must have 'external_torque' attribute on `edges`");
             auto external_torque_view = external_torque->view();
+
+            auto init_angle = sc->edges().find<Float>("init_angle");
 
             auto Es = sc->edges().topo().view();
             auto Ps = sc->positions().view();
@@ -76,8 +80,8 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
                             "AffineBodyRevoluteJointExternalBodyForceConstraint: Edge with zero length detected");
 
                 Vector3 HalfAxis = Dir.normalized() / 2;
-                P0 = mid - HalfAxis;
-                P1 = mid + HalfAxis;
+                P0               = mid - HalfAxis;
+                P1               = mid + HalfAxis;
 
                 Transform LT{left_sc->transforms().view()[inst_id(0)]};
                 Transform RT{right_sc->transforms().view()[inst_id(1)]};
@@ -90,6 +94,7 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
                 h_rest_positions.push_back(rest_pos);
 
                 h_torques.push_back(external_torque_view[i]);
+                h_init_angles.push_back(init_angle ? init_angle->view()[i] : Float{0});
             }
         });
 }
@@ -99,31 +104,38 @@ void AffineBodyRevoluteJointExternalBodyForceConstraint::do_init(InterAffineBody
     auto geo_slots = world().scene().geometries();
 
     {
-        list<Float> torques_list;
-        info.for_each(
-            geo_slots,
-            [&](const InterAffineBodyConstitutionManager::ForEachInfo& I, geometry::Geometry& geo)
-            {
-                auto constitution_uid = geo.meta().find<U64>(builtin::constitution_uid);
-                UIPC_ASSERT(constitution_uid, "AffineBodyRevoluteJointExternalBodyForceConstraint: Geometry must have 'constitution_uid' attribute");
-                U64 uid_value = constitution_uid->view().front();
-                UIPC_ASSERT(uid_value == RevoluteJointConstitutionUID,
-                            "AffineBodyRevoluteJointExternalBodyForceConstraint: Geometry constitution UID mismatch, expected {}, got {}",
-                            RevoluteJointConstitutionUID,
-                            uid_value);
-            });
+        info.for_each(geo_slots,
+                      [&](const InterAffineBodyConstitutionManager::ForEachInfo& I,
+                          geometry::Geometry& geo)
+                      {
+                          auto constitution_uid =
+                              geo.meta().find<U64>(builtin::constitution_uid);
+                          UIPC_ASSERT(constitution_uid, "AffineBodyRevoluteJointExternalBodyForceConstraint: Geometry must have 'constitution_uid' attribute");
+                          U64 uid_value = constitution_uid->view().front();
+                          UIPC_ASSERT(uid_value == RevoluteJointConstitutionUID,
+                                      "AffineBodyRevoluteJointExternalBodyForceConstraint: Geometry constitution UID mismatch, expected {}, got {}",
+                                      RevoluteJointConstitutionUID,
+                                      uid_value);
+                      });
     }
 
-    collect_joint_data(info, geo_slots,
+    collect_joint_data(info,
+                       geo_slots,
                        m_impl.h_torques,
                        m_impl.h_body_ids,
-                       m_impl.h_rest_positions);
+                       m_impl.h_rest_positions,
+                       m_impl.h_init_angles);
 
-    if(!m_impl.h_torques.empty())
+    SizeT N = m_impl.h_torques.size();
+    m_impl.h_current_angles.resize(N, 0.0);
+
+    if(N > 0)
     {
         m_impl.torques.copy_from(m_impl.h_torques);
         m_impl.body_ids.copy_from(m_impl.h_body_ids);
         m_impl.rest_positions.copy_from(m_impl.h_rest_positions);
+        m_impl.init_angles.copy_from(m_impl.h_init_angles);
+        m_impl.current_angles.resize(N, 0.0);
     }
 }
 
@@ -134,24 +146,69 @@ void AffineBodyRevoluteJointExternalBodyForceConstraint::do_step(InterAffineBody
     m_impl.h_torques.clear();
     m_impl.h_body_ids.clear();
     m_impl.h_rest_positions.clear();
+    m_impl.h_init_angles.clear();
 
-    collect_joint_data(info, geo_slots,
+    collect_joint_data(info,
+                       geo_slots,
                        m_impl.h_torques,
                        m_impl.h_body_ids,
-                       m_impl.h_rest_positions);
+                       m_impl.h_rest_positions,
+                       m_impl.h_init_angles);
 
-    if(!m_impl.h_torques.empty())
+    SizeT N = m_impl.h_torques.size();
+    m_impl.h_current_angles.resize(N, 0.0);
+
+    if(N > 0)
     {
         m_impl.torques.copy_from(m_impl.h_torques);
         m_impl.body_ids.copy_from(m_impl.h_body_ids);
         m_impl.rest_positions.copy_from(m_impl.h_rest_positions);
+        m_impl.init_angles.copy_from(m_impl.h_init_angles);
+        m_impl.current_angles.resize(N);
     }
     else
     {
         m_impl.torques.resize(0);
         m_impl.body_ids.resize(0);
         m_impl.rest_positions.resize(0);
+        m_impl.init_angles.resize(0);
+        m_impl.current_angles.resize(0);
     }
+}
+
+void AffineBodyRevoluteJointExternalBodyForceConstraint::write_scene()
+{
+    auto geo_slots = world().scene().geometries();
+
+    m_impl.current_angles.copy_to(m_impl.h_current_angles);
+
+    IndexT offset = 0;
+    this->for_each(geo_slots,
+                   [&](geometry::Geometry& geo)
+                   {
+                       auto sc = geo.as<geometry::SimplicialComplex>();
+                       if(!sc)
+                           return;
+
+                       auto is_constrained =
+                           sc->edges().find<IndexT>("external_torque/is_constrained");
+                       if(!is_constrained)
+                           return;
+                       auto is_constrained_view = is_constrained->view();
+
+                       auto angle = sc->edges().find<Float>("angle");
+                       if(!angle)
+                           angle = sc->edges().create<Float>("angle", 0.0);
+                       auto angle_view = view(*angle);
+
+                       for(SizeT i = 0; i < is_constrained_view.size(); ++i)
+                       {
+                           if(is_constrained_view[i] == 0)
+                               continue;
+                           if(offset < m_impl.h_current_angles.size())
+                               angle_view[i] = m_impl.h_current_angles[offset++];
+                       }
+                   });
 }
 
 muda::CBufferView<Float> AffineBodyRevoluteJointExternalBodyForceConstraint::torques() const noexcept
@@ -169,7 +226,18 @@ muda::CBufferView<Vector12> AffineBodyRevoluteJointExternalBodyForceConstraint::
     return m_impl.rest_positions.view();
 }
 
-void AffineBodyRevoluteJointExternalBodyForceConstraint::do_report_extent(InterAffineBodyAnimator::ReportExtentInfo& info)
+muda::CBufferView<Float> AffineBodyRevoluteJointExternalBodyForceConstraint::init_angles() const noexcept
+{
+    return m_impl.init_angles.view();
+}
+
+muda::DeviceBuffer<Float>& AffineBodyRevoluteJointExternalBodyForceConstraint::current_angles() noexcept
+{
+    return m_impl.current_angles;
+}
+
+void AffineBodyRevoluteJointExternalBodyForceConstraint::do_report_extent(
+    InterAffineBodyAnimator::ReportExtentInfo& info)
 {
     info.energy_count(0);
     info.gradient_count(0);
@@ -177,11 +245,13 @@ void AffineBodyRevoluteJointExternalBodyForceConstraint::do_report_extent(InterA
         info.hessian_count(0);
 }
 
-void AffineBodyRevoluteJointExternalBodyForceConstraint::do_compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info)
+void AffineBodyRevoluteJointExternalBodyForceConstraint::do_compute_energy(
+    InterAffineBodyAnimator::ComputeEnergyInfo& info)
 {
 }
 
-void AffineBodyRevoluteJointExternalBodyForceConstraint::do_compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info)
+void AffineBodyRevoluteJointExternalBodyForceConstraint::do_compute_gradient_hessian(
+    InterAffineBodyAnimator::GradientHessianInfo& info)
 {
 }
 }  // namespace uipc::backend::cuda

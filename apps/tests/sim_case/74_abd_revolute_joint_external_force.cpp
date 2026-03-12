@@ -119,6 +119,18 @@ TEST_CASE("74_abd_revolute_joint_external_force", "[abd][joint][external_force]"
                 std::ranges::fill(view(*external_torque), torque_value);
 
                 spdlog::info("Frame {} external_torque: {:.2f}", info.frame(), torque_value);
+
+                auto angle = sc->edges().find<Float>("angle");
+                if(angle)
+                {
+                    auto angle_view = angle->view();
+                    for(SizeT i = 0; i < angle_view.size(); ++i)
+                        spdlog::info("Frame {} edge[{}] angle: {:.6f} rad ({:.2f} deg)",
+                                     info.frame(),
+                                     i,
+                                     angle_view[i],
+                                     angle_view[i] * 180.0 / 3.14159265358979323846);
+                }
             }
         });
 

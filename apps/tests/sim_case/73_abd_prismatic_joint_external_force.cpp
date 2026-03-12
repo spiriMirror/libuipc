@@ -16,8 +16,6 @@ TEST_CASE("73_abd_prismatic_joint_external_force", "[abd][joint][external_force]
     Engine engine{"cuda", output_path};
     World  world{engine};
 
-    uipc::logger::set_level(spdlog::level::critical);
-
     auto config                            = test::Scene::default_config();
     config["gravity"]                      = Vector3{0.0, -9.8, 0.0};
     config["contact"]["enable"]            = true;
@@ -122,6 +120,17 @@ TEST_CASE("73_abd_prismatic_joint_external_force", "[abd][joint][external_force]
                 std::ranges::fill(view(*external_force), force_value);
 
                 spdlog::info("Frame {} external_force: {:.2f}", info.frame(), force_value);
+
+                auto distance = sc->edges().find<Float>("distance");
+                if(distance)
+                {
+                    auto distance_view = distance->view();
+                    for(SizeT i = 0; i < distance_view.size(); ++i)
+                        spdlog::info("Frame {} edge[{}] distance: {:.6f}",
+                                     info.frame(),
+                                     i,
+                                     distance_view[i]);
+                }
             }
         });
 
