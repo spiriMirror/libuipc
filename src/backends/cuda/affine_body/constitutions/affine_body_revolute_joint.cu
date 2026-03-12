@@ -21,7 +21,6 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
 
     static constexpr U64 ConstitutionUID = 18;
 
-    static constexpr U64 ConstitutionUID = 18;
 
     SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
 
@@ -199,13 +198,9 @@ Edge             = ({}, {}))",
                        X.segment<3>(6) = Js[2].point_x(q_j);
                        X.segment<3>(9) = Js[3].point_x(q_j);
 
-
-                       Float E0 = (X.segment<3>(0) - X.segment<3>(6)).squaredNorm();
-                       Float E1 = (X.segment<3>(3) - X.segment<3>(9)).squaredNorm();
-
                        // energy = 1/2 * kappa * (||x0 - x2||^2 + ||x1 - x3||^2)
 
-                       Es(I) = kappa / 2 * (E0 + E1);
+                       Es(I) = kappa * RJ::E(X);
                    });
     }
 
