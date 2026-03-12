@@ -18,6 +18,7 @@
 #include <pyuipc/constitution/kirchhoff_rod_bending.h>
 #include <pyuipc/constitution/soft_transform_constraint.h>
 #include <pyuipc/constitution/discrete_shell_bending.h>
+#include <pyuipc/constitution/plastic_discrete_shell_bending.h>
 #include <pyuipc/constitution/arap.h>
 #include <pyuipc/constitution/inter_affine_body_constitution.h>
 #include <pyuipc/constitution/affine_body_revolute_joint.h>
@@ -73,6 +74,7 @@ PyModule::PyModule(py::module& m)
     PyFiniteElementExtraConstitution{m};
     PyKirchhoffRodBending{m};
     PyDiscreteShellBending{m};
+    PyPlasticDiscreteShellBending{m};
 
     // Inter Primitive Constitutions
     PyInterPrimitiveConstitution{m};

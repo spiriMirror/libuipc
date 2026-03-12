@@ -12,6 +12,7 @@
 #include <diff_sim/global_diff_sim_manager.h>
 #include <newton_tolerance/newton_tolerance_manager.h>
 #include <time_integrator/time_integrator_manager.h>
+#include <finite_element/finite_element_method.h>
 
 namespace uipc::backend::cuda
 {
@@ -289,6 +290,7 @@ void SimEngine::do_advance()
         // Simulation:
         {
             Timer timer{"Simulation"};
+            bool  frame_step_successful = false;
 
             // 0. Process External Changes
             m_global_vertex_manager->update_attributes();
@@ -351,6 +353,7 @@ void SimEngine::do_advance()
                 m_state = SimEngineState::LineSearch;
                 {
                     Timer timer{"Line Search"};
+                    bool  line_search_success = false;
 
                     // Reset Alpha
                     alpha = 1.0;
@@ -382,9 +385,14 @@ void SimEngine::do_advance()
                         //  * Compute New Energy => E
                         Float E = compute_energy(alpha);
 
-                        // To prevent numerical energy (fake-) increasing caused by tiny dx
+                        // To prevent numerical energy (fake-) increasing caused by tiny dx.
+                        // The converged iterate is still an accepted step and must allow
+                        // post-step state updates for path-dependent constitutions.
                         if(converged)
+                        {
+                            line_search_success = true;
                             break;
+                        }
 
                         // Check Energy Decrease
                         // TODO: maybe better condition like Wolfe condition/Armijo condition in the future
@@ -397,7 +405,10 @@ void SimEngine::do_advance()
                         bool success = energy_decrease && no_inversion;
 
                         if(success)
+                        {
+                            line_search_success = true;
                             break;
+                        }
 
                         // If not success, then shrink alpha
                         alpha /= 2;
@@ -405,6 +416,9 @@ void SimEngine::do_advance()
 
                     // Check Line Search Iteration: report warnings or throw exceptions if needed
                     check_line_search_iter();
+
+                    bool terminated = converged && (newton_iter >= newton_min_iter);
+                    frame_step_successful = terminated && line_search_success;
                 }
 
                 bool terminated = converged && (newton_iter >= newton_min_iter);
@@ -421,6 +435,11 @@ void SimEngine::do_advance()
 
             // Check Newton Iteration: report warnings or throw exceptions if needed
             check_newton_iter();
+
+            if(frame_step_successful && m_finite_element_method)
+            {
+                m_finite_element_method->post_step_extra_constitutions();
+            }
         }
 
         logger::info("<<< End Frame: {}", m_current_frame);

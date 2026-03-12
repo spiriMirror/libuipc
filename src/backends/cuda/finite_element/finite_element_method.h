@@ -401,6 +401,7 @@ class FiniteElementMethod final : public SimSystem
     void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution
     friend class FiniteElementExtraConstitution;
     void add_constitution(FiniteElementExtraConstitution* constitution);  // only called by FiniteElementExtraConstitution
+    void post_step_extra_constitutions();
 
 
     friend class FiniteElementConstitutionDiffParmReporter;
