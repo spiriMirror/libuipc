@@ -157,8 +157,8 @@ void ALSimplexFrictionalContact::Impl::do_assemble(GlobalContactManager::Gradien
     auto EE_size = active_set->EEs_friction().size();
     auto PT_grad = info.gradients().subview(0, PT_size * 4);
     auto EE_grad = info.gradients().subview(PT_size * 4, EE_size * 4);
-    auto PT_hess = info.hessians().subview(0, PT_size * 16);
-    auto EE_hess = info.hessians().subview(PT_size * 16, EE_size * 16);
+    auto PT_hess = info.hessians().subview(0, PT_size * 10);
+    auto EE_hess = info.hessians().subview(PT_size * 10, EE_size * 10);
 
     auto x         = global_vertex_manager->positions();
     auto prev_x    = global_vertex_manager->prev_positions();

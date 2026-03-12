@@ -514,7 +514,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
                        else
                        {
                            lambda -= (d + d_shift) * mu;
-                           if(cnt == 0 || cnt > 0)
+                           if(cnt == 0 || cnt > 5)
                                cnt = 0;
                            else
                                cnt = -1;
@@ -554,7 +554,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
                    else
                    {
                        lambda -= (d + d_shift) * mu;
-                       if(cnt == 0 || cnt > 0)
+                       if(cnt == 0 || cnt > 5)
                            cnt = 0;
                        else
                            cnt = -1;
@@ -594,7 +594,7 @@ void GlobalActiveSetManager::Impl::update_lambda()
                    else
                    {
                        lambda -= (d + d_shift) * mu;
-                       if(cnt == 0 || cnt > 0)
+                       if(cnt == 0 || cnt > 5)
                            cnt = 0;
                        else
                            cnt = -1;
