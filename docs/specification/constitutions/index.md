@@ -32,6 +32,7 @@
 | 28  | AffineBodyD6Joint                                                       | Affine Body D6 Joint Constitutions (Reserved)                                        |
 | 29  | [SoftVertexEdgeStitch](./soft_vertex_edge_stitch.md)                    | Inter-primitive: (vertex, edge) pairs as triangles with StVK membrane energy         |
 | 30  | [SoftVertexTriangleStitch](./soft_vertex_triangle_stitch.md)            | Inter-primitive: (vertex, triangle) pairs as tetrahedra with StableNeoHookean energy |
+| 31  | [PlasticDiscreteShellBending](./plastic_discrete_shell_bending.md)      | Discrete Shell Bending with plastic rest-angle evolution                             |
 | 666 | [AffineBodyExternalForce](./affine_body_external_force.md)              | Affine Body External Force Constitutions                                             |
 | 667 | AffineBodyPrismaticJointExternalForce                                   | Affine Body Prismatic Joint External Force Constitutions (Reserved)                  |
 | 668 | AffineBodyRevoluteJointExternalForce                                    | Affine Body Revolute Joint External Force Constitutions (Reserved)                   |
