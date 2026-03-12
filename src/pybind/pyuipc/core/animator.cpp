@@ -1,5 +1,6 @@
 #include <pyuipc/core/animator.h>
 #include <uipc/core/animator.h>
+#include <pybind11/stl.h>
 
 namespace pyuipc::core
 {
@@ -120,5 +121,36 @@ Args:
         R"(Get the substep count.
 Returns:
     int: Number of substeps per frame.)");
+
+    class_Animator.def(
+        "animation_count",
+        &Animator::animation_count,
+        R"(Get the number of animated objects.
+Returns:
+    int: Number of objects that currently have animation callbacks.)");
+
+    class_Animator.def(
+        "has_animation",
+        &Animator::has_animation,
+        py::arg("object_id"),
+        R"(Check whether an object has a registered animation callback.
+Args:
+    object_id: Object id to query.
+Returns:
+    bool: True if the object is animated, False otherwise.)");
+
+    class_Animator.def(
+        "animation_ids",
+        &Animator::animation_ids,
+        R"(Get sorted object ids that have registered animation callbacks.
+Returns:
+    list[int]: Animated object ids.)");
+
+    class_Animator.def(
+        "__repr__",
+        [](const Animator& self) { return fmt::format("{}", self); },
+        R"(String representation of the animator.
+Returns:
+    str: Formatted animator summary.)");
 }
 }  // namespace pyuipc::core
