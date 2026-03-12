@@ -25,32 +25,7 @@ Args:
 Returns:
     dict: Default configuration dictionary.)");
 
-    // Deprecated API
-    class_AffineBodyPrismaticJoint.def(
-        "apply_to",
-        [](AffineBodyPrismaticJoint& self, geometry::SimplicialComplex& edges, py::list geo_slot_tuples, Float strength_ratio)
-        {
-            vector<AffineBodyPrismaticJoint::SlotTuple> geo_slots;
-            geo_slots.reserve(geo_slot_tuples.size());
-            for(auto item : geo_slot_tuples)
-            {
-                if(!py::isinstance<py::tuple>(item))
-                {
-                    throw std::invalid_argument("geo_slot_tuples must be a list of tuples");
-                }
-                geo_slots.push_back(py::cast<AffineBodyPrismaticJoint::SlotTuple>(item));
-            }
-            self.apply_to(edges, geo_slots, strength_ratio);
-        },
-        py::arg("sc"),
-        py::arg("geo_slot_tuples"),
-        py::arg("strength_ratio") = Float{100.0},
-        py::doc(R"(Deprecated: Create joint between two affine bodies (old API).
-sc: Every edge in the simplicial complex is treated as a joint axis.
-geo_slot_tuples: A list of tuples, each containing two SimplicialComplexSlot objects, telling who are linked by the joint.
-strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB))"));
-
-    // New API - Single instance mode
+    //  Single instance mode
     class_AffineBodyPrismaticJoint.def(
         "apply_to",
         [](AffineBodyPrismaticJoint&    self,
@@ -84,7 +59,7 @@ l_geo_slots: List of left geometry slots for each joint.
 r_geo_slots: List of right geometry slots for each joint.
 strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joints.)"));
 
-    // New API - Multi-instance mode
+    //  Multi-instance mode
     class_AffineBodyPrismaticJoint.def(
         "apply_to",
         [](AffineBodyPrismaticJoint&    self,

@@ -22,6 +22,8 @@
 #include <pyuipc/constitution/inter_affine_body_constitution.h>
 #include <pyuipc/constitution/affine_body_revolute_joint.h>
 #include <pyuipc/constitution/affine_body_prismatic_joint.h>
+#include <pyuipc/constitution/affine_body_driving_revolute_joint.h>
+#include <pyuipc/constitution/affine_body_driving_prismatic_joint.h>
 #include <pyuipc/constitution/affine_body_revolute_joint_limit.h>
 #include <pyuipc/constitution/affine_body_prismatic_joint_limit.h>
 #include <pyuipc/constitution/inter_primitive_constitution.h>
@@ -47,6 +49,8 @@ PyModule::PyModule(py::module& m)
     PyInterAffineBodyExtraConstitution{m};
     PyAffineBodyRevoluteJoint{m};
     PyAffineBodyPrismaticJoint{m};
+    PyAffineBodyDrivingRevoluteJoint{m};
+    PyAffineBodyDrivingPrismaticJoint{m};
     PyAffineBodyRevoluteJointLimit{m};
     PyAffineBodyPrismaticJointLimit{m};
     PyAffineBodyExternalForce{m};
