@@ -6,6 +6,6 @@ namespace pyuipc::constitution
 class PyAffineBodyDrivingPrismaticJoint
 {
   public:
-    PyAffineBodyDrivingPrismaticJoint(py::module& m);
+    PyAffineBodyDrivingPrismaticJoint(py::module_& m);
 };
 }  // namespace pyuipc::constitution

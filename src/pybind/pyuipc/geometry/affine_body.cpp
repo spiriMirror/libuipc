@@ -243,8 +243,8 @@ Returns:
 
     m.def(
         "from_rigid_body",
-        [](Float mass, py::array_t<Float> center_of_mass, py::array_t<Float> inertia_cm)
-            -> py::array_t<Float>
+        [](Float mass, numpy_array<Float> center_of_mass, numpy_array<Float> inertia_cm)
+            -> py::object
         {
             auto c   = to_matrix<Vector3>(center_of_mass);
             auto I   = to_matrix<Matrix3x3>(inertia_cm);
@@ -263,8 +263,8 @@ Returns:
 
     m.def(
         "build_abd_mass_matrix",
-        [](Float m, py::array_t<Float> m_x_bar, py::array_t<Float> m_x_bar_x_bar)
-            -> py::array_t<Float>
+        [](Float m, numpy_array<Float> m_x_bar, numpy_array<Float> m_x_bar_x_bar)
+            -> py::object
         {
             auto mx  = to_matrix<Vector3>(m_x_bar);
             auto mxx = to_matrix<Matrix3x3>(m_x_bar_x_bar);

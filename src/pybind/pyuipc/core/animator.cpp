@@ -1,6 +1,7 @@
 #include <pyuipc/core/animator.h>
 #include <uipc/core/animator.h>
-#include <pybind11/stl.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/string.h>
 
 namespace pyuipc::core
 {

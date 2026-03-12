@@ -42,7 +42,7 @@ Args:
         [](const AffineBodyConstitution& self,
            geometry::SimplicialComplex&  sc,
            Float                         kappa,
-           py::array_t<Float>            mass,
+           numpy_array<Float>            mass,
            Float                         volume)
         { self.apply_to(sc, kappa, to_matrix<Matrix12x12>(mass), volume); },
         py::arg("sc"),
