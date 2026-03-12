@@ -391,7 +391,7 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
                 {
                     auto constraint_uids =
                         geo.meta().find<VectorXu64>(builtin::constraint_uids);
-                    UIPC_ASSERT(constraint_uids, "AffineBodyDrivingPrismaticJoint: Geometry must have 'constraint_uids' attribute");
+                    UIPC_ASSERT(constraint_uids, "AffineBodyDrivingRevoluteJoint: Geometry must have 'constraint_uids' attribute");
                     bool has_this_constraint = false;
                     for(auto&& uid_value : constraint_uids->view().front())
                     {
@@ -402,7 +402,7 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
                         }
                     }
                     UIPC_ASSERT(has_this_constraint,
-                                "AffineBodyDrivingPrismaticJoint: Geometry must have constraint UID {}",
+                                "AffineBodyDrivingRevoluteJoint: Geometry must have constraint UID {}",
                                 ConstraintUID);
                 }
                 // check consitudtion uid

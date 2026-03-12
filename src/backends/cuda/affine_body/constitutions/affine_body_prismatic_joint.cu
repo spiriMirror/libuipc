@@ -674,9 +674,9 @@ Edge             = ({}, {}))",
                 auto aim_distances = sc->edges().find<Float>("aim_distance");
                 UIPC_ASSERT(aim_distances, "AffineBodyDrivingPrismaticJoint: Geometry must have 'aim_distances' attribute on `edges`");
                 {
-                    auto aim_angles_view = aim_distances->view();
+                    auto aim_distances_view = aim_distances->view();
                     auto dst = span{h_aim_distances}.subspan(offset, count);
-                    std::ranges::copy(aim_angles_view, dst.begin());
+                    std::ranges::copy(aim_distances_view, dst.begin());
                     aim_distances_changed = true;
                 }
                 ++geo_joint_index;
@@ -798,9 +798,9 @@ Edge             = ({}, {}))",
                        // E0 = 1/2 * kappa * (T_i \cdot (C_j - C_i) - d_tidle)^2
                        // E1 = 1/2 * kappa * (T_j \cdot (C_i - C_j) - d_tidle)^2
 
-                       //    Float E01;
-                       //    DPJ::E01<Float>(E01, kappa, F01, d_tidle);
-                       //    Es(I) = E01;
+                       Float E01;
+                       DPJ::E01<Float>(E01, kappa, F01, d_tidle);
+                       Es(I) = E01;
                    });
     }
 
@@ -913,7 +913,7 @@ Edge             = ({}, {}))",
         auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
         auto frame = info.frame();
 
-        return curr_distances_dump.dump(fmt::format("{}current_angle.{}", path, frame),
+        return curr_distances_dump.dump(fmt::format("{}current_distances.{}", path, frame),
                                         current_distances);
     }
 

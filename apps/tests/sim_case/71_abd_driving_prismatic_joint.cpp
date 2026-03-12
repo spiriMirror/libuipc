@@ -1,16 +1,15 @@
-#include "uipc/constitution/affine_body_driving_prismatic_joint.h"
 #include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/affine_body_prismatic_joint.h>
+#include <uipc/constitution/affine_body_driving_prismatic_joint.h>
 
-TEST_CASE("71_abd_driving_prismatic_joint", "[abd joint]")
+TEST_CASE("71_abd_driving_prismatic_joint", "[abd][joint][driving]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
     using namespace uipc::core;
     using namespace uipc::constitution;
-    using namespace uipc::core;
     namespace fs     = std::filesystem;
     auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
@@ -149,37 +148,16 @@ TEST_CASE("71_abd_driving_prismatic_joint", "[abd joint]")
                     auto constrained_view = view(*is_constrained);
                     std::fill(constrained_view.begin(), constrained_view.end(), 1);
                 }
-                // Frame-based logic: different behavior for first 50 frames vs later frames
-                if(info.frame() <= 50)
+                auto aim_distances = sc->edges().find<Float>("aim_distance");
+                if(aim_distances)
                 {
-                    // 2. Update aim_distance decrease by 10m/s
-                    auto aim_distances = sc->edges().find<Float>("aim_distance");
-                    if(aim_distances)
+                    auto         aim_distance_view = view(*aim_distances);
+                    const size_t valid_size =
+                        std::min(distances_view.size(), aim_distance_view.size());
+                    const Float velocity = (info.frame() <= 50) ? -10.0f : 10.0f;
+                    for(size_t i = 0; i < valid_size; ++i)
                     {
-                        auto aim_distance_view = view(*aim_distances);
-                        // Ensure array size consistency to prevent out-of-bounds access
-                        const size_t valid_size =
-                            std::min(distances_view.size(), aim_distance_view.size());
-                        for(size_t i = 0; i < valid_size; ++i)
-                        {
-                            aim_distance_view[i] = distances_view[i] - info.dt() * 10;
-                        }
-                    }
-                }
-                else
-                {
-                    // 3. Update aim_distance increase by 10 m/s
-                    auto aim_distances = sc->edges().find<Float>("aim_distance");
-                    if(aim_distances)
-                    {
-                        auto aim_distance_view = view(*aim_distances);
-                        // Ensure array size consistency to prevent out-of-bounds access
-                        const size_t valid_size =
-                            std::min(distances_view.size(), aim_distance_view.size());
-                        for(size_t i = 0; i < valid_size; ++i)
-                        {
-                            aim_distance_view[i] = distances_view[i] + info.dt() * 10;
-                        }
+                        aim_distance_view[i] = distances_view[i] + info.dt() * velocity;
                     }
                 }
             }

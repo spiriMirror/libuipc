@@ -3,14 +3,14 @@
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/affine_body_revolute_joint.h>
 #include <uipc/constitution/affine_body_driving_revolute_joint.h>
+#include <numbers>
 
-TEST_CASE("72_abd_driving_revolute_joint", "[abd joint]")
+TEST_CASE("72_abd_driving_revolute_joint", "[abd][joint][driving]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
     using namespace uipc::core;
     using namespace uipc::constitution;
-    using namespace uipc::core;
     namespace fs = std::filesystem;
 
     auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
@@ -108,7 +108,7 @@ TEST_CASE("72_abd_driving_revolute_joint", "[abd joint]")
 
         auto to_degrees = [](auto radians)
         { return radians * (180.0 / std::numbers::pi); };
-        
+
         scene.animator().insert(
             *revolute_joints,
             [=](Animation::UpdateInfo& info)
@@ -148,37 +148,16 @@ TEST_CASE("72_abd_driving_revolute_joint", "[abd joint]")
                         auto constrained_view = view(*is_constrained);
                         std::fill(constrained_view.begin(), constrained_view.end(), 1);
                     }
-                    // Frame-based logic: different behavior for first 20 frames vs later frames
-                    if(info.frame() <= 50)
+                    auto aim_angle = sc->edges().find<Float>("aim_angle");
+                    if(aim_angle)
                     {
-                        // 2. Update aim_angle: decrease by 4 rad/s (relative to current angle)
-                        auto aim_angle = sc->edges().find<Float>("aim_angle");
-                        if(aim_angle)
+                        auto         aim_angle_view = view(*aim_angle);
+                        const size_t valid_size =
+                            std::min(angles_view.size(), aim_angle_view.size());
+                        const Float velocity = (info.frame() <= 50) ? -5.0f : 10.0f;
+                        for(size_t i = 0; i < valid_size; ++i)
                         {
-                            auto aim_angle_view = view(*aim_angle);
-                            // Ensure array size consistency to prevent out-of-bounds access
-                            const size_t valid_size =
-                                std::min(angles_view.size(), aim_angle_view.size());
-                            for(size_t i = 0; i < valid_size; ++i)
-                            {
-                                aim_angle_view[i] = angles_view[i] - info.dt() * 5;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // 3. Update aim_angle: increase by 4 rad/s (relative to current angle)
-                        auto aim_angle = sc->edges().find<Float>("aim_angle");
-                        if(aim_angle)
-                        {
-                            auto aim_angle_view = view(*aim_angle);
-                            // Ensure array size consistency to prevent out-of-bounds access
-                            const size_t valid_size =
-                                std::min(angles_view.size(), aim_angle_view.size());
-                            for(size_t i = 0; i < valid_size; ++i)
-                            {
-                                aim_angle_view[i] = angles_view[i] + info.dt() * 10;
-                            }
+                            aim_angle_view[i] = angles_view[i] + info.dt() * velocity;
                         }
                     }
                 }
