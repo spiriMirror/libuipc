@@ -2,7 +2,7 @@
 
 References:
 
-[Large Steps in Cloth Simulation (Baraff & Witkin, 1998)](https://www.cs.cmu.edu/~baraff/papers/sig98.pdf)
+[StiffGIPC: Advancing GPU IPC for Stiff Affine-Deformable Simulation](https://dl.acm.org/doi/10.1145/3735126)
 
 ## #819 StrainLimitingBaraffWitkinShell
 
