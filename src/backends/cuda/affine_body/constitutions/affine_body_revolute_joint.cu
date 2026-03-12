@@ -2,10 +2,6 @@
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
 #include <time_integrator/time_integrator.h>
-#include <numbers>
-#include <utils/make_spd.h>
-#include <utils/matrix_assembler.h>
-#include <time_integrator/time_integrator.h>
 #include <affine_body/inter_affine_body_constitution.h>
 #include <uipc/builtin/attribute_name.h>
 #include <affine_body/inter_affine_body_constraint.h>

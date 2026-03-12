@@ -1,4 +1,5 @@
 #include <app/app.h>
+#include <numbers>
 #include <uipc/uipc.h>
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/affine_body_revolute_joint.h>
@@ -129,7 +130,7 @@ TEST_CASE("74_abd_revolute_joint_external_force", "[abd][joint][external_force]"
                                      info.frame(),
                                      i,
                                      angle_view[i],
-                                     angle_view[i] * 180.0 / 3.14159265358979323846);
+                                     angle_view[i] * 180.0 / std::numbers::pi);
                 }
             }
         });

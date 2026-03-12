@@ -612,7 +612,7 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
                 UIPC_ASSERT(inertia, "The inertia attribute is not found in geometry simplicial complex");
 
                 auto mass = sc.instances().find<Float>(builtin::total_mass);
-                UIPC_ASSERT(mass, "The mass_density attribute is not found in geometry meta");
+                UIPC_ASSERT(mass, "The total_mass attribute is not found in geometry meta");
 
                 return zip(view(*inertia), view(*mass));
             },

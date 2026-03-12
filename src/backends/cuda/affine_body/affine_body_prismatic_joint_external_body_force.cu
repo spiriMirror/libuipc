@@ -60,13 +60,13 @@ class AffineBodyPrismaticJointExternalBodyForce final : public AffineBodyExterna
                        Vector3   t_i   = JT[0].vec_x(q_i);
                        Vector3   t_j   = JT[1].vec_x(q_j);
 
-                       // Build 12D force vectors
+                       // Build 12D force vectors per doc: +f*t to body_i, -f*t to body_j
                        // F = [fx, fy, fz, 0, 0, 0, 0, 0, 0, 0, 0, 0]
                        Vector12 F_i      = Vector12::Zero();
-                       F_i.segment<3>(0) = -f * t_i;
+                       F_i.segment<3>(0) = f * t_i;
 
                        Vector12 F_j      = Vector12::Zero();
-                       F_j.segment<3>(0) = f * t_j;
+                       F_j.segment<3>(0) = -f * t_j;
 
                        // Scatter add to external forces
                        eigen::atomic_add(external_forces(bids(0)), F_i);
