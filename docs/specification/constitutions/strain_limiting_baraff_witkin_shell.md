@@ -94,6 +94,12 @@ where:
 - $A_0$ is the rest area of the triangle
 - The factor of 2 accounts for the one-sided thickness convention
 
+## Parameters
+
+The strain rate parameter $r$ is an internal backend constant (currently $r = 100$) that controls the strength of the cubic extension penalty.
+
+The thickness $t$ and mass density are inherited from the [Finite Element](./finite_element.md) base and set via the `apply_to` interface.
+
 ## Attributes
 
 On `triangles`:
