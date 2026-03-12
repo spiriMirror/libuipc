@@ -187,6 +187,21 @@ MUDA_GENERIC Matrix12x12 ABDJacobiDyadicMass::to_mat() const
     return h;
 }
 
+MUDA_GENERIC Matrix3x3 ABDJacobiDyadicMass::inertia_tensor_cm() const
+{
+    const Float m = static_cast<Float>(m_mass);
+    if(m <= 0)
+        return Matrix3x3::Zero();
+    const Vector3   c = m_mass_times_x_bar / m;
+    const Matrix3x3 S = m_mass_times_dyadic_x_bar;
+    // I^O =  tr(S) I_3 - S (inertia about origin)
+    const Float     trS      = S.trace();
+    const Matrix3x3 I_origin = trS * Matrix3x3::Identity() - S;
+    // I_cm = I^O - m * (|c|^2 I_3 - c c^T)
+    const Float c2 = c.squaredNorm();
+    return I_origin - m * (c2 * Matrix3x3::Identity() - c * c.transpose());
+}
+
 MUDA_DEVICE ABDJacobiDyadicMass ABDJacobiDyadicMass::atomic_add(ABDJacobiDyadicMass& dst,
                                                                 const ABDJacobiDyadicMass& src)
 {

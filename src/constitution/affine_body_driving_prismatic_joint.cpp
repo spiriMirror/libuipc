@@ -7,7 +7,8 @@ namespace uipc::constitution
 {
 static constexpr U64 ConstitutionUID = 21;
 
-static constexpr std::string_view DrivingStrengthName = "driving/strength_ratio";
+static constexpr std::string_view DrivingStrengthName       = "driving/strength_ratio";
+static constexpr std::string_view DrivingIsConstrainedName  = "driving/is_constrained";
 REGISTER_CONSTITUTION_UIDS()
 {
     using namespace uipc::builtin;
@@ -54,10 +55,10 @@ void AffineBodyDrivingPrismaticJoint::apply_to(geometry::SimplicialComplex& sc,
                 "Simplicial complex does not have constitution uid. "
                 "Please apply an AffineBodyPrismaticJoint before applying AffineBodyDrivingPrismaticJoint");
 
-    auto is_constrained = sc.edges().find<IndexT>(builtin::is_constrained);
+    auto is_constrained = sc.edges().find<IndexT>(DrivingIsConstrainedName);
     if(!is_constrained)
     {
-        is_constrained = sc.edges().create<IndexT>(builtin::is_constrained, 0);
+        is_constrained = sc.edges().create<IndexT>(DrivingIsConstrainedName, 0);
     }
     auto is_constrained_view = view(*is_constrained);
     std::ranges::fill(is_constrained_view, 0);

@@ -17,6 +17,7 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
 
     static constexpr U64 ConstitutionUID = 18;
 
+
     SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
 
     vector<Vector2i> h_body_ids;
@@ -193,13 +194,9 @@ Edge             = ({}, {}))",
                        X.segment<3>(6) = Js[2].point_x(q_j);
                        X.segment<3>(9) = Js[3].point_x(q_j);
 
-
-                       Float E0 = (X.segment<3>(0) - X.segment<3>(6)).squaredNorm();
-                       Float E1 = (X.segment<3>(3) - X.segment<3>(9)).squaredNorm();
-
                        // energy = 1/2 * kappa * (||x0 - x2||^2 + ||x1 - x3||^2)
 
-                       Es(I) = kappa / 2 * (E0 + E1);
+                       Es(I) = kappa * RJ::E(X);
                    });
     }
 
@@ -431,8 +428,8 @@ class AffineBodyDrivingRevoluteJoint : public InterAffineBodyConstraint
                 UIPC_ASSERT(inst_ids, "AffineBodyDrivingRevoluteJoint: Geometry must have 'inst_ids' attribute on `edges`");
                 auto inst_ids_view = inst_ids->view();
 
-                auto is_constrained = sc->edges().find<IndexT>(builtin::is_constrained);
-                UIPC_ASSERT(is_constrained, "AffineBodyDrivingRevoluteJoint: Geometry must have 'is_constrained' attribute on `edges`");
+                auto is_constrained = sc->edges().find<IndexT>("driving/is_constrained");
+                UIPC_ASSERT(is_constrained, "AffineBodyDrivingRevoluteJoint: Geometry must have 'driving/is_constrained' attribute on `edges`");
                 auto is_constrained_view = is_constrained->view();
                 std::ranges::copy(is_constrained_view,
                                   std::back_inserter(is_constrained_list));
@@ -609,8 +606,8 @@ Edge             = ({}, {}))",
                             sc->edges().size(),
                             count);
 
-                auto is_constrained = sc->edges().find<IndexT>(builtin::is_constrained);
-                UIPC_ASSERT(is_constrained, "AffineBodyDrivingRevoluteJoint: Geometry must have 'is_constrained' attribute on `edges`");
+                auto is_constrained = sc->edges().find<IndexT>("driving/is_constrained");
+                UIPC_ASSERT(is_constrained, "AffineBodyDrivingRevoluteJoint: Geometry must have 'driving/is_constrained' attribute on `edges`");
                 {
                     auto is_constrained_view = is_constrained->view();
                     auto dst = span{h_is_constrained}.subspan(offset, count);
