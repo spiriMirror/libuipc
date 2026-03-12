@@ -22,7 +22,7 @@ U64 AffineBodyRevoluteJointExternalBodyForceConstraint::get_uid() const noexcept
 }
 
 static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
-                               auto&                                  geo_slots,
+                               span<S<geometry::GeometrySlot>>&       geo_slots,
                                vector<Float>&                         h_torques,
                                vector<Vector2i>& h_body_ids,
                                vector<Vector12>& h_rest_positions,

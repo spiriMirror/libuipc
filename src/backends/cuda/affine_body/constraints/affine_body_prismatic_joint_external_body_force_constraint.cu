@@ -22,13 +22,13 @@ U64 AffineBodyPrismaticJointExternalBodyForceConstraint::get_uid() const noexcep
 }
 
 static void collect_prismatic_data(InterAffineBodyAnimator::FilteredInfo& info,
-                                   auto& geo_slots,
-                                   vector<Float>& h_forces,
-                                   vector<Vector2i>& h_body_ids,
+                                   span<S<geometry::GeometrySlot>>& geo_slots,
+                                   vector<Float>&                   h_forces,
+                                   vector<Vector2i>&                h_body_ids,
                                    vector<Vector6>& h_rest_tangents,
                                    vector<Vector6>& h_rest_positions,
-                                   vector<Float>& h_init_distances,
-                                   bool check_uid = false)
+                                   vector<Float>&   h_init_distances,
+                                   bool             check_uid = false)
 {
     info.for_each(
         geo_slots,
@@ -84,8 +84,8 @@ static void collect_prismatic_data(InterAffineBodyAnimator::FilteredInfo& info,
                 auto left_sc  = info.body_geo(geo_slots, geo_id(0));
                 auto right_sc = info.body_geo(geo_slots, geo_id(1));
 
-                Vector3 P0 = Ps[e[0]];
-                Vector3 P1 = Ps[e[1]];
+                Vector3 P0      = Ps[e[0]];
+                Vector3 P1      = Ps[e[1]];
                 Vector3 tangent = (P1 - P0).normalized();
 
                 Transform LT{left_sc->transforms().view()[inst_id(0)]};
@@ -102,7 +102,8 @@ static void collect_prismatic_data(InterAffineBodyAnimator::FilteredInfo& info,
                 h_rest_positions.push_back(rest_position);
 
                 h_forces.push_back(external_force_view[i]);
-                h_init_distances.push_back(init_distance ? init_distance->view()[i] : Float{0});
+                h_init_distances.push_back(init_distance ? init_distance->view()[i] :
+                                                           Float{0});
             }
         });
 }
@@ -111,7 +112,8 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::do_init(InterAffineBod
 {
     auto geo_slots = world().scene().geometries();
 
-    collect_prismatic_data(info, geo_slots,
+    collect_prismatic_data(info,
+                           geo_slots,
                            m_impl.h_forces,
                            m_impl.h_body_ids,
                            m_impl.h_rest_tangents,
@@ -143,7 +145,8 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::do_step(InterAffineBod
     m_impl.h_rest_positions.clear();
     m_impl.h_init_distances.clear();
 
-    collect_prismatic_data(info, geo_slots,
+    collect_prismatic_data(info,
+                           geo_slots,
                            m_impl.h_forces,
                            m_impl.h_body_ids,
                            m_impl.h_rest_tangents,
@@ -180,32 +183,32 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::write_scene()
     m_impl.current_distances.copy_to(m_impl.h_current_distances);
 
     IndexT offset = 0;
-    this->for_each(
-        geo_slots,
-        [&](geometry::Geometry& geo)
-        {
-            auto sc = geo.as<geometry::SimplicialComplex>();
-            if(!sc)
-                return;
+    this->for_each(geo_slots,
+                   [&](geometry::Geometry& geo)
+                   {
+                       auto sc = geo.as<geometry::SimplicialComplex>();
+                       if(!sc)
+                           return;
 
-            auto is_constrained = sc->edges().find<IndexT>("external_force/is_constrained");
-            if(!is_constrained)
-                return;
-            auto is_constrained_view = is_constrained->view();
+                       auto is_constrained =
+                           sc->edges().find<IndexT>("external_force/is_constrained");
+                       if(!is_constrained)
+                           return;
+                       auto is_constrained_view = is_constrained->view();
 
-            auto distance = sc->edges().find<Float>("distance");
-            if(!distance)
-                distance = sc->edges().create<Float>("distance", 0.0);
-            auto distance_view = view(*distance);
+                       auto distance = sc->edges().find<Float>("distance");
+                       if(!distance)
+                           distance = sc->edges().create<Float>("distance", 0.0);
+                       auto distance_view = view(*distance);
 
-            for(SizeT i = 0; i < is_constrained_view.size(); ++i)
-            {
-                if(is_constrained_view[i] == 0)
-                    continue;
-                if(offset < m_impl.h_current_distances.size())
-                    distance_view[i] = m_impl.h_current_distances[offset++];
-            }
-        });
+                       for(SizeT i = 0; i < is_constrained_view.size(); ++i)
+                       {
+                           if(is_constrained_view[i] == 0)
+                               continue;
+                           if(offset < m_impl.h_current_distances.size())
+                               distance_view[i] = m_impl.h_current_distances[offset++];
+                       }
+                   });
 }
 
 muda::CBufferView<Float> AffineBodyPrismaticJointExternalBodyForceConstraint::forces() const noexcept
@@ -238,7 +241,8 @@ muda::DeviceBuffer<Float>& AffineBodyPrismaticJointExternalBodyForceConstraint::
     return m_impl.current_distances;
 }
 
-void AffineBodyPrismaticJointExternalBodyForceConstraint::do_report_extent(InterAffineBodyAnimator::ReportExtentInfo& info)
+void AffineBodyPrismaticJointExternalBodyForceConstraint::do_report_extent(
+    InterAffineBodyAnimator::ReportExtentInfo& info)
 {
     info.energy_count(0);
     info.gradient_count(0);
@@ -246,11 +250,13 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::do_report_extent(Inter
         info.hessian_count(0);
 }
 
-void AffineBodyPrismaticJointExternalBodyForceConstraint::do_compute_energy(InterAffineBodyAnimator::ComputeEnergyInfo& info)
+void AffineBodyPrismaticJointExternalBodyForceConstraint::do_compute_energy(
+    InterAffineBodyAnimator::ComputeEnergyInfo& info)
 {
 }
 
-void AffineBodyPrismaticJointExternalBodyForceConstraint::do_compute_gradient_hessian(InterAffineBodyAnimator::GradientHessianInfo& info)
+void AffineBodyPrismaticJointExternalBodyForceConstraint::do_compute_gradient_hessian(
+    InterAffineBodyAnimator::GradientHessianInfo& info)
 {
 }
 }  // namespace uipc::backend::cuda
