@@ -407,6 +407,7 @@ class FiniteElementMethod final : public SimSystem
     void add_reporter(FiniteElementConstitutionDiffParmReporter* reporter);  // only called by FiniteElementConstitutionDiffParmReporter
     friend class FiniteElementExtraConstitutionDiffParmReporter;
     void add_reporter(FiniteElementExtraConstitutionDiffParmReporter* reporter);  // only called by FiniteElementExtraConstitutionDiffParmReporter
+    friend class FEMActiveSetReporter;
 
     friend class FiniteElementDiffParmReporter;
     void add_kinetic_reporter(FiniteElementDiffParmReporter* reporter);  // only called by FiniteElementKineticDiffParmReporter

@@ -518,6 +518,7 @@ class AffineBodyDynamics : public SimSystem
     friend class AffineBodyConstitution;
     friend class ABDGradientHessianComputer;
     friend class AffineBodyAnimator;
+    friend class ABDActiveSetReporter;
 
     friend class AffineBodyDiffParmReporter;
     friend class AffineBodyDiffDofReporter;

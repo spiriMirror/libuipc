@@ -84,9 +84,6 @@ class GIPCAdaptiveParameterStrategy : public AdaptiveContactParameterReporter
 
         adaptive_topos.copy_from(h_adaptive_topos);
 
-        contact_gradient.resize(linear_system->dof_count());
-        non_contact_gradient.resize(linear_system->dof_count());
-
         // initialize test contact tabular
         // non-adaptive kappa to 0.0 (don't contribute)
         // adaptive kappa to 1.0 (contribute)

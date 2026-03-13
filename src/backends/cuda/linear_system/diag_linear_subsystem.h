@@ -21,7 +21,7 @@ class DiagLinearSubsystem : public SimSystem
       public:
     };
 
-    U64    uid() const noexcept;
+    U64 uid() const noexcept;
 
     IndexT dof_offset() const noexcept;
     IndexT dof_count() const noexcept;
@@ -38,7 +38,9 @@ class DiagLinearSubsystem : public SimSystem
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info)  = 0;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) = 0;
 
-    virtual U64 get_uid() const noexcept = 0;
+    virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) = 0;
+    virtual Float do_mass_norm(GlobalLinearSystem::DiagNormInfo& info) = 0;
+    virtual U64   get_uid() const noexcept                             = 0;
 
   private:
     friend class GlobalLinearSystem;
@@ -53,6 +55,9 @@ class DiagLinearSubsystem : public SimSystem
     void assemble(GlobalLinearSystem::DiagInfo& info);
     void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
     void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
+
+    Float diag_norm(GlobalLinearSystem::DiagNormInfo& info);
+    Float mass_norm(GlobalLinearSystem::DiagNormInfo& info);
 
     SizeT m_index = ~0ull;
 

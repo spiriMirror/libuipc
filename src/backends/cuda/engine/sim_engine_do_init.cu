@@ -16,6 +16,9 @@
 #include <affine_body/inter_affine_body_constitution_manager.h>
 #include <newton_tolerance/newton_tolerance_manager.h>
 #include <time_integrator/time_integrator_manager.h>
+#include <active_set_system/global_active_set_manager.h>
+#include <pipeline/ipc_pipeline_flag.h>
+#include <pipeline/al_ipc_pipeline_flag.h>
 
 namespace uipc::backend::cuda
 {
@@ -25,6 +28,8 @@ void SimEngine::build()
     build_systems();
 
     // 2) find those engine-aware topo systems
+
+    // Basic Pipeline Systems
     m_global_vertex_manager    = &require<GlobalVertexManager>();
     m_global_body_manager      = &require<GlobalBodyManager>();
     m_time_integrator_manager  = &require<TimeIntegratorManager>();
@@ -44,6 +49,9 @@ void SimEngine::build()
     m_inter_affine_body_constitution_manager =
         find<InterAffineBodyConstitutionManager>();
     m_finite_element_method = find<FiniteElementMethod>();
+
+    // Augmented Lagrangian Pipeline Systems
+    m_global_active_set_manager = find<GlobalActiveSetManager>();
 
 
     // 3) dump system info
@@ -71,6 +79,22 @@ void SimEngine::init_scene()
 
     Vector3 gravity = info.find<Vector3>("gravity")->view()[0];
 
+    auto alipc = find<ALIPCPipelineFlag>();
+    auto ipc   = find<IPCPipelineFlag>();
+    if(alipc)
+    {
+        logger::info("Pipeline: Augmented Lagrangian IPC");
+        m_pipeline_type = PipelineType::AugmentedLagrangian;
+    }
+    else if(ipc)
+    {
+        m_pipeline_type = PipelineType::Basic;
+    }
+    else
+    {
+        throw SimEngineException("No valid pipeline flag found in the scene!");
+    }
+
 
     // 1. Before Common Scene Initialization
     {
@@ -89,9 +113,6 @@ void SimEngine::init_scene()
     // 3. After Common Scene Initialization
     // 3.1 Forwards
     {
-        // * dof initialization
-        m_global_linear_system->init();
-
         m_global_vertex_manager->init();
         m_global_simplicial_surface_manager->init();
         if(m_global_dytopo_effect_manager)
@@ -102,10 +123,12 @@ void SimEngine::init_scene()
             m_global_animator->init();
         if(m_global_external_force_manager)
             m_global_external_force_manager->init();
+        if(m_global_active_set_manager)
+            m_global_active_set_manager->init();
 
         m_line_searcher->init();
+        m_global_linear_system->init();
         m_time_integrator_manager->init();
-
         m_newton_tolerance_manager->init();
     }
 
