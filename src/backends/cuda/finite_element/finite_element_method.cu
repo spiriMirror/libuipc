@@ -100,14 +100,6 @@ void FiniteElementMethod::add_constitution(FiniteElementExtraConstitution* const
     m_impl.extra_constitutions.register_sim_system(*constitution);
 }
 
-void FiniteElementMethod::post_step_extra_constitutions()
-{
-    for(auto* constitution : m_impl.extra_constitutions.view())
-    {
-        constitution->post_step();
-    }
-}
-
 void FiniteElementMethod::add_reporter(FiniteElementConstitutionDiffParmReporter* reporter)
 {
     //check_state(SimEngineState::BuildSystems, "add_reporter()");

@@ -1,4 +1,6 @@
 #include <finite_element/finite_element_extra_constitution.h>
+#include <finite_element/finite_element_method.h>
+#include <time_integrator/time_integrator.h>
 #include <uipc/builtin/attribute_name.h>
 #include <finite_element/constitutions/plastic_discrete_shell_bending_function.h>
 #include <limits>
@@ -42,17 +44,6 @@ bool stencil_less(const Vector4i& a, const Vector4i& b)
 
     return false;
 }
-
-bool stencil_equal(const Vector4i& a, const Vector4i& b)
-{
-    for(int i = 0; i < 4; ++i)
-    {
-        if(a[i] != b[i])
-            return false;
-    }
-
-    return true;
-}
 }  // namespace
 
 class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
@@ -91,10 +82,6 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
     muda::DeviceBuffer<Float>    yield_thresholds;
     muda::DeviceBuffer<Float>    hardening_moduli;
     muda::DeviceBuffer<Float>    V_bars;
-
-    BufferDump dump_theta_bars;
-    BufferDump dump_yield_thresholds;
-    BufferDump dump_stencil_identities;
 
     virtual void do_build(BuildInfo& info) override {}
 
@@ -351,19 +338,42 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
                    });
     }
 
-    virtual void do_post_step(PostStepInfo& info) override
+};
+REGISTER_SIM_SYSTEM(PlasticDiscreteShellBending);
+
+class PlasticDiscreteShellBendingTimeIntegrator final : public TimeIntegrator
+{
+  public:
+    using TimeIntegrator::TimeIntegrator;
+
+    SimSystemSlot<PlasticDiscreteShellBending> pdsb;
+    SimSystemSlot<FiniteElementMethod>         fem;
+    BufferDump                                 dump_theta_bars;
+    BufferDump                                 dump_yield_thresholds;
+
+    void do_build(TimeIntegrator::BuildInfo& info) override
+    {
+        pdsb = require<PlasticDiscreteShellBending>();
+        fem  = require<FiniteElementMethod>();
+    }
+
+    void do_init(TimeIntegrator::InitInfo& info) override {}
+
+    void do_predict_dof(TimeIntegrator::PredictDofInfo& info) override {}
+
+    void do_update_state(TimeIntegrator::UpdateVelocityInfo& info) override
     {
         using namespace muda;
         namespace PDSB = sym::plastic_discrete_shell_bending;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(stencils.size(),
-                   [stencils = stencils.viewer().name("stencils"),
-                    theta_bars = theta_bars.viewer().name("theta_bar"),
-                    yield_thresholds = yield_thresholds.viewer().name("yield_threshold"),
-                    hardening_moduli = hardening_moduli.viewer().name("hardening_modulus"),
-                    xs = info.xs().viewer().name("xs")] __device__(int I) mutable
+            .apply(pdsb->stencils.size(),
+                   [stencils = pdsb->stencils.cviewer().name("stencils"),
+                    theta_bars = pdsb->theta_bars.viewer().name("theta_bar"),
+                    yield_thresholds = pdsb->yield_thresholds.viewer().name("yield_threshold"),
+                    hardening_moduli = pdsb->hardening_moduli.cviewer().name("hardening_modulus"),
+                    xs = fem->xs().cviewer().name("xs")] __device__(int I) mutable
                    {
                        Vector4i stencil = stencils(I);
 
@@ -389,98 +399,37 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
                    });
     }
 
-    virtual bool do_dump(DumpInfo& info) override
+    bool do_dump(DumpInfo& info) override
     {
         auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
         auto frame = info.frame();
 
-        return dump_theta_bars.dump(fmt::format("{}theta_bar.{}", path, frame), theta_bars)
+        return dump_theta_bars.dump(fmt::format("{}theta_bar.{}", path, frame), pdsb->theta_bars)
                && dump_yield_thresholds.dump(
-                    fmt::format("{}yield_threshold.{}", path, frame), yield_thresholds)
-               && dump_stencil_identities.dump(
-                   fmt::format("{}stencil_identity.{}", path, frame),
-                   span<const Vector4i>{h_stencils.data(), h_stencils.size()});
+                   fmt::format("{}yield_threshold.{}", path, frame), pdsb->yield_thresholds);
     }
 
-    virtual bool do_try_recover(RecoverInfo& info) override
+    bool do_try_recover(RecoverInfo& info) override
     {
         auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
         auto frame = info.frame();
 
-        auto cleanup_recover = [&]
-        {
-            dump_theta_bars.clean_up();
-            dump_yield_thresholds.clean_up();
-            dump_stencil_identities.clean_up();
-        };
-
-        const bool loaded = dump_theta_bars.load(fmt::format("{}theta_bar.{}", path, frame))
-                            && dump_yield_thresholds.load(
-                                fmt::format("{}yield_threshold.{}", path, frame))
-                            && dump_stencil_identities.load(
-                                fmt::format("{}stencil_identity.{}", path, frame));
-        if(!loaded)
-        {
-            cleanup_recover();
-            return false;
-        }
-
-        auto theta_view = dump_theta_bars.view<Float>();
-        auto yield_view = dump_yield_thresholds.view<Float>();
-        auto stencil_identity_view = dump_stencil_identities.view<Vector4i>();
-
-        const auto expected_size = stencils.size();
-        if(theta_view.size() != expected_size || yield_view.size() != expected_size
-           || stencil_identity_view.size() != expected_size)
-        {
-            logger::warn("PlasticDiscreteShellBending recover size mismatch: theta={} yield={} identity={} expected={}",
-                         theta_view.size(),
-                         yield_view.size(),
-                         stencil_identity_view.size(),
-                         expected_size);
-            cleanup_recover();
-            return false;
-        }
-
-        const auto invalid_theta = std::ranges::find_if(theta_view,
-                                                        [](Float v) { return !std::isfinite(v); });
-        const auto invalid_yield = std::ranges::find_if(
-            yield_view, [](Float v) { return !std::isfinite(v) || v < 0.0; });
-
-        if(invalid_theta != theta_view.end() || invalid_yield != yield_view.end())
-        {
-            logger::warn("PlasticDiscreteShellBending recover rejected non-finite plastic state");
-            cleanup_recover();
-            return false;
-        }
-
-        for(SizeT i = 0; i < expected_size; ++i)
-        {
-            if(!stencil_equal(stencil_identity_view[i], h_stencils[i]))
-            {
-                logger::warn("PlasticDiscreteShellBending recover rejected stencil identity mismatch at index {}",
-                             i);
-                cleanup_recover();
-                return false;
-            }
-        }
-
-        return true;
+        return dump_theta_bars.load(fmt::format("{}theta_bar.{}", path, frame))
+               && dump_yield_thresholds.load(
+                   fmt::format("{}yield_threshold.{}", path, frame));
     }
 
-    virtual void do_apply_recover(RecoverInfo& info) override
+    void do_apply_recover(RecoverInfo& info) override
     {
-        dump_theta_bars.apply_to(theta_bars);
-        dump_yield_thresholds.apply_to(yield_thresholds);
+        dump_theta_bars.apply_to(pdsb->theta_bars);
+        dump_yield_thresholds.apply_to(pdsb->yield_thresholds);
     }
 
-    virtual void do_clear_recover(RecoverInfo& info) override
+    void do_clear_recover(RecoverInfo& info) override
     {
         dump_theta_bars.clean_up();
         dump_yield_thresholds.clean_up();
-        dump_stencil_identities.clean_up();
     }
 };
-
-REGISTER_SIM_SYSTEM(PlasticDiscreteShellBending);
+REGISTER_SIM_SYSTEM(PlasticDiscreteShellBendingTimeIntegrator);
 }  // namespace uipc::backend::cuda

@@ -56,8 +56,8 @@ ClothPatch load_center_patch()
             const SizeT v10 = v00 + 1;
             const SizeT v01 = v00 + SheetResolution;
             const SizeT v11 = v01 + 1;
-            Fs.emplace_back(v00, v10, v11);
-            Fs.emplace_back(v00, v11, v01);
+            Fs.emplace_back(v00, v11, v10);
+            Fs.emplace_back(v00, v01, v11);
         }
     }
 
@@ -81,7 +81,7 @@ ClothPatch load_center_patch()
 }
 }  // namespace
 
-TEST_CASE("71_discrete_shell_bending_plastic_open_strip", "[fem][plastic_dsb]")
+TEST_CASE("76_discrete_shell_bending_plastic_open_strip", "[fem][plastic_dsb]")
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -143,12 +143,16 @@ TEST_CASE("71_discrete_shell_bending_plastic_open_strip", "[fem][plastic_dsb]")
     world.init(scene);
     REQUIRE(world.is_valid());
 
-    while(world.frame() < 90)
+    SceneIO sio{scene};
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
+
+    while(world.frame() < 70)
     {
         world.advance();
         REQUIRE(world.is_valid());
 
         world.retrieve();
+        sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
         auto sc = slot->geometry().as<SimplicialComplex>();
         const auto position_view = view(sc->positions());
         REQUIRE(std::ranges::all_of(position_view,

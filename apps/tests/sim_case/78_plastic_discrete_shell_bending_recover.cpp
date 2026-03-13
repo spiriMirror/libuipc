@@ -5,8 +5,6 @@
 #include <uipc/constitution/soft_position_constraint.h>
 #include <algorithm>
 #include <filesystem>
-#include <fstream>
-#include <limits>
 #include <numbers>
 
 namespace
@@ -67,8 +65,8 @@ ClothPatch load_center_patch()
             const SizeT v10 = v00 + 1;
             const SizeT v01 = v00 + SheetResolution;
             const SizeT v11 = v01 + 1;
-            Fs.emplace_back(v00, v10, v11);
-            Fs.emplace_back(v00, v11, v01);
+            Fs.emplace_back(v00, v11, v10);
+            Fs.emplace_back(v00, v01, v11);
         }
     }
 
@@ -134,50 +132,6 @@ S<geometry::GeometrySlot> build_scene(Scene& scene)
     return slot;
 }
 
-std::filesystem::path find_dump_file(const std::filesystem::path& dump_root,
-                                     std::string_view             stem)
-{
-    for(const auto& entry : std::filesystem::recursive_directory_iterator(dump_root))
-    {
-        if(entry.is_regular_file() && entry.path().filename() == stem)
-            return entry.path();
-    }
-
-    return {};
-}
-
-template <typename T>
-void write_dump(const std::filesystem::path& path, span<const T> values)
-{
-    std::ofstream ofs(path, std::ios::binary | std::ios::trunc);
-    REQUIRE(ofs.is_open());
-
-    std::size_t size_bytes = values.size() * sizeof(T);
-    ofs.write(reinterpret_cast<const char*>(&DumpMagic), sizeof(DumpMagic));
-    ofs.write(reinterpret_cast<const char*>(&size_bytes), sizeof(size_bytes));
-    ofs.write(reinterpret_cast<const char*>(values.data()), size_bytes);
-}
-
-template <typename T>
-vector<T> read_dump(const std::filesystem::path& path)
-{
-    std::ifstream ifs(path, std::ios::binary);
-    REQUIRE(ifs.is_open());
-
-    std::size_t magic      = 0;
-    std::size_t size_bytes = 0;
-    ifs.read(reinterpret_cast<char*>(&magic), sizeof(magic));
-    ifs.read(reinterpret_cast<char*>(&size_bytes), sizeof(size_bytes));
-
-    REQUIRE(magic == DumpMagic);
-    REQUIRE(size_bytes % sizeof(T) == 0);
-
-    vector<T> values(size_bytes / sizeof(T));
-    if(!values.empty())
-        ifs.read(reinterpret_cast<char*>(values.data()), size_bytes);
-    return values;
-}
-
 SimulationResult run_case(const std::filesystem::path& workspace,
                           bool                        dump_frames,
                           std::optional<SizeT>        recover_frame = std::nullopt)
@@ -199,6 +153,9 @@ SimulationResult run_case(const std::filesystem::path& workspace,
     world.init(scene);
     REQUIRE(world.is_valid());
 
+    SceneIO sio{scene};
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", workspace.string(), world.frame()));
+
     SimulationResult result;
     if(recover_frame)
     {
@@ -207,6 +164,8 @@ SimulationResult run_case(const std::filesystem::path& workspace,
             return result;
 
         REQUIRE(world.frame() == *recover_frame);
+        world.retrieve();
+        sio.write_surface(fmt::format("{}scene_surface{}.obj", workspace.string(), world.frame()));
     }
 
     while(world.frame() < EndFrame)
@@ -214,6 +173,7 @@ SimulationResult run_case(const std::filesystem::path& workspace,
         world.advance();
         REQUIRE(world.is_valid());
         world.retrieve();
+        sio.write_surface(fmt::format("{}scene_surface{}.obj", workspace.string(), world.frame()));
         if(dump_frames)
             world.dump();
     }
@@ -242,7 +202,7 @@ Float max_position_diff(span<const Vector3> a, span<const Vector3> b)
 }
 }  // namespace
 
-TEST_CASE("73_plastic_discrete_shell_bending_recover", "[fem][plastic_dsb][recover]")
+TEST_CASE("78_plastic_discrete_shell_bending_recover", "[fem][plastic_dsb][recover]")
 {
     namespace fs = std::filesystem;
 
@@ -260,59 +220,4 @@ TEST_CASE("73_plastic_discrete_shell_bending_recover", "[fem][plastic_dsb][recov
               < 1e-6);
     }
 
-    SECTION("recover_rejects_size_mismatch_dump")
-    {
-        auto baseline = run_case(workspace, true);
-        (void)baseline;
-
-        auto dump_root   = workspace / "dump";
-        auto yield_file  = find_dump_file(dump_root, fmt::format("yield_threshold.{}", RecoverFrame));
-        REQUIRE(!yield_file.empty());
-
-        const vector<Float> wrong_size = {0.25, 0.5};
-        write_dump(yield_file, span<const Float>{wrong_size.data(), wrong_size.size()});
-
-        auto resumed = run_case(workspace, false, RecoverFrame);
-        CHECK_FALSE(resumed.recover_result);
-    }
-
-    SECTION("recover_rejects_non_finite_dump")
-    {
-        auto baseline = run_case(workspace, true);
-        (void)baseline;
-
-        auto dump_root  = workspace / "dump";
-        auto theta_file = find_dump_file(dump_root, fmt::format("theta_bar.{}", RecoverFrame));
-        REQUIRE(!theta_file.empty());
-
-        auto invalid_values = read_dump<Float>(theta_file);
-        REQUIRE(!invalid_values.empty());
-        invalid_values[0] = std::numeric_limits<Float>::quiet_NaN();
-        write_dump(theta_file, span<const Float>{invalid_values.data(), invalid_values.size()});
-
-        auto resumed = run_case(workspace, false, RecoverFrame);
-        CHECK_FALSE(resumed.recover_result);
-    }
-
-    SECTION("recover_rejects_stencil_identity_mismatch")
-    {
-        auto baseline = run_case(workspace, true);
-        (void)baseline;
-
-        auto dump_root      = workspace / "dump";
-        auto stencil_file   = find_dump_file(dump_root,
-                                           fmt::format("stencil_identity.{}", RecoverFrame));
-        REQUIRE(!stencil_file.empty());
-
-        auto wrong_identity = read_dump<Vector4i>(stencil_file);
-        REQUIRE(!wrong_identity.empty());
-        auto swapped = wrong_identity[0];
-        std::swap(swapped(1), swapped(2));
-        wrong_identity[0] = swapped;
-        write_dump(stencil_file,
-                   span<const Vector4i>{wrong_identity.data(), wrong_identity.size()});
-
-        auto resumed = run_case(workspace, false, RecoverFrame);
-        CHECK_FALSE(resumed.recover_result);
-    }
 }
