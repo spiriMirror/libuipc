@@ -114,6 +114,15 @@ class FiniteElementExtraConstitution : public SimSystem
         FiniteElementElastics::ComputeGradientHessianInfo* base_info = nullptr;
     };
 
+    class PostStepInfo : public BaseInfo
+    {
+      public:
+        PostStepInfo(Impl* impl)
+            : BaseInfo(impl, 0.0)
+        {
+        }
+    };
+
     U64 uid() const noexcept;
 
   protected:
@@ -123,6 +132,7 @@ class FiniteElementExtraConstitution : public SimSystem
     virtual void do_report_extent(ReportExtentInfo& info)   = 0;
     virtual void do_compute_energy(ComputeEnergyInfo& info) = 0;
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) = 0;
+    virtual void do_post_step(PostStepInfo& info) {}
 
     friend class FiniteElementExtraConstitutionDiffParmReporter;
     span<const FiniteElementMethod::GeoInfo> geo_infos() const noexcept;
@@ -140,6 +150,7 @@ class FiniteElementExtraConstitution : public SimSystem
     void report_extent(ReportExtentInfo& info);
     void compute_energy(FiniteElementElastics::ComputeEnergyInfo& info);
     void compute_gradient_hessian(FiniteElementElastics::ComputeGradientHessianInfo& info);
+    void post_step();
 
     Impl  m_impl;
     SizeT m_index = 0;

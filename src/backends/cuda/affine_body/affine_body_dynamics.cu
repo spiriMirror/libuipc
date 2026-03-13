@@ -510,95 +510,124 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
     // - `body_id_to_self_collision`
     {
         h_body_id_to_abd_mass.resize(abd_body_count);
+        h_body_id_to_total_mass.resize(abd_body_count);
+        h_body_id_to_inertia_tensor.resize(abd_body_count);
         h_body_id_to_volume.resize(abd_body_count);
         h_body_id_to_dim.resize(abd_body_count);
         h_body_id_to_self_collision.resize(abd_body_count, 0);  // default 0
 
         span Js = h_vertex_id_to_J;
 
-        for_each(geo_slots,
-                 [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
-                 {
-                     auto geoI = I.global_index();
+        for_each(
+            geo_slots,
+            [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
+            {
+                auto geoI = I.global_index();
 
-                     auto vert_count  = sc.vertices().size();
-                     auto vert_offset = geo_infos[geoI].vertex_offset;
-                     auto body_count  = sc.instances().size();
-                     auto body_offset = geo_infos[geoI].body_offset;
+                auto vert_count  = sc.vertices().size();
+                auto vert_offset = geo_infos[geoI].vertex_offset;
+                auto body_count  = sc.instances().size();
+                auto body_offset = geo_infos[geoI].body_offset;
 
-                     auto sub_Js = Js.subspan(vert_offset, vert_count);
+                auto sub_Js = Js.subspan(vert_offset, vert_count);
 
-                     ABDJacobiDyadicMass geo_mass;
-                     {
-                         Float     m;
-                         Vector3   m_x_bar;
-                         Matrix3x3 m_x_bar_x_bar;
+                ABDJacobiDyadicMass geo_mass;
+                {
+                    Float     m;
+                    Vector3   m_x_bar;
+                    Matrix3x3 m_x_bar_x_bar;
 
-                         auto mass_override = sc.meta().find<Float>(builtin::abd_mass);
-                         if(mass_override)
-                         {
-                             auto mx  = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
-                             auto mxx = sc.meta().find<Matrix3x3>(builtin::abd_mass_x_bar_x_bar);
-                             UIPC_ASSERT(mx && mxx,
-                                         "abd_mass is set but abd_mass_x_bar or abd_mass_x_bar_x_bar is missing");
-                             m             = mass_override->view()[0];
-                             m_x_bar       = mx->view()[0];
-                             m_x_bar_x_bar = mxx->view()[0];
-                         }
-                         else
-                         {
-                             auto rho = sc.meta().find<Float>(builtin::mass_density);
-                             UIPC_ASSERT(rho, "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
+                    auto mass_override = sc.meta().find<Float>(builtin::abd_mass);
+                    if(mass_override)
+                    {
+                        auto mx = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
+                        auto mxx = sc.meta().find<Matrix3x3>(builtin::abd_mass_x_bar_x_bar);
+                        UIPC_ASSERT(mx && mxx, "abd_mass is set but abd_mass_x_bar or abd_mass_x_bar_x_bar is missing");
+                        m             = mass_override->view()[0];
+                        m_x_bar       = mx->view()[0];
+                        m_x_bar_x_bar = mxx->view()[0];
+                    }
+                    else
+                    {
+                        auto rho = sc.meta().find<Float>(builtin::mass_density);
+                        UIPC_ASSERT(rho, "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
 
-                             auto rho_view = rho->view();
+                        auto rho_view = rho->view();
 
-                             auto is_codim_attr = sc.meta().find<IndexT>(builtin::is_codim);
-                             bool codim = is_codim_attr
-                                          && is_codim_attr->view()[0] == 1;
+                        auto is_codim_attr = sc.meta().find<IndexT>(builtin::is_codim);
+                        bool codim = is_codim_attr && is_codim_attr->view()[0] == 1;
 
-                             if(codim)
-                             {
-                                 auto thickness_attr =
-                                     sc.vertices().find<Float>(builtin::thickness);
-                                 UIPC_ASSERT(thickness_attr,
-                                             "is_codim==1 but no thickness attribute found.");
-                                 Float r = thickness_attr->view()[0];
-                                 uipc::geometry::affine_body::compute_dyadic_mass(
-                                     sc, rho_view[0], r, m, m_x_bar, m_x_bar_x_bar);
-                             }
-                             else
-                             {
-                                 uipc::geometry::affine_body::compute_dyadic_mass(
-                                     sc, rho_view[0], m, m_x_bar, m_x_bar_x_bar);
-                             }
-                         }
+                        if(codim)
+                        {
+                            auto thickness_attr =
+                                sc.vertices().find<Float>(builtin::thickness);
+                            UIPC_ASSERT(thickness_attr, "is_codim==1 but no thickness attribute found.");
+                            Float r = thickness_attr->view()[0];
+                            uipc::geometry::affine_body::compute_dyadic_mass(
+                                sc, rho_view[0], r, m, m_x_bar, m_x_bar_x_bar);
+                        }
+                        else
+                        {
+                            uipc::geometry::affine_body::compute_dyadic_mass(
+                                sc, rho_view[0], m, m_x_bar, m_x_bar_x_bar);
+                        }
+                    }
 
-                         geo_mass = ABDJacobiDyadicMass::from_dyadic_mass(m, m_x_bar, m_x_bar_x_bar);
-                     }
+                    geo_mass = ABDJacobiDyadicMass::from_dyadic_mass(m, m_x_bar, m_x_bar_x_bar);
+                }
 
-                     auto volume = sc.meta().find<Float>(builtin::volume);
-                     UIPC_ASSERT(volume, "The `volume` attribute is not found in the affine body meta, why can it happen?");
+                auto volume = sc.meta().find<Float>(builtin::volume);
+                UIPC_ASSERT(volume, "The `volume` attribute is not found in the affine body meta, why can it happen?");
 
-                     auto volume_v = volume->view().front();
+                auto volume_v = volume->view().front();
 
-                     auto self_collision = sc.meta().find<IndexT>(builtin::self_collision);
-                     UIPC_ASSERT(self_collision, "The `self_collision` attribute is not found in the affine body `meta`, why can it happen?");
+                auto self_collision = sc.meta().find<IndexT>(builtin::self_collision);
+                UIPC_ASSERT(self_collision, "The `self_collision` attribute is not found in the affine body `meta`, why can it happen?");
 
-                     IndexT self_collision_value = self_collision->view()[0];
+                IndexT self_collision_value = self_collision->view()[0];
 
-                     for(auto i : range(body_count))
-                     {
-                         auto body_id = body_offset + i;
-                         // mass
-                         h_body_id_to_abd_mass[body_id] = geo_mass;
-                         // volume
-                         h_body_id_to_volume[body_id] = volume_v;
-                         // dim
-                         h_body_id_to_dim[body_id] = sc.dim();
-                         // self_collision
-                         h_body_id_to_self_collision[body_id] = self_collision_value;
-                     }
-                 });
+                for(auto i : range(body_count))
+                {
+                    auto body_id = body_offset + i;
+                    // mass
+                    h_body_id_to_abd_mass[body_id] = geo_mass;
+                    // total_mass and inertia_tensor
+                    h_body_id_to_total_mass[body_id] =
+                        static_cast<Float>(geo_mass.mass());
+                    h_body_id_to_inertia_tensor[body_id] = geo_mass.inertia_tensor_cm();
+                    // volume
+                    h_body_id_to_volume[body_id] = volume_v;
+                    // dim
+                    h_body_id_to_dim[body_id] = sc.dim();
+                    // self_collision
+                    h_body_id_to_self_collision[body_id] = self_collision_value;
+                }
+            });
+
+        for_each(
+            geo_slots,
+            [](geometry::SimplicialComplex& sc)
+            {
+                auto inertia = sc.instances().find<Matrix3x3>(builtin::inertia_tensor);
+                UIPC_ASSERT(inertia, "The inertia attribute is not found in geometry simplicial complex");
+
+                auto mass = sc.instances().find<Float>(builtin::total_mass);
+                UIPC_ASSERT(mass, "The total_mass attribute is not found in geometry meta");
+
+                return zip(view(*inertia), view(*mass));
+            },
+            [&](const ForEachInfo& I, auto& values)
+            {
+                auto bodyI = I.global_index();
+
+                auto [inertias, masses] = values;
+
+                Matrix3x3 inertia = h_body_id_to_inertia_tensor[bodyI];
+                Float     mass    = h_body_id_to_total_mass[bodyI];
+
+                inertias = inertia;
+                masses   = mass;
+            });
     }
 
 
@@ -617,63 +646,61 @@ void AffineBodyDynamics::Impl::_build_geometry_on_host(WorldVisitor& world)
         h_body_id_to_abd_gravity.resize(abd_body_count, Vector12::Zero());
         body_id_to_external_force.resize(abd_body_count);
         body_id_to_external_force_acc.resize(abd_body_count);
-        for_each(geo_slots,
-                 [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
-                 {
-                     auto geoI = I.global_index();
+        for_each(
+            geo_slots,
+            [&](const ForEachInfo& I, geometry::SimplicialComplex& sc)
+            {
+                auto geoI = I.global_index();
 
-                     auto vert_count  = sc.vertices().size();
-                     auto vert_offset = geo_infos[geoI].vertex_offset;
-                     auto body_count  = sc.instances().size();
-                     auto body_offset = geo_infos[geoI].body_offset;
+                auto vert_count  = sc.vertices().size();
+                auto vert_offset = geo_infos[geoI].vertex_offset;
+                auto body_count  = sc.instances().size();
+                auto body_offset = geo_infos[geoI].body_offset;
 
-                     auto sub_Js = Js.subspan(vert_offset, vert_count);
-                     // auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
+                auto sub_Js = Js.subspan(vert_offset, vert_count);
+                // auto sub_mass = vertex_mass.subspan(vert_offset, vert_count);
 
 
-                     auto gravity_attr = sc.instances().find<Vector3>(builtin::gravity);
-                     auto gravity_view = gravity_attr ? gravity_attr->view() :
-                                                        span<const Vector3>{};
+                auto gravity_attr = sc.instances().find<Vector3>(builtin::gravity);
+                auto gravity_view =
+                    gravity_attr ? gravity_attr->view() : span<const Vector3>{};
 
-                     auto mass_override = sc.meta().find<Float>(builtin::abd_mass);
+                auto mass_override = sc.meta().find<Float>(builtin::abd_mass);
 
-                     auto rho = sc.meta().find<Float>(builtin::mass_density);
-                     UIPC_ASSERT(rho, "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
-                     auto rho_view = rho->view();
+                auto rho = sc.meta().find<Float>(builtin::mass_density);
+                UIPC_ASSERT(rho, "The `mass_density` attribute is not found in the affine body geometry, why can it happen?");
+                auto rho_view = rho->view();
 
-                     for(auto i : range(body_count))
-                     {
-                         Vector3 local_gravity = gravity_attr ? gravity_view[i] : gravity;
+                for(auto i : range(body_count))
+                {
+                    Vector3 local_gravity = gravity_attr ? gravity_view[i] : gravity;
 
-                         Vector12 G;
-                         if(mass_override)
-                         {
-                             auto mx = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
-                             UIPC_ASSERT(mx,
-                                         "abd_mass is set but abd_mass_x_bar is missing");
-                             Float   total_m = mass_override->view()[0];
-                             Vector3 mx_bar  = mx->view()[0];
-                             G.segment<3>(0) = total_m * local_gravity;
-                             G.segment<3>(3) = local_gravity(0) * mx_bar;
-                             G.segment<3>(6) = local_gravity(1) * mx_bar;
-                             G.segment<3>(9) = local_gravity(2) * mx_bar;
-                         }
-                         else
-                         {
-                             Vector3 force_density = local_gravity * rho_view[0];
-                             G = uipc::geometry::affine_body::compute_body_force(
-                                 sc, force_density);
-                         }
+                    Vector12 G;
+                    if(mass_override)
+                    {
+                        auto mx = sc.meta().find<Vector3>(builtin::abd_mass_x_bar);
+                        UIPC_ASSERT(mx, "abd_mass is set but abd_mass_x_bar is missing");
+                        Float   total_m = mass_override->view()[0];
+                        Vector3 mx_bar  = mx->view()[0];
+                        G.segment<3>(0) = total_m * local_gravity;
+                        G.segment<3>(3) = local_gravity(0) * mx_bar;
+                        G.segment<3>(6) = local_gravity(1) * mx_bar;
+                        G.segment<3>(9) = local_gravity(2) * mx_bar;
+                    }
+                    else
+                    {
+                        Vector3 force_density = local_gravity * rho_view[0];
+                        G = uipc::geometry::affine_body::compute_body_force(sc, force_density);
+                    }
 
-                         Matrix12x12 abd_body_mass_inv =
-                             h_body_id_to_abd_mass_inv[body_offset];
-                         Vector12 g = abd_body_mass_inv * G;
+                    Matrix12x12 abd_body_mass_inv = h_body_id_to_abd_mass_inv[body_offset];
+                    Vector12 g = abd_body_mass_inv * G;
 
-                         auto body_id = body_offset + i;
+                    auto body_id = body_offset + i;
 
-                         h_body_id_to_abd_gravity[body_id] = g;
-                     }
-                 });
+                    h_body_id_to_abd_gravity[body_id] = g;
+                }
+            });
     }
 
 
@@ -727,6 +754,8 @@ void AffineBodyDynamics::Impl::_build_geometry_on_device(WorldVisitor& world)
     async_copy(span{h_body_id_to_abd_mass}, body_id_to_abd_mass);
     async_copy(span{h_body_id_to_volume}, body_id_to_volume);
     async_copy(span{h_body_id_to_abd_mass_inv}, body_id_to_abd_mass_inv);
+    async_copy(span{h_body_id_to_total_mass}, body_id_to_total_mass);
+    async_copy(span{h_body_id_to_inertia_tensor}, body_id_to_inertia_tensor);
     async_copy(span{h_body_id_to_abd_gravity}, body_id_to_abd_gravity);
     async_copy(span{h_body_id_to_is_fixed}, body_id_to_is_fixed);
     async_copy(span{h_body_id_to_is_dynamic}, body_id_to_is_dynamic);
