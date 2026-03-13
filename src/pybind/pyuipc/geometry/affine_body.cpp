@@ -72,12 +72,13 @@ Returns:
                 auto       trans_span = as_span_of<const Matrix4x4>(trans);
                 py::object result     = make_numpy_empty<Float>(
                     {(size_t)trans.shape(0), 12, 1});
-                auto result_nd = py::cast<numpy_array<Float>>(result);
+                auto  result_nd   = py::cast<numpy_array<Float>>(result);
+                auto* result_data = (Float*)result_nd.data();
                 for(size_t i = 0; i < trans_span.size(); i++)
                 {
                     Vector12 q = transform_to_q(trans_span[i]);
                     for(int j = 0; j < 12; j++)
-                        result_nd(i, j, 0) = q(j);
+                        result_data[i * 12 + j] = q(j);
                 }
                 return result;
             }
@@ -166,12 +167,13 @@ Returns:
                 auto       transform_v_span = as_span_of<const Matrix4x4>(transform_v);
                 py::object result = make_numpy_empty<Float>(
                     {(size_t)transform_v.shape(0), 12, 1});
-                auto result_nd = py::cast<numpy_array<Float>>(result);
+                auto  result_nd   = py::cast<numpy_array<Float>>(result);
+                auto* result_data = (Float*)result_nd.data();
                 for(size_t i = 0; i < transform_v_span.size(); i++)
                 {
                     Vector12 q = transform_v_to_q_v(transform_v_span[i]);
                     for(int j = 0; j < 12; j++)
-                        result_nd(i, j, 0) = q(j);
+                        result_data[i * 12 + j] = q(j);
                 }
                 return result;
             }
