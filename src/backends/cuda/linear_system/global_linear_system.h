@@ -226,7 +226,6 @@ class GlobalLinearSystem : public SimSystem
         CDenseVectorView r() const { return m_r; }
 
         void satisfied(bool satisfied) { m_statisfied = satisfied; }
-        void statisfied(bool statisfied) { m_statisfied = statisfied; }
 
       private:
         friend class Impl;

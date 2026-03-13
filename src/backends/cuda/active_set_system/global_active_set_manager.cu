@@ -586,7 +586,6 @@ void GlobalActiveSetManager::Impl::update_lambda()
                    if(d + d_shift - lambda / mu > 0)
                    {
                        lambda = 0;
-                       cnt += 1;
                        if(cnt >= 0)
                            cnt++;
                        else
