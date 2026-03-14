@@ -6,7 +6,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PySoftVertexEdgeStitch::PySoftVertexEdgeStitch(py::module& m)
+PySoftVertexEdgeStitch::PySoftVertexEdgeStitch(py::module_& m)
 {
     auto class_SoftVertexEdgeStitch =
         py::class_<SoftVertexEdgeStitch, InterPrimitiveConstitution>(
@@ -25,7 +25,7 @@ PySoftVertexEdgeStitch::PySoftVertexEdgeStitch(py::module& m)
         [](SoftVertexEdgeStitch&                  self,
            const SoftVertexEdgeStitch::SlotTuple& aim_geo_slots,
            const SoftVertexEdgeStitch::SlotTuple& rest_geo_slots,
-           const py::array_t<IndexT>&             stitched_vert_edge_ids,
+           numpy_array<IndexT>             stitched_vert_edge_ids,
            const ElasticModuli2D&                 moduli,
            Float                                  thickness,
            Float                                  min_separate_distance)

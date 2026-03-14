@@ -1,12 +1,12 @@
 #include <pyuipc/geometry/attribute_collection.h>
 #include <uipc/geometry/attribute_collection.h>
 #include <uipc/common/type_traits.h>
-#include <pybind11/numpy.h>
+#include <nanobind/ndarray.h>
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
 
-void def_create(py::class_<AttributeCollection, S<AttributeCollection>>& class_AttributeCollection)
+void def_create(py::class_<AttributeCollection>& class_AttributeCollection)
 {
     class_AttributeCollection
         // I32
@@ -64,7 +64,7 @@ Returns:
         // Float Array
         .def(
             "create",
-            [](AttributeCollection& self, std::string_view name, py::array_t<Float> arr) -> S<IAttributeSlot>
+            [](AttributeCollection& self, std::string_view name, numpy_array<Float> arr) -> S<IAttributeSlot>
             {
                 bool is_scalar =
                     arr.ndim() == 0 || (arr.ndim() == 1 && arr.shape(0) == 1)
@@ -157,7 +157,7 @@ Returns:
         // Int Array
         .def(
             "create",
-            [](AttributeCollection& self, std::string_view name, py::array_t<IndexT> arr) -> S<IAttributeSlot>
+            [](AttributeCollection& self, std::string_view name, numpy_array<IndexT> arr) -> S<IAttributeSlot>
             {
                 bool is_scalar = arr.ndim() == 0;
                 if(is_scalar)
@@ -215,9 +215,9 @@ Returns:
     AttributeSlot: Created attribute slot.)");
 }
 
-PyAttributeCollection::PyAttributeCollection(py::module& m)
+PyAttributeCollection::PyAttributeCollection(py::module_& m)
 {
-    auto class_AttributeCollection = py::class_<AttributeCollection, S<AttributeCollection>>(
+    auto class_AttributeCollection = py::class_<AttributeCollection>(
         m, "AttributeCollection", R"(AttributeCollection class for managing collections of attributes (scalars, vectors, matrices, strings).)");
 
     def_create(class_AttributeCollection);
@@ -281,7 +281,7 @@ Returns:
 
     class_AttributeCollection.def(
         "reorder",
-        [](AttributeCollection& self, py::array_t<SizeT> arr)
+        [](AttributeCollection& self, numpy_array<SizeT> arr)
         { self.reorder(as_span<SizeT>(arr)); },
         py::arg("indices"),
         R"(Reorder attributes according to the given indices.

@@ -6,7 +6,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyDrivingPrismaticJoint::PyAffineBodyDrivingPrismaticJoint(py::module& m)
+PyAffineBodyDrivingPrismaticJoint::PyAffineBodyDrivingPrismaticJoint(py::module_& m)
 {
     auto class_AffineBodyDrivingPrismaticJoint =
         py::class_<AffineBodyDrivingPrismaticJoint, IConstitution>(
@@ -34,9 +34,9 @@ Returns:
         { self.apply_to(edges, strength_ratio); },
         py::arg("sc"),
         py::arg("strength_ratio") = Float{100.0},
-        py::doc(R"(Create joint between two affine bodies (single-instance mode).
+        R"(Create joint between two affine bodies (single-instance mode).
 edges: Every edge in the simplicial complex is treated as a joint axis.
-strength_ratio: The strength ratio of the joint constraint applied to all joints (default: 100).)"));
+strength_ratio: The strength ratio of the joint constraint applied to all joints (default: 100).)");
 
     // Multi-instance mode
     class_AffineBodyDrivingPrismaticJoint.def(
@@ -53,8 +53,8 @@ strength_ratio: The strength ratio of the joint constraint applied to all joints
         },
         py::arg("sc"),
         py::arg("strength_ratios"),
-        py::doc(R"(Create joint between two affine bodies (multi-instance mode).
+        R"(Create joint between two affine bodies (multi-instance mode).
 edges: Every edge in the simplicial complex is treated as a joint axis.
-strength_ratios: List of strength ratios for each joint (one per edge).)"));
+strength_ratios: List of strength ratios for each joint (one per edge).)");
 }
 }  // namespace pyuipc::constitution

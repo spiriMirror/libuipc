@@ -3,7 +3,7 @@
 
 namespace pyuipc
 {
-PyLogger::PyLogger(py::module& m)
+PyLogger::PyLogger(py::module_& m)
 {
     auto class_Logger = py::class_<uipc::Logger>(
         m, "Logger", R"(Logger class for logging messages at different severity levels.)");

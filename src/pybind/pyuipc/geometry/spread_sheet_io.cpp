@@ -6,7 +6,7 @@
 namespace pyuipc::geometry
 {
 using namespace uipc::geometry;
-PySpreadSheetIO::PySpreadSheetIO(py::module& m)
+PySpreadSheetIO::PySpreadSheetIO(py::module_& m)
 {
     auto class_SpreadSheetIO = py::class_<SpreadSheetIO>(
         m, "SpreadSheetIO", R"(SpreadSheetIO class for writing simplicial complexes to spreadsheet formats (JSON, CSV).)");

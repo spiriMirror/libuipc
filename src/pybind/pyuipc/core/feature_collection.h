@@ -6,6 +6,6 @@ namespace pyuipc::core
 class PyFeatureCollection
 {
   public:
-    PyFeatureCollection(py::module& m);
+    PyFeatureCollection(py::module_& m);
 };
 }  // namespace pyuipc::core

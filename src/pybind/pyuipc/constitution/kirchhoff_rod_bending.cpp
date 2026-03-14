@@ -5,7 +5,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyKirchhoffRodBending::PyKirchhoffRodBending(py::module& m)
+PyKirchhoffRodBending::PyKirchhoffRodBending(py::module_& m)
 {
     auto class_KirchhoffRodBending =
         py::class_<KirchhoffRodBending, FiniteElementExtraConstitution>(

@@ -6,6 +6,6 @@ namespace pyuipc::constitution
 class PyInterAffineBodyExtraConstitution
 {
   public:
-    PyInterAffineBodyExtraConstitution(py::module& m);
+    PyInterAffineBodyExtraConstitution(py::module_& m);
 };
 }  // namespace pyuipc::constitution

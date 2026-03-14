@@ -44,3 +44,6 @@ vsxmake*/
 
 # venv
 .venv/
+
+# codeql
+_codeql_detected_source_root

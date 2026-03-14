@@ -7,9 +7,9 @@ namespace pyuipc::core
 {
 using namespace uipc::core;
 
-PyEngine::PyEngine(py::module& m)
+PyEngine::PyEngine(py::module_& m)
 {
-    auto class_EngineStatus = py::class_<EngineStatus, S<EngineStatus>>(
+    auto class_EngineStatus = py::class_<EngineStatus>(
         m, "EngineStatus", R"(Engine status message indicating info, warning, or error.)");
 
     // define enum first
@@ -61,7 +61,7 @@ Returns:
     EngineStatus: Error status object.)");
 
     auto class_EngineStatusCollection =
-        py::class_<EngineStatusCollection, S<EngineStatusCollection>>(
+        py::class_<EngineStatusCollection>(
             m, "EngineStatusCollection", R"(Collection of engine status messages.)");
 
     class_EngineStatusCollection.def(py::init<>(), R"(Create an empty status collection.)");
@@ -85,10 +85,10 @@ Returns:
     dict: JSON representation of the status collection.)");
 
     auto class_IEngine =
-        py::class_<IEngine, S<IEngine>>(m, "IEngine", R"(Interface for engine implementations.)");
+        py::class_<IEngine>(m, "IEngine", R"(Interface for engine implementations.)");
 
 
-    auto class_Engine = py::class_<Engine, S<Engine>>(
+    auto class_Engine = py::class_<Engine>(
         m, "Engine", R"(Engine class for running simulations with a specific backend.)");
     class_Engine.def(py::init<std::string_view, std::string_view, const Json&>(),
                      py::call_guard<py::gil_scoped_release>(),
@@ -126,7 +126,7 @@ Returns:
     str: Workspace directory path.)");
     class_Engine.def("features",
                      &Engine::features,
-                     py::return_value_policy::reference_internal,
+                     py::rv_policy::reference_internal,
                      py::call_guard<py::gil_scoped_release>(),
                      R"(Get the feature collection.
 Returns:
@@ -139,9 +139,9 @@ Returns:
     dict: Default configuration dictionary.)");
 }
 
-PyPyIEngine::PyPyIEngine(py::module& m)
+PyPyIEngine::PyPyIEngine(py::module_& m)
 {
-    auto class_PyIEngine = py::class_<PyIEngine, PyIEngine_, IEngine, S<PyIEngine>>(
+    auto class_PyIEngine = py::class_<PyIEngine, PyIEngine_, IEngine>(
         m, "PyIEngine", R"(Python-implementable engine interface.)");
 
     class_PyIEngine.def("do_init", [](PyIEngine& self) { self.do_init(); }, R"(Initialize the engine.)");
@@ -171,13 +171,13 @@ Returns:
     int: Current frame number.)")
         .def("status",
              &PyIEngine::get_status,
-             py::return_value_policy::reference_internal,
+             py::rv_policy::reference_internal,
              R"(Get engine status collection.
 Returns:
     EngineStatusCollection: Reference to status collection.)")
         .def("features",
              &PyIEngine::get_features,
-             py::return_value_policy::reference_internal,
+             py::rv_policy::reference_internal,
              R"(Get engine features.
 Returns:
     FeatureCollection: Reference to feature collection.)")
@@ -187,7 +187,7 @@ Returns:
                  auto world_val = self.world();
                  return world_val;
              },
-             py::return_value_policy::reference_internal,
+             py::rv_policy::reference_internal,
              R"(Get the world.
 Returns:
     Reference to the world object.)");

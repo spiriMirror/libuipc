@@ -4,13 +4,13 @@
 namespace pyuipc::builtin
 {
 using namespace uipc::builtin;
-PyUIDRegister::PyUIDRegister(py::module& m)
+PyUIDRegister::PyUIDRegister(py::module_& m)
 {
     py::class_<details::UIDRegister>(m, "UIDRegister", R"(UIDRegister class for registering and looking up UIDs (unique identifiers).)")
         .def("find",
              &details::UIDRegister::find,
              py::arg("uid"),
-             py::return_value_policy::reference_internal,
+             py::rv_policy::reference_internal,
              R"(Find a UID in the register.
 Args:
     uid: UID to find.
