@@ -13,6 +13,7 @@ class GlobalBodyManager;
 class GlobalContactManager;
 class GlobalDyTopoEffectManager;
 class GlobalTrajectoryFilter;
+class GlobalActiveSetManager;
 
 class TimeIntegratorManager;
 class LineSearcher;
@@ -31,6 +32,12 @@ class SimEngine final : public backend::SimEngine
     friend class SimSystem;
 
   public:
+    enum class PipelineType
+    {
+        Basic,
+        AugmentedLagrangian
+    };
+
     SimEngine(EngineCreateInfo*);
     virtual ~SimEngine();
 
@@ -57,6 +64,9 @@ class SimEngine final : public backend::SimEngine
 
     void build();
     void init_scene();
+    void set_pipeline_type();
+    void advance();
+    void advance_AL();
     void dump_global_surface();
 
     std::stringstream m_string_stream;
@@ -90,6 +100,7 @@ class SimEngine final : public backend::SimEngine
     GlobalAnimator*             m_global_animator               = nullptr;
     GlobalExternalForceManager* m_global_external_force_manager = nullptr;
     GlobalDiffSimManager*       m_global_diff_sim_manager       = nullptr;
+    GlobalActiveSetManager*     m_global_active_set_manager     = nullptr;
     //GlobalDiffContactManager*    m_global_diff_contact_manager    = nullptr;
     //GlobalAdjointMethodReplayer* m_global_adjoint_method_replayer = nullptr;
     AffineBodyDynamics* m_affine_body_dynamics = nullptr;
@@ -106,6 +117,7 @@ class SimEngine final : public backend::SimEngine
     Float m_newton_scene_tol       = 0.01;
 
     bool m_friction_enabled = false;
+    PipelineType m_pipeline_type = PipelineType::Basic;
 
     template <typename T>
     using CAS = S<const geometry::AttributeSlot<T>>;

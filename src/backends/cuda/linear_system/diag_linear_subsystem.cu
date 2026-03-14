@@ -63,17 +63,10 @@ void DiagLinearSubsystem::report_extent(GlobalLinearSystem::DiagExtentInfo& info
 {
     do_report_extent(info);
 }
-
 void DiagLinearSubsystem::assemble(GlobalLinearSystem::DiagInfo& info)
 {
-    UIPC_ASSERT(info.gradient_only()
-                    || info.component_flags() == GlobalLinearSystem::ComponentFlags::All,
-                "Limitation: When info.gradient_only()==false, info.component_flags() must be GlobalLinearSystem::ComponentFlags::All (got {})",
-                enum_flags_name(info.component_flags()));
-
     do_assemble(info);
 }
-
 void DiagLinearSubsystem::accuracy_check(GlobalLinearSystem::AccuracyInfo& info)
 {
     do_accuracy_check(info);
@@ -81,5 +74,15 @@ void DiagLinearSubsystem::accuracy_check(GlobalLinearSystem::AccuracyInfo& info)
 void DiagLinearSubsystem::retrieve_solution(GlobalLinearSystem::SolutionInfo& info)
 {
     do_retrieve_solution(info);
+}
+
+Float DiagLinearSubsystem::diag_norm(GlobalLinearSystem::DiagNormInfo& info)
+{
+    return do_diag_norm(info);
+}
+
+Float DiagLinearSubsystem::mass_norm(GlobalLinearSystem::DiagNormInfo& info)
+{
+    return do_mass_norm(info);
 }
 }  // namespace uipc::backend::cuda

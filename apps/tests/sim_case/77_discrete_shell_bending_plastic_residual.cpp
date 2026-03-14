@@ -57,8 +57,8 @@ ClothPatch load_center_patch()
             const SizeT v10 = v00 + 1;
             const SizeT v01 = v00 + SheetResolution;
             const SizeT v11 = v01 + 1;
-            Fs.emplace_back(v00, v10, v11);
-            Fs.emplace_back(v00, v11, v01);
+            Fs.emplace_back(v00, v11, v10);
+            Fs.emplace_back(v00, v01, v11);
         }
     }
 
@@ -128,9 +128,9 @@ uipc::Float residual_hinge_angle(bool use_plastic)
     auto [slot, rest_slot] = object->geometries().create(patch.mesh);
     (void)rest_slot;
 
-    constexpr SizeT RampFrames    = 60;
-    constexpr SizeT HoldFrames    = 40;
-    constexpr SizeT ReleaseFrames = 180;
+    constexpr SizeT RampFrames    = 20;
+    constexpr SizeT HoldFrames    = 10;
+    constexpr SizeT ReleaseFrames = 44;
     const Float     TargetLift    = 5.0 * patch.cell_span;
 
     scene.animator().insert(
@@ -169,14 +169,17 @@ uipc::Float residual_hinge_angle(bool use_plastic)
     world.init(scene);
     REQUIRE(world.is_valid());
 
+    SceneIO sio{scene};
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
+
     const SizeT end_frame = RampFrames + HoldFrames + ReleaseFrames;
     while(world.frame() < end_frame)
     {
         world.advance();
         REQUIRE(world.is_valid());
+        world.retrieve();
+        sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
     }
-
-    world.retrieve();
 
     auto sc = slot->geometry().as<SimplicialComplex>();
     auto ps = view(sc->positions());
@@ -201,7 +204,7 @@ uipc::Float residual_hinge_angle(bool use_plastic)
 }
 }  // namespace
 
-TEST_CASE("72_discrete_shell_bending_plastic_residual", "[fem][plastic_dsb]")
+TEST_CASE("77_discrete_shell_bending_plastic_residual", "[fem][plastic_dsb]")
 {
     const auto elastic_angle = residual_hinge_angle(false);
     const auto plastic_angle = residual_hinge_angle(true);

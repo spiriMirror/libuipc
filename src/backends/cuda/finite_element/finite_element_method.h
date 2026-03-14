@@ -401,13 +401,13 @@ class FiniteElementMethod final : public SimSystem
     void add_constitution(FiniteElementConstitution* constitution);  // only called by FiniteElementConstitution
     friend class FiniteElementExtraConstitution;
     void add_constitution(FiniteElementExtraConstitution* constitution);  // only called by FiniteElementExtraConstitution
-    void post_step_extra_constitutions();
 
 
     friend class FiniteElementConstitutionDiffParmReporter;
     void add_reporter(FiniteElementConstitutionDiffParmReporter* reporter);  // only called by FiniteElementConstitutionDiffParmReporter
     friend class FiniteElementExtraConstitutionDiffParmReporter;
     void add_reporter(FiniteElementExtraConstitutionDiffParmReporter* reporter);  // only called by FiniteElementExtraConstitutionDiffParmReporter
+    friend class FEMActiveSetReporter;
 
     friend class FiniteElementDiffParmReporter;
     void add_kinetic_reporter(FiniteElementDiffParmReporter* reporter);  // only called by FiniteElementKineticDiffParmReporter

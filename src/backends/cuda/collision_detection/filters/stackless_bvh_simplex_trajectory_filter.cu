@@ -43,6 +43,33 @@ void StacklessBVHSimplexTrajectoryFilter::do_filter_toi(FilterTOIInfo& info)
     m_impl.filter_toi(info);
 }
 
+muda::CBufferView<Vector2i> StacklessBVHSimplexTrajectoryFilter::candidate_PTs() const noexcept
+{
+    return m_impl.candidate_AllP_AllT_pairs.view();
+}
+
+muda::CBufferView<Vector2i> StacklessBVHSimplexTrajectoryFilter::candidate_EEs() const noexcept
+{
+    return m_impl.candidate_AllE_AllE_pairs.view();
+}
+
+muda::CBufferView<Float> StacklessBVHSimplexTrajectoryFilter::toi_PTs() const noexcept
+{
+    auto pp_size = m_impl.candidate_AllP_CodimP_pairs.size();
+    auto pe_size = m_impl.candidate_CodimP_AllE_pairs.size();
+    auto pt_size = m_impl.candidate_AllP_AllT_pairs.size();
+    return m_impl.tois.view(pp_size + pe_size, pt_size);
+}
+
+muda::CBufferView<Float> StacklessBVHSimplexTrajectoryFilter::toi_EEs() const noexcept
+{
+    auto pp_size = m_impl.candidate_AllP_CodimP_pairs.size();
+    auto pe_size = m_impl.candidate_CodimP_AllE_pairs.size();
+    auto pt_size = m_impl.candidate_AllP_AllT_pairs.size();
+    auto ee_size = m_impl.candidate_AllE_AllE_pairs.size();
+    return m_impl.tois.view(pp_size + pe_size + pt_size, ee_size);
+}
+
 void StacklessBVHSimplexTrajectoryFilter::Impl::detect(DetectInfo& info)
 {
     using namespace muda;

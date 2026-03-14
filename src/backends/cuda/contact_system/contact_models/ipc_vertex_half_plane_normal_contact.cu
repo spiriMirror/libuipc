@@ -3,6 +3,7 @@
 #include <contact_system/contact_models/ipc_vertex_half_plane_contact_function.h>
 #include <kernel_cout.h>
 #include <utils/make_spd.h>
+#include <pipeline/ipc_pipeline_flag.h>
 
 namespace uipc::backend::cuda
 {
@@ -13,13 +14,7 @@ class IPCVertexHalfPlaneNormalContact final : public VertexHalfPlaneNormalContac
 
     virtual void do_build(BuildInfo& info) override
     {
-        auto constitution =
-            world().scene().config().find<std::string>("contact/constitution");
-        if(constitution->view()[0] != "ipc")
-        {
-            throw SimSystemException("Constitution is not IPC");
-        }
-
+        require<IPCPipelineFlag>();
         half_plane = &require<HalfPlane>();
     }
 

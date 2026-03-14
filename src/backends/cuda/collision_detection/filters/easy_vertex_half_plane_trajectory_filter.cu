@@ -2,12 +2,28 @@
 #include <muda/cub/device/device_reduce.h>
 #include <kernel_cout.h>
 #include <utils/codim_thickness.h>
+#include <pipeline/ipc_pipeline_flag.h>
 
 namespace uipc::backend::cuda
 {
 REGISTER_SIM_SYSTEM(EasyVertexHalfPlaneTrajectoryFilter);
 
 constexpr bool PrintDebugInfo = false;
+
+void EasyVertexHalfPlaneTrajectoryFilter::do_build(BuildInfo& info)
+{
+    require<IPCPipelineFlag>();
+}
+
+muda::CBufferView<Vector2i> EasyVertexHalfPlaneTrajectoryFilter::candidate_PHs() const noexcept
+{
+    return m_impl.PHs;
+}
+
+muda::CBufferView<Float> EasyVertexHalfPlaneTrajectoryFilter::toi_PHs() const noexcept
+{
+    return m_impl.tois;
+}
 
 void EasyVertexHalfPlaneTrajectoryFilter::do_detect(DetectInfo& info)
 {
@@ -85,9 +101,6 @@ void EasyVertexHalfPlaneTrajectoryFilter::Impl::filter_active(FilterActiveInfo& 
 
                            auto range = D_range(thickness, d_hat);
 
-                           MUDA_ASSERT(D > range.x(),
-                                       "Thickness Violated! D(%f) should be > D_range.x(%f)",
-                                       D, range.x());
                            if(is_active_D(range, D))
                            {
                                auto last = atomic_add(num.data(), 1);

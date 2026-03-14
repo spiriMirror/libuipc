@@ -65,12 +65,6 @@ void FiniteElementExtraConstitution::compute_gradient_hessian(FiniteElementElast
     do_compute_gradient_hessian(this_info);
 }
 
-void FiniteElementExtraConstitution::post_step()
-{
-    auto info = PostStepInfo{&m_impl};
-    do_post_step(info);
-}
-
 void FiniteElementExtraConstitution::Impl::init(U64 uid, backend::WorldVisitor& world)
 {
     using ForEachInfo = FiniteElementMethod::ForEachInfo;

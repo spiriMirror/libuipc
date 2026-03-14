@@ -111,6 +111,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
 
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
+        Float diag_norm(GlobalLinearSystem::DiagNormInfo& info);
+        Float mass_norm(GlobalLinearSystem::DiagNormInfo& info);
 
         SimEngine* sim_engine = nullptr;
 
@@ -136,6 +138,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
 
         muda::DeviceDoubletVector<Float, 3> kinetic_gradients;
         muda::DeviceDoubletVector<Float, 3> reporter_gradients;
+        muda::DeviceBuffer<Float>           diag_blocks_norm;
+        muda::DeviceVar<Float>              reduced_diag_norm;
 
         void loose_resize_entries(muda::DeviceDoubletVector<Float, 3>& v, SizeT size);
     };
@@ -147,6 +151,8 @@ class FEMLinearSubsystem final : public DiagLinearSubsystem
     virtual void do_assemble(GlobalLinearSystem::DiagInfo& info) override;
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) override;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) override;
+    virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) override;
+    virtual Float do_mass_norm(GlobalLinearSystem::DiagNormInfo& info) override;
     virtual void do_report_init_extent(GlobalLinearSystem::InitDofExtentInfo& info) override;
     virtual void do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info) override;
     virtual U64 get_uid() const noexcept override;
