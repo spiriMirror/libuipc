@@ -1,5 +1,6 @@
 #pragma once
 #include <pyuipc/pyuipc.h>
+#include <nanobind/make_iterator.h>
 
 namespace pyuipc
 {

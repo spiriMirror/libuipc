@@ -2,6 +2,7 @@
 #include <uipc/geometry/attribute_slot.h>
 #include <nanobind/stl/string.h>
 #include <nanobind/stl/vector.h>
+#include <nanobind/make_iterator.h>
 #include <sstream>
 
 namespace pyuipc::geometry
@@ -52,7 +53,8 @@ void def_class_StringSpan(py::module_& m)
         .def("__len__", [](span<T>& v) { return v.size(); })
         .def(
             "__iter__",
-            [](span<T>& v) { return py::make_iterator(v.begin(), v.end()); },
+            [](span<T>& v)
+            { return py::make_iterator(py::type<span<T>>(), "iterator", v.begin(), v.end()); },
             py::keep_alive<0, 1>())
         .def("__getitem__",
              [](span<T>& v, size_t i) -> LRef
