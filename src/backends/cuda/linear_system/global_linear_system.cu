@@ -254,7 +254,6 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
             auto           triplet_i      = subsystem_info.index;
             auto&          diag_subsystem = diag_subsystem_view[dof_i];
             DiagExtentInfo info;
-            info.m_storage_type = HessianStorageType::Full;
             diag_subsystem->report_extent(info);
 
             dof_count_changed |= diag_dof_counts[dof_i] != info.m_dof_count;
@@ -269,7 +268,6 @@ bool GlobalLinearSystem::Impl::_update_subsystem_extent()
             auto triplet_i = subsystem_info.index;
             auto& off_diag_subsystem = off_diag_subsystem_view[subsystem_info.local_index];
             OffDiagExtentInfo info;
-            info.m_storage_type = HessianStorageType::Full;
             off_diag_subsystem->report_extent(info);
 
             auto total_block_count = info.m_lr_block_count + info.m_rl_block_count;
@@ -360,9 +358,8 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
 
             DiagInfo info{this};
 
-            info.m_index        = triplet_i;
-            info.m_storage_type = HessianStorageType::Full;
-            info.m_gradients    = B.subview(dof_offset, dof_count);
+            info.m_index     = triplet_i;
+            info.m_gradients = B.subview(dof_offset, dof_count);
             info.m_hessians = HA.subview(subsystem_triplet_offsets[triplet_i],
                                          subsystem_triplet_counts[triplet_i])
                                   .submatrix(ij_offset, ij_count);
@@ -390,8 +387,7 @@ void GlobalLinearSystem::Impl::_assemble_linear_system()
             auto rl_triplet_count  = off_diag_lr_triplet_counts[local_index].y;
 
             OffDiagInfo info{this};
-            info.m_index        = triplet_i;
-            info.m_storage_type = HessianStorageType::Full;
+            info.m_index = triplet_i;
 
             info.m_lr_hessian =
                 HA.subview(lr_triplet_offset, lr_triplet_count)
@@ -604,11 +600,6 @@ void GlobalLinearSystem::OffDiagExtentInfo::extent(SizeT lr_hessian_block_count,
 auto GlobalLinearSystem::AssemblyInfo::A() const -> CBCOOMatrixView
 {
     return m_impl->bcoo_A.cview();
-}
-
-auto GlobalLinearSystem::AssemblyInfo::storage_type() const -> HessianStorageType
-{
-    return HessianStorageType::Symmetric;
 }
 
 SizeT GlobalLinearSystem::LocalPreconditionerAssemblyInfo::dof_offset() const
