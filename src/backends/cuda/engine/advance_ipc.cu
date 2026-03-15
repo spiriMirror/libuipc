@@ -19,6 +19,7 @@ namespace uipc::backend::cuda
 void SimEngine::advance()
 {
     Float alpha     = 1.0;
+    Float beta      = 1.0;
     Float ccd_alpha = 1.0;
     Float cfl_alpha = 1.0;
 
@@ -64,7 +65,6 @@ void SimEngine::advance()
 
     auto compute_adaptive_kappa = [this]
     {
-        // TODO: now no effect
         if(m_global_contact_manager)
             m_global_contact_manager->compute_adaptive_parameters();
     };
@@ -85,6 +85,7 @@ void SimEngine::advance()
     {
         if(m_global_contact_manager)
         {
+            Timer timer{"Compute CFL Condition"};
             cfl_alpha = m_global_contact_manager->compute_cfl_condition();
             if(cfl_alpha < alpha)
             {
@@ -117,6 +118,12 @@ void SimEngine::advance()
         // Step Forward => x = x_0 + alpha * dx
         m_global_vertex_manager->step_forward(alpha);
         m_line_searcher->step_forward(alpha);
+
+        // Dumps surface after step forward
+        if(m_dump_surface->view()[0])
+        {
+            dump_global_surface();
+        }
 
         // Update the collision pairs
         filter_dcd_candidates();
@@ -170,9 +177,19 @@ void SimEngine::advance()
 
     auto convergence_check = [&](SizeT newton_iter) -> bool
     {
-        if(m_dump_surface->view()[0])
+        if(!animation_reach_target())
+            return false;
+
+        if(m_semi_implicit_enabled)
         {
-            dump_global_surface();
+            // Ref: https://arxiv.org/abs/2512.12151, Algorithm 1.
+            auto k_min = m_newton_min_iter->view()[0];
+            auto eps   = m_semi_implicit_beta_tol;
+            if(newton_iter >= k_min)
+                beta = (1.0 - alpha) * beta;
+
+            if(beta <= eps)
+                return true;  // early terminate
         }
 
         NewtonToleranceManager::ResultInfo result_info;
@@ -187,9 +204,6 @@ void SimEngine::advance()
         if(ccd_alpha < m_ccd_tol->view()[0])
             return false;
 
-        if(!animation_reach_target())
-            return false;
-
         return true;
     };
 
@@ -202,13 +216,14 @@ void SimEngine::advance()
         }
     };
 
-    auto check_line_search_iter = [this](SizeT iter)
+    auto check_line_search_iter = [this]
     {
-        if(iter >= m_line_searcher->max_iter())
+        if(m_line_search_iter >= m_line_searcher->max_iter())
         {
-            logger::warn("Line Search Exits with Max Iteration: {} (Frame={})",
+            logger::warn("Line Search Exits with Max Iteration: {} (Frame={}, Newton={})",
                          m_line_searcher->max_iter(),
-                         m_current_frame);
+                         m_current_frame,
+                         m_newton_iter);
 
             if(m_strict_mode->view()[0])
             {
@@ -217,9 +232,9 @@ void SimEngine::advance()
         }
     };
 
-    auto check_newton_iter = [this](SizeT iter)
+    auto check_newton_iter = [this]
     {
-        if(iter >= m_newton_max_iter->view()[0])
+        if(m_newton_iter >= m_newton_max_iter->view()[0])
         {
             logger::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
                          m_newton_max_iter->view()[0],
@@ -233,7 +248,7 @@ void SimEngine::advance()
         else
         {
             logger::info("Newton Iteration Converged with Iteration Count: {}, Bound: [{}, {}]",
-                         iter,
+                         m_newton_iter,
                          m_newton_min_iter->view()[0],
                          m_newton_max_iter->view()[0]);
         }
@@ -278,32 +293,36 @@ void SimEngine::advance()
         {
             Timer timer{"Simulation"};
 
-            // 1. Record Friction Candidates at the beginning of the frame
-            record_friction_candidates();
+            // 0. Process External Changes
             m_global_vertex_manager->update_attributes();
+            AABB bbox = m_global_vertex_manager->compute_vertex_bounding_box();
+            (void)bbox;
+
+            // 1. Record Friction Candidates at the beginning of the frame
             m_global_vertex_manager->record_prev_positions();
+            record_friction_candidates();
 
-            // 2. Adaptive Parameter Calculation
-            detect_dcd_candidates();
-            compute_adaptive_kappa();
-
-            // 3. Predict Motion => x_tilde = x + v * dt
+            // 2. Predict Motion => x_tilde = x + v * dt
             m_state = SimEngineState::PredictMotion;
             // MUST step animation before predicting dof
             // some animation may provide information for DOF prediction
             step_animation();
             m_time_integrator_manager->predict_dof();
 
+            // 3. Adaptive Parameter Calculation
+            detect_dcd_candidates();
+            compute_adaptive_kappa();
 
             // 4. Nonlinear-Newton Iteration
             m_newton_tolerance_manager->pre_newton(m_current_frame);
 
             auto   newton_max_iter = m_newton_max_iter->view()[0];
             auto   newton_min_iter = m_newton_min_iter->view()[0];
-            IndexT newton_iter     = 0;
-            for(; newton_iter < newton_max_iter; ++newton_iter)
+            beta                   = 1.0;
+            for(IndexT newton_iter = 0; newton_iter < newton_max_iter; ++newton_iter)
             {
                 Timer timer{"Newton Iteration"};
+                m_newton_iter = newton_iter;
 
                 // 1) Compute animation substep ratio
                 compute_animation_substep_ratio(newton_iter);
@@ -332,14 +351,6 @@ void SimEngine::advance()
                 // 5) Collect Vertex Displacements Globally
                 m_global_vertex_manager->collect_vertex_displacements();
 
-
-                // 6) Check Termination Condition
-                bool converged  = convergence_check(newton_iter);
-                bool terminated = converged && (newton_iter >= newton_min_iter);
-                if(terminated)
-                    break;
-
-
                 // 7) Begin Line Search
                 m_state = SimEngineState::LineSearch;
                 {
@@ -362,41 +373,46 @@ void SimEngine::advance()
                     // CFL Condition
                     alpha = cfl_condition(alpha);
 
-                    // * Step Forward => x = x_0 + alpha * dx
-                    // Compute Test Energy => E
-                    Float E = compute_energy(alpha);
-
-                    if(!converged)
+                    // Line Search Iteration
+                    bool converged = convergence_check(newton_iter);
+                    for(SizeT line_search_iter = 0;
+                        line_search_iter < m_line_searcher->max_iter();
+                        ++line_search_iter)
                     {
-                        SizeT line_search_iter = 0;
-                        while(line_search_iter < m_line_searcher->max_iter())
-                        {
-                            Timer timer{"Line Search Iteration"};
+                        Timer timer{"Line Search Iteration"};
+                        m_line_search_iter = line_search_iter;
 
-                            // Check Energy Decrease
-                            // TODO: maybe better condition like Wolfe condition/Armijo condition in the future
-                            bool energy_decrease = (E <= E0);
+                        // Compute Test Energy:
+                        //  * Step Forward => x = x_0 + alpha * dx
+                        //  * Compute New Energy => E
+                        Float E = compute_energy(alpha);
 
-                            // Check Inversion
-                            // TODO: Inversion check if needed
-                            bool no_inversion = true;
+                        // To prevent numerical energy (fake-) increasing caused by tiny dx
+                        if(converged)
+                            break;
 
-                            bool success = energy_decrease && no_inversion;
+                        // Check Energy Decrease
+                        // TODO: maybe better condition like Wolfe condition/Armijo condition in the future
+                        bool energy_decrease = (E <= E0);
 
-                            if(success)
-                                break;
+                        // Check Inversion
+                        // TODO: Inversion check if needed
+                        bool no_inversion = true;
 
-                            // If not success, then shrink alpha
-                            alpha /= 2;
-                            E = compute_energy(alpha);
+                        bool success = energy_decrease && no_inversion;
+                        if(success)
+                            break;
 
-                            line_search_iter++;
-                        }
-
-                        // Check Line Search Iteration
-                        // report warnings or throw exceptions if needed
-                        check_line_search_iter(line_search_iter);
+                        // If not success, then shrink alpha
+                        alpha /= 2;
                     }
+
+                    // Check Line Search Iteration: report warnings or throw exceptions if needed
+                    check_line_search_iter();
+
+                    bool terminated = converged && (newton_iter >= newton_min_iter);
+                    if(terminated)
+                        break;
                 }
             }
 
@@ -409,7 +425,7 @@ void SimEngine::advance()
 
             // Check Newton Iteration
             // report warnings or throw exceptions if needed
-            check_newton_iter(newton_iter);
+            check_newton_iter();
         }
 
         logger::info("<<< End Frame: {}", m_current_frame);
@@ -423,6 +439,10 @@ void SimEngine::advance()
     {
         logger::error("Engine Advance Error: {}", e.what());
         status().push_back(core::EngineStatus::error(e.what()));
+    }
+    catch(const std::exception& e)
+    {
+        UIPC_ASSERT(false, "Unexpected Exception: {}", e.what());
     }
 }
 }  // namespace uipc::backend::cuda

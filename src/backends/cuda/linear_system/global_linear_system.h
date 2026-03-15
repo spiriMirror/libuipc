@@ -37,12 +37,6 @@ class GlobalLinearSystem : public SimSystem
 
     class Impl;
 
-    enum class HessianStorageType
-    {
-        Full      = 0,
-        Symmetric = 1
-    };
-
     class InitDofExtentInfo
     {
       public:
@@ -68,18 +62,16 @@ class GlobalLinearSystem : public SimSystem
     class DiagExtentInfo
     {
       public:
-        bool               gradient_only() const { return m_gradient_only; }
-        ComponentFlags     component_flags() const { return m_component_flags; }
-        HessianStorageType storage_type() { return m_storage_type; }
+        bool           gradient_only() const { return m_gradient_only; }
+        ComponentFlags component_flags() const { return m_component_flags; }
         void extent(SizeT hessian_block_count, SizeT dof_count) noexcept;
 
       private:
         friend class Impl;
-        ComponentFlags     m_component_flags = ComponentFlags::All;
-        SizeT              m_dof_count    = 0;
-        SizeT              m_block_count  = 0;
-        HessianStorageType m_storage_type = HessianStorageType::Full;
-        bool               m_gradient_only = false;
+        ComponentFlags m_component_flags = ComponentFlags::All;
+        SizeT          m_dof_count       = 0;
+        SizeT          m_block_count     = 0;
+        bool           m_gradient_only   = false;
     };
 
     class ComputeGradientInfo
@@ -104,34 +96,30 @@ class GlobalLinearSystem : public SimSystem
         {
         }
 
-        HessianStorageType storage_type() { return m_storage_type; }
-        TripletMatrixView  hessians() { return m_hessians; }
-        DenseVectorView    gradients() { return m_gradients; }
-        bool               gradient_only() const { return m_gradient_only; }
-        ComponentFlags     component_flags() const { return m_component_flags; }
+        TripletMatrixView hessians() { return m_hessians; }
+        DenseVectorView   gradients() { return m_gradients; }
+        bool              gradient_only() const { return m_gradient_only; }
+        ComponentFlags    component_flags() const { return m_component_flags; }
 
       private:
         friend class Impl;
-        SizeT              m_index = ~0ull;
-        TripletMatrixView  m_hessians;
-        DenseVectorView    m_gradients;
-        HessianStorageType m_storage_type;
-        bool               m_gradient_only = false;
-        ComponentFlags     m_component_flags = ComponentFlags::All;
-        Impl*              m_impl = nullptr;
+        SizeT             m_index = ~0ull;
+        TripletMatrixView m_hessians;
+        DenseVectorView   m_gradients;
+        bool              m_gradient_only   = false;
+        ComponentFlags    m_component_flags = ComponentFlags::All;
+        Impl*             m_impl = nullptr;
     };
 
     class OffDiagExtentInfo
     {
       public:
-        HessianStorageType storage_type() const { return m_storage_type; }
         void extent(SizeT lr_hessian_block_count, SizeT rl_hassian_block_count) noexcept;
 
       private:
         friend class Impl;
-        SizeT              m_lr_block_count = 0;
-        SizeT              m_rl_block_count = 0;
-        HessianStorageType m_storage_type   = HessianStorageType::Full;
+        SizeT m_lr_block_count = 0;
+        SizeT m_rl_block_count = 0;
     };
 
     class OffDiagInfo
@@ -142,17 +130,15 @@ class GlobalLinearSystem : public SimSystem
         {
         }
 
-        HessianStorageType storage_type() const { return m_storage_type; }
-        TripletMatrixView  lr_hessian() const { return m_lr_hessian; }
-        TripletMatrixView  rl_hessian() const { return m_rl_hessian; }
+        TripletMatrixView lr_hessian() const { return m_lr_hessian; }
+        TripletMatrixView rl_hessian() const { return m_rl_hessian; }
 
       private:
         friend class Impl;
-        SizeT              m_index = ~0ull;
-        TripletMatrixView  m_lr_hessian;
-        TripletMatrixView  m_rl_hessian;
-        HessianStorageType m_storage_type;
-        Impl*              m_impl = nullptr;
+        SizeT             m_index = ~0ull;
+        TripletMatrixView m_lr_hessian;
+        TripletMatrixView m_rl_hessian;
+        Impl*             m_impl = nullptr;
     };
 
     class AssemblyInfo
@@ -163,8 +149,7 @@ class GlobalLinearSystem : public SimSystem
         {
         }
 
-        CBCOOMatrixView    A() const;
-        HessianStorageType storage_type() const;
+        CBCOOMatrixView A() const;
 
       protected:
         friend class Impl;
