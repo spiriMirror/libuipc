@@ -63,10 +63,17 @@ void DiagLinearSubsystem::report_extent(GlobalLinearSystem::DiagExtentInfo& info
 {
     do_report_extent(info);
 }
+
 void DiagLinearSubsystem::assemble(GlobalLinearSystem::DiagInfo& info)
 {
+    UIPC_ASSERT(info.gradient_only()
+                    || info.component_flags() == GlobalLinearSystem::ComponentFlags::All,
+                "Limitation: When info.gradient_only()==false, info.component_flags() must be GlobalLinearSystem::ComponentFlags::All (got {})",
+                enum_flags_name(info.component_flags()));
+
     do_assemble(info);
 }
+
 void DiagLinearSubsystem::accuracy_check(GlobalLinearSystem::AccuracyInfo& info)
 {
     do_accuracy_check(info);
