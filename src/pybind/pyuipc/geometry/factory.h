@@ -6,6 +6,6 @@ namespace pyuipc::geometry
 class PyFactory
 {
   public:
-    PyFactory(py::module& m);
+    PyFactory(py::module_& m);
 };
 }  // namespace pyuipc::geometry

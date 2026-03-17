@@ -1,5 +1,6 @@
 #pragma once
 #include <pyuipc/pyuipc.h>
+#include <nanobind/make_iterator.h>
 
 namespace pyuipc
 {
@@ -24,7 +25,8 @@ Returns:
     Element value.)");
     class_Span.def(
         "__iter__",
-        [](span<T>& s) { return py::make_iterator(s.begin(), s.end()); },
+        [](span<T>& s)
+        { return py::make_iterator(py::type<span<T>>(), "iterator", s.begin(), s.end()); },
         py::keep_alive<0, 1>(),
         R"(Create an iterator over the span.
 Returns:

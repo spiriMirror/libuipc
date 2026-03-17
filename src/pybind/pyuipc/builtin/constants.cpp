@@ -3,7 +3,7 @@
 
 namespace pyuipc::builtin
 {
-PyConstants::PyConstants(py::module& m)
+PyConstants::PyConstants(py::module_& m)
 {
     m.attr("adaptive") = uipc::builtin::adaptive;
 }

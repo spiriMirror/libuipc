@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyExternalArticulationConstraint::PyExternalArticulationConstraint(py::module& m)
+PyExternalArticulationConstraint::PyExternalArticulationConstraint(py::module_& m)
 {
     auto class_ExternalArticulationConstraint =
         py::class_<ExternalArticulationConstraint, Constraint>(m,

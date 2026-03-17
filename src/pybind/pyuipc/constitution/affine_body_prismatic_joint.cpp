@@ -6,7 +6,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyPrismaticJoint::PyAffineBodyPrismaticJoint(py::module& m)
+PyAffineBodyPrismaticJoint::PyAffineBodyPrismaticJoint(py::module_& m)
 {
     auto class_AffineBodyPrismaticJoint =
         py::class_<AffineBodyPrismaticJoint, InterAffineBodyConstitution>(
@@ -53,11 +53,11 @@ Returns:
         py::arg("l_geo_slots"),
         py::arg("r_geo_slots"),
         py::arg("strength_ratio") = Float{100.0},
-        py::doc(R"(Create joint between two affine bodies (single-instance mode).
+        R"(Create joint between two affine bodies (single-instance mode).
 sc: Every edge in the simplicial complex is treated as a joint axis.
 l_geo_slots: List of left geometry slots for each joint.
 r_geo_slots: List of right geometry slots for each joint.
-strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joints.)"));
+strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joints.)");
 
     //  Multi-instance mode
     class_AffineBodyPrismaticJoint.def(
@@ -115,12 +115,12 @@ strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joi
         py::arg("r_geo_slots"),
         py::arg("r_instance_id"),
         py::arg("strength_ratio"),
-        py::doc(R"(Create joint between two affine bodies (multi-instance mode).
+        R"(Create joint between two affine bodies (multi-instance mode).
 sc: Every edge in the simplicial complex is treated as a joint axis.
 l_geo_slots: List of left geometry slots for each joint.
 l_instance_id: List of instance IDs for left geometries.
 r_geo_slots: List of right geometry slots for each joint.
 r_instance_id: List of instance IDs for right geometries.
-strength_ratio: List of strength ratios for each joint (one per edge).)"));
+strength_ratio: List of strength ratios for each joint (one per edge).)");
 }
 }  // namespace pyuipc::constitution

@@ -5,42 +5,42 @@
 namespace pyuipc::backend
 {
 using namespace uipc::backend;
-PyBuffer::PyBuffer(py::module& m)
+PyBuffer::PyBuffer(py::module_& m)
 {
     // allow add attributes to this class
     auto class_Buffer = py::class_<Buffer>(m, "Buffer", py::dynamic_attr());
 
     class_Buffer.def(
-        py::init(
-            [](py::function resize_func, py::function get_buffer_view_func)
-            {
-                return Buffer{[resize_func](SizeT size)
-                              {
-                                  try
-                                  {
-                                      resize_func(size);
-                                  }
-                                  catch(const std::exception& e)
-                                  {
-                                      logger::error(PYUIPC_MSG("Error in resize_func: {}",
-                                                               e.what()));
-                                  }
-                              },
-                              [get_buffer_view_func]() -> BufferView
-                              {
-                                  BufferView bv;
-                                  try
-                                  {
-                                      bv = py::cast<BufferView>(get_buffer_view_func());
-                                  }
-                                  catch(const std::exception& e)
-                                  {
-                                      logger::error(PYUIPC_MSG("Error in get_buffer_view_func: {}",
-                                                               e.what()));
-                                  }
-                                  return bv;
-                              }};
-            }),
+        "__init__",
+        [](Buffer* self, py::callable resize_func, py::callable get_buffer_view_func)
+        {
+            new(self) Buffer{[resize_func](SizeT size)
+                             {
+                                 try
+                                 {
+                                     resize_func(size);
+                                 }
+                                 catch(const std::exception& e)
+                                 {
+                                     logger::error(PYUIPC_MSG("Error in resize_func: {}",
+                                                              e.what()));
+                                 }
+                             },
+                             [get_buffer_view_func]() -> BufferView
+                             {
+                                 BufferView bv;
+                                 try
+                                 {
+                                     bv = py::cast<BufferView>(get_buffer_view_func());
+                                 }
+                                 catch(const std::exception& e)
+                                 {
+                                     logger::error(PYUIPC_MSG("Error in get_buffer_view_func: {}",
+                                                              e.what()));
+                                 }
+                                 return bv;
+                             }};
+        },
         py::arg("resize_func"),
         py::arg("get_buffer_view_func"),
         R"(Constructs a Buffer object with provided resize and get_buffer_view functions.

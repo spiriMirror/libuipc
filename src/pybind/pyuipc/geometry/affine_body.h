@@ -6,7 +6,7 @@ namespace pyuipc::geometry
 class PyAffineBody
 {
   public:
-    PyAffineBody(py::module& m);
+    PyAffineBody(py::module_& m);
 };
 }  // namespace pyuipc::geometry
 

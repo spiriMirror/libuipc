@@ -4,7 +4,7 @@
 namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
-PyElasticModuli::PyElasticModuli(py::module& m)
+PyElasticModuli::PyElasticModuli(py::module_& m)
 {
     py::class_<ElasticModuli>(m, "ElasticModuli", R"(ElasticModuli class for elastic material parameters (Lame parameters).)")
         .def_static("lame",

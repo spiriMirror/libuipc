@@ -6,6 +6,6 @@ namespace pyuipc::backend
 class PyWorldVisitor
 {
   public:
-    PyWorldVisitor(py::module& m);
+    PyWorldVisitor(py::module_& m);
 };
 }  // namespace pyuipc::backend

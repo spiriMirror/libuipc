@@ -6,7 +6,7 @@ namespace pyuipc::core
 using namespace uipc::core;
 using namespace uipc::geometry;
 
-PySceneFactory::PySceneFactory(py::module& m)
+PySceneFactory::PySceneFactory(py::module_& m)
 {
     auto class_SceneFactory =
         py::class_<SceneFactory>(m, "SceneFactory", R"(SceneFactory class for creating scenes from various sources.)")

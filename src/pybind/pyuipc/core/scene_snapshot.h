@@ -6,6 +6,6 @@ namespace pyuipc::core
 class PySceneSnapshot
 {
   public:
-    PySceneSnapshot(py::module& m);
+    PySceneSnapshot(py::module_& m);
 };
 }  // namespace pyuipc::core

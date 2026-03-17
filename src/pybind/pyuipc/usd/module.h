@@ -6,6 +6,6 @@ namespace pyuipc::usd
 class PyModule
 {
   public:
-    PyModule(py::module& m);
+    PyModule(py::module_& m);
 };
 }  // namespace pyuipc::usd

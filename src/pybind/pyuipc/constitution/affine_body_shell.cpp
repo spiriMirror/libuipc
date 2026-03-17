@@ -6,7 +6,7 @@ namespace pyuipc::constitution
 {
 using namespace uipc::constitution;
 
-PyAffineBodyShell::PyAffineBodyShell(py::module& m)
+PyAffineBodyShell::PyAffineBodyShell(py::module_& m)
 {
     auto class_AffineBodyShell =
         py::class_<AffineBodyShell, AffineBodyConstitution>(

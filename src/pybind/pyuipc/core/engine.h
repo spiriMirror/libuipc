@@ -6,12 +6,12 @@ namespace pyuipc::core
 class PyEngine
 {
   public:
-    PyEngine(py::module& m);
+    PyEngine(py::module_& m);
 };
 
 class PyPyIEngine
 {
   public:
-    PyPyIEngine(py::module& m);
+    PyPyIEngine(py::module_& m);
 };
 }  // namespace pyuipc::core
