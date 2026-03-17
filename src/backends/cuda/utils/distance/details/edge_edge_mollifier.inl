@@ -499,17 +499,6 @@ MUDA_GENERIC void edge_edge_mollifier_threshold(const Eigen::Vector<T, 3>& ea0_r
                                                 const Eigen::Vector<T, 3>& ea1_rest,
                                                 const Eigen::Vector<T, 3>& eb0_rest,
                                                 const Eigen::Vector<T, 3>& eb1_rest,
-                                                T& eps_x)
-{
-    edge_edge_mollifier_threshold(
-        ea0_rest, ea1_rest, eb0_rest, eb1_rest, -1, eps_x);  // keep legacy no-coeff call path
-}
-
-template <typename T>
-MUDA_GENERIC void edge_edge_mollifier_threshold(const Eigen::Vector<T, 3>& ea0_rest,
-                                                const Eigen::Vector<T, 3>& ea1_rest,
-                                                const Eigen::Vector<T, 3>& eb0_rest,
-                                                const Eigen::Vector<T, 3>& eb1_rest,
                                                 Float coeff,
                                                 T&    eps_x)
 {
