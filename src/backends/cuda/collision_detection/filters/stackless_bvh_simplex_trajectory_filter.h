@@ -3,7 +3,7 @@
 #include <global_geometry/global_vertex_manager.h>
 #include <global_geometry/global_simplicial_surface_manager.h>
 #include <contact_system/global_contact_manager.h>
-#include <collision_detection/stackless_bvh.h>
+#include <collision_detection/info_stackless_bvh.h>
 #include <collision_detection/atomic_counting_lbvh.h>
 #include <collision_detection/simplex_trajectory_filter.h>
 
@@ -30,7 +30,7 @@ class StacklessBVHSimplexTrajectoryFilter final : public SimplexTrajectoryFilter
         muda::DeviceBuffer<AABB> edge_aabbs;
         muda::DeviceBuffer<AABB> triangle_aabbs;
 
-        using ThisBVH = StacklessBVH;
+        using ThisBVH = InfoStacklessBVH;
 
         // CodimP count always less or equal to AllP count.
         ThisBVH              lbvh_CodimP;
