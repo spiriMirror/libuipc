@@ -1,10 +1,17 @@
 #pragma once
 #include <type_define.h>
 #include <collision_detection/aabb.h>
-#include <collision_detection/stackless_bvh.h>
 #include <muda/buffer.h>
 #include <uipc/common/log.h>
 #include <concepts>
+#include <thrust/device_vector.h>
+#include <thrust/swap.h>
+#include <thrust/sequence.h>
+#include <thrust/functional.h>
+#include <thrust/sort.h>
+#include <thrust/fill.h>
+#include <thrust/reduce.h>
+#include <thrust/execution_policy.h>
 
 namespace uipc::backend::cuda
 {
@@ -40,14 +47,41 @@ class InfoStacklessBVH
     class QueryBuffer
     {
       public:
-        auto  view() const noexcept { return m_qbuffer.view(); }
-        void  reserve(size_t size) { m_qbuffer.reserve(size); }
-        SizeT size() const noexcept { return m_qbuffer.size(); }
-        auto  viewer() const noexcept { return m_qbuffer.viewer(); }
+        QueryBuffer()
+        {
+            m_pairs.resize(50 * 1024);
+        }
 
-      private:
+        auto  view() const noexcept { return m_pairs.view(0, m_size); }
+        void  reserve(size_t size) { m_pairs.resize(size); }
+        SizeT size() const noexcept { return m_size; }
+        auto  viewer() const noexcept { return view().viewer(); }
+
+      public:
         friend class InfoStacklessBVH;
-        StacklessBVH::QueryBuffer m_qbuffer;
+        SizeT                        m_size = 0;
+        muda::DeviceBuffer<Vector2i> m_pairs;
+        muda::DeviceBuffer<unsigned int> m_queryMtCode;
+        muda::DeviceVar<AABB>            m_querySceneBox;
+        muda::DeviceBuffer<int>          m_querySortedId;
+        muda::DeviceVar<int>             m_cpNum;
+
+        void build(muda::CBufferView<AABB> aabbs);
+    };
+
+    struct Node
+    {
+        IndexT lc     = -1;
+        IndexT escape = -1;
+        AABB   bound;
+        IndexT bid = -1;
+        IndexT cid = -1;
+    };
+
+    class Config
+    {
+      public:
+        Float reserve_ratio = 1.2;
     };
 
     InfoStacklessBVH(muda::Stream& stream = muda::Stream::Default()) noexcept;
@@ -73,11 +107,75 @@ class InfoStacklessBVH
     template <std::invocable<IndexT, IndexT> Pred = DefaultQueryCallback>
     void query(muda::CBufferView<AABB> query_aabbs, Pred callback, QueryBuffer& qbuffer);
 
+  public:
+    class Impl
+    {
+      public:
+        static void calcMaxBVFromBox(muda::CBufferView<AABB> aabbs,
+                                     muda::VarView<AABB>     scene_box);
+        static void calcMCsFromBox(muda::CBufferView<AABB>    aabbs,
+                                   muda::CVarView<AABB>       scene_box,
+                                   muda::BufferView<uint32_t> codes);
+        void        calcInverseMapping();
+        void        buildPrimitivesFromBox(muda::CBufferView<AABB> aabbs);
+        void        calcExtNodeSplitMetrics();
+        void        buildIntNodes(int size);
+        void        calcIntNodeOrders(int size);
+        void        updateBvhExtNodeLinks(int size);
+        void        reorderNode(int intSize);
+        void        propagateInformativeMetadata(int intSize);
+        void        build(muda::CBufferView<AABB>   aabbs,
+                          muda::CBufferView<IndexT> bids,
+                          muda::CBufferView<IndexT> cids);
+
+        template <typename NodeCull, typename PairPred>
+        void stacklessSelf(NodeCull node_cull, PairPred pair_pred, muda::VarView<int> cpNum, muda::BufferView<Vector2i> buffer);
+
+        template <typename NodeCull, typename PairPred>
+        void stacklessOther(NodeCull                    node_cull,
+                            PairPred                    pair_pred,
+                            muda::CBufferView<AABB>     query_aabbs,
+                            muda::CBufferView<int>      query_sorted_id,
+                            muda::VarView<int>          cpNum,
+                            muda::BufferView<Vector2i>  buffer);
+
+        muda::CBufferView<AABB>   objs;
+        muda::CBufferView<IndexT> bids;
+        muda::CBufferView<IndexT> cids;
+        muda::DeviceVar<AABB>     scene_box;
+        muda::DeviceVector<uint32_t> flags;
+        muda::DeviceVector<uint32_t> mtcode;
+        muda::DeviceVector<int32_t>  sorted_id;
+        muda::DeviceVector<int32_t>  primMap;
+        muda::DeviceVector<int>      metric;
+        muda::DeviceVector<uint32_t> count;
+        muda::DeviceVector<int>      tkMap;
+        muda::DeviceVector<uint32_t> offsetTable;
+        muda::DeviceVector<AABB>     ext_aabb;
+        muda::DeviceVector<int>      ext_idx;
+        muda::DeviceVector<int>      ext_lca;
+        muda::DeviceVector<uint32_t> ext_mark;
+        muda::DeviceVector<uint32_t> ext_par;
+        muda::DeviceVector<int>      int_lc;
+        muda::DeviceVector<int>      int_rc;
+        muda::DeviceVector<int>      int_par;
+        muda::DeviceVector<int>      int_range_x;
+        muda::DeviceVector<int>      int_range_y;
+        muda::DeviceVector<uint32_t> int_mark;
+        muda::DeviceVector<AABB>     int_aabb;
+        muda::DeviceVector<IndexT>   ext_bid;
+        muda::DeviceVector<IndexT>   ext_cid;
+        muda::DeviceVector<IndexT>   int_bid;
+        muda::DeviceVector<IndexT>   int_cid;
+        muda::DeviceVector<Node>     nodes;
+        Config                       config;
+    };
+
   private:
     muda::CBufferView<AABB>   m_aabbs;
     muda::CBufferView<IndexT> m_BIDs;
     muda::CBufferView<IndexT> m_CIDs;
-    StacklessBVH              m_stackless_bvh;
+    Impl                      m_impl;
 };
 }  // namespace uipc::backend::cuda
 
