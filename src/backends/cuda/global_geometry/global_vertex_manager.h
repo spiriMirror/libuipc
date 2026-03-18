@@ -52,7 +52,7 @@ class GlobalVertexManager final : public SimSystem
 
         /**
          * @breif require discard friction, if this update will ruin the friction computation
-         * 
+         *
          */
         void require_discard_friction() const noexcept;
 
@@ -212,6 +212,7 @@ class GlobalVertexManager final : public SimSystem
         muda::DeviceVar<Vector3> min_pos;
         muda::DeviceVar<Vector3> max_pos;
 
+
         SimSystemSlot<GlobalTrajectoryFilter>   global_trajectory_filter;
         SimSystemSlot<GlobalActiveSetManager>   global_active_set_manager;
         SimSystemSlotCollection<VertexReporter> vertex_reporters;
@@ -235,6 +236,7 @@ class GlobalVertexManager final : public SimSystem
     friend class SimEngine;
     friend class MaxTranslationChecker;
     friend class GlobalTrajectoryFilter;
+    friend class GlobalActiveSetManager;
 
     // Initialize the global vertex manager
     // - Create the surface mesh

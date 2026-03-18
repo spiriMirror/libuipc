@@ -66,7 +66,7 @@ void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::Energ
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PT_size,
-               [mu     = active_set->mu(),
+               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
                 decay  = active_set->decay_factor(),
                 PTs    = PTs.cviewer().name("PTs"),
                 cnt    = PT_cnt.cviewer().name("cnt"),
@@ -76,6 +76,8 @@ void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::Energ
                 Es = PT_energies.viewer().name("Es")] __device__(int idx) mutable
                {
                    auto PT = PTs(idx);
+                   auto mu = min(min(mu_v(PT(0)), mu_v(PT(1))),
+                                 min(mu_v(PT(2)), mu_v(PT(3))));
                    auto c  = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
                    Es(idx) = penalty_energy(pow(decay, c) * mu,
                                             d0(idx),
@@ -89,7 +91,7 @@ void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::Energ
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(EE_size,
-               [mu     = active_set->mu(),
+               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
                 decay  = active_set->decay_factor(),
                 EEs    = EEs.cviewer().name("EEs"),
                 cnt    = EE_cnt.cviewer().name("cnt"),
@@ -99,6 +101,8 @@ void ALSimplexNormalContact::Impl::do_compute_energy(GlobalContactManager::Energ
                 Es = EE_energies.viewer().name("Es")] __device__(int idx) mutable
                {
                    auto EE = EEs(idx);
+                   auto mu = min(min(mu_v(EE(0)), mu_v(EE(1))),
+                                 min(mu_v(EE(2)), mu_v(EE(3))));
                    auto c  = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
                    Es(idx) = penalty_energy(pow(decay, c) * mu,
                                             d0(idx),
@@ -135,7 +139,7 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PT_size,
-               [mu     = active_set->mu(),
+               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
                 decay  = active_set->decay_factor(),
                 PTs    = PTs.cviewer().name("PTs"),
                 cnt    = PT_cnt.cviewer().name("cnt"),
@@ -146,6 +150,8 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
                 Hs = PT_hess.viewer().name("Hs")] __device__(int idx) mutable
                {
                    auto        PT = PTs(idx);
+                   auto        mu = min(min(mu_v(PT(0)), mu_v(PT(1))),
+                                 min(mu_v(PT(2)), mu_v(PT(3))));
                    Vector12    G;
                    Matrix12x12 H;
                    auto c = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
@@ -169,7 +175,7 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(EE_size,
-               [mu     = active_set->mu(),
+               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
                 decay  = active_set->decay_factor(),
                 EEs    = EEs.cviewer().name("EEs"),
                 cnt    = EE_cnt.cviewer().name("cnt"),
@@ -180,6 +186,8 @@ void ALSimplexNormalContact::Impl::do_assemble(GlobalContactManager::GradientHes
                 Hs = EE_hess.viewer().name("Hs")] __device__(int idx) mutable
                {
                    auto        EE = EEs(idx);
+                   auto        mu = min(min(mu_v(EE(0)), mu_v(EE(1))),
+                                 min(mu_v(EE(2)), mu_v(EE(3))));
                    Vector12    G;
                    Matrix12x12 H;
                    auto c = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);

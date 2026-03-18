@@ -64,7 +64,7 @@ void ALVertexHalfPlaneNormalContact::Impl::do_compute_energy(GlobalContactManage
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PH_size,
-               [mu     = active_set->mu(),
+               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
                 decay  = active_set->decay_factor(),
                 PHs    = PHs.cviewer().name("PHs"),
                 cnt    = PH_cnt.cviewer().name("cnt"),
@@ -74,6 +74,7 @@ void ALVertexHalfPlaneNormalContact::Impl::do_compute_energy(GlobalContactManage
                 Es = PH_energies.viewer().name("Es")] __device__(int idx) mutable
                {
                    auto vI = PHs(idx);
+                   auto mu = mu_v(vI);
                    auto c  = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);
                    Es(idx) = half_plane_penalty_energy(
                        pow(decay, c) * mu, d0(idx), d_grad(idx), x(vI));
@@ -102,7 +103,7 @@ void ALVertexHalfPlaneNormalContact::Impl::do_assemble(GlobalContactManager::Gra
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PH_size,
-               [mu     = active_set->mu(),
+               [mu_v   = active_set->mu_vertices().cviewer().name("mu_v"),
                 decay  = active_set->decay_factor(),
                 PHs    = PHs.cviewer().name("PHs"),
                 cnt    = PH_cnt.cviewer().name("cnt"),
@@ -113,6 +114,7 @@ void ALVertexHalfPlaneNormalContact::Impl::do_assemble(GlobalContactManager::Gra
                 Hs = PH_hess.viewer().name("Hs")] __device__(int idx) mutable
                {
                    auto      vI = PHs(idx);
+                   auto      mu = mu_v(vI);
                    Vector3   G;
                    Matrix3x3 H;
                    auto c = cnt(idx) >= 0 ? cnt(idx) : max(-cnt(idx) - 6, 0);

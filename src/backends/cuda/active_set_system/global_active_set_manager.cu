@@ -7,6 +7,9 @@
 #include <contact_system/contact_models/sym/vertex_half_plane_distance.inl>
 #include <pipeline/al_ipc_pipeline_flag.h>
 #include <uipc/common/log.h>
+#include <finite_element/finite_element_vertex_reporter.h>
+#include <affine_body/affine_body_vertex_reporter.h>
+#include <implicit_geometry/half_plane_vertex_reporter.h>
 
 namespace uipc::backend::cuda
 {
@@ -20,6 +23,8 @@ void GlobalActiveSetManager::do_build()
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
     m_impl.global_simplicial_surface_manager = require<GlobalSimplicialSurfaceManager>();
     m_impl.half_plane = find<HalfPlane>();
+    m_impl.fem        = find<FiniteElementMethod>();
+    m_impl.abd        = find<AffineBodyDynamics>();
 
     on_init_scene(
         [this]
@@ -29,6 +34,49 @@ void GlobalActiveSetManager::do_build()
             m_impl.vertex_half_plane_trajectory_filter =
                 m_impl.global_trajectory_filter->find<VertexHalfPlaneTrajectoryFilter>();
         });
+}
+
+void GlobalActiveSetManager::Impl::init_mu()
+{
+    using namespace muda;
+    auto vertex_manager       = global_vertex_manager;
+    auto vertex_reporter_view = vertex_manager->m_impl.vertex_reporters.view();
+    mu_vertices.resize(vertex_manager->positions().size());
+    for(auto&& [i, R] : enumerate(vertex_reporter_view))
+    {
+        if(dynamic_cast<FiniteElementVertexReporter*>(R))
+        {
+            ParallelFor()
+                .file_line(__FILE__, __LINE__)
+                .apply(fem->masses().size(),
+                       [mu_vertices = mu_vertices.viewer()
+                                          .subview(R->vertex_offset(), R->vertex_count())
+                                          .name("mu_vertices"),
+                        masses       = fem->masses().cviewer().name("masses"),
+                        mu_scale_fem = mu_scale_fem,
+                        dt           = dt] __device__(int idx) mutable
+                       {
+                           mu_vertices(idx) = masses(idx) * mu_scale_fem * dt * dt;
+                       });
+        }
+        else if(dynamic_cast<AffineBodyVertexReporter*>(R))
+        {
+            ParallelFor()
+                .file_line(__FILE__, __LINE__)
+                .apply(abd->m_impl.vertex_id_to_body_id.size(),
+                       [mu_vertices = mu_vertices.viewer()
+                                          .subview(R->vertex_offset(), R->vertex_count())
+                                          .name("mu_vertices"),
+                        body_id = abd->m_impl.vertex_id_to_body_id.cviewer().name("body_id"),
+                        body_masses = abd->m_impl.body_id_to_abd_mass.cviewer().name("body_masses"),
+                        mu_scale_abd = mu_scale_abd,
+                        dt           = dt] __device__(int idx) mutable
+                       {
+                           mu_vertices(idx) = body_masses(body_id(idx)).mass()
+                                              * mu_scale_abd * dt * dt;
+                       });
+        }
+    }
 }
 
 void GlobalActiveSetManager::Impl::filter_active()
@@ -405,15 +453,16 @@ void GlobalActiveSetManager::Impl::update_slack()
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(PHs.size(),
-                   [mu        = mu,
-                    PHs       = PHs.cviewer().name("PHs"),
-                    x_hat     = x_hat.cviewer().name("x_hat"),
-                    PH_d_grad = PH_d_grad.cviewer().name("PH_d_grad"),
-                    PH_lambda = PH_lambda.cviewer().name("PH_lambda"),
-                    d0        = PH_d0.viewer().name("d0"),
+                   [mu_vertices = mu_vertices.cviewer().name("PH_vertices"),
+                    PHs         = PHs.cviewer().name("PHs"),
+                    x_hat       = x_hat.cviewer().name("x_hat"),
+                    PH_d_grad   = PH_d_grad.cviewer().name("PH_d_grad"),
+                    PH_lambda   = PH_lambda.cviewer().name("PH_lambda"),
+                    d0          = PH_d0.viewer().name("d0"),
                     slack = PH_slack.viewer().name("slack")] __device__(int idx) mutable
                    {
                        auto PH     = PHs(idx);
+                       auto mu     = mu_vertices(PH);
                        auto d_grad = PH_d_grad(idx);
                        auto d = d0(idx), lambda = PH_lambda(idx), d_shift = 0.0;
                        d_shift += d_grad.dot(x_hat(PH));
@@ -429,15 +478,17 @@ void GlobalActiveSetManager::Impl::update_slack()
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PTs.size(),
-               [mu        = mu,
-                PTs       = PTs.cviewer().name("PTs"),
-                x_hat     = x_hat.cviewer().name("x_hat"),
-                PT_d_grad = PT_d_grad.cviewer().name("PT_d_grad"),
-                PT_lambda = PT_lambda.cviewer().name("PT_lambda"),
-                d0        = PT_d0.viewer().name("d0"),
+               [mu_vertices = mu_vertices.cviewer().name("PH_vertices"),
+                PTs         = PTs.cviewer().name("PTs"),
+                x_hat       = x_hat.cviewer().name("x_hat"),
+                PT_d_grad   = PT_d_grad.cviewer().name("PT_d_grad"),
+                PT_lambda   = PT_lambda.cviewer().name("PT_lambda"),
+                d0          = PT_d0.viewer().name("d0"),
                 slack = PT_slack.viewer().name("slack")] __device__(int idx) mutable
                {
-                   auto PT     = PTs(idx);
+                   auto PT = PTs(idx);
+                   auto mu = min(min(mu_vertices(PT(0)), mu_vertices(PT(1))),
+                                 min(mu_vertices(PT(2)), mu_vertices(PT(3))));
                    auto d_grad = PT_d_grad(idx);
                    auto d = d0(idx), lambda = PT_lambda(idx), d_shift = 0.0;
                    d_shift += d_grad.segment<3>(0).dot(x_hat(PT(0)));
@@ -455,15 +506,17 @@ void GlobalActiveSetManager::Impl::update_slack()
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(EEs.size(),
-               [mu        = mu,
-                EEs       = EEs.cviewer().name("EEs"),
-                x_hat     = x_hat.cviewer().name("x_hat"),
-                EE_d_grad = EE_d_grad.cviewer().name("EE_d_grad"),
-                EE_lambda = EE_lambda.cviewer().name("EE_lambda"),
-                d0        = EE_d0.viewer().name("d0"),
+               [mu_vertices = mu_vertices.cviewer().name("PH_vertices"),
+                EEs         = EEs.cviewer().name("EEs"),
+                x_hat       = x_hat.cviewer().name("x_hat"),
+                EE_d_grad   = EE_d_grad.cviewer().name("EE_d_grad"),
+                EE_lambda   = EE_lambda.cviewer().name("EE_lambda"),
+                d0          = EE_d0.viewer().name("d0"),
                 slack = EE_slack.viewer().name("slack")] __device__(int idx) mutable
                {
-                   auto EE     = EEs(idx);
+                   auto EE = EEs(idx);
+                   auto mu = min(min(mu_vertices(EE(0)), mu_vertices(EE(1))),
+                                 min(mu_vertices(EE(2)), mu_vertices(EE(3))));
                    auto d_grad = EE_d_grad(idx);
                    auto d = d0(idx), lambda = EE_lambda(idx), d_shift = 0.0;
                    d_shift += d_grad.segment<3>(0).dot(x_hat(EE(0)));
@@ -489,16 +542,17 @@ void GlobalActiveSetManager::Impl::update_lambda()
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(PHs.size(),
-                   [mu        = mu,
-                    PHs       = PHs.cviewer().name("PHs"),
-                    x_hat     = x_hat.cviewer().name("x_hat"),
-                    PH_d_grad = PH_d_grad.cviewer().name("PH_d_grad"),
-                    d0        = PH_d0.cviewer().name("d0"),
-                    slack     = PH_slack.cviewer().name("slack"),
-                    PH_lambda = PH_lambda.viewer().name("PH_lambda"),
+                   [mu_vertices = mu_vertices.cviewer().name("PH_vertices"),
+                    PHs         = PHs.cviewer().name("PHs"),
+                    x_hat       = x_hat.cviewer().name("x_hat"),
+                    PH_d_grad   = PH_d_grad.cviewer().name("PH_d_grad"),
+                    d0          = PH_d0.cviewer().name("d0"),
+                    slack       = PH_slack.cviewer().name("slack"),
+                    PH_lambda   = PH_lambda.viewer().name("PH_lambda"),
                     PH_cnt = PH_cnt.viewer().name("PH_cnt")] __device__(int idx) mutable
                    {
                        auto vI     = PHs(idx);
+                       auto mu     = mu_vertices(vI);
                        auto d_grad = PH_d_grad(idx);
                        auto d = d0(idx), &lambda = PH_lambda(idx), d_shift = 0.0;
                        auto& cnt = PH_cnt(idx);
@@ -526,16 +580,18 @@ void GlobalActiveSetManager::Impl::update_lambda()
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(PTs.size(),
-               [mu        = mu,
-                PTs       = PTs.cviewer().name("PTs"),
-                x_hat     = x_hat.cviewer().name("x_hat"),
-                PT_d_grad = PT_d_grad.cviewer().name("PT_d_grad"),
-                d0        = PT_d0.cviewer().name("d0"),
-                slack     = PT_slack.cviewer().name("slack"),
-                PT_lambda = PT_lambda.viewer().name("PT_lambda"),
+               [mu_vertices = mu_vertices.cviewer().name("mu_vertices"),
+                PTs         = PTs.cviewer().name("PTs"),
+                x_hat       = x_hat.cviewer().name("x_hat"),
+                PT_d_grad   = PT_d_grad.cviewer().name("PT_d_grad"),
+                d0          = PT_d0.cviewer().name("d0"),
+                slack       = PT_slack.cviewer().name("slack"),
+                PT_lambda   = PT_lambda.viewer().name("PT_lambda"),
                 PT_cnt = PT_cnt.viewer().name("PT_cnt")] __device__(int idx) mutable
                {
-                   auto  PT     = PTs(idx);
+                   auto  PT = PTs(idx);
+                   auto  mu = min(min(mu_vertices(PT(0)), mu_vertices(PT(1))),
+                                 min(mu_vertices(PT(2)), mu_vertices(PT(3))));
                    auto  d_grad = PT_d_grad(idx);
                    auto  d = d0(idx), &lambda = PT_lambda(idx), d_shift = 0.0;
                    auto& cnt = PT_cnt(idx);
@@ -565,16 +621,18 @@ void GlobalActiveSetManager::Impl::update_lambda()
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(EEs.size(),
-               [mu        = mu,
-                EEs       = EEs.cviewer().name("EEs"),
-                x_hat     = x_hat.cviewer().name("x_hat"),
-                EE_d_grad = EE_d_grad.cviewer().name("EE_d_grad"),
-                d0        = EE_d0.cviewer().name("d0"),
-                slack     = EE_slack.cviewer().name("slack"),
-                EE_lambda = EE_lambda.viewer().name("EE_lambda"),
+               [mu_vertices = mu_vertices.cviewer().name("mu_vertices"),
+                EEs         = EEs.cviewer().name("EEs"),
+                x_hat       = x_hat.cviewer().name("x_hat"),
+                EE_d_grad   = EE_d_grad.cviewer().name("EE_d_grad"),
+                d0          = EE_d0.cviewer().name("d0"),
+                slack       = EE_slack.cviewer().name("slack"),
+                EE_lambda   = EE_lambda.viewer().name("EE_lambda"),
                 EE_cnt = EE_cnt.viewer().name("EE_cnt")] __device__(int idx) mutable
                {
-                   auto  EE     = EEs(idx);
+                   auto  EE = EEs(idx);
+                   auto  mu = min(min(mu_vertices(EE(0)), mu_vertices(EE(1))),
+                                 min(mu_vertices(EE(2)), mu_vertices(EE(3))));
                    auto  d_grad = EE_d_grad(idx);
                    auto  d = d0(idx), &lambda = EE_lambda(idx), d_shift = 0.0;
                    auto& cnt = EE_cnt(idx);
@@ -769,19 +827,24 @@ muda::CBufferView<Vector3> GlobalActiveSetManager::non_penetrate_positions() con
     return m_impl.non_penetrate_positions.view();
 }
 
-Float GlobalActiveSetManager::mu() const
-{
-    return m_impl.mu;
-}
-
 Float GlobalActiveSetManager::mu_scale_hess() const
 {
     return m_impl.mu_scale_hess;
 }
 
-Float GlobalActiveSetManager::mu_scale_mass() const
+Float GlobalActiveSetManager::mu_scale_fem() const
 {
-    return m_impl.mu_scale_mass;
+    return m_impl.mu_scale_fem;
+}
+
+Float GlobalActiveSetManager::mu_scale_abd() const
+{
+    return m_impl.mu_scale_abd;
+}
+
+muda::CBufferView<Float> GlobalActiveSetManager::mu_vertices() const
+{
+    return m_impl.mu_vertices.view();
 }
 
 Float GlobalActiveSetManager::decay_factor() const
@@ -811,9 +874,10 @@ muda::BufferView<Vector3> GlobalActiveSetManager::NonPenetratePositionInfo::non_
 void GlobalActiveSetManager::Impl::init(WorldVisitor& world)
 {
     auto config   = world.scene().config();
-    mu            = 0.0;
     mu_scale_hess = 0.01;
-    mu_scale_mass = config.find<Float>("contact/al-ipc/mu_scale")->view()[0];
+    dt            = config.find<Float>("dt")->view()[0];
+    mu_scale_fem = config.find<Float>("contact/al-ipc/mu_scale_fem")->view()[0];
+    mu_scale_abd = config.find<Float>("contact/al-ipc/mu_scale_abd")->view()[0];
     // mu_scale_mass  = 1e4;
     decay_factor = config.find<Float>("contact/al-ipc/decay_factor")->view()[0];
     toi_threshold = config.find<Float>("contact/al-ipc/toi_threshold")->view()[0];
@@ -823,6 +887,11 @@ void GlobalActiveSetManager::Impl::init(WorldVisitor& world)
 void GlobalActiveSetManager::init()
 {
     m_impl.init(world());
+}
+
+void GlobalActiveSetManager::init_mu()
+{
+    m_impl.init_mu();
 }
 
 void GlobalActiveSetManager::filter_active()
@@ -883,11 +952,6 @@ void GlobalActiveSetManager::disable()
 bool GlobalActiveSetManager::is_enabled() const
 {
     return m_impl.energy_enabled;
-}
-
-void GlobalActiveSetManager::mu(Float mu)
-{
-    m_impl.mu = mu;
 }
 
 void GlobalActiveSetManager::add_reporter(ActiveSetReporter* reporter)

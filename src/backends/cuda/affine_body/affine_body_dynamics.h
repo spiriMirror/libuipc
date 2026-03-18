@@ -551,6 +551,8 @@ class AffineBodyDynamics : public SimSystem
     friend class AffineBodyStateAccessorFeatureOverrider;
     friend class AffineBodyExternalForceManager;
 
+    friend class GlobalActiveSetManager;
+
     void add_reporter(AffineBodyKineticDiffParmReporter* reporter);
 
     friend class SimEngine;

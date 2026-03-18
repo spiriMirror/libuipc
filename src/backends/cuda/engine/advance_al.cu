@@ -90,25 +90,26 @@ void SimEngine::advance_AL()
         {
             m_global_active_set_manager->disable();
 
-            bool  use_diag_norm = false;
-            Float mu;
+            // bool  use_diag_norm = false;
+            // Float mu;
 
-            if(use_diag_norm)
-            {
-                if(m_global_dytopo_effect_manager)
-                    m_global_dytopo_effect_manager->compute_dytopo_effect();
-                auto diag_norm = m_global_linear_system->diag_norm();
-                mu             = diag_norm * m_global_active_set_manager->mu_scale_hess();
-            }
-            else
-            {
-                Float dt = world().scene().config().find<Float>("dt")->view()[0];
-                Float mass_norm = m_global_linear_system->mass_norm();
-                mu = mass_norm * m_global_active_set_manager->mu_scale_mass() * dt * dt;
-            }
+            // if(use_diag_norm)
+            // {
+            //     if(m_global_dytopo_effect_manager)
+            //         m_global_dytopo_effect_manager->compute_dytopo_effect();
+            //     mu = m_global_linear_system->diag_norm()
+            //          * m_global_active_set_manager->mu_scale_hess();
+            // }
+            // else
+            // {
+            //     Float dt = world().scene().config().find<Float>("dt")->view()[0];
+            //     Float mass_norm = m_global_linear_system->mass_norm();
+            //     mu = mass_norm * m_global_active_set_manager->mu_scale_mass() * dt * dt;
+            // }
 
-            logger::info("Adaptive mu: {}", mu);
-            m_global_active_set_manager->mu(mu);
+            // logger::info("Adaptive mu: {}", mu);
+            // m_global_active_set_manager->mu(mu);
+            m_global_active_set_manager->init_mu();
             m_global_active_set_manager->enable();
         }
     };
