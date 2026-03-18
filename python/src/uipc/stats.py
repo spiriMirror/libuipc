@@ -212,6 +212,24 @@ class SimulationStats:
         return None
 
     @staticmethod
+    def _aggregate_metric_for_name(
+        node: dict[str, Any], name: str, metric: Literal['duration', 'count']
+    ) -> tuple[bool, float]:
+        """Aggregate one metric across all nodes with the same name."""
+        found = False
+        total = 0.0
+        if node.get('name') == name:
+            found = True
+            total += float(node.get(metric, 0))
+        for child in node.get('children', []):
+            child_found, child_total = SimulationStats._aggregate_metric_for_name(
+                child, name, metric
+            )
+            found = found or child_found
+            total += child_total
+        return found, total
+
+    @staticmethod
     def _collect_names(node: dict[str, Any], names: set[str] | None = None) -> set[str]:
         """Recursively collect every timer name present in *node*."""
         if names is None:
@@ -334,7 +352,8 @@ class SimulationStats:
         Returns
         -------
         tuple[numpy.ndarray, numpy.ndarray]
-            Frame indices and values. Missing frames are omitted.
+            Frame indices and values. Values are aggregated across all nodes
+            with the same timer name in each frame. Missing frames are omitted.
 
         Raises
         ------
@@ -346,10 +365,10 @@ class SimulationStats:
         frames = []
         values = []
         for i, timer_data in enumerate(self._frames):
-            node = self._find_node(timer_data, key)
-            if node is not None:
+            found, total = self._aggregate_metric_for_name(timer_data, key, metric)
+            if found:
                 frames.append(i)
-                values.append(node.get(metric, 0))
+                values.append(total)
         return np.array(frames, dtype=int), np.array(values, dtype=float)
 
     @staticmethod
@@ -751,7 +770,7 @@ class SimulationStats:
             lines.append('')
 
         md_text = '\n'.join(lines)
-        (out / 'compare_many.md').write_text(md_text, encoding='utf-8')
+        (out / 'comparison.md').write_text(md_text, encoding='utf-8')
 
         json_data = {
             'metric': metric,
@@ -769,7 +788,7 @@ class SimulationStats:
                 },
                 'means': item['means'],
             }
-        (out / 'compare_many.json').write_text(
+        (out / 'comparison.json').write_text(
             json.dumps(json_data, indent=2), encoding='utf-8'
         )
 
@@ -924,9 +943,8 @@ class SimulationStats:
         for i, timer_data in enumerate(self._frames):
             cells = []
             for key in keys:
-                node = self._find_node(timer_data, key)
-                if node is not None:
-                    val = node.get(metric, 0)
+                found, val = self._aggregate_metric_for_name(timer_data, key, metric)
+                if found:
                     text = f'{val:.4f}s' if metric == 'duration' else str(int(val))
                 else:
                     text = 'N/A'

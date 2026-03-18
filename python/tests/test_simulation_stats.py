@@ -169,6 +169,59 @@ def test_get_values_nested():
 
 
 @pytest.mark.basic
+def test_get_values_aggregates_same_name_across_tree():
+    """get_values() sums all same-name timers in one frame."""
+    s = SimulationStats()
+    s._frames.append(
+        {
+            'name': 'GlobalTimer',
+            'duration': 1.0,
+            'count': 1,
+            'parent': '',
+            'children': [
+                {
+                    'name': 'Detect DCD Candidates',
+                    'duration': 0.1,
+                    'count': 1,
+                    'parent': 'GlobalTimer',
+                    'children': [
+                        {
+                            'name': 'Detect DCD Candidates',
+                            'duration': 0.2,
+                            'count': 2,
+                            'parent': '/GlobalTimer/Detect DCD Candidates',
+                            'children': [],
+                        }
+                    ],
+                },
+                {
+                    'name': 'Solver',
+                    'duration': 0.3,
+                    'count': 1,
+                    'parent': 'GlobalTimer',
+                    'children': [
+                        {
+                            'name': 'Detect DCD Candidates',
+                            'duration': 0.4,
+                            'count': 3,
+                            'parent': '/GlobalTimer/Solver',
+                            'children': [],
+                        }
+                    ],
+                },
+            ],
+        }
+    )
+
+    frames, durations = s.get_values('Detect DCD Candidates', metric='duration')
+    _, counts = s.get_values('Detect DCD Candidates', metric='count')
+
+    np.testing.assert_array_equal(frames, np.array([0], dtype=int))
+    np.testing.assert_allclose(durations, np.array([0.7], dtype=float))
+    np.testing.assert_allclose(counts, np.array([6.0], dtype=float))
+
+
+@pytest.mark.basic
 def test_get_values_missing_key():
     """get_values() returns empty arrays for an unknown timer name."""
     s = SimulationStats()
@@ -452,8 +505,8 @@ def test_compare_many_report_generates_artifacts(tmp_path):
         align='union',
     )
 
-    assert (output_dir / 'compare_many.md').exists()
-    assert (output_dir / 'compare_many.json').exists()
+    assert (output_dir / 'comparison.md').exists()
+    assert (output_dir / 'comparison.json').exists()
     assert (output_dir / 'plots' / 'grouped_bar.svg').exists()
     assert len(list((output_dir / 'plots').glob('heatmap_*.svg'))) == 3
     assert len(list((output_dir / 'plots').glob('line_*.svg'))) >= 2
