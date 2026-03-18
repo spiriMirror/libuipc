@@ -8,7 +8,6 @@ add_requireconfs("python", "**.python", {
         headeronly = is_plat("linux")
     }
 })
-add_requires("pybind11")
 
 target("pyuipc")
     add_rules("uipc.python")
