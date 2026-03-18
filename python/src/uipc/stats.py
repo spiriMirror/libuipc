@@ -1,9 +1,13 @@
+from __future__ import annotations
+
 from uipc import Logger
 import copy
 import os
 import re
 import json
 import pathlib
+from os import PathLike
+from typing import Any, Iterable, Literal, Mapping
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -64,9 +68,9 @@ class SimulationStats:
         'spmv':                 'SPMV',
     }
 
-    def __init__(self):
+    def __init__(self) -> None:
         # Each entry is the dict returned by uipc.Timer.report_as_json()
-        self._frames = []
+        self._frames: list[dict[str, Any]] = []
         # Ensure timers are enabled so collect() captures data
         try:
             import uipc
@@ -74,14 +78,113 @@ class SimulationStats:
         except (AttributeError, ImportError):
             pass  # native module not available (e.g. in tests)
 
-    def collect(self):
-        """Record timer statistics for the current frame.
+    @classmethod
+    def load_timer_frames_json(
+        cls, path: str | PathLike[str] | pathlib.Path
+    ) -> 'SimulationStats':
+        """
+        Load a ``SimulationStats`` instance from a ``timer_frames.json`` file.
 
-        Call this once per simulation step, after ``world.advance()`` and
-        ``world.retrieve()``.  Each call also resets the internal timer
-        counters so that successive calls capture individual-frame data.
+        Parameters
+        ----------
+        path : str | os.PathLike[str] | pathlib.Path
+            Path to a JSON file containing serialized timer frames.
 
-        :return: ``self`` (for optional method chaining).
+        Returns
+        -------
+        SimulationStats
+            A ``SimulationStats`` instance loaded from the JSON file.
+        """
+        p = pathlib.Path(path)
+        frames = json.loads(p.read_text(encoding='utf-8'))
+        obj = cls()
+        obj._frames = list(frames) if frames is not None else []
+        return obj
+
+    def save_timer_frames_json(
+        self, path: str | PathLike[str] | pathlib.Path
+    ) -> pathlib.Path:
+        """
+        Save collected timer frames to a JSON file.
+
+        Parameters
+        ----------
+        path : str | os.PathLike[str] | pathlib.Path
+            Output file path.
+
+        Returns
+        -------
+        pathlib.Path
+            Normalized output path where the JSON file is written.
+        """
+        p = pathlib.Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps(self._frames, indent=2), encoding='utf-8')
+        return p
+
+    @staticmethod
+    def create_comparison(
+        comparison_map: Mapping[str, SimulationStats | str | PathLike[str] | pathlib.Path],
+        output_dir: str | PathLike[str] | pathlib.Path,
+        keys: list[str] | str | None = None,
+        metric: Literal['duration', 'count'] = 'duration',
+        align: Literal['union', 'intersection'] = 'union',
+    ) -> str:
+        """
+        Create an N-way comparison report from timer-frame JSON files.
+
+        Parameters
+        ----------
+        comparison_map : Mapping[str, SimulationStats | str | os.PathLike[str] | pathlib.Path]
+            Mapping from config names to either ``SimulationStats`` instances or
+            ``timer_frames.json`` file paths.
+        output_dir : str | os.PathLike[str] | pathlib.Path
+            Directory used to store generated report artifacts.
+        keys : list[str] | str | None, optional
+            Timer keys to compare. Keys may be exact timer names or alias keys.
+            If ``None``, default key timers are used.
+        metric : str, optional
+            Comparison metric. Typically ``'duration'`` or ``'count'``.
+        align : str, optional
+            Frame alignment mode, usually ``'union'`` or ``'intersection'``.
+
+        Returns
+        -------
+        str
+            Markdown text of the generated N-way report.
+        """
+        if not comparison_map:
+            raise ValueError('comparison_map must not be empty')
+
+        stats_map: dict[str, SimulationStats] = {}
+        for name, value in comparison_map.items():
+            if isinstance(value, SimulationStats):
+                stats_map[name] = value
+            elif isinstance(value, (str, pathlib.Path, PathLike)):
+                stats_map[name] = SimulationStats.load_timer_frames_json(value)
+            else:
+                raise TypeError(
+                    f"Unsupported comparison input type for '{name}': "
+                    f'{type(value).__name__}'
+                )
+
+        anchor = next(iter(stats_map.values()))
+        return anchor._compare_many_report(
+            stats_map=stats_map,
+            output_dir=output_dir,
+            keys=keys,
+            metric=metric,
+            align=align,
+        )
+
+    def collect(self) -> SimulationStats:
+        """
+        Record timer statistics for the current frame.
+
+        Returns
+        -------
+        SimulationStats
+            ``self`` for optional method chaining.
         """
         import uipc
         timer_data = uipc.Timer.report_as_json()
@@ -89,7 +192,7 @@ class SimulationStats:
         return self
 
     @property
-    def num_frames(self):
+    def num_frames(self) -> int:
         """Number of frames collected so far."""
         return len(self._frames)
 
@@ -98,7 +201,7 @@ class SimulationStats:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _find_node(node, name):
+    def _find_node(node: dict[str, Any], name: str) -> dict[str, Any] | None:
         """Depth-first search for a node with the given ``name``."""
         if node.get('name') == name:
             return node
@@ -109,7 +212,7 @@ class SimulationStats:
         return None
 
     @staticmethod
-    def _collect_names(node, names=None):
+    def _collect_names(node: dict[str, Any], names: set[str] | None = None) -> set[str]:
         """Recursively collect every timer name present in *node*."""
         if names is None:
             names = set()
@@ -121,14 +224,16 @@ class SimulationStats:
         return names
 
     @property
-    def all_timer_names(self) -> set:
+    def all_timer_names(self) -> set[str]:
         """Return all timer names found across all collected frames."""
-        names: set = set()
+        names: set[str] = set()
         for frame_data in self._frames:
             self._collect_names(frame_data, names)
         return names
 
-    def _resolve_keys(self, keys, aliases=None):
+    def _resolve_keys(
+        self, keys: list[str], aliases: Mapping[str, str] | None = None
+    ) -> tuple[list[str], dict[str, str]]:
         """Resolve short alias keys to actual timer names found in data.
 
         Each key is checked in order:
@@ -138,12 +243,17 @@ class SimulationStats:
            the regex pattern and search all known timer names for a match.
         3. Otherwise the key is kept as-is (will be filtered later).
 
-        :param keys: List of key strings (short aliases or exact names).
-        :param aliases: Optional ``{alias: regex_pattern}`` dict.
-            Merged with :attr:`DEFAULT_ALIASES` (user values take priority).
-        :return: ``(resolved_keys, display_map)`` where *resolved_keys*
-            is a list of actual timer names and *display_map* maps each
-            resolved name back to a pretty display label.
+        Parameters
+        ----------
+        keys : list[str]
+            Key strings (short aliases or exact timer names).
+        aliases : dict[str, str] | None, optional
+            Extra alias-to-regex mapping merged into ``DEFAULT_ALIASES``.
+
+        Returns
+        -------
+        tuple[list[str], dict[str, str]]
+            Resolved timer names and their display-name mapping.
         """
         merged = dict(self.DEFAULT_ALIASES)
         if aliases:
@@ -179,13 +289,19 @@ class SimulationStats:
         return resolved, display_map
 
     @staticmethod
-    def _auto_time_unit(values):
-        """Choose the best time unit for display.
+    def _auto_time_unit(values: np.ndarray) -> tuple[np.ndarray, str]:
+        """
+        Choose the most readable time unit for plotting.
 
-        :param values: Array of durations in seconds.
-        :return: ``(scaled_values, label)`` where *label* is e.g.
-            ``'Time (ms)'`` and *scaled_values* is the array converted
-            to the chosen unit.
+        Parameters
+        ----------
+        values : numpy.ndarray
+            Duration values in seconds.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, str]
+            Scaled values and axis label, for example ``('Time (ms)')``.
         """
         if len(values) == 0:
             return values, 'Time (s)'
@@ -202,14 +318,28 @@ class SimulationStats:
     # Public API
     # ------------------------------------------------------------------
 
-    def get_values(self, key, metric='duration'):
-        """Return per-frame values for a named timer.
+    def get_values(
+        self, key: str, metric: Literal['duration', 'count'] = 'duration'
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Return per-frame values for a named timer.
 
-        :param key: Timer name to search for (e.g. ``'Newton'``, ``'PCG'``).
-        :param metric: ``'duration'`` (seconds) or ``'count'``.
-        :return: ``(frames, values)`` — two 1-D NumPy arrays of the same
-            length.  Frames where the timer was absent are omitted.
-        :raises ValueError: If *metric* is not ``'duration'`` or ``'count'``.
+        Parameters
+        ----------
+        key : str
+            Timer name to search for.
+        metric : str, optional
+            ``'duration'`` (seconds) or ``'count'``.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, numpy.ndarray]
+            Frame indices and values. Missing frames are omitted.
+
+        Raises
+        ------
+        ValueError
+            If ``metric`` is neither ``'duration'`` nor ``'count'``.
         """
         if metric not in ('duration', 'count'):
             raise ValueError(f"metric must be 'duration' or 'count', got '{metric}'")
@@ -222,20 +352,462 @@ class SimulationStats:
                 values.append(node.get(metric, 0))
         return np.array(frames, dtype=int), np.array(values, dtype=float)
 
-    def plot(self, keys, metric='duration', kind='line',
-             title=None, output_path=None):
-        """Plot per-frame timer values as a line or bar chart.
+    @staticmethod
+    def _safe_name(name: Any) -> str:
+        """Convert arbitrary timer/config names to filesystem-safe tokens."""
+        return re.sub(r'[^0-9A-Za-z._-]+', '_', str(name)).strip('_') or 'unnamed'
 
-        :param keys: A timer name (str) or list of timer names to plot.
-        :param metric: ``'duration'`` (seconds) or ``'count'``.
-        :param kind: ``'line'`` for a curve plot or ``'bar'`` for a grouped
-            bar chart.
-        :param title: Chart title.  Auto-generated when *None*.
-        :param output_path: File path to save the figure (passed to
-            :func:`matplotlib.pyplot.savefig`).  When *None* the figure is
-            shown interactively but not saved.
-        :return: The :class:`matplotlib.figure.Figure` object.
-        :raises ValueError: If *metric* or *kind* is invalid.
+    def _compare_many(
+        self,
+        stats_map: Mapping[str, SimulationStats],
+        keys: list[str] | str | None = None,
+        metric: Literal['duration', 'count'] = 'duration',
+        align: Literal['union', 'intersection'] = 'union',
+    ) -> dict[str, Any]:
+        """
+        Align and compare multiple configurations frame by frame.
+
+        Parameters
+        ----------
+        stats_map : Mapping[str, SimulationStats]
+            Config name to stats object mapping.
+        keys : list[str] | str | None, optional
+            Timer names to compare. If ``None``, all discovered timers are used.
+        metric : str, optional
+            ``'duration'`` or ``'count'``.
+        align : str, optional
+            ``'union'`` fills missing frame values with 0, ``'intersection'``
+            keeps only common frames.
+
+        Returns
+        -------
+        dict[str, object]
+            Aligned per-timer arrays and summary means for all configs.
+        """
+        if metric not in ('duration', 'count'):
+            raise ValueError(f"metric must be 'duration' or 'count', got '{metric}'")
+        if align not in ('union', 'intersection'):
+            raise ValueError(f"align must be 'union' or 'intersection', got '{align}'")
+        if not hasattr(stats_map, 'items'):
+            raise TypeError('stats_map must be a mapping {config_name: SimulationStats}')
+        if len(stats_map) == 0:
+            raise ValueError('stats_map must not be empty')
+
+        configs = list(stats_map.keys())
+        for cfg, stats in stats_map.items():
+            if not hasattr(stats, 'get_values'):
+                raise TypeError(f"stats_map['{cfg}'] must provide get_values(key, metric)")
+
+        if keys is None:
+            all_names = set()
+            for stats in stats_map.values():
+                all_names |= stats.all_timer_names
+            keys = sorted(all_names)
+        elif isinstance(keys, str):
+            keys = [keys]
+
+        compared = {
+            'metric': metric,
+            'align': align,
+            'configs': configs,
+            'timers': {},
+        }
+
+        for key in keys:
+            per_cfg_frames = {}
+            per_cfg_values = {}
+            frame_sets = []
+            for cfg, stats in stats_map.items():
+                f, v = stats.get_values(key, metric=metric)
+                f = np.array(f, dtype=int)
+                v = np.array(v, dtype=float)
+                per_cfg_frames[cfg] = f
+                per_cfg_values[cfg] = v
+                frame_sets.append(set(int(x) for x in f.tolist()))
+
+            if len(frame_sets) == 0:
+                aligned_frames = []
+            elif align == 'union':
+                aligned_frames = sorted(set().union(*frame_sets))
+            else:
+                aligned_frames = sorted(set.intersection(*frame_sets)) if frame_sets else []
+
+            frames = np.array(aligned_frames, dtype=int)
+            values = {}
+            means = {}
+            for cfg in configs:
+                fmap = {
+                    int(ff): float(vv)
+                    for ff, vv in zip(per_cfg_frames[cfg].tolist(), per_cfg_values[cfg].tolist())
+                }
+                arr = np.array([fmap.get(int(ff), 0.0) for ff in frames], dtype=float)
+                values[cfg] = arr
+                means[cfg] = float(arr.mean()) if len(arr) > 0 else 0.0
+
+            compared['timers'][key] = {
+                'frames': frames,
+                'values': values,
+                'means': means,
+            }
+
+        return compared
+
+    def _compare_many_report(
+        self,
+        stats_map: Mapping[str, SimulationStats],
+        output_dir: str | PathLike[str] | pathlib.Path,
+        keys: list[str] | str | None = None,
+        metric: Literal['duration', 'count'] = 'duration',
+        align: Literal['union', 'intersection'] = 'union',
+    ) -> str:
+        """Generate N-way comparison report with charts.
+
+        Charts include:
+        - one heatmap per config
+        - grouped bar chart (timer means, config colors)
+        - one per-timer frame chart (duration + count in one panel)
+        """
+        compared = self._compare_many(
+            stats_map, keys=keys, metric=metric, align=align
+        )
+
+        # Match summary_report defaults: only key panels users usually care about.
+        display_map = {}
+        if keys is None:
+            keys = ['newton_iteration', 'global_linear_system',
+                    'line_search', 'dcd', 'spmv']
+            if self._frames:
+                keys, display_map = self._resolve_keys(keys)
+            compared = self._compare_many(
+                stats_map, keys=keys, metric=metric, align=align
+            )
+        elif self._frames:
+            keys, display_map = self._resolve_keys(keys)
+            compared = self._compare_many(
+                stats_map, keys=keys, metric=metric, align=align
+            )
+
+        out = pathlib.Path(output_dir)
+        plots_dir = out / 'plots'
+        out.mkdir(parents=True, exist_ok=True)
+        plots_dir.mkdir(parents=True, exist_ok=True)
+
+        configs = compared['configs']
+        timers = sorted(compared['timers'].keys())
+        cmap = plt.get_cmap('tab10')
+        color_map = {cfg: cmap(i % 10) for i, cfg in enumerate(configs)}
+
+        # 1) Heatmaps: one per config
+        heatmap_paths = {}
+        for cfg, stats in stats_map.items():
+            heatmap_name = f'heatmap_{self._safe_name(cfg)}.svg'
+            heatmap_path = plots_dir / heatmap_name
+            if getattr(stats, 'num_frames', 0) > 0:
+                stats.profiler_heatmap(output_path=str(heatmap_path))
+                plt.close('all')
+                heatmap_paths[cfg] = f'plots/{heatmap_name}'
+
+        # 2) Grouped bar chart for per-timer means
+        grouped_bar_rel = None
+        if len(timers) > 0:
+            means_matrix = []
+            for cfg in configs:
+                means_matrix.append([
+                    compared['timers'][timer]['means'][cfg] for timer in timers
+                ])
+            means_matrix = np.array(means_matrix, dtype=float)  # [n_cfg, n_timer]
+
+            if metric == 'duration':
+                scaled, ylabel = self._auto_time_unit(means_matrix.flatten())
+                if len(scaled) > 0 and np.max(np.abs(means_matrix)) > 0:
+                    scale = float(np.max(np.abs(scaled)) / np.max(np.abs(means_matrix)))
+                else:
+                    scale = 1.0
+            else:
+                scale = 1.0
+                ylabel = 'Count'
+
+            fig, ax = plt.subplots(figsize=(max(10, len(timers) * 0.45), 5))
+            x = np.arange(len(timers), dtype=float)
+            total_width = 0.82
+            bar_w = total_width / max(len(configs), 1)
+            for i, cfg in enumerate(configs):
+                offset = (i - (len(configs) - 1) / 2.0) * bar_w
+                y = means_matrix[i] * scale
+                ax.bar(x + offset, y, width=bar_w, label=cfg, color=color_map[cfg], alpha=0.9)
+            ax.set_xticks(x)
+            ax.set_xticklabels(timers, rotation=35, ha='right')
+            ax.set_ylabel(ylabel)
+            ax.set_title(f'Per-Timer Mean ({metric}) by Config')
+            ax.grid(True, axis='y', alpha=0.3)
+            ax.legend()
+            plt.tight_layout()
+            grouped_bar_name = 'grouped_bar.svg'
+            plt.savefig(plots_dir / grouped_bar_name, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+            grouped_bar_rel = f'plots/{grouped_bar_name}'
+
+        # 2.5) Total time per frame chart (same spirit as summary_report).
+        total_time_rel = None
+        if metric == 'duration':
+            fig, ax = plt.subplots(figsize=(9, 4))
+            has_total = False
+            ylabel = 'Time (s)'
+            for cfg in configs:
+                stats = stats_map[cfg]
+
+                # Match summary_report logic: GlobalTimer duration may be zero,
+                # so use the first non-zero child (typically "Pipeline").
+                root_name = ''
+                for fd in stats._frames:
+                    children = fd.get('children', [])
+                    if children and children[0].get('duration', 0) > 0:
+                        root_name = children[0].get('name', '')
+                        break
+                    if fd.get('duration', 0) > 0:
+                        root_name = fd.get('name', '')
+                        break
+                frames, total_values = (
+                    stats.get_values(root_name, 'duration') if root_name
+                    else (np.array([], dtype=int), np.array([], dtype=float))
+                )
+                if len(frames) == 0 or len(total_values) == 0:
+                    continue
+                has_total = True
+                v_plot, ylabel = self._auto_time_unit(total_values)
+                ax.plot(
+                    frames, v_plot, label=cfg, color=color_map[cfg],
+                    marker='o', markersize=2.5, linewidth=1.2
+                )
+            if has_total:
+                ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+                ax.set_xlabel('Frame')
+                ax.set_ylabel(ylabel)
+                ax.set_title('Total Time Per Frame')
+                ax.grid(True, alpha=0.3)
+                ax.legend()
+                plt.tight_layout()
+                total_name = 'total_time_per_frame.svg'
+                plt.savefig(plots_dir / total_name, dpi=150, bbox_inches='tight')
+                total_time_rel = f'plots/{total_name}'
+            plt.close(fig)
+
+        # 3) One per-timer panel (duration + count in one chart when metric=duration)
+        compared_count = None
+        if metric == 'duration':
+            compared_count = self._compare_many(
+                stats_map, keys=keys, metric='count', align=align
+            )
+
+        line_paths = {}
+        count_means = {}
+        for timer in timers:
+            item = compared['timers'][timer]
+            frames = item['frames']
+            if len(frames) == 0:
+                continue
+
+            fig, ax_dur = plt.subplots(figsize=(9, 4))
+            if metric == 'duration':
+                all_series = np.concatenate([item['values'][cfg] for cfg in configs]) \
+                    if len(configs) > 0 else np.array([], dtype=float)
+                _, ylabel = self._auto_time_unit(all_series)
+                max_val = np.max(np.abs(all_series)) if len(all_series) > 0 else 0.0
+                if max_val < 1e-3 and max_val > 0:
+                    scale = 1e6
+                elif max_val < 1.0 and max_val > 0:
+                    scale = 1e3
+                else:
+                    scale = 1.0
+
+                for cfg in configs:
+                    ax_dur.plot(
+                        frames,
+                        item['values'][cfg] * scale,
+                        label=f'{cfg} (time)',
+                        color=color_map[cfg],
+                        marker='o',
+                        markersize=2.5,
+                        linewidth=1.2,
+                    )
+
+                ax_cnt = ax_dur.twinx()
+                count_item = compared_count['timers'].get(timer) if compared_count else None
+                if count_item is not None and len(count_item['frames']) > 0:
+                    bar_total_w = 0.72
+                    bar_w = bar_total_w / max(len(configs), 1)
+                    for cfg in configs:
+                        cfg_i = configs.index(cfg)
+                        offset = (cfg_i - (len(configs) - 1) / 2.0) * bar_w
+                        ax_cnt.plot(
+                            [], [],
+                            label=f'{cfg} (count)',
+                            color=color_map[cfg]
+                        )
+                        ax_cnt.bar(
+                            count_item['frames'] + offset,
+                            count_item['values'][cfg],
+                            width=bar_w,
+                            color=color_map[cfg],
+                            alpha=0.28,
+                        )
+                    count_means[timer] = count_item['means']
+                ax_cnt.set_ylabel('Count')
+                ax_cnt.tick_params(axis='y')
+
+                lines_d, labels_d = ax_dur.get_legend_handles_labels()
+                lines_c, labels_c = ax_cnt.get_legend_handles_labels()
+                if lines_d or lines_c:
+                    ax_dur.legend(lines_d + lines_c, labels_d + labels_c,
+                                  loc='upper left', fontsize=8, ncol=2)
+                ax_dur.set_ylabel(ylabel)
+                ax_dur.set_title(f'{display_map.get(timer, timer)} (time + count)')
+            else:
+                for cfg in configs:
+                    ax_dur.plot(
+                        frames,
+                        item['values'][cfg],
+                        label=cfg,
+                        color=color_map[cfg],
+                        marker='o',
+                        markersize=2.5,
+                        linewidth=1.2,
+                    )
+                ax_dur.set_ylabel('Count')
+                ax_dur.set_title(f'{display_map.get(timer, timer)} (count)')
+                ax_dur.legend(loc='upper left')
+
+            ax_dur.xaxis.set_major_locator(MaxNLocator(integer=True))
+            ax_dur.set_xlabel('Frame')
+            ax_dur.grid(True, alpha=0.3)
+            plt.tight_layout()
+            line_name = f'line_{self._safe_name(timer)}.svg'
+            plt.savefig(plots_dir / line_name, dpi=150, bbox_inches='tight')
+            plt.close(fig)
+            line_paths[timer] = f'plots/{line_name}'
+
+        # Markdown report
+        lines = ['# N-Config Comparison Report', '']
+        lines.append(f'- Metric: `{metric}`')
+        lines.append(f'- Alignment: `{align}`')
+        lines.append('')
+        lines.append('## Heatmaps')
+        lines.append('')
+        for cfg in configs:
+            if cfg in heatmap_paths:
+                lines.append(f'### {cfg}')
+                lines.append('')
+                lines.append(f'![]({heatmap_paths[cfg]})')
+                lines.append('')
+
+        if grouped_bar_rel is not None:
+            lines.append('## Grouped Bar Chart')
+            lines.append('')
+            lines.append(f'![]({grouped_bar_rel})')
+            lines.append('')
+
+        if total_time_rel is not None:
+            lines.append('## Total Time Per Frame')
+            lines.append('')
+            lines.append(f'![]({total_time_rel})')
+            lines.append('')
+
+        lines.append('## Framewise Time + Count Charts')
+        lines.append('')
+        for timer in timers:
+            if timer in line_paths:
+                lines.append(f'### {display_map.get(timer, timer)}')
+                lines.append('')
+                lines.append(f'![]({line_paths[timer]})')
+                lines.append('')
+
+        lines.append('## Per-Timer Means')
+        lines.append('')
+        header = '| Timer | ' + ' | '.join(configs) + ' |'
+        sep = '|---|' + '|'.join(['---:'] * len(configs)) + '|'
+        lines.append(header)
+        lines.append(sep)
+        for timer in timers:
+            means = compared['timers'][timer]['means']
+            row = '| ' + timer + ' | ' + ' | '.join(
+                f"{means[cfg]:.6f}" for cfg in configs
+            ) + ' |'
+            lines.append(row)
+        lines.append('')
+
+        if count_means:
+            lines.append('## Per-Timer Mean Counts')
+            lines.append('')
+            lines.append(header)
+            lines.append(sep)
+            for timer in timers:
+                if timer not in count_means:
+                    continue
+                means = count_means[timer]
+                row = '| ' + display_map.get(timer, timer) + ' | ' + ' | '.join(
+                    f"{means[cfg]:.6f}" for cfg in configs
+                ) + ' |'
+                lines.append(row)
+            lines.append('')
+
+        md_text = '\n'.join(lines)
+        (out / 'compare_many.md').write_text(md_text, encoding='utf-8')
+
+        json_data = {
+            'metric': metric,
+            'align': align,
+            'configs': configs,
+            'timers': {},
+        }
+        for timer in timers:
+            item = compared['timers'][timer]
+            json_data['timers'][timer] = {
+                'frames': item['frames'].tolist(),
+                'values': {
+                    cfg: item['values'][cfg].tolist()
+                    for cfg in configs
+                },
+                'means': item['means'],
+            }
+        (out / 'compare_many.json').write_text(
+            json.dumps(json_data, indent=2), encoding='utf-8'
+        )
+
+        return md_text
+
+    def plot(
+        self,
+        keys: str | list[str],
+        metric: Literal['duration', 'count'] = 'duration',
+        kind: Literal['line', 'bar'] = 'line',
+        title: str | None = None,
+        output_path: str | PathLike[str] | pathlib.Path | None = None,
+    ) -> Any:
+        """
+        Plot per-frame timer values as a line or bar chart.
+
+        Parameters
+        ----------
+        keys : str | list[str]
+            Timer name(s) to plot.
+        metric : str, optional
+            ``'duration'`` (seconds) or ``'count'``.
+        kind : str, optional
+            ``'line'`` for curves or ``'bar'`` for grouped bars.
+        title : str | None, optional
+            Chart title. Auto-generated when omitted.
+        output_path : str | os.PathLike[str] | None, optional
+            Save path for the figure. When omitted, the plot is shown.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            The created Matplotlib figure.
+
+        Raises
+        ------
+        ValueError
+            If ``metric`` or ``kind`` is invalid.
         """
         if metric not in ('duration', 'count'):
             raise ValueError(f"metric must be 'duration' or 'count', got '{metric}'")
@@ -305,15 +877,29 @@ class SimulationStats:
             plt.show()
         return fig
 
-    def to_markdown(self, keys=None, metric='duration', display_map=None):
-        """Export per-frame statistics as a Markdown table.
+    def to_markdown(
+        self,
+        keys: list[str] | str | None = None,
+        metric: Literal['duration', 'count'] = 'duration',
+        display_map: Mapping[str, str] | None = None,
+    ) -> str:
+        """
+        Export per-frame statistics as a Markdown table.
 
-        :param keys: Timer name(s) to include as columns.  When *None* all
-            timer names found in the collected data are used.
-        :param metric: ``'duration'`` (seconds) or ``'count'``.
-        :param display_map: Optional ``{timer_name: display_label}`` dict
-            for column headers.
-        :return: A Markdown-formatted table as a plain string.
+        Parameters
+        ----------
+        keys : list[str] | str | None, optional
+            Timer name(s) used as table columns. If ``None``, all timers found
+            in data are included.
+        metric : str, optional
+            ``'duration'`` (seconds) or ``'count'``.
+        display_map : dict[str, str] | None, optional
+            Optional timer-name to display-label mapping.
+
+        Returns
+        -------
+        str
+            Markdown-formatted table text.
         """
         if keys is None:
             found = set()
@@ -354,7 +940,12 @@ class SimulationStats:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _draw_profiler_heatmap(ax, timer_data, max_depth=999, include_other=True):
+    def _draw_profiler_heatmap(
+        ax: Any,
+        timer_data: dict[str, Any],
+        max_depth: int = 999,
+        include_other: bool = True,
+    ) -> bool:
         """Draw a hierarchical sunburst chart onto *ax*."""
         if not timer_data.get('children'):
             return False
@@ -369,7 +960,7 @@ class SimulationStats:
         if total_duration == 0:
             return False
 
-        def collect_level(node, depth=0, parent_name='root'):
+        def collect_level(node: dict[str, Any], depth: int = 0, parent_name: str = 'root') -> None:
             if depth > max_depth:
                 return
             name = node.get('name', 'Unknown')
@@ -514,18 +1105,26 @@ class SimulationStats:
         return True
 
     @staticmethod
-    def _merge_timer_trees(frames):
-        """Merge multiple per-frame timer trees into one by summing durations and counts.
+    def _merge_timer_trees(frames: list[dict[str, Any]]) -> dict[str, Any]:
+        """
+        Merge multiple per-frame timer trees by summing durations and counts.
 
-        :param frames: List of timer tree dicts (one per frame).
-        :return: A single merged timer tree dict.
+        Parameters
+        ----------
+        frames : list[dict[str, Any]]
+            Timer trees, one entry per frame.
+
+        Returns
+        -------
+        dict[str, Any]
+            One merged timer tree.
         """
         if not frames:
             return {}
         if len(frames) == 1:
             return frames[0]
 
-        def _merge_node(target, source):
+        def _merge_node(target: dict[str, Any], source: dict[str, Any]) -> None:
             target['duration'] = target.get('duration', 0) + source.get('duration', 0)
             target['count'] = target.get('count', 0) + source.get('count', 0)
             target_children = {c['name']: c for c in target.get('children', [])}
@@ -542,8 +1141,13 @@ class SimulationStats:
             _merge_node(merged, frame)
         return merged
 
-    def profiler_heatmap(self, frame_index=None, output_path=None,
-                         max_depth=999, include_other=True):
+    def profiler_heatmap(
+        self,
+        frame_index: int | None = None,
+        output_path: str | PathLike[str] | pathlib.Path | None = None,
+        max_depth: int = 999,
+        include_other: bool = True,
+    ) -> Any | None:
         """Create a hierarchical sunburst chart from collected frames.
 
         When multiple frames have been collected and *frame_index* is not
@@ -551,18 +1155,22 @@ class SimulationStats:
         into a single aggregate heatmap.  When only one frame exists, or
         a specific *frame_index* is given, that single frame is used.
 
-        :param frame_index: Which frame's timer data to visualise.
-            When *None* (default), all frames are merged if more than one
-            frame was collected; otherwise the single frame is used.
-            Pass an integer to select a specific frame (e.g. ``0`` for
-            the first, ``-1`` for the last).
-        :param output_path: File path to save the figure.  When *None*
-            the figure is shown interactively.
-        :param max_depth: Maximum depth of the hierarchy to include.
-        :param include_other: Whether to include "Other" slices for
-            unaccounted time.
-        :return: The :class:`matplotlib.figure.Figure` object, or *None*
-            if no data is available.
+        Parameters
+        ----------
+        frame_index : int | None, optional
+            Frame index to visualize. If omitted, all frames are merged when
+            more than one frame exists.
+        output_path : str | os.PathLike[str] | None, optional
+            Save path for the figure. When omitted, the figure is shown.
+        max_depth : int, optional
+            Maximum hierarchy depth to include.
+        include_other : bool, optional
+            Whether to include ``Other`` slices for unaccounted time.
+
+        Returns
+        -------
+        matplotlib.figure.Figure | None
+            The rendered figure, or ``None`` when data is unavailable.
         """
         if not self._frames:
             Logger.warn('No frames collected; cannot create profiler heatmap')
@@ -601,7 +1209,7 @@ class SimulationStats:
     ]
 
     @staticmethod
-    def _strip_system_name(name):
+    def _strip_system_name(name: str) -> str:
         """Remove common C++ namespace prefixes from a system name."""
         for prefix in SimulationStats._SYSTEM_NAME_PREFIXES:
             if name.startswith(prefix):
@@ -609,13 +1217,25 @@ class SimulationStats:
         return name
 
     @staticmethod
-    def _remove_overlaps(pos, sizes, iterations=80, pad=1.15):
-        """Push nodes apart until no bounding boxes overlap.
+    def _remove_overlaps(
+        pos: dict[Any, tuple[float, float]],
+        sizes: dict[Any, tuple[float, float]],
+        iterations: int = 80,
+        pad: float = 1.15,
+    ) -> None:
+        """
+        Push nodes apart until no bounding boxes overlap.
 
-        :param pos: ``{node: (x, y)}`` mutable dict of positions.
-        :param sizes: ``{node: (half_w, half_h)}`` half-extents.
-        :param iterations: Maximum adjustment passes.
-        :param pad: Multiplicative padding on extents.
+        Parameters
+        ----------
+        pos : dict[Any, tuple[float, float]]
+            Mutable node position map.
+        sizes : dict[Any, tuple[float, float]]
+            Node half-extents.
+        iterations : int, optional
+            Maximum adjustment iterations.
+        pad : float, optional
+            Multiplicative padding factor for extents.
         """
         node_list = list(pos.keys())
         for _ in range(iterations):
@@ -653,17 +1273,26 @@ class SimulationStats:
                 break
 
     @staticmethod
-    def _draw_system_dependency_graph(systems_json_path, output_path=None):
+    def _draw_system_dependency_graph(
+        systems_json_path: str | PathLike[str] | pathlib.Path,
+        output_path: str | PathLike[str] | pathlib.Path | None = None,
+    ) -> Any | None:
         """Render a directed dependency graph of backend systems.
 
         Nodes are drawn as rounded-rectangle label boxes that are
         guaranteed not to overlap.  Edges curve freely to avoid clutter.
 
-        :param systems_json_path: Path to ``systems.json``.
-        :param output_path: File path to save the figure (SVG recommended).
-            When *None* the figure is shown interactively.
-        :return: The :class:`matplotlib.figure.Figure`, or *None* if the
-            data could not be loaded.
+        Parameters
+        ----------
+        systems_json_path : str | os.PathLike[str]
+            Path to ``systems.json``.
+        output_path : str | os.PathLike[str] | None, optional
+            Save path for the figure. When omitted, the figure is shown.
+
+        Returns
+        -------
+        matplotlib.figure.Figure | None
+            The rendered figure, or ``None`` when the graph cannot be built.
         """
         try:
             import networkx as nx
@@ -841,14 +1470,25 @@ class SimulationStats:
             plt.show()
         return fig
 
-    def system_dependency_graph(self, systems_json, output_path=None):
-        """Create a standalone system dependency graph figure.
+    def system_dependency_graph(
+        self,
+        systems_json: str | PathLike[str] | pathlib.Path,
+        output_path: str | PathLike[str] | pathlib.Path | None = None,
+    ) -> Any | None:
+        """
+        Create a standalone system dependency graph figure.
 
-        :param systems_json: Path to ``systems.json`` or to the workspace
-            directory that contains it.
-        :param output_path: File path to save the figure (SVG recommended).
-        :return: The :class:`matplotlib.figure.Figure`, or *None* if the
-            file was not found.
+        Parameters
+        ----------
+        systems_json : str | os.PathLike[str]
+            Path to ``systems.json`` or a workspace directory containing it.
+        output_path : str | os.PathLike[str] | None, optional
+            Save path for the figure.
+
+        Returns
+        -------
+        matplotlib.figure.Figure | None
+            The rendered figure, or ``None`` if ``systems.json`` is missing.
         """
         p = pathlib.Path(systems_json)
         if p.is_dir():
@@ -863,13 +1503,31 @@ class SimulationStats:
     # Summary report
     # ------------------------------------------------------------------
 
-    def _save_dual_axis_panel(self, key, color_index, output_path, title=None):
-        """Save a single dual-axis (duration + count) figure for *key*.
+    def _save_dual_axis_panel(
+        self,
+        key: str,
+        color_index: int,
+        output_path: str | PathLike[str] | pathlib.Path,
+        title: str | None = None,
+    ) -> Any:
+        """
+        Save a single dual-axis (duration + count) panel for one timer.
 
-        :param key: Timer name (actual name in the timer tree).
-        :param color_index: Colour cycle index for the duration line.
-        :param output_path: File path to save the PNG.
-        :return: The :class:`matplotlib.figure.Figure` object.
+        Parameters
+        ----------
+        key : str
+            Timer name in the timer tree.
+        color_index : int
+            Color cycle index for the duration line.
+        output_path : str | os.PathLike[str]
+            Figure output path.
+        title : str | None, optional
+            Panel title.
+
+        Returns
+        -------
+        matplotlib.figure.Figure
+            The generated figure.
         """
         fig, ax_dur = plt.subplots(figsize=(8, 4))
         dur_color = f'C{color_index}'
@@ -924,12 +1582,17 @@ class SimulationStats:
         return fig
 
     @staticmethod
-    def _key_to_filename(key):
+    def _key_to_filename(key: str) -> str:
         """Convert a timer key to a safe filename stem."""
         return key.lower().replace(' ', '_')
 
-    def summary_report(self, keys=None, output_dir=None, workspace=None,
-                       aliases=None):
+    def summary_report(
+        self,
+        keys: list[str] | None = None,
+        output_dir: str | PathLike[str] | pathlib.Path | None = None,
+        workspace: str | PathLike[str] | pathlib.Path | None = None,
+        aliases: Mapping[str, str] | None = None,
+    ) -> pathlib.Path | None:
         """Generate a comprehensive performance summary as a folder.
 
         The output folder will contain:
@@ -942,22 +1605,24 @@ class SimulationStats:
         * ``system_deps.svg`` — directed graph of backend system
           dependencies (when *workspace* is provided).
 
-        :param keys: Timer names (or short alias keys) for per-frame
-            panels.  Defaults to ``['newton_iteration',
-            'global_linear_system', 'line_search', 'dcd', 'spmv']``.
-            Each key is resolved via regex patterns in
-            :attr:`DEFAULT_ALIASES` (or *aliases*).  Exact timer names
-            are also accepted.
-        :param output_dir: Directory to write the report into.  Created
-            if it does not exist.  When *None* the figures are shown
-            interactively and no files are written.
-        :param workspace: Path to the simulation workspace directory
-            that contains ``systems.json``.  When provided the backend
-            system dependency graph is included in the report.
-        :param aliases: Optional ``{alias: regex_pattern}`` dict merged
-            with :attr:`DEFAULT_ALIASES`.  User values take priority.
-        :return: The path to ``report.md`` as a :class:`pathlib.Path`,
-            or *None* when *output_dir* is not given.
+        Parameters
+        ----------
+        keys : list[str] | None, optional
+            Timer keys (or alias keys) for per-frame panels. Defaults to
+            ``['newton_iteration', 'global_linear_system', 'line_search', 'dcd', 'spmv']``.
+        output_dir : str | os.PathLike[str] | None, optional
+            Report output directory. When omitted, plots are shown
+            interactively and files are not written.
+        workspace : str | os.PathLike[str] | None, optional
+            Workspace path containing ``systems.json`` for dependency graph
+            rendering.
+        aliases : dict[str, str] | None, optional
+            Extra alias-to-regex mapping merged into ``DEFAULT_ALIASES``.
+
+        Returns
+        -------
+        pathlib.Path | None
+            Path to ``report.md`` when saved, otherwise ``None``.
         """
         if keys is None:
             keys = ['newton_iteration', 'global_linear_system',

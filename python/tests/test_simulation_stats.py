@@ -303,3 +303,168 @@ def test_summary_report_total_time_first_plot():
     )
     # The SVG file must be referenced in the markdown
     assert 'total_time_per_frame.svg' in md_text
+
+
+def _remove_top_level_timer(frame_data, timer_name):
+    copied = dict(frame_data)
+    copied['children'] = [
+        child for child in frame_data.get('children', []) if child.get('name') != timer_name
+    ]
+    return copied
+
+
+@pytest.mark.basic
+def test_compare_many_union_alignment_duration():
+    baseline = SimulationStats()
+    optimized = SimulationStats()
+    for i in range(3):
+        baseline._frames.append(_make_timer_data(i))
+        optimized._frames.append(_make_timer_data(i))
+
+    # Remove Newton on frame 1 in optimized so union alignment must fill 0.
+    optimized._frames[1] = _remove_top_level_timer(optimized._frames[1], 'Newton')
+    # Increase Newton duration on frame 2 in optimized to make the difference obvious.
+    for child in optimized._frames[2]['children']:
+        if child['name'] == 'Newton':
+            child['duration'] += 0.1
+
+    result = baseline._compare_many(
+        {'baseline': baseline, 'optimized': optimized},
+        keys=['Newton'],
+        metric='duration',
+        align='union',
+    )
+    item = result['timers']['Newton']
+    np.testing.assert_array_equal(item['frames'], np.array([0, 1, 2], dtype=int))
+    np.testing.assert_allclose(item['values']['baseline'], np.array([0.5, 0.51, 0.52]))
+    np.testing.assert_allclose(item['values']['optimized'], np.array([0.5, 0.0, 0.62]))
+
+
+@pytest.mark.basic
+def test_compare_many_intersection_alignment():
+    baseline = SimulationStats()
+    optimized = SimulationStats()
+    for i in range(3):
+        baseline._frames.append(_make_timer_data(i))
+        optimized._frames.append(_make_timer_data(i))
+
+    optimized._frames[1] = _remove_top_level_timer(optimized._frames[1], 'Newton')
+    result = baseline._compare_many(
+        {'baseline': baseline, 'optimized': optimized},
+        keys=['Newton'],
+        metric='duration',
+        align='intersection',
+    )
+    item = result['timers']['Newton']
+    np.testing.assert_array_equal(item['frames'], np.array([0, 2], dtype=int))
+    np.testing.assert_allclose(item['values']['baseline'], np.array([0.5, 0.52]))
+    np.testing.assert_allclose(item['values']['optimized'], np.array([0.5, 0.52]))
+
+
+@pytest.mark.basic
+def test_compare_many_count_metric():
+    baseline = SimulationStats()
+    optimized = SimulationStats()
+    for i in range(2):
+        baseline._frames.append(_make_timer_data(i))
+        optimized._frames.append(_make_timer_data(i))
+
+    # Bump PCG count in frame 1
+    for child in optimized._frames[1]['children']:
+        if child['name'] == 'Newton':
+            for nested in child['children']:
+                if nested['name'] == 'PCG':
+                    nested['count'] += 5
+
+    result = baseline._compare_many(
+        {'baseline': baseline, 'optimized': optimized},
+        keys=['PCG'],
+        metric='count',
+    )
+    item = result['timers']['PCG']
+    np.testing.assert_array_equal(item['frames'], np.array([0, 1], dtype=int))
+    np.testing.assert_allclose(item['values']['baseline'], np.array([10.0, 12.0]))
+    np.testing.assert_allclose(item['values']['optimized'], np.array([10.0, 17.0]))
+
+
+@pytest.mark.basic
+def test_compare_many_default_key_discovery():
+    baseline = SimulationStats()
+    optimized = SimulationStats()
+    for i in range(2):
+        baseline._frames.append(_make_timer_data(i))
+        optimized._frames.append(_make_timer_data(i))
+
+    compared = baseline._compare_many(
+        {'baseline': baseline, 'optimized': optimized},
+        keys=None,
+        metric='duration',
+        align='union',
+    )
+    assert 'Newton' in compared['timers']
+    assert 'Collision Detection' in compared['timers']
+
+
+@pytest.mark.basic
+def test_compare_many_unknown_key_returns_empty():
+    baseline = SimulationStats()
+    optimized = SimulationStats()
+    baseline._frames.append(_make_timer_data(0))
+    optimized._frames.append(_make_timer_data(0))
+
+    result = baseline._compare_many(
+        {'baseline': baseline, 'optimized': optimized},
+        keys=['NoSuchTimer'],
+        metric='duration',
+        align='union',
+    )
+    item = result['timers']['NoSuchTimer']
+    assert len(item['frames']) == 0
+    assert len(item['values']['baseline']) == 0
+    assert len(item['values']['optimized']) == 0
+
+
+@pytest.mark.basic
+def test_compare_many_report_generates_artifacts(tmp_path):
+    baseline = SimulationStats()
+    optimized = SimulationStats()
+    candidate = SimulationStats()
+    for i in range(3):
+        baseline._frames.append(_make_timer_data(i))
+        optimized._frames.append(_make_timer_data(i))
+        candidate._frames.append(_make_timer_data(i))
+
+    # Make candidate slower in Newton for visible chart differences.
+    for child in candidate._frames[2]['children']:
+        if child['name'] == 'Newton':
+            child['duration'] += 0.2
+
+    output_dir = tmp_path / 'nway_compare'
+    md = SimulationStats.create_comparison(
+        {
+            'baseline': baseline,
+            'optimized': optimized,
+            'candidate': candidate,
+        },
+        output_dir=str(output_dir),
+        keys=['Newton', 'PCG'],
+        metric='duration',
+        align='union',
+    )
+
+    assert (output_dir / 'compare_many.md').exists()
+    assert (output_dir / 'compare_many.json').exists()
+    assert (output_dir / 'plots' / 'grouped_bar.svg').exists()
+    assert len(list((output_dir / 'plots').glob('heatmap_*.svg'))) == 3
+    assert len(list((output_dir / 'plots').glob('line_*.svg'))) >= 2
+    assert 'N-Config Comparison Report' in md
+
+
+@pytest.mark.basic
+def test_legacy_compare_apis_removed():
+    s = SimulationStats()
+    assert not hasattr(s, 'compare_values')
+    assert not hasattr(s, 'compare_timers')
+    assert not hasattr(s, 'compare_report')
+    assert not hasattr(s, 'compare_many')
+    assert not hasattr(s, 'compare_many_report')

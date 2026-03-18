@@ -106,6 +106,8 @@ class InfoStacklessBVH
                QueryBuffer& qbuffer);
     template <std::invocable<IndexT, IndexT> Pred = DefaultQueryCallback>
     void query(muda::CBufferView<AABB> query_aabbs, Pred callback, QueryBuffer& qbuffer);
+    Config&               config() noexcept { return m_impl.config; }
+    const Config&         config() const noexcept { return m_impl.config; }
 
   public:
     class Impl
@@ -129,7 +131,10 @@ class InfoStacklessBVH
                           muda::CBufferView<IndexT> cids);
 
         template <typename NodeCull, typename PairPred>
-        void stacklessSelf(NodeCull node_cull, PairPred pair_pred, muda::VarView<int> cpNum, muda::BufferView<Vector2i> buffer);
+        void stacklessSelf(NodeCull node_cull,
+                           PairPred pair_pred,
+                           muda::VarView<int> cpNum,
+                           muda::BufferView<Vector2i> buffer);
 
         template <typename NodeCull, typename PairPred>
         void stacklessOther(NodeCull                    node_cull,

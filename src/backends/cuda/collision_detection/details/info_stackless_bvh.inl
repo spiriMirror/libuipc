@@ -571,26 +571,33 @@ void InfoStacklessBVH::Impl::stacklessSelf(NodeCull node_cull,
                         if(st == -1)
                             break;
                         auto node = _nodes(st);
-                        if(node.bound.intersects(bv) && node_cull(idx, node.bid, node.cid))
+                        if(!node.bound.intersects(bv))
                         {
-                            if(node.lc == -1)
-                            {
-                                if(tid < st - intSize)
-                                {
-                                    auto pair = ordered_pair(idx, _lvs_idx(st - intSize));
-                                    if(pair_pred(pair.x, pair.y))
-                                    {
-                                        int sidx = atomicAdd(&shared_counter, 1);
-                                        if(sidx >= MAX_RES_PER_BLOCK)
-                                            break;
-                                        shared_res[sidx] = pair;
-                                    }
-                                }
-                                st = node.escape;
-                            }
-                            else st = node.lc;
+                            st = node.escape;
+                            continue;
                         }
-                        else st = node.escape;
+                        if(!node_cull(idx, node.bid, node.cid))
+                        {
+                            st = node.escape;
+                            continue;
+                        }
+                        if(node.lc == -1)
+                        {
+                            if(tid < st - intSize)
+                            {
+                                auto pair = ordered_pair(idx, _lvs_idx(st - intSize));
+                                if(pair_pred(pair.x, pair.y))
+                                {
+                                    int sidx = atomicAdd(&shared_counter, 1);
+                                    if(sidx >= MAX_RES_PER_BLOCK)
+                                        break;
+                                    shared_res[sidx] = pair;
+                                }
+                            }
+                            st = node.escape;
+                        }
+                        else
+                            st = node.lc;
                     }
                     MUDA_ASSERT(inner_i < max_iter, "Exceeded max stackless iteration");
                 }
@@ -664,23 +671,30 @@ void InfoStacklessBVH::Impl::stacklessOther(NodeCull node_cull,
                         if(st == -1)
                             break;
                         auto node = _nodes(st);
-                        if(node.bound.intersects(bv) && node_cull(idx, node.bid, node.cid))
+                        if(!node.bound.intersects(bv))
                         {
-                            if(node.lc == -1)
-                            {
-                                auto pair = int2{idx, _lvs_idx(st - intSize)};
-                                if(pair_pred(pair.x, pair.y))
-                                {
-                                    int sidx = atomicAdd(&shared_counter, 1);
-                                    if(sidx >= MAX_RES_PER_BLOCK)
-                                        break;
-                                    shared_res[sidx] = pair;
-                                }
-                                st = node.escape;
-                            }
-                            else st = node.lc;
+                            st = node.escape;
+                            continue;
                         }
-                        else st = node.escape;
+                        if(!node_cull(idx, node.bid, node.cid))
+                        {
+                            st = node.escape;
+                            continue;
+                        }
+                        if(node.lc == -1)
+                        {
+                            auto pair = int2{idx, _lvs_idx(st - intSize)};
+                            if(pair_pred(pair.x, pair.y))
+                            {
+                                int sidx = atomicAdd(&shared_counter, 1);
+                                if(sidx >= MAX_RES_PER_BLOCK)
+                                    break;
+                                shared_res[sidx] = pair;
+                            }
+                            st = node.escape;
+                        }
+                        else
+                            st = node.lc;
                     }
                     MUDA_ASSERT(inner_i < max_iter, "Exceeded max stackless iteration");
                 }
@@ -758,8 +772,11 @@ inline void InfoStacklessBVH::detect(muda::CBuffer2DView<IndexT> cmts, NodePred 
     {
         BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
         m_impl.stacklessSelf(
-            [bids = m_BIDs.viewer().name("bids"), cids = m_CIDs.viewer().name("cids"), cmts = cmts.viewer().name("cmts")] __device__(IndexT i, IndexT node_bid, IndexT node_cid)
+            [bids = m_BIDs.viewer().name("bids"), cids = m_CIDs.viewer().name("cids"), cmts = cmts.viewer().name("cmts"), np = np] __device__(IndexT i, IndexT node_bid, IndexT node_cid)
             {
+                NodePredInfo info{i, node_bid, node_cid};
+                if(!np(info))
+                    return false;
                 auto qbid = bids(i);
                 auto qcid = cids(i);
                 if(node_bid != invalid && qbid == node_bid)
@@ -769,12 +786,11 @@ inline void InfoStacklessBVH::detect(muda::CBuffer2DView<IndexT> cmts, NodePred 
                     return false;
                 return true;
             },
-            [bids = m_BIDs.viewer().name("bids"), cids = m_CIDs.viewer().name("cids"), np = np, lp = lp] __device__(IndexT i, IndexT j)
+            [lp = lp] __device__(IndexT i, IndexT j)
             {
                 if(j <= i)
                     return false;
-                NodePredInfo info{i, bids(j), cids(j)};
-                return np(info) && lp(i, j);
+                return lp(i, j);
             },
             qbuffer.m_cpNum.view(),
             qbuffer.m_pairs.view());
@@ -844,8 +860,11 @@ inline void InfoStacklessBVH::query(muda::CBufferView<AABB> query_aabbs,
     {
         BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
         m_impl.stacklessOther(
-            [qb = query_BIDs.viewer().name("qb"), qc = query_CIDs.viewer().name("qc"), cmts = cmts.viewer().name("cmts")] __device__(IndexT i, IndexT node_bid, IndexT node_cid)
+            [qb = query_BIDs.viewer().name("qb"), qc = query_CIDs.viewer().name("qc"), cmts = cmts.viewer().name("cmts"), np = np] __device__(IndexT i, IndexT node_bid, IndexT node_cid)
             {
+                NodePredInfo info{i, node_bid, node_cid};
+                if(!np(info))
+                    return false;
                 auto qbid = qb(i);
                 auto qcid = qc(i);
                 if(node_bid != invalid && qbid == node_bid)
@@ -855,10 +874,9 @@ inline void InfoStacklessBVH::query(muda::CBufferView<AABB> query_aabbs,
                     return false;
                 return true;
             },
-            [bids = m_BIDs.viewer().name("bids"), cids = m_CIDs.viewer().name("cids"), np = np, lp = lp] __device__(IndexT i, IndexT j)
+            [lp = lp] __device__(IndexT i, IndexT j)
             {
-                NodePredInfo info{i, bids(j), cids(j)};
-                return np(info) && lp(i, j);
+                return lp(i, j);
             },
             query_aabbs,
             qbuffer.m_querySortedId.view(),
