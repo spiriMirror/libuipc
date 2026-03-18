@@ -50,10 +50,11 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("contact/eps_velocity", Float{0.01_m / 1.0_s});
 
     // default:
-    //  - stackless_bvh
+    //  - info_stackless_bvh
     // or:
+    //  - stackless_bvh
     //  - linear_bvh (slower)
-    config.create("collision_detection/method", std::string{"stackless_bvh"});
+    config.create("collision_detection/method", std::string{"info_stackless_bvh"});
 
     config.create("sanity_check/enable", IndexT{1});
     config.create("sanity_check/mode", std::string{"normal"});
