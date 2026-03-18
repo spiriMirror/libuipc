@@ -1,10 +1,11 @@
 #include <global_geometry/global_vertex_manager.h>
+#include <active_set_system/global_active_set_manager.h>
 #include <uipc/common/enumerate.h>
 #include <uipc/common/range.h>
 #include <muda/cub/device/device_reduce.h>
 #include <global_geometry/vertex_reporter.h>
-#include <sim_engine.h>
 #include <collision_detection/global_trajectory_filter.h>
+#include <sim_engine.h>
 
 /*************************************************************************************************
 * Core Implementation
@@ -16,8 +17,10 @@ REGISTER_SIM_SYSTEM(GlobalVertexManager);
 void GlobalVertexManager::do_build()
 {
     auto d_hat = world().scene().config().find<Float>("contact/d_hat");
-    m_impl.default_d_hat            = d_hat->view()[0];
-    m_impl.global_trajectory_filter = find<GlobalTrajectoryFilter>();
+    m_impl.default_d_hat = d_hat->view()[0];
+
+    m_impl.global_trajectory_filter  = find<GlobalTrajectoryFilter>();
+    m_impl.global_active_set_manager = find<GlobalActiveSetManager>();
 }
 
 void GlobalVertexManager::Impl::init()
@@ -127,6 +130,53 @@ void GlobalVertexManager::Impl::collect_vertex_displacements()
         VertexDisplacementInfo vd{this, i};
         R->report_displacements(vd);
     }
+}
+
+void GlobalVertexManager::Impl::prepare_AL_CCD()
+{
+    UIPC_ASSERT(global_active_set_manager, "GlobalActiveSetManager not enabled");
+    auto non_penetrate_positions = global_active_set_manager->non_penetrate_positions();
+    auto& tmp_pos = safe_positions;
+    UIPC_ASSERT(non_penetrate_positions.size() == positions.size(),
+                "Non-penetrate size not equal");
+    muda::ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(positions.size(),
+               [pos               = positions.viewer().name("pos"),
+                tmp_pos           = tmp_pos.viewer().name("tmp_pos"),
+                disp              = displacements.viewer().name("disp"),
+                non_penetrate_pos = non_penetrate_positions.viewer().name(
+                    "non_penetrate_pos")] __device__(int i) mutable
+               {
+                   disp(i)    = pos(i) - non_penetrate_pos(i);
+                   tmp_pos(i) = pos(i);
+                   pos(i)     = non_penetrate_pos(i);
+               });
+}
+
+void GlobalVertexManager::Impl::post_AL_CCD()
+{
+    auto& tmp_pos = safe_positions;
+    muda::BufferLaunch().copy<Vector3>(positions.view(), std::as_const(tmp_pos).view());
+}
+
+void GlobalVertexManager::Impl::recover_non_penetrate()
+{
+    using namespace muda;
+    UIPC_ASSERT(global_active_set_manager, "GlobalActiveSetManager not enabled");
+    auto non_penetrate_positions = global_active_set_manager->non_penetrate_positions();
+    UIPC_ASSERT(non_penetrate_positions.size() == positions.size(),
+                "Non-penetrate size not equal");
+    BufferLaunch().copy<Vector3>(positions.view(), non_penetrate_positions);
+}
+
+void GlobalVertexManager::VertexAttributeInfo::require_discard_friction() const noexcept
+{
+    // If the vertex attributes are updated in a way that will ruin the friction computation
+    // we need to discard the friction information in the global trajectory filter.
+    // ref: https://github.com/spiriMirror/libuipc/issues/303
+    if(m_impl->global_trajectory_filter)
+        m_impl->global_trajectory_filter->require_discard_friction();
 }
 
 void GlobalVertexManager::Impl::record_prev_positions()
@@ -286,15 +336,6 @@ muda::BufferView<Float> GlobalVertexManager::VertexAttributeInfo::d_hats() const
     return m_impl->subview(m_impl->d_hats, m_index);  // Assuming d_hats are stored in thicknesses
 }
 
-void GlobalVertexManager::VertexAttributeInfo::require_discard_friction() const noexcept
-{
-    // If the vertex attributes are updated in a way that will ruin the friction computation
-    // we need to discard the friction information in the global trajectory filter.
-    // ref: https://github.com/spiriMirror/libuipc/issues/303
-    if(m_impl->global_trajectory_filter)
-        m_impl->global_trajectory_filter->require_discard_friction();
-}
-
 SizeT GlobalVertexManager::VertexAttributeInfo::frame() const noexcept
 {
     return m_frame;
@@ -434,6 +475,21 @@ void GlobalVertexManager::step_forward(Float alpha)
 void GlobalVertexManager::record_start_point()
 {
     m_impl.record_start_point();
+}
+
+void GlobalVertexManager::prepare_AL_CCD()
+{
+    m_impl.prepare_AL_CCD();
+}
+
+void GlobalVertexManager::post_AL_CCD()
+{
+    m_impl.post_AL_CCD();
+}
+
+void GlobalVertexManager::recover_non_penetrate()
+{
+    m_impl.recover_non_penetrate();
 }
 
 muda::CBufferView<IndexT> GlobalVertexManager::dimensions() const noexcept

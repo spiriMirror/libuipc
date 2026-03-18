@@ -77,6 +77,7 @@ class FEMBDF1Integrator final : public FEMTimeIntegrator
 
                        v = (x - x_prev) * (1.0 / dt);
                    });
+
     }
 };
 

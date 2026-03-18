@@ -101,6 +101,8 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 
         void accuracy_check(GlobalLinearSystem::AccuracyInfo& info);
         void retrieve_solution(GlobalLinearSystem::SolutionInfo& info);
+        Float diag_norm();
+        Float mass_norm();
 
         SimSystemSlot<AffineBodyDynamics>       affine_body_dynamics;
         AffineBodyDynamics::Impl&               abd() const noexcept;
@@ -124,6 +126,8 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
 
         // diag hessian for preconditioner
         muda::DeviceBuffer<Matrix12x12> diag_hessian;
+        muda::DeviceBuffer<Float>       block_norm;
+        muda::DeviceVar<Float>          reduced_norm;
 
         Float dt = 0.0f;  // time step, used in assemble
     };
@@ -139,6 +143,8 @@ class ABDLinearSubsystem final : public DiagLinearSubsystem
     virtual void do_assemble(GlobalLinearSystem::DiagInfo& info) override;
     virtual void do_accuracy_check(GlobalLinearSystem::AccuracyInfo& info) override;
     virtual void do_retrieve_solution(GlobalLinearSystem::SolutionInfo& info) override;
+    virtual Float do_diag_norm(GlobalLinearSystem::DiagNormInfo& info) override;
+    virtual Float do_mass_norm(GlobalLinearSystem::DiagNormInfo& info) override;
 
     virtual U64 get_uid() const noexcept override;
 

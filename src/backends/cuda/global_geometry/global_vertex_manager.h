@@ -12,6 +12,7 @@ namespace uipc::backend::cuda
 {
 class GlobalTrajectoryFilter;
 class VertexReporter;
+class GlobalActiveSetManager;
 class GlobalVertexManager final : public SimSystem
 {
   public:
@@ -48,6 +49,7 @@ class GlobalVertexManager final : public SimSystem
         muda::BufferView<IndexT>  body_ids() const noexcept;
         // vert-wise d_hat
         muda::BufferView<Float> d_hats() const noexcept;
+
         /**
          * @breif require discard friction, if this update will ruin the friction computation
          * 
@@ -174,6 +176,10 @@ class GlobalVertexManager final : public SimSystem
 
         void collect_vertex_displacements();
 
+        void prepare_AL_CCD();
+        void post_AL_CCD();
+        void recover_non_penetrate();
+
         Float compute_axis_max_displacement();
         AABB  compute_vertex_bounding_box();
 
@@ -206,8 +212,8 @@ class GlobalVertexManager final : public SimSystem
         muda::DeviceVar<Vector3> min_pos;
         muda::DeviceVar<Vector3> max_pos;
 
-
         SimSystemSlot<GlobalTrajectoryFilter>   global_trajectory_filter;
+        SimSystemSlot<GlobalActiveSetManager>   global_active_set_manager;
         SimSystemSlotCollection<VertexReporter> vertex_reporters;
 
         OffsetCountCollection<IndexT> reporter_vertex_offsets_counts;
@@ -246,6 +252,10 @@ class GlobalVertexManager final : public SimSystem
     AABB compute_vertex_bounding_box();
     void step_forward(Float alpha);
     void record_start_point();
+
+    void prepare_AL_CCD();
+    void post_AL_CCD();
+    void recover_non_penetrate();
 
     friend class VertexReporter;
     void add_reporter(VertexReporter* reporter);

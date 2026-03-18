@@ -142,7 +142,7 @@ TEST_CASE("72_abd_driving_revolute_joint", "[abd][joint][driving]")
                     }
 
                     // 1. Enable is_constrained (set all values to 1)
-                    auto is_constrained = sc->edges().find<IndexT>(builtin::is_constrained);
+                    auto is_constrained = sc->edges().find<IndexT>("driving/is_constrained");
                     if(is_constrained)  // Check if attribute exists to avoid crash
                     {
                         auto constrained_view = view(*is_constrained);

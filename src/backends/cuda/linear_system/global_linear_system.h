@@ -8,7 +8,6 @@
 #include <linear_system/spmv.h>
 #include <utils/offset_count_collection.h>
 #include <energy_component_flags.h>
-
 namespace uipc::backend::cuda
 {
 // Define a simple POD to avoid constructing CUDA's built-in vector type with pmr allocators in host code
@@ -65,7 +64,7 @@ class GlobalLinearSystem : public SimSystem
       public:
         bool           gradient_only() const { return m_gradient_only; }
         ComponentFlags component_flags() const { return m_component_flags; }
-        void extent(SizeT hessian_count, SizeT dof_count) noexcept;
+        void extent(SizeT hessian_block_count, SizeT dof_count) noexcept;
 
       private:
         friend class Impl;
@@ -78,16 +77,10 @@ class GlobalLinearSystem : public SimSystem
     class ComputeGradientInfo
     {
       public:
-        /**
-         * Output gradient vector view
-         */
-        void buffer_view(muda::DenseVectorView<Float> grad) noexcept;
-        /**
-         * Specify which component to be taken into account during gradient computation
-         * - Contact: only consider contact part
-         * - Complement: only consider non-contact part
-         */
+        // - Contact: only consider contact part
+        // - Complement: only consider non-contact part
         void flags(ComponentFlags component) noexcept;
+        void buffer_view(muda::DenseVectorView<Float> grad) noexcept;
 
       private:
         friend class Impl;
@@ -103,8 +96,8 @@ class GlobalLinearSystem : public SimSystem
         {
         }
 
-        TripletMatrixView hessians() const { return m_hessians; }
-        DenseVectorView   gradients() const { return m_gradients; }
+        TripletMatrixView hessians() { return m_hessians; }
+        DenseVectorView   gradients() { return m_gradients; }
         bool              gradient_only() const { return m_gradient_only; }
         ComponentFlags    component_flags() const { return m_component_flags; }
 
@@ -115,14 +108,13 @@ class GlobalLinearSystem : public SimSystem
         DenseVectorView   m_gradients;
         bool              m_gradient_only   = false;
         ComponentFlags    m_component_flags = ComponentFlags::All;
-
-        Impl* m_impl = nullptr;
+        Impl*             m_impl = nullptr;
     };
 
     class OffDiagExtentInfo
     {
       public:
-        void extent(SizeT lr_hessian_block_count, SizeT rl_hessian_block_count) noexcept;
+        void extent(SizeT lr_hessian_block_count, SizeT rl_hassian_block_count) noexcept;
 
       private:
         friend class Impl;
@@ -186,6 +178,8 @@ class GlobalLinearSystem : public SimSystem
         SizeT m_index;
     };
 
+    using DiagNormInfo = LocalPreconditionerAssemblyInfo;
+
     class ApplyPreconditionerInfo
     {
       public:
@@ -196,13 +190,13 @@ class GlobalLinearSystem : public SimSystem
 
         DenseVectorView  z() { return m_z; }
         CDenseVectorView r() { return m_r; }
-        muda::CVarView<IndexT> converged() const { return m_converged; }
+        muda::CVarView<IndexT> converged() { return m_converged; }
 
       private:
         friend class Impl;
         DenseVectorView  m_z;
         CDenseVectorView m_r;
-        muda::CVarView<IndexT> m_converged{};
+        muda::CVarView<IndexT> m_converged;
         Impl*            m_impl = nullptr;
     };
 
@@ -216,7 +210,7 @@ class GlobalLinearSystem : public SimSystem
 
         CDenseVectorView r() const { return m_r; }
 
-        void satisfied(bool statisfied) { m_statisfied = statisfied; }
+        void satisfied(bool satisfied) { m_statisfied = satisfied; }
 
       private:
         friend class Impl;
@@ -316,6 +310,7 @@ class GlobalLinearSystem : public SimSystem
         Spmv                      spmver;
         MatrixConverter<Float, 3> converter;
 
+        bool initialized = false;
         bool empty_system = true;
 
         void apply_preconditioner(muda::DenseVectorView<Float>  z,
@@ -323,24 +318,22 @@ class GlobalLinearSystem : public SimSystem
                                   muda::CVarView<IndexT>        converged);
 
         void spmv(Float a, muda::CDenseVectorView<Float> x, Float b, muda::DenseVectorView<Float> y);
-        void spmv_dot(muda::CDenseVectorView<Float> x, muda::DenseVectorView<Float> y, muda::VarView<Float> d_dot);
+        void spmv_dot(muda::CDenseVectorView<Float> x,
+                      muda::DenseVectorView<Float>  y,
+                      muda::VarView<Float>          d_dot);
 
         bool accuracy_statisfied(muda::DenseVectorView<Float> r);
-
         void compute_gradient(ComputeGradientInfo& info);
+
+        Float diag_norm();
+        Float mass_norm();
 
         bool        need_debug_dump = false;
         std::string debug_dump_path;
     };
 
     SizeT dof_count() const;
-
-    /**
-     * @brief Interface to compute the gradient of the system.
-     * 
-     * The size of the gradient buffer should be equal to `dof_count()`.
-     */
-    void compute_gradient(ComputeGradientInfo& info);
+    void  compute_gradient(ComputeGradientInfo& info);
 
     muda::LinearSystemContext& ctx() noexcept { return m_impl.ctx; }
 
@@ -368,6 +361,10 @@ class GlobalLinearSystem : public SimSystem
 
     // only be called by SimEngine::do_advance()
     void solve();
+
+    // only be called by SimEngine::do_advance()
+    Float diag_norm();
+    Float mass_norm();
 
     Impl m_impl;
 

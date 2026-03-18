@@ -377,6 +377,62 @@ void FEMLinearSubsystem::Impl::retrieve_solution(GlobalLinearSystem::SolutionInf
                { dxs(i) = -result.segment<3>(i * 3).as_eigen(); });
 }
 
+Float FEMLinearSubsystem::Impl::diag_norm(GlobalLinearSystem::DiagNormInfo& info)
+{
+    diag_blocks_norm.resize(finite_element_method->xs().size());
+
+    muda::ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(info.A().triplet_count(),
+               [triplet = info.A().cviewer().name("triplet"),
+                diag_blocks_norm = diag_blocks_norm.viewer().name("diag_blocks_norm"),
+                fem_segment_offset = info.dof_offset() / 3,
+                fem_segment_count  = info.dof_count() / 3,
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               {
+                   auto&& [g_i, g_j, H3x3] = triplet(I);
+
+                   IndexT i = g_i - fem_segment_offset;
+                   IndexT j = g_j - fem_segment_offset;
+
+                   if(i >= fem_segment_count || j >= fem_segment_count)
+                       return;
+                   if(i == j)
+                   {
+                       auto a = abs(H3x3(0, 0));
+                       auto b = abs(H3x3(1, 1));
+                       auto c = abs(H3x3(2, 2));
+                       diag_blocks_norm(i) = is_fixed(i) ? 0 : max(max(a, b), c);
+                   }
+               });
+
+    muda::DeviceReduce().Max(diag_blocks_norm.data(),
+                             reduced_diag_norm.data(),
+                             diag_blocks_norm.size());
+
+    return reduced_diag_norm;
+}
+
+Float FEMLinearSubsystem::Impl::mass_norm(GlobalLinearSystem::DiagNormInfo& info)
+{
+    diag_blocks_norm.resize(fem().xs.size());
+    UIPC_ASSERT(fem().xs.size() == fem().masses.size(), "size not matched");
+
+    muda::ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(fem().xs.size(),
+               [mass = fem().masses.cviewer().name("mass"),
+                diag_blocks_norm = diag_blocks_norm.viewer().name("diag_blocks_norm"),
+                is_fixed = fem().is_fixed.cviewer().name("is_fixed")] __device__(int I) mutable
+               { diag_blocks_norm(I) = is_fixed(I) ? 0 : mass(I); });
+
+    muda::DeviceReduce().Max(diag_blocks_norm.data(),
+                             reduced_diag_norm.data(),
+                             diag_blocks_norm.size());
+
+    return reduced_diag_norm;
+}
+
 void FEMLinearSubsystem::Impl::loose_resize_entries(muda::DeviceDoubletVector<Float, 3>& v,
                                                     SizeT size)
 {
@@ -415,6 +471,16 @@ void FEMLinearSubsystem::do_report_init_extent(GlobalLinearSystem::InitDofExtent
 void FEMLinearSubsystem::do_receive_init_dof_info(GlobalLinearSystem::InitDofInfo& info)
 {
     m_impl.receive_init_dof_info(world(), info);
+}
+
+Float FEMLinearSubsystem::do_diag_norm(GlobalLinearSystem::DiagNormInfo& info)
+{
+    return m_impl.diag_norm(info);
+}
+
+Float FEMLinearSubsystem::do_mass_norm(GlobalLinearSystem::DiagNormInfo& info)
+{
+    return m_impl.mass_norm(info);
 }
 
 muda::DoubletVectorView<Float, 3> FEMLinearSubsystem::AssembleInfo::gradients() const

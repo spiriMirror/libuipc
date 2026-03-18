@@ -12,15 +12,33 @@ TEST_CASE("7_abd_tet_pile", "[abd]")
     namespace fs = std::filesystem;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto        output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
-    Engine engine{"cuda", output_path};
+    std::string this_output_path;
+    std::string contact_constitution;
+
+    SECTION("ipc")
+    {
+        this_output_path =
+            fmt::format("{}ipc/", AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE));
+        contact_constitution = "ipc";
+    };
+
+    SECTION("al-ipc")
+    {
+        this_output_path =
+            fmt::format("{}al-ipc/", AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE));
+        contact_constitution = "al-ipc";
+    };
+
+    Engine engine{"cuda", this_output_path};
     World  world{engine};
 
     auto config                             = test::Scene::default_config();
     config["gravity"]                       = Vector3{0, -9.8, 0};
     config["contact"]["friction"]["enable"] = false;
-    test::Scene::dump_config(config, output_path);
+    config["contact"]["constitution"]       = contact_constitution;
+
+    test::Scene::dump_config(config, this_output_path);
 
     Scene scene{config};
     {
@@ -86,7 +104,7 @@ TEST_CASE("7_abd_tet_pile", "[abd]")
     REQUIRE(world.is_valid());
 
     SceneIO sio{scene};
-    sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, 0));
+    sio.write_surface(fmt::format("{}scene_surface{}.obj", this_output_path, 0));
 
     while(world.frame() < 50)
     {
@@ -94,6 +112,6 @@ TEST_CASE("7_abd_tet_pile", "[abd]")
         REQUIRE(world.is_valid());
         world.retrieve();
         sio.write_surface(
-            fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
+            fmt::format("{}scene_surface{}.obj", this_output_path, world.frame()));
     }
 }

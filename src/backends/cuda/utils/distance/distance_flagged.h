@@ -235,8 +235,8 @@ MUDA_GENERIC Vector<IndexT, 3> point_edge_distance_flag(const Eigen::Vector<T, 3
     Vector<IndexT, 3> F;
     F[0] = 1;
 
-    Vector<T, 3> e     = e1 - e0;
-    T            e2    = e.squaredNorm();
+    Vector<T, 3> e  = e1 - e0;
+    T            e2 = e.squaredNorm();
     if(e2 <= static_cast<T>(0.0))
     {
         // Degenerate edge -> fallback to point-point against the nearest endpoint.
@@ -360,36 +360,36 @@ MUDA_GENERIC Vector4i point_triangle_distance_flag(const Eigen::Vector<T, 3>& p,
 
 namespace detail
 {
-template <typename T>
-MUDA_GENERIC void update_ee_near_parallel_candidate(const Eigen::Vector<T, 3>& p,
-                                                      const Eigen::Vector<T, 3>& s0,
-                                                      const Eigen::Vector<T, 3>& s1,
-                                                      T& minD,
-                                                      Vector4i& F,
-                                                      const Vector4i& F_pe,
-                                                      const Vector4i& F_pp0,
-                                                      const Vector4i& F_pp1,
-                                                      bool is_initial)
-{
-    auto pe_flag = point_edge_distance_flag(p, s0, s1);
-    T    d;
-    if(pe_flag[1] && pe_flag[2])
-        point_edge_distance2(p, s0, s1, d);
-    else if(pe_flag[1])
-        point_point_distance2(p, s0, d);
-    else
-        point_point_distance2(p, s1, d);
-    if(is_initial || d < minD)
+    template <typename T>
+    MUDA_GENERIC void update_ee_near_parallel_candidate(const Eigen::Vector<T, 3>& p,
+                                                        const Eigen::Vector<T, 3>& s0,
+                                                        const Eigen::Vector<T, 3>& s1,
+                                                        T&              minD,
+                                                        Vector4i&       F,
+                                                        const Vector4i& F_pe,
+                                                        const Vector4i& F_pp0,
+                                                        const Vector4i& F_pp1,
+                                                        bool is_initial)
     {
-        minD = d;
+        auto pe_flag = point_edge_distance_flag(p, s0, s1);
+        T    d;
         if(pe_flag[1] && pe_flag[2])
-            F = F_pe;
+            point_edge_distance2(p, s0, s1, d);
         else if(pe_flag[1])
-            F = F_pp0;
+            point_point_distance2(p, s0, d);
         else
-            F = F_pp1;
+            point_point_distance2(p, s1, d);
+        if(is_initial || d < minD)
+        {
+            minD = d;
+            if(pe_flag[1] && pe_flag[2])
+                F = F_pe;
+            else if(pe_flag[1])
+                F = F_pp0;
+            else
+                F = F_pp1;
+        }
     }
-}
 }  // namespace detail
 
 template <typename T>
@@ -398,7 +398,7 @@ MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
                                               const Eigen::Vector<T, 3>& eb0,
                                               const Eigen::Vector<T, 3>& eb1)
 {
-    Vector4i F = {1, 1, 1, 1};  // default EE
+    Vector4i    F                 = {1, 1, 1, 1};  // default EE
     constexpr T kEeParallelRelTol = static_cast<T>(1e-12);
 
     Eigen::Vector<T, 3> u  = ea1 - ea0;
@@ -412,7 +412,7 @@ MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
     T                   D  = a * c - b * b;  // always >= 0
     T                   tD = D;  // tc = tN / tD, default tD = D >= 0
     T                   sN, tN;
-    T                   uxv2 = u.cross(v).squaredNorm();
+    T                   uxv2          = u.cross(v).squaredNorm();
     bool                near_parallel = (uxv2 <= kEeParallelRelTol * a * c);
 
     // For near-parallel/collinear edges, avoid the dim==4 EE branch (line-line
@@ -421,26 +421,14 @@ MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
     if(near_parallel)
     {
         T minD = 0;
-        detail::update_ee_near_parallel_candidate(ea0, eb0, eb1, minD, F,
-                                                    Vector4i{1, 0, 1, 1},
-                                                    Vector4i{1, 0, 1, 0},
-                                                    Vector4i{1, 0, 0, 1},
-                                                    true);
-        detail::update_ee_near_parallel_candidate(ea1, eb0, eb1, minD, F,
-                                                    Vector4i{0, 1, 1, 1},
-                                                    Vector4i{0, 1, 1, 0},
-                                                    Vector4i{0, 1, 0, 1},
-                                                    false);
-        detail::update_ee_near_parallel_candidate(eb0, ea0, ea1, minD, F,
-                                                    Vector4i{1, 1, 1, 0},
-                                                    Vector4i{1, 0, 1, 0},
-                                                    Vector4i{0, 1, 1, 0},
-                                                    false);
-        detail::update_ee_near_parallel_candidate(eb1, ea0, ea1, minD, F,
-                                                    Vector4i{1, 1, 0, 1},
-                                                    Vector4i{1, 0, 0, 1},
-                                                    Vector4i{0, 1, 0, 1},
-                                                    false);
+        detail::update_ee_near_parallel_candidate(
+            ea0, eb0, eb1, minD, F, Vector4i{1, 0, 1, 1}, Vector4i{1, 0, 1, 0}, Vector4i{1, 0, 0, 1}, true);
+        detail::update_ee_near_parallel_candidate(
+            ea1, eb0, eb1, minD, F, Vector4i{0, 1, 1, 1}, Vector4i{0, 1, 1, 0}, Vector4i{0, 1, 0, 1}, false);
+        detail::update_ee_near_parallel_candidate(
+            eb0, ea0, ea1, minD, F, Vector4i{1, 1, 1, 0}, Vector4i{1, 0, 1, 0}, Vector4i{0, 1, 1, 0}, false);
+        detail::update_ee_near_parallel_candidate(
+            eb1, ea0, ea1, minD, F, Vector4i{1, 1, 0, 1}, Vector4i{1, 0, 0, 1}, Vector4i{0, 1, 0, 1}, false);
         return F;
     }
 
@@ -472,11 +460,8 @@ MUDA_GENERIC Vector4i edge_edge_distance_flag(const Eigen::Vector<T, 3>& ea0,
     else
     {
         tN = (a * e - b * d);
-        if(tN > 0.0 && tN < tD
-           && (u.cross(v).dot(w) == 0.0 || u.cross(v).squaredNorm() < 1.0e-20 * a * c))
+        if(tN > 0.0 && tN < tD && u.cross(v).dot(w) == 0.0)
         {
-            // if (tN > 0.0 && tN < tD && (u.cross(v).dot(w) == 0.0 || u.cross(v).squaredNorm() == 0.0)) {
-            // std::cout << u.cross(v).squaredNorm() / (a * c) << ": " << sN << " " << D << ", " << tN << " " << tD << std::endl;
             // avoid coplanar or nearly parallel EE
             if(sN < D / 2)
             {
