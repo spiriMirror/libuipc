@@ -1,4 +1,5 @@
 #include <active_set_system/global_active_set_manager.h>
+#include <active_set_system/al_stiffness_estimator.h>
 #include <utils/distance/edge_edge_mollifier.h>
 #include <active_set_system/active_set_reporter.h>
 #include <utils/codim_thickness.h>
@@ -7,8 +8,6 @@
 #include <contact_system/contact_models/sym/vertex_half_plane_distance.inl>
 #include <pipeline/al_ipc_pipeline_flag.h>
 #include <uipc/common/log.h>
-#include <finite_element/finite_element_vertex_reporter.h>
-#include <affine_body/affine_body_vertex_reporter.h>
 #include <implicit_geometry/half_plane_vertex_reporter.h>
 
 namespace uipc::backend::cuda
@@ -23,8 +22,6 @@ void GlobalActiveSetManager::do_build()
     m_impl.global_vertex_manager    = require<GlobalVertexManager>();
     m_impl.global_simplicial_surface_manager = require<GlobalSimplicialSurfaceManager>();
     m_impl.half_plane = find<HalfPlane>();
-    m_impl.fem        = find<FiniteElementMethod>();
-    m_impl.abd        = find<AffineBodyDynamics>();
 
     on_init_scene(
         [this]
@@ -38,44 +35,13 @@ void GlobalActiveSetManager::do_build()
 
 void GlobalActiveSetManager::Impl::init_mu()
 {
-    using namespace muda;
-    auto vertex_manager       = global_vertex_manager;
-    auto vertex_reporter_view = vertex_manager->m_impl.vertex_reporters.view();
-    mu_vertices.resize(vertex_manager->positions().size());
-    for(auto&& [i, R] : enumerate(vertex_reporter_view))
+    mu_vertices.resize(global_vertex_manager->positions().size());
+    mu_vertices.view().fill(0.0);
+
+    StiffnessEstimateInfo info{this};
+    for(auto&& [i, R] : enumerate(stiffness_estimators.view()))
     {
-        if(dynamic_cast<FiniteElementVertexReporter*>(R))
-        {
-            ParallelFor()
-                .file_line(__FILE__, __LINE__)
-                .apply(fem->masses().size(),
-                       [mu_vertices = mu_vertices.viewer()
-                                          .subview(R->vertex_offset(), R->vertex_count())
-                                          .name("mu_vertices"),
-                        masses       = fem->masses().cviewer().name("masses"),
-                        mu_scale_fem = mu_scale_fem,
-                        dt           = dt] __device__(int idx) mutable
-                       {
-                           mu_vertices(idx) = masses(idx) * mu_scale_fem * dt * dt;
-                       });
-        }
-        else if(dynamic_cast<AffineBodyVertexReporter*>(R))
-        {
-            ParallelFor()
-                .file_line(__FILE__, __LINE__)
-                .apply(abd->m_impl.vertex_id_to_body_id.size(),
-                       [mu_vertices = mu_vertices.viewer()
-                                          .subview(R->vertex_offset(), R->vertex_count())
-                                          .name("mu_vertices"),
-                        body_id = abd->m_impl.vertex_id_to_body_id.cviewer().name("body_id"),
-                        body_masses = abd->m_impl.body_id_to_abd_mass.cviewer().name("body_masses"),
-                        mu_scale_abd = mu_scale_abd,
-                        dt           = dt] __device__(int idx) mutable
-                       {
-                           mu_vertices(idx) = body_masses(body_id(idx)).mass()
-                                              * mu_scale_abd * dt * dt;
-                       });
-        }
+        R->estimate_mu(info);
     }
 }
 
@@ -827,21 +793,6 @@ muda::CBufferView<Vector3> GlobalActiveSetManager::non_penetrate_positions() con
     return m_impl.non_penetrate_positions.view();
 }
 
-Float GlobalActiveSetManager::mu_scale_hess() const
-{
-    return m_impl.mu_scale_hess;
-}
-
-Float GlobalActiveSetManager::mu_scale_fem() const
-{
-    return m_impl.mu_scale_fem;
-}
-
-Float GlobalActiveSetManager::mu_scale_abd() const
-{
-    return m_impl.mu_scale_abd;
-}
-
 muda::CBufferView<Float> GlobalActiveSetManager::mu_vertices() const
 {
     return m_impl.mu_vertices.view();
@@ -871,14 +822,26 @@ muda::BufferView<Vector3> GlobalActiveSetManager::NonPenetratePositionInfo::non_
     return m_impl->non_penetrate_positions.view(m_offset, m_count);
 }
 
+GlobalActiveSetManager::StiffnessEstimateInfo::StiffnessEstimateInfo(Impl* impl) noexcept
+    : m_impl(impl)
+{
+}
+
+muda::BufferView<Float> GlobalActiveSetManager::StiffnessEstimateInfo::mu_vertices(
+    SizeT offset, SizeT count) const noexcept
+{
+    return m_impl->mu_vertices.view(offset, count);
+}
+
+Float GlobalActiveSetManager::StiffnessEstimateInfo::dt() const noexcept
+{
+    return m_impl->dt;
+}
+
 void GlobalActiveSetManager::Impl::init(WorldVisitor& world)
 {
-    auto config   = world.scene().config();
-    mu_scale_hess = 0.01;
-    dt            = config.find<Float>("dt")->view()[0];
-    mu_scale_fem = config.find<Float>("contact/al-ipc/mu_scale_fem")->view()[0];
-    mu_scale_abd = config.find<Float>("contact/al-ipc/mu_scale_abd")->view()[0];
-    // mu_scale_mass  = 1e4;
+    auto config  = world.scene().config();
+    dt           = config.find<Float>("dt")->view()[0];
     decay_factor = config.find<Float>("contact/al-ipc/decay_factor")->view()[0];
     toi_threshold = config.find<Float>("contact/al-ipc/toi_threshold")->view()[0];
     energy_enabled = true;
@@ -958,5 +921,11 @@ void GlobalActiveSetManager::add_reporter(ActiveSetReporter* reporter)
 {
     check_state(SimEngineState::BuildSystems, "add_reporter()");
     m_impl.active_set_reporters.register_sim_system(*reporter);
+}
+
+void GlobalActiveSetManager::add_stiffness_estimator(ALStiffnessEstimator* estimator)
+{
+    check_state(SimEngineState::BuildSystems, "add_stiffness_estimator()");
+    m_impl.stiffness_estimators.register_sim_system(*estimator);
 }
 }  // namespace uipc::backend::cuda

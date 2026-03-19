@@ -11,6 +11,7 @@ namespace uipc::backend::cuda
 {
 
 class ActiveSetReporter;
+class ALStiffnessEstimator;
 
 class GlobalActiveSetManager final : public SimSystem
 {
@@ -32,6 +33,18 @@ class GlobalActiveSetManager final : public SimSystem
         SizeT m_count;
     };
 
+    class StiffnessEstimateInfo
+    {
+      public:
+        StiffnessEstimateInfo(Impl* impl) noexcept;
+        muda::BufferView<Float> mu_vertices(SizeT offset, SizeT count) const noexcept;
+        Float dt() const noexcept;
+
+      private:
+        friend class GlobalActiveSetManager;
+        Impl* m_impl;
+    };
+
     class Impl
     {
       public:
@@ -42,11 +55,10 @@ class GlobalActiveSetManager final : public SimSystem
         SimSystemSlot<GlobalTrajectoryFilter>  global_trajectory_filter;
         SimSystemSlot<SimplexTrajectoryFilter> simplex_trajectory_filter;
         SimSystemSlot<VertexHalfPlaneTrajectoryFilter> vertex_half_plane_trajectory_filter;
-        SimSystemSlot<HalfPlane>           half_plane;
-        SimSystemSlot<FiniteElementMethod> fem;
-        SimSystemSlot<AffineBodyDynamics>  abd;
+        SimSystemSlot<HalfPlane> half_plane;
 
-        SimSystemSlotCollection<ActiveSetReporter> active_set_reporters;
+        SimSystemSlotCollection<ActiveSetReporter>    active_set_reporters;
+        SimSystemSlotCollection<ALStiffnessEstimator> stiffness_estimators;
 
         muda::DeviceBuffer<Float> mu_vertices;
 
@@ -96,7 +108,6 @@ class GlobalActiveSetManager final : public SimSystem
         muda::DeviceBuffer<Vector3> non_penetrate_positions;
 
         Float decay_factor, dt;
-        Float mu_scale_hess, mu_scale_fem, mu_scale_abd;
         Float toi_threshold;
         bool  energy_enabled;
 
@@ -149,9 +160,6 @@ class GlobalActiveSetManager final : public SimSystem
 
     muda::CBufferView<Vector3> non_penetrate_positions() const;
 
-    Float                    mu_scale_hess() const;
-    Float                    mu_scale_fem() const;
-    Float                    mu_scale_abd() const;
     muda::CBufferView<Float> mu_vertices() const;
     //tex: $\Gamma$
     Float decay_factor() const;
@@ -181,6 +189,8 @@ class GlobalActiveSetManager final : public SimSystem
 
     friend class ActiveSetReporter;
     void add_reporter(ActiveSetReporter* reporter);
+    friend class ALStiffnessEstimator;
+    void add_stiffness_estimator(ALStiffnessEstimator* estimator);
 
     Impl m_impl;
 };
