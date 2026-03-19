@@ -131,7 +131,8 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                    {
                        Vector3i hinge = hinges(I);
                        Float    k     = bending_stiffnesses(I) * dt * dt;
-                       Float    r     = thicknesses(I);
+                       // thicknesses is indexed by global vertex id, not hinge id.
+                       Float    r     = thicknesses(hinge[1]);
 
                        Vector9 X;
                        X.segment<3>(0) = xs(hinge[0]);
@@ -175,7 +176,8 @@ class KirchhoffRodBending final : public FiniteElementExtraConstitution
                    {
                        Vector3i hinge = hinges(I);
                        Float    k     = bending_stiffnesses(I);
-                       Float    r     = thicknesses(I);
+                       // thicknesses is indexed by global vertex id, not hinge id.
+                       Float    r     = thicknesses(hinge[1]);
 
                        Vector9 X;
                        X.segment<3>(0) = xs(hinge[0]);

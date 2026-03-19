@@ -775,16 +775,7 @@ inline void InfoStacklessBVH::detect(muda::CBuffer2DView<IndexT> cmts, NodePred 
             [bids = m_BIDs.viewer().name("bids"), cids = m_CIDs.viewer().name("cids"), cmts = cmts.viewer().name("cmts"), np = np] __device__(IndexT i, IndexT node_bid, IndexT node_cid)
             {
                 NodePredInfo info{i, node_bid, node_cid};
-                if(!np(info))
-                    return false;
-                auto qbid = bids(i);
-                auto qcid = cids(i);
-                if(node_bid != invalid && qbid == node_bid)
-                    return false;
-                bool valid_cid = qcid != invalid && node_cid != invalid;
-                if(valid_cid && !cmts(qcid, node_cid))
-                    return false;
-                return true;
+                return np(info);
             },
             [lp = lp] __device__(IndexT i, IndexT j)
             {
@@ -860,19 +851,10 @@ inline void InfoStacklessBVH::query(muda::CBufferView<AABB> query_aabbs,
     {
         BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
         m_impl.stacklessOther(
-            [qb = query_BIDs.viewer().name("qb"), qc = query_CIDs.viewer().name("qc"), cmts = cmts.viewer().name("cmts"), np = np] __device__(IndexT i, IndexT node_bid, IndexT node_cid)
+            [np = np] __device__(IndexT i, IndexT node_bid, IndexT node_cid)
             {
                 NodePredInfo info{i, node_bid, node_cid};
-                if(!np(info))
-                    return false;
-                auto qbid = qb(i);
-                auto qcid = qc(i);
-                if(node_bid != invalid && qbid == node_bid)
-                    return false;
-                bool valid_cid = qcid != invalid && node_cid != invalid;
-                if(valid_cid && !cmts(qcid, node_cid))
-                    return false;
-                return true;
+                return np(info);
             },
             [lp = lp] __device__(IndexT i, IndexT j)
             {
