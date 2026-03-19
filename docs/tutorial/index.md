@@ -354,7 +354,7 @@ It's not the only way to consume the simulation data. Because the interest of th
 
 === "Python"
 
-    source: [hello_libuipc](https://github.com/spiriMirror/libuipc-samples/blob/main/python/1_hello_libuipc/main.py)
+    source: [hello_libuipc](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/1_hello_libuipc/main.py)
 
 ## Next Steps
 
