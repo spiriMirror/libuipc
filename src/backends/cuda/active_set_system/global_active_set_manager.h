@@ -4,11 +4,14 @@
 #include <collision_detection/global_trajectory_filter.h>
 #include <collision_detection/simplex_trajectory_filter.h>
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
+#include <finite_element/finite_element_method.h>
+#include <affine_body/affine_body_dynamics.h>
 
 namespace uipc::backend::cuda
 {
 
 class ActiveSetReporter;
+class ALStiffnessEstimator;
 
 class GlobalActiveSetManager final : public SimSystem
 {
@@ -30,6 +33,18 @@ class GlobalActiveSetManager final : public SimSystem
         SizeT m_count;
     };
 
+    class StiffnessEstimateInfo
+    {
+      public:
+        StiffnessEstimateInfo(Impl* impl) noexcept;
+        muda::BufferView<Float> mu_vertices(SizeT offset, SizeT count) const noexcept;
+        Float dt() const noexcept;
+
+      private:
+        friend class GlobalActiveSetManager;
+        Impl* m_impl;
+    };
+
     class Impl
     {
       public:
@@ -42,7 +57,10 @@ class GlobalActiveSetManager final : public SimSystem
         SimSystemSlot<VertexHalfPlaneTrajectoryFilter> vertex_half_plane_trajectory_filter;
         SimSystemSlot<HalfPlane> half_plane;
 
-        SimSystemSlotCollection<ActiveSetReporter> active_set_reporters;
+        SimSystemSlotCollection<ActiveSetReporter>    active_set_reporters;
+        SimSystemSlotCollection<ALStiffnessEstimator> stiffness_estimators;
+
+        muda::DeviceBuffer<Float> mu_vertices;
 
         muda::DeviceBuffer<Vector2i> PH_idx;
         muda::DeviceBuffer<Float>    PH_lambda;
@@ -89,8 +107,7 @@ class GlobalActiveSetManager final : public SimSystem
 
         muda::DeviceBuffer<Vector3> non_penetrate_positions;
 
-        Float mu, decay_factor;
-        Float mu_scale_hess, mu_scale_mass;
+        Float decay_factor, dt;
         Float toi_threshold;
         bool  energy_enabled;
 
@@ -104,6 +121,7 @@ class GlobalActiveSetManager final : public SimSystem
             buf.resize(new_size);
         }
 
+        void init_mu();
         void filter_active();
         void update_active_set();
         void linearize_constraints();
@@ -142,9 +160,7 @@ class GlobalActiveSetManager final : public SimSystem
 
     muda::CBufferView<Vector3> non_penetrate_positions() const;
 
-    Float mu() const;
-    Float mu_scale_hess() const;
-    Float mu_scale_mass() const;
+    muda::CBufferView<Float> mu_vertices() const;
     //tex: $\Gamma$
     Float decay_factor() const;
     Float toi_threshold() const;
@@ -157,6 +173,7 @@ class GlobalActiveSetManager final : public SimSystem
     friend class SimEngine;
     void init();
 
+    void init_mu();
     void filter_active();
     void update_active_set();
     void linearize_constraints();
@@ -169,10 +186,11 @@ class GlobalActiveSetManager final : public SimSystem
 
     void enable();
     void disable();
-    void mu(Float mu);
 
     friend class ActiveSetReporter;
     void add_reporter(ActiveSetReporter* reporter);
+    friend class ALStiffnessEstimator;
+    void add_stiffness_estimator(ALStiffnessEstimator* estimator);
 
     Impl m_impl;
 };

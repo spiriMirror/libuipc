@@ -40,7 +40,8 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("contact/friction/enable", IndexT{1});
     config.create("contact/constitution", std::string{"ipc"});
     // AL-IPC tuning knobs. They are ignored when contact/constitution != "al-ipc".
-    config.create("contact/al-ipc/mu_scale", Float{5e6});
+    config.create("contact/al-ipc/mu_scale_fem", Float{5e7});
+    config.create("contact/al-ipc/mu_scale_abd", Float{1e5});
     config.create("contact/al-ipc/toi_threshold", Float{0.1});
     config.create("contact/al-ipc/decay_factor", Float{0.3});
     config.create("contact/d_hat", Float{0.01});
