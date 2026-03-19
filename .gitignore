@@ -34,7 +34,7 @@ bin/
 
 # clion
 cmake-build-*/
-
+cmakebuild/
 
 # vsxmake
 vsxmake*/

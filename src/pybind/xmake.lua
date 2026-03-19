@@ -1,7 +1,16 @@
-add_requires("pybind11")
+add_requires("pybind11","python")
+add_requireconfs("python", "**.python", {
+    override = true,
+    version = get_config("python_version"),
+    system = get_config("python_system"),
+    configs = {
+        -- https://peps.python.org/pep-0513/#libpythonx-y-so-1
+        headeronly = is_plat("linux")
+    }
+})
 
 target("pyuipc")
-    add_rules("python.module")
+    add_rules("uipc.python")
     add_files("**.cpp")
     add_includedirs(os.scriptdir())
     add_headerfiles("**.h")
@@ -37,7 +46,8 @@ target("pyuipc")
         local python_source_dir = path.join(project_dir, "python")
         local build_dir = path.join(project_dir, "build")
         local python_build_dir = path.join(build_dir, "python")
-        local modules_target_dir = path.join(python_build_dir, "src", "uipc", "modules")
+        -- local modules_target_dir = path.join(python_build_dir, "src", "uipc", "modules")
+        local modules_target_dir = path.join(python_build_dir, "src", "uipc", "_native")
         
         -- Copy the entire python folder to build directory
         print("Copying python folder from " .. python_source_dir .. " to " .. python_build_dir)
@@ -62,14 +72,50 @@ target("pyuipc")
         
         -- Copy all files from target directory to modules directory
         -- Use os.cp with pattern to copy all files
-        os.cp(path.join(target_dir, "*.dll"), modules_target_dir, {
+        if target:is_plat("windows") then
+            os.cp(path.join(target_dir, "*.dll"), modules_target_dir, {
+                async = true,
+                detach = true,
+                copy_if_different = true
+            })
+        elseif target:is_plat("linux") then
+            os.cp(path.join(target_dir, "*.so"), modules_target_dir, {
+                async = true,
+                detach = true,
+                copy_if_different = true
+            })
+        else 
+            os.cp(path.join(target_dir, "*.dylib"), modules_target_dir, {
             async = true,
             detach = true,
             copy_if_different = true
         })
-        os.cp(path.join(target_dir, "*.pyd"), modules_target_dir, {
-            async = true,
-            detach = true,
-            copy_if_different = true
-        })
+        end
+    end)
+
+rule("uipc.python")
+    on_config(function (target)
+        target:set("kind", "shared")
+        target:set("prefixname", "")
+        target:add("runenvs", "PYTHONPATH", target:targetdir())
+        local soabi = target:extraconf("rules", "python.module", "soabi")
+        if soabi == nil or soabi then
+            import("lib.detect.find_tool")
+
+            local envs = target:pkgenvs()
+            local python = assert(find_tool("python3", {envs = envs}), "python not found!")
+            local result = try { function() return os.iorunv(python.program, {"-c", "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX'))"}) end}
+            if result then
+                result = result:trim()
+                if result ~= "None" then
+                    target:set("extension", result)
+                end
+            end
+        else
+            if target:is_plat("windows", "mingw") then
+                target:set("extension", ".pyd")
+            else
+                target:set("extension", ".so")
+            end
+        end
     end)
