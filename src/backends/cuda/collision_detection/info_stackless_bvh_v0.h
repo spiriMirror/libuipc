@@ -15,11 +15,11 @@
 
 namespace uipc::backend::cuda
 {
-// InfoStacklessBVH: LBVH with per-node body/contact ID metadata for early
-// subtree culling. The traversal kernels pre-load per-query bid/cid into
-// shared memory once per thread before the hot loop, eliminating repeated
-// global memory reads of query_bid/query_cid on every visited node.
-class InfoStacklessBVH
+// InfoStacklessBVHV0: LBVH with per-node body/contact ID metadata.
+// V0 (baseline): node_cull receives only (query_id, node_bid, node_cid);
+// the user's NodePred must read query_bid/query_cid from global memory via query_id.
+// Compare with InfoStacklessBVH which pre-loads query bid/cid into shared memory.
+class InfoStacklessBVHV0
 {
   public:
     struct DefaultQueryCallback
@@ -32,62 +32,18 @@ class InfoStacklessBVH
         }
     };
 
-    // NodePredInfo carries pre-loaded query bid/cid so the user's NodePred
-    // does NOT need to capture and read global arrays per node.
     class NodePredInfo
     {
       public:
-        IndexT query_id  = -1;
-        IndexT query_bid = -1;  // pre-loaded from shared memory
-        IndexT query_cid = -1;  // pre-loaded from shared memory
-        IndexT node_bid  = -1;
-        IndexT node_cid  = -1;
+        IndexT query_id = -1;
+        IndexT node_bid = -1;
+        IndexT node_cid = -1;
 
         NodePredInfo() = default;
-        MUDA_GENERIC NodePredInfo(IndexT query_id,
-                                  IndexT query_bid,
-                                  IndexT query_cid,
-                                  IndexT node_bid,
-                                  IndexT node_cid)
+        MUDA_GENERIC NodePredInfo(IndexT query_id, IndexT node_bid, IndexT node_cid)
             : query_id(query_id)
-            , query_bid(query_bid)
-            , query_cid(query_cid)
             , node_bid(node_bid)
             , node_cid(node_cid)
-        {
-        }
-    };
-
-    // LeafPredInfo carries the primitive pair plus their pre-resolved bid/cid.
-    // bid/cid come from shared memory (query side) and the BVH node struct
-    // (leaf side), so the user's LeafPred avoids global v2b / contact_ids reads
-    // for the body-pair check.
-    // NOTE: the bid/cid check is NOT redundant with NodePred — when an internal
-    // node has bid/cid == -1 (spans multiple bodies/contacts) NodePred cannot
-    // cull it; the exact check must happen here at the leaf.
-    class LeafPredInfo
-    {
-      public:
-        IndexT i     = -1;
-        IndexT j     = -1;
-        IndexT bid_i = -1;  // body ID of primitive i
-        IndexT cid_i = -1;  // contact ID of primitive i
-        IndexT bid_j = -1;  // body ID of primitive j
-        IndexT cid_j = -1;  // contact ID of primitive j
-
-        LeafPredInfo() = default;
-        MUDA_GENERIC LeafPredInfo(IndexT i,
-                                  IndexT j,
-                                  IndexT bid_i,
-                                  IndexT cid_i,
-                                  IndexT bid_j,
-                                  IndexT cid_j)
-            : i(i)
-            , j(j)
-            , bid_i(bid_i)
-            , cid_i(cid_i)
-            , bid_j(bid_j)
-            , cid_j(cid_j)
         {
         }
     };
@@ -106,7 +62,7 @@ class InfoStacklessBVH
         auto  viewer() const noexcept { return view().viewer(); }
 
       public:
-        friend class InfoStacklessBVH;
+        friend class InfoStacklessBVHV0;
         SizeT                            m_size = 0;
         muda::DeviceBuffer<Vector2i>     m_pairs;
         muda::DeviceBuffer<unsigned int> m_queryMtCode;
@@ -132,7 +88,7 @@ class InfoStacklessBVH
         Float reserve_ratio = 1.2;
     };
 
-    InfoStacklessBVH(muda::Stream& stream = muda::Stream::Default()) noexcept;
+    InfoStacklessBVHV0(muda::Stream& stream = muda::Stream::Default()) noexcept;
 
     void build(muda::CBufferView<AABB>   aabbs,
                muda::CBufferView<IndexT> BIDs,
@@ -179,21 +135,16 @@ class InfoStacklessBVH
                           muda::CBufferView<IndexT> bids,
                           muda::CBufferView<IndexT> cids);
 
-        // Pre-loads query bid/cid into shared memory before the traversal loop.
-        // node_cull receives (i, query_bid, query_cid, node_bid, node_cid).
         template <typename NodeCull, typename PairPred>
         void stacklessSelf(NodeCull                   node_cull,
                            PairPred                   pair_pred,
                            muda::VarView<int>         cpNum,
                            muda::BufferView<Vector2i> buffer);
 
-        // Pre-loads query_bids/query_cids into shared memory before the traversal loop.
         template <typename NodeCull, typename PairPred>
         void stacklessOther(NodeCull                    node_cull,
                             PairPred                    pair_pred,
                             muda::CBufferView<AABB>     query_aabbs,
-                            muda::CBufferView<IndexT>   query_bids,
-                            muda::CBufferView<IndexT>   query_cids,
                             muda::CBufferView<int>      query_sorted_id,
                             muda::VarView<int>          cpNum,
                             muda::BufferView<Vector2i>  buffer);
@@ -238,4 +189,4 @@ class InfoStacklessBVH
 };
 }  // namespace uipc::backend::cuda
 
-#include "details/info_stackless_bvh.inl"
+#include "details/info_stackless_bvh_v0.inl"
