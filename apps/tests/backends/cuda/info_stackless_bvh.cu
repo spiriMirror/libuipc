@@ -235,12 +235,12 @@ void run_internal_cull_proof_case()
     BufferLaunch().fill(leaf_pair_calls.view(), 0);
 
     impl.stacklessSelf(
-        [calls = node_cull_calls.data()] __device__(IndexT, IndexT, IndexT, IndexT, IndexT)
+        [calls = node_cull_calls.data()] __device__(const InfoStacklessBVH::NodePredInfo&)
         {
             atomicAdd(calls, 1);
             return false;
         },
-        [leaf_calls = leaf_pair_calls.data()] __device__(InfoStacklessBVH::LeafPredInfo)
+        [leaf_calls = leaf_pair_calls.data()] __device__(const InfoStacklessBVH::LeafPredInfo&)
         {
             atomicAdd(leaf_calls, 1);
             return true;
@@ -300,15 +300,15 @@ void run_internal_cull_rate_case()
 
     impl.stacklessSelf(
         [calls = node_cull_calls.data(),
-         rejects = node_cull_rejects.data()] __device__(IndexT i, IndexT, IndexT, IndexT, IndexT)
+         rejects = node_cull_rejects.data()] __device__(const InfoStacklessBVH::NodePredInfo& info)
         {
             atomicAdd(calls, 1);
-            bool keep = (i % 3) != 0;
+            bool keep = (info.query_id % 3) != 0;
             if(!keep)
                 atomicAdd(rejects, 1);
             return keep;
         },
-        [] __device__(InfoStacklessBVH::LeafPredInfo)
+        [] __device__(const InfoStacklessBVH::LeafPredInfo&)
         {
             return true;
         },

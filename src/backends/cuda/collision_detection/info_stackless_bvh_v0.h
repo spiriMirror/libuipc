@@ -22,16 +22,6 @@ namespace uipc::backend::cuda
 class InfoStacklessBVHV0
 {
   public:
-    struct DefaultQueryCallback
-    {
-        MUDA_GENERIC bool operator()(IndexT i, IndexT j) const
-        {
-            (void)i;
-            (void)j;
-            return true;
-        }
-    };
-
     class NodePredInfo
     {
       public:
@@ -51,10 +41,7 @@ class InfoStacklessBVHV0
     class QueryBuffer
     {
       public:
-        QueryBuffer()
-        {
-            m_pairs.resize(50 * 1024);
-        }
+        QueryBuffer() { m_pairs.resize(50 * 1024); }
 
         auto  view() const noexcept { return m_pairs.view(0, m_size); }
         void  reserve(size_t size) { m_pairs.resize(size); }
@@ -97,19 +84,15 @@ class InfoStacklessBVHV0
 
     template <typename NodePred, typename LeafPred>
     void detect(muda::CBuffer2DView<IndexT> cmts, NodePred np, LeafPred lp, QueryBuffer& qbuffer);
-    template <std::invocable<IndexT, IndexT> Pred = DefaultQueryCallback>
-    void detect(Pred callback, QueryBuffer& qbuffer);
 
     template <typename NodePred, typename LeafPred>
-    void query(muda::CBufferView<AABB>      query_aabbs,
-               muda::CBufferView<IndexT>    query_BIDs,
-               muda::CBufferView<IndexT>    query_CIDs,
-               muda::CBuffer2DView<IndexT>  cmts,
-               NodePred                     np,
-               LeafPred                     lp,
-               QueryBuffer&                 qbuffer);
-    template <std::invocable<IndexT, IndexT> Pred = DefaultQueryCallback>
-    void query(muda::CBufferView<AABB> query_aabbs, Pred callback, QueryBuffer& qbuffer);
+    void query(muda::CBufferView<AABB>     query_aabbs,
+               muda::CBufferView<IndexT>   query_BIDs,
+               muda::CBufferView<IndexT>   query_CIDs,
+               muda::CBuffer2DView<IndexT> cmts,
+               NodePred                    np,
+               LeafPred                    lp,
+               QueryBuffer&                qbuffer);
 
     Config&       config() noexcept { return m_impl.config; }
     const Config& config() const noexcept { return m_impl.config; }
@@ -142,17 +125,17 @@ class InfoStacklessBVHV0
                            muda::BufferView<Vector2i> buffer);
 
         template <typename NodeCull, typename PairPred>
-        void stacklessOther(NodeCull                    node_cull,
-                            PairPred                    pair_pred,
-                            muda::CBufferView<AABB>     query_aabbs,
-                            muda::CBufferView<int>      query_sorted_id,
-                            muda::VarView<int>          cpNum,
-                            muda::BufferView<Vector2i>  buffer);
+        void stacklessOther(NodeCull                   node_cull,
+                            PairPred                   pair_pred,
+                            muda::CBufferView<AABB>    query_aabbs,
+                            muda::CBufferView<int>     query_sorted_id,
+                            muda::VarView<int>         cpNum,
+                            muda::BufferView<Vector2i> buffer);
 
-        muda::CBufferView<AABB>   objs;
-        muda::CBufferView<IndexT> bids;
-        muda::CBufferView<IndexT> cids;
-        muda::DeviceVar<AABB>     scene_box;
+        muda::CBufferView<AABB>      objs;
+        muda::CBufferView<IndexT>    bids;
+        muda::CBufferView<IndexT>    cids;
+        muda::DeviceVar<AABB>        scene_box;
         muda::DeviceVector<uint32_t> flags;
         muda::DeviceVector<uint32_t> mtcode;
         muda::DeviceVector<int32_t>  sorted_id;
