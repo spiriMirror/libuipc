@@ -12,7 +12,6 @@ public:
     public:
         SimSystemSlot<AffineBodyDynamics>               affine_body_dynamics;
         SimSystemSlot<AffineBodyVertexReporter>         vertex_reporter;
-        AffineBodyDynamics::Impl& abd() { return affine_body_dynamics->m_impl; }
 
         muda::DeviceBuffer<Vector12> non_penetrate_q;
 

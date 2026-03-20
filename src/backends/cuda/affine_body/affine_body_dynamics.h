@@ -382,7 +382,12 @@ class AffineBodyDynamics : public SimSystem
     /**
      * @brief return dof `q` of the body
      */
-    auto qs() const noexcept { return m_impl.body_id_to_q.view(); }
+    auto qs() const noexcept { return m_impl.body_id_to_q.cview(); }
+
+    /**
+     * @brief overwrite the dof `q` of the body
+     */
+    void overwrite_qs(muda::CBufferView<Vector12> qs);
 
     /**
      * @brief return the delta dof `dq` of the body
@@ -539,7 +544,6 @@ class AffineBodyDynamics : public SimSystem
     friend class AffineBodyConstitution;
     friend class ABDGradientHessianComputer;
     friend class AffineBodyAnimator;
-    friend class ABDActiveSetReporter;
 
     friend class AffineBodyDiffParmReporter;
     friend class AffineBodyDiffDofReporter;

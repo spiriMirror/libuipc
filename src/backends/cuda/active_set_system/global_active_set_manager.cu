@@ -665,6 +665,17 @@ void GlobalActiveSetManager::Impl::recover_non_penetrate_positions()
         NonPenetratePositionInfo info(this, offset, count);
         R->recover_non_penetrate(info);
     }
+    global_vertex_manager->overwrite_positions(non_penetrate_positions.cview());
+}
+
+void GlobalActiveSetManager::Impl::prepare_ccd()
+{
+    global_vertex_manager->setup_ccd(non_penetrate_positions.cview());
+}
+
+void GlobalActiveSetManager::Impl::post_ccd()
+{
+    global_vertex_manager->restore_ccd();
 }
 
 void GlobalActiveSetManager::Impl::advance_non_penetrate_positions(Float alpha)
@@ -887,6 +898,43 @@ void GlobalActiveSetManager::update_friction()
     m_impl.update_friction();
 }
 
+void GlobalActiveSetManager::Impl::clear_friction_candidates()
+{
+    PTs_friction.resize(0);
+    PT_lambda_friction.resize(0);
+    EEs_friction.resize(0);
+    EE_lambda_friction.resize(0);
+    PHs_friction.resize(0);
+    PH_lambda_friction.resize(0);
+}
+
+void GlobalActiveSetManager::Impl::snapshot_friction_candidates()
+{
+    if(should_discard_friction_candidates)
+    {
+        clear_friction_candidates();
+        should_discard_friction_candidates = false;
+        return;
+    }
+    linearize_constraints();
+    update_friction();
+}
+
+void GlobalActiveSetManager::clear_friction_candidates()
+{
+    m_impl.clear_friction_candidates();
+}
+
+void GlobalActiveSetManager::snapshot_friction_candidates()
+{
+    m_impl.snapshot_friction_candidates();
+}
+
+void GlobalActiveSetManager::require_discard_friction()
+{
+    m_impl.should_discard_friction_candidates = true;
+}
+
 void GlobalActiveSetManager::record_non_penetrate_positions()
 {
     m_impl.record_non_penetrate_positions();
@@ -900,6 +948,16 @@ void GlobalActiveSetManager::recover_non_penetrate_positions()
 void GlobalActiveSetManager::advance_non_penetrate_positions(Float alpha)
 {
     m_impl.advance_non_penetrate_positions(alpha);
+}
+
+void GlobalActiveSetManager::prepare_ccd()
+{
+    m_impl.prepare_ccd();
+}
+
+void GlobalActiveSetManager::post_ccd()
+{
+    m_impl.post_ccd();
 }
 
 void GlobalActiveSetManager::enable()

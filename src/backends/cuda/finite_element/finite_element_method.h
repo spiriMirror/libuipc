@@ -311,7 +311,12 @@ class FiniteElementMethod final : public SimSystem
     auto is_fixed() const noexcept { return m_impl.is_fixed.view(); }
     auto is_dynamic() const noexcept { return m_impl.is_dynamic.view(); }
     auto x_bars() const noexcept { return m_impl.x_bars.view(); }
-    auto xs() const noexcept { return m_impl.xs.view(); }
+    auto xs() const noexcept { return m_impl.xs.cview(); }
+
+    /**
+     * @brief overwrite the vertex positions
+     */
+    void overwrite_xs(muda::CBufferView<Vector3> xs);
     auto dxs() const noexcept { return m_impl.dxs.view(); }
     auto x_temps() const noexcept { return m_impl.x_temps.view(); }
     auto vs() const noexcept { return m_impl.vs.view(); }
@@ -407,7 +412,6 @@ class FiniteElementMethod final : public SimSystem
     void add_reporter(FiniteElementConstitutionDiffParmReporter* reporter);  // only called by FiniteElementConstitutionDiffParmReporter
     friend class FiniteElementExtraConstitutionDiffParmReporter;
     void add_reporter(FiniteElementExtraConstitutionDiffParmReporter* reporter);  // only called by FiniteElementExtraConstitutionDiffParmReporter
-    friend class FEMActiveSetReporter;
 
     friend class FiniteElementDiffParmReporter;
     void add_kinetic_reporter(FiniteElementDiffParmReporter* reporter);  // only called by FiniteElementKineticDiffParmReporter

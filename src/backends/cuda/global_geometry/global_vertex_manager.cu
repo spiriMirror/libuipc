@@ -20,7 +20,7 @@ void GlobalVertexManager::do_build()
     m_impl.default_d_hat = d_hat->view()[0];
 
     m_impl.global_trajectory_filter  = find<GlobalTrajectoryFilter>();
-    m_impl.global_active_set_manager = find<GlobalActiveSetManager>();
+    m_impl.global_active_set_manager  = find<GlobalActiveSetManager>();
 }
 
 void GlobalVertexManager::Impl::init()
@@ -132,51 +132,47 @@ void GlobalVertexManager::Impl::collect_vertex_displacements()
     }
 }
 
-void GlobalVertexManager::Impl::prepare_AL_CCD()
+void GlobalVertexManager::Impl::setup_ccd(muda::CBufferView<Vector3> base_positions)
 {
-    UIPC_ASSERT(global_active_set_manager, "GlobalActiveSetManager not enabled");
-    auto non_penetrate_positions = global_active_set_manager->non_penetrate_positions();
     auto& tmp_pos = safe_positions;
-    UIPC_ASSERT(non_penetrate_positions.size() == positions.size(),
-                "Non-penetrate size not equal");
+    UIPC_ASSERT(base_positions.size() == positions.size(),
+                "Base positions size not equal to vertex count");
     muda::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(positions.size(),
-               [pos               = positions.viewer().name("pos"),
-                tmp_pos           = tmp_pos.viewer().name("tmp_pos"),
-                disp              = displacements.viewer().name("disp"),
-                non_penetrate_pos = non_penetrate_positions.viewer().name(
-                    "non_penetrate_pos")] __device__(int i) mutable
+               [pos      = positions.viewer().name("pos"),
+                tmp_pos  = tmp_pos.viewer().name("tmp_pos"),
+                disp     = displacements.viewer().name("disp"),
+                base_pos = base_positions.cviewer().name("base_pos")] __device__(int i) mutable
                {
-                   disp(i)    = pos(i) - non_penetrate_pos(i);
+                   disp(i)    = pos(i) - base_pos(i);
                    tmp_pos(i) = pos(i);
-                   pos(i)     = non_penetrate_pos(i);
+                   pos(i)     = base_pos(i);
                });
 }
 
-void GlobalVertexManager::Impl::post_AL_CCD()
+void GlobalVertexManager::Impl::restore_ccd()
 {
-    auto& tmp_pos = safe_positions;
-    muda::BufferLaunch().copy<Vector3>(positions.view(), std::as_const(tmp_pos).view());
+    muda::BufferLaunch().copy<Vector3>(positions.view(), std::as_const(safe_positions).view());
 }
 
-void GlobalVertexManager::Impl::recover_non_penetrate()
+void GlobalVertexManager::Impl::overwrite_positions(muda::CBufferView<Vector3> src)
 {
-    using namespace muda;
-    UIPC_ASSERT(global_active_set_manager, "GlobalActiveSetManager not enabled");
-    auto non_penetrate_positions = global_active_set_manager->non_penetrate_positions();
-    UIPC_ASSERT(non_penetrate_positions.size() == positions.size(),
-                "Non-penetrate size not equal");
-    BufferLaunch().copy<Vector3>(positions.view(), non_penetrate_positions);
+    UIPC_ASSERT(src.size() == positions.size(), "Source size not equal to vertex count");
+    muda::BufferLaunch().copy<Vector3>(positions.view(), src);
 }
 
 void GlobalVertexManager::VertexAttributeInfo::require_discard_friction() const noexcept
 {
     // If the vertex attributes are updated in a way that will ruin the friction computation
-    // we need to discard the friction information in the global trajectory filter.
+    // (e.g. geometry reset, topology change), all friction systems must discard their
+    // stale candidates before recording new ones at the start of the next frame.
+    // Without discarding, incorrect frictional forces would be applied.
     // ref: https://github.com/spiriMirror/libuipc/issues/303
-    if(m_impl->global_trajectory_filter)
-        m_impl->global_trajectory_filter->require_discard_friction();
+    if(auto& gtf = m_impl->global_trajectory_filter)
+        gtf->require_discard_friction();
+    if(auto& gasm = m_impl->global_active_set_manager)
+        gasm->require_discard_friction();
 }
 
 void GlobalVertexManager::Impl::record_prev_positions()
@@ -477,19 +473,19 @@ void GlobalVertexManager::record_start_point()
     m_impl.record_start_point();
 }
 
-void GlobalVertexManager::prepare_AL_CCD()
+void GlobalVertexManager::setup_ccd(muda::CBufferView<Vector3> base_positions)
 {
-    m_impl.prepare_AL_CCD();
+    m_impl.setup_ccd(base_positions);
 }
 
-void GlobalVertexManager::post_AL_CCD()
+void GlobalVertexManager::restore_ccd()
 {
-    m_impl.post_AL_CCD();
+    m_impl.restore_ccd();
 }
 
-void GlobalVertexManager::recover_non_penetrate()
+void GlobalVertexManager::overwrite_positions(muda::CBufferView<Vector3> src)
 {
-    m_impl.recover_non_penetrate();
+    m_impl.overwrite_positions(src);
 }
 
 muda::CBufferView<IndexT> GlobalVertexManager::dimensions() const noexcept
