@@ -24,7 +24,10 @@ struct NodePred
 
 struct LeafPred
 {
-    MUDA_GENERIC bool operator()(IndexT i, IndexT j) const { return ((i ^ j) & 1) == 0; }
+    MUDA_GENERIC bool operator()(const InfoStacklessBVH::LeafPredInfo& info) const
+    {
+        return ((info.i ^ info.j) & 1) == 0;
+    }
 };
 
 void check_cp_conservative(span<Vector2i> test, span<Vector2i> gt)
@@ -66,7 +69,7 @@ std::vector<Vector2i> brute_force_detect(span<const AABB>   aabbs,
                 continue;
             if(!allow_contact(cmts, cid_count, cids[i], cids[j]))
                 continue;
-            if(!lp(i, j))
+            if(!lp(InfoStacklessBVH::LeafPredInfo{i, j, bids[i], cids[i], bids[j], cids[j]}))
                 continue;
 
             pairs.emplace_back(i, j);
@@ -98,7 +101,7 @@ std::vector<Vector2i> brute_force_query(span<const AABB>   query_aabbs,
                 continue;
             if(!allow_contact(cmts, cid_count, query_cids[i], tree_cids[j]))
                 continue;
-            if(!lp(i, j))
+            if(!lp(InfoStacklessBVH::LeafPredInfo{i, j, query_bids[i], query_cids[i], tree_bids[j], tree_cids[j]}))
                 continue;
 
             pairs.emplace_back(i, j);
@@ -232,12 +235,12 @@ void run_internal_cull_proof_case()
     BufferLaunch().fill(leaf_pair_calls.view(), 0);
 
     impl.stacklessSelf(
-        [calls = node_cull_calls.data()] __device__(IndexT, IndexT, IndexT)
+        [calls = node_cull_calls.data()] __device__(const InfoStacklessBVH::NodePredInfo&)
         {
             atomicAdd(calls, 1);
             return false;
         },
-        [leaf_calls = leaf_pair_calls.data()] __device__(IndexT, IndexT)
+        [leaf_calls = leaf_pair_calls.data()] __device__(const InfoStacklessBVH::LeafPredInfo&)
         {
             atomicAdd(leaf_calls, 1);
             return true;
@@ -297,15 +300,15 @@ void run_internal_cull_rate_case()
 
     impl.stacklessSelf(
         [calls = node_cull_calls.data(),
-         rejects = node_cull_rejects.data()] __device__(IndexT i, IndexT, IndexT)
+         rejects = node_cull_rejects.data()] __device__(const InfoStacklessBVH::NodePredInfo& info)
         {
             atomicAdd(calls, 1);
-            bool keep = (i % 3) != 0;
+            bool keep = (info.query_id % 3) != 0;
             if(!keep)
                 atomicAdd(rejects, 1);
             return keep;
         },
-        [] __device__(IndexT, IndexT)
+        [] __device__(const InfoStacklessBVH::LeafPredInfo&)
         {
             return true;
         },
@@ -400,7 +403,7 @@ void run_two_leaf_nodepred_cases()
                     atomicAdd(rejects, 1);
                 return keep;
             },
-            [] __device__(IndexT, IndexT) { return true; },
+            [] __device__(InfoStacklessBVH::LeafPredInfo) { return true; },
             qbuffer);
 
         int h_calls = 0;
@@ -461,7 +464,7 @@ void run_two_leaf_nodepred_cases()
                     atomicAdd(rejects, 1);
                 return keep;
             },
-            [] __device__(IndexT, IndexT) { return true; },
+            [] __device__(InfoStacklessBVH::LeafPredInfo) { return true; },
             qbuffer);
 
         int h_rejects = 0;
@@ -529,7 +532,7 @@ void run_two_leaf_nodepred_cases()
                     atomicAdd(rejects, 1);
                 return keep;
             },
-            [leaf_calls = leaf_calls.data()] __device__(IndexT, IndexT)
+            [leaf_calls = leaf_calls.data()] __device__(InfoStacklessBVH::LeafPredInfo)
             {
                 atomicAdd(leaf_calls, 1);
                 return false;

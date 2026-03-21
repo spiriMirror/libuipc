@@ -1,17 +1,10 @@
 #include <cuda_device/builtin.h>
 #include <muda/launch.h>
 
-// Implementation of InfoStacklessBVH.
-// All build/sort/reorder functions are identical to InfoStacklessBVH.
-// The two traversal functions (stacklessSelf / stacklessOther) are the
-// optimized variants: they pre-load per-query bid/cid into shared memory
-// ONCE before the traversal loop, eliminating repeated global-memory reads
-// of query_bid/query_cid inside the hot node-cull path.
-
-namespace uipc::info_stackless_detail
+namespace uipc::info_stackless_v0_detail
 {
 using aabb     = uipc::backend::cuda::AABB;
-using node_t   = uipc::backend::cuda::InfoStacklessBVH::Node;
+using node_t   = uipc::backend::cuda::InfoStacklessBVHV0::Node;
 using Vector2i = uipc::Vector2i;
 using uint     = uint32_t;
 using ullint   = unsigned long long;
@@ -115,18 +108,14 @@ MUDA_GENERIC MUDA_INLINE void safe_copy_to(int2*     shared_res,
     if(offset < copy_count)
         global_res[global_idx + offset] = to_eigen(shared_res[offset]);
 }
-}  // namespace uipc::info_stackless_detail
+}  // namespace uipc::info_stackless_v0_detail
 
 namespace uipc::backend::cuda
 {
-using namespace info_stackless_detail;
+using namespace info_stackless_v0_detail;
 
-// ---------------------------------------------------------------------------
-// Build pipeline — identical to InfoStacklessBVH
-// ---------------------------------------------------------------------------
-
-inline void InfoStacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aabbs,
-                                                     muda::VarView<AABB> scene_box)
+inline void InfoStacklessBVHV0::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aabbs,
+                                                       muda::VarView<AABB> scene_box)
 {
     if(aabbs.size() == 0)
         return;
@@ -205,9 +194,9 @@ inline void InfoStacklessBVH::Impl::calcMaxBVFromBox(muda::CBufferView<AABB> aab
             });
 }
 
-inline void InfoStacklessBVH::Impl::calcMCsFromBox(muda::CBufferView<AABB> aabbs,
-                                                   muda::CVarView<AABB> scene_box,
-                                                   muda::BufferView<uint32_t> codes)
+inline void InfoStacklessBVHV0::Impl::calcMCsFromBox(muda::CBufferView<AABB> aabbs,
+                                                     muda::CVarView<AABB> scene_box,
+                                                     muda::BufferView<uint32_t> codes)
 {
     using namespace muda;
     ParallelFor()
@@ -231,7 +220,7 @@ inline void InfoStacklessBVH::Impl::calcMCsFromBox(muda::CBufferView<AABB> aabbs
                });
 }
 
-inline void InfoStacklessBVH::Impl::calcInverseMapping()
+inline void InfoStacklessBVHV0::Impl::calcInverseMapping()
 {
     using namespace muda;
     ParallelFor()
@@ -242,7 +231,7 @@ inline void InfoStacklessBVH::Impl::calcInverseMapping()
                { inv(map(idx)) = idx; });
 }
 
-inline void InfoStacklessBVH::Impl::buildPrimitivesFromBox(muda::CBufferView<AABB> aabbs)
+inline void InfoStacklessBVHV0::Impl::buildPrimitivesFromBox(muda::CBufferView<AABB> aabbs)
 {
     using namespace muda;
     constexpr IndexT invalid = static_cast<IndexT>(-1);
@@ -274,7 +263,7 @@ inline void InfoStacklessBVH::Impl::buildPrimitivesFromBox(muda::CBufferView<AAB
                         });
 }
 
-inline void InfoStacklessBVH::Impl::calcExtNodeSplitMetrics()
+inline void InfoStacklessBVHV0::Impl::calcExtNodeSplitMetrics()
 {
     using namespace muda;
     ParallelFor()
@@ -289,7 +278,7 @@ inline void InfoStacklessBVH::Impl::calcExtNodeSplitMetrics()
                });
 }
 
-inline void InfoStacklessBVH::Impl::buildIntNodes(int size)
+inline void InfoStacklessBVHV0::Impl::buildIntNodes(int size)
 {
     using namespace muda;
     constexpr IndexT invalid = static_cast<IndexT>(-1);
@@ -400,7 +389,7 @@ inline void InfoStacklessBVH::Impl::buildIntNodes(int size)
             });
 }
 
-inline void InfoStacklessBVH::Impl::calcIntNodeOrders(int size)
+inline void InfoStacklessBVHV0::Impl::calcIntNodeOrders(int size)
 {
     using namespace muda;
     ParallelFor()
@@ -423,7 +412,7 @@ inline void InfoStacklessBVH::Impl::calcIntNodeOrders(int size)
                });
 }
 
-inline void InfoStacklessBVH::Impl::updateBvhExtNodeLinks(int size)
+inline void InfoStacklessBVHV0::Impl::updateBvhExtNodeLinks(int size)
 {
     using namespace muda;
     if(flags.size() == 0)
@@ -441,7 +430,7 @@ inline void InfoStacklessBVH::Impl::updateBvhExtNodeLinks(int size)
                });
 }
 
-inline void InfoStacklessBVH::Impl::reorderNode(int int_size)
+inline void InfoStacklessBVHV0::Impl::reorderNode(int int_size)
 {
     using namespace muda;
     constexpr IndexT invalid = static_cast<IndexT>(-1);
@@ -501,11 +490,11 @@ inline void InfoStacklessBVH::Impl::reorderNode(int int_size)
                });
 }
 
-inline void InfoStacklessBVH::Impl::propagateInformativeMetadata(int) {}
+inline void InfoStacklessBVHV0::Impl::propagateInformativeMetadata(int) {}
 
-inline void InfoStacklessBVH::Impl::build(muda::CBufferView<AABB>   aabbs,
-                                          muda::CBufferView<IndexT> _bids,
-                                          muda::CBufferView<IndexT> _cids)
+inline void InfoStacklessBVHV0::Impl::build(muda::CBufferView<AABB>   aabbs,
+                                            muda::CBufferView<IndexT> _bids,
+                                            muda::CBufferView<IndexT> _cids)
 {
     objs          = aabbs;
     bids          = _bids;
@@ -565,38 +554,24 @@ inline void InfoStacklessBVH::Impl::build(muda::CBufferView<AABB>   aabbs,
     reorderNode(num_internal);
 }
 
-// ---------------------------------------------------------------------------
-// OPTIMIZED: stacklessSelf
-//   Pre-loads query_bid and query_cid for each thread into shared memory
-//   before the traversal loop. The node_cull functor receives a NodePredInfo
-//   with query_bid/query_cid already filled from SMem — no global reads
-//   inside the hot loop.
-// ---------------------------------------------------------------------------
 template <typename NodeCull, typename PairPred>
-void InfoStacklessBVH::Impl::stacklessSelf(NodeCull                   node_cull,
-                                           PairPred                   pair_pred,
-                                           muda::VarView<int>         cpNum,
-                                           muda::BufferView<Vector2i> buffer)
+void InfoStacklessBVHV0::Impl::stacklessSelf(NodeCull           node_cull,
+                                             PairPred           pair_pred,
+                                             muda::VarView<int> cpNum,
+                                             muda::BufferView<Vector2i> buffer)
 {
     using namespace muda;
     auto num_query = static_cast<int>(ext_aabb.size());
     auto num_objs  = num_query;
     auto grid      = (num_query + K_THREADS - 1) / K_THREADS;
-
-    constexpr IndexT invalid = static_cast<IndexT>(-1);
-    bool has_info = bids.size() == (size_t)num_objs && cids.size() == (size_t)num_objs;
-
     Launch(grid, K_THREADS)
         .apply(
-            [Size     = num_query,
-             _box     = objs.viewer().name("box"),
-             intSize  = num_objs - 1,
-             numObjs  = num_objs,
-             _lvs_idx = ext_idx.viewer().name("lvs_idx"),
-             _nodes   = nodes.viewer().name("nodes"),
-             _bids    = bids.viewer().name("bids"),  // needed for SMem pre-load
-             _cids    = cids.viewer().name("cids"),  // needed for SMem pre-load
-             has_info,
+            [Size       = num_query,
+             _box       = objs.viewer().name("box"),
+             intSize    = num_objs - 1,
+             numObjs    = num_objs,
+             _lvs_idx   = ext_idx.viewer().name("lvs_idx"),
+             _nodes     = nodes.viewer().name("nodes"),
              resCounter = cpNum.viewer().name("cp_num"),
              res        = buffer.viewer().name("res"),
              node_cull,
@@ -612,21 +587,6 @@ void InfoStacklessBVH::Impl::stacklessSelf(NodeCull                   node_cull,
                     bv  = _box(idx);
                 }
 
-                // -----------------------------------------------------------------
-                // SMem: pre-load query bid/cid once per thread, before hot loop.
-                // Shared memory layout (per block, K_THREADS=256):
-                //   s_qbid[256]   = 1 KB
-                //   s_qcid[256]   = 1 KB
-                //   shared_res[1024 * sizeof(int2)] = 8 KB   (existing)
-                //   shared_counter, shared_global_idx         (existing)
-                // Total: ~10 KB — well within the 48 KB limit.
-                // -----------------------------------------------------------------
-                __shared__ IndexT s_qbid[K_THREADS];
-                __shared__ IndexT s_qcid[K_THREADS];
-
-                s_qbid[threadIdx.x] = (active && has_info) ? _bids(idx) : invalid;
-                s_qcid[threadIdx.x] = (active && has_info) ? _cids(idx) : invalid;
-
                 __shared__ int2 shared_res[MAX_RES_PER_BLOCK];
                 __shared__ int  shared_counter;
                 __shared__ int  shared_global_idx;
@@ -637,9 +597,6 @@ void InfoStacklessBVH::Impl::stacklessSelf(NodeCull                   node_cull,
                 const int max_iter = numObjs * 2;
                 while(true)
                 {
-                    // First __syncthreads also ensures SMem pre-loads above are
-                    // visible to all threads in the block (though each thread
-                    // only reads its own slot: s_qbid[threadIdx.x]).
                     __syncthreads();
                     if(active)
                     {
@@ -654,8 +611,7 @@ void InfoStacklessBVH::Impl::stacklessSelf(NodeCull                   node_cull,
                                 st = node.escape;
                                 continue;
                             }
-                            if(!node_cull(NodePredInfo{
-                                   idx, s_qbid[threadIdx.x], s_qcid[threadIdx.x], node.bid, node.cid}))
+                            if(!node_cull(idx, node.bid, node.cid))
                             {
                                 st = node.escape;
                                 continue;
@@ -664,17 +620,8 @@ void InfoStacklessBVH::Impl::stacklessSelf(NodeCull                   node_cull,
                             {
                                 if(tid < st - intSize)
                                 {
-                                    int  leaf_raw = _lvs_idx(st - intSize);
-                                    bool q_first  = (idx < leaf_raw);
-                                    auto pair     = ordered_pair(idx, leaf_raw);
-                                    LeafPredInfo leaf_info{
-                                        pair.x,
-                                        pair.y,
-                                        q_first ? s_qbid[threadIdx.x] : node.bid,
-                                        q_first ? s_qcid[threadIdx.x] : node.cid,
-                                        q_first ? node.bid : s_qbid[threadIdx.x],
-                                        q_first ? node.cid : s_qcid[threadIdx.x]};
-                                    if(pair_pred(leaf_info))
+                                    auto pair = ordered_pair(idx, _lvs_idx(st - intSize));
+                                    if(pair_pred(pair.x, pair.y))
                                     {
                                         int sidx = atomicAdd(&shared_counter, 1);
                                         if(sidx >= MAX_RES_PER_BLOCK)
@@ -709,43 +656,27 @@ void InfoStacklessBVH::Impl::stacklessSelf(NodeCull                   node_cull,
             });
 }
 
-// ---------------------------------------------------------------------------
-// OPTIMIZED: stacklessOther
-//   Takes explicit query_bids / query_cids buffers and pre-loads them into
-//   shared memory. node_cull receives a NodePredInfo with query_bid/query_cid
-//   already filled from SMem — no global reads inside the hot loop.
-// ---------------------------------------------------------------------------
 template <typename NodeCull, typename PairPred>
-void InfoStacklessBVH::Impl::stacklessOther(NodeCull                node_cull,
-                                            PairPred                pair_pred,
-                                            muda::CBufferView<AABB> query_aabbs,
-                                            muda::CBufferView<IndexT> query_bids,
-                                            muda::CBufferView<IndexT> query_cids,
-                                            muda::CBufferView<int> query_sorted_id,
-                                            muda::VarView<int>         cpNum,
-                                            muda::BufferView<Vector2i> buffer)
+void InfoStacklessBVHV0::Impl::stacklessOther(NodeCull node_cull,
+                                              PairPred pair_pred,
+                                              muda::CBufferView<AABB> query_aabbs,
+                                              muda::CBufferView<int> query_sorted_id,
+                                              muda::VarView<int>         cpNum,
+                                              muda::BufferView<Vector2i> buffer)
 {
     using namespace muda;
     auto num_query = static_cast<int>(query_aabbs.size());
     auto num_objs  = static_cast<int>(ext_aabb.size());
     auto grid      = (num_query + K_THREADS - 1) / K_THREADS;
-
-    constexpr IndexT invalid   = static_cast<IndexT>(-1);
-    bool             qhas_info = query_bids.size() == (size_t)num_query
-                                 && query_cids.size() == (size_t)num_query;
-
     Launch(grid, K_THREADS)
         .apply(
-            [Size      = num_query,
-             _box      = query_aabbs.viewer().name("qbox"),
-             sortedIdx = query_sorted_id.viewer().name("sortedIdx"),
-             intSize   = num_objs - 1,
-             numObjs   = num_objs,
-             _lvs_idx  = ext_idx.viewer().name("lvs_idx"),
-             _nodes    = nodes.viewer().name("nodes"),
-             _qbids = query_bids.viewer().name("qbids"),  // for SMem pre-load
-             _qcids = query_cids.viewer().name("qcids"),  // for SMem pre-load
-             qhas_info,
+            [Size       = num_query,
+             _box       = query_aabbs.viewer().name("qbox"),
+             sortedIdx  = query_sorted_id.viewer().name("sortedIdx"),
+             intSize    = num_objs - 1,
+             numObjs    = num_objs,
+             _lvs_idx   = ext_idx.viewer().name("lvs_idx"),
+             _nodes     = nodes.viewer().name("nodes"),
              resCounter = cpNum.viewer().name("cp_num"),
              res        = buffer.viewer().name("res"),
              node_cull,
@@ -760,15 +691,6 @@ void InfoStacklessBVH::Impl::stacklessOther(NodeCull                node_cull,
                     idx = sortedIdx(tid);
                     bv  = _box(idx);
                 }
-
-                // -----------------------------------------------------------------
-                // SMem: pre-load per-query bid/cid before the traversal loop.
-                // -----------------------------------------------------------------
-                __shared__ IndexT s_qbid[K_THREADS];
-                __shared__ IndexT s_qcid[K_THREADS];
-
-                s_qbid[threadIdx.x] = (active && qhas_info) ? _qbids(idx) : invalid;
-                s_qcid[threadIdx.x] = (active && qhas_info) ? _qcids(idx) : invalid;
 
                 __shared__ int2 shared_res[MAX_RES_PER_BLOCK];
                 __shared__ int  shared_counter;
@@ -794,8 +716,7 @@ void InfoStacklessBVH::Impl::stacklessOther(NodeCull                node_cull,
                                 st = node.escape;
                                 continue;
                             }
-                            if(!node_cull(NodePredInfo{
-                                   idx, s_qbid[threadIdx.x], s_qcid[threadIdx.x], node.bid, node.cid}))
+                            if(!node_cull(idx, node.bid, node.cid))
                             {
                                 st = node.escape;
                                 continue;
@@ -803,14 +724,7 @@ void InfoStacklessBVH::Impl::stacklessOther(NodeCull                node_cull,
                             if(node.lc == -1)
                             {
                                 auto pair = int2{idx, _lvs_idx(st - intSize)};
-                                // query side: SMem pre-loaded; leaf side: node.bid/cid
-                                LeafPredInfo leaf_info{pair.x,
-                                                       pair.y,
-                                                       s_qbid[threadIdx.x],
-                                                       s_qcid[threadIdx.x],
-                                                       node.bid,
-                                                       node.cid};
-                                if(pair_pred(leaf_info))
+                                if(pair_pred(pair.x, pair.y))
                                 {
                                     int sidx = atomicAdd(&shared_counter, 1);
                                     if(sidx >= MAX_RES_PER_BLOCK)
@@ -846,16 +760,12 @@ void InfoStacklessBVH::Impl::stacklessOther(NodeCull                node_cull,
             });
 }
 
-// ---------------------------------------------------------------------------
-// Public API — same signatures as InfoStacklessBVH
-// ---------------------------------------------------------------------------
-
-inline InfoStacklessBVH::InfoStacklessBVH(muda::Stream& stream) noexcept
+inline InfoStacklessBVHV0::InfoStacklessBVHV0(muda::Stream& stream) noexcept
 {
     (void)stream;
 }
 
-inline void InfoStacklessBVH::QueryBuffer::build(muda::CBufferView<AABB> aabbs)
+inline void InfoStacklessBVHV0::QueryBuffer::build(muda::CBufferView<AABB> aabbs)
 {
     m_queryMtCode.resize(aabbs.size());
     m_querySortedId.resize(aabbs.size());
@@ -869,9 +779,9 @@ inline void InfoStacklessBVH::QueryBuffer::build(muda::CBufferView<AABB> aabbs)
     thrust::sort_by_key(null_stream, d_codes, d_codes + n, d_ids);
 }
 
-inline void InfoStacklessBVH::build(muda::CBufferView<AABB>   aabbs,
-                                    muda::CBufferView<IndexT> BIDs,
-                                    muda::CBufferView<IndexT> CIDs)
+inline void InfoStacklessBVHV0::build(muda::CBufferView<AABB>   aabbs,
+                                      muda::CBufferView<IndexT> BIDs,
+                                      muda::CBufferView<IndexT> CIDs)
 {
     m_aabbs = aabbs;
     m_BIDs  = BIDs;
@@ -887,7 +797,7 @@ inline void InfoStacklessBVH::build(muda::CBufferView<AABB>   aabbs,
     m_impl.build(aabbs, BIDs, CIDs);
 }
 
-inline void InfoStacklessBVH::build(muda::CBufferView<AABB> aabbs)
+inline void InfoStacklessBVHV0::build(muda::CBufferView<AABB> aabbs)
 {
     m_aabbs = aabbs;
     m_BIDs  = {};
@@ -895,12 +805,11 @@ inline void InfoStacklessBVH::build(muda::CBufferView<AABB> aabbs)
     m_impl.build(aabbs, {}, {});
 }
 
-// detect() with NodePred / LeafPred: wrapper passes pre-loaded bid/cid to NodePredInfo
 template <typename NodePred, typename LeafPred>
-inline void InfoStacklessBVH::detect(muda::CBuffer2DView<IndexT> cmts,
-                                     NodePred                    np,
-                                     LeafPred                    lp,
-                                     QueryBuffer&                qbuffer)
+inline void InfoStacklessBVHV0::detect(muda::CBuffer2DView<IndexT> cmts,
+                                       NodePred                    np,
+                                       LeafPred                    lp,
+                                       QueryBuffer&                qbuffer)
 {
     if(m_aabbs.size() == 0)
     {
@@ -917,10 +826,27 @@ inline void InfoStacklessBVH::detect(muda::CBuffer2DView<IndexT> cmts,
                 m_CIDs.size());
 
     using namespace muda;
-    auto do_query = [&]
+    constexpr IndexT invalid  = static_cast<IndexT>(-1);
+    auto             do_query = [&]
     {
         BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
-        m_impl.stacklessSelf(np, lp, qbuffer.m_cpNum.view(), qbuffer.m_pairs.view());
+        m_impl.stacklessSelf(
+            [bids = m_BIDs.viewer().name("bids"),
+             cids = m_CIDs.viewer().name("cids"),
+             cmts = cmts.viewer().name("cmts"),
+             np   = np] __device__(IndexT i, IndexT node_bid, IndexT node_cid)
+            {
+                NodePredInfo info{i, node_bid, node_cid};
+                return np(info);
+            },
+            [lp = lp] __device__(IndexT i, IndexT j)
+            {
+                if(j <= i)
+                    return false;
+                return lp(i, j);
+            },
+            qbuffer.m_cpNum.view(),
+            qbuffer.m_pairs.view());
     };
 
     do_query();
@@ -934,15 +860,14 @@ inline void InfoStacklessBVH::detect(muda::CBuffer2DView<IndexT> cmts,
     qbuffer.m_size = h_cp_num;
 }
 
-// query() with NodePred / LeafPred: passes query BIDs/CIDs to stacklessOther for SMem pre-load
 template <typename NodePred, typename LeafPred>
-inline void InfoStacklessBVH::query(muda::CBufferView<AABB>     query_aabbs,
-                                    muda::CBufferView<IndexT>   query_BIDs,
-                                    muda::CBufferView<IndexT>   query_CIDs,
-                                    muda::CBuffer2DView<IndexT> cmts,
-                                    NodePred                    np,
-                                    LeafPred                    lp,
-                                    QueryBuffer&                qbuffer)
+inline void InfoStacklessBVHV0::query(muda::CBufferView<AABB>     query_aabbs,
+                                      muda::CBufferView<IndexT>   query_BIDs,
+                                      muda::CBufferView<IndexT>   query_CIDs,
+                                      muda::CBuffer2DView<IndexT> cmts,
+                                      NodePred                    np,
+                                      LeafPred                    lp,
+                                      QueryBuffer&                qbuffer)
 {
     if(m_aabbs.size() == 0 || query_aabbs.size() == 0)
     {
@@ -959,18 +884,22 @@ inline void InfoStacklessBVH::query(muda::CBufferView<AABB>     query_aabbs,
                 query_CIDs.size());
 
     using namespace muda;
+    constexpr IndexT invalid = static_cast<IndexT>(-1);
     qbuffer.build(query_aabbs);
     auto do_query = [&]
     {
         BufferLaunch().fill(qbuffer.m_cpNum.view(), 0);
-        m_impl.stacklessOther(np,
-                              lp,
-                              query_aabbs,
-                              query_BIDs,
-                              query_CIDs,
-                              qbuffer.m_querySortedId.view(),
-                              qbuffer.m_cpNum.view(),
-                              qbuffer.m_pairs.view());
+        m_impl.stacklessOther(
+            [np = np] __device__(IndexT i, IndexT node_bid, IndexT node_cid)
+            {
+                NodePredInfo info{i, node_bid, node_cid};
+                return np(info);
+            },
+            [lp = lp] __device__(IndexT i, IndexT j) { return lp(i, j); },
+            query_aabbs,
+            qbuffer.m_querySortedId.view(),
+            qbuffer.m_cpNum.view(),
+            qbuffer.m_pairs.view());
     };
     do_query();
     int h_cp_num = qbuffer.m_cpNum;
