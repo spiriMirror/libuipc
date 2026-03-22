@@ -236,6 +236,7 @@ class GlobalVertexManager final : public SimSystem
     friend class SimEngine;
     friend class MaxTranslationChecker;
     friend class GlobalTrajectoryFilter;
+    friend class GlobalActiveSetManager;
 
     // Initialize the global vertex manager
     // - Create the surface mesh

@@ -2,7 +2,7 @@
 
 namespace uipc::backend::cuda {
     void ABDActiveSetReporter::Impl::recover_non_penetrate(NonPenetratePositionsInfo &info) {
-        affine_body_dynamics->overwrite_qs(non_penetrate_q.cview());
+        affine_body_dynamics->overwrite_qs(non_penetrate_q.view());
     }
 
     void ABDActiveSetReporter::Impl::record_non_penetrate() {

@@ -382,7 +382,7 @@ class AffineBodyDynamics : public SimSystem
     /**
      * @brief return dof `q` of the body
      */
-    auto qs() const noexcept { return m_impl.body_id_to_q.cview(); }
+    auto qs() const noexcept { return m_impl.body_id_to_q.view(); }
 
     /**
      * @brief overwrite the dof `q` of the body

@@ -665,12 +665,12 @@ void GlobalActiveSetManager::Impl::recover_non_penetrate_positions()
         NonPenetratePositionInfo info(this, offset, count);
         R->recover_non_penetrate(info);
     }
-    global_vertex_manager->overwrite_positions(non_penetrate_positions.cview());
+    global_vertex_manager->overwrite_positions(non_penetrate_positions.view());
 }
 
 void GlobalActiveSetManager::Impl::prepare_ccd()
 {
-    global_vertex_manager->setup_ccd(non_penetrate_positions.cview());
+    global_vertex_manager->setup_ccd(non_penetrate_positions.view());
 }
 
 void GlobalActiveSetManager::Impl::post_ccd()

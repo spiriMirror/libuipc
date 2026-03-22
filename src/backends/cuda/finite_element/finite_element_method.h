@@ -311,7 +311,7 @@ class FiniteElementMethod final : public SimSystem
     auto is_fixed() const noexcept { return m_impl.is_fixed.view(); }
     auto is_dynamic() const noexcept { return m_impl.is_dynamic.view(); }
     auto x_bars() const noexcept { return m_impl.x_bars.view(); }
-    auto xs() const noexcept { return m_impl.xs.cview(); }
+    auto xs() const noexcept { return m_impl.xs.view(); }
 
     /**
      * @brief overwrite the vertex positions
