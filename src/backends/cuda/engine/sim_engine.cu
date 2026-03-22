@@ -151,7 +151,6 @@ void SimEngine::dump_global_surface_pre_ccd(SizeT newton_iter)
 
     std::vector<Vector3>  global_positions;
     std::vector<Vector3>  global_displacements;
-    std::vector<IndexT>   surf_vertices;
     std::vector<Vector2i> edges;
     std::vector<Vector3i> faces;
 
@@ -163,10 +162,6 @@ void SimEngine::dump_global_surface_pre_ccd(SizeT newton_iter)
     global_displacements.resize(src_displacements.size());
     src_displacements.copy_to(global_displacements.data());
 
-    auto src_surf_vertices = m_global_simplicial_surface_manager->surf_vertices();
-    surf_vertices.resize(src_surf_vertices.size());
-    src_surf_vertices.copy_to(surf_vertices.data());
-
     auto src_edges = m_global_simplicial_surface_manager->surf_edges();
     edges.resize(src_edges.size());
     src_edges.copy_to(edges.data());
@@ -175,16 +170,13 @@ void SimEngine::dump_global_surface_pre_ccd(SizeT newton_iter)
     faces.resize(src_faces.size());
     src_faces.copy_to(faces.data());
 
-    std::vector<Vector3> surface_positions_plus_dx(surf_vertices.size());
-    for(SizeT i = 0; i < surf_vertices.size(); ++i)
-    {
-        auto gv = surf_vertices[i];
-        surface_positions_plus_dx[i] = global_positions[gv] + global_displacements[gv];
-    }
+    std::vector<Vector3> global_positions_plus_dx(global_positions.size());
+    for(SizeT i = 0; i < global_positions.size(); ++i)
+        global_positions_plus_dx[i] = global_positions[i] + global_displacements[i];
 
     std::ofstream file(file_path);
 
-    for(const auto& pos : surface_positions_plus_dx)
+    for(const auto& pos : global_positions_plus_dx)
         file << fmt::format("v {} {} {}\n", pos.x(), pos.y(), pos.z());
 
     for(const auto& face : faces)
