@@ -10,6 +10,7 @@ namespace uipc::backend::cuda
 
 class ActiveSetReporter;
 class ALStiffnessEstimator;
+class GlobalVertexManager;
 
 class GlobalActiveSetManager final : public SimSystem
 {
@@ -174,6 +175,7 @@ class GlobalActiveSetManager final : public SimSystem
 
   private:
     friend class SimEngine;
+    friend class GlobalVertexManager;
     void init();
 
     void init_mu();
