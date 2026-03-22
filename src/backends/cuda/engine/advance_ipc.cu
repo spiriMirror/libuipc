@@ -362,6 +362,12 @@ void SimEngine::advance()
                     // Record Current State x to x_0
                     m_line_searcher->record_start_point();
                     m_global_vertex_manager->record_start_point();
+
+                    if(m_dump_surface->view()[0])
+                    {
+                        dump_global_surface_pre_ccd(newton_iter);
+                    }
+
                     detect_trajectory_candidates(alpha);
 
                     // Compute Current Energy => E_0
