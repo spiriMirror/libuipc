@@ -941,4 +941,9 @@ SizeT AffineBodyDynamics::FilteredInfo::vertex_count() const noexcept
 {
     return constitution_info().vertex_count;
 }
+
+void AffineBodyDynamics::overwrite_qs(muda::CBufferView<Vector12> qs)
+{
+    m_impl.body_id_to_q.view().copy_from(qs);
+}
 }  // namespace uipc::backend::cuda

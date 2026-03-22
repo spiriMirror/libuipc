@@ -4,14 +4,13 @@
 #include <collision_detection/global_trajectory_filter.h>
 #include <collision_detection/simplex_trajectory_filter.h>
 #include <collision_detection/vertex_half_plane_trajectory_filter.h>
-#include <finite_element/finite_element_method.h>
-#include <affine_body/affine_body_dynamics.h>
 
 namespace uipc::backend::cuda
 {
 
 class ActiveSetReporter;
 class ALStiffnessEstimator;
+class GlobalVertexManager;
 
 class GlobalActiveSetManager final : public SimSystem
 {
@@ -110,6 +109,7 @@ class GlobalActiveSetManager final : public SimSystem
         Float decay_factor, dt;
         Float toi_threshold;
         bool  energy_enabled;
+        bool  should_discard_friction_candidates = false;
 
         Float m_reserve_ratio = 1.5;
 
@@ -128,10 +128,14 @@ class GlobalActiveSetManager final : public SimSystem
         void update_slack();
         void update_lambda();
         void update_friction();
+        void clear_friction_candidates();
+        void snapshot_friction_candidates();
 
         void record_non_penetrate_positions();
         void recover_non_penetrate_positions();
         void advance_non_penetrate_positions(Float alpha);
+        void prepare_ccd();
+        void post_ccd();
     };
 
     muda::CBufferView<int>      PHs() const;
@@ -171,6 +175,7 @@ class GlobalActiveSetManager final : public SimSystem
 
   private:
     friend class SimEngine;
+    friend class GlobalVertexManager;
     void init();
 
     void init_mu();
@@ -180,9 +185,14 @@ class GlobalActiveSetManager final : public SimSystem
     void update_slack();
     void update_lambda();
     void update_friction();
+    void clear_friction_candidates();
+    void snapshot_friction_candidates();
+    void require_discard_friction();
     void record_non_penetrate_positions();
     void recover_non_penetrate_positions();
     void advance_non_penetrate_positions(Float alpha);
+    void prepare_ccd();
+    void post_ccd();
 
     void enable();
     void disable();

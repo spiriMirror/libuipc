@@ -12,7 +12,6 @@
 #include <diff_sim/global_diff_sim_manager.h>
 #include <newton_tolerance/newton_tolerance_manager.h>
 #include <time_integrator/time_integrator_manager.h>
-#include <active_set_system/global_active_set_manager.h>
 
 namespace uipc::backend::cuda
 {

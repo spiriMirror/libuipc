@@ -2,22 +2,24 @@
 
 namespace uipc::backend::cuda {
     void ABDActiveSetReporter::Impl::recover_non_penetrate(NonPenetratePositionsInfo &info) {
-        abd().body_id_to_q.view().copy_from(non_penetrate_q);
+        affine_body_dynamics->overwrite_qs(non_penetrate_q.view());
     }
 
     void ABDActiveSetReporter::Impl::record_non_penetrate() {
-        if (non_penetrate_q.size() != abd().body_id_to_q.size())
-            non_penetrate_q.resize(abd().body_id_to_q.size());
-        non_penetrate_q.view().copy_from(abd().body_id_to_q);
+        auto qs = affine_body_dynamics->qs();
+        if(non_penetrate_q.size() != qs.size())
+            non_penetrate_q.resize(qs.size());
+        non_penetrate_q.view().copy_from(qs);
     }
 
     void ABDActiveSetReporter::Impl::advance_non_penetrate(Float alpha) {
-        UIPC_ASSERT(abd().body_id_to_q.size() == non_penetrate_q.size(), "non_penetrate_q's size not matched");
+        auto qs = affine_body_dynamics->qs();
+        UIPC_ASSERT(qs.size() == non_penetrate_q.size(), "non_penetrate_q's size not matched");
         muda::ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(non_penetrate_q.size(), [
                 alpha,
-                q = abd().body_id_to_q.cviewer().name("q"),
+                q = qs.cviewer().name("q"),
                 non_penetrate_q = non_penetrate_q.viewer().name("non_penetrate_q")
             ] __device__ (int i) mutable {
                 non_penetrate_q(i) += alpha * (q(i) - non_penetrate_q(i));

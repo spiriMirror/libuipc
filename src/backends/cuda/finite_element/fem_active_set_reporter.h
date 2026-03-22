@@ -12,9 +12,6 @@ public:
     public:
         SimSystemSlot<FiniteElementVertexReporter> vertex_reporter;
         SimSystemSlot<FiniteElementMethod>         finite_element_method;
-        FiniteElementMethod::Impl& fem() {
-            return finite_element_method->m_impl;
-        }
 
         void recover_non_penetrate(NonPenetratePositionsInfo &info);
     };

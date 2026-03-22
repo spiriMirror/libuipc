@@ -3,8 +3,8 @@
 namespace uipc::backend::cuda {
 
 void FEMActiveSetReporter::Impl::recover_non_penetrate(NonPenetratePositionsInfo &info) {
-    UIPC_ASSERT(fem().xs.size() == info.non_penetrate_positions().size(), "Vertex size not matched");
-    fem().xs.view().copy_from(info.non_penetrate_positions());
+    UIPC_ASSERT(finite_element_method->xs().size() == info.non_penetrate_positions().size(), "Vertex size not matched");
+    finite_element_method->overwrite_xs(info.non_penetrate_positions());
 }
 
 void FEMActiveSetReporter::do_build(BuildInfo &info) {

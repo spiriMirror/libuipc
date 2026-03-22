@@ -1187,4 +1187,9 @@ size_t FiniteElementMethod::FilteredInfo::primitive_count() const noexcept
 {
     return constitution_info().primitive_count;
 }
+
+void FiniteElementMethod::overwrite_xs(muda::CBufferView<Vector3> xs)
+{
+    m_impl.xs.view().copy_from(xs);
+}
 }  // namespace uipc::backend::cuda
