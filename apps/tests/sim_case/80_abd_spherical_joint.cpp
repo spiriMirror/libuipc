@@ -43,8 +43,8 @@ TEST_CASE("80_abd_spherical_joint", "[abd][joint]")
         Transform t = Transform::Identity();
         t.translate(Vector3{0, 0.5, 0});
         view(left_mesh.transforms())[0] = t.matrix();
-        auto is_fiexd = left_mesh.instances().find<IndexT>(builtin::is_fixed);
-        view(*is_fiexd)[0] = 1;
+        auto is_fixed = left_mesh.instances().find<IndexT>(builtin::is_fixed);
+        view(*is_fixed)[0] = 1;
     }
     auto [left_geo_slot, _l] = left_object->geometries().create(left_mesh);
 

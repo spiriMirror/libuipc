@@ -17,7 +17,7 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
     SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
 
     muda::DeviceBuffer<Vector2i> body_ids;
-    muda::DeviceBuffer<Vector6> rest_cs;  // midpoint in body-local frame [ci_bar | cj_bar]
+    muda::DeviceBuffer<Vector6> rest_cs;  // anchor in each body's local frame [ci_bar | cj_bar]
     muda::DeviceBuffer<Float> strength_ratios;
 
     vector<Vector2i> h_body_ids;
@@ -156,7 +156,7 @@ class AffineBodySphericalJoint final : public InterAffineBodyConstitution
                     qs      = info.qs().viewer().name("qs"),
                     G12s    = info.gradients().viewer().name("G12s"),
                     H12x12s = info.hessians().viewer().name("H12x12s"),
-                    gradient_only] __device__(int I) mutable
+                    gradient_only] __device__(int I)
                    {
                        Vector2i bids  = body_ids(I);
                        Float    kappa = strength_ratio(I)
