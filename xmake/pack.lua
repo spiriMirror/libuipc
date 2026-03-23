@@ -19,7 +19,7 @@ xpack("pyuipc")
         os.vcp(path.join(os.projectdir(), "python/*"), build_dir)
 
         local pyuipc_target = package:target("pyuipc")
-        local modules_dir = path.join(build_dir, "src/uipc/modules", config.get("mode"))
+        local modules_dir = path.join(build_dir, "src/uipc/_native")
         os.mkdir(modules_dir)
         -- Copy project shared libraries
         _do_install_target(pyuipc_target, {
@@ -66,7 +66,7 @@ xpack("pyuipc")
         os.vrunv(python, {
             path.join(os.projectdir(), "scripts/stubgen.py"),
             "--source_dir=" .. path.join(build_dir, "src"),
-            "--output_dir=" .. path.join(build_dir, "src"),
+            "--output_dir=" .. path.join(build_dir, "src/uipc/_native"),
             "--build_type=" .. config.get("mode"),
         }, {setenvs = {["LD_LIBRARY_PATH"] = path.joinenv(LD_LIBRARY_PATH)}})
 

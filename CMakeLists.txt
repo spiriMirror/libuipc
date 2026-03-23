@@ -42,6 +42,15 @@ endif()
 
 set(UIPC_CUDA_ARCHITECTURES "native" CACHE STRING "Setup CUDA architectures (e.g. \"75,89\" or \"native\")")
 
+# Propagate UIPC_CUDA_ARCHITECTURES to CMake's CUDA variable so generators (VS, etc.)
+# produce consistent device code settings instead of falling back to legacy defaults.
+if (DEFINED UIPC_CUDA_ARCHITECTURES AND NOT UIPC_CUDA_ARCHITECTURES STREQUAL "")
+    # Accept comma- or semicolon-separated lists, normalize to semicolon list
+    string(REPLACE "," ";" _uipc_cuda_archs "${UIPC_CUDA_ARCHITECTURES}")
+    # Export to CMAKE_CUDA_ARCHITECTURES for the generator to consume
+    set(CMAKE_CUDA_ARCHITECTURES ${_uipc_cuda_archs} CACHE STRING "CUDA architectures" FORCE)
+    message(STATUS "Propagated UIPC_CUDA_ARCHITECTURES -> CMAKE_CUDA_ARCHITECTURES: ${CMAKE_CUDA_ARCHITECTURES}")
+endif()
 
 # Install Options
 # =========================================================================

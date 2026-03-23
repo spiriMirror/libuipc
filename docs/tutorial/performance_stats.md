@@ -104,6 +104,44 @@ Output:
 | ...   | ...              | ...         |
 ```
 
+## Framewise N-Way Comparison
+
+Use a single public API for all comparison scenarios (including 2 configs):
+
+```python
+stats_map = {
+    'baseline': stats_baseline,
+    'candidate_a': stats_a,
+    'candidate_b': stats_b,
+}
+
+SimulationStats.create_comparison(
+    stats_map,
+    output_dir='nway_compare',
+    keys=['Newton Iteration', 'Line Search'],
+    metric='duration',
+    align='union',  # or 'intersection'
+)
+```
+
+`create_comparison` also accepts JSON inputs:
+
+```python
+SimulationStats.create_comparison(
+    {
+        'baseline': 'runs/baseline/timer_frames.json',
+        'candidate_a': 'runs/candidate_a/timer_frames.json',
+    },
+    output_dir='nway_compare',
+)
+```
+
+The generated report includes:
+
+1. One profiler heatmap per config
+2. Grouped bar chart (timer means, config by color)
+3. Multi-line framewise curves (one chart per timer)
+
 ## Summary Report
 
 `summary_report()` generates a complete performance report as a folder of Markdown + SVG files:

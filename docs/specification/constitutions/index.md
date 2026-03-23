@@ -26,7 +26,7 @@
 | 21  | [AffineBodyDrivingPrismaticJoint](./affine_body_driving_prismatic_joint.md) | Affine Body Driving Prismatic Joint Constitutions                                    |
 | 22  | [SoftVertexStitch](./soft_vertex_stitch.md)                             | Soft Vertex Stitch Constitutions                                                     |
 | 23  | [ExternalArticulationConstraint](./external_articulation_constraint.md) | External Articulation Constraint Constitutions                                       |
-| 25  | AffineBodyFixedJoint                                                    | Affine Body Fixed Joint Constitutions (Reserved)                                     |
+| 25  | [AffineBodyFixedJoint](./affine_body_fixed_joint.md)                    | Affine Body Fixed Joint Constitutions                                                |
 | 26  | AffineBodySphericalJoint                                                | Affine Body Spherical Joint Constitutions (Reserved)                                 |
 | 27  | AffineBodyDrivingSphericalJoint                                         | Affine Body Driving Spherical Joint Constitutions (Reserved)                         |
 | 28  | AffineBodyD6Joint                                                       | Affine Body D6 Joint Constitutions (Reserved)                                        |

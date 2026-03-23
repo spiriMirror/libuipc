@@ -139,6 +139,54 @@ void SimEngine::dump_global_surface()
 
     logger::info("Dumped global surface to {}", file_path);
 }
+
+void SimEngine::dump_global_surface_pre_ccd(SizeT newton_iter)
+{
+    BackendPathTool tool{workspace()};
+    auto            output_folder = tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
+    auto            file_path = fmt::format("{}global_surface.pre_ccd.{}.{}.obj",
+                                 output_folder.string(),
+                                 frame(),
+                                 newton_iter);
+
+    std::vector<Vector3>  global_positions;
+    std::vector<Vector3>  global_displacements;
+    std::vector<Vector2i> edges;
+    std::vector<Vector3i> faces;
+
+    auto src_positions = m_global_vertex_manager->positions();
+    global_positions.resize(src_positions.size());
+    src_positions.copy_to(global_positions.data());
+
+    auto src_displacements = m_global_vertex_manager->displacements();
+    global_displacements.resize(src_displacements.size());
+    src_displacements.copy_to(global_displacements.data());
+
+    auto src_edges = m_global_simplicial_surface_manager->surf_edges();
+    edges.resize(src_edges.size());
+    src_edges.copy_to(edges.data());
+
+    auto src_faces = m_global_simplicial_surface_manager->surf_triangles();
+    faces.resize(src_faces.size());
+    src_faces.copy_to(faces.data());
+
+    std::vector<Vector3> global_positions_plus_dx(global_positions.size());
+    for(SizeT i = 0; i < global_positions.size(); ++i)
+        global_positions_plus_dx[i] = global_positions[i] + global_displacements[i];
+
+    std::ofstream file(file_path);
+
+    for(const auto& pos : global_positions_plus_dx)
+        file << fmt::format("v {} {} {}\n", pos.x(), pos.y(), pos.z());
+
+    for(const auto& face : faces)
+        file << fmt::format("f {} {} {}\n", face.x() + 1, face.y() + 1, face.z() + 1);
+
+    for(const auto& edge : edges)
+        file << fmt::format("l {} {}\n", edge.x() + 1, edge.y() + 1);
+
+    logger::info("Dumped global surface to {}", file_path);
+}
 }  // namespace uipc::backend::cuda
 
 // Dump & Recover:

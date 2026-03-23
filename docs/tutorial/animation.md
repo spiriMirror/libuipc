@@ -243,7 +243,7 @@ They are both `SoftTransformConstraint`. Because, `LinearMotor` and `RotatingMot
 
 === "Python"
 
-    source: [walking_cube](https://github.com/spiriMirror/libuipc-samples/blob/main/python/2_walking_cube/main.py)
+    source: [walking_cube](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/2_walking_cube/main.py)
 
 
 ## Periodically Pressed Tetrahedron
@@ -380,4 +380,4 @@ Here we go!
 
 === "Python"
 
-    source: [periodically_pressed_tetrahedron](https://github.com/spiriMirror/libuipc-samples/blob/main/python/3_periodically_pressed_tetrahedron/main.py)
+    source: [periodically_pressed_tetrahedron](https://github.com/spiriMirror/libuipc-samples/blob/main/examples/3_periodically_pressed_tetrahedron/main.py)

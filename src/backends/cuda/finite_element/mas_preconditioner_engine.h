@@ -7,7 +7,7 @@
 namespace uipc::backend::cuda
 {
 /**
- * @brief MAS (Multiplicative Additive Schwarz) preconditioner engine.
+ * @brief MAS (MultiLevel Additive Schwarz) preconditioner engine.
  *
  * Multi-level domain-decomposition preconditioner from StiffGIPC.
  * Operates on 3x3 block matrices (BCOO format) and produces z = M^{-1} r.

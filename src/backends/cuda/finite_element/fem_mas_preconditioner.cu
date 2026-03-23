@@ -90,7 +90,7 @@ void apply_diag_inv_for_unpartitioned(
 }
 
 /**
- * @brief FEM MAS (Multiplicative Additive Schwarz) Preconditioner
+ * @brief FEM MAS (MultiLevel Additive Schwarz) Preconditioner
  *
  * A multi-level domain-decomposition preconditioner that replaces the
  * simpler diagonal (Jacobi) preconditioner for much better convergence

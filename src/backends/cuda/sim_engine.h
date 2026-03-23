@@ -68,6 +68,7 @@ class SimEngine final : public backend::SimEngine
     void advance();
     void advance_AL();
     void dump_global_surface();
+    void dump_global_surface_pre_ccd(SizeT newton_iter);
 
     std::stringstream m_string_stream;
     SimEngineState    m_state = SimEngineState::None;

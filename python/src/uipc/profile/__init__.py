@@ -323,8 +323,8 @@ def load_result(result_dir: str) -> dict:
     if 'timer_frames' in data:
         try:
             from uipc.stats import SimulationStats
-            stats = SimulationStats.__new__(SimulationStats)
-            stats._frames = data['timer_frames']
+            stats = SimulationStats()
+            stats._frames = list(data['timer_frames']) if data['timer_frames'] is not None else []
             data['stats'] = stats
         except Exception as e:
             import sys
@@ -341,8 +341,10 @@ def compare(
     before_dir: str,
     after_dir: str,
     output_dir: str | None = None,
+    metric: str = 'duration',
+    align: str = 'union',
 ) -> str:
-    """Compare two benchmark result folders and produce a delta report.
+    """Compare benchmark result folders through the N-way stats pipeline.
 
     Each directory should contain ``benchmark.json`` and
     ``timer_frames.json`` as written by :func:`run`.
@@ -352,112 +354,59 @@ def compare(
         after_dir: Path to the *optimized* benchmark results.
         output_dir: If given, write the comparison report and any
                     generated charts to this directory.
+        metric: ``'duration'`` or ``'count'``.
+        align: ``'union'`` or ``'intersection'`` frame alignment.
 
     Returns:
         Markdown-formatted comparison report.
     """
+    import tempfile
+
     before = load_result(before_dir)
     after = load_result(after_dir)
-
-    lines: list[str] = ['# Benchmark Comparison', '']
-
-    # --- Wall-clock summary ---
-    bw = before.get('wall_time', 0.0)
-    aw = after.get('wall_time', 0.0)
-    delta_pct = ((aw - bw) / bw * 100) if bw > 0 else 0.0
-    sign = '+' if delta_pct >= 0 else ''
-    speedup = bw / aw if aw > 0 else float('inf')
-
-    lines.append('## Wall-Clock Summary')
-    lines.append('')
-    lines.append('| Metric | Before | After | Delta |')
-    lines.append('|--------|--------|-------|-------|')
-    lines.append(
-        f'| Wall time | {bw:.3f}s | {aw:.3f}s '
-        f'| {sign}{delta_pct:.1f}% |'
-    )
-    bf = before.get('num_frames', 0)
-    af = after.get('num_frames', 0)
-    b_avg = (bw / bf * 1000) if bf > 0 else 0
-    a_avg = (aw / af * 1000) if af > 0 else 0
-    avg_delta = ((a_avg - b_avg) / b_avg * 100) if b_avg > 0 else 0
-    sign2 = '+' if avg_delta >= 0 else ''
-    lines.append(
-        f'| Avg frame | {b_avg:.1f}ms | {a_avg:.1f}ms '
-        f'| {sign2}{avg_delta:.1f}% |'
-    )
-    lines.append(
-        f'| Speedup | | | {speedup:.2f}x |'
-    )
-    lines.append('')
-
-    # --- Per-timer comparison ---
     b_stats = before.get('stats')
     a_stats = after.get('stats')
-
-    if b_stats is not None and a_stats is not None:
-        lines.append('## Per-Timer Comparison')
-        lines.append('')
-
-        # Collect all timer names from both
-        all_names = b_stats.all_timer_names | a_stats.all_timer_names
-
-        # Aggregate mean durations
-        timer_deltas: list[tuple[str, float, float, float]] = []
-        for name in all_names:
-            _, b_dur = b_stats.get_values(name, 'duration')
-            _, a_dur = a_stats.get_values(name, 'duration')
-            b_mean = float(b_dur.mean()) if len(b_dur) > 0 else 0.0
-            a_mean = float(a_dur.mean()) if len(a_dur) > 0 else 0.0
-            if b_mean > 0:
-                delta = (a_mean - b_mean) / b_mean * 100
-            else:
-                delta = 0.0
-            timer_deltas.append((name, b_mean, a_mean, delta))
-
-        # Sort by absolute improvement (most improved first)
-        timer_deltas.sort(key=lambda t: t[3])
-
-        lines.append(
-            '| Timer | Before (ms) | After (ms) | Delta |'
+    if b_stats is None or a_stats is None:
+        raise ValueError(
+            'Both result folders must contain timer_frames.json '
+            'to build SimulationStats comparisons'
         )
-        lines.append(
-            '|-------|-------------|------------|-------|'
-        )
-        for name, b_mean, a_mean, delta in timer_deltas:
-            if b_mean == 0 and a_mean == 0:
-                continue
-            sign3 = '+' if delta >= 0 else ''
-            lines.append(
-                f'| {name} | {b_mean*1000:.2f} | {a_mean*1000:.2f} '
-                f'| {sign3}{delta:.1f}% |'
-            )
-        lines.append('')
 
-    md_text = '\n'.join(lines)
+    stats_map = {
+        str(before.get('name', 'before')): b_stats,
+        str(after.get('name', 'after')): a_stats,
+    }
+    report_dir = output_dir if output_dir is not None else tempfile.mkdtemp(prefix='uipc_compare_')
+    md_text = SimulationStats.create_comparison(
+        stats_map,
+        output_dir=str(report_dir),
+        metric=metric,
+        align=align,
+    )
 
+    # Keep top-level compatibility files under the traditional compare path.
     if output_dir is not None:
         out = pathlib.Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
         (out / 'comparison.md').write_text(md_text, encoding='utf-8')
-
-        # Save structured data too
-        comparison_data = {
-            'before': {
-                'name': before.get('name'),
-                'wall_time': before.get('wall_time'),
-                'num_frames': before.get('num_frames'),
-            },
-            'after': {
-                'name': after.get('name'),
-                'wall_time': after.get('wall_time'),
-                'num_frames': after.get('num_frames'),
-            },
-            'speedup': speedup,
-            'wall_time_delta_pct': delta_pct,
+        compare_payload = {
+            'configs': [
+                {
+                    'name': before.get('name'),
+                    'wall_time': before.get('wall_time'),
+                    'num_frames': before.get('num_frames'),
+                },
+                {
+                    'name': after.get('name'),
+                    'wall_time': after.get('wall_time'),
+                    'num_frames': after.get('num_frames'),
+                },
+            ],
+            'metric': metric,
+            'align': align,
         }
         (out / 'comparison.json').write_text(
-            json.dumps(comparison_data, indent=2), encoding='utf-8'
+            json.dumps(compare_payload, indent=2), encoding='utf-8'
         )
 
     return md_text

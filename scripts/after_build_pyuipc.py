@@ -181,3 +181,8 @@ if __name__ == '__main__':
         print(f'Installing the package to Python Environment: {sys.executable}')
         install_package(binary_dir)
         flush_info()
+    else:
+        print(f'UIPC_BUILD_PYTHON_WHEEL is ON, skipping automatic pip install.')
+        print(f'To install manually, run:')
+        print(f'  {sys.executable} -m pip install {binary_dir}/python')
+        flush_info()

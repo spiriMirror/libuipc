@@ -7,6 +7,7 @@ The following dependencies are required to build the project.
 | Name                                                | Version      | Usage           | Import         |
 | --------------------------------------------------- | ------------ | --------------- | -------------- |
 | [CMake](https://cmake.org/download/)                | >=3.26       | build system    | system install |
+| [XMake](https://xmake.io/)                          | >=3.0.5      | build system    | system install |
 | [Python](https://www.python.org/downloads/)         | >=3.11       | build system    | system install |
 | [Cuda](https://developer.nvidia.com/cuda-downloads) | >=12.4       | GPU programming | system install |
 | [Vcpkg](https://github.com/microsoft/vcpkg)         | >=2025.7.25  | package manager | git clone      |
@@ -71,6 +72,29 @@ cmake --build . -j8
 
 !!!NOTE
     Use multi-thread to speed up the build process as possible, becasue the NVCC compiler will take a lot of time.
+
+## Build Libuipc with XMake
+
+If you prefer XMake over CMake, use the following commands.
+
+```shell
+cd libuipc
+xmake f -c
+xmake build -j8
+```
+
+Enable Python bindings with the following configuration.
+
+```shell
+cd libuipc
+xmake f --pybind=true --python_system=true --python_version=3.11.x -c
+xmake build -j8
+xmake pack -v
+```
+
+If you are building inside another Python virtual environment, replace `3.11.x` with the version you want XMake to resolve.
+
+The build outputs are placed under `build/`, and the staged Python package is generated in `build/.xpack/pyuipc`.
 
 ## Run Project
 
