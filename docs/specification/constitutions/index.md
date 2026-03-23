@@ -34,8 +34,8 @@
 | 30  | [SoftVertexTriangleStitch](./soft_vertex_triangle_stitch.md)            | Inter-primitive: (vertex, triangle) pairs as tetrahedra with StableNeoHookean energy |
 | 31  | [PlasticDiscreteShellBending](./plastic_discrete_shell_bending.md)      | Discrete Shell Bending with plastic rest-angle evolution                             |
 | 666 | [AffineBodyExternalForce](./affine_body_external_force.md)              | Affine Body External Force Constitutions                                             |
-| 667 | AffineBodyPrismaticJointExternalForce                                   | Affine Body Prismatic Joint External Force Constitutions (Reserved)                  |
-| 668 | AffineBodyRevoluteJointExternalForce                                    | Affine Body Revolute Joint External Force Constitutions (Reserved)                   |
+| 667 | [AffineBodyPrismaticJointExternalForce](./affine_body_prismatic_joint_external_force.md) | Affine Body Prismatic Joint External Force Constitutions                             |
+| 668 | [AffineBodyRevoluteJointExternalForce](./affine_body_revolute_joint_external_force.md)   | Affine Body Revolute Joint External Force Constitutions                              |
 | 669 | [AffineBodyPrismaticJointLimit](./affine_body_prismatic_joint_limit.md) | Affine Body Prismatic Joint Limit Constitutions                                      |
 | 670 | [AffineBodyRevoluteJointLimit](./affine_body_revolute_joint_limit.md)   | Affine Body Revolute Joint Limit Constitutions                                       |
 | 819 | [StrainLimitingBaraffWitkinShell](./strain_limiting_baraff_witkin_shell.md) | Strain Limiting Baraff-Witkin Shell Constitutions                                    |
