@@ -1,4 +1,5 @@
 #include <uipc/common/demangle.h>
+#include <uipc/common/log.h>
 
 namespace uipc::backend
 {
@@ -48,6 +49,9 @@ template <typename T>
 T* SimSystemSlot<T>::view() const noexcept
 {
     lazy_init();
+    UIPC_ASSERT(m_sim_system,
+                "{} is not registered, system building fatal error.",
+                uipc::demangle<T>());
     return m_sim_system;
 }
 
@@ -60,7 +64,8 @@ T* SimSystemSlot<T>::operator->() const noexcept
 template <typename T>
 SimSystemSlot<T>::operator bool() const noexcept
 {
-    return view();
+    lazy_init();
+    return m_sim_system != nullptr;
 }
 
 template <typename T>

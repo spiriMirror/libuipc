@@ -243,36 +243,7 @@ void FiniteElementMethod::Impl::_classify_base_constitutions()
 
 void FiniteElementMethod::Impl::_init_diff_reporters()
 {
-    //if(kinetic_diff_parm_reporter)
-    //{
-    //    kinetic_diff_parm_reporter.view()->init();
-    //}
-
-    //auto constitution_diff_parm_reporter_view = constitution_diff_parm_reporters.view();
-    //auto extra_constitution_diff_parm_reporter_view =
-    //    extra_constitution_diff_parm_reporters.view();
-
-    //// 1. Connect the reporter to the related constitution
-    //for(auto& cdpr : constitution_diff_parm_reporter_view)
-    //{
-    //    cdpr->connect();
-    //}
-
-    //for(auto& ecdpr : extra_constitution_diff_parm_reporter_view)
-    //{
-    //    ecdpr->connect();
-    //}
-
-    //// 2. Init the reporter
-    //for(auto& cdpr : constitution_diff_parm_reporter_view)
-    //{
-    //    cdpr->init();
-    //}
-
-    //for(auto& ecdpr : extra_constitution_diff_parm_reporter_view)
-    //{
-    //    ecdpr->init();
-    //}
+    // TODO: Placeholder for diff sim system initialization
 }
 
 void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
@@ -337,7 +308,6 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
 
 
     // 3) setup vertex offsets and primitive offsets
-    // + 1 for total count
     {
         OffsetCountCollection<IndexT> vertex_offsets_counts;
         vertex_offsets_counts.resize(geo_infos.size());
@@ -362,8 +332,7 @@ void FiniteElementMethod::Impl::_build_geo_infos(WorldVisitor& world)
         vertex_offsets_counts.scan();
 
         // we don't calculate the primitive offset here
-        // the primitive offset is related to the dimension
-        // the primitive offset in every dim starts from 0
+        // the primitive offset is related to the dimension, every dim starts from 0
 
         span<const IndexT> vertex_offsets = vertex_offsets_counts.offsets();
 

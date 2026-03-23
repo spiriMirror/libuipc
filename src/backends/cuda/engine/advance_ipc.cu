@@ -215,9 +215,9 @@ void SimEngine::advance()
         }
     };
 
-    auto check_line_search_iter = [this]
+    auto check_line_search_iter = [this](SizeT line_search_iter_after_loop)
     {
-        if(m_line_search_iter >= m_line_searcher->max_iter())
+        if(line_search_iter_after_loop >= m_line_searcher->max_iter())
         {
             logger::warn("Line Search Exits with Max Iteration: {} (Frame={}, Newton={})",
                          m_line_searcher->max_iter(),
@@ -231,12 +231,13 @@ void SimEngine::advance()
         }
     };
 
-    auto check_newton_iter = [this]
+    auto check_newton_iter = [this](IndexT newton_iter_after_loop)
     {
-        if(m_newton_iter >= m_newton_max_iter->view()[0])
+        auto newton_max = m_newton_max_iter->view()[0];
+        if(newton_iter_after_loop >= newton_max)
         {
             logger::warn("Newton Iteration Exits with Max Iteration: {} (Frame={})",
-                         m_newton_max_iter->view()[0],
+                         newton_max,
                          m_current_frame);
 
             if(m_strict_mode->view()[0])
@@ -247,9 +248,9 @@ void SimEngine::advance()
         else
         {
             logger::info("Newton Iteration Converged with Iteration Count: {}, Bound: [{}, {}]",
-                         m_newton_iter,
+                         newton_iter_after_loop,
                          m_newton_min_iter->view()[0],
-                         m_newton_max_iter->view()[0]);
+                         newton_max);
         }
     };
 
@@ -315,10 +316,11 @@ void SimEngine::advance()
             // 4. Nonlinear-Newton Iteration
             m_newton_tolerance_manager->pre_newton(m_current_frame);
 
-            auto   newton_max_iter = m_newton_max_iter->view()[0];
-            auto   newton_min_iter = m_newton_min_iter->view()[0];
-            beta                   = 1.0;
-            for(IndexT newton_iter = 0; newton_iter < newton_max_iter; ++newton_iter)
+            auto newton_max_iter = m_newton_max_iter->view()[0];
+            auto newton_min_iter = m_newton_min_iter->view()[0];
+            beta                 = 1.0;
+            IndexT newton_iter   = 0;
+            for(; newton_iter < newton_max_iter; ++newton_iter)
             {
                 Timer timer{"Newton Iteration"};
                 m_newton_iter = newton_iter;
@@ -379,10 +381,9 @@ void SimEngine::advance()
                     alpha = cfl_condition(alpha);
 
                     // Line Search Iteration
-                    bool converged = convergence_check(newton_iter);
-                    for(SizeT line_search_iter = 0;
-                        line_search_iter < m_line_searcher->max_iter();
-                        ++line_search_iter)
+                    bool  converged        = convergence_check(newton_iter);
+                    SizeT line_search_iter = 0;
+                    for(; line_search_iter < m_line_searcher->max_iter(); ++line_search_iter)
                     {
                         Timer timer{"Line Search Iteration"};
                         m_line_search_iter = line_search_iter;
@@ -413,7 +414,7 @@ void SimEngine::advance()
                     }
 
                     // Check Line Search Iteration: report warnings or throw exceptions if needed
-                    check_line_search_iter();
+                    check_line_search_iter(line_search_iter);
 
                     bool terminated = converged && (newton_iter >= newton_min_iter);
                     if(terminated)
@@ -430,7 +431,7 @@ void SimEngine::advance()
 
             // Check Newton Iteration
             // report warnings or throw exceptions if needed
-            check_newton_iter();
+            check_newton_iter(newton_iter);
         }
 
         logger::info("<<< End Frame: {}", m_current_frame);
