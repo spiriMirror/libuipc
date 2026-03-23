@@ -42,8 +42,12 @@ class AffineBodyRevoluteJointExternalBodyForce final : public AffineBodyExternal
                     body_ids = constraint->body_ids().viewer().name("body_ids"),
                     torques  = constraint->torques().viewer().name("torques"),
                     rest_positions = constraint->rest_positions().viewer().name("rest_positions"),
+                    constrained_flags = constraint->constrained_flags().viewer().name("constrained_flags"),
                     qs = affine_body_dynamics->qs().cviewer().name("qs")] __device__(int i) mutable
                    {
+                       if(constrained_flags(i) == 0)
+                           return;
+
                        Vector2i bids = body_ids(i);
                        Float    tau  = torques(i);
 
@@ -85,13 +89,13 @@ class AffineBodyRevoluteJointExternalBodyForce final : public AffineBodyExternal
                        Vector12 F_i = Vector12::Zero();
                        if(r_sq_i > eps)
                        {
-                           F_i.segment<3>(0) = -tau * e_world_i.cross(r_i) / r_sq_i;
+                           F_i.segment<3>(0) = tau * e_world_i.cross(r_i) / r_sq_i;
                        }
 
                        Vector12 F_j = Vector12::Zero();
                        if(r_sq_j > eps)
                        {
-                           F_j.segment<3>(0) = tau * e_world_j.cross(r_j) / r_sq_j;
+                           F_j.segment<3>(0) = -tau * e_world_j.cross(r_j) / r_sq_j;
                        }
 
                        eigen::atomic_add(external_forces(bids(0)), F_i);
@@ -133,46 +137,34 @@ class AffineBodyRevoluteJointExternalForceTimeIntegrator : public TimeIntegrator
             .file_line(__FILE__, __LINE__)
             .apply(N,
                    [body_ids = constraint->body_ids().cviewer().name("body_ids"),
-                    rest_positions = constraint->rest_positions().cviewer().name("rest_positions"),
+                    rest_axis = constraint->rest_axis().cviewer().name("rest_axis"),
+                    rest_normals = constraint->rest_normals().cviewer().name("rest_normals"),
                     init_angles = constraint->init_angles().cviewer().name("init_angles"),
                     current_angles = constraint->current_angles().viewer().name("current_angles"),
+                    constrained_flags =
+                        constraint->constrained_flags().cviewer().name("constrained_flags"),
                     qs = affine_body_dynamics->qs().cviewer().name("qs"),
                     PI = std::numbers::pi] __device__(int I)
                    {
+                       if(constrained_flags(I) == 0)
+                           return;
+
                        Vector2i bids = body_ids(I);
 
                        Vector12 q_i = qs(bids(0));
                        Vector12 q_j = qs(bids(1));
 
-                       const Vector12& X_bar = rest_positions(I);
-
-                       Vector3 x0_bar = X_bar.segment<3>(0);
-                       Vector3 x1_bar = X_bar.segment<3>(3);
-                       Vector3 x2_bar = X_bar.segment<3>(6);
-                       Vector3 x3_bar = X_bar.segment<3>(9);
-
-                       Vector3 h_bar_i = (x1_bar - x0_bar) * 0.5;
-                       Vector3 h_bar_j = (x3_bar - x2_bar) * 0.5;
-
-                       Vector3 e_bar_i = h_bar_i.normalized();
-                       Vector3 e_bar_j = h_bar_j.normalized();
-
-                       auto toNormal = [](const Vector3& W) -> Vector3
-                       {
-                           Vector3 ref = abs(W.dot(Vector3(1, 0, 0))) < 0.99 ?
-                                             Vector3(1, 0, 0) :
-                                             Vector3(0, 1, 0);
-                           Vector3 U   = ref.cross(W).normalized();
-                           return W.cross(U).normalized();
-                       };
-
-                       Vector3 n_bar_i = toNormal(e_bar_i);
-                       Vector3 v_bar_i = n_bar_i.cross(e_bar_i).normalized();
-                       Vector3 n_bar_j = toNormal(e_bar_j);
-                       Vector3 v_bar_j = n_bar_j.cross(e_bar_j).normalized();
+                       Vector6 axis_bar   = rest_axis(I);
+                       Vector6 normal_bar = rest_normals(I);
 
                        Vector12 F01_q;
-                       DRJ::F01_q<Float>(F01_q, v_bar_i, n_bar_i, q_i, v_bar_j, n_bar_j, q_j);
+                       DRJ::F01_q<Float>(F01_q,
+                                         axis_bar.segment<3>(0),
+                                         normal_bar.segment<3>(0),
+                                         q_i,
+                                         axis_bar.segment<3>(3),
+                                         normal_bar.segment<3>(3),
+                                         q_j);
 
                        Float curr_angle;
                        DRJ::currAngle<Float>(curr_angle, F01_q);

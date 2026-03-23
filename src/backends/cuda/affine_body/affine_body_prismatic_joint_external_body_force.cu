@@ -44,8 +44,12 @@ class AffineBodyPrismaticJointExternalBodyForce final : public AffineBodyExterna
                     body_ids = constraint->body_ids().viewer().name("body_ids"),
                     forces   = constraint->forces().viewer().name("forces"),
                     rest_tangents = constraint->rest_tangents().viewer().name("rest_tangents"),
+                    constrained_flags = constraint->constrained_flags().viewer().name("constrained_flags"),
                     qs = affine_body_dynamics->qs().cviewer().name("qs")] __device__(int i) mutable
                    {
+                       if(constrained_flags(i) == 0)
+                           return;
+
                        Vector2i bids = body_ids(i);
                        Float    f    = forces(i);
 
@@ -89,7 +93,7 @@ class AffineBodyPrismaticJointExternalForceTimeIntegrator : public TimeIntegrato
 
     void do_build(BuildInfo& info) override
     {
-        constraint          = require<AffineBodyPrismaticJointExternalBodyForceConstraint>();
+        constraint = require<AffineBodyPrismaticJointExternalBodyForceConstraint>();
         affine_body_dynamics = require<AffineBodyDynamics>();
     }
 
@@ -107,13 +111,18 @@ class AffineBodyPrismaticJointExternalForceTimeIntegrator : public TimeIntegrato
         ParallelFor()
             .file_line(__FILE__, __LINE__)
             .apply(N,
-                   [body_ids       = constraint->body_ids().cviewer().name("body_ids"),
+                   [body_ids = constraint->body_ids().cviewer().name("body_ids"),
                     rest_positions = constraint->rest_positions().cviewer().name("rest_positions"),
-                    rest_tangents  = constraint->rest_tangents().cviewer().name("rest_tangents"),
+                    rest_tangents = constraint->rest_tangents().cviewer().name("rest_tangents"),
                     init_distances = constraint->init_distances().cviewer().name("init_distances"),
                     current_distances = constraint->current_distances().viewer().name("current_distances"),
+                    constrained_flags =
+                        constraint->constrained_flags().cviewer().name("constrained_flags"),
                     qs = affine_body_dynamics->qs().cviewer().name("qs")] __device__(int I)
                    {
+                       if(constrained_flags(I) == 0)
+                           return;
+
                        Vector2i bids = body_ids(I);
 
                        Vector12 q_i = qs(bids(0));

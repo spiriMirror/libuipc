@@ -26,7 +26,10 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
                                vector<Float>&                         h_torques,
                                vector<Vector2i>& h_body_ids,
                                vector<Vector12>& h_rest_positions,
-                               vector<Float>&    h_init_angles)
+                               vector<Vector6>&  h_rest_axis,
+                               vector<Vector6>&  h_rest_normals,
+                               vector<Float>&    h_init_angles,
+                               vector<IndexT>&   h_is_constrained)
 {
     info.for_each(
         geo_slots,
@@ -56,10 +59,21 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
             auto Es = sc->edges().topo().view();
             auto Ps = sc->positions().view();
 
+            auto toNormal = [&](const Vector3& W) -> Vector3
+            {
+                Vector3 ref = abs(W.dot(Vector3(1, 0, 0))) < 0.99 ?
+                                  Vector3(1, 0, 0) :
+                                  Vector3(0, 1, 0);
+
+                Vector3 U = ref.cross(W).normalized();
+                Vector3 V = W.cross(U).normalized();
+
+                return V;
+            };
+
             for(auto&& [i, e] : enumerate(Es))
             {
-                if(is_constrained_view[i] == 0)
-                    continue;
+                h_is_constrained.push_back(is_constrained_view[i]);
 
                 Vector2i geo_id  = geo_ids_view[i];
                 Vector2i inst_id = inst_ids_view[i];
@@ -83,6 +97,13 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
                 P0               = mid - HalfAxis;
                 P1               = mid + HalfAxis;
 
+
+                Vector3 UnitE = (P0 - P1).normalized();
+                // normal
+                Vector3 normal = toNormal(UnitE);
+                Vector3 vec    = normal.cross(UnitE).normalized();
+
+
                 Transform LT{left_sc->transforms().view()[inst_id(0)]};
                 Transform RT{right_sc->transforms().view()[inst_id(1)]};
 
@@ -92,6 +113,16 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
                 rest_pos.segment<3>(6) = RT.inverse() * P0;
                 rest_pos.segment<3>(9) = RT.inverse() * P1;
                 h_rest_positions.push_back(rest_pos);
+
+                Vector6 rest_axis;
+                rest_axis.segment<3>(0) = LT.rotation().inverse() * vec;
+                rest_axis.segment<3>(3) = RT.rotation().inverse() * vec;
+                h_rest_axis.push_back(rest_axis);
+
+                Vector6 rest_normal;
+                rest_normal.segment<3>(0) = LT.rotation().inverse() * normal;
+                rest_normal.segment<3>(3) = RT.rotation().inverse() * normal;
+                h_rest_normals.push_back(rest_normal);
 
                 h_torques.push_back(external_torque_view[i]);
                 h_init_angles.push_back(init_angle ? init_angle->view()[i] : Float{0});
@@ -124,7 +155,10 @@ void AffineBodyRevoluteJointExternalBodyForceConstraint::do_init(InterAffineBody
                        m_impl.h_torques,
                        m_impl.h_body_ids,
                        m_impl.h_rest_positions,
-                       m_impl.h_init_angles);
+                       m_impl.h_rest_axis,
+                       m_impl.h_rest_normals,
+                       m_impl.h_init_angles,
+                       m_impl.h_is_constrained);
 
     SizeT N = m_impl.h_torques.size();
     m_impl.h_current_angles.resize(N, 0.0);
@@ -134,8 +168,11 @@ void AffineBodyRevoluteJointExternalBodyForceConstraint::do_init(InterAffineBody
         m_impl.torques.copy_from(m_impl.h_torques);
         m_impl.body_ids.copy_from(m_impl.h_body_ids);
         m_impl.rest_positions.copy_from(m_impl.h_rest_positions);
+        m_impl.rest_axis.copy_from(m_impl.h_rest_axis);
+        m_impl.rest_normals.copy_from(m_impl.h_rest_normals);
         m_impl.init_angles.copy_from(m_impl.h_init_angles);
-        m_impl.current_angles.resize(N, 0.0);
+        m_impl.is_constrained.copy_from(m_impl.h_is_constrained);
+        m_impl.current_angles.copy_from(m_impl.h_init_angles);
     }
 }
 
@@ -143,36 +180,37 @@ void AffineBodyRevoluteJointExternalBodyForceConstraint::do_step(InterAffineBody
 {
     auto geo_slots = world().scene().geometries();
 
-    m_impl.h_torques.clear();
-    m_impl.h_body_ids.clear();
-    m_impl.h_rest_positions.clear();
-    m_impl.h_init_angles.clear();
+    // Only update is_constrained and external_torque (structural data unchanged from do_init)
+    SizeT offset = 0;
+    info.for_each(
+        geo_slots,
+        [&](const InterAffineBodyConstitutionManager::ForEachInfo& I, geometry::Geometry& geo)
+        {
+            auto sc = geo.as<geometry::SimplicialComplex>();
+            UIPC_ASSERT(sc, "AffineBodyRevoluteJointExternalBodyForceConstraint: geometry must be SimplicialComplex");
 
-    collect_joint_data(info,
-                       geo_slots,
-                       m_impl.h_torques,
-                       m_impl.h_body_ids,
-                       m_impl.h_rest_positions,
-                       m_impl.h_init_angles);
+            auto is_constrained = sc->edges().find<IndexT>("external_torque/is_constrained");
+            UIPC_ASSERT(is_constrained, "AffineBodyRevoluteJointExternalBodyForceConstraint: Geometry must have 'external_torque/is_constrained' attribute on `edges`");
+            auto is_constrained_view = is_constrained->view();
+
+            auto external_torque = sc->edges().find<Float>("external_torque");
+            UIPC_ASSERT(external_torque, "AffineBodyRevoluteJointExternalBodyForceConstraint: Geometry must have 'external_torque' attribute on `edges`");
+            auto external_torque_view = external_torque->view();
+
+            auto Es = sc->edges().topo().view();
+            for(auto&& [i, e] : enumerate(Es))
+            {
+                m_impl.h_is_constrained[offset] = is_constrained_view[i];
+                m_impl.h_torques[offset]        = external_torque_view[i];
+                ++offset;
+            }
+        });
 
     SizeT N = m_impl.h_torques.size();
-    m_impl.h_current_angles.resize(N, 0.0);
-
     if(N > 0)
     {
+        m_impl.is_constrained.copy_from(m_impl.h_is_constrained);
         m_impl.torques.copy_from(m_impl.h_torques);
-        m_impl.body_ids.copy_from(m_impl.h_body_ids);
-        m_impl.rest_positions.copy_from(m_impl.h_rest_positions);
-        m_impl.init_angles.copy_from(m_impl.h_init_angles);
-        m_impl.current_angles.resize(N);
-    }
-    else
-    {
-        m_impl.torques.resize(0);
-        m_impl.body_ids.resize(0);
-        m_impl.rest_positions.resize(0);
-        m_impl.init_angles.resize(0);
-        m_impl.current_angles.resize(0);
     }
 }
 
@@ -203,10 +241,12 @@ void AffineBodyRevoluteJointExternalBodyForceConstraint::write_scene()
 
                        for(SizeT i = 0; i < is_constrained_view.size(); ++i)
                        {
-                           if(is_constrained_view[i] == 0)
-                               continue;
                            if(offset < m_impl.h_current_angles.size())
-                               angle_view[i] = m_impl.h_current_angles[offset++];
+                           {
+                               if(is_constrained_view[i] != 0)
+                                   angle_view[i] = m_impl.h_current_angles[offset];
+                               ++offset;
+                           }
                        }
                    });
 }
@@ -226,6 +266,17 @@ muda::CBufferView<Vector12> AffineBodyRevoluteJointExternalBodyForceConstraint::
     return m_impl.rest_positions.view();
 }
 
+muda::CBufferView<Vector6> AffineBodyRevoluteJointExternalBodyForceConstraint::rest_axis() const noexcept
+{
+    return m_impl.rest_axis.view();
+}
+
+muda::CBufferView<Vector6> AffineBodyRevoluteJointExternalBodyForceConstraint::rest_normals() const noexcept
+{
+    return m_impl.rest_normals.view();
+}
+
+
 muda::CBufferView<Float> AffineBodyRevoluteJointExternalBodyForceConstraint::init_angles() const noexcept
 {
     return m_impl.init_angles.view();
@@ -234,6 +285,11 @@ muda::CBufferView<Float> AffineBodyRevoluteJointExternalBodyForceConstraint::ini
 muda::DeviceBuffer<Float>& AffineBodyRevoluteJointExternalBodyForceConstraint::current_angles() noexcept
 {
     return m_impl.current_angles;
+}
+
+muda::CBufferView<IndexT> AffineBodyRevoluteJointExternalBodyForceConstraint::constrained_flags() const noexcept
+{
+    return m_impl.is_constrained.view();
 }
 
 void AffineBodyRevoluteJointExternalBodyForceConstraint::do_report_extent(

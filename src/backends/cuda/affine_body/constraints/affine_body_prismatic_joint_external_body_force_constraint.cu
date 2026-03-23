@@ -28,6 +28,7 @@ static void collect_prismatic_data(InterAffineBodyAnimator::FilteredInfo& info,
                                    vector<Vector6>& h_rest_tangents,
                                    vector<Vector6>& h_rest_positions,
                                    vector<Float>&   h_init_distances,
+                                   vector<IndexT>&  h_is_constrained,
                                    bool             check_uid = false)
 {
     info.for_each(
@@ -71,8 +72,7 @@ static void collect_prismatic_data(InterAffineBodyAnimator::FilteredInfo& info,
 
             for(auto&& [i, e] : enumerate(Es))
             {
-                if(is_constrained_view[i] == 0)
-                    continue;
+                h_is_constrained.push_back(is_constrained_view[i]);
 
                 Vector2i geo_id  = geo_ids_view[i];
                 Vector2i inst_id = inst_ids_view[i];
@@ -119,6 +119,7 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::do_init(InterAffineBod
                            m_impl.h_rest_tangents,
                            m_impl.h_rest_positions,
                            m_impl.h_init_distances,
+                           m_impl.h_is_constrained,
                            true);
 
     SizeT N = m_impl.h_forces.size();
@@ -131,6 +132,7 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::do_init(InterAffineBod
         m_impl.rest_tangents.copy_from(m_impl.h_rest_tangents);
         m_impl.rest_positions.copy_from(m_impl.h_rest_positions);
         m_impl.init_distances.copy_from(m_impl.h_init_distances);
+        m_impl.is_constrained.copy_from(m_impl.h_is_constrained);
         m_impl.current_distances.resize(N, 0.0);
     }
 }
@@ -139,40 +141,37 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::do_step(InterAffineBod
 {
     auto geo_slots = world().scene().geometries();
 
-    m_impl.h_forces.clear();
-    m_impl.h_body_ids.clear();
-    m_impl.h_rest_tangents.clear();
-    m_impl.h_rest_positions.clear();
-    m_impl.h_init_distances.clear();
+    // Only update is_constrained and external_force (structural data unchanged from do_init)
+    SizeT offset = 0;
+    info.for_each(
+        geo_slots,
+        [&](const InterAffineBodyConstitutionManager::ForEachInfo& I, geometry::Geometry& geo)
+        {
+            auto sc = geo.as<geometry::SimplicialComplex>();
+            UIPC_ASSERT(sc, "AffineBodyPrismaticJointExternalBodyForceConstraint: geometry must be SimplicialComplex");
 
-    collect_prismatic_data(info,
-                           geo_slots,
-                           m_impl.h_forces,
-                           m_impl.h_body_ids,
-                           m_impl.h_rest_tangents,
-                           m_impl.h_rest_positions,
-                           m_impl.h_init_distances);
+            auto is_constrained = sc->edges().find<IndexT>("external_force/is_constrained");
+            UIPC_ASSERT(is_constrained, "AffineBodyPrismaticJointExternalBodyForceConstraint: Geometry must have 'external_force/is_constrained' attribute on `edges`");
+            auto is_constrained_view = is_constrained->view();
+
+            auto external_force = sc->edges().find<Float>("external_force");
+            UIPC_ASSERT(external_force, "AffineBodyPrismaticJointExternalBodyForceConstraint: Geometry must have 'external_force' attribute on `edges`");
+            auto external_force_view = external_force->view();
+
+            auto Es = sc->edges().topo().view();
+            for(auto&& [i, e] : enumerate(Es))
+            {
+                m_impl.h_is_constrained[offset] = is_constrained_view[i];
+                m_impl.h_forces[offset]         = external_force_view[i];
+                ++offset;
+            }
+        });
 
     SizeT N = m_impl.h_forces.size();
-    m_impl.h_current_distances.resize(N, 0.0);
-
     if(N > 0)
     {
+        m_impl.is_constrained.copy_from(m_impl.h_is_constrained);
         m_impl.forces.copy_from(m_impl.h_forces);
-        m_impl.body_ids.copy_from(m_impl.h_body_ids);
-        m_impl.rest_tangents.copy_from(m_impl.h_rest_tangents);
-        m_impl.rest_positions.copy_from(m_impl.h_rest_positions);
-        m_impl.init_distances.copy_from(m_impl.h_init_distances);
-        m_impl.current_distances.resize(N);
-    }
-    else
-    {
-        m_impl.forces.resize(0);
-        m_impl.body_ids.resize(0);
-        m_impl.rest_tangents.resize(0);
-        m_impl.rest_positions.resize(0);
-        m_impl.init_distances.resize(0);
-        m_impl.current_distances.resize(0);
     }
 }
 
@@ -203,10 +202,12 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::write_scene()
 
                        for(SizeT i = 0; i < is_constrained_view.size(); ++i)
                        {
-                           if(is_constrained_view[i] == 0)
-                               continue;
                            if(offset < m_impl.h_current_distances.size())
-                               distance_view[i] = m_impl.h_current_distances[offset++];
+                           {
+                               if(is_constrained_view[i] != 0)
+                                   distance_view[i] = m_impl.h_current_distances[offset];
+                               ++offset;
+                           }
                        }
                    });
 }
@@ -239,6 +240,11 @@ muda::CBufferView<Float> AffineBodyPrismaticJointExternalBodyForceConstraint::in
 muda::DeviceBuffer<Float>& AffineBodyPrismaticJointExternalBodyForceConstraint::current_distances() noexcept
 {
     return m_impl.current_distances;
+}
+
+muda::CBufferView<IndexT> AffineBodyPrismaticJointExternalBodyForceConstraint::constrained_flags() const noexcept
+{
+    return m_impl.is_constrained.view();
 }
 
 void AffineBodyPrismaticJointExternalBodyForceConstraint::do_report_extent(
