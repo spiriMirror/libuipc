@@ -27,7 +27,7 @@
 | 22  | [SoftVertexStitch](./soft_vertex_stitch.md)                             | Soft Vertex Stitch Constitutions                                                     |
 | 23  | [ExternalArticulationConstraint](./external_articulation_constraint.md) | External Articulation Constraint Constitutions                                       |
 | 25  | [AffineBodyFixedJoint](./affine_body_fixed_joint.md)                    | Affine Body Fixed Joint Constitutions                                                |
-| 26  | AffineBodySphericalJoint                                                | Affine Body Spherical Joint Constitutions (Reserved)                                 |
+| 26  | [AffineBodySphericalJoint](./affine_body_spherical_joint.md)            | Affine Body Spherical Joint (ball-and-socket): shared anchor, free relative rotation |
 | 27  | AffineBodyDrivingSphericalJoint                                         | Affine Body Driving Spherical Joint Constitutions (Reserved)                         |
 | 28  | AffineBodyD6Joint                                                       | Affine Body D6 Joint Constitutions (Reserved)                                        |
 | 29  | [SoftVertexEdgeStitch](./soft_vertex_edge_stitch.md)                    | Inter-primitive: (vertex, edge) pairs as triangles with StVK membrane energy         |
