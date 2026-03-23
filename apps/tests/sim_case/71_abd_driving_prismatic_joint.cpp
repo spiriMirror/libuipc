@@ -142,7 +142,7 @@ TEST_CASE("71_abd_driving_prismatic_joint", "[abd][joint][driving]")
                 }
 
                 // 1. Enable is_constrained
-                auto is_constrained = sc->edges().find<IndexT>(builtin::is_constrained);
+                auto is_constrained = sc->edges().find<IndexT>("driving/is_constrained");
                 if(is_constrained)
                 {
                     auto constrained_view = view(*is_constrained);
