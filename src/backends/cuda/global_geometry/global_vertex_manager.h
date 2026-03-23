@@ -11,8 +11,8 @@
 namespace uipc::backend::cuda
 {
 class GlobalTrajectoryFilter;
-class VertexReporter;
 class GlobalActiveSetManager;
+class VertexReporter;
 class GlobalVertexManager final : public SimSystem
 {
   public:
@@ -176,9 +176,9 @@ class GlobalVertexManager final : public SimSystem
 
         void collect_vertex_displacements();
 
-        void prepare_AL_CCD();
-        void post_AL_CCD();
-        void recover_non_penetrate();
+        void setup_ccd(muda::CBufferView<Vector3> base_positions);
+        void restore_ccd();
+        void overwrite_positions(muda::CBufferView<Vector3> src);
 
         Float compute_axis_max_displacement();
         AABB  compute_vertex_bounding_box();
@@ -255,12 +255,13 @@ class GlobalVertexManager final : public SimSystem
     void step_forward(Float alpha);
     void record_start_point();
 
-    void prepare_AL_CCD();
-    void post_AL_CCD();
-    void recover_non_penetrate();
+    void setup_ccd(muda::CBufferView<Vector3> base_positions);
+    void restore_ccd();
+    void overwrite_positions(muda::CBufferView<Vector3> src);
 
     friend class VertexReporter;
     void add_reporter(VertexReporter* reporter);
+
     Impl m_impl;
 };
 }  // namespace uipc::backend::cuda

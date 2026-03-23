@@ -43,7 +43,6 @@ void SimEngine::advance_AL()
         {
             Timer timer{"Recover to Non-Penetrating Positions"};
             m_global_active_set_manager->recover_non_penetrate_positions();
-            m_global_vertex_manager->recover_non_penetrate();
         }
     };
 
@@ -75,14 +74,6 @@ void SimEngine::advance_AL()
         }
     };
 
-    auto record_friction_candidates = [this]
-    {
-        if(m_global_active_set_manager && m_friction_enabled)
-        {
-            m_global_active_set_manager->linearize_constraints();
-            m_global_active_set_manager->update_friction();
-        }
-    };
 
     auto compute_adaptive_mu = [this]
     {
@@ -290,9 +281,16 @@ void SimEngine::advance_AL()
         // Simulation:
         {
             Timer timer{"Simulation"};
-            // 1. Record Friction Candidates at the beginning of the frame
-            record_friction_candidates();
+            // 1. Process External Changes
+            // (may trigger require_discard_friction on GlobalActiveSetManager)
             m_global_vertex_manager->update_attributes();
+
+            // 2. Snapshot friction candidates.
+            // linearize_constraints() uses non_penetrate_positions stored in GASM.
+            // Must be called after update_attributes() so that discard signals are respected.
+            if(m_global_active_set_manager && m_friction_enabled)
+                m_global_active_set_manager->snapshot_friction_candidates();
+
             m_global_vertex_manager->record_prev_positions();
             if(m_global_active_set_manager)
             {
@@ -404,11 +402,11 @@ void SimEngine::advance_AL()
                     m_global_active_set_manager->update_lambda();
 
                     // Setup Displacements for CCD
-                    m_global_vertex_manager->prepare_AL_CCD();
+                    m_global_active_set_manager->prepare_ccd();
                     detect_trajectory_candidates(1.0);
                     alpha = filter_toi(1.0);
                     m_global_active_set_manager->update_active_set();
-                    m_global_vertex_manager->post_AL_CCD();
+                    m_global_active_set_manager->post_ccd();
 
                     m_global_active_set_manager->advance_non_penetrate_positions(alpha);
                 }
