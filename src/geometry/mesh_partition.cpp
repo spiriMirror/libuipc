@@ -1,4 +1,5 @@
 #include <uipc/geometry/utils/mesh_partition.h>
+#include <uipc/geometry/utils/label_connected_vertices.h>
 #include <uipc/common/vector.h>
 #include <uipc/common/map.h>
 #include <uipc/common/range.h>
@@ -22,8 +23,7 @@ static void build_adjacency(vector<idx_t>&           xadj,
 
     auto add_edge = [&](IndexT a, IndexT b)
     {
-        if(a != b && a >= 0 && b >= 0
-           && a < static_cast<IndexT>(vert_count)
+        if(a != b && a >= 0 && b >= 0 && a < static_cast<IndexT>(vert_count)
            && b < static_cast<IndexT>(vert_count))
         {
             neighbors[a].insert(static_cast<idx_t>(b));
@@ -78,19 +78,12 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
     auto part_attr = sc.vertices().create<IndexT>(metis_part, -1);
     auto part_view = view(*part_attr);
 
-    // Small mesh: single partition
-    if(vert_count <= part_max_size) [[unlikely]]
-    {
-        std::ranges::fill(part_view, 0);
-        return;
-    }
-
     // Build adjacency graph
     vector<idx_t> xadj;
     vector<idx_t> adjncy;
     build_adjacency(xadj, adjncy, vert_count, sc);
 
-    // Point cloud fallback
+    // Point cloud fallback: no connectivity, assign sequentially
     if(adjncy.empty())
     {
         for(SizeT i = 0; i < vert_count; ++i)
@@ -99,15 +92,25 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
     }
 
     SizeT block_size = part_max_size;
-    idx_t n_parts    = static_cast<idx_t>((vert_count + block_size - 1) / block_size);
+    idx_t n_parts = static_cast<idx_t>((vert_count + block_size - 1) / block_size);
 
     if(n_parts <= 1)
     {
-        std::ranges::fill(part_view, 0);
+        // METIS_PartGraphKway requires nparts >= 2 (internally divides by
+        // log2(nparts), which is zero when nparts == 1).  Fall back to
+        // connected-component labeling so that disconnected pieces still
+        // receive distinct partition IDs.
+        auto region      = label_connected_vertices(sc);
+        auto region_view = region->view();
+        for(SizeT i = 0; i < vert_count; ++i)
+            part_view[i] = region_view[i];
+
+        sc.vertices().destroy("region");
+        sc.meta().destroy("region_count");
         return;
     }
 
-    // METIS partitioning
+    // METIS partitioning (nparts >= 2)
     vector<idx_t> metis_result(vert_count, 0);
 
     bool success = false;
@@ -126,12 +129,12 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
                                       &n_weights,
                                       xadj.data(),
                                       adjncy.data(),
-                                      nullptr,   // vwgt
-                                      nullptr,   // vsize
-                                      nullptr,   // adjwgt
+                                      nullptr,  // vwgt
+                                      nullptr,  // vsize
+                                      nullptr,  // adjwgt
                                       &n_parts,
-                                      nullptr,   // tpwgts
-                                      nullptr,   // ubvec
+                                      nullptr,  // tpwgts
+                                      nullptr,  // ubvec
                                       options,
                                       &edge_cut,
                                       metis_result.data());
@@ -172,13 +175,13 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
         for(SizeT i = 0; i < vert_count; ++i)
         {
             UIPC_ASSERT(part_view[i] >= 0,
-                         "mesh_partition: vertex {} has invalid partition ID {}.",
-                         i,
-                         part_view[i]);
+                        "mesh_partition: vertex {} has invalid partition ID {}.",
+                        i,
+                        part_view[i]);
         }
 
         // 2. No partition exceeds part_max_size
-        IndexT max_id = *std::ranges::max_element(part_view);
+        IndexT        max_id = *std::ranges::max_element(part_view);
         vector<SizeT> sizes(max_id + 1, 0);
         for(SizeT i = 0; i < vert_count; ++i)
             sizes[part_view[i]]++;
@@ -186,19 +189,19 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
         for(IndexT p = 0; p <= max_id; ++p)
         {
             UIPC_ASSERT(sizes[p] <= part_max_size,
-                         "mesh_partition: partition {} has {} vertices, exceeding the limit {}.",
-                         p,
-                         sizes[p],
-                         part_max_size);
+                        "mesh_partition: partition {} has {} vertices, exceeding the limit {}.",
+                        p,
+                        sizes[p],
+                        part_max_size);
         }
 
         // 3. No empty partitions (IDs should be contiguous 0..max)
         for(IndexT p = 0; p <= max_id; ++p)
         {
             UIPC_ASSERT(sizes[p] > 0,
-                         "mesh_partition: partition {} is empty. "
-                         "Partition IDs should be contiguous from 0.",
-                         p);
+                        "mesh_partition: partition {} is empty. "
+                        "Partition IDs should be contiguous from 0.",
+                        p);
         }
     }
 }

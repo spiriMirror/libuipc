@@ -30,6 +30,13 @@ void LinearFusedPCG::do_build(BuildInfo& info)
     if(check_attr)
         check_interval = check_attr->view()[0];
 
+    auto dump_attr = config.find<IndexT>("extras/debug/dump_linear_pcg");
+    if(dump_attr && dump_attr->view()[0] != 0)
+        logger::warn(
+            "LinearFusedPCG: extras/debug/dump_linear_pcg is enabled but "
+            "fused_pcg does not support PCG vector dumps. "
+            "Set linear_system/solver to \"linear_pcg\" to use this feature.");
+
     logger::info("LinearFusedPCG: max_iter_ratio = {}, tol_rate = {}, check_interval = {}",
                  max_iter_ratio,
                  global_tol_rate,
@@ -92,9 +99,9 @@ void LinearFusedPCG::check_iter_rz_nan_inf(Float rz, SizeT k)
         auto norm_z = ctx().norm(z.cview());
         bool r_ok   = std::isfinite(norm_r);
         bool z_bad  = !std::isfinite(norm_z);
-        auto hint   = (r_ok && z_bad) ?
-                          "preconditioner failed, likely due to inverse matrix calculation failure" :
-                          "PCG iteration diverged";
+        auto hint = (r_ok && z_bad) ?
+                        "preconditioner failed, likely due to inverse matrix calculation failure" :
+                        "PCG iteration diverged";
         UIPC_ASSERT(false,
                     "Frame {}, Newton {}, FusedPCG Iter {}: r^T*z = {}, norm(r) = {}, norm(z) = {}. "
                     "Hint: {}.",
@@ -203,8 +210,8 @@ void fused_update_p(muda::CVarView<Float>         d_rz_new,
 }
 
 // d_rz = d_rz_new when not converged (single-thread write).
-void fused_swap_rz(muda::CVarView<Float> d_rz_new,
-                   muda::VarView<Float>  d_rz,
+void fused_swap_rz(muda::CVarView<Float>  d_rz_new,
+                   muda::VarView<Float>   d_rz,
                    muda::CVarView<IndexT> d_converged)
 {
     using namespace muda;
@@ -246,7 +253,7 @@ SizeT LinearFusedPCG::fused_pcg(muda::DenseVectorView<Float>  x,
 {
     Timer pcg_timer{"FusedPCG"};
 
-    SizeT k = 0;
+    SizeT k     = 0;
     d_converged = 0;
 
     // r = b - A*x, but x0 = 0 so r = b
