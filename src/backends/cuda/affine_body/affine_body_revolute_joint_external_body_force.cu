@@ -82,7 +82,7 @@ class AffineBodyRevoluteJointExternalBodyForce final : public AffineBodyExternal
 
                        // Tangential force at center of mass:
                        //   F = tau * (e × r) / |r|^2
-                       // Body_i receives -tau (reaction), body_j receives +tau.
+                       // Body_i receives +tau, body_j receives -tau (reaction).
 
                        constexpr Float eps = 1e-12;
 
