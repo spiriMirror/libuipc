@@ -31,16 +31,9 @@ void AffineBodyStateAccessorFeatureOverrider::do_copy_from(const geometry::Simpl
     if(trans)
     {
         auto trans_view = trans->view();
-
-        // Update internal DOF state (body_id_to_q)
         std::ranges::transform(trans_view, m_buffer.begin(), transform_to_q);
         auto q_subview = m_abd.m_impl.body_id_to_q.view(q_offset, q_count);
         q_subview.copy_from(m_buffer.data());
-
-        // Sync transforms to slot geometries so that consumers reading
-        // geo->transforms() inside advance() (e.g. ExternalArticulationConstraint)
-        // see the updated state without waiting for retrieve()/write_scene().
-        m_abd.m_impl.write_scene_transforms(m_abd.world(), trans_view, q_offset, q_count);
     }
 
     // 2. Velocity
