@@ -858,6 +858,27 @@ void AffineBodyDynamics::Impl::write_scene(WorldVisitor& world)
         });
 }
 
+void AffineBodyDynamics::Impl::write_scene_transforms(WorldVisitor& world,
+                                                       span<const Matrix4x4> transforms,
+                                                       IndexT offset,
+                                                       SizeT count)
+{
+    auto scene     = world.scene();
+    auto geo_slots = scene.geometries();
+
+    for_each(
+        geo_slots,
+        [](geometry::SimplicialComplex& sc) { return view(sc.transforms()); },
+        [&](const ForEachInfo& I, Matrix4x4& trans)
+        {
+            auto bodyI = I.global_index();
+            if(bodyI >= offset && bodyI < offset + static_cast<IndexT>(count))
+            {
+                trans = transforms[bodyI - offset];
+            }
+        });
+}
+
 IndexT AffineBodyDynamics::Impl::dof_offset(SizeT frame) const
 {
     UIPC_ASSERT(frame > 0, "frame 0 is not used");

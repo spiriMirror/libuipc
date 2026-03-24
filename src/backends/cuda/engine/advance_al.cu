@@ -340,6 +340,8 @@ void SimEngine::advance_AL()
                 }
 
                 NewtonToleranceManager::ResultInfo result_info;
+                result_info.frame(m_current_frame);
+                result_info.newton_iter(newton_iter);
                 m_newton_tolerance_manager->check(result_info);
                 bool newton_converged = result_info.converged();
 

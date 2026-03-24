@@ -155,6 +155,10 @@ class AffineBodyDynamics : public SimSystem
         void _init_diff_reporters();
 
         void write_scene(WorldVisitor& world);
+        void write_scene_transforms(WorldVisitor& world,
+                                    span<const Matrix4x4> transforms,
+                                    IndexT offset,
+                                    SizeT count);
 
         bool dump(DumpInfo& info);
         bool try_recover(RecoverInfo& info);
