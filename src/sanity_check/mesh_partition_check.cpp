@@ -25,9 +25,9 @@ class MeshPartitionCheck final : public SanityChecker
         constexpr IndexT MIN_PART_SIZE = 4;
         constexpr IndexT MAX_PART_SIZE = 32;
 
-        auto  geo_slots   = scene.geometries();
+        auto  geo_slots = scene.geometries();
         bool  has_error = false;
-        auto& buffer      = msg.message();
+        auto& buffer    = msg.message();
 
         for(auto& geo_slot : geo_slots)
         {
@@ -59,27 +59,40 @@ class MeshPartitionCheck final : public SanityChecker
             if(vert_count == 0)
                 continue;
 
-            // Find max partition ID and validate
-            IndexT max_part_id = 0;
+            // Find max partition ID and validate.
+            // -1 is valid: means the vertex belongs to a mesh too small to
+            // partition (handled by diagonal fallback in the preconditioner).
+            IndexT max_part_id     = -1;
+            bool   has_partitioned = false;
             for(auto pid : part_view)
             {
-                if(pid < 0)
+                if(pid < -1)
                 {
                     fmt::format_to(std::back_inserter(buffer),
-                                   "Geometry({}): vertex has negative mesh_part ID {}.\n",
-                                   gid, pid);
+                                   "Geometry({}): vertex has invalid mesh_part ID {}.\n",
+                                   gid,
+                                   pid);
                     has_error = true;
                 }
-                max_part_id = std::max(max_part_id, pid);
+                if(pid >= 0)
+                {
+                    max_part_id     = std::max(max_part_id, pid);
+                    has_partitioned = true;
+                }
             }
 
             if(has_error)
                 continue;
 
-            // Count per partition
+            // All vertices unpartitioned (-1): nothing to validate
+            if(!has_partitioned)
+                continue;
+
+            // Count per partition (skip unpartitioned vertices with pid == -1)
             vector<SizeT> part_sizes(max_part_id + 1, 0);
             for(auto pid : part_view)
-                part_sizes[pid]++;
+                if(pid >= 0)
+                    part_sizes[pid]++;
 
             // Check for empty partitions (gap in IDs)
             for(IndexT p = 0; p <= max_part_id; ++p)
@@ -89,7 +102,8 @@ class MeshPartitionCheck final : public SanityChecker
                     fmt::format_to(std::back_inserter(buffer),
                                    "Geometry({}): partition {} is empty "
                                    "(IDs are not contiguous).\n",
-                                   gid, p);
+                                   gid,
+                                   p);
                     has_error = true;
                 }
             }
@@ -102,7 +116,9 @@ class MeshPartitionCheck final : public SanityChecker
                 fmt::format_to(std::back_inserter(buffer),
                                "Geometry({}): max partition size {} exceeds "
                                "the maximum {}.\n",
-                               gid, actual_max, MAX_PART_SIZE);
+                               gid,
+                               actual_max,
+                               MAX_PART_SIZE);
                 has_error = true;
             }
 
@@ -112,7 +128,9 @@ class MeshPartitionCheck final : public SanityChecker
                 fmt::format_to(std::back_inserter(buffer),
                                "Geometry({}): max partition size {} is below "
                                "the recommended minimum {} (inefficient clustering).\n",
-                               gid, actual_max, MIN_PART_SIZE);
+                               gid,
+                               actual_max,
+                               MIN_PART_SIZE);
                 // info only, not a warning/error
             }
 
@@ -124,7 +142,8 @@ class MeshPartitionCheck final : public SanityChecker
                                "aligned to a supported bank size (4, 8, 16, or 32). "
                                "Consider using mesh_partition(sc, 4/8/16/32) for "
                                "optimal preconditioner performance.\n",
-                               gid, actual_max);
+                               gid,
+                               actual_max);
                 // info only, not a warning/error
             }
         }

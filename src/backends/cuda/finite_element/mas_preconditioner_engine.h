@@ -33,12 +33,22 @@ class MASPreconditionerEngine
     struct alignas(16) ClusterMatrixSym
     {
         Eigen::Matrix3d M[SYM_BLOCK_COUNT];
+        MUDA_GENERIC    ClusterMatrixSym()
+        {
+            for(auto& m : M)
+                m.setZero();
+        }
     };
 
     // A single cluster's symmetric matrix in float (the inverted preconditioner)
     struct alignas(16) ClusterMatrixSymF
     {
         Eigen::Matrix3f M[SYM_BLOCK_COUNT];
+        MUDA_GENERIC    ClusterMatrixSymF()
+        {
+            for(auto& m : M)
+                m.setZero();
+        }
     };
 
     // Level traversal table per node
@@ -72,10 +82,6 @@ class MASPreconditionerEngine
 
     void init_matrix();
 
-    /** Per-vertex mask: 1 = Empty (or other non-cloth FEM) vertex; optional runtime scatter check. */
-    void set_non_cloth_fem_vertex_mask(bool enable_scatter_check,
-                                       const std::vector<uint8_t>& h_vertex_is_non_cloth_fem);
-
     // ---- Phase 2: Assemble preconditioner (per Newton iteration) ----
 
     void set_preconditioner(const Eigen::Matrix3d* d_triplet_values,
@@ -94,7 +100,7 @@ class MASPreconditionerEngine
 
     bool is_initialized() const { return m_initialized; }
 
-    /** Dump assembled cluster Hessians (double), inverses (float), and meta (part_to_real + non-cloth mask) for A/B runs. */
+    /** Dump assembled cluster Hessians (double), inverses (float), and meta (part_to_real) for A/B runs. */
     void dump_cluster_matrices_debug(const std::filesystem::path& output_dir,
                                      std::string_view             label,
                                      SizeT                        frame,
@@ -117,15 +123,6 @@ class MASPreconditionerEngine
     void compute_next_level(int level);
     void aggregation_kernel();
 
-    // Contact-aware connectivity: injects BCOO off-diagonal coupling
-    // into the hierarchy at each level.
-    void build_hessian_connection(unsigned int* connection_mask,
-                                  const int*    coarse_table,  // nullptr for L0
-                                  int           level);
-
-    // Set BCOO coupling data for contact-aware hierarchy
-    void set_hessian_coupling(const int* d_row_ids, const int* d_col_ids, int triplet_num, int dof_offset);
-
     // Hessian assembly + inversion
     void scatter_hessian_to_clusters(const Eigen::Matrix3d* d_triplet_values,
                                      const int*             d_row_ids,
@@ -136,9 +133,9 @@ class MASPreconditionerEngine
     void invert_cluster_matrices();
 
     // Preconditioning steps
-    void build_multi_level_R(const double3* R, muda::CVarView<IndexT> converged);
+    void build_multi_level_R(muda::CDenseVectorView<Float> R, muda::CVarView<IndexT> converged);
     void schwarz_local_solve(muda::CVarView<IndexT> converged);
-    void collect_final_Z(double3* Z, muda::CVarView<IndexT> converged);
+    void collect_final_Z(muda::DenseVectorView<Float> Z, muda::CVarView<IndexT> converged);
 
   private:
     // ---- State ----
@@ -181,16 +178,5 @@ class MASPreconditionerEngine
     // ---- GPU buffers: multi-level residual / solution ----
     muda::DeviceBuffer<Eigen::Vector3f> multi_level_R;
     muda::DeviceBuffer<float3>          multi_level_Z;
-
-    // ---- BCOO coupling data (for contact-aware MAS) ----
-    const int* m_bcoo_row_ids     = nullptr;  // device pointer, owned by caller
-    const int* m_bcoo_col_ids     = nullptr;
-    int        m_bcoo_triplet_num = 0;
-    int        m_bcoo_dof_offset  = 0;
-
-    // ---- Optional: detect partitioned non-cloth FEM in MAS Hessian scatter ----
-    bool                             m_mas_scatter_non_cloth_check = false;
-    muda::DeviceBuffer<uint8_t>      m_vertex_non_cloth_fem;
-    muda::DeviceBuffer<unsigned int> m_mas_scatter_non_cloth_hits;
 };
 }  // namespace uipc::backend::cuda

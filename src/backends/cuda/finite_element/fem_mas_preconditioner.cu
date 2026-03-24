@@ -119,7 +119,6 @@ class FEMMASPreconditioner : public LocalPreconditioner
     MASPreconditionerEngine      engine;
     bool                         m_has_partition     = false;
     bool                         m_has_unpartitioned = false;
-    bool                         m_contact_aware     = false;
     muda::DeviceBuffer<uint32_t> sorted_indices;
 
     // Diagonal fallback for unpartitioned vertices
@@ -156,10 +155,6 @@ class FEMMASPreconditioner : public LocalPreconditioner
         {
             throw SimSystemException("FEMMASPreconditioner: No 'mesh_part' attribute found on any geometry.");
         }
-
-        // Contact-aware MAS: inject BCOO off-diagonal coupling into hierarchy
-        auto ca_attr = world().scene().config().find<IndexT>("linear_system/precond/mas/contact_aware");
-        m_contact_aware = ca_attr ? (ca_attr->view()[0] != 0) : true;
 
         info.connect(fem_linear_subsystem);
     }
@@ -389,11 +384,6 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
         engine.init_matrix();
 
-        auto chk_nc = world().scene().config().find<IndexT>(
-            "linear_system/precond/mas/check_non_cloth_scatter");
-        const bool enable_nc_check = chk_nc && (chk_nc->view()[0] != 0);
-        engine.set_non_cloth_fem_vertex_mask(enable_nc_check, h_non_cloth_fem);
-
         m_has_partition = true;
     }
 
@@ -415,17 +405,6 @@ class FEMMASPreconditioner : public LocalPreconditioner
         auto* values = reinterpret_cast<const Eigen::Matrix3d*>(values_view.data());
         auto* row_ids = reinterpret_cast<const int*>(row_view.data());
         auto* col_ids = reinterpret_cast<const int*>(col_view.data());
-
-        // Contact-aware: pass BCOO row/col indices for off-diagonal coupling
-        if(m_contact_aware)
-        {
-            engine.set_hessian_coupling(
-                row_ids, col_ids, static_cast<int>(triplet_count), dof_offset / 3);
-        }
-        else
-        {
-            engine.set_hessian_coupling(nullptr, nullptr, 0, 0);
-        }
 
         // MAS assembly for partitioned vertices
         fill_identity_indices(sorted_indices, triplet_count);

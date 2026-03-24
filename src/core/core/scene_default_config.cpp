@@ -32,8 +32,6 @@ geometry::AttributeCollection default_scene_config() noexcept
     //  - linear_pcg (30% slower)
     config.create("linear_system/solver", std::string{"fused_pcg"});
 
-    config.create("linear_system/precond/mas/contact_aware", IndexT{0});
-
     config.create("line_search/max_iter", IndexT{8});
     config.create("line_search/report_energy", IndexT{0});
 
