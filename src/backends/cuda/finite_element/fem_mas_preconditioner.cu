@@ -411,16 +411,12 @@ class FEMMASPreconditioner : public LocalPreconditioner
         auto dump_mas = world().scene().config().find<IndexT>("extras/debug/dump_mas_matrices");
         if(dump_mas && dump_mas->view()[0] != 0)
         {
-            auto label_attr =
-                world().scene().config().find<std::string>("extras/debug/dump_mas_label");
-            std::string label = label_attr ? std::string{label_attr->view()[0]} :
-                                             std::string{"default"};
             auto& cuda_engine =
                 static_cast<SimEngine&>(uipc::backend::SimSystem::engine());
             backend::BackendPathTool path_tool{std::string{workspace()}};
             auto out_dir = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
             this->engine.dump_cluster_matrices_debug(
-                out_dir, label, cuda_engine.frame(), cuda_engine.newton_iter());
+                out_dir, cuda_engine.frame(), cuda_engine.newton_iter());
         }
 
         // Diagonal fallback assembly for unpartitioned vertices

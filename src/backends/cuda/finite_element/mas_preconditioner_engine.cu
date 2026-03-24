@@ -1307,7 +1307,6 @@ void MASPreconditionerEngine::apply(muda::CDenseVectorView<Float> r,
 }
 
 void MASPreconditionerEngine::dump_cluster_matrices_debug(const std::filesystem::path& output_dir,
-                                                          std::string_view label,
                                                           SizeT frame,
                                                           SizeT newton_iter)
 {
@@ -1336,7 +1335,7 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(const std::filesystem:
     {
         auto path =
             output_dir
-            / fmt::format("mas_cluster_{}.{}.f{}.n{}.mtx", kind, label, frame, newton_iter);
+            / fmt::format("mas_cluster_{}.f{}.n{}.mtx", kind, frame, newton_iter);
         auto path_str = path.string();
 
         auto buf = fmt::memory_buffer();
@@ -1392,7 +1391,7 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(const std::filesystem:
     {
         auto path =
             output_dir
-            / fmt::format("mas_cluster_meta.{}.f{}.n{}.json", label, frame, newton_iter);
+            / fmt::format("mas_cluster_meta.f{}.n{}.json", frame, newton_iter);
         std::ofstream out(path);
         if(!out)
         {

@@ -92,9 +92,8 @@ class MASPreconditionerEngine
 
     bool is_initialized() const { return m_initialized; }
 
-    /** Dump cluster matrices in Matrix Market (.mtx) format and metadata as plain text for debug. */
+    /** Dump cluster matrices in Matrix Market (.mtx) format and metadata as JSON for debug. */
     void dump_cluster_matrices_debug(const std::filesystem::path& output_dir,
-                                     std::string_view             label,
                                      SizeT                        frame,
                                      SizeT                        newton_iter);
 
