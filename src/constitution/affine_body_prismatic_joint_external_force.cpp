@@ -19,25 +19,25 @@ REGISTER_CONSTITUTION_UIDS()
     return uids;
 }
 
-AffineBodyPrismaticJointExternalBodyForce::AffineBodyPrismaticJointExternalBodyForce(const Json& config)
+AffineBodyPrismaticJointExternalForce::AffineBodyPrismaticJointExternalForce(const Json& config)
 {
     m_config = config;
 }
 
-AffineBodyPrismaticJointExternalBodyForce::~AffineBodyPrismaticJointExternalBodyForce() = default;
+AffineBodyPrismaticJointExternalForce::~AffineBodyPrismaticJointExternalForce() = default;
 
-void AffineBodyPrismaticJointExternalBodyForce::apply_to(geometry::SimplicialComplex& sc,
+void AffineBodyPrismaticJointExternalForce::apply_to(geometry::SimplicialComplex& sc,
                                                           Float force_v)
 {
     vector<Float> forces(sc.edges().size(), force_v);
     apply_to(sc, span{forces});
 }
 
-void AffineBodyPrismaticJointExternalBodyForce::apply_to(geometry::SimplicialComplex& sc,
+void AffineBodyPrismaticJointExternalForce::apply_to(geometry::SimplicialComplex& sc,
                                                           span<Float> forces)
 {
     UIPC_ASSERT(sc.dim() == 1,
-                "AffineBodyPrismaticJointExternalBodyForce can only be applied to 1D simplicial complex (linemesh), "
+                "AffineBodyPrismaticJointExternalForce can only be applied to 1D simplicial complex (linemesh), "
                 "but got {}D",
                 sc.dim());
 
@@ -52,7 +52,7 @@ void AffineBodyPrismaticJointExternalBodyForce::apply_to(geometry::SimplicialCom
     auto uid = sc.meta().find<U64>(builtin::constitution_uid);
     UIPC_ASSERT(uid && uid->view()[0] == 20,  // UID of AffineBodyPrismaticJoint
                 "Simplicial complex does not have constitution uid 20. "
-                "Please apply an AffineBodyPrismaticJoint before applying AffineBodyPrismaticJointExternalBodyForce");
+                "Please apply an AffineBodyPrismaticJoint before applying AffineBodyPrismaticJointExternalForce");
 
     auto is_constrained = sc.edges().find<IndexT>(ExtForceIsConstrainedName);
     if(!is_constrained)
@@ -71,12 +71,12 @@ void AffineBodyPrismaticJointExternalBodyForce::apply_to(geometry::SimplicialCom
     std::ranges::copy(forces, external_force_view.begin());
 }
 
-Json AffineBodyPrismaticJointExternalBodyForce::default_config()
+Json AffineBodyPrismaticJointExternalForce::default_config()
 {
     return Json::object();
 }
 
-U64 AffineBodyPrismaticJointExternalBodyForce::get_uid() const noexcept
+U64 AffineBodyPrismaticJointExternalForce::get_uid() const noexcept
 {
     return ConstitutionUID;
 }

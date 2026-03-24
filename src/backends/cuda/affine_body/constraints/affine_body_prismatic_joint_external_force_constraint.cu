@@ -1,4 +1,4 @@
-#include <affine_body/constraints/affine_body_prismatic_joint_external_body_force_constraint.h>
+#include <affine_body/constraints/affine_body_prismatic_joint_external_force_constraint.h>
 #include <affine_body/inter_affine_body_constraint.h>
 #include <affine_body/affine_body_dynamics.h>
 #include <uipc/common/enumerate.h>
@@ -8,15 +8,15 @@ static constexpr uipc::U64 PrismaticJointConstitutionUID = 20;
 
 namespace uipc::backend::cuda
 {
-REGISTER_SIM_SYSTEM(AffineBodyPrismaticJointExternalBodyForceConstraint);
+REGISTER_SIM_SYSTEM(AffineBodyPrismaticJointExternalForceConstraint);
 
-void AffineBodyPrismaticJointExternalBodyForceConstraint::do_build(BuildInfo& info)
+void AffineBodyPrismaticJointExternalForceConstraint::do_build(BuildInfo& info)
 {
     require<AffineBodyDynamics>();
     on_write_scene([this]() { write_scene(); });
 }
 
-U64 AffineBodyPrismaticJointExternalBodyForceConstraint::get_uid() const noexcept
+U64 AffineBodyPrismaticJointExternalForceConstraint::get_uid() const noexcept
 {
     return UID;
 }
@@ -38,31 +38,31 @@ static void collect_prismatic_data(InterAffineBodyAnimator::FilteredInfo& info,
             if(check_uid)
             {
                 auto constitution_uid = geo.meta().find<U64>(builtin::constitution_uid);
-                UIPC_ASSERT(constitution_uid, "AffineBodyPrismaticJointExternalBodyForceConstraint: Geometry must have 'constitution_uid' attribute");
+                UIPC_ASSERT(constitution_uid, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'constitution_uid' attribute");
                 U64 uid_value = constitution_uid->view().front();
                 UIPC_ASSERT(uid_value == PrismaticJointConstitutionUID,
-                            "AffineBodyPrismaticJointExternalBodyForceConstraint: Geometry constitution UID mismatch, expected {}, got {}",
+                            "AffineBodyPrismaticJointExternalForceConstraint: Geometry constitution UID mismatch, expected {}, got {}",
                             PrismaticJointConstitutionUID,
                             uid_value);
             }
 
             auto sc = geo.as<geometry::SimplicialComplex>();
-            UIPC_ASSERT(sc, "AffineBodyPrismaticJointExternalBodyForceConstraint: geometry must be SimplicialComplex");
+            UIPC_ASSERT(sc, "AffineBodyPrismaticJointExternalForceConstraint: geometry must be SimplicialComplex");
 
             auto geo_ids = sc->edges().find<Vector2i>("geo_ids");
-            UIPC_ASSERT(geo_ids, "AffineBodyPrismaticJointExternalBodyForceConstraint: Geometry must have 'geo_ids' attribute on `edges`");
+            UIPC_ASSERT(geo_ids, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'geo_ids' attribute on `edges`");
             auto geo_ids_view = geo_ids->view();
 
             auto inst_ids = sc->edges().find<Vector2i>("inst_ids");
-            UIPC_ASSERT(inst_ids, "AffineBodyPrismaticJointExternalBodyForceConstraint: Geometry must have 'inst_ids' attribute on `edges`");
+            UIPC_ASSERT(inst_ids, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'inst_ids' attribute on `edges`");
             auto inst_ids_view = inst_ids->view();
 
             auto is_constrained = sc->edges().find<IndexT>("external_force/is_constrained");
-            UIPC_ASSERT(is_constrained, "AffineBodyPrismaticJointExternalBodyForceConstraint: Geometry must have 'external_force/is_constrained' attribute on `edges`");
+            UIPC_ASSERT(is_constrained, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'external_force/is_constrained' attribute on `edges`");
             auto is_constrained_view = is_constrained->view();
 
             auto external_force = sc->edges().find<Float>("external_force");
-            UIPC_ASSERT(external_force, "AffineBodyPrismaticJointExternalBodyForceConstraint: Geometry must have 'external_force' attribute on `edges`");
+            UIPC_ASSERT(external_force, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'external_force' attribute on `edges`");
             auto external_force_view = external_force->view();
 
             auto init_distance = sc->edges().find<Float>("init_distance");
@@ -108,7 +108,7 @@ static void collect_prismatic_data(InterAffineBodyAnimator::FilteredInfo& info,
         });
 }
 
-void AffineBodyPrismaticJointExternalBodyForceConstraint::do_init(InterAffineBodyAnimator::FilteredInfo& info)
+void AffineBodyPrismaticJointExternalForceConstraint::do_init(InterAffineBodyAnimator::FilteredInfo& info)
 {
     auto geo_slots = world().scene().geometries();
 
@@ -137,7 +137,7 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::do_init(InterAffineBod
     }
 }
 
-void AffineBodyPrismaticJointExternalBodyForceConstraint::do_step(InterAffineBodyAnimator::FilteredInfo& info)
+void AffineBodyPrismaticJointExternalForceConstraint::do_step(InterAffineBodyAnimator::FilteredInfo& info)
 {
     auto geo_slots = world().scene().geometries();
 
@@ -148,14 +148,14 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::do_step(InterAffineBod
         [&](const InterAffineBodyConstitutionManager::ForEachInfo& I, geometry::Geometry& geo)
         {
             auto sc = geo.as<geometry::SimplicialComplex>();
-            UIPC_ASSERT(sc, "AffineBodyPrismaticJointExternalBodyForceConstraint: geometry must be SimplicialComplex");
+            UIPC_ASSERT(sc, "AffineBodyPrismaticJointExternalForceConstraint: geometry must be SimplicialComplex");
 
             auto is_constrained = sc->edges().find<IndexT>("external_force/is_constrained");
-            UIPC_ASSERT(is_constrained, "AffineBodyPrismaticJointExternalBodyForceConstraint: Geometry must have 'external_force/is_constrained' attribute on `edges`");
+            UIPC_ASSERT(is_constrained, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'external_force/is_constrained' attribute on `edges`");
             auto is_constrained_view = is_constrained->view();
 
             auto external_force = sc->edges().find<Float>("external_force");
-            UIPC_ASSERT(external_force, "AffineBodyPrismaticJointExternalBodyForceConstraint: Geometry must have 'external_force' attribute on `edges`");
+            UIPC_ASSERT(external_force, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'external_force' attribute on `edges`");
             auto external_force_view = external_force->view();
 
             auto Es = sc->edges().topo().view();
@@ -175,7 +175,7 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::do_step(InterAffineBod
     }
 }
 
-void AffineBodyPrismaticJointExternalBodyForceConstraint::write_scene()
+void AffineBodyPrismaticJointExternalForceConstraint::write_scene()
 {
     auto geo_slots = world().scene().geometries();
 
@@ -212,42 +212,42 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::write_scene()
                    });
 }
 
-muda::CBufferView<Float> AffineBodyPrismaticJointExternalBodyForceConstraint::forces() const noexcept
+muda::CBufferView<Float> AffineBodyPrismaticJointExternalForceConstraint::forces() const noexcept
 {
     return m_impl.forces.view();
 }
 
-muda::CBufferView<Vector2i> AffineBodyPrismaticJointExternalBodyForceConstraint::body_ids() const noexcept
+muda::CBufferView<Vector2i> AffineBodyPrismaticJointExternalForceConstraint::body_ids() const noexcept
 {
     return m_impl.body_ids.view();
 }
 
-muda::CBufferView<Vector6> AffineBodyPrismaticJointExternalBodyForceConstraint::rest_tangents() const noexcept
+muda::CBufferView<Vector6> AffineBodyPrismaticJointExternalForceConstraint::rest_tangents() const noexcept
 {
     return m_impl.rest_tangents.view();
 }
 
-muda::CBufferView<Vector6> AffineBodyPrismaticJointExternalBodyForceConstraint::rest_positions() const noexcept
+muda::CBufferView<Vector6> AffineBodyPrismaticJointExternalForceConstraint::rest_positions() const noexcept
 {
     return m_impl.rest_positions.view();
 }
 
-muda::CBufferView<Float> AffineBodyPrismaticJointExternalBodyForceConstraint::init_distances() const noexcept
+muda::CBufferView<Float> AffineBodyPrismaticJointExternalForceConstraint::init_distances() const noexcept
 {
     return m_impl.init_distances.view();
 }
 
-muda::DeviceBuffer<Float>& AffineBodyPrismaticJointExternalBodyForceConstraint::current_distances() noexcept
+muda::DeviceBuffer<Float>& AffineBodyPrismaticJointExternalForceConstraint::current_distances() noexcept
 {
     return m_impl.current_distances;
 }
 
-muda::CBufferView<IndexT> AffineBodyPrismaticJointExternalBodyForceConstraint::constrained_flags() const noexcept
+muda::CBufferView<IndexT> AffineBodyPrismaticJointExternalForceConstraint::constrained_flags() const noexcept
 {
     return m_impl.is_constrained.view();
 }
 
-void AffineBodyPrismaticJointExternalBodyForceConstraint::do_report_extent(
+void AffineBodyPrismaticJointExternalForceConstraint::do_report_extent(
     InterAffineBodyAnimator::ReportExtentInfo& info)
 {
     info.energy_count(0);
@@ -256,12 +256,12 @@ void AffineBodyPrismaticJointExternalBodyForceConstraint::do_report_extent(
         info.hessian_count(0);
 }
 
-void AffineBodyPrismaticJointExternalBodyForceConstraint::do_compute_energy(
+void AffineBodyPrismaticJointExternalForceConstraint::do_compute_energy(
     InterAffineBodyAnimator::ComputeEnergyInfo& info)
 {
 }
 
-void AffineBodyPrismaticJointExternalBodyForceConstraint::do_compute_gradient_hessian(
+void AffineBodyPrismaticJointExternalForceConstraint::do_compute_gradient_hessian(
     InterAffineBodyAnimator::GradientHessianInfo& info)
 {
 }

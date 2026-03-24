@@ -1,5 +1,5 @@
 #include <affine_body/affine_body_external_force_reporter.h>
-#include <affine_body/constraints/affine_body_prismatic_joint_external_body_force_constraint.h>
+#include <affine_body/constraints/affine_body_prismatic_joint_external_force_constraint.h>
 #include <affine_body/affine_body_dynamics.h>
 #include <affine_body/constitutions/affine_body_prismatic_joint_function.h>
 #include <time_integrator/time_integrator.h>
@@ -7,7 +7,7 @@
 
 namespace uipc::backend::cuda
 {
-class AffineBodyPrismaticJointExternalBodyForce final : public AffineBodyExternalForceReporter
+class AffineBodyPrismaticJointExternalForce final : public AffineBodyExternalForceReporter
 {
   public:
     static constexpr U64 UID = 667;
@@ -15,12 +15,12 @@ class AffineBodyPrismaticJointExternalBodyForce final : public AffineBodyExterna
     using AffineBodyExternalForceReporter::AffineBodyExternalForceReporter;
 
     SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
-    SimSystemSlot<AffineBodyPrismaticJointExternalBodyForceConstraint> constraint;
+    SimSystemSlot<AffineBodyPrismaticJointExternalForceConstraint> constraint;
 
     virtual void do_build(BuildInfo& info) override
     {
         affine_body_dynamics = require<AffineBodyDynamics>();
-        constraint = require<AffineBodyPrismaticJointExternalBodyForceConstraint>();
+        constraint = require<AffineBodyPrismaticJointExternalForceConstraint>();
     }
 
     U64 get_uid() const noexcept override { return UID; }
@@ -79,21 +79,21 @@ class AffineBodyPrismaticJointExternalBodyForce final : public AffineBodyExterna
     }
 };
 
-REGISTER_SIM_SYSTEM(AffineBodyPrismaticJointExternalBodyForce);
+REGISTER_SIM_SYSTEM(AffineBodyPrismaticJointExternalForce);
 
 class AffineBodyPrismaticJointExternalForceTimeIntegrator : public TimeIntegrator
 {
   public:
     using TimeIntegrator::TimeIntegrator;
 
-    SimSystemSlot<AffineBodyPrismaticJointExternalBodyForceConstraint> constraint;
+    SimSystemSlot<AffineBodyPrismaticJointExternalForceConstraint> constraint;
     SimSystemSlot<AffineBodyDynamics> affine_body_dynamics;
 
     void do_init(InitInfo& info) override {}
 
     void do_build(BuildInfo& info) override
     {
-        constraint = require<AffineBodyPrismaticJointExternalBodyForceConstraint>();
+        constraint = require<AffineBodyPrismaticJointExternalForceConstraint>();
         affine_body_dynamics = require<AffineBodyDynamics>();
     }
 

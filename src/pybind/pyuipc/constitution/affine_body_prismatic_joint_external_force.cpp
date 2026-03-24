@@ -9,32 +9,30 @@ using namespace uipc::constitution;
 
 PyAffineBodyPrismaticJointExternalForce::PyAffineBodyPrismaticJointExternalForce(py::module& m)
 {
-    auto class_AffineBodyPrismaticJointExternalBodyForce =
-        py::class_<AffineBodyPrismaticJointExternalBodyForce, Constraint>(
+    auto class_AffineBodyPrismaticJointExternalForce =
+        py::class_<AffineBodyPrismaticJointExternalForce, Constraint>(
             m,
-            "AffineBodyPrismaticJointExternalBodyForce",
+            "AffineBodyPrismaticJointExternalForce",
             R"(Applies external force along the prismatic joint axis between two connected affine bodies.)");
 
-    class_AffineBodyPrismaticJointExternalBodyForce.def(
+    class_AffineBodyPrismaticJointExternalForce.def(
         py::init<const Json&>(),
-        py::arg("config") = AffineBodyPrismaticJointExternalBodyForce::default_config(),
-        R"(Create an AffineBodyPrismaticJointExternalBodyForce.
+        py::arg("config") = AffineBodyPrismaticJointExternalForce::default_config(),
+        R"(Create an AffineBodyPrismaticJointExternalForce.
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
 
-    class_AffineBodyPrismaticJointExternalBodyForce.def_static(
+    class_AffineBodyPrismaticJointExternalForce.def_static(
         "default_config",
-        &AffineBodyPrismaticJointExternalBodyForce::default_config,
+        &AffineBodyPrismaticJointExternalForce::default_config,
         R"(Get the default configuration.
 Returns:
     dict: Default configuration dictionary.)");
 
     // Uniform force for all joints
-    class_AffineBodyPrismaticJointExternalBodyForce.def(
+    class_AffineBodyPrismaticJointExternalForce.def(
         "apply_to",
-        [](AffineBodyPrismaticJointExternalBodyForce& self,
-           geometry::SimplicialComplex&                sc,
-           Float                                       force)
+        [](AffineBodyPrismaticJointExternalForce& self, geometry::SimplicialComplex& sc, Float force)
         { self.apply_to(sc, force); },
         py::arg("sc"),
         py::arg("force") = Float{0},
@@ -43,19 +41,12 @@ sc: Simplicial complex with edges representing the joints (must have AffineBodyP
 force: Scalar force value applied to all joints (default: 0).)"));
 
     // Per-joint forces
-    class_AffineBodyPrismaticJointExternalBodyForce.def(
+    class_AffineBodyPrismaticJointExternalForce.def(
         "apply_to",
-        [](AffineBodyPrismaticJointExternalBodyForce& self,
-           geometry::SimplicialComplex&                sc,
-           py::list                                    forces)
-        {
-            vector<Float> forces_list;
-            for(auto item : forces)
-            {
-                forces_list.push_back(py::cast<Float>(item));
-            }
-            self.apply_to(sc, span{forces_list});
-        },
+        [](AffineBodyPrismaticJointExternalForce& self,
+           geometry::SimplicialComplex&           sc,
+           py::array_t<Float>                     forces)
+        { self.apply_to(sc, as_span<Float>(forces)); },
         py::arg("sc"),
         py::arg("forces"),
         py::doc(R"(Apply per-joint external forces along prismatic joint axis.

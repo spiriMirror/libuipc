@@ -19,25 +19,25 @@ REGISTER_CONSTITUTION_UIDS()
     return uids;
 }
 
-AffineBodyRevoluteJointExternalBodyForce::AffineBodyRevoluteJointExternalBodyForce(const Json& config)
+AffineBodyRevoluteJointExternalForce::AffineBodyRevoluteJointExternalForce(const Json& config)
 {
     m_config = config;
 }
 
-AffineBodyRevoluteJointExternalBodyForce::~AffineBodyRevoluteJointExternalBodyForce() = default;
+AffineBodyRevoluteJointExternalForce::~AffineBodyRevoluteJointExternalForce() = default;
 
-void AffineBodyRevoluteJointExternalBodyForce::apply_to(geometry::SimplicialComplex& sc,
+void AffineBodyRevoluteJointExternalForce::apply_to(geometry::SimplicialComplex& sc,
                                                          Float torque_v)
 {
     vector<Float> torques(sc.edges().size(), torque_v);
     apply_to(sc, span{torques});
 }
 
-void AffineBodyRevoluteJointExternalBodyForce::apply_to(geometry::SimplicialComplex& sc,
+void AffineBodyRevoluteJointExternalForce::apply_to(geometry::SimplicialComplex& sc,
                                                          span<Float> torques)
 {
     UIPC_ASSERT(sc.dim() == 1,
-                "AffineBodyRevoluteJointExternalBodyForce can only be applied to 1D simplicial complex (linemesh), "
+                "AffineBodyRevoluteJointExternalForce can only be applied to 1D simplicial complex (linemesh), "
                 "but got {}D",
                 sc.dim());
 
@@ -52,7 +52,7 @@ void AffineBodyRevoluteJointExternalBodyForce::apply_to(geometry::SimplicialComp
     auto uid = sc.meta().find<U64>(builtin::constitution_uid);
     UIPC_ASSERT(uid && uid->view()[0] == 18,  // UID of AffineBodyRevoluteJoint
                 "Simplicial complex does not have constitution uid 18. "
-                "Please apply an AffineBodyRevoluteJoint before applying AffineBodyRevoluteJointExternalBodyForce");
+                "Please apply an AffineBodyRevoluteJoint before applying AffineBodyRevoluteJointExternalForce");
 
     auto is_constrained = sc.edges().find<IndexT>(ExtForceIsConstrainedName);
     if(!is_constrained)
@@ -71,12 +71,12 @@ void AffineBodyRevoluteJointExternalBodyForce::apply_to(geometry::SimplicialComp
     std::ranges::copy(torques, external_torque_view.begin());
 }
 
-Json AffineBodyRevoluteJointExternalBodyForce::default_config()
+Json AffineBodyRevoluteJointExternalForce::default_config()
 {
     return Json::object();
 }
 
-U64 AffineBodyRevoluteJointExternalBodyForce::get_uid() const noexcept
+U64 AffineBodyRevoluteJointExternalForce::get_uid() const noexcept
 {
     return ConstitutionUID;
 }

@@ -86,7 +86,7 @@ TEST_CASE("82_abd_revolute_joint_driving_and_external_torque", "[abd][joint][dri
     driving.apply_to(joint_mesh, span{driving_strength});
 
     // 3) External torque constitution (active during frames 101..200)
-    AffineBodyRevoluteJointExternalBodyForce ext_torque;
+    AffineBodyRevoluteJointExternalForce ext_torque;
     ext_torque.apply_to(joint_mesh, Float{0});
 
     auto joint_object = scene.objects().create("revolute_joint");

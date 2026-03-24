@@ -3,42 +3,39 @@
 
 namespace uipc::backend::cuda
 {
-class AffineBodyRevoluteJointExternalBodyForceConstraint final : public InterAffineBodyConstraint
+class AffineBodyPrismaticJointExternalForceConstraint final : public InterAffineBodyConstraint
 {
   public:
     using InterAffineBodyConstraint::InterAffineBodyConstraint;
 
-    static constexpr U64 UID = 668;
+    static constexpr U64 UID = 667;
 
     class Impl
     {
       public:
-        vector<Float>    h_torques;
+        vector<Float>    h_forces;
         vector<Vector2i> h_body_ids;
-        vector<Vector12> h_rest_positions;
-        vector<Vector6>  h_rest_axis;
-        vector<Vector6>  h_rest_normals;
-        vector<Float>    h_init_angles;
-        vector<Float>    h_current_angles;
+        vector<Vector6>  h_rest_tangents;
+        vector<Vector6>  h_rest_positions;
+        vector<Float>    h_init_distances;
+        vector<Float>    h_current_distances;
         vector<IndexT>   h_is_constrained;
 
-        muda::DeviceBuffer<Float>    torques;
+        muda::DeviceBuffer<Float>    forces;
         muda::DeviceBuffer<Vector2i> body_ids;
-        muda::DeviceBuffer<Vector12> rest_positions;
-        muda::DeviceBuffer<Vector6>  rest_axis;
-        muda::DeviceBuffer<Vector6>  rest_normals;
-        muda::DeviceBuffer<Float>    init_angles;
-        muda::DeviceBuffer<Float>    current_angles;
+        muda::DeviceBuffer<Vector6>  rest_tangents;
+        muda::DeviceBuffer<Vector6>  rest_positions;
+        muda::DeviceBuffer<Float>    init_distances;
+        muda::DeviceBuffer<Float>    current_distances;
         muda::DeviceBuffer<IndexT>   is_constrained;
     };
 
-    muda::CBufferView<Float>    torques() const noexcept;
+    muda::CBufferView<Float>    forces() const noexcept;
     muda::CBufferView<Vector2i> body_ids() const noexcept;
-    muda::CBufferView<Vector12> rest_positions() const noexcept;
-    muda::CBufferView<Vector6>  rest_axis() const noexcept;
-    muda::CBufferView<Vector6>  rest_normals() const noexcept;
-    muda::CBufferView<Float>    init_angles() const noexcept;
-    muda::DeviceBuffer<Float>&  current_angles() noexcept;
+    muda::CBufferView<Vector6>  rest_tangents() const noexcept;
+    muda::CBufferView<Vector6>  rest_positions() const noexcept;
+    muda::CBufferView<Float>    init_distances() const noexcept;
+    muda::DeviceBuffer<Float>&  current_distances() noexcept;
     muda::CBufferView<IndexT>   constrained_flags() const noexcept;
 
   private:

@@ -9,32 +9,30 @@ using namespace uipc::constitution;
 
 PyAffineBodyRevoluteJointExternalForce::PyAffineBodyRevoluteJointExternalForce(py::module& m)
 {
-    auto class_AffineBodyRevoluteJointExternalBodyForce =
-        py::class_<AffineBodyRevoluteJointExternalBodyForce, Constraint>(
+    auto class_AffineBodyRevoluteJointExternalForce =
+        py::class_<AffineBodyRevoluteJointExternalForce, Constraint>(
             m,
-            "AffineBodyRevoluteJointExternalBodyForce",
+            "AffineBodyRevoluteJointExternalForce",
             R"(Applies external torque around the revolute joint axis between two connected affine bodies.)");
 
-    class_AffineBodyRevoluteJointExternalBodyForce.def(
+    class_AffineBodyRevoluteJointExternalForce.def(
         py::init<const Json&>(),
-        py::arg("config") = AffineBodyRevoluteJointExternalBodyForce::default_config(),
-        R"(Create an AffineBodyRevoluteJointExternalBodyForce.
+        py::arg("config") = AffineBodyRevoluteJointExternalForce::default_config(),
+        R"(Create an AffineBodyRevoluteJointExternalForce.
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
 
-    class_AffineBodyRevoluteJointExternalBodyForce.def_static(
+    class_AffineBodyRevoluteJointExternalForce.def_static(
         "default_config",
-        &AffineBodyRevoluteJointExternalBodyForce::default_config,
+        &AffineBodyRevoluteJointExternalForce::default_config,
         R"(Get the default configuration.
 Returns:
     dict: Default configuration dictionary.)");
 
     // Uniform torque for all joints
-    class_AffineBodyRevoluteJointExternalBodyForce.def(
+    class_AffineBodyRevoluteJointExternalForce.def(
         "apply_to",
-        [](AffineBodyRevoluteJointExternalBodyForce& self,
-           geometry::SimplicialComplex&               sc,
-           Float                                      torque)
+        [](AffineBodyRevoluteJointExternalForce& self, geometry::SimplicialComplex& sc, Float torque)
         { self.apply_to(sc, torque); },
         py::arg("sc"),
         py::arg("torque") = Float{0},
@@ -43,19 +41,12 @@ sc: Simplicial complex with edges representing the joints (must have AffineBodyR
 torque: Scalar torque value applied to all joints (default: 0).)"));
 
     // Per-joint torques
-    class_AffineBodyRevoluteJointExternalBodyForce.def(
+    class_AffineBodyRevoluteJointExternalForce.def(
         "apply_to",
-        [](AffineBodyRevoluteJointExternalBodyForce& self,
-           geometry::SimplicialComplex&               sc,
-           py::list                                   torques)
-        {
-            vector<Float> torques_list;
-            for(auto item : torques)
-            {
-                torques_list.push_back(py::cast<Float>(item));
-            }
-            self.apply_to(sc, span{torques_list});
-        },
+        [](AffineBodyRevoluteJointExternalForce& self,
+           geometry::SimplicialComplex&          sc,
+           py::array_t<Float>                    torques)
+        { self.apply_to(sc, as_span<Float>(torques)); },
         py::arg("sc"),
         py::arg("torques"),
         py::doc(R"(Apply per-joint external torques around revolute joint axis.

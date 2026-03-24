@@ -4,14 +4,14 @@
 
 namespace uipc::constitution
 {
-class UIPC_CONSTITUTION_API AffineBodyRevoluteJointExternalBodyForce final : public Constraint
+class UIPC_CONSTITUTION_API AffineBodyRevoluteJointExternalForce final : public Constraint
 {
     using Base = Constraint;
 
   public:
-    AffineBodyRevoluteJointExternalBodyForce(const Json& config = default_config());
+    AffineBodyRevoluteJointExternalForce(const Json& config = default_config());
 
-    ~AffineBodyRevoluteJointExternalBodyForce() override;
+    ~AffineBodyRevoluteJointExternalForce() override;
 
     /**
      * @brief Apply uniform external torque around the revolute joint axis to all joints.
