@@ -33,6 +33,7 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("linear_system/solver", std::string{"fused_pcg"});
 
     config.create("linear_system/precond/mas/contact_aware", IndexT{0});
+
     config.create("line_search/max_iter", IndexT{8});
     config.create("line_search/report_energy", IndexT{0});
 
@@ -65,6 +66,9 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("extras/debug/dump_surface", IndexT{0});
     config.create("extras/debug/dump_linear_system", IndexT{0});
     config.create("extras/debug/dump_linear_pcg", IndexT{0});
+    // If 1, FEM MAS writes cluster Hessian / inverse blobs under workspace debug folder.
+    config.create("extras/debug/dump_mas_matrices", IndexT{0});
+    config.create("extras/debug/dump_mas_label", std::string{""});
 
     config.create("extras/strict_mode/enable", IndexT{0});
 

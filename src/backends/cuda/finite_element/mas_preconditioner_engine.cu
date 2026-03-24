@@ -1,18 +1,24 @@
 #include <finite_element/mas_preconditioner_engine.h>
+#include <muda/ext/eigen/atomic.h>
 #include <muda/launch/launch.h>
 #include <muda/launch/parallel_for.h>
 #include <thrust/device_ptr.h>
 #include <thrust/scan.h>
+#include <uipc/common/log.h>
+#include <cuda_runtime.h>
+#include <fmt/format.h>
+#include <fstream>
+#include <vector>
 
 namespace uipc::backend::cuda
 {
 // ============================================================================
 // Local constants & type aliases
 // ============================================================================
-static constexpr int BANKSIZE          = MASPreconditionerEngine::BANKSIZE;
+static constexpr int BANKSIZE = MASPreconditionerEngine::BANKSIZE;
 static constexpr int DEFAULT_BLOCKSIZE = MASPreconditionerEngine::DEFAULT_BLOCKSIZE;
-static constexpr int DEFAULT_WARPNUM   = MASPreconditionerEngine::DEFAULT_WARPNUM;
-static constexpr int SYM_BLOCK_COUNT   = MASPreconditionerEngine::SYM_BLOCK_COUNT;
+static constexpr int DEFAULT_WARPNUM = MASPreconditionerEngine::DEFAULT_WARPNUM;
+static constexpr int SYM_BLOCK_COUNT = MASPreconditionerEngine::SYM_BLOCK_COUNT;
 
 using ClusterMatrixSym  = MASPreconditionerEngine::ClusterMatrixSym;
 using ClusterMatrixSymF = MASPreconditionerEngine::ClusterMatrixSymF;
@@ -50,15 +56,14 @@ void MASPreconditionerEngine::compute_num_levels(int vert_num)
     m_level_num = std::min(n_level, MAX_LEVELS);
 }
 
-void MASPreconditionerEngine::init_neighbor(
-    int                              vert_num,
-    int                              total_neighbor_num,
-    int                              part_map_size,
-    const std::vector<unsigned int>& h_neighbor_list,
-    const std::vector<unsigned int>& h_neighbor_start,
-    const std::vector<unsigned int>& h_neighbor_num,
-    const std::vector<int>&          h_part_to_real,
-    const std::vector<int>&          h_real_to_part)
+void MASPreconditionerEngine::init_neighbor(int vert_num,
+                                            int total_neighbor_num,
+                                            int part_map_size,
+                                            const std::vector<unsigned int>& h_neighbor_list,
+                                            const std::vector<unsigned int>& h_neighbor_start,
+                                            const std::vector<unsigned int>& h_neighbor_num,
+                                            const std::vector<int>& h_part_to_real,
+                                            const std::vector<int>& h_real_to_part)
 {
     if(vert_num < 1)
         return;
@@ -122,6 +127,29 @@ void MASPreconditionerEngine::init_matrix()
     m_initialized = true;
 }
 
+void MASPreconditionerEngine::set_non_cloth_fem_vertex_mask(bool enable_scatter_check,
+                                                            const std::vector<uint8_t>& h_mask)
+{
+    m_mas_scatter_non_cloth_check = false;
+    m_vertex_non_cloth_fem.resize(0);
+    m_mas_scatter_non_cloth_hits.resize(0);
+    if(m_total_nodes < 1)
+        return;
+    UIPC_ASSERT(h_mask.size() == static_cast<size_t>(m_total_nodes),
+                "MAS: non_cloth FEM mask size {} != vert_num {}.",
+                h_mask.size(),
+                m_total_nodes);
+    m_vertex_non_cloth_fem.resize(m_total_nodes);
+    m_vertex_non_cloth_fem.view().copy_from(h_mask.data());
+    m_mas_scatter_non_cloth_check = enable_scatter_check;
+    if(enable_scatter_check)
+    {
+        m_mas_scatter_non_cloth_hits.resize(1);
+        unsigned int z = 0;
+        cudaMemcpy(m_mas_scatter_non_cloth_hits.data(), &z, sizeof(unsigned int), cudaMemcpyHostToDevice);
+    }
+}
+
 // ============================================================================
 // Hierarchy building
 // ============================================================================
@@ -147,25 +175,18 @@ int MASPreconditionerEngine::reorder_realtime(int cp_num)
 
         // Contact-aware: inject BCOO coupling at coarser levels
         if(m_bcoo_triplet_num > 0)
-            build_hessian_connection(next_connect_masks.data(),
-                                    coarse_space_tables.data(),
-                                    level);
+            build_hessian_connection(
+                next_connect_masks.data(), coarse_space_tables.data(), level);
 
         // Copy level size to host for next-level sizing
-        cudaMemcpy(&m_h_level_size,
-                   level_sizes.data() + level,
-                   sizeof(Int2),
-                   cudaMemcpyDeviceToHost);
+        cudaMemcpy(&m_h_level_size, level_sizes.data() + level, sizeof(Int2), cudaMemcpyDeviceToHost);
 
         next_level_cluster(level);
         prefix_sum_Lx(level);
         compute_next_level(level);
     }
 
-    cudaMemcpy(&m_h_level_size,
-               level_sizes.data() + m_level_num,
-               sizeof(Int2),
-               cudaMemcpyDeviceToHost);
+    cudaMemcpy(&m_h_level_size, level_sizes.data() + m_level_num, sizeof(Int2), cudaMemcpyDeviceToHost);
 
     m_total_num_clusters = m_h_level_size.y;
     aggregation_kernel();
@@ -191,8 +212,7 @@ void MASPreconditionerEngine::build_connect_mask_L0()
                 neighbor_list     = neighbor_lists.data(),
                 fine_connect_mask = fine_connect_masks.data(),
                 part_to_real      = part_to_real.cviewer().name("part_to_real"),
-                real_to_part      = real_to_part.cviewer().name("real_to_part")]
-               __device__(int tid) mutable
+                real_to_part = real_to_part.cviewer().name("real_to_part")] __device__(int tid) mutable
                {
                    int bank_id = tid / BANKSIZE;
                    int lane_id = tid % BANKSIZE;
@@ -228,7 +248,7 @@ void MASPreconditionerEngine::build_connect_mask_L0()
                        }
                    }
                    neighbor_num[idx]      = nk;
-                   fine_connect_mask[idx]  = connect_msk;
+                   fine_connect_mask[idx] = connect_msk;
                });
 }
 
@@ -253,7 +273,8 @@ void MASPreconditionerEngine::prepare_prefix_sum_L0()
              N] __device__() mutable
             {
                 int tid = blockIdx.x * blockDim.x + threadIdx.x;
-                if(tid >= N) return;
+                if(tid >= N)
+                    return;
 
                 int warp_id       = tid / BANKSIZE;
                 int local_warp_id = threadIdx.x / BANKSIZE;
@@ -269,13 +290,14 @@ void MASPreconditionerEngine::prepare_prefix_sum_L0()
                     if(lane_id == 0)
                         prefix_sum[local_warp_id] = 0;
                     cache_mask[threadIdx.x] = connect_msk;
-                    unsigned int visited = (1U << lane_id);
+                    unsigned int visited    = (1U << lane_id);
 
                     // Flood-fill connectivity within the bank via shared memory
                     while(connect_msk != ~0U)
                     {
                         unsigned int todo = visited ^ connect_msk;
-                        if(!todo) break;
+                        if(!todo)
+                            break;
                         unsigned int next_visit = __ffs(todo) - 1;
                         visited |= (1U << next_visit);
                         connect_msk |= cache_mask[next_visit + local_warp_id * BANKSIZE];
@@ -283,7 +305,8 @@ void MASPreconditionerEngine::prepare_prefix_sum_L0()
 
                     fine_connect_mask[idx] = connect_msk;
 
-                    unsigned int elected_prefix = __popc(connect_msk & lanemask_lt(lane_id));
+                    unsigned int elected_prefix =
+                        __popc(connect_msk & lanemask_lt(lane_id));
                     if(elected_prefix == 0)
                         atomicAdd(prefix_sum + local_warp_id, 1);
                     if(lane_id == 0)
@@ -310,6 +333,21 @@ void MASPreconditionerEngine::build_level1()
                            thrust::device_ptr<int>(prefix_original.data()) + warp_num,
                            thrust::device_ptr<int>(prefix_sum_original.data()));
 
+    // Level-1 must start past all real vertex indices to avoid overlap
+    // when unpartitioned vertices push cloth indices beyond padded_N.
+    int padded_N     = (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+    int level1_begin = std::max(padded_N, m_total_nodes);
+
+    UIPC_ASSERT(level1_begin >= m_total_nodes,
+                "MAS build_level1: going_next buffer overlap! "
+                "level1_begin({}) < m_total_nodes({}). "
+                "Level-1 region [{}..] would overwrite level-0 entries for cloth "
+                "vertices with real indices >= {}.",
+                level1_begin,
+                m_total_nodes,
+                level1_begin,
+                level1_begin);
+
     Launch(num_blocks, block_size)
         .apply(
             [level_size        = level_sizes.data(),
@@ -319,10 +357,12 @@ void MASPreconditionerEngine::build_level1()
              prefix_sum_orig   = prefix_sum_original.data(),
              prefix_orig       = prefix_original.data(),
              part_to_real      = part_to_real.cviewer().name("part_to_real"),
-             N] __device__() mutable
+             N,
+             level1_begin] __device__() mutable
             {
                 int tid = blockIdx.x * blockDim.x + threadIdx.x;
-                if(tid >= N) return;
+                if(tid >= N)
+                    return;
 
                 int warp_id       = tid / BANKSIZE;
                 int local_warp_id = threadIdx.x / BANKSIZE;
@@ -337,13 +377,13 @@ void MASPreconditionerEngine::build_level1()
                 if(tid == N - 1)
                 {
                     level_size[1].x = prefix_sum_orig[warp_id] + prefix_orig[warp_id];
-                    level_size[1].y = (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+                    level_size[1].y = level1_begin;
                 }
 
                 int idx = part_to_real(tid);
                 if(idx >= 0)
                 {
-                    unsigned int conn_msk       = fine_connect_mask[idx];
+                    unsigned int conn_msk = fine_connect_mask[idx];
                     unsigned int elected_prefix = __popc(conn_msk & lanemask_lt(lane_id));
                     if(elected_prefix == 0)
                         atomicOr(elected_mask + local_warp_id, (1U << lane_id));
@@ -352,13 +392,12 @@ void MASPreconditionerEngine::build_level1()
                         __popc(elected_mask[local_warp_id] & lanemask_lt(lane_id));
                     lane_prefix[threadIdx.x] += prefix_sum_orig[warp_id];
 
-                    unsigned int elected_lane   = __ffs(conn_msk) - 1;
+                    unsigned int elected_lane = __ffs(conn_msk) - 1;
                     unsigned int the_lane_prefix =
                         lane_prefix[elected_lane + BANKSIZE * local_warp_id];
 
-                    coarse_table[idx]    = the_lane_prefix;
-                    going_next_ptr[idx]  = the_lane_prefix
-                        + (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+                    coarse_table[idx]   = the_lane_prefix;
+                    going_next_ptr[idx] = the_lane_prefix + level1_begin;
                 }
             });
 }
@@ -370,25 +409,29 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
 {
     using namespace muda;
     int N = m_total_map_nodes;
-    if(N < 1) return;
+    if(N < 1)
+        return;
 
     int block_size = DEFAULT_BLOCKSIZE;
     int num_blocks = (N + block_size - 1) / block_size;
 
     Launch(num_blocks, block_size)
         .apply(
-            [neighbor_start    = neighbor_starts.data(),
-             neighbor_num      = neighbor_nums.data(),
-             neighbor_list     = neighbor_lists.data(),
-             coarse_table      = coarse_space_tables.viewer().name("coarse_space_tables"),
+            [neighbor_start = neighbor_starts.data(),
+             neighbor_num   = neighbor_nums.data(),
+             neighbor_list  = neighbor_lists.data(),
+             coarse_table = coarse_space_tables.viewer().name("coarse_space_tables"),
              next_connect_mask = next_connect_masks.viewer().name("next_connect_masks"),
              next_connect_raw  = next_connect_masks.data(),
              fine_connect_mask = fine_connect_masks.data(),
              part_to_real      = part_to_real.cviewer().name("part_to_real"),
-             level, vert_num = m_total_nodes, N] __device__() mutable
+             level,
+             vert_num = m_total_nodes,
+             N] __device__() mutable
             {
                 int tid = blockIdx.x * blockDim.x + threadIdx.x;
-                if(tid >= N) return;
+                if(tid >= N)
+                    return;
 
                 int local_warp_id = threadIdx.x / BANKSIZE;
                 int lane_id       = tid % BANKSIZE;
@@ -396,7 +439,8 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
                 __shared__ int cache_msk[DEFAULT_BLOCKSIZE];
 
                 int idx = part_to_real(tid);
-                if(idx < 0) return;
+                if(idx < 0)
+                    return;
 
                 unsigned int prefix_msk = fine_connect_mask[idx];
                 unsigned int conn_msk   = 0;
@@ -412,7 +456,7 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
 
                 for(int i = 0; i < kn; i++)
                 {
-                    unsigned int connect       = neighbor_list[start_id + i];
+                    unsigned int connect = neighbor_list[start_id + i];
                     int coarse_connect = coarse_table((level - 1) * vert_num + connect);
                     if(coarse_connect < 0 || coarse_connect >= N)
                     {
@@ -430,7 +474,7 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
                         nk++;
                     }
                 }
-                neighbor_num[idx] = nk;
+                neighbor_num[idx]      = nk;
                 cache_msk[threadIdx.x] = 0;
 
                 if(__popc(prefix_msk) == BANKSIZE)
@@ -442,7 +486,8 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
                 {
                     unsigned int elected_lane = __ffs(prefix_msk) - 1;
                     if(conn_msk)
-                        atomicOr(cache_msk + local_warp_id * BANKSIZE + elected_lane, (int)conn_msk);
+                        atomicOr(cache_msk + local_warp_id * BANKSIZE + elected_lane,
+                                 (int)conn_msk);
                     conn_msk = (unsigned int)cache_msk[local_warp_id * BANKSIZE + elected_lane];
                 }
 
@@ -459,7 +504,8 @@ void MASPreconditionerEngine::next_level_cluster(int level)
 {
     using namespace muda;
     int N = m_h_level_size.x;
-    if(N < 1) return;
+    if(N < 1)
+        return;
 
     int block_size = DEFAULT_BLOCKSIZE;
     int num_blocks = (N + block_size - 1) / block_size;
@@ -471,7 +517,8 @@ void MASPreconditionerEngine::next_level_cluster(int level)
              N] __device__() mutable
             {
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
-                if(idx >= N) return;
+                if(idx >= N)
+                    return;
 
                 int local_warp_id = threadIdx.x / BANKSIZE;
                 int lane_id       = idx % BANKSIZE;
@@ -479,16 +526,18 @@ void MASPreconditionerEngine::next_level_cluster(int level)
                 __shared__ int          prefix_sum_s[DEFAULT_WARPNUM];
                 __shared__ unsigned int cached_msk[DEFAULT_BLOCKSIZE];
 
-                if(lane_id == 0) prefix_sum_s[local_warp_id] = 0;
+                if(lane_id == 0)
+                    prefix_sum_s[local_warp_id] = 0;
 
                 unsigned int conn_msk = (1U << lane_id) | next_connect_mask[idx];
                 cached_msk[threadIdx.x] = conn_msk;
-                unsigned int visited = (1U << lane_id);
+                unsigned int visited    = (1U << lane_id);
 
                 while(true)
                 {
                     unsigned int todo = visited ^ conn_msk;
-                    if(!todo) break;
+                    if(!todo)
+                        break;
                     unsigned int next_visit = __ffs(todo) - 1;
                     visited |= (1U << next_visit);
                     conn_msk |= cached_msk[next_visit + local_warp_id * BANKSIZE];
@@ -510,17 +559,17 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
 {
     using namespace muda;
     int N = m_h_level_size.x;
-    if(N < 1) return;
+    if(N < 1)
+        return;
 
     int level_begin = m_h_level_size.y;
     int block_size  = BANKSIZE * BANKSIZE;
     int num_blocks  = (N + block_size - 1) / block_size;
     int warp_num    = (N + BANKSIZE - 1) / BANKSIZE;
 
-    thrust::exclusive_scan(
-        thrust::device_ptr<unsigned int>(next_prefixes.data()),
-        thrust::device_ptr<unsigned int>(next_prefixes.data()) + warp_num,
-        thrust::device_ptr<unsigned int>(next_prefix_sums.data()));
+    thrust::exclusive_scan(thrust::device_ptr<unsigned int>(next_prefixes.data()),
+                           thrust::device_ptr<unsigned int>(next_prefixes.data()) + warp_num,
+                           thrust::device_ptr<unsigned int>(next_prefix_sums.data()));
 
     Launch(num_blocks, block_size)
         .apply(
@@ -529,10 +578,13 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
              next_prefix_sum   = next_prefix_sums.data(),
              next_connect_mask = next_connect_masks.data(),
              going_next_ptr    = going_next.data(),
-             level, level_begin, N] __device__() mutable
+             level,
+             level_begin,
+             N] __device__() mutable
             {
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
-                if(idx >= N) return;
+                if(idx >= N)
+                    return;
 
                 int warp_id       = idx / BANKSIZE;
                 int local_warp_id = threadIdx.x / BANKSIZE;
@@ -552,7 +604,7 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
                         level_begin + (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
                 }
 
-                unsigned int conn_msk       = next_connect_mask[idx];
+                unsigned int conn_msk = next_connect_mask[idx];
                 unsigned int elected_prefix = __popc(conn_msk & lanemask_lt(lane_id));
                 if(elected_prefix == 0)
                     atomicOr(elected_mask + local_warp_id, (1U << lane_id));
@@ -561,14 +613,13 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
                     __popc(elected_mask[local_warp_id] & lanemask_lt(lane_id));
                 lane_prefix[threadIdx.x] += next_prefix_sum[warp_id];
 
-                unsigned int elected_lane    = __ffs(conn_msk) - 1;
+                unsigned int elected_lane = __ffs(conn_msk) - 1;
                 unsigned int the_lane_prefix =
                     lane_prefix[elected_lane + BANKSIZE * local_warp_id];
 
                 next_connect_mask[idx] = the_lane_prefix;
                 going_next_ptr[idx + level_begin] =
-                    the_lane_prefix + level_begin
-                    + (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+                    the_lane_prefix + level_begin + (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
             });
 }
 
@@ -579,14 +630,16 @@ void MASPreconditionerEngine::compute_next_level(int level)
 {
     using namespace muda;
     int N = m_total_nodes;
-    if(N < 1) return;
+    if(N < 1)
+        return;
 
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [coarse_table      = coarse_space_tables.viewer().name("coarse_space_tables"),
+               [coarse_table = coarse_space_tables.viewer().name("coarse_space_tables"),
                 next_connect_mask = next_connect_masks.cviewer().name("next_connect_masks"),
-                level, N] __device__(int idx) mutable
+                level,
+                N] __device__(int idx) mutable
                {
                    int next = coarse_table((level - 1) * N + idx);
                    if(next < 0 || next >= N)
@@ -605,15 +658,16 @@ void MASPreconditionerEngine::aggregation_kernel()
 {
     using namespace muda;
     int N = m_total_nodes;
-    if(N < 1) return;
+    if(N < 1)
+        return;
 
     int level_num = m_level_num;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(N,
-               [dense_level   = dense_level.data(),
-                coarse_table  = coarse_tables.viewer().name("coarse_table"),
-                going_next    = going_next.cviewer().name("going_next"),
+               [dense_level  = dense_level.data(),
+                coarse_table = coarse_tables.viewer().name("coarse_table"),
+                going_next   = going_next.cviewer().name("going_next"),
                 level_num] __device__(int idx) mutable
                {
                    int        current_id = idx;
@@ -633,9 +687,9 @@ void MASPreconditionerEngine::aggregation_kernel()
 // ============================================================================
 
 void MASPreconditionerEngine::set_hessian_coupling(const int* d_row_ids,
-                                                    const int* d_col_ids,
-                                                    int        triplet_num,
-                                                    int        dof_offset)
+                                                   const int* d_col_ids,
+                                                   int        triplet_num,
+                                                   int        dof_offset)
 {
     m_bcoo_row_ids     = d_row_ids;
     m_bcoo_col_ids     = d_col_ids;
@@ -643,87 +697,87 @@ void MASPreconditionerEngine::set_hessian_coupling(const int* d_row_ids,
     m_bcoo_dof_offset  = dof_offset;
 }
 
-void MASPreconditionerEngine::build_hessian_connection(
-    unsigned int* connection_mask,
-    const int*    coarse_table,   // nullptr for L0
-    int           level)
+void MASPreconditionerEngine::build_hessian_connection(unsigned int* connection_mask,
+                                                       const int* coarse_table,  // nullptr for L0
+                                                       int level)
 {
     using namespace muda;
-    if(m_bcoo_triplet_num < 1) return;
+    if(m_bcoo_triplet_num < 1)
+        return;
 
     // For each off-diagonal (i,j) block in the BCOO matrix that falls within
     // the FEM DOF range, set connectivity bits so i and j are grouped together.
     ParallelFor()
         .file_line(__FILE__, __LINE__)
-        .apply(
-            m_bcoo_triplet_num,
-            [connection_mask,
-             coarse_table,
-             row_ids      = m_bcoo_row_ids,
-             col_ids      = m_bcoo_col_ids,
-             real_to_part = real_to_part.cviewer().name("real_to_part"),
-             dof_offset   = m_bcoo_dof_offset,
-             vert_num     = m_total_nodes,
-             map_num      = m_total_map_nodes,
-             level] __device__(int idx) mutable
-            {
-                int row = row_ids[idx] - dof_offset;
-                int col = col_ids[idx] - dof_offset;
+        .apply(m_bcoo_triplet_num,
+               [connection_mask,
+                coarse_table,
+                row_ids      = m_bcoo_row_ids,
+                col_ids      = m_bcoo_col_ids,
+                real_to_part = real_to_part.cviewer().name("real_to_part"),
+                dof_offset   = m_bcoo_dof_offset,
+                vert_num     = m_total_nodes,
+                map_num      = m_total_map_nodes,
+                level] __device__(int idx) mutable
+               {
+                   int row = row_ids[idx] - dof_offset;
+                   int col = col_ids[idx] - dof_offset;
 
-                // Skip entries outside FEM range or diagonal entries
-                if(row < 0 || row >= vert_num || col < 0 || col >= vert_num)
-                    return;
-                if(row == col)
-                    return;
+                   // Skip entries outside FEM range or diagonal entries
+                   if(row < 0 || row >= vert_num || col < 0 || col >= vert_num)
+                       return;
+                   if(row == col)
+                       return;
 
-                // Map to partition space at the appropriate level
-                int a, b;
-                if(coarse_table)
-                {
-                    a = coarse_table[(level - 1) * vert_num + row];
-                    b = coarse_table[(level - 1) * vert_num + col];
-                }
-                else
-                {
-                    a = real_to_part(row);
-                    b = real_to_part(col);
-                }
+                   // Map to partition space at the appropriate level
+                   int a, b;
+                   if(coarse_table)
+                   {
+                       a = coarse_table[(level - 1) * vert_num + row];
+                       b = coarse_table[(level - 1) * vert_num + col];
+                   }
+                   else
+                   {
+                       a = real_to_part(row);
+                       b = real_to_part(col);
+                   }
 
-                if(a < 0 || b < 0) return;
+                   if(a < 0 || b < 0)
+                       return;
 
-                // Guard mapping index before bank/lane operations.
-                if(a >= map_num || b >= map_num) return;
+                   // Guard mapping index before bank/lane operations.
+                   if(a >= map_num || b >= map_num)
+                       return;
 
-                // If both vertices are in the same bank, set connectivity bits
-                if(a / BANKSIZE == b / BANKSIZE)
-                {
-                    if(coarse_table)
-                    {
-                        atomicOr(connection_mask + a, 1U << (b % BANKSIZE));
-                        atomicOr(connection_mask + b, 1U << (a % BANKSIZE));
-                    }
-                    else
-                    {
-                        // L0: connection_mask indexed by real vertex
-                        atomicOr(connection_mask + row, 1U << (b % BANKSIZE));
-                        atomicOr(connection_mask + col, 1U << (a % BANKSIZE));
-                    }
-                }
-            });
+                   // If both vertices are in the same bank, set connectivity bits
+                   if(a / BANKSIZE == b / BANKSIZE)
+                   {
+                       if(coarse_table)
+                       {
+                           atomicOr(connection_mask + a, 1U << (b % BANKSIZE));
+                           atomicOr(connection_mask + b, 1U << (a % BANKSIZE));
+                       }
+                       else
+                       {
+                           // L0: connection_mask indexed by real vertex
+                           atomicOr(connection_mask + row, 1U << (b % BANKSIZE));
+                           atomicOr(connection_mask + col, 1U << (a % BANKSIZE));
+                       }
+                   }
+               });
 }
 
 // ============================================================================
 // Phase 2: Assemble preconditioner
 // ============================================================================
 
-void MASPreconditionerEngine::set_preconditioner(
-    const Eigen::Matrix3d* d_triplet_values,
-    const int*             d_row_ids,
-    const int*             d_col_ids,
-    const uint32_t*        d_indices,
-    int                    dof_offset,
-    int                    triplet_num,
-    int                    cp_num)
+void MASPreconditionerEngine::set_preconditioner(const Eigen::Matrix3d* d_triplet_values,
+                                                 const int*      d_row_ids,
+                                                 const int*      d_col_ids,
+                                                 const uint32_t* d_indices,
+                                                 int             dof_offset,
+                                                 int             triplet_num,
+                                                 int             cp_num)
 {
     if(m_total_nodes < 1)
         return;
@@ -757,12 +811,22 @@ void MASPreconditionerEngine::set_preconditioner(
     // NOTE: cudaMemset is used here because muda::DeviceBuffer::fill
     //       does not reliably zero-initialize large structs containing
     //       Eigen matrices due to force_trivially_constructible.
-    cudaMemset(cluster_hessians.data(), 0,
-               num_cluster_blocks * sizeof(ClusterMatrixSym));
+    cudaMemset(cluster_hessians.data(), 0, num_cluster_blocks * sizeof(ClusterMatrixSym));
 
     // 5. Scatter BCOO Hessian blocks into cluster matrices
-    scatter_hessian_to_clusters(d_triplet_values, d_row_ids, d_col_ids,
-                                d_indices, dof_offset, triplet_num);
+    scatter_hessian_to_clusters(
+        d_triplet_values, d_row_ids, d_col_ids, d_indices, dof_offset, triplet_num);
+
+    if(m_mas_scatter_non_cloth_check && m_mas_scatter_non_cloth_hits.size() > 0)
+    {
+        unsigned int hits = 0;
+        cudaMemcpy(&hits, m_mas_scatter_non_cloth_hits.data(), sizeof(unsigned int), cudaMemcpyDeviceToHost);
+        if(hits > 0)
+            UIPC_WARN_WITH_LOCATION(
+                "MAS scatter: {} BCOO Hessian triplets had both ends partitioned while at least "
+                "one vertex is non-cloth FEM (e.g. Empty). Remove mesh_part from Empty geometries.",
+                hits);
+    }
 
     // 6. Invert each cluster matrix (Gauss-Jordan)
     invert_cluster_matrices();
@@ -771,15 +835,21 @@ void MASPreconditionerEngine::set_preconditioner(
 // ---------------------------------------------------------------------------
 // Scatter BCOO Hessian entries into cluster-level dense matrices
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::scatter_hessian_to_clusters(
-    const Eigen::Matrix3d* d_triplet_values,
-    const int*             d_row_ids,
-    const int*             d_col_ids,
-    const uint32_t*        d_indices,
-    int                    dof_offset,
-    int                    triplet_num)
+void MASPreconditionerEngine::scatter_hessian_to_clusters(const Eigen::Matrix3d* d_triplet_values,
+                                                          const int* d_row_ids,
+                                                          const int* d_col_ids,
+                                                          const uint32_t* d_indices,
+                                                          int dof_offset,
+                                                          int triplet_num)
 {
     using namespace muda;
+
+    if(m_mas_scatter_non_cloth_check && m_mas_scatter_non_cloth_hits.size() > 0)
+        cudaMemset(m_mas_scatter_non_cloth_hits.data(), 0, sizeof(unsigned int));
+
+    const bool check_nc = m_mas_scatter_non_cloth_check;
+    unsigned int* viol_ptr = check_nc ? m_mas_scatter_non_cloth_hits.data() : nullptr;
+    auto non_cloth = m_vertex_non_cloth_fem.cviewer().name("vertex_non_cloth_fem");
 
     // --- Pass 1: Place each 3x3 block at the finest level where both
     //             row and col belong to the same cluster. ---
@@ -798,7 +868,10 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
              triplet_values = d_triplet_values,
              row_ids        = d_row_ids,
              col_ids        = d_col_ids,
-             total_nodes    = m_total_nodes] __device__(int I) mutable
+             total_nodes    = m_total_nodes,
+             check_nc,
+             viol_ptr,
+             non_cloth] __device__(int I) mutable
             {
                 int  index    = indices[I];
                 int  row_real = row_ids[index] - offset;
@@ -806,8 +879,7 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
                 auto H        = triplet_values[index];
 
                 // Skip triplets outside FEM DOF range
-                if(row_real < 0 || row_real >= total_nodes
-                   || col_real < 0 || col_real >= total_nodes)
+                if(row_real < 0 || row_real >= total_nodes || col_real < 0 || col_real >= total_nodes)
                     return;
 
                 int vert_col = real_to_part(col_real);
@@ -817,21 +889,27 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
                 if(vert_col < 0 || vert_row < 0)
                     return;
 
+                if(check_nc && viol_ptr != nullptr
+                   && (non_cloth(row_real) != 0 || non_cloth(col_real) != 0))
+                    atomicAdd(viol_ptr, 1u);
+
                 if(vert_col / BANKSIZE == vert_row / BANKSIZE)
                 {
                     int cluster_id = vert_col / BANKSIZE;
                     if(cluster_id < 0 || cluster_id >= cluster_blocks)
                         return;
+                    // Accumulate: BCOO may list multiple triplets for the same (i,j) block;
+                    // assignment would match neither SPMV nor the coarse-level atomic path.
                     if(vert_col >= vert_row)
                     {
                         int si = sym_index(vert_row % BANKSIZE, vert_col % BANKSIZE);
-                        cluster_hess[cluster_id].M[si] = H;
+                        muda::eigen::atomic_add(cluster_hess[cluster_id].M[si], H);
                     }
                     else
                     {
-                        // Partition reorder flipped order; store transpose
+                        Eigen::Matrix3d Ht = H.transpose();
                         int si = sym_index(vert_col % BANKSIZE, vert_row % BANKSIZE);
-                        cluster_hess[cluster_id].M[si] = H.transpose();
+                        muda::eigen::atomic_add(cluster_hess[cluster_id].M[si], Ht);
                     }
                 }
                 else
@@ -865,9 +943,11 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
                                 for(int i = 0; i < 3; i++)
                                     for(int j = 0; j < 3; j++)
                                     {
-                                        atomicAdd(&(cluster_hess[cluster_id].M[si](i, j)), H(i, j));
+                                        atomicAdd(&(cluster_hess[cluster_id].M[si](i, j)),
+                                                  H(i, j));
                                         if(vert_col == vert_row)
-                                            atomicAdd(&(cluster_hess[cluster_id].M[si](i, j)), H(j, i));
+                                            atomicAdd(&(cluster_hess[cluster_id].M[si](i, j)),
+                                                      H(j, i));
                                     }
                             }
                             else
@@ -875,7 +955,8 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
                                 int si = sym_index(vert_col % BANKSIZE, vert_row % BANKSIZE);
                                 for(int i = 0; i < 3; i++)
                                     for(int j = 0; j < 3; j++)
-                                        atomicAdd(&(cluster_hess[cluster_id].M[si](i, j)), H(j, i));
+                                        atomicAdd(&(cluster_hess[cluster_id].M[si](i, j)),
+                                                  H(j, i));
                             }
                             break;  // done for this triplet
                         }
@@ -894,122 +975,123 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(
 
     ParallelFor(block_num, thread_num)
         .file_line(__FILE__, __LINE__)
-        .apply(
-            total_entries,
-            [level_num       = m_level_num,
-             going_next      = going_next.cviewer().name("going_next"),
-             cluster_hess    = cluster_hessians.data(),
-             part_to_real    = part_to_real.cviewer().name("part_to_real"),
-             fine_connect    = fine_connect_masks.cviewer().name("fine_connect_masks"),
-             prefix_orig     = prefix_original.cviewer().name("prefix_original"),
-             cluster_blocks  = static_cast<int>(cluster_hessians.size()),
-             map_nodes       = m_total_map_nodes]
-            __device__(int idx) mutable
-            {
-                int cluster_stride = BANKSIZE * BANKSIZE;
-                int cluster_id     = idx / cluster_stride;
-                int local_row      = (idx % cluster_stride) / BANKSIZE;
-                int local_col      = (idx % cluster_stride) % BANKSIZE;
+        .apply(total_entries,
+               [level_num    = m_level_num,
+                going_next   = going_next.cviewer().name("going_next"),
+                cluster_hess = cluster_hessians.data(),
+                part_to_real = part_to_real.cviewer().name("part_to_real"),
+                fine_connect = fine_connect_masks.cviewer().name("fine_connect_masks"),
+                prefix_orig = prefix_original.cviewer().name("prefix_original"),
+                cluster_blocks = static_cast<int>(cluster_hessians.size()),
+                map_nodes      = m_total_map_nodes] __device__(int idx) mutable
+               {
+                   int cluster_stride = BANKSIZE * BANKSIZE;
+                   int cluster_id     = idx / cluster_stride;
+                   int local_row      = (idx % cluster_stride) / BANKSIZE;
+                   int local_col      = (idx % cluster_stride) % BANKSIZE;
 
-                int global_row = cluster_id * BANKSIZE + local_row;
-                int global_col = cluster_id * BANKSIZE + local_col;
-                if(global_row >= map_nodes || global_col >= map_nodes)
-                    return;
+                   int global_row = cluster_id * BANKSIZE + local_row;
+                   int global_col = cluster_id * BANKSIZE + local_col;
+                   if(global_row >= map_nodes || global_col >= map_nodes)
+                       return;
 
-                int rdx = part_to_real(global_row);
-                int cdx = part_to_real(global_col);
+                   int rdx = part_to_real(global_row);
+                   int cdx = part_to_real(global_col);
 
-                __shared__ int prefix;
-                if(threadIdx.x == 0)
-                    prefix = prefix_orig(cluster_id);
-                __syncthreads();
+                   __shared__ int prefix;
+                   if(threadIdx.x == 0)
+                       prefix = prefix_orig(cluster_id);
+                   __syncthreads();
 
-                // Read the 3x3 block from the symmetric cluster matrix
-                Eigen::Matrix3d mat3;
-                if(local_col >= local_row)
-                {
-                    int si = sym_index(local_row, local_col);
-                    mat3   = cluster_hess[cluster_id].M[si];
-                }
-                else
-                {
-                    int si = sym_index(local_col, local_row);
-                    mat3   = cluster_hess[cluster_id].M[si].transpose();
-                }
+                   // Read the 3x3 block from the symmetric cluster matrix
+                   Eigen::Matrix3d mat3;
+                   if(local_col >= local_row)
+                   {
+                       int si = sym_index(local_row, local_col);
+                       mat3   = cluster_hess[cluster_id].M[si];
+                   }
+                   else
+                   {
+                       int si = sym_index(local_col, local_row);
+                       mat3   = cluster_hess[cluster_id].M[si].transpose();
+                   }
 
-                if(rdx < 0 || cdx < 0)
-                    return;
+                   if(rdx < 0 || cdx < 0)
+                       return;
 
-                if(prefix == 1)
-                {
-                    // Contiguous partition: warp-reduce the matrix
-                    int  warp_id    = threadIdx.x & 0x1f;
-                    bool is_boundary = (warp_id == 0) || (rdx < 0) || (cdx < 0);
-                    unsigned int mark = __ballot_sync(0xffffffff, is_boundary);
-                    mark = __brev(mark);
-                    int clz_len = __clz(mark << (warp_id + 1));
-                    unsigned int interval = min(clz_len, 31 - warp_id);
+                   if(prefix == 1)
+                   {
+                       // Contiguous partition: warp-reduce the matrix
+                       int warp_id = threadIdx.x & 0x1f;
+                       bool is_boundary = (warp_id == 0) || (rdx < 0) || (cdx < 0);
+                       unsigned int mark = __ballot_sync(0xffffffff, is_boundary);
+                       mark                  = __brev(mark);
+                       int          clz_len  = __clz(mark << (warp_id + 1));
+                       unsigned int interval = min(clz_len, 31 - warp_id);
 
-                    for(int iter = 1; iter < 32; iter <<= 1)
-                    {
-                        Eigen::Matrix3d tmp;
-                        for(int i = 0; i < 3; i++)
-                            for(int j = 0; j < 3; j++)
-                                tmp(i, j) = __shfl_down_sync(0xffffffff, mat3(i, j), iter);
-                        if(interval >= (unsigned int)iter)
-                            mat3 = mat3 + tmp;
-                    }
+                       for(int iter = 1; iter < 32; iter <<= 1)
+                       {
+                           Eigen::Matrix3d tmp;
+                           for(int i = 0; i < 3; i++)
+                               for(int j = 0; j < 3; j++)
+                                   tmp(i, j) =
+                                       __shfl_down_sync(0xffffffff, mat3(i, j), iter);
+                           if(interval >= (unsigned int)iter)
+                               mat3 = mat3 + tmp;
+                       }
 
-                    if(is_boundary)
-                    {
-                        int level   = 0;
-                        int next_id = going_next(rdx);
-                        if(next_id < 0)
-                            return;
-                        while(level < level_num - 1)
-                        {
-                            level++;
-                            int cid     = next_id / BANKSIZE;
-                            if(cid < 0 || cid >= cluster_blocks)
-                                return;
-                            int bv      = next_id % BANKSIZE;
-                            int si      = sym_index(bv, bv);
-                            for(int i = 0; i < 3; i++)
-                                for(int j = 0; j < 3; j++)
-                                    atomicAdd(&(cluster_hess[cid].M[si](i, j)), mat3(i, j));
-                            next_id = going_next(next_id);
-                            if(next_id < 0)
-                                return;
-                        }
-                    }
-                }
-                else
-                {
-                    // Non-contiguous: per-entry scatter to coarser levels
-                    int level = 0;
-                    while(level < level_num - 1)
-                    {
-                        level++;
-                        rdx      = going_next(rdx);
-                        cdx      = going_next(cdx);
-                        if(rdx < 0 || cdx < 0)
-                            return;
-                        int cid  = cdx / BANKSIZE;
-                        if(cid < 0 || cid >= cluster_blocks)
-                            return;
-                        if(rdx / BANKSIZE == cdx / BANKSIZE)
-                        {
-                            if(cdx >= rdx)
-                            {
-                                int si = sym_index(rdx % BANKSIZE, cdx % BANKSIZE);
-                                for(int i = 0; i < 3; i++)
-                                    for(int j = 0; j < 3; j++)
-                                        atomicAdd(&(cluster_hess[cid].M[si](i, j)), mat3(i, j));
-                            }
-                        }
-                    }
-                }
-            });
+                       if(is_boundary)
+                       {
+                           int level   = 0;
+                           int next_id = going_next(rdx);
+                           if(next_id < 0)
+                               return;
+                           while(level < level_num - 1)
+                           {
+                               level++;
+                               int cid = next_id / BANKSIZE;
+                               if(cid < 0 || cid >= cluster_blocks)
+                                   return;
+                               int bv = next_id % BANKSIZE;
+                               int si = sym_index(bv, bv);
+                               for(int i = 0; i < 3; i++)
+                                   for(int j = 0; j < 3; j++)
+                                       atomicAdd(&(cluster_hess[cid].M[si](i, j)),
+                                                 mat3(i, j));
+                               next_id = going_next(next_id);
+                               if(next_id < 0)
+                                   return;
+                           }
+                       }
+                   }
+                   else
+                   {
+                       // Non-contiguous: per-entry scatter to coarser levels
+                       int level = 0;
+                       while(level < level_num - 1)
+                       {
+                           level++;
+                           rdx = going_next(rdx);
+                           cdx = going_next(cdx);
+                           if(rdx < 0 || cdx < 0)
+                               return;
+                           int cid = cdx / BANKSIZE;
+                           if(cid < 0 || cid >= cluster_blocks)
+                               return;
+                           if(rdx / BANKSIZE == cdx / BANKSIZE)
+                           {
+                               if(cdx >= rdx)
+                               {
+                                   int si = sym_index(rdx % BANKSIZE, cdx % BANKSIZE);
+                                   for(int i = 0; i < 3; i++)
+                                       for(int j = 0; j < 3; j++)
+                                           atomicAdd(&(cluster_hess[cid].M[si](i, j)),
+                                                     mat3(i, j));
+                               }
+                           }
+                       }
+                   }
+               });
 }
 
 // ---------------------------------------------------------------------------
@@ -1032,12 +1114,13 @@ void MASPreconditionerEngine::invert_cluster_matrices()
              total_threads] __device__() mutable
             {
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
-                if(idx >= total_threads) return;
+                if(idx >= total_threads)
+                    return;
 
                 constexpr int MAT_DIM = BANKSIZE * 3;  // 48
 
-                int mat_id       = idx / MAT_DIM;
-                int col          = idx % MAT_DIM;  // this thread owns one column
+                int mat_id = idx / MAT_DIM;
+                int col    = idx % MAT_DIM;  // this thread owns one column
                 int block_mat_id = threadIdx.x / MAT_DIM;
 
                 // Load the full symmetric matrix into shared memory
@@ -1095,9 +1178,11 @@ void MASPreconditionerEngine::invert_cluster_matrices()
 
                 // Symmetrize the result
                 if(col % 3 < 2)
-                    s_mat[block_mat_id][col + 1][col] = s_mat[block_mat_id][col][col + 1];
+                    s_mat[block_mat_id][col + 1][col] =
+                        s_mat[block_mat_id][col][col + 1];
                 else
-                    s_mat[block_mat_id][col][col - 2] = s_mat[block_mat_id][col - 2][col];
+                    s_mat[block_mat_id][col][col - 2] =
+                        s_mat[block_mat_id][col - 2][col];
                 __syncthreads();
 
                 // Write result back as float (mixed precision)
@@ -1127,7 +1212,8 @@ void MASPreconditionerEngine::build_multi_level_R(const double3* R,
 {
     using namespace muda;
     int N = m_total_map_nodes;
-    if(N < 1) return;
+    if(N < 1)
+        return;
 
     int block_size = DEFAULT_BLOCKSIZE;
     int num_blocks = (N + block_size - 1) / block_size;
@@ -1135,18 +1221,20 @@ void MASPreconditionerEngine::build_multi_level_R(const double3* R,
     Launch(num_blocks, block_size)
         .apply(
             [R,
-             multi_lr      = multi_level_R.data(),
-             going_next    = going_next.data(),
-             prefix_orig   = prefix_original.data(),
-             fine_conn     = fine_connect_masks.data(),
-             part_to_real  = part_to_real.cviewer().name("part_to_real"),
-             converged     = converged.cviewer().name("converged"),
-             level_num = m_level_num, N] __device__() mutable
+             multi_lr     = multi_level_R.data(),
+             going_next   = going_next.data(),
+             prefix_orig  = prefix_original.data(),
+             fine_conn    = fine_connect_masks.data(),
+             part_to_real = part_to_real.cviewer().name("part_to_real"),
+             converged    = converged.cviewer().name("converged"),
+             level_num    = m_level_num,
+             N] __device__() mutable
             {
                 if(*converged != 0)
                     return;
                 int pdx = blockIdx.x * blockDim.x + threadIdx.x;
-                if(pdx >= N) return;
+                if(pdx >= N)
+                    return;
 
                 int idx = part_to_real(pdx);
 
@@ -1174,20 +1262,21 @@ void MASPreconditionerEngine::build_multi_level_R(const double3* R,
                 if(lane_id == 0)
                     prefix_sum_s[local_warp_id] = prefix_orig[global_warp];
 
-                if(idx < 0) return;
+                if(idx < 0)
+                    return;
 
                 unsigned int connect_msk = fine_conn[idx];
 
                 if(prefix_sum_s[local_warp_id] == 1)
                 {
                     // Contiguous partition: use warp shuffle reduction
-                    auto mask_val   = __activemask();
-                    int  warp_id    = threadIdx.x & 0x1f;
+                    auto mask_val    = __activemask();
+                    int  warp_id     = threadIdx.x & 0x1f;
                     bool is_boundary = (lane_id == 0) || (warp_id == 0);
 
-                    unsigned int mark = __ballot_sync(mask_val, is_boundary);
-                    mark              = __brev(mark);
-                    int clz_len       = __clz(mark << (warp_id + 1));
+                    unsigned int mark    = __ballot_sync(mask_val, is_boundary);
+                    mark                 = __brev(mark);
+                    int          clz_len = __clz(mark << (warp_id + 1));
                     unsigned int interval = min(clz_len, 31 - warp_id);
 
                     for(int s = 1; s < BANKSIZE; s <<= 1)
@@ -1224,20 +1313,28 @@ void MASPreconditionerEngine::build_multi_level_R(const double3* R,
                     sum_residual[threadIdx.x + DEFAULT_BLOCKSIZE]     = 0;
                     sum_residual[threadIdx.x + 2 * DEFAULT_BLOCKSIZE] = 0;
 
-                    atomicAdd(sum_residual + local_warp_id * BANKSIZE + elected_lane, r[0]);
-                    atomicAdd(sum_residual + local_warp_id * BANKSIZE + elected_lane + DEFAULT_BLOCKSIZE, r[1]);
-                    atomicAdd(sum_residual + local_warp_id * BANKSIZE + elected_lane + 2 * DEFAULT_BLOCKSIZE, r[2]);
+                    atomicAdd(sum_residual + local_warp_id * BANKSIZE + elected_lane,
+                              r[0]);
+                    atomicAdd(sum_residual + local_warp_id * BANKSIZE + elected_lane + DEFAULT_BLOCKSIZE,
+                              r[1]);
+                    atomicAdd(sum_residual + local_warp_id * BANKSIZE
+                                  + elected_lane + 2 * DEFAULT_BLOCKSIZE,
+                              r[2]);
 
-                    unsigned int elected_prefix = __popc(connect_msk & lanemask_lt(lane_id));
+                    unsigned int elected_prefix =
+                        __popc(connect_msk & lanemask_lt(lane_id));
                     if(elected_prefix == 0)
                     {
                         int cur = idx;
                         for(int l = 0; l < level_num - 1; l++)
                         {
                             cur = going_next[cur];
-                            atomicAdd(&(multi_lr[cur][0]), sum_residual[threadIdx.x]);
-                            atomicAdd(&(multi_lr[cur][1]), sum_residual[threadIdx.x + DEFAULT_BLOCKSIZE]);
-                            atomicAdd(&(multi_lr[cur][2]), sum_residual[threadIdx.x + DEFAULT_BLOCKSIZE * 2]);
+                            atomicAdd(&(multi_lr[cur][0]),
+                                      sum_residual[threadIdx.x]);
+                            atomicAdd(&(multi_lr[cur][1]),
+                                      sum_residual[threadIdx.x + DEFAULT_BLOCKSIZE]);
+                            atomicAdd(&(multi_lr[cur][2]),
+                                      sum_residual[threadIdx.x + DEFAULT_BLOCKSIZE * 2]);
                         }
                     }
                 }
@@ -1251,7 +1348,8 @@ void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<IndexT> converg
 {
     using namespace muda;
     int N = m_total_num_clusters * BANKSIZE;  // one thread per (cluster, node-pair)
-    if(N < 1) return;
+    if(N < 1)
+        return;
 
     int block_size = BANKSIZE * BANKSIZE;
     int num_blocks = (N + block_size - 1) / block_size;
@@ -1267,7 +1365,8 @@ void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<IndexT> converg
                 if(*converged != 0)
                     return;
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
-                if(idx >= N) return;
+                if(idx >= N)
+                    return;
 
                 constexpr int cluster_stride = BANKSIZE * BANKSIZE;
 
@@ -1298,13 +1397,13 @@ void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<IndexT> converg
                 }
 
                 // Warp-reduce the partial products across columns
-                int  warp_id    = threadIdx.x & 0x1f;
-                int  land_idx   = threadIdx.x % BANKSIZE;
+                int  warp_id     = threadIdx.x & 0x1f;
+                int  land_idx    = threadIdx.x % BANKSIZE;
                 bool is_boundary = (land_idx == 0) || (warp_id == 0);
 
-                unsigned int mark = __ballot_sync(0xffffffff, is_boundary);
-                mark              = __brev(mark);
-                int clz_len       = __clz(mark << (warp_id + 1));
+                unsigned int mark     = __ballot_sync(0xffffffff, is_boundary);
+                mark                  = __brev(mark);
+                int          clz_len  = __clz(mark << (warp_id + 1));
                 unsigned int interval = min(clz_len, 31 - warp_id);
 
                 int max_shfl = min(32, BANKSIZE);
@@ -1333,12 +1432,12 @@ void MASPreconditionerEngine::schwarz_local_solve(muda::CVarView<IndexT> converg
 // ---------------------------------------------------------------------------
 // Prolongate: sum Z contributions from all levels for each fine node
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::collect_final_Z(double3* Z,
-                                              muda::CVarView<IndexT> converged)
+void MASPreconditionerEngine::collect_final_Z(double3* Z, muda::CVarView<IndexT> converged)
 {
     using namespace muda;
     int N = m_total_nodes;
-    if(N < 1) return;
+    if(N < 1)
+        return;
 
     int level_num = m_level_num;
     ParallelFor()
@@ -1356,7 +1455,8 @@ void MASPreconditionerEngine::collect_final_Z(double3* Z,
                    int rdx = real_to_part(idx);
 
                    // Skip unpartitioned vertices (handled by diagonal fallback)
-                   if(rdx < 0) return;
+                   if(rdx < 0)
+                       return;
 
                    // Start with the fine-level solution
                    float3 cz = multi_lz(rdx);
@@ -1365,8 +1465,8 @@ void MASPreconditionerEngine::collect_final_Z(double3* Z,
                    LevelTable table = coarse_table(idx);
                    for(int l = 1; l < level_num; l++)
                    {
-                       int node = table.index[l - 1];
-                       float3 val = multi_lz(node);
+                       int    node = table.index[l - 1];
+                       float3 val  = multi_lz(node);
                        cz.x += val.x;
                        cz.y += val.y;
                        cz.z += val.z;
@@ -1399,13 +1499,13 @@ void MASPreconditionerEngine::apply(muda::CDenseVectorView<Float> r,
     // Zero coarse-level residuals (beyond fine nodes)
     if(m_total_num_clusters > m_total_map_nodes)
     {
-        cudaMemset(multi_level_R.data() + m_total_map_nodes, 0,
+        cudaMemset(multi_level_R.data() + m_total_map_nodes,
+                   0,
                    (m_total_num_clusters - m_total_map_nodes) * sizeof(Eigen::Vector3f));
     }
 
     // Zero all solution levels
-    cudaMemset(multi_level_Z.data(), 0,
-               m_total_num_clusters * sizeof(float3));
+    cudaMemset(multi_level_Z.data(), 0, m_total_num_clusters * sizeof(float3));
 
     // 1. Restrict: accumulate residual down through levels
     build_multi_level_R(reinterpret_cast<const double3*>(r.data()), converged);
@@ -1415,6 +1515,144 @@ void MASPreconditionerEngine::apply(muda::CDenseVectorView<Float> r,
 
     // 3. Prolongate: sum Z from all levels back to fine nodes
     collect_final_Z(reinterpret_cast<double3*>(z.data()), converged);
+}
+
+void MASPreconditionerEngine::dump_cluster_matrices_debug(const std::filesystem::path& output_dir,
+                                                          std::string_view label,
+                                                          SizeT frame,
+                                                          SizeT newton_iter)
+{
+    if(!m_initialized || cluster_hessians.size() == 0)
+        return;
+
+    std::error_code ec;
+    std::filesystem::create_directories(output_dir, ec);
+    if(ec)
+    {
+        UIPC_WARN_WITH_LOCATION("MAS dump: failed to create directory {}",
+                                output_dir.string());
+        return;
+    }
+
+    std::string safe_label(label);
+    if(safe_label.empty())
+        safe_label = "default";
+    for(char& c : safe_label)
+        if(c == '/' || c == '\\' || c == ':' || c == ' ')
+            c = '_';
+
+    cudaDeviceSynchronize();
+
+    const size_t                   nb = cluster_hessians.size();
+    std::vector<ClusterMatrixSym>  h_hess(nb);
+    std::vector<ClusterMatrixSymF> h_inv(nb);
+    const size_t                   sz_h = nb * sizeof(ClusterMatrixSym);
+    const size_t                   sz_i = nb * sizeof(ClusterMatrixSymF);
+
+    if(cudaMemcpy(h_hess.data(), cluster_hessians.data(), sz_h, cudaMemcpyDeviceToHost) != cudaSuccess)
+    {
+        UIPC_WARN_WITH_LOCATION("MAS dump: cudaMemcpy cluster_hessians failed");
+        return;
+    }
+    if(cudaMemcpy(h_inv.data(), cluster_inverses.data(), sz_i, cudaMemcpyDeviceToHost) != cudaSuccess)
+    {
+        UIPC_WARN_WITH_LOCATION("MAS dump: cudaMemcpy cluster_inverses failed");
+        return;
+    }
+
+    auto write_blob = [&](const char* magic8, const void* data, size_t bytes, const char* kind)
+    {
+        auto path =
+            output_dir
+            / fmt::format("mas_cluster_{}.{}.f{}.n{}.bin", kind, safe_label, frame, newton_iter);
+        std::ofstream out(path, std::ios::binary);
+        if(!out)
+        {
+            UIPC_WARN_WITH_LOCATION("MAS dump: open {} failed", path.string());
+            return;
+        }
+        out.write(magic8, 8);
+        uint32_t ver = 1;
+        out.write(reinterpret_cast<const char*>(&ver), sizeof(ver));
+        uint32_t tn   = static_cast<uint32_t>(m_total_nodes);
+        uint32_t tm   = static_cast<uint32_t>(m_total_map_nodes);
+        uint32_t tc   = static_cast<uint32_t>(m_total_num_clusters);
+        uint32_t nblk = static_cast<uint32_t>(nb);
+        uint32_t bk   = static_cast<uint32_t>(BANKSIZE);
+        uint32_t sym  = static_cast<uint32_t>(SYM_BLOCK_COUNT);
+        out.write(reinterpret_cast<const char*>(&tn), sizeof(tn));
+        out.write(reinterpret_cast<const char*>(&tm), sizeof(tm));
+        out.write(reinterpret_cast<const char*>(&tc), sizeof(tc));
+        out.write(reinterpret_cast<const char*>(&nblk), sizeof(nblk));
+        out.write(reinterpret_cast<const char*>(&bk), sizeof(bk));
+        out.write(reinterpret_cast<const char*>(&sym), sizeof(sym));
+        out.write(static_cast<const char*>(data), static_cast<std::streamsize>(bytes));
+        logger::info("MAS dump: wrote {}", path.string());
+    };
+
+    write_blob("UIPCMASH", h_hess.data(), sz_h, "hess");
+    write_blob("UIPCMASI", h_inv.data(), sz_i, "inv");
+
+    // Partition metadata for offline alignment (real vertex indices per partition slot + cloth mask).
+    std::vector<int> h_part_to_real(static_cast<size_t>(m_total_map_nodes));
+    if(m_total_map_nodes > 0
+       && cudaMemcpy(h_part_to_real.data(),
+                     part_to_real.data(),
+                     static_cast<size_t>(m_total_map_nodes) * sizeof(int),
+                     cudaMemcpyDeviceToHost)
+              != cudaSuccess)
+    {
+        UIPC_WARN_WITH_LOCATION("MAS dump: cudaMemcpy part_to_real failed");
+        return;
+    }
+
+    std::vector<uint8_t> h_non_cloth(static_cast<size_t>(m_total_nodes), 0);
+    if(m_total_nodes > 0 && m_vertex_non_cloth_fem.size() >= static_cast<size_t>(m_total_nodes))
+    {
+        if(cudaMemcpy(h_non_cloth.data(),
+                      m_vertex_non_cloth_fem.data(),
+                      static_cast<size_t>(m_total_nodes),
+                      cudaMemcpyDeviceToHost)
+           != cudaSuccess)
+        {
+            UIPC_WARN_WITH_LOCATION("MAS dump: cudaMemcpy vertex_non_cloth_fem failed");
+            return;
+        }
+    }
+
+    {
+        auto path = output_dir
+                    / fmt::format("mas_cluster_meta.{}.f{}.n{}.bin", safe_label, frame, newton_iter);
+        std::ofstream out(path, std::ios::binary);
+        if(!out)
+        {
+            UIPC_WARN_WITH_LOCATION("MAS dump: open {} failed", path.string());
+            return;
+        }
+        const char magic_meta[] = "UIPCMASM";
+        out.write(magic_meta, 8);
+        uint32_t ver = 1;
+        out.write(reinterpret_cast<const char*>(&ver), sizeof(ver));
+        uint32_t tn     = static_cast<uint32_t>(m_total_nodes);
+        uint32_t tm     = static_cast<uint32_t>(m_total_map_nodes);
+        uint32_t tc     = static_cast<uint32_t>(m_total_num_clusters);
+        uint32_t nblk_u = static_cast<uint32_t>(nb);
+        uint32_t bk     = static_cast<uint32_t>(BANKSIZE);
+        uint32_t sym    = 0;  // marks meta file (not a cluster matrix blob)
+        out.write(reinterpret_cast<const char*>(&tn), sizeof(tn));
+        out.write(reinterpret_cast<const char*>(&tm), sizeof(tm));
+        out.write(reinterpret_cast<const char*>(&tc), sizeof(tc));
+        out.write(reinterpret_cast<const char*>(&nblk_u), sizeof(nblk_u));
+        out.write(reinterpret_cast<const char*>(&bk), sizeof(bk));
+        out.write(reinterpret_cast<const char*>(&sym), sizeof(sym));
+        if(tm > 0)
+            out.write(reinterpret_cast<const char*>(h_part_to_real.data()),
+                      static_cast<std::streamsize>(tm * sizeof(int)));
+        if(tn > 0)
+            out.write(reinterpret_cast<const char*>(h_non_cloth.data()),
+                      static_cast<std::streamsize>(tn));
+        logger::info("MAS dump: wrote {}", path.string());
+    }
 }
 
 }  // namespace uipc::backend::cuda

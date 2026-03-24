@@ -6,12 +6,17 @@
 #include <finite_element/fem_linear_subsystem.h>
 #include <global_geometry/global_vertex_manager.h>
 #include <finite_element/mas_preconditioner_engine.h>
+#include <uipc/builtin/attribute_name.h>
 #include <uipc/geometry/simplicial_complex.h>
 #include <uipc/common/log.h>
+#include <backends/common/backend_path_tool.h>
+#include <sim_engine.h>
 #include <set>
 
 namespace uipc::backend::cuda
 {
+// Must match REGISTER_CONSTITUTION_UIDS EmptyUID in src/constitution/empty.cpp
+constexpr ::uipc::U64 kEmptyConstitutionUID = 0ull;
 // Free function: NVCC on Windows forbids __device__ lambdas in static / internal-linkage functions
 void fill_identity_indices(muda::DeviceBuffer<uint32_t>& buf, int count)
 {
@@ -24,13 +29,12 @@ void fill_identity_indices(muda::DeviceBuffer<uint32_t>& buf, int count)
                { indices(i) = static_cast<uint32_t>(i); });
 }
 
-void assemble_diag_inv_for_unpartitioned(
-    muda::DeviceBuffer<Matrix3x3>&    diag_inv,
-    const muda::DeviceBuffer<int>&    unpart_flags,
-    muda::CBCOOMatrixView<Float, 3>   A,
-    int                               fem_block_offset,
-    int                               fem_block_count,
-    SizeT                             num_verts)
+void assemble_diag_inv_for_unpartitioned(muda::DeviceBuffer<Matrix3x3>& diag_inv,
+                                         const muda::DeviceBuffer<int>& unpart_flags,
+                                         muda::CBCOOMatrixView<Float, 3> A,
+                                         int   fem_block_offset,
+                                         int   fem_block_count,
+                                         SizeT num_verts)
 {
     using namespace muda;
 
@@ -59,13 +63,12 @@ void assemble_diag_inv_for_unpartitioned(
                });
 }
 
-void apply_diag_inv_for_unpartitioned(
-    const muda::DeviceBuffer<Matrix3x3>& diag_inv,
-    const muda::DeviceBuffer<int>&       unpart_flags,
-    muda::DenseVectorView<Float>         z,
-    muda::CDenseVectorView<Float>        r,
-    muda::CVarView<IndexT>               converged,
-    SizeT                                num_verts)
+void apply_diag_inv_for_unpartitioned(const muda::DeviceBuffer<Matrix3x3>& diag_inv,
+                                      const muda::DeviceBuffer<int>& unpart_flags,
+                                      muda::DenseVectorView<Float>  z,
+                                      muda::CDenseVectorView<Float> r,
+                                      muda::CVarView<IndexT>        converged,
+                                      SizeT                         num_verts)
 {
     using namespace muda;
 
@@ -76,8 +79,7 @@ void apply_diag_inv_for_unpartitioned(
                 z_view = z.viewer().name("z"),
                 diag   = diag_inv.cviewer().name("diag_inv"),
                 unpart = unpart_flags.cviewer().name("unpart_flags"),
-                converged = converged.cviewer().name("converged")]
-               __device__(int i) mutable
+                converged = converged.cviewer().name("converged")] __device__(int i) mutable
                {
                    if(*converged != 0)
                        return;
@@ -114,15 +116,15 @@ class FEMMASPreconditioner : public LocalPreconditioner
     GlobalLinearSystem*  global_linear_system  = nullptr;
     FEMLinearSubsystem*  fem_linear_subsystem  = nullptr;
 
-    MASPreconditionerEngine engine;
-    bool                    m_has_partition       = false;
-    bool                    m_has_unpartitioned   = false;
-    bool                    m_contact_aware       = false;
-    muda::DeviceBuffer<uint32_t>  sorted_indices;
+    MASPreconditionerEngine      engine;
+    bool                         m_has_partition     = false;
+    bool                         m_has_unpartitioned = false;
+    bool                         m_contact_aware     = false;
+    muda::DeviceBuffer<uint32_t> sorted_indices;
 
     // Diagonal fallback for unpartitioned vertices
     muda::DeviceBuffer<Matrix3x3> diag_inv;
-    muda::DeviceBuffer<int>       unpartitioned_flags;  // 1 = unpartitioned, 0 = partitioned
+    muda::DeviceBuffer<int> unpartitioned_flags;  // 1 = unpartitioned, 0 = partitioned
 
     virtual void do_build(BuildInfo& info) override
     {
@@ -133,8 +135,8 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
         // MAS activates if ANY FEM geometry has mesh_part attribute.
         // Unpartitioned meshes get diagonal (block-Jacobi) fallback internally.
-        auto geo_slots       = world().scene().geometries();
-        bool found_any_part  = false;
+        auto geo_slots      = world().scene().geometries();
+        bool found_any_part = false;
         for(SizeT i = 0; i < geo_slots.size(); i++)
         {
             auto& geo = geo_slots[i]->geometry();
@@ -152,13 +154,11 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
         if(!found_any_part)
         {
-            throw SimSystemException(
-                "FEMMASPreconditioner: No 'mesh_part' attribute found on any geometry.");
+            throw SimSystemException("FEMMASPreconditioner: No 'mesh_part' attribute found on any geometry.");
         }
 
         // Contact-aware MAS: inject BCOO off-diagonal coupling into hierarchy
-        auto ca_attr = world().scene().config().find<IndexT>(
-            "linear_system/precond/mas/contact_aware");
+        auto ca_attr = world().scene().config().find<IndexT>("linear_system/precond/mas/contact_aware");
         m_contact_aware = ca_attr ? (ca_attr->view()[0] != 0) : true;
 
         info.connect(fem_linear_subsystem);
@@ -178,8 +178,7 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
         auto add_edge = [&](IndexT a, IndexT b)
         {
-            if(a != b && a >= 0 && b >= 0
-               && a < static_cast<IndexT>(vert_num)
+            if(a != b && a >= 0 && b >= 0 && a < static_cast<IndexT>(vert_num)
                && b < static_cast<IndexT>(vert_num))
             {
                 vert_neighbors[a].insert(static_cast<unsigned int>(b));
@@ -209,7 +208,7 @@ class FEMMASPreconditioner : public LocalPreconditioner
         for(SizeT i = 0; i < vert_num; i++)
         {
             h_neighbor_start[i] = static_cast<unsigned int>(h_neighbor_list.size());
-            h_neighbor_num[i]   = static_cast<unsigned int>(vert_neighbors[i].size());
+            h_neighbor_num[i] = static_cast<unsigned int>(vert_neighbors[i].size());
             for(auto n : vert_neighbors[i])
                 h_neighbor_list.push_back(n);
         }
@@ -230,10 +229,12 @@ class FEMMASPreconditioner : public LocalPreconditioner
             auto& geo_slot = geo_slots[geo_info.geo_slot_index];
             auto& geo      = geo_slot->geometry();
             auto* sc       = geo.as<geometry::SimplicialComplex>();
-            if(!sc) continue;
+            if(!sc)
+                continue;
 
             auto mesh_part = sc->vertices().find<IndexT>("mesh_part");
-            if(!mesh_part) continue;
+            if(!mesh_part)
+                continue;
 
             has_parts      = true;
             auto part_view = mesh_part->view();
@@ -254,10 +255,31 @@ class FEMMASPreconditioner : public LocalPreconditioner
             return;
         }
 
+        // Tag Empty (non-cloth) FEM vertices; they must not carry mesh_part when using MAS.
+        std::vector<uint8_t> h_non_cloth_fem(vert_num, 0);
+        for(auto& geo_info : fem.geo_infos)
+        {
+            auto& geo_slot = geo_slots[geo_info.geo_slot_index];
+            auto& geo      = geo_slot->geometry();
+            auto  cuid     = geo.meta().find<U64>(builtin::constitution_uid);
+            if(!cuid || cuid->view()[0] != kEmptyConstitutionUID)
+                continue;
+            for(SizeT v = 0; v < geo_info.vertex_count; ++v)
+                h_non_cloth_fem[geo_info.vertex_offset + v] = 1;
+        }
+        for(SizeT v = 0; v < vert_num; ++v)
+        {
+            UIPC_ASSERT(!(h_non_cloth_fem[v] != 0 && part_ids[v] >= 0),
+                        "MAS: Empty FEM vertex {} has mesh_part / partition id {}. "
+                        "Strip mesh_part on Empty geometries.",
+                        v,
+                        part_ids[v]);
+        }
+
         // Check if any vertices are unpartitioned (part_ids[v] == -1)
         {
             std::vector<int> h_unpart_flags(vert_num, 0);
-            bool any_unpartitioned = false;
+            bool             any_unpartitioned = false;
             for(SizeT i = 0; i < vert_num; i++)
             {
                 if(part_ids[i] < 0)
@@ -275,7 +297,8 @@ class FEMMASPreconditioner : public LocalPreconditioner
 
         IndexT max_part_id = 0;
         for(auto pid : part_ids)
-            if(pid > max_part_id) max_part_id = pid;
+            if(pid > max_part_id)
+                max_part_id = pid;
 
         std::vector<std::vector<int>> part_blocks(max_part_id + 1);
         for(SizeT i = 0; i < vert_num; i++)
@@ -287,12 +310,12 @@ class FEMMASPreconditioner : public LocalPreconditioner
         for(SizeT b = 0; b < part_blocks.size(); b++)
         {
             UIPC_ASSERT(static_cast<int>(part_blocks[b].size()) <= BANKSIZE,
-                         "MAS: partition {} has {} vertices (max {}). "
-                         "Partition IDs from different meshes may be colliding — "
-                         "need global offset.",
-                         b,
-                         part_blocks[b].size(),
-                         BANKSIZE);
+                        "MAS: partition {} has {} vertices (max {}). "
+                        "Partition IDs from different meshes may be colliding — "
+                        "need global offset.",
+                        b,
+                        part_blocks[b].size(),
+                        BANKSIZE);
         }
 
         // Each partition block is padded to BANKSIZE alignment
@@ -311,7 +334,7 @@ class FEMMASPreconditioner : public LocalPreconditioner
         {
             for(SizeT i = 0; i < block.size(); i++)
             {
-                int real_idx                  = block[i];
+                int real_idx                    = block[i];
                 h_part_to_real[offset + (int)i] = real_idx;
                 h_real_to_part[real_idx]        = offset + static_cast<int>(i);
             }
@@ -332,8 +355,7 @@ class FEMMASPreconditioner : public LocalPreconditioner
             }
             else
             {
-                UIPC_ASSERT(h_real_to_part[i] >= 0
-                                && h_real_to_part[i] < part_map_size,
+                UIPC_ASSERT(h_real_to_part[i] >= 0 && h_real_to_part[i] < part_map_size,
                             "MAS: real_to_part[{}]={} out of range [0, {}).",
                             i,
                             h_real_to_part[i],
@@ -366,6 +388,12 @@ class FEMMASPreconditioner : public LocalPreconditioner
                              h_real_to_part);
 
         engine.init_matrix();
+
+        auto chk_nc = world().scene().config().find<IndexT>(
+            "linear_system/precond/mas/check_non_cloth_scatter");
+        const bool enable_nc_check = chk_nc && (chk_nc->view()[0] != 0);
+        engine.set_non_cloth_fem_vertex_mask(enable_nc_check, h_non_cloth_fem);
+
         m_has_partition = true;
     }
 
@@ -384,16 +412,15 @@ class FEMMASPreconditioner : public LocalPreconditioner
         auto row_view      = A.row_indices();
         auto col_view      = A.col_indices();
 
-        auto* values  = reinterpret_cast<const Eigen::Matrix3d*>(values_view.data());
+        auto* values = reinterpret_cast<const Eigen::Matrix3d*>(values_view.data());
         auto* row_ids = reinterpret_cast<const int*>(row_view.data());
         auto* col_ids = reinterpret_cast<const int*>(col_view.data());
 
         // Contact-aware: pass BCOO row/col indices for off-diagonal coupling
         if(m_contact_aware)
         {
-            engine.set_hessian_coupling(row_ids, col_ids,
-                                        static_cast<int>(triplet_count),
-                                        dof_offset / 3);
+            engine.set_hessian_coupling(
+                row_ids, col_ids, static_cast<int>(triplet_count), dof_offset / 3);
         }
         else
         {
@@ -405,21 +432,36 @@ class FEMMASPreconditioner : public LocalPreconditioner
         engine.set_preconditioner(values,
                                   row_ids,
                                   col_ids,
-                                  reinterpret_cast<const uint32_t*>(sorted_indices.data()),
+                                  reinterpret_cast<const uint32_t*>(
+                                      sorted_indices.data()),
                                   dof_offset / 3,
                                   static_cast<int>(triplet_count),
                                   0);
 
+        auto dump_mas = world().scene().config().find<IndexT>("extras/debug/dump_mas_matrices");
+        if(dump_mas && dump_mas->view()[0] != 0)
+        {
+            auto label_attr =
+                world().scene().config().find<std::string>("extras/debug/dump_mas_label");
+            std::string label = label_attr ? std::string{label_attr->view()[0]} :
+                                             std::string{"default"};
+            auto& cuda_engine =
+                static_cast<SimEngine&>(uipc::backend::SimSystem::engine());
+            backend::BackendPathTool path_tool{std::string{workspace()}};
+            auto out_dir = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
+            this->engine.dump_cluster_matrices_debug(
+                out_dir, label, cuda_engine.frame(), cuda_engine.newton_iter());
+        }
+
         // Diagonal fallback assembly for unpartitioned vertices
         if(m_has_unpartitioned)
         {
-            SizeT num_verts      = finite_element_method->xs().size();
-            int fem_block_offset = dof_offset / 3;
-            int fem_block_count  = static_cast<int>(info.dof_count()) / 3;
+            SizeT num_verts        = finite_element_method->xs().size();
+            int   fem_block_offset = dof_offset / 3;
+            int   fem_block_count  = static_cast<int>(info.dof_count()) / 3;
 
             assemble_diag_inv_for_unpartitioned(
-                diag_inv, unpartitioned_flags, A,
-                fem_block_offset, fem_block_count, num_verts);
+                diag_inv, unpartitioned_flags, A, fem_block_offset, fem_block_count, num_verts);
         }
     }
 
@@ -437,9 +479,12 @@ class FEMMASPreconditioner : public LocalPreconditioner
         // Diagonal fallback for unpartitioned vertices
         if(m_has_unpartitioned)
         {
-            apply_diag_inv_for_unpartitioned(
-                diag_inv, unpartitioned_flags, info.z(), info.r(), converged,
-                diag_inv.size());
+            apply_diag_inv_for_unpartitioned(diag_inv,
+                                             unpartitioned_flags,
+                                             info.z(),
+                                             info.r(),
+                                             converged,
+                                             diag_inv.size());
         }
     }
 };

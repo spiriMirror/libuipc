@@ -2,16 +2,17 @@
 #include <uipc/uipc.h>
 #include <uipc/constitution/stable_neo_hookean.h>
 
-// Test 1 (Easy): Single tetrahedron falling under gravity with MAS preconditioner.
-// This is the simplest possible test to validate MAS init + assemble + apply.
-TEST_CASE("53_fem_mas_single_tet", "[fem][mas]")
+// Test 1 (Easy): Small cube falling under gravity with MAS preconditioner.
+// Validates MAS init + assemble + apply on the simplest real mesh (cube.msh).
+TEST_CASE("53_fem_mas_small_cube", "[fem][mas]")
 {
     using namespace uipc;
     using namespace uipc::core;
     using namespace uipc::geometry;
     using namespace uipc::constitution;
 
-    auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
+    std::string tetmesh_dir{AssetDir::tetmesh_path()};
+    auto        output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
     Engine engine{"cuda", output_path};
     World  world{engine};
@@ -26,20 +27,19 @@ TEST_CASE("53_fem_mas_single_tet", "[fem][mas]")
     {
         StableNeoHookean snh;
 
-        auto object = scene.objects().create("tet");
+        auto object = scene.objects().create("cube");
 
-        vector<Vector4i> Ts = {Vector4i{0, 1, 2, 3}};
-        vector<Vector3>  Vs = {Vector3{0, 1, 0},
-                               Vector3{0, 0, 1},
-                               Vector3{-std::sqrt(3) / 2, 0, -0.5},
-                               Vector3{std::sqrt(3) / 2, 0, -0.5}};
+        Matrix4x4 pre_trans = Matrix4x4::Identity();
+        pre_trans(0, 0)     = 0.3;
+        pre_trans(1, 1)     = 0.3;
+        pre_trans(2, 2)     = 0.3;
 
-        auto mesh = tetmesh(Vs, Ts);
+        SimplicialComplexIO scaled_io(pre_trans);
+        auto mesh = scaled_io.read(fmt::format("{}/cube.msh", tetmesh_dir));
 
         label_surface(mesh);
         label_triangle_orient(mesh);
 
-        // Enable MAS preconditioner via mesh_partition
         mesh_partition(mesh, 16);
 
         auto parm = ElasticModuli::youngs_poisson(1e5, 0.499);

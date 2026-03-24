@@ -3,6 +3,8 @@
 #include <muda/buffer/device_buffer.h>
 #include <muda/buffer/device_var.h>
 #include <muda/ext/linear_system.h>
+#include <filesystem>
+#include <string_view>
 
 namespace uipc::backend::cuda
 {
@@ -70,6 +72,10 @@ class MASPreconditionerEngine
 
     void init_matrix();
 
+    /** Per-vertex mask: 1 = Empty (or other non-cloth FEM) vertex; optional runtime scatter check. */
+    void set_non_cloth_fem_vertex_mask(bool enable_scatter_check,
+                                       const std::vector<uint8_t>& h_vertex_is_non_cloth_fem);
+
     // ---- Phase 2: Assemble preconditioner (per Newton iteration) ----
 
     void set_preconditioner(const Eigen::Matrix3d* d_triplet_values,
@@ -87,6 +93,12 @@ class MASPreconditionerEngine
                muda::CVarView<IndexT>        converged);
 
     bool is_initialized() const { return m_initialized; }
+
+    /** Dump assembled cluster Hessians (double), inverses (float), and meta (part_to_real + non-cloth mask) for A/B runs. */
+    void dump_cluster_matrices_debug(const std::filesystem::path& output_dir,
+                                     std::string_view             label,
+                                     SizeT                        frame,
+                                     SizeT                        newton_iter);
 
     // ===========================================================================
     // All methods below are public because NVCC on Windows requires
@@ -108,14 +120,11 @@ class MASPreconditionerEngine
     // Contact-aware connectivity: injects BCOO off-diagonal coupling
     // into the hierarchy at each level.
     void build_hessian_connection(unsigned int* connection_mask,
-                                  const int*   coarse_table,   // nullptr for L0
-                                  int          level);
+                                  const int*    coarse_table,  // nullptr for L0
+                                  int           level);
 
     // Set BCOO coupling data for contact-aware hierarchy
-    void set_hessian_coupling(const int* d_row_ids,
-                              const int* d_col_ids,
-                              int        triplet_num,
-                              int        dof_offset);
+    void set_hessian_coupling(const int* d_row_ids, const int* d_col_ids, int triplet_num, int dof_offset);
 
     // Hessian assembly + inversion
     void scatter_hessian_to_clusters(const Eigen::Matrix3d* d_triplet_values,
@@ -127,11 +136,9 @@ class MASPreconditionerEngine
     void invert_cluster_matrices();
 
     // Preconditioning steps
-    void build_multi_level_R(const double3* R,
-                             muda::CVarView<IndexT> converged);
+    void build_multi_level_R(const double3* R, muda::CVarView<IndexT> converged);
     void schwarz_local_solve(muda::CVarView<IndexT> converged);
-    void collect_final_Z(double3* Z,
-                         muda::CVarView<IndexT> converged);
+    void collect_final_Z(double3* Z, muda::CVarView<IndexT> converged);
 
   private:
     // ---- State ----
@@ -156,7 +163,7 @@ class MASPreconditionerEngine
     muda::DeviceBuffer<unsigned int> next_prefix_sums;
 
     // ---- GPU buffers: neighbor graph ----
-    int m_neighbor_list_size = 0;
+    int                              m_neighbor_list_size = 0;
     muda::DeviceBuffer<unsigned int> neighbor_lists;
     muda::DeviceBuffer<unsigned int> neighbor_starts;
     muda::DeviceBuffer<unsigned int> neighbor_nums;
@@ -164,21 +171,26 @@ class MASPreconditionerEngine
     muda::DeviceBuffer<unsigned int> neighbor_nums_init;
 
     // ---- GPU buffers: partition mappings ----
-    muda::DeviceBuffer<int> part_to_real;   // partition-ordered index -> real vertex index
-    muda::DeviceBuffer<int> real_to_part;   // real vertex index -> partition-ordered index
+    muda::DeviceBuffer<int> part_to_real;  // partition-ordered index -> real vertex index
+    muda::DeviceBuffer<int> real_to_part;  // real vertex index -> partition-ordered index
 
     // ---- GPU buffers: cluster matrices ----
-    muda::DeviceBuffer<ClusterMatrixSym>  cluster_hessians;   // assembled Hessian blocks (double)
-    muda::DeviceBuffer<ClusterMatrixSymF> cluster_inverses;   // inverted preconditioner (float)
+    muda::DeviceBuffer<ClusterMatrixSym> cluster_hessians;  // assembled Hessian blocks (double)
+    muda::DeviceBuffer<ClusterMatrixSymF> cluster_inverses;  // inverted preconditioner (float)
 
     // ---- GPU buffers: multi-level residual / solution ----
     muda::DeviceBuffer<Eigen::Vector3f> multi_level_R;
     muda::DeviceBuffer<float3>          multi_level_Z;
 
     // ---- BCOO coupling data (for contact-aware MAS) ----
-    const int* m_bcoo_row_ids    = nullptr;  // device pointer, owned by caller
-    const int* m_bcoo_col_ids    = nullptr;
+    const int* m_bcoo_row_ids     = nullptr;  // device pointer, owned by caller
+    const int* m_bcoo_col_ids     = nullptr;
     int        m_bcoo_triplet_num = 0;
     int        m_bcoo_dof_offset  = 0;
+
+    // ---- Optional: detect partitioned non-cloth FEM in MAS Hessian scatter ----
+    bool                             m_mas_scatter_non_cloth_check = false;
+    muda::DeviceBuffer<uint8_t>      m_vertex_non_cloth_fem;
+    muda::DeviceBuffer<unsigned int> m_mas_scatter_non_cloth_hits;
 };
 }  // namespace uipc::backend::cuda

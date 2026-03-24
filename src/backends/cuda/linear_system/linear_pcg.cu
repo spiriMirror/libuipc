@@ -27,9 +27,9 @@ void LinearPCG::do_build(BuildInfo& info)
 
     auto tol_rate_attr = config.find<Float>("linear_system/tol_rate");
     UIPC_ASSERT(tol_rate_attr, "linear_system/tol_rate not found");
-    global_tol_rate    = tol_rate_attr->view()[0];
+    global_tol_rate = tol_rate_attr->view()[0];
 
-    auto dump_attr  = config.find<IndexT>("extras/debug/dump_linear_pcg");
+    auto dump_attr = config.find<IndexT>("extras/debug/dump_linear_pcg");
     UIPC_ASSERT(dump_attr, "extras/debug/dump_linear_pcg not found");
     need_debug_dump = dump_attr->view()[0];
 
@@ -64,7 +64,22 @@ void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
 
     r0 = r;
 
-    auto iter = pcg(x, b, max_iter_ratio * b.size());
+    auto max_iter = static_cast<SizeT>(max_iter_ratio * static_cast<Float>(b.size()));
+    max_iter  = std::max(max_iter, SizeT{1});
+    auto iter = pcg(x, b, max_iter);
+
+    logger::info("LinearPCG: frame={} newton_iter={} dof={} max_iter={} -> iters={}",
+                 engine().frame(),
+                 engine().newton_iter(),
+                 N,
+                 max_iter,
+                 iter);
+
+    if(iter >= max_iter)
+        logger::warn(
+            "LinearPCG: reached max_iter = {} (no early convergence); "
+            "check preconditioner or linear_system/tol_rate.",
+            max_iter);
 
     info.iter_count(iter);
 }
@@ -72,22 +87,16 @@ void LinearPCG::do_solve(GlobalLinearSystem::SolvingInfo& info)
 void LinearPCG::dump_r_z(SizeT k)
 {
 
-    auto path_tool     = BackendPathTool(workspace());
-    auto output_path   = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
-    auto output_path_r = fmt::format("{}r.{}.{}.{}.mtx",
-                                     output_path.string(),
-                                     engine().frame(),
-                                     engine().newton_iter(),
-                                     k);
+    auto path_tool   = BackendPathTool(workspace());
+    auto output_path = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
+    auto output_path_r = fmt::format(
+        "{}r.{}.{}.{}.mtx", output_path.string(), engine().frame(), engine().newton_iter(), k);
 
     export_vector_market(output_path_r, r.cview());
     logger::info("Dumped PCG r to {}", output_path_r);
 
-    auto output_path_z = fmt::format("{}z.{}.{}.{}.mtx",
-                                     output_path.string(),
-                                     engine().frame(),
-                                     engine().newton_iter(),
-                                     k);
+    auto output_path_z = fmt::format(
+        "{}z.{}.{}.{}.mtx", output_path.string(), engine().frame(), engine().newton_iter(), k);
 
     export_vector_market(fmt::format("{}z.{}.{}.{}.mtx",
                                      output_path.string(),
@@ -101,7 +110,7 @@ void LinearPCG::dump_r_z(SizeT k)
 
 void LinearPCG::dump_p_Ap(SizeT k)
 {
-    auto path_tool     = BackendPathTool(workspace());
+    auto path_tool = BackendPathTool(workspace());
     auto output_folder = path_tool.workspace(UIPC_RELATIVE_SOURCE_FILE, "debug");
 
     auto output_path_p = fmt::format("{}p.{}.{}.{}.mtx",
