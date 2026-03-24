@@ -42,6 +42,13 @@ TEST_CASE("53_fem_mas_small_cube", "[fem][mas]")
 
         mesh_partition(mesh, 16);
 
+        {
+            auto mp = mesh.vertices().find<IndexT>("mesh_part");
+            REQUIRE(mp);
+            auto mp_v = mp->view();
+            REQUIRE(std::ranges::all_of(mp_v, [](IndexT v) { return v == 0; }));
+        }
+
         auto parm = ElasticModuli::youngs_poisson(1e5, 0.499);
         snh.apply_to(mesh, parm, 1e3);
 

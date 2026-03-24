@@ -1,4 +1,5 @@
 #include <uipc/geometry/utils/mesh_partition.h>
+#include <uipc/geometry/utils/label_connected_vertices.h>
 #include <uipc/common/vector.h>
 #include <uipc/common/map.h>
 #include <uipc/common/range.h>
@@ -77,17 +78,12 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
     auto part_attr = sc.vertices().create<IndexT>(metis_part, -1);
     auto part_view = view(*part_attr);
 
-    // Too few vertices for a meaningful partition: leave unpartitioned (-1).
-    // Forcing disconnected components into one MAS cluster would produce artifacts.
-    if(vert_count < part_max_size) [[unlikely]]
-        return;
-
     // Build adjacency graph
     vector<idx_t> xadj;
     vector<idx_t> adjncy;
     build_adjacency(xadj, adjncy, vert_count, sc);
 
-    // Point cloud fallback
+    // Point cloud fallback: no connectivity, assign sequentially
     if(adjncy.empty())
     {
         for(SizeT i = 0; i < vert_count; ++i)
@@ -100,11 +96,21 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
 
     if(n_parts <= 1)
     {
-        std::ranges::fill(part_view, 0);
+        // METIS_PartGraphKway requires nparts >= 2 (internally divides by
+        // log2(nparts), which is zero when nparts == 1).  Fall back to
+        // connected-component labeling so that disconnected pieces still
+        // receive distinct partition IDs.
+        auto region      = label_connected_vertices(sc);
+        auto region_view = region->view();
+        for(SizeT i = 0; i < vert_count; ++i)
+            part_view[i] = region_view[i];
+
+        sc.vertices().destroy("region");
+        sc.meta().destroy("region_count");
         return;
     }
 
-    // METIS partitioning
+    // METIS partitioning (nparts >= 2)
     vector<idx_t> metis_result(vert_count, 0);
 
     bool success = false;

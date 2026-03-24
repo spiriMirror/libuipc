@@ -39,6 +39,12 @@ MUDA_GENERIC int sym_index(int row, int col)
     return BANKSIZE * row - row * (row + 1) / 2 + col;
 }
 
+// Round n up to the nearest multiple of BANKSIZE
+constexpr int bank_align(int n)
+{
+    return (n + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+}
+
 // ============================================================================
 // Phase 1: Initialization
 // ============================================================================
@@ -46,13 +52,13 @@ MUDA_GENERIC int sym_index(int row, int col)
 void MASPreconditionerEngine::compute_num_levels(int vert_num)
 {
     int n_level  = 1;
-    int level_sz = (vert_num + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+    int level_sz = bank_align(vert_num);
 
     while(level_sz > BANKSIZE)
     {
         level_sz /= BANKSIZE;
         n_level++;
-        level_sz = (level_sz + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+        level_sz = bank_align(level_sz);
     }
     n_level++;
     m_level_num = std::min(n_level, MAX_LEVELS);
@@ -70,7 +76,8 @@ void MASPreconditionerEngine::init_neighbor(int                     vert_num,
     if(vert_num < 1)
         return;
 
-    int max_nodes = std::max(part_map_size, vert_num);
+    int max_nodes    = std::max(part_map_size, vert_num);
+    int padded_nodes = bank_align(max_nodes);
     compute_num_levels(max_nodes);
 
     m_total_map_nodes = part_map_size;
@@ -82,7 +89,7 @@ void MASPreconditionerEngine::init_neighbor(int                     vert_num,
     coarse_tables.resize(vert_num);
     coarse_space_tables.resize(vert_num * m_level_num);
     level_sizes.resize(m_level_num + 1);
-    going_next.resize(max_nodes * m_level_num);
+    going_next.resize(padded_nodes * m_level_num);
     prefix_original.resize(max_nodes);
     next_prefixes.resize(max_nodes);
     next_prefix_sums.resize(max_nodes);
@@ -137,6 +144,7 @@ int MASPreconditionerEngine::reorder_realtime(int cp_num)
 {
     level_sizes.fill(Int2{0, 0});
     coarse_space_tables.fill(-1);
+    going_next.fill(-1);
 
     build_connect_mask_L0();
     prepare_prefix_sum_L0();
@@ -301,29 +309,33 @@ void MASPreconditionerEngine::build_level1()
                            thrust::device_ptr<int>(prefix_original.data()) + warp_num,
                            thrust::device_ptr<int>(prefix_sum_original.data()));
 
-    // Level-1 must start past all real vertex indices to avoid overlap
-    // when unpartitioned vertices push cloth indices beyond padded_N.
-    // Must also be BANKSIZE-aligned so the entire hierarchy stays aligned,
-    // otherwise higher-level nodes can fall in unallocated cluster blocks.
-    int padded_N = (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
-    int level1_begin =
-        (std::max(padded_N, m_total_nodes) + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
-
-    UIPC_ASSERT(level1_begin >= m_total_nodes,
-                "MAS build_level1: going_next buffer overlap! "
-                "level1_begin({}) < m_total_nodes({}). "
-                "Level-1 region [{}..] would overwrite level-0 entries for cloth "
-                "vertices with real indices >= {}.",
-                level1_begin,
-                m_total_nodes,
-                level1_begin,
-                level1_begin);
+    // Cluster matrices are indexed by  node_index / BANKSIZE.
+    // Level-0 uses partition indices [0, N),  so its cluster IDs occupy
+    // [0, ceil(N / BANKSIZE)).
+    //
+    // padded_N = align(N, BANKSIZE)
+    //   — round N up to a BANKSIZE boundary so that every level-0 bank
+    //     is a full block; level-1 indices must start no earlier than this
+    //     to avoid sharing a cluster ID with any level-0 bank.
+    //
+    // max(padded_N, m_total_nodes)
+    //   — when unpartitioned vertices exist (e.g. Empty constitution),
+    //     m_total_nodes > m_total_map_nodes is possible.  going_next is
+    //     read at real-vertex indices [0, m_total_nodes), so level-1
+    //     indices must also exceed m_total_nodes.
+    //
+    // align(..., BANKSIZE)
+    //   — the outer align keeps the level-1 region BANKSIZE-aligned,
+    //     which is required by the bank-based cluster addressing used
+    //     in all subsequent kernels.
+    int padded_N     = bank_align(N);
+    int level1_begin = bank_align(std::max(padded_N, m_total_nodes));
 
     Launch(num_blocks, block_size)
         .apply(
             [level_size = level_sizes.viewer().name("level_sizes"),
              coarse_table = coarse_space_tables.viewer().name("coarse_space_tables"),
-             going_next_ptr = going_next.viewer().name("going_next"),
+             going_next_L0 = going_next.view(0, level1_begin).viewer().name("going_next_L0"),
              fine_connect_mask = fine_connect_masks.cviewer().name("fine_connect_masks"),
              prefix_sum_orig = prefix_sum_original.cviewer().name("prefix_sum_original"),
              prefix_orig  = prefix_original.cviewer().name("prefix_original"),
@@ -370,7 +382,7 @@ void MASPreconditionerEngine::build_level1()
                         lane_prefix(elected_lane + BANKSIZE * local_warp_id);
 
                     coarse_table(idx)   = the_lane_prefix;
-                    going_next_ptr(idx) = the_lane_prefix + level1_begin;
+                    going_next_L0(idx) = the_lane_prefix + level1_begin;
                 }
             });
 }
@@ -536,10 +548,12 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
     if(N < 1)
         return;
 
-    int level_begin = m_h_level_size.y;
-    int block_size  = BANKSIZE * BANKSIZE;
-    int num_blocks  = (N + block_size - 1) / block_size;
-    int warp_num    = (N + BANKSIZE - 1) / BANKSIZE;
+    int level_begin       = m_h_level_size.y;
+    int level_region_size = bank_align(N);
+    int next_level_begin  = level_begin + level_region_size;
+    int block_size        = BANKSIZE * BANKSIZE;
+    int num_blocks        = (N + block_size - 1) / block_size;
+    int warp_num          = (N + BANKSIZE - 1) / BANKSIZE;
 
     thrust::exclusive_scan(thrust::device_ptr<unsigned int>(next_prefixes.data()),
                            thrust::device_ptr<unsigned int>(next_prefixes.data()) + warp_num,
@@ -551,9 +565,9 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
              next_prefix    = next_prefixes.cviewer().name("next_prefixes"),
              next_prefix_sum = next_prefix_sums.cviewer().name("next_prefix_sums"),
              next_connect_mask = next_connect_masks.viewer().name("next_connect_masks"),
-             going_next_ptr = going_next.viewer().name("going_next"),
+             going_next_level = going_next.view(level_begin, level_region_size).viewer().name("going_next_Lx"),
              level,
-             level_begin,
+             next_level_begin,
              N] __device__() mutable
             {
                 int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -576,8 +590,7 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
                 {
                     level_size_ptr(level + 1).x =
                         next_prefix_sum(warp_id) + next_prefix(warp_id);
-                    level_size_ptr(level + 1).y =
-                        level_begin + (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+                    level_size_ptr(level + 1).y = next_level_begin;
                 }
 
                 unsigned int conn_msk = next_connect_mask(idx);
@@ -594,8 +607,7 @@ void MASPreconditionerEngine::prefix_sum_Lx(int level)
                     lane_prefix(elected_lane + BANKSIZE * local_warp_id);
 
                 next_connect_mask(idx) = the_lane_prefix;
-                going_next_ptr(idx + level_begin) =
-                    the_lane_prefix + level_begin + (N + BANKSIZE - 1) / BANKSIZE * BANKSIZE;
+                going_next_level(idx) = the_lane_prefix + next_level_begin;
             });
 }
 
@@ -634,7 +646,7 @@ void MASPreconditionerEngine::aggregation_kernel()
 {
     using namespace muda;
     int N = m_total_nodes;
-    if(N < 1)
+    if(N < 1 || m_total_num_clusters < 1)
         return;
 
     int level_num = m_level_num;
@@ -642,17 +654,45 @@ void MASPreconditionerEngine::aggregation_kernel()
         .file_line(__FILE__, __LINE__)
         .apply(N,
                [coarse_table = coarse_tables.viewer().name("coarse_table"),
-                going_next   = going_next.cviewer().name("going_next"),
+                going_next   = going_next.view(0, m_total_num_clusters).cviewer().name("going_next"),
+                level_size   = level_sizes.cviewer().name("level_sizes"),
                 level_num] __device__(int idx) mutable
                {
                    int        current_id = idx;
                    LevelTable ctable;
-                   for(int l = 0; l < level_num - 1; l++)
+
+                   int first = going_next(current_id);
+                   if(first >= 0)
                    {
-                       int next        = going_next(current_id);
-                       current_id      = next;
-                       ctable.index[l] = next;
+                       MUDA_ASSERT(first >= level_size(1).y
+                                       && first < level_size(2).y,
+                                   "aggregation: going_next[%d]=%d not in level 1 [%d, %d)",
+                                   current_id, first,
+                                   level_size(1).y, level_size(2).y);
+
+                       current_id      = first;
+                       ctable.index[0] = first;
+
+                       for(int l = 1; l < level_num - 1; l++)
+                       {
+                           int next = going_next(current_id);
+
+                           MUDA_ASSERT(next >= 0,
+                                       "aggregation: partitioned vertex %d has "
+                                       "going_next=%d at level %d (expected >= 0)",
+                                       idx, next, l + 1);
+
+                           MUDA_ASSERT(next >= level_size(l + 1).y
+                                           && next < level_size(l + 2).y,
+                                       "aggregation: going_next[%d]=%d not in level %d [%d, %d)",
+                                       current_id, next, l + 1,
+                                       level_size(l + 1).y, level_size(l + 2).y);
+
+                           current_id      = next;
+                           ctable.index[l] = next;
+                       }
                    }
+
                    coarse_table(idx) = ctable;
                });
 }
@@ -727,7 +767,8 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
             triplet_num,
             [offset          = dof_offset,
              level_num       = m_level_num,
-             going_next      = going_next.cviewer().name("going_next"),
+             going_next      = going_next.view(0, m_total_num_clusters).cviewer().name("going_next"),
+             level_size      = level_sizes.cviewer().name("level_sizes"),
              cluster_hess    = cluster_hessians.viewer().name("cluster_hessians"),
              real_to_part    = real_to_part.cviewer().name("real_to_part"),
              indices         = indices.cviewer().name("indices"),
@@ -785,6 +826,15 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                         if(vert_col < 0 || vert_row < 0)
                             return;
 
+                        MUDA_ASSERT(vert_col >= level_size(level).y
+                                        && vert_col < level_size(level + 1).y,
+                                    "scatter P1: vert_col=%d not in level %d [%d, %d)",
+                                    vert_col, level, level_size(level).y, level_size(level + 1).y);
+                        MUDA_ASSERT(vert_row >= level_size(level).y
+                                        && vert_row < level_size(level + 1).y,
+                                    "scatter P1: vert_row=%d not in level %d [%d, %d)",
+                                    vert_row, level, level_size(level).y, level_size(level + 1).y);
+
                         if(vert_col / BANKSIZE == vert_row / BANKSIZE)
                         {
                             int cluster_id = vert_col / BANKSIZE;
@@ -827,13 +877,14 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
     ParallelFor(block_num, thread_num)
         .file_line(__FILE__, __LINE__)
         .apply(total_entries,
-               [level_num  = m_level_num,
-                going_next = going_next.cviewer().name("going_next"),
+               [level_num    = m_level_num,
+                going_next   = going_next.view(0, m_total_num_clusters).cviewer().name("going_next"),
+                level_size   = level_sizes.cviewer().name("level_sizes"),
                 cluster_hess = cluster_hessians.viewer().name("cluster_hessians"),
                 part_to_real = part_to_real.cviewer().name("part_to_real"),
                 fine_connect = fine_connect_masks.cviewer().name("fine_connect_masks"),
-                prefix_orig = prefix_original.cviewer().name("prefix_original"),
-                map_nodes   = m_total_map_nodes] __device__(int idx) mutable
+                prefix_orig  = prefix_original.cviewer().name("prefix_original"),
+                map_nodes    = m_total_map_nodes] __device__(int idx) mutable
                {
                    int cluster_stride = BANKSIZE * BANKSIZE;
                    int cluster_id     = idx / cluster_stride;
@@ -886,9 +937,16 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                            int next_id = going_next(rdx);
                            if(next_id < 0)
                                return;
+
                            while(level < level_num - 1)
                            {
                                level++;
+
+                               MUDA_ASSERT(next_id >= level_size(level).y
+                                               && next_id < level_size(level + 1).y,
+                                           "scatter P2 diag: next_id=%d not in level %d [%d, %d)",
+                                           next_id, level, level_size(level).y, level_size(level + 1).y);
+
                                int cid = next_id / BANKSIZE;
                                int bv  = next_id % BANKSIZE;
                                int si  = sym_index(bv, bv);
@@ -904,14 +962,23 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                    }
                    else
                    {
-                       int level = 0;
-                       while(level < level_num - 1)
+                       int level = 1;
+                       while(level <= level_num - 1)
                        {
-                           level++;
                            rdx = going_next(rdx);
                            cdx = going_next(cdx);
                            if(rdx < 0 || cdx < 0)
                                return;
+
+                           MUDA_ASSERT(rdx >= level_size(level).y
+                                           && rdx < level_size(level + 1).y,
+                                       "scatter P2: rdx=%d not in level %d [%d, %d)",
+                                       rdx, level, level_size(level).y, level_size(level + 1).y);
+                           MUDA_ASSERT(cdx >= level_size(level).y
+                                           && cdx < level_size(level + 1).y,
+                                       "scatter P2: cdx=%d not in level %d [%d, %d)",
+                                       cdx, level, level_size(level).y, level_size(level + 1).y);
+
                            int cid = cdx / BANKSIZE;
                            if(rdx / BANKSIZE == cdx / BANKSIZE)
                            {
@@ -924,6 +991,7 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eige
                                                      mat3(i, j));
                                }
                            }
+                           level++;
                        }
                    }
                });
@@ -1046,11 +1114,12 @@ void MASPreconditionerEngine::build_multi_level_R(muda::CDenseVectorView<Float> 
 
     Launch(num_blocks, block_size)
         .apply(
-            [R_view      = R.cviewer().name("R"),
-             multi_lr    = multi_level_R.viewer().name("multi_level_R"),
-             going_next  = going_next.cviewer().name("going_next"),
-             prefix_orig = prefix_original.cviewer().name("prefix_original"),
-             fine_conn = fine_connect_masks.cviewer().name("fine_connect_masks"),
+            [R_view       = R.cviewer().name("R"),
+             multi_lr     = multi_level_R.viewer().name("multi_level_R"),
+             going_next   = going_next.view(0, m_total_num_clusters).cviewer().name("going_next"),
+             level_size   = level_sizes.cviewer().name("level_sizes"),
+             prefix_orig  = prefix_original.cviewer().name("prefix_original"),
+             fine_conn    = fine_connect_masks.cviewer().name("fine_connect_masks"),
              part_to_real = part_to_real.cviewer().name("part_to_real"),
              converged    = converged.cviewer().name("converged"),
              level_num    = m_level_num,
@@ -1105,6 +1174,12 @@ void MASPreconditionerEngine::build_multi_level_R(muda::CDenseVectorView<Float> 
                         for(int l = 0; l < level_num - 1; l++)
                         {
                             cur = going_next(cur);
+
+                            MUDA_ASSERT(cur >= level_size(l + 1).y
+                                            && cur < level_size(l + 2).y,
+                                        "build_R: cur=%d not in level %d [%d, %d)",
+                                        cur, l + 1, level_size(l + 1).y, level_size(l + 2).y);
+
                             atomicAdd(&(multi_lr(cur)[0]), r[0]);
                             atomicAdd(&(multi_lr(cur)[1]), r[1]);
                             atomicAdd(&(multi_lr(cur)[2]), r[2]);
@@ -1135,6 +1210,12 @@ void MASPreconditionerEngine::build_multi_level_R(muda::CDenseVectorView<Float> 
                         for(int l = 0; l < level_num - 1; l++)
                         {
                             cur = going_next(cur);
+
+                            MUDA_ASSERT(cur >= level_size(l + 1).y
+                                            && cur < level_size(l + 2).y,
+                                        "build_R: cur=%d not in level %d [%d, %d)",
+                                        cur, l + 1, level_size(l + 1).y, level_size(l + 2).y);
+
                             atomicAdd(&(multi_lr(cur)[0]),
                                       sum_residual(threadIdx.x));
                             atomicAdd(&(multi_lr(cur)[1]),
