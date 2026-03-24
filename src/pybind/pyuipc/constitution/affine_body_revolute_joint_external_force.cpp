@@ -32,9 +32,7 @@ Returns:
     // Uniform torque for all joints
     class_AffineBodyRevoluteJointExternalForce.def(
         "apply_to",
-        [](AffineBodyRevoluteJointExternalForce& self,
-           geometry::SimplicialComplex&               sc,
-           Float                                      torque)
+        [](AffineBodyRevoluteJointExternalForce& self, geometry::SimplicialComplex& sc, Float torque)
         { self.apply_to(sc, torque); },
         py::arg("sc"),
         py::arg("torque") = Float{0},
@@ -46,16 +44,9 @@ torque: Scalar torque value applied to all joints (default: 0).)"));
     class_AffineBodyRevoluteJointExternalForce.def(
         "apply_to",
         [](AffineBodyRevoluteJointExternalForce& self,
-           geometry::SimplicialComplex&               sc,
-           py::list                                   torques)
-        {
-            vector<Float> torques_list;
-            for(auto item : torques)
-            {
-                torques_list.push_back(py::cast<Float>(item));
-            }
-            self.apply_to(sc, span{torques_list});
-        },
+           geometry::SimplicialComplex&          sc,
+           py::array_t<Float>                    torques)
+        { self.apply_to(sc, as_span<Float>(torques)); },
         py::arg("sc"),
         py::arg("torques"),
         py::doc(R"(Apply per-joint external torques around revolute joint axis.
