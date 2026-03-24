@@ -19,6 +19,7 @@ class AffineBodyPrismaticJointExternalBodyForceConstraint final : public InterAf
         vector<Vector6>  h_rest_positions;
         vector<Float>    h_init_distances;
         vector<Float>    h_current_distances;
+        vector<IndexT>   h_is_constrained;
 
         muda::DeviceBuffer<Float>    forces;
         muda::DeviceBuffer<Vector2i> body_ids;
@@ -26,6 +27,7 @@ class AffineBodyPrismaticJointExternalBodyForceConstraint final : public InterAf
         muda::DeviceBuffer<Vector6>  rest_positions;
         muda::DeviceBuffer<Float>    init_distances;
         muda::DeviceBuffer<Float>    current_distances;
+        muda::DeviceBuffer<IndexT>   is_constrained;
     };
 
     muda::CBufferView<Float>    forces() const noexcept;
@@ -34,6 +36,7 @@ class AffineBodyPrismaticJointExternalBodyForceConstraint final : public InterAf
     muda::CBufferView<Vector6>  rest_positions() const noexcept;
     muda::CBufferView<Float>    init_distances() const noexcept;
     muda::DeviceBuffer<Float>&  current_distances() noexcept;
+    muda::CBufferView<IndexT>   constrained_flags() const noexcept;
 
   private:
     virtual void do_build(BuildInfo& info) override;
