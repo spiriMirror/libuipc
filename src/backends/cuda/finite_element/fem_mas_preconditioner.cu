@@ -398,23 +398,14 @@ class FEMMASPreconditioner : public LocalPreconditioner
         int  dof_offset = static_cast<int>(info.dof_offset());
 
         auto triplet_count = A.triplet_count();
-        auto values_view   = A.values();
-        auto row_view      = A.row_indices();
-        auto col_view      = A.col_indices();
-
-        auto* values = reinterpret_cast<const Eigen::Matrix3d*>(values_view.data());
-        auto* row_ids = reinterpret_cast<const int*>(row_view.data());
-        auto* col_ids = reinterpret_cast<const int*>(col_view.data());
 
         // MAS assembly for partitioned vertices
         fill_identity_indices(sorted_indices, triplet_count);
-        engine.set_preconditioner(values,
-                                  row_ids,
-                                  col_ids,
-                                  reinterpret_cast<const uint32_t*>(
-                                      sorted_indices.data()),
+        engine.set_preconditioner(A.values(),
+                                  A.row_indices(),
+                                  A.col_indices(),
+                                  sorted_indices.view(),
                                   dof_offset / 3,
-                                  static_cast<int>(triplet_count),
                                   0);
 
         auto dump_mas = world().scene().config().find<IndexT>("extras/debug/dump_mas_matrices");

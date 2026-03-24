@@ -8,6 +8,7 @@
 #include <cuda_runtime.h>
 #include <cub/warp/warp_reduce.cuh>
 #include <fmt/format.h>
+#include <uipc/common/json.h>
 #include <fstream>
 #include <vector>
 
@@ -27,13 +28,13 @@ using LevelTable        = MASPreconditionerEngine::LevelTable;
 using Int2              = MASPreconditionerEngine::Int2;
 
 // Device helper: bitmask with bits [0, lane_id) set
-MUDA_DEVICE unsigned int lanemask_lt(int lane_id)
+MUDA_GENERIC unsigned int lanemask_lt(int lane_id)
 {
     return (1U << lane_id) - 1;
 }
 
 // Symmetric upper-triangle index for a BANKSIZE x BANKSIZE block
-MUDA_DEVICE int sym_index(int row, int col)
+MUDA_GENERIC int sym_index(int row, int col)
 {
     return BANKSIZE * row - row * (row + 1) / 2 + col;
 }
@@ -57,14 +58,14 @@ void MASPreconditionerEngine::compute_num_levels(int vert_num)
     m_level_num = std::min(n_level, MAX_LEVELS);
 }
 
-void MASPreconditionerEngine::init_neighbor(int vert_num,
-                                            int total_neighbor_num,
-                                            int part_map_size,
-                                            const std::vector<unsigned int>& h_neighbor_list,
-                                            const std::vector<unsigned int>& h_neighbor_start,
-                                            const std::vector<unsigned int>& h_neighbor_num,
-                                            const std::vector<int>& h_part_to_real,
-                                            const std::vector<int>& h_real_to_part)
+void MASPreconditionerEngine::init_neighbor(int                     vert_num,
+                                            int                     total_neighbor_num,
+                                            int                     part_map_size,
+                                            span<const unsigned int> h_neighbor_list,
+                                            span<const unsigned int> h_neighbor_start,
+                                            span<const unsigned int> h_neighbor_num,
+                                            span<const int>          h_part_to_real,
+                                            span<const int>          h_real_to_part)
 {
     if(vert_num < 1)
         return;
@@ -450,16 +451,16 @@ void MASPreconditionerEngine::build_connect_mask_Lx(int level)
 
                 if(__popc(prefix_msk) == BANKSIZE)
                 {
-                    atomicOr(&cache_msk(local_warp_id * BANKSIZE), (int)conn_msk);
-                    conn_msk = (unsigned int)cache_msk(local_warp_id * BANKSIZE);
+                    atomicOr(&cache_msk(local_warp_id * BANKSIZE), static_cast<int>(conn_msk));
+                    conn_msk = static_cast<unsigned int>(cache_msk(local_warp_id * BANKSIZE));
                 }
                 else
                 {
                     unsigned int elected_lane = __ffs(prefix_msk) - 1;
                     if(conn_msk)
                         atomicOr(&cache_msk(local_warp_id * BANKSIZE + elected_lane),
-                                 (int)conn_msk);
-                    conn_msk = (unsigned int)cache_msk(local_warp_id * BANKSIZE + elected_lane);
+                                 static_cast<int>(conn_msk));
+                    conn_msk = static_cast<unsigned int>(cache_msk(local_warp_id * BANKSIZE + elected_lane));
                 }
 
                 unsigned int elected_prefix = __popc(prefix_msk & lanemask_lt(lane_id));
@@ -660,13 +661,12 @@ void MASPreconditionerEngine::aggregation_kernel()
 // Phase 2: Assemble preconditioner
 // ============================================================================
 
-void MASPreconditionerEngine::set_preconditioner(const Eigen::Matrix3d* d_triplet_values,
-                                                 const int*      d_row_ids,
-                                                 const int*      d_col_ids,
-                                                 const uint32_t* d_indices,
-                                                 int             dof_offset,
-                                                 int             triplet_num,
-                                                 int             cp_num)
+void MASPreconditionerEngine::set_preconditioner(muda::CBufferView<Eigen::Matrix3d> triplet_values,
+                                                 muda::CBufferView<int>             row_ids,
+                                                 muda::CBufferView<int>             col_ids,
+                                                 muda::CBufferView<uint32_t>        indices,
+                                                 int                                dof_offset,
+                                                 int                                cp_num)
 {
     if(m_total_nodes < 1)
         return;
@@ -699,8 +699,7 @@ void MASPreconditionerEngine::set_preconditioner(const Eigen::Matrix3d* d_triple
     cluster_hessians.view(0, num_cluster_blocks).fill(ClusterMatrixSym{});
 
     // 5. Scatter BCOO Hessian blocks into cluster matrices
-    scatter_hessian_to_clusters(
-        d_triplet_values, d_row_ids, d_col_ids, d_indices, dof_offset, triplet_num);
+    scatter_hessian_to_clusters(triplet_values, row_ids, col_ids, indices, dof_offset);
 
     // 6. Invert each cluster matrix (Gauss-Jordan)
     invert_cluster_matrices();
@@ -709,14 +708,15 @@ void MASPreconditionerEngine::set_preconditioner(const Eigen::Matrix3d* d_triple
 // ---------------------------------------------------------------------------
 // Scatter BCOO Hessian entries into cluster-level dense matrices
 // ---------------------------------------------------------------------------
-void MASPreconditionerEngine::scatter_hessian_to_clusters(const Eigen::Matrix3d* d_triplet_values,
-                                                          const int* d_row_ids,
-                                                          const int* d_col_ids,
-                                                          const uint32_t* d_indices,
-                                                          int dof_offset,
-                                                          int triplet_num)
+void MASPreconditionerEngine::scatter_hessian_to_clusters(muda::CBufferView<Eigen::Matrix3d> triplet_values,
+                                                          muda::CBufferView<int>             row_ids,
+                                                          muda::CBufferView<int>             col_ids,
+                                                          muda::CBufferView<uint32_t>        indices,
+                                                          int dof_offset)
 {
     using namespace muda;
+
+    int triplet_num = static_cast<int>(indices.size());
 
     // --- Pass 1: Place each 3x3 block at the finest level where both
     //             row and col belong to the same cluster. ---
@@ -725,21 +725,21 @@ void MASPreconditionerEngine::scatter_hessian_to_clusters(const Eigen::Matrix3d*
         .file_line(__FILE__, __LINE__)
         .apply(
             triplet_num,
-            [offset       = dof_offset,
-             level_num    = m_level_num,
-             going_next   = going_next.cviewer().name("going_next"),
-             cluster_hess = cluster_hessians.viewer().name("cluster_hessians"),
-             real_to_part = real_to_part.cviewer().name("real_to_part"),
-             indices      = d_indices,
-             triplet_values = d_triplet_values,
-             row_ids        = d_row_ids,
-             col_ids        = d_col_ids,
-             total_nodes    = m_total_nodes] __device__(int I) mutable
+            [offset          = dof_offset,
+             level_num       = m_level_num,
+             going_next      = going_next.cviewer().name("going_next"),
+             cluster_hess    = cluster_hessians.viewer().name("cluster_hessians"),
+             real_to_part    = real_to_part.cviewer().name("real_to_part"),
+             indices         = indices.cviewer().name("indices"),
+             triplet_values  = triplet_values.cviewer().name("triplet_values"),
+             row_ids         = row_ids.cviewer().name("row_ids"),
+             col_ids         = col_ids.cviewer().name("col_ids"),
+             total_nodes     = m_total_nodes] __device__(int I) mutable
             {
-                int  index    = indices[I];
-                int  row_real = row_ids[index] - offset;
-                int  col_real = col_ids[index] - offset;
-                auto H        = triplet_values[index];
+                int  index    = indices(I);
+                int  row_real = row_ids(index) - offset;
+                int  col_real = col_ids(index) - offset;
+                auto H        = triplet_values(index);
 
                 if(row_real < 0 || row_real >= total_nodes || col_real < 0 || col_real >= total_nodes)
                     return;
@@ -1314,104 +1314,110 @@ void MASPreconditionerEngine::dump_cluster_matrices_debug(const std::filesystem:
     if(!m_initialized || cluster_hessians.size() == 0)
         return;
 
-    std::error_code ec;
-    std::filesystem::create_directories(output_dir, ec);
-    if(ec)
-    {
-        UIPC_WARN_WITH_LOCATION("MAS dump: failed to create directory {}",
-                                output_dir.string());
-        return;
-    }
+    muda::wait_device();
 
-    std::string safe_label(label);
-    if(safe_label.empty())
-        safe_label = "default";
-    for(char& c : safe_label)
-        if(c == '/' || c == '\\' || c == ':' || c == ' ')
-            c = '_';
-
-    cudaDeviceSynchronize();
-
-    const size_t                   nb = cluster_hessians.size();
+    const size_t nb = cluster_hessians.size();
     std::vector<ClusterMatrixSym>  h_hess(nb);
     std::vector<ClusterMatrixSymF> h_inv(nb);
-    const size_t                   sz_h = nb * sizeof(ClusterMatrixSym);
-    const size_t                   sz_i = nb * sizeof(ClusterMatrixSymF);
 
     cluster_hessians.view(0, nb).copy_to(h_hess.data());
     cluster_inverses.view(0, nb).copy_to(h_inv.data());
 
-    auto write_blob = [&](const char* magic8, const void* data, size_t bytes, const char* kind)
+    // Block-upper-triangle dump: coordinate real general, (nb*48) × (nb*48) block-diagonal.
+    // Each cluster writes SYM_BLOCK_COUNT full 3×3 blocks at their upper-triangle positions.
+    // Diagonal blocks are full 3×3 (not scalar-upper-triangle), matching GPU storage exactly.
+    // Uses fmt::memory_buffer + FILE* pattern consistent with utils/matrix_market.h.
+    constexpr int DIM       = BANKSIZE * 3;
+    const int     mat_size  = static_cast<int>(nb) * DIM;
+    const int64_t total_nnz = static_cast<int64_t>(nb) * SYM_BLOCK_COUNT * 9;
+
+    auto write_mtx = [&]<typename Scalar>(const std::vector<ClusterMatrixSymT<Scalar>>& clusters,
+                                          std::string_view                              kind)
     {
         auto path =
             output_dir
-            / fmt::format("mas_cluster_{}.{}.f{}.n{}.bin", kind, safe_label, frame, newton_iter);
-        std::ofstream out(path, std::ios::binary);
-        if(!out)
+            / fmt::format("mas_cluster_{}.{}.f{}.n{}.mtx", kind, label, frame, newton_iter);
+        auto path_str = path.string();
+
+        auto buf = fmt::memory_buffer();
+
+        fmt::format_to(std::back_inserter(buf),
+                       "%%MatrixMarket matrix coordinate real general\n"
+                       "% MAS cluster {} block-upper-triangle ({} clusters, banksize={})\n"
+                       "{} {} {}\n",
+                       kind,
+                       nb,
+                       BANKSIZE,
+                       mat_size,
+                       mat_size,
+                       total_nnz);
+
+        for(size_t c = 0; c < clusters.size(); c++)
         {
-            UIPC_WARN_WITH_LOCATION("MAS dump: open {} failed", path.string());
+            const int base = static_cast<int>(c) * DIM;
+
+            for(int br = 0; br < BANKSIZE; br++)
+            {
+                for(int bc = br; bc < BANKSIZE; bc++)
+                {
+                    int         k   = BANKSIZE * br - br * (br + 1) / 2 + bc;
+                    const auto& blk = clusters[c].M[k];
+
+                    for(int i = 0; i < 3; i++)
+                        for(int j = 0; j < 3; j++)
+                            fmt::format_to(std::back_inserter(buf),
+                                           "{} {} {:.17g}\n",
+                                           base + br * 3 + i + 1,
+                                           base + bc * 3 + j + 1,
+                                           static_cast<double>(blk(i, j)));
+                }
+            }
+        }
+
+        FILE* fp = std::fopen(path_str.c_str(), "w");
+        if(!fp)
+        {
+            UIPC_WARN_WITH_LOCATION("MAS dump: open {} failed", path_str);
             return;
         }
-        out.write(magic8, 8);
-        uint32_t ver = 1;
-        out.write(reinterpret_cast<const char*>(&ver), sizeof(ver));
-        uint32_t tn   = static_cast<uint32_t>(m_total_nodes);
-        uint32_t tm   = static_cast<uint32_t>(m_total_map_nodes);
-        uint32_t tc   = static_cast<uint32_t>(m_total_num_clusters);
-        uint32_t nblk = static_cast<uint32_t>(nb);
-        uint32_t bk   = static_cast<uint32_t>(BANKSIZE);
-        uint32_t sym  = static_cast<uint32_t>(SYM_BLOCK_COUNT);
-        out.write(reinterpret_cast<const char*>(&tn), sizeof(tn));
-        out.write(reinterpret_cast<const char*>(&tm), sizeof(tm));
-        out.write(reinterpret_cast<const char*>(&tc), sizeof(tc));
-        out.write(reinterpret_cast<const char*>(&nblk), sizeof(nblk));
-        out.write(reinterpret_cast<const char*>(&bk), sizeof(bk));
-        out.write(reinterpret_cast<const char*>(&sym), sizeof(sym));
-        out.write(static_cast<const char*>(data), static_cast<std::streamsize>(bytes));
-        logger::info("MAS dump: wrote {}", path.string());
+        std::fwrite(buf.data(), 1, buf.size(), fp);
+        std::fclose(fp);
+        logger::info("MAS dump: wrote {}", path_str);
     };
 
-    write_blob("UIPCMASH", h_hess.data(), sz_h, "hess");
-    write_blob("UIPCMASI", h_inv.data(), sz_i, "inv");
+    write_mtx(h_hess, "hess");
+    write_mtx(h_inv, "inv");
 
-    // Partition metadata for offline alignment (real vertex indices per partition slot + cloth mask).
-    std::vector<int> h_part_to_real(static_cast<size_t>(m_total_map_nodes));
-    if(m_total_map_nodes > 0)
-        part_to_real.view(0, m_total_map_nodes).copy_to(h_part_to_real.data());
-
-    std::vector<uint8_t> h_non_cloth(static_cast<size_t>(m_total_nodes), 0);
-
+    // Partition metadata as JSON
     {
-        auto path = output_dir
-                    / fmt::format("mas_cluster_meta.{}.f{}.n{}.bin", safe_label, frame, newton_iter);
-        std::ofstream out(path, std::ios::binary);
+        auto path =
+            output_dir
+            / fmt::format("mas_cluster_meta.{}.f{}.n{}.json", label, frame, newton_iter);
+        std::ofstream out(path);
         if(!out)
         {
             UIPC_WARN_WITH_LOCATION("MAS dump: open {} failed", path.string());
             return;
         }
-        const char magic_meta[] = "UIPCMASM";
-        out.write(magic_meta, 8);
-        uint32_t ver = 1;
-        out.write(reinterpret_cast<const char*>(&ver), sizeof(ver));
-        uint32_t tn     = static_cast<uint32_t>(m_total_nodes);
-        uint32_t tm     = static_cast<uint32_t>(m_total_map_nodes);
-        uint32_t tc     = static_cast<uint32_t>(m_total_num_clusters);
-        uint32_t nblk_u = static_cast<uint32_t>(nb);
-        uint32_t bk     = static_cast<uint32_t>(BANKSIZE);
-        uint32_t sym    = 0;  // marks meta file (not a cluster matrix blob)
-        out.write(reinterpret_cast<const char*>(&tn), sizeof(tn));
-        out.write(reinterpret_cast<const char*>(&tm), sizeof(tm));
-        out.write(reinterpret_cast<const char*>(&tc), sizeof(tc));
-        out.write(reinterpret_cast<const char*>(&nblk_u), sizeof(nblk_u));
-        out.write(reinterpret_cast<const char*>(&bk), sizeof(bk));
-        out.write(reinterpret_cast<const char*>(&sym), sizeof(sym));
-        if(tm > 0)
-            out.write(reinterpret_cast<const char*>(h_part_to_real.data()),
-                      static_cast<std::streamsize>(tm * sizeof(int)));
-        if(tn > 0)
-            out.write(reinterpret_cast<const char*>(h_non_cloth.data()),
-                      static_cast<std::streamsize>(tn));
+
+        Json j;
+        j["total_nodes"]        = m_total_nodes;
+        j["total_map_nodes"]    = m_total_map_nodes;
+        j["total_clusters"]     = m_total_num_clusters;
+        j["num_cluster_blocks"] = nb;
+        j["banksize"]           = BANKSIZE;
+        j["sym_block_count"]    = SYM_BLOCK_COUNT;
+        j["frame"]              = frame;
+        j["newton_iter"]        = newton_iter;
+
+        if(m_total_map_nodes > 0)
+        {
+            std::vector<int> h_part_to_real(static_cast<size_t>(m_total_map_nodes));
+            part_to_real.view(0, m_total_map_nodes).copy_to(h_part_to_real.data());
+            j["part_to_real"] = h_part_to_real;
+        }
+
+        out << j.dump(4) << '\n';
         logger::info("MAS dump: wrote {}", path.string());
     }
 }
