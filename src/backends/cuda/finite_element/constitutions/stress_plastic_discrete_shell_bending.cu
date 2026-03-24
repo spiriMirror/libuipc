@@ -2,15 +2,11 @@
 #include <finite_element/finite_element_method.h>
 #include <time_integrator/time_integrator.h>
 #include <uipc/builtin/attribute_name.h>
-#include <finite_element/constitutions/plastic_discrete_shell_bending_function.h>
-#include <limits>
-#include <numbers>
+#include <finite_element/constitutions/stress_plastic_discrete_shell_bending_function.h>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
 #include <utils/dump_utils.h>
-#include <kernel_cout.h>
 #include <algorithm>
-#include <cmath>
 
 namespace uipc::backend::cuda
 {
@@ -30,7 +26,7 @@ struct StencilRecord
 {
     Vector4i stencil;
     Float    bending_stiffness = 0.0;
-    Float    yield_threshold   = 0.0;
+    Float    yield_stress      = 0.0;
     Float    hardening_modulus = 0.0;
 };
 
@@ -46,16 +42,16 @@ bool stencil_less(const Vector4i& a, const Vector4i& b)
 }
 }  // namespace
 
-class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
+class StressPlasticDiscreteShellBending final : public FiniteElementExtraConstitution
 {
-    static constexpr U64   PlasticDiscreteShellBendingUID = 31;
-    static constexpr SizeT StencilSize                    = 4;
+    static constexpr U64   StressPlasticDiscreteShellBendingUID = 32;
+    static constexpr SizeT StencilSize                          = 4;
     static constexpr SizeT HalfHessianSize = StencilSize * (StencilSize + 1) / 2;
     using Base = FiniteElementExtraConstitution;
 
   public:
     using Base::Base;
-    U64 get_uid() const noexcept override { return PlasticDiscreteShellBendingUID; }
+    U64 get_uid() const noexcept override { return StressPlasticDiscreteShellBendingUID; }
 
     class InitInfo
     {
@@ -70,7 +66,7 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
     vector<Float>    h_rest_lengths;
     vector<Float>    h_h_bars;
     vector<Float>    h_theta_bars;
-    vector<Float>    h_yield_thresholds;
+    vector<Float>    h_yield_stresses;
     vector<Float>    h_hardening_moduli;
     vector<Float>    h_V_bars;
 
@@ -79,7 +75,7 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
     muda::DeviceBuffer<Float>    rest_lengths;
     muda::DeviceBuffer<Float>    h_bars;
     muda::DeviceBuffer<Float>    theta_bars;
-    muda::DeviceBuffer<Float>    yield_thresholds;
+    muda::DeviceBuffer<Float>    yield_stresses;
     muda::DeviceBuffer<Float>    hardening_moduli;
     muda::DeviceBuffer<Float>    V_bars;
 
@@ -87,7 +83,7 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
 
     virtual void do_init(FilteredInfo& info) override
     {
-        namespace PDSB = sym::plastic_discrete_shell_bending;
+        namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
 
         using ForEachInfo = FiniteElementMethod::ForEachInfo;
         auto geo_slots    = world().scene().geometries();
@@ -129,14 +125,14 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
                 }
 
                 auto bending_stiffnesses = sc.edges().find<Float>("bending_stiffness");
-                auto yield_thresholds    = sc.edges().find<Float>("bending_yield_threshold");
+                auto yield_stresses      = sc.edges().find<Float>("bending_yield_stress");
                 auto hardening_moduli    = sc.edges().find<Float>("bending_hardening_modulus");
                 UIPC_ASSERT(bending_stiffnesses, "Bending stiffness not found, why?");
-                UIPC_ASSERT(yield_thresholds, "Yield threshold not found, why?");
+                UIPC_ASSERT(yield_stresses, "Yield stress not found, why?");
                 UIPC_ASSERT(hardening_moduli, "Hardening modulus not found, why?");
 
                 auto bs_view = bending_stiffnesses->view();
-                auto yt_view = yield_thresholds->view();
+                auto ys_view = yield_stresses->view();
                 auto hm_view = hardening_moduli->view();
 
                 for(auto&& [E, stencil_info] : stencil_map)
@@ -152,7 +148,7 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
                     stencil_records.push_back(StencilRecord{
                         .stencil           = stencil.array() + vertex_offset_v,
                         .bending_stiffness = bs_view[stencil_info.edge_index],
-                        .yield_threshold   = yt_view[stencil_info.edge_index],
+                        .yield_stress      = ys_view[stencil_info.edge_index],
                         .hardening_modulus = hm_view[stencil_info.edge_index],
                     });
                 }
@@ -164,14 +160,14 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
 
         h_stencils.resize(stencil_records.size());
         h_bending_stiffness.resize(stencil_records.size());
-        h_yield_thresholds.resize(stencil_records.size());
+        h_yield_stresses.resize(stencil_records.size());
         h_hardening_moduli.resize(stencil_records.size());
         for(auto&& [i, record] : enumerate(stencil_records))
         {
-            h_stencils[i]            = record.stencil;
-            h_bending_stiffness[i]   = record.bending_stiffness;
-            h_yield_thresholds[i]    = record.yield_threshold;
-            h_hardening_moduli[i]    = record.hardening_modulus;
+            h_stencils[i]          = record.stencil;
+            h_bending_stiffness[i] = record.bending_stiffness;
+            h_yield_stresses[i]    = record.yield_stress;
+            h_hardening_moduli[i]  = record.hardening_modulus;
         }
 
         auto x_bars      = info.rest_positions();
@@ -193,18 +189,18 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
             Float   thickness3 = thicknesses[stencil[3]];
 
             Float L0, V_bar, h_bar, theta_bar;
-            PDSB::compute_constants(L0,
-                                    h_bar,
-                                    theta_bar,
-                                    V_bar,
-                                    X0,
-                                    X1,
-                                    X2,
-                                    X3,
-                                    thickness0,
-                                    thickness1,
-                                    thickness2,
-                                    thickness3);
+            SPDSB::compute_constants(L0,
+                                     h_bar,
+                                     theta_bar,
+                                     V_bar,
+                                     X0,
+                                     X1,
+                                     X2,
+                                     X3,
+                                     thickness0,
+                                     thickness1,
+                                     thickness2,
+                                     thickness3);
 
             h_rest_lengths[i] = L0;
             h_h_bars[i]       = h_bar;
@@ -227,8 +223,8 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
         theta_bars.resize(h_theta_bars.size());
         theta_bars.view().copy_from(h_theta_bars.data());
 
-        yield_thresholds.resize(h_yield_thresholds.size());
-        yield_thresholds.view().copy_from(h_yield_thresholds.data());
+        yield_stresses.resize(h_yield_stresses.size());
+        yield_stresses.view().copy_from(h_yield_stresses.data());
 
         hardening_moduli.resize(h_hardening_moduli.size());
         hardening_moduli.view().copy_from(h_hardening_moduli.data());
@@ -251,7 +247,7 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
     virtual void do_compute_energy(ComputeEnergyInfo& info) override
     {
         using namespace muda;
-        namespace PDSB = sym::plastic_discrete_shell_bending;
+        namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
@@ -259,26 +255,29 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
                    [stencils = stencils.viewer().name("stencils"),
                     bending_stiffnesses = bending_stiffnesses.viewer().name("bending_stiffness"),
                     theta_bars = theta_bars.viewer().name("theta_bar"),
-                    h_bars     = h_bars.viewer().name("h_bar"),
-                    V_bars     = V_bars.viewer().name("V_bar"),
-                    L0s        = rest_lengths.viewer().name("rest_lengths"),
-                    xs         = info.xs().viewer().name("xs"),
-                    energies   = info.energies().viewer().name("energies"),
-                    dt         = info.dt()] __device__(int I)
+                    yield_stresses = yield_stresses.viewer().name("yield_stress"),
+                    h_bars   = h_bars.viewer().name("h_bar"),
+                    V_bars   = V_bars.viewer().name("V_bar"),
+                    L0s      = rest_lengths.viewer().name("rest_lengths"),
+                    xs       = info.xs().viewer().name("xs"),
+                    energies = info.energies().viewer().name("energies"),
+                    dt       = info.dt()] __device__(int I)
                    {
-                       Vector4i stencil   = stencils(I);
-                       Float    kappa     = bending_stiffnesses(I);
-                       Float    L0        = L0s(I);
-                       Float    h_bar     = h_bars(I);
-                       Float    theta_bar = theta_bars(I);
-                       Float    V_bar     = V_bars(I);
+                       Vector4i stencil      = stencils(I);
+                       Float    kappa        = bending_stiffnesses(I);
+                       Float    L0           = L0s(I);
+                       Float    h_bar        = h_bars(I);
+                       Float    theta_bar    = theta_bars(I);
+                       Float    yield_stress = yield_stresses(I);
+                       Float    V_bar        = V_bars(I);
 
                        Vector3 x0 = xs(stencil[0]);
                        Vector3 x1 = xs(stencil[1]);
                        Vector3 x2 = xs(stencil[2]);
                        Vector3 x3 = xs(stencil[3]);
 
-                       Float E = PDSB::E(x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
+                       Float E =
+                           SPDSB::E(x0, x1, x2, x3, L0, h_bar, theta_bar, kappa, yield_stress);
                        energies(I) = E * V_bar * dt * dt;
                    });
     }
@@ -286,7 +285,7 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
     virtual void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
-        namespace PDSB = sym::plastic_discrete_shell_bending;
+        namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
@@ -294,7 +293,7 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
                    [stencils = stencils.viewer().name("stencils"),
                     bending_stiffnesses = bending_stiffnesses.viewer().name("bending_stiffness"),
                     theta_bars = theta_bars.viewer().name("theta_bar"),
-                    thicknesses = info.thicknesses().viewer().name("thicknesses"),
+                    yield_stresses = yield_stresses.viewer().name("yield_stress"),
                     h_bars = h_bars.viewer().name("h_bar"),
                     V_bars = V_bars.viewer().name("V_bar"),
                     L0s    = rest_lengths.viewer().name("rest_lengths"),
@@ -304,12 +303,13 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
                     dt     = info.dt(),
                     gradient_only = info.gradient_only()] __device__(int I) mutable
                    {
-                       Vector4i stencil   = stencils(I);
-                       Float    kappa     = bending_stiffnesses(I);
-                       Float    L0        = L0s(I);
-                       Float    h_bar     = h_bars(I);
-                       Float    theta_bar = theta_bars(I);
-                       Float    V_bar     = V_bars(I);
+                       Vector4i stencil      = stencils(I);
+                       Float    kappa        = bending_stiffnesses(I);
+                       Float    L0           = L0s(I);
+                       Float    h_bar        = h_bars(I);
+                       Float    theta_bar    = theta_bars(I);
+                       Float    yield_stress = yield_stresses(I);
+                       Float    V_bar        = V_bars(I);
 
                        Vector3 x0 = xs(stencil[0]);
                        Vector3 x1 = xs(stencil[1]);
@@ -321,7 +321,8 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
                        Vector12    G12;
                        Matrix12x12 H12x12;
 
-                       PDSB::dEdx(G12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
+                       SPDSB::dEdx(
+                           G12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa, yield_stress);
                        G12 *= Vdt2;
                        DoubletVectorAssembler DVA{G3s};
                        DVA.segment<StencilSize>(I * StencilSize).write(stencil, G12);
@@ -329,7 +330,8 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
                        if(gradient_only)
                            return;
 
-                       PDSB::ddEddx(H12x12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa);
+                       SPDSB::ddEddx(
+                           H12x12, x0, x1, x2, x3, L0, h_bar, theta_bar, kappa, yield_stress);
                        H12x12 *= Vdt2;
                        make_spd(H12x12);
 
@@ -337,24 +339,23 @@ class PlasticDiscreteShellBending final : public FiniteElementExtraConstitution
                        TMA.half_block<StencilSize>(I * HalfHessianSize).write(stencil, H12x12);
                    });
     }
-
 };
-REGISTER_SIM_SYSTEM(PlasticDiscreteShellBending);
+REGISTER_SIM_SYSTEM(StressPlasticDiscreteShellBending);
 
-class PlasticDiscreteShellBendingTimeIntegrator final : public TimeIntegrator
+class StressPlasticDiscreteShellBendingTimeIntegrator final : public TimeIntegrator
 {
   public:
     using TimeIntegrator::TimeIntegrator;
 
-    SimSystemSlot<PlasticDiscreteShellBending> pdsb;
-    SimSystemSlot<FiniteElementMethod>         fem;
-    BufferDump                                 dump_theta_bars;
-    BufferDump                                 dump_yield_thresholds;
+    SimSystemSlot<StressPlasticDiscreteShellBending> spdsb;
+    SimSystemSlot<FiniteElementMethod>               fem;
+    BufferDump                                       dump_theta_bars;
+    BufferDump                                       dump_yield_stresses;
 
     void do_build(TimeIntegrator::BuildInfo& info) override
     {
-        pdsb = require<PlasticDiscreteShellBending>();
-        fem  = require<FiniteElementMethod>();
+        spdsb = require<StressPlasticDiscreteShellBending>();
+        fem   = require<FiniteElementMethod>();
     }
 
     void do_init(TimeIntegrator::InitInfo& info) override {}
@@ -364,15 +365,18 @@ class PlasticDiscreteShellBendingTimeIntegrator final : public TimeIntegrator
     void do_update_state(TimeIntegrator::UpdateVelocityInfo& info) override
     {
         using namespace muda;
-        namespace PDSB = sym::plastic_discrete_shell_bending;
+        namespace SPDSB = sym::stress_plastic_discrete_shell_bending;
 
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(pdsb->stencils.size(),
-                   [stencils = pdsb->stencils.cviewer().name("stencils"),
-                    theta_bars = pdsb->theta_bars.viewer().name("theta_bar"),
-                    yield_thresholds = pdsb->yield_thresholds.viewer().name("yield_threshold"),
-                    hardening_moduli = pdsb->hardening_moduli.cviewer().name("hardening_modulus"),
+            .apply(spdsb->stencils.size(),
+                   [stencils = spdsb->stencils.cviewer().name("stencils"),
+                    theta_bars = spdsb->theta_bars.viewer().name("theta_bar"),
+                    yield_stresses = spdsb->yield_stresses.viewer().name("yield_stress"),
+                    hardening_moduli = spdsb->hardening_moduli.cviewer().name("hardening_modulus"),
+                    bending_stiffnesses = spdsb->bending_stiffnesses.cviewer().name("bending_stiffness"),
+                    rest_lengths = spdsb->rest_lengths.cviewer().name("rest_lengths"),
+                    h_bars = spdsb->h_bars.cviewer().name("h_bar"),
                     xs = fem->xs().cviewer().name("xs")] __device__(int I) mutable
                    {
                        Vector4i stencil = stencils(I);
@@ -383,18 +387,26 @@ class PlasticDiscreteShellBendingTimeIntegrator final : public TimeIntegrator
                        Vector3 x3 = xs(stencil[3]);
 
                        Float theta = 0.0;
-                       if(!PDSB::safe_dihedral_angle(x0, x1, x2, x3, theta))
+                       if(!SPDSB::safe_dihedral_angle(x0, x1, x2, x3, theta))
                            return;
 
-                       Float theta_bar       = theta_bars(I);
-                       Float yield_threshold = yield_thresholds(I);
-                       Float hardening       = hardening_moduli(I);
+                       Float theta_bar         = theta_bars(I);
+                       Float yield_stress      = yield_stresses(I);
+                       Float hardening         = hardening_moduli(I);
+                       Float bending_stiffness = bending_stiffnesses(I);
+                       Float L0                = rest_lengths(I);
+                       Float h_bar             = h_bars(I);
 
-                       if(PDSB::update_plastic_state<Float>(
-                              theta, theta_bar, yield_threshold, hardening))
+                       if(SPDSB::update_plastic_state<Float>(theta,
+                                                             theta_bar,
+                                                             yield_stress,
+                                                             hardening,
+                                                             bending_stiffness,
+                                                             L0,
+                                                             h_bar))
                        {
-                           theta_bars(I)       = theta_bar;
-                           yield_thresholds(I) = yield_threshold;
+                           theta_bars(I)     = theta_bar;
+                           yield_stresses(I) = yield_stress;
                        }
                    });
     }
@@ -404,9 +416,9 @@ class PlasticDiscreteShellBendingTimeIntegrator final : public TimeIntegrator
         auto path  = info.dump_path(UIPC_RELATIVE_SOURCE_FILE);
         auto frame = info.frame();
 
-        return dump_theta_bars.dump(fmt::format("{}theta_bar.{}", path, frame), pdsb->theta_bars)
-               && dump_yield_thresholds.dump(
-                   fmt::format("{}yield_threshold.{}", path, frame), pdsb->yield_thresholds);
+        return dump_theta_bars.dump(fmt::format("{}theta_bar.{}", path, frame), spdsb->theta_bars)
+               && dump_yield_stresses.dump(
+                   fmt::format("{}yield_stress.{}", path, frame), spdsb->yield_stresses);
     }
 
     bool do_try_recover(RecoverInfo& info) override
@@ -415,21 +427,20 @@ class PlasticDiscreteShellBendingTimeIntegrator final : public TimeIntegrator
         auto frame = info.frame();
 
         return dump_theta_bars.load(fmt::format("{}theta_bar.{}", path, frame))
-               && dump_yield_thresholds.load(
-                   fmt::format("{}yield_threshold.{}", path, frame));
+               && dump_yield_stresses.load(fmt::format("{}yield_stress.{}", path, frame));
     }
 
     void do_apply_recover(RecoverInfo& info) override
     {
-        dump_theta_bars.apply_to(pdsb->theta_bars);
-        dump_yield_thresholds.apply_to(pdsb->yield_thresholds);
+        dump_theta_bars.apply_to(spdsb->theta_bars);
+        dump_yield_stresses.apply_to(spdsb->yield_stresses);
     }
 
     void do_clear_recover(RecoverInfo& info) override
     {
         dump_theta_bars.clean_up();
-        dump_yield_thresholds.clean_up();
+        dump_yield_stresses.clean_up();
     }
 };
-REGISTER_SIM_SYSTEM(PlasticDiscreteShellBendingTimeIntegrator);
+REGISTER_SIM_SYSTEM(StressPlasticDiscreteShellBendingTimeIntegrator);
 }  // namespace uipc::backend::cuda

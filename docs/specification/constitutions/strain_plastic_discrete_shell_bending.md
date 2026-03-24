@@ -1,12 +1,12 @@
-# Plastic Discrete Shell Bending
+# Strain Plastic Discrete Shell Bending
 
-**Plastic Discrete Shell Bending** is a constitutive model for simulating the bending behavior of thin shell structures with residual creases. This model captures the dihedral angle-based bending energy between adjacent triangular faces in a shell mesh and allows the bending rest angle to evolve after yielding.
+**StrainPlasticDiscreteShellBending** is a constitutive model for simulating the bending behavior of thin shell structures with residual creases. This model yields on the wrapped dihedral-angle increment, i.e. the generalized bending strain, and evolves the bending rest angle after yielding.
 
 Reference:
 
 - [Discrete Shell](https://www.cs.columbia.edu/cg/pdfs/10_ds.pdf)
 
-## #31 Plastic Discrete Shell Bending
+## #31 StrainPlasticDiscreteShellBending
 
 For a shell bending element defined by four vertices at positions $\mathbf{x}_0$, $\mathbf{x}_1$, $\mathbf{x}_2$, and $\mathbf{x}_3$, where $(\mathbf{x}_1, \mathbf{x}_2)$ forms the shared edge between two adjacent triangular faces, we define:
 
@@ -53,7 +53,7 @@ where:
 
 ### Plastic Evolution
 
-Let $\theta_y$ denote the yield threshold and let $H$ denote the hardening modulus. The yielding condition is written as
+Let $\theta_y$ denote the yield threshold and let $H$ denote the hardening modulus. The yielding condition is written in the generalized strain space as
 $$
 |\Delta\theta| > \theta_y.
 $$
