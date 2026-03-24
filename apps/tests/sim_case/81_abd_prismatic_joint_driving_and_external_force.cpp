@@ -85,7 +85,7 @@ TEST_CASE("81_abd_prismatic_joint_driving_and_external_force", "[abd][joint][dri
     driving.apply_to(joint_mesh, span{driving_strength});
 
     // 3) External force constitution (active during frames 101..200)
-    AffineBodyPrismaticJointExternalBodyForce ext_force;
+    AffineBodyPrismaticJointExternalForce ext_force;
     ext_force.apply_to(joint_mesh, Float{0});
 
     auto joint_object = scene.objects().create("prismatic_joint");

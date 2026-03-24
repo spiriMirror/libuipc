@@ -80,7 +80,7 @@ TEST_CASE("73_abd_prismatic_joint_external_force", "[abd][joint][external_force]
     prismatic_joint.apply_to(joint_mesh, span{l_geo_slots}, span{r_geo_slots}, 100.0);
 
     // Apply external force along the joint axis (initially zero)
-    AffineBodyPrismaticJointExternalBodyForce ext_force;
+    AffineBodyPrismaticJointExternalForce ext_force;
     ext_force.apply_to(joint_mesh, Float{0});
 
     auto prismatic_joint_object = scene.objects().create("prismatic_joint");
