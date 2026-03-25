@@ -46,9 +46,13 @@ Returns:
             r_slots.reserve(r_geo_slots.size());
 
             for(auto item : l_geo_slots)
+            {
                 l_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
+            }
             for(auto item : r_geo_slots)
+            {
                 r_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
+            }
 
             self.apply_to(sc, span{l_slots}, span{r_slots}, strength_ratio);
         },
@@ -82,9 +86,13 @@ strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joi
             r_slots.reserve(r_geo_slots.size());
 
             for(auto item : l_geo_slots)
+            {
                 l_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
+            }
             for(auto item : r_geo_slots)
+            {
                 r_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
+            }
 
             self.apply_to(sc,
                           span{l_slots},
