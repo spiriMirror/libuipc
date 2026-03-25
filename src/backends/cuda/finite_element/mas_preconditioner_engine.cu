@@ -319,7 +319,7 @@ void MASPreconditionerEngine::build_level1()
     //     to avoid sharing a cluster ID with any level-0 bank.
     //
     // max(padded_N, m_total_nodes)
-    //   — when unpartitioned vertices exist (e.g. Empty constitution),
+    //   — when unpartitioned vertices exist,
     //     m_total_nodes > m_total_map_nodes is possible.  going_next is
     //     read at real-vertex indices [0, m_total_nodes), so level-1
     //     indices must also exceed m_total_nodes.
