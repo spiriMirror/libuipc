@@ -220,64 +220,63 @@ Edge             = ({}, {}))",
         auto gradient_only = info.gradient_only();
         ParallelFor()
             .file_line(__FILE__, __LINE__)
-            .apply(body_ids.size(),
-                   [body_ids = body_ids.cviewer().name("body_ids"),
-                    rest_positions = rest_positions.cviewer().name("rest_positions"),
-                    strength_ratio = strength_ratio.cviewer().name("strength_ratio"),
-                    body_masses = info.body_masses().viewer().name("body_masses"),
-                    qs      = info.qs().viewer().name("qs"),
-                    G12s    = info.gradients().viewer().name("G12s"),
-                    H12x12s = info.hessians().viewer().name("H12x12s"),
-                    gradient_only] __device__(int I)
-                   {
-                       Vector2i        bids  = body_ids(I);
-                       const Vector12& X_bar = rest_positions(I);
+            .apply(
+                body_ids.size(),
+                [body_ids = body_ids.cviewer().name("body_ids"),
+                 rest_positions = rest_positions.cviewer().name("rest_positions"),
+                 strength_ratio = strength_ratio.cviewer().name("strength_ratio"),
+                 body_masses = info.body_masses().viewer().name("body_masses"),
+                 qs          = info.qs().viewer().name("qs"),
+                 G12s        = info.gradients().viewer().name("G12s"),
+                 H12x12s     = info.hessians().viewer().name("H12x12s"),
+                 gradient_only] __device__(int I)
+                {
+                    Vector2i        bids  = body_ids(I);
+                    const Vector12& X_bar = rest_positions(I);
 
-                       Vector12 q_i = qs(bids(0));
-                       Vector12 q_j = qs(bids(1));
+                    Vector12 q_i = qs(bids(0));
+                    Vector12 q_j = qs(bids(1));
 
-                       // Extract rest positions
-                       Vector3 qi0_bar = X_bar.segment<3>(0);
-                       Vector3 qi1_bar = X_bar.segment<3>(3);
-                       Vector3 qj0_bar = X_bar.segment<3>(6);
-                       Vector3 qj1_bar = X_bar.segment<3>(9);
+                    // Extract rest positions
+                    Vector3 qi0_bar = X_bar.segment<3>(0);
+                    Vector3 qi1_bar = X_bar.segment<3>(3);
+                    Vector3 qj0_bar = X_bar.segment<3>(6);
+                    Vector3 qj1_bar = X_bar.segment<3>(9);
 
-                       Float K = strength_ratio(I)
-                                 * (body_masses(bids(0)).mass()
-                                    + body_masses(bids(1)).mass());
+                    Float K =
+                        strength_ratio(I)
+                        * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
-                       // Compute constraint violation in F-space
-                       Vector6 F;
-                       RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
+                    // Compute constraint violation in F-space
+                    Vector6 F;
+                    RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
 
-                       // Compute gradient in F-space
-                       Vector6 dEdF;
-                       RJ::dEaxisdFaxis<Float>(dEdF, K, F);
+                    // Compute gradient in F-space
+                    Vector6 dEdF;
+                    RJ::dEaxisdFaxis<Float>(dEdF, K, F);
 
-                       // Map gradient back to ABD space: G24 = J^T * dEdF
-                       Vector24 G24;
-                       RJ::JaxisT_Gaxis<Float>(G24, dEdF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
+                    // Map gradient back to ABD space: G24 = J^T * dEdF
+                    Vector24 G24;
+                    RJ::JaxisT_Gaxis<Float>(G24, dEdF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
 
-                       // Fill Body Gradient
-                       DoubletVectorAssembler DVA{G12s};
-                       DVA.segment<StencilSize>(StencilSize * I).write(bids, G24);
+                    // Fill Body Gradient
+                    DoubletVectorAssembler DVA{G12s};
+                    DVA.segment<StencilSize>(StencilSize * I).write(bids, G24);
+                    if(gradient_only)
+                    {
+                        return;
+                    }
+                    // Fill Body Hessian
+                    Matrix6x6 ddEddF;
+                    RJ::ddEaxisddFaxis<Float>(ddEddF, K, F);
 
-                       // Fill Body Hessian
-                       if(!gradient_only)
-                       {
-                           // Compute Hessian in F-space
-                           Matrix6x6 ddEddF;
-                           RJ::ddEaxisddFaxis<Float>(ddEddF, K, F);
+                    // Map Hessian back to ABD space: H24 = J^T * ddEddF * J
+                    Matrix24x24 H24;
+                    RJ::JaxisT_Haxis_Jaxis<Float>(H24, ddEddF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
 
-                           // Map Hessian back to ABD space: H24 = J^T * ddEddF * J
-                           Matrix24x24 H24;
-                           RJ::JaxisT_Haxis_Jaxis<Float>(
-                               H24, ddEddF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
-
-                           TripletMatrixAssembler TMA{H12x12s};
-                           TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, H24);
-                       }
-                   });
+                    TripletMatrixAssembler TMA{H12x12s};
+                    TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, H24);
+                });
     }
 
     U64 get_uid() const noexcept override { return ConstitutionUID; }
@@ -763,7 +762,8 @@ Edge             = ({}, {}))",
                  qs          = info.qs().cviewer().name("qs"),
                  body_masses = info.body_masses().cviewer().name("body_masses"),
                  G12s        = info.gradients().viewer().name("G12s"),
-                 H12x12s = info.hessians().viewer().name("H12x12s")] __device__(int I)
+                 H12x12s     = info.hessians().viewer().name("H12x12s"),
+                 gradient_only = info.gradient_only()] __device__(int I)
                 {
                     Vector2i bids        = body_ids(I);
                     auto     constrained = is_constrained(I);
@@ -820,6 +820,10 @@ Edge             = ({}, {}))",
                     DoubletVectorAssembler DVA{G12s};
                     DVA.segment<StencilSize>(StencilSize * I).write(bids, J01T_G01);
 
+                    if(gradient_only)
+                    {
+                        return;
+                    }
                     // H12x12s
                     Matrix12x12 H01;
                     DRJ::ddEddF01<Float>(H01, kappa, F01_q, theta_tilde);
