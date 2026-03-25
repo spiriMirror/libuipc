@@ -14,6 +14,7 @@ class AffineBodyRevoluteJoint final : public InterAffineBodyConstitution
   public:
     using InterAffineBodyConstitution::InterAffineBodyConstitution;
     static constexpr SizeT HalfHessianSize = 2 * (2 + 1) / 2;
+    static constexpr SizeT StencilSize     = 2;
 
     static constexpr U64 ConstitutionUID = 18;
 
@@ -182,21 +183,20 @@ Edge             = ({}, {}))",
                        Vector12 q_i = qs(bids(0));
                        Vector12 q_j = qs(bids(1));
 
-                       ABDJacobi Js[4] = {ABDJacobi{X_bar.segment<3>(0)},
-                                          ABDJacobi{X_bar.segment<3>(3)},
-                                          ABDJacobi{X_bar.segment<3>(6)},
-                                          ABDJacobi{X_bar.segment<3>(9)}};
+                       // qi0_bar, qi1_bar, qj0_bar, qj1_bar
+                       Vector3 qi0_bar = X_bar.segment<3>(0);
+                       Vector3 qi1_bar = X_bar.segment<3>(3);
+                       Vector3 qj0_bar = X_bar.segment<3>(6);
+                       Vector3 qj1_bar = X_bar.segment<3>(9);
 
-                       Vector12 X;
-                       X.segment<3>(0) = Js[0].point_x(q_i);
-                       X.segment<3>(3) = Js[1].point_x(q_i);
+                       // Compute constraint violation in F-space
+                       Vector6 F;
+                       RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
 
-                       X.segment<3>(6) = Js[2].point_x(q_j);
-                       X.segment<3>(9) = Js[3].point_x(q_j);
-
-                       // energy = 1/2 * kappa * (||x0 - x2||^2 + ||x1 - x3||^2)
-
-                       Es(I) = kappa * RJ::E(X);
+                       // Compute energy: E = 0.5 * kappa * (||d0||^2 + ||d1||^2)
+                       Float E;
+                       RJ::Eaxis<Float>(E, kappa, F);
+                       Es(I) = E;
                    });
     }
 
@@ -212,6 +212,10 @@ Edge             = ({}, {}))",
     void do_compute_gradient_hessian(ComputeGradientHessianInfo& info) override
     {
         using namespace muda;
+        using Vector24    = Vector<Float, 24>;
+        using Matrix24x24 = Matrix<Float, 24, 24>;
+        using Matrix6x6   = Matrix<Float, 6, 6>;
+
         namespace RJ       = sym::affine_body_revolute_joint;
         auto gradient_only = info.gradient_only();
         ParallelFor()
@@ -233,76 +237,45 @@ Edge             = ({}, {}))",
                     Vector12 q_i = qs(bids(0));
                     Vector12 q_j = qs(bids(1));
 
-                    ABDJacobi Js[4] = {ABDJacobi{X_bar.segment<3>(0)},
-                                       ABDJacobi{X_bar.segment<3>(3)},
-                                       ABDJacobi{X_bar.segment<3>(6)},
-                                       ABDJacobi{X_bar.segment<3>(9)}};
+                    // Extract rest positions
+                    Vector3 qi0_bar = X_bar.segment<3>(0);
+                    Vector3 qi1_bar = X_bar.segment<3>(3);
+                    Vector3 qj0_bar = X_bar.segment<3>(6);
+                    Vector3 qj1_bar = X_bar.segment<3>(9);
 
-                    Vector12 X;
-                    X.segment<3>(0) = Js[0].point_x(q_i);
-                    X.segment<3>(3) = Js[1].point_x(q_i);
-
-                    X.segment<3>(6) = Js[2].point_x(q_j);
-                    X.segment<3>(9) = Js[3].point_x(q_j);
-
-                    Vector3 D02 = Js[0].point_x(q_i) - Js[2].point_x(q_j);
-                    Vector3 D13 = Js[1].point_x(q_i) - Js[3].point_x(q_j);
-                    Float   K =
+                    Float K =
                         strength_ratio(I)
                         * (body_masses(bids(0)).mass() + body_masses(bids(1)).mass());
 
-                    // Fill Body Gradient:
-                    {
-                        // G = 0.5 * kappa * (J0^T * (x0 - x2) + J1^T * (x1 - x3))
-                        Vector12 G_i = K * (Js[0].T() * D02 + Js[1].T() * D13);
-                        G12s(2 * I + 0).write(bids(0), G_i);
-                    }
-                    {
-                        // G = 0.5 * kappa * (J2^T * (x2 - x0) + J3^T * (x3 - x1))
-                        Vector12 G_j = K * (Js[2].T() * (-D02) + Js[3].T() * (-D13));
-                        G12s(2 * I + 1).write(bids(1), G_j);
-                    }
+                    // Compute constraint violation in F-space
+                    Vector6 F;
+                    RJ::Faxis<Float>(F, qi0_bar, qi1_bar, q_i, qj0_bar, qj1_bar, q_j);
 
-                    // Fill Body Hessian:
-                    if(!gradient_only)
+                    // Compute gradient in F-space
+                    Vector6 dEdF;
+                    RJ::dEaxisdFaxis<Float>(dEdF, K, F);
+
+                    // Map gradient back to ABD space: G24 = J^T * dEdF
+                    Vector24 G24;
+                    RJ::JaxisT_Gaxis<Float>(G24, dEdF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
+
+                    // Fill Body Gradient
+                    DoubletVectorAssembler DVA{G12s};
+                    DVA.segment<StencilSize>(StencilSize * I).write(bids, G24);
+                    if(gradient_only)
                     {
-                        {
-                            Matrix12x12 H_ii;
-                            RJ::Hess(H_ii,
-                                     K,
-                                     Js[0].x_bar(),
-                                     Js[0].x_bar(),
-                                     Js[1].x_bar(),
-                                     Js[1].x_bar());
-                            H12x12s(HalfHessianSize * I + 0).write(bids(0), bids(0), H_ii);
-                        }
-                        {
-                            Matrix12x12 H;
-                            Vector2i    lr = bids;
-                            RJ::Hess(H,
-                                     -K,
-                                     Js[0].x_bar(),
-                                     Js[2].x_bar(),
-                                     Js[1].x_bar(),
-                                     Js[3].x_bar());
-                            if(bids(0) > bids(1))
-                            {
-                                H.transposeInPlace();
-                                lr = Vector2i{bids(1), bids(0)};
-                            }
-                            H12x12s(HalfHessianSize * I + 1).write(lr(0), lr(1), H);
-                        }
-                        {
-                            Matrix12x12 H_jj;
-                            RJ::Hess(H_jj,
-                                     K,
-                                     Js[2].x_bar(),
-                                     Js[2].x_bar(),
-                                     Js[3].x_bar(),
-                                     Js[3].x_bar());
-                            H12x12s(HalfHessianSize * I + 2).write(bids(1), bids(1), H_jj);
-                        }
+                        return;
                     }
+                    // Fill Body Hessian
+                    Matrix6x6 ddEddF;
+                    RJ::ddEaxisddFaxis<Float>(ddEddF, K, F);
+
+                    // Map Hessian back to ABD space: H24 = J^T * ddEddF * J
+                    Matrix24x24 H24;
+                    RJ::JaxisT_Haxis_Jaxis<Float>(H24, ddEddF, qi0_bar, qi1_bar, qj0_bar, qj1_bar);
+
+                    TripletMatrixAssembler TMA{H12x12s};
+                    TMA.half_block<StencilSize>(HalfHessianSize * I).write(bids, H24);
                 });
     }
 
@@ -789,7 +762,8 @@ Edge             = ({}, {}))",
                  qs          = info.qs().cviewer().name("qs"),
                  body_masses = info.body_masses().cviewer().name("body_masses"),
                  G12s        = info.gradients().viewer().name("G12s"),
-                 H12x12s = info.hessians().viewer().name("H12x12s")] __device__(int I)
+                 H12x12s     = info.hessians().viewer().name("H12x12s"),
+                 gradient_only = info.gradient_only()] __device__(int I)
                 {
                     Vector2i bids        = body_ids(I);
                     auto     constrained = is_constrained(I);
@@ -846,6 +820,10 @@ Edge             = ({}, {}))",
                     DoubletVectorAssembler DVA{G12s};
                     DVA.segment<StencilSize>(StencilSize * I).write(bids, J01T_G01);
 
+                    if(gradient_only)
+                    {
+                        return;
+                    }
                     // H12x12s
                     Matrix12x12 H01;
                     DRJ::ddEddF01<Float>(H01, kappa, F01_q, theta_tilde);
