@@ -65,49 +65,28 @@ strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joi
         [](AffineBodyRevoluteJoint&     self,
            geometry::SimplicialComplex& edges,
            py::list                     l_geo_slots,
-           py::list                     l_instance_id,
+           py::array_t<IndexT>          l_instance_id,
            py::list                     r_geo_slots,
-           py::list                     r_instance_id,
-           py::list                     strength_ratio)
+           py::array_t<IndexT>          r_instance_id,
+           py::array_t<Float>           strength_ratio)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
-            vector<IndexT>                             l_instances;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;
-            vector<IndexT>                             r_instances;
-            vector<Float>                              strength_ratios;
 
             l_slots.reserve(l_geo_slots.size());
-            l_instances.reserve(l_instance_id.size());
             r_slots.reserve(r_geo_slots.size());
-            r_instances.reserve(r_instance_id.size());
-            strength_ratios.reserve(strength_ratio.size());
 
             for(auto item : l_geo_slots)
-            {
                 l_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
-            }
-            for(auto item : l_instance_id)
-            {
-                l_instances.push_back(py::cast<IndexT>(item));
-            }
             for(auto item : r_geo_slots)
-            {
                 r_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
-            }
-            for(auto item : r_instance_id)
-            {
-                r_instances.push_back(py::cast<IndexT>(item));
-            }
-            for(auto item : strength_ratio)
-            {
-                strength_ratios.push_back(py::cast<Float>(item));
-            }
+
             self.apply_to(edges,
                           span{l_slots},
-                          span{l_instances},
+                          as_span<IndexT>(l_instance_id),
                           span{r_slots},
-                          span{r_instances},
-                          span{strength_ratios});
+                          as_span<IndexT>(r_instance_id),
+                          as_span<Float>(strength_ratio));
         },
         py::arg("sc"),
         py::arg("l_geo_slots"),

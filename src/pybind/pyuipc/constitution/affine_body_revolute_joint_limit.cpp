@@ -40,27 +40,10 @@ Args:
         "apply_to",
         [](AffineBodyRevoluteJointLimit& self,
            geometry::SimplicialComplex&  sc,
-           py::list                      lowers,
-           py::list                      uppers,
-           py::list                      strengths)
-        {
-            vector<Float> lower_v;
-            vector<Float> upper_v;
-            vector<Float> strength_v;
-
-            lower_v.reserve(lowers.size());
-            upper_v.reserve(uppers.size());
-            strength_v.reserve(strengths.size());
-
-            for(auto v : lowers)
-                lower_v.push_back(py::cast<Float>(v));
-            for(auto v : uppers)
-                upper_v.push_back(py::cast<Float>(v));
-            for(auto v : strengths)
-                strength_v.push_back(py::cast<Float>(v));
-
-            self.apply_to(sc, span{lower_v}, span{upper_v}, span{strength_v});
-        },
+           py::array_t<Float>            lowers,
+           py::array_t<Float>            uppers,
+           py::array_t<Float>            strengths)
+        { self.apply_to(sc, as_span<Float>(lowers), as_span<Float>(uppers), as_span<Float>(strengths)); },
         py::arg("sc"),
         py::arg("lowers"),
         py::arg("uppers"),
