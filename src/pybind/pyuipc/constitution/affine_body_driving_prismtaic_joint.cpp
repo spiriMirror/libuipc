@@ -41,16 +41,8 @@ strength_ratio: The strength ratio of the joint constraint applied to all joints
     // Multi-instance mode
     class_AffineBodyDrivingPrismaticJoint.def(
         "apply_to",
-        [](AffineBodyDrivingPrismaticJoint& self, geometry::SimplicialComplex& edges, py::list strength_ratios)
-        {
-            vector<Float> strength_ratios_list;
-
-            for(auto item : strength_ratios)
-            {
-                strength_ratios_list.push_back(py::cast<Float>(item));
-            }
-            self.apply_to(edges, span{strength_ratios_list});
-        },
+        [](AffineBodyDrivingPrismaticJoint& self, geometry::SimplicialComplex& edges, py::array_t<Float> strength_ratios)
+        { self.apply_to(edges, as_span<Float>(strength_ratios)); },
         py::arg("sc"),
         py::arg("strength_ratios"),
         py::doc(R"(Create joint between two affine bodies (multi-instance mode).

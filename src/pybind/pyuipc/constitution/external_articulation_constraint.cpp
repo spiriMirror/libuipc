@@ -49,12 +49,10 @@ Returns:
     Geometry: Created geometry with joint constraint data.)")
         .def(
             "create_geometry",
-            [](ExternalArticulationConstraint& self, py::list joint_geos, py::list indices)
+            [](ExternalArticulationConstraint& self, py::list joint_geos, py::array_t<IndexT> indices)
             {
                 vector<S<const geometry::GeometrySlot>> slots;
-                vector<IndexT>                          index_vec;
                 slots.reserve(joint_geos.size());
-                index_vec.reserve(indices.size());
 
                 for(auto item : joint_geos)
                 {
@@ -62,11 +60,7 @@ Returns:
                     slots.push_back(
                         std::static_pointer_cast<const geometry::GeometrySlot>(slot));
                 }
-                for(auto item : indices)
-                {
-                    index_vec.push_back(py::cast<IndexT>(item));
-                }
-                return self.create_geometry(span{slots}, span{index_vec});
+                return self.create_geometry(span{slots}, as_span<IndexT>(indices));
             },
             py::arg("joint_geos"),
             py::arg("indices"),
