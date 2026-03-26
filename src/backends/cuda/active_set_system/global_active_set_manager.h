@@ -108,6 +108,7 @@ class GlobalActiveSetManager final : public SimSystem
 
         Float decay_factor, dt;
         Float toi_threshold;
+        Float alpha_lower_bound;
         bool  energy_enabled;
         bool  should_discard_friction_candidates = false;
 
@@ -168,6 +169,7 @@ class GlobalActiveSetManager final : public SimSystem
     //tex: $\Gamma$
     Float decay_factor() const;
     Float toi_threshold() const;
+    Float alpha_lower_bound() const;
     bool  is_enabled() const;
 
   protected:

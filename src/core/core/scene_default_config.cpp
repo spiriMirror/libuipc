@@ -52,6 +52,7 @@ geometry::AttributeCollection default_scene_config() noexcept
     config.create("contact/al-ipc/mu_scale_fem", Float{5e7});
     config.create("contact/al-ipc/mu_scale_abd", Float{1e5});
     config.create("contact/al-ipc/toi_threshold", Float{0.1});
+    config.create("contact/al-ipc/alpha_lower_bound", Float{1e-6});
     config.create("contact/al-ipc/decay_factor", Float{0.3});
 
     // adaptive contact tuning knobs.

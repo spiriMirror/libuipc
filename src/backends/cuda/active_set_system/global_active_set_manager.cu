@@ -819,6 +819,11 @@ Float GlobalActiveSetManager::toi_threshold() const
     return m_impl.toi_threshold;
 }
 
+Float GlobalActiveSetManager::alpha_lower_bound() const
+{
+    return m_impl.alpha_lower_bound;
+}
+
 GlobalActiveSetManager::NonPenetratePositionInfo::NonPenetratePositionInfo(Impl* impl,
                                                                            SizeT offset,
                                                                            SizeT count) noexcept
@@ -855,6 +860,7 @@ void GlobalActiveSetManager::Impl::init(WorldVisitor& world)
     dt           = config.find<Float>("dt")->view()[0];
     decay_factor = config.find<Float>("contact/al-ipc/decay_factor")->view()[0];
     toi_threshold = config.find<Float>("contact/al-ipc/toi_threshold")->view()[0];
+    alpha_lower_bound = config.find<Float>("contact/al-ipc/alpha_lower_bound")->view()[0];
     energy_enabled = true;
 }
 
