@@ -98,7 +98,7 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
                 P1               = mid + HalfAxis;
 
 
-                Vector3 UnitE = (P0 - P1).normalized();
+                Vector3 UnitE = (P1 - P0).normalized();
                 // normal
                 Vector3 normal = toNormal(UnitE);
                 Vector3 vec    = normal.cross(UnitE).normalized();
