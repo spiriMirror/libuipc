@@ -42,8 +42,9 @@ Push a new tag to the upstream repository. Optionally create a GitHub release.
         - **Fixes** – bug fixes
         - **Documentation** – docs, examples, guides
         - **Refactor / Chore** – internal changes, deps, tooling
-     3. Use concise, user-facing language. Group related changes. Avoid raw commit hashes or jargon unless helpful.
-     4. Write notes to a temp file (e.g. `release_notes.md`) and create the release:
+     3. **Write an overall summary** at the top of the release notes: a short paragraph describing the key themes, goals, or highlights of this release compared to the previous one. This gives readers a quick understanding of what changed and why.
+     4. Use concise, user-facing language. Group related changes. Avoid raw commit hashes or jargon unless helpful.
+     5. Write notes to a temp file (e.g. `release_notes.md`) and create the release:
         ```bash
         gh release create <TAG> --repo spiriMirror/libuipc --notes-file release_notes.md
         rm release_notes.md
