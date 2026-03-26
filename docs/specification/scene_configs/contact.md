@@ -23,6 +23,8 @@ When `constitution = "ipc"`, all `al-ipc/*` parameters are ignored.
 
 ## AL-IPC Parameters
 
+Original paper: [Robust and Efficient Penetration-Free Elastodynamics without Barriers](https://arxiv.org/pdf/2512.12151)
+
 These only take effect when `contact/constitution = "al-ipc"`.
 
 | Key | Default | Role |
@@ -34,6 +36,8 @@ These only take effect when `contact/constitution = "al-ipc"`.
 | `decay_factor` | `0.3` | Shrink factor for the active-set envelope each AL outer iteration |
 
 ## Adaptive Contact Stiffness (`adaptive/*`)
+
+Reference repository: [Stiff-GIPC](https://github.com/KemengHuang/Stiff-GIPC)
 
 The GIPC adaptive strategy adjusts contact stiffness $\kappa$ each Newton step to balance convergence speed and contact accuracy.
 
