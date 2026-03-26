@@ -275,6 +275,7 @@ def build_demo():
     world.init(scene)
 
     return {
+        "engine": engine,
         "world": world,
         "scene_io": SceneIO(scene),
         "sheet_slot": sheet_slot,
