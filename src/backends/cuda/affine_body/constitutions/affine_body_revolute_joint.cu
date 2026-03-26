@@ -493,7 +493,7 @@ Edge             = ({}, {}))",
                                 inst_id(1),
                                 right_sc->instances().size());
 
-                    Vector3 UnitE = (P0 - P1).normalized();
+                    Vector3 UnitE = (P1 - P0).normalized();
                     // normal
                     Vector3 normal = toNormal(UnitE);
                     Vector3 vec    = normal.cross(UnitE).normalized();
