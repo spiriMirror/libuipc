@@ -51,6 +51,7 @@ void ALVertexHalfPlaneTrajectoryFilter::Impl::filter_toi(FilterTOIInfo& info)
 
     info.toi().fill(1.1f);
     tois.resize(info.surf_vertices().size() * info.plane_positions().size());
+    tois.fill(1.1f);
     PHs.resize(info.surf_vertices().size() * info.plane_positions().size());
 
     // TODO: just hard code the slackness for now
