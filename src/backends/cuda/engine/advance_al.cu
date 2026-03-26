@@ -410,7 +410,8 @@ void SimEngine::advance_AL()
                     m_global_active_set_manager->update_active_set();
                     m_global_active_set_manager->post_ccd();
 
-                    m_global_active_set_manager->advance_non_penetrate_positions(alpha);
+                    if(alpha > m_global_active_set_manager->alpha_lower_bound())
+                        m_global_active_set_manager->advance_non_penetrate_positions(alpha);
                 }
 
                 // Update alpha and beta for next iteration
