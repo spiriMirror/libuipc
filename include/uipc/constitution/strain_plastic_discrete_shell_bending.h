@@ -4,12 +4,12 @@
 
 namespace uipc::constitution
 {
-class UIPC_CONSTITUTION_API PlasticDiscreteShellBending : public FiniteElementExtraConstitution
+class UIPC_CONSTITUTION_API StrainPlasticDiscreteShellBending : public FiniteElementExtraConstitution
 {
     using Base = FiniteElementExtraConstitution;
 
   public:
-    PlasticDiscreteShellBending(const Json& json = default_config());
+    StrainPlasticDiscreteShellBending(const Json& json = default_config());
 
     void apply_to(geometry::SimplicialComplex& sc,
                   Float                        bending_stiffness,

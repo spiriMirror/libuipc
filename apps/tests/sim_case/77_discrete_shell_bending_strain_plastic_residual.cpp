@@ -2,7 +2,7 @@
 #include <uipc/uipc.h>
 #include <uipc/constitution/neo_hookean_shell.h>
 #include <uipc/constitution/discrete_shell_bending.h>
-#include <uipc/constitution/plastic_discrete_shell_bending.h>
+#include <uipc/constitution/strain_plastic_discrete_shell_bending.h>
 #include <uipc/constitution/soft_position_constraint.h>
 #include <algorithm>
 #include <cmath>
@@ -89,7 +89,7 @@ uipc::Float residual_hinge_angle(bool use_plastic)
     using namespace uipc::constitution;
 
     auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
-    output_path += use_plastic ? "plastic/" : "elastic/";
+    output_path += use_plastic ? "strain_plastic/" : "elastic/";
 
     Engine engine{"cuda", output_path};
     World  world{engine};
@@ -103,7 +103,7 @@ uipc::Float residual_hinge_angle(bool use_plastic)
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
-    auto  object = scene.objects().create(use_plastic ? "plastic_strip" : "elastic_strip");
+    auto  object = scene.objects().create(use_plastic ? "strain_plastic_strip" : "elastic_strip");
 
     auto patch = load_center_patch();
 
@@ -114,7 +114,7 @@ uipc::Float residual_hinge_angle(bool use_plastic)
 
     if(use_plastic)
     {
-        PlasticDiscreteShellBending pdsb;
+        StrainPlasticDiscreteShellBending pdsb;
         pdsb.apply_to(patch.mesh, 20.0_kPa, 0.03, 0.0);
     }
     else
@@ -204,7 +204,7 @@ uipc::Float residual_hinge_angle(bool use_plastic)
 }
 }  // namespace
 
-TEST_CASE("77_discrete_shell_bending_plastic_residual", "[fem][plastic_dsb]")
+TEST_CASE("77_discrete_shell_bending_strain_plastic_residual", "[fem][strain_plastic_dsb]")
 {
     const auto elastic_angle = residual_hinge_angle(false);
     const auto plastic_angle = residual_hinge_angle(true);

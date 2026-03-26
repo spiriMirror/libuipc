@@ -1,7 +1,7 @@
 #include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/neo_hookean_shell.h>
-#include <uipc/constitution/plastic_discrete_shell_bending.h>
+#include <uipc/constitution/strain_plastic_discrete_shell_bending.h>
 #include <uipc/constitution/soft_position_constraint.h>
 #include <algorithm>
 #include <cmath>
@@ -81,7 +81,7 @@ ClothPatch load_center_patch()
 }
 }  // namespace
 
-TEST_CASE("76_discrete_shell_bending_plastic_open_strip", "[fem][plastic_dsb]")
+TEST_CASE("76_discrete_shell_bending_strain_plastic_open_strip", "[fem][strain_plastic_dsb]")
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -106,7 +106,7 @@ TEST_CASE("76_discrete_shell_bending_plastic_open_strip", "[fem][plastic_dsb]")
     auto object = scene.objects().create("strip");
 
     NeoHookeanShell            nhs;
-    PlasticDiscreteShellBending pdsb;
+    StrainPlasticDiscreteShellBending pdsb;
     SoftPositionConstraint     spc;
 
     auto patch = load_center_patch();

@@ -1,8 +1,8 @@
 """
-ABD cube -> shell plastic crease demo.
+ABD cube -> shell strain-plastic crease demo.
 
 The demo builds:
-- a thin shell sheet with `NeoHookeanShell + PlasticDiscreteShellBending`
+- a thin shell sheet with `NeoHookeanShell + StrainPlasticDiscreteShellBending`
 - animated diagonal corner constraints on the sheet
 - a driven ABD cube with `SoftTransformConstraint`
 - a ground plane below the sheet
@@ -13,7 +13,7 @@ The sequence is:
 3. lift the cube away and inspect the remaining crease.
 
 Run:
-    python python/examples/abd_cube_shell_plastic_crease_demo.py
+    python python/examples/abd_cube_shell_strain_plastic_crease_demo.py
 
 Controls:
     - `run / pause`: toggle playback
@@ -50,7 +50,7 @@ try:
         SoftTransformConstraint,
         SoftPositionConstraint,
         NeoHookeanShell,
-        PlasticDiscreteShellBending,
+        StrainPlasticDiscreteShellBending,
         ElasticModuli2D,
     )
 except ImportError as exc:
@@ -204,7 +204,7 @@ def build_demo():
     cube_object = scene.objects().create("press_cube")
 
     shell = NeoHookeanShell()
-    plastic_bending = PlasticDiscreteShellBending()
+    plastic_bending = StrainPlasticDiscreteShellBending()
     abd = AffineBodyConstitution()
     stc = SoftTransformConstraint()
     spc = SoftPositionConstraint()
@@ -221,7 +221,7 @@ def build_demo():
     except TypeError as exc:
         raise SystemExit(
             "Your installed pyuipc bindings are older than this branch. "
-            "Rebuild/reinstall the Python bindings so PlasticDiscreteShellBending "
+            "Rebuild/reinstall the Python bindings so StrainPlasticDiscreteShellBending "
             "is available and accepts (sc, bending_stiffness, yield_threshold, hardening_modulus)."
         ) from exc
     spc.apply_to(sheet, 150.0)

@@ -1,14 +1,14 @@
 #include <app/app.h>
-#include <finite_element/constitutions/plastic_discrete_shell_bending_function.h>
+#include <finite_element/constitutions/strain_plastic_discrete_shell_bending_function.h>
 #include <cmath>
 #include <limits>
 
 using namespace uipc;
 using namespace uipc::backend::cuda;
 
-namespace PDSB = sym::plastic_discrete_shell_bending;
+namespace PDSB = sym::strain_plastic_discrete_shell_bending;
 
-TEST_CASE("plastic_discrete_shell_bending_helpers", "[cuda][plastic_dsb]")
+TEST_CASE("strain_plastic_discrete_shell_bending_helpers", "[cuda][strain_plastic_dsb]")
 {
     SECTION("wrap_angle")
     {
