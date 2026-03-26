@@ -3,6 +3,7 @@
 **StressPlasticDiscreteShellBending** is a constitutive model for simulating the elastoplastic bending behavior of thin shell structures with residual creases. To ensure stable implicit time integration and physically accurate spring-back effects, this model adopts the **Energy-based Consistent Integration (ECI)** framework. It defines the yield condition on the generalized bending stress (bending moment) rather than the bending strain, variationally limiting the stress to the yield surface via an augmented energy density.
 
 Reference:
+
 - [Discrete Shell](https://www.cs.columbia.edu/cg/pdfs/10_ds.pdf)
 - [Energy-based Consistent Integration for Elastoplasticity](https://dl.acm.org/doi/epdf/10.1145/3528223.3530072) (Section 4.1)
 
