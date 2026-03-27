@@ -17,28 +17,28 @@ Constrains only the translational degrees of freedom (anchor points coincide),
 while allowing free relative rotation.
 The anchor is specified as a position in body1 (right body)'s local frame.)");
 
-    class_AffineBodySphericalJoint.def(
-        py::init<const Json&>(),
-        py::arg("config") = AffineBodySphericalJoint::default_config(),
-        R"(Create an AffineBodySphericalJoint.
+    class_AffineBodySphericalJoint.def(py::init<const Json&>(),
+                                       py::arg("config") =
+                                           AffineBodySphericalJoint::default_config(),
+                                       R"(Create an AffineBodySphericalJoint.
 Args:
     config: Configuration dictionary (optional, uses default if not provided).)");
 
-    class_AffineBodySphericalJoint.def_static(
-        "default_config",
-        &AffineBodySphericalJoint::default_config,
-        R"(Get the default AffineBodySphericalJoint configuration.
+    class_AffineBodySphericalJoint.def_static("default_config",
+                                              &AffineBodySphericalJoint::default_config,
+                                              R"(Get the default AffineBodySphericalJoint configuration.
 Returns:
     dict: Default configuration dictionary.)");
 
-    // Simplified API: anchor at body1's origin
+    // Simplified API: per-joint anchors + uniform strength
     class_AffineBodySphericalJoint.def(
         "apply_to",
-        [](AffineBodySphericalJoint&     self,
-           geometry::SimplicialComplex&  sc,
-           py::list                      l_geo_slots,
-           py::list                      r_geo_slots,
-           Float                         strength_ratio)
+        [](AffineBodySphericalJoint&    self,
+           geometry::SimplicialComplex& sc,
+           py::list                     l_geo_slots,
+           py::list                     r_geo_slots,
+           py::array_t<Float>           r_local_pos,
+           Float                        strength_ratio)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;
@@ -54,30 +54,35 @@ Returns:
                 r_slots.push_back(py::cast<S<geometry::SimplicialComplexSlot>>(item));
             }
 
-            self.apply_to(sc, span{l_slots}, span{r_slots}, strength_ratio);
+            self.apply_to(sc,
+                          span{l_slots},
+                          span{r_slots},
+                          as_span_of<Vector3>(r_local_pos),
+                          strength_ratio);
         },
         py::arg("sc"),
         py::arg("l_geo_slots"),
         py::arg("r_geo_slots"),
+        py::arg("r_local_pos"),
         py::arg("strength_ratio") = Float{100.0},
         py::doc(R"(Create a spherical joint between two affine bodies (single-instance mode).
-Anchor is placed at body1 (right body)'s origin.
 sc: An empty SimplicialComplex; vertices and edges are built internally.
 l_geo_slots: List of left geometry slots for each joint.
 r_geo_slots: List of right geometry slots for each joint.
+r_local_pos: Array of [x, y, z] anchor positions in body1 (right body)'s local frame (one per joint).
 strength_ratio: Stiffness = strength_ratio * (BodyMassA + BodyMassB) for all joints.)"));
 
     // Full API: explicit local anchor position on body1
     class_AffineBodySphericalJoint.def(
         "apply_to",
-        [](AffineBodySphericalJoint&     self,
-           geometry::SimplicialComplex&  sc,
-           py::list                      l_geo_slots,
-           py::array_t<IndexT>           l_instance_id,
-           py::list                      r_geo_slots,
-           py::array_t<IndexT>           r_instance_id,
-           py::array_t<Float>            r_local_pos,
-           py::array_t<Float>            strength_ratio)
+        [](AffineBodySphericalJoint&    self,
+           geometry::SimplicialComplex& sc,
+           py::list                     l_geo_slots,
+           py::array_t<IndexT>          l_instance_id,
+           py::list                     r_geo_slots,
+           py::array_t<IndexT>          r_instance_id,
+           py::array_t<Float>           r_local_pos,
+           py::array_t<Float>           strength_ratio)
         {
             vector<S<geometry::SimplicialComplexSlot>> l_slots;
             vector<S<geometry::SimplicialComplexSlot>> r_slots;

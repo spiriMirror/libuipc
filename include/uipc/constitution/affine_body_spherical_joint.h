@@ -17,6 +17,7 @@ class UIPC_CONSTITUTION_API AffineBodySphericalJoint final : public InterAffineB
     void apply_to(geometry::SimplicialComplex&             sc,
                   span<S<geometry::SimplicialComplexSlot>> l_geo_slots,
                   span<S<geometry::SimplicialComplexSlot>> r_geo_slots,
+                  span<Vector3>                            r_local_pos,
                   Float strength_ratio = Float{100});
 
     // Full API: anchor specified as r_local_pos in body1's (right body's) local frame

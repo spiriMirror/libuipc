@@ -34,7 +34,8 @@ AffineBodySphericalJoint::~AffineBodySphericalJoint() = default;
 void AffineBodySphericalJoint::apply_to(geometry::SimplicialComplex& sc,
                                         span<S<geometry::SimplicialComplexSlot>> l_geo_slots,
                                         span<S<geometry::SimplicialComplexSlot>> r_geo_slots,
-                                        Float strength_ratio)
+                                        span<Vector3> r_local_pos,
+                                        Float         strength_ratio)
 {
     auto size = l_geo_slots.size();
     UIPC_ASSERT(size == r_geo_slots.size(),
@@ -42,23 +43,22 @@ void AffineBodySphericalJoint::apply_to(geometry::SimplicialComplex& sc,
                 l_geo_slots.size(),
                 r_geo_slots.size());
 
-    vector<IndexT>  l_instance_id(size, 0);
-    vector<IndexT>  r_instance_id(size, 0);
-    vector<Vector3> r_local_pos(size, Vector3::Zero());
-    vector<Float>   strength_ratios(size, strength_ratio);
+    vector<IndexT> l_instance_ids(size, 0);
+    vector<IndexT> r_instance_ids(size, 0);
+    vector<Float>  strength_ratios(size, strength_ratio);
 
     apply_to(sc,
              span{l_geo_slots},
-             span{l_instance_id},
+             span{l_instance_ids},
              span{r_geo_slots},
-             span{r_instance_id},
+             span{r_instance_ids},
              span{r_local_pos},
              span{strength_ratios});
 }
 
 void AffineBodySphericalJoint::apply_to(geometry::SimplicialComplex& sc,
                                         span<S<geometry::SimplicialComplexSlot>> l_geo_slots,
-                                        span<IndexT>  l_instance_id,
+                                        span<IndexT> l_instance_id,
                                         span<S<geometry::SimplicialComplexSlot>> r_geo_slots,
                                         span<IndexT>  r_instance_id,
                                         span<Vector3> r_local_pos,
@@ -94,7 +94,7 @@ void AffineBodySphericalJoint::apply_to(geometry::SimplicialComplex& sc,
 
     // Build edges: 1 per joint
     sc.edges().resize(size);
-    auto topo      = sc.edges().create<Vector2i>(builtin::topo, Vector2i::Zero(), false);
+    auto topo = sc.edges().create<Vector2i>(builtin::topo, Vector2i::Zero(), false);
     auto topo_view = view(*topo);
 
     for(SizeT i = 0; i < size; ++i)

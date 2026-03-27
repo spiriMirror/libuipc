@@ -73,13 +73,9 @@ TEST_CASE("80_abd_spherical_joint", "[abd][joint]")
     vector<IndexT>                   r_instance_ids = {0};
     vector<Vector3> r_local_pos     = {Vector3{-0.15, 0.15, -0.15}};
     vector<Float>   strength_ratios = {100.0};
-    spherical_joint.apply_to(joint_mesh,
-                             span{l_geo_slots},
-                             span{l_instance_ids},
-                             span{r_geo_slots},
-                             span{r_instance_ids},
-                             span{r_local_pos},
-                             span{strength_ratios});
+    spherical_joint.apply_to(
+        joint_mesh, span{l_geo_slots}, span{r_geo_slots}, span{r_local_pos}, 100);
+
 
     auto joint_object = scene.objects().create("spherical_joint");
     joint_object->geometries().create(joint_mesh);
