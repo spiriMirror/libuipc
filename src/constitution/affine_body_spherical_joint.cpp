@@ -58,33 +58,33 @@ void AffineBodySphericalJoint::apply_to(geometry::SimplicialComplex& sc,
 
 void AffineBodySphericalJoint::apply_to(geometry::SimplicialComplex& sc,
                                         span<S<geometry::SimplicialComplexSlot>> l_geo_slots,
-                                        span<IndexT> l_instance_id,
+                                        span<IndexT> l_instance_ids,
                                         span<S<geometry::SimplicialComplexSlot>> r_geo_slots,
-                                        span<IndexT>  r_instance_id,
+                                        span<IndexT>  r_instance_ids,
                                         span<Vector3> r_local_pos,
-                                        span<Float>   strength_ratio)
+                                        span<Float>   strength_ratios)
 {
     auto size = l_geo_slots.size();
     UIPC_ASSERT(size == r_geo_slots.size(),
                 "Size mismatch: l_geo_slots ({}) vs r_geo_slots ({})",
                 size,
                 r_geo_slots.size());
-    UIPC_ASSERT(size == l_instance_id.size(),
-                "Size mismatch: l_geo_slots ({}) vs l_instance_id ({})",
+    UIPC_ASSERT(size == l_instance_ids.size(),
+                "Size mismatch: l_geo_slots ({}) vs l_instance_ids ({})",
                 size,
-                l_instance_id.size());
-    UIPC_ASSERT(size == r_instance_id.size(),
-                "Size mismatch: l_geo_slots ({}) vs r_instance_id ({})",
+                l_instance_ids.size());
+    UIPC_ASSERT(size == r_instance_ids.size(),
+                "Size mismatch: l_geo_slots ({}) vs r_instance_ids ({})",
                 size,
-                r_instance_id.size());
+                r_instance_ids.size());
     UIPC_ASSERT(size == r_local_pos.size(),
                 "Size mismatch: l_geo_slots ({}) vs r_local_pos ({})",
                 size,
                 r_local_pos.size());
-    UIPC_ASSERT(size == strength_ratio.size(),
-                "Size mismatch: l_geo_slots ({}) vs strength_ratio ({})",
+    UIPC_ASSERT(size == strength_ratios.size(),
+                "Size mismatch: l_geo_slots ({}) vs strength_ratios ({})",
                 size,
-                strength_ratio.size());
+                strength_ratios.size());
 
     // Build vertices: 2 per joint
     //   vertex 0: body0's world-space center (for edge visualization)
@@ -102,8 +102,8 @@ void AffineBodySphericalJoint::apply_to(geometry::SimplicialComplex& sc,
         auto l_sc = l_geo_slots[i]->geometry().as<geometry::SimplicialComplex>();
         auto r_sc = r_geo_slots[i]->geometry().as<geometry::SimplicialComplex>();
 
-        Transform LT{l_sc->transforms().view()[l_instance_id[i]]};
-        Transform RT{r_sc->transforms().view()[r_instance_id[i]]};
+        Transform LT{l_sc->transforms().view()[l_instance_ids[i]]};
+        Transform RT{r_sc->transforms().view()[r_instance_ids[i]]};
 
         // vertex 0: body0's center (visualization only)
         pos_view[2 * i + 0] = LT.translation();
@@ -139,13 +139,13 @@ void AffineBodySphericalJoint::apply_to(geometry::SimplicialComplex& sc,
         strength_ratio_attr = sc.edges().create<Float>("strength_ratio", 0.0);
     }
     auto strength_ratio_view = view(*strength_ratio_attr);
-    std::ranges::copy(strength_ratio, strength_ratio_view.begin());
+    std::ranges::copy(strength_ratios, strength_ratio_view.begin());
 
     for(auto&& [i, l_slot] : enumerate(l_geo_slots))
     {
         auto r_slot = r_geo_slots[i];
-        auto l_inst = l_instance_id[i];
-        auto r_inst = r_instance_id[i];
+        auto l_inst = l_instance_ids[i];
+        auto r_inst = r_instance_ids[i];
 
         UIPC_ASSERT(l_inst >= 0
                         && l_inst < static_cast<IndexT>(

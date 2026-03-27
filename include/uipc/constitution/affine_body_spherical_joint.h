@@ -23,11 +23,11 @@ class UIPC_CONSTITUTION_API AffineBodySphericalJoint final : public InterAffineB
     // Full API: anchor specified as r_local_pos in body1's (right body's) local frame
     void apply_to(geometry::SimplicialComplex&             sc,
                   span<S<geometry::SimplicialComplexSlot>> l_geo_slots,
-                  span<IndexT>                             l_instance_id,
+                  span<IndexT>                             l_instance_ids,
                   span<S<geometry::SimplicialComplexSlot>> r_geo_slots,
-                  span<IndexT>                             r_instance_id,
+                  span<IndexT>                             r_instance_ids,
                   span<Vector3>                            r_local_pos,
-                  span<Float>                              strength_ratio);
+                  span<Float>                              strength_ratios);
 
   private:
     virtual U64 get_uid() const noexcept override;
