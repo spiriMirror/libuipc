@@ -101,6 +101,11 @@ void AffineBodyPrismaticJointLimit::apply_to(geometry::SimplicialComplex& sc,
     if(!strength_attr)
         strength_attr = sc.edges().create<Float>(LimitStrengthName, 1.0f);
 
+    auto init_dist_attr = sc.edges().find<Float>("init_distance");
+    if(!init_dist_attr)
+        init_dist_attr = sc.edges().create<Float>("init_distance", 0.0f);
+
+
     auto lower_view    = view(*lower_attr);
     auto upper_view    = view(*upper_attr);
     auto strength_view = view(*strength_attr);
