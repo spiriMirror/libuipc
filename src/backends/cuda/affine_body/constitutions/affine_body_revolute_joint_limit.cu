@@ -128,6 +128,10 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                             "AffineBodyRevoluteJointLimit requires `limit/strength` attribute on edges");
                 auto strength_view = strength_attr->view();
 
+                auto init_angle_attr = sc->edges().find<Float>("init_angle");
+                UIPC_ASSERT(init_angle_attr, "AffineBodyRevoluteJointLimit requires `init_angle` attribute on edges");
+                auto init_angle_view = init_angle_attr->view();
+
                 auto edges = sc->edges().topo().view();
                 for(auto&& [i, e] : enumerate(edges))
                 {
@@ -166,13 +170,17 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                     h_l_basis.push_back(lb);
                     h_r_basis.push_back(rb);
                     h_ref_qs.push_back(ref);
-                    UIPC_ASSERT(lower_view[i] <= upper_view[i],
-                                "AffineBodyRevoluteJointLimit: requires `limit/lower <= limit/upper` on edge {}, but got lower={} upper={}",
+                    Float init_angle = init_angle_view[i];
+                    Float actual_lower = lower_view[i] + init_angle;
+                    Float actual_upper = upper_view[i] + init_angle;
+                    UIPC_ASSERT(actual_lower <= actual_upper,
+                                "AffineBodyRevoluteJointLimit: requires `limit/lower + init_angle <= limit/upper + init_angle` on edge {}, but got lower={} upper={} init_angle={}",
                                 i,
                                 lower_view[i],
-                                upper_view[i]);
-                    h_lowers.push_back(lower_view[i]);
-                    h_uppers.push_back(upper_view[i]);
+                                upper_view[i],
+                                init_angle);
+                    h_lowers.push_back(actual_lower);
+                    h_uppers.push_back(actual_upper);
                     h_strengths.push_back(strength_view[i]);
                 }
             });

@@ -6,7 +6,13 @@
 
 ## Energy
 
-The limit adds an energy $E(x)$ where $x$ is the scalar joint coordinate (its exact meaning is given in [Meaning of $x$](#meaning-of-x)). Let $l,u$ be lower/upper limits and $s$ be `limit/strength`.
+The limit adds an energy $E(x)$ where $x$ is the scalar joint coordinate (its exact meaning is given in [Meaning of $x$](#meaning-of-x)). The effective bounds are computed from the user-specified limits and the initial distance:
+
+$$
+l = l_{\text{user}} + d_0, \quad u = u_{\text{user}} + d_0,
+$$
+
+where $l_{\text{user}},u_{\text{user}}$ are `limit/lower`, `limit/upper` and $d_0$ is `init_distance`. Let $s$ be `limit/strength`.
 
 For normal range width ($u>l$):
 
@@ -93,6 +99,7 @@ This limit term is meaningful only on a geometry that already represents a
 
 On `edges`:
 
-- `limit/lower`: $l$ in the energy above
-- `limit/upper`: $u$ in the energy above
-- `limit/strength`: $s$ in the energy above
+- `limit/lower`: $l_{\text{user}}$ — relative lower bound (default `0.0`)
+- `limit/upper`: $u_{\text{user}}$ — relative upper bound (default `0.0`)
+- `limit/strength`: $s$ — penalty strength (default `1.0`)
+- `init_distance`: $d_0$ — initial prismatic distance offset (default `0.0`). Added to `limit/lower` and `limit/upper` to obtain the effective bounds $l$ and $u$ used in the energy

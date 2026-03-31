@@ -101,6 +101,10 @@ void AffineBodyRevoluteJointLimit::apply_to(geometry::SimplicialComplex& sc,
     if(!strength_attr)
         strength_attr = sc.edges().create<Float>(LimitStrengthName, 1.0f);
 
+    auto init_angle_attr = sc.edges().find<Float>("init_angle");
+    if(!init_angle_attr)
+        init_angle_attr = sc.edges().create<Float>("init_angle", 0.0f);
+
     auto lower_view    = view(*lower_attr);
     auto upper_view    = view(*upper_attr);
     auto strength_view = view(*strength_attr);
