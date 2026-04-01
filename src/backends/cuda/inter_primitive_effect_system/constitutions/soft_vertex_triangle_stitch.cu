@@ -45,7 +45,6 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
         list<Float>     lambda_buffer;
         list<Matrix3x3> Dm_inv_buffer;
         list<Float>     rest_volume_buffer;
-
         auto geo_slots    = world().scene().geometries();
         using ForEachInfo = InterPrimitiveConstitutionManager::ForEachInfo;
         info.for_each(
@@ -107,11 +106,11 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                             r_slot->id());
                 IndexT r_offset_v = r_offset->view()[0];
 
-                auto rest0_pos = l_rest_geo->positions().view();
-                auto rest1_pos = r_rest_geo->positions().view();
+                auto aim0_pos = l_geo->positions().view();
+                auto aim1_pos = r_geo->positions().view();
 
-                Transform l_transform(l_rest_geo->transforms().view()[0]);
-                Transform r_transform(r_rest_geo->transforms().view()[0]);
+                Transform l_transform(l_geo->transforms().view()[0]);
+                Transform r_transform(r_geo->transforms().view()[0]);
 
                 auto min_sep_slot = geo.instances().find<Float>("min_separate_distance");
                 UIPC_ASSERT(min_sep_slot, "SoftVertexTriangleStitch requires per-instance attribute `min_separate_distance`");
@@ -126,10 +125,10 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                 {
                     const Vector4i& t = topo_view[i];
                     IndexT  v_id = t(0), tri0 = t(1), tri1 = t(2), tri2 = t(3);
-                    Vector3 x0 = l_transform * rest0_pos[v_id];
-                    Vector3 x1 = r_transform * rest1_pos[tri0];
-                    Vector3 x2 = r_transform * rest1_pos[tri1];
-                    Vector3 x3 = r_transform * rest1_pos[tri2];
+                    Vector3 x0 = l_transform * aim0_pos[v_id];
+                    Vector3 x1 = r_transform * aim1_pos[tri0];
+                    Vector3 x2 = r_transform * aim1_pos[tri1];
+                    Vector3 x3 = r_transform * aim1_pos[tri2];
 
                     Float   d  = min_sep_view[i];
                     Vector3 e1 = x2 - x1, e2 = x3 - x1;
@@ -145,6 +144,7 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                     normal /= nrm;
 
                     Float signed_dist = normal.dot(x0 - x1);
+
                     if(std::abs(signed_dist) < d)
                     {
                         Float sign = (signed_dist >= 0) ? 1.0 : -1.0;
@@ -155,16 +155,26 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                     Dm.col(0)      = x1 - x0;
                     Dm.col(1)      = x2 - x0;
                     Dm.col(2)      = x3 - x0;
+
+                    if(Dm.determinant() < 0)
+                    {
+                        std::swap(x1, x2);
+                        std::swap(tri0, tri1);
+                        Dm.col(0) = x1 - x0;
+                        Dm.col(1) = x2 - x0;
+                    }
+                    
                     Float rest_vol = (1.0 / 6.0) * std::abs(Dm.determinant());
 
-                    topo_buffer.push_back(Vector4i{t(0) + l_offset_v,
-                                                   t(1) + r_offset_v,
-                                                   t(2) + r_offset_v,
-                                                   t(3) + r_offset_v});
+                    topo_buffer.push_back(Vector4i{v_id + l_offset_v,
+                                                   tri0 + r_offset_v,
+                                                   tri1 + r_offset_v,
+                                                   tri2 + r_offset_v});
                     mu_buffer.push_back(mu_view[i]);
                     lambda_buffer.push_back(lambda_view[i]);
                     Dm_inv_buffer.push_back(Dm.inverse());
                     rest_volume_buffer.push_back(rest_vol);
+
                 }
             });
 
@@ -179,6 +189,7 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
         lambdas.copy_from(h_lambdas);
         Dm_invs.copy_from(h_Dm_invs);
         rest_volumes.copy_from(h_rest_volumes);
+
     }
 
     void do_report_energy_extent(EnergyExtentInfo& info) override
