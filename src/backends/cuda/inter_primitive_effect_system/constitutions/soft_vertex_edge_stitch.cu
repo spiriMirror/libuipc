@@ -76,15 +76,6 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
                 Vector2i ids         = geo_ids->view()[0];
                 auto     l_slot      = info.geo_slot(ids[0]);
                 auto     r_slot      = info.geo_slot(ids[1]);
-                auto     l_rest_slot = info.rest_geo_slot(ids[0]);
-                auto     r_rest_slot = info.rest_geo_slot(ids[1]);
-                UIPC_ASSERT(l_rest_slot,
-                            "SoftVertexEdgeStitch requires rest geometry for slot id {}",
-                            ids[0]);
-                UIPC_ASSERT(r_rest_slot,
-                            "SoftVertexEdgeStitch requires rest geometry for slot id {}",
-                            ids[1]);
-
                 auto l_geo = l_slot->geometry().as<geometry::SimplicialComplex>();
                 UIPC_ASSERT(l_geo,
                             "SoftVertexEdgeStitch requires simplicial complex, but got {} ({})",
@@ -95,17 +86,6 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
                             "SoftVertexEdgeStitch requires simplicial complex, but got {} ({})",
                             r_slot->geometry().type(),
                             r_slot->id());
-                auto l_rest_geo =
-                    l_rest_slot->geometry().as<geometry::SimplicialComplex>();
-                UIPC_ASSERT(l_rest_geo,
-                            "SoftVertexEdgeStitch requires rest simplicial complex for id {}",
-                            ids[0]);
-                auto r_rest_geo =
-                    r_rest_slot->geometry().as<geometry::SimplicialComplex>();
-                UIPC_ASSERT(r_rest_geo,
-                            "SoftVertexEdgeStitch requires rest simplicial complex for id {}",
-                            ids[1]);
-
                 auto l_offset =
                     l_geo->meta().find<IndexT>(builtin::global_vertex_offset);
                 UIPC_ASSERT(l_offset,
@@ -121,11 +101,11 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
                             r_slot->id());
                 IndexT r_offset_v = r_offset->view()[0];
 
-                auto rest0_pos    = l_rest_geo->positions().view();
-                auto rest1_pos    = r_rest_geo->positions().view();
+                auto aim0_pos     = l_geo->positions().view();
+                auto aim1_pos     = r_geo->positions().view();
 
-                Transform l_transform(l_rest_geo->transforms().view()[0]);
-                Transform r_transform(r_rest_geo->transforms().view()[0]);
+                Transform l_transform(l_geo->transforms().view()[0]);
+                Transform r_transform(r_geo->transforms().view()[0]);
 
                 auto topo_view    = topo->view();
                 auto mu_view      = mu_slot->view();
@@ -138,9 +118,9 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
                 {
                     const Vector3i& t = topo_view[i];
                     IndexT  v_id = t(0), e0 = t(1), e1 = t(2);
-                    Vector3 x0 = l_transform * rest0_pos[v_id];
-                    Vector3 x1 = r_transform * rest1_pos[e0];
-                    Vector3 x2 = r_transform * rest1_pos[e1];
+                    Vector3 x0 = l_transform * aim0_pos[v_id];
+                    Vector3 x1 = r_transform * aim1_pos[e0];
+                    Vector3 x2 = r_transform * aim1_pos[e1];
 
                     constexpr Float geo_degeneracy_tol = 1e-12;
 
