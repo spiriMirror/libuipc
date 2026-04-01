@@ -269,6 +269,7 @@ Edge             = ({}, {}))",
                     // Fill Body Hessian
                     Matrix6x6 ddEddF;
                     RJ::ddEaxisddFaxis<Float>(ddEddF, K, F);
+                    make_spd(ddEddF);
 
                     // Map Hessian back to ABD space: H24 = J^T * ddEddF * J
                     Matrix24x24 H24;
@@ -703,11 +704,11 @@ Edge             = ({}, {}))",
                            return;
                        }
 
-                       auto  passive = is_passive(I);
-                       Float kappa   = strength_ratios(I)
-                                     * (body_masses(bids(0)).mass()
-                                        + body_masses(bids(1)).mass());
-                       auto aim_angle = aim_angles(I);
+                       auto  passive   = is_passive(I);
+                       Float kappa     = strength_ratios(I)
+                                         * (body_masses(bids(0)).mass()
+                                            + body_masses(bids(1)).mass());
+                       auto  aim_angle = aim_angles(I);
                        if(passive == 1)
                        {
                            // resist external forces passively

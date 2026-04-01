@@ -5,7 +5,7 @@
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/common/enumerate.h>
 #include <utils/matrix_assembler.h>
-
+#include <utils/make_spd.h>
 namespace uipc::backend::cuda
 {
 class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
@@ -322,6 +322,7 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                            EPJ::ddDeltaTheta_ddF(ddx_ddF, F, F_prev);
 
                            Matrix12x12 H_F = dE_dx * ddx_ddF;
+                           make_spd(H_F);
 
                            Matrix24x24 JT_H_J;
                            EPJ::JT_H_J<Float>(JT_H_J, H_F, lb, rb, lb, rb);
