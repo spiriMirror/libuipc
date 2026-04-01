@@ -320,9 +320,9 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
 
                            Matrix12x12 ddx_ddF;
                            EPJ::ddDeltaTheta_ddF(ddx_ddF, F, F_prev);
-                           make_spd(ddx_ddF);
 
                            Matrix12x12 H_F = dE_dx * ddx_ddF;
+                           make_spd(H_F);
 
                            Matrix24x24 JT_H_J;
                            EPJ::JT_H_J<Float>(JT_H_J, H_F, lb, rb, lb, rb);
