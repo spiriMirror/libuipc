@@ -244,15 +244,4 @@ UIPC_BUILTIN_ATTRIBUTE(abd_mass_x_bar);
  */
 UIPC_BUILTIN_ATTRIBUTE(abd_mass_x_bar_x_bar);
 
-/**
- * @brief `total_mass` <Float> attribute on **instances**.
- * Total mass of the affine body (per body). Filled by state accessor copy_to when present.
- */
-UIPC_BUILTIN_ATTRIBUTE(total_mass);
-
-/**
- * @brief `inertia_tensor` <Matrix3x3> attribute on **instances**.
- * 3x3 inertia tensor about center of mass (per body). Filled by state accessor copy_to when present.
- */
-UIPC_BUILTIN_ATTRIBUTE(inertia_tensor);
 #endif

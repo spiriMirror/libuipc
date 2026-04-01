@@ -17,8 +17,7 @@ TEST_CASE("abd", "[constitution]")
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
     mesh0.instances().resize(5);
 
-    auto wood_abd = abd.create_material(1e8);
-    wood_abd.apply_to(mesh0);
+    abd.apply_to(mesh0, 1e8);
 
     auto kappa = mesh0.instances().find<Float>("kappa");
 

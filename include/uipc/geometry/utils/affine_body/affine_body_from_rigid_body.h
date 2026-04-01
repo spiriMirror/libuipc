@@ -42,4 +42,41 @@ UIPC_GEOMETRY_API Matrix12x12 build_abd_mass_matrix(
     Float             m,
     const Vector3&    m_x_bar,
     const Matrix3x3&  m_x_bar_x_bar);
+
+/**
+ * @brief Extract rigid body properties from dyadic mass components.
+ *
+ * Inverse of `from_rigid_body`: given the ABD dyadic mass quantities,
+ * recovers the total mass, center of mass, and inertia tensor about
+ * the center of mass.
+ *
+ * @param m               Total mass (= sum of element masses).
+ * @param m_x_bar         First moment of mass (m * center_of_mass).
+ * @param m_x_bar_x_bar   Second moment of mass tensor S.
+ * @param[out] total_mass      Total mass (same as m).
+ * @param[out] center_of_mass  Center of mass in the reference frame.
+ * @param[out] inertia_cm      3x3 inertia tensor about the center of mass.
+ */
+UIPC_GEOMETRY_API void to_rigid_body(Float             m,
+                                     const Vector3&    m_x_bar,
+                                     const Matrix3x3&  m_x_bar_x_bar,
+                                     Float&            total_mass,
+                                     Vector3&          center_of_mass,
+                                     Matrix3x3&        inertia_cm);
+
+/**
+ * @brief Extract rigid body properties from a 12x12 ABD mass matrix.
+ *
+ * Convenience overload that decomposes the mass matrix into (m, m_x_bar,
+ * m_x_bar_x_bar) and then calls the dyadic-mass version of `to_rigid_body`.
+ *
+ * @param mass_matrix     The 12x12 ABD mass matrix.
+ * @param[out] total_mass      Total mass.
+ * @param[out] center_of_mass  Center of mass in the reference frame.
+ * @param[out] inertia_cm      3x3 inertia tensor about the center of mass.
+ */
+UIPC_GEOMETRY_API void to_rigid_body(const Matrix12x12& mass_matrix,
+                                     Float&             total_mass,
+                                     Vector3&           center_of_mass,
+                                     Matrix3x3&         inertia_cm);
 }  // namespace uipc::geometry::affine_body

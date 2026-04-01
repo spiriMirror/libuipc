@@ -74,8 +74,8 @@ We need to create a constitution for the object. Here we use the `AffineBodyCons
     constitution::AffineBodyConstitution abd;
     // optional, libuipc will do this automatically under default configuration
     constitution_tabular.insert(abd); 
-    // create a material with affine body stiffness 100 MPa
-    auto abd_material = abd.create_material(100.0_MPa);
+    // apply the constitution to a mesh with affine body stiffness 100 MPa
+    abd.apply_to(mesh, 100.0_MPa);
     ```
 
 === "Python"
@@ -86,8 +86,8 @@ We need to create a constitution for the object. Here we use the `AffineBodyCons
     abd = constitution.AffineBodyConstitution()
     # optional, libuipc will do this automatically under default configuration
     constitution_tabular.insert(abd)
-    # create a material with affine body stiffness 100 MPa
-    abd_material = abd.create_material(100 * MPa)
+    # apply the constitution to a mesh with affine body stiffness 100 MPa
+    abd.apply_to(mesh, 100 * MPa)
     ```
 
 To simulate the contact behavior of the object, we need to create a contact model. Note that the contact model has a pairwised relationship. For example, a contact tabular among wood, steel, and rubber can be defined as follows (imaginary values, just for demonstration):
@@ -129,8 +129,8 @@ Now we can create a wooden cube object in the scene.
     geometry::SimplicialComplexIO io;
     auto cube = io.read("cube.msh");
 
-    // apply the material and the contact model to the cube
-    abd_material.apply_to(cube);
+    // apply the constitution and the contact model to the cube
+    abd.apply_to(cube, 100.0_MPa);
     wood_contact.apply_to(cube);
 
     // create an object
@@ -147,8 +147,8 @@ Now we can create a wooden cube object in the scene.
     io = geometry.SimplicialComplexIO()
     cube = io.read("cube.msh")
 
-    # apply the material and the contact model to the cube
-    abd_material.apply_to(cube)
+    # apply the constitution and the contact model to the cube
+    abd.apply_to(cube, 100 * MPa)
     wood_contact.apply_to(cube)
 
     # create an object
@@ -183,10 +183,6 @@ For coding convenience, we provide some class like `AffineBodyConstitution` to h
 ### Constraint
 
 A constraint is a set of coefficients and models that define the constrained behavior of the object. For example, a transform constraint on affine body can force the affine body to move along certain trajectory specified by users. Constraint is always coupling with the animation (see [Animator](#animator)) to control the movement of the object.
-
-### Material
-
-Material is an instance of a constitution. A material has a concrete set of coefficients that define the physics behavior of the object. And it may be a short cut to apply the coefficients to the geometry.
 
 ## Contact Model
 

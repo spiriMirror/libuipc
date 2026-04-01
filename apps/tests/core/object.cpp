@@ -16,7 +16,7 @@ TEST_CASE("object", "[object]")
 
     geometry::SimplicialComplexIO io;
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
-    auto wood_abd = abd.create_material(1e8);
+    abd.apply_to(mesh0, 1e8);
 
     auto obj             = scene.objects().create("cube");
     auto [geo, rest_geo] = obj->geometries().create(mesh0);
@@ -40,7 +40,7 @@ TEST_CASE("const_object", "[object]")
 
     geometry::SimplicialComplexIO io;
     auto mesh0 = io.read_msh(fmt::format("{}cube.msh", AssetDir::tetmesh_path()));
-    auto wood_abd = abd.create_material(1e8);
+    abd.apply_to(mesh0, 1e8);
 
     auto obj = scene.objects().create("cube");
 

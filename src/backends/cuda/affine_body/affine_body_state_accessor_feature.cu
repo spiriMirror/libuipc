@@ -77,28 +77,5 @@ void AffineBodyStateAccessorFeatureOverrider::do_copy_to(geometry::SimplicialCom
         q_v_subview.copy_to(m_buffer.data());
         std::ranges::transform(m_buffer, vel_view.begin(), q_v_to_transform_v);
     }
-
-    // 3. Total mass
-    auto total_mass_attr = state_geo.instances().find<Float>(builtin::total_mass);
-    if(total_mass_attr)
-    {
-        vector<Float> tmp(q_count);
-        auto src = m_abd.m_impl.body_id_to_total_mass.view(q_offset, q_count);
-        src.copy_to(tmp.data());
-        auto dst = view(*total_mass_attr);
-        std::ranges::copy(tmp, dst.begin());
-    }
-
-    // 4. Inertia tensor
-    auto inertia_tensor_attr =
-        state_geo.instances().find<Matrix3x3>(builtin::inertia_tensor);
-    if(inertia_tensor_attr)
-    {
-        vector<Matrix3x3> tmp(q_count);
-        auto src = m_abd.m_impl.body_id_to_inertia_tensor.view(q_offset, q_count);
-        src.copy_to(tmp.data());
-        auto dst = view(*inertia_tensor_attr);
-        std::ranges::copy(tmp, dst.begin());
-    }
 }
 }  // namespace uipc::backend::cuda
