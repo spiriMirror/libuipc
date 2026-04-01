@@ -76,15 +76,6 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
                 Vector2i ids         = geo_ids->view()[0];
                 auto     l_slot      = info.geo_slot(ids[0]);
                 auto     r_slot      = info.geo_slot(ids[1]);
-                auto     l_rest_slot = info.rest_geo_slot(ids[0]);
-                auto     r_rest_slot = info.rest_geo_slot(ids[1]);
-                UIPC_ASSERT(l_rest_slot,
-                            "SoftVertexEdgeStitch requires rest geometry for slot id {}",
-                            ids[0]);
-                UIPC_ASSERT(r_rest_slot,
-                            "SoftVertexEdgeStitch requires rest geometry for slot id {}",
-                            ids[1]);
-
                 auto l_geo = l_slot->geometry().as<geometry::SimplicialComplex>();
                 UIPC_ASSERT(l_geo,
                             "SoftVertexEdgeStitch requires simplicial complex, but got {} ({})",
@@ -95,17 +86,6 @@ class SoftVertexEdgeStitch : public InterPrimitiveConstitution
                             "SoftVertexEdgeStitch requires simplicial complex, but got {} ({})",
                             r_slot->geometry().type(),
                             r_slot->id());
-                auto l_rest_geo =
-                    l_rest_slot->geometry().as<geometry::SimplicialComplex>();
-                UIPC_ASSERT(l_rest_geo,
-                            "SoftVertexEdgeStitch requires rest simplicial complex for id {}",
-                            ids[0]);
-                auto r_rest_geo =
-                    r_rest_slot->geometry().as<geometry::SimplicialComplex>();
-                UIPC_ASSERT(r_rest_geo,
-                            "SoftVertexEdgeStitch requires rest simplicial complex for id {}",
-                            ids[1]);
-
                 auto l_offset =
                     l_geo->meta().find<IndexT>(builtin::global_vertex_offset);
                 UIPC_ASSERT(l_offset,

@@ -63,15 +63,6 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                 Vector2i ids         = geo_ids->view()[0];
                 auto     l_slot      = info.geo_slot(ids[0]);
                 auto     r_slot      = info.geo_slot(ids[1]);
-                auto     l_rest_slot = info.rest_geo_slot(ids[0]);
-                auto     r_rest_slot = info.rest_geo_slot(ids[1]);
-                UIPC_ASSERT(l_rest_slot,
-                            "SoftVertexTriangleStitch requires rest geometry for slot id {}",
-                            ids[0]);
-                UIPC_ASSERT(r_rest_slot,
-                            "SoftVertexTriangleStitch requires rest geometry for slot id {}",
-                            ids[1]);
-
                 auto l_geo = l_slot->geometry().as<geometry::SimplicialComplex>();
                 UIPC_ASSERT(l_geo,
                             "SoftVertexTriangleStitch requires simplicial complex geometry, but got {} ({})",
@@ -82,17 +73,6 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                             "SoftVertexTriangleStitch requires simplicial complex geometry, but got {} ({})",
                             r_slot->geometry().type(),
                             r_slot->id());
-                auto l_rest_geo =
-                    l_rest_slot->geometry().as<geometry::SimplicialComplex>();
-                UIPC_ASSERT(l_rest_geo,
-                            "SoftVertexTriangleStitch requires rest simplicial complex for id {}",
-                            ids[0]);
-                auto r_rest_geo =
-                    r_rest_slot->geometry().as<geometry::SimplicialComplex>();
-                UIPC_ASSERT(r_rest_geo,
-                            "SoftVertexTriangleStitch requires rest simplicial complex for id {}",
-                            ids[1]);
-
                 auto l_offset = l_geo->meta().find<IndexT>(builtin::global_vertex_offset);
                 UIPC_ASSERT(l_offset,
                             "SoftVertexTriangleStitch requires attribute `global_vertex_offset` on meta() of geometry {} ({})",
@@ -156,15 +136,17 @@ class SoftVertexTriangleStitch : public InterPrimitiveConstitution
                     Dm.col(1)      = x2 - x0;
                     Dm.col(2)      = x3 - x0;
 
-                    if(Dm.determinant() < 0)
+                    Float det = Dm.determinant();
+                    if(det < 0)
                     {
                         std::swap(x1, x2);
                         std::swap(tri0, tri1);
                         Dm.col(0) = x1 - x0;
                         Dm.col(1) = x2 - x0;
+                        det = -det;
                     }
                     
-                    Float rest_vol = (1.0 / 6.0) * std::abs(Dm.determinant());
+                    Float rest_vol = (1.0 / 6.0) * det;
 
                     topo_buffer.push_back(Vector4i{v_id + l_offset_v,
                                                    tri0 + r_offset_v,
