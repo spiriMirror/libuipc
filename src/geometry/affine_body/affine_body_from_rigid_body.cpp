@@ -57,4 +57,47 @@ UIPC_GEOMETRY_API Matrix12x12 from_rigid_body(
 
     return build_abd_mass_matrix(mass, m_x_bar, S);
 }
+
+UIPC_GEOMETRY_API void to_rigid_body(Float             m,
+                                     const Vector3&    m_x_bar,
+                                     const Matrix3x3&  m_x_bar_x_bar,
+                                     Float&            total_mass,
+                                     Vector3&          center_of_mass,
+                                     Matrix3x3&        inertia_cm)
+{
+    total_mass = m;
+
+    if(m <= 0)
+    {
+        center_of_mass = Vector3::Zero();
+        inertia_cm     = Matrix3x3::Zero();
+        return;
+    }
+
+    center_of_mass = m_x_bar / m;
+
+    // Step 1: Second moment S -> inertia about origin
+    //   I^O = tr(S) * I_3 - S
+    const Matrix3x3& S        = m_x_bar_x_bar;
+    Matrix3x3        I_origin = S.trace() * Matrix3x3::Identity() - S;
+
+    // Step 2: Parallel axis theorem in reverse (origin -> center of mass)
+    //   I_cm = I^O - m * (|c|^2 * I_3 - c * c^T)
+    Float c2   = center_of_mass.squaredNorm();
+    inertia_cm = I_origin
+                 - m * (c2 * Matrix3x3::Identity()
+                        - center_of_mass * center_of_mass.transpose());
+}
+
+UIPC_GEOMETRY_API void to_rigid_body(const Matrix12x12& mass_matrix,
+                                     Float&             total_mass,
+                                     Vector3&           center_of_mass,
+                                     Matrix3x3&         inertia_cm)
+{
+    Float     m             = mass_matrix(0, 0);
+    Vector3   m_x_bar       = mass_matrix.block<3, 1>(3, 0);
+    Matrix3x3 m_x_bar_x_bar = mass_matrix.block<3, 3>(3, 3);
+
+    to_rigid_body(m, m_x_bar, m_x_bar_x_bar, total_mass, center_of_mass, inertia_cm);
+}
 }  // namespace uipc::geometry::affine_body

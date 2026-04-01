@@ -222,8 +222,6 @@ class AffineBodyDynamics : public SimSystem
 
         vector<ABDJacobiDyadicMass> h_body_id_to_abd_mass;
         vector<Matrix12x12>         h_body_id_to_abd_mass_inv;
-        vector<Float>               h_body_id_to_total_mass;
-        vector<Matrix3x3>           h_body_id_to_inertia_tensor;
         vector<Float>               h_body_id_to_volume;
         vector<Vector12>            h_body_id_to_abd_gravity;
         vector<IndexT>              h_body_id_to_is_fixed;
@@ -263,9 +261,6 @@ class AffineBodyDynamics : public SimSystem
         DeviceBuffer<ABDJacobiDyadicMass> body_id_to_abd_mass;
         //tex: $$ \mathbf{M}_i^{-1} $$
         DeviceBuffer<Matrix12x12> body_id_to_abd_mass_inv;
-
-        DeviceBuffer<Float>     body_id_to_total_mass;
-        DeviceBuffer<Matrix3x3> body_id_to_inertia_tensor;
 
         //tex:
         //used to rebuild the affine_body_dynamics shape energy coefficient
@@ -431,22 +426,6 @@ class AffineBodyDynamics : public SimSystem
     auto body_mass_invs() const noexcept
     {
         return m_impl.body_id_to_abd_mass_inv.view();
-    }
-
-    /**
-     * @brief return the total mass of each body
-     */
-    auto body_total_masses() const noexcept
-    {
-        return m_impl.body_id_to_total_mass.view();
-    }
-
-    /**
-     * @brief return the 3x3 inertia tensor about center of mass for each body
-     */
-    auto body_inertia_tensors() const noexcept
-    {
-        return m_impl.body_id_to_inertia_tensor.view();
     }
 
     /**

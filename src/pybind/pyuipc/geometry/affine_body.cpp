@@ -293,5 +293,53 @@ Args:
     m_x_bar_x_bar: Second moment of mass tensor S, 3x3 matrix.
 Returns:
     numpy.ndarray: 12x12 ABD mass matrix.)");
+
+    m.def(
+        "to_rigid_body",
+        [](Float m, py::array_t<Float> m_x_bar, py::array_t<Float> m_x_bar_x_bar)
+            -> py::tuple
+        {
+            auto mx  = to_matrix<Vector3>(m_x_bar);
+            auto mxx = to_matrix<Matrix3x3>(m_x_bar_x_bar);
+            Float     total_mass;
+            Vector3   center_of_mass;
+            Matrix3x3 inertia_cm;
+            to_rigid_body(m, mx, mxx, total_mass, center_of_mass, inertia_cm);
+            return py::make_tuple(total_mass, as_numpy(center_of_mass), as_numpy(inertia_cm));
+        },
+        py::arg("m"),
+        py::arg("m_x_bar"),
+        py::arg("m_x_bar_x_bar"),
+        R"(Extract rigid body properties from dyadic mass components.
+Args:
+    m: Total mass.
+    m_x_bar: First moment of mass (m * center_of_mass), 3D vector.
+    m_x_bar_x_bar: Second moment of mass tensor S, 3x3 matrix.
+Returns:
+    tuple: (total_mass, center_of_mass, inertia_cm) where:
+        - total_mass: Total mass (float).
+        - center_of_mass: Center of mass in the reference frame (3D vector).
+        - inertia_cm: 3x3 inertia tensor about the center of mass.)");
+
+    m.def(
+        "to_rigid_body",
+        [](py::array_t<Float> mass_matrix) -> py::tuple
+        {
+            auto M = to_matrix<Matrix12x12>(mass_matrix);
+            Float     total_mass;
+            Vector3   center_of_mass;
+            Matrix3x3 inertia_cm;
+            to_rigid_body(M, total_mass, center_of_mass, inertia_cm);
+            return py::make_tuple(total_mass, as_numpy(center_of_mass), as_numpy(inertia_cm));
+        },
+        py::arg("mass_matrix"),
+        R"(Extract rigid body properties from a 12x12 ABD mass matrix.
+Args:
+    mass_matrix: 12x12 ABD mass matrix.
+Returns:
+    tuple: (total_mass, center_of_mass, inertia_cm) where:
+        - total_mass: Total mass (float).
+        - center_of_mass: Center of mass in the reference frame (3D vector).
+        - inertia_cm: 3x3 inertia tensor about the center of mass.)");
 }
 }  // namespace pyuipc::geometry

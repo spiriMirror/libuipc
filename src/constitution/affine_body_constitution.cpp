@@ -3,6 +3,8 @@
 #include <uipc/builtin/attribute_name.h>
 #include <uipc/builtin/constitution_type.h>
 #include <uipc/geometry/utils/compute_mesh_volume.h>
+#include <uipc/geometry/utils/affine_body/compute_dyadic_mass.h>
+#include <uipc/geometry/utils/affine_body/affine_body_from_rigid_body.h>
 
 namespace uipc::constitution
 {
@@ -23,28 +25,9 @@ REGISTER_CONSTITUTION_UIDS()
     return uids;
 }
 
-void AffineBodyMaterial::apply_to(geometry::SimplicialComplex& sc) const
-{
-    m_constitution.apply_to(sc, m_kappa, m_mass_density);
-}
-
-AffineBodyMaterial::AffineBodyMaterial(const AffineBodyConstitution& ab,
-                                       Float                         kappa,
-                                       Float mass_density) noexcept
-    : m_constitution(ab)
-    , m_kappa(kappa)
-    , m_mass_density(mass_density)
-{
-}
-
 AffineBodyConstitution::AffineBodyConstitution(const Json& config) noexcept
     : m_config(config)
 {
-}
-
-AffineBodyMaterial AffineBodyConstitution::create_material(Float kappa) const noexcept
-{
-    return AffineBodyMaterial{*this, kappa};
 }
 
 U64 AffineBodyConstitution::get_uid() const noexcept
@@ -57,18 +40,19 @@ U64 AffineBodyConstitution::get_uid() const noexcept
     return 1;
 }
 
-void AffineBodyConstitution::setup_abd_attributes(geometry::SimplicialComplex& sc,
-                                                  Float kappa,
-                                                  Float mass_density,
-                                                  Float volume) const
+void AffineBodyConstitution::create_abd_attributes(geometry::SimplicialComplex& sc,
+                                                   Float kappa,
+                                                   Float mass_density,
+                                                   Float volume,
+                                                   Float m,
+                                                   const Vector3& m_x_bar,
+                                                   const Matrix3x3& m_x_bar_x_bar) const
 {
     auto cuid = sc.meta().find<U64>(builtin::constitution_uid);
     if(!cuid)
         cuid = sc.meta().create<U64>(builtin::constitution_uid, 0);
     geometry::view(*cuid).front() = uid();
 
-    // affine body objects' transform changing over time
-    // label transform as evolving for streaming optimization
     sc.transforms().is_evolving(true);
 
     auto dof_offset = sc.meta().find<IndexT>(builtin::dof_offset);
@@ -95,7 +79,6 @@ void AffineBodyConstitution::setup_abd_attributes(geometry::SimplicialComplex& s
     if(!velocity)
         velocity = sc.instances().create<Matrix4x4>(builtin::velocity, Matrix4x4::Zero());
 
-    // affine body always turns off self-collision by default
     auto self_collision = sc.meta().find<IndexT>(builtin::self_collision);
     if(!self_collision)
         self_collision = sc.meta().create<IndexT>(builtin::self_collision, 0);
@@ -125,36 +108,6 @@ void AffineBodyConstitution::setup_abd_attributes(geometry::SimplicialComplex& s
     else
         geometry::view(*meta_mass).front() = mass_density;
 
-    auto total_mass = sc.instances().find<Float>(builtin::total_mass);
-    if(!total_mass)
-        total_mass = sc.instances().create<Float>(builtin::total_mass, 0.0);
-    else
-        geometry::view(*total_mass).front() = 0.0;
-
-    auto inertia_tensor = sc.instances().find<Matrix3x3>(builtin::inertia_tensor);
-    if(!inertia_tensor)
-        inertia_tensor = sc.instances().create<Matrix3x3>(builtin::inertia_tensor,
-                                                          Matrix3x3::Zero());
-}
-
-void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
-{
-    auto volume = geometry::compute_mesh_volume(sc);
-    setup_abd_attributes(sc, kappa, mass_density, volume);
-}
-
-void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
-                                      Float                        kappa,
-                                      const Matrix12x12&           mass,
-                                      Float                        volume) const
-{
-    Float     m             = mass(0, 0);
-    Vector3   m_x_bar       = mass.block<3, 1>(3, 0);
-    Matrix3x3 m_x_bar_x_bar = mass.block<3, 3>(3, 3);
-    Float     mass_density  = m / volume;
-
-    setup_abd_attributes(sc, kappa, mass_density, volume);
-
     auto create_or_update = [&](auto name, const auto& value)
     {
         using T   = std::decay_t<decltype(value)>;
@@ -168,6 +121,37 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
     create_or_update(builtin::abd_mass, m);
     create_or_update(builtin::abd_mass_x_bar, m_x_bar);
     create_or_update(builtin::abd_mass_x_bar_x_bar, m_x_bar_x_bar);
+
+    Float total_mass;
+    Vector3 center_of_mass;
+    Matrix3x3 inertia_cm;
+    geometry::affine_body::to_rigid_body(m, m_x_bar, m_x_bar_x_bar,
+                                         total_mass, center_of_mass, inertia_cm);
+    create_or_update("mass", total_mass);
+    create_or_update("mass_center", center_of_mass);
+    create_or_update("inertia", inertia_cm);
+}
+
+void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_density) const
+{
+    auto volume = geometry::compute_mesh_volume(sc);
+    Float m;
+    Vector3 m_x_bar;
+    Matrix3x3 m_x_bar_x_bar;
+    geometry::affine_body::compute_dyadic_mass(sc, mass_density, m, m_x_bar, m_x_bar_x_bar);
+    create_abd_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
+}
+
+void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
+                                      Float                        kappa,
+                                      const Matrix12x12&           mass,
+                                      Float                        volume) const
+{
+    Float     m             = mass(0, 0);
+    Vector3   m_x_bar       = mass.block<3, 1>(3, 0);
+    Matrix3x3 m_x_bar_x_bar = mass.block<3, 3>(3, 3);
+    Float     mass_density  = m / volume;
+    create_abd_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
 }
 
 Json AffineBodyConstitution::default_config() noexcept
