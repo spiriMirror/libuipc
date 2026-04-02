@@ -70,7 +70,7 @@ Unlike the [Affine Body Fixed Joint](./affine_body_fixed_joint.md), there is **n
 
 ### Parameter range
 
-`strength_ratio` $\gamma$ is dimensionless; it scales the penalty with combined mass. Typical values are problem-dependent; the regression test uses $\gamma = 100$ for a small two-cube scene.
+`strength_ratio` $\gamma$ is dimensionless; it scales the penalty with combined mass. A proper initial value is $\gamma = 100$.
 
 ## Attributes and geometry
 
