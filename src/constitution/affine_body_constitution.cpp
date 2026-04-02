@@ -5,6 +5,7 @@
 #include <uipc/geometry/utils/compute_mesh_volume.h>
 #include <uipc/geometry/utils/affine_body/compute_dyadic_mass.h>
 #include <uipc/geometry/utils/affine_body/affine_body_from_rigid_body.h>
+#include <uipc/geometry/utils/factory.h>
 
 namespace uipc::constitution
 {
@@ -152,6 +153,24 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
     Matrix3x3 m_x_bar_x_bar = mass.block<3, 3>(3, 3);
     Float     mass_density  = m / volume;
     create_abd_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
+}
+
+geometry::SimplicialComplex AffineBodyConstitution::create_proxy(Float              mass,
+                                                                const Vector3&     mass_center,
+                                                                const Matrix3x3&   inertia,
+                                                                Float              volume) const
+{
+    auto abd_mass_matrix = geometry::affine_body::from_rigid_body(mass, mass_center, inertia);
+    return create_proxy(abd_mass_matrix, volume);
+}
+
+geometry::SimplicialComplex AffineBodyConstitution::create_proxy(const Matrix12x12& abd_mass,
+                                                                 Float              volume) const
+{
+    vector<Vector3> Vs = {Vector3::Zero()};
+    auto            sc = geometry::pointcloud(Vs);
+    apply_to(sc, 1e8, abd_mass, volume);
+    return sc;
 }
 
 Json AffineBodyConstitution::default_config() noexcept
