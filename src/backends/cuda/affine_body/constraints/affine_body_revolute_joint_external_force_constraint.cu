@@ -38,13 +38,18 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
             auto sc = geo.as<geometry::SimplicialComplex>();
             UIPC_ASSERT(sc, "AffineBodyRevoluteJointExternalForceConstraint: geometry must be SimplicialComplex");
 
-            auto geo_ids = sc->edges().find<Vector2i>("geo_ids");
-            UIPC_ASSERT(geo_ids, "AffineBodyRevoluteJointExternalForceConstraint: Geometry must have 'geo_ids' attribute on `edges`");
-            auto geo_ids_view = geo_ids->view();
-
-            auto inst_ids = sc->edges().find<Vector2i>("inst_ids");
-            UIPC_ASSERT(inst_ids, "AffineBodyRevoluteJointExternalForceConstraint: Geometry must have 'inst_ids' attribute on `edges`");
-            auto inst_ids_view = inst_ids->view();
+            auto l_geo_id = sc->edges().find<IndexT>("l_geo_id");
+            UIPC_ASSERT(l_geo_id, "AffineBodyRevoluteJointExternalForceConstraint: Geometry must have 'l_geo_id' attribute on `edges`");
+            auto l_geo_id_view = l_geo_id->view();
+            auto r_geo_id = sc->edges().find<IndexT>("r_geo_id");
+            UIPC_ASSERT(r_geo_id, "AffineBodyRevoluteJointExternalForceConstraint: Geometry must have 'r_geo_id' attribute on `edges`");
+            auto r_geo_id_view = r_geo_id->view();
+            auto l_inst_id = sc->edges().find<IndexT>("l_inst_id");
+            UIPC_ASSERT(l_inst_id, "AffineBodyRevoluteJointExternalForceConstraint: Geometry must have 'l_inst_id' attribute on `edges`");
+            auto l_inst_id_view = l_inst_id->view();
+            auto r_inst_id = sc->edges().find<IndexT>("r_inst_id");
+            UIPC_ASSERT(r_inst_id, "AffineBodyRevoluteJointExternalForceConstraint: Geometry must have 'r_inst_id' attribute on `edges`");
+            auto r_inst_id_view = r_inst_id->view();
 
             auto is_constrained = sc->edges().find<IndexT>("external_torque/is_constrained");
             UIPC_ASSERT(is_constrained, "AffineBodyRevoluteJointExternalForceConstraint: Geometry must have 'external_torque/is_constrained' attribute on `edges`");
@@ -58,6 +63,12 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
 
             auto Es = sc->edges().topo().view();
             auto Ps = sc->positions().view();
+
+            auto l_pos0_attr = sc->edges().find<Vector3>("l_position0");
+            auto l_pos1_attr = sc->edges().find<Vector3>("l_position1");
+            auto r_pos0_attr = sc->edges().find<Vector3>("r_position0");
+            auto r_pos1_attr = sc->edges().find<Vector3>("r_position1");
+            bool use_local = l_pos0_attr && l_pos1_attr && r_pos0_attr && r_pos1_attr;
 
             auto toNormal = [&](const Vector3& W) -> Vector3
             {
@@ -75,44 +86,58 @@ static void collect_joint_data(InterAffineBodyAnimator::FilteredInfo& info,
             {
                 h_is_constrained.push_back(is_constrained_view[i]);
 
-                Vector2i geo_id  = geo_ids_view[i];
-                Vector2i inst_id = inst_ids_view[i];
+                IndexT l_gid = l_geo_id_view[i];
+                IndexT r_gid = r_geo_id_view[i];
+                IndexT l_iid = l_inst_id_view[i];
+                IndexT r_iid = r_inst_id_view[i];
 
-                Vector2i body_ids = {info.body_id(geo_id(0), inst_id(0)),
-                                     info.body_id(geo_id(1), inst_id(1))};
+                Vector2i body_ids = {info.body_id(l_gid, l_iid),
+                                     info.body_id(r_gid, r_iid)};
                 h_body_ids.push_back(body_ids);
 
-                auto left_sc  = info.body_geo(geo_slots, geo_id(0));
-                auto right_sc = info.body_geo(geo_slots, geo_id(1));
+                auto left_sc  = info.body_geo(geo_slots, l_gid);
+                auto right_sc = info.body_geo(geo_slots, r_gid);
 
-                Vector3 P0  = Ps[e[0]];
-                Vector3 P1  = Ps[e[1]];
-                Vector3 mid = (P0 + P1) / 2;
-                Vector3 Dir = (P1 - P0);
+                Transform LT{left_sc->transforms().view()[l_iid]};
+                Transform RT{right_sc->transforms().view()[r_iid]};
 
-                UIPC_ASSERT(Dir.squaredNorm() > 1e-24,
-                            "AffineBodyRevoluteJointExternalForceConstraint: Edge with zero length detected");
+                Vector3  UnitE;
+                Vector12 rest_pos;
+                if(use_local)
+                {
+                    Vector3 lp0 = LT * l_pos0_attr->view()[i];
+                    Vector3 lp1 = LT * l_pos1_attr->view()[i];
+                    UnitE = (lp1 - lp0).normalized();
 
-                Vector3 HalfAxis = Dir.normalized() / 2;
-                P0               = mid - HalfAxis;
-                P1               = mid + HalfAxis;
+                    rest_pos.segment<3>(0) = l_pos0_attr->view()[i];
+                    rest_pos.segment<3>(3) = l_pos1_attr->view()[i];
+                    rest_pos.segment<3>(6) = r_pos0_attr->view()[i];
+                    rest_pos.segment<3>(9) = r_pos1_attr->view()[i];
+                }
+                else
+                {
+                    Vector3 P0  = Ps[e[0]];
+                    Vector3 P1  = Ps[e[1]];
+                    Vector3 mid = (P0 + P1) / 2;
+                    Vector3 Dir = (P1 - P0);
 
+                    UIPC_ASSERT(Dir.squaredNorm() > 1e-24,
+                                "AffineBodyRevoluteJointExternalForceConstraint: Edge with zero length detected");
 
-                Vector3 UnitE = (P1 - P0).normalized();
-                // normal
+                    Vector3 HalfAxis = Dir.normalized() / 2;
+                    P0               = mid - HalfAxis;
+                    P1               = mid + HalfAxis;
+                    UnitE            = (P1 - P0).normalized();
+
+                    rest_pos.segment<3>(0) = LT.inverse() * P0;
+                    rest_pos.segment<3>(3) = LT.inverse() * P1;
+                    rest_pos.segment<3>(6) = RT.inverse() * P0;
+                    rest_pos.segment<3>(9) = RT.inverse() * P1;
+                }
+                h_rest_positions.push_back(rest_pos);
+
                 Vector3 normal = toNormal(UnitE);
                 Vector3 vec    = normal.cross(UnitE).normalized();
-
-
-                Transform LT{left_sc->transforms().view()[inst_id(0)]};
-                Transform RT{right_sc->transforms().view()[inst_id(1)]};
-
-                Vector12 rest_pos;
-                rest_pos.segment<3>(0) = LT.inverse() * P0;
-                rest_pos.segment<3>(3) = LT.inverse() * P1;
-                rest_pos.segment<3>(6) = RT.inverse() * P0;
-                rest_pos.segment<3>(9) = RT.inverse() * P1;
-                h_rest_positions.push_back(rest_pos);
 
                 Vector6 rest_axis;
                 rest_axis.segment<3>(0) = LT.rotation().inverse() * vec;

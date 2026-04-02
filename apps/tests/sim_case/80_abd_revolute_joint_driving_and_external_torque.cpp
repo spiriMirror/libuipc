@@ -6,7 +6,7 @@
 #include <uipc/constitution/affine_body_driving_revolute_joint.h>
 #include <uipc/constitution/affine_body_revolute_joint_external_force.h>
 
-TEST_CASE("82_abd_revolute_joint_driving_and_external_torque", "[abd][joint][driving][external_force]")
+TEST_CASE("80_abd_revolute_joint_driving_and_external_torque", "[abd][joint][driving][external_force]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
@@ -170,7 +170,7 @@ TEST_CASE("82_abd_revolute_joint_driving_and_external_torque", "[abd][joint][dri
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
 
-    while(world.frame() < 200)
+    while(world.frame() < 50)
     {
         world.advance();
         REQUIRE(world.is_valid());

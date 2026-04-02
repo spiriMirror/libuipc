@@ -260,34 +260,86 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
         h_joint_id_to_uid.push_back(uid_value);
 
         // 1. Get Joint's two Links
-        auto joint_geo_ids  = joint_mesh->edges().find<Vector2i>("geo_ids");
-        auto joint_inst_ids = joint_mesh->edges().find<Vector2i>("inst_ids");
-        auto joint_geo_ids_view  = joint_geo_ids->view();
-        auto joint_inst_ids_view = joint_inst_ids->view();
+        auto joint_l_geo_id = joint_mesh->edges().find<IndexT>("l_geo_id");
+        UIPC_ASSERT(joint_l_geo_id,
+                    "ExternalArticulationConstraint: Joint geometry must have 'l_geo_id' attribute on `edges`");
+        auto joint_r_geo_id = joint_mesh->edges().find<IndexT>("r_geo_id");
+        UIPC_ASSERT(joint_r_geo_id,
+                    "ExternalArticulationConstraint: Joint geometry must have 'r_geo_id' attribute on `edges`");
+        auto joint_l_inst_id = joint_mesh->edges().find<IndexT>("l_inst_id");
+        UIPC_ASSERT(joint_l_inst_id,
+                    "ExternalArticulationConstraint: Joint geometry must have 'l_inst_id' attribute on `edges`");
+        auto joint_r_inst_id = joint_mesh->edges().find<IndexT>("r_inst_id");
+        UIPC_ASSERT(joint_r_inst_id,
+                    "ExternalArticulationConstraint: Joint geometry must have 'r_inst_id' attribute on `edges`");
+        auto joint_l_geo_id_view  = joint_l_geo_id->view();
+        auto joint_r_geo_id_view  = joint_r_geo_id->view();
+        auto joint_l_inst_id_view = joint_l_inst_id->view();
+        auto joint_r_inst_id_view = joint_r_inst_id->view();
 
-        const Vector2i geo_id  = joint_geo_ids_view[index];
-        const Vector2i inst_id = joint_inst_ids_view[index];
+        const IndexT l_gid = joint_l_geo_id_view[index];
+        const IndexT r_gid = joint_r_geo_id_view[index];
+        const IndexT l_iid = joint_l_inst_id_view[index];
+        const IndexT r_iid = joint_r_inst_id_view[index];
 
         Vector2i body_id = {
-            info.body_id(geo_id[0], inst_id[0]),
-            info.body_id(geo_id[1], inst_id[1]),
+            info.body_id(l_gid, l_iid),
+            info.body_id(r_gid, r_iid),
         };
         h_joint_id_to_body_ids.push_back(body_id);
 
-        auto L_link_geo = info.body_geo(geo_slots, geo_id[0]);
-        auto R_link_geo = info.body_geo(geo_slots, geo_id[1]);
+        auto L_link_geo = info.body_geo(geo_slots, l_gid);
+        auto R_link_geo = info.body_geo(geo_slots, r_gid);
+
+        auto l_pos0_attr = joint_mesh->edges().find<Vector3>("l_position0");
+        auto l_pos1_attr = joint_mesh->edges().find<Vector3>("l_position1");
+        auto r_pos0_attr = joint_mesh->edges().find<Vector3>("r_position0");
+        auto r_pos1_attr = joint_mesh->edges().find<Vector3>("r_position1");
+        bool use_local = l_pos0_attr && l_pos1_attr && r_pos0_attr && r_pos1_attr;
 
         Vector6 L_basis, R_basis;
 
-        if(uid_value == ExternalArticulationConstituion::RevoluteJointConstitutionUID)
+        if(use_local)
         {
-            std::tie(L_basis, R_basis) = get_revolute_basis(
-                L_link_geo, inst_id[0], R_link_geo, inst_id[1], joint_mesh, index);
+            Transform LT{L_link_geo->transforms().view()[l_iid]};
+            Transform RT{R_link_geo->transforms().view()[r_iid]};
+
+            if(uid_value == ExternalArticulationConstituion::RevoluteJointConstitutionUID)
+            {
+                Vector3 t = LT.rotation() * (l_pos1_attr->view()[index] - l_pos0_attr->view()[index]);
+                Vector3 n, b_vec;
+                orthonormal_basis(t, n, b_vec);
+                Matrix3x3 L_inv_rot = LT.rotation().inverse();
+                Matrix3x3 R_inv_rot = RT.rotation().inverse();
+                L_basis.segment<3>(0) = L_inv_rot * b_vec;
+                L_basis.segment<3>(3) = L_inv_rot * n;
+                R_basis.segment<3>(0) = R_inv_rot * b_vec;
+                R_basis.segment<3>(3) = R_inv_rot * n;
+            }
+            else if(uid_value == ExternalArticulationConstituion::PrismaticJointConstitutionUID)
+            {
+                Vector3 l_t = (LT.rotation() * (l_pos1_attr->view()[index] - l_pos0_attr->view()[index])).normalized();
+                Vector3 l_c = LT * l_pos0_attr->view()[index];
+                Vector3 r_t = (RT.rotation() * (r_pos1_attr->view()[index] - r_pos0_attr->view()[index])).normalized();
+                Vector3 r_c = RT * r_pos0_attr->view()[index];
+                L_basis.segment<3>(0) = LT.inverse() * l_c;
+                L_basis.segment<3>(3) = LT.rotation().inverse() * l_t;
+                R_basis.segment<3>(0) = RT.inverse() * r_c;
+                R_basis.segment<3>(3) = RT.rotation().inverse() * r_t;
+            }
         }
-        else if(uid_value == ExternalArticulationConstituion::PrismaticJointConstitutionUID)
+        else
         {
-            std::tie(L_basis, R_basis) = get_prismatic_basis(
-                L_link_geo, inst_id[0], R_link_geo, inst_id[1], joint_mesh, index);
+            if(uid_value == ExternalArticulationConstituion::RevoluteJointConstitutionUID)
+            {
+                std::tie(L_basis, R_basis) = get_revolute_basis(
+                    L_link_geo, l_iid, R_link_geo, r_iid, joint_mesh, index);
+            }
+            else if(uid_value == ExternalArticulationConstituion::PrismaticJointConstitutionUID)
+            {
+                std::tie(L_basis, R_basis) = get_prismatic_basis(
+                    L_link_geo, l_iid, R_link_geo, r_iid, joint_mesh, index);
+            }
         }
 
         h_joint_id_to_L_basis.push_back(L_basis);
@@ -295,8 +347,8 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
 
         // 2. Get Joint's 2 ref_q_prev (if any)
         Vector2i ref_q_prev_ids = {
-            get_ref_q_prev(L_link_geo, inst_id[0], body_id[0]),
-            get_ref_q_prev(R_link_geo, inst_id[1], body_id[1]),
+            get_ref_q_prev(L_link_geo, l_iid, body_id[0]),
+            get_ref_q_prev(R_link_geo, r_iid, body_id[1]),
         };
 
         h_joint_id_to_ref_q_prev_ids.push_back(ref_q_prev_ids);

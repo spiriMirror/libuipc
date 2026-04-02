@@ -49,13 +49,18 @@ static void collect_prismatic_data(InterAffineBodyAnimator::FilteredInfo& info,
             auto sc = geo.as<geometry::SimplicialComplex>();
             UIPC_ASSERT(sc, "AffineBodyPrismaticJointExternalForceConstraint: geometry must be SimplicialComplex");
 
-            auto geo_ids = sc->edges().find<Vector2i>("geo_ids");
-            UIPC_ASSERT(geo_ids, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'geo_ids' attribute on `edges`");
-            auto geo_ids_view = geo_ids->view();
-
-            auto inst_ids = sc->edges().find<Vector2i>("inst_ids");
-            UIPC_ASSERT(inst_ids, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'inst_ids' attribute on `edges`");
-            auto inst_ids_view = inst_ids->view();
+            auto l_geo_id = sc->edges().find<IndexT>("l_geo_id");
+            UIPC_ASSERT(l_geo_id, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'l_geo_id' attribute on `edges`");
+            auto l_geo_id_view = l_geo_id->view();
+            auto r_geo_id = sc->edges().find<IndexT>("r_geo_id");
+            UIPC_ASSERT(r_geo_id, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'r_geo_id' attribute on `edges`");
+            auto r_geo_id_view = r_geo_id->view();
+            auto l_inst_id = sc->edges().find<IndexT>("l_inst_id");
+            UIPC_ASSERT(l_inst_id, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'l_inst_id' attribute on `edges`");
+            auto l_inst_id_view = l_inst_id->view();
+            auto r_inst_id = sc->edges().find<IndexT>("r_inst_id");
+            UIPC_ASSERT(r_inst_id, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'r_inst_id' attribute on `edges`");
+            auto r_inst_id_view = r_inst_id->view();
 
             auto is_constrained = sc->edges().find<IndexT>("external_force/is_constrained");
             UIPC_ASSERT(is_constrained, "AffineBodyPrismaticJointExternalForceConstraint: Geometry must have 'external_force/is_constrained' attribute on `edges`");
@@ -70,35 +75,55 @@ static void collect_prismatic_data(InterAffineBodyAnimator::FilteredInfo& info,
             auto Es = sc->edges().topo().view();
             auto Ps = sc->positions().view();
 
+            auto l_pos0_attr = sc->edges().find<Vector3>("l_position0");
+            auto l_pos1_attr = sc->edges().find<Vector3>("l_position1");
+            auto r_pos0_attr = sc->edges().find<Vector3>("r_position0");
+            auto r_pos1_attr = sc->edges().find<Vector3>("r_position1");
+            bool use_local = l_pos0_attr && l_pos1_attr && r_pos0_attr && r_pos1_attr;
+
             for(auto&& [i, e] : enumerate(Es))
             {
                 h_is_constrained.push_back(is_constrained_view[i]);
 
-                Vector2i geo_id  = geo_ids_view[i];
-                Vector2i inst_id = inst_ids_view[i];
+                IndexT l_gid = l_geo_id_view[i];
+                IndexT r_gid = r_geo_id_view[i];
+                IndexT l_iid = l_inst_id_view[i];
+                IndexT r_iid = r_inst_id_view[i];
 
-                Vector2i body_ids = {info.body_id(geo_id(0), inst_id(0)),
-                                     info.body_id(geo_id(1), inst_id(1))};
+                Vector2i body_ids = {info.body_id(l_gid, l_iid),
+                                     info.body_id(r_gid, r_iid)};
                 h_body_ids.push_back(body_ids);
 
-                auto left_sc  = info.body_geo(geo_slots, geo_id(0));
-                auto right_sc = info.body_geo(geo_slots, geo_id(1));
+                auto left_sc  = info.body_geo(geo_slots, l_gid);
+                auto right_sc = info.body_geo(geo_slots, r_gid);
 
-                Vector3 P0      = Ps[e[0]];
-                Vector3 P1      = Ps[e[1]];
-                Vector3 tangent = (P1 - P0).normalized();
+                Transform LT{left_sc->transforms().view()[l_iid]};
+                Transform RT{right_sc->transforms().view()[r_iid]};
 
-                Transform LT{left_sc->transforms().view()[inst_id(0)]};
-                Transform RT{right_sc->transforms().view()[inst_id(1)]};
+                Vector3 tangent;
+                Vector6 rest_position;
+                if(use_local)
+                {
+                    Vector3 lp0 = LT * l_pos0_attr->view()[i];
+                    Vector3 lp1 = LT * l_pos1_attr->view()[i];
+                    tangent = (lp1 - lp0).normalized();
+                    rest_position.segment<3>(0) = l_pos0_attr->view()[i];
+                    rest_position.segment<3>(3) = r_pos0_attr->view()[i];
+                }
+                else
+                {
+                    Vector3 P0      = Ps[e[0]];
+                    Vector3 P1      = Ps[e[1]];
+                    tangent = (P1 - P0).normalized();
+                    rest_position.segment<3>(0) = LT.inverse() * P0;
+                    rest_position.segment<3>(3) = RT.inverse() * P0;
+                }
 
                 Vector6 rest_tangent;
                 rest_tangent.segment<3>(0) = LT.rotation().inverse() * tangent;
                 rest_tangent.segment<3>(3) = RT.rotation().inverse() * tangent;
                 h_rest_tangents.push_back(rest_tangent);
 
-                Vector6 rest_position;
-                rest_position.segment<3>(0) = LT.inverse() * P0;
-                rest_position.segment<3>(3) = RT.inverse() * P0;
                 h_rest_positions.push_back(rest_position);
 
                 h_forces.push_back(external_force_view[i]);

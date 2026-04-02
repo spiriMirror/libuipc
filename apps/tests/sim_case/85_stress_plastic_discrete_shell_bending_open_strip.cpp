@@ -1,7 +1,7 @@
 #include <app/app.h>
 #include <uipc/uipc.h>
 #include <uipc/constitution/neo_hookean_shell.h>
-#include <uipc/constitution/strain_plastic_discrete_shell_bending.h>
+#include <uipc/constitution/stress_plastic_discrete_shell_bending.h>
 #include <uipc/constitution/soft_position_constraint.h>
 #include <algorithm>
 #include <cmath>
@@ -81,7 +81,7 @@ ClothPatch load_center_patch()
 }
 }  // namespace
 
-TEST_CASE("76_discrete_shell_bending_strain_plastic_open_strip", "[fem][strain_plastic_dsb]")
+TEST_CASE("85_stress_plastic_discrete_shell_bending_open_strip", "[fem][stress_plastic_dsb]")
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -93,26 +93,26 @@ TEST_CASE("76_discrete_shell_bending_strain_plastic_open_strip", "[fem][strain_p
     Engine engine{"cuda", output_path};
     World  world{engine};
 
-    auto config                             = test::Scene::default_config();
-    config["gravity"]                       = Vector3{0, 0, 0};
-    config["contact"]["enable"]             = false;
-    config["line_search"]["max_iter"]       = 8;
-    config["linear_system"]["tol_rate"]     = 1e-3;
-    config["dt"]                            = 0.01;
+    auto config                         = test::Scene::default_config();
+    config["gravity"]                   = Vector3{0, 0, 0};
+    config["contact"]["enable"]         = false;
+    config["line_search"]["max_iter"]   = 8;
+    config["linear_system"]["tol_rate"] = 1e-3;
+    config["dt"]                        = 0.01;
     test::Scene::dump_config(config, output_path);
 
     Scene scene{config};
 
     auto object = scene.objects().create("strip");
 
-    NeoHookeanShell            nhs;
-    StrainPlasticDiscreteShellBending pdsb;
-    SoftPositionConstraint     spc;
+    NeoHookeanShell                  nhs;
+    StressPlasticDiscreteShellBending spdsb;
+    SoftPositionConstraint           spc;
 
-    auto patch = load_center_patch();
-    auto moduli         = ElasticModuli2D::youngs_poisson(10.0_MPa, 0.49);
+    auto patch  = load_center_patch();
+    auto moduli = ElasticModuli2D::youngs_poisson(10.0_MPa, 0.49);
     nhs.apply_to(patch.mesh, moduli);
-    pdsb.apply_to(patch.mesh, 5.0_kPa, 0.02, 0.0);
+    spdsb.apply_to(patch.mesh, 5.0_kPa, 1.2_kPa, 0.0);
     spc.apply_to(patch.mesh, 100.0);
 
     auto [slot, rest_slot] = object->geometries().create(patch.mesh);
