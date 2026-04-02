@@ -13,7 +13,7 @@ The driving joint supports two operating modes:
 - **Active mode** (`is_passive = 0`): the joint drives toward a user-specified `aim_angle`.
 - **Passive mode** (`is_passive = 1`): the joint resists external forces by treating the current angle as the target, effectively locking the joint in place.
 
-The constraint can also be toggled on and off at runtime via the `is_constrained` flag.
+The constraint can also be toggled on and off at runtime via the `driving/is_constrained` flag.
 
 ## Energy
 
@@ -48,7 +48,7 @@ $$
 
 where $K = \gamma (m_i + m_j)$, $\gamma$ is the **user defined** `strength_ratio` parameter, and $m_i$, $m_j$ are the masses of the two affine bodies.
 
-When `is_constrained = 0`, the energy is zero and the driving effect is disabled.
+When `driving/is_constrained = 0`, the energy is zero and the driving effect is disabled.
 
 ## State Update
 
@@ -71,7 +71,7 @@ On the joint geometry (1D simplicial complex), on **edges** (one edge per joint)
 Driving-specific attributes on **edges**:
 
 - `driving/strength_ratio`: $\gamma$ in $K = \gamma(m_i + m_j)$ above
-- `is_constrained`: enables (`1`) or disables (`0`) the driving effect
+- `driving/is_constrained`: enables (`1`) or disables (`0`) the driving effect
 - `is_passive`: passive mode (`1`) locks at the current angle; active mode (`0`) drives to `aim_angle`
 - `aim_angle`: $\theta_{\text{aim}}$, the target angle in active mode
 - `angle`: $\theta_{\text{current}}$, the current relative angle (updated by the backend each time step)
