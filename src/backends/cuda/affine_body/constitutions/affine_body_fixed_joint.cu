@@ -3,7 +3,6 @@
 #include <uipc/builtin/attribute_name.h>
 #include <utils/make_spd.h>
 #include <utils/matrix_assembler.h>
-#include <uipc/common/enumerate.h>
 
 namespace uipc::backend::cuda
 {
@@ -55,32 +54,51 @@ class AffineBodyFixedJoint final : public InterAffineBodyConstitution
             {
                 auto sc = geo.as<geometry::SimplicialComplex>();
 
-                auto geo_ids_view = sc->edges().find<Vector2i>("geo_ids")->view();
-                auto inst_ids_view = sc->edges().find<Vector2i>("inst_ids")->view();
+                auto l_geo_id = sc->vertices().find<IndexT>("l_geo_id");
+                auto l_geo_id_view = l_geo_id->view();
+                auto r_geo_id = sc->vertices().find<IndexT>("r_geo_id");
+                auto r_geo_id_view = r_geo_id->view();
+                auto l_inst_id = sc->vertices().find<IndexT>("l_inst_id");
+                auto l_inst_id_view = l_inst_id->view();
+                auto r_inst_id = sc->vertices().find<IndexT>("r_inst_id");
+                auto r_inst_id_view = r_inst_id->view();
                 auto strength_ratio_view =
-                    sc->edges().find<Float>("strength_ratio")->view();
+                    sc->vertices().find<Float>("strength_ratio")->view();
 
-                auto Es = sc->edges().topo().view();
+                auto pos0_attr = sc->vertices().find<Vector3>("l_position");
+                auto pos1_attr = sc->vertices().find<Vector3>("r_position");
+                const bool use_local_positions = pos0_attr && pos1_attr;
+
                 auto Ps = sc->positions().view();
-                for(auto&& [i, e] : enumerate(Es))
+                const SizeT n_joints = sc->vertices().size();
+                for(SizeT i = 0; i < n_joints; ++i)
                 {
-                    Vector2i geo_id  = geo_ids_view[i];
-                    Vector2i inst_id = inst_ids_view[i];
+                    IndexT l_gid = l_geo_id_view[i];
+                    IndexT r_gid = r_geo_id_view[i];
+                    IndexT l_iid = l_inst_id_view[i];
+                    IndexT r_iid = r_inst_id_view[i];
 
-                    body_ids_list.push_back({info.body_id(geo_id(0), inst_id(0)),
-                                             info.body_id(geo_id(1), inst_id(1))});
+                    body_ids_list.push_back({info.body_id(l_gid, l_iid),
+                                             info.body_id(r_gid, r_iid)});
 
                     Transform LT{
-                        info.body_geo(geo_slots, geo_id(0))->transforms().view()[inst_id(0)]};
+                        info.body_geo(geo_slots, l_gid)->transforms().view()[l_iid]};
                     Transform RT{
-                        info.body_geo(geo_slots, geo_id(1))->transforms().view()[inst_id(1)]};
+                        info.body_geo(geo_slots, r_gid)->transforms().view()[r_iid]};
 
-                    Vector3 mid_point = (Ps[e[0]] + Ps[e[1]]) / 2.0;
-
-                    // rest_cs: midpoint in each body's local frame
+                    // rest_cs: matching attachment points in each body's local frame
                     Vector6 rest_c;
-                    rest_c.segment<3>(0) = LT.inverse() * mid_point;
-                    rest_c.segment<3>(3) = RT.inverse() * mid_point;
+                    if(use_local_positions)
+                    {
+                        rest_c.segment<3>(0) = pos0_attr->view()[i];
+                        rest_c.segment<3>(3) = pos1_attr->view()[i];
+                    }
+                    else
+                    {
+                        Vector3 mid_point = Ps[i];
+                        rest_c.segment<3>(0) = LT.inverse() * mid_point;
+                        rest_c.segment<3>(3) = RT.inverse() * mid_point;
+                    }
                     rest_c_list.push_back(rest_c);
 
                     // t, n, b: coordinate axes in body space

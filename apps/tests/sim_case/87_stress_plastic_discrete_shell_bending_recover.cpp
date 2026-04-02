@@ -201,7 +201,7 @@ Float max_position_diff(span<const Vector3> a, span<const Vector3> b)
 }
 }  // namespace
 
-TEST_CASE("83_stress_plastic_discrete_shell_bending_recover", "[fem][stress_plastic_dsb][recover]")
+TEST_CASE("87_stress_plastic_discrete_shell_bending_recover", "[fem][stress_plastic_dsb][recover]")
 {
     namespace fs = std::filesystem;
 

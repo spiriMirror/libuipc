@@ -61,7 +61,7 @@ Here:
 - $\mathbf{q}_{ref}$ is the reference DOF captured at initialization.
 - $\theta^t$ is the accumulated revolute angle from the previous step.
 
-Note that $\mathbf{q}$ is the concatenation of the DOF of the two affine bodies connected by the prismatic joint.
+Note that $\mathbf{q}$ is the concatenation of the DOF of the two affine bodies connected by the revolute joint.
 
 $$
 \mathbf{q} =
@@ -106,7 +106,9 @@ This limit term is meaningful only on a geometry that already represents a
 
 ## Attributes
 
-On `edges`:
+The host geometry is **edge-based** (one edge per joint), with the same linking fields as [Affine Body Revolute Joint](./affine_body_revolute_joint.md): `l_geo_id`, `r_geo_id`, `l_inst_id`, `r_inst_id`, `strength_ratio`, and optional `l_position0`, `l_position1`, `r_position0`, `r_position1` when created via Local `create_geometry`.
+
+On **edges** (in addition to the base joint attributes above):
 
 - `limit/lower`: $l_{\text{user}}$ — relative lower bound (default `0.0`)
 - `limit/upper`: $u_{\text{user}}$ — relative upper bound (default `0.0`)

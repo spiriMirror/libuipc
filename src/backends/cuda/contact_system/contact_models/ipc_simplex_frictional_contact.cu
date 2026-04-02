@@ -324,7 +324,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                    {
                        if(idx < ee_offset)
                        {
-                           // ── PT friction ──
+                           // PT friction
                            int i = idx;
                            const auto& PT = PTs(i);
                            Vector4i cids = {contact_ids(PT[0]), contact_ids(PT[1]),
@@ -371,7 +371,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        }
                        else if(idx < pe_offset)
                        {
-                           // ── EE friction ──
+                           // EE friction
                            int i = idx - ee_offset;
                            const auto& EE = EEs(i);
                            Vector4i cids = {contact_ids(EE[0]), contact_ids(EE[1]),
@@ -438,7 +438,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        }
                        else if(idx < pp_offset)
                        {
-                           // ── PE friction ──
+                           // PE friction
                            int i = idx - pe_offset;
                            const auto& PE = PEs(i);
                            Vector3i cids = {contact_ids(PE[0]), contact_ids(PE[1]), contact_ids(PE[2])};
@@ -478,7 +478,7 @@ class IPCSimplexFrictionalContact final : public SimplexFrictionalContact
                        }
                        else
                        {
-                           // ── PP friction ──
+                           // PP friction
                            int i = idx - pp_offset;
                            const auto& PP = PPs(i);
                            Vector2i cids = {contact_ids(PP[0]), contact_ids(PP[1])};

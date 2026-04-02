@@ -16,19 +16,13 @@ Each body $k \in \{i,j\}$ carries the affine state $\mathbf{q}_k \in \mathbb{R}^
 
 ### Rest anchor and local coordinates
 
-At setup, the user specifies an attachment $\bar{\mathbf{p}}_j$ in body $j$'s (the **right** body's) rest local frame. The corresponding world anchor at rest is:
+At setup, a single world anchor $\mathbf{c}$ is shared by both bodies. When the joint is created via Local `create_geometry`, optional **vertex** attributes `l_position` (`Vector3`, left body local) and `r_position` (`Vector3`, right body local) define the attachment; with rest transforms $\mathbf{T}_i$, $\mathbf{T}_j$,
 
 $$
-\mathbf{c} = \mathbf{T}_j \bar{\mathbf{p}}_j
+\mathbf{c} = \mathbf{T}_i \bar{\mathbf{c}}_i = \mathbf{T}_j \bar{\mathbf{c}}_j,
 $$
 
-where $\mathbf{T}_j$ is that instance's rest transform. The same world point is expressed in each body's local frame:
-
-$$
-\bar{\mathbf{c}}_i = \mathbf{T}_i^{-1} \mathbf{c}, \qquad \bar{\mathbf{c}}_j = \mathbf{T}_j^{-1} \mathbf{c} = \bar{\mathbf{p}}_j
-$$
-
-These fixed $\bar{\mathbf{c}}_i$, $\bar{\mathbf{c}}_j$ are stored per joint and used in the constraint below.
+where $\bar{\mathbf{c}}_i$ and $\bar{\mathbf{c}}_j$ are taken from `l_position` and `r_position` respectively when those attributes are present. If they are omitted, the implementation derives $\bar{\mathbf{c}}_i$, $\bar{\mathbf{c}}_j$ from the joint-creation path (e.g. a shared world anchor and the bodies' rest transforms). The backend stores these fixed local anchors per joint and uses them in the constraint below.
 
 ### Translation constraint
 
@@ -80,16 +74,16 @@ Unlike the [Affine Body Fixed Joint](./affine_body_fixed_joint.md), there is **n
 
 ## Attributes and geometry
 
-The joint is stored as a 1D simplicial complex (one edge per joint).
+The joint is stored as a **0D simplicial complex**: **one vertex per joint** (no edges).
 
-On each **edge**:
+On each **vertex**:
 
-- `geo_ids`: `Vector2i` — scene geometry slot ids $(\text{left},\text{right})$ for bodies $i$ and $j$
-- `inst_ids`: `Vector2i` — instance indices within each geometry
+- `l_geo_id` (`IndexT`): scene geometry slot id for the left body $i$
+- `r_geo_id` (`IndexT`): scene geometry slot id for the right body $j$
+- `l_inst_id` (`IndexT`): instance index within the left geometry
+- `r_inst_id` (`IndexT`): instance index within the right geometry
 - `strength_ratio`: $\gamma$ in $K = \gamma(m_i + m_j)$
 
-On **vertices** (two per joint, for visualization and initialization):
-
-- `position` / builtin positions: vertex $2k$ is body $i$'s rest translation (edge endpoint for drawing); vertex $2k+1$ is the world-space anchor $\mathbf{c} = \mathbf{T}_j \bar{\mathbf{p}}_j$ at setup. The backend evaluates $\bar{\mathbf{c}}_i$, $\bar{\mathbf{c}}_j$ from the anchor vertex and the two rest transforms.
+When the joint is created via Local `create_geometry`, optional **vertex** attributes (each `Vector3`): `l_position` (left body's local frame) and `r_position` (right body's local frame).
 
 Constitution UID: $26$ (see [Constitutions index](./index.md)).

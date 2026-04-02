@@ -205,7 +205,7 @@ uipc::Float residual_hinge_angle(bool use_stress_plastic)
 }
 }  // namespace
 
-TEST_CASE("82_discrete_shell_bending_stress_plastic_residual", "[fem][stress_plastic_dsb]")
+TEST_CASE("86_discrete_shell_bending_stress_plastic_residual", "[fem][stress_plastic_dsb]")
 {
     const auto elastic_angle        = residual_hinge_angle(false);
     const auto stress_plastic_angle = residual_hinge_angle(true);
