@@ -51,7 +51,7 @@ TEST_CASE("84_proxy_abd_gravity", "[abd]")
 
     // --- Body B: proxy with matching mass properties ---
     auto proxy_object = scene.objects().create("proxy");
-    auto proxy_mesh   = abd.create_proxy(cube_mass, cube_com, cube_inertia, cube_volume);
+    auto proxy_mesh   = abd.create_proxy(kappa, cube_mass, cube_com, cube_inertia, cube_volume);
 
     view(proxy_mesh.transforms())[0] = t0.matrix();
 

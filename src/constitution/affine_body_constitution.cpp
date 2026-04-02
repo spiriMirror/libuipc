@@ -155,21 +155,23 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
     create_abd_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
 }
 
-geometry::SimplicialComplex AffineBodyConstitution::create_proxy(Float              mass,
-                                                                const Vector3&     mass_center,
-                                                                const Matrix3x3&   inertia,
-                                                                Float              volume) const
+geometry::SimplicialComplex AffineBodyConstitution::create_proxy(Float              kappa,
+                                                                 Float              mass,
+                                                                 const Vector3&     mass_center,
+                                                                 const Matrix3x3&   inertia,
+                                                                 Float              volume) const
 {
     auto abd_mass_matrix = geometry::affine_body::from_rigid_body(mass, mass_center, inertia);
-    return create_proxy(abd_mass_matrix, volume);
+    return create_proxy(kappa, abd_mass_matrix, volume);
 }
 
-geometry::SimplicialComplex AffineBodyConstitution::create_proxy(const Matrix12x12& abd_mass,
+geometry::SimplicialComplex AffineBodyConstitution::create_proxy(Float              kappa,
+                                                                 const Matrix12x12& abd_mass,
                                                                  Float              volume) const
 {
     vector<Vector3> Vs = {Vector3::Zero()};
     auto            sc = geometry::pointcloud(Vs);
-    apply_to(sc, 1e8, abd_mass, volume);
+    apply_to(sc, kappa, abd_mass, volume);
     return sc;
 }
 

@@ -1,6 +1,7 @@
 #pragma once
 #include <uipc/constitution/constitution.h>
 #include <uipc/geometry/simplicial_complex.h>
+#include <uipc/common/unit.h>
 
 namespace uipc::constitution
 {
@@ -32,17 +33,19 @@ class UIPC_CONSTITUTION_API AffineBodyConstitution : public IConstitution
      * carries all ABD meta attributes.  It participates in dynamics (gravity,
      * shape energy) but has no collision geometry.
      */
-    geometry::SimplicialComplex create_proxy(Float              mass,
-                                             const Vector3&     mass_center,
-                                             const Matrix3x3&   inertia,
-                                             Float              volume) const;
+    [[nodiscard]] geometry::SimplicialComplex create_proxy(Float              kappa,
+                                                           Float              mass,
+                                                           const Vector3&     mass_center,
+                                                           const Matrix3x3&   inertia,
+                                                           Float              volume) const;
 
     /**
      * @brief Create a 1-vertex proxy affine body from a precomputed 12x12 ABD
      *        mass matrix.
      */
-    geometry::SimplicialComplex create_proxy(const Matrix12x12& abd_mass,
-                                             Float              volume) const;
+    [[nodiscard]] geometry::SimplicialComplex create_proxy(Float              kappa,
+                                                           const Matrix12x12& abd_mass,
+                                                           Float              volume) const;
 
     static Json default_config() noexcept;
 
