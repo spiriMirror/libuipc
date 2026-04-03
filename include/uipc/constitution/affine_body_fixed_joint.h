@@ -31,7 +31,7 @@ class UIPC_CONSTITUTION_API AffineBodyFixedJoint final : public InterAffineBodyC
      * @brief Create fixed joint geometry with local-space positions.
      *
      * Builds a vertex-based SimplicialComplex (1 vertex per joint).
-     * Writes local position attributes (position0, position1) on vertices.
+     * Writes local position attributes (l_position, r_position) on vertices.
      */
     [[nodiscard]] geometry::SimplicialComplex create_geometry(
         span<const Vector3>                      l_positions,
