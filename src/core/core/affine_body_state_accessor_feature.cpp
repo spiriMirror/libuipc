@@ -72,6 +72,12 @@ backend::BufferView AffineBodyStateAccessorFeature::transform_buffer(IndexT body
     if(body_count == ~0ull)
         body_count = total_body_num - body_offset;
 
+    UIPC_ASSERT(body_offset + body_count <= total_body_num,
+                "The requested range [{}, {}) is out of bounds for total bodies ({})",
+                body_offset,
+                body_offset + body_count,
+                total_body_num);
+
     return m_impl->do_get_transform_buffer(body_offset, body_count);
 }
 
@@ -86,6 +92,12 @@ backend::BufferView AffineBodyStateAccessorFeature::velocity_buffer(IndexT body_
 
     if(body_count == ~0ull)
         body_count = total_body_num - body_offset;
+
+    UIPC_ASSERT(body_offset + body_count <= total_body_num,
+                "The requested range [{}, {}) is out of bounds for total bodies ({})",
+                body_offset,
+                body_offset + body_count,
+                total_body_num);
 
     return m_impl->do_get_velocity_buffer(body_offset, body_count);
 }

@@ -22,6 +22,12 @@ class AffineBodyStateAccessorFeatureOverrider final : public core::AffineBodySta
     backend::BufferView do_get_velocity_buffer(IndexT body_offset, SizeT body_count) override;
 
   private:
+    backend::BufferView convert_and_get_buffer(muda::CBufferView<Vector12> q_view,
+                                               muda::DeviceBuffer<Matrix4x4>& out_buffer,
+                                               IndexT body_offset,
+                                               SizeT  body_count,
+                                               bool   is_velocity);
+
     AffineBodyDynamics&       m_abd;
     AffineBodyVertexReporter& m_vertex_reporter;
     mutable vector<Vector12>  m_buffer;

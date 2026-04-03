@@ -75,6 +75,12 @@ backend::BufferView FiniteElementStateAccessorFeature::position_buffer(IndexT ve
     if(vertex_count == ~0ull)
         vertex_count = total_vert_num - vertex_offset;
 
+    UIPC_ASSERT(vertex_offset + vertex_count <= total_vert_num,
+                "The requested range [{}, {}) is out of bounds for total vertices ({})",
+                vertex_offset,
+                vertex_offset + vertex_count,
+                total_vert_num);
+
     return m_impl->do_get_position_buffer(vertex_offset, vertex_count);
 }
 
@@ -89,6 +95,12 @@ backend::BufferView FiniteElementStateAccessorFeature::velocity_buffer(IndexT ve
 
     if(vertex_count == ~0ull)
         vertex_count = total_vert_num - vertex_offset;
+
+    UIPC_ASSERT(vertex_offset + vertex_count <= total_vert_num,
+                "The requested range [{}, {}) is out of bounds for total vertices ({})",
+                vertex_offset,
+                vertex_offset + vertex_count,
+                total_vert_num);
 
     return m_impl->do_get_velocity_buffer(vertex_offset, vertex_count);
 }
