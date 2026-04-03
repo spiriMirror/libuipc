@@ -42,23 +42,6 @@ class WarpBuffer:
         self._array = pywarp.empty(size, dtype=dtype, device=device)
         self._buffer = Buffer(resize_func=self.resize, get_buffer_view_func=self.buffer_view)
 
-    @classmethod
-    def from_buffer_view(cls, bv: BufferView, dtype: Any) -> "WarpBuffer":
-        """
-        Zero-copy wrap a uipc BufferView as a WarpBuffer.
-        The BufferView must remain valid for the lifetime of the returned WarpBuffer.
-        """
-        obj = object.__new__(cls)
-        obj._array = pywarp.array(
-            ptr=bv.handle(),
-            dtype=dtype,
-            shape=(bv.size(),),
-            device=bv.backend(),
-            copy=False,
-        )
-        obj._buffer = Buffer(resize_func=obj.resize, get_buffer_view_func=obj.buffer_view)
-        return obj
-
     def resize(self, newsize: int) -> pywarp.array:
         """
         Resize the array to the given size.
@@ -99,16 +82,3 @@ def buffer(size: int, dtype: Any, device: str = "cpu") -> WarpBuffer:
     return WarpBuffer(size, dtype, device)
 
 
-def from_buffer_view(bv: BufferView, dtype: Any) -> WarpBuffer:
-    """
-    Zero-copy wrap a uipc BufferView as a WarpBuffer.
-    The BufferView must remain valid for the lifetime of the returned WarpBuffer.
-
-    Args:
-        bv: A uipc BufferView pointing to device memory.
-        dtype: Warp data type (e.g. wp.float64, wp.mat44d).
-
-    Returns:
-        A WarpBuffer wrapping the same GPU memory (no copy).
-    """
-    return WarpBuffer.from_buffer_view(bv, dtype)

@@ -18,14 +18,11 @@ class FiniteElementStateAccessorFeatureOverrider final : public core::FiniteElem
     void  do_copy_from(const geometry::SimplicialComplex& state_geo) override;
     void  do_copy_to(geometry::SimplicialComplex& state_geo) override;
 
-    backend::BufferView do_get_position_buffer(IndexT vertex_offset, SizeT vertex_count) override;
-    backend::BufferView do_get_velocity_buffer(IndexT vertex_offset, SizeT vertex_count) override;
+    void do_copy_position_to(backend::BufferView buffer_view, IndexT vertex_offset, SizeT vertex_count) override;
+    void do_copy_velocity_to(backend::BufferView buffer_view, IndexT vertex_offset, SizeT vertex_count) override;
 
   private:
     FiniteElementMethod&         m_fem;
     FiniteElementVertexReporter& m_vertex_reporter;
-
-    mutable muda::DeviceBuffer<Vector3> m_position_buffer;
-    mutable muda::DeviceBuffer<Vector3> m_velocity_buffer;
 };
 }  // namespace uipc::backend::cuda

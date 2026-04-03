@@ -60,8 +60,9 @@ void AffineBodyStateAccessorFeature::copy_to(geometry::SimplicialComplex& state_
     m_impl->do_copy_to(state_geo);
 }
 
-backend::BufferView AffineBodyStateAccessorFeature::transform_buffer(IndexT body_offset,
-                                                                     SizeT  body_count) const
+void AffineBodyStateAccessorFeature::copy_transform_to(backend::BufferView buffer_view,
+                                                        IndexT              body_offset,
+                                                        SizeT               body_count) const
 {
     auto total_body_num = this->body_count();
     UIPC_ASSERT(body_offset <= total_body_num,
@@ -78,11 +79,12 @@ backend::BufferView AffineBodyStateAccessorFeature::transform_buffer(IndexT body
                 body_offset + body_count,
                 total_body_num);
 
-    return m_impl->do_get_transform_buffer(body_offset, body_count);
+    m_impl->do_copy_transform_to(buffer_view, body_offset, body_count);
 }
 
-backend::BufferView AffineBodyStateAccessorFeature::velocity_buffer(IndexT body_offset,
-                                                                    SizeT  body_count) const
+void AffineBodyStateAccessorFeature::copy_velocity_to(backend::BufferView buffer_view,
+                                                       IndexT              body_offset,
+                                                       SizeT               body_count) const
 {
     auto total_body_num = this->body_count();
     UIPC_ASSERT(body_offset <= total_body_num,
@@ -99,7 +101,7 @@ backend::BufferView AffineBodyStateAccessorFeature::velocity_buffer(IndexT body_
                 body_offset + body_count,
                 total_body_num);
 
-    return m_impl->do_get_velocity_buffer(body_offset, body_count);
+    m_impl->do_copy_velocity_to(buffer_view, body_offset, body_count);
 }
 
 std::string_view AffineBodyStateAccessorFeature::get_name() const

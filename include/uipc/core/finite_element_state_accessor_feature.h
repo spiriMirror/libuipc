@@ -16,8 +16,8 @@ class UIPC_CORE_API FiniteElementStateAccessorFeatureOverrider
     virtual void do_copy_from(const geometry::SimplicialComplex& state_geo) = 0;
     virtual void do_copy_to(geometry::SimplicialComplex& state_geo)         = 0;
 
-    virtual backend::BufferView do_get_position_buffer(IndexT vertex_offset, SizeT vertex_count) = 0;
-    virtual backend::BufferView do_get_velocity_buffer(IndexT vertex_offset, SizeT vertex_count) = 0;
+    virtual void do_copy_position_to(backend::BufferView buffer_view, IndexT vertex_offset, SizeT vertex_count) = 0;
+    virtual void do_copy_velocity_to(backend::BufferView buffer_view, IndexT vertex_offset, SizeT vertex_count) = 0;
 };
 
 /**
@@ -61,24 +61,26 @@ class UIPC_CORE_API FiniteElementStateAccessorFeature final : public Feature
     void copy_to(geometry::SimplicialComplex& state_geo) const;
 
     /**
-     * @brief Get a buffer view of the position data (Vector3) for the specified vertex range.
+     * @brief Copy position data (Vector3) for the specified vertex range into an externally-owned buffer.
      *
+     * @param buffer_view The destination buffer view to copy position data into.
      * @param vertex_offset The starting vertex index in finite element system.
      * @param vertex_count The number of vertices to include, if vertex_count == ~0ull, all vertices from vertex_offset to the end will be included.
-     * @return BufferView<Vector3> A buffer view of the position data.
      */
-    backend::BufferView position_buffer(IndexT vertex_offset = 0,
-                                        SizeT  vertex_count  = ~0ull) const;
+    void copy_position_to(backend::BufferView buffer_view,
+                           IndexT              vertex_offset = 0,
+                           SizeT               vertex_count  = ~0ull) const;
 
     /**
-     * @brief Get a buffer view of the velocity data (Vector3) for the specified vertex range.
+     * @brief Copy velocity data (Vector3) for the specified vertex range into an externally-owned buffer.
      *
+     * @param buffer_view The destination buffer view to copy velocity data into.
      * @param vertex_offset The starting vertex index in finite element system.
      * @param vertex_count The number of vertices to include, if vertex_count == ~0ull, all vertices from vertex_offset to the end will be included.
-     * @return BufferView<Vector3> A buffer view of the velocity data.
      */
-    backend::BufferView velocity_buffer(IndexT vertex_offset = 0,
-                                        SizeT  vertex_count  = ~0ull) const;
+    void copy_velocity_to(backend::BufferView buffer_view,
+                           IndexT              vertex_offset = 0,
+                           SizeT               vertex_count  = ~0ull) const;
 
   private:
     virtual std::string_view                      get_name() const override;

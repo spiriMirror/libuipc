@@ -81,51 +81,35 @@ void AffineBodyStateAccessorFeatureOverrider::do_copy_to(geometry::SimplicialCom
 }
 
 
-backend::BufferView AffineBodyStateAccessorFeatureOverrider::do_get_transform_buffer(
-    IndexT body_offset, SizeT body_count)
+void AffineBodyStateAccessorFeatureOverrider::do_copy_transform_to(
+    backend::BufferView buffer_view, IndexT body_offset, SizeT body_count)
 {
-    auto q_view = m_abd.qs();
-    auto total  = q_view.size();
+    auto q_view    = m_abd.qs();
+    auto q_subview = q_view.subview(body_offset, body_count);
 
-    if(m_transform_buffer.size() != total)
-        m_transform_buffer.resize(total);
-
-    auto q_subview   = q_view.subview(body_offset, body_count);
-    auto out_subview = m_transform_buffer.view(body_offset, body_count);
+    auto* dst_ptr = reinterpret_cast<Matrix4x4*>(buffer_view.handle()) + buffer_view.offset();
 
     muda::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(body_count,
-               [q_in  = q_subview.cviewer().name("q_in"),
-                m_out = out_subview.viewer().name("m_out")] __device__(int i) mutable
-               { m_out(i) = q_to_transform(q_in(i)); });
-
-    auto* ptr = m_transform_buffer.data() + body_offset;
-    return backend::BufferView{
-        reinterpret_cast<HandleT>(ptr), 0, body_count, sizeof(Matrix4x4), sizeof(Matrix4x4), "cuda"};
+               [q_in = q_subview.cviewer().name("q_in"),
+                dst  = dst_ptr] __device__(int i) mutable
+               { dst[i] = q_to_transform(q_in(i)); });
 }
 
-backend::BufferView AffineBodyStateAccessorFeatureOverrider::do_get_velocity_buffer(
-    IndexT body_offset, SizeT body_count)
+void AffineBodyStateAccessorFeatureOverrider::do_copy_velocity_to(
+    backend::BufferView buffer_view, IndexT body_offset, SizeT body_count)
 {
-    auto q_v_view = m_abd.q_vs();
-    auto total    = q_v_view.size();
+    auto q_v_view    = m_abd.q_vs();
+    auto q_v_subview = q_v_view.subview(body_offset, body_count);
 
-    if(m_velocity_buffer.size() != total)
-        m_velocity_buffer.resize(total);
-
-    auto q_subview   = q_v_view.subview(body_offset, body_count);
-    auto out_subview = m_velocity_buffer.view(body_offset, body_count);
+    auto* dst_ptr = reinterpret_cast<Matrix4x4*>(buffer_view.handle()) + buffer_view.offset();
 
     muda::ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(body_count,
-               [q_in  = q_subview.cviewer().name("q_v_in"),
-                m_out = out_subview.viewer().name("m_out")] __device__(int i) mutable
-               { m_out(i) = q_v_to_transform_v(q_in(i)); });
-
-    auto* ptr = m_velocity_buffer.data() + body_offset;
-    return backend::BufferView{
-        reinterpret_cast<HandleT>(ptr), 0, body_count, sizeof(Matrix4x4), sizeof(Matrix4x4), "cuda"};
+               [q_in = q_v_subview.cviewer().name("q_v_in"),
+                dst  = dst_ptr] __device__(int i) mutable
+               { dst[i] = q_v_to_transform_v(q_in(i)); });
 }
 }  // namespace uipc::backend::cuda
