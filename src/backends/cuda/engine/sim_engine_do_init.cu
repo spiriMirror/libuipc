@@ -17,7 +17,6 @@
 #include <newton_tolerance/newton_tolerance_manager.h>
 #include <time_integrator/time_integrator_manager.h>
 #include <active_set_system/global_active_set_manager.h>
-#include <sanity_check/sanity_check_manager.h>
 #include <pipeline/ipc_pipeline_flag.h>
 #include <pipeline/al_ipc_pipeline_flag.h>
 
@@ -53,9 +52,6 @@ void SimEngine::build()
 
     // Augmented Lagrangian Pipeline Systems
     m_global_active_set_manager = find<GlobalActiveSetManager>();
-
-    // Sanity Check System
-    m_sanity_check_manager = find<SanityCheckManager>();
 
 
     // 3) dump system info
@@ -134,8 +130,6 @@ void SimEngine::init_scene()
         m_global_linear_system->init();
         m_time_integrator_manager->init();
         m_newton_tolerance_manager->init();
-        if(m_sanity_check_manager)
-            m_sanity_check_manager->init();
     }
 
     // 3.2 Backwards (if needed)

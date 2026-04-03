@@ -3,8 +3,6 @@
 #include <uipc/backend/visitors/world_visitor.h>
 #include <uipc/core/engine_status.h>
 #include <uipc/core/feature_collection.h>
-#include <uipc/core/i_sanity_checker.h>
-
 namespace uipc::core
 {
 class World;
@@ -19,7 +17,6 @@ class UIPC_CORE_API IEngine
     void retrieve();
     Json to_json() const;
 
-    ISanityCheckerCollection* sanity_checker_collection();
     bool                     dump();
     bool                     recover(SizeT dst_frame);
     SizeT                    frame() const;
@@ -32,7 +29,6 @@ class UIPC_CORE_API IEngine
     virtual void                     do_sync()                 = 0;
     virtual void                     do_retrieve()             = 0;
     virtual Json                     do_to_json() const;
-    virtual ISanityCheckerCollection* get_sanity_checker_collection();
     virtual bool                     do_dump();
     virtual bool                     do_recover(SizeT dst_frame);
     virtual SizeT                    get_frame() const    = 0;

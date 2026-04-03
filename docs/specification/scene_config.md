@@ -102,7 +102,7 @@ See [Contact Details](scene_configs/contact.md) for IPC vs AL-IPC pipeline selec
 
 | Key | Type | Default | Option | Description |
 |-----|------|---------|--------|-------------|
-| `sanity_check/method` | String | `"cpu"` | `"none"` `"cpu"` `"cuda"` | Sanity check method: `none` disables, `cpu` runs pre-init CPU checks, `cuda` runs post-init GPU checks |
+| `sanity_check/backend` | String | `"cpu"` | `"none"` `"cpu"` `"cuda"` | Sanity check backend: `none` disables, `cpu` runs CPU checks, `cuda` runs CUDA-accelerated checks |
 | `sanity_check/mode` | String | `"normal"` | `"normal"` `"quiet"` | `normal` writes diagnostic meshes on failure; `quiet` skips file output |
 
 ## Differentiable Simulation

@@ -22,6 +22,9 @@ target("pyuipc")
         "uipc_io",
         "uipc_sanity_check"
     )
+    if has_config("backend_cuda") then
+        add_deps("uipc_cuda_sanity_check")
+    end
     add_packages("pybind11")
     on_load(function (target)
         import("core.base.semver")

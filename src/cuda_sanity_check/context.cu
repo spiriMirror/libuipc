@@ -1,0 +1,550 @@
+#include <uipc/common/log.h>
+#include <context.h>
+#include <uipc/common/zip.h>
+#include <uipc/backend/visitors/geometry_visitor.h>
+#include <uipc/builtin/geometry_type.h>
+#include <uipc/builtin/attribute_name.h>
+#include <uipc/backend/visitors/scene_visitor.h>
+#include <uipc/common/unordered_map.h>
+#include <uipc/geometry/utils/extract_surface.h>
+#include <uipc/geometry/utils/apply_transform.h>
+#include <uipc/geometry/utils/merge.h>
+#include <uipc/core/internal/scene.h>
+
+namespace uipc::cuda_sanity_check
+{
+namespace detail
+{
+    using namespace uipc::geometry;
+
+    static void collect_geometry_with_surf(span<S<GeometrySlot>> geos,
+                                           vector<const SimplicialComplex*>& simplicial_complex_has_surf,
+                                           vector<IndexT>& surf_geo_ids)
+    {
+        using namespace uipc::geometry;
+        simplicial_complex_has_surf.reserve(geos.size());
+
+        for(auto& geo : geos)
+        {
+            if(geo->geometry().type() == builtin::SimplicialComplex)
+            {
+                auto simplicial_complex =
+                    dynamic_cast<SimplicialComplex*>(&geo->geometry());
+
+                UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
+
+                switch(simplicial_complex->dim())
+                {
+                    case 0:
+                        if(simplicial_complex->vertices().find<IndexT>(builtin::is_surf))
+                        {
+                            simplicial_complex_has_surf.push_back(simplicial_complex);
+                            surf_geo_ids.push_back(geo->id());
+                        }
+                        break;
+                    case 1:
+                        if(simplicial_complex->edges().find<IndexT>(builtin::is_surf))
+                        {
+                            simplicial_complex_has_surf.push_back(simplicial_complex);
+                            surf_geo_ids.push_back(geo->id());
+                        }
+                        break;
+                    case 2:
+                    case 3:
+                        if(simplicial_complex->triangles().find<IndexT>(builtin::is_surf))
+                        {
+                            simplicial_complex_has_surf.push_back(simplicial_complex);
+                            surf_geo_ids.push_back(geo->id());
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+    }
+
+    static void create_basic_sanity_check_attributes(span<S<GeometrySlot>> geos,
+                                                     const unordered_map<IndexT, IndexT>& geo_id_to_object_id)
+    {
+        for(auto& geo_slot : geos)
+        {
+            auto& geo = geo_slot->geometry();
+
+            if(geo.type() == builtin::SimplicialComplex)
+            {
+                auto simplicial_complex = geo.as<SimplicialComplex>();
+
+                UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
+
+                // 1) label original_index for each vertex, edge, triangle, tetrahedron
+                {
+                    auto OI = simplicial_complex->vertices().create<IndexT>(
+                        "sanity_check/original_index", -1);
+                    auto OI_view = view(*OI);
+                    std::iota(OI_view.begin(), OI_view.end(), 0);
+                }
+
+                if(simplicial_complex->dim() >= 1)
+                {
+                    auto OI = simplicial_complex->edges().create<IndexT>(
+                        "sanity_check/original_index", -1);
+                    auto OI_view = view(*OI);
+                    std::iota(OI_view.begin(), OI_view.end(), 0);
+                }
+
+                if(simplicial_complex->dim() >= 2)
+                {
+                    auto OI = simplicial_complex->triangles().create<IndexT>(
+                        "sanity_check/original_index", -1);
+                    auto OI_view = view(*OI);
+                    std::iota(OI_view.begin(), OI_view.end(), 0);
+                }
+
+                if(simplicial_complex->dim() == 3)
+                {
+                    auto OI = simplicial_complex->tetrahedra().create<IndexT>(
+                        "sanity_check/original_index", -1);
+                    auto OI_view = view(*OI);
+                    std::iota(OI_view.begin(), OI_view.end(), 0);
+                }
+
+                // 2) label vertices with geometry_id and object_id
+                {
+                    auto geo_id = simplicial_complex->vertices().find<IndexT>(
+                        "sanity_check/geometry_id");
+                    if(!geo_id)
+                        geo_id = simplicial_complex->vertices().create<IndexT>(
+                            "sanity_check/geometry_id");
+                    std::ranges::fill(view(*geo_id), geo_slot->id());
+
+                    auto obj_id = simplicial_complex->vertices().find<IndexT>("sanity_check/object_id");
+                    if(!obj_id)
+                        obj_id = simplicial_complex->vertices().create<IndexT>(
+                            "sanity_check/object_id", -1);
+                    std::ranges::fill(view(*obj_id),
+                                      geo_id_to_object_id.at(geo_slot->id()));
+                }
+
+                // 3) label vertices with dimension
+                {
+                    auto dim = simplicial_complex->dim();
+                    auto dim_attr = simplicial_complex->vertices().find<IndexT>("sanity_check/dim");
+                    if(!dim_attr)
+                        dim_attr = simplicial_complex->vertices().create<IndexT>(
+                            "sanity_check/dim", -1);
+                    std::ranges::fill(view(*dim_attr), dim);
+                }
+
+                // 4) label vertices with self_collision
+                {
+                    auto sanity_check_self_collision =
+                        simplicial_complex->vertices().find<IndexT>("sanity_check/self_collision");
+                    if(!sanity_check_self_collision)
+                        sanity_check_self_collision =
+                            simplicial_complex->vertices().create<IndexT>(
+                                "sanity_check/self_collision", 0);
+                    auto sanity_check_self_collision_view =
+                        view(*sanity_check_self_collision);
+
+                    auto self_collision =
+                        simplicial_complex->meta().find<IndexT>(builtin::self_collision);
+
+                    if(self_collision)
+                    {
+                        std::ranges::fill(sanity_check_self_collision_view,
+                                          self_collision->view()[0]);
+                    }
+                    else
+                    {
+                        std::ranges::fill(sanity_check_self_collision_view, 0);
+                    }
+                }
+            }
+
+            if(geo.type() == builtin::ImplicitGeometry)
+            {
+                auto geo_id = geo.instances().find<IndexT>("sanity_check/geometry_id");
+                if(!geo_id)
+                    geo_id = geo.instances().create<IndexT>("sanity_check/geometry_id");
+                std::ranges::fill(view(*geo_id), geo_slot->id());
+
+                auto obj_id = geo.instances().find<IndexT>("sanity_check/object_id");
+                if(!obj_id)
+                    obj_id = geo.instances().create<IndexT>("sanity_check/object_id");
+                std::ranges::fill(view(*obj_id), geo_id_to_object_id.at(geo_slot->id()));
+            }
+
+            // 4) label geometry meta with geometry_id and object_id
+            {
+                auto gid = geo.meta().create<IndexT>("sanity_check/geometry_id", -1);
+                view(*gid)[0] = geo_slot->id();
+                auto oid = geo.meta().create<IndexT>("sanity_check/object_id", -1);
+                view(*oid)[0] = geo_id_to_object_id.at(geo_slot->id());
+            }
+        }
+    }
+
+    static void label_vertices_with_contact_info(backend::SceneVisitor& sv)
+    {
+        auto  d_hat_attr           = sv.config().find<Float>("contact/d_hat");
+        Float default_d_hat        = d_hat_attr->view()[0];
+        span<S<GeometrySlot>> geos = sv.geometries();
+
+        for(auto& geo : geos)
+        {
+            if(geo->geometry().type() == builtin::SimplicialComplex)
+            {
+                auto simplicial_complex =
+                    dynamic_cast<SimplicialComplex*>(&geo->geometry());
+                UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
+
+                auto contact_element_id =
+                    simplicial_complex->meta().find<IndexT>(builtin::contact_element_id);
+                auto subscene_contact_element_id =
+                    simplicial_complex->meta().find<IndexT>(builtin::subscene_element_id);
+                auto v_is_surf =
+                    simplicial_complex->vertices().find<IndexT>(builtin::is_surf);
+
+                IndexT CID        = 0;
+                bool   need_label = false;
+
+                IndexT SCID                = 0;
+                bool   need_subscene_label = false;
+
+                if(v_is_surf && !contact_element_id)
+                    need_label = true;
+
+                if(v_is_surf && !subscene_contact_element_id)
+                    need_subscene_label = true;
+
+                if(contact_element_id)
+                {
+                    CID        = contact_element_id->view()[0];
+                    need_label = true;
+                }
+
+                if(subscene_contact_element_id)
+                {
+                    SCID = subscene_contact_element_id->view()[0];
+                    need_subscene_label = true;
+                }
+
+                if(need_subscene_label)
+                {
+                    auto sanity_vertex_subscene_contact_element_id =
+                        simplicial_complex->vertices().find<IndexT>(
+                            "sanity_check/subscene_contact_element_id");
+
+                    if(!sanity_vertex_subscene_contact_element_id)
+                    {
+                        sanity_vertex_subscene_contact_element_id =
+                            simplicial_complex->vertices().create<IndexT>(
+                                "sanity_check/subscene_contact_element_id", 0);
+                    }
+
+                    auto vertex_subscene_contact_element_id =
+                        simplicial_complex->vertices().find<IndexT>(builtin::subscene_element_id);
+
+                    if(!vertex_subscene_contact_element_id)
+                    {
+                        std::ranges::fill(view(*sanity_vertex_subscene_contact_element_id), SCID);
+                    }
+                    else
+                    {
+                        auto src_view = vertex_subscene_contact_element_id->view();
+                        auto dst_view = view(*sanity_vertex_subscene_contact_element_id);
+                        std::ranges::copy(src_view, dst_view.begin());
+                    }
+                }
+
+                if(need_label)
+                {
+                    auto sanity_vertex_contact_element_id =
+                        simplicial_complex->vertices().find<IndexT>("sanity_check/contact_element_id");
+
+                    if(!sanity_vertex_contact_element_id)
+                    {
+                        sanity_vertex_contact_element_id =
+                            simplicial_complex->vertices().create<IndexT>(
+                                "sanity_check/contact_element_id", 0);
+                    }
+
+                    auto vertex_contact_element_id =
+                        simplicial_complex->vertices().find<IndexT>(builtin::contact_element_id);
+
+                    if(!vertex_contact_element_id)
+                    {
+                        std::ranges::fill(view(*sanity_vertex_contact_element_id), CID);
+                    }
+                    else
+                    {
+                        auto src_view = vertex_contact_element_id->view();
+                        auto dst_view = view(*sanity_vertex_contact_element_id);
+                        std::ranges::copy(src_view, dst_view.begin());
+                    }
+
+                    auto d_hat_attr =
+                        simplicial_complex->meta().find<Float>(builtin::d_hat);
+
+                    auto vertex_d_hat_attr =
+                        simplicial_complex->vertices().find<Float>("sanity_check/d_hat");
+
+                    if(!vertex_d_hat_attr)
+                    {
+                        vertex_d_hat_attr =
+                            simplicial_complex->vertices().create<Float>("sanity_check/d_hat",
+                                                                         0.0);
+                    }
+
+                    auto vertex_d_hat_view = view(*vertex_d_hat_attr);
+
+                    if(d_hat_attr)
+                    {
+                        std::ranges::fill(vertex_d_hat_view, d_hat_attr->view()[0]);
+                    }
+                    else
+                    {
+                        std::ranges::fill(vertex_d_hat_view, default_d_hat);
+                    }
+                }
+            }
+        }
+    }
+
+    static void destory_sanity_check_attributes(backend::SceneVisitor& scene_visitor)
+    {
+        auto geos      = scene_visitor.geometries();
+        auto rest_geos = scene_visitor.rest_geometries();
+
+        vector<std::string>                    collection_names;
+        vector<geometry::AttributeCollection*> collections;
+
+        for(auto&& [geo_slot, rest_geo_slot] : zip(geos, rest_geos))
+        {
+            std::array<geometry::Geometry*, 2> local_geos = {
+                &geo_slot->geometry(), &rest_geo_slot->geometry()};
+
+            for(geometry::Geometry* geo : local_geos)
+            {
+                backend::GeometryVisitor geo_visitor{*geo};
+                collection_names.clear();
+                collections.clear();
+                geo_visitor.collect_attribute_collections(collection_names, collections);
+
+                for(auto&& [_, collection] : zip(collection_names, collections))
+                {
+                    vector<std::string> attribute_names = collection->names();
+                    std::string_view    prefix          = "sanity_check/";
+
+                    auto [iter, end] = std::ranges::remove_if(
+                        attribute_names,
+                        [prefix](const std::string& name)
+                        { return name.find(prefix) == std::string::npos; });
+
+                    attribute_names.erase(iter, end);
+
+                    for(const std::string& parm_name : attribute_names)
+                    {
+                        collection->destroy(parm_name);
+                    }
+                }
+            }
+        }
+    }
+
+    static SimplicialComplex extract_surface_with_instance_id(span<const SimplicialComplex*> sc)
+    {
+        if(sc.empty())
+            return SimplicialComplex{};
+
+        vector<SimplicialComplex> surfaces;
+        surfaces.reserve(sc.size());
+
+        std::transform(sc.begin(),
+                       sc.end(),
+                       std::back_inserter(surfaces),
+                       [](const SimplicialComplex* simplicial_complex)
+                       {
+                           if(simplicial_complex->dim() == 3)
+                               return extract_surface(*simplicial_complex);
+                           else
+                               return *simplicial_complex;
+                       });
+
+        SizeT total_surface_instances = std::accumulate(
+            sc.begin(),
+            sc.end(),
+            0ull,
+            [](SizeT acc, const SimplicialComplex* simplicial_complex)
+            { return acc + simplicial_complex->instances().size(); });
+
+        vector<SimplicialComplex> all_surfaces;
+        all_surfaces.reserve(total_surface_instances);
+
+        IndexT InstId = 0;
+
+        for(auto& surface : surfaces)
+        {
+            vector<SimplicialComplex> instances = apply_transform(surface);
+
+            for(auto&& [I, instance] : enumerate(instances))
+            {
+                auto instance_id =
+                    instance.vertices().find<IndexT>("sanity_check/instance_id");
+
+                if(!instance_id)
+                    instance_id = instance.vertices().create<IndexT>("sanity_check/instance_id");
+
+                std::ranges::fill(view(*instance_id), InstId++);
+            }
+
+            std::move(instances.begin(), instances.end(), std::back_inserter(all_surfaces));
+        }
+
+        vector<const SimplicialComplex*> surfaces_ptr(total_surface_instances);
+
+        std::transform(all_surfaces.begin(),
+                       all_surfaces.end(),
+                       surfaces_ptr.begin(),
+                       [](SimplicialComplex& surface) { return &surface; });
+
+        return merge(surfaces_ptr);
+    }
+}  // namespace detail
+
+class Context::Impl
+{
+  public:
+    Impl(core::internal::Scene& s) noexcept
+        : m_scene(s.shared_from_this())
+    {
+    }
+
+    ~Impl() = default;
+
+    void prepare()
+    {
+        build_geo_id_to_object_id();
+
+        auto scene_visitor = backend::SceneVisitor{*m_scene};
+
+        detail::create_basic_sanity_check_attributes(scene_visitor.geometries(),
+                                                     m_geo_id_to_object_id);
+
+        auto enable_contact = scene_visitor.config().find<IndexT>("contact/enable");
+        if(enable_contact->view()[0])
+        {
+            detail::label_vertices_with_contact_info(scene_visitor);
+        }
+    }
+
+    void destroy()
+    {
+        auto scene_visitor = backend::SceneVisitor{*m_scene};
+        detail::destory_sanity_check_attributes(scene_visitor);
+    }
+
+    void build_geo_id_to_object_id() const noexcept
+    {
+        auto N = m_scene->objects().size();
+
+        auto& map = m_geo_id_to_object_id;
+
+        for(IndexT objI = 0; objI < N; ++objI)
+        {
+            auto obj = m_scene->objects().find(objI);
+            if(obj)
+            {
+                auto geo_ids = obj->geometries().ids();
+                for(auto geo_id : geo_ids)
+                {
+                    map[geo_id] = objI;
+                }
+            }
+        }
+    }
+
+    const geometry::SimplicialComplex& scene_simplicial_surface() const noexcept
+    {
+        if(m_scene_simplicial_surface)
+            return *m_scene_simplicial_surface;
+
+        auto scene_visitor = backend::SceneVisitor{*m_scene};
+
+        m_scene_simplicial_surface = uipc::make_unique<geometry::SimplicialComplex>();
+
+        vector<const geometry::SimplicialComplex*> simplicial_complex_has_surf;
+        vector<IndexT>                             surf_geo_ids;
+
+        detail::collect_geometry_with_surf(scene_visitor.geometries(),
+                                           simplicial_complex_has_surf,
+                                           surf_geo_ids);
+
+        m_scene_simplicial_surface = uipc::make_unique<geometry::SimplicialComplex>(
+            detail::extract_surface_with_instance_id(simplicial_complex_has_surf));
+
+        return *m_scene_simplicial_surface;
+    }
+
+    const core::ContactTabular& contact_tabular() const noexcept
+    {
+        return m_scene->contact_tabular();
+    }
+
+    const core::SubsceneTabular& subscene_tabular() const noexcept
+    {
+        return m_scene->subscene_tabular();
+    }
+
+  private:
+    S<core::internal::Scene>               m_scene;
+    mutable U<geometry::SimplicialComplex> m_scene_simplicial_surface;
+    mutable unordered_map<IndexT, IndexT>  m_geo_id_to_object_id;
+};
+
+Context::Context(CudaSanityCheckerCollection& c, core::internal::Scene& s) noexcept
+    : CudaSanityChecker(c, s)
+    , m_impl(uipc::make_unique<Impl>(s))
+{
+}
+
+void Context::prepare()
+{
+    m_impl->prepare();
+}
+
+void Context::destroy()
+{
+    m_impl->destroy();
+}
+
+Context::~Context() {}
+
+const geometry::SimplicialComplex& Context::scene_simplicial_surface() const noexcept
+{
+    return m_impl->scene_simplicial_surface();
+}
+
+const core::ContactTabular& Context::contact_tabular() const noexcept
+{
+    return m_impl->contact_tabular();
+}
+
+const core::SubsceneTabular& Context::subscene_tabular() const noexcept
+{
+    return m_impl->subscene_tabular();
+}
+
+U64 Context::get_id() const noexcept
+{
+    return 0;
+}
+
+SanityCheckResult Context::do_check(backend::SceneVisitor&, backend::SanityCheckMessageVisitor&)
+{
+    return SanityCheckResult::Success;
+}
+
+REGISTER_CUDA_SANITY_CHECKER(Context);
+}  // namespace uipc::cuda_sanity_check

@@ -32,14 +32,17 @@ void World::init(internal::Scene& s)
     auto engine = lock(m_engine);
 
     auto& config = m_scene->config();
-    auto  sanity_check_method =
-        config.find<std::string>("sanity_check/method")->view()[0];
+    auto  sanity_check_backend =
+        config.find<std::string>("sanity_check/backend")->view()[0];
 
-    // 2. CPU Sanity Check Before Init
-    if(sanity_check_method == "cpu")
+    // 2. Sanity Check Before Init (CPU or CUDA module)
+    if(sanity_check_backend == "cpu" || sanity_check_backend == "cuda")
     {
+        std::string module_name = (sanity_check_backend == "cuda") ?
+                                      "uipc_cuda_sanity_check" :
+                                      "uipc_sanity_check";
         m_sanity_checker =
-            uipc::make_shared<SanityChecker>(s, engine->workspace());
+            uipc::make_shared<SanityChecker>(s, engine->workspace(), module_name);
         _sanity_check();
     }
     if(!m_valid)
@@ -58,22 +61,6 @@ void World::init(internal::Scene& s)
     {
         logger::error("Engine has error after init, world becomes invalid.");
         m_valid = false;
-    }
-
-    // 5. GPU Sanity Check (after engine init, GPU data is available)
-    if(m_valid && sanity_check_method == "cuda")
-    {
-        auto* gpu_checkers = engine->sanity_checker_collection();
-        if(gpu_checkers)
-        {
-            SanityCheckMessageCollection msgs;
-            auto result = gpu_checkers->check(msgs);
-            if(result != SanityCheckResult::Success)
-            {
-                logger::error("GPU SanityCheck failed.");
-                m_valid = false;
-            }
-        }
     }
 }
 

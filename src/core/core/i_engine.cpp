@@ -53,15 +53,7 @@ const FeatureCollection& IEngine::features() const
     return get_features();
 }
 
-ISanityCheckerCollection* IEngine::sanity_checker_collection()
-{
-    return get_sanity_checker_collection();
-}
 
-ISanityCheckerCollection* IEngine::get_sanity_checker_collection()
-{
-    return nullptr;  // default: no backend sanity checker
-}
 
 Json IEngine::do_to_json() const
 {

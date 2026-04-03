@@ -13,7 +13,9 @@ class Scene;
 class UIPC_CORE_API SanityChecker final
 {
   public:
-    SanityChecker(internal::Scene& scene, std::string_view workspace);
+    SanityChecker(internal::Scene& scene,
+                  std::string_view workspace,
+                  std::string_view module_name = "uipc_sanity_check");
     ~SanityChecker();
 
     SanityCheckResult check();
@@ -32,5 +34,6 @@ class UIPC_CORE_API SanityChecker final
 
     internal::Scene& m_scene;
     std::string      m_workspace;
+    std::string      m_module_name;
 };
 }  // namespace uipc::core
