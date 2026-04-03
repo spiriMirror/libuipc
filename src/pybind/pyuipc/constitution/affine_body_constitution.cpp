@@ -55,5 +55,52 @@ Args:
     kappa: Stiffness parameter.
     mass: 12x12 ABD mass matrix.
     volume: Volume of the body.)");
+
+    class_AffineBodyConstitution.def(
+        "create_proxy",
+        [](const AffineBodyConstitution& self,
+           Float                         kappa,
+           Float                         mass,
+           py::array_t<Float>            mass_center,
+           py::array_t<Float>            inertia,
+           Float                         volume)
+        {
+            return self.create_proxy(kappa, mass, to_matrix<Vector3>(mass_center),
+                                     to_matrix<Matrix3x3>(inertia), volume);
+        },
+        py::arg("kappa"),
+        py::arg("mass"),
+        py::arg("mass_center"),
+        py::arg("inertia"),
+        py::arg("volume"),
+        R"(Create a 1-vertex proxy affine body from rigid body mass properties.
+Args:
+    kappa: Stiffness parameter.
+    mass: Scalar mass.
+    mass_center: (3,) center of mass.
+    inertia: (3,3) inertia matrix.
+    volume: Volume of the body.
+Returns:
+    SimplicialComplex: A single-vertex proxy geometry with ABD attributes.)");
+
+    class_AffineBodyConstitution.def(
+        "create_proxy",
+        [](const AffineBodyConstitution& self,
+           Float                         kappa,
+           py::array_t<Float>            abd_mass,
+           Float                         volume)
+        {
+            return self.create_proxy(kappa, to_matrix<Matrix12x12>(abd_mass), volume);
+        },
+        py::arg("kappa"),
+        py::arg("abd_mass"),
+        py::arg("volume"),
+        R"(Create a 1-vertex proxy affine body from a precomputed 12x12 ABD mass matrix.
+Args:
+    kappa: Stiffness parameter.
+    abd_mass: (12,12) ABD mass matrix.
+    volume: Volume of the body.
+Returns:
+    SimplicialComplex: A single-vertex proxy geometry with ABD attributes.)");
 }
 }  // namespace pyuipc::constitution
