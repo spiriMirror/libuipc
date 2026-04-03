@@ -5,6 +5,18 @@
 
 namespace uipc::backend::cuda
 {
+
+void copy_to_buffer_view(muda::CBufferView<Vector3>   src_view,
+                         backend::BufferView          buffer_view,
+                         IndexT                       vertex_offset,
+                         SizeT                        vertex_count)
+{
+    auto src_subview = src_view.subview(vertex_offset, vertex_count);
+    auto* dst_ptr = reinterpret_cast<Vector3*>(buffer_view.handle()) + buffer_view.offset();
+    muda::BufferView<Vector3> dst_muda_view{dst_ptr, vertex_count};
+    dst_muda_view.copy_from(src_subview);
+}
+
 FiniteElementStateAccessorFeatureOverrider::FiniteElementStateAccessorFeatureOverrider(
     FiniteElementMethod& fem, FiniteElementVertexReporter& vertex_reporter)
     : m_fem{fem}
@@ -71,5 +83,17 @@ void FiniteElementStateAccessorFeatureOverrider::do_copy_to(geometry::Simplicial
         auto v_subview = m_fem.m_impl.vs.view(v_offset, v_count);
         v_subview.copy_to(vel_view.data());
     }
+}
+
+void FiniteElementStateAccessorFeatureOverrider::do_copy_position_to(
+    backend::BufferView buffer_view, IndexT vertex_offset, SizeT vertex_count)
+{
+    copy_to_buffer_view(m_fem.xs(), buffer_view, vertex_offset, vertex_count);
+}
+
+void FiniteElementStateAccessorFeatureOverrider::do_copy_velocity_to(
+    backend::BufferView buffer_view, IndexT vertex_offset, SizeT vertex_count)
+{
+    copy_to_buffer_view(m_fem.vs(), buffer_view, vertex_offset, vertex_count);
 }
 }  // namespace uipc::backend::cuda

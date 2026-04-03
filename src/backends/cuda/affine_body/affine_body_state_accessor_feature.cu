@@ -3,6 +3,7 @@
 #include <affine_body/affine_body_vertex_reporter.h>
 #include <uipc/builtin/attribute_name.h>
 #include <affine_body/utils.h>
+#include <muda/launch/parallel_for.h>
 
 namespace uipc::backend::cuda
 {
@@ -77,5 +78,38 @@ void AffineBodyStateAccessorFeatureOverrider::do_copy_to(geometry::SimplicialCom
         q_v_subview.copy_to(m_buffer.data());
         std::ranges::transform(m_buffer, vel_view.begin(), q_v_to_transform_v);
     }
+}
+
+
+void AffineBodyStateAccessorFeatureOverrider::do_copy_transform_to(
+    backend::BufferView buffer_view, IndexT body_offset, SizeT body_count)
+{
+    auto q_view    = m_abd.qs();
+    auto q_subview = q_view.subview(body_offset, body_count);
+
+    auto* dst_ptr = reinterpret_cast<Matrix4x4*>(buffer_view.handle()) + buffer_view.offset();
+
+    muda::ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(body_count,
+               [q_in = q_subview.cviewer().name("q_in"),
+                dst  = dst_ptr] __device__(int i) mutable
+               { dst[i] = q_to_transform(q_in(i)); });
+}
+
+void AffineBodyStateAccessorFeatureOverrider::do_copy_velocity_to(
+    backend::BufferView buffer_view, IndexT body_offset, SizeT body_count)
+{
+    auto q_v_view    = m_abd.q_vs();
+    auto q_v_subview = q_v_view.subview(body_offset, body_count);
+
+    auto* dst_ptr = reinterpret_cast<Matrix4x4*>(buffer_view.handle()) + buffer_view.offset();
+
+    muda::ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(body_count,
+               [q_in = q_v_subview.cviewer().name("q_v_in"),
+                dst  = dst_ptr] __device__(int i) mutable
+               { dst[i] = q_v_to_transform_v(q_in(i)); });
 }
 }  // namespace uipc::backend::cuda

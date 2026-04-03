@@ -1,6 +1,7 @@
 #pragma once
 #include <type_define.h>
 #include <uipc/core/finite_element_state_accessor_feature.h>
+#include <muda/buffer/device_buffer.h>
 
 namespace uipc::backend::cuda
 {
@@ -16,6 +17,9 @@ class FiniteElementStateAccessorFeatureOverrider final : public core::FiniteElem
     SizeT get_vertex_count() override;
     void  do_copy_from(const geometry::SimplicialComplex& state_geo) override;
     void  do_copy_to(geometry::SimplicialComplex& state_geo) override;
+
+    void do_copy_position_to(backend::BufferView buffer_view, IndexT vertex_offset, SizeT vertex_count) override;
+    void do_copy_velocity_to(backend::BufferView buffer_view, IndexT vertex_offset, SizeT vertex_count) override;
 
   private:
     FiniteElementMethod&         m_fem;

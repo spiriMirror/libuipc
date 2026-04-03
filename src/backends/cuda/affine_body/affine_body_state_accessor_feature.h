@@ -1,12 +1,12 @@
 #pragma once
 #include <type_define.h>
 #include <uipc/core/affine_body_state_accessor_feature.h>
+#include <muda/buffer/device_buffer.h>
 
 namespace uipc::backend::cuda
 {
 class AffineBodyDynamics;
 class AffineBodyVertexReporter;
-
 class AffineBodyStateAccessorFeatureOverrider final : public core::AffineBodyStateAccessorFeatureOverrider
 {
   public:
@@ -16,6 +16,9 @@ class AffineBodyStateAccessorFeatureOverrider final : public core::AffineBodySta
     SizeT get_body_count() override;
     void  do_copy_from(const geometry::SimplicialComplex& state_geo) override;
     void  do_copy_to(geometry::SimplicialComplex& state_geo) override;
+
+    void do_copy_transform_to(backend::BufferView buffer_view, IndexT body_offset, SizeT body_count) override;
+    void do_copy_velocity_to(backend::BufferView buffer_view, IndexT body_offset, SizeT body_count) override;
 
   private:
     AffineBodyDynamics&       m_abd;
