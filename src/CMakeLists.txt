@@ -16,10 +16,6 @@ add_subdirectory(backends)
 
 add_subdirectory(sanity_check)
 
-if(UIPC_WITH_CUDA_BACKEND)
-    add_subdirectory(cuda_sanity_check)
-endif()
-
 add_subdirectory(io)
 
 if(UIPC_BUILD_GUI)

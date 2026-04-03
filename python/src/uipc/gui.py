@@ -397,7 +397,7 @@ class SceneGUI:
             'contact/adaptive/max_kappa',
             'contact/eps_velocity',
             'collision_detection/method',
-            'sanity_check/backend',
+            'sanity_check/enable',
             'sanity_check/mode',
             'diff_sim/enable',
             'extras/debug/dump_surface',

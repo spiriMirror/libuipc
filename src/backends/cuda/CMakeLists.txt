@@ -14,6 +14,7 @@ target_link_libraries(cuda PUBLIC
     cusparse
     cusolver
     uipc_geometry
+    uipc_io
 )
 
 # add CCCL include directory for CUDA 13.0 compatibility

@@ -32,17 +32,13 @@ void World::init(internal::Scene& s)
     auto engine = lock(m_engine);
 
     auto& config = m_scene->config();
-    auto  sanity_check_backend =
-        config.find<std::string>("sanity_check/backend")->view()[0];
+    auto  sanity_check_enable =
+        config.find<IndexT>("sanity_check/enable");
 
-    // 2. Sanity Check Before Init (CPU or CUDA module)
-    if(sanity_check_backend == "cpu" || sanity_check_backend == "cuda")
+    // 2. Sanity Check Before Init
+    if(sanity_check_enable && sanity_check_enable->view()[0])
     {
-        std::string module_name = (sanity_check_backend == "cuda") ?
-                                      "uipc_cuda_sanity_check" :
-                                      "uipc_sanity_check";
-        m_sanity_checker =
-            uipc::make_shared<SanityChecker>(s, engine->workspace(), module_name);
+        m_sanity_checker = uipc::make_shared<SanityChecker>(s, *engine);
         _sanity_check();
     }
     if(!m_valid)
@@ -215,7 +211,6 @@ const SanityChecker& World::sanity_checker() const
 
 void World::_sanity_check()
 {
-    auto  engine         = lock(m_engine);
     auto& sanity_checker = *m_sanity_checker;
     auto  result         = sanity_checker.check();
     if(result != SanityCheckResult::Success)

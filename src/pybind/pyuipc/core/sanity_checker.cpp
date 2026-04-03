@@ -51,7 +51,7 @@ Returns:
     auto class_SanityChecker = py::class_<SanityChecker>(
         m, "SanityChecker", R"(SanityChecker class for validating scene and geometry data.)");
 
-    class_SanityChecker.def("check", &SanityChecker::check)
+    class_SanityChecker
         .def("report",
              &SanityChecker::report,
              R"(Get a report of all sanity check messages.
@@ -72,6 +72,11 @@ Returns:
              R"(Get all info messages.
 Returns:
     list: List of info SanityCheckMessage objects.)")
-        .def("clear", &SanityChecker::clear, R"(Clear all sanity check messages.)");
+        .def("clear", &SanityChecker::clear, R"(Clear all sanity check messages.)")
+        .def("check",
+             &SanityChecker::check,
+             R"(Run all sanity checks.
+Returns:
+    SanityCheckResult: The result of the sanity check.)");
 }
 }  // namespace pyuipc::core

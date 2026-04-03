@@ -6,7 +6,9 @@
 #include <fstream>
 
 
-void test_half_plane_vertex_distance_check(std::string_view name, std::string_view mesh)
+void test_half_plane_vertex_distance_check(std::string_view backend,
+                                           std::string_view name,
+                                           std::string_view mesh)
 {
     using namespace uipc;
     using namespace uipc::core;
@@ -14,17 +16,17 @@ void test_half_plane_vertex_distance_check(std::string_view name, std::string_vi
     using namespace uipc::constitution;
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
-    auto this_output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE) + fmt::format("/{}", name);
+    auto this_output_path =
+        AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE)
+        + fmt::format("/{}", name);
 
-    Engine engine{"none", this_output_path};
+    Engine engine{backend, this_output_path};
     World  world{engine};
 
-    auto config                      = Scene::default_config();
-    config["sanity_check"]["method"] = "cpu";
-    config["sanity_check"]["mode"]   = "quiet";
+    auto config                    = Scene::default_config();
+    config["sanity_check"]["mode"] = "quiet";
     Scene scene{config};
 
-    // create object
     auto object = scene.objects().create("meshes");
 
     SimplicialComplexIO io;
@@ -37,17 +39,14 @@ void test_half_plane_vertex_distance_check(std::string_view name, std::string_vi
 
     auto Vs = m.positions().view();
 
-    // calculate the mid point
     Vector3 mid = Vector3::Zero();
     for(auto& v : Vs)
         mid += v;
     mid /= Vs.size();
 
-    // create a half plane
     auto g = ground(mid.y());
     object->geometries().create(g);
 
-    // create a x+ half plane
     auto g1 = halfplane(mid, Vector3::UnitX());
     object->geometries().create(g1);
 
@@ -71,33 +70,39 @@ TEST_CASE("half_plane_vertex_distance", "[init_surface]")
     auto tetmesh_dir = AssetDir::tetmesh_path();
     auto trimesh_dir = AssetDir::trimesh_path();
 
+    auto run_all = [&](std::string_view backend)
     {
-        auto name = "cube.obj";
-        auto path = fmt::format("{}/{}", trimesh_dir, name);
-        test_half_plane_vertex_distance_check(name, path);
-    }
+        {
+            auto name = "cube.obj";
+            auto path = fmt::format("{}/{}", trimesh_dir, name);
+            test_half_plane_vertex_distance_check(backend, name, path);
+        }
 
-    {
-        auto name = "tet.msh";
-        auto path = fmt::format("{}/{}", tetmesh_dir, name);
-        test_half_plane_vertex_distance_check(name, path);
-    }
+        {
+            auto name = "tet.msh";
+            auto path = fmt::format("{}/{}", tetmesh_dir, name);
+            test_half_plane_vertex_distance_check(backend, name, path);
+        }
 
-    {
-        auto name = "bunny0.msh";
-        auto path = fmt::format("{}/{}", tetmesh_dir, name);
-        test_half_plane_vertex_distance_check(name, path);
-    }
+        {
+            auto name = "bunny0.msh";
+            auto path = fmt::format("{}/{}", tetmesh_dir, name);
+            test_half_plane_vertex_distance_check(backend, name, path);
+        }
 
-    {
-        auto name = "link.msh";
-        auto path = fmt::format("{}/{}", tetmesh_dir, name);
-        test_half_plane_vertex_distance_check(name, path);
-    }
+        {
+            auto name = "link.msh";
+            auto path = fmt::format("{}/{}", tetmesh_dir, name);
+            test_half_plane_vertex_distance_check(backend, name, path);
+        }
 
-    {
-        auto name = "ball.msh";
-        auto path = fmt::format("{}/{}", tetmesh_dir, name);
-        test_half_plane_vertex_distance_check(name, path);
-    }
+        {
+            auto name = "ball.msh";
+            auto path = fmt::format("{}/{}", tetmesh_dir, name);
+            test_half_plane_vertex_distance_check(backend, name, path);
+        }
+    };
+
+    SECTION("none") { run_all("none"); }
+    SECTION("cuda") { run_all("cuda"); }
 }

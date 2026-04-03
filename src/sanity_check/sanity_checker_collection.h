@@ -13,8 +13,10 @@ class SanityCheckerCollection : public core::ISanityCheckerCollection
     SanityCheckerCollection(std::string_view workspace) noexcept;
     ~SanityCheckerCollection();
 
-    virtual void build(core::internal::Scene& s) override;
+    virtual void              build(core::internal::Scene& s) override;
+    virtual void              insert(S<core::ISanityChecker> checker) override;
     virtual SanityCheckResult check(core::SanityCheckMessageCollection& msgs) const override;
+    virtual core::ISanityCheckContext& context() override;
 
     template <std::derived_from<core::ISanityChecker> SanityCheckerT>
     SanityCheckerT* find() const;

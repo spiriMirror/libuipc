@@ -1,13 +1,13 @@
-#include <cuda_sanity_checker.h>
-#include <context.h>
-#include <uipc/geometry/simplicial_complex.h>
-#include <uipc/io/simplicial_complex_io.h>
-#include <uipc/builtin/attribute_name.h>
-#include <uipc/backend/visitors/scene_visitor.h>
-#include <uipc/common/map.h>
-#include <primtive_contact.h>
-
 #include <type_define.h>
+#include <uipc/core/object.h>
+#include <uipc/core/contact_tabular.h>
+#include <uipc/core/subscene_tabular.h>
+#include <sanity_check/backend_sanity_checker.h>
+#include <uipc/backend/visitors/sanity_check_message_visitor.h>
+#include <uipc/geometry/simplicial_complex.h>
+#include <uipc/builtin/attribute_name.h>
+#include <uipc/io/simplicial_complex_io.h>
+#include <uipc/common/map.h>
 #include <collision_detection/aabb.h>
 #include <collision_detection/info_stackless_bvh.h>
 #include <utils/simplex_contact_mask_utils.h>
@@ -26,9 +26,8 @@ struct less<uipc::Vector2i>
 };
 }  // namespace std
 
-namespace uipc::cuda_sanity_check
+namespace uipc::backend::cuda
 {
-// Moeller-Trumbore ray-triangle intersection test (device function).
 MUDA_GENERIC inline bool tri_edge_intersect_device(const Vector3& t0,
                                                    const Vector3& t1,
                                                    const Vector3& t2,
@@ -69,65 +68,61 @@ MUDA_GENERIC inline bool tri_edge_intersect_device(const Vector3& t0,
     return true;
 }
 
-class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
+class SimplicialSurfaceIntersectionCheck final : public BackendSanityChecker
 {
   public:
     constexpr static U64 SanityCheckerUID = 1;
-    using CudaSanityChecker::CudaSanityChecker;
+    using BackendSanityChecker::BackendSanityChecker;
 
-    // GPU broadphase + narrowphase; returns intersecting (edge_idx, tri_idx) pairs on host.
     struct Impl
     {
         vector<Vector2i> detect_intersections(span<const Vector3>  Vs,
                                               span<const Vector2i> Es,
                                               span<const Vector3i> Fs,
-                                              span<const IndexT>   vert_bids,
-                                              span<const IndexT>   vert_cids,
-                                              span<const IndexT>   vert_scids,
-                                              span<const IndexT>   vert_self_collision,
+                                              span<const IndexT>   h_vert_bids,
+                                              span<const IndexT>   h_vert_cids,
+                                              span<const IndexT>   h_vert_scids,
+                                              span<const IndexT>   h_vert_self_collision,
                                               span<const IndexT>   h_contact_mask,
                                               SizeT                contact_element_count,
                                               span<const IndexT>   h_subscene_mask,
                                               SizeT                subscene_element_count)
         {
-            using namespace uipc::backend::cuda;
             using namespace muda;
 
             SizeT num_verts = Vs.size();
             SizeT num_edges = Es.size();
             SizeT num_tris  = Fs.size();
 
-            // 1) Copy scene data to GPU
-            DeviceBuffer<Vector3>  d_positions(num_verts);
-            DeviceBuffer<Vector2i> d_edges(num_edges);
-            DeviceBuffer<Vector3i> d_triangles(num_tris);
-            DeviceBuffer<IndexT>   d_vert_bids(num_verts);
-            DeviceBuffer<IndexT>   d_vert_cids(num_verts);
-            DeviceBuffer<IndexT>   d_vert_scids(num_verts);
-            DeviceBuffer<IndexT>   d_self_collision(num_verts);
+            DeviceBuffer<Vector3>  positions(num_verts);
+            DeviceBuffer<Vector2i> edges(num_edges);
+            DeviceBuffer<Vector3i> triangles(num_tris);
+            DeviceBuffer<IndexT>   vert_bids(num_verts);
+            DeviceBuffer<IndexT>   vert_cids(num_verts);
+            DeviceBuffer<IndexT>   vert_scids(num_verts);
+            DeviceBuffer<IndexT>   self_collision(num_verts);
 
-            d_positions.view().copy_from(Vs.data());
-            d_edges.view().copy_from(Es.data());
-            d_triangles.view().copy_from(Fs.data());
-            d_vert_bids.view().copy_from(vert_bids.data());
-            d_vert_cids.view().copy_from(vert_cids.data());
-            d_vert_scids.view().copy_from(vert_scids.data());
-            d_self_collision.view().copy_from(vert_self_collision.data());
+            positions.view().copy_from(Vs.data());
+            edges.view().copy_from(Es.data());
+            triangles.view().copy_from(Fs.data());
+            vert_bids.view().copy_from(h_vert_bids.data());
+            vert_cids.view().copy_from(h_vert_cids.data());
+            vert_scids.view().copy_from(h_vert_scids.data());
+            self_collision.view().copy_from(h_vert_self_collision.data());
 
-            // 2) Build per-primitive BIDs/CIDs and AABBs on GPU
-            DeviceBuffer<AABB>   d_tri_aabbs(num_tris);
-            DeviceBuffer<IndexT> d_tri_bids(num_tris);
-            DeviceBuffer<IndexT> d_tri_cids(num_tris);
+            DeviceBuffer<AABB>   tri_aabbs(num_tris);
+            DeviceBuffer<IndexT> tri_bids(num_tris);
+            DeviceBuffer<IndexT> tri_cids(num_tris);
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(num_tris,
-                       [positions = d_positions.cviewer().name("positions"),
-                        triangles = d_triangles.cviewer().name("triangles"),
-                        v_bids    = d_vert_bids.cviewer().name("v_bids"),
-                        v_cids    = d_vert_cids.cviewer().name("v_cids"),
-                        tri_aabbs = d_tri_aabbs.viewer().name("tri_aabbs"),
-                        tri_bids  = d_tri_bids.viewer().name("tri_bids"),
-                        tri_cids = d_tri_cids.viewer().name("tri_cids")] __device__(int i) mutable
+                       [positions = positions.cviewer().name("positions"),
+                        triangles = triangles.cviewer().name("triangles"),
+                        vert_bids = vert_bids.cviewer().name("vert_bids"),
+                        vert_cids = vert_cids.cviewer().name("vert_cids"),
+                        tri_aabbs = tri_aabbs.viewer().name("tri_aabbs"),
+                        tri_bids  = tri_bids.viewer().name("tri_bids"),
+                        tri_cids  = tri_cids.viewer().name("tri_cids")] __device__(int i) mutable
                        {
                            Vector3i F = triangles(i);
                            AABB     box;
@@ -135,135 +130,125 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
                            box.extend(positions(F[1]).cast<float>());
                            box.extend(positions(F[2]).cast<float>());
                            tri_aabbs(i) = box;
-                           tri_bids(i)  = v_bids(F[0]);
-                           tri_cids(i)  = v_cids(F[0]);
+                           tri_bids(i)  = vert_bids(F[0]);
+                           tri_cids(i)  = vert_cids(F[0]);
                        });
 
-            DeviceBuffer<AABB>   d_edge_aabbs(num_edges);
-            DeviceBuffer<IndexT> d_edge_bids(num_edges);
-            DeviceBuffer<IndexT> d_edge_cids(num_edges);
+            DeviceBuffer<AABB>   edge_aabbs(num_edges);
+            DeviceBuffer<IndexT> edge_bids(num_edges);
+            DeviceBuffer<IndexT> edge_cids(num_edges);
             ParallelFor()
                 .file_line(__FILE__, __LINE__)
                 .apply(num_edges,
-                       [positions  = d_positions.cviewer().name("positions"),
-                        edges      = d_edges.cviewer().name("edges"),
-                        v_bids     = d_vert_bids.cviewer().name("v_bids"),
-                        v_cids     = d_vert_cids.cviewer().name("v_cids"),
-                        edge_aabbs = d_edge_aabbs.viewer().name("edge_aabbs"),
-                        edge_bids  = d_edge_bids.viewer().name("edge_bids"),
-                        edge_cids = d_edge_cids.viewer().name("edge_cids")] __device__(int i) mutable
+                       [positions  = positions.cviewer().name("positions"),
+                        edges      = edges.cviewer().name("edges"),
+                        vert_bids  = vert_bids.cviewer().name("vert_bids"),
+                        vert_cids  = vert_cids.cviewer().name("vert_cids"),
+                        edge_aabbs = edge_aabbs.viewer().name("edge_aabbs"),
+                        edge_bids  = edge_bids.viewer().name("edge_bids"),
+                        edge_cids  = edge_cids.viewer().name("edge_cids")] __device__(int i) mutable
                        {
                            Vector2i E = edges(i);
                            AABB     box;
                            box.extend(positions(E[0]).cast<float>());
                            box.extend(positions(E[1]).cast<float>());
                            edge_aabbs(i) = box;
-                           edge_bids(i)  = v_bids(E[0]);
-                           edge_cids(i)  = v_cids(E[0]);
+                           edge_bids(i)  = vert_bids(E[0]);
+                           edge_cids(i)  = vert_cids(E[0]);
                        });
 
-            // 3) Upload contact mask tabular to GPU
             SizeT                  CN = contact_element_count;
-            DeviceBuffer2D<IndexT> d_cmts;
-            d_cmts.resize(Extent2D{CN, CN});
-            d_cmts.view().copy_from(h_contact_mask.data());
+            DeviceBuffer2D<IndexT> cmts;
+            cmts.resize(Extent2D{CN, CN});
+            cmts.view().copy_from(h_contact_mask.data());
 
-            // Upload subscene mask tabular to GPU
             SizeT                  SN = subscene_element_count;
-            DeviceBuffer2D<IndexT> d_scmts;
-            d_scmts.resize(Extent2D{SN, SN});
-            d_scmts.view().copy_from(h_subscene_mask.data());
+            DeviceBuffer2D<IndexT> scmts;
+            scmts.resize(Extent2D{SN, SN});
+            scmts.view().copy_from(h_subscene_mask.data());
 
-            // 4) BVH build + query
             InfoStacklessBVH              bvh;
             InfoStacklessBVH::QueryBuffer qbuffer;
 
-            bvh.build(d_tri_aabbs.view(), d_tri_bids.view(), d_tri_cids.view());
+            bvh.build(tri_aabbs.view(), tri_bids.view(), tri_cids.view());
 
-            auto pos_viewer  = d_positions.cviewer();
-            auto edge_viewer = d_edges.cviewer();
-            auto tri_viewer  = d_triangles.cviewer();
+            auto pos_viewer  = positions.cviewer();
+            auto edge_viewer = edges.cviewer();
+            auto tri_viewer  = triangles.cviewer();
 
-            auto vert_cids_v    = d_vert_cids.cviewer();
-            auto vert_scids_v   = d_vert_scids.cviewer();
-            auto self_coll_v    = d_self_collision.cviewer();
-            auto contact_cmts_v = d_cmts.cviewer();
-            auto subscene_cmts_v = d_scmts.cviewer();
+            auto vert_cids_v    = vert_cids.cviewer();
+            auto vert_scids_v   = vert_scids.cviewer();
+            auto self_coll_v    = self_collision.cviewer();
+            auto contact_cmts_v = cmts.cviewer();
+            auto subscene_cmts_v = scmts.cviewer();
 
-            auto cmts_v = d_cmts.viewer();
-            auto node_pred = [cmts_v] __device__(const InfoStacklessBVH::NodePredInfo& info) -> bool
-            {
-                constexpr IndexT invalid = static_cast<IndexT>(-1);
-                bool cid_cull = info.node_cid != invalid && info.query_cid != invalid
-                                && !cmts_v(info.query_cid, info.node_cid);
-                return !cid_cull;
-            };
+            auto cmts_v = cmts.viewer();
 
-            auto leaf_pred = [pos_viewer, edge_viewer, tri_viewer,
-                              vert_cids_v, vert_scids_v, self_coll_v,
-                              contact_cmts_v, subscene_cmts_v] __device__(
-                                 const InfoStacklessBVH::LeafPredInfo& info) -> bool
-            {
-                Vector2i E = edge_viewer(info.i);
-                Vector3i F = tri_viewer(info.j);
-
-                // Skip if edge shares a vertex with triangle
-                if(E[0] == F[0] || E[0] == F[1] || E[0] == F[2] || E[1] == F[0]
-                   || E[1] == F[1] || E[1] == F[2])
-                    return false;
-
-                // Per-vertex subscene mask check: all cross-pairs between edge and triangle vertices
+            bvh.query(
+                edge_aabbs.view(),
+                edge_bids.view(),
+                edge_cids.view(),
+                cmts.view(),
+                [cmts_v] __device__(const InfoStacklessBVH::NodePredInfo& info) -> bool
                 {
-                    bool ok = true;
-                    for(int ei = 0; ei < 2 && ok; ++ei)
-                        for(int fi = 0; fi < 3 && ok; ++fi)
-                        {
-                            IndexT scid_e = vert_scids_v(E[ei]);
-                            IndexT scid_f = vert_scids_v(F[fi]);
-                            if(!subscene_cmts_v(scid_e, scid_f))
-                                ok = false;
-                        }
-                    if(!ok)
-                        return false;
-                }
-
-                // Per-vertex contact mask check (all cross-pairs)
+                    constexpr IndexT invalid = static_cast<IndexT>(-1);
+                    bool cid_cull = info.node_cid != invalid && info.query_cid != invalid
+                                    && !cmts_v(info.query_cid, info.node_cid);
+                    return !cid_cull;
+                },
+                [pos_viewer, edge_viewer, tri_viewer,
+                 vert_cids_v, vert_scids_v, self_coll_v,
+                 contact_cmts_v, subscene_cmts_v] __device__(
+                    const InfoStacklessBVH::LeafPredInfo& info) -> bool
                 {
-                    bool ok = true;
-                    for(int ei = 0; ei < 2 && ok; ++ei)
-                        for(int fi = 0; fi < 3 && ok; ++fi)
-                        {
-                            IndexT cid_e = vert_cids_v(E[ei]);
-                            IndexT cid_f = vert_cids_v(F[fi]);
-                            if(!contact_cmts_v(cid_e, cid_f))
-                                ok = false;
-                        }
-                    if(!ok)
+                    Vector2i E = edge_viewer(info.i);
+                    Vector3i F = tri_viewer(info.j);
+
+                    if(E[0] == F[0] || E[0] == F[1] || E[0] == F[2] || E[1] == F[0]
+                       || E[1] == F[1] || E[1] == F[2])
                         return false;
-                }
 
-                // Self-collision check: same body + self_collision disabled => skip
-                if(info.bid_i == info.bid_j
-                   && info.bid_i != static_cast<IndexT>(-1)
-                   && !self_coll_v(E[0]))
-                    return false;
+                    {
+                        bool ok = true;
+                        for(int ei = 0; ei < 2 && ok; ++ei)
+                            for(int fi = 0; fi < 3 && ok; ++fi)
+                            {
+                                IndexT scid_e = vert_scids_v(E[ei]);
+                                IndexT scid_f = vert_scids_v(F[fi]);
+                                if(!subscene_cmts_v(scid_e, scid_f))
+                                    ok = false;
+                            }
+                        if(!ok)
+                            return false;
+                    }
 
-                return tri_edge_intersect_device(pos_viewer(F[0]),
-                                                 pos_viewer(F[1]),
-                                                 pos_viewer(F[2]),
-                                                 pos_viewer(E[0]),
-                                                 pos_viewer(E[1]));
-            };
+                    {
+                        bool ok = true;
+                        for(int ei = 0; ei < 2 && ok; ++ei)
+                            for(int fi = 0; fi < 3 && ok; ++fi)
+                            {
+                                IndexT cid_e = vert_cids_v(E[ei]);
+                                IndexT cid_f = vert_cids_v(F[fi]);
+                                if(!contact_cmts_v(cid_e, cid_f))
+                                    ok = false;
+                            }
+                        if(!ok)
+                            return false;
+                    }
 
-            bvh.query(d_edge_aabbs.view(),
-                      d_edge_bids.view(),
-                      d_edge_cids.view(),
-                      d_cmts.view(),
-                      node_pred,
-                      leaf_pred,
-                      qbuffer);
+                    if(info.bid_i == info.bid_j
+                       && info.bid_i != static_cast<IndexT>(-1)
+                       && !self_coll_v(E[0]))
+                        return false;
 
-            // 5) Copy pairs back to host
+                    return tri_edge_intersect_device(pos_viewer(F[0]),
+                                                     pos_viewer(F[1]),
+                                                     pos_viewer(F[2]),
+                                                     pos_viewer(E[0]),
+                                                     pos_viewer(E[1]));
+                },
+                qbuffer);
+
             vector<Vector2i> h_pairs(qbuffer.size());
             if(!h_pairs.empty())
                 qbuffer.view().copy_to(h_pairs.data());
@@ -272,7 +257,6 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
         }
     };
 
-    // ---- CPU-side mesh extraction (same as CPU checker) ----
     static geometry::SimplicialComplex extract_intersected_mesh(
         const geometry::SimplicialComplex& scene_surface,
         span<const IndexT>                 vert_intersected,
@@ -305,7 +289,6 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
         i_mesh.triangles().copy_from(scene_surface.triangles(),
                                      geometry::AttributeCopy::pull(intersected_tris));
 
-        // Remap vertex indices
         vector<IndexT> vertex_remap(scene_surface.vertices().size(), -1);
         for(auto [i, v] : enumerate(intersected_verts))
             vertex_remap[v] = i;
@@ -328,24 +311,23 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
     }
 
   protected:
-    virtual void build(backend::SceneVisitor& scene) override
+    virtual void build() override
     {
-        auto enable_contact = scene.config().find<IndexT>("contact/enable");
+        auto enable_contact = context().config().find<IndexT>("contact/enable");
         if(!enable_contact->view()[0])
         {
-            throw CudaSanityCheckerException("Contact is not enabled");
+            throw BackendSanityCheckerException("Contact is not enabled");
         }
     }
 
     virtual U64 get_id() const noexcept override { return SanityCheckerUID; }
 
-    virtual SanityCheckResult do_check(backend::SceneVisitor& scene,
-                                       backend::SanityCheckMessageVisitor& msg) noexcept override
+    virtual SanityCheckResult do_check(core::SanityCheckMessage& msg) override
     {
-        auto context = find<Context>();
+        auto& ctx = context();
 
         const geometry::SimplicialComplex& scene_surface =
-            context->scene_simplicial_surface();
+            ctx.scene_simplicial_surface();
 
         auto Vs = scene_surface.vertices().size() ? scene_surface.positions().view() :
                                                     span<const Vector3>{};
@@ -358,8 +340,8 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
         if(Vs.size() == 0 || Es.size() == 0 || Fs.size() == 0)
             return SanityCheckResult::Success;
 
-        auto& contact_tabular  = context->contact_tabular();
-        auto& subscene_tabular = context->subscene_tabular();
+        auto& contact_tabular  = ctx.contact_tabular();
+        auto& subscene_tabular = ctx.subscene_tabular();
 
         auto attr_cids =
             scene_surface.vertices().find<IndexT>("sanity_check/contact_element_id");
@@ -393,23 +375,18 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
         UIPC_ASSERT(attr_v_object_id, "`sanity_check/object_id` is not found in scene surface");
         auto VObjectIds = attr_v_object_id->view();
 
-        // Build contact mask tabular on CPU for GPU BVH pruning
         SizeT CN = contact_tabular.element_count();
-
         vector<IndexT> h_contact_mask(CN * CN);
         for(IndexT i = 0; i < (IndexT)CN; ++i)
             for(IndexT j = 0; j < (IndexT)CN; ++j)
                 h_contact_mask[i * CN + j] = contact_tabular.at(i, j).is_enabled() ? 1 : 0;
 
-        // Build subscene mask tabular on CPU
         SizeT SN = subscene_tabular.element_count();
-
         vector<IndexT> h_subscene_mask(SN * SN);
         for(IndexT i = 0; i < (IndexT)SN; ++i)
             for(IndexT j = 0; j < (IndexT)SN; ++j)
                 h_subscene_mask[i * SN + j] = subscene_tabular.at(i, j).is_enabled() ? 1 : 0;
 
-        // ---- GPU broadphase + narrowphase (with full filtering on GPU) ----
         auto pairs = m_impl.detect_intersections(
             Vs,
             Es,
@@ -426,7 +403,6 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
         if(pairs.empty())
             return SanityCheckResult::Success;
 
-        // ---- CPU: mark violated primitives from GPU pairs ----
         SizeT num_verts = Vs.size();
         SizeT num_edges = Es.size();
         SizeT num_tris  = Fs.size();
@@ -467,25 +443,28 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
             intersected_geo_ids[{GeoIdL, GeoIdR}] = {ObjIdL, ObjIdR};
         }
 
-        // Report
-        auto& buffer = msg.message();
+        ::uipc::backend::SanityCheckMessageVisitor scmv{msg};
+        auto& buffer = scmv.message();
 
         for(auto& [GeoIds, ObjIds] : intersected_geo_ids)
         {
-            auto obj_0 = objects().find(ObjIds[0]);
-            auto obj_1 = objects().find(ObjIds[1]);
+            auto obj_0 = find_object(ObjIds[0]);
+            auto obj_1 = find_object(ObjIds[1]);
 
             UIPC_ASSERT(obj_0 != nullptr, "Object[{}] not found", ObjIds[0]);
             UIPC_ASSERT(obj_1 != nullptr, "Object[{}] not found", ObjIds[1]);
+
+            std::string name_0{obj_0->name()};
+            std::string name_1{obj_1->name()};
 
             fmt::format_to(std::back_inserter(buffer),
                            "Geometry({}) in Object[{}({})] intersects with Geometry({}) in "
                            "Object[{}({})]\n",
                            GeoIds[0],
-                           obj_0->name(),
+                           name_0,
                            obj_0->id(),
                            GeoIds[1],
-                           obj_1->name(),
+                           name_1,
                            obj_1->id());
         }
 
@@ -500,7 +479,7 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
 
         std::string name = "intersected_mesh";
 
-        auto sanity_check_mode = scene.config().find<std::string>("sanity_check/mode");
+        auto sanity_check_mode = ctx.config().find<std::string>("sanity_check/mode");
         if(sanity_check_mode->view()[0] == "normal")
         {
             auto output_path = this_output_path();
@@ -526,7 +505,7 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
                        name,
                        intersected_mesh.type());
 
-        msg.geometries()[name] =
+        scmv.geometries()[name] =
             uipc::make_shared<geometry::SimplicialComplex>(std::move(intersected_mesh));
 
         return SanityCheckResult::Error;
@@ -536,5 +515,5 @@ class SimplicialSurfaceIntersectionCheck final : public CudaSanityChecker
     Impl m_impl;
 };
 
-REGISTER_CUDA_SANITY_CHECKER(SimplicialSurfaceIntersectionCheck);
-}  // namespace uipc::cuda_sanity_check
+REGISTER_BACKEND_SANITY_CHECKER(SimplicialSurfaceIntersectionCheck);
+}  // namespace uipc::backend::cuda

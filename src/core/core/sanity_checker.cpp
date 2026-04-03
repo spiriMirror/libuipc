@@ -1,4 +1,5 @@
 #include <uipc/core/sanity_checker.h>
+#include <uipc/core/internal/engine.h>
 #include <dylib.hpp>
 #include <uipc/common/uipc.h>
 #include <uipc/backend/module_init_info.h>
@@ -42,12 +43,9 @@ static S<dylib> load_sanity_check_module(std::string_view module_name)
     return this_module;
 }
 
-SanityChecker::SanityChecker(internal::Scene& scene,
-                             std::string_view workspace,
-                             std::string_view module_name)
+SanityChecker::SanityChecker(internal::Scene& scene, internal::Engine& engine)
     : m_scene{scene}
-    , m_workspace{workspace}
-    , m_module_name{module_name}
+    , m_engine{engine}
 {
 }
 
@@ -57,7 +55,9 @@ SanityCheckResult SanityChecker::check()
 {
     clear();
 
-    auto sanity_check_module = load_sanity_check_module(m_module_name);
+    constexpr std::string_view cpu_module_name = "uipc_sanity_check";
+
+    auto sanity_check_module = load_sanity_check_module(cpu_module_name);
     auto creator =
         sanity_check_module->get_function<ISanityCheckerCollection*(SanityCheckerCollectionCreateInfo*)>(
             "uipc_create_sanity_checker_collection");
@@ -65,7 +65,7 @@ SanityCheckResult SanityChecker::check()
     if(!creator)
     {
         logger::error("Can't find [{}]'s sanity checker creator, so we skip sanity check.",
-                      m_module_name);
+                      cpu_module_name);
         return SanityCheckResult::Error;
     }
 
@@ -75,18 +75,22 @@ SanityCheckResult SanityChecker::check()
     if(!destroyer)
     {
         logger::error("Can't find [{}]'s sanity checker destroyer, so we skip sanity check.",
-                      m_module_name);
+                      cpu_module_name);
         return SanityCheckResult::Error;
     }
 
     SanityCheckerCollectionCreateInfo info;
-    info.workspace = m_workspace;
+    info.workspace = m_engine.workspace();
 
+    // 1. Create CPU collection and build all CPU checkers (including Context)
     ISanityCheckerCollection* sanity_checkers = creator(&info);
     sanity_checkers->build(m_scene);
 
-    SanityCheckMessageCollection msgs;
+    // 2. Let backend insert override checkers (replaces CPU defaults by id)
+    m_engine.insert_sanity_checkers(*sanity_checkers);
 
+    // 3. Run all checks
+    SanityCheckMessageCollection msgs;
     auto result = sanity_checkers->check(msgs);
 
     for(const auto& [id, msg] : msgs.messages())

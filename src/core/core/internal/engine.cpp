@@ -310,4 +310,9 @@ SizeT Engine::frame() const
 {
     return m_impl->get_frame();
 }
+
+void Engine::insert_sanity_checkers(ISanityCheckerCollection& collection)
+{
+    m_impl->engine()->insert_sanity_checkers(collection);
+}
 }  // namespace uipc::core::internal

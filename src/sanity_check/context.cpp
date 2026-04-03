@@ -530,6 +530,26 @@ class Context::Impl
         return m_scene->subscene_tabular();
     }
 
+    S<const core::Object> find_object(IndexT id) const noexcept
+    {
+        return m_scene->objects().find(id);
+    }
+
+    span<S<geometry::GeometrySlot>> geometries() const noexcept
+    {
+        return m_scene->geometries().geometry_slots();
+    }
+
+    S<geometry::GeometrySlot> find_geometry(IndexT id) const noexcept
+    {
+        return m_scene->geometries().find(id);
+    }
+
+    const geometry::AttributeCollection& config() const noexcept
+    {
+        return m_scene->config();
+    }
+
   private:
     S<core::internal::Scene>               m_scene;
     mutable U<geometry::SimplicialComplex> m_scene_simplicial_surface;
@@ -567,6 +587,31 @@ const core::ContactTabular& Context::contact_tabular() const noexcept
 const core::SubsceneTabular& Context::subscene_tabular() const noexcept
 {
     return m_impl->subscene_tabular();
+}
+
+std::string_view Context::workspace() const
+{
+    return SanityChecker::workspace();
+}
+
+S<const core::Object> Context::find_object(IndexT id) const
+{
+    return m_impl->find_object(id);
+}
+
+span<S<geometry::GeometrySlot>> Context::geometries() const
+{
+    return m_impl->geometries();
+}
+
+S<geometry::GeometrySlot> Context::find_geometry(IndexT id) const
+{
+    return m_impl->find_geometry(id);
+}
+
+const geometry::AttributeCollection& Context::config() const
+{
+    return m_impl->config();
 }
 
 U64 Context::get_id() const noexcept
