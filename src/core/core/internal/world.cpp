@@ -31,13 +31,15 @@ void World::init(internal::Scene& s)
 
     auto engine = lock(m_engine);
 
-    // 2. Sanity Check Before Init
-    // initialize sanity checker
-    m_sanity_checker = uipc::make_shared<SanityChecker>(s, engine->workspace());
-    auto& config     = m_scene->config();
-    auto  sanity_check_enable_attr = config.find<IndexT>("sanity_check/enable");
-    if(sanity_check_enable_attr->view()[0])
+    auto& config = m_scene->config();
+    auto  sanity_check_method =
+        config.find<std::string>("sanity_check/method")->view()[0];
+
+    // 2. CPU Sanity Check Before Init
+    if(sanity_check_method == "cpu")
     {
+        m_sanity_checker =
+            uipc::make_shared<SanityChecker>(s, engine->workspace());
         _sanity_check();
     }
     if(!m_valid)
@@ -56,6 +58,22 @@ void World::init(internal::Scene& s)
     {
         logger::error("Engine has error after init, world becomes invalid.");
         m_valid = false;
+    }
+
+    // 5. GPU Sanity Check (after engine init, GPU data is available)
+    if(m_valid && sanity_check_method == "cuda")
+    {
+        auto* gpu_checkers = engine->sanity_checker_collection();
+        if(gpu_checkers)
+        {
+            SanityCheckMessageCollection msgs;
+            auto result = gpu_checkers->check(msgs);
+            if(result != SanityCheckResult::Success)
+            {
+                logger::error("GPU SanityCheck failed.");
+                m_valid = false;
+            }
+        }
     }
 }
 

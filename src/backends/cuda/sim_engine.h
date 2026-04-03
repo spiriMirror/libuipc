@@ -25,6 +25,7 @@ class AffineBodyDynamics;
 class FiniteElementMethod;
 class InterAffineBodyConstitutionManager;
 class NewtonToleranceManager;
+class SanityCheckManager;
 
 
 class SimEngine final : public backend::SimEngine
@@ -54,6 +55,7 @@ class SimEngine final : public backend::SimEngine
     virtual void  do_advance() override;
     virtual void  do_sync() override;
     virtual void  do_retrieve() override;
+    virtual core::ISanityCheckerCollection* get_sanity_checker_collection() override;
     virtual SizeT get_frame() const override;
 
 
@@ -102,6 +104,7 @@ class SimEngine final : public backend::SimEngine
     GlobalExternalForceManager* m_global_external_force_manager = nullptr;
     GlobalDiffSimManager*       m_global_diff_sim_manager       = nullptr;
     GlobalActiveSetManager*     m_global_active_set_manager     = nullptr;
+    SanityCheckManager*         m_sanity_check_manager          = nullptr;
     //GlobalDiffContactManager*    m_global_diff_contact_manager    = nullptr;
     //GlobalAdjointMethodReplayer* m_global_adjoint_method_replayer = nullptr;
     AffineBodyDynamics* m_affine_body_dynamics = nullptr;

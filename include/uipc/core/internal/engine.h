@@ -42,6 +42,7 @@ class UIPC_CORE_API Engine final : public std::enable_shared_from_this<Engine>
     void  advance();
     void  sync();
     void  retrieve();
+    ISanityCheckerCollection* sanity_checker_collection();
     bool  dump();
     bool  recover(SizeT dst_frame);
     SizeT frame() const;

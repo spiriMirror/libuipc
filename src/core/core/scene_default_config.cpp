@@ -69,7 +69,7 @@ geometry::AttributeCollection default_scene_config() noexcept
     //  - linear_bvh (slower)
     config.create("collision_detection/method", std::string{"info_stackless_bvh"});
 
-    config.create("sanity_check/enable", IndexT{1});
+    config.create("sanity_check/method", std::string{"cpu"});
     config.create("sanity_check/mode", std::string{"normal"});
 
     config.create("diff_sim/enable", IndexT{0});

@@ -122,6 +122,14 @@ class Engine::Impl
         m_engine->init(w);
     }
 
+    IEngine* engine() const noexcept { return m_engine; }
+
+    ISanityCheckerCollection* sanity_checker_collection()
+    {
+        LogPatternGuard guard{backend_name()};
+        return m_engine->sanity_checker_collection();
+    }
+
     void advance()
     {
         m_sync_flag = false;
@@ -275,6 +283,11 @@ const FeatureCollection& Engine::features()
 void Engine::init(internal::World& v)
 {
     m_impl->init(v);
+}
+
+ISanityCheckerCollection* Engine::sanity_checker_collection()
+{
+    return m_impl->sanity_checker_collection();
 }
 
 void Engine::advance()

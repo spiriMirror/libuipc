@@ -22,7 +22,7 @@ void test_init_surf_intersection_check(std::string_view            name,
     World  world{engine};
 
     auto config                      = Scene::default_config();
-    config["sanity_check"]["enable"] = true;
+    config["sanity_check"]["method"] = "cpu";
     // config["sanity_check"]["mode"]   = "quiet";
     Scene scene{config};
 
