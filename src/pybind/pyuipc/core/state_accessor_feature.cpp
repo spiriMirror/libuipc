@@ -45,6 +45,28 @@ Args:
 Args:
     state_geo: Geometry to copy state data to.)");
 
+    class_FiniteElementStateAccessorFeature.def("position_buffer",
+                                                &FiniteElementStateAccessorFeature::position_buffer,
+                                                py::arg("vertex_offset") = 0,
+                                                py::arg("vertex_count")  = ~0ull,
+                                                R"(Get a buffer view of the position data (Vector3) for the specified vertex range.
+Args:
+    vertex_offset: Starting vertex index (default: 0).
+    vertex_count: Number of vertices to include (default: all).
+Returns:
+    BufferView: Buffer view of the position data.)");
+
+    class_FiniteElementStateAccessorFeature.def("velocity_buffer",
+                                                &FiniteElementStateAccessorFeature::velocity_buffer,
+                                                py::arg("vertex_offset") = 0,
+                                                py::arg("vertex_count")  = ~0ull,
+                                                R"(Get a buffer view of the velocity data (Vector3) for the specified vertex range.
+Args:
+    vertex_offset: Starting vertex index (default: 0).
+    vertex_count: Number of vertices to include (default: all).
+Returns:
+    BufferView: Buffer view of the velocity data.)");
+
     class_FiniteElementStateAccessorFeature.attr("FeatureName") =
         FiniteElementStateAccessorFeature::FeatureName;
 
@@ -85,6 +107,28 @@ Args:
                                              R"(Copy state to geometry.
 Args:
     state_geo: Geometry to copy state data to.)");
+
+    class_AffineBodyStateAccessorFeature.def("transform_buffer",
+                                             &AffineBodyStateAccessorFeature::transform_buffer,
+                                             py::arg("body_offset") = 0,
+                                             py::arg("body_count")  = ~0ull,
+                                             R"(Get a buffer view of the transform data (Matrix4x4) for the specified body range.
+Args:
+    body_offset: Starting body index (default: 0).
+    body_count: Number of bodies to include (default: all).
+Returns:
+    BufferView: Buffer view of the transform data.)");
+
+    class_AffineBodyStateAccessorFeature.def("velocity_buffer",
+                                             &AffineBodyStateAccessorFeature::velocity_buffer,
+                                             py::arg("body_offset") = 0,
+                                             py::arg("body_count")  = ~0ull,
+                                             R"(Get a buffer view of the velocity data (Matrix4x4) for the specified body range.
+Args:
+    body_offset: Starting body index (default: 0).
+    body_count: Number of bodies to include (default: all).
+Returns:
+    BufferView: Buffer view of the velocity data.)");
 
     class_AffineBodyStateAccessorFeature.attr("FeatureName") =
         AffineBodyStateAccessorFeature::FeatureName;

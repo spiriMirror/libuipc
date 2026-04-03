@@ -1,6 +1,7 @@
 #pragma once
 #include <uipc/core/feature.h>
 #include <uipc/geometry/simplicial_complex.h>
+#include <uipc/backend/buffer_view.h>
 
 namespace uipc::core
 {
@@ -14,6 +15,9 @@ class UIPC_CORE_API FiniteElementStateAccessorFeatureOverrider
                                                            SizeT  vertex_count);
     virtual void do_copy_from(const geometry::SimplicialComplex& state_geo) = 0;
     virtual void do_copy_to(geometry::SimplicialComplex& state_geo)         = 0;
+
+    virtual backend::BufferView do_get_position_buffer(IndexT vertex_offset, SizeT vertex_count) = 0;
+    virtual backend::BufferView do_get_velocity_buffer(IndexT vertex_offset, SizeT vertex_count) = 0;
 };
 
 /**
@@ -55,6 +59,26 @@ class UIPC_CORE_API FiniteElementStateAccessorFeature final : public Feature
      * @param state_geo The geometry to copy finite element state data to.
      */
     void copy_to(geometry::SimplicialComplex& state_geo) const;
+
+    /**
+     * @brief Get a buffer view of the position data (Vector3) for the specified vertex range.
+     *
+     * @param vertex_offset The starting vertex index in finite element system.
+     * @param vertex_count The number of vertices to include, if vertex_count == ~0ull, all vertices from vertex_offset to the end will be included.
+     * @return BufferView<Vector3> A buffer view of the position data.
+     */
+    backend::BufferView position_buffer(IndexT vertex_offset = 0,
+                                        SizeT  vertex_count  = ~0ull) const;
+
+    /**
+     * @brief Get a buffer view of the velocity data (Vector3) for the specified vertex range.
+     *
+     * @param vertex_offset The starting vertex index in finite element system.
+     * @param vertex_count The number of vertices to include, if vertex_count == ~0ull, all vertices from vertex_offset to the end will be included.
+     * @return BufferView<Vector3> A buffer view of the velocity data.
+     */
+    backend::BufferView velocity_buffer(IndexT vertex_offset = 0,
+                                        SizeT  vertex_count  = ~0ull) const;
 
   private:
     virtual std::string_view                      get_name() const override;

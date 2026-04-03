@@ -63,6 +63,36 @@ void FiniteElementStateAccessorFeature::copy_to(geometry::SimplicialComplex& sta
     m_impl->do_copy_to(state_geo);
 }
 
+backend::BufferView FiniteElementStateAccessorFeature::position_buffer(IndexT vertex_offset,
+                                                                       SizeT  vertex_count) const
+{
+    auto total_vert_num = this->vertex_count();
+    UIPC_ASSERT(vertex_offset <= total_vert_num,
+                "vertex_offset ({}) must not be larger than total vertex number ({})",
+                vertex_offset,
+                total_vert_num);
+
+    if(vertex_count == ~0ull)
+        vertex_count = total_vert_num - vertex_offset;
+
+    return m_impl->do_get_position_buffer(vertex_offset, vertex_count);
+}
+
+backend::BufferView FiniteElementStateAccessorFeature::velocity_buffer(IndexT vertex_offset,
+                                                                       SizeT  vertex_count) const
+{
+    auto total_vert_num = this->vertex_count();
+    UIPC_ASSERT(vertex_offset <= total_vert_num,
+                "vertex_offset ({}) must not be larger than total vertex number ({})",
+                vertex_offset,
+                total_vert_num);
+
+    if(vertex_count == ~0ull)
+        vertex_count = total_vert_num - vertex_offset;
+
+    return m_impl->do_get_velocity_buffer(vertex_offset, vertex_count);
+}
+
 std::string_view FiniteElementStateAccessorFeature::get_name() const
 {
     return FeatureName;

@@ -60,6 +60,36 @@ void AffineBodyStateAccessorFeature::copy_to(geometry::SimplicialComplex& state_
     m_impl->do_copy_to(state_geo);
 }
 
+backend::BufferView AffineBodyStateAccessorFeature::transform_buffer(IndexT body_offset,
+                                                                     SizeT  body_count) const
+{
+    auto total_body_num = this->body_count();
+    UIPC_ASSERT(body_offset <= total_body_num,
+                "body_offset ({}) must not be larger than total body number ({})",
+                body_offset,
+                total_body_num);
+
+    if(body_count == ~0ull)
+        body_count = total_body_num - body_offset;
+
+    return m_impl->do_get_transform_buffer(body_offset, body_count);
+}
+
+backend::BufferView AffineBodyStateAccessorFeature::velocity_buffer(IndexT body_offset,
+                                                                    SizeT  body_count) const
+{
+    auto total_body_num = this->body_count();
+    UIPC_ASSERT(body_offset <= total_body_num,
+                "body_offset ({}) must not be larger than total body number ({})",
+                body_offset,
+                total_body_num);
+
+    if(body_count == ~0ull)
+        body_count = total_body_num - body_offset;
+
+    return m_impl->do_get_velocity_buffer(body_offset, body_count);
+}
+
 std::string_view AffineBodyStateAccessorFeature::get_name() const
 {
     return FeatureName;

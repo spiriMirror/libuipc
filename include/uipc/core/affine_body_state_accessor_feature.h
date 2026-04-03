@@ -1,6 +1,7 @@
 #pragma once
 #include <uipc/core/feature.h>
 #include <uipc/geometry/simplicial_complex.h>
+#include <uipc/backend/buffer_view.h>
 
 namespace uipc::core
 {
@@ -14,6 +15,9 @@ class UIPC_CORE_API AffineBodyStateAccessorFeatureOverrider
     virtual geometry::SimplicialComplex do_create_geometry(IndexT body_offset, SizeT body_count);
     virtual void do_copy_from(const geometry::SimplicialComplex& state_geo) = 0;
     virtual void do_copy_to(geometry::SimplicialComplex& state_geo)         = 0;
+
+    virtual backend::BufferView do_get_transform_buffer(IndexT body_offset, SizeT body_count) = 0;
+    virtual backend::BufferView do_get_velocity_buffer(IndexT body_offset, SizeT body_count)  = 0;
 };
 
 class UIPC_CORE_API AffineBodyStateAccessorFeature final : public Feature
@@ -50,6 +54,26 @@ class UIPC_CORE_API AffineBodyStateAccessorFeature final : public Feature
      * @param state_geo The geometry to copy affine body state data to.
      */
     void copy_to(geometry::SimplicialComplex& state_geo) const;
+
+    /**
+     * @brief Get a buffer view of the transform data (Matrix4x4) for the specified body range.
+     *
+     * @param body_offset The starting body index in affine body system.
+     * @param body_count The number of bodies to include, if body_count == ~0ull, all bodies from body_offset to the end will be included.
+     * @return BufferView<Matrix4x4> A buffer view of the transform data.
+     */
+    backend::BufferView transform_buffer(IndexT body_offset = 0,
+                                         SizeT  body_count  = ~0ull) const;
+
+    /**
+     * @brief Get a buffer view of the velocity data (Matrix4x4) for the specified body range.
+     *
+     * @param body_offset The starting body index in affine body system.
+     * @param body_count The number of bodies to include, if body_count == ~0ull, all bodies from body_offset to the end will be included.
+     * @return BufferView<Matrix4x4> A buffer view of the velocity data.
+     */
+    backend::BufferView velocity_buffer(IndexT body_offset = 0,
+                                        SizeT  body_count  = ~0ull) const;
 
   private:
     virtual std::string_view                   get_name() const override;

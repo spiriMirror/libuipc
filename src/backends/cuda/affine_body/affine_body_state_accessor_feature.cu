@@ -3,6 +3,7 @@
 #include <affine_body/affine_body_vertex_reporter.h>
 #include <uipc/builtin/attribute_name.h>
 #include <affine_body/utils.h>
+#include <muda/launch/parallel_for.h>
 
 namespace uipc::backend::cuda
 {
@@ -77,5 +78,58 @@ void AffineBodyStateAccessorFeatureOverrider::do_copy_to(geometry::SimplicialCom
         q_v_subview.copy_to(m_buffer.data());
         std::ranges::transform(m_buffer, vel_view.begin(), q_v_to_transform_v);
     }
+}
+
+static backend::BufferView convert_and_get_buffer(muda::CBufferView<Vector12>    q_view,
+                                                   muda::DeviceBuffer<Matrix4x4>& out_buffer,
+                                                   IndexT body_offset,
+                                                   SizeT  body_count,
+                                                   bool   is_velocity)
+{
+    auto total = q_view.size();
+
+    // resize output buffer to total body count if needed
+    if(out_buffer.size() != total)
+        out_buffer.resize(total);
+
+    // convert Vector12 -> Matrix4x4 on GPU
+    auto q_subview   = q_view.subview(body_offset, body_count);
+    auto out_subview = out_buffer.view(body_offset, body_count);
+
+    muda::ParallelFor()
+        .file_line(__FILE__, __LINE__)
+        .apply(body_count,
+               [is_velocity,
+                q_in  = q_subview.cviewer().name("q_in"),
+                m_out = out_subview.viewer().name("m_out")] __device__(int i) mutable
+               {
+                   if(is_velocity)
+                       m_out(i) = q_v_to_transform_v(q_in(i));
+                   else
+                       m_out(i) = q_to_transform(q_in(i));
+               });
+
+    // construct BufferView from device pointer
+    auto* ptr = out_buffer.data() + body_offset;
+    return backend::BufferView{reinterpret_cast<HandleT>(ptr),
+                               0,
+                               body_count,
+                               sizeof(Matrix4x4),
+                               sizeof(Matrix4x4),
+                               "cuda"};
+}
+
+backend::BufferView AffineBodyStateAccessorFeatureOverrider::do_get_transform_buffer(
+    IndexT body_offset, SizeT body_count)
+{
+    return convert_and_get_buffer(
+        m_abd.qs(), m_transform_buffer, body_offset, body_count, false);
+}
+
+backend::BufferView AffineBodyStateAccessorFeatureOverrider::do_get_velocity_buffer(
+    IndexT body_offset, SizeT body_count)
+{
+    return convert_and_get_buffer(
+        m_abd.q_vs(), m_velocity_buffer, body_offset, body_count, true);
 }
 }  // namespace uipc::backend::cuda

@@ -72,4 +72,27 @@ void FiniteElementStateAccessorFeatureOverrider::do_copy_to(geometry::Simplicial
         v_subview.copy_to(vel_view.data());
     }
 }
+backend::BufferView FiniteElementStateAccessorFeatureOverrider::do_get_position_buffer(
+    IndexT vertex_offset, SizeT vertex_count)
+{
+    auto* ptr = m_fem.m_impl.xs.data() + vertex_offset;
+    return backend::BufferView{reinterpret_cast<HandleT>(ptr),
+                               0,
+                               vertex_count,
+                               sizeof(Vector3),
+                               sizeof(Vector3),
+                               "cuda"};
+}
+
+backend::BufferView FiniteElementStateAccessorFeatureOverrider::do_get_velocity_buffer(
+    IndexT vertex_offset, SizeT vertex_count)
+{
+    auto* ptr = m_fem.m_impl.vs.data() + vertex_offset;
+    return backend::BufferView{reinterpret_cast<HandleT>(ptr),
+                               0,
+                               vertex_count,
+                               sizeof(Vector3),
+                               sizeof(Vector3),
+                               "cuda"};
+}
 }  // namespace uipc::backend::cuda
