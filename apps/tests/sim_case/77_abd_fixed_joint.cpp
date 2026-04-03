@@ -5,7 +5,7 @@
 #include <uipc/constitution/soft_transform_constraint.h>
 #include <numbers>
 
-TEST_CASE("79_abd_fixed_joint", "[abd][joint]")
+TEST_CASE("77_abd_fixed_joint", "[abd][joint]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
@@ -60,11 +60,16 @@ TEST_CASE("79_abd_fixed_joint", "[abd][joint]")
     auto [right_geo_slot, _r] = right_object->geometries().create(right_mesh);
 
     // ---- Fixed joint ----
-    SimplicialComplex                joint_mesh;
     AffineBodyFixedJoint             fixed_joint;
-    vector<S<SimplicialComplexSlot>> l_geo_slots = {left_geo_slot};
-    vector<S<SimplicialComplexSlot>> r_geo_slots = {right_geo_slot};
-    fixed_joint.apply_to(joint_mesh, span{l_geo_slots}, span{r_geo_slots}, 100.0);
+    vector<S<SimplicialComplexSlot>> l_geo_slots    = {left_geo_slot};
+    vector<IndexT>                   l_instance_ids = {0};
+    vector<S<SimplicialComplexSlot>> r_geo_slots    = {right_geo_slot};
+    vector<IndexT>                   r_instance_ids = {0};
+    vector<Float>                    strength_ratios = {100.0};
+    auto joint_mesh = fixed_joint.create_geometry(
+        span{l_geo_slots}, span{l_instance_ids},
+        span{r_geo_slots}, span{r_instance_ids},
+        span{strength_ratios});
 
     auto joint_object = scene.objects().create("fixed_joint");
     joint_object->geometries().create(joint_mesh);
@@ -103,7 +108,7 @@ TEST_CASE("79_abd_fixed_joint", "[abd][joint]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
 
-    while(world.frame() < 200)
+    while(world.frame() < 50)
     {
         world.advance();
         world.retrieve();

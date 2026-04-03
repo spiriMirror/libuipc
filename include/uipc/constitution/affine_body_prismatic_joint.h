@@ -17,6 +17,40 @@ class UIPC_CONSTITUTION_API AffineBodyPrismaticJoint final : public InterAffineB
     virtual ~AffineBodyPrismaticJoint();
 
     /**
+     * @brief Create prismatic joint geometry with world-space endpoint positions.
+     *
+     * Builds a SimplicialComplex with 2*N vertices and N edges. Writes
+     * vertices.position from position0s/position1s. Does not write local
+     * position attributes.
+     */
+    [[nodiscard]] geometry::SimplicialComplex create_geometry(
+        span<const Vector3>                      position0s,
+        span<const Vector3>                      position1s,
+        span<S<geometry::SimplicialComplexSlot>> l_geo_slots,
+        span<IndexT>                             l_instance_ids,
+        span<S<geometry::SimplicialComplexSlot>> r_geo_slots,
+        span<IndexT>                             r_instance_ids,
+        span<Float>                              strength_ratios);
+
+    /**
+     * @brief Create prismatic joint geometry with local-space endpoint positions.
+     *
+     * Builds a SimplicialComplex with N edges. Writes local position
+     * attributes (l_position0, l_position1, r_position0, r_position1)
+     * on edges. Does not write vertices.position.
+     */
+    [[nodiscard]] geometry::SimplicialComplex create_geometry(
+        span<const Vector3>                      l_position0,
+        span<const Vector3>                      l_position1,
+        span<const Vector3>                      r_position0,
+        span<const Vector3>                      r_position1,
+        span<S<geometry::SimplicialComplexSlot>> l_geo_slots,
+        span<IndexT>                             l_instance_ids,
+        span<S<geometry::SimplicialComplexSlot>> r_geo_slots,
+        span<IndexT>                             r_instance_ids,
+        span<Float>                              strength_ratios);
+
+    /**
      * @brief Apply prismatic joint to edges connecting affine bodies (single-instance mode).
      * 
      * This method assumes each geometry has exactly one instance (instance 0).
@@ -40,17 +74,17 @@ class UIPC_CONSTITUTION_API AffineBodyPrismaticJoint final : public InterAffineB
      * 
      * @param edges The simplicial complex containing the edges representing the joints.
      * @param l_geo_slots Left geometry slots for each joint.
-     * @param l_instance_id Instance IDs for the left geometries (must be in range [0, instances().size())).
+     * @param l_instance_ids Instance IDs for the left geometries (must be in range [0, instances().size())).
      * @param r_geo_slots Right geometry slots for each joint.
-     * @param r_instance_id Instance IDs for the right geometries (must be in range [0, instances().size())).
-     * @param strength_ratio The strength ratio for each joint (one per edge).
+     * @param r_instance_ids Instance IDs for the right geometries (must be in range [0, instances().size())).
+     * @param strength_ratios The strength ratio for each joint (one per edge).
      */
     void apply_to(geometry::SimplicialComplex&             edges,
                   span<S<geometry::SimplicialComplexSlot>> l_geo_slots,
-                  span<IndexT>                             l_instance_id,
+                  span<IndexT>                             l_instance_ids,
                   span<S<geometry::SimplicialComplexSlot>> r_geo_slots,
-                  span<IndexT>                             r_instance_id,
-                  span<Float>                              strength_ratio);
+                  span<IndexT>                             r_instance_ids,
+                  span<Float>                              strength_ratios);
 
   private:
     virtual U64 get_uid() const noexcept override;

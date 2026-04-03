@@ -84,7 +84,9 @@ This constitution must be applied to a geometry that already has an [AffineBodyR
 
 ## Attributes
 
-On the joint geometry (1D simplicial complex), on `edges`:
+On the joint geometry (1D simplicial complex), on **edges** (one edge per joint). The edge carries the same linking fields as [Affine Body Revolute Joint](./affine_body_revolute_joint.md): `l_geo_id`, `r_geo_id`, `l_inst_id`, `r_inst_id`, `strength_ratio`, and optional `l_position0`, `l_position1`, `r_position0`, `r_position1` when created via Local `create_geometry`.
+
+External-force attributes on **edges**:
 
 - `external_torque`: $\tau$ in the formulae above, scalar torque around the joint axis (one per edge)
 - `external_torque/is_constrained`: enables (`1`) or disables (`0`) the external torque

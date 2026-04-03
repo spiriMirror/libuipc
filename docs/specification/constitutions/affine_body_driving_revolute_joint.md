@@ -66,7 +66,9 @@ This constitution must be applied to a geometry that already has an [AffineBodyR
 
 ## Attributes
 
-On the joint geometry (1D simplicial complex), on `edges`:
+On the joint geometry (1D simplicial complex), on **edges** (one edge per joint). The edge carries the same linking fields as [Affine Body Revolute Joint](./affine_body_revolute_joint.md): `l_geo_id`, `r_geo_id`, `l_inst_id`, `r_inst_id`, base `strength_ratio` (if present), and optional `l_position0`, `l_position1`, `r_position0`, `r_position1` when created via Local `create_geometry`.
+
+Driving-specific attributes on **edges**:
 
 - `driving/strength_ratio`: $\gamma$ in $K = \gamma(m_i + m_j)$ above
 - `is_constrained`: enables (`1`) or disables (`0`) the driving effect

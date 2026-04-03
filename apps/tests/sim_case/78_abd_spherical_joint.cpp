@@ -5,7 +5,7 @@
 #include <uipc/constitution/soft_transform_constraint.h>
 #include <numbers>
 
-TEST_CASE("80_abd_spherical_joint", "[abd][joint]")
+TEST_CASE("78_abd_spherical_joint", "[abd][joint]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
@@ -62,20 +62,20 @@ TEST_CASE("80_abd_spherical_joint", "[abd][joint]")
     auto [right_geo_slot, _r] = right_object->geometries().create(right_mesh);
 
     // ---- Spherical joint ----
-    // Anchor is specified in body1 (right body)'s local frame.
-    // The cube is scaled to 0.3, so half-extent is 0.15.
-    // r_local_pos = {-0.15, 0.15, -0.15}: the anchor point p of the right cube.
-    SimplicialComplex                joint_mesh;
+    // Right body center = {0.15, 0.2, 0.15}; anchor in right body local = {-0.15, 0.15, -0.15}
+    // World anchor = body_translation + local_anchor = {0, 0.35, 0}
     AffineBodySphericalJoint         spherical_joint;
+    vector<Vector3>                  positions      = {Vector3{0, 0.35, 0}};
     vector<S<SimplicialComplexSlot>> l_geo_slots    = {left_geo_slot};
     vector<IndexT>                   l_instance_ids = {0};
     vector<S<SimplicialComplexSlot>> r_geo_slots    = {right_geo_slot};
     vector<IndexT>                   r_instance_ids = {0};
-    vector<Vector3> r_local_pos     = {Vector3{-0.15, 0.15, -0.15}};
-    vector<Float>   strength_ratios = {100.0};
-    spherical_joint.apply_to(
-        joint_mesh, span{l_geo_slots}, span{r_geo_slots}, span{r_local_pos}, 100);
-
+    vector<Float>                    strength_ratios = {100.0};
+    auto joint_mesh = spherical_joint.create_geometry(
+        span{positions},
+        span{l_geo_slots}, span{l_instance_ids},
+        span{r_geo_slots}, span{r_instance_ids},
+        span{strength_ratios});
 
     auto joint_object = scene.objects().create("spherical_joint");
     joint_object->geometries().create(joint_mesh);
@@ -86,7 +86,7 @@ TEST_CASE("80_abd_spherical_joint", "[abd][joint]")
     SceneIO sio{scene};
     sio.write_surface(fmt::format("{}scene_surface{}.obj", output_path, world.frame()));
 
-    while(world.frame() < 200)
+    while(world.frame() < 50)
     {
         world.advance();
         world.retrieve();

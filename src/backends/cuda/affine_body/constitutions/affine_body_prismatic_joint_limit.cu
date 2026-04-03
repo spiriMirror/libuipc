@@ -98,13 +98,18 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                 auto sc = geo.as<geometry::SimplicialComplex>();
                 UIPC_ASSERT(sc, "AffineBodyPrismaticJointLimit geometry must be SimplicialComplex");
 
-                auto geo_ids_attr = sc->edges().find<Vector2i>("geo_ids");
-                UIPC_ASSERT(geo_ids_attr, "AffineBodyPrismaticJointLimit requires `geo_ids` attribute on edges");
-                auto geo_ids = geo_ids_attr->view();
-
-                auto inst_ids_attr = sc->edges().find<Vector2i>("inst_ids");
-                UIPC_ASSERT(inst_ids_attr, "AffineBodyPrismaticJointLimit requires `inst_ids` attribute on edges");
-                auto inst_ids = inst_ids_attr->view();
+                auto l_geo_id = sc->edges().find<IndexT>("l_geo_id");
+                UIPC_ASSERT(l_geo_id, "AffineBodyPrismaticJointLimit requires `l_geo_id` attribute on edges");
+                auto l_geo_id_view = l_geo_id->view();
+                auto r_geo_id = sc->edges().find<IndexT>("r_geo_id");
+                UIPC_ASSERT(r_geo_id, "AffineBodyPrismaticJointLimit requires `r_geo_id` attribute on edges");
+                auto r_geo_id_view = r_geo_id->view();
+                auto l_inst_id = sc->edges().find<IndexT>("l_inst_id");
+                UIPC_ASSERT(l_inst_id, "AffineBodyPrismaticJointLimit requires `l_inst_id` attribute on edges");
+                auto l_inst_id_view = l_inst_id->view();
+                auto r_inst_id = sc->edges().find<IndexT>("r_inst_id");
+                UIPC_ASSERT(r_inst_id, "AffineBodyPrismaticJointLimit requires `r_inst_id` attribute on edges");
+                auto r_inst_id_view = r_inst_id->view();
 
                 auto lower_attr = sc->edges().find<Float>("limit/lower");
                 UIPC_ASSERT(lower_attr, "AffineBodyPrismaticJointLimit requires `limit/lower` attribute on edges");
@@ -123,40 +128,66 @@ class AffineBodyPrismaticJointLimit final : public InterAffineBodyConstitution
                 auto init_dist_view = init_dist_attr->view();
 
                 auto edges = sc->edges().topo().view();
+
+                auto l_pos0_attr = sc->edges().find<Vector3>("l_position0");
+                auto l_pos1_attr = sc->edges().find<Vector3>("l_position1");
+                auto r_pos0_attr = sc->edges().find<Vector3>("r_position0");
+                auto r_pos1_attr = sc->edges().find<Vector3>("r_position1");
+                bool use_local = l_pos0_attr && l_pos1_attr && r_pos0_attr && r_pos1_attr;
+
                 for(auto&& [i, e] : enumerate(edges))
                 {
-                    Vector2i geo_id  = geo_ids[i];
-                    Vector2i inst_id = inst_ids[i];
+                    IndexT l_gid = l_geo_id_view[i];
+                    IndexT r_gid = r_geo_id_view[i];
+                    IndexT l_iid = l_inst_id_view[i];
+                    IndexT r_iid = r_inst_id_view[i];
 
-                    auto* left_sc  = info.body_geo(geo_slots, geo_id[0]);
-                    auto* right_sc = info.body_geo(geo_slots, geo_id[1]);
+                    auto* left_sc  = info.body_geo(geo_slots, l_gid);
+                    auto* right_sc = info.body_geo(geo_slots, r_gid);
 
-                    UIPC_ASSERT(inst_id[0] >= 0
-                                    && inst_id[0] < static_cast<IndexT>(
+                    UIPC_ASSERT(l_iid >= 0
+                                    && l_iid < static_cast<IndexT>(
                                            left_sc->instances().size()),
                                 "AffineBodyPrismaticJointLimit: left instance ID {} out of range [0, {})",
-                                inst_id[0],
+                                l_iid,
                                 left_sc->instances().size());
-                    UIPC_ASSERT(inst_id[1] >= 0
-                                    && inst_id[1] < static_cast<IndexT>(
+                    UIPC_ASSERT(r_iid >= 0
+                                    && r_iid < static_cast<IndexT>(
                                            right_sc->instances().size()),
                                 "AffineBodyPrismaticJointLimit: right instance ID {} out of range [0, {})",
-                                inst_id[1],
+                                r_iid,
                                 right_sc->instances().size());
 
                     Vector2i bid = {
-                        info.body_id(geo_id[0], inst_id[0]),
-                        info.body_id(geo_id[1], inst_id[1]),
+                        info.body_id(l_gid, l_iid),
+                        info.body_id(r_gid, r_iid),
                     };
 
-                    auto [lb, rb] = get_prismatic_basis(
-                        left_sc, inst_id[0], right_sc, inst_id[1], sc, i);
+                    Vector6 lb, rb;
+                    if(use_local)
+                    {
+                        Transform LT{left_sc->transforms().view()[l_iid]};
+                        Transform RT{right_sc->transforms().view()[r_iid]};
+                        Vector3 l_t = (LT.rotation() * (l_pos1_attr->view()[i] - l_pos0_attr->view()[i])).normalized();
+                        Vector3 l_c = LT * l_pos0_attr->view()[i];
+                        Vector3 r_t = (RT.rotation() * (r_pos1_attr->view()[i] - r_pos0_attr->view()[i])).normalized();
+                        Vector3 r_c = RT * r_pos0_attr->view()[i];
+                        lb.segment<3>(0) = LT.inverse() * l_c;
+                        lb.segment<3>(3) = LT.rotation().inverse() * l_t;
+                        rb.segment<3>(0) = RT.inverse() * r_c;
+                        rb.segment<3>(3) = RT.rotation().inverse() * r_t;
+                    }
+                    else
+                    {
+                        std::tie(lb, rb) = get_prismatic_basis(
+                            left_sc, l_iid, right_sc, r_iid, sc, i);
+                    }
 
                     Vector24 ref;
                     ref.segment<12>(0) =
-                        transform_to_q(left_sc->transforms().view()[inst_id[0]]);
+                        transform_to_q(left_sc->transforms().view()[l_iid]);
                     ref.segment<12>(12) =
-                        transform_to_q(right_sc->transforms().view()[inst_id[1]]);
+                        transform_to_q(right_sc->transforms().view()[r_iid]);
 
                     h_body_ids.push_back(bid);
                     h_l_basis.push_back(lb);

@@ -128,7 +128,7 @@ ReboundResult run_drop_case(const std::string& output_path, const std::string& i
 }
 }  // namespace
 
-TEST_CASE("79_abd_bdf2_rebound_higher_than_bdf1", "[abd][bdf]")
+TEST_CASE("76_abd_bdf2_rebound_higher_than_bdf1", "[abd][bdf]")
 {
     using namespace uipc;
 

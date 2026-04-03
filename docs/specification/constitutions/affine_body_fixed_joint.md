@@ -130,6 +130,14 @@ where $K$ is the stiffness constant of the joint, we choose $K=\gamma (m_i + m_j
 
 ## Attributes
 
-On the joint geometry (1D simplicial complex), on `edges`:
+The joint geometry is a **0D simplicial complex**: **one vertex per joint** (no edges).
 
+On **vertices**:
+
+- `l_geo_id` (`IndexT`): scene geometry slot id for the left body $i$
+- `r_geo_id` (`IndexT`): scene geometry slot id for the right body $j$
+- `l_inst_id` (`IndexT`): instance index within the left geometry
+- `r_inst_id` (`IndexT`): instance index within the right geometry
 - `strength_ratio`: $\gamma$ in $K = \gamma(m_i + m_j)$ above
+
+When the joint is created via Local `create_geometry`, optional **vertex** attributes (each `Vector3`) supply local attachment coordinates: `l_position` in the left body's local frame and `r_position` in the right body's local frame.
