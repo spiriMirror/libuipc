@@ -25,7 +25,7 @@ target("cuda")
         "cusolver"
     )
 
-    add_deps("uipc_geometry")
+    add_deps("uipc_geometry", "uipc_io")
     on_load(function(target)
         if target:is_plat('windows') then
             target:add('defines', '__NV_NO_HOST_COMPILER_CHECK', {public = true})
