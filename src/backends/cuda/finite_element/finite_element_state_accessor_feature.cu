@@ -5,6 +5,28 @@
 
 namespace uipc::backend::cuda
 {
+
+backend::BufferView copy_and_get_buffer(muda::CBufferView<Vector3>   src_view,
+                                        muda::DeviceBuffer<Vector3>& out_buffer,
+                                        IndexT vertex_offset,
+                                        SizeT  vertex_count)
+{
+    auto total = src_view.size();
+
+    // resize output buffer if needed
+    if(out_buffer.size() != total)
+        out_buffer.resize(total);
+
+    // copy the requested range to the read-only buffer
+    auto src_subview = src_view.subview(vertex_offset, vertex_count);
+    auto dst_subview = out_buffer.view(vertex_offset, vertex_count);
+    dst_subview.copy_from(src_subview);
+
+    auto* ptr = out_buffer.data() + vertex_offset;
+    return backend::BufferView{
+        reinterpret_cast<HandleT>(ptr), 0, vertex_count, sizeof(Vector3), sizeof(Vector3), "cuda"};
+}
+
 FiniteElementStateAccessorFeatureOverrider::FiniteElementStateAccessorFeatureOverrider(
     FiniteElementMethod& fem, FiniteElementVertexReporter& vertex_reporter)
     : m_fem{fem}
@@ -72,27 +94,16 @@ void FiniteElementStateAccessorFeatureOverrider::do_copy_to(geometry::Simplicial
         v_subview.copy_to(vel_view.data());
     }
 }
+
 backend::BufferView FiniteElementStateAccessorFeatureOverrider::do_get_position_buffer(
     IndexT vertex_offset, SizeT vertex_count)
 {
-    auto* ptr = m_fem.m_impl.xs.data() + vertex_offset;
-    return backend::BufferView{reinterpret_cast<HandleT>(ptr),
-                               0,
-                               vertex_count,
-                               sizeof(Vector3),
-                               sizeof(Vector3),
-                               "cuda"};
+    return copy_and_get_buffer(m_fem.xs(), m_position_buffer, vertex_offset, vertex_count);
 }
 
 backend::BufferView FiniteElementStateAccessorFeatureOverrider::do_get_velocity_buffer(
     IndexT vertex_offset, SizeT vertex_count)
 {
-    auto* ptr = m_fem.m_impl.vs.data() + vertex_offset;
-    return backend::BufferView{reinterpret_cast<HandleT>(ptr),
-                               0,
-                               vertex_count,
-                               sizeof(Vector3),
-                               sizeof(Vector3),
-                               "cuda"};
+    return copy_and_get_buffer(m_fem.vs(), m_velocity_buffer, vertex_offset, vertex_count);
 }
 }  // namespace uipc::backend::cuda

@@ -1,6 +1,7 @@
 #pragma once
 #include <type_define.h>
 #include <uipc/core/finite_element_state_accessor_feature.h>
+#include <muda/buffer/device_buffer.h>
 
 namespace uipc::backend::cuda
 {
@@ -23,5 +24,8 @@ class FiniteElementStateAccessorFeatureOverrider final : public core::FiniteElem
   private:
     FiniteElementMethod&         m_fem;
     FiniteElementVertexReporter& m_vertex_reporter;
+
+    mutable muda::DeviceBuffer<Vector3> m_position_buffer;
+    mutable muda::DeviceBuffer<Vector3> m_velocity_buffer;
 };
 }  // namespace uipc::backend::cuda
