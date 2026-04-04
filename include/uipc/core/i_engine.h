@@ -3,10 +3,10 @@
 #include <uipc/backend/visitors/world_visitor.h>
 #include <uipc/core/engine_status.h>
 #include <uipc/core/feature_collection.h>
-
 namespace uipc::core
 {
 class World;
+class ISanityCheckerCollection;
 
 class UIPC_CORE_API IEngine
 {
@@ -24,6 +24,8 @@ class UIPC_CORE_API IEngine
     EngineStatusCollection&  status();
     const FeatureCollection& features() const;
 
+    void insert_sanity_checkers(ISanityCheckerCollection& collection);
+
   protected:
     virtual void                     do_init(internal::World&) = 0;
     virtual void                     do_advance()              = 0;
@@ -35,5 +37,6 @@ class UIPC_CORE_API IEngine
     virtual SizeT                    get_frame() const    = 0;
     virtual EngineStatusCollection&  get_status()         = 0;
     virtual const FeatureCollection& get_features() const = 0;
+    virtual void do_insert_sanity_checkers(ISanityCheckerCollection& collection);
 };
 }  // namespace uipc::core

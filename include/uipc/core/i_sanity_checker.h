@@ -6,6 +6,12 @@
 #include <uipc/common/unordered_map.h>
 #include <uipc/geometry/geometry.h>
 
+namespace uipc::geometry
+{
+class SimplicialComplex;
+class GeometrySlot;
+}
+
 namespace uipc::core::internal
 {
 class Scene;
@@ -19,6 +25,9 @@ class SanityCheckMessageVisitor;
 namespace uipc::core
 {
 class Scene;
+class Object;
+class ContactTabular;
+class SubsceneTabular;
 
 enum class SanityCheckResult : int
 {
@@ -74,6 +83,21 @@ class UIPC_CORE_API ISanityChecker
     virtual SanityCheckResult do_check(SanityCheckMessage& msg) = 0;
 };
 
+class UIPC_CORE_API ISanityCheckContext
+{
+  public:
+    virtual ~ISanityCheckContext() = default;
+
+    virtual const geometry::SimplicialComplex& scene_simplicial_surface() const   = 0;
+    virtual const ContactTabular&              contact_tabular() const            = 0;
+    virtual const SubsceneTabular&             subscene_tabular() const           = 0;
+    virtual std::string_view                   workspace() const                 = 0;
+    virtual S<const Object>                    find_object(IndexT id) const      = 0;
+    virtual span<S<geometry::GeometrySlot>>    geometries() const                = 0;
+    virtual S<geometry::GeometrySlot>          find_geometry(IndexT id) const    = 0;
+    virtual const geometry::AttributeCollection& config() const                  = 0;
+};
+
 class UIPC_CORE_API SanityCheckerCollectionCreateInfo
 {
   public:
@@ -84,7 +108,9 @@ class UIPC_CORE_API ISanityCheckerCollection
 {
   public:
     virtual ~ISanityCheckerCollection()          = default;
-    virtual void build(core::internal::Scene& s) = 0;
-    virtual SanityCheckResult check(SanityCheckMessageCollection& msg) const = 0;
+    virtual void              build(core::internal::Scene& s)                  = 0;
+    virtual void              insert(S<ISanityChecker> checker)                = 0;
+    virtual SanityCheckResult check(SanityCheckMessageCollection& msg) const   = 0;
+    virtual ISanityCheckContext& context()                                      = 0;
 };
 }  // namespace uipc::core

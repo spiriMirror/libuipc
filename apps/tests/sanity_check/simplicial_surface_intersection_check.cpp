@@ -5,7 +5,8 @@
 #include <filesystem>
 #include <fstream>
 
-void test_init_surf_intersection_check(std::string_view            name,
+void test_init_surf_intersection_check(std::string_view            backend,
+                                       std::string_view            name,
                                        std::string_view            mesh,
                                        uipc::span<uipc::Transform> trans)
 {
@@ -16,17 +17,15 @@ void test_init_surf_intersection_check(std::string_view            name,
 
     std::string tetmesh_dir{AssetDir::tetmesh_path()};
     auto        this_output_path =
-        AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE) + fmt::format("/{}-{}", name, trans.size());
+        AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE)
+        + fmt::format("/{}-{}", name, trans.size());
 
-    Engine engine{"none", this_output_path};
+    Engine engine{backend, this_output_path};
     World  world{engine};
 
-    auto config                      = Scene::default_config();
-    config["sanity_check"]["enable"] = true;
-    // config["sanity_check"]["mode"]   = "quiet";
+    auto  config = Scene::default_config();
     Scene scene{config};
 
-    // create object
     auto object = scene.objects().create("meshes");
 
     for(auto& t : trans)
@@ -65,60 +64,69 @@ TEST_CASE("simplicial_surface_intersection", "[init_surface]")
     auto tetmesh_dir = AssetDir::tetmesh_path();
     auto trimesh_dir = AssetDir::trimesh_path();
 
+    auto run_all = [&](std::string_view backend)
     {
-        auto              name = "cube.obj";
-        auto              path = fmt::format("{}/{}", trimesh_dir, name);
-        vector<Transform> transforms;
-        for(auto i = 0; i < 2; ++i)
         {
-            Transform t = Transform::Identity();
-            t.translate(Vector3::UnitY() * 0.2 * i);
-            transforms.push_back(t);
+            auto              name = "cube.obj";
+            auto              path = fmt::format("{}/{}", trimesh_dir, name);
+            vector<Transform> transforms;
+            for(auto i = 0; i < 2; ++i)
+            {
+                Transform t = Transform::Identity();
+                t.translate(Vector3::UnitY() * 0.2 * i);
+                transforms.push_back(t);
+            }
+            test_init_surf_intersection_check(backend, name, path, span{transforms});
+            test_init_surf_intersection_check(
+                backend, name, path, span{transforms}.subspan<0, 1>());
         }
-        test_init_surf_intersection_check(name, path, span{transforms});
-        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
-    }
 
-    {
-        auto              name = "bunny0.msh";
-        auto              path = fmt::format("{}/{}", tetmesh_dir, name);
-        vector<Transform> transforms;
-        for(auto i = 0; i < 2; ++i)
         {
-            Transform t = Transform::Identity();
-            t.translate(Vector3::UnitY() * 0.2 * i);
-            transforms.push_back(t);
+            auto              name = "bunny0.msh";
+            auto              path = fmt::format("{}/{}", tetmesh_dir, name);
+            vector<Transform> transforms;
+            for(auto i = 0; i < 2; ++i)
+            {
+                Transform t = Transform::Identity();
+                t.translate(Vector3::UnitY() * 0.2 * i);
+                transforms.push_back(t);
+            }
+            test_init_surf_intersection_check(backend, name, path, span{transforms});
+            test_init_surf_intersection_check(
+                backend, name, path, span{transforms}.subspan<0, 1>());
         }
-        test_init_surf_intersection_check(name, path, span{transforms});
-        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
-    }
 
-    {
-        auto              name = "link.msh";
-        auto              path = fmt::format("{}/{}", tetmesh_dir, name);
-        vector<Transform> transforms;
-        for(auto i = 0; i < 2; ++i)
         {
-            Transform t = Transform::Identity();
-            t.translate(Vector3::UnitY() * 0.2 * i);
-            transforms.push_back(t);
+            auto              name = "link.msh";
+            auto              path = fmt::format("{}/{}", tetmesh_dir, name);
+            vector<Transform> transforms;
+            for(auto i = 0; i < 2; ++i)
+            {
+                Transform t = Transform::Identity();
+                t.translate(Vector3::UnitY() * 0.2 * i);
+                transforms.push_back(t);
+            }
+            test_init_surf_intersection_check(backend, name, path, span{transforms});
+            test_init_surf_intersection_check(
+                backend, name, path, span{transforms}.subspan<0, 1>());
         }
-        test_init_surf_intersection_check(name, path, span{transforms});
-        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
-    }
 
-    {
-        auto              name = "ball.msh";
-        auto              path = fmt::format("{}/{}", tetmesh_dir, name);
-        vector<Transform> transforms;
-        for(auto i = 0; i < 2; ++i)
         {
-            Transform t = Transform::Identity();
-            t.translate(Vector3::UnitY() * 0.2 * i);
-            transforms.push_back(t);
+            auto              name = "ball.msh";
+            auto              path = fmt::format("{}/{}", tetmesh_dir, name);
+            vector<Transform> transforms;
+            for(auto i = 0; i < 2; ++i)
+            {
+                Transform t = Transform::Identity();
+                t.translate(Vector3::UnitY() * 0.2 * i);
+                transforms.push_back(t);
+            }
+            test_init_surf_intersection_check(backend, name, path, span{transforms});
+            test_init_surf_intersection_check(
+                backend, name, path, span{transforms}.subspan<0, 1>());
         }
-        test_init_surf_intersection_check(name, path, span{transforms});
-        test_init_surf_intersection_check(name, path, span{transforms}.subspan<0, 1>());
-    }
+    };
+
+    SECTION("none") { run_all("none"); }
+    SECTION("cuda") { run_all("cuda"); }
 }
-

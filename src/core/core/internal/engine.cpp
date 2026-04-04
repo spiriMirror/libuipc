@@ -122,6 +122,8 @@ class Engine::Impl
         m_engine->init(w);
     }
 
+    IEngine* engine() const noexcept { return m_engine; }
+
     void advance()
     {
         m_sync_flag = false;
@@ -307,5 +309,10 @@ bool Engine::recover(SizeT dst_frame)
 SizeT Engine::frame() const
 {
     return m_impl->get_frame();
+}
+
+void Engine::insert_sanity_checkers(ISanityCheckerCollection& collection)
+{
+    m_impl->engine()->insert_sanity_checkers(collection);
 }
 }  // namespace uipc::core::internal

@@ -51,13 +51,6 @@ SanityCheckResult SanityChecker::do_check(core::SanityCheckMessage& msg)
     backend::SceneVisitor              sv{*m_scene};
     backend::SanityCheckMessageVisitor scmv{msg};
 
-    scmv.id()     = get_id();
-    scmv.name()   = get_name();
-    scmv.result() = SanityCheckResult::Success;
-
-    auto result   = do_check(sv, scmv);
-    scmv.result() = result;
-
-    return result;
+    return do_check(sv, scmv);
 }
 }  // namespace uipc::sanity_check

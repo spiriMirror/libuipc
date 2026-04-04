@@ -101,6 +101,8 @@ class SimEngine : public core::IEngine
     span<ISimSystem* const>  systems() noexcept;
     core::FeatureCollection& features() noexcept;
 
+    virtual void do_insert_sanity_checkers(core::ISanityCheckerCollection& collection) override;
+
   private:
     virtual void do_init(core::internal::World& v) final override;
     virtual bool do_recover(SizeT dst_frame) final override;

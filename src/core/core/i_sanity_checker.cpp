@@ -1,4 +1,5 @@
 #include <uipc/core/i_sanity_checker.h>
+#include <uipc/backend/visitors/sanity_check_message_visitor.h>
 
 namespace uipc::core
 {
@@ -11,7 +12,15 @@ U64 ISanityChecker::id() const noexcept
 
 SanityCheckResult ISanityChecker::check(SanityCheckMessage& msg)
 {
-    return do_check(msg);
+    backend::SanityCheckMessageVisitor scmv{msg};
+    scmv.id()     = get_id();
+    scmv.name()   = get_name();
+    scmv.result() = SanityCheckResult::Success;
+
+    auto result   = do_check(msg);
+    scmv.result() = result;
+
+    return result;
 }
 
 std::string ISanityChecker::name() const noexcept

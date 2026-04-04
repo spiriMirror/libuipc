@@ -53,6 +53,8 @@ const FeatureCollection& IEngine::features() const
     return get_features();
 }
 
+
+
 Json IEngine::do_to_json() const
 {
     return Json{};
@@ -66,5 +68,15 @@ bool IEngine::do_dump()
 bool IEngine::do_recover(SizeT dst_frame)
 {
     return true;
+}
+
+void IEngine::insert_sanity_checkers(ISanityCheckerCollection& collection)
+{
+    do_insert_sanity_checkers(collection);
+}
+
+void IEngine::do_insert_sanity_checkers(ISanityCheckerCollection& collection)
+{
+    // default no-op: backends override to insert their own sanity checkers
 }
 }  // namespace uipc::core

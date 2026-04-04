@@ -1,4 +1,5 @@
 #include <uipc/core/sanity_checker.h>
+#include <uipc/core/internal/engine.h>
 #include <dylib.hpp>
 #include <uipc/common/uipc.h>
 #include <uipc/backend/module_init_info.h>
@@ -9,41 +10,42 @@
 
 namespace uipc::core
 {
-static S<dylib> load_sanity_check_module()
+static S<dylib> load_sanity_check_module(std::string_view module_name)
 {
-    static std::mutex m_cache_mutex;
-    static S<dylib>   m_cache;
+    // Cache per module name
+    static std::mutex                            cache_mutex;
+    static unordered_map<std::string, S<dylib>>  cache;
 
-    std::lock_guard lock{m_cache_mutex};
+    std::lock_guard lock{cache_mutex};
 
-    if(m_cache)
-        return m_cache;
+    std::string key{module_name};
+    auto it = cache.find(key);
+    if(it != cache.end())
+        return it->second;
 
-    // if not found, load it
+    // load the module
     auto& uipc_config = uipc::config();
     auto  this_module =
         uipc::make_shared<dylib>(uipc_config["module_dir"].get<std::string>(),
-                                 "uipc_sanity_check");
-
-    std::string_view module_name = "sanity_check";
+                                 key);
 
     UIPCModuleInitInfo info;
-    info.module_name     = "sanity_check";
+    info.module_name     = key;
     info.memory_resource = std::pmr::get_default_resource();
 
     auto init = this_module->get_function<void(UIPCModuleInitInfo*)>("uipc_init_module");
     if(!init)
-        throw Exception{fmt::format("Can't find [sanity_check]'s module initializer.")};
+        throw Exception{fmt::format("Can't find [{}]'s module initializer.", module_name)};
 
     init(&info);
 
-    m_cache = this_module;
-    return m_cache;
+    cache[key] = this_module;
+    return this_module;
 }
 
-SanityChecker::SanityChecker(internal::Scene& scene, std::string_view workspace)
+SanityChecker::SanityChecker(internal::Scene& scene, internal::Engine& engine)
     : m_scene{scene}
-    , m_workspace{workspace}
+    , m_engine{engine}
 {
 }
 
@@ -53,14 +55,17 @@ SanityCheckResult SanityChecker::check()
 {
     clear();
 
-    auto sanity_check_module = load_sanity_check_module();
+    constexpr std::string_view cpu_module_name = "uipc_sanity_check";
+
+    auto sanity_check_module = load_sanity_check_module(cpu_module_name);
     auto creator =
         sanity_check_module->get_function<ISanityCheckerCollection*(SanityCheckerCollectionCreateInfo*)>(
             "uipc_create_sanity_checker_collection");
 
     if(!creator)
     {
-        logger::error("Can't find [sanity_check]'s sanity checker creator, so we skip sanity check.");
+        logger::error("Can't find [{}]'s sanity checker creator, so we skip sanity check.",
+                      cpu_module_name);
         return SanityCheckResult::Error;
     }
 
@@ -69,18 +74,23 @@ SanityCheckResult SanityChecker::check()
 
     if(!destroyer)
     {
-        logger::error("Can't find [sanity_check]'s sanity checker destroyer, so we skip sanity check.");
+        logger::error("Can't find [{}]'s sanity checker destroyer, so we skip sanity check.",
+                      cpu_module_name);
         return SanityCheckResult::Error;
     }
 
     SanityCheckerCollectionCreateInfo info;
-    info.workspace = m_workspace;
+    info.workspace = m_engine.workspace();
 
+    // 1. Create CPU collection and build all CPU checkers (including Context)
     ISanityCheckerCollection* sanity_checkers = creator(&info);
     sanity_checkers->build(m_scene);
 
-    SanityCheckMessageCollection msgs;
+    // 2. Let backend insert override checkers (replaces CPU defaults by id)
+    m_engine.insert_sanity_checkers(*sanity_checkers);
 
+    // 3. Run all checks
+    SanityCheckMessageCollection msgs;
     auto result = sanity_checkers->check(msgs);
 
     for(const auto& [id, msg] : msgs.messages())
