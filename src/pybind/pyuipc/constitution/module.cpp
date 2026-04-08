@@ -25,6 +25,7 @@
 #include <pyuipc/constitution/affine_body_revolute_joint.h>
 #include <pyuipc/constitution/affine_body_prismatic_joint.h>
 #include <pyuipc/constitution/affine_body_fixed_joint.h>
+#include <pyuipc/constitution/affine_body_free_joint.h>
 #include <pyuipc/constitution/affine_body_spherical_joint.h>
 #include <pyuipc/constitution/affine_body_driving_revolute_joint.h>
 #include <pyuipc/constitution/affine_body_driving_prismatic_joint.h>
@@ -56,6 +57,7 @@ PyModule::PyModule(py::module& m)
     PyAffineBodyRevoluteJoint{m};
     PyAffineBodyPrismaticJoint{m};
     PyAffineBodyFixedJoint{m};
+    PyAffineBodyFreeJoint{m};
     PyAffineBodySphericalJoint{m};
     PyAffineBodyDrivingRevoluteJoint{m};
     PyAffineBodyDrivingPrismaticJoint{m};

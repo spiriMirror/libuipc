@@ -1,9 +1,9 @@
 # External Articulation Constraint
 
-## 23 ExternalArticulationConstraint
+## #23 ExternalArticulationConstraint
 
 
-External Constraint is designed to incorporate external kinetic-like energy into the IPC system. Typically,`ExternalArticulationConstraint` is used to control the motion of a set of affine bodies by prescribing articulation DOFs (degrees of freedom) such as joint positions, joint angles, etc.
+External Constraint is designed to incorporate external kinetic-like energy into the IPC system. Typically, `ExternalArticulationConstraint` is used to control the motion of a set of affine bodies by prescribing articulation DOFs (degrees of freedom) such as joint positions, joint angles, etc.
 
 For a **single** Articulation(say a robot arm), the kinetic term is defined as:
 
@@ -27,6 +27,7 @@ Supported DOF constraints include:
 
 - [Affine Body Revolute Joint](./affine_body_revolute_joint.md)
 - [Affine Body Prismatic Joint](./affine_body_prismatic_joint.md)
+- [Affine Body Free Joint](./affine_body_free_joint.md)
 
 In [Revolute Joint](./affine_body_revolute_joint.md) case, $\hat{\mathbf{n}}$ is the normal vector perpendicular to the joint axis, $\hat{\mathbf{b}}$ is the binormal vector of the joint axis, and $\hat{\mathbf{t}}$ is the direction vector along the joint axis pointed into the figure.
 
@@ -46,10 +47,10 @@ $$
     }{2}.
 $$
 
-to be symmetric, we consider both $\hat{\mathbf{b}}$ and $\hat{\mathbf{n}}$ in the definition. And we can derive the angle $\theta$ as:
+to be symmetric, we consider both $\hat{\mathbf{b}}$ and $\hat{\mathbf{n}}$ in the definition. And we can derive the variational angle as:
 
 $$
-\delta\theta = \arctan \left(\tan \left(\theta - \theta^t \right)\right) = \arctan \frac{\sin\theta \cos\theta^t - \cos\theta \sin\theta^t}{\cos\theta \cos\theta^t + \sin\theta \sin\theta^t},
+\delta\theta = \operatorname{atan2}\!\left(\sin\theta \cos\theta^t - \cos\theta \sin\theta^t,\; \cos\theta \cos\theta^t + \sin\theta \sin\theta^t\right),
 $$
 
 where $\theta^t$ is the joint angle at previous time step, the $\sin\theta^t$ and $\cos\theta^t$ can be calculated using the previous frame vectors $\hat{\mathbf{b}}^t$ and $\hat{\mathbf{n}}^t$s.
@@ -72,7 +73,7 @@ $$
 \delta\theta = \theta - \theta^t,
 $$
 
-where $\theta^t$ is the joint translation at previous time step, can be calculated using the frame vectors $\mathbf{c}^t$ and $\hat{\mathbf{t}}^t$s.
+where $\theta^t$ is the joint translation at previous time step, can be calculated using the frame vectors $\mathbf{c}^t$ and $\hat{\mathbf{t}}^t$ s.
 
 ## Reference Previous DOF
 
@@ -88,14 +89,14 @@ where $\mathbf{q}^t_{ref}$ is the previous DOF of the affine body calculated fro
 
 ## Attributes
 
-On the constraint geometry:
+On the constraint geometry, let $m$ denote the total number of joint DOFs in a single articulation. Each joint contributes a certain number of DOFs: a revolute joint contributes 1, a prismatic joint contributes 1, and a free joint contributes 6.
 
-On `joint`:
+On `joint` (size $m$):
 
 - `delta_theta_tilde`: $\tilde{\delta\boldsymbol{\theta}}$ in the kinetic term above
 - `delta_theta`: $\delta\boldsymbol{\theta}$ in the kinetic term above
 
-On `joint_joint`:
+On `joint_joint` (size $m^2$, flattened row-major):
 
-- `mass`: entries of $\mathbf{M}^t$ in the kinetic term above
+- `mass`: entries of $\mathbf{M}^t \in \mathbb{R}^{m \times m}$ in the kinetic term above
 

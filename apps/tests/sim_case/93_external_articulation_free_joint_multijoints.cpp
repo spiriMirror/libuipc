@@ -4,17 +4,17 @@
 #include <uipc/constitution/affine_body_constitution.h>
 #include <uipc/constitution/affine_body_revolute_joint.h>
 #include <uipc/constitution/affine_body_prismatic_joint.h>
+#include <uipc/constitution/affine_body_free_joint.h>
 #include <uipc/constitution/external_articulation_constraint.h>
 #include <numbers>
 #include <uipc/geometry/utils/affine_body/transform.h>
 
-TEST_CASE("47_external_articulation_multijoints", "[abd]")
+TEST_CASE("93_external_articulation_free_joint_multijoints", "[abd]")
 {
     using namespace uipc;
     using namespace uipc::geometry;
     using namespace uipc::core;
     using namespace uipc::constitution;
-    using namespace uipc::core;
     namespace fs = std::filesystem;
 
     Timer::enable_all();
@@ -35,7 +35,6 @@ TEST_CASE("47_external_articulation_multijoints", "[abd]")
         pre_transform.scale(0.4);
         SimplicialComplexIO io{pre_transform};
 
-        // create object
         auto links = scene.objects().create("links");
 
         AffineBodyConstitution abd;
@@ -44,7 +43,6 @@ TEST_CASE("47_external_articulation_multijoints", "[abd]")
         abd_mesh.instances().resize(3);
         label_surface(abd_mesh);
         abd.apply_to(abd_mesh, 100.0_MPa);
-
 
         Transform t0 = Transform::Identity();
         t0.translate(Vector3::UnitZ() * -0.8);
@@ -60,9 +58,9 @@ TEST_CASE("47_external_articulation_multijoints", "[abd]")
 
         auto is_fixed = abd_mesh.instances().find<IndexT>(builtin::is_fixed);
         auto is_fixed_view = view(*is_fixed);
-        is_fixed_view[0]   = 1;  // instance 0 fixed
-        is_fixed_view[1]   = 0;  // instance 1 not fixed
-        is_fixed_view[2]   = 0;  // instance 2 not fixed
+        is_fixed_view[0] = 0;  // instance 0 NOT fixed (controlled by FreeJoint)
+        is_fixed_view[1] = 0;
+        is_fixed_view[2] = 0;
 
         auto ref_dof_prev = abd_mesh.instances().create<Vector12>("ref_dof_prev");
         auto ref_dof_prev_view = view(*ref_dof_prev);
@@ -71,7 +69,7 @@ TEST_CASE("47_external_articulation_multijoints", "[abd]")
 
         auto external_kinetic = abd_mesh.instances().find<IndexT>(builtin::external_kinetic);
         auto external_kinetic_view = view(*external_kinetic);
-        std::ranges::fill(external_kinetic_view, 1);  // enable external kinetic for all instances
+        std::ranges::fill(external_kinetic_view, 1);
 
         auto [geo_slot, rest_geo_slot] = links->geometries().create(abd_mesh);
 
@@ -81,72 +79,94 @@ TEST_CASE("47_external_articulation_multijoints", "[abd]")
             {
                 auto geo = info.geo_slots()[0]->geometry().as<SimplicialComplex>();
                 auto ref_dof_prev = geo->instances().find<Vector12>("ref_dof_prev");
-                auto ref_dof_prev_view = view(*ref_dof_prev);
-                auto transform_view    = geo->transforms().view();
-                std::ranges::transform(transform_view,
-                                       ref_dof_prev_view.begin(),
-                                       affine_body::transform_to_q);
+                auto rdp_view       = view(*ref_dof_prev);
+                auto transform_view = geo->transforms().view();
+                std::ranges::transform(transform_view, rdp_view.begin(), affine_body::transform_to_q);
             });
 
+        // FreeJoint on instance 0 (replaces the fixed constraint in test 47)
+        S<SimplicialComplexSlot> free_joint_slot;
+        {
+            AffineBodyFreeJoint abfj;
+
+            vector<S<SimplicialComplexSlot>> fj_geo_slots    = {geo_slot};
+            vector<IndexT>                   fj_instance_ids = {0};
+            auto free_joint_mesh = abfj.create_geometry(fj_geo_slots, fj_instance_ids);
+
+            auto fj_object = scene.objects().create("free_joint");
+            auto [fj_slot, fj_rest_slot] = fj_object->geometries().create(free_joint_mesh);
+            free_joint_slot = fj_slot;
+        }
+
+        // Revolute joint connecting instance 0 -> instance 1
         S<SimplicialComplexSlot> revolute_slot;
         {
             AffineBodyRevoluteJoint abrj;
 
-            // Each edge defines a joint axis (2 points per edge)
-            vector<Vector2i> Es         = {{0, 1}};
-            vector<Vector3>  Vs         = {{-0.5, 0.0, -0.4}, {0.5, 0.0, -0.4}};
-            auto             joint_mesh = linemesh(Vs, Es);
-            // label_surface(joint_mesh);  // visualize the joint
-
-            // Use multi-instance API:
-            vector<S<SimplicialComplexSlot>> l_geo_slots     = {geo_slot};
-            vector<IndexT>                   l_instance_id   = {0};
+            vector<Vector3>                  pos0s       = {{-0.5, 0.0, -0.4}};
+            vector<Vector3>                  pos1s       = {{0.5, 0.0, -0.4}};
+            vector<S<SimplicialComplexSlot>> l_geo_slots = {geo_slot};
+            vector<IndexT>                   l_instance_ids  = {0};
             vector<S<SimplicialComplexSlot>> r_geo_slots     = {geo_slot};
-            vector<IndexT>                   r_instance_id   = {1};
+            vector<IndexT>                   r_instance_ids  = {1};
             vector<Float>                    strength_ratios = {100.0};
 
-            abrj.apply_to(joint_mesh, l_geo_slots, l_instance_id, r_geo_slots, r_instance_id, strength_ratios);
+            auto joint_mesh = abrj.create_geometry(
+                pos0s, pos1s, l_geo_slots, l_instance_ids, r_geo_slots, r_instance_ids, strength_ratios);
 
-            auto joints = scene.objects().create("joints");
-            auto [revolute_joint_slots, rest_revolute_joint_slots] =
-                joints->geometries().create(joint_mesh);
-            revolute_slot = revolute_joint_slots;
+            auto joints = scene.objects().create("joints_revolute");
+            auto [rj_slot, rj_rest_slot] = joints->geometries().create(joint_mesh);
+            revolute_slot = rj_slot;
         }
 
+        // Prismatic joint connecting instance 1 -> instance 2
         S<SimplicialComplexSlot> prismatic_slot;
         {
             AffineBodyPrismaticJoint abpj;
-            // Each edge defines a joint axis (2 points per edge)
-            vector<Vector2i> Es         = {{0, 1}};
-            vector<Vector3>  Vs         = {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.4}};
-            auto             joint_mesh = linemesh(Vs, Es);
-            // label_surface(joint_mesh);  // visualize the joint
 
-            // Use multi-instance API:
-            vector<S<SimplicialComplexSlot>> l_geo_slots     = {geo_slot};
-            vector<IndexT>                   l_instance_id   = {1};
-            vector<S<SimplicialComplexSlot>> r_geo_slots     = {geo_slot};
-            vector<IndexT>                   r_instance_id   = {2};
+            vector<Vector3>                  pos0s          = {{0.0, 0.0, 0.0}};
+            vector<Vector3>                  pos1s          = {{0.0, 0.0, 0.4}};
+            vector<S<SimplicialComplexSlot>> l_geo_slots    = {geo_slot};
+            vector<IndexT>                   l_instance_ids = {1};
+            vector<S<SimplicialComplexSlot>> r_geo_slots    = {geo_slot};
+            vector<IndexT>                   r_instance_ids = {2};
             vector<Float>                    strength_ratios = {100.0};
-            abpj.apply_to(joint_mesh, l_geo_slots, l_instance_id, r_geo_slots, r_instance_id, strength_ratios);
+
+            auto joint_mesh = abpj.create_geometry(
+                pos0s, pos1s, l_geo_slots, l_instance_ids, r_geo_slots, r_instance_ids, strength_ratios);
+
             auto joints = scene.objects().create("joints_prismatic");
-            auto [prismatic_joint_slots, rest_prismatic_joint_slots] =
-                joints->geometries().create(joint_mesh);
-            prismatic_slot = prismatic_joint_slots;
+            auto [pj_slot, pj_rest_slot] = joints->geometries().create(joint_mesh);
+            prismatic_slot = pj_slot;
         }
 
+        // Articulation: 6 FreeJoint DOFs + 1 revolute + 1 prismatic = 8 joints
         ExternalArticulationConstraint eac;
         {
-            vector<S<const GeometrySlot>> joint_geos = {revolute_slot, prismatic_slot};
-            vector<IndexT> indices = {0, 0};
-            auto articulation      = eac.create_geometry(joint_geos, indices);
+            constexpr IndexT n_free_dofs = 6;
+            constexpr IndexT n_total = n_free_dofs + 2;  // 6 free + 1 revolute + 1 prismatic
+
+            vector<S<const GeometrySlot>> joint_geos;
+            vector<IndexT>                indices;
+
+            for(IndexT i = 0; i < n_free_dofs; ++i)
+            {
+                joint_geos.push_back(free_joint_slot);
+                indices.push_back(i);
+            }
+            joint_geos.push_back(revolute_slot);
+            indices.push_back(0);
+            joint_geos.push_back(prismatic_slot);
+            indices.push_back(0);
+
+            auto articulation = eac.create_geometry(joint_geos, indices);
             auto mass = articulation["joint_joint"]->find<Float>("mass");
             REQUIRE(mass);
-            auto mass_view = view(*mass);
-            Eigen::Map<MatrixX> mass_mat = Eigen::Map<MatrixX>(mass_view.data(), 2, 2);
-            mass_mat       = MatrixX::Identity(2, 2) * 64;
-            mass_mat(0, 1) = 8;
-            mass_mat(1, 0) = 8;
+            auto                mass_view = view(*mass);
+            Eigen::Map<MatrixX> mass_mat(mass_view.data(), n_total, n_total);
+            mass_mat       = MatrixX::Identity(n_total, n_total) * 64;
+            mass_mat(6, 7) = 8;
+            mass_mat(7, 6) = 8;
 
             auto articulation_object = scene.objects().create("articulation_object");
             articulation_object->geometries().create(articulation);
@@ -160,10 +180,16 @@ TEST_CASE("47_external_articulation_multijoints", "[abd]")
 
                                         auto delta_theta_tilde =
                                             geo["joint"]->find<Float>("delta_theta_tilde");
+                                        auto dtv = view(*delta_theta_tilde);
 
-                                        auto delta_theta_view = view(*delta_theta_tilde);
-                                        delta_theta_view[0] = std::numbers::pi / 6 * dt;
-                                        delta_theta_view[1] = 0.1 * dt;
+                                        dtv[0] = 0.1 * dt;  // TransX
+                                        dtv[1] = 0.0;       // TransY
+                                        dtv[2] = 0.0;       // TransZ
+                                        dtv[3] = 0.0;       // RotX
+                                        dtv[4] = 0.0;       // RotY
+                                        dtv[5] = std::numbers::pi / 3 * dt;  // RotZ
+                                        dtv[6] = std::numbers::pi / 6 * dt;  // Revolute
+                                        dtv[7] = 0.1 * dt;  // Prismatic
                                     });
         }
     }
