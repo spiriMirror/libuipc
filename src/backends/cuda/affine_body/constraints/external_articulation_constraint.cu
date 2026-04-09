@@ -160,8 +160,8 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
             Transform        T{trans};
             Matrix3x3        InvRot = T.rotation().inverse();
             Vector6          bn_bar;
-            bn_bar.segment<3>(0) = InvRot * b;
-            bn_bar.segment<3>(3) = InvRot * n;
+            bn_bar.segment<3>(0) = InvRot * n;
+            bn_bar.segment<3>(3) = InvRot * b;
             return bn_bar;
         };
 
@@ -311,10 +311,10 @@ class ExternalArticulationConstraint final : public InterAffineBodyConstraint
                 orthonormal_basis(t, n, b_vec);
                 Matrix3x3 L_inv_rot = LT.rotation().inverse();
                 Matrix3x3 R_inv_rot = RT.rotation().inverse();
-                L_basis.segment<3>(0) = L_inv_rot * b_vec;
-                L_basis.segment<3>(3) = L_inv_rot * n;
-                R_basis.segment<3>(0) = R_inv_rot * b_vec;
-                R_basis.segment<3>(3) = R_inv_rot * n;
+                L_basis.segment<3>(0) = L_inv_rot * n;
+                L_basis.segment<3>(3) = L_inv_rot * b_vec;
+                R_basis.segment<3>(0) = R_inv_rot * n;
+                R_basis.segment<3>(3) = R_inv_rot * b_vec;
             }
             else if(uid_value == ExternalArticulationConstituion::PrismaticJointConstitutionUID)
             {

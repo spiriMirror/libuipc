@@ -68,8 +68,8 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
             Transform        T{trans};
             Matrix3x3        inv_rot = T.rotation().inverse();
             Vector6          bn_bar;
-            bn_bar.segment<3>(0) = inv_rot * b;
-            bn_bar.segment<3>(3) = inv_rot * n;
+            bn_bar.segment<3>(0) = inv_rot * n;
+            bn_bar.segment<3>(3) = inv_rot * b;
             return bn_bar;
         };
 
@@ -182,10 +182,10 @@ class AffineBodyRevoluteJointLimit final : public InterAffineBodyConstitution
                         orthonormal_basis(t, n, b_vec);
                         Matrix3x3 L_inv_rot = LT.rotation().inverse();
                         Matrix3x3 R_inv_rot = RT.rotation().inverse();
-                        lb.segment<3>(0) = L_inv_rot * b_vec;
-                        lb.segment<3>(3) = L_inv_rot * n;
-                        rb.segment<3>(0) = R_inv_rot * b_vec;
-                        rb.segment<3>(3) = R_inv_rot * n;
+                        lb.segment<3>(0) = L_inv_rot * n;
+                        lb.segment<3>(3) = L_inv_rot * b_vec;
+                        rb.segment<3>(0) = R_inv_rot * n;
+                        rb.segment<3>(3) = R_inv_rot * b_vec;
                     }
                     else
                     {
