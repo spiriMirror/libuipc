@@ -915,6 +915,9 @@ void FiniteElementMethod::Impl::_build_on_device()
     thicknesses.resize(h_thicknesses.size());
     thicknesses.view().copy_from(h_thicknesses.data());
 
+    vertex_external_forces.resize(xs.size(), Vector3::Zero());
+    vertex_external_force_accs.resize(xs.size(), Vector3::Zero());
+
     // 2) Elements
     codim_0ds.resize(h_codim_0ds.size());
     codim_0ds.view().copy_from(h_codim_0ds.data());

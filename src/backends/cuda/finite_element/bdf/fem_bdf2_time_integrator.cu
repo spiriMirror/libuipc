@@ -47,6 +47,7 @@ class FEMBDF2Integrator final : public FEMTimeIntegrator
                     v_n_1s     = state->v_n_1s().cviewer().name("v_n_1s"),
                     x_tildes   = info.x_tildes().viewer().name("x_tilde"),
                     gravity    = info.gravities().cviewer().name("gravity"),
+                    external_force_accs = info.external_force_accs().cviewer().name("external_force_accs"),
                     dt         = info.dt()] __device__(int i) mutable
                    {
                        // x_n is tracked in x_prevs for current step.
@@ -55,7 +56,7 @@ class FEMBDF2Integrator final : public FEMTimeIntegrator
                        Vector3 x_n_1 = x_n_1s(i);
                        Vector3 v_n   = v_ns(i);
                        Vector3 v_n_1 = v_n_1s(i);
-                       Vector3 g     = gravity(i);
+                       Vector3 g     = gravity(i) + external_force_accs(i);
 
                        if(is_fixed(i))
                        {

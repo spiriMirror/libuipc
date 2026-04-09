@@ -72,6 +72,11 @@ class FEMTimeIntegrator : public TimeIntegrator
             return m_impl->finite_element_method->gravities();
         }
 
+        auto external_force_accs() const noexcept
+        {
+            return m_impl->finite_element_method->vertex_external_force_accs();
+        }
+
       protected:
         Impl* m_impl = nullptr;
     };
