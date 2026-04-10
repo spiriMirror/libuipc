@@ -39,4 +39,5 @@
 | 668 | [AffineBodyRevoluteJointExternalForce](./affine_body_revolute_joint_external_force.md)   | Affine Body Revolute Joint External Force Constitutions                              |
 | 669 | [AffineBodyPrismaticJointLimit](./affine_body_prismatic_joint_limit.md) | Affine Body Prismatic Joint Limit Constitutions                                      |
 | 670 | [AffineBodyRevoluteJointLimit](./affine_body_revolute_joint_limit.md)   | Affine Body Revolute Joint Limit Constitutions                                       |
+| 671 | [FiniteElementExternalForce](./finite_element_external_force.md)        | Finite Element External Force: per-vertex 3D forces on FEM bodies                    |
 | 819 | [StrainLimitingBaraffWitkinShell](./strain_limiting_baraff_witkin_shell.md) | Strain Limiting Baraff-Witkin Shell Constitutions                                    |
