@@ -15,6 +15,7 @@
 #include <pyuipc/core/contact_system_feature.h>
 #include <pyuipc/core/subscene_tabular.h>
 #include <pyuipc/core/state_accessor_feature.h>
+#include <pyuipc/core/distance_diagnoser_feature.h>
 
 namespace pyuipc::core
 {
@@ -22,6 +23,7 @@ PyModule::PyModule(py::module& m)
 {
     PyFeatureCollection{m};
     PyContactSystemFeature{m};
+    PyDistanceDiagnoserFeature{m};
     PyStateAccessorFeature{m};
 
     PyEngine{m};
