@@ -7,6 +7,7 @@
 #include <muda/buffer/device_buffer.h>
 #include <muda/launch/parallel_for.h>
 #include <uipc/common/enumerate.h>
+#include <string_view>
 
 namespace uipc::backend::cuda
 {
@@ -88,7 +89,8 @@ namespace detail
         else if(dim == 3)
         {
             Eigen::Vector<T, 3> e0, e1;
-            int idx0 = -1, idx1 = -1;
+            IndexT idx0 = -1;
+            IndexT idx1 = -1;
             if(flag[1] && flag[2])      { e0 = t0; e1 = t1; idx0 = 1; idx1 = 2; }
             else if(flag[2] && flag[3]) { e0 = t1; e1 = t2; idx0 = 2; idx1 = 3; }
             else if(flag[3] && flag[1]) { e0 = t2; e1 = t0; idx0 = 3; idx1 = 1; }
@@ -149,7 +151,9 @@ namespace detail
         else if(dim == 3)
         {
             Eigen::Vector<T, 3> point, e0, e1;
-            int pt_idx = -1, e0_idx = -1, e1_idx = -1;
+            IndexT pt_idx = -1;
+            IndexT e0_idx = -1;
+            IndexT e1_idx = -1;
 
             if(!flag[0])
             {
@@ -247,31 +251,31 @@ namespace detail
         }
     }
 
-    inline std::vector<Float> read_vertex_float(
-        const geometry::SimplicialComplex& sc,
-        const std::string&                 name,
-        Float                              fallback)
+    template <typename T>
+    void upload_vertex_attribute(muda::DeviceBuffer<T>&             dst,
+                                 const geometry::SimplicialComplex& sc,
+                                 std::string_view                   name)
     {
-        auto attr = sc.vertices().find<Float>(name);
-        if(attr)
-        {
-            auto v = attr->view();
-            return std::vector<Float>(v.data(), v.data() + v.size());
-        }
-        SizeT n = sc.positions().view().size();
-        return std::vector<Float>(n, fallback);
+        auto attr = sc.vertices().find<T>(std::string{name});
+        UIPC_ASSERT(attr,
+                     "Vertex attribute '{}' not found on SimplicialComplex",
+                     name);
+        auto v = attr->view();
+        dst.resize(v.size());
+        dst.view().copy_from(v.data());
     }
 
     template <typename T, typename D>
-    void copy_back(geometry::Geometry&     R,
-                   const std::string&      name,
-                   const D&                default_val,
-                   muda::DeviceBuffer<T>&  buf)
+    void copy_back(geometry::Geometry&    R,
+                   std::string_view       name,
+                   const D&               default_val,
+                   muda::BufferView<T>    buf)
     {
-        auto attr = R.instances().find<T>(name);
+        std::string n{name};
+        auto attr = R.instances().find<T>(n);
         if(!attr)
-            attr = R.instances().create<T>(name, T(default_val));
-        buf.view().copy_to(view(*attr).data());
+            attr = R.instances().create<T>(n, T(default_val));
+        buf.copy_to(view(*attr).data());
     }
 }  // namespace detail
 
@@ -299,62 +303,54 @@ void DistanceDiagnoser::compute_point_triangle_distance(
         return;
     }
 
-    // d_hat / thickness
-    auto h_dhat_p = detail::read_vertex_float(points,    "d_hat",     0.01);
-    auto h_dhat_t = detail::read_vertex_float(triangles, "d_hat",     0.01);
-    auto h_th_p   = detail::read_vertex_float(points,    "thickness", 0.0);
-    auto h_th_t   = detail::read_vertex_float(triangles, "thickness", 0.0);
-
-    // Upload to device
     DeviceBuffer<Vector3>  point_pos(num_points);
     DeviceBuffer<Vector3>  tri_pos(h_tri_pos.size());
     DeviceBuffer<Vector3i> tri_topo(num_triangles);
-    DeviceBuffer<Float>    dhat_p(num_points);
-    DeviceBuffer<Float>    dhat_t(h_tri_pos.size());
-    DeviceBuffer<Float>    th_p(num_points);
-    DeviceBuffer<Float>    th_t(h_tri_pos.size());
+    DeviceBuffer<Float>    dhat_p;
+    DeviceBuffer<Float>    dhat_t;
+    DeviceBuffer<Float>    thickness_p;
+    DeviceBuffer<Float>    thickness_t;
 
     point_pos.view().copy_from(h_point_pos.data());
     tri_pos.view().copy_from(h_tri_pos.data());
     tri_topo.view().copy_from(h_tri_topo.data());
-    dhat_p.view().copy_from(h_dhat_p.data());
-    dhat_t.view().copy_from(h_dhat_t.data());
-    th_p.view().copy_from(h_th_p.data());
-    th_t.view().copy_from(h_th_t.data());
+    detail::upload_vertex_attribute(dhat_p, points,    "d_hat");
+    detail::upload_vertex_attribute(dhat_t, triangles, "d_hat");
+    detail::upload_vertex_attribute(thickness_p,   points,    "thickness");
+    detail::upload_vertex_attribute(thickness_t,   triangles, "thickness");
 
-    // Result buffers
-    DeviceBuffer<Float>        dist2_buf(num_pairs);
-    DeviceBuffer<Vector12>     grad_buf(num_pairs);
-    DeviceBuffer<Matrix12x12>  hess_buf(num_pairs);
-    DeviceBuffer<Vector4i>     flag_buf(num_pairs);
-    DeviceBuffer<Vector4>      coord_buf(num_pairs);
-    DeviceBuffer<Float>        barrier_buf(num_pairs);
-    DeviceBuffer<Vector12>     barrier_grad_buf(num_pairs);
-    DeviceBuffer<Matrix12x12>  barrier_hess_buf(num_pairs);
+    DeviceBuffer<Float>        dist2(num_pairs);
+    DeviceBuffer<Vector12>     dist2_grad(num_pairs);
+    DeviceBuffer<Matrix12x12>  dist2_hess(num_pairs);
+    DeviceBuffer<Vector4i>     flags(num_pairs);
+    DeviceBuffer<Vector4>      coords(num_pairs);
+    DeviceBuffer<Float>        barrier(num_pairs);
+    DeviceBuffer<Vector12>     barrier_grad(num_pairs);
+    DeviceBuffer<Matrix12x12>  barrier_hess(num_pairs);
 
     SizeT M = num_triangles;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(num_pairs,
-               [point_pos = point_pos.viewer().name("point_pos"),
-                tri_pos   = tri_pos.viewer().name("tri_pos"),
-                tri_topo  = tri_topo.viewer().name("tri_topo"),
-                dhat_p    = dhat_p.cviewer().name("dhat_p"),
-                dhat_t    = dhat_t.cviewer().name("dhat_t"),
-                th_p      = th_p.cviewer().name("th_p"),
-                th_t      = th_t.cviewer().name("th_t"),
-                dist2_out        = dist2_buf.viewer().name("dist2"),
-                grad_out         = grad_buf.viewer().name("dist2/grad"),
-                hess_out         = hess_buf.viewer().name("dist2/hess"),
-                flag_out         = flag_buf.viewer().name("flag"),
-                coord_out        = coord_buf.viewer().name("coord"),
-                barrier_out      = barrier_buf.viewer().name("barrier"),
-                barrier_grad_out = barrier_grad_buf.viewer().name("barrier/grad"),
-                barrier_hess_out = barrier_hess_buf.viewer().name("barrier/hess"),
-                M] __device__(int idx) mutable
+               [point_pos    = point_pos.viewer().name("point_pos"),
+                tri_pos      = tri_pos.viewer().name("tri_pos"),
+                tri_topo     = tri_topo.viewer().name("tri_topo"),
+                dhat_p       = dhat_p.cviewer().name("dhat_p"),
+                dhat_t       = dhat_t.cviewer().name("dhat_t"),
+                thickness_p         = thickness_p.cviewer().name("thickness_p"),
+                thickness_t         = thickness_t.cviewer().name("thickness_t"),
+                dist2        = dist2.viewer().name("dist2"),
+                dist2_grad   = dist2_grad.viewer().name("dist2_grad"),
+                dist2_hess   = dist2_hess.viewer().name("dist2_hess"),
+                flags        = flags.viewer().name("flags"),
+                coords       = coords.viewer().name("coords"),
+                barrier      = barrier.viewer().name("barrier"),
+                barrier_grad = barrier_grad.viewer().name("barrier_grad"),
+                barrier_hess = barrier_hess.viewer().name("barrier_hess"),
+                M] __device__(int i) mutable
                {
-                   IndexT pi = idx / M;
-                   IndexT ti = idx % M;
+                   IndexT pi = i / M;
+                   IndexT ti = i % M;
 
                    const Vector3& P  = point_pos(pi);
                    Vector3i       TI = tri_topo(ti);
@@ -376,9 +372,8 @@ void DistanceDiagnoser::compute_point_triangle_distance(
                    Vector4 coord;
                    detail::point_triangle_closest_point_coord(flag, P, T0, T1, T2, coord);
 
-                   // Barrier
                    Float d_hat_pair = PT_d_hat(dhat_p(pi), dhat_t(TI[0]), dhat_t(TI[1]), dhat_t(TI[2]));
-                   Float xi         = PT_thickness(th_p(pi), th_t(TI[0]), th_t(TI[1]), th_t(TI[2]));
+                   Float xi         = PT_thickness(thickness_p(pi), thickness_t(TI[0]), thickness_t(TI[1]), thickness_t(TI[2]));
                    Vector2 dr = D_range(xi, d_hat_pair);
 
                    Float B = Float(0);
@@ -397,26 +392,26 @@ void DistanceDiagnoser::compute_point_triangle_distance(
                        HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
                    }
 
-                   dist2_out(idx)        = D;
-                   grad_out(idx)         = GradD;
-                   hess_out(idx)         = HessD;
-                   flag_out(idx)         = flag;
-                   coord_out(idx)        = coord;
-                   barrier_out(idx)      = B;
-                   barrier_grad_out(idx) = GradB;
-                   barrier_hess_out(idx) = HessB;
+                   dist2(i)        = D;
+                   dist2_grad(i)   = GradD;
+                   dist2_hess(i)   = HessD;
+                   flags(i)        = flag;
+                   coords(i)       = coord;
+                   barrier(i)      = B;
+                   barrier_grad(i) = GradB;
+                   barrier_hess(i) = HessB;
                });
 
     R.instances().resize(num_pairs);
 
-    detail::copy_back(R, "dist2",        Float(0),            dist2_buf);
-    detail::copy_back(R, "dist2/grad",   Vector12::Zero(),    grad_buf);
-    detail::copy_back(R, "dist2/hess",   Matrix12x12::Zero(), hess_buf);
-    detail::copy_back(R, "flag",         Vector4i::Zero(),    flag_buf);
-    detail::copy_back(R, "coord",        Vector4::Zero(),     coord_buf);
-    detail::copy_back(R, "barrier",      Float(0),            barrier_buf);
-    detail::copy_back(R, "barrier/grad", Vector12::Zero(),    barrier_grad_buf);
-    detail::copy_back(R, "barrier/hess", Matrix12x12::Zero(), barrier_hess_buf);
+    detail::copy_back(R, "dist2",        Float(0),            dist2.view());
+    detail::copy_back(R, "dist2/grad",   Vector12::Zero(),    dist2_grad.view());
+    detail::copy_back(R, "dist2/hess",   Matrix12x12::Zero(), dist2_hess.view());
+    detail::copy_back(R, "flag",         Vector4i::Zero(),    flags.view());
+    detail::copy_back(R, "coord",        Vector4::Zero(),     coords.view());
+    detail::copy_back(R, "barrier",      Float(0),            barrier.view());
+    detail::copy_back(R, "barrier/grad", Vector12::Zero(),    barrier_grad.view());
+    detail::copy_back(R, "barrier/hess", Matrix12x12::Zero(), barrier_hess.view());
 }
 
 // =====================================================================
@@ -448,7 +443,6 @@ void DistanceDiagnoser::compute_edge_edge_distance(
         return;
     }
 
-    // mollifier_coeff
     auto mc_attr = R.instances().find<Float>("mollifier_coeff");
     Float mollifier_coeff_val = Float(1e-3);
     if(mc_attr)
@@ -458,23 +452,16 @@ void DistanceDiagnoser::compute_edge_edge_distance(
             mollifier_coeff_val = mc_view[0];
     }
 
-    // d_hat / thickness
-    auto h_dhat_a = detail::read_vertex_float(edges_a, "d_hat",     0.01);
-    auto h_dhat_b = detail::read_vertex_float(edges_b, "d_hat",     0.01);
-    auto h_th_a   = detail::read_vertex_float(edges_a, "thickness", 0.0);
-    auto h_th_b   = detail::read_vertex_float(edges_b, "thickness", 0.0);
-
-    // Upload to device
     DeviceBuffer<Vector3>  pos_a(h_pos_a.size());
     DeviceBuffer<Vector3>  pos_b(h_pos_b.size());
     DeviceBuffer<Vector2i> topo_a(num_ea);
     DeviceBuffer<Vector2i> topo_b(num_eb);
     DeviceBuffer<Vector3>  rest_pos_a(h_rest_pos_a.size());
     DeviceBuffer<Vector3>  rest_pos_b(h_rest_pos_b.size());
-    DeviceBuffer<Float>    dhat_a(h_dhat_a.size());
-    DeviceBuffer<Float>    dhat_b(h_dhat_b.size());
-    DeviceBuffer<Float>    th_a(h_th_a.size());
-    DeviceBuffer<Float>    th_b(h_th_b.size());
+    DeviceBuffer<Float>    dhat_a;
+    DeviceBuffer<Float>    dhat_b;
+    DeviceBuffer<Float>    thickness_a;
+    DeviceBuffer<Float>    thickness_b;
 
     pos_a.view().copy_from(h_pos_a.data());
     pos_b.view().copy_from(h_pos_b.data());
@@ -482,24 +469,23 @@ void DistanceDiagnoser::compute_edge_edge_distance(
     topo_b.view().copy_from(h_topo_b.data());
     rest_pos_a.view().copy_from(h_rest_pos_a.data());
     rest_pos_b.view().copy_from(h_rest_pos_b.data());
-    dhat_a.view().copy_from(h_dhat_a.data());
-    dhat_b.view().copy_from(h_dhat_b.data());
-    th_a.view().copy_from(h_th_a.data());
-    th_b.view().copy_from(h_th_b.data());
+    detail::upload_vertex_attribute(dhat_a, edges_a, "d_hat");
+    detail::upload_vertex_attribute(dhat_b, edges_b, "d_hat");
+    detail::upload_vertex_attribute(thickness_a,   edges_a, "thickness");
+    detail::upload_vertex_attribute(thickness_b,   edges_b, "thickness");
 
-    // Result buffers
-    DeviceBuffer<Float>        dist2_buf(num_pairs);
-    DeviceBuffer<Vector12>     grad_buf(num_pairs);
-    DeviceBuffer<Matrix12x12>  hess_buf(num_pairs);
-    DeviceBuffer<Vector4i>     flag_buf(num_pairs);
-    DeviceBuffer<Vector4>      coord_buf(num_pairs);
-    DeviceBuffer<Float>        eps_x_buf(num_pairs);
-    DeviceBuffer<Float>        ek_buf(num_pairs);
-    DeviceBuffer<Vector12>     ek_grad_buf(num_pairs);
-    DeviceBuffer<Matrix12x12>  ek_hess_buf(num_pairs);
-    DeviceBuffer<Float>        barrier_buf(num_pairs);
-    DeviceBuffer<Vector12>     barrier_grad_buf(num_pairs);
-    DeviceBuffer<Matrix12x12>  barrier_hess_buf(num_pairs);
+    DeviceBuffer<Float>        dist2(num_pairs);
+    DeviceBuffer<Vector12>     dist2_grad(num_pairs);
+    DeviceBuffer<Matrix12x12>  dist2_hess(num_pairs);
+    DeviceBuffer<Vector4i>     flags(num_pairs);
+    DeviceBuffer<Vector4>      coords(num_pairs);
+    DeviceBuffer<Float>        eps_xs(num_pairs);
+    DeviceBuffer<Float>        e_ks(num_pairs);
+    DeviceBuffer<Vector12>     ek_grad(num_pairs);
+    DeviceBuffer<Matrix12x12>  ek_hess(num_pairs);
+    DeviceBuffer<Float>        barrier(num_pairs);
+    DeviceBuffer<Vector12>     barrier_grad(num_pairs);
+    DeviceBuffer<Matrix12x12>  barrier_hess(num_pairs);
 
     SizeT M = num_eb;
     Float coeff = mollifier_coeff_val;
@@ -507,32 +493,32 @@ void DistanceDiagnoser::compute_edge_edge_distance(
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(num_pairs,
-               [pos_a      = pos_a.viewer().name("pos_a"),
-                pos_b      = pos_b.viewer().name("pos_b"),
-                topo_a     = topo_a.viewer().name("topo_a"),
-                topo_b     = topo_b.viewer().name("topo_b"),
-                rest_pos_a = rest_pos_a.viewer().name("rest_pos_a"),
-                rest_pos_b = rest_pos_b.viewer().name("rest_pos_b"),
-                dhat_a     = dhat_a.cviewer().name("dhat_a"),
-                dhat_b     = dhat_b.cviewer().name("dhat_b"),
-                th_a       = th_a.cviewer().name("th_a"),
-                th_b       = th_b.cviewer().name("th_b"),
-                dist2_out        = dist2_buf.viewer().name("dist2"),
-                grad_out         = grad_buf.viewer().name("dist2/grad"),
-                hess_out         = hess_buf.viewer().name("dist2/hess"),
-                flag_out         = flag_buf.viewer().name("flag"),
-                coord_out        = coord_buf.viewer().name("coord"),
-                eps_x_out        = eps_x_buf.viewer().name("eps_x"),
-                ek_out           = ek_buf.viewer().name("e_k"),
-                ek_grad_out      = ek_grad_buf.viewer().name("e_k/grad"),
-                ek_hess_out      = ek_hess_buf.viewer().name("e_k/hess"),
-                barrier_out      = barrier_buf.viewer().name("barrier"),
-                barrier_grad_out = barrier_grad_buf.viewer().name("barrier/grad"),
-                barrier_hess_out = barrier_hess_buf.viewer().name("barrier/hess"),
-                M, coeff] __device__(int idx) mutable
+               [pos_a        = pos_a.viewer().name("pos_a"),
+                pos_b        = pos_b.viewer().name("pos_b"),
+                topo_a       = topo_a.viewer().name("topo_a"),
+                topo_b       = topo_b.viewer().name("topo_b"),
+                rest_pos_a   = rest_pos_a.viewer().name("rest_pos_a"),
+                rest_pos_b   = rest_pos_b.viewer().name("rest_pos_b"),
+                dhat_a       = dhat_a.cviewer().name("dhat_a"),
+                dhat_b       = dhat_b.cviewer().name("dhat_b"),
+                thickness_a         = thickness_a.cviewer().name("thickness_a"),
+                thickness_b         = thickness_b.cviewer().name("thickness_b"),
+                dist2        = dist2.viewer().name("dist2"),
+                dist2_grad   = dist2_grad.viewer().name("dist2_grad"),
+                dist2_hess   = dist2_hess.viewer().name("dist2_hess"),
+                flags        = flags.viewer().name("flags"),
+                coords       = coords.viewer().name("coords"),
+                eps_xs       = eps_xs.viewer().name("eps_xs"),
+                e_ks         = e_ks.viewer().name("e_ks"),
+                ek_grad      = ek_grad.viewer().name("ek_grad"),
+                ek_hess      = ek_hess.viewer().name("ek_hess"),
+                barrier      = barrier.viewer().name("barrier"),
+                barrier_grad = barrier_grad.viewer().name("barrier_grad"),
+                barrier_hess = barrier_hess.viewer().name("barrier_hess"),
+                M, coeff] __device__(int i) mutable
                {
-                   IndexT ai = idx / M;
-                   IndexT bi = idx % M;
+                   IndexT ai = i / M;
+                   IndexT bi = i % M;
 
                    Vector2i EA = topo_a(ai);
                    Vector2i EB = topo_b(bi);
@@ -584,64 +570,59 @@ void DistanceDiagnoser::compute_edge_edge_distance(
                    // Barrier: E = e_k * B(D)
                    Float d_hat_pair = EE_d_hat(dhat_a(EA[0]), dhat_a(EA[1]),
                                                dhat_b(EB[0]), dhat_b(EB[1]));
-                   Float xi = EE_thickness(th_a(EA[0]), th_a(EA[1]),
-                                           th_b(EB[0]), th_b(EB[1]));
+                   Float xi = EE_thickness(thickness_a(EA[0]), thickness_a(EA[1]),
+                                           thickness_b(EB[0]), thickness_b(EB[1]));
                    Vector2 dr = D_range(xi, d_hat_pair);
 
-                   Float Eval = Float(0);
+                   Float E = Float(0);
                    Vector12 GradE = Vector12::Zero();
                    Matrix12x12 HessE = Matrix12x12::Zero();
 
                    if(is_active_D(dr, D))
                    {
                        Float kappa = Float(1);
-                       Float Bval;
-                       sym::codim_ipc_contact::KappaBarrier(Bval, kappa, D, d_hat_pair, xi);
+                       Float B;
+                       sym::codim_ipc_contact::KappaBarrier(B, kappa, D, d_hat_pair, xi);
                        Float dBdD;
                        sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
                        Float ddBddD;
                        sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
 
-                       // E = e_k * B
-                       Eval = ek * Bval;
-                       // grad(E) = e_k * dB/dD * grad(D) + B * grad(e_k)
-                       GradE = ek * dBdD * GradD + Bval * Gradek;
-                       // hess(E) = e_k * (d2B/dD2 * grad(D)*grad(D)^T + dB/dD * hess(D))
-                       //         + dB/dD * (grad(D)*grad(e_k)^T + grad(e_k)*grad(D)^T)
-                       //         + B * hess(e_k)
+                       E = ek * B;
+                       GradE = ek * dBdD * GradD + B * Gradek;
                        HessE = ek * (ddBddD * GradD * GradD.transpose() + dBdD * HessD)
                              + dBdD * (GradD * Gradek.transpose() + Gradek * GradD.transpose())
-                             + Bval * Hessek;
+                             + B * Hessek;
                    }
 
-                   dist2_out(idx)        = D;
-                   grad_out(idx)         = GradD;
-                   hess_out(idx)         = HessD;
-                   flag_out(idx)         = flag;
-                   coord_out(idx)        = coord;
-                   eps_x_out(idx)        = eps_x;
-                   ek_out(idx)           = ek;
-                   ek_grad_out(idx)      = Gradek;
-                   ek_hess_out(idx)      = Hessek;
-                   barrier_out(idx)      = Eval;
-                   barrier_grad_out(idx) = GradE;
-                   barrier_hess_out(idx) = HessE;
+                   dist2(i)        = D;
+                   dist2_grad(i)   = GradD;
+                   dist2_hess(i)   = HessD;
+                   flags(i)        = flag;
+                   coords(i)       = coord;
+                   eps_xs(i)       = eps_x;
+                   e_ks(i)         = ek;
+                   ek_grad(i)      = Gradek;
+                   ek_hess(i)      = Hessek;
+                   barrier(i)      = E;
+                   barrier_grad(i) = GradE;
+                   barrier_hess(i) = HessE;
                });
 
     R.instances().resize(num_pairs);
 
-    detail::copy_back(R, "dist2",        Float(0),            dist2_buf);
-    detail::copy_back(R, "dist2/grad",   Vector12::Zero(),    grad_buf);
-    detail::copy_back(R, "dist2/hess",   Matrix12x12::Zero(), hess_buf);
-    detail::copy_back(R, "flag",         Vector4i::Zero(),    flag_buf);
-    detail::copy_back(R, "coord",        Vector4::Zero(),     coord_buf);
-    detail::copy_back(R, "eps_x",        Float(0),            eps_x_buf);
-    detail::copy_back(R, "e_k",          Float(1),            ek_buf);
-    detail::copy_back(R, "e_k/grad",     Vector12::Zero(),    ek_grad_buf);
-    detail::copy_back(R, "e_k/hess",     Matrix12x12::Zero(), ek_hess_buf);
-    detail::copy_back(R, "barrier",      Float(0),            barrier_buf);
-    detail::copy_back(R, "barrier/grad", Vector12::Zero(),    barrier_grad_buf);
-    detail::copy_back(R, "barrier/hess", Matrix12x12::Zero(), barrier_hess_buf);
+    detail::copy_back(R, "dist2",        Float(0),            dist2.view());
+    detail::copy_back(R, "dist2/grad",   Vector12::Zero(),    dist2_grad.view());
+    detail::copy_back(R, "dist2/hess",   Matrix12x12::Zero(), dist2_hess.view());
+    detail::copy_back(R, "flag",         Vector4i::Zero(),    flags.view());
+    detail::copy_back(R, "coord",        Vector4::Zero(),     coords.view());
+    detail::copy_back(R, "eps_x",        Float(0),            eps_xs.view());
+    detail::copy_back(R, "e_k",          Float(1),            e_ks.view());
+    detail::copy_back(R, "e_k/grad",     Vector12::Zero(),    ek_grad.view());
+    detail::copy_back(R, "e_k/hess",     Matrix12x12::Zero(), ek_hess.view());
+    detail::copy_back(R, "barrier",      Float(0),            barrier.view());
+    detail::copy_back(R, "barrier/grad", Vector12::Zero(),    barrier_grad.view());
+    detail::copy_back(R, "barrier/hess", Matrix12x12::Zero(), barrier_hess.view());
 
     if(!mc_attr)
         R.instances().create<Float>("mollifier_coeff", mollifier_coeff_val);
@@ -671,59 +652,54 @@ void DistanceDiagnoser::compute_point_edge_distance(
         return;
     }
 
-    auto h_dhat_p = detail::read_vertex_float(points, "d_hat",     0.01);
-    auto h_dhat_e = detail::read_vertex_float(edges,  "d_hat",     0.01);
-    auto h_th_p   = detail::read_vertex_float(points, "thickness", 0.0);
-    auto h_th_e   = detail::read_vertex_float(edges,  "thickness", 0.0);
-
     DeviceBuffer<Vector3>  point_pos(num_points);
     DeviceBuffer<Vector3>  edge_pos(h_edge_pos.size());
     DeviceBuffer<Vector2i> edge_topo(num_edges);
-    DeviceBuffer<Float>    dhat_p(num_points);
-    DeviceBuffer<Float>    dhat_e(h_edge_pos.size());
-    DeviceBuffer<Float>    th_p(num_points);
-    DeviceBuffer<Float>    th_e(h_edge_pos.size());
+    DeviceBuffer<Float>    dhat_p;
+    DeviceBuffer<Float>    dhat_e;
+    DeviceBuffer<Float>    thickness_p;
+    DeviceBuffer<Float>    thickness_e;
 
     point_pos.view().copy_from(h_point_pos.data());
     edge_pos.view().copy_from(h_edge_pos.data());
     edge_topo.view().copy_from(h_edge_topo.data());
-    dhat_p.view().copy_from(h_dhat_p.data());
-    dhat_e.view().copy_from(h_dhat_e.data());
-    th_p.view().copy_from(h_th_p.data());
-    th_e.view().copy_from(h_th_e.data());
+    detail::upload_vertex_attribute(dhat_p, points, "d_hat");
+    detail::upload_vertex_attribute(dhat_e, edges,  "d_hat");
+    detail::upload_vertex_attribute(thickness_p,   points, "thickness");
+    detail::upload_vertex_attribute(thickness_e,   edges,  "thickness");
 
-    DeviceBuffer<Float>     dist2_buf(num_pairs);
-    DeviceBuffer<Vector9>   grad_buf(num_pairs);
-    DeviceBuffer<Matrix9x9> hess_buf(num_pairs);
-    DeviceBuffer<Vector3i>  flag_buf(num_pairs);
-    DeviceBuffer<Vector3>   coord_buf(num_pairs);
-    DeviceBuffer<Float>     barrier_buf(num_pairs);
-    DeviceBuffer<Vector9>   barrier_grad_buf(num_pairs);
-    DeviceBuffer<Matrix9x9> barrier_hess_buf(num_pairs);
+    DeviceBuffer<Float>     dist2(num_pairs);
+    DeviceBuffer<Vector9>   dist2_grad(num_pairs);
+    DeviceBuffer<Matrix9x9> dist2_hess(num_pairs);
+    DeviceBuffer<Vector3i>  flags(num_pairs);
+    DeviceBuffer<Vector3>   coords(num_pairs);
+    DeviceBuffer<Float>     barrier(num_pairs);
+    DeviceBuffer<Vector9>   barrier_grad(num_pairs);
+    DeviceBuffer<Matrix9x9> barrier_hess(num_pairs);
 
     SizeT M = num_edges;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(num_pairs,
-               [point_pos = point_pos.viewer().name("point_pos"),
-                edge_pos  = edge_pos.viewer().name("edge_pos"),
-                edge_topo = edge_topo.viewer().name("edge_topo"),
-                dhat_p    = dhat_p.cviewer().name("dhat_p"),
-                dhat_e    = dhat_e.cviewer().name("dhat_e"),
-                th_p      = th_p.cviewer().name("th_p"),
-                th_e      = th_e.cviewer().name("th_e"),
-                dist2_out        = dist2_buf.viewer().name("dist2"),
-                grad_out         = grad_buf.viewer().name("dist2/grad"),
-                hess_out         = hess_buf.viewer().name("dist2/hess"),
-                flag_out         = flag_buf.viewer().name("flag"),
-                coord_out        = coord_buf.viewer().name("coord"),
-                barrier_out      = barrier_buf.viewer().name("barrier"),
-                barrier_grad_out = barrier_grad_buf.viewer().name("barrier/grad"),
-                barrier_hess_out = barrier_hess_buf.viewer().name("barrier/hess"),
-                M] __device__(int idx) mutable
+               [point_pos    = point_pos.viewer().name("point_pos"),
+                edge_pos     = edge_pos.viewer().name("edge_pos"),
+                edge_topo    = edge_topo.viewer().name("edge_topo"),
+                dhat_p       = dhat_p.cviewer().name("dhat_p"),
+                dhat_e       = dhat_e.cviewer().name("dhat_e"),
+                thickness_p         = thickness_p.cviewer().name("thickness_p"),
+                thickness_e         = thickness_e.cviewer().name("thickness_e"),
+                dist2        = dist2.viewer().name("dist2"),
+                dist2_grad   = dist2_grad.viewer().name("dist2_grad"),
+                dist2_hess   = dist2_hess.viewer().name("dist2_hess"),
+                flags        = flags.viewer().name("flags"),
+                coords       = coords.viewer().name("coords"),
+                barrier      = barrier.viewer().name("barrier"),
+                barrier_grad = barrier_grad.viewer().name("barrier_grad"),
+                barrier_hess = barrier_hess.viewer().name("barrier_hess"),
+                M] __device__(int i) mutable
                {
-                   IndexT pi = idx / M;
-                   IndexT ei = idx % M;
+                   IndexT pi = i / M;
+                   IndexT ei = i % M;
 
                    const Vector3& P = point_pos(pi);
                    Vector2i EI = edge_topo(ei);
@@ -735,18 +711,17 @@ void DistanceDiagnoser::compute_point_edge_distance(
                    Float D;
                    distance::point_edge_distance2(flag, P, E0, E1, D);
 
-                   Vector9 G;
-                   distance::point_edge_distance2_gradient(flag, P, E0, E1, G);
+                   Vector9 GradD;
+                   distance::point_edge_distance2_gradient(flag, P, E0, E1, GradD);
 
-                   Matrix9x9 H;
-                   distance::point_edge_distance2_hessian(flag, P, E0, E1, H);
+                   Matrix9x9 HessD;
+                   distance::point_edge_distance2_hessian(flag, P, E0, E1, HessD);
 
                    Vector3 coord;
                    detail::point_edge_closest_point_coord(flag, P, E0, E1, coord);
 
-                   // Barrier
                    Float d_hat_pair = PE_d_hat(dhat_p(pi), dhat_e(EI[0]), dhat_e(EI[1]));
-                   Float xi         = PE_thickness(th_p(pi), th_e(EI[0]), th_e(EI[1]));
+                   Float xi         = PE_thickness(thickness_p(pi), thickness_e(EI[0]), thickness_e(EI[1]));
                    Vector2 dr = D_range(xi, d_hat_pair);
 
                    Float B = Float(0);
@@ -761,30 +736,30 @@ void DistanceDiagnoser::compute_point_edge_distance(
                        sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
                        Float ddBddD;
                        sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
-                       GradB = dBdD * G;
-                       HessB = ddBddD * G * G.transpose() + dBdD * H;
+                       GradB = dBdD * GradD;
+                       HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
                    }
 
-                   dist2_out(idx)        = D;
-                   grad_out(idx)         = G;
-                   hess_out(idx)         = H;
-                   flag_out(idx)         = flag;
-                   coord_out(idx)        = coord;
-                   barrier_out(idx)      = B;
-                   barrier_grad_out(idx) = GradB;
-                   barrier_hess_out(idx) = HessB;
+                   dist2(i)        = D;
+                   dist2_grad(i)   = GradD;
+                   dist2_hess(i)   = HessD;
+                   flags(i)        = flag;
+                   coords(i)       = coord;
+                   barrier(i)      = B;
+                   barrier_grad(i) = GradB;
+                   barrier_hess(i) = HessB;
                });
 
     R.instances().resize(num_pairs);
 
-    detail::copy_back(R, "dist2",        Float(0),          dist2_buf);
-    detail::copy_back(R, "dist2/grad",   Vector9::Zero(),   grad_buf);
-    detail::copy_back(R, "dist2/hess",   Matrix9x9::Zero(), hess_buf);
-    detail::copy_back(R, "flag",         Vector3i::Zero(),  flag_buf);
-    detail::copy_back(R, "coord",        Vector3::Zero(),   coord_buf);
-    detail::copy_back(R, "barrier",      Float(0),          barrier_buf);
-    detail::copy_back(R, "barrier/grad", Vector9::Zero(),   barrier_grad_buf);
-    detail::copy_back(R, "barrier/hess", Matrix9x9::Zero(), barrier_hess_buf);
+    detail::copy_back(R, "dist2",        Float(0),          dist2.view());
+    detail::copy_back(R, "dist2/grad",   Vector9::Zero(),   dist2_grad.view());
+    detail::copy_back(R, "dist2/hess",   Matrix9x9::Zero(), dist2_hess.view());
+    detail::copy_back(R, "flag",         Vector3i::Zero(),  flags.view());
+    detail::copy_back(R, "coord",        Vector3::Zero(),   coords.view());
+    detail::copy_back(R, "barrier",      Float(0),          barrier.view());
+    detail::copy_back(R, "barrier/grad", Vector9::Zero(),   barrier_grad.view());
+    detail::copy_back(R, "barrier/hess", Matrix9x9::Zero(), barrier_hess.view());
 }
 
 // =====================================================================
@@ -810,52 +785,47 @@ void DistanceDiagnoser::compute_point_point_distance(
         return;
     }
 
-    auto h_dhat_a = detail::read_vertex_float(points_a, "d_hat",     0.01);
-    auto h_dhat_b = detail::read_vertex_float(points_b, "d_hat",     0.01);
-    auto h_th_a   = detail::read_vertex_float(points_a, "thickness", 0.0);
-    auto h_th_b   = detail::read_vertex_float(points_b, "thickness", 0.0);
-
     DeviceBuffer<Vector3> pos_a(num_a);
     DeviceBuffer<Vector3> pos_b(num_b);
-    DeviceBuffer<Float>   dhat_a(num_a);
-    DeviceBuffer<Float>   dhat_b(num_b);
-    DeviceBuffer<Float>   th_a(num_a);
-    DeviceBuffer<Float>   th_b(num_b);
+    DeviceBuffer<Float>   dhat_a;
+    DeviceBuffer<Float>   dhat_b;
+    DeviceBuffer<Float>   thickness_a;
+    DeviceBuffer<Float>   thickness_b;
 
     pos_a.view().copy_from(h_pos_a.data());
     pos_b.view().copy_from(h_pos_b.data());
-    dhat_a.view().copy_from(h_dhat_a.data());
-    dhat_b.view().copy_from(h_dhat_b.data());
-    th_a.view().copy_from(h_th_a.data());
-    th_b.view().copy_from(h_th_b.data());
+    detail::upload_vertex_attribute(dhat_a, points_a, "d_hat");
+    detail::upload_vertex_attribute(dhat_b, points_b, "d_hat");
+    detail::upload_vertex_attribute(thickness_a,   points_a, "thickness");
+    detail::upload_vertex_attribute(thickness_b,   points_b, "thickness");
 
-    DeviceBuffer<Float>     dist2_buf(num_pairs);
-    DeviceBuffer<Vector6>   grad_buf(num_pairs);
-    DeviceBuffer<Matrix6x6> hess_buf(num_pairs);
-    DeviceBuffer<Float>     barrier_buf(num_pairs);
-    DeviceBuffer<Vector6>   barrier_grad_buf(num_pairs);
-    DeviceBuffer<Matrix6x6> barrier_hess_buf(num_pairs);
+    DeviceBuffer<Float>     dist2(num_pairs);
+    DeviceBuffer<Vector6>   dist2_grad(num_pairs);
+    DeviceBuffer<Matrix6x6> dist2_hess(num_pairs);
+    DeviceBuffer<Float>     barrier(num_pairs);
+    DeviceBuffer<Vector6>   barrier_grad(num_pairs);
+    DeviceBuffer<Matrix6x6> barrier_hess(num_pairs);
 
     SizeT M = num_b;
     ParallelFor()
         .file_line(__FILE__, __LINE__)
         .apply(num_pairs,
-               [pos_a  = pos_a.viewer().name("pos_a"),
-                pos_b  = pos_b.viewer().name("pos_b"),
-                dhat_a = dhat_a.cviewer().name("dhat_a"),
-                dhat_b = dhat_b.cviewer().name("dhat_b"),
-                th_a   = th_a.cviewer().name("th_a"),
-                th_b   = th_b.cviewer().name("th_b"),
-                dist2_out        = dist2_buf.viewer().name("dist2"),
-                grad_out         = grad_buf.viewer().name("dist2/grad"),
-                hess_out         = hess_buf.viewer().name("dist2/hess"),
-                barrier_out      = barrier_buf.viewer().name("barrier"),
-                barrier_grad_out = barrier_grad_buf.viewer().name("barrier/grad"),
-                barrier_hess_out = barrier_hess_buf.viewer().name("barrier/hess"),
-                M] __device__(int idx) mutable
+               [pos_a        = pos_a.viewer().name("pos_a"),
+                pos_b        = pos_b.viewer().name("pos_b"),
+                dhat_a       = dhat_a.cviewer().name("dhat_a"),
+                dhat_b       = dhat_b.cviewer().name("dhat_b"),
+                thickness_a         = thickness_a.cviewer().name("thickness_a"),
+                thickness_b         = thickness_b.cviewer().name("thickness_b"),
+                dist2        = dist2.viewer().name("dist2"),
+                dist2_grad   = dist2_grad.viewer().name("dist2_grad"),
+                dist2_hess   = dist2_hess.viewer().name("dist2_hess"),
+                barrier      = barrier.viewer().name("barrier"),
+                barrier_grad = barrier_grad.viewer().name("barrier_grad"),
+                barrier_hess = barrier_hess.viewer().name("barrier_hess"),
+                M] __device__(int i) mutable
                {
-                   IndexT ai = idx / M;
-                   IndexT bi = idx % M;
+                   IndexT ai = i / M;
+                   IndexT bi = i % M;
 
                    const Vector3& A = pos_a(ai);
                    const Vector3& B = pos_b(bi);
@@ -863,15 +833,14 @@ void DistanceDiagnoser::compute_point_point_distance(
                    Float D;
                    distance::point_point_distance2(A, B, D);
 
-                   Vector6 G;
-                   distance::point_point_distance2_gradient(A, B, G);
+                   Vector6 GradD;
+                   distance::point_point_distance2_gradient(A, B, GradD);
 
-                   Matrix6x6 H;
-                   distance::point_point_distance2_hessian(A, B, H);
+                   Matrix6x6 HessD;
+                   distance::point_point_distance2_hessian(A, B, HessD);
 
-                   // Barrier
                    Float d_hat_pair = PP_d_hat(dhat_a(ai), dhat_b(bi));
-                   Float xi         = PP_thickness(th_a(ai), th_b(bi));
+                   Float xi         = PP_thickness(thickness_a(ai), thickness_b(bi));
                    Vector2 dr = D_range(xi, d_hat_pair);
 
                    Float Bv = Float(0);
@@ -886,25 +855,25 @@ void DistanceDiagnoser::compute_point_point_distance(
                        sym::codim_ipc_contact::dKappaBarrierdD(dBdD, kappa, D, d_hat_pair, xi);
                        Float ddBddD;
                        sym::codim_ipc_contact::ddKappaBarrierddD(ddBddD, kappa, D, d_hat_pair, xi);
-                       GradB = dBdD * G;
-                       HessB = ddBddD * G * G.transpose() + dBdD * H;
+                       GradB = dBdD * GradD;
+                       HessB = ddBddD * GradD * GradD.transpose() + dBdD * HessD;
                    }
 
-                   dist2_out(idx)        = D;
-                   grad_out(idx)         = G;
-                   hess_out(idx)         = H;
-                   barrier_out(idx)      = Bv;
-                   barrier_grad_out(idx) = GradB;
-                   barrier_hess_out(idx) = HessB;
+                   dist2(i)        = D;
+                   dist2_grad(i)   = GradD;
+                   dist2_hess(i)   = HessD;
+                   barrier(i)      = Bv;
+                   barrier_grad(i) = GradB;
+                   barrier_hess(i) = HessB;
                });
 
     R.instances().resize(num_pairs);
 
-    detail::copy_back(R, "dist2",        Float(0),          dist2_buf);
-    detail::copy_back(R, "dist2/grad",   Vector6::Zero(),   grad_buf);
-    detail::copy_back(R, "dist2/hess",   Matrix6x6::Zero(), hess_buf);
-    detail::copy_back(R, "barrier",      Float(0),          barrier_buf);
-    detail::copy_back(R, "barrier/grad", Vector6::Zero(),   barrier_grad_buf);
-    detail::copy_back(R, "barrier/hess", Matrix6x6::Zero(), barrier_hess_buf);
+    detail::copy_back(R, "dist2",        Float(0),          dist2.view());
+    detail::copy_back(R, "dist2/grad",   Vector6::Zero(),   dist2_grad.view());
+    detail::copy_back(R, "dist2/hess",   Matrix6x6::Zero(), dist2_hess.view());
+    detail::copy_back(R, "barrier",      Float(0),          barrier.view());
+    detail::copy_back(R, "barrier/grad", Vector6::Zero(),   barrier_grad.view());
+    detail::copy_back(R, "barrier/hess", Matrix6x6::Zero(), barrier_hess.view());
 }
 }  // namespace uipc::backend::cuda
