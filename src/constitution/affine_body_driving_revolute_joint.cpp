@@ -34,20 +34,20 @@ void AffineBodyDrivingRevoluteJoint::apply_to(geometry::SimplicialComplex& sc, F
 void AffineBodyDrivingRevoluteJoint::apply_to(geometry::SimplicialComplex& sc,
                                               span<Float> strength_ratio)
 {
-    UIPC_ASSERT(sc.dim() == 1,
+    UIPC_ASSERT_THROW(sc.dim() == 1,
                 "AffineBodyDrivingRevoluteJoint can only be applied to 1D simplicial complex (linemesh), "
                 "but got {}D",
                 sc.dim());
 
     auto size = sc.edges().size();
-    UIPC_ASSERT(strength_ratio.size() == size,
+    UIPC_ASSERT_THROW(strength_ratio.size() == size,
                 "Strength ratio size mismatch: expected {}, got {}",
                 size,
                 strength_ratio.size());
     Base::apply_to(sc);
 
     auto uid = sc.meta().find<U64>(builtin::constitution_uid);
-    UIPC_ASSERT(uid && uid->view()[0] == 18,  // UID of AffineBodyRevoluteJoint
+    UIPC_ASSERT_THROW(uid && uid->view()[0] == 18,  // UID of AffineBodyRevoluteJoint
                 "Simplicial complex does not have constitution uid. "
                 "Please apply an AffineBodyRevoluteJoint before applying AffineBodyDrivingRevoluteJoint");
 

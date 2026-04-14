@@ -58,8 +58,8 @@ class DiffSim::Impl
                     auto diff_parm = collection.find(diff_parm_name);
                     auto parm      = collection.find(parm_name);
 
-                    UIPC_ASSERT(diff_parm, "Diff Parm `{}` not found, why can it happen?", diff_parm_name);
-                    UIPC_ASSERT(parm,
+                    UIPC_ASSERT_THROW(diff_parm, "Diff Parm `{}` not found, why can it happen?", diff_parm_name);
+                    UIPC_ASSERT_THROW(parm,
                                 "Diff Parm `{}` found, but Parm `{}` not, did you forget to create an attribute with name `{}` ?",
                                 diff_parm_name,
                                 parm_name,

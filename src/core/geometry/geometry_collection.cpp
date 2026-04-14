@@ -61,18 +61,18 @@ void GeometryCollection::pending_destroy(IndexT id) noexcept
     }
 }
 
-void GeometryCollection::solve_pending() noexcept
+void GeometryCollection::solve_pending()
 {
     m_dirty = true;
 
     // put the pending create into the geometries
     for(auto& [id, geo] : m_pending_create)
     {
-        UIPC_ASSERT(m_geometries.find(id) == m_geometries.end(),
+        UIPC_ASSERT_THROW(m_geometries.find(id) == m_geometries.end(),
                     "GeometrySlot ({}) already exists. Why can this happen?",
                     id);
 
-        UIPC_ASSERT(geo->state() == GeometrySlotState::PendingCreate,
+        UIPC_ASSERT_THROW(geo->state() == GeometrySlotState::PendingCreate,
                     "GeometrySlot ({}) is not in PendingCreate state. Why can this happen?",
                     id);
 
@@ -84,11 +84,11 @@ void GeometryCollection::solve_pending() noexcept
     for(auto id : m_pending_destroy)
     {
         auto it = m_geometries.find(id);
-        UIPC_ASSERT(it != m_geometries.end(),
+        UIPC_ASSERT_THROW(it != m_geometries.end(),
                     "GeometrySlot ({}) does not exist. Why can this happen?",
                     id);
 
-        UIPC_ASSERT(it->second->state() == GeometrySlotState::PendingDestroy,
+        UIPC_ASSERT_THROW(it->second->state() == GeometrySlotState::PendingDestroy,
                     "GeometrySlot ({}) is not in PendingDestroy state. Why can this happen?",
                     id);
         m_geometries.erase(it);

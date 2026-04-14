@@ -16,19 +16,19 @@ GeometryCollectionCommit::GeometryCollectionCommit(const GeometryCollectionCommi
 GeometryCollectionCommit::GeometryCollectionCommit(const GeometryCollection& dst,
                                                    const GeometryCollection& src)
 {
-    UIPC_ASSERT(dst.m_pending_create.size() == 0,
+    UIPC_ASSERT_THROW(dst.m_pending_create.size() == 0,
                 "GeometryCollectionCommit: The pending create size is not 0 (size={}), this is not expected.",
                 dst.m_pending_create.size());
 
-    UIPC_ASSERT(dst.m_pending_destroy.size() == 0,
+    UIPC_ASSERT_THROW(dst.m_pending_destroy.size() == 0,
                 "GeometryCollectionCommit: The pending destroy size is not 0 (size={}), this is not expected.",
                 dst.m_pending_destroy.size());
 
-    UIPC_ASSERT(src.m_pending_create.size() == 0,
+    UIPC_ASSERT_THROW(src.m_pending_create.size() == 0,
                 "GeometryCollectionCommit: The pending create size is not 0 (size={}), this is not expected.",
                 src.m_pending_create.size());
 
-    UIPC_ASSERT(src.m_pending_destroy.size() == 0,
+    UIPC_ASSERT_THROW(src.m_pending_destroy.size() == 0,
                 "GeometryCollectionCommit: The pending destroy size is not 0 (size={}), this is not expected.",
                 src.m_pending_destroy.size());
 

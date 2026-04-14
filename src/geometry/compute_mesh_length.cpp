@@ -7,7 +7,7 @@ namespace uipc::geometry
 UIPC_GEOMETRY_API Float compute_rod_volume(const SimplicialComplex& sc,
                                            Float                    thickness)
 {
-    UIPC_ASSERT(sc.dim() == 1,
+    UIPC_ASSERT_THROW(sc.dim() == 1,
                 "compute_mesh_length requires a 1D simplicial complex (edge mesh), got dim={}.",
                 sc.dim());
 

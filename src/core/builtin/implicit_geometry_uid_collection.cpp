@@ -23,7 +23,7 @@ ImplicitGeometryUIDCollection::ImplicitGeometryUIDCollection()
 
         for(auto& uid : uid_infos)
         {
-            UIPC_ASSERT(!uid.type.empty(),
+            UIPC_ASSERT_THROW(!uid.type.empty(),
                         "ImplicitGeometryUIDCollection: ImplicitGeometry type is empty for UID: {}, creator: {}({})",
                         uid.uid,
                         creator_info.file,

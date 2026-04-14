@@ -141,7 +141,7 @@ void label_surface(SimplicialComplex& R)
 
     // 4) label the surface triangles
     auto Fs = R.triangles().topo().view();
-    UIPC_ASSERT(f_is_surf->view().size() == unique_triangles.size(),
+    UIPC_ASSERT_THROW(f_is_surf->view().size() == unique_triangles.size(),
                 "The input mesh should be a closure, why can't we find the same number of triangles? yours {}, ours {}.",
                 f_is_surf->view().size(),
                 unique_triangles.size());
@@ -158,7 +158,7 @@ void label_surface(SimplicialComplex& R)
             // TODO:
             // if the triangles are not sorted, we need find a mapping from the sorted to the unsorted
             // and then we can label the surface vertices
-            UIPC_ASSERT(sorted, "The triangles are not sorted, now we don't support this case, TODO: need to implement it.");
+            UIPC_ASSERT_THROW(sorted, "The triangles are not sorted, now we don't support this case, TODO: need to implement it.");
 
             if(is_surface_triangle(i))
             {
@@ -233,7 +233,7 @@ void label_surface(SimplicialComplex& R)
 
         // TODO: if the edges_with_flag are not sorted, we need find a mapping from the sorted to the unsorted
         // 	 and then we can label the surface vertices
-        UIPC_ASSERT(sorted, "The edges are not sorted, now we don't support this case, TODO: need to implement it.");
+        UIPC_ASSERT_THROW(sorted, "The edges are not sorted, now we don't support this case, TODO: need to implement it.");
 
         auto offset         = offsets_edges[i];
         auto edge_with_flag = edges_with_flag[offset];

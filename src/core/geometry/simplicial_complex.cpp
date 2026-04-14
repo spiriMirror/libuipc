@@ -10,7 +10,7 @@ namespace uipc::geometry
 SimplicialComplex::SimplicialComplex(const CreateInfo& info)
     : Geometry()
 {
-    UIPC_ASSERT(find("meta") && find("instances"),
+    UIPC_ASSERT_THROW(find("meta") && find("instances"),
                 "SimplicialComplex should have meta and instance attributes.");
 
     // create attribute collections and setup shortcuts

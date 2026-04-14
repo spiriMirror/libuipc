@@ -106,7 +106,7 @@ DiffSim& Scene::diff_sim()
 {
     // automatically enable diff_sim
     auto diff_sim_enable = m_internal->config().find<IndexT>("diff_sim/enable");
-    UIPC_ASSERT(diff_sim_enable, "Scene config must have a 'diff_sim/enable' attribute.");
+    UIPC_ASSERT_THROW(diff_sim_enable, "Scene config must have a 'diff_sim/enable' attribute.");
     geometry::view(*diff_sim_enable)[0] = 1;
     return m_internal->diff_sim();
 }

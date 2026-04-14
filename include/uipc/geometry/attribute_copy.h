@@ -66,7 +66,7 @@ class UIPC_CORE_API AttributeCopy
     span<const std::pair<SizeT, SizeT>> m_pairs;
 
     template <typename T>
-    void copy(span<T> dst, span<const T> src) const noexcept;
+    void copy(span<T> dst, span<const T> src) const;
 };
 }  // namespace uipc::geometry
 

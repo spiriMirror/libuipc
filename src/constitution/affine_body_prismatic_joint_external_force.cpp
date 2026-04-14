@@ -36,13 +36,13 @@ void AffineBodyPrismaticJointExternalForce::apply_to(geometry::SimplicialComplex
 void AffineBodyPrismaticJointExternalForce::apply_to(geometry::SimplicialComplex& sc,
                                                           span<Float> forces)
 {
-    UIPC_ASSERT(sc.dim() == 1,
+    UIPC_ASSERT_THROW(sc.dim() == 1,
                 "AffineBodyPrismaticJointExternalForce can only be applied to 1D simplicial complex (linemesh), "
                 "but got {}D",
                 sc.dim());
 
     auto size = sc.edges().size();
-    UIPC_ASSERT(forces.size() == size,
+    UIPC_ASSERT_THROW(forces.size() == size,
                 "Forces size mismatch: expected {}, got {}",
                 size,
                 forces.size());
@@ -50,7 +50,7 @@ void AffineBodyPrismaticJointExternalForce::apply_to(geometry::SimplicialComplex
     Base::apply_to(sc);
 
     auto uid = sc.meta().find<U64>(builtin::constitution_uid);
-    UIPC_ASSERT(uid && uid->view()[0] == 20,  // UID of AffineBodyPrismaticJoint
+    UIPC_ASSERT_THROW(uid && uid->view()[0] == 20,  // UID of AffineBodyPrismaticJoint
                 "Simplicial complex does not have constitution uid 20. "
                 "Please apply an AffineBodyPrismaticJoint before applying AffineBodyPrismaticJointExternalForce");
 

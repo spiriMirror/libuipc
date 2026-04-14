@@ -10,8 +10,8 @@ static void check_merge_input(span<const SimplicialComplex*> complexes)
 {
     for(auto [I, complex] : enumerate(complexes))
     {
-        UIPC_ASSERT(complex != nullptr, "complex[{}] is nullptr", I);
-        UIPC_ASSERT(complex->instances().size() == 1,
+        UIPC_ASSERT_THROW(complex != nullptr, "complex[{}] is nullptr", I);
+        UIPC_ASSERT_THROW(complex->instances().size() == 1,
                     "complex[{}] has multiple instances ({}), call `apply_transform()` before merging multiple-instance-geometry",
                     I,
                     complex->instances().size());

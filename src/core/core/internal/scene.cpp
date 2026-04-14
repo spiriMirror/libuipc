@@ -30,7 +30,7 @@ void Scene::begin_pending() noexcept
     m_pending = true;
 }
 
-void Scene::solve_pending() noexcept
+void Scene::solve_pending()
 {
     m_geometries.solve_pending();
     m_rest_geometries.solve_pending();
@@ -54,10 +54,10 @@ void Scene::update_from(const SceneSnapshotCommit& commit)
     m_rest_geometries.update_from(commit.m_rest_geometries);
 }
 
-Float Scene::dt() const noexcept
+Float Scene::dt() const
 {
     auto dt_attr = m_config.find<Float>("dt");
-    UIPC_ASSERT(dt_attr, "Scene config must have a 'dt' attribute.");
+    UIPC_ASSERT_THROW(dt_attr, "Scene config must have a 'dt' attribute.");
     return dt_attr->view()[0];
 }
 

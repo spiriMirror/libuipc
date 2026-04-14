@@ -23,10 +23,10 @@ void Animation::init()
     for(auto id : geo_ids)
     {
         auto slot = scene.find_geometry(id);
-        UIPC_ASSERT(slot, "Animation: Geometry slot not found for id={}", id);
+        UIPC_ASSERT_THROW(slot, "Animation: Geometry slot not found for id={}", id);
         m_temp_geo_slots.push_back(slot);
         auto rest_slot = scene.find_rest_geometry(id);
-        UIPC_ASSERT(rest_slot, "Animation: Rest geometry slot not found for id={}", id);
+        UIPC_ASSERT_THROW(rest_slot, "Animation: Rest geometry slot not found for id={}", id);
         m_temp_rest_geo_slots.push_back(rest_slot);
     }
 }
@@ -60,7 +60,7 @@ span<S<geometry::GeometrySlot>> Animation::UpdateInfo::rest_geo_slots() const no
 SizeT Animation::UpdateInfo::frame() const noexcept
 {
     //auto s_world = m_animation->m_scene->world().lock();
-    //UIPC_ASSERT(s_world, "World is expired, did you throw the `World`?");
+    //UIPC_ASSERT_THROW(s_world, "World is expired, did you throw the `World`?");
     //return s_world->frame();
     return m_animation->m_scene->world()->frame();
 }

@@ -75,7 +75,7 @@ void Attribute<T>::do_reorder(span<const SizeT> O) noexcept
 }
 
 template <typename T>
-void Attribute<T>::do_copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept
+void Attribute<T>::do_copy_from(const IAttribute& other, const AttributeCopy& copy)
 {
     auto& other_attr = static_cast<const Attribute<T>&>(other);
     copy.template copy<T>(m_values, other_attr.m_values);
@@ -115,9 +115,9 @@ Json Attribute<T>::do_to_json() const noexcept
 }
 
 template <typename T>
-void Attribute<T>::do_from_json_array(const Json& j) noexcept
+void Attribute<T>::do_from_json_array(const Json& j)
 {
-    UIPC_ASSERT(j.is_array(), "To create an Attribute from json array, this json must be an array");
+    UIPC_ASSERT_THROW(j.is_array(), "To create an Attribute from json array, this json must be an array");
     try
     {
         m_values = j.get<vector<T>>();
@@ -130,9 +130,9 @@ void Attribute<T>::do_from_json_array(const Json& j) noexcept
 }
 
 template <typename T>
-void Attribute<T>::do_from_json(const Json& j) noexcept
+void Attribute<T>::do_from_json(const Json& j)
 {
-    UIPC_ASSERT(j.is_object(), "To create an Attribute, this json must be an object");
+    UIPC_ASSERT_THROW(j.is_object(), "To create an Attribute, this json must be an object");
 
     auto values_it = j.find("values");
     if(values_it == j.end())

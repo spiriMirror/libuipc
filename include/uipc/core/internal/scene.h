@@ -32,7 +32,7 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
 
     void init(internal::World& world) noexcept;
     void begin_pending() noexcept;
-    void solve_pending() noexcept;
+    void solve_pending();
 
 
     // IO
@@ -43,7 +43,7 @@ class UIPC_CORE_API Scene : public std::enable_shared_from_this<Scene>
 
     auto& config() const noexcept { return m_config; }
     auto& config() noexcept { return m_config; }
-    Float dt() const noexcept;
+    Float dt() const;
     bool  is_started() const noexcept { return m_started; }
     bool  is_pending() const noexcept { return m_pending; }
     auto& contact_tabular() const noexcept { return m_contact_tabular; }

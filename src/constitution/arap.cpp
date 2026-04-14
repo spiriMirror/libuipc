@@ -24,7 +24,7 @@ void ARAP::apply_to(geometry::SimplicialComplex& sc, Float kappa, Float mass_den
 {
     Base::apply_to(sc, mass_density);
 
-    UIPC_ASSERT(sc.dim() == 3, "Now ARAP only supports 3D simplicial complex");
+    UIPC_ASSERT_THROW(sc.dim() == 3, "Now ARAP only supports 3D simplicial complex");
 
     auto kappa_attr = sc.tetrahedra().find<Float>("kappa");
     if(!kappa_attr)

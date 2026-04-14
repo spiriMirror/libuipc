@@ -26,7 +26,7 @@ static S<AttributeSlot<Float>> compute_vertex_volume_from_tet(SimplicialComplex&
                                A.col(1) = p2 - p0;
                                A.col(2) = p3 - p0;
                                auto D   = A.determinant();
-                               UIPC_ASSERT(D > 0.0,
+                               UIPC_ASSERT_THROW(D > 0.0,
                                            "The determinant of the tetrahedron is non-positive ({}), which means the tetrahedron is inverted.",
                                            D);
                                auto volume = D / 6.0;
@@ -76,7 +76,7 @@ static S<AttributeSlot<Float>> compute_vertex_volume_from_tri(SimplicialComplex&
             {
                 auto thickness_view = thickness->view();
                 // check if all vertices have the same thickness
-                UIPC_ASSERT(thickness_view[t[0]] == thickness_view[t[1]]
+                UIPC_ASSERT_THROW(thickness_view[t[0]] == thickness_view[t[1]]
                                 && thickness_view[t[1]] == thickness_view[t[2]],
                             "The thickness of the triangle ({},{},{}) is not consistent, thickness = ({}, {}, {})",
                             t[0],
@@ -145,7 +145,7 @@ static S<AttributeSlot<Float>> compute_vertex_volume_from_edge(SimplicialComplex
             {
                 auto thickness_view = thickness->view();
                 // check if all vertices have the same thickness
-                UIPC_ASSERT(thickness_view[e[0]] == thickness_view[e[1]],
+                UIPC_ASSERT_THROW(thickness_view[e[0]] == thickness_view[e[1]],
                             "The thickness of the edge ({},{}) is not consistent, thickness = ({}, {})",
                             e[0],
                             e[1],
@@ -234,7 +234,7 @@ S<AttributeSlot<Float>> compute_vertex_volume(SimplicialComplex& R)
         case 3:
             return compute_vertex_volume_from_tet(R);
         default: {
-            UIPC_ASSERT(false, "Unsupported dimension: {}", R.dim());
+            UIPC_ASSERT_THROW(false, "Unsupported dimension: {}", R.dim());
             return nullptr;
         }
     }

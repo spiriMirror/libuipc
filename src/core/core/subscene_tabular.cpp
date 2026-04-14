@@ -61,7 +61,7 @@ class SubsceneTabular::Impl
         Vector2i ids = {L.id(), R.id()};
 
         // check if the subscene element id is valid.
-        UIPC_ASSERT(L.id() < current_element_id() && L.id() >= 0
+        UIPC_ASSERT_THROW(L.id() < current_element_id() && L.id() >= 0
                         && R.id() < current_element_id() && R.id() >= 0,
                     "Invalid subscene element id, id should be in [{},{}), your L={}, R={}.",
                     0,
@@ -70,7 +70,7 @@ class SubsceneTabular::Impl
                     R.id());
 
         // check if the name is matched.
-        UIPC_ASSERT(m_elements[L.id()].name() == L.name()
+        UIPC_ASSERT_THROW(m_elements[L.id()].name() == L.name()
                         && m_elements[R.id()].name() == R.name(),
                     "Subscene element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
                     "It seems the subscene element and subscene model don't come from the same SubsceneTabular.",
@@ -180,9 +180,9 @@ class SubsceneTabular::Impl
 
         m_models = ac;
         m_topo   = m_models.find<Vector2i>("topo");
-        UIPC_ASSERT(m_topo, "Subscene model topology is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_topo, "Subscene model topology is not found, please check the attribute collection.");
         m_is_enabled = m_models.find<IndexT>("is_enabled");
-        UIPC_ASSERT(m_is_enabled, "Subscene model is_enabled is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_is_enabled, "Subscene model is_enabled is not found, please check the attribute collection.");
 
         m_model_map.clear();
         auto topo_view = m_topo->view();
@@ -201,9 +201,9 @@ class SubsceneTabular::Impl
 
         m_models.update_from(ac);
         m_topo = m_models.find<Vector2i>("topo");
-        UIPC_ASSERT(m_topo, "Subscene model topology is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_topo, "Subscene model topology is not found, please check the attribute collection.");
         m_is_enabled = m_models.find<IndexT>("is_enabled");
-        UIPC_ASSERT(m_is_enabled, "Subscene model is_enabled is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_is_enabled, "Subscene model is_enabled is not found, please check the attribute collection.");
 
         auto topo_view = m_topo->view();
         for(SizeT i = 0; i < topo_view.size(); ++i)

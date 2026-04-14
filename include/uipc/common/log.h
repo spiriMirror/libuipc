@@ -3,6 +3,7 @@
 #include <uipc/common/string.h>
 #include <uipc/common/config.h>
 #include <uipc/common/abort.h>
+#include <uipc/common/exception.h>
 
 #define UIPC_LOG_WITH_LOCATION(level, ...)                                     \
     do                                                                         \
@@ -32,3 +33,15 @@
             ::uipc::abort();                                                                      \
         }                                                                                         \
     } while(0);
+
+#define UIPC_ASSERT_THROW(condition, ...)                                          \
+    do                                                                             \
+    {                                                                              \
+        if(!(condition))                                                           \
+        {                                                                          \
+            ::uipc::string msg = ::fmt::format(__VA_ARGS__);                       \
+            throw ::uipc::Exception(                                               \
+                ::fmt::format("Assertion " #condition " failed. {} {}({})",        \
+                              msg, __FILE__, __LINE__));                            \
+        }                                                                          \
+    } while(0)

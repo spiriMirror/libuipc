@@ -252,7 +252,7 @@ class SceneFactory::Impl
                     auto id            = slot_json["id"].get<IndexT>();
                     auto index         = slot_json["index"].get<IndexT>();
                     auto geometry_slot = ga.find(index);
-                    UIPC_ASSERT(geometry_slot,
+                    UIPC_ASSERT_THROW(geometry_slot,
                                 "Geometry slot with id {} not found in geometry atlas",
                                 index);
                     auto this_geo_slot = geometry_slot->clone();

@@ -41,7 +41,7 @@ geometry::SimplicialComplex AffineBodyRevoluteJoint::create_geometry(
     span<Float>                              strength_ratios)
 {
     auto N = position0s.size();
-    UIPC_ASSERT(N == position1s.size(),
+    UIPC_ASSERT_THROW(N == position1s.size(),
                 "position0s({}) vs position1s({}) size mismatch",
                 N,
                 position1s.size());
@@ -77,15 +77,15 @@ geometry::SimplicialComplex AffineBodyRevoluteJoint::create_geometry(
     span<Float>                              strength_ratios)
 {
     auto N = l_position0.size();
-    UIPC_ASSERT(N == l_position1.size(),
+    UIPC_ASSERT_THROW(N == l_position1.size(),
                 "l_position0({}) vs l_position1({}) size mismatch",
                 N,
                 l_position1.size());
-    UIPC_ASSERT(N == r_position0.size(),
+    UIPC_ASSERT_THROW(N == r_position0.size(),
                 "l_position0({}) vs r_position0({}) size mismatch",
                 N,
                 r_position0.size());
-    UIPC_ASSERT(N == r_position1.size(),
+    UIPC_ASSERT_THROW(N == r_position1.size(),
                 "l_position0({}) vs r_position1({}) size mismatch",
                 N,
                 r_position1.size());
@@ -125,11 +125,11 @@ void AffineBodyRevoluteJoint::apply_to(geometry::SimplicialComplex& edges,
                                        Float strength_ratio)
 {
     auto size = edges.edges().size();
-    UIPC_ASSERT(size == l_geo_slots.size(),
+    UIPC_ASSERT_THROW(size == l_geo_slots.size(),
                 "The number of edges ({}) does not match the number of left geo slots ({})",
                 size,
                 l_geo_slots.size());
-    UIPC_ASSERT(size == r_geo_slots.size(),
+    UIPC_ASSERT_THROW(size == r_geo_slots.size(),
                 "The number of edges ({}) does not match the number of right geo slots ({})",
                 size,
                 r_geo_slots.size());
@@ -155,23 +155,23 @@ void AffineBodyRevoluteJoint::apply_to(geometry::SimplicialComplex& edges,
                                        span<Float>  strength_ratios)
 {
     auto size = edges.edges().size();
-    UIPC_ASSERT(size == l_geo_slots.size(),
+    UIPC_ASSERT_THROW(size == l_geo_slots.size(),
                 "The number of edges ({}) does not match the number of left geo slots ({})",
                 size,
                 l_geo_slots.size());
-    UIPC_ASSERT(size == l_instance_ids.size(),
+    UIPC_ASSERT_THROW(size == l_instance_ids.size(),
                 "The number of edges ({}) does not match the number of left instance IDs ({})",
                 size,
                 l_instance_ids.size());
-    UIPC_ASSERT(size == r_geo_slots.size(),
+    UIPC_ASSERT_THROW(size == r_geo_slots.size(),
                 "The number of edges ({}) does not match the number of right geo slots ({})",
                 size,
                 r_geo_slots.size());
-    UIPC_ASSERT(size == r_instance_ids.size(),
+    UIPC_ASSERT_THROW(size == r_instance_ids.size(),
                 "The number of edges ({}) does not match the number of right instance IDs ({})",
                 size,
                 r_instance_ids.size());
-    UIPC_ASSERT(size == strength_ratios.size(),
+    UIPC_ASSERT_THROW(size == strength_ratios.size(),
                 "The number of edges ({}) does not match the number of strength ratios ({})",
                 size,
                 strength_ratios.size());
@@ -233,13 +233,13 @@ void AffineBodyRevoluteJoint::apply_to(geometry::SimplicialComplex& edges,
         auto l_inst = l_instance_ids[i];
         auto r_inst = r_instance_ids[i];
 
-        UIPC_ASSERT(l_inst >= 0
+        UIPC_ASSERT_THROW(l_inst >= 0
                         && l_inst < static_cast<IndexT>(
                                l_slot->geometry().instances().size()),
                     "Left instance ID {} is out of range [0, {})",
                     l_inst,
                     l_slot->geometry().instances().size());
-        UIPC_ASSERT(r_inst >= 0
+        UIPC_ASSERT_THROW(r_inst >= 0
                         && r_inst < static_cast<IndexT>(
                                r_slot->geometry().instances().size()),
                     "Right instance ID {} is out of range [0, {})",

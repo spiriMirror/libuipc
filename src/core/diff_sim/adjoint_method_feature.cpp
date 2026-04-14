@@ -12,7 +12,7 @@ namespace uipc::diff_sim
 AdjointMethodFeature::AdjointMethodFeature(S<AdjointMethodFeatureOverrider> overrider)
     : m_impl{overrider}
 {
-    UIPC_ASSERT(overrider, "Overrider must not be null");
+    UIPC_ASSERT_THROW(overrider, "Overrider must not be null");
 }
 
 std::string_view AdjointMethodFeature::get_name() const
@@ -22,11 +22,11 @@ std::string_view AdjointMethodFeature::get_name() const
 
 void AdjointMethodFeature::select_dofs(SizeT frame, backend::BufferView in_SDI)
 {
-    UIPC_ASSERT(frame >= 1, "Frame must be >= 1, but it is {}", frame);
+    UIPC_ASSERT_THROW(frame >= 1, "Frame must be >= 1, but it is {}", frame);
 
     if(frame > 1)
     {
-        UIPC_ASSERT(last_calling_frame == frame - 1,
+        UIPC_ASSERT_THROW(last_calling_frame == frame - 1,
                     "`select_dofs` must be called in each frame in order. Last calling frame = {},"
                     " but this calling frame = {}",
                     last_calling_frame,

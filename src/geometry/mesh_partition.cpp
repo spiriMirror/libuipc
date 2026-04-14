@@ -174,7 +174,7 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
         // 1. All vertices must have a non-negative partition ID
         for(SizeT i = 0; i < vert_count; ++i)
         {
-            UIPC_ASSERT(part_view[i] >= 0,
+            UIPC_ASSERT_THROW(part_view[i] >= 0,
                         "mesh_partition: vertex {} has invalid partition ID {}.",
                         i,
                         part_view[i]);
@@ -188,7 +188,7 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
 
         for(IndexT p = 0; p <= max_id; ++p)
         {
-            UIPC_ASSERT(sizes[p] <= part_max_size,
+            UIPC_ASSERT_THROW(sizes[p] <= part_max_size,
                         "mesh_partition: partition {} has {} vertices, exceeding the limit {}.",
                         p,
                         sizes[p],
@@ -198,7 +198,7 @@ void mesh_partition(SimplicialComplex& sc, SizeT part_max_size)
         // 3. No empty partitions (IDs should be contiguous 0..max)
         for(IndexT p = 0; p <= max_id; ++p)
         {
-            UIPC_ASSERT(sizes[p] > 0,
+            UIPC_ASSERT_THROW(sizes[p] > 0,
                         "mesh_partition: partition {} is empty. "
                         "Partition IDs should be contiguous from 0.",
                         p);

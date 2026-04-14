@@ -92,7 +92,7 @@ inline Float edge_dcd_expansion(const Float& d_hat_E0, const Float& d_hat_E1)
 {
     if constexpr(RUNTIME_CHECK)
     {
-        UIPC_ASSERT(d_hat_E0 == d_hat_E1, "Edge d_hat should be the same");
+        UIPC_ASSERT_THROW(d_hat_E0 == d_hat_E1, "Edge d_hat should be the same");
     }
 
     return (d_hat_E0 + d_hat_E1) / 2.0;
@@ -105,7 +105,7 @@ inline Float triangle_dcd_expansion(const Float& d_hat_T0, const Float& d_hat_T1
 {
     if constexpr(RUNTIME_CHECK)
     {
-        UIPC_ASSERT(d_hat_T0 == d_hat_T1 && d_hat_T1 == d_hat_T2,
+        UIPC_ASSERT_THROW(d_hat_T0 == d_hat_T1 && d_hat_T1 == d_hat_T2,
                     "Triangle d_hat should be the same");
     }
 
@@ -119,7 +119,7 @@ inline Float PT_d_hat(const Float& d_hat_P, const Float& d_hat_T0, const Float& 
 {
     if constexpr(RUNTIME_CHECK)
     {
-        UIPC_ASSERT(d_hat_T0 == d_hat_T1 && d_hat_T1 == d_hat_T2,
+        UIPC_ASSERT_THROW(d_hat_T0 == d_hat_T1 && d_hat_T1 == d_hat_T2,
                     "Triangle d_hat should be the same");
     }
 
@@ -136,7 +136,7 @@ inline Float EE_d_hat(const Float& d_hat_Ea0,
 {
     if constexpr(RUNTIME_CHECK)
     {
-        UIPC_ASSERT(d_hat_Ea0 == d_hat_Ea1 && d_hat_Eb0 == d_hat_Eb1,
+        UIPC_ASSERT_THROW(d_hat_Ea0 == d_hat_Ea1 && d_hat_Eb0 == d_hat_Eb1,
                     "Edge d_hat should be the same");
     }
 
@@ -150,7 +150,7 @@ inline Float PE_d_hat(const Float& d_hat_P, const Float& d_hat_E0, const Float& 
 {
     if constexpr(RUNTIME_CHECK)
     {
-        UIPC_ASSERT(d_hat_E0 == d_hat_E1, "Edge d_hat should be the same");
+        UIPC_ASSERT_THROW(d_hat_E0 == d_hat_E1, "Edge d_hat should be the same");
     }
 
     return (d_hat_P + d_hat_E0) / 2.0;

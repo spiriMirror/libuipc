@@ -17,6 +17,6 @@ class UIPC_GEOMETRY_API SimplexUtils
     static bool compare_tri(const Vector3i&, const Vector3i&) noexcept;
     static bool compare_tet(const Vector4i&, const Vector4i&) noexcept;
 
-    static void outward_tri_from_tet(span<const Vector3, 4> Vs, span<Vector3i, 4> Fs) noexcept;
+    static void outward_tri_from_tet(span<const Vector3, 4> Vs, span<Vector3i, 4> Fs);
 };
 }  // namespace uipc::geometry

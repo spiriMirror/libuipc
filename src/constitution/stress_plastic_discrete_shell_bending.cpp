@@ -29,13 +29,13 @@ void StressPlasticDiscreteShellBending::apply_to(geometry::SimplicialComplex& sc
                                                  Float                        yield_stress_v,
                                                  Float hardening_modulus_v)
 {
-    UIPC_ASSERT(std::isfinite(bending_stiffness_v),
+    UIPC_ASSERT_THROW(std::isfinite(bending_stiffness_v),
                 "StressPlasticDiscreteShellBending requires a finite bending_stiffness, got {}",
                 bending_stiffness_v);
-    UIPC_ASSERT(std::isfinite(yield_stress_v) && yield_stress_v >= 0.0,
+    UIPC_ASSERT_THROW(std::isfinite(yield_stress_v) && yield_stress_v >= 0.0,
                 "StressPlasticDiscreteShellBending requires a finite yield_stress >= 0, got {}",
                 yield_stress_v);
-    UIPC_ASSERT(std::isfinite(hardening_modulus_v) && hardening_modulus_v >= 0.0,
+    UIPC_ASSERT_THROW(std::isfinite(hardening_modulus_v) && hardening_modulus_v >= 0.0,
                 "StressPlasticDiscreteShellBending requires hardening_modulus to be finite and >= 0, got {}",
                 hardening_modulus_v);
 

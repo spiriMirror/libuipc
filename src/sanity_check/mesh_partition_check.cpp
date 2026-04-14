@@ -20,7 +20,7 @@ class MeshPartitionCheck final : public SanityChecker
     virtual U64 get_id() const noexcept override { return SanityCheckerUID; }
 
     virtual SanityCheckResult do_check(backend::SceneVisitor& scene,
-                                       backend::SanityCheckMessageVisitor& msg) noexcept override
+                                       backend::SanityCheckMessageVisitor& msg) override
     {
         constexpr IndexT MIN_PART_SIZE = 4;
         constexpr IndexT MAX_PART_SIZE = 32;
@@ -36,7 +36,7 @@ class MeshPartitionCheck final : public SanityChecker
                 continue;
 
             auto sc = geo.as<geometry::SimplicialComplex>();
-            UIPC_ASSERT(sc, "Cannot cast to simplicial complex, why?");
+            UIPC_ASSERT_THROW(sc, "Cannot cast to simplicial complex, why?");
 
             // Only check FEM constitutions
             auto cuid = sc->meta().find<U64>(builtin::constitution_uid);

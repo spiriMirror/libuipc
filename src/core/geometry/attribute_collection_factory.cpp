@@ -160,7 +160,7 @@ class AttributeCollectionFactory::Impl
 
     S<AttributeCollection> from_json(const Json& j, DeserialSharedAttributeContext& ctx)
     {
-        UIPC_ASSERT(j.is_object(), "This json must be an object");
+        UIPC_ASSERT_THROW(j.is_object(), "This json must be an object");
         S<AttributeCollection> attribute_collections =
             attribute_collection_from_json(j, ctx);
         return attribute_collections;

@@ -34,7 +34,7 @@ void StableNeoHookean::apply_to(geometry::SimplicialComplex& sc,
     auto snh_mu = 4 * mu / 3;
     auto snh_lambda = lambda + 5 * mu / 6;
 
-    UIPC_ASSERT(sc.dim() == 3, "StableNeoHookean only supports 3D simplicial complex");
+    UIPC_ASSERT_THROW(sc.dim() == 3, "StableNeoHookean only supports 3D simplicial complex");
 
     auto mu_attr = sc.tetrahedra().find<Float>("mu");
     if(!mu_attr)

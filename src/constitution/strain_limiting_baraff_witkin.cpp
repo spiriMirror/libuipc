@@ -32,7 +32,7 @@ void StrainLimitingBaraffWitkinShell::apply_to(geometry::SimplicialComplex& sc,
     auto lambda = moduli.lambda();
     auto mu     = moduli.mu();
 
-    UIPC_ASSERT(sc.dim() == 2, "StrainLimitingBaraffWitkinShell only supports 2D simplicial complex");
+    UIPC_ASSERT_THROW(sc.dim() == 2, "StrainLimitingBaraffWitkinShell only supports 2D simplicial complex");
 
     auto lambda_attr = sc.triangles().find<Float>("lambda");
     if(!lambda_attr)

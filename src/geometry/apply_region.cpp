@@ -34,7 +34,7 @@ vector<SimplicialComplex> apply_region(const SimplicialComplex& sc)
 {
     auto region_count = sc.meta().find<IndexT>("region_count");
 
-    UIPC_ASSERT(region_count,
+    UIPC_ASSERT_THROW(region_count,
                 "The `region_count` attribute is not found in the complex. "
                 "You need to call label_region() to label the region of the geometry");
 
@@ -45,7 +45,7 @@ vector<SimplicialComplex> apply_region(const SimplicialComplex& sc)
     if(Dim >= 1)
     {
         auto edge_region = sc.edges().find<IndexT>("region");
-        UIPC_ASSERT(edge_region,
+        UIPC_ASSERT_THROW(edge_region,
                     "The `region` attribute is not found in the edges. "
                     "You need to call label_region() to label the region of the geometry");
     }

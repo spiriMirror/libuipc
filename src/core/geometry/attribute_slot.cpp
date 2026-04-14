@@ -42,7 +42,7 @@ Json IAttributeSlot::to_json(SizeT i) const
     return attribute().to_json(i);
 }
 
-void IAttributeSlot::from_json_array(const Json& j) noexcept
+void IAttributeSlot::from_json_array(const Json& j)
 {
     rw_access();
     attribute().from_json_array(j);
@@ -106,7 +106,7 @@ void IAttributeSlot::rw_access()
 
 void check_view(const IAttributeSlot* slot)
 {
-    UIPC_ASSERT(slot,
+    UIPC_ASSERT_THROW(slot,
                 "You are trying to access a nullptr attribute slot, please check if the attribute name is correct.\n"
                 "The last attribute name (thread local) you tried to find is: {}",
                 AttributeDebugInfo::thread_local_last_not_found_name());

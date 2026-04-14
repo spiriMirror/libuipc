@@ -26,7 +26,7 @@ void label_region(SimplicialComplex& complex)
 
         for(auto [i, edge] : enumerate(edge_view))
         {
-            UIPC_ASSERT(vert_region_view[edge[0]] == vert_region_view[edge[1]],
+            UIPC_ASSERT_THROW(vert_region_view[edge[0]] == vert_region_view[edge[1]],
                         "In the edge[{}] = ({},{}), vertices are not in the same region -> ({},{}), which is ill condition.",
                         i,
                         edge[0],
@@ -50,7 +50,7 @@ void label_region(SimplicialComplex& complex)
 
         for(auto [i, tri] : enumerate(tri_view))
         {
-            UIPC_ASSERT(vert_region_view[tri[0]] == vert_region_view[tri[1]]
+            UIPC_ASSERT_THROW(vert_region_view[tri[0]] == vert_region_view[tri[1]]
                             && vert_region_view[tri[1]] == vert_region_view[tri[2]],
                         "In the triangle[{}] = ({},{},{}), vertices are not in the same region -> ({},{},{}), which is ill condition.",
                         i,
@@ -77,7 +77,7 @@ void label_region(SimplicialComplex& complex)
 
         for(auto [i, tet] : enumerate(tet_view))
         {
-            UIPC_ASSERT(vert_region_view[tet[0]] == vert_region_view[tet[1]]
+            UIPC_ASSERT_THROW(vert_region_view[tet[0]] == vert_region_view[tet[1]]
                             && vert_region_view[tet[1]] == vert_region_view[tet[2]]
                             && vert_region_view[tet[2]] == vert_region_view[tet[3]],
                         "In the tetrahedron[{}] = ({},{},{},{}), vertices are not in the same region -> ({},{},{},{}), which is ill condition.",

@@ -39,7 +39,7 @@ namespace detail
                 auto simplicial_complex =
                     dynamic_cast<SimplicialComplex*>(&geo->geometry());
 
-                UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
+                UIPC_ASSERT_THROW(simplicial_complex, "type mismatch, why can it happen?");
 
                 bool allow = false;
 

@@ -206,7 +206,7 @@ class GeometryFactory::Impl
 
     vector<S<Geometry>> from_json(const Json& j, DeserialSharedAttributeContext& ctx)
     {
-        UIPC_ASSERT(j.is_array(), "To create a Geometries, this json must be an array");
+        UIPC_ASSERT_THROW(j.is_array(), "To create a Geometries, this json must be an array");
 
         vector<S<Geometry>> geometries;
         geometries.reserve(j.size());
@@ -265,7 +265,7 @@ class GeometryFactory::Impl
     {
         auto type = geometry.type();
         auto it   = slot_creators().find(std::string{type});
-        UIPC_ASSERT(it != slot_creators().end(),
+        UIPC_ASSERT_THROW(it != slot_creators().end(),
                     "Geometry<{}> not registered, why can it happen?",
                     type);
         auto creator = it->second;

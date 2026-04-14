@@ -271,12 +271,12 @@ UIPC_GEOMETRY_API void compute_dyadic_mass(const SimplicialComplex& sc,
     }
     else if(sc.dim() == 2)
     {
-        // UIPC_ASSERT(is_trimesh_closed(sc), "Only closed trimesh is supported.");
+        // UIPC_ASSERT_THROW(is_trimesh_closed(sc), "Only closed trimesh is supported.");
         compute_trimesh_dyadic_mass(sc, rho, m, m_x_bar, m_x_bar_x_bar);
     }
     else
     {
-        UIPC_ASSERT(false, "Unsupported dimension");
+        UIPC_ASSERT_THROW(false, "Unsupported dimension");
     }
 }
 
@@ -457,7 +457,7 @@ UIPC_GEOMETRY_API void compute_dyadic_mass(const SimplicialComplex& sc,
     }
     else
     {
-        UIPC_ASSERT(false,
+        UIPC_ASSERT_THROW(false,
                     "Codim compute_dyadic_mass only supports dim==2 (shell) and dim==1 (rod), got dim={}.",
                     sc.dim());
     }

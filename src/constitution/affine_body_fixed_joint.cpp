@@ -39,11 +39,11 @@ geometry::SimplicialComplex AffineBodyFixedJoint::create_geometry(
     span<Float>                              strength_ratios)
 {
     auto N = l_geo_slots.size();
-    UIPC_ASSERT(N == r_geo_slots.size(),
+    UIPC_ASSERT_THROW(N == r_geo_slots.size(),
                 "l_geo_slots({}) vs r_geo_slots({}) size mismatch",
                 N,
                 r_geo_slots.size());
-    UIPC_ASSERT(N == l_instance_ids.size(),
+    UIPC_ASSERT_THROW(N == l_instance_ids.size(),
                 "l_geo_slots({}) vs l_instance_ids({}) size mismatch",
                 N,
                 l_instance_ids.size());
@@ -77,7 +77,7 @@ geometry::SimplicialComplex AffineBodyFixedJoint::create_geometry(
     span<Float>                              strength_ratios)
 {
     auto N = l_positions.size();
-    UIPC_ASSERT(N == r_positions.size(),
+    UIPC_ASSERT_THROW(N == r_positions.size(),
                 "l_positions({}) vs r_positions({}) size mismatch",
                 N,
                 r_positions.size());
@@ -106,7 +106,7 @@ void AffineBodyFixedJoint::apply_to(geometry::SimplicialComplex& sc,
                                     Float strength_ratio)
 {
     auto size = l_geo_slots.size();
-    UIPC_ASSERT(size == r_geo_slots.size(),
+    UIPC_ASSERT_THROW(size == r_geo_slots.size(),
                 "The number of left geo slots ({}) does not match the number of right geo slots ({})",
                 l_geo_slots.size(),
                 r_geo_slots.size());
@@ -131,19 +131,19 @@ void AffineBodyFixedJoint::apply_to(geometry::SimplicialComplex& sc,
                                     span<Float>  strength_ratios)
 {
     auto size = l_geo_slots.size();
-    UIPC_ASSERT(size == r_geo_slots.size(),
+    UIPC_ASSERT_THROW(size == r_geo_slots.size(),
                 "Size mismatch: l_geo_slots({}) vs r_geo_slots({})",
                 l_geo_slots.size(),
                 r_geo_slots.size());
-    UIPC_ASSERT(size == l_instance_ids.size(),
+    UIPC_ASSERT_THROW(size == l_instance_ids.size(),
                 "Size mismatch: l_geo_slots({}) vs l_instance_ids({})",
                 l_geo_slots.size(),
                 l_instance_ids.size());
-    UIPC_ASSERT(size == r_instance_ids.size(),
+    UIPC_ASSERT_THROW(size == r_instance_ids.size(),
                 "Size mismatch: r_geo_slots({}) vs r_instance_ids({})",
                 r_geo_slots.size(),
                 r_instance_ids.size());
-    UIPC_ASSERT(size == strength_ratios.size(),
+    UIPC_ASSERT_THROW(size == strength_ratios.size(),
                 "Size mismatch: l_geo_slots({}) vs strength_ratios({})",
                 l_geo_slots.size(),
                 strength_ratios.size());
@@ -189,13 +189,13 @@ void AffineBodyFixedJoint::apply_to(geometry::SimplicialComplex& sc,
         auto l_inst = l_instance_ids[i];
         auto r_inst = r_instance_ids[i];
 
-        UIPC_ASSERT(l_inst >= 0
+        UIPC_ASSERT_THROW(l_inst >= 0
                         && l_inst < static_cast<IndexT>(
                                l_slot->geometry().instances().size()),
                     "Left instance ID {} is out of range [0, {})",
                     l_inst,
                     l_slot->geometry().instances().size());
-        UIPC_ASSERT(r_inst >= 0
+        UIPC_ASSERT_THROW(r_inst >= 0
                         && r_inst < static_cast<IndexT>(
                                r_slot->geometry().instances().size()),
                     "Right instance ID {} is out of range [0, {})",

@@ -101,11 +101,11 @@ bool SimplexUtils::compare_tet(const Vector4i& A, const Vector4i& B) noexcept
            || (SA(0) == SB(0) && SA(1) == SB(1) && SA(2) < SB(2));
 }
 
-void SimplexUtils::outward_tri_from_tet(span<const Vector3, 4> Vs, span<Vector3i, 4> Fs) noexcept
+void SimplexUtils::outward_tri_from_tet(span<const Vector3, 4> Vs, span<Vector3i, 4> Fs)
 {
     auto det = ((Vs[1] - Vs[0]).cross(Vs[2] - Vs[0])).dot(Vs[3] - Vs[0]);
 
-    UIPC_ASSERT(det >= 0, "The tetrahedron is not positive oriented, now we don't support this case. TODO: ...");
+    UIPC_ASSERT_THROW(det >= 0, "The tetrahedron is not positive oriented, now we don't support this case. TODO: ...");
 
     // initial values
     Fs[0] = Vector3i{0, 1, 2};

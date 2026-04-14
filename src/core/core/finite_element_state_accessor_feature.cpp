@@ -30,7 +30,7 @@ FiniteElementStateAccessorFeature::FiniteElementStateAccessorFeature(
     S<FiniteElementStateAccessorFeatureOverrider> overrider)
     : m_impl(std::move(overrider))
 {
-    UIPC_ASSERT(m_impl, "FiniteElementStateAccessorFeatureOverrider must not be null.");
+    UIPC_ASSERT_THROW(m_impl, "FiniteElementStateAccessorFeatureOverrider must not be null.");
 }
 
 SizeT FiniteElementStateAccessorFeature::vertex_count() const
@@ -42,7 +42,7 @@ geometry::SimplicialComplex FiniteElementStateAccessorFeature::create_geometry(
     IndexT vertex_offset, SizeT vertex_count) const
 {
     auto total_vert_num = this->vertex_count();
-    UIPC_ASSERT(vertex_offset <= total_vert_num,
+    UIPC_ASSERT_THROW(vertex_offset <= total_vert_num,
                 "vertex_offset ({}) must not be larger than total vertex number ({})",
                 vertex_offset,
                 total_vert_num);
@@ -68,7 +68,7 @@ void FiniteElementStateAccessorFeature::copy_position_to(backend::BufferView buf
                                                           SizeT               vertex_count) const
 {
     auto total_vert_num = this->vertex_count();
-    UIPC_ASSERT(vertex_offset <= total_vert_num,
+    UIPC_ASSERT_THROW(vertex_offset <= total_vert_num,
                 "vertex_offset ({}) must not be larger than total vertex number ({})",
                 vertex_offset,
                 total_vert_num);
@@ -76,7 +76,7 @@ void FiniteElementStateAccessorFeature::copy_position_to(backend::BufferView buf
     if(vertex_count == ~0ull)
         vertex_count = total_vert_num - vertex_offset;
 
-    UIPC_ASSERT(vertex_offset + vertex_count <= total_vert_num,
+    UIPC_ASSERT_THROW(vertex_offset + vertex_count <= total_vert_num,
                 "The requested range [{}, {}) is out of bounds for total vertices ({})",
                 vertex_offset,
                 vertex_offset + vertex_count,
@@ -90,7 +90,7 @@ void FiniteElementStateAccessorFeature::copy_velocity_to(backend::BufferView buf
                                                           SizeT               vertex_count) const
 {
     auto total_vert_num = this->vertex_count();
-    UIPC_ASSERT(vertex_offset <= total_vert_num,
+    UIPC_ASSERT_THROW(vertex_offset <= total_vert_num,
                 "vertex_offset ({}) must not be larger than total vertex number ({})",
                 vertex_offset,
                 total_vert_num);
@@ -98,7 +98,7 @@ void FiniteElementStateAccessorFeature::copy_velocity_to(backend::BufferView buf
     if(vertex_count == ~0ull)
         vertex_count = total_vert_num - vertex_offset;
 
-    UIPC_ASSERT(vertex_offset + vertex_count <= total_vert_num,
+    UIPC_ASSERT_THROW(vertex_offset + vertex_count <= total_vert_num,
                 "The requested range [{}, {}) is out of bounds for total vertices ({})",
                 vertex_offset,
                 vertex_offset + vertex_count,

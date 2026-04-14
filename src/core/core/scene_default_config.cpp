@@ -115,7 +115,7 @@ Json to_config_json(const geometry::AttributeCollection& config)
     for(auto& name : names)
     {
         auto attr = config.find(name);
-        UIPC_ASSERT(attr != nullptr, "Attribute '{}' not found in config.", name);
+        UIPC_ASSERT_THROW(attr != nullptr, "Attribute '{}' not found in config.", name);
         auto& sub_json = nested_json(j, name);
         sub_json       = attr->to_json(0);
     }
@@ -158,7 +158,7 @@ void from_config_json(geometry::AttributeCollection& config, const Json& j)
     for(auto& name : names)
     {
         auto attr = config.find(name);
-        UIPC_ASSERT(attr != nullptr, "Attribute '{}' not found in config.", name);
+        UIPC_ASSERT_THROW(attr != nullptr, "Attribute '{}' not found in config.", name);
         auto sub_json = find_nested_json(j, name);
         if(sub_json != nullptr)
         {

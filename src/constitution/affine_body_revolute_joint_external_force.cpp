@@ -36,13 +36,13 @@ void AffineBodyRevoluteJointExternalForce::apply_to(geometry::SimplicialComplex&
 void AffineBodyRevoluteJointExternalForce::apply_to(geometry::SimplicialComplex& sc,
                                                          span<Float> torques)
 {
-    UIPC_ASSERT(sc.dim() == 1,
+    UIPC_ASSERT_THROW(sc.dim() == 1,
                 "AffineBodyRevoluteJointExternalForce can only be applied to 1D simplicial complex (linemesh), "
                 "but got {}D",
                 sc.dim());
 
     auto size = sc.edges().size();
-    UIPC_ASSERT(torques.size() == size,
+    UIPC_ASSERT_THROW(torques.size() == size,
                 "Torques size mismatch: expected {}, got {}",
                 size,
                 torques.size());
@@ -50,7 +50,7 @@ void AffineBodyRevoluteJointExternalForce::apply_to(geometry::SimplicialComplex&
     Base::apply_to(sc);
 
     auto uid = sc.meta().find<U64>(builtin::constitution_uid);
-    UIPC_ASSERT(uid && uid->view()[0] == 18,  // UID of AffineBodyRevoluteJoint
+    UIPC_ASSERT_THROW(uid && uid->view()[0] == 18,  // UID of AffineBodyRevoluteJoint
                 "Simplicial complex does not have constitution uid 18. "
                 "Please apply an AffineBodyRevoluteJoint before applying AffineBodyRevoluteJointExternalForce");
 

@@ -58,7 +58,7 @@ geometry::Geometry SoftVertexEdgeStitch::create_geometry(const SlotTuple& aim_ge
                                                          Float min_separate_distance) const
 {
     auto topo_slot = pair_geometry.instances().find<Vector2i>(builtin::topo);
-    UIPC_ASSERT(topo_slot, "pair_geometry must have instances with topo (Vector2i) attribute");
+    UIPC_ASSERT_THROW(topo_slot, "pair_geometry must have instances with topo (Vector2i) attribute");
     auto topo_view = topo_slot->view();
     return create_geometry_impl(
         aim_geo_slots, rest_geo_slots, topo_view, moduli.mu(), moduli.lambda(), thickness, min_separate_distance);
@@ -80,10 +80,10 @@ static geometry::Geometry create_geometry_impl(const SoftVertexEdgeStitch::SlotT
     auto geo_ids = geo.meta().create<Vector2i>("geo_ids");
     {
         auto&& [l, r] = aim_geo_slots;
-        UIPC_ASSERT(l->geometry().instances().size() == 1,
+        UIPC_ASSERT_THROW(l->geometry().instances().size() == 1,
                     "stitch must have exactly one instance, found {} instances",
                     l->geometry().instances().size());
-        UIPC_ASSERT(r->geometry().instances().size() == 1,
+        UIPC_ASSERT_THROW(r->geometry().instances().size() == 1,
                     "stitch must have exactly one instance, found {} instances",
                     r->geometry().instances().size());
         view(*geo_ids)[0] = Vector2i{l->id(), r->id()};

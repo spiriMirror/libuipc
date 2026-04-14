@@ -4,7 +4,7 @@ namespace uipc::geometry
 {
 UIPC_GEOMETRY_API bool is_trimesh_closed(const SimplicialComplex& R)
 {
-    UIPC_ASSERT(R.dim() == 2, "Only 2D SimplicialComplex is supported.");
+    UIPC_ASSERT_THROW(R.dim() == 2, "Only 2D SimplicialComplex is supported.");
 
     auto pos_view = R.positions().view();
     auto tri_view = R.triangles().topo().view();

@@ -3,7 +3,7 @@
 namespace uipc::geometry
 {
 template <typename T>
-void AttributeCopy::copy(span<T> dst, span<const T> src) const noexcept
+void AttributeCopy::copy(span<T> dst, span<const T> src) const
 {
     switch(m_type)
     {
@@ -12,7 +12,7 @@ void AttributeCopy::copy(span<T> dst, span<const T> src) const noexcept
         }
         break;
         case uipc::geometry::AttributeCopy::SameDim: {
-            UIPC_ASSERT(src.size() == dst.size(),
+            UIPC_ASSERT_THROW(src.size() == dst.size(),
                         "Attribute size mismatch, dst is {}, src is {}.",
                         dst.size(),
                         src.size());
@@ -27,7 +27,7 @@ void AttributeCopy::copy(span<T> dst, span<const T> src) const noexcept
         break;
         case uipc::geometry::AttributeCopy::Pull: {
             auto pull_mapping = m_mapping;
-            UIPC_ASSERT(pull_mapping.size() == dst.size(),
+            UIPC_ASSERT_THROW(pull_mapping.size() == dst.size(),
                         "Pull mapping size mismatch, dst size is {}, mapper size is {}",
                         dst.size(),
                         pull_mapping.size());
@@ -39,7 +39,7 @@ void AttributeCopy::copy(span<T> dst, span<const T> src) const noexcept
         break;
         case uipc::geometry::AttributeCopy::Push: {
             auto push_mapping = m_mapping;
-            UIPC_ASSERT(push_mapping.size() == src.size(),
+            UIPC_ASSERT_THROW(push_mapping.size() == src.size(),
                         "Push mapping size mismatch, src size is {}, mapper size is {}",
                         src.size(),
                         push_mapping.size());
@@ -57,7 +57,7 @@ void AttributeCopy::copy(span<T> dst, span<const T> src) const noexcept
         }
         break;
         default:
-            UIPC_ASSERT(false, "Invalid attribute copy type");
+            UIPC_ASSERT_THROW(false, "Invalid attribute copy type");
             break;
     }
 }

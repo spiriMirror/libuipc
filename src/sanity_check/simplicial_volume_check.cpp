@@ -40,7 +40,7 @@ class SimplicialVolumeCheck final : public SanityChecker
     virtual U64 get_id() const noexcept override { return SanityCheckerUID; }
 
     virtual SanityCheckResult do_check(backend::SceneVisitor& scene,
-                                       backend::SanityCheckMessageVisitor& msg) noexcept override
+                                       backend::SanityCheckMessageVisitor& msg) override
     {
         auto context = find<Context>();
 
@@ -56,7 +56,7 @@ class SimplicialVolumeCheck final : public SanityChecker
                 continue;
 
             auto sc = geo.as<geometry::SimplicialComplex>();
-            UIPC_ASSERT(sc, "Cannot cast to simplicial complex, why can this happen?");
+            UIPC_ASSERT_THROW(sc, "Cannot cast to simplicial complex, why can this happen?");
 
             auto cuid = sc->meta().find<U64>(builtin::constitution_uid);
             if(!cuid)

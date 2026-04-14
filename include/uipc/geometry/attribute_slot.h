@@ -60,7 +60,7 @@ class UIPC_CORE_API IAttributeSlot
 
     [[nodiscard]] Json to_json(SizeT i) const;
 
-    void from_json_array(const Json& j) noexcept;
+    void from_json_array(const Json& j);
 
     [[nodiscard]] bool is_evolving() const noexcept;
     void               is_evolving(bool v) noexcept;

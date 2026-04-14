@@ -24,7 +24,7 @@ void Particle::apply_to(geometry::SimplicialComplex& sc, Float mass_density, Flo
 {
     Base::apply_to(sc, mass_density, thickness);
 
-    UIPC_ASSERT(sc.dim() == 0, "Particle only supports 0D simplicial complex");
+    UIPC_ASSERT_THROW(sc.dim() == 0, "Particle only supports 0D simplicial complex");
 }
 
 Json Particle::default_config() noexcept

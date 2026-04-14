@@ -31,7 +31,7 @@ void HookeanSpring::apply_to(geometry::SimplicialComplex& sc,
 {
     Base::apply_to(sc, mass_density, thickness);
 
-    UIPC_ASSERT(sc.dim() == 1, "HookeanSpring only supports 1D simplicial complex");
+    UIPC_ASSERT_THROW(sc.dim() == 1, "HookeanSpring only supports 1D simplicial complex");
 
     auto kappa_attr = sc.edges().find<Float>("kappa");
     if(!kappa_attr)

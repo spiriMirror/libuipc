@@ -48,7 +48,7 @@ void SanityCheckerCollection::build(core::internal::Scene& s)
     }
 
     auto ctx = find<Context>();
-    UIPC_ASSERT(ctx != nullptr, "SanityCheckBuild: Context not found");
+    UIPC_ASSERT_THROW(ctx != nullptr, "SanityCheckBuild: Context not found");
 
     ctx->prepare();
 }
@@ -86,7 +86,7 @@ void SanityCheckerCollection::insert(S<core::ISanityChecker> checker)
 core::ISanityCheckContext& SanityCheckerCollection::context()
 {
     auto ctx = find<Context>();
-    UIPC_ASSERT(ctx != nullptr, "SanityCheckerCollection::context(): Context not found");
+    UIPC_ASSERT_THROW(ctx != nullptr, "SanityCheckerCollection::context(): Context not found");
     return *ctx;
 }
 

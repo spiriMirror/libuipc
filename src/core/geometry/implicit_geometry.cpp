@@ -9,7 +9,7 @@ ImplicitGeometry::ImplicitGeometry()
     : Geometry()
 {
     auto meta = find("meta");  // in base class
-    UIPC_ASSERT(meta, "Meta attribute collection not found, why can it happen?");
+    UIPC_ASSERT_THROW(meta, "Meta attribute collection not found, why can it happen?");
 
     // Set the implicit geometry UID to 0 (Empty).
     meta->create<U64>(builtin::implicit_geometry_uid,

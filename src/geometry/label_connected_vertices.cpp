@@ -18,7 +18,7 @@ S<AttributeSlot<IndexT>> label_connected_vertices(SimplicialComplex& complex)
 
     for(auto [i, edge] : enumerate(edge_view))
     {
-        UIPC_ASSERT(edge[0] != edge[1],
+        UIPC_ASSERT_THROW(edge[0] != edge[1],
                     "Self-loop is not allowed. In edge[{}] = ({},{})",
                     i,
                     edge[0],

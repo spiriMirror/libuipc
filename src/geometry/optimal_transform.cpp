@@ -9,12 +9,12 @@ static Matrix4x4 optimal_transform(const Matrix4x4&    ST,
                                    const Matrix4x4&    DT,
                                    span<const Vector3> D)
 {
-    UIPC_ASSERT(S.size() == D.size(),
+    UIPC_ASSERT_THROW(S.size() == D.size(),
                 "The number of source points({}) and destination points({}) should be the same.",
                 S.size(),
                 D.size());
 
-    UIPC_ASSERT(S.size() >= 4, "The number of points should be at least 4.");
+    UIPC_ASSERT_THROW(S.size() >= 4, "The number of points should be at least 4.");
 
     bool S_is_identity = ST.isIdentity();
     bool D_is_identity = DT.isIdentity();
@@ -74,17 +74,17 @@ Matrix4x4 optimal_transform(span<const Vector3> S, span<const Vector3> D)
 
 Matrix4x4 optimal_transform(const SimplicialComplex& S, const SimplicialComplex& D)
 {
-    UIPC_ASSERT(S.vertices().size() >= 4,
+    UIPC_ASSERT_THROW(S.vertices().size() >= 4,
                 "The number of points({}) should be at least 4.",
                 S.vertices().size());
-    UIPC_ASSERT(S.vertices().size() == D.vertices().size(),
+    UIPC_ASSERT_THROW(S.vertices().size() == D.vertices().size(),
                 "The number of source points({}) and destination points({}) should be the same.",
                 S.vertices().size(),
                 D.vertices().size());
-    UIPC_ASSERT(S.instances().size() == 1,
+    UIPC_ASSERT_THROW(S.instances().size() == 1,
                 "The number of instances({}) should be 1.",
                 S.instances().size());
-    UIPC_ASSERT(D.instances().size() == 1,
+    UIPC_ASSERT_THROW(D.instances().size() == 1,
                 "The number of instances({}) should be 1.",
                 D.instances().size());
 

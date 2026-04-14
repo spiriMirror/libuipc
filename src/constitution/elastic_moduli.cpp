@@ -22,7 +22,7 @@ ElasticModuli ElasticModuli::youngs_poisson(Float E, Float nu)
 {
     Float lambda, mu;
     EP_to_lame(E, nu, lambda, mu);
-    UIPC_ASSERT(abs(nu) != 0.5 && abs(nu) != 1.0,
+    UIPC_ASSERT_THROW(abs(nu) != 0.5 && abs(nu) != 1.0,
                 "Poission Rate ({}) can't be 0.5 or -1.0 in ElasticModuli",
                 nu);
     return ElasticModuli{lambda, mu};
@@ -51,7 +51,7 @@ ElasticModuli2D ElasticModuli2D::youngs_poisson(Float E, Float nu)
 {
     Float lambda, mu;
     EP_to_lame_2D(E, nu, lambda, mu);
-    UIPC_ASSERT(abs(nu) != 1.0, "Poission Rate ({}) can't be 1.0 or -1.0 in ElasticModuli 2D", nu);
+    UIPC_ASSERT_THROW(abs(nu) != 1.0, "Poission Rate ({}) can't be 1.0 or -1.0 in ElasticModuli 2D", nu);
     return ElasticModuli2D{lambda, mu};
 }
 

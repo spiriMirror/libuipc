@@ -51,7 +51,7 @@ namespace detail
 
     static Vector2i pp_from_pe(const Vector<IndexT, 3>& flag)
     {
-        UIPC_ASSERT(active_count(flag) == 2, "active count mismatch");
+        UIPC_ASSERT_THROW(active_count(flag) == 2, "active count mismatch");
 
         Vector<IndexT, 2> offsets;
         if(flag[0] == 0)
@@ -75,7 +75,7 @@ namespace detail
 
     static Vector3i pe_from_pt(const Vector<IndexT, 4>& flag)
     {
-        UIPC_ASSERT(active_count(flag) == 3,
+        UIPC_ASSERT_THROW(active_count(flag) == 3,
                     "active count mismatch, yours=({},{},{},{})",
                     flag[0],
                     flag[1],
@@ -109,7 +109,7 @@ namespace detail
 
     static Vector2i pp_from_pt(const Vector<IndexT, 4>& flag)
     {
-        UIPC_ASSERT(active_count(flag) == 2,
+        UIPC_ASSERT_THROW(active_count(flag) == 2,
                     "active count mismatch, yours=({},{},{},{})",
                     flag[0],
                     flag[1],
@@ -125,7 +125,7 @@ namespace detail
         {
             if(flag[iN])
             {
-                UIPC_ASSERT(iM < M, "active mismatch");
+                UIPC_ASSERT_THROW(iM < M, "active mismatch");
                 offsets[iM] = iN;
                 ++iM;
             }
@@ -135,7 +135,7 @@ namespace detail
 
     static Vector3i pe_from_ee(const Vector<IndexT, 4>& flag)
     {
-        UIPC_ASSERT(active_count(flag) == 3,
+        UIPC_ASSERT_THROW(active_count(flag) == 3,
                     "active count mismatch, yours=({},{},{},{})",
                     flag[0],
                     flag[1],
@@ -164,7 +164,7 @@ namespace detail
 
     static Vector2i pp_from_ee(const Vector4i& flag)
     {
-        UIPC_ASSERT(active_count(flag) == 2,
+        UIPC_ASSERT_THROW(active_count(flag) == 2,
                     "active count mismatch, yours=({},{},{},{})",
                     flag[0],
                     flag[1],
@@ -180,7 +180,7 @@ namespace detail
         {
             if(flag[iN])
             {
-                UIPC_ASSERT(iM < M, "active mismatch");
+                UIPC_ASSERT_THROW(iM < M, "active mismatch");
                 offsets[iM] = iN;
                 ++iM;
             }

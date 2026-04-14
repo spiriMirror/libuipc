@@ -15,7 +15,7 @@ void AffineBodyRod::apply_to(geometry::SimplicialComplex& sc,
                              Float                        mass_density,
                              Float                        thickness) const
 {
-    UIPC_ASSERT(sc.dim() == 1,
+    UIPC_ASSERT_THROW(sc.dim() == 1,
                 "AffineBodyRod requires a 1D simplicial complex (edge mesh), got dim={}.",
                 sc.dim());
 

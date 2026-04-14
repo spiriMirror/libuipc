@@ -3,9 +3,9 @@
 #include <algorithm>
 namespace uipc::core
 {
-void Animator::substep(SizeT n) noexcept
+void Animator::substep(SizeT n)
 {
-    UIPC_ASSERT(n > 0, "Animator: Substep must be greater than 0, yours' {}", n);
+    UIPC_ASSERT_THROW(n > 0, "Animator: Substep must be greater than 0, yours' {}", n);
     m_substep = n;
 }
 
@@ -45,7 +45,7 @@ void Animator::insert(Object& obj, Animation::ActionOnUpdate&& on_update)
         if(it != m_animations.end())
         {
             auto obj = it->second.m_object;
-            UIPC_ASSERT(it == m_animations.end(),
+            UIPC_ASSERT_THROW(it == m_animations.end(),
                         "Animator: Object (name={}, id={}) already has an animation.",
                         obj->name(),
                         obj->id());

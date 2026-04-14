@@ -66,7 +66,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
     void collect_codim_points(const geometry::SimplicialComplex& scene_surface)
     {
         auto attr_dim = scene_surface.vertices().find<IndexT>("sanity_check/dim");
-        UIPC_ASSERT(attr_dim, "`sanity_check/dim` is not found in scene surface, why can it happen?");
+        UIPC_ASSERT_THROW(attr_dim, "`sanity_check/dim` is not found in scene surface, why can it happen?");
         auto dim = attr_dim->view();
         CodimPs.reserve(scene_surface.vertices().size());
         for(auto [I, d] : enumerate(dim))
@@ -153,7 +153,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
     }
 
     virtual SanityCheckResult do_check(backend::SceneVisitor& scene,
-                                       backend::SanityCheckMessageVisitor& msg) noexcept override
+                                       backend::SanityCheckMessageVisitor& msg) override
     {
         auto context = find<Context>();
 
@@ -180,33 +180,33 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
 
         auto attr_cids =
             scene_surface.vertices().find<IndexT>("sanity_check/contact_element_id");
-        UIPC_ASSERT(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
         auto CIds = attr_cids->view();
 
         auto attr_scids = scene_surface.vertices().find<IndexT>(
             "sanity_check/subscene_contact_element_id");
-        UIPC_ASSERT(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
         auto SCIds = attr_scids->view();
 
         auto attr_v_geo_ids =
             scene_surface.vertices().find<IndexT>("sanity_check/geometry_id");
-        UIPC_ASSERT(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
         auto VGeoIds = attr_v_geo_ids->view();
 
         auto attr_v_instance_id =
             scene_surface.vertices().find<IndexT>("sanity_check/instance_id");
-        UIPC_ASSERT(attr_v_instance_id,
+        UIPC_ASSERT_THROW(attr_v_instance_id,
                     "`sanity_check/instance_id` is not found in scene surface");
         auto VInstanceIds = attr_v_instance_id->view();
 
         auto attr_v_object_id =
             scene_surface.vertices().find<IndexT>("sanity_check/object_id");
-        UIPC_ASSERT(attr_v_object_id, "`sanity_check/object_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_v_object_id, "`sanity_check/object_id` is not found in scene surface");
         auto VObjectIds = attr_v_object_id->view();
 
         auto attr_self_collision =
             scene_surface.vertices().find<IndexT>("sanity_check/self_collision");
-        UIPC_ASSERT(attr_self_collision,
+        UIPC_ASSERT_THROW(attr_self_collision,
                     "`sanity_check/self_collision` is not found in scene surface");
         auto SelfCollision = attr_self_collision->view();
 
@@ -215,7 +215,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
             attr_v_thickness ? attr_v_thickness->view() : span<const Float>{};
 
         auto attr_v_d_hat = scene_surface.vertices().find<Float>("sanity_check/d_hat");
-        UIPC_ASSERT(attr_v_d_hat, "`sanity_check/d_hat` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_v_d_hat, "`sanity_check/d_hat` is not found in scene surface");
         auto Vd_hats = attr_v_d_hat->view();
 
         vector<geometry::BVH::AABB> codim_point_aabbs(CodimPs.size());
@@ -375,7 +375,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                     return;
 
                 // 2) if this is a self-collision
-                UIPC_ASSERT(VInstanceIds[E[0]] == VInstanceIds[E[1]],
+                UIPC_ASSERT_THROW(VInstanceIds[E[0]] == VInstanceIds[E[1]],
                             "Why Edge({},{}) is not in the same instance?",
                             E[0],
                             E[1]);
@@ -445,7 +445,7 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 Vector3i SCIdRs = {SCIds[T[0]], SCIds[T[1]], SCIds[T[2]]};
 
                 // 2) if this is a self-collision
-                UIPC_ASSERT(VInstanceIds[T[0]] == VInstanceIds[T[1]]
+                UIPC_ASSERT_THROW(VInstanceIds[T[0]] == VInstanceIds[T[1]]
                                 && VInstanceIds[T[1]] == VInstanceIds[T[2]],
                             "Why Triangle({},{},{}) is not in the same instance?",
                             T[0],
@@ -512,12 +512,12 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 Vector2i SCIdRs = {SCIds[E1[0]], SCIds[E1[1]]};
 
                 // 2) if this is a self-collision
-                UIPC_ASSERT(VInstanceIds[E0[0]] == VInstanceIds[E0[1]],
+                UIPC_ASSERT_THROW(VInstanceIds[E0[0]] == VInstanceIds[E0[1]],
                             "Why Edge({},{}) is not in the same instance?",
                             E0[0],
                             E0[1]);
 
-                UIPC_ASSERT(VInstanceIds[E1[0]] == VInstanceIds[E1[1]],
+                UIPC_ASSERT_THROW(VInstanceIds[E1[0]] == VInstanceIds[E1[1]],
                             "Why Edge({},{}) is not in the same instance?",
                             E1[0],
                             E1[1]);
@@ -574,8 +574,8 @@ class SimplicialSurfaceDistanceCheck final : public SanityChecker
                 auto obj_0 = objects().find(ObjIds[0]);
                 auto obj_1 = objects().find(ObjIds[1]);
 
-                UIPC_ASSERT(obj_0 != nullptr, "Object[{}] not found", ObjIds[0]);
-                UIPC_ASSERT(obj_1 != nullptr, "Object[{}] not found", ObjIds[1]);
+                UIPC_ASSERT_THROW(obj_0 != nullptr, "Object[{}] not found", ObjIds[0]);
+                UIPC_ASSERT_THROW(obj_1 != nullptr, "Object[{}] not found", ObjIds[1]);
 
                 fmt::format_to(std::back_inserter(buffer),
                                "Geometry({}) in Object[{}({})] is too close (distance={}, thickness={}) to Geometry({}) in "

@@ -7,15 +7,15 @@ namespace uipc::geometry
 {
 S<AttributeSlot<IndexT>> label_triangle_orient(SimplicialComplex& R)
 {
-    UIPC_ASSERT(R.dim() == 3, "label_triangle_orient() only works on 3D simplicial complex (tetmesh).");
+    UIPC_ASSERT_THROW(R.dim() == 3, "label_triangle_orient() only works on 3D simplicial complex (tetmesh).");
 
     auto f_is_surf   = R.triangles().find<IndexT>(builtin::is_surf);
     auto f_parent_id = R.triangles().find<IndexT>(builtin::parent_id);
     auto v_position  = R.vertices().find<Vector3>(builtin::position);
 
-    UIPC_ASSERT(f_is_surf, "Cannot find attribute `is_surf` on triangles. You may need to call `label_surface()` first");
-    UIPC_ASSERT(f_parent_id, "Cannot find attribute `parent_id` on triangles. You may need to call `label_surface()` first");
-    UIPC_ASSERT(v_position, "Cannot find attribute `position` on vertices. Abstract simplicial complex is not allowed!");
+    UIPC_ASSERT_THROW(f_is_surf, "Cannot find attribute `is_surf` on triangles. You may need to call `label_surface()` first");
+    UIPC_ASSERT_THROW(f_parent_id, "Cannot find attribute `parent_id` on triangles. You may need to call `label_surface()` first");
+    UIPC_ASSERT_THROW(v_position, "Cannot find attribute `position` on vertices. Abstract simplicial complex is not allowed!");
 
     auto f_orient = R.triangles().find<IndexT>(builtin::orient);
     if(!f_orient)

@@ -15,7 +15,7 @@ class ConstitutionTabular::Impl
 
     void insert(const constitution::IConstitution& constitution)
     {
-        UIPC_ASSERT(!m_is_sorted, "Cannot insert into a built ConstitutionTabular");
+        UIPC_ASSERT_THROW(!m_is_sorted, "Cannot insert into a built ConstitutionTabular");
         m_uid_set.insert(constitution.uid());
         m_types.insert(std::string{constitution.type()});
     }

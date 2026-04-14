@@ -30,7 +30,7 @@ void NeoHookeanShell::apply_to(geometry::SimplicialComplex& sc,
     auto mu     = moduli.mu();
     auto lambda = moduli.lambda();
 
-    UIPC_ASSERT(sc.dim() == 2, "NeoHookeanShell only supports 2D simplicial complex");
+    UIPC_ASSERT_THROW(sc.dim() == 2, "NeoHookeanShell only supports 2D simplicial complex");
 
     auto mu_attr = sc.triangles().find<Float>("mu");
     if(!mu_attr)

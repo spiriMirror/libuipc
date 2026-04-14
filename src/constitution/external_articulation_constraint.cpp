@@ -53,7 +53,7 @@ geometry::Geometry ExternalArticulationConstraint::create_geometry(
 
     Base::apply_to(R);  // Fill Constraint UID
 
-    UIPC_ASSERT(joint_geos.size() == indices.size(),
+    UIPC_ASSERT_THROW(joint_geos.size() == indices.size(),
                 "Selected joints size must match joint geometry size.");
 
     auto n_joints = static_cast<IndexT>(joint_geos.size());

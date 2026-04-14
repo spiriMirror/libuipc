@@ -86,7 +86,7 @@ void Dsatur::do_solve()
         const auto unused_color_iter = std::ranges::find(color_usage, 0);
         const auto unused_color_i =
             static_cast<int64_t>(std::distance(color_usage.begin(), unused_color_iter));
-        UIPC_ASSERT(unused_color_i >= 0, "There should be at least one unused color");
+        UIPC_ASSERT_THROW(unused_color_i >= 0, "There should be at least one unused color");
 
         // Reset the color usage for the next iteration
         for(auto&& v : adj_u)

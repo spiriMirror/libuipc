@@ -1,6 +1,7 @@
 #include <pyuipc/pyuipc.h>
 #include <uipc/common/uipc.h>
 #include <uipc/common/log.h>
+#include <uipc/common/exception.h>
 #include <pyuipc/common/unit.h>
 #include <pyuipc/common/uipc_type.h>
 #include <pyuipc/common/timer.h>
@@ -49,6 +50,8 @@ py::module& top_module()
 PYBIND11_MODULE(pyuipc, m)
 {
     pyuipc::g_top_module = &m;
+
+    py::register_exception<uipc::Exception>(m, "Exception");
 
     auto unit         = m.def_submodule("unit");
     auto geometry     = m.def_submodule("geometry");

@@ -75,13 +75,13 @@ UIPC_GEOMETRY_API Float compute_mesh_volume(SimplicialComplex& R)
     }
     else if(R.dim() == 2)
     {
-        UIPC_ASSERT(is_trimesh_closed(R), "Calculating volume of open trimesh is meaningless.");
+        UIPC_ASSERT_THROW(is_trimesh_closed(R), "Calculating volume of open trimesh is meaningless.");
 
         volume = compute_trimesh_volume(R);
     }
     else
     {
-        UIPC_ASSERT(false, "Only tetmesh and closed trimesh are supported.");
+        UIPC_ASSERT_THROW(false, "Only tetmesh and closed trimesh are supported.");
     }
 
     return volume;

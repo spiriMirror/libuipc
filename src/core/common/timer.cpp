@@ -156,7 +156,7 @@ void GlobalTimer::set_as_current()
 {
     if(m_current)
     {
-        UIPC_ASSERT(m_current->m_timer_stack.size() == 1,
+        UIPC_ASSERT_THROW(m_current->m_timer_stack.size() == 1,
                     "The last GlobalTimer is not finished! Still {} Timer in the Timer Stack",
                     m_current->m_timer_stack.size());
     }
@@ -242,7 +242,7 @@ void GlobalTimer::clear()
         return names;
     };
 
-    UIPC_ASSERT(m_timer_stack.size() == 1,
+    UIPC_ASSERT_THROW(m_timer_stack.size() == 1,
                 "Are you calling clear() in the Timer Scope? Current stack:\n{}",
                 fmt::join(timer_names(), "\n"));
 

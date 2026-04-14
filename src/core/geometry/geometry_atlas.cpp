@@ -58,7 +58,7 @@ static void _build_attributes_index_from_attribute_collection(
         {
             IndexT index        = static_cast<IndexT>(attr_to_index.size());
             attr_to_index[attr] = index;
-            UIPC_ASSERT(index_to_attr.size() == index,
+            UIPC_ASSERT_THROW(index_to_attr.size() == index,
                         "Index to attribute size mismatch, expected {}, got {}",
                         index_to_attr.size(),
                         index);

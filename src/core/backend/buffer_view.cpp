@@ -11,7 +11,7 @@ BufferView::BufferView(HandleT          handle,
                        SizeT            size,
                        SizeT            element_size,
                        SizeT            element_stride,
-                       std::string_view backend_name) noexcept
+                       std::string_view backend_name)
     : m_handle(handle)
     , m_offset(offset)
     , m_size(size)
@@ -19,7 +19,7 @@ BufferView::BufferView(HandleT          handle,
     , m_element_stride(element_stride)
     , m_backend(m_backend_name_map[backend_name])
 {
-    UIPC_ASSERT(element_stride >= element_size,
+    UIPC_ASSERT_THROW(element_stride >= element_size,
                 "[{}]: Element stride({}) must be greater or equal to element size({}). ",
                 backend_name,
                 element_stride,
@@ -66,9 +66,9 @@ BufferView::operator bool() const noexcept
     return m_offset != INVALID;
 }
 
-BufferView BufferView::subview(SizeT offset, SizeT size) const noexcept
+BufferView BufferView::subview(SizeT offset, SizeT size) const
 {
-    UIPC_ASSERT(offset + size <= m_size,
+    UIPC_ASSERT_THROW(offset + size <= m_size,
                 "[{}]: Subview({},{}) out of bounds({}).",
                 m_backend,
                 offset,

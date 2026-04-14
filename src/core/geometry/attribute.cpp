@@ -19,12 +19,12 @@ Json IAttribute::to_json() const noexcept
     return do_to_json();
 }
 
-void IAttribute::from_json(const Json& j) noexcept
+void IAttribute::from_json(const Json& j)
 {
     do_from_json(j);
 }
 
-void IAttribute::from_json_array(const Json& j) noexcept
+void IAttribute::from_json_array(const Json& j)
 {
     do_from_json_array(j);
 }
@@ -63,7 +63,7 @@ void IAttribute::reorder(span<const SizeT> O) noexcept
     do_reorder(O);
 }
 
-void IAttribute::copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept
+void IAttribute::copy_from(const IAttribute& other, const AttributeCopy& copy)
 {
     do_copy_from(other, copy);
 }

@@ -139,7 +139,7 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
         if(copy.type() == AttributeCopy::CopyType::SameDim)
         {
             // just share
-            UIPC_ASSERT(this->size() == other.size(),
+            UIPC_ASSERT_THROW(this->size() == other.size(),
                         "Attribute size mismatch, "
                         "dst size is {}, src size is {}. "
                         "Did you forget to resize the dst attribute collection before copying?",
@@ -167,7 +167,7 @@ void AttributeCollection::copy_from(const AttributeCollection& other,
             auto c = other_slot->do_clone_empty(other_slot->name(),
                                                 other_slot->allow_destroy());
 
-            UIPC_ASSERT(c->is_shared() == false, "The attribute is shared, why can it happen?");
+            UIPC_ASSERT_THROW(c->is_shared() == false, "The attribute is shared, why can it happen?");
 
             m_attributes[name] = c;
 

@@ -33,7 +33,7 @@ void GraphColor::build(SizeT                       node_count,
                            edges.begin(),
                            [node_count](NodeIndexT i, NodeIndexT j)
                            {
-                               UIPC_ASSERT(i < node_count && j < node_count,
+                               UIPC_ASSERT_THROW(i < node_count && j < node_count,
                                            "Node index out of bounds ({},{}), node count = {}",
                                            i,
                                            j,
@@ -71,7 +71,7 @@ void GraphColor::build(SizeT                       node_count,
 
 std::span<const NodeIndexT> GraphColor::node_adjacency(NodeIndexT node) const
 {
-    UIPC_ASSERT(node < num_node(),
+    UIPC_ASSERT_THROW(node < num_node(),
                 "Node index out of bounds, num_node = {}, yours {}.",
                 num_node(),
                 node);

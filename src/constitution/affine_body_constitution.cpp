@@ -90,7 +90,7 @@ void AffineBodyConstitution::create_abd_attributes(geometry::SimplicialComplex& 
     auto kappa_view = geometry::view(*kappa_attr);
     std::ranges::fill(kappa_view, kappa);
 
-    UIPC_ASSERT(volume > 0,
+    UIPC_ASSERT_THROW(volume > 0,
                 "Volume of the mesh is non-positive ({}), which is not allowed.",
                 volume);
 

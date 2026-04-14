@@ -29,13 +29,13 @@ void StrainPlasticDiscreteShellBending::apply_to(geometry::SimplicialComplex& sc
                                            Float                        yield_threshold_v,
                                            Float                        hardening_modulus_v)
 {
-    UIPC_ASSERT(std::isfinite(bending_stiffness_v),
+    UIPC_ASSERT_THROW(std::isfinite(bending_stiffness_v),
                 "StrainPlasticDiscreteShellBending requires a finite bending_stiffness, got {}",
                 bending_stiffness_v);
-    UIPC_ASSERT(std::isfinite(yield_threshold_v) && yield_threshold_v >= 0.0,
+    UIPC_ASSERT_THROW(std::isfinite(yield_threshold_v) && yield_threshold_v >= 0.0,
                 "StrainPlasticDiscreteShellBending requires a finite yield_threshold >= 0, got {}",
                 yield_threshold_v);
-    UIPC_ASSERT(std::isfinite(hardening_modulus_v) && hardening_modulus_v >= 0.0,
+    UIPC_ASSERT_THROW(std::isfinite(hardening_modulus_v) && hardening_modulus_v >= 0.0,
                 "StrainPlasticDiscreteShellBending requires hardening_modulus to be finite and >= 0, got {}",
                 hardening_modulus_v);
 

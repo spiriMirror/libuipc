@@ -69,7 +69,7 @@ class UIPC_CORE_API GeometryCollection : public IGeometryCollection
     void pending_destroy(IndexT id) noexcept;
 
 
-    void solve_pending() noexcept;
+    void solve_pending();
 
     span<S<geometry::GeometrySlot>> geometry_slots() const noexcept;
     span<S<geometry::GeometrySlot>> pending_create_slots() const noexcept;

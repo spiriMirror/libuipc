@@ -60,7 +60,7 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
             {
                 auto uid = geo.meta().find<U64>(builtin::implicit_geometry_uid);
 
-                UIPC_ASSERT(uid, "ImplicitGeometryUID not found, why can it happen?");
+                UIPC_ASSERT_THROW(uid, "ImplicitGeometryUID not found, why can it happen?");
 
                 if(uid->view()[0] == HalfPlaneUID)
                 {
@@ -154,7 +154,7 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
     }
 
     virtual SanityCheckResult do_check(backend::SceneVisitor& scene,
-                                       backend::SanityCheckMessageVisitor& msg) noexcept override
+                                       backend::SanityCheckMessageVisitor& msg) override
     {
         collect_halfplanes(scene);
 
@@ -183,22 +183,22 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
 
         auto attr_cids =
             scene_surface.vertices().find<IndexT>("sanity_check/contact_element_id");
-        UIPC_ASSERT(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
         auto CIds = attr_cids->view();
 
         auto attr_scids = scene_surface.vertices().find<IndexT>(
             "sanity_check/subscene_contact_element_id");
-        UIPC_ASSERT(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
         auto SCIds = attr_scids->view();
 
         auto attr_v_geo_ids =
             scene_surface.vertices().find<IndexT>("sanity_check/geometry_id");
-        UIPC_ASSERT(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
         auto VGeoIds = attr_v_geo_ids->view();
 
         auto attr_v_object_id =
             scene_surface.vertices().find<IndexT>("sanity_check/object_id");
-        UIPC_ASSERT(attr_v_object_id, "`sanity_check/object_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_v_object_id, "`sanity_check/object_id` is not found in scene surface");
         auto VObjectIds = attr_v_object_id->view();
 
         auto attr_thickeness = scene_surface.vertices().find<Float>(builtin::thickness);
@@ -219,21 +219,21 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
         {
             auto instance_count = halfplane->instances().size();
             auto attr_N         = halfplane->instances().find<Vector3>("N");
-            UIPC_ASSERT(attr_N, "Normal vector `N` not found in half-plane");
+            UIPC_ASSERT_THROW(attr_N, "Normal vector `N` not found in half-plane");
             auto Ns = attr_N->view();
 
             auto attr_P = halfplane->instances().find<Vector3>("P");
-            UIPC_ASSERT(attr_P, "Origin point `P` not found in half-plane");
+            UIPC_ASSERT_THROW(attr_P, "Origin point `P` not found in half-plane");
             auto Ps = attr_P->view();
 
             auto attr_geo_id =
                 halfplane->instances().find<IndexT>("sanity_check/geometry_id");
-            UIPC_ASSERT(attr_geo_id, "`sanity_check/geometry_id` not found in half-plane");
+            UIPC_ASSERT_THROW(attr_geo_id, "`sanity_check/geometry_id` not found in half-plane");
             auto HGeoIds = attr_geo_id->view();
 
             auto attr_object_id =
                 halfplane->instances().find<IndexT>("sanity_check/object_id");
-            UIPC_ASSERT(attr_object_id, "`sanity_check/object_id` not found in half-plane");
+            UIPC_ASSERT_THROW(attr_object_id, "`sanity_check/object_id` not found in half-plane");
             auto HObjectIds = attr_object_id->view();
 
             auto attr_cid = halfplane->meta().find<IndexT>(builtin::contact_element_id);
@@ -292,8 +292,8 @@ class HalfPlaneVertexDistanceCheck final : public SanityChecker
                 auto obj_0 = objects().find(ObjIds[0]);
                 auto obj_1 = objects().find(ObjIds[1]);
 
-                UIPC_ASSERT(obj_0 != nullptr, "Object[{}] not found", ObjIds[0]);
-                UIPC_ASSERT(obj_1 != nullptr, "Object[{}] not found", ObjIds[1]);
+                UIPC_ASSERT_THROW(obj_0 != nullptr, "Object[{}] not found", ObjIds[0]);
+                UIPC_ASSERT_THROW(obj_1 != nullptr, "Object[{}] not found", ObjIds[1]);
 
                 fmt::format_to(std::back_inserter(buffer),
                                "Geometry({}) in Object[{}({})] is too close (distance <= 0) to HalfPlane({}) in "

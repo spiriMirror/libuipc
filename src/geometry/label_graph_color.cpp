@@ -26,7 +26,7 @@ S<AttributeSlot<IndexT>> label_graph_color(SimplicialComplex& sc)
 
     algo.build(node_count, Ni, Nj);
     algo.solve();
-    UIPC_ASSERT(algo.is_valid(), "invalid graph coloring");
+    UIPC_ASSERT_THROW(algo.is_valid(), "invalid graph coloring");
     auto colors = algo.colors();
 
     auto color_attr = sc.vertices().find<IndexT>("graph/color");

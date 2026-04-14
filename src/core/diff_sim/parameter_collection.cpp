@@ -157,7 +157,7 @@ class ParameterCollection::Impl
 
 #undef TRY_PUSH_BACK
 
-        UIPC_ASSERT(false,
+        UIPC_ASSERT_THROW(false,
                     "Unsupported Diff Parameter Attribute [{}<{}>], [{}<{}>] ",
                     diff_parm_slot->name(),
                     diff_parm_slot->type_name(),

@@ -15,7 +15,7 @@ void AffineBodyShell::apply_to(geometry::SimplicialComplex& sc,
                                Float                        mass_density,
                                Float                        thickness) const
 {
-    UIPC_ASSERT(sc.dim() == 2,
+    UIPC_ASSERT_THROW(sc.dim() == 2,
                 "AffineBodyShell requires a 2D simplicial complex (triangle mesh), got dim={}.",
                 sc.dim());
 

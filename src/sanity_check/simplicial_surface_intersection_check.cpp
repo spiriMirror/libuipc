@@ -121,7 +121,7 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
     }
 
     virtual SanityCheckResult do_check(backend::SceneVisitor& scene,
-                                       backend::SanityCheckMessageVisitor& msg) noexcept override
+                                       backend::SanityCheckMessageVisitor& msg) override
     {
         auto context = find<Context>();
 
@@ -144,33 +144,33 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
 
         auto attr_cids =
             scene_surface.vertices().find<IndexT>("sanity_check/contact_element_id");
-        UIPC_ASSERT(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_cids, "`sanity_check/contact_element_id` is not found in scene surface");
         auto CIds = attr_cids->view();
 
         auto attr_scids = scene_surface.vertices().find<IndexT>(
             "sanity_check/subscene_contact_element_id");
-        UIPC_ASSERT(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_scids, "`sanity_check/subscene_contact_element_id` is not found in scene surface");
         auto SCIds = attr_scids->view();
 
         auto attr_v_geo_ids =
             scene_surface.vertices().find<IndexT>("sanity_check/geometry_id");
-        UIPC_ASSERT(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_v_geo_ids, "`sanity_check/geometry_id` is not found in scene surface");
         auto VGeoIds = attr_v_geo_ids->view();
 
         auto attr_v_instance_id =
             scene_surface.vertices().find<IndexT>("sanity_check/instance_id");
-        UIPC_ASSERT(attr_v_instance_id,
+        UIPC_ASSERT_THROW(attr_v_instance_id,
                     "`sanity_check/instance_id` is not found in scene surface");
         auto VInstanceIds = attr_v_instance_id->view();
 
         auto attr_v_object_id =
             scene_surface.vertices().find<IndexT>("sanity_check/object_id");
-        UIPC_ASSERT(attr_v_object_id, "`sanity_check/object_id` is not found in scene surface");
+        UIPC_ASSERT_THROW(attr_v_object_id, "`sanity_check/object_id` is not found in scene surface");
         auto VObjectIds = attr_v_object_id->view();
 
         auto attr_self_collision =
             scene_surface.vertices().find<IndexT>("sanity_check/self_collision");
-        UIPC_ASSERT(attr_self_collision,
+        UIPC_ASSERT_THROW(attr_self_collision,
                     "`sanity_check/self_collision` is not found in scene surface");
         auto SelfCollision = attr_self_collision->view();
 
@@ -224,11 +224,11 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                 }
 
                 // 2) if this is a self-collision
-                UIPC_ASSERT(VInstanceIds[E[0]] == VInstanceIds[E[1]],
+                UIPC_ASSERT_THROW(VInstanceIds[E[0]] == VInstanceIds[E[1]],
                             "Why Edge({},{}) is not in the same instance?",
                             E[0],
                             E[1]);
-                UIPC_ASSERT(VInstanceIds[F[0]] == VInstanceIds[F[1]]
+                UIPC_ASSERT_THROW(VInstanceIds[F[0]] == VInstanceIds[F[1]]
                                 && VInstanceIds[F[1]] == VInstanceIds[F[2]],
                             "Why Triangle({},{},{}) is not in the same instance?",
                             F[0],
@@ -324,8 +324,8 @@ class SimplicialSurfaceIntersectionCheck final : public SanityChecker
                 auto obj_0 = objects().find(ObjIds[0]);
                 auto obj_1 = objects().find(ObjIds[1]);
 
-                UIPC_ASSERT(obj_0 != nullptr, "Object[{}] not found", ObjIds[0]);
-                UIPC_ASSERT(obj_1 != nullptr, "Object[{}] not found", ObjIds[1]);
+                UIPC_ASSERT_THROW(obj_0 != nullptr, "Object[{}] not found", ObjIds[0]);
+                UIPC_ASSERT_THROW(obj_1 != nullptr, "Object[{}] not found", ObjIds[1]);
 
                 fmt::format_to(std::back_inserter(buffer),
                                "Geometry({}) in Object[{}({})] intersects with Geometry({}) in "

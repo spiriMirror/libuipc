@@ -16,7 +16,7 @@ SceneSnapshot::SceneSnapshot(const Scene& scene)
         uipc::make_shared<geometry::AttributeCollection>(scene.m_internal->config());
 
     auto& internal_scene = *scene.m_internal;
-    UIPC_ASSERT(internal_scene.geometries().pending_create_slots().size() == 0
+    UIPC_ASSERT_THROW(internal_scene.geometries().pending_create_slots().size() == 0
                     && internal_scene.rest_geometries().pending_create_slots().size() == 0
                     && internal_scene.geometries().pending_destroy_ids().size() == 0
                     && internal_scene.rest_geometries().pending_destroy_ids().size() == 0,

@@ -17,7 +17,7 @@ struct Vector2iHash
 
 UIPC_GEOMETRY_API S<AttributeSlot<IndexT>> label_open_edge(SimplicialComplex& R)
 {
-    UIPC_ASSERT(R.dim() == 2, "Only 2D SimplicialComplex is supported.");
+    UIPC_ASSERT_THROW(R.dim() == 2, "Only 2D SimplicialComplex is supported.");
 
     auto tri_view = R.triangles().topo().view();
     auto edge_view = R.edges().topo().view();
@@ -69,7 +69,7 @@ UIPC_GEOMETRY_API S<AttributeSlot<IndexT>> label_open_edge(SimplicialComplex& R)
     for(const auto& [edge, count] : edge_count)
     {
         // Check for invalid edges (shared by >=3 triangles)
-        UIPC_ASSERT(count < 3,
+        UIPC_ASSERT_THROW(count < 3,
                     "Edge ({},{}) is shared by {} triangles, which is invalid. "
                     "An edge can only be shared by 1 (open) or 2 (closed) triangles.",
                     edge[0],

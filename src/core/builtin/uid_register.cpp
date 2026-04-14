@@ -6,7 +6,7 @@ namespace uipc::builtin::details
 void UIDRegister::create(const UIDInfo& info, const CreatorInfo& creator)
 {
     auto it = m_uid_to_info.find(info.uid);
-    UIPC_ASSERT(it == m_uid_to_info.end(),
+    UIPC_ASSERT_THROW(it == m_uid_to_info.end(),
                 "UID {} already exists, name={}, yours UID {}, name={}, creator: {}({})",
                 it->second.uid,
                 it->second.name,
@@ -20,7 +20,7 @@ void UIDRegister::create(const UIDInfo& info, const CreatorInfo& creator)
 const UIDInfo& UIDRegister::find(U64 uid) const
 {
     auto it = m_uid_to_info.find(uid);
-    UIPC_ASSERT(it != m_uid_to_info.end(), "UID {} not found!", uid);
+    UIPC_ASSERT_THROW(it != m_uid_to_info.end(), "UID {} not found!", uid);
     return it->second;
 }
 

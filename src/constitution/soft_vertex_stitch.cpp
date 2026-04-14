@@ -37,10 +37,10 @@ geometry::Geometry SoftVertexStitch::create_geometry(const SlotTuple& aim_geo_sl
     auto geo_ids = geo.meta().create<Vector2i>("geo_ids");
     {
         auto&& [l, r] = aim_geo_slots;
-        UIPC_ASSERT(l->geometry().instances().size() == 1,
+        UIPC_ASSERT_THROW(l->geometry().instances().size() == 1,
                     "stitch must have exactly one instance, found {} instances",
                     l->geometry().instances().size());
-        UIPC_ASSERT(r->geometry().instances().size() == 1,
+        UIPC_ASSERT_THROW(r->geometry().instances().size() == 1,
                     "Link must have exactly one instance, found {} instances",
                     r->geometry().instances().size());
         view(*geo_ids)[0] = Vector2i{l->id(), r->id()};
@@ -122,7 +122,7 @@ geometry::Geometry SoftVertexStitch::create_geometry(const SlotTuple& aim_geo_sl
         {
             auto v_id = v_id_pair[i];
 
-            UIPC_ASSERT(v_id >= 0 && v_id < this_geo.vertices().size(),
+            UIPC_ASSERT_THROW(v_id >= 0 && v_id < this_geo.vertices().size(),
                         "Stitched vertex id {} out of range [0, {}) in Geometry({}). Please check the stitched vertex ids and the geometry slots.\n",
                         v_id,
                         this_geo.vertices().size(),

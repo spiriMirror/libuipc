@@ -13,7 +13,7 @@ constexpr std::string_view hint =
 
 SimplicialComplex extract_surface(const SimplicialComplex& src)
 {
-    UIPC_ASSERT(src.dim() == 3,
+    UIPC_ASSERT_THROW(src.dim() == 3,
                 "The input mesh must be a tetrahedral mesh. Your dim={}.",
                 src.dim());
 
@@ -23,9 +23,9 @@ SimplicialComplex extract_surface(const SimplicialComplex& src)
     auto e_is_surf = src.edges().find<IndexT>(builtin::is_surf);
     auto f_is_surf = src.triangles().find<IndexT>(builtin::is_surf);
 
-    UIPC_ASSERT(v_is_surf, "`is_surf` attribute not found in the mesh vertices. {}", hint);
-    UIPC_ASSERT(e_is_surf, "`is_surf` attribute not found in the mesh edges. {}", hint);
-    UIPC_ASSERT(f_is_surf, "`is_surf` attribute not found in the mesh triangles. {}", hint);
+    UIPC_ASSERT_THROW(v_is_surf, "`is_surf` attribute not found in the mesh vertices. {}", hint);
+    UIPC_ASSERT_THROW(e_is_surf, "`is_surf` attribute not found in the mesh edges. {}", hint);
+    UIPC_ASSERT_THROW(f_is_surf, "`is_surf` attribute not found in the mesh triangles. {}", hint);
 
     // ---------------------------------------------------------------------
     // copy the meta and instances
@@ -194,7 +194,7 @@ static void extract_surface_check_input(span<const SimplicialComplex*> sc)
 {
     for(auto [I, complex] : enumerate(sc))
     {
-        UIPC_ASSERT(complex != nullptr, "Input[{}] is nullptr", I);
+        UIPC_ASSERT_THROW(complex != nullptr, "Input[{}] is nullptr", I);
     }
 }
 

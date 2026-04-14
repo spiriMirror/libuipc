@@ -148,7 +148,7 @@ static Vector12 compute_codim_trimesh_body_force(
     auto tri_view = sc.triangles().topo().view();
 
     auto thickness_attr = sc.vertices().find<Float>(builtin::thickness);
-    UIPC_ASSERT(thickness_attr,
+    UIPC_ASSERT_THROW(thickness_attr,
                 "Codim shell body force: `thickness` attribute not found on vertices.");
     Float r    = thickness_attr->view()[0];
     Float twor = 2.0 * r;
@@ -199,7 +199,7 @@ static Vector12 compute_segment_body_force(const SimplicialComplex& sc,
     auto edge_view = sc.edges().topo().view();
 
     auto thickness_attr = sc.vertices().find<Float>(builtin::thickness);
-    UIPC_ASSERT(thickness_attr,
+    UIPC_ASSERT_THROW(thickness_attr,
                 "Codim rod body force: `thickness` attribute not found on vertices.");
     Float r  = thickness_attr->view()[0];
     Float S  = std::numbers::pi_v<Float> * r * r;
@@ -241,7 +241,7 @@ UIPC_GEOMETRY_API Vector12 compute_body_force(const SimplicialComplex& sc,
         else if(sc.dim() == 1)
             return compute_segment_body_force(sc, body_force_density);
         else
-            UIPC_ASSERT(false, "Codim body force: unsupported dim {}.", sc.dim());
+            UIPC_ASSERT_THROW(false, "Codim body force: unsupported dim {}.", sc.dim());
     }
 
     if(sc.dim() == 3)
@@ -254,7 +254,7 @@ UIPC_GEOMETRY_API Vector12 compute_body_force(const SimplicialComplex& sc,
     }
     else
     {
-        UIPC_ASSERT(false, "Only 2D and 3D SimplicialComplex is supported.");
+        UIPC_ASSERT_THROW(false, "Only 2D and 3D SimplicialComplex is supported.");
     }
     return Vector12::Zero();
 }

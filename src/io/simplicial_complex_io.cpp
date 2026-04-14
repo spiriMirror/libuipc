@@ -174,7 +174,7 @@ bool obj_read_linemesh_(const std::string&                str,
         }
         else if(type == "f")
         {
-            UIPC_ASSERT(false,
+            UIPC_ASSERT_THROW(false,
                         "Found face in line mesh .obj file at line {}. "
                         "This is not a pure line mesh.",
                         line_number);

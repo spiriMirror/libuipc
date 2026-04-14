@@ -5,7 +5,7 @@ namespace uipc::diff_sim
 EnableGradFeature::EnableGradFeature(S<EnableGradFeatureOverrider> overrider)
     : m_impl(std::move(overrider))
 {
-    UIPC_ASSERT(m_impl, "NoGradFeatureOverrider must not be null.");
+    UIPC_ASSERT_THROW(m_impl, "NoGradFeatureOverrider must not be null.");
 }
 
 void EnableGradFeature::no_grad()

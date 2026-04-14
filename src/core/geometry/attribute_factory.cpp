@@ -90,7 +90,7 @@ class AttributeFactory::Impl
     vector<S<IAttributeSlot>> from_json(const Json& j)
     {
         vector<S<IAttributeSlot>> attributes;
-        UIPC_ASSERT(j.is_array(), "This json must be an array of attributes");
+        UIPC_ASSERT_THROW(j.is_array(), "This json must be an array of attributes");
         attributes.reserve(j.size());
 
         for(SizeT i = 0; i < j.size(); ++i)

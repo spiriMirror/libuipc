@@ -20,7 +20,7 @@ void SceneVisitor::begin_pending() noexcept
     m_scene.begin_pending();
 }
 
-void SceneVisitor::solve_pending() noexcept
+void SceneVisitor::solve_pending()
 {
     m_scene.solve_pending();
 }

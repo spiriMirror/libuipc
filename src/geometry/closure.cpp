@@ -100,20 +100,20 @@ static void facet_closure_dim_3(SimplicialComplex& R)
 
 static void check_facet_closure_input(const SimplicialComplex& O)
 {
-    UIPC_ASSERT(O.dim() >= 0 && O.dim() <= 3,
+    UIPC_ASSERT_THROW(O.dim() >= 0 && O.dim() <= 3,
                 "When calling `facet_closure()`, your simplicial complex should be in dimension [0, 3], your dimension ({}).",
                 O.dim());
 
     switch(O.dim())
     {
         case 2: {
-            UIPC_ASSERT(O.edges().size() == 0,
+            UIPC_ASSERT_THROW(O.edges().size() == 0,
                         "When calling `facet_closure()`, your lower dimensional simplicial should be empty, your edge count ({}).",
                         O.edges().size());
         }
         break;
         case 3: {
-            UIPC_ASSERT(O.triangles().size() == 0 && O.edges().size() == 0,
+            UIPC_ASSERT_THROW(O.triangles().size() == 0 && O.edges().size() == 0,
                         "When calling `facet_closure()`, your lower dimensional simplicial should be empty, your face count ({}), yout edge count ({}).",
                         O.triangles().size(),
                         O.edges().size());

@@ -16,7 +16,7 @@ class UIPC_CORE_API BufferView
                SizeT            element_count,
                SizeT            element_size,
                SizeT            element_stride,
-               std::string_view backend_name) noexcept;
+               std::string_view backend_name);
 
     HandleT          handle() const noexcept;
     SizeT            offset() const noexcept;
@@ -27,7 +27,7 @@ class UIPC_CORE_API BufferView
     std::string_view backend() const noexcept;
     operator bool() const noexcept;
 
-    BufferView subview(SizeT offset, SizeT element_count) const noexcept;
+    BufferView subview(SizeT offset, SizeT element_count) const;
 
   private:
     HandleT m_handle = 0;

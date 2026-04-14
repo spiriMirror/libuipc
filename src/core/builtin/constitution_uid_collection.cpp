@@ -22,7 +22,7 @@ ConstitutionUIDCollection::ConstitutionUIDCollection()
 
         for(auto& uid : uid_infos)
         {
-            UIPC_ASSERT(!uid.type.empty(),
+            UIPC_ASSERT_THROW(!uid.type.empty(),
                         "ConstitutionUIDCollection: Constitution type is empty for UID: {}, creator: {}({})",
                         uid.uid,
                         creator_info.file,

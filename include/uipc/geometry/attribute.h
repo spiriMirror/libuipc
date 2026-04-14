@@ -33,9 +33,9 @@ class UIPC_CORE_API IAttribute
 
     [[nodiscard]] Json to_json() const noexcept;
 
-    void from_json(const Json& j) noexcept;
+    void from_json(const Json& j);
 
-    void from_json_array(const Json& j) noexcept;
+    void from_json_array(const Json& j);
     /**
      * @brief Get the type name of data stored in the attribute slot.
      */
@@ -51,7 +51,7 @@ class UIPC_CORE_API IAttribute
     S<IAttribute> clone_empty() const;
     void          clear();
     void          reorder(span<const SizeT> O) noexcept;
-    void copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept;
+    void copy_from(const IAttribute& other, const AttributeCopy& copy);
 
   protected:
     virtual SizeT            get_size() const               = 0;
@@ -63,14 +63,14 @@ class UIPC_CORE_API IAttribute
     virtual S<IAttribute> do_clone() const                         = 0;
     virtual S<IAttribute> do_clone_empty() const                   = 0;
     virtual void          do_reorder(span<const SizeT> O) noexcept = 0;
-    virtual void do_copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept = 0;
+    virtual void do_copy_from(const IAttribute& other, const AttributeCopy& copy) = 0;
 
 
     virtual Json do_to_json(SizeT i) const noexcept = 0;
     virtual Json do_to_json() const noexcept        = 0;
 
-    virtual void do_from_json(const Json& j) noexcept       = 0;
-    virtual void do_from_json_array(const Json& j) noexcept = 0;
+    virtual void do_from_json(const Json& j)       = 0;
+    virtual void do_from_json_array(const Json& j) = 0;
 };
 
 template <typename T>
@@ -112,13 +112,13 @@ class Attribute : public IAttribute
     virtual S<IAttribute> do_clone() const override;
     virtual S<IAttribute> do_clone_empty() const override;
     virtual void          do_reorder(span<const SizeT> O) noexcept override;
-    virtual void do_copy_from(const IAttribute& other, const AttributeCopy& copy) noexcept override;
+    virtual void do_copy_from(const IAttribute& other, const AttributeCopy& copy) override;
 
     virtual Json do_to_json(SizeT i) const noexcept override;
     virtual Json do_to_json() const noexcept override;
 
-    virtual void do_from_json(const Json& j) noexcept override;
-    virtual void do_from_json_array(const Json& j) noexcept override;
+    virtual void do_from_json(const Json& j) override;
+    virtual void do_from_json_array(const Json& j) override;
 
   private:
     vector<T> m_values;

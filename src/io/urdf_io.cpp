@@ -109,7 +109,7 @@ class UrdfController::Impl
     void propagate_transform()
     {
         auto& root_link = model->root_link_;
-        UIPC_ASSERT(root_link != nullptr, "Root link is null, why?");
+        UIPC_ASSERT_THROW(root_link != nullptr, "Root link is null, why?");
         _propagate_transform(*root_link, root_link_transform);
     }
 
@@ -126,7 +126,7 @@ class UrdfController::Impl
     void rotate_to(std::string_view joint_name, Float angle)
     {
         auto it = revolute_joint_infos.find(std::string{joint_name});
-        UIPC_ASSERT(it != revolute_joint_infos.end(),
+        UIPC_ASSERT_THROW(it != revolute_joint_infos.end(),
                     "Joint {} not found in `Revolute Joints`, can't rotate",
                     joint_name);
 
@@ -161,7 +161,7 @@ class UrdfController::Impl
                 continue;
 
             auto it = revolute_joint_infos.find(r_joint.mimic_joint_name);
-            UIPC_ASSERT(it != revolute_joint_infos.end(),
+            UIPC_ASSERT_THROW(it != revolute_joint_infos.end(),
                         "Mimic joint {} not found, can't process mimic, why can it happen?",
                         r_joint.mimic_joint_name);
 
@@ -498,13 +498,13 @@ class UrdfIO::Impl
             }
             else
             {
-                UIPC_ASSERT(false,
+                UIPC_ASSERT_THROW(false,
                             "Unsupported Joint {} <{}>",
                             joint->name,
                             magic_enum::enum_name(joint->type));
             }
 
-            UIPC_ASSERT(joint_infos.find(joint->name) == joint_infos.end(),
+            UIPC_ASSERT_THROW(joint_infos.find(joint->name) == joint_infos.end(),
                         "Joint name {} already exists, invalid urdf",
                         joint->name);
 

@@ -108,19 +108,19 @@ Json RotatingMotor::default_config()
 void RotatingMotor::animate(geometry::SimplicialComplex& sc, Float dt)
 {
     auto motor_rot_axis = sc.instances().find<Vector3>("motor_rot_axis");
-    UIPC_ASSERT(motor_rot_axis, "`motor_rot_axis` is not found in the simplicial complex instances, why can it happen?");
+    UIPC_ASSERT_THROW(motor_rot_axis, "`motor_rot_axis` is not found in the simplicial complex instances, why can it happen?");
     auto motor_rot_vel = sc.instances().find<Float>("motor_rot_vel");
-    UIPC_ASSERT(motor_rot_vel, "`motor_rot_vel` is not found in the simplicial complex instances, why can it happen?");
+    UIPC_ASSERT_THROW(motor_rot_vel, "`motor_rot_vel` is not found in the simplicial complex instances, why can it happen?");
 
     auto motor_rot_axis_view = motor_rot_axis->view();
     auto motor_rot_vel_view  = motor_rot_vel->view();
 
     auto is_constrained = sc.instances().find<IndexT>(builtin::is_constrained);
-    UIPC_ASSERT(is_constrained, "`is_constrained` is not found in the simplicial complex instances, why can it happen?");
+    UIPC_ASSERT_THROW(is_constrained, "`is_constrained` is not found in the simplicial complex instances, why can it happen?");
     auto is_constrained_view = is_constrained->view();
 
     auto aim_transform = sc.instances().find<Matrix4x4>(builtin::aim_transform);
-    UIPC_ASSERT(aim_transform, "`aim_transform` is not found in the simplicial complex instances, why can it happen?");
+    UIPC_ASSERT_THROW(aim_transform, "`aim_transform` is not found in the simplicial complex instances, why can it happen?");
     auto aim_transform_view = geometry::view(*aim_transform);
 
     auto transform_view = sc.transforms().view();
@@ -200,19 +200,19 @@ Json LinearMotor::default_config()
 void LinearMotor::animate(geometry::SimplicialComplex& sc, Float dt)
 {
     auto motor_axis = sc.instances().find<Vector3>("motor_axis");
-    UIPC_ASSERT(motor_axis, "`motor_axis` is not found in the simplicial complex instances, why can it happen?");
+    UIPC_ASSERT_THROW(motor_axis, "`motor_axis` is not found in the simplicial complex instances, why can it happen?");
     auto motor_vel = sc.instances().find<Float>("motor_vel");
-    UIPC_ASSERT(motor_vel, "`motor_vel` is not found in the simplicial complex instances, why can it happen?");
+    UIPC_ASSERT_THROW(motor_vel, "`motor_vel` is not found in the simplicial complex instances, why can it happen?");
 
     auto motor_axis_view = motor_axis->view();
     auto motor_vel_view  = motor_vel->view();
 
     auto is_constrained = sc.instances().find<IndexT>(builtin::is_constrained);
-    UIPC_ASSERT(is_constrained, "`is_constrained` is not found in the simplicial complex instances, why can it happen?");
+    UIPC_ASSERT_THROW(is_constrained, "`is_constrained` is not found in the simplicial complex instances, why can it happen?");
     auto is_constrained_view = is_constrained->view();
 
     auto aim_transform = sc.instances().find<Matrix4x4>(builtin::aim_transform);
-    UIPC_ASSERT(aim_transform, "`aim_transform` is not found in the simplicial complex instances, why can it happen?");
+    UIPC_ASSERT_THROW(aim_transform, "`aim_transform` is not found in the simplicial complex instances, why can it happen?");
     auto aim_transform_view = geometry::view(*aim_transform);
 
     auto transform_view = sc.transforms().view();

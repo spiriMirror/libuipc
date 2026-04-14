@@ -27,7 +27,7 @@ geometry::SimplicialComplex AffineBodyStateAccessorFeatureOverrider::do_create_g
 AffineBodyStateAccessorFeature::AffineBodyStateAccessorFeature(S<AffineBodyStateAccessorFeatureOverrider> overrider)
     : m_impl(std::move(overrider))
 {
-    UIPC_ASSERT(m_impl, "AffineBodyStateAccessorFeatureOverrider must not be null.");
+    UIPC_ASSERT_THROW(m_impl, "AffineBodyStateAccessorFeatureOverrider must not be null.");
 }
 
 SizeT AffineBodyStateAccessorFeature::body_count() const
@@ -39,7 +39,7 @@ geometry::SimplicialComplex AffineBodyStateAccessorFeature::create_geometry(Inde
                                                                             SizeT body_count)
 {
     auto total_body_num = this->body_count();
-    UIPC_ASSERT(body_offset <= total_body_num,
+    UIPC_ASSERT_THROW(body_offset <= total_body_num,
                 "body_offset ({}) must not be larger than total body number ({})",
                 body_offset,
                 total_body_num);
@@ -65,7 +65,7 @@ void AffineBodyStateAccessorFeature::copy_transform_to(backend::BufferView buffe
                                                         SizeT               body_count) const
 {
     auto total_body_num = this->body_count();
-    UIPC_ASSERT(body_offset <= total_body_num,
+    UIPC_ASSERT_THROW(body_offset <= total_body_num,
                 "body_offset ({}) must not be larger than total body number ({})",
                 body_offset,
                 total_body_num);
@@ -73,7 +73,7 @@ void AffineBodyStateAccessorFeature::copy_transform_to(backend::BufferView buffe
     if(body_count == ~0ull)
         body_count = total_body_num - body_offset;
 
-    UIPC_ASSERT(body_offset + body_count <= total_body_num,
+    UIPC_ASSERT_THROW(body_offset + body_count <= total_body_num,
                 "The requested range [{}, {}) is out of bounds for total bodies ({})",
                 body_offset,
                 body_offset + body_count,
@@ -87,7 +87,7 @@ void AffineBodyStateAccessorFeature::copy_velocity_to(backend::BufferView buffer
                                                        SizeT               body_count) const
 {
     auto total_body_num = this->body_count();
-    UIPC_ASSERT(body_offset <= total_body_num,
+    UIPC_ASSERT_THROW(body_offset <= total_body_num,
                 "body_offset ({}) must not be larger than total body number ({})",
                 body_offset,
                 total_body_num);
@@ -95,7 +95,7 @@ void AffineBodyStateAccessorFeature::copy_velocity_to(backend::BufferView buffer
     if(body_count == ~0ull)
         body_count = total_body_num - body_offset;
 
-    UIPC_ASSERT(body_offset + body_count <= total_body_num,
+    UIPC_ASSERT_THROW(body_offset + body_count <= total_body_num,
                 "The requested range [{}, {}) is out of bounds for total bodies ({})",
                 body_offset,
                 body_offset + body_count,

@@ -53,34 +53,34 @@ void AffineBodyPrismaticJointLimit::apply_to(geometry::SimplicialComplex& sc,
                                              span<Float> uppers,
                                              span<Float> strengths)
 {
-    UIPC_ASSERT(sc.dim() == 1,
+    UIPC_ASSERT_THROW(sc.dim() == 1,
                 "AffineBodyPrismaticJointLimit can only be applied to 1D simplicial complex (linemesh), but got {}D",
                 sc.dim());
 
     auto base_uid = sc.meta().find<U64>(builtin::constitution_uid);
-    UIPC_ASSERT(base_uid, "AffineBodyPrismaticJointLimit requires `meta.constitution_uid` on joint mesh");
-    UIPC_ASSERT(base_uid->view()[0] == PrismaticJointUID,
+    UIPC_ASSERT_THROW(base_uid, "AffineBodyPrismaticJointLimit requires `meta.constitution_uid` on joint mesh");
+    UIPC_ASSERT_THROW(base_uid->view()[0] == PrismaticJointUID,
                 "AffineBodyPrismaticJointLimit must be applied on a prismatic joint mesh with constitution UID={}, but got {}",
                 PrismaticJointUID,
                 base_uid->view()[0]);
 
     auto edge_count = sc.edges().size();
-    UIPC_ASSERT(lowers.size() == edge_count,
+    UIPC_ASSERT_THROW(lowers.size() == edge_count,
                 "Lower limit size mismatch: expected {}, got {}",
                 edge_count,
                 lowers.size());
-    UIPC_ASSERT(uppers.size() == edge_count,
+    UIPC_ASSERT_THROW(uppers.size() == edge_count,
                 "Upper limit size mismatch: expected {}, got {}",
                 edge_count,
                 uppers.size());
-    UIPC_ASSERT(strengths.size() == edge_count,
+    UIPC_ASSERT_THROW(strengths.size() == edge_count,
                 "Strength size mismatch: expected {}, got {}",
                 edge_count,
                 strengths.size());
 
     for(auto&& [i, l] : enumerate(lowers))
     {
-        UIPC_ASSERT(l <= uppers[i],
+        UIPC_ASSERT_THROW(l <= uppers[i],
                     "Invalid limit range at edge {}: lower ({}) must be <= upper ({})",
                     i,
                     l,

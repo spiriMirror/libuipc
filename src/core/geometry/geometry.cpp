@@ -62,7 +62,7 @@ Geometry::Geometry(const Geometry& o)
     }
     m_meta     = find("meta");
     m_intances = find("instances");
-    UIPC_ASSERT(m_meta && m_intances,
+    UIPC_ASSERT_THROW(m_meta && m_intances,
                 "Meta and instances attribute collections should be created in the constructor");
 }
 
@@ -103,7 +103,7 @@ S<const AttributeCollection> Geometry::operator[](std::string_view name) const
 S<AttributeCollection> Geometry::create(std::string_view name)
 {
     auto s_name = std::string{name};
-    UIPC_ASSERT(!m_attribute_collections.contains(s_name),
+    UIPC_ASSERT_THROW(!m_attribute_collections.contains(s_name),
                 "Attribute collection with name '{}' already exists.",
                 s_name);
     auto ret                        = uipc::make_shared<AttributeCollection>();

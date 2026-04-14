@@ -32,7 +32,7 @@ namespace detail
                 auto simplicial_complex =
                     dynamic_cast<SimplicialComplex*>(&geo->geometry());
 
-                UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
+                UIPC_ASSERT_THROW(simplicial_complex, "type mismatch, why can it happen?");
 
                 switch(simplicial_complex->dim())
                 {
@@ -76,7 +76,7 @@ namespace detail
             {
                 auto simplicial_complex = geo.as<SimplicialComplex>();
 
-                UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
+                UIPC_ASSERT_THROW(simplicial_complex, "type mismatch, why can it happen?");
 
                 // 1) label original_index for each vertex, edge, triangle, tetrahedron
                 {
@@ -209,7 +209,7 @@ namespace detail
             {
                 auto simplicial_complex =
                     dynamic_cast<SimplicialComplex*>(&geo->geometry());
-                UIPC_ASSERT(simplicial_complex, "type mismatch, why can it happen?");
+                UIPC_ASSERT_THROW(simplicial_complex, "type mismatch, why can it happen?");
 
                 // 1) Contact Element ID
                 auto contact_element_id =

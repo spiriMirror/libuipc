@@ -86,12 +86,12 @@ SimplicialComplex mesh_to_point_cloud(const SimplicialComplex& sc, Float resolut
 
 SimplicialComplex points_from_volume(const SimplicialComplex& sc, Float resolution)
 {
-    UIPC_ASSERT(sc.dim() >= 2 && sc.dim() <= 3,
+    UIPC_ASSERT_THROW(sc.dim() >= 2 && sc.dim() <= 3,
                 "points_from_volume: Only 2D and 3D simplicial complexes are supported.");
 
     if(sc.dim() == 2)
     {
-        UIPC_ASSERT(is_trimesh_closed(sc),
+        UIPC_ASSERT_THROW(is_trimesh_closed(sc),
                     "points_from_volume: The input 2D simplicial complex must be a closed manifold.");
 
         return mesh_to_point_cloud(sc, resolution);

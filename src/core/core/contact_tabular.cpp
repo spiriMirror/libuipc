@@ -63,7 +63,7 @@ class ContactTabular::Impl
         Vector2i ids = {L.id(), R.id()};
 
         // check if the contact element id is valid.
-        UIPC_ASSERT(L.id() < current_element_id() && L.id() >= 0
+        UIPC_ASSERT_THROW(L.id() < current_element_id() && L.id() >= 0
                         && R.id() < current_element_id() && R.id() >= 0,
                     "Invalid contact element id, id should be in [{},{}), your L={}, R={}.",
                     0,
@@ -72,7 +72,7 @@ class ContactTabular::Impl
                     R.id());
 
         // check if the name is matched.
-        UIPC_ASSERT(m_elements[L.id()].name() == L.name()
+        UIPC_ASSERT_THROW(m_elements[L.id()].name() == L.name()
                         && m_elements[R.id()].name() == R.name(),
                     "Contact element name is not matched, L=<{},{}({} required)>, R=<{},{}({} required)>,"
                     "It seems the contact element and contact model don't come from the same ContactTabular.",
@@ -201,13 +201,13 @@ class ContactTabular::Impl
 
         m_models = ac;
         m_topo   = m_models.find<Vector2i>("topo");
-        UIPC_ASSERT(m_topo, "Contact model topology is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_topo, "Contact model topology is not found, please check the attribute collection.");
         m_friction_rates = m_models.find<Float>("friction_rate");
-        UIPC_ASSERT(m_friction_rates, "Contact model friction rates is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_friction_rates, "Contact model friction rates is not found, please check the attribute collection.");
         m_resistances = m_models.find<Float>("resistance");
-        UIPC_ASSERT(m_resistances, "Contact model resistances is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_resistances, "Contact model resistances is not found, please check the attribute collection.");
         m_is_enabled = m_models.find<IndexT>("is_enabled");
-        UIPC_ASSERT(m_is_enabled, "Contact model is_enabled is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_is_enabled, "Contact model is_enabled is not found, please check the attribute collection.");
 
         m_model_map.clear();
         auto topo_view = m_topo->view();
@@ -226,13 +226,13 @@ class ContactTabular::Impl
 
         m_models.update_from(ac);
         m_topo = m_models.find<Vector2i>("topo");
-        UIPC_ASSERT(m_topo, "Contact model topology is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_topo, "Contact model topology is not found, please check the attribute collection.");
         m_friction_rates = m_models.find<Float>("friction_rate");
-        UIPC_ASSERT(m_friction_rates, "Contact model friction rates is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_friction_rates, "Contact model friction rates is not found, please check the attribute collection.");
         m_resistances = m_models.find<Float>("resistance");
-        UIPC_ASSERT(m_resistances, "Contact model resistances is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_resistances, "Contact model resistances is not found, please check the attribute collection.");
         m_is_enabled = m_models.find<IndexT>("is_enabled");
-        UIPC_ASSERT(m_is_enabled, "Contact model is_enabled is not found, please check the attribute collection.");
+        UIPC_ASSERT_THROW(m_is_enabled, "Contact model is_enabled is not found, please check the attribute collection.");
 
         auto topo_view = m_topo->view();
         for(SizeT i = 0; i < topo_view.size(); ++i)
