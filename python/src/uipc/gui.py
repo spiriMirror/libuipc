@@ -204,15 +204,16 @@ class SceneGUI:
         normal = normal.flatten()
         if np.allclose(normal, [0, 1, 0]):
             ps.set_up_dir("y_up")
+            height = float(P.view()[0][1][0])
         elif np.allclose(normal, [1, 0, 0]):
             ps.set_up_dir("x_up")
+            height = float(P.view()[0][0][0])
         elif np.allclose(normal, [0, 0, 1]):
             ps.set_up_dir("z_up")
+            height = float(P.view()[0][2][0])
         else:
             ps.set_ground_plane_mode("none")
             return
-
-        height = float(P.view()[0][1][0])
         ps.set_ground_plane_mode("tile_reflection")
         ps.set_ground_plane_height(height)
 
