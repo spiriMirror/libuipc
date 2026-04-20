@@ -25,7 +25,7 @@ void AffineBodyRod::apply_to(geometry::SimplicialComplex& sc,
     Vector3 m_x_bar;
     Matrix3x3 m_x_bar_x_bar;
     geometry::affine_body::compute_dyadic_mass(sc, mass_density, thickness, m, m_x_bar, m_x_bar_x_bar);
-    create_abd_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
+    create_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
 
     auto is_codim = sc.meta().find<IndexT>(builtin::is_codim);
     if(!is_codim)

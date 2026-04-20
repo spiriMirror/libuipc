@@ -41,7 +41,7 @@ U64 AffineBodyConstitution::get_uid() const noexcept
     return 1;
 }
 
-void AffineBodyConstitution::create_abd_attributes(geometry::SimplicialComplex& sc,
+void AffineBodyConstitution::create_attributes(geometry::SimplicialComplex& sc,
                                                    Float kappa,
                                                    Float mass_density,
                                                    Float volume,
@@ -124,7 +124,7 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc, Float kap
     Vector3 m_x_bar;
     Matrix3x3 m_x_bar_x_bar;
     geometry::affine_body::compute_dyadic_mass(sc, mass_density, m, m_x_bar, m_x_bar_x_bar);
-    create_abd_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
+    create_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
 }
 
 void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
@@ -136,7 +136,7 @@ void AffineBodyConstitution::apply_to(geometry::SimplicialComplex& sc,
     Vector3   m_x_bar       = mass.block<3, 1>(3, 0);
     Matrix3x3 m_x_bar_x_bar = mass.block<3, 3>(3, 3);
     Float     mass_density  = m / volume;
-    create_abd_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
+    create_attributes(sc, kappa, mass_density, volume, m, m_x_bar, m_x_bar_x_bar);
 }
 
 geometry::SimplicialComplex AffineBodyConstitution::create_proxy(Float              kappa,

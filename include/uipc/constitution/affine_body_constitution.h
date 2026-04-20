@@ -63,7 +63,7 @@ class UIPC_CONSTITUTION_API AffineBodyConstitution : public IConstitution
      * Subclasses (AffineBodyShell, AffineBodyRod) call this with their
      * own pre-computed volume and dyadic mass.
      */
-    void create_abd_attributes(geometry::SimplicialComplex& sc,
+    void create_attributes(geometry::SimplicialComplex& sc,
                                Float                        kappa,
                                Float                        mass_density,
                                Float                        volume,
