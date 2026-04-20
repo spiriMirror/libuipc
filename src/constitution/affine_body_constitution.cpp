@@ -97,14 +97,12 @@ void AffineBodyConstitution::create_abd_attributes(geometry::SimplicialComplex& 
     auto meta_volume = sc.meta().find<Float>(builtin::volume);
     if(!meta_volume)
         meta_volume = sc.meta().create<Float>(builtin::volume, 0.0);
-    else
-        geometry::view(*meta_volume).front() = volume;
+    geometry::view(*meta_volume).front() = volume;
 
     auto meta_mass = sc.meta().find<Float>(builtin::mass_density);
     if(!meta_mass)
         meta_mass = sc.meta().create<Float>(builtin::mass_density, 0.0);
-    else
-        geometry::view(*meta_mass).front() = mass_density;
+    geometry::view(*meta_mass).front() = mass_density;
 
     auto create_or_update = [&](auto name, const auto& value)
     {

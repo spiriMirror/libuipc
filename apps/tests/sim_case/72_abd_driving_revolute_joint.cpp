@@ -15,7 +15,7 @@ TEST_CASE("72_abd_driving_revolute_joint", "[abd][joint][driving]")
 
     auto output_path = AssetDir::output_path(UIPC_RELATIVE_SOURCE_FILE);
 
-    logger::set_level(Logger::Level::critical);
+    logger::set_level(Logger::Level::warn);
     Engine engine{"cuda", output_path};
     World  world{engine};
 
